@@ -1,0 +1,174 @@
+---
+title: "Image"
+description: "Image message parts with preview, loading states, actions, and a fullscreen view."
+---
+
+Image renders one image message part: a preview that click-zooms into a fullscreen view, a loading placeholder while the pixels arrive, and an error state when generation is blocked. With a runtime it renders straight from a message's image part; standalone you hand it the part yourself.
+
+## Getting started
+
+<RuntimeMode>
+
+<Steps>
+  <Step>
+
+### Render images from a message
+
+Register `Image` as the `Image` renderer on `MessagePrimitive.Parts`.
+
+```tsx title="components/assistant-ui/elements/thread.aui.tsx"
+import { Image } from "@/components/assistant-ui/elements/image";
+import { MessagePrimitive } from "@assistant-ui/react";
+
+function AssistantMessage() {
+  return (
+    <MessagePrimitive.Root>
+      <MessagePrimitive.Parts components={{ Image }} />
+    </MessagePrimitive.Root>
+  );
+}
+```
+
+The `Thread` element already renders both assistant and user image parts through `Image`, so installing `@assistant-ui/thread` gives you this without any of the above.
+
+  </Step>
+</Steps>
+
+</RuntimeMode>
+
+<StandaloneMode>
+
+Standalone, `Image` is a plain function of one part object: no context, no runtime.
+
+<Steps>
+  <Step>
+
+### Render an image directly
+
+```tsx title="app/answer.tsx"
+import { Image } from "@/components/assistant-ui/elements/image";
+
+export function Picture() {
+  return (
+    <Image
+      type="image"
+      image="https://example.com/photo.png"
+      filename="photo.png"
+      status={{ type: "complete" }}
+    />
+  );
+}
+```
+
+  </Step>
+</Steps>
+
+</StandaloneMode>
+
+## Anatomy
+
+```tsx
+<div data-slot="image-root" data-variant={variant} data-size={size}>
+  {/* status.type === "running": */}
+  <div data-slot="image-generating" />
+
+  {/* status.type === "incomplete" && status.reason === "content-filter": */}
+  <div data-slot="image-content-filter-error" />
+
+  {/* otherwise: */}
+  <div className="aui-image-zoom-trigger" role="button" aria-label="Click to zoom image">
+    <div data-slot="image-preview">
+      <div data-slot="image-preview-loading" /> {/* until loaded or errored */}
+      <img /> {/* or, on error: */}
+      <div data-slot="image-preview-error" />
+    </div>
+  </div>
+  <span data-slot="image-filename" /> {/* omitted when there is no filename */}
+</div>
+```
+
+The three top-level states are exclusive and resolve from `status`: `running` shows only the generating placeholder, `incomplete` with reason `content-filter` shows only the blocked-image message, and everything else (including no `status`) shows the real preview. Clicking the preview, or pressing Enter while it has focus, opens the image in a fullscreen dialog: a portal overlay with a focus trap, Escape-to-close, click-outside-to-close, and the page scroll locked while it is open. `ImageActions` (download, copy, regenerate) is not part of the default render tree; add it yourself, as shown below.
+
+## Examples
+
+### Add download, copy, and regenerate actions
+
+`ImageActions` renders a download button and a copy-to-clipboard button; passing `onRegenerate` adds a third button that shows a spinner while it runs. Download picks a file extension from the image's MIME type (defaulting to `.png`) and uses `part.filename` when set; copy requires a browser with the Clipboard API and silently no-ops if it is unavailable or the write fails.
+
+```tsx
+import { Image } from "@/components/assistant-ui/elements/image";
+
+function ImageWithActions(part: React.ComponentProps<typeof Image>) {
+  return (
+    <Image.Root>
+      <Image.Zoom src={part.image}>
+        <Image.Preview src={part.image} />
+      </Image.Zoom>
+      <Image.Actions part={part} onRegenerate={() => refetchImage(part)} />
+    </Image.Root>
+  );
+}
+```
+
+### Variants and sizes
+
+```tsx
+<Image variant="ghost" size="lg" {...part} />
+```
+
+| Variant | Description |
+|---------|-------------|
+| `outline` | Border around the frame (default) |
+| `ghost` | No border |
+| `muted` | Muted background while loading |
+
+| Size | Max width |
+|------|-----------|
+| `sm` | `16rem` |
+| `default` | `24rem` (default) |
+| `lg` | `32rem` |
+| `full` | `100%` of the container |
+
+## API reference
+
+<RuntimeMode>
+
+### Image
+
+| Export | Renders | Notes |
+|--------|---------|-------|
+| `Image` | `div` | The `Image` message-part renderer. Pass to `MessagePrimitive.Parts` as `components.Image`. |
+| `Image.Root` | `div` | Frame with `variant` and `size`. |
+| `Image.Preview` | `div` + `img` | Loads `src`, shows a placeholder until it does, an error icon if it fails. |
+| `Image.Zoom` | trigger + portal dialog | Wraps children in a click-to-zoom trigger for `src`. |
+| `Image.Filename` | `span` | Renders nothing when there is no filename. |
+| `Image.Generating` | `div` | Shown while `status.type === "running"`. |
+| `Image.ContentFilterError` | `div` | Shown when `status` is `incomplete` with reason `content-filter`. |
+| `Image.Actions` | `div` | Download, copy, and (if `onRegenerate` is passed) regenerate buttons. Not rendered by default. |
+
+### Image part
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `image` | `string` | A URL or data URI for the image. |
+| `filename` | `string` | Optional; shown under the preview and used as the download name. |
+| `status` | `MessagePartStatus` | Drives the generating / blocked / normal states. |
+
+</RuntimeMode>
+
+<StandaloneMode>
+
+### Image props
+
+| Prop | Type | Default | Description |
+|------|------|---------|-------------|
+| `type` | `"image"` | required | Required by the part type. |
+| `image` | `string` | required | A URL or data URI for the image. |
+| `filename` | `string` | | Shown under the preview and used as the download name. |
+| `status` | `MessagePartStatus` | | Drives the generating / blocked / normal states; omit for the normal state. |
+| `variant` | `"outline" \| "ghost" \| "muted"` | `"outline"` | Frame style, set on `Image.Root`. |
+| `size` | `"sm" \| "default" \| "lg" \| "full"` | `"default"` | Max width, set on `Image.Root`. |
+
+`Image.Root`, `Image.Preview`, `Image.Zoom`, `Image.Filename`, `Image.Generating`, `Image.ContentFilterError`, and `Image.Actions` are exported individually for a custom layout, as shown in [Add download, copy, and regenerate actions](#add-download-copy-and-regenerate-actions).
+
+</StandaloneMode>

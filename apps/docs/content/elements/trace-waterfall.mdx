@@ -1,0 +1,227 @@
+---
+title: "Trace waterfall"
+description: "Every span in a run on one time axis, nested, so you can see where it actually went."
+---
+
+TraceWaterfall lays a run's spans on one shared time axis: a header with the total duration, then one row per span with its name, a positioned bar, and its own duration in milliseconds. With a runtime you derive spans from a message's own timing and its tool calls; standalone you hold the span list yourself.
+
+## Getting started
+
+<RuntimeMode>
+
+assistant-ui doesn't model nested spans itself. A message carries its own stream timing, and each tool call carries its own start and completion time, but nothing ties them into a tree deeper than "the message" and "the tool calls inside it." That's enough for a flat, two-level waterfall.
+
+<Steps>
+  <Step>
+
+### Build spans from the message and its tool calls
+
+```tsx title="components/assistant-ui/elements/message-trace.tsx"
+"use client";
+
+import { useAuiState, useMessageTiming } from "@assistant-ui/react";
+import {
+  TraceWaterfall,
+  type TraceSpan,
+} from "@/components/assistant-ui/elements/trace-waterfall";
+
+function useMessageTrace(): { spans: TraceSpan[]; totalMs: number } {
+  const timing = useMessageTiming();
+  const parts = useAuiState((s) => s.message.parts);
+  const totalMs = timing?.totalStreamTime ?? 0;
+
+  const spans: TraceSpan[] = [
+    {
+      id: "message",
+      name: "message",
+      depth: 0,
+      startMs: 0,
+      durationMs: totalMs,
+      status: totalMs > 0 ? "completed" : "running",
+    },
+  ];
+
+  for (const part of parts) {
+    if (part.type !== "tool-call" || !part.timing) continue;
+    const streamStart = timing?.streamStartTime ?? part.timing.startedAt;
+    spans.push({
+      id: part.toolCallId,
+      name: part.toolName,
+      depth: 1,
+      startMs: Math.max(0, part.timing.startedAt - streamStart),
+      durationMs: part.timing.completedAt
+        ? part.timing.completedAt - part.timing.startedAt
+        : 0,
+      status:
+        part.status.type === "running"
+          ? "running"
+          : part.status.type === "complete"
+            ? "completed"
+            : "failed",
+    });
+  }
+
+  return { spans, totalMs };
+}
+
+export function MessageTrace() {
+  const { spans, totalMs } = useMessageTrace();
+  if (spans.length <= 1) return null;
+  return (
+    <TraceWaterfall spans={spans} totalMs={totalMs} visibleCount={spans.length} />
+  );
+}
+```
+
+`useMessageTiming` gives the message-level span; `s.message.parts` gives the tool calls inside it, each carrying its own `timing` and `status`.
+
+  </Step>
+  <Step>
+
+### There's no dedicated trace primitive
+
+Place `MessageTrace` wherever you'd place any other message-scoped element, typically inside `MessagePrimitive.Root` alongside the parts. Nothing in the runtime registers a "trace" concept the way it registers a tool renderer, so the depth, id, and status mapping above stays yours to write.
+
+  </Step>
+</Steps>
+
+</RuntimeMode>
+
+<StandaloneMode>
+
+Standalone, you own the full span list and the total, and grow both as a run proceeds.
+
+<Steps>
+  <Step>
+
+### Hold the spans and their total
+
+```tsx title="app/run.tsx"
+"use client";
+
+import { useState } from "react";
+import {
+  TraceWaterfall,
+  type TraceSpan,
+} from "@/components/assistant-ui/elements/trace-waterfall";
+
+const SPANS: TraceSpan[] = [
+  { id: "run", name: "run", depth: 0, startMs: 0, durationMs: 1840, status: "completed" },
+  { id: "model", name: "chat.completions", depth: 1, startMs: 40, durationMs: 720, status: "completed" },
+  { id: "search", name: "web_search", depth: 1, startMs: 790, durationMs: 460, status: "completed" },
+];
+
+export function Run() {
+  const [visibleCount, setVisibleCount] = useState(0);
+  return <TraceWaterfall spans={SPANS} totalMs={1840} visibleCount={visibleCount} />;
+}
+```
+
+  </Step>
+  <Step>
+
+### Reveal spans one at a time
+
+```tsx
+useEffect(() => {
+  if (visibleCount >= SPANS.length) return;
+  const id = setTimeout(() => setVisibleCount((n) => n + 1), 700);
+  return () => clearTimeout(id);
+}, [visibleCount]);
+```
+
+  </Step>
+</Steps>
+
+</StandaloneMode>
+
+## Anatomy
+
+```tsx
+<div data-slot="trace-waterfall">
+  <div>
+    <span>Trace</span>
+    <span>{/* totalMs, suffixed "ms" */}</span>
+  </div>
+  <div>
+    {/* one row per visible span: name, positioned bar, bare duration number */}
+  </div>
+</div>
+```
+
+Only the first `visibleCount` spans render, floored and clamped to the array's length, so a span can exist in `spans` before it's shown. A newly revealed row fades and slides in from the left; a row that was already visible does not replay the animation on a later re-render, since it's the same DOM node. Each bar is positioned at `startMs / totalMs` and sized to `durationMs / totalMs`, both as percentages, with a `totalMs` of `0` treated as `1` so the math never divides by zero. A bar's width never drops below 1.5% of the row, so a very short span still shows a visible sliver. Row indentation follows `depth`, at 0.75rem per level; nothing computes depth for you, it's a field you set. Color follows `status`: blue and pulsing while `"running"`, a flat neutral tone once `"completed"`, red for `"failed"`. The header's total carries an "ms" suffix; each row's own duration does not.
+
+## Examples
+
+### Restyle the waterfall
+
+Both lanes take `className` on the root. Rows and the header's total use the shared `mono` surface from `surfaces.tsx`; the root itself uses `paper`.
+
+```tsx
+<TraceWaterfall className="max-w-none" /* ... */ />
+```
+
+### Marking a span as failed
+
+<RuntimeMode>
+
+A tool call whose status settles as anything other than `"running"` or `"complete"` (`"incomplete"`, `"requires-action"`) reads as `"failed"` in the mapping above. Treat that as a simplification for the waterfall's three-color palette, not a claim that assistant-ui itself considers the call an error; check `part.status` yourself if you need the real reason.
+
+</RuntimeMode>
+
+<StandaloneMode>
+
+```tsx
+{ id: "search", name: "web_search", depth: 1, startMs: 790, durationMs: 210, status: "failed" }
+```
+
+</StandaloneMode>
+
+### Showing only the most recent spans
+
+`visibleCount` reveals from the start of the array, so cap the array itself, not just `visibleCount`, to show only the most recent spans of a long run. `totalMs` stays the run's real total, so the remaining bars keep their true position along the axis rather than rescaling to fill it.
+
+```tsx
+<TraceWaterfall spans={spans.slice(-6)} totalMs={totalMs} visibleCount={6} />
+```
+
+## API reference
+
+<RuntimeMode>
+
+### Message state
+
+| Selector | Type | Description |
+|----------|------|-------------|
+| `useMessageTiming()` | `MessageTiming \| undefined` | `streamStartTime` anchors every span's `startMs`; `totalStreamTime` is the message-level span's duration. |
+| `s.message.parts` | `readonly PartState[]` | Filter for `part.type === "tool-call"`. Each carries `part.timing?.startedAt` / `part.timing?.completedAt` and `part.status.type`. |
+
+There is no dedicated trace primitive: the depth, id, and status mapping above are yours to write, the way `useMessageTrace` does.
+
+</RuntimeMode>
+
+<StandaloneMode>
+
+### TraceWaterfall
+
+| Prop | Type | Default | Description |
+|------|------|---------|-------------|
+| `spans` | `readonly TraceSpan[]` | required | Every span, in any order; position comes from `startMs`, not array order. |
+| `totalMs` | `number` | required | The time axis's full width, in milliseconds. |
+| `visibleCount` | `number` | required | How many spans from the start of `spans` to render. |
+| `className` | `string` | | Merged onto the root. |
+
+### TraceSpan
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `id` | `string` | React key; not shown. |
+| `name` | `string` | Row label, truncated if long. |
+| `depth` | `number` | Indent level, 0.75rem each. |
+| `startMs` | `number` | Position along the axis. |
+| `durationMs` | `number` | Bar width along the axis, and the row's own label. |
+| `status` | `"running" \| "completed" \| "failed"` | Bar color; `"running"` also pulses. |
+
+All other `div` props are forwarded to the root.
+
+</StandaloneMode>

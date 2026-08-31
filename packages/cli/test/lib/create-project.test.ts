@@ -40,10 +40,8 @@ vi.mock("detect-package-manager", () => ({
 // Import the mocks after vi.mock so we can inspect calls
 import { spawn } from "cross-spawn";
 import { downloadTemplate } from "giget";
-import {
-  dlxCommand,
-  type PackageManagerName,
-} from "../../src/lib/create-project";
+import { dlxCommand } from "../../src/lib/create-project";
+import { type PackageManagerName } from "../../src/lib/utils/package-manager";
 
 const TEST_PM: PackageManagerName = "pnpm";
 const [TEST_DLX_CMD] = dlxCommand(TEST_PM);
@@ -269,7 +267,7 @@ describe("transformProject — hasLocalComponents: true", () => {
         paths: {
           "@/*": ["./*"],
           "@/components/assistant-ui/*": [
-            "../../packages/ui/src/components/assistant-ui/*",
+            "../../packages/ui/src/components/react/assistant-ui/*",
           ],
           "@assistant-ui/*": ["../../packages/*/src"],
         },
@@ -337,7 +335,7 @@ describe("transformProject — hasLocalComponents: false", () => {
   // Paths inherited from the monorepo scaffold
   "compilerOptions": {
     "paths": {
-      "@/components/ui/*": ["../../packages/ui/src/components/ui/*"],
+      "@/components/ui/*": ["../../packages/ui/src/components/react/ui/*"],
       "@/*": ["./*"],
     },
   },
@@ -374,7 +372,7 @@ describe("transformProject — hasLocalComponents: false", () => {
             "@/components/icons/*": ["./components/icons/*"],
             "@/components/ui/*": ["./components/ui/*"],
             "@/components/ui/radix/*": [
-              "../../packages/ui/src/components/ui/radix/*",
+              "../../packages/ui/src/components/react/ui/radix/*",
             ],
             "@/hooks/*": ["./hooks/*"],
             "@/lib/utils": ["./lib/utils"],
@@ -516,7 +514,7 @@ describe("transformProject — hasLocalComponents: false", () => {
     it("installs shadcn and assistant-ui components in a single shadcn add call", async () => {
       writeFile(
         "app/page.tsx",
-        'import { Thread } from "@/components/assistant-ui/thread.tsx";\nimport { Button } from "@/components/ui/button.tsx";\nexport default function Page() { return <Thread />; }\n',
+        'import { Thread } from "@/components/assistant-ui/elements/thread.aui.tsx";\nimport { MarkdownText } from "@/components/assistant-ui/elements/markdown-text.tsx";\nimport { StreamingText } from "@/components/assistant-ui/elements/streaming-text.tsx";\nimport { Button } from "@/components/ui/button.tsx";\nexport default function Page() { return <Thread />; }\n',
       );
 
       await transformProject(testDir, {
@@ -536,6 +534,9 @@ describe("transformProject — hasLocalComponents: false", () => {
       const args = addCalls[0]![1] as string[];
       expect(args).toContain("button");
       expect(args).toContain("@assistant-ui/thread");
+      expect(args).toContain("@assistant-ui/markdown-text");
+      expect(args).toContain("@assistant-ui/elements-streaming-text");
+      expect(args).not.toContain("@assistant-ui/elements-markdown-text");
       expect(args).not.toContain("button.tsx");
       expect(args).not.toContain("@assistant-ui/thread.tsx");
     });
@@ -543,7 +544,7 @@ describe("transformProject — hasLocalComponents: false", () => {
     it("skips shadcn when skipInstall is true even without local components", async () => {
       writeFile(
         "app/page.tsx",
-        'import { Thread } from "@/components/assistant-ui/thread.tsx";\nimport { Button } from "@/components/ui/button.tsx";\nexport default function Page() { return <Thread />; }\n',
+        'import { Thread } from "@/components/assistant-ui/elements/thread.aui.tsx";\nimport { Button } from "@/components/ui/button.tsx";\nexport default function Page() { return <Thread />; }\n',
       );
 
       await run();

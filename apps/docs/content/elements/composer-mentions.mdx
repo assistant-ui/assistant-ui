@@ -1,0 +1,266 @@
+---
+title: "Mentions"
+description: "Type @ to pull people and agents into the conversation, filtered as you go."
+---
+
+Typing `@` opens a floating menu of people above the composer; picking one inserts a mention and typing continues right after it. With a runtime the menu is driven by the same trigger primitive that powers slash commands, wired to a mention adapter instead of a command adapter; standalone you filter a plain list yourself with `useMentionMatches` and splice the pick in with `applyMention`.
+
+## Getting started
+
+<RuntimeMode>
+
+Mentions and slash commands share one trigger system, keyed by which character opens the popover; see [Slash commands](/elements/composer-slash-commands) for the mechanism itself. Mentions use the `@` char and the `Directive` behavior, which inserts text rather than firing a handler.
+
+<Steps>
+  <Step>
+
+### Define the people
+
+`unstable_useMentionAdapter` bundles a person list into the `{ adapter, directive }` pair the trigger needs. Left with no `items` or `categories`, it defaults to listing the tools registered on the thread's model context instead, so `@` can mention a tool as easily as a person:
+
+```tsx title="components/assistant-ui/elements/composer-mentions.tsx"
+"use client";
+
+import { unstable_useMentionAdapter } from "@assistant-ui/react";
+
+export function useComposerMentions() {
+  return unstable_useMentionAdapter({
+    items: [
+      { id: "ada", type: "person", label: "Ada Lovelace" },
+      { id: "grace", type: "person", label: "Grace Hopper" },
+    ],
+  });
+}
+```
+
+  </Step>
+  <Step>
+
+### Open the popover on `@`
+
+```tsx title="components/assistant-ui/elements/composer-bar.tsx"
+"use client";
+
+import { ComposerPrimitive } from "@assistant-ui/react";
+import { cn } from "@/lib/utils";
+import { floating, mono } from "@/components/assistant-ui/elements/surfaces";
+import { useComposerMentions } from "./composer-mentions";
+
+export function ComposerBar() {
+  const mention = useComposerMentions();
+
+  return (
+    <ComposerPrimitive.Unstable_TriggerPopoverRoot>
+      <ComposerPrimitive.Unstable_TriggerPopover char="@" adapter={mention.adapter}>
+        <ComposerPrimitive.Unstable_TriggerPopover.Directive
+          formatter={mention.directive.formatter}
+          onInserted={mention.directive.onInserted}
+        />
+        <ComposerPrimitive.Unstable_TriggerPopoverItems>
+          {(items) => (
+            <div className={cn(floating, "absolute bottom-full z-10 mb-2 w-64 rounded-2xl p-1.5")}>
+              {items.map((item, index) => (
+                <ComposerPrimitive.Unstable_TriggerPopoverItem
+                  key={item.id}
+                  item={item}
+                  index={index}
+                  className="data-[highlighted]:bg-foreground/[0.04] flex w-full items-center gap-2.5 rounded-[10px] px-2.5 py-2 outline-none"
+                >
+                  <span className="bg-foreground/[0.06] text-foreground/45 flex size-5 shrink-0 items-center justify-center rounded-full text-[9px] font-medium">
+                    {item.label[0]}
+                  </span>
+                  <span className="flex-1 truncate text-start">{item.label}</span>
+                  <span className={cn(mono, "text-foreground/35")}>{item.type}</span>
+                </ComposerPrimitive.Unstable_TriggerPopoverItem>
+              ))}
+            </div>
+          )}
+        </ComposerPrimitive.Unstable_TriggerPopoverItems>
+      </ComposerPrimitive.Unstable_TriggerPopover>
+      <ComposerPrimitive.Root className="flex w-full flex-col gap-2 rounded-[24px] p-2.5">
+        <ComposerPrimitive.Input placeholder="Message, or @ to mention..." rows={1} className="min-h-11 w-full resize-none bg-transparent px-3 outline-none" />
+      </ComposerPrimitive.Root>
+    </ComposerPrimitive.Unstable_TriggerPopoverRoot>
+  );
+}
+```
+
+`.Directive` inserts the item's serialized text at the trigger position and calls `onInserted` afterward, instead of firing a handler the way `.Action` does. To render a sent mention back out as a chip inside the message (rather than as literal directive text), pair this with [Directive text](/elements/directive-text) on the message-rendering side.
+
+  </Step>
+</Steps>
+
+</RuntimeMode>
+
+<StandaloneMode>
+
+Standalone, nothing detects the `@` for you. `useMentionMatches` filters a person list against text ending in a trailing `@query`, and `applyMention` replaces that trailing query with the chosen name once picked.
+
+<Steps>
+  <Step>
+
+### Filter as the draft changes
+
+```tsx title="app/chat-box.tsx"
+"use client";
+
+import { useState } from "react";
+import { useMentionMatches, applyMention, ComposerMenu, ComposerPersonItem, type ComposerPerson } from "@/components/assistant-ui/elements/composer";
+
+const people: ComposerPerson[] = [
+  { name: "Ada", role: "human" },
+  { name: "Grace", role: "human" },
+  { name: "Reviewer", role: "agent" },
+];
+
+export function ChatBox() {
+  const [text, setText] = useState("");
+  const matches = useMentionMatches(text, people);
+
+  return (
+    <div className="relative">
+      <ComposerMenu open={matches.length > 0}>
+        {matches.map((person) => (
+          <ComposerPersonItem
+            key={person.name}
+            person={person}
+            active={false}
+            onClick={() => setText((current) => applyMention(current, person.name))}
+          />
+        ))}
+      </ComposerMenu>
+      {/* ComposerInput below, controlled by the same text state */}
+    </div>
+  );
+}
+```
+
+  </Step>
+  <Step>
+
+### Keep typing after the pick
+
+`applyMention` leaves a trailing space after the inserted name, so the caret can keep typing immediately; it only ever touches the trailing `@query`, so text typed earlier in the draft is untouched.
+
+  </Step>
+</Steps>
+
+</StandaloneMode>
+
+## Anatomy
+
+```tsx
+<div data-slot="composer-menu" data-open={/* true while a trailing "@query" exists */}>
+  <button data-slot="composer-menu-item" data-active={/* the highlighted row */}>
+    {/* initial-letter avatar, name, and a role label ("agent" or "human") */}
+  </button>
+</div>
+```
+
+With a runtime, a pick does not insert a chip directly into the textarea; it inserts literal directive text in `unstable_defaultDirectiveFormatter`'s `:type[label]{name=id}` syntax (the `{name=…}` part is dropped when `id` and `label` match), which only renders as a chip once a message renderer parses it back out. Standalone, `applyMention` inserts the plain name instead, since there is no message-rendering step to hand a directive to.
+
+## Examples
+
+### Filtering as you type
+
+<RuntimeMode>
+
+The adapter's `search` matches a person's `id`, `label`, and `description` against the text after `@`, case-insensitively; with `categories` instead of `items`, matching drills down per category rather than searching everything at once.
+
+```tsx
+mention.adapter.search("ada"); // → [{ id: "ada", label: "Ada Lovelace", ... }]
+```
+
+</RuntimeMode>
+
+<StandaloneMode>
+
+`useMentionMatches` looks for a trailing `@word` in the text and matches it against the start of each person's `name`:
+
+```tsx
+const matches = useMentionMatches("cc @ada", people); // → [{ name: "Ada", ... }]
+```
+
+</StandaloneMode>
+
+### Mentioning a tool instead of a person
+
+<RuntimeMode>
+
+Leaving `items` and `categories` unset (or passing `includeModelContextTools: true` alongside them) lists every tool currently registered on `aui.thread.getModelContext.tools`, so `@` doubles as a way to reference a tool the model has access to:
+
+```tsx
+const mention = unstable_useMentionAdapter({
+  includeModelContextTools: { category: { id: "tools", label: "Tools" } },
+});
+```
+
+</RuntimeMode>
+
+### Restyle the menu
+
+Both lanes render into `ComposerMenu`; the avatar circle, name, and role label are each their own `span`, so restyling one does not require touching the others.
+
+```tsx
+<ComposerMenu className="w-80" open={open}>
+  {/* items */}
+</ComposerMenu>
+```
+
+## API reference
+
+<RuntimeMode>
+
+### ComposerPrimitive (trigger)
+
+| Part | Renders | Notes |
+|------|---------|-------|
+| `Unstable_TriggerPopoverRoot` | provider | Shared with every trigger char registered inside it; see [Slash commands](/elements/composer-slash-commands). |
+| `Unstable_TriggerPopover` | `div` (when open) | `char="@"`, `adapter`. |
+| `Unstable_TriggerPopover.Directive` | behavior | `formatter?`, `onInserted?`; inserts serialized directive text at the trigger position. |
+| `Unstable_TriggerPopoverItems` / `Item` | render prop / `button` | Same shape as the slash-command popover; `Item` gets `data-highlighted` under keyboard navigation. |
+
+### unstable_useMentionAdapter
+
+| Option | Type | Description |
+|--------|------|-------------|
+| `items` | `Unstable_Mention[]` | Flat list: `{ id, type, label, description?, icon?, metadata? }`. |
+| `categories` | `Unstable_MentionCategory[]` | Grouped mentions for drill-down navigation; ignored if `items` is set. |
+| `includeModelContextTools` | `boolean \| { category?, formatLabel?, icon? }` | Include tools from `aui.thread.getModelContext()`. @default `true` when neither `items` nor `categories` is given |
+| `formatter` | `Unstable_DirectiveFormatter` | @default `unstable_defaultDirectiveFormatter` |
+| `onInserted` | `(item) => void` | Fires after the directive text lands in the composer. |
+
+Returns `{ adapter, directive, iconMap?, fallbackIcon? }`; spread `directive` onto `Unstable_TriggerPopover.Directive`.
+
+</RuntimeMode>
+
+<StandaloneMode>
+
+### useMentionMatches
+
+| Parameter | Type | Description |
+|-----------|------|-------------|
+| `value` | `string` | The current draft text. |
+| `people` | `readonly ComposerPerson[] \| undefined` | The full person list. |
+
+Returns the people whose `name` starts with the trailing `@query`, or `[]` when the caret is not inside one.
+
+### applyMention
+
+`applyMention(value: string, name: string): string` replaces the trailing `@query` in `value` with `@{name} ` (a trailing space included).
+
+### ComposerPerson
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `name` | `string` | Matched against the query; shown with an initial-letter avatar. |
+| `role` | `"agent" \| "human"` | Shown as a label on the row. |
+
+### ComposerPersonItem
+
+| Prop | Type | Default | Description |
+|------|------|---------|-------------|
+| `person` | `ComposerPerson` | required | The person to render. |
+| `active` | `boolean` | required | Tints the row. |
+
+</StandaloneMode>

@@ -96,7 +96,7 @@ import {
 } from "@assistant-ui/react-native";
 import { useAppRuntime } from "@/hooks/use-app-runtime";
 import { ThreadListDrawer } from "@/components/thread-list/ThreadListDrawer";
-import { expoToolkit } from "@/components/assistant-ui/tools";
+import { expoToolkit } from "@/components/assistant-ui/elements/tools";
 
 function NewChatButton() {
   const aui = useAui();
@@ -157,7 +157,7 @@ export default function RootLayout() {
 ```
 
 ```tsx title="app/index.tsx"
-import { Thread } from "@/components/assistant-ui/thread";
+import { Thread } from "@/components/assistant-ui/elements/thread.aui";
 
 export default function ChatPage() {
   return <Thread />;

@@ -80,7 +80,7 @@ export default async function PackagesPage() {
   return (
     <PageFrame pad="sub" className="flex flex-col gap-16 md:gap-20">
       <header className="max-w-2xl">
-        <h1 className={typePage}>Every distribution, in one place.</h1>
+        <h1 className={typePage}>Every package we publish.</h1>
         <p className={cn(typeDeck, "mt-4 max-w-[52ch]")}>
           {activeCount} packages on npm, grouped by surface.
         </p>
@@ -103,7 +103,7 @@ export default async function PackagesPage() {
           href="/traction"
           className="text-muted-foreground hover:text-foreground group inline-flex items-center gap-1.5 text-sm transition-colors"
         >
-          The receipts behind assistant-ui
+          Traction, live from GitHub and npm
           <ArrowUpRight className="size-3.5 transition-transform group-hover:translate-x-0.5 group-hover:-translate-y-0.5" />
         </Link>
       </footer>

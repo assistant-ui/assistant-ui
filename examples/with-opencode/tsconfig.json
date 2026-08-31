@@ -7,15 +7,17 @@
         "../../packages/react-opencode/src/index.ts"
       ],
       "@/components/assistant-ui/*": [
-        "../../packages/ui/src/components/assistant-ui/*"
+        "../../packages/ui/src/components/react/assistant-ui/*"
       ],
-      "@/components/icons/*": ["../../packages/ui/src/components/icons/*"],
+      "@/components/icons/*": [
+        "../../packages/ui/src/components/react/icons/*"
+      ],
       "@/components/ui/*": [
-        "../../packages/ui/src/components/ui/base/*",
-        "../../packages/ui/src/components/ui/radix/*"
+        "../../packages/ui/src/components/react/ui/base/*",
+        "../../packages/ui/src/components/react/ui/radix/*"
       ],
       "@/components/ui/radix/*": [
-        "../../packages/ui/src/components/ui/radix/*"
+        "../../packages/ui/src/components/react/ui/radix/*"
       ],
       "@/hooks/*": ["../../packages/ui/src/hooks/*"],
       "@/lib/utils": ["../../packages/ui/src/lib/utils"],

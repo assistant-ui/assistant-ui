@@ -14,7 +14,10 @@ import type {
   ResumeRunConfig,
   ThreadSuggestion,
 } from "../../runtime/interfaces/thread-runtime-core";
-import type { ExportedMessageRepository } from "../../runtime/utils/message-repository";
+import type {
+  ExportedMessageRepository,
+  MessageRepository,
+} from "../../runtime/utils/message-repository";
 import type { ReadonlyJSONValue } from "assistant-stream/utils";
 import type { ToolExecutionStatus } from "../tool-invocations/ToolInvocationTracker";
 import type { ExternalThreadQueueAdapter } from "../../runtime/queue/external-thread-queue-adapter";
@@ -105,6 +108,15 @@ type ExternalStoreAdapterBase<T> = {
   isLoading?: boolean | undefined;
   messages?: readonly T[];
   messageRepository?: ExportedMessageRepository;
+  /**
+   * An externally owned message repository instance. When provided, the
+   * thread runtime adopts it as its branch store and swaps to it atomically
+   * whenever a different instance is passed, so hosts that route multiple
+   * conversations through one runtime keep each conversation's history and
+   * branches isolated in its own instance. Omit it to keep the runtime's own
+   * repository.
+   */
+  unstable_messageRepositoryInstance?: MessageRepository | undefined;
   suggestions?: readonly ThreadSuggestion[] | undefined;
   state?: ReadonlyJSONValue | undefined;
   extras?: unknown;

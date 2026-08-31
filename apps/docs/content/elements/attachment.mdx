@@ -1,0 +1,243 @@
+---
+title: "Attachment"
+description: "Runtime attachments for the composer and messages, with previews, progress, and removal."
+---
+
+Attachment renders one file as a small tile: a thumbnail, a hover tooltip with its name, and (while it's still staged in the composer) an upload spinner, an error state, and a remove button. With a runtime it reads the attachment straight off the composer or a sent message; there is no standalone form of this exact tile, since upload progress and removal only make sense against a live attachment. It comes in two designs: the runtime variant renders that live tile, and the static variant, `MessageAttachments`, renders a sent message's files as plain rows instead (see [The received-files design](#the-received-files-design)).
+
+## Getting started
+
+<RuntimeMode>
+
+`Thread` already renders every piece below by default; use these directly if you're composing your own layout instead of `Thread`.
+
+<Steps>
+  <Step>
+
+### Render attachments in the composer
+
+Wrap the input in `ComposerPrimitive.AttachmentDropzone` so dropped files are accepted, list staged attachments with `ComposerPrimitive.Attachments`, and add `ComposerAddAttachment` for the file picker button.
+
+```tsx title="components/assistant-ui/elements/thread.aui.tsx"
+import { ComposerPrimitive } from "@assistant-ui/react";
+import {
+  ComposerAddAttachment,
+  ComposerAttachments,
+} from "@/components/assistant-ui/elements/attachment.aui";
+
+function Composer() {
+  return (
+    <ComposerPrimitive.Root>
+      <ComposerPrimitive.AttachmentDropzone>
+        <ComposerAttachments />
+        <ComposerPrimitive.Input placeholder="Send a message..." />
+        <ComposerAddAttachment />
+      </ComposerPrimitive.AttachmentDropzone>
+    </ComposerPrimitive.Root>
+  );
+}
+```
+
+  </Step>
+  <Step>
+
+### Render attachments on a sent message
+
+`UserMessageAttachments` lists the files a user message actually carries, using `MessagePrimitive.Attachments`. It only ever renders inside a user message, since assistant messages don't carry attachments.
+
+```tsx title="components/assistant-ui/elements/thread.aui.tsx"
+import { MessagePrimitive } from "@assistant-ui/react";
+import { UserMessageAttachments } from "@/components/assistant-ui/elements/attachment.aui";
+
+function UserMessage() {
+  return (
+    <MessagePrimitive.Root>
+      <UserMessageAttachments />
+      <MessagePrimitive.Parts />
+    </MessagePrimitive.Root>
+  );
+}
+```
+
+  </Step>
+</Steps>
+
+</RuntimeMode>
+
+<StandaloneMode>
+
+Standalone, there is nothing to stage or upload: this element exists to reflect a runtime's own attachment state, including progress and removal, back into the UI. Render a sent message's files with the received-files design instead (see [The received-files design](#the-received-files-design)), which takes plain attachment records as props.
+
+</StandaloneMode>
+
+## Anatomy
+
+<RuntimeMode>
+
+```tsx
+<div> {/* AttachmentPrimitive.Root */}
+  <button aria-label="Image attachment" /* or "Document attachment" / "File attachment", plus ", uploading" / ", upload failed" */>
+    {/* thumbnail: the image itself, or a file icon fallback */}
+    {/* uploading: a blurred spinner overlay */}
+    {/* error: a blurred alert overlay */}
+  </button>
+  <button aria-label="Remove file">{/* composer only */}</button>
+</div>
+```
+
+The remove button and the upload/error overlays only render on a composer attachment; a message attachment shows the tile alone. A lone image attachment on a message renders larger than the rest. Clicking an image tile whose source resolves opens a fullscreen preview dialog; any other kind of tile, or an image with no resolvable source yet, renders the click target with no dialog behavior at all.
+
+</RuntimeMode>
+
+## Examples
+
+<RuntimeMode>
+
+### Composer vs. message attachments
+
+Both exports render the same tile; only the source differs. `aui.attachment.source` is `"composer"` for a staged attachment and `"message"` for one already sent, and that's exactly what decides whether the remove button and drag-in animation appear.
+
+```tsx
+<ComposerAttachments />       {/* ComposerPrimitive.Attachments, source: "composer" */}
+<UserMessageAttachments />    {/* MessagePrimitive.Attachments, source: "message" */}
+```
+
+### Reading the resolved preview source
+
+`useAttachmentSrc()` resolves an image attachment's displayable URL: an object URL for a file still in memory, or the first `image` content part once the attachment has uploaded. Anything that isn't an image resolves to `undefined`, which is exactly the signal a custom preview uses to fall back to an icon.
+
+```tsx
+import { useAttachmentSrc } from "@/hooks/use-attachment-src";
+
+function CustomThumb() {
+  const src = useAttachmentSrc();
+  if (!src) return <FileIcon />;
+  return <img src={src} alt="" />;
+}
+```
+
+### Add-attachment picker
+
+`ComposerAddAttachment` opens a native file picker scoped to the composer's own `attachmentAccept`, and supports selecting more than one file at once. It renders nothing while the composer isn't editable (for example, while a run is streaming).
+
+```tsx
+<ComposerAddAttachment />
+```
+
+</RuntimeMode>
+
+## API reference
+
+<RuntimeMode>
+
+### Kit parts
+
+| Part | Renders | Notes |
+|------|---------|-------|
+| `ComposerAttachments` | list | Wraps `ComposerPrimitive.Attachments`; one tile per staged attachment. |
+| `ComposerAddAttachment` | `button` | Wraps `ComposerPrimitive.AddAttachment`; opens the native file picker. Renders `null` while the composer isn't editable. |
+| `UserMessageAttachments` | list | Wraps `MessagePrimitive.Attachments`; one tile per attachment on the current user message. |
+
+### Primitives composed
+
+| Part | Notes |
+|------|-------|
+| `AttachmentPrimitive.Root` | Wraps one tile; provides the attachment scope. |
+| `AttachmentPrimitive.Name` | The attachment's file name, as text. |
+| `AttachmentPrimitive.Remove` | Calls `aui.attachment.remove()`. |
+| `ComposerPrimitive.AttachmentDropzone` | Sets `data-dragging="true"` while a file is dragged over it; no-ops when the thread's `attachments` capability is off. |
+
+### Attachment state
+
+| Selector | Type | Description |
+|----------|------|-------------|
+| `s.attachment.type` | `"image" \| "document" \| "file" \| string` | Kind of the current attachment. |
+| `s.attachment.name` | `string` | File name. |
+| `s.attachment.status.type` | `"running" \| "requires-action" \| "incomplete" \| "complete"` | `"running"` while uploading (carries a `progress`); `"incomplete"` with `reason: "error"` carries an optional `message`. |
+| `aui.attachment.source` | `"message" \| "composer"` | Which surface the current attachment belongs to. |
+
+</RuntimeMode>
+
+## The received-files design
+
+The Static variant in the rail is a second design for a message's files: `MessageAttachments` renders an image as a filled thumbnail button and a document or file as an icon row, instead of the composer-style tile above. It is a single props-driven component with no runtime dependency:
+
+```sh
+npx shadcn@latest add "@assistant-ui/elements-message-attachment"
+```
+
+<RuntimeMode>
+
+Wire it by mapping a user message's attachments into items; like `UserMessageAttachments` above, this only makes sense inside a user message. `s.message.attachments` is the store's own array and every entry is already complete (an upload still in progress lives in the composer's own attachments instead), so selecting it directly is cheap; deriving items still needs `useMemo`, since mapping to a fresh array on every call would re-render the list on every store update.
+
+```tsx title="components/assistant-ui/elements/message-attachment.tsx"
+"use client";
+
+import { useMemo } from "react";
+import { useAuiState } from "@assistant-ui/react";
+import {
+  MessageAttachments,
+  type MessageAttachmentItem,
+} from "@/components/assistant-ui/elements/message-attachment";
+
+function UserReceivedFiles() {
+  const attachments = useAuiState((s) => s.message.attachments);
+  const items = useMemo<MessageAttachmentItem[]>(
+    () =>
+      attachments.map((a) => ({
+        id: a.id,
+        name: a.name,
+        size: formatFileSize(a),
+        kind: a.type === "image" || a.type === "document" ? a.type : "file",
+      })),
+    [attachments],
+  );
+
+  if (items.length === 0) return null;
+  return (
+    <MessageAttachments attachments={items} onOpen={(id) => openViewer(id)} />
+  );
+}
+```
+
+The runtime carries `id`, `type`, `name`, and `contentType`, but no formatted size string or page count, so `formatFileSize` above is yours to write; a provider-defined custom `type` collapses to `"file"`, since `kind` only accepts the three shown.
+
+</RuntimeMode>
+
+<StandaloneMode>
+
+Standalone you hold the item list yourself, sizes and all, and decide what opening one does:
+
+```tsx title="app/received-files.tsx"
+"use client";
+
+import {
+  MessageAttachments,
+  type MessageAttachmentItem,
+} from "@/components/assistant-ui/elements/message-attachment";
+
+const attachments: MessageAttachmentItem[] = [
+  { id: "1", name: "diagram.png", size: "1.2 MB", kind: "image", swatch: "url(/diagram-thumb.png)" },
+  { id: "2", name: "spec.pdf", size: "340 KB", kind: "document", pages: 12 },
+];
+
+export function ReceivedFiles() {
+  return (
+    <MessageAttachments attachments={attachments} onOpen={(id) => openViewer(id)} />
+  );
+}
+```
+
+</StandaloneMode>
+
+An `image` item renders as a filled thumbnail button with its name and size over the `swatch`, and a `document` or plain `file` renders as an icon row instead, with the page count appended only when `pages` is set. Both call `onOpen(id)` and neither opens anything on its own; wire `onOpen` to your own lightbox or download flow.
+
+### MessageAttachments
+
+| Prop | Type | Default | Description |
+|------|------|---------|-------------|
+| `attachments` | `readonly MessageAttachmentItem[]` | required | The received files, in order. |
+| `onOpen` | `(id: string) => void` | | Called when an attachment is clicked. |
+| `className` | `string` | | Merged onto the root. |
+
+`MessageAttachmentItem` is `{ id: string; name: string; size: string; kind: "image" | "document" | "file"; pages?: number; swatch?: string }`. All other `div` props are forwarded to the root.

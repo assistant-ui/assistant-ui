@@ -1,0 +1,113 @@
+---
+title: "Quota banner"
+description: "How much is left, when it comes back, and the way to get more."
+---
+
+QuotaBanner shows what's left of a usage allowance: a headline count, a fill bar, and an upgrade button that turns amber once you're close to the limit. assistant-ui's runtime has no concept of plan limits or rate budgets, that's account and billing state the host app owns, so this element has just the one, standalone form: you hold the used and limit numbers and re-render as they change.
+
+## Getting started
+
+You decide what "used" and "limit" mean, in whatever unit your plan counts, messages, tokens, or requests, and pass the current numbers down from wherever your account state lives.
+
+<Steps>
+  <Step>
+
+### Hold the usage state
+
+```tsx title="app/quota.tsx"
+"use client";
+
+import { useState } from "react";
+import { QuotaBanner } from "@/components/assistant-ui/elements/quota-banner";
+
+export function Quota() {
+  const [used, setUsed] = useState(32);
+
+  return (
+    <QuotaBanner
+      used={used}
+      limit={50}
+      unit="messages"
+      resetsIn="3h 12m"
+      upgradeLabel="Upgrade"
+      onUpgrade={() => (window.location.href = "/billing")}
+    />
+  );
+}
+```
+
+  </Step>
+  <Step>
+
+### Recompute `resetsIn` on your own clock
+
+The component never counts down on its own. `resetsIn` is whatever string you pass, so refresh it yourself, from a timer or from the account's reset timestamp:
+
+```tsx
+const resetsIn = formatDistanceToNowStrict(resetAt);
+```
+
+  </Step>
+</Steps>
+
+## Anatomy
+
+```tsx
+<div data-slot="quota-banner">
+  <div>
+    <span>{/* "{left} {unit} left", amber past 90% used */}</span>
+    <span>{/* "resets in {resetsIn}" */}</span>
+  </div>
+  <span>{/* fill bar, amber past 90% used */}</span>
+  <div>
+    <span>{/* "{used} of {limit} used" */}</span>
+    <button>{/* upgradeLabel, always rendered */}</button>
+  </div>
+</div>
+```
+
+`left` is `limit` minus `used`, floored at zero, so going over quota reads as `"0 {unit} left"` rather than a negative number. The tight, amber state starts at 90% used (`used / limit >= 0.9`), coloring both the headline and the fill bar; a `limit` of `0` is treated as `0%` used rather than producing `NaN`. The upgrade button always renders, whether or not the account is close to its limit, and calls `onUpgrade` if you pass one, there's no default action if you don't.
+
+## Examples
+
+### Restyle the banner
+
+The fill bar's filled portion and the button both read the shared surface tokens from `surfaces.tsx`, the button is `inkButton`, and the root is `paper`. `className` on the root merges with these.
+
+```tsx
+<QuotaBanner className="max-w-none" /* ... */ />
+```
+
+### Reading a plan's usage from your billing API
+
+```tsx
+const { data } = useSWR("/api/usage", fetcher);
+if (!data) return null;
+
+return (
+  <QuotaBanner
+    used={data.used}
+    limit={data.limit}
+    unit={data.unit}
+    resetsIn={data.resetsIn}
+    upgradeLabel="Upgrade"
+    onUpgrade={() => router.push("/billing")}
+  />
+);
+```
+
+## API reference
+
+### QuotaBanner
+
+| Prop | Type | Default | Description |
+|------|------|---------|-------------|
+| `used` | `number` | required | Units consumed so far. |
+| `limit` | `number` | required | Units allowed before reset. |
+| `unit` | `string` | required | Label for the count, for example `"messages"`. |
+| `resetsIn` | `string` | required | Pre-formatted countdown text. |
+| `upgradeLabel` | `string` | required | Text on the upgrade button. |
+| `onUpgrade` | `() => void` | | Called when the upgrade button is pressed. |
+| `className` | `string` | | Merged onto the root. |
+
+All other `div` props are forwarded to the root.

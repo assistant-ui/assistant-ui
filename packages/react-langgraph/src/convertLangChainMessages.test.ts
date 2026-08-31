@@ -921,6 +921,30 @@ describe("convertLangChainMessages reasoning content", () => {
     });
   });
 
+  it("falls back to reasoning text when summary is empty", () => {
+    const result = convertLangChainMessages({
+      type: "ai",
+      id: "ai-reasoning-empty-summary",
+      content: [
+        {
+          type: "reasoning",
+          summary: [],
+          reasoning: "I should compare both options first.",
+        },
+      ],
+    });
+
+    expect(result).toMatchObject({
+      role: "assistant",
+      content: [
+        {
+          type: "reasoning",
+          text: "I should compare both options first.",
+        },
+      ],
+    });
+  });
+
   it("tolerates null entries inside the summary array", () => {
     const result = convertLangChainMessages({
       type: "ai",

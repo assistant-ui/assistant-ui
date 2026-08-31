@@ -1,0 +1,244 @@
+---
+title: "Message timing"
+description: "Streaming statistics for the current message, including first token, total time, and speed."
+---
+
+Message timing turns a stream's own telemetry into a small badge: a duration on the trigger, and first token time, total time, speed, and chunk count in its tooltip. With a runtime it reads the timing recorded on the current assistant message; there is no standalone form of this exact badge, since a badge with nothing to time has nothing to show. It comes in two designs: the runtime variant reads that live telemetry into a hover tooltip, and the static variant renders the same numbers as a props-driven stats row instead (see [The timing-footer design](#the-timing-footer-design)).
+
+## Getting started
+
+<RuntimeMode>
+
+Every assistant-ui runtime records how a response streamed in. The badge reads that recording through `useMessageTiming()` and stays invisible until it has something to report.
+
+<Steps>
+  <Step>
+
+### Read the message's timing
+
+`useMessageTiming()` returns the current assistant message's `metadata.timing`, or `undefined` on a user message or before any timing exists. The badge renders nothing until `totalStreamTime` is set, so it appears only once a response has actually finished streaming.
+
+```tsx title="components/assistant-ui/elements/message-timing.aui.tsx"
+"use client";
+
+import { useMessageTiming } from "@assistant-ui/react";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
+import type { FC } from "react";
+
+const formatTimingMs = (ms: number | undefined): string => {
+  if (ms === undefined) return "—";
+  if (ms < 1000) return `${Math.round(ms)}ms`;
+  return `${(ms / 1000).toFixed(2)}s`;
+};
+
+export const MessageTiming: FC<{
+  className?: string;
+  side?: "top" | "right" | "bottom" | "left";
+}> = ({ className, side = "right" }) => {
+  const timing = useMessageTiming();
+  if (timing?.totalStreamTime === undefined) return null;
+
+  return (
+    <TooltipProvider>
+      <Tooltip>
+        <TooltipTrigger
+          render={
+            <button
+              type="button"
+              aria-label="Message timing"
+              className={className}
+            />
+          }
+        >
+          {formatTimingMs(timing.totalStreamTime)}
+        </TooltipTrigger>
+        <TooltipContent side={side} sideOffset={8}>
+          {/* first token, total, speed, chunks; see Anatomy below */}
+        </TooltipContent>
+      </Tooltip>
+    </TooltipProvider>
+  );
+};
+```
+
+  </Step>
+  <Step>
+
+### Add it to the message's action bar
+
+Drop `MessageTiming` next to copy and reload so it inherits the action bar's own hover and autohide behavior from `ActionBarPrimitive.Root`.
+
+```tsx title="components/assistant-ui/elements/thread.aui.tsx" {3,10}
+import { ActionBarPrimitive } from "@assistant-ui/react";
+import { TooltipIconButton } from "@/components/assistant-ui/elements/tooltip-icon-button";
+import { MessageTiming } from "@/components/assistant-ui/elements/message-timing.aui";
+
+function AssistantActionBar() {
+  return (
+    <ActionBarPrimitive.Root hideWhenRunning autohide="not-last">
+      <ActionBarPrimitive.Copy asChild>
+        <TooltipIconButton tooltip="Copy">{/* ... */}</TooltipIconButton>
+      </ActionBarPrimitive.Copy>
+      <MessageTiming />
+    </ActionBarPrimitive.Root>
+  );
+}
+```
+
+`Thread` ships this action bar without `MessageTiming` in it; add the line above to turn timing on for every assistant message.
+
+  </Step>
+</Steps>
+
+</RuntimeMode>
+
+<StandaloneMode>
+
+Standalone, there is nothing to time. The badge exists to surface a runtime's own stream telemetry, and a value you already hold in a variable does not need a hover tooltip to reveal it. Render your own stats row from [The timing-footer design](#the-timing-footer-design) instead, which takes the same kind of numbers as plain props.
+
+</StandaloneMode>
+
+## Anatomy
+
+<RuntimeMode>
+
+```tsx
+<button aria-label="Message timing">{/* e.g. "1.24s" */}</button>
+<div>
+  <div>First token   <span>{/* only when firstTokenTime is set */}</span></div>
+  <div>Total         <span>{/* always, once the badge is visible */}</span></div>
+  <div>Speed         <span>{/* only when tokensPerSecond is set */}</span></div>
+  <div>Chunks        <span>{/* always, once the badge is visible */}</span></div>
+</div>
+```
+
+The trigger itself is the gate: while `totalStreamTime` is undefined the whole badge is `null`, so a message still streaming shows nothing rather than a placeholder. Once it is visible, "Total" and "Chunks" always print; "First token" and "Speed" each drop out on their own when the underlying value is missing.
+
+</RuntimeMode>
+
+## Examples
+
+<RuntimeMode>
+
+### Tooltip side
+
+Pass `side` to flip which edge the tooltip opens toward, matching wherever the action bar sits in your layout.
+
+```tsx
+<MessageTiming side="left" />
+```
+
+### Formatting rule
+
+A duration under a second renders as whole milliseconds (`420ms`); a second or more renders with two decimal places (`1.24s`). Speed always renders as tokens per second to one decimal place (`38.4 tok/s`), and this same `formatTimingMs` rule is what the trigger itself uses for the total.
+
+</RuntimeMode>
+
+## API reference
+
+<RuntimeMode>
+
+### Message state
+
+| Selector | Type | Description |
+|----------|------|-------------|
+| `s.message.metadata.timing` | `MessageTiming \| undefined` | Timing recorded for the current assistant message; `undefined` on a user message or before any timing exists. `useMessageTiming()` wraps exactly this selector. |
+
+`MessageTiming` carries `streamStartTime`, `firstTokenTime?`, `totalStreamTime?`, `tokenCount?`, `tokensPerSecond?`, `totalChunks`, and `toolCallCount`.
+
+### MessageTiming props
+
+| Prop | Type | Default | Description |
+|------|------|---------|-------------|
+| `className` | `string` | | Merged onto the trigger button. |
+| `side` | `"top" \| "right" \| "bottom" \| "left"` | `"right"` | Side the tooltip opens toward. |
+
+</RuntimeMode>
+
+## The timing-footer design
+
+The Static variant in the rail is a second design for the same telemetry: `MessageTiming` lays the numbers out as an always-visible row of plain props, instead of tucking them into a badge's hover tooltip. It is a single props-driven component with no runtime dependency:
+
+```sh
+npx shadcn@latest add "@assistant-ui/elements-message-timing"
+```
+
+<RuntimeMode>
+
+A runtime already exposes the same timing through `useMessageTiming()`; map it into stats yourself when you want a row instead of a badge:
+
+```tsx title="components/assistant-ui/elements/thread.aui.tsx"
+"use client";
+
+import { useMessageTiming } from "@assistant-ui/react";
+import {
+  MessageTiming,
+  type TimingStat,
+} from "@/components/assistant-ui/elements/message-timing";
+
+const formatMs = (ms: number) =>
+  ms < 1000 ? `${Math.round(ms)}ms` : `${(ms / 1000).toFixed(2)}s`;
+
+function TimingFooter() {
+  const timing = useMessageTiming();
+  if (!timing) return null;
+
+  const stats: TimingStat[] = [
+    timing.firstTokenTime !== undefined && {
+      label: "ttft",
+      value: formatMs(timing.firstTokenTime),
+    },
+    timing.totalStreamTime !== undefined && {
+      label: "total",
+      value: formatMs(timing.totalStreamTime),
+    },
+    timing.tokensPerSecond !== undefined && {
+      label: "tok/s",
+      value: timing.tokensPerSecond.toFixed(1),
+    },
+    { label: "chunks", value: String(timing.totalChunks) },
+  ].filter((stat): stat is TimingStat => stat !== false);
+
+  return <MessageTiming stats={stats} />;
+}
+```
+
+</RuntimeMode>
+
+<StandaloneMode>
+
+Standalone, `MessageTiming` renders whatever pairs you give it; nothing about the stats is fixed:
+
+```tsx title="app/answer.tsx"
+import {
+  MessageTiming,
+  type TimingStat,
+} from "@/components/assistant-ui/elements/message-timing";
+
+const stats: TimingStat[] = [
+  { label: "ttft", value: "0.4s" },
+  { label: "total", value: "2.6s" },
+  { label: "tok/s", value: "61" },
+];
+
+<MessageTiming stats={stats} />;
+```
+
+</StandaloneMode>
+
+The row fades in on mount and wraps to multiple lines past its max width. Passing `streaming` highlights every value in blue instead of the settled muted tone, useful while the stats are still updating live; `stats` can be any length, including empty, which renders a bare row with nothing in it.
+
+### MessageTiming
+
+| Prop | Type | Default | Description |
+|------|------|---------|-------------|
+| `stats` | `readonly TimingStat[]` | required | `{ label: string; value: string }[]`, rendered in order. |
+| `streaming` | `boolean` | | Highlights every value in blue while true. |
+| `className` | `string` | | Merged onto the root. |
+
+All other `div` props are forwarded to the root.

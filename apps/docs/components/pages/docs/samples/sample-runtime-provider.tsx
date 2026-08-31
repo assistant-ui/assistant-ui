@@ -22,7 +22,7 @@ const defaultMessages: ThreadMessageLike[] = [
   {
     role: "assistant",
     content:
-      "assistant-ui is a set of React components for building AI chat interfaces. It provides unstyled primitives that handle state management, streaming, and accessibility — you bring the design.",
+      "assistant-ui is a set of React components for building AI chat interfaces. It provides unstyled primitives that handle state management, streaming, and accessibility; you bring the design.",
   },
 ];
 

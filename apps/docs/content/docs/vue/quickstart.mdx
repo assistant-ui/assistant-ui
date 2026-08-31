@@ -1,0 +1,128 @@
+---
+title: Quickstart
+description: Build a streaming Nuxt chat with Vue, assistant-ui, and the AI SDK.
+---
+
+This guide adds a streaming chat to a Nuxt app in about five minutes. The runtime stays in a client-only component and the model call stays in a Nitro route.
+
+<Steps>
+  <Step>
+
+### Install the runtime
+
+Install the Vue binding, the AI SDK runtime, and an AI SDK provider:
+
+```sh
+pnpm add @assistant-ui/vue @assistant-ui/ai-sdk ai @ai-sdk/openai react
+```
+
+`react` is the AI SDK runtime's substrate — an optional peer of `@assistant-ui/ai-sdk`, so it does not install on its own. For `nuxi typecheck`, add `@types/react` as a dev dependency: a type-only react reference rides through the core runtime types.
+
+```bash
+pnpm add -D @types/react
+```
+
+Add your provider key to `.env`:
+
+```sh title=".env"
+OPENAI_API_KEY="sk-xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
+```
+
+  </Step>
+  <Step>
+
+### Install the styled components
+
+Add the Vue assistant-ui registry once in `components.json`:
+
+```json title="components.json"
+{
+  "registries": {
+    "@assistant-ui": "https://r.assistant-ui.com/vue/{name}.json"
+  }
+}
+```
+
+Install the chat surface:
+
+```sh
+npx shadcn@latest add @assistant-ui/thread @assistant-ui/thread-list
+```
+
+This writes Vue components under `components/assistant-ui`. The registry installs their assistant-ui, Vue, and UI dependencies.
+
+  </Step>
+  <Step>
+
+### Create the assistant client
+
+Use a `.client.vue` file so the runtime is created only in the browser:
+
+```vue title="app/components/Assistant.client.vue"
+<script setup lang="ts">
+import { AuiConfig, AuiProvider } from "@assistant-ui/vue";
+import { AISDKChat } from "@assistant-ui/ai-sdk";
+import Thread from "~/components/assistant-ui/thread.vue";
+
+const config = AuiConfig({
+  threads: AISDKChat(),
+});
+</script>
+
+<template>
+  <AuiProvider :config="config">
+    <Thread class="h-dvh" />
+  </AuiProvider>
+</template>
+```
+
+`AISDKChat()` creates one streaming thread. Its default transport sends requests to `/api/chat`.
+
+  </Step>
+  <Step>
+
+### Add the streaming route
+
+Create the Nitro route that receives UI messages and returns an AI SDK UI message stream:
+
+```ts title="server/api/chat.post.ts"
+import { openai } from "@ai-sdk/openai";
+import { convertToModelMessages, streamText, type UIMessage } from "ai";
+
+export default defineEventHandler(async (event) => {
+  const { messages, system } = await readBody<{
+    messages: UIMessage[];
+    system?: string;
+  }>(event);
+
+  const result = streamText({
+    model: openai("gpt-5.6-luna"),
+    messages: await convertToModelMessages(messages),
+    system,
+  });
+
+  return result.toUIMessageStreamResponse();
+});
+```
+
+  </Step>
+  <Step>
+
+### Render the assistant
+
+Nuxt recognizes the `.client.vue` suffix and only mounts this component in the browser:
+
+```vue title="app/pages/index.vue"
+<template>
+  <Assistant />
+</template>
+```
+
+Start the app with `pnpm dev`, then send a message. The response streams from `server/api/chat.post.ts` into the thread.
+
+  </Step>
+</Steps>
+
+## Next steps
+
+Use [AISDKThreads](/docs/vue/runtimes#aisdkthreads) when the chat needs a thread list, [server rendering](/docs/vue/ssr) to understand the `.client.vue` boundary, and [Tool UI](/docs/vue/tool-ui) to render tool calls.

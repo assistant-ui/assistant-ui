@@ -2,6 +2,8 @@
 // graph loads with react installed, or with react aliased to
 // @assistant-ui/tap/standalone-shim, or (types aside) not at all.
 
+export { shallowEqual } from "./utils/shallow-equal";
+
 export {
   createAssistantClient,
   type AssistantClientHandle,
@@ -12,6 +14,7 @@ export {
 export {
   DefaultAssistantClient,
   useAssistantContextProvider,
+  useAssistantContextValue,
 } from "./utils/react-assistant-context";
 export { useConfiguredAui } from "./useAui";
 export { getProxiedAssistantState } from "./utils/proxied-assistant-state";

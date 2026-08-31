@@ -1,0 +1,191 @@
+---
+title: "Recommendation card"
+description: "The agent proposes a change with its confidence, and waits for a yes."
+---
+
+A card that states a question, argues for it in a line of body text, and shows a confidence reading next to Alternatives and Accept buttons, then collapses to a single confirmation line once accepted. With a runtime the proposal is a tool call the user answers; standalone you hold the state and answer the callbacks yourself.
+
+## Getting started
+
+<RuntimeMode>
+
+A proposal like this is a human-in-the-loop tool call: the model calls it to ask a question, and the card itself supplies the result once the user picks an answer.
+
+<Steps>
+  <Step>
+
+### Render the tool call
+
+```tsx title="app/toolkit.tsx"
+"use client";
+
+import { defineToolkit } from "@assistant-ui/react";
+import { RecommendationCard } from "@/components/assistant-ui/elements/recommendation-card";
+
+export const toolkit = defineToolkit({
+  propose_change: {
+    type: "human",
+    render: ({ args, result, addResult }) => (
+      <RecommendationCard
+        state={result ? "accepted" : "idle"}
+        question={args.question}
+        confidenceLabel={args.confidenceLabel}
+        acceptedLabel={args.acceptedLabel}
+        onAccept={() => addResult({ accepted: true })}
+        onAlternatives={() => addResult({ accepted: false })}
+      >
+        {args.detail}
+      </RecommendationCard>
+    ),
+  },
+});
+```
+
+Call `addResult` exactly once to resolve the call and let the model continue. The result shape is entirely yours; `{ accepted: false }` here is a convention for "show me something else", not a fixed protocol value. An app that wants the model to keep proposing without resolving the call yet could instead leave it pending and send a follow-up user message.
+
+  </Step>
+  <Step>
+
+### Register the toolkit
+
+```tsx title="app/MyRuntimeProvider.tsx"
+import { AssistantRuntimeProvider, AuiConfig, Tools } from "@assistant-ui/react";
+import { toolkit } from "./toolkit";
+
+const config = AuiConfig({ tools: Tools({ toolkit }) });
+
+export function MyRuntimeProvider({ children }: { children: React.ReactNode }) {
+  return (
+    <AssistantRuntimeProvider runtime={runtime} config={config}>
+      {children}
+    </AssistantRuntimeProvider>
+  );
+}
+```
+
+  </Step>
+</Steps>
+
+</RuntimeMode>
+
+<StandaloneMode>
+
+Standalone, the element is a controlled display: you own `state` and decide what Accept and Alternatives do.
+
+<Steps>
+  <Step>
+
+### Hold the recommendation state
+
+```tsx title="app/recommendation.tsx"
+"use client";
+
+import { useState } from "react";
+import {
+  RecommendationCard,
+  type RecommendationState,
+} from "@/components/assistant-ui/elements/recommendation-card";
+
+export function Recommendation() {
+  const [state, setState] = useState<RecommendationState>("idle");
+
+  return (
+    <RecommendationCard
+      state={state}
+      question="Enable draft autosave?"
+      confidenceLabel="high confidence"
+      acceptedLabel="Enabled for every thread"
+      onAccept={() => setState("accepted")}
+      onAlternatives={() => showAlternatives()}
+    >
+      Threads lose their draft on switch. Wiring runtime.drafts fixes it with
+      three lines and no migration.
+    </RecommendationCard>
+  );
+}
+```
+
+  </Step>
+  <Step>
+
+### Decide what Alternatives does
+
+`onAlternatives` has no built-in meaning; wire it to whatever "something else" means in your app, such as opening a list of other options.
+
+```tsx
+function showAlternatives() {
+  setOptionsOpen(true);
+}
+```
+
+  </Step>
+</Steps>
+
+</StandaloneMode>
+
+## Anatomy
+
+```tsx
+<div data-slot="recommendation-card">
+  <p>{/* question */}</p>
+  <p>{/* body, from children */}</p>
+  <div>
+    {/* state === "idle": confidence bars + confidenceLabel, then Alternatives and Accept */}
+    {/* state === "accepted": a check and acceptedLabel */}
+  </div>
+</div>
+```
+
+The three confidence bars are a fixed shape (three heights, always the same) rather than a reading of a numeric confidence value; only `confidenceLabel`'s text is data-driven. The card holds no state of its own: `state` decides which footer renders, and it stays on `"accepted"` until you change it back.
+
+## Examples
+
+### Restyle the card
+
+Both lanes take `className` on the root. The Accept button uses `inkButton` and the confidence label uses `mono`, both from `surfaces.tsx`.
+
+```tsx
+<RecommendationCard className="max-w-md" /* ... */ />
+```
+
+### A recommendation with no alternatives
+
+Omit `onAlternatives` for a proposal that only makes sense as accept-or-ignore; the button still renders but has nothing to call.
+
+```tsx
+<RecommendationCard onAccept={() => setState("accepted")} /* ... */ />
+```
+
+## API reference
+
+<RuntimeMode>
+
+### Render props
+
+| Source | Type | Description |
+|--------|------|-------------|
+| `args.question` / `args.confidenceLabel` / `args.acceptedLabel` | `string` | Copy for the header, the confidence row, and the accepted row. |
+| `args.detail` | `string` | Rendered as the card's body (its `children`). |
+| `result` | `unknown` | Presence maps to `state="accepted"`. Shape is app-defined. |
+| `addResult(result)` | `(result: TResult) => void` | Resolves the call. Call it exactly once. |
+
+</RuntimeMode>
+
+<StandaloneMode>
+
+### RecommendationCard
+
+| Prop | Type | Default | Description |
+|------|------|---------|-------------|
+| `state` | `"idle" \| "accepted"` | required | Which footer renders. |
+| `question` | `string` | required | Header line. |
+| `children` | `ReactNode` | required | Body text under the question. |
+| `confidenceLabel` | `string` | required | Text next to the fixed confidence bars. |
+| `acceptedLabel` | `string` | required | Shown once `state` is `"accepted"`. |
+| `onAccept` | `() => void` | | Fires from the Accept button. |
+| `onAlternatives` | `() => void` | | Fires from the Alternatives button. |
+| `className` | `string` | | Merged onto the root. |
+
+All other `div` props are forwarded to the root.
+
+</StandaloneMode>

@@ -1,16 +1,14 @@
-import fs from "node:fs";
-import path from "node:path";
 import { Tab, Tabs } from "@/components/pages/docs/fumadocs/tabs";
 import { Flavored } from "@/components/pages/docs/contexts/flavor.server";
 import type { LLMRenderContext } from "@/lib/get-llm-text";
 import {
   resolveAllComponents,
   ComponentSourceFromFile,
-  type RegistryFlavor,
   type ResolvedComponents,
   type ResolvedFile,
   type ResolvedGroup,
 } from "@/components/pages/docs/fumadocs/install/component-source";
+import { githubSourcePath } from "@/components/pages/docs/fumadocs/install/install-source-path";
 import { SetupInstructions } from "@/components/pages/docs/fumadocs/install/setup-instructions";
 import {
   ExpoInstallTabs,
@@ -126,16 +124,6 @@ const CommandBlock = ({ command }: { command: string }) => (
     <code className="language-bash">{command}</code>
   </pre>
 );
-
-function githubSourcePath(filePath: string, flavor: RegistryFlavor): string {
-  if (flavor !== "radix") return filePath;
-  const radixPath = filePath.replace(/\.tsx$/, ".radix.tsx");
-  return fs.existsSync(
-    path.join(process.cwd(), "../../packages/ui/src", radixPath),
-  )
-    ? radixPath
-    : filePath;
-}
 
 type LinkedFile = ResolvedFile & { sourcePath: string };
 

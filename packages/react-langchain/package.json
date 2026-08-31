@@ -1,6 +1,6 @@
 {
   "name": "@assistant-ui/react-langchain",
-  "version": "0.0.27",
+  "version": "0.0.28",
   "description": "LangChain useStream adapter for assistant-ui",
   "keywords": [
     "langchain",
@@ -18,6 +18,17 @@
     ".": {
       "types": "./dist/index.d.ts",
       "default": "./dist/index.js"
+    },
+    "./converter": {
+      "types": "./dist/converter.d.ts",
+      "default": "./dist/converter.js"
+    }
+  },
+  "typesVersions": {
+    "*": {
+      "converter": [
+        "./dist/converter.d.ts"
+      ]
     }
   },
   "main": "./dist/index.js",
@@ -34,10 +45,10 @@
     "test:watch": "vitest"
   },
   "dependencies": {
-    "@assistant-ui/core": "^0.3.15",
-    "@assistant-ui/store": "^0.3.10",
+    "@assistant-ui/core": "^0.3.16",
+    "@assistant-ui/store": "^0.3.11",
     "assistant-cloud": "*",
-    "assistant-stream": "^0.3.39"
+    "assistant-stream": "^0.3.40"
   },
   "peerDependencies": {
     "@langchain/react": "^1.0.2",
@@ -45,6 +56,9 @@
     "react": "^18 || ^19"
   },
   "peerDependenciesMeta": {
+    "@langchain/react": {
+      "optional": true
+    },
     "@types/react": {
       "optional": true
     }
@@ -52,9 +66,9 @@
   "devDependencies": {
     "@assistant-ui/x-buildutils": "workspace:*",
     "@langchain/core": "^1.2.9",
-    "@langchain/langgraph-sdk": "^1.9.31",
-    "@langchain/react": "^1.0.32",
-    "@testing-library/react": "^16.3.2",
+    "@langchain/langgraph-sdk": "^1.10.0",
+    "@langchain/react": "^1.0.33",
+    "@testing-library/react": "^16.3.3",
     "@types/react": "^19.2.18",
     "jsdom": "^30.0.1",
     "react": "^19.2.8",

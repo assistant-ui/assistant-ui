@@ -21,6 +21,7 @@ import { AuiProvider } from "../AuiProvider";
 import { useAuiState } from "../useAuiState";
 import { ThreadPrimitiveMessages } from "../primitives/ThreadPrimitiveMessages";
 import { ThreadPrimitiveViewport } from "../primitives/ThreadPrimitiveViewport";
+import { ThreadPrimitiveViewportFooter } from "../primitives/ThreadPrimitiveViewportFooter";
 import {
   ThreadPrimitiveScrollToBottom,
   clearScrollToBottomWarningForTesting,
@@ -542,6 +543,186 @@ describe("ThreadPrimitiveViewport", () => {
     });
 
     unmount();
+  });
+
+  it("updates at-bottom state when a footer height changes", async () => {
+    const observers = new Set<ResizeObserverMock>();
+    class ResizeObserverMock {
+      element: Element | null = null;
+
+      constructor(private readonly callback: ResizeObserverCallback) {
+        observers.add(this);
+      }
+
+      observe(element: Element) {
+        this.element = element;
+      }
+
+      unobserve() {}
+
+      disconnect() {
+        observers.delete(this);
+      }
+
+      takeRecords() {
+        return [];
+      }
+
+      trigger() {
+        this.callback([], this);
+      }
+    }
+    vi.stubGlobal("ResizeObserver", ResizeObserverMock);
+
+    const { runtime } = createTestRuntime();
+    const View = defineComponent({
+      setup: () => () =>
+        h(
+          ThreadPrimitiveViewport,
+          { class: "viewport" },
+          {
+            default: () => [
+              h(ThreadPrimitiveViewportFooter, { class: "footer" }),
+              h(
+                ThreadPrimitiveScrollToBottom,
+                { class: "jump" },
+                { default: () => "Jump" },
+              ),
+            ],
+          },
+        ),
+    });
+    const { el, unmount } = mountChat(runtime, View);
+    const div = el.querySelector<HTMLElement>("div.viewport")!;
+    const footer = el.querySelector<HTMLElement>("div.footer")!;
+    let scrollTop = 350;
+    let footerHeight = 0;
+    Object.defineProperty(div, "scrollHeight", {
+      get: () => 500,
+      configurable: true,
+    });
+    Object.defineProperty(div, "clientHeight", {
+      get: () => 100,
+      configurable: true,
+    });
+    Object.defineProperty(div, "scrollTop", {
+      get: () => scrollTop,
+      set: (value: number) => {
+        scrollTop = value;
+      },
+      configurable: true,
+    });
+    Object.defineProperty(footer, "offsetHeight", {
+      get: () => footerHeight,
+      configurable: true,
+    });
+
+    try {
+      await nextTick();
+      expect(
+        [...observers].some((observer) => observer.element === footer),
+      ).toBe(true);
+      scrollTop = 0;
+      div.dispatchEvent(new Event("scroll"));
+      scrollTop = 350;
+      div.dispatchEvent(new Event("scroll"));
+      await nextTick();
+      expect(el.querySelector<HTMLButtonElement>("button.jump")!.disabled).toBe(
+        false,
+      );
+
+      footerHeight = 50;
+      expect(footer.offsetHeight).toBe(50);
+      for (const observer of observers) {
+        if (observer.element === footer) observer.trigger();
+      }
+      await nextTick();
+      expect(el.querySelector<HTMLButtonElement>("button.jump")!.disabled).toBe(
+        true,
+      );
+
+      footerHeight = 0;
+      for (const observer of observers) {
+        if (observer.element === footer) observer.trigger();
+      }
+      await nextTick();
+      expect(el.querySelector<HTMLButtonElement>("button.jump")!.disabled).toBe(
+        false,
+      );
+    } finally {
+      Reflect.deleteProperty(div, "scrollHeight");
+      Reflect.deleteProperty(div, "clientHeight");
+      Reflect.deleteProperty(div, "scrollTop");
+      Reflect.deleteProperty(footer, "offsetHeight");
+      unmount();
+      vi.unstubAllGlobals();
+    }
+  });
+
+  it("keeps MutationObserver content observation when ResizeObserver is unavailable", async () => {
+    vi.stubGlobal("ResizeObserver", undefined);
+    const { runtime } = createTestRuntime();
+    const View = defineComponent({
+      setup: () => () =>
+        h(
+          ThreadPrimitiveViewport,
+          { class: "viewport" },
+          {
+            default: () => [
+              h(ThreadPrimitiveViewportFooter, { class: "footer" }),
+              h("p", "content"),
+            ],
+          },
+        ),
+    });
+    const { el, unmount } = mountChat(runtime, View);
+    const div = el.querySelector<HTMLElement>("div.viewport")!;
+    let scrollHeight = 500;
+    let scrollTop = 400;
+    Object.defineProperty(div, "scrollHeight", {
+      get: () => scrollHeight,
+      configurable: true,
+    });
+    Object.defineProperty(div, "clientHeight", {
+      get: () => 100,
+      configurable: true,
+    });
+    Object.defineProperty(div, "scrollTop", {
+      get: () => scrollTop,
+      set: (value: number) => {
+        scrollTop = value;
+      },
+      configurable: true,
+    });
+    const scrollTo = vi.fn(({ top }: ScrollToOptions) => {
+      scrollTop = Math.max(0, Math.min(top ?? 0, scrollHeight - 100));
+      div.dispatchEvent(new Event("scroll"));
+    });
+    Object.defineProperty(div, "scrollTo", {
+      value: scrollTo,
+      configurable: true,
+    });
+
+    try {
+      await nextTick();
+      expect(el.querySelector("div.footer")).not.toBeNull();
+      div.dispatchEvent(new Event("scroll"));
+      scrollHeight = 600;
+      div.append(document.createElement("span"));
+      await vi.waitFor(() => {
+        expect(scrollTo).toHaveBeenCalledWith({
+          top: 600,
+          behavior: "instant",
+        });
+      });
+    } finally {
+      Reflect.deleteProperty(div, "scrollHeight");
+      Reflect.deleteProperty(div, "clientHeight");
+      Reflect.deleteProperty(div, "scrollTop");
+      Reflect.deleteProperty(div, "scrollTo");
+      unmount();
+      vi.unstubAllGlobals();
+    }
   });
 
   it("renders scroll-to-bottom disabled outside a viewport and warns in dev", () => {

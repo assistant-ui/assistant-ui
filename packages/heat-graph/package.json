@@ -1,6 +1,6 @@
 {
   "name": "heat-graph",
-  "version": "0.0.15",
+  "version": "0.0.16",
   "description": "Headless, Radix-style React components for rendering activity heatmap graphs",
   "keywords": [
     "heatmap",
@@ -46,7 +46,7 @@
   },
   "devDependencies": {
     "@assistant-ui/x-buildutils": "workspace:*",
-    "@testing-library/react": "^16.3.2",
+    "@testing-library/react": "^16.3.3",
     "@types/react": "^19.2.18",
     "@types/react-dom": "^19.2.5",
     "jsdom": "^30.0.1",

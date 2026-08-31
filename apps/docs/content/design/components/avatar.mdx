@@ -1,0 +1,88 @@
+---
+title: "Avatar"
+description: "People as initials or images, alone or stacked in groups."
+links:
+  - label: Source
+    url: https://github.com/assistant-ui/assistant-ui/blob/main/packages/ui/src/components/ui/base/avatar.tsx
+  - label: Base UI Avatar
+    url: https://base-ui.com/react/components/avatar
+---
+
+import { PreviewCode } from "@/components/pages/docs/preview-code.server";
+import { KitInstall } from "@/components/pages/design/kit-install";
+import {
+  AvatarSpecimen,
+  AvatarSizesSpecimen,
+  AvatarBadgeSpecimen,
+} from "@/components/pages/design/specimens";
+import * as RadixSpecimens from "@/components/pages/design/specimens.radix";
+import { FlavorSwitcher } from "@/components/pages/docs/contexts/flavor.server";
+
+<FlavorSwitcher />
+
+<PreviewCode file="components/pages/design/specimens" name="AvatarSpecimen" base={<AvatarSpecimen />}>
+  <RadixSpecimens.AvatarSpecimen />
+</PreviewCode>
+
+## Installation
+
+<KitInstall name="avatar" />
+
+## Usage
+
+```tsx
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+
+export function Example() {
+  return (
+    <Avatar>
+      <AvatarImage src="/avatar.png" alt="Ada" />
+      <AvatarFallback>AD</AvatarFallback>
+    </Avatar>
+  );
+}
+```
+
+## Examples
+
+### Sizes
+
+<PreviewCode file="components/pages/design/specimens" name="AvatarSizesSpecimen" base={<AvatarSizesSpecimen />}>
+  <RadixSpecimens.AvatarSizesSpecimen />
+</PreviewCode>
+
+### Status badge
+
+`AvatarBadge` pins a marker to the rim; give it a background to carry the status.
+
+<PreviewCode file="components/pages/design/specimens" name="AvatarBadgeSpecimen" base={<AvatarBadgeSpecimen />}>
+  <RadixSpecimens.AvatarBadgeSpecimen />
+</PreviewCode>
+
+## API Reference
+
+### Avatar
+
+Wraps Base UI's Avatar root.
+
+<ParametersTable
+  type="AvatarProps"
+  parameters={[
+    {
+      name: "size",
+      type: '"sm" | "default" | "lg"',
+      default: '"default"',
+      description: "24, 32, or 40 pixels.",
+    },
+  ]}
+/>
+
+### Parts
+
+| Part | Description |
+|------|-------------|
+| `AvatarImage` | The image, shown once it loads. |
+| `AvatarFallback` | Initials or an icon while the image is missing. |
+| `AvatarBadge` | A status marker pinned to the rim. |
+| `AvatarGroup` | Overlapping stack of avatars. |
+| `AvatarGroupCount` | Overflow count that closes a group. |

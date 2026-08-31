@@ -13,23 +13,21 @@ import {
 } from "@/components/assistant-ui/model-selector";
 import { SampleFrame } from "@/components/pages/docs/samples/sample-frame";
 
+const openaiModels: ModelOption[] = [
+  { id: "gpt-5.6-luna", name: "GPT-5.6 Luna" },
+  { id: "gpt-5.6-sol", name: "GPT-5.6 Sol", efforts: true },
+];
+const anthropicModels: ModelOption[] = [
+  { id: "claude-fable-5", name: "Claude Fable 5" },
+  { id: "claude-opus-5", name: "Claude Opus 5", disabled: true },
+];
+const models: ModelOption[] = [...openaiModels, ...anthropicModels];
+
 export function GroupedModelSelector() {
-  const openaiModels: ModelOption[] = [
-    { id: "gpt-5.6-luna", name: "GPT-5.6 Luna" },
-    { id: "gpt-5.6-sol", name: "GPT-5.6 Sol", efforts: true },
-  ];
-  const anthropicModels: ModelOption[] = [
-    { id: "claude-fable-5", name: "Claude Fable 5" },
-    { id: "claude-opus-5", name: "Claude Opus 5", disabled: true },
-  ];
   const [model, setModel] = useState("gpt-5.6-luna");
 
   return (
-    <ModelSelectorRoot
-      models={[...openaiModels, ...anthropicModels]}
-      value={model}
-      onValueChange={setModel}
-    >
+    <ModelSelectorRoot models={models} value={model} onValueChange={setModel}>
       <ModelSelectorTrigger />
       <ModelSelectorContent searchable={false}>
         <ModelSelectorList>

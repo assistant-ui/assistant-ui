@@ -4,25 +4,25 @@ import {
   ComposerAddAttachment,
   ComposerAttachments,
   UserMessageAttachments,
-} from "@/components/assistant-ui/attachment";
-import { MarkdownText } from "@/components/assistant-ui/markdown-text";
-import { DotMatrix } from "@/components/assistant-ui/dot-matrix";
-import { MessageTiming } from "@/components/assistant-ui/message-timing";
-import { ToolFallback } from "@/components/assistant-ui/tool-fallback";
+} from "@/components/assistant-ui/elements/attachment.aui";
+import { MarkdownText } from "@/components/assistant-ui/elements/markdown-text";
+import { DotMatrix } from "@/components/ui/dot-matrix";
+import { MessageTiming } from "@/components/assistant-ui/elements/message-timing.aui";
+import { ToolFallback } from "@/components/assistant-ui/elements/tool-fallback.aui";
 import {
   ToolGroupContent,
   ToolGroupRoot,
   ToolGroupTrigger,
-} from "@/components/assistant-ui/tool-group";
+} from "@/components/assistant-ui/elements/tool-group.aui";
 import { CloneThreadShell } from "./clone-thread-shell";
-import { TooltipIconButton } from "@/components/assistant-ui/tooltip-icon-button";
+import { TooltipIconButton } from "@/components/assistant-ui/elements/tooltip-icon-button";
 import {
   Reasoning,
   ReasoningContent,
   ReasoningRoot,
   ReasoningText,
   ReasoningTrigger,
-} from "@/components/assistant-ui/reasoning";
+} from "@/components/assistant-ui/elements/reasoning.aui";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { cn } from "@/lib/utils";
@@ -31,9 +31,9 @@ import {
   ComposerQuotePreview,
   QuoteBlock,
   SelectionToolbar,
-} from "@/components/assistant-ui/quote";
-import { ComposerTriggerPopover } from "@/components/assistant-ui/composer-trigger-popover";
-import { DirectiveText } from "@/components/assistant-ui/directive-text";
+} from "@/components/assistant-ui/elements/quote.aui";
+import { ComposerTriggerPopover } from "@/components/assistant-ui/elements/composer-trigger-popover.aui";
+import { DirectiveText } from "@/components/assistant-ui/elements/directive-text.aui";
 import {
   ActionBarMorePrimitive,
   ActionBarPrimitive,
@@ -85,7 +85,7 @@ import {
 } from "@assistant-ui/react-lexical";
 import Image from "next/image";
 import { useState, type FC, type ReactNode } from "react";
-import { ModelSelector } from "@/components/assistant-ui/model-selector";
+import { ModelSelector } from "@/components/assistant-ui/elements/model-selector.aui";
 import { docsModelOptions } from "@/components/pages/docs/assistant/docs-model-options";
 import { DEFAULT_MODEL_ID } from "@/lib/model";
 
@@ -220,7 +220,7 @@ const Thread: FC = () => {
       style={{
         ["--thread-max-width" as string]: "44rem",
         ["--composer-bg" as string]: "var(--color-card)",
-        ["--composer-radius" as string]: "1.5rem",
+        ["--composer-radius" as string]: "var(--radius-thread)",
         ["--composer-padding" as string]: "8px",
       }}
     >
@@ -292,9 +292,9 @@ const ThreadScrollToBottom: FC = () => {
 const ThreadWelcome: FC = () => {
   return (
     <div className="aui-thread-welcome-root mx-auto mb-6 flex w-full max-w-(--thread-max-width) flex-col items-center px-4 text-center">
-      <h1 className="aui-thread-welcome-message-inner fade-in slide-in-from-bottom-1 animate-in fill-mode-both text-2xl font-medium tracking-tight duration-200">
+      <p className="aui-thread-welcome-message-inner fade-in slide-in-from-bottom-1 animate-in fill-mode-both text-2xl font-medium tracking-tight duration-200">
         How can I help you today?
-      </h1>
+      </p>
     </div>
   );
 };
@@ -803,7 +803,7 @@ const UserMessage: FC = () => {
       <UserMessageAttachments />
 
       <div className="aui-user-message-content-wrapper relative col-start-2 min-w-0">
-        <div className="aui-user-message-content peer bg-muted text-foreground rounded-xl px-4 py-2 wrap-break-word empty:hidden">
+        <div className="aui-user-message-content peer bg-muted text-foreground rounded-thread px-4 py-2 wrap-break-word empty:hidden">
           <MessagePrimitive.Quote>
             {(quote) => <QuoteBlock {...quote} />}
           </MessagePrimitive.Quote>
@@ -902,6 +902,10 @@ const BranchPicker: FC<BranchPickerPrimitive.Root.Props> = ({
     </BranchPickerPrimitive.Root>
   );
 };
+
+export function BaseThread() {
+  return <Thread />;
+}
 
 export const Base: FC = () => {
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);

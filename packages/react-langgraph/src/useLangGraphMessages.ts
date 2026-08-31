@@ -1,4 +1,11 @@
-import { useState, useCallback, useEffect, useRef, useMemo } from "react";
+import {
+  useState,
+  useCallback,
+  useEffect,
+  useInsertionEffect,
+  useRef,
+  useMemo,
+} from "react";
 import { generateId } from "@assistant-ui/core";
 import { LangGraphMessageAccumulator } from "./LangGraphMessageAccumulator";
 import { abortableIterable, whenAborted } from "./abortableIterable";
@@ -212,8 +219,12 @@ const useLangGraphMessagesInternal = <TMessage extends { id?: string }>({
   const [messages, _setMessages] = useState<TMessage[]>([]);
   const [values, setValues] = useState<Record<string, unknown> | undefined>();
   const messagesRef = useRef(messages);
-  messagesRef.current = messages;
-  interruptRef.current = interrupt;
+  useInsertionEffect(() => {
+    messagesRef.current = messages;
+  }, [messages]);
+  useInsertionEffect(() => {
+    interruptRef.current = interrupt;
+  }, [interrupt]);
 
   const setMessagesImmediate = useCallback((msgs: TMessage[]) => {
     messagesRef.current = msgs;
@@ -222,7 +233,9 @@ const useLangGraphMessagesInternal = <TMessage extends { id?: string }>({
 
   const [uiMessages, _setUIMessages] = useState<UIMessage[]>([]);
   const uiMessagesRef = useRef(uiMessages);
-  uiMessagesRef.current = uiMessages;
+  useInsertionEffect(() => {
+    uiMessagesRef.current = uiMessages;
+  }, [uiMessages]);
 
   const activeAccumulatorRef = useRef<
     LangGraphMessageAccumulator<TMessage> | undefined
@@ -314,6 +327,10 @@ const useLangGraphMessagesInternal = <TMessage extends { id?: string }>({
           switch (eventType) {
             case LangGraphKnownEventTypes.MessagesPartial:
             case LangGraphKnownEventTypes.MessagesComplete:
+              if (!Array.isArray(chunk.data)) {
+                console.warn("Received invalid messages payload:", chunk.data);
+                break;
+              }
               onMessages?.(chunk.data, config.runConfig);
               setMessagesImmediate(accumulator.addMessages(chunk.data));
               break;
@@ -328,6 +345,7 @@ const useLangGraphMessagesInternal = <TMessage extends { id?: string }>({
               } else {
                 invokeEventCallback("onUpdates", onUpdates, chunk.data);
               }
+              if (chunk.data === null || typeof chunk.data !== "object") break;
               const extracted = extractMessagesFromUpdates<TMessage>(
                 chunk.data,
               );
@@ -353,8 +371,9 @@ const useLangGraphMessagesInternal = <TMessage extends { id?: string }>({
                 );
                 break;
               }
-              setValues(chunk.data as Record<string, unknown>);
               invokeEventCallback("onValues", onValues, chunk.data);
+              if (chunk.data === null || typeof chunk.data !== "object") break;
+              setValues(chunk.data);
               if (Array.isArray(chunk.data?.messages)) {
                 lastValuesMessages = chunk.data.messages;
                 if (hasTupleMessageEvents) {
@@ -383,19 +402,20 @@ const useLangGraphMessagesInternal = <TMessage extends { id?: string }>({
               }
               break;
             case LangGraphKnownEventTypes.Messages: {
-              hasTupleMessageEvents = true;
-              const [tupleMessage, tupleMetadata] = (
-                chunk as LangChainMessageTupleEvent
-              ).data;
+              const tupleData = (chunk as LangChainMessageTupleEvent).data;
+              const [tupleMessage, tupleMetadata] = Array.isArray(tupleData)
+                ? tupleData
+                : [];
               const normalizedTupleMessage =
                 normalizeLangGraphTupleMessage(tupleMessage);
               if (!normalizedTupleMessage) {
                 console.warn(
                   "Received invalid messages tuple format:",
-                  tupleMessage,
+                  tupleData,
                 );
                 break;
               }
+              hasTupleMessageEvents = true;
 
               const tupleMetadataWithNamespace:
                 | LangGraphTupleMetadata

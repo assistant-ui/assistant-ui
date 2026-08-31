@@ -71,7 +71,7 @@ Shared adapters (attachments, speech, feedback) work the same way described in [
 ```tsx title="@/components/MyAssistant.tsx"
 "use client";
 
-import { Thread } from "@/components/assistant-ui/thread";
+import { Thread } from "@/components/assistant-ui/elements/thread.aui";
 import { AssistantRuntimeProvider } from "@assistant-ui/react";
 import { useStreamRuntime } from "@assistant-ui/react-langchain";
 
@@ -93,7 +93,7 @@ export function MyAssistant() {
 <Tab value="React Native">
 
 ```tsx title="components/MyAssistant.tsx"
-import { Thread } from "@/components/assistant-ui/thread";
+import { Thread } from "@/components/assistant-ui/elements/thread.aui";
 import { AssistantRuntimeProvider } from "@assistant-ui/react-native";
 import { useStreamRuntime } from "@assistant-ui/react-langchain";
 
@@ -231,7 +231,7 @@ LANGGRAPH_ASSISTANT_ID=your_graph_id
 <PlatformTabs>
 <Tab value="React">
 
-Follow the [UI Components guide](/docs/ui/thread).
+Follow the [UI Components guide](/elements/thread).
 
 </Tab>
 <Tab value="React Native">
@@ -745,7 +745,7 @@ import {
   AssistantRuntimeProvider,
   makeAssistantDataUI,
 } from "@assistant-ui/react";
-import { Thread } from "@/components/assistant-ui/thread";
+import { Thread } from "@/components/assistant-ui/elements/thread.aui";
 import { useStreamRuntime } from "@assistant-ui/react-langchain";
 
 const ChartUI = makeAssistantDataUI({

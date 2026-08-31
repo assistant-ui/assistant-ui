@@ -51,6 +51,27 @@ describe("RemoteThreadList adapter changes", () => {
     expect(adapterB.rename).not.toHaveBeenCalled();
   });
 
+  it("clears loading when the replaced adapter's list never settles", async () => {
+    const adapterA = makeAdapter({
+      list: vi.fn(() => new Promise<never>(() => {})),
+    });
+    const adapterB = makeAdapter({
+      list: vi.fn(async () => ({ threads: [thread("thread-b")] })),
+    });
+    const core = createCore(adapterA);
+
+    void core.getLoadThreadsPromise();
+
+    core.__internal_setOptions({
+      adapter: adapterB,
+      runtimeHook: () => ({}) as never,
+    });
+    await core.getLoadThreadsPromise();
+
+    expect(core.threadIds).toEqual(["thread-b"]);
+    expect(core.isLoading).toBe(false);
+  });
+
   it("does not resume an old adapter mutation through the new adapter", async () => {
     const adapterA = makeAdapter({
       list: async () => ({ threads: [thread("thread-a")] }),

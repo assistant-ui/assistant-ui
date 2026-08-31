@@ -515,6 +515,7 @@ export {
   getMcpAppFromToolPart,
 } from "./mcp-apps";
 export type {
+  McpAppPartOptions,
   McpAppRendererOptions,
   McpAppMetadata,
   McpAppResource,
@@ -531,3 +532,12 @@ export type {
   ToolCallMessagePartMcpMetadata,
 } from "./mcp-apps";
 export type { McpAppResourceOutput } from "@assistant-ui/core/react";
+export type { ShimLoadError, ShimLoadErrorCode } from "safe-content-frame";
+
+// Unstable - WebMCP provider (exposes frontend tools to a WebMCP-capable browser)
+export {
+  unstable_useWebMcpProvider,
+  type Unstable_WebMcpProviderOptions,
+  type Unstable_WebMcpProviderResult,
+} from "./unstable/webmcp/useWebMcpProvider";
+export { defaultWebMcpFilter as unstable_defaultWebMcpFilter } from "./unstable/webmcp/convertTools";

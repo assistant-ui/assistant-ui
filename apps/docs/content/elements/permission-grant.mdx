@@ -1,0 +1,213 @@
+---
+title: "Permission grant"
+description: "Granting a capability rather than approving one action, with the reach spelled out."
+---
+
+A gate for a capability, not a single action: what's being asked for, who's asking, and exactly what saying yes would let happen, before the user commits. With a runtime this gate comes from the tool call's approval state; standalone you hold the decision yourself.
+
+## Getting started
+
+<RuntimeMode>
+
+A runtime whose backend declares tool approval gates (an AG-UI or ACP agent, for example) attaches an `approval` object to the tool-call part. Read it and answer it from the same renderer that shows the tool's normal result.
+
+<Steps>
+  <Step>
+
+### Read the approval gate from the tool call
+
+```tsx title="app/shell-toolkit.tsx"
+"use client";
+
+import type { ToolCallMessagePartProps } from "@assistant-ui/react";
+
+function ShellApprovalGate({ args, approval, respondToApproval }: ToolCallMessagePartProps<{ command: string }, string>) {
+  if (!approval || approval.approved !== undefined || approval.resolution !== undefined) {
+    return null;
+  }
+
+  return (
+    <div className="flex flex-col gap-3.5 rounded-[20px] border p-4">
+      <p className="text-sm font-medium">Run: {args.command}</p>
+      <div className="flex flex-wrap gap-2">
+        {(approval.options ?? []).map((option) => (
+          <button key={option.id} type="button" onClick={() => respondToApproval({ optionId: option.id })}>
+            {option.label ?? option.kind}
+          </button>
+        ))}
+      </div>
+    </div>
+  );
+}
+```
+
+`approval.approved === undefined` and no `resolution` marks the gate as still open; once the host records a decision, the part re-renders with `approval.approved` set and this returns `null`.
+
+  </Step>
+  <Step>
+
+### Answer with respondToApproval
+
+Each declared option carries its own `grants`, the patterns or rules choosing it would persist. Show them before the user commits, not after:
+
+```tsx
+{(approval.options ?? []).map((option) => (
+  <div key={option.id} className="flex flex-col gap-1">
+    <button type="button" onClick={() => respondToApproval({ optionId: option.id })}>
+      {option.label ?? option.kind}
+    </button>
+    {option.grants?.map((grant) => <span key={grant}>{grant}</span>)}
+  </div>
+))}
+```
+
+  </Step>
+</Steps>
+
+</RuntimeMode>
+
+<StandaloneMode>
+
+Standalone, the element is fully controlled: you own the decision and what it grants.
+
+<Steps>
+  <Step>
+
+### Hold the grant decision
+
+```tsx title="app/approval.tsx"
+"use client";
+
+import { useState } from "react";
+import { PermissionGrant, type GrantScope } from "@/components/assistant-ui/elements/permission-grant";
+
+export function ShellApproval() {
+  const [scope, setScope] = useState<GrantScope | "pending">("pending");
+  return (
+    <PermissionGrant
+      capability="Run shell commands"
+      requester="deploy-agent"
+      reach={["./workspace/**", "npm run *"]}
+      scope={scope}
+      onGrant={setScope}
+    />
+  );
+}
+```
+
+  </Step>
+  <Step>
+
+### Resolve it from onGrant
+
+`onGrant` fires once, with whichever of `"denied"`, `"session"`, or `"always"` the user picked. Setting `scope` from it is enough; the card renders its buttons only while `scope` is `"pending"`.
+
+  </Step>
+</Steps>
+
+</StandaloneMode>
+
+## Anatomy
+
+```tsx
+<div data-slot="permission-grant">
+  <div>{/* icon, capability, "requested by {requester}" */}</div>
+  <div>{/* "this grants", then one line per reach item */}</div>
+  <div>
+    {/* pending: Deny / This session / Always */}
+    {/* resolved: one badge, keyed on scope so it fades in on change */}
+  </div>
+</div>
+```
+
+The three pending buttons and the resolved badge are mutually exclusive: once `scope` is anything but `"pending"`, the buttons are gone and the card reads either `"denied"` or `"granted · {scope}"`.
+
+## Examples
+
+### Confirm a persistent grant
+
+<RuntimeMode>
+
+An option with `confirm: true` (or a `{ title, description }` object) is a two-step commit: show its own confirmation before calling `respondToApproval`, matching what `option.grants` already promised.
+
+```tsx
+const [confirmingId, setConfirmingId] = useState<string | null>(null);
+const confirming = approval.options?.find((o) => o.id === confirmingId);
+
+if (confirming) {
+  return (
+    <div>
+      <p>{typeof confirming.confirm === "object" ? confirming.confirm.title : `${confirming.label}?`}</p>
+      <button onClick={() => respondToApproval({ optionId: confirming.id })}>Confirm</button>
+      <button onClick={() => setConfirmingId(null)}>Back</button>
+    </div>
+  );
+}
+```
+
+</RuntimeMode>
+
+### Plain allow or deny
+
+<RuntimeMode>
+
+`approval.options` is optional. When it's absent, the gate is a plain yes or no: respond with `approved` instead of an `optionId`.
+
+```tsx
+<button type="button" onClick={() => respondToApproval({ approved: true })}>
+  Allow
+</button>
+<button type="button" onClick={() => respondToApproval({ approved: false })}>
+  Deny
+</button>
+```
+
+</RuntimeMode>
+
+### Restyle the card
+
+Both lanes take `className` on the root. The root uses the shared `paper` surface, the "this grants" label uses `mono`, the resolved badge uses `field` and `mono` together, and the Always button uses `inkButton`, so retargeting those in `surfaces.tsx` restyles this card along with everything else built on them.
+
+## API reference
+
+<RuntimeMode>
+
+### Approval gate
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `approval.id` | `string` | Identifier for this approval request. |
+| `approval.approved` | `boolean \| undefined` | `undefined` while the gate is still open. |
+| `approval.options` | `readonly ToolApprovalOption[] \| undefined` | Available decisions; absent means a plain allow or deny. |
+| `approval.optionId` | `string \| undefined` | The option chosen at resolution, when options were present. |
+| `approval.resolution` | `"cancelled" \| "expired" \| undefined` | Set by the host when the request ended without a user decision. |
+| `respondToApproval(response)` | `(response: ToolApprovalResponse) => void` | Answers the gate. Accepts `{ approved }`, `{ optionId }`, or both. Only valid while `approved` and `resolution` are both unset. |
+
+### ToolApprovalOption
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `id` | `string` | Host-defined identifier. |
+| `kind` | `"allow-once" \| "allow-always" \| "reject-once" \| "reject-always"` or a custom string | Known kinds resolve `approved` automatically; a custom kind always needs an explicit `approved` value. |
+| `label` | `string` | Optional; renderers default per kind when it's absent. |
+| `grants` | `readonly string[]` | Patterns or rules this option would persist, supplied by the host. |
+| `confirm` | `boolean \| { title?, description? }` | Opt-in confirmation step before this option resolves. |
+
+</RuntimeMode>
+
+<StandaloneMode>
+
+### PermissionGrant
+
+| Prop | Type | Default | Description |
+|------|------|---------|-------------|
+| `capability` | `string` | required | What's being granted. |
+| `requester` | `string` | required | Who's asking for it. |
+| `reach` | `readonly string[]` | required | The patterns or rules this grant would cover, shown before the user commits. |
+| `scope` | `GrantScope \| "pending"` | required | `"pending"` shows the three buttons; any other value shows the resolved badge. |
+| `onGrant` | `(scope: GrantScope) => void` | | Called once, from whichever pending button was pressed. |
+| `className` | `string` | | Merged onto the root. |
+
+`GrantScope` is `"session" | "always" | "denied"`.
+
+</StandaloneMode>

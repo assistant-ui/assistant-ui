@@ -1,0 +1,253 @@
+---
+title: "Todo list"
+description: "The agent's own working list, rewritten mid-run as it discovers what else is needed."
+---
+
+A todo list shows the plan an agent is working through right now: what is done, what is active, and what is still pending. With a runtime the list comes from a tool call the model keeps rewriting as it works; standalone you pass the items in yourself.
+
+## Getting started
+
+<RuntimeMode>
+
+Nothing in the runtime tracks a todo list on its own. The list is ordinary tool output: define a tool whose arguments are the current items, and render it with the `TodoList` element.
+
+<Steps>
+  <Step>
+
+### Define the todo tool
+
+A frontend tool is enough here: the model just needs somewhere to write the plan, and the renderer reads it straight off `args`.
+
+```tsx title="app/toolkit.ts"
+import { defineToolkit } from "@assistant-ui/react";
+import { z } from "zod";
+import { TodoList } from "@/components/assistant-ui/elements/todo-list";
+
+export const toolkit = defineToolkit({
+  update_todos: {
+    type: "frontend",
+    description: "Replace the visible working list with the current plan.",
+    parameters: z.object({
+      items: z.array(
+        z.object({
+          id: z.string(),
+          text: z.string(),
+          status: z.enum(["pending", "active", "done"]),
+        }),
+      ),
+    }),
+    execute: async ({ items }) => ({ count: items.length }),
+    render: ({ args }) => <TodoList items={args.items ?? []} />,
+  },
+});
+```
+
+See [Defining tools](/docs/tools/defining-tools) for toolkit registration and server-side wiring.
+
+  </Step>
+  <Step>
+
+### Register the toolkit
+
+```tsx title="app/MyRuntimeProvider.tsx"
+"use client";
+
+import { AssistantRuntimeProvider, AuiConfig, Tools } from "@assistant-ui/react";
+import { useChatRuntime } from "@assistant-ui/ai-sdk";
+import { toolkit } from "./toolkit";
+
+export function MyRuntimeProvider({ children }: { children: React.ReactNode }) {
+  const runtime = useChatRuntime();
+  const config = AuiConfig({ tools: Tools({ toolkit }) });
+  return (
+    <AssistantRuntimeProvider runtime={runtime} config={config}>
+      {children}
+    </AssistantRuntimeProvider>
+  );
+}
+```
+
+Each call to `update_todos` becomes its own tool-call message part, so a model that revises the plan three times leaves three cards in the transcript. Set `display: "standalone"` on the entry to keep each one out of the inline chain-of-thought trace and presented as its own block.
+
+  </Step>
+</Steps>
+
+</RuntimeMode>
+
+<StandaloneMode>
+
+Standalone, the element is fully controlled: you hold the array of items and hand it the whole list on every render.
+
+<Steps>
+  <Step>
+
+### Hold the todo state
+
+```tsx title="app/plan.tsx"
+"use client";
+
+import { useState } from "react";
+import { TodoList, type TodoItem } from "@/components/assistant-ui/elements/todo-list";
+
+const initialItems: TodoItem[] = [
+  { id: "1", text: "Read the failing test", status: "done" },
+  { id: "2", text: "Reproduce locally", status: "active" },
+  { id: "3", text: "Write the fix", status: "pending" },
+];
+
+export function Plan() {
+  const [items, setItems] = useState(initialItems);
+  return <TodoList items={items} />;
+}
+```
+
+  </Step>
+  <Step>
+
+### Update an item's status
+
+Replace the item rather than mutate it; the row keys off `id`, so the same id keeps its place while the new status re-renders its icon and text style.
+
+```tsx
+function advance(id: string) {
+  setItems((prev) =>
+    prev.map((item) =>
+      item.id === id
+        ? { ...item, status: item.status === "pending" ? "active" : "done" }
+        : item,
+    ),
+  );
+}
+```
+
+  </Step>
+</Steps>
+
+</StandaloneMode>
+
+## Anatomy
+
+```tsx
+<div data-slot="todo-list">
+  <div>
+    <span>Todos</span>
+    <span>{/* n/m, or n/m · rev r when revision is set */}</span>
+  </div>
+  <ul>
+    <li>
+      <span>{/* status icon: check, spinner, or empty box */}</span>
+      <span>{/* item text */}</span>
+    </li>
+    {/* one row per item */}
+  </ul>
+</div>
+```
+
+Each row shows one of three status icons: a checked box for `done`, a spinning loader for `active`, and an empty outlined box for `pending`. Text dims and gets struck through when done, reads at full opacity when active, and sits at reduced opacity while pending. Rows key off `item.id`; passing a new array with the same ids only restyles the existing rows, while a genuinely new id mounts a row that fades and slides in.
+
+With zero items the header still renders `0/0` and the list is simply empty; there is no placeholder message. `revision` is decorative and does not affect the count or the render; it only appends `· rev {revision}` next to the ratio when you pass a number.
+
+## Examples
+
+### Item states
+
+The three states rendered together, independent of how the list is produced:
+
+```tsx
+<TodoList
+  items={[
+    { id: "1", text: "Read the failing test", status: "done" },
+    { id: "2", text: "Reproduce locally", status: "active" },
+    { id: "3", text: "Write the fix", status: "pending" },
+  ]}
+/>
+```
+
+### Where the list comes from
+
+<RuntimeMode>
+
+While the tool call is still streaming, `args.items` is a partial parse: fields can be missing until the model finishes writing them. `useToolArgsStatus` reports whether the `items` argument itself is still arriving, which is enough to dim the whole list without claiming a specific item is settled:
+
+```tsx
+import { useToolArgsStatus } from "@assistant-ui/react";
+
+function TodoToolUI({ args }: { args: { items?: TodoItem[] } }) {
+  const { propStatus } = useToolArgsStatus<{ items: TodoItem[] }>();
+  return (
+    <TodoList
+      items={args.items ?? []}
+      className={propStatus.items === "streaming" ? "opacity-70" : undefined}
+    />
+  );
+}
+```
+
+</RuntimeMode>
+
+<StandaloneMode>
+
+A discovered step is just an append; nothing about the component distinguishes "the agent found new work" from any other update:
+
+```tsx
+function addItem(text: string) {
+  setItems((prev) => [
+    ...prev,
+    { id: crypto.randomUUID(), text, status: "pending" },
+  ]);
+}
+```
+
+</StandaloneMode>
+
+### Restyle the list
+
+Both lanes take `className` on the root, and the revision counter uses the shared `mono` surface from `surfaces.tsx`.
+
+```tsx
+<TodoList className="max-w-md gap-2" items={items} revision={3} />
+```
+
+## API reference
+
+<RuntimeMode>
+
+### Tool definition
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `parameters` | Zod schema | Shape of `args`; use one field carrying the item array. |
+| `execute` | `(args) => TResult \| Promise<TResult>` | Runs once the call resolves; the result is separate from what the renderer shows. |
+| `render` | `ToolCallMessagePartComponent<TArgs, TResult>` | Receives `args`, `status`, and `result` for this call; re-runs as `args` streams in. |
+| `display` | `"standalone" \| "inline"` | `"standalone"` surfaces the card outside the chain-of-thought trace. Defaults to `"inline"`. |
+
+### Tool-call part state
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `part.status.type` | `"running" \| "complete" \| "incomplete" \| "requires-action"` | Lifecycle of the call backing the render. |
+| `useToolArgsStatus().propStatus` | `Partial<Record<keyof TArgs, "streaming" \| "complete">>` | Per top-level argument streaming state; called from inside the renderer. |
+
+</RuntimeMode>
+
+<StandaloneMode>
+
+### TodoList
+
+| Prop | Type | Default | Description |
+|------|------|---------|-------------|
+| `items` | `readonly TodoItem[]` | required | The rows to render, in order. |
+| `revision` | `number` | | When set, appended to the counter as `· rev {revision}`. |
+| `className` | `string` | | Merged onto the root. |
+
+### TodoItem
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `id` | `string` | Row key; stable ids keep entrance animation from replaying on every render. |
+| `text` | `string` | The step's label. |
+| `status` | `"pending" \| "active" \| "done"` | Drives the icon and text styling. |
+
+All other `div` props are forwarded to the root.
+
+</StandaloneMode>

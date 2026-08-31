@@ -1,0 +1,124 @@
+import type { ElementDoc } from "./element-docs";
+
+const usageOnly = (usage: string): ElementDoc => ({ usage, props: [] });
+
+export const AUI_ELEMENT_DOCS: Record<string, ElementDoc> = {
+  "assistant-modal": usageOnly(
+    `import { AssistantModal } from "@/components/assistant-ui/elements/assistant-modal.aui";
+
+<AssistantModal />`,
+  ),
+  "assistant-sidebar": usageOnly(
+    `import { AssistantSidebar } from "@/components/assistant-ui/elements/assistant-sidebar.aui";
+
+<AssistantSidebar>
+  <main>{children}</main>
+</AssistantSidebar>`,
+  ),
+  "thread-list-sidebar": usageOnly(
+    `import { ThreadListSidebar } from "@/components/assistant-ui/elements/threadlist-sidebar.aui";
+
+<ThreadListSidebar />`,
+  ),
+  reasoning: usageOnly(
+    `import { ReasoningRoot, ReasoningTrigger, ReasoningContent, ReasoningText } from "@/components/assistant-ui/elements/reasoning.aui";
+
+<ReasoningRoot>
+  <ReasoningTrigger />
+  <ReasoningContent>
+    <ReasoningText>{children}</ReasoningText>
+  </ReasoningContent>
+</ReasoningRoot>`,
+  ),
+  "message-timing": usageOnly(
+    `import { MessageTiming } from "@/components/assistant-ui/elements/message-timing.aui";
+
+<MessageTiming side="right" />`,
+  ),
+  "mcp-config": usageOnly(
+    `import { McpConfigDialog } from "@/components/assistant-ui/elements/mcp-config.aui";
+
+<McpConfigDialog />`,
+  ),
+  attachment: usageOnly(
+    `import { ComposerAddAttachment, ComposerAttachments, UserMessageAttachments } from "@/components/assistant-ui/elements/attachment.aui";
+
+<ComposerAttachments />
+<ComposerAddAttachment />
+<UserMessageAttachments />`,
+  ),
+  "tool-fallback": usageOnly(
+    `import { ToolFallbackRoot, ToolFallbackTrigger, ToolFallbackContent, ToolFallbackArgs, ToolFallbackResult } from "@/components/assistant-ui/elements/tool-fallback.aui";
+
+<ToolFallbackRoot>
+  <ToolFallbackTrigger toolName="search_web" status={{ type: "complete" }} />
+  <ToolFallbackContent>
+    <ToolFallbackArgs argsText={argsText} />
+    <ToolFallbackResult result={result} />
+  </ToolFallbackContent>
+</ToolFallbackRoot>`,
+  ),
+  "tool-group": usageOnly(
+    `import { ToolGroupRoot, ToolGroupTrigger, ToolGroupContent } from "@/components/assistant-ui/elements/tool-group.aui";
+
+<ToolGroupRoot>
+  <ToolGroupTrigger count={3} />
+  <ToolGroupContent>{toolCalls}</ToolGroupContent>
+</ToolGroupRoot>`,
+  ),
+  sources: usageOnly(
+    `import { Source, SourceIcon, SourceTitle } from "@/components/assistant-ui/elements/sources.aui";
+
+<Source href="https://assistant-ui.com">
+  <SourceIcon url="https://assistant-ui.com" />
+  <SourceTitle>assistant-ui</SourceTitle>
+</Source>`,
+  ),
+  image: usageOnly(
+    `import { Image } from "@/components/assistant-ui/elements/image";
+
+<Image type="image" image={url} status={{ type: "complete" }} />`,
+  ),
+  file: usageOnly(
+    `import { File } from "@/components/assistant-ui/elements/file";
+
+<File type="file" filename="report.pdf" mimeType="application/pdf" data={data} />`,
+  ),
+  "directive-text": usageOnly(
+    `import { unstable_defaultDirectiveFormatter } from "@assistant-ui/react";
+import { createDirectiveText } from "@/components/assistant-ui/elements/directive-text.aui";
+
+const DirectiveText = createDirectiveText(unstable_defaultDirectiveFormatter);`,
+  ),
+  "shiki-highlighter": usageOnly(
+    `import { SyntaxHighlighter } from "@/components/assistant-ui/elements/shiki-highlighter.aui";
+
+<SyntaxHighlighter language="tsx" code={code} />`,
+  ),
+  "generative-ui": usageOnly(
+    `import { renderGenerativeUI } from "@assistant-ui/react-generative-ui";
+import { styledGenerativeUILibrary } from "@/components/assistant-ui/elements/generative-ui";
+
+{renderGenerativeUI(spec, styledGenerativeUILibrary, { status: "done" })}`,
+  ),
+  "tooltip-icon-button": usageOnly(
+    `import { CopyIcon } from "lucide-react";
+import { TooltipIconButton } from "@/components/assistant-ui/elements/tooltip-icon-button";
+
+<TooltipIconButton tooltip="Copy">
+  <CopyIcon />
+</TooltipIconButton>`,
+  ),
+  logos: usageOnly(
+    `import { OpenAILogo, ClaudeLogo, GeminiLogo } from "@/components/assistant-ui/elements/logos";
+
+<OpenAILogo />
+<ClaudeLogo />
+<GeminiLogo />`,
+  ),
+  "heat-graph": usageOnly(
+    `import { HeatGraph } from "@/components/assistant-ui/elements/heat-graph";
+
+<HeatGraph data={activity} />`,
+  ),
+};
