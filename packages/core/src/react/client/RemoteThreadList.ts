@@ -390,7 +390,10 @@ const useRemoteThreadList = (
     session.loadPromise = store
       .optimisticUpdate({
         execute: () => adapter.list(),
-        loading: (state) => ({ ...state, isLoading: true }),
+        loading: (state) => {
+          if (generation !== session.loadGeneration) return state;
+          return { ...state, isLoading: true };
+        },
         then: (state, page) => {
           if (generation !== session.loadGeneration) return state;
           session.adapterAtLoad = adapter;
@@ -486,7 +489,10 @@ const useRemoteThreadList = (
     const task = store
       .optimisticUpdate({
         execute: () => currentAdapter.list({ after: cursor }),
-        loading: (state) => ({ ...state, isLoadingMore: true }),
+        loading: (state) => {
+          if (generation !== session.loadGeneration) return state;
+          return { ...state, isLoadingMore: true };
+        },
         then: (state, page) => {
           if (generation !== session.loadGeneration) return state;
           const appended = classifyThreads(page.threads, {
