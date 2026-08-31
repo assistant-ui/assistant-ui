@@ -28,20 +28,20 @@ import {
   MessagePrimitive,
   groupPartByType,
 } from "@assistant-ui/react";
-import { MarkdownText } from "@/components/assistant-ui/markdown-text";
+import { MarkdownText } from "@/components/assistant-ui/elements/markdown-text";
 import {
   Reasoning,
   ReasoningContent,
   ReasoningRoot,
   ReasoningText,
   ReasoningTrigger,
-} from "@/components/assistant-ui/reasoning";
-import { ToolFallback } from "@/components/assistant-ui/tool-fallback";
+} from "@/components/assistant-ui/elements/reasoning.aui";
+import { ToolFallback } from "@/components/assistant-ui/elements/tool-fallback.aui";
 import {
   ToolGroupContent,
   ToolGroupRoot,
   ToolGroupTrigger,
-} from "@/components/assistant-ui/tool-group";
+} from "@/components/assistant-ui/elements/tool-group.aui";
 import type { FC } from "react";
 
 const AssistantMessage: FC = () => {
@@ -159,6 +159,6 @@ See the complete [with-chain-of-thought example](https://github.com/assistant-ui
 
 ## Related Guides
 
-- [Reasoning](/docs/ui/reasoning) — reasoning UI primitives for grouped parts
+- [Reasoning](/elements/reasoning) — reasoning UI primitives for grouped parts
 - [Generative UI](/docs/tools/tool-ui) — custom UI for tool calls
 - [Tools](/docs/tools/defining-tools) — defining and using tools

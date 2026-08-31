@@ -1,10 +1,8 @@
 "use client";
 
 import { useMemo, useState } from "react";
-import Link from "next/link";
+import { ArrowUpRight } from "lucide-react";
 import ReactMarkdown, { type Components } from "react-markdown";
-import { ChevronRight } from "lucide-react";
-import { Button } from "@/components/ui/button";
 import type { ReleaseGroup, PackageRelease } from "@/lib/releases";
 import {
   groupByType,
@@ -15,7 +13,14 @@ import {
 } from "@/lib/changelog-parse";
 import { cn } from "@/lib/utils";
 
-const PAGE_SIZE = 10;
+const QUIET_TYPES: ReadonlySet<ChangeType> = new Set([
+  "chore",
+  "ci",
+  "build",
+  "test",
+  "style",
+  "other",
+]);
 
 function formatDate(date: string): string {
   return new Date(date).toLocaleDateString("en-US", {
@@ -33,72 +38,54 @@ function extractChangeType(
   return match[1]!.toLowerCase() as "major" | "minor" | "patch";
 }
 
-const semverBadge = {
-  major: "bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400",
-  minor: "bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400",
-  patch: "bg-muted text-muted-foreground",
-} as const;
+function plainText(markdown: string): string {
+  return markdown.replace(/\[([^\]]*)\]\([^)]*\)/g, "$1").replace(/[`*_]/g, "");
+}
 
-const TYPE_BADGE: Record<ChangeType, string> = {
-  breaking: "bg-red-500/10 text-red-700 ring-red-500/20 dark:text-red-400",
-  feat: "bg-emerald-500/10 text-emerald-700 ring-emerald-500/20 dark:text-emerald-400",
-  fix: "bg-blue-500/10 text-blue-700 ring-blue-500/20 dark:text-blue-400",
-  perf: "bg-amber-500/10 text-amber-700 ring-amber-500/20 dark:text-amber-400",
-  refactor:
-    "bg-violet-500/10 text-violet-700 ring-violet-500/20 dark:text-violet-400",
-  revert: "bg-rose-500/10 text-rose-700 ring-rose-500/20 dark:text-rose-400",
-  docs: "bg-sky-500/10 text-sky-700 ring-sky-500/20 dark:text-sky-400",
-  style: "bg-pink-500/10 text-pink-700 ring-pink-500/20 dark:text-pink-400",
-  test: "bg-teal-500/10 text-teal-700 ring-teal-500/20 dark:text-teal-400",
-  build:
-    "bg-indigo-500/10 text-indigo-700 ring-indigo-500/20 dark:text-indigo-400",
-  ci: "bg-cyan-500/10 text-cyan-700 ring-cyan-500/20 dark:text-cyan-400",
-  chore: "bg-muted text-muted-foreground ring-border",
-  other: "bg-muted text-muted-foreground ring-border",
+type ReleaseInfo = {
+  release: PackageRelease;
+  preamble: string | null;
+  groups: { type: ChangeType; items: ParsedBullet[] }[];
+  semver: "major" | "minor" | "patch" | null;
+  count: number;
+  quiet: boolean;
+  headline: string;
 };
 
-const TYPE_SHORT_LABEL: Record<ChangeType, string> = {
-  breaking: "BREAKING",
-  feat: "feat",
-  fix: "fix",
-  perf: "perf",
-  refactor: "refactor",
-  revert: "revert",
-  docs: "docs",
-  style: "style",
-  test: "test",
-  build: "build",
-  ci: "ci",
-  chore: "chore",
-  other: "misc",
-};
-
-function TypeBadge({
-  type,
-  scope,
-}: {
-  type: ChangeType;
-  scope?: string | undefined;
-}) {
-  return (
-    <span
-      className={cn(
-        "inline-flex shrink-0 items-baseline gap-1 rounded-md px-1.5 py-0.5 font-mono text-[10px] leading-none font-medium tracking-wide uppercase ring-1 ring-inset",
-        TYPE_BADGE[type],
-      )}
-    >
-      <span>{TYPE_SHORT_LABEL[type]}</span>
-      {scope ? (
-        <span className="font-normal normal-case opacity-70">· {scope}</span>
-      ) : null}
-    </span>
-  );
+function buildInfo(release: PackageRelease): ReleaseInfo {
+  const parsed = parseRelease(release.body);
+  const groups = groupByType(parsed.bullets);
+  const semver = extractChangeType(release.body);
+  const count = parsed.bullets.length;
+  const notable = semver === "major" || semver === "minor";
+  const quiet =
+    !notable &&
+    (parsed.bullets.length === 0
+      ? true
+      : parsed.bullets.every((bullet) => QUIET_TYPES.has(bullet.type)));
+  const headlineBullet =
+    groups.find((group) => !QUIET_TYPES.has(group.type))?.items[0] ??
+    groups[0]?.items[0];
+  const headline = headlineBullet
+    ? plainText(headlineBullet.description)
+    : parsed.preamble
+      ? plainText(parsed.preamble.split("\n")[0] ?? "")
+      : "";
+  return {
+    release,
+    preamble: parsed.preamble,
+    groups,
+    semver,
+    count,
+    quiet,
+    headline,
+  };
 }
 
 const inlineMarkdownComponents: Components = {
   p: ({ children }) => <>{children}</>,
   code: ({ children }) => (
-    <code className="bg-foreground/[0.07] text-foreground ring-foreground/10 rounded px-1 py-0.5 font-mono text-[0.85em] ring-1">
+    <code className="bg-foreground/[0.06] rounded-[0.375rem] px-1 py-px font-mono text-[0.85em]">
       {children}
     </code>
   ),
@@ -134,7 +121,7 @@ function MetaLine({ item }: { item: ParsedBullet }) {
         href={item.pr.url}
         target="_blank"
         rel="noopener noreferrer"
-        className="hover:text-foreground font-mono transition-colors"
+        className="hover:text-foreground transition-colors"
       >
         #{item.pr.number}
       </a>,
@@ -147,7 +134,7 @@ function MetaLine({ item }: { item: ParsedBullet }) {
         href={item.hash.url}
         target="_blank"
         rel="noopener noreferrer"
-        className="hover:text-foreground font-mono transition-colors"
+        className="hover:text-foreground transition-colors"
       >
         {item.hash.value}
       </a>,
@@ -179,45 +166,60 @@ function MetaLine({ item }: { item: ParsedBullet }) {
     interleaved.push(node);
   });
   return (
-    <div className="text-muted-foreground/80 flex flex-wrap items-center gap-x-1.5 gap-y-1 text-xs">
+    <div className="text-muted-foreground/70 flex flex-wrap items-center gap-x-1.5 gap-y-1 font-mono text-[11px] tracking-wide">
       {interleaved}
     </div>
   );
 }
 
-function BulletItem({ item }: { item: ParsedBullet }) {
+function BulletItem({
+  item,
+  withScopeColumn,
+}: {
+  item: ParsedBullet;
+  withScopeColumn: boolean;
+}) {
   const [expanded, setExpanded] = useState(false);
   const hasBody = item.body.length > 0;
 
   return (
-    <div className="flex flex-col gap-1.5">
-      <div className="flex flex-wrap items-baseline gap-x-2 gap-y-1">
-        <TypeBadge type={item.type} scope={item.scope} />
+    <div
+      className={cn(
+        "gap-x-6 gap-y-1.5",
+        withScopeColumn && "md:grid md:grid-cols-[7rem_minmax(0,1fr)]",
+      )}
+    >
+      {withScopeColumn ? (
+        <span className="text-muted-foreground/70 block truncate pt-px font-mono text-[11px] leading-relaxed tracking-wide">
+          {item.scope ?? ""}
+        </span>
+      ) : null}
+      <div className="flex flex-col gap-1.5">
         <span className="text-foreground text-sm leading-relaxed">
           <ReactMarkdown components={inlineMarkdownComponents}>
             {item.description || "(no description)"}
           </ReactMarkdown>
         </span>
+        <MetaLine item={item} />
+        {hasBody ? (
+          <div className="text-muted-foreground text-sm">
+            <button
+              type="button"
+              onClick={() => setExpanded((e) => !e)}
+              className="text-muted-foreground/70 hover:text-foreground font-mono text-[11px] tracking-wide transition-colors"
+            >
+              {expanded ? "hide notes" : "show notes"}
+            </button>
+            {expanded ? (
+              <div className="mt-2">
+                <ReactMarkdown components={bodyMarkdownComponents}>
+                  {item.body}
+                </ReactMarkdown>
+              </div>
+            ) : null}
+          </div>
+        ) : null}
       </div>
-      <MetaLine item={item} />
-      {hasBody ? (
-        <div className="text-muted-foreground text-sm">
-          <button
-            type="button"
-            onClick={() => setExpanded((e) => !e)}
-            className="text-muted-foreground/70 hover:text-foreground text-xs transition-colors"
-          >
-            {expanded ? "Hide description" : "Show description"}
-          </button>
-          {expanded ? (
-            <div className="mt-2">
-              <ReactMarkdown components={bodyMarkdownComponents}>
-                {item.body}
-              </ReactMarkdown>
-            </div>
-          ) : null}
-        </div>
-      ) : null}
     </div>
   );
 }
@@ -231,117 +233,151 @@ function TypeGroup({
 }) {
   return (
     <div className="flex flex-col gap-3">
-      <div className="border-border/60 flex items-baseline gap-2 border-b pb-1.5">
-        <h4 className="text-foreground/70 text-xs font-medium tracking-wide uppercase">
-          {TYPE_LABELS[type]}
-        </h4>
-        <span className="text-muted-foreground text-xs tabular-nums">
+      <h4
+        className={cn(
+          "font-mono text-[10px] font-medium tracking-wide uppercase",
+          type === "breaking" ? "text-destructive" : "text-muted-foreground/70",
+        )}
+      >
+        {TYPE_LABELS[type]}
+        <span className="ms-2 font-normal tabular-nums opacity-60">
           {items.length}
         </span>
-      </div>
+      </h4>
       <div className="flex flex-col gap-4">
         {items.map((item, i) => (
-          <BulletItem key={i} item={item} />
+          <BulletItem
+            key={i}
+            item={item}
+            withScopeColumn={items.some((entry) => entry.scope)}
+          />
         ))}
       </div>
     </div>
   );
 }
 
-function ReleaseEntry({ release }: { release: PackageRelease }) {
-  const semver = extractChangeType(release.body);
-  const parsed = useMemo(() => parseRelease(release.body), [release.body]);
-  const groups = useMemo(() => groupByType(parsed.bullets), [parsed.bullets]);
-
+function ReleaseEntry({ info }: { info: ReleaseInfo }) {
+  const { release } = info;
   return (
-    <details className="group/release" open>
-      <summary className="flex cursor-pointer list-none items-center gap-2 py-1 [&::-webkit-details-marker]:hidden">
-        <ChevronRight className="text-muted-foreground size-3.5 shrink-0 transition-transform group-open/release:rotate-90" />
-        <span className="text-foreground/80 group-hover/release:text-foreground font-mono text-sm font-medium transition-colors">
-          {release.pkg}@{release.version}
+    <details className="group/release">
+      <summary className="flex cursor-pointer list-none items-baseline gap-3 py-2 [&::-webkit-details-marker]:hidden">
+        <span className="text-muted-foreground/50 inline-block w-3 shrink-0 font-mono text-[11px] transition-transform group-open/release:rotate-90">
+          &gt;
         </span>
-        {semver && (
-          <span
-            className={`shrink-0 rounded-full px-1.5 py-0.5 text-[10px] leading-none font-medium ${semverBadge[semver]}`}
-          >
-            {semver}
+        <span className="shrink-0 font-mono text-[13px]">
+          <span className="text-foreground/70">{release.pkg}</span>
+          <span className="font-medium">@{release.version}</span>
+        </span>
+        {info.semver === "major" ? (
+          <span className="text-destructive shrink-0 font-mono text-[10px] font-medium tracking-wide uppercase">
+            major
           </span>
-        )}
-        <Link
-          href={release.url}
-          target="_blank"
-          rel="noopener noreferrer"
-          onClick={(e) => e.stopPropagation()}
-          className="text-muted-foreground hover:text-foreground ml-auto shrink-0 text-xs transition-colors"
-        >
-          GitHub →
-        </Link>
+        ) : info.semver === "minor" ? (
+          <span className="shrink-0 font-mono text-[10px] font-medium tracking-wide uppercase">
+            minor
+          </span>
+        ) : null}
+        <span className="text-muted-foreground min-w-0 flex-1 truncate text-sm group-open/release:opacity-0">
+          {info.headline}
+        </span>
+        {info.count > 0 ? (
+          <span className="text-muted-foreground/50 shrink-0 font-mono text-[11px] tracking-wide tabular-nums max-md:hidden">
+            {info.count} {info.count === 1 ? "change" : "changes"}
+          </span>
+        ) : null}
       </summary>
-      <div className="mt-3 ml-[1.375rem] flex flex-col gap-6 pb-2">
-        {parsed.preamble ? (
+      <div className="mt-3 mb-6 ml-6 flex flex-col gap-6">
+        {info.preamble ? (
           <div className="text-muted-foreground text-sm">
             <ReactMarkdown components={bodyMarkdownComponents}>
-              {parsed.preamble}
+              {info.preamble}
             </ReactMarkdown>
           </div>
         ) : null}
-        {groups.map(({ type, items }) => (
+        {info.groups.map(({ type, items }) => (
           <TypeGroup key={type} type={type} items={items} />
         ))}
-        {groups.length === 0 && !parsed.preamble ? (
+        {info.groups.length === 0 && !info.preamble ? (
           <p className="text-muted-foreground text-sm">No notes.</p>
         ) : null}
+        <a
+          href={release.url}
+          target="_blank"
+          rel="noopener noreferrer"
+          className="group/gh text-muted-foreground/70 hover:text-foreground self-start font-mono text-[11px] tracking-wide transition-colors"
+        >
+          view on github
+          <ArrowUpRight className="ms-1 mb-0.5 inline size-3 opacity-0 transition-opacity group-hover/gh:opacity-70" />
+        </a>
+      </div>
+    </details>
+  );
+}
+
+function QuietGroup({ infos }: { infos: ReleaseInfo[] }) {
+  return (
+    <details className="group/quiet">
+      <summary className="flex cursor-pointer list-none items-baseline gap-3 py-2 [&::-webkit-details-marker]:hidden">
+        <span className="text-muted-foreground/50 inline-block w-3 shrink-0 font-mono text-[11px] transition-transform group-open/quiet:rotate-90">
+          &gt;
+        </span>
+        <span className="text-muted-foreground/70 font-mono text-[13px]">
+          {infos.length} maintenance{" "}
+          {infos.length === 1 ? "release" : "releases"}
+        </span>
+        <span className="text-muted-foreground/50 min-w-0 flex-1 truncate text-sm">
+          dependency updates and chores
+        </span>
+      </summary>
+      <div className="mt-1 mb-4 ml-6 flex flex-col">
+        {infos.map((info) => (
+          <ReleaseEntry
+            key={`${info.release.pkg}@${info.release.version}`}
+            info={info}
+          />
+        ))}
       </div>
     </details>
   );
 }
 
 function DateSection({ group }: { group: ReleaseGroup }) {
+  const infos = useMemo(() => group.releases.map(buildInfo), [group.releases]);
+  const loud = infos.filter((info) => !info.quiet);
+  const quiet = infos.filter((info) => info.quiet);
+
   return (
-    <section className="md:grid md:grid-cols-[180px_minmax(0,1fr)] md:gap-12">
-      <div className="mb-4 md:sticky md:top-20 md:mb-0 md:self-start md:pt-1">
-        <h2 className="text-lg font-medium tracking-tight">
+    <section className="border-foreground/10 border-b py-8 md:grid md:grid-cols-[180px_minmax(0,1fr)] md:gap-12 md:py-10">
+      <div className="mb-5 md:sticky md:top-24 md:mb-0 md:self-start">
+        <h2 className="text-[15px] font-medium tracking-tight">
           {formatDate(group.date)}
         </h2>
-        <p className="text-muted-foreground mt-1 text-sm">
+        <p className="text-muted-foreground/70 mt-1.5 font-mono text-[11px] tracking-wide tabular-nums">
           {group.releases.length}{" "}
-          {group.releases.length === 1 ? "package" : "packages"}
+          {group.releases.length === 1 ? "release" : "releases"}
         </p>
       </div>
 
-      <div className="space-y-1">
-        {group.releases.map((r) => (
-          <ReleaseEntry key={`${r.pkg}@${r.version}`} release={r} />
+      <div className="-my-2 flex flex-col">
+        {loud.map((info) => (
+          <ReleaseEntry
+            key={`${info.release.pkg}@${info.release.version}`}
+            info={info}
+          />
         ))}
+        {quiet.length > 0 ? <QuietGroup infos={quiet} /> : null}
       </div>
     </section>
   );
 }
 
 export function ChangelogList({ groups }: { groups: ReleaseGroup[] }) {
-  const [count, setCount] = useState(PAGE_SIZE);
-
-  const visible = groups.slice(0, count);
-  const remaining = groups.length - count;
-
   return (
-    <>
-      <div className="space-y-10">
-        {visible.map((group) => (
-          <DateSection key={group.date} group={group} />
-        ))}
-      </div>
-
-      {remaining > 0 && (
-        <div className="mt-12 flex justify-center">
-          <Button
-            variant="outline"
-            onClick={() => setCount((c) => c + PAGE_SIZE)}
-          >
-            Load more ({remaining})
-          </Button>
-        </div>
-      )}
-    </>
+    <div className="border-foreground/10 border-t">
+      {groups.map((group) => (
+        <DateSection key={group.date} group={group} />
+      ))}
+    </div>
   );
 }

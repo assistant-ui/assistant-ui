@@ -40,7 +40,7 @@ import {
 } from "../../../types/message";
 import type { DataRenderersState } from "../../types/scopes/dataRenderers";
 import type { ToolsState } from "../../types/scopes/tools";
-import { useShallow } from "zustand/shallow";
+import { useShallowSelector } from "@assistant-ui/store/internal";
 
 type MessagePartRange =
   | { type: "single"; index: number }
@@ -174,10 +174,10 @@ const useMessagePartsGroups = (
   useChainOfThought: boolean,
 ): { ranges: MessagePartRange[]; partIds: (string | undefined)[] } => {
   const messageTypes = useAuiState(
-    useShallow((s) => s.message.parts.map((c: any) => c.type)),
+    useShallowSelector((s) => s.message.parts.map((c: any) => c.type)),
   );
   const partIds = useAuiState(
-    useShallow((s) =>
+    useShallowSelector((s) =>
       s.message.parts.map((c: any) =>
         c.type === "tool-call" ? c.toolCallId : undefined,
       ),

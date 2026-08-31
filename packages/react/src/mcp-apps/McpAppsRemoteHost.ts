@@ -1,4 +1,4 @@
-import { useMemo, useRef } from "react";
+import { useEffect, useMemo, useRef } from "react";
 import { resource } from "@assistant-ui/tap";
 import type {
   McpAppResource,
@@ -111,20 +111,17 @@ const useMcpAppsRemoteHost = (
   options: McpAppsRemoteHostOptions,
 ): McpAppsHost => {
   const optionsRef = useRef(options);
-  optionsRef.current = options;
+  useEffect(() => {
+    optionsRef.current = options;
+  });
 
   const url = options.url;
 
-  return useMemo((): McpAppsHost => {
-    const getCurrentOptions = (): McpAppsRemoteHostOptions => {
-      const current = optionsRef.current;
-      return {
-        url,
-        ...(current.fetch !== undefined ? { fetch: current.fetch } : {}),
-        ...(current.headers !== undefined ? { headers: current.headers } : {}),
-      };
-    };
-    return {
+  const hostState = useMemo(() => {
+    let pendingOptions = options;
+    const getCurrentOptions = () =>
+      optionsRef.current.url === url ? optionsRef.current : pendingOptions;
+    const host: McpAppsHost = {
       loadResource: async (params) => {
         const options = getCurrentOptions();
         return parseMcpAppResource(
@@ -139,7 +136,26 @@ const useMcpAppsRemoteHost = (
       listResources: (params) =>
         postToHost(getCurrentOptions(), "resources/list", params),
     };
+    return {
+      host,
+      updatePendingOptions: (next: McpAppsRemoteHostOptions) => {
+        pendingOptions = next;
+      },
+    };
+    // oxlint-disable-next-line react/exhaustive-deps -- URL changes replace the host identity; pending and same-URL options are refreshed outside the memo
   }, [url]);
+
+  // The pending snapshot is read only while the committed ref still lags this
+  // host's URL, and every write to it carries that same render's options, so
+  // no render can pair one URL with another's credentials. A committed host can
+  // be written here (a child layout effect re-rendering synchronously runs
+  // before passive effects publish the ref), which stays coherent for the same
+  // reason.
+  if (optionsRef.current.url !== url) {
+    hostState.updatePendingOptions(options);
+  }
+
+  return hostState.host;
 };
 
 export const McpAppsRemoteHost = resource(useMcpAppsRemoteHost);

@@ -6,6 +6,7 @@ export type XuluxThreadStatus = "idle" | "running" | "interrupted";
 export type XuluxCanvasSnapshot = {
   status: "empty" | "ready" | "error";
   url: string | null;
+  /** "refresh" only appears in threads persisted before the agent sandbox was removed. */
   source: "template" | "agent_template" | "refresh" | null;
   error: string | null;
   downloadUrl?: string;

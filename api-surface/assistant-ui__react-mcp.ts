@@ -145,6 +145,7 @@ type MCPPersistedAuthState = {
   tokens?: OAuthTokens;
   clientInformation?: OAuthClientInformationFull;
   codeVerifier?: string;
+  state?: string;
   discoveryState?: OAuthDiscoveryState;
   token?: string;
 };

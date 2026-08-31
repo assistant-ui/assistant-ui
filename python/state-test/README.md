@@ -12,10 +12,10 @@ This is a test project for the `assistant-stream` state management functionality
 
 ## Setup
 
-1. Install the requirements:
+1. Install dependencies:
 
    ```
-   pip install -r requirements.txt
+   uv sync
    ```
 
 2. Run the server:

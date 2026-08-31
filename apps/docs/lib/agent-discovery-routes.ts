@@ -5,6 +5,8 @@ export const AGENT_DISCOVERY_ROUTES = {
   agentsWellKnown: "/.well-known/AGENTS.md",
   skill: "/skill.md",
   skillWellKnown: "/.well-known/skill.md",
+  design: "/design.md",
+  designWellKnown: "/.well-known/design.md",
   apiCatalog: "/.well-known/api-catalog",
   skillsIndex: "/.well-known/agent-skills/index.json",
   siteSkill: "/.well-known/agent-skills/assistant-ui-docs/SKILL.md",
@@ -24,6 +26,10 @@ export const AGENT_DISCOVERY_REWRITES = [
   {
     source: AGENT_DISCOVERY_ROUTES.skillWellKnown,
     destination: AGENT_DISCOVERY_ROUTES.skill,
+  },
+  {
+    source: AGENT_DISCOVERY_ROUTES.designWellKnown,
+    destination: AGENT_DISCOVERY_ROUTES.design,
   },
   {
     source: AGENT_DISCOVERY_ROUTES.sitemapWellKnown,

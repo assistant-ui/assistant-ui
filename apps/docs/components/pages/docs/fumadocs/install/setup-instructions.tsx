@@ -12,7 +12,7 @@ function ExternalLink({
       href={href}
       target="_blank"
       rel="noopener noreferrer"
-      className="text-fd-primary hover:text-fd-primary/80 inline-flex items-center gap-0.5 underline underline-offset-2"
+      className="text-primary hover:text-primary/80 inline-flex items-center gap-0.5 underline underline-offset-2"
     >
       {children}
       <ArrowUpRight className="size-3" />

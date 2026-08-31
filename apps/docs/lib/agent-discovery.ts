@@ -5,6 +5,11 @@ import {
   API_CATALOG_LINK_HEADER,
   API_CATALOG_PROFILE,
 } from "./agent-discovery-routes";
+import {
+  DESIGN_DOCUMENT,
+  DESIGN_SKILL_DESCRIPTION,
+  DESIGN_SKILL_NAME,
+} from "./design-law";
 
 const CACHE_CONTROL = "no-cache, must-revalidate";
 const AGENT_SKILLS_SCHEMA =
@@ -40,11 +45,13 @@ Use this skill when implementing, configuring, migrating, or troubleshooting ass
 - Preserve package names, imports, and public API spelling exactly.
 - Use the human-readable page URL when citing documentation to a user.
 - Verify implementation steps with the checks documented on the relevant page.
+- Read ${absoluteUrl(AGENT_DISCOVERY_ROUTES.design)} before drawing, restyling, or extending any assistant-ui surface.
 
 ## Discovery
 
 - Agent instructions: ${absoluteUrl(AGENT_DISCOVERY_ROUTES.agents)}
 - Site skill: ${absoluteUrl(AGENT_DISCOVERY_ROUTES.skill)}
+- Design law: ${absoluteUrl(AGENT_DISCOVERY_ROUTES.design)}
 - API catalog: ${absoluteUrl(AGENT_DISCOVERY_ROUTES.apiCatalog)}
 - Agent Skills index: ${absoluteUrl(AGENT_DISCOVERY_ROUTES.skillsIndex)}
 - Markdown sitemap: ${absoluteUrl(AGENT_DISCOVERY_ROUTES.sitemap)}
@@ -74,11 +81,13 @@ Use these instructions when reading assistant-ui documentation or implementing a
 - Preserve exact package names, exports, hooks, and component names.
 - Cite the canonical human-readable URL when returning documentation to a user.
 - Do not invent routes or APIs; use the index, sitemap, or MCP navigation when uncertain.
+- Read ${absoluteUrl(AGENT_DISCOVERY_ROUTES.design)} before drawing, restyling, or extending any assistant-ui surface.
 
 ## Public discovery routes
 
 - Agent instructions: ${absoluteUrl(AGENT_DISCOVERY_ROUTES.agents)}
 - Site skill: ${absoluteUrl(AGENT_DISCOVERY_ROUTES.skill)}
+- Design law: ${absoluteUrl(AGENT_DISCOVERY_ROUTES.design)}
 - API catalog: ${absoluteUrl(AGENT_DISCOVERY_ROUTES.apiCatalog)}
 - Agent Skills index: ${absoluteUrl(AGENT_DISCOVERY_ROUTES.skillsIndex)}
 - Markdown sitemap: ${absoluteUrl(AGENT_DISCOVERY_ROUTES.sitemap)}
@@ -100,6 +109,13 @@ export function buildAgentSkillsIndex() {
         description: AGENT_SKILL_DESCRIPTION,
         url: absoluteUrl(AGENT_DISCOVERY_ROUTES.siteSkill),
         digest: `sha256:${sha256(SITE_SKILL_DOCUMENT)}`,
+      },
+      {
+        name: DESIGN_SKILL_NAME,
+        type: "skill-md",
+        description: DESIGN_SKILL_DESCRIPTION,
+        url: absoluteUrl(AGENT_DISCOVERY_ROUTES.design),
+        digest: `sha256:${sha256(DESIGN_DOCUMENT)}`,
       },
     ],
   };
@@ -129,6 +145,11 @@ export function buildApiCatalog() {
       href: absoluteUrl(AGENT_DISCOVERY_ROUTES.skill),
       type: "text/markdown",
       title: "Site skill",
+    },
+    {
+      href: absoluteUrl(AGENT_DISCOVERY_ROUTES.design),
+      type: "text/markdown",
+      title: "Design law",
     },
     {
       href: absoluteUrl("/llms.txt"),

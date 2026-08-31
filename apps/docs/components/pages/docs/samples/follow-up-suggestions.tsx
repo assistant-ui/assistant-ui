@@ -8,7 +8,7 @@ import {
   type ThreadMessageLike,
 } from "@assistant-ui/react";
 import { ArrowUpIcon } from "lucide-react";
-import { ThreadFollowupSuggestions } from "@/components/assistant-ui/follow-up-suggestions";
+import { ThreadFollowupSuggestions } from "@/components/assistant-ui/elements/follow-up-suggestions.aui";
 import { SampleFrame } from "@/components/pages/docs/samples/sample-frame";
 
 type DemoMessage = {

@@ -334,7 +334,7 @@ export const analytics = {
       session_id: string;
       thread_id?: string;
       pathname?: string;
-      source: "template" | "agent_template" | "agent_sandbox";
+      source: "template" | "agent_template";
       template_id?: string;
     }) => trackEvent("xulux_preview_shown", props),
 
@@ -344,7 +344,7 @@ export const analytics = {
       pathname?: string;
       action: "copy_prompt" | "download";
       surface: "open_in_card" | "canvas" | "detail_modal";
-      download_type?: "template" | "sandbox" | "demo";
+      download_type?: "template" | "demo";
       template_id?: string;
     }) => trackEvent("xulux_converted", props),
   },

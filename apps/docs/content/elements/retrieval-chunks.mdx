@@ -1,0 +1,214 @@
+---
+title: "Retrieval chunks"
+description: "The passages a retrieval answer stands on, scored, before the answer itself arrives."
+---
+
+Retrieval chunks show a query, a status line, and the passages a retrieval call found, each with its source, a locator, a relevance score, and a score bar. With a runtime the query and passages come from a tool call the model made; standalone you drive `query`, `chunks`, and how many of them are visible.
+
+## Getting started
+
+<RuntimeMode>
+
+A retrieval tool renders through that tool's own toolkit entry: the model's query arrives as `args`, the retrieved passages as `result`, and the call's lifecycle as `status`.
+
+<Steps>
+  <Step>
+
+### Define the retrieval toolkit
+
+```tsx title="app/toolkit.tsx"
+"use generative";
+
+import { defineToolkit, externalTool } from "@assistant-ui/react";
+import { RetrievalChunks } from "@/components/assistant-ui/elements/retrieval-chunks";
+
+export default defineToolkit({
+  search_docs: {
+    execute: externalTool(),
+    render: ({ args, result, status }) => (
+      <RetrievalChunks
+        query={args.query ?? ""}
+        chunks={result?.chunks ?? []}
+        visibleCount={result?.chunks.length ?? 0}
+        searching={status.type === "running"}
+      />
+    ),
+  },
+});
+```
+
+`execute: externalTool()` marks a tool a backend route or vector store runs, not the browser: the compiler drops it from the client bundle and keeps only `render`.
+
+  </Step>
+  <Step>
+
+### Register the toolkit
+
+```tsx title="app/MyRuntimeProvider.tsx"
+"use client";
+
+import { AssistantRuntimeProvider, AuiConfig, Tools } from "@assistant-ui/react";
+import { useChatRuntime } from "@assistant-ui/ai-sdk";
+import { Thread } from "@/components/assistant-ui/elements/thread.aui";
+import toolkit from "./toolkit";
+
+export function App() {
+  const runtime = useChatRuntime();
+  const config = AuiConfig({ tools: Tools({ toolkit }) });
+
+  return (
+    <AssistantRuntimeProvider runtime={runtime} config={config}>
+      <Thread />
+    </AssistantRuntimeProvider>
+  );
+}
+```
+
+Every `search_docs` tool call in the thread now renders as this element, wherever `MessagePrimitive.Parts` places it in the assistant's reply.
+
+  </Step>
+</Steps>
+
+</RuntimeMode>
+
+<StandaloneMode>
+
+Standalone, `RetrievalChunks` is fully controlled: you hold the query, the full chunk list, and how many of them are visible.
+
+<Steps>
+  <Step>
+
+### Hold the retrieval state
+
+```tsx title="app/answer.tsx"
+"use client";
+
+import { useState } from "react";
+import {
+  RetrievalChunks,
+  type RetrievalChunk,
+} from "@/components/assistant-ui/elements/retrieval-chunks";
+
+const CHUNKS: readonly RetrievalChunk[] = [
+  {
+    id: "c1",
+    source: "migration-0.14.md",
+    locator: "§ 2",
+    score: 0.91,
+    text: "The composer owns its draft from 0.14 onward.",
+  },
+  {
+    id: "c2",
+    source: "composer.tsx",
+    locator: "L12",
+    score: 0.84,
+    text: "useDraft(threadId) subscribes to the per-thread draft slot.",
+  },
+];
+
+export function Retrieval() {
+  const [searching, setSearching] = useState(true);
+  const [visibleCount, setVisibleCount] = useState(0);
+
+  return (
+    <RetrievalChunks
+      query="how does draft restore work"
+      chunks={CHUNKS}
+      visibleCount={visibleCount}
+      searching={searching}
+    />
+  );
+}
+```
+
+  </Step>
+  <Step>
+
+### Reveal chunks as retrieval finishes
+
+Flip `searching` off and step `visibleCount` up once the passages are ready, instead of jumping straight to the full list:
+
+```tsx
+useEffect(() => {
+  fetchChunks(query).then((found) => {
+    setSearching(false);
+    found.forEach((_, i) => {
+      setTimeout(() => setVisibleCount((n) => Math.max(n, i + 1)), i * 250);
+    });
+  });
+}, [query]);
+```
+
+  </Step>
+</Steps>
+
+</StandaloneMode>
+
+## Anatomy
+
+```tsx
+<div data-slot="retrieval-chunks">
+  <span>{/* query, in a rounded field with a database icon */}</span>
+  <div>{/* "Retrieving" (shimmer) while searching, else "N passages above threshold" */}</div>
+  <div>
+    {/* the first `visibleCount` chunks: source, locator, score, snippet, score bar */}
+  </div>
+</div>
+```
+
+`visibleCount` clamps to `0…chunks.length`, so a value out of range never throws: negative or `NaN` shows nothing, one past the end shows everything. The status line, unlike web search's, does read `chunks.length` once retrieval finishes. A chunk's score bar fills to `score` as a percentage of `1`, and the score text turns emerald at `0.8` and above; anything below reads in the muted foreground color. `text` is clamped to two lines and does not expand on its own.
+
+## Examples
+
+### Filtering by score before rendering
+
+Nothing in the element enforces a relevance floor: pass a shorter `chunks` array to drop passages below your own threshold, rather than trying to hide them with `visibleCount`.
+
+```tsx
+<RetrievalChunks
+  query={query}
+  chunks={chunks.filter((c) => c.score >= 0.5)}
+  visibleCount={chunks.length}
+  searching={searching}
+/>
+```
+
+### Restyle the chunks
+
+Both lanes take `className` on the root. The query pill uses the shared `field` surface, the chunk cards use `paper`, and the locator and score use `mono`, all from `surfaces.tsx`.
+
+```tsx
+<RetrievalChunks className="max-w-none" /* ... */ />
+```
+
+## API reference
+
+<RuntimeMode>
+
+### Tool render props
+
+| Prop | Type | Description |
+|------|------|-------------|
+| `args` | `{ query?: string }` | Model-supplied arguments. Partial while streaming. |
+| `result` | `{ chunks: RetrievalChunk[] } \| undefined` | Set once the tool call resolves. |
+| `status.type` | `"running" \| "complete" \| "incomplete" \| "requires-action"` | Lifecycle of the call. `"running"` is the only state that should show the retrieving shimmer. |
+
+`RetrievalChunk` is `{ id: string; source: string; locator: string; score: number; text: string }`. See [Tool UI](/docs/tools/tool-ui) for the full tool-call part shape.
+
+</RuntimeMode>
+
+<StandaloneMode>
+
+### RetrievalChunks
+
+| Prop | Type | Default | Description |
+|------|------|---------|-------------|
+| `query` | `string` | required | The query shown in the pill. |
+| `chunks` | `readonly RetrievalChunk[]` | required | The full passage list. |
+| `visibleCount` | `number` | required | How many chunks, from the start of `chunks`, to render. |
+| `searching` | `boolean` | required | Shows the shimmering "Retrieving" label in place of the passage count while true. |
+| `className` | `string` | | Merged onto the root. |
+
+`RetrievalChunk` is `{ id: string; source: string; locator: string; score: number; text: string }`. All other `div` props are forwarded to the root.
+
+</StandaloneMode>

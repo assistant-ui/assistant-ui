@@ -1,0 +1,74 @@
+name: Performance
+
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - "packages/x-performance/**"
+      - "packages/tap/**"
+      - "packages/core/**"
+      - "packages/store/**"
+      - "packages/assistant-stream/**"
+      - ".github/workflows/perf.yaml"
+
+permissions:
+  contents: read
+  pull-requests: write
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  bench:
+    name: Bench vs base (informational)
+    runs-on: blacksmith-8vcpu-ubuntu-2404
+    timeout-minutes: 30
+    steps:
+      - name: Checkout code repository
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # ratchet:actions/checkout@v7.0.1
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+
+      - name: Setup pnpm and node.js
+        uses: pnpm/setup@703c52620218391530e48b9e8870d5c0082e1b9b # ratchet:pnpm/setup@v2.1.0
+        with:
+          runtime: node@24
+          cache: true
+          install: false
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Build measured packages
+        run: pnpm turbo run build --filter=@assistant-ui/tap --filter=@assistant-ui/core --filter=@assistant-ui/store --filter=assistant-stream
+
+      - name: Bench PR head against the base commit
+        shell: bash
+        run: |
+          set -o pipefail
+          node packages/x-performance/src/cli.mjs compare --ref "${{ github.event.pull_request.base.sha }}" --runs 2 | tee perf-report.txt
+
+      - name: Post the report as a sticky PR comment
+        if: github.event.pull_request.head.repo.full_name == github.repository
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          marker='<!-- aui-perf-report -->'
+          {
+            echo "$marker"
+            echo "### aui-perf: PR head vs base (informational, never a gate)"
+            echo ""
+            echo "wall-time benches on a shared runner; verdict is ~same unless the delta clears max(2×rme, 3%, 2×SE of the pair deltas). borderline rows at --runs 2 are weak signals."
+            echo ""
+            echo '```text'
+            tail -c 60000 perf-report.txt
+            echo '```'
+          } > comment.md
+          existing=$(gh api "repos/${{ github.repository }}/issues/${{ github.event.pull_request.number }}/comments" --paginate --jq ".[] | select(.body | startswith(\"$marker\")) | .id" | head -1)
+          if [ -n "$existing" ]; then
+            gh api "repos/${{ github.repository }}/issues/comments/$existing" --method PATCH -F body=@comment.md
+          else
+            gh api "repos/${{ github.repository }}/issues/${{ github.event.pull_request.number }}/comments" --method POST -F body=@comment.md
+          fi

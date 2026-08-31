@@ -1,0 +1,160 @@
+---
+title: "Context breakdown"
+description: "Where the window actually went: prompt, tools, files, conversation, and what's left."
+---
+
+A labeled bar and legend showing what is occupying the model's context window, with the leftover headroom computed rather than passed in. With a runtime two of those labels come from the thread's real per-turn token usage; standalone every segment, and its color, is yours to define.
+
+## Getting started
+
+<RuntimeMode>
+
+With a runtime, assistant-ui does not label context usage by category the way this element does. What a `ChatModelAdapter` can report is two real numbers per turn: input tokens and output tokens, carried on each assistant message's generation steps.
+
+<Steps>
+  <Step>
+
+### Derive the segments that are actually real
+
+A finer split, separating tool schema tokens from the rest of the prompt, or metering files apart from the running conversation, is not something the thread state tracks: providers report input as one combined figure. Stick to the two segments the runtime can tell you about, and add flat, application-known segments (a fixed system-prompt cost, for instance) alongside them only when you already track that cost yourself.
+
+```tsx title="components/assistant-ui/elements/thread-context-breakdown.tsx"
+"use client";
+
+import { useAuiState } from "@assistant-ui/react";
+import {
+  ContextBreakdown,
+  type ContextSegment,
+} from "@/components/assistant-ui/elements/context-breakdown";
+
+function useTurnUsage() {
+  return useAuiState((s) =>
+    s.thread.messages.reduce(
+      (sum, message) => {
+        for (const step of message.metadata.steps ?? []) {
+          sum.input += step.usage?.inputTokens ?? 0;
+          sum.output += step.usage?.outputTokens ?? 0;
+        }
+        return sum;
+      },
+      { input: 0, output: 0 },
+    ),
+  );
+}
+
+const MODEL_CONTEXT_WINDOW = 128_000;
+
+export function ThreadContextBreakdown() {
+  const usage = useTurnUsage();
+  const segments: ContextSegment[] = [
+    { label: "Prompt", tokens: usage.input, tint: "bg-foreground/30" },
+    { label: "Reply", tokens: usage.output, tint: "bg-blue-500/70" },
+  ];
+  return <ContextBreakdown segments={segments} limit={MODEL_CONTEXT_WINDOW} />;
+}
+```
+
+  </Step>
+</Steps>
+
+</RuntimeMode>
+
+<StandaloneMode>
+
+Standalone, `ContextBreakdown` renders whatever segments you pass; it only sums their tokens against `limit` to compute the bar widths and the leftover headroom.
+
+<Steps>
+  <Step>
+
+### Pass the segments and the limit
+
+```tsx title="app/context-panel.tsx"
+"use client";
+
+import { ContextBreakdown } from "@/components/assistant-ui/elements/context-breakdown";
+
+const segments = [
+  { label: "System prompt", tokens: 1_400, tint: "bg-foreground/20" },
+  { label: "Tools", tokens: 3_100, tint: "bg-foreground/35" },
+  { label: "Conversation", tokens: 42_000, tint: "bg-blue-500/70" },
+];
+
+export function ContextPanel() {
+  return <ContextBreakdown segments={segments} limit={128_000} />;
+}
+```
+
+  </Step>
+</Steps>
+
+</StandaloneMode>
+
+## Anatomy
+
+```tsx
+<div data-slot="context-breakdown">
+  <div>
+    <span>Context</span>
+    <span>{/* used / limit, amber past 85% */}</span>
+  </div>
+  <div>{/* stacked bar, one span per segment, widths from tokens / limit */}</div>
+  <div>
+    {/* one row per segment: dot, label, count */}
+    <div>{/* Headroom row: fixed dot, limit minus used, clamped at 0 */}</div>
+  </div>
+</div>
+```
+
+Headroom is not a segment you pass; it is `limit` minus the sum of every segment's `tokens`, floored at zero, and it never gets a bar slice of its own, only a legend row. A zero `limit` is treated as zero pressure rather than dividing by it, so the header stays plain instead of showing a red or broken percentage. Every segment supplies its own `tint`, a Tailwind background class shared verbatim between the bar slice and the legend dot, so the two never disagree.
+
+## Examples
+
+### Choosing tints
+
+Any Tailwind background utility works; segments read cleanly when their tints step through opacity or hue together, as in the runtime example above.
+
+```tsx
+{ label: "Conversation", tokens: 42000, tint: "bg-blue-500/70" }
+```
+
+### Restyle the panel
+
+```tsx
+<ContextBreakdown className="max-w-xs gap-2" segments={segments} limit={limit} />
+```
+
+## API reference
+
+<RuntimeMode>
+
+### Thread state
+
+| Selector | Type | Description |
+|----------|------|-------------|
+| `s.thread.messages` | `readonly MessageState[]` | Every message in the active thread. Each assistant message's `metadata.steps` is a `readonly ThreadStep[]`, and a step may carry `usage: { inputTokens: number; outputTokens: number }` when the model adapter reports it. |
+
+There is no selector for the model's context window size or for a category split beyond input and output; both are supplied as shown above.
+
+</RuntimeMode>
+
+<StandaloneMode>
+
+### ContextBreakdown
+
+| Prop | Type | Default | Description |
+|------|------|---------|-------------|
+| `segments` | `readonly ContextSegment[]` | required | What is occupying the window, in stacking order. Headroom is derived, not passed. |
+| `limit` | `number` | required | Window size. The header turns amber once the segments pass 85 percent of it. A zero limit is treated as zero pressure rather than dividing by it. |
+| `className` | `string` | | Merged onto the root. |
+
+### ContextSegment
+
+| Prop | Type | Default | Description |
+|------|------|---------|-------------|
+| `label` | `string` | required | What this slice of the window is, shown in the legend. |
+| `tokens` | `number` | required | Raw token count. The element formats it. |
+| `tint` | `string` | required | Background class shared by the bar slice and the legend dot, so the two always agree. |
+
+All other `div` props are forwarded to the root.
+
+</StandaloneMode>

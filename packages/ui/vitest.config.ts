@@ -1,10 +1,12 @@
 import { fileURLToPath } from "node:url";
 import { dirname, resolve } from "node:path";
+import vue from "@vitejs/plugin-vue";
 import { defineConfig } from "vitest/config";
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 
 export default defineConfig({
+  plugins: [vue()],
   test: {
     environment: "jsdom",
     include: ["src/**/*.test.{ts,tsx}"],
@@ -12,8 +14,15 @@ export default defineConfig({
   },
   resolve: {
     alias: {
-      "@/components/ui/radix": resolve(__dirname, "src/components/ui/radix"),
-      "@/components/ui": resolve(__dirname, "src/components/ui/base"),
+      "@/components/assistant-ui": resolve(
+        __dirname,
+        "src/components/react/assistant-ui",
+      ),
+      "@/components/ui/radix": resolve(
+        __dirname,
+        "src/components/react/ui/radix",
+      ),
+      "@/components/ui": resolve(__dirname, "src/components/react/ui/base"),
       "@": resolve(__dirname, "src"),
     },
   },

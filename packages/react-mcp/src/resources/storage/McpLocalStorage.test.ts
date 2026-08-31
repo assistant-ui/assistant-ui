@@ -1,8 +1,10 @@
-import { createTapRoot, useResource } from "@assistant-ui/tap";
+import { createTapRoot, resource, useResource } from "@assistant-ui/tap";
+import { useState } from "react";
 import { auth, type FetchLike } from "@modelcontextprotocol/client";
 import { describe, expect, it } from "vitest";
 import { createOAuthProvider } from "../../auth/createOAuthProvider";
 
+import type { MCPStorage } from "./types";
 import {
   McpLocalStorage,
   normalizeCustomServerRecords,
@@ -125,10 +127,12 @@ describe("normalizePersistedAuthState", () => {
       normalizePersistedAuthState({
         token: "bearer-token",
         codeVerifier: "pkce-verifier",
+        state: "aui-mcp:ZG9jcw.nonce",
       }),
     ).toEqual({
       token: "bearer-token",
       codeVerifier: "pkce-verifier",
+      state: "aui-mcp:ZG9jcw.nonce",
     });
   });
 
@@ -394,6 +398,7 @@ describe("McpLocalStorage auth state", () => {
       JSON.parse(storage.getItem("test-mcp:auth:docs") ?? "null"),
     ).toMatchObject({
       codeVerifier: expect.any(String),
+      state: authorizationUrls[0]!.searchParams.get("state"),
       discoveryState: {
         authorizationServerUrl: "https://auth.example.com",
       },
@@ -416,5 +421,33 @@ describe("McpLocalStorage auth state", () => {
     ).resolves.toMatchObject({
       tokens: { access_token: "access-token" },
     });
+  });
+});
+
+describe("McpLocalStorage instance identity", () => {
+  it("returns the same instance across re-renders", () => {
+    const backing = createStorage();
+    const seen: MCPStorage[] = [];
+    let rerender!: () => void;
+
+    const useHost = () => {
+      const [, setTick] = useState(0);
+      rerender = () => setTick((n) => n + 1);
+      const storage = useResource(
+        McpLocalStorage({ keyPrefix: "test-mcp", storage: backing }),
+      );
+      seen.push(storage);
+      return storage;
+    };
+    const Host = resource(useHost);
+
+    createTapRoot(function McpStorageIdentityRoot() {
+      return useResource(Host());
+    });
+    rerender();
+    rerender();
+
+    expect(seen.length).toBeGreaterThan(1);
+    expect(new Set(seen).size).toBe(1);
   });
 });

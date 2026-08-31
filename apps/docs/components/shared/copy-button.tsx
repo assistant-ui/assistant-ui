@@ -8,7 +8,7 @@ import {
   iconSwap,
   iconSwapIn,
   iconSwapOut,
-} from "@/components/elements/surfaces";
+} from "@/components/assistant-ui/elements/surfaces";
 
 export function CopyButton({
   text,

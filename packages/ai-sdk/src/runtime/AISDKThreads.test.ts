@@ -546,3 +546,105 @@ describe("AISDKThreads", () => {
     }
   });
 });
+
+describe("AISDKThreads branch isolation", () => {
+  const completeRound = async (
+    handle: ReturnType<typeof createAssistantClient>,
+    emit: (...chunks: never[]) => void,
+    close: () => void,
+    question: string,
+    answer: string,
+  ) => {
+    const aui = handle.getClient();
+    flushTapSync(() => aui.composer.setText(question));
+    flushTapSync(() => aui.composer.send());
+    await vi.waitFor(() => {
+      expect(aui.thread.getState().messages.length).toBeGreaterThan(0);
+    });
+    emit(...(textReply(answer) as never[]));
+    close();
+    await vi.waitFor(() => {
+      expect(handle.getClient().thread.getState().isRunning).toBe(false);
+    });
+  };
+
+  it("keeps switching between populated threads free of cross-thread branches", async () => {
+    const { transport, emit, close } = createControlledTransport();
+    const handle = createAssistantClient(
+      AuiConfig({ threads: AISDKThreads({ transport }) }),
+    );
+    handle.subscribe(() => {});
+    const aui = handle.getClient();
+
+    await completeRound(
+      handle,
+      emit as never,
+      close,
+      "thread a question",
+      "thread a answer",
+    );
+
+    flushTapSync(() => aui.threads.switchToNewThread());
+    await completeRound(
+      handle,
+      emit as never,
+      close,
+      "thread b question",
+      "thread b answer",
+    );
+
+    flushTapSync(() => aui.threads.switchToThread("main"));
+    await vi.waitFor(() => {
+      expect(threadText(handle as never)).toEqual([
+        "thread a question",
+        "thread a answer",
+      ]);
+    });
+    expect(aui.thread.message({ index: 0 }).getState().branchCount).toBe(1);
+    expect(aui.thread.message({ index: 1 }).getState().branchCount).toBe(1);
+
+    handle.destroy();
+  });
+
+  it("preserves intra-thread branches across a switch through an empty thread", async () => {
+    const { transport, emit, close } = createControlledTransport();
+    const handle = createAssistantClient(
+      AuiConfig({ threads: AISDKThreads({ transport }) }),
+    );
+    handle.subscribe(() => {});
+    const aui = handle.getClient();
+
+    await completeRound(
+      handle,
+      emit as never,
+      close,
+      "branchy question",
+      "first answer",
+    );
+
+    flushTapSync(() => aui.thread.message({ index: 1 }).reload());
+    await vi.waitFor(() => {
+      expect(handle.getClient().thread.getState().isRunning).toBe(true);
+    });
+    emit(...(textReply("second answer") as never[]));
+    close();
+    await vi.waitFor(() => {
+      expect(handle.getClient().thread.getState().isRunning).toBe(false);
+      expect(aui.thread.message({ index: 1 }).getState().branchCount).toBe(2);
+    });
+
+    flushTapSync(() => aui.threads.switchToNewThread());
+    expect(handle.getClient().thread.getState().messages).toHaveLength(0);
+
+    flushTapSync(() => handle.getClient().threads.switchToThread("main"));
+    await vi.waitFor(() => {
+      expect(threadText(handle as never)).toEqual([
+        "branchy question",
+        "second answer",
+      ]);
+    });
+    expect(aui.thread.message({ index: 1 }).getState().branchCount).toBe(2);
+
+    handle.destroy();
+  });
+});

@@ -95,7 +95,7 @@ describe("AISDKThreads cloud", () => {
     handle.destroy();
   });
 
-  it("stops an in-flight cloud chat when switching away", async () => {
+  it("keeps an in-flight cloud chat running across a switch and stops it on delete", async () => {
     const chat = createCancellableTransport();
     const handle = createAssistantClient(
       AuiConfig({
@@ -126,6 +126,16 @@ describe("AISDKThreads cloud", () => {
       await vi.waitFor(() => {
         expect(handle.getClient().threads.getState().mainThreadId).toBe("t2");
       });
+      expect(chat.getCancelCount()).toBe(0);
+      await vi.waitFor(() => {
+        expect(
+          handle.getClient().threads.item({ id: "t1" }).getState().isRunning,
+        ).toBe(true);
+      });
+
+      flushTapSync(() =>
+        handle.getClient().threads.item({ id: "t1" }).delete(),
+      );
       await vi.waitFor(() => {
         expect(chat.getCancelCount()).toBe(1);
       });

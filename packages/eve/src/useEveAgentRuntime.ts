@@ -1,6 +1,13 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import {
+  useCallback,
+  useEffect,
+  useInsertionEffect,
+  useMemo,
+  useRef,
+  useState,
+} from "react";
 import {
   fromThreadMessageLike,
   generateId,
@@ -229,9 +236,13 @@ export const useEveAgentRuntime = (options: UseEveAgentRuntimeOptions = {}) => {
 
   const messages = stagedMessages ?? convertedMessages;
   const messagesRef = useRef(messages);
-  messagesRef.current = messages;
   const agentRef = useRef(agent);
-  agentRef.current = agent;
+  // Descendant layout effects can dispatch against these refs synchronously;
+  // this matches useA2ARuntime's commit-scoped ref publication.
+  useInsertionEffect(() => {
+    messagesRef.current = messages;
+    agentRef.current = agent;
+  }, [agent, messages]);
 
   // Upstream `EveAgentStore` `send` and `respond` reject while a turn is in
   // flight and only resolve once the turn's stream parks, so a pending chain

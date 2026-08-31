@@ -3,7 +3,11 @@
 import { useComposedRefs } from "radix-ui/internal";
 import { useCallback, useLayoutEffect, useRef, type RefCallback } from "react";
 import { useAuiEvent, useAuiState } from "@assistant-ui/store";
-import { isUserScrollUp } from "@assistant-ui/store/client";
+import {
+  isUserScrollUp,
+  isViewportAtBottom,
+  viewportOverflows,
+} from "@assistant-ui/store/client";
 import { useOnResizeContent } from "../../utils/hooks/useOnResizeContent";
 import { useOnScrollToBottom } from "../../utils/hooks/useOnScrollToBottom";
 import { useManagedRef } from "../../utils/hooks/useManagedRef";
@@ -114,9 +118,7 @@ export const useThreadViewportAutoScroll = <TElement extends HTMLElement>({
     if (!div) return;
 
     const isAtBottom = threadViewportStore.getState().isAtBottom;
-    const newIsAtBottom =
-      Math.abs(div.scrollHeight - div.scrollTop - div.clientHeight) <= 1 ||
-      div.scrollHeight <= div.clientHeight;
+    const newIsAtBottom = isViewportAtBottom(div);
 
     const isInFlightDownwardScroll =
       !newIsAtBottom && lastScrollTop.current < div.scrollTop;
@@ -135,8 +137,7 @@ export const useThreadViewportAutoScroll = <TElement extends HTMLElement>({
       if (newIsAtBottom) {
         // newIsAtBottom is ambiguous when the viewport doesn't overflow —
         // keep intent alive until content can actually scroll
-        const viewportOverflows = div.scrollHeight > div.clientHeight + 1;
-        if (viewportOverflows) {
+        if (viewportOverflows(div)) {
           scrollingToBottomBehaviorRef.current = null;
         }
         if (autoScroll) followBottomRef.current = true;

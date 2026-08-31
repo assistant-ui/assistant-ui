@@ -13,6 +13,7 @@ import type {
   SyntaxHighlighterProps,
 } from "./types";
 import { DefaultCodeBlock } from "./CodeBlock";
+import { type ComponentsByLanguage, parseLanguageClass } from "../code-fence";
 import { useCallbackRef } from "@radix-ui/react-use-callback-ref";
 import { withDefaultProps } from "./withDefaults";
 import { DefaultCodeBlockContent } from "./defaultComponents";
@@ -41,8 +42,7 @@ const CodeBlockOverride: FC<CodeOverrideProps> = ({
     <Code {...getCodeProps(props)} />
   ));
 
-  const language =
-    /language-([^\s]+)/.exec(codeProps.className || "")?.[1] ?? "";
+  const language = parseLanguageClass(codeProps.className);
 
   // if the code content is not string (due to rehype plugins), return a default code block
   if (typeof children !== "string") {
@@ -84,15 +84,7 @@ export type CodeOverrideProps = ComponentPropsWithoutRef<CodeComponent> & {
     CodeHeader: ComponentType<CodeHeaderProps>;
     SyntaxHighlighter: ComponentType<SyntaxHighlighterProps>;
   };
-  componentsByLanguage?:
-    | Record<
-        string,
-        {
-          CodeHeader?: ComponentType<CodeHeaderProps>;
-          SyntaxHighlighter?: ComponentType<SyntaxHighlighterProps>;
-        }
-      >
-    | undefined;
+  componentsByLanguage?: ComponentsByLanguage | undefined;
 };
 
 const CodeOverrideImpl: FC<CodeOverrideProps> = ({
@@ -116,16 +108,11 @@ const CodeOverrideImpl: FC<CodeOverrideProps> = ({
 // Compared structurally: the prop's documented usage is an inline object
 // literal, so a fresh-but-equal identity per render must not re-render (and
 // re-tokenize) every code block during streaming.
-type LanguageComponentEntry = {
-  CodeHeader?: ComponentType<CodeHeaderProps>;
-  SyntaxHighlighter?: ComponentType<SyntaxHighlighterProps>;
-};
-
 // Entries may be undefined at runtime (conditional map building, plain JS
 // consumers), so the comparator accepts and distinguishes them.
 export const compareComponentsByLanguage = (
-  prev: Record<string, LanguageComponentEntry | undefined> | undefined,
-  next: Record<string, LanguageComponentEntry | undefined> | undefined,
+  prev: Record<string, ComponentsByLanguage[string] | undefined> | undefined,
+  next: Record<string, ComponentsByLanguage[string] | undefined> | undefined,
 ): boolean => {
   if (prev === next) return true;
   if (!prev || !next) return false;

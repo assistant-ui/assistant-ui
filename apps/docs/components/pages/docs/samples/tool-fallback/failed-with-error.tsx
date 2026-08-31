@@ -6,7 +6,7 @@ import {
   ToolFallbackContent,
   ToolFallbackArgs,
   ToolFallbackError,
-} from "@/components/assistant-ui/tool-fallback";
+} from "@/components/assistant-ui/elements/tool-fallback.aui";
 import { SampleFrame } from "@/components/pages/docs/samples/sample-frame";
 
 export function ToolFallbackErrorSample() {

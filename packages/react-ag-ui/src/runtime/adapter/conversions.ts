@@ -10,8 +10,8 @@ import type {
 } from "@assistant-ui/core";
 import {
   getAutoStatus,
-  httpUrlPattern,
   parseDataUrl,
+  resolveFilePartSource,
 } from "@assistant-ui/core/internal";
 import { type Tool, toToolsJSONSchema } from "assistant-stream";
 import type { ReadonlyJSONObject } from "assistant-stream/utils";
@@ -236,17 +236,20 @@ function buildInputSource(
   declaredMimeType: string | undefined,
   sourceType?: string,
 ): InputContentSource {
-  if (sourceType === "url" || httpUrlPattern.test(value)) {
+  const source = resolveFilePartSource({
+    data: value,
+    mimeType: declaredMimeType ?? "application/octet-stream",
+    sourceType,
+  });
+  if (source.kind === "url") {
     return declaredMimeType !== undefined
-      ? { type: "url", value, mimeType: declaredMimeType }
-      : { type: "url", value };
+      ? { type: "url", value: source.url, mimeType: declaredMimeType }
+      : { type: "url", value: source.url };
   }
-  const parsed = parseDataUrl(value);
   return {
     type: "data",
-    value: parsed?.data ?? value,
-    mimeType:
-      parsed?.mimeType ?? declaredMimeType ?? "application/octet-stream",
+    value: source.data,
+    mimeType: source.mimeType,
   };
 }
 

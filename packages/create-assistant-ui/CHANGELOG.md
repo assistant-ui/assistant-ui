@@ -1,5 +1,13 @@
 # create-assistant-ui
 
+## 0.0.76
+
+### Patch Changes
+
+- [#6354](https://github.com/assistant-ui/assistant-ui/pull/6354) [`8ee4660`](https://github.com/assistant-ui/assistant-ui/commit/8ee4660e1fd217588afdaf70ed535ca491fbceb2) - fix: propagate termination signals to the spawned CLI. cancelling now exits by the signal (130 for `SIGINT`, 143 for `SIGTERM`) instead of reporting success, so a cancelled scaffold no longer looks like a completed one to CI. ([@Kinfe123](https://github.com/Kinfe123))
+- Updated dependencies [[`c70c911`](https://github.com/assistant-ui/assistant-ui/commit/c70c911d9537e6f3e87da44768e3363d65e6a19d), [`34a31cb`](https://github.com/assistant-ui/assistant-ui/commit/34a31cb82257ddd186d048d779b84946ba2ad423), [`71f76b1`](https://github.com/assistant-ui/assistant-ui/commit/71f76b17623923a6ac6eefa82b2762027c056ca0), [`e96d3de`](https://github.com/assistant-ui/assistant-ui/commit/e96d3dea9370159e04f82bf4eb39d6b1b1c4d21d), [`b70a714`](https://github.com/assistant-ui/assistant-ui/commit/b70a714a5569710e2ea87c81bc1a652a5161d4f1)]:
+  - assistant-ui@0.0.113
+
 ## 0.0.75
 
 ### Patch Changes

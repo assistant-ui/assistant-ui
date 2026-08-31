@@ -86,3 +86,15 @@ export const getAutoStatus = (
         ? AUTO_STATUS_PENDING
         : AUTO_STATUS_COMPLETE;
 };
+
+export const getContentAutoStatus = (
+  content: ThreadMessageLike["content"],
+  isLast: boolean,
+  isRunning: boolean,
+): MessageStatus =>
+  getAutoStatus(
+    isLast,
+    isRunning,
+    typeof content !== "string" && content.some(isInterruptedToolCall),
+    typeof content !== "string" && content.some(isPendingToolCall),
+  );

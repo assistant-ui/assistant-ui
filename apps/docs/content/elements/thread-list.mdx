@@ -1,0 +1,212 @@
+---
+title: "Thread list"
+description: "Runtime-backed conversation switching with search, active selection, and thread actions."
+---
+
+Thread list is the conversation switcher: a new-thread button, search once there is something to search, and every past thread grouped by day with rename, archive, and delete. With a runtime it reads and writes the thread list directly; standalone you pass in the rows and report which one is active.
+
+## Getting started
+
+<RuntimeMode>
+
+`ThreadList` takes no props: mount it anywhere inside a runtime provider and it reads and writes the thread list on its own.
+
+<Steps>
+  <Step>
+
+### Use it directly
+
+```tsx title="app/sidebar.tsx"
+import { ThreadList } from "@/components/assistant-ui/elements/thread-list.aui";
+
+export function Sidebar() {
+  return (
+    <aside className="w-64 border-e p-2">
+      <ThreadList />
+    </aside>
+  );
+}
+```
+
+[Thread list sidebar](/elements/thread-list-sidebar) already pairs this with a full collapsible sidebar shell, if that is what you need instead of a bare panel.
+
+  </Step>
+</Steps>
+
+</RuntimeMode>
+
+<StandaloneMode>
+
+Standalone, the element is a controlled row list: you hold the threads and the active index, it renders rows and reports clicks. There is no built-in new-thread button or search; both stay outside the element.
+
+<Steps>
+  <Step>
+
+### Hold the thread state
+
+```tsx title="app/sidebar.tsx"
+"use client";
+
+import { useState } from "react";
+import {
+  ThreadList,
+  type ThreadItem,
+} from "@/components/assistant-ui/elements/thread-list";
+
+const threads: ThreadItem[] = [
+  { title: "Renaming a component", time: "2m", unread: true },
+  { title: "Deploy checklist", time: "1h" },
+];
+
+export function Sidebar() {
+  const [activeIndex, setActiveIndex] = useState(0);
+  return (
+    <ThreadList
+      threads={threads}
+      activeIndex={activeIndex}
+      onActiveIndexChange={setActiveIndex}
+    />
+  );
+}
+```
+
+  </Step>
+</Steps>
+
+</StandaloneMode>
+
+## Anatomy
+
+```tsx
+<div data-slot="aui_thread-list-root">
+  <button data-slot="aui_thread-list-new">New Thread</button>
+  <div data-slot="aui_thread-list-search" /> {/* runtime only, once a thread exists */}
+  <div data-slot="aui_thread-list-items">
+    <div data-slot="aui_thread-list-group-label">Today</div>
+    <div data-slot="aui_thread-list-item">
+      <button data-slot="aui_thread-list-item-trigger">
+        {/* spinner while running, then the title */}
+      </button>
+      <button data-slot="aui_thread-list-item-more" aria-label="More options" />
+    </div>
+  </div>
+</div>
+```
+
+Runtime, the search box only renders once at least one thread exists, and it filters case-insensitively against each thread's title, falling back to matching "New Chat" for untitled ones; no match shows "No threads found" instead of the list. Rows group under Today, Yesterday, and Earlier by `lastMessageAt`, but only when at least one visible thread actually carries a timestamp, otherwise the list renders flat with no group labels. The active thread carries `data-active` and `aria-current`. Rename swaps a row's trigger for an inline input in place (Enter commits, Escape cancels, blur commits); it never navigates away from the list.
+
+Standalone, the element renders a single static "Today" label above every row regardless of the actual dates, since it has no timestamps to group by, and it has no new-thread control or search of its own. Its rename and delete icons are presentational: they render on hover but carry no click handler, since this file is copied into your project specifically so you attach your own.
+
+## Examples
+
+### Search
+
+<RuntimeMode>
+
+Search is built in and needs no wiring; it appears once the thread list is non-empty and narrows to matching titles as you type.
+
+</RuntimeMode>
+
+<StandaloneMode>
+
+There is no search input in the element itself. Filter the array you already hold before passing it in:
+
+```tsx
+<ThreadList
+  threads={threads.filter((t) =>
+    t.title.toLowerCase().includes(query.toLowerCase()),
+  )}
+  activeIndex={activeIndex}
+  onActiveIndexChange={setActiveIndex}
+/>
+```
+
+</StandaloneMode>
+
+### Renaming
+
+<RuntimeMode>
+
+The more menu's Rename item is already wired. To rename without going through the menu, call the same method it uses:
+
+```tsx
+const aui = useAui();
+aui.threads.item({ id: threadId }).rename("Q3 planning");
+```
+
+</RuntimeMode>
+
+<StandaloneMode>
+
+The pencil icon ships unwired. Give it a click handler that swaps the row into an editable state the way the runtime lane does, since the file is yours once it is copied in.
+
+</StandaloneMode>
+
+### Restyle
+
+Both lanes take `className` on the root. Standalone, the active row's fill and the trailing timestamp use the shared `field` and `mono` tokens from `surfaces.tsx`, so restyling those two tokens restyles every element that uses them.
+
+```tsx
+<ThreadList className="max-w-[280px]" /* ... */ />
+```
+
+## API reference
+
+<RuntimeMode>
+
+### ThreadListPrimitive
+
+| Part | Renders | Notes |
+|------|---------|-------|
+| `Root` | `div` | Provides the thread list's keyboard focus group. |
+| `New` | `button` | Switches to the runtime's placeholder new thread. Carries `data-active` while already on it. |
+| `ItemByIndex` | no fixed element | Renders one item at `index` through a `components.ThreadListItem` you supply. `ThreadList` groups these by day itself rather than using the simpler `Items` primitive, which renders every item ungrouped for a list with no day headers. |
+
+### ThreadListItemPrimitive and ThreadListItemMorePrimitive
+
+| Part | Renders | Notes |
+|------|---------|-------|
+| `ThreadListItemPrimitive.Root` | `div` | Carries `data-active` / `aria-current` for the main thread. |
+| `ThreadListItemPrimitive.Trigger` | `button` | Switches to this thread. |
+| `ThreadListItemPrimitive.Title` | text | The thread's title; `fallback` renders when it has none yet. |
+| `ThreadListItemPrimitive.Archive` | `button` | Archives the thread. Accepts `asChild`. |
+| `ThreadListItemPrimitive.Delete` | `button` | Deletes the thread. Accepts `asChild`. |
+| `ThreadListItemMorePrimitive.Root` | no fixed element | `sharedFocusGroup` folds the menu into the list's own keyboard navigation instead of a standalone modal dropdown. |
+| `ThreadListItemMorePrimitive.Trigger` / `.Content` / `.Item` | `button` / menu / menu item | The overflow menu shell. |
+
+### Thread list state
+
+| Selector | Type | Description |
+|----------|------|--------------|
+| `s.threads.threadIds` | `readonly string[]` | Ids in display order. |
+| `s.threads.threadItems` | `readonly ThreadListItemState[]` | One state object per id, including `title` and `lastMessageAt`. |
+| `s.threads.isLoading` | `boolean` | True while the list itself is still loading. |
+| `s.threadListItem.id` | `string` | Id of the item in scope, inside `ItemByIndex`. |
+| `s.threadListItem.title` | `string \| undefined` | Undefined until the runtime names the thread. |
+| `s.threadListItem.isRunning` | `boolean` | Whether this thread has a run in progress, even if it is not the open one. |
+| `aui.threads.item({ id }).rename(title)` | `(title: string) => void` | Renames a thread by id without going through the more menu. |
+
+</RuntimeMode>
+
+<StandaloneMode>
+
+### ThreadList
+
+| Prop | Type | Default | Description |
+|------|------|---------|-------------|
+| `threads` | `readonly ThreadItem[]` | required | The rows to render, in order. |
+| `activeIndex` | `number` | required | Index of the highlighted row. |
+| `onActiveIndexChange` | `(index: number) => void` | | Called with the clicked row's index. |
+| `className` | `string` | | Merged onto the root. |
+
+All other `div` props are forwarded to the root.
+
+### ThreadItem
+
+| Field | Type | Description |
+|-------|------|--------------|
+| `title` | `string` | Row label. |
+| `time` | `string` | Trailing timestamp text, already formatted. |
+| `unread` | `boolean \| undefined` | Shows a dot before the timestamp when true and the row is not active. |
+
+</StandaloneMode>

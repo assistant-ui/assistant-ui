@@ -1,9 +1,7 @@
 "use client";
 
-import { useState } from "react";
-import { DynamicCodeBlock } from "fumadocs-ui/components/dynamic-codeblock";
-import { cn } from "@/lib/utils";
-import { useAnimatedTabs } from "@/hooks/use-animated-tabs";
+import { useRef } from "react";
+import { CommandTabs as KitCommandTabs } from "@/components/ui/command-tabs";
 import { analytics } from "@/lib/analytics";
 
 const PACKAGE_MANAGERS = ["npm", "pnpm", "yarn", "bun", "xpm"] as const;
@@ -63,74 +61,22 @@ function CommandTabs({
   getCommand: (pm: PackageManager) => string;
   packageManagers?: readonly PackageManager[];
 }) {
-  const [pm, setPm] = useState<PackageManager>(packageManagers[0] ?? "npm");
-  const activeIndex = packageManagers.indexOf(pm);
-
-  const {
-    containerRef,
-    tabRefs,
-    hoveredIndex,
-    setHoveredIndex,
-    activeStyle,
-    hoverStyle,
-  } = useAnimatedTabs({ activeIndex });
+  const lastPicked = useRef<string | null>(null);
+  const commands = Object.fromEntries(
+    packageManagers.map((pm) => [pm, getCommand(pm)]),
+  );
 
   return (
-    <div className="not-prose bg-code-surface my-4 overflow-hidden rounded-xl">
-      <div
-        ref={containerRef}
-        className="relative flex items-center gap-1 px-3 py-2"
-      >
-        {hoveredIndex !== null && hoverStyle.width > 0 && (
-          <div
-            className="bg-foreground/12 pointer-events-none absolute h-6.5 rounded-md transition-all duration-200 ease-out"
-            style={{
-              left: `${hoverStyle.left}px`,
-              width: `${hoverStyle.width}px`,
-            }}
-          />
-        )}
-
-        {activeStyle.width > 0 && (
-          <div
-            className="bg-foreground/8 pointer-events-none absolute h-6.5 rounded-md transition-all duration-200 ease-out"
-            style={{
-              left: `${activeStyle.left}px`,
-              width: `${activeStyle.width}px`,
-            }}
-          />
-        )}
-
-        {packageManagers.map((manager, index) => (
-          <button
-            key={manager}
-            ref={(el) => {
-              tabRefs.current[index] = el;
-            }}
-            type="button"
-            onClick={() => {
-              if (pm !== manager) {
-                analytics.install.packageManagerSelected(manager);
-              }
-              setPm(manager);
-            }}
-            onMouseEnter={() => setHoveredIndex(index)}
-            onMouseLeave={() => setHoveredIndex(null)}
-            className={cn(
-              "relative z-10 rounded-md px-2.5 py-1 text-xs font-medium transition-colors duration-200",
-              pm === manager
-                ? "text-foreground"
-                : "text-muted-foreground hover:text-foreground",
-            )}
-          >
-            {manager}
-          </button>
-        ))}
-      </div>
-      <div className="overflow-hidden rounded-t-lg [&_figure]:my-0! [&_figure]:rounded-none! [&_figure]:border-none! [&_figure]:bg-transparent!">
-        <DynamicCodeBlock lang="bash" code={getCommand(pm)} />
-      </div>
-    </div>
+    <KitCommandTabs
+      className="my-4"
+      commands={commands}
+      storageKey="package-manager"
+      onValueChange={(value) => {
+        if (value === lastPicked.current) return;
+        lastPicked.current = value;
+        analytics.install.packageManagerSelected(value as PackageManager);
+      }}
+    />
   );
 }
 

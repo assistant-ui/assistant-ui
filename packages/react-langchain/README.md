@@ -17,7 +17,7 @@ npm install @assistant-ui/react @assistant-ui/react-langchain @langchain/react
 ```tsx
 import { useStreamRuntime } from "@assistant-ui/react-langchain";
 import { AssistantRuntimeProvider } from "@assistant-ui/react";
-import { Thread } from "@/components/assistant-ui/thread";
+import { Thread } from "@/components/assistant-ui/elements/thread.aui";
 
 export function App() {
   const runtime = useStreamRuntime({

@@ -1,5 +1,4 @@
 import { getDistinctId } from "@/lib/posthog-server";
-import { createPrismTracer, prismAISDK } from "@/lib/prism-server";
 import {
   injectQuoteContext,
   unstable_injectInteractableContext as injectInteractableContext,
@@ -76,14 +75,6 @@ export async function POST(req: Request) {
 
     const baseModel = getModel(config?.modelName);
     const distinctId = getDistinctId(req);
-    const prismTracer = createPrismTracer();
-
-    const prism = prismTracer
-      ? prismAISDK(prismTracer, baseModel, {
-          name: "general_chat",
-          endUserId: distinctId,
-        })
-      : null;
 
     const prunedMessages = pruneMessages({
       messages: await convertToModelMessages(
@@ -93,7 +84,7 @@ export async function POST(req: Request) {
     });
 
     const result = streamText({
-      model: prism?.model ?? baseModel,
+      model: baseModel,
       ...(system ? { system } : {}),
       messages: prunedMessages,
       maxOutputTokens: 4096,
@@ -104,15 +95,8 @@ export async function POST(req: Request) {
         spanName: "general_chat",
         source: "general_chat",
       }),
-      onFinish: async () => {
-        await prism?.end();
-      },
-      onError: async ({ error }) => {
+      onError: ({ error }) => {
         console.error(error);
-        await prism?.end({ status: "error" });
-      },
-      onAbort: async () => {
-        await prism?.end();
       },
     });
 

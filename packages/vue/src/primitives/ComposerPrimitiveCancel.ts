@@ -1,4 +1,10 @@
-import { defineComponent, h, mergeProps, type SlotsType } from "vue";
+import {
+  defineComponent,
+  h,
+  mergeProps,
+  type SlotsType,
+  type VNodeChild,
+} from "vue";
 import { composerCancelDisabled } from "@assistant-ui/core/store/internal";
 import { isAttrDisabled } from "./attrDisabled";
 import { useAui } from "../useAui";
@@ -12,7 +18,7 @@ import { useAuiState } from "../useAuiState";
 export const ComposerPrimitiveCancel = defineComponent({
   name: "ComposerPrimitiveCancel",
   inheritAttrs: false,
-  slots: Object as SlotsType<{ default?: () => unknown }>,
+  slots: Object as SlotsType<{ default?: () => VNodeChild[] }>,
   setup(_, { attrs, slots }) {
     const aui = useAui();
     const disabled = useAuiState(composerCancelDisabled);

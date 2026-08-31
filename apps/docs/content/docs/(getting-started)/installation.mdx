@@ -409,8 +409,8 @@ If you aren't using Next.js, you can also deploy this endpoint to Cloudflare Wor
 ```tsx title="/app/page.tsx" tab="Thread"
 import { AssistantRuntimeProvider } from "@assistant-ui/react";
 import { useChatRuntime, AssistantChatTransport } from "@assistant-ui/ai-sdk";
-import { ThreadList } from "@/components/assistant-ui/thread-list";
-import { Thread } from "@/components/assistant-ui/thread";
+import { ThreadList } from "@/components/assistant-ui/elements/thread-list.aui";
+import { Thread } from "@/components/assistant-ui/elements/thread.aui";
 
 export default function MyApp() {
   const runtime = useChatRuntime({
@@ -435,7 +435,7 @@ export default function MyApp() {
 
 import { AssistantRuntimeProvider } from "@assistant-ui/react";
 import { useChatRuntime, AssistantChatTransport } from "@assistant-ui/ai-sdk";
-import { AssistantModal } from "@/components/assistant-ui/assistant-modal";
+import { AssistantModal } from "@/components/assistant-ui/elements/assistant-modal.aui";
 
 export default function MyApp() {
   const runtime = useChatRuntime({

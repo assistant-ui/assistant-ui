@@ -2,7 +2,7 @@
 
 import { Fragment, type FC, type ReactNode, useMemo } from "react";
 import { useAuiState } from "@assistant-ui/store";
-import { useShallow } from "zustand/shallow";
+import { useShallowSelector } from "@assistant-ui/store/internal";
 import type { PartState } from "../../../store/scopes/part";
 import type {
   MessagePartStatus,
@@ -251,7 +251,7 @@ export const MessagePrimitiveGroupedParts = <TKey extends `group-${string}`>({
   indicator = "no-text",
   children,
 }: MessagePrimitiveGroupedParts.Props<TKey>): ReactNode => {
-  const parts = useAuiState(useShallow((s) => s.message.parts));
+  const parts = useAuiState(useShallowSelector((s) => s.message.parts));
   // Handed to `groupBy` as its `context` argument (see GroupByContext).
   const toolUIs = useAuiState((s) => s.tools.toolUIs);
   // Subscribe to a boolean, not the status object: the tree only needs to

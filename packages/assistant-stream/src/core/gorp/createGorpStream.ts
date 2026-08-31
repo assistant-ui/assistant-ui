@@ -1,4 +1,5 @@
 import type { ReadonlyJSONValue } from "../../utils";
+import { createControllerStreamPair } from "../utils/stream/createControllerStream";
 import { withPromiseOrValue } from "../utils/withPromiseOrValue";
 import { GorpStreamAccumulator } from "./GorpStreamAccumulator";
 import type { GorpStreamOperation, GorpStreamChunk } from "./types";
@@ -54,20 +55,6 @@ class GorpStreamControllerImpl implements GorpStreamController {
   }
 }
 
-const getStreamControllerPair = (defaultValue: ReadonlyJSONValue) => {
-  let controller!: GorpStreamControllerImpl;
-  const stream = new ReadableStream<GorpStreamChunk>({
-    start(c) {
-      controller = new GorpStreamControllerImpl(c, defaultValue);
-    },
-    cancel(reason: unknown) {
-      controller.__internalCancel(reason);
-    },
-  });
-
-  return [stream, controller] as const;
-};
-
 type CreateGorpStreamOptions = {
   execute: (controller: GorpStreamController) => void | PromiseLike<void>;
   defaultValue?: ReadonlyJSONValue;
@@ -77,7 +64,14 @@ export const createGorpStream = ({
   execute,
   defaultValue = {},
 }: CreateGorpStreamOptions) => {
-  const [stream, controller] = getStreamControllerPair(defaultValue);
+  const [stream, controller] = createControllerStreamPair<
+    GorpStreamChunk,
+    GorpStreamControllerImpl
+  >(
+    (streamController) =>
+      new GorpStreamControllerImpl(streamController, defaultValue),
+    (streamController, reason) => streamController.__internalCancel(reason),
+  );
 
   withPromiseOrValue(
     () => execute(controller),
