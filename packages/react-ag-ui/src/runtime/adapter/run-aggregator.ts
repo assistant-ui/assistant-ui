@@ -908,6 +908,10 @@ export class RunAggregator {
     return reachable;
   }
 
+  // Nested messages rather than a discovery hook (the shape react-langchain
+  // uses): ToolCallMessagePart.messages is the contract core consumers already
+  // walk, and SUBAGENT_STARTED.parentToolCallId names the spawning call
+  // outright, so the join needs no namespace scheme of its own.
   private materializeSubagentMessage(
     subagentRunId: string,
     depth: number,
