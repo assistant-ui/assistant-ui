@@ -2,6 +2,11 @@ type StringState = { inString: boolean; stringChar: string };
 
 const IDENTIFIER_CHAR = /[\p{L}\p{N}_$]/u;
 
+// Keywords that may legally abut a string literal (return'x', case'x':, ...),
+// where the identifier-adjacency rule must not suppress the open.
+const KEYWORD_BEFORE_LITERAL =
+  /(?:^|[^\p{L}\p{N}_$])(?:return|case|typeof|in|of|do|else|void|throw|new|delete|instanceof|yield|await)$/u;
+
 // A lone quote in JSX prose has no partner, while the string literals these
 // samples contain are single-line, so an unpaired quote on its line is prose.
 function hasSameLineClose(
@@ -33,13 +38,17 @@ function updateStringState(
   // These scanners see JSX text as code, so a quote only opens a string when
   // the position plausibly is one. Formatting-dependent heuristics, not a
   // grammar: a quote straight after an identifier character is a contraction
-  // in prose (it's, café's) rather than the unspaced-but-valid \`return"x"\`,
-  // and a quote with no unescaped partner before the line ends is prose too.
-  // Backticks are excluded from both rules: a backtick after an identifier is
-  // a tagged template, and template literals span lines.
+  // in prose (it's, café's) unless the word it ends is a keyword that may
+  // abut a literal (return'x'), and a quote with no unescaped partner before
+  // the line ends is prose too. Backticks are excluded from both rules: a
+  // backtick after an identifier is a tagged template, and template literals
+  // span lines.
+  const afterIdentifier =
+    IDENTIFIER_CHAR.test(prevChar) &&
+    !KEYWORD_BEFORE_LITERAL.test(source.slice(Math.max(0, index - 12), index));
   if (
     (char === '"' || char === "'") &&
-    !IDENTIFIER_CHAR.test(prevChar) &&
+    !afterIdentifier &&
     hasSameLineClose(source, index, char)
   ) {
     state.inString = true;

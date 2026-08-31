@@ -228,6 +228,19 @@ export const CafeSpecimen = () => <p>café's fine</p>;
     );
   });
 
+  it("tracks a keyword-adjacent literal as a string", () => {
+    const source = `
+export function CompactSpecimen() {
+  return'foo}';
+}
+`;
+    expect(extractFunctionCode(source, "CompactSpecimen")).toBe(
+      `export function CompactSpecimen() {
+  return'foo}';
+}`,
+    );
+  });
+
   it("still tracks a tagged template literal as a string", () => {
     const taggedSource = `
 export const TaggedSpecimen = () => css\`content: ")";\`;
