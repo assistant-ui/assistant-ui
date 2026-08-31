@@ -24,11 +24,20 @@ const DEFAULT_PRODUCT = "assistant-ui-mcp-app";
 const INIT_TIMEOUT_MS = 5000;
 const DEFAULT_MAX_HEIGHT = 800;
 
+// Only a plain object can be compared by its own keys. Structured clone carries
+// a Date, Map, or class instance to the widget intact, and those expose no
+// enumerable keys, so walking them would report two different values as equal.
+const isPlainObject = (value: unknown): value is Record<string, unknown> => {
+  if (!isRecord(value)) return false;
+  const prototype = Object.getPrototypeOf(value);
+  return prototype === null || prototype === Object.prototype;
+};
+
 // Hosts commonly rebuild an equal context object on every render, and the
 // widget cannot tell a repeated notification apart from a real change. The
 // open index signature on McpAppHostContext admits values JSON rejects (an
-// undefined property value is enough), so unequal leaves fall back to identity
-// rather than failing the whole comparison.
+// undefined property value is enough), so leaves the walk cannot compare fall
+// back to identity rather than failing the whole comparison.
 const isSameHostContext = (a: unknown, b: unknown, depth = 0): boolean => {
   if (Object.is(a, b)) return true;
   if (depth > 100) return false;
@@ -40,7 +49,7 @@ const isSameHostContext = (a: unknown, b: unknown, depth = 0): boolean => {
       a.every((item, index) => isSameHostContext(item, b[index], depth + 1))
     );
   }
-  if (!isRecord(a) || !isRecord(b)) return false;
+  if (!isPlainObject(a) || !isPlainObject(b)) return false;
   const aKeys = Object.keys(a);
   return (
     aKeys.length === Object.keys(b).length &&
@@ -242,9 +251,10 @@ export function McpAppFrame({
 
     if (current.input !== undefined) pendingInputRef.current = current.input;
     if (current.output !== undefined) pendingOutputRef.current = current.output;
-    // hostContext is delivered inside the ui/initialize response; recording it
-    // as sent keeps the first later change from repeating that same value.
-    lastSentHostContextRef.current = current.hostContext;
+    // hostContext is delivered inside the ui/initialize response, where the
+    // bridge defaults it to {}; recording that same normalized value keeps the
+    // first later change from repeating what the widget already holds.
+    lastSentHostContextRef.current = current.hostContext ?? {};
 
     return {
       onMessage: bridge.onMessage,
