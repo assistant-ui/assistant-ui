@@ -116,7 +116,6 @@ export function generateRegistryJson(config: BuilderConfig) {
     type: "registry:block",
     dependencies: [
       "@assistant-ui/react",
-      "@assistant-ui/react-ui",
       "lucide-react",
       ...(config.components.markdown ? ["@assistant-ui/react-markdown"] : []),
     ],

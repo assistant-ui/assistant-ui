@@ -23,16 +23,18 @@ function headingsFrom(structuredData: {
   return headings;
 }
 
-export function buildSearchIndex(): SearchRecord[] {
-  return [
-    ...source.getPages(),
-    ...getTapDocsPages(),
-    ...design.getPages(),
-    ...elementsDocs.getPages(),
-  ].map((page) => ({
-    url: page.url,
-    title: page.data.title,
-    description: page.data.description ?? "",
-    headings: headingsFrom(page.data.structuredData),
-  }));
+export function buildSearchIndex(): Promise<SearchRecord[]> {
+  return Promise.all(
+    [
+      ...source.getPages(),
+      ...getTapDocsPages(),
+      ...design.getPages(),
+      ...elementsDocs.getPages(),
+    ].map(async (page) => ({
+      url: page.url,
+      title: page.data.title,
+      description: page.data.description ?? "",
+      headings: headingsFrom(await page.data.structuredData()),
+    })),
+  );
 }

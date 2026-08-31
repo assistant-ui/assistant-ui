@@ -8,6 +8,7 @@ import { createApp, defineComponent, h, nextTick, type Component } from "vue";
 import { flushTapSync } from "@assistant-ui/tap";
 import { AuiConfig } from "@assistant-ui/store/client";
 import { RuntimeAdapter } from "@assistant-ui/core/store";
+import { Tools, type Toolkit } from "@assistant-ui/core/react";
 import type {
   ExternalStoreAdapter,
   ThreadMessageLike,
@@ -28,6 +29,7 @@ import {
 type DemoMessage = {
   role: "user" | "assistant";
   content: ThreadMessageLike["content"];
+  status?: { type: "running" } | undefined;
 };
 
 const createTestRuntime = () => {
@@ -41,6 +43,7 @@ const createTestRuntime = () => {
     convertMessage: (message) => ({
       role: message.role,
       content: message.content,
+      ...(message.status && { status: message.status }),
     }),
     onNew: async () => {},
     onAddToolResult,
@@ -53,16 +56,25 @@ const createTestRuntime = () => {
     messages = [...messages, message];
     core.setAdapter(makeAdapter());
   };
+  const replace = (message: DemoMessage) => {
+    messages = [message];
+    core.setAdapter(makeAdapter());
+  };
   return {
     runtime,
     append,
+    replace,
     onAddToolResult,
     onResumeToolCall,
     onRespondToToolApproval,
   };
 };
 
-const mountChat = (runtime: AssistantRuntimeImpl, view: Component) => {
+const mountChat = (
+  runtime: AssistantRuntimeImpl,
+  view: Component,
+  config: Parameters<typeof AuiConfig>[0] = {},
+) => {
   let client: any;
   const CaptureClient = defineComponent({
     setup() {
@@ -75,7 +87,9 @@ const mountChat = (runtime: AssistantRuntimeImpl, view: Component) => {
       setup: () => () =>
         h(
           AuiProvider,
-          { config: AuiConfig({ threads: RuntimeAdapter(runtime) }) },
+          {
+            config: AuiConfig({ threads: RuntimeAdapter(runtime), ...config }),
+          },
           { default: () => [h(CaptureClient), h(view)] },
         ),
     }),
@@ -302,6 +316,114 @@ describe("MessagePrimitiveParts tool UI registry", () => {
       expect(el.querySelector("span.first")).not.toBeNull();
     });
     expect(el.querySelector("span.second")).toBeNull();
+
+    unmount();
+  });
+
+  it("renders nothing for a react-element-valued renderText descriptor", async () => {
+    const { runtime, replace } = createTestRuntime();
+    const toolkit = {
+      weather: {
+        type: "frontend",
+        description: "Looks up the weather.",
+        parameters: { type: "object", properties: {} },
+        execute: async () => "sunny",
+        renderText: {
+          running: () => ({ reactElement: true }),
+          complete: () => ({ reactElement: true }),
+        },
+      },
+    } as unknown as Toolkit;
+    const { el, unmount } = mountChat(runtime, PartsWithToolSlot, {
+      tools: Tools({ toolkit }),
+    });
+
+    flushTapSync(() =>
+      replace({
+        role: "assistant",
+        status: { type: "running" },
+        content: [
+          {
+            type: "tool-call",
+            toolCallId: "call-1",
+            toolName: "weather",
+            args: { city: "sf" },
+          },
+        ],
+      }),
+    );
+    await nextTick();
+    await nextTick();
+    expect(el.textContent ?? "").not.toContain("reactElement");
+    expect(el.textContent ?? "").not.toContain("[object");
+
+    unmount();
+  });
+
+  it("renders toolkit renderText for running and complete tool calls", async () => {
+    const { runtime, replace } = createTestRuntime();
+    const toolkit = {
+      weather: {
+        type: "frontend",
+        description: "Looks up the weather.",
+        parameters: { type: "object", properties: {} },
+        execute: async () => "sunny",
+        renderText: {
+          running: ({ args }: { args: { city: string } }) =>
+            `Checking ${args.city}...`,
+          complete: ({
+            args,
+            result,
+          }: {
+            args: { city: string };
+            result: string | undefined;
+          }) => `${result} in ${args.city}`,
+        },
+      },
+    } as unknown as Toolkit;
+    const { el, unmount } = mountChat(runtime, PartsWithToolSlot, {
+      tools: Tools({ toolkit }),
+    });
+
+    flushTapSync(() =>
+      replace({
+        role: "assistant",
+        status: { type: "running" },
+        content: [
+          {
+            type: "tool-call",
+            toolCallId: "call-1",
+            toolName: "weather",
+            args: { city: "sf" },
+          },
+        ],
+      }),
+    );
+    await vi.waitFor(async () => {
+      await nextTick();
+      expect(el.textContent).toBe("Checking sf...");
+    });
+
+    flushTapSync(() =>
+      replace({
+        role: "assistant",
+        status: { type: "running" },
+        content: [
+          {
+            type: "tool-call",
+            toolCallId: "call-1",
+            toolName: "weather",
+            args: { city: "sf" },
+            result: "sunny",
+          },
+        ],
+      }),
+    );
+    await vi.waitFor(async () => {
+      await nextTick();
+      expect(el.textContent).toBe("sunny in sf");
+    });
+    expect(el.querySelector("span.slot")).toBeNull();
 
     unmount();
   });

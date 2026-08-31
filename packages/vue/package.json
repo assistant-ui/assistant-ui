@@ -42,11 +42,11 @@
   },
   "devDependencies": {
     "@assistant-ui/x-buildutils": "workspace:*",
-    "@types/node": "^26.2.0",
+    "@types/node": "^26.4.0",
     "@types/react": "^19.2.18",
     "jsdom": "^30.0.1",
     "vitest": "^4.1.11",
-    "vue": "^3.5.41"
+    "vue": "^3.5.42"
   },
   "homepage": "https://www.assistant-ui.com/",
   "repository": {

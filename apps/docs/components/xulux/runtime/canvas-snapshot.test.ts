@@ -68,6 +68,34 @@ describe("toCanvasSnapshot", () => {
     expect(toCanvasSnapshot(canvas, undefined).status).toBe("empty");
   });
 
+  it("keeps the canvas title when the caller supplies none", () => {
+    const canvas: XuluxCanvasState = {
+      status: "ready",
+      url: "/templates/preview",
+      source: "agent_template",
+      error: null,
+      title: "Generated dashboard",
+    };
+
+    expect(toCanvasSnapshot(canvas, undefined).title).toBe(
+      "Generated dashboard",
+    );
+  });
+
+  it("prefers the canvas title over the supplied title", () => {
+    const canvas: XuluxCanvasState = {
+      status: "ready",
+      url: "/templates/preview",
+      source: "agent_template",
+      error: null,
+      title: "Generated dashboard",
+    };
+
+    expect(toCanvasSnapshot(canvas, "Support agent").title).toBe(
+      "Generated dashboard",
+    );
+  });
+
   it("omits absent optional fields and takes the supplied title", () => {
     const canvas: XuluxCanvasState = {
       status: "ready",

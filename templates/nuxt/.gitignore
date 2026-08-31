@@ -1,0 +1,8 @@
+node_modules
+.nuxt
+.output
+.data
+.nitro
+.cache
+.env*
+!.env.example

@@ -1,0 +1,23 @@
+---
+title: Vue
+description: Build streaming AI chat interfaces with Vue, Nuxt, and the AI SDK.
+---
+
+`@assistant-ui/vue` provides Vue components and composables for assistant-ui's runtime. Use it with Nuxt for a streaming chat route, a client-side assistant tree, and styled chat components from the assistant-ui registry.
+
+The Vue surface includes `AuiProvider` and `AuiIf`, the `useAui`, `useAuiState`, and `useAuiEvent` composables, and primitives for threads, messages, composers, thread lists, attachments, suggestions, actions, branches, errors, and chain of thought.
+
+## Start here
+
+<Cards>
+  <Card title="Five-minute quickstart" description="Add a streaming Nuxt chat with AISDKChat and the assistant-ui registry." href="/docs/vue/quickstart" />
+  <Card title="Runtimes" description="Choose a single chat, multi-thread chat, or an external-store runtime." href="/docs/vue/runtimes" />
+  <Card title="Server rendering" description="Keep assistant client state out of Vue's server-rendered scope." href="/docs/vue/ssr" />
+  <Card title="Tool UI" description="Register Vue renderers for tool calls and human-in-the-loop actions." href="/docs/vue/tool-ui" />
+</Cards>
+
+## How it fits together
+
+`AuiProvider` owns an assistant client. Its `AuiConfig` connects a runtime such as `AISDKChat()` to Vue primitives and composables. The AI SDK runtime posts messages to a Nuxt route, and the route returns the UI message stream to the browser.
+
+Use a `.client.vue` boundary for the provider and runtime. Keep model credentials and `streamText` in a Nitro route. The [quickstart](/docs/vue/quickstart) contains the complete path.

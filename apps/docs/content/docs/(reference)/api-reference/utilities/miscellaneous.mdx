@@ -3,7 +3,7 @@ title: Utilities
 description: Miscellaneous @assistant-ui/react utilities for custom rendering, composition, and advanced assistant UI behavior.
 ---
 
-import { AssistantCloud, AuiConfig, ChainOfThoughtClient, DevToolsHooks, InMemoryThreadList, MessageNotSentError, RemoteThreadList, SingleThreadList, Suggestions, useSmooth } from "@/generated/typeDocs";
+import { AssistantCloud, AuiConfig, ChainOfThoughtClient, DevToolsHooks, InMemoryThreadList, MessageNotSentError, RemoteThreadList, SingleThreadList, Suggestions, unstable_useWebMcpProvider, useSmooth } from "@/generated/typeDocs";
 
 {/* AUTO-GENERATED PAGE by scripts/generate-api-reference.mts */}
 {/* Do not edit manually. */}
@@ -107,6 +107,29 @@ When `id` equals `label`, the `{name=…}` attribute is omitted for brevity.
 ```ts
 const unstable_defaultDirectiveFormatter: Unstable_DirectiveFormatter;
 ```
+
+### unstable_defaultWebMcpFilter
+
+The predicate the WebMCP provider uses when no `filter` is passed: an enabled
+frontend tool with a client-side `execute`. A tool authored without a `type`
+is included, because `execute` is what distinguishes the deprecated
+type-less form from a backend or human tool. A `filter` replaces this, so
+pass it through to narrow the default set rather than widen it.
+
+```ts
+const unstable_defaultWebMcpFilter: (_name: string, tool: Tool<any, any>) => boolean;
+```
+
+### unstable_useWebMcpProvider
+
+Publishes the frontend tools in the model context to a WebMCP-capable
+browser, so the user's own browser agent can call them.
+
+Returns `status: "unsupported"` when the page exposes no
+`document.modelContext` (or `navigator.modelContext`), and the sorted names
+of the tools currently registered with the host.
+
+<ParametersTable {...unstable_useWebMcpProvider} />
 
 ### useSmooth
 

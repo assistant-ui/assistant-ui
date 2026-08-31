@@ -145,7 +145,7 @@ Use these names. Do not invent a sibling, do not extrapolate one from another pr
 
 Verified failure modes. Each has cost a rebuild at least once.
 
-**Inline code in a not-prose island.** `styles/fumadocs.css` carries an unlayered `!important` rule that turns any bare `code` outside `pre` inside a `.prose` island into a small muted pill. Tailwind utilities are layered and lose to it. Render machine text as `pre > code`, which the rule exempts, or use a `span`. Verify computed styles, not class strings.
+**Inline code in a not-prose island.** `styles/docs.css` carries an unlayered rule that turns any bare `code` outside `pre` inside a `.prose` island into a small muted pill. Tailwind utilities are layered and lose to it. Render machine text as `pre > code`, which the rule exempts, or use a `span`. Verify computed styles, not class strings.
 
 **Shiki line spans are inline boxes.** Set them `inline-block w-full`. With `block`, every newline renders as its own empty row under `white-space: pre`. An `::before` overlay does not work on them; use an inset box shadow for a gutter bar.
 

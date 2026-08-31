@@ -117,6 +117,115 @@ describe("toGenericMessages", () => {
       ]);
     });
 
+    it("preserves zero-byte file parts", () => {
+      const result = toGenericMessages([
+        {
+          role: "user",
+          content: [
+            {
+              type: "file",
+              data: "",
+              mimeType: "text/plain",
+              filename: "empty.txt",
+            },
+          ],
+        },
+      ]);
+
+      expect(result).toEqual([
+        {
+          role: "user",
+          content: [
+            {
+              type: "file",
+              data: "",
+              mediaType: "text/plain",
+              filename: "empty.txt",
+            },
+          ],
+        },
+      ]);
+    });
+
+    it.each([
+      { label: "empty", mimeType: "" },
+      { label: "missing", mimeType: undefined },
+    ])("falls back when a file MIME type is $label", ({ mimeType }) => {
+      const result = toGenericMessages([
+        {
+          role: "user",
+          content: [
+            {
+              type: "file",
+              data: "https://cdn.example.com/untyped-file",
+              ...(mimeType !== undefined && { mimeType }),
+              filename: "untyped-file",
+            },
+          ],
+        },
+      ]);
+
+      expect(result).toEqual([
+        {
+          role: "user",
+          content: [
+            {
+              type: "file",
+              data: new URL("https://cdn.example.com/untyped-file"),
+              mediaType: "application/octet-stream",
+              filename: "untyped-file",
+            },
+          ],
+        },
+      ]);
+    });
+
+    it("uses the data URL MIME type when the file MIME type is empty", () => {
+      const data = "data:text/plain;base64,";
+      const result = toGenericMessages([
+        {
+          role: "user",
+          content: [{ type: "file", data, mimeType: "" }],
+        },
+      ]);
+
+      expect(result).toEqual([
+        {
+          role: "user",
+          content: [
+            {
+              type: "file",
+              data: new URL(data),
+              mediaType: "text/plain",
+            },
+          ],
+        },
+      ]);
+    });
+
+    it("does not infer a MIME type from a malformed data URL", () => {
+      const data = "data:text/plain";
+      const result = toGenericMessages([
+        {
+          role: "user",
+          content: [{ type: "file", data, mimeType: "" }],
+        },
+      ]);
+
+      expect(result).toEqual([
+        {
+          role: "user",
+          content: [
+            {
+              type: "file",
+              data: new URL(data),
+              mediaType: "application/octet-stream",
+            },
+          ],
+        },
+      ]);
+    });
+
     it("handles attachments", () => {
       const result = toGenericMessages([
         {
@@ -206,7 +315,7 @@ describe("toGenericMessages", () => {
           content: [
             { type: "text", text: "Valid" },
             { type: "image" }, // missing image property
-            { type: "file", data: "some-data" }, // missing mimeType
+            { type: "file", data: null } as never,
             { type: "unknown" },
           ],
         },

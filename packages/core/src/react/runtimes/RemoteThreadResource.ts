@@ -40,8 +40,6 @@ export type RemoteThreadResourceProps = {
   ) => void;
 };
 
-export { isTitleSourceMessage };
-
 export const subscribeToTitleGeneration = (
   threadRuntime: AssistantRuntime["thread"],
   itemRuntime: ThreadListItemRuntime,

@@ -1,6 +1,6 @@
 declare const process: { env: Record<string, string | undefined> };
 
-import { useMemo, useState } from "react";
+import { type RefObject, useMemo, useState } from "react";
 import { AssistantCloud } from "assistant-cloud";
 import type {
   RemoteThreadListAdapter,
@@ -31,6 +31,22 @@ const baseUrl =
 export const autoCloud = baseUrl
   ? new AssistantCloud({ baseUrl, anonymous: true })
   : undefined;
+
+export const useCloudRuntimeAdapters = (
+  cloudRef: RefObject<AssistantCloud>,
+): RuntimeAdapters => {
+  const history = useAssistantCloudThreadHistoryAdapter(cloudRef);
+  const [attachments] = useState(
+    () => new CloudFileAttachmentAdapter(() => cloudRef.current),
+  );
+  return useMemo(
+    () => ({
+      history,
+      attachments,
+    }),
+    [history, attachments],
+  );
+};
 
 const CLOUD_THREAD_PAGE_SIZE = 20;
 
@@ -82,22 +98,11 @@ export const createCloudThreadListAdapter = (
   const getOptions = typeof options === "function" ? options : () => options;
 
   const unstable_useAdapters = function useCloudAdapters(): RuntimeAdapters {
-    const history = useAssistantCloudThreadHistoryAdapter({
+    return useCloudRuntimeAdapters({
       get current() {
         return getOptions().cloud ?? autoCloud!;
       },
     });
-    const [attachments] = useState(
-      () =>
-        new CloudFileAttachmentAdapter(() => getOptions().cloud ?? autoCloud!),
-    );
-    return useMemo(
-      () => ({
-        history,
-        attachments,
-      }),
-      [history, attachments],
-    );
   };
 
   const cloud = getOptions().cloud ?? autoCloud;

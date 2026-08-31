@@ -61,7 +61,7 @@ export function SampleFrame({ code, children, className }: SampleFrameProps) {
 
       <div
         className={cn(
-          "border-border/50 relative h-150 rounded-xl border",
+          "border-foreground/10 rounded-document relative h-150 border",
           className,
         )}
       >

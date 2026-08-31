@@ -105,6 +105,11 @@ const useMcpServerResourceInstance = (
     null,
   );
   const connectionGenerationRef = useRef(0);
+  const pendingAuthValidationRef = useRef<{
+    count: number;
+    promise: Promise<void>;
+    resolve: () => void;
+  } | null>(null);
   const elicitationResolversRef = useRef(
     new Map<
       string,
@@ -467,6 +472,45 @@ const useMcpServerResourceInstance = (
   });
 
   const doCompleteAuth = useEffectEvent(async (callbackUrl: string) => {
+    const validationGeneration = connectionGenerationRef.current;
+    const url = new URL(callbackUrl);
+    const state = url.searchParams.get("state");
+    if (!state) throw new Error('missing "state" parameter');
+    let pendingAuthValidation = pendingAuthValidationRef.current;
+    if (!pendingAuthValidation) {
+      let resolve!: () => void;
+      const promise = new Promise<void>((resolvePromise) => {
+        resolve = resolvePromise;
+      });
+      pendingAuthValidation = { count: 0, promise, resolve };
+      pendingAuthValidationRef.current = pendingAuthValidation;
+    }
+    pendingAuthValidation.count += 1;
+    try {
+      const persisted = await props.storage.loadAuthState(props.id);
+      if (!isCurrentConnection(validationGeneration)) {
+        throw createInterruptedAuthError();
+      }
+      if (!persisted?.state) {
+        throw new Error(
+          "no pending OAuth authorization request for this server",
+        );
+      }
+      if (persisted.state !== state) {
+        throw new Error("OAuth state does not match the authorization request");
+      }
+      if (!url.searchParams.get("code") && !url.searchParams.get("error")) {
+        throw new Error("missing authorization code in callback URL");
+      }
+    } finally {
+      pendingAuthValidation.count -= 1;
+      if (pendingAuthValidation.count === 0) {
+        pendingAuthValidationRef.current = null;
+        pendingAuthValidation.resolve();
+      }
+    }
+
+    // Claim the generation before a waiting auto-connect can resume.
     const generation = ++connectionGenerationRef.current;
     cancelPendingElicitations();
     await closePendingTransport();
@@ -475,9 +519,6 @@ const useMcpServerResourceInstance = (
     setConnectionState("authPending");
     setLastError(null);
     try {
-      const url = new URL(callbackUrl);
-      const code = url.searchParams.get("code");
-      if (!code) throw new Error("missing authorization code in callback URL");
       let transport = transportRef.current;
       if (!transport) {
         transport = await buildTransport();
@@ -489,7 +530,7 @@ const useMcpServerResourceInstance = (
       transportRef.current = null;
       clientRef.current = null;
       pendingTransportRef.current = transport;
-      await transport.finishAuth(code);
+      await transport.finishAuth(url.searchParams);
       if (!isCurrentConnection(generation)) throw createInterruptedAuthError();
       setAuthorizationUrl(null);
       const connected = await finalizeConnect(transport, generation);
@@ -538,6 +579,11 @@ const useMcpServerResourceInstance = (
         if (!persisted?.tokens) return;
       } else if (!persisted?.token) {
         return;
+      }
+      const pendingAuthValidation = pendingAuthValidationRef.current;
+      if (pendingAuthValidation) {
+        await pendingAuthValidation.promise;
+        if (signal.cancelled || !isCurrentConnection(generation)) return;
       }
       void doConnect();
     },

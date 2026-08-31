@@ -194,6 +194,7 @@ export const normalizePersistedAuthState = (
   if (isNonEmptyString(value.codeVerifier)) {
     state.codeVerifier = value.codeVerifier;
   }
+  if (isNonEmptyString(value.state)) state.state = value.state;
 
   const tokens = normalizeOAuthTokens(value.tokens);
   if (tokens) state.tokens = tokens;

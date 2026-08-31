@@ -12,6 +12,7 @@ export default function Home() {
         url: process.env.NEXT_PUBLIC_LIVEKIT_URL ?? "ws://localhost:7880",
         token: async () => {
           const res = await fetch("/api/livekit-token", { method: "POST" });
+          if (!res.ok) throw new Error("Failed to create a LiveKit session");
           const { token } = await res.json();
           return token;
         },
