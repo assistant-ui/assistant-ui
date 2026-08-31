@@ -14,16 +14,22 @@ import type {
   PendingAttachment,
 } from "../types/attachment";
 
-const mockGenerateId = vi.hoisted(() => vi.fn(() => "generated-id"));
+const { mockGenerateId, realGenerateId } = vi.hoisted(() => {
+  const realGenerateId = { current: (): string => "" };
+  return {
+    realGenerateId,
+    mockGenerateId: vi.fn(() => realGenerateId.current()),
+  };
+});
 
-vi.mock("../utils/id", async (importOriginal) => ({
-  ...(await importOriginal<typeof import("../utils/id")>()),
-  generateId: mockGenerateId,
-}));
+vi.mock("../utils/id", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("../utils/id")>();
+  realGenerateId.current = actual.generateId;
+  return { ...actual, generateId: mockGenerateId };
+});
 
 beforeEach(() => {
   mockGenerateId.mockReset();
-  mockGenerateId.mockReturnValue("generated-id");
 });
 
 const renderThreadWithProps = (props: Partial<ExternalThreadProps>) => {
@@ -106,6 +112,39 @@ describe("ExternalThread attachments", () => {
       ).toEqual(["generated-file-id", "generated-prepared-id", "provided-id"]);
     });
     expect(mockGenerateId).toHaveBeenCalledTimes(2);
+  });
+
+  it("generates distinct seven-character IDs for attachments without one", async () => {
+    const aui = renderThread();
+
+    await act(async () => {
+      await aui()
+        .thread()
+        .composer()
+        .addAttachment(new File(["data"], "photo.png", { type: "image/png" }));
+      await aui()
+        .thread()
+        .composer()
+        .addAttachment({
+          name: "notes.txt",
+          contentType: "text/plain",
+          content: [{ type: "text", text: "hello" }],
+        });
+    });
+
+    await waitFor(() =>
+      expect(aui().thread.composer().getState().attachments).toHaveLength(2),
+    );
+    const ids = aui()
+      .thread()
+      .composer()
+      .getState()
+      .attachments.map((attachment) => attachment.id);
+    expect(ids).toEqual([
+      expect.stringMatching(/^[0-9A-Za-z]{7}$/),
+      expect.stringMatching(/^[0-9A-Za-z]{7}$/),
+    ]);
+    expect(new Set(ids).size).toBe(2);
   });
 
   it("adds prepared attachments when File is unavailable", async () => {
