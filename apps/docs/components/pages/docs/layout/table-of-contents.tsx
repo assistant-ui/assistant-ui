@@ -164,7 +164,7 @@ export function TableOfContents({
 
   return (
     <div className="docs-toc w-56 max-xl:hidden">
-      <div className="sticky top-[calc(var(--docs-header-height)_+_1rem)] flex max-h-[calc(100vh-3.5rem)] flex-col pe-4 pt-4 pb-2">
+      <div className="sticky top-[calc(var(--docs-header-height)_+_1rem)] flex max-h-[calc(100vh_-_var(--docs-header-height)_-_1rem)] flex-col pe-4 pt-4 pb-2">
         <p className="text-muted-foreground/70 mb-3 shrink-0 text-xs">
           On this page
         </p>
