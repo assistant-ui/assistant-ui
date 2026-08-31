@@ -2,4 +2,4 @@
 "safe-content-frame": patch
 ---
 
-fix: distinguish a missing shim from a slow render
+fix: tell a missing shim, a shim that failed to start, and a slow render apart

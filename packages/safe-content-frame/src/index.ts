@@ -154,14 +154,26 @@ export class SafeContentFrame {
       let channelTransferred = false;
       let cleanedUp = false;
       let shimReady = false;
+
+      let onLoaded: () => void;
+      let onLoadError: (error: Error) => void;
+      const loaded = new Promise<void>((resolveLoaded, rejectLoaded) => {
+        onLoaded = resolveLoaded;
+        onLoadError = rejectLoaded;
+      });
+      void loaded.catch(() => {});
+
       const onWindowMessage = (event: MessageEvent) => {
         if (event.origin !== iframeOrigin) return;
         if (event.source !== iframe.contentWindow) return;
-        if (event.data?.type !== "ready") return;
 
-        shimReady = true;
+        if (event.data?.type === "ready") shimReady = true;
+        else if (event.data?.type === "error") {
+          onLoadError(new Error(event.data.message));
+        }
       };
       window.addEventListener("message", onWindowMessage);
+
       const cleanup = () => {
         if (cleanedUp) return;
         cleanedUp = true;
@@ -173,14 +185,6 @@ export class SafeContentFrame {
         if (!channelTransferred) channel.port2.close();
         mountElement.remove();
       };
-
-      let onLoaded: () => void;
-      let onLoadError: (error: Error) => void;
-      const loaded = new Promise<void>((resolveLoaded, rejectLoaded) => {
-        onLoaded = resolveLoaded;
-        onLoadError = rejectLoaded;
-      });
-      void loaded.catch(() => {});
 
       channel.port1.onmessage = (e) => {
         if (e.data?.type === "msg") onLoaded();

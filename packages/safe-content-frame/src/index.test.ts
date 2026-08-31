@@ -198,11 +198,46 @@ describe("SafeContentFrame", () => {
     );
     emitWindowMessage({ type: "ready" }, iframeOrigin, window);
     emitWindowMessage({ type: "unknown" }, iframeOrigin, contentWindow);
+    emitWindowMessage(
+      { type: "error", message: "forged" },
+      "https://attacker.example",
+      contentWindow,
+    );
     iframe.dispatchEvent(new Event("load"));
     const frame = await framePromise;
 
     await expect(frame.fullyLoadedPromiseWithTimeout(10)).rejects.toThrow(
       `Failed to load shim: ${iframe.src}`,
+    );
+    frame.dispose();
+  });
+
+  it("reports a shim initialization failure with the shim's own message", async () => {
+    const container = document.createElement("div");
+    document.body.appendChild(container);
+    const renderer = new SafeContentFrame("test", {
+      salt: "fixed",
+      useShadowDom: true,
+    });
+
+    const framePromise = renderer.renderHtml("<p>Hello</p>", container);
+    await vi.waitFor(() => {
+      expect(shadowRoot?.querySelector("iframe")).toBeTruthy();
+    });
+
+    const iframe = shadowRoot!.querySelector("iframe")!;
+    const contentWindow = setContentWindow(iframe);
+    const iframeOrigin = new URL(iframe.src).origin;
+    emitWindowMessage(
+      { type: "error", message: "Product name was either invalid or null" },
+      iframeOrigin,
+      contentWindow,
+    );
+    iframe.dispatchEvent(new Event("load"));
+    const frame = await framePromise;
+
+    await expect(frame.fullyLoadedPromiseWithTimeout(10)).rejects.toThrow(
+      "Product name was either invalid or null",
     );
     frame.dispose();
   });
