@@ -1,23 +1,47 @@
 type StringState = { inString: boolean; stringChar: string };
 
-const IDENTIFIER_CHAR = /[A-Za-z0-9_$]/;
+const IDENTIFIER_CHAR = /[\p{L}\p{N}_$]/u;
+
+// A lone quote in JSX prose has no partner, while the string literals these
+// samples contain are single-line, so an unpaired quote on its line is prose.
+function hasSameLineClose(
+  source: string,
+  index: number,
+  quote: string,
+): boolean {
+  for (let i = index + 1; i < source.length; i++) {
+    const char = source[i]!;
+    if (char === "\n") return false;
+    if (char === quote && source[i - 1] !== "\\") return true;
+  }
+  return false;
+}
 
 function updateStringState(
   state: StringState,
-  char: string,
-  prevChar: string,
+  source: string,
+  index: number,
 ): boolean {
+  const char = source[index]!;
+  const prevChar = source[index - 1] ?? "";
   if (state.inString) {
     if (char === state.stringChar && prevChar !== "\\") {
       state.inString = false;
     }
     return true;
   }
-  // A quote directly after an identifier character is never a string open in
-  // JS — that position only occurs in JSX text ("it's fine"), where treating
-  // it as one swallows the rest of the file. Backticks are excluded: a tagged
-  // template (css`...`) is exactly a backtick after an identifier.
-  if ((char === '"' || char === "'") && !IDENTIFIER_CHAR.test(prevChar)) {
+  // These scanners see JSX text as code, so a quote only opens a string when
+  // the position plausibly is one. Formatting-dependent heuristics, not a
+  // grammar: a quote straight after an identifier character is a contraction
+  // in prose (it's, café's) rather than the unspaced-but-valid \`return"x"\`,
+  // and a quote with no unescaped partner before the line ends is prose too.
+  // Backticks are excluded from both rules: a backtick after an identifier is
+  // a tagged template, and template literals span lines.
+  if (
+    (char === '"' || char === "'") &&
+    !IDENTIFIER_CHAR.test(prevChar) &&
+    hasSameLineClose(source, index, char)
+  ) {
     state.inString = true;
     state.stringChar = char;
     return true;
@@ -36,8 +60,7 @@ function findMatchingParen(source: string, startIndex: number): number {
 
   for (let i = startIndex; i < source.length; i++) {
     const char = source[i]!;
-    const prevChar = source[i - 1] ?? "";
-    if (updateStringState(state, char, prevChar)) continue;
+    if (updateStringState(state, source, i)) continue;
 
     if (char === "(") parenCount++;
     if (char === ")") {
@@ -61,8 +84,7 @@ function findStatementEnd(source: string, startIndex: number): number {
 
   for (let i = startIndex; i < source.length; i++) {
     const char = source[i]!;
-    const prevChar = source[i - 1] ?? "";
-    if (updateStringState(state, char, prevChar)) continue;
+    if (updateStringState(state, source, i)) continue;
 
     if (char === "(") parenCount++;
     if (char === ")") parenCount--;
@@ -103,8 +125,7 @@ function findMatchingBrace(source: string, startIndex: number): number {
 
   for (let i = startIndex; i < source.length; i++) {
     const char = source[i]!;
-    const prevChar = source[i - 1] ?? "";
-    if (updateStringState(state, char, prevChar)) continue;
+    if (updateStringState(state, source, i)) continue;
 
     if (char === "{") {
       braceCount++;

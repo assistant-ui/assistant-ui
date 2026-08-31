@@ -210,6 +210,24 @@ export function StringSpecimen() {
     );
   });
 
+  it("extracts prose with a decade apostrophe after whitespace", () => {
+    const proseSource = `
+export const DecadeSpecimen = () => <p>the '90s rule</p>;
+`;
+    expect(extractFunctionCode(proseSource, "DecadeSpecimen")).toBe(
+      `export const DecadeSpecimen = () => <p>the '90s rule</p>;`,
+    );
+  });
+
+  it("extracts prose with a contraction after a non-ascii word", () => {
+    const source = `
+export const CafeSpecimen = () => <p>café's fine</p>;
+`;
+    expect(extractFunctionCode(source, "CafeSpecimen")).toBe(
+      `export const CafeSpecimen = () => <p>café's fine</p>;`,
+    );
+  });
+
   it("still tracks a tagged template literal as a string", () => {
     const taggedSource = `
 export const TaggedSpecimen = () => css\`content: ")";\`;
