@@ -1,6 +1,9 @@
+"use client";
+
+import { useEffect, useState } from "react";
 import { LiveDot } from "@/components/shared/live-dot";
 import { STATUS_URL } from "@/lib/constants";
-import { getStatusState, type StatusState } from "@/lib/status";
+import type { StatusState } from "@/lib/status";
 
 const PRESENTATION: Record<StatusState, { label: string; dot: string }> = {
   operational: { label: "All systems operational", dot: "bg-emerald-500" },
@@ -9,8 +12,27 @@ const PRESENTATION: Record<StatusState, { label: string; dot: string }> = {
   maintenance: { label: "Under maintenance", dot: "bg-blue-500" },
 };
 
-export async function StatusBadge(): Promise<React.ReactElement> {
-  const state = await getStatusState();
+export function StatusBadge(): React.ReactElement {
+  const [state, setState] = useState<StatusState | null>(null);
+
+  useEffect(() => {
+    const controller = new AbortController();
+
+    const load = async () => {
+      try {
+        const res = await fetch("/api/status", { signal: controller.signal });
+        if (!res.ok) return;
+        const body = (await res.json()) as { state?: StatusState | null };
+        setState(body.state ?? null);
+      } catch {
+        setState(null);
+      }
+    };
+    void load();
+
+    return () => controller.abort();
+  }, []);
+
   const presentation = state ? PRESENTATION[state] : null;
 
   return (

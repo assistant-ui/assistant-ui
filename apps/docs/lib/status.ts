@@ -1,4 +1,3 @@
-import "server-only";
 import { STATUS_URL } from "./constants";
 import { withTimeout } from "./with-timeout";
 
@@ -10,33 +9,40 @@ export type StatusState =
   | "downtime"
   | "maintenance";
 
-const STATUS_STATES = new Set<string>([
-  "operational",
-  "degraded",
-  "downtime",
-  "maintenance",
-]);
-
 type StatusPagePayload = {
   data?: { attributes?: { aggregate_state?: unknown } };
 };
 
-/** Resolves to null whenever the status page is unreachable or reports a state we do not render. */
+/**
+ * The provider documents "operational" and leaves the abnormal states unspecified,
+ * so everything else is matched by substring: an unlisted spelling still reaches
+ * the right badge rather than reading as no incident at all.
+ */
+export function normalizeStatusState(value: unknown): StatusState | null {
+  if (typeof value !== "string") return null;
+
+  const state = value.toLowerCase();
+  if (state === "operational") return "operational";
+  if (state.includes("maintenance")) return "maintenance";
+  if (state.includes("degraded") || state.includes("partial"))
+    return "degraded";
+  if (state.includes("down") || state.includes("outage")) return "downtime";
+  return null;
+}
+
 export async function getStatusState(): Promise<StatusState | null> {
   try {
-    const res = await withTimeout(
-      fetch(`${STATUS_URL}/index.json`, {
-        headers: { Accept: "application/json" },
-        next: { revalidate: STATUS_REVALIDATE },
-      }),
+    const payload = await withTimeout(
+      (async () => {
+        const res = await fetch(`${STATUS_URL}/index.json`, {
+          headers: { Accept: "application/json" },
+          next: { revalidate: STATUS_REVALIDATE },
+        });
+        if (!res.ok) return null;
+        return (await res.json()) as StatusPagePayload;
+      })(),
     );
-    if (!res.ok) return null;
-
-    const state = ((await res.json()) as StatusPagePayload).data?.attributes
-      ?.aggregate_state;
-    return typeof state === "string" && STATUS_STATES.has(state)
-      ? (state as StatusState)
-      : null;
+    return normalizeStatusState(payload?.data?.attributes?.aggregate_state);
   } catch {
     return null;
   }
