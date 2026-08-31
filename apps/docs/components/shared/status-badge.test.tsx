@@ -20,9 +20,13 @@ afterEach(() => {
 });
 
 describe("StatusBadge", () => {
-  it("renders the plain link until the state resolves", () => {
-    respondWith(new Promise(() => {}));
+  it("renders the plain link while the request is still in flight", async () => {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(() => new Promise(() => {})),
+    );
     render(<StatusBadge />);
+    await settle();
 
     const link = screen.getByRole("link");
     expect(link.textContent).toBe("Status");
@@ -52,8 +56,8 @@ describe("StatusBadge", () => {
     expect(link.querySelector("span")).toBeNull();
   });
 
-  it("keeps the plain link when the state is unrecognized", async () => {
-    respondWith({ state: null });
+  it("keeps the plain link for a state it has no presentation for", async () => {
+    respondWith({ state: "unknown_state" });
     render(<StatusBadge />);
     await settle();
 

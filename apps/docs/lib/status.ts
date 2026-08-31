@@ -3,8 +3,6 @@ import { STATUS_URL } from "./constants";
 import { normalizeStatusState, type StatusState } from "./status-state";
 import { withTimeout } from "./with-timeout";
 
-export const STATUS_REVALIDATE = 300;
-
 type StatusPagePayload = {
   data?: { attributes?: { aggregate_state?: unknown } };
 };
@@ -15,7 +13,7 @@ export async function getStatusState(): Promise<StatusState | null> {
       (async () => {
         const res = await fetch(`${STATUS_URL}/index.json`, {
           headers: { Accept: "application/json" },
-          next: { revalidate: STATUS_REVALIDATE },
+          cache: "no-store",
         });
         if (!res.ok) return null;
         return (await res.json()) as StatusPagePayload;
