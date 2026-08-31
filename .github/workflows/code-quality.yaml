@@ -237,6 +237,7 @@ jobs:
             "packages/react-data-stream/" \
             "packages/cloud-ai-sdk/" \
             "packages/eve/" \
+            "packages/safe-content-frame/" \
             "apps/docs/scripts/" \
             "apps/docs/content/types-to-generate/" \
             "apps/docs/content/docs/(reference)/api-reference/" \
