@@ -8,8 +8,8 @@ import {
   ModelSelectorList,
   ModelSelectorItem,
   type ModelOption,
-} from "@/components/assistant-ui/model-selector.radix";
-import { Badge } from "@/components/assistant-ui/badge.radix";
+} from "@/components/assistant-ui/elements/model-selector.radix";
+import { Badge } from "@/components/ui/radix/badge";
 import { cn } from "@/lib/utils";
 import { SampleFrame } from "@/components/pages/docs/samples/sample-frame";
 

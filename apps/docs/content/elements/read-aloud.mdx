@@ -1,0 +1,198 @@
+---
+title: "Read aloud"
+description: "An answer played back, the spoken word lit as it goes, speed under your thumb."
+---
+
+Read aloud plays a message back while lighting up the word it's on, with a progress bar and a speed control. With a runtime this rides assistant-ui's speech adapter for the coarse play state; standalone every number, the word index, the elapsed time, the rate, comes from you.
+
+## Getting started
+
+<RuntimeMode>
+
+Text-to-speech in assistant-ui is a speech adapter on the runtime and a coarse `status` on the message it's reading; there's no word-level boundary or elapsed-time field in the runtime state itself, so the fine detail this element shows, which word is lit, elapsed against duration, a rate you can change, is something your adapter or your app supplies on top. This part of the runtime is still experimental and may change.
+
+<Steps>
+  <Step>
+
+### Configure a speech adapter
+
+```tsx title="app/layout.tsx"
+"use client";
+
+import { WebSpeechSynthesisAdapter } from "@assistant-ui/react";
+import { useChatRuntime } from "@assistant-ui/ai-sdk";
+
+const runtime = useChatRuntime({
+  adapters: { speech: new WebSpeechSynthesisAdapter() },
+});
+```
+
+`speech` is one of the runtime's optional adapters, alongside things like attachments, and every runtime hook accepts it the same way.
+
+  </Step>
+  <Step>
+
+### Start and stop from the message
+
+Render this inside the message, its action row, alongside copy and regenerate, so `aui.message` and `s.message.speech` resolve to that message:
+
+```tsx
+import { useAui, useAuiState } from "@assistant-ui/react";
+import { ReadAloud } from "./read-aloud";
+
+function Playback() {
+  const aui = useAui();
+  const speech = useAuiState((s) => s.message.speech);
+  const playing = speech?.status.type === "running" || speech?.status.type === "starting";
+
+  return (
+    <ReadAloud
+      words={[]}
+      spokenIndex={0}
+      playing={playing}
+      rate={1}
+      elapsed="0:00"
+      duration="0:00"
+      onToggle={() => (playing ? aui.message.stopSpeaking() : aui.message.speak())}
+    />
+  );
+}
+```
+
+`s.message.speech` is `undefined` until `speak()` is called on that message and clears again once `status.type` reaches `"ended"`; it carries no word index, elapsed time, or rate. Those three props stay placeholders here until your app tracks them itself, commonly from the browser's own utterance boundary and end events if you're driving `WebSpeechSynthesisAdapter` directly instead of through `speak()`.
+
+  </Step>
+</Steps>
+
+</RuntimeMode>
+
+<StandaloneMode>
+
+Standalone, `ReadAloud` is a pure readout: give it the words, which index is being spoken, and the transport state, and it renders the highlight and the progress bar.
+
+<Steps>
+  <Step>
+
+### Drive it from an utterance
+
+```tsx title="app/playback.tsx"
+"use client";
+
+import { useState } from "react";
+import { ReadAloud } from "@/components/assistant-ui/elements/read-aloud";
+
+const words = "Paris is the capital of France.".split(" ");
+
+export function Playback() {
+  const [spokenIndex, setSpokenIndex] = useState(0);
+  const [playing, setPlaying] = useState(false);
+  const [rate, setRate] = useState(1);
+
+  return (
+    <ReadAloud
+      words={words}
+      spokenIndex={spokenIndex}
+      playing={playing}
+      rate={rate}
+      elapsed="0:02"
+      duration="0:05"
+      onToggle={() => setPlaying((p) => !p)}
+      onRateChange={() => setRate((r) => (r >= 2 ? 1 : r + 0.25))}
+    />
+  );
+}
+```
+
+  </Step>
+  <Step>
+
+### Advance the word index
+
+If you're using the browser's native speech synthesis, its utterance fires a boundary event per word with a character offset; map that offset back to a word index to move the highlight forward as playback continues.
+
+  </Step>
+</Steps>
+
+</StandaloneMode>
+
+## Anatomy
+
+```tsx
+<div data-slot="read-aloud">
+  <p>{/* words, the spoken one highlighted */}</p>
+  <div>
+    <button aria-label="Play" />
+    <span>{/* progress bar, width = spokenIndex / words.length */}</span>
+    <span>{/* elapsed / duration */}</span>
+    <button>{/* rate, e.g. 1x */}</button>
+  </div>
+</div>
+```
+
+Progress is computed purely from `spokenIndex` divided by `words.length`, there's no separate progress prop, so the bar and the highlighted word always agree. Words before `spokenIndex` dim, the current word gets a highlight background, and the rest stay at full opacity, so `spokenIndex` alone determines all three states across the whole sentence.
+
+## Examples
+
+### Rate control
+
+```tsx
+<ReadAloud
+  words={words}
+  spokenIndex={2}
+  playing
+  rate={1.5}
+  elapsed="0:03"
+  duration="0:08"
+  onRateChange={() => cycleRate()}
+/>
+```
+
+`rate` is a display value; `ReadAloud` doesn't clamp or format it, and `onRateChange` takes no argument, so cycling through a fixed list of rates, like `1, 1.25, 1.5, 2`, is on you.
+
+### Before playback starts
+
+<StandaloneMode>
+
+At `spokenIndex={0}` with `playing={false}`, the whole sentence renders at full opacity except the first word, which still gets the highlight background; start the progress bar at 0% by also holding `elapsed` at `"0:00"`.
+
+</StandaloneMode>
+
+<RuntimeMode>
+
+Before `speak()` has been called, `s.message.speech` is `undefined`; derive `playing={false}` from that, and there's no spoken word yet since nothing has streamed a boundary event.
+
+</RuntimeMode>
+
+## API reference
+
+<RuntimeMode>
+
+### Message methods and state
+
+| Member | Type | Description |
+|--------|------|-------------|
+| `aui.message.speak()` | `() => void` | Starts reading the current message aloud. Experimental. |
+| `aui.message.stopSpeaking()` | `() => void` | Stops it. Experimental. |
+| `s.message.speech` | `{ messageId: string; status } \| undefined` | `status.type` is `"starting"`, `"running"`, or `"ended"`. No word index, elapsed time, or rate. Experimental. |
+
+</RuntimeMode>
+
+<StandaloneMode>
+
+### ReadAloud
+
+| Prop | Type | Default | Description |
+|------|------|---------|-------------|
+| `words` | `readonly string[]` | required | Split however you want them highlighted; rendered space-joined. |
+| `spokenIndex` | `number` | required | Index of the currently highlighted word; also drives the progress bar. |
+| `playing` | `boolean` | required | Swaps the play and pause icon. |
+| `rate` | `number` | required | Shown as `${rate}x`; purely a display value. |
+| `elapsed` | `string` | required | Already formatted, for example `"0:42"`. |
+| `duration` | `string` | required | Already formatted. |
+| `onToggle` | `() => void` | | Called by the play and pause button. |
+| `onRateChange` | `() => void` | | Called by the rate button; takes no argument. |
+| `className` | `string` | | Merged onto the root. |
+
+All other `div` props are forwarded to the root.
+
+</StandaloneMode>

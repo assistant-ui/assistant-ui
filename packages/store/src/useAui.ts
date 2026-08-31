@@ -56,10 +56,7 @@ import {
 } from "./utils/client-accessor";
 import { createOptionalClientView } from "./utils/optional-client-view";
 import { getClientIndex } from "./utils/tap-client-stack-context";
-
-const isDevelopment =
-  typeof process !== "undefined" &&
-  (process.env.NODE_ENV === "development" || process.env.NODE_ENV === "test");
+import { isDevelopment } from "./utils/env";
 
 export type ClientRef = {
   parent: AssistantClient;

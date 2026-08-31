@@ -5,6 +5,10 @@ import type { ReadonlyJSONValue } from "../../utils/json/json-value";
 import type { UnderlyingReadable } from "../utils/stream/UnderlyingReadable";
 import { createTextStream, type TextStreamController } from "./text";
 import { closeIfOpen, enqueueIfOpen } from "../utils/stream/controller-guards";
+import {
+  createControllerStream,
+  createControllerStreamPair,
+} from "../utils/stream/createControllerStream";
 
 export type ToolCallStreamController = {
   argsText: TextStreamController;
@@ -116,25 +120,15 @@ class ToolCallStreamControllerImpl implements ToolCallStreamController {
 export const createToolCallStream = (
   readable: UnderlyingReadable<ToolCallStreamController>,
 ): AssistantStream => {
-  return new ReadableStream({
-    start(c) {
-      return readable.start?.(new ToolCallStreamControllerImpl(c));
-    },
-    pull(c) {
-      return readable.pull?.(new ToolCallStreamControllerImpl(c));
-    },
-    cancel(c) {
-      return readable.cancel?.(c);
-    },
-  });
+  return createControllerStream(
+    readable,
+    (controller) => new ToolCallStreamControllerImpl(controller),
+  );
 };
 
 export const createToolCallStreamController = () => {
-  let controller!: ToolCallStreamController;
-  const stream = createToolCallStream({
-    start(c) {
-      controller = c;
-    },
-  });
-  return [stream, controller] as const;
+  return createControllerStreamPair<
+    AssistantStreamChunk,
+    ToolCallStreamController
+  >((controller) => new ToolCallStreamControllerImpl(controller));
 };

@@ -1,0 +1,243 @@
+---
+title: "Research report"
+description: "An outline that fills in section by section, each carrying the sources behind it."
+---
+
+ResearchReport is a live outline: a heading list that tracks pending, writing, and done as an agent works through it, with a source count per section. With a runtime the sections stream in as the model writes them; standalone you already hold the full list.
+
+## Getting started
+
+<RuntimeMode>
+
+assistant-ui streams a tool call's arguments as partial JSON while the model writes them, so a report can be the argument itself rather than something you wait for a finished result to show. Ask the model for the report as structured `args` and read them live.
+
+<Steps>
+  <Step>
+
+### Render the live args
+
+```tsx title="components/assistant-ui/elements/write-report-tool-ui.tsx"
+"use client";
+
+import type { ToolCallMessagePartComponent } from "@assistant-ui/react";
+import {
+  ResearchReport,
+  type ReportSection,
+} from "@/components/assistant-ui/elements/research-report";
+
+type WriteReportArgs = {
+  title: string;
+  sections: ReportSection[];
+  sourcesRead: number;
+};
+
+export const WriteReportToolUI: ToolCallMessagePartComponent<
+  WriteReportArgs,
+  void
+> = ({ args }) => (
+  <ResearchReport
+    title={args.title ?? "Untitled report"}
+    sections={args.sections ?? []}
+    sourcesRead={args.sourcesRead ?? 0}
+  />
+);
+```
+
+`args` is a partial parse while the call is `running`: `title` can be `undefined` before the model writes it, `sections` can be shorter than the final list, and the last entry's `preview` can be a half-written sentence. The fallbacks keep the render from breaking on a field that has not arrived yet.
+
+  </Step>
+  <Step>
+
+### Register the tool
+
+This tool has nothing to execute: the report is the argument, not something fetched afterward. Give the schema the same shape as `ReportSection` so the model's own output already carries `state`.
+
+```tsx title="app/toolkit.ts"
+import { defineToolkit } from "@assistant-ui/react";
+import { z } from "zod";
+import { WriteReportToolUI } from "@/components/assistant-ui/elements/write-report-tool-ui";
+
+const section = z.object({
+  id: z.string(),
+  heading: z.string(),
+  state: z.enum(["pending", "writing", "done"]),
+  sources: z.number(),
+  preview: z.string().optional(),
+});
+
+export const toolkit = defineToolkit({
+  write_report: {
+    type: "frontend",
+    description: "Write a structured research report, section by section.",
+    parameters: z.object({
+      title: z.string(),
+      sections: z.array(section),
+      sourcesRead: z.number(),
+    }),
+    execute: async () => {},
+    render: WriteReportToolUI,
+  },
+});
+```
+
+`execute` does no work; it only lets the call complete once the model finishes writing, the same as any other frontend tool. Wire the toolkit in with `Tools({ toolkit })`; see [Tool UI](/docs/tools/tool-ui).
+
+  </Step>
+</Steps>
+
+</RuntimeMode>
+
+<StandaloneMode>
+
+Standalone, you own the section list end to end, including every state transition.
+
+<Steps>
+  <Step>
+
+### Hold the sections
+
+```tsx title="app/report.tsx"
+"use client";
+
+import { useState } from "react";
+import {
+  ResearchReport,
+  type ReportSection,
+} from "@/components/assistant-ui/elements/research-report";
+
+const INITIAL: ReportSection[] = [
+  {
+    id: "intro",
+    heading: "Why this matters",
+    state: "done",
+    sources: 3,
+    preview: "Three independent benchmarks agree on the direction.",
+  },
+  { id: "method", heading: "How it was measured", state: "writing", sources: 1 },
+  { id: "results", heading: "Results", state: "pending", sources: 0 },
+];
+
+export function Report() {
+  const [sections, setSections] = useState(INITIAL);
+  return (
+    <ResearchReport title="Adoption trends" sections={sections} sourcesRead={7} />
+  );
+}
+```
+
+  </Step>
+  <Step>
+
+### Advance a section
+
+Finishing one section and starting the next are two writes to the same array.
+
+```tsx
+function finishSection(id: string, preview: string) {
+  setSections((prev) => {
+    const i = prev.findIndex((section) => section.id === id);
+    return prev.map((section, j) => {
+      if (j === i) return { ...section, state: "done", preview };
+      if (j === i + 1) return { ...section, state: "writing" };
+      return section;
+    });
+  });
+}
+```
+
+  </Step>
+</Steps>
+
+</StandaloneMode>
+
+## Anatomy
+
+```tsx
+<div data-slot="research-report">
+  <div>
+    <span>{title}</span>
+    <span>{/* "D/T sections · S sources read" */}</span>
+  </div>
+  <div>
+    {/* one row per section, top-bordered except the first */}
+    <span>{/* check, spinner, or pending dot */}</span>
+    <span>{/* heading */}</span>
+    <span>{/* "N src", only when sources > 0 */}</span>
+    <p>{/* preview, only when present */}</p>
+  </div>
+</div>
+```
+
+The header's `done` count is computed by filtering `sections` for `state === "done"`; `sourcesRead` is a separate number you supply and is never cross-checked against each section's own `sources`. Heading brightness marks two states, not three: `pending` dims the heading, while both `writing` and `done` render it at full opacity, so only the glyph beside it, a static dot, a spinning loader, or a check, tells writing and done apart. A section's source count renders only when greater than zero; a `0` is hidden rather than shown as `0 src`. `preview` renders only for a non-empty string; an explicit empty string hides it the same as omitting the field. The first section's row carries no top border; every one after it does. An empty `sections` array renders the header alone, reading `0/0 sections`, with no placeholder row.
+
+## Examples
+
+### Section state comes from the model, not from assistant-ui
+
+<RuntimeMode>
+
+`state` is plain data the model writes as part of `sections`; assistant-ui does not infer pending, writing, or done from streaming progress on its own. If you would rather not trust the model to self-report accurately, `useToolArgsStatus` reports whether the whole `sections` argument has finished streaming, which you can use to force every section to `"done"` once the call settles, regardless of what the model wrote for individual entries.
+
+```tsx
+import { useToolArgsStatus } from "@assistant-ui/react";
+
+function useIsReportSettled() {
+  const { status } = useToolArgsStatus<WriteReportArgs>();
+  return status === "complete";
+}
+```
+
+</RuntimeMode>
+
+### Restyle the report
+
+Both lanes take `className` on the root. The header meta line and the per-section source count read from the shared `mono` token, and the card itself from `paper`, both in `surfaces.tsx`.
+
+```tsx
+<ResearchReport className="max-w-none p-6" /* ... */ />
+```
+
+## API reference
+
+<RuntimeMode>
+
+### Tool-call render props
+
+| Prop | Type | Description |
+|------|------|-------------|
+| `args` | `TArgs` | Parsed arguments. Partial while the model is still streaming them. |
+| `argsText` | `string` | Raw JSON argument text streamed by the model. |
+| `result` | `TResult \| undefined` | The tool's return value once it completes. `undefined` while running. |
+| `status` | `ToolCallMessagePartStatus` | `status.type` is `"running"`, `"requires-action"`, `"complete"`, or `"incomplete"`. |
+| `toolName` | `string` | Name of the tool the model called. |
+| `toolCallId` | `string` | Stable id for this invocation. |
+| `isError` | `boolean \| undefined` | Whether `result` represents a tool execution error. |
+
+Register the renderer on a toolkit entry's `render` field and attach the toolkit with `Tools({ toolkit })`. See [Tool UI](/docs/tools/tool-ui) for the full render-prop surface, including `addResult`, human tools, and approval gates.
+
+</RuntimeMode>
+
+<StandaloneMode>
+
+### ResearchReport
+
+| Prop | Type | Default | Description |
+|------|------|---------|-------------|
+| `title` | `string` | required | Report heading. Shadows the native `title` attribute, which is dropped from the forwarded props. |
+| `sections` | `readonly ReportSection[]` | required | The outline, in order. |
+| `sourcesRead` | `number` | required | Total source count shown in the header meta line. Independent of each section's own `sources`. |
+| `className` | `string` | | Merged onto the root. |
+
+### ReportSection
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `id` | `string` | |
+| `heading` | `string` | |
+| `state` | `"pending" \| "writing" \| "done"` | Drives the status glyph and heading brightness. |
+| `sources` | `number` | Per-section citation count. Hidden when `0`. |
+| `preview` | `string` (optional) | Shown under the heading once it is a non-empty string. |
+
+All other `div` props are forwarded to the root, except `title`, which the component's own prop replaces.
+
+</StandaloneMode>

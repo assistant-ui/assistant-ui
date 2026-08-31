@@ -312,13 +312,13 @@ Options:
 
 ## mcp
 
-Use the `mcp` command to install the assistant-ui MCP docs server for your IDE.
+Use the `mcp` command to connect your IDE to the assistant-ui MCP server.
 
 ```bash
 npx assistant-ui@latest mcp
 ```
 
-This command configures the [Model Context Protocol](/docs/llm#mcp) server, giving your AI assistant direct access to assistant-ui documentation.
+The command registers the hosted [Model Context Protocol](/docs/llm#mcp) endpoint (`https://www.assistant-ui.com/mcp`) for Cursor, Windsurf, VSCode, and Claude Code. Zed and Claude Desktop only launch local stdio servers, so for those it configures the `@assistant-ui/mcp-docs-server` package instead.
 
 **Examples**
 
@@ -340,7 +340,7 @@ npx assistant-ui mcp --claude-desktop
 ```bash
 Usage: assistant-ui mcp [options]
 
-install assistant-ui MCP docs server for your IDE
+connect your IDE to the assistant-ui MCP server
 
 Options:
   --cursor          install for Cursor

@@ -10,7 +10,7 @@ import { QuoteComposerSample } from "@/components/pages/docs/samples/quote-compo
 
 ## Get Started
 
-Install and wire up the `quote` registry component by following the [Quote component page](/docs/ui/quote). It covers the install command, component placement, and the `injectQuoteContext` helper for forwarding quote data to the LLM.
+Install and wire up the `quote` registry component by following the [Quote component page](/elements/quote). It covers the install command, component placement, and the `injectQuoteContext` helper for forwarding quote data to the LLM.
 
 <Callout type="warn">
   **Limitations:** only one quote can be active at a time. `setQuote` replaces the previous quote instead of appending. The floating toolbar only appears when the selection is entirely within a single message part; cross-message and cross-part selections are ignored.
@@ -20,7 +20,7 @@ Install and wire up the `quote` registry component by following the [Quote compo
 
 ## How It Works
 
-When a user selects text in an assistant message, a floating toolbar appears with a Quote button. Clicking it calls `composer.setQuote()` to store the selection on the composer. The [Quote component](/docs/ui/quote) does this out of the box.
+When a user selects text in an assistant message, a floating toolbar appears with a Quote button. Clicking it calls `composer.setQuote()` to store the selection on the composer. The [Quote component](/elements/quote) does this out of the box.
 
 When the message is sent, the composer runtime automatically writes the quote to `message.metadata.custom.quote` and clears it from the composer.
 
@@ -39,7 +39,7 @@ type QuoteInfo = {
 
 ## Backend Handling
 
-Quote data travels in message metadata, not content, so the LLM will not see it unless your backend extracts and surfaces it. The simplest path is [`injectQuoteContext`](/docs/ui/quote#forward-quote-context-to-the-llm), which prepends quoted text as a markdown blockquote before the message parts.
+Quote data travels in message metadata, not content, so the LLM will not see it unless your backend extracts and surfaces it. The simplest path is [`injectQuoteContext`](/elements/quote#forward-quote-context-to-the-llm), which prepends quoted text as a markdown blockquote before the message parts.
 
 For provider-specific handling, work with the quote metadata directly.
 
@@ -164,6 +164,6 @@ function MyComponent() {
 
 ## Related
 
-- [Quote component](/docs/ui/quote): Installation, component setup, and API reference
+- [Quote component](/elements/quote): Installation, component setup, and API reference
 - [Message Editing](/docs/guides/editing): Edit user messages
-- [Thread](/docs/ui/thread): Main chat container
+- [Thread](/elements/thread): Main chat container

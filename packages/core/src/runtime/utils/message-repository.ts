@@ -2,7 +2,7 @@ import type { ThreadMessage } from "../../types/message";
 import type { RunConfig } from "../../types/message";
 import { generateId } from "../../utils/id";
 import type { ThreadMessageLike } from "./thread-message-like";
-import { getAutoStatus } from "./auto-status";
+import { getContentAutoStatus } from "./auto-status";
 import { fromThreadMessageLike } from "./thread-message-like";
 
 export type ExportedMessageRepositoryItem = {
@@ -28,7 +28,7 @@ export const ExportedMessageRepository = {
       fromThreadMessageLike(
         m,
         generateId(),
-        getAutoStatus(false, false, false, false, undefined),
+        getContentAutoStatus(m.content, false, false),
       ),
     );
 
@@ -47,7 +47,6 @@ export const ExportedMessageRepository = {
     }[],
     options?: { headId?: string | null },
   ): ExportedMessageRepository => {
-    const fallbackStatus = getAutoStatus(false, false, false, false, undefined);
     return {
       ...(options?.headId !== undefined
         ? { headId: options.headId }
@@ -60,7 +59,11 @@ export const ExportedMessageRepository = {
         }
         return {
           parentId,
-          message: fromThreadMessageLike(message, message.id, fallbackStatus),
+          message: fromThreadMessageLike(
+            message,
+            message.id,
+            getContentAutoStatus(message.content, false, false),
+          ),
         };
       }),
     };

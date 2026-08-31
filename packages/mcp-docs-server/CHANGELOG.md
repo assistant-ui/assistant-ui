@@ -1,5 +1,13 @@
 # @assistant-ui/mcp-docs-server
 
+## 0.2.3
+
+### Patch Changes
+
+- [#6381](https://github.com/assistant-ui/assistant-ui/pull/6381) [`c13cce5`](https://github.com/assistant-ui/assistant-ui/commit/c13cce5605919b93150c33ee072a7cc17a9667b4) - fix: validate template catalog entries before using them ([@Kinfe123](https://github.com/Kinfe123))
+
+- [#6305](https://github.com/assistant-ui/assistant-ui/pull/6305) [`e96d3de`](https://github.com/assistant-ui/assistant-ui/commit/e96d3dea9370159e04f82bf4eb39d6b1b1c4d21d) - chore: update dependencies ([@okisdev](https://github.com/okisdev))
+
 ## 0.2.2
 
 ### Patch Changes

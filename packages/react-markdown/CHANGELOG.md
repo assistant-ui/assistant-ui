@@ -1,5 +1,17 @@
 # @assistant-ui/react-markdown
 
+## 0.14.13
+
+### Patch Changes
+
+- [#6214](https://github.com/assistant-ui/assistant-ui/pull/6214) [`6dcd69f`](https://github.com/assistant-ui/assistant-ui/commit/6dcd69f8f743b156e4733dcc2d4819c6f7891804) - fix: compare componentsByLanguage structurally so inline objects keep code-block memoization ([@Kinfe123](https://github.com/Kinfe123))
+
+- [#6212](https://github.com/assistant-ui/assistant-ui/pull/6212) [`0fa835c`](https://github.com/assistant-ui/assistant-ui/commit/0fa835cf4abc38eddcb2e6fa998a8c14b3299f50) - fix: keep the pre element for raw pre blocks without a code child ([@Kinfe123](https://github.com/Kinfe123))
+
+- [#6305](https://github.com/assistant-ui/assistant-ui/pull/6305) [`e96d3de`](https://github.com/assistant-ui/assistant-ui/commit/e96d3dea9370159e04f82bf4eb39d6b1b1c4d21d) - chore: update dependencies ([@okisdev](https://github.com/okisdev))
+
+- [#6449](https://github.com/assistant-ui/assistant-ui/pull/6449) [`e818d4a`](https://github.com/assistant-ui/assistant-ui/commit/e818d4a8e84d671172545cc03048a3c4f5c9cd64) - refactor: single-source the code-fence contract on a react-markdown subpath. the CodeHeader/SyntaxHighlighter prop types, the by-language override entry, and the language-class parser now live in @assistant-ui/react-markdown/code-fence; react-streamdown re-exports the types from there instead of keeping structurally compatible copies. @types/hast moves to dependencies in both packages so the published declarations reference hast by name instead of a broken store-relative path. ([@okisdev](https://github.com/okisdev))
+
 ## 0.14.12
 
 ### Patch Changes

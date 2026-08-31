@@ -21,6 +21,7 @@ import type { XuluxTemplate } from "./templates/types";
 import { XuluxShell } from "./shell/XuluxShell";
 import { createXuluxLocalThreadListAdapter } from "./runtime/xulux-thread-list-adapter";
 import { createXuluxChatFetch } from "./runtime/xulux-chat-fetch";
+import { anonymousSessionFetch } from "@/lib/anonymous-session-client";
 import { XuluxThreadStatusObserver } from "./runtime/XuluxThreadStatusObserver";
 import {
   parseXuluxLimitBlock,
@@ -234,7 +235,7 @@ function XuluxRuntimeProviderInner({
   );
 
   const transport = useMemo(() => {
-    const chatFetch = createXuluxChatFetch();
+    const chatFetch = createXuluxChatFetch(anonymousSessionFetch);
     return new AssistantChatTransport({
       api: mode === "learn" ? "/api/xulux/learn/chat" : "/api/xulux/chat",
       body: {

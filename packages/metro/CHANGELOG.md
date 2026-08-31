@@ -1,5 +1,15 @@
 # @assistant-ui/metro
 
+## 0.0.11
+
+### Patch Changes
+
+- [#6445](https://github.com/assistant-ui/assistant-ui/pull/6445) [`d323dc8`](https://github.com/assistant-ui/assistant-ui/commit/d323dc82a86320be6581470b7b235b7f66b02265) - refactor: derive a bundled commonjs build mode from the exports map, and drop metro's private tsdown config. a package whose exports targets are .cjs files now builds as a bundled cjs/node artifact with declared dependencies external and workspace devDependencies inlined; metro's dist is byte-identical to what its per-package config produced. ([@okisdev](https://github.com/okisdev))
+
+- [#6305](https://github.com/assistant-ui/assistant-ui/pull/6305) [`e96d3de`](https://github.com/assistant-ui/assistant-ui/commit/e96d3dea9370159e04f82bf4eb39d6b1b1c4d21d) - chore: update dependencies ([@okisdev](https://github.com/okisdev))
+
+- [#6424](https://github.com/assistant-ui/assistant-ui/pull/6424) [`bb1e79a`](https://github.com/assistant-ui/assistant-ui/commit/bb1e79aef77b9c3519663e9dd5ffec6d60b5deb9) - refactor: share the generative source predicate across bundler integrations ([@okisdev](https://github.com/okisdev))
+
 ## 0.0.10
 
 ### Patch Changes

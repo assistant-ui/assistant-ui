@@ -1,19 +1,15 @@
 import Image from "next/image";
 import Link from "next/link";
 import { ArrowUpRight } from "lucide-react";
-import { DynamicCodeBlock } from "fumadocs-ui/components/dynamic-codeblock";
 import { CopyCommandButton } from "@/components/shared/copy-command-button";
+import { Highlight } from "@/components/shared/highlight";
+import { CodeBlock } from "@/components/ui/code-block";
 import { PageFrame } from "@/components/shared/page-frame";
-import { typeDeck, typePage } from "@/components/shared/type";
+import { typeDeck, typeEyebrow, typePage } from "@/components/shared/type";
 import { CLOUD_URL } from "@/lib/constants";
 import { cn } from "@/lib/utils";
 
 const ANALYTICS_PAGE = "cloud-ai-sdk" as const;
-
-const CODE_THEMES = {
-  light: "catppuccin-latte",
-  dark: "catppuccin-mocha",
-} as const;
 
 const EXAMPLE_HREF =
   "https://github.com/assistant-ui/assistant-ui/tree/main/examples/with-cloud-standalone";
@@ -50,13 +46,21 @@ const DASHBOARD_ITEMS = [
   "API key management",
 ] as const;
 
+const BEFORE = `import { useChat } from "@ai-sdk/react"
+
+const { messages, sendMessage } = useChat()`;
+
+const AFTER = `import { useCloudChat } from "@assistant-ui/cloud-ai-sdk"
+
+const { messages, sendMessage, threads } = useCloudChat()`;
+
 export default function CloudAiSdkPage() {
   return (
-    <PageFrame pad="sub" className="flex flex-col gap-20 md:gap-28">
+    <PageFrame pad="sub">
       <header className="max-w-2xl">
         <h1 className={typePage}>
           <span className="font-mono">useChat</span>
-          <span className="text-muted-foreground/40 mx-3">{"\u2192"}</span>
+          <span className="text-muted-foreground/40 mx-3">{"→"}</span>
           <span className="font-mono">useCloudChat</span>
         </h1>
         <p className={cn(typeDeck, "mt-4 max-w-[52ch]")}>
@@ -77,66 +81,93 @@ export default function CloudAiSdkPage() {
         </div>
       </header>
 
-      <div className="grid gap-4 md:grid-cols-2 [&_figure]:my-0!">
-        <Snippet
-          title="Before"
-          code={`import { useChat } from "@ai-sdk/react"
-
-const { messages, sendMessage } = useChat()`}
-        />
-        <Snippet
-          title="After"
-          code={`import { useCloudChat } from "@assistant-ui/cloud-ai-sdk"
-
-const { messages, sendMessage, threads } = useCloudChat()`}
-        />
+      <div className="mt-12 grid gap-8 md:mt-16 md:grid-cols-2">
+        <figure>
+          <CodeBlock title="before" className="my-0">
+            <Highlight code={BEFORE} language="tsx" />
+          </CodeBlock>
+          <figcaption className="text-muted-foreground/70 mt-2 font-mono text-[11px] tracking-wide">
+            fig. 01 · ephemeral
+          </figcaption>
+        </figure>
+        <figure>
+          <CodeBlock title="after" className="my-0">
+            <Highlight code={AFTER} language="tsx" />
+          </CodeBlock>
+          <figcaption className="text-muted-foreground/70 mt-2 flex items-baseline justify-between font-mono text-[11px] tracking-wide">
+            <span>fig. 02 · persistent</span>
+            <span>threads included</span>
+          </figcaption>
+        </figure>
       </div>
 
-      <dl className="grid gap-x-16 gap-y-10 sm:grid-cols-2">
-        {FEATURES.map((feature) => (
-          <div key={feature.title} className="flex flex-col gap-1.5">
-            <dt className="text-[15px] font-medium">{feature.title}</dt>
-            <dd className="text-muted-foreground text-sm leading-relaxed text-pretty">
-              {feature.description}
-            </dd>
-          </div>
-        ))}
-      </dl>
-
-      <section className="flex flex-col gap-6">
-        <p className={cn(typeDeck, "max-w-[52ch]")}>
-          The same threads show up in the{" "}
-          <a
-            href={CLOUD_URL}
-            target="_blank"
-            rel="noopener noreferrer"
-            className="text-foreground/80 hover:text-foreground underline underline-offset-4"
-          >
-            Cloud dashboard.
-          </a>
-        </p>
-        <div className="overflow-hidden rounded-2xl">
-          <Image
-            src="/images/cloud-dashboard.png"
-            alt="Assistant Cloud dashboard showing analytics, threads, and run tracking"
-            width={1200}
-            height={675}
-            className="w-full"
-          />
-        </div>
-        <ul className="grid gap-x-16 gap-y-2 sm:grid-cols-2">
-          {DASHBOARD_ITEMS.map((item) => (
-            <li
-              key={item}
-              className="text-muted-foreground text-sm leading-relaxed"
+      <div className="border-foreground/10 mt-16 border-t md:mt-20">
+        <section className="divide-foreground/10 border-foreground/10 grid gap-8 border-b py-10 md:grid-cols-2 md:gap-y-10 lg:grid-cols-4 lg:gap-0 lg:divide-x lg:py-12">
+          {FEATURES.map((feature) => (
+            <div
+              key={feature.title}
+              className="lg:px-8 lg:first:ps-0 lg:last:pe-0"
             >
-              {item}
-            </li>
+              <h2 className="text-sm font-medium">{feature.title}</h2>
+              <p className="text-muted-foreground mt-2 text-sm leading-relaxed text-pretty">
+                {feature.description}
+              </p>
+            </div>
           ))}
-        </ul>
-      </section>
+        </section>
 
-      <footer>
+        <section className="border-foreground/10 border-b py-10 md:py-12">
+          <p className={typeEyebrow}>The dashboard</p>
+          <p className="text-muted-foreground mt-4 max-w-[52ch] text-sm leading-relaxed">
+            The same threads show up in the{" "}
+            <a
+              href={CLOUD_URL}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="text-foreground font-medium"
+            >
+              Cloud dashboard
+            </a>
+            .
+          </p>
+          <figure className="mt-8">
+            <div className="border-foreground/10 overflow-hidden border">
+              <Image
+                src="/images/cloud-dashboard.png"
+                alt="Assistant Cloud dashboard showing analytics, threads, and run tracking"
+                width={1200}
+                height={675}
+                className="w-full"
+              />
+            </div>
+            <figcaption className="text-muted-foreground/70 mt-2 font-mono text-[11px] tracking-wide">
+              fig. 03 · the same threads, server-side
+            </figcaption>
+          </figure>
+          <ul className="mt-8 grid max-w-[52rem] gap-x-16 gap-y-2 sm:grid-cols-2">
+            {DASHBOARD_ITEMS.map((item) => (
+              <li
+                key={item}
+                className="text-muted-foreground text-sm leading-relaxed"
+              >
+                {item}
+              </li>
+            ))}
+          </ul>
+        </section>
+      </div>
+
+      <footer className="mt-16 flex flex-col gap-3">
+        <p className="text-muted-foreground text-sm">
+          Already on @assistant-ui/react? Pass an AssistantCloud instance to{" "}
+          <Link
+            href="/docs/cloud/ai-sdk-assistant-ui"
+            className="text-foreground font-medium"
+          >
+            react-ai-sdk
+          </Link>{" "}
+          instead.
+        </p>
         <a
           href={EXAMPLE_HREF}
           target="_blank"
@@ -148,19 +179,5 @@ const { messages, sendMessage, threads } = useCloudChat()`}
         </a>
       </footer>
     </PageFrame>
-  );
-}
-
-function Snippet({ title, code }: { title: string; code: string }) {
-  return (
-    <DynamicCodeBlock
-      lang="tsx"
-      code={code}
-      options={{ themes: CODE_THEMES }}
-      codeblock={{
-        title,
-        className: "my-0",
-      }}
-    />
   );
 }

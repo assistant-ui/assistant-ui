@@ -3,14 +3,17 @@
 import { cn } from "@/lib/utils";
 import Image from "next/image";
 import Link from "next/link";
+import { useEffect, useRef, useState } from "react";
 
-const LOGOS: {
+type Logo = {
   src: string;
   alt: string;
   href: string;
   invert?: boolean;
   darkSrc?: string;
-}[] = [
+};
+
+const LOGOS: Logo[] = [
   {
     src: "/icons/cust/anthropic.svg",
     alt: "Anthropic",
@@ -27,6 +30,19 @@ const LOGOS: {
     src: "/icons/cust/langchain.svg",
     alt: "Langchain",
     href: "https://langchain.com?ref=assistant-ui",
+  },
+  {
+    src: "/icons/yc_logo.png",
+    alt: "Y Combinator",
+    href: "https://www.ycombinator.com/companies/assistant-ui",
+    invert: false,
+  },
+  {
+    src: "/icons/cust/neon.svg",
+    darkSrc: "/icons/cust/neon-dark.svg",
+    alt: "Neon",
+    href: "https://neon.tech?ref=assistant-ui",
+    invert: false,
   },
   {
     src: "/icons/cust/builder.svg",
@@ -52,9 +68,9 @@ const LOGOS: {
     invert: false,
   },
   {
-    src: "/icons/cust/athenaintel.png",
+    src: "/icons/cust/athenaintel.svg",
     alt: "Athena Intelligence",
-    href: "https://athenaintelligence.ai?ref=assistant-ui",
+    href: "https://athenaintel.com?ref=assistant-ui",
   },
   {
     src: "/icons/cust/browseruse.svg",
@@ -71,69 +87,269 @@ const LOGOS: {
     alt: "Mastra",
     href: "https://mastra.ai?ref=assistant-ui",
   },
+  {
+    src: "/icons/cust/salesforce.svg",
+    alt: "Salesforce",
+    href: "https://www.salesforce.com?ref=assistant-ui",
+    invert: false,
+  },
+  {
+    src: "/icons/cust/vtex.svg",
+    alt: "VTEX",
+    href: "https://vtex.com?ref=assistant-ui",
+    invert: false,
+  },
+  {
+    src: "/icons/cust/onlyoffice.svg",
+    alt: "ONLYOFFICE",
+    href: "https://www.onlyoffice.com?ref=assistant-ui",
+  },
+  {
+    src: "/icons/cust/agentops.svg",
+    alt: "AgentOps",
+    href: "https://agentops.ai?ref=assistant-ui",
+  },
+  {
+    src: "/icons/cust/openops.svg",
+    alt: "OpenOps",
+    href: "https://www.openops.com?ref=assistant-ui",
+  },
+  {
+    src: "/icons/cust/thesys.svg",
+    alt: "Thesys",
+    href: "https://www.thesys.dev?ref=assistant-ui",
+  },
+  {
+    src: "/icons/cust/helicone.svg",
+    alt: "Helicone",
+    href: "https://www.helicone.ai?ref=assistant-ui",
+  },
+  {
+    src: "/icons/cust/voltagent.png",
+    alt: "VoltAgent",
+    href: "https://voltagent.dev?ref=assistant-ui",
+    invert: false,
+  },
+  {
+    src: "/icons/cust/memobase.svg",
+    alt: "Memobase",
+    href: "https://www.memobase.io?ref=assistant-ui",
+  },
 ];
 
-const COPIES = 3;
+const SLOTS = 9;
+export const ALL_SLOTS = Array.from({ length: SLOTS }, (_, index) => index);
+export const MOBILE_SLOTS = [0, 1, 2, 5, 6, 7];
+const HOLD_MIN_MS = 1600;
+const HOLD_SPAN_MS = 900;
+const CROSSFADE_MS = 500;
 
-function LogoList({ copy }: { copy: number }) {
+function shuffle(slots: readonly number[]) {
+  const order = slots.slice();
+  for (let index = order.length - 1; index > 0; index -= 1) {
+    const pick = Math.floor(Math.random() * (index + 1));
+    [order[index], order[pick]] = [order[pick]!, order[index]!];
+  }
+  return order;
+}
+
+export function takeSlot(queue: readonly number[], visible: readonly number[]) {
+  const remaining = queue.filter((slot) => visible.includes(slot));
+  const source = remaining.length > 0 ? remaining : shuffle(visible);
+  return { slot: source[source.length - 1]!, queue: source.slice(0, -1) };
+}
+
+function LogoMark({
+  logo,
+  onSettle,
+}: {
+  logo: Logo;
+  onSettle?: (() => void) | undefined;
+}) {
   return (
     <>
-      {LOGOS.map((logo) => (
-        <Link
-          key={`${copy}-${logo.alt}`}
-          href={logo.href}
-          target="_blank"
-          rel="noopener noreferrer"
-          tabIndex={copy === 0 ? undefined : -1}
-          className="inline-flex h-8 shrink-0 items-center"
-        >
-          <Image
-            src={logo.src}
-            alt={copy === 0 ? logo.alt : ""}
-            width={120}
-            height={24}
-            className={cn(
-              "h-6 w-auto shrink-0 object-contain opacity-40 transition-opacity hover:opacity-100",
-              logo.darkSrc
-                ? "dark:hidden"
-                : logo.invert === false
-                  ? undefined
-                  : "invert dark:invert-0",
-            )}
-          />
-          {logo.darkSrc ? (
-            <Image
-              src={logo.darkSrc}
-              alt=""
-              width={120}
-              height={24}
-              className="hidden h-6 w-auto shrink-0 object-contain opacity-40 transition-opacity hover:opacity-100 dark:block"
-            />
-          ) : null}
-        </Link>
-      ))}
+      <Image
+        src={logo.src}
+        alt={logo.alt}
+        width={120}
+        height={24}
+        onLoad={onSettle}
+        className={cn(
+          "h-6 w-auto max-w-full object-contain opacity-40 transition-opacity duration-150 ease-out hover:opacity-100",
+          logo.darkSrc
+            ? "dark:hidden"
+            : logo.invert === false
+              ? undefined
+              : "invert dark:invert-0",
+        )}
+      />
+      {logo.darkSrc ? (
+        <Image
+          src={logo.darkSrc}
+          alt=""
+          width={120}
+          height={24}
+          onLoad={onSettle}
+          className="hidden h-6 w-auto max-w-full object-contain opacity-40 transition-opacity duration-150 ease-out hover:opacity-100 dark:block"
+        />
+      ) : null}
     </>
   );
 }
 
-export function TrustedBy() {
+function LogoSlot({
+  logo,
+  hideOnMobile,
+}: {
+  logo: Logo;
+  hideOnMobile: boolean;
+}) {
+  const [current, setCurrent] = useState(logo);
+  const [previous, setPrevious] = useState<Logo | null>(null);
+  const [entered, setEntered] = useState(true);
+  const mark = useRef<HTMLAnchorElement>(null);
+
+  // Readiness only counts rendered images: the theme-hidden half of a light/dark
+  // pair is display:none, and a lazy image in that state never loads. Nothing
+  // reports failure either, because the only caller is a rendered image's own
+  // onLoad, so a logo that fails to load simply never becomes ready.
+  const settle = () => {
+    for (const image of mark.current?.querySelectorAll("img") ?? []) {
+      if (getComputedStyle(image).display === "none") continue;
+      if (!image.complete) return;
+    }
+    setEntered(true);
+  };
+
+  if (logo.alt !== current.alt) {
+    if (entered) setPrevious(current);
+    setCurrent(logo);
+    setEntered(false);
+  }
+
+  useEffect(() => {
+    if (previous === null || !entered) return;
+    const drop = window.setTimeout(() => setPrevious(null), CROSSFADE_MS + 100);
+    return () => window.clearTimeout(drop);
+  }, [entered, previous]);
+
   return (
-    <section className="flex flex-col items-center gap-4">
-      <div className="hidden w-full flex-wrap items-center justify-center gap-x-12 gap-y-8 motion-reduce:flex">
-        <LogoList copy={0} />
-      </div>
-      <div className="group flex w-full gap-(--gap) overflow-hidden [mask-image:linear-gradient(to_right,transparent,black_6%,black_94%,transparent)] [--duration:48s] [--gap:3rem] motion-reduce:hidden">
-        {Array.from({ length: COPIES }).map((_, copy) => (
-          <div
-            key={copy}
-            aria-hidden={copy === 0 ? undefined : true}
-            className="animate-marquee flex shrink-0 items-center gap-(--gap) group-hover:[animation-play-state:paused]"
-          >
-            <LogoList copy={copy} />
-          </div>
+    <div
+      className={cn(
+        "relative flex h-8 w-full items-center justify-center",
+        hideOnMobile && "hidden sm:flex",
+      )}
+    >
+      {previous ? (
+        <Link
+          key={previous.alt}
+          href={previous.href}
+          target="_blank"
+          rel="noopener noreferrer"
+          inert={entered}
+          className={cn(
+            "absolute inset-0 flex items-center justify-center",
+            entered &&
+              "animate-out fade-out fill-mode-forwards duration-500 ease-out",
+          )}
+        >
+          <LogoMark logo={previous} />
+        </Link>
+      ) : null}
+      <Link
+        key={current.alt}
+        ref={mark}
+        href={current.href}
+        target="_blank"
+        rel="noopener noreferrer"
+        className={cn(
+          "inline-flex h-8 w-full max-w-[9rem] items-center justify-center",
+          previous !== null &&
+            (entered
+              ? "animate-in fade-in duration-500 ease-out"
+              : "opacity-0"),
+        )}
+        inert={previous !== null && !entered}
+      >
+        <LogoMark logo={current} onSettle={settle} />
+      </Link>
+    </div>
+  );
+}
+
+export function TrustedBy() {
+  const [shown, setShown] = useState(() => LOGOS.slice(0, SLOTS));
+  const [hovered, setHovered] = useState(false);
+  const [pageHidden, setPageHidden] = useState(false);
+  const [reduceMotion, setReduceMotion] = useState(false);
+  const [wide, setWide] = useState(true);
+  const order = useRef<number[]>([]);
+  const frozen = reduceMotion || hovered || pageHidden;
+  const slots = wide ? ALL_SLOTS : MOBILE_SLOTS;
+
+  useEffect(() => {
+    const motion = window.matchMedia("(prefers-reduced-motion: reduce)");
+    const desktop = window.matchMedia("(min-width: 640px)");
+    const applyMotion = () => setReduceMotion(motion.matches);
+    const applyWide = () => setWide(desktop.matches);
+    applyMotion();
+    applyWide();
+    motion.addEventListener("change", applyMotion);
+    desktop.addEventListener("change", applyWide);
+
+    const applyVisibility = () => setPageHidden(document.hidden);
+    applyVisibility();
+    document.addEventListener("visibilitychange", applyVisibility);
+
+    return () => {
+      motion.removeEventListener("change", applyMotion);
+      desktop.removeEventListener("change", applyWide);
+      document.removeEventListener("visibilitychange", applyVisibility);
+    };
+  }, []);
+
+  useEffect(() => {
+    if (frozen) return;
+    const wait = HOLD_MIN_MS + Math.random() * HOLD_SPAN_MS;
+    const hold = window.setTimeout(() => {
+      const taken = takeSlot(order.current, slots);
+      order.current = taken.queue;
+      const target = taken.slot;
+      setShown((current) => {
+        const taken = new Set(current.map((logo) => logo.alt));
+        const pool = LOGOS.filter((logo) => !taken.has(logo.alt));
+        const next = pool[Math.floor(Math.random() * pool.length)];
+        if (!next) return current;
+        return current.map((logo, index) => (index === target ? next : logo));
+      });
+    }, wait);
+    return () => window.clearTimeout(hold);
+  }, [frozen, shown, slots]);
+
+  return (
+    <div
+      className="flex flex-col gap-8"
+      onMouseEnter={() => setHovered(true)}
+      onMouseLeave={() => setHovered(false)}
+    >
+      <div className="grid w-full grid-cols-3 sm:grid-cols-5">
+        {shown.slice(0, 5).map((logo, index) => (
+          <LogoSlot
+            key={index}
+            logo={logo}
+            hideOnMobile={!MOBILE_SLOTS.includes(index)}
+          />
         ))}
       </div>
-      <p className="text-muted-foreground text-sm">and teams everywhere</p>
-    </section>
+      <div className="mx-auto grid w-full grid-cols-3 sm:w-4/5 sm:grid-cols-4">
+        {shown.slice(5, SLOTS).map((logo, offset) => (
+          <LogoSlot
+            key={offset + 5}
+            logo={logo}
+            hideOnMobile={!MOBILE_SLOTS.includes(offset + 5)}
+          />
+        ))}
+      </div>
+    </div>
   );
 }

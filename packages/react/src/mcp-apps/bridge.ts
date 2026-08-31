@@ -1,5 +1,5 @@
 import type { SandboxHostFrame } from "../sandbox-host/SandboxHost";
-import { invokeCallbackSafely } from "../utils/invokeCallbackSafely";
+import { invokeUserCallback } from "@assistant-ui/core/internal";
 import {
   MCP_APP_PROTOCOL_VERSION,
   type McpAppBridgeHandlers,
@@ -125,7 +125,12 @@ export function createMcpAppBridge(
   };
 
   const reportError = (error: Error) => {
-    invokeCallbackSafely(() => handlers.onError?.(error), "MCP App onError");
+    invokeUserCallback(
+      "assistant-ui",
+      "MCP App onError",
+      handlers.onError?.bind(handlers),
+      error,
+    );
   };
 
   const handleRequest = async (req: McpAppJsonRpcRequest) => {

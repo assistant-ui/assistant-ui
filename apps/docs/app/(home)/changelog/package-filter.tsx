@@ -6,11 +6,10 @@ import {
   SelectGroup,
   SelectItem,
   SelectLabel,
-  SelectRoot,
+  Select,
   SelectSeparator,
   SelectTrigger,
-  SelectValue,
-} from "@/components/assistant-ui/select";
+} from "@/components/ui/select";
 
 const ALL = "__all__";
 
@@ -62,7 +61,7 @@ export function PackageFilter({
   const groups = groupPackages(packages);
 
   return (
-    <SelectRoot
+    <Select
       value={value ?? ALL}
       onValueChange={(v) => {
         const nextValue = v ?? ALL;
@@ -72,9 +71,13 @@ export function PackageFilter({
             : `?pkg=${encodeURIComponent(nextValue)}`,
         );
       }}
+      items={[
+        { value: ALL, label: "All packages" },
+        ...packages.map((pkg) => ({ value: pkg, label: pkg })),
+      ]}
     >
       <SelectTrigger size="sm" className="w-56 font-mono text-xs">
-        <SelectValue />
+        <span className="truncate">{value ?? "All packages"}</span>
       </SelectTrigger>
       <SelectContent>
         <SelectItem value={ALL}>All packages</SelectItem>
@@ -90,6 +93,6 @@ export function PackageFilter({
           </SelectGroup>
         ))}
       </SelectContent>
-    </SelectRoot>
+    </Select>
   );
 }

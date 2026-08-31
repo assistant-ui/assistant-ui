@@ -1,0 +1,191 @@
+---
+title: "Thread"
+description: "A complete chat container with messages, composer, auto-scroll, and accessibility built in."
+---
+
+Thread is the complete chat surface: message list, composer, auto-scroll, and the welcome, history-loading, and running states, all wired to a runtime. It has no standalone form, since everything it renders comes from live thread state rather than props you would pass in.
+
+## Getting started
+
+<RuntimeMode>
+
+`Thread` needs nothing beyond a runtime provider higher up the tree.
+
+<Steps>
+  <Step>
+
+### Use it in your app
+
+```tsx title="app/page.tsx"
+import { Thread } from "@/components/assistant-ui/elements/thread.aui";
+
+export default function Chat() {
+  return (
+    <div className="h-full">
+      <Thread />
+    </div>
+  );
+}
+```
+
+Needs an `AssistantRuntimeProvider` ancestor; `Thread` itself takes no runtime prop and reads the nearest one.
+
+  </Step>
+  <Step>
+
+### Override a slot
+
+```tsx
+import {
+  Thread,
+  type ThreadComponents,
+} from "@/components/assistant-ui/elements/thread.aui";
+
+const THREAD_COMPONENTS: ThreadComponents = {
+  ToolFallback: MyToolFallback,
+  ToolGroup: MyToolGroup,
+};
+
+export default function Chat() {
+  return <Thread components={THREAD_COMPONENTS} />;
+}
+```
+
+Define `components` once at module scope, or memoize it, so message subtrees do not re-render whenever the parent does. For per-tool UI, prefer registering a renderer by tool name over overriding `ToolFallback`: put `render` on the matching toolkit entry, per [Tool UI](/docs/tools/tool-ui).
+
+  </Step>
+</Steps>
+
+</RuntimeMode>
+
+<StandaloneMode>
+
+Thread has no props-driven counterpart: the welcome screen, message list, streaming states, and composer are all derived from live thread state, not props you would pass in. Compose the primitives it wraps, `ThreadPrimitive`, `ComposerPrimitive`, and `MessagePrimitive`, directly against your own runtime for a materially different layout; message-level pieces it already ships have their own standalone docs, for example the branch picker on [Message branches](/elements/message-branches) and the reasoning trace on [Reasoning](/elements/reasoning).
+
+</StandaloneMode>
+
+## Anatomy
+
+```tsx
+<ThreadPrimitive.Root>
+  <ThreadPrimitive.Viewport>
+    {/* no messages, and not mid history-load: */}
+    <Welcome />
+    {/* switched to a thread whose own history is still loading: */}
+    <ThreadHistorySkeleton />
+
+    <ThreadPrimitive.Messages>
+      {({ message }) =>
+        message.role === "user" ? <UserMessage /> : <AssistantMessage />
+      }
+    </ThreadPrimitive.Messages>
+
+    <ThreadPrimitive.ViewportFooter>
+      <ThreadPrimitive.ScrollToBottom />
+      <ThreadFollowupSuggestions />
+      <Composer />
+      {/* new chat, nothing typed yet: */}
+      <ThreadPrimitive.Suggestions>
+        {() => <SuggestionItem />}
+      </ThreadPrimitive.Suggestions>
+    </ThreadPrimitive.ViewportFooter>
+  </ThreadPrimitive.Viewport>
+</ThreadPrimitive.Root>
+```
+
+The welcome screen's condition is narrower than "no messages": at startup the whole thread list can still be loading before this particular thread's history has resolved, and showing the history skeleton for that instant would just flash before turning into the welcome screen anyway. Thread treats "no messages, and either not loading or the whole list is still loading" as the new-chat view, and reserves the skeleton for a thread switch whose history alone is still in flight. Each assistant message's action bar hides while that response is running and, once idle, always shows on the last response (`hideWhenRunning`, `autohide="not-last"`); the branch picker beside it hides entirely with a single branch, exactly as on [Message branches](/elements/message-branches). Editing a user message swaps it for a composer in place rather than opening a dialog.
+
+## Examples
+
+### Component overrides
+
+Any slot not passed through `components` keeps its built-in rendering; only the ones you name are replaced.
+
+```tsx
+const THREAD_COMPONENTS: ThreadComponents = {
+  Welcome: () => (
+    <div className="mb-6 text-center">
+      <h1 className="text-2xl font-medium">Ask me anything</h1>
+    </div>
+  ),
+};
+```
+
+### Restyle the shell
+
+`Thread` sets `--thread-max-width`, `--composer-bg`, `--composer-radius`, and `--composer-padding` as inline styles directly on `ThreadPrimitive.Root`. Because they are set there rather than inherited, overriding them means editing your copy of `thread.aui.tsx`, not layering a class from outside:
+
+```tsx
+style={{
+  ["--thread-max-width" as string]: "56rem",
+  ["--composer-radius" as string]: "0.75rem",
+}}
+```
+
+### Suggestions on the welcome screen
+
+```tsx
+import { AssistantRuntimeProvider, AuiConfig, Suggestions } from "@assistant-ui/react";
+import { useChatRuntime } from "@assistant-ui/ai-sdk";
+
+function App({ children }: { children: React.ReactNode }) {
+  const runtime = useChatRuntime();
+  const config = AuiConfig({
+    suggestions: Suggestions(["What's the weather?", "Tell me a joke"]),
+  });
+
+  return (
+    <AssistantRuntimeProvider runtime={runtime} config={config}>
+      {children}
+    </AssistantRuntimeProvider>
+  );
+}
+```
+
+See the [Suggestions guide](/docs/guides/suggestions) for the full configuration surface, including per-suggestion titles and descriptions.
+
+## API reference
+
+<RuntimeMode>
+
+### ThreadProps
+
+| Prop | Type | Default | Description |
+|------|------|---------|-------------|
+| `components` | `ThreadComponents \| undefined` | none | Slot overrides; see below. |
+| `autoFocus` | `boolean \| undefined` | `true` | Focuses the composer on mount, run start, thread switch, and scroll-to-bottom. Set `false` to leave page focus alone. |
+
+### ThreadComponents
+
+| Slot | Type | Description |
+|------|------|--------------|
+| `AssistantMessage` | `ComponentType` | Replaces the entire assistant message, action bar and branch picker included. |
+| `Welcome` | `ComponentType` | Replaces the welcome screen shown for a new chat. |
+| `ToolFallback` | `ToolCallMessagePartComponent` | Renders a tool call with no registered UI. A tool UI registered by name takes precedence over this slot. |
+| `ToolGroup` | `ComponentType<PropsWithChildren<{ group: ThreadGroupPart }>>` | Wraps a run of consecutive tool calls; receives the group's `indices` and `status`. |
+| `ReasoningGroup` | `ComponentType<PropsWithChildren<{ group: ThreadGroupPart }>>` | Wraps a run of consecutive reasoning parts; receives the same shape. |
+
+### Primitives
+
+| Namespace | Used for |
+|-----------|----------|
+| `ThreadPrimitive` | Root, scrollable viewport, message list, footer, scroll-to-bottom, and welcome suggestions. |
+| `ComposerPrimitive` | Input, attachment dropzone, send, cancel, and dictation start/stop. |
+| `MessagePrimitive` | Message root, rendering a message's parts, grouping consecutive parts by type, and the per-message error slot. |
+| `ActionBarPrimitive` / `ActionBarMorePrimitive` | Copy, reload, edit, export-as-markdown, and the overflow menu that holds export. |
+| `BranchPickerPrimitive` | The `n / m` stepper next to each message; see [Message branches](/elements/message-branches). |
+| `AuiIf` | Every conditional slot below. |
+
+### Thread state
+
+| Selector | Type | Description |
+|----------|------|--------------|
+| `s.thread.capabilities.dictation` | `boolean` | Whether the composer's mic button can render at all. |
+| `s.thread.isRunning` | `boolean` | Swaps the composer's send action for cancel. |
+| `s.composer.isEmpty` | `boolean` | Gates the welcome suggestions: shown only for a new chat with nothing typed. |
+| `s.composer.dictation` | `DictationState \| undefined` | Non-null while dictation is active; swaps the mic button for a stop button. |
+| `s.message.role` | `"user" \| "assistant" \| "system"` | Picks the message component to render. |
+| `s.message.composer.isEditing` | `boolean` | Swaps a user message for its edit composer. |
+| `s.message.isCopied` | `boolean` | Swaps the copy icon for a check mark after a copy. |
+
+</RuntimeMode>

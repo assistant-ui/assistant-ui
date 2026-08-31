@@ -1,0 +1,172 @@
+---
+title: "Reasoning effort"
+description: "How hard to think, and how much of that budget the run actually spent."
+---
+
+## Getting started
+
+<RuntimeMode>
+
+`reasoningEffort` is a real field on assistant-ui's model context, the same mechanism the composer's own model picker uses to pass an effort setting through to the model. Selecting a level and reading how much it cost are two separate concerns: the first is a registration, the second is usage data from the adapter.
+
+<Steps>
+  <Step>
+
+### Register the selected effort
+
+```tsx title="components/assistant-ui/elements/reasoning-effort.tsx"
+"use client";
+
+import { useEffect, useState } from "react";
+import { useAui } from "@assistant-ui/react";
+import { ReasoningEffort, type EffortLevel } from "@/components/assistant-ui/elements/reasoning-effort";
+
+const LEVELS: readonly EffortLevel[] = [
+  { key: "low", label: "Low", budget: 2_000 },
+  { key: "medium", label: "Medium", budget: 8_000 },
+  { key: "high", label: "High", budget: 24_000 },
+];
+
+function useRegisteredEffort() {
+  const [selectedKey, setSelectedKey] = useState("medium");
+  const aui = useAui();
+
+  useEffect(() => {
+    return aui.modelContext.register({
+      getModelContext: () => ({ config: { reasoningEffort: selectedKey } }),
+    });
+  }, [aui, selectedKey]);
+
+  return { selectedKey, setSelectedKey };
+}
+```
+
+`budget` has no runtime counterpart: it is a fact about your own effort tiers, so it stays app defined either way. Registering through `modelContext` only affects the next run; it does not retroactively change one already in flight.
+
+  </Step>
+  <Step>
+
+### Show what the run spent
+
+```tsx
+import { useThreadTokenUsage } from "@assistant-ui/ai-sdk";
+
+function AssistantEffort() {
+  const { selectedKey, setSelectedKey } = useRegisteredEffort();
+  const usage = useThreadTokenUsage();
+
+  return (
+    <ReasoningEffort
+      levels={LEVELS}
+      selectedKey={selectedKey}
+      spent={usage?.reasoningTokens ?? 0}
+      onSelect={setSelectedKey}
+    />
+  );
+}
+```
+
+`useThreadTokenUsage` is exported by `@assistant-ui/ai-sdk`; with a different adapter, `reasoningTokens` comes from whatever shape that provider's usage data takes.
+
+  </Step>
+</Steps>
+
+</RuntimeMode>
+
+<StandaloneMode>
+
+Standalone, `levels`, `selectedKey`, and `spent` are all plain values you own; the element only renders them and reports clicks.
+
+<Steps>
+  <Step>
+
+### Hold the selected level
+
+```tsx title="app/effort.tsx"
+"use client";
+
+import { useState } from "react";
+import { ReasoningEffort, type EffortLevel } from "@/components/assistant-ui/elements/reasoning-effort";
+
+const LEVELS: readonly EffortLevel[] = [
+  { key: "low", label: "Low", budget: 2_000 },
+  { key: "high", label: "High", budget: 24_000 },
+];
+
+export function Effort() {
+  const [selectedKey, setSelectedKey] = useState("low");
+  return (
+    <ReasoningEffort levels={LEVELS} selectedKey={selectedKey} spent={0} onSelect={setSelectedKey} />
+  );
+}
+```
+
+  </Step>
+  <Step>
+
+### Track spend yourself
+
+```tsx
+const [spent, setSpent] = useState(0);
+// bump `spent` from whatever event marks progress in your own flow
+```
+
+  </Step>
+</Steps>
+
+</StandaloneMode>
+
+## Anatomy
+
+```tsx
+<div data-slot="reasoning-effort">
+  <div>{/* "Thinking" label + "spent / budget" */}</div>
+  <div>{/* one button per level, aria-pressed on the active one */}</div>
+  <span>{/* progress fill, width = spent / budget as a percentage */}</span>
+</div>
+```
+
+Levels render in the order given; there is no reordering or grouping. If `selectedKey` does not match any `level.key`, the budget resolves to 0 and the progress fill stays collapsed at 0 percent rather than erroring. The fill's width is `spent` as a share of the matched level's `budget`, clamped between 0 and 100 percent, so an over-large `spent` value does not overflow the bar.
+
+## Examples
+
+### Reading the model's own effort field
+
+The composer's model picker (`/elements/model-selector`) writes to the same `config.reasoningEffort` field through its own effort control. Mounting both at once registers two providers for the same field, so keep only one of them wired to the model context in a given app; assistant-ui merges registered model contexts by priority, not by which component happens to render.
+
+### Restyle the control
+
+Both lanes take `className` on the root, which starts as `flex w-full max-w-sm flex-col gap-2.5`. The segmented control's track uses the shared `field` surface and the counts use the `mono` token, both from `surfaces.tsx`.
+
+```tsx
+<ReasoningEffort className="max-w-none" /* ... */ />
+```
+
+## API reference
+
+<RuntimeMode>
+
+### Model context and usage
+
+| Selector / call | Type | Description |
+|------|------|-------------|
+| `aui.modelContext.register(provider)` | `(provider: ModelContextProvider) => Unsubscribe` | Registers `config.reasoningEffort` for the next run; the returned function unregisters it. |
+| `useThreadTokenUsage()` (`@assistant-ui/ai-sdk`) | `ThreadTokenUsage \| undefined` | `reasoningTokens` is tokens spent on reasoning for the latest message with usage data. |
+
+</RuntimeMode>
+
+<StandaloneMode>
+
+### ReasoningEffort
+
+| Prop | Type | Default | Description |
+|------|------|---------|-------------|
+| `levels` | `readonly EffortLevel[]` | required | `{ key: string; label: string; budget: number }[]`, rendered in order. |
+| `selectedKey` | `string` | required | The active level's `key`. An unmatched key resolves the budget to 0. |
+| `spent` | `number` | required | Progress fill value, read against the selected level's `budget`. |
+| `onSelect` | `(key: string) => void` | required | Called with a level's `key` when its button is pressed. |
+| `className` | `string` | | Merged onto the root. |
+
+All other `div` props except `children`, `levels`, `selectedKey`, `spent`, and `onSelect` are forwarded to the root.
+
+</StandaloneMode>

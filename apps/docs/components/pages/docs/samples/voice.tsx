@@ -2,7 +2,10 @@
 
 import { useEffect, useState } from "react";
 import { SampleFrame } from "@/components/pages/docs/samples/sample-frame";
-import { VoiceOrb, type VoiceOrbState } from "@/components/assistant-ui/voice";
+import {
+  VoiceOrb,
+  type VoiceOrbState,
+} from "@/components/assistant-ui/elements/voice";
 
 const CYCLE_STATES: VoiceOrbState[] = [
   "idle",

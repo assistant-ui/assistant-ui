@@ -1,0 +1,67 @@
+---
+title: "Definition List"
+description: "A spec sheet of terms and details, one hairline per row."
+links:
+  - label: Source
+    url: https://github.com/assistant-ui/assistant-ui/blob/main/packages/ui/src/components/ui/base/definition-list.tsx
+---
+
+import { PreviewCode } from "@/components/pages/docs/preview-code.server";
+import { KitInstall } from "@/components/pages/design/kit-install";
+import { DefinitionListSpecimen } from "@/components/pages/design/specimens";
+import * as RadixSpecimens from "@/components/pages/design/specimens.radix";
+import { FlavorSwitcher } from "@/components/pages/docs/contexts/flavor.server";
+
+<FlavorSwitcher />
+
+<PreviewCode file="components/pages/design/specimens" name="DefinitionListSpecimen" base={<DefinitionListSpecimen />}>
+  <RadixSpecimens.DefinitionListSpecimen />
+</PreviewCode>
+
+## Installation
+
+<KitInstall name="definition-list" />
+
+## Usage
+
+```tsx
+import {
+  Definition,
+  DefinitionAnnotation,
+  DefinitionDetails,
+  DefinitionList,
+  DefinitionName,
+  DefinitionTerm,
+} from "@/components/ui/definition-list";
+
+export function Example() {
+  return (
+    <DefinitionList>
+      <Definition>
+        <DefinitionTerm>
+          <DefinitionName>storageKey?</DefinitionName>
+          <DefinitionAnnotation>string</DefinitionAnnotation>
+        </DefinitionTerm>
+        <DefinitionDetails>
+          Persists the selected tab across reloads.
+        </DefinitionDetails>
+      </Definition>
+    </DefinitionList>
+  );
+}
+```
+
+The list opens with a hairline and every row closes with one; a term pairs a mono name with quiet mono annotations, and the details sit below in text. Every API reference on this site renders through these parts.
+
+## API Reference
+
+Every part renders its native element and accepts that element's props.
+
+| Part                   | Element   | Role                                       |
+| ---------------------- | --------- | ------------------------------------------ |
+| `DefinitionList`       | `dl`      | The sheet, opened by a hairline.           |
+| `Definition`           | `div`     | One row, closed by a hairline.             |
+| `DefinitionTerm`       | `dt`      | The term line; wraps name and annotations. |
+| `DefinitionName`       | `code`    | The term itself, in mono ink.              |
+| `DefinitionAnnotation` | `code`    | A quiet mono note: a type, a default.      |
+| `DefinitionDetails`    | `dd`      | The description below the term.            |

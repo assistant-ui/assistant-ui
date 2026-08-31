@@ -1,0 +1,195 @@
+---
+title: "Prompt library"
+description: "Prompts you saved, searchable, with their variables shown before you insert one."
+---
+
+A searchable list of saved prompts that previews the highlighted one, body and variable placeholders included, before you commit to it. With a runtime only the final insert reaches into assistant-ui state; standalone you own selection and insertion too.
+
+## Getting started
+
+<RuntimeMode>
+
+With a runtime, there is no saved-prompt library to read: assistant-ui has no concept of prompts you bookmarked for reuse. That catalog, its storage, and its search are entirely yours, exactly as in the standalone lane. The one place a runtime is actually involved is the moment a prompt gets used.
+
+<Steps>
+  <Step>
+
+### Wire insert to the composer
+
+`onInsert` fires on Enter or a double click. Write the chosen prompt's body straight into the live composer; the element does not touch variable placeholders like `{topic}`, so substituting them, if you want that, happens before this call.
+
+```tsx title="components/assistant-ui/elements/prompt-library-panel.tsx"
+"use client";
+
+import { useAui } from "@assistant-ui/react";
+import { useState } from "react";
+import {
+  PromptLibrary,
+  type SavedPrompt,
+} from "@/components/assistant-ui/elements/prompt-library";
+
+export function PromptLibraryPanel({
+  prompts,
+}: {
+  prompts: readonly SavedPrompt[];
+}) {
+  const aui = useAui();
+  const [query, setQuery] = useState("");
+  const [selectedId, setSelectedId] = useState(prompts[0]?.id ?? "");
+
+  return (
+    <PromptLibrary
+      prompts={prompts}
+      query={query}
+      selectedId={selectedId}
+      onQueryChange={setQuery}
+      onSelect={setSelectedId}
+      onInsert={(id) => {
+        const prompt = prompts.find((p) => p.id === id);
+        if (prompt) aui.composer.setText(prompt.body);
+      }}
+    />
+  );
+}
+```
+
+  </Step>
+</Steps>
+
+</RuntimeMode>
+
+<StandaloneMode>
+
+Standalone, `PromptLibrary` filters, previews, and handles its own arrow-key and Enter navigation; you hold the list, the query, and the selection, and decide what `onInsert` actually does.
+
+<Steps>
+  <Step>
+
+### Hold the list, the query, and the selection
+
+```tsx title="app/prompt-library-panel.tsx"
+"use client";
+
+import { useState } from "react";
+import { PromptLibrary } from "@/components/assistant-ui/elements/prompt-library";
+
+const prompts = [
+  {
+    id: "bug-report",
+    name: "Bug report",
+    body: "Describe the bug, the steps to reproduce it, and the expected behavior.",
+    variables: [],
+  },
+  {
+    id: "summarize",
+    name: "Summarize {topic}",
+    body: "Summarize {topic} in three sentences for a non-technical reader.",
+    variables: ["topic"],
+  },
+];
+
+export function PromptLibraryPanel({
+  onInsert,
+}: {
+  onInsert: (text: string) => void;
+}) {
+  const [query, setQuery] = useState("");
+  const [selectedId, setSelectedId] = useState(prompts[0].id);
+
+  return (
+    <PromptLibrary
+      prompts={prompts}
+      query={query}
+      selectedId={selectedId}
+      onQueryChange={setQuery}
+      onSelect={setSelectedId}
+      onInsert={(id) => {
+        const prompt = prompts.find((p) => p.id === id);
+        if (prompt) onInsert(prompt.body);
+      }}
+    />
+  );
+}
+```
+
+  </Step>
+</Steps>
+
+</StandaloneMode>
+
+## Anatomy
+
+```tsx
+<div data-slot="prompt-library">
+  <div role="combobox" aria-expanded aria-controls>
+    <svg /* bookmark icon */ />
+    <input placeholder="Search prompts" />
+  </div>
+  <div role="listbox" aria-label="Saved prompts">
+    {/* one option row per match, filtered by name */}
+  </div>
+  {/* "Nothing matches “query”" when there are no matches */}
+  {/* preview: body text, then a chip per variable, only for the selected match */}
+</div>
+```
+
+Filtering matches `prompts` against `query` by substring on `name` only, case-insensitively; the preview panel at the bottom renders only when `selectedId` is among the current matches, so a query that filters the selected prompt out of the list hides its preview along with it. Arrow keys move the highlighted row within the current matches; if the previously selected id has been filtered out, the first press starts from the edge the direction implies rather than jumping from a phantom position. Enter inserts the highlighted match, the same action a double click on a row performs.
+
+## Examples
+
+### Formatting the variable count
+
+The chip next to a match, and the chips in the preview, are display only; the element counts and lists `variables` but never substitutes them into `body`.
+
+```tsx
+{prompt.variables.length > 0 && <span>{prompt.variables.length} vars</span>}
+```
+
+### Restyle the list
+
+The search field and the preview panel both use the shared `field` surface, and every count uses `mono`, from `surfaces.tsx`.
+
+```tsx
+<PromptLibrary className="max-w-md" prompts={prompts} query={query} selectedId={selectedId} onQueryChange={setQuery} onSelect={setSelectedId} onInsert={onInsert} />
+```
+
+## API reference
+
+<RuntimeMode>
+
+### Composer action
+
+| Selector / call | Type | Description |
+|------------------|------|-------------|
+| `aui.composer.setText(text)` | `(text: string) => void` | Writes text into the active composer, using the client from `useAui()`. The natural target for `onInsert`. |
+
+There is no selector for a saved-prompt catalog: the list, its storage, and its search all live in your own state.
+
+</RuntimeMode>
+
+<StandaloneMode>
+
+### PromptLibrary
+
+| Prop | Type | Default | Description |
+|------|------|---------|-------------|
+| `prompts` | `readonly SavedPrompt[]` | required | Everything saved. Filtering happens inside against the name. |
+| `query` | `string` | required | Current search text. |
+| `selectedId` | `string` | required | Which prompt is previewed below the list. |
+| `onQueryChange` | `(query: string) => void` | | Called as the search is typed. |
+| `onSelect` | `(id: string) => void` | | Called when a prompt is highlighted. |
+| `onInsert` | `(id: string) => void` | | Called on double click or Enter, to drop the prompt into the composer. |
+| `className` | `string` | | Merged onto the root. |
+
+### SavedPrompt
+
+| Prop | Type | Default | Description |
+|------|------|---------|-------------|
+| `id` | `string` | required | Stable identity, compared against `selectedId`. |
+| `name` | `string` | required | Prompt name, and the only field the search filters on. |
+| `body` | `string` | required | The prompt text, shown in the preview below the list. |
+| `variables` | `readonly string[]` | required | Placeholder names in the body, listed so you know what the prompt will ask for. |
+
+All other `div` props are forwarded to the root.
+
+</StandaloneMode>

@@ -1,0 +1,222 @@
+---
+title: "Approval card"
+description: "Human in the loop: the agent asks before it runs anything with side effects."
+---
+
+A card that names what the agent wants to run, shows the command, and waits for a decision before switching to a status line for running, done, or denied. With a runtime the decision flows through the tool call's own approval gate; standalone you hold the state and answer the callbacks yourself.
+
+## Getting started
+
+<RuntimeMode>
+
+A request like this is exactly what server-side tool approval gates are for: the tool call carries an `approval` object until the user answers, and `respondToApproval` sends the answer back.
+
+<Steps>
+  <Step>
+
+### Render the tool call
+
+```tsx title="app/toolkit.tsx"
+"use client";
+
+import { defineToolkit } from "@assistant-ui/react";
+import { ApprovalCard } from "@/components/assistant-ui/elements/approval-card";
+
+export const toolkit = defineToolkit({
+  run_command: {
+    type: "backend",
+    render: ({ args, approval, respondToApproval, result }) => (
+      <ApprovalCard
+        state={
+          approval?.approved === false
+            ? "denied"
+            : approval?.approved === undefined
+              ? "request"
+              : result === undefined
+                ? "running"
+                : "done"
+        }
+        command={args.command}
+        title={args.title}
+        subtitle={args.subtitle}
+        onAllowOnce={() => respondToApproval({ optionId: "once" })}
+        onAlwaysAllow={() => respondToApproval({ optionId: "always" })}
+        onDeny={() => respondToApproval({ optionId: "deny" })}
+      />
+    ),
+  },
+});
+```
+
+`approval.approved` is `undefined` until answered, so that is the only window in which `respondToApproval` is legal. Sending an `optionId` records which of the host's three options was chosen rather than a plain yes or no; see [Approval options](/docs/tools/tool-ui#approval-options) for how the host declares `"once"`, `"always"`, and `"deny"` as `allow-once`, `allow-always`, and `reject-once`.
+
+  </Step>
+  <Step>
+
+### Register the toolkit
+
+```tsx title="app/MyRuntimeProvider.tsx"
+import { AssistantRuntimeProvider, AuiConfig, Tools } from "@assistant-ui/react";
+import { toolkit } from "./toolkit";
+
+const config = AuiConfig({ tools: Tools({ toolkit }) });
+
+export function MyRuntimeProvider({ children }: { children: React.ReactNode }) {
+  return (
+    <AssistantRuntimeProvider runtime={runtime} config={config}>
+      {children}
+    </AssistantRuntimeProvider>
+  );
+}
+```
+
+Approval gates require a runtime that emits them; the AI SDK v7 runtime does for `toolApproval`-gated tools, and `LocalRuntime` does for gates your `ChatModelAdapter` emits.
+
+  </Step>
+</Steps>
+
+</RuntimeMode>
+
+<StandaloneMode>
+
+Standalone, the element is a controlled display: you own `state` and decide what each button does.
+
+<Steps>
+  <Step>
+
+### Hold the approval state
+
+```tsx title="app/approval.tsx"
+"use client";
+
+import { useState } from "react";
+import {
+  ApprovalCard,
+  type ApprovalState,
+} from "@/components/assistant-ui/elements/approval-card";
+
+export function Approval() {
+  const [state, setState] = useState<ApprovalState>("request");
+
+  return (
+    <ApprovalCard
+      state={state}
+      command="pnpm vitest run --changed"
+      title="Run command"
+      subtitle="The agent wants to run a shell command"
+      onAllowOnce={() => setState("running")}
+      onAlwaysAllow={() => setState("running")}
+      onDeny={() => setState("denied")}
+    />
+  );
+}
+```
+
+  </Step>
+  <Step>
+
+### Resolve the run
+
+```tsx
+async function run() {
+  const exitCode = await runCommand();
+  setState("done");
+}
+```
+
+There is no prop for the exit code; `state: "done"` always reads as "Finished with exit 0" in this version.
+
+  </Step>
+</Steps>
+
+</StandaloneMode>
+
+## Anatomy
+
+```tsx
+<div data-slot="approval-card">
+  <div>
+    <span>{/* terminal icon */}</span>
+    <p>{/* title */}</p>
+    <p>{/* subtitle */}</p>
+  </div>
+  <div>{/* command, monospace */}</div>
+  <div>
+    {/* state === "request": Deny, Always allow, Allow once */}
+    {/* otherwise: a status line keyed on state, so it animates in */}
+  </div>
+</div>
+```
+
+The footer is one of two things: the three-button strip while `state` is `"request"`, or a single status line once it is not. The status line's icon and text are fixed per state (a spinner for `"running"`, an X for `"denied"`, a check for `"done"`) rather than driven by further props. The card holds no state of its own and runs no timers; every transition comes from the `state` you pass in and the callbacks fire only from the request row.
+
+## Examples
+
+### Restyle the card
+
+Both lanes take `className` on the root. The command block uses the `field` surface and the primary button uses `inkButton`, both from `surfaces.tsx`.
+
+```tsx
+<ApprovalCard className="max-w-md" /* ... */ />
+```
+
+### Denying with a reason
+
+<RuntimeMode>
+
+`respondToApproval` accepts a `reason` alongside the decision, which the host can show back to the model:
+
+```tsx
+onDeny={() =>
+  respondToApproval({ optionId: "deny", reason: "not in this session" })
+}
+```
+
+</RuntimeMode>
+
+<StandaloneMode>
+
+The element has no reason field; collect one in your own UI before calling `onDeny`, or route the reason through your app state instead.
+
+```tsx
+onDeny={() => {
+  logDenyReason("not in this session");
+  setState("denied");
+}}
+```
+
+</StandaloneMode>
+
+## API reference
+
+<RuntimeMode>
+
+### Render props
+
+| Source | Type | Description |
+|--------|------|-------------|
+| `args.command` / `args.title` / `args.subtitle` | `string` | The command and its framing copy. |
+| `approval?.approved` | `boolean \| undefined` | `undefined` maps to `"request"`, `false` to `"denied"`, `true` to `"running"` or `"done"` depending on `result`. |
+| `result` | `unknown` | Presence (once `approved` is `true`) maps to `"done"`. |
+| `respondToApproval(response)` | `(response: ToolApprovalResponse) => void` | Sends the decision. Legal only while `approval.approved` is `undefined`. |
+
+</RuntimeMode>
+
+<StandaloneMode>
+
+### ApprovalCard
+
+| Prop | Type | Default | Description |
+|------|------|---------|-------------|
+| `state` | `"request" \| "running" \| "done" \| "denied"` | required | Which footer renders. |
+| `command` | `string` | required | Shown in the monospace command block. |
+| `title` | `string` | required | Header title. |
+| `subtitle` | `string` | required | Header subtitle. |
+| `onAllowOnce` | `() => void` | | Fires from the request row's primary button. |
+| `onAlwaysAllow` | `() => void` | | Fires from the request row's secondary button. |
+| `onDeny` | `() => void` | | Fires from the request row's Deny button. |
+| `className` | `string` | | Merged onto the root. |
+
+All other `div` props are forwarded to the root.
+
+</StandaloneMode>

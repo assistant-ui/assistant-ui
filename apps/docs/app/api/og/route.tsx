@@ -106,8 +106,7 @@ export async function GET(request: NextRequest) {
           letterSpacing: "-0.01em",
         }}
       >
-        <span>An open-source React toolkit for</span>
-        <span>production AI chat experiences</span>
+        <span>The frontend library for AI agents.</span>
       </div>
     </div>
   );

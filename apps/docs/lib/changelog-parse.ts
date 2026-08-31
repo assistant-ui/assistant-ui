@@ -57,11 +57,11 @@ export function parseRelease(markdown: string): ParsedRelease {
   let current: Chunk | null = null;
 
   for (const rawLine of lines) {
-    const isTopBullet = /^-\s+/.test(rawLine);
+    const isTopBullet = /^[-*]\s+/.test(rawLine);
     if (isTopBullet) {
       if (current) chunks.push(current);
       current = {
-        firstLine: rawLine.replace(/^-\s+/, ""),
+        firstLine: rawLine.replace(/^[-*]\s+/, ""),
         bodyLines: [],
       };
     } else if (current) {

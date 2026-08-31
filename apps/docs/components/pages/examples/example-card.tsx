@@ -17,7 +17,7 @@ export function ExampleCard({
       className="group flex flex-col"
       {...(external && { target: "_blank", rel: "noopener noreferrer" })}
     >
-      <div className="border-foreground/10 bg-foreground/[0.025] dark:bg-foreground/[0.04] relative aspect-[16/10] overflow-hidden rounded-[20px] border">
+      <div className="border-foreground/10 group-hover:border-foreground/25 bg-foreground/[0.025] dark:bg-foreground/[0.04] relative aspect-[16/10] overflow-hidden border transition-colors">
         <Image
           src={image}
           alt={title}
@@ -27,18 +27,16 @@ export function ExampleCard({
         />
       </div>
       <div className="mt-4 flex items-baseline gap-2.5">
-        <span className="text-foreground/30 font-mono text-[11px] tracking-tight tabular-nums">
+        <span className="text-muted-foreground/60 font-mono text-[11px] tracking-wide tabular-nums">
           {String(index).padStart(2, "0")}
         </span>
-        <h3 className="text-[13.5px] font-medium group-hover:underline group-hover:underline-offset-4">
+        <h3 className="text-sm font-medium">
           {title}
+          <ArrowUpRight className="ms-1.5 mb-0.5 inline size-3.5 opacity-0 transition-opacity group-hover:opacity-50" />
         </h3>
-        {external && (
-          <ArrowUpRight className="text-foreground/35 size-3.5 shrink-0" />
-        )}
       </div>
       {description && (
-        <p className="text-foreground/50 mt-1 text-[13px] leading-relaxed">
+        <p className="text-muted-foreground mt-1 text-[13px] leading-relaxed">
           {description}
         </p>
       )}

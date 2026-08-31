@@ -8,8 +8,8 @@ import {
   ModelSelectorList,
   ModelSelectorItem,
   type ModelOption,
-} from "@/components/assistant-ui/model-selector";
-import { Badge } from "@/components/assistant-ui/badge";
+} from "@/components/assistant-ui/elements/model-selector";
+import { Badge } from "@/components/ui/badge";
 import { cn } from "@/lib/utils";
 import { SampleFrame } from "@/components/pages/docs/samples/sample-frame";
 

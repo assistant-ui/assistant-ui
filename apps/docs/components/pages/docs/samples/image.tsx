@@ -5,7 +5,7 @@ import {
   ImagePreview,
   ImageFilename,
   ImageZoom,
-} from "@/components/assistant-ui/image";
+} from "@/components/assistant-ui/elements/image";
 import { SampleFrame } from "@/components/pages/docs/samples/sample-frame";
 
 const PLACEHOLDER_IMAGE =
