@@ -13,6 +13,8 @@ on:
       - "scripts/check-api-surface.mjs"
       - "scripts/check-built-declarations.mjs"
       - "scripts/check-built-declarations.test.mjs"
+      - "scripts/check-workspace-ranges.mjs"
+      - "scripts/check-workspace-ranges.test.mjs"
       - "scripts/lib/script-options.mjs"
       - "scripts/sync-templates.sh"
       - "turbo.json"
@@ -31,6 +33,8 @@ on:
       - "scripts/check-api-surface.mjs"
       - "scripts/check-built-declarations.mjs"
       - "scripts/check-built-declarations.test.mjs"
+      - "scripts/check-workspace-ranges.mjs"
+      - "scripts/check-workspace-ranges.test.mjs"
       - "scripts/lib/script-options.mjs"
       - "scripts/sync-templates.sh"
       - "turbo.json"
@@ -94,6 +98,28 @@ jobs:
 
       - name: Verify templates match packages/ui source
         run: bash scripts/sync-templates.sh
+
+  workspace-ranges:
+    name: Workspace Ranges
+    runs-on: blacksmith-4vcpu-ubuntu-2404
+    timeout-minutes: 2
+    steps:
+      - name: Checkout code repository
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # ratchet:actions/checkout@v7.0.1
+        with:
+          fetch-depth: 1
+
+      - name: Setup pnpm and node.js
+        uses: pnpm/setup@703c52620218391530e48b9e8870d5c0082e1b9b # ratchet:pnpm/setup@v2.1.0
+        with:
+          runtime: node@24
+          install: false
+
+      - name: Test the workspace range checker
+        run: node --test scripts/check-workspace-ranges.test.mjs
+
+      - name: Verify published packages publish caret workspace ranges
+        run: node scripts/check-workspace-ranges.mjs
 
   build:
     name: Build Changed Packages
