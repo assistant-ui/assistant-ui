@@ -1803,30 +1803,46 @@ describe("McpServerResource oauth storage swap", () => {
       );
     });
 
-    createTapRoot(function SwapRoot() {
+    const root = createTapRoot(function SwapRoot() {
       return useResource(Host());
     });
 
-    await waitFor(() => mocks.transports.length === 1);
-    const authProviderA =
-      mocks.StreamableHTTPClientTransport.mock.calls[0]?.[1]?.authProvider;
-    await authProviderA.tokens();
-    expect(storageA.loadAuthState).toHaveBeenCalledWith("docs");
-    expect(storageB.loadAuthState).not.toHaveBeenCalled();
+    try {
+      await waitFor(() => mocks.transports.length === 1);
+      const authProviderA =
+        mocks.StreamableHTTPClientTransport.mock.calls[0]?.[1]?.authProvider;
+      await authProviderA.tokens();
+      expect(storageA.loadAuthState).toHaveBeenCalledWith("docs");
+      expect(storageB.loadAuthState).not.toHaveBeenCalled();
 
-    setStorage(storageB);
-    await waitForResourceUpdate(() => mocks.transports.length === 2);
-    await waitForResourceUpdate(
-      () => vi.mocked(mocks.transports[0]!.close).mock.calls.length > 0,
-    );
+      setStorage(storageB);
+      await waitForResourceUpdate(() => mocks.transports.length === 2);
+      await waitForResourceUpdate(
+        () => vi.mocked(mocks.transports[0]!.close).mock.calls.length > 0,
+      );
 
-    const authProviderB =
-      mocks.StreamableHTTPClientTransport.mock.calls[1]?.[1]?.authProvider;
-    const callsBefore = vi.mocked(storageA.loadAuthState).mock.calls.length;
-    await authProviderB.tokens();
-    expect(storageB.loadAuthState).toHaveBeenCalledWith("docs");
-    expect(vi.mocked(storageA.loadAuthState).mock.calls.length).toBe(
-      callsBefore,
-    );
+      const authProviderB =
+        mocks.StreamableHTTPClientTransport.mock.calls[1]?.[1]?.authProvider;
+      const callsBefore = vi.mocked(storageA.loadAuthState).mock.calls.length;
+      await authProviderB.tokens();
+      expect(storageB.loadAuthState).toHaveBeenCalledWith("docs");
+      expect(vi.mocked(storageA.loadAuthState).mock.calls.length).toBe(
+        callsBefore,
+      );
+
+      await authProviderB.saveTokens({
+        access_token: "fresh",
+        token_type: "bearer",
+      });
+      expect(storageB.saveAuthState).toHaveBeenCalledWith(
+        "docs",
+        expect.objectContaining({
+          tokens: expect.objectContaining({ access_token: "fresh" }),
+        }),
+      );
+      expect(storageA.saveAuthState).not.toHaveBeenCalled();
+    } finally {
+      root.unmount();
+    }
   });
 });
