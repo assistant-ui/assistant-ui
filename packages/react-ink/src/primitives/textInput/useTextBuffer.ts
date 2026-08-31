@@ -169,6 +169,18 @@ const clearPreferredColumn = (
   preferredColumn: undefined,
 });
 
+const clearPreferredColumnAtGraphemeBoundary = (
+  state: TextBufferState,
+  cursorOffset: number,
+  direction: "backward" | "forward",
+) =>
+  clearPreferredColumn(
+    state,
+    direction === "backward"
+      ? snapToGraphemeBoundary(state.text, cursorOffset)
+      : snapToNextGraphemeBoundary(state.text, cursorOffset),
+  );
+
 export const textBufferReducer = (
   state: TextBufferState,
   action: TextBufferAction,
@@ -181,13 +193,10 @@ export const textBufferReducer = (
         state.text.slice(0, state.cursorOffset) +
         action.text +
         state.text.slice(state.cursorOffset);
-      const nextCursorOffset = snapToNextGraphemeBoundary(
-        nextText,
-        state.cursorOffset + action.text.length,
-      );
-      return clearPreferredColumn(
+      return clearPreferredColumnAtGraphemeBoundary(
         { ...state, text: nextText },
-        nextCursorOffset,
+        state.cursorOffset + action.text.length,
+        "forward",
       );
     }
 
@@ -198,7 +207,11 @@ export const textBufferReducer = (
       const nextText =
         state.text.slice(0, previousOffset) +
         state.text.slice(state.cursorOffset);
-      return clearPreferredColumn({ ...state, text: nextText }, previousOffset);
+      return clearPreferredColumnAtGraphemeBoundary(
+        { ...state, text: nextText },
+        previousOffset,
+        "backward",
+      );
     }
 
     case "delete-forward": {
@@ -207,9 +220,10 @@ export const textBufferReducer = (
       const nextOffset = stepGraphemeRight(state.text, state.cursorOffset);
       const nextText =
         state.text.slice(0, state.cursorOffset) + state.text.slice(nextOffset);
-      return clearPreferredColumn(
+      return clearPreferredColumnAtGraphemeBoundary(
         { ...state, text: nextText },
         state.cursorOffset,
+        "forward",
       );
     }
 
@@ -281,9 +295,10 @@ export const textBufferReducer = (
       const nextText =
         state.text.slice(0, nextCursorOffset) +
         state.text.slice(state.cursorOffset);
-      return clearPreferredColumn(
+      return clearPreferredColumnAtGraphemeBoundary(
         { ...state, text: nextText },
         nextCursorOffset,
+        "backward",
       );
     }
 
@@ -293,9 +308,10 @@ export const textBufferReducer = (
 
       const nextText =
         state.text.slice(0, state.cursorOffset) + state.text.slice(nextOffset);
-      return clearPreferredColumn(
+      return clearPreferredColumnAtGraphemeBoundary(
         { ...state, text: nextText },
         state.cursorOffset,
+        "forward",
       );
     }
 
@@ -325,9 +341,10 @@ export const textBufferReducer = (
 
       const nextText =
         state.text.slice(0, state.cursorOffset) + state.text.slice(rangeEnd);
-      return clearPreferredColumn(
+      return clearPreferredColumnAtGraphemeBoundary(
         { ...state, text: nextText },
         state.cursorOffset,
+        "forward",
       );
     }
 

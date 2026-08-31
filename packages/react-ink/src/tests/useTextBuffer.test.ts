@@ -170,6 +170,83 @@ describe("textBufferReducer", () => {
     expect(killed.cursorOffset).toBe(3);
   });
 
+  it.each([
+    {
+      name: "deleting backward",
+      text: "a\rx\nb",
+      cursorOffset: 3,
+      action: { type: "delete-backward" },
+      expectedText: "a\r\nb",
+      expectedCursorOffset: 1,
+      expectedInsertedText: "ax\r\nb",
+    },
+    {
+      name: "deleting forward",
+      text: "a\rx\nb",
+      cursorOffset: 2,
+      action: { type: "delete-forward" },
+      expectedText: "a\r\nb",
+      expectedCursorOffset: 3,
+      expectedInsertedText: "a\r\nxb",
+    },
+    {
+      name: "killing a word backward",
+      text: "a\rword\nb",
+      cursorOffset: 6,
+      action: { type: "kill-word-backward" },
+      expectedText: "a\r\nb",
+      expectedCursorOffset: 1,
+      expectedInsertedText: "ax\r\nb",
+    },
+    {
+      name: "killing a word forward",
+      text: "a\rword\nb",
+      cursorOffset: 2,
+      action: { type: "kill-word-forward" },
+      expectedText: "a\r\nb",
+      expectedCursorOffset: 3,
+      expectedInsertedText: "a\r\nxb",
+    },
+    {
+      name: "killing to the line end",
+      text: "a\rb\nc",
+      cursorOffset: 2,
+      action: { type: "kill-end", multiLine: true },
+      expectedText: "a\r\nc",
+      expectedCursorOffset: 3,
+      expectedInsertedText: "a\r\nxc",
+    },
+  ] satisfies Array<{
+    name: string;
+    text: string;
+    cursorOffset: number;
+    action: TextBufferAction;
+    expectedText: string;
+    expectedCursorOffset: number;
+    expectedInsertedText: string;
+  }>)(
+    "keeps the cursor outside a CRLF formed by $name",
+    ({
+      text,
+      cursorOffset,
+      action,
+      expectedText,
+      expectedCursorOffset,
+      expectedInsertedText,
+    }) => {
+      const state = reduce(
+        createTextBufferState(text),
+        { type: "set-cursor", cursorOffset },
+        action,
+      );
+      const inserted = reduce(state, { type: "insert", text: "x" });
+
+      expect(state.text).toBe(expectedText);
+      expect(state.cursorOffset).toBe(expectedCursorOffset);
+      expect(inserted.text).toBe(expectedInsertedText);
+    },
+  );
+
   it("kills to line boundaries in multi-line mode", () => {
     const killStart = reduce(
       createTextBufferState("one\ntwo\nthree"),
