@@ -4391,6 +4391,7 @@ type ThreadAssistantMessagePart = TextMessagePart | ReasoningMessagePart | ToolC
 declare const ThreadClient: Resource<ClientOutput<"thread">, [
   {
     runtime: ThreadRuntime;
+    __internal_runStartEmitRef?: RefObject<((threadId: string) => void) | null> | undefined;
   }
 ]>;
 
