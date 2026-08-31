@@ -92,6 +92,31 @@ describe("textBufferReducer", () => {
     expect(inserted.text).toBe("a\n😀Xb");
   });
 
+  it("preserves a grapheme column across a shorter line", () => {
+    const start = reduce(createTextBufferState("😀😀😀\nab\n😀😀😀"), {
+      type: "set-cursor",
+      cursorOffset: 16,
+    });
+    const middle = reduce(start, { type: "move-up" });
+    const top = reduce(middle, { type: "move-up" });
+    const roundTrip = reduce(top, { type: "move-down" }, { type: "move-down" });
+
+    expect(middle.cursorOffset).toBe(9);
+    expect(top.cursorOffset).toBe(6);
+    expect(roundTrip.cursorOffset).toBe(16);
+  });
+
+  it("does not move inside a CRLF line break", () => {
+    const movedDown = reduce(
+      createTextBufferState("abc\nx\r\ny"),
+      { type: "set-cursor", cursorOffset: 3 },
+      { type: "move-down" },
+    );
+
+    expect(movedDown.cursorOffset).toBe(5);
+    expect(getGraphemeAt(movedDown.text, movedDown.cursorOffset)).toBe("\r\n");
+  });
+
   it("moves by words and deletes the previous word", () => {
     const movedLeft = reduce(createTextBufferState("alpha beta gamma"), {
       type: "move-word-left",

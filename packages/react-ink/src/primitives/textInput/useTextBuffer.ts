@@ -113,9 +113,9 @@ const getOffsetAtGraphemeColumn = (
   let offset = lineStart;
   let currentColumn = 0;
   for (const { segment } of graphemeSegmenter.segment(
-    text.slice(lineStart, lineEnd),
+    text.slice(lineStart, lineEnd + 1),
   )) {
-    if (currentColumn >= column) break;
+    if (currentColumn >= column || offset + segment.length > lineEnd) break;
     offset += segment.length;
     currentColumn++;
   }
