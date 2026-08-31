@@ -215,7 +215,7 @@ export const TextInput = ({
   const isShowingPlaceholder = !hasText && placeholder.length > 0;
   const before = hasText ? text.slice(0, cursorOffset) : "";
   const charAtCursor = hasText ? getGraphemeAt(text, cursorOffset) : "";
-  const isOnNewline = charAtCursor === "\n";
+  const isOnNewline = charAtCursor === "\n" || charAtCursor === "\r\n";
   // render a space when on a newline so the inverse cursor cell stays visible
   const atCursor = charAtCursor === "" || isOnNewline ? " " : charAtCursor;
   const after = hasText

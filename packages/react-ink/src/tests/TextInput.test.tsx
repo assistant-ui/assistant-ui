@@ -177,6 +177,19 @@ describe("TextInput", () => {
     expect(onChange).toHaveBeenLastCalledWith("foo\nbar");
   });
 
+  it("keeps CRLF intact when editing at the end of a line", async () => {
+    const onChange = vi.fn();
+    render(<Controlled initial={"a\r\nb"} multiLine onChange={onChange} />);
+    await flush();
+
+    inputHandler?.("", { home: true });
+    inputHandler?.("", { upArrow: true });
+    inputHandler?.("", { end: true });
+    inputHandler?.("x", {});
+
+    expect(onChange).toHaveBeenLastCalledWith("ax\r\nb");
+  });
+
   it("shows the placeholder only while empty", async () => {
     const onChange = vi.fn();
     const { rerender, lastFrame } = render(

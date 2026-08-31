@@ -81,7 +81,15 @@ const getLineStart = (text: string, cursorOffset: number) => {
 
 const getLineEnd = (text: string, cursorOffset: number) => {
   const lineBreakIndex = text.indexOf("\n", cursorOffset);
-  return lineBreakIndex === -1 ? text.length : lineBreakIndex;
+  if (lineBreakIndex === -1) return text.length;
+  return lineBreakIndex > 0 && text[lineBreakIndex - 1] === "\r"
+    ? lineBreakIndex - 1
+    : lineBreakIndex;
+};
+
+const getLineBreakEnd = (text: string, lineEnd: number) => {
+  if (text.startsWith("\r\n", lineEnd)) return lineEnd + 2;
+  return lineEnd < text.length ? lineEnd + 1 : lineEnd;
 };
 
 const getLineRange = (text: string, cursorOffset: number) => {
@@ -123,7 +131,9 @@ const moveVertical = (
   }
 
   const adjacentCursorBase =
-    direction === -1 ? adjacentBreakIndex : adjacentBreakIndex + 1;
+    direction === -1
+      ? adjacentBreakIndex
+      : getLineBreakEnd(text, adjacentBreakIndex);
   const adjacentRange = getLineRange(text, adjacentCursorBase);
   const nextCursorOffset = clamp(
     adjacentRange.start + currentColumn,
@@ -293,7 +303,7 @@ export const textBufferReducer = (
         action.multiLine &&
         lineEnd === state.cursorOffset &&
         lineEnd < state.text.length
-          ? lineEnd + 1
+          ? getLineBreakEnd(state.text, lineEnd)
           : lineEnd;
       if (rangeEnd === state.cursorOffset) return state;
 

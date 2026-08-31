@@ -68,6 +68,30 @@ describe("textBufferReducer", () => {
     expect(end.cursorOffset).toBe(7);
   });
 
+  it("keeps CRLF intact when inserting at the end of a line", () => {
+    const state = reduce(
+      createTextBufferState("a\r\nb"),
+      { type: "set-cursor", cursorOffset: 0 },
+      { type: "move-end", multiLine: true },
+      { type: "insert", text: "x" },
+    );
+
+    expect(state.text).toBe("ax\r\nb");
+    expect(state.cursorOffset).toBe(2);
+  });
+
+  it("moves vertically across CRLF line endings", () => {
+    const movedDown = reduce(
+      createTextBufferState("ab\r\ncd"),
+      { type: "set-cursor", cursorOffset: 1 },
+      { type: "move-down" },
+    );
+    const movedUp = reduce(movedDown, { type: "move-up" });
+
+    expect(movedDown.cursorOffset).toBe(5);
+    expect(movedUp.cursorOffset).toBe(1);
+  });
+
   it("preserves preferred column when moving vertically", () => {
     const movedUp = reduce(
       createTextBufferState("abcde\nxy\n123456"),
@@ -107,6 +131,17 @@ describe("textBufferReducer", () => {
     );
 
     expect(state.text).toBe("onetwo\nthree");
+    expect(state.cursorOffset).toBe(3);
+  });
+
+  it("removes the entire CRLF when killing forward at end-of-line", () => {
+    const state = reduce(
+      createTextBufferState("one\r\ntwo"),
+      { type: "set-cursor", cursorOffset: 3 },
+      { type: "kill-end", multiLine: true },
+    );
+
+    expect(state.text).toBe("onetwo");
     expect(state.cursorOffset).toBe(3);
   });
 
