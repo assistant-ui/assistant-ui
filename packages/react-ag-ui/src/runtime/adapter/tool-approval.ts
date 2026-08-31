@@ -1,3 +1,4 @@
+import { iterateToolCallParts, mapToolCallPartsDeep } from "../tool-call-tree";
 import { buildResumeArray } from "@ag-ui/client";
 import type {
   RespondToToolApprovalOptions,
@@ -228,12 +229,9 @@ export const withToolApprovalDecision = (
   content: readonly ThreadAssistantMessagePart[],
   { approvalId, approved, reason }: RespondToToolApprovalOptions,
 ): readonly ThreadAssistantMessagePart[] => {
-  let changed = false;
-  const next = content.map((part) => {
-    if (part.type !== "tool-call") return part;
+  const { content: next, changed } = mapToolCallPartsDeep(content, (part) => {
     const approval = part.approval;
     if (approval?.id !== approvalId || !isPending(approval)) return part;
-    changed = true;
     return {
       ...part,
       approval: {
@@ -263,8 +261,7 @@ export const buildToolApprovalResume = (
   // instead of recording a response, and `constructor` or `toString` would
   // report themselves as answered while undecided.
   const responses = new Map<string, { status: "resolved"; payload: unknown }>();
-  for (const part of content) {
-    if (part.type !== "tool-call") continue;
+  for (const part of iterateToolCallParts(content)) {
     const approval = part.approval;
     if (!approval || approval.approved === undefined) continue;
     if (!open.has(approval.id)) continue;

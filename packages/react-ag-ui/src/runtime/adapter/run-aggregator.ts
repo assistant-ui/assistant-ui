@@ -1121,10 +1121,10 @@ export class RunAggregator {
     // A run that ended incomplete can no longer be resumed, so a gate left over
     // from an earlier interrupt outcome is unanswerable and must not stay
     // projected. The interrupts themselves are kept on the message, since the
-    // bespoke hooks read that payload. Bound ids are exactly the calls that
-    // render at root scope, which is also exactly what getPendingToolCalls can
-    // reach: a call nested inside a subagent message is unanswerable, so the
-    // projector collapses the batch rather than showing half of it.
+    // bespoke hooks read that payload. Bound ids cover every call the run
+    // produced, root or nested: the approval seams walk
+    // ToolCallMessagePart.messages, so a gate naming a subagent-scoped call is
+    // answerable and projects onto the nested part.
     const partsByScope = new Map<
       string,
       { index: number; part: PartOrderEntry }[]
@@ -1151,13 +1151,7 @@ export class RunAggregator {
       approvals: projectAgUiToolApprovals(
         this.status?.type === "requires-action" ? this.interrupts : undefined,
         new Set(
-          Array.from(this.toolCalls.values())
-            .filter(
-              (entry) =>
-                entry.subagentRunId === undefined ||
-                !reachable.has(entry.subagentRunId),
-            )
-            .map((entry) => entry.toolCallId),
+          Array.from(this.toolCalls.values()).map((entry) => entry.toolCallId),
         ),
       ),
       root,

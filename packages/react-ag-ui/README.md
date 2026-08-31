@@ -41,9 +41,10 @@ A subagent that names no reachable spawning call (`parentToolCallId` is optional
 
 A subagent's frontend-executed tool calls work the same way the root agent's do: a call nested on `ToolCallMessagePart.messages` is reachable by `getPendingToolCalls()`, resolves through `addToolResult`, and its result rides the resume as a `tool` record on the spawning assistant record, the same flattened wire shape these calls had before subagent attribution.
 
-Two limitations are worth knowing before you rely on this:
+Approval gates cover nested calls too: a gate that names a subagent-scoped call projects onto the nested part, the frontend tool stays unexecuted while the gate is open, decisions recorded through `respondToToolApproval` land on the nested part, and an undecided gate's result is never exported to the backend.
 
-- **Nested tool calls are never approval-gated.** A gate that names a subagent-scoped call collapses the whole approval batch (the projector only binds root-scope calls), so no nested part ever carries `approval`: a registered frontend tool for a nested call executes ungated and its result is exported to the backend.
+One limitation is worth knowing before you rely on this:
+
 - **Nested human-in-the-loop is not wired up.** A `SUBAGENT_FINISHED` with a `suspended` outcome marks the nested message `requires-action`, and its `interruptIds` are preserved on the message metadata, but there is no resume path that answers them yet.
 
 ## See also

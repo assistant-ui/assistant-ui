@@ -105,11 +105,11 @@ describe("RunAggregator tool approval projection", () => {
    * `boundToolCallIds` names the calls that render at root scope. A gate on a
    * call nested inside a subagent message is therefore unbound, and
    * `projectAgUiToolApprovals` collapses the whole batch rather than
-   * projecting the root gate alone: resuming requires a decision for every
-   * interrupt in the batch, and no UI can produce one for the nested gate. The
-   * interrupts stay on the message metadata for the bespoke hooks.
+   * projects onto the nested part: the approval seams walk
+   * ToolCallMessagePart.messages, so a gate naming a subagent-scoped call is
+   * answerable the same way a root gate is.
    */
-  it("collapses the whole batch to unbound, rather than showing an unresolvable root approval, when a subagent-scoped tool call shares the interrupt batch", () => {
+  it("projects a batch that names a subagent-scoped tool call onto both the root and nested parts", () => {
     const emitted: ChatModelRunResult[] = [];
     const aggregator = new RunAggregator({
       showThinking: false,
@@ -181,9 +181,15 @@ describe("RunAggregator tool approval projection", () => {
       type: "requires-action",
       reason: "interrupt",
     });
-    // Neither gate renders — the batch is bespoke as a whole, not just the
-    // subagent's unrenderable half of it.
-    expect(approvalOf(result)).toBeUndefined();
+    const content = result.content ?? [];
+    const rootPart = content.find(
+      (p: any) => p.type === "tool-call" && p.toolCallId === "tc-root",
+    ) as any;
+    expect(rootPart?.approval).toEqual({ id: "int-root" });
+    const nestedPart = rootPart?.messages?.[0]?.content.find(
+      (p: any) => p.type === "tool-call" && p.toolCallId === "tc-sub",
+    );
+    expect(nestedPart?.approval).toEqual({ id: "int-sub" });
     // The interrupts survive on the message metadata so the app's bespoke
     // interrupt hooks (useAgUiSubmitInterruptResponses / steerAway) can still
     // resolve the batch.
