@@ -1,5 +1,9 @@
 import { describe, it, expect, vi } from "vitest";
-import { createCore, makeAdapter } from "./remote-thread-list-test-helpers";
+import {
+  createCore,
+  deferred,
+  makeAdapter,
+} from "./remote-thread-list-test-helpers";
 
 const archivedThread = (id: string) => ({
   status: "archived" as const,
@@ -109,5 +113,31 @@ describe("RemoteThreadListThreadListRuntimeCore.switchToThread unarchive option"
 
     expect(adapter.unarchive).not.toHaveBeenCalled();
     expect(core.getItemById(THREAD_ID)?.status).toBe("regular");
+  });
+
+  it("does not leave mainThreadId dangling when delete races unarchive", async () => {
+    const THREAD_ID = "archived-delete-race";
+    const unarchive = deferred<void>();
+    const adapter = makeAdapter({
+      list: vi.fn(async () => ({ threads: [archivedThread(THREAD_ID)] })),
+      unarchive: vi.fn(() => unarchive.promise),
+    });
+
+    const core = createCore(adapter);
+    await core.getLoadThreadsPromise();
+
+    const switchPromise = core.switchToThread(THREAD_ID);
+    await vi.waitFor(() =>
+      expect(adapter.unarchive).toHaveBeenCalledWith(THREAD_ID),
+    );
+
+    const deletePromise = core.delete(THREAD_ID);
+    await vi.waitFor(() => expect(core.getItemById(THREAD_ID)).toBeUndefined());
+
+    unarchive.resolve();
+    await switchPromise;
+    await deletePromise;
+
+    expect(core.getItemById(core.mainThreadId)).toBeDefined();
   });
 });
