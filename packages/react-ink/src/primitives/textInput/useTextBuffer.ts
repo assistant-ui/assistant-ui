@@ -82,7 +82,7 @@ const getLineStart = (text: string, cursorOffset: number) => {
 const getLineEnd = (text: string, cursorOffset: number) => {
   const lineBreakIndex = text.indexOf("\n", cursorOffset);
   if (lineBreakIndex === -1) return text.length;
-  return lineBreakIndex > 0 && text[lineBreakIndex - 1] === "\r"
+  return lineBreakIndex > cursorOffset && text[lineBreakIndex - 1] === "\r"
     ? lineBreakIndex - 1
     : lineBreakIndex;
 };

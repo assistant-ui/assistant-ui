@@ -145,6 +145,18 @@ describe("textBufferReducer", () => {
     expect(state.cursorOffset).toBe(3);
   });
 
+  it("does not move backward when killing between CRLF characters", () => {
+    const state = reduce(
+      createTextBufferState("a\nb"),
+      { type: "set-cursor", cursorOffset: 1 },
+      { type: "insert", text: "\r" },
+      { type: "kill-end", multiLine: true },
+    );
+
+    expect(state.text).toBe("a\rb");
+    expect(state.cursorOffset).toBe(2);
+  });
+
   it("kills to line boundaries in multi-line mode", () => {
     const killStart = reduce(
       createTextBufferState("one\ntwo\nthree"),
