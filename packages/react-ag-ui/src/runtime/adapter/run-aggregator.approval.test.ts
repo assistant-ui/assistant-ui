@@ -102,29 +102,12 @@ describe("RunAggregator tool approval projection", () => {
   });
 
   /**
-   * `boundToolCallIds` decides whether the whole interrupt batch is
-   * projectable at all: a gate naming a tool call the message never renders
-   * makes the batch bespoke for everyone in it, including the root gate's
-   * sibling. A subagent-scoped tool call has no interactive UI anywhere
-   * (buildParts always passes an empty approvals map for subagent scope), so
-   * it must not count as "rendered" when the root scope decides whether its
-   * batch is bound.
-   *
-   * Before this fix, `boundToolCallIds` was built from every tool call
-   * (`this.toolCalls.keys()`), so the subagent's own tool call counted as
-   * "rendered" and the batch was wrongly treated as fully bound: the root
-   * gate projected an approval that looked actionable, but
-   * `buildToolApprovalResume`/`AgUiThreadRuntimeCore.respondToToolApproval`
-   * still require a recorded decision for *every* interrupt in the batch —
-   * including the subagent's, which no UI can ever produce — so clicking it
-   * would record a local decision and then resume forever. Filtering
-   * `boundToolCallIds` to root-scoped tool calls only makes the subagent gate
-   * correctly unbound, which — per `projectAgUiToolApprovals`'s own
-   * "batch mixing a gate with anything unrenderable projects nothing" rule —
-   * collapses the *whole* batch to `EMPTY_APPROVALS`. That is the safe
-   * outcome: no button is shown that can never actually complete, and the
-   * interrupts stay on the message's metadata for the bespoke hooks to
-   * handle instead.
+   * `boundToolCallIds` names the calls that render at root scope. A gate on a
+   * call nested inside a subagent message is therefore unbound, and
+   * `projectAgUiToolApprovals` collapses the whole batch rather than
+   * projecting the root gate alone: resuming requires a decision for every
+   * interrupt in the batch, and no UI can produce one for the nested gate. The
+   * interrupts stay on the message metadata for the bespoke hooks.
    */
   it("collapses the whole batch to unbound, rather than showing an unresolvable root approval, when a subagent-scoped tool call shares the interrupt batch", () => {
     const emitted: ChatModelRunResult[] = [];

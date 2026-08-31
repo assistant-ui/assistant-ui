@@ -3053,6 +3053,38 @@ describe("RunAggregator", () => {
     ]);
   });
 
+  it("closes a subagent still streaming when the run itself is cancelled", () => {
+    const aggregator = createAggregator(true);
+
+    aggregator.handle({ type: "RUN_STARTED", runId: "r1" } as AgUiEvent);
+    aggregator.handle({
+      type: "TOOL_CALL_START",
+      toolCallId: "t-spawn",
+      toolCallName: "task",
+    } as AgUiEvent);
+    aggregator.handle({
+      type: "SUBAGENT_STARTED",
+      subagentRunId: "sub-1",
+      name: "worker",
+      parentToolCallId: "t-spawn",
+    } as AgUiEvent);
+    aggregator.handle({
+      type: "TEXT_MESSAGE_CONTENT",
+      delta: "half a thought",
+      subagentRunId: "sub-1",
+    } as AgUiEvent);
+    // No SUBAGENT_FINISHED: a subagent only ever reports its own terminal.
+    aggregator.handle({ type: "RUN_CANCELLED", runId: "r1" } as AgUiEvent);
+
+    const last = results.at(-1)!;
+    expect(last.status).toMatchObject({
+      type: "incomplete",
+      reason: "cancelled",
+    });
+    const nested = (last.content[0] as any).messages[0];
+    expect(nested.status).toEqual({ type: "incomplete", reason: "cancelled" });
+  });
+
   it("attributes TEXT_MESSAGE_CHUNK to its subagent, the same as TEXT_MESSAGE_CONTENT", () => {
     const aggregator = createAggregator(true);
 

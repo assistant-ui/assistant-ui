@@ -158,6 +158,15 @@ export class RunAggregator {
   private readonly anonymousReasoningKeys = new Set<string>();
   private readonly activeReasoningKeyByScope = new Map<string, string>();
   private readonly subagentRuns = new Map<string, SubagentRunState>();
+  // The nesting graph only moves when a run is announced or a tool call is
+  // created, which is rare next to emit(), so it is derived once per change
+  // rather than per streamed delta.
+  private nestingMemo:
+    | {
+        subagentsByParentToolCallId: Map<string, string[]>;
+        reachable: Set<string>;
+      }
+    | undefined;
   private reasoningPartCounter = 0;
   private readonly toolCalls = new Map<string, ToolCallState>();
   private readonly a2uiBuckets = new Map<string, A2uiState>();
@@ -209,9 +218,7 @@ export class RunAggregator {
         }
 
         this.interrupts = undefined;
-        const reachable = this.reachableSubagentRunIds(
-          this.subagentsByParentToolCallId(),
-        );
+        const { reachable } = this.nesting();
         // Classified by the scope a call actually renders in: one flattened to
         // root is reachable by getPendingToolCalls and therefore answerable,
         // while one nested inside a subagent message is not.
@@ -232,6 +239,7 @@ export class RunAggregator {
           : hasUnresolvedSubagentToolCalls
             ? { type: "incomplete", reason: "tool-calls" }
             : { type: "complete", reason: "unknown" };
+        this.closeOpenSubagentRuns(this.status);
         this.emit();
         break;
       }
@@ -241,11 +249,13 @@ export class RunAggregator {
           reason: "error",
           ...(event.message !== undefined ? { error: event.message } : {}),
         };
+        this.closeOpenSubagentRuns(this.status);
         this.emit();
         break;
       }
       case "RUN_CANCELLED": {
         this.status = { type: "incomplete", reason: "cancelled" };
+        this.closeOpenSubagentRuns(this.status);
         this.emit();
         break;
       }
@@ -494,6 +504,7 @@ export class RunAggregator {
           this.emit();
           break;
         }
+        this.nestingMemo = undefined;
         this.subagentRuns.set(event.subagentRunId, {
           subagentRunId: event.subagentRunId,
           name: event.name,
@@ -600,12 +611,14 @@ export class RunAggregator {
       if (!this.toolCalls.has(toolCallId)) {
         this.partOrder.push({ kind: "tool-call", toolCallId });
       }
+      this.nestingMemo = undefined;
       this.toolCalls.set(toolCallId, entry);
       this.a2uiToolCallIds.add(toolCallId);
     }
 
     for (const toolCallId of this.a2uiToolCallIds) {
       if (activeToolCallIds.has(toolCallId)) continue;
+      this.nestingMemo = undefined;
       this.toolCalls.delete(toolCallId);
       const partIndex = this.partOrder.findIndex(
         (part) => part.kind === "tool-call" && part.toolCallId === toolCallId,
@@ -645,6 +658,7 @@ export class RunAggregator {
     this.loggedDroppedOpaqueIds.clear();
     this.anonymousReasoningKeys.clear();
     this.activeReasoningKeyByScope.clear();
+    this.nestingMemo = undefined;
     this.subagentRuns.clear();
     this.reasoningPartCounter = 0;
     this.toolCalls.clear();
@@ -655,6 +669,14 @@ export class RunAggregator {
     this.textPartCounter = 0;
     this.activeTextMessageIdByScope.clear();
     this.reportedServerMessageId = undefined;
+  }
+
+  // A subagent only ever reports its own terminal, so a run that ends while
+  // one is still streaming would leave that nested message spinning forever.
+  private closeOpenSubagentRuns(status: MessageStatus): void {
+    for (const run of this.subagentRuns.values()) {
+      if (run.status.type === "running") run.status = status;
+    }
   }
 
   private scopeOf(event: { subagentRunId?: string }): string {
@@ -767,6 +789,7 @@ export class RunAggregator {
     if (scope !== ROOT_SCOPE) {
       state.subagentRunId = scope;
     }
+    this.nestingMemo = undefined;
     this.toolCalls.set(id, state);
   }
 
@@ -837,6 +860,7 @@ export class RunAggregator {
         snapshotResultApplied: false,
         ...(scope !== ROOT_SCOPE ? { subagentRunId: scope } : {}),
       };
+      this.nestingMemo = undefined;
       this.toolCalls.set(id, entry);
     }
     if (
@@ -870,6 +894,20 @@ export class RunAggregator {
       entry.toolMessageId = toolMessageId;
     }
     this.lastResolvedToolCallIdByScope.set(scope, id);
+  }
+
+  private nesting(): {
+    subagentsByParentToolCallId: Map<string, string[]>;
+    reachable: Set<string>;
+  } {
+    if (!this.nestingMemo) {
+      const subagentsByParentToolCallId = this.subagentsByParentToolCallId();
+      this.nestingMemo = {
+        subagentsByParentToolCallId,
+        reachable: this.reachableSubagentRunIds(subagentsByParentToolCallId),
+      };
+    }
+    return this.nestingMemo;
   }
 
   private subagentsByParentToolCallId(): Map<string, string[]> {
@@ -1078,7 +1116,7 @@ export class RunAggregator {
   }
 
   private emit(): void {
-    const subagentsByParentToolCallId = this.subagentsByParentToolCallId();
+    const { subagentsByParentToolCallId, reachable } = this.nesting();
     const root = {
       opaqueCandidates: Array.from(
         this.hiddenSignatures,
@@ -1090,7 +1128,6 @@ export class RunAggregator {
       ) as (AgUiOpaqueReasoning & { anchor: number })[],
       lastMaterializedIndex: -1,
     };
-    const reachable = this.reachableSubagentRunIds(subagentsByParentToolCallId);
     // A run that ended incomplete can no longer be resumed, so a gate left over
     // from an earlier interrupt outcome is unanswerable and must not stay
     // projected. The interrupts themselves are kept on the message, since the
