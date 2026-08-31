@@ -2440,12 +2440,19 @@ test("the built dist serves every packaged file at the docs' URL convention", as
   } = await import("node:fs/promises");
   const { join } = await import("node:path");
 
-  // Item names may contain slashes, so the walk is recursive and files/ is
-  // excluded from the item scan.
+  // Item names may contain slashes, so the walk is recursive. files/ holds the
+  // packaged bytes themselves, base/ is walked as its own root, and vue/ is a
+  // staged flavor the docs' packaged-file URLs do not serve.
   const collectItemJsons = async (dir, out) => {
     for (const entry of await readdir(dir, { withFileTypes: true })) {
       if (entry.isDirectory()) {
-        if (entry.name === "files" || entry.name === "base") continue;
+        if (
+          entry.name === "files" ||
+          entry.name === "base" ||
+          entry.name === "vue"
+        ) {
+          continue;
+        }
         await collectItemJsons(join(dir, entry.name), out);
       } else if (entry.name.endsWith(".json")) {
         out.push(join(dir, entry.name));
