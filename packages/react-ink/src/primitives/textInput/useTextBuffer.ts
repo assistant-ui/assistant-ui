@@ -92,6 +92,9 @@ const getLineBreakEnd = (text: string, lineEnd: number) => {
   return lineEnd < text.length ? lineEnd + 1 : lineEnd;
 };
 
+const getLineBreakStart = (text: string, lineBreakIndex: number) =>
+  text[lineBreakIndex - 1] === "\r" ? lineBreakIndex - 1 : lineBreakIndex;
+
 const getLineRange = (text: string, cursorOffset: number) => {
   const start = getLineStart(text, cursorOffset);
   const end = getLineEnd(text, cursorOffset);
@@ -132,7 +135,7 @@ const moveVertical = (
 
   const adjacentCursorBase =
     direction === -1
-      ? adjacentBreakIndex
+      ? getLineBreakStart(text, adjacentBreakIndex)
       : getLineBreakEnd(text, adjacentBreakIndex);
   const adjacentRange = getLineRange(text, adjacentCursorBase);
   const nextCursorOffset = clamp(

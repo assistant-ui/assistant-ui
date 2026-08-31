@@ -92,6 +92,17 @@ describe("textBufferReducer", () => {
     expect(movedUp.cursorOffset).toBe(1);
   });
 
+  it("clamps upward movement before a CRLF line ending", () => {
+    const moved = reduce(
+      createTextBufferState("abcde\r\nfghijk"),
+      { type: "move-up" },
+      { type: "insert", text: "x" },
+    );
+
+    expect(moved.text).toBe("abcdex\r\nfghijk");
+    expect(moved.cursorOffset).toBe(6);
+  });
+
   it("preserves preferred column when moving vertically", () => {
     const movedUp = reduce(
       createTextBufferState("abcde\nxy\n123456"),
