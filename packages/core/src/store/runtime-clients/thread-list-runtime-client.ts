@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, type RefObject } from "react";
+import { useEffect, useMemo } from "react";
 import { useResource, withKey, resource } from "@assistant-ui/tap";
 import type { ClientOutput } from "@assistant-ui/store";
 import {
@@ -22,6 +22,11 @@ import { ThreadListItemClient } from "./thread-list-item-runtime-client";
 import { ThreadClient } from "./thread-runtime-client";
 import type { ThreadsState } from "../scopes/threads";
 import { handleThreadListAction } from "./handle-thread-list-action";
+import {
+  createThreadRunStartBridge,
+  type ThreadRunStartBridge,
+  useThreadRunStartBridgeProvider,
+} from "./thread-run-start-bridge";
 
 const useThreadListItemClientById = ({
   runtime,
@@ -48,7 +53,7 @@ const ThreadListItemClientById = resource(useThreadListItemClientById);
 
 const useBackgroundThreadRunEnd = (
   runtime: ThreadListRuntime,
-  runStartEmitRef: RefObject<((threadId: string) => void) | null>,
+  runStartBridge: ThreadRunStartBridge,
 ) => {
   const emit = useAssistantEmit();
 
@@ -145,7 +150,7 @@ const useBackgroundThreadRunEnd = (
       ) {
         forwardedRunStarts.add(nextThreadId);
         if (nextThread) nextThread.runStartForwarded = true;
-        runStartEmitRef.current?.(nextThreadId);
+        runStartBridge.emit(nextThreadId);
       }
 
       if (pending.has(previousThreadId)) return;
@@ -193,10 +198,10 @@ const useBackgroundThreadRunEnd = (
       unsubscribeMainState();
       for (const unsubscribe of pending.values()) unsubscribe();
     };
-  }, [runtime, emit, runStartEmitRef]);
+  }, [runtime, emit, runStartBridge]);
 };
 
-const useThreadListClient = ({
+const useThreadListClientBody = ({
   runtime,
   __internal_assistantRuntime,
 }: {
@@ -205,13 +210,9 @@ const useThreadListClient = ({
 }): ClientOutput<"threads"> => {
   const runtimeState = useSubscribable(runtime);
   useThreadSelectionEvents(runtimeState.mainThreadId);
-  const runStartEmitRef = useRef<((threadId: string) => void) | null>(null);
-  useBackgroundThreadRunEnd(runtime, runStartEmitRef);
-
   const main = useClientResource(
     ThreadClient({
       runtime: runtime.main,
-      __internal_runStartEmitRef: runStartEmitRef,
     }),
   );
   const threadItems = useClientLookup(
@@ -273,6 +274,27 @@ const useThreadListClient = ({
     loadMore: () => runtime.loadMore(),
     __internal_getAssistantRuntime: () => __internal_assistantRuntime,
   };
+};
+
+const useThreadListClient = ({
+  runtime,
+  __internal_assistantRuntime,
+}: {
+  runtime: ThreadListRuntime;
+  __internal_assistantRuntime: AssistantRuntime;
+}): ClientOutput<"threads"> => {
+  const runStartBridge = useMemo(() => createThreadRunStartBridge(), []);
+  useBackgroundThreadRunEnd(runtime, runStartBridge);
+
+  return useThreadRunStartBridgeProvider(
+    runStartBridge,
+    function useBoundThreadListClient() {
+      return useThreadListClientBody({
+        runtime,
+        __internal_assistantRuntime,
+      });
+    },
+  );
 };
 
 export const ThreadListClient = resource(useThreadListClient);
