@@ -19,7 +19,8 @@
 
   @keyframes tw-shimmer-translate {
     to {
-      translate: calc(var(--_active-distance) + var(--_repeat-delay-px)) 0;
+      translate: calc(100cqi + var(--_gradient-width) + var(--_repeat-delay-px))
+        0;
     }
   }
 }
@@ -116,9 +117,9 @@
   animation: tw-shimmer 1s linear 0s infinite backwards;
   animation-duration: calc((var(--_duration) + var(--_repeat-delay)) * 1ms);
 
-  &:where(:not(.shimmer-bg):has(> .shimmer-clone)) {
+  &:not(.shimmer-bg):where(:has(> .shimmer-clone)) {
     position: relative;
-
+    container-type: inline-size;
     @supports (-webkit-mask-clip: text) {
       animation: none;
       background: none;
@@ -170,7 +171,7 @@
             var(--_overlay-96) 94%,
             transparent 100%
           );
-          will-change: transform;
+          will-change: translate;
           animation: tw-shimmer-translate
             calc((var(--_duration) + var(--_repeat-delay)) * 1ms) linear
             infinite;
@@ -180,7 +181,7 @@
   }
 
   @media (prefers-reduced-motion: reduce) {
-    &:not(.shimmer-bg) {
+    &:not(.shimmer-bg):where(:has(> .shimmer-clone)) {
       animation: none;
       background: none;
       -webkit-text-fill-color: currentColor;

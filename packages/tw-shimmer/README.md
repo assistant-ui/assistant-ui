@@ -4,7 +4,7 @@
 [![npm downloads](https://img.shields.io/npm/dm/tw-shimmer)](https://www.npmjs.com/package/tw-shimmer)
 [![GitHub stars](https://img.shields.io/github/stars/assistant-ui/assistant-ui)](https://github.com/assistant-ui/assistant-ui)
 
-Tailwind CSS v4 plugin for shimmer effects. Zero-dependency, CSS-only, with sine-eased gradients for buttery-smooth highlights and OKLCH color space for perceptually uniform color mixing. Provides text-shimmer and skeleton/background-shimmer variants with customizable speed, spread, angle, and colors.
+Tailwind CSS v4 plugin for shimmer effects. The plugin has no dependencies and uses CSS only. You can change the speed, spread, angle, and colors.
 
 ## Installation
 
@@ -20,7 +20,7 @@ npm install tw-shimmer
 
 ## Usage
 
-The default text shimmer animates an inert text clone with `translate` so Chrome and Safari can run it on the compositor. Set a low-opacity text color on the host and repeat its text in a direct `shimmer-clone` child:
+Add a direct inert clone to use the compositor path. The host text is the accessible label. The clone is only the highlight mask.
 
 ```html
 <span class="shimmer text-foreground/40">
@@ -34,26 +34,28 @@ The default text shimmer animates an inert text clone with `translate` so Chrome
 </div>
 ```
 
-Inside a `shimmer-container`, the plugin derives speed and width from the container size automatically.
+Use this markup only for a one-line text box. The box must have no padding, border, or other in-flow content.
 
-The clone must be inert and hidden from assistive technology. Firefox keeps it hidden and uses the host's `background-position` fallback. Reduced motion stops either animation and leaves the host text visible. One-node markup from earlier releases remains supported through the paint-based fallback.
+Inside a `shimmer-container`, the plugin calculates the speed and width from the container size.
+
+The clone must be inert and hidden from assistive technology. Firefox and one-node markup use the paint fallback. Reduced motion stops the clone path.
 
 ## Utilities
 
-| Utility                  | Effect                                                                     |
-| ------------------------ | -------------------------------------------------------------------------- |
-| `shimmer`                | Base text shimmer. Uses the compositor when it has a `shimmer-clone`.      |
-| `shimmer-clone`          | Inert text copy used to mask the compositor highlight.                     |
-| `shimmer-bg`             | Background shimmer (skeleton placeholders).                                |
-| `shimmer-container`      | Parent container that auto-derives speed and width for children.           |
-| `shimmer-speed-{value}`  | Animation speed in px per second (text: 150, background: 1000 by default). |
-| `shimmer-width-{value}`  | Animation track width in px (text: 200, background: 800 by default).       |
-| `shimmer-spread-{value}` | Highlight thickness.                                                       |
-| `shimmer-angle-{value}`  | Highlight angle in degrees.                                                |
-| `shimmer-color-{color}`  | Highlight color from your Tailwind palette.                                |
+| Utility                  | Effect                                                                  |
+| ------------------------ | ----------------------------------------------------------------------- |
+| `shimmer`                | Base text shimmer. A direct clone uses the compositor path.             |
+| `shimmer-clone`          | Inert text copy for the compositor highlight mask.                      |
+| `shimmer-bg`             | Background shimmer for skeleton placeholders.                          |
+| `shimmer-container`      | Parent container that calculates the speed and width for its children.  |
+| `shimmer-speed-{value}`  | Animation speed in px/s. The text default is 200 and the background is 1000. |
+| `shimmer-width-{value}`  | Animation track width in px. The default is 200.                        |
+| `shimmer-spread-{value}` | Highlight thickness.                                                    |
+| `shimmer-angle-{value}`  | Highlight angle in degrees.                                             |
+| `shimmer-color-{color}`  | Highlight color from the Tailwind palette.                              |
 
-Variables are inheritable; set them on any ancestor element and descendants pick them up unless they override.
+The variables pass to child elements. Set them on a parent element to change its shimmer children.
 
 ## Documentation
 
-Full utility reference, accessibility notes, and the technical details of the sine-eased gradient pipeline at [assistant-ui.com/tw-shimmer](https://www.assistant-ui.com/tw-shimmer).
+The [tw-shimmer documentation](https://www.assistant-ui.com/tw-shimmer) gives the full utility reference and the accessibility information.
