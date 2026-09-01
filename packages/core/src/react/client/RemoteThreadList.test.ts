@@ -1323,6 +1323,69 @@ describe("RemoteThreadList", () => {
     handle.destroy();
   });
 
+  it("does not unarchive an archived thread deleted during initialization", async () => {
+    const initialize = deferred<{
+      remoteId: string;
+      externalId: undefined;
+    }>();
+    const adapter = makeAdapter({
+      list: vi.fn(async () => ({
+        threads: [
+          {
+            status: "regular" as const,
+            remoteId: "fallback",
+            title: "Fallback",
+          },
+        ],
+      })),
+      initialize: vi.fn(() => initialize.promise),
+    });
+    const { handle } = mountList(adapter);
+    const aui = handle.getClient();
+    await aui.threads.getLoadThreadsPromise();
+    const targetId = aui.threads.getState().mainThreadId;
+
+    const initialization = aui.threads.item("main").initialize();
+    await vi.waitFor(() => {
+      expect(handle.getClient().threads.item("main").getState().status).toBe(
+        "regular",
+      );
+    });
+    flushTapSync(() => aui.threads.switchToThread("fallback"));
+    await vi.waitFor(() => {
+      expect(handle.getClient().threads.getState().mainThreadId).toBe(
+        "fallback",
+      );
+    });
+    flushTapSync(() => aui.threads.item({ id: targetId }).archive());
+    await vi.waitFor(() => {
+      expect(handle.getClient().threads.getState().archivedThreadIds).toContain(
+        targetId,
+      );
+    });
+    flushTapSync(() => aui.threads.switchToThread(targetId));
+    flushTapSync(() => aui.threads.item({ id: targetId }).delete());
+    await vi.waitFor(() => {
+      const state = handle.getClient().threads.getState();
+      expect(state.threadIds).not.toContain(targetId);
+      expect(state.archivedThreadIds).not.toContain(targetId);
+    });
+
+    initialize.resolve({
+      remoteId: `remote-${targetId}`,
+      externalId: undefined,
+    });
+    await initialization;
+    await new Promise((resolve) => setTimeout(resolve, 0));
+
+    expect(adapter.unarchive).not.toHaveBeenCalled();
+    expect(handle.getClient().threads.getState().mainThreadId).toBe("fallback");
+    expect(() =>
+      handle.getClient().threads.item("main").getState(),
+    ).not.toThrow();
+    handle.destroy();
+  });
+
   it("keeps item(main) resolvable when deleting an archived thread during unarchive", async () => {
     const unarchive = deferred<void>();
     const onSwitchToThread = vi.fn();
