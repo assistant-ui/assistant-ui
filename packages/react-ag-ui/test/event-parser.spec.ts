@@ -79,8 +79,9 @@ describe("parseAgUiEvent", () => {
       ),
     ).toBeNull();
     expect(debug).toHaveBeenCalledTimes(1);
-    expect(debug.mock.calls[0][0]).toMatch(
-      /MESSAGES_SNAPSHOT missing messages/,
+    expect(debug).toHaveBeenCalledWith(
+      expect.stringMatching(/MESSAGES_SNAPSHOT missing messages/),
+      { type: "MESSAGES_SNAPSHOT", messages: {} },
     );
     expect(parseAgUiEvent({ type: "MESSAGES_SNAPSHOT" })).toBeNull();
     expect(parseAgUiEvent({ type: "MESSAGES_SNAPSHOT", messages: [] })).toEqual(
