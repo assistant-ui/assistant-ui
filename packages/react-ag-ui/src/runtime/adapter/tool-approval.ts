@@ -1,4 +1,7 @@
-import { iterateToolCallParts, mapToolCallPartsDeep } from "../tool-call-tree";
+import {
+  iterateToolCallParts,
+  mapToolCallPartsDeep,
+} from "@assistant-ui/core/internal";
 import { buildResumeArray } from "@ag-ui/client";
 import type {
   RespondToToolApprovalOptions,

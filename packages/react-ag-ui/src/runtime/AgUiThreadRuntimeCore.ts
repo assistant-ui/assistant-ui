@@ -23,6 +23,8 @@ import type {
 import {
   createMessageRepositorySession,
   invokeUserCallback,
+  iterateToolCallParts,
+  mapToolCallPartsDeep,
 } from "@assistant-ui/core/internal";
 import type {
   AbstractAgent,
@@ -49,7 +51,6 @@ import {
   toAgUiTools,
 } from "./adapter/conversions";
 import { createAgUiSubscriber } from "./adapter/subscriber";
-import { iterateToolCallParts, mapToolCallPartsDeep } from "./tool-call-tree";
 import {
   buildToolApprovalResume,
   projectAgUiToolApprovals,
