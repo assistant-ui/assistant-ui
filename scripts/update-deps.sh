@@ -16,13 +16,23 @@ expo_repin_skipped=0
 
 npx taze major -f -w -r
 
+# The tracked manifests name exactly this checkout's packages. A repository-wide
+# `find` also reaches into any git worktree checked out under the repository and
+# wipes a tree another session is using.
+git ls-files -z -- '*/package.json' 'package.json' | while IFS= read -r -d '' manifest; do
+  rm -rf "$(dirname "$manifest")/node_modules"
+done
+rm -f pnpm-lock.yaml
+
 # `expo install --fix` compares the versions resolved in `node_modules` against the
 # SDK matrix, so the manifest taze just wrote is invisible to it until it has been
-# installed. `expo install --fix` also upgrades the expo package itself before it
-# repins anything, so a release inside pnpm's minimumReleaseAge window makes either
-# step exit non-zero having applied nothing. Taze's Expo bumps are unsanctioned
-# without that repin, and the floor it wrote resolves to nothing the age policy
-# allows, which would fail the fresh install below. Restoring just those entries
+# installed, and an install that still has the old lockfile to reuse resolves back
+# to the versions taze replaced. The resolve therefore has to be the fresh one, and
+# it has to happen here rather than after the repin. `expo install --fix` also
+# upgrades the expo package itself before it repins anything, so a release inside
+# pnpm's minimumReleaseAge window makes either step exit non-zero having applied
+# nothing: the floor taze wrote resolves to nothing the age policy allows. Taze's
+# Expo bumps are unsanctioned without the repin, so restoring just those entries
 # drops them until the release ages, while taze's other bumps in the same manifest
 # stand.
 if ! pnpm install --no-frozen-lockfile ||
@@ -35,7 +45,7 @@ if ! pnpm install --no-frozen-lockfile ||
     // The SDK native-module matrix, read rather than hardcoded so the set tracks
     // the SDK. `expo install --fix` also merges relatedPackages from the versions
     // endpoint, which needs the network, so those entries are left to taze.
-    const expoFamily = /^(@expo\/.+|@react-native\/.+|expo|expo-.+|react|react-dom|react-native|react-native-.+)$/;
+    const expoFamily = /^(@expo\/.+|expo|expo-.+|react|react-dom|react-native|react-native-.+)$/;
     let matrixKeys = new Set();
     try {
       const matrix = require.resolve("expo/bundledNativeModules.json", { paths: [projectDir] });
@@ -57,13 +67,6 @@ if ! pnpm install --no-frozen-lockfile ||
   ' "$expo_manifest_backup" "$EXPO_MANIFEST" examples/with-expo
 fi
 
-# The tracked manifests name exactly this checkout's packages. A repository-wide
-# `find` also reaches into any git worktree checked out under the repository and
-# wipes a tree another session is using.
-git ls-files -z -- '*/package.json' 'package.json' | while IFS= read -r -d '' manifest; do
-  rm -rf "$(dirname "$manifest")/node_modules"
-done
-rm -f pnpm-lock.yaml
 pnpm install
 pnpm dedupe
 bash scripts/generate-deps-changeset.sh
