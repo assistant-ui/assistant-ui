@@ -467,6 +467,106 @@ test("the executable annotates the breaking bump and its cascade, then exits 1",
   }
 });
 
+function git(root, ...args) {
+  const result = spawnSync("git", args, {
+    cwd: root,
+    encoding: "utf8",
+    env: {
+      ...process.env,
+      GIT_CONFIG_GLOBAL: "/dev/null",
+      GIT_CONFIG_SYSTEM: "/dev/null",
+    },
+  });
+  assert.equal(result.status, 0, result.stderr);
+  return result.stdout.trim();
+}
+
+function commitAll(root, message) {
+  git(root, "add", "-A");
+  git(
+    root,
+    "-c",
+    "user.name=fixture",
+    "-c",
+    "user.email=fixture@example.com",
+    "commit",
+    "-q",
+    "-m",
+    message,
+  );
+  return git(root, "rev-parse", "HEAD");
+}
+
+test("the executable analyzes only the changesets the PR range adds", () => {
+  const root = createWorkspace([{ name: "@fixture/dep", version: "0.12.15" }], {
+    "already-on-base.md": '"@fixture/dep": minor',
+  });
+  try {
+    git(root, "init", "-q", "-b", "main");
+    const base = commitAll(root, "base");
+    writeFileSync(
+      path.join(root, ".changeset", "added-by-the-pr.md"),
+      '---\n"@fixture/dep": patch\n---\n\nfix: fixture\n',
+    );
+    const head = commitAll(root, "head");
+
+    const result = runExecutable(root, { BASE_SHA: base, HEAD_SHA: head });
+
+    assert.equal(result.status, 0, result.stdout + result.stderr);
+    assert.match(
+      result.stdout,
+      /\| `added-by-the-pr\.md` \| `@fixture\/dep` \| 0\.12\.15 \| patch \|/,
+    );
+    assert.doesNotMatch(
+      result.stdout,
+      /already-on-base/,
+      "a changeset the PR did not touch was analyzed",
+    );
+  } finally {
+    rmSync(root, { recursive: true, force: true });
+  }
+});
+
+test("a PR range that touches no changeset ends the run before any summary", () => {
+  const root = createWorkspace([{ name: "@fixture/dep", version: "0.12.15" }], {
+    "already-on-base.md": '"@fixture/dep": minor',
+  });
+  try {
+    git(root, "init", "-q", "-b", "main");
+    const base = commitAll(root, "base");
+    writeFileSync(
+      path.join(root, "packages", "dep", "index.js"),
+      "export default 1;\n",
+    );
+    const head = commitAll(root, "head");
+
+    const result = runExecutable(root, { BASE_SHA: base, HEAD_SHA: head });
+
+    assert.equal(result.status, 0, result.stdout + result.stderr);
+    assert.match(result.stdout, /No changeset files changed in this PR\./);
+  } finally {
+    rmSync(root, { recursive: true, force: true });
+  }
+});
+
+test("an unusable base falls back to every changeset and says so", () => {
+  const root = createWorkspace([{ name: "@fixture/dep", version: "0.12.15" }], {
+    "shy-pots-shave.md": '"@fixture/dep": minor',
+  });
+  try {
+    const result = runExecutable(root, {
+      BASE_SHA: "0000000000000000000000000000000000000000",
+      HEAD_SHA: "1111111111111111111111111111111111111111",
+    });
+
+    assert.equal(result.status, 1);
+    assert.match(result.stdout, /Could not diff against base/);
+    assert.match(result.stdout, /shy-pots-shave\.md/);
+  } finally {
+    rmSync(root, { recursive: true, force: true });
+  }
+});
+
 test("a changeset with no releasable bump ends the run before any summary", () => {
   const root = createWorkspace([{ name: "@fixture/dep", version: "1.0.0" }], {
     "shy-pots-shave.md": '"@fixture/gone": patch',

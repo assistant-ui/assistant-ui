@@ -36,10 +36,7 @@ export function isOutsideCaretRange(rangeVersion, newVersion) {
 export function buildDependencyGraph(manifests) {
   const pkgMap = new Map();
   for (const pkg of manifests) {
-    pkgMap.set(pkg.name, {
-      major: Number(pkg.version.split(".")[0]),
-      version: pkg.version,
-    });
+    pkgMap.set(pkg.name, { version: pkg.version });
   }
 
   const revDeps = new Map();
@@ -106,8 +103,9 @@ export function findRangeBreakingBumps(bumps) {
   const problems = [];
   for (const bump of bumps) {
     const major = Number(bump.version.split(".")[0]);
-    // A 0.0.x patch also leaves `^0.0.x`, which matches exactly, but it is not
-    // reported: those packages are pre-stable and carry no internal dependents.
+    // A 0.0.x patch also leaves `^0.0.x`, which matches exactly. It is left
+    // unreported so that pre-stable packages can ship a patch without every
+    // release being flagged; the cascade table still shows who it moves.
     const breaksRange =
       (major === 0 && bump.bumpType !== "patch") ||
       (major >= 1 && bump.bumpType === "major");
