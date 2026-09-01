@@ -247,6 +247,26 @@ describe("createAgUiSubscriber", () => {
     expect(dispatch).not.toHaveBeenCalled();
   });
 
+  it("logs malformed events received by the untyped callback", () => {
+    const debug = vi.fn();
+    const dispatch = vi.fn();
+    const subscriber = createAgUiSubscriber({
+      dispatch,
+      runId: "run",
+      logger: { debug } as any,
+    });
+    const event = { type: 42, payload: "bad" };
+
+    subscriber.onEvent?.({ event });
+
+    expect(dispatch).not.toHaveBeenCalled();
+    expect(debug).toHaveBeenCalledTimes(1);
+    expect(debug).toHaveBeenCalledWith(
+      expect.stringContaining("unknown"),
+      event,
+    );
+  });
+
   it("dispatches reasoning handlers without duplication", () => {
     const events: AgUiEvent[] = [];
     const subscriber = createAgUiSubscriber({

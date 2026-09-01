@@ -70,6 +70,77 @@ describe("parseAgUiEvent", () => {
     expect(event).toBeNull();
   });
 
+  it.each([
+    ["RUN_STARTED", { type: "RUN_STARTED" }],
+    ["RUN_FINISHED", { type: "RUN_FINISHED" }],
+    ["TEXT_MESSAGE_CONTENT", { type: "TEXT_MESSAGE_CONTENT", delta: "" }],
+    [
+      "REASONING_ENCRYPTED_VALUE",
+      { type: "REASONING_ENCRYPTED_VALUE", encryptedValue: "blob" },
+    ],
+    [
+      "REASONING_ENCRYPTED_VALUE",
+      {
+        type: "REASONING_ENCRYPTED_VALUE",
+        entityId: "entity",
+        encryptedValue: "blob",
+        subtype: "other",
+      },
+    ],
+    ["TOOL_CALL_START", { type: "TOOL_CALL_START" }],
+    ["TOOL_CALL_ARGS", { type: "TOOL_CALL_ARGS" }],
+    ["TOOL_CALL_END", { type: "TOOL_CALL_END" }],
+    ["TOOL_CALL_RESULT", { type: "TOOL_CALL_RESULT" }],
+    ["ACTIVITY_SNAPSHOT", { type: "ACTIVITY_SNAPSHOT", content: {} }],
+    [
+      "ACTIVITY_SNAPSHOT",
+      { type: "ACTIVITY_SNAPSHOT", activityType: "mcp", content: "bad" },
+    ],
+    ["CUSTOM", { type: "CUSTOM" }],
+    ["SUBAGENT_STARTED", { type: "SUBAGENT_STARTED", name: "worker" }],
+    ["SUBAGENT_STARTED", { type: "SUBAGENT_STARTED", subagentRunId: "sub-1" }],
+    ["SUBAGENT_FINISHED", { type: "SUBAGENT_FINISHED" }],
+    ["SUBAGENT_ERROR", { type: "SUBAGENT_ERROR", message: "boom" }],
+    ["SUBAGENT_ERROR", { type: "SUBAGENT_ERROR", subagentRunId: "sub-1" }],
+  ])("logs rejected %s events", (type, payload) => {
+    const debug = vi.fn();
+
+    expect(parseAgUiEvent(payload, { logger: { debug } as any })).toBeNull();
+    expect(debug).toHaveBeenCalledTimes(1);
+    expect(debug).toHaveBeenCalledWith(expect.stringContaining(type), payload);
+  });
+
+  it("logs top-level events without an object or string type", () => {
+    const debug = vi.fn();
+    const logger = { debug } as any;
+
+    expect(parseAgUiEvent(null, { logger })).toBeNull();
+    expect(parseAgUiEvent({ type: 42 }, { logger })).toBeNull();
+
+    expect(debug).toHaveBeenNthCalledWith(
+      1,
+      expect.stringContaining("unknown"),
+      null,
+    );
+    expect(debug).toHaveBeenNthCalledWith(
+      2,
+      expect.stringContaining("unknown"),
+      { type: 42 },
+    );
+  });
+
+  it("keeps TEXT_MESSAGE_START messageId optional", () => {
+    const debug = vi.fn();
+
+    expect(
+      parseAgUiEvent(
+        { type: "TEXT_MESSAGE_START" },
+        { logger: { debug } as any },
+      ),
+    ).toEqual({ type: "TEXT_MESSAGE_START" });
+    expect(debug).not.toHaveBeenCalled();
+  });
+
   it("rejects malformed message snapshots without rejecting empty snapshots", () => {
     const debug = vi.fn();
     expect(
