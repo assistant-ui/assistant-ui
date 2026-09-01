@@ -38,6 +38,7 @@ const createHarness = () => {
   const onNewA = vi.fn(async () => {});
   const onNewB = vi.fn(async () => {});
   const renderB = vi.fn();
+  const renderThreadRuntime = vi.fn();
   const runtimeRef: { current: AssistantRuntime | null } = { current: null };
   const pending = new Promise<never>(() => {});
   let suspend = false;
@@ -48,8 +49,10 @@ const createHarness = () => {
   };
   const App = ({ onNew }: { onNew: typeof onNewA }) => {
     if (onNew === onNewB) renderB();
-    const useThreadRuntime = () =>
-      useExternalStoreRuntime({ messages: EMPTY_MESSAGES, onNew });
+    const useThreadRuntime = () => {
+      renderThreadRuntime();
+      return useExternalStoreRuntime({ messages: EMPTY_MESSAGES, onNew });
+    };
     const runtime = useRemoteThreadListRuntime({
       adapter,
       runtimeHook: useThreadRuntime,
@@ -67,6 +70,7 @@ const createHarness = () => {
     onNewA,
     onNewB,
     renderB,
+    renderThreadRuntime,
     runtimeRef,
     suspend: () => {
       suspend = true;
@@ -119,10 +123,23 @@ describe("useRemoteThreadListRuntime concurrent options", () => {
 
     view.rerender(<App onNew={onNewB} />);
     await act(async () => {
+      await runtimeRef.current!.threads.switchToNewThread();
       await getThreadCore(runtimeRef.current!).append(userMessage("second"));
     });
 
     expect(onNewA).toHaveBeenCalledTimes(1);
     expect(onNewB).toHaveBeenCalledTimes(1);
+  });
+
+  it("does not force an extra thread runtime refresh", async () => {
+    const { App, onNewA, renderThreadRuntime } = createHarness();
+    const view = render(<App onNew={onNewA} />);
+
+    await act(async () => {});
+    renderThreadRuntime.mockClear();
+
+    act(() => view.rerender(<App onNew={onNewA} />));
+
+    expect(renderThreadRuntime).toHaveBeenCalledTimes(1);
   });
 });

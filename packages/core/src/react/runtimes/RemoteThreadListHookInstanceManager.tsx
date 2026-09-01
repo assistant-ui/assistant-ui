@@ -274,10 +274,6 @@ export class RemoteThreadListHookInstanceManager extends BaseSubscribable {
     this.hostStore.setState({ ...host, hookEpoch: host.hookEpoch + 1 });
   }
 
-  public __internal_refreshRuntimeHook() {
-    this.hostStore.setState({ ...this.hostStore.getState() });
-  }
-
   public __internal_setDefaultAdapters(adapters: RuntimeAdapters | null) {
     const current = this.adapterStore.getState();
     if (current.defaultAdapters === adapters) return;
