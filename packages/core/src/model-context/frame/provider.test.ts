@@ -284,6 +284,84 @@ describe("AssistantFrameProvider", () => {
     expect(toolResults).toHaveLength(1);
   });
 
+  it("aborts in-flight tool calls when their provider is removed", async () => {
+    let toolSignal: AbortSignal | undefined;
+    const execute = vi.fn(
+      async (_args: unknown, context: { abortSignal: AbortSignal }) => {
+        toolSignal = context.abortSignal;
+        await new Promise<never>((_resolve, reject) => {
+          context.abortSignal.addEventListener(
+            "abort",
+            () => reject(context.abortSignal.reason),
+            { once: true },
+          );
+        });
+      },
+    );
+    const removeProvider = AssistantFrameProvider.addModelContextProvider({
+      getModelContext: () => ({ tools: { sensitiveTool: { execute } } }),
+    });
+
+    dispatchToolCall(window.location.origin);
+    await vi.waitFor(() => expect(toolSignal).toBeDefined());
+
+    removeProvider();
+
+    expect(toolSignal?.aborted).toBe(true);
+    expect(parentWindow.postMessage).toHaveBeenCalledWith(
+      {
+        channel: FRAME_MESSAGE_CHANNEL,
+        message: {
+          type: "tool-result",
+          id: "tool-call-1",
+          error: "AssistantFrame tool provider has been removed",
+        },
+      },
+      { targetOrigin: window.location.origin },
+    );
+    await new Promise((resolve) => setTimeout(resolve, 0));
+    const toolResults = vi
+      .mocked(parentWindow.postMessage)
+      .mock.calls.filter(
+        ([data]) =>
+          (data as { message?: { type?: string } }).message?.type ===
+          "tool-result",
+      );
+    expect(toolResults).toHaveLength(1);
+  });
+
+  it("keeps tool calls active while the same provider remains registered", async () => {
+    let toolSignal: AbortSignal | undefined;
+    const execute = vi.fn(
+      async (_args: unknown, context: { abortSignal: AbortSignal }) => {
+        toolSignal = context.abortSignal;
+        await new Promise<never>((_resolve, reject) => {
+          context.abortSignal.addEventListener(
+            "abort",
+            () => reject(context.abortSignal.reason),
+            { once: true },
+          );
+        });
+      },
+    );
+    const provider = {
+      getModelContext: () => ({ tools: { sensitiveTool: { execute } } }),
+    };
+    const removeFirst =
+      AssistantFrameProvider.addModelContextProvider(provider);
+    const removeSecond =
+      AssistantFrameProvider.addModelContextProvider(provider);
+
+    dispatchToolCall(window.location.origin);
+    await vi.waitFor(() => expect(toolSignal).toBeDefined());
+
+    removeFirst();
+    expect(toolSignal?.aborted).toBe(false);
+
+    removeSecond();
+    expect(toolSignal?.aborted).toBe(true);
+  });
+
   it("upgrades a wildcard origin policy when a strict provider registers", async () => {
     AssistantFrameProvider.addModelContextProvider(
       { getModelContext: () => ({}) },
