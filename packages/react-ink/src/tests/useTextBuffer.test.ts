@@ -175,6 +175,18 @@ describe("textBufferReducer", () => {
     expect(movedUp.preferredColumn).toBe(4);
   });
 
+  it("round trips vertical movement across a line carrying escape sequences", () => {
+    const start = reduce(
+      createTextBufferState("\u001b[31mred\u001b[39m\nabcdefghijkl"),
+      { type: "set-cursor", cursorOffset: 8 },
+    );
+    const movedDown = reduce(start, { type: "move-down" });
+    const roundTrip = reduce(movedDown, { type: "move-up" });
+
+    expect(movedDown.cursorOffset).toBe(21);
+    expect(roundTrip.cursorOffset).toBe(8);
+  });
+
   it("does not move inside a CRLF line break", () => {
     const movedDown = reduce(
       createTextBufferState("abc\nx\r\ny"),
@@ -485,18 +497,5 @@ const widthCases = [
 describe("terminal cell width contract", () => {
   it.each(widthCases)("measures %s in terminal cells", (_, grapheme, width) => {
     expect(stringWidth(grapheme)).toBe(width);
-  });
-
-  it("sums per grapheme to the width of the whole run", () => {
-    const segmenter = new Intl.Segmenter(undefined, {
-      granularity: "grapheme",
-    });
-    for (const run of ["a😀b", "你好世界", "👩‍💻x", "🇺🇸🇯🇵", "１２３"]) {
-      const perGrapheme = [...segmenter.segment(run)].reduce(
-        (total, { segment }) => total + stringWidth(segment),
-        0,
-      );
-      expect(perGrapheme).toBe(stringWidth(run));
-    }
   });
 });

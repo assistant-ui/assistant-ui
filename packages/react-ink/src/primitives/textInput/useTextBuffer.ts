@@ -117,7 +117,15 @@ const getDisplayColumn = (
   text: string,
   lineStart: number,
   cursorOffset: number,
-) => stringWidth(text.slice(lineStart, cursorOffset));
+) => {
+  let column = 0;
+  for (const { segment } of graphemeSegmenter.segment(
+    text.slice(lineStart, cursorOffset),
+  )) {
+    column += stringWidth(segment);
+  }
+  return column;
+};
 
 const getOffsetAtDisplayColumn = (
   text: string,
