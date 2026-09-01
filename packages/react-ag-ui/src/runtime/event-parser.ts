@@ -300,11 +300,10 @@ export const parseAgUiEvent = (
         delta: Array.isArray(payload.delta) ? (payload.delta as any[]) : [],
       };
     case "MESSAGES_SNAPSHOT":
+      if (!Array.isArray(payload.messages)) return null;
       return {
         type: "MESSAGES_SNAPSHOT",
-        messages: Array.isArray(payload.messages)
-          ? (payload.messages as any[])
-          : [],
+        messages: payload.messages as any[],
       };
     case "ACTIVITY_SNAPSHOT": {
       const activityType = getString("activityType");

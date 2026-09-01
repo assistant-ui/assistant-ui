@@ -236,6 +236,17 @@ describe("createAgUiSubscriber", () => {
     });
   });
 
+  it("does not dispatch malformed message snapshots", () => {
+    const dispatch = vi.fn();
+    const subscriber = createAgUiSubscriber({ dispatch, runId: "run" });
+
+    subscriber.onMessagesSnapshotEvent?.({
+      event: { type: "MESSAGES_SNAPSHOT", messages: {} } as never,
+    });
+
+    expect(dispatch).not.toHaveBeenCalled();
+  });
+
   it("dispatches reasoning handlers without duplication", () => {
     const events: AgUiEvent[] = [];
     const subscriber = createAgUiSubscriber({
