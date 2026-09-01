@@ -63,9 +63,8 @@ const isStandardSchemaV1 = (
 };
 
 const isThenable = (value: unknown): value is PromiseLike<unknown> =>
-  typeof value === "object" &&
-  value !== null &&
-  typeof (value as PromiseLike<unknown>).then === "function";
+  typeof (value as PromiseLike<unknown> | null | undefined)?.then ===
+  "function";
 
 function getToolResponse(
   tools: Record<string, Tool> | undefined,
