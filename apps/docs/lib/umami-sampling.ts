@@ -1,3 +1,5 @@
+import { CONSENT_STORAGE_KEY } from "./consent";
+
 export const UMAMI_SAMPLE_RATE = 0.01;
 
 const STORAGE_KEY = "aui-umami-sample";
@@ -42,10 +44,18 @@ const DOMAINS = "www.assistant-ui.com";
  *
  * Not an invariant: a visit straddling the month boundary is still half sent,
  * at about E[visit] / 30d.
+ *
+ * The script exits for visitors broadcasting Global Privacy Control and for
+ * visitors who declined the consent banner. It still runs while a choice is
+ * pending because the measurement is first-party, cookieless, and sampled —
+ * the audience-measurement posture the privacy policy describes; keep the
+ * policy's cookies section in sync when changing this.
  */
 export const umamiBootstrapScript = `
 (function(){
   try{
+    if(navigator.globalPrivacyControl===true){return;}
+    if(window.localStorage.getItem(${JSON.stringify(CONSENT_STORAGE_KEY)})==="denied"){return;}
     var k=${JSON.stringify(STORAGE_KEY)},t=new Date(Date.now()),b=t.getUTCFullYear()*12+t.getUTCMonth(),s=null;
     var raw=window.localStorage.getItem(k);
     if(raw){try{var p=JSON.parse(raw);if(p&&typeof p.s==="number"&&p.b===b){s=p.s;}}catch(e){}}
