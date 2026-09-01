@@ -160,6 +160,7 @@ test("findUnmarkedActionRefs rejects tag refs and unusable markers", () => {
         `  - uses: actions/labeler@${sha} # ratchet:actions/labeler@`,
         "  - uses: actions/stale@v9 # ratchet:actions/stale@v9.0.0",
         `  - uses: actions/upload-artifact@${sha} # ratchet:exclude`,
+        "  - uses: docker://node:24 # ratchet:exclude",
         "  - uses: ./local-action",
       ].join("\n"),
     },
