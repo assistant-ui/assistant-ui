@@ -766,12 +766,12 @@ describe("parseAgUiEvent", () => {
     expect(debug).toHaveBeenNthCalledWith(
       1,
       expect.stringContaining("SUBAGENT_FINISHED"),
-      invalidEvent,
+      { subagentRunId: "sub-1", outcome: invalidEvent.outcome },
     );
     expect(debug).toHaveBeenNthCalledWith(
       2,
       expect.stringContaining("SUBAGENT_FINISHED"),
-      unsupportedEvent,
+      { subagentRunId: "sub-2", outcome: unsupportedEvent.outcome },
     );
   });
 
