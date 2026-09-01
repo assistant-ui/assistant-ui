@@ -34,8 +34,9 @@ NUXT_DIR="$TEMPLATES_ROOT/nuxt/app/components/assistant-ui"
 # is already the Base UI source, so minimal's assistant-ui element copies sync
 # from it directly, and `components/ui` copies sync from the vendored
 # `ui/base` stand-ins. Base sources already use the scaffold import shape.
-# Minimal's `hooks` copies sync from packages/ui/src/hooks. The Nuxt template's
-# vue kit copies sync verbatim from packages/ui/src/components/vue/assistant-ui.
+# Minimal's `hooks` copies sync from packages/ui/src/hooks, and its `lib`
+# copies from packages/ui/src/lib. The Nuxt template's vue kit copies sync
+# verbatim from packages/ui/src/components/vue/assistant-ui.
 OVERRIDES=(
     # minimal intentionally ships a slim thread.aui.tsx without GroupedParts /
     # reasoning / tool-group, since it doesn't bundle those companion files.
@@ -336,7 +337,7 @@ while IFS= read -r -d '' ex_file; do
 done < <(find "$EXAMPLES_ROOT" -path "*/components/assistant-ui/elements/*" -maxdepth 5 -type f \( -name "*.tsx" -o -name "*.ts" \) -not -path "*/node_modules/*" -print0)
 
 if [[ ${#drift[@]} -eq 0 && ${#vue_drift[@]} -eq 0 && ${#vue_missing[@]} -eq 0 && ${#ui_drift[@]} -eq 0 && ${#hooks_drift[@]} -eq 0 && ${#lib_drift[@]} -eq 0 && ${#redundant[@]} -eq 0 ]]; then
-    echo "✓ all template components and hooks are in sync with packages/ui"
+    echo "✓ all template components, hooks, and lib files are in sync with packages/ui"
     echo "✓ no redundant packages/ui copies in examples"
     exit 0
 fi
