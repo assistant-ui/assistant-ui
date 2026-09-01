@@ -51,7 +51,7 @@ const useThreadListClient = ({
   const emit = useAssistantEmit();
   useEffect(
     () =>
-      runtime.unstable_subscribeThreadRunEvents(({ threadId, type }) => {
+      runtime.unstable_subscribeThreadEvents(({ threadId, type }) => {
         if (threadId === runtime.getState().mainThreadId) return;
         emit(`thread.${type}`, { threadId });
       }),

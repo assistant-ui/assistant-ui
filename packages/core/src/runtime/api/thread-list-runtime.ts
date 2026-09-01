@@ -9,6 +9,7 @@ import {
 } from "../../subscribable/subscribable";
 import type {
   ThreadListRuntimeCore,
+  ThreadListRuntimeEvent,
   ThreadRunEvent,
 } from "../interfaces/thread-list-runtime-core";
 import {
@@ -69,6 +70,14 @@ export type ThreadListRuntime = {
    */
   unstable_subscribeThreadRunEvents(
     callback: (event: ThreadRunEvent) => void,
+  ): Unsubscribe;
+
+  /**
+   * Observes lifecycle events on every thread this list keeps alive, including
+   * threads that are not the main one.
+   */
+  unstable_subscribeThreadEvents(
+    callback: (event: ThreadListRuntimeEvent) => void,
   ): Unsubscribe;
 
   getLoadThreadsPromise(): Promise<void>;
@@ -187,6 +196,8 @@ export class ThreadListRuntimeImpl implements ThreadListRuntime {
     this.switchToNewThread = this.switchToNewThread.bind(this);
     this.unstable_subscribeThreadRunEvents =
       this.unstable_subscribeThreadRunEvents.bind(this);
+    this.unstable_subscribeThreadEvents =
+      this.unstable_subscribeThreadEvents.bind(this);
     this.getLoadThreadsPromise = this.getLoadThreadsPromise.bind(this);
     this.reload = this.reload.bind(this);
     this.reloadMainThread = this.reloadMainThread.bind(this);
@@ -216,6 +227,14 @@ export class ThreadListRuntimeImpl implements ThreadListRuntime {
     return (
       this._core.unstable_subscribeThreadRunEvents?.(callback) ??
       NOOP_UNSUBSCRIBE
+    );
+  }
+
+  public unstable_subscribeThreadEvents(
+    callback: (event: ThreadListRuntimeEvent) => void,
+  ): Unsubscribe {
+    return (
+      this._core.unstable_subscribeThreadEvents?.(callback) ?? NOOP_UNSUBSCRIBE
     );
   }
 

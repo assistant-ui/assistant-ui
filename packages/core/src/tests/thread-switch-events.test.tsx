@@ -292,15 +292,26 @@ const renderRemoteList = (
 ) => {
   const globalRunStart = vi.fn();
   const globalRunEnd = vi.fn();
+  const globalInitialize = vi.fn();
+  const globalModelContextUpdate = vi.fn();
   const selectedRunStart = vi.fn();
   const selectedRunEnd = vi.fn();
+  const selectedInitialize = vi.fn();
+  const selectedModelContextUpdate = vi.fn();
   let runtime!: AssistantRuntime;
 
   const Listener = () => {
     useAuiEvent({ scope: "*", event: "thread.runStart" }, globalRunStart);
     useAuiEvent({ scope: "*", event: "thread.runEnd" }, globalRunEnd);
+    useAuiEvent({ scope: "*", event: "thread.initialize" }, globalInitialize);
+    useAuiEvent(
+      { scope: "*", event: "thread.modelContextUpdate" },
+      globalModelContextUpdate,
+    );
     useAuiEvent("thread.runStart", selectedRunStart);
     useAuiEvent("thread.runEnd", selectedRunEnd);
+    useAuiEvent("thread.initialize", selectedInitialize);
+    useAuiEvent("thread.modelContextUpdate", selectedModelContextUpdate);
     return null;
   };
   const Harness = () => {
@@ -323,8 +334,12 @@ const renderRemoteList = (
     getRuntime: () => runtime,
     globalRunStart,
     globalRunEnd,
+    globalInitialize,
+    globalModelContextUpdate,
     selectedRunStart,
     selectedRunEnd,
+    selectedInitialize,
+    selectedModelContextUpdate,
   };
 };
 
@@ -486,6 +501,58 @@ describe("background thread run events", () => {
     });
     expect(harness.selectedRunStart).not.toHaveBeenCalled();
     expect(harness.selectedRunEnd).not.toHaveBeenCalled();
+  });
+
+  it("reports lifecycle events from a thread that is never selected", async () => {
+    const backgroundRun = deferred<{ content: [] }>();
+    const harness = renderRemoteList(
+      listAdapter(),
+      () => backgroundRun.promise,
+    );
+    const runtime = harness.getRuntime();
+
+    await waitFor(() => {
+      expect(runtime.threads.mainItem.getState().remoteId).toBe("thread-a");
+    });
+    await switchTo(runtime, "thread-b");
+    const threadBId = runtime.threads.mainItem.getState().id;
+    const threadB = runtime.threads.getById(threadBId);
+    await switchTo(runtime, "thread-a");
+
+    let updateModelContext!: () => void;
+    const unregisterModelContext = runtime.registerModelContextProvider({
+      getModelContext: () => ({}),
+      subscribe: (callback) => {
+        updateModelContext = callback;
+        return () => {};
+      },
+    });
+    vi.clearAllMocks();
+
+    await act(async () => {
+      threadB.startRun({ parentId: null });
+    });
+    await waitFor(() => {
+      expect(harness.globalInitialize).toHaveBeenCalledExactlyOnceWith({
+        threadId: threadBId,
+      });
+    });
+
+    await act(async () => {
+      updateModelContext();
+    });
+    await waitFor(() => {
+      expect(harness.globalModelContextUpdate).toHaveBeenCalledWith({
+        threadId: threadBId,
+      });
+    });
+
+    expect(harness.selectedInitialize).not.toHaveBeenCalled();
+    unregisterModelContext();
+
+    await act(async () => {
+      backgroundRun.resolve({ content: [] });
+    });
   });
 
   it.each([

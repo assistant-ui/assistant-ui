@@ -1,5 +1,8 @@
 import type { Unsubscribe } from "../../types/unsubscribe";
-import type { ThreadRuntimeCore } from "./thread-runtime-core";
+import type {
+  ThreadRuntimeCore,
+  ThreadRuntimeEventType,
+} from "./thread-runtime-core";
 
 export type ThreadListItemStatus = "archived" | "regular" | "new" | "deleted";
 
@@ -19,6 +22,11 @@ export type ThreadListItemCoreState = {
 export type ThreadRunEvent = {
   readonly threadId: string;
   readonly type: "runStart" | "runEnd";
+};
+
+export type ThreadListRuntimeEvent = {
+  readonly threadId: string;
+  readonly type: ThreadRuntimeEventType;
 };
 
 export type ThreadListRuntimeCore = {
@@ -55,6 +63,15 @@ export type ThreadListRuntimeCore = {
    */
   unstable_subscribeThreadRunEvents?(
     callback: (event: ThreadRunEvent) => void,
+  ): Unsubscribe;
+
+  /**
+   * Lifecycle events from every thread this list keeps alive, including
+   * threads that are not the main one. A thread list that mounts only the main
+   * thread leaves this undefined.
+   */
+  unstable_subscribeThreadEvents?(
+    callback: (event: ThreadListRuntimeEvent) => void,
   ): Unsubscribe;
 
   getItemById(threadId: string): ThreadListItemCoreState | undefined;

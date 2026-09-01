@@ -195,6 +195,50 @@ describe("RemoteThreadListHookInstanceManager run tracking", () => {
     ]);
   });
 
+  it("forwards every lifecycle event from every tracked thread", () => {
+    const manager = makeManager();
+    const events: unknown[] = [];
+    const runEvents: unknown[] = [];
+    manager.__internal_subscribeThreadEvents((event) => events.push(event));
+    manager.__internal_subscribeRunEvents((event) => runEvents.push(event));
+
+    start(manager, "thread-1");
+    start(manager, "thread-2");
+    const first = makeRuntime();
+    const second = makeRuntime();
+    publish(manager, "thread-1", first.runtime);
+    publish(manager, "thread-2", second.runtime);
+
+    first.emit("initialize");
+    second.emit("modelContextUpdate");
+
+    expect(events).toEqual([
+      { threadId: "thread-1", type: "initialize" },
+      { threadId: "thread-2", type: "modelContextUpdate" },
+    ]);
+    expect(runEvents).toEqual([]);
+  });
+
+  it("stops forwarding lifecycle events from a runtime a restart replaced", () => {
+    const manager = makeManager();
+    const events: unknown[] = [];
+    manager.__internal_subscribeThreadEvents((event) => events.push(event));
+
+    start(manager, "thread-1");
+    const before = makeRuntime();
+    publish(manager, "thread-1", before.runtime);
+    const after = makeRuntime();
+    publish(manager, "thread-1", after.runtime);
+
+    before.emit("initialize");
+    after.emit("modelContextUpdate");
+
+    expect(before.eventListenerCount()).toBe(0);
+    expect(events).toEqual([
+      { threadId: "thread-1", type: "modelContextUpdate" },
+    ]);
+  });
+
   it("stops forwarding run events from a runtime a restart replaced", () => {
     const manager = makeManager();
     const events: unknown[] = [];
