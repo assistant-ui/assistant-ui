@@ -1,6 +1,8 @@
 import {
   useState,
   useEffect,
+  useInsertionEffect,
+  useLayoutEffect,
   useMemo,
   useRef,
   useCallback,
@@ -35,8 +37,14 @@ class RemoteThreadListRuntimeCore
 
 const useRemoteThreadListRuntimeImpl = (
   options: RemoteThreadListOptions,
+  runtimeHookChangedRef: { current: boolean },
 ): AssistantRuntime => {
   const [runtime] = useState(() => new RemoteThreadListRuntimeCore(options));
+  useLayoutEffect(() => {
+    if (!runtimeHookChangedRef.current) return;
+    runtimeHookChangedRef.current = false;
+    runtime.threads.__internal_refreshRuntimeHook();
+  });
   useEffect(() => {
     runtime.threads.__internal_setOptions(options);
     runtime.threads.__internal_load();
@@ -49,7 +57,12 @@ export const useRemoteThreadListRuntime = (
   options: RemoteThreadListOptions,
 ): AssistantRuntime => {
   const runtimeHookRef = useRef(options.runtimeHook);
-  runtimeHookRef.current = options.runtimeHook;
+  const runtimeHookChangedRef = useRef(false);
+  useInsertionEffect(() => {
+    if (runtimeHookRef.current === options.runtimeHook) return;
+    runtimeHookRef.current = options.runtimeHook;
+    runtimeHookChangedRef.current = true;
+  }, [options.runtimeHook]);
 
   const initialThreadIdRef = useRef(options.initialThreadId);
 
@@ -91,10 +104,13 @@ export const useRemoteThreadListRuntime = (
 
     // If allowNesting is true and already inside a thread list context,
     // just call the runtimeHook directly (no-op behavior)
-    return stableRuntimeHook();
+    return options.runtimeHook();
   }
 
-  const runtime = useRemoteThreadListRuntimeImpl(stableOptions);
+  const runtime = useRemoteThreadListRuntimeImpl(
+    stableOptions,
+    runtimeHookChangedRef,
+  );
 
   return runtime;
 };
