@@ -10,7 +10,18 @@ cd "$REPO_ROOT"
 EXPO_MANIFEST="examples/with-expo/package.json"
 expo_manifest_backup="$(mktemp)"
 expo_matrix_backup="$(mktemp)"
-trap 'rm -f "$expo_manifest_backup" "$expo_matrix_backup"' EXIT
+expo_repin_skipped=0
+
+# The restore fires on any pre-install failure, including one an unrelated package
+# caused, and whatever failed usually kills the run again at the final install. The
+# report has to survive that, or the manifest comes back reverted with no reason.
+report_expo_repin() {
+  [ "$expo_repin_skipped" -ne 0 ] || return 0
+  echo "" >&2
+  echo "The Expo repin did not run, so the Expo-managed entries in $EXPO_MANIFEST" >&2
+  echo "kept their previous versions. Rerun once the blocking release has aged." >&2
+}
+trap 'report_expo_repin; rm -f "$expo_manifest_backup" "$expo_matrix_backup"' EXIT
 cp "$EXPO_MANIFEST" "$expo_manifest_backup"
 
 # The wipe below removes the installed SDK matrix, and the restore runs on the path
@@ -23,8 +34,6 @@ node -e '
     fs.copyFileSync(require.resolve("expo/bundledNativeModules.json", { paths: [projectDir] }), out);
   } catch {}
 ' examples/with-expo "$expo_matrix_backup"
-
-expo_repin_skipped=0
 
 npx taze major -f -w -r
 
@@ -87,8 +96,6 @@ bash scripts/generate-deps-changeset.sh
 
 if [ "$expo_repin_skipped" -ne 0 ]; then
   echo "" >&2
-  echo "The Expo repin did not run, so the Expo-managed entries in $EXPO_MANIFEST" >&2
-  echo "kept their previous versions. Everything else in this run is complete." >&2
-  echo "Rerun once the release has aged." >&2
+  echo "Everything else in this run is complete." >&2
   exit 1
 fi
