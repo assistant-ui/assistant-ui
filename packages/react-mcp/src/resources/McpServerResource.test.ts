@@ -4,10 +4,7 @@ import { useEffect, useState } from "react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { MCPAuthConfig } from "../mcp-scope";
 import type { MCPStorage } from "./storage/types";
-import {
-  getConnectionDependencies,
-  type McpServerResourceProps,
-} from "./McpServerResource";
+import type { McpServerResourceProps } from "./McpServerResource";
 
 const mocks = vi.hoisted(() => {
   const clients: any[] = [];
@@ -74,7 +71,8 @@ vi.mock("@modelcontextprotocol/client", async (importOriginal) => ({
   StreamableHTTPClientTransport: mocks.StreamableHTTPClientTransport,
 }));
 
-const { McpServerResource } = await import("./McpServerResource");
+const { McpServerResource, getConnectionDependencies } =
+  await import("./McpServerResource");
 
 const never = <T>() => new Promise<T>(() => {});
 
@@ -1713,18 +1711,17 @@ describe("McpServerResource resource methods", () => {
 });
 
 describe("getConnectionDependencies storage scope", () => {
-  const propsWith = (storage: MCPStorage): McpServerResourceProps =>
-    ({
-      id: "docs",
-      kind: "connector",
-      name: "Docs",
-      url: "https://example.com/mcp",
-      auth: { type: "oauth" },
-      storage,
-      redirectUri: "https://example.com/callback",
-      autoConnect: false,
-      onRemove: async () => {},
-    }) as McpServerResourceProps;
+  const propsWith = (storage: MCPStorage): McpServerResourceProps => ({
+    id: "docs",
+    kind: "connector",
+    name: "Docs",
+    url: "https://example.com/mcp",
+    auth: { type: "oauth" },
+    storage,
+    redirectUri: "https://example.com/callback",
+    autoConnect: false,
+    onRemove: async () => {},
+  });
 
   it("keys the connection on a declared storage scopeId", () => {
     const a = { ...createStorage(), scopeId: "local-storage:a" };
@@ -1753,11 +1750,10 @@ describe("getConnectionDependencies storage scope", () => {
   it("ignores the storage scope for none-auth servers", () => {
     const a = { ...createStorage(), scopeId: "local-storage:a" };
     const b = { ...createStorage(), scopeId: "local-storage:b" };
-    const noneProps = (storage: MCPStorage): McpServerResourceProps =>
-      ({
-        ...propsWith(storage),
-        auth: { type: "none" },
-      }) as McpServerResourceProps;
+    const noneProps = (storage: MCPStorage): McpServerResourceProps => ({
+      ...propsWith(storage),
+      auth: { type: "none" },
+    });
 
     expect(getConnectionDependencies(noneProps(a))).toEqual(
       getConnectionDependencies(noneProps(b)),

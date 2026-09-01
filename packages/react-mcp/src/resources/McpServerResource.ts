@@ -55,7 +55,7 @@ export const getConnectionDependencies = (
   const auth = props.auth;
   const authDependencies =
     auth.type === "bearer"
-      ? [auth.type, auth.token]
+      ? [auth.type, auth.token, props.storage.scopeId]
       : auth.type === "oauth"
         ? [
             auth.type,
@@ -66,6 +66,7 @@ export const getConnectionDependencies = (
             auth.registrationEndpoint,
             auth.clientId,
             auth.clientSecret,
+            props.storage.scopeId,
           ]
         : [auth.type];
 
@@ -76,9 +77,6 @@ export const getConnectionDependencies = (
     props.redirectUri,
     props.cache?.defaultTtlMs,
     props.elicitation !== false,
-    // The none transport never reads storage, so a scope swap alone must not
-    // drop an active connection there.
-    auth.type === "none" ? undefined : props.storage.scopeId,
   ];
 };
 
@@ -754,10 +752,8 @@ export const McpServerResource = resource(function useMcpServerResource(
     setConnection(currentConnection);
   }
 
-  // Storage participates through its optional scopeId: a storage that
-  // declares one keys reconnects on it, so an OAuth provider never keeps
-  // reading a replaced store. Object identity alone still cannot key
-  // remounts, because a defaulted storage element may be rebuilt on ordinary
+  // Storage keys remounts through its optional scopeId rather than object
+  // identity, because a defaulted storage element is rebuilt on ordinary
   // renders.
   return useResource(
     withKey(
