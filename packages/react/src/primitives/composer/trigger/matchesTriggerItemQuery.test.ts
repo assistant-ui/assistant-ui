@@ -17,9 +17,9 @@ describe("matchesTriggerItemQuery", () => {
   });
 
   it("matches case-insensitively against the id", () => {
-    expect(matchesTriggerItemQuery(item({ id: "SummArize" }), "marize")).toBe(
-      true,
-    );
+    expect(
+      matchesTriggerItemQuery(item({ id: "SummArize", label: "y" }), "marize"),
+    ).toBe(true);
   });
 
   it("matches case-insensitively against the label", () => {
