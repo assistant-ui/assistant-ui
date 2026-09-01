@@ -104,7 +104,9 @@ The entry is marked `skipExecute` at creation, exactly like a call
 observed with a `result`. `unstable_isClientToolCall` is read once, when
 the call is first observed live, and never re-read: ownership is fixed
 when the provider emits the call, so a later snapshot cannot revoke it
-and drop the result of an execute already in flight.
+and drop the result of an execute already in flight. `streamCall` still
+fires once, as under A.8; only the wrapped `execute` and its result
+chunk are withheld.
 
 Outside production, a provider-owned call whose name resolves to a tool
 with an `execute` logs a `console.warn`. The two together are a
