@@ -354,14 +354,18 @@ describe("parseAgUiEvent", () => {
     expect(debug).toHaveBeenNthCalledWith(
       1,
       expect.stringContaining("RUN_FINISHED"),
-      invalidInterrupts[0],
+      { runId: "r1", interrupt: invalidInterrupts[0] },
     );
     expect(debug).toHaveBeenNthCalledWith(
       2,
       expect.stringContaining("RUN_FINISHED"),
-      invalidInterrupts[1],
+      { runId: "r1", interrupt: invalidInterrupts[1] },
     );
-    expect(debug.mock.calls[2][0]).toMatch(/no valid interrupts/);
+    expect(debug).toHaveBeenNthCalledWith(
+      3,
+      expect.stringMatching(/no valid interrupts/),
+      { runId: "r1", interrupts: invalidInterrupts },
+    );
   });
 
   it("logs each malformed interrupt in a mixed RUN_FINISHED outcome", () => {
@@ -390,13 +394,13 @@ describe("parseAgUiEvent", () => {
     expect(debug).toHaveBeenCalledTimes(1);
     expect(debug).toHaveBeenCalledWith(
       expect.stringContaining("RUN_FINISHED"),
-      invalidInterrupt,
+      { runId: "r1", interrupt: invalidInterrupt },
     );
   });
 
   it("logs malformed and unsupported RUN_FINISHED outcomes", () => {
     const debug = vi.fn();
-    const invalidOutcome = null;
+    const invalidOutcome = "success";
     const unsupportedOutcome = { type: "bogus" };
 
     expect(
@@ -420,13 +424,32 @@ describe("parseAgUiEvent", () => {
     expect(debug).toHaveBeenNthCalledWith(
       1,
       expect.stringContaining("RUN_FINISHED"),
-      invalidOutcome,
+      { runId: "r1", outcome: invalidOutcome },
     );
     expect(debug).toHaveBeenNthCalledWith(
       2,
       expect.stringContaining("RUN_FINISHED"),
-      unsupportedOutcome,
+      { runId: "r2", outcome: unsupportedOutcome },
     );
+  });
+
+  it("reads a null outcome as an absent one", () => {
+    const debug = vi.fn();
+
+    expect(
+      parseAgUiEvent(
+        { type: "RUN_FINISHED", runId: "r1", outcome: null },
+        { logger: { debug } as any },
+      ),
+    ).toEqual({ type: "RUN_FINISHED", runId: "r1" });
+    expect(
+      parseAgUiEvent(
+        { type: "SUBAGENT_FINISHED", subagentRunId: "sub-1", outcome: null },
+        { logger: { debug } as any },
+      ),
+    ).toEqual({ type: "SUBAGENT_FINISHED", subagentRunId: "sub-1" });
+
+    expect(debug).not.toHaveBeenCalled();
   });
 
   it("parses subagentRunId on TEXT_MESSAGE_START/CONTENT/END", () => {
@@ -723,7 +746,7 @@ describe("parseAgUiEvent", () => {
     const invalidEvent = {
       type: "SUBAGENT_FINISHED",
       subagentRunId: "sub-1",
-      outcome: null,
+      outcome: "success",
     };
     const unsupportedEvent = {
       type: "SUBAGENT_FINISHED",
