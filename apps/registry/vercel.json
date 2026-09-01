@@ -2,6 +2,26 @@
   "$schema": "https://openapi.vercel.sh/vercel.json",
   "ignoreCommand": "bash ../../scripts/vercel-ignore-changeset-release.sh",
   "installCommand": "pnpm install --frozen-lockfile",
+  "headers": [
+    {
+      "source": "/files/(.*)",
+      "headers": [
+        {
+          "key": "Content-Type",
+          "value": "text/plain; charset=utf-8"
+        }
+      ]
+    },
+    {
+      "source": "/base/files/(.*)",
+      "headers": [
+        {
+          "key": "Content-Type",
+          "value": "text/plain; charset=utf-8"
+        }
+      ]
+    }
+  ],
   "rewrites": [
     {
       "source": "/styles/base-:variant/:path(.+\\.json)",

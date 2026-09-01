@@ -66,6 +66,23 @@ const createBuilt = (
     new Map(files.map(([filePath, content]) => [filePath, content])),
 });
 
+test("packaged file routes are served as text", async () => {
+  const config = JSON.parse(
+    await readFile(new URL("../vercel.json", import.meta.url), "utf8"),
+  );
+
+  assert.deepEqual(config.headers, [
+    {
+      source: "/files/(.*)",
+      headers: [{ key: "Content-Type", value: "text/plain; charset=utf-8" }],
+    },
+    {
+      source: "/base/files/(.*)",
+      headers: [{ key: "Content-Type", value: "text/plain; charset=utf-8" }],
+    },
+  ]);
+});
+
 test("vue registry build emits self-contained staged items", async () => {
   const { registry, stagedVueRegistry } = await import("../src/registry.ts");
   await buildRegistry(registry, stagedVueRegistry);
