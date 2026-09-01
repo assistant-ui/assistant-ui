@@ -37,6 +37,7 @@ const createHarness = () => {
   const adapter = makeAdapter();
   const onNewA = vi.fn(async () => {});
   const onNewB = vi.fn(async () => {});
+  const renderB = vi.fn();
   const runtimeRef: { current: AssistantRuntime | null } = { current: null };
   const pending = new Promise<never>(() => {});
   let suspend = false;
@@ -46,6 +47,7 @@ const createHarness = () => {
     return null;
   };
   const App = ({ onNew }: { onNew: typeof onNewA }) => {
+    if (onNew === onNewB) renderB();
     const useThreadRuntime = () =>
       useExternalStoreRuntime({ messages: EMPTY_MESSAGES, onNew });
     const runtime = useRemoteThreadListRuntime({
@@ -64,6 +66,7 @@ const createHarness = () => {
     App,
     onNewA,
     onNewB,
+    renderB,
     runtimeRef,
     suspend: () => {
       suspend = true;
@@ -73,7 +76,8 @@ const createHarness = () => {
 
 describe("useRemoteThreadListRuntime concurrent options", () => {
   it("keeps new threads on the committed runtime hook", async () => {
-    const { App, onNewA, onNewB, runtimeRef, suspend } = createHarness();
+    const { App, onNewA, onNewB, renderB, runtimeRef, suspend } =
+      createHarness();
     const view = render(
       <Suspense fallback={null}>
         <App onNew={onNewA} />
@@ -94,6 +98,7 @@ describe("useRemoteThreadListRuntime concurrent options", () => {
         ),
       );
     });
+    expect(renderB).toHaveBeenCalled();
 
     await act(async () => {
       await runtimeRef.current!.threads.switchToNewThread();
