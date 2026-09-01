@@ -238,33 +238,33 @@ describe("unstable_runPendingTools", () => {
     );
   });
 
-  it("awaits thenable and cross-realm schema validation results", async () => {
-    const validationResults: Array<{ kind: string; result: unknown }> = [
-      {
-        kind: "thenable",
-        result: {
-          then(resolve: (value: { issues: unknown[] }) => void) {
-            resolve({ issues: [{ message: "invalid" }] });
-          },
+  it.each([
+    [
+      "thenable",
+      () => ({
+        then(resolve: (value: { issues: unknown[] }) => void) {
+          resolve({ issues: [{ message: "invalid" }] });
         },
-      },
-      {
-        kind: "cross-realm promise",
-        result: runInContext(
+      }),
+    ],
+    [
+      "cross-realm promise",
+      () =>
+        runInContext(
           "Promise.resolve({ issues: [{ message: 'invalid' }] })",
           createContext(),
         ),
-      },
-    ];
-
-    for (const { kind, result } of validationResults) {
+    ],
+  ] as const)(
+    "awaits a %s schema validation result",
+    async (kind, createValidationResult) => {
       const execute = vi.fn(async () => "executed");
       const onSchemaValidationError = vi.fn(async () => "recovered");
       const message = createPendingToolMessage(kind);
       const parameters = {
         "~standard": {
           version: 1,
-          validate: () => result,
+          validate: createValidationResult,
         },
       } as NonNullable<Tool["parameters"]>;
 
@@ -287,8 +287,8 @@ describe("unstable_runPendingTools", () => {
         result: "recovered",
         isError: false,
       });
-    }
-  });
+    },
+  );
 
   it("preserves cancellation ordering for synchronous validation", async () => {
     const abortController = new AbortController();

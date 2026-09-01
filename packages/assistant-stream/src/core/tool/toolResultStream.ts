@@ -62,6 +62,11 @@ const isStandardSchemaV1 = (
   );
 };
 
+const isThenable = (value: unknown): value is PromiseLike<unknown> =>
+  typeof value === "object" &&
+  value !== null &&
+  typeof (value as PromiseLike<unknown>).then === "function";
+
 function getToolResponse(
   tools: Record<string, Tool> | undefined,
   abortSignal: AbortSignal,
@@ -91,14 +96,7 @@ function getToolResponse(
 
     if (isStandardSchemaV1(tool.parameters)) {
       const result = tool.parameters["~standard"].validate(toolCall.args);
-      let validationResult: StandardSchemaV1.Result<unknown>;
-      if (typeof (result as { then?: unknown }).then === "function") {
-        validationResult = await (result as unknown as Promise<
-          StandardSchemaV1.Result<unknown>
-        >);
-      } else {
-        validationResult = result as StandardSchemaV1.Result<unknown>;
-      }
+      const validationResult = isThenable(result) ? await result : result;
 
       if (validationResult.issues) {
         executeFn =
