@@ -10,6 +10,7 @@ import type {
 } from "@assistant-ui/core";
 import { unstable_defaultDirectiveFormatter } from "@assistant-ui/core";
 import type { ReadonlyJSONObject } from "assistant-stream/utils";
+import { matchesTriggerItemQuery } from "../primitives/composer/trigger/matchesTriggerItemQuery";
 
 /** Icon component shape consumed by `ComposerTriggerPopover`'s `iconMap`. */
 export type Unstable_IconComponent = FC<{ className?: string }>;
@@ -155,7 +156,7 @@ export function unstable_useMentionAdapter(
           const lower = query.toLowerCase();
           return allGroups
             .flatMap((g) => g.items)
-            .filter((item) => matchesQuery(item, lower));
+            .filter((item) => matchesTriggerItemQuery(item, lower));
         },
       };
     }
@@ -175,7 +176,9 @@ export function unstable_useMentionAdapter(
       categoryItems: () => [],
       search: (query) => {
         const lower = query.toLowerCase();
-        return getFlatPool().filter((item) => matchesQuery(item, lower));
+        return getFlatPool().filter((item) =>
+          matchesTriggerItemQuery(item, lower),
+        );
       },
     };
   }, [aui, items, categories, wantsTools, toolsConfig]);
@@ -206,12 +209,4 @@ function toTriggerItem(m: Unstable_Mention): Unstable_TriggerItem {
     ...(m.description !== undefined ? { description: m.description } : {}),
     ...(metadata !== undefined ? { metadata } : {}),
   };
-}
-
-function matchesQuery(item: Unstable_TriggerItem, lower: string): boolean {
-  if (!lower) return true;
-  if (item.id.toLowerCase().includes(lower)) return true;
-  if (item.label.toLowerCase().includes(lower)) return true;
-  if (item.description?.toLowerCase().includes(lower)) return true;
-  return false;
 }
