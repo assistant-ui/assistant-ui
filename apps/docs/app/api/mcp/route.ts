@@ -7,6 +7,7 @@ import {
 } from "@modelcontextprotocol/server";
 import { z } from "zod";
 import { getLLMText } from "@/lib/get-llm-text";
+import { checkMcpTemplateToolRateLimit } from "@/lib/rate-limit";
 import {
   SEARCH_DOCS_RESULT_LIMIT,
   docsToolDefinitions,
@@ -33,6 +34,7 @@ import {
 import { normalizeMcpRequestHeaders } from "./normalize-mcp-headers";
 
 export const revalidate = false;
+export const maxDuration = 60;
 
 const templateToolDefinitions = [
   {
@@ -443,11 +445,24 @@ function registerResources(server: McpServer, requestUrl: string) {
   );
 }
 
-function buildMcpServer(requestUrl: string) {
+async function requireTemplateToolBudget(request: NextRequest) {
+  const denial = await checkMcpTemplateToolRateLimit(request);
+  if (!denial) return;
+
+  const retryAfter = denial.headers.get("Retry-After");
+  throw new Error(
+    `${await denial.text()}.` +
+      (retryAfter ? ` Retry in ${retryAfter}s.` : "") +
+      " The assistant-ui docs tools remain available.",
+  );
+}
+
+function buildMcpServer(request: NextRequest) {
   const server = new McpServer({
     name: "assistant-ui-docs",
     version: "1.0.0",
   });
+  const requestUrl = request.url;
   const requestOrigin = new URL(requestUrl).origin;
 
   server.registerTool(
@@ -502,9 +517,10 @@ function buildMcpServer(requestUrl: string) {
       inputSchema: readTemplateInputSchema,
     },
     (input) =>
-      toolResult(() =>
-        getTemplateDetails(buildXuluxMcpCatalog(requestOrigin), input),
-      ),
+      toolResult(async () => {
+        await requireTemplateToolBudget(request);
+        return getTemplateDetails(buildXuluxMcpCatalog(requestOrigin), input);
+      }),
   );
 
   server.registerTool(
@@ -514,9 +530,13 @@ function buildMcpServer(requestUrl: string) {
       inputSchema: previewTemplateInputSchema,
     },
     (input) =>
-      toolResult(() =>
-        createTemplatePreview(buildXuluxMcpCatalog(requestOrigin), input),
-      ),
+      toolResult(async () => {
+        await requireTemplateToolBudget(request);
+        return createTemplatePreview(
+          buildXuluxMcpCatalog(requestOrigin),
+          input,
+        );
+      }),
   );
 
   server.registerPrompt(
@@ -560,7 +580,7 @@ export async function GET() {
 }
 
 export async function POST(request: NextRequest) {
-  const server = buildMcpServer(request.url);
+  const server = buildMcpServer(request);
   const transport = new WebStandardStreamableHTTPServerTransport({
     sessionIdGenerator: undefined,
     enableJsonResponse: true,

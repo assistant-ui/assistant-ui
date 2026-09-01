@@ -3,6 +3,12 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 const mocks = vi.hoisted(() => ({
   fetchPreviewSession: vi.fn(),
   fetchTemplateContract: vi.fn(),
+  checkTemplateRateLimit: vi.fn(),
+}));
+
+vi.mock("@/lib/rate-limit", async (importOriginal) => ({
+  ...(await importOriginal()),
+  checkMcpTemplateToolRateLimit: mocks.checkTemplateRateLimit,
 }));
 
 vi.mock("@/lib/xulux/sandbox-contract", async (importOriginal) => ({
@@ -297,6 +303,60 @@ describe("POST /api/mcp", () => {
       response.result as { messages: Array<{ content: { text: string } }> }
     ).messages;
     expect(messages[0]!.content.text).toContain("list_templates");
+  });
+
+  it("meters the two tools that call out to a sandbox", async () => {
+    mocks.fetchTemplateContract.mockResolvedValue(null);
+
+    await requestMcp("tools/call", {
+      name: "read_template",
+      arguments: { templateId: "base-assistant-ui" },
+    });
+    await requestMcp("tools/call", {
+      name: "preview_template",
+      arguments: { templateId: "base-assistant-ui" },
+    });
+
+    expect(mocks.checkTemplateRateLimit).toHaveBeenCalledTimes(2);
+    expect(mocks.checkTemplateRateLimit.mock.calls[0]?.[0]).toMatchObject({
+      url: `${ORIGIN}/api/mcp`,
+    });
+  });
+
+  it("leaves the in-process docs tools unmetered", async () => {
+    await requestMcp("tools/call", { name: "list_templates", arguments: {} });
+    await requestMcp("tools/call", {
+      name: "search_docs",
+      arguments: { query: "runtime" },
+    });
+    await requestMcp("tools/call", { name: "get_navigation", arguments: {} });
+
+    expect(mocks.checkTemplateRateLimit).not.toHaveBeenCalled();
+  });
+
+  it("surfaces a throttled template tool without reaching the sandbox", async () => {
+    mocks.checkTemplateRateLimit.mockResolvedValueOnce(
+      new Response("Template tool rate limit exceeded", {
+        status: 429,
+        headers: { "Retry-After": "30" },
+      }),
+    );
+
+    const response = await requestMcp("tools/call", {
+      name: "preview_template",
+      arguments: {
+        templateId: "base-assistant-ui",
+        config: { brandTheme: { preset: "assistantDark" } },
+      },
+    });
+    const result = getToolCallResult(response);
+    const text = result.content.find((block) => block.type === "text")?.text;
+
+    expect(result.isError).toBe(true);
+    expect(text).toBe(
+      "Template tool rate limit exceeded. Retry in 30s. The assistant-ui docs tools remain available.",
+    );
+    expect(mocks.fetchPreviewSession).not.toHaveBeenCalled();
   });
 
   it("rejects unsupported preview config roots before the sandbox", async () => {

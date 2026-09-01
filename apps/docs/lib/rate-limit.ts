@@ -87,6 +87,38 @@ const getPublicAssistantRateLimits = async () => {
         "1d",
       ),
     }),
+    mcpTemplateIpBurst: new Ratelimit({
+      redis,
+      prefix: "aui:mcp-template:ip:burst",
+      limiter: Ratelimit.fixedWindow(15, "60s"),
+    }),
+    mcpTemplateIpDaily: new Ratelimit({
+      redis,
+      prefix: "aui:mcp-template:ip:daily",
+      limiter: Ratelimit.fixedWindow(
+        positiveSafeInteger(
+          process.env.AUI_MCP_TEMPLATE_REQUESTS_PER_IP_PER_DAY,
+          500,
+        ),
+        "1d",
+      ),
+    }),
+    mcpTemplateGlobalDaily: new Ratelimit({
+      redis,
+      prefix: "aui:mcp-template:global:daily",
+      limiter: Ratelimit.fixedWindow(
+        positiveSafeInteger(
+          process.env.AUI_MCP_TEMPLATE_GLOBAL_REQUESTS_PER_DAY,
+          5_000,
+        ),
+        "1d",
+      ),
+    }),
+    mcpTemplateGlobalAlert: new Ratelimit({
+      redis,
+      prefix: "aui:mcp-template:global:alert",
+      limiter: Ratelimit.fixedWindow(1, "10m"),
+    }),
   };
 };
 
@@ -218,6 +250,46 @@ export async function checkAnonymousSessionIssuanceRateLimit(
     const daily = await limits.sessionIssuanceDaily.limit(ip);
     if (!daily.success) {
       return limitResponse("Anonymous session limit exceeded", daily.reset);
+    }
+    return null;
+  });
+}
+
+export async function checkMcpTemplateToolRateLimit(
+  request: Request,
+): Promise<Response | null> {
+  return runPublicAssistantRateLimit(request, async (limits) => {
+    const ip = getClientIp(request);
+    if (!ip) return missingClientIpResponse(request);
+
+    const burst = await limits.mcpTemplateIpBurst.limit(ip);
+    if (!burst.success) {
+      return limitResponse("Template tool rate limit exceeded", burst.reset);
+    }
+
+    const daily = await limits.mcpTemplateIpDaily.limit(ip);
+    if (!daily.success) {
+      return limitResponse("Template tool daily limit exceeded", daily.reset);
+    }
+
+    const globalDaily = await limits.mcpTemplateGlobalDaily.limit("all");
+    if (!globalDaily.success) {
+      const alert = await limits.mcpTemplateGlobalAlert
+        .limit("all")
+        .catch(() => null);
+      if (alert?.success) {
+        console.error(
+          JSON.stringify({
+            level: "error",
+            message: "mcp_template_global_limit_exceeded",
+            requestId: request.headers.get("x-vercel-id"),
+          }),
+        );
+      }
+      return limitResponse(
+        "Template tool usage limit exceeded",
+        globalDaily.reset,
+      );
     }
     return null;
   });

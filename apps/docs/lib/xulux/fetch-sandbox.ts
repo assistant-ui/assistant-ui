@@ -6,6 +6,13 @@ const SANDBOX_FETCH_HEADERS = {
 
 const MAX_ATTEMPTS = 3;
 const RETRY_DELAY_MS = 300;
+const DEFAULT_TIMEOUT_MS = 10_000;
+
+export interface SandboxFetchInit extends RequestInit {
+  // Bounds one attempt including the response body, so a streamed archive
+  // needs a wider value than a JSON call.
+  timeoutMs?: number;
+}
 
 function isRetryableFetchError(error: unknown) {
   if (!(error instanceof Error)) return false;
@@ -32,16 +39,18 @@ function mergeHeaders(headers?: HeadersInit): Headers {
 
 export async function fetchSandboxResource(
   url: string | URL,
-  init?: RequestInit,
+  init?: SandboxFetchInit,
 ): Promise<Response> {
+  const { timeoutMs = DEFAULT_TIMEOUT_MS, ...requestInit } = init ?? {};
   let lastError: unknown;
 
   for (let attempt = 1; attempt <= MAX_ATTEMPTS; attempt += 1) {
     try {
       return await fetch(url, {
-        ...init,
+        ...requestInit,
         cache: "no-store",
-        headers: mergeHeaders(init?.headers),
+        headers: mergeHeaders(requestInit.headers),
+        signal: AbortSignal.timeout(timeoutMs),
       });
     } catch (error) {
       lastError = error;

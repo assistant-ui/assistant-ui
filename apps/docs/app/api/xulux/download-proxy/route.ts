@@ -7,6 +7,7 @@ import { getXuluxHostedTemplatesCatalog } from "@/lib/xulux/templates-catalog";
 export const runtime = "nodejs";
 
 const MAX_ZIP_BYTES = 50 * 1024 * 1024; // 50 MB ceiling
+const ARCHIVE_TIMEOUT_MS = 60_000;
 
 async function readLimitedBody(
   body: ReadableStream<Uint8Array>,
@@ -75,6 +76,7 @@ export async function GET(req: Request) {
   try {
     const upstream = await fetchSandboxResource(upstreamUrl, {
       redirect: "manual",
+      timeoutMs: ARCHIVE_TIMEOUT_MS,
     });
 
     if (upstream.status >= 300 && upstream.status < 400) {

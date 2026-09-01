@@ -14,6 +14,7 @@ describe("fetchSandboxResource", () => {
   afterEach(() => {
     vi.useRealTimers();
     vi.unstubAllGlobals();
+    vi.restoreAllMocks();
   });
 
   it("adds sandbox headers and disables caching", async () => {
@@ -86,6 +87,51 @@ describe("fetchSandboxResource", () => {
 
     await expect(
       fetchSandboxResource("https://sandbox.example.com/preview"),
+    ).rejects.toBe(error);
+    expect(mocks.fetch).toHaveBeenCalledTimes(1);
+  });
+
+  it("bounds every attempt with an abort timeout", async () => {
+    vi.useFakeTimers();
+    const timeout = vi.spyOn(AbortSignal, "timeout");
+    mocks.fetch
+      .mockRejectedValueOnce(new Error("fetch failed"))
+      .mockResolvedValueOnce(new Response("ok"));
+
+    const pending = fetchSandboxResource("https://sandbox.example.com/preview");
+    await vi.advanceTimersByTimeAsync(300);
+    await pending;
+
+    expect(timeout.mock.calls).toEqual([[10_000], [10_000]]);
+    expect(mocks.fetch.mock.calls[0]?.[1]?.signal).toBeInstanceOf(AbortSignal);
+    expect(mocks.fetch.mock.calls[1]?.[1]?.signal).not.toBe(
+      mocks.fetch.mock.calls[0]?.[1]?.signal,
+    );
+  });
+
+  it("honors a caller timeout without forwarding it to fetch", async () => {
+    const timeout = vi.spyOn(AbortSignal, "timeout");
+    mocks.fetch.mockResolvedValueOnce(new Response("ok"));
+
+    await fetchSandboxResource("https://sandbox.example.com/archive", {
+      timeoutMs: 60_000,
+    });
+
+    expect(timeout).toHaveBeenCalledWith(60_000);
+    expect(mocks.fetch.mock.calls[0]?.[1]).not.toHaveProperty("timeoutMs");
+  });
+
+  it("does not retry an attempt that hit the timeout", async () => {
+    const error = new DOMException(
+      "The operation was aborted due to timeout",
+      "TimeoutError",
+    );
+    mocks.fetch.mockRejectedValue(error);
+
+    await expect(
+      fetchSandboxResource("https://sandbox.example.com/session", {
+        method: "POST",
+      }),
     ).rejects.toBe(error);
     expect(mocks.fetch).toHaveBeenCalledTimes(1);
   });
