@@ -7,7 +7,9 @@ import { getXuluxHostedTemplatesCatalog } from "@/lib/xulux/templates-catalog";
 export const runtime = "nodejs";
 
 const MAX_ZIP_BYTES = 50 * 1024 * 1024; // 50 MB ceiling
-const ARCHIVE_TIMEOUT_MS = 60_000;
+// Covers the full body read, so it stops a stalled connection rather than
+// capping throughput; a 50 MB archive must not be truncated mid-download.
+const ARCHIVE_TIMEOUT_MS = 300_000;
 
 async function readLimitedBody(
   body: ReadableStream<Uint8Array>,
