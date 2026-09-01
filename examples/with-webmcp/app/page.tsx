@@ -16,8 +16,8 @@ import { TaskPanel } from "./task-panel";
 
 const WebMcpStatus = () => {
   const { status, registeredToolNames } = unstable_useWebMcpProvider({
-    // clear_completed_tasks stays chat-only: it is destructive and asks for
-    // approval through human(), which a WebMCP caller cannot answer.
+    // clear_completed_tasks deletes data, and a published tool is callable by
+    // anyone driving the browser with the approval step out of the loop.
     filter: (name, tool) =>
       unstable_defaultWebMcpFilter(name, tool) &&
       name !== "clear_completed_tasks",
