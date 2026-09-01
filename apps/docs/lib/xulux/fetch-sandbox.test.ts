@@ -142,6 +142,21 @@ describe("fetchSandboxResource", () => {
     expect(mocks.fetch).toHaveBeenCalledTimes(1);
   });
 
+  it("does not start an attempt when the deadline expires mid-backoff", async () => {
+    mocks.fetch.mockRejectedValue(
+      Object.assign(new Error("request failed"), {
+        cause: { code: "ECONNRESET" },
+      }),
+    );
+
+    await expect(
+      fetchSandboxResource("https://sandbox.example.com/preview", {
+        timeoutMs: 150,
+      }),
+    ).rejects.toThrow("request failed");
+    expect(mocks.fetch).toHaveBeenCalledTimes(1);
+  });
+
   it("aborts when the caller's own signal fires", async () => {
     const controller = new AbortController();
     mocks.fetch.mockImplementation(async (_url, init) => {

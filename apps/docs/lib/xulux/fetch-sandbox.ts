@@ -63,6 +63,7 @@ export async function fetchSandboxResource(
         throw error;
       }
       await sleep(RETRY_DELAY_MS * attempt);
+      if (deadline.aborted) throw error;
     }
   }
 
