@@ -406,9 +406,11 @@ describe("createOAuthProvider persistence across provider instances", () => {
       token_type: "bearer",
     });
     await clearOAuthProviderAuthState(second.create(), "docs");
+    await firstProvider.saveCodeVerifier("first-verifier");
 
     expect(first.getState()).toEqual({
       tokens: { access_token: "first-token", token_type: "bearer" },
+      codeVerifier: "first-verifier",
     });
     expect(second.getState()).toBeNull();
   });
