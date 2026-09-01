@@ -696,10 +696,12 @@ export class RemoteThreadListThreadListRuntimeCore
       if (generation !== this._switchGeneration) return;
       current = this.getItemById(data.id);
       if (current?.id !== data.id) return;
-      await this.unarchive(current.id);
-      if (generation !== this._switchGeneration) return;
-      current = this.getItemById(data.id);
-      if (current?.id !== data.id) return;
+      if (current.status === "archived") {
+        await this.unarchive(current.id);
+        if (generation !== this._switchGeneration) return;
+        current = this.getItemById(data.id);
+        if (current?.id !== data.id) return;
+      }
     }
     this._mainThreadId = current.id;
 

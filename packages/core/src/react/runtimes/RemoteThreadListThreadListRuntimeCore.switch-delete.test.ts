@@ -119,4 +119,51 @@ describe("RemoteThreadListThreadListRuntimeCore switch/delete ordering", () => {
     expect(core.mainThreadId).toBe(initialMainThreadId);
     expect(core.getItemById(core.mainThreadId!)).toBeDefined();
   });
+
+  it("does not unarchive again when the target became regular during initialization", async () => {
+    const initialization = deferred<{
+      remoteId: string;
+      externalId: string | undefined;
+    }>();
+    const adapter = makeAdapter({
+      list: vi.fn(async () => ({
+        threads: [
+          {
+            status: "archived" as const,
+            remoteId: "thread-b",
+            externalId: "thread-b",
+            title: "Thread B",
+          },
+        ],
+      })),
+    });
+    const core = createCore(adapter);
+    await core.getLoadThreadsPromise();
+    const target = core.getItemById("thread-b")!;
+    (
+      target as {
+        initializeTask: Promise<{
+          remoteId: string;
+          externalId: string | undefined;
+        }>;
+      }
+    ).initializeTask = initialization.promise;
+
+    const switchToB = core.switchToThread("thread-b");
+    await new Promise((resolve) => setTimeout(resolve, 0));
+    const unarchiveB = core.unarchive("thread-b");
+    await vi.waitFor(() => {
+      expect(core.getItemById("thread-b")?.status).toBe("regular");
+    });
+
+    initialization.resolve({
+      remoteId: "thread-b",
+      externalId: "thread-b",
+    });
+    await Promise.all([switchToB, unarchiveB]);
+
+    expect(adapter.unarchive).toHaveBeenCalledTimes(1);
+    expect(adapter.unarchive).toHaveBeenCalledWith("thread-b");
+    expect(core.mainThreadId).toBe("thread-b");
+  });
 });
