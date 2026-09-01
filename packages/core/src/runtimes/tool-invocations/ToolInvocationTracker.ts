@@ -587,6 +587,15 @@ export class ToolInvocationTracker {
     return tool?.execute !== undefined || tool?.streamCall !== undefined;
   }
 
+  private _warnProviderOwnedSkip(toolName: string, toolCallId: string): void {
+    if (process.env.NODE_ENV === "production") return;
+    if (this._getTools()?.[toolName]?.execute === undefined) return;
+    console.warn(
+      "[ToolInvocationTracker] adapter reports this tool call as provider-owned; the registered execute is skipped (see EDGE_CASES.md A.9)",
+      { toolCallId, toolName },
+    );
+  }
+
   private _shouldCloseArgsStream({
     toolName,
     argsText,
@@ -793,10 +802,14 @@ export class ToolInvocationTracker {
         }
 
         if (!entry) {
+          const providerOwned =
+            content.result === undefined && !this._isClientToolCall(content);
+          if (providerOwned)
+            this._warnProviderOwnedSkip(content.toolName, content.toolCallId);
           entry = this._startActiveEntry(
             content.toolCallId,
             content.toolName,
-            content.result !== undefined || !this._isClientToolCall(content),
+            content.result !== undefined || providerOwned,
           );
         }
 

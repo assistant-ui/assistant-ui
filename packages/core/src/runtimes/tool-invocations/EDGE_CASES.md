@@ -103,6 +103,11 @@ the call is first observed live, and never re-read: ownership is fixed
 when the provider emits the call, so a later snapshot cannot revoke it
 and drop the result of an execute already in flight.
 
+Outside production, a provider-owned call whose name resolves to a tool
+with an `execute` logs a `console.warn`. The two together are a
+misconfiguration: the provider answers the call, so the registered
+`execute` would never run and the skip is otherwise silent.
+
 Without it, a provider that runs tools itself races the tracker. Its
 result arrives one or more snapshots after the call's arguments
 complete, and in that window the call is complete and result-less, so a

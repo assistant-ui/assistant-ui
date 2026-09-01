@@ -519,6 +519,7 @@ describe("ToolInvocationTracker", () => {
       } satisfies Tool,
     });
     const onResult = vi.fn();
+    const warnSpy = vi.spyOn(console, "warn").mockImplementation(() => {});
     const tracker = new ToolInvocationTracker(
       getTools,
       { onResult, onStatusesChange: () => {} },
@@ -542,6 +543,8 @@ describe("ToolInvocationTracker", () => {
 
     expect(execute).not.toHaveBeenCalled();
     expect(onResult).not.toHaveBeenCalled();
+    expect(warnSpy).toHaveBeenCalledTimes(1);
+    warnSpy.mockRestore();
 
     tracker.setState(
       createState(
