@@ -15,6 +15,7 @@ import {
 } from "assistant-stream/utils";
 import { isJSONValueEqual } from "../../utils/json/is-json-equal";
 import type { ThreadMessage, ToolCallMessagePart } from "../../types/message";
+import { walkToolCallTree } from "../../runtime/utils/tool-call-tree";
 
 const TOOL_EXECUTION_ID = Symbol.for("assistant-stream.tool-execution-id");
 
@@ -760,85 +761,72 @@ export class ToolInvocationTracker {
   private _processMessages(messages: readonly ThreadMessage[]): void {
     const isRestore = this._pendingRestore;
 
-    for (const message of messages) {
-      if (!message || !Array.isArray((message as ThreadMessage).content)) {
+    for (const { part: content } of walkToolCallTree(messages)) {
+      const existing = this._entries.get(content.toolCallId);
+
+      if (isRestore) {
+        // Don't overwrite an already-active entry (e.g. live tool-call
+        // observed before this restore snapshot landed). Restore can
+        // only seed entries the runtime has never seen.
+        if (!existing?.controller) {
+          this._entries.set(content.toolCallId, {
+            toolName: content.toolName,
+            argsText: content.argsText,
+            hasResult: content.result !== undefined,
+          });
+        }
         continue;
       }
-      for (const content of message.content as readonly ThreadMessage["content"][number][]) {
-        if (!content || content.type !== "tool-call") continue;
 
-        const existing = this._entries.get(content.toolCallId);
+      // Live snapshot.
+      let entry = existing;
 
-        if (isRestore) {
-          // Don't overwrite an already-active entry (e.g. live tool-call
-          // observed before this restore snapshot landed). Restore can
-          // only seed entries the runtime has never seen.
-          if (!existing?.controller) {
-            this._entries.set(content.toolCallId, {
-              toolName: content.toolName,
-              argsText: content.argsText,
-              hasResult: content.result !== undefined,
-            });
-          }
-          if (content.messages) this._processMessages(content.messages);
-          continue;
-        }
+      if (entry && !entry.controller) {
+        // Restored entry observed in a live snapshot. Promote if its
+        // signature has changed; otherwise treat as still-historical.
+        const signatureChanged =
+          content.argsText !== entry.argsText ||
+          (content.result !== undefined) !== entry.hasResult;
+        if (!signatureChanged) continue;
+        this._entries.delete(content.toolCallId);
+        entry = undefined;
+      }
 
-        // Live snapshot.
-        let entry = existing;
+      if (!entry) {
+        const providerOwned =
+          content.result === undefined && !this._isClientToolCall(content);
+        if (providerOwned)
+          this._warnProviderOwnedSkip(content.toolName, content.toolCallId);
+        entry = this._startActiveEntry(
+          content.toolCallId,
+          content.toolName,
+          content.result !== undefined || providerOwned,
+        );
+      }
 
-        if (entry && !entry.controller) {
-          // Restored entry observed in a live snapshot. Promote if its
-          // signature has changed; otherwise treat as still-historical.
-          const signatureChanged =
-            content.argsText !== entry.argsText ||
-            (content.result !== undefined) !== entry.hasResult;
-          if (!signatureChanged) {
-            if (content.messages) this._processMessages(content.messages);
-            continue;
-          }
-          this._entries.delete(content.toolCallId);
-          entry = undefined;
-        }
+      if (content.approval !== undefined) entry.skipExecute = true;
 
-        if (!entry) {
-          const providerOwned =
-            content.result === undefined && !this._isClientToolCall(content);
-          if (providerOwned)
-            this._warnProviderOwnedSkip(content.toolName, content.toolCallId);
-          entry = this._startActiveEntry(
-            content.toolCallId,
-            content.toolName,
-            content.result !== undefined || providerOwned,
-          );
-        }
+      this._processArgsText(entry, content);
 
-        if (content.approval !== undefined) entry.skipExecute = true;
-
-        this._processArgsText(entry, content);
-
-        if (content.result !== undefined && !entry.hasResult) {
-          // `entry` is in active phase from this point — either just
-          // created by `_startActiveEntry`, or pre-existing with a live
-          // controller. Narrow once instead of asserting at every use.
-          const { controller: activeController } = entry;
-          if (!activeController) continue;
-          entry.hasResult = true;
-          entry.argsComplete = true;
-          activeController.setResponse(
-            new ToolResponse({
-              result: content.result as ReadonlyJSONValue,
-              artifact: content.artifact as ReadonlyJSONValue | undefined,
-              isError: content.isError,
-              ...(content.modelContent !== undefined
-                ? { modelContent: content.modelContent }
-                : {}),
-            }),
-          );
-          activeController.close();
-        }
-
-        if (content.messages) this._processMessages(content.messages);
+      if (content.result !== undefined && !entry.hasResult) {
+        // `entry` is in active phase from this point — either just
+        // created by `_startActiveEntry`, or pre-existing with a live
+        // controller. Narrow once instead of asserting at every use.
+        const { controller: activeController } = entry;
+        if (!activeController) continue;
+        entry.hasResult = true;
+        entry.argsComplete = true;
+        activeController.setResponse(
+          new ToolResponse({
+            result: content.result as ReadonlyJSONValue,
+            artifact: content.artifact as ReadonlyJSONValue | undefined,
+            isError: content.isError,
+            ...(content.modelContent !== undefined
+              ? { modelContent: content.modelContent }
+              : {}),
+          }),
+        );
+        activeController.close();
       }
     }
   }

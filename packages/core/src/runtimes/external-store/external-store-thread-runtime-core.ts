@@ -45,6 +45,7 @@ import {
   MessageRepository,
 } from "../../runtime/utils/message-repository";
 import { generateId } from "../../utils/id";
+import { walkToolCallTree } from "../../runtime/utils/tool-call-tree";
 import {
   ToolInvocationTracker,
   type ToolExecutionStatus,
@@ -584,17 +585,9 @@ export class ExternalStoreThreadRuntimeCore
   private _findMessageIdForToolCall(toolCallId: string): string | undefined {
     if (this._messagesForToolCallIndex !== this._messages) {
       this._toolCallToMessageId.clear();
-      const visit = (messages: readonly ThreadMessage[]): void => {
-        for (const message of messages) {
-          if (!Array.isArray(message.content)) continue;
-          for (const part of message.content) {
-            if (!part || part.type !== "tool-call") continue;
-            this._toolCallToMessageId.set(part.toolCallId, message.id);
-            if (part.messages) visit(part.messages);
-          }
-        }
-      };
-      visit(this._messages);
+      for (const { part, messageId } of walkToolCallTree(this._messages)) {
+        this._toolCallToMessageId.set(part.toolCallId, messageId);
+      }
       this._messagesForToolCallIndex = this._messages;
     }
     return this._toolCallToMessageId.get(toolCallId);
