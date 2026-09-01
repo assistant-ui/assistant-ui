@@ -649,6 +649,55 @@ describe("RemoteThreadList", () => {
     handle.destroy();
   });
 
+  const mountRacedInitialize = async (status: "regular" | "archived") => {
+    const initialize = deferred<{ remoteId: string; externalId: undefined }>();
+    const adapter = makeAdapter({
+      list: vi.fn(async () => ({ threads: [] })),
+      initialize: vi.fn(() => initialize.promise),
+    });
+    const { handle } = mountList(adapter);
+    const aui = handle.getClient();
+    await aui.threads.getLoadThreadsPromise();
+    const localId = aui.threads.getState().mainThreadId;
+    const initialization = aui.threads.item("main").initialize();
+
+    adapter.list = vi.fn(async () => ({
+      threads: [{ status, remoteId: "remote-1", title: "Mine" }],
+    }));
+    await aui.threads.reload();
+
+    initialize.resolve({ remoteId: "remote-1", externalId: undefined });
+    await initialization;
+    return { handle, aui, localId };
+  };
+
+  it("collapses a slot the list minted while initialize was in flight", async () => {
+    const { handle, aui, localId } = await mountRacedInitialize("regular");
+
+    await vi.waitFor(() => {
+      expect(aui.threads.getState().threadIds).toEqual([localId]);
+    });
+    expect(aui.threads.item({ id: "remote-1" }).getState().id).toBe(localId);
+
+    await aui.threads.item({ id: "remote-1" }).delete();
+    await vi.waitFor(() => {
+      expect(aui.threads.getState().threadIds).toEqual([]);
+    });
+    expect(() => aui.threads.item({ id: localId }).getState()).toThrow();
+    handle.destroy();
+  });
+
+  it("does not leave the collapsed slot in both lists when the race reported it archived", async () => {
+    const { handle, aui, localId } = await mountRacedInitialize("archived");
+
+    await vi.waitFor(() => {
+      expect(aui.threads.getState().threadIds).toEqual([localId]);
+    });
+    expect(aui.threads.getState().archivedThreadIds).toEqual([]);
+    expect(aui.threads.item({ id: "remote-1" }).getState().id).toBe(localId);
+    handle.destroy();
+  });
+
   it("keeps item(main) isRunning after reload remaps the local id", async () => {
     const adapter = makeAdapter({
       list: vi.fn(async () => ({ threads: [] })),
