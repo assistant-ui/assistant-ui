@@ -43,6 +43,7 @@ export async function fetchSandboxResource(
 ): Promise<Response> {
   const { timeoutMs = DEFAULT_TIMEOUT_MS, signal, ...requestInit } = init ?? {};
   const deadline = AbortSignal.timeout(timeoutMs);
+  const abort = signal ? AbortSignal.any([signal, deadline]) : deadline;
   let lastError: unknown;
 
   for (let attempt = 1; attempt <= MAX_ATTEMPTS; attempt += 1) {
@@ -51,19 +52,19 @@ export async function fetchSandboxResource(
         ...requestInit,
         cache: "no-store",
         headers: mergeHeaders(requestInit.headers),
-        signal: signal ? AbortSignal.any([signal, deadline]) : deadline,
+        signal: abort,
       });
     } catch (error) {
       lastError = error;
       if (
-        deadline.aborted ||
+        abort.aborted ||
         !isRetryableFetchError(error) ||
         attempt === MAX_ATTEMPTS
       ) {
         throw error;
       }
       await sleep(RETRY_DELAY_MS * attempt);
-      if (deadline.aborted) throw error;
+      if (abort.aborted) throw error;
     }
   }
 

@@ -287,7 +287,7 @@ describe("MCP template tool rate limits", () => {
     });
   });
 
-  it("keys every bucket by IP because MCP clients carry no session", async () => {
+  it("keys the per-client buckets by IP, the ceiling globally", async () => {
     await expect(checkMcpTemplateToolRateLimit(request())).resolves.toBeNull();
 
     expect(mocks.calls).toEqual([

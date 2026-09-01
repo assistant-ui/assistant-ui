@@ -157,6 +157,23 @@ describe("fetchSandboxResource", () => {
     expect(mocks.fetch).toHaveBeenCalledTimes(1);
   });
 
+  it("stops retrying once the caller has cancelled", async () => {
+    const controller = new AbortController();
+    controller.abort();
+    mocks.fetch.mockRejectedValue(
+      Object.assign(new Error("request failed"), {
+        cause: { code: "ECONNRESET" },
+      }),
+    );
+
+    await expect(
+      fetchSandboxResource("https://sandbox.example.com/preview", {
+        signal: controller.signal,
+      }),
+    ).rejects.toThrow("request failed");
+    expect(mocks.fetch).toHaveBeenCalledTimes(1);
+  });
+
   it("aborts when the caller's own signal fires", async () => {
     const controller = new AbortController();
     mocks.fetch.mockImplementation(async (_url, init) => {
