@@ -71,16 +71,13 @@ test("packaged file routes are served as text", async () => {
     await readFile(new URL("../vercel.json", import.meta.url), "utf8"),
   );
 
-  assert.deepEqual(config.headers, [
-    {
-      source: "/files/(.*)",
-      headers: [{ key: "Content-Type", value: "text/plain; charset=utf-8" }],
-    },
-    {
-      source: "/base/files/(.*)",
-      headers: [{ key: "Content-Type", value: "text/plain; charset=utf-8" }],
-    },
-  ]);
+  for (const source of ["/files/(.*)", "/base/files/(.*)"]) {
+    const rule = config.headers?.find((entry) => entry.source === source);
+    assert.ok(rule, `missing header rule for ${source}`);
+    assert.deepEqual(rule.headers, [
+      { key: "Content-Type", value: "text/plain; charset=utf-8" },
+    ]);
+  }
 });
 
 test("vue registry build emits self-contained staged items", async () => {
