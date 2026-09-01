@@ -6,9 +6,11 @@ export type MCPStorage = {
   /**
    * Stable identity of the backing store. Two storages with the same scopeId
    * must read and write the same persisted data. When present, server
-   * connections key on it, so swapping to a differently-scoped storage
-   * reconnects instead of leaving a live OAuth flow on the replaced store;
-   * when absent, storage swaps never key a reconnect.
+   * connections and the OAuth write fence key on it, so swapping to a
+   * differently-scoped storage reconnects instead of leaving a live OAuth flow
+   * on the replaced store, and clearing through a same-scoped replacement still
+   * waits for writes queued against the storage it replaced. When absent, both
+   * fall back to object identity and storage swaps never key a reconnect.
    */
   scopeId?: string;
   loadCustomServers: () => Promise<MCPCustomServerRecord[]>;
