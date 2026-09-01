@@ -32,6 +32,9 @@ export default defineToolkit({
     },
   },
   clear_completed_tasks: {
+    // A frontend tool renders inside the collapsed tool group, which would put
+    // the approval prompt behind a disclosure the user has no reason to open.
+    display: "standalone",
     description:
       "Remove every completed task from the user's task list. Requires the user's approval.",
     parameters: z.object({}),
