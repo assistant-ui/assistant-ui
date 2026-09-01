@@ -14,6 +14,7 @@ on:
       - "scripts/check-built-declarations.mjs"
       - "scripts/check-changesets.mjs"
       - "scripts/lib/workspace.mjs"
+      - "scripts/lib/script-options.mjs"
   pull_request:
     branches: [main]
     paths:
@@ -27,6 +28,7 @@ on:
       - "scripts/check-built-declarations.mjs"
       - "scripts/check-changesets.mjs"
       - "scripts/lib/workspace.mjs"
+      - "scripts/lib/script-options.mjs"
 
 permissions:
   contents: read

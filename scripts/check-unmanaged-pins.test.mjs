@@ -154,6 +154,7 @@ test("findUnmarkedActionRefs distinguishes missing and mismatched markers", () =
         "  - uses: actions/checkout@fixture # ratchet:actions/checkout@v4",
         "  - uses: actions/setup-node@fixture",
         "  - uses: actions/cache@fixture # ratchet:actions/checkout@v4",
+        "  - uses: actions/setup-python@fixture # ratchet:actions/setup-python",
         "  - uses: actions/upload-artifact@fixture # ratchet:exclude",
         "  - uses: ./local-action",
       ].join("\n"),
@@ -172,6 +173,12 @@ test("findUnmarkedActionRefs distinguishes missing and mismatched markers", () =
       line: 4,
       uses: "actions/cache@fixture",
       reason: "names actions/checkout",
+    },
+    {
+      file: ".github/workflows/check.yaml",
+      line: 5,
+      uses: "actions/setup-python@fixture",
+      reason: "has no version",
     },
   ]);
 });

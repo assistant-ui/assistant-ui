@@ -69,25 +69,16 @@ export function findUnmarkedActionRefs(workflows) {
     source.split("\n").forEach((line, index) => {
       const ref = /^\s*(?:-\s+)?uses:\s*(\S+)/.exec(line);
       if (!ref || ref[1].startsWith(".")) return;
-      const action = ref[1].split("@")[0];
+      const action = ref[1].slice(0, ref[1].lastIndexOf("@"));
       const marker = /#\s*ratchet:(\S+)/.exec(line);
       if (marker && marker[1] === "exclude") return;
-      if (!marker) {
-        problems.push({
-          file,
-          line: index + 1,
-          uses: ref[1],
-          reason: "absent",
-        });
-        return;
-      }
-      if (marker[1].split("@")[0] !== action) {
-        problems.push({
-          file,
-          line: index + 1,
-          uses: ref[1],
-          reason: `names ${marker[1].split("@")[0]}`,
-        });
+      const report = (reason) =>
+        problems.push({ file, line: index + 1, uses: ref[1], reason });
+      if (!marker) return report("absent");
+      const at = marker[1].lastIndexOf("@");
+      if (at <= 0) return report("has no version");
+      if (marker[1].slice(0, at) !== action) {
+        report(`names ${marker[1].slice(0, at)}`);
       }
     });
   }
@@ -195,7 +186,9 @@ function readWorkspaceVersions(root) {
   }
   for (const manifest of new Set(manifests.map(posixPath))) {
     const pkg = readJson(path.join(root, manifest));
-    if (typeof pkg.name === "string") published.add(pkg.name);
+    if (typeof pkg.name === "string" && pkg.private !== true) {
+      published.add(pkg.name);
+    }
     for (const field of VERSION_FIELDS) {
       for (const [name, range] of Object.entries(pkg[field] ?? {})) {
         const floor = lowestSatisfying(range);
@@ -311,10 +304,10 @@ function main() {
       "not workspace members, so taze skips them and they drift by default rather than by decision.",
     );
     console.error(
-      "Raise the pins to the workspace versions. `@assistant-ui/*` pins are exempt: they move on every",
+      "Raise the pins to the workspace versions. Packages this repository publishes are exempt: they",
     );
     console.error(
-      "release, which the course projects do not participate in.\n",
+      "move on every release, which the course projects do not participate in.\n",
     );
   }
 
