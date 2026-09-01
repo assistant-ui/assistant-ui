@@ -57,6 +57,38 @@ describe("boundSpec", () => {
     expect(result as unknown[]).toHaveLength(CHILDREN_CAP);
   });
 
+  it("bounds children exposed by a record proxy that hides them from has", () => {
+    let childrenGets = 0;
+    const hostileChildren = new Proxy(["a", "b"], {
+      get: (target, prop, receiver) =>
+        prop === "length"
+          ? CHILDREN_CAP + 1
+          : typeof prop === "string" && /^\d+$/.test(prop)
+            ? "x"
+            : Reflect.get(target, prop, receiver),
+    });
+    const record = new Proxy(
+      { type: "Box", children: hostileChildren },
+      {
+        get: (target, prop, receiver) => {
+          if (prop === "children") childrenGets += 1;
+          return Reflect.get(target, prop, receiver);
+        },
+        has: (target, prop) =>
+          prop === "children" ? false : Reflect.has(target, prop),
+      },
+    );
+
+    const { reasons, result } = walk(record);
+
+    expect(reasons).toEqual(["children"]);
+    expect(childrenGets).toBe(1);
+    expect(result).not.toBe(record);
+    expect((result as { children: unknown[] }).children).toHaveLength(
+      CHILDREN_CAP,
+    );
+  });
+
   it("bounds an array that hijacks its own slice", () => {
     const hostile = new Proxy(["a", "b"], {
       get: (target, prop, receiver) =>

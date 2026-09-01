@@ -81,26 +81,20 @@ function boundNode(
     ancestors.delete(value);
     return result;
   }
-  if (
-    value !== null &&
-    typeof value === "object" &&
-    "children" in (value as Record<string, unknown>)
-  ) {
+  if (value !== null && typeof value === "object") {
     if (ancestors.has(value)) {
       onClamp("cycle");
       return null;
     }
     ancestors.add(value);
-    const record = value as Record<string, unknown>;
+    const { children, ...record } = value as Record<string, unknown>;
+    if (children === undefined) {
+      ancestors.delete(value);
+      return value;
+    }
     const result = {
       ...record,
-      children: boundNode(
-        record["children"],
-        depth + 1,
-        onClamp,
-        state,
-        ancestors,
-      ),
+      children: boundNode(children, depth + 1, onClamp, state, ancestors),
     };
     ancestors.delete(value);
     return result;
