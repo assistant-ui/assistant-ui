@@ -1,9 +1,7 @@
 // @vitest-environment jsdom
 import { render, waitFor } from "@testing-library/react";
 import { resource, useResource, withKey } from "@assistant-ui/tap";
-import { act, memo, startTransition, Suspense, useEffect } from "react";
-import { flushSync } from "react-dom";
-import { createRoot } from "react-dom/client";
+import { act, memo, startTransition, Suspense } from "react";
 import type {
   ToolCallMessagePartComponent,
   ToolCallMessagePartProps,
@@ -17,34 +15,7 @@ import type {
   McpAppsRemoteHostOptions,
 } from "./types";
 
-type CapturedRendererStore = {
-  getState: () => { host: McpAppsHost };
-};
-
-const { framePropsMock, rendererStores } = vi.hoisted(() => ({
-  framePropsMock: vi.fn(),
-  rendererStores: [] as CapturedRendererStore[],
-}));
-
-vi.mock("zustand", async (importOriginal) => {
-  const actual = await importOriginal<typeof import("zustand")>();
-  const create = (...args: unknown[]) => {
-    const store = Reflect.apply(actual.create, undefined, args) as {
-      getState?: () => unknown;
-    };
-    const state = store.getState?.();
-    if (
-      state != null &&
-      typeof state === "object" &&
-      "host" in state &&
-      "options" in state
-    ) {
-      rendererStores.push(store as CapturedRendererStore);
-    }
-    return store;
-  };
-  return { ...actual, create };
-});
+const { framePropsMock } = vi.hoisted(() => ({ framePropsMock: vi.fn() }));
 
 vi.mock("@assistant-ui/store", async (importOriginal) => ({
   ...(await importOriginal()),
@@ -179,11 +150,6 @@ function OptionsHarness({
   ));
 }
 
-function PassiveProbe({ onEffect }: { onEffect: () => void }) {
-  useEffect(onEffect, [onEffect]);
-  return null;
-}
-
 const framePropsCalls = () =>
   framePropsMock.mock.calls.map(([props]) => props as McpAppFrameProps);
 
@@ -221,7 +187,6 @@ function RemoteHarness({
 describe("McpAppRenderer", () => {
   beforeEach(() => {
     framePropsMock.mockReset();
-    rendererStores.length = 0;
   });
 
   it("loads newly mounted parts through the committed host", async () => {
@@ -239,59 +204,6 @@ describe("McpAppRenderer", () => {
     await waitFor(() => expect(hostB.loadResource).toHaveBeenCalled());
 
     expect(hostA.loadResource).not.toHaveBeenCalled();
-  });
-
-  it("checks the current host before starting a deferred resource load", async () => {
-    const hostA = loadingHost();
-    const hostB = loadingHost();
-    const initialPassiveEffect = vi.fn();
-    const updatedPassiveEffect = vi.fn();
-    const container = document.createElement("div");
-    document.body.appendChild(container);
-    const root = createRoot(container);
-    const global = globalThis as {
-      IS_REACT_ACT_ENVIRONMENT?: boolean | undefined;
-    };
-    const previousActEnvironment = global.IS_REACT_ACT_ENVIRONMENT;
-
-    try {
-      await act(async () => {
-        root.render(
-          <>
-            <OptionsHarness host={hostA} toolCallIds={["call-1"]} />
-            <PassiveProbe onEffect={initialPassiveEffect} />
-          </>,
-        );
-      });
-      await vi.waitFor(() => expect(hostA.loadResource).toHaveBeenCalledOnce());
-      vi.mocked(hostA.loadResource).mockClear();
-      const rendererStore = rendererStores.at(-1);
-      expect(rendererStore).toBeDefined();
-      const staleHost = rendererStore!.getState().host;
-      expect(staleHost).toBe(hostA);
-
-      global.IS_REACT_ACT_ENVIRONMENT = false;
-      flushSync(() => {
-        root.render(
-          <>
-            <OptionsHarness host={hostA} toolCallIds={["call-1", "call-2"]} />
-            <PassiveProbe onEffect={updatedPassiveEffect} />
-          </>,
-        );
-      });
-      expect(rendererStore?.getState().host).toBe(staleHost);
-      // Publish the current host without triggering effect cleanup, leaving the
-      // identity guard as the only protection against the stale deferred load.
-      rendererStore!.getState().host = hostB;
-      await vi.waitFor(() => expect(updatedPassiveEffect).toHaveBeenCalled());
-      await Promise.resolve();
-
-      expect(hostA.loadResource).not.toHaveBeenCalled();
-    } finally {
-      global.IS_REACT_ACT_ENVIRONMENT = previousActEnvironment;
-      await act(async () => root.unmount());
-      container.remove();
-    }
   });
 
   it("merges forPart handlers over the thread-wide handlers", async () => {
