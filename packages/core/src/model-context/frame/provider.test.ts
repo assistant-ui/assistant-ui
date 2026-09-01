@@ -13,6 +13,7 @@ describe("AssistantFrameProvider", () => {
     origin: string,
     source: Window = parentWindow,
     id = "tool-call-1",
+    toolName = "sensitiveTool",
   ) => {
     messageHandler?.(
       new MessageEvent("message", {
@@ -21,7 +22,7 @@ describe("AssistantFrameProvider", () => {
           message: {
             type: "tool-call",
             id,
-            toolName: "sensitiveTool",
+            toolName,
             args: {},
           },
         },
@@ -398,6 +399,63 @@ describe("AssistantFrameProvider", () => {
 
     removeOwner();
     expect(toolSignal?.aborted).toBe(true);
+  });
+
+  it("keeps other providers' tool calls active when one is removed", async () => {
+    const signals = new Map<string, AbortSignal>();
+    const execute = vi.fn(
+      async (
+        _args: unknown,
+        context: { toolCallId: string; abortSignal: AbortSignal },
+      ) => {
+        signals.set(context.toolCallId, context.abortSignal);
+        await new Promise<never>((_resolve, reject) => {
+          context.abortSignal.addEventListener(
+            "abort",
+            () => reject(context.abortSignal.reason),
+            { once: true },
+          );
+        });
+      },
+    );
+    const removeFirst = AssistantFrameProvider.addModelContextProvider({
+      getModelContext: () => ({ tools: { firstTool: { execute } } }),
+    });
+    const removeSecond = AssistantFrameProvider.addModelContextProvider({
+      getModelContext: () => ({ tools: { secondTool: { execute } } }),
+    });
+
+    dispatchToolCall(
+      window.location.origin,
+      parentWindow,
+      "first-call",
+      "firstTool",
+    );
+    dispatchToolCall(
+      window.location.origin,
+      parentWindow,
+      "second-call",
+      "secondTool",
+    );
+    await vi.waitFor(() => expect(signals.size).toBe(2));
+
+    removeFirst();
+
+    expect(signals.get("first-call")?.aborted).toBe(true);
+    expect(signals.get("second-call")?.aborted).toBe(false);
+    const toolResults = vi
+      .mocked(parentWindow.postMessage)
+      .mock.calls.filter(
+        ([data]) =>
+          (data as { message?: { type?: string } }).message?.type ===
+          "tool-result",
+      );
+    expect(toolResults).toHaveLength(1);
+    expect(toolResults[0]?.[0]).toMatchObject({
+      message: { id: "first-call" },
+    });
+
+    removeSecond();
   });
 
   it("upgrades a wildcard origin policy when a strict provider registers", async () => {
