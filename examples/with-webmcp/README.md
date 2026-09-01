@@ -8,7 +8,7 @@ The page holds a small task list and a `"use generative"` toolkit with three fro
 - `list_tasks` — reads the page's task list.
 - `clear_completed_tasks` — destructive, gated on user approval via `human()`.
 
-`unstable_useWebMcpProvider` publishes the first two to the browser's `document.modelContext`, so the user's browser agent can call them directly. `clear_completed_tasks` is kept chat-only by composing `unstable_defaultWebMcpFilter` with a name check: a published tool is callable by anyone driving the browser, with the assistant's approval step out of the loop, and this one deletes data. Its `human()` prompt is chat-only as well, though that needs no filter of its own; a WebMCP call rejects it with "human input not supported in WebMCP context" rather than hanging.
+`unstable_useWebMcpProvider` publishes the first two to the browser's `document.modelContext`, so the user's browser agent can call them directly. `clear_completed_tasks` is kept chat-only by composing `unstable_defaultWebMcpFilter` with an allowlist: a published tool is callable by anyone driving the browser, with the assistant's approval step out of the loop, and this one deletes data. The allowlist is what makes chat-only the default, so the next tool added to the toolkit is not published until someone names it here. Its `human()` prompt is chat-only as well, though that needs no filter of its own; a WebMCP call rejects it with "human input not supported in WebMCP context" rather than hanging.
 
 ## Run
 

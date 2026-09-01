@@ -14,13 +14,14 @@ import { lastAssistantMessageIsCompleteWithToolCalls } from "ai";
 import toolkit from "./toolkit";
 import { TaskPanel } from "./task-panel";
 
+// clear_completed_tasks is left out because it deletes data, and a published
+// tool runs with the approval step out of the loop.
+const WEBMCP_TOOLS = new Set(["add_task", "list_tasks"]);
+
 const WebMcpStatus = () => {
   const { status, registeredToolNames } = unstable_useWebMcpProvider({
-    // clear_completed_tasks deletes data, and a published tool is callable by
-    // anyone driving the browser with the approval step out of the loop.
     filter: (name, tool) =>
-      unstable_defaultWebMcpFilter(name, tool) &&
-      name !== "clear_completed_tasks",
+      unstable_defaultWebMcpFilter(name, tool) && WEBMCP_TOOLS.has(name),
   });
 
   return (
