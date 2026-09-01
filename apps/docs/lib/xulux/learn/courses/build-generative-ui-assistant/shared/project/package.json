@@ -8,17 +8,17 @@
     "start": "next start"
   },
   "dependencies": {
-    "@ai-sdk/openai": "4.0.50",
+    "@ai-sdk/openai": "4.0.52",
     "@assistant-ui/ai-sdk": "0.0.2",
     "@assistant-ui/next": "0.0.17",
     "@assistant-ui/react": "0.15.16",
-    "ai": "7.0.83",
+    "ai": "7.0.85",
     "assistant-stream": "0.3.39",
-    "lucide-react": "1.34.0",
-    "next": "16.3.3",
+    "lucide-react": "1.38.0",
+    "next": "16.3.4",
     "react": "19.2.8",
     "react-dom": "19.2.8",
-    "zod": "4.4.3"
+    "zod": "4.5.4"
   },
   "devDependencies": {
     "@tailwindcss/postcss": "4.3.3",
