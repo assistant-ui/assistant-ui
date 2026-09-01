@@ -61,5 +61,19 @@ describe("extractAuiV0", () => {
     expect(result?.outputTokens).toBe(6);
     expect(result?.cachedInputTokens).toBe(9);
     expect(result?.reasoningTokens).toBe(2);
+    expect(result?.steps).toEqual([
+      {
+        input_tokens: 10,
+        output_tokens: 4,
+        reasoning_tokens: 1,
+        cached_input_tokens: 6,
+      },
+      {
+        input_tokens: 5,
+        output_tokens: 2,
+        reasoning_tokens: 1,
+        cached_input_tokens: 3,
+      },
+    ]);
   });
 });

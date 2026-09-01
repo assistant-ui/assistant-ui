@@ -446,20 +446,25 @@ export function extractAuiV0<T>(content: T): TelemetryData | null {
 
   const telemetrySteps: TelemetryStepData[] | undefined =
     steps && steps.length > 1
-      ? steps.map((s) => ({
-          ...(s.usage?.inputTokens != null
-            ? { input_tokens: s.usage.inputTokens }
-            : undefined),
-          ...(s.usage?.outputTokens != null
-            ? { output_tokens: s.usage.outputTokens }
-            : undefined),
-          ...(s.usage?.reasoningTokens != null
-            ? { reasoning_tokens: s.usage.reasoningTokens }
-            : undefined),
-          ...(s.usage?.cachedInputTokens != null
-            ? { cached_input_tokens: s.usage.cachedInputTokens }
-            : undefined),
-        }))
+      ? steps.map((s) => {
+          const usage = s.usage
+            ? normalizeRunTelemetryUsage(s.usage)
+            : undefined;
+          return {
+            ...(usage?.inputTokens != null
+              ? { input_tokens: usage.inputTokens }
+              : undefined),
+            ...(usage?.outputTokens != null
+              ? { output_tokens: usage.outputTokens }
+              : undefined),
+            ...(usage?.reasoningTokens != null
+              ? { reasoning_tokens: usage.reasoningTokens }
+              : undefined),
+            ...(usage?.cachedInputTokens != null
+              ? { cached_input_tokens: usage.cachedInputTokens }
+              : undefined),
+          };
+        })
       : undefined;
 
   return {
