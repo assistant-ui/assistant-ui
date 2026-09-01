@@ -101,7 +101,7 @@ Every `uses:` entry under `.github/workflows/*.{yml,yaml}` is SHA-pinned for sup
 uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # ratchet:actions/checkout@v7.0.1
 ```
 
-The marker is what `ratchet update` reads to recognize the entry, so an entry that loses it keeps working and stops being updated. `pnpm unmanaged-pins:check` fails on a missing marker, and on one that names a different action than its `uses:` ref. Annotate a deliberately unmanaged ref, or a pinned container image, with `# ratchet:exclude`.
+The marker is what `ratchet update` reads to recognize the entry, so an entry that loses it keeps working and stops being updated. `pnpm unmanaged-pins:check` fails on a ref that is not a commit SHA, on a missing marker, on a marker with no version, and on one that names a different action than its `uses:` ref. Annotate a deliberately unmanaged ref, or a pinned container image, with `# ratchet:exclude`, which waives all four.
 
 There is **no Dependabot config** (`.github/dependabot.yml` does not exist), so these don't update themselves. `pnpm deps:update` does not touch them either.
 
