@@ -1,6 +1,7 @@
 ---
 "@assistant-ui/ai-sdk": patch
 "@assistant-ui/cloud-ai-sdk": patch
+"@assistant-ui/eve": patch
 "@assistant-ui/mcp-docs-server": patch
 "@assistant-ui/react-ag-ui": patch
 "@assistant-ui/react-data-stream": patch

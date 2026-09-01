@@ -17,7 +17,7 @@
     "@assistant-ui/store": "workspace:*",
     "@assistant-ui/tap": "workspace:*",
     "@assistant-ui/vue": "workspace:*",
-    "@lucide/vue": "^1.37.0",
+    "@lucide/vue": "^1.38.0",
     "ai": "^7.0.85",
     "markdown-it": "^15.0.1",
     "nuxt": "^4.5.2",

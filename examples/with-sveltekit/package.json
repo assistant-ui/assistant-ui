@@ -16,7 +16,7 @@
     "@assistant-ui/store": "workspace:*",
     "@assistant-ui/svelte": "workspace:*",
     "@assistant-ui/tap": "workspace:*",
-    "@lucide/svelte": "^1.37.0",
+    "@lucide/svelte": "^1.38.0",
     "ai": "^7.0.85",
     "react": "^19.2.8",
     "svelte": "^5.57.0"
