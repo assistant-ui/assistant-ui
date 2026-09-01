@@ -91,7 +91,7 @@ describe("fetchSandboxResource", () => {
     expect(mocks.fetch).toHaveBeenCalledTimes(1);
   });
 
-  it("bounds every attempt with an abort timeout", async () => {
+  it("shares one deadline across every attempt", async () => {
     vi.useFakeTimers();
     const timeout = vi.spyOn(AbortSignal, "timeout");
     mocks.fetch
@@ -102,14 +102,14 @@ describe("fetchSandboxResource", () => {
     await vi.advanceTimersByTimeAsync(300);
     await pending;
 
-    expect(timeout.mock.calls).toEqual([[10_000], [10_000]]);
+    expect(timeout.mock.calls).toEqual([[30_000]]);
     expect(mocks.fetch.mock.calls[0]?.[1]?.signal).toBeInstanceOf(AbortSignal);
-    expect(mocks.fetch.mock.calls[1]?.[1]?.signal).not.toBe(
+    expect(mocks.fetch.mock.calls[1]?.[1]?.signal).toBe(
       mocks.fetch.mock.calls[0]?.[1]?.signal,
     );
   });
 
-  it("honors a caller timeout without forwarding it to fetch", async () => {
+  it("honors a caller budget without forwarding it to fetch", async () => {
     const timeout = vi.spyOn(AbortSignal, "timeout");
     mocks.fetch.mockResolvedValueOnce(new Response("ok"));
 
@@ -121,18 +121,47 @@ describe("fetchSandboxResource", () => {
     expect(mocks.fetch.mock.calls[0]?.[1]).not.toHaveProperty("timeoutMs");
   });
 
-  it("does not retry an attempt that hit the timeout", async () => {
-    const error = new DOMException(
-      "The operation was aborted due to timeout",
-      "TimeoutError",
-    );
-    mocks.fetch.mockRejectedValue(error);
+  it("stops retrying once the budget is spent, whatever the error", async () => {
+    mocks.fetch.mockImplementation(async (_url, init) => {
+      await new Promise((_resolve, reject) => {
+        // A retryable classification must not buy a second attempt once the
+        // deadline is gone.
+        init?.signal?.addEventListener("abort", () =>
+          reject(new Error("fetch failed")),
+        );
+      });
+      throw new Error("unreachable");
+    });
 
     await expect(
       fetchSandboxResource("https://sandbox.example.com/session", {
         method: "POST",
+        timeoutMs: 20,
       }),
-    ).rejects.toBe(error);
+    ).rejects.toThrow("fetch failed");
+    expect(mocks.fetch).toHaveBeenCalledTimes(1);
+  });
+
+  it("aborts when the caller's own signal fires", async () => {
+    const controller = new AbortController();
+    mocks.fetch.mockImplementation(async (_url, init) => {
+      await new Promise((_resolve, reject) => {
+        init?.signal?.addEventListener("abort", () =>
+          reject(new Error("caller aborted")),
+        );
+      });
+      throw new Error("unreachable");
+    });
+
+    const pending = fetchSandboxResource(
+      "https://sandbox.example.com/preview",
+      {
+        signal: controller.signal,
+      },
+    );
+    controller.abort();
+
+    await expect(pending).rejects.toThrow("caller aborted");
     expect(mocks.fetch).toHaveBeenCalledTimes(1);
   });
 

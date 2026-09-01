@@ -359,6 +359,25 @@ describe("POST /api/mcp", () => {
     expect(mocks.fetchPreviewSession).not.toHaveBeenCalled();
   });
 
+  it("does not tell an MCP client the public assistant is down", async () => {
+    mocks.checkTemplateRateLimit.mockResolvedValueOnce(
+      new Response("Public assistant temporarily unavailable", { status: 503 }),
+    );
+
+    const response = await requestMcp("tools/call", {
+      name: "read_template",
+      arguments: { templateId: "base-assistant-ui" },
+    });
+    const result = getToolCallResult(response);
+    const text = result.content.find((block) => block.type === "text")?.text;
+
+    expect(result.isError).toBe(true);
+    expect(text).toBe(
+      "Template tools are temporarily unavailable. The assistant-ui docs tools remain available.",
+    );
+    expect(mocks.fetchTemplateContract).not.toHaveBeenCalled();
+  });
+
   it("rejects unsupported preview config roots before the sandbox", async () => {
     const response = await requestMcp("tools/call", {
       name: "preview_template",

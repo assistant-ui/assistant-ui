@@ -6,11 +6,11 @@ const SANDBOX_FETCH_HEADERS = {
 
 const MAX_ATTEMPTS = 3;
 const RETRY_DELAY_MS = 300;
-const DEFAULT_TIMEOUT_MS = 10_000;
+const DEFAULT_TIMEOUT_MS = 30_000;
 
 export interface SandboxFetchInit extends RequestInit {
-  // Bounds one attempt including the response body, so a streamed archive
-  // needs a wider value than a JSON call.
+  // Budget for the whole call, retries and response body included, so a
+  // streamed archive needs a wider value than a JSON call.
   timeoutMs?: number;
 }
 
@@ -41,7 +41,8 @@ export async function fetchSandboxResource(
   url: string | URL,
   init?: SandboxFetchInit,
 ): Promise<Response> {
-  const { timeoutMs = DEFAULT_TIMEOUT_MS, ...requestInit } = init ?? {};
+  const { timeoutMs = DEFAULT_TIMEOUT_MS, signal, ...requestInit } = init ?? {};
+  const deadline = AbortSignal.timeout(timeoutMs);
   let lastError: unknown;
 
   for (let attempt = 1; attempt <= MAX_ATTEMPTS; attempt += 1) {
@@ -50,11 +51,15 @@ export async function fetchSandboxResource(
         ...requestInit,
         cache: "no-store",
         headers: mergeHeaders(requestInit.headers),
-        signal: AbortSignal.timeout(timeoutMs),
+        signal: signal ? AbortSignal.any([signal, deadline]) : deadline,
       });
     } catch (error) {
       lastError = error;
-      if (!isRetryableFetchError(error) || attempt === MAX_ATTEMPTS) {
+      if (
+        deadline.aborted ||
+        !isRetryableFetchError(error) ||
+        attempt === MAX_ATTEMPTS
+      ) {
         throw error;
       }
       await sleep(RETRY_DELAY_MS * attempt);

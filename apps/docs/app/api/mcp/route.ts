@@ -34,7 +34,6 @@ import {
 import { normalizeMcpRequestHeaders } from "./normalize-mcp-headers";
 
 export const revalidate = false;
-export const maxDuration = 60;
 
 const templateToolDefinitions = [
   {
@@ -448,6 +447,12 @@ function registerResources(server: McpServer, requestUrl: string) {
 async function requireTemplateToolBudget(request: NextRequest) {
   const denial = await checkMcpTemplateToolRateLimit(request);
   if (!denial) return;
+
+  if (denial.status !== 429) {
+    throw new Error(
+      "Template tools are temporarily unavailable. The assistant-ui docs tools remain available.",
+    );
+  }
 
   const retryAfter = denial.headers.get("Retry-After");
   throw new Error(
