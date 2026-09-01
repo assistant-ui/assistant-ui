@@ -27,6 +27,7 @@ import { useSubscribable } from "../../store/runtime-clients/useSubscribable";
 import { getThreadRuntimeCoreIsRunning } from "../../runtime/api/thread-runtime";
 import { ThreadListRuntimeImpl } from "../../runtime/api/thread-list-runtime";
 import { invalidateThreadRuntime } from "../../runtime/utils/thread-runtime-lifecycle";
+import { notifyEventListeners } from "../../utils/notify-event-listeners";
 import {
   useRuntimeAdapters,
   type RuntimeAdapters,
@@ -224,9 +225,11 @@ export class RemoteThreadListHookInstanceManager extends BaseSubscribable {
       }),
       ...RUN_EVENTS.map((type) =>
         runtime.unstable_on(type, () => {
-          for (const callback of this.runEventSubscribers) {
-            callback({ threadId, type });
-          }
+          notifyEventListeners(
+            this.runEventSubscribers,
+            { threadId, type },
+            `Thread run "${type}"`,
+          );
         }),
       ),
     ];

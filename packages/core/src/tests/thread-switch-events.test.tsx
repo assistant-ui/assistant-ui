@@ -413,6 +413,44 @@ describe("background thread run events", () => {
     expect(harness.selectedRunEnd).not.toHaveBeenCalled();
   });
 
+  it("leaves the run to the selected client when its thread is re-selected", async () => {
+    const runA = deferred<{ content: [] }>();
+    const harness = renderRemoteList(listAdapter(), () => runA.promise);
+    const runtime = harness.getRuntime();
+
+    await waitFor(() => {
+      expect(runtime.threads.mainItem.getState().remoteId).toBe("thread-a");
+    });
+    const threadAId = runtime.threads.mainItem.getState().id;
+
+    await act(async () => {
+      runtime.thread.startRun({ parentId: null });
+    });
+    await waitFor(() => expect(runtime.thread.getState().isRunning).toBe(true));
+
+    await switchTo(runtime, "thread-b");
+    await switchTo(runtime, "thread-a");
+
+    await act(async () => {
+      runA.resolve({ content: [] });
+    });
+
+    await waitFor(() => {
+      expect(harness.selectedRunEnd).toHaveBeenCalledExactlyOnceWith({
+        threadId: threadAId,
+      });
+    });
+    expect(harness.globalRunEnd).toHaveBeenCalledExactlyOnceWith({
+      threadId: threadAId,
+    });
+    expect(harness.globalRunStart).toHaveBeenCalledExactlyOnceWith({
+      threadId: threadAId,
+    });
+    expect(harness.selectedRunStart).toHaveBeenCalledExactlyOnceWith({
+      threadId: threadAId,
+    });
+  });
+
   it("reports the start and end of a run that is never selected", async () => {
     const backgroundRun = deferred<{ content: [] }>();
     const harness = renderRemoteList(
