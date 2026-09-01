@@ -71,9 +71,17 @@ describe("parseAgUiEvent", () => {
   });
 
   it("rejects malformed message snapshots without rejecting empty snapshots", () => {
+    const debug = vi.fn();
     expect(
-      parseAgUiEvent({ type: "MESSAGES_SNAPSHOT", messages: {} }),
+      parseAgUiEvent(
+        { type: "MESSAGES_SNAPSHOT", messages: {} },
+        { logger: { debug } as any },
+      ),
     ).toBeNull();
+    expect(debug).toHaveBeenCalledWith(
+      "[agui] MESSAGES_SNAPSHOT missing messages array",
+      { type: "MESSAGES_SNAPSHOT", messages: {} },
+    );
     expect(parseAgUiEvent({ type: "MESSAGES_SNAPSHOT" })).toBeNull();
     expect(parseAgUiEvent({ type: "MESSAGES_SNAPSHOT", messages: [] })).toEqual(
       { type: "MESSAGES_SNAPSHOT", messages: [] },

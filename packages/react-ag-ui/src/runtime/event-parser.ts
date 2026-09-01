@@ -300,7 +300,13 @@ export const parseAgUiEvent = (
         delta: Array.isArray(payload.delta) ? (payload.delta as any[]) : [],
       };
     case "MESSAGES_SNAPSHOT":
-      if (!Array.isArray(payload.messages)) return null;
+      if (!Array.isArray(payload.messages)) {
+        options?.logger?.debug?.(
+          "[agui] MESSAGES_SNAPSHOT missing messages array",
+          payload,
+        );
+        return null;
+      }
       return {
         type: "MESSAGES_SNAPSHOT",
         messages: payload.messages as any[],
