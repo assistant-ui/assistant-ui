@@ -5,7 +5,9 @@ import type { ThreadMessage } from "../../types/message";
 import { RemoteThreadListHookInstanceManager } from "./RemoteThreadListHookInstanceManager";
 
 const makeRuntime = (
-  initial: Partial<Pick<ThreadRuntimeCore, "isRunning" | "messages">> = {},
+  initial: Partial<Pick<ThreadRuntimeCore, "isRunning" | "messages">> & {
+    initialized?: boolean;
+  } = {},
 ) => {
   const subscribers = new Set<() => void>();
   const eventListeners = new Map<string, Set<() => void>>();
@@ -23,6 +25,14 @@ const makeRuntime = (
         eventListeners.set(event, listeners);
       }
       listeners.add(callback);
+      // mirrors the real core: initialize latches, so a subscriber that
+      // attaches after initialization gets a deferred replay
+      if (event === "initialize" && initial.initialized) {
+        const latched = listeners;
+        queueMicrotask(() => {
+          if (latched.has(callback)) callback();
+        });
+      }
       return () => listeners.delete(callback);
     },
   } as unknown as ThreadRuntimeCore & {
@@ -197,6 +207,22 @@ describe("RemoteThreadListHookInstanceManager run tracking", () => {
       { threadId: "thread-1", type: "initialize" },
       { threadId: "thread-2", type: "modelContextUpdate" },
     ]);
+  });
+
+  it("replays a latched initialize from the surviving runtime after a restart", async () => {
+    const manager = makeManager();
+    const events: unknown[] = [];
+    manager.__internal_subscribeThreadEvents((event) => events.push(event));
+
+    start(manager, "thread-1");
+    const before = makeRuntime({ initialized: true });
+    publish(manager, "thread-1", before.runtime);
+    const after = makeRuntime({ initialized: true });
+    publish(manager, "thread-1", after.runtime);
+    await new Promise<void>((resolve) => queueMicrotask(resolve));
+
+    expect(before.eventListenerCount()).toBe(0);
+    expect(events).toEqual([{ threadId: "thread-1", type: "initialize" }]);
   });
 
   it("stops forwarding lifecycle events from a runtime a restart replaced", () => {
