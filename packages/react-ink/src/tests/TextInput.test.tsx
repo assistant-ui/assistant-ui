@@ -336,4 +336,15 @@ describe("TextInput", () => {
 
     expect(onSubmit).toHaveBeenCalledWith("helxlo");
   });
+
+  it("renders a visible cursor cell on a zero-width grapheme", async () => {
+    const { lastFrame } = render(<Controlled initial={"a\u200bb"} />);
+    await flush();
+
+    inputHandler?.("", { leftArrow: true });
+    inputHandler?.("", { leftArrow: true });
+    await flush();
+
+    expect(lastFrame()).toContain("a b");
+  });
 });
