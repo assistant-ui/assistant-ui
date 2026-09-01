@@ -9,10 +9,10 @@ export type MCPStorage = {
    * connections and the OAuth write fence key on it, so swapping to a
    * differently-scoped storage reconnects instead of leaving a live OAuth flow
    * on the replaced store, and clearing through a same-scoped replacement still
-   * waits for writes queued against the storage it replaced. When absent, both
-   * fall back to object identity and storage swaps never key a reconnect, so a
-   * storage rebuilt on every render has to declare one; without it a clear runs
-   * unfenced against the writes queued by the object it replaced.
+   * waits for writes queued against the storage it replaced. When absent, the
+   * fence falls back to object identity while connections never re-key at all,
+   * so a storage rebuilt on every render has to declare a scopeId; without one
+   * a clear runs unfenced against the writes queued by the object it replaced.
    */
   scopeId?: string;
   loadCustomServers: () => Promise<MCPCustomServerRecord[]>;
