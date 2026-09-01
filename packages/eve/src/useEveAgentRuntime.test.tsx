@@ -1820,6 +1820,59 @@ describe("useEveAgentRuntime cancel binding", () => {
   });
 });
 
+describe("useEveAgentRuntime teardown", () => {
+  it("cancels an active Eve turn when the runtime unmounts", () => {
+    const cancel = vi.fn().mockResolvedValue({ status: "cancelled" });
+    const agent = createAgent({ status: "streaming", cancel });
+    mockUseEveAgent.mockReturnValue(agent as never);
+    const { unmount } = renderHook(() => useEveAgentRuntime());
+
+    unmount();
+
+    expect(cancel).toHaveBeenCalledTimes(1);
+  });
+
+  it("stops an active turn through the legacy Eve binding on unmount", () => {
+    const agent = createAgent({ status: "streaming" });
+    mockUseEveAgent.mockReturnValue(agent as never);
+    const { unmount } = renderHook(() => useEveAgentRuntime());
+
+    unmount();
+
+    expect(agent.stop).toHaveBeenCalledTimes(1);
+  });
+
+  it("does not cancel an idle Eve agent when the runtime unmounts", () => {
+    const cancel = vi.fn().mockResolvedValue({ status: "cancelled" });
+    const agent = createAgent({ status: "ready", cancel });
+    mockUseEveAgent.mockReturnValue(agent as never);
+    const { unmount } = renderHook(() => useEveAgentRuntime());
+
+    unmount();
+
+    expect(cancel).not.toHaveBeenCalled();
+  });
+
+  it("reports teardown cancellation failures without rejecting globally", async () => {
+    const error = new Error("cancel failed");
+    const cancel = vi.fn().mockRejectedValue(error);
+    const agent = createAgent({ status: "streaming", cancel });
+    mockUseEveAgent.mockReturnValue(agent as never);
+    const consoleError = vi
+      .spyOn(console, "error")
+      .mockImplementation(() => {});
+    const { unmount } = renderHook(() => useEveAgentRuntime());
+
+    expect(() => unmount()).not.toThrow();
+    await waitFor(() => {
+      expect(consoleError).toHaveBeenCalledWith(
+        "[assistant-ui/eve] failed to cancel active turn on teardown",
+        error,
+      );
+    });
+  });
+});
+
 describe("useEveAgentRuntime thread refetch", () => {
   const session = { sessionId: "s1" };
 

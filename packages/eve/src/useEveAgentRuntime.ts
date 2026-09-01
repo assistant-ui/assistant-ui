@@ -57,6 +57,22 @@ const sendAbandonedError = new Error(
 const isDroppedSend = (error: unknown) =>
   error === sendCancelledError || error === sendAbandonedError;
 
+type EveAgentControls =
+  | { readonly cancel: () => Promise<unknown> }
+  | { readonly stop: () => void };
+
+const cancelEveTurn = async (agent: unknown) => {
+  const controls = agent as EveAgentControls;
+  if ("cancel" in controls) {
+    await controls.cancel();
+  } else {
+    controls.stop();
+  }
+};
+
+const isEveTurnActive = (status: UseEveAgentStatus) =>
+  status === "submitted" || status === "streaming";
+
 type EveLifecycleCallbackName =
   | "onError"
   | "onEvent"
@@ -207,8 +223,7 @@ export const useEveAgentRuntime = (options: UseEveAgentRuntimeOptions = {}) => {
   const hasExecutingTools = Object.values(toolStatuses).some(
     (status) => status?.type === "executing",
   );
-  const providerIsRunning =
-    agent.status === "submitted" || agent.status === "streaming";
+  const providerIsRunning = isEveTurnActive(agent.status);
   const isRunning = providerIsRunning || hasExecutingTools;
 
   const convertedMessages = useMemo(() => {
@@ -283,6 +298,15 @@ export const useEveAgentRuntime = (options: UseEveAgentRuntimeOptions = {}) => {
     return () => {
       isMountedRef.current = false;
       sendEpochRef.current += 1;
+      const liveAgent = agentRef.current;
+      if (isEveTurnActive(liveAgent.status)) {
+        void cancelEveTurn(liveAgent).catch((error) => {
+          console.error(
+            "[assistant-ui/eve] failed to cancel active turn on teardown",
+            error,
+          );
+        });
+      }
     };
   }, []);
 
@@ -441,14 +465,7 @@ export const useEveAgentRuntime = (options: UseEveAgentRuntimeOptions = {}) => {
       // Eve 0.38 replaced the binding's local-abort `stop()` with the durable
       // `cancel()`, so the adapter detects which side of that break the host's
       // eve provides instead of pinning the peer range to one of them.
-      const controls = agent as
-        | { readonly cancel: () => Promise<unknown> }
-        | { readonly stop: () => void };
-      if ("cancel" in controls) {
-        await controls.cancel();
-      } else {
-        controls.stop();
-      }
+      await cancelEveTurn(agent);
     },
     // Hosts below eve 0.44.1 expose no `resume`; leaving the capability absent
     // keeps `threads.reloadMainThread()` on core's no-capability no-op.
