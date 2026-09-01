@@ -25,6 +25,7 @@ import {
   createThreadMappingId,
   getThreadData,
   normalizeCursor,
+  reconcileInitializedThread,
   updateStatusReducer,
   type RemoteThreadData,
   type RemoteThreadState,
@@ -885,6 +886,7 @@ const useRemoteThreadList = (
         requireAdapterGeneration(adapterGeneration);
         return result;
       }
+      let removedMappingId: string | undefined;
       const result = await store.optimisticUpdate({
         execute: () => {
           requireAdapterGeneration(adapterGeneration);
@@ -908,26 +910,28 @@ const useRemoteThreadList = (
           if (adapterGeneration !== session.adapterGeneration) return state;
           const data = getThreadData(state, threadId);
           if (!data) return state;
-          const mappingId = createThreadMappingId(threadId);
-          return {
-            ...state,
-            threadIdMap: {
-              ...state.threadIdMap,
-              [remoteId]: mappingId,
-            },
-            threadData: {
-              ...state.threadData,
-              [mappingId]: {
-                ...data,
-                initializeTask: Promise.resolve({ remoteId, externalId }),
-                remoteId,
-                externalId,
-              },
-            },
-          };
+          const listedMappingId = state.threadIdMap[remoteId];
+          const reconciliation = reconcileInitializedThread(
+            state,
+            threadId,
+            remoteId,
+            externalId,
+            listedMappingId !== undefined &&
+              listedMappingId !== createThreadMappingId(threadId) &&
+              session.mainThreadId === listedMappingId
+              ? listedMappingId
+              : undefined,
+          );
+          removedMappingId = reconciliation.removedMappingId;
+          return reconciliation.state;
         },
       });
       requireAdapterGeneration(adapterGeneration);
+      if (removedMappingId !== undefined) {
+        setStartedIds((prev) =>
+          prev.filter((startedId) => startedId !== removedMappingId),
+        );
+      }
       if (threadId === session.mainThreadId) {
         notifyRemoteId(result.remoteId, true);
       }

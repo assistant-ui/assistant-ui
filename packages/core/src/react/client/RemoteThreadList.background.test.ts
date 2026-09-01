@@ -112,7 +112,67 @@ const createTracker = (): Tracker => ({
   running: new Set(),
 });
 
+const deferred = <T>() => {
+  let resolve!: (value: T) => void;
+  let reject!: (reason?: unknown) => void;
+  const promise = new Promise<T>((resolvePromise, rejectPromise) => {
+    resolve = resolvePromise;
+    reject = rejectPromise;
+  });
+  return { promise, resolve, reject };
+};
+
 describe("RemoteThreadList backgroundThreads", () => {
+  it("preserves the switched body when initialization collapses a duplicate", async () => {
+    const list = deferred<{
+      threads: [{ status: "regular"; remoteId: string; externalId: string }];
+    }>();
+    const initialize = deferred<{
+      remoteId: string;
+      externalId: undefined;
+    }>();
+    const adapter = makeAdapter({
+      list: vi.fn(() => list.promise),
+      initialize: vi.fn(() => initialize.promise),
+    });
+    const tracker = createTracker();
+    const handle = mountBackgroundList(adapter, tracker);
+    const aui = handle.getClient();
+    const loadPromise = aui.threads.getLoadThreadsPromise();
+    const localId = aui.threads.getState().mainThreadId;
+    const initializePromise = aui.threads.item("main").initialize();
+
+    list.resolve({
+      threads: [
+        { status: "regular", remoteId: "remote-1", externalId: "remote-1" },
+      ],
+    });
+    await loadPromise;
+    flushTapSync(() => aui.threads.switchToThread("remote-1"));
+    await vi.waitFor(() => {
+      expect(aui.threads.getState().mainThreadId).toBe("remote-1");
+      expect(tracker.alive.has("remote-1")).toBe(true);
+    });
+    const remoteMountsBeforeCollapse = tracker.mounts.filter(
+      (id) => id === "remote-1",
+    ).length;
+
+    initialize.resolve({ remoteId: "remote-1", externalId: undefined });
+    await initializePromise;
+    await vi.waitFor(() => {
+      expect(aui.threads.getState().threadIds).toEqual(["remote-1"]);
+      expect(tracker.alive.has("remote-1")).toBe(true);
+      expect(tracker.alive.has(localId)).toBe(false);
+    });
+
+    expect(aui.threads.item({ id: localId }).getState().id).toBe("remote-1");
+    expect(aui.threads.item("main").getState().id).toBe("remote-1");
+    expect(tracker.mounts.filter((id) => id === "remote-1")).toHaveLength(
+      remoteMountsBeforeCollapse,
+    );
+    handle.destroy();
+  });
+
   it("keeps a switched-away thread mounted with live isRunning", async () => {
     const adapter = makeAdapter({
       list: vi.fn(async () => ({

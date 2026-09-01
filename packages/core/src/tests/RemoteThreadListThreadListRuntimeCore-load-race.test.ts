@@ -36,6 +36,78 @@ describe("RemoteThreadListThreadListRuntimeCore load race", () => {
     expect(core.threadIds[0]).toBe(newId);
     expect(core.threadIds).toContain("t1");
   });
+
+  it("keeps the switched list slot when initialization collapses a duplicate", async () => {
+    const listDeferred = deferred<ListResult>();
+    const initializeDeferred = deferred<{
+      remoteId: string;
+      externalId: undefined;
+    }>();
+    const adapter = makeAdapter({
+      list: vi.fn(() => listDeferred.promise),
+      initialize: vi.fn(() => initializeDeferred.promise),
+    });
+    const core = createCore(adapter);
+
+    const loadPromise = core.getLoadThreadsPromise();
+    await core.switchToNewThread();
+    const localId = core.mainThreadId;
+    const initializePromise = core.initialize(localId);
+
+    listDeferred.resolve({
+      threads: [
+        { status: "regular", remoteId: "remote-1", externalId: "remote-1" },
+      ],
+    });
+    await loadPromise;
+    await core.switchToThread("remote-1");
+
+    initializeDeferred.resolve({
+      remoteId: "remote-1",
+      externalId: undefined,
+    });
+    await initializePromise;
+
+    expect(core.mainThreadId).toBe("remote-1");
+    expect(core.threadIds).toEqual(["remote-1"]);
+    expect(Object.keys(core.threadItems)).toEqual(["remote-1"]);
+    expect(core.getItemById(localId)?.id).toBe("remote-1");
+    expect(core.getItemById("remote-1")?.id).toBe("remote-1");
+  });
+
+  it("collapses an unvisited list slot into the initialized slot", async () => {
+    const initializeDeferred = deferred<{
+      remoteId: string;
+      externalId: undefined;
+    }>();
+    const adapter = makeAdapter({
+      list: vi.fn(async () => ({
+        threads: [
+          {
+            status: "regular" as const,
+            remoteId: "remote-1",
+            externalId: "remote-1",
+          },
+        ],
+      })),
+      initialize: vi.fn(() => initializeDeferred.promise),
+    });
+    const core = createCore(adapter);
+
+    await core.getLoadThreadsPromise();
+    const localId = core.mainThreadId;
+    const initializePromise = core.initialize(localId);
+    initializeDeferred.resolve({
+      remoteId: "remote-1",
+      externalId: undefined,
+    });
+    await initializePromise;
+
+    expect(core.mainThreadId).toBe(localId);
+    expect(core.threadIds).toEqual([localId]);
+    expect(Object.keys(core.threadItems)).toEqual([localId]);
+    expect(core.getItemById("remote-1")?.id).toBe(localId);
+  });
 });
 
 describe("preserveMidLoadTransitions", () => {

@@ -19,6 +19,7 @@ import {
   createThreadMappingId,
   getThreadData,
   normalizeCursor,
+  reconcileInitializedThread,
   updateStatusReducer,
   preserveMidLoadTransitions,
   seedNewThread,
@@ -773,6 +774,7 @@ export class RemoteThreadListThreadListRuntimeCore
       return { remoteId, externalId };
     }
 
+    let removedMappingId: string | undefined;
     const { remoteId, externalId } = await this._state.optimisticUpdate({
       execute: () => {
         this._requireAdapterGeneration(adapterGeneration);
@@ -799,26 +801,26 @@ export class RemoteThreadListThreadListRuntimeCore
         const data = getThreadData(state, threadId);
         if (!data) return state;
 
-        const mappingId = createThreadMappingId(threadId);
-        return {
-          ...state,
-          threadIdMap: {
-            ...state.threadIdMap,
-            [remoteId]: mappingId,
-          },
-          threadData: {
-            ...state.threadData,
-            [mappingId]: {
-              ...data,
-              initializeTask: Promise.resolve({ remoteId, externalId }),
-              remoteId,
-              externalId,
-            },
-          },
-        };
+        const listedMappingId = state.threadIdMap[remoteId];
+        const reconciliation = reconcileInitializedThread(
+          state,
+          threadId,
+          remoteId,
+          externalId,
+          listedMappingId !== undefined &&
+            listedMappingId !== createThreadMappingId(threadId) &&
+            this._mainThreadId === listedMappingId
+            ? listedMappingId
+            : undefined,
+        );
+        removedMappingId = reconciliation.removedMappingId;
+        return reconciliation.state;
       },
     });
     this._requireAdapterGeneration(adapterGeneration);
+    if (removedMappingId !== undefined) {
+      this._hookManager.stopThreadRuntime(removedMappingId);
+    }
     return { remoteId, externalId };
   };
 
