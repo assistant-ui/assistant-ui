@@ -2,6 +2,7 @@ import {
   useState,
   useEffect,
   useInsertionEffect,
+  useLayoutEffect,
   useMemo,
   useRef,
   useCallback,
@@ -36,8 +37,14 @@ class RemoteThreadListRuntimeCore
 
 const useRemoteThreadListRuntimeImpl = (
   options: RemoteThreadListOptions,
+  runtimeHookNeedsRefreshRef: { current: boolean },
 ): AssistantRuntime => {
   const [runtime] = useState(() => new RemoteThreadListRuntimeCore(options));
+  useLayoutEffect(() => {
+    if (!runtimeHookNeedsRefreshRef.current) return;
+    runtimeHookNeedsRefreshRef.current = false;
+    runtime.threads.__internal_refreshRuntimeHook();
+  });
   useEffect(() => {
     runtime.threads.__internal_setOptions(options);
     runtime.threads.__internal_load();
@@ -50,13 +57,21 @@ export const useRemoteThreadListRuntime = (
   options: RemoteThreadListOptions,
 ): AssistantRuntime => {
   const runtimeHookRef = useRef(options.runtimeHook);
+  const runtimeHookRenderCountRef = useRef(0);
+  const runtimeHookRenderCount = runtimeHookRenderCountRef.current;
+  const runtimeHookNeedsRefreshRef = useRef(false);
   useInsertionEffect(() => {
+    const runtimeHookChanged = runtimeHookRef.current !== options.runtimeHook;
     runtimeHookRef.current = options.runtimeHook;
-  }, [options.runtimeHook]);
+    runtimeHookNeedsRefreshRef.current =
+      runtimeHookChanged &&
+      runtimeHookRenderCountRef.current !== runtimeHookRenderCount;
+  }, [options.runtimeHook, runtimeHookRenderCount]);
 
   const initialThreadIdRef = useRef(options.initialThreadId);
 
   const stableRuntimeHook = useCallback(() => {
+    runtimeHookRenderCountRef.current++;
     return runtimeHookRef.current();
   }, []);
 
@@ -97,7 +112,10 @@ export const useRemoteThreadListRuntime = (
     return options.runtimeHook();
   }
 
-  const runtime = useRemoteThreadListRuntimeImpl(stableOptions);
+  const runtime = useRemoteThreadListRuntimeImpl(
+    stableOptions,
+    runtimeHookNeedsRefreshRef,
+  );
 
   return runtime;
 };

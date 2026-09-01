@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
 
 import { act, render } from "@testing-library/react";
-import { startTransition, Suspense } from "react";
+import { startTransition, Suspense, type ReactNode } from "react";
 import { describe, expect, it, vi } from "vitest";
 import type { AssistantRuntime } from "../../runtime/api/assistant-runtime";
 import type { AppendMessage } from "../../types/message";
@@ -47,7 +47,13 @@ const createHarness = () => {
     if (suspend) throw pending;
     return null;
   };
-  const App = ({ onNew }: { onNew: typeof onNewA }) => {
+  const App = ({
+    onNew,
+    children,
+  }: {
+    onNew: typeof onNewA;
+    children?: ReactNode;
+  }) => {
     if (onNew === onNewB) renderB();
     const useThreadRuntime = () => {
       renderThreadRuntime();
@@ -60,7 +66,7 @@ const createHarness = () => {
     runtimeRef.current = runtime;
     return (
       <AssistantRuntimeProvider runtime={runtime}>
-        <Blocker />
+        {children ?? <Blocker />}
       </AssistantRuntimeProvider>
     );
   };
@@ -123,7 +129,6 @@ describe("useRemoteThreadListRuntime concurrent options", () => {
 
     view.rerender(<App onNew={onNewB} />);
     await act(async () => {
-      await runtimeRef.current!.threads.switchToNewThread();
       await getThreadCore(runtimeRef.current!).append(userMessage("second"));
     });
 
@@ -131,15 +136,16 @@ describe("useRemoteThreadListRuntime concurrent options", () => {
     expect(onNewB).toHaveBeenCalledTimes(1);
   });
 
-  it("does not force an extra thread runtime refresh", async () => {
+  it("does not refresh thread runtimes when the host did not render", async () => {
     const { App, onNewA, renderThreadRuntime } = createHarness();
-    const view = render(<App onNew={onNewA} />);
+    const children = <div />;
+    const view = render(<App onNew={onNewA}>{children}</App>);
 
     await act(async () => {});
     renderThreadRuntime.mockClear();
 
-    act(() => view.rerender(<App onNew={onNewA} />));
+    act(() => view.rerender(<App onNew={onNewA}>{children}</App>));
 
-    expect(renderThreadRuntime).toHaveBeenCalledTimes(1);
+    expect(renderThreadRuntime).not.toHaveBeenCalled();
   });
 });
