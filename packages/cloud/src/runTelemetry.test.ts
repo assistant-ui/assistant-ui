@@ -124,7 +124,48 @@ describe("normalizeRunTelemetryUsage", () => {
     ).toEqual({ inputTokens: 0, cachedInputTokens: 5 });
   });
 
+  it("reads the AI SDK v7 token detail objects", () => {
+    expect(
+      normalizeRunTelemetryUsage({
+        inputTokens: 12,
+        outputTokens: 7,
+        inputTokenDetails: { cacheReadTokens: 5 },
+        outputTokenDetails: { reasoningTokens: 3 },
+      }),
+    ).toEqual({
+      inputTokens: 12,
+      outputTokens: 7,
+      reasoningTokens: 3,
+      cachedInputTokens: 5,
+    });
+  });
+
+  it("prefers the top-level detail counts over the nested ones", () => {
+    expect(
+      normalizeRunTelemetryUsage({
+        reasoningTokens: 3,
+        cachedInputTokens: 5,
+        inputTokenDetails: { cacheReadTokens: 90 },
+        outputTokenDetails: { reasoningTokens: 90 },
+      }),
+    ).toEqual({ reasoningTokens: 3, cachedInputTokens: 5 });
+  });
+
+  it("returns a usage object when only the nested counts are present", () => {
+    expect(
+      normalizeRunTelemetryUsage({
+        inputTokenDetails: { cacheReadTokens: 5 },
+      }),
+    ).toEqual({ cachedInputTokens: 5 });
+  });
+
   it("returns undefined when no count is present", () => {
     expect(normalizeRunTelemetryUsage({})).toBeUndefined();
+    expect(
+      normalizeRunTelemetryUsage({
+        inputTokenDetails: {},
+        outputTokenDetails: {},
+      }),
+    ).toBeUndefined();
   });
 });

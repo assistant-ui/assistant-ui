@@ -364,14 +364,7 @@ export function extractAuiV0<T>(content: T): TelemetryData | null {
     }[];
     metadata?: {
       modelId?: string;
-      steps?: readonly {
-        usage?: {
-          inputTokens?: number;
-          outputTokens?: number;
-          reasoningTokens?: number;
-          cachedInputTokens?: number;
-        };
-      }[];
+      steps?: readonly { usage?: RunTelemetryUsageInit }[];
       custom?: Record<string, unknown> & { modelId?: string };
     };
   };
@@ -414,20 +407,23 @@ export function extractAuiV0<T>(content: T): TelemetryData | null {
     let hasReasoning = false;
     let hasCachedInput = false;
     for (const step of steps) {
-      if (step.usage?.inputTokens != null) {
-        totalInput += step.usage.inputTokens;
+      if (!step.usage) continue;
+      const usage = normalizeRunTelemetryUsage(step.usage);
+      if (!usage) continue;
+      if (usage.inputTokens != null) {
+        totalInput += usage.inputTokens;
         hasInput = true;
       }
-      if (step.usage?.outputTokens != null) {
-        totalOutput += step.usage.outputTokens;
+      if (usage.outputTokens != null) {
+        totalOutput += usage.outputTokens;
         hasOutput = true;
       }
-      if (step.usage?.reasoningTokens != null) {
-        totalReasoning += step.usage.reasoningTokens;
+      if (usage.reasoningTokens != null) {
+        totalReasoning += usage.reasoningTokens;
         hasReasoning = true;
       }
-      if (step.usage?.cachedInputTokens != null) {
-        totalCachedInput += step.usage.cachedInputTokens;
+      if (usage.cachedInputTokens != null) {
+        totalCachedInput += usage.cachedInputTokens;
         hasCachedInput = true;
       }
     }
