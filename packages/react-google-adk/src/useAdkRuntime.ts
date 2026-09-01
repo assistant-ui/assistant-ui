@@ -183,9 +183,10 @@ const useAdkRuntimeImpl = (options: UseAdkRuntimeOptions) => {
 
   const { approvals: toolApprovals, key: toolApprovalsKey } =
     projectAdkToolApprovals(messages);
-  // Read during render by the messageConverter memo below, so publication must
-  // stay render-phase; a commit-scoped write would feed the memo the previous
-  // commit's approvals whenever the key changes.
+  // The messageConverter memo below reads this during render, where the ref
+  // must carry the same render's approvals; a commit-scoped write would feed
+  // the memo the previous commit's approvals whenever the key changes. No
+  // callback reads it — approval replies project from the committed messages.
   const toolApprovalsRef = useRef(toolApprovals);
   toolApprovalsRef.current = toolApprovals;
 
@@ -469,7 +470,12 @@ const useAdkRuntimeImpl = (options: UseAdkRuntimeOptions) => {
     },
     onRespondToToolApproval: async (options) => {
       await handleSendMessage(
-        [toAdkToolConfirmationReply(options, toolApprovalsRef.current)],
+        [
+          toAdkToolConfirmationReply(
+            options,
+            projectAdkToolApprovals(adkMessagesRef.current).approvals,
+          ),
+        ],
         {},
       );
     },
