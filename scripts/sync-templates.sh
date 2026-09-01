@@ -17,12 +17,14 @@ SOURCE_DIR="$ROOT_DIR/packages/ui/src/components/react/assistant-ui/elements"
 VUE_SOURCE_DIR="$ROOT_DIR/packages/ui/src/components/vue/assistant-ui"
 UI_BASE_DIR="$ROOT_DIR/packages/ui/src/components/react/ui/base"
 HOOKS_SOURCE_DIR="$ROOT_DIR/packages/ui/src/hooks"
+LIB_SOURCE_DIR="$ROOT_DIR/packages/ui/src/lib"
 TEMPLATES_ROOT="$ROOT_DIR/templates"
 EXAMPLES_ROOT="$ROOT_DIR/examples"
 
 MINIMAL_DIR="$TEMPLATES_ROOT/minimal/components/assistant-ui/elements"
 MINIMAL_UI_DIR="$TEMPLATES_ROOT/minimal/components/ui"
 MINIMAL_HOOKS_DIR="$TEMPLATES_ROOT/minimal/hooks"
+MINIMAL_LIB_DIR="$TEMPLATES_ROOT/minimal/lib"
 NUXT_DIR="$TEMPLATES_ROOT/nuxt/app/components/assistant-ui"
 
 # Templates and examples alias packages/ui via tsconfig and carry no copies,
@@ -68,7 +70,7 @@ resolve_vue_source() {
 # content strict; --write formats the rendered output with oxfmt before copying.
 RENDER_DIR="$(mktemp -d)"
 trap 'rm -rf "$RENDER_DIR"' EXIT
-mkdir -p "$RENDER_DIR/assistant-ui" "$RENDER_DIR/vue" "$RENDER_DIR/ui" "$RENDER_DIR/hooks"
+mkdir -p "$RENDER_DIR/assistant-ui" "$RENDER_DIR/vue" "$RENDER_DIR/ui" "$RENDER_DIR/hooks" "$RENDER_DIR/lib"
 
 render_source() {
     local src="$1" out="$2"
@@ -100,6 +102,13 @@ rendered_hooks() {
     local file="$1"
     local out="$RENDER_DIR/hooks/$file"
     [[ -f "$out" ]] || render_source "$HOOKS_SOURCE_DIR/$file" "$out"
+    echo "$out"
+}
+
+rendered_lib() {
+    local file="$1"
+    local out="$RENDER_DIR/lib/$file"
+    [[ -f "$out" ]] || render_source "$LIB_SOURCE_DIR/$file" "$out"
     echo "$out"
 }
 
@@ -165,12 +174,14 @@ format_rendered() {
 drift=()
 ui_drift=()
 hooks_drift=()
+lib_drift=()
 vue_drift=()
 vue_missing=()
 aui_candidates=()
 vue_candidates=()
 ui_candidates=()
 hooks_candidates=()
+lib_candidates=()
 ui_missing=()
 
 if [[ -d "$MINIMAL_DIR" ]]; then
@@ -255,6 +266,27 @@ if [[ -d "$MINIMAL_HOOKS_DIR" ]]; then
     done < <(find "$MINIMAL_HOOKS_DIR" -maxdepth 1 -type f \( -name "*.tsx" -o -name "*.ts" \) -print0)
 fi
 
+if [[ -d "$MINIMAL_LIB_DIR" ]]; then
+    while IFS= read -r -d '' min_file; do
+        file="$(basename "$min_file")"
+
+        # minimal-specific file with no packages/ui counterpart, leave alone
+        [[ -f "$LIB_SOURCE_DIR/$file" ]] || continue
+
+        is_override=0
+        for o in "${OVERRIDES[@]}"; do
+            if [[ "$file" == "$o" ]]; then
+                is_override=1
+                break
+            fi
+        done
+        [[ "$is_override" -eq 1 ]] && continue
+
+        lib_candidates+=("$file")
+        rendered_lib "$file" > /dev/null
+    done < <(find "$MINIMAL_LIB_DIR" -maxdepth 1 -type f \( -name "*.tsx" -o -name "*.ts" \) -print0)
+fi
+
 format_rendered
 
 for file in "${aui_candidates[@]}"; do
@@ -281,6 +313,12 @@ for file in "${hooks_candidates[@]}"; do
     fi
 done
 
+for file in "${lib_candidates[@]}"; do
+    if ! same_normalized "$RENDER_DIR/lib/$file" "$MINIMAL_LIB_DIR/$file"; then
+        lib_drift+=("$file")
+    fi
+done
+
 # Examples must NOT hold byte-equal copies of packages/ui components: their
 # tsconfig already aliases `@/components/assistant-ui/*` to packages/ui, so a
 # local file is only justified as an intentional fork (which diverges by
@@ -297,7 +335,7 @@ while IFS= read -r -d '' ex_file; do
     fi
 done < <(find "$EXAMPLES_ROOT" -path "*/components/assistant-ui/elements/*" -maxdepth 5 -type f \( -name "*.tsx" -o -name "*.ts" \) -not -path "*/node_modules/*" -print0)
 
-if [[ ${#drift[@]} -eq 0 && ${#vue_drift[@]} -eq 0 && ${#vue_missing[@]} -eq 0 && ${#ui_drift[@]} -eq 0 && ${#hooks_drift[@]} -eq 0 && ${#redundant[@]} -eq 0 ]]; then
+if [[ ${#drift[@]} -eq 0 && ${#vue_drift[@]} -eq 0 && ${#vue_missing[@]} -eq 0 && ${#ui_drift[@]} -eq 0 && ${#hooks_drift[@]} -eq 0 && ${#lib_drift[@]} -eq 0 && ${#redundant[@]} -eq 0 ]]; then
     echo "✓ all template components and hooks are in sync with packages/ui"
     echo "✓ no redundant packages/ui copies in examples"
     exit 0
@@ -328,12 +366,16 @@ if [[ "$MODE" == "--write" ]]; then
         cp "$RENDER_DIR/hooks/$file" "$MINIMAL_HOOKS_DIR/$file"
         echo "synced minimal hooks/$file"
     done
+    for file in "${lib_drift[@]}"; do
+        cp "$RENDER_DIR/lib/$file" "$MINIMAL_LIB_DIR/$file"
+        echo "synced minimal lib/$file"
+    done
     for r in "${redundant[@]}"; do
         rm "$ROOT_DIR/$r"
         echo "removed redundant copy $r (resolved from packages/ui via tsconfig paths)"
     done
     echo ""
-    echo "fixed $(( ${#drift[@]} + ${#vue_drift[@]} + ${#vue_missing[@]} + ${#ui_drift[@]} + ${#hooks_drift[@]} + ${#redundant[@]} )) file(s)"
+    echo "fixed $(( ${#drift[@]} + ${#vue_drift[@]} + ${#vue_missing[@]} + ${#ui_drift[@]} + ${#hooks_drift[@]} + ${#lib_drift[@]} + ${#redundant[@]} )) file(s)"
     exit 0
 fi
 
@@ -374,6 +416,14 @@ if [[ ${#hooks_drift[@]} -gt 0 ]]; then
     for file in "${hooks_drift[@]}"; do
         echo "    templates/minimal/hooks/$file"
         annotate "templates/minimal/hooks/$file" "out of sync with packages/ui/src/hooks/$file; run 'pnpm sync-templates --write' or add an OVERRIDES entry"
+    done
+fi
+
+if [[ ${#lib_drift[@]} -gt 0 ]]; then
+    echo "✗ drift detected in ${#lib_drift[@]} minimal lib file(s) vs packages/ui:"
+    for file in "${lib_drift[@]}"; do
+        echo "    templates/minimal/lib/$file"
+        annotate "templates/minimal/lib/$file" "out of sync with packages/ui/src/lib/$file; run 'pnpm sync-templates --write' or add an OVERRIDES entry"
     done
 fi
 
