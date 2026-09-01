@@ -123,12 +123,12 @@ describe("registered tools", () => {
   it("getDoc calls read_page with the given path", async () => {
     const fetchImpl = fetchReturning({ result: okResult });
     await toolByName(fetchImpl, "getDoc").execute({
-      path: "/docs/architecture",
+      path: "/docs/installation",
     });
 
     expect(sentRequest(fetchImpl).body.params).toEqual({
       name: "read_page",
-      arguments: { path: "/docs/architecture" },
+      arguments: { path: "/docs/installation" },
     });
   });
 
@@ -283,7 +283,7 @@ describe("registered tools", () => {
       },
     }));
     const rejection = await toolByName(abortingBody, "getDoc")
-      .execute({ path: "/docs/architecture" })
+      .execute({ path: "/docs/installation" })
       .then(
         () => {
           throw new Error("expected rejection");

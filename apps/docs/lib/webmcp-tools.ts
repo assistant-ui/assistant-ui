@@ -123,11 +123,12 @@ async function callMcpRoute(
     : { content: payload.result.content };
 }
 
-// Chrome's native WebMCP masks page-side execute rejections behind a generic
-// "UnknownError: Tool was executed but the invocation failed", while isError
-// results pass through with their text intact — so failures resolve as isError
-// results. Abort rejections still propagate so a cancellation the caller
-// requested stays a rejection rather than a tool error.
+// Chrome's native WebMCP discards a rejected execute's value and reports
+// every rejection as a generic "Tool was executed but the invocation
+// failed", while it JSON-serializes a resolved object whole. A failure
+// therefore keeps its text only by resolving as an isError result. Abort
+// rejections still propagate so a cancellation the caller requested stays
+// a rejection rather than a tool error.
 const withErrorResults =
   (execute: WebMcpToolDescriptor["execute"]): WebMcpToolDescriptor["execute"] =>
   async (args, context) => {
@@ -199,14 +200,14 @@ function webMcpTools(fetchImpl: FetchLike): WebMcpToolDescriptor[] {
     {
       name: "getDoc",
       description:
-        "Read one assistant-ui docs or Tap docs page as markdown. Accepts a path such as /docs/architecture or tap/docs/store/state.",
+        "Read one assistant-ui docs or Tap docs page as markdown. Accepts a path such as /docs/installation or tap/docs/store/state.",
       inputSchema: {
         type: "object",
         properties: {
           path: {
             type: "string",
             description:
-              "Docs or Tap page path such as /docs/architecture or tap/docs/store/state, or a same-origin URL for one of those pages.",
+              "Docs or Tap page path such as /docs/installation or tap/docs/store/state, or a same-origin URL for one of those pages.",
           },
         },
         required: ["path"],
