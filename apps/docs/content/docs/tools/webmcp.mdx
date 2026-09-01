@@ -30,11 +30,11 @@ const WebMcpTools = () => {
 };
 ```
 
-A complete setup — a task-list page whose toolkit is published to the browser, with a destructive tool held back — runs in [`examples/with-webmcp`](https://github.com/assistant-ui/assistant-ui/tree/main/examples/with-webmcp).
-
 `status` is `"unsupported"` when the page has no `modelContext` — every browser without WebMCP today — and `"active"` once the provider is running. The check runs when the hook mounts and is not repeated: WebMCP defines no availability event, and the provider does not poll, so an extension that injects `modelContext` into an already-rendered page is only picked up on the next mount. `registeredToolNames` is the sorted list of names the provider is publishing; a name that the host refuses (because the page already registered it, or because the page's tools permission is off) drops out of the list once the refusal arrives. A name appears for the commit in which its registration is set up, so treat the list as what the provider intends to have live rather than a synchronous read of the host.
 
 With no `filter`, the provider publishes every enabled frontend tool that has an `execute`; backend tools, disabled tools, and tools with no client-side implementation are skipped. A tool authored without a `type` counts as frontend when it has an `execute`, since that is what separates the deprecated type-less form from a backend or human tool. A `filter` you pass **replaces** that default rather than narrowing it — see below.
+
+A complete setup — a task-list page whose toolkit is published to the browser, with a destructive tool held back — runs in [`examples/with-webmcp`](https://github.com/assistant-ui/assistant-ui/tree/main/examples/with-webmcp).
 
 ## Choosing which tools to publish
 
