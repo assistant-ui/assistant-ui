@@ -15,7 +15,6 @@ import { MessageClient } from "./message-runtime-client";
 import { ThreadSuggestions } from "../clients/suggestions";
 import { useSubscribable } from "./useSubscribable";
 import type { ThreadState } from "../scopes/thread";
-import { useThreadRunStartBridge } from "./thread-run-start-bridge";
 
 const useMessageClientById = ({
   runtime,
@@ -43,7 +42,6 @@ const useThreadClient = ({
 }): ClientOutput<"thread"> => {
   const runtimeState = useSubscribable(runtime);
   const emit = useAssistantEmit();
-  const runStartBridge = useThreadRunStartBridge();
 
   useEffect(() => {
     const unsubscribers: Unsubscribe[] = [];
@@ -69,12 +67,6 @@ const useThreadClient = ({
       for (const unsub of unsubscribers) unsub();
     };
   }, [runtime, emit]);
-
-  useEffect(() => {
-    return runStartBridge?.subscribe((threadId) => {
-      emit("thread.runStart", { threadId });
-    });
-  }, [runStartBridge, emit]);
 
   const threadIdRef = useMemo(
     () => liveRef(() => runtime.getState()!.threadId),

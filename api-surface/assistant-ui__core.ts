@@ -3734,6 +3734,7 @@ declare class RemoteThreadListHookInstanceManager extends BaseSubscribable {
   }> | undefined;
   __internal_isThreadRunning(threadId: string): boolean;
   __internal_subscribeRunningChanged(callback: () => void): Unsubscribe$1;
+  __internal_subscribeRunEvents(callback: (event: ThreadRunEvent) => void): Unsubscribe$1;
   __internal_subscribeRuntimeReplaced(callback: () => void): Unsubscribe$1;
   stopThreadRuntime(threadId: string): void;
   setRuntimeHook(newRuntimeHook: RemoteThreadListHook): void;
@@ -3910,6 +3911,7 @@ declare class RemoteThreadListThreadListRuntimeCore extends BaseSubscribable imp
     unstable_on<E extends ThreadRuntimeEventType>(event: E, callback: ThreadRuntimeEventCallback<E>): Unsubscribe$1;
   }>;
   unstable_isThreadRunning(threadIdOrRemoteId: string): boolean;
+  unstable_subscribeThreadRunEvents(callback: (event: ThreadRunEvent) => void): Unsubscribe$1;
   getItemById(threadIdOrRemoteId: string): RemoteThreadData | undefined;
   switchToThread(threadIdOrRemoteId: string, options?: {
     unarchive?: boolean;
@@ -4718,6 +4720,7 @@ type ThreadListRuntime = {
     unarchive?: boolean;
   }): Promise<void>;
   switchToNewThread(): Promise<void>;
+  unstable_subscribeThreadRunEvents(callback: (event: ThreadRunEvent) => void): Unsubscribe$1;
   getLoadThreadsPromise(): Promise<void>;
   reload(): Promise<void>;
   reloadMainThread(): Promise<void>;
@@ -4736,6 +4739,7 @@ type ThreadListRuntimeCore = {
   getMainThreadRuntimeCore(): ThreadRuntimeCore;
   getThreadRuntimeCore(threadId: string): ThreadRuntimeCore;
   unstable_isThreadRunning?(threadId: string): boolean;
+  unstable_subscribeThreadRunEvents?(callback: (event: ThreadRunEvent) => void): Unsubscribe$1;
   getItemById(threadId: string): ThreadListItemCoreState | undefined;
   switchToThread(threadId: string, options?: {
     unarchive?: boolean;
@@ -4769,6 +4773,7 @@ declare class ThreadListRuntimeImpl implements ThreadListRuntime {
     unarchive?: boolean;
   }): Promise<void>;
   switchToNewThread(): Promise<void>;
+  unstable_subscribeThreadRunEvents(callback: (event: ThreadRunEvent) => void): Unsubscribe$1;
   getLoadThreadsPromise(): Promise<void>;
   reload(): Promise<void>;
   reloadMainThread(): Promise<void>;
@@ -4958,6 +4963,11 @@ declare namespace ThreadPrimitiveUnstable_MessageById {
 }
 
 declare const ThreadPrimitiveUnstable_MessageById: FC<ThreadPrimitiveUnstable_MessageById.Props>;
+
+type ThreadRunEvent = {
+  readonly threadId: string;
+  readonly type: "runEnd" | "runStart";
+};
 
 type ThreadRuntime = {
   readonly path: ThreadRuntimePath;

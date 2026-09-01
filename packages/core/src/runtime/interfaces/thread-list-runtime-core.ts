@@ -16,6 +16,11 @@ export type ThreadListItemCoreState = {
   readonly runtime?: ThreadRuntimeCore | undefined;
 };
 
+export type ThreadRunEvent = {
+  readonly threadId: string;
+  readonly type: "runStart" | "runEnd";
+};
+
 export type ThreadListRuntimeCore = {
   readonly isLoading: boolean;
   readonly isLoadingMore?: boolean;
@@ -40,6 +45,17 @@ export type ThreadListRuntimeCore = {
    * running, and the main thread's run state is read from its runtime directly.
    */
   unstable_isThreadRunning?(threadId: string): boolean;
+
+  /**
+   * Run lifecycle events from every thread this list keeps alive, including
+   * threads that are not the main one. Implemented by thread lists that keep
+   * runtimes alive for non-main threads. A thread list that mounts only the
+   * main thread leaves this undefined: its other threads have no runtime and so
+   * cannot run, and the main thread's runtime is observed directly.
+   */
+  unstable_subscribeThreadRunEvents?(
+    callback: (event: ThreadRunEvent) => void,
+  ): Unsubscribe;
 
   getItemById(threadId: string): ThreadListItemCoreState | undefined;
 

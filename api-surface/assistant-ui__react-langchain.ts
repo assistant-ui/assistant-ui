@@ -1751,6 +1751,7 @@ type ThreadListRuntime = {
     unarchive?: boolean;
   }): Promise<void>;
   switchToNewThread(): Promise<void>;
+  unstable_subscribeThreadRunEvents(callback: (event: ThreadRunEvent) => void): Unsubscribe;
   getLoadThreadsPromise(): Promise<void>;
   reload(): Promise<void>;
   reloadMainThread(): Promise<void>;
@@ -1818,6 +1819,11 @@ type ThreadMessageLike = {
     readonly isOptimistic?: boolean | undefined;
     readonly custom?: Record<string, unknown> | undefined;
   } | undefined;
+};
+
+type ThreadRunEvent = {
+  readonly threadId: string;
+  readonly type: "runEnd" | "runStart";
 };
 
 type ThreadRuntime = {

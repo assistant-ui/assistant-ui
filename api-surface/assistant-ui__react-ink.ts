@@ -3573,6 +3573,7 @@ type ThreadListRuntime = {
     unarchive?: boolean;
   }): Promise<void>;
   switchToNewThread(): Promise<void>;
+  unstable_subscribeThreadRunEvents(callback: (event: ThreadRunEvent) => void): Unsubscribe$1;
   getLoadThreadsPromise(): Promise<void>;
   reload(): Promise<void>;
   reloadMainThread(): Promise<void>;
@@ -3591,6 +3592,7 @@ type ThreadListRuntimeCore = {
   getMainThreadRuntimeCore(): ThreadRuntimeCore;
   getThreadRuntimeCore(threadId: string): ThreadRuntimeCore;
   unstable_isThreadRunning?(threadId: string): boolean;
+  unstable_subscribeThreadRunEvents?(callback: (event: ThreadRunEvent) => void): Unsubscribe$1;
   getItemById(threadId: string): ThreadListItemCoreState | undefined;
   switchToThread(threadId: string, options?: {
     unarchive?: boolean;
@@ -3624,6 +3626,7 @@ declare class ThreadListRuntimeImpl implements ThreadListRuntime {
     unarchive?: boolean;
   }): Promise<void>;
   switchToNewThread(): Promise<void>;
+  unstable_subscribeThreadRunEvents(callback: (event: ThreadRunEvent) => void): Unsubscribe$1;
   getLoadThreadsPromise(): Promise<void>;
   reload(): Promise<void>;
   reloadMainThread(): Promise<void>;
@@ -3772,6 +3775,11 @@ declare const ThreadRoot: (_param67: ThreadRootProps) => import("react").JSX.Ele
 
 type ThreadRootProps = ComponentProps<typeof Box> & {
   children: ReactNode;
+};
+
+type ThreadRunEvent = {
+  readonly threadId: string;
+  readonly type: "runEnd" | "runStart";
 };
 
 type ThreadRuntime = {
