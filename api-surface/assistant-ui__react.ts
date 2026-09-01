@@ -4591,7 +4591,6 @@ type ThreadListRuntime = {
     unarchive?: boolean;
   }): Promise<void>;
   switchToNewThread(): Promise<void>;
-  unstable_subscribeThreadRunEvents(callback: (event: ThreadRunEvent) => void): Unsubscribe$1;
   unstable_subscribeThreadEvents(callback: (event: ThreadListRuntimeEvent) => void): Unsubscribe$1;
   getLoadThreadsPromise(): Promise<void>;
   reload(): Promise<void>;
@@ -4611,7 +4610,6 @@ type ThreadListRuntimeCore = {
   getMainThreadRuntimeCore(): ThreadRuntimeCore;
   getThreadRuntimeCore(threadId: string): ThreadRuntimeCore;
   unstable_isThreadRunning?(threadId: string): boolean;
-  unstable_subscribeThreadRunEvents?(callback: (event: ThreadRunEvent) => void): Unsubscribe$1;
   unstable_subscribeThreadEvents?(callback: (event: ThreadListRuntimeEvent) => void): Unsubscribe$1;
   getItemById(threadId: string): ThreadListItemCoreState | undefined;
   switchToThread(threadId: string, options?: {
@@ -4651,7 +4649,6 @@ declare class ThreadListRuntimeImpl implements ThreadListRuntime {
     unarchive?: boolean;
   }): Promise<void>;
   switchToNewThread(): Promise<void>;
-  unstable_subscribeThreadRunEvents(callback: (event: ThreadRunEvent) => void): Unsubscribe$1;
   unstable_subscribeThreadEvents(callback: (event: ThreadListRuntimeEvent) => void): Unsubscribe$1;
   getLoadThreadsPromise(): Promise<void>;
   reload(): Promise<void>;
@@ -4887,11 +4884,6 @@ declare const ThreadPrimitiveViewportFooter: import("react").ForwardRefExoticCom
 } & import("react").RefAttributes<HTMLDivElement>, "ref"> & import("react").RefAttributes<HTMLDivElement>>;
 
 declare const ThreadPrimitiveViewportProvider: FC<ThreadViewportProviderProps>;
-
-type ThreadRunEvent = {
-  readonly threadId: string;
-  readonly type: "runEnd" | "runStart";
-};
 
 type ThreadRuntime = {
   readonly path: ThreadRuntimePath;

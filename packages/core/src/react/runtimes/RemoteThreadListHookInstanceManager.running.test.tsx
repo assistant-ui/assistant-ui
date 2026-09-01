@@ -174,10 +174,10 @@ describe("RemoteThreadListHookInstanceManager run tracking", () => {
     expect(manager.__internal_isThreadRunning("thread-1")).toBe(false);
   });
 
-  it("forwards run events from every tracked thread with its thread id", () => {
+  it("forwards every lifecycle event from every tracked thread with its thread id", () => {
     const manager = makeManager();
     const events: unknown[] = [];
-    manager.__internal_subscribeRunEvents((event) => events.push(event));
+    manager.__internal_subscribeThreadEvents((event) => events.push(event));
 
     start(manager, "thread-1");
     start(manager, "thread-2");
@@ -188,35 +188,15 @@ describe("RemoteThreadListHookInstanceManager run tracking", () => {
 
     second.emit("runStart");
     first.emit("runEnd");
-
-    expect(events).toEqual([
-      { threadId: "thread-2", type: "runStart" },
-      { threadId: "thread-1", type: "runEnd" },
-    ]);
-  });
-
-  it("forwards every lifecycle event from every tracked thread", () => {
-    const manager = makeManager();
-    const events: unknown[] = [];
-    const runEvents: unknown[] = [];
-    manager.__internal_subscribeThreadEvents((event) => events.push(event));
-    manager.__internal_subscribeRunEvents((event) => runEvents.push(event));
-
-    start(manager, "thread-1");
-    start(manager, "thread-2");
-    const first = makeRuntime();
-    const second = makeRuntime();
-    publish(manager, "thread-1", first.runtime);
-    publish(manager, "thread-2", second.runtime);
-
     first.emit("initialize");
     second.emit("modelContextUpdate");
 
     expect(events).toEqual([
+      { threadId: "thread-2", type: "runStart" },
+      { threadId: "thread-1", type: "runEnd" },
       { threadId: "thread-1", type: "initialize" },
       { threadId: "thread-2", type: "modelContextUpdate" },
     ]);
-    expect(runEvents).toEqual([]);
   });
 
   it("stops forwarding lifecycle events from a runtime a restart replaced", () => {
@@ -230,30 +210,15 @@ describe("RemoteThreadListHookInstanceManager run tracking", () => {
     const after = makeRuntime();
     publish(manager, "thread-1", after.runtime);
 
+    before.emit("runEnd");
     before.emit("initialize");
+    after.emit("runEnd");
     after.emit("modelContextUpdate");
 
     expect(before.eventListenerCount()).toBe(0);
     expect(events).toEqual([
+      { threadId: "thread-1", type: "runEnd" },
       { threadId: "thread-1", type: "modelContextUpdate" },
     ]);
-  });
-
-  it("stops forwarding run events from a runtime a restart replaced", () => {
-    const manager = makeManager();
-    const events: unknown[] = [];
-    manager.__internal_subscribeRunEvents((event) => events.push(event));
-
-    start(manager, "thread-1");
-    const before = makeRuntime();
-    publish(manager, "thread-1", before.runtime);
-    const after = makeRuntime();
-    publish(manager, "thread-1", after.runtime);
-
-    before.emit("runEnd");
-    after.emit("runEnd");
-
-    expect(before.eventListenerCount()).toBe(0);
-    expect(events).toEqual([{ threadId: "thread-1", type: "runEnd" }]);
   });
 });

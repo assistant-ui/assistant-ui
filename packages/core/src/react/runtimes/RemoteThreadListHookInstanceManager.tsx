@@ -20,7 +20,6 @@ import type {
 import type {
   ThreadListRuntimeCore,
   ThreadListRuntimeEvent,
-  ThreadRunEvent,
 } from "../../runtime/interfaces/thread-list-runtime-core";
 import type { Unsubscribe } from "../../types/unsubscribe";
 import {
@@ -166,8 +165,6 @@ export class RemoteThreadListHookInstanceManager extends BaseSubscribable {
     return () => this.runningSubscribers.delete(callback);
   }
 
-  private runEventSubscribers = new Set<(event: ThreadRunEvent) => void>();
-
   private threadEventSubscribers = new Set<
     (event: ThreadListRuntimeEvent) => void
   >();
@@ -177,13 +174,6 @@ export class RemoteThreadListHookInstanceManager extends BaseSubscribable {
   ): Unsubscribe {
     this.threadEventSubscribers.add(callback);
     return () => this.threadEventSubscribers.delete(callback);
-  }
-
-  public __internal_subscribeRunEvents(
-    callback: (event: ThreadRunEvent) => void,
-  ): Unsubscribe {
-    this.runEventSubscribers.add(callback);
-    return () => this.runEventSubscribers.delete(callback);
   }
 
   private _publish = (
@@ -249,12 +239,6 @@ export class RemoteThreadListHookInstanceManager extends BaseSubscribable {
             this.threadEventSubscribers,
             { threadId, type },
             `Thread event "${type}"`,
-          );
-          if (type !== "runStart" && type !== "runEnd") return;
-          notifyEventListeners(
-            this.runEventSubscribers,
-            { threadId, type },
-            `Thread run "${type}"`,
           );
         }),
       ),

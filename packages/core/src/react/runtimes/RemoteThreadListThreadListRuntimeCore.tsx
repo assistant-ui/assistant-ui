@@ -1,7 +1,6 @@
 import type {
   ThreadListRuntimeCore,
   ThreadListRuntimeEvent,
-  ThreadRunEvent,
 } from "../../runtime/interfaces/thread-list-runtime-core";
 import {
   BaseSubscribable,
@@ -561,12 +560,6 @@ export class RemoteThreadListThreadListRuntimeCore
     const data = this.getItemById(threadIdOrRemoteId);
     if (!data) return false;
     return this._hookManager.__internal_isThreadRunning(data.id);
-  }
-
-  public unstable_subscribeThreadRunEvents(
-    callback: (event: ThreadRunEvent) => void,
-  ) {
-    return this._hookManager.__internal_subscribeRunEvents(callback);
   }
 
   public unstable_subscribeThreadEvents(
