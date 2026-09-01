@@ -68,7 +68,11 @@ const parseRunFinishedOutcome = (
   raw: unknown,
   logger: Logger | undefined,
 ): AgUiRunFinishedOutcome | undefined => {
-  if (!isPlainObject(raw)) return undefined;
+  if (raw === undefined) return undefined;
+  if (!isPlainObject(raw)) {
+    logRejectedEvent(logger, "RUN_FINISHED", raw, "has invalid outcome");
+    return undefined;
+  }
   if (raw.type === "success") return { type: "success" };
   if (raw.type === "interrupt") {
     if (!Array.isArray(raw.interrupts)) {
@@ -79,7 +83,18 @@ const parseRunFinishedOutcome = (
       return undefined;
     }
     const parsed = raw.interrupts
-      .map((entry) => parseInterrupt(entry))
+      .map((entry) => {
+        const parsed = parseInterrupt(entry);
+        if (parsed === null) {
+          logRejectedEvent(
+            logger,
+            "RUN_FINISHED",
+            entry,
+            "has malformed interrupt",
+          );
+        }
+        return parsed;
+      })
       .filter((entry): entry is AgUiInterrupt => entry !== null);
     if (parsed.length === 0) {
       logger?.debug?.(
@@ -90,6 +105,7 @@ const parseRunFinishedOutcome = (
     }
     return { type: "interrupt", interrupts: parsed };
   }
+  logRejectedEvent(logger, "RUN_FINISHED", raw, "has unsupported outcome type");
   return undefined;
 };
 
@@ -382,7 +398,15 @@ export const parseAgUiEvent = (
       if (!subagentRunId) return reject("missing subagentRunId");
       const rawOutcome = payload.outcome;
       let outcome: AgUiSubagentFinishedOutcome | undefined;
-      if (!isPlainObject(rawOutcome)) {
+      if (rawOutcome === undefined) {
+        outcome = undefined;
+      } else if (!isPlainObject(rawOutcome)) {
+        logRejectedEvent(
+          options?.logger,
+          "SUBAGENT_FINISHED",
+          rawOutcome,
+          "has invalid outcome",
+        );
         outcome = undefined;
       } else if (rawOutcome.type === "success") {
         outcome = { type: "success" as const };
@@ -396,6 +420,12 @@ export const parseAgUiEvent = (
           },
         );
       } else {
+        logRejectedEvent(
+          options?.logger,
+          "SUBAGENT_FINISHED",
+          rawOutcome,
+          "has unsupported outcome type",
+        );
         outcome = undefined;
       }
       return withOptional(

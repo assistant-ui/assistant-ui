@@ -336,21 +336,96 @@ describe("parseAgUiEvent", () => {
     expect(event).toEqual({ type: "RUN_FINISHED", runId: "r1" });
   });
 
-  it("logs a debug entry when interrupt outcome falls back silently", () => {
+  it("logs malformed interrupts when interrupt outcome falls back", () => {
     const debug = vi.fn();
+    const invalidInterrupts = [{ id: "" }, { reason: "" }];
     parseAgUiEvent(
       {
         type: "RUN_FINISHED",
         runId: "r1",
         outcome: {
           type: "interrupt",
-          interrupts: [{ id: "" }, { reason: "" }],
+          interrupts: invalidInterrupts,
         },
       },
       { logger: { debug } as any },
     );
+    expect(debug).toHaveBeenCalledTimes(3);
+    expect(debug).toHaveBeenNthCalledWith(
+      1,
+      expect.stringContaining("RUN_FINISHED"),
+      invalidInterrupts[0],
+    );
+    expect(debug).toHaveBeenNthCalledWith(
+      2,
+      expect.stringContaining("RUN_FINISHED"),
+      invalidInterrupts[1],
+    );
+    expect(debug.mock.calls[2][0]).toMatch(/no valid interrupts/);
+  });
+
+  it("logs each malformed interrupt in a mixed RUN_FINISHED outcome", () => {
+    const debug = vi.fn();
+    const invalidInterrupt = { id: "int-2" };
+    const event = parseAgUiEvent(
+      {
+        type: "RUN_FINISHED",
+        runId: "r1",
+        outcome: {
+          type: "interrupt",
+          interrupts: [{ id: "int-1", reason: "tool_call" }, invalidInterrupt],
+        },
+      },
+      { logger: { debug } as any },
+    );
+
+    expect(event).toEqual({
+      type: "RUN_FINISHED",
+      runId: "r1",
+      outcome: {
+        type: "interrupt",
+        interrupts: [{ id: "int-1", reason: "tool_call" }],
+      },
+    });
     expect(debug).toHaveBeenCalledTimes(1);
-    expect(debug.mock.calls[0][0]).toMatch(/no valid interrupts/);
+    expect(debug).toHaveBeenCalledWith(
+      expect.stringContaining("RUN_FINISHED"),
+      invalidInterrupt,
+    );
+  });
+
+  it("logs malformed and unsupported RUN_FINISHED outcomes", () => {
+    const debug = vi.fn();
+    const invalidOutcome = null;
+    const unsupportedOutcome = { type: "bogus" };
+
+    expect(
+      parseAgUiEvent(
+        { type: "RUN_FINISHED", runId: "r1", outcome: invalidOutcome },
+        { logger: { debug } as any },
+      ),
+    ).toEqual({ type: "RUN_FINISHED", runId: "r1" });
+    expect(
+      parseAgUiEvent(
+        {
+          type: "RUN_FINISHED",
+          runId: "r2",
+          outcome: unsupportedOutcome,
+        },
+        { logger: { debug } as any },
+      ),
+    ).toEqual({ type: "RUN_FINISHED", runId: "r2" });
+
+    expect(debug).toHaveBeenNthCalledWith(
+      1,
+      expect.stringContaining("RUN_FINISHED"),
+      invalidOutcome,
+    );
+    expect(debug).toHaveBeenNthCalledWith(
+      2,
+      expect.stringContaining("RUN_FINISHED"),
+      unsupportedOutcome,
+    );
   });
 
   it("parses subagentRunId on TEXT_MESSAGE_START/CONTENT/END", () => {
@@ -640,6 +715,44 @@ describe("parseAgUiEvent", () => {
       subagentRunId: "sub-1",
       outcome: { type: "suspended", interruptIds: ["i1"] },
     });
+  });
+
+  it("logs malformed and unsupported SUBAGENT_FINISHED outcomes", () => {
+    const debug = vi.fn();
+    const invalidOutcome = null;
+    const unsupportedOutcome = { type: "bogus" };
+
+    expect(
+      parseAgUiEvent(
+        {
+          type: "SUBAGENT_FINISHED",
+          subagentRunId: "sub-1",
+          outcome: invalidOutcome,
+        },
+        { logger: { debug } as any },
+      ),
+    ).toEqual({ type: "SUBAGENT_FINISHED", subagentRunId: "sub-1" });
+    expect(
+      parseAgUiEvent(
+        {
+          type: "SUBAGENT_FINISHED",
+          subagentRunId: "sub-2",
+          outcome: unsupportedOutcome,
+        },
+        { logger: { debug } as any },
+      ),
+    ).toEqual({ type: "SUBAGENT_FINISHED", subagentRunId: "sub-2" });
+
+    expect(debug).toHaveBeenNthCalledWith(
+      1,
+      expect.stringContaining("SUBAGENT_FINISHED"),
+      invalidOutcome,
+    );
+    expect(debug).toHaveBeenNthCalledWith(
+      2,
+      expect.stringContaining("SUBAGENT_FINISHED"),
+      unsupportedOutcome,
+    );
   });
 
   it("parses SUBAGENT_ERROR", () => {
