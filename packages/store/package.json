@@ -41,7 +41,7 @@
     "test:watch": "vitest"
   },
   "peerDependencies": {
-    "@assistant-ui/tap": "^0.9.12",
+    "@assistant-ui/tap": "workspace:^",
     "@types/react": "*",
     "react": "^18 || ^19"
   },
