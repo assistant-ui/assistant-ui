@@ -14,13 +14,15 @@ export type PackagedFileRef = {
 const encodeUrlPath = (value: string) =>
   value.split("/").map(encodeURIComponent).join("/");
 
+const REGISTRY_ORIGIN = "https://r.assistant-ui.com";
+
 export const packagedFileUrl = (
   flavor: RegistryFlavor,
   file: PackagedFileRef,
-) =>
-  flavor === "base"
-    ? `https://r.assistant-ui.com/base/files/${encodeUrlPath(file.name)}/${encodeUrlPath(file.path)}`
-    : `https://r.assistant-ui.com/files/${encodeUrlPath(file.name)}/${encodeUrlPath(file.path)}`;
+) => {
+  const root = flavor === "base" ? `${REGISTRY_ORIGIN}/base` : REGISTRY_ORIGIN;
+  return `${root}/files/${encodeUrlPath(file.name)}/${encodeUrlPath(file.path)}`;
+};
 
 export function buildDownloadCommand(
   files: PackagedFileRef[],
