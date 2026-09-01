@@ -3687,7 +3687,13 @@ describe("AGUIThreadRuntimeCore", () => {
     await new Promise((r) => setTimeout(r, 0));
 
     expect(runCount).toBe(2);
-    expect(JSON.stringify(runInputs[1])).toContain("int-nested");
+    expect(runInputs[1]?.resume).toEqual([
+      expect.objectContaining({
+        interruptId: "int-nested",
+        status: "resolved",
+        payload: { approved: true },
+      }),
+    ]);
 
     const updated = core
       .getMessages()

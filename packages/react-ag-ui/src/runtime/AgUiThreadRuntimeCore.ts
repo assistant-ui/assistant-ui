@@ -49,6 +49,7 @@ import {
   toAgUiTools,
 } from "./adapter/conversions";
 import { createAgUiSubscriber } from "./adapter/subscriber";
+import { iterateToolCallParts, mapToolCallPartsDeep } from "./tool-call-tree";
 import {
   buildToolApprovalResume,
   projectAgUiToolApprovals,
@@ -68,8 +69,6 @@ type RunAgentWithRunOptions = (
 const optimisticPrefix = "__optimistic__";
 const generateOptimisticId = () => `${optimisticPrefix}${generateId()}`;
 const isOptimisticId = (id: string) => id.startsWith(optimisticPrefix);
-
-import { iterateToolCallParts, mapToolCallPartsDeep } from "./tool-call-tree";
 
 const isResolvedToolCall = (
   part: ThreadAssistantMessage["content"][number],

@@ -102,12 +102,11 @@ describe("RunAggregator tool approval projection", () => {
   });
 
   /**
-   * `boundToolCallIds` names the calls that render at root scope. A gate on a
-   * call nested inside a subagent message is therefore unbound, and
-   * `projectAgUiToolApprovals` collapses the whole batch rather than
-   * projects onto the nested part: the approval seams walk
-   * ToolCallMessagePart.messages, so a gate naming a subagent-scoped call is
-   * answerable the same way a root gate is.
+   * `boundToolCallIds` names every call the run produced, root or nested, so a
+   * gate on a call inside a subagent message is bound and projects onto the
+   * nested part rather than collapsing the batch. The approval seams walk
+   * `ToolCallMessagePart.messages`, which is what makes a subagent-scoped gate
+   * answerable the same way a root one is.
    */
   it("projects a batch that names a subagent-scoped tool call onto both the root and nested parts", () => {
     const emitted: ChatModelRunResult[] = [];
