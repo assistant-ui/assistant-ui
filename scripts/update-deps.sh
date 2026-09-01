@@ -11,6 +11,7 @@ EXPO_MANIFEST="examples/with-expo/package.json"
 expo_manifest_backup="$(mktemp)"
 expo_matrix_backup="$(mktemp)"
 expo_repin_skipped=0
+run_completed=0
 
 # The restore fires on any pre-install failure, including one an unrelated package
 # caused, and whatever failed usually kills the run again at the final install. The
@@ -20,6 +21,10 @@ report_expo_repin() {
   echo "" >&2
   echo "The Expo repin did not run, so the Expo-managed entries in $EXPO_MANIFEST" >&2
   echo "kept their previous versions. Rerun once the blocking release has aged." >&2
+  if [ "$run_completed" -ne 0 ]; then
+    echo "Everything else in this run is complete." >&2
+  fi
+  return 0
 }
 trap 'report_expo_repin; rm -f "$expo_manifest_backup" "$expo_matrix_backup"' EXIT
 cp "$EXPO_MANIFEST" "$expo_manifest_backup"
@@ -94,8 +99,8 @@ pnpm install
 pnpm dedupe
 bash scripts/generate-deps-changeset.sh
 
+run_completed=1
+
 if [ "$expo_repin_skipped" -ne 0 ]; then
-  echo "" >&2
-  echo "Everything else in this run is complete." >&2
   exit 1
 fi
