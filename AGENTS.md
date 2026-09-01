@@ -171,7 +171,7 @@ Don't:
 - **Don't ship a new example app that duplicates one we already ship.** Scan `examples/` first; if with-cloud, with-langgraph, or with-mcp already covers the integration, your example adds no ground. New examples belong in a separate repo on your own account unless a maintainer asked for it in-repo.
 - **Don't fix a bug by introducing a UX regression.** Disabling a feature, dropping an animation, or widening an API to mask a jitter or rendering bug is not an acceptable fix. Diagnose and fix the root cause; a regression is rejected even when the original report is real.
 - **Don't add defensive checks the toolchain already enforces, or comment on formatting.** The repo runs `@tsconfig/strictest` with `exactOptionalPropertyTypes`, so nullability and optional-property guards are redundant; do not add "ensure x is defined" guards the compiler already catches. Formatting is automated (oxfmt), so do not raise spacing or formatting nits in review.
-- **Don't `--admin` merge a PR until `gh pr checks` shows every row passing or explicitly skipped.** Filter out `pass` and `skipping` and confirm the remainder is empty, because the truncated tail once hid a failing Template Sync. If a repo-specific check (template-sync, api-surface, check:resource-memo, changeset-semver) is failing or pending, resolve it first rather than overriding.
+- **Don't `--admin` merge a PR until `gh pr checks` shows every row passing or explicitly skipped.** Filter out `pass` and `skipping` and confirm the remainder is empty, because the truncated tail once hid a failing Template Sync. If a repo-specific check (template-sync, api-surface, check:resource-memo, changeset-semver, unmanaged-pins) is failing or pending, resolve it first rather than overriding.
 
 ## GitButler
 
