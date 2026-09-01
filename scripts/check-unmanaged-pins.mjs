@@ -68,17 +68,24 @@ export function findUnmarkedActionRefs(workflows) {
   for (const { file, source } of workflows) {
     source.split("\n").forEach((line, index) => {
       const ref = /^\s*(?:-\s+)?uses:\s*(\S+)/.exec(line);
-      if (!ref || ref[1].startsWith(".")) return;
-      const action = ref[1].slice(0, ref[1].lastIndexOf("@"));
+      if (!ref) return;
+      const uses = ref[1].replace(/^["']|["']$/g, "");
+      if (uses.startsWith(".")) return;
       const marker = /#\s*ratchet:(\S+)/.exec(line);
       if (marker && marker[1] === "exclude") return;
       const report = (reason) =>
-        problems.push({ file, line: index + 1, uses: ref[1], reason });
-      if (!marker) return report("absent");
+        problems.push({ file, line: index + 1, uses, reason });
+      const refAt = uses.lastIndexOf("@");
+      if (!/^[0-9a-f]{40}$/.test(uses.slice(refAt + 1))) {
+        return report("not pinned to a commit SHA");
+      }
+      if (!marker) return report("no ratchet marker");
       const at = marker[1].lastIndexOf("@");
-      if (at <= 0) return report("has no version");
-      if (marker[1].slice(0, at) !== action) {
-        report(`names ${marker[1].slice(0, at)}`);
+      if (at <= 0 || at === marker[1].length - 1) {
+        return report("ratchet marker has no version");
+      }
+      if (marker[1].slice(0, at) !== uses.slice(0, refAt)) {
+        report(`ratchet marker names ${marker[1].slice(0, at)}`);
       }
     });
   }
@@ -245,21 +252,24 @@ function main() {
   if (result.unmarked.length > 0) {
     failed = true;
     console.error(
-      "Workflow `uses:` entries without a usable ratchet marker:\n",
+      "Workflow `uses:` entries that are not SHA-pinned with a usable ratchet marker:\n",
     );
     for (const { file, line, uses, reason } of result.unmarked) {
-      console.error(`  ${file}:${line}: ${uses} (marker ${reason})`);
+      console.error(`  ${file}:${line}: ${uses} — ${reason}`);
     }
     console.error(
-      "\n`ratchet update` reads the trailing `# ratchet:<owner>/<repo>@<version>` comment to learn",
+      "\nEvery action is pinned to a commit SHA, and `ratchet update` reads the trailing",
     );
     console.error(
-      "which action a pinned SHA came from. An entry that loses its marker keeps working and stops",
+      "`# ratchet:<owner>/<repo>@<version>` comment to learn which action that SHA came from. An entry",
     );
     console.error(
-      "being updated, so the pin silently freezes. Restore the marker, or annotate a deliberately",
+      "that reverts to a tag drops the pin, and one that loses its marker keeps working and stops being",
     );
-    console.error("unmanaged entry with `# ratchet:exclude`.\n");
+    console.error(
+      "updated. Restore the SHA and the marker, or annotate a deliberately unmanaged entry with",
+    );
+    console.error("`# ratchet:exclude`.\n");
   }
 
   if (result.nodePins.length > 0) {

@@ -78,10 +78,10 @@ function createWorkspace({ problems = false } = {}) {
       "  check:",
       "    runs-on: ubuntu-latest",
       "    steps:",
-      "      - uses: actions/checkout@fixture # ratchet:actions/checkout@v4",
+      `      - uses: actions/checkout@${"a".repeat(40)} # ratchet:actions/checkout@v4`,
       problems
-        ? "      - uses: actions/setup-node@fixture"
-        : "      - uses: actions/setup-node@fixture # ratchet:actions/setup-node@v4",
+        ? `      - uses: actions/setup-node@${"b".repeat(40)}`
+        : `      - uses: actions/setup-node@${"b".repeat(40)} # ratchet:actions/setup-node@v4`,
       "    runtime: node@22",
       `    node-version: ${problems ? "20" : "22"}`,
       "",
@@ -145,17 +145,21 @@ test("parseIndentedBlock collects every top-level block at its entry depth", () 
   ]);
 });
 
-test("findUnmarkedActionRefs distinguishes missing and mismatched markers", () => {
+test("findUnmarkedActionRefs rejects tag refs and unusable markers", () => {
+  const sha = "0123456789abcdef0123456789abcdef01234567";
   const problems = findUnmarkedActionRefs([
     {
       file: ".github/workflows/check.yaml",
       source: [
         "steps:",
-        "  - uses: actions/checkout@fixture # ratchet:actions/checkout@v4",
-        "  - uses: actions/setup-node@fixture",
-        "  - uses: actions/cache@fixture # ratchet:actions/checkout@v4",
-        "  - uses: actions/setup-python@fixture # ratchet:actions/setup-python",
-        "  - uses: actions/upload-artifact@fixture # ratchet:exclude",
+        `  - uses: actions/checkout@${sha} # ratchet:actions/checkout@v4`,
+        `  - uses: "actions/download-artifact@${sha}" # ratchet:actions/download-artifact@v4`,
+        `  - uses: actions/setup-node@${sha}`,
+        `  - uses: actions/cache@${sha} # ratchet:actions/checkout@v4`,
+        `  - uses: actions/setup-python@${sha} # ratchet:actions/setup-python`,
+        `  - uses: actions/labeler@${sha} # ratchet:actions/labeler@`,
+        "  - uses: actions/stale@v9 # ratchet:actions/stale@v9.0.0",
+        `  - uses: actions/upload-artifact@${sha} # ratchet:exclude`,
         "  - uses: ./local-action",
       ].join("\n"),
     },
@@ -164,21 +168,33 @@ test("findUnmarkedActionRefs distinguishes missing and mismatched markers", () =
   assert.deepEqual(problems, [
     {
       file: ".github/workflows/check.yaml",
-      line: 3,
-      uses: "actions/setup-node@fixture",
-      reason: "absent",
-    },
-    {
-      file: ".github/workflows/check.yaml",
       line: 4,
-      uses: "actions/cache@fixture",
-      reason: "names actions/checkout",
+      uses: `actions/setup-node@${sha}`,
+      reason: "no ratchet marker",
     },
     {
       file: ".github/workflows/check.yaml",
       line: 5,
-      uses: "actions/setup-python@fixture",
-      reason: "has no version",
+      uses: `actions/cache@${sha}`,
+      reason: "ratchet marker names actions/checkout",
+    },
+    {
+      file: ".github/workflows/check.yaml",
+      line: 6,
+      uses: `actions/setup-python@${sha}`,
+      reason: "ratchet marker has no version",
+    },
+    {
+      file: ".github/workflows/check.yaml",
+      line: 7,
+      uses: `actions/labeler@${sha}`,
+      reason: "ratchet marker has no version",
+    },
+    {
+      file: ".github/workflows/check.yaml",
+      line: 8,
+      uses: "actions/stale@v9",
+      reason: "not pinned to a commit SHA",
     },
   ]);
 });
@@ -365,6 +381,58 @@ test("runCheck holds course pins to the prevailing floor, not an outlier", () =>
   }
 });
 
+test("runCheck exempts only the packages the workspace publishes", () => {
+  const root = mkdtempSync(path.join(tmpdir(), "aui-unmanaged-pins-private-"));
+  try {
+    writeJson(root, "package.json", {
+      name: "@fixture/root",
+      version: "1.0.0",
+    });
+    writeJson(root, "packages/published/package.json", {
+      name: "@fixture/published",
+      version: "2.0.0",
+    });
+    writeJson(root, "packages/private/package.json", {
+      name: "@fixture/private",
+      version: "2.0.0",
+      private: true,
+      dependencies: { "@fixture/published": "^2.0.0" },
+    });
+    writeJson(root, "packages/consumer/package.json", {
+      name: "@fixture/consumer",
+      version: "1.0.0",
+      dependencies: { "@fixture/private": "^2.0.0" },
+    });
+    writeJson(
+      root,
+      "apps/docs/lib/xulux/learn/courses/fixture/shared/project/package.json",
+      {
+        name: "@fixture/course",
+        dependencies: {
+          "@fixture/private": "1.0.0",
+          "@fixture/published": "1.0.0",
+        },
+      },
+    );
+    writeFileSync(
+      path.join(root, "pnpm-workspace.yaml"),
+      "packages:\n  - packages/*\n",
+    );
+    writeFileSync(
+      path.join(root, "pnpm-lock.yaml"),
+      "lockfileVersion: '9.0'\n",
+    );
+    mkdirSync(path.join(root, ".github", "workflows"), { recursive: true });
+
+    assert.deepEqual(
+      runCheck(root).coursePins.map(({ name }) => name),
+      ["@fixture/private"],
+    );
+  } finally {
+    rmSync(root, { recursive: true, force: true });
+  }
+});
+
 test("runCheck reads workflow, lockfile, workspace, and course fixtures", () => {
   const root = createWorkspace();
   try {
@@ -414,7 +482,7 @@ test("the executable reports every seeded problem and exits 1", () => {
     assert.equal(result.status, 1);
     assert.match(
       result.stderr,
-      /actions\/setup-node@fixture \(marker absent\)/,
+      /actions\/setup-node@b{40} — no ratchet marker/,
     );
     assert.match(result.stderr, /node@20, not node@22/);
     assert.match(result.stderr, /esbuild@0\.1\.0 is not installed/);
