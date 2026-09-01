@@ -7,7 +7,10 @@ import {
   SKIP_UPDATE,
   ShallowMemoizeSubject,
 } from "../../subscribable/subscribable";
-import type { ThreadListRuntimeCore } from "../interfaces/thread-list-runtime-core";
+import type {
+  ThreadListRuntimeCore,
+  ThreadRunEvent,
+} from "../interfaces/thread-list-runtime-core";
 import {
   type ThreadListItemRuntime,
   ThreadListItemRuntimeImpl,
@@ -21,6 +24,7 @@ import {
 } from "./thread-runtime";
 
 const RESOLVED_PROMISE = Promise.resolve();
+const NOOP_UNSUBSCRIBE = () => {};
 
 export type ThreadListState = {
   readonly mainThreadId: string;
@@ -56,6 +60,16 @@ export type ThreadListRuntime = {
     options?: { unarchive?: boolean },
   ): Promise<void>;
   switchToNewThread(): Promise<void>;
+
+  /**
+   * Observes run starts and ends on every thread this list keeps alive, so a
+   * run that outlives its thread's selection stays observable. Thread lists
+   * that mount only the main thread never emit; their main thread's runtime is
+   * observed directly.
+   */
+  unstable_subscribeThreadRunEvents(
+    callback: (event: ThreadRunEvent) => void,
+  ): Unsubscribe;
 
   getLoadThreadsPromise(): Promise<void>;
   reload(): Promise<void>;
@@ -171,6 +185,8 @@ export class ThreadListRuntimeImpl implements ThreadListRuntime {
   protected __internal_bindMethods() {
     this.switchToThread = this.switchToThread.bind(this);
     this.switchToNewThread = this.switchToNewThread.bind(this);
+    this.unstable_subscribeThreadRunEvents =
+      this.unstable_subscribeThreadRunEvents.bind(this);
     this.getLoadThreadsPromise = this.getLoadThreadsPromise.bind(this);
     this.reload = this.reload.bind(this);
     this.reloadMainThread = this.reloadMainThread.bind(this);
@@ -192,6 +208,15 @@ export class ThreadListRuntimeImpl implements ThreadListRuntime {
 
   public switchToNewThread(): Promise<void> {
     return this._core.switchToNewThread();
+  }
+
+  public unstable_subscribeThreadRunEvents(
+    callback: (event: ThreadRunEvent) => void,
+  ): Unsubscribe {
+    return (
+      this._core.unstable_subscribeThreadRunEvents?.(callback) ??
+      NOOP_UNSUBSCRIBE
+    );
   }
 
   public getLoadThreadsPromise(): Promise<void> {

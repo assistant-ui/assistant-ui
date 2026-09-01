@@ -8,12 +8,22 @@ const makeRuntime = (
   initial: Partial<Pick<ThreadRuntimeCore, "isRunning" | "messages">> = {},
 ) => {
   const subscribers = new Set<() => void>();
+  const eventListeners = new Map<string, Set<() => void>>();
   const runtime = {
     isRunning: initial.isRunning,
     messages: initial.messages ?? [],
     subscribe: (callback: () => void) => {
       subscribers.add(callback);
       return () => subscribers.delete(callback);
+    },
+    unstable_on: (event: string, callback: () => void) => {
+      let listeners = eventListeners.get(event);
+      if (!listeners) {
+        listeners = new Set();
+        eventListeners.set(event, listeners);
+      }
+      listeners.add(callback);
+      return () => listeners.delete(callback);
     },
   } as unknown as ThreadRuntimeCore & {
     isRunning: boolean | undefined;
@@ -23,6 +33,14 @@ const makeRuntime = (
   return {
     runtime,
     subscriberCount: () => subscribers.size,
+    eventListenerCount: () =>
+      [...eventListeners.values()].reduce(
+        (total, listeners) => total + listeners.size,
+        0,
+      ),
+    emit: (event: string) => {
+      for (const callback of eventListeners.get(event) ?? []) callback();
+    },
     setRunning: (isRunning: boolean | undefined) => {
       runtime.isRunning = isRunning;
       for (const callback of subscribers) callback();
@@ -152,6 +170,46 @@ describe("RemoteThreadListHookInstanceManager run tracking", () => {
     manager.stopThreadRuntime("thread-1");
 
     expect(thread.subscriberCount()).toBe(0);
+    expect(thread.eventListenerCount()).toBe(0);
     expect(manager.__internal_isThreadRunning("thread-1")).toBe(false);
+  });
+
+  it("forwards run events from every tracked thread with its thread id", () => {
+    const manager = makeManager();
+    const events: unknown[] = [];
+    manager.__internal_subscribeRunEvents((event) => events.push(event));
+
+    start(manager, "thread-1");
+    start(manager, "thread-2");
+    const first = makeRuntime();
+    const second = makeRuntime();
+    publish(manager, "thread-1", first.runtime);
+    publish(manager, "thread-2", second.runtime);
+
+    second.emit("runStart");
+    first.emit("runEnd");
+
+    expect(events).toEqual([
+      { threadId: "thread-2", type: "runStart" },
+      { threadId: "thread-1", type: "runEnd" },
+    ]);
+  });
+
+  it("stops forwarding run events from a runtime a restart replaced", () => {
+    const manager = makeManager();
+    const events: unknown[] = [];
+    manager.__internal_subscribeRunEvents((event) => events.push(event));
+
+    start(manager, "thread-1");
+    const before = makeRuntime();
+    publish(manager, "thread-1", before.runtime);
+    const after = makeRuntime();
+    publish(manager, "thread-1", after.runtime);
+
+    before.emit("runEnd");
+    after.emit("runEnd");
+
+    expect(before.eventListenerCount()).toBe(0);
+    expect(events).toEqual([{ threadId: "thread-1", type: "runEnd" }]);
   });
 });

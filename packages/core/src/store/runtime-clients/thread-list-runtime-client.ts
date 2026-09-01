@@ -1,7 +1,11 @@
-import { useMemo } from "react";
+import { useEffect, useMemo } from "react";
 import { useResource, withKey, resource } from "@assistant-ui/tap";
 import type { ClientOutput } from "@assistant-ui/store";
-import { useClientLookup, useClientResource } from "@assistant-ui/store/client";
+import {
+  useAssistantEmit,
+  useClientLookup,
+  useClientResource,
+} from "@assistant-ui/store/client";
 import { useThreadSelectionEvents } from "../clients/thread-selection-events";
 import type { ThreadListRuntime } from "../../runtime/api/thread-list-runtime";
 import type { AssistantRuntime } from "../../runtime/api/assistant-runtime";
@@ -43,6 +47,16 @@ const useThreadListClient = ({
 }): ClientOutput<"threads"> => {
   const runtimeState = useSubscribable(runtime);
   useThreadSelectionEvents(runtimeState.mainThreadId);
+
+  const emit = useAssistantEmit();
+  useEffect(
+    () =>
+      runtime.unstable_subscribeThreadRunEvents(({ threadId, type }) => {
+        if (threadId === runtime.getState().mainThreadId) return;
+        emit(`thread.${type}`, { threadId });
+      }),
+    [runtime, emit],
+  );
 
   const main = useClientResource(
     ThreadClient({
