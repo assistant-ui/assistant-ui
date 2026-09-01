@@ -314,8 +314,18 @@ export class AssistantFrameProvider {
 
       instance.broadcastUpdate();
     } catch (error) {
-      const { unsubscribe } = instance.removeProvider(id, origin);
+      const { unsubscribe, removedProvider } = instance.removeProvider(
+        id,
+        origin,
+      );
       // Rollback failures must not replace the registration error.
+      try {
+        if (removedProvider) {
+          instance.cancelToolCallsForProvider(removedProvider);
+        }
+      } catch (cancelError) {
+        console.error(cancelError);
+      }
       try {
         unsubscribe?.();
       } catch (unsubscribeError) {

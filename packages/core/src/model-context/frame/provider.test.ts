@@ -559,6 +559,48 @@ describe("AssistantFrameProvider", () => {
     ).not.toThrow();
   });
 
+  it("cancels reentrant tool calls when registration rolls back", async () => {
+    let toolSignal: AbortSignal | undefined;
+    const execute = vi.fn(
+      async (_args: unknown, context: { abortSignal: AbortSignal }) => {
+        toolSignal = context.abortSignal;
+        await new Promise<never>((_resolve, reject) => {
+          context.abortSignal.addEventListener(
+            "abort",
+            () => reject(context.abortSignal.reason),
+            { once: true },
+          );
+        });
+      },
+    );
+
+    expect(() =>
+      AssistantFrameProvider.addModelContextProvider({
+        getModelContext: () => ({
+          tools: { sensitiveTool: { execute } },
+        }),
+        subscribe: () => {
+          dispatchToolCall(window.location.origin);
+          throw new Error("subscribe failed");
+        },
+      }),
+    ).toThrow("subscribe failed");
+
+    expect(toolSignal?.aborted).toBe(true);
+    expect(parentWindow.postMessage).toHaveBeenCalledWith(
+      {
+        channel: FRAME_MESSAGE_CHANNEL,
+        message: {
+          type: "tool-result",
+          id: "tool-call-1",
+          error: "AssistantFrame tool provider has been removed",
+        },
+      },
+      { targetOrigin: window.location.origin },
+    );
+    await new Promise((resolve) => setTimeout(resolve, 0));
+  });
+
   it("keeps an existing registration when the same provider fails to register again", async () => {
     const execute = vi.fn(async () => "result");
     const firstUnsubscribe = vi.fn();
