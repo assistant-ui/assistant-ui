@@ -786,14 +786,16 @@ const useRemoteThreadList = (
           if (generation !== session.switchGeneration) return;
           current = getThreadData(store.value, targetId);
           if (current?.id !== targetId) return;
-          await store.optimisticUpdate({
-            execute: () => session.adapter.unarchive(remoteId),
-            optimistic: (state) =>
-              updateStatusReducer(state, targetId, "regular"),
-          });
-          if (generation !== session.switchGeneration) return;
-          current = getThreadData(store.value, targetId);
-          if (current?.id !== targetId) return;
+          if (current.status === "archived") {
+            await store.optimisticUpdate({
+              execute: () => session.adapter.unarchive(remoteId),
+              optimistic: (state) =>
+                updateStatusReducer(state, targetId, "regular"),
+            });
+            if (generation !== session.switchGeneration) return;
+            current = getThreadData(store.value, targetId);
+            if (current?.id !== targetId) return;
+          }
         }
         if (generation !== session.switchGeneration) return;
         assignMainThreadId(current.id);

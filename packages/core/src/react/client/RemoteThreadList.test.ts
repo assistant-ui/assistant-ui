@@ -134,6 +134,46 @@ const mountList = (
   return { handle, onThreadIdChange };
 };
 
+const mountArchivedInitializingThread = async () => {
+  const initialize = deferred<{
+    remoteId: string;
+    externalId: undefined;
+  }>();
+  const adapter = makeAdapter({
+    list: vi.fn(async () => ({
+      threads: [
+        {
+          status: "regular" as const,
+          remoteId: "fallback",
+          title: "Fallback",
+        },
+      ],
+    })),
+    initialize: vi.fn(() => initialize.promise),
+  });
+  const { handle } = mountList(adapter);
+  const aui = handle.getClient();
+  await aui.threads.getLoadThreadsPromise();
+  const targetId = aui.threads.getState().mainThreadId;
+  const initialization = aui.threads.item("main").initialize();
+  await vi.waitFor(() => {
+    expect(handle.getClient().threads.item("main").getState().status).toBe(
+      "regular",
+    );
+  });
+  flushTapSync(() => aui.threads.switchToThread("fallback"));
+  await vi.waitFor(() => {
+    expect(handle.getClient().threads.getState().mainThreadId).toBe("fallback");
+  });
+  flushTapSync(() => aui.threads.item({ id: targetId }).archive());
+  await vi.waitFor(() => {
+    expect(handle.getClient().threads.getState().archivedThreadIds).toContain(
+      targetId,
+    );
+  });
+  return { adapter, handle, targetId, initialization, initialize };
+};
+
 describe("RemoteThreadList", () => {
   it("loads adapter threads on a standalone client", async () => {
     const adapter = makeAdapter({
@@ -1324,45 +1364,9 @@ describe("RemoteThreadList", () => {
   });
 
   it("does not unarchive an archived thread deleted during initialization", async () => {
-    const initialize = deferred<{
-      remoteId: string;
-      externalId: undefined;
-    }>();
-    const adapter = makeAdapter({
-      list: vi.fn(async () => ({
-        threads: [
-          {
-            status: "regular" as const,
-            remoteId: "fallback",
-            title: "Fallback",
-          },
-        ],
-      })),
-      initialize: vi.fn(() => initialize.promise),
-    });
-    const { handle } = mountList(adapter);
+    const { adapter, handle, targetId, initialization, initialize } =
+      await mountArchivedInitializingThread();
     const aui = handle.getClient();
-    await aui.threads.getLoadThreadsPromise();
-    const targetId = aui.threads.getState().mainThreadId;
-
-    const initialization = aui.threads.item("main").initialize();
-    await vi.waitFor(() => {
-      expect(handle.getClient().threads.item("main").getState().status).toBe(
-        "regular",
-      );
-    });
-    flushTapSync(() => aui.threads.switchToThread("fallback"));
-    await vi.waitFor(() => {
-      expect(handle.getClient().threads.getState().mainThreadId).toBe(
-        "fallback",
-      );
-    });
-    flushTapSync(() => aui.threads.item({ id: targetId }).archive());
-    await vi.waitFor(() => {
-      expect(handle.getClient().threads.getState().archivedThreadIds).toContain(
-        targetId,
-      );
-    });
     flushTapSync(() => aui.threads.switchToThread(targetId));
     flushTapSync(() => aui.threads.item({ id: targetId }).delete());
     await vi.waitFor(() => {
@@ -1383,6 +1387,33 @@ describe("RemoteThreadList", () => {
     expect(() =>
       handle.getClient().threads.item("main").getState(),
     ).not.toThrow();
+    handle.destroy();
+  });
+
+  it("does not unarchive again when the target became regular during initialization", async () => {
+    const { adapter, handle, targetId, initialization, initialize } =
+      await mountArchivedInitializingThread();
+    const aui = handle.getClient();
+
+    flushTapSync(() => aui.threads.switchToThread(targetId));
+    flushTapSync(() => aui.threads.item({ id: targetId }).unarchive());
+    await vi.waitFor(() => {
+      expect(
+        handle.getClient().threads.item({ id: targetId }).getState().status,
+      ).toBe("regular");
+    });
+
+    initialize.resolve({
+      remoteId: `remote-${targetId}`,
+      externalId: undefined,
+    });
+    await initialization;
+    await vi.waitFor(() => {
+      expect(handle.getClient().threads.getState().mainThreadId).toBe(targetId);
+    });
+
+    expect(adapter.unarchive).toHaveBeenCalledTimes(1);
+    expect(adapter.unarchive).toHaveBeenCalledWith(`remote-${targetId}`);
     handle.destroy();
   });
 
