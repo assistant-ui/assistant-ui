@@ -182,7 +182,7 @@ describe("every real preview extracts", () => {
     // that preview unguarded.
     let occurrences = 0;
     let parsed = 0;
-    const pairs = new Set<string>();
+    const pairs = new Map<string, { file: string; name: string }>();
     for (const mdxFile of mdxFiles) {
       const mdx = readFileSync(mdxFile, "utf8");
       occurrences += mdx.match(/<PreviewCode[\s>]/g)?.length ?? 0;
@@ -190,7 +190,9 @@ describe("every real preview extracts", () => {
         /<PreviewCode\s[^>]*?file="([^"]+)"[^>]*?name="([^"]+)"/gs,
       )) {
         parsed += 1;
-        pairs.add(`${match[1]} ${match[2]}`);
+        const file = match[1]!;
+        const name = match[2]!;
+        pairs.set(JSON.stringify([file, name]), { file, name });
       }
     }
     expect(occurrences).toBeGreaterThan(0);
@@ -204,9 +206,10 @@ describe("every real preview extracts", () => {
         failures.push(`${sourceFile}#${name}: ${extracted}`);
         return;
       }
-      // A phantom string that swallows a brace truncates the snippet at an
-      // earlier boundary and still looks like code, so the text after the
-      // extracted region must start a new top-level construct.
+      // A phantom string that never closes already produces the marker above.
+      // This catches the other half: one that closes, having swallowed a lone
+      // opening delimiter, ends the region early at a boundary that still
+      // reads as code.
       const endIndex = source.indexOf(extracted) + extracted.length;
       const rest = source.slice(endIndex).replace(/^[\s;]*/, "");
       if (
@@ -221,8 +224,7 @@ describe("every real preview extracts", () => {
       }
     };
 
-    for (const pair of pairs) {
-      const [file, name] = pair.split(" ") as [string, string];
+    for (const { file, name } of pairs.values()) {
       const base = join(docsRoot, `${file}.tsx`);
       const radix = join(docsRoot, `${file}.radix.tsx`);
       if (existsSync(radix)) checkExtraction(radix, name);
