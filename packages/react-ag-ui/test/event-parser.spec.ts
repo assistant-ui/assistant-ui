@@ -416,6 +416,7 @@ describe("parseAgUiEvent", () => {
       ),
     ).toEqual({ type: "RUN_FINISHED", runId: "r2" });
 
+    expect(debug).toHaveBeenCalledTimes(2);
     expect(debug).toHaveBeenNthCalledWith(
       1,
       expect.stringContaining("RUN_FINISHED"),
@@ -719,39 +720,35 @@ describe("parseAgUiEvent", () => {
 
   it("logs malformed and unsupported SUBAGENT_FINISHED outcomes", () => {
     const debug = vi.fn();
-    const invalidOutcome = null;
-    const unsupportedOutcome = { type: "bogus" };
+    const invalidEvent = {
+      type: "SUBAGENT_FINISHED",
+      subagentRunId: "sub-1",
+      outcome: null,
+    };
+    const unsupportedEvent = {
+      type: "SUBAGENT_FINISHED",
+      subagentRunId: "sub-2",
+      outcome: { type: "bogus" },
+    };
 
+    expect(parseAgUiEvent(invalidEvent, { logger: { debug } as any })).toEqual({
+      type: "SUBAGENT_FINISHED",
+      subagentRunId: "sub-1",
+    });
     expect(
-      parseAgUiEvent(
-        {
-          type: "SUBAGENT_FINISHED",
-          subagentRunId: "sub-1",
-          outcome: invalidOutcome,
-        },
-        { logger: { debug } as any },
-      ),
-    ).toEqual({ type: "SUBAGENT_FINISHED", subagentRunId: "sub-1" });
-    expect(
-      parseAgUiEvent(
-        {
-          type: "SUBAGENT_FINISHED",
-          subagentRunId: "sub-2",
-          outcome: unsupportedOutcome,
-        },
-        { logger: { debug } as any },
-      ),
+      parseAgUiEvent(unsupportedEvent, { logger: { debug } as any }),
     ).toEqual({ type: "SUBAGENT_FINISHED", subagentRunId: "sub-2" });
 
+    expect(debug).toHaveBeenCalledTimes(2);
     expect(debug).toHaveBeenNthCalledWith(
       1,
       expect.stringContaining("SUBAGENT_FINISHED"),
-      invalidOutcome,
+      invalidEvent,
     );
     expect(debug).toHaveBeenNthCalledWith(
       2,
       expect.stringContaining("SUBAGENT_FINISHED"),
-      unsupportedOutcome,
+      unsupportedEvent,
     );
   });
 

@@ -404,7 +404,7 @@ export const parseAgUiEvent = (
         logRejectedEvent(
           options?.logger,
           "SUBAGENT_FINISHED",
-          rawOutcome,
+          payload,
           "has invalid outcome",
         );
         outcome = undefined;
@@ -423,7 +423,7 @@ export const parseAgUiEvent = (
         logRejectedEvent(
           options?.logger,
           "SUBAGENT_FINISHED",
-          rawOutcome,
+          payload,
           "has unsupported outcome type",
         );
         outcome = undefined;
