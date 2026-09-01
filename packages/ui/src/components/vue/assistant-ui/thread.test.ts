@@ -150,7 +150,7 @@ describe("vue thread", () => {
         status: {
           type: "incomplete",
           reason: "error",
-          error: new Error("model unavailable"),
+          error: { message: "model unavailable" },
         },
       },
     ]);

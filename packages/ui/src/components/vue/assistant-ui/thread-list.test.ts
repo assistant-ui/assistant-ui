@@ -65,7 +65,7 @@ const mountThreadList = (adapter: RemoteThreadListAdapter) => {
             config: AuiConfig({
               threads: RemoteThreadList({
                 adapter,
-                thread: () => StubThread({}) as never,
+                thread: () => StubThread() as never,
               }),
             }),
           },
