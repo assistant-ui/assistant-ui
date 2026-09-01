@@ -14,6 +14,8 @@
     "api-surface:build": "pnpm exec turbo build --filter='./packages/*'",
     "api-surface:check": "node scripts/check-api-surface.mjs",
     "api-surface:test": "node --test scripts/generate-api-surface.test.mjs scripts/lib/workspace.test.mjs",
+    "changeset-semver:check": "node scripts/check-changeset-semver.mjs",
+    "changeset-semver:test": "node --test scripts/check-changeset-semver.test.mjs",
     "changesets:check": "node scripts/check-changesets.mjs",
     "changesets:test": "node --test scripts/check-changesets.test.mjs",
     "declarations:check": "node scripts/check-built-declarations.mjs",
