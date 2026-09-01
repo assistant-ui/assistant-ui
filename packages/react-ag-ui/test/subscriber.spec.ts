@@ -247,6 +247,17 @@ describe("createAgUiSubscriber", () => {
     expect(dispatch).not.toHaveBeenCalled();
   });
 
+  it("does not dispatch malformed state snapshots", () => {
+    const dispatch = vi.fn();
+    const subscriber = createAgUiSubscriber({ dispatch, runId: "run" });
+
+    subscriber.onStateSnapshotEvent?.({
+      event: { type: "STATE_SNAPSHOT" },
+    });
+
+    expect(dispatch).not.toHaveBeenCalled();
+  });
+
   it("logs malformed events received by the untyped callback", () => {
     const debug = vi.fn();
     const dispatch = vi.fn();

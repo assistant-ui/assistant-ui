@@ -746,6 +746,28 @@ describe("AGUIThreadRuntimeCore", () => {
     expect(runAgent.mock.calls[1]?.[0].state).toBeNull();
   });
 
+  it("ignores state snapshots without a snapshot field", async () => {
+    const runAgent = vi.fn(async (_input, subscriber) => {
+      subscriber.onStateSnapshotEvent?.({
+        event:
+          runAgent.mock.calls.length === 1
+            ? { type: "STATE_SNAPSHOT", snapshot: { cart: ["apple"] } }
+            : { type: "STATE_SNAPSHOT" },
+      });
+      subscriber.onRunFinalized?.();
+    });
+    const agent = { runAgent } as unknown as HttpAgent;
+
+    const core = createCore(agent);
+    await core.append(createAppendMessage());
+    expect(core.getState()).toEqual({ cart: ["apple"] });
+
+    await core.append(createAppendMessage());
+
+    expect(core.getState()).toEqual({ cart: ["apple"] });
+    expect(runAgent.mock.calls[1]?.[0].state).toEqual({ cart: ["apple"] });
+  });
+
   it("applies deltas before a snapshot from an empty state object", async () => {
     const runInputs: any[] = [];
     const agent = {

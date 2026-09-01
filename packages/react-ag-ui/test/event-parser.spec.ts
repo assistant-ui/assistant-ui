@@ -160,6 +160,32 @@ describe("parseAgUiEvent", () => {
     );
   });
 
+  it("rejects state snapshots without a snapshot while accepting null", () => {
+    const debug = vi.fn();
+    expect(
+      parseAgUiEvent({ type: "STATE_SNAPSHOT" }, { logger: { debug } as any }),
+    ).toBeNull();
+    expect(
+      parseAgUiEvent(
+        { type: "STATE_SNAPSHOT", snapshot: undefined },
+        { logger: { debug } as any },
+      ),
+    ).toBeNull();
+    expect(debug).toHaveBeenCalledTimes(2);
+    expect(debug).toHaveBeenNthCalledWith(
+      1,
+      expect.stringMatching(/STATE_SNAPSHOT missing snapshot/),
+      { type: "STATE_SNAPSHOT" },
+    );
+    expect(
+      parseAgUiEvent({ type: "STATE_SNAPSHOT", snapshot: { count: 1 } }),
+    ).toEqual({ type: "STATE_SNAPSHOT", snapshot: { count: 1 } });
+    expect(parseAgUiEvent({ type: "STATE_SNAPSHOT", snapshot: null })).toEqual({
+      type: "STATE_SNAPSHOT",
+      snapshot: null,
+    });
+  });
+
   it("parses reasoning content with optional message id", () => {
     const event = parseAgUiEvent({
       type: "REASONING_MESSAGE_CONTENT",

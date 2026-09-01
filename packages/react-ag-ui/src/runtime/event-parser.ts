@@ -318,6 +318,9 @@ export const parseAgUiEvent = (
       );
     }
     case "STATE_SNAPSHOT":
+      if (payload.snapshot === undefined) {
+        return reject("missing snapshot");
+      }
       return { type: "STATE_SNAPSHOT", snapshot: payload.snapshot };
     case "STATE_DELTA":
       return {
