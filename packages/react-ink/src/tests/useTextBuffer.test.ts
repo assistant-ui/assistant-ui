@@ -86,24 +86,32 @@ describe("textBufferReducer", () => {
       { type: "set-cursor", cursorOffset: 1 },
       { type: "move-down" },
     );
-    const inserted = reduce(movedDown, { type: "insert", text: "X" });
+    const insertedBelow = reduce(movedDown, { type: "insert", text: "X" });
+    const movedUp = reduce(
+      createTextBufferState("😀x\nabcd"),
+      { type: "set-cursor", cursorOffset: 5 },
+      { type: "move-up" },
+    );
+    const insertedAbove = reduce(movedUp, { type: "insert", text: "X" });
 
     expect(movedDown.cursorOffset).toBe(4);
-    expect(inserted.text).toBe("a\n😀Xb");
+    expect(insertedBelow.text).toBe("a\n😀Xb");
+    expect(movedUp.cursorOffset).toBe(2);
+    expect(insertedAbove.text).toBe("😀Xx\nabcd");
   });
 
   it("preserves a grapheme column across a shorter line", () => {
-    const start = reduce(createTextBufferState("😀😀😀\nab\n😀😀😀"), {
+    const start = reduce(createTextBufferState("a😀b\nxy\ncdefg"), {
       type: "set-cursor",
-      cursorOffset: 16,
+      cursorOffset: 11,
     });
     const middle = reduce(start, { type: "move-up" });
     const top = reduce(middle, { type: "move-up" });
     const roundTrip = reduce(top, { type: "move-down" }, { type: "move-down" });
 
-    expect(middle.cursorOffset).toBe(9);
-    expect(top.cursorOffset).toBe(6);
-    expect(roundTrip.cursorOffset).toBe(16);
+    expect(middle.cursorOffset).toBe(7);
+    expect(top.cursorOffset).toBe(4);
+    expect(roundTrip.cursorOffset).toBe(11);
   });
 
   it("does not move inside a CRLF line break", () => {
