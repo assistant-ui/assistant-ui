@@ -591,7 +591,7 @@ export class ToolInvocationTracker {
     if (process.env.NODE_ENV === "production") return;
     if (this._getTools()?.[toolName]?.execute === undefined) return;
     console.warn(
-      "[ToolInvocationTracker] adapter reports this tool call as provider-owned; the registered execute is skipped (see EDGE_CASES.md A.9)",
+      "[ToolInvocationTracker] the runtime reports this tool call as provider-owned, so the registered execute is skipped; the provider has to hand the call to the client for it to run (see EDGE_CASES.md A.9)",
       { toolCallId, toolName },
     );
   }

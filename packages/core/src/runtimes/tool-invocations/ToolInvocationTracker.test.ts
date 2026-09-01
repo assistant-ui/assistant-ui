@@ -520,48 +520,52 @@ describe("ToolInvocationTracker", () => {
     });
     const onResult = vi.fn();
     const warnSpy = vi.spyOn(console, "warn").mockImplementation(() => {});
-    const tracker = new ToolInvocationTracker(
-      getTools,
-      { onResult, onStatusesChange: () => {} },
-      () => false,
-    );
-    tracker.setState(createState([]));
 
-    tracker.setState(
-      createState(
-        [
-          createAssistantMessage(
-            '{"path":"/tmp/a"}',
-            { path: "/tmp/a" },
-            { toolName: "deleteFile" },
-          ),
-        ],
-        true,
-      ),
-    );
-    await new Promise((r) => setTimeout(r, 0));
+    try {
+      const tracker = new ToolInvocationTracker(
+        getTools,
+        { onResult, onStatusesChange: () => {} },
+        () => false,
+      );
+      tracker.setState(createState([]));
 
-    expect(execute).not.toHaveBeenCalled();
-    expect(onResult).not.toHaveBeenCalled();
-    expect(warnSpy).toHaveBeenCalledTimes(1);
-    warnSpy.mockRestore();
+      tracker.setState(
+        createState(
+          [
+            createAssistantMessage(
+              '{"path":"/tmp/a"}',
+              { path: "/tmp/a" },
+              { toolName: "deleteFile" },
+            ),
+          ],
+          true,
+        ),
+      );
+      await new Promise((r) => setTimeout(r, 0));
 
-    tracker.setState(
-      createState(
-        [
-          createAssistantMessage(
-            '{"path":"/tmp/a"}',
-            { path: "/tmp/a" },
-            { toolName: "deleteFile", result: { server: "deleted" } },
-          ),
-        ],
-        false,
-      ),
-    );
-    await new Promise((r) => setTimeout(r, 0));
+      expect(execute).not.toHaveBeenCalled();
+      expect(onResult).not.toHaveBeenCalled();
+      expect(warnSpy).toHaveBeenCalledTimes(1);
 
-    expect(execute).not.toHaveBeenCalled();
-    expect(onResult).not.toHaveBeenCalled();
+      tracker.setState(
+        createState(
+          [
+            createAssistantMessage(
+              '{"path":"/tmp/a"}',
+              { path: "/tmp/a" },
+              { toolName: "deleteFile", result: { server: "deleted" } },
+            ),
+          ],
+          false,
+        ),
+      );
+      await new Promise((r) => setTimeout(r, 0));
+
+      expect(execute).not.toHaveBeenCalled();
+      expect(onResult).not.toHaveBeenCalled();
+    } finally {
+      warnSpy.mockRestore();
+    }
   });
 
   it("executes a tool call the adapter reports as client-owned", async () => {

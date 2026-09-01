@@ -92,9 +92,12 @@ in-flight `execute` resolves, the execute runs to completion (its side
 effects happen) but its result chunk is dropped: `onResult` never fires,
 and the `executing` status, plus any `human()` interrupt the execution
 parked, stays up until the promise settles. Only a gate that lands after
-the result chunk has already been emitted is fully too late; an adapter
-whose provider gates a call it has already streamed declares ownership
-up front instead (A.9).
+the result chunk has already been emitted is fully too late. An adapter
+whose provider both gates and answers such a call closes that window by
+declaring ownership up front (A.9). A call the client owns and the
+provider gates anyway stays exposed: the client is meant to execute it,
+so nothing but the gate's arrival says otherwise, and the gate is late
+by construction.
 
 ### A.9. Adapter reports the tool call as provider-owned
 The entry is marked `skipExecute` at creation, exactly like a call
@@ -115,6 +118,11 @@ registered tool of the same name executes locally: the frontend side
 effect fires, and the local result is either overwritten by the
 provider's (a plain call) or kept beside a gate the provider raises
 afterwards (#6285).
+
+The predicate decides who answers a call, not whether a call is gated,
+so it closes that window only for calls the provider answers. A gate on
+a call the client owns still arrives after the args complete, and A.8
+governs it (#6677).
 
 ## B. Tool call disappears from snapshot
 
