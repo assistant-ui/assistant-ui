@@ -1,5 +1,6 @@
 import { useCallback, useReducer } from "react";
-import { getGraphemeWidth } from "./textWidth";
+
+import stringWidth from "string-width";
 
 export type TextBufferState = {
   text: string;
@@ -116,15 +117,7 @@ const getDisplayColumn = (
   text: string,
   lineStart: number,
   cursorOffset: number,
-) => {
-  let column = 0;
-  for (const { segment } of graphemeSegmenter.segment(
-    text.slice(lineStart, cursorOffset),
-  )) {
-    column += getGraphemeWidth(segment);
-  }
-  return column;
-};
+) => stringWidth(text.slice(lineStart, cursorOffset));
 
 const getOffsetAtDisplayColumn = (
   text: string,
@@ -137,7 +130,7 @@ const getOffsetAtDisplayColumn = (
   for (const { segment } of graphemeSegmenter.segment(
     text.slice(lineStart, lineEnd),
   )) {
-    const width = getGraphemeWidth(segment);
+    const width = stringWidth(segment);
     if (currentColumn >= column || currentColumn + width > column) break;
     offset += segment.length;
     currentColumn += width;

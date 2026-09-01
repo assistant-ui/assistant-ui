@@ -1,4 +1,6 @@
 import { describe, expect, it } from "vitest";
+
+import stringWidth from "string-width";
 import {
   createTextBufferState,
   getGraphemeAt,
@@ -467,5 +469,34 @@ describe("textBufferReducer", () => {
 
     expect(state.text).toBe(" beta gamma");
     expect(state.cursorOffset).toBe(0);
+  });
+});
+
+const widthCases = [
+  ["ascii", "a", 1],
+  ["emoji", "😀", 2],
+  ["CJK", "你", 2],
+  ["emoji sequence", "👩‍💻", 2],
+  ["combining mark", "e\u0301", 1],
+  ["format character", "\u200b", 0],
+  ["line break", "\r\n", 0],
+] satisfies Array<[string, string, number]>;
+
+describe("terminal cell width contract", () => {
+  it.each(widthCases)("measures %s in terminal cells", (_, grapheme, width) => {
+    expect(stringWidth(grapheme)).toBe(width);
+  });
+
+  it("sums per grapheme to the width of the whole run", () => {
+    const segmenter = new Intl.Segmenter(undefined, {
+      granularity: "grapheme",
+    });
+    for (const run of ["a😀b", "你好世界", "👩‍💻x", "🇺🇸🇯🇵", "１２３"]) {
+      const perGrapheme = [...segmenter.segment(run)].reduce(
+        (total, { segment }) => total + stringWidth(segment),
+        0,
+      );
+      expect(perGrapheme).toBe(stringWidth(run));
+    }
   });
 });
