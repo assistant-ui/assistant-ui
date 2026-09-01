@@ -566,8 +566,8 @@ const useRemoteThreadList = (
           const fresh = classifyThreads(page.threads, {
             threadIds: [],
             archivedThreadIds: [],
-            threadIdMap: {},
-            threadData: {},
+            threadIdMap: { ...state.threadIdMap },
+            threadData: { ...state.threadData },
           });
           const merged = {
             ...state,
@@ -575,14 +575,8 @@ const useRemoteThreadList = (
             cursor: normalizeCursor(page.nextCursor),
             threadIds: fresh.threadIds,
             archivedThreadIds: fresh.archivedThreadIds,
-            threadIdMap: {
-              ...state.threadIdMap,
-              ...fresh.threadIdMap,
-            },
-            threadData: {
-              ...state.threadData,
-              ...fresh.threadData,
-            },
+            threadIdMap: fresh.threadIdMap,
+            threadData: fresh.threadData,
           };
           return preserveMidLoadTransitions(merged, state, statusAtRequest);
         },
@@ -909,21 +903,36 @@ const useRemoteThreadList = (
           const data = getThreadData(state, threadId);
           if (!data) return state;
           const mappingId = createThreadMappingId(threadId);
+          // A list() response that landed while this initialize was in flight
+          // could not know the remote id yet, so it may have minted its own
+          // slot for it; that slot collapses into this one.
+          const listedMappingId = state.threadIdMap[remoteId];
+          const orphan =
+            listedMappingId !== undefined && listedMappingId !== mappingId
+              ? state.threadData[listedMappingId]
+              : undefined;
+
+          const threadData = { ...state.threadData };
+          if (orphan !== undefined) delete threadData[listedMappingId!];
+          threadData[mappingId] = {
+            ...data,
+            initializeTask: Promise.resolve({ remoteId, externalId }),
+            remoteId,
+            externalId,
+          } as RemoteThreadData;
+
+          const rewire = (ids: readonly string[]) =>
+            orphan === undefined ? ids : ids.filter((id) => id !== orphan.id);
+
           return {
             ...state,
+            threadIds: rewire(state.threadIds),
+            archivedThreadIds: rewire(state.archivedThreadIds),
             threadIdMap: {
               ...state.threadIdMap,
               [remoteId]: mappingId,
             },
-            threadData: {
-              ...state.threadData,
-              [mappingId]: {
-                ...data,
-                initializeTask: Promise.resolve({ remoteId, externalId }),
-                remoteId,
-                externalId,
-              },
-            },
+            threadData,
           };
         },
       });

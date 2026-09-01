@@ -112,6 +112,41 @@ describe("RemoteThreadListThreadListRuntimeCore load race", () => {
     expect(core.getItemById("remote-1")).toBeUndefined();
     expect(core.threadIds).toEqual([]);
   });
+
+  it("does not leave the collapsed slot in both lists when the race reported it archived", async () => {
+    const listDeferred = deferred<ListResult>();
+    const initializeDeferred = deferred<{
+      remoteId: string;
+      externalId: string;
+    }>();
+    const adapter = makeAdapter({
+      list: vi.fn(() => listDeferred.promise),
+      initialize: vi.fn(() => initializeDeferred.promise),
+    });
+    const core = createCore(adapter);
+
+    const loadPromise = core.getLoadThreadsPromise();
+    await core.switchToNewThread();
+    const localId = core.newThreadId!;
+    const initializePromise = core.initialize(localId);
+
+    listDeferred.resolve({
+      threads: [
+        { status: "archived", remoteId: "remote-1", externalId: "remote-1" },
+      ],
+    });
+    await loadPromise;
+
+    initializeDeferred.resolve({
+      remoteId: "remote-1",
+      externalId: "remote-1",
+    });
+    await initializePromise;
+
+    expect(Object.keys(core.threadItems)).toEqual([localId]);
+    expect(core.threadIds).toEqual([localId]);
+    expect(core.archivedThreadIds).toEqual([]);
+  });
 });
 
 describe("preserveMidLoadTransitions", () => {

@@ -824,11 +824,7 @@ export class RemoteThreadListThreadListRuntimeCore
         } as RemoteThreadData;
 
         const rewire = (ids: readonly string[]) =>
-          orphan === undefined
-            ? ids
-            : ids.includes(data.id)
-              ? ids.filter((id) => id !== orphan.id)
-              : ids.map((id) => (id === orphan.id ? data.id : id));
+          orphan === undefined ? ids : ids.filter((id) => id !== orphan.id);
 
         return {
           ...state,

@@ -610,7 +610,7 @@ describe("RemoteThreadList", () => {
     await vi.waitFor(() => {
       expect(handle.getClient().threads.getState().threadIds).toEqual([
         "other",
-        `remote-${localId}`,
+        localId,
       ]);
     });
     expect(handle.getClient().threads.item("main").getState().remoteId).toBe(
@@ -619,6 +619,33 @@ describe("RemoteThreadList", () => {
     expect(handle.getClient().threads.item("main").getState().title).toBe(
       "Mine",
     );
+    handle.destroy();
+  });
+
+  it("keeps one slot per remote id across reload and clears it on delete", async () => {
+    const adapter = makeAdapter({
+      list: vi.fn(async () => ({ threads: [] })),
+    });
+    const { handle } = mountList(adapter);
+    const aui = handle.getClient();
+    await aui.threads.getLoadThreadsPromise();
+    const localId = aui.threads.getState().mainThreadId;
+    await aui.threads.item("main").initialize();
+    const remoteId = `remote-${localId}`;
+    adapter.list = vi.fn(async () => ({
+      threads: [{ status: "regular" as const, remoteId, title: "Mine" }],
+    }));
+    await aui.threads.reload();
+    await vi.waitFor(() => {
+      expect(aui.threads.getState().threadIds).toEqual([localId]);
+    });
+
+    await aui.threads.item({ id: remoteId }).delete();
+    await vi.waitFor(() => {
+      expect(aui.threads.getState().threadIds).toEqual([]);
+    });
+    expect(() => aui.threads.item({ id: localId }).getState()).toThrow();
+    expect(() => aui.threads.item({ id: remoteId }).getState()).toThrow();
     handle.destroy();
   });
 

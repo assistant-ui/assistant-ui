@@ -6,15 +6,23 @@ import {
   seedNewThread,
   updateStatusReducer,
 } from "./remote-thread-state";
-import type { RemoteThreadState } from "./remote-thread-state";
+import type {
+  RemoteThreadData,
+  RemoteThreadState,
+} from "./remote-thread-state";
 
 const initializedDraft = () => {
   const seeded = seedNewThread(createEmptyRemoteThreadState());
   const regular = updateStatusReducer(seeded.state, seeded.id, "regular");
   const mappingId = regular.threadIdMap[seeded.id]!;
+  const initializeTask = Promise.resolve({
+    remoteId: "remote-1",
+    externalId: "remote-1",
+  });
   return {
     id: seeded.id,
     mappingId,
+    initializeTask,
     state: {
       ...regular,
       threadIdMap: { ...regular.threadIdMap, "remote-1": mappingId },
@@ -24,7 +32,8 @@ const initializedDraft = () => {
           ...regular.threadData[mappingId]!,
           remoteId: "remote-1",
           externalId: "remote-1",
-        },
+          initializeTask,
+        } as RemoteThreadData,
       },
     } as RemoteThreadState,
   };
@@ -97,6 +106,10 @@ describe("remote thread state", () => {
     expect(merged.threadData[draft.mappingId]?.id).toBe(draft.id);
     expect(merged.threadData[draft.mappingId]?.title).toBe("from the server");
     expect(merged.threadData[draft.mappingId]?.localOrigin).toBe(true);
+    const refreshed = merged.threadData[draft.mappingId]!;
+    expect(
+      refreshed.status === "new" ? undefined : refreshed.initializeTask,
+    ).toBe(draft.initializeTask);
     expectOneSlotPerIdentity({ ...draft.state, ...merged });
   });
 
