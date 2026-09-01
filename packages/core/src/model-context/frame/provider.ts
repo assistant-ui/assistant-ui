@@ -171,17 +171,34 @@ export class AssistantFrameProvider {
   }
 
   private cancelToolCallsForProvider(provider: ModelContextProvider) {
-    this._activeToolCalls.forEach((activeCall, id) => {
-      if (activeCall.provider !== provider) return;
-
+    const matchingCalls = Array.from(this._activeToolCalls).filter(
+      ([, activeCall]) => activeCall.provider === provider,
+    );
+    for (const [id, activeCall] of matchingCalls) {
       this._activeToolCalls.delete(id);
       activeCall.abortController.abort();
-      this.sendMessage(activeCall.event, {
-        type: "tool-result",
-        id,
-        error: "AssistantFrame tool provider has been removed",
-      });
-    });
+    }
+
+    let sendFailed = false;
+    let sendError: unknown;
+    for (const [id, activeCall] of matchingCalls) {
+      try {
+        this.sendMessage(activeCall.event, {
+          type: "tool-result",
+          id,
+          error: "AssistantFrame tool provider has been removed",
+        });
+      } catch (error) {
+        if (sendFailed) {
+          console.error(error);
+        } else {
+          sendFailed = true;
+          sendError = error;
+        }
+      }
+    }
+
+    if (sendFailed) throw sendError;
   }
 
   private sendMessage(event: MessageEvent, message: FrameMessage) {
@@ -297,18 +314,8 @@ export class AssistantFrameProvider {
 
       instance.broadcastUpdate();
     } catch (error) {
-      const { unsubscribe, removedProvider } = instance.removeProvider(
-        id,
-        origin,
-      );
+      const { unsubscribe } = instance.removeProvider(id, origin);
       // Rollback failures must not replace the registration error.
-      try {
-        if (removedProvider) {
-          instance.cancelToolCallsForProvider(removedProvider);
-        }
-      } catch (cancelError) {
-        console.error(cancelError);
-      }
       try {
         unsubscribe?.();
       } catch (unsubscribeError) {

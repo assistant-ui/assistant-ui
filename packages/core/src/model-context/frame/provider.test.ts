@@ -362,6 +362,44 @@ describe("AssistantFrameProvider", () => {
     expect(toolSignal?.aborted).toBe(true);
   });
 
+  it("cancels only calls owned by the removed provider", async () => {
+    const shadowedExecute = vi.fn(async () => "shadowed");
+    const removeShadowed = AssistantFrameProvider.addModelContextProvider({
+      getModelContext: () => ({
+        tools: { sensitiveTool: { execute: shadowedExecute } },
+      }),
+    });
+
+    let toolSignal: AbortSignal | undefined;
+    const execute = vi.fn(
+      async (_args: unknown, context: { abortSignal: AbortSignal }) => {
+        toolSignal = context.abortSignal;
+        await new Promise<never>((_resolve, reject) => {
+          context.abortSignal.addEventListener(
+            "abort",
+            () => reject(context.abortSignal.reason),
+            { once: true },
+          );
+        });
+      },
+    );
+    const removeOwner = AssistantFrameProvider.addModelContextProvider({
+      getModelContext: () => ({
+        tools: { sensitiveTool: { execute } },
+      }),
+    });
+
+    dispatchToolCall(window.location.origin);
+    await vi.waitFor(() => expect(toolSignal).toBeDefined());
+    expect(shadowedExecute).not.toHaveBeenCalled();
+
+    removeShadowed();
+    expect(toolSignal?.aborted).toBe(false);
+
+    removeOwner();
+    expect(toolSignal?.aborted).toBe(true);
+  });
+
   it("upgrades a wildcard origin policy when a strict provider registers", async () => {
     AssistantFrameProvider.addModelContextProvider(
       { getModelContext: () => ({}) },
