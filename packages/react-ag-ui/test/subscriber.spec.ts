@@ -241,7 +241,7 @@ describe("createAgUiSubscriber", () => {
     const subscriber = createAgUiSubscriber({ dispatch, runId: "run" });
 
     subscriber.onMessagesSnapshotEvent?.({
-      event: { type: "MESSAGES_SNAPSHOT", messages: {} } as never,
+      event: { type: "MESSAGES_SNAPSHOT", messages: {} },
     });
 
     expect(dispatch).not.toHaveBeenCalled();

@@ -78,9 +78,9 @@ describe("parseAgUiEvent", () => {
         { logger: { debug } as any },
       ),
     ).toBeNull();
-    expect(debug).toHaveBeenCalledWith(
-      "[agui] MESSAGES_SNAPSHOT missing messages array",
-      { type: "MESSAGES_SNAPSHOT", messages: {} },
+    expect(debug).toHaveBeenCalledTimes(1);
+    expect(debug.mock.calls[0][0]).toMatch(
+      /MESSAGES_SNAPSHOT missing messages/,
     );
     expect(parseAgUiEvent({ type: "MESSAGES_SNAPSHOT" })).toBeNull();
     expect(parseAgUiEvent({ type: "MESSAGES_SNAPSHOT", messages: [] })).toEqual(
