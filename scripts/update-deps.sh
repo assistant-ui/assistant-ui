@@ -9,8 +9,20 @@ cd "$REPO_ROOT"
 
 EXPO_MANIFEST="examples/with-expo/package.json"
 expo_manifest_backup="$(mktemp)"
-trap 'rm -f "$expo_manifest_backup"' EXIT
+expo_matrix_backup="$(mktemp)"
+trap 'rm -f "$expo_manifest_backup" "$expo_matrix_backup"' EXIT
 cp "$EXPO_MANIFEST" "$expo_manifest_backup"
+
+# The wipe below removes the installed SDK matrix, and the restore runs on the path
+# where the install that would have brought it back is what failed.
+# shellcheck disable=SC2016 # the JS body must not be expanded by the shell
+node -e '
+  const fs = require("node:fs");
+  const [projectDir, out] = process.argv.slice(1);
+  try {
+    fs.copyFileSync(require.resolve("expo/bundledNativeModules.json", { paths: [projectDir] }), out);
+  } catch {}
+' examples/with-expo "$expo_matrix_backup"
 
 expo_repin_skipped=0
 
@@ -41,14 +53,16 @@ if ! pnpm install --no-frozen-lockfile ||
   # shellcheck disable=SC2016 # the JS body must not be expanded by the shell
   node -e '
     const fs = require("node:fs");
-    const [backupPath, manifestPath, projectDir] = process.argv.slice(1);
+    const [backupPath, manifestPath, projectDir, matrixPath] = process.argv.slice(1);
     // The SDK native-module matrix, read rather than hardcoded so the set tracks
     // the SDK. `expo install --fix` also merges relatedPackages from the versions
     // endpoint, which needs the network, so those entries are left to taze.
     const expoFamily = /^(@expo\/.+|expo|expo-.+|react|react-dom|react-native|react-native-.+)$/;
     let matrixKeys = new Set();
     try {
-      const matrix = require.resolve("expo/bundledNativeModules.json", { paths: [projectDir] });
+      const matrix = fs.statSync(matrixPath).size > 0
+        ? matrixPath
+        : require.resolve("expo/bundledNativeModules.json", { paths: [projectDir] });
       matrixKeys = new Set(Object.keys(JSON.parse(fs.readFileSync(matrix, "utf8"))));
     } catch {}
     // Union, not a fallback: a package Expo ships in the SDK batch without keying
@@ -64,7 +78,7 @@ if ! pnpm install --no-frozen-lockfile ||
       }
     }
     fs.writeFileSync(manifestPath, JSON.stringify(manifest, null, 2) + "\n");
-  ' "$expo_manifest_backup" "$EXPO_MANIFEST" examples/with-expo
+  ' "$expo_manifest_backup" "$EXPO_MANIFEST" examples/with-expo "$expo_matrix_backup"
 fi
 
 pnpm install
