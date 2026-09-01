@@ -8,6 +8,7 @@ import {
   type RealtimeVoiceAdapter,
   type SpeechSynthesisAdapter,
   type AppendMessage,
+  type ToolCallMessagePart,
   type ToolExecutionStatus,
   generateId,
 } from "@assistant-ui/core";
@@ -172,6 +173,17 @@ const useAdkRuntimeImpl = (options: UseAdkRuntimeOptions) => {
   const toolApprovalsRef = useRef(toolApprovals);
   toolApprovalsRef.current = toolApprovals;
 
+  const longRunningToolIdsRef = useRef(longRunningToolIds);
+  longRunningToolIdsRef.current = longRunningToolIds;
+  // ADK resolves every call it did not mark long-running itself, and yields
+  // that call to the client one or more events before its own response, so
+  // only a long-running call is the client's to execute.
+  const isClientToolCall = useCallback(
+    (toolCall: ToolCallMessagePart) =>
+      longRunningToolIdsRef.current.includes(toolCall.toolCallId),
+    [],
+  );
+
   const messageConverter = useMemo(
     () =>
       toolApprovalsKey === ""
@@ -300,6 +312,7 @@ const useAdkRuntimeImpl = (options: UseAdkRuntimeOptions) => {
     isLoading: isLoadingThread,
     messages: threadMessages,
     unstable_enableToolInvocations: true,
+    unstable_isClientToolCall: isClientToolCall,
     setToolStatuses,
     adapters: { attachments, dictation, feedback, speech, voice },
     extras: adkExtras.provide({

@@ -92,8 +92,24 @@ in-flight `execute` resolves, the execute runs to completion (its side
 effects happen) but its result chunk is dropped: `onResult` never fires,
 and the `executing` status, plus any `human()` interrupt the execution
 parked, stays up until the promise settles. Only a gate that lands after
-the result chunk has already been emitted is fully too late; the adapter
-must project the gate before that (#6285).
+the result chunk has already been emitted is fully too late; an adapter
+whose provider gates a call it has already streamed declares ownership
+up front instead (A.9).
+
+### A.9. Adapter reports the tool call as provider-owned
+The entry is marked `skipExecute` at creation, exactly like a call
+observed with a `result`. `unstable_isClientToolCall` is read once, when
+the call is first observed live, and never re-read: ownership is fixed
+when the provider emits the call, so a later snapshot cannot revoke it
+and drop the result of an execute already in flight.
+
+Without it, a provider that runs tools itself races the tracker. Its
+result arrives one or more snapshots after the call's arguments
+complete, and in that window the call is complete and result-less, so a
+registered tool of the same name executes locally: the frontend side
+effect fires, and the local result is either overwritten by the
+provider's (a plain call) or kept beside a gate the provider raises
+afterwards (#6285).
 
 ## B. Tool call disappears from snapshot
 

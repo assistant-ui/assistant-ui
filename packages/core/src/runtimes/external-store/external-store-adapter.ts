@@ -1,4 +1,8 @@
-import type { AppendMessage, ThreadMessage } from "../../types/message";
+import type {
+  AppendMessage,
+  ThreadMessage,
+  ToolCallMessagePart,
+} from "../../types/message";
 import type { ThreadMessageLike } from "../../runtime/utils/thread-message-like";
 import type { AttachmentAdapter } from "../../adapters/attachment";
 import type {
@@ -219,6 +223,23 @@ type ExternalStoreAdapterBase<T> = {
    * `modelContent` populated when present.
    */
   unstable_enableToolInvocations?: boolean | undefined;
+  /**
+   * Decides whether a tool call's result is produced on the client. Only
+   * consulted when `unstable_enableToolInvocations` is `true`; when omitted,
+   * every call whose name matches a registered tool is treated as
+   * client-owned.
+   *
+   * A provider that runs tools itself answers its own calls, and its result
+   * arrives one or more snapshots after the call's arguments complete. In
+   * that window the call is complete and result-less, so a registered tool
+   * of the same name would otherwise execute locally and produce a result
+   * the provider never asked for. An adapter that can tell the two apart
+   * supplies this predicate; it is read once per tool call, when the call is
+   * first observed live.
+   */
+  unstable_isClientToolCall?:
+    | ((toolCall: ToolCallMessagePart) => boolean)
+    | undefined;
   /**
    * Receives the current per-tool-call execution status map whenever it
    * changes. Only invoked when `unstable_enableToolInvocations` is `true`

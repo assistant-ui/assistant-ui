@@ -510,6 +510,134 @@ describe("ToolInvocationTracker", () => {
     expect(onResult).not.toHaveBeenCalled();
   });
 
+  it("never executes a tool call the adapter reports as provider-owned", async () => {
+    const execute = vi.fn(async () => ({ deleted: true }));
+    const getTools = () => ({
+      deleteFile: {
+        parameters: { type: "object", properties: {} },
+        execute,
+      } satisfies Tool,
+    });
+    const onResult = vi.fn();
+    const tracker = new ToolInvocationTracker(
+      getTools,
+      { onResult, onStatusesChange: () => {} },
+      () => false,
+    );
+    tracker.setState(createState([]));
+
+    tracker.setState(
+      createState(
+        [
+          createAssistantMessage(
+            '{"path":"/tmp/a"}',
+            { path: "/tmp/a" },
+            { toolName: "deleteFile" },
+          ),
+        ],
+        true,
+      ),
+    );
+    await new Promise((r) => setTimeout(r, 0));
+
+    expect(execute).not.toHaveBeenCalled();
+    expect(onResult).not.toHaveBeenCalled();
+
+    tracker.setState(
+      createState(
+        [
+          createAssistantMessage(
+            '{"path":"/tmp/a"}',
+            { path: "/tmp/a" },
+            { toolName: "deleteFile", result: { server: "deleted" } },
+          ),
+        ],
+        false,
+      ),
+    );
+    await new Promise((r) => setTimeout(r, 0));
+
+    expect(execute).not.toHaveBeenCalled();
+    expect(onResult).not.toHaveBeenCalled();
+  });
+
+  it("executes a tool call the adapter reports as client-owned", async () => {
+    const execute = vi.fn(async () => ({ deleted: true }));
+    const getTools = () => ({
+      deleteFile: {
+        parameters: { type: "object", properties: {} },
+        execute,
+      } satisfies Tool,
+    });
+    const onResult = vi.fn();
+    const tracker = new ToolInvocationTracker(
+      getTools,
+      { onResult, onStatusesChange: () => {} },
+      (toolCall) => toolCall.toolCallId === "tool-1",
+    );
+    tracker.setState(createState([]));
+
+    tracker.setState(
+      createState(
+        [
+          createAssistantMessage(
+            '{"path":"/tmp/a"}',
+            { path: "/tmp/a" },
+            { toolName: "deleteFile" },
+          ),
+        ],
+        true,
+      ),
+    );
+    await waitFor(() => expect(execute).toHaveBeenCalledTimes(1));
+    await waitFor(() => expect(onResult).toHaveBeenCalledTimes(1));
+  });
+
+  it("keeps the result of a call the adapter stops reporting as client-owned mid-execution", async () => {
+    let resolveExecute!: (value: { deleted: boolean }) => void;
+    const execute = vi.fn(
+      () =>
+        new Promise<{ deleted: boolean }>((r) => {
+          resolveExecute = r;
+        }),
+    );
+    const getTools = () => ({
+      deleteFile: {
+        parameters: { type: "object", properties: {} },
+        execute,
+      } satisfies Tool,
+    });
+    const onResult = vi.fn();
+    let clientOwned = true;
+    const tracker = new ToolInvocationTracker(
+      getTools,
+      { onResult, onStatusesChange: () => {} },
+      () => clientOwned,
+    );
+    tracker.setState(createState([]));
+
+    const live = () =>
+      createState(
+        [
+          createAssistantMessage(
+            '{"path":"/tmp/a"}',
+            { path: "/tmp/a" },
+            { toolName: "deleteFile" },
+          ),
+        ],
+        true,
+      );
+
+    tracker.setState(live());
+    await waitFor(() => expect(execute).toHaveBeenCalledTimes(1));
+
+    clientOwned = false;
+    tracker.setState(live());
+    resolveExecute({ deleted: true });
+
+    await waitFor(() => expect(onResult).toHaveBeenCalledTimes(1));
+  });
+
   it("does not re-execute asynchronously loaded resolved tool calls after reset", async () => {
     const execute = vi.fn(async () => ({ forecast: "ok" }));
     const getTools = () => ({

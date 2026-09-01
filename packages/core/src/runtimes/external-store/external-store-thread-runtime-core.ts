@@ -555,6 +555,7 @@ export class ExternalStoreThreadRuntimeCore
             }
           },
         },
+        (toolCall) => this._store.unstable_isClientToolCall?.(toolCall) ?? true,
       );
     }
 
