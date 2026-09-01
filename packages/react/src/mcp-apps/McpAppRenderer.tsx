@@ -144,6 +144,18 @@ function extractSendMessageText(params: unknown): string | undefined {
   if (typeof obj["prompt"] === "string") return obj["prompt"];
   if (typeof obj["text"] === "string") return obj["text"];
   if (typeof obj["message"] === "string") return obj["message"];
+  if (Array.isArray(obj["content"])) {
+    const text = obj["content"]
+      .filter(
+        (block): block is { type: "text"; text: string } =>
+          isRecord(block) &&
+          block["type"] === "text" &&
+          typeof block["text"] === "string",
+      )
+      .map((block) => block.text)
+      .join("");
+    if (text) return text;
+  }
   return undefined;
 }
 
@@ -241,9 +253,9 @@ function InlineRenderer({
         callerHandlers?.sendMessage ??
         ((params) => {
           const text = extractSendMessageText(params);
-          if (!text) return { ok: false, reason: "unrecognised params shape" };
+          if (!text) return { isError: true };
           aui.thread.append({ content: [{ type: "text", text }] });
-          return { ok: true };
+          return {};
         }),
       callTool: (params) =>
         useRendererStore.getState().host.callTool({
