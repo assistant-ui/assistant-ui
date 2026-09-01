@@ -145,8 +145,9 @@ function getClientIp(request: Request): string | null {
   return null;
 }
 
-async function runPublicAssistantRateLimit(
+async function runRateLimitChecks(
   request: Request,
+  surface: string,
   check: (limits: PublicAssistantRateLimits) => Promise<Response | null>,
 ): Promise<Response | null> {
   try {
@@ -157,7 +158,7 @@ async function runPublicAssistantRateLimit(
     console.error(
       JSON.stringify({
         level: "error",
-        message: "public_assistant_rate_limit_unavailable",
+        message: `${surface}_rate_limit_unavailable`,
         requestId: request.headers.get("x-vercel-id"),
         error: error instanceof Error ? error.message : String(error),
       }),
@@ -168,11 +169,11 @@ async function runPublicAssistantRateLimit(
   }
 }
 
-function missingClientIpResponse(request: Request): Response {
+function missingClientIpResponse(request: Request, surface: string): Response {
   console.error(
     JSON.stringify({
       level: "error",
-      message: "public_assistant_client_ip_missing",
+      message: `${surface}_client_ip_missing`,
       requestId: request.headers.get("x-vercel-id"),
     }),
   );
@@ -193,9 +194,9 @@ export async function checkPublicAssistantRateLimit(
   request: Request,
   sessionId: string,
 ): Promise<Response | null> {
-  return runPublicAssistantRateLimit(request, async (limits) => {
+  return runRateLimitChecks(request, "public_assistant", async (limits) => {
     const ip = getClientIp(request);
-    if (!ip) return missingClientIpResponse(request);
+    if (!ip) return missingClientIpResponse(request, "public_assistant");
 
     const ipBurst = await limits.ipBurst.limit(ip);
     if (!ipBurst.success) {
@@ -239,9 +240,9 @@ export async function checkPublicAssistantRateLimit(
 export async function checkAnonymousSessionIssuanceRateLimit(
   request: Request,
 ): Promise<Response | null> {
-  return runPublicAssistantRateLimit(request, async (limits) => {
+  return runRateLimitChecks(request, "public_assistant", async (limits) => {
     const ip = getClientIp(request);
-    if (!ip) return missingClientIpResponse(request);
+    if (!ip) return missingClientIpResponse(request, "public_assistant");
 
     const burst = await limits.sessionIssuanceBurst.limit(ip);
     if (!burst.success) {
@@ -258,9 +259,9 @@ export async function checkAnonymousSessionIssuanceRateLimit(
 export async function checkMcpTemplateToolRateLimit(
   request: Request,
 ): Promise<Response | null> {
-  return runPublicAssistantRateLimit(request, async (limits) => {
+  return runRateLimitChecks(request, "mcp_template", async (limits) => {
     const ip = getClientIp(request);
-    if (!ip) return missingClientIpResponse(request);
+    if (!ip) return missingClientIpResponse(request, "mcp_template");
 
     const burst = await limits.mcpTemplateIpBurst.limit(ip);
     if (!burst.success) {

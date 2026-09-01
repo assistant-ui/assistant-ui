@@ -341,6 +341,9 @@ describe("MCP template tool rate limits", () => {
 
     expect(response?.status).toBe(503);
     expect(mocks.calls).toHaveLength(0);
+    expect(console.error).toHaveBeenCalledWith(
+      expect.stringContaining("mcp_template_client_ip_missing"),
+    );
   });
 
   it("fails closed when the rate-limit store is unavailable", async () => {
@@ -349,5 +352,8 @@ describe("MCP template tool rate limits", () => {
     const response = await checkMcpTemplateToolRateLimit(request());
 
     expect(response?.status).toBe(503);
+    expect(console.error).toHaveBeenCalledWith(
+      expect.stringContaining("mcp_template_rate_limit_unavailable"),
+    );
   });
 });

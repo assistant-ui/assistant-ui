@@ -26,8 +26,16 @@ function isRetryableFetchError(error: unknown) {
   );
 }
 
-function sleep(ms: number) {
-  return new Promise((resolve) => setTimeout(resolve, ms));
+function sleep(ms: number, signal: AbortSignal) {
+  return new Promise<void>((resolve) => {
+    const settle = () => {
+      clearTimeout(timer);
+      signal.removeEventListener("abort", settle);
+      resolve();
+    };
+    const timer = setTimeout(settle, ms);
+    signal.addEventListener("abort", settle, { once: true });
+  });
 }
 
 function mergeHeaders(headers?: HeadersInit): Headers {
@@ -63,7 +71,7 @@ export async function fetchSandboxResource(
       ) {
         throw error;
       }
-      await sleep(RETRY_DELAY_MS * attempt);
+      await sleep(RETRY_DELAY_MS * attempt, abort);
       if (abort.aborted) throw error;
     }
   }

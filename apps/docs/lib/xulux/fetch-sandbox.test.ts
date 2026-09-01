@@ -5,6 +5,8 @@ const mocks = vi.hoisted(() => ({
   fetch: vi.fn<typeof fetch>(),
 }));
 
+const RETRY_DELAY_MS = 300;
+
 describe("fetchSandboxResource", () => {
   beforeEach(() => {
     mocks.fetch.mockReset();
@@ -142,19 +144,22 @@ describe("fetchSandboxResource", () => {
     expect(mocks.fetch).toHaveBeenCalledTimes(1);
   });
 
-  it("does not start an attempt when the deadline expires mid-backoff", async () => {
+  it("rejects at the budget rather than waiting out the backoff", async () => {
     mocks.fetch.mockRejectedValue(
       Object.assign(new Error("request failed"), {
         cause: { code: "ECONNRESET" },
       }),
     );
 
+    const startedAt = Date.now();
     await expect(
       fetchSandboxResource("https://sandbox.example.com/preview", {
-        timeoutMs: 150,
+        timeoutMs: 50,
       }),
     ).rejects.toThrow("request failed");
+
     expect(mocks.fetch).toHaveBeenCalledTimes(1);
+    expect(Date.now() - startedAt).toBeLessThan(RETRY_DELAY_MS);
   });
 
   it("stops retrying once the caller has cancelled", async () => {
