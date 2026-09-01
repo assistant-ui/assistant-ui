@@ -805,21 +805,40 @@ export class RemoteThreadListThreadListRuntimeCore
         if (!data) return state;
 
         const mappingId = createThreadMappingId(threadId);
+        // A list() response that landed while this initialize was in flight
+        // could not know the remote id yet, so it may have minted its own slot
+        // for it; that slot collapses into this one.
+        const listedMappingId = state.threadIdMap[remoteId];
+        const orphan =
+          listedMappingId !== undefined && listedMappingId !== mappingId
+            ? state.threadData[listedMappingId]
+            : undefined;
+
+        const threadData = { ...state.threadData };
+        if (orphan !== undefined) delete threadData[listedMappingId!];
+        threadData[mappingId] = {
+          ...data,
+          initializeTask: Promise.resolve({ remoteId, externalId }),
+          remoteId,
+          externalId,
+        } as RemoteThreadData;
+
+        const rewire = (ids: readonly string[]) =>
+          orphan === undefined
+            ? ids
+            : ids.includes(data.id)
+              ? ids.filter((id) => id !== orphan.id)
+              : ids.map((id) => (id === orphan.id ? data.id : id));
+
         return {
           ...state,
+          threadIds: rewire(state.threadIds),
+          archivedThreadIds: rewire(state.archivedThreadIds),
           threadIdMap: {
             ...state.threadIdMap,
             [remoteId]: mappingId,
           },
-          threadData: {
-            ...state.threadData,
-            [mappingId]: {
-              ...data,
-              initializeTask: Promise.resolve({ remoteId, externalId }),
-              remoteId,
-              externalId,
-            },
-          },
+          threadData,
         };
       },
     });

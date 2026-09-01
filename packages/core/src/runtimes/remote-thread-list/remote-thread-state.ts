@@ -57,7 +57,8 @@ export type ClassifyAccumulator = {
 // A slot's `id` is fixed when it is minted: the hook instance manager keys live
 // thread runtimes by it, so renaming a slot would detach the runtime the user is
 // chatting in. A listed thread whose `remoteId` already maps to a slot therefore
-// refreshes that slot instead of minting a second one, and
+// refreshes that slot instead of minting a second one, and a slot minted by a
+// list() that raced ahead of the remote id collapses when `initialize()` settles.
 // `threadIds`/`archivedThreadIds` carry slot ids, never remote ids.
 export const classifyThreads = (
   threads: readonly RemoteThreadMetadata[],
@@ -93,6 +94,14 @@ export const classifyThreads = (
       if (thread.status === "regular") {
         acc.threadIds.push(id);
       } else {
+        acc.archivedThreadIds.push(id);
+      }
+    } else if (existing !== undefined && existing.status !== thread.status) {
+      if (thread.status === "regular") {
+        acc.archivedThreadIds = acc.archivedThreadIds.filter((t) => t !== id);
+        acc.threadIds.push(id);
+      } else {
+        acc.threadIds = acc.threadIds.filter((t) => t !== id);
         acc.archivedThreadIds.push(id);
       }
     }
