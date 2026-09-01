@@ -100,7 +100,7 @@ export function findInconsistentNodePins(workflows) {
     source.split("\n").forEach((line, index) => {
       const pin =
         /^\s*runtime:\s*node@(\d+)/.exec(line) ??
-        /^\s*node-version:\s*'?"?(\d+)'?"?\s*$/.exec(line);
+        /^\s*node-version:\s*["']?(\d+)(?:\.|["'\s]|$)/.exec(line);
       if (pin) pins.push({ file, line: index + 1, major: Number(pin[1]) });
     });
   }

@@ -54,6 +54,7 @@ Both are defined in the root `package.json`; `deps:update` runs `scripts/update-
 - Do **not** hand-edit the generated changeset's bump levels — `generate-deps-changeset.sh` correctly emits `patch` for every published package whose `package.json` changed and skips private packages (`@assistant-ui/docs`, `@assistant-ui/shadcn-registry`, etc.). Per `AGENTS.md`, dependency updates are always patch.
 - The script detects changes via `git diff HEAD`, so run it with the package.json edits still unstaged (or staged — it checks both). Don't commit before it runs.
 - `pnpm-lock.yaml` will have a huge diff; that's expected since step 2 deletes it.
+- `pnpm unmanaged-pins:check` guards two pins the updater never opens, so a routine run can go red on a file it did not touch. Raise the exact pins in `apps/docs/lib/xulux/learn/courses/*/shared/project/package.json` to whatever the workspace now prevailingly declares (`@assistant-ui/*` entries are exempt), and move any version-scoped `allowBuilds` entry in `pnpm-workspace.yaml` to the version the refreshed lockfile installs.
 - Node `>=24` and `pnpm@11.3.0` are required (see root `package.json` `engines` / `packageManager`).
 
 ## Python (uv)

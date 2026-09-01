@@ -5,20 +5,28 @@ on:
     branches: [main]
     paths:
       - ".github/workflows/**"
+      - "package.json"
       - "**/package.json"
       - "pnpm-lock.yaml"
       - "pnpm-workspace.yaml"
       - "scripts/check-unmanaged-pins.mjs"
       - "scripts/check-unmanaged-pins.test.mjs"
+      - "scripts/check-built-declarations.mjs"
+      - "scripts/check-changesets.mjs"
+      - "scripts/lib/workspace.mjs"
   pull_request:
     branches: [main]
     paths:
       - ".github/workflows/**"
+      - "package.json"
       - "**/package.json"
       - "pnpm-lock.yaml"
       - "pnpm-workspace.yaml"
       - "scripts/check-unmanaged-pins.mjs"
       - "scripts/check-unmanaged-pins.test.mjs"
+      - "scripts/check-built-declarations.mjs"
+      - "scripts/check-changesets.mjs"
+      - "scripts/lib/workspace.mjs"
 
 permissions:
   contents: read

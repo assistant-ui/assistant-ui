@@ -203,6 +203,28 @@ test("findInconsistentNodePins reports pins outside the most common major", () =
     ]),
     [],
   );
+  assert.deepEqual(
+    findInconsistentNodePins([
+      {
+        file: ".github/workflows/dotted.yaml",
+        source: [
+          "runtime: node@22",
+          "node-version: 20.x",
+          "node-version: lts/*",
+          "node-version-file: .nvmrc",
+          "node-version: ${{ matrix.node }}",
+        ].join("\n"),
+      },
+    ]),
+    [
+      {
+        file: ".github/workflows/dotted.yaml",
+        line: 2,
+        major: 20,
+        dominant: 22,
+      },
+    ],
+  );
 });
 
 test("findDriftedAllowBuilds handles scoped version entries", () => {
