@@ -1,6 +1,12 @@
 "use client";
 
-import { useEffect, useMemo, useRef, useState } from "react";
+import {
+  useEffect,
+  useInsertionEffect,
+  useMemo,
+  useRef,
+  useState,
+} from "react";
 import type {
   UIMessage,
   useChat,
@@ -143,9 +149,13 @@ const useGeneratedSuggestions = (
   const controllerRef = useRef<AbortController | null>(null);
   const wasRunningRef = useRef(false);
   const messagesRef = useRef(messages);
-  messagesRef.current = messages;
+  useInsertionEffect(() => {
+    messagesRef.current = messages;
+  }, [messages]);
   const adapterRef = useRef(suggestionAdapter);
-  adapterRef.current = suggestionAdapter;
+  useInsertionEffect(() => {
+    adapterRef.current = suggestionAdapter;
+  }, [suggestionAdapter]);
   const hasAdapter = suggestionAdapter != null;
 
   useEffect(() => {
