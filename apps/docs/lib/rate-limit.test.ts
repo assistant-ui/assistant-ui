@@ -3,7 +3,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 const mocks = vi.hoisted(() => ({
   results: new Map<string, boolean>(),
   errors: new Map<string, Error>(),
-  calls: [] as Array<{ prefix: string; key: string }>,
+  calls: [] as Array<{ prefix: string; key: string; rate?: number }>,
   configs: new Map<string, { limit: number; window: string }>(),
 }));
 
@@ -32,8 +32,12 @@ vi.mock("@upstash/ratelimit", async (importOriginal) => ({
       mocks.configs.set(this.prefix, limiter);
     }
 
-    async limit(key: string) {
-      mocks.calls.push({ prefix: this.prefix, key });
+    async limit(key: string, request?: { rate?: number }) {
+      mocks.calls.push({
+        prefix: this.prefix,
+        key,
+        ...(request?.rate === undefined ? {} : { rate: request.rate }),
+      });
       const error = mocks.errors.get(this.prefix);
       if (error) throw error;
       return {
@@ -47,6 +51,8 @@ vi.mock("@upstash/ratelimit", async (importOriginal) => ({
 import {
   checkAnonymousSessionIssuanceRateLimit,
   checkPublicAssistantRateLimit,
+  checkXuluxDownloadRateLimit,
+  refundXuluxDownloadByteBudget,
 } from "./rate-limit";
 
 beforeEach(() => {
@@ -238,6 +244,79 @@ describe("public assistant rate limits", () => {
 
     expect(response?.status).toBe(429);
     expect(console.error).not.toHaveBeenCalled();
+  });
+
+  it("uses dedicated IP buckets and reserves the global byte budget", async () => {
+    await expect(
+      checkXuluxDownloadRateLimit(request(), 50 * 1024 * 1024),
+    ).resolves.toBeNull();
+
+    expect(mocks.configs.get("aui:xulux-download-proxy:ip:burst")).toEqual({
+      limit: 5,
+      window: "30s",
+    });
+    expect(mocks.configs.get("aui:xulux-download-proxy:ip:daily")).toEqual({
+      limit: 100,
+      window: "1d",
+    });
+    expect(mocks.configs.get("aui:xulux-download-proxy:global:bytes")).toEqual({
+      limit: 10_000_000_000,
+      window: "1d",
+    });
+    expect(mocks.calls).toEqual([
+      {
+        prefix: "aui:xulux-download-proxy:ip:burst",
+        key: "203.0.113.10",
+      },
+      {
+        prefix: "aui:xulux-download-proxy:ip:daily",
+        key: "203.0.113.10",
+      },
+      {
+        prefix: "aui:xulux-download-proxy:global:bytes",
+        key: "all",
+        rate: 50 * 1024 * 1024,
+      },
+    ]);
+  });
+
+  it("refunds unused bytes through the same global bucket", async () => {
+    await refundXuluxDownloadByteBudget(request(), 100, 40);
+
+    expect(mocks.calls).toEqual([
+      {
+        prefix: "aui:xulux-download-proxy:global:bytes",
+        key: "all",
+        rate: -60,
+      },
+    ]);
+  });
+
+  it("stops downloads when the global byte budget is exhausted", async () => {
+    mocks.results.set("aui:xulux-download-proxy:global:bytes", false);
+
+    const response = await checkXuluxDownloadRateLimit(request(), 100);
+
+    expect(response?.status).toBe(429);
+    expect(mocks.calls).toEqual([
+      {
+        prefix: "aui:xulux-download-proxy:ip:burst",
+        key: "203.0.113.10",
+      },
+      {
+        prefix: "aui:xulux-download-proxy:ip:daily",
+        key: "203.0.113.10",
+      },
+      {
+        prefix: "aui:xulux-download-proxy:global:bytes",
+        key: "all",
+        rate: 100,
+      },
+      {
+        prefix: "aui:xulux-download-proxy:global:alert",
+        key: "all",
+      },
+    ]);
   });
 
   it("limits anonymous-session rotation by IP", async () => {

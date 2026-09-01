@@ -1,5 +1,10 @@
 import { NextResponse } from "next/server";
+import { requirePublicAssistantSession } from "@/lib/anonymous-session";
 import { isAiPlaygroundEnabled } from "@/lib/feature-flags";
+import {
+  checkXuluxDownloadRateLimit,
+  refundXuluxDownloadByteBudget,
+} from "@/lib/rate-limit";
 import { fetchSandboxResource } from "@/lib/xulux/fetch-sandbox";
 import { resolveSandboxDownloadUrl } from "@/lib/xulux/sandbox-download-url";
 import { getXuluxHostedTemplatesCatalog } from "@/lib/xulux/templates-catalog";
@@ -46,6 +51,9 @@ export async function GET(req: Request) {
     return NextResponse.json({ error: "Not found." }, { status: 404 });
   }
 
+  const publicSession = requirePublicAssistantSession(req);
+  if (publicSession instanceof Response) return publicSession;
+
   const { searchParams } = new URL(req.url);
   const templateId = searchParams.get("templateId");
   const versionId = searchParams.get("versionId") ?? undefined;
@@ -71,6 +79,12 @@ export async function GET(req: Request) {
       { status: 403 },
     );
   }
+
+  const rateLimitResponse = await checkXuluxDownloadRateLimit(
+    req,
+    MAX_ZIP_BYTES,
+  );
+  if (rateLimitResponse) return rateLimitResponse;
 
   try {
     const upstream = await fetchSandboxResource(upstreamUrl, {
@@ -125,12 +139,18 @@ export async function GET(req: Request) {
       );
     }
 
+    await refundXuluxDownloadByteBudget(
+      req,
+      MAX_ZIP_BYTES,
+      responseBody.byteLength,
+    );
+
     return new NextResponse(responseBody, {
       status: 200,
       headers: {
         "Content-Type":
           upstream.headers.get("content-type") ?? "application/octet-stream",
-        "Cache-Control": "public, max-age=3600",
+        "Cache-Control": "private, max-age=3600",
       },
     });
   } catch (err) {

@@ -87,6 +87,38 @@ const getPublicAssistantRateLimits = async () => {
         "1d",
       ),
     }),
+    xuluxDownloadIpBurst: new Ratelimit({
+      redis,
+      prefix: "aui:xulux-download-proxy:ip:burst",
+      limiter: Ratelimit.fixedWindow(5, "30s"),
+    }),
+    xuluxDownloadIpDaily: new Ratelimit({
+      redis,
+      prefix: "aui:xulux-download-proxy:ip:daily",
+      limiter: Ratelimit.fixedWindow(
+        positiveSafeInteger(
+          process.env.AUI_XULUX_DOWNLOAD_REQUESTS_PER_IP_PER_DAY,
+          100,
+        ),
+        "1d",
+      ),
+    }),
+    xuluxDownloadGlobalDaily: new Ratelimit({
+      redis,
+      prefix: "aui:xulux-download-proxy:global:bytes",
+      limiter: Ratelimit.fixedWindow(
+        positiveSafeInteger(
+          process.env.AUI_XULUX_DOWNLOAD_GLOBAL_BYTES_PER_DAY,
+          10_000_000_000,
+        ),
+        "1d",
+      ),
+    }),
+    xuluxDownloadGlobalAlert: new Ratelimit({
+      redis,
+      prefix: "aui:xulux-download-proxy:global:alert",
+      limiter: Ratelimit.fixedWindow(1, "10m"),
+    }),
   };
 };
 
@@ -157,6 +189,26 @@ function limitResponse(message: string, reset: number): Response {
   });
 }
 
+async function globalLimitResponse(
+  request: Request,
+  globalLimit: { reset: number },
+  globalAlert: { limit: (key: string) => Promise<{ success: boolean }> },
+  message: string,
+  alertMessage: string,
+): Promise<Response> {
+  const alert = await globalAlert.limit("all").catch(() => null);
+  if (alert?.success) {
+    console.error(
+      JSON.stringify({
+        level: "error",
+        message: alertMessage,
+        requestId: request.headers.get("x-vercel-id"),
+      }),
+    );
+  }
+  return limitResponse(message, globalLimit.reset);
+}
+
 export async function checkPublicAssistantRateLimit(
   request: Request,
   sessionId: string,
@@ -185,21 +237,64 @@ export async function checkPublicAssistantRateLimit(
 
     const globalDaily = await limits.globalDaily.limit("all");
     if (!globalDaily.success) {
-      const alert = await limits.globalAlert.limit("all").catch(() => null);
-      if (alert?.success) {
-        console.error(
-          JSON.stringify({
-            level: "error",
-            message: "public_assistant_global_limit_exceeded",
-            requestId: request.headers.get("x-vercel-id"),
-          }),
-        );
-      }
-      return limitResponse(
+      return globalLimitResponse(
+        request,
+        globalDaily,
+        limits.globalAlert,
         "Public assistant usage limit exceeded",
-        globalDaily.reset,
+        "public_assistant_global_limit_exceeded",
       );
     }
+    return null;
+  });
+}
+
+export async function checkXuluxDownloadRateLimit(
+  request: Request,
+  reservedBytes: number,
+): Promise<Response | null> {
+  return runPublicAssistantRateLimit(request, async (limits) => {
+    const ip = getClientIp(request);
+    if (!ip) return missingClientIpResponse(request);
+
+    const ipBurst = await limits.xuluxDownloadIpBurst.limit(ip);
+    if (!ipBurst.success) {
+      return limitResponse("Download rate limit exceeded", ipBurst.reset);
+    }
+
+    const ipDaily = await limits.xuluxDownloadIpDaily.limit(ip);
+    if (!ipDaily.success) {
+      return limitResponse("Daily download limit exceeded", ipDaily.reset);
+    }
+
+    const globalDaily = await limits.xuluxDownloadGlobalDaily.limit("all", {
+      rate: reservedBytes,
+    });
+    if (!globalDaily.success) {
+      return globalLimitResponse(
+        request,
+        globalDaily,
+        limits.xuluxDownloadGlobalAlert,
+        "Download usage limit exceeded",
+        "xulux_download_global_bytes_limit_exceeded",
+      );
+    }
+    return null;
+  });
+}
+
+export async function refundXuluxDownloadByteBudget(
+  request: Request,
+  reservedBytes: number,
+  actualBytes: number,
+): Promise<void> {
+  const unusedBytes = reservedBytes - actualBytes;
+  if (unusedBytes <= 0) return;
+
+  await runPublicAssistantRateLimit(request, async (limits) => {
+    await limits.xuluxDownloadGlobalDaily.limit("all", {
+      rate: -unusedBytes,
+    });
     return null;
   });
 }
