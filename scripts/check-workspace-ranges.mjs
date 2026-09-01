@@ -20,10 +20,11 @@ const PUBLISHED_FIELDS = [
 const WORKSPACE_PROTOCOL = "workspace:";
 const REQUIRED_PROTOCOL = "workspace:^";
 
-const SINGLETON_PACKAGES = new Set([
-  "@assistant-ui/core",
-  "@assistant-ui/store",
-  "@assistant-ui/tap",
+const HOST_SUPPLIED_PEERS = new Set([
+  "@assistant-ui/react",
+  "@assistant-ui/react-ink",
+  "@assistant-ui/react-markdown",
+  "assistant-cloud",
 ]);
 
 function readWorkspaceManifests(root) {
@@ -76,13 +77,15 @@ export function findNarrowWorkspaceRanges(manifests) {
 }
 
 export function findDriftingPeerRanges(manifests) {
+  const workspaceNames = new Set(manifests.map(({ pkg }) => pkg.name));
   const problems = [];
   for (const { manifest, pkg } of manifests) {
     if (pkg.private === true) continue;
     for (const [dependency, range] of Object.entries(
       pkg.peerDependencies ?? {},
     )) {
-      if (!SINGLETON_PACKAGES.has(dependency)) continue;
+      if (!workspaceNames.has(dependency)) continue;
+      if (HOST_SUPPLIED_PEERS.has(dependency)) continue;
       if (range === REQUIRED_PROTOCOL) continue;
       problems.push({ manifest, name: pkg.name, dependency, range });
     }
@@ -165,20 +168,26 @@ function main() {
       `\nDeclare the dependency as \`${REQUIRED_PROTOCOL}\`, which publishes as \`^<the version released`,
     );
     console.error(
-      "alongside it>`. @assistant-ui/core, @assistant-ui/store, and @assistant-ui/tap reach a consumer",
+      "alongside it>`. A package this workspace releases reaches a consumer through a distribution package",
     );
     console.error(
-      "through a distribution package rather than a direct install, so lock-step is the truth. A peer the",
+      "rather than a direct install, so lock-step is the truth and the protocol is the default here.",
     );
     console.error(
-      "consumer installs themselves keeps a wide floor, raised when the code requires a newer API.",
+      `\nThe exemptions are the peers a consumer installs themselves, which keep a wide floor raised only`,
+    );
+    console.error(
+      `when the code requires a newer API: ${[...HOST_SUPPLIED_PEERS].join(", ")}. A new peer on a package`,
+    );
+    console.error(
+      "this workspace releases is enforced by default; add it there only when the consumer owns its install.",
     );
   }
 
   if (problems.length > 0 || drifting.length > 0) process.exit(1);
 
   console.log(
-    `All published workspace dependencies deduplicate and every singleton peer tracks the release train. (${packageCount} packages scanned)`,
+    `All published workspace dependencies deduplicate and every first-party peer tracks the release train. (${packageCount} packages scanned)`,
   );
 }
 

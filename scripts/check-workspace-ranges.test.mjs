@@ -151,8 +151,16 @@ test("fields that never ship and private packages are exempt", () => {
   assert.deepEqual(problems, []);
 });
 
-test("a singleton peer must ride the workspace protocol", () => {
+const bare = (name, version) => ({
+  manifest: `packages/${name.split("/").pop()}/package.json`,
+  pkg: { name, version },
+});
+
+test("a peer on a package this workspace releases must ride the protocol", () => {
   const problems = findDriftingPeerRanges([
+    bare("@assistant-ui/store", "0.3.11"),
+    bare("@assistant-ui/tap", "0.9.15"),
+    bare("@assistant-ui/react", "0.15.17"),
     {
       manifest: "packages/core/package.json",
       pkg: {
@@ -169,7 +177,7 @@ test("a singleton peer must ride the workspace protocol", () => {
       manifest: "packages/react-lexical/package.json",
       pkg: {
         name: "@assistant-ui/react-lexical",
-        version: "0.4.0",
+        version: "0.2.11",
         peerDependencies: {
           "@assistant-ui/react": "^0.15.0",
           "@assistant-ui/store": "*",
@@ -199,9 +207,29 @@ test("a singleton peer must ride the workspace protocol", () => {
   );
 });
 
+test("a first-party peer nobody classified is enforced, not exempt", () => {
+  const problems = findDriftingPeerRanges([
+    bare("assistant-stream", "0.3.40"),
+    {
+      manifest: "packages/adapter/package.json",
+      pkg: {
+        name: "@assistant-ui/adapter",
+        version: "1.0.0",
+        peerDependencies: { "assistant-stream": "^0.3.40" },
+      },
+    },
+  ]);
+
+  assert.deepEqual(
+    problems.map(({ dependency, range }) => ({ dependency, range })),
+    [{ dependency: "assistant-stream", range: "^0.3.40" }],
+  );
+});
+
 test("an ordinary range and a private package are not this rule's business", () => {
   assert.deepEqual(
     findDriftingPeerRanges([
+      bare("@assistant-ui/store", "0.3.11"),
       {
         manifest: "packages/react/package.json",
         pkg: {
@@ -280,7 +308,7 @@ test("the executable reports success and exits 0", () => {
     assert.equal(result.status, 0, result.stderr);
     assert.match(
       result.stdout,
-      /All published workspace dependencies deduplicate and every singleton peer tracks the release train\./,
+      /All published workspace dependencies deduplicate and every first-party peer tracks the release train\./,
       "the guard produced no verdict, so main() never ran",
     );
   } finally {
@@ -288,7 +316,7 @@ test("the executable reports success and exits 0", () => {
   }
 });
 
-test("the executable reports a hand-written singleton peer floor and exits 1", () => {
+test("the executable reports a hand-written first-party peer floor and exits 1", () => {
   const root = createWorkspace([
     ["tap", { name: "@assistant-ui/tap", version: "0.9.15" }],
     [
