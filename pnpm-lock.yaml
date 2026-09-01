@@ -4579,6 +4579,9 @@ importers:
       parse-diff:
         specifier: ^0.12.0
         version: 0.12.0
+      string-width:
+        specifier: ^8.2.2
+        version: 8.2.2
     devDependencies:
       '@assistant-ui/x-buildutils':
         specifier: workspace:*
