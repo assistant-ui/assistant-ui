@@ -2456,17 +2456,19 @@ test("packaged file contents are written per item at the install target", async 
 });
 
 test("the built dist serves every packaged file at the docs' URL convention", async () => {
-  const {
-    access: accessTmp,
-    readFile: readJson,
-    readdir,
-  } = await import("node:fs/promises");
+  const { readFile: readJson, readdir } = await import("node:fs/promises");
   const { join } = await import("node:path");
 
   // Build inside the test so it neither ENOENTs in isolation nor validates a
   // stale dist from an earlier run.
   const { registry, stagedVueRegistry } = await import("../src/registry.ts");
   await buildRegistry(registry, stagedVueRegistry);
+
+  // The consumer half of the convention. Both sides derive the same key
+  // independently, so the docs' own builder runs against the real dist here
+  // rather than against fixtures that could agree with neither.
+  const { buildDownloadCommand, packagedFileUrl } =
+    await import("../../docs/components/pages/docs/fumadocs/install/packaged-file-url.ts");
 
   // Item names may contain slashes, so the walk is recursive. files/ holds the
   // packaged bytes themselves, base/ is walked as its own root, and vue/ is a
@@ -2488,7 +2490,10 @@ test("the built dist serves every packaged file at the docs' URL convention", as
     }
   };
 
-  for (const distRoot of ["dist", "dist/base"]) {
+  for (const [distRoot, flavor, origin] of [
+    ["dist", "radix", "https://r.assistant-ui.com/files/"],
+    ["dist/base", "base", "https://r.assistant-ui.com/base/files/"],
+  ]) {
     const jsonPaths = [];
     await collectItemJsons(distRoot, jsonPaths);
     for (const jsonPath of jsonPaths) {
@@ -2502,9 +2507,39 @@ test("the built dist serves every packaged file at the docs' URL convention", as
         continue;
       }
       for (const file of item.files) {
-        const key = file.target ?? file.path;
-        await accessTmp(join(distRoot, "files", item.name, key));
+        const url = packagedFileUrl(flavor, {
+          name: item.name,
+          path: file.target ?? file.path,
+        });
+        assert.equal(url.slice(0, origin.length), origin);
+        const served = await readJson(
+          join(
+            distRoot,
+            "files",
+            url
+              .slice(origin.length)
+              .split("/")
+              .map(decodeURIComponent)
+              .join("/"),
+          ),
+          "utf8",
+        );
+        assert.equal(served, file.content);
       }
     }
   }
+
+  const resumable = JSON.parse(
+    await readJson("dist/ai-sdk-backend-resumable.json", "utf8"),
+  );
+  const bracketed = resumable.files.find((file) =>
+    (file.target ?? file.path).includes("[streamId]"),
+  );
+  assert.equal(
+    buildDownloadCommand(
+      [{ name: resumable.name, path: bracketed.target ?? bracketed.path }],
+      "radix",
+    ),
+    "curl -fsSL --create-dirs \\\n  -o 'app/api/chat/resume/[streamId]/route.ts' https://r.assistant-ui.com/files/ai-sdk-backend-resumable/app/api/chat/resume/%5BstreamId%5D/route.ts",
+  );
 });
