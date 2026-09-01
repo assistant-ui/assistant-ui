@@ -4592,6 +4592,7 @@ type ThreadListRuntime = {
   }): Promise<void>;
   switchToNewThread(): Promise<void>;
   unstable_subscribeThreadRunEvents(callback: (event: ThreadRunEvent) => void): Unsubscribe$1;
+  unstable_subscribeThreadEvents(callback: (event: ThreadListRuntimeEvent) => void): Unsubscribe$1;
   getLoadThreadsPromise(): Promise<void>;
   reload(): Promise<void>;
   reloadMainThread(): Promise<void>;
@@ -4611,6 +4612,7 @@ type ThreadListRuntimeCore = {
   getThreadRuntimeCore(threadId: string): ThreadRuntimeCore;
   unstable_isThreadRunning?(threadId: string): boolean;
   unstable_subscribeThreadRunEvents?(callback: (event: ThreadRunEvent) => void): Unsubscribe$1;
+  unstable_subscribeThreadEvents?(callback: (event: ThreadListRuntimeEvent) => void): Unsubscribe$1;
   getItemById(threadId: string): ThreadListItemCoreState | undefined;
   switchToThread(threadId: string, options?: {
     unarchive?: boolean;
@@ -4636,6 +4638,11 @@ type ThreadListRuntimeCore = {
 
 type ThreadListRuntimeCoreBinding = ThreadListRuntimeCore;
 
+type ThreadListRuntimeEvent = {
+  readonly threadId: string;
+  readonly type: ThreadRuntimeEventType;
+};
+
 declare class ThreadListRuntimeImpl implements ThreadListRuntime {
   #private;
   constructor(_core: ThreadListRuntimeCoreBinding, _runtimeFactory?: new (binding: ThreadRuntimeCoreBinding, threadListItemBinding: ThreadListItemRuntimeBinding) => ThreadRuntime);
@@ -4645,6 +4652,7 @@ declare class ThreadListRuntimeImpl implements ThreadListRuntime {
   }): Promise<void>;
   switchToNewThread(): Promise<void>;
   unstable_subscribeThreadRunEvents(callback: (event: ThreadRunEvent) => void): Unsubscribe$1;
+  unstable_subscribeThreadEvents(callback: (event: ThreadListRuntimeEvent) => void): Unsubscribe$1;
   getLoadThreadsPromise(): Promise<void>;
   reload(): Promise<void>;
   reloadMainThread(): Promise<void>;

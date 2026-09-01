@@ -1555,10 +1555,16 @@ type ThreadListRuntime = {
   }): Promise<void>;
   switchToNewThread(): Promise<void>;
   unstable_subscribeThreadRunEvents(callback: (event: ThreadRunEvent) => void): Unsubscribe$1;
+  unstable_subscribeThreadEvents(callback: (event: ThreadListRuntimeEvent) => void): Unsubscribe$1;
   getLoadThreadsPromise(): Promise<void>;
   reload(): Promise<void>;
   reloadMainThread(): Promise<void>;
   loadMore(): Promise<void>;
+};
+
+type ThreadListRuntimeEvent = {
+  readonly threadId: string;
+  readonly type: ThreadRuntimeEventType;
 };
 
 type ThreadListState = {
