@@ -20,17 +20,21 @@ export type ToolCallTreeEntry = {
  * Parts arrive in document order, each one ahead of its own descendants.
  * `messageId` names the message that directly holds the part, which for a
  * nested call is the child run's message rather than the top-level message the
- * tree hangs from.
+ * tree hangs from. Only assistant messages are descended, the same rule
+ * {@link mapToolCallPartsDeep} rewrites under, so a part this reports is always
+ * a part that can be written back.
  */
 export function* walkToolCallTree(
   messages: readonly ThreadMessage[],
 ): Generator<ToolCallTreeEntry> {
   for (const message of messages) {
-    if (!message || !Array.isArray(message.content)) continue;
+    if (message?.role !== "assistant" || !Array.isArray(message.content)) {
+      continue;
+    }
     for (const part of message.content) {
       if (!part || part.type !== "tool-call") continue;
       yield { part, messageId: message.id };
-      yield* walkToolCallTree(part.messages ?? []);
+      if (part.messages?.length) yield* walkToolCallTree(part.messages);
     }
   }
 }
@@ -45,8 +49,10 @@ export function* iterateToolCallParts(
   for (const part of content) {
     if (!part || part.type !== "tool-call") continue;
     yield part;
-    for (const entry of walkToolCallTree(part.messages ?? [])) {
-      yield entry.part;
+    if (part.messages?.length) {
+      for (const entry of walkToolCallTree(part.messages)) {
+        yield entry.part;
+      }
     }
   }
 }
@@ -68,7 +74,9 @@ export function mapToolCallPartsDeep(
     if (mapped.messages !== undefined) {
       let nestedChanged = false;
       const nestedMessages = mapped.messages.map((nested) => {
-        if (nested.role !== "assistant") return nested;
+        if (nested.role !== "assistant" || !Array.isArray(nested.content)) {
+          return nested;
+        }
         const assistant = nested as ThreadAssistantMessage;
         const result = mapToolCallPartsDeep(assistant.content, fn);
         if (!result.changed) return nested;

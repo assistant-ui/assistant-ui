@@ -101,8 +101,13 @@ describe("walkToolCallTree", () => {
     expect([...walkToolCallTree([malformed])]).toEqual([]);
   });
 
-  it("descends through a nested user message without yielding its parts", () => {
-    const a = toolCall("a", [user("m2")]);
+  it("skips a non-assistant message carrying a tool-call part", () => {
+    const malformed = {
+      ...user("m2"),
+      content: [toolCall("b")],
+    } as unknown as ThreadMessage;
+    const a = toolCall("a", [malformed]);
+
     expect(
       [...walkToolCallTree([assistant("m1", [a])])].map(
         (entry) => entry.part.toolCallId,
@@ -147,6 +152,18 @@ describe("mapToolCallPartsDeep", () => {
     expect(
       parts.find((part) => part.toolCallId === "d")?.isError,
     ).toBeUndefined();
+  });
+
+  it("skips a nested message whose content is not an array", () => {
+    const malformed = {
+      id: "m2",
+      role: "assistant",
+    } as unknown as ThreadMessage;
+    const a = toolCall("a", [malformed]);
+
+    expect(() =>
+      mapToolCallPartsDeep([a], (part) => ({ ...part, isError: true })),
+    ).not.toThrow();
   });
 
   it("keeps the original content identity when nothing changed", () => {
