@@ -76,6 +76,16 @@ const createAssistantMessage = (
   ],
 });
 
+/**
+ * The stream failure that sets this flag cannot be provoked through the public
+ * API: `unstable_toolResultStream` turns a throwing tool into an error result
+ * rather than an error chunk, so the transform never rejects. The recovery
+ * branch it guards is reachable on its own.
+ */
+const killPipeline = (tracker: ToolInvocationTracker) => {
+  (tracker as unknown as { _pipelineDead: boolean })._pipelineDead = true;
+};
+
 describe("ToolInvocationTracker", () => {
   it("does not crash and does not re-fire streamCall when tool argsText regresses mid-stream", async () => {
     // The tracker holds the contract: streamCall fires exactly once per
@@ -734,6 +744,83 @@ describe("ToolInvocationTracker", () => {
 
     expect(execute).not.toHaveBeenCalled();
     expect(onResult).not.toHaveBeenCalled();
+  });
+
+  it("keeps a discarded call skipped when the pipeline restarts before it settles", async () => {
+    const execute = vi.fn(async () => ({ deleted: true }));
+    const getTools = () => ({
+      deleteFile: {
+        parameters: { type: "object", properties: {} },
+        execute,
+      } satisfies Tool,
+    });
+    const onResult = vi.fn();
+    const tracker = new ToolInvocationTracker(getTools, {
+      onResult,
+      onStatusesChange: () => {},
+    });
+    tracker.setState(createState([], false));
+
+    const complete = (isRunning: boolean) =>
+      createState(
+        [
+          createAssistantMessage(
+            '{"path":"/tmp/a"}',
+            { path: "/tmp/a" },
+            { toolName: "deleteFile" },
+          ),
+        ],
+        isRunning,
+      );
+
+    tracker.setState(complete(true));
+    await new Promise((r) => setTimeout(r, 0));
+    await tracker.abort({ discardPending: true });
+
+    killPipeline(tracker);
+    tracker.setState(complete(false));
+    await new Promise((r) => setTimeout(r, 0));
+
+    expect(execute).not.toHaveBeenCalled();
+    expect(onResult).not.toHaveBeenCalled();
+  });
+
+  it("still executes a waiting call when the pipeline restarts before it settles", async () => {
+    const execute = vi.fn(async () => ({ deleted: true }));
+    const getTools = () => ({
+      deleteFile: {
+        parameters: { type: "object", properties: {} },
+        execute,
+      } satisfies Tool,
+    });
+    const onResult = vi.fn();
+    const tracker = new ToolInvocationTracker(getTools, {
+      onResult,
+      onStatusesChange: () => {},
+    });
+    tracker.setState(createState([], false));
+
+    const complete = (isRunning: boolean) =>
+      createState(
+        [
+          createAssistantMessage(
+            '{"path":"/tmp/a"}',
+            { path: "/tmp/a" },
+            { toolName: "deleteFile" },
+          ),
+        ],
+        isRunning,
+      );
+
+    tracker.setState(complete(true));
+    await new Promise((r) => setTimeout(r, 0));
+    expect(execute).not.toHaveBeenCalled();
+
+    killPipeline(tracker);
+    tracker.setState(complete(false));
+
+    await waitFor(() => expect(execute).toHaveBeenCalledTimes(1));
+    await waitFor(() => expect(onResult).toHaveBeenCalledTimes(1));
   });
 
   it("never executes a registered tool the provider gates before its run ends", async () => {
