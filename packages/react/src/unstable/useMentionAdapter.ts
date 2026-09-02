@@ -1,7 +1,7 @@
 "use client";
 
-import { useEffect, useMemo, useState, type FC } from "react";
-import { useAui, type AssistantClient } from "@assistant-ui/store";
+import { useMemo, type FC } from "react";
+import { useAui } from "@assistant-ui/store";
 import type {
   Unstable_DirectiveFormatter,
   Unstable_TriggerAdapter,
@@ -11,6 +11,11 @@ import type {
 import { unstable_defaultDirectiveFormatter } from "@assistant-ui/core";
 import type { ReadonlyJSONObject } from "assistant-stream/utils";
 import { matchesTriggerItemQuery } from "../primitives/composer/trigger/matchesTriggerItemQuery";
+import {
+  shallowEqualRecords,
+  useModelContextSnapshot,
+  type ModelContextSnapshotSource,
+} from "./useModelContextSnapshot";
 
 /** Icon component shape consumed by `ComposerTriggerPopover`'s `iconMap`. */
 export type Unstable_IconComponent = FC<{ className?: string }>;
@@ -81,57 +86,37 @@ export type Unstable_MentionDirective = {
 const EMPTY_TOOL_MENTIONS: Readonly<Record<string, string | undefined>> =
   Object.freeze({});
 
-// `getModelContext()` rebuilds its result on every call, so the fields the
-// adapter consumes are snapshotted and compared rather than re-read per render.
-const readToolMentions = (aui: AssistantClient) => {
-  const tools = aui.thread.getModelContext().tools;
-  if (!tools) return EMPTY_TOOL_MENTIONS;
-  const mentions: Record<string, string | undefined> = {};
-  for (const [name, tool] of Object.entries(tools)) {
-    mentions[name] = tool.description;
-  }
-  return mentions;
-};
-
-const toolMentionsEqual = (
-  previous: Readonly<Record<string, string | undefined>>,
-  next: Readonly<Record<string, string | undefined>>,
-) => {
-  const names = Object.keys(previous);
-  if (names.length !== Object.keys(next).length) return false;
-  return names.every((name) => name in next && previous[name] === next[name]);
-};
-
-const useToolMentions = (aui: AssistantClient, enabled: boolean) => {
-  const [mentions, setMentions] = useState(() =>
-    enabled ? readToolMentions(aui) : EMPTY_TOOL_MENTIONS,
-  );
-
-  useEffect(() => {
-    if (!enabled) return undefined;
-    const read = () => {
-      const next = readToolMentions(aui);
-      setMentions((previous) =>
-        toolMentionsEqual(previous, next) ? previous : next,
-      );
-    };
-    read();
-    const unsubscribeContext = aui.on("thread.modelContextUpdate", read);
+// The description is copied out rather than reached through the tool, so a
+// provider that returns a stable tool object and edits it in place is observed.
+const toolMentionSource: ModelContextSnapshotSource<
+  Readonly<Record<string, string | undefined>>
+> = {
+  empty: EMPTY_TOOL_MENTIONS,
+  read: (aui) => {
+    const tools = aui.thread.getModelContext().tools;
+    if (!tools) return EMPTY_TOOL_MENTIONS;
+    const mentions: Record<string, string | undefined> = {};
+    for (const [name, tool] of Object.entries(tools)) {
+      mentions[name] = tool.description;
+    }
+    return mentions;
+  },
+  subscribe: (aui, onChange) => {
+    const unsubscribeContext = aui.on("thread.modelContextUpdate", onChange);
     // Rebinding the thread event subject to a new thread does not replay it,
     // so a switch between threads carrying different providers is its own
     // refresh trigger. Subscribed globally because a composer can render
     // without a thread list scope.
     const unsubscribeSelection = aui.on(
       { scope: "*", event: "threads.selectionChanged" },
-      read,
+      onChange,
     );
     return () => {
       unsubscribeContext();
       unsubscribeSelection();
     };
-  }, [aui, enabled]);
-
-  return mentions;
+  },
+  isEqual: shallowEqualRecords,
 };
 
 /**
@@ -169,7 +154,11 @@ export function unstable_useMentionAdapter(
   const isCategorized =
     (categories !== undefined && categories.length > 0) ||
     (toolsConfig?.category !== undefined && items === undefined);
-  const toolMentions = useToolMentions(aui, wantsTools);
+  const toolMentions = useModelContextSnapshot(
+    aui,
+    wantsTools,
+    toolMentionSource,
+  );
 
   const adapter = useMemo<Unstable_TriggerAdapter>(() => {
     const formatLabel = toolsConfig?.formatLabel;

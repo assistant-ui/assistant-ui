@@ -7,6 +7,10 @@ import type { Tool } from "assistant-stream";
 import { getDefaultWebMcpHost, type WebMcpHost } from "./webmcp-host";
 import { defaultWebMcpFilter, toWebMcpInputSchema } from "./convertTools";
 import { WebMcpRegistrationResource } from "./WebMcpRegistrationResource";
+import {
+  useModelContextSnapshot,
+  type ModelContextSnapshotSource,
+} from "../useModelContextSnapshot";
 
 export type Unstable_WebMcpProviderOptions = {
   filter?: (name: string, tool: Tool<any, any>) => boolean;
@@ -42,20 +46,18 @@ const signatureOf = (tool: Tool<any, any>) => {
   return signature;
 };
 
-// getModelContext() rebuilds its result on every call, so it is read into
-// state on notify rather than served as a render snapshot.
-const useModelContextTools = (aui: AssistantClient, enabled: boolean) => {
-  const [tools, setTools] = useState(EMPTY_TOOLS);
+const NO_SUBSCRIPTION = () => {};
 
-  useEffect(() => {
-    if (!enabled) return undefined;
-    const read = () =>
-      setTools(aui.modelContext.getModelContext().tools ?? EMPTY_TOOLS);
-    read();
-    return aui.modelContext.subscribe?.(read);
-  }, [aui, enabled]);
-
-  return tools;
+// No `isEqual`: a caller republishing an unchanged tool set is how it asks for
+// a re-sync, which is what re-attempts a tool whose filter has stopped throwing
+// and what picks up a description edited in place on a stable tool object.
+const modelContextToolSource: ModelContextSnapshotSource<
+  Record<string, Tool<any, any>>
+> = {
+  empty: EMPTY_TOOLS,
+  read: (aui) => aui.modelContext.getModelContext().tools ?? EMPTY_TOOLS,
+  subscribe: (aui, onChange) =>
+    aui.modelContext.subscribe?.(onChange) ?? NO_SUBSCRIPTION,
 };
 
 const useStableNames = (names: readonly (string | null)[]) => {
@@ -81,7 +83,11 @@ const useWebMcpRegistry = ({
   host: WebMcpHost;
   filter: (name: string, tool: Tool<any, any>) => boolean;
 }) => {
-  const tools = useModelContextTools(aui, host.available);
+  const tools = useModelContextSnapshot(
+    aui,
+    host.available,
+    modelContextToolSource,
+  );
 
   const elements = [];
   for (const [name, tool] of Object.entries(tools)) {
