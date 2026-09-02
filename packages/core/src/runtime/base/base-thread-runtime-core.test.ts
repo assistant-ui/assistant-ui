@@ -126,6 +126,37 @@ describe("BaseThreadRuntimeCore subscriptions", () => {
     expect(() => runtime.reset()).toThrow(error);
     expect(laterSubscriber).toHaveBeenCalledOnce();
   });
+
+  it("isolates initialize listener errors during late replay", async () => {
+    const consoleError = vi
+      .spyOn(console, "error")
+      .mockImplementation(() => {});
+    const runtime = new TestRuntime(createVoiceAdapter());
+    runtime.reset();
+
+    const syncError = new Error("sync listener failed");
+    const asyncError = new Error("async listener failed");
+    const laterListener = vi.fn();
+    runtime.unstable_on("initialize", () => {
+      throw syncError;
+    });
+    runtime.unstable_on("initialize", async () => {
+      throw asyncError;
+    });
+    runtime.unstable_on("initialize", laterListener);
+
+    await vi.waitFor(() => {
+      expect(laterListener).toHaveBeenCalledOnce();
+      expect(consoleError).toHaveBeenCalledWith(
+        '[assistant-ui] Thread runtime "initialize" listener threw an error',
+        syncError,
+      );
+      expect(consoleError).toHaveBeenCalledWith(
+        '[assistant-ui] Thread runtime "initialize" listener threw an error',
+        asyncError,
+      );
+    });
+  });
 });
 
 describe("BaseThreadRuntimeCore voice volume subscriptions", () => {

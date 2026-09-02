@@ -532,7 +532,9 @@ export abstract class BaseThreadRuntimeCore
     // after the thread already initialized, mirroring a BehaviorSubject.
     if (event === "initialize" && this._isInitialized) {
       queueMicrotask(() => {
-        if (subscribers.has(wrapped)) wrapped({});
+        if (subscribers.has(wrapped)) {
+          notifyEventListeners([wrapped], {}, 'Thread runtime "initialize"');
+        }
       });
     }
 
