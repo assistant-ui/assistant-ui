@@ -504,6 +504,7 @@ export class ToolInvocationTracker {
     if (entry.skipExecute) return;
 
     this._executing.add(executionId!);
+    if (this._humanInput.get(toolCallId)?.executionId === executionId) return;
     this._setStatus(toolCallId, { type: "executing" });
   }
 
