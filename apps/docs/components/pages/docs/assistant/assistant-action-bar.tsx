@@ -44,7 +44,7 @@ function getErrorDetails(error: unknown): {
   };
 }
 
-export type FeedbackSurface = "home_thread";
+export type FeedbackSurface = "docs_assistant" | "home_thread";
 
 /**
  * Thumbs up and down for the current assistant message, with the reason
@@ -56,9 +56,9 @@ export function FeedbackActions({
   surface,
   onOpenChange,
 }: {
-  surface?: FeedbackSurface;
+  surface: FeedbackSurface;
   onOpenChange?: ((open: boolean) => void) | undefined;
-} = {}): ReactNode {
+}): ReactNode {
   const [popoverOpen, setPopoverOpen] = useState(false);
   const feedbackShownForMessageRef = useRef<string | null>(null);
   const feedbackSubmissionStartedRef = useRef<string | null>(null);
@@ -93,7 +93,7 @@ export function FeedbackActions({
     () => ({
       threadId,
       messageId,
-      ...(surface ? { surface } : {}),
+      surface,
       user_question_length: userQuestionLength,
       assistant_response_length: assistantResponseLength,
       tool_calls_count: toolCallsCount,
@@ -261,7 +261,7 @@ export function AssistantActionBar(): ReactNode {
           <CopyIcon className="size-4" />
         </AuiIf>
       </ActionBarPrimitive.Copy>
-      <FeedbackActions />
+      <FeedbackActions surface="docs_assistant" />
     </ActionBarPrimitive.Root>
   );
 }
