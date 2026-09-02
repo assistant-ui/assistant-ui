@@ -7,7 +7,7 @@ const REPO_ROOT = path.resolve(DOCS_ROOT, "../..");
 const OUTPUT_DIR = path.join(DOCS_ROOT, "generated");
 const OUTPUT_PATH = path.join(OUTPUT_DIR, "source-snapshot.json");
 const READ_CONCURRENCY = 32;
-// Every serverless instance parses the snapshot at module scope and the repo sandbox materializes it again, costing roughly 14x its byte size in resident memory.
+// Measured single-flight: one materialized repo sandbox costs roughly 14x the snapshot's byte size in resident memory. Sandboxes are built per request, so concurrent repo-tool calls multiply that term.
 const SNAPSHOT_BYTE_BUDGET = 64_000_000;
 const BUDGET_REPORT_ENTRIES = 15;
 const SOURCE_SNAPSHOT_EXCLUDE = [
