@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import {
+  PUBLIC_ASSISTANT_LIMITS,
   PUBLIC_ASSISTANT_UNAVAILABLE_MESSAGE,
   describePublicAssistantError,
   publicAssistantLimitMessage,
@@ -7,12 +8,7 @@ import {
 
 describe("describePublicAssistantError", () => {
   it("recognises every limit message the public routes emit", () => {
-    for (const subject of [
-      "Rate",
-      "Daily usage",
-      "Anonymous session",
-      "Template download usage",
-    ]) {
+    for (const subject of PUBLIC_ASSISTANT_LIMITS) {
       expect(
         describePublicAssistantError(publicAssistantLimitMessage(subject)),
       ).toMatch(/rate limited/);
@@ -31,9 +27,12 @@ describe("describePublicAssistantError", () => {
     );
   });
 
-  it("leaves other errors to the default error rail", () => {
+  it("leaves model and transport errors to the default error rail", () => {
     expect(
       describePublicAssistantError("Failed to fetch the chat response."),
+    ).toBeUndefined();
+    expect(
+      describePublicAssistantError("context length limit exceeded"),
     ).toBeUndefined();
   });
 });
