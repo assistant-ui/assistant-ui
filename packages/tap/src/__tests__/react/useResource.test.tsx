@@ -235,6 +235,40 @@ describe("@assistant-ui/tap/react resource API", () => {
       act(() => setters.a!(5));
       expect(renderValues.at(-1)).toEqual([5, 0]);
       expect(values).toEqual([5, 99]);
+
+      act(() => setters.a!(10));
+      expect(renderValues.at(-1)).toEqual([10, 0]);
+      expect(values).toEqual([10, 99]);
+    });
+
+    it("keeps rendering clean children when a stable list has no deps", () => {
+      const renders: Record<string, number> = {};
+      const effects: Record<string, number> = {};
+      const setters: Record<string, (n: number) => void> = {};
+      const useItem = (id: string) => {
+        renders[id] = (renders[id] ?? 0) + 1;
+        const [value, setValue] = useResourceState(0);
+        setters[id] = setValue;
+        useResourceEffect(() => {
+          effects[id] = (effects[id] ?? 0) + 1;
+        });
+        return value;
+      };
+      const Item = resource(useItem);
+      const elements = [withKey("a", Item("a")), withKey("b", Item("b"))];
+
+      function App() {
+        useResources(elements);
+        return null;
+      }
+
+      render(<App />);
+      expect(renders).toEqual({ a: 1, b: 1 });
+      expect(effects).toEqual({ a: 1, b: 1 });
+
+      act(() => setters.a!(5));
+      expect(renders).toEqual({ a: 2, b: 2 });
+      expect(effects).toEqual({ a: 2, b: 2 });
     });
 
     it("only visits dirty children when the element list is unchanged", () => {

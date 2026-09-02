@@ -47,6 +47,7 @@ type RenderResult<T> = {
   exposedValues: T[];
   commitKeys: readonly (string | number)[] | null;
   keyToIndex: ReadonlyMap<string | number, number>;
+  supportsDirtyChildUpdates: boolean;
 };
 
 // Looked up by key (not captured) so it survives fiber replacement on remount.
@@ -88,6 +89,7 @@ export function useResources<E extends ResourceElement<any>>(
     string | number,
     number
   > | null>(null);
+  const supportsDirtyChildUpdates = useRef(false);
   const pendingStructuralChange = useRef(false);
   const needsFullCommit = useRef(false);
 
@@ -104,6 +106,7 @@ export function useResources<E extends ResourceElement<any>>(
         committedElements.current === elements &&
         committedValues.current !== null &&
         committedKeyToIndex.current !== null &&
+        supportsDirtyChildUpdates.current &&
         !pendingStructuralChange.current &&
         !hasAnyContextDepsChanged
       ) {
@@ -139,15 +142,18 @@ export function useResources<E extends ResourceElement<any>>(
           exposedValues: values.slice(),
           commitKeys,
           keyToIndex: committedKeyToIndex.current,
+          supportsDirtyChildUpdates: true,
         };
       }
 
       const values: any[] = [];
       const keyToIndex = new Map<string | number, number>();
       let newCount = 0;
+      let nextSupportsDirtyChildUpdates = true;
 
       for (let i = 0; i < elements.length; i++) {
         const element = elements[i]!;
+        if (element.deps === undefined) nextSupportsDirtyChildUpdates = false;
 
         const elementKey = element.key;
         if (elementKey === undefined) {
@@ -218,6 +224,7 @@ export function useResources<E extends ResourceElement<any>>(
         exposedValues: values.slice(),
         commitKeys: null,
         keyToIndex,
+        supportsDirtyChildUpdates: nextSupportsDirtyChildUpdates,
       };
     },
     [elements, fibers, createFiber, version],
@@ -268,6 +275,7 @@ export function useResources<E extends ResourceElement<any>>(
     committedElements.current = elements;
     committedValues.current = rendered.values;
     committedKeyToIndex.current = rendered.keyToIndex;
+    supportsDirtyChildUpdates.current = rendered.supportsDirtyChildUpdates;
     pendingStructuralChange.current = false;
     needsFullCommit.current = false;
   }, [elements, fibers, rendered, val]);
