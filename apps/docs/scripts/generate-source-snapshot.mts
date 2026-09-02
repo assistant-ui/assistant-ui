@@ -47,7 +47,8 @@ async function main() {
   const size = Buffer.byteLength(serialized, "utf-8");
 
   if (size > SNAPSHOT_BYTE_BUDGET) {
-    throw new Error(formatBudgetError(snapshot, size));
+    console.error(formatBudgetError(snapshot, size));
+    process.exit(1);
   }
 
   await fs.mkdir(OUTPUT_DIR, { recursive: true });
