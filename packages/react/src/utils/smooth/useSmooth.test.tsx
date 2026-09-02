@@ -3,17 +3,20 @@ import { act, renderHook } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import type {
   MessagePartState,
+  MessagePartStatus,
   ReasoningMessagePart,
   TextMessagePart,
 } from "@assistant-ui/core";
+import { createStore, type StoreApi } from "zustand";
 
 const part = {};
+let smoothStatusStore: StoreApi<MessagePartStatus> | null = null;
 vi.mock("@assistant-ui/store", () => ({
   useAui: () => ({ part }),
   useAuiState: (selector: () => unknown) => selector(),
 }));
 vi.mock("./SmoothContext", () => ({
-  useSmoothStatusStore: () => null,
+  useSmoothStatusStore: () => smoothStatusStore,
 }));
 
 import { useSmooth, type SmoothOptions } from "./useSmooth";
@@ -103,12 +106,41 @@ describe("useSmooth", () => {
   afterEach(() => {
     vi.restoreAllMocks();
     Reflect.deleteProperty(window, "matchMedia");
+    smoothStatusStore = null;
   });
 
   it("returns the input state unchanged when disabled", () => {
     const state = textState("hello");
     const { result } = renderHook(() => useSmooth(state, false));
     expect(result.current).toBe(state);
+  });
+
+  it("publishes only effective status changes", () => {
+    const completeStatus = { type: "complete" } as const;
+    smoothStatusStore = createStore(() => completeStatus);
+    const setState = vi.spyOn(smoothStatusStore, "setState");
+    const initialState = {
+      type: "text",
+      text: "hello",
+      status: completeStatus,
+    } as MessagePartState & TextMessagePart;
+    const { rerender } = renderHook((state) => useSmooth(state, false), {
+      initialProps: initialState,
+    });
+
+    rerender({ ...initialState, text: "hello!" });
+    expect(setState).not.toHaveBeenCalled();
+
+    rerender(runningState("hello!"));
+    expect(setState).toHaveBeenCalledTimes(1);
+    expect(smoothStatusStore.getState()).toEqual({ type: "running" });
+
+    rerender(runningState("hello!!"));
+    expect(setState).toHaveBeenCalledTimes(1);
+
+    rerender({ ...initialState, text: "hello!!" });
+    expect(setState).toHaveBeenCalledTimes(2);
+    expect(smoothStatusStore.getState()).toBe(completeStatus);
   });
 
   it("returns the full text immediately for settled parts when enabled", () => {

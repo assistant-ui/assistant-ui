@@ -97,13 +97,11 @@ const mount = () => {
 describe("markdown streaming", () => {
   // react-markdown re-parses the whole accumulated text on every render and
   // memoizes per hast node, so the paragraph a token lands in renders once and
-  // the paragraphs before it not at all. The parse runs twice per token: once
-  // for the part update and once more when useSmooth's effect writes the
-  // smooth status store that MarkdownTextPrimitive's context provider owns,
-  // even with smoothing off. Collapsing that to one parse is an optimization;
-  // a third parse is a regression. The user message renders through the same
-  // Text slot, hence the extra paragraph and the two parses at mount.
-  it("re-parses the whole message twice per token but re-renders only the changed paragraph", () => {
+  // the paragraphs before it not at all. The parser is memoized on its complete
+  // input, so the second same-input message-part render does not run the
+  // remark pipeline. The user message renders through the same Text slot,
+  // hence the extra paragraph and the two parses at mount.
+  it("re-parses the whole message once per token but re-renders only the changed paragraph", () => {
     counter.reset();
     parses = 0;
     const app = mount();
@@ -117,7 +115,7 @@ describe("markdown streaming", () => {
 
     expect(counter.renders("p")).toBe(MOUNT_PARAGRAPHS + TOKENS);
     expect(counter.renders("message")).toBe(2);
-    expect(parses).toBe(2 + 2 * TOKENS);
+    expect(parses).toBe(2 + TOKENS);
     expect(counter.commits("thread") - mountedCommits).toBe(3 * TOKENS);
     app.unmount();
   });

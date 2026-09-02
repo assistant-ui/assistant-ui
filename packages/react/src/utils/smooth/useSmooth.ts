@@ -2,6 +2,7 @@
 
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useAui, useAuiState } from "@assistant-ui/store";
+import { shallowEqual } from "@assistant-ui/store/client";
 import type {
   MessagePartStatus,
   ReasoningMessagePart,
@@ -192,6 +193,14 @@ export const useSmooth = (
   }
 
   const smoothStatusStore = useSmoothStatusStore({ optional: true });
+  const publishStatus = useCallbackRef((target: MessagePartStatus) => {
+    if (!smoothStatusStore) return;
+
+    const store = writableStore(smoothStatusStore);
+    if (shallowEqual(store.getState(), target)) return;
+    store.setState(target, true);
+  });
+
   const setText = useCallbackRef((text: string) => {
     setDisplayedText(text);
     if (smoothStatusStore) {
@@ -199,7 +208,7 @@ export const useSmooth = (
         displayedText !== text || state.status.type === "running"
           ? SMOOTH_STATUS
           : state.status;
-      writableStore(smoothStatusStore).setState(target, true);
+      publishStatus(target);
     }
   });
 
@@ -210,9 +219,16 @@ export const useSmooth = (
         enabled && (displayedText !== text || state.status.type === "running")
           ? SMOOTH_STATUS
           : state.status;
-      writableStore(smoothStatusStore).setState(target, true);
+      publishStatus(target);
     }
-  }, [smoothStatusStore, enabled, text, displayedText, state.status]);
+  }, [
+    smoothStatusStore,
+    enabled,
+    text,
+    displayedText,
+    state.status,
+    publishStatus,
+  ]);
 
   const [animatorRef] = useState<TextStreamAnimator>(
     new TextStreamAnimator(displayedText, setText),

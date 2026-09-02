@@ -12,6 +12,7 @@ import {
   forwardRef,
   type ForwardRefExoticComponent,
   type RefAttributes,
+  memo,
   useDeferredValue,
   useMemo,
   type ComponentPropsWithoutRef,
@@ -34,6 +35,8 @@ import { useCallbackRef } from "@radix-ui/react-use-callback-ref";
 import { CodeOverride } from "../overrides/CodeOverride";
 import type { Primitive } from "@radix-ui/react-primitive";
 import classNames from "classnames";
+
+const MemoizedReactMarkdown = memo(ReactMarkdown);
 
 const { useSmooth, useSmoothStatus, withSmoothContextProvider } = INTERNAL;
 
@@ -142,9 +145,9 @@ const MarkdownTextInner: FC<MarkdownTextPrimitiveProps> = ({
   }, [CodeComponent, PreComponentWithFallback, userComponents]);
 
   return (
-    <ReactMarkdown components={components} {...rest}>
+    <MemoizedReactMarkdown components={components} {...rest}>
       {resolvedText}
-    </ReactMarkdown>
+    </MemoizedReactMarkdown>
   );
 };
 
