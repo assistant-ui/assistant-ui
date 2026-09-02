@@ -7,43 +7,29 @@ import { resolveSandboxDownloadUrl } from "@/lib/xulux/sandbox-download-url";
 import { getXuluxHostedTemplatesCatalog } from "@/lib/xulux/templates-catalog";
 
 export const runtime = "nodejs";
+// The platform default, stated so the ceiling is reviewable rather than
+// inherited. The archive streams for as long as the client takes to read it.
+export const maxDuration = 300;
 
 const MAX_ZIP_BYTES = 50 * 1024 * 1024; // 50 MB ceiling
-// Covers the full body read, so it stops a stalled connection rather than
-// capping throughput; a 50 MB archive must not be truncated mid-download.
-const ARCHIVE_TIMEOUT_MS = 300_000;
+// Bounds the wait for the sandbox to respond. It deliberately stops at the
+// headers so a slow client cannot look like a stalled sandbox.
+const SANDBOX_RESPONSE_TIMEOUT_MS = 30_000;
 
-async function readLimitedBody(
-  body: ReadableStream<Uint8Array>,
-): Promise<ArrayBuffer | null> {
-  const reader = body.getReader();
-  const chunks: Uint8Array[] = [];
+function limitArchiveSize(body: ReadableStream<Uint8Array>) {
   let total = 0;
-
-  try {
-    while (true) {
-      const { done, value } = await reader.read();
-      if (done) break;
-
-      total += value.byteLength;
-      if (total > MAX_ZIP_BYTES) {
-        await reader.cancel("Archive too large.");
-        return null;
-      }
-      chunks.push(value);
-    }
-  } finally {
-    reader.releaseLock();
-  }
-
-  const result = new ArrayBuffer(total);
-  const view = new Uint8Array(result);
-  let offset = 0;
-  for (const chunk of chunks) {
-    view.set(chunk, offset);
-    offset += chunk.byteLength;
-  }
-  return result;
+  return body.pipeThrough(
+    new TransformStream<Uint8Array, Uint8Array>({
+      transform(chunk, controller) {
+        total += chunk.byteLength;
+        if (total > MAX_ZIP_BYTES) {
+          controller.error(new Error("Archive too large."));
+          return;
+        }
+        controller.enqueue(chunk);
+      },
+    }),
+  );
 }
 
 export async function GET(req: Request) {
@@ -86,7 +72,8 @@ export async function GET(req: Request) {
   try {
     const upstream = await fetchSandboxResource(upstreamUrl, {
       redirect: "manual",
-      timeoutMs: ARCHIVE_TIMEOUT_MS,
+      timeoutMs: SANDBOX_RESPONSE_TIMEOUT_MS,
+      timeoutScope: "response",
     });
 
     if (upstream.status >= 300 && upstream.status < 400) {
@@ -129,19 +116,14 @@ export async function GET(req: Request) {
       );
     }
 
-    const responseBody = await readLimitedBody(body);
-    if (!responseBody) {
-      return NextResponse.json(
-        { error: "Archive too large." },
-        { status: 413 },
-      );
-    }
-
-    return new NextResponse(responseBody, {
+    return new NextResponse(limitArchiveSize(body), {
       status: 200,
       headers: {
         "Content-Type":
           upstream.headers.get("content-type") ?? "application/octet-stream",
+        ...(contentLengthHeader
+          ? { "Content-Length": contentLengthHeader }
+          : {}),
         "Cache-Control": "private, max-age=3600",
       },
     });

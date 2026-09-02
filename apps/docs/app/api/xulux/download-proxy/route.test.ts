@@ -72,6 +72,79 @@ describe("GET /api/xulux/download-proxy access boundary", () => {
     expect(mocks.fetchSandboxResource).not.toHaveBeenCalled();
   });
 
+  it("streams the archive rather than buffering it before responding", async () => {
+    mocks.requireSession.mockReturnValue(session);
+    mocks.checkRateLimit.mockResolvedValue(null);
+    mocks.resolveSandboxDownloadUrl.mockReturnValue(
+      new URL("https://demo.bl.run/api/download"),
+    );
+
+    let push!: (chunk: Uint8Array) => void;
+    let finish!: () => void;
+    const upstreamBody = new ReadableStream<Uint8Array>({
+      start(controller) {
+        push = (chunk) => controller.enqueue(chunk);
+        finish = () => controller.close();
+      },
+    });
+    mocks.fetchSandboxResource.mockResolvedValue(
+      new Response(upstreamBody, {
+        status: 200,
+        headers: { "content-type": "application/zip" },
+      }),
+    );
+
+    const response = await GET(request());
+    expect(response.status).toBe(200);
+
+    const reader = response.body!.getReader();
+    push(new Uint8Array([1, 2]));
+    await expect(reader.read()).resolves.toEqual({
+      done: false,
+      value: new Uint8Array([1, 2]),
+    });
+
+    finish();
+    await expect(reader.read()).resolves.toEqual({
+      done: true,
+      value: undefined,
+    });
+  });
+
+  it("cuts off an archive that outgrows the ceiling mid-stream", async () => {
+    mocks.requireSession.mockReturnValue(session);
+    mocks.checkRateLimit.mockResolvedValue(null);
+    mocks.resolveSandboxDownloadUrl.mockReturnValue(
+      new URL("https://demo.bl.run/api/download"),
+    );
+
+    const megabyte = new Uint8Array(1024 * 1024);
+    const upstreamBody = new ReadableStream<Uint8Array>({
+      pull(controller) {
+        controller.enqueue(megabyte);
+      },
+    });
+    mocks.fetchSandboxResource.mockResolvedValue(
+      new Response(upstreamBody, {
+        status: 200,
+        headers: { "content-type": "application/zip" },
+      }),
+    );
+
+    const response = await GET(request());
+    expect(response.status).toBe(200);
+
+    const reader = response.body!.getReader();
+    await expect(
+      (async () => {
+        while (true) {
+          const { done } = await reader.read();
+          if (done) return;
+        }
+      })(),
+    ).rejects.toThrow("Archive too large.");
+  });
+
   it("keeps a metered archive out of shared caches", async () => {
     mocks.requireSession.mockReturnValue(session);
     mocks.checkRateLimit.mockResolvedValue(null);
