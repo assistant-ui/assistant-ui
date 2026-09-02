@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo } from "react";
+import { useMemo, useSyncExternalStore } from "react";
 import {
   AssistantCloud,
   WebSpeechDictationAdapter,
@@ -27,15 +27,35 @@ export function useAnonymousCloud() {
   );
 }
 
+const subscribeToNothing = () => () => {};
+const dictationUnsupportedOnServer = () => false;
+
+// The server snapshot reports no support, so hydration matches and the mic
+// only appears in browsers that can listen.
+const useDictationSupported = () =>
+  useSyncExternalStore(
+    subscribeToNothing,
+    WebSpeechDictationAdapter.isSupported,
+    dictationUnsupportedOnServer,
+  );
+
 // Speech and dictation adapters carry per-utterance state, so a surface keeps
 // one instance rather than rebuilding them on every render.
 export function useSpeechAdapters({ dictation = false } = {}) {
+  const dictationSupported = useDictationSupported() && dictation;
+
+  const speech = useMemo(() => new WebSpeechSynthesisAdapter(), []);
+  const dictationAdapter = useMemo(
+    () => (dictationSupported ? new WebSpeechDictationAdapter() : undefined),
+    [dictationSupported],
+  );
+
   return useMemo(
     () => ({
-      speech: new WebSpeechSynthesisAdapter(),
-      ...(dictation ? { dictation: new WebSpeechDictationAdapter() } : {}),
+      speech,
+      ...(dictationAdapter ? { dictation: dictationAdapter } : {}),
     }),
-    [dictation],
+    [speech, dictationAdapter],
   );
 }
 
