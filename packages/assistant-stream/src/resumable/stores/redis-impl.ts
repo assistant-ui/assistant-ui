@@ -44,6 +44,26 @@ export type RedisFinalizeOptions = {
   readonly ttlSec: number;
 };
 
+export const FINALIZE_IF_UNCHANGED_SCRIPT = `
+if redis.call("GET", KEYS[1]) ~= ARGV[1] then
+  return 0
+end
+local xadd = { "XADD", KEYS[2], "*" }
+for i = 4, #ARGV do
+  table.insert(xadd, ARGV[i])
+end
+redis.call(unpack(xadd))
+redis.call("EXPIRE", KEYS[2], ARGV[3])
+redis.call("SET", KEYS[1], ARGV[2], "EX", ARGV[3])
+return 1
+`;
+
+export function redisFinalizeFieldArgs(
+  options: RedisFinalizeOptions,
+): string[] {
+  return Object.entries(options.fields).flatMap(([key, value]) => [key, value]);
+}
+
 /**
  * Structural Redis-client interface. The bundled `redis` and `ioredis`
  * adapters wrap their respective clients to satisfy it; custom or proxied
@@ -209,14 +229,8 @@ export class RedisResumableStreamStore implements ResumableStreamStore {
       fields[FIELD_ERROR] = error ?? "Stream errored";
     }
     const dataKey = this.dataKey(streamId, existing.generation);
-    const commands: readonly PipelineCommand[] = [
-      { type: "set", key: metaKey, value: meta, ttlSec },
-      { type: "xAdd", key: dataKey, fields },
-      { type: "expire", key: dataKey, ttlSec },
-    ];
-    let finalized = true;
     if (this.client.finalizeIfUnchanged) {
-      finalized = await this.client.finalizeIfUnchanged({
+      const finalized = await this.client.finalizeIfUnchanged({
         metaKey,
         expectedMeta: existingRaw,
         nextMeta: meta,
@@ -224,11 +238,15 @@ export class RedisResumableStreamStore implements ResumableStreamStore {
         fields,
         ttlSec,
       });
+      if (!finalized) return;
     } else {
-      await this.client.pipeline(commands);
+      await this.client.pipeline([
+        { type: "set", key: metaKey, value: meta, ttlSec },
+        { type: "xAdd", key: dataKey, fields },
+        { type: "expire", key: dataKey, ttlSec },
+      ]);
     }
     this.acquiredGenerations.delete(streamId);
-    if (!finalized) return;
   }
 
   async *read(

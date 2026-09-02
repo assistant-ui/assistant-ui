@@ -1,6 +1,7 @@
 import {
+  FINALIZE_IF_UNCHANGED_SCRIPT,
   RedisResumableStreamStore,
-  type RedisFinalizeOptions,
+  redisFinalizeFieldArgs,
   type PipelineCommand,
   type RedisLikeClient,
   type RedisResumableStreamStoreOptions,
@@ -8,20 +9,6 @@ import {
 import type { ResumableStreamStore } from "../types";
 
 const RESP_BLOB_STRING = 36;
-
-const FINALIZE_IF_UNCHANGED_SCRIPT = `
-if redis.call("GET", KEYS[1]) ~= ARGV[1] then
-  return 0
-end
-local xadd = { "XADD", KEYS[2], "*" }
-for i = 4, #ARGV do
-  table.insert(xadd, ARGV[i])
-end
-redis.call(unpack(xadd))
-redis.call("EXPIRE", KEYS[2], ARGV[3])
-redis.call("SET", KEYS[1], ARGV[2], "EX", ARGV[3])
-return 1
-`;
 
 type NodeRedisFields = Record<string, string | Buffer>;
 
@@ -124,17 +111,11 @@ function adapt(client: NodeRedisLike): RedisLikeClient {
         options.expectedMeta,
         options.nextMeta,
         String(options.ttlSec),
-        ...toNodeFieldArgs(options),
+        ...redisFinalizeFieldArgs(options),
       ]);
       return result === 1;
     },
   };
-}
-
-function toNodeFieldArgs(
-  options: RedisFinalizeOptions,
-): Array<string | Buffer> {
-  return Object.entries(options.fields).flatMap(([key, value]) => [key, value]);
 }
 
 function applyPipelineCommand(

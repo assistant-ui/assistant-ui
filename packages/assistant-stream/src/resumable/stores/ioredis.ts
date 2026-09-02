@@ -4,27 +4,14 @@ import type {
   Redis as IoRedis,
 } from "ioredis";
 import {
+  FINALIZE_IF_UNCHANGED_SCRIPT,
   RedisResumableStreamStore,
-  type RedisFinalizeOptions,
+  redisFinalizeFieldArgs,
   type PipelineCommand,
   type RedisLikeClient,
   type RedisResumableStreamStoreOptions,
 } from "./redis-impl";
 import type { ResumableStreamStore } from "../types";
-
-const FINALIZE_IF_UNCHANGED_SCRIPT = `
-if redis.call("GET", KEYS[1]) ~= ARGV[1] then
-  return 0
-end
-local xadd = { "XADD", KEYS[2], "*" }
-for i = 4, #ARGV do
-  table.insert(xadd, ARGV[i])
-end
-redis.call(unpack(xadd))
-redis.call("EXPIRE", KEYS[2], ARGV[3])
-redis.call("SET", KEYS[1], ARGV[2], "EX", ARGV[3])
-return 1
-`;
 
 export type IoRedisLike = IoRedis | IoRedisCluster;
 
@@ -93,17 +80,11 @@ function adapt(client: IoRedisLike): RedisLikeClient {
         options.expectedMeta,
         options.nextMeta,
         String(options.ttlSec),
-        ...toIoRedisFieldArgs(options),
+        ...redisFinalizeFieldArgs(options),
       );
       return result === 1;
     },
   };
-}
-
-function toIoRedisFieldArgs(
-  options: RedisFinalizeOptions,
-): Array<string | Buffer> {
-  return Object.entries(options.fields).flatMap(([key, value]) => [key, value]);
 }
 
 function applyPipelineCommand(
