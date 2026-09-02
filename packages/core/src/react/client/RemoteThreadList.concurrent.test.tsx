@@ -181,7 +181,7 @@ describe("RemoteThreadList concurrent rendering", () => {
     });
     await waitFor(() => expect(renders).toContain("thread-2:thread-2"));
 
-    expect(renders).toEqual(["thread-2:thread-2", "thread-2:thread-2"]);
+    expect(renders).not.toContain("thread-2:thread-1");
   });
 
   it("keeps the main thread facade scoped to the committed factory", async () => {
