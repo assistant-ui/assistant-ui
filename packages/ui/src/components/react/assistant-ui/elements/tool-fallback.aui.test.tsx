@@ -302,10 +302,9 @@ describe("ToolFallbackApproval", () => {
     // resolves as approved, which would authorize the call.
     expect(screen.queryByRole("button", { name: "Send" })).toBeNull();
 
-    fireEvent.change(
-      screen.getByRole("textbox", { name: "Delete the release branch?" }),
-      { target: { value: "not this one" } },
-    );
+    fireEvent.change(screen.getByRole("textbox", { name: "Note" }), {
+      target: { value: "not this one" },
+    });
     fireEvent.click(button("Deny"));
 
     expect(respondToApproval).toHaveBeenCalledWith({

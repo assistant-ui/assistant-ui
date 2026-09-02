@@ -479,7 +479,10 @@ function ToolFallbackApproval({
         value={answer}
         onChange={(event) => setAnswer(event.target.value)}
         disabled={submitted}
-        aria-label={approval?.prompt ?? "Answer"}
+        aria-label={question ? (approval?.prompt ?? "Answer") : "Note"}
+        placeholder={
+          question ? "Type your answer" : "Add a note to your decision"
+        }
       />
       {question && (
         <Button
