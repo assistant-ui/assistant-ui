@@ -88,15 +88,15 @@ export const getAutoStatus = (
     );
   }
 
-  if (isLast && isCancelled) return AUTO_STATUS_CANCELLED;
-
   return isLast && isRunning
     ? AUTO_STATUS_RUNNING
     : hasInterruptedToolCalls
       ? AUTO_STATUS_INTERRUPT
       : hasPendingToolCalls
         ? AUTO_STATUS_PENDING
-        : AUTO_STATUS_COMPLETE;
+        : isLast && isCancelled
+          ? AUTO_STATUS_CANCELLED
+          : AUTO_STATUS_COMPLETE;
 };
 
 export const getContentAutoStatus = (

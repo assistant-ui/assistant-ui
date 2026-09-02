@@ -163,7 +163,7 @@ describe("useAISDKRuntime", () => {
     }
   });
 
-  it("marks stopped output cancelled and clears the marker for the next run", async () => {
+  it("marks only the stopped output cancelled", async () => {
     let resolveStop!: () => void;
     const chat = createChatHelpers([
       {
@@ -234,13 +234,18 @@ describe("useAISDKRuntime", () => {
           parts: [{ type: "text", text: "partial" }],
         },
       ]);
-      result.current.thread.append({
-        role: "user",
-        content: [{ type: "text", text: "continue" }],
-      });
+      chat.status = "streaming";
+      rerender();
     });
-    await waitFor(() => expect(chat.sendMessage).toHaveBeenCalledOnce());
-    rerender();
+
+    expect(
+      result.current.thread.getState().messages.at(-1)?.status,
+    ).toMatchObject({ type: "running" });
+
+    act(() => {
+      chat.status = "ready";
+      rerender();
+    });
 
     await waitFor(() => {
       expect(

@@ -254,6 +254,15 @@ export const useAISDKRuntime = <UI_MESSAGE extends UIMessage = UIMessage>(
   const providerIsRunning =
     chatHelpers.status === "submitted" || chatHelpers.status === "streaming";
   const isRunning = providerIsRunning || hasExecutingTools;
+  const wasProviderRunningRef = useRef(providerIsRunning);
+
+  useEffect(() => {
+    const wasProviderRunning = wasProviderRunningRef.current;
+    wasProviderRunningRef.current = providerIsRunning;
+    if (!wasProviderRunning && providerIsRunning) {
+      setCancelledMessage(null);
+    }
+  }, [providerIsRunning]);
 
   const messageTiming = useStreamingTiming(chatHelpers.messages, isRunning);
 
