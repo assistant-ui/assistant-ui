@@ -105,6 +105,40 @@ describe("unstable_useLiveCompletionAdapter", () => {
     expect(result.current.isLoading).toBe(false);
   });
 
+  it("replays a search queued while the adapter is hidden", async () => {
+    const fetcher = vi.fn(async () => []);
+    const suspended = new Promise<never>(() => {});
+    let committed!: ReturnType<typeof unstable_useLiveCompletionAdapter>;
+    const Harness = ({ blocked }: { blocked: boolean }) => {
+      const current = unstable_useLiveCompletionAdapter({
+        fetcher,
+        debounceMs: 0,
+      });
+      useLayoutEffect(() => {
+        committed = current;
+      }, [current]);
+      if (blocked) throw suspended;
+      return null;
+    };
+    const view = (blocked: boolean) => (
+      <Suspense fallback={null}>
+        <Harness blocked={blocked} />
+      </Suspense>
+    );
+    const rendered = render(view(false));
+
+    await act(async () => rendered.rerender(view(true)));
+    committed.adapter.search!("alice");
+    await Promise.resolve();
+
+    expect(vi.getTimerCount()).toBe(0);
+    await act(async () => rendered.rerender(view(false)));
+    await act(async () => vi.advanceTimersByTimeAsync(0));
+
+    expect(fetcher).toHaveBeenCalledOnce();
+    expect(fetcher).toHaveBeenCalledWith("alice");
+  });
+
   it("settles loading when a suspended adapter is shown again", async () => {
     const fetcher = vi.fn(() => new Promise<never>(() => {}));
     const suspended = new Promise<never>(() => {});
