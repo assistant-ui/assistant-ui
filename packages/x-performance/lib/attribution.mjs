@@ -10,16 +10,23 @@ const packageOf = (specifier) =>
   );
 
 // Benches reach measured packages only through bare public specifiers, so a
-// static scan of import sources lists everything a bench file exercises
-// directly. Statement-level type imports are erased at runtime and skipped;
-// side-effect imports count.
+// static scan of import sources lists everything a bench file exercises; a
+// relative import would hide a dependency from the scan and is rejected.
+// Statement-level type imports are erased at runtime and skipped;
+// side-effect imports and runtime re-exports count.
 export const importedPackages = (source) => {
   const out = new Set();
   const pattern =
-    /^\s*import\s+(type\s+)?[^"';]*?\bfrom\s*["']([^"']+)["']|^\s*import\s*["']([^"']+)["']|import\(\s*["']([^"']+)["']\s*\)/gm;
+    /^\s*(?:import|export)\s+(type\s+)?[^"';]*?\bfrom\s*["']([^"']+)["']|^\s*import\s*["']([^"']+)["']|import\(\s*["']([^"']+)["']\s*\)/gm;
   for (const match of source.matchAll(pattern)) {
     if (match[1]) continue;
-    const pkg = packageOf(match[2] ?? match[3] ?? match[4] ?? "");
+    const specifier = match[2] ?? match[3] ?? match[4] ?? "";
+    if (specifier.startsWith(".")) {
+      throw new Error(
+        `bench files import public package entries only, found ${specifier}`,
+      );
+    }
+    const pkg = packageOf(specifier);
     if (pkg) out.add(pkg);
   }
   return out;

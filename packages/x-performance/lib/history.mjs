@@ -74,9 +74,11 @@ export const readHistory = (dir) => {
 };
 
 export const renderHistory = ({ dir, now = new Date(), window = 30 }) => {
-  const points = readHistory(dir);
   const nowTime = now.getTime();
-  const latest = points.filter((point) => pointTime(point) <= nowTime).at(-1);
+  const points = readHistory(dir).filter(
+    (point) => pointTime(point) <= nowTime,
+  );
+  const latest = points.at(-1);
   const windowStart = nowTime - window * 24 * 60 * 60 * 1000;
   const windowPoints = points.filter((point) => {
     const time = pointTime(point);

@@ -107,7 +107,7 @@ export declare const buildCompareDoc: (
 ) => CompareDoc;
 export declare const renderCompareMarkdown: (
   doc: CompareDoc,
-  options?: { controlLimit?: number },
+  options?: { controlLimit?: number; measuredLimit?: number },
 ) => string;
 export declare const renderCompareTerminal: (doc: CompareDoc) => void;
 export declare const renderTraceMarkdown: (doc: TraceDoc) => string;

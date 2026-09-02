@@ -41,6 +41,18 @@ describe("importedPackages", () => {
     ]);
   });
 
+  it("counts runtime re-exports and rejects relative imports", () => {
+    expect([
+      ...importedPackages('export { x } from "@assistant-ui/core";'),
+    ]).toEqual(["@assistant-ui/core"]);
+    expect([
+      ...importedPackages('export type { T } from "@assistant-ui/core";'),
+    ]).toEqual([]);
+    expect(() =>
+      importedPackages('import { helper } from "./helper";'),
+    ).toThrow(/public package entries only/);
+  });
+
   it("does not confuse a package with a longer name sharing a prefix", () => {
     expect(importedPackages('import x from "@assistant-ui/tapestry";')).toEqual(
       new Set(),

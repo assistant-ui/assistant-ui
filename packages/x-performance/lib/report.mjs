@@ -154,9 +154,11 @@ const splitRows = (doc) => ({
 
 export const renderCompareMarkdown = (
   doc,
-  { controlLimit = Infinity } = {},
+  { controlLimit = Infinity, measuredLimit = Infinity } = {},
 ) => {
-  const { measured, controls: allControls } = splitRows(doc);
+  const { measured: allMeasured, controls: allControls } = splitRows(doc);
+  const measured = allMeasured.slice(0, measuredLimit);
+  const measuredOmitted = allMeasured.length - measured.length;
   const controls = [...allControls]
     .sort((x, y) => Math.abs(y.delta) - Math.abs(x.delta))
     .slice(0, controlLimit);
@@ -170,6 +172,11 @@ export const renderCompareMarkdown = (
   for (const warning of doc.warnings) out.push(`> ⚠️ ${warning}`, "");
   out.push(...compareHeadline(doc));
   if (measured.length) {
+    if (measuredOmitted)
+      out.push(
+        "",
+        `_${measuredOmitted} smaller measured moves omitted from this table._`,
+      );
     out.push(
       "",
       mdTable(
@@ -356,6 +363,16 @@ export const assembleReport = ({ out, bench, trace }) => {
     );
   }
   if (markdown.length > COMMENT_LIMIT) {
+    if (docs.bench)
+      sections[0] = renderCompareMarkdown(docs.bench, {
+        controlLimit: 20,
+        measuredLimit: 40,
+      });
+    if (docs.trace)
+      sections[sections.length - 1] = renderTraceMarkdown({
+        ...docs.trace,
+        fixtures: docs.trace.fixtures.slice(0, 40),
+      });
     markdown = render(
       Object.fromEntries(
         Object.entries(docs).map(([lane, doc]) => [

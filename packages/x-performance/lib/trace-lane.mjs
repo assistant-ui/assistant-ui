@@ -61,8 +61,13 @@ export const stageFixture = (fixture, sideRoot, outDir) => {
   return stagedHtml;
 };
 
+const isUrl = (target) => /^https?:/i.test(target);
+
+const slugFor = (fixture) =>
+  relative(repoRoot(), fixture).replace(/[\\/]/g, "-");
+
 const hintFor = (target) => {
-  const arg = /^https?:/.test(target) ? target : resolve(target);
+  const arg = isUrl(target) ? target : resolve(target);
   const url = new URL(arg, "file:///");
   return { arg, hint: basename(url.pathname) || url.hostname || arg };
 };
@@ -101,7 +106,7 @@ export const trace = async (targets, seconds, outputs = {}) => {
   for (const target of targets) {
     const { hint } = hintFor(target);
     const staged =
-      target.endsWith(".html") && !/^https?:/.test(target)
+      target.endsWith(".html") && !isUrl(target)
         ? stageFixture(
             resolve(target),
             repoRoot(),
@@ -137,7 +142,7 @@ export const traceRef = async (ref, targets, seconds, outputs = {}) => {
   const fixtures = [];
   for (const target of targets) {
     const fixture = resolve(target);
-    const name = basename(fixture);
+    const name = slugFor(fixture);
     const shots = {
       base: join(perfDir, `trace-${name}-base.png`),
       head: join(perfDir, `trace-${name}-head.png`),

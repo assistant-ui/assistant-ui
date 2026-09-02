@@ -45,6 +45,7 @@ type Host = { tick: () => void; unmount: () => void };
 const mount = (n: number): Host => {
   let setMessages!: (updater: (prev: Msg[]) => Msg[]) => void;
   const last = `m${n - 1}`;
+  const body = seedText(n - 1);
   const App = () => {
     const [messages, set] = useState<Msg[]>(() => seed(n));
     setMessages = set;
@@ -69,7 +70,7 @@ const mount = (n: number): Host => {
       flushSync(() =>
         setMessages((prev) =>
           prev.map((m) =>
-            m.id === last ? { ...m, text: `${seedText(n - 1)}${tail}` } : m,
+            m.id === last ? { ...m, text: `${body}${tail}` } : m,
           ),
         ),
       );
