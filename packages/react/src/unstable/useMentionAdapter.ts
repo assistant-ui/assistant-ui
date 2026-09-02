@@ -1,7 +1,7 @@
 "use client";
 
-import { useMemo, type FC } from "react";
-import { useAui } from "@assistant-ui/store";
+import { useEffect, useMemo, useState, type FC } from "react";
+import { useAui, type AssistantClient } from "@assistant-ui/store";
 import type {
   Unstable_DirectiveFormatter,
   Unstable_TriggerAdapter,
@@ -32,7 +32,10 @@ export type Unstable_MentionCategory = {
 };
 
 export type Unstable_ModelContextToolsOptions = {
-  /** Wrap tools in a dedicated category (drill-down mode). */
+  /**
+   * Wrap tools in a dedicated category. Selects drill-down mode on its own
+   * when `categories` is unset and `items` is omitted.
+   */
   readonly category?: { readonly id: string; readonly label: string };
   /** Format tool name for display. */
   readonly formatLabel?: (toolName: string) => string;
@@ -41,7 +44,10 @@ export type Unstable_ModelContextToolsOptions = {
 };
 
 export type Unstable_UseMentionAdapterOptions = {
-  /** Flat mention list. Ignored when `categories` is set. */
+  /**
+   * Flat mention list. Ignored when `categories` is set, and keeps the
+   * adapter flat when a tool `category` is configured.
+   */
   readonly items?: readonly Unstable_Mention[];
   /** Categorized mentions for drill-down navigation. */
   readonly categories?: readonly Unstable_MentionCategory[];
@@ -50,7 +56,7 @@ export type Unstable_UseMentionAdapterOptions = {
    * - `false`: exclude.
    * - `true`: include (default when no `items`/`categories`; as a category
    *   if `categories` is set, flat otherwise).
-   * - object: explicit config.
+   * - object: explicit config; `category` also selects drill-down mode.
    *
    * Omitted → defaults to `true` iff neither `items` nor `categories`.
    */
@@ -70,6 +76,50 @@ export type Unstable_UseMentionAdapterOptions = {
 export type Unstable_MentionDirective = {
   readonly formatter: Unstable_DirectiveFormatter;
   readonly onInserted?: ((item: Unstable_TriggerItem) => void) | undefined;
+};
+
+const EMPTY_TOOL_MENTIONS: Readonly<Record<string, string | undefined>> =
+  Object.freeze({});
+
+// `getModelContext()` rebuilds its result on every call, so the fields the
+// adapter consumes are snapshotted on notify rather than read during render.
+const readToolMentions = (aui: AssistantClient) => {
+  const tools = aui.thread.getModelContext().tools;
+  if (!tools) return EMPTY_TOOL_MENTIONS;
+  const mentions: Record<string, string | undefined> = {};
+  for (const [name, tool] of Object.entries(tools)) {
+    mentions[name] = tool.description;
+  }
+  return mentions;
+};
+
+const toolMentionsEqual = (
+  previous: Readonly<Record<string, string | undefined>>,
+  next: Readonly<Record<string, string | undefined>>,
+) => {
+  const names = Object.keys(previous);
+  if (names.length !== Object.keys(next).length) return false;
+  return names.every((name) => name in next && previous[name] === next[name]);
+};
+
+const useToolMentions = (aui: AssistantClient, enabled: boolean) => {
+  const [mentions, setMentions] = useState(() =>
+    enabled ? readToolMentions(aui) : EMPTY_TOOL_MENTIONS,
+  );
+
+  useEffect(() => {
+    if (!enabled) return undefined;
+    const read = () => {
+      const next = readToolMentions(aui);
+      setMentions((previous) =>
+        toolMentionsEqual(previous, next) ? previous : next,
+      );
+    };
+    read();
+    return aui.on("thread.modelContextUpdate", read);
+  }, [aui, enabled]);
+
+  return mentions;
 };
 
 /**
@@ -104,50 +154,44 @@ export function unstable_useMentionAdapter(
   const wantsTools = includeTools !== false;
   const formatter = options?.formatter;
   const onInserted = options?.onInserted;
+  const isCategorized =
+    (categories !== undefined && categories.length > 0) ||
+    (toolsConfig?.category !== undefined && items === undefined);
+  const toolMentions = useToolMentions(aui, wantsTools);
 
   const adapter = useMemo<Unstable_TriggerAdapter>(() => {
-    const getModelContextTools = (): Unstable_TriggerItem[] => {
-      if (!wantsTools) return [];
-      const ctx = aui.thread.getModelContext();
-      const tools = ctx.tools;
-      if (!tools) return [];
-      const formatLabel = toolsConfig?.formatLabel;
-      const defaultIcon = toolsConfig?.icon;
-      return Object.entries(tools).map(([name, tool]) =>
-        toTriggerItem({
-          id: name,
-          type: "tool",
-          label: formatLabel ? formatLabel(name) : name,
-          description: tool.description ?? undefined,
-          icon: defaultIcon,
-        }),
-      );
-    };
+    const formatLabel = toolsConfig?.formatLabel;
+    const defaultIcon = toolsConfig?.icon;
+    const toolItems = wantsTools
+      ? Object.entries(toolMentions).map(([name, description]) =>
+          toTriggerItem({
+            id: name,
+            type: "tool",
+            label: formatLabel ? formatLabel(name) : name,
+            description,
+            icon: defaultIcon,
+          }),
+        )
+      : [];
 
     // Categorized: drill-down mode
-    if (categories && categories.length > 0) {
-      const groups = categories.map((cat) => ({
+    if (isCategorized) {
+      const groups = (categories ?? []).map((cat) => ({
         id: cat.id,
         label: cat.label,
         items: cat.items.map(toTriggerItem),
       }));
-
-      let toolCategory: {
-        id: string;
-        label: string;
-        items: Unstable_TriggerItem[];
-      } | null = null;
-      if (wantsTools) {
-        const toolItems = getModelContextTools();
-        if (toolItems.length > 0) {
-          toolCategory = {
-            id: toolsConfig?.category?.id ?? "tools",
-            label: toolsConfig?.category?.label ?? "Tools",
-            items: toolItems,
-          };
-        }
-      }
-      const allGroups = toolCategory ? [...groups, toolCategory] : groups;
+      const allGroups =
+        toolItems.length > 0
+          ? [
+              ...groups,
+              {
+                id: toolsConfig?.category?.id ?? "tools",
+                label: toolsConfig?.category?.label ?? "Tools",
+                items: toolItems,
+              },
+            ]
+          : groups;
 
       return {
         categories: () => allGroups.map(({ id, label }) => ({ id, label })),
@@ -163,25 +207,22 @@ export function unstable_useMentionAdapter(
 
     // Flat: items + (optionally) tools, all in one search pool
     const flatItems = (items ?? []).map(toTriggerItem);
-    const getFlatPool = (): Unstable_TriggerItem[] => {
-      if (!wantsTools) return flatItems;
-      const toolItems = getModelContextTools();
-      // Dedupe by id — explicit items win.
-      const seen = new Set(flatItems.map((i) => i.id));
-      return [...flatItems, ...toolItems.filter((t) => !seen.has(t.id))];
-    };
+    // Dedupe by id — explicit items win.
+    const seen = new Set(flatItems.map((i) => i.id));
+    const flatPool = [
+      ...flatItems,
+      ...toolItems.filter((t) => !seen.has(t.id)),
+    ];
 
     return {
       categories: (): readonly Unstable_TriggerCategory[] => [],
       categoryItems: () => [],
       search: (query) => {
         const lower = query.toLowerCase();
-        return getFlatPool().filter((item) =>
-          matchesTriggerItemQuery(item, lower),
-        );
+        return flatPool.filter((item) => matchesTriggerItemQuery(item, lower));
       },
     };
-  }, [aui, items, categories, wantsTools, toolsConfig]);
+  }, [items, categories, wantsTools, toolsConfig, isCategorized, toolMentions]);
 
   const directive = useMemo<Unstable_MentionDirective>(
     () => ({
