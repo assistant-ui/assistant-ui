@@ -137,7 +137,10 @@ describe("useAgUiRuntime frontend tool deferral", () => {
     await settle();
 
     const gated = toolCalls(runtime.current)[0]!;
-    expect(gated.approval).toEqual({ id: "int-1" });
+    expect(gated.approval).toEqual({
+      id: "int-1",
+      prompt: "Delete /tmp/a?",
+    });
     expect(gated.result).toBeUndefined();
     expect(execute).not.toHaveBeenCalled();
   });
