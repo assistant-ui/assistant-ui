@@ -1096,6 +1096,37 @@ describe("convertLangChainBaseMessage malformed messages", () => {
     expect(contentOf(result)).toEqual([{ type: "text", text: "" }]);
   });
 
+  it("renders a message without a type or content as empty system text", () => {
+    const result = convertLangChainBaseMessage(
+      { id: "msg-6" } as LangChainBaseMessage,
+      {},
+    );
+
+    expect(contentOf(result)).toEqual([{ type: "text", text: "" }]);
+  });
+
+  it("skips null entries inside a content array", () => {
+    const result = convertLangChainBaseMessage(
+      humanMessage([null, { type: "text", text: "kept" }, undefined]),
+      {},
+    );
+
+    expect(contentOf(result)).toEqual([{ type: "text", text: "kept" }]);
+  });
+
+  it("skips null entries when collecting system text", () => {
+    const result = convertLangChainBaseMessage(
+      {
+        _getType: () => "system",
+        id: "msg-7",
+        content: [null, { type: "text", text: "kept" }],
+      },
+      {},
+    );
+
+    expect(contentOf(result)).toEqual([{ type: "text", text: "kept" }]);
+  });
+
   it("converts a system message with object content to empty text", () => {
     const result = convertLangChainBaseMessage(
       { _getType: () => "system", id: "msg-5", content: { text: "x" } },

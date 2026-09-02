@@ -45,7 +45,10 @@ export const getMessageType = (message: LangChainBaseMessage): string => {
 
 const contentBlocks = (content: unknown): readonly LangChainContentBlock[] => {
   if (content == null) return [];
-  if (Array.isArray(content)) return content;
+  if (Array.isArray(content))
+    return content.filter(
+      (block) => typeof block === "object" && block !== null,
+    );
   warnOnceInDevelopment(
     `Ignoring message content that is neither a string nor an array: ${typeof content}`,
   );
@@ -159,7 +162,7 @@ export const convertLangChainBaseMessage = (
             text:
               typeof message.content === "string"
                 ? message.content
-                : JSON.stringify(message.content),
+                : (JSON.stringify(message.content) ?? ""),
           },
         ],
       };
