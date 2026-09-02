@@ -188,6 +188,18 @@ describe("RedisResumableStreamStore", () => {
     await expect(store.status("current")).resolves.toBe("done");
   });
 
+  it("retains pipeline finalization without the atomic capability", async () => {
+    const client = new FakeRedisClient();
+    Object.defineProperty(client, "finalizeIfUnchanged", { value: undefined });
+    const store = new RedisResumableStreamStore(client);
+
+    await store.acquire("stream");
+    await store.append("stream", encoder.encode("chunk"));
+    await store.finalize("stream", "done");
+
+    await expect(store.status("stream")).resolves.toBe("done");
+  });
+
   it("fences a superseded producer out of the reacquired stream", async () => {
     const client = new FakeRedisClient();
     const keyPrefix = "test";
