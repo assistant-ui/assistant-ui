@@ -63,6 +63,7 @@ import {
   useToolDuration,
 } from "@/components/shared/trace-line";
 import { typeEyebrow } from "@/components/shared/type";
+import { describePublicAssistantError } from "@/lib/public-assistant-errors";
 import { cn } from "@/lib/utils";
 
 const isNewChatView = (s: AssistantState) =>
@@ -89,16 +90,6 @@ const getMessageErrorText = (s: AssistantState): string | undefined => {
     typeof error.message === "string"
   ) {
     return error.message;
-  }
-  return undefined;
-};
-
-const describePublicAssistantError = (text: string): string | undefined => {
-  if (/limit exceeded/i.test(text)) {
-    return "The demo is rate limited right now. Try again in a little while.";
-  }
-  if (/temporarily unavailable/i.test(text)) {
-    return "The demo is temporarily unavailable. Try again later.";
   }
   return undefined;
 };
@@ -626,7 +617,7 @@ function SpecimenUserMessage(): ReactNode {
         <UserMessageAttachments />
       </div>
       <div className="relative max-w-[80%]">
-        <div className="bg-muted rounded-thread px-4 py-2 text-[15px] wrap-break-word empty:hidden">
+        <div className="peer bg-muted rounded-thread px-4 py-2 text-[15px] wrap-break-word empty:hidden">
           <MessagePrimitive.Quote>
             {(quote) => <QuoteBlock {...quote} />}
           </MessagePrimitive.Quote>
@@ -637,7 +628,7 @@ function SpecimenUserMessage(): ReactNode {
         <ActionBarPrimitive.Root
           hideWhenRunning
           autohide="not-last"
-          className="absolute start-0 top-1/2 -translate-x-full -translate-y-1/2 pe-1.5"
+          className="absolute start-0 top-1/2 -translate-x-full -translate-y-1/2 pe-1.5 peer-empty:hidden"
         >
           <ActionBarPrimitive.Edit
             aria-label="Edit message"
