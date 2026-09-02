@@ -94,10 +94,11 @@ and the `executing` status, plus any `human()` interrupt the execution
 parked, stays up until the promise settles. Only a gate that lands after
 the result chunk has already been emitted is fully too late.
 
-Reaching that window at all takes a call the adapter reports as
-client-owned, because nothing else executes before the run ends (A.10).
-Such a call is the client's to run, so nothing but the gate's arrival says
-otherwise and the gate is late by construction.
+A call the adapter reports as client-owned reaches that window while the
+run is still open; a call whose ownership is unknown reaches it when the
+run settles before the gate arrives (A.10). Either way the client was
+meant to run it, so nothing but the gate's arrival says otherwise and the
+gate is late by construction.
 
 ### A.9. Adapter reports the tool call as provider-owned
 The entry is marked `skipExecute` at creation, exactly like a call
@@ -128,10 +129,12 @@ unknown closes when the snapshot's `isRunning` goes false.
 
 `ExternalStoreThreadRuntimeCore` feeds the tracker
 `store.isRunning || _hasExecutingTools(store)`, so that condition also covers
-a client tool mid-`execute`. It cannot stall a sibling: every entry pending in
-a snapshot closes in the same `_processMessages` pass, and an execution parked
-on `human()` reports `interrupt` rather than `executing`, which
-`_hasExecutingTools` does not count.
+a client tool mid-`execute`. That defers an unknown-ownership sibling only
+while a client-owned call is actually executing, which no shipped adapter
+produces: every entry pending in a snapshot closes in the same
+`_processMessages` pass, an adapter that supplies the predicate classifies
+every call, and an execution parked on `human()` reports `interrupt` rather
+than `executing`, which `_hasExecutingTools` does not count.
 
 A call the adapter reports as client-owned (A.9) closes as soon as its
 arguments parse, because the adapter has already said the provider will
@@ -237,7 +240,11 @@ The `.pipeTo(...).catch(...)` handler logs and flips `_pipelineDead`.
 The next `setState` call recreates the pipeline once per tracker
 lifetime: existing active entries are *demoted to restored* (so the
 rebuilt pipeline does not re-fire `streamCall` for them) and the
-snapshot is processed against the fresh pipeline. Repeated failures
+snapshot is processed against the fresh pipeline. An active entry that
+neither closed its args stream nor holds a result is dropped instead of
+demoted: a restored entry is promoted only when its signature changes,
+and a call waiting on the run to settle (A.10) already holds its final
+args, so demoting it would strand it unexecuted. Repeated failures
 keep the tracker dead with a visible error to avoid restart loops.
 
 ### F.5. Reset followed by same-id reuse

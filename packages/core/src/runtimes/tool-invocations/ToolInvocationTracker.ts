@@ -646,6 +646,14 @@ export class ToolInvocationTracker {
   private _demoteEntriesToRestored(): void {
     for (const [toolCallId, entry] of this._entries) {
       if (!entry.controller) continue;
+      if (!entry.argsComplete && !entry.hasResult) {
+        // The call never reached the executor. A restored entry is promoted
+        // only when its signature changes, and a call waiting on the run to
+        // settle already holds its final args, so demoting it would strand it
+        // unexecuted. Dropping it lets the next snapshot start it over.
+        this._entries.delete(toolCallId);
+        continue;
+      }
       this._entries.set(toolCallId, {
         toolName: entry.toolName,
         argsText: entry.argsText,
