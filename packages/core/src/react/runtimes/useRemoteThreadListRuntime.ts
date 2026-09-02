@@ -61,10 +61,16 @@ export const useRemoteThreadListRuntime = (
 
   // Thread resources subscribe to the store rather than reading a ref, so a
   // hook published at commit reaches exactly the resources that use it and an
-  // abandoned render publishes nothing.
+  // abandoned render publishes nothing. The store pins its server snapshot to
+  // the constructor value for hydration, which tap reads on any never-mounted
+  // fiber, so the live state serves as the server snapshot here.
   const stableRuntimeHook = useCallback(
     function useCommittedRuntimeHook() {
-      return useSubscribable(runtimeHookStore)();
+      return useSubscribable({
+        subscribe: runtimeHookStore.subscribe,
+        getState: runtimeHookStore.getState,
+        getServerSnapshot: runtimeHookStore.getState,
+      })();
     },
     [runtimeHookStore],
   );

@@ -195,4 +195,22 @@ describe("useRemoteThreadListRuntime concurrent options", () => {
 
     expect(renderThreadRuntime).not.toHaveBeenCalled();
   });
+
+  it("gives a thread created after an options change the committed hook", async () => {
+    const { App, onNewA, onNewB, runtimeRef } = createHarness();
+    const view = render(<App onNew={onNewA} />);
+    await act(async () => {});
+
+    await act(async () => {
+      view.rerender(<App onNew={onNewB} />);
+    });
+
+    await act(async () => {
+      await runtimeRef.current!.threads.switchToNewThread();
+      await getThreadCore(runtimeRef.current!).append(userMessage("first"));
+    });
+
+    expect(onNewB).toHaveBeenCalledTimes(1);
+    expect(onNewA).not.toHaveBeenCalled();
+  });
 });
