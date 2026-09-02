@@ -223,7 +223,7 @@ function createRepoTools() {
       bashToolkitPromise = createBashTool({
         files: SOURCE_SNAPSHOT,
         destination: "/repo",
-        maxFiles: 5000,
+        maxFiles: 0,
         maxOutputLength: 15000,
       });
     }

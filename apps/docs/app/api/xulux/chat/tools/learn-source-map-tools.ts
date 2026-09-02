@@ -31,7 +31,7 @@ export function createLearnSourceMapTools({
       repoToolkitPromise ??= createBashTool({
         files: getRepoSourceSnapshot(),
         destination: "/repo",
-        maxFiles: 5000,
+        maxFiles: 0,
         maxOutputLength: 15000,
         promptOptions: { toolPrompt: "" },
       });
