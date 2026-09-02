@@ -1,4 +1,8 @@
 const isDev = process.env.NODE_ENV === "development";
+import {
+  PUBLIC_ASSISTANT_UNAVAILABLE_MESSAGE,
+  publicAssistantLimitMessage,
+} from "@/lib/public-assistant-errors";
 
 function positiveSafeInteger(
   value: string | undefined,
@@ -195,7 +199,7 @@ async function runRateLimitChecks(
         error: error instanceof Error ? error.message : String(error),
       }),
     );
-    return new Response("Public assistant temporarily unavailable", {
+    return new Response(PUBLIC_ASSISTANT_UNAVAILABLE_MESSAGE, {
       status: 503,
     });
   }
@@ -209,7 +213,7 @@ function missingClientIpResponse(request: Request, surface: string): Response {
       requestId: request.headers.get("x-vercel-id"),
     }),
   );
-  return new Response("Public assistant temporarily unavailable", {
+  return new Response(PUBLIC_ASSISTANT_UNAVAILABLE_MESSAGE, {
     status: 503,
   });
 }
@@ -232,18 +236,21 @@ export async function checkPublicAssistantRateLimit(
 
     const ipBurst = await limits.ipBurst.limit(ip);
     if (!ipBurst.success) {
-      return limitResponse("Rate limit exceeded", ipBurst.reset);
+      return limitResponse(publicAssistantLimitMessage("Rate"), ipBurst.reset);
     }
 
     const ipDaily = await limits.ipDaily.limit(ip);
     if (!ipDaily.success) {
-      return limitResponse("Daily usage limit exceeded", ipDaily.reset);
+      return limitResponse(
+        publicAssistantLimitMessage("Daily usage"),
+        ipDaily.reset,
+      );
     }
 
     const sessionDaily = await limits.sessionDaily.limit(sessionId);
     if (!sessionDaily.success) {
       return limitResponse(
-        "Daily anonymous session limit exceeded",
+        publicAssistantLimitMessage("Daily anonymous session"),
         sessionDaily.reset,
       );
     }
@@ -261,7 +268,7 @@ export async function checkPublicAssistantRateLimit(
         );
       }
       return limitResponse(
-        "Public assistant usage limit exceeded",
+        publicAssistantLimitMessage("Public assistant usage"),
         globalDaily.reset,
       );
     }
@@ -278,11 +285,17 @@ export async function checkAnonymousSessionIssuanceRateLimit(
 
     const burst = await limits.sessionIssuanceBurst.limit(ip);
     if (!burst.success) {
-      return limitResponse("Anonymous session limit exceeded", burst.reset);
+      return limitResponse(
+        publicAssistantLimitMessage("Anonymous session"),
+        burst.reset,
+      );
     }
     const daily = await limits.sessionIssuanceDaily.limit(ip);
     if (!daily.success) {
-      return limitResponse("Anonymous session limit exceeded", daily.reset);
+      return limitResponse(
+        publicAssistantLimitMessage("Anonymous session"),
+        daily.reset,
+      );
     }
     return null;
   });
@@ -297,12 +310,18 @@ export async function checkMcpTemplateToolRateLimit(
 
     const burst = await limits.mcpTemplateIpBurst.limit(ip);
     if (!burst.success) {
-      return limitResponse("Template tool rate limit exceeded", burst.reset);
+      return limitResponse(
+        publicAssistantLimitMessage("Template tool rate"),
+        burst.reset,
+      );
     }
 
     const daily = await limits.mcpTemplateIpDaily.limit(ip);
     if (!daily.success) {
-      return limitResponse("Template tool daily limit exceeded", daily.reset);
+      return limitResponse(
+        publicAssistantLimitMessage("Template tool daily"),
+        daily.reset,
+      );
     }
 
     const globalDaily = await limits.mcpTemplateGlobalDaily.limit("all");
@@ -320,7 +339,7 @@ export async function checkMcpTemplateToolRateLimit(
         );
       }
       return limitResponse(
-        "Template tool usage limit exceeded",
+        publicAssistantLimitMessage("Template tool usage"),
         globalDaily.reset,
       );
     }
@@ -338,7 +357,7 @@ export async function checkXuluxDownloadProxyRateLimit(
     const burst = await limits.xuluxDownloadIpBurst.limit(ip);
     if (!burst.success) {
       return limitResponse(
-        "Template download rate limit exceeded",
+        publicAssistantLimitMessage("Template download rate"),
         burst.reset,
       );
     }
@@ -346,7 +365,7 @@ export async function checkXuluxDownloadProxyRateLimit(
     const daily = await limits.xuluxDownloadIpDaily.limit(ip);
     if (!daily.success) {
       return limitResponse(
-        "Template download daily limit exceeded",
+        publicAssistantLimitMessage("Template download daily"),
         daily.reset,
       );
     }
@@ -366,7 +385,7 @@ export async function checkXuluxDownloadProxyRateLimit(
         );
       }
       return limitResponse(
-        "Template download usage limit exceeded",
+        publicAssistantLimitMessage("Template download usage"),
         globalDaily.reset,
       );
     }
@@ -380,7 +399,7 @@ export async function checkRateLimit(req: Request): Promise<Response | null> {
     const ip = req.headers.get("x-forwarded-for") ?? "ip";
     const { success } = await ratelimit.limit(ip);
     if (!success) {
-      return new Response("Rate limit exceeded", { status: 429 });
+      return new Response(publicAssistantLimitMessage("Rate"), { status: 429 });
     }
   }
   return null;
