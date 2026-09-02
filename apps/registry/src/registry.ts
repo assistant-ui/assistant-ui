@@ -1387,7 +1387,7 @@ export const registry: RegistryItem[] = [
       },
     ],
     dependencies: ["@assistant-ui/react", "lucide-react", "tw-shimmer"],
-    registryDependencies: ["button", "collapsible"],
+    registryDependencies: ["button", "collapsible", "textarea"],
     css: {
       '@import "tw-shimmer"': {},
       ...collapsibleStateCss,
