@@ -87,6 +87,38 @@ const getPublicAssistantRateLimits = async () => {
         "1d",
       ),
     }),
+    mcpDocsIpBurst: new Ratelimit({
+      redis,
+      prefix: "aui:mcp-docs:ip:burst",
+      limiter: Ratelimit.fixedWindow(60, "60s"),
+    }),
+    mcpDocsIpDaily: new Ratelimit({
+      redis,
+      prefix: "aui:mcp-docs:ip:daily",
+      limiter: Ratelimit.fixedWindow(
+        positiveSafeInteger(
+          process.env.AUI_MCP_DOCS_REQUESTS_PER_IP_PER_DAY,
+          5_000,
+        ),
+        "1d",
+      ),
+    }),
+    mcpDocsGlobalDaily: new Ratelimit({
+      redis,
+      prefix: "aui:mcp-docs:global:daily",
+      limiter: Ratelimit.fixedWindow(
+        positiveSafeInteger(
+          process.env.AUI_MCP_DOCS_GLOBAL_REQUESTS_PER_DAY,
+          100_000,
+        ),
+        "1d",
+      ),
+    }),
+    mcpDocsGlobalAlert: new Ratelimit({
+      redis,
+      prefix: "aui:mcp-docs:global:alert",
+      limiter: Ratelimit.fixedWindow(1, "10m"),
+    }),
     mcpTemplateIpBurst: new Ratelimit({
       redis,
       prefix: "aui:mcp-template:ip:burst",
@@ -283,6 +315,43 @@ export async function checkAnonymousSessionIssuanceRateLimit(
     const daily = await limits.sessionIssuanceDaily.limit(ip);
     if (!daily.success) {
       return limitResponse("Anonymous session limit exceeded", daily.reset);
+    }
+    return null;
+  });
+}
+
+export async function checkMcpDocsToolRateLimit(
+  request: Request,
+): Promise<Response | null> {
+  return runRateLimitChecks(request, "mcp_docs", async (limits) => {
+    const ip = getClientIp(request);
+    if (!ip) return missingClientIpResponse(request, "mcp_docs");
+
+    const burst = await limits.mcpDocsIpBurst.limit(ip);
+    if (!burst.success) {
+      return limitResponse("Docs tool rate limit exceeded", burst.reset);
+    }
+
+    const daily = await limits.mcpDocsIpDaily.limit(ip);
+    if (!daily.success) {
+      return limitResponse("Docs tool daily limit exceeded", daily.reset);
+    }
+
+    const globalDaily = await limits.mcpDocsGlobalDaily.limit("all");
+    if (!globalDaily.success) {
+      const alert = await limits.mcpDocsGlobalAlert
+        .limit("all")
+        .catch(() => null);
+      if (alert?.success) {
+        console.error(
+          JSON.stringify({
+            level: "error",
+            message: "mcp_docs_global_limit_exceeded",
+            requestId: request.headers.get("x-vercel-id"),
+          }),
+        );
+      }
+      return limitResponse("Docs tool usage limit exceeded", globalDaily.reset);
     }
     return null;
   });
