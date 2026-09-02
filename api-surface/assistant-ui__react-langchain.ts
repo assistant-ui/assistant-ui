@@ -688,6 +688,7 @@ type ExternalMessageConverterMessage = (ThreadMessageLike & {
 type ExternalMessageConverterMetadata = {
   readonly toolStatuses?: Record<string, ToolExecutionStatus>;
   readonly error?: ReadonlyJSONValue;
+  readonly isCancelled?: boolean;
   readonly messageTiming?: Record<string, MessageTiming>;
 };
 

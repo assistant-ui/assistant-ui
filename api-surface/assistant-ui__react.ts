@@ -2118,6 +2118,7 @@ type ExternalMessageConverterMessage = (ThreadMessageLike & {
 type ExternalMessageConverterMetadata = {
   readonly toolStatuses?: Record<string, ToolExecutionStatus>;
   readonly error?: ReadonlyJSONValue;
+  readonly isCancelled?: boolean;
   readonly messageTiming?: Record<string, MessageTiming>;
 };
 
@@ -6034,7 +6035,7 @@ declare const fromThreadMessageLike: (like: ThreadMessageLike, fallbackId: strin
 
 declare const generateId: (size?: number) => string;
 
-declare const getAutoStatus: (isLast: boolean, isRunning: boolean, hasInterruptedToolCalls: boolean, hasPendingToolCalls: boolean, error?: ReadonlyJSONValue) => MessageStatus;
+declare const getAutoStatus: (isLast: boolean, isRunning: boolean, hasInterruptedToolCalls: boolean, hasPendingToolCalls: boolean, error?: ReadonlyJSONValue, isCancelled?: boolean) => MessageStatus;
 
 declare const getExternalStoreMessages: <T>(input: {
   messages: readonly ThreadMessage[];
