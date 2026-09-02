@@ -330,6 +330,16 @@ export class ToolInvocationTracker {
       });
       this._humanInput.clear();
 
+      // Every caller aborts because the turn is being discarded. A call that
+      // has not reached the executor cannot be stopped by the signal, and
+      // waiting on the run to settle (A.10) leaves it to start under the fresh
+      // controller after the abort, so it is marked dead here instead.
+      for (const entry of this._entries.values()) {
+        if (!entry.controller) continue;
+        if (entry.argsComplete || entry.hasResult) continue;
+        entry.skipExecute = true;
+      }
+
       this._ac.abort();
       this._ac = new AbortController();
 

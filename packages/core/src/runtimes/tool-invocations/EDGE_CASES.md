@@ -142,6 +142,20 @@ not answer it. Ownership says who answers a call, not whether it is
 gated, so a gate on such a call is still late and A.8 governs it
 (#6677).
 
+### A.11. The turn is discarded while a call waits on the run
+`abort()` marks every active entry that has neither closed its args stream
+nor holds a result `skipExecute`. Its four callers (a new turn starting, a
+message deleted mid-run, a reload, and `cancelRun`) all mean the turn is
+gone, and a result landing afterward would target a turn that no longer
+exists.
+
+The abort signal alone does not cover this. A call waiting on the run to
+settle (A.10) has not reached the executor, so there is nothing to signal,
+and `abort()` installs a fresh `AbortController` before the settled
+snapshot arrives; without the mark, cancelling a run would be what starts
+the call it was meant to stop. `reset()` is unaffected: it clears
+`_entries` before aborting.
+
 ## B. Tool call disappears from snapshot
 
 ### B.1. Tool call removed entirely (rollback, branch switch)
