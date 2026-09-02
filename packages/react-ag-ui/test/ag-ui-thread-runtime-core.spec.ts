@@ -3700,7 +3700,10 @@ describe("AGUIThreadRuntimeCore", () => {
     const nestedBefore = spawn.messages?.[0]?.content.find(
       (p: any) => p.type === "tool-call" && p.toolCallId === "nested-1",
     );
-    expect(nestedBefore?.approval).toEqual({ id: "int-nested" });
+    expect(nestedBefore?.approval).toEqual({
+      id: "int-nested",
+      prompt: "Delete /tmp/a?",
+    });
 
     await core.respondToToolApproval({
       approvalId: "int-nested",

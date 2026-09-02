@@ -36,6 +36,16 @@ describe("projectAgUiToolApprovals", () => {
     ]);
   });
 
+  it("carries the gate's message as the approval prompt", () => {
+    expect([
+      ...projectAgUiToolApprovals([
+        { ...gate("int-1", "tc-1"), message: "Delete the release branch?" },
+      ]),
+    ]).toEqual([
+      ["tc-1", { id: "int-1", prompt: "Delete the release branch?" }],
+    ]);
+  });
+
   it("gates a batch whose every tool call is rendered", () => {
     expect([
       ...projectAgUiToolApprovals(

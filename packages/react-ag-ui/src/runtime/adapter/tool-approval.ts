@@ -218,7 +218,13 @@ export const projectAgUiToolApprovals = (
   const toolCallIds = interrupts.map((interrupt) => interrupt.toolCallId);
   if (new Set(toolCallIds).size !== toolCallIds.length) return EMPTY_APPROVALS;
   return new Map(
-    interrupts.map((interrupt) => [interrupt.toolCallId, { id: interrupt.id }]),
+    interrupts.map((interrupt) => [
+      interrupt.toolCallId,
+      {
+        id: interrupt.id,
+        ...(interrupt.message !== undefined && { prompt: interrupt.message }),
+      },
+    ]),
   );
 };
 

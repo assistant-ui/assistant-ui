@@ -184,11 +184,17 @@ describe("RunAggregator tool approval projection", () => {
     const rootPart = content.find(
       (p: any) => p.type === "tool-call" && p.toolCallId === "tc-root",
     ) as any;
-    expect(rootPart?.approval).toEqual({ id: "int-root" });
+    expect(rootPart?.approval).toEqual({
+      id: "int-root",
+      prompt: "Delete /tmp/root?",
+    });
     const nestedPart = rootPart?.messages?.[0]?.content.find(
       (p: any) => p.type === "tool-call" && p.toolCallId === "tc-sub",
     );
-    expect(nestedPart?.approval).toEqual({ id: "int-sub" });
+    expect(nestedPart?.approval).toEqual({
+      id: "int-sub",
+      prompt: "Delete /tmp/sub?",
+    });
     // The interrupts survive on the message metadata so the app's bespoke
     // interrupt hooks (useAgUiSubmitInterruptResponses / steerAway) can still
     // resolve the batch.
@@ -217,6 +223,9 @@ describe("RunAggregator tool approval projection", () => {
       type: "requires-action",
       reason: "interrupt",
     });
-    expect(approvalOf(last())).toEqual({ id: "int-1" });
+    expect(approvalOf(last())).toEqual({
+      id: "int-1",
+      prompt: "Delete /tmp/a?",
+    });
   });
 });

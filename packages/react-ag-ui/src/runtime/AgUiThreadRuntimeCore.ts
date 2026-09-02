@@ -494,9 +494,9 @@ export class AgUiThreadRuntimeCore {
   }
 
   /**
-   * The core seams that reach `respondToToolApproval` discard the promise they
-   * receive, so a rejected decision would otherwise surface only as an
-   * unhandled rejection. A failure raised by the resumed run itself was already
+   * A rejected decision reaches the caller through the approval seam, and
+   * `onError` in addition, because a consumer watching only the runtime would
+   * otherwise miss it. A failure raised by the resumed run itself was already
    * reported by `startRun` before it rethrew, so reporting it here again would
    * give the consumer two notifications for one failure.
    */
