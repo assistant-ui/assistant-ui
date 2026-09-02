@@ -7,7 +7,7 @@ import {
 } from "../test-utils";
 import { resource } from "../../core/resource";
 import { withKey } from "../../core/withKey";
-import { useState } from "react";
+import { useLayoutEffect, useState } from "react";
 import { useState as useResourceState } from "../../react-hooks/useState";
 import { useEffect as useResourceEffect } from "../../react-hooks/useEffect";
 import {
@@ -180,6 +180,61 @@ describe("@assistant-ui/tap/react resource API", () => {
       // a is dirty -> re-renders despite unchanged deps; b bails.
       expect(values).toEqual([5, 0]);
       expect(renders).toEqual({ a: 2, b: 1 });
+    });
+
+    it("preserves a child dispatch scheduled during its commit effect", () => {
+      let setValue = (_value: number) => {};
+      const useItem = () => {
+        const [value, set] = useResourceState(0);
+        setValue = set;
+        useResourceEffect(() => {
+          if (value === 1) set(2);
+        }, [value]);
+        return value;
+      };
+      const Item = resource(useItem);
+      const elements = [withKey("item", Item(), ["item"])];
+
+      let values: number[] = [];
+      function App() {
+        values = useResources(elements);
+        return null;
+      }
+
+      render(<App />);
+      expect(values).toEqual([0]);
+      act(() => setValue(1));
+      expect(values).toEqual([2]);
+    });
+
+    it("keeps caller mutation before commit out of the next render", () => {
+      const setters: Record<string, (n: number) => void> = {};
+      const useItem = (id: string) => {
+        const [value, setValue] = useResourceState(0);
+        setters[id] = setValue;
+        return value;
+      };
+      const Item = resource(useItem);
+      const elements = [
+        withKey("a", Item("a"), ["a"]),
+        withKey("b", Item("b"), ["b"]),
+      ];
+
+      let values: number[] = [];
+      const renderValues: number[][] = [];
+      function App() {
+        values = useResources(elements);
+        renderValues.push(values.slice());
+        useLayoutEffect(() => {
+          values[1] = 99;
+        }, [values]);
+        return null;
+      }
+
+      render(<App />);
+      act(() => setters.a!(5));
+      expect(renderValues.at(-1)).toEqual([5, 0]);
+      expect(values).toEqual([5, 99]);
     });
 
     it("only visits dirty children when the element list is unchanged", () => {

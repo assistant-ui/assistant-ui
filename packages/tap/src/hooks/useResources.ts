@@ -44,6 +44,7 @@ type FiberState = {
 
 type RenderResult<T> = {
   values: T[];
+  exposedValues: T[];
   commitKeys: readonly (string | number)[] | null;
   keyToIndex: ReadonlyMap<string | number, number>;
 };
@@ -135,6 +136,7 @@ export function useResources<E extends ResourceElement<any>>(
 
         return {
           values,
+          exposedValues: values.slice(),
           commitKeys,
           keyToIndex: committedKeyToIndex.current,
         };
@@ -211,12 +213,17 @@ export function useResources<E extends ResourceElement<any>>(
         }
       }
 
-      return { values, commitKeys: null, keyToIndex };
+      return {
+        values,
+        exposedValues: values.slice(),
+        commitKeys: null,
+        keyToIndex,
+      };
     },
     [elements, fibers, createFiber, version],
     hasAnyContextDepsChanged,
   );
-  const val = rendered.values;
+  const val = rendered.exposedValues;
   // Cleanup on unmount
   useEffect(() => {
     return () => {
@@ -250,17 +257,16 @@ export function useResources<E extends ResourceElement<any>>(
           unmountResourceFiber(state.fiber);
           state.fiber = next.remount;
         }
+        state.isDirty = false;
         commitResourceFiber(state.fiber);
         state.committedDeps = next.deps;
         state.committedValue = next.value;
-        state.isDirty = false;
         state.next = "skip";
       }
     }
 
     committedElements.current = elements;
-    // The returned array is caller-visible and may be mutated after render.
-    committedValues.current = val.slice();
+    committedValues.current = rendered.values;
     committedKeyToIndex.current = rendered.keyToIndex;
     pendingStructuralChange.current = false;
     needsFullCommit.current = false;
