@@ -85,7 +85,7 @@ export function unstable_useLiveCompletionAdapter(
   const retryableQueryRef = useRef<string | null>(null);
   const pendingRetryQueryRef = useRef<string | null>(null);
   const inactiveRef = useRef(true);
-  const hasCommittedRef = useRef(false);
+  const settleLoadingOnCommitRef = useRef(false);
 
   const cancelTimer = useCallback(() => {
     if (timerRef.current !== null) {
@@ -118,6 +118,7 @@ export function unstable_useLiveCompletionAdapter(
         timerRef.current = null;
         if (inactiveRef.current) {
           pendingQueryRef.current = null;
+          settleLoadingOnCommitRef.current = true;
           return;
         }
         Promise.resolve()
@@ -169,11 +170,11 @@ export function unstable_useLiveCompletionAdapter(
   }, [enabled, invalidatePending]);
 
   useLayoutEffect(() => {
-    const reactivated = hasCommittedRef.current && inactiveRef.current;
+    const settleLoading = settleLoadingOnCommitRef.current;
+    settleLoadingOnCommitRef.current = false;
     inactiveRef.current = false;
-    hasCommittedRef.current = true;
     if (
-      reactivated &&
+      settleLoading &&
       timerRef.current === null &&
       pendingQueryRef.current === null
     ) {
@@ -181,6 +182,7 @@ export function unstable_useLiveCompletionAdapter(
     }
     return () => {
       inactiveRef.current = true;
+      settleLoadingOnCommitRef.current ||= pendingQueryRef.current !== null;
       cancelTimer();
       pendingQueryRef.current = null;
       tokenRef.current += 1;
