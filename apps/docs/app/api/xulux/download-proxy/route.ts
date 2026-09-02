@@ -35,8 +35,10 @@ async function readBoundedText(response: Response) {
     while (total < ERROR_BODY_MAX_BYTES) {
       const { done, value } = await reader.read();
       if (done) break;
-      chunks.push(value);
-      total += value.byteLength;
+      const room = ERROR_BODY_MAX_BYTES - total;
+      const chunk = value.byteLength > room ? value.subarray(0, room) : value;
+      chunks.push(chunk);
+      total += chunk.byteLength;
     }
   } catch {
     return "";
@@ -141,6 +143,7 @@ export async function GET(req: Request) {
       contentLength !== undefined &&
       (!Number.isFinite(contentLength) || contentLength > MAX_ZIP_BYTES)
     ) {
+      void upstream.body?.cancel().catch(() => {});
       return NextResponse.json(
         { error: "Archive too large." },
         { status: 413 },

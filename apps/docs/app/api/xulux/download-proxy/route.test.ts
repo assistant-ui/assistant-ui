@@ -213,6 +213,35 @@ describe("GET /api/xulux/download-proxy access boundary", () => {
     expect(cancelled).toBe(true);
   });
 
+  it("releases the upstream body when the declared size is too large", async () => {
+    mocks.requireSession.mockReturnValue(session);
+    mocks.checkRateLimit.mockResolvedValue(null);
+    mocks.resolveSandboxDownloadUrl.mockReturnValue(
+      new URL("https://demo.bl.run/api/download"),
+    );
+
+    let cancelled = false;
+    const oversized = new ReadableStream<Uint8Array>({
+      cancel() {
+        cancelled = true;
+      },
+    });
+    mocks.fetchSandboxResource.mockResolvedValue(
+      new Response(oversized, {
+        status: 200,
+        headers: {
+          "content-type": "application/zip",
+          "content-length": String(64 * 1024 * 1024),
+        },
+      }),
+    );
+
+    const response = await GET(request());
+
+    expect(response.status).toBe(413);
+    expect(cancelled).toBe(true);
+  });
+
   it("keeps a metered archive out of shared caches", async () => {
     mocks.requireSession.mockReturnValue(session);
     mocks.checkRateLimit.mockResolvedValue(null);
