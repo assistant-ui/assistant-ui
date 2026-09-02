@@ -235,6 +235,7 @@ export const useAISDKRuntime = <UI_MESSAGE extends UIMessage = UIMessage>(
   const [toolStatuses, setToolStatuses] = useState<
     Record<string, ToolExecutionStatus>
   >({});
+  const [cancelledChatId, setCancelledChatId] = useState<string | null>(null);
   const toolArgsKeyOrderCacheRef = useRef<Map<string, Map<string, string[]>>>(
     new Map(),
   );
@@ -251,11 +252,20 @@ export const useAISDKRuntime = <UI_MESSAGE extends UIMessage = UIMessage>(
     chatHelpers.status === "submitted" || chatHelpers.status === "streaming";
   const isRunning = providerIsRunning || hasExecutingTools;
 
+  useEffect(() => {
+    if (providerIsRunning) setCancelledChatId(null);
+  }, [providerIsRunning]);
+
   const messageTiming = useStreamingTiming(chatHelpers.messages, isRunning);
 
   // Flag the streaming message optimistic: its id can be swapped for a server
   // id mid-run, and the repository then drops the orphaned pre-swap id (#4037).
   const lastMessage = chatHelpers.messages.at(-1);
+  const isCancelled =
+    !providerIsRunning &&
+    lastMessage?.role === "assistant" &&
+    cancelledChatId !== null &&
+    cancelledChatId === chatHelpers.id;
   const optimisticMessageId =
     isRunning && lastMessage?.role === "assistant" ? lastMessage.id : undefined;
 
@@ -272,8 +282,15 @@ export const useAISDKRuntime = <UI_MESSAGE extends UIMessage = UIMessage>(
         mcpAppMetadataCache: mcpAppMetadataCacheRef.current,
         ...(optimisticMessageId && { optimisticMessageId }),
         ...(chatHelpers.error && { error: chatHelpers.error.message }),
+        ...(isCancelled && { isCancelled: true }),
       }),
-      [toolStatuses, messageTiming, optimisticMessageId, chatHelpers.error],
+      [
+        toolStatuses,
+        messageTiming,
+        optimisticMessageId,
+        chatHelpers.error,
+        isCancelled,
+      ],
     ),
   });
 
@@ -443,15 +460,19 @@ export const useAISDKRuntime = <UI_MESSAGE extends UIMessage = UIMessage>(
       runtimeRef.current.thread.import(exportedRepo);
     },
     onCancel: async () => {
+      const message = chatHelpers.messages.at(-1);
+      setCancelledChatId(message?.role === "assistant" ? chatHelpers.id : null);
       try {
         await chatHelpers.stop();
       } catch (error) {
         if (!(error instanceof Error && error.name === "AbortError")) {
+          setCancelledChatId(null);
           throw error;
         }
       }
     },
     onNew: async (message) => {
+      setCancelledChatId(null);
       const createMessage = (
         customToCreateMessage ?? toCreateMessage
       )<UI_MESSAGE>(message);
@@ -471,6 +492,7 @@ export const useAISDKRuntime = <UI_MESSAGE extends UIMessage = UIMessage>(
       });
     },
     onEdit: async (message) => {
+      setCancelledChatId(null);
       const createMessage = (
         customToCreateMessage ?? toCreateMessage
       )<UI_MESSAGE>(message);
@@ -510,6 +532,7 @@ export const useAISDKRuntime = <UI_MESSAGE extends UIMessage = UIMessage>(
       );
     },
     onReload: async (parentId: string | null, config) => {
+      setCancelledChatId(null);
       lastRunConfigRef.current = config.runConfig;
       const newMessages = sliceMessagesUntil(chatHelpers.messages, parentId);
       chatHelpers.setMessages(newMessages);
@@ -523,6 +546,7 @@ export const useAISDKRuntime = <UI_MESSAGE extends UIMessage = UIMessage>(
       isError,
       modelContent,
     }) => {
+      setCancelledChatId(null);
       const options = { metadata: lastRunConfigRef.current };
       if (isError) {
         return Promise.resolve(
@@ -550,23 +574,35 @@ export const useAISDKRuntime = <UI_MESSAGE extends UIMessage = UIMessage>(
         );
       }
     },
-    onRespondToToolApproval: ({ approvalId, approved, reason }) =>
-      Promise.resolve(
+    onRespondToToolApproval: ({ approvalId, approved, reason }) => {
+      setCancelledChatId(null);
+      return Promise.resolve(
         chatHelpers.addToolApprovalResponse({
           id: approvalId,
           approved,
           ...(reason != null && { reason }),
           options: { metadata: lastRunConfigRef.current },
         }),
-      ),
+      );
+    },
     ...pickExternalStoreSharedOptions(adapter),
     ...(adapter.unstable_messageRepositoryInstance && {
       unstable_messageRepositoryInstance:
         adapter.unstable_messageRepositoryInstance,
     }),
     ...(suggestionAdapter ? { suggestions: generatedSuggestions } : {}),
-    ...(onResume && { onResume }),
-    ...(onResumeToolCall && { onResumeToolCall }),
+    ...(onResume && {
+      onResume: async (config) => {
+        setCancelledChatId(null);
+        await onResume(config);
+      },
+    }),
+    ...(onResumeToolCall && {
+      onResumeToolCall: async (options) => {
+        setCancelledChatId(null);
+        await onResumeToolCall(options);
+      },
+    }),
     ...(unstable_onBranchChange && { unstable_onBranchChange }),
     adapters: {
       attachments: vercelAttachmentAdapter,

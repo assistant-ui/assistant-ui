@@ -27,6 +27,7 @@ const createChatHelpers = (messages: any[] = []) => {
   let currentMessages = [...messages];
 
   const chatHelpers: any = {
+    id: "chat-1",
     status: "ready",
     error: null,
     messages: currentMessages,
@@ -147,8 +148,11 @@ describe("useAISDKRuntime", () => {
 
     try {
       const { result } = renderHook(() => useAISDKRuntime(chat));
-      const unhandledRejections = await captureUnhandledRejections(() => {
-        result.current.thread.cancelRun();
+      const unhandledRejections = await captureUnhandledRejections(async () => {
+        await act(async () => {
+          result.current.thread.cancelRun();
+          await new Promise((resolve) => setTimeout(resolve, 10));
+        });
       });
 
       expect(stopCalls).toBe(1);
@@ -157,6 +161,55 @@ describe("useAISDKRuntime", () => {
     } finally {
       consoleError.mockRestore();
     }
+  });
+
+  it("marks stopped output cancelled and clears the marker for the next run", async () => {
+    const chat = createChatHelpers([
+      {
+        id: "assistant-1",
+        role: "assistant",
+        parts: [{ type: "text", text: "partial", state: "streaming" }],
+      },
+    ]);
+    chat.status = "streaming";
+    chat.stop = vi.fn(() => {
+      chat.status = "ready";
+      return Promise.resolve();
+    });
+
+    const { result, rerender } = renderHook(() => useAISDKRuntime(chat));
+
+    act(() => {
+      result.current.thread.cancelRun();
+    });
+    rerender();
+
+    await waitFor(() => {
+      expect(
+        result.current.thread.getState().messages.at(-1)?.status,
+      ).toMatchObject({
+        type: "incomplete",
+        reason: "cancelled",
+      });
+    });
+
+    act(() => {
+      result.current.thread.append({
+        role: "user",
+        content: [{ type: "text", text: "continue" }],
+      });
+    });
+    await waitFor(() => expect(chat.sendMessage).toHaveBeenCalledOnce());
+    rerender();
+
+    await waitFor(() => {
+      expect(
+        result.current.thread.getState().messages.at(-1)?.status,
+      ).toMatchObject({
+        type: "complete",
+        reason: "unknown",
+      });
+    });
   });
 
   it("reports non-AbortError cancellation failures", async () => {

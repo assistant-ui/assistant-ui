@@ -110,4 +110,49 @@ describe("convertExternalMessageChunk", () => {
 
     expect(second).toBe(first);
   });
+
+  it("replaces a cached complete status after cancellation", () => {
+    const input = {};
+    const chunk = {
+      inputs: [input],
+      outputs: [{ role: "assistant" as const, content: "partial" }],
+    };
+    const generatedFallbackMessages = new WeakSet<object>();
+    const first = convertExternalMessageChunk(chunk, 0, 1, false, undefined, {
+      message: undefined,
+      generatedFallbackMessages,
+    });
+
+    const second = convertExternalMessageChunk(
+      chunk,
+      0,
+      1,
+      false,
+      undefined,
+      { message: first, generatedFallbackMessages },
+      true,
+    );
+
+    expect(first.status).toMatchObject({ type: "complete", reason: "unknown" });
+    expect(second).not.toBe(first);
+    expect(second.status).toMatchObject({
+      type: "incomplete",
+      reason: "cancelled",
+    });
+
+    const failed = convertExternalMessageChunk(
+      chunk,
+      0,
+      1,
+      false,
+      "failed",
+      { message: second, generatedFallbackMessages },
+      true,
+    );
+    expect(failed.status).toMatchObject({
+      type: "incomplete",
+      reason: "error",
+      error: "failed",
+    });
+  });
 });
