@@ -201,13 +201,21 @@ export function unstable_useLiveCompletionAdapter(
         // queueMicrotask so they are not dispatched while another component renders.
         if (query !== state.query || retryableQueryRef.current === query) {
           queueMicrotask(() => scheduleFetch(query));
-        } else if (
-          pendingQueryRef.current !== null &&
-          pendingQueryRef.current !== query
-        ) {
-          // the query returned to a cached value while a fetch for a different
-          // query is in flight; drop it so its result cannot overwrite the cache
-          queueMicrotask(invalidatePending);
+        } else {
+          queueMicrotask(() => {
+            if (
+              deferredQueryRef.current !== null &&
+              deferredQueryRef.current !== query
+            ) {
+              deferredQueryRef.current = null;
+            }
+            if (
+              pendingQueryRef.current !== null &&
+              pendingQueryRef.current !== query
+            ) {
+              invalidatePending();
+            }
+          });
         }
         return state.items;
       },
