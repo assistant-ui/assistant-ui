@@ -234,7 +234,8 @@ export const useClientResource = <TMethods extends ClientMethods>(
   const value = useClientStackProvider(methods, function WithClientStack() {
     return useResource(element);
   });
-  const state = (value as any).getState?.();
+  const hasState = typeof (value as any).getState === "function";
+  const state = hasState ? (value as any).getState() : undefined;
   const stateRef = useRef(state);
 
   if (!valueRef.current) {
@@ -256,14 +257,14 @@ export const useClientResource = <TMethods extends ClientMethods>(
         !isShallowComparable(previousState) ||
         !isShallowComparable(state) ||
         !shallowEqual(previousState, state));
-    const changed = tagRef.current !== instanceTag || stateChanged;
+    const changed = tagRef.current !== instanceTag || !hasState || stateChanged;
     valueRef.current = value;
     tagRef.current = instanceTag;
     stateRef.current = state;
     if (changed) {
       for (const callback of subscribers) callback();
     }
-  }, [instanceTag, state, subscribers, value]);
+  });
 
   useEffect(
     () => () => {

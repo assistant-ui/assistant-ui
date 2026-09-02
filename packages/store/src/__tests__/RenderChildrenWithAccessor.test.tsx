@@ -1,6 +1,12 @@
 // @vitest-environment jsdom
 
-import { type ReactNode, useMemo, useSyncExternalStore } from "react";
+import {
+  type ReactNode,
+  useMemo,
+  useRef,
+  useState,
+  useSyncExternalStore,
+} from "react";
 import { act, render } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { flushTapSync, resource } from "@assistant-ui/tap";
@@ -183,5 +189,47 @@ describe("RenderChildrenWithAccessor", () => {
     });
 
     expect(container.textContent).toBe("3");
+  });
+
+  it("updates method-only clients without a state snapshot", () => {
+    const useMethodOnlyClient = () => {
+      const [, setVersion] = useState(0);
+      const valueRef = useRef(1);
+      return useMemo(
+        () => ({
+          readValue: () => valueRef.current,
+          setValue: (value: number) => {
+            valueRef.current = value;
+            setVersion((version) => version + 1);
+          },
+        }),
+        [setVersion],
+      );
+    };
+    const MethodOnlyClient = resource(useMethodOnlyClient);
+    let aui!: Record<string, any>;
+    function Wrapper({ children }: { children: ReactNode }) {
+      const client = useAui({
+        counter: MethodOnlyClient(),
+      } as unknown as useAui.Props);
+      aui = client;
+      return <AuiProvider value={client}>{children}</AuiProvider>;
+    }
+
+    const { container } = render(
+      <RenderChildrenWithAccessor
+        getItemState={(client: any) => client.counter.readValue()}
+      >
+        {(getItem) => <div>{getItem()}</div>}
+      </RenderChildrenWithAccessor>,
+      { wrapper: Wrapper },
+    );
+    expect(container.textContent).toBe("1");
+
+    act(() => {
+      flushTapSync(() => aui.counter.setValue(2));
+    });
+
+    expect(container.textContent).toBe("2");
   });
 });

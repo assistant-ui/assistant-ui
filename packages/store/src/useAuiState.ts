@@ -13,9 +13,12 @@ import type { ClientMethods } from "./types/client";
  * Subscribes to a slice of {@link AssistantState} and re-renders the
  * component whenever that slice changes.
  *
- * The `selector` is called when a scope it reads updates; its return value
- * is compared by `Object.is`, and the component re-renders only when the
- * selected slice changes. Returning the entire state object is not
+ * Store notifications from unread scopes do not call the `selector` when
+ * every selected client supports scoped subscriptions. React still calls it
+ * during component renders, and clients without scoped subscriptions fall
+ * back to broad store notifications. Its return value is compared by
+ * `Object.is`, and the component re-renders only when the selected slice
+ * changes. Returning the entire state object is not
  * supported and throws at runtime — select a specific field instead, or
  * compose multiple `useAuiState` calls. Returning a new object or array
  * literal, including spreading `s.thread` into a new object, causes a

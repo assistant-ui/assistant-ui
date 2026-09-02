@@ -141,6 +141,7 @@ describe("store hooks", () => {
       () => useAuiState((state: any) => state.counter.count),
       { wrapper: Wrapper },
     );
+    expect(result.current).toBe(1);
 
     act(() => {
       flushTapSync(() => aui.counter.setCount(2));
@@ -163,6 +164,7 @@ describe("store hooks", () => {
       () => useAuiState((state: any) => state.counter.count),
       { wrapper: Wrapper },
     );
+    expect(result.current).toBe(1);
 
     act(() => {
       flushTapSync(() => aui.counter.setCount(2));
@@ -186,6 +188,7 @@ describe("store hooks", () => {
     const { result } = renderHook(() => useAuiState(selector), {
       wrapper: Wrapper,
     });
+    expect(result.current).toBe(1);
     selector.mockClear();
 
     act(() => {
@@ -203,6 +206,7 @@ describe("store hooks", () => {
       flushTapSync(() => aui.other.setCount(4));
     });
     expect(selector).not.toHaveBeenCalled();
+    expect(result.current).toBe(3);
   });
 
   it("useAuiState throws when selector returns full state", () => {
