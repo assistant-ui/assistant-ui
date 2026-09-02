@@ -75,6 +75,25 @@ describe("createRepoSandbox", () => {
     );
   });
 
+  it("falls back to an empty mount before the tree is generated", async () => {
+    const generated = mocks.sourceRoot;
+    mocks.sourceRoot = path.join(tmpdir(), "repo-sandbox-absent");
+    const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
+
+    try {
+      const getToolkit = createRepoSandbox({ toolPrompt: "" });
+
+      expect(await run(getToolkit, "ls /repo")).toBe("");
+      expect(await run(getToolkit, "cat /repo/AGENTS.md")).toContain(
+        "No such file or directory",
+      );
+      expect(warn).toHaveBeenCalledOnce();
+    } finally {
+      warn.mockRestore();
+      mocks.sourceRoot = generated;
+    }
+  });
+
   it("never writes through to the source tree on disk", async () => {
     const getToolkit = createRepoSandbox({ toolPrompt: "" });
 

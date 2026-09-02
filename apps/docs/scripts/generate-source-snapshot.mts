@@ -11,6 +11,7 @@ const REPO_ROOT = path.resolve(DOCS_ROOT, "../..");
 const OUTPUT_DIR = path.join(DOCS_ROOT, "generated");
 const OUTPUT_PATH = path.join(OUTPUT_DIR, ".repo-source");
 const READ_CONCURRENCY = 32;
+const WRITE_CONCURRENCY = 32;
 const SOURCE_SNAPSHOT_EXCLUDE = [
   /pnpm-lock\.yaml$/,
   /package-lock\.json$/,
@@ -60,19 +61,32 @@ async function main() {
 }
 
 async function writeSnapshot(snapshot: Record<string, string>) {
-  const createdDirectories = new Set<string>();
+  const entries = Object.entries(snapshot);
+  const directories = new Set(
+    entries.map(([filePath]) => path.dirname(path.join(OUTPUT_PATH, filePath))),
+  );
 
-  for (const [filePath, contents] of Object.entries(snapshot)) {
-    const target = path.join(OUTPUT_PATH, filePath);
-    const directory = path.dirname(target);
-
-    if (!createdDirectories.has(directory)) {
-      await fs.mkdir(directory, { recursive: true });
-      createdDirectories.add(directory);
-    }
-
-    await fs.writeFile(target, contents);
+  for (const directory of directories) {
+    await fs.mkdir(directory, { recursive: true });
   }
+
+  let index = 0;
+
+  async function worker() {
+    while (true) {
+      const currentIndex = index++;
+      if (currentIndex >= entries.length) return;
+
+      const [filePath, contents] = entries[currentIndex]!;
+      await fs.writeFile(path.join(OUTPUT_PATH, filePath), contents);
+    }
+  }
+
+  await Promise.all(
+    Array.from({ length: Math.min(WRITE_CONCURRENCY, entries.length) }, () =>
+      worker(),
+    ),
+  );
 }
 
 async function buildSnapshot(files: string[]) {
