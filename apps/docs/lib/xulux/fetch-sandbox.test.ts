@@ -123,6 +123,31 @@ describe("fetchSandboxResource", () => {
     expect(mocks.fetch.mock.calls[0]?.[1]).not.toHaveProperty("timeoutMs");
   });
 
+  it("keeps the deadline over the response body by default", async () => {
+    mocks.fetch.mockResolvedValueOnce(new Response("ok"));
+
+    await fetchSandboxResource("https://sandbox.example.com/session", {
+      timeoutMs: 20,
+    });
+    const signal = mocks.fetch.mock.calls[0]?.[1]?.signal;
+    await new Promise((resolve) => setTimeout(resolve, 60));
+
+    expect(signal?.aborted).toBe(true);
+  });
+
+  it("releases the deadline at the response headers when scoped to it", async () => {
+    mocks.fetch.mockResolvedValueOnce(new Response("ok"));
+
+    await fetchSandboxResource("https://sandbox.example.com/archive", {
+      timeoutMs: 20,
+      timeoutScope: "response",
+    });
+    const signal = mocks.fetch.mock.calls[0]?.[1]?.signal;
+    await new Promise((resolve) => setTimeout(resolve, 60));
+
+    expect(signal?.aborted).toBe(false);
+  });
+
   it("stops retrying once the budget is spent, whatever the error", async () => {
     mocks.fetch.mockImplementation(async (_url, init) => {
       await new Promise((_resolve, reject) => {

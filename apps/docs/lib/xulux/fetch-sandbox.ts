@@ -9,9 +9,12 @@ const RETRY_DELAY_MS = 300;
 const DEFAULT_TIMEOUT_MS = 30_000;
 
 export interface SandboxFetchInit extends RequestInit {
-  // Budget for the whole call, retries and response body included, so a
-  // streamed archive needs a wider value than a JSON call.
+  // Budget shared by every attempt.
   timeoutMs?: number;
+  // "call" keeps the budget over the response body; "response" releases it once
+  // the headers arrive, so a body handed straight to the client is bounded by
+  // the route's maxDuration rather than by its throughput.
+  timeoutScope?: "call" | "response";
 }
 
 function isRetryableFetchError(error: unknown) {
@@ -49,19 +52,31 @@ export async function fetchSandboxResource(
   url: string | URL,
   init?: SandboxFetchInit,
 ): Promise<Response> {
-  const { timeoutMs = DEFAULT_TIMEOUT_MS, signal, ...requestInit } = init ?? {};
+  const {
+    timeoutMs = DEFAULT_TIMEOUT_MS,
+    timeoutScope = "call",
+    signal,
+    ...requestInit
+  } = init ?? {};
   const deadline = AbortSignal.timeout(timeoutMs);
-  const abort = signal ? AbortSignal.any([signal, deadline]) : deadline;
+  const gate = new AbortController();
+  const forwardDeadline = () => gate.abort(deadline.reason);
+  deadline.addEventListener("abort", forwardDeadline, { once: true });
+  const abort = signal ? AbortSignal.any([signal, gate.signal]) : gate.signal;
   let lastError: unknown;
 
   for (let attempt = 1; attempt <= MAX_ATTEMPTS; attempt += 1) {
     try {
-      return await fetch(url, {
+      const response = await fetch(url, {
         ...requestInit,
         cache: "no-store",
         headers: mergeHeaders(requestInit.headers),
         signal: abort,
       });
+      if (timeoutScope === "response") {
+        deadline.removeEventListener("abort", forwardDeadline);
+      }
+      return response;
     } catch (error) {
       lastError = error;
       if (
