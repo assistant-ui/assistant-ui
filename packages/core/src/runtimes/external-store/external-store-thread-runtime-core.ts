@@ -497,19 +497,6 @@ export class ExternalStoreThreadRuntimeCore
 
       if (store.convertMessage) {
         reusablePrefixLength = this._converter.reusablePrefixLength;
-        if (
-          oldStore &&
-          !repositoryChanged &&
-          oldStore.isRunning === store.isRunning &&
-          oldStore.messages === store.messages &&
-          previousIsRunning === isRunning &&
-          oldStore.unstable_enableToolInvocations ===
-            store.unstable_enableToolInvocations &&
-          reusablePrefixLength === store.messages.length
-        ) {
-          this._notifySubscribers();
-          return;
-        }
       }
 
       const previousTail = this._messages?.at(-1);
