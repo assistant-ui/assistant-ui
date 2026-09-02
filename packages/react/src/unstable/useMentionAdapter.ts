@@ -82,7 +82,7 @@ const EMPTY_TOOL_MENTIONS: Readonly<Record<string, string | undefined>> =
   Object.freeze({});
 
 // `getModelContext()` rebuilds its result on every call, so the fields the
-// adapter consumes are snapshotted on notify rather than read during render.
+// adapter consumes are snapshotted and compared rather than re-read per render.
 const readToolMentions = (aui: AssistantClient) => {
   const tools = aui.thread.getModelContext().tools;
   if (!tools) return EMPTY_TOOL_MENTIONS;
