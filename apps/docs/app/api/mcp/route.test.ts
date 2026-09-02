@@ -4,11 +4,13 @@ const mocks = vi.hoisted(() => ({
   fetchPreviewSession: vi.fn(),
   fetchTemplateContract: vi.fn(),
   checkTemplateRateLimit: vi.fn(),
+  checkDocsRateLimit: vi.fn(),
 }));
 
 vi.mock("@/lib/rate-limit", async (importOriginal) => ({
   ...(await importOriginal()),
   checkMcpTemplateToolRateLimit: mocks.checkTemplateRateLimit,
+  checkMcpDocsToolRateLimit: mocks.checkDocsRateLimit,
 }));
 
 vi.mock("@/lib/xulux/sandbox-contract", async (importOriginal) => ({
@@ -323,15 +325,78 @@ describe("POST /api/mcp", () => {
     });
   });
 
-  it("leaves the in-process docs tools unmetered", async () => {
+  it("meters every in-process tool against the docs budget", async () => {
     await requestMcp("tools/call", { name: "list_templates", arguments: {} });
     await requestMcp("tools/call", {
       name: "search_docs",
       arguments: { query: "runtime" },
     });
     await requestMcp("tools/call", { name: "get_navigation", arguments: {} });
+    await requestMcp("tools/call", { name: "list_pages", arguments: {} });
 
+    expect(mocks.checkDocsRateLimit).toHaveBeenCalledTimes(4);
+    expect(mocks.checkDocsRateLimit.mock.calls[0]?.[0]).toMatchObject({
+      url: `${ORIGIN}/api/mcp`,
+    });
     expect(mocks.checkTemplateRateLimit).not.toHaveBeenCalled();
+  });
+
+  it("meters the docs resources that repeat the tool work", async () => {
+    await requestMcp("resources/read", {
+      uri: "assistant-ui://navigation",
+    });
+    await requestMcp("resources/list", {});
+
+    expect(mocks.checkDocsRateLimit).toHaveBeenCalledTimes(2);
+  });
+
+  it("keeps the docs budget off the sandbox-calling template tools", async () => {
+    mocks.fetchTemplateContract.mockResolvedValue(null);
+
+    await requestMcp("tools/call", {
+      name: "read_template",
+      arguments: { templateId: "base-assistant-ui" },
+    });
+
+    expect(mocks.checkTemplateRateLimit).toHaveBeenCalledTimes(1);
+    expect(mocks.checkDocsRateLimit).not.toHaveBeenCalled();
+  });
+
+  it("surfaces a throttled docs tool without rendering the page", async () => {
+    mocks.checkDocsRateLimit.mockResolvedValueOnce(
+      new Response("Docs tool rate limit exceeded", {
+        status: 429,
+        headers: { "Retry-After": "12" },
+      }),
+    );
+
+    const response = await requestMcp("tools/call", {
+      name: "read_page",
+      arguments: { path: "docs/getting-started" },
+    });
+    const result = getToolCallResult(response);
+    const text = result.content.find((block) => block.type === "text")?.text;
+
+    expect(result.isError).toBe(true);
+    expect(text).toBe("Docs tool rate limit exceeded. Retry in 12s.");
+  });
+
+  it("does not tell an MCP client the public assistant is down for docs tools", async () => {
+    mocks.checkDocsRateLimit.mockResolvedValueOnce(
+      new Response("Public assistant temporarily unavailable", { status: 503 }),
+    );
+
+    const response = await requestMcp("tools/call", {
+      name: "search_docs",
+      arguments: { query: "runtime" },
+    });
+    const result = getToolCallResult(response);
+    const text = result.content.find((block) => block.type === "text")?.text;
+
+    expect(result.isError).toBe(true);
+    expect(text).toBe(
+      "The assistant-ui docs tools are temporarily unavailable.",
+    );
   });
 
   it("surfaces a throttled template tool without reaching the sandbox", async () => {
