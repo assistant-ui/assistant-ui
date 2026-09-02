@@ -368,6 +368,65 @@ describe("ExternalStoreThreadRuntimeCore - tail updates", () => {
     expect(converter).not.toHaveBeenCalled();
   });
 
+  it("does not inspect the repository during no-op adapter updates", () => {
+    const messages: Raw[] = [
+      { id: "u1", role: "user", text: "hello" },
+      { id: "a1", role: "assistant", text: "old" },
+    ];
+    const runtime = new ExternalStoreThreadRuntimeCore(
+      mockContextProvider,
+      makeStore({ messages, convertMessage }),
+    );
+    const getMessages = vi.spyOn(MessageRepository.prototype, "getMessages");
+
+    try {
+      for (let index = 0; index < 20; index++) {
+        runtime.__internal_setAdapter(makeStore({ messages, convertMessage }));
+      }
+
+      expect(getMessages).not.toHaveBeenCalled();
+    } finally {
+      getMessages.mockRestore();
+    }
+  });
+
+  it("keeps repository snapshots aligned after non-tail feedback", () => {
+    const feedback = { submit: vi.fn() };
+    const first: Raw = { id: "u1", role: "user", text: "hello" };
+    const rated: Raw = { id: "a1", role: "assistant", text: "answer" };
+    const tail: Raw = { id: "u2", role: "user", text: "next" };
+    const runtime = new ExternalStoreThreadRuntimeCore(
+      mockContextProvider,
+      makeStore({
+        messages: [first, rated, tail],
+        convertMessage,
+        adapters: { feedback },
+      }),
+    );
+
+    runtime.submitFeedback({ messageId: "a1", type: "positive" });
+
+    expect(runtime.messages[1]?.metadata.submittedFeedback).toEqual({
+      type: "positive",
+    });
+    expect(runtime.getMessageById("a1")?.message).toBe(runtime.messages[1]);
+
+    runtime.__internal_setAdapter(
+      makeStore({
+        messages: [first, rated, { ...tail, text: "updated tail" }],
+        convertMessage,
+        adapters: { feedback },
+      }),
+    );
+
+    expect(runtime.messages[1]?.metadata.submittedFeedback).toBeUndefined();
+    expect(runtime.getMessageById("a1")?.message).toBe(runtime.messages[1]);
+    expect(runtime.messages[2]?.content[0]).toMatchObject({
+      type: "text",
+      text: "updated tail",
+    });
+  });
+
   it("does not reuse a host-mutated prefix from an earlier input array", () => {
     const messages: Raw[] = [
       { id: "u1", role: "user", text: "old prefix" },

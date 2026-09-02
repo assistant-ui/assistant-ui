@@ -157,15 +157,12 @@ export class ExternalStoreThreadRuntimeCore
   }
 
   protected override _notifySubscribers() {
-    const messagesSnapshot = this.repository.getMessages();
-    if (
-      this._messages !== messagesSnapshot &&
-      (!this._messages || !shallowArrayEqual(this._messages, messagesSnapshot))
-    ) {
-      this._messages = messagesSnapshot;
-      this._converter.resetPrefix();
-    }
     this._notifyMessageAndThreadSubscribers(this._messageSubscribers.values());
+  }
+
+  protected override _onRepositoryMutation(): void {
+    this._messages = this.repository.getMessages();
+    this._converter.resetPrefix();
   }
 
   private _notifyMessageUpdates(messageIds: readonly string[]) {

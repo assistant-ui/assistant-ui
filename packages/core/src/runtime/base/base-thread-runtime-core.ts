@@ -212,8 +212,11 @@ export abstract class BaseThreadRuntimeCore
     return this.repository.getBranches(messageId);
   }
 
+  protected _onRepositoryMutation(): void {}
+
   public switchToBranch(branchId: string): void {
     this.repository.switchToBranch(branchId);
+    this._onRepositoryMutation();
     this._notifySubscribers();
   }
 
@@ -243,6 +246,7 @@ export abstract class BaseThreadRuntimeCore
         },
       };
       this.repository.addOrUpdateMessage(parentId, updatedMessage);
+      this._onRepositoryMutation();
     }
 
     this._notifySubscribers();
@@ -499,6 +503,7 @@ export abstract class BaseThreadRuntimeCore
     this.ensureInitialized();
     this.repository.clear();
     this.repository.import(data);
+    this._onRepositoryMutation();
     this._notifySubscribers();
   }
 
