@@ -9,10 +9,11 @@ import {
 } from "react";
 import { act, render } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { flushTapSync, resource } from "@assistant-ui/tap";
+import { flushTapSync, resource, withKey } from "@assistant-ui/tap";
 import { AuiProvider } from "../AuiProvider";
 import { RenderChildrenWithAccessor } from "../RenderChildrenWithAccessor";
 import { useAui } from "../useAui";
+import { useClientLookup } from "../useClientLookup";
 
 afterEach(() => {
   vi.restoreAllMocks();
@@ -231,5 +232,52 @@ describe("RenderChildrenWithAccessor", () => {
     });
 
     expect(container.textContent).toBe("2");
+  });
+
+  it("updates an index lookup when the client order changes", async () => {
+    const useItem = ({ id }: { id: string }) => {
+      const state = useMemo(() => ({ id }), [id]);
+      return useMemo(() => ({ getState: () => state }), [state]);
+    };
+    const Item = resource(useItem);
+    const useListClient = () => {
+      const [ids, setIds] = useState(["a", "b"]);
+      const items = useClientLookup(
+        ids.map((id) => withKey(id, Item({ id }), [id])),
+      );
+      return {
+        getState: () => ({ ids }),
+        item: (lookup: { index: number }) => items.get(lookup),
+        reverse: () => setIds((current) => current.toReversed()),
+      };
+    };
+    const ListClient = resource(useListClient);
+    let aui!: Record<string, any>;
+    function Wrapper({ children }: { children: ReactNode }) {
+      const client = useAui({
+        list: ListClient(),
+      } as unknown as useAui.Props);
+      aui = client;
+      return <AuiProvider value={client}>{children}</AuiProvider>;
+    }
+
+    const { container } = render(
+      <RenderChildrenWithAccessor
+        getItemState={(client: any) =>
+          client.list.item({ index: 0 }).getState()
+        }
+      >
+        {(getItem) => <div>{getItem().id}</div>}
+      </RenderChildrenWithAccessor>,
+      { wrapper: Wrapper },
+    );
+    expect(container.textContent).toBe("a");
+
+    await act(async () => {
+      flushTapSync(() => aui.list.reverse());
+      await Promise.resolve();
+    });
+
+    expect(container.textContent).toBe("b");
   });
 });

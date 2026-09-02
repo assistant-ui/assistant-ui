@@ -26,7 +26,17 @@ type ClientInternal = {
   [SYMBOL_SUBSCRIBE]?: ((callback: () => void) => () => void) | undefined;
 };
 
-let clientDependencyCollector: Set<ClientMethods> | null = null;
+const SYMBOL_DEPENDENCY_SUBSCRIBE = Symbol(
+  "assistant-ui.store.dependencySubscribe",
+);
+
+type ClientSubscriptionDependency = {
+  [SYMBOL_DEPENDENCY_SUBSCRIBE]: (callback: () => void) => () => void;
+};
+
+export type ClientDependency = ClientMethods | ClientSubscriptionDependency;
+
+let clientDependencyCollector: Set<ClientDependency> | null = null;
 
 export const collectClientDependencies = <T>(callback: () => T) => {
   const previousCollector = clientDependencyCollector;
@@ -48,11 +58,35 @@ export const trackClientDependency = (client: ClientMethods) => {
   clientDependencyCollector?.add(client);
 };
 
+export const createClientSubscriptionDependency = (
+  subscribe: (callback: () => void) => () => void,
+): ClientSubscriptionDependency => ({
+  [SYMBOL_DEPENDENCY_SUBSCRIBE]: subscribe,
+});
+
+export const trackClientSubscriptionDependency = (
+  dependency: ClientSubscriptionDependency,
+) => {
+  clientDependencyCollector?.add(dependency);
+};
+
 export const subscribeToClient = (
   client: ClientMethods,
   callback: () => void,
 ) => {
   return (client as unknown as ClientInternal)[SYMBOL_SUBSCRIBE]?.(callback);
+};
+
+export const subscribeToClientDependency = (
+  dependency: ClientDependency,
+  callback: () => void,
+) => {
+  const subscribe = (dependency as Partial<ClientSubscriptionDependency>)[
+    SYMBOL_DEPENDENCY_SUBSCRIBE
+  ];
+  return subscribe
+    ? subscribe(callback)
+    : subscribeToClient(dependency as ClientMethods, callback);
 };
 
 export const getClientState = (client: ClientMethods) => {

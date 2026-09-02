@@ -5,9 +5,11 @@ import {
   collectAssistantStateDependencies,
   getProxiedAssistantState,
 } from "./utils/proxied-assistant-state";
-import { subscribeToClient } from "./useClientResource";
+import {
+  subscribeToClientDependency,
+  type ClientDependency,
+} from "./useClientResource";
 import { useShallowStable } from "./utils/useShallowStable";
-import type { ClientMethods } from "./types/client";
 
 /**
  * Subscribes to a slice of {@link AssistantState} and re-renders the
@@ -52,7 +54,7 @@ export const useAuiState = <T>(selector: (state: AssistantState) => T): T =>
 
 const useAuiStateImpl = <T>(
   selector: (state: AssistantState) => T,
-  providedDependencies?: readonly ClientMethods[],
+  providedDependencies?: readonly ClientDependency[],
 ): T => {
   const aui = useAui();
   const proxiedState = getProxiedAssistantState(aui);
@@ -67,7 +69,7 @@ const useAuiStateImpl = <T>(
 
       const unsubscribers: Array<() => void> = [];
       for (const dependency of dependencies) {
-        const unsubscribe = subscribeToClient(dependency, callback);
+        const unsubscribe = subscribeToClientDependency(dependency, callback);
         if (!unsubscribe) {
           for (const unsubscribeClient of unsubscribers) unsubscribeClient();
           return aui.subscribe(callback);
@@ -104,5 +106,5 @@ const useAuiStateImpl = <T>(
 
 export const useAuiStateWithDependencies = <T>(
   selector: (state: AssistantState) => T,
-  dependencies: readonly ClientMethods[] | undefined,
+  dependencies: readonly ClientDependency[] | undefined,
 ): T => useAuiStateImpl(selector, dependencies);
