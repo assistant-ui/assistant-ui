@@ -478,7 +478,8 @@ export const useEveAgentRuntime = (options: UseEveAgentRuntimeOptions = {}) => {
       // Eve resolves a request the moment any response for it arrives, and an
       // empty one is recorded as an answer with no content. Mapping before the
       // send is enqueued keeps an unmappable response unsent, so the request
-      // stays answerable.
+      // stays answerable; the mapper's error reaches the caller as the seam's
+      // rejection.
       const inputResponse = toEveInputResponse(
         response,
         findEveInputRequest(agent.data, response.approvalId),

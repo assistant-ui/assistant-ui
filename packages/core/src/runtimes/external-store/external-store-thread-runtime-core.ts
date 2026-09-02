@@ -961,7 +961,11 @@ export class ExternalStoreThreadRuntimeCore
   ): Promise<void> {
     if (!this._store.onRespondToToolApproval)
       throw new Error("Runtime does not support tool approvals.");
-    return Promise.resolve(this._store.onRespondToToolApproval(options));
+    try {
+      return Promise.resolve(this._store.onRespondToToolApproval(options));
+    } catch (error) {
+      return Promise.reject(error);
+    }
   }
 
   public override reset(initialMessages?: readonly ThreadMessageLike[]) {

@@ -1930,7 +1930,7 @@ type ExternalThreadProps = {
   speechAdapter?: SpeechSynthesisAdapter | undefined;
   queue?: ExternalThreadQueueAdapter;
   branches?: ExternalThreadBranchAdapter;
-  onRespondToToolApproval?: (options: RespondToToolApprovalOptions) => void;
+  onRespondToToolApproval?: (options: RespondToToolApprovalOptions) => void | Promise<void>;
 };
 
 type ExternalThreadQueueAdapter = {

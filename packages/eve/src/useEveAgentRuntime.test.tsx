@@ -394,9 +394,9 @@ describe("useEveAgentRuntime tool approval responses", () => {
     try {
       const { result } = renderHook(() => useEveAgentRuntime());
 
-      expect(() => respondToTextRequest(result, { approved: true })).toThrow(
-        /was not answered by this response/,
-      );
+      await expect(
+        respondToTextRequest(result, { approved: true }),
+      ).rejects.toThrow(/was not answered by this response/);
 
       await flushMicrotasks();
       await flushMicrotasks();

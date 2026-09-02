@@ -454,6 +454,8 @@ function ToolFallbackApproval({
       ? declaredOptions?.find((o) => o.id === confirmingId)
       : undefined;
 
+  const question = isQuestion(approval);
+
   const promptText = approval?.prompt ? (
     <p className="aui-tool-fallback-approval-prompt text-foreground">
       {approval.prompt}
@@ -575,7 +577,7 @@ function ToolFallbackApproval({
               </Button>
             ),
           )}
-          {rejectOptions.length === 0 && !isQuestion(approval) && (
+          {rejectOptions.length === 0 && !question && (
             <Button
               size="sm"
               variant="outline"
@@ -593,7 +595,9 @@ function ToolFallbackApproval({
     );
   }
 
-  if (acceptsText) {
+  // A question carries no decision to fabricate, so it renders only what the
+  // request declared, even when that leaves nothing to act on here.
+  if (question) {
     return (
       <div
         data-slot="tool-fallback-approval"
@@ -639,6 +643,7 @@ function ToolFallbackApproval({
           Deny
         </Button>
       </div>
+      {answerField}
       {errorText}
     </div>
   );

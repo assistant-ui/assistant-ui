@@ -170,8 +170,9 @@ export type ThreadRuntimeCore = Readonly<{
   /**
    * Records a decision on a tool approval gate. Resolves once the runtime has
    * accepted the response and rejects when it could not be recorded, so a
-   * caller can leave the gate retryable rather than spending it. Precondition
-   * violations still throw synchronously.
+   * caller can leave the gate retryable rather than spending it. A capability
+   * or state precondition still throws synchronously; a failure to record
+   * arrives as a rejection, including one an adapter raises synchronously.
    *
    * Acceptance is as far as the runtime can see the response: one that records
    * the decision locally settles on the record, while one that answers by

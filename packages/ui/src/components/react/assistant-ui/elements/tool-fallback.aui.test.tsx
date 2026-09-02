@@ -191,8 +191,9 @@ describe("ToolFallback", () => {
 describe("ToolFallbackApproval", () => {
   it("reports a synchronous refusal and keeps the controls actionable", async () => {
     let refuses = true;
-    const respondToApproval = vi.fn(async () => {
+    const respondToApproval = vi.fn((): Promise<void> => {
       if (refuses) throw new Error("response cannot be mapped");
+      return Promise.resolve();
     });
 
     render(
@@ -278,6 +279,50 @@ describe("ToolFallbackApproval", () => {
     fireEvent.click(button("Send"));
 
     expect(respondToApproval).toHaveBeenCalledWith({ text: "staging" });
+  });
+
+  it("keeps the decision controls when a gate also takes a typed answer", () => {
+    const respondToApproval = vi.fn(async () => {});
+
+    render(
+      <ToolFallbackApproval
+        approval={{
+          ...pendingApproval,
+          prompt: "Delete the release branch?",
+          display: "decision",
+          allowFreeform: true,
+        }}
+        respondToApproval={respondToApproval}
+      />,
+    );
+
+    expect(button("Allow")).toBeTruthy();
+    expect(button("Deny")).toBeTruthy();
+
+    fireEvent.change(
+      screen.getByRole("textbox", { name: "Delete the release branch?" }),
+      { target: { value: "not this one" } },
+    );
+    fireEvent.click(button("Send"));
+
+    expect(respondToApproval).toHaveBeenCalledWith({ text: "not this one" });
+  });
+
+  it("never fabricates a decision for a select request that declares no options", () => {
+    render(
+      <ToolFallbackApproval
+        approval={{
+          ...pendingApproval,
+          prompt: "Which environment?",
+          display: "select",
+        }}
+        respondToApproval={vi.fn(async () => {})}
+      />,
+    );
+
+    expect(screen.getByText("Which environment?")).toBeTruthy();
+    expect(screen.queryByRole("button", { name: "Allow" })).toBeNull();
+    expect(screen.queryByRole("button", { name: "Deny" })).toBeNull();
   });
 
   it("does not add a refusal to a question that declares its own options", () => {
