@@ -282,13 +282,15 @@ const RemoteThreadBody = resource(useRemoteThreadBody);
 // `thread("main")` keeps one identity across switches, like the single
 // useClientResource slot it replaced: consumers (the ambient `thread` scope,
 // captured clients) hold the facade while it delegates to whichever body is
-// currently main. Isolated in its own hook because the render-time ref access
-// bails the React Compiler for the enclosing function.
+// currently main. Publishing the target during commit keeps abandoned
+// concurrent renders from changing the facade observed by committed consumers.
 const useMainThreadFacade = (
   current: ClientOutput<"thread">,
 ): ClientOutput<"thread"> => {
   const currentRef = useRef(current);
-  currentRef.current = current;
+  useEffect(() => {
+    currentRef.current = current;
+  }, [current]);
   const [facade] = useState(
     () =>
       new Proxy({} as ClientOutput<"thread">, {

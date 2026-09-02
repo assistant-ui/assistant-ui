@@ -2,7 +2,7 @@
 
 import { createRef, startTransition, Suspense } from "react";
 import { act, render, waitFor } from "@testing-library/react";
-import { resource } from "@assistant-ui/tap";
+import { resource, withKey } from "@assistant-ui/tap";
 import {
   AuiConfig,
   AuiProvider,
@@ -21,6 +21,25 @@ const useStubThread = () => ({
   suggestions: () => suggestions,
 });
 const StubThread = resource(useStubThread);
+
+const useIdentifiedThread = ({
+  id,
+  onRender,
+  onRefetch,
+}: {
+  id: string;
+  onRender: (id: string) => void;
+  onRefetch: (id: string) => void;
+}) => {
+  onRender(id);
+  return {
+    getState: () => ({ isRunning: false, messages: [{ id }] }),
+    composer: () => composer,
+    suggestions: () => suggestions,
+    unstable_refetchThread: async () => onRefetch(id),
+  };
+};
+const IdentifiedThread = resource(useIdentifiedThread);
 
 const makeAdapter = (): RemoteThreadListAdapter => ({
   list: vi.fn(async () => ({
@@ -92,5 +111,81 @@ describe("RemoteThreadList concurrent rendering", () => {
 
     expect(adapterA.rename).toHaveBeenCalledWith("thread-1", "Renamed");
     expect(adapterB.rename).not.toHaveBeenCalled();
+  });
+
+  it("keeps the main thread facade scoped to the committed factory", async () => {
+    const adapter = makeAdapter();
+    const clientRef = createRef<AssistantClient>();
+    const renderWorkspaceB = vi.fn();
+    const refetchThread = vi.fn();
+    const never = new Promise<never>(() => {});
+    let suspend = false;
+
+    const Blocker = () => {
+      if (suspend) throw never;
+      return null;
+    };
+    const App = ({ workspace }: { workspace: string }) => (
+      <Suspense fallback={null}>
+        <AuiProvider
+          ref={clientRef as never}
+          config={AuiConfig({
+            threads: RemoteThreadList({
+              adapter,
+              thread: (id) =>
+                withKey(
+                  workspace,
+                  IdentifiedThread({
+                    id: `${workspace}:${id}`,
+                    onRender: (renderedId) => {
+                      if (renderedId.startsWith("workspace-b:")) {
+                        renderWorkspaceB();
+                      }
+                    },
+                    onRefetch: refetchThread,
+                  }),
+                ) as never,
+            }),
+          })}
+        >
+          <Blocker />
+        </AuiProvider>
+      </Suspense>
+    );
+
+    const view = render(<App workspace="workspace-a" />);
+    const client = clientRef.current!;
+    await act(async () => {
+      await client.threads.getLoadThreadsPromise();
+      await client.threads.switchToThread("thread-1");
+    });
+    await waitFor(() =>
+      expect(client.thread.getState().messages[0]?.id).toBe(
+        "workspace-a:thread-1",
+      ),
+    );
+
+    act(() => {
+      suspend = true;
+      startTransition(() => view.rerender(<App workspace="workspace-b" />));
+    });
+
+    expect(renderWorkspaceB).toHaveBeenCalled();
+    await act(async () => {
+      await client.threads.reloadMainThread();
+    });
+    expect(refetchThread).toHaveBeenLastCalledWith("workspace-a:thread-1");
+
+    suspend = false;
+    view.rerender(<App workspace="workspace-b" />);
+    await waitFor(() =>
+      expect(client.thread.getState().messages[0]?.id).toBe(
+        "workspace-b:thread-1",
+      ),
+    );
+    await act(async () => {
+      await client.threads.reloadMainThread();
+    });
+    expect(refetchThread).toHaveBeenLastCalledWith("workspace-b:thread-1");
   });
 });
