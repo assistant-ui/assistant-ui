@@ -1,4 +1,4 @@
-import { useEffect, useLayoutEffect, useRef } from "react";
+import { useEffect, useInsertionEffect, useRef } from "react";
 import { useAui } from "@assistant-ui/store";
 import type { Tool } from "assistant-stream";
 
@@ -25,7 +25,7 @@ type AuiToolOverrides = Record<string, AuiToolOverride<any, any>>;
 export function useAuiToolOverrides(overrides: AuiToolOverrides): void {
   const aui = useAui();
   const overridesRef = useRef(overrides);
-  useLayoutEffect(() => {
+  useInsertionEffect(() => {
     overridesRef.current = overrides;
   }, [overrides]);
 

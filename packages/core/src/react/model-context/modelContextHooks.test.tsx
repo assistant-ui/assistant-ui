@@ -49,8 +49,10 @@ afterEach(() => {
 describe("model context hooks", () => {
   it("keeps assistant context scoped to the committed render", async () => {
     const pending = new Promise<never>(() => {});
+    const renderB = vi.fn();
     const Probe = ({ value, suspend }: { value: string; suspend: boolean }) => {
       useAssistantContext({ getContext: () => value });
+      if (value === "workspace-b") renderB();
       if (suspend) throw pending;
       return null;
     };
@@ -72,13 +74,24 @@ describe("model context hooks", () => {
       });
     });
 
+    expect(renderB).toHaveBeenCalled();
     expect(getProvider()?.getModelContext().system).toBe("workspace-a");
+
+    view.rerender(
+      <Suspense fallback={null}>
+        <Probe value="workspace-b" suspend={false} />
+      </Suspense>,
+    );
+
+    expect(getProvider()?.getModelContext().system).toBe("workspace-b");
   });
 
   it("keeps tool overrides scoped to the committed render", async () => {
     const pending = new Promise<never>(() => {});
+    const renderB = vi.fn();
     const Probe = ({ value, suspend }: { value: string; suspend: boolean }) => {
       useAuiToolOverrides({ search: { execute: () => value } });
+      if (value === "workspace-b") renderB();
       if (suspend) throw pending;
       return null;
     };
@@ -100,8 +113,19 @@ describe("model context hooks", () => {
       });
     });
 
+    expect(renderB).toHaveBeenCalled();
     expect(getProvider()?.getModelContext().tools?.search?.execute?.()).toBe(
       "workspace-a",
+    );
+
+    view.rerender(
+      <Suspense fallback={null}>
+        <Probe value="workspace-b" suspend={false} />
+      </Suspense>,
+    );
+
+    expect(getProvider()?.getModelContext().tools?.search?.execute?.()).toBe(
+      "workspace-b",
     );
   });
 });
