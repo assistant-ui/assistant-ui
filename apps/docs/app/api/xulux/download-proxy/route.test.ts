@@ -43,6 +43,7 @@ const request = () =>
   );
 
 afterEach(() => {
+  vi.useRealTimers();
   vi.clearAllMocks();
 });
 
@@ -210,7 +211,6 @@ describe("GET /api/xulux/download-proxy access boundary", () => {
 
     expect(response.status).toBe(502);
     expect(cancelled).toBe(true);
-    vi.useRealTimers();
   });
 
   it("keeps a metered archive out of shared caches", async () => {
