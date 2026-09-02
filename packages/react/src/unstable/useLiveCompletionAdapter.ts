@@ -84,7 +84,7 @@ export function unstable_useLiveCompletionAdapter(
   const pendingQueryRef = useRef<string | null>(null);
   const retryableQueryRef = useRef<string | null>(null);
   const pendingRetryQueryRef = useRef<string | null>(null);
-  const mountedRef = useRef(false);
+  const unmountedRef = useRef(false);
 
   const cancelTimer = useCallback(() => {
     if (timerRef.current !== null) {
@@ -102,7 +102,7 @@ export function unstable_useLiveCompletionAdapter(
 
   const scheduleFetch = useCallback(
     (query: string) => {
-      if (!mountedRef.current || !enabled) return;
+      if (unmountedRef.current || !enabled) return;
       if (pendingQueryRef.current === query) return;
       rearmPendingRetry();
       if (retryableQueryRef.current === query) {
@@ -164,9 +164,9 @@ export function unstable_useLiveCompletionAdapter(
   }, [enabled, invalidatePending]);
 
   useLayoutEffect(() => {
-    mountedRef.current = true;
+    unmountedRef.current = false;
     return () => {
-      mountedRef.current = false;
+      unmountedRef.current = true;
       cancelTimer();
       pendingQueryRef.current = null;
       tokenRef.current += 1;
