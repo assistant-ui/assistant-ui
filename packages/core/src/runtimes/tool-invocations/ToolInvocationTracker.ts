@@ -658,11 +658,15 @@ export class ToolInvocationTracker {
   private _demoteEntriesToRestored(): void {
     for (const [toolCallId, entry] of this._entries) {
       if (!entry.controller) continue;
-      if (!entry.argsComplete && !entry.hasResult) {
+      if (!entry.argsComplete && !entry.hasResult && !entry.skipExecute) {
         // The call never reached the executor. A restored entry is promoted
         // only when its signature changes, and a call waiting on the run to
         // settle already holds its final args, so demoting it would strand it
-        // unexecuted. Dropping it lets the next snapshot start it over.
+        // unexecuted. Dropping it lets the next snapshot start it over. An
+        // entry the abort path marked dead (A.11) is demoted instead: every
+        // other source of `skipExecute` is re-derived from the next snapshot,
+        // that one lives only on the entry, and being stranded is what it
+        // asks for.
         this._entries.delete(toolCallId);
         continue;
       }

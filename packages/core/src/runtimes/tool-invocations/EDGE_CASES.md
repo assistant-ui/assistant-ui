@@ -157,6 +157,13 @@ snapshot arrives; without the mark, cancelling a run would be what starts
 the call it was meant to stop. `reset()` is unaffected: it clears
 `_entries` before aborting.
 
+The mark is the one source of `skipExecute` that a later snapshot cannot
+re-derive: an `approval` and provider ownership are both read off the
+snapshot again, and a call with a result is never dropped. So the
+pipeline-restart path demotes a marked entry instead of dropping it
+(F.4), or a stream failure landing between the abort and the settled
+snapshot would hand the call back clean.
+
 ## B. Tool call disappears from snapshot
 
 ### B.1. Tool call removed entirely (rollback, branch switch)
