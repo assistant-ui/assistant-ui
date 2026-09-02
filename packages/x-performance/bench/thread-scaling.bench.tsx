@@ -30,14 +30,17 @@ const Message = () => {
 };
 const COMPONENTS = { Message };
 
+const seedText = (i: number) =>
+  `message ${i} with a sentence of ordinary length behind it.`;
+
 const seed = (n: number): Msg[] =>
   Array.from({ length: n }, (_, i) => ({
     id: `m${i}`,
     role: i % 2 ? "assistant" : "user",
-    text: `message ${i} with a sentence of ordinary length behind it.`,
+    text: seedText(i),
   }));
 
-type Host = { append: () => void; unmount: () => void };
+type Host = { tick: () => void; unmount: () => void };
 
 const mount = (n: number): Host => {
   let setMessages!: (updater: (prev: Msg[]) => Msg[]) => void;
@@ -58,15 +61,19 @@ const mount = (n: number): Host => {
   };
   const root = createRoot(document.createElement("div"));
   flushSync(() => root.render(createElement(App)));
+  let flip = false;
   return {
-    append: () =>
+    tick: () => {
+      flip = !flip;
+      const tail = flip ? " tok a" : " tok b";
       flushSync(() =>
         setMessages((prev) =>
           prev.map((m) =>
-            m.id === last ? { ...m, text: `${m.text} tok` } : m,
+            m.id === last ? { ...m, text: `${seedText(n - 1)}${tail}` } : m,
           ),
         ),
-      ),
+      );
+    },
     unmount: () => flushSync(() => root.unmount()),
   };
 };
@@ -79,10 +86,13 @@ describe("external-store thread: mount+unmount by message count", () => {
   }
 });
 
-describe("external-store thread: one token appended to the last message, by thread length", () => {
+// The last message flips between two same-length endings, so every sample
+// pays for one token change at a fixed thread size instead of an ever-growing
+// message.
+describe("external-store thread: one token changed in the last message, by thread length", () => {
   for (const n of SIZES) {
     let host: Host;
-    bench(`${n} messages`, () => host.append(), {
+    bench(`${n} messages`, () => host.tick(), {
       setup: () => {
         host = mount(n);
       },

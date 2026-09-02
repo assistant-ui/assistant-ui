@@ -75,8 +75,8 @@ export const readHistory = (dir) => {
 
 export const renderHistory = ({ dir, now = new Date(), window = 30 }) => {
   const points = readHistory(dir);
-  const latest = points.at(-1);
   const nowTime = now.getTime();
+  const latest = points.filter((point) => pointTime(point) <= nowTime).at(-1);
   const windowStart = nowTime - window * 24 * 60 * 60 * 1000;
   const windowPoints = points.filter((point) => {
     const time = pointTime(point);
@@ -93,12 +93,17 @@ export const renderHistory = ({ dir, now = new Date(), window = 30 }) => {
       const values = windowPoints
         .map((point) => rowFor(point, id)?.mean)
         .filter((mean) => mean !== undefined);
-      const sevenDayRow = latestRow
-        ? nearestRow(points, nowTime - 7 * 24 * 60 * 60 * 1000, id)
-        : undefined;
-      const thirtyDayRow = latestRow
-        ? nearestRow(points, nowTime - 30 * 24 * 60 * 60 * 1000, id)
-        : undefined;
+      const usable = (row) => (row && row.mean > 0 ? row : undefined);
+      const sevenDayRow = usable(
+        latestRow
+          ? nearestRow(points, nowTime - 7 * 24 * 60 * 60 * 1000, id)
+          : undefined,
+      );
+      const thirtyDayRow = usable(
+        latestRow
+          ? nearestRow(points, nowTime - 30 * 24 * 60 * 60 * 1000, id)
+          : undefined,
+      );
       const sevenDay =
         latestRow && sevenDayRow
           ? percent(latestRow.mean, sevenDayRow.mean)

@@ -33,14 +33,18 @@ const seed = (n: number): Msg[] =>
     text: `message ${i}`,
   }));
 
-const collectGarbage = async () => {
+// WeakRef targets survive the job that dereferenced them and a stale stack
+// slot can keep one alive through a collection, so collect in bounded rounds
+// until the refs clear; a real retention still fails after the last round.
+const collectUntilCleared = async (refs: WeakRef<object>[]) => {
   const gc = (globalThis as { gc?: () => void }).gc;
   if (!gc)
     throw new Error("run vitest with --expose-gc (see vitest.config.ts)");
-  await new Promise((resolve) => setTimeout(resolve, 0));
-  gc();
-  await new Promise((resolve) => setTimeout(resolve, 0));
-  gc();
+  for (let round = 0; round < 10; round++) {
+    await new Promise((resolve) => setTimeout(resolve, 0));
+    gc();
+    if (refs.every((ref) => ref.deref() === undefined)) return;
+  }
 };
 
 describe("retention", () => {
@@ -72,7 +76,7 @@ describe("retention", () => {
     ]);
 
     act(() => root.unmount());
-    await collectGarbage();
+    await collectUntilCleared(refs);
 
     expect(refs.map((ref) => ref.deref())).toEqual([
       undefined,

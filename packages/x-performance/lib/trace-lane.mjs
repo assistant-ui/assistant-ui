@@ -100,13 +100,14 @@ export const trace = async (targets, seconds, outputs = {}) => {
   const fixtures = [];
   for (const target of targets) {
     const { hint } = hintFor(target);
-    const staged = target.endsWith(".html")
-      ? stageFixture(
-          resolve(target),
-          repoRoot(),
-          join(perfDir, "trace-pages", "head"),
-        )
-      : target;
+    const staged =
+      target.endsWith(".html") && !/^https?:/.test(target)
+        ? stageFixture(
+            resolve(target),
+            repoRoot(),
+            join(perfDir, "trace-pages", "head"),
+          )
+        : target;
     const screenshot = join(perfDir, `trace-${hint}-head.png`);
     fixtures.push({
       name: hint,

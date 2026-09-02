@@ -210,6 +210,20 @@ describe("renderCompareMarkdown", () => {
     expect(md).toContain("<summary>2 control rows");
   });
 
+  it("says when changed dists have no bench instead of claiming they are identical", () => {
+    const md = markdown(
+      [
+        row("bench/c.bench.ts > g > x", 2, 3, false),
+        row("bench/c.bench.ts > g > y", -1, 3, false),
+      ],
+      { changed: ["@assistant-ui/tap"] },
+    );
+    expect(md).toContain(
+      "- **No bench exercises the changed dists** (`@assistant-ui/tap`), so all 2 rows ran as controls · none crossed their analytic floor.",
+    );
+    expect(md).not.toContain("byte-identical");
+  });
+
   it("names the missing controls when every bench is measured", () => {
     const md = markdown([row("bench/m.bench.ts > g > x", 1, 3, true)], {
       changed: ["@assistant-ui/tap"],
@@ -323,6 +337,45 @@ describe("assembleReport", () => {
     );
     expect(json.bench.schema).toBe("aui-perf/compare@1");
     expect(json.trace.fixtures[0].name).toBe("shimmer.html");
+  });
+
+  it("drops control rows from the JSON block when the comment would exceed the limit", () => {
+    const dir = mkdtempSync(join(tmpdir(), "aui-perf-report-"));
+    dirs.push(dir);
+    const bench = join(dir, "bench.json");
+    const out = join(dir, "comment.md");
+    const rows: CompareRow[] = [
+      row("bench/m.bench.ts > g > measured", 1, 3, true),
+    ];
+    for (let i = 0; i < 900; i++) {
+      rows.push(
+        row(
+          `bench/c.bench.ts > group ${"x".repeat(60)} > control ${i}`,
+          0,
+          3,
+          false,
+        ),
+      );
+    }
+    writeFileSync(
+      bench,
+      JSON.stringify(
+        buildCompareDoc(rows, meta({ changed: ["@assistant-ui/tap"] })),
+      ),
+    );
+    const md = assembleReport({ out, bench });
+    expect(md.length).toBeLessThan(65536);
+    expect(md).toContain(
+      "<summary>900 control rows (unchanged dists, so every delta here is runner noise), the 40 largest moves shown</summary>",
+    );
+    expect(md).toContain(
+      "<summary>machine-readable (control rows omitted to stay under the comment size limit)</summary>",
+    );
+    const block = md.slice(
+      md.indexOf("```json\n") + 8,
+      md.lastIndexOf("\n```"),
+    );
+    expect(JSON.parse(block).bench.rows).toHaveLength(1);
   });
 
   it("still writes a marked comment when no lane ran", () => {

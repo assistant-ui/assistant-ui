@@ -129,7 +129,9 @@ const compareHeadline = (doc) => {
     return [`- **${doc.rows.length} benches** · ${tally}`];
   if (!s.measured) {
     return [
-      `- **Nothing to measure.** Every measured package dist is byte-identical between ${doc.base.label} and ${doc.head.label}, so all ${doc.rows.length} rows ran as controls · ${controlsText(s)}`,
+      doc.changed.length
+        ? `- **No bench exercises the changed dists** (${doc.changed.map(code).join(", ")}), so all ${doc.rows.length} rows ran as controls · ${controlsText(s)}. A bench under \`bench/\` that imports them would measure this class of change.`
+        : `- **Nothing to measure.** Every measured package dist is byte-identical between ${doc.base.label} and ${doc.head.label}, so all ${doc.rows.length} rows ran as controls · ${controlsText(s)}`,
     ];
   }
   return [
@@ -150,8 +152,15 @@ const splitRows = (doc) => ({
   controls: doc.rows.filter((row) => row.verdict === null),
 });
 
-export const renderCompareMarkdown = (doc) => {
-  const { measured, controls } = splitRows(doc);
+export const renderCompareMarkdown = (
+  doc,
+  { controlLimit = Infinity } = {},
+) => {
+  const { measured, controls: allControls } = splitRows(doc);
+  const controls = [...allControls]
+    .sort((x, y) => Math.abs(y.delta) - Math.abs(x.delta))
+    .slice(0, controlLimit);
+  const omitted = allControls.length - controls.length;
   const out = [
     `### aui-perf: ${doc.head.label} vs ${doc.base.label}`,
     "",
@@ -181,7 +190,7 @@ export const renderCompareMarkdown = (doc) => {
     out.push(
       "",
       "<details>",
-      `<summary>${controls.length} control rows (unchanged dists, so every delta here is runner noise)</summary>`,
+      `<summary>${allControls.length} control rows (unchanged dists, so every delta here is runner noise)${omitted ? `, the ${controls.length} largest moves shown` : ""}</summary>`,
       "",
       mdTable(
         ["bench", doc.base.label, doc.head.label, "Δ", "floor"],
@@ -296,6 +305,15 @@ export const writeLaneOutputs = (doc, outputs, render) => {
   }
 };
 
+// GitHub rejects comment bodies past 65536 characters, and the posting step
+// must never fail for a reason that is not an infrastructure error.
+const COMMENT_LIMIT = 60_000;
+
+const withoutControls = (doc) => ({
+  ...doc,
+  rows: doc.rows.filter((row) => row.verdict !== null),
+});
+
 // One sticky comment per PR carries every lane that ran plus the same data as
 // JSON, so a reviewer skims the tables and a review agent parses the block.
 export const assembleReport = ({ out, bench, trace }) => {
@@ -309,23 +327,49 @@ export const assembleReport = ({ out, bench, trace }) => {
     docs.trace = JSON.parse(readFileSync(trace, "utf8"));
     sections.push(renderTraceMarkdown(docs.trace));
   }
-  if (!sections.length)
+  if (!sections.length) {
     sections.push(
       "### aui-perf\n\n_No measurement lane produced output for this run._",
     );
-  const markdown = [
-    MARKER,
-    ...sections,
-    "<details>",
-    "<summary>machine-readable</summary>",
-    "",
-    "```json",
-    JSON.stringify(docs),
-    "```",
-    "",
-    "</details>",
-    "",
-  ].join("\n");
+  }
+  const render = (payload, note) =>
+    [
+      MARKER,
+      ...sections,
+      "<details>",
+      `<summary>machine-readable${note ? ` (${note})` : ""}</summary>`,
+      "",
+      "```json",
+      JSON.stringify(payload),
+      "```",
+      "",
+      "</details>",
+      "",
+    ].join("\n");
+  let markdown = render(docs, "");
+  if (markdown.length > COMMENT_LIMIT && docs.bench) {
+    const trimmed = withoutControls(docs.bench);
+    sections[0] = renderCompareMarkdown(docs.bench, { controlLimit: 40 });
+    markdown = render(
+      { ...docs, bench: trimmed },
+      "control rows omitted to stay under the comment size limit",
+    );
+  }
+  if (markdown.length > COMMENT_LIMIT) {
+    markdown = render(
+      Object.fromEntries(
+        Object.entries(docs).map(([lane, doc]) => [
+          lane,
+          {
+            schema: doc.schema,
+            generatedAt: doc.generatedAt,
+            summary: doc.summary ?? null,
+          },
+        ]),
+      ),
+      "rows omitted to stay under the comment size limit",
+    );
+  }
   writeFileSync(out, markdown);
   return markdown;
 };

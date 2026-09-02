@@ -40,14 +40,16 @@ const paragraphs = (n: number) =>
       `Paragraph ${i} of the streamed answer keeps **emphasis**, a [link](https://example.com), and \`inline code\` in every line so the parse stays realistic.`,
   ).join("\n\n");
 
-type Host = { append: () => void; unmount: () => void };
+type Host = { tick: () => void; unmount: () => void };
 
 const mount = (n: number): Host => {
   let setMessages!: (updater: (prev: Msg[]) => Msg[]) => void;
+  const body = paragraphs(n);
+  let flip = false;
   const App = () => {
     const [messages, set] = useState<Msg[]>([
       { id: "u1", role: "user", text: "hello" },
-      { id: "a1", role: "assistant", text: paragraphs(n) },
+      { id: "a1", role: "assistant", text: body },
     ]);
     setMessages = set;
     const runtime = useExternalStoreRuntime<Msg>({
@@ -64,24 +66,29 @@ const mount = (n: number): Host => {
   const root = createRoot(document.createElement("div"));
   flushSync(() => root.render(createElement(App)));
   return {
-    append: () =>
+    tick: () => {
+      flip = !flip;
+      const tail = flip ? " tok a" : " tok b";
       flushSync(() =>
         setMessages((prev) =>
           prev.map((m) =>
-            m.id === "a1" ? { ...m, text: `${m.text} tok` } : m,
+            m.id === "a1" ? { ...m, text: `${body}${tail}` } : m,
           ),
         ),
-      ),
+      );
+    },
     unmount: () => flushSync(() => root.unmount()),
   };
 };
 
 const SIZES = [1, 10, 50];
 
-describe("react-markdown: one token appended to the last paragraph, by message length", () => {
+// The last paragraph flips between two same-length endings, so every sample
+// re-parses a document of fixed length instead of an ever-growing one.
+describe("react-markdown: one token changed in the last paragraph, by message length", () => {
   for (const n of SIZES) {
     let host: Host;
-    bench(`${n} paragraphs`, () => host.append(), {
+    bench(`${n} paragraphs`, () => host.tick(), {
       setup: () => {
         host = mount(n);
       },

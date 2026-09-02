@@ -1,5 +1,7 @@
-import { describe, expect, it } from "vitest";
-import { resolve } from "node:path";
+import { afterEach, describe, expect, it } from "vitest";
+import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
+import { tmpdir } from "node:os";
+import { join, resolve } from "node:path";
 import {
   attributeRows,
   benchCoverage,
@@ -24,6 +26,18 @@ describe("importedPackages", () => {
     expect([...importedPackages(source)].sort()).toEqual([
       "@assistant-ui/tap",
       "assistant-stream",
+    ]);
+  });
+
+  it("counts side-effect imports and skips statement-level type imports", () => {
+    const source = `
+      import "@assistant-ui/tap/react-shim";
+      import type { Foo } from "@assistant-ui/core";
+      import { type Bar, baz } from "@assistant-ui/store";
+    `;
+    expect([...importedPackages(source)].sort()).toEqual([
+      "@assistant-ui/store",
+      "@assistant-ui/tap",
     ]);
   });
 
@@ -114,6 +128,47 @@ describe("against the real workspace", () => {
     expect(attributeRows(rows, coverage, []).every((r) => !r.measured)).toBe(
       true,
     );
+  });
+});
+
+describe("benchCoverage", () => {
+  const dirs: string[] = [];
+  afterEach(() => {
+    for (const dir of dirs.splice(0))
+      rmSync(dir, { recursive: true, force: true });
+  });
+
+  it("walks nested bench directories and keys entries the way row ids are prefixed", () => {
+    const dir = mkdtempSync(join(tmpdir(), "aui-perf-bench-"));
+    dirs.push(dir);
+    mkdirSync(join(dir, "nested"));
+    writeFileSync(
+      join(dir, "top.bench.ts"),
+      'import { x } from "@assistant-ui/tap";',
+    );
+    writeFileSync(
+      join(dir, "nested", "deep.bench.tsx"),
+      'import "@assistant-ui/store";',
+    );
+    writeFileSync(join(dir, "helper.ts"), 'import "@assistant-ui/core";');
+    const graph = new Map([
+      ["@assistant-ui/tap", []],
+      ["@assistant-ui/store", ["@assistant-ui/tap"]],
+    ]);
+    const coverage = benchCoverage(dir, graph);
+    expect([...coverage.keys()]).toEqual([
+      "bench/nested/deep.bench.tsx",
+      "bench/top.bench.ts",
+    ]);
+    expect(
+      [...(coverage.get("bench/nested/deep.bench.tsx") ?? [])].sort(),
+    ).toEqual(["@assistant-ui/store", "@assistant-ui/tap"]);
+  });
+
+  it("refuses rows whose bench file has no coverage entry", () => {
+    expect(() =>
+      attributeRows([{ id: "bench/unknown.bench.ts > g > x" }], new Map(), []),
+    ).toThrow(/no coverage entry for bench\/unknown\.bench\.ts/);
   });
 });
 

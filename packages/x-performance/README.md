@@ -19,7 +19,7 @@ bin/         the aui-perf command
 | --- | --- | --- | --- |
 | Exact counters | Renders, commits, store notifications, markdown parses, converter calls, animation-frame commits, and post-unmount retention, pinned as integers in `contracts/` against the built dists, or colocated next to the behavior when a contract needs a package's own internals | The ordinary test job, through `turbo test` | Yes, with zero tolerance. The numbers are deterministic, so a changed integer is a deliberate PR that re-pins it and explains the mechanism |
 | Toolchain proof | `pnpm check:resource-memo` proves the React Compiler still memoizes resources after a compiler or Babel bump | The lint job | Yes |
-| Size budgets | `pnpm size:check` bundles every published client entry with rolldown (all bare imports external, minified, gzip) and compares it with `size-budgets.json` at the repo root | The build job, after the changed packages are built | Yes, on a move past max(2%, 256 B) in either direction. `pnpm size:update` after a full build rewrites the file and the diff rides in the PR |
+| Size budgets | `pnpm size:check` bundles every published client entry with rolldown (all bare imports external, minified, gzip) and compares it with `size-budgets.json` at the repo root | The build job, after the changed packages are built; it measures the entries that job built, which are exactly the ones whose dist could have changed | Yes, on a move past max(2%, 256 B) in either direction. `pnpm size:update` after a full build rewrites the file and the diff rides in the PR |
 | Wall-time benches | `bench/*.bench.ts` head against base, paired and interleaved on one runner | The Performance workflow, as one sticky PR comment shared with the trace lane | Never. Only an infrastructure error reddens the job |
 | Rendering-pipeline traces | `fixtures/*.html` through headless Chrome, base against head, paint and compositor counts plus a screenshot per side | The same workflow and comment, when a fixture or a CSS package changes | Never |
 | Longitudinal record | `aui-perf record` on main every night, appended to the `perf-history` branch and rendered as a trend table | The Performance Nightly workflow | Never |
@@ -62,7 +62,7 @@ Benchmarks import only public package entry points so the react-compiler output 
 
 ## What the contracts currently pin
 
-- A token appended to the streaming message re-renders only that message's text part and commits twice (host state, then the adapter push through the store), for the external-store runtime, the local runtime (one commit), and the AI SDK runtime, in a 2-message and a 200-message thread alike; `convertMessage` runs once per token.
+- A token appended to the streaming message re-renders only that message's text part. It commits twice (host state, then the adapter push through the store) on the external-store and AI SDK runtimes and once on the local runtime, in a 2-message and a 200-message thread alike; `convertMessage` runs once per token.
 - Mounting a 200-message thread renders and converts each message once in a single commit.
 - A markdown message re-parses its whole text twice per token, once for the part update and once for the smooth status store write, while only the paragraph that changed re-renders.
 - Smooth streaming commits once per animation frame while draining a chunk; `minCommitMs` batches those commits; smoothing off commits once per chunk.

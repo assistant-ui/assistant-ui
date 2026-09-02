@@ -1,5 +1,5 @@
 import { readdirSync, readFileSync } from "node:fs";
-import { join } from "node:path";
+import { join, relative } from "node:path";
 import { REF_PACKAGE_DIRS } from "./ref-packages.mjs";
 
 const MEASURED = Object.keys(REF_PACKAGE_DIRS);
@@ -11,12 +11,15 @@ const packageOf = (specifier) =>
 
 // Benches reach measured packages only through bare public specifiers, so a
 // static scan of import sources lists everything a bench file exercises
-// directly.
+// directly. Statement-level type imports are erased at runtime and skipped;
+// side-effect imports count.
 export const importedPackages = (source) => {
   const out = new Set();
-  const pattern = /from\s+["']([^"']+)["']|import\(\s*["']([^"']+)["']\s*\)/g;
+  const pattern =
+    /^\s*import\s+(type\s+)?[^"';]*?\bfrom\s*["']([^"']+)["']|^\s*import\s*["']([^"']+)["']|import\(\s*["']([^"']+)["']\s*\)/gm;
   for (const match of source.matchAll(pattern)) {
-    const pkg = packageOf(match[1] ?? match[2] ?? "");
+    if (match[1]) continue;
+    const pkg = packageOf(match[2] ?? match[3] ?? match[4] ?? "");
     if (pkg) out.add(pkg);
   }
   return out;
@@ -53,11 +56,23 @@ export const closure = (names, graph) => {
 // packages it exercises directly or through their workspace dependencies.
 export const benchCoverage = (benchDir, graph) => {
   const out = new Map();
-  for (const name of readdirSync(benchDir).sort()) {
-    if (!/\.bench\.tsx?$/.test(name)) continue;
-    const source = readFileSync(join(benchDir, name), "utf8");
-    out.set(`bench/${name}`, closure(importedPackages(source), graph));
-  }
+  const walk = (dir) => {
+    const entries = readdirSync(dir, { withFileTypes: true }).sort((x, y) =>
+      x.name.localeCompare(y.name),
+    );
+    for (const entry of entries) {
+      const path = join(dir, entry.name);
+      if (entry.isDirectory()) walk(path);
+      else if (/\.bench\.tsx?$/.test(entry.name)) {
+        const source = readFileSync(path, "utf8");
+        out.set(
+          `bench/${relative(benchDir, path)}`,
+          closure(importedPackages(source), graph),
+        );
+      }
+    }
+  };
+  walk(benchDir);
   return out;
 };
 
@@ -65,7 +80,13 @@ export const benchFileOf = (rowId) => rowId.slice(0, rowId.indexOf(" > "));
 
 export const attributeRows = (rows, coverage, changed) =>
   rows.map((row) => {
-    const covers = coverage.get(benchFileOf(row.id)) ?? new Set();
+    const file = benchFileOf(row.id);
+    const covers = coverage.get(file);
+    if (!covers) {
+      throw new Error(
+        `no coverage entry for ${file}: bench ids must start with the bench file path`,
+      );
+    }
     const touched = changed.filter((pkg) => covers.has(pkg));
     return { ...row, measured: touched.length > 0, touched };
   });

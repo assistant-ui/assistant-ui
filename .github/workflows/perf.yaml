@@ -79,9 +79,10 @@ jobs:
         run: |
           set -euo pipefail
           if command -v google-chrome-stable >/dev/null 2>&1; then exit 0; fi
-          wget -q -O /tmp/chrome.deb https://dl.google.com/linux/direct/google-chrome-stable_current_amd64.deb
+          curl -fsSL https://dl.google.com/linux/linux_signing_key.pub | sudo gpg --dearmor -o /usr/share/keyrings/google-chrome.gpg
+          echo "deb [arch=amd64 signed-by=/usr/share/keyrings/google-chrome.gpg] https://dl.google.com/linux/chrome/deb/ stable main" | sudo tee /etc/apt/sources.list.d/google-chrome.list >/dev/null
           sudo apt-get update -qq
-          sudo apt-get install -y -qq /tmp/chrome.deb
+          sudo apt-get install -y -qq google-chrome-stable
 
       - name: Trace fixtures against the base commit
         if: steps.lanes.outputs.trace == 'true'
@@ -118,7 +119,7 @@ jobs:
         run: |
           set -euo pipefail
           marker='<!-- aui-perf-report -->'
-          existing=$(gh api "repos/$REPO/issues/$PR_NUMBER/comments" --paginate --jq ".[] | select(.body | startswith(\"$marker\")) | .id" | head -1)
+          existing=$(gh api "repos/$REPO/issues/$PR_NUMBER/comments" --paginate --jq ".[] | select(.body | startswith(\"$marker\")) | .id" | sed -n '1p')
           if [ -n "$existing" ]; then
             gh api "repos/$REPO/issues/comments/$existing" --method PATCH -F body=@"$RUNNER_TEMP/comment.md"
           else

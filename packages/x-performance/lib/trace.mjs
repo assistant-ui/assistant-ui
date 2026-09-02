@@ -181,16 +181,20 @@ export const captureTrace = async (
     await cdp.send("Tracing.end");
     await withTimeout(complete, 30_000, "trace collection");
     if (screenshotPath) {
-      const shot = await withTimeout(
-        cdp.send(
-          "Page.captureScreenshot",
-          { captureBeyondViewport: true },
-          sessionId,
-        ),
-        10_000,
-        "the screenshot",
-      );
-      writeFileSync(screenshotPath, Buffer.from(shot.data, "base64"));
+      try {
+        const shot = await withTimeout(
+          cdp.send(
+            "Page.captureScreenshot",
+            { captureBeyondViewport: true },
+            sessionId,
+          ),
+          10_000,
+          "the screenshot",
+        );
+        writeFileSync(screenshotPath, Buffer.from(shot.data, "base64"));
+      } catch (error) {
+        console.error(`screenshot failed for ${target}: ${error.message}`);
+      }
     }
     return chunks;
   } finally {

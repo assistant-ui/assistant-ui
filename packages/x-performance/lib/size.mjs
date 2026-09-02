@@ -62,7 +62,8 @@ export const measureEntry = async (file) => {
   const bundle = await rolldown({
     input: file,
     platform: "neutral",
-    external: (id) => !id.startsWith(".") && !isAbsolute(id),
+    external: (id) =>
+      !id.startsWith(".") && !id.startsWith("#") && !isAbsolute(id),
     logLevel: "silent",
   });
   try {

@@ -105,7 +105,10 @@ export declare const buildCompareDoc: (
   rows: CompareRow[],
   meta: CompareMeta,
 ) => CompareDoc;
-export declare const renderCompareMarkdown: (doc: CompareDoc) => string;
+export declare const renderCompareMarkdown: (
+  doc: CompareDoc,
+  options?: { controlLimit?: number },
+) => string;
 export declare const renderCompareTerminal: (doc: CompareDoc) => void;
 export declare const renderTraceMarkdown: (doc: TraceDoc) => string;
 export declare const renderTraceTerminal: (doc: TraceDoc) => void;
