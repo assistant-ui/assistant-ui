@@ -120,12 +120,6 @@ export function unstable_useLiveCompletionAdapter(
       setIsLoading(true);
       timerRef.current = setTimeout(() => {
         timerRef.current = null;
-        if (inactiveRef.current) {
-          rearmPendingRetry();
-          pendingQueryRef.current = null;
-          setIsLoading(false);
-          return;
-        }
         Promise.resolve()
           .then(() => fetcherRef.current(query))
           .then(
@@ -147,6 +141,11 @@ export function unstable_useLiveCompletionAdapter(
     },
     [enabled, debounceMs, cancelTimer, rearmPendingRetry],
   );
+
+  const scheduleFetchRef = useRef(scheduleFetch);
+  useLayoutEffect(() => {
+    scheduleFetchRef.current = scheduleFetch;
+  }, [scheduleFetch]);
 
   const invalidatePending = useCallback(() => {
     rearmPendingRetry();
@@ -174,16 +173,18 @@ export function unstable_useLiveCompletionAdapter(
     );
   }, [enabled, invalidatePending]);
 
+  // Render-time searches can outlive an abandoned render, so they only arm
+  // request work after this hook commits.
   useLayoutEffect(() => {
     inactiveRef.current = false;
     const deferredQuery = deferredQueryRef.current;
     deferredQueryRef.current = null;
-    if (deferredQuery !== null) scheduleFetch(deferredQuery);
+    if (deferredQuery !== null) scheduleFetchRef.current(deferredQuery);
     return () => {
       inactiveRef.current = true;
       invalidatePending();
     };
-  }, [invalidatePending, scheduleFetch]);
+  }, [invalidatePending]);
 
   // Arm retries only after the failed state commits. Arming during rejection
   // would let the failure render immediately schedule another request.

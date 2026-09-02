@@ -78,6 +78,33 @@ describe("unstable_useLiveCompletionAdapter", () => {
     expect(fetcher).not.toHaveBeenCalled();
   });
 
+  it("keeps an in-flight fetch when the debounce changes", async () => {
+    let resolve!: (items: readonly Unstable_TriggerItem[]) => void;
+    const fetcher = vi.fn(
+      () =>
+        new Promise<readonly Unstable_TriggerItem[]>((r) => {
+          resolve = r;
+        }),
+    );
+    const { result, rerender } = renderHook(
+      ({ debounceMs }) =>
+        unstable_useLiveCompletionAdapter({ fetcher, debounceMs }),
+      { initialProps: { debounceMs: 0 } },
+    );
+
+    await act(async () => {
+      result.current.adapter.search!("alice");
+      await vi.advanceTimersByTimeAsync(0);
+    });
+    expect(fetcher).toHaveBeenCalledOnce();
+
+    rerender({ debounceMs: 50 });
+    await act(async () => resolve([item("alice")]));
+
+    expect(result.current.adapter.search!("alice")).toEqual([item("alice")]);
+    expect(result.current.isLoading).toBe(false);
+  });
+
   it("settles loading when a suspended adapter is shown again", async () => {
     const fetcher = vi.fn(() => new Promise<never>(() => {}));
     const suspended = new Promise<never>(() => {});
