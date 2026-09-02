@@ -562,18 +562,23 @@ const toolkit = defineToolkit({
       const [error, setError] = useState<string | null>(null);
 
       if (approval?.approved === undefined) {
-        const answer = (response: ToolApprovalResponse) => {
+        // `try`/`await` rather than `.catch`: a rejected response and a
+        // rejected precondition (an unknown option, an answer the request does
+        // not take) reach the caller by different routes.
+        const answer = async (response: ToolApprovalResponse) => {
           setError(null);
-          respondToApproval(response).catch((failure: unknown) =>
-            setError(failure instanceof Error ? failure.message : String(failure)),
-          );
+          try {
+            await respondToApproval(response);
+          } catch (failure) {
+            setError(failure instanceof Error ? failure.message : String(failure));
+          }
         };
 
         return (
           <div>
             <p>Approve deploy to {args.target}?</p>
-            <button onClick={() => answer({ approved: true })}>Approve</button>
-            <button onClick={() => answer({ approved: false, reason: "user denied" })}>
+            <button onClick={() => void answer({ approved: true })}>Approve</button>
+            <button onClick={() => void answer({ approved: false, reason: "user denied" })}>
               Deny
             </button>
             {error && <p role="alert">{error}</p>}

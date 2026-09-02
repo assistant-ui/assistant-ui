@@ -169,9 +169,12 @@ const toolApprovalOptionsFromInputRequest = (
  * `display` takes a typed answer, which is why the absence of both is not the
  * same as a confirmation.
  */
+const isDroppedOptionApproval = (inputRequest: EveMessageInputRequest) =>
+  inputRequest.kind === "tool-approval" && !inputRequest.options?.length;
+
 const acceptsFreeformAnswer = (inputRequest: EveMessageInputRequest): boolean =>
   inputRequest.display !== "confirmation" &&
-  !(inputRequest.kind === "tool-approval" && !inputRequest.options?.length) &&
+  !isDroppedOptionApproval(inputRequest) &&
   (inputRequest.display === "text" ||
     inputRequest.allowFreeform === true ||
     !inputRequest.options?.length);
@@ -179,6 +182,11 @@ const acceptsFreeformAnswer = (inputRequest: EveMessageInputRequest): boolean =>
 const toolApprovalDisplay = (
   inputRequest: EveMessageInputRequest,
 ): ToolApprovalDisplay => {
+  // The mapper answers this shape through its approve/cancel branch whatever
+  // the request declares, so the projection has to agree: presenting it as a
+  // question would offer an answer the mapper turns into a decision.
+  if (isDroppedOptionApproval(inputRequest)) return "decision";
+
   switch (inputRequest.display) {
     case "confirmation":
       return "decision";

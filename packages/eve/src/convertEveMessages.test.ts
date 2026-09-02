@@ -272,6 +272,35 @@ describe("convertEveMessages", () => {
     },
   );
 
+  it.each([
+    ["no display", undefined],
+    ["a text display", "text" as const],
+    ["a select display", "select" as const],
+  ])(
+    "projects a tool approval whose options were dropped as a decision, with %s",
+    (_label, display) => {
+      const [message] = convertEveMessages(
+        withApprovalPart({
+          kind: "tool-call",
+          name: "send_email",
+          inputRequest: {
+            requestId: "req_1",
+            kind: "tool-approval",
+            prompt: "Send the email?",
+            ...(display && { display }),
+          },
+        }),
+      );
+
+      expect(message!.content[0]).toMatchObject({
+        approval: { display: "decision" },
+      });
+      expect(
+        (message!.content[0] as { approval?: object }).approval,
+      ).not.toHaveProperty("allowFreeform");
+    },
+  );
+
   it("does not offer a typed answer on a tool approval whose options were dropped", () => {
     const [message] = convertEveMessages(
       withApprovalPart({
