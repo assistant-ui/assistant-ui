@@ -1,9 +1,10 @@
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 import type { AppendMessage } from "@assistant-ui/core";
 import { convertExternalMessages } from "@assistant-ui/core/react";
 import {
   convertLangChainBaseMessage,
   getMessageContent,
+  getMessageType,
 } from "./convertMessages";
 import type { LangChainBaseMessage, UIMessage } from "./types";
 
@@ -1045,5 +1046,78 @@ describe("convertLangChainBaseMessage tool messages", () => {
         {},
       ),
     ).toThrow(/does not match existing tool call/);
+  });
+});
+
+describe("convertLangChainBaseMessage malformed messages", () => {
+  it("reports an unknown type for a message without _getType or type", () => {
+    const message = { id: "msg-3", content: "hello" } as LangChainBaseMessage;
+
+    expect(getMessageType(message)).toBe("unknown");
+    expect(convertLangChainBaseMessage(message, {})).toEqual({
+      role: "system",
+      id: "msg-3",
+      content: [{ type: "text", text: "hello" }],
+    });
+  });
+
+  it("converts a human message with null content to empty content", () => {
+    expect(
+      contentOf(convertLangChainBaseMessage(humanMessage(null), {})),
+    ).toEqual([]);
+  });
+
+  it("keeps tool calls when an ai message carries object content", () => {
+    const result = convertLangChainBaseMessage(
+      {
+        ...aiMessage({ text: "not an array" }),
+        tool_calls: [{ id: "call-1", name: "lookup", args: { q: "x" } }],
+      },
+      {},
+    );
+
+    expect(contentOf(result)).toEqual([
+      {
+        type: "tool-call",
+        toolCallId: "call-1",
+        toolName: "lookup",
+        args: { q: "x" },
+        argsText: '{"q":"x"}',
+      },
+    ]);
+  });
+
+  it("converts a system message with null content to empty text", () => {
+    const result = convertLangChainBaseMessage(
+      { _getType: () => "system", id: "msg-4", content: null },
+      {},
+    );
+
+    expect(contentOf(result)).toEqual([{ type: "text", text: "" }]);
+  });
+
+  it("converts a system message with object content to empty text", () => {
+    const result = convertLangChainBaseMessage(
+      { _getType: () => "system", id: "msg-5", content: { text: "x" } },
+      {},
+    );
+
+    expect(contentOf(result)).toEqual([{ type: "text", text: "" }]);
+  });
+
+  it("warns once in development about non-array content", () => {
+    vi.stubEnv("NODE_ENV", "development");
+    const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
+    try {
+      convertLangChainBaseMessage(humanMessage(42), {});
+      convertLangChainBaseMessage(humanMessage(42), {});
+      expect(warn).toHaveBeenCalledTimes(1);
+      expect(warn).toHaveBeenCalledWith(
+        "Ignoring message content that is neither a string nor an array: number",
+      );
+    } finally {
+      warn.mockRestore();
+      vi.unstubAllEnvs();
+    }
   });
 });
