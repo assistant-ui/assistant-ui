@@ -198,7 +198,7 @@ onDeny={() => {
 | `args.command` / `args.title` / `args.subtitle` | `string` | The command and its framing copy. |
 | `approval?.approved` | `boolean \| undefined` | `undefined` maps to `"request"`, `false` to `"denied"`, `true` to `"running"` or `"done"` depending on `result`. |
 | `result` | `unknown` | Presence (once `approved` is `true`) maps to `"done"`. |
-| `respondToApproval(response)` | `(response: ToolApprovalResponse) => void` | Sends the decision. Legal only while `approval.approved` is `undefined`. |
+| `respondToApproval(response)` | `(response: ToolApprovalResponse) => Promise<void>` | Sends the decision. Legal only while `approval.approved` is `undefined`. Rejects when the runtime could not record the response. |
 
 </RuntimeMode>
 

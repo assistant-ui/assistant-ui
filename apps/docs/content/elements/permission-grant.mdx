@@ -181,7 +181,7 @@ Both lanes take `className` on the root. The root uses the shared `paper` surfac
 | `approval.options` | `readonly ToolApprovalOption[] \| undefined` | Available decisions; absent means a plain allow or deny. |
 | `approval.optionId` | `string \| undefined` | The option chosen at resolution, when options were present. |
 | `approval.resolution` | `"cancelled" \| "expired" \| undefined` | Set by the host when the request ended without a user decision. |
-| `respondToApproval(response)` | `(response: ToolApprovalResponse) => void` | Answers the gate. Accepts `{ approved }`, `{ optionId }`, or both. Only valid while `approved` and `resolution` are both unset. |
+| `respondToApproval(response)` | `(response: ToolApprovalResponse) => Promise<void>` | Answers the gate. Accepts `{ approved }`, `{ optionId }`, both, or `{ text }` when the request takes a free-form answer. Only valid while `approved` and `resolution` are both unset. |
 
 ### ToolApprovalOption
 
