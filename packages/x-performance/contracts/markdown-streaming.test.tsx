@@ -41,12 +41,27 @@ const Text = () => (
   />
 );
 
+const DeferredText = () => (
+  <MarkdownTextPrimitive
+    smooth={false}
+    defer
+    components={components}
+    remarkPlugins={[countParses]}
+  />
+);
+
 const Message = () => {
   counter.useRender("message");
   return <MessagePrimitive.Parts components={{ Text }} />;
 };
 
+const DeferredMessage = () => {
+  counter.useRender("message");
+  return <MessagePrimitive.Parts components={{ Text: DeferredText }} />;
+};
+
 const COMPONENTS = { Message };
+const DEFERRED_COMPONENTS = { Message: DeferredMessage };
 
 const convertMessage = (m: Msg): ThreadMessageLike => ({
   id: m.id,
@@ -61,7 +76,7 @@ const document = Array.from(
     `Paragraph ${i} of the streamed answer, with **emphasis** and \`code\`.`,
 ).join("\n\n");
 
-const mount = () => {
+const mount = (defer: boolean) => {
   let setMessages!: (updater: (prev: Msg[]) => Msg[]) => void;
   const App = () => {
     const [messages, set] = useState<Msg[]>([
@@ -78,7 +93,9 @@ const mount = () => {
       <AssistantRuntimeProvider runtime={runtime}>
         {counter.wrapCommits(
           "thread",
-          <ThreadPrimitive.Messages components={COMPONENTS} />,
+          <ThreadPrimitive.Messages
+            components={defer ? DEFERRED_COMPONENTS : COMPONENTS}
+          />,
         )}
       </AssistantRuntimeProvider>
     );
@@ -95,18 +112,10 @@ const mount = () => {
 };
 
 describe("markdown streaming", () => {
-  // react-markdown re-parses the whole accumulated text on every render and
-  // memoizes per hast node, so the paragraph a token lands in renders once and
-  // the paragraphs before it not at all. The parse runs twice per token: once
-  // for the part update and once more when useSmooth's effect writes the
-  // smooth status store that MarkdownTextPrimitive's context provider owns,
-  // even with smoothing off. Collapsing that to one parse is an optimization;
-  // a third parse is a regression. The user message renders through the same
-  // Text slot, hence the extra paragraph and the two parses at mount.
-  it("re-parses the whole message twice per token but re-renders only the changed paragraph", () => {
+  const assertStreaming = (defer: boolean) => {
     counter.reset();
     parses = 0;
-    const app = mount();
+    const app = mount(defer);
     const MOUNT_PARAGRAPHS = PARAGRAPHS + 1;
     expect(counter.renders("p")).toBe(MOUNT_PARAGRAPHS);
     expect(parses).toBe(2);
@@ -117,8 +126,24 @@ describe("markdown streaming", () => {
 
     expect(counter.renders("p")).toBe(MOUNT_PARAGRAPHS + TOKENS);
     expect(counter.renders("message")).toBe(2);
-    expect(parses).toBe(2 + 2 * TOKENS);
-    expect(counter.commits("thread") - mountedCommits).toBe(3 * TOKENS);
+    expect(parses).toBe(2 + TOKENS);
+    expect(counter.commits("thread") - mountedCommits).toBe(
+      (defer ? 3 : 2) * TOKENS,
+    );
     app.unmount();
+  };
+
+  // react-markdown memoizes per hast node, so the paragraph a token lands in
+  // renders once and the paragraphs before it not at all. The parser boundary
+  // also skips the unchanged render caused by the smooth status store, while
+  // the deferred renderer skips the urgent pass's stale text. The user
+  // message renders through the same Text slot, hence the extra paragraph and
+  // the two parses at mount.
+  it("parses once per token when defer is off", () => {
+    assertStreaming(false);
+  });
+
+  it("parses once per token when defer is on", () => {
+    assertStreaming(true);
   });
 });

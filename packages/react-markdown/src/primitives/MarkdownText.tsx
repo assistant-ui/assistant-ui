@@ -12,6 +12,7 @@ import {
   forwardRef,
   type ForwardRefExoticComponent,
   type RefAttributes,
+  memo,
   useDeferredValue,
   useMemo,
   type ComponentPropsWithoutRef,
@@ -34,11 +35,25 @@ import { useCallbackRef } from "@radix-ui/react-use-callback-ref";
 import { CodeOverride } from "../overrides/CodeOverride";
 import type { Primitive } from "@radix-ui/react-primitive";
 import classNames from "classnames";
+import { useShallowStable } from "../utils/useShallowStable";
 
 const { useSmooth, useSmoothStatus, withSmoothContextProvider } = INTERNAL;
 
 type MarkdownTextPrimitiveElement = ComponentRef<typeof Primitive.div>;
 type PrimitiveDivProps = ComponentPropsWithoutRef<typeof Primitive.div>;
+type MarkdownRendererProps = Omit<Options, "children"> & { text: string };
+
+const MarkdownRenderer = memo<MarkdownRendererProps>(({ text, ...options }) => (
+  <ReactMarkdown {...options}>{text}</ReactMarkdown>
+));
+
+const DeferredMarkdownRenderer: FC<MarkdownRendererProps> = ({
+  text,
+  ...options
+}) => {
+  const deferredText = useDeferredValue(text);
+  return <MarkdownRenderer {...options} text={deferredText} />;
+};
 
 export type MarkdownTextPrimitiveProps = Omit<
   Options,
@@ -72,6 +87,9 @@ export type MarkdownTextPrimitiveProps = Omit<
    * re-parsing the growing message on every streamed token. Intermediate
    * streaming states may be skipped under load; the final text always renders.
    *
+   * Keep this setting constant for the lifetime of the component. Changing it
+   * remounts the rendered markdown.
+   *
    * @default false
    */
   defer?: boolean | undefined;
@@ -101,9 +119,6 @@ const MarkdownTextInner: FC<MarkdownTextPrimitiveProps> = ({
   }, [messagePartText, preprocess]);
 
   const { text } = useSmooth(processedMessagePart, smooth);
-
-  const deferredText = useDeferredValue(text);
-  const resolvedText = defer ? deferredText : text;
 
   const {
     pre = DefaultPre,
@@ -141,10 +156,20 @@ const MarkdownTextInner: FC<MarkdownTextPrimitiveProps> = ({
     };
   }, [CodeComponent, PreComponentWithFallback, userComponents]);
 
-  return (
-    <ReactMarkdown components={components} {...rest}>
-      {resolvedText}
-    </ReactMarkdown>
+  const remarkPlugins = useShallowStable(rest.remarkPlugins);
+  const rehypePlugins = useShallowStable(rest.rehypePlugins);
+  const rendererProps = {
+    ...rest,
+    components,
+    remarkPlugins,
+    rehypePlugins,
+    text,
+  };
+
+  return defer ? (
+    <DeferredMarkdownRenderer {...rendererProps} />
+  ) : (
+    <MarkdownRenderer {...rendererProps} />
   );
 };
 
