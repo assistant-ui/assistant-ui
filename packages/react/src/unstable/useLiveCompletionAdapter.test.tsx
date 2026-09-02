@@ -75,6 +75,35 @@ describe("unstable_useLiveCompletionAdapter", () => {
     expect(fetcher).not.toHaveBeenCalled();
   });
 
+  it("settles loading when a suspended adapter is shown again", async () => {
+    const fetcher = vi.fn(() => new Promise<never>(() => {}));
+    const suspended = new Promise<never>(() => {});
+    let current!: ReturnType<typeof unstable_useLiveCompletionAdapter>;
+    const Harness = ({ blocked }: { blocked: boolean }) => {
+      current = unstable_useLiveCompletionAdapter({ fetcher, debounceMs: 0 });
+      if (blocked) throw suspended;
+      return null;
+    };
+    const view = (blocked: boolean) => (
+      <Suspense fallback={null}>
+        <Harness blocked={blocked} />
+      </Suspense>
+    );
+    const rendered = render(view(false));
+
+    await act(async () => {
+      current.adapter.search!("alice");
+      await vi.advanceTimersByTimeAsync(0);
+    });
+    expect(fetcher).toHaveBeenCalledOnce();
+    expect(current.isLoading).toBe(true);
+
+    await act(async () => rendered.rerender(view(true)));
+    await act(async () => rendered.rerender(view(false)));
+
+    expect(current.isLoading).toBe(false);
+  });
+
   it("does not fetch when disabled and clears cached items", async () => {
     const fetcher = vi.fn(async () => [item("a")]);
     const { result, rerender } = renderHook(

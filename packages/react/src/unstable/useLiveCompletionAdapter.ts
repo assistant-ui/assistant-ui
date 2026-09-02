@@ -164,7 +164,9 @@ export function unstable_useLiveCompletionAdapter(
   }, [enabled, invalidatePending]);
 
   useLayoutEffect(() => {
+    const reactivated = unmountedRef.current;
     unmountedRef.current = false;
+    if (reactivated) setIsLoading(false);
     return () => {
       unmountedRef.current = true;
       cancelTimer();
