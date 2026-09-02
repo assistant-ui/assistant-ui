@@ -164,6 +164,7 @@ describe("useAISDKRuntime", () => {
   });
 
   it("marks stopped output cancelled and clears the marker for the next run", async () => {
+    let resolveStop!: () => void;
     const chat = createChatHelpers([
       {
         id: "assistant-1",
@@ -172,10 +173,12 @@ describe("useAISDKRuntime", () => {
       },
     ]);
     chat.status = "streaming";
-    chat.stop = vi.fn(() => {
-      chat.status = "ready";
-      return Promise.resolve();
-    });
+    chat.stop = vi.fn(
+      () =>
+        new Promise<void>((resolve) => {
+          resolveStop = resolve;
+        }),
+    );
 
     const { result, rerender } = renderHook(() => useAISDKRuntime(chat));
 
@@ -183,6 +186,15 @@ describe("useAISDKRuntime", () => {
       result.current.thread.cancelRun();
     });
     rerender();
+
+    expect(
+      result.current.thread.getState().messages.at(-1)?.status,
+    ).toMatchObject({ type: "running" });
+
+    act(() => {
+      chat.status = "ready";
+      rerender();
+    });
 
     await waitFor(() => {
       expect(
@@ -193,7 +205,35 @@ describe("useAISDKRuntime", () => {
       });
     });
 
+    await act(async () => {
+      resolveStop();
+      await Promise.resolve();
+    });
+
     act(() => {
+      chat.setMessages([
+        {
+          id: "assistant-2",
+          role: "assistant",
+          parts: [{ type: "text", text: "replacement" }],
+        },
+      ]);
+      rerender();
+    });
+    await waitFor(() => {
+      expect(
+        result.current.thread.getState().messages.at(-1)?.status,
+      ).toMatchObject({ type: "complete", reason: "unknown" });
+    });
+
+    act(() => {
+      chat.setMessages([
+        {
+          id: "assistant-1",
+          role: "assistant",
+          parts: [{ type: "text", text: "partial" }],
+        },
+      ]);
       result.current.thread.append({
         role: "user",
         content: [{ type: "text", text: "continue" }],
@@ -599,7 +639,7 @@ describe("useAISDKRuntime", () => {
     ).rejects.toThrow("Runtime does not support resuming runs.");
   });
 
-  it("forwards onResumeToolCall so runtime.thread.resumeToolCall is delivered to the adapter", async () => {
+  it("forwards onResumeToolCall and preserves synchronous errors", async () => {
     const chat = createChatHelpers([
       {
         id: "a1",
@@ -638,6 +678,17 @@ describe("useAISDKRuntime", () => {
       toolCallId: "tc-42",
       payload: { answer: "yes" },
     });
+    const error = new Error("resume failed");
+    onResumeToolCall.mockImplementationOnce(() => {
+      throw error;
+    });
+
+    expect(() =>
+      result.current.thread
+        .getMessageById("a1")
+        .getMessagePartByToolCallId("tc-42")
+        .resumeToolCall({ answer: "yes" }),
+    ).toThrow(error);
   });
 
   it("throws when resumeToolCall is called without an onResumeToolCall adapter", async () => {
