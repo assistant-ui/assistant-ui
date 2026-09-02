@@ -191,11 +191,11 @@ Leaving `items` and `categories` unset (or passing `includeModelContextTools: tr
 
 ```tsx
 const mention = unstable_useMentionAdapter({
-  includeModelContextTools: { category: { id: "tools", label: "Tools" } },
+  includeModelContextTools: true,
 });
 ```
 
-Naming a `category` puts the tools behind a drill-down entry instead of listing them flat. Pass `items` alongside it to keep the flat list.
+Passing `includeModelContextTools: { category }` instead puts the tools behind a drill-down entry rather than listing them flat, unless `items` is also given.
 
 </RuntimeMode>
 
