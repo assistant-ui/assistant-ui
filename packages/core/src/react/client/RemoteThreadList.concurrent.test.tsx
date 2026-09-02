@@ -38,6 +38,7 @@ const useIdentifiedThread = ({
     getState: () => ({ isRunning: false, messages: [{ id }] }),
     composer: () => composer,
     suggestions: () => suggestions,
+    getModelContext: () => ({ tools: { [id]: {} }, config: {} }),
     unstable_refetchThread: async () => onRefetch(id),
   };
 };
@@ -133,6 +134,7 @@ describe("RemoteThreadList concurrent rendering", () => {
     }));
     const clientRef = createRef<AssistantClient>();
     const renders: string[] = [];
+    const selectionToolIds: string[] = [];
 
     const Observer = () => {
       const aui = useAui();
@@ -174,6 +176,14 @@ describe("RemoteThreadList concurrent rendering", () => {
       await client.threads.switchToThread("thread-1");
     });
     await waitFor(() => expect(renders).toContain("thread-1:thread-1"));
+    const unsubscribe = client.on(
+      "threads.selectionChanged" as never,
+      (() => {
+        selectionToolIds.push(
+          Object.keys(client.thread.getModelContext().tools)[0]!,
+        );
+      }) as never,
+    );
 
     renders.length = 0;
     await act(async () => {
@@ -182,6 +192,8 @@ describe("RemoteThreadList concurrent rendering", () => {
     await waitFor(() => expect(renders).toContain("thread-2:thread-2"));
 
     expect(renders).not.toContain("thread-2:thread-1");
+    expect(selectionToolIds).toEqual(["thread-2"]);
+    unsubscribe();
   });
 
   it("keeps the main thread facade scoped to the committed factory", async () => {
