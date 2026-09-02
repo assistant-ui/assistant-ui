@@ -578,7 +578,9 @@ export const useAISDKRuntime = <UI_MESSAGE extends UIMessage = UIMessage>(
   });
 
   const setMessagesRef = useRef(chatHelpers.setMessages);
-  setMessagesRef.current = chatHelpers.setMessages;
+  useInsertionEffect(() => {
+    setMessagesRef.current = chatHelpers.setMessages;
+  }, [chatHelpers.setMessages]);
 
   useEffect(() => {
     if (hasSeededRepositoryRef.current) return;
