@@ -1,15 +1,16 @@
 import { execFileSync } from "node:child_process";
 import { promises as fs } from "node:fs";
 import path from "node:path";
+import {
+  SNAPSHOT_BYTE_BUDGET,
+  formatBudgetError,
+} from "./source-snapshot-budget.mts";
 
 const DOCS_ROOT = process.cwd();
 const REPO_ROOT = path.resolve(DOCS_ROOT, "../..");
 const OUTPUT_DIR = path.join(DOCS_ROOT, "generated");
 const OUTPUT_PATH = path.join(OUTPUT_DIR, "source-snapshot.json");
 const READ_CONCURRENCY = 32;
-// Measured single-flight: one materialized repo sandbox costs roughly 14x the snapshot's byte size in resident memory. Sandboxes are built per request, so concurrent repo-tool calls multiply that term.
-const SNAPSHOT_BYTE_BUDGET = 64_000_000;
-const BUDGET_REPORT_ENTRIES = 15;
 const SOURCE_SNAPSHOT_EXCLUDE = [
   /pnpm-lock\.yaml$/,
   /package-lock\.json$/,
@@ -48,7 +49,8 @@ async function main() {
 
   if (size > SNAPSHOT_BYTE_BUDGET) {
     console.error(formatBudgetError(snapshot, size));
-    process.exit(1);
+    process.exitCode = 1;
+    return;
   }
 
   await fs.mkdir(OUTPUT_DIR, { recursive: true });
@@ -101,36 +103,6 @@ function listTrackedFiles() {
   });
 
   return output.split("\0").filter(Boolean);
-}
-
-function formatBudgetError(snapshot: Record<string, string>, size: number) {
-  const largest = Object.entries(snapshot)
-    .map(([filePath, contents]) => ({
-      filePath,
-      bytes: Buffer.byteLength(contents, "utf-8"),
-    }))
-    .sort((a, b) => b.bytes - a.bytes)
-    .slice(0, BUDGET_REPORT_ENTRIES)
-    .map(
-      ({ filePath, bytes }) =>
-        `  ${formatBytes(bytes).padStart(9)}  ${filePath}`,
-    )
-    .join("\n");
-
-  return [
-    `Source snapshot is ${formatBytes(size)} across ${Object.keys(snapshot).length} files, over the ${formatBytes(SNAPSHOT_BYTE_BUDGET)} budget.`,
-    "",
-    "Prefer excluding files the docs assistant does not need to read, by adding a SOURCE_SNAPSHOT_EXCLUDE pattern in this script, over raising the budget.",
-    "",
-    "Largest entries:",
-    largest,
-  ].join("\n");
-}
-
-function formatBytes(bytes: number) {
-  return bytes >= 1_000_000
-    ? `${(bytes / 1_000_000).toFixed(1)} MB`
-    : `${Math.round(bytes / 1_000)} KB`;
 }
 
 await main();
