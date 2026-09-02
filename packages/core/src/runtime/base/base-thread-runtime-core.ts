@@ -533,7 +533,7 @@ export abstract class BaseThreadRuntimeCore
     if (event === "initialize" && this._isInitialized) {
       queueMicrotask(() => {
         if (subscribers.has(wrapped)) {
-          notifyEventListeners([wrapped], {}, 'Thread runtime "initialize"');
+          notifyEventListeners([wrapped], {}, `Thread runtime "${event}"`);
         }
       });
     }
