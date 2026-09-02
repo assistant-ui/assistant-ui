@@ -460,35 +460,33 @@ function registerResources(server: McpServer, request: NextRequest) {
   );
 }
 
-async function requireBudget(
-  denial: Response | null,
-  unavailable: string,
-  suffix = "",
-) {
-  if (!denial) return;
-  if (denial.status !== 429) throw new Error(unavailable);
-
+async function throttleMessage(denial: Response, suffix: string) {
   const retryAfter = denial.headers.get("Retry-After");
-  throw new Error(
+  return (
     `${await denial.text()}.` +
-      (retryAfter ? ` Retry in ${retryAfter}s.` : "") +
-      suffix,
+    (retryAfter ? ` Retry in ${retryAfter}s.` : "") +
+    suffix
   );
 }
 
 async function requireTemplateToolBudget(request: NextRequest) {
-  return requireBudget(
-    await checkMcpTemplateToolRateLimit(request),
-    "Template tools are temporarily unavailable. The assistant-ui docs tools remain available.",
-    " The assistant-ui docs tools remain available.",
-  );
+  const denial = await checkMcpTemplateToolRateLimit(request);
+  if (!denial) return;
+
+  const suffix = " The assistant-ui docs tools remain available.";
+  if (denial.status !== 429) {
+    throw new Error(`Template tools are temporarily unavailable.${suffix}`);
+  }
+  throw new Error(await throttleMessage(denial, suffix));
 }
 
 async function requireDocsToolBudget(request: NextRequest) {
-  return requireBudget(
-    await checkMcpDocsToolRateLimit(request),
-    "The assistant-ui docs tools are temporarily unavailable.",
-  );
+  const denial = await checkMcpDocsToolRateLimit(request);
+  // These tools cost one in-process render and nothing external, so a
+  // rate-limit store outage serves them unmetered rather than taking the
+  // surface down with it. Only an exhausted budget refuses.
+  if (denial?.status !== 429) return;
+  throw new Error(await throttleMessage(denial, ""));
 }
 
 function buildMcpServer(request: NextRequest) {

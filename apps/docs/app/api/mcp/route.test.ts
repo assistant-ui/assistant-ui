@@ -403,7 +403,7 @@ describe("POST /api/mcp", () => {
     expect(text).toBe("Docs tool rate limit exceeded. Retry in 12s.");
   });
 
-  it("does not tell an MCP client the public assistant is down for docs tools", async () => {
+  it("serves the docs tools unmetered when the rate-limit store is down", async () => {
     mocks.checkDocsRateLimit.mockResolvedValueOnce(
       new Response("Public assistant temporarily unavailable", { status: 503 }),
     );
@@ -413,11 +413,10 @@ describe("POST /api/mcp", () => {
       arguments: { query: "runtime" },
     });
     const result = getToolCallResult(response);
-    const text = result.content.find((block) => block.type === "text")?.text;
 
-    expect(result.isError).toBe(true);
-    expect(text).toBe(
-      "The assistant-ui docs tools are temporarily unavailable.",
+    expect(result.isError).toBeFalsy();
+    expect(result.content.find((block) => block.type === "text")?.text).toBe(
+      "[]",
     );
   });
 
