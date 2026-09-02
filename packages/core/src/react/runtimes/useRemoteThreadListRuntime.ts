@@ -1,7 +1,6 @@
 import {
   useState,
   useEffect,
-  useLayoutEffect,
   useMemo,
   useRef,
   useCallback,
@@ -54,7 +53,7 @@ export const useRemoteThreadListRuntime = (
   const [runtimeHookStore] = useState(
     () => new WritableSubscribable(options.runtimeHook),
   );
-  useLayoutEffect(() => {
+  useEffect(() => {
     runtimeHookStore.setState(options.runtimeHook);
   }, [runtimeHookStore, options.runtimeHook]);
 

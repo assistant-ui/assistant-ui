@@ -147,7 +147,24 @@ describe("useRemoteThreadListRuntime concurrent options", () => {
     expect(onNewB).toHaveBeenCalledTimes(1);
   });
 
-  it("costs one corrective pass when a commit publishes a new hook", async () => {
+  it("costs two passes per provider commit in the documented shape", async () => {
+    // Fresh children on every render, as the AssistantRuntimeProvider JSDoc
+    // example does, so its memo does not block: the host renders once against
+    // the previously committed hook, then the publish adds the corrective pass.
+    const { App, onNewA, renderThreadRuntime } = createHarness();
+    const view = render(<App onNew={onNewA} />);
+
+    await act(async () => {});
+    renderThreadRuntime.mockClear();
+
+    await act(async () => {
+      view.rerender(<App onNew={onNewA} />);
+    });
+
+    expect(renderThreadRuntime).toHaveBeenCalledTimes(2);
+  });
+
+  it("costs one pass when the provider memo blocks the host render", async () => {
     const { App, onNewA, renderThreadRuntime } = createHarness();
     const children = <div />;
     const view = render(<App onNew={onNewA}>{children}</App>);
