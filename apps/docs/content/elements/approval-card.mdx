@@ -26,35 +26,35 @@ export const toolkit = defineToolkit({
   run_command: {
     type: "backend",
     render: ({ args, approval, respondToApproval, result }) => {
-  // A refused response rejects and a precondition (an unknown option, an answer
-  // the request does not take) throws, so `try`/`await` covers both and the
-  // controls stay actionable.
-  const answer = async (response: ToolApprovalResponse) => {
-    try {
-      await respondToApproval(response);
-    } catch (failure) {
-      console.error(failure);
-    }
-  };
+      // A refused response rejects and a precondition (an unknown option, an
+      // answer the request does not take) throws, so `try`/`await` covers both
+      // and the controls stay actionable.
+      const answer = async (response: ToolApprovalResponse) => {
+        try {
+          await respondToApproval(response);
+        } catch (failure) {
+          console.error(failure);
+        }
+      };
 
       return (
-      <ApprovalCard
-        state={
-          approval?.approved === false
-            ? "denied"
-            : approval?.approved === undefined
-              ? "request"
-              : result === undefined
-                ? "running"
-                : "done"
-        }
-        command={args.command}
-        title={args.title}
-        subtitle={args.subtitle}
-        onAllowOnce={() => void answer({ optionId: "once" })}
-        onAlwaysAllow={() => void answer({ optionId: "always" })}
-        onDeny={() => void answer({ optionId: "deny" })}
-      />
+        <ApprovalCard
+          state={
+            approval?.approved === false
+              ? "denied"
+              : approval?.approved === undefined
+                ? "request"
+                : result === undefined
+                  ? "running"
+                  : "done"
+          }
+          command={args.command}
+          title={args.title}
+          subtitle={args.subtitle}
+          onAllowOnce={() => void answer({ optionId: "once" })}
+          onAlwaysAllow={() => void answer({ optionId: "always" })}
+          onDeny={() => void answer({ optionId: "deny" })}
+        />
       );
     },
   },
