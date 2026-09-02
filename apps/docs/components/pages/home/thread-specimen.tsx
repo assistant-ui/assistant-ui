@@ -59,10 +59,19 @@ export function ThreadSpecimen() {
         first.focus();
       }
     };
+    const onFocusIn = (event: FocusEvent) => {
+      const root = overlayRef.current;
+      const target = event.target;
+      if (!root || !(target instanceof HTMLElement)) return;
+      if (root.contains(target) || isInsidePopup(target)) return;
+      root.focus();
+    };
     document.addEventListener("keydown", onKey);
+    document.addEventListener("focusin", onFocusIn);
     document.documentElement.style.overflow = "hidden";
     return () => {
       document.removeEventListener("keydown", onKey);
+      document.removeEventListener("focusin", onFocusIn);
       document.documentElement.style.overflow = "";
       previouslyFocused?.focus();
     };

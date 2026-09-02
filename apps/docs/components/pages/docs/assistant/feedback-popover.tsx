@@ -52,7 +52,11 @@ export function FeedbackPopover({
   };
 
   return (
-    <Popover.Root open={open} onOpenChange={handleOpenChange}>
+    <Popover.Root
+      open={open}
+      onOpenChange={handleOpenChange}
+      modal="trap-focus"
+    >
       {isValidElement(children) ? (
         <Popover.Trigger render={children as ReactElement} />
       ) : (
