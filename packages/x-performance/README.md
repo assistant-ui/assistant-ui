@@ -26,6 +26,8 @@ bin/         the aui-perf command
 
 A counter contract answers "did this change break a memo boundary". A bench answers "did this change make a hot path slower". A size budget answers "did this change ship more bytes". Neither answers the others' questions, and a green comparison covers only the paths a probe exercises: a change no probe touches reads as unmeasured, not as safe.
 
+`bench/markdown-streaming.bench.tsx` times only a synchronous `flushSync` tick, so its wall-time rows do not observe transition-priority work scheduled by `useDeferredValue`. The `contracts/markdown-streaming.test.tsx` counter contract is the only x-performance evidence for that deferred markdown work.
+
 ## Reading the PR comment
 
 The comment leads with two lines per lane and hides everything else behind a fold. A `machine-readable` fold at the end carries the same data as JSON (`aui-perf/compare@1`, `aui-perf/trace@1`) for review agents.
