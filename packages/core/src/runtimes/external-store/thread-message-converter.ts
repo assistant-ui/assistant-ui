@@ -47,9 +47,9 @@ export class ThreadMessageConverter {
       this.cache.set(m, newMessage);
       result.push(newMessage);
     }
-    this.previousInput = messages;
+    this.previousInput = messages.slice();
     this.previousOutput = result;
     this._reusablePrefixLength = reusablePrefixLength;
-    return result;
+    return result.slice();
   }
 }

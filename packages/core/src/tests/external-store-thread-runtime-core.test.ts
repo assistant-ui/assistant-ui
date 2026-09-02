@@ -338,8 +338,7 @@ describe("ExternalStoreThreadRuntimeCore - tail updates", () => {
       );
 
       expect(addOrUpdateMessage).toHaveBeenCalledTimes(1);
-      expect(resetHead).toHaveBeenCalledTimes(1);
-      expect(resetHead).toHaveBeenCalledWith("m99");
+      expect(resetHead).not.toHaveBeenCalled();
       expect(runtime.messages.at(-1)?.content[0]).toMatchObject({
         type: "text",
         text: "updated tail",
@@ -367,6 +366,30 @@ describe("ExternalStoreThreadRuntimeCore - tail updates", () => {
     );
 
     expect(converter).not.toHaveBeenCalled();
+  });
+
+  it("does not reuse a host-mutated prefix from an earlier input array", () => {
+    const messages: Raw[] = [
+      { id: "u1", role: "user", text: "old prefix" },
+      { id: "a1", role: "assistant", text: "old tail" },
+    ];
+    const runtime = new ExternalStoreThreadRuntimeCore(
+      mockContextProvider,
+      makeStore({ messages, convertMessage }),
+    );
+
+    messages[0] = { ...messages[0]!, text: "updated prefix" };
+    runtime.__internal_setAdapter(
+      makeStore({
+        messages: [messages[0]!, { ...messages[1]!, text: "updated tail" }],
+        convertMessage,
+      }),
+    );
+
+    expect(runtime.messages.map((message) => message.content[0])).toEqual([
+      expect.objectContaining({ type: "text", text: "updated prefix" }),
+      expect.objectContaining({ type: "text", text: "updated tail" }),
+    ]);
   });
 
   it("re-converts stable inputs when the converter callback changes", () => {
@@ -587,6 +610,46 @@ describe("ExternalStoreThreadRuntimeCore - tail updates", () => {
     expect(runtime.messages).not.toBe(updated);
     updated.pop();
     expect(runtime.messages).toHaveLength(2);
+  });
+
+  it("does not reuse host-mutated ready messages from an earlier input array", () => {
+    const initial = [
+      {
+        id: "u1",
+        role: "user" as const,
+        content: [{ type: "text" as const, text: "old prefix" }],
+      },
+      {
+        id: "a1",
+        role: "assistant" as const,
+        content: [{ type: "text" as const, text: "old tail" }],
+      },
+    ];
+    const runtime = new ExternalStoreThreadRuntimeCore(
+      mockContextProvider,
+      makeStore({ messages: initial }),
+    );
+
+    initial[0] = {
+      ...initial[0]!,
+      content: [{ type: "text", text: "updated prefix" }],
+    };
+    runtime.__internal_setAdapter(
+      makeStore({
+        messages: [
+          initial[0]!,
+          {
+            ...initial[1]!,
+            content: [{ type: "text", text: "updated tail" }],
+          },
+        ],
+      }),
+    );
+
+    expect(runtime.messages.map((message) => message.content[0])).toEqual([
+      expect.objectContaining({ type: "text", text: "updated prefix" }),
+      expect.objectContaining({ type: "text", text: "updated tail" }),
+    ]);
   });
 
   it("updates only the changed tail message runtime", () => {

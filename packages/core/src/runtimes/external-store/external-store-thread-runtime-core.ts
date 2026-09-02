@@ -444,7 +444,7 @@ export class ExternalStoreThreadRuntimeCore
         } else {
           if (!store.convertMessage) {
             reusablePrefixLength = getCommonPrefixLength(
-              oldStore.messages,
+              this._messages,
               store.messages,
             );
           }
@@ -520,7 +520,6 @@ export class ExternalStoreThreadRuntimeCore
 
       if (isTailOnlyUpdate) {
         this.repository.addOrUpdateMessage(messages.at(-2)?.id ?? null, tail);
-        this.repository.resetHead(tail.id);
         // addOrUpdateMessage invalidates the repository's branch cache, so
         // reading it here would rebuild the full chain. The converter owns
         // this array and the guard proved its prefix matches that chain.
