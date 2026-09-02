@@ -10,7 +10,7 @@ import type { Unsubscribe } from "@assistant-ui/core";
  * an inline source without an `isEqual` re-reads itself into a render loop.
  */
 export type ModelContextSnapshotSource<T> = {
-  /** Served while the snapshot is disabled, and when the source has nothing. */
+  /** Seeded and served while the snapshot is disabled. */
   readonly empty: T;
   /** Projects the fields the consumer observes out of the live model context. */
   read(aui: AssistantClient): T;
@@ -38,14 +38,6 @@ export const useModelContextSnapshot = <T>(
   const [snapshot, setSnapshot] = useState(() =>
     enabled ? source.read(aui) : source.empty,
   );
-  const [gate, setGate] = useState(enabled);
-
-  // A snapshot outlives the gate it was read under, so both edges are adjusted
-  // during render: the effect would leave one commit serving the other side.
-  if (gate !== enabled) {
-    setGate(enabled);
-    setSnapshot(enabled ? source.read(aui) : source.empty);
-  }
 
   useEffect(() => {
     if (!enabled) return undefined;

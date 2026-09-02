@@ -104,45 +104,6 @@ describe("useModelContextSnapshot", () => {
     expect(result.current).toEqual({ a: "1" });
   });
 
-  it("falls back to empty when the gate closes", () => {
-    const { source, state, unsubscribe } = createSource();
-    state.tools = { a: "1" };
-
-    const { result, rerender } = renderHook(
-      ({ enabled }: { enabled: boolean }) =>
-        useModelContextSnapshot(aui, enabled, source),
-      { initialProps: { enabled: true } },
-    );
-    expect(result.current).toEqual({ a: "1" });
-
-    rerender({ enabled: false });
-
-    expect(result.current).toBe(source.empty);
-    expect(unsubscribe).toHaveBeenCalled();
-  });
-
-  it("does not serve a pre-disable snapshot after the gate reopens", () => {
-    const { source, state } = createSource();
-    state.tools = { a: "1" };
-    const seen: unknown[] = [];
-
-    const { rerender } = renderHook(
-      ({ enabled }: { enabled: boolean }) => {
-        const snapshot = useModelContextSnapshot(aui, enabled, source);
-        seen.push(snapshot);
-      },
-      { initialProps: { enabled: true } },
-    );
-
-    rerender({ enabled: false });
-    state.tools = { b: "2" };
-    seen.length = 0;
-    rerender({ enabled: true });
-
-    expect(seen).not.toContainEqual({ a: "1" });
-    expect(seen.at(-1)).toEqual({ b: "2" });
-  });
-
   it("unsubscribes on unmount", () => {
     const { source, unsubscribe } = createSource();
     const { unmount } = renderHook(() =>
