@@ -920,6 +920,7 @@ declare abstract class BaseThreadRuntimeCore extends BaseSubscribable implements
     index: number;
   } | undefined;
   getBranches(messageId: string): string[];
+  protected _onRepositoryMutation(): void;
   switchToBranch(branchId: string): void;
   _notifyEventSubscribers<E extends ThreadRuntimeEventType>(event: E, payload: ThreadRuntimeEventPayload[E]): void;
   submitFeedback(_param1: SubmitFeedbackOptions): void;
@@ -1855,6 +1856,7 @@ declare class ExternalStoreThreadRuntimeCore extends BaseThreadRuntimeCore imple
   #private;
   subscribeMessage(messageId: string, callback: () => void): () => void;
   protected _notifySubscribers(): void;
+  protected _onRepositoryMutation(): void;
   get capabilities(): RuntimeCapabilities;
   isDisabled: boolean;
   isSendDisabled: boolean;
