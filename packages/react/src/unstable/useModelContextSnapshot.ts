@@ -40,7 +40,10 @@ export const useModelContextSnapshot = <T>(
   );
 
   useEffect(() => {
-    if (!enabled) return undefined;
+    if (!enabled) {
+      setSnapshot(source.empty);
+      return undefined;
+    }
     const read = () => {
       const next = source.read(aui);
       setSnapshot((previous) =>

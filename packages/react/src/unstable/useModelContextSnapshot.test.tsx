@@ -121,6 +121,28 @@ describe("useModelContextSnapshot", () => {
     expect(unsubscribe).toHaveBeenCalled();
   });
 
+  it("does not serve a pre-disable snapshot after the gate reopens", () => {
+    const { source, state } = createSource();
+    state.tools = { a: "1" };
+    const seen: unknown[] = [];
+
+    const { rerender } = renderHook(
+      ({ enabled }: { enabled: boolean }) => {
+        const snapshot = useModelContextSnapshot(aui, enabled, source);
+        seen.push(snapshot);
+      },
+      { initialProps: { enabled: true } },
+    );
+
+    rerender({ enabled: false });
+    state.tools = { b: "2" };
+    seen.length = 0;
+    rerender({ enabled: true });
+
+    expect(seen).not.toContainEqual({ a: "1" });
+    expect(seen.at(-1)).toEqual({ b: "2" });
+  });
+
   it("unsubscribes on unmount", () => {
     const { source, unsubscribe } = createSource();
     const { unmount } = renderHook(() =>
