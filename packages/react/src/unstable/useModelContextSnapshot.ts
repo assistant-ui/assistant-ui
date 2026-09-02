@@ -38,12 +38,17 @@ export const useModelContextSnapshot = <T>(
   const [snapshot, setSnapshot] = useState(() =>
     enabled ? source.read(aui) : source.empty,
   );
+  const [gate, setGate] = useState(enabled);
+
+  // A snapshot outlives the gate it was read under, so both edges are adjusted
+  // during render: the effect would leave one commit serving the other side.
+  if (gate !== enabled) {
+    setGate(enabled);
+    setSnapshot(enabled ? source.read(aui) : source.empty);
+  }
 
   useEffect(() => {
-    if (!enabled) {
-      setSnapshot(source.empty);
-      return undefined;
-    }
+    if (!enabled) return undefined;
     const read = () => {
       const next = source.read(aui);
       setSnapshot((previous) =>
@@ -54,7 +59,7 @@ export const useModelContextSnapshot = <T>(
     return source.subscribe(aui, read);
   }, [aui, enabled, source]);
 
-  return enabled ? snapshot : source.empty;
+  return snapshot;
 };
 
 /** Shallow own-key comparison, for a projection whose values are records. */
