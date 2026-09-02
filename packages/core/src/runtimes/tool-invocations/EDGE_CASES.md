@@ -244,7 +244,13 @@ snapshot is processed against the fresh pipeline. An active entry that
 neither closed its args stream nor holds a result is dropped instead of
 demoted: a restored entry is promoted only when its signature changes,
 and a call waiting on the run to settle (A.10) already holds its final
-args, so demoting it would strand it unexecuted. Repeated failures
+args, so demoting it would strand it unexecuted.
+
+Starting it over re-fires `streamCall`, which the restart path already
+does for any demoted entry whose signature later changes. The rebuilt
+pipeline holds no part for the call, so nothing can reach the executor
+without adding one; a restart is an execution boundary in the same sense
+`reset()` is. Repeated failures
 keep the tracker dead with a visible error to avoid restart loops.
 
 ### F.5. Reset followed by same-id reuse
