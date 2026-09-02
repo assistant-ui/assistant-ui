@@ -163,11 +163,15 @@ while its `onDelete` path never aborts at all. `reset()` is unaffected
 either way: it clears `_entries` and the recorded ids before aborting,
 because it opens a new execution boundary.
 
-An id is forgotten as soon as the call is observed with a result, which
-bounds the set to the open calls of a discarded turn. That is all it
-does: an id re-emitted inside the same execution boundary keeps its
+An id is forgotten once a live snapshot observes the call with a result,
+which bounds the set to the open calls of a discarded turn. That is all
+it does: an id re-emitted inside the same execution boundary keeps its
 existing entry, so A.4 and A.7 govern it rather than this set, and a new
-boundary clears the set outright.
+boundary clears the set outright. The residual is a call that is
+discarded, answered, and then loses its result (A.7) across a pipeline
+restart; it is left to A.7 rather than pinned here, because holding the
+id past the answer would trade a five-step chain for a set that grows for
+the life of the tracker.
 
 The record lives on the tracker rather than the entry because it is the one
 reason to skip that no later snapshot carries: an `approval` is re-read at
