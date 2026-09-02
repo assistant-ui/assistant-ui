@@ -10,7 +10,7 @@ import type { Unsubscribe } from "@assistant-ui/core";
  * an inline source without an `isEqual` re-reads itself into a render loop.
  */
 export type ModelContextSnapshotSource<T> = {
-  /** Seeded and served while the snapshot is disabled. */
+  /** Seeds the snapshot when it starts disabled. */
   readonly empty: T;
   /** Projects the fields the consumer observes out of the live model context. */
   read(aui: AssistantClient): T;
