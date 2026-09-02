@@ -145,6 +145,74 @@ describe("GET /api/xulux/download-proxy access boundary", () => {
     ).rejects.toThrow("Archive too large.");
   });
 
+  it("drops the upstream content-length when the body was decoded", async () => {
+    mocks.requireSession.mockReturnValue(session);
+    mocks.checkRateLimit.mockResolvedValue(null);
+    mocks.resolveSandboxDownloadUrl.mockReturnValue(
+      new URL("https://demo.bl.run/api/download"),
+    );
+    mocks.fetchSandboxResource.mockResolvedValue(
+      new Response(new Uint8Array([1, 2, 3, 4, 5, 6]), {
+        status: 200,
+        headers: {
+          "content-type": "application/zip",
+          "content-length": "3",
+          "content-encoding": "gzip",
+        },
+      }),
+    );
+
+    const response = await GET(request());
+
+    expect(response.status).toBe(200);
+    expect(response.headers.get("content-length")).toBeNull();
+  });
+
+  it("forwards the upstream content-length when nothing decoded the body", async () => {
+    mocks.requireSession.mockReturnValue(session);
+    mocks.checkRateLimit.mockResolvedValue(null);
+    mocks.resolveSandboxDownloadUrl.mockReturnValue(
+      new URL("https://demo.bl.run/api/download"),
+    );
+    mocks.fetchSandboxResource.mockResolvedValue(
+      new Response(new Uint8Array([1, 2, 3]), {
+        status: 200,
+        headers: { "content-type": "application/zip", "content-length": "3" },
+      }),
+    );
+
+    const response = await GET(request());
+
+    expect(response.headers.get("content-length")).toBe("3");
+  });
+
+  it("does not wait out an upstream that holds its error body open", async () => {
+    vi.useFakeTimers();
+    mocks.requireSession.mockReturnValue(session);
+    mocks.checkRateLimit.mockResolvedValue(null);
+    mocks.resolveSandboxDownloadUrl.mockReturnValue(
+      new URL("https://demo.bl.run/api/download"),
+    );
+
+    let cancelled = false;
+    const stalled = new ReadableStream<Uint8Array>({
+      cancel() {
+        cancelled = true;
+      },
+    });
+    mocks.fetchSandboxResource.mockResolvedValue(
+      new Response(stalled, { status: 500 }),
+    );
+
+    const pending = GET(request());
+    await vi.advanceTimersByTimeAsync(5_000);
+    const response = await pending;
+
+    expect(response.status).toBe(502);
+    expect(cancelled).toBe(true);
+    vi.useRealTimers();
+  });
+
   it("keeps a metered archive out of shared caches", async () => {
     mocks.requireSession.mockReturnValue(session);
     mocks.checkRateLimit.mockResolvedValue(null);

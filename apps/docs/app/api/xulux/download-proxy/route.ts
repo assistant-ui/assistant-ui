@@ -15,6 +15,44 @@ const MAX_ZIP_BYTES = 50 * 1024 * 1024; // 50 MB ceiling
 // Bounds the wait for the sandbox to respond. It deliberately stops at the
 // headers so a slow client cannot look like a stalled sandbox.
 const SANDBOX_RESPONSE_TIMEOUT_MS = 30_000;
+// The response-scoped deadline is gone by the time an error body is read, so
+// this bounds that read on its own rather than letting it hold the invocation.
+const ERROR_BODY_TIMEOUT_MS = 5_000;
+const ERROR_BODY_MAX_BYTES = 4_096;
+
+async function readBoundedText(response: Response) {
+  const body = response.body;
+  if (!body) return "";
+
+  const reader = body.getReader();
+  const timer = setTimeout(() => {
+    void reader.cancel().catch(() => {});
+  }, ERROR_BODY_TIMEOUT_MS);
+  const chunks: Uint8Array[] = [];
+  let total = 0;
+
+  try {
+    while (total < ERROR_BODY_MAX_BYTES) {
+      const { done, value } = await reader.read();
+      if (done) break;
+      chunks.push(value);
+      total += value.byteLength;
+    }
+  } catch {
+    return "";
+  } finally {
+    clearTimeout(timer);
+    void reader.cancel().catch(() => {});
+  }
+
+  const merged = new Uint8Array(total);
+  let offset = 0;
+  for (const chunk of chunks) {
+    merged.set(chunk, offset);
+    offset += chunk.byteLength;
+  }
+  return new TextDecoder().decode(merged);
+}
 
 function limitArchiveSize(body: ReadableStream<Uint8Array>) {
   let total = 0;
@@ -77,6 +115,7 @@ export async function GET(req: Request) {
     });
 
     if (upstream.status >= 300 && upstream.status < 400) {
+      void upstream.body?.cancel().catch(() => {});
       return NextResponse.json(
         { error: "Redirects are not allowed." },
         { status: 400 },
@@ -84,7 +123,7 @@ export async function GET(req: Request) {
     }
 
     if (!upstream.ok) {
-      const details = await upstream.text().catch(() => "");
+      const details = await readBoundedText(upstream);
       return NextResponse.json(
         {
           error: `Upstream responded ${upstream.status}.`,
@@ -121,7 +160,10 @@ export async function GET(req: Request) {
       headers: {
         "Content-Type":
           upstream.headers.get("content-type") ?? "application/octet-stream",
-        ...(contentLengthHeader
+        // fetch decodes the body but leaves the encoded content-length on the
+        // response, so forwarding it under an encoding declares a byte count
+        // this route will never write.
+        ...(contentLengthHeader && !upstream.headers.has("content-encoding")
           ? { "Content-Length": contentLengthHeader }
           : {}),
         "Cache-Control": "private, max-age=3600",
