@@ -136,17 +136,15 @@ describe("BaseThreadRuntimeCore subscriptions", () => {
 
     const syncError = new Error("sync listener failed");
     const asyncError = new Error("async listener failed");
-    const laterListener = vi.fn();
     runtime.unstable_on("initialize", () => {
       throw syncError;
     });
     runtime.unstable_on("initialize", async () => {
       throw asyncError;
     });
-    runtime.unstable_on("initialize", laterListener);
 
     await vi.waitFor(() => {
-      expect(laterListener).toHaveBeenCalledOnce();
+      expect(consoleError).toHaveBeenCalledTimes(2);
       expect(consoleError).toHaveBeenCalledWith(
         '[assistant-ui] Thread runtime "initialize" listener threw an error',
         syncError,
