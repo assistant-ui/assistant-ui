@@ -19,7 +19,9 @@ export function ThreadSpecimen() {
     overlayRef.current?.focus();
     const isInsidePopup = (target: EventTarget | null) => {
       if (!(target instanceof Element)) return false;
-      const layer = target.closest('[role="menu"], [role="dialog"]');
+      const layer = target.closest(
+        '[role="menu"], [role="dialog"], [data-slot="selection-toolbar"]',
+      );
       return layer !== null && layer !== overlayRef.current;
     };
     const onKey = (event: KeyboardEvent) => {

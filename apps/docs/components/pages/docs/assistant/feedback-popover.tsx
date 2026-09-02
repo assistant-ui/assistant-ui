@@ -101,18 +101,23 @@ export function FeedbackPopover({
                 )}
                 rows={2}
               />
-              <button
-                type="button"
-                onClick={handleSubmit}
-                disabled={!category}
-                className={cn(
-                  "bg-primary text-primary-foreground w-full rounded-md px-3 py-1.5 text-sm font-medium",
-                  "disabled:cursor-not-allowed disabled:opacity-50",
-                  "hover:bg-primary/90",
-                )}
-              >
-                Submit
-              </button>
+              <div className="flex items-center gap-2">
+                <Popover.Close className="text-muted-foreground hover:text-foreground rounded-md px-3 py-1.5 text-sm transition-colors">
+                  Cancel
+                </Popover.Close>
+                <button
+                  type="button"
+                  onClick={handleSubmit}
+                  disabled={!category}
+                  className={cn(
+                    "bg-primary text-primary-foreground flex-1 rounded-md px-3 py-1.5 text-sm font-medium",
+                    "disabled:cursor-not-allowed disabled:opacity-50",
+                    "hover:bg-primary/90",
+                  )}
+                >
+                  Submit
+                </button>
+              </div>
             </div>
             <Popover.Arrow className="fill-popover" />
           </Popover.Popup>
