@@ -328,10 +328,6 @@ export class RemoteThreadListThreadListRuntimeCore
     }
   }
 
-  public __internal_refreshRuntimeHook() {
-    this._hookManager.__internal_refreshRuntimeHook();
-  }
-
   private _requireAdapterGeneration(generation: number) {
     if (generation !== this._adapterGeneration) {
       throw new ThreadListAdapterChangedError();

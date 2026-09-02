@@ -63,7 +63,6 @@ type AdapterSnapshot = {
 type HostSnapshot = {
   threads: readonly { id: string; generation: number }[];
   hookEpoch: number;
-  renderEpoch: number;
 };
 
 const ProviderRenderDetector: FC<{
@@ -84,7 +83,6 @@ export class RemoteThreadListHookInstanceManager extends BaseSubscribable {
   private readonly hostStore = new WritableSubscribable<HostSnapshot>({
     threads: [],
     hookEpoch: 0,
-    renderEpoch: 0,
   });
   private readonly pendingThreadAdapters = new Map<
     string,
@@ -274,14 +272,6 @@ export class RemoteThreadListHookInstanceManager extends BaseSubscribable {
     this.runtimeHook = newRuntimeHook;
     const host = this.hostStore.getState();
     this.hostStore.setState({ ...host, hookEpoch: host.hookEpoch + 1 });
-  }
-
-  public __internal_refreshRuntimeHook() {
-    const host = this.hostStore.getState();
-    this.hostStore.setState({
-      ...host,
-      renderEpoch: host.renderEpoch + 1,
-    });
   }
 
   public __internal_setDefaultAdapters(adapters: RuntimeAdapters | null) {

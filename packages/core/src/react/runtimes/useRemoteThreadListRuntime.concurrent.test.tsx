@@ -33,7 +33,7 @@ const getThreadCore = (runtime: AssistantRuntime) =>
     }
   ).__internal_threadBinding.getState();
 
-const createHarness = () => {
+const createHarness = ({ stableHook = false } = {}) => {
   const adapter = makeAdapter();
   const onNewA = vi.fn(async () => {});
   const onNewB = vi.fn(async () => {});
@@ -47,6 +47,15 @@ const createHarness = () => {
     if (suspend) throw pending;
     return null;
   };
+  // Every shipped adapter passes a fresh function expression, so a hoisted
+  // variant is the only way to exercise an unchanged published hook.
+  const useHoistedThreadRuntime = () => {
+    renderThreadRuntime();
+    return useExternalStoreRuntime({
+      messages: EMPTY_MESSAGES,
+      onNew: onNewA,
+    });
+  };
   const App = ({
     onNew,
     children,
@@ -55,10 +64,12 @@ const createHarness = () => {
     children?: ReactNode;
   }) => {
     if (onNew === onNewB) renderB();
-    const useThreadRuntime = () => {
-      renderThreadRuntime();
-      return useExternalStoreRuntime({ messages: EMPTY_MESSAGES, onNew });
-    };
+    const useThreadRuntime = stableHook
+      ? useHoistedThreadRuntime
+      : () => {
+          renderThreadRuntime();
+          return useExternalStoreRuntime({ messages: EMPTY_MESSAGES, onNew });
+        };
     const runtime = useRemoteThreadListRuntime({
       adapter,
       runtimeHook: useThreadRuntime,
@@ -136,7 +147,7 @@ describe("useRemoteThreadListRuntime concurrent options", () => {
     expect(onNewB).toHaveBeenCalledTimes(1);
   });
 
-  it("does not refresh thread runtimes when the host did not render", async () => {
+  it("costs one corrective pass when a commit publishes a new hook", async () => {
     const { App, onNewA, renderThreadRuntime } = createHarness();
     const children = <div />;
     const view = render(<App onNew={onNewA}>{children}</App>);
@@ -144,7 +155,26 @@ describe("useRemoteThreadListRuntime concurrent options", () => {
     await act(async () => {});
     renderThreadRuntime.mockClear();
 
-    act(() => view.rerender(<App onNew={onNewA}>{children}</App>));
+    await act(async () => {
+      view.rerender(<App onNew={onNewA}>{children}</App>);
+    });
+
+    expect(renderThreadRuntime).toHaveBeenCalledTimes(1);
+  });
+
+  it("does not re-run thread runtimes when the published hook is unchanged", async () => {
+    const { App, onNewA, renderThreadRuntime } = createHarness({
+      stableHook: true,
+    });
+    const children = <div />;
+    const view = render(<App onNew={onNewA}>{children}</App>);
+
+    await act(async () => {});
+    renderThreadRuntime.mockClear();
+
+    await act(async () => {
+      view.rerender(<App onNew={onNewA}>{children}</App>);
+    });
 
     expect(renderThreadRuntime).not.toHaveBeenCalled();
   });

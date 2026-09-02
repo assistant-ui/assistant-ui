@@ -1,7 +1,6 @@
 import {
   useState,
   useEffect,
-  useInsertionEffect,
   useLayoutEffect,
   useMemo,
   useRef,
@@ -14,6 +13,8 @@ import type { RemoteThreadListOptions } from "../../runtimes/remote-thread-list/
 import type { AssistantRuntimeCore } from "../../runtime/interfaces/assistant-runtime-core";
 import type { AssistantRuntime } from "../../runtime/api/assistant-runtime";
 import { RemoteThreadListThreadListRuntimeCore } from "./RemoteThreadListThreadListRuntimeCore";
+import { WritableSubscribable } from "../../subscribable/subscribable";
+import { useSubscribable } from "../../store/runtime-clients/useSubscribable";
 import { useAui } from "@assistant-ui/store";
 
 class RemoteThreadListRuntimeCore
@@ -37,14 +38,8 @@ class RemoteThreadListRuntimeCore
 
 const useRemoteThreadListRuntimeImpl = (
   options: RemoteThreadListOptions,
-  runtimeHookNeedsRefreshRef: { current: boolean },
 ): AssistantRuntime => {
   const [runtime] = useState(() => new RemoteThreadListRuntimeCore(options));
-  useLayoutEffect(() => {
-    if (!runtimeHookNeedsRefreshRef.current) return;
-    runtimeHookNeedsRefreshRef.current = false;
-    runtime.threads.__internal_refreshRuntimeHook();
-  });
   useEffect(() => {
     runtime.threads.__internal_setOptions(options);
     runtime.threads.__internal_load();
@@ -56,24 +51,24 @@ const useRemoteThreadListRuntimeImpl = (
 export const useRemoteThreadListRuntime = (
   options: RemoteThreadListOptions,
 ): AssistantRuntime => {
-  const runtimeHookRef = useRef(options.runtimeHook);
-  const runtimeHookRenderCountRef = useRef(0);
-  const runtimeHookRenderCount = runtimeHookRenderCountRef.current;
-  const runtimeHookNeedsRefreshRef = useRef(false);
-  useInsertionEffect(() => {
-    const runtimeHookChanged = runtimeHookRef.current !== options.runtimeHook;
-    runtimeHookRef.current = options.runtimeHook;
-    runtimeHookNeedsRefreshRef.current =
-      runtimeHookChanged &&
-      runtimeHookRenderCountRef.current !== runtimeHookRenderCount;
-  }, [options.runtimeHook, runtimeHookRenderCount]);
+  const [runtimeHookStore] = useState(
+    () => new WritableSubscribable(options.runtimeHook),
+  );
+  useLayoutEffect(() => {
+    runtimeHookStore.setState(options.runtimeHook);
+  }, [runtimeHookStore, options.runtimeHook]);
 
   const initialThreadIdRef = useRef(options.initialThreadId);
 
-  const stableRuntimeHook = useCallback(() => {
-    runtimeHookRenderCountRef.current++;
-    return runtimeHookRef.current();
-  }, []);
+  // Thread resources subscribe to the store rather than reading a ref, so a
+  // hook published at commit reaches exactly the resources that use it and an
+  // abandoned render publishes nothing.
+  const stableRuntimeHook = useCallback(
+    function useCommittedRuntimeHook() {
+      return useSubscribable(runtimeHookStore)();
+    },
+    [runtimeHookStore],
+  );
 
   const onThreadIdChange = useEffectEvent((threadId: string | undefined) => {
     options.onThreadIdChange?.(threadId);
@@ -112,10 +107,7 @@ export const useRemoteThreadListRuntime = (
     return options.runtimeHook();
   }
 
-  const runtime = useRemoteThreadListRuntimeImpl(
-    stableOptions,
-    runtimeHookNeedsRefreshRef,
-  );
+  const runtime = useRemoteThreadListRuntimeImpl(stableOptions);
 
   return runtime;
 };
