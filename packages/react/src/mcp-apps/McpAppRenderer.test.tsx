@@ -710,7 +710,7 @@ describe("McpAppRenderer", () => {
     ).toEqual({
       isError: true,
       ok: false,
-      reason: "host accepts text content blocks only",
+      reason: "no text content to append",
     });
 
     expect(handlers.sendMessage?.({ role: "user" })).toEqual({

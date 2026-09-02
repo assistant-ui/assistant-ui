@@ -170,7 +170,7 @@ function extractSendMessageContent(
     .filter((text) => text !== "")
     .map((text): TextMessagePart => ({ type: "text", text }));
   if (content.length === 0) {
-    return { reason: "host accepts text content blocks only" };
+    return { reason: "no text content to append" };
   }
   return { content };
 }
