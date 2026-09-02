@@ -470,7 +470,7 @@ export const useAISDKRuntime = <UI_MESSAGE extends UIMessage = UIMessage>(
     onCancel: async () => {
       const message = chatHelpers.messages.at(-1);
       setCancelledMessage(
-        providerIsRunning && message?.role === "assistant"
+        isRunning && message?.role === "assistant"
           ? { chatId: chatHelpers.id, messageId: message.id }
           : null,
       );

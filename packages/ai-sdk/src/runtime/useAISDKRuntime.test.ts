@@ -280,6 +280,75 @@ describe("useAISDKRuntime", () => {
     });
   });
 
+  it("marks output cancelled while a client tool is still executing", async () => {
+    let resolveTool!: (value: string) => void;
+    const execute = vi.fn(
+      () =>
+        new Promise<string>((resolve) => {
+          resolveTool = resolve;
+        }),
+    );
+    const chat = createChatHelpers();
+
+    const { result, rerender } = renderHook(() => useAISDKRuntime(chat));
+    const unregister = result.current.registerModelContextProvider({
+      getModelContext: () => ({
+        tools: {
+          weather: {
+            parameters: { type: "object", properties: {} },
+            execute,
+          },
+        },
+      }),
+    });
+
+    try {
+      act(() => {
+        chat.setMessages([
+          {
+            id: "assistant-1",
+            role: "assistant",
+            parts: [
+              {
+                type: "tool-weather",
+                toolCallId: "tool-1",
+                state: "input-available",
+                input: { city: "London" },
+              },
+            ],
+          },
+        ]);
+        rerender();
+      });
+
+      await waitFor(() => {
+        expect(execute).toHaveBeenCalledOnce();
+        expect(result.current.thread.getState().isRunning).toBe(true);
+      });
+
+      act(() => {
+        result.current.thread.cancelRun();
+        chat.setMessages([
+          {
+            id: "assistant-1",
+            role: "assistant",
+            parts: [{ type: "text", text: "stopped" }],
+          },
+        ]);
+        resolveTool("sunny");
+        rerender();
+      });
+
+      await waitFor(() => {
+        expect(
+          result.current.thread.getState().messages.at(-1)?.status,
+        ).toMatchObject({ type: "incomplete", reason: "cancelled" });
+      });
+    } finally {
+      unregister();
+    }
+  });
+
   it("reports non-AbortError cancellation failures", async () => {
     const stopError = new Error("stop failed");
     const chat = createChatHelpers();

@@ -46,6 +46,7 @@ export type ExternalMessageConverterMessage =
 export type ExternalMessageConverterMetadata = {
   readonly toolStatuses?: Record<string, ToolExecutionStatus>;
   readonly error?: ReadonlyJSONValue;
+  /** Marks the current last message as cancelled during automatic status derivation. */
   readonly isCancelled?: boolean;
   readonly messageTiming?: Record<string, MessageTiming>;
 };
