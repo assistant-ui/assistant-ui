@@ -116,6 +116,7 @@ export function unstable_useLiveCompletionAdapter(
       timerRef.current = setTimeout(() => {
         timerRef.current = null;
         if (inactiveRef.current) {
+          rearmPendingRetry();
           pendingQueryRef.current = null;
           setIsLoading(false);
           return;
@@ -172,12 +173,9 @@ export function unstable_useLiveCompletionAdapter(
     inactiveRef.current = false;
     return () => {
       inactiveRef.current = true;
-      cancelTimer();
-      pendingQueryRef.current = null;
-      tokenRef.current += 1;
-      setIsLoading(false);
+      invalidatePending();
     };
-  }, [cancelTimer]);
+  }, [invalidatePending]);
 
   // Arm retries only after the failed state commits. Arming during rejection
   // would let the failure render immediately schedule another request.

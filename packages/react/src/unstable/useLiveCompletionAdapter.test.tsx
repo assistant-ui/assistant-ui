@@ -483,6 +483,54 @@ describe("unstable_useLiveCompletionAdapter", () => {
     expect(result.current.adapter.search!("alice")).toEqual([item("alice")]);
   });
 
+  it("re-arms a failed query when its retry is hidden", async () => {
+    const fetcher = vi
+      .fn<(query: string) => Promise<readonly Unstable_TriggerItem[]>>()
+      .mockRejectedValueOnce(new Error("temporarily unavailable"))
+      .mockImplementationOnce(() => new Promise(() => {}))
+      .mockResolvedValueOnce([item("alice")]);
+    const suspended = new Promise<never>(() => {});
+    let committed!: ReturnType<typeof unstable_useLiveCompletionAdapter>;
+    const Harness = ({ blocked }: { blocked: boolean }) => {
+      const current = unstable_useLiveCompletionAdapter({
+        fetcher,
+        debounceMs: 0,
+      });
+      useLayoutEffect(() => {
+        committed = current;
+      }, [current]);
+      if (blocked) throw suspended;
+      return null;
+    };
+    const view = (blocked: boolean) => (
+      <Suspense fallback={null}>
+        <Harness blocked={blocked} />
+      </Suspense>
+    );
+    const rendered = render(view(false));
+
+    await act(async () => {
+      committed.adapter.search!("alice");
+      await vi.advanceTimersByTimeAsync(0);
+    });
+    expect(fetcher).toHaveBeenCalledOnce();
+
+    await act(async () => {
+      committed.adapter.search!("alice");
+      await vi.advanceTimersByTimeAsync(0);
+    });
+    expect(fetcher).toHaveBeenCalledTimes(2);
+
+    await act(async () => rendered.rerender(view(true)));
+    await act(async () => rendered.rerender(view(false)));
+    await act(async () => {
+      committed.adapter.search!("alice");
+      await vi.advanceTimersByTimeAsync(0);
+    });
+
+    expect(fetcher).toHaveBeenCalledTimes(3);
+  });
+
   it("drops an in-flight fetch when the query returns to a cached value", async () => {
     const resolvers: Record<
       string,
