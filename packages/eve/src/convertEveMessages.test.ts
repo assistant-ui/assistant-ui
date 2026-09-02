@@ -272,6 +272,26 @@ describe("convertEveMessages", () => {
     },
   );
 
+  it("does not offer a typed answer on a tool approval whose options were dropped", () => {
+    const [message] = convertEveMessages(
+      withApprovalPart({
+        kind: "tool-call",
+        name: "send_email",
+        inputRequest: {
+          requestId: "req_1",
+          kind: "tool-approval",
+          prompt: "Send the email?",
+        },
+      }),
+    );
+
+    // The mapper answers this shape with its approve/cancel branch before it
+    // ever reads a text answer, so the renderer must not offer one.
+    expect(
+      (message!.content[0] as { approval?: object }).approval,
+    ).not.toHaveProperty("allowFreeform");
+  });
+
   it("does not offer a typed answer on a confirmation request", () => {
     const [message] = convertEveMessages(
       withApprovalPart({

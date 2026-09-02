@@ -556,20 +556,24 @@ const toolkit = defineToolkit({
   deploy: {
     type: "backend",
     render: ({ args, approval, respondToApproval, result }) => {
+      const [error, setError] = useState<string | null>(null);
+
       if (approval?.approved === undefined) {
+        const answer = (response: ToolApprovalResponse) => {
+          setError(null);
+          respondToApproval(response).catch((failure: unknown) =>
+            setError(failure instanceof Error ? failure.message : String(failure)),
+          );
+        };
+
         return (
           <div>
             <p>Approve deploy to {args.target}?</p>
-            <button onClick={() => respondToApproval({ approved: true })}>
-              Approve
-            </button>
-            <button
-              onClick={() =>
-                respondToApproval({ approved: false, reason: "user denied" })
-              }
-            >
+            <button onClick={() => answer({ approved: true })}>Approve</button>
+            <button onClick={() => answer({ approved: false, reason: "user denied" })}>
               Deny
             </button>
+            {error && <p role="alert">{error}</p>}
           </div>
         );
       }

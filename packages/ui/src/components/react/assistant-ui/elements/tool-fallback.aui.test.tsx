@@ -298,14 +298,20 @@ describe("ToolFallbackApproval", () => {
 
     expect(button("Allow")).toBeTruthy();
     expect(button("Deny")).toBeTruthy();
+    // A typed note must not be submittable on its own here: a bare answer
+    // resolves as approved, which would authorize the call.
+    expect(screen.queryByRole("button", { name: "Send" })).toBeNull();
 
     fireEvent.change(
       screen.getByRole("textbox", { name: "Delete the release branch?" }),
       { target: { value: "not this one" } },
     );
-    fireEvent.click(button("Send"));
+    fireEvent.click(button("Deny"));
 
-    expect(respondToApproval).toHaveBeenCalledWith({ text: "not this one" });
+    expect(respondToApproval).toHaveBeenCalledWith({
+      approved: false,
+      text: "not this one",
+    });
   });
 
   it("never fabricates a decision for a select request that declares no options", () => {

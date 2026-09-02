@@ -171,6 +171,7 @@ const toolApprovalOptionsFromInputRequest = (
  */
 const acceptsFreeformAnswer = (inputRequest: EveMessageInputRequest): boolean =>
   inputRequest.display !== "confirmation" &&
+  !(inputRequest.kind === "tool-approval" && !inputRequest.options?.length) &&
   (inputRequest.display === "text" ||
     inputRequest.allowFreeform === true ||
     !inputRequest.options?.length);

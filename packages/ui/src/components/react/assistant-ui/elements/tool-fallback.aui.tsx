@@ -408,7 +408,7 @@ function ToolFallbackApproval({
       approval.approved === undefined &&
       respondToApproval
     ) {
-      submit(() => respondToApproval({ approved }));
+      submit(() => respondToApproval({ approved, ...typedAnswer() }));
     } else if (interrupt) {
       submit(() => resume?.({ approved }));
     } else if (
@@ -430,11 +430,13 @@ function ToolFallbackApproval({
     submit(() =>
       respondToApproval?.(
         isKnownKind(option.kind)
-          ? { optionId: option.id }
-          : { optionId: option.id, approved: true },
+          ? { optionId: option.id, ...typedAnswer() }
+          : { optionId: option.id, approved: true, ...typedAnswer() },
       ),
     );
   };
+
+  const typedAnswer = () => (answer.trim() ? { text: answer } : {});
 
   const submitAnswer = () => {
     if (submitted || !answer.trim()) return;
@@ -479,14 +481,16 @@ function ToolFallbackApproval({
         disabled={submitted}
         aria-label={approval?.prompt ?? "Answer"}
       />
-      <Button
-        size="sm"
-        className={pressable}
-        onClick={submitAnswer}
-        disabled={submitted || !answer.trim()}
-      >
-        Send
-      </Button>
+      {question && (
+        <Button
+          size="sm"
+          className={pressable}
+          onClick={submitAnswer}
+          disabled={submitted || !answer.trim()}
+        >
+          Send
+        </Button>
+      )}
     </div>
   ) : null;
 
