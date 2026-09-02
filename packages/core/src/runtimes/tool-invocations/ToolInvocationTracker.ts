@@ -132,6 +132,13 @@ export class ToolInvocationTracker {
     }
   >();
   private readonly _executing = new Set<symbol>();
+  /**
+   * Tool calls whose turn ended before they reached the executor. Held here
+   * rather than on the entry because an entry is rebuilt whenever a snapshot
+   * re-creates the call, and this is the one reason to skip that no later
+   * snapshot carries.
+   */
+  private readonly _discardedToolCallIds = new Set<string>();
   private readonly _settledResolvers: SettledResolver[] = [];
 
   private _statuses = new Map<string, ToolExecutionStatus>();
@@ -300,6 +307,7 @@ export class ToolInvocationTracker {
     try {
       this._pendingRestore = true;
       this._entries.clear();
+      this._discardedToolCallIds.clear();
       this._lastSnapshot = null;
       void this.abort();
       // Statuses are cleared synchronously: discarded executions may never
@@ -319,8 +327,13 @@ export class ToolInvocationTracker {
   /**
    * Abort any in-flight `execute()` invocations. Resolves once all of them
    * have settled (or immediately if none are running).
+   *
+   * `discardPending` additionally kills the calls that never reached the
+   * executor, for a caller ending the turn rather than interrupting it. The
+   * signal cannot reach those: they are waiting on the run to settle (A.10),
+   * and the settled snapshot arrives after this installs a fresh controller.
    */
-  public abort(): Promise<void> {
+  public abort(options?: { discardPending?: boolean }): Promise<void> {
     try {
       this._humanInput.forEach(({ reject }) => {
         try {
@@ -332,14 +345,13 @@ export class ToolInvocationTracker {
       });
       this._humanInput.clear();
 
-      // Every caller aborts because the turn is being discarded. A call that
-      // has not reached the executor cannot be stopped by the signal, and
-      // waiting on the run to settle (A.10) leaves it to start under the fresh
-      // controller after the abort, so it is marked dead here instead.
-      for (const entry of this._entries.values()) {
-        if (!entry.controller) continue;
-        if (entry.argsComplete || entry.hasResult) continue;
-        entry.skipExecute = true;
+      if (options?.discardPending) {
+        for (const [toolCallId, entry] of this._entries) {
+          if (!entry.controller) continue;
+          if (entry.argsComplete || entry.hasResult) continue;
+          this._discardedToolCallIds.add(toolCallId);
+          entry.skipExecute = true;
+        }
       }
 
       this._ac.abort();
@@ -658,15 +670,13 @@ export class ToolInvocationTracker {
   private _demoteEntriesToRestored(): void {
     for (const [toolCallId, entry] of this._entries) {
       if (!entry.controller) continue;
-      if (!entry.argsComplete && !entry.hasResult && !entry.skipExecute) {
+      if (!entry.argsComplete && !entry.hasResult) {
         // The call never reached the executor. A restored entry is promoted
         // only when its signature changes, and a call waiting on the run to
         // settle already holds its final args, so demoting it would strand it
-        // unexecuted. Dropping it lets the next snapshot start it over. An
-        // entry the abort path marked dead (A.11) is demoted instead: every
-        // other source of `skipExecute` is re-derived from the next snapshot,
-        // that one lives only on the entry, and being stranded is what it
-        // asks for.
+        // unexecuted. Dropping it lets the next snapshot start it over; a call
+        // whose turn was discarded is held by `_discardedToolCallIds`, not by
+        // the entry, so starting over does not revive it.
         this._entries.delete(toolCallId);
         continue;
       }
@@ -827,7 +837,9 @@ export class ToolInvocationTracker {
         entry = this._startActiveEntry(
           content.toolCallId,
           content.toolName,
-          content.result !== undefined || providerOwned,
+          content.result !== undefined ||
+            providerOwned ||
+            this._discardedToolCallIds.has(content.toolCallId),
           ownership === true,
         );
       }

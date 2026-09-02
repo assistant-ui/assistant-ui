@@ -652,9 +652,84 @@ describe("ToolInvocationTracker", () => {
     await new Promise((r) => setTimeout(r, 0));
     expect(execute).not.toHaveBeenCalled();
 
+    await tracker.abort({ discardPending: true });
+
+    tracker.setState(complete(false));
+    await new Promise((r) => setTimeout(r, 0));
+
+    expect(execute).not.toHaveBeenCalled();
+    expect(onResult).not.toHaveBeenCalled();
+  });
+
+  it("still executes a waiting tool when an abort only interrupts the turn", async () => {
+    const execute = vi.fn(async () => ({ deleted: true }));
+    const getTools = () => ({
+      deleteFile: {
+        parameters: { type: "object", properties: {} },
+        execute,
+      } satisfies Tool,
+    });
+    const onResult = vi.fn();
+    const tracker = new ToolInvocationTracker(getTools, {
+      onResult,
+      onStatusesChange: () => {},
+    });
+    tracker.setState(createState([], false));
+
+    const complete = (isRunning: boolean) =>
+      createState(
+        [
+          createAssistantMessage(
+            '{"path":"/tmp/a"}',
+            { path: "/tmp/a" },
+            { toolName: "deleteFile" },
+          ),
+        ],
+        isRunning,
+      );
+
+    tracker.setState(complete(true));
+    await new Promise((r) => setTimeout(r, 0));
+
     await tracker.abort();
 
     tracker.setState(complete(false));
+    await waitFor(() => expect(execute).toHaveBeenCalledTimes(1));
+  });
+
+  it("keeps a discarded tool call skipped once its args complete", async () => {
+    const execute = vi.fn(async () => ({ deleted: true }));
+    const getTools = () => ({
+      deleteFile: {
+        parameters: { type: "object", properties: {} },
+        execute,
+      } satisfies Tool,
+    });
+    const onResult = vi.fn();
+    const tracker = new ToolInvocationTracker(getTools, {
+      onResult,
+      onStatusesChange: () => {},
+    });
+    tracker.setState(createState([], false));
+
+    const live = (argsText: string, isRunning: boolean) =>
+      createState(
+        [
+          createAssistantMessage(
+            argsText,
+            { path: "/tmp/a" },
+            { toolName: "deleteFile" },
+          ),
+        ],
+        isRunning,
+      );
+
+    tracker.setState(live('{"path":"/tm', true));
+    await new Promise((r) => setTimeout(r, 0));
+
+    await tracker.abort({ discardPending: true });
+
+    tracker.setState(live('{"path":"/tmp/a"}', false));
     await new Promise((r) => setTimeout(r, 0));
 
     expect(execute).not.toHaveBeenCalled();

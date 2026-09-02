@@ -5506,7 +5506,9 @@ declare class ToolInvocationTracker {
   constructor(getTools: () => Record<string, Tool> | undefined, callbacks: ToolInvocationTracker.Callbacks, isClientToolCall?: (toolCall: ToolCallMessagePart) => boolean | undefined);
   setState(snapshot: ToolInvocationTracker.Snapshot): void;
   reset(): void;
-  abort(): Promise<void>;
+  abort(options?: {
+    discardPending?: boolean;
+  }): Promise<void>;
   resume(toolCallId: string, payload: unknown): boolean;
   getStatuses(): ReadonlyMap<string, ToolExecutionStatus>;
 }

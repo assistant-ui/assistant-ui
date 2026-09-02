@@ -144,25 +144,29 @@ gated, so a gate on such a call is still late and A.8 governs it
 (#6677).
 
 ### A.11. The turn is discarded while a call waits on the run
-`abort()` marks every active entry that has neither closed its args stream
-nor holds a result `skipExecute`. Its four callers (a new turn starting, a
-message deleted mid-run, a reload, and `cancelRun`) all mean the turn is
-gone, and a result landing afterward would target a turn that no longer
-exists.
+`abort({ discardPending: true })` records every active entry that has
+neither closed its args stream nor holds a result in
+`_discardedToolCallIds`, and marks it `skipExecute`.
 
-The abort signal alone does not cover this. A call waiting on the run to
+The abort signal alone does not cover these. A call waiting on the run to
 settle (A.10) has not reached the executor, so there is nothing to signal,
 and `abort()` installs a fresh `AbortController` before the settled
-snapshot arrives; without the mark, cancelling a run would be what starts
-the call it was meant to stop. `reset()` is unaffected: it clears
-`_entries` before aborting.
+snapshot arrives; without the record, cancelling a run would be what
+starts the call it was meant to stop.
 
-The mark is the one source of `skipExecute` that a later snapshot cannot
-re-derive: an `approval` and provider ownership are both read off the
-snapshot again, and a call with a result is never dropped. So the
-pipeline-restart path demotes a marked entry instead of dropping it
-(F.4), or a stream failure landing between the abort and the settled
-snapshot would hand the call back clean.
+`discardPending` is the caller's claim that the turn is over, not that it
+is being interrupted, so only the three callers that end it pass it: a new
+turn starting, a reload, and `cancelRun`. `deleteMessage` aborts while the
+provider run continues, and marking there would strand that run's
+remaining calls result-less. `reset()` is unaffected either way: it clears
+`_entries` and the recorded ids before aborting, because it opens a new
+execution boundary.
+
+The record lives on the tracker rather than the entry because it is the one
+reason to skip that no later snapshot carries: an `approval` is re-read at
+each snapshot and provider ownership is recomputed, while a rebuilt entry
+would otherwise come back clean. That is what lets F.4 drop a waiting entry
+without a special case.
 
 ## B. Tool call disappears from snapshot
 
