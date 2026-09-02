@@ -138,6 +138,8 @@ The interrupt API is experimental and may change without notice.
 
 When the agent emits `RUN_FINISHED` with `outcome = { type: "interrupt", interrupts: [...] }`, the active assistant message is marked `requires-action` with `reason: "interrupt"` and the `Interrupt[]` payload is written to `metadata.custom.agui.interrupts`. Render an approval / input UI from there.
 
+Because the protocol carries the outcome only on `RUN_FINISHED`, a registered frontend tool does not run while the run is still open: its `execute` fires once the run's outcome is known, so a gate can never land on a call the client has already executed.
+
 `useAgUiRuntime` returns an `AgUiAssistantRuntime` with two extra methods:
 
 | Method | Description |
