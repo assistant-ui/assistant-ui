@@ -219,12 +219,12 @@ describe("renderCompareMarkdown", () => {
     );
   });
 
-  it("escapes pipes in bench names and surfaces warnings as quotes", () => {
-    const md = markdown([row("bench/a.bench.ts > g > a | b", 0)], {
+  it("escapes table-breaking characters in bench names and surfaces warnings as quotes", () => {
+    const md = markdown([row("bench/a.bench.ts > g > a | b \\ c\nd", 0)], {
       warnings: ["environments differ"],
     });
     expect(md).toContain("> ⚠️ environments differ");
-    expect(md).toContain("| a › g › a \\| b |");
+    expect(md).toContain("| a › g › a \\| b \\\\ c d |");
   });
 });
 

@@ -104,7 +104,11 @@ export const buildCompareDoc = (rows, meta) => {
   };
 };
 
-const cell = (value) => String(value).replace(/\|/g, "\\|");
+const cell = (value) =>
+  String(value)
+    .replace(/\\/g, "\\\\")
+    .replace(/\|/g, "\\|")
+    .replace(/\r?\n/g, " ");
 
 const mdTable = (header, aligns, body) =>
   [
