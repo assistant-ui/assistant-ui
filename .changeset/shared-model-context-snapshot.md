@@ -2,4 +2,4 @@
 "@assistant-ui/react": patch
 ---
 
-refactor(react): share one model-context snapshot subscription between the mention adapter and the webmcp provider
+refactor(react): extract a shared model-context snapshot hook for the mention adapter and the webmcp provider

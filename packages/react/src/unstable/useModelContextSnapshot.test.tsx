@@ -104,6 +104,23 @@ describe("useModelContextSnapshot", () => {
     expect(result.current).toEqual({ a: "1" });
   });
 
+  it("falls back to empty when the gate closes", () => {
+    const { source, state, unsubscribe } = createSource();
+    state.tools = { a: "1" };
+
+    const { result, rerender } = renderHook(
+      ({ enabled }: { enabled: boolean }) =>
+        useModelContextSnapshot(aui, enabled, source),
+      { initialProps: { enabled: true } },
+    );
+    expect(result.current).toEqual({ a: "1" });
+
+    rerender({ enabled: false });
+
+    expect(result.current).toBe(source.empty);
+    expect(unsubscribe).toHaveBeenCalled();
+  });
+
   it("unsubscribes on unmount", () => {
     const { source, unsubscribe } = createSource();
     const { unmount } = renderHook(() =>

@@ -6,7 +6,8 @@ import type { Unsubscribe } from "@assistant-ui/core";
 
 /**
  * Where a snapshot comes from and what counts as a change to it. Declared once
- * per consumer at module scope, so the subscription effect stays stable.
+ * per consumer at module scope: the subscription effect keys on this object, so
+ * an inline source without an `isEqual` re-reads itself into a render loop.
  */
 export type ModelContextSnapshotSource<T> = {
   /** Served while the snapshot is disabled, and when the source has nothing. */
@@ -50,7 +51,7 @@ export const useModelContextSnapshot = <T>(
     return source.subscribe(aui, read);
   }, [aui, enabled, source]);
 
-  return snapshot;
+  return enabled ? snapshot : source.empty;
 };
 
 /** Shallow own-key comparison, for a projection whose values are records. */
