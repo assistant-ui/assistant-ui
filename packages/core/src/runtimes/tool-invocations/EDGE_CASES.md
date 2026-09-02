@@ -126,6 +126,13 @@ outcome no earlier: AG-UI projects an interrupt only from `RUN_FINISHED`.
 The run ending is the only universal signal, so a call whose ownership is
 unknown closes when the snapshot's `isRunning` goes false.
 
+`ExternalStoreThreadRuntimeCore` feeds the tracker
+`store.isRunning || _hasExecutingTools(store)`, so that condition also covers
+a client tool mid-`execute`. It cannot stall a sibling: every entry pending in
+a snapshot closes in the same `_processMessages` pass, and an execution parked
+on `human()` reports `interrupt` rather than `executing`, which
+`_hasExecutingTools` does not count.
+
 A call the adapter reports as client-owned (A.9) closes as soon as its
 arguments parse, because the adapter has already said the provider will
 not answer it. Ownership says who answers a call, not whether it is

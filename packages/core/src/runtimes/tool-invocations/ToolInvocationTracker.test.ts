@@ -32,7 +32,7 @@ async function waitFor(
 
 const createState = (
   messages: ThreadAssistantMessage[],
-  isRunning: boolean = false,
+  isRunning: boolean = true,
 ): ToolInvocationTracker.Snapshot => ({
   messages: messages as readonly ThreadMessage[],
   isRunning,
@@ -306,19 +306,21 @@ describe("ToolInvocationTracker", () => {
       onResult,
       onStatusesChange,
     });
-    tracker.setState(createState([]));
+    tracker.setState(createState([], false));
 
     // Single monotonic snapshot growing to a complete value triggers execute.
     tracker.setState(
-      createState([
-        createAssistantMessage('{"query":"London"', { query: "London" }),
-      ]),
+      createState(
+        [createAssistantMessage('{"query":"London"', { query: "London" })],
+        false,
+      ),
     );
 
     tracker.setState(
-      createState([
-        createAssistantMessage('{"query":"London"}', { query: "London" }),
-      ]),
+      createState(
+        [createAssistantMessage('{"query":"London"}', { query: "London" })],
+        false,
+      ),
     );
 
     await waitFor(() => {
@@ -547,6 +549,74 @@ describe("ToolInvocationTracker", () => {
     await waitFor(() => expect(onResult).toHaveBeenCalledTimes(1));
   });
 
+  it("streams a streamCall tool's args while the run is open and executes it after", async () => {
+    const streamed: unknown[] = [];
+    const streamCall = vi.fn(async (reader: any) => {
+      for await (const partial of reader.args.streamValues())
+        streamed.push(partial);
+    });
+    const execute = vi.fn(async () => ({ deleted: true }));
+    const getTools = () => ({
+      deleteFile: {
+        parameters: { type: "object", properties: {} },
+        streamCall,
+        execute,
+      } satisfies Tool,
+    });
+    const onResult = vi.fn();
+    const tracker = new ToolInvocationTracker(getTools, {
+      onResult,
+      onStatusesChange: () => {},
+    });
+    tracker.setState(createState([], false));
+
+    tracker.setState(
+      createState([
+        createAssistantMessage(
+          '{"path":"/tmp/a"',
+          { path: "/tmp/a" },
+          {
+            toolName: "deleteFile",
+          },
+        ),
+      ]),
+    );
+    tracker.setState(
+      createState([
+        createAssistantMessage(
+          '{"path":"/tmp/a"}',
+          { path: "/tmp/a" },
+          {
+            toolName: "deleteFile",
+          },
+        ),
+      ]),
+    );
+
+    await waitFor(() => expect(streamCall).toHaveBeenCalledTimes(1));
+    await waitFor(() => expect(streamed.length).toBeGreaterThan(0));
+    expect(execute).not.toHaveBeenCalled();
+
+    tracker.setState(
+      createState(
+        [
+          createAssistantMessage(
+            '{"path":"/tmp/a"}',
+            { path: "/tmp/a" },
+            {
+              toolName: "deleteFile",
+            },
+          ),
+        ],
+        false,
+      ),
+    );
+
+    await waitFor(() => expect(execute).toHaveBeenCalledTimes(1));
+    await waitFor(() => expect(onResult).toHaveBeenCalledTimes(1));
+    expect(streamCall).toHaveBeenCalledTimes(1);
+  });
+
   it("never executes a registered tool the provider gates before its run ends", async () => {
     const execute = vi.fn(async () => ({ deleted: true }));
     const getTools = () => ({
@@ -744,12 +814,13 @@ describe("ToolInvocationTracker", () => {
       onResult,
       onStatusesChange,
     });
-    tracker.setState(createState([]));
+    tracker.setState(createState([], false));
 
     tracker.setState(
-      createState([
-        createAssistantMessage('{"query":"London"}', { query: "London" }),
-      ]),
+      createState(
+        [createAssistantMessage('{"query":"London"}', { query: "London" })],
+        false,
+      ),
     );
 
     await waitFor(() => {
@@ -760,16 +831,19 @@ describe("ToolInvocationTracker", () => {
 
     await Promise.resolve();
 
-    tracker.setState(createState([]));
+    tracker.setState(createState([], false));
 
     tracker.setState(
-      createState([
-        createAssistantMessage(
-          '{"query":"London"}',
-          { query: "London" },
-          { result: { source: "history" } },
-        ),
-      ]),
+      createState(
+        [
+          createAssistantMessage(
+            '{"query":"London"}',
+            { query: "London" },
+            { result: { source: "history" } },
+          ),
+        ],
+        false,
+      ),
     );
 
     await waitFor(() => {
@@ -807,20 +881,23 @@ describe("ToolInvocationTracker", () => {
       onResult,
       onStatusesChange,
     });
-    tracker.setState(createState([]));
+    tracker.setState(createState([], false));
 
     tracker.setState(
-      createState([
-        createAssistantMessage(
-          '{"query":"parent"}',
-          { query: "parent" },
-          {
-            result: { source: "history" },
-            toolName: "resolvedOnly",
-            nestedMessages: [nestedMessage],
-          },
-        ),
-      ]),
+      createState(
+        [
+          createAssistantMessage(
+            '{"query":"parent"}',
+            { query: "parent" },
+            {
+              result: { source: "history" },
+              toolName: "resolvedOnly",
+              nestedMessages: [nestedMessage],
+            },
+          ),
+        ],
+        false,
+      ),
     );
 
     await waitFor(() => {
@@ -966,15 +1043,18 @@ describe("ToolInvocationTracker", () => {
       onResult,
       onStatusesChange,
     });
-    tracker.setState(createState([]));
+    tracker.setState(createState([], false));
 
     tracker.setState(
-      createState([
-        createAssistantMessage('{"a":1,"b":2}', {
-          a: 1,
-          b: 2,
-        }),
-      ]),
+      createState(
+        [
+          createAssistantMessage('{"a":1,"b":2}', {
+            a: 1,
+            b: 2,
+          }),
+        ],
+        false,
+      ),
     );
 
     await waitFor(() => {
@@ -982,18 +1062,21 @@ describe("ToolInvocationTracker", () => {
     });
 
     tracker.setState(
-      createState([
-        createAssistantMessage(
-          '{"b":2,"a":1}',
-          {
-            a: 1,
-            b: 2,
-          },
-          {
-            result: { source: "backend" },
-          },
-        ),
-      ]),
+      createState(
+        [
+          createAssistantMessage(
+            '{"b":2,"a":1}',
+            {
+              a: 1,
+              b: 2,
+            },
+            {
+              result: { source: "backend" },
+            },
+          ),
+        ],
+        false,
+      ),
     );
 
     resolveExecute?.({ source: "client" });
@@ -1551,11 +1634,12 @@ describe("ToolInvocationTracker reset", () => {
         execute: vi.fn(() => new Promise(() => {})),
       } satisfies Tool,
     });
-    tracker.setState(createState([]));
+    tracker.setState(createState([], false));
     tracker.setState(
-      createState([
-        createAssistantMessage('{"query":"London"}', { query: "London" }),
-      ]),
+      createState(
+        [createAssistantMessage('{"query":"London"}', { query: "London" })],
+        false,
+      ),
     );
     await waitFor(() => {
       expect(statuses()["tool-1"]?.type).toBe("executing");
@@ -1569,15 +1653,18 @@ describe("ToolInvocationTracker reset", () => {
     // discarded id back in through the whole-map republication. The first
     // post-reset snapshot is the fresh session's empty state, consuming the
     // pending-restore mark.
-    tracker.setState(createState([]));
+    tracker.setState(createState([], false));
     tracker.setState(
-      createState([
-        createAssistantMessage(
-          '{"query":"Paris"}',
-          { query: "Paris" },
-          { toolCallId: "tool-2" },
-        ),
-      ]),
+      createState(
+        [
+          createAssistantMessage(
+            '{"query":"Paris"}',
+            { query: "Paris" },
+            { toolCallId: "tool-2" },
+          ),
+        ],
+        false,
+      ),
     );
     await waitFor(() => {
       expect(statuses()["tool-2"]?.type).toBe("executing");
@@ -1605,19 +1692,22 @@ describe("ToolInvocationTracker reset", () => {
         execute: vi.fn(() => new Promise(() => {})),
       } satisfies Tool,
     });
-    tracker.setState(createState([]));
+    tracker.setState(createState([], false));
     tracker.setState(
-      createState([
-        createAssistantMessage('{"query":"London"}', { query: "London" }),
-        createAssistantMessage(
-          '{"query":"London"}',
-          { query: "London" },
-          {
-            toolCallId: "tool-2",
-            toolName: "pressureSearch",
-          },
-        ),
-      ]),
+      createState(
+        [
+          createAssistantMessage('{"query":"London"}', { query: "London" }),
+          createAssistantMessage(
+            '{"query":"London"}',
+            { query: "London" },
+            {
+              toolCallId: "tool-2",
+              toolName: "pressureSearch",
+            },
+          ),
+        ],
+        false,
+      ),
     );
     await waitFor(() => {
       expect(statuses()["tool-1"]?.type).toBe("executing");
@@ -1645,11 +1735,12 @@ describe("ToolInvocationTracker reset", () => {
         }),
       } satisfies Tool,
     });
-    tracker.setState(createState([]));
+    tracker.setState(createState([], false));
     tracker.setState(
-      createState([
-        createAssistantMessage('{"query":"London"}', { query: "London" }),
-      ]),
+      createState(
+        [createAssistantMessage('{"query":"London"}', { query: "London" })],
+        false,
+      ),
     );
     await waitFor(() => {
       expect(statuses()["tool-1"]?.type).toBe("executing");
@@ -1676,11 +1767,12 @@ describe("ToolInvocationTracker reset", () => {
       } satisfies Tool,
     });
 
-    tracker.setState(createState([]));
+    tracker.setState(createState([], false));
     tracker.setState(
-      createState([
-        createAssistantMessage('{"query":"London"}', { query: "London" }),
-      ]),
+      createState(
+        [createAssistantMessage('{"query":"London"}', { query: "London" })],
+        false,
+      ),
     );
     await waitFor(() => {
       expect(humanFns).toHaveLength(1);
@@ -1688,15 +1780,18 @@ describe("ToolInvocationTracker reset", () => {
     });
 
     tracker.reset();
-    tracker.setState(createState([]));
+    tracker.setState(createState([], false));
     tracker.setState(
-      createState([
-        createAssistantMessage(
-          '{"query":"Paris"}',
-          { query: "Paris" },
-          { toolCallId: "tool-1" },
-        ),
-      ]),
+      createState(
+        [
+          createAssistantMessage(
+            '{"query":"Paris"}',
+            { query: "Paris" },
+            { toolCallId: "tool-1" },
+          ),
+        ],
+        false,
+      ),
     );
     await waitFor(() => expect(humanFns).toHaveLength(2));
 
@@ -1737,24 +1832,28 @@ describe("ToolInvocationTracker reset", () => {
       { onResult, onStatusesChange: vi.fn() },
     );
 
-    tracker.setState(createState([]));
+    tracker.setState(createState([], false));
     tracker.setState(
-      createState([
-        createAssistantMessage('{"query":"London"}', { query: "London" }),
-      ]),
+      createState(
+        [createAssistantMessage('{"query":"London"}', { query: "London" })],
+        false,
+      ),
     );
     await waitFor(() => expect(executions).toHaveLength(1));
 
     tracker.reset();
-    tracker.setState(createState([]));
+    tracker.setState(createState([], false));
     tracker.setState(
-      createState([
-        createAssistantMessage(
-          '{"query":"Paris"}',
-          { query: "Paris" },
-          { toolCallId: "tool-1" },
-        ),
-      ]),
+      createState(
+        [
+          createAssistantMessage(
+            '{"query":"Paris"}',
+            { query: "Paris" },
+            { toolCallId: "tool-1" },
+          ),
+        ],
+        false,
+      ),
     );
     await waitFor(() => expect(executions).toHaveLength(2));
     await new Promise((resolve) => setTimeout(resolve, 0));
