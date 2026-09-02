@@ -84,7 +84,8 @@ export function unstable_useLiveCompletionAdapter(
   const pendingQueryRef = useRef<string | null>(null);
   const retryableQueryRef = useRef<string | null>(null);
   const pendingRetryQueryRef = useRef<string | null>(null);
-  const unmountedRef = useRef(false);
+  const inactiveRef = useRef(true);
+  const hasCommittedRef = useRef(false);
 
   const cancelTimer = useCallback(() => {
     if (timerRef.current !== null) {
@@ -102,7 +103,7 @@ export function unstable_useLiveCompletionAdapter(
 
   const scheduleFetch = useCallback(
     (query: string) => {
-      if (unmountedRef.current || !enabled) return;
+      if (!enabled) return;
       if (pendingQueryRef.current === query) return;
       rearmPendingRetry();
       if (retryableQueryRef.current === query) {
@@ -115,6 +116,10 @@ export function unstable_useLiveCompletionAdapter(
       setIsLoading(true);
       timerRef.current = setTimeout(() => {
         timerRef.current = null;
+        if (inactiveRef.current) {
+          pendingQueryRef.current = null;
+          return;
+        }
         Promise.resolve()
           .then(() => fetcherRef.current(query))
           .then(
@@ -164,11 +169,18 @@ export function unstable_useLiveCompletionAdapter(
   }, [enabled, invalidatePending]);
 
   useLayoutEffect(() => {
-    const reactivated = unmountedRef.current;
-    unmountedRef.current = false;
-    if (reactivated) setIsLoading(false);
+    const reactivated = hasCommittedRef.current && inactiveRef.current;
+    inactiveRef.current = false;
+    hasCommittedRef.current = true;
+    if (
+      reactivated &&
+      timerRef.current === null &&
+      pendingQueryRef.current === null
+    ) {
+      setIsLoading(false);
+    }
     return () => {
-      unmountedRef.current = true;
+      inactiveRef.current = true;
       cancelTimer();
       pendingQueryRef.current = null;
       tokenRef.current += 1;
