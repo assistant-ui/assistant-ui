@@ -25,7 +25,19 @@ import { ApprovalCard } from "@/components/assistant-ui/elements/approval-card";
 export const toolkit = defineToolkit({
   run_command: {
     type: "backend",
-    render: ({ args, approval, respondToApproval, result }) => (
+    render: ({ args, approval, respondToApproval, result }) => {
+  // A refused response rejects and a precondition (an unknown option, an answer
+  // the request does not take) throws, so `try`/`await` covers both and the
+  // controls stay actionable.
+  const answer = async (response: ToolApprovalResponse) => {
+    try {
+      await respondToApproval(response);
+    } catch (failure) {
+      reportToTheUser(failure);
+    }
+  };
+
+      return (
       <ApprovalCard
         state={
           approval?.approved === false
@@ -39,11 +51,12 @@ export const toolkit = defineToolkit({
         command={args.command}
         title={args.title}
         subtitle={args.subtitle}
-        onAllowOnce={() => respondToApproval({ optionId: "once" })}
-        onAlwaysAllow={() => respondToApproval({ optionId: "always" })}
-        onDeny={() => respondToApproval({ optionId: "deny" })}
+        onAllowOnce={() => void answer({ optionId: "once" })}
+        onAlwaysAllow={() => void answer({ optionId: "always" })}
+        onDeny={() => void answer({ optionId: "deny" })}
       />
-    ),
+      );
+    },
   },
 });
 ```
@@ -168,7 +181,7 @@ Both lanes take `className` on the root. The command block uses the `field` surf
 
 ```tsx
 onDeny={() =>
-  respondToApproval({ optionId: "deny", reason: "not in this session" })
+  void answer({ optionId: "deny", reason: "not in this session" })
 }
 ```
 
