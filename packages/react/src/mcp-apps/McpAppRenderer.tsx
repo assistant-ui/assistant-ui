@@ -8,7 +8,11 @@ import {
   useState,
   type ReactNode,
 } from "react";
-import type { McpAppMetadata, ToolCallMessagePart } from "@assistant-ui/core";
+import type {
+  McpAppMetadata,
+  TextMessagePart,
+  ToolCallMessagePart,
+} from "@assistant-ui/core";
 import type {
   ToolCallMessagePartComponent,
   ToolCallMessagePartProps,
@@ -137,26 +141,32 @@ const defaultOpenLink = ({ url }: { url: string }) => {
   window.open(url, "_blank", "noopener,noreferrer");
 };
 
-function extractSendMessageText(params: unknown): string | undefined {
-  if (typeof params === "string") return params;
-  if (!params || typeof params !== "object") return undefined;
+function extractSendMessageTexts(params: unknown): string[] {
+  if (typeof params === "string") return [params];
+  if (!params || typeof params !== "object") return [];
   const obj = params as Record<string, unknown>;
-  if (typeof obj["prompt"] === "string") return obj["prompt"];
-  if (typeof obj["text"] === "string") return obj["text"];
-  if (typeof obj["message"] === "string") return obj["message"];
+  if (typeof obj["prompt"] === "string") return [obj["prompt"]];
+  if (typeof obj["text"] === "string") return [obj["text"]];
+  if (typeof obj["message"] === "string") return [obj["message"]];
   if (Array.isArray(obj["content"])) {
-    const text = obj["content"]
+    return obj["content"]
       .filter(
         (block): block is { type: "text"; text: string } =>
           isRecord(block) &&
           block["type"] === "text" &&
           typeof block["text"] === "string",
       )
-      .map((block) => block.text)
-      .join("");
-    if (text) return text;
+      .map((block) => block.text);
   }
-  return undefined;
+  return [];
+}
+
+function extractSendMessageContent(
+  params: unknown,
+): TextMessagePart[] | undefined {
+  const texts = extractSendMessageTexts(params).filter((text) => text !== "");
+  if (texts.length === 0) return undefined;
+  return texts.map((text) => ({ type: "text", text }));
 }
 
 function resolvePartOptions(
@@ -252,10 +262,16 @@ function InlineRenderer({
       sendMessage:
         callerHandlers?.sendMessage ??
         ((params) => {
-          const text = extractSendMessageText(params);
-          if (!text) return { isError: true };
-          aui.thread.append({ content: [{ type: "text", text }] });
-          return {};
+          const content = extractSendMessageContent(params);
+          if (!content) {
+            return {
+              isError: true,
+              ok: false,
+              reason: "unrecognised params shape",
+            };
+          }
+          aui.thread.append({ content });
+          return { ok: true };
         }),
       callTool: (params) =>
         useRendererStore.getState().host.callTool({

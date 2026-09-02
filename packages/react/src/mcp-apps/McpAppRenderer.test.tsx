@@ -672,7 +672,7 @@ describe("McpAppRenderer", () => {
     expect(listResources).toHaveBeenCalledWith(params);
   });
 
-  it("accepts MCP Apps message content in the default sendMessage handler", async () => {
+  it("appends MCP Apps message content in the default sendMessage handler", async () => {
     render(<Harness host={loadingHost()} />);
     await waitFor(() => expect(framePropsMock).toHaveBeenCalled());
     const handlers = framePropsMock.mock.lastCall?.[0]
@@ -682,13 +682,24 @@ describe("McpAppRenderer", () => {
       handlers.sendMessage?.({
         role: "user",
         content: [
-          { type: "text", text: "Open Grade 5 " },
-          { type: "text", text: "Math — Period 4" },
+          { type: "text", text: "Open Grade 5 Math" },
+          { type: "image", data: "image", mimeType: "image/png" },
+          { type: "text", text: "Period 4" },
         ],
       }),
-    ).toEqual({});
+    ).toEqual({ ok: true });
     expect(appendMock).toHaveBeenCalledWith({
-      content: [{ type: "text", text: "Open Grade 5 Math — Period 4" }],
+      content: [
+        { type: "text", text: "Open Grade 5 Math" },
+        { type: "text", text: "Period 4" },
+      ],
+    });
+
+    expect(handlers.sendMessage?.({ text: "typed instead" })).toEqual({
+      ok: true,
+    });
+    expect(appendMock).toHaveBeenLastCalledWith({
+      content: [{ type: "text", text: "typed instead" }],
     });
 
     expect(
@@ -696,8 +707,12 @@ describe("McpAppRenderer", () => {
         role: "user",
         content: [{ type: "image", data: "image", mimeType: "image/png" }],
       }),
-    ).toEqual({ isError: true });
-    expect(appendMock).toHaveBeenCalledOnce();
+    ).toEqual({
+      isError: true,
+      ok: false,
+      reason: "unrecognised params shape",
+    });
+    expect(appendMock).toHaveBeenCalledTimes(2);
   });
 
   it("uses caller UI handlers and keeps data-plane handlers on the host", async () => {
