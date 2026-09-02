@@ -1136,6 +1136,18 @@ describe("convertLangChainBaseMessage malformed messages", () => {
     expect(contentOf(result)).toEqual([{ type: "text", text: "" }]);
   });
 
+  it("stays silent about non-array content outside development", () => {
+    vi.stubEnv("NODE_ENV", "test");
+    const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
+    try {
+      convertLangChainBaseMessage(humanMessage(true), {});
+      expect(warn).not.toHaveBeenCalled();
+    } finally {
+      warn.mockRestore();
+      vi.unstubAllEnvs();
+    }
+  });
+
   it("warns once in development about non-array content", () => {
     vi.stubEnv("NODE_ENV", "development");
     const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
