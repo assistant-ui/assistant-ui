@@ -350,6 +350,28 @@ describe("POST /api/mcp", () => {
     expect(mocks.checkDocsRateLimit).toHaveBeenCalledTimes(2);
   });
 
+  it("meters the dynamic docs resource before it reaches the page", async () => {
+    mocks.checkDocsRateLimit.mockResolvedValueOnce(
+      new Response("Docs tool rate limit exceeded", {
+        status: 429,
+        headers: { "Retry-After": "12" },
+      }),
+    );
+
+    const denied = await requestMcp("resources/read", {
+      uri: "assistant-ui://docs/getting-started",
+    });
+
+    expect(denied.error?.message).toContain("Docs tool rate limit exceeded");
+
+    const allowed = await requestMcp("resources/read", {
+      uri: "assistant-ui://docs/getting-started",
+    });
+
+    expect(allowed.error?.message).toContain("Page not found");
+    expect(mocks.checkDocsRateLimit).toHaveBeenCalledTimes(2);
+  });
+
   it("keeps the docs budget off the sandbox-calling template tools", async () => {
     mocks.fetchTemplateContract.mockResolvedValue(null);
 

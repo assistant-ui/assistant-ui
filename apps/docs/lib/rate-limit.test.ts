@@ -46,6 +46,7 @@ vi.mock("@upstash/ratelimit", async (importOriginal) => ({
 
 import {
   checkAnonymousSessionIssuanceRateLimit,
+  checkMcpDocsToolRateLimit,
   checkMcpTemplateToolRateLimit,
   checkPublicAssistantRateLimit,
   checkXuluxDownloadProxyRateLimit,
@@ -355,6 +356,105 @@ describe("MCP template tool rate limits", () => {
     expect(response?.status).toBe(503);
     expect(console.error).toHaveBeenCalledWith(
       expect.stringContaining("mcp_template_rate_limit_unavailable"),
+    );
+  });
+});
+
+describe("MCP docs tool rate limits", () => {
+  const request = () =>
+    new Request("https://www.assistant-ui.com/api/mcp", {
+      method: "POST",
+      headers: { "x-vercel-forwarded-for": "203.0.113.10" },
+    });
+
+  it("sits well above the sandbox-calling lane", async () => {
+    await checkMcpDocsToolRateLimit(request());
+
+    expect(mocks.configs.get("aui:mcp-docs:ip:burst")).toEqual({
+      limit: 60,
+      window: "60s",
+    });
+    expect(mocks.configs.get("aui:mcp-docs:ip:daily")).toEqual({
+      limit: 5_000,
+      window: "1d",
+    });
+    expect(mocks.configs.get("aui:mcp-docs:global:daily")).toEqual({
+      limit: 100_000,
+      window: "1d",
+    });
+    expect(mocks.configs.get("aui:mcp-docs:global:alert")).toEqual({
+      limit: 1,
+      window: "10m",
+    });
+  });
+
+  it("keys the per-client buckets by IP, the ceiling globally", async () => {
+    await expect(checkMcpDocsToolRateLimit(request())).resolves.toBeNull();
+
+    expect(mocks.calls).toEqual([
+      { prefix: "aui:mcp-docs:ip:burst", key: "203.0.113.10" },
+      { prefix: "aui:mcp-docs:ip:daily", key: "203.0.113.10" },
+      { prefix: "aui:mcp-docs:global:daily", key: "all" },
+    ]);
+  });
+
+  it.each([
+    ["aui:mcp-docs:ip:burst", 1],
+    ["aui:mcp-docs:ip:daily", 2],
+    ["aui:mcp-docs:global:daily", 4],
+  ] as const)(
+    "stops after an exhausted %s limit",
+    async (prefix, expectedCalls) => {
+      mocks.results.set(prefix, false);
+
+      const response = await checkMcpDocsToolRateLimit(request());
+
+      expect(response?.status).toBe(429);
+      expect(response?.headers.get("retry-after")).toBe("30");
+      expect(mocks.calls).toHaveLength(expectedCalls);
+    },
+  );
+
+  it("rate limits the global ceiling alert", async () => {
+    mocks.results.set("aui:mcp-docs:global:daily", false);
+    mocks.results.set("aui:mcp-docs:global:alert", false);
+
+    const response = await checkMcpDocsToolRateLimit(request());
+
+    expect(response?.status).toBe(429);
+    expect(console.error).not.toHaveBeenCalled();
+  });
+
+  it("logs once when the global ceiling is reached", async () => {
+    mocks.results.set("aui:mcp-docs:global:daily", false);
+
+    await checkMcpDocsToolRateLimit(request());
+
+    expect(console.error).toHaveBeenCalledWith(
+      expect.stringContaining("mcp_docs_global_limit_exceeded"),
+    );
+  });
+
+  it("fails closed when no client IP is available", async () => {
+    const response = await checkMcpDocsToolRateLimit(
+      new Request("https://www.assistant-ui.com/api/mcp", { method: "POST" }),
+    );
+
+    expect(response?.status).toBe(503);
+    expect(mocks.calls).toHaveLength(0);
+    expect(console.error).toHaveBeenCalledWith(
+      expect.stringContaining("mcp_docs_client_ip_missing"),
+    );
+  });
+
+  it("fails closed when the rate-limit store is unavailable", async () => {
+    mocks.errors.set("aui:mcp-docs:ip:burst", new Error("Redis down"));
+
+    const response = await checkMcpDocsToolRateLimit(request());
+
+    expect(response?.status).toBe(503);
+    expect(console.error).toHaveBeenCalledWith(
+      expect.stringContaining("mcp_docs_rate_limit_unavailable"),
     );
   });
 });
