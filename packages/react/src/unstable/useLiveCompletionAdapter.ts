@@ -72,6 +72,12 @@ export function unstable_useLiveCompletionAdapter(
     failed: boolean;
   }>({ query: NO_QUERY, items: [], failed: false });
   const [isLoading, setIsLoading] = useState(false);
+  const isLoadingRef = useRef(false);
+
+  const updateLoading = useCallback((value: boolean) => {
+    isLoadingRef.current = value;
+    setIsLoading(value);
+  }, []);
 
   const fetcherRef = useRef(fetcher);
   // The debounce timer must only observe fetchers from committed renders.
@@ -113,7 +119,7 @@ export function unstable_useLiveCompletionAdapter(
       pendingQueryRef.current = query;
       cancelTimer();
       const token = ++tokenRef.current;
-      setIsLoading(true);
+      updateLoading(true);
       timerRef.current = setTimeout(() => {
         timerRef.current = null;
         if (inactiveRef.current) {
@@ -128,19 +134,19 @@ export function unstable_useLiveCompletionAdapter(
               if (token !== tokenRef.current) return;
               pendingRetryQueryRef.current = null;
               setState({ query, items, failed: false });
-              setIsLoading(false);
+              updateLoading(false);
             },
             () => {
               if (token !== tokenRef.current) return;
               pendingQueryRef.current = null;
               pendingRetryQueryRef.current = null;
               setState({ query, items: [], failed: true });
-              setIsLoading(false);
+              updateLoading(false);
             },
           );
       }, debounceMs);
     },
-    [enabled, debounceMs, cancelTimer, rearmPendingRetry],
+    [enabled, debounceMs, cancelTimer, rearmPendingRetry, updateLoading],
   );
 
   const invalidatePending = useCallback(() => {
@@ -148,10 +154,12 @@ export function unstable_useLiveCompletionAdapter(
     cancelTimer();
     pendingQueryRef.current = null;
     tokenRef.current += 1;
-    setIsLoading(false);
-  }, [cancelTimer, rearmPendingRetry]);
+    updateLoading(false);
+  }, [cancelTimer, rearmPendingRetry, updateLoading]);
 
   const cacheKeyRef = useRef(cacheKey);
+  // Effect disconnection can orphan loading work; settle it only after the
+  // hook is committed again without a replacement request.
   useLayoutEffect(() => {
     if (cacheKeyRef.current === cacheKey) return;
     cacheKeyRef.current = cacheKey;
@@ -178,16 +186,16 @@ export function unstable_useLiveCompletionAdapter(
       timerRef.current === null &&
       pendingQueryRef.current === null
     ) {
-      setIsLoading(false);
+      updateLoading(false);
     }
     return () => {
       inactiveRef.current = true;
-      settleLoadingOnCommitRef.current ||= pendingQueryRef.current !== null;
+      settleLoadingOnCommitRef.current ||= isLoadingRef.current;
       cancelTimer();
       pendingQueryRef.current = null;
       tokenRef.current += 1;
     };
-  }, [cancelTimer]);
+  }, [cancelTimer, updateLoading]);
 
   // Arm retries only after the failed state commits. Arming during rejection
   // would let the failure render immediately schedule another request.
