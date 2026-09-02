@@ -21,6 +21,7 @@ vi.mock("@/lib/xulux/virtual-archive", async (importOriginal) => ({
 import { useVirtualArchive } from "./useVirtualArchive";
 
 afterEach(() => {
+  vi.restoreAllMocks();
   vi.clearAllMocks();
 });
 
