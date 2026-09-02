@@ -21,6 +21,7 @@ export declare const captureTrace: (
   target: string,
   seconds: number,
   settleMs?: number,
+  screenshotPath?: string,
 ) => Promise<TraceEvent[]>;
 
 export declare const analyzeTrace: (

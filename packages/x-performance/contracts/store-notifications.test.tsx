@@ -9,7 +9,7 @@ import {
   useAui,
   useAuiState,
 } from "@assistant-ui/store";
-import { createRenderCounter } from "./render-counter";
+import { createRenderCounter } from "../src/render-counter";
 
 (
   globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }
