@@ -243,6 +243,7 @@ export const useAISDKRuntime = <UI_MESSAGE extends UIMessage = UIMessage>(
   );
   const mcpAppMetadataCacheRef = useRef<Map<string, McpAppMetadata>>(new Map());
   const lastRunConfigRef = useRef<RunConfig | undefined>(undefined);
+  const [isCancelled, setIsCancelled] = useState(false);
 
   const hasExecutingTools = Object.values(toolStatuses).some(
     (s) => s?.type === "executing",
@@ -270,10 +271,17 @@ export const useAISDKRuntime = <UI_MESSAGE extends UIMessage = UIMessage>(
         toolArgsKeyOrderCache: toolArgsKeyOrderCacheRef.current,
         toolLastInputCache: toolLastInputCacheRef.current,
         mcpAppMetadataCache: mcpAppMetadataCacheRef.current,
+        isCancelled,
         ...(optimisticMessageId && { optimisticMessageId }),
         ...(chatHelpers.error && { error: chatHelpers.error.message }),
       }),
-      [toolStatuses, messageTiming, optimisticMessageId, chatHelpers.error],
+      [
+        toolStatuses,
+        messageTiming,
+        isCancelled,
+        optimisticMessageId,
+        chatHelpers.error,
+      ],
     ),
   });
 
@@ -443,6 +451,7 @@ export const useAISDKRuntime = <UI_MESSAGE extends UIMessage = UIMessage>(
       runtimeRef.current.thread.import(exportedRepo);
     },
     onCancel: async () => {
+      setIsCancelled(true);
       try {
         await chatHelpers.stop();
       } catch (error) {
@@ -464,6 +473,7 @@ export const useAISDKRuntime = <UI_MESSAGE extends UIMessage = UIMessage>(
         return;
       }
 
+      setIsCancelled(false);
       lastRunConfigRef.current = message.runConfig;
       await completePendingToolCalls();
       await chatHelpers.sendMessage(createMessage, {
@@ -483,6 +493,7 @@ export const useAISDKRuntime = <UI_MESSAGE extends UIMessage = UIMessage>(
         return;
       }
 
+      setIsCancelled(false);
       lastRunConfigRef.current = message.runConfig;
       chatHelpers.setMessages((current) =>
         sliceMessagesUntil(current, message.parentId),
@@ -510,6 +521,7 @@ export const useAISDKRuntime = <UI_MESSAGE extends UIMessage = UIMessage>(
       );
     },
     onReload: async (parentId: string | null, config) => {
+      setIsCancelled(false);
       lastRunConfigRef.current = config.runConfig;
       const newMessages = sliceMessagesUntil(chatHelpers.messages, parentId);
       chatHelpers.setMessages(newMessages);

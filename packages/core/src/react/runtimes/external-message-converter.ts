@@ -127,6 +127,7 @@ export const useExternalMessageConverter = <T extends WeakKey>({
           chunks.length,
           isRunning,
           state.metadata.error,
+          state.metadata.isCancelled,
           {
             message: cache,
             generatedFallbackMessages,

@@ -159,6 +159,56 @@ describe("useAISDKRuntime", () => {
     }
   });
 
+  it("marks a stopped assistant message as cancelled", async () => {
+    const chat = createChatHelpers([
+      {
+        id: "a1",
+        role: "assistant",
+        parts: [{ type: "text", text: "partial" }],
+      },
+    ]);
+
+    const { result } = renderHook(() => useAISDKRuntime(chat));
+
+    await waitFor(() => {
+      expect(result.current.thread.getState().messages).toHaveLength(1);
+    });
+    expect(result.current.thread.getState().messages[0]?.status).toMatchObject({
+      type: "complete",
+      reason: "unknown",
+    });
+
+    act(() => {
+      result.current.thread.cancelRun();
+    });
+
+    await waitFor(() => {
+      expect(
+        result.current.thread.getState().messages[0]?.status,
+      ).toMatchObject({
+        type: "incomplete",
+        reason: "cancelled",
+      });
+    });
+
+    act(() => {
+      result.current.thread.append({
+        role: "user",
+        content: [{ type: "text", text: "continue" }],
+      });
+    });
+
+    await waitFor(() => {
+      expect(chat.sendMessage).toHaveBeenCalledTimes(1);
+      expect(
+        result.current.thread.getState().messages[0]?.status,
+      ).toMatchObject({
+        type: "complete",
+        reason: "unknown",
+      });
+    });
+  });
+
   it("reports non-AbortError cancellation failures", async () => {
     const stopError = new Error("stop failed");
     const chat = createChatHelpers();

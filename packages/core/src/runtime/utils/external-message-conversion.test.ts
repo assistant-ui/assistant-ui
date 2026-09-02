@@ -3,6 +3,7 @@ import {
   chunkExternalMessages,
   convertExternalMessageCallback,
   convertExternalMessageChunk,
+  convertExternalMessages,
   type ExternalMessageConverterCallback,
   type ExternalMessageConverterCallbackResult,
 } from "./external-message-conversion";
@@ -96,6 +97,7 @@ describe("convertExternalMessageChunk", () => {
       1,
       false,
       { message: "failed" },
+      false,
       { message: undefined, generatedFallbackMessages },
     );
 
@@ -105,9 +107,113 @@ describe("convertExternalMessageChunk", () => {
       1,
       true,
       { message: "failed" },
+      false,
       { message: first, generatedFallbackMessages },
     );
 
     expect(second).toBe(first);
+  });
+
+  it("marks a cancelled last message incomplete", () => {
+    const result = convertExternalMessageChunk(
+      {
+        inputs: [{}],
+        outputs: [{ role: "assistant", content: "partial" }],
+      },
+      0,
+      1,
+      false,
+      undefined,
+      true,
+    );
+
+    expect(result.status).toMatchObject({
+      type: "incomplete",
+      reason: "cancelled",
+    });
+  });
+
+  it("passes cancellation metadata to the last message status", () => {
+    const result = convertExternalMessages(
+      [{ id: "a1", role: "assistant" as const, content: "partial" }],
+      (message) => message,
+      false,
+      { isCancelled: true },
+    );
+
+    expect(result[0]?.status).toMatchObject({
+      type: "incomplete",
+      reason: "cancelled",
+    });
+  });
+
+  it("replaces a cached complete status when a run is cancelled", () => {
+    const input = {};
+    const chunk = {
+      inputs: [input],
+      outputs: [{ role: "assistant" as const, content: "partial" }],
+    };
+    const generatedFallbackMessages = new WeakSet<object>();
+    const first = convertExternalMessageChunk(
+      chunk,
+      0,
+      1,
+      false,
+      undefined,
+      false,
+      { message: undefined, generatedFallbackMessages },
+    );
+
+    const second = convertExternalMessageChunk(
+      chunk,
+      0,
+      1,
+      false,
+      undefined,
+      true,
+      { message: first, generatedFallbackMessages },
+    );
+
+    expect(second).not.toBe(first);
+    expect(second.status).toMatchObject({
+      type: "incomplete",
+      reason: "cancelled",
+    });
+
+    const third = convertExternalMessageChunk(
+      chunk,
+      0,
+      1,
+      false,
+      undefined,
+      false,
+      { message: second, generatedFallbackMessages },
+    );
+
+    expect(third).not.toBe(second);
+    expect(third.status).toMatchObject({
+      type: "complete",
+      reason: "unknown",
+    });
+  });
+
+  it("keeps errors ahead of cancellation", () => {
+    const result = convertExternalMessageChunk(
+      {
+        inputs: [{}],
+        outputs: [{ role: "assistant", content: "partial" }],
+      },
+      0,
+      1,
+      false,
+      { message: "failed" },
+      true,
+    );
+
+    expect(result.status).toMatchObject({
+      type: "incomplete",
+      reason: "error",
+      error: { message: "failed" },
+    });
   });
 });

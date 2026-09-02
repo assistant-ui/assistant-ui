@@ -36,6 +36,15 @@ const AUTO_STATUS_COMPLETE = Object.freeze(
     { [symbolAutoStatus]: true },
   ),
 );
+const AUTO_STATUS_CANCELLED = Object.freeze(
+  Object.assign(
+    {
+      type: "incomplete" as const,
+      reason: "cancelled" as const,
+    },
+    { [symbolAutoStatus]: true },
+  ),
+);
 
 const AUTO_STATUS_PENDING = Object.freeze(
   Object.assign(
@@ -66,6 +75,7 @@ export const getAutoStatus = (
   hasInterruptedToolCalls: boolean,
   hasPendingToolCalls: boolean,
   error?: ReadonlyJSONValue,
+  isCancelled = false,
 ): MessageStatus => {
   if (isLast && error) {
     return Object.assign(
@@ -77,6 +87,8 @@ export const getAutoStatus = (
       { [symbolAutoStatus]: true },
     );
   }
+
+  if (isLast && isCancelled) return AUTO_STATUS_CANCELLED;
 
   return isLast && isRunning
     ? AUTO_STATUS_RUNNING
