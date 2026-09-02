@@ -116,7 +116,19 @@ const useToolMentions = (aui: AssistantClient, enabled: boolean) => {
       );
     };
     read();
-    return aui.on("thread.modelContextUpdate", read);
+    const unsubscribeContext = aui.on("thread.modelContextUpdate", read);
+    // Rebinding the thread event subject to a new thread does not replay it,
+    // so a switch between threads carrying different providers is its own
+    // refresh trigger. Subscribed globally because a composer can render
+    // without a thread list scope.
+    const unsubscribeSelection = aui.on(
+      { scope: "*", event: "threads.selectionChanged" },
+      read,
+    );
+    return () => {
+      unsubscribeContext();
+      unsubscribeSelection();
+    };
   }, [aui, enabled]);
 
   return mentions;

@@ -27,7 +27,11 @@ const runtime = vi.hoisted(() => {
       thread: {
         getModelContext: () => ({ tools: state.tools }),
       },
-      on: (event: string, listener: () => void) => {
+      on: (
+        selector: string | { scope: string; event: string },
+        listener: () => void,
+      ) => {
+        const event = typeof selector === "string" ? selector : selector.event;
         events.push(event);
         const eventListeners = listeners.get(event) ?? new Set();
         eventListeners.add(listener);
@@ -107,8 +111,10 @@ describe("unstable_useMentionAdapter", () => {
     });
 
     expect(result.current.adapter).not.toBe(initialAdapter);
-    flushTapSync(() =>
-      navigationRoot.getValue().setAdapter(result.current.adapter),
+    act(() =>
+      flushTapSync(() =>
+        navigationRoot.getValue().setAdapter(result.current.adapter),
+      ),
     );
     expect(navigationRoot.getValue().navigation.items).toEqual([
       {
@@ -122,8 +128,10 @@ describe("unstable_useMentionAdapter", () => {
       runtime.state.tools = {};
       runtime.emit("thread.modelContextUpdate");
     });
-    flushTapSync(() =>
-      navigationRoot.getValue().setAdapter(result.current.adapter),
+    act(() =>
+      flushTapSync(() =>
+        navigationRoot.getValue().setAdapter(result.current.adapter),
+      ),
     );
 
     expect(navigationRoot.getValue().navigation.categories).toEqual([
@@ -163,8 +171,10 @@ describe("unstable_useMentionAdapter", () => {
     });
 
     expect(result.current.adapter).not.toBe(initialAdapter);
-    flushTapSync(() =>
-      navigationRoot.getValue().setAdapter(result.current.adapter),
+    act(() =>
+      flushTapSync(() =>
+        navigationRoot.getValue().setAdapter(result.current.adapter),
+      ),
     );
     expect(navigationRoot.getValue().navigation.items).toEqual([
       {
@@ -175,6 +185,34 @@ describe("unstable_useMentionAdapter", () => {
       },
     ]);
     navigationRoot.unmount();
+  });
+
+  it("refreshes tool mentions when the selected thread changes", () => {
+    runtime.state.tools = {
+      searchDocs: { description: "Search documentation" },
+    };
+
+    const { result } = renderHook(() => unstable_useMentionAdapter());
+    const initialAdapter = result.current.adapter;
+
+    expect(runtime.events).toContain("threads.selectionChanged");
+
+    act(() => {
+      runtime.state.tools = {
+        createIssue: { description: "Create an issue" },
+      };
+      runtime.emit("threads.selectionChanged");
+    });
+
+    expect(result.current.adapter).not.toBe(initialAdapter);
+    expect(result.current.adapter.search?.("")).toEqual([
+      {
+        id: "createIssue",
+        type: "tool",
+        label: "createIssue",
+        description: "Create an issue",
+      },
+    ]);
   });
 
   it("keeps adapter identity when tool mentions are unchanged", () => {
