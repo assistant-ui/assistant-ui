@@ -123,4 +123,10 @@ describe("shallowEqualRecords", () => {
     expect(shallowEqualRecords({ a: 1 }, { a: 1, b: 2 })).toBe(false);
     expect(shallowEqualRecords({ a: undefined }, { b: undefined })).toBe(false);
   });
+
+  it("does not match a key inherited from Object.prototype", () => {
+    expect(
+      shallowEqualRecords({ toString: Object.prototype.toString }, { a: 1 }),
+    ).toBe(false);
+  });
 });

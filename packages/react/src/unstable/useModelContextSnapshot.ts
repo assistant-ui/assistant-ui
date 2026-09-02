@@ -60,5 +60,7 @@ export const shallowEqualRecords = (
 ): boolean => {
   const keys = Object.keys(previous);
   if (keys.length !== Object.keys(next).length) return false;
-  return keys.every((key) => key in next && previous[key] === next[key]);
+  return keys.every(
+    (key) => Object.hasOwn(next, key) && previous[key] === next[key],
+  );
 };
