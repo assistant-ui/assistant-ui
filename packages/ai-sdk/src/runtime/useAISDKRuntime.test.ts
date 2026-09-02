@@ -257,6 +257,29 @@ describe("useAISDKRuntime", () => {
     });
   });
 
+  it("does not mark completed output cancelled when already idle", async () => {
+    const chat = createChatHelpers([
+      {
+        id: "assistant-1",
+        role: "assistant",
+        parts: [{ type: "text", text: "finished" }],
+      },
+    ]);
+
+    const { result, rerender } = renderHook(() => useAISDKRuntime(chat));
+
+    act(() => {
+      result.current.thread.cancelRun();
+      rerender();
+    });
+
+    await waitFor(() => {
+      expect(
+        result.current.thread.getState().messages.at(-1)?.status,
+      ).toMatchObject({ type: "complete", reason: "unknown" });
+    });
+  });
+
   it("reports non-AbortError cancellation failures", async () => {
     const stopError = new Error("stop failed");
     const chat = createChatHelpers();
