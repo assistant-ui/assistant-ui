@@ -141,9 +141,9 @@ const defaultOpenLink = ({ url }: { url: string }) => {
   window.open(url, "_blank", "noopener,noreferrer");
 };
 
-function extractSendMessageTexts(params: unknown): string[] {
+function extractSendMessageTexts(params: unknown): string[] | undefined {
   if (typeof params === "string") return [params];
-  if (!params || typeof params !== "object") return [];
+  if (!params || typeof params !== "object") return undefined;
   const obj = params as Record<string, unknown>;
   if (typeof obj["prompt"] === "string") return [obj["prompt"]];
   if (typeof obj["text"] === "string") return [obj["text"]];
@@ -158,15 +158,21 @@ function extractSendMessageTexts(params: unknown): string[] {
       )
       .map((block) => block.text);
   }
-  return [];
+  return undefined;
 }
 
 function extractSendMessageContent(
   params: unknown,
-): TextMessagePart[] | undefined {
-  const texts = extractSendMessageTexts(params).filter((text) => text !== "");
-  if (texts.length === 0) return undefined;
-  return texts.map((text) => ({ type: "text", text }));
+): { content: TextMessagePart[] } | { reason: string } {
+  const texts = extractSendMessageTexts(params);
+  if (!texts) return { reason: "unrecognised params shape" };
+  const content = texts
+    .filter((text) => text !== "")
+    .map((text): TextMessagePart => ({ type: "text", text }));
+  if (content.length === 0) {
+    return { reason: "host accepts text content blocks only" };
+  }
+  return { content };
 }
 
 function resolvePartOptions(
@@ -262,15 +268,11 @@ function InlineRenderer({
       sendMessage:
         callerHandlers?.sendMessage ??
         ((params) => {
-          const content = extractSendMessageContent(params);
-          if (!content) {
-            return {
-              isError: true,
-              ok: false,
-              reason: "unrecognised params shape",
-            };
+          const result = extractSendMessageContent(params);
+          if ("reason" in result) {
+            return { isError: true, ok: false, reason: result.reason };
           }
-          aui.thread.append({ content });
+          aui.thread.append({ content: result.content });
           return { ok: true };
         }),
       callTool: (params) =>

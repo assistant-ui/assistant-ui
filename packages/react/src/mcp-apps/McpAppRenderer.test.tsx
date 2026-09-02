@@ -710,6 +710,12 @@ describe("McpAppRenderer", () => {
     ).toEqual({
       isError: true,
       ok: false,
+      reason: "host accepts text content blocks only",
+    });
+
+    expect(handlers.sendMessage?.({ role: "user" })).toEqual({
+      isError: true,
+      ok: false,
       reason: "unrecognised params shape",
     });
     expect(appendMock).toHaveBeenCalledTimes(2);
