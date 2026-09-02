@@ -52,7 +52,6 @@ describe("formatBudgetError", () => {
     );
     const report = formatBudgetError(snapshot(entries), 70_000_000);
 
-    expect(report.split("\n").slice(-15)).toHaveLength(15);
     expect(report.split("Largest entries:\n")[1]!.split("\n")).toHaveLength(15);
   });
 
