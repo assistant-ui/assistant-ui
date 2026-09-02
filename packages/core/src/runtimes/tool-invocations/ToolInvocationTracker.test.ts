@@ -551,10 +551,14 @@ describe("ToolInvocationTracker", () => {
 
   it("streams a streamCall tool's args while the run is open and executes it after", async () => {
     const streamed: unknown[] = [];
-    const streamCall = vi.fn(async (reader: any) => {
-      for await (const partial of reader.args.streamValues())
-        streamed.push(partial);
-    });
+    const streamCall = vi.fn(
+      async (reader: {
+        args: { streamValues: () => AsyncIterable<unknown> };
+      }) => {
+        for await (const partial of reader.args.streamValues())
+          streamed.push(partial);
+      },
+    );
     const execute = vi.fn(async () => ({ deleted: true }));
     const getTools = () => ({
       deleteFile: {
