@@ -1,5 +1,5 @@
 /** @vitest-environment jsdom */
-import { startTransition, Suspense } from "react";
+import { startTransition, Suspense, useLayoutEffect } from "react";
 import { act, render, renderHook } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { Unstable_TriggerItem } from "@assistant-ui/core";
@@ -78,11 +78,17 @@ describe("unstable_useLiveCompletionAdapter", () => {
   it("settles loading when a suspended adapter is shown again", async () => {
     const fetcher = vi.fn(() => new Promise<never>(() => {}));
     const suspended = new Promise<never>(() => {});
-    let current!: ReturnType<typeof unstable_useLiveCompletionAdapter>;
+    let committed!: ReturnType<typeof unstable_useLiveCompletionAdapter>;
     const Harness = ({ blocked }: { blocked: boolean }) => {
-      current = unstable_useLiveCompletionAdapter({ fetcher, debounceMs: 0 });
+      const current = unstable_useLiveCompletionAdapter({
+        fetcher,
+        debounceMs: 0,
+      });
+      useLayoutEffect(() => {
+        committed = current;
+      }, [current]);
       if (blocked) throw suspended;
-      return null;
+      return <output data-testid="status">{String(current.isLoading)}</output>;
     };
     const view = (blocked: boolean) => (
       <Suspense fallback={null}>
@@ -92,16 +98,16 @@ describe("unstable_useLiveCompletionAdapter", () => {
     const rendered = render(view(false));
 
     await act(async () => {
-      current.adapter.search!("alice");
+      committed.adapter.search!("alice");
       await vi.advanceTimersByTimeAsync(0);
     });
     expect(fetcher).toHaveBeenCalledOnce();
-    expect(current.isLoading).toBe(true);
+    expect(rendered.getByTestId("status").textContent).toBe("true");
 
     await act(async () => rendered.rerender(view(true)));
     await act(async () => rendered.rerender(view(false)));
 
-    expect(current.isLoading).toBe(false);
+    expect(rendered.getByTestId("status").textContent).toBe("false");
   });
 
   it("does not fetch when disabled and clears cached items", async () => {
