@@ -75,6 +75,7 @@ export const useExternalHistory = <TMessage>(
 
   const historyIds = useRef(new Set<string>());
   const deferredTelemetryIds = useRef(new Set<string>());
+  // `content` is a snapshot taken at write time rather than a re-encode of `source`, because a retained message object can be mutated in place by the runtime that produced it.
   const persistedInnerMessages = useRef(
     new Map<string, { source: TMessage; content: string }>(),
   );
