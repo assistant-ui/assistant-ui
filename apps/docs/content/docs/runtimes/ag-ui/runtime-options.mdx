@@ -187,6 +187,26 @@ By default the runtime does the tool-call half of this automatically: when clien
 
 Pending interrupts are never auto-cancelled: sending while an interrupt is open still throws, and the interrupt must be answered with `useAgUiSubmitInterruptResponses` or discarded with `useAgUiSteerAway`.
 
+## Subagents
+
+A backend running the agents-as-tools pattern emits `SUBAGENT_STARTED` / `SUBAGENT_FINISHED` / `SUBAGENT_ERROR` plus a `subagentRunId` on every event that subagent produces. The runtime groups that activity into one nested assistant message per subagent run and attaches it to the spawning tool call as `ToolCallMessagePart.messages`, joined on `SUBAGENT_STARTED.parentToolCallId`. [`MessagePartPrimitive.Messages`](/docs/tools/multi-agent) renders it with no extra wiring, and the run's `name`, `description`, `parentSubagentRunId`, `result`, `interruptIds`, and `errorCode` ride on the nested message's `metadata.custom.agui`.
+
+A subagent that names no reachable spawning call has nowhere to nest, so its output renders in the parent thread instead of being dropped. `parentToolCallId` is optional, may name a call this run never saw, and two runs may name each other; each of those falls back to flat rendering, matching the downgrade the protocol's own pre-subagent compatibility middleware performs. Nesting is capped at 16 levels.
+
+A repeated `SUBAGENT_STARTED` for an id the run has already seen is treated as a continuation, since a suspended subagent is re-announced on resume. It refreshes the descriptive fields and reopens the status, but never re-parents an established run, which would move already-rendered output to a different tool call.
+
+A subagent's frontend-executed tool calls behave the same way the root agent's do: a call nested on `ToolCallMessagePart.messages` is reachable by `getPendingToolCalls()`, resolves through `addToolResult`, and its result rides the resume as a `tool` record on the spawning assistant record. Approval gates cover nested calls too, so a gate naming a subagent-scoped call projects onto the nested part, the frontend tool stays unexecuted while the gate is open, and an undecided gate's result is never exported to the backend.
+
+Two limitations are worth knowing before you rely on this:
+
+- **Nested structure does not survive a reload.** Thread restore reads the flattened wire shape, so a restored subagent tool call comes back as a root-level part rather than nested under its spawning call. Results and decisions are preserved; only the nesting is not.
+
+- **Nested human-in-the-loop has no resume path.** A `SUBAGENT_FINISHED` carrying a `suspended` outcome marks the nested message `requires-action` and preserves its `interruptIds` on the message metadata, but nothing answers them yet.
+
+### Compared to LangChain
+
+`@assistant-ui/react-langchain` exposes subagents as discovery; AG-UI exposes them as structure. `useLangChainSubagents()` returns a namespace-keyed map and leaves message fetching to the caller (see [subagent and subgraph views](/docs/runtimes/langchain#subagent-and-subgraph-views)), while this runtime nests the messages directly and offers no discovery hook. Neither runtime provides the other's shape, and the split follows the protocols rather than taste: AG-UI carries an explicit `parentToolCallId` on the lifecycle event, a precise join that LangChain's namespace scheme cannot give, so nesting is available here and not there.
+
 ## Supported events
 
 The runtime parses the AG-UI event stream and maps each event type to assistant-ui state.
@@ -204,6 +224,9 @@ The runtime parses the AG-UI event stream and maps each event type to assistant-
 | `TOOL_CALL_START` / `_ARGS` / `_END` | Streams tool calls into the current assistant message. |
 | `TOOL_CALL_CHUNK` | Streams tool deltas without explicit lifecycle. |
 | `TOOL_CALL_RESULT` | Attaches a tool result to a tool call. |
+| `SUBAGENT_STARTED` | Opens a nested assistant message for the subagent run, attached to the tool call named by `parentToolCallId`. |
+| `SUBAGENT_FINISHED` | Completes the nested message and records `result`; a `suspended` outcome marks it `requires-action`. |
+| `SUBAGENT_ERROR` | Marks the nested message errored with `message`, and records `code` as `errorCode`. |
 | `STATE_SNAPSHOT` | Replaces the agent's external state. |
 | `STATE_DELTA` | Applies a JSON-patch-style delta to the agent's state. |
 | `MESSAGES_SNAPSHOT` | Replaces the full message list (used for thread restore). |
@@ -235,6 +258,7 @@ Data parts stay in the assistant-ui message but are not sent back to the agent, 
 | Thinking / reasoning blocks | Yes |
 | Tool calls and results | Yes |
 | Tool result handoff (client-side execution) | Yes |
+| Subagents (nested `ToolCallMessagePart.messages`) | Yes, with [two limitations](#subagents) |
 | State snapshots and deltas | Yes |
 | Custom events (as `data` parts) | Yes |
 | Cancellation | Yes |
