@@ -182,6 +182,40 @@ describe("@assistant-ui/tap/react resource API", () => {
       expect(renders).toEqual({ a: 2, b: 1 });
     });
 
+    it("only visits dirty children when the element list is unchanged", () => {
+      const setters: Record<string, (n: number) => void> = {};
+      const useItem = (id: string) => {
+        const [value, setValue] = useResourceState(0);
+        setters[id] = setValue;
+        return value;
+      };
+      const Item = resource(useItem);
+      const accessed = new Set<string>();
+      const elements = new Proxy(
+        [withKey("a", Item("a"), ["a"]), withKey("b", Item("b"), ["b"])],
+        {
+          get(target, property, receiver) {
+            if (property === "0" || property === "1") accessed.add(property);
+            return Reflect.get(target, property, receiver);
+          },
+        },
+      );
+
+      let values: number[] = [];
+      function App() {
+        values = useResources(elements);
+        return null;
+      }
+
+      render(<App />);
+      values[1] = 99;
+      accessed.clear();
+      act(() => setters.a!(5));
+
+      expect(values).toEqual([5, 0]);
+      expect(accessed).toEqual(new Set(["0"]));
+    });
+
     it("re-renders a child with unchanged deps when its tap context changes", () => {
       const TestContext = createContext("default");
       let renders = 0;
@@ -203,6 +237,32 @@ describe("@assistant-ui/tap/react resource API", () => {
       expect(renderTest(parent, "b")).toEqual(["b"]);
       expect(parent.contextDeps).toBeNull();
       expect(renders).toBe(2);
+    });
+
+    it("keeps clean child context dependencies after a sibling update", () => {
+      const TestContext = createContext("default");
+      let setValue = (_value: number) => {};
+      const Dirty = resource(() => {
+        const [value, set] = useResourceState(0);
+        setValue = set;
+        return value;
+      });
+      const Context = resource(() => useResourceContext(TestContext));
+      const innerElements = [
+        withKey("dirty", Dirty(), []),
+        withKey("context", Context(), []),
+      ];
+      const Nested = resource(() => useResources(innerElements));
+      const outerElements = [withKey("nested", Nested(), [])];
+      const root = createTestResource((context: string) =>
+        useContextProvider(TestContext, context, () =>
+          useResources(outerElements),
+        ),
+      );
+
+      expect(renderTest(root, "a")).toEqual([[0, "a"]]);
+      flushTapSync(() => setValue(1));
+      expect(renderTest(root, "b")).toEqual([[1, "b"]]);
     });
   });
 
