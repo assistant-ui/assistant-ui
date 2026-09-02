@@ -10,7 +10,7 @@ import {
   ThreadPrimitiveMessages,
   useExternalStoreRuntime,
 } from "@assistant-ui/core/react";
-import { createRenderCounter } from "./render-counter";
+import { createRenderCounter } from "../src/render-counter";
 
 (
   globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }

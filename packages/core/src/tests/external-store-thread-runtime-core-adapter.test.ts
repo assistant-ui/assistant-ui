@@ -998,7 +998,7 @@ describe("ExternalStoreThreadRuntimeCore adapter contract", () => {
         core.__internal_setAdapter(
           createBaseAdapter({
             unstable_enableToolInvocations: true,
-            isRunning: true,
+            isRunning: false,
             messages: [
               {
                 ...createAssistantMessage("a1"),

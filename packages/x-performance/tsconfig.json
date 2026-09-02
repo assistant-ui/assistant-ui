@@ -1,4 +1,4 @@
 {
   "extends": "@assistant-ui/x-buildutils/ts/base",
-  "include": ["src", "bench", "vitest.config.ts"]
+  "include": ["src", "lib", "contracts", "bench", "vitest.config.ts"]
 }

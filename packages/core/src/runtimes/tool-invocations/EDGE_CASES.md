@@ -11,8 +11,9 @@ observe via `setState(snapshot)` and what the current behavior is.
 > result is replaced, result is cleared, key order shuffles — the tracker
 > never invokes the host's tool callback a second time.
 >
-> `reset()` starts a new execution boundary. A reused `toolCallId` in the
-> next boundary gets a new execution identity and may fire once there.
+> `reset()` starts a new execution boundary, and so does the single
+> pipeline restart after a stream failure (F.4). A reused `toolCallId` in
+> the next boundary gets a new execution identity and may fire once there.
 
 This guarantees host-side side effects (the typical reason `streamCall` /
 `execute` exists at all) can't double-run. The cost: post-completion
@@ -92,12 +93,13 @@ in-flight `execute` resolves, the execute runs to completion (its side
 effects happen) but its result chunk is dropped: `onResult` never fires,
 and the `executing` status, plus any `human()` interrupt the execution
 parked, stays up until the promise settles. Only a gate that lands after
-the result chunk has already been emitted is fully too late. An adapter
-whose provider both gates and answers such a call closes that window by
-declaring ownership up front (A.9). A call the client owns and the
-provider gates anyway stays exposed: the client is meant to execute it,
-so nothing but the gate's arrival says otherwise, and the gate is late
-by construction.
+the result chunk has already been emitted is fully too late.
+
+A call the adapter reports as client-owned reaches that window while the
+run is still open; a call whose ownership is unknown reaches it when the
+run settles before the gate arrives (A.10). Either way the client was
+meant to run it, so nothing but the gate's arrival says otherwise and the
+gate is late by construction.
 
 ### A.9. Adapter reports the tool call as provider-owned
 The entry is marked `skipExecute` at creation, exactly like a call
@@ -113,18 +115,69 @@ with an `execute` logs a `console.warn`. The two together are a
 misconfiguration: the provider answers the call, so the registered
 `execute` would never run and the skip is otherwise silent.
 
-Without it, a provider that runs tools itself races the tracker. Its
-result arrives one or more snapshots after the call's arguments
-complete, and in that window the call is complete and result-less, so a
-registered tool of the same name executes locally: the frontend side
-effect fires, and the local result is either overwritten by the
-provider's (a plain call) or kept beside a gate the provider raises
-afterwards (#6285).
+The predicate is also what licenses running a frontend tool before the
+provider's run ends, so an adapter that supplies it keeps the overlap
+between a client tool's work and the run tail (A.10).
 
-The predicate decides who answers a call, not whether a call is gated,
-so it closes that window only for calls the provider answers. A gate on
-a call the client owns still arrives after the args complete, and A.8
-governs it (#6677).
+### A.10. Args complete while the provider's run is still open
+Closing the args stream hands the call to the client executor, so it may
+only happen once the provider can no longer speak about that call. A
+provider may still answer the call (A.5) or gate it (A.8) one or more
+snapshots after its arguments complete, and a protocol can carry the
+outcome no earlier: AG-UI projects an interrupt only from `RUN_FINISHED`.
+The run ending is the only universal signal, so a call whose ownership is
+unknown closes when the snapshot's `isRunning` goes false.
+
+`ExternalStoreThreadRuntimeCore` feeds the tracker
+`store.isRunning || _hasExecutingTools(store)`, so that condition also covers
+a client tool mid-`execute`. That defers an unknown-ownership sibling only
+while a client-owned call is actually executing, which no shipped adapter
+produces: every entry pending in a snapshot closes in the same
+`_processMessages` pass, an adapter that supplies the predicate classifies
+every call, and an execution parked on `human()` reports `interrupt` rather
+than `executing`, which `_hasExecutingTools` does not count.
+
+A call the adapter reports as client-owned (A.9) closes as soon as its
+arguments parse, because the adapter has already said the provider will
+not answer it. Ownership says who answers a call, not whether it is
+gated, so a gate on such a call is still late and A.8 governs it
+(#6677).
+
+### A.11. The turn is discarded while a call waits on the run
+`abort({ discardPending: true })` records every active entry that has
+neither closed its args stream nor holds a result in
+`_discardedToolCallIds`, and marks it `skipExecute`.
+
+The abort signal alone does not cover these. A call waiting on the run to
+settle (A.10) has not reached the executor, so there is nothing to signal,
+and `abort()` installs a fresh `AbortController` before the settled
+snapshot arrives; without the record, cancelling a run would be what
+starts the call it was meant to stop.
+
+`discardPending` is the caller's claim that the turn is over, not that it
+is being interrupted, so only the three callers that end it pass it: a new
+turn starting, a reload, and `cancelRun`. `deleteMessage` does not: its
+`setMessages` fallback aborts while the provider run continues, and
+discarding there would strand that run's remaining calls result-less,
+while its `onDelete` path never aborts at all. `reset()` is unaffected
+either way: it clears `_entries` and the recorded ids before aborting,
+because it opens a new execution boundary.
+
+An id is forgotten once a live snapshot observes the call with a result,
+which bounds the set to the open calls of a discarded turn. That is all
+it does: an id re-emitted inside the same execution boundary keeps its
+existing entry, so A.4 and A.7 govern it rather than this set, and a new
+boundary clears the set outright. The residual is a call that is
+discarded, answered, and then loses its result (A.7) across a pipeline
+restart; it is left to A.7 rather than pinned here, because holding the
+id past the answer would trade a five-step chain for a set that grows for
+the life of the tracker.
+
+The record lives on the tracker rather than the entry because it is the one
+reason to skip that no later snapshot carries: an `approval` is re-read at
+each snapshot and provider ownership is recomputed, while a rebuilt entry
+would otherwise come back clean. That is what lets F.4 drop a waiting entry
+without a special case.
 
 ## B. Tool call disappears from snapshot
 
@@ -224,7 +277,17 @@ The `.pipeTo(...).catch(...)` handler logs and flips `_pipelineDead`.
 The next `setState` call recreates the pipeline once per tracker
 lifetime: existing active entries are *demoted to restored* (so the
 rebuilt pipeline does not re-fire `streamCall` for them) and the
-snapshot is processed against the fresh pipeline. Repeated failures
+snapshot is processed against the fresh pipeline. An active entry that
+neither closed its args stream nor holds a result is dropped instead of
+demoted: a restored entry is promoted only when its signature changes,
+and a call waiting on the run to settle (A.10) already holds its final
+args, so demoting it would strand it unexecuted.
+
+Starting it over re-fires `streamCall`, which the restart path already
+does for any demoted entry whose signature later changes. The rebuilt
+pipeline holds no part for the call, so nothing can reach the executor
+without adding one; a restart is an execution boundary in the same sense
+`reset()` is. Repeated failures
 keep the tracker dead with a visible error to avoid restart loops.
 
 ### F.5. Reset followed by same-id reuse

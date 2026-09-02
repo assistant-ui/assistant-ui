@@ -26,6 +26,8 @@
     "unmanaged-pins:test": "node --test scripts/check-unmanaged-pins.test.mjs",
     "lint": "pnpm exec oxlint && pnpm exec oxfmt --check",
     "check:resource-memo": "node packages/x-buildutils/check-resource-memoization.mjs",
+    "size:check": "node packages/x-performance/bin/aui-perf.mjs size",
+    "size:update": "node packages/x-performance/bin/aui-perf.mjs size --update",
     "lint:fix": "pnpm exec oxlint --fix && pnpm exec oxfmt",
     "format": "pnpm exec oxfmt --check",
     "format:fix": "pnpm exec oxfmt",

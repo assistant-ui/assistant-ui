@@ -5512,9 +5512,18 @@ importers:
 
   packages/x-performance:
     devDependencies:
+      '@assistant-ui/ai-sdk':
+        specifier: workspace:*
+        version: link:../ai-sdk
       '@assistant-ui/core':
         specifier: workspace:*
         version: link:../core
+      '@assistant-ui/react':
+        specifier: workspace:*
+        version: link:../react
+      '@assistant-ui/react-markdown':
+        specifier: workspace:*
+        version: link:../react-markdown
       '@assistant-ui/store':
         specifier: workspace:*
         version: link:../store
@@ -5524,6 +5533,9 @@ importers:
       '@assistant-ui/x-buildutils':
         specifier: workspace:*
         version: link:../x-buildutils
+      '@tailwindcss/cli':
+        specifier: ^4.3.3
+        version: 4.3.3
       '@types/react':
         specifier: ^19.2.18
         version: 19.2.18
@@ -5542,6 +5554,9 @@ importers:
       react-dom:
         specifier: ^19.2.8
         version: 19.2.8(react@19.2.8)
+      rolldown:
+        specifier: ^1.2.6
+        version: 1.2.6
       vitest:
         specifier: ^4.1.11
         version: 4.1.11(@edge-runtime/vm@3.2.0)(@opentelemetry/api@1.9.1)(@types/node@26.4.0)(@vitest/coverage-v8@4.1.11)(@vitest/ui@4.1.11)(jsdom@30.0.1)(vite@8.2.2(@types/node@26.4.0))

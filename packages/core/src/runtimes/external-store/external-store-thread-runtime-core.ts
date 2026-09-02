@@ -556,7 +556,7 @@ export class ExternalStoreThreadRuntimeCore
             }
           },
         },
-        (toolCall) => this._store.unstable_isClientToolCall?.(toolCall) ?? true,
+        (toolCall) => this._store.unstable_isClientToolCall?.(toolCall),
       );
     }
 
@@ -691,7 +691,7 @@ export class ExternalStoreThreadRuntimeCore
     // user messages — matches the satellites' historical opt-in cancel
     // behavior, which is now built in.
     if (message.startRun ?? message.role === "user") {
-      await this._toolInvocations?.abort();
+      await this._toolInvocations?.abort({ discardPending: true });
     }
     if (!isThreadRuntimeGenerationCurrent(this, generation)) return;
 
@@ -792,7 +792,7 @@ export class ExternalStoreThreadRuntimeCore
     // Auto-abort in-flight client-side tool executions when a run reloads;
     // any results that land afterward would target a turn that no longer
     // exists. See `append` above for full rationale.
-    await this._toolInvocations?.abort();
+    await this._toolInvocations?.abort({ discardPending: true });
 
     await this._store.onReload(config.parentId, config);
   }
@@ -846,7 +846,7 @@ export class ExternalStoreThreadRuntimeCore
     // Abort any in-flight client-side tool executions. Fire-and-forget —
     // the abort resolves once executions settle, but we don't gate the
     // cancel on it.
-    void this._toolInvocations?.abort();
+    void this._toolInvocations?.abort({ discardPending: true });
 
     // Before the run is aborted, so the settle it produces keeps the pending
     // items instead of dispatching the next one at the moment the user

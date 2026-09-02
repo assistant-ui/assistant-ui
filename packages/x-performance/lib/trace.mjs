@@ -1,5 +1,11 @@
 import { execFileSync, spawn } from "node:child_process";
-import { mkdtempSync, readFileSync, rmSync, existsSync } from "node:fs";
+import {
+  existsSync,
+  mkdtempSync,
+  readFileSync,
+  rmSync,
+  writeFileSync,
+} from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { pathToFileURL } from "node:url";
@@ -112,7 +118,12 @@ const connect = (url) =>
     "the CDP websocket",
   );
 
-export const captureTrace = async (target, seconds, settleMs = 1500) => {
+export const captureTrace = async (
+  target,
+  seconds,
+  settleMs = 1500,
+  screenshotPath,
+) => {
   const chrome = findChrome();
   const profile = mkdtempSync(join(tmpdir(), "aui-perf-chrome-"));
   let cdp;
@@ -169,6 +180,22 @@ export const captureTrace = async (target, seconds, settleMs = 1500) => {
     await sleep(seconds * 1000);
     await cdp.send("Tracing.end");
     await withTimeout(complete, 30_000, "trace collection");
+    if (screenshotPath) {
+      try {
+        const shot = await withTimeout(
+          cdp.send(
+            "Page.captureScreenshot",
+            { captureBeyondViewport: true },
+            sessionId,
+          ),
+          10_000,
+          "the screenshot",
+        );
+        writeFileSync(screenshotPath, Buffer.from(shot.data, "base64"));
+      } catch (error) {
+        console.error(`screenshot failed for ${target}: ${error.message}`);
+      }
+    }
     return chunks;
   } finally {
     cdp?.ws.close();
