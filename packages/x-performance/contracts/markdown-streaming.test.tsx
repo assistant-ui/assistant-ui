@@ -33,20 +33,21 @@ const Paragraph = ({ children }: { children?: ReactNode }) => {
 
 const components = memoizeMarkdownComponents({ p: Paragraph });
 
-const Text = () => (
-  <MarkdownTextPrimitive
-    smooth={false}
-    components={components}
-    remarkPlugins={[countParses]}
-  />
-);
-
-const Message = () => {
-  counter.useRender("message");
-  return <MessagePrimitive.Parts components={{ Text }} />;
+const makeComponents = (defer: boolean) => {
+  const Text = () => (
+    <MarkdownTextPrimitive
+      smooth={false}
+      defer={defer}
+      components={components}
+      remarkPlugins={[countParses]}
+    />
+  );
+  const Message = () => {
+    counter.useRender("message");
+    return <MessagePrimitive.Parts components={{ Text }} />;
+  };
+  return { Message };
 };
-
-const COMPONENTS = { Message };
 
 const convertMessage = (m: Msg): ThreadMessageLike => ({
   id: m.id,
@@ -61,7 +62,8 @@ const document = Array.from(
     `Paragraph ${i} of the streamed answer, with **emphasis** and \`code\`.`,
 ).join("\n\n");
 
-const mount = () => {
+const mount = (defer = false) => {
+  const COMPONENTS = makeComponents(defer);
   let setMessages!: (updater: (prev: Msg[]) => Msg[]) => void;
   const App = () => {
     const [messages, set] = useState<Msg[]>([
@@ -97,16 +99,38 @@ const mount = () => {
 describe("markdown streaming", () => {
   // react-markdown re-parses the whole accumulated text on every render and
   // memoizes per hast node, so the paragraph a token lands in renders once and
-  // the paragraphs before it not at all. The parse runs twice per token: once
-  // for the part update and once more when useSmooth's effect writes the
-  // smooth status store that MarkdownTextPrimitive's context provider owns,
-  // even with smoothing off. Collapsing that to one parse is an optimization;
-  // a third parse is a regression. The user message renders through the same
+  // the paragraphs before it not at all. With `defer` off the part update is
+  // the only render of the primitive, so the parse runs once per token; a
+  // second parse is a regression. The user message renders through the same
   // Text slot, hence the extra paragraph and the two parses at mount.
-  it("re-parses the whole message twice per token but re-renders only the changed paragraph", () => {
+  it("re-parses the whole message once per token and re-renders only the changed paragraph", () => {
     counter.reset();
     parses = 0;
     const app = mount();
+    const MOUNT_PARAGRAPHS = PARAGRAPHS + 1;
+    expect(counter.renders("p")).toBe(MOUNT_PARAGRAPHS);
+    expect(parses).toBe(2);
+    const mountedCommits = counter.commits("thread");
+
+    const TOKENS = 10;
+    for (let i = 0; i < TOKENS; i++) app.append();
+
+    expect(counter.renders("p")).toBe(MOUNT_PARAGRAPHS + TOKENS);
+    expect(counter.renders("message")).toBe(2);
+    expect(parses).toBe(2 + TOKENS);
+    expect(counter.commits("thread") - mountedCommits).toBe(2 * TOKENS);
+    app.unmount();
+  });
+
+  // `defer` buys interruptibility with a second parse: React renders the
+  // previous text at normal priority and the new text in the deferred pass,
+  // and react-markdown has no incremental mode that would make the first pass
+  // free. Collapsing that to one parse is an optimization; a third is a
+  // regression.
+  it("re-parses once for the previous text and once for the new one when deferred", () => {
+    counter.reset();
+    parses = 0;
+    const app = mount(true);
     const MOUNT_PARAGRAPHS = PARAGRAPHS + 1;
     expect(counter.renders("p")).toBe(MOUNT_PARAGRAPHS);
     expect(parses).toBe(2);

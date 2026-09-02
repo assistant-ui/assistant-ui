@@ -14,6 +14,7 @@ import {
 } from "streamdown";
 import {
   type ComponentRef,
+  type FC,
   forwardRef,
   useDeferredValue,
   useMemo,
@@ -28,6 +29,25 @@ import type {
 } from "../types";
 
 type StreamdownTextPrimitiveElement = ComponentRef<"div">;
+
+type StreamdownBodyProps = Omit<StreamdownProps, "children"> & {
+  text: string;
+};
+
+const StreamdownBody: FC<StreamdownBodyProps> = ({ text, ...props }) => (
+  <Streamdown {...props}>{text}</Streamdown>
+);
+
+// `useDeferredValue` schedules a second render pass whenever its input changes,
+// so the deferred path lives in its own component and `defer={false}` never
+// mounts it.
+const DeferredStreamdownBody: FC<StreamdownBodyProps> = ({
+  text,
+  ...props
+}) => {
+  const deferredText = useDeferredValue(text);
+  return <Streamdown {...props}>{deferredText}</Streamdown>;
+};
 
 // Streamdown extends the default sanitize schema without exporting it, so it is
 // read back off its own plugin set; a copy would fall behind on a bump. An
@@ -172,19 +192,13 @@ export const StreamdownTextPrimitive = forwardRef<
 
     const { text, status } = useSmooth(processedPart, smooth);
 
-    const deferredText = useDeferredValue(text);
-    const processedText = defer ? deferredText : text;
-
     const shouldTailRemend =
       mode === "streaming" &&
       parseIncompleteMarkdown !== false &&
       !parseMarkdownIntoBlocksFn;
     const repairedText = useMemo(
-      () =>
-        shouldTailRemend
-          ? tailBoundedRemend(processedText, remend)
-          : processedText,
-      [shouldTailRemend, processedText, remend],
+      () => (shouldTailRemend ? tailBoundedRemend(text, remend) : text),
+      [shouldTailRemend, text, remend],
     );
     const resolvedParseIncomplete = shouldTailRemend
       ? false
@@ -249,6 +263,8 @@ export const StreamdownTextPrimitive = forwardRef<
       ...(parseMarkdownIntoBlocksFn && { parseMarkdownIntoBlocksFn }),
     };
 
+    const Body = defer ? DeferredStreamdownBody : StreamdownBody;
+
     return (
       <div
         ref={ref}
@@ -256,15 +272,14 @@ export const StreamdownTextPrimitive = forwardRef<
         {...containerProps}
         className={containerClass}
       >
-        <Streamdown
+        <Body
+          text={repairedText}
           mode={mode}
           isAnimating={status.type === "running"}
           components={mergedComponents}
           {...optionalProps}
           {...streamdownProps}
-        >
-          {repairedText}
-        </Streamdown>
+        />
       </div>
     );
   },
