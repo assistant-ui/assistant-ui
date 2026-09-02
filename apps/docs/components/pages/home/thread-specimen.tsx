@@ -17,15 +17,22 @@ export function ThreadSpecimen() {
         ? document.activeElement
         : null;
     overlayRef.current?.focus();
+    const isInsidePopup = (target: EventTarget | null) => {
+      if (!(target instanceof Element)) return false;
+      const layer = target.closest('[role="menu"], [role="dialog"]');
+      return layer !== null && layer !== overlayRef.current;
+    };
     const onKey = (event: KeyboardEvent) => {
       if (event.defaultPrevented) return;
       if (event.key === "Escape") {
+        if (isInsidePopup(event.target)) return;
         setExpanded(false);
         return;
       }
       if (event.key !== "Tab") return;
       const root = overlayRef.current;
       if (!root) return;
+      if (isInsidePopup(document.activeElement)) return;
       const focusables = Array.from(
         root.querySelectorAll<HTMLElement>(
           'a[href], button:not([disabled]), textarea, input, select, [tabindex]:not([tabindex="-1"])',
@@ -80,7 +87,7 @@ export function ThreadSpecimen() {
                   aria-modal="true"
                   aria-label="Thread fullscreen"
                   tabIndex={-1}
-                  className="bg-background fixed inset-0 z-[60] overflow-hidden outline-none"
+                  className="bg-background fixed inset-0 z-50 overflow-hidden outline-none"
                 >
                   {thread}
                 </div>,

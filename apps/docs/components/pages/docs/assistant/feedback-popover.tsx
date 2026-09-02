@@ -59,10 +59,16 @@ export function FeedbackPopover({
         <Popover.Trigger>{children}</Popover.Trigger>
       )}
       <Popover.Portal>
-        <Popover.Positioner sideOffset={5} align="start">
+        <Popover.Positioner
+          sideOffset={5}
+          align="start"
+          className="isolate z-50"
+        >
           <Popover.Popup className="border-border bg-popover z-50 w-72 rounded-lg border p-4">
             <div className="space-y-3">
-              <p className="text-sm font-medium">What went wrong?</p>
+              <Popover.Title className="text-sm font-medium">
+                What went wrong?
+              </Popover.Title>
               <div className="space-y-2">
                 {CATEGORIES.map((cat) => (
                   <label
