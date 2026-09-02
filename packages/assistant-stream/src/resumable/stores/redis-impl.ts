@@ -91,7 +91,8 @@ export interface RedisLikeClient {
   pipeline(commands: readonly PipelineCommand[]): Promise<void>;
   /**
    * Atomically finalizes a stream only while its metadata is unchanged.
-   * Custom clients may omit this to retain the pre-existing pipeline behavior.
+   * Clients that omit this retain non-atomic pipeline finalization and cannot
+   * fence a replacement acquisition that races with finalization.
    */
   finalizeIfUnchanged?(options: RedisFinalizeOptions): Promise<boolean>;
 }
