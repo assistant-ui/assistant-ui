@@ -32,7 +32,7 @@ async function waitFor(
 
 const createState = (
   messages: ThreadAssistantMessage[],
-  isRunning: boolean = true,
+  isRunning: boolean = false,
 ): ToolInvocationTracker.Snapshot => ({
   messages: messages as readonly ThreadMessage[],
   isRunning,
@@ -467,10 +467,11 @@ describe("ToolInvocationTracker", () => {
       } satisfies Tool,
     });
     const onResult = vi.fn();
-    const tracker = new ToolInvocationTracker(getTools, {
-      onResult,
-      onStatusesChange: () => {},
-    });
+    const tracker = new ToolInvocationTracker(
+      getTools,
+      { onResult, onStatusesChange: () => {} },
+      () => true,
+    );
     tracker.setState(createState([]));
 
     tracker.setState(
@@ -507,6 +508,89 @@ describe("ToolInvocationTracker", () => {
     resolveExecute({ deleted: true });
     await new Promise((r) => setTimeout(r, 0));
 
+    expect(onResult).not.toHaveBeenCalled();
+  });
+
+  it("does not execute a registered tool while the provider's run is open", async () => {
+    const execute = vi.fn(async () => ({ deleted: true }));
+    const getTools = () => ({
+      deleteFile: {
+        parameters: { type: "object", properties: {} },
+        execute,
+      } satisfies Tool,
+    });
+    const onResult = vi.fn();
+    const tracker = new ToolInvocationTracker(getTools, {
+      onResult,
+      onStatusesChange: () => {},
+    });
+    tracker.setState(createState([]));
+
+    const complete = (isRunning: boolean) =>
+      createState(
+        [
+          createAssistantMessage(
+            '{"path":"/tmp/a"}',
+            { path: "/tmp/a" },
+            { toolName: "deleteFile" },
+          ),
+        ],
+        isRunning,
+      );
+
+    tracker.setState(complete(true));
+    await new Promise((r) => setTimeout(r, 0));
+    expect(execute).not.toHaveBeenCalled();
+
+    tracker.setState(complete(false));
+    await waitFor(() => expect(execute).toHaveBeenCalledTimes(1));
+    await waitFor(() => expect(onResult).toHaveBeenCalledTimes(1));
+  });
+
+  it("never executes a registered tool the provider gates before its run ends", async () => {
+    const execute = vi.fn(async () => ({ deleted: true }));
+    const getTools = () => ({
+      deleteFile: {
+        parameters: { type: "object", properties: {} },
+        execute,
+      } satisfies Tool,
+    });
+    const onResult = vi.fn();
+    const tracker = new ToolInvocationTracker(getTools, {
+      onResult,
+      onStatusesChange: () => {},
+    });
+    tracker.setState(createState([]));
+
+    tracker.setState(
+      createState(
+        [
+          createAssistantMessage(
+            '{"path":"/tmp/a"}',
+            { path: "/tmp/a" },
+            { toolName: "deleteFile" },
+          ),
+        ],
+        true,
+      ),
+    );
+    await new Promise((r) => setTimeout(r, 0));
+
+    tracker.setState(
+      createState(
+        [
+          createAssistantMessage(
+            '{"path":"/tmp/a"}',
+            { path: "/tmp/a" },
+            { toolName: "deleteFile", approval: { id: "approval-1" } },
+          ),
+        ],
+        false,
+      ),
+    );
+    await new Promise((r) => setTimeout(r, 0));
+
+    expect(execute).not.toHaveBeenCalled();
     expect(onResult).not.toHaveBeenCalled();
   });
 
