@@ -248,6 +248,9 @@ export type StreamdownTextPrimitiveProps = Omit<
    * re-parsing the growing message on every streamed token. Intermediate
    * streaming states may be skipped under load; the final text always renders.
    *
+   * Must stay constant for the lifetime of the component: the deferred path is
+   * a separate component, so toggling this remounts the rendered markdown.
+   *
    * @default false
    */
   defer?: boolean | undefined;

@@ -24,6 +24,7 @@ import { DEFAULT_SHIKI_THEME, mergePlugins } from "../defaults";
 import { tailBoundedRemend } from "../remend";
 import type {
   AllowedTags,
+  RemendConfig,
   SecurityConfig,
   StreamdownTextPrimitiveProps,
 } from "../types";
@@ -32,21 +33,47 @@ type StreamdownTextPrimitiveElement = ComponentRef<"div">;
 
 type StreamdownBodyProps = Omit<StreamdownProps, "children"> & {
   text: string;
+  shouldTailRemend: boolean;
+  remendConfig: RemendConfig | undefined;
 };
 
-const StreamdownBody: FC<StreamdownBodyProps> = ({ text, ...props }) => (
-  <Streamdown {...props}>{text}</Streamdown>
-);
+const useRepairedText = (
+  text: string,
+  shouldTailRemend: boolean,
+  remendConfig: RemendConfig | undefined,
+) =>
+  useMemo(
+    () => (shouldTailRemend ? tailBoundedRemend(text, remendConfig) : text),
+    [shouldTailRemend, text, remendConfig],
+  );
+
+const StreamdownBody: FC<StreamdownBodyProps> = ({
+  text,
+  shouldTailRemend,
+  remendConfig,
+  ...props
+}) => {
+  const repairedText = useRepairedText(text, shouldTailRemend, remendConfig);
+  return <Streamdown {...props}>{repairedText}</Streamdown>;
+};
 
 // `useDeferredValue` schedules a second render pass whenever its input changes,
 // so the deferred path lives in its own component and `defer={false}` never
-// mounts it.
+// mounts it. The repair stays below the deferral so it runs in the deferred
+// pass rather than on the urgent one.
 const DeferredStreamdownBody: FC<StreamdownBodyProps> = ({
   text,
+  shouldTailRemend,
+  remendConfig,
   ...props
 }) => {
   const deferredText = useDeferredValue(text);
-  return <Streamdown {...props}>{deferredText}</Streamdown>;
+  const repairedText = useRepairedText(
+    deferredText,
+    shouldTailRemend,
+    remendConfig,
+  );
+  return <Streamdown {...props}>{repairedText}</Streamdown>;
 };
 
 // Streamdown extends the default sanitize schema without exporting it, so it is
@@ -196,10 +223,6 @@ export const StreamdownTextPrimitive = forwardRef<
       mode === "streaming" &&
       parseIncompleteMarkdown !== false &&
       !parseMarkdownIntoBlocksFn;
-    const repairedText = useMemo(
-      () => (shouldTailRemend ? tailBoundedRemend(text, remend) : text),
-      [shouldTailRemend, text, remend],
-    );
     const resolvedParseIncomplete = shouldTailRemend
       ? false
       : parseIncompleteMarkdown;
@@ -273,7 +296,9 @@ export const StreamdownTextPrimitive = forwardRef<
         className={containerClass}
       >
         <Body
-          text={repairedText}
+          text={text}
+          shouldTailRemend={shouldTailRemend}
+          remendConfig={remend}
           mode={mode}
           isAnimating={status.type === "running"}
           components={mergedComponents}
