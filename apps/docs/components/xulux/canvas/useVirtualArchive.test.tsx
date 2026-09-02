@@ -43,6 +43,25 @@ describe("useVirtualArchive", () => {
     );
   });
 
+  it("downloads an in-process demo archive without a session", async () => {
+    const archive = { files: [] };
+    mocks.createVirtualArchive.mockReturnValue(archive);
+    const fetchSpy = vi
+      .spyOn(globalThis, "fetch")
+      .mockResolvedValue(new Response(new Uint8Array([1]), { status: 200 }));
+
+    const { result } = renderHook(() =>
+      useVirtualArchive("/api/xulux/demo-download?slug=chatgpt", "chatgpt"),
+    );
+
+    await waitFor(() => expect(result.current.status).toBe("ready"));
+    expect(fetchSpy).toHaveBeenCalledWith(
+      "/api/xulux/demo-download?slug=chatgpt",
+      expect.objectContaining({ signal: expect.any(AbortSignal) }),
+    );
+    expect(mocks.anonymousSessionFetch).not.toHaveBeenCalled();
+  });
+
   it("surfaces a denied download as an error state", async () => {
     mocks.anonymousSessionFetch.mockResolvedValue(
       new Response("limited", { status: 429 }),
