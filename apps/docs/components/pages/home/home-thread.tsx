@@ -1,11 +1,15 @@
 "use client";
 
 import {
+  ActionBarMorePrimitive,
   ActionBarPrimitive,
   type AssistantState,
   AuiIf,
+  BranchPickerPrimitive,
   ComposerPrimitive,
   ErrorPrimitive,
+  type FileMessagePartComponent,
+  type ImageMessagePartComponent,
   MessagePrimitive,
   ThreadListItemMorePrimitive,
   ThreadListItemPrimitive,
@@ -20,8 +24,12 @@ import {
   ArrowDownIcon,
   ArrowUpIcon,
   CheckIcon,
+  ChevronLeftIcon,
+  ChevronRightIcon,
   CopyIcon,
+  DownloadIcon,
   Maximize2Icon,
+  MicIcon,
   Minimize2Icon,
   MoreHorizontalIcon,
   PencilIcon,
@@ -29,16 +37,26 @@ import {
   RefreshCwIcon,
   SquareIcon,
   TrashIcon,
+  Volume2Icon,
 } from "lucide-react";
 import { useEffect, useRef, useState, type ReactNode } from "react";
 import {
   ComposerAttachments,
   UserMessageAttachments,
 } from "@/components/assistant-ui/elements/attachment.aui";
+import { File } from "@/components/assistant-ui/elements/file";
+import { Image } from "@/components/assistant-ui/elements/image";
+import { MarkdownText } from "@/components/assistant-ui/elements/markdown-text";
+import { MessageTiming } from "@/components/assistant-ui/elements/message-timing.aui";
+import {
+  ComposerQuotePreview,
+  QuoteBlock,
+  SelectionToolbar,
+} from "@/components/assistant-ui/elements/quote.aui";
+import { Reasoning } from "@/components/assistant-ui/elements/reasoning.aui";
+import { FeedbackActions } from "@/components/pages/docs/assistant/assistant-action-bar";
 import { Input } from "@/components/ui/input";
 import { Skeleton } from "@/components/ui/skeleton";
-import { MarkdownText } from "@/components/assistant-ui/elements/markdown-text";
-import { Reasoning } from "@/components/assistant-ui/elements/reasoning.aui";
 import {
   TraceLine,
   formatDuration,
@@ -56,6 +74,43 @@ const isHistoryLoadingView = (s: AssistantState) =>
   s.thread.isLoading &&
   !s.thread.isDisabled &&
   !s.threads.isLoading;
+
+const getMessageErrorText = (s: AssistantState): string | undefined => {
+  const status = s.message.status;
+  if (status?.type !== "incomplete" || status.reason !== "error") {
+    return undefined;
+  }
+  const error = status.error;
+  if (typeof error === "string") return error;
+  if (
+    typeof error === "object" &&
+    error !== null &&
+    "message" in error &&
+    typeof error.message === "string"
+  ) {
+    return error.message;
+  }
+  return undefined;
+};
+
+const describePublicAssistantError = (text: string): string | undefined => {
+  if (/limit exceeded/i.test(text)) {
+    return "The demo is rate limited right now. Try again in a little while.";
+  }
+  if (/temporarily unavailable/i.test(text)) {
+    return "The demo is temporarily unavailable. Try again later.";
+  }
+  return undefined;
+};
+
+const actionButtonClass =
+  "text-muted-foreground/70 hover:text-foreground disabled:pointer-events-none disabled:opacity-40 p-1 transition-colors";
+
+const menuContentClass =
+  "bg-popover text-popover-foreground border-foreground/10 data-[state=open]:fade-in-0 data-[state=open]:zoom-in-95 data-[state=open]:animate-in data-[state=closed]:fade-out-0 data-[state=closed]:zoom-out-95 data-[state=closed]:animate-out rounded-surface z-50 min-w-28 overflow-hidden border p-1";
+
+const menuItemClass =
+  "hover:bg-muted focus:bg-muted flex cursor-pointer items-center gap-2 rounded-sm px-2 py-1.5 text-[13px] outline-none select-none";
 
 export function HomeThread({
   expanded = false,
@@ -262,9 +317,6 @@ function SidebarThreadRename({
   );
 }
 
-const threadMenuItemClass =
-  "hover:bg-muted focus:bg-muted flex cursor-pointer items-center gap-2 rounded-sm px-2 py-1.5 text-[13px] outline-none select-none";
-
 function SidebarThreadMore({ onRename }: { onRename: () => void }): ReactNode {
   return (
     <ThreadListItemMorePrimitive.Root sharedFocusGroup>
@@ -281,17 +333,17 @@ function SidebarThreadMore({ onRename }: { onRename: () => void }): ReactNode {
         side="right"
         align="start"
         sideOffset={6}
-        className="bg-popover text-popover-foreground border-foreground/10 data-[state=open]:fade-in-0 data-[state=open]:zoom-in-95 data-[state=open]:animate-in data-[state=closed]:fade-out-0 data-[state=closed]:zoom-out-95 data-[state=closed]:animate-out rounded-surface z-[70] min-w-28 overflow-hidden border p-1"
+        className={menuContentClass}
       >
         <ThreadListItemMorePrimitive.Item
-          className={threadMenuItemClass}
+          className={menuItemClass}
           onSelect={onRename}
         >
           <PencilIcon className="size-3.5" />
           Rename
         </ThreadListItemMorePrimitive.Item>
         <ThreadListItemPrimitive.Archive asChild>
-          <ThreadListItemMorePrimitive.Item className={threadMenuItemClass}>
+          <ThreadListItemMorePrimitive.Item className={menuItemClass}>
             <ArchiveIcon className="size-3.5" />
             Archive
           </ThreadListItemMorePrimitive.Item>
@@ -299,7 +351,7 @@ function SidebarThreadMore({ onRename }: { onRename: () => void }): ReactNode {
         <ThreadListItemPrimitive.Delete asChild>
           <ThreadListItemMorePrimitive.Item
             className={cn(
-              threadMenuItemClass,
+              menuItemClass,
               "text-destructive hover:bg-destructive/10 hover:text-destructive focus:bg-destructive/10 focus:text-destructive",
             )}
           >
@@ -357,6 +409,7 @@ function SpecimenThread(): ReactNode {
         <div className="mb-12 flex flex-col gap-y-6 empty:hidden">
           <ThreadPrimitive.Messages>
             {({ message }) => {
+              if (message.composer.isEditing) return <SpecimenEditComposer />;
               if (message.role === "user") return <SpecimenUserMessage />;
               if (message.role === "assistant")
                 return <SpecimenAssistantMessage />;
@@ -390,6 +443,7 @@ function SpecimenThread(): ReactNode {
           </AuiIf>
         </ThreadPrimitive.ViewportFooter>
       </ThreadPrimitive.Viewport>
+      <SelectionToolbar className="border-foreground/10 rounded-control" />
     </ThreadPrimitive.Root>
   );
 }
@@ -431,54 +485,136 @@ function SpecimenSuggestions(): ReactNode {
 function SpecimenComposer(): ReactNode {
   return (
     <ComposerPrimitive.Root className="w-full">
-      <div className="border-foreground/10 bg-muted/25 focus-within:border-foreground/25 rounded-thread flex flex-col border transition-colors">
-        <div className="has-[.aui-attachment-root]:px-3 has-[.aui-attachment-root]:pt-3">
-          <ComposerAttachments />
-        </div>
-        <ComposerPrimitive.Input asChild>
-          <textarea
-            placeholder="Send a message..."
-            rows={1}
-            className="placeholder:text-muted-foreground field-sizing-content max-h-48 min-h-12 w-full resize-none bg-transparent px-4 pt-3.5 pb-1 text-base leading-6 focus:outline-none"
-          />
-        </ComposerPrimitive.Input>
-        <div className="flex items-center justify-between px-2.5 pb-2.5">
-          <ComposerPrimitive.AddAttachment asChild>
-            <button
-              type="button"
-              aria-label="Add attachment"
-              className="text-muted-foreground hover:text-foreground rounded-control grid size-8 place-items-center transition-colors"
-            >
-              <PlusIcon className="size-4.5" />
-            </button>
-          </ComposerPrimitive.AddAttachment>
-          <AuiIf condition={(s) => !s.thread.isRunning}>
-            <ComposerPrimitive.Send asChild>
+      <ComposerPrimitive.AttachmentDropzone asChild>
+        <div className="border-foreground/10 bg-muted/25 focus-within:border-foreground/25 data-[dragging=true]:border-foreground/40 rounded-thread flex flex-col border transition-colors data-[dragging=true]:border-dashed">
+          <ComposerQuotePreview className="bg-foreground/[0.04] rounded-control mx-3 mt-3" />
+          <div className="has-[.aui-attachment-root]:px-3 has-[.aui-attachment-root]:pt-3">
+            <ComposerAttachments />
+          </div>
+          <ComposerPrimitive.Input asChild>
+            <textarea
+              placeholder="Send a message..."
+              rows={1}
+              className="placeholder:text-muted-foreground field-sizing-content max-h-48 min-h-12 w-full resize-none bg-transparent px-4 pt-3.5 pb-1 text-base leading-6 focus:outline-none"
+            />
+          </ComposerPrimitive.Input>
+          <div className="flex items-center justify-between px-2.5 pb-2.5">
+            <ComposerPrimitive.AddAttachment asChild>
               <button
                 type="button"
-                aria-label="Send message"
-                className="bg-primary text-primary-foreground grid size-8 place-items-center rounded-full transition-opacity disabled:opacity-40"
+                aria-label="Add attachment"
+                className="text-muted-foreground hover:text-foreground rounded-control grid size-8 place-items-center transition-colors"
               >
-                <ArrowUpIcon className="size-4.5" />
+                <PlusIcon className="size-4.5" />
               </button>
-            </ComposerPrimitive.Send>
-          </AuiIf>
-          <AuiIf condition={(s) => s.thread.isRunning}>
-            <ComposerPrimitive.Cancel asChild>
-              <button
-                type="button"
-                aria-label="Stop generating"
-                className="bg-primary text-primary-foreground grid size-8 place-items-center rounded-full"
+            </ComposerPrimitive.AddAttachment>
+            <div className="flex items-center gap-1">
+              <AuiIf
+                condition={(s) =>
+                  s.thread.capabilities.dictation &&
+                  s.composer.dictation == null
+                }
               >
-                <SquareIcon className="size-3.5 fill-current" />
-              </button>
-            </ComposerPrimitive.Cancel>
-          </AuiIf>
+                <ComposerPrimitive.Dictate asChild>
+                  <button
+                    type="button"
+                    aria-label="Start voice input"
+                    className="text-muted-foreground hover:text-foreground rounded-control grid size-8 place-items-center transition-colors disabled:opacity-40"
+                  >
+                    <MicIcon className="size-4.5" />
+                  </button>
+                </ComposerPrimitive.Dictate>
+              </AuiIf>
+              <AuiIf condition={(s) => s.composer.dictation != null}>
+                <ComposerPrimitive.StopDictation asChild>
+                  <button
+                    type="button"
+                    aria-label="Stop voice input"
+                    className="text-destructive rounded-control grid size-8 place-items-center transition-colors"
+                  >
+                    <SquareIcon className="size-3.5 animate-pulse fill-current" />
+                  </button>
+                </ComposerPrimitive.StopDictation>
+              </AuiIf>
+              <AuiIf condition={(s) => !s.thread.isRunning}>
+                <ComposerPrimitive.Send asChild>
+                  <button
+                    type="button"
+                    aria-label="Send message"
+                    className="bg-primary text-primary-foreground grid size-8 place-items-center rounded-full transition-opacity disabled:opacity-40"
+                  >
+                    <ArrowUpIcon className="size-4.5" />
+                  </button>
+                </ComposerPrimitive.Send>
+              </AuiIf>
+              <AuiIf condition={(s) => s.thread.isRunning}>
+                <ComposerPrimitive.Cancel asChild>
+                  <button
+                    type="button"
+                    aria-label="Stop generating"
+                    className="bg-primary text-primary-foreground grid size-8 place-items-center rounded-full"
+                  >
+                    <SquareIcon className="size-3.5 fill-current" />
+                  </button>
+                </ComposerPrimitive.Cancel>
+              </AuiIf>
+            </div>
+          </div>
         </div>
-      </div>
+      </ComposerPrimitive.AttachmentDropzone>
     </ComposerPrimitive.Root>
   );
 }
+
+function SpecimenEditComposer(): ReactNode {
+  return (
+    <MessagePrimitive.Root
+      data-role="user"
+      className="mx-auto flex w-full max-w-(--thread-max-width) flex-col items-end"
+    >
+      <ComposerPrimitive.Root className="border-foreground/10 bg-muted/25 focus-within:border-foreground/25 rounded-thread flex w-full max-w-[85%] flex-col border transition-colors">
+        <ComposerPrimitive.Input asChild>
+          <textarea
+            autoFocus
+            aria-label="Edit message"
+            rows={1}
+            className="field-sizing-content max-h-48 min-h-12 w-full resize-none bg-transparent px-4 pt-3.5 pb-1 text-[15px] leading-6 focus:outline-none"
+          />
+        </ComposerPrimitive.Input>
+        <div className="flex items-center justify-end gap-1.5 px-2.5 pb-2.5">
+          <ComposerPrimitive.Cancel asChild>
+            <button
+              type="button"
+              className="text-muted-foreground hover:text-foreground rounded-control h-8 px-3 text-[13px] transition-colors"
+            >
+              Cancel
+            </button>
+          </ComposerPrimitive.Cancel>
+          <ComposerPrimitive.Send asChild>
+            <button
+              type="button"
+              className="bg-primary text-primary-foreground rounded-control h-8 px-3 text-[13px] font-medium transition-opacity disabled:opacity-40"
+            >
+              Update
+            </button>
+          </ComposerPrimitive.Send>
+        </div>
+      </ComposerPrimitive.Root>
+    </MessagePrimitive.Root>
+  );
+}
+
+const UserFilePart: FileMessagePartComponent = (part) => (
+  <div className="py-1">
+    <File {...part} />
+  </div>
+);
+
+const UserImagePart: ImageMessagePartComponent = (part) => (
+  <div className="py-1">
+    <Image {...part} />
+  </div>
+);
 
 function SpecimenUserMessage(): ReactNode {
   return (
@@ -489,9 +625,29 @@ function SpecimenUserMessage(): ReactNode {
       <div className="w-full has-[.aui-attachment-root]:mb-2">
         <UserMessageAttachments />
       </div>
-      <div className="bg-muted rounded-thread max-w-[80%] px-4 py-2 text-[15px] wrap-break-word empty:hidden">
-        <MessagePrimitive.Parts />
+      <div className="relative max-w-[80%]">
+        <div className="bg-muted rounded-thread px-4 py-2 text-[15px] wrap-break-word empty:hidden">
+          <MessagePrimitive.Quote>
+            {(quote) => <QuoteBlock {...quote} />}
+          </MessagePrimitive.Quote>
+          <MessagePrimitive.Parts
+            components={{ File: UserFilePart, Image: UserImagePart }}
+          />
+        </div>
+        <ActionBarPrimitive.Root
+          hideWhenRunning
+          autohide="not-last"
+          className="absolute start-0 top-1/2 -translate-x-full -translate-y-1/2 pe-1.5"
+        >
+          <ActionBarPrimitive.Edit
+            aria-label="Edit message"
+            className={actionButtonClass}
+          >
+            <PencilIcon className="size-4" />
+          </ActionBarPrimitive.Edit>
+        </ActionBarPrimitive.Root>
       </div>
+      <SpecimenBranchPicker className="-me-1 mt-1" />
     </MessagePrimitive.Root>
   );
 }
@@ -514,39 +670,169 @@ function SpecimenAssistantMessage(): ReactNode {
             if (part.type === "tool-call")
               return part.toolUI ?? <SpecimenToolCall {...part} />;
             if (part.type === "data") return part.dataRendererUI;
+            if (part.type === "image")
+              return (
+                <div className="py-1">
+                  <Image {...part} />
+                </div>
+              );
+            if (part.type === "file")
+              return (
+                <div className="py-1">
+                  <File {...part} />
+                </div>
+              );
             return null;
           }}
         </MessagePrimitive.Parts>
-        <MessagePrimitive.Error>
-          <ErrorPrimitive.Root className="border-destructive/60 text-destructive mt-2 border-l-2 pl-3 text-[12.5px]">
-            <ErrorPrimitive.Message className="line-clamp-2" />
-          </ErrorPrimitive.Root>
-        </MessagePrimitive.Error>
+        <SpecimenMessageError />
       </div>
-      <ActionBarPrimitive.Root
-        hideWhenRunning
-        autohide="not-last"
-        className="mt-2 flex items-center gap-1.5"
-      >
-        <ActionBarPrimitive.Copy
-          aria-label="Copy response"
-          className="text-muted-foreground/70 hover:text-foreground p-1 transition-colors"
-        >
-          <AuiIf condition={(s) => s.message.isCopied}>
-            <CheckIcon className="size-4" />
-          </AuiIf>
-          <AuiIf condition={(s) => !s.message.isCopied}>
-            <CopyIcon className="size-4" />
-          </AuiIf>
-        </ActionBarPrimitive.Copy>
-        <ActionBarPrimitive.Reload
-          aria-label="Regenerate response"
-          className="text-muted-foreground/70 hover:text-foreground p-1 transition-colors"
-        >
-          <RefreshCwIcon className="size-4" />
-        </ActionBarPrimitive.Reload>
-      </ActionBarPrimitive.Root>
+      <div className="mt-2 flex items-center gap-1.5 empty:hidden">
+        <SpecimenBranchPicker />
+        <SpecimenAssistantActionBar />
+      </div>
     </MessagePrimitive.Root>
+  );
+}
+
+function SpecimenMessageError(): ReactNode {
+  const errorText = useAuiState(getMessageErrorText);
+  const notice =
+    errorText === undefined
+      ? undefined
+      : describePublicAssistantError(errorText);
+
+  return (
+    <MessagePrimitive.Error>
+      <ErrorPrimitive.Root
+        className={cn(
+          "mt-2 border-l-2 pl-3 text-[12.5px]",
+          notice
+            ? "border-foreground/20 text-muted-foreground"
+            : "border-destructive/60 text-destructive",
+        )}
+      >
+        {notice ? (
+          <p>{notice}</p>
+        ) : (
+          <ErrorPrimitive.Message className="line-clamp-2" />
+        )}
+      </ErrorPrimitive.Root>
+    </MessagePrimitive.Error>
+  );
+}
+
+function SpecimenAssistantActionBar(): ReactNode {
+  const [feedbackOpen, setFeedbackOpen] = useState(false);
+
+  return (
+    <ActionBarPrimitive.Root
+      hideWhenRunning
+      autohide={feedbackOpen ? "never" : "not-last"}
+      className="flex items-center gap-1.5"
+    >
+      <ActionBarPrimitive.Copy
+        aria-label="Copy response"
+        className={actionButtonClass}
+      >
+        <AuiIf condition={(s) => s.message.isCopied}>
+          <CheckIcon className="size-4" />
+        </AuiIf>
+        <AuiIf condition={(s) => !s.message.isCopied}>
+          <CopyIcon className="size-4" />
+        </AuiIf>
+      </ActionBarPrimitive.Copy>
+      <FeedbackActions surface="home_thread" onOpenChange={setFeedbackOpen} />
+      <AuiIf
+        condition={(s) =>
+          s.thread.capabilities.speech && s.message.speech == null
+        }
+      >
+        <ActionBarPrimitive.Speak
+          aria-label="Read aloud"
+          className={actionButtonClass}
+        >
+          <Volume2Icon className="size-4" />
+        </ActionBarPrimitive.Speak>
+      </AuiIf>
+      <AuiIf condition={(s) => s.message.speech != null}>
+        <ActionBarPrimitive.StopSpeaking
+          aria-label="Stop reading"
+          className={cn(actionButtonClass, "text-foreground")}
+        >
+          <SquareIcon className="size-3.5 fill-current" />
+        </ActionBarPrimitive.StopSpeaking>
+      </AuiIf>
+      <ActionBarPrimitive.Reload
+        aria-label="Regenerate response"
+        className={actionButtonClass}
+      >
+        <RefreshCwIcon className="size-4" />
+      </ActionBarPrimitive.Reload>
+      <ActionBarMorePrimitive.Root>
+        <ActionBarMorePrimitive.Trigger asChild>
+          <button
+            type="button"
+            aria-label="More actions"
+            className={cn(
+              actionButtonClass,
+              "data-[state=open]:text-foreground",
+            )}
+          >
+            <MoreHorizontalIcon className="size-4" />
+          </button>
+        </ActionBarMorePrimitive.Trigger>
+        <ActionBarMorePrimitive.Content
+          side="bottom"
+          align="start"
+          sideOffset={6}
+          className={menuContentClass}
+        >
+          <ActionBarPrimitive.ExportMarkdown asChild>
+            <ActionBarMorePrimitive.Item className={menuItemClass}>
+              <DownloadIcon className="size-3.5" />
+              Export as Markdown
+            </ActionBarMorePrimitive.Item>
+          </ActionBarPrimitive.ExportMarkdown>
+        </ActionBarMorePrimitive.Content>
+      </ActionBarMorePrimitive.Root>
+      <MessageTiming
+        side="bottom"
+        className="text-muted-foreground/70 hover:text-foreground ms-1 rounded-none p-1 hover:bg-transparent"
+      />
+    </ActionBarPrimitive.Root>
+  );
+}
+
+function SpecimenBranchPicker({
+  className,
+}: {
+  className?: string;
+}): ReactNode {
+  return (
+    <BranchPickerPrimitive.Root
+      hideWhenSingleBranch
+      className={cn(
+        "text-muted-foreground inline-flex items-center text-[12px] tabular-nums",
+        className,
+      )}
+    >
+      <BranchPickerPrimitive.Previous
+        aria-label="Previous version"
+        className={actionButtonClass}
+      >
+        <ChevronLeftIcon className="size-4" />
+      </BranchPickerPrimitive.Previous>
+      <span className="font-medium">
+        <BranchPickerPrimitive.Number /> / <BranchPickerPrimitive.Count />
+      </span>
+      <BranchPickerPrimitive.Next
+        aria-label="Next version"
+        className={actionButtonClass}
+      >
+        <ChevronRightIcon className="size-4" />
+      </BranchPickerPrimitive.Next>
+    </BranchPickerPrimitive.Root>
   );
 }
 
