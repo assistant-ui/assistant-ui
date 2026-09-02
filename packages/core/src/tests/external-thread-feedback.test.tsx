@@ -153,6 +153,61 @@ describe("ExternalThread feedback", () => {
     ).toEqual({ type: "negative" });
   });
 
+  it("keeps thread and message snapshots aligned after non-tail feedback", async () => {
+    const { adapter } = createFakeAdapter();
+    const messages = [
+      ...MESSAGES,
+      {
+        id: "u2",
+        role: "user" as const,
+        content: [{ type: "text" as const, text: "next" }],
+        createdAt: new Date(0),
+        attachments: [],
+        metadata: { custom: {} },
+      },
+    ] as unknown as readonly ExternalThreadMessage[];
+    const { aui, rerender } = renderThreadWithProps({
+      feedbackAdapter: adapter,
+      messages,
+    });
+
+    await act(async () => {
+      aui().thread.message({ id: "a1" }).submitFeedback({ type: "positive" });
+    });
+
+    expect(
+      aui().thread.getState().messages[1]?.metadata.submittedFeedback,
+    ).toEqual({ type: "positive" });
+    expect(
+      aui().thread.message({ id: "a1" }).getState().metadata.submittedFeedback,
+    ).toEqual({ type: "positive" });
+
+    const updated = [
+      messages[0]!,
+      messages[1]!,
+      {
+        ...messages[2]!,
+        content: [{ type: "text" as const, text: "updated tail" }],
+      },
+    ] as unknown as readonly ExternalThreadMessage[];
+    await act(async () => {
+      rerender({ feedbackAdapter: adapter, messages: updated });
+    });
+
+    await waitFor(() => {
+      expect(aui().thread.getState().messages[2]?.content[0]).toMatchObject({
+        type: "text",
+        text: "updated tail",
+      });
+    });
+    expect(
+      aui().thread.getState().messages[1]?.metadata.submittedFeedback,
+    ).toEqual({ type: "positive" });
+    expect(
+      aui().thread.message({ id: "a1" }).getState().metadata.submittedFeedback,
+    ).toEqual({ type: "positive" });
+  });
+
   it("re-rates an owner-marked message locally, then honors an owner clear", async () => {
     const { adapter } = createFakeAdapter();
     const ratedMessages = [
