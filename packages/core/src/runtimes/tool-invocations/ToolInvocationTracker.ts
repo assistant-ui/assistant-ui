@@ -148,10 +148,12 @@ export class ToolInvocationTracker {
   /**
    * Set when the assistant-stream pipeline has died (errored out via
    * `.pipeTo(...).catch(...)`). The next `setState` re-initializes the
-   * pipeline and demotes all active entries to restored so they survive
-   * across the restart without re-firing `streamCall` (preserves the
-   * "exactly once" contract). Capped at a single auto-restart per session
-   * — repeated failures keep the tracker dead with a more visible error.
+   * pipeline and demotes each active entry that reached the executor to
+   * restored, so it survives the restart without re-firing `streamCall`.
+   * A restart is an execution boundary like `reset()`: an entry that had
+   * not reached it starts over and fires once there (F.4). Capped at a
+   * single auto-restart per session — repeated failures keep the tracker
+   * dead with a more visible error.
    */
   private _pipelineDead = false;
   private _pipelineRestartUsed = false;
@@ -229,10 +231,10 @@ export class ToolInvocationTracker {
    */
   public setState(snapshot: ToolInvocationTracker.Snapshot): void {
     try {
-      // Recover from a dead pipeline before processing anything. We demote
-      // all active entries to "restored" so the rebuilt pipeline does not
-      // re-fire `streamCall` for tool calls that already fired pre-death;
-      // preserves the "exactly once per toolCallId" contract.
+      // Recover from a dead pipeline before processing anything. Entries
+      // that reached the executor are demoted to "restored" so the rebuilt
+      // pipeline does not re-fire `streamCall` for them; the rest start over
+      // across the boundary the restart opens (F.4).
       if (this._pipelineDead) {
         if (this._pipelineRestartUsed) {
           // Already retried once and failed again. Stay dead.

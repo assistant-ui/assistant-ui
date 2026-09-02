@@ -11,8 +11,9 @@ observe via `setState(snapshot)` and what the current behavior is.
 > result is replaced, result is cleared, key order shuffles — the tracker
 > never invokes the host's tool callback a second time.
 >
-> `reset()` starts a new execution boundary. A reused `toolCallId` in the
-> next boundary gets a new execution identity and may fire once there.
+> `reset()` starts a new execution boundary, and so does the single
+> pipeline restart after a stream failure (F.4). A reused `toolCallId` in
+> the next boundary gets a new execution identity and may fire once there.
 
 This guarantees host-side side effects (the typical reason `streamCall` /
 `execute` exists at all) can't double-run. The cost: post-completion
