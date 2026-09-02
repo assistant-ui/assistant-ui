@@ -1,0 +1,45 @@
+name: Axiom deploy annotation
+
+on:
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: axiom-annotation-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  annotate:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      # Marks the deploy on every Axiom chart this repository's telemetry lands
+      # on, so a latency or error step can be lined up against what shipped.
+      - name: Record the deploy
+        env:
+          AXIOM_TOKEN: ${{ secrets.AXIOM_API_TOKEN }}
+          COMMIT_MESSAGE: ${{ github.event.head_commit.message }}
+          COMMIT_URL: ${{ github.event.head_commit.url }}
+          REPOSITORY: ${{ github.repository }}
+          SHA: ${{ github.sha }}
+        run: |
+          set -euo pipefail
+          if [ -z "${AXIOM_TOKEN:-}" ]; then
+            echo "AXIOM_API_TOKEN is not set; skipping the annotation."
+            exit 0
+          fi
+          jq -nc \
+            --arg time "$(date -u +%Y-%m-%dT%H:%M:%SZ)" \
+            --arg title "${REPOSITORY}@${SHA:0:7}" \
+            --arg description "${COMMIT_MESSAGE%%$'\n'*}" \
+            --arg url "${COMMIT_URL}" \
+            --argjson datasets '["vercel","traces"]' \
+            '{type: "deploy", time: $time, title: $title, description: $description, url: $url, datasets: $datasets}' \
+          | curl --fail-with-body --silent --show-error \
+              -X POST https://api.axiom.co/v2/annotations \
+              -H "Authorization: Bearer ${AXIOM_TOKEN}" \
+              -H "Content-Type: application/json" \
+              --data @-
