@@ -4,7 +4,24 @@ import {
   PUBLIC_ASSISTANT_UNAVAILABLE_MESSAGE,
   describePublicAssistantError,
   publicAssistantLimitMessage,
+  unwrapErrorEnvelope,
 } from "./public-assistant-errors";
+
+describe("unwrapErrorEnvelope", () => {
+  it("returns the envelope's error string and leaves plain text alone", () => {
+    expect(
+      unwrapErrorEnvelope(
+        JSON.stringify({
+          error: "A valid anonymous browser session is required.",
+        }),
+      ),
+    ).toBe("A valid anonymous browser session is required.");
+    expect(unwrapErrorEnvelope("Failed to fetch the chat response.")).toBe(
+      "Failed to fetch the chat response.",
+    );
+    expect(unwrapErrorEnvelope("{not json")).toBe("{not json");
+  });
+});
 
 describe("describePublicAssistantError", () => {
   it("recognises every limit message the public routes emit", () => {

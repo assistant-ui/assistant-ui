@@ -24,7 +24,8 @@ const LIMIT_MESSAGES = new Set<string>(
   PUBLIC_ASSISTANT_LIMITS.map(publicAssistantLimitMessage),
 );
 
-const unwrapErrorEnvelope = (text: string): string => {
+/** Reads the human readable message out of a JSON `{ error }` envelope. */
+export const unwrapErrorEnvelope = (text: string): string => {
   const body = text.trim();
   if (!body.startsWith("{")) return body;
   try {

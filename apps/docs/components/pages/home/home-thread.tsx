@@ -63,7 +63,10 @@ import {
   useToolDuration,
 } from "@/components/shared/trace-line";
 import { typeEyebrow } from "@/components/shared/type";
-import { describePublicAssistantError } from "@/lib/public-assistant-errors";
+import {
+  describePublicAssistantError,
+  unwrapErrorEnvelope,
+} from "@/lib/public-assistant-errors";
 import { cn } from "@/lib/utils";
 
 const isNewChatView = (s: AssistantState) =>
@@ -705,6 +708,8 @@ function SpecimenMessageError(): ReactNode {
       >
         {notice ? (
           <p>{notice}</p>
+        ) : errorText !== undefined ? (
+          <p className="line-clamp-2">{unwrapErrorEnvelope(errorText)}</p>
         ) : (
           <ErrorPrimitive.Message className="line-clamp-2" />
         )}
