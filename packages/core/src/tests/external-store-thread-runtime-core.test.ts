@@ -604,12 +604,18 @@ describe("ExternalStoreThreadRuntimeCore - tail updates", () => {
         content: [{ type: "text" as const, text: "updated" }],
       },
     ];
+    const getMessages = vi.spyOn(MessageRepository.prototype, "getMessages");
 
-    runtime.__internal_setAdapter(makeStore({ messages: updated }));
+    try {
+      runtime.__internal_setAdapter(makeStore({ messages: updated }));
 
-    expect(runtime.messages).not.toBe(updated);
-    updated.pop();
-    expect(runtime.messages).toHaveLength(2);
+      expect(getMessages).not.toHaveBeenCalled();
+      expect(runtime.messages).not.toBe(updated);
+      updated.pop();
+      expect(runtime.messages).toHaveLength(2);
+    } finally {
+      getMessages.mockRestore();
+    }
   });
 
   it("does not reuse host-mutated ready messages from an earlier input array", () => {

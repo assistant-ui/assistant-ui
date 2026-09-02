@@ -523,9 +523,7 @@ export class ExternalStoreThreadRuntimeCore
         // addOrUpdateMessage invalidates the repository's branch cache, so
         // reading it here would rebuild the full chain. The converter owns
         // this array and the guard proved its prefix matches that chain.
-        this._messages = store.convertMessage
-          ? messages
-          : this.repository.getMessages();
+        this._messages = store.convertMessage ? messages : messages.slice();
         this._runTrackerUpdate(() => this._driveToolInvocations());
         this._notifyMessageUpdates([tail.id]);
         return;
