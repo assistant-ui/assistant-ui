@@ -81,8 +81,6 @@ describe("local runtime commit shape", () => {
       gates[i]!();
       await until(() => counter.renders("text") >= textBefore + 1);
     }
-    await until(() => !runtime.thread.getState().isRunning);
-    await new Promise((resolve) => setTimeout(resolve, 0));
 
     const delta = Object.fromEntries(
       Object.entries(counter.snapshot()).map(([k, v]) => [
@@ -91,12 +89,14 @@ describe("local runtime commit shape", () => {
       ]),
     );
 
-    // Each yielded chunk costs one commit and one text render. The message
-    // wrapper and rendered content remain stable when the run completes.
+    // Mid-stream, each yielded chunk costs one commit and one text render with
+    // the message wrapper untouched; the boundaries add the rest: the first
+    // chunk also swaps the synthetic empty running part for the real one, and
+    // run completion flips part status, re-rendering text and the wrapper.
     expect(delta).toEqual({
-      "commits:thread": TOKENS,
-      "renders:text": TOKENS,
-      "renders:message": 0,
+      "commits:thread": TOKENS + 1,
+      "renders:text": TOKENS + 2,
+      "renders:message": 2,
     });
 
     flushSync(() => root.unmount());

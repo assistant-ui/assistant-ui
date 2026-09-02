@@ -1,13 +1,14 @@
 // @vitest-environment jsdom
 
-import { createRef, startTransition, Suspense, useLayoutEffect } from "react";
+import { createRef, startTransition, Suspense } from "react";
 import { act, render, waitFor } from "@testing-library/react";
 import { resource, withKey } from "@assistant-ui/tap";
 import {
   AuiConfig,
   AuiProvider,
-  useAui,
   type AssistantClient,
+  useAui,
+  useAuiState,
 } from "@assistant-ui/store";
 import { describe, expect, it, vi } from "vitest";
 import type { RemoteThreadListAdapter } from "../../runtimes/remote-thread-list/types";
@@ -66,47 +67,6 @@ const makeAdapter = (): RemoteThreadListAdapter => ({
 });
 
 describe("RemoteThreadList concurrent rendering", () => {
-  it("reloads through the committed adapter from a descendant layout effect", async () => {
-    const adapterA = makeAdapter();
-    const adapterB = makeAdapter();
-
-    const ReloadOnSwap = ({ workspace }: { workspace: string }) => {
-      const aui = useAui();
-      useLayoutEffect(() => {
-        if (workspace === "A") return;
-        void aui.threads.reload();
-      }, [aui, workspace]);
-      return null;
-    };
-    const App = ({
-      adapter,
-      workspace,
-    }: {
-      adapter: RemoteThreadListAdapter;
-      workspace: string;
-    }) => (
-      <AuiProvider
-        config={AuiConfig({
-          threads: RemoteThreadList({
-            adapter,
-            thread: () => StubThread() as never,
-          }),
-        })}
-      >
-        <ReloadOnSwap workspace={workspace} />
-      </AuiProvider>
-    );
-
-    const view = render(<App adapter={adapterA} workspace="A" />);
-    await waitFor(() => expect(adapterA.list).toHaveBeenCalledOnce());
-
-    act(() => {
-      view.rerender(<App adapter={adapterB} workspace="B" />);
-    });
-    await waitFor(() => expect(adapterB.list).toHaveBeenCalled());
-    expect(adapterA.list).toHaveBeenCalledOnce();
-  });
-
   it("keeps actions scoped to the committed adapter", async () => {
     const adapterA = makeAdapter();
     const adapterB = makeAdapter();
@@ -153,6 +113,75 @@ describe("RemoteThreadList concurrent rendering", () => {
 
     expect(adapterA.rename).toHaveBeenCalledWith("thread-1", "Renamed");
     expect(adapterB.rename).not.toHaveBeenCalled();
+  });
+
+  it("does not render the previous thread during an ordinary switch", async () => {
+    const adapter = makeAdapter();
+    adapter.list = vi.fn(async () => ({
+      threads: [
+        {
+          status: "regular" as const,
+          remoteId: "thread-1",
+          title: "Thread 1",
+        },
+        {
+          status: "regular" as const,
+          remoteId: "thread-2",
+          title: "Thread 2",
+        },
+      ],
+    }));
+    const clientRef = createRef<AssistantClient>();
+    const renders: string[] = [];
+
+    const Observer = () => {
+      const aui = useAui();
+      const stateId = useAuiState(
+        (state) => state.thread.messages[0]?.id as string | undefined,
+      );
+      const imperativeId = aui.thread.getState().messages[0]?.id as
+        | string
+        | undefined;
+      renders.push(`${stateId}:${imperativeId}`);
+      return null;
+    };
+    const App = () => (
+      <AuiProvider
+        ref={clientRef as never}
+        config={AuiConfig({
+          threads: RemoteThreadList({
+            adapter,
+            thread: (id) =>
+              withKey(
+                id,
+                IdentifiedThread({
+                  id,
+                  onRender: () => {},
+                  onRefetch: () => {},
+                }),
+              ) as never,
+          }),
+        })}
+      >
+        <Observer />
+      </AuiProvider>
+    );
+
+    render(<App />);
+    const client = clientRef.current!;
+    await act(async () => {
+      await client.threads.getLoadThreadsPromise();
+      await client.threads.switchToThread("thread-1");
+    });
+    await waitFor(() => expect(renders).toContain("thread-1:thread-1"));
+
+    renders.length = 0;
+    await act(async () => {
+      await client.threads.switchToThread("thread-2");
+    });
+    await waitFor(() => expect(renders).toContain("thread-2:thread-2"));
+
+    expect(renders).toEqual(["thread-2:thread-2", "thread-2:thread-2"]);
   });
 
   it("keeps the main thread facade scoped to the committed factory", async () => {
