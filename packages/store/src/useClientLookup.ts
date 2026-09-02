@@ -16,12 +16,14 @@ export function useClientLookup<TMethods extends ClientMethods>(
   state: InferClientState<TMethods>[];
   get: (lookup: { index: number } | { key: string }) => TMethods;
 } {
-  const resources = useResources(
-    // Forward each element's bailout deps so an unchanged child is reused.
-    elements.map((el) =>
-      withKey(getElementKey(el), ClientResource(el), el.deps),
-    ),
+  const clientElements = useMemo(
+    () =>
+      elements.map((el) =>
+        withKey(getElementKey(el), ClientResource(el), el.deps),
+      ),
+    [elements],
   );
+  const resources = useResources(clientElements);
 
   const keyToIndex = useMemo(() => {
     return elements.reduce(

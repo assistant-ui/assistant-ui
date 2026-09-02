@@ -11,15 +11,48 @@ import {
   handleIntrospectionProp,
 } from "./utils/BaseProxyHandler";
 import { INSTANCE_TAG_SYMBOL } from "./utils/client-accessor";
+import { useAssistantClientDestroySignal } from "./utils/tap-assistant-context";
+import { shallowEqual } from "./utils/shallow-equal";
 
 /**
  * Symbol used internally to get state from ClientProxy.
  * This allows getState() to be optional in the user-facing client.
  */
 const SYMBOL_GET_OUTPUT = Symbol("assistant-ui.store.getValue");
+const SYMBOL_SUBSCRIBE = Symbol("assistant-ui.store.subscribe");
 
 type ClientInternal = {
   [SYMBOL_GET_OUTPUT]: ClientMethods;
+  [SYMBOL_SUBSCRIBE]?: ((callback: () => void) => () => void) | undefined;
+};
+
+let clientDependencyCollector: Set<ClientMethods> | null = null;
+
+export const collectClientDependencies = <T>(callback: () => T) => {
+  const previousCollector = clientDependencyCollector;
+  const dependencies = new Set<ClientMethods>();
+  clientDependencyCollector = dependencies;
+  try {
+    return { value: callback(), dependencies: [...dependencies] };
+  } finally {
+    clientDependencyCollector = previousCollector;
+    if (previousCollector) {
+      for (const dependency of dependencies) {
+        previousCollector.add(dependency);
+      }
+    }
+  }
+};
+
+export const trackClientDependency = (client: ClientMethods) => {
+  clientDependencyCollector?.add(client);
+};
+
+export const subscribeToClient = (
+  client: ClientMethods,
+  callback: () => void,
+) => {
+  return (client as unknown as ClientInternal)[SYMBOL_SUBSCRIBE]?.(callback);
 };
 
 export const getClientState = (client: ClientMethods) => {
@@ -31,6 +64,12 @@ export const getClientState = (client: ClientMethods) => {
     );
   }
   return (output as any).getState?.();
+};
+
+const isShallowComparable = (value: object) => {
+  if (Array.isArray(value)) return true;
+  const prototype = Object.getPrototypeOf(value);
+  return prototype === Object.prototype || prototype === null;
 };
 
 // Global cache for function templates by field name
@@ -63,7 +102,13 @@ function getOrCreateProxyFn(prop: string | symbol) {
         throw new Error(`Method "${String(prop)}" is not implemented.`);
       if (typeof method !== "function")
         throw new Error(`"${String(prop)}" is not a function.`);
-      return method(...args);
+      const result = method(...args);
+      const returnsClient =
+        result !== null &&
+        (typeof result === "object" || typeof result === "function") &&
+        INSTANCE_TAG_SYMBOL in result;
+      if (!returnsClient) trackClientDependency(this as ClientMethods);
+      return result;
     };
     fieldAccessFns.set(prop, template);
   }
@@ -84,6 +129,9 @@ class ClientProxyHandler
   };
   private readonly tagRef: { current: object };
   private readonly index: number;
+  private readonly subscribe:
+    | ((callback: () => void) => () => void)
+    | undefined;
 
   constructor(
     outputRef: {
@@ -91,15 +139,18 @@ class ClientProxyHandler
     },
     tagRef: { current: object },
     index: number,
+    subscribe: ((callback: () => void) => () => void) | undefined,
   ) {
     super();
     this.outputRef = outputRef;
     this.tagRef = tagRef;
     this.index = index;
+    this.subscribe = subscribe;
   }
 
   get(_: unknown, prop: string | symbol, receiver: unknown) {
     if (prop === SYMBOL_GET_OUTPUT) return this.outputRef.current;
+    if (prop === SYMBOL_SUBSCRIBE) return this.subscribe;
     if (prop === SYMBOL_CLIENT_INDEX) return this.index;
     if (prop === INSTANCE_TAG_SYMBOL) return this.tagRef.current;
     const introspection = handleIntrospectionProp(prop, "ClientProxy");
@@ -129,6 +180,7 @@ class ClientProxyHandler
 
   has(_: unknown, prop: string | symbol) {
     if (prop === SYMBOL_GET_OUTPUT) return true;
+    if (prop === SYMBOL_SUBSCRIBE) return true;
     if (prop === SYMBOL_CLIENT_INDEX) return true;
     if (prop === INSTANCE_TAG_SYMBOL) return true;
     return prop in this.outputRef.current;
@@ -144,6 +196,22 @@ export const useClientResource = <TMethods extends ClientMethods>(
 } => {
   const valueRef = useRef(null as unknown as TMethods);
   const tagRef = useRef(null as unknown as object);
+  const subscribers = useMemo(() => new Set<() => void>(), []);
+  // Standalone Vue and Svelte scopes use createLastValidCache, whose shrink
+  // recovery requires every store notification. React scopes do not use that
+  // cache and can subscribe directly to only the clients their selector reads.
+  const directSubscriptionsEnabled =
+    useAssistantClientDestroySignal() === undefined;
+  const subscribe = useMemo(
+    () =>
+      directSubscriptionsEnabled
+        ? (callback: () => void) => {
+            subscribers.add(callback);
+            return () => subscribers.delete(callback);
+          }
+        : undefined,
+    [directSubscriptionsEnabled, subscribers],
+  );
 
   // The fiber behind useResource is keyed on (hook, key), so the underlying
   // instance is replaced exactly when either changes. The tag mirrors that
@@ -158,14 +226,16 @@ export const useClientResource = <TMethods extends ClientMethods>(
     () =>
       new Proxy<TMethods>(
         {} as TMethods,
-        new ClientProxyHandler(valueRef, tagRef, index),
+        new ClientProxyHandler(valueRef, tagRef, index, subscribe),
       ),
-    [index],
+    [index, subscribe],
   );
 
   const value = useClientStackProvider(methods, function WithClientStack() {
     return useResource(element);
   });
+  const state = (value as any).getState?.();
+  const stateRef = useRef(state);
 
   if (!valueRef.current) {
     valueRef.current = value;
@@ -173,11 +243,35 @@ export const useClientResource = <TMethods extends ClientMethods>(
   }
 
   useEffect(() => {
+    const previousState = stateRef.current;
+    // Plain immutable snapshots can suppress equivalent updates by their
+    // top-level fields. Other state shapes use identity because Object.keys
+    // does not describe class instances or prototype-backed properties.
+    const stateChanged =
+      !Object.is(previousState, state) &&
+      (typeof previousState !== "object" ||
+        previousState === null ||
+        typeof state !== "object" ||
+        state === null ||
+        !isShallowComparable(previousState) ||
+        !isShallowComparable(state) ||
+        !shallowEqual(previousState, state));
+    const changed = tagRef.current !== instanceTag || stateChanged;
     valueRef.current = value;
     tagRef.current = instanceTag;
-  });
+    stateRef.current = state;
+    if (changed) {
+      for (const callback of subscribers) callback();
+    }
+  }, [instanceTag, state, subscribers, value]);
 
-  const state = (value as any).getState?.();
+  useEffect(
+    () => () => {
+      for (const callback of subscribers) callback();
+    },
+    [subscribers],
+  );
+
   return { methods, state, key: element.key };
 };
 

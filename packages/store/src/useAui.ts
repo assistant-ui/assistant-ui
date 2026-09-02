@@ -295,9 +295,13 @@ export const useAuiRoot = ({
 }): { client: AssistantClient } => {
   const fields = useClientFields({ notifications, clientRef });
   const building = createClientObject(parent, fields);
+  const tapContext = useMemo(
+    () => ({ clientRef, emit: notifications.emit, destroySignal }),
+    [clientRef, notifications, destroySignal],
+  );
 
   const accessors = useAssistantTapContextProvider(
-    { clientRef, emit: notifications.emit, destroySignal },
+    tapContext,
     function WithTapContext() {
       return useAssistantContextProvider(
         building,

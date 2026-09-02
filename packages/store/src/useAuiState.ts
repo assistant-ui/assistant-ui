@@ -1,14 +1,20 @@
-import { useSyncExternalStore, useDebugValue } from "react";
+import { useSyncExternalStore, useDebugValue, useMemo } from "react";
 import type { AssistantState } from "./types/client";
 import { useAui } from "./useAui";
-import { getProxiedAssistantState } from "./utils/proxied-assistant-state";
+import {
+  collectAssistantStateDependencies,
+  getProxiedAssistantState,
+} from "./utils/proxied-assistant-state";
+import { subscribeToClient } from "./useClientResource";
+import { useShallowStable } from "./utils/useShallowStable";
+import type { ClientMethods } from "./types/client";
 
 /**
  * Subscribes to a slice of {@link AssistantState} and re-renders the
  * component whenever that slice changes.
  *
- * The `selector` is called on every store update; its return value is
- * compared by `Object.is`, and the component re-renders only when the
+ * The `selector` is called when a scope it reads updates; its return value
+ * is compared by `Object.is`, and the component re-renders only when the
  * selected slice changes. Returning the entire state object is not
  * supported and throws at runtime — select a specific field instead, or
  * compose multiple `useAuiState` calls. Returning a new object or array
@@ -38,12 +44,41 @@ import { getProxiedAssistantState } from "./utils/proxied-assistant-state";
  * const canSend = useAuiState((s) => s.composer.canSend);
  * ```
  */
-export const useAuiState = <T>(selector: (state: AssistantState) => T): T => {
+export const useAuiState = <T>(selector: (state: AssistantState) => T): T =>
+  useAuiStateImpl(selector);
+
+const useAuiStateImpl = <T>(
+  selector: (state: AssistantState) => T,
+  providedDependencies?: readonly ClientMethods[],
+): T => {
   const aui = useAui();
   const proxiedState = getProxiedAssistantState(aui);
+  const dependencies = useShallowStable(
+    providedDependencies ??
+      collectAssistantStateDependencies(() => selector(proxiedState))
+        .dependencies,
+  );
+  const subscribe = useMemo(() => {
+    return (callback: () => void) => {
+      if (dependencies.length === 0) return aui.subscribe(callback);
+
+      const unsubscribers: Array<() => void> = [];
+      for (const dependency of dependencies) {
+        const unsubscribe = subscribeToClient(dependency, callback);
+        if (!unsubscribe) {
+          for (const unsubscribeClient of unsubscribers) unsubscribeClient();
+          return aui.subscribe(callback);
+        }
+        unsubscribers.push(unsubscribe);
+      }
+      return () => {
+        for (const unsubscribe of unsubscribers) unsubscribe();
+      };
+    };
+  }, [aui, dependencies]);
 
   const slice = useSyncExternalStore(
-    aui.subscribe,
+    subscribe,
     () => selector(proxiedState),
     () => selector(proxiedState),
   );
@@ -63,3 +98,8 @@ export const useAuiState = <T>(selector: (state: AssistantState) => T): T => {
 
   return slice;
 };
+
+export const useAuiStateWithDependencies = <T>(
+  selector: (state: AssistantState) => T,
+  dependencies: readonly ClientMethods[] | undefined,
+): T => useAuiStateImpl(selector, dependencies);

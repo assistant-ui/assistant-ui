@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
 
 import type { ReactNode } from "react";
-import { useState } from "react";
+import { useMemo, useRef, useState } from "react";
 import { act, renderHook } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { flushTapSync, resource } from "@assistant-ui/tap";
@@ -22,6 +22,39 @@ const useCounterClient = () => {
   };
 };
 const CounterClient = resource(useCounterClient);
+
+const useStableCounterClient = () => {
+  const [, setVersion] = useState(0);
+  const stateRef = useRef({ count: 1 });
+  return useMemo(
+    () => ({
+      getState: () => stateRef.current,
+      setCount: (count: number) => {
+        stateRef.current = { count };
+        setVersion((version) => version + 1);
+      },
+    }),
+    [setVersion],
+  );
+};
+const StableCounterClient = resource(useStableCounterClient);
+
+class CounterState {
+  constructor(count: number) {
+    Object.defineProperty(this, "count", { value: count });
+  }
+
+  declare readonly count: number;
+}
+
+const useClassStateCounterClient = () => {
+  const [count, setCount] = useState(1);
+  return {
+    getState: () => new CounterState(count),
+    setCount,
+  };
+};
+const ClassStateCounterClient = resource(useClassStateCounterClient);
 
 const createRealClientWrapper = () => {
   let aui!: Record<string, any>;
@@ -92,6 +125,84 @@ describe("store hooks", () => {
     });
 
     expect(result.current).toBe(2);
+  });
+
+  it("useAuiState updates when client methods keep the same identity", () => {
+    let aui!: Record<string, any>;
+    function Wrapper({ children }: { children: ReactNode }) {
+      const client = useAui({
+        counter: StableCounterClient(),
+      } as unknown as useAui.Props);
+      aui = client;
+      return <AuiProvider value={client}>{children}</AuiProvider>;
+    }
+
+    const { result } = renderHook(
+      () => useAuiState((state: any) => state.counter.count),
+      { wrapper: Wrapper },
+    );
+
+    act(() => {
+      flushTapSync(() => aui.counter.setCount(2));
+    });
+
+    expect(result.current).toBe(2);
+  });
+
+  it("useAuiState updates for non-plain client state", () => {
+    let aui!: Record<string, any>;
+    function Wrapper({ children }: { children: ReactNode }) {
+      const client = useAui({
+        counter: ClassStateCounterClient(),
+      } as unknown as useAui.Props);
+      aui = client;
+      return <AuiProvider value={client}>{children}</AuiProvider>;
+    }
+
+    const { result } = renderHook(
+      () => useAuiState((state: any) => state.counter.count),
+      { wrapper: Wrapper },
+    );
+
+    act(() => {
+      flushTapSync(() => aui.counter.setCount(2));
+    });
+
+    expect(result.current).toBe(2);
+  });
+
+  it("useAuiState only evaluates selectors for scopes that changed", () => {
+    let aui!: Record<string, any>;
+    function Wrapper({ children }: { children: ReactNode }) {
+      const client = useAui({
+        counter: CounterClient(),
+        other: CounterClient(),
+      } as unknown as useAui.Props);
+      aui = client;
+      return <AuiProvider value={client}>{children}</AuiProvider>;
+    }
+    const selector = vi.fn((state: any) => state.counter.count);
+
+    const { result } = renderHook(() => useAuiState(selector), {
+      wrapper: Wrapper,
+    });
+    selector.mockClear();
+
+    act(() => {
+      flushTapSync(() => aui.other.setCount(2));
+    });
+    expect(selector).not.toHaveBeenCalled();
+
+    act(() => {
+      flushTapSync(() => aui.counter.setCount(3));
+    });
+    expect(result.current).toBe(3);
+
+    selector.mockClear();
+    act(() => {
+      flushTapSync(() => aui.other.setCount(4));
+    });
+    expect(selector).not.toHaveBeenCalled();
   });
 
   it("useAuiState throws when selector returns full state", () => {

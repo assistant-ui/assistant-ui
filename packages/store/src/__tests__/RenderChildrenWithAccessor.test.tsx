@@ -1,10 +1,12 @@
 // @vitest-environment jsdom
 
-import type { ReactNode } from "react";
+import { type ReactNode, useMemo, useSyncExternalStore } from "react";
 import { act, render } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
+import { flushTapSync, resource } from "@assistant-ui/tap";
 import { AuiProvider } from "../AuiProvider";
 import { RenderChildrenWithAccessor } from "../RenderChildrenWithAccessor";
+import { useAui } from "../useAui";
 
 afterEach(() => {
   vi.restoreAllMocks();
@@ -124,5 +126,62 @@ describe("RenderChildrenWithAccessor", () => {
     });
 
     expect(renderSpy.mock.calls.length).toBe(initialRenderCount);
+  });
+
+  it("tracks scopes read through methods other than getState", () => {
+    const createStore = () => {
+      let state = { value: 1 };
+      const listeners = new Set<() => void>();
+      return {
+        getSnapshot: () => state,
+        subscribe: (listener: () => void) => {
+          listeners.add(listener);
+          return () => listeners.delete(listener);
+        },
+        setValue: (value: number) => {
+          state = { value };
+          for (const listener of listeners) listener();
+        },
+      };
+    };
+    const createReadableClient = (store: ReturnType<typeof createStore>) =>
+      resource(function useReadableClient() {
+        const value = useSyncExternalStore(store.subscribe, store.getSnapshot);
+        return useMemo(
+          () => ({
+            getState: () => value,
+            readState: () => value,
+          }),
+          [value],
+        );
+      });
+    const firstStore = createStore();
+    const secondStore = createStore();
+    const FirstClient = createReadableClient(firstStore);
+    const SecondClient = createReadableClient(secondStore);
+    function Wrapper({ children }: { children: ReactNode }) {
+      const client = useAui({
+        first: FirstClient(),
+        second: SecondClient(),
+      } as unknown as useAui.Props);
+      return <AuiProvider value={client}>{children}</AuiProvider>;
+    }
+
+    const { container } = render(
+      <RenderChildrenWithAccessor
+        getItemState={(client: any) =>
+          client.first.getState().value + client.second.readState().value
+        }
+      >
+        {(getItem) => <div>{getItem()}</div>}
+      </RenderChildrenWithAccessor>,
+      { wrapper: Wrapper },
+    );
+
+    act(() => {
+      flushTapSync(() => secondStore.setValue(2));
+    });
+
+    expect(container.textContent).toBe("3");
   });
 });

@@ -217,12 +217,12 @@
   },
   "@assistant-ui/store": {
     ".": {
-      "min": 16139,
-      "gzip": 6181
+      "min": 17231,
+      "gzip": 6642
     },
     "./client": {
-      "min": 17074,
-      "gzip": 6381
+      "min": 18109,
+      "gzip": 6854
     },
     "./internal": {
       "min": 843,
