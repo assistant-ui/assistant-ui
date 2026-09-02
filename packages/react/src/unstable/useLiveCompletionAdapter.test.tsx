@@ -62,6 +62,19 @@ describe("unstable_useLiveCompletionAdapter", () => {
     expect(fetcher).not.toHaveBeenCalled();
   });
 
+  it("does not start a queued fetch after unmount", async () => {
+    const fetcher = vi.fn(async () => []);
+    const { result, unmount } = renderHook(() =>
+      unstable_useLiveCompletionAdapter({ fetcher, debounceMs: 0 }),
+    );
+
+    result.current.adapter.search!("alice");
+    unmount();
+    await vi.runAllTimersAsync();
+
+    expect(fetcher).not.toHaveBeenCalled();
+  });
+
   it("does not fetch when disabled and clears cached items", async () => {
     const fetcher = vi.fn(async () => [item("a")]);
     const { result, rerender } = renderHook(
