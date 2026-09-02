@@ -225,9 +225,7 @@ type ExternalStoreAdapterBase<T> = {
   unstable_enableToolInvocations?: boolean | undefined;
   /**
    * Decides whether a tool call's result is produced on the client. Only
-   * consulted when `unstable_enableToolInvocations` is `true`; when omitted,
-   * every call whose name matches a registered tool is treated as
-   * client-owned.
+   * consulted when `unstable_enableToolInvocations` is `true`.
    *
    * A provider that runs tools itself answers its own calls, and its result
    * arrives one or more snapshots after the call's arguments complete. In
@@ -236,6 +234,11 @@ type ExternalStoreAdapterBase<T> = {
    * the provider never asked for. An adapter that can tell the two apart
    * supplies this predicate; it is read once per tool call, when the call is
    * first observed live.
+   *
+   * The predicate is also what licenses running a frontend tool while the
+   * provider's run is still open. Without it, ownership is unknown until the
+   * run ends, so a registered tool executes only once the run's outcome is
+   * known and cannot fire on a call the provider was about to answer or gate.
    */
   unstable_isClientToolCall?:
     | ((toolCall: ToolCallMessagePart) => boolean)

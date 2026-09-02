@@ -92,12 +92,12 @@ in-flight `execute` resolves, the execute runs to completion (its side
 effects happen) but its result chunk is dropped: `onResult` never fires,
 and the `executing` status, plus any `human()` interrupt the execution
 parked, stays up until the promise settles. Only a gate that lands after
-the result chunk has already been emitted is fully too late. An adapter
-whose provider both gates and answers such a call closes that window by
-declaring ownership up front (A.9). A call the client owns and the
-provider gates anyway stays exposed: the client is meant to execute it,
-so nothing but the gate's arrival says otherwise, and the gate is late
-by construction.
+the result chunk has already been emitted is fully too late.
+
+Reaching that window at all takes a call the adapter reports as
+client-owned, because nothing else executes before the run ends (A.10).
+Such a call is the client's to run, so nothing but the gate's arrival says
+otherwise and the gate is late by construction.
 
 ### A.9. Adapter reports the tool call as provider-owned
 The entry is marked `skipExecute` at creation, exactly like a call
@@ -113,18 +113,24 @@ with an `execute` logs a `console.warn`. The two together are a
 misconfiguration: the provider answers the call, so the registered
 `execute` would never run and the skip is otherwise silent.
 
-Without it, a provider that runs tools itself races the tracker. Its
-result arrives one or more snapshots after the call's arguments
-complete, and in that window the call is complete and result-less, so a
-registered tool of the same name executes locally: the frontend side
-effect fires, and the local result is either overwritten by the
-provider's (a plain call) or kept beside a gate the provider raises
-afterwards (#6285).
+The predicate is also what licenses running a frontend tool before the
+provider's run ends, so an adapter that supplies it keeps the overlap
+between a client tool's work and the run tail (A.10).
 
-The predicate decides who answers a call, not whether a call is gated,
-so it closes that window only for calls the provider answers. A gate on
-a call the client owns still arrives after the args complete, and A.8
-governs it (#6677).
+### A.10. Args complete while the provider's run is still open
+Closing the args stream hands the call to the client executor, so it may
+only happen once the provider can no longer speak about that call. A
+provider may still answer the call (A.5) or gate it (A.8) one or more
+snapshots after its arguments complete, and a protocol can carry the
+outcome no earlier: AG-UI projects an interrupt only from `RUN_FINISHED`.
+The run ending is the only universal signal, so a call whose ownership is
+unknown closes when the snapshot's `isRunning` goes false.
+
+A call the adapter reports as client-owned (A.9) closes as soon as its
+arguments parse, because the adapter has already said the provider will
+not answer it. Ownership says who answers a call, not whether it is
+gated, so a gate on such a call is still late and A.8 governs it
+(#6677).
 
 ## B. Tool call disappears from snapshot
 

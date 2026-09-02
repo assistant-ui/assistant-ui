@@ -5503,7 +5503,7 @@ type ToolExecutionStatus = {
 
 declare class ToolInvocationTracker {
   #private;
-  constructor(getTools: () => Record<string, Tool> | undefined, callbacks: ToolInvocationTracker.Callbacks, isClientToolCall?: (toolCall: ToolCallMessagePart) => boolean);
+  constructor(getTools: () => Record<string, Tool> | undefined, callbacks: ToolInvocationTracker.Callbacks, isClientToolCall?: (toolCall: ToolCallMessagePart) => boolean | undefined);
   setState(snapshot: ToolInvocationTracker.Snapshot): void;
   reset(): void;
   abort(): Promise<void>;

@@ -55,6 +55,7 @@ type ToolCallEntry = {
       /** Active phase — chunks are flowing through `controller`. */
       controller: ToolCallStreamController;
       argsComplete: boolean;
+      clientOwned: boolean;
     }
 );
 
@@ -117,9 +118,9 @@ const getToolExecutionId = (value: object): symbol | undefined =>
 export class ToolInvocationTracker {
   private readonly _getTools: () => Record<string, Tool> | undefined;
   private readonly _callbacks: ToolInvocationTracker.Callbacks;
-  private readonly _isClientToolCall: (
-    toolCall: ToolCallMessagePart,
-  ) => boolean;
+  private readonly _isClientToolCall:
+    | ((toolCall: ToolCallMessagePart) => boolean | undefined)
+    | undefined;
 
   private readonly _entries = new Map<string, ToolCallEntry>();
   private readonly _humanInput = new Map<
@@ -158,11 +159,11 @@ export class ToolInvocationTracker {
   constructor(
     getTools: () => Record<string, Tool> | undefined,
     callbacks: ToolInvocationTracker.Callbacks,
-    isClientToolCall?: (toolCall: ToolCallMessagePart) => boolean,
+    isClientToolCall?: (toolCall: ToolCallMessagePart) => boolean | undefined,
   ) {
     this._getTools = getTools;
     this._callbacks = callbacks;
-    this._isClientToolCall = isClientToolCall ?? (() => true);
+    this._isClientToolCall = isClientToolCall;
 
     this._initPipeline();
   }
@@ -583,11 +584,6 @@ export class ToolInvocationTracker {
 
   // ──────────────── internal: snapshot processing ────────────────
 
-  private _hasExecutableTool(toolName: string): boolean {
-    const tool = this._getTools()?.[toolName];
-    return tool?.execute !== undefined || tool?.streamCall !== undefined;
-  }
-
   private _warnProviderOwnedSkip(toolName: string, toolCallId: string): void {
     if (process.env.NODE_ENV === "production") return;
     if (this._getTools()?.[toolName]?.execute === undefined) return;
@@ -597,26 +593,31 @@ export class ToolInvocationTracker {
     );
   }
 
+  /**
+   * Closing the args stream hands the call to the client executor, so it may
+   * only happen once the provider can no longer speak about that call. The run
+   * ending is the only universal signal for that; an adapter that reports the
+   * call as client-owned has said it earlier, per call.
+   */
   private _shouldCloseArgsStream({
-    toolName,
     argsText,
     hasResult,
+    clientOwned,
   }: {
-    toolName: string;
     argsText: string;
     hasResult: boolean;
+    clientOwned: boolean;
   }): boolean {
     if (hasResult) return true;
-    if (!this._hasExecutableTool(toolName)) {
-      return !this._isRunning && isArgsTextComplete(argsText);
-    }
-    return isArgsTextComplete(argsText);
+    if (!isArgsTextComplete(argsText)) return false;
+    return clientOwned || !this._isRunning;
   }
 
   private _startActiveEntry(
     toolCallId: string,
     toolName: string,
     skipExecute: boolean,
+    clientOwned: boolean,
   ): ToolCallEntry {
     const toolCallController = this._controller.addToolCallPart({
       toolName,
@@ -629,6 +630,7 @@ export class ToolInvocationTracker {
       hasResult: false,
       skipExecute,
       argsComplete: false,
+      clientOwned,
     };
     this._entries.set(toolCallId, entry);
     return entry;
@@ -698,9 +700,9 @@ export class ToolInvocationTracker {
           isEquivalentCompleteArgsText(entry.argsText, content.argsText)
         ) {
           const shouldClose = this._shouldCloseArgsStream({
-            toolName: content.toolName,
             argsText: content.argsText,
             hasResult,
+            clientOwned: entry.clientOwned,
           });
           if (shouldClose) entry.controller.argsText.close();
           entry.argsText = content.argsText;
@@ -732,9 +734,9 @@ export class ToolInvocationTracker {
         const delta = content.argsText.slice(entry.argsText.length);
         entry.controller.argsText.append(delta);
         const shouldClose = this._shouldCloseArgsStream({
-          toolName: content.toolName,
           argsText: content.argsText,
           hasResult,
+          clientOwned: entry.clientOwned,
         });
         if (shouldClose) entry.controller.argsText.close();
         entry.argsText = content.argsText;
@@ -747,9 +749,9 @@ export class ToolInvocationTracker {
       // gates on the streamed content; a divergent snapshot (A.2) can be
       // complete while the controller still holds an incomplete stale prefix.
       const shouldClose = this._shouldCloseArgsStream({
-        toolName: content.toolName,
         argsText: entry.argsText,
         hasResult,
+        clientOwned: entry.clientOwned,
       });
       if (shouldClose) {
         entry.controller.argsText.close();
@@ -793,14 +795,16 @@ export class ToolInvocationTracker {
       }
 
       if (!entry) {
+        const ownership = this._isClientToolCall?.(content);
         const providerOwned =
-          content.result === undefined && !this._isClientToolCall(content);
+          content.result === undefined && ownership === false;
         if (providerOwned)
           this._warnProviderOwnedSkip(content.toolName, content.toolCallId);
         entry = this._startActiveEntry(
           content.toolCallId,
           content.toolName,
           content.result !== undefined || providerOwned,
+          ownership === true,
         );
       }
 
