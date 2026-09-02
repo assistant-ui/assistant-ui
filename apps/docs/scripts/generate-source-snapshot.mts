@@ -9,7 +9,7 @@ import {
 const DOCS_ROOT = process.cwd();
 const REPO_ROOT = path.resolve(DOCS_ROOT, "../..");
 const OUTPUT_DIR = path.join(DOCS_ROOT, "generated");
-const OUTPUT_PATH = path.join(OUTPUT_DIR, "source-snapshot.json");
+const OUTPUT_PATH = path.join(OUTPUT_DIR, ".repo-source");
 const READ_CONCURRENCY = 32;
 const SOURCE_SNAPSHOT_EXCLUDE = [
   /pnpm-lock\.yaml$/,
@@ -44,8 +44,10 @@ async function main() {
     );
 
   const snapshot = await buildSnapshot(files);
-  const serialized = JSON.stringify(snapshot);
-  const size = Buffer.byteLength(serialized, "utf-8");
+  const size = Object.values(snapshot).reduce(
+    (total, contents) => total + Buffer.byteLength(contents, "utf-8"),
+    0,
+  );
 
   if (size > SNAPSHOT_BYTE_BUDGET) {
     console.error(formatBudgetError(snapshot, size));
@@ -53,8 +55,24 @@ async function main() {
     return;
   }
 
-  await fs.mkdir(OUTPUT_DIR, { recursive: true });
-  await fs.writeFile(OUTPUT_PATH, serialized);
+  await fs.rm(OUTPUT_PATH, { recursive: true, force: true });
+  await writeSnapshot(snapshot);
+}
+
+async function writeSnapshot(snapshot: Record<string, string>) {
+  const createdDirectories = new Set<string>();
+
+  for (const [filePath, contents] of Object.entries(snapshot)) {
+    const target = path.join(OUTPUT_PATH, filePath);
+    const directory = path.dirname(target);
+
+    if (!createdDirectories.has(directory)) {
+      await fs.mkdir(directory, { recursive: true });
+      createdDirectories.add(directory);
+    }
+
+    await fs.writeFile(target, contents);
+  }
 }
 
 async function buildSnapshot(files: string[]) {

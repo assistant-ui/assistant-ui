@@ -1,61 +1,9 @@
-import { readFileSync } from "node:fs";
-import path from "node:path";
-import { createBashTool } from "bash-tool";
+import { createRepoSandbox } from "@/lib/repo-sandbox";
 import { tool, zodSchema } from "ai";
 import z from "zod";
 
-const SOURCE_SNAPSHOT_PATH = path.join(
-  process.cwd(),
-  "generated",
-  "source-snapshot.json",
-);
-
-function loadSourceSnapshot(): Record<string, string> {
-  try {
-    return JSON.parse(readFileSync(SOURCE_SNAPSHOT_PATH, "utf-8")) as Record<
-      string,
-      string
-    >;
-  } catch (error) {
-    if (
-      error &&
-      typeof error === "object" &&
-      "code" in error &&
-      error.code === "ENOENT"
-    ) {
-      console.warn(
-        `Missing source snapshot at ${SOURCE_SNAPSHOT_PATH}; repo tools will be unavailable until generate:docs runs.`,
-      );
-      return {};
-    }
-
-    throw error;
-  }
-}
-
-const SOURCE_SNAPSHOT = loadSourceSnapshot();
-
-export function getRepoSourceSnapshot() {
-  return SOURCE_SNAPSHOT;
-}
-
 export function createSourceMapTools() {
-  let bashToolkitPromise: Promise<
-    Awaited<ReturnType<typeof createBashTool>>
-  > | null = null;
-
-  const getBashToolkit = () => {
-    if (!bashToolkitPromise) {
-      bashToolkitPromise = createBashTool({
-        files: SOURCE_SNAPSHOT,
-        destination: "/repo",
-        maxFiles: 0,
-        maxOutputLength: 15000,
-        promptOptions: { toolPrompt: "" },
-      });
-    }
-    return bashToolkitPromise;
-  };
+  const getBashToolkit = createRepoSandbox({ toolPrompt: "" });
 
   return {
     inspectSourceMap: tool({

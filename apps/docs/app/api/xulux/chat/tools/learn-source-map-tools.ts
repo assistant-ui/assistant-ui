@@ -1,13 +1,13 @@
 import { createBashTool } from "bash-tool";
 import { tool, zodSchema } from "ai";
 import { z } from "zod";
+import { createRepoSandbox } from "@/lib/repo-sandbox";
 import { resolveStageFiles } from "@/lib/xulux/learn/stage-source";
 import { getLearnCourse, getLearnStep } from "@/lib/xulux/learn/registry";
 import type {
   LearnContext,
   LearnCourseStepResult,
 } from "@/lib/xulux/learn/types";
-import { getRepoSourceSnapshot } from "./source-map-tools";
 
 type LearnSourceMapOptions = {
   courseId: string;
@@ -20,23 +20,14 @@ export function createLearnSourceMapTools({
   courseId,
   getStageId,
 }: LearnSourceMapOptions) {
-  let repoToolkitPromise: ReturnType<typeof createBashTool> | null = null;
+  const getRepoToolkit = createRepoSandbox({ toolPrompt: "" });
   const courseToolkitPromises = new Map<
     string,
     ReturnType<typeof createBashTool>
   >();
 
   const getToolkit = async (scope: "repo" | "course") => {
-    if (scope === "repo") {
-      repoToolkitPromise ??= createBashTool({
-        files: getRepoSourceSnapshot(),
-        destination: "/repo",
-        maxFiles: 0,
-        maxOutputLength: 15000,
-        promptOptions: { toolPrompt: "" },
-      });
-      return repoToolkitPromise;
-    }
+    if (scope === "repo") return getRepoToolkit();
 
     const stageId = getStageId();
     if (!stageId) return null;

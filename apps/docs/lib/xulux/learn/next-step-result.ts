@@ -1,4 +1,4 @@
-import { loadSourceSnapshot } from "../demo-downloads/create-demo-zip";
+import { loadRepoSourceSnapshot } from "@/lib/repo-source";
 import { compareStageFiles } from "./stage-diff";
 import { resolveStageFilesFromSnapshot } from "./stage-source";
 import { getNextStep } from "./registry";
@@ -27,7 +27,7 @@ export async function resolveNextCourseStep(
 
   const stepIndex = course.steps.findIndex(({ id }) => id === next.step.id);
   const stage = getLearnStage(context.courseId, next.step.stageId);
-  const snapshot = await loadSourceSnapshot();
+  const snapshot = await loadRepoSourceSnapshot();
   const currentFiles = resolveStageFilesFromSnapshot(
     context.courseId,
     stage.id,

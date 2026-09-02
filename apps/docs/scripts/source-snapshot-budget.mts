@@ -1,4 +1,4 @@
-// Measured single-flight: one materialized repo sandbox costs roughly 14x the snapshot's byte size in resident memory. Sandboxes are built per request, so concurrent repo-tool calls multiply that term.
+// The repo sandboxes read this tree from disk through a per-request copy-on-write overlay, so its size bounds the deployed function bundle rather than resident memory.
 export const SNAPSHOT_BYTE_BUDGET = 64_000_000;
 
 const BUDGET_REPORT_ENTRIES = 15;

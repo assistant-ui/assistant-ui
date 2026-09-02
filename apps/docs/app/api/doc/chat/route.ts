@@ -1,7 +1,5 @@
 import { getLLMText } from "@/lib/get-llm-text";
 import { getDistinctId } from "@/lib/posthog-server";
-import { readFileSync } from "node:fs";
-import path from "node:path";
 import { injectQuoteContext } from "@assistant-ui/ai-sdk";
 import { checkPublicAssistantRateLimit } from "@/lib/rate-limit";
 import { requirePublicAssistantSession } from "@/lib/anonymous-session";
@@ -15,7 +13,7 @@ import {
 import { getModel } from "@/lib/ai/provider";
 import { posthogTelemetry } from "@/lib/ai/telemetry";
 import { frontendTools } from "@assistant-ui/ai-sdk";
-import { createBashTool } from "bash-tool";
+import { createRepoSandbox } from "@/lib/repo-sandbox";
 import {
   convertToModelMessages,
   createUIMessageStream,
@@ -29,37 +27,6 @@ import {
 import type * as PageTree from "fumadocs-core/page-tree";
 import type { UIMessage, UIMessageChunk } from "ai";
 import z from "zod";
-
-const SOURCE_SNAPSHOT_PATH = path.join(
-  process.cwd(),
-  "generated",
-  "source-snapshot.json",
-);
-
-function loadSourceSnapshot(): Record<string, string> {
-  try {
-    return JSON.parse(readFileSync(SOURCE_SNAPSHOT_PATH, "utf-8")) as Record<
-      string,
-      string
-    >;
-  } catch (error) {
-    if (
-      error &&
-      typeof error === "object" &&
-      "code" in error &&
-      error.code === "ENOENT"
-    ) {
-      console.warn(
-        `Missing source snapshot at ${SOURCE_SNAPSHOT_PATH}; repo tools will be unavailable until generate:docs runs.`,
-      );
-      return {};
-    }
-
-    throw error;
-  }
-}
-
-const SOURCE_SNAPSHOT = loadSourceSnapshot();
 
 function normalizeSegment(name: string): string {
   return name.toLowerCase().replace(/\s+/g, "-");
@@ -214,22 +181,7 @@ export async function* withReadDocSources(
 }
 
 function createRepoTools() {
-  let bashToolkitPromise: Promise<
-    Awaited<ReturnType<typeof createBashTool>>
-  > | null = null;
-
-  const getBashToolkit = () => {
-    if (!bashToolkitPromise) {
-      bashToolkitPromise = createBashTool({
-        files: SOURCE_SNAPSHOT,
-        destination: "/repo",
-        maxFiles: 0,
-        maxOutputLength: 15000,
-      });
-    }
-
-    return bashToolkitPromise;
-  };
+  const getBashToolkit = createRepoSandbox();
 
   return {
     bash: tool({

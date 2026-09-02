@@ -1,5 +1,6 @@
 import { fileURLToPath } from "node:url";
 import { dirname, resolve } from "node:path";
+import { defaultExclude } from "vitest/config";
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 
@@ -7,6 +8,9 @@ export default {
   test: {
     environment: "node",
     globals: true,
+    // The generated repo source tree is a verbatim copy of the monorepo, and
+    // vitest discovers dotted directories, so its tests would be collected here.
+    exclude: [...defaultExclude, "generated/.repo-source/**"],
   },
   resolve: {
     alias: {
