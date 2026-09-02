@@ -119,6 +119,38 @@ const getPublicAssistantRateLimits = async () => {
       prefix: "aui:mcp-template:global:alert",
       limiter: Ratelimit.fixedWindow(1, "10m"),
     }),
+    xuluxDownloadIpBurst: new Ratelimit({
+      redis,
+      prefix: "aui:xulux-download:ip:burst",
+      limiter: Ratelimit.fixedWindow(10, "60s"),
+    }),
+    xuluxDownloadIpDaily: new Ratelimit({
+      redis,
+      prefix: "aui:xulux-download:ip:daily",
+      limiter: Ratelimit.fixedWindow(
+        positiveSafeInteger(
+          process.env.AUI_XULUX_DOWNLOAD_REQUESTS_PER_IP_PER_DAY,
+          200,
+        ),
+        "1d",
+      ),
+    }),
+    xuluxDownloadGlobalDaily: new Ratelimit({
+      redis,
+      prefix: "aui:xulux-download:global:daily",
+      limiter: Ratelimit.fixedWindow(
+        positiveSafeInteger(
+          process.env.AUI_XULUX_DOWNLOAD_GLOBAL_REQUESTS_PER_DAY,
+          2_000,
+        ),
+        "1d",
+      ),
+    }),
+    xuluxDownloadGlobalAlert: new Ratelimit({
+      redis,
+      prefix: "aui:xulux-download:global:alert",
+      limiter: Ratelimit.fixedWindow(1, "10m"),
+    }),
   };
 };
 
@@ -289,6 +321,52 @@ export async function checkMcpTemplateToolRateLimit(
       }
       return limitResponse(
         "Template tool usage limit exceeded",
+        globalDaily.reset,
+      );
+    }
+    return null;
+  });
+}
+
+export async function checkXuluxDownloadProxyRateLimit(
+  request: Request,
+): Promise<Response | null> {
+  return runRateLimitChecks(request, "xulux_download", async (limits) => {
+    const ip = getClientIp(request);
+    if (!ip) return missingClientIpResponse(request, "xulux_download");
+
+    const burst = await limits.xuluxDownloadIpBurst.limit(ip);
+    if (!burst.success) {
+      return limitResponse(
+        "Template download rate limit exceeded",
+        burst.reset,
+      );
+    }
+
+    const daily = await limits.xuluxDownloadIpDaily.limit(ip);
+    if (!daily.success) {
+      return limitResponse(
+        "Template download daily limit exceeded",
+        daily.reset,
+      );
+    }
+
+    const globalDaily = await limits.xuluxDownloadGlobalDaily.limit("all");
+    if (!globalDaily.success) {
+      const alert = await limits.xuluxDownloadGlobalAlert
+        .limit("all")
+        .catch(() => null);
+      if (alert?.success) {
+        console.error(
+          JSON.stringify({
+            level: "error",
+            message: "xulux_download_global_limit_exceeded",
+            requestId: request.headers.get("x-vercel-id"),
+          }),
+        );
+      }
+      return limitResponse(
+        "Template download usage limit exceeded",
         globalDaily.reset,
       );
     }

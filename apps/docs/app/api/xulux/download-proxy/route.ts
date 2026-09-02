@@ -1,5 +1,7 @@
 import { NextResponse } from "next/server";
+import { requirePublicAssistantSession } from "@/lib/anonymous-session";
 import { isAiPlaygroundEnabled } from "@/lib/feature-flags";
+import { checkXuluxDownloadProxyRateLimit } from "@/lib/rate-limit";
 import { fetchSandboxResource } from "@/lib/xulux/fetch-sandbox";
 import { resolveSandboxDownloadUrl } from "@/lib/xulux/sandbox-download-url";
 import { getXuluxHostedTemplatesCatalog } from "@/lib/xulux/templates-catalog";
@@ -48,6 +50,12 @@ export async function GET(req: Request) {
   if (!isAiPlaygroundEnabled) {
     return NextResponse.json({ error: "Not found." }, { status: 404 });
   }
+
+  const session = requirePublicAssistantSession(req);
+  if (session instanceof Response) return session;
+
+  const rateLimitResponse = await checkXuluxDownloadProxyRateLimit(req);
+  if (rateLimitResponse) return rateLimitResponse;
 
   const { searchParams } = new URL(req.url);
   const templateId = searchParams.get("templateId");
@@ -134,7 +142,7 @@ export async function GET(req: Request) {
       headers: {
         "Content-Type":
           upstream.headers.get("content-type") ?? "application/octet-stream",
-        "Cache-Control": "public, max-age=3600",
+        "Cache-Control": "private, max-age=3600",
       },
     });
   } catch (err) {

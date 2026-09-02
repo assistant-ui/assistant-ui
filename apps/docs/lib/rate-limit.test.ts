@@ -48,6 +48,7 @@ import {
   checkAnonymousSessionIssuanceRateLimit,
   checkMcpTemplateToolRateLimit,
   checkPublicAssistantRateLimit,
+  checkXuluxDownloadProxyRateLimit,
 } from "./rate-limit";
 
 beforeEach(() => {
@@ -354,6 +355,109 @@ describe("MCP template tool rate limits", () => {
     expect(response?.status).toBe(503);
     expect(console.error).toHaveBeenCalledWith(
       expect.stringContaining("mcp_template_rate_limit_unavailable"),
+    );
+  });
+});
+
+describe("Xulux download proxy rate limits", () => {
+  const request = () =>
+    new Request(
+      "https://www.assistant-ui.com/api/xulux/download-proxy?templateId=demo",
+      { headers: { "x-vercel-forwarded-for": "203.0.113.10" } },
+    );
+
+  it("keeps per-request egress bounded by an IP and a global ceiling", async () => {
+    await checkXuluxDownloadProxyRateLimit(request());
+
+    expect(mocks.configs.get("aui:xulux-download:ip:burst")).toEqual({
+      limit: 10,
+      window: "60s",
+    });
+    expect(mocks.configs.get("aui:xulux-download:ip:daily")).toEqual({
+      limit: 200,
+      window: "1d",
+    });
+    expect(mocks.configs.get("aui:xulux-download:global:daily")).toEqual({
+      limit: 2_000,
+      window: "1d",
+    });
+    expect(mocks.configs.get("aui:xulux-download:global:alert")).toEqual({
+      limit: 1,
+      window: "10m",
+    });
+  });
+
+  it("keys the per-client buckets by IP, the ceiling globally", async () => {
+    await expect(
+      checkXuluxDownloadProxyRateLimit(request()),
+    ).resolves.toBeNull();
+
+    expect(mocks.calls).toEqual([
+      { prefix: "aui:xulux-download:ip:burst", key: "203.0.113.10" },
+      { prefix: "aui:xulux-download:ip:daily", key: "203.0.113.10" },
+      { prefix: "aui:xulux-download:global:daily", key: "all" },
+    ]);
+  });
+
+  it.each([
+    ["aui:xulux-download:ip:burst", 1],
+    ["aui:xulux-download:ip:daily", 2],
+    ["aui:xulux-download:global:daily", 4],
+  ] as const)(
+    "stops after an exhausted %s limit",
+    async (prefix, expectedCalls) => {
+      mocks.results.set(prefix, false);
+
+      const response = await checkXuluxDownloadProxyRateLimit(request());
+
+      expect(response?.status).toBe(429);
+      expect(response?.headers.get("retry-after")).toBe("30");
+      expect(mocks.calls).toHaveLength(expectedCalls);
+    },
+  );
+
+  it("rate limits the global ceiling alert", async () => {
+    mocks.results.set("aui:xulux-download:global:daily", false);
+    mocks.results.set("aui:xulux-download:global:alert", false);
+
+    const response = await checkXuluxDownloadProxyRateLimit(request());
+
+    expect(response?.status).toBe(429);
+    expect(console.error).not.toHaveBeenCalled();
+  });
+
+  it("logs once when the global ceiling is reached", async () => {
+    mocks.results.set("aui:xulux-download:global:daily", false);
+
+    await checkXuluxDownloadProxyRateLimit(request());
+
+    expect(console.error).toHaveBeenCalledWith(
+      expect.stringContaining("xulux_download_global_limit_exceeded"),
+    );
+  });
+
+  it("fails closed when no client IP is available", async () => {
+    const response = await checkXuluxDownloadProxyRateLimit(
+      new Request(
+        "https://www.assistant-ui.com/api/xulux/download-proxy?templateId=demo",
+      ),
+    );
+
+    expect(response?.status).toBe(503);
+    expect(mocks.calls).toHaveLength(0);
+    expect(console.error).toHaveBeenCalledWith(
+      expect.stringContaining("xulux_download_client_ip_missing"),
+    );
+  });
+
+  it("fails closed when the rate-limit store is unavailable", async () => {
+    mocks.errors.set("aui:xulux-download:ip:burst", new Error("Redis down"));
+
+    const response = await checkXuluxDownloadProxyRateLimit(request());
+
+    expect(response?.status).toBe(503);
+    expect(console.error).toHaveBeenCalledWith(
+      expect.stringContaining("xulux_download_rate_limit_unavailable"),
     );
   });
 });
