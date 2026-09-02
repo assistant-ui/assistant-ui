@@ -35,6 +35,15 @@ export type PipelineCommand =
       readonly ttlSec: number;
     };
 
+export type RedisFinalizeOptions = {
+  readonly metaKey: string;
+  readonly expectedMeta: string;
+  readonly nextMeta: string;
+  readonly dataKey: string;
+  readonly fields: Record<string, string>;
+  readonly ttlSec: number;
+};
+
 /**
  * Structural Redis-client interface. The bundled `redis` and `ioredis`
  * adapters wrap their respective clients to satisfy it; custom or proxied
@@ -60,6 +69,11 @@ export interface RedisLikeClient {
   >;
   /** Executes the commands as a single pipeline batch (one round trip). */
   pipeline(commands: readonly PipelineCommand[]): Promise<void>;
+  /**
+   * Atomically finalizes a stream only while its metadata is unchanged.
+   * Custom clients may omit this to retain the pre-existing pipeline behavior.
+   */
+  finalizeIfUnchanged?(options: RedisFinalizeOptions): Promise<boolean>;
 }
 
 export type RedisResumableStreamStoreOptions = {
@@ -167,7 +181,11 @@ export class RedisResumableStreamStore implements ResumableStreamStore {
   ): Promise<void> {
     validateStreamId(streamId);
     const metaKey = this.metaKey(streamId);
-    const existing = await this.readMeta(streamId);
+    const existingRaw = await this.client.get(metaKey);
+    if (existingRaw === null) {
+      throw new Error(`Stream not found: ${streamId}`);
+    }
+    const existing = parseMeta(existingRaw);
     if (!existing) {
       throw new Error(`Stream not found: ${streamId}`);
     }
@@ -191,12 +209,26 @@ export class RedisResumableStreamStore implements ResumableStreamStore {
       fields[FIELD_ERROR] = error ?? "Stream errored";
     }
     const dataKey = this.dataKey(streamId, existing.generation);
-    await this.client.pipeline([
+    const commands: readonly PipelineCommand[] = [
       { type: "set", key: metaKey, value: meta, ttlSec },
       { type: "xAdd", key: dataKey, fields },
       { type: "expire", key: dataKey, ttlSec },
-    ]);
+    ];
+    let finalized = true;
+    if (this.client.finalizeIfUnchanged) {
+      finalized = await this.client.finalizeIfUnchanged({
+        metaKey,
+        expectedMeta: existingRaw,
+        nextMeta: meta,
+        dataKey,
+        fields,
+        ttlSec,
+      });
+    } else {
+      await this.client.pipeline(commands);
+    }
     this.acquiredGenerations.delete(streamId);
+    if (!finalized) return;
   }
 
   async *read(

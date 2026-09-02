@@ -24142,6 +24142,15 @@ interface RedisCommander<Context extends ClientContext = {
   ]): Result<number, Context>;
 }
 
+type RedisFinalizeOptions = {
+  readonly metaKey: string;
+  readonly expectedMeta: string;
+  readonly nextMeta: string;
+  readonly dataKey: string;
+  readonly fields: Record<string, string>;
+  readonly ttlSec: number;
+};
+
 type RedisKey = string | Buffer;
 
 interface RedisLikeClient {
@@ -24157,6 +24166,7 @@ interface RedisLikeClient {
     fields: Record<string, string | Uint8Array>;
   }>>;
   pipeline(commands: readonly PipelineCommand[]): Promise<void>;
+  finalizeIfUnchanged?(options: RedisFinalizeOptions): Promise<boolean>;
 }
 
 type RedisOptions = CommonRedisOptions & SentinelConnectionOptions & StandaloneConnectionOptions;
@@ -24756,7 +24766,7 @@ declare const getPartialJsonObjectMeta: (obj: Record<symbol, unknown>) => Partia
 declare const hasHimportCoordinator: unique symbol;
 
 declare namespace entry_resumable_exports {
-  export { CreateResumableAssistantStreamResponseOptions, CreateResumeAssistantStreamResponseOptions, InMemoryResumableStreamStoreOptions, RESUMABLE_STREAM_ID_HEADER, RedisLikeClient, RedisResumableStreamStoreOptions, ResumableStreamAcquireOptions, ResumableStreamContext, ResumableStreamContextOptions, ResumableStreamEntry, ResumableStreamError, ResumableStreamErrorCode, ResumableStreamRole, ResumableStreamStatus, ResumableStreamStore, createInMemoryResumableStreamStore, createResumableAssistantStreamResponse, createResumableStreamContext, createResumeAssistantStreamResponse };
+  export { CreateResumableAssistantStreamResponseOptions, CreateResumeAssistantStreamResponseOptions, InMemoryResumableStreamStoreOptions, RESUMABLE_STREAM_ID_HEADER, RedisFinalizeOptions, RedisLikeClient, RedisResumableStreamStoreOptions, ResumableStreamAcquireOptions, ResumableStreamContext, ResumableStreamContextOptions, ResumableStreamEntry, ResumableStreamError, ResumableStreamErrorCode, ResumableStreamRole, ResumableStreamStatus, ResumableStreamStore, createInMemoryResumableStreamStore, createResumableAssistantStreamResponse, createResumableStreamContext, createResumeAssistantStreamResponse };
 }
 
 declare namespace entry_root_exports {
