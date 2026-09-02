@@ -7,10 +7,6 @@ on:
 permissions:
   contents: read
 
-concurrency:
-  group: axiom-annotation-${{ github.ref }}
-  cancel-in-progress: false
-
 jobs:
   annotate:
     # A fork's own main pushes never carry the secret, so without this the job
