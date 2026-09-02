@@ -10,7 +10,9 @@ export function ensureAnonymousSession(): Promise<void> {
   })
     .then(async (response) => {
       if (!response.ok) {
-        throw new Error("Unable to start an anonymous session");
+        throw new Error(
+          (await response.text()) || "Unable to start an anonymous session",
+        );
       }
       if (response.status === 204) return;
 
