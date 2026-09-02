@@ -45,6 +45,7 @@ export type RedisFinalizeOptions = {
 };
 
 export const FINALIZE_IF_UNCHANGED_SCRIPT = `
+redis.replicate_commands()
 if redis.call("GET", KEYS[1]) ~= ARGV[1] then
   return 0
 end
