@@ -17,13 +17,20 @@ export function ThreadSpecimen() {
         ? document.activeElement
         : null;
     overlayRef.current?.focus();
-    const isInsidePopup = (target: EventTarget | null) => {
+    // Menus and dialogs close themselves on Escape; the selection toolbar does
+    // not, so it only counts as its own layer for focus, not for Escape.
+    const isInsideLayer = (target: EventTarget | null, selector: string) => {
       if (!(target instanceof Element)) return false;
-      const layer = target.closest(
-        '[role="menu"], [role="dialog"], [data-slot="selection-toolbar"]',
-      );
+      const layer = target.closest(selector);
       return layer !== null && layer !== overlayRef.current;
     };
+    const isInsidePopup = (target: EventTarget | null) =>
+      isInsideLayer(target, '[role="menu"], [role="dialog"]');
+    const isInsideFocusLayer = (target: EventTarget | null) =>
+      isInsideLayer(
+        target,
+        '[role="menu"], [role="dialog"], [data-slot="selection-toolbar"]',
+      );
     const onKey = (event: KeyboardEvent) => {
       if (event.defaultPrevented) return;
       if (event.key === "Escape") {
@@ -34,7 +41,7 @@ export function ThreadSpecimen() {
       if (event.key !== "Tab") return;
       const root = overlayRef.current;
       if (!root) return;
-      if (isInsidePopup(document.activeElement)) return;
+      if (isInsideFocusLayer(document.activeElement)) return;
       const focusables = Array.from(
         root.querySelectorAll<HTMLElement>(
           'a[href], button:not([disabled]), textarea, input, select, [tabindex]:not([tabindex="-1"])',
@@ -65,7 +72,7 @@ export function ThreadSpecimen() {
       const root = overlayRef.current;
       const target = event.target;
       if (!root || !(target instanceof HTMLElement)) return;
-      if (root.contains(target) || isInsidePopup(target)) return;
+      if (root.contains(target) || isInsideFocusLayer(target)) return;
       root.focus();
     };
     document.addEventListener("keydown", onKey);
