@@ -67,13 +67,9 @@ export const useAdkMessages = ({
     Map<string, AdkMessageMetadata>
   >(new Map());
   const lastTransferToAgentRef = useRef<string | undefined>(undefined);
-  // setMessagesImmediate assigns messagesRef.current directly, so the effect
-  // must key on the committed messages alone; a dep-less publication would
-  // clobber the immediate value on any unrelated commit.
+  // setMessagesImmediate is the only writer of the messages state and publishes
+  // this ref with it, so the ref never trails a commit.
   const messagesRef = useRef(messages);
-  useInsertionEffect(() => {
-    messagesRef.current = messages;
-  }, [messages]);
   const stateDeltaRef = useRef(stateDelta);
   useInsertionEffect(() => {
     stateDeltaRef.current = stateDelta;
