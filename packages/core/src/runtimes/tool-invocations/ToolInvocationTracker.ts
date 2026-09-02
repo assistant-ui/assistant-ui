@@ -817,6 +817,11 @@ export class ToolInvocationTracker {
       // Live snapshot.
       let entry = existing;
 
+      // A discarded id is remembered only until the call is answered, which
+      // bounds the set to the open calls of a discarded turn.
+      if (content.result !== undefined)
+        this._discardedToolCallIds.delete(content.toolCallId);
+
       if (entry && !entry.controller) {
         // Restored entry observed in a live snapshot. Promote if its
         // signature has changed; otherwise treat as still-historical.

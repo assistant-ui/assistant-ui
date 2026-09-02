@@ -156,11 +156,18 @@ starts the call it was meant to stop.
 
 `discardPending` is the caller's claim that the turn is over, not that it
 is being interrupted, so only the three callers that end it pass it: a new
-turn starting, a reload, and `cancelRun`. `deleteMessage` aborts while the
-provider run continues, and marking there would strand that run's
-remaining calls result-less. `reset()` is unaffected either way: it clears
-`_entries` and the recorded ids before aborting, because it opens a new
-execution boundary.
+turn starting, a reload, and `cancelRun`. `deleteMessage` does not: its
+`setMessages` fallback aborts while the provider run continues, and
+discarding there would strand that run's remaining calls result-less,
+while its `onDelete` path never aborts at all. `reset()` is unaffected
+either way: it clears `_entries` and the recorded ids before aborting,
+because it opens a new execution boundary.
+
+An id is forgotten as soon as the call is observed with a result, which
+bounds the set to the open calls of a discarded turn. That is all it
+does: an id re-emitted inside the same execution boundary keeps its
+existing entry, so A.4 and A.7 govern it rather than this set, and a new
+boundary clears the set outright.
 
 The record lives on the tracker rather than the entry because it is the one
 reason to skip that no later snapshot carries: an `approval` is re-read at
