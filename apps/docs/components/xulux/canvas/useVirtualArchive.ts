@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
+import { anonymousSessionFetch } from "@/lib/anonymous-session-client";
 import {
   createVirtualArchive,
   type VirtualArchive,
@@ -60,7 +61,9 @@ export function useVirtualArchive(
         abortRef.current = controller;
 
         setState({ status: "loading" });
-        const res = await fetch(fetchUrl, { signal: controller.signal });
+        const res = await anonymousSessionFetch(fetchUrl, {
+          signal: controller.signal,
+        });
         if (!res.ok) throw new Error(`Download failed: ${res.status}`);
         const buffer = await res.arrayBuffer();
         const archive = createVirtualArchive(new Uint8Array(buffer));
