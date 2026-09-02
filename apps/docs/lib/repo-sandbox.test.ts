@@ -75,6 +75,31 @@ describe("createRepoSandbox", () => {
     );
   });
 
+  it("keeps the shell usable outside the mount", async () => {
+    const getToolkit = createRepoSandbox({ toolPrompt: "" });
+
+    expect(await run(getToolkit, "cat /repo/absent 2>/dev/null; echo $?")).toBe(
+      "1",
+    );
+    expect(
+      await run(getToolkit, "echo hi > /tmp/out.txt && cat /tmp/out.txt"),
+    ).toBe("hi");
+  });
+
+  it("cannot reach the host filesystem outside the mounted root", async () => {
+    const getToolkit = createRepoSandbox({ toolPrompt: "" });
+
+    for (const command of [
+      "cat /etc/passwd",
+      "cat /repo/../../../../etc/passwd",
+      "ls /Users",
+    ]) {
+      expect(await run(getToolkit, `${command} 2>&1 | head -1`)).toContain(
+        "No such file or directory",
+      );
+    }
+  });
+
   it("falls back to an empty mount before the tree is generated", async () => {
     const generated = mocks.sourceRoot;
     mocks.sourceRoot = path.join(tmpdir(), "repo-sandbox-absent");

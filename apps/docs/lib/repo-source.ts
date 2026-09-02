@@ -7,9 +7,9 @@ export type RepoSourceSnapshot = Record<string, string>;
 // open per file and exhausts a 1024 descriptor limit well before the tree ends.
 const READ_CONCURRENCY = 32;
 
-// A dot directory keeps this verbatim copy of the monorepo out of the wildcard
-// globs that scan the app for sources: TypeScript's include, vitest's test
-// discovery, and the bundler's module rules all skip dotted directories.
+// A dot directory keeps this verbatim copy of the monorepo out of TypeScript's
+// include and the bundler's module rules, which both skip dotted directories.
+// Vitest discovers them, so it needs the explicit exclude in vitest.config.ts.
 export function repoSourceRoot() {
   return path.join(process.cwd(), "generated", ".repo-source");
 }
@@ -17,7 +17,7 @@ export function repoSourceRoot() {
 export async function loadRepoSourceSnapshot(
   sourceRoot = repoSourceRoot(),
 ): Promise<RepoSourceSnapshot> {
-  const filePaths = await listFiles(sourceRoot, "");
+  const filePaths = await listFiles(sourceRoot);
   const snapshot: RepoSourceSnapshot = {};
   let index = 0;
 
@@ -40,21 +40,43 @@ export async function loadRepoSourceSnapshot(
   return snapshot;
 }
 
-async function listFiles(directory: string, prefix: string): Promise<string[]> {
-  const entries = await readdir(directory, { withFileTypes: true });
+// Level by level rather than depth first: a recursive walk serializes every
+// readdir in the tree behind its predecessor, which costs more than the reads.
+async function listFiles(sourceRoot: string): Promise<string[]> {
   const filePaths: string[] = [];
+  let level = [{ directory: sourceRoot, prefix: "" }];
 
-  for (const entry of entries) {
-    const relativePath = prefix ? `${prefix}/${entry.name}` : entry.name;
+  while (level.length > 0) {
+    const nextLevel: typeof level = [];
 
-    if (entry.isDirectory()) {
-      filePaths.push(
-        ...(await listFiles(path.join(directory, entry.name), relativePath)),
+    for (let start = 0; start < level.length; start += READ_CONCURRENCY) {
+      const batch = level.slice(start, start + READ_CONCURRENCY);
+      const listings = await Promise.all(
+        batch.map(({ directory }) =>
+          readdir(directory, { withFileTypes: true }),
+        ),
       );
-      continue;
+
+      listings.forEach((entries, index) => {
+        const { directory, prefix } = batch[index]!;
+
+        for (const entry of entries) {
+          const relativePath = prefix ? `${prefix}/${entry.name}` : entry.name;
+
+          if (entry.isDirectory()) {
+            nextLevel.push({
+              directory: path.join(directory, entry.name),
+              prefix: relativePath,
+            });
+            continue;
+          }
+
+          filePaths.push(relativePath);
+        }
+      });
     }
 
-    filePaths.push(relativePath);
+    level = nextLevel;
   }
 
   return filePaths;
