@@ -99,7 +99,7 @@ class TestRuntime extends BaseThreadRuntimeCore {
   resumeRun(_config: ResumeRunConfig) {}
   addToolResult(_options: AddToolResultOptions) {}
   resumeToolCall(_options: ResumeToolCallOptions) {}
-  respondToToolApproval(_options: RespondToToolApprovalOptions) {}
+  async respondToToolApproval(_options: RespondToToolApprovalOptions) {}
   cancelRun() {}
   exportExternalState() {
     return {};

@@ -68,7 +68,7 @@ export abstract class BaseThreadRuntimeCore
   public abstract resumeToolCall(options: ResumeToolCallOptions): void;
   public abstract respondToToolApproval(
     options: RespondToToolApprovalOptions,
-  ): void;
+  ): Promise<void>;
   public abstract cancelRun(): void;
   public abstract exportExternalState(): any;
   public abstract importExternalState(state: any): void;

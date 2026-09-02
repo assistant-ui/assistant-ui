@@ -1068,11 +1068,8 @@ describe("ExternalStoreThreadRuntimeCore adapter contract", () => {
       expect(rejections).toEqual([]);
     });
 
-    it("handles rejected onRespondToToolApproval callbacks", async () => {
+    it("hands a rejected onRespondToToolApproval back to the caller", async () => {
       const error = new Error("approval failed");
-      const consoleError = vi
-        .spyOn(console, "error")
-        .mockImplementation(() => {});
       let callbackCalls = 0;
       const core = new ExternalStoreThreadRuntimeCore(
         contextProvider,
@@ -1085,21 +1082,30 @@ describe("ExternalStoreThreadRuntimeCore adapter contract", () => {
       );
 
       const rejections = await captureUnhandledRejections(async () => {
-        core.respondToToolApproval({
-          approvalId: "approval-1",
-          approved: true,
-        });
-
-        await vi.waitFor(() =>
-          expect(consoleError).toHaveBeenCalledWith(
-            "[ExternalStoreThreadRuntimeCore] onRespondToToolApproval callback rejected",
-            error,
-          ),
-        );
+        await expect(
+          core.respondToToolApproval({
+            approvalId: "approval-1",
+            approved: true,
+          }),
+        ).rejects.toBe(error);
       });
 
       expect(callbackCalls).toBe(1);
       expect(rejections).toEqual([]);
+    });
+
+    it("resolves when a synchronous onRespondToToolApproval accepts", async () => {
+      const core = new ExternalStoreThreadRuntimeCore(
+        contextProvider,
+        createBaseAdapter({ onRespondToToolApproval: () => {} }),
+      );
+
+      await expect(
+        core.respondToToolApproval({
+          approvalId: "approval-1",
+          approved: true,
+        }),
+      ).resolves.toBeUndefined();
     });
 
     it("handles rejected onCancel callbacks", async () => {

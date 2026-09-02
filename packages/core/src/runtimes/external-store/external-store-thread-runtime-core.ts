@@ -60,7 +60,7 @@ import {
 const EMPTY_ARRAY: readonly ThreadSuggestion[] = Object.freeze([]);
 
 const observeAdapterCallback = (
-  name: "onAddToolResult" | "onRespondToToolApproval" | "onCancel",
+  name: "onAddToolResult" | "onCancel",
   result: Promise<void> | void,
 ) => {
   void Promise.resolve(result).catch((error) => {
@@ -956,13 +956,12 @@ export class ExternalStoreThreadRuntimeCore
     );
   }
 
-  public respondToToolApproval(options: RespondToToolApprovalOptions) {
+  public respondToToolApproval(
+    options: RespondToToolApprovalOptions,
+  ): Promise<void> {
     if (!this._store.onRespondToToolApproval)
       throw new Error("Runtime does not support tool approvals.");
-    observeAdapterCallback(
-      "onRespondToToolApproval",
-      this._store.onRespondToToolApproval(options),
-    );
+    return Promise.resolve(this._store.onRespondToToolApproval(options));
   }
 
   public override reset(initialMessages?: readonly ThreadMessageLike[]) {

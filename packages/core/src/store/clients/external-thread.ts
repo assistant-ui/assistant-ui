@@ -383,8 +383,10 @@ const usePartResource = ({
       )
         throw new Error("Tool call has no pending approval");
 
-      onRespondToToolApproval(
-        resolveToolApprovalResponse(part.approval, response),
+      return Promise.resolve(
+        onRespondToToolApproval(
+          resolveToolApprovalResponse(part.approval, response),
+        ),
       );
     },
   };
