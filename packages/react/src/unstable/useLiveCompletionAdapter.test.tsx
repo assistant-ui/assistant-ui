@@ -70,6 +70,9 @@ describe("unstable_useLiveCompletionAdapter", () => {
 
     result.current.adapter.search!("alice");
     unmount();
+    await Promise.resolve();
+
+    expect(vi.getTimerCount()).toBe(0);
     await vi.runAllTimersAsync();
 
     expect(fetcher).not.toHaveBeenCalled();

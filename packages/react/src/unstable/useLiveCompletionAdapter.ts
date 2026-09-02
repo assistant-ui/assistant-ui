@@ -85,6 +85,7 @@ export function unstable_useLiveCompletionAdapter(
   const retryableQueryRef = useRef<string | null>(null);
   const pendingRetryQueryRef = useRef<string | null>(null);
   const inactiveRef = useRef(true);
+  const deferredQueryRef = useRef<string | null>(null);
 
   const cancelTimer = useCallback(() => {
     if (timerRef.current !== null) {
@@ -103,6 +104,10 @@ export function unstable_useLiveCompletionAdapter(
   const scheduleFetch = useCallback(
     (query: string) => {
       if (!enabled) return;
+      if (inactiveRef.current) {
+        deferredQueryRef.current = query;
+        return;
+      }
       if (pendingQueryRef.current === query) return;
       rearmPendingRetry();
       if (retryableQueryRef.current === query) {
@@ -171,11 +176,14 @@ export function unstable_useLiveCompletionAdapter(
 
   useLayoutEffect(() => {
     inactiveRef.current = false;
+    const deferredQuery = deferredQueryRef.current;
+    deferredQueryRef.current = null;
+    if (deferredQuery !== null) scheduleFetch(deferredQuery);
     return () => {
       inactiveRef.current = true;
       invalidatePending();
     };
-  }, [invalidatePending]);
+  }, [invalidatePending, scheduleFetch]);
 
   // Arm retries only after the failed state commits. Arming during rejection
   // would let the failure render immediately schedule another request.
