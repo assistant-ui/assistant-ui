@@ -209,6 +209,43 @@ describe("store hooks", () => {
     expect(result.current).toBe(3);
   });
 
+  it("useAuiState follows an equal-valued conditional dependency", () => {
+    let aui!: Record<string, any>;
+    function Wrapper({ children }: { children: ReactNode }) {
+      const client = useAui({
+        mode: CounterClient(),
+        first: CounterClient(),
+        second: CounterClient(),
+      } as unknown as useAui.Props);
+      aui = client;
+      return <AuiProvider value={client}>{children}</AuiProvider>;
+    }
+    const selector = vi.fn((state: any) =>
+      state.mode.count === 1 ? state.first.count : state.second.count,
+    );
+
+    const { result } = renderHook(() => useAuiState(selector), {
+      wrapper: Wrapper,
+    });
+    expect(result.current).toBe(1);
+
+    act(() => {
+      flushTapSync(() => aui.mode.setCount(0));
+    });
+    expect(result.current).toBe(1);
+
+    selector.mockClear();
+    act(() => {
+      flushTapSync(() => aui.first.setCount(2));
+    });
+    expect(selector).not.toHaveBeenCalled();
+
+    act(() => {
+      flushTapSync(() => aui.second.setCount(3));
+    });
+    expect(result.current).toBe(3);
+  });
+
   it("useAuiState throws when selector returns full state", () => {
     const { wrapper } = createRealClientWrapper();
 

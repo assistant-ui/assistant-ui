@@ -1,4 +1,10 @@
-import { useSyncExternalStore, useDebugValue, useMemo } from "react";
+import {
+  useSyncExternalStore,
+  useDebugValue,
+  useEffect,
+  useMemo,
+  useRef,
+} from "react";
 import type { AssistantState } from "./types/client";
 import { useAui } from "./useAui";
 import {
@@ -58,6 +64,11 @@ const useAuiStateImpl = <T>(
 ): T => {
   const aui = useAui();
   const proxiedState = getProxiedAssistantState(aui);
+  const selectorRef = useRef(selector);
+  useEffect(() => {
+    selectorRef.current = selector;
+  }, [selector]);
+  const tracksDynamicDependencies = providedDependencies === undefined;
   const dependencies = useShallowStable(
     providedDependencies ??
       collectAssistantStateDependencies(() => selector(proxiedState))
@@ -65,22 +76,88 @@ const useAuiStateImpl = <T>(
   );
   const subscribe = useMemo(() => {
     return (callback: () => void) => {
-      if (dependencies.length === 0) return aui.subscribe(callback);
+      let active = true;
+      let subscribedDependencies = dependencies;
+      const directSubscriptions = new Map<ClientDependency, () => void>();
+      let broadUnsubscribe: (() => void) | undefined;
 
-      const unsubscribers: Array<() => void> = [];
-      for (const dependency of dependencies) {
-        const unsubscribe = subscribeToClientDependency(dependency, callback);
-        if (!unsubscribe) {
-          for (const unsubscribeClient of unsubscribers) unsubscribeClient();
-          return aui.subscribe(callback);
+      const clearSubscriptions = () => {
+        for (const unsubscribe of directSubscriptions.values()) unsubscribe();
+        directSubscriptions.clear();
+        broadUnsubscribe?.();
+        broadUnsubscribe = undefined;
+      };
+
+      const subscribeToDependencies = (
+        nextDependencies: readonly ClientDependency[],
+      ) => {
+        subscribedDependencies = nextDependencies;
+
+        if (nextDependencies.length === 0) {
+          clearSubscriptions();
+          broadUnsubscribe = aui.subscribe(handleChange);
+          return;
         }
-        unsubscribers.push(unsubscribe);
-      }
+
+        const addedDependencies: ClientDependency[] = [];
+        for (const dependency of nextDependencies) {
+          if (directSubscriptions.has(dependency)) continue;
+          const unsubscribe = subscribeToClientDependency(
+            dependency,
+            handleChange,
+          );
+          if (!unsubscribe) {
+            for (const addedDependency of addedDependencies) {
+              directSubscriptions.get(addedDependency)!();
+              directSubscriptions.delete(addedDependency);
+            }
+            clearSubscriptions();
+            broadUnsubscribe = aui.subscribe(handleChange);
+            return;
+          }
+          directSubscriptions.set(dependency, unsubscribe);
+          addedDependencies.push(dependency);
+        }
+
+        const nextDependencySet = new Set(nextDependencies);
+        for (const [dependency, unsubscribe] of directSubscriptions) {
+          if (!nextDependencySet.has(dependency)) {
+            unsubscribe();
+            directSubscriptions.delete(dependency);
+          }
+        }
+        broadUnsubscribe?.();
+        broadUnsubscribe = undefined;
+      };
+
+      const handleChange = () => {
+        if (!active) return;
+        if (tracksDynamicDependencies) {
+          const nextDependencies = collectAssistantStateDependencies(() =>
+            selectorRef.current(proxiedState),
+          ).dependencies;
+          const dependenciesChanged =
+            nextDependencies.length !== subscribedDependencies.length ||
+            nextDependencies.some(
+              (dependency, index) =>
+                dependency !== subscribedDependencies[index],
+            );
+          if (dependenciesChanged) {
+            // Refresh the read path before React can suppress an equal snapshot.
+            subscribeToDependencies(nextDependencies);
+          }
+        }
+        callback();
+      };
+
+      subscribeToDependencies(dependencies);
+
       return () => {
-        for (const unsubscribe of unsubscribers) unsubscribe();
+        active = false;
+        clearSubscriptions();
       };
     };
-  }, [aui, dependencies]);
+  }, [aui, dependencies, proxiedState, tracksDynamicDependencies]);
 
   const slice = useSyncExternalStore(
     subscribe,
