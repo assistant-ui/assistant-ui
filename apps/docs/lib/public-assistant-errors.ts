@@ -24,15 +24,27 @@ const LIMIT_MESSAGES = new Set<string>(
   PUBLIC_ASSISTANT_LIMITS.map(publicAssistantLimitMessage),
 );
 
+const unwrapErrorEnvelope = (text: string): string => {
+  const body = text.trim();
+  if (!body.startsWith("{")) return body;
+  try {
+    const parsed = JSON.parse(body) as { error?: unknown };
+    return typeof parsed?.error === "string" ? parsed.error.trim() : body;
+  } catch {
+    return body;
+  }
+};
+
 /**
- * Maps the plain text bodies the public assistant routes answer with (and the
- * gateway wording that can replace them) to copy a visitor can act on. Model
- * or provider errors that merely mention a limit are left to the error rail.
+ * Maps the bodies the public assistant routes answer with (plain text limits,
+ * JSON `{ error }` envelopes, and the gateway wording that can replace them) to
+ * copy a visitor can act on. Model or provider errors that merely mention a
+ * limit are left to the error rail.
  */
 export const describePublicAssistantError = (
   text: string,
 ): string | undefined => {
-  const body = text.trim();
+  const body = unwrapErrorEnvelope(text);
   if (LIMIT_MESSAGES.has(body) || /too many requests|\b429\b/i.test(body)) {
     return "The demo is rate limited right now. Try again in a little while.";
   }

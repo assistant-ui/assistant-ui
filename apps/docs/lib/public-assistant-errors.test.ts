@@ -18,6 +18,21 @@ describe("describePublicAssistantError", () => {
     );
   });
 
+  it("reads a JSON error envelope before matching", () => {
+    expect(
+      describePublicAssistantError(
+        JSON.stringify({ error: publicAssistantLimitMessage("Rate") }),
+      ),
+    ).toMatch(/rate limited/);
+    expect(
+      describePublicAssistantError(
+        JSON.stringify({
+          error: "Anonymous session protection is not configured.",
+        }),
+      ),
+    ).toBeUndefined();
+  });
+
   it("recognises the unavailable response and gateway wording", () => {
     expect(
       describePublicAssistantError(PUBLIC_ASSISTANT_UNAVAILABLE_MESSAGE),
