@@ -7,7 +7,7 @@ import {
 } from "../test-utils";
 import { resource } from "../../core/resource";
 import { withKey } from "../../core/withKey";
-import { useState } from "react";
+import { useLayoutEffect, useState } from "react";
 import { useState as useResourceState } from "../../react-hooks/useState";
 import { useEffect as useResourceEffect } from "../../react-hooks/useEffect";
 import {
@@ -182,6 +182,129 @@ describe("@assistant-ui/tap/react resource API", () => {
       expect(renders).toEqual({ a: 2, b: 1 });
     });
 
+    it("preserves a child dispatch scheduled during its commit effect", () => {
+      let setValue = (_value: number) => {};
+      const useItem = () => {
+        const [value, set] = useResourceState(0);
+        setValue = set;
+        useResourceEffect(() => {
+          if (value === 1) set(2);
+        }, [value]);
+        return value;
+      };
+      const Item = resource(useItem);
+      const elements = [withKey("item", Item(), ["item"])];
+
+      let values: number[] = [];
+      function App() {
+        values = useResources(elements);
+        return null;
+      }
+
+      render(<App />);
+      expect(values).toEqual([0]);
+      act(() => setValue(1));
+      expect(values).toEqual([2]);
+    });
+
+    it("keeps caller mutation before commit out of the next render", () => {
+      const setters: Record<string, (n: number) => void> = {};
+      const useItem = (id: string) => {
+        const [value, setValue] = useResourceState(0);
+        setters[id] = setValue;
+        return value;
+      };
+      const Item = resource(useItem);
+      const elements = [
+        withKey("a", Item("a"), ["a"]),
+        withKey("b", Item("b"), ["b"]),
+      ];
+
+      let values: number[] = [];
+      const renderValues: number[][] = [];
+      function App() {
+        values = useResources(elements);
+        renderValues.push(values.slice());
+        useLayoutEffect(() => {
+          values[1] = 99;
+        }, [values]);
+        return null;
+      }
+
+      render(<App />);
+      act(() => setters.a!(5));
+      expect(renderValues.at(-1)).toEqual([5, 0]);
+      expect(values).toEqual([5, 99]);
+
+      act(() => setters.a!(10));
+      expect(renderValues.at(-1)).toEqual([10, 0]);
+      expect(values).toEqual([10, 99]);
+    });
+
+    it("keeps rendering clean children when a stable list has no deps", () => {
+      const renders: Record<string, number> = {};
+      const effects: Record<string, number> = {};
+      const setters: Record<string, (n: number) => void> = {};
+      const useItem = (id: string) => {
+        renders[id] = (renders[id] ?? 0) + 1;
+        const [value, setValue] = useResourceState(0);
+        setters[id] = setValue;
+        useResourceEffect(() => {
+          effects[id] = (effects[id] ?? 0) + 1;
+        });
+        return value;
+      };
+      const Item = resource(useItem);
+      const elements = [withKey("a", Item("a")), withKey("b", Item("b"))];
+
+      function App() {
+        useResources(elements);
+        return null;
+      }
+
+      render(<App />);
+      expect(renders).toEqual({ a: 1, b: 1 });
+      expect(effects).toEqual({ a: 1, b: 1 });
+
+      act(() => setters.a!(5));
+      expect(renders).toEqual({ a: 2, b: 2 });
+      expect(effects).toEqual({ a: 2, b: 2 });
+    });
+
+    it("only visits dirty children when the element list is unchanged", () => {
+      const setters: Record<string, (n: number) => void> = {};
+      const useItem = (id: string) => {
+        const [value, setValue] = useResourceState(0);
+        setters[id] = setValue;
+        return value;
+      };
+      const Item = resource(useItem);
+      const accessed = new Set<string>();
+      const elements = new Proxy(
+        [withKey("a", Item("a"), ["a"]), withKey("b", Item("b"), ["b"])],
+        {
+          get(target, property, receiver) {
+            if (property === "0" || property === "1") accessed.add(property);
+            return Reflect.get(target, property, receiver);
+          },
+        },
+      );
+
+      let values: number[] = [];
+      function App() {
+        values = useResources(elements);
+        return null;
+      }
+
+      render(<App />);
+      values[1] = 99;
+      accessed.clear();
+      act(() => setters.a!(5));
+
+      expect(values).toEqual([5, 0]);
+      expect(accessed).toEqual(new Set(["0"]));
+    });
+
     it("re-renders a child with unchanged deps when its tap context changes", () => {
       const TestContext = createContext("default");
       let renders = 0;
@@ -203,6 +326,32 @@ describe("@assistant-ui/tap/react resource API", () => {
       expect(renderTest(parent, "b")).toEqual(["b"]);
       expect(parent.contextDeps).toBeNull();
       expect(renders).toBe(2);
+    });
+
+    it("keeps clean child context dependencies after a sibling update", () => {
+      const TestContext = createContext("default");
+      let setValue = (_value: number) => {};
+      const Dirty = resource(() => {
+        const [value, set] = useResourceState(0);
+        setValue = set;
+        return value;
+      });
+      const Context = resource(() => useResourceContext(TestContext));
+      const innerElements = [
+        withKey("dirty", Dirty(), []),
+        withKey("context", Context(), []),
+      ];
+      const Nested = resource(() => useResources(innerElements));
+      const outerElements = [withKey("nested", Nested(), [])];
+      const root = createTestResource((context: string) =>
+        useContextProvider(TestContext, context, () =>
+          useResources(outerElements),
+        ),
+      );
+
+      expect(renderTest(root, "a")).toEqual([[0, "a"]]);
+      flushTapSync(() => setValue(1));
+      expect(renderTest(root, "b")).toEqual([[1, "b"]]);
     });
   });
 

@@ -356,6 +356,48 @@ describe("useResources - Basic Functionality", () => {
       commitResourceFiber(fiber);
       expect(events).toEqual(["setup:1", "cleanup:1", "setup:1"]);
     });
+
+    it("the dirty-child fast path discards clean child work from an abandoned pass", () => {
+      const events: string[] = [];
+      let setSibling: ((value: number) => void) | null = null;
+      const EffectChild = resource(({ value }: { value: number }) => {
+        useEffect(() => {
+          events.push(`setup:${value}`);
+          return () => events.push(`cleanup:${value}`);
+        }, [value]);
+        return value;
+      });
+      const StatefulSibling = resource(() => {
+        const [value, setValue] = useState(0);
+        setSibling = setValue;
+        return value;
+      });
+      const sibling = withKey("sibling", StatefulSibling(), []);
+      const committedElements = [
+        withKey("effect", EffectChild({ value: 1 }), [1]),
+        sibling,
+      ];
+      const abandonedElements = [
+        withKey("effect", EffectChild({ value: 2 }), [2]),
+        sibling,
+      ];
+      const fiber = createTestResource((elements: typeof committedElements) =>
+        useResources(elements),
+      );
+
+      expect(renderTest(fiber, committedElements)).toEqual([1, 0]);
+      expect(events).toEqual(["setup:1"]);
+
+      void renderResourceFiber(fiber, [abandonedElements]);
+      setSibling!(1);
+
+      expect(getCommittedValue(fiber)).toEqual([1, 1]);
+      expect(events).toEqual(["setup:1"]);
+
+      unmountResourceFiber(fiber);
+      commitResourceFiber(fiber);
+      expect(events).toEqual(["setup:1", "cleanup:1", "setup:1"]);
+    });
   });
 
   describe("Teardown", () => {

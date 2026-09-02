@@ -15,7 +15,7 @@ import {
   hasContextDepsChanged,
 } from "../core/context";
 import { useResourceFiberHost } from "./utils/useResourceFiberHostUtils";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useRenderMemo } from "./utils/useRenderMemo";
 import { depsShallowEqual } from "./utils/depsShallowEqual";
 
@@ -40,6 +40,14 @@ type FiberState = {
   // Last committed deps + value, used to decide and serve a bailout.
   committedDeps: readonly unknown[] | undefined;
   committedValue: unknown;
+};
+
+type RenderResult<T> = {
+  values: T[];
+  exposedValues: T[];
+  commitKeys: readonly (string | number)[] | null;
+  keyToIndex: ReadonlyMap<string | number, number>;
+  supportsDirtyChildUpdates: boolean;
 };
 
 // Looked up by key (not captured) so it survives fiber replacement on remount.
@@ -75,22 +83,77 @@ export function useResources<E extends ResourceElement<any>>(
   elements: readonly E[],
 ): ExtractResourceReturnType<E>[] {
   const [fibers] = useState(() => new Map<string | number, FiberState>());
+  const committedElements = useRef<readonly E[] | null>(null);
+  const committedValues = useRef<ExtractResourceReturnType<E>[] | null>(null);
+  const committedKeyToIndex = useRef<ReadonlyMap<
+    string | number,
+    number
+  > | null>(null);
+  const supportsDirtyChildUpdates = useRef(false);
+  const pendingStructuralChange = useRef(false);
+  const needsFullCommit = useRef(false);
 
   // Process each element
 
   const { version, createFiber } = useResourceFiberHost();
   const hasAnyContextDepsChanged = hasAnyChildContextDepsChanged(fibers);
 
-  const val = useRenderMemo(
+  const rendered = useRenderMemo<RenderResult<ExtractResourceReturnType<E>>>(
     () => {
       void version;
 
-      const seenKeys = new Set<string | number>();
+      if (
+        committedElements.current === elements &&
+        committedValues.current !== null &&
+        committedKeyToIndex.current !== null &&
+        supportsDirtyChildUpdates.current &&
+        !pendingStructuralChange.current &&
+        !hasAnyContextDepsChanged
+      ) {
+        const values = committedValues.current.slice();
+        const commitKeys: Array<string | number> = [];
+
+        for (const [key, state] of fibers) {
+          if (!state.isDirty) {
+            if (typeof state.next === "object") {
+              discardWipRender(state.fiber);
+              state.next = "skip";
+            }
+            if (state.fiber.contextDeps) {
+              bubbleContextDeps(state.fiber, state.fiber.contextDeps);
+            }
+            continue;
+          }
+          const index = committedKeyToIndex.current.get(key);
+          if (index === undefined) continue;
+
+          const element = elements[index]!;
+          const value = renderResourceFiber(
+            state.fiber,
+            element.args,
+          ) as ExtractResourceReturnType<E>;
+          state.next = { value, deps: element.deps };
+          values[index] = value;
+          commitKeys.push(key);
+        }
+
+        return {
+          values,
+          exposedValues: values.slice(),
+          commitKeys,
+          keyToIndex: committedKeyToIndex.current,
+          supportsDirtyChildUpdates: true,
+        };
+      }
+
       const values: any[] = [];
+      const keyToIndex = new Map<string | number, number>();
       let newCount = 0;
+      let nextSupportsDirtyChildUpdates = true;
 
       for (let i = 0; i < elements.length; i++) {
         const element = elements[i]!;
+        if (element.deps === undefined) nextSupportsDirtyChildUpdates = false;
 
         const elementKey = element.key;
         if (elementKey === undefined) {
@@ -99,9 +162,9 @@ export function useResources<E extends ResourceElement<any>>(
           );
         }
 
-        if (seenKeys.has(elementKey))
+        if (keyToIndex.has(elementKey))
           throw new Error(`Duplicate key ${elementKey} in useResources`);
-        seenKeys.add(elementKey);
+        keyToIndex.set(elementKey, i);
 
         let state = fibers.get(elementKey);
         if (!state) {
@@ -117,6 +180,7 @@ export function useResources<E extends ResourceElement<any>>(
             committedValue: undefined,
           };
           newCount++;
+          pendingStructuralChange.current = true;
           fibers.set(elementKey, state);
         } else if (state.fiber.hook !== element.hook) {
           const fiber = createFiber(element.hook, element.key, () =>
@@ -124,6 +188,7 @@ export function useResources<E extends ResourceElement<any>>(
           );
           const value = renderResourceFiber(fiber, element.args);
           state.next = { value: value, deps: element.deps, remount: fiber };
+          pendingStructuralChange.current = true;
         } else if (canReuse(state, element.deps)) {
           if (typeof state.next === "object") {
             discardWipRender(state.fiber);
@@ -147,21 +212,29 @@ export function useResources<E extends ResourceElement<any>>(
       // Clean up removed fibers (only if there might be stale ones)
       if (fibers.size > values.length - newCount) {
         for (const key of fibers.keys()) {
-          if (!seenKeys.has(key)) {
+          if (!keyToIndex.has(key)) {
             fibers.get(key)!.next = "delete";
+            pendingStructuralChange.current = true;
           }
         }
       }
 
-      return values;
+      return {
+        values,
+        exposedValues: values.slice(),
+        commitKeys: null,
+        keyToIndex,
+        supportsDirtyChildUpdates: nextSupportsDirtyChildUpdates,
+      };
     },
     [elements, fibers, createFiber, version],
     hasAnyContextDepsChanged,
   );
-
+  const val = rendered.exposedValues;
   // Cleanup on unmount
   useEffect(() => {
     return () => {
+      needsFullCommit.current = true;
       for (const key of fibers.keys()) {
         unmountResourceFiber(fibers.get(key)!.fiber);
       }
@@ -171,7 +244,12 @@ export function useResources<E extends ResourceElement<any>>(
   useEffect(() => {
     void val; // as a performance optimization, we only run if the results have changed
 
-    for (const [key, state] of fibers.entries()) {
+    const entries =
+      rendered.commitKeys === null || needsFullCommit.current
+        ? fibers.entries()
+        : rendered.commitKeys.map((key) => [key, fibers.get(key)!] as const);
+
+    for (const [key, state] of entries) {
       const next = state.next;
       if (next === "delete") {
         unmountResourceFiber(state.fiber);
@@ -186,14 +264,21 @@ export function useResources<E extends ResourceElement<any>>(
           unmountResourceFiber(state.fiber);
           state.fiber = next.remount;
         }
+        state.isDirty = false;
         commitResourceFiber(state.fiber);
         state.committedDeps = next.deps;
         state.committedValue = next.value;
-        state.isDirty = false;
         state.next = "skip";
       }
     }
-  }, [val, fibers]);
+
+    committedElements.current = elements;
+    committedValues.current = rendered.values;
+    committedKeyToIndex.current = rendered.keyToIndex;
+    supportsDirtyChildUpdates.current = rendered.supportsDirtyChildUpdates;
+    pendingStructuralChange.current = false;
+    needsFullCommit.current = false;
+  }, [elements, fibers, rendered, val]);
 
   return val;
 }
