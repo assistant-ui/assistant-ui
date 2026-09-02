@@ -37,6 +37,24 @@ describe("anonymous session client", () => {
     );
   });
 
+  it("unwraps the JSON error envelope of a refused bootstrap", async () => {
+    const fetchMock = vi
+      .fn()
+      .mockResolvedValueOnce(
+        Response.json(
+          { error: "Anonymous sessions are issued through the website." },
+          { status: 403 },
+        ),
+      );
+    vi.stubGlobal("fetch", fetchMock);
+    const { ensureAnonymousSession } =
+      await import("./anonymous-session-client");
+
+    await expect(ensureAnonymousSession()).rejects.toThrow(
+      "Anonymous sessions are issued through the website.",
+    );
+  });
+
   it("starts a browser session before a public assistant request", async () => {
     const fetchMock = vi
       .fn()
