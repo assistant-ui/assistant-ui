@@ -92,7 +92,7 @@ describe("createRepoSandbox", () => {
     for (const command of [
       "cat /etc/passwd",
       "cat /repo/../../../../etc/passwd",
-      "ls /Users",
+      `ls ${mocks.sourceRoot}`,
     ]) {
       expect(await run(getToolkit, `${command} 2>&1 | head -1`)).toContain(
         "No such file or directory",
