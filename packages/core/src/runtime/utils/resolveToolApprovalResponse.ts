@@ -56,8 +56,13 @@ export const resolveToolApprovalResponse = (
   } else if ("approved" in response) {
     approved = response.approved;
   } else {
-    // Answering the question is not refusing it: a free-form answer supplies
-    // the input the call was waiting on, so the gate resolves as approved.
+    // A bare answer resolves a question, where answering is not refusing. On a
+    // decision the approval itself is the authorization, so inferring one from
+    // a typed note would let the note authorize the call.
+    if (approval.display !== "text" && approval.display !== "select")
+      throw new Error(
+        `Tool approval "${approval.id}" is a decision, not a question; respond with an explicit approved value, optionally alongside the answer`,
+      );
     approved = true;
   }
 

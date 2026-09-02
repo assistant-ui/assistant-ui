@@ -552,6 +552,9 @@ export default defineToolkit({
 Some runtimes (notably AI SDK v7's `toolApproval`-gated tools) pause on the server and emit an approval request that the client must acknowledge before the tool runs. assistant-ui surfaces this on the tool part as `approval` and exposes `respondToApproval({ approved, reason? })` on the renderer:
 
 ```tsx
+import { useState } from "react";
+import type { ToolApprovalResponse } from "@assistant-ui/react";
+
 const toolkit = defineToolkit({
   deploy: {
     type: "backend",
@@ -656,7 +659,9 @@ A renderer answers a free-form request with the answer itself:
 respondToApproval({ text: "staging" });
 ```
 
-The runtime records that as `{ approvalId, approved: true, text }`, because answering a question is not refusing it. A `text` response to a request that declares neither `display: "text"` nor `allowFreeform` throws, so a host never receives an answer it has nowhere to record. A question has no meaningful refusal, so the default `ToolFallback` renders a text field for one and omits the Deny control it adds to a decision.
+The runtime records that as `{ approvalId, approved: true, text }`, because answering a question is not refusing it. A `text` response to a request that declares neither `display: "text"` nor `allowFreeform` throws, so a host never receives an answer it has nowhere to record.
+
+An answer on its own resolves only a question. On a decision the approval is the authorization, so a bare `text` throws there and the answer must accompany an explicit decision (`{ approved, text }`) or a chosen option; otherwise a typed note would authorize the call. `allowFreeform` on a decision therefore annotates the decision rather than replacing it, which is why the default `ToolFallback` shows a text field beside Allow and Deny with no separate submit. A question has no meaningful refusal, so the default `ToolFallback` renders a text field for one and omits the Deny control it adds to a decision.
 
 Not every runtime emits these fields. The Eve runtime projects its input requests onto them. The AI SDK v7 runtime's gates are boolean by construction, and the AG-UI runtime admits only gates whose response schema it can answer with a decision, so both keep sending plain decisions and carry only a `prompt` when the gate supplies one.
 

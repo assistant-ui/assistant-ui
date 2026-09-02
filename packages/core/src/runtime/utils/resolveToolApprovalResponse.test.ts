@@ -129,6 +129,30 @@ describe("resolveToolApprovalResponse", () => {
     ).toThrow("does not accept a free-form answer");
   });
 
+  it("refuses to infer approval from a bare answer on a decision", () => {
+    expect(() =>
+      resolveToolApprovalResponse(
+        { id: "a5", display: "decision", allowFreeform: true },
+        { text: "not this one" },
+      ),
+    ).toThrow("is a decision, not a question");
+    expect(() =>
+      resolveToolApprovalResponse(
+        { id: "a6", allowFreeform: true },
+        { text: "not this one" },
+      ),
+    ).toThrow("is a decision, not a question");
+  });
+
+  it("records the answer alongside an explicit decision on a gate", () => {
+    expect(
+      resolveToolApprovalResponse(
+        { id: "a7", display: "decision", allowFreeform: true },
+        { approved: false, text: "not this one" },
+      ),
+    ).toEqual({ approvalId: "a7", approved: false, text: "not this one" });
+  });
+
   it("keeps a refusal a refusal when the request accepts text", () => {
     expect(
       resolveToolApprovalResponse(
