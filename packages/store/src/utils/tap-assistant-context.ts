@@ -5,8 +5,38 @@ import type {
   AssistantEventPayload,
 } from "../types/events";
 import type { AssistantClient, ClientNames } from "../types/client";
+import { AssistantContext } from "./react-assistant-context";
 import { getClientInstanceId, isScopeAvailable } from "./client-accessor";
 import { useClientStack, type ClientStack } from "./tap-client-stack-context";
+
+const clientDestroySignals = new WeakMap<AssistantClient, AbortSignal>();
+
+export const bindClientDestroySignal = (
+  client: AssistantClient,
+  signal: AbortSignal | undefined,
+) => {
+  if (signal) clientDestroySignals.set(client, signal);
+};
+
+/**
+ * Resolves the destroy signal of the host that owns `client`. Clients
+ * extend their parent through the prototype chain, so a client that never
+ * bound a signal of its own (a derived-only provider) falls through to the
+ * owning host's instead of silently reporting none.
+ */
+export const getClientDestroySignal = (
+  client: AssistantClient,
+): AbortSignal | undefined => {
+  for (
+    let current: object | null = client;
+    current !== null;
+    current = Object.getPrototypeOf(current)
+  ) {
+    const signal = clientDestroySignals.get(current as AssistantClient);
+    if (signal) return signal;
+  }
+  return undefined;
+};
 
 type EmitFn = <TEvent extends Exclude<AssistantEventName, "*">>(
   event: TEvent,
@@ -45,12 +75,14 @@ export const useAssistantClientRef = () => {
 };
 
 /**
- * Returns the permanent teardown signal for a standalone assistant client.
- * React-hosted clients do not expose a distinct destroy lifecycle.
+ * Returns the permanent teardown signal for the owning assistant client.
+ * Scope mounts read it from tap context; runtime hooks that sit outside
+ * those mounts read the same signal off the current AssistantContext client.
  */
 export const useAssistantClientDestroySignal = (): AbortSignal | undefined => {
   const ctx = use(AssistantTapContext);
-  return ctx?.destroySignal;
+  const client = use(AssistantContext);
+  return ctx?.destroySignal ?? getClientDestroySignal(client);
 };
 
 /**

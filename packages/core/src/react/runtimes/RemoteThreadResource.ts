@@ -38,6 +38,7 @@ export type RemoteThreadResourceProps = {
     runtime: ThreadRuntimeCore,
     generation: number,
   ) => void;
+  destroySignal: AbortSignal;
 };
 
 export const subscribeToTitleGeneration = (
@@ -178,6 +179,7 @@ const useRemoteThreadResource = ({
   parentClient,
   adapters,
   publish,
+  destroySignal,
 }: RemoteThreadResourceProps) => {
   const itemRuntime = useMemo(
     () =>
@@ -210,9 +212,11 @@ const useRemoteThreadResource = ({
     [parentList, threadId],
   );
 
-  const { client } = useConfiguredAui(parentClient, {
-    threadListItem: ThreadListItemClient({ runtime: itemRuntime }),
-  });
+  const { client } = useConfiguredAui(
+    parentClient,
+    { threadListItem: ThreadListItemClient({ runtime: itemRuntime }) },
+    destroySignal,
+  );
 
   return useAssistantContextProvider(client, function useThreadClient() {
     return useRuntimeAdaptersProvider(adapters, function useBoundRuntime() {
