@@ -33,7 +33,7 @@ function ShellApprovalGate({ args, approval, respondToApproval }: ToolCallMessag
     try {
       await respondToApproval(response);
     } catch (failure) {
-      reportToTheUser(failure);
+      console.error(failure);
     }
   };
 

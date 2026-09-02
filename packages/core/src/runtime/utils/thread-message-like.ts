@@ -23,8 +23,8 @@ import type {
   MessageTiming,
   PartProviderMetadata,
   TextMessagePart,
-  ToolApprovalOption,
   ToolCallTiming,
+  ToolCallMessagePart,
   ToolCallMessagePartMcpMetadata,
 } from "../../types/message";
 import type {
@@ -66,15 +66,7 @@ export type ThreadMessageLike = {
             readonly timing?: ToolCallTiming;
             readonly mcp?: ToolCallMessagePartMcpMetadata;
             readonly providerMetadata?: PartProviderMetadata;
-            readonly approval?: {
-              readonly id: string;
-              readonly approved?: boolean;
-              readonly reason?: string;
-              readonly isAutomatic?: boolean;
-              readonly options?: readonly ToolApprovalOption[];
-              readonly optionId?: string;
-              readonly resolution?: "cancelled" | "expired";
-            };
+            readonly approval?: NonNullable<ToolCallMessagePart["approval"]>;
           }
       )[];
   readonly id?: string | undefined;

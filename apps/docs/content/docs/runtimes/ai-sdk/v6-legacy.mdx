@@ -359,6 +359,7 @@ import {
   AuiConfig,
   defineToolkit,
   Tools,
+  type ToolApprovalResponse,
 } from "@assistant-ui/react";
 import { useAISDKRuntime } from "@assistant-ui/react-ai-sdk";
 import { lastAssistantMessageIsCompleteWithApprovalResponses } from "ai";
@@ -374,7 +375,7 @@ const toolkit = defineToolkit({
         try {
           await respondToApproval(response);
         } catch (failure) {
-          reportToTheUser(failure);
+          console.error(failure);
         }
       };
 
