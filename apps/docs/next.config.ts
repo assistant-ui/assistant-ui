@@ -80,6 +80,7 @@ const config: NextConfig = {
     "/api/doc/chat": REPO_SOURCE_TRACE,
     "/api/xulux/chat": REPO_SOURCE_TRACE,
     "/api/xulux/demo-download": REPO_SOURCE_TRACE,
+    "/api/xulux/learn/chat": REPO_SOURCE_TRACE,
     "/api/xulux/learn/download": REPO_SOURCE_TRACE,
     "/api/xulux/learn/source": REPO_SOURCE_TRACE,
   },

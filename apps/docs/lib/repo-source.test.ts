@@ -1,8 +1,26 @@
 import { mkdtemp, mkdir, writeFile, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import path from "node:path";
-import { afterEach, describe, expect, it } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { loadRepoSourceSnapshot, repoSourceRoot } from "./repo-source";
+
+const reads = vi.hoisted(() => ({ inFlight: 0, peak: 0 }));
+
+vi.mock("node:fs/promises", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("node:fs/promises")>();
+  return {
+    ...actual,
+    readFile: async (...args: Parameters<typeof actual.readFile>) => {
+      reads.inFlight += 1;
+      reads.peak = Math.max(reads.peak, reads.inFlight);
+      try {
+        return await actual.readFile(...args);
+      } finally {
+        reads.inFlight -= 1;
+      }
+    },
+  };
+});
 
 const roots: string[] = [];
 
@@ -18,6 +36,11 @@ async function createSourceTree(files: Record<string, string>) {
 
   return root;
 }
+
+beforeEach(() => {
+  reads.inFlight = 0;
+  reads.peak = 0;
+});
 
 afterEach(async () => {
   await Promise.all(
@@ -52,6 +75,21 @@ describe("loadRepoSourceSnapshot", () => {
     await expect(loadRepoSourceSnapshot(root)).resolves.toEqual({
       "emoji.md": "🙂 ok\n",
     });
+  });
+
+  it("bounds concurrent reads so a large tree cannot exhaust file descriptors", async () => {
+    const files = Object.fromEntries(
+      Array.from({ length: 400 }, (_, index) => [
+        `packages/p${index % 20}/file-${index}.ts`,
+        `export const n = ${index};\n`,
+      ]),
+    );
+    const root = await createSourceTree(files);
+
+    const snapshot = await loadRepoSourceSnapshot(root);
+
+    expect(Object.keys(snapshot)).toHaveLength(400);
+    expect(reads.peak).toBeLessThanOrEqual(32);
   });
 
   it("rejects when the tree is missing", async () => {
