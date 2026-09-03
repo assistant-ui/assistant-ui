@@ -3,13 +3,35 @@ import {
   normalizeMathDelimiters,
 } from "@assistant-ui/react-markdown";
 import { describe, expect, it } from "vitest";
-import { closeDisplayMathFences, preprocessMath } from "./markdown-math";
+import {
+  closeDisplayMathFences,
+  mapProse,
+  preprocessMath,
+} from "./markdown-math";
 
 describe("closeDisplayMathFences", () => {
   it("moves a closing fence that ends an equation line onto its own line", () => {
     expect(
       closeDisplayMathFences("Sum:\n$$\nS = \\frac{a}{1 - r}$$\nDone."),
     ).toBe("Sum:\n$$\nS = \\frac{a}{1 - r}\n$$\nDone.");
+  });
+
+  it("moves content that shares the opening fence line onto its own line", () => {
+    expect(
+      closeDisplayMathFences(
+        "Subtract:\n$$S_n - rS_n\n=\n(a+ar+\\cdots+ar^{n-1})\n-\n(ar+\\cdots+ar^n).$$\n\nAll terms cancel.",
+      ),
+    ).toBe(
+      "Subtract:\n$$\nS_n - rS_n\n=\n(a+ar+\\cdots+ar^{n-1})\n-\n(ar+\\cdots+ar^n).\n$$\n\nAll terms cancel.",
+    );
+  });
+
+  it("leaves a block opened with content and closed by a bare fence", () => {
+    expect(closeDisplayMathFences("$$a\n= b\n$$")).toBe("$$\na\n= b\n$$");
+  });
+
+  it("leaves one line display math at the start of a line alone", () => {
+    expect(closeDisplayMathFences("$$a = b$$\ntext")).toBe("$$a = b$$\ntext");
   });
 
   it("accepts whitespace before the trailing fence", () => {
@@ -59,6 +81,26 @@ describe("closeDisplayMathFences", () => {
   });
 });
 
+describe("mapProse", () => {
+  const upper = (prose: string) => prose.toUpperCase();
+
+  it("transforms prose around fenced code and code spans only", () => {
+    expect(
+      mapProse("one `two` three\n```js\nfour\n```\nfive ``six`` seven", upper),
+    ).toBe("ONE `two` THREE\n```js\nfour\n```\nFIVE ``six`` SEVEN");
+  });
+
+  it("treats an unmatched backtick run as prose", () => {
+    expect(mapProse("a ` b", upper)).toBe("A ` B");
+  });
+
+  it("keeps a prose run intact across lines", () => {
+    expect(mapProse("a\n\nb", (prose) => prose.replace(/\n\n/g, "|"))).toBe(
+      "a|b",
+    );
+  });
+});
+
 describe("preprocessMath", () => {
   it("closes fences before the shared delimiter and currency passes", () => {
     const text = "$$\nx$$\nCosts $5 and \\(y\\).";
@@ -66,6 +108,19 @@ describe("preprocessMath", () => {
       escapeCurrencyDollars(
         normalizeMathDelimiters("$$\nx\n$$\nCosts $5 and \\(y\\)."),
       ),
+    );
+  });
+
+  it("leaves LaTeX-looking code alone while normalizing prose", () => {
+    const code = "```js\nconst m = text.match(/\\((\\d+)\\)/);\n```";
+    expect(
+      preprocessMath(`Match \\(n\\) with:\n${code}\nUse \`\\(x\\)\`.`),
+    ).toBe(`Match $n$ with:\n${code}\nUse \`\\(x\\)\`.`);
+  });
+
+  it("normalizes display math that spans lines", () => {
+    expect(preprocessMath("Sum:\n\\[\na = b\n\\]\nDone.")).toBe(
+      normalizeMathDelimiters("Sum:\n\\[\na = b\n\\]\nDone."),
     );
   });
 });
