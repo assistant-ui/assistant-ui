@@ -180,6 +180,42 @@ describe("createOAuthProvider persistence", () => {
     await expect(provider.tokens()).resolves.toBeUndefined();
   });
 
+  it("keeps in-memory authentication scoped to its server URL", async () => {
+    const { storage } = createStorage();
+    const endpointA = createOAuthProvider({
+      serverId: "docs",
+      serverUrl: "https://endpoint-a.example.com/mcp",
+      config: { type: "oauth" },
+      storage,
+      redirectUri: "http://localhost/callback",
+      onAuthorizationUrl: () => {},
+    });
+    await endpointA.saveTokens({
+      access_token: "endpoint-a-token",
+      token_type: "bearer",
+    });
+
+    const endpointB = createOAuthProvider({
+      serverId: "docs",
+      serverUrl: "https://endpoint-b.example.com/mcp",
+      config: { type: "oauth" },
+      storage,
+      redirectUri: "http://localhost/callback",
+      onAuthorizationUrl: () => {},
+    });
+
+    await expect(endpointB.tokens()).resolves.toBeUndefined();
+    await endpointB.saveTokens({
+      access_token: "endpoint-b-token",
+      token_type: "bearer",
+    });
+    await expect(endpointA.tokens()).resolves.toBeUndefined();
+    await expect(endpointB.tokens()).resolves.toEqual({
+      access_token: "endpoint-b-token",
+      token_type: "bearer",
+    });
+  });
+
   it("binds legacy authentication to the current server URL", async () => {
     const { storage, getState } = createStorage({
       tokens: { access_token: "legacy-token", token_type: "bearer" },

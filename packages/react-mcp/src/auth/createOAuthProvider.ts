@@ -68,12 +68,14 @@ type OAuthProviderCache = {
 };
 
 type OAuthProviderEndpointCache = {
+  serverUrl: string;
   cached: OAuthProviderCache | null;
   cachePromise: Promise<OAuthProviderCache> | null;
+  invalidated: boolean;
 };
 
 type OAuthProviderPersistence = {
-  endpoints: Map<string, OAuthProviderEndpointCache>;
+  endpoint: OAuthProviderEndpointCache | null;
   queue: Promise<void>;
   invalidated: boolean;
 };
@@ -121,7 +123,7 @@ export const isAuthStateForServerUrl = (
   state: MCPPersistedAuthState | null,
   serverUrl: string,
 ): boolean => {
-  if (state?.serverUrl === undefined) return true;
+  if (state?.serverUrl === undefined) return false;
   try {
     return (
       normalizeMcpServerUrl(state.serverUrl) ===
@@ -150,17 +152,23 @@ const getPersistence = (
   let persistence = byServerId.get(serverId);
   if (!persistence) {
     persistence = {
-      endpoints: new Map(),
+      endpoint: null,
       queue: Promise.resolve(),
       invalidated: false,
     };
     byServerId.set(serverId, persistence);
   }
 
-  let endpoint = persistence.endpoints.get(serverUrl);
-  if (!endpoint) {
-    endpoint = { cached: null, cachePromise: null };
-    persistence.endpoints.set(serverUrl, endpoint);
+  let endpoint = persistence.endpoint;
+  if (endpoint?.serverUrl !== serverUrl) {
+    if (endpoint) endpoint.invalidated = true;
+    endpoint = {
+      serverUrl,
+      cached: null,
+      cachePromise: null,
+      invalidated: false,
+    };
+    persistence.endpoint = endpoint;
   }
   return { persistence, endpoint };
 };
@@ -188,11 +196,9 @@ export const clearOAuthProviderAuthState = async (
   byServerId.delete(serverId);
   if (byServerId.size === 0) persistenceByIdentity.delete(identity);
 
-  await Promise.allSettled(
-    [...persistence.endpoints.values()].map(
-      (endpoint) => endpoint.cachePromise,
-    ),
-  );
+  if (persistence.endpoint) persistence.endpoint.invalidated = true;
+  const cachePromise = persistence.endpoint?.cachePromise;
+  if (cachePromise) await Promise.allSettled([cachePromise]);
   await persistence.queue;
   await storage.clearAuthState(serverId);
 };
@@ -238,13 +244,18 @@ export function createOAuthProvider(
   })();
 
   const loadCache = (): Promise<OAuthProviderCache> => {
+    if (endpoint.invalidated) return Promise.resolve({});
     if (endpoint.cached) return Promise.resolve(endpoint.cached);
     if (endpoint.cachePromise) return endpoint.cachePromise;
 
     endpoint.cachePromise = storage.loadAuthState(serverId).then(
       async (persisted) => {
         const initial: OAuthProviderCache = {};
-        if (isAuthStateForServerUrl(persisted, normalizedServerUrl)) {
+        if (endpoint.invalidated) return initial;
+        if (
+          persisted?.serverUrl === undefined ||
+          isAuthStateForServerUrl(persisted, normalizedServerUrl)
+        ) {
           if (persisted?.tokens) initial.tokens = persisted.tokens;
           if (persisted?.clientInformation)
             initial.clientInformation = persisted.clientInformation;
@@ -270,7 +281,7 @@ export function createOAuthProvider(
 
   function persist() {
     const task = persistence.queue.then(async () => {
-      if (persistence.invalidated) return;
+      if (persistence.invalidated || endpoint.invalidated) return;
       const c = endpoint.cached;
       if (!c) return;
       const next: Parameters<typeof storage.saveAuthState>[1] = {};

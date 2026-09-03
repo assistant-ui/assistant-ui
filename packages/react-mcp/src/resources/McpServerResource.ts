@@ -245,6 +245,9 @@ const useMcpServerResourceInstance = (
 
   const loadAuthState = useEffectEvent(async () => {
     const state = await props.storage.loadAuthState(props.id);
+    if (state?.serverUrl === undefined) {
+      return props.auth.type === "oauth" ? state : null;
+    }
     return isAuthStateForServerUrl(state, props.url) ? state : null;
   });
 

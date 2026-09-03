@@ -220,6 +220,31 @@ describe("McpServerResource automatic authentication", () => {
     }
   });
 
+  it("does not auto-connect with an unbound legacy bearer token", async () => {
+    const storage = createStorage();
+    vi.mocked(storage.loadAuthState).mockResolvedValue({ token: "secret" });
+    const root = mount({
+      auth: { type: "bearer" },
+      storage,
+      autoConnect: true,
+    });
+
+    try {
+      await waitFor(() =>
+        expect(storage.loadAuthState).toHaveBeenCalledWith("docs"),
+      );
+      await flushMacrotask();
+
+      expect(root.getValue().getState()).toMatchObject({
+        connectionState: "disconnected",
+        lastError: null,
+      });
+      expect(mocks.StreamableHTTPClientTransport).not.toHaveBeenCalled();
+    } finally {
+      root.unmount();
+    }
+  });
+
   it("reports auth storage load failures", async () => {
     const storage = createStorage();
     vi.mocked(storage.loadAuthState).mockRejectedValue(
