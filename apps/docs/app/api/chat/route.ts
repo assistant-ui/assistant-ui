@@ -69,11 +69,14 @@ export async function POST(req: Request) {
 
     // Basic validation: only accept short system prompts to limit abuse surface
     const MAX_SYSTEM_LENGTH = 4000;
+    const groundInDocs = !req.headers.get("origin")
+      ? true
+      : new URL(req.url).origin === req.headers.get("origin");
     const system = [
       typeof rawSystem === "string" && rawSystem.length <= MAX_SYSTEM_LENGTH
         ? rawSystem
         : undefined,
-      SEARCH_DOCS_SYSTEM_INSTRUCTION,
+      groundInDocs ? SEARCH_DOCS_SYSTEM_INSTRUCTION : undefined,
     ]
       .filter(Boolean)
       .join("\n\n");
@@ -86,6 +89,16 @@ export async function POST(req: Request) {
     const { model, providerOptions, reasoning } = resolveChatModel(config);
     const distinctId = getDistinctId(req);
     const origin = new URL(req.url).origin;
+
+    const frontendTools = await aiToolkit.tools({ frontend: tools });
+    if (groundInDocs && "search_docs" in frontendTools) {
+      return withCors(
+        req,
+        new Response("search_docs is reserved on this endpoint", {
+          status: 400,
+        }),
+      );
+    }
 
     const prunedMessages = pruneMessages({
       messages: await convertToModelMessages(
@@ -103,10 +116,12 @@ export async function POST(req: Request) {
           messages: prunedMessages,
           maxOutputTokens: reasoning ? 16384 : 4096,
           stopWhen: stepCountIs(10),
-          tools: {
-            ...(await aiToolkit.tools({ frontend: tools })),
-            search_docs: createSearchDocsTool({ writer, origin }),
-          },
+          tools: groundInDocs
+            ? {
+                ...frontendTools,
+                search_docs: createSearchDocsTool({ writer, origin }),
+              }
+            : frontendTools,
           ...posthogTelemetry({
             distinctId,
             spanName: "general_chat",

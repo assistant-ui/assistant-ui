@@ -1,6 +1,10 @@
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 import type { SearchRecord } from "@/lib/search/types";
-import { searchDocs } from "./search-docs";
+vi.mock("@/lib/search/pages", () => ({
+  buildSearchIndex: () => records,
+}));
+
+import { createSearchDocsTool, searchDocs } from "./search-docs";
 
 const records: SearchRecord[] = [
   {
@@ -56,5 +60,36 @@ describe("searchDocs", () => {
   it("returns no results for empty or all-stopword queries", () => {
     expect(searchDocs(records, "", 5)).toEqual([]);
     expect(searchDocs(records, "the and or", 5)).toEqual([]);
+  });
+});
+
+describe("createSearchDocsTool", () => {
+  it("writes one absolute source part per returned page", async () => {
+    const written: unknown[] = [];
+    const tool = createSearchDocsTool({
+      writer: { write: (part: unknown) => written.push(part) } as never,
+      origin: "https://www.assistant-ui.com",
+    });
+
+    const output = (await tool.execute!(
+      { query: "thread list" },
+      {
+        toolCallId: "1",
+        messages: [],
+      },
+    )) as { results: { url: string; title: string }[] };
+
+    expect(output.results.map((page) => page.url)).toEqual([
+      "https://www.assistant-ui.com/docs/ui/thread-list",
+      "https://www.assistant-ui.com/docs/runtimes/custom",
+    ]);
+    expect(written).toEqual(
+      output.results.map((page) => ({
+        type: "source-url",
+        sourceId: page.url,
+        url: page.url,
+        title: page.title,
+      })),
+    );
   });
 });

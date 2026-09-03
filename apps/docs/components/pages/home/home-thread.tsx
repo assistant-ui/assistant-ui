@@ -164,7 +164,7 @@ const homeEffortPreference = createPersistedPreference<string>({
 
 const groupAssistantParts = groupPartByType({
   reasoning: ["group-chainOfThought", "group-reasoning"],
-  source: ["group-source"],
+  source: ["group-chainOfThought", "group-source"],
   "tool-call": ["group-chainOfThought", "group-tool"],
   "standalone-tool-call": [],
 });
@@ -1122,14 +1122,27 @@ function SpecimenAssistantMessage(): ReactNode {
   );
 }
 
+function sourceLabel(url: string, title: string | undefined): string {
+  if (title) return title;
+  try {
+    return new URL(url).hostname;
+  } catch {
+    return url;
+  }
+}
+
 function SpecimenSources(): ReactNode {
   const content = useAuiState((s) => s.message.content);
+  const text = content
+    .flatMap((part) => (part.type === "text" ? part.text : []))
+    .join("\n");
   const seen = new Set<string>();
   const sources = content.flatMap((part) => {
     if (
       part.type !== "source" ||
       part.sourceType !== "url" ||
-      seen.has(part.url)
+      seen.has(part.url) ||
+      !text.includes(part.url)
     ) {
       return [];
     }
@@ -1149,7 +1162,7 @@ function SpecimenSources(): ReactNode {
           rel="noopener noreferrer"
           className="decoration-foreground/20 hover:text-foreground hover:decoration-foreground/60 max-w-[40ch] truncate underline underline-offset-[3px] transition-colors"
         >
-          {source.title || new URL(source.url).hostname}
+          {sourceLabel(source.url, source.title)}
         </a>
       ))}
     </div>

@@ -47,6 +47,7 @@ type SearchDocsResult = {
   title: string;
   description: string;
   headings: string[];
+  matches: string[];
 };
 
 export function searchDocs(
@@ -89,6 +90,10 @@ export function searchDocs(
       title: record.title,
       description: record.description,
       headings: record.headings.map((heading) => heading.content),
+      matches: group.items
+        .filter((item) => item.type !== "page")
+        .slice(0, 4)
+        .map((item) => item.content.replace(/\s+/g, " ").trim().slice(0, 300)),
     };
   });
 }
@@ -96,25 +101,13 @@ export function searchDocs(
 let searchIndexPromise: Promise<SearchRecord[]> | undefined;
 
 function getSearchIndex() {
-  searchIndexPromise ??= import("@/lib/search/pages").then(
-    ({ buildSearchIndex }) => buildSearchIndex(),
-  );
+  searchIndexPromise ??= import("@/lib/search/pages")
+    .then(({ buildSearchIndex }) => buildSearchIndex())
+    .catch((error: unknown) => {
+      searchIndexPromise = undefined;
+      throw error;
+    });
   return searchIndexPromise;
-}
-
-async function getExcerpt(url: string) {
-  const [{ getLLMText }, sourceModule] = await Promise.all([
-    import("@/lib/get-llm-text"),
-    import("@/lib/source"),
-  ]);
-  const page =
-    sourceModule.source.getPages().find((page) => page.url === url) ??
-    sourceModule.getTapDocsPages().find((page) => page.url === url) ??
-    sourceModule.design.getPages().find((page) => page.url === url) ??
-    sourceModule.elementsDocs.getPages().find((page) => page.url === url);
-  if (!page) return undefined;
-
-  return (await getLLMText(page)).replace(/\s+/g, " ").trim().slice(0, 600);
 }
 
 export function createSearchDocsTool({
@@ -137,29 +130,17 @@ export function createSearchDocsTool({
       }),
     ),
     execute: async ({ query }) => {
-      const matches = searchDocs(await getSearchIndex(), query, 5);
-      const results = await Promise.all(
-        matches.map(async (match, index) => {
-          const result = {
-            ...match,
-            url: new URL(match.url, origin).href,
-          };
-          if (index >= 3) return result;
+      const pages = searchDocs(await getSearchIndex(), query, 5);
+      const results = pages.map((page) => ({
+        ...page,
+        url: new URL(page.url, origin).href,
+      }));
 
-          try {
-            const excerpt = await getExcerpt(match.url);
-            return excerpt === undefined ? result : { ...result, excerpt };
-          } catch {
-            return result;
-          }
-        }),
-      );
-
-      for (const page of matches) {
+      for (const page of results) {
         writer.write({
           type: "source-url",
           sourceId: page.url,
-          url: new URL(page.url, origin).href,
+          url: page.url,
           title: page.title,
         });
       }

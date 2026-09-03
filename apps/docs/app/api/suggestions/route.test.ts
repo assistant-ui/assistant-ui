@@ -16,7 +16,7 @@ vi.mock("@/lib/anonymous-session", async (importOriginal) => ({
 
 vi.mock("@/lib/rate-limit", async (importOriginal) => ({
   ...(await importOriginal()),
-  checkPublicAssistantRateLimit: mocks.checkRateLimit,
+  checkFollowUpSuggestionRateLimit: mocks.checkRateLimit,
 }));
 
 vi.mock("@/lib/ai/provider", async (importOriginal) => ({
@@ -57,18 +57,56 @@ describe("POST /api/suggestions", () => {
     expect(mocks.getModel).not.toHaveBeenCalled();
   });
 
-  it("rejects an oversized prompt", async () => {
+  it("rejects a prompt that is missing or blank", async () => {
     mocks.requireSession.mockReturnValue({
       id: "session_1234567890",
       expiresAt: Date.now() + 60_000,
     });
     mocks.checkRateLimit.mockResolvedValue(null);
 
-    const response = await POST(request("x".repeat(12_001)));
+    const response = await POST(request("   "));
 
     expect(response.status).toBe(400);
     expect(await response.text()).toBe("Invalid prompt");
     expect(mocks.getModel).not.toHaveBeenCalled();
+  });
+
+  it("rejects a malformed body without failing as a server error", async () => {
+    mocks.requireSession.mockReturnValue({
+      id: "session_1234567890",
+      expiresAt: Date.now() + 60_000,
+    });
+    mocks.checkRateLimit.mockResolvedValue(null);
+
+    const response = await POST(
+      new Request("https://www.assistant-ui.com/api/suggestions", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: "{ not json",
+      }),
+    );
+
+    expect(response.status).toBe(400);
+    expect(mocks.getModel).not.toHaveBeenCalled();
+  });
+
+  it("keeps the tail of a long transcript instead of rejecting it", async () => {
+    mocks.requireSession.mockReturnValue({
+      id: "session_1234567890",
+      expiresAt: Date.now() + 60_000,
+    });
+    mocks.checkRateLimit.mockResolvedValue(null);
+    mocks.getModel.mockReturnValue({});
+    mocks.getDistinctId.mockReturnValue("distinct_1234567890");
+    mocks.generateText.mockResolvedValue({ text: "One" });
+
+    const prompt = `${"x".repeat(30_000)}TAIL`;
+    const response = await POST(request(prompt));
+
+    expect(response.status).toBe(200);
+    const sent = mocks.generateText.mock.calls[0]![0].prompt as string;
+    expect(sent).toHaveLength(24_000);
+    expect(sent.endsWith("TAIL")).toBe(true);
   });
 
   it("returns three trimmed suggestions", async () => {
