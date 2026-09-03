@@ -18,16 +18,28 @@ const LATEX_DISPLAY_DELIMITER = /\\{1,2}\[([\s\S]+?)\\{1,2}\]/g;
  * leading backslash is accepted, since models emit both depending on escaping.
  * remark-math only recognizes the dollar form, so without this rewrite bracket
  * math renders as plain text.
+ *
+ * A display body spanning lines is emitted fenced, on lines the `$$` markers own.
+ * remark-math parses multiline `$$` as a flow construct: the opening marker has to
+ * start a line and the closing marker to end one, and it reads whatever else shares
+ * those lines as fence metadata rather than as math.
  */
 export function rewriteLatexBracketDelimiters(text: string): string {
   return text
     .replace(LATEX_INLINE_DELIMITER, (_, body: string) => `$${body.trim()}$`)
-    .replace(LATEX_DISPLAY_DELIMITER, (_, body: string) => {
-      const trimmedBody = body.trim();
-      return trimmedBody.includes("\n")
-        ? `$$\n${trimmedBody}\n$$`
-        : `$$${trimmedBody}$$`;
-    });
+    .replace(
+      LATEX_DISPLAY_DELIMITER,
+      (match: string, body: string, offset: number, source: string) => {
+        const trimmed = body.trim();
+        if (!trimmed.includes("\n")) return `$$${trimmed}$$`;
+
+        const before = source.slice(0, offset);
+        const after = source.slice(offset + match.length);
+        const lead = before === "" || before.endsWith("\n") ? "" : "\n";
+        const tail = after === "" || after.startsWith("\n") ? "" : "\n";
+        return `${lead}$$\n${trimmed}\n$$${tail}`;
+      },
+    );
 }
 
 const MATH_TAG = /\[\/math\]([\s\S]*?)\[\/math\]/g;
