@@ -33,9 +33,11 @@ const LOGOS: Logo[] = [
     href: "https://aws.amazon.com?ref=assistant-ui",
   },
   {
-    src: "/icons/cust/langchain.svg",
-    alt: "Langchain",
-    href: "https://langchain.com?ref=assistant-ui",
+    src: "/icons/cust/neon.svg",
+    darkSrc: "/icons/cust/neon-dark.svg",
+    alt: "Neon",
+    href: "https://neon.tech?ref=assistant-ui",
+    invert: false,
   },
   {
     src: "/icons/yc_logo.png",
@@ -44,11 +46,9 @@ const LOGOS: Logo[] = [
     invert: false,
   },
   {
-    src: "/icons/cust/neon.svg",
-    darkSrc: "/icons/cust/neon-dark.svg",
-    alt: "Neon",
-    href: "https://neon.tech?ref=assistant-ui",
-    invert: false,
+    src: "/icons/cust/langchain.svg",
+    alt: "Langchain",
+    href: "https://langchain.com?ref=assistant-ui",
   },
   {
     src: "/icons/cust/builder.svg",
