@@ -79,6 +79,13 @@ describe("rewriteLatexBracketDelimiters", () => {
     );
   });
 
+  it("does not close a fenced block on a line with an info string", () => {
+    const fenced = "```\n```js\n\\(x\\)\n```\nafter \\(y\\)";
+    expect(rewriteLatexBracketDelimiters(fenced)).toBe(
+      "```\n```js\n\\(x\\)\n```\nafter $y$",
+    );
+  });
+
   it("rewrites prose on the same line as a code span", () => {
     expect(rewriteLatexBracketDelimiters("\\(a\\) `\\(x\\)` \\(b\\)")).toBe(
       "$a$ `\\(x\\)` $b$",
@@ -312,6 +319,13 @@ describe("escapeCurrencyDollars", () => {
   it("accepts a longer closing run for a fenced block", () => {
     expect(escapeCurrencyDollars("```\nconst price = $5;\n````")).toBe(
       "```\nconst price = $5;\n````",
+    );
+  });
+
+  it("does not close a fenced block on a line with an info string", () => {
+    const fenced = "```\n```js\nconst price = $5;\n```\nafter $10";
+    expect(escapeCurrencyDollars(fenced)).toBe(
+      "```\n```js\nconst price = $5;\n```\nafter \\$10",
     );
   });
 

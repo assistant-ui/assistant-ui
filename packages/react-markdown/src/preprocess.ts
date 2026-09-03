@@ -79,8 +79,8 @@ function atLineStart(text: string, index: number): boolean {
  * Backtick regions are found with `codeSpanEnd`, which {@link
  * escapeCurrencyDollars} also uses, and read as CommonMark does: an unclosed
  * one- or two-backtick run is literal text, an unclosed three-plus run is a
- * fence still streaming in and protects to the end of the input, and fences are
- * not line-anchored. The unclosed three-plus case is where this walker and
+ * fence still streaming in and protects to the end of the input, and fence closers
+ * are line-anchored. The unclosed three-plus case is where this walker and
  * `escapeCurrencyDollars` differ, since that one treats the run as literal. Tilde
  * fences are line-anchored per CommonMark: a `~~~` run starting a line opens
  * one, and it closes on a line carrying only an at-least-as-long tilde run.
@@ -221,8 +221,29 @@ function codeSpanEnd(text: string, start: number): number {
   const delimiter = "`".repeat(delimiterLength);
   let closed = text.indexOf(delimiter, start + delimiterLength);
 
+  if (delimiterLength >= 3) {
+    while (closed !== -1) {
+      const closedLength = runLength(text, closed, "`");
+      const lineStart = text.lastIndexOf("\n", closed - 1) + 1;
+      const lineEnd = text.indexOf("\n", closed + closedLength);
+      const before = text.slice(lineStart, closed);
+      const after = text.slice(
+        closed + closedLength,
+        lineEnd === -1 ? undefined : lineEnd,
+      );
+
+      if (/^ {0,3}$/.test(before) && /^[ \t\r]*$/.test(after)) {
+        return closed + closedLength;
+      }
+
+      closed = text.indexOf(delimiter, closed + closedLength);
+    }
+
+    return -1;
+  }
+
   // Fences may close on a longer run; one- and two-backtick inline spans may not.
-  while (delimiterLength < 3 && closed !== -1) {
+  while (closed !== -1) {
     const closedLength = runLength(text, closed, "`");
     if (closedLength === delimiterLength) break;
     closed = text.indexOf(delimiter, closed + closedLength);
