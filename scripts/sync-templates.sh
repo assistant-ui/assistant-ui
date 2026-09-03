@@ -20,8 +20,7 @@ HOOKS_SOURCE_DIR="$ROOT_DIR/packages/ui/src/hooks"
 LIB_SOURCE_DIR="$ROOT_DIR/packages/ui/src/lib"
 TEMPLATES_ROOT="$ROOT_DIR/templates"
 EXAMPLES_ROOT="$ROOT_DIR/examples"
-APPS_ROOT="$ROOT_DIR/apps"
-UI_SRC_ROOT="$ROOT_DIR/packages/ui/src"
+UI_SRC_REL="packages/ui/src"
 
 MINIMAL_DIR="$TEMPLATES_ROOT/minimal/components/assistant-ui/elements"
 MINIMAL_UI_DIR="$TEMPLATES_ROOT/minimal/components/ui"
@@ -339,24 +338,26 @@ is_exempt_copy() {
     esac
 }
 
+# Both sides come from the index rather than a filesystem walk, so build
+# output never enters the comparison: apps/docs/generated/.repo-source alone
+# holds a copy of every tracked file in the repo once the docs have been built.
 UI_SRC_LIST="$RENDER_DIR/ui-src-list"
-find "$UI_SRC_ROOT" -type f -not -path "*/node_modules/*" >"$UI_SRC_LIST"
+git -C "$ROOT_DIR" ls-files -- "$UI_SRC_REL" >"$UI_SRC_LIST"
 
-while IFS= read -r -d '' copy; do
-    rel="${copy#"$ROOT_DIR"/}"
+while IFS= read -r rel; do
+    case "$rel" in
+    *.ts | *.tsx | *.vue | *.css) ;;
+    *) continue ;;
+    esac
     is_exempt_copy "$rel" && continue
 
-    while IFS= read -r src_file; do
-        if cmp -s "$src_file" "$copy"; then
+    while IFS= read -r src_rel; do
+        if cmp -s "$ROOT_DIR/$src_rel" "$ROOT_DIR/$rel"; then
             redundant+=("$rel")
             break
         fi
-    done < <(awk -F/ -v base="$(basename "$copy")" '$NF == base' "$UI_SRC_LIST")
-done < <(find "$EXAMPLES_ROOT" "$TEMPLATES_ROOT" "$APPS_ROOT" -type f \
-    \( -name "*.ts" -o -name "*.tsx" -o -name "*.vue" -o -name "*.css" \) \
-    -not -path "*/node_modules/*" -not -path "*/.next/*" -not -path "*/.nuxt/*" \
-    -not -path "*/.output/*" -not -path "*/.source/*" -not -path "*/dist/*" \
-    -not -path "*/.turbo/*" -print0)
+    done < <(awk -F/ -v base="${rel##*/}" '$NF == base' "$UI_SRC_LIST")
+done < <(git -C "$ROOT_DIR" ls-files -- examples templates apps)
 
 if [[ ${#drift[@]} -eq 0 && ${#vue_drift[@]} -eq 0 && ${#vue_missing[@]} -eq 0 && ${#ui_drift[@]} -eq 0 && ${#hooks_drift[@]} -eq 0 && ${#lib_drift[@]} -eq 0 && ${#redundant[@]} -eq 0 ]]; then
     echo "✓ all template components, hooks, and lib files are in sync with packages/ui"
