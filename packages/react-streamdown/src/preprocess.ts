@@ -12,8 +12,11 @@
 const LATEX_INLINE_DELIMITER = /\\{1,2}\(([^\n]+?)\\{1,2}\)/g;
 const LATEX_DISPLAY_DELIMITER = /\\{1,2}\[([\s\S]+?)\\{1,2}\]/g;
 
-const TILDE_FENCE_CLOSE = /^ {0,3}(~{3,})[ \t\r]*$/;
-const CONTAINER_OPENER = /^ {0,3}(?:>[ \t]?)*(?= {0,3}~)/;
+// The closer may carry the same blockquote prefix the opener did, and matching
+// it by shape rather than by exact string keeps `> ~~~` and `>~~~` equivalent.
+// Reading a closer leniently is the safe bias: a missed one protects the rest of
+// the document as code and suppresses every rewrite after it.
+const TILDE_FENCE_CLOSE = /^ {0,3}(?:>[ \t]?)* {0,3}(~{3,})[ \t\r]*$/;
 
 /**
  * End index (exclusive) of the tilde fence opened by the `~` run at `start`,
@@ -24,9 +27,6 @@ const CONTAINER_OPENER = /^ {0,3}(?:>[ \t]?)*(?= {0,3}~)/;
  */
 function tildeFenceEnd(text: string, start: number): number {
   const fenceLength = runLength(text, start, "~");
-  // A fence opened inside a blockquote closes on a line carrying the same
-  // container prefix, so that prefix is stripped before the closer is read.
-  const prefix = containerPrefix(text, start);
   let lineStart = text.indexOf("\n", start);
 
   while (lineStart !== -1) {
@@ -35,8 +35,7 @@ function tildeFenceEnd(text: string, start: number): number {
       lineStart + 1,
       lineEnd === -1 ? undefined : lineEnd,
     );
-    const body = line.startsWith(prefix) ? line.slice(prefix.length) : line;
-    const close = TILDE_FENCE_CLOSE.exec(body);
+    const close = TILDE_FENCE_CLOSE.exec(line);
     if (close && close[1]!.length >= fenceLength) {
       return lineEnd === -1 ? text.length : lineEnd;
     }
@@ -61,12 +60,6 @@ function atLineStart(text: string, index: number): boolean {
   // code block instead, so the marker may carry at most three.
   const lineStart = text.lastIndexOf("\n", cursor - 1) + 1;
   return /^ {0,3}(?:>[ \t]?)+$/.test(text.slice(lineStart, cursor));
-}
-
-/** The blockquote prefix of the line `index` sits on, "" when there is none. */
-function containerPrefix(text: string, index: number): string {
-  const lineStart = text.lastIndexOf("\n", index - 1) + 1;
-  return CONTAINER_OPENER.exec(text.slice(lineStart))?.[0] ?? "";
 }
 
 /**

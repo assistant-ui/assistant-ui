@@ -135,6 +135,18 @@ describe("rewriteLatexBracketDelimiters", () => {
     ).toBe("> ~~~\n> \\[a\\]\n> ~~~\n\nafter $x$");
   });
 
+  it("closes a blockquoted fence whose closer omits the marker space", () => {
+    expect(
+      rewriteLatexBracketDelimiters("> ~~~\n> \\[a\\]\n>~~~\n\nafter \\(x\\)"),
+    ).toBe("> ~~~\n> \\[a\\]\n>~~~\n\nafter $x$");
+  });
+
+  it("closes an indented root fence with an unindented closer", () => {
+    expect(
+      rewriteLatexBracketDelimiters("  ~~~\n\\[a\\]\n~~~\nafter \\(x\\)"),
+    ).toBe("  ~~~\n\\[a\\]\n~~~\nafter $x$");
+  });
+
   it("does not open a fence from a four-space indented marker", () => {
     expect(rewriteLatexBracketDelimiters("    > ~~~\n\\(x\\)")).toBe(
       "    > ~~~\n$x$",
