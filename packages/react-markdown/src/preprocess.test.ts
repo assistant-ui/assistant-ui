@@ -23,8 +23,12 @@ describe("rewriteLatexBracketDelimiters", () => {
     expect(rewriteLatexBracketDelimiters("\\( x \\)")).toBe("$x$");
   });
 
-  it("spans newlines only for display math", () => {
-    expect(rewriteLatexBracketDelimiters("\\[a\nb\\]")).toBe("$$a\nb$$");
+  it("uses fenced delimiters for multiline display math", () => {
+    expect(
+      rewriteLatexBracketDelimiters(
+        "\\[\\begin{aligned}\nS_n-rS_n\n&=a-ar^{n+1}.\n\\end{aligned}\\]",
+      ),
+    ).toBe("$$\n\\begin{aligned}\nS_n-rS_n\n&=a-ar^{n+1}.\n\\end{aligned}\n$$");
     expect(rewriteLatexBracketDelimiters("\\(a\nb\\)")).toBe("\\(a\nb\\)");
   });
 

@@ -22,10 +22,12 @@ const LATEX_DISPLAY_DELIMITER = /\\{1,2}\[([\s\S]+?)\\{1,2}\]/g;
 export function rewriteLatexBracketDelimiters(text: string): string {
   return text
     .replace(LATEX_INLINE_DELIMITER, (_, body: string) => `$${body.trim()}$`)
-    .replace(
-      LATEX_DISPLAY_DELIMITER,
-      (_, body: string) => `$$${body.trim()}$$`,
-    );
+    .replace(LATEX_DISPLAY_DELIMITER, (_, body: string) => {
+      const trimmedBody = body.trim();
+      return trimmedBody.includes("\n")
+        ? `$$\n${trimmedBody}\n$$`
+        : `$$${trimmedBody}$$`;
+    });
 }
 
 const MATH_TAG = /\[\/math\]([\s\S]*?)\[\/math\]/g;
