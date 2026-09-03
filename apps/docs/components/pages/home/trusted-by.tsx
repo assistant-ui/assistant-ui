@@ -27,6 +27,12 @@ const LOGOS: Logo[] = [
     invert: false,
   },
   {
+    src: "/icons/cust/aws.svg",
+    darkSrc: "/icons/cust/aws-white.svg",
+    alt: "AWS",
+    href: "https://aws.amazon.com?ref=assistant-ui",
+  },
+  {
     src: "/icons/cust/langchain.svg",
     alt: "Langchain",
     href: "https://langchain.com?ref=assistant-ui",
