@@ -54,10 +54,18 @@ describe("rewriteLatexBracketDelimiters", () => {
     );
   });
 
-  it("keeps text after the closing delimiter off the fence line", () => {
+  it("keeps trailing text nested below the closing fence line", () => {
     expect(
       rewriteLatexBracketDelimiters("1. x:\n   \\[\n   a\n   b\n   \\] done"),
-    ).toBe("1. x:\n   $$\n   a\n   b\n   $$\n done");
+    ).toBe("1. x:\n   $$\n   a\n   b\n   $$\n    done");
+  });
+
+  it("keeps a body opened beside a list marker nested in the item", () => {
+    expect(
+      rewriteLatexBracketDelimiters(
+        "1. Expand: \\[\n   a = b\n   c = d\n   \\]",
+      ),
+    ).toBe("1. Expand: \n   $$\n   a = b\n   c = d\n   $$");
   });
 
   it("lifts an unprefixed multiline display body out of its list item", () => {

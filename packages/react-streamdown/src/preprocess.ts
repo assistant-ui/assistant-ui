@@ -146,10 +146,17 @@ function emitNestedDisplayMath(
 
   let lead: string;
   if (CONTAINER_PREFIX.test(beforeOnLine)) lead = "";
-  else if (beforeOnLine.startsWith(closingPrefix)) lead = `\n${closingPrefix}`;
+  else if (
+    beforeOnLine.startsWith(closingPrefix) ||
+    (/^[ \t]*$/.test(closingPrefix) &&
+      beforeOnLine.length >= closingPrefix.length)
+  )
+    lead = `\n${closingPrefix}`;
   else return null;
 
-  return `${lead}$$\n${middle}\n${closingPrefix}$$${tail}`;
+  return `${lead}$$\n${middle}\n${closingPrefix}$$${
+    tail === "" ? "" : `\n${closingPrefix}`
+  }`;
 }
 
 /**
