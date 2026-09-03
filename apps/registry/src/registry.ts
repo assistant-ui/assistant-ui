@@ -883,6 +883,22 @@ const elementsRegistryItems: RegistryItem[] = [
 ];
 
 export const registry: RegistryItem[] = [
+  {
+    name: "utils",
+    type: "registry:lib",
+    title: "Utils",
+    description:
+      "The cn class name helper that every assistant-ui component imports from @/lib/utils.",
+    files: [
+      {
+        type: "registry:lib",
+        path: "lib/utils.ts",
+        sourcePath: "../../packages/ui/src/lib/utils.ts",
+        target: "lib/utils.ts",
+      },
+    ],
+    dependencies: ["cn"],
+  },
   ...elementsRegistryItems,
   {
     name: "shimmer-style",
