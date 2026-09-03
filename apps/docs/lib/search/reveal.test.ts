@@ -94,6 +94,45 @@ describe("the reveal mark", () => {
     expect(element.hasAttribute("data-search-reveal")).toBe(false);
   });
 
+  it("drops a reveal still waiting on the scroll lock when another is selected", () => {
+    document.documentElement.setAttribute("data-base-ui-scroll-locked", "");
+    const first = paragraph("a formatter receives one snapshot entry");
+    const second = paragraph("the snapshot carries a shallow diff");
+
+    revealPageMatch(first, "center");
+    nextFrames(2);
+    revealPageMatch(second, "center");
+    document.documentElement.removeAttribute("data-base-ui-scroll-locked");
+    nextFrames(3);
+
+    expect(first.scrollIntoView).not.toHaveBeenCalled();
+    expect(first.hasAttribute("data-search-reveal")).toBe(false);
+    expect(second.scrollIntoView).toHaveBeenCalled();
+    expect(second.hasAttribute("data-search-reveal")).toBe(true);
+  });
+
+  it("drops a reveal still waiting on the scroll to land when another is selected", () => {
+    const first = paragraph("a formatter receives one snapshot entry");
+    const second = paragraph("the snapshot carries a shallow diff");
+    let offset = 0;
+    vi.spyOn(window, "scrollY", "get").mockImplementation(() => offset);
+
+    revealPageMatch(first, "center");
+    nextFrames(1);
+    offset += 400;
+    nextFrames(1);
+    expect(first.scrollIntoView).toHaveBeenCalled();
+
+    revealPageMatch(second, "center");
+    nextFrames(4);
+
+    expect(first.hasAttribute("data-search-reveal")).toBe(false);
+    expect(second.hasAttribute("data-search-reveal")).toBe(true);
+
+    vi.advanceTimersByTime(2400);
+    expect(second.hasAttribute("data-search-reveal")).toBe(false);
+  });
+
   it("moves off the previous target when another match is revealed", () => {
     const first = paragraph("a formatter receives one snapshot entry");
     const second = paragraph("the snapshot carries a shallow diff");

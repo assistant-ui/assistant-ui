@@ -4,11 +4,18 @@ const UNLOCK_FRAME_BUDGET = 60;
 const SETTLE_FRAME_BUDGET = 150;
 
 let clearMark: (() => void) | undefined;
+let cancelPending: (() => void) | undefined;
 
-function waitFor(ready: () => boolean, budget: number, run: () => void): void {
+function waitFor(
+  ready: () => boolean,
+  budget: number,
+  run: () => void,
+): () => void {
   let frames = 0;
+  let cancelled = false;
 
   const tick = () => {
+    if (cancelled) return;
     if (frames >= budget || ready()) {
       run();
       return;
@@ -18,6 +25,10 @@ function waitFor(ready: () => boolean, budget: number, run: () => void): void {
   };
 
   requestAnimationFrame(tick);
+
+  return () => {
+    cancelled = true;
+  };
 }
 
 function isPageScrollLocked(): boolean {
@@ -26,10 +37,10 @@ function isPageScrollLocked(): boolean {
   return /hidden|clip/.test(getComputedStyle(html).overflowY);
 }
 
-function whenScrollSettles(run: () => void): void {
+function whenScrollSettles(run: () => void): () => void {
   let previous = Number.NaN;
 
-  waitFor(
+  return waitFor(
     () => {
       const offset = window.scrollY;
       const settled = offset === previous;
@@ -60,6 +71,7 @@ export function revealPageMatch(
   element: HTMLElement,
   block: ScrollLogicalPosition,
 ): void {
+  cancelPending?.();
   clearSearchMark();
 
   /**
@@ -67,14 +79,14 @@ export function revealPageMatch(
    * one viewport and its scroll offset is restored when the lock lifts, so a
    * scroll issued before then is discarded.
    */
-  waitFor(
+  cancelPending = waitFor(
     () => !isPageScrollLocked(),
     UNLOCK_FRAME_BUDGET,
     () => {
       if (!element.isConnected) return;
 
       element.scrollIntoView({ block });
-      whenScrollSettles(() => markMatch(element));
+      cancelPending = whenScrollSettles(() => markMatch(element));
     },
   );
 }
