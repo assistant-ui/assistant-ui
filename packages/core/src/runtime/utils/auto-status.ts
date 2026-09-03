@@ -94,7 +94,7 @@ export const getAutoStatus = (
       ? AUTO_STATUS_INTERRUPT
       : hasPendingToolCalls
         ? AUTO_STATUS_PENDING
-        : isLast && isCancelled
+        : isCancelled
           ? AUTO_STATUS_CANCELLED
           : AUTO_STATUS_COMPLETE;
 };

@@ -3,4 +3,4 @@
 "@assistant-ui/core": patch
 ---
 
-fix: report stopped AI SDK runs as cancelled
+fix: report a stopped AI SDK run as cancelled instead of complete

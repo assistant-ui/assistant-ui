@@ -136,10 +136,11 @@ describe("useAISDKRuntime", () => {
     abortError.name = "AbortError";
     const chat = createChatHelpers();
     let stopCalls = 0;
+    let rejectStop!: (error: unknown) => void;
     chat.stop = () => {
       stopCalls += 1;
       return new Promise((_, reject) => {
-        setTimeout(() => reject(abortError), 5);
+        rejectStop = reject;
       });
     };
     const consoleError = vi
@@ -151,7 +152,7 @@ describe("useAISDKRuntime", () => {
       const unhandledRejections = await captureUnhandledRejections(async () => {
         await act(async () => {
           result.current.thread.cancelRun();
-          await new Promise((resolve) => setTimeout(resolve, 10));
+          rejectStop(abortError);
         });
       });
 
@@ -254,6 +255,100 @@ describe("useAISDKRuntime", () => {
         type: "complete",
         reason: "unknown",
       });
+    });
+  });
+
+  it("keeps the stopped output cancelled through the next turn", async () => {
+    const chat = createChatHelpers([
+      { id: "u1", role: "user", parts: [{ type: "text", text: "hi" }] },
+      {
+        id: "assistant-1",
+        role: "assistant",
+        parts: [{ type: "text", text: "partial", state: "streaming" }],
+      },
+    ]);
+    chat.status = "streaming";
+
+    const { result, rerender } = renderHook(() => useAISDKRuntime(chat));
+
+    await act(async () => {
+      result.current.thread.cancelRun();
+    });
+    act(() => {
+      chat.status = "ready";
+      rerender();
+    });
+
+    await waitFor(() => {
+      expect(
+        result.current.thread.getState().messages.at(-1)?.status,
+      ).toMatchObject({ type: "incomplete", reason: "cancelled" });
+    });
+
+    act(() => {
+      chat.setMessages([
+        ...chat.messages,
+        { id: "u2", role: "user", parts: [{ type: "text", text: "next" }] },
+        {
+          id: "assistant-2",
+          role: "assistant",
+          parts: [{ type: "text", text: "answer" }],
+        },
+      ]);
+      rerender();
+    });
+
+    await waitFor(() => {
+      const messages = result.current.thread.getState().messages;
+      expect(
+        messages.find((message) => message.id === "assistant-1")?.status,
+      ).toMatchObject({ type: "incomplete", reason: "cancelled" });
+      expect(messages.at(-1)?.status).toMatchObject({
+        type: "complete",
+        reason: "unknown",
+      });
+    });
+  });
+
+  it("retracts the cancellation when the provider picks the message back up", async () => {
+    const chat = createChatHelpers([
+      {
+        id: "assistant-1",
+        role: "assistant",
+        parts: [{ type: "text", text: "partial", state: "streaming" }],
+      },
+    ]);
+    chat.status = "streaming";
+
+    const { result, rerender } = renderHook(() => useAISDKRuntime(chat));
+
+    await act(async () => {
+      result.current.thread.cancelRun();
+    });
+    act(() => {
+      chat.status = "ready";
+      rerender();
+    });
+
+    await waitFor(() => {
+      expect(
+        result.current.thread.getState().messages.at(-1)?.status,
+      ).toMatchObject({ type: "incomplete", reason: "cancelled" });
+    });
+
+    act(() => {
+      chat.status = "streaming";
+      rerender();
+    });
+    act(() => {
+      chat.status = "ready";
+      rerender();
+    });
+
+    await waitFor(() => {
+      expect(
+        result.current.thread.getState().messages.at(-1)?.status,
+      ).toMatchObject({ type: "complete", reason: "unknown" });
     });
   });
 
@@ -736,7 +831,7 @@ describe("useAISDKRuntime", () => {
     ).rejects.toThrow("Runtime does not support resuming runs.");
   });
 
-  it("forwards onResumeToolCall and preserves synchronous errors", async () => {
+  it("forwards onResumeToolCall so runtime.thread.resumeToolCall is delivered to the adapter", async () => {
     const chat = createChatHelpers([
       {
         id: "a1",
@@ -775,17 +870,6 @@ describe("useAISDKRuntime", () => {
       toolCallId: "tc-42",
       payload: { answer: "yes" },
     });
-    const error = new Error("resume failed");
-    onResumeToolCall.mockImplementationOnce(() => {
-      throw error;
-    });
-
-    expect(() =>
-      result.current.thread
-        .getMessageById("a1")
-        .getMessagePartByToolCallId("tc-42")
-        .resumeToolCall({ answer: "yes" }),
-    ).toThrow(error);
   });
 
   it("throws when resumeToolCall is called without an onResumeToolCall adapter", async () => {

@@ -115,8 +115,9 @@ describe("convertExternalMessageChunk", () => {
     const input = {};
     const chunk = {
       inputs: [input],
-      outputs: [{ role: "assistant" as const, content: "partial" }],
+      outputs: [{ id: "m1", role: "assistant" as const, content: "partial" }],
     };
+    const cancelled = new Set(["m1"]);
     const generatedFallbackMessages = new WeakSet<object>();
     const first = convertExternalMessageChunk(chunk, 0, 1, false, undefined, {
       message: undefined,
@@ -130,7 +131,7 @@ describe("convertExternalMessageChunk", () => {
       false,
       undefined,
       { message: first, generatedFallbackMessages },
-      true,
+      cancelled,
     );
 
     expect(first.status).toMatchObject({ type: "complete", reason: "unknown" });
@@ -147,12 +148,39 @@ describe("convertExternalMessageChunk", () => {
       false,
       "failed",
       { message: second, generatedFallbackMessages },
-      true,
+      cancelled,
     );
     expect(failed.status).toMatchObject({
       type: "incomplete",
       reason: "error",
       error: "failed",
+    });
+  });
+
+  it("cancels an earlier message that is no longer the last one", () => {
+    const cancelled = new Set(["m1"]);
+    const generatedFallbackMessages = new WeakSet<object>();
+    const build = (id: string, idx: number) =>
+      convertExternalMessageChunk(
+        {
+          inputs: [{}],
+          outputs: [{ id, role: "assistant" as const, content: "text" }],
+        },
+        idx,
+        2,
+        false,
+        undefined,
+        { message: undefined, generatedFallbackMessages },
+        cancelled,
+      );
+
+    expect(build("m1", 0).status).toMatchObject({
+      type: "incomplete",
+      reason: "cancelled",
+    });
+    expect(build("m2", 1).status).toMatchObject({
+      type: "complete",
+      reason: "unknown",
     });
   });
 });

@@ -1,6 +1,7 @@
 "use client";
 
 import {
+  useCallback,
   useEffect,
   useInsertionEffect,
   useMemo,
@@ -216,6 +217,8 @@ const useGeneratedSuggestions = (
   return suggestions;
 };
 
+const NO_CANCELLED_MESSAGE_IDS: ReadonlySet<string> = new Set();
+
 export const useAISDKRuntime = <UI_MESSAGE extends UIMessage = UIMessage>(
   chatHelpers: ReturnType<typeof useChat<UI_MESSAGE>>,
   adapter: AISDKRuntimeAdapter<UI_MESSAGE> = {},
@@ -235,9 +238,9 @@ export const useAISDKRuntime = <UI_MESSAGE extends UIMessage = UIMessage>(
   const [toolStatuses, setToolStatuses] = useState<
     Record<string, ToolExecutionStatus>
   >({});
-  const [cancelledMessage, setCancelledMessage] = useState<{
+  const [cancelledMessages, setCancelledMessages] = useState<{
     chatId: string;
-    messageId: string;
+    ids: ReadonlySet<string>;
   } | null>(null);
   const toolArgsKeyOrderCacheRef = useRef<Map<string, Map<string, string[]>>>(
     new Map(),
@@ -256,26 +259,49 @@ export const useAISDKRuntime = <UI_MESSAGE extends UIMessage = UIMessage>(
   const isRunning = providerIsRunning || hasExecutingTools;
   const wasProviderRunningRef = useRef(providerIsRunning);
 
-  useEffect(() => {
-    const wasProviderRunning = wasProviderRunningRef.current;
-    wasProviderRunningRef.current = providerIsRunning;
-    if (!wasProviderRunning && providerIsRunning) {
-      setCancelledMessage(null);
-    }
-  }, [providerIsRunning]);
-
   const messageTiming = useStreamingTiming(chatHelpers.messages, isRunning);
 
   // Flag the streaming message optimistic: its id can be swapped for a server
   // id mid-run, and the repository then drops the orphaned pre-swap id (#4037).
   const lastMessage = chatHelpers.messages.at(-1);
-  const isCancelled =
-    !providerIsRunning &&
-    lastMessage?.role === "assistant" &&
-    cancelledMessage?.chatId === chatHelpers.id &&
-    cancelledMessage.messageId === lastMessage.id;
   const optimisticMessageId =
     isRunning && lastMessage?.role === "assistant" ? lastMessage.id : undefined;
+
+  const cancelledMessageIds =
+    cancelledMessages?.chatId === chatHelpers.id
+      ? cancelledMessages.ids
+      : NO_CANCELLED_MESSAGE_IDS;
+
+  const retractCancellation = useCallback(
+    (chatId: string, messageId: string) => {
+      setCancelledMessages((prev) => {
+        if (prev?.chatId !== chatId || !prev.ids.has(messageId)) return prev;
+        const ids = new Set(prev.ids);
+        ids.delete(messageId);
+        return { chatId, ids };
+      });
+    },
+    [],
+  );
+
+  // A provider run that resumes the stopped response retracts its cancellation;
+  // a run that starts a new response leaves the stopped one marked.
+  const resumedMessageId =
+    providerIsRunning && lastMessage?.role === "assistant"
+      ? lastMessage.id
+      : undefined;
+
+  useEffect(() => {
+    const wasProviderRunning = wasProviderRunningRef.current;
+    wasProviderRunningRef.current = providerIsRunning;
+    if (wasProviderRunning || !resumedMessageId) return;
+    retractCancellation(chatHelpers.id, resumedMessageId);
+  }, [
+    providerIsRunning,
+    resumedMessageId,
+    chatHelpers.id,
+    retractCancellation,
+  ]);
 
   const messages = AISDKMessageConverter.useThreadMessages({
     isRunning,
@@ -290,14 +316,14 @@ export const useAISDKRuntime = <UI_MESSAGE extends UIMessage = UIMessage>(
         mcpAppMetadataCache: mcpAppMetadataCacheRef.current,
         ...(optimisticMessageId && { optimisticMessageId }),
         ...(chatHelpers.error && { error: chatHelpers.error.message }),
-        ...(isCancelled && { isCancelled: true }),
+        ...(cancelledMessageIds.size > 0 && { cancelledMessageIds }),
       }),
       [
         toolStatuses,
         messageTiming,
         optimisticMessageId,
         chatHelpers.error,
-        isCancelled,
+        cancelledMessageIds,
       ],
     ),
   });
@@ -469,22 +495,31 @@ export const useAISDKRuntime = <UI_MESSAGE extends UIMessage = UIMessage>(
     },
     onCancel: async () => {
       const message = chatHelpers.messages.at(-1);
-      setCancelledMessage(
-        isRunning && message?.role === "assistant"
-          ? { chatId: chatHelpers.id, messageId: message.id }
-          : null,
-      );
+      const cancelledId =
+        isRunning && message?.role === "assistant" ? message.id : undefined;
+      if (cancelledId) {
+        const liveIds = new Set(chatHelpers.messages.map((m) => m.id));
+        setCancelledMessages((prev) => {
+          const kept =
+            prev?.chatId === chatHelpers.id
+              ? [...prev.ids].filter((id) => liveIds.has(id))
+              : [];
+          return {
+            chatId: chatHelpers.id,
+            ids: new Set([...kept, cancelledId]),
+          };
+        });
+      }
       try {
         await chatHelpers.stop();
       } catch (error) {
         if (!(error instanceof Error && error.name === "AbortError")) {
-          setCancelledMessage(null);
+          if (cancelledId) retractCancellation(chatHelpers.id, cancelledId);
           throw error;
         }
       }
     },
     onNew: async (message) => {
-      setCancelledMessage(null);
       const createMessage = (
         customToCreateMessage ?? toCreateMessage
       )<UI_MESSAGE>(message);
@@ -504,7 +539,6 @@ export const useAISDKRuntime = <UI_MESSAGE extends UIMessage = UIMessage>(
       });
     },
     onEdit: async (message) => {
-      setCancelledMessage(null);
       const createMessage = (
         customToCreateMessage ?? toCreateMessage
       )<UI_MESSAGE>(message);
@@ -544,7 +578,6 @@ export const useAISDKRuntime = <UI_MESSAGE extends UIMessage = UIMessage>(
       );
     },
     onReload: async (parentId: string | null, config) => {
-      setCancelledMessage(null);
       lastRunConfigRef.current = config.runConfig;
       const newMessages = sliceMessagesUntil(chatHelpers.messages, parentId);
       chatHelpers.setMessages(newMessages);
@@ -558,7 +591,6 @@ export const useAISDKRuntime = <UI_MESSAGE extends UIMessage = UIMessage>(
       isError,
       modelContent,
     }) => {
-      setCancelledMessage(null);
       const options = { metadata: lastRunConfigRef.current };
       if (isError) {
         return Promise.resolve(
@@ -586,35 +618,23 @@ export const useAISDKRuntime = <UI_MESSAGE extends UIMessage = UIMessage>(
         );
       }
     },
-    onRespondToToolApproval: ({ approvalId, approved, reason }) => {
-      setCancelledMessage(null);
-      return Promise.resolve(
+    onRespondToToolApproval: ({ approvalId, approved, reason }) =>
+      Promise.resolve(
         chatHelpers.addToolApprovalResponse({
           id: approvalId,
           approved,
           ...(reason != null && { reason }),
           options: { metadata: lastRunConfigRef.current },
         }),
-      );
-    },
+      ),
     ...pickExternalStoreSharedOptions(adapter),
     ...(adapter.unstable_messageRepositoryInstance && {
       unstable_messageRepositoryInstance:
         adapter.unstable_messageRepositoryInstance,
     }),
     ...(suggestionAdapter ? { suggestions: generatedSuggestions } : {}),
-    ...(onResume && {
-      onResume: async (config) => {
-        setCancelledMessage(null);
-        await onResume(config);
-      },
-    }),
-    ...(onResumeToolCall && {
-      onResumeToolCall: (options) => {
-        setCancelledMessage(null);
-        onResumeToolCall(options);
-      },
-    }),
+    ...(onResume && { onResume }),
+    ...(onResumeToolCall && { onResumeToolCall }),
     ...(unstable_onBranchChange && { unstable_onBranchChange }),
     adapters: {
       attachments: vercelAttachmentAdapter,
