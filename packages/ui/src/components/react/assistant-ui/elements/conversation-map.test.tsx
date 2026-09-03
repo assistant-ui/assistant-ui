@@ -34,10 +34,11 @@ describe("ConversationMap", () => {
       '[data-slot="conversation-map-marker"]',
     );
 
-  it("centres one marker on the active tick", () => {
+  it("sizes the marker to one tick and offsets it by whole ticks", () => {
     render(<ConversationMap entries={ENTRIES} activeId="m2" />);
 
-    expect(marker()?.style.top).toBe("calc(50% - 1.5px)");
+    expect(marker()?.style.height).toBe(`${100 / 3}%`);
+    expect(marker()?.style.transform).toBe("translateY(100%)");
   });
 
   it("moves the same marker rather than restyling each tick", () => {
@@ -45,12 +46,11 @@ describe("ConversationMap", () => {
       <ConversationMap entries={ENTRIES} activeId="m1" />,
     );
     const first = marker();
-    const firstTop = first?.style.top;
 
     rerender(<ConversationMap entries={ENTRIES} activeId="m3" />);
 
     expect(marker()).toBe(first);
-    expect(marker()?.style.top).not.toBe(firstTop);
+    expect(marker()?.style.transform).toBe("translateY(200%)");
   });
 
   it("hides the marker when nothing is active", () => {

@@ -21,9 +21,6 @@ export interface ConversationMapEntry {
 
 const TICK = '[data-slot="conversation-map-tick"]';
 
-/** Matches the marker's `h-[3px]`, to centre it on the tick it marks. */
-const MARKER_HEIGHT = 3;
-
 export function ConversationMap({
   entries,
   activeId,
@@ -88,11 +85,15 @@ export function ConversationMap({
       {activeIndex !== -1 && (
         <span
           data-slot="conversation-map-marker"
+          aria-hidden
           style={{
-            top: `calc(${((activeIndex + 0.5) / entries.length) * 100}% - ${MARKER_HEIGHT / 2}px)`,
+            height: `${100 / entries.length}%`,
+            transform: `translateY(${activeIndex * 100}%)`,
           }}
-          className="bg-foreground/90 pointer-events-none absolute left-0 h-[3px] w-5 rounded-full transition-[top] duration-300 ease-[cubic-bezier(0.23,1,0.32,1)] motion-reduce:transition-none"
-        />
+          className="pointer-events-none absolute inset-x-0 top-0 flex items-center transition-transform duration-300 ease-[cubic-bezier(0.23,1,0.32,1)] motion-reduce:transition-none"
+        >
+          <span className="bg-foreground/90 h-[3px] w-5 rounded-full" />
+        </span>
       )}
 
       {entries.map((entry, index) => (
