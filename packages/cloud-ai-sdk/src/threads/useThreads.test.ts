@@ -188,6 +188,14 @@ describe("useThreads", () => {
         return title;
       },
     );
+    mocks.generateThreadTitle.mockImplementationOnce(
+      async (currentCloud, threadId) => {
+        await currentCloud.threads.update(threadId, {
+          title: "Regenerated title",
+        });
+        return "Regenerated title";
+      },
+    );
     const { result } = renderHook(() =>
       useThreads({ cloud: cloud as never, enabled: false }),
     );
@@ -204,17 +212,24 @@ describe("useThreads", () => {
     act(() => {
       rename = result.current.rename("thread-1", "Manual title");
     });
-    expect(update).not.toHaveBeenCalled();
+    expect(update).toHaveBeenCalledWith("thread-1", { title: "Manual title" });
+
+    await act(async () => {
+      await rename;
+    });
 
     await act(async () => {
       generatedTitle.resolve("Generated title");
-      await Promise.all([generation, rename]);
+      await generation;
     });
 
     expect(update).toHaveBeenNthCalledWith(1, "thread-1", {
-      title: "Generated title",
+      title: "Manual title",
     });
     expect(update).toHaveBeenNthCalledWith(2, "thread-1", {
+      title: "Generated title",
+    });
+    expect(update).toHaveBeenNthCalledWith(3, "thread-1", {
       title: "Manual title",
     });
 
@@ -222,8 +237,8 @@ describe("useThreads", () => {
     await act(async () => {
       repeatedTitle = await result.current.generateTitle("thread-1");
     });
-    expect(repeatedTitle).toBe("Manual title");
-    expect(mocks.generateThreadTitle).toHaveBeenCalledOnce();
+    expect(repeatedTitle).toBe("Regenerated title");
+    expect(mocks.generateThreadTitle).toHaveBeenCalledTimes(2);
   });
 
   it("loads threads when Strict Mode replays effects", async () => {

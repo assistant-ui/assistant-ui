@@ -4,7 +4,6 @@ import {
   useCallback,
   useEffect,
   useLayoutEffect,
-  useMemo,
   useRef,
   useState,
 } from "react";
@@ -37,22 +36,12 @@ function toCloudThread(t: {
 
 const CLOUD_THREAD_PAGE_SIZE = 20;
 
-type ThreadTitleState = {
-  queue: Promise<void>;
-  manualTitle?: string;
+type ThreadTitleClaim = {
+  title: string;
+  settled: Promise<boolean>;
 };
 
-function enqueueThreadTitleMutation<T>(
-  state: ThreadTitleState,
-  mutation: () => Promise<T>,
-): Promise<T> {
-  const result = state.queue.then(mutation);
-  state.queue = result.then(
-    () => {},
-    () => {},
-  );
-  return result;
-}
+type ThreadTitleGeneration = { claim: ThreadTitleClaim | null };
 
 async function listAllThreads(
   cloud: UseThreadsOptions["cloud"],
@@ -79,9 +68,8 @@ async function listAllThreads(
 
 export function useThreads(options: UseThreadsOptions): UseThreadsResult {
   const { cloud, includeArchived = false, enabled = true } = options;
-  const threadTitleStates = useMemo(
-    () => new Map<string, ThreadTitleState>(),
-    [cloud],
+  const threadTitleGenerationsRef = useRef(
+    new Map<string, Set<ThreadTitleGeneration>>(),
   );
   const includeArchivedRef = useRef(includeArchived);
   useLayoutEffect(() => {
@@ -118,6 +106,7 @@ export function useThreads(options: UseThreadsOptions): UseThreadsResult {
     activeScopeRef.current = isActiveScope ? scope : null;
     if (!isActiveScope) {
       listedThreadIdsRef.current.clear();
+      threadTitleGenerationsRef.current.clear();
       setThreads([]);
       setError(null);
       setIsLoading(enabled);
@@ -304,6 +293,7 @@ export function useThreads(options: UseThreadsOptions): UseThreadsResult {
         async (commit) => {
           await cloud.threads.delete(id);
           commit(() => {
+            threadTitleGenerationsRef.current.delete(id);
             setThreads((prev) => prev.filter((t) => t.id !== id));
             setSelection((current) =>
               current.scope === scope && current.threadId === id
@@ -322,29 +312,33 @@ export function useThreads(options: UseThreadsOptions): UseThreadsResult {
 
   const rename = useCallback(
     async (id: string, title: string): Promise<boolean> => {
-      const state: ThreadTitleState = threadTitleStates.get(id) ?? {
-        queue: Promise.resolve(),
-      };
-      threadTitleStates.set(id, state);
-      return await enqueueThreadTitleMutation(state, async () => {
-        const renamed = await withAction(
-          async (commit) => {
-            await cloud.threads.update(id, { title });
-            commit(() =>
-              setThreads((prev) =>
-                prev.map((t) => (t.id === id ? { ...t, title } : t)),
-              ),
-            );
-            return true;
-          },
-          false,
-          isCurrentCloud,
-        );
-        if (renamed) state.manualTitle = title;
-        return renamed;
-      });
+      const generations = threadTitleGenerationsRef.current.get(id);
+      let settleClaim: ((renamed: boolean) => void) | undefined;
+      if (generations?.size) {
+        const settled = new Promise<boolean>((resolve) => {
+          settleClaim = resolve;
+        });
+        const claim = { title, settled };
+        for (const generation of generations) generation.claim = claim;
+      }
+
+      const renamed = await withAction(
+        async (commit) => {
+          await cloud.threads.update(id, { title });
+          commit(() =>
+            setThreads((prev) =>
+              prev.map((t) => (t.id === id ? { ...t, title } : t)),
+            ),
+          );
+          return true;
+        },
+        false,
+        isCurrentCloud,
+      );
+      settleClaim?.(renamed);
+      return renamed;
     },
-    [cloud, isCurrentCloud, threadTitleStates, withAction],
+    [cloud, isCurrentCloud, withAction],
   );
 
   const archive = useCallback(
@@ -420,16 +414,39 @@ export function useThreads(options: UseThreadsOptions): UseThreadsResult {
 
   const generateTitle = useCallback(
     async (tid: string): Promise<string | null> => {
-      const state: ThreadTitleState = threadTitleStates.get(tid) ?? {
-        queue: Promise.resolve(),
-      };
-      threadTitleStates.set(tid, state);
+      let generations = threadTitleGenerationsRef.current.get(tid);
+      if (!generations) {
+        generations = new Set();
+        threadTitleGenerationsRef.current.set(tid, generations);
+      }
+      const generation: ThreadTitleGeneration = { claim: null };
+      generations.add(generation);
 
-      return await enqueueThreadTitleMutation(state, async () => {
-        if (state.manualTitle !== undefined) return state.manualTitle;
+      try {
         return await withAction(
           async (commit) => {
             const title = await generateThreadTitle(cloud, tid);
+
+            while (generation.claim) {
+              const claim = generation.claim;
+              const renamed = await claim.settled;
+              if (generation.claim !== claim) continue;
+              if (!renamed) {
+                generation.claim = null;
+                continue;
+              }
+
+              await cloud.threads.update(tid, { title: claim.title });
+              if (generation.claim !== claim) continue;
+              commit(() =>
+                setThreads((prev) =>
+                  prev.map((t) =>
+                    t.id === tid ? { ...t, title: claim.title } : t,
+                  ),
+                ),
+              );
+              return claim.title;
+            }
 
             if (title) {
               commit(() =>
@@ -444,9 +461,17 @@ export function useThreads(options: UseThreadsOptions): UseThreadsResult {
           null,
           isCurrentCloud,
         );
-      });
+      } finally {
+        generations.delete(generation);
+        if (
+          generations.size === 0 &&
+          threadTitleGenerationsRef.current.get(tid) === generations
+        ) {
+          threadTitleGenerationsRef.current.delete(tid);
+        }
+      }
     },
-    [cloud, isCurrentCloud, threadTitleStates, withAction],
+    [cloud, isCurrentCloud, withAction],
   );
 
   return {
