@@ -273,6 +273,9 @@ describe("RedisResumableStreamStore", () => {
     await finalizing;
 
     await expect(freshStore.status(streamId)).resolves.toBe("streaming");
+    await expect(
+      staleStore.append(streamId, encoder.encode("stale")),
+    ).rejects.toThrow(/superseded/);
   });
 
   it("stops an existing reader when the stream generation changes", async () => {
