@@ -387,7 +387,10 @@ export const convertExternalMessageChunk = <T>(
   const isLast = idx === chunkCount - 1;
   const joined = joinExternalMessages(message.outputs);
   const isCancelled =
-    joined.id != null && cancelledMessageIds?.has(joined.id) === true;
+    cancelledMessageIds !== undefined &&
+    message.outputs.some(
+      (output) => output.id != null && cancelledMessageIds.has(output.id),
+    );
   const hasInterruptedToolCalls =
     typeof joined.content === "object" &&
     joined.content.some(isInterruptedToolCall);

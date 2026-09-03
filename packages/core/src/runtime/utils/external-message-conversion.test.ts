@@ -157,6 +157,30 @@ describe("convertExternalMessageChunk", () => {
     });
   });
 
+  it("cancels a joined chunk when any joined message was stopped", () => {
+    const generatedFallbackMessages = new WeakSet<object>();
+    const result = convertExternalMessageChunk(
+      {
+        inputs: [{}, {}],
+        outputs: [
+          { id: "m1", role: "assistant" as const, content: "first" },
+          { id: "m2", role: "assistant" as const, content: "second" },
+        ],
+      },
+      0,
+      1,
+      false,
+      undefined,
+      { message: undefined, generatedFallbackMessages },
+      new Set(["m2"]),
+    );
+
+    expect(result.status).toMatchObject({
+      type: "incomplete",
+      reason: "cancelled",
+    });
+  });
+
   it("cancels an earlier message that is no longer the last one", () => {
     const cancelled = new Set(["m1"]);
     const generatedFallbackMessages = new WeakSet<object>();
