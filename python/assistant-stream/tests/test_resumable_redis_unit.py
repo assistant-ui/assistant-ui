@@ -6,6 +6,7 @@ from typing import Any, Awaitable, Callable
 
 import pytest
 
+from assistant_stream.resumable.errors import ResumableStreamError
 from assistant_stream.resumable.stores.redis import (
     RedisResumableStreamStore,
     _RedisAsyncioAdapter,
@@ -102,6 +103,9 @@ async def test_stale_finalizer_cannot_finalize_reacquired_stream() -> None:
     await finalizing
 
     assert await fresh_store.status(stream_id) == "streaming"
+
+    with pytest.raises(ResumableStreamError, match="superseded"):
+        await stale_store.append(stream_id, b"stale")
 
 
 @pytest.mark.anyio
