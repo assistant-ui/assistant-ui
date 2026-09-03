@@ -146,6 +146,15 @@ describe("escapeShellVariables", () => {
     }
   });
 
+  it("defers to inline math that shares the line with a variable", () => {
+    for (const text of [
+      "The value of $HOME is $x$ here",
+      "Export $OPENAI_API_KEY before computing $x$",
+    ]) {
+      expect(escapeShellVariables(text)).toBe(text);
+    }
+  });
+
   it("escapes a lone variable that shares a line with display math", () => {
     expect(escapeShellVariables("set $HOME, then $$x$$")).toBe(
       "set \\$HOME, then $$x$$",
