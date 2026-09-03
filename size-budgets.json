@@ -35,8 +35,8 @@
   },
   "@assistant-ui/eve": {
     ".": {
-      "min": 11040,
-      "gzip": 4187
+      "min": 11897,
+      "gzip": 4523
     }
   },
   "@assistant-ui/react": {
