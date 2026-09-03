@@ -37,7 +37,10 @@ export type UseThreadsResult = {
   selectThread: (id: string | null) => void;
   generateTitle: (
     threadId: string,
-    options?: { automatic?: boolean },
+    options?: {
+      /** Protects a manual rename from this automatic attempt. */
+      automatic?: boolean;
+    },
   ) => Promise<string | null>;
 };
 
