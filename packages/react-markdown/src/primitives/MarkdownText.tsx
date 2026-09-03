@@ -12,8 +12,10 @@ import {
   forwardRef,
   type ForwardRefExoticComponent,
   type RefAttributes,
+  memo,
   useDeferredValue,
   useMemo,
+  useRef,
   type ComponentPropsWithoutRef,
   type ComponentType,
 } from "react";
@@ -39,20 +41,54 @@ const { useSmooth, useSmoothStatus, withSmoothContextProvider } = INTERNAL;
 
 type MarkdownRendererProps = Omit<Options, "children"> & { text: string };
 
-const MarkdownRenderer: FC<MarkdownRendererProps> = ({ text, ...options }) => (
-  <ReactMarkdown {...options}>{text}</ReactMarkdown>
+// react-markdown builds a fresh processor and parses the whole accumulated text
+// on every render, so a render that carries text it has already parsed is pure
+// waste. The renderer is memoized to make that bail out, which only holds while
+// its props keep their identity; useStableProps is what keeps a caller's inline
+// plugin array from breaking it.
+const MarkdownRenderer: FC<MarkdownRendererProps> = memo(
+  ({ text, ...options }) => <ReactMarkdown {...options}>{text}</ReactMarkdown>,
 );
+MarkdownRenderer.displayName = "MarkdownRenderer";
 
 // `useDeferredValue` schedules a second render pass whenever its input changes,
 // so the deferred path lives in its own component and `defer={false}` never
-// mounts it.
+// mounts it. The urgent pass of that pair carries the previous text, which the
+// memoized renderer above turns into a bail-out rather than a second parse.
 const DeferredMarkdownRenderer: FC<MarkdownRendererProps> = ({
   text,
   ...options
 }) => {
   const deferredText = useDeferredValue(text);
-  return <ReactMarkdown {...options}>{deferredText}</ReactMarkdown>;
+  return <MarkdownRenderer text={deferredText} {...options} />;
 };
+
+const isShallowEqual = (a: unknown, b: unknown): boolean => {
+  if (Object.is(a, b)) return true;
+  if (Array.isArray(a) && Array.isArray(b)) {
+    return a.length === b.length && a.every((item, i) => Object.is(item, b[i]));
+  }
+  return false;
+};
+
+/**
+ * Keeps the object identity of props whose values did not change, comparing one
+ * array level so that an inline `remarkPlugins={[remarkGfm]}` still hits the
+ * renderer's memo. A plugin array mutated in place keeps the old identity and is
+ * not observed.
+ */
+function useStableProps<T extends Record<string, unknown>>(props: T): T {
+  const previous = useRef(props);
+  const keys = Object.keys(props);
+  const previousKeys = Object.keys(previous.current);
+
+  const unchanged =
+    keys.length === previousKeys.length &&
+    keys.every((key) => isShallowEqual(props[key], previous.current[key]));
+
+  if (!unchanged) previous.current = props;
+  return previous.current;
+}
 
 type MarkdownTextPrimitiveElement = ComponentRef<typeof Primitive.div>;
 type PrimitiveDivProps = ComponentPropsWithoutRef<typeof Primitive.div>;
@@ -159,8 +195,9 @@ const MarkdownTextInner: FC<MarkdownTextPrimitiveProps> = ({
   }, [CodeComponent, PreComponentWithFallback, userComponents]);
 
   const Renderer = defer ? DeferredMarkdownRenderer : MarkdownRenderer;
+  const stableRest = useStableProps(rest as Record<string, unknown>);
 
-  return <Renderer text={text} components={components} {...rest} />;
+  return <Renderer text={text} components={components} {...stableRest} />;
 };
 
 const MarkdownTextPrimitiveImpl: ForwardRefExoticComponent<MarkdownTextPrimitiveProps> &
