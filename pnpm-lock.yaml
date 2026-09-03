@@ -370,7 +370,7 @@ importers:
         version: 1.1.1(@types/react-dom@19.2.5(@types/react@19.2.18))(@types/react@19.2.18)(react-dom@19.2.8(react@19.2.8))(react@19.2.8)
       cn:
         specifier: ^0.2.3
-        version: 0.2.4
+        version: 0.2.3
       codehike:
         specifier: ^1.1.0
         version: 1.1.0(supports-color@10.2.2)
@@ -5260,7 +5260,7 @@ importers:
         version: 1.1.1(@types/react-dom@19.2.5(@types/react@19.2.18))(@types/react@19.2.18)(react-dom@19.2.8(react@19.2.8))(react@19.2.8)
       cn:
         specifier: ^0.2.3
-        version: 0.2.4
+        version: 0.2.3
       diff:
         specifier: ^9.0.0
         version: 9.0.0
@@ -6081,7 +6081,7 @@ importers:
         version: 0.7.1
       cn:
         specifier: ^0.2.3
-        version: 0.2.4
+        version: 0.2.3
       lucide-react:
         specifier: ^1.38.0
         version: 1.38.0(react@19.2.8)
@@ -13662,8 +13662,8 @@ packages:
       react: ^18 || ^19 || ^19.0.0-rc
       react-dom: ^18 || ^19 || ^19.0.0-rc
 
-  cn@0.2.4:
-    resolution: {integrity: sha512-SzQvoh5FwizWtQg9+JueKdjWhlfCZMdu5DqNHm9q1wUlRVmKb9WXlepR9bTTbPwzEOyX1ujJ6lcCppmn3bNUCg==}
+  cn@0.2.3:
+    resolution: {integrity: sha512-z1S2v7FdtqcoXQzJWqNPBJ3KPG1or9FlefB0x+Eu8322BMmCSSVqzeI7itNj/6YRjyendnlWDJnKQkBhukT3fg==}
     engines: {node: '>=20'}
     hasBin: true
 
@@ -29622,7 +29622,7 @@ snapshots:
       - '@types/react'
       - '@types/react-dom'
 
-  cn@0.2.4: {}
+  cn@0.2.3: {}
 
   code-block-writer@10.1.1: {}
 
