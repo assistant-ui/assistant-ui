@@ -3,6 +3,7 @@ from __future__ import annotations
 import asyncio
 import json
 import math
+import uuid
 from collections.abc import AsyncIterator
 from contextlib import suppress
 from typing import Any, Literal, Protocol
@@ -31,6 +32,23 @@ FIN_ERROR = "error"
 
 STREAM_START_ID = "0-0"
 
+FINALIZE_IF_UNCHANGED_SCRIPT = """
+redis.replicate_commands()
+if redis.call("GET", KEYS[1]) ~= ARGV[1] then
+  return 0
+end
+local xadd = { "XADD", KEYS[2], "*" }
+for i = 4, #ARGV do
+  table.insert(xadd, ARGV[i])
+end
+redis.call(unpack(xadd))
+redis.call("EXPIRE", KEYS[2], ARGV[3])
+redis.call("SET", KEYS[1], ARGV[2], "EX", ARGV[3])
+return 1
+"""
+
+FINALIZE_IF_UNCHANGED_KEY_COUNT = 2
+
 
 class RedisLikeClient(Protocol):
     async def set_nx(self, key: str, value: str, ttl_sec: int) -> bool: ...
@@ -46,6 +64,8 @@ class RedisLikeClient(Protocol):
     ) -> list[dict[str, Any]]: ...
 
     async def pipeline(self, commands: list[dict[str, Any]]) -> None: ...
+
+    async def finalize_if_unchanged(self, options: dict[str, Any]) -> bool: ...
 
 
 class RedisResumableStreamStore:
@@ -63,12 +83,14 @@ class RedisResumableStreamStore:
         self._default_ttl_ms = default_ttl_ms
         self._poll_interval_ms = poll_interval_ms
         self._max_chunk_bytes = max_chunk_bytes
+        self._acquired_generations: dict[str, str] = {}
 
     def _meta_key(self, stream_id: str) -> str:
         return f"{self._key_prefix}:{{{stream_id}}}:meta"
 
-    def _data_key(self, stream_id: str) -> str:
-        return f"{self._key_prefix}:{{{stream_id}}}:data"
+    def _data_key(self, stream_id: str, generation: str | None = None) -> str:
+        base = f"{self._key_prefix}:{{{stream_id}}}:data"
+        return f"{base}:{generation}" if generation else base
 
     async def _read_meta(self, stream_id: str) -> dict[str, Any] | None:
         raw = await self._client.get(self._meta_key(stream_id))
@@ -81,12 +103,28 @@ class RedisResumableStreamStore:
     ) -> ResumableStreamRole:
         validate_stream_id(stream_id)
         ttl_sec = _ms_to_sec(ttl_ms if ttl_ms is not None else self._default_ttl_ms)
-        meta = json.dumps({"status": "streaming", "ttlSec": ttl_sec})
+        generation = uuid.uuid4().hex
+        meta = json.dumps(
+            {"status": "streaming", "ttlSec": ttl_sec, "generation": generation}
+        )
         acquired = await self._client.set_nx(self._meta_key(stream_id), meta, ttl_sec)
         if acquired:
-            await self._client.delete([self._data_key(stream_id)])
+            self._acquired_generations[stream_id] = generation
             return "producer"
         return "consumer"
+
+    def _is_superseded_generation(
+        self, stream_id: str, meta: dict[str, Any]
+    ) -> bool:
+        acquired = self._acquired_generations.get(stream_id)
+        return acquired is not None and meta.get("generation") != acquired
+
+    def _assert_owned_generation(self, stream_id: str, meta: dict[str, Any]) -> None:
+        if self._is_superseded_generation(stream_id, meta):
+            raise ResumableStreamError(
+                "missing",
+                f"Stream superseded by a new acquisition: {stream_id}",
+            )
 
     async def append(self, stream_id: str, chunk: bytes) -> None:
         validate_stream_id(stream_id)
@@ -97,11 +135,11 @@ class RedisResumableStreamStore:
             raise RuntimeError(
                 f"Chunk exceeds maxChunkBytes ({len(chunk)} > {self._max_chunk_bytes})"
             )
-        data_key = self._data_key(stream_id)
         meta_key = self._meta_key(stream_id)
         meta = await self._read_meta(stream_id)
         if meta is None:
             raise RuntimeError(f"Stream not found: {stream_id}")
+        self._assert_owned_generation(stream_id, meta)
         if meta.get("status") != "streaming":
             raise ResumableStreamError(
                 "finalized",
@@ -110,6 +148,7 @@ class RedisResumableStreamStore:
         ttl_sec = meta.get("ttlSec")
         if not isinstance(ttl_sec, int):
             ttl_sec = _ms_to_sec(self._default_ttl_ms)
+        data_key = self._data_key(stream_id, _meta_generation(meta))
         await self._client.pipeline(
             [
                 {"type": "xAdd", "key": data_key, "fields": {FIELD_CHUNK: chunk}},
@@ -125,48 +164,61 @@ class RedisResumableStreamStore:
         error: str | None = None,
     ) -> None:
         validate_stream_id(stream_id)
-        data_key = self._data_key(stream_id)
         meta_key = self._meta_key(stream_id)
-        existing = await self._read_meta(stream_id)
+        existing_raw = await self._client.get(meta_key)
+        if existing_raw is None:
+            raise RuntimeError(f"Stream not found: {stream_id}")
+        existing = _parse_meta(existing_raw)
         if existing is None:
             raise RuntimeError(f"Stream not found: {stream_id}")
         if existing.get("status") != "streaming":
+            return
+        if self._is_superseded_generation(stream_id, existing):
             return
         ttl_sec = existing.get("ttlSec")
         if not isinstance(ttl_sec, int):
             ttl_sec = _ms_to_sec(self._default_ttl_ms)
         if status == "error":
-            meta = json.dumps(
-                {
-                    "status": "error",
-                    "error": error if error is not None else "Stream errored",
-                    "ttlSec": ttl_sec,
-                }
-            )
+            next_meta: dict[str, Any] = {
+                "status": "error",
+                "error": error if error is not None else "Stream errored",
+                "ttlSec": ttl_sec,
+            }
         else:
-            meta = json.dumps({"status": "done", "ttlSec": ttl_sec})
+            next_meta = {"status": "done", "ttlSec": ttl_sec}
+        generation = _meta_generation(existing)
+        if generation is not None:
+            next_meta["generation"] = generation
+        meta = json.dumps(next_meta)
         fields: dict[str, str] = {
             FIELD_FIN: FIN_ERROR if status == "error" else FIN_DONE,
         }
         if status == "error":
             fields[FIELD_ERROR] = error if error is not None else "Stream errored"
-        await self._client.pipeline(
-            [
-                {"type": "set", "key": meta_key, "value": meta, "ttlSec": ttl_sec},
-                {"type": "xAdd", "key": data_key, "fields": fields},
-                {"type": "expire", "key": data_key, "ttlSec": ttl_sec},
-            ]
+        finalized = await self._client.finalize_if_unchanged(
+            {
+                "meta_key": meta_key,
+                "expected_meta": existing_raw,
+                "next_meta": meta,
+                "data_key": self._data_key(stream_id, generation),
+                "fields": fields,
+                "ttl_sec": ttl_sec,
+            }
         )
+        if finalized:
+            self._acquired_generations.pop(stream_id, None)
 
     async def read(
         self, stream_id: str, cursor: str, signal: CancellationSignal
     ) -> AsyncIterator[ResumableStreamEntry]:
         validate_stream_id(stream_id)
-        data_key = self._data_key(stream_id)
         meta_key = self._meta_key(stream_id)
         initial_meta = await self._client.get(meta_key)
         if initial_meta is None:
             raise RuntimeError(f"Stream not found: {stream_id}")
+        initial_parsed = _parse_meta(initial_meta)
+        generation = _meta_generation(initial_parsed)
+        data_key = self._data_key(stream_id, generation)
 
         last_id = STREAM_START_ID if cursor == "" else cursor
 
@@ -204,6 +256,14 @@ class RedisResumableStreamStore:
             if not still_exists:
                 return
 
+            current_meta = await self._client.get(meta_key)
+            if current_meta is None:
+                return
+            current_parsed = _parse_meta(current_meta)
+            current_generation = _meta_generation(current_parsed)
+            if current_generation != generation:
+                return
+
             await _sleep(self._poll_interval_ms, signal)
 
     async def status(self, stream_id: str) -> ResumableStreamStatus:
@@ -225,9 +285,15 @@ class RedisResumableStreamStore:
 
     async def delete(self, stream_id: str) -> None:
         validate_stream_id(stream_id)
-        await self._client.delete(
-            [self._meta_key(stream_id), self._data_key(stream_id)]
-        )
+        self._acquired_generations.pop(stream_id, None)
+        meta = await self._read_meta(stream_id)
+        generation = _meta_generation(meta)
+        keys = [
+            self._meta_key(stream_id),
+            self._data_key(stream_id, generation),
+            self._data_key(stream_id),
+        ]
+        await self._client.delete(list(dict.fromkeys(keys)))
 
 
 def _ms_to_sec(ms: int) -> int:
@@ -242,6 +308,13 @@ def _parse_meta(value: str) -> dict[str, Any] | None:
         return None
     except (json.JSONDecodeError, TypeError):
         return None
+
+
+def _meta_generation(meta: dict[str, Any] | None) -> str | None:
+    if meta is None:
+        return None
+    generation = meta.get("generation")
+    return generation if isinstance(generation, str) else None
 
 
 async def _sleep(ms: int, signal: CancellationSignal) -> None:
@@ -319,6 +392,24 @@ class _RedisAsyncioAdapter:
             elif cmd_type == "set":
                 pipe.set(cmd["key"], cmd["value"], ex=cmd["ttlSec"])
         await pipe.execute()
+
+    async def finalize_if_unchanged(self, options: dict[str, Any]) -> bool:
+        field_args = [
+            value
+            for field, field_value in options["fields"].items()
+            for value in (field, field_value)
+        ]
+        result = await self._client.eval(
+            FINALIZE_IF_UNCHANGED_SCRIPT,
+            FINALIZE_IF_UNCHANGED_KEY_COUNT,
+            options["meta_key"],
+            options["data_key"],
+            options["expected_meta"],
+            options["next_meta"],
+            str(options["ttl_sec"]),
+            *field_args,
+        )
+        return result == 1 or result == b"1" or result == "1"
 
 
 def create_redis_resumable_stream_store(
