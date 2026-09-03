@@ -200,7 +200,10 @@ export function rewriteCustomMathTags(text: string): string {
         (match: string, body: string, offset: number, source: string) =>
           emitDisplayMath(match, body, offset, source, precededBy, followedBy),
       )
-      .replace(INLINE_TAG, (_, body: string) => `$${body.trim()}$`),
+      .replace(INLINE_TAG, (match: string, body: string) => {
+        const trimmed = body.trim();
+        return trimmed === "" ? match : `$${trimmed}$`;
+      }),
   );
 }
 
