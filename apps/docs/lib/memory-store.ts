@@ -16,6 +16,7 @@ const listeners = new Set<() => void>();
 let memories: readonly MemoryRecord[] = emptyMemories;
 let loaded = false;
 let listening = false;
+let unsaved = false;
 
 const isBrowser = () => typeof window !== "undefined";
 
@@ -58,7 +59,10 @@ const writeStored = (next: readonly MemoryRecord[]) => {
   if (!isBrowser()) return;
   try {
     window.localStorage.setItem(storageKey, JSON.stringify(next));
-  } catch {}
+    unsaved = false;
+  } catch {
+    unsaved = true;
+  }
 };
 
 const clearStored = () => {
@@ -99,6 +103,7 @@ const loadMemories = () => {
 
 const refreshMemories = () => {
   loadMemories();
+  if (unsaved) return;
   const stored = readStored();
   if (stored !== null) setMemories(stored);
 };

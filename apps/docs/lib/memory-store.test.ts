@@ -6,7 +6,10 @@ type StorageSetup = {
 
 const storageKey = "aui-home-memories";
 
-const setupStorage = ({ throws = false } = {}): StorageSetup => {
+const setupStorage = ({
+  throws = false,
+  writeThrows = false,
+} = {}): StorageSetup => {
   const values = new Map<string, string>();
   const fail = () => {
     throw new Error("blocked");
@@ -19,9 +22,11 @@ const setupStorage = ({ throws = false } = {}): StorageSetup => {
       }
     : {
         getItem: (key: string) => values.get(key) ?? null,
-        setItem: (key: string, value: string) => {
-          values.set(key, value);
-        },
+        setItem: writeThrows
+          ? fail
+          : (key: string, value: string) => {
+              values.set(key, value);
+            },
         removeItem: (key: string) => {
           values.delete(key);
         },
@@ -117,6 +122,18 @@ describe("memory store", () => {
     clearMemories();
 
     expect(values.has(storageKey)).toBe(false);
+  });
+
+  it("keeps records that never reached storage", async () => {
+    const { values } = setupStorage({ writeThrows: true });
+    const { addMemory } = await loadStore();
+
+    addMemory("They prefer TypeScript examples.");
+    expect(values.size).toBe(0);
+
+    const second = addMemory("They prefer TypeScript examples.");
+
+    expect(second?.change).toBe("existing");
   });
 
   it("keeps an in-memory list when storage throws", async () => {

@@ -2,7 +2,7 @@
 
 import type { ToolCallMessagePartComponent } from "@assistant-ui/react";
 import { useTheme } from "next-themes";
-import { useId, useState } from "react";
+import { useId } from "react";
 import { TraceLine } from "@/components/shared/trace-line";
 import { Button } from "@/components/ui/button";
 
@@ -33,14 +33,20 @@ export const SetThemeToolUI: ToolCallMessagePartComponent<
   const { theme: currentTheme, setTheme } = useTheme();
   const titleId = useId();
   const descriptionId = useId();
-  const [undone, setUndone] = useState(false);
 
   if (result) {
     if (!result.approved) {
-      return <TraceLine live={false} label="theme change declined" />;
+      return (
+        <div role="status">
+          <TraceLine live={false} label="theme change declined" />
+        </div>
+      );
     }
 
-    if (undone) {
+    if (
+      result.theme !== result.previousTheme &&
+      currentTheme === result.previousTheme
+    ) {
       return (
         <TraceLine
           live={false}
@@ -51,7 +57,7 @@ export const SetThemeToolUI: ToolCallMessagePartComponent<
     }
 
     return (
-      <div className="flex items-baseline gap-3">
+      <div role="status" className="flex items-baseline gap-3">
         <TraceLine
           live={false}
           label="changed the theme to"
@@ -60,10 +66,7 @@ export const SetThemeToolUI: ToolCallMessagePartComponent<
         <button
           type="button"
           className="text-muted-foreground hover:text-foreground decoration-foreground/20 hover:decoration-foreground/60 font-mono text-[12px] underline underline-offset-[3px] transition-colors"
-          onClick={() => {
-            setTheme(result.previousTheme);
-            setUndone(true);
-          }}
+          onClick={() => setTheme(result.previousTheme)}
         >
           undo
         </button>

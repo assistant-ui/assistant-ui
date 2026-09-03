@@ -88,6 +88,7 @@ describe("SetThemeToolUI", () => {
   });
 
   it("renders the result and restores the previous theme from Undo", () => {
+    mocks.theme = "dark";
     render(
       <SetThemeToolUI
         {...createProps({
@@ -106,6 +107,23 @@ describe("SetThemeToolUI", () => {
     fireEvent.click(screen.getByRole("button", { name: "undo" }));
 
     expect(mocks.setTheme).toHaveBeenCalledWith("light");
+  });
+
+  it("reports the revert once the page is back on the previous theme", () => {
+    mocks.theme = "light";
+    render(
+      <SetThemeToolUI
+        {...createProps({
+          result: {
+            approved: true,
+            theme: "dark",
+            previousTheme: "light",
+          },
+          status: { type: "complete" },
+        })}
+      />,
+    );
+
     expect(screen.getByText(/reverted the theme to/)).toBeTruthy();
     expect(screen.queryByRole("button", { name: "undo" })).toBeNull();
   });
