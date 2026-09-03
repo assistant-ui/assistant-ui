@@ -23,14 +23,21 @@ const LATEX_DISPLAY_DELIMITER = /\\{1,2}\[([\s\S]+?)\\{1,2}\]/g;
  * remark-math parses multiline `$$` as a flow construct: the opening marker has to
  * start a line and the closing marker to end one, and it reads whatever else shares
  * those lines as fence metadata rather than as math.
+ *
+ * A pair wrapping nothing is left as written: `$$$$` would itself open a fence that
+ * never closes.
  */
 export function rewriteLatexBracketDelimiters(text: string): string {
   return text
-    .replace(LATEX_INLINE_DELIMITER, (_, body: string) => `$${body.trim()}$`)
+    .replace(LATEX_INLINE_DELIMITER, (match: string, body: string) => {
+      const trimmed = body.trim();
+      return trimmed === "" ? match : `$${trimmed}$`;
+    })
     .replace(
       LATEX_DISPLAY_DELIMITER,
       (match: string, body: string, offset: number, source: string) => {
         const trimmed = body.trim();
+        if (trimmed === "") return match;
         if (!trimmed.includes("\n")) return `$$${trimmed}$$`;
 
         const before = source.slice(0, offset);

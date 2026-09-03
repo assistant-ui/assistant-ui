@@ -52,6 +52,11 @@ describe("rewriteLatexBracketDelimiters", () => {
     );
   });
 
+  it("leaves an empty delimiter pair as written", () => {
+    expect(rewriteLatexBracketDelimiters("\\[ \\]")).toBe("\\[ \\]");
+    expect(rewriteLatexBracketDelimiters("\\( \\)")).toBe("\\( \\)");
+  });
+
   it("does not span newlines for inline math", () => {
     expect(rewriteLatexBracketDelimiters("\\(a\nb\\)")).toBe("\\(a\nb\\)");
   });
