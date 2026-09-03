@@ -2,22 +2,18 @@
 
 import { useEffect, useState } from "react";
 
-import {
-  Source,
-  SourceIcon,
-  SourceTitle,
-} from "@/components/assistant-ui/sources";
+import { Sources } from "@/components/assistant-ui/elements/sources.aui";
 import { SampleFrame } from "@/components/pages/docs/samples/sample-frame";
 
 export function SourcesFaviconFallback() {
   return (
-    <Source href="https://example.com/reference">
-      <SourceIcon
+    <Sources.Root href="https://example.com/reference">
+      <Sources.Icon
         url="https://example.com/reference"
         faviconUrl={() => "/missing-source-favicon.ico"}
       />
-      <SourceTitle>Example Reference</SourceTitle>
-    </Source>
+      <Sources.Title>Example Reference</Sources.Title>
+    </Sources.Root>
   );
 }
 
