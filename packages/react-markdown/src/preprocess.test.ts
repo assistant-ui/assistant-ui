@@ -76,6 +76,11 @@ describe("rewriteLatexBracketDelimiters", () => {
     );
   });
 
+  it("leaves everything after an unclosed fence as written", () => {
+    const streaming = "```js\nconst re = \\[a\\];\nmore \\[b\\]";
+    expect(rewriteLatexBracketDelimiters(streaming)).toBe(streaming);
+  });
+
   it("does not pair a delimiter in one fence with one in a later fence", () => {
     const text = "```\n\\[\n```\nprose\n```\n\\]\n```";
     expect(rewriteLatexBracketDelimiters(text)).toBe(text);

@@ -42,10 +42,11 @@ const { useSmooth, useSmoothStatus, withSmoothContextProvider } = INTERNAL;
 type MarkdownRendererProps = Omit<Options, "children"> & {
   text: string;
   /**
-   * Carried only so the memo below can see it: the code override reads the map
-   * through a stable callback, so a change to it moves no other prop.
+   * Carried only so the memo below can see it. The code override reaches the
+   * tree through an identity-stable callback, so a change to any value it
+   * closes over moves no other prop.
    */
-  codeVersion?: unknown;
+  overrideVersion?: unknown;
 };
 
 // react-markdown builds a fresh processor and parses the whole accumulated text
@@ -54,7 +55,7 @@ type MarkdownRendererProps = Omit<Options, "children"> & {
 // its props keep their identity; useStableProps is what keeps a caller's inline
 // plugin array from breaking it.
 const MarkdownRenderer: FC<MarkdownRendererProps> = memo(
-  ({ text, codeVersion: _codeVersion, ...options }) => (
+  ({ text, overrideVersion: _overrideVersion, ...options }) => (
     <ReactMarkdown {...options}>{text}</ReactMarkdown>
   ),
 );
@@ -214,6 +215,11 @@ const MarkdownTextInner: FC<MarkdownTextPrimitiveProps> = ({
     }, [CodeComponent, PreComponentWithFallback, userComponents]),
   );
 
+  const overrideVersion = useMemo(
+    () => ({ components: useCodeOverrideComponents, componentsByLanguage }),
+    [useCodeOverrideComponents, componentsByLanguage],
+  );
+
   const Renderer = defer ? DeferredMarkdownRenderer : MarkdownRenderer;
   const stableRest = useStableProps(rest);
 
@@ -221,7 +227,7 @@ const MarkdownTextInner: FC<MarkdownTextPrimitiveProps> = ({
     <Renderer
       text={text}
       components={components}
-      codeVersion={componentsByLanguage}
+      overrideVersion={overrideVersion}
       {...stableRest}
     />
   );

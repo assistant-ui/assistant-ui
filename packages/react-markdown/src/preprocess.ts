@@ -105,6 +105,17 @@ function mapProseRuns(
 
     const end = codeSpanEnd(text, index);
     if (end === -1) {
+      // An unclosed fence is a code block to the end of the document, which is
+      // what remark will do with it; while a reply streams, every fence is
+      // unclosed for a while, so rewriting the text after it would corrupt the
+      // block being written. An unclosed one- or two-backtick run is literal
+      // text and stays prose.
+      if (runLength(text, index, "`") >= 3) {
+        flush(text[index] ?? "");
+        out += text.slice(index);
+        return out;
+      }
+
       const runEnd = index + runLength(text, index, "`");
       if (prose === "") proseStart = index;
       prose += text.slice(index, runEnd);
