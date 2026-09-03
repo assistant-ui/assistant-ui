@@ -14,29 +14,33 @@ import { DEFAULT_MODEL_ID } from "../model";
 import { resolveChatModel } from "./provider";
 
 describe("resolveChatModel", () => {
-  it("routes the default reasoning model through the Responses API at low effort", () => {
+  it("stays on Chat Completions when no effort is requested", () => {
     expect(resolveChatModel(undefined)).toEqual({
+      model: { api: "chat", id: DEFAULT_MODEL_ID },
+      providerOptions: undefined,
+      reasoning: false,
+    });
+  });
+
+  it("runs a reasoning model through the Responses API at the requested effort", () => {
+    expect(
+      resolveChatModel({
+        modelName: DEFAULT_MODEL_ID,
+        reasoningEffort: "high",
+      }),
+    ).toEqual({
       model: { api: "responses", id: DEFAULT_MODEL_ID },
       providerOptions: {
-        openai: { reasoningEffort: "low", reasoningSummary: "auto" },
+        openai: { reasoningEffort: "high", reasoningSummary: "auto" },
       },
       reasoning: true,
     });
   });
 
-  it("passes a known reasoning effort through", () => {
-    expect(
-      resolveChatModel({ modelName: DEFAULT_MODEL_ID, reasoningEffort: "high" })
-        .providerOptions,
-    ).toEqual({
-      openai: { reasoningEffort: "high", reasoningSummary: "auto" },
-    });
-  });
-
-  it("falls back to low effort for an unknown value", () => {
-    expect(
-      resolveChatModel({ reasoningEffort: "extreme" }).providerOptions,
-    ).toEqual({ openai: { reasoningEffort: "low", reasoningSummary: "auto" } });
+  it("ignores an unknown effort", () => {
+    expect(resolveChatModel({ reasoningEffort: "extreme" }).reasoning).toBe(
+      false,
+    );
   });
 
   it("keeps models without reasoning on Chat Completions", () => {
@@ -52,10 +56,20 @@ describe("resolveChatModel", () => {
     });
   });
 
-  it("ignores a model name that is not a string", () => {
-    expect(resolveChatModel({ modelName: 42 }).model).toEqual({
-      api: "responses",
+  it("falls back to the default model for a model name that is not a string", () => {
+    expect(
+      resolveChatModel({ modelName: 42, reasoningEffort: "low" }).model,
+    ).toEqual({ api: "responses", id: DEFAULT_MODEL_ID });
+  });
+
+  it("falls back to the default model for an unknown model id", () => {
+    expect(resolveChatModel({ modelName: "gpt-4.1-mini" }).model).toEqual({
+      api: "chat",
       id: DEFAULT_MODEL_ID,
     });
+  });
+
+  it("treats a non-object config as empty", () => {
+    expect(resolveChatModel("gpt-5.6-luna").reasoning).toBe(false);
   });
 });

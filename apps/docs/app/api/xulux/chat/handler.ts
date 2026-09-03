@@ -22,7 +22,7 @@ import {
   getLatestUserMessageId,
 } from "@/lib/xulux/turn-outcome";
 import type { XuluxAgentDefinition } from "./agents";
-import { resolveXuluxModel } from "./resolve-model";
+import { resolveChatModel } from "@/lib/ai/provider";
 
 const PRUNE_OPTIONS = {
   toolCalls: "before-last-2-messages",
@@ -309,7 +309,7 @@ export function createXuluxChatHandler(agent: XuluxAgentDefinition) {
 
       const evalRunId = req.headers.get("x-agent-eval-run-id");
       const localTraceUrl = req.headers.get("x-agent-eval-trace-url");
-      const modelConfig = resolveXuluxModel(
+      const modelConfig = resolveChatModel(
         agent.modelName ? { modelName: agent.modelName } : config,
       );
       const baseModel = modelConfig.model;

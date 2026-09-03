@@ -33,26 +33,32 @@ export type ChatModelRequestConfig = {
 };
 
 /**
- * Picks the model for a chat request. Models that expose a reasoning effort
- * run through the Responses API so their reasoning summaries stream to the
- * client; everything else stays on Chat Completions.
+ * Picks the model for a chat request. A request that names a reasoning effort
+ * for a model that supports one runs through the Responses API so its
+ * reasoning summaries stream to the client; every other request stays on Chat
+ * Completions.
  */
-export function resolveChatModel(config: ChatModelRequestConfig | undefined) {
+export function resolveChatModel(config: unknown) {
+  const requestConfig =
+    config && typeof config === "object" && !Array.isArray(config)
+      ? (config as ChatModelRequestConfig)
+      : undefined;
   const id = resolveRequestedModelId(
-    typeof config?.modelName === "string" ? config.modelName : undefined,
+    typeof requestConfig?.modelName === "string"
+      ? requestConfig.modelName
+      : undefined,
   );
+  const reasoningEffort = isReasoningEffort(requestConfig?.reasoningEffort)
+    ? requestConfig.reasoningEffort
+    : undefined;
 
-  if (!supportsReasoningEffort(id)) {
+  if (reasoningEffort === undefined || !supportsReasoningEffort(id)) {
     return {
       model: openai.chat(id),
       providerOptions: undefined,
       reasoning: false as const,
     };
   }
-
-  const reasoningEffort = isReasoningEffort(config?.reasoningEffort)
-    ? config.reasoningEffort
-    : "low";
 
   return {
     model: openai.responses(id),
