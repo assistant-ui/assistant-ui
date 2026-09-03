@@ -1,7 +1,10 @@
 {
   "extends": "@assistant-ui/x-buildutils/ts/next",
   "compilerOptions": {
-    "paths": { "@/*": ["./*"] }
+    "paths": {
+      "@/*": ["./*"],
+      "@/lib/utils": ["../../packages/ui/src/lib/utils"]
+    }
   },
   "include": ["**/*.ts", "**/*.tsx", ".next/types/**/*.ts"],
   "exclude": ["node_modules"]
