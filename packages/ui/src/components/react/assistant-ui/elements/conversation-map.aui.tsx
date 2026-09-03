@@ -44,7 +44,7 @@ const cutAtWord = (text: string, limit: number) => {
   return boundary > limit / 2 ? head.slice(0, boundary) : head;
 };
 
-const describe = (message: ThreadMessage): ConversationMapEntry | null => {
+const derive = (message: ThreadMessage): ConversationMapEntry | null => {
   if (message.role !== "user" && message.role !== "assistant") return null;
 
   const lines = textOf(message)
@@ -65,6 +65,21 @@ const describe = (message: ThreadMessage): ConversationMapEntry | null => {
     title: title || labelOf(message),
     ...(preview ? { preview } : {}),
   };
+};
+
+/**
+ * A streaming run replaces only the message it is writing, so keying on the
+ * message keeps a token from re-deriving the whole thread.
+ */
+const described = new WeakMap<ThreadMessage, ConversationMapEntry | null>();
+
+const describe = (message: ThreadMessage) => {
+  const cached = described.get(message);
+  if (cached !== undefined) return cached;
+
+  const entry = derive(message);
+  described.set(message, entry);
+  return entry;
 };
 
 /**
