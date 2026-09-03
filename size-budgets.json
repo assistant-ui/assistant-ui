@@ -153,8 +153,8 @@
   },
   "@assistant-ui/react-markdown": {
     ".": {
-      "min": 5013,
-      "gzip": 2147
+      "min": 6395,
+      "gzip": 2679
     },
     "./code-fence": {
       "min": 84,
@@ -201,8 +201,8 @@
   },
   "@assistant-ui/react-streamdown": {
     ".": {
-      "min": 7241,
-      "gzip": 3153
+      "min": 8429,
+      "gzip": 3602
     }
   },
   "@assistant-ui/react-syntax-highlighter": {
