@@ -753,7 +753,7 @@ describe("state that is carried by more than colour", () => {
     expect(icon.className).not.toMatch(/hover:|active:|focus-visible:/);
   });
 
-  it("exposes subagent progress per agent and for the summary", () => {
+  it("values each subagent bar and leaves the summary indeterminate", () => {
     const { container } = render(
       <SubagentList
         agents={[
@@ -773,7 +773,8 @@ describe("state that is carried by more than colour", () => {
 
     expect(
       progressbars.map((bar) => bar.getAttribute("aria-valuenow")),
-    ).toEqual(["0", "37.5", "100", "42"]);
+      "the summary card has no progress input, so it reports no value",
+    ).toEqual(["0", "37.5", "100", null]);
     expect(progressbars.map(accessibleName)).toEqual([
       "Explore the runtime progress",
       "Fix composer types progress",

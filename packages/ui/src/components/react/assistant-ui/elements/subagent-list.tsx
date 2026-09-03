@@ -11,8 +11,6 @@ export interface SubagentItem {
   model: string;
 }
 
-const SUMMARY_PERCENTAGE = 42;
-
 export function SubagentList({
   agents,
   completedCount,
@@ -112,12 +110,11 @@ export function SubagentList({
             aria-label={`${summaryAgent.name} progress`}
             aria-valuemin={0}
             aria-valuemax={100}
-            aria-valuenow={SUMMARY_PERCENTAGE}
             className="bg-foreground/[0.06] h-[3px] w-full overflow-hidden rounded-full"
           >
             <span
               className="bg-foreground/60 block h-full rounded-full transition-[width] duration-700"
-              style={{ width: `${SUMMARY_PERCENTAGE}%` }}
+              style={{ width: "42%" }}
             />
           </span>
         </div>
