@@ -1060,15 +1060,42 @@ describe("state that is carried by more than colour", () => {
       />,
     ).container;
 
+    const bars = [...trace.querySelectorAll<HTMLElement>('[role="img"]')];
+
     expect(trace.querySelectorAll('[role="progressbar"]').length).toBe(0);
-    expect(
-      [...trace.querySelectorAll<HTMLElement>('[role="img"]')].map((row) =>
-        row.getAttribute("aria-label"),
-      ),
-    ).toEqual([
-      "run: completed, starts at 10ms, duration 20ms",
-      "search: running, starts at 40ms, duration 5ms",
+    expect(bars.map((bar) => bar.getAttribute("aria-label"))).toEqual([
+      "completed, starts at 10ms, runs 20ms",
+      "running, starts at 40ms, runs 5ms",
     ]);
+    expect(
+      bars.map((bar) => bar.textContent),
+      "the label describes the bar, whose own children carry no text",
+    ).toEqual(["", ""]);
+    expect(
+      [...trace.querySelectorAll<HTMLElement>("span")]
+        .filter((span) => span.textContent === "search")
+        .map((span) => span.closest('[role="img"]')),
+      "a row's name stays readable text rather than becoming presentational",
+    ).toEqual([null]);
+  });
+
+  it("leaves a slice too small to paint out of the accessibility tree", () => {
+    const context = render(
+      <ContextBreakdown
+        segments={[
+          { label: "system", tokens: 1, tint: "bg-blue-500" },
+          { label: "messages", tokens: 40000, tint: "bg-emerald-500" },
+        ]}
+        limit={100000}
+      />,
+    ).container;
+
+    expect(
+      [...context.querySelectorAll<HTMLElement>('[role="meter"]')].map(
+        accessibleName,
+      ),
+      "a 0.001% slice paints nothing, so announcing it as a 0 meter is noise",
+    ).toEqual(["messages context usage"]);
   });
 
   it("marks the current map pin and gives it a 24px target", () => {

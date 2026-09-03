@@ -51,7 +51,7 @@ export function CostMeter({
       <div className="bg-foreground/[0.06] flex h-1.5 w-full overflow-hidden rounded-full">
         {lines.map((line, i) => {
           const width = pct(line.share, 1);
-          if (width === 0) return null;
+          if (announced(width) === 0) return null;
           return (
             <span
               key={line.model}

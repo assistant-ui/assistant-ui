@@ -63,8 +63,6 @@ export function TraceWaterfall({
           return (
             <div
               key={item.id}
-              role="img"
-              aria-label={`${item.name}: ${item.status}, starts at ${item.startMs}ms, duration ${item.durationMs}ms`}
               className="fade-in slide-in-from-left-1 animate-in fill-mode-both grid grid-cols-[7.5rem_1fr_2.5rem] items-center gap-2 duration-300"
             >
               <span
@@ -73,7 +71,11 @@ export function TraceWaterfall({
               >
                 {item.name}
               </span>
-              <span className="relative flex h-4 min-w-0 items-center">
+              <span
+                role="img"
+                aria-label={`${item.status}, starts at ${item.startMs}ms, runs ${item.durationMs}ms`}
+                className="relative flex h-4 min-w-0 items-center"
+              >
                 <span
                   className={cn(
                     "absolute h-[7px] rounded-full transition-[width] duration-500 ease-out motion-reduce:transition-none",

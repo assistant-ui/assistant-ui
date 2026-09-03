@@ -55,7 +55,7 @@ export function ContextBreakdown({
       <div className="bg-foreground/[0.06] flex h-2 w-full overflow-hidden rounded-full">
         {segments.map((segment) => {
           const width = share(segment.tokens);
-          if (width === 0) return null;
+          if (announced(width) === 0) return null;
           return (
             <span
               key={segment.label}
