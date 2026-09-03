@@ -65,8 +65,16 @@ export function useCloudChat(
   useThreadMessageLoader(threads.threadId, registry, core);
 
   const chat = useChat({ chat: activeChat });
+  const managedThreads = useMemo(
+    () => ({
+      ...threads,
+      rename: (threadId: string, title: string) =>
+        core.renameThread(threadId, title),
+    }),
+    [core, threads],
+  );
 
-  return { ...chat, threads };
+  return { ...chat, threads: managedThreads };
 }
 
 function useResolvedCloud(

@@ -98,6 +98,12 @@ export class CloudChatCore {
     return this.persistence.loadMessages(threadId);
   }
 
+  async renameThread(threadId: string, title: string): Promise<boolean> {
+    const renamed = await this.options.threads.rename(threadId, title);
+    if (renamed) this.titlePolicy.markTitleGenerated(threadId);
+    return renamed;
+  }
+
   async persistChatMessages(
     chatKey: string,
     registry: ChatRegistry,

@@ -43,6 +43,11 @@ type ThreadTitleClaim = {
 
 type ThreadTitleGeneration = { claim: ThreadTitleClaim | null };
 
+type ThreadTitleState = {
+  generations: Set<ThreadTitleGeneration>;
+  pendingClaim: ThreadTitleClaim | null;
+};
+
 async function listAllThreads(
   cloud: UseThreadsOptions["cloud"],
   isArchived: boolean,
@@ -68,9 +73,7 @@ async function listAllThreads(
 
 export function useThreads(options: UseThreadsOptions): UseThreadsResult {
   const { cloud, includeArchived = false, enabled = true } = options;
-  const threadTitleGenerationsRef = useRef(
-    new Map<string, Set<ThreadTitleGeneration>>(),
-  );
+  const threadTitleGenerationsRef = useRef(new Map<string, ThreadTitleState>());
   const includeArchivedRef = useRef(includeArchived);
   useLayoutEffect(() => {
     includeArchivedRef.current = includeArchived;
@@ -312,15 +315,18 @@ export function useThreads(options: UseThreadsOptions): UseThreadsResult {
 
   const rename = useCallback(
     async (id: string, title: string): Promise<boolean> => {
-      const generations = threadTitleGenerationsRef.current.get(id);
-      let settleClaim: ((renamed: boolean) => void) | undefined;
-      if (generations?.size) {
-        const settled = new Promise<boolean>((resolve) => {
-          settleClaim = resolve;
-        });
-        const claim = { title, settled };
-        for (const generation of generations) generation.claim = claim;
+      let state = threadTitleGenerationsRef.current.get(id);
+      if (!state) {
+        state = { generations: new Set(), pendingClaim: null };
+        threadTitleGenerationsRef.current.set(id, state);
       }
+      let settleClaim!: (renamed: boolean) => void;
+      const settled = new Promise<boolean>((resolve) => {
+        settleClaim = resolve;
+      });
+      const claim = { title, settled };
+      state.pendingClaim = claim;
+      for (const generation of state.generations) generation.claim = claim;
 
       const renamed = await withAction(
         async (commit) => {
@@ -335,7 +341,11 @@ export function useThreads(options: UseThreadsOptions): UseThreadsResult {
         false,
         isCurrentCloud,
       );
-      settleClaim?.(renamed);
+      settleClaim(renamed);
+      if (state.pendingClaim === claim) state.pendingClaim = null;
+      if (state.generations.size === 0 && state.pendingClaim === null) {
+        threadTitleGenerationsRef.current.delete(id);
+      }
       return renamed;
     },
     [cloud, isCurrentCloud, withAction],
@@ -414,13 +424,15 @@ export function useThreads(options: UseThreadsOptions): UseThreadsResult {
 
   const generateTitle = useCallback(
     async (tid: string): Promise<string | null> => {
-      let generations = threadTitleGenerationsRef.current.get(tid);
-      if (!generations) {
-        generations = new Set();
-        threadTitleGenerationsRef.current.set(tid, generations);
+      let state = threadTitleGenerationsRef.current.get(tid);
+      if (!state) {
+        state = { generations: new Set(), pendingClaim: null };
+        threadTitleGenerationsRef.current.set(tid, state);
       }
-      const generation: ThreadTitleGeneration = { claim: null };
-      generations.add(generation);
+      const generation: ThreadTitleGeneration = {
+        claim: state.pendingClaim,
+      };
+      state.generations.add(generation);
 
       try {
         return await withAction(
@@ -462,10 +474,11 @@ export function useThreads(options: UseThreadsOptions): UseThreadsResult {
           isCurrentCloud,
         );
       } finally {
-        generations.delete(generation);
+        state.generations.delete(generation);
         if (
-          generations.size === 0 &&
-          threadTitleGenerationsRef.current.get(tid) === generations
+          state.generations.size === 0 &&
+          state.pendingClaim === null &&
+          threadTitleGenerationsRef.current.get(tid) === state
         ) {
           threadTitleGenerationsRef.current.delete(tid);
         }

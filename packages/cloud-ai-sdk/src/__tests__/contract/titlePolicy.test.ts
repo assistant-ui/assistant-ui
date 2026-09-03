@@ -24,16 +24,17 @@ vi.mock("../../chat/MessagePersistence", () => ({
 
 function createCore() {
   const generateTitle = vi.fn().mockResolvedValue("Generated title");
+  const rename = vi.fn().mockResolvedValue(true);
 
   const refs = {
-    threads: { generateTitle } as never,
+    threads: { generateTitle, rename } as never,
     chatConfig: {} as never,
     callbacks: {} as never,
     onSyncError: undefined,
   };
 
   const core = new CloudChatCore({} as never, refs, {} as never);
-  return { core, generateTitle };
+  return { core, generateTitle, rename };
 }
 
 function mockRegistry(threadId: string, messages: unknown[]) {
@@ -66,6 +67,20 @@ describe("Contract: Title policy", () => {
 
     expect(generateTitle).toHaveBeenCalledTimes(1);
     expect(generateTitle).toHaveBeenCalledWith("thread-1");
+  });
+
+  it("does not generate an automatic title after a manual rename", async () => {
+    const { core, generateTitle, rename } = createCore();
+    const registry = mockRegistry("thread-1", [
+      { id: "m-1", role: "assistant" },
+    ]);
+    core.titlePolicy.markNewThread("thread-1");
+
+    await core.renameThread("thread-1", "Manual title");
+    await core.persistChatMessages("chat-1", registry);
+
+    expect(rename).toHaveBeenCalledWith("thread-1", "Manual title");
+    expect(generateTitle).not.toHaveBeenCalled();
   });
 
   it("retries title generation after a failed attempt", async () => {
