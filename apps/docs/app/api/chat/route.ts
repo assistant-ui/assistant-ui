@@ -88,7 +88,7 @@ export async function POST(req: Request) {
       ...(providerOptions ? { providerOptions } : {}),
       ...(system ? { system } : {}),
       messages: prunedMessages,
-      maxOutputTokens: reasoning ? 8192 : 4096,
+      maxOutputTokens: reasoning ? 16384 : 4096,
       stopWhen: stepCountIs(10),
       tools: await aiToolkit.tools({ frontend: tools }),
       ...posthogTelemetry({

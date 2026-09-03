@@ -1003,7 +1003,11 @@ function SpecimenAssistantMessage(): ReactNode {
                 );
               }
               case "text":
-                return <MarkdownText />;
+                return part.text === "" && part.status?.type === "running" ? (
+                  <TraceLine live label="thinking" />
+                ) : (
+                  <MarkdownText />
+                );
               case "reasoning":
                 return <Reasoning {...part} />;
               case "tool-call":
