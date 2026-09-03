@@ -61,6 +61,7 @@ import {
   UserMessageAttachments,
 } from "@/components/assistant-ui/elements/attachment.aui";
 import { ContextDisplay } from "@/components/assistant-ui/elements/context-display.aui";
+import { ShimmerLabel } from "@/components/assistant-ui/elements/surfaces";
 import { File } from "@/components/assistant-ui/elements/file";
 import { Image } from "@/components/assistant-ui/elements/image";
 import { MarkdownText } from "@/components/assistant-ui/elements/markdown-text";
@@ -76,7 +77,6 @@ import {
   ReasoningContent,
   ReasoningRoot,
   ReasoningText,
-  ReasoningTrigger,
 } from "@/components/assistant-ui/elements/reasoning.aui";
 import {
   ThreadListSearch,
@@ -85,10 +85,10 @@ import {
 import {
   ToolGroupContent,
   ToolGroupRoot,
-  ToolGroupTrigger,
 } from "@/components/assistant-ui/elements/tool-group.aui";
 import { FeedbackActions } from "@/components/pages/docs/assistant/assistant-action-bar";
 import { docsModelOptions } from "@/components/pages/docs/assistant/docs-model-options";
+import { CollapsibleTrigger } from "@/components/ui/collapsible";
 import { Input } from "@/components/ui/input";
 import { Sheet, SheetContent, SheetTitle } from "@/components/ui/sheet";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -97,7 +97,7 @@ import {
   formatDuration,
   useToolDuration,
 } from "@/components/shared/trace-line";
-import { typeEyebrow } from "@/components/shared/type";
+import { typeEyebrow, typeSection } from "@/components/shared/type";
 import {
   DEFAULT_MODEL_ID,
   getContextWindow,
@@ -684,9 +684,7 @@ function SpecimenThread(): ReactNode {
       >
         <AuiIf condition={isNewChatView}>
           <div className="animate-in fade-in slide-in-from-bottom-1 mx-auto mb-8 flex w-full max-w-(--thread-max-width) flex-col items-center text-center duration-200">
-            <p className="font-display text-2xl font-[550] tracking-[-0.01em]">
-              How can I help you today?
-            </p>
+            <p className={typeSection}>How can I help you today?</p>
           </div>
         </AuiIf>
         <AuiIf condition={isHistoryLoadingView}>
@@ -731,7 +729,7 @@ function SpecimenThread(): ReactNode {
             <button
               type="button"
               aria-label="Scroll to bottom"
-              className="border-foreground/10 bg-background hover:border-foreground/25 rounded-capsule absolute -top-11 z-10 grid size-8 place-items-center self-center border transition-colors disabled:invisible"
+              className="border-foreground/10 bg-background hover:border-foreground/25 rounded-control absolute -top-11 z-10 grid size-8 place-items-center self-center border transition-colors disabled:invisible"
             >
               <ArrowDownIcon className="size-4" />
             </button>
@@ -811,7 +809,7 @@ function SpecimenComposer(): ReactNode {
   return (
     <ComposerPrimitive.Root className="w-full">
       <ComposerPrimitive.AttachmentDropzone asChild>
-        <div className="border-foreground/10 bg-muted/25 focus-within:border-foreground/25 data-[dragging=true]:border-foreground/40 rounded-thread flex flex-col border transition-colors data-[dragging=true]:border-dashed">
+        <div className="border-foreground/10 bg-muted/30 focus-within:border-foreground/25 data-[dragging=true]:border-foreground/40 rounded-thread flex flex-col border transition-colors data-[dragging=true]:border-dashed">
           <ComposerQuotePreview className="bg-foreground/[0.04] rounded-control mx-3 mt-3" />
           <div className="has-[.aui-attachment-root]:px-3 has-[.aui-attachment-root]:pt-3">
             <ComposerAttachments />
@@ -848,10 +846,10 @@ function SpecimenComposer(): ReactNode {
             </div>
             <div className="flex shrink-0 items-center gap-1">
               <AuiIf condition={(s) => !s.thread.isEmpty}>
-                <ContextDisplay.Ring
+                <ContextDisplay.Text
                   modelContextWindow={getContextWindow(model)}
                   side="top"
-                  className="text-muted-foreground hover:text-foreground size-8"
+                  className="text-muted-foreground hover:text-foreground rounded-control h-8 px-2 text-[11px] hover:bg-transparent"
                 />
               </AuiIf>
               <AuiIf
@@ -886,7 +884,7 @@ function SpecimenComposer(): ReactNode {
                   <button
                     type="button"
                     aria-label="Send message"
-                    className="bg-primary text-primary-foreground grid size-8 place-items-center rounded-full transition-opacity disabled:opacity-40"
+                    className="bg-primary text-primary-foreground rounded-control grid size-8 place-items-center transition-opacity disabled:opacity-40"
                   >
                     <ArrowUpIcon className="size-4.5" />
                   </button>
@@ -897,7 +895,7 @@ function SpecimenComposer(): ReactNode {
                   <button
                     type="button"
                     aria-label="Stop generating"
-                    className="bg-primary text-primary-foreground grid size-8 place-items-center rounded-full"
+                    className="bg-primary text-primary-foreground rounded-control grid size-8 place-items-center"
                   >
                     <SquareIcon className="size-3.5 fill-current" />
                   </button>
@@ -917,7 +915,7 @@ function SpecimenEditComposer(): ReactNode {
       data-role="user"
       className="mx-auto flex w-full max-w-(--thread-max-width) flex-col items-end"
     >
-      <ComposerPrimitive.Root className="border-foreground/10 bg-muted/25 focus-within:border-foreground/25 rounded-thread flex w-full max-w-[85%] flex-col border transition-colors">
+      <ComposerPrimitive.Root className="border-foreground/10 bg-muted/30 focus-within:border-foreground/25 rounded-thread flex w-full max-w-[85%] flex-col border transition-colors">
         <ComposerPrimitive.Input asChild>
           <textarea
             autoFocus
@@ -1009,24 +1007,39 @@ function SpecimenAssistantMessage(): ReactNode {
             switch (part.type) {
               case "group-chainOfThought":
                 return <div>{children}</div>;
-              case "group-tool":
+              case "group-tool": {
                 if (part.indices.length === 1) return <>{children}</>;
+                const running = part.status.type === "running";
                 return (
-                  <ToolGroupRoot variant="ghost">
-                    <ToolGroupTrigger
-                      count={part.indices.length}
-                      active={part.status.type === "running"}
+                  <ToolGroupRoot variant="ghost" className="my-1">
+                    <SpecimenDisclosureTrigger
+                      live={running}
+                      label={running ? "running" : "ran"}
+                      detail={`${part.indices.length} tools`}
                     />
-                    <ToolGroupContent>{children}</ToolGroupContent>
+                    <ToolGroupContent className={disclosureContentClass}>
+                      {children}
+                    </ToolGroupContent>
                   </ToolGroupRoot>
                 );
+              }
               case "group-reasoning": {
                 const running = part.status.type === "running";
                 return (
-                  <ReasoningRoot streaming={running}>
-                    <ReasoningTrigger active={running} />
-                    <ReasoningContent aria-busy={running}>
-                      <ReasoningText>{children}</ReasoningText>
+                  <ReasoningRoot
+                    variant="ghost"
+                    streaming={running}
+                    className="my-1 mb-3"
+                  >
+                    <SpecimenDisclosureTrigger
+                      live={running}
+                      label={running ? "thinking" : "reasoning"}
+                    />
+                    <ReasoningContent
+                      aria-busy={running}
+                      className={disclosureContentClass}
+                    >
+                      <ReasoningText className="ps-0">{children}</ReasoningText>
                     </ReasoningContent>
                   </ReasoningRoot>
                 );
@@ -1083,7 +1096,7 @@ function SpecimenMessageError(): ReactNode {
     <MessagePrimitive.Error>
       <ErrorPrimitive.Root
         className={cn(
-          "mt-2 border-l-2 pl-3 text-[12.5px]",
+          "mt-2 border-l-2 pl-3 text-[13px]",
           notice
             ? "border-foreground/20 text-muted-foreground"
             : "border-destructive/60 text-destructive",
@@ -1177,7 +1190,7 @@ function SpecimenAssistantActionBar(): ReactNode {
       </ActionBarMorePrimitive.Root>
       <MessageTiming
         side="bottom"
-        className="text-muted-foreground/70 hover:text-foreground ms-1 rounded-none p-1 hover:bg-transparent"
+        className="text-muted-foreground/70 hover:text-foreground ms-1 rounded-none p-1 text-[11px] hover:bg-transparent"
       />
     </ActionBarPrimitive.Root>
   );
@@ -1192,7 +1205,7 @@ function SpecimenBranchPicker({
     <BranchPickerPrimitive.Root
       hideWhenSingleBranch
       className={cn(
-        "text-muted-foreground inline-flex items-center text-[12px] tabular-nums",
+        "text-muted-foreground inline-flex items-center font-mono text-[11px] tabular-nums",
         className,
       )}
     >
@@ -1202,7 +1215,7 @@ function SpecimenBranchPicker({
       >
         <ChevronLeftIcon className="size-4" />
       </BranchPickerPrimitive.Previous>
-      <span className="font-medium">
+      <span>
         <BranchPickerPrimitive.Number /> / <BranchPickerPrimitive.Count />
       </span>
       <BranchPickerPrimitive.Next
@@ -1212,6 +1225,43 @@ function SpecimenBranchPicker({
         <ChevronRightIcon className="size-4" />
       </BranchPickerPrimitive.Next>
     </BranchPickerPrimitive.Root>
+  );
+}
+
+const disclosureContentClass = "border-foreground/10 ms-[5px] border-s ps-4";
+
+function SpecimenDisclosureTrigger({
+  live,
+  label,
+  detail,
+}: {
+  live: boolean;
+  label: string;
+  detail?: string;
+}): ReactNode {
+  return (
+    <CollapsibleTrigger className="group/trigger my-1 flex max-w-full items-center gap-2 text-left font-mono text-[12px] outline-none [font-variant-ligatures:none] focus-visible:underline">
+      <ChevronRightIcon
+        aria-hidden
+        className={cn(
+          "size-3 shrink-0 transition-transform group-data-open/trigger:rotate-90 group-data-panel-open/trigger:rotate-90",
+          live ? "text-blue-500" : "text-muted-foreground/50",
+        )}
+      />
+      <span className="text-muted-foreground group-hover/trigger:text-foreground min-w-0 truncate transition-colors">
+        {live ? (
+          <ShimmerLabel>
+            {label}
+            {detail ? ` ${detail}` : null}
+          </ShimmerLabel>
+        ) : (
+          <>
+            {label}
+            {detail ? ` ${detail}` : null}
+          </>
+        )}
+      </span>
+    </CollapsibleTrigger>
   );
 }
 
