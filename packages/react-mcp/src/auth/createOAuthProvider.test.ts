@@ -220,6 +220,63 @@ describe("createOAuthProvider persistence", () => {
     });
   });
 
+  it("waits for pending writes before reloading a previous endpoint", async () => {
+    const { storage } = createStorage();
+    const loadAuthState = vi.spyOn(storage, "loadAuthState");
+    const saveAuthState = storage.saveAuthState;
+    let releaseWrite!: () => void;
+    storage.saveAuthState = async (serverId, next) => {
+      await new Promise<void>((resolve) => {
+        releaseWrite = resolve;
+      });
+      await saveAuthState(serverId, next);
+    };
+
+    const endpointA = createOAuthProvider({
+      serverId: "docs",
+      serverUrl: "https://endpoint-a.example.com/mcp",
+      config: { type: "oauth" },
+      storage,
+      redirectUri: "http://localhost/callback",
+      onAuthorizationUrl: () => {},
+    });
+    await endpointA.tokens();
+    const pendingSave = endpointA.saveTokens({
+      access_token: "endpoint-a-token",
+      token_type: "bearer",
+    });
+    await vi.waitFor(() => expect(releaseWrite).toBeDefined());
+
+    createOAuthProvider({
+      serverId: "docs",
+      serverUrl: "https://endpoint-b.example.com/mcp",
+      config: { type: "oauth" },
+      storage,
+      redirectUri: "http://localhost/callback",
+      onAuthorizationUrl: () => {},
+    });
+    const replacementA = createOAuthProvider({
+      serverId: "docs",
+      serverUrl: "https://endpoint-a.example.com/mcp",
+      config: { type: "oauth" },
+      storage,
+      redirectUri: "http://localhost/callback",
+      onAuthorizationUrl: () => {},
+    });
+    const tokens = replacementA.tokens();
+
+    await Promise.resolve();
+    expect(loadAuthState).toHaveBeenCalledTimes(1);
+
+    releaseWrite();
+    await pendingSave;
+    await expect(tokens).resolves.toEqual({
+      access_token: "endpoint-a-token",
+      token_type: "bearer",
+    });
+    expect(loadAuthState).toHaveBeenCalledTimes(2);
+  });
+
   it("does not reuse unbound legacy OAuth authentication", async () => {
     const { storage } = createStorage({
       tokens: { access_token: "legacy-token", token_type: "bearer" },
@@ -246,7 +303,7 @@ describe("createOAuthProvider persistence", () => {
     const tokens = provider.tokens();
     const clientInformation = provider.clientInformation();
 
-    expect(loadAuthState).toHaveBeenCalledTimes(1);
+    await vi.waitFor(() => expect(loadAuthState).toHaveBeenCalledTimes(1));
     resolveLoad(null);
     await Promise.all([tokens, clientInformation]);
   });
@@ -363,7 +420,7 @@ describe("createOAuthProvider persistence across provider instances", () => {
     const tokens = provider.tokens();
     const clientInformation = replacementProvider.clientInformation();
 
-    expect(loadAuthState).toHaveBeenCalledTimes(1);
+    await vi.waitFor(() => expect(loadAuthState).toHaveBeenCalledTimes(1));
     resolveLoad(null);
     await Promise.all([tokens, clientInformation]);
   });

@@ -248,28 +248,30 @@ export function createOAuthProvider(
     if (endpoint.cached) return Promise.resolve(endpoint.cached);
     if (endpoint.cachePromise) return endpoint.cachePromise;
 
-    endpoint.cachePromise = storage.loadAuthState(serverId).then(
-      async (persisted) => {
-        const initial: OAuthProviderCache = {};
-        if (endpoint.invalidated) return initial;
-        if (isAuthStateForServerUrl(persisted, normalizedServerUrl)) {
-          if (persisted?.tokens) initial.tokens = persisted.tokens;
-          if (persisted?.clientInformation)
-            initial.clientInformation = persisted.clientInformation;
-          if (persisted?.codeVerifier)
-            initial.codeVerifier = persisted.codeVerifier;
-          if (persisted?.state) initial.state = persisted.state;
-          if (persisted?.discoveryState)
-            initial.discoveryState = persisted.discoveryState;
-        }
-        endpoint.cached = initial;
-        return initial;
-      },
-      (error) => {
-        endpoint.cachePromise = null;
-        throw error;
-      },
-    );
+    endpoint.cachePromise = persistence.queue
+      .then(() => storage.loadAuthState(serverId))
+      .then(
+        async (persisted) => {
+          const initial: OAuthProviderCache = {};
+          if (endpoint.invalidated) return initial;
+          if (isAuthStateForServerUrl(persisted, normalizedServerUrl)) {
+            if (persisted?.tokens) initial.tokens = persisted.tokens;
+            if (persisted?.clientInformation)
+              initial.clientInformation = persisted.clientInformation;
+            if (persisted?.codeVerifier)
+              initial.codeVerifier = persisted.codeVerifier;
+            if (persisted?.state) initial.state = persisted.state;
+            if (persisted?.discoveryState)
+              initial.discoveryState = persisted.discoveryState;
+          }
+          endpoint.cached = initial;
+          return initial;
+        },
+        (error) => {
+          endpoint.cachePromise = null;
+          throw error;
+        },
+      );
     return endpoint.cachePromise;
   };
 
