@@ -47,6 +47,7 @@ export function AgentStatus({
           )}
         />
       )}
+      <span className="sr-only">{state}</span>
       <span
         key={label}
         className="fade-in blur-in-[2px] animate-in max-w-44 truncate text-xs duration-300 motion-reduce:animate-none"
@@ -58,17 +59,13 @@ export function AgentStatus({
           {elapsed}
         </span>
       )}
-      <button
-        type="button"
-        aria-label={state === "done" ? "Run again" : "Pause agent"}
-        className={cn(ghostButton, "size-6")}
-      >
+      <span aria-hidden className={cn(ghostButton, "size-6")}>
         {state === "done" ? (
           <RotateCcwIcon className="size-3" />
         ) : (
           <PauseIcon className="size-3" />
         )}
-      </button>
+      </span>
     </div>
   );
 }

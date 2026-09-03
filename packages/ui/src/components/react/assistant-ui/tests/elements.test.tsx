@@ -5,6 +5,7 @@ import { renderToStaticMarkup } from "react-dom/server";
 import { afterEach, beforeAll, describe, expect, it } from "vitest";
 
 import { AgentPlan } from "../elements/agent-plan";
+import { AgentStatus, type AgentState } from "../elements/agent-status";
 import { Chart } from "../elements/chart";
 import { CodeDiff } from "../elements/code-diff";
 import { CodeRunner } from "../elements/code-runner";
@@ -603,6 +604,59 @@ describe.each(Object.entries(CASES))("%s", (name, make) => {
         accessibleName(control),
         `${name} has a control with no accessible name: ${control.outerHTML.slice(0, 120)}`,
       ).not.toBe("");
+    }
+  });
+});
+
+describe("AgentStatus accessibility", () => {
+  it.each(["working", "waiting", "done"] as AgentState[])(
+    "exposes %s without exposing an inert control",
+    (state) => {
+      const { container } = render(
+        <AgentStatus state={state} label="Refactoring composer" />,
+      );
+      const root = container.querySelector('[data-slot="agent-status"]');
+
+      expect(root).not.toBeNull();
+      expect(root?.querySelector("button")).toBeNull();
+      expect(root ? visibleText(root) : "").toContain(state);
+      expect(root?.querySelector('[aria-hidden="true"]')).not.toBeNull();
+    },
+  );
+});
+
+describe("SubagentList accessibility", () => {
+  it("exposes per-agent and summary progress values", () => {
+    const { container } = render(
+      <SubagentList
+        agents={[
+          { name: "Explore the runtime", model: "haiku" },
+          { name: "Fix composer types", model: "sonnet" },
+          { name: "Write regression tests", model: "sonnet" },
+        ]}
+        completedCount={1}
+        progress={[-1, 37.5, 101]}
+        showSummary
+        summaryAgent={{ name: "Summarize findings", model: "haiku" }}
+      />,
+    );
+    const progressbars = [
+      ...container.querySelectorAll<HTMLElement>('[role="progressbar"]'),
+    ];
+
+    expect(progressbars).toHaveLength(4);
+    expect(
+      progressbars.map((bar) => bar.getAttribute("aria-valuenow")),
+    ).toEqual(["0", "37.5", "100", "42"]);
+    expect(progressbars.map(accessibleName)).toEqual([
+      "Explore the runtime progress",
+      "Fix composer types progress",
+      "Write regression tests progress",
+      "Summarize findings progress",
+    ]);
+    for (const progressbar of progressbars) {
+      expect(progressbar.getAttribute("aria-valuemin")).toBe("0");
+      expect(progressbar.getAttribute("aria-valuemax")).toBe("100");
     }
   });
 });
