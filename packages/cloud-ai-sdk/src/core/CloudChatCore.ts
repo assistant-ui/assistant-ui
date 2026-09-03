@@ -7,6 +7,7 @@ import type { ChatRegistry } from "../chat/ChatRegistry";
 import { MessagePersistence } from "../chat/MessagePersistence";
 import { ThreadSessionManager } from "./ThreadSessionManager";
 import { TitlePolicy } from "./TitlePolicy";
+import { generateAutomaticThreadTitle } from "../threads/automaticTitleGeneration";
 import {
   CloudTelemetryReporter,
   type TelemetryFinishEvent,
@@ -98,12 +99,6 @@ export class CloudChatCore {
     return this.persistence.loadMessages(threadId);
   }
 
-  async renameThread(threadId: string, title: string): Promise<boolean> {
-    const renamed = await this.options.threads.rename(threadId, title);
-    if (renamed) this.titlePolicy.markTitleGenerated(threadId);
-    return renamed;
-  }
-
   async persistChatMessages(
     chatKey: string,
     registry: ChatRegistry,
@@ -125,7 +120,7 @@ export class CloudChatCore {
 
     if (this.titlePolicy.shouldGenerateTitle(threadId, messages)) {
       this.titlePolicy.markTitleGenerationStarted(threadId);
-      void this.options.threads.generateTitle(threadId).then(
+      void generateAutomaticThreadTitle(this.options.threads, threadId).then(
         (title) => {
           if (title) {
             this.titlePolicy.markTitleGenerated(threadId);
