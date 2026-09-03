@@ -165,6 +165,26 @@ export function takeSlot(queue: readonly number[], visible: readonly number[]) {
   return { slot: source[source.length - 1]!, queue: source.slice(0, -1) };
 }
 
+export function rotateSlot(
+  catalogue: readonly Logo[],
+  shown: readonly Logo[],
+  visible: readonly number[],
+  target: number,
+  pick: (count: number) => number,
+): readonly Logo[] {
+  const onScreen = new Set(visible.map((slot) => shown[slot]!.alt));
+  const pool = catalogue.filter((logo) => !onScreen.has(logo.alt));
+  const next = pool[pick(pool.length)];
+  if (!next) return shown;
+  // A logo parked in a slot the narrow layout hides is in the pool, so it trades
+  // places with the outgoing one; that keeps all nine distinct at every breakpoint.
+  const parked = shown.findIndex((logo) => logo.alt === next.alt);
+  const outgoing = shown[target]!;
+  return shown.map((logo, index) =>
+    index === target ? next : index === parked ? outgoing : logo,
+  );
+}
+
 function LogoMark({
   logo,
   onSettle,
@@ -284,7 +304,9 @@ function LogoSlot({
 }
 
 export function TrustedBy() {
-  const [shown, setShown] = useState(() => LOGOS.slice(0, SLOTS));
+  const [shown, setShown] = useState<readonly Logo[]>(() =>
+    LOGOS.slice(0, SLOTS),
+  );
   const [hovered, setHovered] = useState(false);
   const [pageHidden, setPageHidden] = useState(false);
   const [reduceMotion, setReduceMotion] = useState(false);
@@ -320,14 +342,11 @@ export function TrustedBy() {
     const hold = window.setTimeout(() => {
       const taken = takeSlot(order.current, slots);
       order.current = taken.queue;
-      const target = taken.slot;
-      setShown((current) => {
-        const taken = new Set(current.map((logo) => logo.alt));
-        const pool = LOGOS.filter((logo) => !taken.has(logo.alt));
-        const next = pool[Math.floor(Math.random() * pool.length)];
-        if (!next) return current;
-        return current.map((logo, index) => (index === target ? next : logo));
-      });
+      setShown((current) =>
+        rotateSlot(LOGOS, current, slots, taken.slot, (count) =>
+          Math.floor(Math.random() * count),
+        ),
+      );
     }, wait);
     return () => window.clearTimeout(hold);
   }, [frozen, shown, slots]);
