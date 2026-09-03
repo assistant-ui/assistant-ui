@@ -1,6 +1,8 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 import type { RealtimeVoiceAdapter } from "../../adapters/voice";
+import type { ModelContextProvider } from "../../model-context/types";
 import type { AppendMessage } from "../../types/message";
+import { CompositeContextProvider } from "../../utils/composite-context-provider";
 import type {
   AddToolResultOptions,
   ResumeRunConfig,
@@ -45,8 +47,11 @@ const createVoiceAdapter = () => {
 class TestRuntime extends BaseThreadRuntimeCore {
   private readonly voiceAdapter: ReturnType<typeof createVoiceAdapter>;
 
-  constructor(voiceAdapter: ReturnType<typeof createVoiceAdapter>) {
-    super({ getModelContext: () => ({}) });
+  constructor(
+    voiceAdapter: ReturnType<typeof createVoiceAdapter>,
+    contextProvider: ModelContextProvider = { getModelContext: () => ({}) },
+  ) {
+    super(contextProvider);
     this.voiceAdapter = voiceAdapter;
   }
 
@@ -152,6 +157,63 @@ describe("BaseThreadRuntimeCore subscriptions", () => {
       expect(consoleError).toHaveBeenCalledWith(
         '[assistant-ui] Thread runtime "initialize" listener threw an error',
         asyncError,
+      );
+    });
+  });
+
+  it("isolates modelContextUpdate listener errors during context updates", () => {
+    const consoleError = vi
+      .spyOn(console, "error")
+      .mockImplementation(() => {});
+    const provider = new CompositeContextProvider();
+    const runtime = new TestRuntime(createVoiceAdapter(), provider);
+    const listenerError = new Error("model context listener failed");
+    const laterListener = vi.fn();
+
+    runtime.unstable_on("modelContextUpdate", () => {
+      throw listenerError;
+    });
+    runtime.unstable_on("modelContextUpdate", laterListener);
+
+    const unregister = provider.registerModelContextProvider({
+      getModelContext: () => ({}),
+    });
+
+    expect(laterListener).toHaveBeenCalledOnce();
+    expect(consoleError).toHaveBeenNthCalledWith(
+      1,
+      '[assistant-ui] Thread runtime "modelContextUpdate" listener threw an error',
+      listenerError,
+    );
+    expect(() => unregister()).not.toThrow();
+    expect(laterListener).toHaveBeenCalledTimes(2);
+    expect(consoleError).toHaveBeenNthCalledWith(
+      2,
+      '[assistant-ui] Thread runtime "modelContextUpdate" listener threw an error',
+      listenerError,
+    );
+  });
+
+  it("observes rejected modelContextUpdate listener promises", async () => {
+    const consoleError = vi
+      .spyOn(console, "error")
+      .mockImplementation(() => {});
+    const provider = new CompositeContextProvider();
+    const runtime = new TestRuntime(createVoiceAdapter(), provider);
+    const listenerError = new Error("async model context listener failed");
+
+    runtime.unstable_on("modelContextUpdate", async () => {
+      throw listenerError;
+    });
+
+    expect(() =>
+      provider.registerModelContextProvider({ getModelContext: () => ({}) }),
+    ).not.toThrow();
+
+    await vi.waitFor(() => {
+      expect(consoleError).toHaveBeenCalledWith(
+        '[assistant-ui] Thread runtime "modelContextUpdate" listener threw an error',
+        listenerError,
       );
     });
   });
