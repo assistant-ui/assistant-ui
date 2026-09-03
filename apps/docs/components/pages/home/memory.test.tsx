@@ -85,7 +85,7 @@ describe("MemoryInstructions", () => {
   it("keeps the instruction block inside the route's system prompt budget", () => {
     const memories = Array.from({ length: 20 }, (_, index) => ({
       id: `memory-${index}`,
-      text: "x".repeat(200),
+      text: `${index}`.padEnd(200, "x"),
       createdAt: index,
     }));
     mocks.memories = memories;
@@ -95,5 +95,6 @@ describe("MemoryInstructions", () => {
     const instruction = mocks.instruction!;
     expect(instruction.length).toBeLessThanOrEqual(1_200);
     expect(instruction).toContain(memories.at(-1)!.text);
+    expect(instruction).not.toContain(memories[0]!.text);
   });
 });
