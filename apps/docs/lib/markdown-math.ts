@@ -149,7 +149,12 @@ export function mapProse(
   return out.join("\n");
 }
 
+// The bracket rewrite in normalizeMathDelimiters emits `$$body$$` even when
+// the body spans lines, which is the fence shape repaired above, so the repair
+// runs after it.
 export const preprocessMath = (text: string) =>
-  mapProse(closeDisplayMathFences(text), (prose) =>
-    escapeCurrencyDollars(normalizeMathDelimiters(prose)),
+  mapProse(text, (prose) =>
+    escapeCurrencyDollars(
+      closeDisplayMathFences(normalizeMathDelimiters(prose)),
+    ),
   );

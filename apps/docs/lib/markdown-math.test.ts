@@ -34,6 +34,16 @@ describe("closeDisplayMathFences", () => {
     expect(closeDisplayMathFences("$$a = b$$\ntext")).toBe("$$a = b$$\ntext");
   });
 
+  it("keeps an aligned environment that opens on the fence line", () => {
+    expect(
+      closeDisplayMathFences(
+        "$$\\begin{aligned}\nS_n-rS_n\n&=(a+ar)\\\\\n&=a-ar^n\n\\end{aligned}$$\nHence, $$\\boxed{S=1}$$",
+      ),
+    ).toBe(
+      "$$\n\\begin{aligned}\nS_n-rS_n\n&=(a+ar)\\\\\n&=a-ar^n\n\\end{aligned}\n$$\nHence, $$\\boxed{S=1}$$",
+    );
+  });
+
   it("accepts whitespace before the trailing fence", () => {
     expect(closeDisplayMathFences("$$\nE = mc^2 $$ \nText")).toBe(
       "$$\nE = mc^2\n$$\nText",
@@ -102,12 +112,22 @@ describe("mapProse", () => {
 });
 
 describe("preprocessMath", () => {
-  it("closes fences before the shared delimiter and currency passes", () => {
+  it("repairs fences after the delimiter rewrite and before the currency pass", () => {
     const text = "$$\nx$$\nCosts $5 and \\(y\\).";
     expect(preprocessMath(text)).toBe(
       escapeCurrencyDollars(
-        normalizeMathDelimiters("$$\nx\n$$\nCosts $5 and \\(y\\)."),
+        closeDisplayMathFences(normalizeMathDelimiters(text)),
       ),
+    );
+  });
+
+  it("turns a multi-line bracket block into a fenced display block", () => {
+    expect(
+      preprocessMath(
+        "Subtract:\n\\[\n\\begin{aligned}\nS-rS\n&=a\n\\end{aligned}\n\\]\n\nThus \\(S=a\\).",
+      ),
+    ).toBe(
+      "Subtract:\n$$\n\\begin{aligned}\nS-rS\n&=a\n\\end{aligned}\n$$\n\nThus $S=a$.",
     );
   });
 
