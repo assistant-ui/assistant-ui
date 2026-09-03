@@ -49,7 +49,7 @@ The clone must be inert and hidden from assistive technology. Firefox and one-no
 | `shimmer-bg`             | Background shimmer for skeleton placeholders.                          |
 | `shimmer-container`      | Parent container that calculates the speed and width for its children.  |
 | `shimmer-speed-{value}`  | Animation speed in px/s. The text default is 200 and the background is 1000. |
-| `shimmer-width-{value}`  | Animation track width in px. The default is 200.                        |
+| `--shimmer-track-width`  | Track width variable for timing. The default is `200px`.                |
 | `shimmer-spread-{value}` | Highlight thickness.                                                    |
 | `shimmer-angle-{value}`  | Highlight angle in degrees.                                             |
 | `shimmer-color-{color}`  | Highlight color from the Tailwind palette.                              |

@@ -19,8 +19,7 @@
 
   @keyframes tw-shimmer-translate {
     to {
-      translate: calc(100cqi + var(--_gradient-width) + var(--_repeat-delay-px))
-        0;
+      translate: calc(100% + var(--_repeat-delay-px)) 0;
     }
   }
 }
@@ -119,7 +118,6 @@
 
   &:not(.shimmer-bg):where(:has(> .shimmer-clone)) {
     position: relative;
-    container-type: inline-size;
     @supports (-webkit-mask-clip: text) {
       animation: none;
       background: none;
@@ -150,27 +148,28 @@
           position: absolute;
           inset-block: 0;
           left: calc(-1 * (var(--_gradient-width) + var(--_xy-offset-px)));
-          width: var(--_gradient-width);
+          width: calc(100% + var(--_gradient-width));
           background: linear-gradient(
-            calc(90deg + var(--shimmer-angle)),
-            transparent 0%,
-            var(--_overlay-96) 6%,
-            var(--_overlay-83) 13%,
-            var(--_overlay-67) 19%,
-            var(--_overlay-50) 25%,
-            var(--_overlay-33) 31%,
-            var(--_overlay-17) 38%,
-            var(--_overlay-4) 44%,
-            var(--_overlay) 50%,
-            var(--_overlay-4) 56%,
-            var(--_overlay-17) 63%,
-            var(--_overlay-33) 69%,
-            var(--_overlay-50) 75%,
-            var(--_overlay-67) 81%,
-            var(--_overlay-83) 88%,
-            var(--_overlay-96) 94%,
-            transparent 100%
-          );
+              calc(90deg + var(--shimmer-angle)),
+              transparent 0%,
+              var(--_overlay-96) 6%,
+              var(--_overlay-83) 13%,
+              var(--_overlay-67) 19%,
+              var(--_overlay-50) 25%,
+              var(--_overlay-33) 31%,
+              var(--_overlay-17) 38%,
+              var(--_overlay-4) 44%,
+              var(--_overlay) 50%,
+              var(--_overlay-4) 56%,
+              var(--_overlay-17) 63%,
+              var(--_overlay-33) 69%,
+              var(--_overlay-50) 75%,
+              var(--_overlay-67) 81%,
+              var(--_overlay-83) 88%,
+              var(--_overlay-96) 94%,
+              transparent 100%
+            )
+            0 0 / var(--_gradient-width) 100% no-repeat;
           will-change: translate;
           animation: tw-shimmer-translate
             calc((var(--_duration) + var(--_repeat-delay)) * 1ms) linear
