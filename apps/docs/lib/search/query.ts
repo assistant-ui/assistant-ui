@@ -15,10 +15,6 @@ export function normalizePath(path: string): string {
   return bare;
 }
 
-export function isCurrentPage(url: string, pathname: string): boolean {
-  return normalizePath(url) === normalizePath(pathname);
-}
-
 export function tokenize(query: string): string[] {
   return query
     .toLowerCase()
