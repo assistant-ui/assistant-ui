@@ -1,0 +1,234 @@
+import { act, cleanup, fireEvent, render } from "@testing-library/react";
+import { afterEach, beforeAll, describe, expect, it, vi } from "vitest";
+
+import { ConversationMapAui } from "./conversation-map.aui";
+
+const mocks = vi.hoisted(() => ({
+  state: { thread: { messages: [] as unknown[] } },
+  viewport: {
+    element: { viewport: null as HTMLElement | null },
+    height: { viewport: 400 },
+  },
+}));
+
+vi.mock("@assistant-ui/react", () => ({
+  useAuiState: (selector: (s: typeof mocks.state) => unknown) =>
+    selector(mocks.state),
+  useThreadViewport: (selector: (s: typeof mocks.viewport) => unknown) =>
+    selector(mocks.viewport),
+}));
+
+const rect = (top: number, height: number) =>
+  ({ top, height, bottom: top + height }) as DOMRect;
+
+/** A stand-in for `ThreadPrimitive.Viewport` and the message roots it renders. */
+const mountViewport = (tops: Record<string, number>) => {
+  const viewport = document.createElement("div");
+  viewport.getBoundingClientRect = () => rect(0, 300);
+
+  for (const [id, top] of Object.entries(tops)) {
+    const message = document.createElement("div");
+    message.dataset["messageId"] = id;
+    message.getBoundingClientRect = () => rect(top, 50);
+    message.scrollIntoView = vi.fn();
+    viewport.append(message);
+  }
+
+  document.body.append(viewport);
+  mocks.viewport.element.viewport = viewport;
+  return viewport;
+};
+
+const ticks = () =>
+  Array.from(
+    document.querySelectorAll<HTMLElement>(
+      '[data-slot="conversation-map-tick"]',
+    ),
+  );
+
+const labels = () => ticks().map((tick) => tick.getAttribute("aria-label"));
+
+const renderMap = async () => {
+  const result = render(<ConversationMapAui />);
+  await act(async () => {
+    await new Promise((resolve) => requestAnimationFrame(resolve));
+  });
+  return result;
+};
+
+beforeAll(() => {
+  globalThis.ResizeObserver ??= class {
+    observe() {}
+    unobserve() {}
+    disconnect() {}
+  } as unknown as typeof ResizeObserver;
+});
+
+afterEach(() => {
+  cleanup();
+  document.body.innerHTML = "";
+  mocks.state.thread.messages = [];
+  mocks.viewport.element.viewport = null;
+});
+
+describe("ConversationMapAui", () => {
+  it("titles a tick with the first line and previews the rest", async () => {
+    mocks.state.thread.messages = [
+      {
+        id: "m1",
+        role: "assistant",
+        content: [
+          { type: "text", text: "## Chat ready\n\nI'll use that label next." },
+        ],
+      },
+    ];
+    mountViewport({ m1: 0 });
+
+    await renderMap();
+
+    expect(labels()).toEqual(["Chat ready"]);
+  });
+
+  it("continues a single long line into the preview", async () => {
+    const line = "a".repeat(100);
+    mocks.state.thread.messages = [
+      { id: "m1", role: "user", content: [{ type: "text", text: line }] },
+    ];
+    mountViewport({ m1: 0 });
+
+    await renderMap();
+
+    expect(labels()).toEqual(["a".repeat(72)]);
+  });
+
+  it("cuts a long title on a word boundary", async () => {
+    mocks.state.thread.messages = [
+      {
+        id: "m1",
+        role: "assistant",
+        content: [
+          {
+            type: "text",
+            text: "Confirmed. PR #33109 is merged into staging and the staging release workflow has started.",
+          },
+        ],
+      },
+    ];
+    mountViewport({ m1: 0 });
+
+    await renderMap();
+
+    expect(labels()).toEqual([
+      "Confirmed. PR #33109 is merged into staging and the staging release",
+    ]);
+  });
+
+  it("names the tool when a message carries no text", async () => {
+    mocks.state.thread.messages = [
+      {
+        id: "m1",
+        role: "assistant",
+        content: [{ type: "tool-call", toolName: "read_file" }],
+      },
+      {
+        id: "m2",
+        role: "assistant",
+        content: [
+          { type: "tool-call", toolName: "read_file" },
+          { type: "tool-call", toolName: "grep" },
+        ],
+      },
+    ];
+    mountViewport({ m1: 0, m2: 60 });
+
+    await renderMap();
+
+    expect(labels()).toEqual(["read_file", "2 tool calls"]);
+  });
+
+  it("leaves system messages off the rail", async () => {
+    mocks.state.thread.messages = [
+      { id: "s1", role: "system", content: [{ type: "text", text: "rules" }] },
+      { id: "m1", role: "user", content: [{ type: "text", text: "hello" }] },
+    ];
+    mountViewport({ m1: 0 });
+
+    await renderMap();
+
+    expect(labels()).toEqual(["hello"]);
+  });
+
+  it("marks the message that owns the top of the viewport", async () => {
+    mocks.state.thread.messages = [
+      { id: "m1", role: "user", content: [{ type: "text", text: "first" }] },
+      {
+        id: "m2",
+        role: "assistant",
+        content: [{ type: "text", text: "second" }],
+      },
+      { id: "m3", role: "user", content: [{ type: "text", text: "third" }] },
+    ];
+    mountViewport({ m1: -120, m2: -10, m3: 200 });
+
+    await renderMap();
+
+    expect(ticks().map((tick) => tick.getAttribute("aria-current"))).toEqual([
+      null,
+      "true",
+      null,
+    ]);
+  });
+
+  it("falls back to the first message above the top of the thread", async () => {
+    mocks.state.thread.messages = [
+      { id: "m1", role: "user", content: [{ type: "text", text: "first" }] },
+      {
+        id: "m2",
+        role: "assistant",
+        content: [{ type: "text", text: "second" }],
+      },
+    ];
+    mountViewport({ m1: 40, m2: 100 });
+
+    await renderMap();
+
+    expect(ticks().map((tick) => tick.getAttribute("aria-current"))).toEqual([
+      "true",
+      null,
+    ]);
+  });
+
+  it("scrolls the selected message into view", async () => {
+    mocks.state.thread.messages = [
+      { id: "m1", role: "user", content: [{ type: "text", text: "first" }] },
+      {
+        id: "m2",
+        role: "assistant",
+        content: [{ type: "text", text: "second" }],
+      },
+    ];
+    const viewport = mountViewport({ m1: 0, m2: 60 });
+
+    await renderMap();
+    fireEvent.click(ticks()[1]!);
+
+    const target = viewport.querySelector<HTMLElement>(
+      '[data-message-id="m2"]',
+    );
+    expect(target?.scrollIntoView).toHaveBeenCalledWith({
+      block: "start",
+      behavior: "smooth",
+    });
+  });
+
+  it("renders an empty rail before the viewport is registered", async () => {
+    mocks.state.thread.messages = [
+      { id: "m1", role: "user", content: [{ type: "text", text: "hello" }] },
+    ];
+
+    await renderMap();
+
+    expect(labels()).toEqual(["hello"]);
+    expect(ticks()[0]?.getAttribute("aria-current")).toBeNull();
+  });
+});

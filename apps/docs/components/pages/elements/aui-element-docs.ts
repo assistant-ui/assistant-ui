@@ -121,4 +121,65 @@ import { TooltipIconButton } from "@/components/assistant-ui/elements/tooltip-ic
 
 <HeatGraph data={activity} />`,
   ),
+  "conversation-map": {
+    usage: `import { ConversationMapAui } from "@/components/assistant-ui/elements/conversation-map.aui";
+
+// A direct child of the viewport, so the rail lands in the gutter
+// beside the centered message column. Hide it where there is no gutter.
+<ThreadPrimitive.Viewport>
+  <ConversationMapAui className="max-sm:hidden" />
+  <div className="mx-auto w-full max-w-3xl">
+    <ThreadPrimitive.Messages components={{ Message }} />
+  </div>
+</ThreadPrimitive.Viewport>`,
+    props: [
+      {
+        component: "ConversationMapAui",
+        rows: [
+          {
+            name: "side",
+            type: '"left" | "right"',
+            defaultValue: '"left"',
+            description:
+              "Which gutter the rail sits in. The hover preview opens toward the messages.",
+          },
+          {
+            name: "className",
+            type: "string",
+            description:
+              "Classes for the sticky rail wrapper, for example to hide the map below a breakpoint.",
+          },
+        ],
+      },
+      {
+        component: "ConversationMap",
+        rows: [
+          {
+            name: "entries",
+            type: "ConversationMapEntry[]",
+            required: true,
+            description:
+              "One tick per message, in thread order, each with the title and preview its card shows.",
+          },
+          {
+            name: "activeId",
+            type: "string",
+            description:
+              "The message currently in view, drawn as the one solid tick.",
+          },
+          {
+            name: "onSelect",
+            type: "(id: string) => void",
+            description: "Called with the message a tick was clicked for.",
+          },
+          {
+            name: "side",
+            type: '"left" | "right"',
+            defaultValue: '"right"',
+            description: "Which side of the rail the preview card opens on.",
+          },
+        ],
+      },
+    ],
+  },
 };

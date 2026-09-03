@@ -52,6 +52,7 @@ import { ComposerContextDemo } from "@/components/demo/elements/composer-context
 import { EmptyStateDemo } from "@/components/demo/elements/empty-state";
 import { ThreadListDemo } from "@/components/demo/elements/thread-list";
 import { ScrollAnchorDemo } from "@/components/demo/elements/scroll-anchor";
+import { ConversationMapDemo } from "@/components/demo/elements/conversation-map";
 import { TodoListDemo } from "@/components/demo/elements/todo-list";
 import { MessageQueueDemo } from "@/components/demo/elements/message-queue";
 import { MessageAttachmentDemo } from "@/components/demo/elements/message-attachment";
@@ -125,6 +126,7 @@ import {
   AuiAttachmentDemo,
   AuiComposerTriggerPopoverDemo,
   AuiContextDisplayDemo,
+  AuiConversationMapDemo,
   AuiDirectiveTextDemo,
   AuiFileDemo,
   AuiFollowUpSuggestionsDemo,
@@ -1194,6 +1196,27 @@ export const ELEMENT_SECTIONS: ElementSection[] = [
         variants: [
           { key: "runtime", label: "Runtime", Component: AuiMessageTimingDemo },
           { key: "static", label: "Static", Component: MessageTimingDemo },
+        ],
+      },
+      {
+        slug: "conversation-map",
+        standaloneItem: "elements-conversation-map",
+        replay: false,
+        title: "Conversation map",
+        description:
+          "A rail of the whole thread: one tick per message, the one in view marked, a hover preview, and a click that jumps there.",
+        file: "conversation-map.aui.tsx",
+        registryName: "conversation-map",
+        connection: "AUI",
+        wide: true,
+        Component: AuiConversationMapDemo,
+        variants: [
+          {
+            key: "runtime",
+            label: "Runtime",
+            Component: AuiConversationMapDemo,
+          },
+          { key: "static", label: "Static", Component: ConversationMapDemo },
         ],
       },
       {

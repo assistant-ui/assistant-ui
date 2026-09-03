@@ -367,6 +367,15 @@ const elementsRegistryItems: RegistryItem[] = [
     dependencies: ["lucide-react"],
   }),
   createElementRegistryItem({
+    slug: "conversation-map",
+    title: "Conversation map",
+    description:
+      "A rail of the whole thread: one tick per message, the one in view marked, and a hover preview of what it says.",
+    file: "conversation-map.tsx",
+    dependencies: ["@base-ui/react"],
+    usesElements: ["range"],
+  }),
+  createElementRegistryItem({
     slug: "todo-list",
     title: "Todo list",
     description:
@@ -1137,6 +1146,25 @@ export const registry: RegistryItem[] = [
     registryDependencies: [
       "https://r.assistant-ui.com/elements-reasoning.json",
       "https://r.assistant-ui.com/markdown-text.json",
+    ],
+    dependencies: ["@assistant-ui/react"],
+  },
+  {
+    name: "conversation-map",
+    type: "registry:component",
+    title: "Conversation Map",
+    description:
+      "Runtime-backed thread rail: a tick per message, the one in view marked, a hover preview, and a click that scrolls there.",
+    files: [
+      {
+        type: "registry:component",
+        path: "components/assistant-ui/elements/conversation-map.aui.tsx",
+        sourcePath:
+          "../../packages/ui/src/components/react/assistant-ui/elements/conversation-map.aui.tsx",
+      },
+    ],
+    registryDependencies: [
+      "https://r.assistant-ui.com/elements-conversation-map.json",
     ],
     dependencies: ["@assistant-ui/react"],
   },
