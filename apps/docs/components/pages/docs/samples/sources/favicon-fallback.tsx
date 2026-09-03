@@ -6,7 +6,7 @@ import {
   Source,
   SourceIcon,
   SourceTitle,
-} from "@/components/assistant-ui/sources";
+} from "@/components/assistant-ui/elements/sources.aui";
 import { SampleFrame } from "@/components/pages/docs/samples/sample-frame";
 
 export function SourcesFaviconFallback() {
