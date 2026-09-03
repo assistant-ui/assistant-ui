@@ -47,7 +47,6 @@ type SearchDocsResult = {
   title: string;
   description: string;
   headings: string[];
-  matches: string[];
 };
 
 export function searchDocs(
@@ -90,10 +89,6 @@ export function searchDocs(
       title: record.title,
       description: record.description,
       headings: record.headings.map((heading) => heading.content),
-      matches: group.items
-        .filter((item) => item.type !== "page")
-        .slice(0, 4)
-        .map((item) => item.content.replace(/\s+/g, " ").trim().slice(0, 300)),
     };
   });
 }
@@ -108,6 +103,58 @@ function getSearchIndex() {
       throw error;
     });
   return searchIndexPromise;
+}
+
+const excerptCache = new Map<string, string | undefined>();
+
+async function getExcerpt(
+  url: string,
+  terms: string[],
+): Promise<string | undefined> {
+  const cacheKey = `${url}\u0000${terms.join(" ")}`;
+  if (excerptCache.has(cacheKey)) return excerptCache.get(cacheKey);
+
+  const excerpt = await buildExcerpt(url, terms).catch(() => undefined);
+  excerptCache.set(cacheKey, excerpt);
+  return excerpt;
+}
+
+async function buildExcerpt(
+  url: string,
+  terms: string[],
+): Promise<string | undefined> {
+  const sourceModule = await import("@/lib/source");
+  const page =
+    sourceModule.source.getPages().find((page) => page.url === url) ??
+    sourceModule.getTapDocsPages().find((page) => page.url === url) ??
+    sourceModule.design.getPages().find((page) => page.url === url) ??
+    sourceModule.elementsDocs.getPages().find((page) => page.url === url);
+  if (!page) return undefined;
+
+  const { contents } = (await page.data.structuredData()) as {
+    contents?: { content?: string }[];
+  };
+  const paragraphs = (contents ?? [])
+    .map((entry) => entry.content?.replace(/\s+/g, " ").trim() ?? "")
+    .filter((text) => text.length > 0);
+  if (paragraphs.length === 0) return undefined;
+
+  const scored = paragraphs
+    .map((text, order) => {
+      const haystack = text.toLowerCase();
+      const score = terms.filter((term) => haystack.includes(term)).length;
+      return { text, order, score };
+    })
+    .filter((entry) => entry.score > 0)
+    .sort((a, b) => b.score - a.score || a.order - b.order)
+    .slice(0, 3)
+    .sort((a, b) => a.order - b.order);
+
+  const chosen = scored.length > 0 ? scored : [{ text: paragraphs[0]! }];
+  return chosen
+    .map((entry) => entry.text)
+    .join(" ")
+    .slice(0, 600);
 }
 
 export function createSearchDocsTool({
@@ -131,10 +178,15 @@ export function createSearchDocsTool({
     ),
     execute: async ({ query }) => {
       const pages = searchDocs(await getSearchIndex(), query, 5);
-      const results = pages.map((page) => ({
-        ...page,
-        url: new URL(page.url, origin).href,
-      }));
+      const terms = tokenize(query).filter((token) => !STOP_WORDS.has(token));
+      const results = await Promise.all(
+        pages.map(async (page, index) => {
+          const absolute = { ...page, url: new URL(page.url, origin).href };
+          if (index >= 3) return absolute;
+          const excerpt = await getExcerpt(page.url, terms);
+          return excerpt === undefined ? absolute : { ...absolute, excerpt };
+        }),
+      );
 
       for (const page of results) {
         writer.write({

@@ -90,7 +90,7 @@ describe("POST /api/suggestions", () => {
     expect(mocks.getModel).not.toHaveBeenCalled();
   });
 
-  it("keeps the tail of a long transcript instead of rejecting it", async () => {
+  it("keeps the task instruction and the newest turns of a long transcript", async () => {
     mocks.requireSession.mockReturnValue({
       id: "session_1234567890",
       expiresAt: Date.now() + 60_000,
@@ -100,13 +100,14 @@ describe("POST /api/suggestions", () => {
     mocks.getDistinctId.mockReturnValue("distinct_1234567890");
     mocks.generateText.mockResolvedValue({ text: "One" });
 
-    const prompt = `${"x".repeat(30_000)}TAIL`;
+    const prompt = `HEAD${"x".repeat(30_000)}TAIL`;
     const response = await POST(request(prompt));
 
     expect(response.status).toBe(200);
     const sent = mocks.generateText.mock.calls[0]![0].prompt as string;
-    expect(sent).toHaveLength(24_000);
+    expect(sent.startsWith("HEAD")).toBe(true);
     expect(sent.endsWith("TAIL")).toBe(true);
+    expect(sent.length).toBeLessThan(prompt.length);
   });
 
   it("returns three trimmed suggestions", async () => {

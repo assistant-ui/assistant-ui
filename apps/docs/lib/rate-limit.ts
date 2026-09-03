@@ -337,7 +337,6 @@ export async function checkPublicAssistantRateLimit(
 
 export async function checkFollowUpSuggestionRateLimit(
   request: Request,
-  sessionId: string,
 ): Promise<Response | null> {
   return runRateLimitChecks(request, "follow_up", async (limits) => {
     const ip = getClientIp(request);
@@ -348,7 +347,7 @@ export async function checkFollowUpSuggestionRateLimit(
       return limitResponse("Follow-up rate limit exceeded", burst.reset);
     }
 
-    const daily = await limits.followUpIpDaily.limit(`${ip}:${sessionId}`);
+    const daily = await limits.followUpIpDaily.limit(ip);
     if (!daily.success) {
       return limitResponse("Follow-up daily limit exceeded", daily.reset);
     }
