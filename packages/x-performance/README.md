@@ -26,6 +26,8 @@ bin/         the aui-perf command
 
 A counter contract answers "did this change break a memo boundary". A bench answers "did this change make a hot path slower". A size budget answers "did this change ship more bytes". Neither answers the others' questions, and a green comparison covers only the paths a probe exercises: a change no probe touches reads as unmeasured, not as safe.
 
+A bench sees only the work its own flush reaches. `flushSync` flushes discrete work, so anything React schedules at transition priority (a `useDeferredValue` pass, most obviously) lands after the sample closes and is invisible to that row. A bench that needs to measure such a pass has to settle it inside the callback, which changes what the sample includes: those rows become a series of their own and stop being comparable with the rows that do not. The markdown bench carries both, and the counter contracts remain the only evidence for how many times a deferred path parses.
+
 ## Reading the PR comment
 
 The comment leads with two lines per lane and hides everything else behind a fold. A `machine-readable` fold at the end carries the same data as JSON (`aui-perf/compare@1`, `aui-perf/trace@1`) for review agents.
@@ -64,7 +66,7 @@ Benchmarks import only public package entry points so the react-compiler output 
 
 - A token appended to the streaming message re-renders only that message's text part. It commits twice (host state, then the adapter push through the store) on the external-store and AI SDK runtimes and once on the local runtime, in a 2-message and a 200-message thread alike; `convertMessage` runs once per token.
 - Mounting a 200-message thread renders and converts each message once in a single commit.
-- A markdown message re-parses its whole text once per token, or twice with `defer` on (the previous text at normal priority, the new text in the deferred pass), while only the paragraph that changed re-renders.
+- A markdown message re-parses its whole text once per token, with `defer` on or off: the renderer is memoized, so the urgent pass of a deferred pair carries text that was already parsed and bails out, while only the paragraph that changed re-renders.
 - Smooth streaming commits once per animation frame while draining a chunk; `minCommitMs` batches those commits; smoothing off commits once per chunk.
 - One store slice write notifies once and re-renders only that slice's subscriber; part memoization keys on shallow field identity, not on the outer part object.
 - Unmounting releases the runtime, the converted messages, and the external messages.
