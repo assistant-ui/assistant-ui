@@ -100,6 +100,32 @@ describe("rewriteLatexBracketDelimiters", () => {
       "\\(a `b` c\\)",
     );
   });
+
+  it("rewrites across a lone literal backtick", () => {
+    expect(rewriteLatexBracketDelimiters("Use \\(x ` y\\) here")).toBe(
+      "Use $x ` y$ here",
+    );
+  });
+
+  it("protects an unclosed fence still streaming in", () => {
+    expect(rewriteLatexBracketDelimiters("```\n\\(x\\)\nstill streaming")).toBe(
+      "```\n\\(x\\)\nstill streaming",
+    );
+  });
+
+  it("leaves a delimiter inside a tilde fence as written", () => {
+    expect(rewriteLatexBracketDelimiters("~~~\n\\[a\nb\\]\n~~~\n\\(x\\)")).toBe(
+      "~~~\n\\[a\nb\\]\n~~~\n$x$",
+    );
+  });
+
+  it("protects an unclosed tilde fence to the end of the input", () => {
+    expect(rewriteLatexBracketDelimiters("~~~\n\\(x\\)")).toBe("~~~\n\\(x\\)");
+  });
+
+  it("rewrites around a mid-line tilde run", () => {
+    expect(rewriteLatexBracketDelimiters("a ~~~ \\(x\\)")).toBe("a ~~~ $x$");
+  });
 });
 
 describe("rewriteCustomMathTags", () => {

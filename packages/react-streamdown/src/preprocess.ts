@@ -12,14 +12,58 @@
 const LATEX_INLINE_DELIMITER = /\\{1,2}\(([^\n]+?)\\{1,2}\)/g;
 const LATEX_DISPLAY_DELIMITER = /\\{1,2}\[([\s\S]+?)\\{1,2}\]/g;
 
+const TILDE_FENCE_CLOSE = /^ {0,3}(~{3,})[ \t]*$/;
+
+/**
+ * End index (exclusive) of the tilde fence opened by the `~` run at `start`,
+ * which the caller has verified starts a line: the end of the first later line
+ * carrying a closing run of at least the same length, or the end of `text`
+ * when none does — an unclosed fence reads as code to the end of the input,
+ * which keeps a fence that is still streaming in inert.
+ */
+function tildeFenceEnd(text: string, start: number): number {
+  const fenceLength = runLength(text, start, "~");
+  let lineStart = text.indexOf("\n", start);
+  while (lineStart !== -1) {
+    const lineEnd = text.indexOf("\n", lineStart + 1);
+    const line = text.slice(
+      lineStart + 1,
+      lineEnd === -1 ? undefined : lineEnd,
+    );
+    const close = TILDE_FENCE_CLOSE.exec(line);
+    if (close && close[1]!.length >= fenceLength) {
+      return lineEnd === -1 ? text.length : lineEnd;
+    }
+    lineStart = lineEnd;
+  }
+  return text.length;
+}
+
+/** Whether the character at `index` starts a line, allowing ≤3 spaces indent. */
+function atLineStart(text: string, index: number): boolean {
+  let cursor = index;
+  let indent = 0;
+  while (cursor > 0 && text[cursor - 1] === " " && indent < 3) {
+    cursor--;
+    indent++;
+  }
+  return cursor === 0 || text[cursor - 1] === "\n";
+}
+
 /**
  * Applies `rewrite` to the stretches of `text` outside code spans and fences,
  * copying code through verbatim, so a delimiter shown as code is never
  * rewritten. `\x` escapes are stepped over when scanning so an escaped
- * backtick does not open a span, an unclosed run reads as literal backticks,
- * and a delimiter pair straddling a code boundary stays as written. Each
- * stretch is passed the characters adjacent to it so the rewrite can make
- * line-boundary decisions that survive the split.
+ * backtick does not open a span, and a delimiter pair straddling a code
+ * boundary stays as written. Each stretch is passed the characters adjacent to
+ * it so the rewrite can make line-boundary decisions that survive the split.
+ *
+ * Backtick regions follow `codeSpanEnd`'s reading, shared with
+ * {@link escapeCurrencyDollars}: an unclosed one- or two-backtick run is
+ * literal text, an unclosed three-plus run is a fence still streaming in and
+ * protects to the end of the input, and fences are not line-anchored. Tilde
+ * fences are line-anchored per CommonMark: a `~~~` run starting a line opens
+ * one, and it closes on a line carrying only an at-least-as-long tilde run.
  */
 function rewriteOutsideCode(
   text: string,
@@ -34,17 +78,29 @@ function rewriteOutsideCode(
     if (segment !== "") out += rewrite(segment, out.slice(-1), followedBy);
   };
 
+  const copyVerbatim = (to: number) => {
+    flush(index, text[index]!);
+    out += text.slice(index, to);
+    index = to;
+    plainStart = to;
+  };
+
   while (index < text.length) {
     const char = text[index];
     if (char === "\\") {
       index += 2;
     } else if (char === "`") {
+      const run = runLength(text, index, "`");
       const end = codeSpanEnd(text, index);
-      const codeEnd = end === -1 ? index + runLength(text, index, "`") : end;
-      flush(index, "`");
-      out += text.slice(index, codeEnd);
-      index = codeEnd;
-      plainStart = codeEnd;
+      if (end !== -1) copyVerbatim(end);
+      else if (run >= 3) copyVerbatim(text.length);
+      else index += run;
+    } else if (
+      char === "~" &&
+      runLength(text, index, "~") >= 3 &&
+      atLineStart(text, index)
+    ) {
+      copyVerbatim(tildeFenceEnd(text, index));
     } else {
       index += 1;
     }
