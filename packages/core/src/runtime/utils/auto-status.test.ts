@@ -21,27 +21,37 @@ describe("getAutoStatus", () => {
   });
 
   it.each([
-    [
-      "running",
-      { type: "running" },
-      [true, true, false, false, undefined] as const,
-    ],
+    ["running", { type: "running" }, true, false, false, undefined],
     [
       "an interrupted tool call",
       { type: "requires-action", reason: "interrupt" },
-      [true, false, true, true, undefined] as const,
+      false,
+      true,
+      true,
+      undefined,
     ],
     [
       "a pending tool call",
       { type: "requires-action", reason: "tool-calls" },
-      [true, false, false, true, undefined] as const,
+      false,
+      false,
+      true,
+      undefined,
     ],
     [
       "an error",
       { type: "incomplete", reason: "error", error: "boom" },
-      [true, false, false, false, "boom"] as const,
+      false,
+      false,
+      false,
+      "boom",
     ],
-  ])("keeps %s ahead of cancellation", (_label, expected, args) => {
-    expect(getAutoStatus(...args, true)).toMatchObject(expected);
-  });
+  ])(
+    "keeps %s ahead of cancellation",
+    (_label, expected, isRunning, interrupted, pending, error) => {
+      expect(
+        getAutoStatus(true, isRunning, interrupted, pending, error, true),
+      ).toMatchObject(expected);
+    },
+  );
 });

@@ -389,7 +389,10 @@ export const convertExternalMessageChunk = <T>(
   const isCancelled =
     cancelledMessageIds !== undefined &&
     message.outputs.some(
-      (output) => output.id != null && cancelledMessageIds.has(output.id),
+      (output) =>
+        output.role !== "tool" &&
+        output.id != null &&
+        cancelledMessageIds.has(output.id),
     );
   const hasInterruptedToolCalls =
     typeof joined.content === "object" &&
