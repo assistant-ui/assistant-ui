@@ -284,22 +284,6 @@
   code {
     font-variant-ligatures: none;
   }
-  [data-search-reveal] {
-    border-radius: 2px;
-    animation: aui-search-reveal 2.4s ease-out forwards;
-  }
-  @keyframes aui-search-reveal {
-    0%,
-    45% {
-      background-color: color-mix(in oklab, var(--foreground) 14%, transparent);
-      box-shadow: 0 0 0 0.3rem
-        color-mix(in oklab, var(--foreground) 14%, transparent);
-    }
-    100% {
-      background-color: transparent;
-      box-shadow: 0 0 0 0.3rem transparent;
-    }
-  }
   body[data-scroll-locked] {
     margin-right: 0 !important;
     padding-right: 0 !important;

@@ -2,6 +2,7 @@ const REVEAL_ATTRIBUTE = "data-search-reveal";
 const REVEAL_DURATION_MS = 2400;
 const UNLOCK_FRAME_BUDGET = 60;
 const SETTLE_FRAME_BUDGET = 150;
+const SETTLE_STABLE_FRAMES = 3;
 
 let clearMark: (() => void) | undefined;
 let cancelPending: (() => void) | undefined;
@@ -37,15 +38,23 @@ function isPageScrollLocked(): boolean {
   return /hidden|clip/.test(getComputedStyle(html).overflowY);
 }
 
-function whenScrollSettles(run: () => void): () => void {
+function isInView(element: HTMLElement): boolean {
+  const rect = element.getBoundingClientRect();
+  return rect.top >= 0 && rect.bottom <= window.innerHeight;
+}
+
+function whenScrollSettles(expectMove: boolean, run: () => void): () => void {
   let previous = Number.NaN;
+  let stable = 0;
+  let moved = !expectMove;
 
   return waitFor(
     () => {
       const offset = window.scrollY;
-      const settled = offset === previous;
+      if (!Number.isNaN(previous) && offset !== previous) moved = true;
+      stable = offset === previous ? stable + 1 : 0;
       previous = offset;
-      return settled;
+      return moved && stable >= SETTLE_STABLE_FRAMES;
     },
     SETTLE_FRAME_BUDGET,
     run,
@@ -83,10 +92,15 @@ export function revealPageMatch(
     () => !isPageScrollLocked(),
     UNLOCK_FRAME_BUDGET,
     () => {
+      cancelPending = undefined;
       if (!element.isConnected) return;
 
+      const expectMove = !isInView(element);
       element.scrollIntoView({ block });
-      cancelPending = whenScrollSettles(() => markMatch(element));
+      cancelPending = whenScrollSettles(expectMove, () => {
+        cancelPending = undefined;
+        markMatch(element);
+      });
     },
   );
 }
