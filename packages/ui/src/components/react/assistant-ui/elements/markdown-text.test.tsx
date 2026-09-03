@@ -100,4 +100,24 @@ describe("MarkdownText component overrides", () => {
       mocks.messagePartText.text = "```tsx\nconst answer = 42;\n```";
     }
   });
+
+  it("wraps GFM tables in a horizontal scroll container", () => {
+    mocks.messagePartText.text =
+      "| Time | ID | Status |\n| --- | --- | --- |\n| 09:00 | aaaa0000bbbb1111cccc2222dddd3333 | Cancelled |";
+    try {
+      render(<MarkdownText />);
+
+      const table = screen.getByRole("table");
+      const wrapper = table.parentElement;
+
+      expect(wrapper?.classList.contains("aui-md-table-wrapper")).toBe(true);
+      expect(wrapper?.classList.contains("my-3")).toBe(true);
+      expect(wrapper?.classList.contains("w-full")).toBe(true);
+      expect(wrapper?.classList.contains("overflow-x-auto")).toBe(true);
+      expect(table.classList.contains("aui-md-table")).toBe(true);
+      expect(table.classList.contains("overflow-y-auto")).toBe(false);
+    } finally {
+      mocks.messagePartText.text = "```tsx\nconst answer = 42;\n```";
+    }
+  });
 });
