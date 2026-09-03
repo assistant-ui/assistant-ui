@@ -248,6 +248,9 @@ export class RedisResumableStreamStore implements ResumableStreamStore {
       fields,
       ttlSec,
     });
+    // Keeping the fencing token when the compare-and-finalize loses is what
+    // makes a later append from this superseded producer throw instead of
+    // writing into the replacement generation.
     if (!finalized) return;
     this.acquiredGenerations.delete(streamId);
   }
