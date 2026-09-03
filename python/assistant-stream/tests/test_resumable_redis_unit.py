@@ -4,6 +4,8 @@ import asyncio
 import json
 from typing import Any, Awaitable, Callable
 
+import pytest
+
 from assistant_stream.resumable.stores.redis import (
     RedisResumableStreamStore,
     _RedisAsyncioAdapter,
@@ -52,6 +54,12 @@ class FakeRedisLikeClient:
         for command in commands:
             if command["type"] == "xAdd":
                 await self.xadd(command["key"], command["fields"])
+            elif command["type"] == "set":
+                self.values[command["key"]] = command["value"]
+            elif command["type"] != "expire":
+                raise AssertionError(
+                    f"unhandled pipeline command: {command['type']}"
+                )
 
     async def xadd(self, key: str, fields: dict[str, Any]) -> str:
         self.next_stream_id += 1
@@ -67,79 +75,72 @@ class FakeRedisLikeClient:
         return True
 
 
-def test_stale_finalizer_cannot_finalize_reacquired_stream() -> None:
-    async def run() -> None:
-        client = FakeRedisLikeClient()
-        stale_store = RedisResumableStreamStore(client, key_prefix="test")
-        fresh_store = RedisResumableStreamStore(client, key_prefix="test")
-        stream_id = "finalize-race"
-        meta_key = "test:{finalize-race}:meta"
-        await stale_store.acquire(stream_id)
+@pytest.mark.anyio
+async def test_stale_finalizer_cannot_finalize_reacquired_stream() -> None:
+    client = FakeRedisLikeClient()
+    stale_store = RedisResumableStreamStore(client, key_prefix="test")
+    fresh_store = RedisResumableStreamStore(client, key_prefix="test")
+    stream_id = "finalize-race"
+    meta_key = "test:{finalize-race}:meta"
+    await stale_store.acquire(stream_id)
 
-        paused = asyncio.Event()
-        resume = asyncio.Event()
+    paused = asyncio.Event()
+    resume = asyncio.Event()
 
-        async def pause_after_read() -> None:
-            paused.set()
-            await resume.wait()
+    async def pause_after_read() -> None:
+        paused.set()
+        await resume.wait()
 
-        client.on_next_get = pause_after_read
-        finalizing = asyncio.create_task(stale_store.finalize(stream_id, "done"))
-        await paused.wait()
+    client.on_next_get = pause_after_read
+    finalizing = asyncio.create_task(stale_store.finalize(stream_id, "done"))
+    await paused.wait()
 
-        await client.delete([meta_key])
-        assert await fresh_store.acquire(stream_id) == "producer"
-        await fresh_store.append(stream_id, b"replacement")
-        resume.set()
-        await finalizing
+    await client.delete([meta_key])
+    assert await fresh_store.acquire(stream_id) == "producer"
+    await fresh_store.append(stream_id, b"replacement")
+    resume.set()
+    await finalizing
 
-        assert await fresh_store.status(stream_id) == "streaming"
-
-    asyncio.run(run())
+    assert await fresh_store.status(stream_id) == "streaming"
 
 
-def test_new_acquisition_preserves_legacy_data_without_replaying_it() -> None:
-    async def run() -> None:
-        client = FakeRedisLikeClient()
-        legacy_key = "test:{reused}:data"
-        client.streams[legacy_key] = [{"id": "1-0", "fields": {"c": b"legacy"}}]
-        store = RedisResumableStreamStore(client, key_prefix="test")
+@pytest.mark.anyio
+async def test_new_acquisition_preserves_legacy_data_without_replaying_it() -> None:
+    client = FakeRedisLikeClient()
+    legacy_key = "test:{reused}:data"
+    client.streams[legacy_key] = [{"id": "1-0", "fields": {"c": b"legacy"}}]
+    store = RedisResumableStreamStore(client, key_prefix="test")
 
-        assert await store.acquire("reused") == "producer"
-        await store.append("reused", b"fresh")
-        await store.finalize("reused", "done")
+    assert await store.acquire("reused") == "producer"
+    await store.append("reused", b"fresh")
+    await store.finalize("reused", "done")
 
-        chunks = [
-            entry.chunk
-            async for entry in store.read("reused", "", asyncio.Event())
-        ]
-        assert chunks == [b"fresh"]
-        assert legacy_key in client.streams
-
-    asyncio.run(run())
+    chunks = [
+        entry.chunk async for entry in store.read("reused", "", asyncio.Event())
+    ]
+    assert chunks == [b"fresh"]
+    assert client.streams[legacy_key] == [{"id": "1-0", "fields": {"c": b"legacy"}}]
 
 
-def test_legacy_metadata_and_data_remain_readable() -> None:
-    async def run() -> None:
-        client = FakeRedisLikeClient()
-        client.values["test:{legacy}:meta"] = json.dumps(
-            {"status": "streaming", "ttlSec": 60}
-        )
-        store = RedisResumableStreamStore(client, key_prefix="test")
+@pytest.mark.anyio
+async def test_legacy_metadata_and_data_remain_readable() -> None:
+    client = FakeRedisLikeClient()
+    client.values["test:{legacy}:meta"] = json.dumps(
+        {"status": "streaming", "ttlSec": 60}
+    )
+    store = RedisResumableStreamStore(client, key_prefix="test")
 
-        await store.append("legacy", b"legacy")
-        await store.finalize("legacy", "done")
+    await store.append("legacy", b"legacy")
+    await store.finalize("legacy", "done")
 
-        chunks = [
-            entry.chunk
-            async for entry in store.read("legacy", "", asyncio.Event())
-        ]
-        assert chunks == [b"legacy"]
-
-    asyncio.run(run())
+    chunks = [
+        entry.chunk async for entry in store.read("legacy", "", asyncio.Event())
+    ]
+    assert chunks == [b"legacy"]
 
 
-def test_redis_adapter_uses_atomic_finalize_script() -> None:
+@pytest.mark.anyio
+async def test_redis_adapter_uses_atomic_finalize_script() -> None:
     class EvalClient:
         def __init__(self) -> None:
             self.args: tuple[Any, ...] | None = None
@@ -148,29 +149,26 @@ def test_redis_adapter_uses_atomic_finalize_script() -> None:
             self.args = args
             return 1
 
-    async def run() -> None:
-        client = EvalClient()
-        adapter = _RedisAsyncioAdapter(client)
-        assert await adapter.finalize_if_unchanged(
-            {
-                "meta_key": "meta",
-                "expected_meta": "old",
-                "next_meta": "new",
-                "data_key": "data:generation",
-                "fields": {"fin": "done"},
-                "ttl_sec": 60,
-            }
-        )
-        assert client.args is not None
-        assert client.args[1] == 2
-        assert client.args[2:] == (
-            "meta",
-            "data:generation",
-            "old",
-            "new",
-            "60",
-            "fin",
-            "done",
-        )
-
-    asyncio.run(run())
+    client = EvalClient()
+    adapter = _RedisAsyncioAdapter(client)
+    assert await adapter.finalize_if_unchanged(
+        {
+            "meta_key": "meta",
+            "expected_meta": "old",
+            "next_meta": "new",
+            "data_key": "data:generation",
+            "fields": {"fin": "done"},
+            "ttl_sec": 60,
+        }
+    )
+    assert client.args is not None
+    assert client.args[1] == 2
+    assert client.args[2:] == (
+        "meta",
+        "data:generation",
+        "old",
+        "new",
+        "60",
+        "fin",
+        "done",
+    )

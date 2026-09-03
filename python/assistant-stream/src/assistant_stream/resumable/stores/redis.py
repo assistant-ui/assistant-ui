@@ -32,6 +32,8 @@ FIN_ERROR = "error"
 
 STREAM_START_ID = "0-0"
 
+# `XADD *` is non-deterministic; Redis 5.x and 6.x configured with
+# `lua-replicate-commands no` reject it unless effects replication is requested.
 FINALIZE_IF_UNCHANGED_SCRIPT = """
 redis.replicate_commands()
 if redis.call("GET", KEYS[1]) ~= ARGV[1] then
@@ -251,10 +253,6 @@ class RedisResumableStreamStore:
 
             if len(entries) > 0:
                 continue
-
-            still_exists = await self._client.exists(meta_key)
-            if not still_exists:
-                return
 
             current_meta = await self._client.get(meta_key)
             if current_meta is None:
