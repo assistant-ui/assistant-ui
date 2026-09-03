@@ -731,7 +731,7 @@ describe("state that is carried by more than colour", () => {
     },
   );
 
-  it("separates working from waiting by motion, not only colour", () => {
+  it("separates working from waiting by shape and motion, not colour", () => {
     const dot = (state: AgentState) =>
       render(
         <AgentStatus state={state} label="Refactoring composer" />,
@@ -740,6 +740,11 @@ describe("state that is carried by more than colour", () => {
 
     expect(dot("working")).toContain("animate-pulse");
     expect(dot("waiting")).not.toContain("animate-pulse");
+    expect(
+      dot("waiting"),
+      "reduced motion leaves colour as the only channel",
+    ).toContain("border");
+    expect(dot("working")).not.toContain("border");
   });
 
   it("keeps the trailing icon from reading as pressable", () => {
