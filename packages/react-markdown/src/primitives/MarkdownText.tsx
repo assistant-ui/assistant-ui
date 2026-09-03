@@ -39,7 +39,14 @@ import classNames from "classnames";
 
 const { useSmooth, useSmoothStatus, withSmoothContextProvider } = INTERNAL;
 
-type MarkdownRendererProps = Omit<Options, "children"> & { text: string };
+type MarkdownRendererProps = Omit<Options, "children"> & {
+  text: string;
+  /**
+   * Carried only so the memo below can see it: the code override reads the map
+   * through a stable callback, so a change to it moves no other prop.
+   */
+  codeVersion?: unknown;
+};
 
 // react-markdown builds a fresh processor and parses the whole accumulated text
 // on every render, so a render that carries text it has already parsed is pure
@@ -47,7 +54,9 @@ type MarkdownRendererProps = Omit<Options, "children"> & { text: string };
 // its props keep their identity; useStableProps is what keeps a caller's inline
 // plugin array from breaking it.
 const MarkdownRenderer: FC<MarkdownRendererProps> = memo(
-  ({ text, ...options }) => <ReactMarkdown {...options}>{text}</ReactMarkdown>,
+  ({ text, codeVersion: _codeVersion, ...options }) => (
+    <ReactMarkdown {...options}>{text}</ReactMarkdown>
+  ),
 );
 MarkdownRenderer.displayName = "MarkdownRenderer";
 
@@ -77,14 +86,20 @@ const isShallowEqual = (a: unknown, b: unknown): boolean => {
  * renderer's memo. A plugin array mutated in place keeps the old identity and is
  * not observed.
  */
-function useStableProps<T extends Record<string, unknown>>(props: T): T {
+function useStableProps<T extends object>(props: T): T {
   const previous = useRef(props);
+  const read = (source: T, key: string) =>
+    (source as Record<string, unknown>)[key];
   const keys = Object.keys(props);
   const previousKeys = Object.keys(previous.current);
 
   const unchanged =
     keys.length === previousKeys.length &&
-    keys.every((key) => isShallowEqual(props[key], previous.current[key]));
+    keys.every(
+      (key) =>
+        Object.hasOwn(previous.current, key) &&
+        isShallowEqual(read(props, key), read(previous.current, key)),
+    );
 
   if (!unchanged) previous.current = props;
   return previous.current;
@@ -138,19 +153,13 @@ export type MarkdownTextPrimitiveProps = Omit<
 };
 
 const MarkdownTextInner: FC<MarkdownTextPrimitiveProps> = ({
-  components: rawComponents,
+  components: userComponents,
   componentsByLanguage,
   smooth = true,
   defer = false,
   preprocess,
   ...rest
 }) => {
-  // An inline `components={{ h1: MyH1 }}` is a fresh object every render, which
-  // would give the renderer a new prop identity and defeat its memo.
-  const userComponents = useStableProps(
-    (rawComponents ?? {}) as Record<string, unknown>,
-  ) as MarkdownTextPrimitiveProps["components"];
-
   const messagePartText = useMessagePartText();
 
   const processedMessagePart = useMemo(() => {
@@ -190,20 +199,32 @@ const MarkdownTextInner: FC<MarkdownTextPrimitiveProps> = ({
     <PreOverride fallbackPre={pre} {...props} />
   ));
 
-  const components: Options["components"] = useMemo(() => {
-    const { pre, code, SyntaxHighlighter, CodeHeader, ...componentsRest } =
-      userComponents ?? {};
-    return {
-      ...componentsRest,
-      pre: PreComponentWithFallback,
-      code: CodeComponent,
-    };
-  }, [CodeComponent, PreComponentWithFallback, userComponents]);
+  // An inline `components={{ h1: MyH1 }}` is a fresh object on every render, so
+  // the merged map is stabilized here; without it the renderer sees a new prop
+  // identity every render and its memo never bails out.
+  const components: Options["components"] = useStableProps(
+    useMemo(() => {
+      const { pre, code, SyntaxHighlighter, CodeHeader, ...componentsRest } =
+        userComponents ?? {};
+      return {
+        ...componentsRest,
+        pre: PreComponentWithFallback,
+        code: CodeComponent,
+      };
+    }, [CodeComponent, PreComponentWithFallback, userComponents]),
+  );
 
   const Renderer = defer ? DeferredMarkdownRenderer : MarkdownRenderer;
-  const stableRest = useStableProps(rest as Record<string, unknown>);
+  const stableRest = useStableProps(rest);
 
-  return <Renderer text={text} components={components} {...stableRest} />;
+  return (
+    <Renderer
+      text={text}
+      components={components}
+      codeVersion={componentsByLanguage}
+      {...stableRest}
+    />
+  );
 };
 
 const MarkdownTextPrimitiveImpl: ForwardRefExoticComponent<MarkdownTextPrimitiveProps> &

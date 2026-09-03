@@ -509,8 +509,9 @@ export function TokenCounter() {
 Metadata a route returns from `messageMetadata` reaches the client under `metadata.custom`, because a thread message carries a fixed metadata shape and the converter moves everything outside it there. `useThreadTokenUsage` reads `usage` for you; anything else you attach is read from `custom` directly:
 
 ```tsx
+// inside a message component, where the message scope resolves
 const modelId = useAuiState(
-  (s) => s.message.metadata.custom?.modelId as string | undefined,
+  (s) => s.message.metadata.custom?.["modelId"] as string | undefined,
 );
 ```
 

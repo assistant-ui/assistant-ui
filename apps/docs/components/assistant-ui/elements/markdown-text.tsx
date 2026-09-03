@@ -62,7 +62,10 @@ function MarkdownTable({
 
     const rows = [...table.querySelectorAll("tr")].map((row) =>
       [...row.querySelectorAll("th, td")].map((cell) =>
-        (cell.textContent ?? "").replace(/\s+/g, " ").trim(),
+        (cell.textContent ?? "")
+          .replace(/\s+/g, " ")
+          .trim()
+          .replace(/\|/g, "\\|"),
       ),
     );
     if (rows.length === 0) return;

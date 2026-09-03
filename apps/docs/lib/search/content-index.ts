@@ -1,6 +1,12 @@
-import { design, elementsDocs, getTapDocsPages, source } from "@/lib/source";
+import {
+  design,
+  elementsDocs,
+  examples,
+  getTapDocsPages,
+  source,
+} from "@/lib/source";
 import type { ContentRecord } from "./content-search";
-import type { SearchRecord } from "./types";
+import { headingsFrom } from "./pages";
 
 type StructuredData = {
   headings?: { id?: string; content?: string }[];
@@ -16,21 +22,11 @@ function toRecord(page: {
   };
 }): Promise<ContentRecord> {
   return Promise.resolve(page.data.structuredData()).then((structured) => {
-    const headings: SearchRecord["headings"] = [];
-    const seen = new Set<string>();
-    for (const heading of structured.headings ?? []) {
-      const id = heading.id?.trim();
-      const content = heading.content?.trim();
-      if (!id || !content || seen.has(id)) continue;
-      seen.add(id);
-      headings.push({ id, content });
-    }
-
     return {
       url: page.url,
       title: page.data.title,
       description: page.data.description ?? "",
-      headings,
+      headings: headingsFrom(structured),
       contents: (structured.contents ?? [])
         .map((entry) => entry.content?.replace(/\s+/g, " ").trim() ?? "")
         .filter((text) => text.length > 0),
@@ -50,6 +46,7 @@ function collectPages(): Promise<ContentRecord[]> {
       ...getTapDocsPages(),
       ...design.getPages(),
       ...elementsDocs.getPages(),
+      ...examples.getPages(),
     ].map((page) => toRecord(page as Parameters<typeof toRecord>[0])),
   );
 }

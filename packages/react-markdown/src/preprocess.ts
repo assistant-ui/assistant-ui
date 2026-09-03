@@ -37,7 +37,11 @@ function codeSpanEnd(text: string, start: number): number {
     closed = text.indexOf(delimiter, closed + closedLength);
   }
 
-  return closed === -1 ? -1 : closed + delimiterLength;
+  if (closed === -1) return -1;
+  // A fence closes on a run at least as long as its own, and every backtick of
+  // that run belongs to it: leaving the extra ones behind would let them open a
+  // run of their own and swallow the prose that follows.
+  return closed + Math.max(delimiterLength, runLength(text, closed, "`"));
 }
 
 /**
@@ -86,11 +90,17 @@ function mapProseRuns(
   };
 
   while (index < text.length) {
-    if (text[index] !== "`") {
+    const tick = text.indexOf("`", index);
+    if (tick === -1) {
       if (prose === "") proseStart = index;
-      prose += text[index];
-      index += 1;
-      continue;
+      prose += text.slice(index);
+      break;
+    }
+
+    if (tick > index) {
+      if (prose === "") proseStart = index;
+      prose += text.slice(index, tick);
+      index = tick;
     }
 
     const end = codeSpanEnd(text, index);
@@ -226,7 +236,10 @@ export function rewriteCustomMathTags(text: string): string {
           );
         },
       )
-      .replace(INLINE_TAG, (_, body: string) => `$${body.trim()}$`),
+      .replace(INLINE_TAG, (match: string, body: string) => {
+        const trimmed = body.trim();
+        return trimmed === "" ? match : `$${trimmed}$`;
+      }),
   );
 }
 

@@ -291,6 +291,7 @@ async function searchDocs(query: string) {
     title: page.title,
     url: page.url,
     ...(page.description ? { description: page.description } : {}),
+    ...(page.headings.length > 0 ? { headings: page.headings } : {}),
     ...(page.excerpt ? { excerpt: page.excerpt } : {}),
   }));
 }

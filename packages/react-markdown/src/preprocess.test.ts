@@ -69,6 +69,13 @@ describe("rewriteLatexBracketDelimiters", () => {
     expect(rewriteLatexBracketDelimiters(fenced)).toBe(fenced);
   });
 
+  it("consumes a longer closing fence run so it cannot open another", () => {
+    const text = "```\ncode\n````\n\\[\na\nb\n\\]";
+    expect(rewriteLatexBracketDelimiters(text)).toBe(
+      "```\ncode\n````\n$$\na\nb\n$$",
+    );
+  });
+
   it("does not pair a delimiter in one fence with one in a later fence", () => {
     const text = "```\n\\[\n```\nprose\n```\n\\]\n```";
     expect(rewriteLatexBracketDelimiters(text)).toBe(text);
@@ -111,6 +118,12 @@ describe("rewriteCustomMathTags", () => {
 
   it("leaves an empty tag pair as written", () => {
     expect(rewriteCustomMathTags("[/math][/math]")).toBe("[/math][/math]");
+  });
+
+  it("leaves an empty inline pair as written", () => {
+    expect(rewriteCustomMathTags("[/inline][/inline] rest")).toBe(
+      "[/inline][/inline] rest",
+    );
   });
 
   it("leaves tags inside a fence as written", () => {
