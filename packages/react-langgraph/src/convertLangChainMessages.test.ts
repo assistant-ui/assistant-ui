@@ -58,6 +58,42 @@ describe("convertLangChainMessages content-less messages", () => {
   });
 });
 
+describe("convertLangChainMessages malformed content blocks", () => {
+  it("skips nullish and primitive entries inside content arrays", () => {
+    const result = convertLangChainMessages({
+      type: "human",
+      id: "h-2",
+      content: [null, 42, { type: "text", text: "kept" }, undefined],
+    } as unknown as LangChainMessage);
+
+    expect(result.content).toEqual([{ type: "text", text: "kept" }]);
+  });
+
+  it("normalizes missing text fields in shared content blocks", () => {
+    const result = convertLangChainMessages({
+      type: "human",
+      id: "h-3",
+      content: [{ type: "text" }, { type: "text_delta" }, { type: "thinking" }],
+    } as unknown as LangChainMessage);
+
+    expect(result.content).toEqual([
+      { type: "text", text: "" },
+      { type: "text", text: "" },
+      { type: "reasoning", text: "" },
+    ]);
+  });
+
+  it("ignores non-array content", () => {
+    const result = convertLangChainMessages({
+      type: "human",
+      id: "h-4",
+      content: { text: "not an array" },
+    } as unknown as LangChainMessage);
+
+    expect(result.content).toEqual([]);
+  });
+});
+
 describe("convertLangChainMessages metadata", () => {
   it("passes additional_kwargs.metadata to system message", () => {
     const result = convertLangChainMessages({

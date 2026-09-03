@@ -1127,6 +1127,23 @@ describe("convertLangChainBaseMessage malformed messages", () => {
     expect(contentOf(result)).toEqual([{ type: "text", text: "kept" }]);
   });
 
+  it("normalizes missing text fields in content blocks", () => {
+    const result = convertLangChainBaseMessage(
+      humanMessage([
+        { type: "text" },
+        { type: "text_delta" },
+        { type: "thinking" },
+      ]),
+      {},
+    );
+
+    expect(contentOf(result)).toEqual([
+      { type: "text", text: "" },
+      { type: "text", text: "" },
+      { type: "reasoning", text: "" },
+    ]);
+  });
+
   it("converts a system message with object content to empty text", () => {
     const result = convertLangChainBaseMessage(
       { _getType: () => "system", id: "msg-5", content: { text: "x" } },

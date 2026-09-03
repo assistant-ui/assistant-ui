@@ -61,7 +61,10 @@ export const convertLangChainContentBlock = (
   switch (type) {
     case "text":
     case "text_delta":
-      return { type: "text" as const, text: part.text };
+      return {
+        type: "text" as const,
+        text: typeof part.text === "string" ? part.text : "",
+      };
     case "image_url": {
       const image =
         typeof part.image_url === "string"
@@ -98,7 +101,10 @@ export const convertLangChainContentBlock = (
       };
     }
     case "thinking":
-      return { type: "reasoning" as const, text: part.thinking };
+      return {
+        type: "reasoning" as const,
+        text: typeof part.thinking === "string" ? part.thinking : "",
+      };
     case "reasoning":
       return {
         type: "reasoning" as const,
