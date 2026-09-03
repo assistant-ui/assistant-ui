@@ -20,6 +20,8 @@ HOOKS_SOURCE_DIR="$ROOT_DIR/packages/ui/src/hooks"
 LIB_SOURCE_DIR="$ROOT_DIR/packages/ui/src/lib"
 TEMPLATES_ROOT="$ROOT_DIR/templates"
 EXAMPLES_ROOT="$ROOT_DIR/examples"
+APPS_ROOT="$ROOT_DIR/apps"
+UI_SRC_ROOT="$ROOT_DIR/packages/ui/src"
 
 MINIMAL_DIR="$TEMPLATES_ROOT/minimal/components/assistant-ui/elements"
 MINIMAL_UI_DIR="$TEMPLATES_ROOT/minimal/components/ui"
@@ -320,25 +322,45 @@ for file in "${lib_candidates[@]}"; do
     fi
 done
 
-# Examples must NOT hold byte-equal copies of packages/ui components: their
-# tsconfig already aliases `@/components/assistant-ui/*` to packages/ui, so a
-# local file is only justified as an intentional fork (which diverges by
-# definition). A byte-equal copy means someone duplicated instead of aliasing.
+# Examples, templates and apps must NOT hold byte-equal copies of any
+# packages/ui source: their tsconfig aliases already resolve the canonical
+# file, so a local copy is only justified as an intentional fork (which
+# diverges by definition) or as a scaffold copy the checks above keep in sync.
+# A byte-equal copy anywhere else means someone duplicated instead of aliasing.
 redundant=()
 
-while IFS= read -r -d '' ex_file; do
-    file="$(basename "$ex_file")"
-    src_file="$SOURCE_DIR/$file"
-    [[ -f "$src_file" ]] || continue
+# templates/minimal and templates/nuxt ship real files on purpose, and
+# globals.d.ts declares an ambient module, which is not resolvable through a
+# path alias and has to sit in every TypeScript project's own scope.
+is_exempt_copy() {
+    case "$1" in
+    templates/minimal/* | templates/nuxt/* | */globals.d.ts) return 0 ;;
+    *) return 1 ;;
+    esac
+}
 
-    if cmp -s "$src_file" "$ex_file"; then
-        redundant+=("${ex_file#"$ROOT_DIR"/}")
-    fi
-done < <(find "$EXAMPLES_ROOT" -path "*/components/assistant-ui/elements/*" -maxdepth 5 -type f \( -name "*.tsx" -o -name "*.ts" \) -not -path "*/node_modules/*" -print0)
+UI_SRC_LIST="$RENDER_DIR/ui-src-list"
+find "$UI_SRC_ROOT" -type f -not -path "*/node_modules/*" >"$UI_SRC_LIST"
+
+while IFS= read -r -d '' copy; do
+    rel="${copy#"$ROOT_DIR"/}"
+    is_exempt_copy "$rel" && continue
+
+    while IFS= read -r src_file; do
+        if cmp -s "$src_file" "$copy"; then
+            redundant+=("$rel")
+            break
+        fi
+    done < <(awk -F/ -v base="$(basename "$copy")" '$NF == base' "$UI_SRC_LIST")
+done < <(find "$EXAMPLES_ROOT" "$TEMPLATES_ROOT" "$APPS_ROOT" -type f \
+    \( -name "*.ts" -o -name "*.tsx" -o -name "*.vue" -o -name "*.css" \) \
+    -not -path "*/node_modules/*" -not -path "*/.next/*" -not -path "*/.nuxt/*" \
+    -not -path "*/.output/*" -not -path "*/.source/*" -not -path "*/dist/*" \
+    -not -path "*/.turbo/*" -print0)
 
 if [[ ${#drift[@]} -eq 0 && ${#vue_drift[@]} -eq 0 && ${#vue_missing[@]} -eq 0 && ${#ui_drift[@]} -eq 0 && ${#hooks_drift[@]} -eq 0 && ${#lib_drift[@]} -eq 0 && ${#redundant[@]} -eq 0 ]]; then
     echo "✓ all template components, hooks, and lib files are in sync with packages/ui"
-    echo "✓ no redundant packages/ui copies in examples"
+    echo "✓ no redundant packages/ui copies in examples, templates or apps"
     exit 0
 fi
 
@@ -429,10 +451,10 @@ if [[ ${#lib_drift[@]} -gt 0 ]]; then
 fi
 
 if [[ ${#redundant[@]} -gt 0 ]]; then
-    echo "✗ ${#redundant[@]} redundant packages/ui copy(ies) in examples (use the @/components/assistant-ui tsconfig alias instead):"
+    echo "✗ ${#redundant[@]} redundant packages/ui copy(ies) (use a tsconfig path alias instead):"
     for r in "${redundant[@]}"; do
         echo "    $r"
-        annotate "$r" "byte-equal copy of the packages/ui component; delete it and rely on the tsconfig path alias"
+        annotate "$r" "byte-equal copy of a packages/ui source; delete it and rely on the tsconfig path alias"
     done
 fi
 
