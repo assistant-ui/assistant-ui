@@ -17,6 +17,8 @@ import {
   ThreadListPrimitive,
   ThreadPrimitive,
   type ToolCallMessagePartProps,
+  unstable_useMentionAdapter,
+  useAssistantInstructions,
   useAui,
   useAuiState,
 } from "@assistant-ui/react";
@@ -40,10 +42,14 @@ import {
   PinIcon,
   PinOffIcon,
   PlusIcon,
+  QuoteIcon,
   RefreshCwIcon,
+  SparklesIcon,
   SquareIcon,
+  TableIcon,
   TrashIcon,
   Volume2Icon,
+  WorkflowIcon,
 } from "lucide-react";
 import {
   createContext,
@@ -66,6 +72,8 @@ import { File } from "@/components/assistant-ui/elements/file";
 import { Image } from "@/components/assistant-ui/elements/image";
 import { MarkdownText } from "@/components/assistant-ui/elements/markdown-text";
 import { MessageTiming } from "@/components/assistant-ui/elements/message-timing.aui";
+import { ComposerTriggerPopover } from "@/components/assistant-ui/elements/composer-trigger-popover.aui";
+import { DirectiveText } from "@/components/assistant-ui/elements/directive-text.aui";
 import { ModelSelector } from "@/components/assistant-ui/elements/model-selector.aui";
 import { SidebarMemory } from "@/components/pages/home/memory";
 import {
@@ -202,6 +210,7 @@ export function HomeThread({
       ref={rootRef}
       className="bg-background grid h-full grid-rows-[3rem_minmax(0,1fr)] md:grid-cols-[15rem_minmax(0,1fr)]"
     >
+      <SpecimenCommands />
       <div className="border-foreground/10 bg-foreground/[0.025] dark:bg-foreground/[0.04] hidden h-12 items-center gap-2 border-r border-b px-4 md:flex">
         <span
           aria-hidden
@@ -683,7 +692,11 @@ function SpecimenThread(): ReactNode {
       <ThreadPrimitive.Viewport
         turnAnchor="top"
         className={cn(
-          "relative flex flex-1 flex-col overflow-y-auto px-4 pt-6 md:px-6",
+          // The gutter is reserved whether or not a scrollbar is showing, so the
+          // thread and its composer do not shift sideways on the first reply
+          // that overflows. Only classic scrollbars take layout space, so the
+          // jump appears on Windows and on macOS set to always show them.
+          "relative flex flex-1 [scrollbar-gutter:stable_both-edges] flex-col overflow-y-auto px-4 pt-6 md:px-6",
           isEmpty && "justify-center",
         )}
       >
@@ -786,6 +799,56 @@ const SUGGESTIONS = [
   },
 ];
 
+// A directive is a formatting instruction the model reads in the sent message,
+// so a command needs no side effect and no route support beyond the line below.
+const HOME_COMMANDS = [
+  {
+    id: "diagram",
+    type: "command",
+    label: "/diagram",
+    description: "Answer with a mermaid diagram",
+    icon: "diagram",
+  },
+  {
+    id: "table",
+    type: "command",
+    label: "/table",
+    description: "Answer as a markdown table",
+    icon: "table",
+  },
+  {
+    id: "cite",
+    type: "command",
+    label: "/cite",
+    description: "Cite the documentation pages used",
+    icon: "cite",
+  },
+  {
+    id: "simple",
+    type: "command",
+    label: "/simple",
+    description: "Explain it plainly, without jargon",
+    icon: "simple",
+  },
+] as const;
+
+const COMMAND_ICONS = {
+  diagram: WorkflowIcon,
+  table: TableIcon,
+  cite: QuoteIcon,
+  simple: SparklesIcon,
+};
+
+const COMMAND_INSTRUCTION = [
+  "A user message may carry a command chip written as :command[/name]{name=name}. Treat it as an instruction about the shape of your answer and never repeat the syntax back.",
+  ...HOME_COMMANDS.map((command) => `- /${command.id}: ${command.description}`),
+].join("\n");
+
+function SpecimenCommands(): null {
+  useAssistantInstructions(COMMAND_INSTRUCTION);
+  return null;
+}
+
 const suggestionChipClass =
   "border-foreground/10 bg-background text-muted-foreground hover:border-foreground/25 hover:text-foreground rounded-control h-8 border px-3 text-[13px] transition-colors";
 
@@ -834,6 +897,11 @@ function SpecimenFollowUps(): ReactNode {
 }
 
 function SpecimenComposer(): ReactNode {
+  const commands = unstable_useMentionAdapter({
+    items: HOME_COMMANDS,
+    includeModelContextTools: false,
+    iconMap: COMMAND_ICONS,
+  });
   const model = usePersistedPreference(homeModelPreference);
   const effort = usePersistedPreference(homeEffortPreference);
   const models = useMemo(
@@ -847,103 +915,113 @@ function SpecimenComposer(): ReactNode {
   );
 
   return (
-    <ComposerPrimitive.Root className="w-full">
-      <ComposerPrimitive.AttachmentDropzone asChild>
-        <div className="border-foreground/10 bg-muted/30 focus-within:border-foreground/25 data-[dragging=true]:border-foreground/40 rounded-thread flex flex-col border transition-colors data-[dragging=true]:border-dashed">
-          <ComposerQuotePreview className="bg-foreground/[0.04] rounded-control mx-3 mt-3" />
-          <div className="has-[.aui-attachment-root]:px-3 has-[.aui-attachment-root]:pt-3">
-            <ComposerAttachments />
-          </div>
-          <ComposerPrimitive.Input asChild>
-            <textarea
-              data-composer-input
-              placeholder="Send a message..."
-              rows={1}
-              className="placeholder:text-muted-foreground field-sizing-content max-h-48 min-h-12 w-full resize-none bg-transparent px-4 pt-3.5 pb-1 text-base leading-6 focus:outline-none"
-            />
-          </ComposerPrimitive.Input>
-          <div className="flex items-center justify-between gap-2 px-2.5 pb-2.5">
-            <div className="flex min-w-0 items-center gap-1">
-              <ComposerPrimitive.AddAttachment asChild>
-                <button
-                  type="button"
-                  aria-label="Add attachment"
-                  className="text-muted-foreground hover:text-foreground rounded-control grid size-8 shrink-0 place-items-center transition-colors"
+    <ComposerPrimitive.Unstable_TriggerPopoverRoot>
+      <ComposerPrimitive.Root className="relative w-full">
+        <ComposerTriggerPopover
+          char="/"
+          adapter={commands.adapter}
+          directive={commands.directive}
+          iconMap={COMMAND_ICONS}
+          emptyItemsLabel="No matching command"
+          className="w-72"
+        />
+        <ComposerPrimitive.AttachmentDropzone asChild>
+          <div className="border-foreground/10 bg-muted/30 focus-within:border-foreground/25 data-[dragging=true]:border-foreground/40 rounded-thread flex flex-col border transition-colors data-[dragging=true]:border-dashed">
+            <ComposerQuotePreview className="bg-foreground/[0.04] rounded-control mx-3 mt-3" />
+            <div className="has-[.aui-attachment-root]:px-3 has-[.aui-attachment-root]:pt-3">
+              <ComposerAttachments />
+            </div>
+            <ComposerPrimitive.Input asChild>
+              <textarea
+                data-composer-input
+                placeholder="Send a message..."
+                rows={1}
+                className="placeholder:text-muted-foreground field-sizing-content max-h-48 min-h-12 w-full resize-none bg-transparent px-4 pt-3.5 pb-1 text-base leading-6 focus:outline-none"
+              />
+            </ComposerPrimitive.Input>
+            <div className="flex items-center justify-between gap-2 px-2.5 pb-2.5">
+              <div className="flex min-w-0 items-center gap-1">
+                <ComposerPrimitive.AddAttachment asChild>
+                  <button
+                    type="button"
+                    aria-label="Add attachment"
+                    className="text-muted-foreground hover:text-foreground rounded-control grid size-8 shrink-0 place-items-center transition-colors"
+                  >
+                    <PlusIcon className="size-4.5" />
+                  </button>
+                </ComposerPrimitive.AddAttachment>
+                <ModelSelector
+                  models={models}
+                  value={model}
+                  onValueChange={homeModelPreference.set}
+                  effort={effort}
+                  onEffortChange={homeEffortPreference.set}
+                  variant="ghost"
+                  size="sm"
+                  className="text-muted-foreground hover:text-foreground rounded-control h-8 min-w-0 text-[13px] font-normal"
+                />
+              </div>
+              <div className="flex shrink-0 items-center gap-1">
+                <ContextDisplay.Text
+                  modelContextWindow={getContextWindow(model)}
+                  side="top"
+                  className="text-muted-foreground hover:text-foreground rounded-control h-8 px-2 text-[11px] hover:bg-transparent"
+                />
+                <AuiIf
+                  condition={(s) =>
+                    s.thread.capabilities.dictation &&
+                    s.composer.dictation == null
+                  }
                 >
-                  <PlusIcon className="size-4.5" />
-                </button>
-              </ComposerPrimitive.AddAttachment>
-              <ModelSelector
-                models={models}
-                value={model}
-                onValueChange={homeModelPreference.set}
-                effort={effort}
-                onEffortChange={homeEffortPreference.set}
-                variant="ghost"
-                size="sm"
-                className="text-muted-foreground hover:text-foreground rounded-control h-8 min-w-0 text-[13px] font-normal"
-              />
-            </div>
-            <div className="flex shrink-0 items-center gap-1">
-              <ContextDisplay.Text
-                modelContextWindow={getContextWindow(model)}
-                side="top"
-                className="text-muted-foreground hover:text-foreground rounded-control h-8 px-2 text-[11px] hover:bg-transparent"
-              />
-              <AuiIf
-                condition={(s) =>
-                  s.thread.capabilities.dictation &&
-                  s.composer.dictation == null
-                }
-              >
-                <ComposerPrimitive.Dictate asChild>
-                  <button
-                    type="button"
-                    aria-label="Start voice input"
-                    className="text-muted-foreground hover:text-foreground rounded-control grid size-8 place-items-center transition-colors disabled:opacity-40"
-                  >
-                    <MicIcon className="size-4.5" />
-                  </button>
-                </ComposerPrimitive.Dictate>
-              </AuiIf>
-              <AuiIf condition={(s) => s.composer.dictation != null}>
-                <ComposerPrimitive.StopDictation asChild>
-                  <button
-                    type="button"
-                    aria-label="Stop voice input"
-                    className="text-destructive rounded-control grid size-8 place-items-center transition-colors"
-                  >
-                    <SquareIcon className="size-3.5 animate-pulse fill-current" />
-                  </button>
-                </ComposerPrimitive.StopDictation>
-              </AuiIf>
-              <AuiIf condition={(s) => !s.thread.isRunning}>
-                <ComposerPrimitive.Send asChild>
-                  <button
-                    type="button"
-                    aria-label="Send message"
-                    className="bg-primary text-primary-foreground rounded-control grid size-8 place-items-center transition-opacity disabled:opacity-40"
-                  >
-                    <ArrowUpIcon className="size-4.5" />
-                  </button>
-                </ComposerPrimitive.Send>
-              </AuiIf>
-              <AuiIf condition={(s) => s.thread.isRunning}>
-                <ComposerPrimitive.Cancel asChild>
-                  <button
-                    type="button"
-                    aria-label="Stop generating"
-                    className="bg-primary text-primary-foreground rounded-control grid size-8 place-items-center"
-                  >
-                    <SquareIcon className="size-3.5 fill-current" />
-                  </button>
-                </ComposerPrimitive.Cancel>
-              </AuiIf>
+                  <ComposerPrimitive.Dictate asChild>
+                    <button
+                      type="button"
+                      aria-label="Start voice input"
+                      className="text-muted-foreground hover:text-foreground rounded-control grid size-8 place-items-center transition-colors disabled:opacity-40"
+                    >
+                      <MicIcon className="size-4.5" />
+                    </button>
+                  </ComposerPrimitive.Dictate>
+                </AuiIf>
+                <AuiIf condition={(s) => s.composer.dictation != null}>
+                  <ComposerPrimitive.StopDictation asChild>
+                    <button
+                      type="button"
+                      aria-label="Stop voice input"
+                      className="text-destructive rounded-control grid size-8 place-items-center transition-colors"
+                    >
+                      <SquareIcon className="size-3.5 animate-pulse fill-current" />
+                    </button>
+                  </ComposerPrimitive.StopDictation>
+                </AuiIf>
+                <AuiIf condition={(s) => !s.thread.isRunning}>
+                  <ComposerPrimitive.Send asChild>
+                    <button
+                      type="button"
+                      aria-label="Send message"
+                      className="bg-primary text-primary-foreground rounded-control grid size-8 place-items-center transition-opacity disabled:opacity-40"
+                    >
+                      <ArrowUpIcon className="size-4.5" />
+                    </button>
+                  </ComposerPrimitive.Send>
+                </AuiIf>
+                <AuiIf condition={(s) => s.thread.isRunning}>
+                  <ComposerPrimitive.Cancel asChild>
+                    <button
+                      type="button"
+                      aria-label="Stop generating"
+                      className="bg-primary text-primary-foreground rounded-control grid size-8 place-items-center"
+                    >
+                      <SquareIcon className="size-3.5 fill-current" />
+                    </button>
+                  </ComposerPrimitive.Cancel>
+                </AuiIf>
+              </div>
             </div>
           </div>
-        </div>
-      </ComposerPrimitive.AttachmentDropzone>
-    </ComposerPrimitive.Root>
+        </ComposerPrimitive.AttachmentDropzone>
+      </ComposerPrimitive.Root>
+    </ComposerPrimitive.Unstable_TriggerPopoverRoot>
   );
 }
 
@@ -1012,7 +1090,11 @@ function SpecimenUserMessage(): ReactNode {
             {(quote) => <QuoteBlock {...quote} />}
           </MessagePrimitive.Quote>
           <MessagePrimitive.Parts
-            components={{ File: UserFilePart, Image: UserImagePart }}
+            components={{
+              Text: DirectiveText,
+              File: UserFilePart,
+              Image: UserImagePart,
+            }}
           />
         </div>
         <ActionBarPrimitive.Root
