@@ -57,7 +57,9 @@ const offlineSession = {
     throw new Error("the resume test must not reach the network");
   },
   stream: async function* () {
-    yield* resumedEvents;
+    yield* JSON.parse(
+      JSON.stringify(resumedEvents),
+    ) as readonly MessageStreamEvent[];
   },
 } as never;
 
