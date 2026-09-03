@@ -4,6 +4,7 @@ import {
   useCallback,
   useEffect,
   useLayoutEffect,
+  useMemo,
   useRef,
   useState,
 } from "react";
@@ -36,6 +37,23 @@ function toCloudThread(t: {
 
 const CLOUD_THREAD_PAGE_SIZE = 20;
 
+type ThreadTitleState = {
+  queue: Promise<void>;
+  manualTitle?: string;
+};
+
+function enqueueThreadTitleMutation<T>(
+  state: ThreadTitleState,
+  mutation: () => Promise<T>,
+): Promise<T> {
+  const result = state.queue.then(mutation);
+  state.queue = result.then(
+    () => {},
+    () => {},
+  );
+  return result;
+}
+
 async function listAllThreads(
   cloud: UseThreadsOptions["cloud"],
   isArchived: boolean,
@@ -61,6 +79,10 @@ async function listAllThreads(
 
 export function useThreads(options: UseThreadsOptions): UseThreadsResult {
   const { cloud, includeArchived = false, enabled = true } = options;
+  const threadTitleStates = useMemo(
+    () => new Map<string, ThreadTitleState>(),
+    [cloud],
+  );
   const includeArchivedRef = useRef(includeArchived);
   useLayoutEffect(() => {
     includeArchivedRef.current = includeArchived;
@@ -300,21 +322,29 @@ export function useThreads(options: UseThreadsOptions): UseThreadsResult {
 
   const rename = useCallback(
     async (id: string, title: string): Promise<boolean> => {
-      return await withAction(
-        async (commit) => {
-          await cloud.threads.update(id, { title });
-          commit(() =>
-            setThreads((prev) =>
-              prev.map((t) => (t.id === id ? { ...t, title } : t)),
-            ),
-          );
-          return true;
-        },
-        false,
-        isCurrentCloud,
-      );
+      const state: ThreadTitleState = threadTitleStates.get(id) ?? {
+        queue: Promise.resolve(),
+      };
+      threadTitleStates.set(id, state);
+      return await enqueueThreadTitleMutation(state, async () => {
+        const renamed = await withAction(
+          async (commit) => {
+            await cloud.threads.update(id, { title });
+            commit(() =>
+              setThreads((prev) =>
+                prev.map((t) => (t.id === id ? { ...t, title } : t)),
+              ),
+            );
+            return true;
+          },
+          false,
+          isCurrentCloud,
+        );
+        if (renamed) state.manualTitle = title;
+        return renamed;
+      });
     },
-    [cloud, isCurrentCloud, withAction],
+    [cloud, isCurrentCloud, threadTitleStates, withAction],
   );
 
   const archive = useCallback(
@@ -390,25 +420,33 @@ export function useThreads(options: UseThreadsOptions): UseThreadsResult {
 
   const generateTitle = useCallback(
     async (tid: string): Promise<string | null> => {
-      return await withAction(
-        async (commit) => {
-          const title = await generateThreadTitle(cloud, tid);
+      const state: ThreadTitleState = threadTitleStates.get(tid) ?? {
+        queue: Promise.resolve(),
+      };
+      threadTitleStates.set(tid, state);
 
-          if (title) {
-            commit(() =>
-              setThreads((prev) =>
-                prev.map((t) => (t.id === tid ? { ...t, title } : t)),
-              ),
-            );
-          }
+      return await enqueueThreadTitleMutation(state, async () => {
+        if (state.manualTitle !== undefined) return state.manualTitle;
+        return await withAction(
+          async (commit) => {
+            const title = await generateThreadTitle(cloud, tid);
 
-          return title;
-        },
-        null,
-        isCurrentCloud,
-      );
+            if (title) {
+              commit(() =>
+                setThreads((prev) =>
+                  prev.map((t) => (t.id === tid ? { ...t, title } : t)),
+                ),
+              );
+            }
+
+            return title;
+          },
+          null,
+          isCurrentCloud,
+        );
+      });
     },
-    [cloud, isCurrentCloud, withAction],
+    [cloud, isCurrentCloud, threadTitleStates, withAction],
   );
 
   return {
