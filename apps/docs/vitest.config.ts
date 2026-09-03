@@ -32,6 +32,22 @@ export default {
         __dirname,
         "../../packages/ui/src/components/react/assistant-ui",
       ),
+      "@/components/icons/discord": resolve(
+        __dirname,
+        "../../packages/ui/src/components/react/icons/discord",
+      ),
+      "@/components/icons/gemini": resolve(
+        __dirname,
+        "../../packages/ui/src/components/react/icons/gemini",
+      ),
+      "@/components/icons/github": resolve(
+        __dirname,
+        "../../packages/ui/src/components/react/icons/github",
+      ),
+      "@/components/icons/grok": resolve(
+        __dirname,
+        "../../packages/ui/src/components/react/icons/grok",
+      ),
       "@/lib/utils": resolve(__dirname, "../../packages/ui/src/lib/utils"),
       "@": resolve(__dirname),
     },
