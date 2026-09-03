@@ -101,8 +101,14 @@ import { typeEyebrow } from "@/components/shared/type";
 import {
   DEFAULT_MODEL_ID,
   getContextWindow,
+  isAvailableModelId,
+  isReasoningEffort,
   supportsReasoningEffort,
 } from "@/lib/model";
+import {
+  createPersistedPreference,
+  usePersistedPreference,
+} from "@/lib/persisted-preference";
 import {
   describePublicAssistantError,
   unwrapErrorEnvelope,
@@ -136,6 +142,18 @@ const getMessageErrorText = (s: AssistantState): string | undefined => {
   }
   return undefined;
 };
+
+const homeModelPreference = createPersistedPreference<string>({
+  key: "aui-home-model",
+  fallback: DEFAULT_MODEL_ID,
+  read: (raw) => (isAvailableModelId(raw) ? raw : null),
+});
+
+const homeEffortPreference = createPersistedPreference<string>({
+  key: "aui-home-effort",
+  fallback: "low",
+  read: (raw) => (isReasoningEffort(raw) ? raw : null),
+});
 
 const groupAssistantParts = groupPartByType({
   reasoning: ["group-chainOfThought", "group-reasoning"],
@@ -769,7 +787,8 @@ function SpecimenSuggestions(): ReactNode {
 }
 
 function SpecimenComposer(): ReactNode {
-  const [model, setModel] = useState<string>(DEFAULT_MODEL_ID);
+  const model = usePersistedPreference(homeModelPreference);
+  const effort = usePersistedPreference(homeEffortPreference);
   const models = useMemo(
     () =>
       docsModelOptions().map((option) =>
@@ -810,8 +829,9 @@ function SpecimenComposer(): ReactNode {
               <ModelSelector
                 models={models}
                 value={model}
-                onValueChange={setModel}
-                defaultEffort="low"
+                onValueChange={homeModelPreference.set}
+                effort={effort}
+                onEffortChange={homeEffortPreference.set}
                 variant="ghost"
                 size="sm"
                 className="text-muted-foreground hover:text-foreground rounded-control h-8 min-w-0 text-[13px] font-normal"
