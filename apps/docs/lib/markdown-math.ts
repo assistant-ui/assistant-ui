@@ -30,6 +30,7 @@ export function closeDisplayMathFences(text: string): string {
   const out: string[] = [];
   let codeFence: string | undefined;
   let inMath = false;
+  let mathIndent = "";
 
   for (const line of text.split("\n")) {
     if (codeFence !== undefined) {
@@ -40,16 +41,14 @@ export function closeDisplayMathFences(text: string): string {
 
     if (MATH_FENCE.test(line)) {
       inMath = !inMath;
+      if (inMath) mathIndent = indentOf(line);
       out.push(line);
       continue;
     }
 
     if (inMath) {
       if (!line.startsWith("$$") && TRAILING_MATH_FENCE.test(line)) {
-        out.push(
-          line.replace(/[ \t]*\$\$[ \t\r]*$/, ""),
-          `${indentOf(line)}$$`,
-        );
+        out.push(line.replace(/[ \t]*\$\$[ \t\r]*$/, ""), `${mathIndent}$$`);
         inMath = false;
       } else {
         out.push(line);
@@ -68,6 +67,7 @@ export function closeDisplayMathFences(text: string): string {
     if (opener !== undefined && !opener.includes("$$")) {
       out.push(`${indent}$$`, `${indent}${opener}`);
       inMath = true;
+      mathIndent = indent;
       continue;
     }
 

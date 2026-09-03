@@ -37,6 +37,12 @@ describe("closeDisplayMathFences", () => {
     );
   });
 
+  it("closes at the opening fence's indent, not the content's", () => {
+    expect(closeDisplayMathFences("$$\n    a = b$$\ntext")).toBe(
+      "$$\n    a = b\n$$\ntext",
+    );
+  });
+
   it("keeps a fenced equation inside its list item", () => {
     expect(
       closeDisplayMathFences("1. Expand:\n   $$S_n = a + ar$$\n2. Subtract."),
