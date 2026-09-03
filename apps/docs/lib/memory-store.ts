@@ -69,7 +69,10 @@ const clearStored = () => {
   if (!isBrowser()) return;
   try {
     window.localStorage.removeItem(storageKey);
-  } catch {}
+    unsaved = false;
+  } catch {
+    unsaved = true;
+  }
 };
 
 const notify = () => {
