@@ -159,6 +159,47 @@ export function takeSlot(queue: readonly number[], visible: readonly number[]) {
   return { slot: source[source.length - 1]!, queue: source.slice(0, -1) };
 }
 
+export function reconcileShown(
+  catalogue: readonly Logo[],
+  shown: readonly (Logo | undefined)[],
+  visible: readonly number[],
+): readonly (Logo | undefined)[] {
+  const next = shown.slice();
+  const visibleSet = new Set(visible);
+  for (let slot = 0; slot < SLOTS; slot += 1) {
+    if (!visibleSet.has(slot)) next[slot] = undefined;
+  }
+
+  const taken = new Set<string>();
+  for (const logo of next) {
+    if (logo) taken.add(logo.alt);
+  }
+  const pool = catalogue.filter((logo) => !taken.has(logo.alt));
+  let poolIndex = 0;
+  for (const slot of visible) {
+    if (next[slot]) continue;
+    const logo = pool[poolIndex++];
+    if (!logo) break;
+    next[slot] = logo;
+  }
+
+  return next.every((logo, index) => logo === shown[index]) ? shown : next;
+}
+
+export function rotateSlot(
+  catalogue: readonly Logo[],
+  shown: readonly (Logo | undefined)[],
+  visible: readonly number[],
+  target: number,
+  pick: (count: number) => number,
+): readonly (Logo | undefined)[] {
+  const onScreen = new Set(visible.map((slot) => shown[slot]!.alt));
+  const pool = catalogue.filter((logo) => !onScreen.has(logo.alt));
+  const next = pool[pick(pool.length)];
+  if (!next) return shown;
+  return shown.map((logo, index) => (index === target ? next : logo));
+}
+
 function LogoMark({
   logo,
   onSettle,
@@ -278,7 +319,9 @@ function LogoSlot({
 }
 
 export function TrustedBy() {
-  const [shown, setShown] = useState(() => LOGOS.slice(0, SLOTS));
+  const [shown, setShown] = useState<readonly (Logo | undefined)[]>(() =>
+    LOGOS.slice(0, SLOTS),
+  );
   const [hovered, setHovered] = useState(false);
   const [pageHidden, setPageHidden] = useState(false);
   const [reduceMotion, setReduceMotion] = useState(false);
@@ -286,12 +329,19 @@ export function TrustedBy() {
   const order = useRef<number[]>([]);
   const frozen = reduceMotion || hovered || pageHidden;
   const slots = wide ? ALL_SLOTS : MOBILE_SLOTS;
+  const displayed = reconcileShown(LOGOS, shown, slots);
 
   useEffect(() => {
     const motion = window.matchMedia("(prefers-reduced-motion: reduce)");
     const desktop = window.matchMedia("(min-width: 640px)");
     const applyMotion = () => setReduceMotion(motion.matches);
-    const applyWide = () => setWide(desktop.matches);
+    const applyWide = () => {
+      const nextWide = desktop.matches;
+      setWide(nextWide);
+      setShown((current) =>
+        reconcileShown(LOGOS, current, nextWide ? ALL_SLOTS : MOBILE_SLOTS),
+      );
+    };
     applyMotion();
     applyWide();
     motion.addEventListener("change", applyMotion);
@@ -315,13 +365,11 @@ export function TrustedBy() {
       const taken = takeSlot(order.current, slots);
       order.current = taken.queue;
       const target = taken.slot;
-      setShown((current) => {
-        const taken = new Set(current.map((logo) => logo.alt));
-        const pool = LOGOS.filter((logo) => !taken.has(logo.alt));
-        const next = pool[Math.floor(Math.random() * pool.length)];
-        if (!next) return current;
-        return current.map((logo, index) => (index === target ? next : logo));
-      });
+      setShown((current) =>
+        rotateSlot(LOGOS, current, slots, target, (count) =>
+          Math.floor(Math.random() * count),
+        ),
+      );
     }, wait);
     return () => window.clearTimeout(hold);
   }, [frozen, shown, slots]);
@@ -333,22 +381,30 @@ export function TrustedBy() {
       onMouseLeave={() => setHovered(false)}
     >
       <div className="grid w-full grid-cols-3 sm:grid-cols-5">
-        {shown.slice(0, 5).map((logo, index) => (
-          <LogoSlot
-            key={index}
-            logo={logo}
-            hideOnMobile={!MOBILE_SLOTS.includes(index)}
-          />
-        ))}
+        {displayed
+          .slice(0, 5)
+          .map((logo, index) =>
+            logo ? (
+              <LogoSlot
+                key={index}
+                logo={logo}
+                hideOnMobile={!MOBILE_SLOTS.includes(index)}
+              />
+            ) : null,
+          )}
       </div>
       <div className="mx-auto grid w-full grid-cols-3 sm:w-4/5 sm:grid-cols-4">
-        {shown.slice(5, SLOTS).map((logo, offset) => (
-          <LogoSlot
-            key={offset + 5}
-            logo={logo}
-            hideOnMobile={!MOBILE_SLOTS.includes(offset + 5)}
-          />
-        ))}
+        {displayed
+          .slice(5, SLOTS)
+          .map((logo, offset) =>
+            logo ? (
+              <LogoSlot
+                key={offset + 5}
+                logo={logo}
+                hideOnMobile={!MOBILE_SLOTS.includes(offset + 5)}
+              />
+            ) : null,
+          )}
       </div>
     </div>
   );
