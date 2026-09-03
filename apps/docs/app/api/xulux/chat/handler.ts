@@ -357,7 +357,8 @@ export function createXuluxChatHandler(agent: XuluxAgentDefinition) {
           : undefined),
         system: [agent.systemPrompt, pageContext].filter(Boolean).join("\n\n"),
         messages: prunedMessages,
-        maxOutputTokens: agent.maxOutputTokens ?? 8192,
+        maxOutputTokens:
+          agent.maxOutputTokens ?? (modelConfig.reasoning ? 16384 : 8192),
         stopWhen: stepCountIs(agent.maxSteps),
         tools: xuluxTools,
         ...posthogTelemetry({
@@ -394,6 +395,7 @@ export function createXuluxChatHandler(agent: XuluxAgentDefinition) {
       });
 
       return result.toUIMessageStreamResponse({
+        sendReasoning: modelConfig.reasoning,
         originalMessages: uiMessages,
         messageMetadata: ({ part }) => {
           if (part.type === "finish-step") {
