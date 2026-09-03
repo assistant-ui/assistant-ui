@@ -62,7 +62,7 @@
     "heat-graph": "workspace:*",
     "input-otp": "^1.5.0",
     "just-bash": "^3.4.2",
-    "katex": "^0.18.5",
+    "katex": "^0.16.47",
     "leva": "^0.10.1",
     "lucide-react": "^1.38.0",
     "motion": "^13.1.1",

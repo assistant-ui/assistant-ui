@@ -405,8 +405,8 @@ importers:
         specifier: ^3.4.2
         version: 3.4.2(supports-color@10.2.2)
       katex:
-        specifier: ^0.18.5
-        version: 0.18.5
+        specifier: ^0.16.47
+        version: 0.16.47
       leva:
         specifier: ^0.10.1
         version: 0.10.1(@types/react-dom@19.2.5(@types/react@19.2.18))(@types/react@19.2.18)(react-dom@19.2.8(react@19.2.8))(react@19.2.8)
@@ -16163,10 +16163,6 @@ packages:
 
   katex@0.16.47:
     resolution: {integrity: sha512-Eeo8Ys1doU1z+x8AZsPpQu+p/QcZBI5PeOo7QGQdy2x2m0MU/hYagBbGOmXwr5KVbEfVuWv9LpnQWeehogurjg==}
-    hasBin: true
-
-  katex@0.18.5:
-    resolution: {integrity: sha512-1FU5H3RjGJVj6GT9fMjf2uMIXmPQp232aXS3UEeQzf0dxefHg/CKMvNB3DuOC46LFG/E5PNxrE8dOwB782FDGg==}
     hasBin: true
 
   khroma@2.1.0:
@@ -32495,10 +32491,6 @@ snapshots:
   katex@0.16.47:
     dependencies:
       commander: 8.3.0
-
-  katex@0.18.5:
-    dependencies:
-      commander: 15.0.0
 
   khroma@2.1.0: {}
 
