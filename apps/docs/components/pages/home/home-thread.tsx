@@ -67,7 +67,7 @@ import { Image } from "@/components/assistant-ui/elements/image";
 import { MarkdownText } from "@/components/assistant-ui/elements/markdown-text";
 import { MessageTiming } from "@/components/assistant-ui/elements/message-timing.aui";
 import { ModelSelector } from "@/components/assistant-ui/elements/model-selector.aui";
-import { HomeMemory, SidebarMemory } from "@/components/pages/home/memory";
+import { SidebarMemory } from "@/components/pages/home/memory";
 import {
   ComposerQuotePreview,
   QuoteBlock,
@@ -202,7 +202,6 @@ export function HomeThread({
       ref={rootRef}
       className="bg-background grid h-full grid-rows-[3rem_minmax(0,1fr)] md:grid-cols-[15rem_minmax(0,1fr)]"
     >
-      <HomeMemory />
       <div className="border-foreground/10 bg-foreground/[0.025] dark:bg-foreground/[0.04] hidden h-12 items-center gap-2 border-r border-b px-4 md:flex">
         <span
           aria-hidden

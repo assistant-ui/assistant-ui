@@ -12,6 +12,7 @@ import {
 import { DevToolsModal } from "@assistant-ui/react-devtools";
 import { feedbackAdapter } from "@/lib/feedback-adapter";
 import docsToolkit from "@/lib/docs-toolkit";
+import { MemoryInstructions } from "@/components/pages/home/memory";
 import {
   followUpSuggestionAdapter,
   useAnonymousCloud,
@@ -75,6 +76,7 @@ export function DocsRuntimeProvider({
 
   return (
     <AssistantRuntimeProvider aui={aui} runtime={runtime}>
+      <MemoryInstructions />
       {children}
 
       {devtools ? <DevToolsModal /> : null}

@@ -33,7 +33,7 @@ type RememberToolUIProps = Pick<
   onForget?: (id: string) => void;
 };
 
-export function HomeMemory(): null {
+export function MemoryInstructions(): null {
   const memories = useMemories();
   const instruction = useMemo(
     () =>
