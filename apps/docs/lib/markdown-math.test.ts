@@ -12,9 +12,21 @@ describe("closeDisplayMathFences", () => {
     ).toBe("Sum:\n$$\nS = \\frac{a}{1 - r}\n$$\nDone.");
   });
 
+  it("accepts whitespace before the trailing fence", () => {
+    expect(closeDisplayMathFences("$$\nE = mc^2 $$ \nText")).toBe(
+      "$$\nE = mc^2\n$$\nText",
+    );
+  });
+
   it("closes every block that ends this way", () => {
     expect(closeDisplayMathFences("$$\na$$\n\n$$\nb$$")).toBe(
       "$$\na\n$$\n\n$$\nb\n$$",
+    );
+  });
+
+  it("handles CRLF line endings", () => {
+    expect(closeDisplayMathFences("$$\r\nE = mc^2$$\r\nText")).toBe(
+      "$$\r\nE = mc^2\n$$\nText",
     );
   });
 
@@ -39,6 +51,11 @@ describe("closeDisplayMathFences", () => {
     expect(closeDisplayMathFences(code)).toBe(
       "```latex\n$$\nE = mc^2$$\n```\n$$\nx\n$$",
     );
+  });
+
+  it("does not treat a fence with an info string as the closing fence", () => {
+    const code = "```\n$$\nE = mc^2$$\n```js\n$$\nx$$\n```";
+    expect(closeDisplayMathFences(code)).toBe(code);
   });
 });
 
