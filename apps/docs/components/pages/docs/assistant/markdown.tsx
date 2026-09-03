@@ -114,7 +114,8 @@ const SyntaxHighlighter: FC<SyntaxHighlighterProps> = ({ code, language }) => {
     <CollapsibleCode>
       <CodeBlock
         title={language || undefined}
-        copyText={trimmed}
+        copyText={code}
+        lineNumbers
         className="my-2.5"
       >
         <ShikiHighlighter

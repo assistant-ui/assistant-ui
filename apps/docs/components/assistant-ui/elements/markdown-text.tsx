@@ -49,7 +49,7 @@ const codeSheetReset =
 const SyntaxHighlighter = (props: HighlighterProps) => (
   <CodeBlock
     title={props.language || undefined}
-    copyText={props.code.trim()}
+    copyText={props.code}
     className="my-3"
   >
     <ShikiSyntaxHighlighter {...props} className={codeSheetReset} />
@@ -57,7 +57,7 @@ const SyntaxHighlighter = (props: HighlighterProps) => (
 );
 
 const MermaidDiagram = (props: ComponentProps<typeof LazyMermaidDiagram>) => (
-  <CodeBlock title="mermaid" copyText={props.code.trim()} className="my-3">
+  <CodeBlock title="mermaid" copyText={props.code} className="my-3">
     <LazyMermaidDiagram
       {...props}
       className="-my-1.5 rounded-none bg-transparent"
