@@ -412,6 +412,12 @@ if [[ "$MODE" == "--write" ]]; then
     done
     echo ""
     echo "fixed $(( ${#drift[@]} + ${#vue_drift[@]} + ${#vue_missing[@]} + ${#ui_drift[@]} + ${#hooks_drift[@]} + ${#lib_drift[@]} )) file(s)"
+    drift=()
+    vue_drift=()
+    vue_missing=()
+    ui_drift=()
+    hooks_drift=()
+    lib_drift=()
     [[ ${#redundant[@]} -eq 0 ]] && exit 0
 fi
 
