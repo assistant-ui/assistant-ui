@@ -111,19 +111,43 @@ function rewriteOutsideCode(
 }
 
 /**
+ * Emits a display-math body in the `$$` form remark-math parses: `$$body$$` on
+ * one span for a single-line body, and for a body spanning lines the fenced
+ * form, on lines the `$$` markers own. remark-math parses multiline `$$` as a
+ * flow construct: the opening marker has to start a line and the closing marker
+ * to end one, and it reads whatever else shares those lines as fence metadata
+ * rather than as math.
+ *
+ * A delimiter pair wrapping nothing is left as written: `$$$$` would itself
+ * open a fence that never closes.
+ */
+function emitDisplayMath(
+  match: string,
+  body: string,
+  offset: number,
+  source: string,
+  precededBy: string,
+  followedBy: string,
+): string {
+  const trimmed = body.trim();
+  if (trimmed === "") return match;
+  if (!trimmed.includes("\n")) return `$$${trimmed}$$`;
+
+  const before = offset === 0 ? precededBy : source[offset - 1]!;
+  const afterStart = offset + match.length;
+  const after = afterStart === source.length ? followedBy : source[afterStart]!;
+  const lead = before === "" || before === "\n" ? "" : "\n";
+  const tail = after === "" || after === "\n" ? "" : "\n";
+  return `${lead}$$\n${trimmed}\n$$${tail}`;
+}
+
+/**
  * Rewrites LaTeX bracket delimiters to dollar delimiters: `\(...\)` becomes
- * `$...$` (inline) and `\[...\]` becomes `$$...$$` (display). A single or double
- * leading backslash is accepted, since models emit both depending on escaping.
+ * `$...$` (inline) and `\[...\]` becomes `$$...$$` (display, fenced when the
+ * body spans lines — see {@link emitDisplayMath}). A single or double leading
+ * backslash is accepted, since models emit both depending on escaping.
  * remark-math only recognizes the dollar form, so without this rewrite bracket
  * math renders as plain text.
- *
- * A display body spanning lines is emitted fenced, on lines the `$$` markers own.
- * remark-math parses multiline `$$` as a flow construct: the opening marker has to
- * start a line and the closing marker to end one, and it reads whatever else shares
- * those lines as fence metadata rather than as math.
- *
- * A pair wrapping nothing is left as written: `$$$$` would itself open a fence that
- * never closes.
  */
 export function rewriteLatexBracketDelimiters(text: string): string {
   return rewriteOutsideCode(text, (segment, precededBy, followedBy) =>
@@ -134,19 +158,8 @@ export function rewriteLatexBracketDelimiters(text: string): string {
       })
       .replace(
         LATEX_DISPLAY_DELIMITER,
-        (match: string, body: string, offset: number, source: string) => {
-          const trimmed = body.trim();
-          if (trimmed === "") return match;
-          if (!trimmed.includes("\n")) return `$$${trimmed}$$`;
-
-          const before = offset === 0 ? precededBy : source[offset - 1]!;
-          const afterStart = offset + match.length;
-          const after =
-            afterStart === source.length ? followedBy : source[afterStart]!;
-          const lead = before === "" || before === "\n" ? "" : "\n";
-          const tail = after === "" || after === "\n" ? "" : "\n";
-          return `${lead}$$\n${trimmed}\n$$${tail}`;
-        },
+        (match: string, body: string, offset: number, source: string) =>
+          emitDisplayMath(match, body, offset, source, precededBy, followedBy),
       ),
   );
 }
@@ -156,12 +169,17 @@ const INLINE_TAG = /\[\/inline\]([\s\S]*?)\[\/inline\]/g;
 
 /**
  * Rewrites the custom math tags some models emit to dollar delimiters:
- * `[/math]...[/math]` becomes `$$...$$` and `[/inline]...[/inline]` becomes `$...$`.
+ * `[/math]...[/math]` becomes `$$...$$` (fenced when the body spans lines — see
+ * {@link emitDisplayMath}) and `[/inline]...[/inline]` becomes `$...$`.
  */
 export function rewriteCustomMathTags(text: string): string {
-  return rewriteOutsideCode(text, (segment) =>
+  return rewriteOutsideCode(text, (segment, precededBy, followedBy) =>
     segment
-      .replace(MATH_TAG, (_, body: string) => `$$${body.trim()}$$`)
+      .replace(
+        MATH_TAG,
+        (match: string, body: string, offset: number, source: string) =>
+          emitDisplayMath(match, body, offset, source, precededBy, followedBy),
+      )
       .replace(INLINE_TAG, (_, body: string) => `$${body.trim()}$`),
   );
 }
