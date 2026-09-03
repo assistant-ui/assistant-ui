@@ -21,6 +21,9 @@ export interface ConversationMapEntry {
 
 const TICK = '[data-slot="conversation-map-tick"]';
 
+/** Matches the marker's `h-[3px]`, to centre it on the tick it marks. */
+const MARKER_HEIGHT = 3;
+
 export function ConversationMap({
   entries,
   activeId,
@@ -79,41 +82,43 @@ export function ConversationMap({
       ref={railRef}
       aria-label="Conversation map"
       onKeyDown={handleKeyDown}
-      className={cn("flex h-full w-6 flex-col justify-center", className)}
+      className={cn("relative flex h-full w-6 flex-col", className)}
       {...props}
     >
-      {entries.map((entry, index) => {
-        const active = index === activeIndex;
-        return (
-          <PreviewCard.Trigger
-            key={entry.id}
-            handle={handle}
-            payload={entry}
-            delay={120}
-            closeDelay={80}
-            render={<button type="button" />}
-            data-slot="conversation-map-tick"
-            aria-label={entry.title}
-            aria-current={active ? "true" : undefined}
-            tabIndex={index === tabbableIndex ? 0 : -1}
-            onFocus={() => setFocusedIndex(index)}
-            onClick={() => onSelect?.(entry.id)}
-            className="group flex min-h-0 flex-1 items-center outline-none"
-          >
-            <span
-              className={cn(
-                "rounded-full transition-[width,height,background-color] duration-200 ease-[cubic-bezier(0.23,1,0.32,1)] motion-reduce:transition-none",
-                active
-                  ? "bg-foreground/90 h-[3px] w-5"
-                  : cn(
-                      "bg-foreground/20 group-hover:bg-foreground/50 group-focus-visible:bg-foreground/50 h-px",
-                      entry.role === "user" ? "w-2" : "w-3.5",
-                    ),
-              )}
-            />
-          </PreviewCard.Trigger>
-        );
-      })}
+      {activeIndex !== -1 && (
+        <span
+          data-slot="conversation-map-marker"
+          style={{
+            top: `calc(${((activeIndex + 0.5) / entries.length) * 100}% - ${MARKER_HEIGHT / 2}px)`,
+          }}
+          className="bg-foreground/90 pointer-events-none absolute left-0 h-[3px] w-5 rounded-full transition-[top] duration-300 ease-[cubic-bezier(0.23,1,0.32,1)] motion-reduce:transition-none"
+        />
+      )}
+
+      {entries.map((entry, index) => (
+        <PreviewCard.Trigger
+          key={entry.id}
+          handle={handle}
+          payload={entry}
+          delay={120}
+          closeDelay={80}
+          render={<button type="button" />}
+          data-slot="conversation-map-tick"
+          aria-label={entry.title}
+          aria-current={index === activeIndex ? "true" : undefined}
+          tabIndex={index === tabbableIndex ? 0 : -1}
+          onFocus={() => setFocusedIndex(index)}
+          onClick={() => onSelect?.(entry.id)}
+          className="group flex min-h-0 flex-1 items-center outline-none"
+        >
+          <span
+            className={cn(
+              "bg-foreground/20 group-hover:bg-foreground/50 group-focus-visible:bg-foreground/50 h-px rounded-full transition-colors duration-200 motion-reduce:transition-none",
+              entry.role === "user" ? "w-2" : "w-3.5",
+            )}
+          />
+        </PreviewCard.Trigger>
+      ))}
 
       <PreviewCard.Root handle={handle}>
         {({ payload }) => (

@@ -29,6 +29,36 @@ describe("ConversationMap", () => {
     ]);
   });
 
+  const marker = () =>
+    document.querySelector<HTMLElement>(
+      '[data-slot="conversation-map-marker"]',
+    );
+
+  it("centres one marker on the active tick", () => {
+    render(<ConversationMap entries={ENTRIES} activeId="m2" />);
+
+    expect(marker()?.style.top).toBe("calc(50% - 1.5px)");
+  });
+
+  it("moves the same marker rather than restyling each tick", () => {
+    const { rerender } = render(
+      <ConversationMap entries={ENTRIES} activeId="m1" />,
+    );
+    const first = marker();
+    const firstTop = first?.style.top;
+
+    rerender(<ConversationMap entries={ENTRIES} activeId="m3" />);
+
+    expect(marker()).toBe(first);
+    expect(marker()?.style.top).not.toBe(firstTop);
+  });
+
+  it("hides the marker when nothing is active", () => {
+    render(<ConversationMap entries={ENTRIES} />);
+
+    expect(marker()).toBeNull();
+  });
+
   it("marks only the active entry as current", () => {
     render(<ConversationMap entries={ENTRIES} activeId="m2" />);
 

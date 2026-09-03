@@ -22,10 +22,27 @@ vi.mock("@assistant-ui/react", async (importOriginal) => ({
 const rect = (top: number, height: number) =>
   ({ top, height, bottom: top + height }) as DOMRect;
 
-/** A stand-in for `ThreadPrimitive.Viewport` and the message roots it renders. */
-const mountViewport = (tops: Record<string, number>) => {
+const VIEWPORT_HEIGHT = 300;
+
+/**
+ * A stand-in for `ThreadPrimitive.Viewport` and the message roots it renders.
+ * `scrollHeight` defaults to a thread far longer than one screen, so the
+ * reading line sits at the top unless a test scrolls into the last screenful.
+ */
+const mountViewport = (
+  tops: Record<string, number>,
+  scrollHeight = VIEWPORT_HEIGHT * 4,
+) => {
   const viewport = document.createElement("div");
-  viewport.getBoundingClientRect = () => rect(0, 300);
+  viewport.getBoundingClientRect = () => rect(0, VIEWPORT_HEIGHT);
+  Object.defineProperty(viewport, "clientHeight", {
+    configurable: true,
+    value: VIEWPORT_HEIGHT,
+  });
+  Object.defineProperty(viewport, "scrollHeight", {
+    configurable: true,
+    value: scrollHeight,
+  });
   viewport.scrollTop = 0;
   viewport.scrollTo = vi.fn();
 
@@ -273,6 +290,69 @@ describe("ConversationMapAui", () => {
     });
 
     expect(ticks()[1]?.getAttribute("aria-current")).toBe("true");
+  });
+
+  it("reaches the last message when the thread is scrolled to the end", async () => {
+    mocks.state.thread.messages = [
+      { id: "m1", role: "user", content: [{ type: "text", text: "first" }] },
+      {
+        id: "m2",
+        role: "assistant",
+        content: [{ type: "text", text: "second" }],
+      },
+      { id: "m3", role: "user", content: [{ type: "text", text: "third" }] },
+      {
+        id: "m4",
+        role: "assistant",
+        content: [{ type: "text", text: "fourth" }],
+      },
+    ];
+    // The last two never reach the top of the viewport, whatever the scroll.
+    const viewport = mountViewport(
+      { m1: -200, m2: -50, m3: 100, m4: 250 },
+      VIEWPORT_HEIGHT * 2,
+    );
+    viewport.scrollTop = VIEWPORT_HEIGHT;
+
+    await renderMap();
+
+    expect(ticks().map((tick) => tick.getAttribute("aria-current"))).toEqual([
+      null,
+      null,
+      null,
+      "true",
+    ]);
+  });
+
+  it("sweeps the last screenful instead of stalling on one tick", async () => {
+    mocks.state.thread.messages = [
+      { id: "m1", role: "user", content: [{ type: "text", text: "first" }] },
+      {
+        id: "m2",
+        role: "assistant",
+        content: [{ type: "text", text: "second" }],
+      },
+      { id: "m3", role: "user", content: [{ type: "text", text: "third" }] },
+      {
+        id: "m4",
+        role: "assistant",
+        content: [{ type: "text", text: "fourth" }],
+      },
+    ];
+    const viewport = mountViewport(
+      { m1: -200, m2: -50, m3: 100, m4: 250 },
+      VIEWPORT_HEIGHT * 2,
+    );
+    viewport.scrollTop = VIEWPORT_HEIGHT / 2;
+
+    await renderMap();
+
+    expect(ticks().map((tick) => tick.getAttribute("aria-current"))).toEqual([
+      null,
+      null,
+      "true",
+      null,
+    ]);
   });
 
   it("renders the rail unmarked before the viewport is registered", async () => {
