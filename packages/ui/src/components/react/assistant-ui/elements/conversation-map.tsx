@@ -27,6 +27,7 @@ export function ConversationMap({
   onSelect,
   side = "right",
   className,
+  onKeyDown,
   ...props
 }: Omit<ComponentProps<"nav">, "children" | "onSelect"> & {
   entries: readonly ConversationMapEntry[];
@@ -38,28 +39,39 @@ export function ConversationMap({
   const [handle] = useState(() =>
     PreviewCard.createHandle<ConversationMapEntry>(),
   );
+  const [focusedIndex, setFocusedIndex] = useState<number | null>(null);
 
   const activeIndex = entries.findIndex((entry) => entry.id === activeId);
-  const tabbableIndex = activeIndex === -1 ? 0 : activeIndex;
+  const tabbableIndex = clamp(
+    focusedIndex ?? (activeIndex === -1 ? 0 : activeIndex),
+    0,
+    Math.max(0, entries.length - 1),
+  );
 
-  const handleKeyDown = useCallback((event: KeyboardEvent<HTMLElement>) => {
-    const ticks = railRef.current?.querySelectorAll<HTMLElement>(TICK);
-    if (!ticks?.length) return;
+  const handleKeyDown = useCallback(
+    (event: KeyboardEvent<HTMLElement>) => {
+      onKeyDown?.(event);
+      if (event.defaultPrevented) return;
 
-    const current = Array.prototype.indexOf.call(ticks, event.target);
-    if (current === -1) return;
+      const ticks = railRef.current?.querySelectorAll<HTMLElement>(TICK);
+      if (!ticks?.length) return;
 
-    const next = {
-      ArrowUp: current - 1,
-      ArrowDown: current + 1,
-      Home: 0,
-      End: ticks.length - 1,
-    }[event.key];
-    if (next === undefined) return;
+      const current = Array.prototype.indexOf.call(ticks, event.target);
+      if (current === -1) return;
 
-    event.preventDefault();
-    ticks[clamp(next, 0, ticks.length - 1)]?.focus();
-  }, []);
+      const next = {
+        ArrowUp: current - 1,
+        ArrowDown: current + 1,
+        Home: 0,
+        End: ticks.length - 1,
+      }[event.key];
+      if (next === undefined) return;
+
+      event.preventDefault();
+      ticks[clamp(next, 0, ticks.length - 1)]?.focus();
+    },
+    [onKeyDown],
+  );
 
   return (
     <nav
@@ -84,6 +96,7 @@ export function ConversationMap({
             aria-label={entry.title}
             aria-current={active ? "true" : undefined}
             tabIndex={index === tabbableIndex ? 0 : -1}
+            onFocus={() => setFocusedIndex(index)}
             onClick={() => onSelect?.(entry.id)}
             className="group flex min-h-0 flex-1 items-center outline-none"
           >

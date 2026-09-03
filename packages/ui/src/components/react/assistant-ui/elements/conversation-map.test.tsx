@@ -75,6 +75,29 @@ describe("ConversationMap", () => {
     expect(document.activeElement).toBe(first);
   });
 
+  it("moves the tab stop to the tick the keyboard reached", () => {
+    render(<ConversationMap entries={ENTRIES} activeId="m1" />);
+    const [first, second] = ticks();
+
+    first!.focus();
+    fireEvent.keyDown(first!, { key: "ArrowDown" });
+    fireEvent.focus(second!);
+
+    expect(ticks().map((tick) => tick.tabIndex)).toEqual([-1, 0, -1]);
+  });
+
+  it("keeps a consumer's key handler and its own", () => {
+    const onKeyDown = vi.fn();
+    render(<ConversationMap entries={ENTRIES} onKeyDown={onKeyDown} />);
+    const [first, second] = ticks();
+
+    first!.focus();
+    fireEvent.keyDown(first!, { key: "ArrowDown" });
+
+    expect(onKeyDown).toHaveBeenCalled();
+    expect(document.activeElement).toBe(second);
+  });
+
   it("stops at the ends of the rail", () => {
     render(<ConversationMap entries={ENTRIES} />);
     const [first] = ticks();
