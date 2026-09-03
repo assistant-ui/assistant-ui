@@ -1,6 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { CloudChatCore } from "../../core/CloudChatCore";
-import { automaticTitleGenerator } from "../../threads/automaticTitleGeneration";
 
 const { persistMock, MessagePersistenceMock } = vi.hoisted(() => {
   const persist = vi.fn<(...args: unknown[]) => Promise<void>>();
@@ -25,20 +24,16 @@ vi.mock("../../chat/MessagePersistence", () => ({
 
 function createCore() {
   const generateTitle = vi.fn().mockResolvedValue("Generated title");
-  const generateAutomaticTitle = vi.fn().mockResolvedValue("Generated title");
 
   const refs = {
-    threads: {
-      generateTitle,
-      [automaticTitleGenerator]: generateAutomaticTitle,
-    } as never,
+    threads: { generateTitle } as never,
     chatConfig: {} as never,
     callbacks: {} as never,
     onSyncError: undefined,
   };
 
   const core = new CloudChatCore({} as never, refs, {} as never);
-  return { core, generateTitle, generateAutomaticTitle };
+  return { core, generateTitle };
 }
 
 function mockRegistry(threadId: string, messages: unknown[]) {
@@ -57,7 +52,7 @@ describe("Contract: Title policy", () => {
   });
 
   it("generates title exactly once for a newly created thread", async () => {
-    const { core, generateTitle, generateAutomaticTitle } = createCore();
+    const { core, generateTitle } = createCore();
 
     const registry = mockRegistry("thread-1", [
       { id: "m-1", role: "assistant" },
@@ -69,14 +64,15 @@ describe("Contract: Title policy", () => {
     await core.persistChatMessages("chat-1", registry);
     await core.persistChatMessages("chat-1", registry);
 
-    expect(generateAutomaticTitle).toHaveBeenCalledTimes(1);
-    expect(generateAutomaticTitle).toHaveBeenCalledWith("thread-1");
-    expect(generateTitle).not.toHaveBeenCalled();
+    expect(generateTitle).toHaveBeenCalledTimes(1);
+    expect(generateTitle).toHaveBeenCalledWith("thread-1", {
+      automatic: true,
+    });
   });
 
   it("retries title generation after a failed attempt", async () => {
-    const { core, generateAutomaticTitle } = createCore();
-    generateAutomaticTitle
+    const { core, generateTitle } = createCore();
+    generateTitle
       .mockResolvedValueOnce(null)
       .mockResolvedValueOnce("Recovered title");
 
@@ -90,18 +86,22 @@ describe("Contract: Title policy", () => {
     await core.persistChatMessages("chat-1", registry);
     await core.persistChatMessages("chat-1", registry);
 
-    expect(generateAutomaticTitle).toHaveBeenCalledTimes(2);
-    expect(generateAutomaticTitle).toHaveBeenNthCalledWith(1, "thread-1");
-    expect(generateAutomaticTitle).toHaveBeenNthCalledWith(2, "thread-1");
+    expect(generateTitle).toHaveBeenCalledTimes(2);
+    expect(generateTitle).toHaveBeenNthCalledWith(1, "thread-1", {
+      automatic: true,
+    });
+    expect(generateTitle).toHaveBeenNthCalledWith(2, "thread-1", {
+      automatic: true,
+    });
   });
 
   it("does not duplicate title generation while an attempt is pending", async () => {
-    const { core, generateAutomaticTitle } = createCore();
+    const { core, generateTitle } = createCore();
     let resolveTitle!: (title: string) => void;
     const pendingTitle = new Promise<string>((resolve) => {
       resolveTitle = resolve;
     });
-    generateAutomaticTitle.mockReturnValue(pendingTitle);
+    generateTitle.mockReturnValue(pendingTitle);
 
     const registry = mockRegistry("thread-1", [
       { id: "m-1", role: "assistant" },
@@ -112,18 +112,18 @@ describe("Contract: Title policy", () => {
     await core.persistChatMessages("chat-1", registry);
     await core.persistChatMessages("chat-1", registry);
 
-    expect(generateAutomaticTitle).toHaveBeenCalledTimes(1);
+    expect(generateTitle).toHaveBeenCalledTimes(1);
 
     resolveTitle("Generated title");
     await pendingTitle;
     await core.persistChatMessages("chat-1", registry);
 
-    expect(generateAutomaticTitle).toHaveBeenCalledTimes(1);
+    expect(generateTitle).toHaveBeenCalledTimes(1);
   });
 
   it("retries title generation after a rejected attempt", async () => {
-    const { core, generateAutomaticTitle } = createCore();
-    generateAutomaticTitle
+    const { core, generateTitle } = createCore();
+    generateTitle
       .mockRejectedValueOnce(new Error("title generation failed"))
       .mockResolvedValueOnce("Recovered title");
 
@@ -136,12 +136,12 @@ describe("Contract: Title policy", () => {
     await core.persistChatMessages("chat-1", registry);
     await core.persistChatMessages("chat-1", registry);
 
-    expect(generateAutomaticTitle).toHaveBeenCalledTimes(2);
+    expect(generateTitle).toHaveBeenCalledTimes(2);
   });
 
   it("gives up after repeated failed title generation attempts", async () => {
-    const { core, generateAutomaticTitle } = createCore();
-    generateAutomaticTitle.mockResolvedValue(null);
+    const { core, generateTitle } = createCore();
+    generateTitle.mockResolvedValue(null);
 
     const registry = mockRegistry("thread-1", [
       { id: "m-1", role: "assistant" },
@@ -154,11 +154,11 @@ describe("Contract: Title policy", () => {
     await core.persistChatMessages("chat-1", registry);
     await core.persistChatMessages("chat-1", registry);
 
-    expect(generateAutomaticTitle).toHaveBeenCalledTimes(3);
+    expect(generateTitle).toHaveBeenCalledTimes(3);
   });
 
   it("does not generate title for threads not marked as new", async () => {
-    const { core, generateAutomaticTitle } = createCore();
+    const { core, generateTitle } = createCore();
 
     const registry = mockRegistry("thread-1", [
       { id: "m-1", role: "assistant" },
@@ -167,18 +167,18 @@ describe("Contract: Title policy", () => {
     // Do NOT call markNewThread
     await core.persistChatMessages("chat-1", registry);
 
-    expect(generateAutomaticTitle).not.toHaveBeenCalled();
+    expect(generateTitle).not.toHaveBeenCalled();
   });
 
   it("does not generate title without assistant messages", async () => {
-    const { core, generateAutomaticTitle } = createCore();
+    const { core, generateTitle } = createCore();
 
     const registry = mockRegistry("thread-1", [{ id: "m-1", role: "user" }]);
 
     core.titlePolicy.markNewThread("thread-1");
     await core.persistChatMessages("chat-1", registry);
 
-    expect(generateAutomaticTitle).not.toHaveBeenCalled();
+    expect(generateTitle).not.toHaveBeenCalled();
   });
 
   it("shouldGenerateTitle returns correct boolean", () => {

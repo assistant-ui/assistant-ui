@@ -12,7 +12,6 @@ import type {
   UseThreadsOptions,
   UseThreadsResult,
 } from "../types";
-import { automaticTitleGenerator } from "./automaticTitleGeneration";
 import { generateThreadTitle } from "./generateThreadTitle";
 
 function toCloudThread(t: {
@@ -464,7 +463,7 @@ export function useThreads(options: UseThreadsOptions): UseThreadsResult {
       if (!automatic) state.manualTitle = undefined;
 
       const generation: ThreadTitleGeneration = {
-        claim: state.pendingClaim,
+        claim: automatic ? state.pendingClaim : null,
       };
       state.generations.add(generation);
 
@@ -526,11 +525,8 @@ export function useThreads(options: UseThreadsOptions): UseThreadsResult {
   );
 
   const generateTitle = useCallback(
-    (tid: string) => generateTitleWithPolicy(tid, false),
-    [generateTitleWithPolicy],
-  );
-  const generateAutomaticTitle = useCallback(
-    (tid: string) => generateTitleWithPolicy(tid, true),
+    (tid: string, options?: { automatic?: boolean }) =>
+      generateTitleWithPolicy(tid, options?.automatic ?? false),
     [generateTitleWithPolicy],
   );
 
@@ -549,6 +545,5 @@ export function useThreads(options: UseThreadsOptions): UseThreadsResult {
     threadId,
     selectThread,
     generateTitle,
-    [automaticTitleGenerator]: generateAutomaticTitle,
-  } as UseThreadsResult;
+  };
 }

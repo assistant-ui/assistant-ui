@@ -7,7 +7,6 @@ import type { ChatRegistry } from "../chat/ChatRegistry";
 import { MessagePersistence } from "../chat/MessagePersistence";
 import { ThreadSessionManager } from "./ThreadSessionManager";
 import { TitlePolicy } from "./TitlePolicy";
-import { generateAutomaticThreadTitle } from "../threads/automaticTitleGeneration";
 import {
   CloudTelemetryReporter,
   type TelemetryFinishEvent,
@@ -120,18 +119,20 @@ export class CloudChatCore {
 
     if (this.titlePolicy.shouldGenerateTitle(threadId, messages)) {
       this.titlePolicy.markTitleGenerationStarted(threadId);
-      void generateAutomaticThreadTitle(this.options.threads, threadId).then(
-        (title) => {
-          if (title) {
-            this.titlePolicy.markTitleGenerated(threadId);
-          } else {
+      void this.options.threads
+        .generateTitle(threadId, { automatic: true })
+        .then(
+          (title) => {
+            if (title) {
+              this.titlePolicy.markTitleGenerated(threadId);
+            } else {
+              this.titlePolicy.markTitleGenerationFailed(threadId);
+            }
+          },
+          () => {
             this.titlePolicy.markTitleGenerationFailed(threadId);
-          }
-        },
-        () => {
-          this.titlePolicy.markTitleGenerationFailed(threadId);
-        },
-      );
+          },
+        );
     }
   }
 

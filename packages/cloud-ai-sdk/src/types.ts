@@ -35,7 +35,10 @@ export type UseThreadsResult = {
   unarchive: (id: string) => Promise<boolean>;
   threadId: string | null;
   selectThread: (id: string | null) => void;
-  generateTitle: (threadId: string) => Promise<string | null>;
+  generateTitle: (
+    threadId: string,
+    options?: { automatic?: boolean },
+  ) => Promise<string | null>;
 };
 
 export type UseCloudChatOptions = ChatInit<UIMessage> & {
