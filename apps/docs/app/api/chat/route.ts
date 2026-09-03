@@ -20,7 +20,7 @@ import {
   streamText,
 } from "ai";
 
-export const maxDuration = 30;
+export const maxDuration = 300;
 
 const aiToolkit = new AISDKToolkit({ toolkit: docsToolkit });
 
