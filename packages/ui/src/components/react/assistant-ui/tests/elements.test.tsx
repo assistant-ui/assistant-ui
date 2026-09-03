@@ -576,6 +576,20 @@ describe.each(Object.entries(CASES))("%s", (name, make) => {
     }
   });
 
+  it.each(HOSTILE)(
+    "announces a %s numeric prop without the float error of deriving it",
+    (_label, n, items) => {
+      const markup = renderToStaticMarkup(make(n, items));
+
+      for (const [, value] of markup.matchAll(/aria-valuenow="([^"]*)"/g)) {
+        expect(
+          value,
+          `${name} announced ${value}, which a screen reader reads out in full`,
+        ).toMatch(/^-?\d+(\.\d)?$/);
+      }
+    },
+  );
+
   it.runIf(COUNT_SHAPED.has(name))(
     "reads an out-of-range count as its nearest end",
     () => {
@@ -792,8 +806,18 @@ describe("state that is carried by more than colour", () => {
     }
 
     const summary = progressbars.at(-1)!;
-    expect(summary.querySelector(".shimmer-bg")).not.toBeNull();
+
     expect(summary.querySelector("[style]")).toBeNull();
+    expect(
+      summary.firstElementChild!.className.split(" "),
+      "shimmer-bg only recolors the sweep the shimmer utility paints, so on its own it renders a transparent, unanimated bar",
+    ).toEqual(
+      expect.arrayContaining([
+        "shimmer",
+        "shimmer-bg",
+        "motion-reduce:animate-none",
+      ]),
+    );
   });
 
   it("exposes completion progress for jobs and read-aloud playback", () => {
@@ -824,9 +848,10 @@ describe("state that is carried by more than colour", () => {
     expect(job.getAttribute("aria-valuenow")).toBe("25");
     expect(accessibleName(playback)).toBe("Read aloud progress");
     expect(playback.getAttribute("aria-valuenow")).toBe("50");
+    expect(playback.getAttribute("aria-valuetext")).toBe("0:02 of 0:04");
   });
 
-  it("exposes scalar values for cost, context, quota, score, retrieval, and thinking bars", () => {
+  it("exposes scalar values for cost, context, quota, score, and retrieval bars", () => {
     const cost = render(
       <CostMeter
         runCost="$0.10"
@@ -890,13 +915,6 @@ describe("state that is carried by more than colour", () => {
         searching={false}
       />,
     ).container.querySelectorAll<HTMLElement>('[role="meter"]');
-    const reasoning = render(
-      <ReasoningEffort
-        levels={[{ key: "high", label: "High", budget: 1000 }]}
-        selectedKey="high"
-        spent={250}
-      />,
-    ).container.querySelector<HTMLElement>('[role="meter"]')!;
 
     expect(
       [...cost].map((meter) => meter.getAttribute("aria-valuenow")),
@@ -912,21 +930,108 @@ describe("state that is carried by more than colour", () => {
     expect(
       [...retrieval].map((meter) => meter.getAttribute("aria-valuenow")),
     ).toEqual(["80", "25"]);
-    expect(reasoning.getAttribute("aria-label")).toBe("Thinking budget used");
-    expect(reasoning.getAttribute("aria-valuenow")).toBe("25");
 
-    for (const meter of [
-      ...cost,
-      ...context,
-      quota,
-      ...score,
-      ...retrieval,
-      reasoning,
-    ]) {
+    expect(
+      [...context].map((meter) => meter.getAttribute("aria-valuetext")),
+      "the percentage is the painted share; the tokens are what the card prints",
+    ).toEqual(["25 of 100", "50 of 100"]);
+    expect(quota.getAttribute("aria-valuetext")).toBe("25 of 100 runs used");
+    expect(
+      [...score].map((meter) => meter.getAttribute("aria-valuetext")),
+    ).toEqual(["7.0 of 10", "3.0 of 10"]);
+    expect(
+      [...retrieval].map((meter) => meter.getAttribute("aria-valuetext")),
+    ).toEqual(["0.80 of 1.00", "0.25 of 1.00"]);
+
+    for (const meter of [...cost, ...context, quota, ...score, ...retrieval]) {
       expect(meter.getAttribute("aria-valuemin")).toBe("0");
       expect(meter.getAttribute("aria-valuemax")).toBe("100");
       expect(accessibleName(meter)).not.toBe("");
     }
+  });
+
+  it("reads a spent thinking budget as progress, in the units it prints", () => {
+    const reasoning = render(
+      <ReasoningEffort
+        levels={[{ key: "high", label: "High", budget: 1000 }]}
+        selectedKey="high"
+        spent={250}
+      />,
+    ).container.querySelector<HTMLElement>('[role="progressbar"]')!;
+
+    expect(accessibleName(reasoning)).toBe("Thinking budget used");
+    expect(reasoning.getAttribute("aria-valuenow")).toBe("25");
+    expect(reasoning.getAttribute("aria-valuetext")).toBe("250 of 1,000");
+  });
+
+  it.each([
+    "job-progress",
+    "quota-banner",
+    "read-aloud",
+    "reasoning-effort",
+    "retrieval-chunks",
+    "score-breakdown",
+    "subagent-list",
+  ])("%s carries its value on the track, not on the fill", (name) => {
+    const { container } = render(CASES[name]!(2, 3));
+    const bars = [
+      ...container.querySelectorAll<HTMLElement>(
+        '[role="progressbar"], [role="meter"]',
+      ),
+    ];
+
+    expect(bars.length).toBeGreaterThan(0);
+    for (const bar of bars) {
+      expect(
+        bar.style.width,
+        `${name} valued the fill, which collapses to nothing at zero, instead of the track it sits in`,
+      ).toBe("");
+    }
+  });
+
+  it("leaves a slice that paints nothing out of the accessibility tree", () => {
+    const context = render(
+      <ContextBreakdown
+        segments={[
+          { label: "system", tokens: 0, tint: "bg-blue-500" },
+          { label: "messages", tokens: 50, tint: "bg-emerald-500" },
+        ]}
+        limit={100}
+      />,
+    ).container;
+    const cost = render(
+      <CostMeter
+        runCost="$0.10"
+        sessionCost="$1.00"
+        lines={[
+          {
+            model: "alpha",
+            inputTokens: 0,
+            outputTokens: 0,
+            cost: "$0.00",
+            share: 0,
+          },
+          {
+            model: "beta",
+            inputTokens: 10,
+            outputTokens: 10,
+            cost: "$0.10",
+            share: 1,
+          },
+        ]}
+      />,
+    ).container;
+
+    expect(
+      [...context.querySelectorAll<HTMLElement>('[role="meter"]')].map(
+        accessibleName,
+      ),
+    ).toEqual(["messages context usage"]);
+    expect(
+      [...cost.querySelectorAll<HTMLElement>('[role="meter"]')].map(
+        accessibleName,
+      ),
+    ).toEqual(["beta cost share"]);
   });
 
   it("describes each trace interval instead of exposing it as progress", () => {

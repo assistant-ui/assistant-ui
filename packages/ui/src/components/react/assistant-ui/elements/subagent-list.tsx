@@ -112,7 +112,7 @@ export function SubagentList({
             aria-valuemax={100}
             className="bg-foreground/[0.06] h-[3px] w-full overflow-hidden rounded-full"
           >
-            <span className="shimmer-bg block h-full w-full rounded-full" />
+            <span className="shimmer shimmer-bg block h-full w-full rounded-full motion-reduce:animate-none" />
           </span>
         </div>
       )}
