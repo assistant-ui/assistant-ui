@@ -175,6 +175,9 @@ describe("rewriteCustomMathTags", () => {
 
   it("leaves an empty math tag pair as written", () => {
     expect(rewriteCustomMathTags("[/math][/math]")).toBe("[/math][/math]");
+    expect(rewriteCustomMathTags("[/inline][/inline] rest")).toBe(
+      "[/inline][/inline] rest",
+    );
   });
 });
 
