@@ -40,7 +40,7 @@ describe("rewriteLatexBracketDelimiters", () => {
     );
   });
 
-  it("gives the fence markers their own lines inside a list item", () => {
+  it("lifts a multiline display body out of its list item", () => {
     expect(rewriteLatexBracketDelimiters("- item \\[\na\nb\n\\]\n- next")).toBe(
       "- item \n$$\na\nb\n$$\n- next",
     );
