@@ -337,6 +337,17 @@ is_exempt_copy() {
     esac
 }
 
+# A copy is only redundant where a tsconfig alias actually resolves the
+# canonical file. A project that never points at packages/ui (apps/social-media,
+# templates/minimal) has nothing to fall back on, so its file is a real
+# dependency and --write must not delete it.
+in_scope_project() {
+    local rel="$1" tail name
+    tail="${rel#*/}"
+    name="${tail%%/*}"
+    grep -q "packages/ui" "$ROOT_DIR/${rel%%/*}/$name/tsconfig.json" 2>/dev/null
+}
+
 # Both sides come from the index rather than a filesystem walk, so build
 # output never enters the comparison: apps/docs/generated/.repo-source alone
 # holds a copy of every tracked file in the repo once the docs have been built.
@@ -349,6 +360,7 @@ while IFS= read -r rel; do
     *) continue ;;
     esac
     is_exempt_copy "$rel" && continue
+    in_scope_project "$rel" || continue
 
     while IFS= read -r src_rel; do
         if cmp -s "$ROOT_DIR/$src_rel" "$ROOT_DIR/$rel"; then
