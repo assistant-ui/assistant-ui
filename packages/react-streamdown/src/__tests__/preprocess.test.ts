@@ -40,9 +40,35 @@ describe("rewriteLatexBracketDelimiters", () => {
     );
   });
 
-  it("lifts a multiline display body out of its list item", () => {
+  it("keeps an indented display body nested in its list item", () => {
+    expect(
+      rewriteLatexBracketDelimiters(
+        "1. Expand:\n   \\[\n   a = b\n   c = d\n   \\]",
+      ),
+    ).toBe("1. Expand:\n   $$\n   a = b\n   c = d\n   $$");
+  });
+
+  it("keeps a prefixed display body nested in its blockquote", () => {
+    expect(rewriteLatexBracketDelimiters("> Expand \\[\n> a\n> b\n> \\]")).toBe(
+      "> Expand \n> $$\n> a\n> b\n> $$",
+    );
+  });
+
+  it("keeps text after the closing delimiter off the fence line", () => {
+    expect(
+      rewriteLatexBracketDelimiters("1. x:\n   \\[\n   a\n   b\n   \\] done"),
+    ).toBe("1. x:\n   $$\n   a\n   b\n   $$\n done");
+  });
+
+  it("lifts an unprefixed multiline display body out of its list item", () => {
     expect(rewriteLatexBracketDelimiters("- item \\[\na\nb\n\\]\n- next")).toBe(
       "- item \n$$\na\nb\n$$\n- next",
+    );
+  });
+
+  it("lifts a body whose lines do not share the closing prefix", () => {
+    expect(rewriteLatexBracketDelimiters("> Expand \\[\na\n> b\n> \\]")).toBe(
+      "> Expand \n$$\na\n> b\n>\n$$",
     );
   });
 
@@ -178,6 +204,12 @@ describe("rewriteCustomMathTags", () => {
     expect(rewriteCustomMathTags("[/inline][/inline] rest")).toBe(
       "[/inline][/inline] rest",
     );
+  });
+
+  it("keeps an indented math tag body nested in its list item", () => {
+    expect(
+      rewriteCustomMathTags("1. Expand:\n   [/math]\n   a\n   b\n   [/math]"),
+    ).toBe("1. Expand:\n   $$\n   a\n   b\n   $$");
   });
 });
 

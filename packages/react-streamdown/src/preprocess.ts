@@ -110,6 +110,48 @@ function rewriteOutsideCode(
   return out;
 }
 
+const CONTAINER_PREFIX = /^[ \t>]*$/;
+
+/**
+ * Fenced emission for a display body written inside a markdown container (a
+ * list item or blockquote): when the closing delimiter sits on its own line
+ * behind a container prefix that every body line shares, the `$$` markers and
+ * body keep that prefix, so the block stays nested where the source put it
+ * instead of landing at the root column after the container. Returns null when
+ * the source carries no such prefix.
+ */
+function emitNestedDisplayMath(
+  body: string,
+  offset: number,
+  source: string,
+  precededBy: string,
+  tail: string,
+): string | null {
+  const firstNewline = body.indexOf("\n");
+  const lastNewline = body.lastIndexOf("\n");
+  if (body.slice(0, firstNewline).trim() !== "") return null;
+  const closingPrefix = body.slice(lastNewline + 1);
+  if (closingPrefix === "" || !CONTAINER_PREFIX.test(closingPrefix))
+    return null;
+
+  const middle = body.slice(firstNewline + 1, lastNewline);
+  if (middle === "") return null;
+  if (!middle.split("\n").every((line) => line.startsWith(closingPrefix)))
+    return null;
+
+  let lineStart = offset;
+  while (lineStart > 0 && source[lineStart - 1] !== "\n") lineStart--;
+  if (lineStart === 0 && precededBy !== "" && precededBy !== "\n") return null;
+  const beforeOnLine = source.slice(lineStart, offset);
+
+  let lead: string;
+  if (CONTAINER_PREFIX.test(beforeOnLine)) lead = "";
+  else if (beforeOnLine.startsWith(closingPrefix)) lead = `\n${closingPrefix}`;
+  else return null;
+
+  return `${lead}$$\n${middle}\n${closingPrefix}$$${tail}`;
+}
+
 /**
  * Emits a display-math body in the `$$` form remark-math parses: `$$body$$` on
  * one span for a single-line body, and for a body spanning lines the fenced
@@ -118,8 +160,10 @@ function rewriteOutsideCode(
  * to end one, and it reads whatever else shares those lines as fence metadata
  * rather than as math.
  *
- * A delimiter pair wrapping nothing is left as written: `$$$$` would itself
- * open a fence that never closes.
+ * A body written behind a markdown container prefix keeps it (see
+ * {@link emitNestedDisplayMath}); otherwise the fence is emitted at the root
+ * column. A delimiter pair wrapping nothing is left as written: `$$$$` would
+ * itself open a fence that never closes.
  */
 function emitDisplayMath(
   match: string,
@@ -133,11 +177,15 @@ function emitDisplayMath(
   if (trimmed === "") return match;
   if (!trimmed.includes("\n")) return `$$${trimmed}$$`;
 
-  const before = offset === 0 ? precededBy : source[offset - 1]!;
   const afterStart = offset + match.length;
   const after = afterStart === source.length ? followedBy : source[afterStart]!;
-  const lead = before === "" || before === "\n" ? "" : "\n";
   const tail = after === "" || after === "\n" ? "" : "\n";
+
+  const nested = emitNestedDisplayMath(body, offset, source, precededBy, tail);
+  if (nested !== null) return nested;
+
+  const before = offset === 0 ? precededBy : source[offset - 1]!;
+  const lead = before === "" || before === "\n" ? "" : "\n";
   return `${lead}$$\n${trimmed}\n$$${tail}`;
 }
 
