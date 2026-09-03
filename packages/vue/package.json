@@ -33,9 +33,9 @@
     "test:watch": "vitest"
   },
   "dependencies": {
-    "@assistant-ui/core": "^0.3.16",
-    "@assistant-ui/store": "^0.3.11",
-    "@assistant-ui/tap": "^0.9.15"
+    "@assistant-ui/core": "^0.3.17",
+    "@assistant-ui/store": "^0.3.12",
+    "@assistant-ui/tap": "^0.9.16"
   },
   "peerDependencies": {
     "vue": "^3.5.0"

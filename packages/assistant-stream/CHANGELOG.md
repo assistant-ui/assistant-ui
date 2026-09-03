@@ -1,5 +1,21 @@
 # assistant-stream
 
+## 0.3.41
+
+### Patch Changes
+
+- [#6737](https://github.com/assistant-ui/assistant-ui/pull/6737) [`46fad14`](https://github.com/assistant-ui/assistant-ui/commit/46fad145974a890cd18f7fc2df54e9d0bf36b0fb) - fix: prevent stale Redis producers from finalizing replacement streams ([@Kinfe123](https://github.com/Kinfe123))
+  
+  `RedisLikeClient` now requires a `finalizeIfUnchanged` method; no public API accepts a `RedisLikeClient`, so this only affects code that typed a value against the interface directly.
+
+- [#6656](https://github.com/assistant-ui/assistant-ui/pull/6656) [`f0d0aa2`](https://github.com/assistant-ui/assistant-ui/commit/f0d0aa2f87b9d881f7003bf6132bbb519509b36b) - fix: await cross-realm and thenable tool validation results ([@rupic-app](https://github.com/apps/rupic-app))
+
+- [#6589](https://github.com/assistant-ui/assistant-ui/pull/6589) [`5bdd416`](https://github.com/assistant-ui/assistant-ui/commit/5bdd416af4379a2cc86c12292e06a6e3ce5fcdb9) - fix: preserve valid files with empty payload or MIME values ([@Kinfe123](https://github.com/Kinfe123))
+
+- [#6794](https://github.com/assistant-ui/assistant-ui/pull/6794) [`e53299b`](https://github.com/assistant-ui/assistant-ui/commit/e53299be07fd69bd5d64a2f50bd3561d85dc47cc) - refactor: drop the redis client members the resumable store never calls ([@okisdev](https://github.com/okisdev))
+  
+  `RedisLikeClient` no longer declares `set`, `expire`, `exists` or `xAdd`, `PipelineCommand` no longer has a `"set"` variant, and `NodeRedisLike` no longer requires `expire`, `exists`, `xAdd` or the non-NX `set` overload; no public API accepts a `RedisLikeClient`, so this only affects code that typed a value against the interface directly.
+
 ## 0.3.40
 
 ### Patch Changes

@@ -1,5 +1,19 @@
 # @assistant-ui/react-streamdown
 
+## 0.3.13
+
+### Patch Changes
+
+- [#6732](https://github.com/assistant-ui/assistant-ui/pull/6732) [`8c33c29`](https://github.com/assistant-ui/assistant-ui/commit/8c33c29b87b16af91d4eb0c7804a8e03c70f6d59) - fix: stop bracket-delimited math from swallowing the rest of the message ([@okisdev](https://github.com/okisdev))
+
+- [#6528](https://github.com/assistant-ui/assistant-ui/pull/6528) [`152a35d`](https://github.com/assistant-ui/assistant-ui/commit/152a35daae0e80b5307865e59af683c4ae720794) - chore: update dependencies ([@okisdev](https://github.com/okisdev))
+
+- [#6732](https://github.com/assistant-ui/assistant-ui/pull/6732) [`8c33c29`](https://github.com/assistant-ui/assistant-ui/commit/8c33c29b87b16af91d4eb0c7804a8e03c70f6d59) - fix: keep code spans and fences inert when normalizing math delimiters ([@okisdev](https://github.com/okisdev))
+
+- [#6732](https://github.com/assistant-ui/assistant-ui/pull/6732) [`8c33c29`](https://github.com/assistant-ui/assistant-ui/commit/8c33c29b87b16af91d4eb0c7804a8e03c70f6d59) - fix: stop charging every streamed token a second render pass when `defer` is off ([@okisdev](https://github.com/okisdev))
+- Updated dependencies [[`8c33c29`](https://github.com/assistant-ui/assistant-ui/commit/8c33c29b87b16af91d4eb0c7804a8e03c70f6d59), [`8c33c29`](https://github.com/assistant-ui/assistant-ui/commit/8c33c29b87b16af91d4eb0c7804a8e03c70f6d59), [`8c33c29`](https://github.com/assistant-ui/assistant-ui/commit/8c33c29b87b16af91d4eb0c7804a8e03c70f6d59)]:
+  - @assistant-ui/react-markdown@0.14.14
+
 ## 0.3.12
 
 ### Patch Changes
