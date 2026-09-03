@@ -141,6 +141,7 @@ import {
   AuiReasoningDemo,
   AuiShikiHighlighterDemo,
   AuiSourcesDemo,
+  AuiSourcesVariantsDemo,
   AuiSyntaxHighlighterDemo,
   AuiThreadDemo,
   AuiThreadListDemo,
@@ -1313,6 +1314,11 @@ export const ELEMENT_SECTIONS: ElementSection[] = [
         Component: AuiSourcesDemo,
         variants: [
           { key: "runtime", label: "Runtime", Component: AuiSourcesDemo },
+          {
+            key: "variants",
+            label: "Variants",
+            Component: AuiSourcesVariantsDemo,
+          },
           { key: "static", label: "Static", Component: SourcesDemo },
         ],
       },

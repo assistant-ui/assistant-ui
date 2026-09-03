@@ -1,5 +1,6 @@
 "use client";
 
+import type { ComponentProps } from "react";
 import {
   Source,
   SourceIcon,
@@ -18,7 +19,7 @@ function VariantRow({
   variant,
 }: {
   label: string;
-  variant?: "outline" | "ghost" | "muted";
+  variant?: ComponentProps<typeof Source>["variant"];
 }) {
   return (
     <div className="flex flex-col gap-2">
@@ -41,6 +42,21 @@ export function SourcesSample() {
       <VariantRow label="Outline (default)" />
       <VariantRow label="Ghost" variant="ghost" />
       <VariantRow label="Muted" variant="muted" />
+    </SampleFrame>
+  );
+}
+
+export function SourcesVariantsSample() {
+  return (
+    <SampleFrame className="grid h-auto gap-6 p-6 sm:grid-cols-2">
+      <VariantRow label="Outline (default)" />
+      <VariantRow label="Secondary" variant="secondary" />
+      <VariantRow label="Muted" variant="muted" />
+      <VariantRow label="Ghost" variant="ghost" />
+      <VariantRow label="Info" variant="info" />
+      <VariantRow label="Warning" variant="warning" />
+      <VariantRow label="Success" variant="success" />
+      <VariantRow label="Destructive" variant="destructive" />
     </SampleFrame>
   );
 }
