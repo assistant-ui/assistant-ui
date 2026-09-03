@@ -76,8 +76,11 @@ describe("budgetStatus", () => {
     expect(budgetStatus(budget, { min: 0, gzip: 19_599 })).toBe("under");
   });
 
-  it("reports entries without a budget as new", () => {
+  it("reports entries without a budget or a numeric gzip as new", () => {
     expect(budgetStatus(undefined, { min: 1, gzip: 1 })).toBe("new");
+    expect(budgetStatus(JSON.parse('{"min":100}'), { min: 1, gzip: 1 })).toBe(
+      "new",
+    );
   });
 });
 
