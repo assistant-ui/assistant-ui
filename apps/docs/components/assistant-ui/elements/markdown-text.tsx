@@ -1,25 +1,51 @@
 "use client";
 
 import "@assistant-ui/react-markdown/styles/dot.css";
+import "katex/dist/katex.min.css";
 
 import {
   type CodeHeaderProps,
   MarkdownTextPrimitive,
+  escapeCurrencyDollars,
+  normalizeMathDelimiters,
   unstable_memoizeMarkdownComponents as memoizeMarkdownComponents,
   useIsMarkdownCodeBlock,
 } from "@assistant-ui/react-markdown";
+import rehypeKatex from "rehype-katex";
 import remarkGfm from "remark-gfm";
+import remarkMath from "remark-math";
 import { type FC, memo, useState } from "react";
 import { CheckIcon, CopyIcon } from "lucide-react";
 
+import { MermaidDiagram } from "@/components/assistant-ui/elements/mermaid-diagram.aui";
 import { SyntaxHighlighter } from "@/components/assistant-ui/elements/shiki-highlighter.aui";
 import { TooltipIconButton } from "@/components/assistant-ui/elements/tooltip-icon-button";
 import { cn } from "@/lib/utils";
 
+const remarkPlugins = [remarkGfm, remarkMath];
+const rehypePlugins = [rehypeKatex];
+const componentsByLanguage = {
+  mermaid: { SyntaxHighlighter: MermaidDiagram },
+};
+// remark-math only closes a display block when the closing fence sits on its
+// own line; models often end the last equation line with `$$`, which turns the
+// rest of the reply into one unterminated formula.
+const closeDisplayMathFences = (text: string) =>
+  text.replace(
+    /^\$\$[ \t]*\n((?:(?!^\$\$)[\s\S])*?\S)\$\$[ \t]*$/gm,
+    "$$$$\n$1\n$$$$",
+  );
+
+const preprocessMath = (text: string) =>
+  escapeCurrencyDollars(normalizeMathDelimiters(closeDisplayMathFences(text)));
+
 const MarkdownTextImpl = () => {
   return (
     <MarkdownTextPrimitive
-      remarkPlugins={[remarkGfm]}
+      remarkPlugins={remarkPlugins}
+      rehypePlugins={rehypePlugins}
+      componentsByLanguage={componentsByLanguage}
+      preprocess={preprocessMath}
       className="aui-md"
       components={defaultComponents}
       defer
