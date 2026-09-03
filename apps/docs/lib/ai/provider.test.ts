@@ -26,19 +26,30 @@ describe("resolveChatModel", () => {
     expect(
       resolveChatModel({
         modelName: DEFAULT_MODEL_ID,
-        reasoningEffort: "high",
+        reasoningEffort: "medium",
       }),
     ).toEqual({
       model: { api: "responses", id: DEFAULT_MODEL_ID },
       providerOptions: {
         openai: {
-          reasoningEffort: "high",
+          reasoningEffort: "medium",
           reasoningSummary: "auto",
           store: false,
         },
       },
       reasoning: true,
     });
+  });
+
+  it("clamps the effort a public caller can request to medium", () => {
+    for (const effort of ["high", "xhigh"]) {
+      expect(
+        resolveChatModel({
+          modelName: DEFAULT_MODEL_ID,
+          reasoningEffort: effort,
+        }).providerOptions?.openai.reasoningEffort,
+      ).toBe("medium");
+    }
   });
 
   it("ignores an unknown effort", () => {

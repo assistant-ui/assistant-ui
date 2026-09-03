@@ -1,9 +1,14 @@
 import { createOpenAI } from "@ai-sdk/openai";
 import {
+  REASONING_EFFORTS,
   isReasoningEffort,
   resolveModelId,
   supportsReasoningEffort,
 } from "@/lib/model";
+
+// Both routes behind this resolver are anonymous and rate limited per request,
+// so the effort a caller may buy with one request stops at medium.
+const MAX_PUBLIC_EFFORT_INDEX = REASONING_EFFORTS.indexOf("medium");
 
 export const openai = createOpenAI({
   apiKey: process.env.OPENAI_API_KEY!,
@@ -48,9 +53,18 @@ export function resolveChatModel(config: unknown) {
       ? requestConfig.modelName
       : undefined,
   );
-  const reasoningEffort = isReasoningEffort(requestConfig?.reasoningEffort)
+  const requestedEffort = isReasoningEffort(requestConfig?.reasoningEffort)
     ? requestConfig.reasoningEffort
     : undefined;
+  const reasoningEffort =
+    requestedEffort === undefined
+      ? undefined
+      : REASONING_EFFORTS[
+          Math.min(
+            REASONING_EFFORTS.indexOf(requestedEffort),
+            MAX_PUBLIC_EFFORT_INDEX,
+          )
+        ];
 
   if (reasoningEffort === undefined || !supportsReasoningEffort(id)) {
     return {
