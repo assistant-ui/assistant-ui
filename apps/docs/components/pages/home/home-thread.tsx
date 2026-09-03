@@ -387,7 +387,9 @@ function SidebarThreadGroups({ search }: { search: string }): ReactNode {
         .map((item) => item.id),
     );
     const isPinned = (index: number) => pinnedSet.has(threadIds[index]!);
-    const pinned = filteredIndices.filter(isPinned);
+    const pinned = (
+      groups ? groups.flatMap((group) => group.indices) : filteredIndices
+    ).filter(isPinned);
     const sections = (
       groups ?? [{ label: "Threads", indices: filteredIndices }]
     )
