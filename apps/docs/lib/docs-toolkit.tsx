@@ -14,6 +14,7 @@ import { MapPin, CloudSun, AlertCircle } from "lucide-react";
 import { z } from "zod";
 import {
   defineToolkit,
+  humanTool,
   unstable_interactableTool,
   useAuiState,
   type ToolCallMessagePartComponent,
@@ -26,6 +27,7 @@ import {
 } from "@assistant-ui/react-generative-ui";
 import { ToolErrorCard, ToolStatusCard, ToolTraceCard } from "@/lib/tool-trace";
 import { Notepad } from "@/components/tool-ui/notepad";
+import { SetThemeToolUI } from "@/components/tool-ui/set-theme-card";
 import { styledGenerativeUILibrary } from "@/components/assistant-ui/elements/generative-ui";
 
 const weatherFormatSchema = z.enum(["fahrenheit", "celsius"]);
@@ -206,6 +208,17 @@ export default defineToolkit({
       };
     },
     render: GetWeatherToolUI,
+  },
+  set_theme: {
+    description:
+      "Change the color theme of this page to light, dark, or system. Call it as soon as the user asks to switch the theme; the page asks the user to confirm before the change applies, so never ask for confirmation yourself.",
+    parameters: z.object({
+      theme: z
+        .enum(["light", "dark", "system"])
+        .describe("The color theme to use for this page."),
+    }),
+    execute: humanTool(),
+    render: SetThemeToolUI,
   },
   present: generative.present({ display: "standalone" }),
   notepad: unstable_interactableTool({

@@ -67,6 +67,7 @@ import { Image } from "@/components/assistant-ui/elements/image";
 import { MarkdownText } from "@/components/assistant-ui/elements/markdown-text";
 import { MessageTiming } from "@/components/assistant-ui/elements/message-timing.aui";
 import { ModelSelector } from "@/components/assistant-ui/elements/model-selector.aui";
+import { HomeMemory, SidebarMemory } from "@/components/pages/home/memory";
 import {
   ComposerQuotePreview,
   QuoteBlock,
@@ -112,6 +113,7 @@ import {
   describePublicAssistantError,
   unwrapErrorEnvelope,
 } from "@/lib/public-assistant-errors";
+import { useMemories } from "@/lib/memory-store";
 import { cn } from "@/lib/utils";
 
 const isNewChatView = (s: AssistantState) =>
@@ -200,6 +202,7 @@ export function HomeThread({
       ref={rootRef}
       className="bg-background grid h-full grid-rows-[3rem_minmax(0,1fr)] md:grid-cols-[15rem_minmax(0,1fr)]"
     >
+      <HomeMemory />
       <div className="border-foreground/10 bg-foreground/[0.025] dark:bg-foreground/[0.04] hidden h-12 items-center gap-2 border-r border-b px-4 md:flex">
         <span
           aria-hidden
@@ -299,6 +302,7 @@ function Sidebar({
   onNavigate?: (() => void) | undefined;
 }): ReactNode {
   const context = useMemo(() => ({ onNavigate }), [onNavigate]);
+  const memories = useMemories();
 
   return (
     <SidebarContext.Provider value={context}>
@@ -316,6 +320,7 @@ function Sidebar({
           </button>
         </ThreadListPrimitive.New>
         <SidebarThreads />
+        <SidebarMemory memories={memories} />
       </ThreadListPrimitive.Root>
     </SidebarContext.Provider>
   );
@@ -759,9 +764,8 @@ const SUGGESTIONS = [
       "Use the present tool to show a compact sales dashboard: a Card with two Facts in a Row and a bar Chart of monthly sales.",
   },
   {
-    label: "Draft release notes",
-    prompt:
-      "Draft release notes for a chat SDK release that added voice input and a thread list.",
+    label: "Switch to dark mode",
+    prompt: "Switch this page to dark mode.",
   },
   {
     label: "Derive the geometric series",
@@ -775,6 +779,11 @@ const SUGGESTIONS = [
   {
     label: "Add a thread list",
     prompt: "How do I add a thread list to an assistant-ui app?",
+  },
+  {
+    label: "Remember my stack",
+    prompt:
+      "Remember that I build with Next.js and prefer TypeScript examples.",
   },
 ];
 
@@ -877,13 +886,11 @@ function SpecimenComposer(): ReactNode {
               />
             </div>
             <div className="flex shrink-0 items-center gap-1">
-              <AuiIf condition={(s) => !s.thread.isEmpty}>
-                <ContextDisplay.Text
-                  modelContextWindow={getContextWindow(model)}
-                  side="top"
-                  className="text-muted-foreground hover:text-foreground rounded-control h-8 px-2 text-[11px] hover:bg-transparent"
-                />
-              </AuiIf>
+              <ContextDisplay.Text
+                modelContextWindow={getContextWindow(model)}
+                side="top"
+                className="text-muted-foreground hover:text-foreground rounded-control h-8 px-2 text-[11px] hover:bg-transparent"
+              />
               <AuiIf
                 condition={(s) =>
                   s.thread.capabilities.dictation &&
