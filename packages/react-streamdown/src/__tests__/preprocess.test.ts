@@ -123,6 +123,22 @@ describe("rewriteLatexBracketDelimiters", () => {
     expect(rewriteLatexBracketDelimiters("~~~\n\\(x\\)")).toBe("~~~\n\\(x\\)");
   });
 
+  it("closes a tilde fence written with CRLF line endings", () => {
+    expect(
+      rewriteLatexBracketDelimiters("~~~\r\n\\[a\\]\r\n~~~\r\nafter \\(x\\)"),
+    ).toBe("~~~\r\n\\[a\\]\r\n~~~\r\nafter $x$");
+  });
+
+  it("protects a tilde fence nested in a blockquote", () => {
+    const quoted = "> ~~~\n> \\[a\\]\n> ~~~";
+    expect(rewriteLatexBracketDelimiters(quoted)).toBe(quoted);
+  });
+
+  it("leaves custom math tags inside a tilde fence as written", () => {
+    const fenced = "~~~\n[/math]x[/math]\n~~~";
+    expect(rewriteCustomMathTags(fenced)).toBe(fenced);
+  });
+
   it("rewrites around a mid-line tilde run", () => {
     expect(rewriteLatexBracketDelimiters("a ~~~ \\(x\\)")).toBe("a ~~~ $x$");
   });

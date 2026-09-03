@@ -12,7 +12,7 @@
 const LATEX_INLINE_DELIMITER = /\\{1,2}\(([^\n]+?)\\{1,2}\)/g;
 const LATEX_DISPLAY_DELIMITER = /\\{1,2}\[([\s\S]+?)\\{1,2}\]/g;
 
-const TILDE_FENCE_CLOSE = /^ {0,3}(~{3,})[ \t]*$/;
+const TILDE_FENCE_CLOSE = /^ {0,3}(~{3,})[ \t\r]*$/;
 
 /**
  * End index (exclusive) of the tilde fence opened by the `~` run at `start`,
@@ -47,7 +47,12 @@ function atLineStart(text: string, index: number): boolean {
     cursor--;
     indent++;
   }
-  return cursor === 0 || text[cursor - 1] === "\n";
+  if (cursor === 0 || text[cursor - 1] === "\n") return true;
+
+  // A fence keeps its meaning inside a blockquote, so the container prefix of
+  // the line counts as line start.
+  const lineStart = text.lastIndexOf("\n", cursor - 1) + 1;
+  return /^[ \t]*(?:>[ \t]?)+[ \t]*$/.test(text.slice(lineStart, cursor));
 }
 
 /**
@@ -58,10 +63,12 @@ function atLineStart(text: string, index: number): boolean {
  * boundary stays as written. Each stretch is passed the characters adjacent to
  * it so the rewrite can make line-boundary decisions that survive the split.
  *
- * Backtick regions follow `codeSpanEnd`'s reading, shared with
- * {@link escapeCurrencyDollars}: an unclosed one- or two-backtick run is
- * literal text, an unclosed three-plus run is a fence still streaming in and
- * protects to the end of the input, and fences are not line-anchored. Tilde
+ * Backtick regions are found with `codeSpanEnd`, which {@link
+ * escapeCurrencyDollars} also uses, and read as CommonMark does: an unclosed
+ * one- or two-backtick run is literal text, an unclosed three-plus run is a
+ * fence still streaming in and protects to the end of the input, and fences are
+ * not line-anchored. The unclosed three-plus case is where this walker and
+ * `escapeCurrencyDollars` differ, since that one treats the run as literal. Tilde
  * fences are line-anchored per CommonMark: a `~~~` run starting a line opens
  * one, and it closes on a line carrying only an at-least-as-long tilde run.
  */
