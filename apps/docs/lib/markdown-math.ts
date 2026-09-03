@@ -80,10 +80,12 @@ const isEscaped = (text: string, index: number) => {
   return backslashes % 2 === 1;
 };
 
+// Backslashes do not escape inside a code span, so the closing run is taken
+// as written.
 const closingBacktickRun = (text: string, from: number, length: number) => {
   let index = from;
   while (index < text.length) {
-    if (text[index] !== "`" || isEscaped(text, index)) {
+    if (text[index] !== "`") {
       index++;
       continue;
     }
@@ -160,13 +162,42 @@ export function mapProse(
   return out.join("\n");
 }
 
-const SHELL_VARIABLE =
-  /(?<![\\$])\$(?=(?:[A-Z][A-Z0-9]+_[A-Z0-9_]+|[A-Z]{4,})(?![A-Z0-9_]*\$))/g;
+const SHELL_VARIABLE_NAME = /^(?:[A-Z][A-Z0-9]+_[A-Z0-9_]+|[A-Z]{4,})/;
 
-// Single dollar math is on, and escapeCurrencyDollars only guards a dollar
-// followed by a digit, so a shell variable in prose would open a math span.
-export const escapeShellVariables = (text: string) =>
-  text.replace(SHELL_VARIABLE, "\\$");
+// A dollar opens a shell variable when a shell style name follows and no later
+// dollar on the line could close a math span; a later dollar that opens another
+// shell variable does not count. Single dollar math is on, and
+// escapeCurrencyDollars only guards a dollar followed by a digit.
+const opensShellVariable = (text: string, index: number) => {
+  if (text[index + 1] === "$" || text[index - 1] === "$") return false;
+  if (isEscaped(text, index)) return false;
+  const name = SHELL_VARIABLE_NAME.exec(text.slice(index + 1))?.[0];
+  if (name === undefined) return false;
+  const after = index + 1 + name.length;
+  if (text[after] === "$") return false;
+  const lineEnd = text.indexOf("\n", after);
+  const end = lineEnd === -1 ? text.length : lineEnd;
+  for (let cursor = after; cursor < end; cursor++) {
+    if (text[cursor] !== "$" || isEscaped(text, cursor)) continue;
+    if (text[cursor + 1] === "$") {
+      cursor++;
+      continue;
+    }
+    return SHELL_VARIABLE_NAME.test(text.slice(cursor + 1));
+  }
+  return true;
+};
+
+export const escapeShellVariables = (text: string) => {
+  let out = "";
+  let last = 0;
+  for (let index = 0; index < text.length; index++) {
+    if (text[index] !== "$" || !opensShellVariable(text, index)) continue;
+    out += text.slice(last, index) + "\\$";
+    last = index + 1;
+  }
+  return out + text.slice(last);
+};
 
 // The bracket rewrite in normalizeMathDelimiters emits `$$body$$` even when
 // the body spans lines, which is the fence shape repaired above, so the repair

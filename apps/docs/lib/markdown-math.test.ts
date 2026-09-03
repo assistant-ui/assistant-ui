@@ -105,6 +105,10 @@ describe("mapProse", () => {
     expect(mapProse("a ` b", upper)).toBe("A ` B");
   });
 
+  it("closes a code span whose content ends with a backslash", () => {
+    expect(mapProse("`a\\` b", upper)).toBe("`a\\` B");
+  });
+
   it("ignores escaped backticks", () => {
     expect(mapProse("Use \\` and a and \\` now.", upper)).toBe(
       "USE \\` AND A AND \\` NOW.",
@@ -132,6 +136,7 @@ describe("escapeShellVariables", () => {
   it("leaves math and currency alone", () => {
     for (const text of [
       "$x$ and $S_n$ and $X_1 + 2$",
+      "$RMSE = \\sqrt{x}$ and $AB_CD + 1$",
       "$$E = mc^2$$",
       "$$\nX_1 + Y\n$$",
       "Costs $5 and $NODE_ENV$",
@@ -139,6 +144,12 @@ describe("escapeShellVariables", () => {
     ]) {
       expect(escapeShellVariables(text)).toBe(text);
     }
+  });
+
+  it("escapes a lone variable that shares a line with display math", () => {
+    expect(escapeShellVariables("set $HOME, then $$x$$")).toBe(
+      "set \\$HOME, then $$x$$",
+    );
   });
 });
 
