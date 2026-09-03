@@ -1,7 +1,8 @@
 import {
+  FINALIZE_IF_UNCHANGED_KEY_COUNT,
   FINALIZE_IF_UNCHANGED_SCRIPT,
   RedisResumableStreamStore,
-  redisFinalizeFieldArgs,
+  finalizeIfUnchangedArgs,
   type PipelineCommand,
   type RedisLikeClient,
   type RedisResumableStreamStoreOptions,
@@ -105,13 +106,8 @@ function adapt(client: NodeRedisLike): RedisLikeClient {
       const result = await client.sendCommand<number>([
         "EVAL",
         FINALIZE_IF_UNCHANGED_SCRIPT,
-        "2",
-        options.metaKey,
-        options.dataKey,
-        options.expectedMeta,
-        options.nextMeta,
-        String(options.ttlSec),
-        ...redisFinalizeFieldArgs(options),
+        String(FINALIZE_IF_UNCHANGED_KEY_COUNT),
+        ...finalizeIfUnchangedArgs(options),
       ]);
       return result === 1;
     },

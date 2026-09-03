@@ -44,6 +44,8 @@ export type RedisFinalizeOptions = {
   readonly ttlSec: number;
 };
 
+// `XADD *` is non-deterministic; Redis 5.x and 6.x configured with
+// `lua-replicate-commands no` reject it unless effects replication is requested.
 export const FINALIZE_IF_UNCHANGED_SCRIPT = `
 redis.replicate_commands()
 if redis.call("GET", KEYS[1]) ~= ARGV[1] then
@@ -59,16 +61,24 @@ redis.call("SET", KEYS[1], ARGV[2], "EX", ARGV[3])
 return 1
 `;
 
-export function redisFinalizeFieldArgs(
+export const FINALIZE_IF_UNCHANGED_KEY_COUNT = 2;
+
+export function finalizeIfUnchangedArgs(
   options: RedisFinalizeOptions,
 ): string[] {
-  return Object.entries(options.fields).flatMap(([key, value]) => [key, value]);
+  return [
+    options.metaKey,
+    options.dataKey,
+    options.expectedMeta,
+    options.nextMeta,
+    String(options.ttlSec),
+    ...Object.entries(options.fields).flat(),
+  ];
 }
 
 /**
  * Structural Redis-client interface. The bundled `redis` and `ioredis`
- * adapters wrap their respective clients to satisfy it; custom or proxied
- * clients can implement it directly.
+ * adapters wrap their respective clients to satisfy it.
  */
 export interface RedisLikeClient {
   setNX(key: string, value: string, ttlSec: number): Promise<boolean>;
@@ -91,11 +101,10 @@ export interface RedisLikeClient {
   /** Executes the commands as a single pipeline batch (one round trip). */
   pipeline(commands: readonly PipelineCommand[]): Promise<void>;
   /**
-   * Atomically finalizes a stream only while its metadata is unchanged.
-   * Clients that omit this retain non-atomic pipeline finalization and cannot
-   * fence a replacement acquisition that races with finalization.
+   * Atomically finalizes a stream only while its metadata is unchanged, so a
+   * producer superseded by a newer acquisition cannot finalize the replacement.
    */
-  finalizeIfUnchanged?(options: RedisFinalizeOptions): Promise<boolean>;
+  finalizeIfUnchanged(options: RedisFinalizeOptions): Promise<boolean>;
 }
 
 export type RedisResumableStreamStoreOptions = {
@@ -231,23 +240,15 @@ export class RedisResumableStreamStore implements ResumableStreamStore {
       fields[FIELD_ERROR] = error ?? "Stream errored";
     }
     const dataKey = this.dataKey(streamId, existing.generation);
-    if (this.client.finalizeIfUnchanged) {
-      const finalized = await this.client.finalizeIfUnchanged({
-        metaKey,
-        expectedMeta: existingRaw,
-        nextMeta: meta,
-        dataKey,
-        fields,
-        ttlSec,
-      });
-      if (!finalized) return;
-    } else {
-      await this.client.pipeline([
-        { type: "set", key: metaKey, value: meta, ttlSec },
-        { type: "xAdd", key: dataKey, fields },
-        { type: "expire", key: dataKey, ttlSec },
-      ]);
-    }
+    const finalized = await this.client.finalizeIfUnchanged({
+      metaKey,
+      expectedMeta: existingRaw,
+      nextMeta: meta,
+      dataKey,
+      fields,
+      ttlSec,
+    });
+    if (!finalized) return;
     this.acquiredGenerations.delete(streamId);
   }
 

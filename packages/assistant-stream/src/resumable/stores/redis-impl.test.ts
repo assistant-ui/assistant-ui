@@ -188,16 +188,29 @@ describe("RedisResumableStreamStore", () => {
     await expect(store.status("current")).resolves.toBe("done");
   });
 
-  it("retains pipeline finalization without the atomic capability", async () => {
+  it("does not resurrect a stream whose metadata expired mid-finalize", async () => {
     const client = new FakeRedisClient();
-    Object.defineProperty(client, "finalizeIfUnchanged", { value: undefined });
-    const store = new RedisResumableStreamStore(client);
+    const keyPrefix = "test";
+    const streamId = "expired";
+    const store = new RedisResumableStreamStore(client, { keyPrefix });
+    await store.acquire(streamId);
 
-    await store.acquire("stream");
-    await store.append("stream", encoder.encode("chunk"));
-    await store.finalize("stream", "done");
+    let resumeFinalizer!: () => void;
+    const finalizerPaused = new Promise<void>((resolve) => {
+      client.onNextGet = () =>
+        new Promise<void>((resume) => {
+          resumeFinalizer = resume;
+          resolve();
+        });
+    });
+    const finalizing = store.finalize(streamId, "done");
+    await finalizerPaused;
 
-    await expect(store.status("stream")).resolves.toBe("done");
+    client.strings.delete(`${keyPrefix}:{${streamId}}:meta`);
+    resumeFinalizer();
+    await finalizing;
+
+    await expect(store.status(streamId)).resolves.toBe("missing");
   });
 
   it("fences a superseded producer out of the reacquired stream", async () => {

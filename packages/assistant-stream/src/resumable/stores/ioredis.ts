@@ -4,9 +4,10 @@ import type {
   Redis as IoRedis,
 } from "ioredis";
 import {
+  FINALIZE_IF_UNCHANGED_KEY_COUNT,
   FINALIZE_IF_UNCHANGED_SCRIPT,
   RedisResumableStreamStore,
-  redisFinalizeFieldArgs,
+  finalizeIfUnchangedArgs,
   type PipelineCommand,
   type RedisLikeClient,
   type RedisResumableStreamStoreOptions,
@@ -74,13 +75,8 @@ function adapt(client: IoRedisLike): RedisLikeClient {
     async finalizeIfUnchanged(options) {
       const result = await client.eval(
         FINALIZE_IF_UNCHANGED_SCRIPT,
-        2,
-        options.metaKey,
-        options.dataKey,
-        options.expectedMeta,
-        options.nextMeta,
-        String(options.ttlSec),
-        ...redisFinalizeFieldArgs(options),
+        FINALIZE_IF_UNCHANGED_KEY_COUNT,
+        ...finalizeIfUnchangedArgs(options),
       );
       return result === 1;
     },

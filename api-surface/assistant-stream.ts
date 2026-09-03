@@ -24166,7 +24166,7 @@ interface RedisLikeClient {
     fields: Record<string, string | Uint8Array>;
   }>>;
   pipeline(commands: readonly PipelineCommand[]): Promise<void>;
-  finalizeIfUnchanged?(options: RedisFinalizeOptions): Promise<boolean>;
+  finalizeIfUnchanged(options: RedisFinalizeOptions): Promise<boolean>;
 }
 
 type RedisOptions = CommonRedisOptions & SentinelConnectionOptions & StandaloneConnectionOptions;
