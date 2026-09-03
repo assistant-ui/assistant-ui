@@ -9,15 +9,11 @@ function nextFrames(count: number) {
   }
 }
 
-function paragraph(text: string, { inView = false } = {}) {
+function paragraph(text: string) {
   const element = document.createElement("p");
   element.textContent = text;
   document.body.append(element);
   element.scrollIntoView = vi.fn();
-  element.getBoundingClientRect = vi.fn(
-    () =>
-      ({ top: inView ? 100 : 4000, bottom: inView ? 140 : 4040 }) as DOMRect,
-  );
   return element;
 }
 
@@ -87,19 +83,26 @@ describe("the reveal mark", () => {
     expect(element.hasAttribute("data-search-reveal")).toBe(true);
   });
 
-  it("does not mark while a smooth scroll has yet to take its first step", () => {
+  it("marks promptly when the scroll lands instantly", () => {
     const element = paragraph("a formatter receives one snapshot entry");
     let offset = 0;
     vi.spyOn(window, "scrollY", "get").mockImplementation(() => offset);
+    element.scrollIntoView = vi.fn(() => {
+      offset = 3670;
+    });
 
     revealPageMatch(element, "center");
-    nextFrames(6);
-    expect(element.hasAttribute("data-search-reveal")).toBe(false);
+    nextFrames(5);
 
-    offset = 400;
-    nextFrames(1);
-    offset = 900;
-    nextFrames(1);
+    expect(element.hasAttribute("data-search-reveal")).toBe(true);
+  });
+
+  it("falls back to marking when the target needs no scroll at all", () => {
+    const element = paragraph("a formatter receives one snapshot entry");
+    vi.spyOn(window, "scrollY", "get").mockImplementation(() => 0);
+
+    revealPageMatch(element, "center");
+    nextFrames(3);
     expect(element.hasAttribute("data-search-reveal")).toBe(false);
 
     nextFrames(4);
@@ -107,12 +110,10 @@ describe("the reveal mark", () => {
   });
 
   it("marks the target and expires on its own", () => {
-    const element = paragraph("a formatter receives one snapshot entry", {
-      inView: true,
-    });
+    const element = paragraph("a formatter receives one snapshot entry");
 
     revealPageMatch(element, "center");
-    nextFrames(5);
+    nextFrames(8);
     expect(element.hasAttribute("data-search-reveal")).toBe(true);
 
     vi.advanceTimersByTime(2400);
@@ -122,15 +123,13 @@ describe("the reveal mark", () => {
   it("drops a reveal still waiting on the scroll lock when another is selected", () => {
     document.documentElement.setAttribute("data-base-ui-scroll-locked", "");
     const first = paragraph("a formatter receives one snapshot entry");
-    const second = paragraph("the snapshot carries a shallow diff", {
-      inView: true,
-    });
+    const second = paragraph("the snapshot carries a shallow diff");
 
     revealPageMatch(first, "center");
     nextFrames(2);
     revealPageMatch(second, "center");
     document.documentElement.removeAttribute("data-base-ui-scroll-locked");
-    nextFrames(5);
+    nextFrames(8);
 
     expect(first.scrollIntoView).not.toHaveBeenCalled();
     expect(first.hasAttribute("data-search-reveal")).toBe(false);
@@ -140,9 +139,7 @@ describe("the reveal mark", () => {
 
   it("drops a reveal still waiting on the scroll to land when another is selected", () => {
     const first = paragraph("a formatter receives one snapshot entry");
-    const second = paragraph("the snapshot carries a shallow diff", {
-      inView: true,
-    });
+    const second = paragraph("the snapshot carries a shallow diff");
     let offset = 0;
     vi.spyOn(window, "scrollY", "get").mockImplementation(() => offset);
 
@@ -153,7 +150,7 @@ describe("the reveal mark", () => {
     expect(first.scrollIntoView).toHaveBeenCalled();
 
     revealPageMatch(second, "center");
-    nextFrames(6);
+    nextFrames(8);
 
     expect(first.hasAttribute("data-search-reveal")).toBe(false);
     expect(second.hasAttribute("data-search-reveal")).toBe(true);
@@ -163,17 +160,13 @@ describe("the reveal mark", () => {
   });
 
   it("moves off the previous target when another match is revealed", () => {
-    const first = paragraph("a formatter receives one snapshot entry", {
-      inView: true,
-    });
-    const second = paragraph("the snapshot carries a shallow diff", {
-      inView: true,
-    });
+    const first = paragraph("a formatter receives one snapshot entry");
+    const second = paragraph("the snapshot carries a shallow diff");
 
     revealPageMatch(first, "center");
-    nextFrames(5);
+    nextFrames(8);
     revealPageMatch(second, "center");
-    nextFrames(5);
+    nextFrames(8);
 
     expect(first.hasAttribute("data-search-reveal")).toBe(false);
     expect(second.hasAttribute("data-search-reveal")).toBe(true);
