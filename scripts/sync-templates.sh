@@ -19,7 +19,6 @@ UI_BASE_DIR="$ROOT_DIR/packages/ui/src/components/react/ui/base"
 HOOKS_SOURCE_DIR="$ROOT_DIR/packages/ui/src/hooks"
 LIB_SOURCE_DIR="$ROOT_DIR/packages/ui/src/lib"
 TEMPLATES_ROOT="$ROOT_DIR/templates"
-EXAMPLES_ROOT="$ROOT_DIR/examples"
 UI_SRC_REL="packages/ui/src"
 
 MINIMAL_DIR="$TEMPLATES_ROOT/minimal/components/assistant-ui/elements"
