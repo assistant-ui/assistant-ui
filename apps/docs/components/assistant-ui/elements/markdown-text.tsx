@@ -28,7 +28,15 @@ const MermaidDiagram = dynamic(
     import("@/components/assistant-ui/elements/mermaid-diagram.aui").then(
       (mod) => mod.MermaidDiagram,
     ),
-  { ssr: false },
+  {
+    ssr: false,
+    loading: () => (
+      <div
+        aria-hidden
+        className="aui-mermaid-skeleton bg-muted h-32 animate-pulse rounded-b-lg"
+      />
+    ),
+  },
 );
 
 const remarkPlugins = [remarkGfm, remarkMath];
