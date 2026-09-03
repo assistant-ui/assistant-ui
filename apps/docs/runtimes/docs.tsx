@@ -13,6 +13,7 @@ import { DevToolsModal } from "@assistant-ui/react-devtools";
 import { feedbackAdapter } from "@/lib/feedback-adapter";
 import docsToolkit from "@/lib/docs-toolkit";
 import {
+  followUpSuggestionAdapter,
   useAnonymousCloud,
   useDocsChatRuntime,
   useSpeechAdapters,
@@ -40,9 +41,11 @@ const DOCS_SUGGESTIONS = [
 export function DocsRuntimeProvider({
   children,
   devtools = true,
+  followUps = false,
 }: {
   children: ReactNode;
   devtools?: boolean;
+  followUps?: boolean;
 }) {
   const cloud = useAnonymousCloud();
   const speech = useSpeechAdapters({ dictation: true });
@@ -52,8 +55,9 @@ export function DocsRuntimeProvider({
       ...speech,
       feedback: feedbackAdapter,
       attachments: new CloudFileAttachmentAdapter(cloud),
+      ...(followUps ? { suggestion: followUpSuggestionAdapter } : {}),
     }),
-    [cloud, speech],
+    [cloud, followUps, speech],
   );
 
   const runtime = useDocsChatRuntime({

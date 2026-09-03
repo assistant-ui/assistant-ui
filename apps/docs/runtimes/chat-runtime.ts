@@ -5,6 +5,7 @@ import {
   AssistantCloud,
   WebSpeechDictationAdapter,
   WebSpeechSynthesisAdapter,
+  createSuggestionAdapter,
 } from "@assistant-ui/react";
 import {
   AssistantChatTransport,
@@ -15,6 +16,34 @@ import { lastAssistantMessageIsCompleteWithToolCalls } from "ai";
 import { anonymousSessionFetch } from "@/lib/anonymous-session-client";
 
 type Adapters = UseChatRuntimeOptions["adapters"];
+
+export const followUpSuggestionAdapter = createSuggestionAdapter({
+  count: 3,
+  maxMessages: 6,
+  instructions:
+    "Prefer follow-ups that exercise a different capability than the last reply: a deeper question on the same topic, a request to visualize or diagram it, or a request to remember a preference. Keep each under 60 characters.",
+  async complete({ prompt, signal }) {
+    try {
+      const response = await anonymousSessionFetch("/api/suggestions", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ prompt }),
+        ...(signal ? { signal } : {}),
+      });
+      if (!response.ok) return [];
+
+      const body = (await response.json()) as { suggestions?: unknown };
+      return Array.isArray(body.suggestions)
+        ? body.suggestions.filter(
+            (suggestion): suggestion is string =>
+              typeof suggestion === "string",
+          )
+        : [];
+    } catch {
+      return [];
+    }
+  },
+});
 
 export function useAnonymousCloud() {
   return useMemo(

@@ -10,11 +10,14 @@ import {
 } from "@/lib/anonymous-session";
 import { validateGeneralChatInput } from "@/lib/validate-input";
 import { resolveChatModel } from "@/lib/ai/provider";
+import { createSearchDocsTool } from "@/lib/ai/search-docs";
 import { posthogTelemetry } from "@/lib/ai/telemetry";
 import { AISDKToolkit } from "@assistant-ui/ai-sdk";
 import docsToolkit from "@/lib/docs-toolkit";
 import {
   convertToModelMessages,
+  createUIMessageStream,
+  createUIMessageStreamResponse,
   pruneMessages,
   stepCountIs,
   streamText,
@@ -23,6 +26,9 @@ import {
 export const maxDuration = 300;
 
 const aiToolkit = new AISDKToolkit({ toolkit: docsToolkit });
+
+const SEARCH_DOCS_SYSTEM_INSTRUCTION =
+  "When the user asks about assistant-ui (its APIs, components, runtimes, setup, or documentation), call search_docs before answering and answer from its results. Cite the pages you used inline as markdown links with their titles. Never cite a page search_docs did not return.";
 
 function corsHeaders(req: Request) {
   const origin = req.headers.get("origin") ?? "";
@@ -63,10 +69,14 @@ export async function POST(req: Request) {
 
     // Basic validation: only accept short system prompts to limit abuse surface
     const MAX_SYSTEM_LENGTH = 4000;
-    const system =
+    const system = [
       typeof rawSystem === "string" && rawSystem.length <= MAX_SYSTEM_LENGTH
         ? rawSystem
-        : undefined;
+        : undefined,
+      SEARCH_DOCS_SYSTEM_INSTRUCTION,
+    ]
+      .filter(Boolean)
+      .join("\n\n");
 
     const inputError = validateGeneralChatInput(messages);
     if (inputError) {
@@ -75,6 +85,7 @@ export async function POST(req: Request) {
 
     const { model, providerOptions, reasoning } = resolveChatModel(config);
     const distinctId = getDistinctId(req);
+    const origin = new URL(req.url).origin;
 
     const prunedMessages = pruneMessages({
       messages: await convertToModelMessages(
@@ -83,41 +94,52 @@ export async function POST(req: Request) {
       reasoning: "none",
     });
 
-    const result = streamText({
-      model,
-      ...(providerOptions ? { providerOptions } : {}),
-      ...(system ? { system } : {}),
-      messages: prunedMessages,
-      maxOutputTokens: reasoning ? 16384 : 4096,
-      stopWhen: stepCountIs(10),
-      tools: await aiToolkit.tools({ frontend: tools }),
-      ...posthogTelemetry({
-        distinctId,
-        spanName: "general_chat",
-        source: "general_chat",
-      }),
-      onError: ({ error }) => {
-        console.error(error);
+    const stream = createUIMessageStream({
+      execute: async ({ writer }) => {
+        const result = streamText({
+          model,
+          ...(providerOptions ? { providerOptions } : {}),
+          ...(system ? { system } : {}),
+          messages: prunedMessages,
+          maxOutputTokens: reasoning ? 16384 : 4096,
+          stopWhen: stepCountIs(10),
+          tools: {
+            ...(await aiToolkit.tools({ frontend: tools })),
+            search_docs: createSearchDocsTool({ writer, origin }),
+          },
+          ...posthogTelemetry({
+            distinctId,
+            spanName: "general_chat",
+            source: "general_chat",
+          }),
+          onError: ({ error }) => {
+            console.error(error);
+          },
+        });
+
+        writer.merge(
+          result.toUIMessageStream({
+            sendReasoning: true,
+            // gets usage and modelId for assistant-cloud telemetry reports
+            messageMetadata: ({ part }) => {
+              if (part.type === "finish-step") {
+                return {
+                  modelId: part.response.modelId,
+                };
+              }
+              if (part.type === "finish") {
+                return {
+                  usage: part.totalUsage,
+                };
+              }
+              return undefined;
+            },
+          }),
+        );
       },
     });
 
-    const response = result.toUIMessageStreamResponse({
-      sendReasoning: true,
-      // gets usage and modelId for assistant-cloud telemetry reports
-      messageMetadata: ({ part }) => {
-        if (part.type === "finish-step") {
-          return {
-            modelId: part.response.modelId,
-          };
-        }
-        if (part.type === "finish") {
-          return {
-            usage: part.totalUsage,
-          };
-        }
-        return undefined;
-      },
-    });
+    const response = createUIMessageStreamResponse({ stream });
 
     return withCors(req, response);
   } catch (e) {

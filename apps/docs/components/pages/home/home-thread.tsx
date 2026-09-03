@@ -164,6 +164,7 @@ const homeEffortPreference = createPersistedPreference<string>({
 
 const groupAssistantParts = groupPartByType({
   reasoning: ["group-chainOfThought", "group-reasoning"],
+  source: ["group-source"],
   "tool-call": ["group-chainOfThought", "group-tool"],
   "standalone-tool-call": [],
 });
@@ -734,6 +735,7 @@ function SpecimenThread(): ReactNode {
               <ArrowDownIcon className="size-4" />
             </button>
           </ThreadPrimitive.ScrollToBottom>
+          <SpecimenFollowUps />
           <SpecimenComposer />
           <AuiIf condition={isNewChatView}>
             <div className="min-h-8">
@@ -771,10 +773,13 @@ const SUGGESTIONS = [
       "Draw the request flow of a streaming chat app as a mermaid sequence diagram, then explain it briefly.",
   },
   {
-    label: "Write a debounce function",
-    prompt: "Write a debounce function in TypeScript",
+    label: "Add a thread list",
+    prompt: "How do I add a thread list to an assistant-ui app?",
   },
 ];
+
+const suggestionChipClass =
+  "border-foreground/10 bg-background text-muted-foreground hover:border-foreground/25 hover:text-foreground rounded-control h-8 border px-3 text-[13px] transition-colors";
 
 function SpecimenSuggestions(): ReactNode {
   return (
@@ -784,12 +789,39 @@ function SpecimenSuggestions(): ReactNode {
           key={suggestion.prompt}
           prompt={suggestion.prompt}
           send
-          className="border-foreground/10 bg-background text-muted-foreground hover:border-foreground/25 hover:text-foreground rounded-control h-8 border px-3 text-[13px] transition-colors"
+          className={suggestionChipClass}
         >
           {suggestion.label}
         </ThreadPrimitive.Suggestion>
       ))}
     </div>
+  );
+}
+
+function SpecimenFollowUps(): ReactNode {
+  const suggestions = useAuiState((s) => s.thread.suggestions);
+
+  return (
+    <AuiIf
+      condition={(s) =>
+        !s.thread.isEmpty &&
+        !s.thread.isRunning &&
+        s.thread.suggestions.length > 0
+      }
+    >
+      <div className="animate-in fade-in flex [scrollbar-width:none] gap-2 overflow-x-auto duration-200 motion-reduce:animate-none [&::-webkit-scrollbar]:hidden">
+        {suggestions.map((suggestion) => (
+          <ThreadPrimitive.Suggestion
+            key={suggestion.prompt}
+            prompt={suggestion.prompt}
+            send
+            className={cn(suggestionChipClass, "shrink-0 whitespace-nowrap")}
+          >
+            {suggestion.prompt}
+          </ThreadPrimitive.Suggestion>
+        ))}
+      </div>
+    </AuiIf>
   );
 }
 
@@ -1044,6 +1076,8 @@ function SpecimenAssistantMessage(): ReactNode {
                   </ReasoningRoot>
                 );
               }
+              case "group-source":
+                return null;
               case "text":
                 return part.text === "" && part.status?.type === "running" ? (
                   <TraceLine live label="thinking" />
@@ -1052,6 +1086,8 @@ function SpecimenAssistantMessage(): ReactNode {
                 );
               case "reasoning":
                 return <Reasoning {...part} />;
+              case "source":
+                return null;
               case "tool-call":
                 return part.toolUI ?? <SpecimenToolCall {...part} />;
               case "data":
@@ -1075,6 +1111,7 @@ function SpecimenAssistantMessage(): ReactNode {
             }
           }}
         </MessagePrimitive.GroupedParts>
+        <SpecimenSources />
         <SpecimenMessageError />
       </div>
       <div className="mt-2 flex items-center gap-1.5 empty:hidden">
@@ -1082,6 +1119,40 @@ function SpecimenAssistantMessage(): ReactNode {
         <SpecimenAssistantActionBar />
       </div>
     </MessagePrimitive.Root>
+  );
+}
+
+function SpecimenSources(): ReactNode {
+  const content = useAuiState((s) => s.message.content);
+  const seen = new Set<string>();
+  const sources = content.flatMap((part) => {
+    if (
+      part.type !== "source" ||
+      part.sourceType !== "url" ||
+      seen.has(part.url)
+    ) {
+      return [];
+    }
+    seen.add(part.url);
+    return part;
+  });
+  if (sources.length === 0) return null;
+
+  return (
+    <div className="text-muted-foreground mt-3 flex flex-wrap items-baseline gap-x-3 gap-y-1 font-mono text-[12px] [font-variant-ligatures:none]">
+      <span className="text-muted-foreground/50">sources</span>
+      {sources.map((source) => (
+        <a
+          key={source.url}
+          href={source.url}
+          target="_blank"
+          rel="noopener noreferrer"
+          className="decoration-foreground/20 hover:text-foreground hover:decoration-foreground/60 max-w-[40ch] truncate underline underline-offset-[3px] transition-colors"
+        >
+          {source.title || new URL(source.url).hostname}
+        </a>
+      ))}
+    </div>
   );
 }
 
@@ -1267,16 +1338,31 @@ function SpecimenDisclosureTrigger({
 
 function SpecimenToolCall({
   toolName,
+  args,
   status,
 }: ToolCallMessagePartProps): ReactNode {
   const isRunning = status?.type === "running";
   const duration = useToolDuration(isRunning);
+  const searchQuery =
+    toolName === "search_docs" && typeof args.query === "string"
+      ? args.query
+      : undefined;
 
   return (
     <TraceLine
       live={isRunning}
-      label={isRunning ? "running" : "ran"}
-      detail={toolName}
+      label={
+        searchQuery !== undefined
+          ? isRunning
+            ? "searching"
+            : "searched"
+          : isRunning
+            ? "running"
+            : "ran"
+      }
+      detail={
+        searchQuery !== undefined ? `the docs for “${searchQuery}”` : toolName
+      }
       {...(duration !== null ? { meta: formatDuration(duration) } : {})}
     />
   );
