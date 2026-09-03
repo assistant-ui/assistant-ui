@@ -6,6 +6,7 @@ import {
   OAuthProtectedResourceMetadataSchema,
   OAuthTokensSchema,
 } from "@modelcontextprotocol/core";
+import { normalizeMcpServerUrl } from "../../auth/createOAuthProvider";
 import type { MCPAuthConfig, MCPCustomServerRecord } from "../../mcp-scope";
 import type { MCPPersistedAuthState } from "../../auth/types";
 import { assertValidServerId } from "../../utils/serverId";
@@ -209,7 +210,7 @@ export const normalizePersistedAuthState = (
 
   const state: MCPPersistedAuthState = {};
   if (isMcpServerUrl(value.serverUrl)) {
-    state.serverUrl = new URL(value.serverUrl).toString();
+    state.serverUrl = normalizeMcpServerUrl(value.serverUrl);
   }
   if (isNonEmptyString(value.token)) state.token = value.token;
   if (isNonEmptyString(value.codeVerifier)) {

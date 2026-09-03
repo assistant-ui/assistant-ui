@@ -114,7 +114,7 @@ const persistenceByIdentity = new WeakMap<
   Map<string, OAuthProviderPersistence>
 >();
 
-const normalizeMcpServerUrl = (serverUrl: string): string =>
+export const normalizeMcpServerUrl = (serverUrl: string): string =>
   new URL(serverUrl).toString();
 
 export const isAuthStateForServerUrl = (
@@ -255,7 +255,9 @@ export function createOAuthProvider(
             initial.discoveryState = persisted.discoveryState;
         }
         endpoint.cached = initial;
-        if (persisted && persisted.serverUrl === undefined) await persist();
+        if (persisted && persisted.serverUrl === undefined) {
+          void persist().catch(() => {});
+        }
         return initial;
       },
       (error) => {
@@ -277,7 +279,7 @@ export function createOAuthProvider(
       if (c.codeVerifier) next.codeVerifier = c.codeVerifier;
       if (c.state) next.state = c.state;
       if (c.discoveryState) next.discoveryState = c.discoveryState;
-      if (Object.keys(next).length > 0) next.serverUrl = normalizedServerUrl;
+      next.serverUrl = normalizedServerUrl;
       await storage.saveAuthState(serverId, next);
     });
     persistence.queue = task.catch(() => {});

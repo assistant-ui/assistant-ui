@@ -114,7 +114,7 @@ describe("createOAuthProvider callback state", () => {
 
       await provider.invalidateCredentials?.(scope);
 
-      expect(getState()).toEqual({});
+      expect(getState()).toEqual({ serverUrl });
     },
   );
 });
@@ -154,7 +154,9 @@ describe("createOAuthProvider discovery state", () => {
       await provider.invalidateCredentials?.(scope);
 
       expect(getState()).toEqual(
-        scope === "all" ? {} : { serverUrl, codeVerifier: "pkce-verifier" },
+        scope === "all"
+          ? { serverUrl }
+          : { serverUrl, codeVerifier: "pkce-verifier" },
       );
     },
   );
@@ -192,6 +194,22 @@ describe("createOAuthProvider persistence", () => {
       serverUrl,
       tokens: { access_token: "legacy-token", token_type: "bearer" },
     });
+  });
+
+  it("keeps legacy authentication usable when binding persistence fails", async () => {
+    const { storage } = createStorage({
+      tokens: { access_token: "legacy-token", token_type: "bearer" },
+    });
+    storage.saveAuthState = vi
+      .fn()
+      .mockRejectedValue(new Error("storage unavailable"));
+    const provider = createProvider(storage);
+
+    await expect(provider.tokens()).resolves.toEqual({
+      access_token: "legacy-token",
+      token_type: "bearer",
+    });
+    await vi.waitFor(() => expect(storage.saveAuthState).toHaveBeenCalled());
   });
 
   it("loads persisted auth state once for concurrent reads", async () => {
