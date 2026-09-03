@@ -13,6 +13,7 @@ import {
 import {
   clearOAuthProviderAuthState,
   createOAuthProvider,
+  isAuthStateForServerUrl,
 } from "../auth/createOAuthProvider";
 import { buildHeaders } from "../auth/buildHeaders";
 import { assertValidServerId } from "../utils/serverId";
@@ -242,11 +243,17 @@ const useMcpServerResourceInstance = (
     },
   );
 
+  const loadAuthState = useEffectEvent(async () => {
+    const state = await props.storage.loadAuthState(props.id);
+    return isAuthStateForServerUrl(state, props.url) ? state : null;
+  });
+
   const buildTransport = useEffectEvent(
     async (): Promise<StreamableHTTPClientTransport> => {
       if (props.auth.type === "oauth") {
         const authProvider = createOAuthProvider({
           serverId: props.id,
+          serverUrl: props.url,
           config: props.auth,
           storage: props.storage,
           redirectUri: props.redirectUri,
@@ -257,7 +264,7 @@ const useMcpServerResourceInstance = (
         });
       }
       if (props.auth.type === "bearer") {
-        const persisted = await props.storage.loadAuthState(props.id);
+        const persisted = await loadAuthState();
         const headers = buildHeaders(props.auth, persisted);
         const transportOpts: StreamableHTTPClientTransportOptions = {};
         if (headers) transportOpts.requestInit = { headers };
@@ -488,7 +495,7 @@ const useMcpServerResourceInstance = (
     }
     pendingAuthValidation.count += 1;
     try {
-      const persisted = await props.storage.loadAuthState(props.id);
+      const persisted = await loadAuthState();
       if (!isCurrentConnection(validationGeneration)) {
         throw createInterruptedAuthError();
       }
@@ -565,7 +572,7 @@ const useMcpServerResourceInstance = (
       const generation = connectionGenerationRef.current;
       let persisted: Awaited<ReturnType<MCPStorage["loadAuthState"]>>;
       try {
-        persisted = await props.storage.loadAuthState(props.id);
+        persisted = await loadAuthState();
       } catch (error) {
         if (signal.cancelled || !isCurrentConnection(generation)) return;
         const message = error instanceof Error ? error.message : String(error);

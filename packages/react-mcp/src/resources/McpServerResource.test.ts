@@ -192,6 +192,34 @@ const mount = (
 describe("McpServerResource automatic authentication", () => {
   beforeEach(resetMocks);
 
+  it("does not auto-connect with authentication from another server URL", async () => {
+    const storage = createStorage();
+    vi.mocked(storage.loadAuthState).mockResolvedValue({
+      serverUrl: "https://other.example.com/mcp",
+      token: "secret",
+    });
+    const root = mount({
+      auth: { type: "bearer" },
+      storage,
+      autoConnect: true,
+    });
+
+    try {
+      await waitFor(() =>
+        expect(storage.loadAuthState).toHaveBeenCalledWith("docs"),
+      );
+      await flushMacrotask();
+
+      expect(root.getValue().getState()).toMatchObject({
+        connectionState: "disconnected",
+        lastError: null,
+      });
+      expect(mocks.StreamableHTTPClientTransport).not.toHaveBeenCalled();
+    } finally {
+      root.unmount();
+    }
+  });
+
   it("reports auth storage load failures", async () => {
     const storage = createStorage();
     vi.mocked(storage.loadAuthState).mockRejectedValue(
@@ -1766,6 +1794,7 @@ describe("McpServerResource oauth storage swap", () => {
 
   it("reconnects onto the replacement storage when the scope changes", async () => {
     const persisted = {
+      serverUrl: "https://example.com/mcp",
       tokens: { access_token: "tok", token_type: "bearer" },
     };
     const storageA = {

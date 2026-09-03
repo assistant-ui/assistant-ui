@@ -23,6 +23,8 @@ const discoveryState: OAuthDiscoveryState = {
   },
 };
 
+const serverUrl = "https://mcp.example.com/docs";
+
 const createStorage = (initial: MCPPersistedAuthState | null = null) => {
   let state = initial;
   const storage: MCPStorage = {
@@ -59,6 +61,7 @@ const createSharedStorages = (scopeId: string) => {
 const createProvider = (storage: MCPStorage) =>
   createOAuthProvider({
     serverId: "docs",
+    serverUrl,
     config: { type: "oauth" },
     storage,
     redirectUri: "http://localhost/callback",
@@ -75,6 +78,7 @@ describe("createOAuthProvider callback state", () => {
 
     expect(state).toMatch(/^aui-mcp:ZG9jcw\./);
     expect(getState()).toEqual({
+      serverUrl,
       codeVerifier: "pkce-verifier",
       state,
     });
@@ -93,6 +97,7 @@ describe("createOAuthProvider callback state", () => {
     });
 
     expect(getState()).toEqual({
+      serverUrl,
       tokens: { access_token: "access-token", token_type: "bearer" },
       codeVerifier: "pkce-verifier",
     });
@@ -124,6 +129,7 @@ describe("createOAuthProvider discovery state", () => {
     await provider.saveDiscoveryState?.(discoveryState);
 
     expect(getState()).toEqual({
+      serverUrl,
       codeVerifier: "pkce-verifier",
       discoveryState,
     });
@@ -148,13 +154,46 @@ describe("createOAuthProvider discovery state", () => {
       await provider.invalidateCredentials?.(scope);
 
       expect(getState()).toEqual(
-        scope === "all" ? {} : { codeVerifier: "pkce-verifier" },
+        scope === "all" ? {} : { serverUrl, codeVerifier: "pkce-verifier" },
       );
     },
   );
 });
 
 describe("createOAuthProvider persistence", () => {
+  it("does not reuse authentication saved for a different server URL", async () => {
+    const { storage } = createStorage({
+      serverUrl: "https://endpoint-a.example.com/mcp",
+      tokens: { access_token: "endpoint-a-token", token_type: "bearer" },
+    });
+    const provider = createOAuthProvider({
+      serverId: "docs",
+      serverUrl: "https://endpoint-b.example.com/mcp",
+      config: { type: "oauth" },
+      storage,
+      redirectUri: "http://localhost/callback",
+      onAuthorizationUrl: () => {},
+    });
+
+    await expect(provider.tokens()).resolves.toBeUndefined();
+  });
+
+  it("binds legacy authentication to the current server URL", async () => {
+    const { storage, getState } = createStorage({
+      tokens: { access_token: "legacy-token", token_type: "bearer" },
+    });
+    const provider = createProvider(storage);
+
+    await expect(provider.tokens()).resolves.toEqual({
+      access_token: "legacy-token",
+      token_type: "bearer",
+    });
+    expect(getState()).toEqual({
+      serverUrl,
+      tokens: { access_token: "legacy-token", token_type: "bearer" },
+    });
+  });
+
   it("loads persisted auth state once for concurrent reads", async () => {
     let resolveLoad!: (value: MCPPersistedAuthState | null) => void;
     const loadAuthState = vi.fn(
@@ -223,6 +262,7 @@ describe("createOAuthProvider persistence", () => {
     await Promise.all([tokenSave, verifierSave]);
 
     expect(persisted).toEqual({
+      serverUrl,
       tokens: { access_token: "access-token", token_type: "bearer" },
       codeVerifier: "pkce-verifier",
     });
@@ -262,6 +302,7 @@ describe("createOAuthProvider persistence", () => {
     await expect(verifierSave).resolves.toBeUndefined();
     expect(saveCount).toBe(2);
     expect(persisted).toEqual({
+      serverUrl,
       tokens: { access_token: "access-token", token_type: "bearer" },
       codeVerifier: "pkce-verifier",
     });
@@ -318,6 +359,7 @@ describe("createOAuthProvider persistence across provider instances", () => {
     await Promise.all([tokenSave, verifierSave]);
 
     expect(persisted).toEqual({
+      serverUrl,
       tokens: { access_token: "access-token", token_type: "bearer" },
       codeVerifier: "pkce-verifier",
     });
@@ -409,6 +451,7 @@ describe("createOAuthProvider persistence across provider instances", () => {
     await firstProvider.saveCodeVerifier("first-verifier");
 
     expect(first.getState()).toEqual({
+      serverUrl,
       tokens: { access_token: "first-token", token_type: "bearer" },
       codeVerifier: "first-verifier",
     });
@@ -419,6 +462,7 @@ describe("createOAuthProvider persistence across provider instances", () => {
     const { storage } = createStorage();
     const provider = createOAuthProvider({
       serverId: "docs",
+      serverUrl,
       config: { type: "oauth", clientId: "client-a" },
       storage,
       redirectUri: "http://localhost/callback",
@@ -431,6 +475,7 @@ describe("createOAuthProvider persistence across provider instances", () => {
 
     const replacementProvider = createOAuthProvider({
       serverId: "docs",
+      serverUrl,
       config: { type: "oauth", clientId: "client-b", clientSecret: "secret-b" },
       storage,
       redirectUri: "http://localhost/callback-2",
@@ -447,6 +492,7 @@ describe("createOAuthProvider persistence across provider instances", () => {
     const { storage } = createStorage();
     const staticProvider = createOAuthProvider({
       serverId: "docs",
+      serverUrl,
       config: { type: "oauth", clientId: "client-a" },
       storage,
       redirectUri: "http://localhost/callback",
@@ -486,6 +532,6 @@ describe("createOAuthProvider persistence across provider instances", () => {
     expect(getState()).toBeNull();
 
     await replacementProvider.saveCodeVerifier("new-verifier");
-    expect(getState()).toEqual({ codeVerifier: "new-verifier" });
+    expect(getState()).toEqual({ serverUrl, codeVerifier: "new-verifier" });
   });
 });

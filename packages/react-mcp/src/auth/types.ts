@@ -5,6 +5,8 @@ import type {
 } from "@modelcontextprotocol/client";
 
 export type MCPPersistedAuthState = {
+  /** MCP server URL this authentication state belongs to. */
+  serverUrl?: string;
   tokens?: OAuthTokens;
   clientInformation?: OAuthClientInformationFull;
   codeVerifier?: string;

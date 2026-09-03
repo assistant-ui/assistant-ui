@@ -160,6 +160,16 @@ const isSecureNetworkUrl = (value: unknown): value is string => {
   }
 };
 
+const isMcpServerUrl = (value: unknown): value is string => {
+  if (typeof value !== "string") return false;
+  try {
+    const url = new URL(value);
+    return url.protocol === "https:" || url.protocol === "http:";
+  } catch {
+    return false;
+  }
+};
+
 const normalizeDiscoveryState = (
   value: unknown,
 ): MCPPersistedAuthState["discoveryState"] | undefined => {
@@ -195,8 +205,12 @@ export const normalizePersistedAuthState = (
   value: unknown,
 ): MCPPersistedAuthState | null => {
   if (!isRecord(value)) return null;
+  if ("serverUrl" in value && !isMcpServerUrl(value.serverUrl)) return null;
 
   const state: MCPPersistedAuthState = {};
+  if (isMcpServerUrl(value.serverUrl)) {
+    state.serverUrl = new URL(value.serverUrl).toString();
+  }
   if (isNonEmptyString(value.token)) state.token = value.token;
   if (isNonEmptyString(value.codeVerifier)) {
     state.codeVerifier = value.codeVerifier;

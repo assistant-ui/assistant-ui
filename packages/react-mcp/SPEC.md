@@ -200,6 +200,7 @@ type MCPStorage = {
 };
 
 type MCPPersistedAuthState = {
+  serverUrl?: string;
   tokens?: OAuthTokens;
   clientInformation?: OAuthClientInformationFull;
   codeVerifier?: string;
