@@ -37,6 +37,15 @@ describe("closeDisplayMathFences", () => {
     );
   });
 
+  it("keeps a fenced equation inside its list item", () => {
+    expect(
+      closeDisplayMathFences("1. Expand:\n   $$S_n = a + ar$$\n2. Subtract."),
+    ).toBe("1. Expand:\n   $$\n   S_n = a + ar\n   $$\n2. Subtract.");
+    expect(closeDisplayMathFences("- Sum:\n  $$\n  a$$\n- Next")).toBe(
+      "- Sum:\n  $$\n  a\n  $$\n- Next",
+    );
+  });
+
   it("leaves two display expressions on one line alone", () => {
     expect(closeDisplayMathFences("$$a$$ and $$b$$")).toBe("$$a$$ and $$b$$");
   });

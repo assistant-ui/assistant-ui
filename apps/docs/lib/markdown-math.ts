@@ -10,6 +10,8 @@ const MATH_FENCE_WITH_CONTENT = /^ {0,3}\$\$(?!\$)[ \t]*(\S.*?)[ \t\r]*$/;
 const MATH_ONE_LINE = /^ {0,3}\$\$(?!\$)[ \t]*(\S.*?\S|\S)[ \t]*\$\$[ \t\r]*$/;
 const TRAILING_MATH_FENCE = /\S[ \t]*\$\$[ \t\r]*$/;
 
+const indentOf = (line: string) => /^[ \t]*/.exec(line)![0];
+
 const closesFence = (line: string, fence: string) => {
   const close = CODE_FENCE_CLOSE.exec(line)?.[1];
   return (
@@ -44,7 +46,10 @@ export function closeDisplayMathFences(text: string): string {
 
     if (inMath) {
       if (!line.startsWith("$$") && TRAILING_MATH_FENCE.test(line)) {
-        out.push(line.replace(/[ \t]*\$\$[ \t\r]*$/, ""), "$$");
+        out.push(
+          line.replace(/[ \t]*\$\$[ \t\r]*$/, ""),
+          `${indentOf(line)}$$`,
+        );
         inMath = false;
       } else {
         out.push(line);
@@ -52,15 +57,16 @@ export function closeDisplayMathFences(text: string): string {
       continue;
     }
 
+    const indent = indentOf(line);
     const oneLine = MATH_ONE_LINE.exec(line)?.[1];
     if (oneLine !== undefined && !oneLine.includes("$$")) {
-      out.push("$$", oneLine, "$$");
+      out.push(`${indent}$$`, `${indent}${oneLine}`, `${indent}$$`);
       continue;
     }
 
     const opener = MATH_FENCE_WITH_CONTENT.exec(line)?.[1];
     if (opener !== undefined && !opener.includes("$$")) {
-      out.push("$$", opener);
+      out.push(`${indent}$$`, `${indent}${opener}`);
       inMath = true;
       continue;
     }
