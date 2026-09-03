@@ -127,21 +127,22 @@ function ContextDisplayRoot({
     });
   }, [resetKey, rawTokens, usage]);
 
-  const totalTokens = tokenState.totalTokens;
-  const percent = getUsagePercent(totalTokens, modelContextWindow);
-  const hasUsage =
+  const current =
     tokenState.resetKey === resetKey
-      ? tokenState.usage !== undefined || totalTokens > 0
-      : usage !== undefined || rawTokens > 0;
+      ? tokenState
+      : { totalTokens: rawTokens > 0 ? rawTokens : 0, usage };
+  const totalTokens = current.totalTokens;
+  const percent = getUsagePercent(totalTokens, modelContextWindow);
+  const hasUsage = current.usage !== undefined || totalTokens > 0;
 
   const contextValue = useMemo(
     () => ({
-      usage: tokenState.usage,
+      usage: current.usage,
       totalTokens,
       percent,
       modelContextWindow,
     }),
-    [tokenState.usage, totalTokens, percent, modelContextWindow],
+    [current.usage, totalTokens, percent, modelContextWindow],
   );
 
   if (!hasUsage) return null;

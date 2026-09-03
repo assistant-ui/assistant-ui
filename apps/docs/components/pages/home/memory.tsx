@@ -1,18 +1,14 @@
 "use client";
 
 import {
-  type AssistantToolProps,
   type ToolCallMessagePartProps,
   useAssistantInstructions,
-  useAssistantTool,
 } from "@assistant-ui/react";
 import { ChevronDownIcon, XIcon } from "lucide-react";
 import { useMemo, useState, type ReactNode } from "react";
-import { z } from "zod";
 import { TraceLine } from "@/components/shared/trace-line";
 import { typeEyebrow } from "@/components/shared/type";
 import {
-  addMemory,
   clearMemories,
   forgetMemory,
   useMemories,
@@ -37,27 +33,6 @@ type RememberToolUIProps = Pick<
   onForget?: (id: string) => void;
 };
 
-const rememberTool = {
-  toolName: "remember",
-  type: "frontend",
-  display: "standalone",
-  description:
-    "Save a short fact or preference the user explicitly asks you to remember for future conversations. Call it once per fact, rewritten in the third person.",
-  parameters: z.object({
-    text: z
-      .string()
-      .describe(
-        "The short fact or preference to remember in the third person.",
-      ),
-  }),
-  execute: ({ text }: RememberArgs) => {
-    const added = addMemory(text);
-    if (!added) throw new Error("A memory needs some text to store.");
-    return { ...added.record, change: added.change };
-  },
-  render: RememberToolUI,
-} satisfies AssistantToolProps<RememberArgs, RememberResult>;
-
 export function HomeMemory(): null {
   const memories = useMemories();
   const instruction = useMemo(
@@ -73,7 +48,6 @@ export function HomeMemory(): null {
     instruction,
     disabled: memories.length === 0,
   });
-  useAssistantTool(rememberTool);
 
   return null;
 }

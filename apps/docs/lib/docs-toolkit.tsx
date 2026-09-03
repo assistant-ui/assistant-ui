@@ -27,6 +27,7 @@ import {
 } from "@assistant-ui/react-generative-ui";
 import { ToolErrorCard, ToolStatusCard, ToolTraceCard } from "@/lib/tool-trace";
 import { Notepad } from "@/components/tool-ui/notepad";
+import { RememberToolUI } from "@/components/pages/home/memory";
 import { SetThemeToolUI } from "@/components/tool-ui/set-theme-card";
 import { styledGenerativeUILibrary } from "@/components/assistant-ui/elements/generative-ui";
 
@@ -208,6 +209,26 @@ export default defineToolkit({
       };
     },
     render: GetWeatherToolUI,
+  },
+  remember: {
+    description:
+      "Save a short fact or preference the user explicitly asks you to remember for future conversations. Call it once per fact, rewritten in the third person.",
+    parameters: z.object({
+      text: z
+        .string()
+        .describe(
+          "The short fact or preference to remember in the third person.",
+        ),
+    }),
+    display: "standalone",
+    execute: async ({ text }: { text: string }) => {
+      "use client";
+      const { addMemory } = await import("@/lib/memory-store");
+      const added = addMemory(text);
+      if (!added) throw new Error("A memory needs some text to store.");
+      return { ...added.record, change: added.change };
+    },
+    render: RememberToolUI,
   },
   set_theme: {
     description:
