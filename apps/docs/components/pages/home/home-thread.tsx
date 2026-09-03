@@ -102,7 +102,6 @@ import {
   DEFAULT_MODEL_ID,
   getContextWindow,
   isAvailableModelId,
-  isReasoningEffort,
   supportsReasoningEffort,
 } from "@/lib/model";
 import {
@@ -149,10 +148,18 @@ const homeModelPreference = createPersistedPreference<string>({
   read: (raw) => (isAvailableModelId(raw) ? raw : null),
 });
 
+// High effort stays off the anonymous landing page: it multiplies the cost
+// of a request the rate limit counts as one.
+const HOME_EFFORT_OPTIONS = [
+  { id: "low", name: "Low" },
+  { id: "medium", name: "Med" },
+] as const;
+
 const homeEffortPreference = createPersistedPreference<string>({
   key: "aui-home-effort",
   fallback: "low",
-  read: (raw) => (isReasoningEffort(raw) ? raw : null),
+  read: (raw) =>
+    HOME_EFFORT_OPTIONS.some((option) => option.id === raw) ? raw : null,
 });
 
 const groupAssistantParts = groupPartByType({
@@ -793,7 +800,7 @@ function SpecimenComposer(): ReactNode {
     () =>
       docsModelOptions().map((option) =>
         supportsReasoningEffort(option.id)
-          ? { ...option, efforts: true as const }
+          ? { ...option, efforts: HOME_EFFORT_OPTIONS }
           : option,
       ),
     [],
