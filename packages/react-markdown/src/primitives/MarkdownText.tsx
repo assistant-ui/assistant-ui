@@ -138,13 +138,19 @@ export type MarkdownTextPrimitiveProps = Omit<
 };
 
 const MarkdownTextInner: FC<MarkdownTextPrimitiveProps> = ({
-  components: userComponents,
+  components: rawComponents,
   componentsByLanguage,
   smooth = true,
   defer = false,
   preprocess,
   ...rest
 }) => {
+  // An inline `components={{ h1: MyH1 }}` is a fresh object every render, which
+  // would give the renderer a new prop identity and defeat its memo.
+  const userComponents = useStableProps(
+    (rawComponents ?? {}) as Record<string, unknown>,
+  ) as MarkdownTextPrimitiveProps["components"];
+
   const messagePartText = useMessagePartText();
 
   const processedMessagePart = useMemo(() => {

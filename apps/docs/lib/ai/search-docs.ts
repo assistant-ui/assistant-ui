@@ -1,20 +1,12 @@
-import type { ContentRecord } from "@/lib/search/content-search";
 import { searchContent } from "@/lib/search/content-search";
 import { tool, zodSchema, type UIMessageStreamWriter } from "ai";
 import z from "zod";
 
 const RESULT_LIMIT = 5;
 
-let contentIndexPromise: Promise<ContentRecord[]> | undefined;
-
-function getContentIndex() {
-  contentIndexPromise ??= import("@/lib/search/content-index")
-    .then(({ buildContentIndex }) => buildContentIndex())
-    .catch((error: unknown) => {
-      contentIndexPromise = undefined;
-      throw error;
-    });
-  return contentIndexPromise;
+async function getContentIndex() {
+  const { buildContentIndex } = await import("@/lib/search/content-index");
+  return buildContentIndex();
 }
 
 export function createSearchDocsTool({

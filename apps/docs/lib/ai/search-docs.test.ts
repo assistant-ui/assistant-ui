@@ -60,6 +60,26 @@ describe("searchContent", () => {
     );
   });
 
+  it("ignores filler words in a natural-language question", () => {
+    expect(
+      searchContent(mocks.records, "how do I render a thread list", 5).map(
+        (page) => page.url,
+      ),
+    ).toEqual(["/docs/ui/thread-list"]);
+  });
+
+  it("falls back to the pages each term finds when no page has them all", () => {
+    expect(
+      searchContent(mocks.records, "thread list keyboard escape", 5).map(
+        (page) => page.url,
+      ),
+    ).toEqual([
+      "/docs/ui/thread-list",
+      "/docs/runtimes/custom",
+      "/docs/guides/keyboard",
+    ]);
+  });
+
   it("caps results at the limit", () => {
     expect(searchContent(mocks.records, "thread", 1)).toHaveLength(1);
   });

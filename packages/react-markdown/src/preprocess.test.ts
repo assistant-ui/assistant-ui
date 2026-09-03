@@ -52,6 +52,12 @@ describe("rewriteLatexBracketDelimiters", () => {
     ).toBe("> quote \n> $$\n> a\n> b\n> $$\n> after");
   });
 
+  it("keeps the block prefix when a code span precedes the match", () => {
+    expect(
+      rewriteLatexBracketDelimiters("- see `x` \\[\na\nb\n\\]\n- next"),
+    ).toBe("- see `x` \n  $$\n  a\n  b\n  $$\n- next");
+  });
+
   it("leaves bracket delimiters inside a code span as written", () => {
     expect(rewriteLatexBracketDelimiters("use `\\(x\\)` here")).toBe(
       "use `\\(x\\)` here",
@@ -101,6 +107,10 @@ describe("rewriteCustomMathTags", () => {
     expect(rewriteCustomMathTags("- item [/math]\na\nb\n[/math]\n- next")).toBe(
       "- item \n  $$\n  a\n  b\n  $$\n- next",
     );
+  });
+
+  it("leaves an empty tag pair as written", () => {
+    expect(rewriteCustomMathTags("[/math][/math]")).toBe("[/math][/math]");
   });
 
   it("leaves tags inside a fence as written", () => {

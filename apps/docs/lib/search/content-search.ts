@@ -1,6 +1,48 @@
 import { scoreText, tokenize } from "./query";
 import type { SearchRecord } from "./types";
 
+// `tokenize` only drops single characters, and `scoreText` requires every token,
+// so a tool asking a natural-language question would otherwise have to find all
+// of its filler words on one page.
+const STOP_WORDS = new Set([
+  "about",
+  "an",
+  "and",
+  "are",
+  "as",
+  "at",
+  "be",
+  "by",
+  "can",
+  "do",
+  "does",
+  "for",
+  "from",
+  "how",
+  "in",
+  "is",
+  "it",
+  "of",
+  "on",
+  "or",
+  "should",
+  "that",
+  "the",
+  "this",
+  "to",
+  "was",
+  "what",
+  "when",
+  "where",
+  "which",
+  "who",
+  "why",
+  "with",
+  "would",
+  "you",
+  "your",
+]);
+
 /**
  * A page with the prose fumadocs already extracted for the search index.
  *
@@ -37,9 +79,35 @@ export function searchContent(
   query: string,
   limit: number,
 ): ContentMatch[] {
-  const tokens = tokenize(query);
-  if (tokens.length === 0 || limit <= 0) return [];
+  const all = tokenize(query).filter((token) => !STOP_WORDS.has(token));
+  if (all.length === 0 || limit <= 0) return [];
 
+  const ranked = rank(records, all, limit);
+  if (ranked.length > 0 || all.length === 1) return ranked;
+
+  // Every token has to appear on one page, so a specific question can rank
+  // nothing at all. Falling back to the pages each token finds on its own,
+  // ordered by how many tokens found them, answers it with something.
+  const perToken = new Map<string, { match: ContentMatch; hits: number }>();
+  for (const token of all) {
+    for (const match of rank(records, [token], limit)) {
+      const seen = perToken.get(match.url);
+      if (seen) seen.hits += 1;
+      else perToken.set(match.url, { match, hits: 1 });
+    }
+  }
+
+  return [...perToken.values()]
+    .sort((a, b) => b.hits - a.hits)
+    .slice(0, limit)
+    .map((entry) => entry.match);
+}
+
+function rank(
+  records: readonly ContentRecord[],
+  tokens: string[],
+  limit: number,
+): ContentMatch[] {
   const ranked: { match: ContentMatch; score: number }[] = [];
 
   for (const page of records) {

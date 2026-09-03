@@ -43,7 +43,7 @@ function toRecord(page: {
  * extracted for the browser index. The browser index served by `/api/search`
  * deliberately carries metadata alone so its payload stays small.
  */
-export function buildContentIndex(): Promise<ContentRecord[]> {
+function collectPages(): Promise<ContentRecord[]> {
   return Promise.all(
     [
       ...source.getPages(),
@@ -52,4 +52,18 @@ export function buildContentIndex(): Promise<ContentRecord[]> {
       ...elementsDocs.getPages(),
     ].map((page) => toRecord(page as Parameters<typeof toRecord>[0])),
   );
+}
+
+let indexPromise: Promise<ContentRecord[]> | undefined;
+
+/**
+ * The corpus, built once per server instance. A rejection is not memoized, so a
+ * transient failure does not disable search for the lifetime of the process.
+ */
+export function buildContentIndex(): Promise<ContentRecord[]> {
+  indexPromise ??= collectPages().catch((error: unknown) => {
+    indexPromise = undefined;
+    throw error;
+  });
+  return indexPromise;
 }

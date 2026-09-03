@@ -49,9 +49,22 @@ function codeSpanEnd(text: string, start: number): number {
  * text, since a rewrite that needs to know whether it starts a line cannot see
  * past its own segment.
  */
+type ProseRun = {
+  /** Character before the run in the original text, "" at the start. */
+  before: string;
+  /** Character after the run in the original text, "" at the end. */
+  after: string;
+  /**
+   * The original text from the start of the line containing `offset` (an index
+   * within the run) up to that index. A run begins after any code span, so the
+   * line it sits on can start earlier than the run does.
+   */
+  lineHead(offset: number): string;
+};
+
 function mapProseRuns(
   text: string,
-  transform: (prose: string, before: string, after: string) => string,
+  transform: (prose: string, run: ProseRun) => string,
 ): string {
   let out = "";
   let prose = "";
@@ -60,7 +73,15 @@ function mapProseRuns(
 
   const flush = (after: string) => {
     if (prose === "") return;
-    out += transform(prose, text[proseStart - 1] ?? "", after);
+    const start = proseStart;
+    out += transform(prose, {
+      before: text[start - 1] ?? "",
+      after,
+      lineHead: (offset) => {
+        const at = start + offset;
+        return text.slice(text.lastIndexOf("\n", at - 1) + 1, at);
+      },
+    });
     prose = "";
   };
 
@@ -112,15 +133,18 @@ function fenceDisplayBody(
   body: string,
   head: string,
   tail: string,
-  before: string,
-  after: string,
+  run: ProseRun,
 ): string {
-  const prefix = continuationPrefix(head.slice(head.lastIndexOf("\n") + 1));
+  const prefix = continuationPrefix(run.lineHead(head.length));
 
   const opensLine =
-    head === "" ? before === "" || before === "\n" : head.endsWith("\n");
+    head === ""
+      ? run.before === "" || run.before === "\n"
+      : head.endsWith("\n");
   const closesLine =
-    tail === "" ? after === "" || after === "\n" : tail.startsWith("\n");
+    tail === ""
+      ? run.after === "" || run.after === "\n"
+      : tail.startsWith("\n");
 
   const lines = body
     .split("\n")
@@ -150,7 +174,7 @@ function fenceDisplayBody(
  * never closes. Code spans and fences are copied through unchanged.
  */
 export function rewriteLatexBracketDelimiters(text: string): string {
-  return mapProseRuns(text, (prose, before, after) =>
+  return mapProseRuns(text, (prose, run) =>
     prose
       .replace(LATEX_INLINE_DELIMITER, (match: string, body: string) => {
         const trimmed = body.trim();
@@ -166,8 +190,7 @@ export function rewriteLatexBracketDelimiters(text: string): string {
             trimmed,
             source.slice(0, offset),
             source.slice(offset + match.length),
-            before,
-            after,
+            run,
           );
         },
       ),
@@ -187,20 +210,19 @@ const INLINE_TAG = /\[\/inline\]([\s\S]*?)\[\/inline\]/g;
  * spans and fences are copied through unchanged.
  */
 export function rewriteCustomMathTags(text: string): string {
-  return mapProseRuns(text, (prose, before, after) =>
+  return mapProseRuns(text, (prose, run) =>
     prose
       .replace(
         MATH_TAG,
         (match: string, body: string, offset: number, source: string) => {
           const trimmed = body.trim();
-          if (trimmed === "") return `$$$$`;
+          if (trimmed === "") return match;
           if (!trimmed.includes("\n")) return `$$${trimmed}$$`;
           return fenceDisplayBody(
             trimmed,
             source.slice(0, offset),
             source.slice(offset + match.length),
-            before,
-            after,
+            run,
           );
         },
       )
