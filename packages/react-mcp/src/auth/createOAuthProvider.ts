@@ -72,12 +72,39 @@ type OAuthProviderPersistence = {
   invalidated: boolean;
 };
 
+// scopeId, not object identity, is what addresses the same persisted data, so
+// storages sharing one share an anchor and an unscoped storage is its own
+// identity. Every storage declaring a scope holds that scope's anchor, so the
+// coordination state below is collected once the last of them is gone.
+const anchorByStorage = new WeakMap<MCPStorage, object>();
+const anchorByScope = new Map<string, WeakRef<object>>();
+const anchorRegistry = new FinalizationRegistry<string>((scopeId) => {
+  if (!anchorByScope.get(scopeId)?.deref()) anchorByScope.delete(scopeId);
+});
+
+const getStorageIdentity = (storage: MCPStorage): object => {
+  const existing = anchorByStorage.get(storage);
+  if (existing) return existing;
+
+  const { scopeId } = storage;
+  if (scopeId === undefined) return storage;
+
+  let anchor = anchorByScope.get(scopeId)?.deref();
+  if (!anchor) {
+    anchor = {};
+    anchorByScope.set(scopeId, new WeakRef(anchor));
+    anchorRegistry.register(anchor, scopeId);
+  }
+  anchorByStorage.set(storage, anchor);
+  return anchor;
+};
+
 // McpServerResource builds a fresh provider for every transport, so the cache,
 // the in-flight load, and the write queue have to outlive any one provider.
 // saveAuthState replaces the whole record, so two providers writing their own
 // snapshots concurrently would drop whichever field the loser had added.
-const persistenceByStorage = new WeakMap<
-  MCPStorage,
+const persistenceByIdentity = new WeakMap<
+  object,
   Map<string, OAuthProviderPersistence>
 >();
 
@@ -85,10 +112,11 @@ const getPersistence = (
   storage: MCPStorage,
   serverId: string,
 ): OAuthProviderPersistence => {
-  let byServerId = persistenceByStorage.get(storage);
+  const identity = getStorageIdentity(storage);
+  let byServerId = persistenceByIdentity.get(identity);
   if (!byServerId) {
     byServerId = new Map();
-    persistenceByStorage.set(storage, byServerId);
+    persistenceByIdentity.set(identity, byServerId);
   }
 
   let persistence = byServerId.get(serverId);
@@ -113,7 +141,8 @@ export const clearOAuthProviderAuthState = async (
   storage: MCPStorage,
   serverId: string,
 ): Promise<void> => {
-  const byServerId = persistenceByStorage.get(storage);
+  const identity = getStorageIdentity(storage);
+  const byServerId = persistenceByIdentity.get(identity);
   const persistence = byServerId?.get(serverId);
   if (!byServerId || !persistence) {
     await storage.clearAuthState(serverId);
@@ -124,7 +153,7 @@ export const clearOAuthProviderAuthState = async (
   // on a fresh generation instead of inheriting the fenced one.
   persistence.invalidated = true;
   byServerId.delete(serverId);
-  if (byServerId.size === 0) persistenceByStorage.delete(storage);
+  if (byServerId.size === 0) persistenceByIdentity.delete(identity);
 
   await Promise.allSettled([persistence.cachePromise, persistence.queue]);
   await storage.clearAuthState(serverId);

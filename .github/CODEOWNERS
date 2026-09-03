@@ -5,3 +5,7 @@
 
 # Public API surface snapshots require maintainer review.
 /api-surface/ @assistant-ui/maintainers
+
+# The reactive primitives every runtime is built on require maintainer review.
+/packages/tap/ @assistant-ui/maintainers
+/packages/store/ @assistant-ui/maintainers

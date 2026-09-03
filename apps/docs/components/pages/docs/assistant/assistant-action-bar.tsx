@@ -44,7 +44,21 @@ function getErrorDetails(error: unknown): {
   };
 }
 
-export function AssistantActionBar(): ReactNode {
+export type FeedbackSurface = "docs_assistant" | "home_thread";
+
+/**
+ * Thumbs up and down for the current assistant message, with the reason
+ * popover on the negative path. Records the feedback funnel in analytics and
+ * marks the message through the runtime's feedback adapter. Renders nothing
+ * while the message is streaming or has no prose to rate.
+ */
+export function FeedbackActions({
+  surface,
+  onOpenChange,
+}: {
+  surface: FeedbackSurface;
+  onOpenChange?: ((open: boolean) => void) | undefined;
+}): ReactNode {
   const [popoverOpen, setPopoverOpen] = useState(false);
   const feedbackShownForMessageRef = useRef<string | null>(null);
   const feedbackSubmissionStartedRef = useRef<string | null>(null);
@@ -79,6 +93,7 @@ export function AssistantActionBar(): ReactNode {
     () => ({
       threadId,
       messageId,
+      surface,
       user_question_length: userQuestionLength,
       assistant_response_length: assistantResponseLength,
       tool_calls_count: toolCallsCount,
@@ -87,6 +102,7 @@ export function AssistantActionBar(): ReactNode {
     [
       assistantResponseLength,
       messageId,
+      surface,
       threadId,
       toolCallsCount,
       toolNames,
@@ -102,10 +118,16 @@ export function AssistantActionBar(): ReactNode {
     analytics.assistant.feedbackShown(feedbackBaseProps);
   }, [assistantHasText, feedbackBaseProps, isRunning, messageId]);
 
-  // Don't show feedback buttons while message is still streaming or if no content
+  useEffect(() => () => onOpenChange?.(false), [onOpenChange]);
+
   if (isRunning || !assistantHasText) {
     return null;
   }
+
+  const setOpen = (open: boolean) => {
+    setPopoverOpen(open);
+    onOpenChange?.(open);
+  };
 
   const handlePositiveFeedback = () => {
     if (submittedFeedback || feedbackSubmissionStartedRef.current === messageId)
@@ -171,18 +193,7 @@ export function AssistantActionBar(): ReactNode {
   };
 
   return (
-    <ActionBarPrimitive.Root className="mt-2 flex items-center gap-1.5">
-      <ActionBarPrimitive.Copy
-        aria-label="Copy response"
-        className="text-muted-foreground/70 hover:text-foreground p-1 transition-colors"
-      >
-        <AuiIf condition={(s) => s.message.isCopied}>
-          <CheckIcon className="size-4" />
-        </AuiIf>
-        <AuiIf condition={(s) => !s.message.isCopied}>
-          <CopyIcon className="size-4" />
-        </AuiIf>
-      </ActionBarPrimitive.Copy>
+    <>
       <button
         type="button"
         onClick={handlePositiveFeedback}
@@ -203,12 +214,12 @@ export function AssistantActionBar(): ReactNode {
 
       <FeedbackPopover
         open={popoverOpen}
-        onOpenChange={setPopoverOpen}
+        onOpenChange={setOpen}
         onSubmit={handleNegativeFeedback}
       >
         <button
           type="button"
-          onClick={() => setPopoverOpen(true)}
+          onClick={() => setOpen(true)}
           disabled={!!submittedFeedback}
           aria-label={
             submittedFeedback === "negative"
@@ -224,6 +235,33 @@ export function AssistantActionBar(): ReactNode {
           <ThumbsDownIcon className="size-4" />
         </button>
       </FeedbackPopover>
+    </>
+  );
+}
+
+export function AssistantActionBar(): ReactNode {
+  const content = useAuiState((s) => s.message.content);
+  const isRunning = useAuiState((s) => s.message.status?.type === "running");
+
+  // Don't show feedback buttons while message is still streaming or if no content
+  if (isRunning || !hasNonWhitespaceText(content)) {
+    return null;
+  }
+
+  return (
+    <ActionBarPrimitive.Root className="mt-2 flex items-center gap-1.5">
+      <ActionBarPrimitive.Copy
+        aria-label="Copy response"
+        className="text-muted-foreground/70 hover:text-foreground p-1 transition-colors"
+      >
+        <AuiIf condition={(s) => s.message.isCopied}>
+          <CheckIcon className="size-4" />
+        </AuiIf>
+        <AuiIf condition={(s) => !s.message.isCopied}>
+          <CopyIcon className="size-4" />
+        </AuiIf>
+      </ActionBarPrimitive.Copy>
+      <FeedbackActions surface="docs_assistant" />
     </ActionBarPrimitive.Root>
   );
 }

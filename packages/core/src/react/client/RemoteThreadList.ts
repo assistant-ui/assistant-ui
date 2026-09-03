@@ -282,13 +282,15 @@ const RemoteThreadBody = resource(useRemoteThreadBody);
 // `thread("main")` keeps one identity across switches, like the single
 // useClientResource slot it replaced: consumers (the ambient `thread` scope,
 // captured clients) hold the facade while it delegates to whichever body is
-// currently main. Isolated in its own hook because the render-time ref access
-// bails the React Compiler for the enclosing function.
+// currently main. Publishing the target during commit keeps abandoned
+// concurrent renders from changing the facade observed by committed consumers.
 const useMainThreadFacade = (
   current: ClientOutput<"thread">,
 ): ClientOutput<"thread"> => {
   const currentRef = useRef(current);
-  currentRef.current = current;
+  useEffect(() => {
+    currentRef.current = current;
+  }, [current]);
   const [facade] = useState(
     () =>
       new Proxy({} as ClientOutput<"thread">, {
@@ -566,8 +568,8 @@ const useRemoteThreadList = (
           const fresh = classifyThreads(page.threads, {
             threadIds: [],
             archivedThreadIds: [],
-            threadIdMap: {},
-            threadData: {},
+            threadIdMap: { ...state.threadIdMap },
+            threadData: { ...state.threadData },
           });
           const merged = {
             ...state,
@@ -575,14 +577,8 @@ const useRemoteThreadList = (
             cursor: normalizeCursor(page.nextCursor),
             threadIds: fresh.threadIds,
             archivedThreadIds: fresh.archivedThreadIds,
-            threadIdMap: {
-              ...state.threadIdMap,
-              ...fresh.threadIdMap,
-            },
-            threadData: {
-              ...state.threadData,
-              ...fresh.threadData,
-            },
+            threadIdMap: fresh.threadIdMap,
+            threadData: fresh.threadData,
           };
           return preserveMidLoadTransitions(merged, state, statusAtRequest);
         },
@@ -777,22 +773,30 @@ const useRemoteThreadList = (
           throw threadNotFoundError(threadIdOrRemoteId, "switching to it");
         }
         if (isSameThread(store.value, data.id, session.mainThreadId)) return;
-        if (data.status === "archived" && options?.unarchive !== false) {
-          const current = data;
+
+        const targetId = data.id;
+        let current: RemoteThreadData | undefined = data;
+
+        if (current.status === "archived" && options?.unarchive !== false) {
           const { remoteId } = await current.initializeTask;
           if (generation !== session.switchGeneration) return;
-          await store.optimisticUpdate({
-            execute: () => session.adapter.unarchive(remoteId),
-            optimistic: (state) =>
-              updateStatusReducer(state, current.id, "regular"),
-          });
-          if (generation !== session.switchGeneration) return;
-          data = getThreadData(store.value, current.id) ?? current;
+          current = getThreadData(store.value, targetId);
+          if (current?.id !== targetId) return;
+          if (current.status === "archived") {
+            await store.optimisticUpdate({
+              execute: () => session.adapter.unarchive(remoteId),
+              optimistic: (state) =>
+                updateStatusReducer(state, targetId, "regular"),
+            });
+            if (generation !== session.switchGeneration) return;
+            current = getThreadData(store.value, targetId);
+            if (current?.id !== targetId) return;
+          }
         }
         if (generation !== session.switchGeneration) return;
-        assignMainThreadId(data.id);
-        notifyRemoteId(data.remoteId, emitThreadIdChange);
-        session.onSwitchToThread?.(data.id);
+        assignMainThreadId(current.id);
+        notifyRemoteId(current.remoteId, emitThreadIdChange);
+        session.onSwitchToThread?.(current.id);
       }),
     [assignMainThreadId, notifyRemoteId, session, startSwitch, store],
   );
@@ -901,21 +905,36 @@ const useRemoteThreadList = (
           const data = getThreadData(state, threadId);
           if (!data) return state;
           const mappingId = createThreadMappingId(threadId);
+          // A list() response that landed while this initialize was in flight
+          // could not know the remote id yet, so it may have minted its own
+          // slot for it; that slot collapses into this one.
+          const listedMappingId = state.threadIdMap[remoteId];
+          const orphan =
+            listedMappingId !== undefined && listedMappingId !== mappingId
+              ? state.threadData[listedMappingId]
+              : undefined;
+
+          const threadData = { ...state.threadData };
+          if (orphan !== undefined) delete threadData[listedMappingId!];
+          threadData[mappingId] = {
+            ...data,
+            initializeTask: Promise.resolve({ remoteId, externalId }),
+            remoteId,
+            externalId,
+          } as RemoteThreadData;
+
+          const rewire = (ids: readonly string[]) =>
+            orphan === undefined ? ids : ids.filter((id) => id !== orphan.id);
+
           return {
             ...state,
+            threadIds: rewire(state.threadIds),
+            archivedThreadIds: rewire(state.archivedThreadIds),
             threadIdMap: {
               ...state.threadIdMap,
               [remoteId]: mappingId,
             },
-            threadData: {
-              ...state.threadData,
-              [mappingId]: {
-                ...data,
-                initializeTask: Promise.resolve({ remoteId, externalId }),
-                remoteId,
-                externalId,
-              },
-            },
+            threadData,
           };
         },
       });

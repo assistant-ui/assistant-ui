@@ -371,6 +371,7 @@ import {
   AuiConfig,
   defineToolkit,
   Tools,
+  type ToolApprovalResponse,
 } from "@assistant-ui/react";
 import { useAISDKRuntime } from "@assistant-ui/ai-sdk";
 import { lastAssistantMessageIsCompleteWithApprovalResponses } from "ai";
@@ -380,16 +381,26 @@ const toolkit = defineToolkit({
   deploy: {
     type: "backend",
     render: ({ args, approval, respondToApproval, result }) => {
+      // A refused response rejects and a precondition throws, so `try`/`await`
+      // covers both and the controls stay actionable.
+      const answer = async (response: ToolApprovalResponse) => {
+        try {
+          await respondToApproval(response);
+        } catch (failure) {
+          console.error(failure);
+        }
+      };
+
       if (approval?.approved === undefined) {
         return (
           <div>
             <p>Approve deploy to {args.target}?</p>
-            <button onClick={() => respondToApproval({ approved: true })}>
+            <button onClick={() => void answer({ approved: true })}>
               Approve
             </button>
             <button
               onClick={() =>
-                respondToApproval({ approved: false, reason: "user denied" })
+                void answer({ approved: false, reason: "user denied" })
               }
             >
               Deny

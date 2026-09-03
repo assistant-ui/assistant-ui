@@ -1,16 +1,22 @@
 import { execFileSync } from "node:child_process";
 import { promises as fs } from "node:fs";
 import path from "node:path";
+import {
+  SNAPSHOT_BYTE_BUDGET,
+  formatBudgetError,
+} from "./source-snapshot-budget.mts";
 
 const DOCS_ROOT = process.cwd();
 const REPO_ROOT = path.resolve(DOCS_ROOT, "../..");
 const OUTPUT_DIR = path.join(DOCS_ROOT, "generated");
-const OUTPUT_PATH = path.join(OUTPUT_DIR, "source-snapshot.json");
+const OUTPUT_PATH = path.join(OUTPUT_DIR, ".repo-source");
 const READ_CONCURRENCY = 32;
+const WRITE_CONCURRENCY = 32;
 const SOURCE_SNAPSHOT_EXCLUDE = [
   /pnpm-lock\.yaml$/,
   /package-lock\.json$/,
   /yarn\.lock$/,
+  /uv\.lock$/,
   /\.png$/,
   /\.jpg$/,
   /\.jpeg$/,
@@ -39,9 +45,48 @@ async function main() {
     );
 
   const snapshot = await buildSnapshot(files);
+  const size = Object.values(snapshot).reduce(
+    (total, contents) => total + Buffer.byteLength(contents, "utf-8"),
+    0,
+  );
 
-  await fs.mkdir(OUTPUT_DIR, { recursive: true });
-  await fs.writeFile(OUTPUT_PATH, JSON.stringify(snapshot));
+  if (size > SNAPSHOT_BYTE_BUDGET) {
+    console.error(formatBudgetError(snapshot, size));
+    process.exitCode = 1;
+    return;
+  }
+
+  await fs.rm(OUTPUT_PATH, { recursive: true, force: true });
+  await writeSnapshot(snapshot);
+}
+
+async function writeSnapshot(snapshot: Record<string, string>) {
+  const entries = Object.entries(snapshot);
+  const directories = new Set(
+    entries.map(([filePath]) => path.dirname(path.join(OUTPUT_PATH, filePath))),
+  );
+
+  for (const directory of directories) {
+    await fs.mkdir(directory, { recursive: true });
+  }
+
+  let index = 0;
+
+  async function worker() {
+    while (true) {
+      const currentIndex = index++;
+      if (currentIndex >= entries.length) return;
+
+      const [filePath, contents] = entries[currentIndex]!;
+      await fs.writeFile(path.join(OUTPUT_PATH, filePath), contents);
+    }
+  }
+
+  await Promise.all(
+    Array.from({ length: Math.min(WRITE_CONCURRENCY, entries.length) }, () =>
+      worker(),
+    ),
+  );
 }
 
 async function buildSnapshot(files: string[]) {

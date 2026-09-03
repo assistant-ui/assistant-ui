@@ -552,24 +552,36 @@ export default defineToolkit({
 Some runtimes (notably AI SDK v7's `toolApproval`-gated tools) pause on the server and emit an approval request that the client must acknowledge before the tool runs. assistant-ui surfaces this on the tool part as `approval` and exposes `respondToApproval({ approved, reason? })` on the renderer:
 
 ```tsx
+import { useState } from "react";
+import type { ToolApprovalResponse } from "@assistant-ui/react";
+
 const toolkit = defineToolkit({
   deploy: {
     type: "backend",
     render: ({ args, approval, respondToApproval, result }) => {
+      const [error, setError] = useState<string | null>(null);
+
       if (approval?.approved === undefined) {
+        // `try`/`await` rather than `.catch`: a rejected response and a
+        // rejected precondition (an unknown option, an answer the request does
+        // not take) reach the caller by different routes.
+        const answer = async (response: ToolApprovalResponse) => {
+          setError(null);
+          try {
+            await respondToApproval(response);
+          } catch (failure) {
+            setError(failure instanceof Error ? failure.message : String(failure));
+          }
+        };
+
         return (
           <div>
             <p>Approve deploy to {args.target}?</p>
-            <button onClick={() => respondToApproval({ approved: true })}>
-              Approve
-            </button>
-            <button
-              onClick={() =>
-                respondToApproval({ approved: false, reason: "user denied" })
-              }
-            >
+            <button onClick={() => void answer({ approved: true })}>Approve</button>
+            <button onClick={() => void answer({ approved: false, reason: "user denied" })}>
               Deny
             </button>
+            {error && <p role="alert">{error}</p>}
           </div>
         );
       }
@@ -592,6 +604,8 @@ const toolkit = defineToolkit({
 - `false`: decision recorded as deny. The runtime records an error result (`isError`) and exposes `approval.reason`.
 
 `approval.isAutomatic` is `true` when the runtime granted the decision from a server-side policy rather than the user; render a "auto-approved" badge instead of buttons in that case.
+
+`respondToApproval` returns a promise that resolves once the runtime has accepted the response and rejects when it could not be recorded, for example an expired gate or a provider that refuses the answer as given. Await it before disabling the controls, so a refused response leaves the request retryable rather than spending it.
 
 Approval gates require a runtime that implements them: the AI SDK v7 runtime emits them for `toolApproval`-gated tools, and `LocalRuntime` supports gates emitted by your `ChatModelAdapter`; see [LocalRuntime approval gates](/docs/runtimes/custom/local-runtime#approval-gates). For tools where the user supplies the result itself, use `unstable_humanToolNames` with `addResult` instead; see [human-in-the-loop tools](/docs/runtimes/custom/local-runtime#human-in-the-loop-tools).
 
@@ -625,7 +639,36 @@ Renderers respond with the chosen option instead of a boolean; the option's kind
 respondToApproval({ optionId: "session" });
 ```
 
-The runtime receives `{ approvalId, approved, optionId, reason? }`, so a host that persists "always allow" decisions can key its store off `optionId`. Persistence is entirely host-owned: assistant-ui never stores a decision and never auto-answers future approvals. `grants` lists the patterns an option would persist (shown to the user before they commit), and `confirm` opts the option into a confirmation step. Options with custom `_`-prefixed kinds must be answered with an explicit `approved` value, optionally alongside the `optionId` so the chosen option is still recorded. The default `ToolFallback` bar renders them next to the known kinds and sends `{ optionId, approved: true }` when one is chosen, since picking a declared option is an answer rather than a refusal; it also keeps a Deny control available whenever the request declares no reject-kind option.
+The runtime receives `{ approvalId, approved, optionId, text?, reason? }`, so a host that persists "always allow" decisions can key its store off `optionId`. Persistence is entirely host-owned: assistant-ui never stores a decision and never auto-answers future approvals. `grants` lists the patterns an option would persist (shown to the user before they commit), and `confirm` opts the option into a confirmation step. Options with custom `_`-prefixed kinds must be answered with an explicit `approved` value, optionally alongside the `optionId` so the chosen option is still recorded. The default `ToolFallback` bar renders them next to the known kinds and sends `{ optionId, approved: true }` when one is chosen, since picking a declared option is an answer rather than a refusal; it also keeps a Deny control available whenever a decision request declares no reject-kind option.
+
+### Approval questions
+
+An approval request can ask for something other than permission. `approval.prompt` carries the question, and `approval.display` says how to present it: `"decision"` (the default) for a yes / no gate, `"select"` when the answer is one of `approval.options`, and `"text"` when the user types it. `approval.allowFreeform` accepts a typed answer alongside the options.
+
+```ts
+const approval = {
+  id: "a1",
+  prompt: "Which environment should I deploy to?",
+  display: "select",
+  allowFreeform: true,
+  options: [
+    { id: "staging", kind: "_staging", label: "Staging" },
+    { id: "production", kind: "_production", label: "Production" },
+  ],
+};
+```
+
+A renderer answers a free-form request with the answer itself:
+
+```tsx
+respondToApproval({ text: "staging" });
+```
+
+The runtime records that as `{ approvalId, approved: true, text }`, because answering a question is not refusing it. A `text` response to a request that declares neither `display: "text"` nor `allowFreeform` throws, so a host never receives an answer it has nowhere to record.
+
+An answer on its own resolves only a question. On a decision the approval is the authorization, so a bare `text` throws there and the answer must accompany an explicit decision (`{ approved, text }`) or a chosen option; otherwise a typed note would authorize the call. `allowFreeform` on a decision therefore annotates the decision rather than replacing it, which is why the default `ToolFallback` shows a text field beside Allow and Deny with no separate submit. A question has no meaningful refusal, so the default `ToolFallback` renders a text field for one and omits the Deny control it adds to a decision.
+
+Not every runtime emits these fields. The Eve runtime projects its input requests onto them. The AI SDK v7 runtime's gates are boolean by construction, and the AG-UI runtime admits only gates whose response schema it can answer with a decision, so both keep sending plain decisions and carry only a `prompt` when the gate supplies one.
 
 Approvals that end without a decision (a cancelled run or an expired request) are recorded by the host as `approval.resolution: "cancelled" | "expired"`, which closes the gate without recording a deny.
 

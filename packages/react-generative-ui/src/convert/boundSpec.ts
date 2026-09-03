@@ -81,26 +81,20 @@ function boundNode(
     ancestors.delete(value);
     return result;
   }
-  if (
-    value !== null &&
-    typeof value === "object" &&
-    "children" in (value as Record<string, unknown>)
-  ) {
+  if (value !== null && typeof value === "object") {
+    const record = value as Record<string, unknown>;
+    const children = record["children"];
+    // The spread performs a `children` read of its own, so the copy states the
+    // bounded value even when there is none.
+    if (children === undefined) return { ...record, children: undefined };
     if (ancestors.has(value)) {
       onClamp("cycle");
       return null;
     }
     ancestors.add(value);
-    const record = value as Record<string, unknown>;
     const result = {
       ...record,
-      children: boundNode(
-        record["children"],
-        depth + 1,
-        onClamp,
-        state,
-        ancestors,
-      ),
+      children: boundNode(children, depth + 1, onClamp, state, ancestors),
     };
     ancestors.delete(value);
     return result;
@@ -116,7 +110,11 @@ function boundNode(
  * (root, or `children` at any depth) is capped to {@link CHILDREN_CAP}
  * entries by index, which bounds a proxy however it fabricates `length` or
  * replaces its array methods; recursion itself is capped at
- * {@link MAX_TRAVERSAL_DEPTH}. `onClamp` fires once per level that was
+ * {@link MAX_TRAVERSAL_DEPTH}. Every object is returned as a plain copy whose
+ * `children` came from a single read, because a record that answers
+ * `[[HasProperty]]` and `[[Get]]`, or two `[[Get]]`s, differently would
+ * otherwise hand the bound one value and `normalizeSpec` another, skipping
+ * every bound here for that subtree. `onClamp` fires once per level that was
  * truncated, receiving the reason for that truncation: `"children"`,
  * `"depth"`, `"budget"`, or `"cycle"`. The walk also spends a total budget of
  * {@link NODE_BUDGET} nodes, so shared references cannot multiply work

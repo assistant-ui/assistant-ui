@@ -220,11 +220,8 @@ export async function transformProject(
     shadcnUI &&
     assistantUI
   ) {
-    const allShadcn = shadcnUI.includes("utils")
-      ? shadcnUI
-      : [...shadcnUI, "utils"];
     const auiComponents = assistantUI.map((c) => `@assistant-ui/${c}`);
-    const components = [...allShadcn, ...auiComponents];
+    const components = ["@assistant-ui/utils", ...shadcnUI, ...auiComponents];
     logger.step(`Installing components: ${components.join(", ")}...`);
     const failure = await installShadcnRegistry(
       projectDir,
@@ -233,6 +230,7 @@ export async function transformProject(
       pm,
     );
     if (failure) return { registryInstallFailure: failure };
+    await reconcileAssistantUIImportLayout(projectDir);
   }
   return {};
 }
@@ -421,6 +419,128 @@ function toAssistantUIItem(specifier: string): string | null {
   return inElements && !BARE_ELEMENT_ITEMS.has(name)
     ? `elements-${name}`
     : name;
+}
+
+/**
+ * Example snapshots are downloaded at a release tag while the shadcn registry
+ * is live, so a snapshot may import components at the legacy flat path
+ * (`@/components/assistant-ui/<name>`) after the registry has moved the file
+ * to `components/assistant-ui/elements/<name>.aui.tsx`. Resolve each legacy
+ * specifier against the files the registry actually installed and rewrite it
+ * only when the legacy path is absent and the elements layout has it.
+ */
+export async function reconcileAssistantUIImportLayout(
+  projectDir: string,
+): Promise<void> {
+  const componentRoots = ["components", "src/components"]
+    .map((dir) => path.join(projectDir, dir, "assistant-ui"))
+    .filter((dir) => fs.existsSync(dir));
+  if (componentRoots.length === 0) return;
+
+  const resolvesAtLegacyPath = (name: string) =>
+    componentRoots.some((root) =>
+      [".tsx", ".ts", "/index.tsx", "/index.ts"].some((suffix) =>
+        fs.existsSync(path.join(root, `${name}${suffix}`)),
+      ),
+    );
+
+  // Index the installed tree by import name so the rewrite follows whatever
+  // layout the registry delivered — some items install as
+  // elements/<name>.aui.tsx, others as elements/<name>.tsx, and a future
+  // layout move should not require new knowledge here.
+  const installedByName = new Map<string, string>();
+  for (const root of componentRoots) {
+    for (const { file } of readProjectFiles("**/*.{ts,tsx}", { cwd: root })) {
+      const normalized = file.split(path.sep).join("/");
+      if (!normalized.includes("/")) continue;
+      const specifier = normalized.replace(/\.[cm]?[tj]sx?$/, "");
+      const name = path.posix.basename(specifier).replace(/\.aui$/, "");
+      // A flat legacy import maps to the registry's `<name>` item, which is
+      // the `.aui` file; a colliding bare file with the same basename belongs
+      // to the distinct `elements-<name>` item, so the `.aui` variant wins.
+      const existing = installedByName.get(name);
+      if (
+        existing === undefined ||
+        (!existing.endsWith(".aui") && specifier.endsWith(".aui"))
+      ) {
+        installedByName.set(name, specifier);
+      }
+    }
+  }
+  if (installedByName.size === 0) return;
+
+  const { default: jscodeshift } = await import("jscodeshift");
+  const parsers = {
+    ts: jscodeshift.withParser("ts"),
+    tsx: jscodeshift.withParser("tsx"),
+  };
+
+  for (const { fullPath, content } of readProjectFiles("**/*.{ts,tsx}", {
+    cwd: projectDir,
+    ignore: LOCAL_PROJECT_ARTIFACT_GLOB_IGNORES,
+  })) {
+    if (!content.includes("@/components/assistant-ui/")) continue;
+
+    const replacements: Array<{ start: number; end: number; value: string }> =
+      [];
+    const collectReplacement = (source: {
+      value?: unknown;
+      start?: number | null;
+      end?: number | null;
+    }) => {
+      if (
+        typeof source.value !== "string" ||
+        source.start == null ||
+        source.end == null
+      ) {
+        return;
+      }
+
+      const prefix = "@/components/assistant-ui/";
+      if (!source.value.startsWith(prefix)) return;
+      const specifier = source.value.slice(prefix.length);
+      if (specifier.includes("/")) return;
+
+      const name = stripImportExtension(specifier);
+      const installed = installedByName.get(name);
+      if (resolvesAtLegacyPath(name) || installed === undefined) return;
+
+      const raw = content.slice(source.start, source.end);
+      const quote = raw[0];
+      if ((quote !== '"' && quote !== "'") || raw.at(-1) !== quote) return;
+      replacements.push({
+        start: source.start,
+        end: source.end,
+        value: `${quote}@/components/assistant-ui/${installed}${quote}`,
+      });
+    };
+
+    const j = fullPath.endsWith(".tsx") ? parsers.tsx : parsers.ts;
+    let root;
+    try {
+      root = j(content);
+    } catch {
+      continue;
+    }
+    root
+      .find(j.ImportDeclaration)
+      .forEach(({ node }) => collectReplacement(node.source));
+    root
+      .find(j.ExportNamedDeclaration)
+      .forEach(({ node }) => node.source && collectReplacement(node.source));
+    root
+      .find(j.ExportAllDeclaration)
+      .forEach(({ node }) => collectReplacement(node.source));
+
+    let next = content;
+    for (const replacement of replacements.sort((a, b) => b.start - a.start)) {
+      next =
+        next.slice(0, replacement.start) +
+        replacement.value +
+        next.slice(replacement.end);
+    }
+    if (next !== content) fs.writeFileSync(fullPath, next);
+  }
 }
 
 function scanRequiredComponents(projectDir: string): RequiredComponents {

@@ -1,3 +1,7 @@
+import {
+  iterateToolCallParts,
+  mapToolCallPartsDeep,
+} from "@assistant-ui/core/internal";
 import { buildResumeArray } from "@ag-ui/client";
 import type {
   RespondToToolApprovalOptions,
@@ -193,7 +197,9 @@ const isPending = (approval: ToolCallMessagePart["approval"]) =>
  * render can never be decided through this seam, so the batch it belongs to
  * could never be completed either: the decisions taken on its visible siblings
  * would sit on the message while the run waited for a response that no click
- * can produce. `boundToolCallIds` leaves such a batch bespoke instead.
+ * can produce. `boundToolCallIds` spans every call the run produced — root or
+ * nested on ToolCallMessagePart.messages — so only a gate naming a call the
+ * message renders nowhere leaves the batch bespoke.
  */
 export const projectAgUiToolApprovals = (
   interrupts: readonly AgUiInterrupt[] | undefined,
@@ -212,7 +218,13 @@ export const projectAgUiToolApprovals = (
   const toolCallIds = interrupts.map((interrupt) => interrupt.toolCallId);
   if (new Set(toolCallIds).size !== toolCallIds.length) return EMPTY_APPROVALS;
   return new Map(
-    interrupts.map((interrupt) => [interrupt.toolCallId, { id: interrupt.id }]),
+    interrupts.map((interrupt) => [
+      interrupt.toolCallId,
+      {
+        id: interrupt.id,
+        ...(interrupt.message !== undefined && { prompt: interrupt.message }),
+      },
+    ]),
   );
 };
 
@@ -228,12 +240,9 @@ export const withToolApprovalDecision = (
   content: readonly ThreadAssistantMessagePart[],
   { approvalId, approved, reason }: RespondToToolApprovalOptions,
 ): readonly ThreadAssistantMessagePart[] => {
-  let changed = false;
-  const next = content.map((part) => {
-    if (part.type !== "tool-call") return part;
+  const { content: next, changed } = mapToolCallPartsDeep(content, (part) => {
     const approval = part.approval;
     if (approval?.id !== approvalId || !isPending(approval)) return part;
-    changed = true;
     return {
       ...part,
       approval: {
@@ -263,8 +272,7 @@ export const buildToolApprovalResume = (
   // instead of recording a response, and `constructor` or `toString` would
   // report themselves as answered while undecided.
   const responses = new Map<string, { status: "resolved"; payload: unknown }>();
-  for (const part of content) {
-    if (part.type !== "tool-call") continue;
+  for (const part of iterateToolCallParts(content)) {
     const approval = part.approval;
     if (!approval || approval.approved === undefined) continue;
     if (!open.has(approval.id)) continue;
@@ -350,16 +358,13 @@ export const withSettledToolApprovals = (
 ): readonly ThreadAssistantMessagePart[] => {
   if (resume.length === 0) return content;
   const byId = new Map(resume.map((entry) => [entry.interruptId, entry]));
-  let changed = false;
-  const next = content.map((part) => {
-    if (part.type !== "tool-call") return part;
+  const { content: next, changed } = mapToolCallPartsDeep(content, (part) => {
     const approval = part.approval;
     if (!approval) return part;
     const entry = byId.get(approval.id);
     if (!entry) return part;
     const settled = settle(approval, entry);
     if (!settled) return part;
-    changed = true;
     return { ...part, approval: settled };
   });
   return changed ? next : content;

@@ -626,9 +626,6 @@ export const useStreamRuntime = (rawOptions: UseStreamRuntimeOptions) => {
     ...options
   } = rawOptions;
 
-  const optionsRef = useRef(options);
-  optionsRef.current = options;
-
   const aui = useAui();
   const cloudAdapter = useCloudThreadListAdapter({
     cloud,
@@ -642,7 +639,7 @@ export const useStreamRuntime = (rawOptions: UseStreamRuntimeOptions) => {
 
   return useRemoteThreadListRuntime({
     runtimeHook: function RuntimeHook() {
-      return useStreamThreadRuntime(optionsRef.current);
+      return useStreamThreadRuntime(options);
     },
     adapter,
     allowNesting: true,

@@ -1,6 +1,6 @@
 {
   "name": "@assistant-ui/mcp-docs-server",
-  "version": "0.2.3",
+  "version": "0.3.0",
   "description": "Stdio proxy for the hosted assistant-ui documentation MCP server",
   "keywords": [
     "mcp",
@@ -44,7 +44,7 @@
     "@assistant-ui/x-buildutils": "workspace:*",
     "@modelcontextprotocol/core": "^2.0.0",
     "@types/node": "^26.4.0",
-    "tsx": "^4.23.12",
+    "tsx": "^4.23.13",
     "vitest": "^4.1.11"
   },
   "publishConfig": {

@@ -110,4 +110,101 @@ describe("convertExternalMessageChunk", () => {
 
     expect(second).toBe(first);
   });
+
+  it("replaces a cached complete status after cancellation", () => {
+    const input = {};
+    const chunk = {
+      inputs: [input],
+      outputs: [{ id: "m1", role: "assistant" as const, content: "partial" }],
+    };
+    const cancelled = new Set(["m1"]);
+    const generatedFallbackMessages = new WeakSet<object>();
+    const first = convertExternalMessageChunk(chunk, 0, 1, false, undefined, {
+      message: undefined,
+      generatedFallbackMessages,
+    });
+
+    const second = convertExternalMessageChunk(
+      chunk,
+      0,
+      1,
+      false,
+      undefined,
+      { message: first, generatedFallbackMessages },
+      cancelled,
+    );
+
+    expect(first.status).toMatchObject({ type: "complete", reason: "unknown" });
+    expect(second).not.toBe(first);
+    expect(second.status).toMatchObject({
+      type: "incomplete",
+      reason: "cancelled",
+    });
+
+    const failed = convertExternalMessageChunk(
+      chunk,
+      0,
+      1,
+      false,
+      "failed",
+      { message: second, generatedFallbackMessages },
+      cancelled,
+    );
+    expect(failed.status).toMatchObject({
+      type: "incomplete",
+      reason: "error",
+      error: "failed",
+    });
+  });
+
+  it("cancels a joined chunk when any joined message was stopped", () => {
+    const generatedFallbackMessages = new WeakSet<object>();
+    const result = convertExternalMessageChunk(
+      {
+        inputs: [{}, {}],
+        outputs: [
+          { id: "m1", role: "assistant" as const, content: "first" },
+          { id: "m2", role: "assistant" as const, content: "second" },
+        ],
+      },
+      0,
+      1,
+      false,
+      undefined,
+      { message: undefined, generatedFallbackMessages },
+      new Set(["m2"]),
+    );
+
+    expect(result.status).toMatchObject({
+      type: "incomplete",
+      reason: "cancelled",
+    });
+  });
+
+  it("cancels an earlier message that is no longer the last one", () => {
+    const cancelled = new Set(["m1"]);
+    const generatedFallbackMessages = new WeakSet<object>();
+    const build = (id: string, idx: number) =>
+      convertExternalMessageChunk(
+        {
+          inputs: [{}],
+          outputs: [{ id, role: "assistant" as const, content: "text" }],
+        },
+        idx,
+        2,
+        false,
+        undefined,
+        { message: undefined, generatedFallbackMessages },
+        cancelled,
+      );
+
+    expect(build("m1", 0).status).toMatchObject({
+      type: "incomplete",
+      reason: "cancelled",
+    });
+    expect(build("m2", 1).status).toMatchObject({
+      type: "complete",
+      reason: "unknown",
+    });
+  });
 });

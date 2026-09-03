@@ -2180,7 +2180,7 @@ type MessagePartPrimitiveTextProps = Omit<ComponentProps<typeof Text>, "children
 type MessagePartRuntime = {
   addToolResult(result: any | ToolResponse<any>): void;
   resumeToolCall(payload: unknown): void;
-  respondToToolApproval(response: ToolApprovalResponse): void;
+  respondToToolApproval(response: ToolApprovalResponse): Promise<void>;
   readonly path: MessagePartRuntimePath;
   getState(): MessagePartState;
   subscribe(callback: () => void): Unsubscribe$1;
@@ -2194,7 +2194,7 @@ declare class MessagePartRuntimeImpl implements MessagePartRuntime {
   getState(): MessagePartState;
   addToolResult(result: any | ToolResponse<any>): void;
   resumeToolCall(payload: unknown): void;
-  respondToToolApproval(response: ToolApprovalResponse): void;
+  respondToToolApproval(response: ToolApprovalResponse): Promise<void>;
   subscribe(callback: () => void): Unsubscribe$1;
 }
 
@@ -2662,7 +2662,7 @@ type PartMethods = {
   getState(): PartState;
   addToolResult(result: unknown | ToolResponse<unknown>): void;
   resumeToolCall(payload: unknown): void;
-  respondToToolApproval(response: ToolApprovalResponse): void;
+  respondToToolApproval(response: ToolApprovalResponse): Promise<void>;
   __internal_getRuntime?(): MessagePartRuntime;
 };
 
@@ -2927,6 +2927,7 @@ type RespondToToolApprovalOptions = {
   approvalId: string;
   approved: boolean;
   optionId?: string;
+  text?: string;
   reason?: string;
 };
 
@@ -3573,6 +3574,7 @@ type ThreadListRuntime = {
     unarchive?: boolean;
   }): Promise<void>;
   switchToNewThread(): Promise<void>;
+  unstable_subscribeThreadEvents(callback: (event: ThreadListRuntimeEvent) => void): Unsubscribe$1;
   getLoadThreadsPromise(): Promise<void>;
   reload(): Promise<void>;
   reloadMainThread(): Promise<void>;
@@ -3591,6 +3593,7 @@ type ThreadListRuntimeCore = {
   getMainThreadRuntimeCore(): ThreadRuntimeCore;
   getThreadRuntimeCore(threadId: string): ThreadRuntimeCore;
   unstable_isThreadRunning?(threadId: string): boolean;
+  unstable_subscribeThreadEvents?(callback: (event: ThreadListRuntimeEvent) => void): Unsubscribe$1;
   getItemById(threadId: string): ThreadListItemCoreState | undefined;
   switchToThread(threadId: string, options?: {
     unarchive?: boolean;
@@ -3616,6 +3619,11 @@ type ThreadListRuntimeCore = {
 
 type ThreadListRuntimeCoreBinding = ThreadListRuntimeCore;
 
+type ThreadListRuntimeEvent = {
+  readonly threadId: string;
+  readonly type: ThreadRuntimeEventType;
+};
+
 declare class ThreadListRuntimeImpl implements ThreadListRuntime {
   #private;
   constructor(_core: ThreadListRuntimeCoreBinding, _runtimeFactory?: new (binding: ThreadRuntimeCoreBinding, threadListItemBinding: ThreadListItemRuntimeBinding) => ThreadRuntime);
@@ -3624,6 +3632,7 @@ declare class ThreadListRuntimeImpl implements ThreadListRuntime {
     unarchive?: boolean;
   }): Promise<void>;
   switchToNewThread(): Promise<void>;
+  unstable_subscribeThreadEvents(callback: (event: ThreadListRuntimeEvent) => void): Unsubscribe$1;
   getLoadThreadsPromise(): Promise<void>;
   reload(): Promise<void>;
   reloadMainThread(): Promise<void>;
@@ -3671,15 +3680,7 @@ type ThreadMessageLike = {
     readonly timing?: ToolCallTiming;
     readonly mcp?: ToolCallMessagePartMcpMetadata;
     readonly providerMetadata?: PartProviderMetadata;
-    readonly approval?: {
-      readonly id: string;
-      readonly approved?: boolean;
-      readonly reason?: string;
-      readonly isAutomatic?: boolean;
-      readonly options?: readonly ToolApprovalOption[];
-      readonly optionId?: string;
-      readonly resolution?: "cancelled" | "expired";
-    };
+    readonly approval?: NonNullable<ToolCallMessagePart["approval"]>;
   })[];
   readonly id?: string | undefined;
   readonly createdAt?: Date | undefined;
@@ -3819,7 +3820,7 @@ type ThreadRuntimeCore = Readonly<{
   unstable_notifySessionReset: () => void;
   addToolResult: (options: AddToolResultOptions) => void;
   resumeToolCall: (options: ResumeToolCallOptions) => void;
-  respondToToolApproval: (options: RespondToToolApprovalOptions) => void;
+  respondToToolApproval: (options: RespondToToolApprovalOptions) => Promise<void>;
   speak: (messageId: string) => void;
   stopSpeaking: () => void;
   connectVoice: () => void;
@@ -3894,7 +3895,7 @@ declare class ThreadRuntimeImpl implements ThreadRuntime {
       unstable_notifySessionReset: () => void;
       addToolResult: (options: AddToolResultOptions) => void;
       resumeToolCall: (options: ResumeToolCallOptions) => void;
-      respondToToolApproval: (options: RespondToToolApprovalOptions) => void;
+      respondToToolApproval: (options: RespondToToolApprovalOptions) => Promise<void>;
       speak: (messageId: string) => void;
       stopSpeaking: () => void;
       connectVoice: () => void;
@@ -4110,6 +4111,8 @@ type TitleGenerationAdapter = {
 
 type Tool<TArgs extends Record<string, unknown> = Record<string, unknown>, TResult = unknown> = FrontendTool<TArgs, TResult> | BackendTool<TArgs, TResult> | HumanTool<TArgs, TResult> | ProviderTool<TArgs, TResult> | McpTool | ToolWithoutType<TArgs, TResult>;
 
+type ToolApprovalDisplay = "decision" | "select" | "text";
+
 type ToolApprovalOption = {
   readonly id: string;
   readonly kind: ToolApprovalOptionKind | (string & {});
@@ -4126,13 +4129,19 @@ type ToolApprovalOptionKind = "allow-always" | "allow-once" | "reject-always" | 
 
 type ToolApprovalResponse = {
   readonly approved: boolean;
+  readonly text?: string;
   readonly reason?: string;
 } | {
   readonly optionId: string;
+  readonly text?: string;
   readonly reason?: string;
 } | {
   readonly approved: boolean;
   readonly optionId: string;
+  readonly text?: string;
+  readonly reason?: string;
+} | {
+  readonly text: string;
   readonly reason?: string;
 };
 
@@ -4178,11 +4187,15 @@ type ToolCallMessagePart<TArgs = ReadonlyJSONObject, TResult = unknown> = {
   };
   readonly approval?: {
     readonly id: string;
+    readonly prompt?: string;
+    readonly display?: ToolApprovalDisplay;
+    readonly allowFreeform?: boolean;
     readonly approved?: boolean;
     readonly reason?: string;
     readonly isAutomatic?: boolean;
     readonly options?: readonly ToolApprovalOption[];
     readonly optionId?: string;
+    readonly text?: string;
     readonly resolution?: "cancelled" | "expired";
   };
   readonly parentId?: string;
@@ -4198,7 +4211,7 @@ type ToolCallMessagePartMcpMetadata = {
 type ToolCallMessagePartProps<TArgs = any, TResult = unknown> = MessagePartState & ToolCallMessagePart<TArgs, TResult> & {
   addResult: (result: TResult | ToolResponse<TResult>) => void;
   resume: (payload: unknown) => void;
-  respondToApproval: (response: ToolApprovalResponse) => void;
+  respondToApproval: (response: ToolApprovalResponse) => Promise<void>;
 };
 
 type ToolCallMessagePartStatus = {
@@ -4644,7 +4657,7 @@ declare const fromThreadMessageLike: (like: ThreadMessageLike, fallbackId: strin
 
 declare const generateId: (size?: number) => string;
 
-declare const getAutoStatus: (isLast: boolean, isRunning: boolean, hasInterruptedToolCalls: boolean, hasPendingToolCalls: boolean, error?: ReadonlyJSONValue) => MessageStatus;
+declare const getAutoStatus: (isLast: boolean, isRunning: boolean, hasInterruptedToolCalls: boolean, hasPendingToolCalls: boolean, error?: ReadonlyJSONValue, isCancelled?: boolean) => MessageStatus;
 
 declare global {
   interface Window {

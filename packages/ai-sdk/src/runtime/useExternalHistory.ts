@@ -5,6 +5,7 @@ import type {
   ThreadHistoryAdapter,
   ThreadMessage,
   MessageFormatAdapter,
+  MessageFormatItem,
   MessageFormatRepository,
   ExportedMessageRepository,
 } from "@assistant-ui/core";
@@ -49,15 +50,10 @@ const isAwaitingToolApproval = (message: ThreadMessage) =>
   message.status?.type === "requires-action" &&
   message.status.reason === "tool-calls";
 
-const snapshotExternalMessages = <TMessage>(
-  messages: readonly ThreadMessage[],
-) =>
-  new Map<string, TMessage[]>(
-    messages.map((message) => [
-      message.id,
-      [...getExternalStoreMessages<TMessage>(message)],
-    ]),
-  );
+const encodeContent = <TMessage>(
+  storageFormatAdapter: MessageFormatAdapter<TMessage, any>,
+  item: MessageFormatItem<TMessage>,
+) => JSON.stringify(storageFormatAdapter.encode(item));
 
 export const useExternalHistory = <TMessage>(
   runtimeRef: RefObject<AssistantRuntime>,
@@ -78,9 +74,11 @@ export const useExternalHistory = <TMessage>(
   const [hasLoaded, setHasLoaded] = useState(false);
 
   const historyIds = useRef(new Set<string>());
-  const persistedInnerIds = useRef(new Set<string>());
   const deferredTelemetryIds = useRef(new Set<string>());
-  const persistedExternalMessages = useRef(new Map<string, TMessage[]>());
+  // `content` is a snapshot taken at write time rather than a re-encode of `source`, because a retained message object can be mutated in place by the runtime that produced it.
+  const persistedInnerMessages = useRef(
+    new Map<string, { source: TMessage; content: string }>(),
+  );
 
   const onSetMessagesRef = useRef(onSetMessages);
   useEffect(() => {
@@ -107,8 +105,12 @@ export const useExternalHistory = <TMessage>(
         const repo = await formatAdapter.load();
         if (repo && repo.messages.length > 0) {
           for (const m of repo.messages) {
-            persistedInnerIds.current.add(
+            persistedInnerMessages.current.set(
               storageFormatAdapter.getId(m.message),
+              {
+                source: m.message,
+                content: encodeContent(storageFormatAdapter, m),
+              },
             );
           }
           const converted = toExportedMessageRepository(toThreadMessages, repo);
@@ -129,10 +131,6 @@ export const useExternalHistory = <TMessage>(
               deferredTelemetryIds.current.add(m.message.id);
             }
           }
-          persistedExternalMessages.current =
-            snapshotExternalMessages<TMessage>(
-              converted.messages.map((m) => m.message),
-            );
         }
       } catch (error) {
         console.error("Failed to load message history:", error);
@@ -294,23 +292,8 @@ export const useExternalHistory = <TMessage>(
 
       persistInFlightRef.current = persistInFlightRef.current
         .then(async () => {
-          const changedRunMessageIds = new Set<string>();
-          for (const message of latest.messages) {
-            const externalMessages =
-              getExternalStoreMessages<TMessage>(message);
-            const previous = persistedExternalMessages.current.get(message.id);
-            if (
-              previous === undefined ||
-              previous.length !== externalMessages.length ||
-              externalMessages.some((item, index) => item !== previous[index])
-            ) {
-              changedRunMessageIds.add(message.id);
-            }
-          }
-
           const { messages } = latest;
           let lastInnerMessageId: string | null = null;
-          const failedUpdateIds = new Set<string>();
 
           const getLastInnerId = (msgs: TMessage[]): string | null =>
             msgs.length > 0 ? storageFormatAdapter.getId(msgs.at(-1)!) : null;
@@ -343,13 +326,7 @@ export const useExternalHistory = <TMessage>(
               continue;
             }
 
-            const isPersistedMessage = historyIds.current.has(message.id);
-            if (isPersistedMessage && !changedRunMessageIds.has(message.id)) {
-              lastInnerMessageId =
-                getLastInnerId(innerMessages) ?? lastInnerMessageId;
-              continue;
-            }
-            if (!isPersistedMessage) {
+            if (!historyIds.current.has(message.id)) {
               historyIds.current.add(message.id);
               deferredTelemetryIds.current.add(message.id);
             }
@@ -357,15 +334,31 @@ export const useExternalHistory = <TMessage>(
             const batchItems = toBatchItems(innerMessages);
             for (const item of batchItems) {
               const innerId = storageFormatAdapter.getId(item.message);
-              if (!persistedInnerIds.current.has(innerId)) {
+              const persisted = persistedInnerMessages.current.get(innerId);
+              if (!persisted) {
                 await adapter.append(item);
-                persistedInnerIds.current.add(innerId);
-              } else if (durationMs !== undefined) {
-                try {
-                  await adapter.update?.(item, innerId);
-                } catch {
-                  // A failed update drops the message from the refreshed baseline so it retries on the next run stop.
-                  failedUpdateIds.add(message.id);
+                persistedInnerMessages.current.set(innerId, {
+                  source: item.message,
+                  content: encodeContent(storageFormatAdapter, item),
+                });
+              } else if (
+                persisted.source !== item.message &&
+                durationMs !== undefined &&
+                adapter.update
+              ) {
+                const content = encodeContent(storageFormatAdapter, item);
+                if (content === persisted.content) {
+                  persisted.source = item.message;
+                } else {
+                  try {
+                    await adapter.update(item, innerId);
+                    persistedInnerMessages.current.set(innerId, {
+                      source: item.message,
+                      content,
+                    });
+                  } catch {
+                    // A failed update leaves the stale baseline behind so the next run stop retries it.
+                  }
                 }
               }
             }
@@ -378,14 +371,6 @@ export const useExternalHistory = <TMessage>(
               adapter.reportTelemetry?.(batchItems, telemetryOptions);
             }
           }
-
-          const nextSnapshot = snapshotExternalMessages<TMessage>(
-            latest.messages,
-          );
-          for (const id of failedUpdateIds) {
-            nextSnapshot.delete(id);
-          }
-          persistedExternalMessages.current = nextSnapshot;
         })
         .catch((error) => {
           console.error("Failed to persist message history:", error);
@@ -430,9 +415,8 @@ export const useExternalHistory = <TMessage>(
 
         historyIds.current.delete(messageId);
         deferredTelemetryIds.current.delete(messageId);
-        persistedExternalMessages.current.delete(messageId);
         for (const item of itemsToDelete) {
-          persistedInnerIds.current.delete(
+          persistedInnerMessages.current.delete(
             storageFormatAdapter.getId(item.message),
           );
         }

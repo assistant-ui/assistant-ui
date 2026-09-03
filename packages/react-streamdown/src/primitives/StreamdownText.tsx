@@ -14,6 +14,7 @@ import {
 } from "streamdown";
 import {
   type ComponentRef,
+  type FC,
   forwardRef,
   useDeferredValue,
   useMemo,
@@ -23,11 +24,57 @@ import { DEFAULT_SHIKI_THEME, mergePlugins } from "../defaults";
 import { tailBoundedRemend } from "../remend";
 import type {
   AllowedTags,
+  RemendConfig,
   SecurityConfig,
   StreamdownTextPrimitiveProps,
 } from "../types";
 
 type StreamdownTextPrimitiveElement = ComponentRef<"div">;
+
+type StreamdownBodyProps = Omit<StreamdownProps, "children"> & {
+  text: string;
+  shouldTailRemend: boolean;
+  remendConfig: RemendConfig | undefined;
+};
+
+const useRepairedText = (
+  text: string,
+  shouldTailRemend: boolean,
+  remendConfig: RemendConfig | undefined,
+) =>
+  useMemo(
+    () => (shouldTailRemend ? tailBoundedRemend(text, remendConfig) : text),
+    [shouldTailRemend, text, remendConfig],
+  );
+
+const StreamdownBody: FC<StreamdownBodyProps> = ({
+  text,
+  shouldTailRemend,
+  remendConfig,
+  ...props
+}) => {
+  const repairedText = useRepairedText(text, shouldTailRemend, remendConfig);
+  return <Streamdown {...props}>{repairedText}</Streamdown>;
+};
+
+// `useDeferredValue` schedules a second render pass whenever its input changes,
+// so the deferred path lives in its own component and `defer={false}` never
+// mounts it. The repair stays below the deferral so it runs in the deferred
+// pass rather than on the urgent one.
+const DeferredStreamdownBody: FC<StreamdownBodyProps> = ({
+  text,
+  shouldTailRemend,
+  remendConfig,
+  ...props
+}) => {
+  const deferredText = useDeferredValue(text);
+  const repairedText = useRepairedText(
+    deferredText,
+    shouldTailRemend,
+    remendConfig,
+  );
+  return <Streamdown {...props}>{repairedText}</Streamdown>;
+};
 
 // Streamdown extends the default sanitize schema without exporting it, so it is
 // read back off its own plugin set; a copy would fall behind on a bump. An
@@ -172,20 +219,10 @@ export const StreamdownTextPrimitive = forwardRef<
 
     const { text, status } = useSmooth(processedPart, smooth);
 
-    const deferredText = useDeferredValue(text);
-    const processedText = defer ? deferredText : text;
-
     const shouldTailRemend =
       mode === "streaming" &&
       parseIncompleteMarkdown !== false &&
       !parseMarkdownIntoBlocksFn;
-    const repairedText = useMemo(
-      () =>
-        shouldTailRemend
-          ? tailBoundedRemend(processedText, remend)
-          : processedText,
-      [shouldTailRemend, processedText, remend],
-    );
     const resolvedParseIncomplete = shouldTailRemend
       ? false
       : parseIncompleteMarkdown;
@@ -249,6 +286,8 @@ export const StreamdownTextPrimitive = forwardRef<
       ...(parseMarkdownIntoBlocksFn && { parseMarkdownIntoBlocksFn }),
     };
 
+    const Body = defer ? DeferredStreamdownBody : StreamdownBody;
+
     return (
       <div
         ref={ref}
@@ -256,15 +295,16 @@ export const StreamdownTextPrimitive = forwardRef<
         {...containerProps}
         className={containerClass}
       >
-        <Streamdown
+        <Body
+          text={text}
+          shouldTailRemend={shouldTailRemend}
+          remendConfig={remend}
           mode={mode}
           isAnimating={status.type === "running"}
           components={mergedComponents}
           {...optionalProps}
           {...streamdownProps}
-        >
-          {repairedText}
-        </Streamdown>
+        />
       </div>
     );
   },

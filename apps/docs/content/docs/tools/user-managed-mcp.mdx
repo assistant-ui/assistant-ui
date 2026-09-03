@@ -303,6 +303,10 @@ All persisted state — custom server records, OAuth tokens, callback state, PKC
 - `McpMemoryStorage()` — in-process Map. Use for SSR/tests where localStorage is absent.
 - `McpCustomStorage({...})` — bring your own load/save. Use for app-controlled backends (e.g. POST to your API).
 
+A storage can declare a `scopeId` — a stable identity for its backing data (two storages sharing a `scopeId` must read and write the same persisted state). Servers with `bearer` or `oauth` auth key their connection on it, so swapping to a differently-scoped storage reconnects and rebinds the OAuth provider instead of leaving a live connection writing auth state to the replaced store. Without a `scopeId`, a storage swap never triggers a reconnect. `McpLocalStorage()` derives one automatically for the shared `window.localStorage` (pass `scopeId` yourself when overriding the backing `storage`); `McpMemoryStorage()` scopes each instance uniquely; `McpCustomStorage` takes whatever identity its backend already has.
+
+Only connections follow the scope. The custom server list is read from storage once when the manager mounts and is not re-read when `storage` changes, so a swap keeps the records loaded from the previous store and persists them into the replacement. Treat a storage as fixed for the life of the manager: when the backing identity really changes (a different signed-in user, for example), remount the manager instead of swapping its `storage`.
+
 ```tsx
 import { McpManagerResource, McpCustomStorage } from "@assistant-ui/react-mcp";
 
@@ -310,6 +314,7 @@ AuiConfig({
   mcp: McpManagerResource({
     connectors,
     storage: McpCustomStorage({
+      scopeId: "api:/api/mcp",
       loadCustomServers: async () => fetch("/api/mcp/servers").then((r) => r.json()),
       saveCustomServers: async (records) =>
         fetch("/api/mcp/servers", { method: "PUT", body: JSON.stringify(records) }),

@@ -4,7 +4,7 @@ import type { ComponentProps } from "react";
 import { PauseIcon, PlayIcon, Volume2Icon } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { field, ghostButton, mono, paper } from "./surfaces";
-import { pct } from "../utils/range";
+import { announced, pct } from "../utils/range";
 
 export function ReadAloud({
   words,
@@ -83,7 +83,15 @@ export function ReadAloud({
           )}
         </button>
 
-        <span className="bg-foreground/[0.08] h-[3px] min-w-0 flex-1 overflow-hidden rounded-full">
+        <span
+          role="progressbar"
+          aria-label="Read aloud progress"
+          aria-valuemin={0}
+          aria-valuemax={100}
+          aria-valuenow={announced(progress)}
+          aria-valuetext={`${elapsed} of ${duration}`}
+          className="bg-foreground/[0.08] h-[3px] min-w-0 flex-1 overflow-hidden rounded-full"
+        >
           <span
             className="block h-full rounded-full bg-blue-500 transition-[width] duration-200 ease-linear motion-reduce:transition-none dark:bg-blue-400"
             style={{ width: `${progress}%` }}

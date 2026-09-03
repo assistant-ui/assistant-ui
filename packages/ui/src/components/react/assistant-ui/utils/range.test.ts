@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { at, clamp, indexIn, pct, progressOf, take } from "./range";
+import { announced, at, clamp, indexIn, pct, progressOf, take } from "./range";
 
 describe("clamp", () => {
   it("passes an in-range value through", () => {
@@ -104,6 +104,21 @@ describe("pct", () => {
     expect(pct(3, 0)).toBe(0);
     expect(pct(3, -1)).toBe(0);
     expect(pct(Number.NaN, 4)).toBe(0);
+  });
+});
+
+describe("announced", () => {
+  it("drops the float error a division leaves behind", () => {
+    expect(announced(pct(3360, 24000))).toBe(14);
+    expect(announced(pct(0.29, 1))).toBe(29);
+  });
+
+  it("keeps a half step a caller can actually mean", () => {
+    expect(announced(37.5)).toBe(37.5);
+  });
+
+  it("rounds past one decimal", () => {
+    expect(announced(pct(810, 128000))).toBe(0.6);
   });
 });
 

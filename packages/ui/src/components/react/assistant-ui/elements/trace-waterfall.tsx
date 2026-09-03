@@ -71,7 +71,11 @@ export function TraceWaterfall({
               >
                 {item.name}
               </span>
-              <span className="relative flex h-4 min-w-0 items-center">
+              <span
+                role="img"
+                aria-label={`${item.status}, starts at ${item.startMs}ms, runs ${item.durationMs}ms`}
+                className="relative flex h-4 min-w-0 items-center"
+              >
                 <span
                   className={cn(
                     "absolute h-[7px] rounded-full transition-[width] duration-500 ease-out motion-reduce:transition-none",

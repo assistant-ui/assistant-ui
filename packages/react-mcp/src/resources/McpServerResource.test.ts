@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { MCPAuthConfig } from "../mcp-scope";
 import type { MCPStorage } from "./storage/types";
+import type { McpServerResourceProps } from "./McpServerResource";
 
 const mocks = vi.hoisted(() => {
   const clients: any[] = [];
@@ -70,7 +71,8 @@ vi.mock("@modelcontextprotocol/client", async (importOriginal) => ({
   StreamableHTTPClientTransport: mocks.StreamableHTTPClientTransport,
 }));
 
-const { McpServerResource } = await import("./McpServerResource");
+const { McpServerResource, getConnectionDependencies } =
+  await import("./McpServerResource");
 
 const never = <T>() => new Promise<T>(() => {});
 
@@ -1702,6 +1704,139 @@ describe("McpServerResource resource methods", () => {
       await expect(root.getValue().listResources()).rejects.toThrow(
         'MCP server "docs" is not connected',
       );
+    } finally {
+      root.unmount();
+    }
+  });
+});
+
+describe("getConnectionDependencies storage scope", () => {
+  const propsWith = (storage: MCPStorage): McpServerResourceProps => ({
+    id: "docs",
+    kind: "connector",
+    name: "Docs",
+    url: "https://example.com/mcp",
+    auth: { type: "oauth" },
+    storage,
+    redirectUri: "https://example.com/callback",
+    autoConnect: false,
+    onRemove: async () => {},
+  });
+
+  it("keys the connection on a declared storage scopeId", () => {
+    const a = { ...createStorage(), scopeId: "local-storage:a" };
+    const b = { ...createStorage(), scopeId: "local-storage:b" };
+
+    expect(getConnectionDependencies(propsWith(a))).not.toEqual(
+      getConnectionDependencies(propsWith(b)),
+    );
+  });
+
+  it("treats storages sharing a scopeId as the same connection target", () => {
+    const a = { ...createStorage(), scopeId: "local-storage:same" };
+    const b = { ...createStorage(), scopeId: "local-storage:same" };
+
+    expect(getConnectionDependencies(propsWith(a))).toEqual(
+      getConnectionDependencies(propsWith(b)),
+    );
+  });
+
+  it("does not key the connection on storage identity when no scopeId is declared", () => {
+    expect(getConnectionDependencies(propsWith(createStorage()))).toEqual(
+      getConnectionDependencies(propsWith(createStorage())),
+    );
+  });
+
+  it("ignores the storage scope for none-auth servers", () => {
+    const a = { ...createStorage(), scopeId: "local-storage:a" };
+    const b = { ...createStorage(), scopeId: "local-storage:b" };
+    const noneProps = (storage: MCPStorage): McpServerResourceProps => ({
+      ...propsWith(storage),
+      auth: { type: "none" },
+    });
+
+    expect(getConnectionDependencies(noneProps(a))).toEqual(
+      getConnectionDependencies(noneProps(b)),
+    );
+  });
+});
+
+describe("McpServerResource oauth storage swap", () => {
+  beforeEach(resetMocks);
+
+  it("reconnects onto the replacement storage when the scope changes", async () => {
+    const persisted = {
+      tokens: { access_token: "tok", token_type: "bearer" },
+    };
+    const storageA = {
+      ...createStorage(),
+      scopeId: "scope:a",
+      loadAuthState: vi.fn(async () => persisted),
+    };
+    const storageB = {
+      ...createStorage(),
+      scopeId: "scope:b",
+      loadAuthState: vi.fn(async () => persisted),
+    };
+    let setStorage!: (s: MCPStorage) => void;
+
+    const Host = resource(function useHost() {
+      const [storage, set] = useState<MCPStorage>(storageA);
+      setStorage = set;
+      return useResource(
+        McpServerResource({
+          id: "docs",
+          kind: "connector",
+          name: "Docs",
+          url: "https://example.com/mcp",
+          auth: { type: "oauth" },
+          storage,
+          redirectUri: "https://example.com/callback",
+          autoConnect: true,
+          connectionTimeout: 10_000,
+          onRemove: vi.fn(async () => {}),
+        }),
+      );
+    });
+
+    const root = createTapRoot(function SwapRoot() {
+      return useResource(Host());
+    });
+
+    try {
+      await waitFor(() => mocks.transports.length === 1);
+      const authProviderA =
+        mocks.StreamableHTTPClientTransport.mock.calls[0]?.[1]?.authProvider;
+      await authProviderA.tokens();
+      expect(storageA.loadAuthState).toHaveBeenCalledWith("docs");
+      expect(storageB.loadAuthState).not.toHaveBeenCalled();
+
+      setStorage(storageB);
+      await waitForResourceUpdate(() => mocks.transports.length === 2);
+      await waitForResourceUpdate(
+        () => vi.mocked(mocks.transports[0]!.close).mock.calls.length > 0,
+      );
+
+      const authProviderB =
+        mocks.StreamableHTTPClientTransport.mock.calls[1]?.[1]?.authProvider;
+      const callsBefore = vi.mocked(storageA.loadAuthState).mock.calls.length;
+      await authProviderB.tokens();
+      expect(storageB.loadAuthState).toHaveBeenCalledWith("docs");
+      expect(vi.mocked(storageA.loadAuthState).mock.calls.length).toBe(
+        callsBefore,
+      );
+
+      await authProviderB.saveTokens({
+        access_token: "fresh",
+        token_type: "bearer",
+      });
+      expect(storageB.saveAuthState).toHaveBeenCalledWith(
+        "docs",
+        expect.objectContaining({
+          tokens: expect.objectContaining({ access_token: "fresh" }),
+        }),
+      );
+      expect(storageA.saveAuthState).not.toHaveBeenCalled();
     } finally {
       root.unmount();
     }

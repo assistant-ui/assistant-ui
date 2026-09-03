@@ -593,6 +593,12 @@ const MANUAL_CLASSIFICATIONS = new Map<
     "getMcpAppFromToolPart",
     { section: "tools", page: "rendering", role: "primary" },
   ],
+  // Whether an approval request takes a typed answer; renderers read it to
+  // decide what to draw, so it belongs beside the tool-call renderer surface.
+  [
+    "toolApprovalAcceptsText",
+    { section: "tools", page: "rendering", role: "related" },
+  ],
   // Marks a component subtree visible to the assistant's model context.
   [
     "makeAssistantVisible",

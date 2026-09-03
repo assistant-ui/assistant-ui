@@ -38,9 +38,39 @@ type Adapter = {
         maxChunkBytes: number;
       }>,
     ) => ResumableStreamStore;
+    deleteKey: (key: string) => Promise<void>;
+    pauseNextGet: (pause: () => Promise<void>) => void;
     cleanup: () => Promise<void>;
   }>;
 };
+
+function withPausableGet<
+  T extends { get(key: string): Promise<string | null> },
+>(
+  client: T,
+): { client: T; pauseNextGet: (pause: () => Promise<void>) => void } {
+  let nextGetPause: (() => Promise<void>) | undefined;
+  return {
+    client: new Proxy(client, {
+      get(target, property) {
+        if (property === "get") {
+          return async (key: string) => {
+            const value = await client.get(key);
+            const pause = nextGetPause;
+            nextGetPause = undefined;
+            await pause?.();
+            return value;
+          };
+        }
+        const value = Reflect.get(target, property, target) as unknown;
+        return typeof value === "function" ? value.bind(target) : value;
+      },
+    }),
+    pauseNextGet(pause) {
+      nextGetPause = pause;
+    },
+  };
+}
 
 const adapters: Adapter[] = [
   {
@@ -49,9 +79,10 @@ const adapters: Adapter[] = [
       const client: RedisClientType = createClient({ url: REDIS_URL });
       client.on("error", () => {});
       await client.connect();
+      const pausable = withPausableGet(client);
       const keyPrefix = `${KEY_PREFIX_BASE}:nr:${suiteCounter++}`;
       const makeStore = (overrides?: { maxChunkBytes?: number }) =>
-        createRedisResumableStreamStore(client, {
+        createRedisResumableStreamStore(pausable.client, {
           keyPrefix,
           pollIntervalMs: 25,
           ...overrides,
@@ -60,6 +91,10 @@ const adapters: Adapter[] = [
         store: makeStore(),
         keyPrefix,
         makeStore,
+        deleteKey: async (key) => {
+          await client.del(key);
+        },
+        pauseNextGet: pausable.pauseNextGet,
         cleanup: async () => {
           const keys = await client.keys(`${keyPrefix}:*`);
           if (keys.length > 0) await client.del(keys);
@@ -73,9 +108,10 @@ const adapters: Adapter[] = [
     setup: async () => {
       const client = new IoRedis(REDIS_URL, { lazyConnect: true });
       await client.connect();
+      const pausable = withPausableGet(client);
       const keyPrefix = `${KEY_PREFIX_BASE}:io:${suiteCounter++}`;
       const makeStore = (overrides?: { maxChunkBytes?: number }) =>
-        createIoredisResumableStreamStore(client, {
+        createIoredisResumableStreamStore(pausable.client, {
           keyPrefix,
           pollIntervalMs: 25,
           ...overrides,
@@ -84,6 +120,10 @@ const adapters: Adapter[] = [
         store: makeStore(),
         keyPrefix,
         makeStore,
+        deleteKey: async (key) => {
+          await client.del(key);
+        },
+        pauseNextGet: pausable.pauseNextGet,
         cleanup: async () => {
           const keys = await client.keys(`${keyPrefix}:*`);
           if (keys.length > 0) await client.del(...keys);
@@ -102,12 +142,18 @@ for (const adapter of adapters) {
       let makeStore: (overrides?: {
         maxChunkBytes?: number;
       }) => ResumableStreamStore;
+      let keyPrefix: string;
+      let deleteKey: (key: string) => Promise<void>;
+      let pauseNextGet: (pause: () => Promise<void>) => void;
       let cleanup: () => Promise<void>;
 
       beforeAll(async () => {
         const ctx = await adapter.setup();
         store = ctx.store;
         makeStore = ctx.makeStore;
+        keyPrefix = ctx.keyPrefix;
+        deleteKey = ctx.deleteKey;
+        pauseNextGet = ctx.pauseNextGet;
         cleanup = ctx.cleanup;
       });
 
@@ -160,6 +206,36 @@ for (const adapter of adapters) {
         await store.acquire(id);
         await store.finalize(id, "error", "boom");
         expect(await store.status(id)).toBe("error");
+      });
+
+      it("does not let a stale finalizer overwrite a reacquired stream", async () => {
+        const id = `id-${Math.random()}`;
+        const staleStore = makeStore();
+        const freshStore = makeStore();
+        await staleStore.acquire(id);
+
+        let resumeFinalizer!: () => void;
+        const finalizerPaused = new Promise<void>((resolve) => {
+          pauseNextGet(
+            () =>
+              new Promise<void>((resume) => {
+                resumeFinalizer = resume;
+                resolve();
+              }),
+          );
+        });
+        const finalizing = staleStore.finalize(id, "done");
+        await finalizerPaused;
+
+        await deleteKey(`${keyPrefix}:{${id}}:meta`);
+        await expect(freshStore.acquire(id)).resolves.toBe("producer");
+        resumeFinalizer();
+        await finalizing;
+
+        await expect(freshStore.status(id)).resolves.toBe("streaming");
+        await expect(staleStore.append(id, bytes("stale"))).rejects.toThrow(
+          /superseded/,
+        );
       });
 
       it("read throws on error finalize after draining buffered entries", async () => {

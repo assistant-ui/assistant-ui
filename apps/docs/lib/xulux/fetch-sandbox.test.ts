@@ -5,6 +5,8 @@ const mocks = vi.hoisted(() => ({
   fetch: vi.fn<typeof fetch>(),
 }));
 
+const RETRY_DELAY_MS = 300;
+
 describe("fetchSandboxResource", () => {
   beforeEach(() => {
     mocks.fetch.mockReset();
@@ -14,6 +16,7 @@ describe("fetchSandboxResource", () => {
   afterEach(() => {
     vi.useRealTimers();
     vi.unstubAllGlobals();
+    vi.restoreAllMocks();
   });
 
   it("adds sandbox headers and disables caching", async () => {
@@ -87,6 +90,140 @@ describe("fetchSandboxResource", () => {
     await expect(
       fetchSandboxResource("https://sandbox.example.com/preview"),
     ).rejects.toBe(error);
+    expect(mocks.fetch).toHaveBeenCalledTimes(1);
+  });
+
+  it("shares one deadline across every attempt", async () => {
+    vi.useFakeTimers();
+    const timeout = vi.spyOn(AbortSignal, "timeout");
+    mocks.fetch
+      .mockRejectedValueOnce(new Error("fetch failed"))
+      .mockResolvedValueOnce(new Response("ok"));
+
+    const pending = fetchSandboxResource("https://sandbox.example.com/preview");
+    await vi.advanceTimersByTimeAsync(300);
+    await pending;
+
+    expect(timeout.mock.calls).toEqual([[30_000]]);
+    expect(mocks.fetch.mock.calls[0]?.[1]?.signal).toBeInstanceOf(AbortSignal);
+    expect(mocks.fetch.mock.calls[1]?.[1]?.signal).toBe(
+      mocks.fetch.mock.calls[0]?.[1]?.signal,
+    );
+  });
+
+  it("honors a caller budget without forwarding it to fetch", async () => {
+    const timeout = vi.spyOn(AbortSignal, "timeout");
+    mocks.fetch.mockResolvedValueOnce(new Response("ok"));
+
+    await fetchSandboxResource("https://sandbox.example.com/archive", {
+      timeoutMs: 60_000,
+    });
+
+    expect(timeout).toHaveBeenCalledWith(60_000);
+    expect(mocks.fetch.mock.calls[0]?.[1]).not.toHaveProperty("timeoutMs");
+  });
+
+  it("keeps the deadline over the response body by default", async () => {
+    mocks.fetch.mockResolvedValueOnce(new Response("ok"));
+
+    await fetchSandboxResource("https://sandbox.example.com/session", {
+      timeoutMs: 20,
+    });
+    const signal = mocks.fetch.mock.calls[0]?.[1]?.signal;
+    await new Promise((resolve) => setTimeout(resolve, 60));
+
+    expect(signal?.aborted).toBe(true);
+  });
+
+  it("releases the deadline at the response headers when scoped to it", async () => {
+    mocks.fetch.mockResolvedValueOnce(new Response("ok"));
+
+    await fetchSandboxResource("https://sandbox.example.com/archive", {
+      timeoutMs: 20,
+      timeoutScope: "response",
+    });
+    const signal = mocks.fetch.mock.calls[0]?.[1]?.signal;
+    await new Promise((resolve) => setTimeout(resolve, 60));
+
+    expect(signal?.aborted).toBe(false);
+  });
+
+  it("stops retrying once the budget is spent, whatever the error", async () => {
+    mocks.fetch.mockImplementation(async (_url, init) => {
+      await new Promise((_resolve, reject) => {
+        // A retryable classification must not buy a second attempt once the
+        // deadline is gone.
+        init?.signal?.addEventListener("abort", () =>
+          reject(new Error("fetch failed")),
+        );
+      });
+      throw new Error("unreachable");
+    });
+
+    await expect(
+      fetchSandboxResource("https://sandbox.example.com/session", {
+        method: "POST",
+        timeoutMs: 20,
+      }),
+    ).rejects.toThrow("fetch failed");
+    expect(mocks.fetch).toHaveBeenCalledTimes(1);
+  });
+
+  it("rejects at the budget rather than waiting out the backoff", async () => {
+    mocks.fetch.mockRejectedValue(
+      Object.assign(new Error("request failed"), {
+        cause: { code: "ECONNRESET" },
+      }),
+    );
+
+    const startedAt = Date.now();
+    await expect(
+      fetchSandboxResource("https://sandbox.example.com/preview", {
+        timeoutMs: 50,
+      }),
+    ).rejects.toThrow("request failed");
+
+    expect(mocks.fetch).toHaveBeenCalledTimes(1);
+    expect(Date.now() - startedAt).toBeLessThan(RETRY_DELAY_MS);
+  });
+
+  it("stops retrying once the caller has cancelled", async () => {
+    const controller = new AbortController();
+    controller.abort();
+    mocks.fetch.mockRejectedValue(
+      Object.assign(new Error("request failed"), {
+        cause: { code: "ECONNRESET" },
+      }),
+    );
+
+    await expect(
+      fetchSandboxResource("https://sandbox.example.com/preview", {
+        signal: controller.signal,
+      }),
+    ).rejects.toThrow("request failed");
+    expect(mocks.fetch).toHaveBeenCalledTimes(1);
+  });
+
+  it("aborts when the caller's own signal fires", async () => {
+    const controller = new AbortController();
+    mocks.fetch.mockImplementation(async (_url, init) => {
+      await new Promise((_resolve, reject) => {
+        init?.signal?.addEventListener("abort", () =>
+          reject(new Error("caller aborted")),
+        );
+      });
+      throw new Error("unreachable");
+    });
+
+    const pending = fetchSandboxResource(
+      "https://sandbox.example.com/preview",
+      {
+        signal: controller.signal,
+      },
+    );
+    controller.abort();
+
+    await expect(pending).rejects.toThrow("caller aborted");
     expect(mocks.fetch).toHaveBeenCalledTimes(1);
   });
 

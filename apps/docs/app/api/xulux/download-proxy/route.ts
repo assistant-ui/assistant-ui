@@ -1,50 +1,87 @@
 import { NextResponse } from "next/server";
+import { requirePublicAssistantSession } from "@/lib/anonymous-session";
 import { isAiPlaygroundEnabled } from "@/lib/feature-flags";
+import { checkXuluxDownloadProxyRateLimit } from "@/lib/rate-limit";
 import { fetchSandboxResource } from "@/lib/xulux/fetch-sandbox";
 import { resolveSandboxDownloadUrl } from "@/lib/xulux/sandbox-download-url";
 import { getXuluxHostedTemplatesCatalog } from "@/lib/xulux/templates-catalog";
 
 export const runtime = "nodejs";
+// The platform default, stated so the ceiling is reviewable rather than
+// inherited. The archive streams for as long as the client takes to read it.
+export const maxDuration = 300;
 
 const MAX_ZIP_BYTES = 50 * 1024 * 1024; // 50 MB ceiling
+// Bounds the wait for the sandbox to respond. It deliberately stops at the
+// headers so a slow client cannot look like a stalled sandbox.
+const SANDBOX_RESPONSE_TIMEOUT_MS = 30_000;
+// The response-scoped deadline is gone by the time an error body is read, so
+// this bounds that read on its own rather than letting it hold the invocation.
+const ERROR_BODY_TIMEOUT_MS = 5_000;
+const ERROR_BODY_MAX_BYTES = 4_096;
 
-async function readLimitedBody(
-  body: ReadableStream<Uint8Array>,
-): Promise<ArrayBuffer | null> {
+async function readBoundedText(response: Response) {
+  const body = response.body;
+  if (!body) return "";
+
   const reader = body.getReader();
+  const timer = setTimeout(() => {
+    void reader.cancel().catch(() => {});
+  }, ERROR_BODY_TIMEOUT_MS);
   const chunks: Uint8Array[] = [];
   let total = 0;
 
   try {
-    while (true) {
+    while (total < ERROR_BODY_MAX_BYTES) {
       const { done, value } = await reader.read();
       if (done) break;
-
-      total += value.byteLength;
-      if (total > MAX_ZIP_BYTES) {
-        await reader.cancel("Archive too large.");
-        return null;
-      }
-      chunks.push(value);
+      const room = ERROR_BODY_MAX_BYTES - total;
+      const chunk = value.byteLength > room ? value.subarray(0, room) : value;
+      chunks.push(chunk);
+      total += chunk.byteLength;
     }
+  } catch {
+    return "";
   } finally {
-    reader.releaseLock();
+    clearTimeout(timer);
+    void reader.cancel().catch(() => {});
   }
 
-  const result = new ArrayBuffer(total);
-  const view = new Uint8Array(result);
+  const merged = new Uint8Array(total);
   let offset = 0;
   for (const chunk of chunks) {
-    view.set(chunk, offset);
+    merged.set(chunk, offset);
     offset += chunk.byteLength;
   }
-  return result;
+  return new TextDecoder().decode(merged);
+}
+
+function limitArchiveSize(body: ReadableStream<Uint8Array>) {
+  let total = 0;
+  return body.pipeThrough(
+    new TransformStream<Uint8Array, Uint8Array>({
+      transform(chunk, controller) {
+        total += chunk.byteLength;
+        if (total > MAX_ZIP_BYTES) {
+          controller.error(new Error("Archive too large."));
+          return;
+        }
+        controller.enqueue(chunk);
+      },
+    }),
+  );
 }
 
 export async function GET(req: Request) {
   if (!isAiPlaygroundEnabled) {
     return NextResponse.json({ error: "Not found." }, { status: 404 });
   }
+
+  const session = requirePublicAssistantSession(req);
+  if (session instanceof Response) return session;
+
+  const rateLimitResponse = await checkXuluxDownloadProxyRateLimit(req);
+  if (rateLimitResponse) return rateLimitResponse;
 
   const { searchParams } = new URL(req.url);
   const templateId = searchParams.get("templateId");
@@ -75,9 +112,12 @@ export async function GET(req: Request) {
   try {
     const upstream = await fetchSandboxResource(upstreamUrl, {
       redirect: "manual",
+      timeoutMs: SANDBOX_RESPONSE_TIMEOUT_MS,
+      timeoutScope: "response",
     });
 
     if (upstream.status >= 300 && upstream.status < 400) {
+      void upstream.body?.cancel().catch(() => {});
       return NextResponse.json(
         { error: "Redirects are not allowed." },
         { status: 400 },
@@ -85,7 +125,7 @@ export async function GET(req: Request) {
     }
 
     if (!upstream.ok) {
-      const details = await upstream.text().catch(() => "");
+      const details = await readBoundedText(upstream);
       return NextResponse.json(
         {
           error: `Upstream responded ${upstream.status}.`,
@@ -103,6 +143,7 @@ export async function GET(req: Request) {
       contentLength !== undefined &&
       (!Number.isFinite(contentLength) || contentLength > MAX_ZIP_BYTES)
     ) {
+      void upstream.body?.cancel().catch(() => {});
       return NextResponse.json(
         { error: "Archive too large." },
         { status: 413 },
@@ -117,20 +158,18 @@ export async function GET(req: Request) {
       );
     }
 
-    const responseBody = await readLimitedBody(body);
-    if (!responseBody) {
-      return NextResponse.json(
-        { error: "Archive too large." },
-        { status: 413 },
-      );
-    }
-
-    return new NextResponse(responseBody, {
+    return new NextResponse(limitArchiveSize(body), {
       status: 200,
       headers: {
         "Content-Type":
           upstream.headers.get("content-type") ?? "application/octet-stream",
-        "Cache-Control": "public, max-age=3600",
+        // fetch decodes the body but leaves the encoded content-length on the
+        // response, so forwarding it under an encoding declares a byte count
+        // this route will never write.
+        ...(contentLengthHeader && !upstream.headers.has("content-encoding")
+          ? { "Content-Length": contentLengthHeader }
+          : {}),
+        "Cache-Control": "private, max-age=3600",
       },
     });
   } catch (err) {

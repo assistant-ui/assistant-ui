@@ -100,7 +100,7 @@ export const createAgUiSubscriber = (
         // Typed handlers will receive this via the discriminated callbacks; avoid duplicates.
         return;
       }
-      const parsed = parseAgUiEvent(event);
+      const parsed = parseAgUiEvent(event, logger ? { logger } : undefined);
       if (parsed) dispatch(parsed);
     },
     onTextMessageStartEvent: ({ event }) =>
