@@ -129,6 +129,18 @@ describe("rewriteLatexBracketDelimiters", () => {
     ).toBe("~~~\r\n\\[a\\]\r\n~~~\r\nafter $x$");
   });
 
+  it("closes a tilde fence opened inside a blockquote", () => {
+    expect(
+      rewriteLatexBracketDelimiters("> ~~~\n> \\[a\\]\n> ~~~\n\nafter \\(x\\)"),
+    ).toBe("> ~~~\n> \\[a\\]\n> ~~~\n\nafter $x$");
+  });
+
+  it("does not open a fence from a four-space indented marker", () => {
+    expect(rewriteLatexBracketDelimiters("    > ~~~\n\\(x\\)")).toBe(
+      "    > ~~~\n$x$",
+    );
+  });
+
   it("protects a tilde fence nested in a blockquote", () => {
     const quoted = "> ~~~\n> \\[a\\]\n> ~~~";
     expect(rewriteLatexBracketDelimiters(quoted)).toBe(quoted);
