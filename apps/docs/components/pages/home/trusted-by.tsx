@@ -185,6 +185,31 @@ export function rotateSlot(
   );
 }
 
+type SlotState = {
+  current: Logo;
+  previous: Logo | null;
+  entered: boolean;
+};
+
+// A slot adopts the incoming logo outright when it is not painting a cross fade:
+// a hidden slot never loads its images, and a breakpoint change would otherwise
+// reveal a stale layer holding a logo another slot now shows.
+export function slotState(
+  state: SlotState,
+  logo: Logo,
+  layout: { hidden: boolean; changed: boolean },
+): SlotState {
+  if (layout.hidden || layout.changed) {
+    return { current: logo, previous: null, entered: true };
+  }
+  if (logo.alt === state.current.alt) return state;
+  return {
+    current: logo,
+    previous: state.entered ? state.current : state.previous,
+    entered: false,
+  };
+}
+
 function LogoMark({
   logo,
   onSettle,
@@ -226,13 +251,16 @@ function LogoMark({
 function LogoSlot({
   logo,
   hideOnMobile,
+  wide,
 }: {
   logo: Logo;
   hideOnMobile: boolean;
+  wide: boolean;
 }) {
   const [current, setCurrent] = useState(logo);
   const [previous, setPrevious] = useState<Logo | null>(null);
   const [entered, setEntered] = useState(true);
+  const [wasWide, setWasWide] = useState(wide);
   const mark = useRef<HTMLAnchorElement>(null);
 
   // Readiness only counts rendered images: the theme-hidden half of a light/dark
@@ -247,11 +275,14 @@ function LogoSlot({
     setEntered(true);
   };
 
-  if (logo.alt !== current.alt) {
-    if (entered) setPrevious(current);
-    setCurrent(logo);
-    setEntered(false);
-  }
+  if (wasWide !== wide) setWasWide(wide);
+  const next = slotState({ current, previous, entered }, logo, {
+    hidden: hideOnMobile && !wide,
+    changed: wasWide !== wide,
+  });
+  if (next.current !== current) setCurrent(next.current);
+  if (next.previous !== previous) setPrevious(next.previous);
+  if (next.entered !== entered) setEntered(next.entered);
 
   useEffect(() => {
     if (previous === null || !entered) return;
@@ -363,6 +394,7 @@ export function TrustedBy() {
             key={index}
             logo={logo}
             hideOnMobile={!MOBILE_SLOTS.includes(index)}
+            wide={wide}
           />
         ))}
       </div>
@@ -372,6 +404,7 @@ export function TrustedBy() {
             key={offset + 5}
             logo={logo}
             hideOnMobile={!MOBILE_SLOTS.includes(offset + 5)}
+            wide={wide}
           />
         ))}
       </div>
