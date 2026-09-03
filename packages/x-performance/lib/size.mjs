@@ -82,7 +82,7 @@ export const measureEntry = async (file) => {
 };
 
 export const budgetStatus = (budget, actual) => {
-  if (budget === undefined) return "new";
+  if (!Number.isFinite(budget?.gzip)) return "new";
   const tolerance = Math.max(Math.round(budget.gzip * 0.02), 256);
   if (actual.gzip > budget.gzip + tolerance) return "over";
   if (actual.gzip < budget.gzip - tolerance) return "under";
@@ -186,8 +186,10 @@ export const checkSizes = async ({
         status,
       });
       measured.add(`${pkg.name}\u0000${entry.subpath}`);
-      nextBudgets[pkg.name] ??= {};
-      nextBudgets[pkg.name][entry.subpath] = actual;
+      if (status !== "ok") {
+        nextBudgets[pkg.name] ??= {};
+        nextBudgets[pkg.name][entry.subpath] = actual;
+      }
     }
   }
 

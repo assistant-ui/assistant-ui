@@ -19,7 +19,7 @@
     "@base-ui/react": "^1.7.0",
     "ai": "^7.0.85",
     "class-variance-authority": "^0.7.1",
-    "cn": "^0.2.3",
+    "cn": "^0.2.4",
     "lucide-react": "^1.38.0",
     "next": "^16.3.4",
     "react": "^19.2.8",

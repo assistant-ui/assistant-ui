@@ -220,11 +220,8 @@ export async function transformProject(
     shadcnUI &&
     assistantUI
   ) {
-    const allShadcn = shadcnUI.includes("utils")
-      ? shadcnUI
-      : [...shadcnUI, "utils"];
     const auiComponents = assistantUI.map((c) => `@assistant-ui/${c}`);
-    const components = [...allShadcn, ...auiComponents];
+    const components = ["@assistant-ui/utils", ...shadcnUI, ...auiComponents];
     logger.step(`Installing components: ${components.join(", ")}...`);
     const failure = await installShadcnRegistry(
       projectDir,

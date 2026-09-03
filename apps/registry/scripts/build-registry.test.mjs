@@ -1783,7 +1783,7 @@ test("install validation rejects an unresolved non-ambient local alias", () => {
   assert.match(findings, /provides lib\/feature\.tsx or lib\/feature\.ts/);
 });
 
-test("install validation allows the ambient shadcn utils alias", () => {
+test("install validation allows the ambient lib/utils alias", () => {
   assert.equal(
     findingsFrom([
       componentItem([
