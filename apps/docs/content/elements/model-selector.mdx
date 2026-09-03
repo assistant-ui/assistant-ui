@@ -6,6 +6,8 @@ description: "A searchable runtime model picker with grouped providers and reaso
 import { PreviewCode } from "@/components/pages/docs/preview-code.server";
 import { ModelSelectorSelectedSample } from "@/components/pages/docs/samples/model-selector/selected-model";
 import * as ModelSelectorSelectedRadixSample from "@/components/pages/docs/samples/model-selector/selected-model.radix";
+import { ModelSelectorGroupedSample } from "@/components/pages/docs/samples/model-selector/provider-groups-and-availability";
+import * as ModelSelectorGroupedRadixSample from "@/components/pages/docs/samples/model-selector/provider-groups-and-availability.radix";
 
 Model selector is a popover that lists AI models and, for models that support it, a reasoning effort level: Low, Medium, High, or a custom set. With a runtime the selection registers with assistant-ui's `ModelContext` system automatically, so it reaches your backend on every request; standalone you hold the value and effort yourself. It comes in two designs: the runtime variant renders a popover of models with reasoning-effort controls, and the static variant, `ModelPicker`, renders a full-page list grouped by family with pricing and capability chips (see [The model-picker design](#the-model-picker-design)).
 
@@ -216,6 +218,14 @@ Search is opt-in: pass `searchable` to the connected `ModelSelector`, or to `Mod
 {/* or, standalone: */}
 <ModelSelectorContent searchable />
 ```
+
+### Provider groups and availability
+
+Use `ModelSelectorGroup` to group the models by provider. A model with `disabled` shows in the list, but you cannot select it. In this example, Claude Opus 5 is disabled, thus a click on it does not change the selection.
+
+<PreviewCode file="components/pages/docs/samples/model-selector/provider-groups-and-availability" name="ModelAvailabilitySelector" base={<ModelSelectorGroupedSample />}>
+  <ModelSelectorGroupedRadixSample.ModelSelectorGroupedSample />
+</PreviewCode>
 
 ### Variants and sizes
 

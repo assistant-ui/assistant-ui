@@ -10,7 +10,7 @@ import {
   ModelSelectorItem,
   ModelSelectorEffort,
   type ModelOption,
-} from "@/components/assistant-ui/model-selector";
+} from "@/components/assistant-ui/elements/model-selector";
 import { SampleFrame } from "@/components/pages/docs/samples/sample-frame";
 
 const openaiModels: ModelOption[] = [
