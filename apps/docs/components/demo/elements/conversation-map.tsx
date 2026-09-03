@@ -9,55 +9,61 @@ import { cn } from "@/lib/utils";
 
 const ENTRIES: ConversationMapEntry[] = [
   {
-    id: "m1",
-    role: "user",
+    id: "t1",
     title: "Can you check the extension build?",
     preview: "It should be the unpacked one, not the store release.",
   },
   {
-    id: "m2",
-    role: "assistant",
-    title: "Chat ready",
+    id: "t2",
+    title: "What state does the ready dot report?",
     preview:
-      "The exact state is “Chat ready.” I'll use that label to find both implementations and verify whether the ready dot is wired to it.",
+      "The exact state is “Chat ready.” I'll use that label to find both implementations.",
   },
   {
-    id: "m3",
-    role: "user",
-    title: "Ready to replace it with v0.3.5",
+    id: "t3",
+    title: "Ready to replace it with v0.3.5?",
     preview: "Reload it once permissions and extension IDs line up.",
   },
   {
-    id: "m4",
-    role: "assistant",
-    title: "1. approved 2. approved 3. approved 4. approved",
-    preview:
-      "The staging release workflow has started; once the rollout finishes I'll repeat the run end to end.",
-  },
-  {
-    id: "m5",
-    role: "user",
+    id: "t4",
     title: "Confirm before you install",
-    preview: "Do not reload until the previous build is archived.",
+    preview: "The staging release workflow has started; the rollout is next.",
   },
   {
-    id: "m6",
-    role: "assistant",
-    title: "Installed and reloaded",
-    preview: "The unpacked build is live and the ready dot turned green.",
+    id: "t5",
+    title: "Did the reload keep the session?",
+    preview: "It did, and the previous transcript was restored from storage.",
+  },
+  {
+    id: "t6",
+    title: "Anything left before I close this out?",
+    preview: "Only the archive step. The unpacked build is live.",
   },
 ];
 
-const PHASES = [900, 900, 900, 900, 0] as const;
-const ACTIVE = ["m1", "m2", "m3", "m4", "m6"] as const;
+/** Each phase is a scroll position: the turn being read, inside the window on screen. */
+const PHASES = [1000, 1000, 1000, 1000, 0] as const;
+const ACTIVE = ["t1", "t2", "t3", "t5", "t6"] as const;
+const WINDOWS: readonly (readonly string[])[] = [
+  ["t1", "t2"],
+  ["t2", "t3"],
+  ["t3", "t4"],
+  ["t4", "t5", "t6"],
+  ["t5", "t6"],
+];
 
 export function ConversationMapDemo() {
   const { phase } = useStoryPhases(PHASES);
   const activeId = ACTIVE[phase] ?? ACTIVE[ACTIVE.length - 1]!;
+  const visibleIds = WINDOWS[phase] ?? WINDOWS[WINDOWS.length - 1]!;
 
   return (
     <div className="mx-auto flex h-full w-full max-w-sm gap-4">
-      <ConversationMap entries={ENTRIES} activeId={activeId} />
+      <ConversationMap
+        entries={ENTRIES}
+        activeId={activeId}
+        visibleIds={visibleIds}
+      />
 
       <div className="flex min-w-0 flex-1 flex-col justify-center gap-3">
         {ENTRIES.map((entry) => (
@@ -65,7 +71,11 @@ export function ConversationMapDemo() {
             key={entry.id}
             className={cn(
               "flex min-w-0 flex-col transition-opacity duration-300 motion-reduce:transition-none",
-              entry.id === activeId ? "opacity-100" : "opacity-35",
+              entry.id === activeId
+                ? "opacity-100"
+                : visibleIds.includes(entry.id)
+                  ? "opacity-60"
+                  : "opacity-25",
             )}
           >
             <span className="text-foreground/90 truncate text-[13px] leading-snug font-medium">

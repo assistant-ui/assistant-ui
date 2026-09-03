@@ -9,12 +9,11 @@ import {
 } from "react";
 import { PreviewCard } from "@base-ui/react/preview-card";
 import { cn } from "@/lib/utils";
-import { floating, mono } from "./surfaces";
+import { floating } from "./surfaces";
 import { clamp } from "../utils/range";
 
 export interface ConversationMapEntry {
   id: string;
-  role: "user" | "assistant";
   title: string;
   preview?: string;
 }
@@ -24,6 +23,7 @@ const TICK = '[data-slot="conversation-map-tick"]';
 export function ConversationMap({
   entries,
   activeId,
+  visibleIds,
   onSelect,
   side = "right",
   className,
@@ -32,6 +32,7 @@ export function ConversationMap({
 }: Omit<ComponentProps<"nav">, "children" | "onSelect"> & {
   entries: readonly ConversationMapEntry[];
   activeId?: string | undefined;
+  visibleIds?: readonly string[] | undefined;
   onSelect?: ((id: string) => void) | undefined;
   side?: "left" | "right";
 }) {
@@ -41,9 +42,10 @@ export function ConversationMap({
   );
   const [focusedIndex, setFocusedIndex] = useState<number | null>(null);
 
+  const inView = new Set(visibleIds);
   const activeIndex = entries.findIndex((entry) => entry.id === activeId);
   const tabbableIndex = clamp(
-    focusedIndex ?? (activeIndex === -1 ? 0 : activeIndex),
+    focusedIndex ?? Math.max(0, activeIndex),
     0,
     Math.max(0, entries.length - 1),
   );
@@ -79,47 +81,56 @@ export function ConversationMap({
       ref={railRef}
       aria-label="Conversation map"
       onKeyDown={handleKeyDown}
-      className={cn("relative flex h-full w-6 flex-col", className)}
+      className={cn(
+        "group/rail flex h-full w-6 flex-col justify-center",
+        className,
+      )}
       {...props}
     >
-      {activeIndex !== -1 && (
-        <span
-          data-slot="conversation-map-marker"
-          aria-hidden
-          style={{
-            height: `${100 / entries.length}%`,
-            transform: `translateY(${activeIndex * 100}%)`,
-          }}
-          className="pointer-events-none absolute inset-x-0 top-0 flex items-center transition-transform duration-300 ease-[cubic-bezier(0.23,1,0.32,1)] motion-reduce:transition-none"
-        >
-          <span className="bg-foreground/90 h-[3px] w-5 rounded-full" />
-        </span>
-      )}
-
-      {entries.map((entry, index) => (
-        <PreviewCard.Trigger
-          key={entry.id}
-          handle={handle}
-          payload={entry}
-          delay={120}
-          closeDelay={80}
-          render={<button type="button" />}
-          data-slot="conversation-map-tick"
-          aria-label={entry.title}
-          aria-current={index === activeIndex ? "true" : undefined}
-          tabIndex={index === tabbableIndex ? 0 : -1}
-          onFocus={() => setFocusedIndex(index)}
-          onClick={() => onSelect?.(entry.id)}
-          className="group flex min-h-0 flex-1 items-center outline-none"
-        >
-          <span
-            className={cn(
-              "bg-foreground/20 group-hover:bg-foreground/50 group-focus-visible:bg-foreground/50 h-px rounded-full transition-colors duration-200 motion-reduce:transition-none",
-              entry.role === "user" ? "w-2" : "w-3.5",
-            )}
-          />
-        </PreviewCard.Trigger>
-      ))}
+      {entries.map((entry, index) => {
+        const current = index === activeIndex;
+        const onScreen = current || inView.has(entry.id);
+        return (
+          <PreviewCard.Trigger
+            key={entry.id}
+            handle={handle}
+            payload={entry}
+            delay={120}
+            closeDelay={80}
+            render={<button type="button" />}
+            data-slot="conversation-map-tick"
+            data-active={current ? "" : undefined}
+            data-in-view={onScreen ? "" : undefined}
+            aria-label={entry.title}
+            aria-current={current ? "true" : undefined}
+            tabIndex={index === tabbableIndex ? 0 : -1}
+            onFocus={() => setFocusedIndex(index)}
+            onClick={() => onSelect?.(entry.id)}
+            // The cap keeps a short thread packed instead of spread over the
+            // whole gutter; a long one outgrows it and the share decides.
+            className="group flex max-h-3.5 min-h-0 flex-1 items-center outline-none"
+          >
+            {/* At rest every tick is the same short length and only weight and
+                depth separate the tiers. Pointing at the rail grows them out by
+                tier, and the one actually under the pointer reaches full length
+                so the rail says which turn the card belongs to. */}
+            <span
+              className={cn(
+                "w-3 rounded-full transition-[width,height,background-color] duration-200 ease-[cubic-bezier(0.23,1,0.32,1)] motion-reduce:transition-none",
+                current
+                  ? "bg-foreground/90 h-[3px] group-focus-within/rail:w-6 group-hover/rail:w-6"
+                  : cn(
+                      "group-hover:bg-foreground/70 group-focus-visible:bg-foreground/70 h-0.5",
+                      "group-hover:w-6! group-focus-visible:w-6!",
+                      onScreen
+                        ? "bg-foreground/50 group-focus-within/rail:w-[18px] group-hover/rail:w-[18px]"
+                        : "bg-foreground/15",
+                    ),
+              )}
+            />
+          </PreviewCard.Trigger>
+        );
+      })}
 
       <PreviewCard.Root handle={handle}>
         {({ payload }) => (
@@ -134,10 +145,7 @@ export function ConversationMap({
                   "data-[ending-style]:scale-[0.97] data-[ending-style]:opacity-0",
                 )}
               >
-                <span className={cn(mono, "text-foreground/40")}>
-                  {payload?.role}
-                </span>
-                <p className="mt-1.5 line-clamp-2 text-[13px] leading-snug font-medium">
+                <p className="line-clamp-2 text-[13px] leading-snug font-medium">
                   {payload?.title}
                 </p>
                 {payload?.preview && (

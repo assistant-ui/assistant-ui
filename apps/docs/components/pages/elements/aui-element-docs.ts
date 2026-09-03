@@ -159,18 +159,24 @@ import { TooltipIconButton } from "@/components/assistant-ui/elements/tooltip-ic
             type: "ConversationMapEntry[]",
             required: true,
             description:
-              "One tick per message, in thread order, each with the title and preview its card shows.",
+              "One tick per turn, in thread order, each with the title and preview its card shows.",
           },
           {
             name: "activeId",
             type: "string",
             description:
-              "The message currently in view, drawn as the one solid tick.",
+              "The turn currently being read, drawn as the one solid tick.",
+          },
+          {
+            name: "visibleIds",
+            type: "string[]",
+            description:
+              "Every turn the viewport holds, drawn deeper than the rest and fanned out by length once the rail is pointed at.",
           },
           {
             name: "onSelect",
             type: "(id: string) => void",
-            description: "Called with the message a tick was clicked for.",
+            description: "Called with the turn a tick was clicked for.",
           },
           {
             name: "side",

@@ -4,9 +4,9 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import { ConversationMap, type ConversationMapEntry } from "./conversation-map";
 
 const ENTRIES: ConversationMapEntry[] = [
-  { id: "m1", role: "user", title: "Chat ready", preview: "the ready dot" },
-  { id: "m2", role: "assistant", title: "Got it", preview: "I'll use that" },
-  { id: "m3", role: "user", title: "Reload it" },
+  { id: "t1", title: "Chat ready", preview: "the ready dot" },
+  { id: "t2", title: "Got it", preview: "I'll use that" },
+  { id: "t3", title: "Reload it" },
 ];
 
 const ticks = () =>
@@ -15,6 +15,9 @@ const ticks = () =>
       '[data-slot="conversation-map-tick"]',
     ),
   );
+
+const lit = () => ticks().map((tick) => tick.hasAttribute("data-active"));
+const onScreen = () => ticks().map((tick) => tick.hasAttribute("data-in-view"));
 
 afterEach(cleanup);
 
@@ -29,39 +32,10 @@ describe("ConversationMap", () => {
     ]);
   });
 
-  const marker = () =>
-    document.querySelector<HTMLElement>(
-      '[data-slot="conversation-map-marker"]',
-    );
+  it("lights only the turn being read", () => {
+    render(<ConversationMap entries={ENTRIES} activeId="t2" />);
 
-  it("sizes the marker to one tick and offsets it by whole ticks", () => {
-    render(<ConversationMap entries={ENTRIES} activeId="m2" />);
-
-    expect(marker()?.style.height).toBe(`${100 / 3}%`);
-    expect(marker()?.style.transform).toBe("translateY(100%)");
-  });
-
-  it("moves the same marker rather than restyling each tick", () => {
-    const { rerender } = render(
-      <ConversationMap entries={ENTRIES} activeId="m1" />,
-    );
-    const first = marker();
-
-    rerender(<ConversationMap entries={ENTRIES} activeId="m3" />);
-
-    expect(marker()).toBe(first);
-    expect(marker()?.style.transform).toBe("translateY(200%)");
-  });
-
-  it("hides the marker when nothing is active", () => {
-    render(<ConversationMap entries={ENTRIES} />);
-
-    expect(marker()).toBeNull();
-  });
-
-  it("marks only the active entry as current", () => {
-    render(<ConversationMap entries={ENTRIES} activeId="m2" />);
-
+    expect(lit()).toEqual([false, true, false]);
     expect(ticks().map((tick) => tick.getAttribute("aria-current"))).toEqual([
       null,
       "true",
@@ -69,15 +43,37 @@ describe("ConversationMap", () => {
     ]);
   });
 
-  it("gives the active tick the only tab stop", () => {
-    render(<ConversationMap entries={ENTRIES} activeId="m3" />);
+  it("marks the window separately from the turn being read", () => {
+    render(
+      <ConversationMap
+        entries={ENTRIES}
+        activeId="t2"
+        visibleIds={["t2", "t3"]}
+      />,
+    );
 
-    expect(ticks().map((tick) => tick.tabIndex)).toEqual([-1, -1, 0]);
+    expect(lit()).toEqual([false, true, false]);
+    expect(onScreen()).toEqual([false, true, true]);
+  });
+
+  it("keeps the turn being read inside the window", () => {
+    render(
+      <ConversationMap entries={ENTRIES} activeId="t1" visibleIds={["t3"]} />,
+    );
+
+    expect(onScreen()).toEqual([true, false, true]);
+  });
+
+  it("gives the active entry the only tab stop", () => {
+    render(<ConversationMap entries={ENTRIES} activeId="t2" />);
+
+    expect(ticks().map((tick) => tick.tabIndex)).toEqual([-1, 0, -1]);
   });
 
   it("falls back to the first tab stop when nothing is active", () => {
     render(<ConversationMap entries={ENTRIES} />);
 
+    expect(lit()).toEqual([false, false, false]);
     expect(ticks().map((tick) => tick.tabIndex)).toEqual([0, -1, -1]);
   });
 
@@ -87,7 +83,7 @@ describe("ConversationMap", () => {
 
     fireEvent.click(screen.getByLabelText("Got it"));
 
-    expect(onSelect).toHaveBeenCalledWith("m2");
+    expect(onSelect).toHaveBeenCalledWith("t2");
   });
 
   it("moves focus along the rail with the arrow keys", () => {
@@ -106,7 +102,7 @@ describe("ConversationMap", () => {
   });
 
   it("moves the tab stop to the tick the keyboard reached", () => {
-    render(<ConversationMap entries={ENTRIES} activeId="m1" />);
+    render(<ConversationMap entries={ENTRIES} activeId="t1" />);
     const [first, second] = ticks();
 
     first!.focus();

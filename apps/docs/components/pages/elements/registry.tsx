@@ -1204,7 +1204,7 @@ export const ELEMENT_SECTIONS: ElementSection[] = [
         replay: false,
         title: "Conversation map",
         description:
-          "A rail of the whole thread: one tick per message, the one in view marked, a hover preview, and a click that jumps there.",
+          "A rail of the whole thread: one tick per turn, the turn being read marked and the ones on screen deepened, a hover preview, and a click that jumps there.",
         file: "conversation-map.aui.tsx",
         registryName: "conversation-map",
         connection: "AUI",

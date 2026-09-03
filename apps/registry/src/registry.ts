@@ -370,7 +370,7 @@ const elementsRegistryItems: RegistryItem[] = [
     slug: "conversation-map",
     title: "Conversation map",
     description:
-      "A rail of the whole thread: one tick per message, the one in view marked, and a hover preview of what it says.",
+      "A rail of the whole thread: one tick per turn, the turn being read marked and the ones on screen deepened, and a hover preview of what it says.",
     file: "conversation-map.tsx",
     dependencies: ["@base-ui/react"],
     usesElements: ["range"],
@@ -1154,7 +1154,7 @@ export const registry: RegistryItem[] = [
     type: "registry:component",
     title: "Conversation Map",
     description:
-      "Runtime-backed thread rail: a tick per message, the one in view marked, a hover preview, and a click that scrolls there.",
+      "Runtime-backed thread rail: a tick per turn, the turn being read marked and the ones on screen deepened, a hover preview, and a click that scrolls there.",
     files: [
       {
         type: "registry:component",
