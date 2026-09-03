@@ -186,8 +186,10 @@ export const checkSizes = async ({
         status,
       });
       measured.add(`${pkg.name}\u0000${entry.subpath}`);
-      nextBudgets[pkg.name] ??= {};
-      nextBudgets[pkg.name][entry.subpath] = actual;
+      if (status !== "ok") {
+        nextBudgets[pkg.name] ??= {};
+        nextBudgets[pkg.name][entry.subpath] = actual;
+      }
     }
   }
 
