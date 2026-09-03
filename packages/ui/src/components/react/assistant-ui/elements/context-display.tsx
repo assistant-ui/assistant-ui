@@ -129,6 +129,7 @@ function ContextDisplayRoot({
 
   const totalTokens = tokenState.totalTokens;
   const percent = getUsagePercent(totalTokens, modelContextWindow);
+  const hasUsage = tokenState.usage !== undefined || totalTokens > 0;
 
   const contextValue = useMemo(
     () => ({
@@ -139,6 +140,8 @@ function ContextDisplayRoot({
     }),
     [tokenState.usage, totalTokens, percent, modelContextWindow],
   );
+
+  if (!hasUsage) return null;
 
   return (
     <ContextDisplayContext.Provider value={contextValue}>

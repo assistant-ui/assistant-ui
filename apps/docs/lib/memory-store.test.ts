@@ -65,6 +65,14 @@ describe("memory store", () => {
     ]);
   });
 
+  it("refuses a memory with no text", async () => {
+    const { values } = setupStorage();
+    const { addMemory } = await loadStore();
+
+    expect(addMemory("   ")).toBeUndefined();
+    expect(storedMemories(values)).toEqual([]);
+  });
+
   it("returns the existing memory for case-insensitive duplicates", async () => {
     setupStorage();
     const { addMemory } = await loadStore();

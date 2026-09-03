@@ -99,7 +99,7 @@ const UsageApp = () => {
 };
 
 describe("useThreadTokenUsage through useChatRuntime", () => {
-  it("reads the usage a route attaches through messageMetadata", async () => {
+  it("reads usage from the message metadata a server attached", async () => {
     render(
       <StrictMode>
         <UsageApp />

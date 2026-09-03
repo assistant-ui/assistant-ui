@@ -49,7 +49,12 @@ describe("SetThemeToolUI", () => {
     expect(screen.getByRole("button", { name: "Deny" })).toBeTruthy();
     const allow = screen.getByRole("button", { name: "Allow" });
     expect(allow).toBeTruthy();
-    expect(document.activeElement).toBe(allow);
+    expect(document.activeElement).not.toBe(allow);
+    const panel = screen.getByRole("group");
+    expect(
+      document.getElementById(panel.getAttribute("aria-labelledby")!)
+        ?.textContent,
+    ).toBe("Switch to dark mode");
   });
 
   it("applies the requested theme and reports the approved result", () => {
@@ -101,6 +106,8 @@ describe("SetThemeToolUI", () => {
     fireEvent.click(screen.getByRole("button", { name: "undo" }));
 
     expect(mocks.setTheme).toHaveBeenCalledWith("light");
+    expect(screen.getByText(/reverted the theme to/)).toBeTruthy();
+    expect(screen.queryByRole("button", { name: "undo" })).toBeNull();
   });
 
   it("renders the declined outcome", () => {

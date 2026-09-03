@@ -98,6 +98,7 @@ const loadMemories = () => {
 };
 
 const refreshMemories = () => {
+  loadMemories();
   const stored = readStored();
   if (stored !== null) setMemories(stored);
 };
@@ -108,9 +109,10 @@ const createId = () =>
 
 export const addMemory = (
   text: string,
-): { record: MemoryRecord; change: MemoryChange } => {
-  loadMemories();
+): { record: MemoryRecord; change: MemoryChange } | undefined => {
+  refreshMemories();
   const normalizedText = text.trim().slice(0, 200);
+  if (normalizedText.length === 0) return undefined;
   const existing = memories.find(
     (memory) => memory.text.toLowerCase() === normalizedText.toLowerCase(),
   );
@@ -130,7 +132,7 @@ export const addMemory = (
 };
 
 export const forgetMemory = (id: string) => {
-  loadMemories();
+  refreshMemories();
   const next = memories.filter((memory) => memory.id !== id);
   if (next.length === memories.length) return;
   if (next.length === 0) {
@@ -142,7 +144,7 @@ export const forgetMemory = (id: string) => {
 };
 
 export const clearMemories = () => {
-  loadMemories();
+  refreshMemories();
   clearStored();
   setMemories(emptyMemories);
 };

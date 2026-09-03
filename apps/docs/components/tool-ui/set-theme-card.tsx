@@ -2,6 +2,7 @@
 
 import type { ToolCallMessagePartComponent } from "@assistant-ui/react";
 import { useTheme } from "next-themes";
+import { useId, useState } from "react";
 import { TraceLine } from "@/components/shared/trace-line";
 import { Button } from "@/components/ui/button";
 
@@ -30,10 +31,23 @@ export const SetThemeToolUI: ToolCallMessagePartComponent<
   SetThemeResult
 > = ({ args, result, status, addResult }) => {
   const { theme: currentTheme, setTheme } = useTheme();
+  const titleId = useId();
+  const descriptionId = useId();
+  const [undone, setUndone] = useState(false);
 
   if (result) {
     if (!result.approved) {
       return <TraceLine live={false} label="theme change declined" />;
+    }
+
+    if (undone) {
+      return (
+        <TraceLine
+          live={false}
+          label="reverted the theme to"
+          detail={result.previousTheme}
+        />
+      );
     }
 
     return (
@@ -46,7 +60,10 @@ export const SetThemeToolUI: ToolCallMessagePartComponent<
         <button
           type="button"
           className="text-muted-foreground hover:text-foreground decoration-foreground/20 hover:decoration-foreground/60 font-mono text-[12px] underline underline-offset-[3px] transition-colors"
-          onClick={() => setTheme(result.previousTheme)}
+          onClick={() => {
+            setTheme(result.previousTheme);
+            setUndone(true);
+          }}
         >
           undo
         </button>
@@ -63,9 +80,17 @@ export const SetThemeToolUI: ToolCallMessagePartComponent<
       : `Switch to ${args.theme} mode`;
 
   return (
-    <div className="border-foreground/10 rounded-surface my-3 max-w-md border p-4">
-      <p className="text-sm font-medium">{title}</p>
-      <p className="text-muted-foreground mt-0.5 text-sm">
+    <div
+      role="group"
+      aria-live="polite"
+      aria-labelledby={titleId}
+      aria-describedby={descriptionId}
+      className="border-foreground/10 rounded-surface my-3 max-w-md border p-4"
+    >
+      <p id={titleId} className="text-sm font-medium">
+        {title}
+      </p>
+      <p id={descriptionId} className="text-muted-foreground mt-0.5 text-sm">
         The assistant wants to change this page&apos;s theme.
       </p>
       <div className="mt-4 flex justify-end gap-1.5">
@@ -78,7 +103,6 @@ export const SetThemeToolUI: ToolCallMessagePartComponent<
         </Button>
         <Button
           type="button"
-          autoFocus
           onClick={() => {
             setTheme(args.theme);
             addResult({
