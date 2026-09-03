@@ -3,4 +3,4 @@
 "@assistant-ui/react-streamdown": patch
 ---
 
-fix: preserve multiline LaTeX display blocks
+fix: stop bracket-delimited math from swallowing the rest of the message
