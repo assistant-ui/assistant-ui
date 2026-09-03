@@ -65,7 +65,9 @@ function MarkdownTable({
         (cell.textContent ?? "")
           .replace(/\s+/g, " ")
           .trim()
-          .replace(/\|/g, "\\|"),
+          // The backslash goes first: escaping the pipe alone would turn a cell's
+          // own backslash into the escape for it.
+          .replace(/[\\|]/g, "\\$&"),
       ),
     );
     if (rows.length === 0) return;
