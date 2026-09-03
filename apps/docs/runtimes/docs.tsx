@@ -64,6 +64,7 @@ export function DocsRuntimeProvider({
     cloud,
     adapters,
     sendAutomatically: true,
+    searchDocs: followUps,
   });
 
   const aui = useAui({

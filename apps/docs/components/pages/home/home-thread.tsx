@@ -1122,6 +1122,17 @@ function SpecimenAssistantMessage(): ReactNode {
   );
 }
 
+function isCited(text: string, url: string): boolean {
+  let from = 0;
+  for (;;) {
+    const at = text.indexOf(url, from);
+    if (at === -1) return false;
+    const next = text[at + url.length];
+    if (next === undefined || !/[\w#?/-]/.test(next)) return true;
+    from = at + url.length;
+  }
+}
+
 function sourceLabel(url: string, title: string | undefined): string {
   if (title) return title;
   try {
@@ -1142,7 +1153,7 @@ function SpecimenSources(): ReactNode {
       part.type !== "source" ||
       part.sourceType !== "url" ||
       seen.has(part.url) ||
-      !text.includes(part.url)
+      !isCited(text, part.url)
     ) {
       return [];
     }

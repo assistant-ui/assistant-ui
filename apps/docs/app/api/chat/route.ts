@@ -65,11 +65,19 @@ export async function POST(req: Request) {
     if (rateLimitResponse) return withCors(req, rateLimitResponse);
 
     const body = await req.json();
-    const { messages, system: rawSystem, tools, config } = body;
+    const {
+      messages,
+      system: rawSystem,
+      tools,
+      config,
+      searchDocs: searchDocsRequested,
+    } = body;
 
     // Basic validation: only accept short system prompts to limit abuse surface
     const MAX_SYSTEM_LENGTH = 4000;
-    const groundInDocs = req.headers.get("sec-fetch-site") === "same-origin";
+    const groundInDocs =
+      searchDocsRequested === true &&
+      req.headers.get("sec-fetch-site") === "same-origin";
     const system = [
       typeof rawSystem === "string" && rawSystem.length <= MAX_SYSTEM_LENGTH
         ? rawSystem

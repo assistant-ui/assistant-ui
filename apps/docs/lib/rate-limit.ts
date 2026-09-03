@@ -182,6 +182,11 @@ const getPublicAssistantRateLimits = async () => {
         "1d",
       ),
     }),
+    followUpGlobalAlert: new Ratelimit({
+      redis,
+      prefix: "aui:follow-up:global:alert",
+      limiter: Ratelimit.fixedWindow(1, "10m"),
+    }),
     xuluxDownloadIpBurst: new Ratelimit({
       redis,
       prefix: "aui:xulux-download:ip:burst",
@@ -354,6 +359,18 @@ export async function checkFollowUpSuggestionRateLimit(
 
     const globalDaily = await limits.followUpGlobalDaily.limit("all");
     if (!globalDaily.success) {
+      const alert = await limits.followUpGlobalAlert
+        .limit("all")
+        .catch(() => null);
+      if (alert?.success) {
+        console.error(
+          JSON.stringify({
+            level: "error",
+            message: "follow_up_global_daily_exhausted",
+            requestId: request.headers.get("x-vercel-id"),
+          }),
+        );
+      }
       return limitResponse("Follow-up daily limit exceeded", globalDaily.reset);
     }
 

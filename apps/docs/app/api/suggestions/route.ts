@@ -10,11 +10,15 @@ import { generateText } from "ai";
 const MAX_PROMPT_LENGTH = 24_000;
 const PROMPT_HEAD_LENGTH = 2_000;
 
+const PROMPT_SEPARATOR = "\n\n[...]\n\n";
+
 function boundPrompt(prompt: string): string {
   if (prompt.length <= MAX_PROMPT_LENGTH) return prompt;
   const head = prompt.slice(0, PROMPT_HEAD_LENGTH);
-  const tail = prompt.slice(-(MAX_PROMPT_LENGTH - PROMPT_HEAD_LENGTH));
-  return `${head}\n\n[...]\n\n${tail}`;
+  const tail = prompt.slice(
+    -(MAX_PROMPT_LENGTH - PROMPT_HEAD_LENGTH - PROMPT_SEPARATOR.length),
+  );
+  return `${head}${PROMPT_SEPARATOR}${tail}`;
 }
 
 export async function POST(req: Request): Promise<Response> {

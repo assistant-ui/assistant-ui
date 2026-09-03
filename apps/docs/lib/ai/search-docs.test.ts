@@ -1,25 +1,42 @@
 import { describe, expect, it, vi } from "vitest";
 import type { SearchRecord } from "@/lib/search/types";
-vi.mock("@/lib/search/pages", () => ({
-  buildSearchIndex: () => records,
+const mocks = vi.hoisted(() => ({
+  records: [
+    {
+      url: "/docs/ui/thread-list",
+      title: "Thread List",
+      description: "Render and manage conversation history.",
+      headings: [{ id: "usage", content: "Usage" }],
+    },
+    {
+      url: "/docs/runtimes/custom",
+      title: "Custom Runtime",
+      description: "Connect an external store.",
+      headings: [{ id: "thread-list", content: "Thread List" }],
+    },
+  ],
+  pages: [
+    {
+      url: "/docs/ui/thread-list",
+      data: {
+        structuredData: () => ({
+          contents: [
+            { content: "An unrelated opening paragraph." },
+            { content: "Render the thread list beside your thread." },
+          ],
+        }),
+      },
+    },
+  ],
+}));
+
+vi.mock("@/lib/search/pages", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("@/lib/search/pages")>()),
+  buildSearchIndex: () => mocks.records,
 }));
 
 vi.mock("@/lib/source", () => ({
-  source: {
-    getPages: () => [
-      {
-        url: "/docs/ui/thread-list",
-        data: {
-          structuredData: () => ({
-            contents: [
-              { content: "An unrelated opening paragraph." },
-              { content: "Render the thread list beside your thread." },
-            ],
-          }),
-        },
-      },
-    ],
-  },
+  source: { getPages: () => mocks.pages },
   getTapDocsPages: () => [],
   design: { getPages: () => [] },
   elementsDocs: { getPages: () => [] },
@@ -27,20 +44,7 @@ vi.mock("@/lib/source", () => ({
 
 import { createSearchDocsTool, searchDocs } from "./search-docs";
 
-const records: SearchRecord[] = [
-  {
-    url: "/docs/ui/thread-list",
-    title: "Thread List",
-    description: "Render and manage conversation history.",
-    headings: [{ id: "usage", content: "Usage" }],
-  },
-  {
-    url: "/docs/runtimes/custom",
-    title: "Custom Runtime",
-    description: "Connect an external store.",
-    headings: [{ id: "thread-list", content: "Thread List" }],
-  },
-];
+const records: SearchRecord[] = mocks.records;
 
 describe("searchDocs", () => {
   it("ranks a title match above a heading-only match", () => {
