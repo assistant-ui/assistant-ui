@@ -47,7 +47,9 @@ export function ModelSelectorWithMetadata() {
                 <span className="truncate font-medium">{option.name}</span>
                 <span className="flex gap-1">
                   {capabilities[option.id]?.map((capability) => (
-                    <Badge key={capability}>{capability}</Badge>
+                    <Badge key={capability} variant="secondary">
+                      {capability}
+                    </Badge>
                   ))}
                 </span>
               </span>
