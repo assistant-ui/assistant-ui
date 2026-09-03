@@ -12,11 +12,13 @@
 const LATEX_INLINE_DELIMITER = /\\{1,2}\(([^\n]+?)\\{1,2}\)/g;
 const LATEX_DISPLAY_DELIMITER = /\\{1,2}\[([\s\S]+?)\\{1,2}\]/g;
 
-// The closer may carry the same blockquote prefix the opener did, and matching
-// it by shape rather than by exact string keeps `> ~~~` and `>~~~` equivalent.
-// Reading a closer leniently is the safe bias: a missed one protects the rest of
-// the document as code and suppresses every rewrite after it.
-const TILDE_FENCE_CLOSE = /^ {0,3}(?:>[ \t]?)* {0,3}(~{3,})[ \t\r]*$/;
+// A closer has to sit in the same container as its opener: a root fence is not
+// closed by a quoted line, and a quoted fence is closed by one however its
+// marker is spaced. Matching the prefix by shape rather than as a literal keeps
+// `> ~~~` and `>~~~` equivalent.
+const TILDE_FENCE_CLOSE_ROOT = /^ {0,3}(~{3,})[ \t\r]*$/;
+const TILDE_FENCE_CLOSE_QUOTED = /^ {0,3}(?:>[ \t]?)+ {0,3}(~{3,})[ \t\r]*$/;
+const LINE_IS_QUOTED = /^ {0,3}(?:>[ \t]?)+/;
 
 /**
  * End index (exclusive) of the tilde fence opened by the `~` run at `start`,
@@ -27,6 +29,10 @@ const TILDE_FENCE_CLOSE = /^ {0,3}(?:>[ \t]?)* {0,3}(~{3,})[ \t\r]*$/;
  */
 function tildeFenceEnd(text: string, start: number): number {
   const fenceLength = runLength(text, start, "~");
+  const openerLine = text.slice(text.lastIndexOf("\n", start - 1) + 1, start);
+  const closer = LINE_IS_QUOTED.test(openerLine)
+    ? TILDE_FENCE_CLOSE_QUOTED
+    : TILDE_FENCE_CLOSE_ROOT;
   let lineStart = text.indexOf("\n", start);
 
   while (lineStart !== -1) {
@@ -35,7 +41,7 @@ function tildeFenceEnd(text: string, start: number): number {
       lineStart + 1,
       lineEnd === -1 ? undefined : lineEnd,
     );
-    const close = TILDE_FENCE_CLOSE.exec(line);
+    const close = closer.exec(line);
     if (close && close[1]!.length >= fenceLength) {
       return lineEnd === -1 ? text.length : lineEnd;
     }

@@ -147,6 +147,13 @@ describe("rewriteLatexBracketDelimiters", () => {
     ).toBe("  ~~~\n\\[a\\]\n~~~\nafter $x$");
   });
 
+  it("does not close a root fence on a quoted tilde line inside it", () => {
+    const fenced = "~~~\n> ~~~\n\\(x\\) still code\n~~~\nafter \\(y\\)";
+    expect(rewriteLatexBracketDelimiters(fenced)).toBe(
+      "~~~\n> ~~~\n\\(x\\) still code\n~~~\nafter $y$",
+    );
+  });
+
   it("does not open a fence from a four-space indented marker", () => {
     expect(rewriteLatexBracketDelimiters("    > ~~~\n\\(x\\)")).toBe(
       "    > ~~~\n$x$",
