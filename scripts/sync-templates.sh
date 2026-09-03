@@ -329,7 +329,9 @@ redundant=()
 
 # templates/minimal and templates/nuxt ship real files on purpose, and
 # globals.d.ts declares an ambient module, which is not resolvable through a
-# path alias and has to sit in every TypeScript project's own scope.
+# path alias and has to sit in every TypeScript project's own scope. CSS is
+# excluded from the scan above for the same reason: an @import does not go
+# through tsconfig paths, so a byte-equal stylesheet is never redundant.
 is_exempt_copy() {
     case "$1" in
     templates/minimal/* | templates/nuxt/* | */globals.d.ts) return 0 ;;
@@ -356,7 +358,7 @@ git -C "$ROOT_DIR" ls-files -- "$UI_SRC_REL" >"$UI_SRC_LIST"
 
 while IFS= read -r rel; do
     case "$rel" in
-    *.ts | *.tsx | *.vue | *.css) ;;
+    *.ts | *.tsx | *.vue) ;;
     *) continue ;;
     esac
     is_exempt_copy "$rel" && continue
