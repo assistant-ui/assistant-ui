@@ -5,6 +5,7 @@ import {
 import { describe, expect, it } from "vitest";
 import {
   closeDisplayMathFences,
+  escapeShellVariables,
   mapProse,
   preprocessMath,
 } from "./markdown-math";
@@ -104,10 +105,40 @@ describe("mapProse", () => {
     expect(mapProse("a ` b", upper)).toBe("A ` B");
   });
 
+  it("ignores escaped backticks", () => {
+    expect(mapProse("Use \\` and a and \\` now.", upper)).toBe(
+      "USE \\` AND A AND \\` NOW.",
+    );
+  });
+
   it("keeps a prose run intact across lines", () => {
     expect(mapProse("a\n\nb", (prose) => prose.replace(/\n\n/g, "|"))).toBe(
       "a|b",
     );
+  });
+});
+
+describe("escapeShellVariables", () => {
+  it("escapes environment variables in prose", () => {
+    expect(
+      escapeShellVariables(
+        "set $OPENAI_API_KEY and $NEXT_PUBLIC_ASSISTANT_BASE_URL, then $HOME",
+      ),
+    ).toBe(
+      "set \\$OPENAI_API_KEY and \\$NEXT_PUBLIC_ASSISTANT_BASE_URL, then \\$HOME",
+    );
+  });
+
+  it("leaves math and currency alone", () => {
+    for (const text of [
+      "$x$ and $S_n$ and $X_1 + 2$",
+      "$$E = mc^2$$",
+      "$$\nX_1 + Y\n$$",
+      "Costs $5 and $NODE_ENV$",
+      "already \\$HOME",
+    ]) {
+      expect(escapeShellVariables(text)).toBe(text);
+    }
   });
 });
 

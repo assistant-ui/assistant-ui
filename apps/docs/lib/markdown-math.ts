@@ -69,10 +69,21 @@ const backtickRun = (text: string, start: number) => {
   return length;
 };
 
+const isEscaped = (text: string, index: number) => {
+  let backslashes = 0;
+  while (
+    index - backslashes - 1 >= 0 &&
+    text[index - backslashes - 1] === "\\"
+  ) {
+    backslashes++;
+  }
+  return backslashes % 2 === 1;
+};
+
 const closingBacktickRun = (text: string, from: number, length: number) => {
   let index = from;
   while (index < text.length) {
-    if (text[index] !== "`") {
+    if (text[index] !== "`" || isEscaped(text, index)) {
       index++;
       continue;
     }
@@ -92,7 +103,7 @@ const mapOutsideCodeSpans = (
   let index = 0;
 
   while (index < text.length) {
-    if (text[index] !== "`") {
+    if (text[index] !== "`" || isEscaped(text, index)) {
       index++;
       continue;
     }
@@ -149,12 +160,22 @@ export function mapProse(
   return out.join("\n");
 }
 
+const SHELL_VARIABLE =
+  /(?<![\\$])\$(?=(?:[A-Z][A-Z0-9]+_[A-Z0-9_]+|[A-Z]{4,})(?![A-Z0-9_]*\$))/g;
+
+// Single dollar math is on, and escapeCurrencyDollars only guards a dollar
+// followed by a digit, so a shell variable in prose would open a math span.
+export const escapeShellVariables = (text: string) =>
+  text.replace(SHELL_VARIABLE, "\\$");
+
 // The bracket rewrite in normalizeMathDelimiters emits `$$body$$` even when
 // the body spans lines, which is the fence shape repaired above, so the repair
 // runs after it.
 export const preprocessMath = (text: string) =>
   mapProse(text, (prose) =>
-    escapeCurrencyDollars(
-      closeDisplayMathFences(normalizeMathDelimiters(prose)),
+    escapeShellVariables(
+      escapeCurrencyDollars(
+        closeDisplayMathFences(normalizeMathDelimiters(prose)),
+      ),
     ),
   );
