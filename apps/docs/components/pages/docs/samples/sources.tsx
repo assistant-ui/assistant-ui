@@ -4,6 +4,7 @@ import {
   Source,
   SourceIcon,
   SourceTitle,
+  Sources,
 } from "@/components/assistant-ui/elements/sources.aui";
 import { SampleFrame } from "@/components/pages/docs/samples/sample-frame";
 
@@ -41,6 +42,19 @@ export function SourcesSample() {
       <VariantRow label="Outline (default)" />
       <VariantRow label="Ghost" variant="ghost" />
       <VariantRow label="Muted" variant="muted" />
+      <div className="flex flex-col gap-2">
+        <span className="text-muted-foreground text-xs font-medium">
+          Document
+        </span>
+        <Sources
+          type="source"
+          sourceType="document"
+          id="doc-1"
+          title="Quarterly Report.pdf"
+          mediaType="application/pdf"
+          status={{ type: "complete" }}
+        />
+      </div>
     </SampleFrame>
   );
 }
