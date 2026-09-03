@@ -33,6 +33,13 @@ describe("rewriteLatexBracketDelimiters", () => {
       "plain $x$ text",
     );
   });
+
+  it("preserves code spans and fences while rewriting prose", () => {
+    const text = "Use `\\(code\\)` and \\(prose\\).\n```\n\\[code\\]\n```";
+    expect(rewriteLatexBracketDelimiters(text)).toBe(
+      "Use `\\(code\\)` and $prose$.\n```\n\\[code\\]\n```",
+    );
+  });
 });
 
 describe("rewriteCustomMathTags", () => {
@@ -41,12 +48,37 @@ describe("rewriteCustomMathTags", () => {
       rewriteCustomMathTags("[/math]a+b[/math] and [/inline]c[/inline]"),
     ).toBe("$$a+b$$ and $c$");
   });
+
+  it("preserves code spans and fences while rewriting prose", () => {
+    const text =
+      "Use `[/inline]code[/inline]` and [/inline]prose[/inline].\n```\n[/math]code[/math]\n```";
+    expect(rewriteCustomMathTags(text)).toBe(
+      "Use `[/inline]code[/inline]` and $prose$.\n```\n[/math]code[/math]\n```",
+    );
+  });
 });
 
 describe("normalizeMathDelimiters", () => {
   it("normalizes both bracket delimiters and custom tags", () => {
     expect(normalizeMathDelimiters("\\(x\\) [/math]y[/math]")).toBe(
       "$x$ $$y$$",
+    );
+  });
+
+  it("preserves code while rewriting adjacent prose", () => {
+    const text = [
+      "Use `\\(inline\\)` and \\(prose\\) plus `[/math]code[/math]` and [/math]display[/math].",
+      "```",
+      "\\[fenced\\] [/inline]fenced[/inline]",
+      "```",
+    ].join("\n");
+    expect(normalizeMathDelimiters(text)).toBe(
+      [
+        "Use `\\(inline\\)` and $prose$ plus `[/math]code[/math]` and $$display$$.",
+        "```",
+        "\\[fenced\\] [/inline]fenced[/inline]",
+        "```",
+      ].join("\n"),
     );
   });
 });

@@ -20,12 +20,19 @@ const LATEX_DISPLAY_DELIMITER = /\\{1,2}\[([\s\S]+?)\\{1,2}\]/g;
  * math renders as plain text.
  */
 export function rewriteLatexBracketDelimiters(text: string): string {
-  return text
-    .replace(LATEX_INLINE_DELIMITER, (_, body: string) => `$${body.trim()}$`)
-    .replace(
-      LATEX_DISPLAY_DELIMITER,
-      (_, body: string) => `$$${body.trim()}$$`,
-    );
+  return rewriteOutsideCode(
+    (segment) =>
+      segment
+        .replace(
+          LATEX_INLINE_DELIMITER,
+          (_, body: string) => `$${body.trim()}$`,
+        )
+        .replace(
+          LATEX_DISPLAY_DELIMITER,
+          (_, body: string) => `$$${body.trim()}$$`,
+        ),
+    text,
+  );
 }
 
 const MATH_TAG = /\[\/math\]([\s\S]*?)\[\/math\]/g;
@@ -36,9 +43,13 @@ const INLINE_TAG = /\[\/inline\]([\s\S]*?)\[\/inline\]/g;
  * `[/math]...[/math]` becomes `$$...$$` and `[/inline]...[/inline]` becomes `$...$`.
  */
 export function rewriteCustomMathTags(text: string): string {
-  return text
-    .replace(MATH_TAG, (_, body: string) => `$$${body.trim()}$$`)
-    .replace(INLINE_TAG, (_, body: string) => `$${body.trim()}$`);
+  return rewriteOutsideCode(
+    (segment) =>
+      segment
+        .replace(MATH_TAG, (_, body: string) => `$$${body.trim()}$$`)
+        .replace(INLINE_TAG, (_, body: string) => `$${body.trim()}$`),
+    text,
+  );
 }
 
 /**
@@ -84,6 +95,35 @@ function codeSpanEnd(text: string, start: number): number {
   }
 
   return closed === -1 ? -1 : closed + delimiterLength;
+}
+
+function rewriteOutsideCode(
+  rewrite: (text: string) => string,
+  text: string,
+): string {
+  let out = "";
+  let segmentStart = 0;
+  let index = 0;
+
+  while (index < text.length) {
+    if (text[index] !== "`") {
+      index += 1;
+      continue;
+    }
+
+    const end = codeSpanEnd(text, index);
+    if (end === -1) {
+      index += runLength(text, index, "`");
+      continue;
+    }
+
+    out += rewrite(text.slice(segmentStart, index));
+    out += text.slice(index, end);
+    index = end;
+    segmentStart = end;
+  }
+
+  return out + rewrite(text.slice(segmentStart));
 }
 
 /**
