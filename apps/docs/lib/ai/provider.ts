@@ -63,7 +63,7 @@ export function resolveChatModel(config: unknown) {
   return {
     model: openai.responses(id),
     providerOptions: {
-      openai: { reasoningEffort, reasoningSummary: "auto" },
+      openai: { reasoningEffort, reasoningSummary: "auto", store: false },
     },
     reasoning: true as const,
   };

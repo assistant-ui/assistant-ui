@@ -31,7 +31,11 @@ describe("resolveChatModel", () => {
     ).toEqual({
       model: { api: "responses", id: DEFAULT_MODEL_ID },
       providerOptions: {
-        openai: { reasoningEffort: "high", reasoningSummary: "auto" },
+        openai: {
+          reasoningEffort: "high",
+          reasoningSummary: "auto",
+          store: false,
+        },
       },
       reasoning: true,
     });
