@@ -115,7 +115,7 @@ export default function TwShimmerPage() {
         >
           <Example
             title="shimmer"
-            description="The default compositor path repeats the text in a direct inert clone."
+            description="Base utility. Needs a text color lighter or darker than the page so the sweep can show."
             code={shimmerCode("Shimmer Effect", "shimmer text-foreground/60")}
           >
             <ShimmerText className="text-foreground/80 dark:text-foreground/60 text-xl font-medium">

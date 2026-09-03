@@ -59,7 +59,7 @@ The inert clone must be a direct child and makes the compositor path the default
   Use `aria-hidden="true"` and `inert` on the clone. Assistive technology then reads the text one time.
 </Callout>
 
-The clone must include `aria-hidden="true"` and `inert` because it supplies glyphs for the mask, not accessible content. Reduced motion stops either animation and leaves the host text visible.
+The clone must include `aria-hidden="true"` and `inert` because it supplies glyphs for the mask, not accessible content. Reduced motion stops the clone animation and shows the host text as static text. One-node markup and `shimmer-bg` keep the paint animation under reduced motion.
 
 ### Skeleton Loader
 
@@ -121,22 +121,21 @@ CSS-only auto-sizing helper using container queries. Sets `container-type: inlin
 | `shimmer-clone`             | —              | —            | Inert text mask copy               |
 | `shimmer-speed-{n}`         | `200`          | `1000`       | Animation speed in px/s            |
 | `--shimmer-track-width`     | `200px`        | `200px`      | Track width variable for timing    |
-| `shimmer-spread-{n}`        | `6ch`          | —            | Text shimmer highlight width       |
-| `shimmer-bg-spread-{n}`     | —              | `480px`      | Background shimmer highlight width |
+| `shimmer-spread-{n}`        | `calc(4ch + 80px)` | `480px`  | Highlight width                    |
 | `shimmer-color-{color}`     | auto           | auto         | Highlight color (Tailwind palette) |
-| `shimmer-angle-{deg}`       | `90`           | `90`         | Sweep direction in degrees         |
+| `shimmer-angle-{deg}`       | `15`           | `15`         | Sweep tilt in degrees              |
 | `shimmer-duration-{ms}`     | auto           | auto         | Fixed animation duration           |
-| `shimmer-repeat-delay-{ms}` | `1000`         | `1000`       | Pause between cycles               |
+| `shimmer-repeat-delay-{ms}` | `100`          | `20`         | Pause between cycles               |
 | `shimmer-invert`            | —              | —            | Invert highlight direction         |
 
 All utilities are **inheritable** — set on a parent to affect all shimmer children.
 
 ### Speed and Width
 
-Speed controls how fast the shimmer moves in pixels per second. Width tells the animation how wide the container is for timing calculations.
+Speed controls how fast the shimmer moves in pixels per second. The `--shimmer-track-width` variable tells the animation how wide the container is for its timing calculation.
 
 ```html
-<span class="shimmer shimmer-speed-200 shimmer-width-400 text-foreground/40">
+<span class="shimmer shimmer-speed-200 [--shimmer-track-width:400px] text-foreground/40">
   Fast, wide shimmer
   <span class="shimmer-clone" aria-hidden="true" inert>Fast, wide shimmer</span>
 </span>
@@ -157,7 +156,7 @@ Use any Tailwind color with optional opacity:
 
 ### Angle
 
-Control the sweep direction. Default is `90deg` (vertical sweep).
+Control the sweep tilt. Default is `15deg`.
 
 ```html
 <div class="shimmer-container shimmer-angle-15">
@@ -208,7 +207,7 @@ All values can be set via CSS variables for dynamic control:
 | Variable                 | Description               |
 | ------------------------ | ------------------------- |
 | `--shimmer-speed`        | Speed in px/s             |
-| `--shimmer-width`        | Track width in px         |
+| `--shimmer-track-width`  | Track width in px         |
 | `--shimmer-spread`       | Highlight width           |
 | `--shimmer-angle`        | Sweep angle               |
 | `--shimmer-color`        | Highlight color           |
@@ -216,15 +215,15 @@ All values can be set via CSS variables for dynamic control:
 | `--shimmer-repeat-delay` | Pause between cycles (ms) |
 
 ```tsx
-<div style={{ "--shimmer-width": containerWidth } as React.CSSProperties}>
+<div style={{ "--shimmer-track-width": containerWidth } as React.CSSProperties}>
   <div className="shimmer shimmer-bg bg-muted h-4 w-full rounded" />
 </div>
 ```
 
 ## Browser Support
 
-The default text path uses independent `translate` animation and text masking.
+All paths use `@property` registered variables, relative `oklch()` colors, and `color-mix()`. The compositor path also needs the `@supports (-webkit-mask-clip: text)` gate and independent `translate` animation. `shimmer-container` also uses container queries.
 
-**Supported:** Chrome 111+, Firefox 113+, Safari 16.4+
+**Supported:** Chrome 119+, Firefox 128+, Safari 16.4+
 
-Chrome and Safari run the optimized compositor animation. Firefox uses the existing `background-position` paint fallback. Older browsers degrade gracefully: unsupported shimmer effects do not appear.
+Chrome and Safari run the compositor animation for clone markup. Firefox does not match the gate and uses the `background-position` paint fallback. In older browsers the shimmer does not appear and the text stays readable.
