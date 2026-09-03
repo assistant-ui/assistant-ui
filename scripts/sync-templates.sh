@@ -342,7 +342,10 @@ is_exempt_copy() {
 # A copy is only redundant where a tsconfig alias actually resolves the
 # canonical file. A project that never points at packages/ui (apps/social-media,
 # templates/minimal) has nothing to fall back on, so its file is a real
-# dependency and --write must not delete it.
+# dependency. This gate reads the tsconfig as text rather than resolving the
+# candidate path against each alias pattern, so it can still admit a file that
+# only a catch-all like apps/docs' `"@/*": ["./*"]` covers; that imprecision is
+# why the findings are reported for a human to act on rather than deleted.
 in_scope_project() {
     local rel="$1" tail name
     tail="${rel#*/}"
@@ -407,13 +410,9 @@ if [[ "$MODE" == "--write" ]]; then
         cp "$RENDER_DIR/lib/$file" "$MINIMAL_LIB_DIR/$file"
         echo "synced minimal lib/$file"
     done
-    for r in "${redundant[@]}"; do
-        rm "$ROOT_DIR/$r"
-        echo "removed redundant copy $r (resolved from packages/ui via tsconfig paths)"
-    done
     echo ""
-    echo "fixed $(( ${#drift[@]} + ${#vue_drift[@]} + ${#vue_missing[@]} + ${#ui_drift[@]} + ${#hooks_drift[@]} + ${#lib_drift[@]} + ${#redundant[@]} )) file(s)"
-    exit 0
+    echo "fixed $(( ${#drift[@]} + ${#vue_drift[@]} + ${#vue_missing[@]} + ${#ui_drift[@]} + ${#hooks_drift[@]} + ${#lib_drift[@]} )) file(s)"
+    [[ ${#redundant[@]} -eq 0 ]] && exit 0
 fi
 
 if [[ ${#drift[@]} -gt 0 ]]; then
@@ -468,11 +467,16 @@ if [[ ${#redundant[@]} -gt 0 ]]; then
     echo "✗ ${#redundant[@]} redundant packages/ui copy(ies) (use a tsconfig path alias instead):"
     for r in "${redundant[@]}"; do
         echo "    $r"
-        annotate "$r" "byte-equal copy of a packages/ui source; delete it and rely on the tsconfig path alias"
+        annotate "$r" "byte-equal copy of a packages/ui source; delete it and rely on the tsconfig path alias, or add the alias that resolves it"
     done
 fi
 
 echo ""
-echo "to fix, run:    pnpm sync-templates --write"
-echo "if a template divergence is intentional, add '<file>' to OVERRIDES in scripts/sync-templates.sh"
+if [[ $(( ${#drift[@]} + ${#vue_drift[@]} + ${#vue_missing[@]} + ${#ui_drift[@]} + ${#hooks_drift[@]} + ${#lib_drift[@]} )) -gt 0 ]]; then
+    echo "to fix, run:    pnpm sync-templates --write"
+    echo "if a template divergence is intentional, add '<file>' to OVERRIDES in scripts/sync-templates.sh"
+fi
+if [[ ${#redundant[@]} -gt 0 ]]; then
+    echo "redundant copies are reported, never deleted: remove each one by hand, or add the tsconfig alias that resolves it"
+fi
 exit 1
