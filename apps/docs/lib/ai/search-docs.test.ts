@@ -4,6 +4,27 @@ vi.mock("@/lib/search/pages", () => ({
   buildSearchIndex: () => records,
 }));
 
+vi.mock("@/lib/source", () => ({
+  source: {
+    getPages: () => [
+      {
+        url: "/docs/ui/thread-list",
+        data: {
+          structuredData: () => ({
+            contents: [
+              { content: "An unrelated opening paragraph." },
+              { content: "Render the thread list beside your thread." },
+            ],
+          }),
+        },
+      },
+    ],
+  },
+  getTapDocsPages: () => [],
+  design: { getPages: () => [] },
+  elementsDocs: { getPages: () => [] },
+}));
+
 import { createSearchDocsTool, searchDocs } from "./search-docs";
 
 const records: SearchRecord[] = [
@@ -91,5 +112,25 @@ describe("createSearchDocsTool", () => {
         title: page.title,
       })),
     );
+  });
+
+  it("excerpts the paragraphs that match the query", async () => {
+    const tool = createSearchDocsTool({
+      writer: { write: () => {} } as never,
+      origin: "https://www.assistant-ui.com",
+    });
+
+    const output = (await tool.execute!(
+      { query: "thread list" },
+      {
+        toolCallId: "1",
+        messages: [],
+      },
+    )) as { results: { url: string; excerpt?: string }[] };
+
+    expect(output.results[0]?.excerpt).toBe(
+      "Render the thread list beside your thread.",
+    );
+    expect(output.results[1]?.excerpt).toBeUndefined();
   });
 });

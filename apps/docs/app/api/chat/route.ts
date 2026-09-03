@@ -69,7 +69,7 @@ export async function POST(req: Request) {
 
     // Basic validation: only accept short system prompts to limit abuse surface
     const MAX_SYSTEM_LENGTH = 4000;
-    const groundInDocs = req.headers.get("sec-fetch-site") !== "cross-site";
+    const groundInDocs = req.headers.get("sec-fetch-site") === "same-origin";
     const system = [
       typeof rawSystem === "string" && rawSystem.length <= MAX_SYSTEM_LENGTH
         ? rawSystem

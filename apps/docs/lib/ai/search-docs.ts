@@ -105,38 +105,39 @@ function getSearchIndex() {
   return searchIndexPromise;
 }
 
-const excerptCache = new Map<string, string | undefined>();
+const paragraphCache = new Map<string, readonly string[]>();
 
-async function getExcerpt(
-  url: string,
-  terms: string[],
-): Promise<string | undefined> {
-  const cacheKey = `${url}\u0000${terms.join(" ")}`;
-  if (excerptCache.has(cacheKey)) return excerptCache.get(cacheKey);
+async function getParagraphs(url: string): Promise<readonly string[]> {
+  const cached = paragraphCache.get(url);
+  if (cached) return cached;
 
-  const excerpt = await buildExcerpt(url, terms).catch(() => undefined);
-  excerptCache.set(cacheKey, excerpt);
-  return excerpt;
+  const paragraphs = await loadParagraphs(url).catch(() => []);
+  if (paragraphs.length > 0) paragraphCache.set(url, paragraphs);
+  return paragraphs;
 }
 
-async function buildExcerpt(
-  url: string,
-  terms: string[],
-): Promise<string | undefined> {
+async function loadParagraphs(url: string): Promise<string[]> {
   const sourceModule = await import("@/lib/source");
   const page =
     sourceModule.source.getPages().find((page) => page.url === url) ??
     sourceModule.getTapDocsPages().find((page) => page.url === url) ??
     sourceModule.design.getPages().find((page) => page.url === url) ??
     sourceModule.elementsDocs.getPages().find((page) => page.url === url);
-  if (!page) return undefined;
+  if (!page) return [];
 
   const { contents } = (await page.data.structuredData()) as {
     contents?: { content?: string }[];
   };
-  const paragraphs = (contents ?? [])
+  return (contents ?? [])
     .map((entry) => entry.content?.replace(/\s+/g, " ").trim() ?? "")
     .filter((text) => text.length > 0);
+}
+
+async function getExcerpt(
+  url: string,
+  terms: string[],
+): Promise<string | undefined> {
+  const paragraphs = await getParagraphs(url);
   if (paragraphs.length === 0) return undefined;
 
   const scored = paragraphs
