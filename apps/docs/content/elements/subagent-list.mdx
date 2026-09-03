@@ -156,7 +156,7 @@ function onWorkerDone() {
 </div>
 ```
 
-An agent at index `i` is done when `i < completedCount`; its bar width and progressbar value come from `progress[i]`, clamped into `0…100` with a missing or `NaN` entry read as `0`. Each progressbar is named from its agent and exposes a `0…100` value to assistive technology. The summary card, when `showSummary` is true, always shows the spinner treatment and a bar at a fixed width, and its progressbar carries no value: this version has no way to mark the summary itself done, only to show or hide it. The root carries a minimum height so the layout does not jump as agents complete and the summary card fades in.
+An agent at index `i` is done when `i < completedCount`; its bar width and progressbar value come from `progress[i]`, clamped into `0…100` with a missing or `NaN` entry read as `0`. Each progressbar is named from its agent and exposes a `0…100` value to assistive technology. The summary card, when `showSummary` is true, always shows the spinner and a full-track shimmer treatment. Its progressbar carries no value because this version has no way to mark the summary itself done, only to show or hide it. The root carries a minimum height so the layout does not jump as agents complete and the summary card fades in.
 
 ## Examples
 

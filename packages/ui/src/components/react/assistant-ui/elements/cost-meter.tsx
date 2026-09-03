@@ -52,6 +52,11 @@ export function CostMeter({
         {lines.map((line, i) => (
           <span
             key={line.model}
+            role="meter"
+            aria-label={`${line.model} cost share`}
+            aria-valuemin={0}
+            aria-valuemax={100}
+            aria-valuenow={pct(line.share, 1)}
             className={cn(
               "h-full transition-[width] duration-500 motion-reduce:transition-none",
               i === 0

@@ -183,7 +183,7 @@ export function CiJob({ jobId }: { jobId: string }) {
     {/* cancel button, hidden once finished */}
   </div>
 
-  <span>{/* overall progress bar */}</span>
+  <span role="progressbar">{/* overall progress bar, named from the title */}</span>
 
   <div>
     {/* one label per stage, dimmed by position relative to the current stage */}
@@ -191,7 +191,7 @@ export function CiJob({ jobId }: { jobId: string }) {
 </div>
 ```
 
-`stageIndex` is floored and clamped into `0…stages.length` rather than `0…stages.length − 1`, so reaching `stages.length` itself, one past the last stage's own index, is what "finished" means. That is when the checkmark, the "done" label, and the filled green bar appear, and the cancel button disappears. `stageProgress` clamps into `0…1` and only scales the current stage's own contribution to the overall bar; every stage already passed counts its full `weight` regardless of `stageProgress`. The stages' weights are summed once and that total falls back to `1` when it would otherwise be `0`, so an all-zero or empty `stages` array never divides by zero; it just never fills. Stage name labels dim by position: already passed stages read faintly, the current stage reads bright, stages still ahead read faintest of all.
+`stageIndex` is floored and clamped into `0…stages.length` rather than `0…stages.length − 1`, so reaching `stages.length` itself, one past the last stage's own index, is what "finished" means. That is when the checkmark, the "done" label, and the filled green bar appear, and the cancel button disappears. `stageProgress` clamps into `0…1` and only scales the current stage's own contribution to the overall bar; every stage already passed counts its full `weight` regardless of `stageProgress`. The stages' weights are summed once and that total falls back to `1` when it would otherwise be `0`, so an all-zero or empty `stages` array never divides by zero; it just never fills. Stage name labels dim by position: already passed stages read faintly, the current stage reads bright, stages still ahead read faintest of all. The overall bar is a named progressbar with a `0…100` value matching its painted width.
 
 ## Examples
 

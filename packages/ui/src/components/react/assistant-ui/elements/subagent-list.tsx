@@ -112,10 +112,7 @@ export function SubagentList({
             aria-valuemax={100}
             className="bg-foreground/[0.06] h-[3px] w-full overflow-hidden rounded-full"
           >
-            <span
-              className="bg-foreground/60 block h-full rounded-full transition-[width] duration-700"
-              style={{ width: "42%" }}
-            />
+            <span className="shimmer-bg block h-full w-full rounded-full" />
           </span>
         </div>
       )}

@@ -86,7 +86,14 @@ export function JobProgress({
         )}
       </div>
 
-      <span className="bg-foreground/[0.06] h-1 w-full overflow-hidden rounded-full">
+      <span
+        role="progressbar"
+        aria-label={`${title} progress`}
+        aria-valuemin={0}
+        aria-valuemax={100}
+        aria-valuenow={overall}
+        className="bg-foreground/[0.06] h-1 w-full overflow-hidden rounded-full"
+      >
         <span
           className={cn(
             "block h-full rounded-full transition-[width] duration-500 ease-out motion-reduce:transition-none",

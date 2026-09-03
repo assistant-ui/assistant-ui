@@ -62,6 +62,11 @@ export function QuotaBanner({
 
       <span className="bg-foreground/[0.06] h-1 w-full overflow-hidden rounded-full">
         <span
+          role="meter"
+          aria-label={`${unit} used`}
+          aria-valuemin={0}
+          aria-valuemax={100}
+          aria-valuenow={pct(used, limit)}
           className={cn(
             "block h-full rounded-full transition-[width] duration-500 motion-reduce:transition-none",
             tight ? "bg-amber-500" : "bg-foreground/40",

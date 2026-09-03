@@ -85,6 +85,11 @@ export function ScoreBreakdown({
             </div>
             <span className="bg-foreground/[0.06] h-[3px] w-full overflow-hidden rounded-full">
               <span
+                role="meter"
+                aria-label={`${criterion.label} score`}
+                aria-valuemin={0}
+                aria-valuemax={100}
+                aria-valuenow={pct(criterion.score, outOf)}
                 className="block h-full rounded-full bg-blue-500 transition-[width] duration-500 motion-reduce:transition-none dark:bg-blue-400"
                 style={{
                   width: `${pct(criterion.score, outOf)}%`,

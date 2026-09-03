@@ -69,7 +69,14 @@ export function ReasoningEffort({
         })}
       </div>
 
-      <span className="bg-foreground/[0.06] h-[3px] w-full overflow-hidden rounded-full">
+      <span
+        role="meter"
+        aria-label="Thinking budget used"
+        aria-valuemin={0}
+        aria-valuemax={100}
+        aria-valuenow={used}
+        className="bg-foreground/[0.06] h-[3px] w-full overflow-hidden rounded-full"
+      >
         <span
           className="block h-full rounded-full bg-blue-500 transition-[width] duration-500 motion-reduce:transition-none dark:bg-blue-400"
           style={{ width: `${used}%` }}

@@ -56,6 +56,11 @@ export function ContextBreakdown({
         {segments.map((segment) => (
           <span
             key={segment.label}
+            role="meter"
+            aria-label={`${segment.label} context usage`}
+            aria-valuemin={0}
+            aria-valuemax={100}
+            aria-valuenow={share(segment.tokens)}
             className={cn(
               "h-full transition-[width] duration-500 ease-out motion-reduce:transition-none",
               segment.tint,

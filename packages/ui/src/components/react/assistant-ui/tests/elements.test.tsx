@@ -790,6 +790,180 @@ describe("state that is carried by more than colour", () => {
       expect(progressbar.getAttribute("aria-valuemin")).toBe("0");
       expect(progressbar.getAttribute("aria-valuemax")).toBe("100");
     }
+
+    const summary = progressbars.at(-1)!;
+    expect(summary.querySelector(".shimmer-bg")).not.toBeNull();
+    expect(summary.querySelector("[style]")).toBeNull();
+  });
+
+  it("exposes completion progress for jobs and read-aloud playback", () => {
+    const job = render(
+      <JobProgress
+        title="Indexing"
+        stages={[
+          { name: "Scan", weight: 1 },
+          { name: "Build", weight: 1 },
+        ]}
+        stageIndex={0}
+        stageProgress={0.5}
+        eta="2m"
+      />,
+    ).container.querySelector<HTMLElement>('[role="progressbar"]')!;
+    const playback = render(
+      <ReadAloud
+        words={["one", "two", "three", "four"]}
+        spokenIndex={2}
+        playing
+        rate={1}
+        elapsed="0:02"
+        duration="0:04"
+      />,
+    ).container.querySelector<HTMLElement>('[role="progressbar"]')!;
+
+    expect(accessibleName(job)).toBe("Indexing progress");
+    expect(job.getAttribute("aria-valuenow")).toBe("25");
+    expect(accessibleName(playback)).toBe("Read aloud progress");
+    expect(playback.getAttribute("aria-valuenow")).toBe("50");
+  });
+
+  it("exposes scalar values for cost, context, quota, score, retrieval, and thinking bars", () => {
+    const cost = render(
+      <CostMeter
+        runCost="$0.10"
+        sessionCost="$1.00"
+        lines={[
+          {
+            model: "alpha",
+            inputTokens: 10,
+            outputTokens: 10,
+            cost: "$0.04",
+            share: 0.25,
+          },
+          {
+            model: "beta",
+            inputTokens: 10,
+            outputTokens: 10,
+            cost: "$0.06",
+            share: 0.75,
+          },
+        ]}
+      />,
+    ).container.querySelectorAll<HTMLElement>('[role="meter"]');
+    const context = render(
+      <ContextBreakdown
+        segments={[
+          { label: "system", tokens: 25, tint: "bg-blue-500" },
+          { label: "messages", tokens: 50, tint: "bg-emerald-500" },
+        ]}
+        limit={100}
+      />,
+    ).container.querySelectorAll<HTMLElement>('[role="meter"]');
+    const quota = render(
+      <QuotaBanner
+        used={25}
+        limit={100}
+        unit="runs"
+        resetsIn="2h"
+        upgradeLabel="Upgrade"
+      />,
+    ).container.querySelector<HTMLElement>('[role="meter"]')!;
+    const score = render(
+      <ScoreBreakdown
+        verdict="Good"
+        total={7}
+        outOf={10}
+        criteria={[
+          { label: "accuracy", score: 7, weight: 1 },
+          { label: "style", score: 3, weight: 1 },
+        ]}
+        visibleCount={2}
+      />,
+    ).container.querySelectorAll<HTMLElement>('[role="meter"]');
+    const retrieval = render(
+      <RetrievalChunks
+        query="q"
+        chunks={[
+          { id: "a", source: "docs", locator: "p1", score: 0.8, text: "a" },
+          { id: "b", source: "wiki", locator: "p2", score: 0.25, text: "b" },
+        ]}
+        visibleCount={2}
+        searching={false}
+      />,
+    ).container.querySelectorAll<HTMLElement>('[role="meter"]');
+    const reasoning = render(
+      <ReasoningEffort
+        levels={[{ key: "high", label: "High", budget: 1000 }]}
+        selectedKey="high"
+        spent={250}
+      />,
+    ).container.querySelector<HTMLElement>('[role="meter"]')!;
+
+    expect(
+      [...cost].map((meter) => meter.getAttribute("aria-valuenow")),
+    ).toEqual(["25", "75"]);
+    expect(
+      [...context].map((meter) => meter.getAttribute("aria-valuenow")),
+    ).toEqual(["25", "50"]);
+    expect(quota.getAttribute("aria-label")).toBe("runs used");
+    expect(quota.getAttribute("aria-valuenow")).toBe("25");
+    expect(
+      [...score].map((meter) => meter.getAttribute("aria-valuenow")),
+    ).toEqual(["70", "30"]);
+    expect(
+      [...retrieval].map((meter) => meter.getAttribute("aria-valuenow")),
+    ).toEqual(["80", "25"]);
+    expect(reasoning.getAttribute("aria-label")).toBe("Thinking budget used");
+    expect(reasoning.getAttribute("aria-valuenow")).toBe("25");
+
+    for (const meter of [
+      ...cost,
+      ...context,
+      quota,
+      ...score,
+      ...retrieval,
+      reasoning,
+    ]) {
+      expect(meter.getAttribute("aria-valuemin")).toBe("0");
+      expect(meter.getAttribute("aria-valuemax")).toBe("100");
+      expect(accessibleName(meter)).not.toBe("");
+    }
+  });
+
+  it("describes each trace interval instead of exposing it as progress", () => {
+    const trace = render(
+      <TraceWaterfall
+        spans={[
+          {
+            id: "run",
+            name: "run",
+            depth: 0,
+            startMs: 10,
+            durationMs: 20,
+            status: "completed",
+          },
+          {
+            id: "search",
+            name: "search",
+            depth: 1,
+            startMs: 40,
+            durationMs: 5,
+            status: "running",
+          },
+        ]}
+        totalMs={100}
+        visibleCount={2}
+      />,
+    ).container;
+
+    expect(trace.querySelectorAll('[role="progressbar"]').length).toBe(0);
+    expect(
+      [...trace.querySelectorAll<HTMLElement>('[role="img"]')].map((row) =>
+        row.getAttribute("aria-label"),
+      ),
+    ).toEqual([
+      "run: completed, starts at 10ms, duration 20ms",
+      "search: running, starts at 40ms, duration 5ms",
+    ]);
   });
 
   it("marks the current map pin and gives it a 24px target", () => {
