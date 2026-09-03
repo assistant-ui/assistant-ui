@@ -128,13 +128,13 @@ Changing `label` alone still animates: the text fades and blurs between values b
 </div>
 ```
 
-The leading indicator is a check once `state` is `"done"`, otherwise a pulsing dot: blue while `"working"`, muted while `"waiting"`. The state is also rendered as visually hidden text, so the distinction does not depend on color. `elapsed` only renders when it is supplied and `state` is not `"done"`. The trailing icon swaps between the pause and replay treatments based on `state`, but is decorative and hidden from assistive technology. Props spread onto the root pill.
+The leading indicator is a check once `state` is `"done"`, otherwise a dot: blue and pulsing while `"working"`, muted and still while `"waiting"`, so the two states differ by motion as well as color. The state is also rendered as visually hidden text, so assistive technology announces it. `elapsed` only renders when it is supplied and `state` is not `"done"`. The trailing icon swaps between the pause and replay treatments based on `state`, and is decorative: it carries no hover or press treatment and is hidden from assistive technology. Props spread onto the root pill.
 
 ## Examples
 
 ### Restyle the pill
 
-Both lanes take `className` on the root. The elapsed text uses the `mono` token and the trailing icon uses the shared surface styles.
+Both lanes take `className` on the root. The elapsed text uses the `mono` token from `surfaces.tsx`.
 
 ```tsx
 <AgentStatus className="gap-3" state={state} label={label} elapsed={elapsed} />

@@ -60,6 +60,9 @@ const CASES: Record<string, Case> = {
   "agent-plan": (n, items) => (
     <AgentPlan steps={list(items, (i) => `step ${i}`)} activeIndex={n} />
   ),
+  "agent-status": () => (
+    <AgentStatus state="working" label={"l".repeat(200)} elapsed="0:12" />
+  ),
   chart: (n, items) => (
     <Chart
       label="Latency"
@@ -608,59 +611,6 @@ describe.each(Object.entries(CASES))("%s", (name, make) => {
   });
 });
 
-describe("AgentStatus accessibility", () => {
-  it.each(["working", "waiting", "done"] as AgentState[])(
-    "exposes %s without exposing an inert control",
-    (state) => {
-      const { container } = render(
-        <AgentStatus state={state} label="Refactoring composer" />,
-      );
-      const root = container.querySelector('[data-slot="agent-status"]');
-
-      expect(root).not.toBeNull();
-      expect(root?.querySelector("button")).toBeNull();
-      expect(root ? visibleText(root) : "").toContain(state);
-      expect(root?.querySelector('[aria-hidden="true"]')).not.toBeNull();
-    },
-  );
-});
-
-describe("SubagentList accessibility", () => {
-  it("exposes per-agent and summary progress values", () => {
-    const { container } = render(
-      <SubagentList
-        agents={[
-          { name: "Explore the runtime", model: "haiku" },
-          { name: "Fix composer types", model: "sonnet" },
-          { name: "Write regression tests", model: "sonnet" },
-        ]}
-        completedCount={1}
-        progress={[-1, 37.5, 101]}
-        showSummary
-        summaryAgent={{ name: "Summarize findings", model: "haiku" }}
-      />,
-    );
-    const progressbars = [
-      ...container.querySelectorAll<HTMLElement>('[role="progressbar"]'),
-    ];
-
-    expect(progressbars).toHaveLength(4);
-    expect(
-      progressbars.map((bar) => bar.getAttribute("aria-valuenow")),
-    ).toEqual(["0", "37.5", "100", "42"]);
-    expect(progressbars.map(accessibleName)).toEqual([
-      "Explore the runtime progress",
-      "Fix composer types progress",
-      "Write regression tests progress",
-      "Summarize findings progress",
-    ]);
-    for (const progressbar of progressbars) {
-      expect(progressbar.getAttribute("aria-valuemin")).toBe("0");
-      expect(progressbar.getAttribute("aria-valuemax")).toBe("100");
-    }
-  });
-});
-
 describe("shimmer labels", () => {
   const cases: Record<string, ReactElement> = {
     "tool-timeline": CASES["tool-timeline"]!(2, 3),
@@ -760,6 +710,80 @@ describe("state that is carried by more than colour", () => {
     const row = container.querySelector<HTMLElement>("button")!;
 
     expect(accessibleName(row)).toContain("connected");
+  });
+
+  it.each(["working", "waiting", "done"] as AgentState[])(
+    "names an agent's %s state and leaves nothing inert behind",
+    (state) => {
+      const { container } = render(
+        <AgentStatus state={state} label="Refactoring composer" />,
+      );
+      const root = container.querySelector<HTMLElement>(
+        '[data-slot="agent-status"]',
+      )!;
+
+      expect(root.querySelector("button")).toBeNull();
+      expect(visibleText(root)).toContain(state);
+      expect(
+        root.lastElementChild!.getAttribute("aria-hidden"),
+        "the trailing icon is still announced as a control",
+      ).toBe("true");
+    },
+  );
+
+  it("separates working from waiting by motion, not only colour", () => {
+    const dot = (state: AgentState) =>
+      render(
+        <AgentStatus state={state} label="Refactoring composer" />,
+      ).container.querySelector<HTMLElement>('[data-slot="agent-status"]')!
+        .firstElementChild!.className;
+
+    expect(dot("working")).toContain("animate-pulse");
+    expect(dot("waiting")).not.toContain("animate-pulse");
+  });
+
+  it("keeps the trailing icon from reading as pressable", () => {
+    const { container } = render(
+      <AgentStatus state="working" label="Refactoring composer" />,
+    );
+    const icon = container.querySelector<HTMLElement>(
+      '[data-slot="agent-status"]',
+    )!.lastElementChild!;
+
+    expect(icon.className).not.toMatch(/hover:|active:|focus-visible:/);
+  });
+
+  it("exposes subagent progress per agent and for the summary", () => {
+    const { container } = render(
+      <SubagentList
+        agents={[
+          { name: "Explore the runtime", model: "haiku" },
+          { name: "Fix composer types", model: "sonnet" },
+          { name: "Write regression tests", model: "sonnet" },
+        ]}
+        completedCount={1}
+        progress={[-1, 37.5, 101]}
+        showSummary
+        summaryAgent={{ name: "Summarize findings", model: "haiku" }}
+      />,
+    );
+    const progressbars = [
+      ...container.querySelectorAll<HTMLElement>('[role="progressbar"]'),
+    ];
+
+    expect(
+      progressbars.map((bar) => bar.getAttribute("aria-valuenow")),
+    ).toEqual(["0", "37.5", "100", "42"]);
+    expect(progressbars.map(accessibleName)).toEqual([
+      "Explore the runtime progress",
+      "Fix composer types progress",
+      "Write regression tests progress",
+      "Summarize findings progress",
+    ]);
+    for (const progressbar of progressbars) {
+      expect(progressbar.getAttribute("aria-valuemin")).toBe("0");
+      expect(progressbar.getAttribute("aria-valuemax")).toBe("100");
+    }
   });
 
   it("marks the current map pin and gives it a 24px target", () => {

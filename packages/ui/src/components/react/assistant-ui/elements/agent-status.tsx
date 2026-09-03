@@ -3,7 +3,7 @@
 import type { ComponentProps } from "react";
 import { CheckIcon, PauseIcon, RotateCcwIcon } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { ghostButton, mono, paper } from "./surfaces";
+import { mono, paper } from "./surfaces";
 
 export type AgentState = "working" | "waiting" | "done";
 
@@ -43,7 +43,7 @@ export function AgentStatus({
             "size-1.5 shrink-0 rounded-full motion-reduce:animate-none",
             state === "working"
               ? "animate-pulse bg-blue-500 dark:bg-blue-400"
-              : "bg-foreground/25 animate-pulse",
+              : "bg-foreground/25",
           )}
         />
       )}
@@ -59,7 +59,10 @@ export function AgentStatus({
           {elapsed}
         </span>
       )}
-      <span aria-hidden className={cn(ghostButton, "size-6")}>
+      <span
+        aria-hidden
+        className="text-foreground/45 flex size-6 items-center justify-center rounded-full"
+      >
         {state === "done" ? (
           <RotateCcwIcon className="size-3" />
         ) : (
