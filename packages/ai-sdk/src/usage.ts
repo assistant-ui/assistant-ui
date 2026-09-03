@@ -1,4 +1,5 @@
 /// <reference types="@assistant-ui/core/react" />
+import { useMemo } from "react";
 import { useAuiState } from "@assistant-ui/store";
 
 export type ThreadTokenUsage = {
@@ -164,5 +165,5 @@ function findLatestMessageWithUsage(
 
 export function useThreadTokenUsage(): ThreadTokenUsage | undefined {
   const msg = useAuiState((s) => findLatestMessageWithUsage(s.thread.messages));
-  return getThreadMessageTokenUsage(msg);
+  return useMemo(() => getThreadMessageTokenUsage(msg), [msg]);
 }

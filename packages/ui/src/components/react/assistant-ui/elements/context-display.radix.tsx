@@ -129,7 +129,10 @@ function ContextDisplayRoot({
 
   const totalTokens = tokenState.totalTokens;
   const percent = getUsagePercent(totalTokens, modelContextWindow);
-  const hasUsage = tokenState.usage !== undefined || totalTokens > 0;
+  const hasUsage =
+    tokenState.resetKey === resetKey
+      ? tokenState.usage !== undefined || totalTokens > 0
+      : usage !== undefined || rawTokens > 0;
 
   const contextValue = useMemo(
     () => ({
