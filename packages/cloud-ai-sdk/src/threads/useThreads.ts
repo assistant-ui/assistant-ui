@@ -454,13 +454,20 @@ export function useThreads(options: UseThreadsOptions): UseThreadsResult {
   const generateTitleWithPolicy = useCallback(
     async (tid: string, automatic: boolean): Promise<string | null> => {
       const state = getThreadTitleState(threadTitleGenerationsRef.current, tid);
-      if (automatic && state.manualTitle !== undefined) {
+      if (
+        automatic &&
+        state.pendingClaim === null &&
+        state.manualTitle !== undefined
+      ) {
         const title = state.manualTitle;
         state.manualTitle = undefined;
         pruneThreadTitleState(threadTitleGenerationsRef.current, tid, state);
         return title;
       }
-      if (!automatic) state.manualTitle = undefined;
+      if (!automatic) {
+        state.pendingClaim = null;
+        state.manualTitle = undefined;
+      }
 
       const generation: ThreadTitleGeneration = {
         claim: automatic ? state.pendingClaim : null,

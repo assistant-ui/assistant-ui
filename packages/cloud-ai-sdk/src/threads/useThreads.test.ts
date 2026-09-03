@@ -267,6 +267,46 @@ describe("useThreads", () => {
     expect(mocks.generateThreadTitle).toHaveBeenCalledOnce();
   });
 
+  it("waits for a newer pending rename instead of returning an older title", async () => {
+    const renameUpdate = createDeferred<void>();
+    const cloud = createCloud("cloud-1");
+    const { result } = renderHook(() =>
+      useThreads({ cloud: cloud as never, enabled: false }),
+    );
+
+    await act(async () => {
+      await result.current.rename("thread-1", "Old manual title");
+    });
+    cloud.threads.update.mockReturnValueOnce(renameUpdate.promise);
+
+    let rename!: Promise<boolean>;
+    let generation!: Promise<string | null>;
+    let generationSettled = false;
+    act(() => {
+      rename = result.current.rename("thread-1", "New manual title");
+      generation = result.current.generateTitle("thread-1", {
+        automatic: true,
+      });
+      void generation.then(() => {
+        generationSettled = true;
+      });
+    });
+
+    await Promise.resolve();
+    expect(generationSettled).toBe(false);
+    expect(mocks.generateThreadTitle).not.toHaveBeenCalled();
+
+    let generatedTitle: string | null = null;
+    await act(async () => {
+      renameUpdate.resolve();
+      await rename;
+      generatedTitle = await generation;
+    });
+
+    expect(generatedTitle).toBe("New manual title");
+    expect(mocks.generateThreadTitle).not.toHaveBeenCalled();
+  });
+
   it("does not start automatic generation while a rename is pending", async () => {
     const renameUpdate = createDeferred<void>();
     const cloud = createCloud("cloud-1");
@@ -302,7 +342,9 @@ describe("useThreads", () => {
     const renameUpdate = createDeferred<void>();
     const cloud = createCloud("cloud-1");
     cloud.threads.update.mockReturnValueOnce(renameUpdate.promise);
-    mocks.generateThreadTitle.mockResolvedValue("Regenerated title");
+    mocks.generateThreadTitle
+      .mockResolvedValueOnce("Regenerated title")
+      .mockResolvedValueOnce("Automatic title");
     const { result } = renderHook(() =>
       useThreads({ cloud: cloud as never, enabled: false }),
     );
@@ -321,6 +363,11 @@ describe("useThreads", () => {
       renameUpdate.resolve();
       await rename;
     });
+
+    await expect(
+      result.current.generateTitle("thread-1", { automatic: true }),
+    ).resolves.toBe("Automatic title");
+    expect(mocks.generateThreadTitle).toHaveBeenCalledTimes(2);
   });
 
   it("loads threads when Strict Mode replays effects", async () => {
