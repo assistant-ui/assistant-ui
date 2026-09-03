@@ -73,13 +73,46 @@ const DeferredMarkdownRenderer: FC<MarkdownRendererProps> = ({
   return <MarkdownRenderer text={deferredText} {...options} />;
 };
 
-const isShallowEqual = (a: unknown, b: unknown): boolean => {
+const isPlainObject = (value: unknown): value is Record<string, unknown> =>
+  typeof value === "object" && value !== null && !Array.isArray(value);
+
+/**
+ * Compares two values structurally to `depth` levels, then by identity. One
+ * level covers an inline `remarkPlugins={[remarkGfm]}`; two covers an inline
+ * `componentsByLanguage={{ mermaid: { SyntaxHighlighter } }}`, which is the
+ * shape the guides teach.
+ */
+const isShallowEqual = (a: unknown, b: unknown, depth = 1): boolean => {
   if (Object.is(a, b)) return true;
+  if (depth <= 0) return false;
+
   if (Array.isArray(a) && Array.isArray(b)) {
-    return a.length === b.length && a.every((item, i) => Object.is(item, b[i]));
+    return (
+      a.length === b.length &&
+      a.every((item, i) => isShallowEqual(item, b[i], depth - 1))
+    );
   }
+
+  if (isPlainObject(a) && isPlainObject(b)) {
+    const keys = Object.keys(a);
+    return (
+      keys.length === Object.keys(b).length &&
+      keys.every(
+        (key) =>
+          Object.hasOwn(b, key) && isShallowEqual(a[key], b[key], depth - 1),
+      )
+    );
+  }
+
   return false;
 };
+
+/** Keeps the identity of a value whose contents are unchanged to `depth`. */
+function useStableValue<T>(value: T, depth: number): T {
+  const previous = useRef(value);
+  if (!isShallowEqual(value, previous.current, depth)) previous.current = value;
+  return previous.current;
+}
 
 /**
  * Keeps the object identity of props whose values did not change, comparing one
@@ -215,9 +248,12 @@ const MarkdownTextInner: FC<MarkdownTextPrimitiveProps> = ({
     }, [CodeComponent, PreComponentWithFallback, userComponents]),
   );
 
-  const overrideVersion = useMemo(
-    () => ({ components: useCodeOverrideComponents, componentsByLanguage }),
-    [useCodeOverrideComponents, componentsByLanguage],
+  const overrideVersion = useStableValue(
+    useMemo(
+      () => ({ components: useCodeOverrideComponents, componentsByLanguage }),
+      [useCodeOverrideComponents, componentsByLanguage],
+    ),
+    3,
   );
 
   const Renderer = defer ? DeferredMarkdownRenderer : MarkdownRenderer;

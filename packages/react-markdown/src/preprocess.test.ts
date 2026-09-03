@@ -52,6 +52,12 @@ describe("rewriteLatexBracketDelimiters", () => {
     ).toBe("> quote \n> $$\n> a\n> b\n> $$\n> after");
   });
 
+  it("keeps the block prefix when inline math precedes the match", () => {
+    expect(
+      rewriteLatexBracketDelimiters("- see \\(y\\) \\[\na\nb\n\\]\n- next"),
+    ).toBe("- see $y$ \n  $$\n  a\n  b\n  $$\n- next");
+  });
+
   it("keeps the block prefix when a code span precedes the match", () => {
     expect(
       rewriteLatexBracketDelimiters("- see `x` \\[\na\nb\n\\]\n- next"),

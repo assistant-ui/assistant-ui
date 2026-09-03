@@ -195,12 +195,11 @@ function fenceDisplayBody(
  * never closes. Code spans and fences are copied through unchanged.
  */
 export function rewriteLatexBracketDelimiters(text: string): string {
+  // Display runs first: its offsets have to index the run as `mapProseRuns` cut
+  // it, and an inline rewrite ahead of it would shift them off the line whose
+  // prefix the fence copies.
   return mapProseRuns(text, (prose, run) =>
     prose
-      .replace(LATEX_INLINE_DELIMITER, (match: string, body: string) => {
-        const trimmed = body.trim();
-        return trimmed === "" ? match : `$${trimmed}$`;
-      })
       .replace(
         LATEX_DISPLAY_DELIMITER,
         (match: string, body: string, offset: number, source: string) => {
@@ -214,7 +213,11 @@ export function rewriteLatexBracketDelimiters(text: string): string {
             run,
           );
         },
-      ),
+      )
+      .replace(LATEX_INLINE_DELIMITER, (match: string, body: string) => {
+        const trimmed = body.trim();
+        return trimmed === "" ? match : `$${trimmed}$`;
+      }),
   );
 }
 
