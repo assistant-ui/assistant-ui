@@ -11,74 +11,7 @@
 
 const LATEX_INLINE_DELIMITER = /\\{1,2}\(([^\n]+?)\\{1,2}\)/g;
 const LATEX_DISPLAY_DELIMITER = /\\{1,2}\[([\s\S]+?)\\{1,2}\]/g;
-
-/**
- * Rewrites LaTeX bracket delimiters to dollar delimiters: `\(...\)` becomes
- * `$...$` (inline) and `\[...\]` becomes `$$...$$` (display). A single or double
- * leading backslash is accepted, since models emit both depending on escaping.
- * remark-math only recognizes the dollar form, so without this rewrite bracket
- * math renders as plain text.
- *
- * A display body spanning lines is emitted fenced, on lines the `$$` markers own.
- * remark-math parses multiline `$$` as a flow construct: the opening marker has to
- * start a line and the closing marker to end one, and it reads whatever else shares
- * those lines as fence metadata rather than as math.
- *
- * A pair wrapping nothing is left as written: `$$$$` would itself open a fence that
- * never closes.
- */
-export function rewriteLatexBracketDelimiters(text: string): string {
-  return text
-    .replace(LATEX_INLINE_DELIMITER, (match: string, body: string) => {
-      const trimmed = body.trim();
-      return trimmed === "" ? match : `$${trimmed}$`;
-    })
-    .replace(
-      LATEX_DISPLAY_DELIMITER,
-      (match: string, body: string, offset: number, source: string) => {
-        const trimmed = body.trim();
-        if (trimmed === "") return match;
-        if (!trimmed.includes("\n")) return `$$${trimmed}$$`;
-
-        const before = source.slice(0, offset);
-        const after = source.slice(offset + match.length);
-        const lead = before === "" || before.endsWith("\n") ? "" : "\n";
-        const tail = after === "" || after.startsWith("\n") ? "" : "\n";
-        return `${lead}$$\n${trimmed}\n$$${tail}`;
-      },
-    );
-}
-
-const MATH_TAG = /\[\/math\]([\s\S]*?)\[\/math\]/g;
-const INLINE_TAG = /\[\/inline\]([\s\S]*?)\[\/inline\]/g;
-
-/**
- * Rewrites the custom math tags some models emit to dollar delimiters:
- * `[/math]...[/math]` becomes `$$...$$` and `[/inline]...[/inline]` becomes `$...$`.
- */
-export function rewriteCustomMathTags(text: string): string {
-  return text
-    .replace(MATH_TAG, (_, body: string) => `$$${body.trim()}$$`)
-    .replace(INLINE_TAG, (_, body: string) => `$${body.trim()}$`);
-}
-
-/**
- * Normalizes the alternative math delimiters language models commonly emit (LaTeX
- * `\(...\)` / `\[...\]` brackets and `[/math]` / `[/inline]` tags) to the `$...$` /
- * `$$...$$` delimiters remark-math parses. Pass it to the `preprocess` prop of
- * `MarkdownTextPrimitive`.
- *
- * It does not touch currency. Compose it with {@link escapeCurrencyDollars} when
- * single-dollar math is enabled and your content includes prices.
- */
-export function normalizeMathDelimiters(text: string): string {
-  return rewriteLatexBracketDelimiters(rewriteCustomMathTags(text));
-}
-
-const LATEX_SYNTAX = /\\[a-zA-Z]|[_^{}]/;
-const BLANK_LINE = /\n[ \t]*\n/;
-const ADJACENT_WORDS = /[A-Za-z]{3,}\s+[A-Za-z]{3,}/;
-const TRAILING_OPERATOR = /[-+*/=<>,;:([\u2013\u2014\u2212]$/;
+const LINE_PREFIX = /(?:[ \t]*(?:>[ \t]?)*)(?:(?:[-*+]|\d{1,9}[.)])[ \t]+)?/y;
 
 /** Length of the run of `char` starting at `start`. */
 function runLength(text: string, start: number, char: string): number {
@@ -106,6 +39,192 @@ function codeSpanEnd(text: string, start: number): number {
 
   return closed === -1 ? -1 : closed + delimiterLength;
 }
+
+/**
+ * Applies `transform` to the prose of `text`, copying code spans and fences
+ * through untouched. A delimiter rewrite that ran over code would change what the
+ * author wrote: `\(x\)` inside backticks is a literal, not math.
+ *
+ * The transform also receives the characters adjacent to the run in the original
+ * text, since a rewrite that needs to know whether it starts a line cannot see
+ * past its own segment.
+ */
+function mapProseRuns(
+  text: string,
+  transform: (prose: string, before: string, after: string) => string,
+): string {
+  let out = "";
+  let prose = "";
+  let proseStart = 0;
+  let index = 0;
+
+  const flush = (after: string) => {
+    if (prose === "") return;
+    out += transform(prose, text[proseStart - 1] ?? "", after);
+    prose = "";
+  };
+
+  while (index < text.length) {
+    if (text[index] !== "`") {
+      if (prose === "") proseStart = index;
+      prose += text[index];
+      index += 1;
+      continue;
+    }
+
+    const end = codeSpanEnd(text, index);
+    if (end === -1) {
+      const runEnd = index + runLength(text, index, "`");
+      if (prose === "") proseStart = index;
+      prose += text.slice(index, runEnd);
+      index = runEnd;
+      continue;
+    }
+
+    flush(text[index] ?? "");
+    out += text.slice(index, end);
+    index = end;
+  }
+
+  flush("");
+  return out;
+}
+
+/**
+ * The prefix a following line needs to stay inside the block the match started in.
+ * A blockquote marker repeats, a list marker becomes the spaces its content is
+ * indented by, and a plain indent is copied.
+ */
+function continuationPrefix(line: string): string {
+  LINE_PREFIX.lastIndex = 0;
+  const prefix = LINE_PREFIX.exec(line)?.[0] ?? "";
+  return prefix.replace(/[^>\t]/g, " ");
+}
+
+/**
+ * Fences a display body on lines the `$$` markers own, keeping every emitted line
+ * inside the list item or blockquote the match started in. remark-math parses
+ * multiline `$$` as a flow construct: the opening marker has to start a line and
+ * the closing marker to end one, and it reads whatever else shares those lines as
+ * fence metadata rather than as math.
+ */
+function fenceDisplayBody(
+  body: string,
+  head: string,
+  tail: string,
+  before: string,
+  after: string,
+): string {
+  const prefix = continuationPrefix(head.slice(head.lastIndexOf("\n") + 1));
+
+  const opensLine =
+    head === "" ? before === "" || before === "\n" : head.endsWith("\n");
+  const closesLine =
+    tail === "" ? after === "" || after === "\n" : tail.startsWith("\n");
+
+  const lines = body
+    .split("\n")
+    .map((line) =>
+      line.startsWith(prefix) ? line : `${prefix}${line.trimStart()}`,
+    );
+
+  return [
+    opensLine ? "" : "\n",
+    `${prefix}$$\n`,
+    lines.join("\n"),
+    `\n${prefix}$$`,
+    closesLine ? "" : "\n",
+  ].join("");
+}
+
+/**
+ * Rewrites LaTeX bracket delimiters to dollar delimiters: `\(...\)` becomes
+ * `$...$` (inline) and `\[...\]` becomes `$$...$$` (display). A single or double
+ * leading backslash is accepted, since models emit both depending on escaping.
+ * remark-math only recognizes the dollar form, so without this rewrite bracket
+ * math renders as plain text.
+ *
+ * A display body spanning lines is emitted fenced, indented to stay in its block.
+ *
+ * A pair wrapping nothing is left as written: `$$$$` would itself open a fence that
+ * never closes. Code spans and fences are copied through unchanged.
+ */
+export function rewriteLatexBracketDelimiters(text: string): string {
+  return mapProseRuns(text, (prose, before, after) =>
+    prose
+      .replace(LATEX_INLINE_DELIMITER, (match: string, body: string) => {
+        const trimmed = body.trim();
+        return trimmed === "" ? match : `$${trimmed}$`;
+      })
+      .replace(
+        LATEX_DISPLAY_DELIMITER,
+        (match: string, body: string, offset: number, source: string) => {
+          const trimmed = body.trim();
+          if (trimmed === "") return match;
+          if (!trimmed.includes("\n")) return `$$${trimmed}$$`;
+          return fenceDisplayBody(
+            trimmed,
+            source.slice(0, offset),
+            source.slice(offset + match.length),
+            before,
+            after,
+          );
+        },
+      ),
+  );
+}
+
+const MATH_TAG = /\[\/math\]([\s\S]*?)\[\/math\]/g;
+const INLINE_TAG = /\[\/inline\]([\s\S]*?)\[\/inline\]/g;
+
+/**
+ * Rewrites the custom math tags some models emit to dollar delimiters:
+ * `[/math]...[/math]` becomes `$$...$$` and `[/inline]...[/inline]` becomes `$...$`.
+ *
+ * A display body spanning lines is fenced the same way {@link
+ * rewriteLatexBracketDelimiters} fences one, since `$$` with the body's first line
+ * beside it reads as fence metadata and swallows the rest of the document. Code
+ * spans and fences are copied through unchanged.
+ */
+export function rewriteCustomMathTags(text: string): string {
+  return mapProseRuns(text, (prose, before, after) =>
+    prose
+      .replace(
+        MATH_TAG,
+        (match: string, body: string, offset: number, source: string) => {
+          const trimmed = body.trim();
+          if (trimmed === "") return `$$$$`;
+          if (!trimmed.includes("\n")) return `$$${trimmed}$$`;
+          return fenceDisplayBody(
+            trimmed,
+            source.slice(0, offset),
+            source.slice(offset + match.length),
+            before,
+            after,
+          );
+        },
+      )
+      .replace(INLINE_TAG, (_, body: string) => `$${body.trim()}$`),
+  );
+}
+
+/**
+ * Normalizes the alternative math delimiters language models commonly emit (LaTeX
+ * `\(...\)` / `\[...\]` brackets and `[/math]` / `[/inline]` tags) to the `$...$` /
+ * `$$...$$` delimiters remark-math parses. Pass it to the `preprocess` prop of
+ * `MarkdownTextPrimitive`.
+ *
+ * It does not touch currency. Compose it with {@link escapeCurrencyDollars} when
+ * single-dollar math is enabled and your content includes prices.
+ */
+export function normalizeMathDelimiters(text: string): string {
+  return rewriteLatexBracketDelimiters(rewriteCustomMathTags(text));
+}
+
+const LATEX_SYNTAX = /\\[a-zA-Z]|[_^{}]/;
+const BLANK_LINE = /\n[ \t]*\n/;
+const ADJACENT_WORDS = /[A-Za-z]{3,}\s+[A-Za-z]{3,}/;
+const TRAILING_OPERATOR = /[-+*/=<>,;:([\u2013\u2014\u2212]$/;
 
 /**
  * Index of the `$` that would close an inline math span opened at `openIndex`, or

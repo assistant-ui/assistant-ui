@@ -40,10 +40,32 @@ describe("rewriteLatexBracketDelimiters", () => {
     );
   });
 
-  it("lifts a multiline display body out of its list item", () => {
+  it("keeps a multiline display body inside its list item", () => {
     expect(rewriteLatexBracketDelimiters("- item \\[\na\nb\n\\]\n- next")).toBe(
-      "- item \n$$\na\nb\n$$\n- next",
+      "- item \n  $$\n  a\n  b\n  $$\n- next",
     );
+  });
+
+  it("keeps a multiline display body inside its blockquote", () => {
+    expect(
+      rewriteLatexBracketDelimiters("> quote \\[\na\nb\n\\]\n> after"),
+    ).toBe("> quote \n> $$\n> a\n> b\n> $$\n> after");
+  });
+
+  it("leaves bracket delimiters inside a code span as written", () => {
+    expect(rewriteLatexBracketDelimiters("use `\\(x\\)` here")).toBe(
+      "use `\\(x\\)` here",
+    );
+  });
+
+  it("leaves bracket delimiters inside a fence as written", () => {
+    const fenced = "```js\nconst re = /\\((\\d+)\\)/;\n```";
+    expect(rewriteLatexBracketDelimiters(fenced)).toBe(fenced);
+  });
+
+  it("does not pair a delimiter in one fence with one in a later fence", () => {
+    const text = "```\n\\[\n```\nprose\n```\n\\]\n```";
+    expect(rewriteLatexBracketDelimiters(text)).toBe(text);
   });
 
   it("keeps a single-line display body on its line", () => {
@@ -69,6 +91,23 @@ describe("rewriteLatexBracketDelimiters", () => {
 });
 
 describe("rewriteCustomMathTags", () => {
+  it("fences a multiline tag body so remark-math can close it", () => {
+    expect(rewriteCustomMathTags("[/math]\na = b\nc = d\n[/math]")).toBe(
+      "$$\na = b\nc = d\n$$",
+    );
+  });
+
+  it("keeps a multiline tag body inside its list item", () => {
+    expect(rewriteCustomMathTags("- item [/math]\na\nb\n[/math]\n- next")).toBe(
+      "- item \n  $$\n  a\n  b\n  $$\n- next",
+    );
+  });
+
+  it("leaves tags inside a fence as written", () => {
+    const fenced = "```\n[/math]x[/math]\n```";
+    expect(rewriteCustomMathTags(fenced)).toBe(fenced);
+  });
+
   it("rewrites [/math] to display dollars and [/inline] to inline dollars", () => {
     expect(
       rewriteCustomMathTags("[/math]a+b[/math] and [/inline]c[/inline]"),
