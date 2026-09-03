@@ -141,8 +141,8 @@ export function getThreadMessageTokenUsage(
   const topLevelUsage = normalizeUsage(metadata.usage);
   if (topLevelUsage) return withComputedTotal(topLevelUsage);
 
-  const legacyUsage = normalizeUsage(asRecord(metadata.custom)?.usage);
-  if (legacyUsage) return withComputedTotal(legacyUsage);
+  const customUsage = normalizeUsage(asRecord(metadata.custom)?.usage);
+  if (customUsage) return withComputedTotal(customUsage);
 
   return usageFromSteps(metadata.steps);
 }

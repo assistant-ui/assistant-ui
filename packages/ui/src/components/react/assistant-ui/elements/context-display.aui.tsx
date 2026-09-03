@@ -66,6 +66,7 @@ function createWiredPreset(Preset: FC<PresetProps>): FC<WiredPresetProps> {
   const WiredPreset: FC<WiredPresetProps> = (props) => {
     const usage = useThreadTokenUsage();
     const threadId = useAuiState((s) => s.threadListItem.id);
+    if (usage === undefined) return null;
     return <Preset {...props} usage={usage} resetKey={threadId} />;
   };
   return WiredPreset;
