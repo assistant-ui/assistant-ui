@@ -252,10 +252,7 @@ export function createOAuthProvider(
       async (persisted) => {
         const initial: OAuthProviderCache = {};
         if (endpoint.invalidated) return initial;
-        if (
-          persisted?.serverUrl === undefined ||
-          isAuthStateForServerUrl(persisted, normalizedServerUrl)
-        ) {
+        if (isAuthStateForServerUrl(persisted, normalizedServerUrl)) {
           if (persisted?.tokens) initial.tokens = persisted.tokens;
           if (persisted?.clientInformation)
             initial.clientInformation = persisted.clientInformation;
@@ -266,9 +263,6 @@ export function createOAuthProvider(
             initial.discoveryState = persisted.discoveryState;
         }
         endpoint.cached = initial;
-        if (persisted && persisted.serverUrl === undefined) {
-          void persist().catch(() => {});
-        }
         return initial;
       },
       (error) => {

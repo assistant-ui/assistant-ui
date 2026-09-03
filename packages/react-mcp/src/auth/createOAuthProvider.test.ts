@@ -86,6 +86,7 @@ describe("createOAuthProvider callback state", () => {
 
   it("consumes callback state when tokens are saved", async () => {
     const { storage, getState } = createStorage({
+      serverUrl,
       codeVerifier: "pkce-verifier",
       state: "aui-mcp:ZG9jcw.nonce",
     });
@@ -107,6 +108,7 @@ describe("createOAuthProvider callback state", () => {
     "clears callback state through the %s invalidation scope",
     async (scope) => {
       const { storage, getState } = createStorage({
+        serverUrl,
         codeVerifier: "pkce-verifier",
         state: "aui-mcp:ZG9jcw.nonce",
       });
@@ -122,6 +124,7 @@ describe("createOAuthProvider callback state", () => {
 describe("createOAuthProvider discovery state", () => {
   it("persists discovery state alongside the PKCE verifier", async () => {
     const { storage, getState } = createStorage({
+      serverUrl,
       codeVerifier: "pkce-verifier",
     });
     const provider = createProvider(storage);
@@ -136,7 +139,7 @@ describe("createOAuthProvider discovery state", () => {
   });
 
   it("restores discovery state on the OAuth callback leg", async () => {
-    const { storage } = createStorage({ discoveryState });
+    const { storage } = createStorage({ serverUrl, discoveryState });
     const provider = createProvider(storage);
 
     await expect(provider.discoveryState?.()).resolves.toEqual(discoveryState);
@@ -146,6 +149,7 @@ describe("createOAuthProvider discovery state", () => {
     "clears discovery state through the %s invalidation scope",
     async (scope) => {
       const { storage, getState } = createStorage({
+        serverUrl,
         codeVerifier: "pkce-verifier",
         discoveryState,
       });
@@ -216,36 +220,15 @@ describe("createOAuthProvider persistence", () => {
     });
   });
 
-  it("binds legacy authentication to the current server URL", async () => {
-    const { storage, getState } = createStorage({
-      tokens: { access_token: "legacy-token", token_type: "bearer" },
-    });
-    const provider = createProvider(storage);
-
-    await expect(provider.tokens()).resolves.toEqual({
-      access_token: "legacy-token",
-      token_type: "bearer",
-    });
-    expect(getState()).toEqual({
-      serverUrl,
-      tokens: { access_token: "legacy-token", token_type: "bearer" },
-    });
-  });
-
-  it("keeps legacy authentication usable when binding persistence fails", async () => {
+  it("does not reuse unbound legacy OAuth authentication", async () => {
     const { storage } = createStorage({
       tokens: { access_token: "legacy-token", token_type: "bearer" },
     });
-    storage.saveAuthState = vi
-      .fn()
-      .mockRejectedValue(new Error("storage unavailable"));
+    const saveAuthState = vi.spyOn(storage, "saveAuthState");
     const provider = createProvider(storage);
 
-    await expect(provider.tokens()).resolves.toEqual({
-      access_token: "legacy-token",
-      token_type: "bearer",
-    });
-    await vi.waitFor(() => expect(storage.saveAuthState).toHaveBeenCalled());
+    await expect(provider.tokens()).resolves.toBeUndefined();
+    expect(saveAuthState).not.toHaveBeenCalled();
   });
 
   it("loads persisted auth state once for concurrent reads", async () => {
@@ -273,7 +256,7 @@ describe("createOAuthProvider persistence", () => {
     const loadAuthState = vi
       .fn<() => Promise<MCPPersistedAuthState | null>>()
       .mockRejectedValueOnce(failure)
-      .mockResolvedValueOnce({ codeVerifier: "pkce-verifier" });
+      .mockResolvedValueOnce({ serverUrl, codeVerifier: "pkce-verifier" });
     const { storage } = createStorage();
     storage.loadAuthState = loadAuthState;
     const provider = createProvider(storage);
