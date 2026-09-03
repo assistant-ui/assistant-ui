@@ -9,7 +9,7 @@ import {
   requirePublicAssistantSession,
 } from "@/lib/anonymous-session";
 import { validateGeneralChatInput } from "@/lib/validate-input";
-import { getModel } from "@/lib/ai/provider";
+import { resolveChatModel } from "@/lib/ai/provider";
 import { posthogTelemetry } from "@/lib/ai/telemetry";
 import { AISDKToolkit } from "@assistant-ui/ai-sdk";
 import docsToolkit from "@/lib/docs-toolkit";
@@ -73,7 +73,7 @@ export async function POST(req: Request) {
       return withCors(req, inputError);
     }
 
-    const baseModel = getModel(config?.modelName);
+    const { model, providerOptions, reasoning } = resolveChatModel(config);
     const distinctId = getDistinctId(req);
 
     const prunedMessages = pruneMessages({
@@ -84,10 +84,11 @@ export async function POST(req: Request) {
     });
 
     const result = streamText({
-      model: baseModel,
+      model,
+      ...(providerOptions ? { providerOptions } : {}),
       ...(system ? { system } : {}),
       messages: prunedMessages,
-      maxOutputTokens: 4096,
+      maxOutputTokens: reasoning ? 8192 : 4096,
       stopWhen: stepCountIs(10),
       tools: await aiToolkit.tools({ frontend: tools }),
       ...posthogTelemetry({
@@ -101,6 +102,7 @@ export async function POST(req: Request) {
     });
 
     const response = result.toUIMessageStreamResponse({
+      sendReasoning: true,
       // gets usage and modelId for assistant-cloud telemetry reports
       messageMetadata: ({ part }) => {
         if (part.type === "finish-step") {
