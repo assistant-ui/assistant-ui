@@ -20,8 +20,8 @@
     "@base-ui/react": "^1.7.0",
     "beautiful-mermaid": "^1.1.3",
     "class-variance-authority": "^0.7.1",
-    "clsx": "^2.1.1",
     "cmdk": "^1.1.1",
+    "cn": "^0.2.3",
     "diff": "^9.0.0",
     "embla-carousel-react": "^8.6.0",
     "heat-graph": "workspace:*",
@@ -39,7 +39,6 @@
     "recharts": "^3.10.1",
     "remark-gfm": "^4.0.1",
     "sonner": "^2.0.8",
-    "tailwind-merge": "^3.6.0",
     "vaul": "^1.1.2",
     "zustand": "^5.0.15"
   },
