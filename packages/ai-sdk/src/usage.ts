@@ -1,4 +1,5 @@
 /// <reference types="@assistant-ui/core/react" />
+import { useMemo } from "react";
 import { useAuiState } from "@assistant-ui/store";
 
 export type ThreadTokenUsage = {
@@ -141,8 +142,8 @@ export function getThreadMessageTokenUsage(
   const topLevelUsage = normalizeUsage(metadata.usage);
   if (topLevelUsage) return withComputedTotal(topLevelUsage);
 
-  const legacyUsage = normalizeUsage(asRecord(metadata.custom)?.usage);
-  if (legacyUsage) return withComputedTotal(legacyUsage);
+  const customUsage = normalizeUsage(asRecord(metadata.custom)?.usage);
+  if (customUsage) return withComputedTotal(customUsage);
 
   return usageFromSteps(metadata.steps);
 }
@@ -164,5 +165,5 @@ function findLatestMessageWithUsage(
 
 export function useThreadTokenUsage(): ThreadTokenUsage | undefined {
   const msg = useAuiState((s) => findLatestMessageWithUsage(s.thread.messages));
-  return getThreadMessageTokenUsage(msg);
+  return useMemo(() => getThreadMessageTokenUsage(msg), [msg]);
 }

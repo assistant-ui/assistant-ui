@@ -136,7 +136,7 @@ export abstract class InertThreadRuntimeCore
     throw this.error;
   }
 
-  respondToToolApproval(): void {
+  respondToToolApproval(): Promise<void> {
     throw this.error;
   }
 

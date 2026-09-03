@@ -1,5 +1,15 @@
 # @assistant-ui/react-markdown
 
+## 0.14.14
+
+### Patch Changes
+
+- [#6732](https://github.com/assistant-ui/assistant-ui/pull/6732) [`8c33c29`](https://github.com/assistant-ui/assistant-ui/commit/8c33c29b87b16af91d4eb0c7804a8e03c70f6d59) - fix: stop bracket-delimited math from swallowing the rest of the message ([@okisdev](https://github.com/okisdev))
+
+- [#6732](https://github.com/assistant-ui/assistant-ui/pull/6732) [`8c33c29`](https://github.com/assistant-ui/assistant-ui/commit/8c33c29b87b16af91d4eb0c7804a8e03c70f6d59) - fix: keep code spans and fences inert when normalizing math delimiters ([@okisdev](https://github.com/okisdev))
+
+- [#6732](https://github.com/assistant-ui/assistant-ui/pull/6732) [`8c33c29`](https://github.com/assistant-ui/assistant-ui/commit/8c33c29b87b16af91d4eb0c7804a8e03c70f6d59) - fix: stop charging every streamed token a second render pass when `defer` is off ([@okisdev](https://github.com/okisdev))
+
 ## 0.14.13
 
 ### Patch Changes

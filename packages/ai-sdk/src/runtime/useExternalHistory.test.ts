@@ -1180,6 +1180,70 @@ describe("useExternalHistory persistence", () => {
     expect(reportTelemetry).not.toHaveBeenCalled();
   });
 
+  it("skips updates for a persisted message restored by a branch switch", async () => {
+    const { append, update, runCycle, flush } = createPersistenceHarness(true);
+    const completeStatus: ThreadAssistantMessage["status"] = {
+      type: "complete",
+      reason: "stop",
+    };
+    const createUserMessage = (
+      id: string,
+      inner: InnerMessage,
+    ): ThreadMessage => {
+      const message: ThreadMessage = {
+        id,
+        role: "user",
+        content: [{ type: "text", text: "hi" }],
+        attachments: [],
+        createdAt: new Date(),
+        metadata: { custom: {} },
+      };
+      bindExternalStoreMessage(message, [inner]);
+      return message;
+    };
+    const branchA = () => [
+      createUserMessage("user-a", { id: "inner-user-a", parts: ["question"] }),
+      createAssistantMessage(
+        completeStatus,
+        [{ id: "inner-assistant-a", parts: ["answer"] }],
+        "assistant-a",
+      ),
+    ];
+
+    await runCycle(branchA());
+    await waitFor(() => expect(append).toHaveBeenCalledTimes(2));
+
+    await runCycle([
+      createUserMessage("user-b", { id: "inner-user-b", parts: ["edited"] }),
+      createAssistantMessage(
+        completeStatus,
+        [{ id: "inner-assistant-b", parts: ["answer"] }],
+        "assistant-b",
+      ),
+    ]);
+    await waitFor(() => expect(append).toHaveBeenCalledTimes(4));
+
+    append.mockClear();
+    update.mockClear();
+
+    await runCycle([
+      ...branchA(),
+      createUserMessage("user-c", { id: "inner-user-c", parts: ["follow-up"] }),
+      createAssistantMessage(
+        completeStatus,
+        [{ id: "inner-assistant-c", parts: ["answer"] }],
+        "assistant-c",
+      ),
+    ]);
+    await flush();
+
+    expect(update).not.toHaveBeenCalled();
+    expect(append.mock.calls.map(([item]) => item.message.id)).toEqual([
+      "inner-user-c",
+      "inner-assistant-c",
+    ]);
+  });
+
   it("absorbs agentic flickers without losing change detection", async () => {
     const { append, update, reportTelemetry, runCycle, flush, step } =
       createPersistenceHarness(true);

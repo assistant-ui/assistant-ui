@@ -1,6 +1,8 @@
+import { getDistinctId } from "@/lib/posthog-server";
 import { checkRateLimit } from "@/lib/rate-limit";
 import { validateGeneralChatInput } from "@/lib/validate-input";
 import { getModel } from "@/lib/ai/provider";
+import { posthogTelemetry } from "@/lib/ai/telemetry";
 import { isAiPlaygroundEnabled } from "@/lib/feature-flags";
 import { frontendTools } from "@assistant-ui/ai-sdk";
 import { NextResponse } from "next/server";
@@ -158,6 +160,7 @@ export async function POST(req: Request) {
     }
 
     const model = getModel();
+    const distinctId = getDistinctId(req);
 
     const prunedMessages = pruneMessages({
       messages: await convertToModelMessages(messages),
@@ -173,6 +176,11 @@ export async function POST(req: Request) {
       maxOutputTokens: 4000,
       stopWhen: stepCountIs(3),
       tools: frontendTools(tools),
+      ...posthogTelemetry({
+        distinctId,
+        spanName: "playground_chat",
+        source: "playground_chat",
+      }),
       onError: async ({ error }) => {
         console.error("[api/playground-chat]", error);
       },

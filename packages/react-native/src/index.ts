@@ -17,6 +17,7 @@ export type {
   ReasoningMessagePart,
   SourceMessagePart,
   RespondToToolApprovalOptions,
+  ToolApprovalDisplay,
   ToolApprovalOption,
   ToolApprovalOptionKind,
   ToolApprovalResponse,
@@ -70,7 +71,10 @@ export type {
   RemoteThreadListProviderComponent,
 } from "@assistant-ui/core";
 export { InMemoryThreadListAdapter } from "@assistant-ui/core";
-export { createVoiceSession } from "@assistant-ui/core";
+export {
+  createVoiceSession,
+  toolApprovalAcceptsText,
+} from "@assistant-ui/core";
 export { fromThreadMessageLike, generateId } from "@assistant-ui/core";
 export { createSuggestionAdapter } from "@assistant-ui/core";
 

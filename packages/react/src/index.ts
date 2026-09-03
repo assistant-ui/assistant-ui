@@ -43,6 +43,8 @@ export type {
   ThreadListItemState,
 } from "@assistant-ui/core";
 
+export { toolApprovalAcceptsText } from "@assistant-ui/core";
+
 export { useCloudThreadListRuntime } from "@assistant-ui/core/react";
 export { AssistantCloud } from "assistant-cloud";
 
@@ -360,6 +362,7 @@ export type {
   GenerativeUISpec,
   Unstable_AudioMessagePart,
   RespondToToolApprovalOptions,
+  ToolApprovalDisplay,
   ToolApprovalOption,
   ToolApprovalOptionKind,
   ToolApprovalResponse,

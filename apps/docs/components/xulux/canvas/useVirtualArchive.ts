@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
+import { anonymousSessionFetch } from "@/lib/anonymous-session-client";
 import {
   createVirtualArchive,
   type VirtualArchive,
@@ -16,8 +17,8 @@ function resolveDownloadFetchUrl(
   downloadUrl: string,
   templateId: string | undefined,
   versionId: string | undefined,
-): string {
-  if (downloadUrl.startsWith("/")) return downloadUrl;
+): { url: string; proxied: boolean } {
+  if (downloadUrl.startsWith("/")) return { url: downloadUrl, proxied: false };
 
   if (!templateId) {
     throw new Error("Template id is required to download hosted archives.");
@@ -27,7 +28,10 @@ function resolveDownloadFetchUrl(
   const params = new URLSearchParams({ templateId });
   if (versionId) params.set("versionId", versionId);
   if (parsed.search) params.set("downloadSearch", parsed.search);
-  return `/api/xulux/download-proxy?${params.toString()}`;
+  return {
+    url: `/api/xulux/download-proxy?${params.toString()}`,
+    proxied: true,
+  };
 }
 
 export function useVirtualArchive(
@@ -45,7 +49,11 @@ export function useVirtualArchive(
       let controller: AbortController | null = null;
 
       try {
-        const fetchUrl = resolveDownloadFetchUrl(url, templateId, versionId);
+        const { url: fetchUrl, proxied } = resolveDownloadFetchUrl(
+          url,
+          templateId,
+          versionId,
+        );
 
         if (
           cachedFetchUrlRef.current === fetchUrl &&
@@ -60,7 +68,9 @@ export function useVirtualArchive(
         abortRef.current = controller;
 
         setState({ status: "loading" });
-        const res = await fetch(fetchUrl, { signal: controller.signal });
+        const res = await (proxied ? anonymousSessionFetch : fetch)(fetchUrl, {
+          signal: controller.signal,
+        });
         if (!res.ok) throw new Error(`Download failed: ${res.status}`);
         const buffer = await res.arrayBuffer();
         const archive = createVirtualArchive(new Uint8Array(buffer));

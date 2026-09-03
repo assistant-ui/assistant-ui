@@ -191,9 +191,11 @@ Leaving `items` and `categories` unset (or passing `includeModelContextTools: tr
 
 ```tsx
 const mention = unstable_useMentionAdapter({
-  includeModelContextTools: { category: { id: "tools", label: "Tools" } },
+  includeModelContextTools: true,
 });
 ```
+
+Passing `includeModelContextTools: { category }` instead puts the tools behind a drill-down entry rather than listing them flat, unless `items` is also given.
 
 </RuntimeMode>
 
@@ -224,9 +226,9 @@ Both lanes render into `ComposerMenu`; the avatar circle, name, and role label a
 
 | Option | Type | Description |
 |--------|------|-------------|
-| `items` | `Unstable_Mention[]` | Flat list: `{ id, type, label, description?, icon?, metadata? }`. |
-| `categories` | `Unstable_MentionCategory[]` | Grouped mentions for drill-down navigation; ignored if `items` is set. |
-| `includeModelContextTools` | `boolean \| { category?, formatLabel?, icon? }` | Include tools from `aui.thread.getModelContext()`. @default `true` when neither `items` nor `categories` is given |
+| `items` | `Unstable_Mention[]` | Flat list: `{ id, type, label, description?, icon?, metadata? }`; supplying it keeps the adapter flat even when a tool `category` is configured. |
+| `categories` | `Unstable_MentionCategory[]` | Grouped mentions for drill-down navigation; takes precedence over `items`. |
+| `includeModelContextTools` | `boolean \| { category?, formatLabel?, icon? }` | Include tools from `aui.thread.getModelContext()`; an object `category` selects drill-down on its own unless `items` is given. @default `true` when neither `items` nor `categories` is given |
 | `formatter` | `Unstable_DirectiveFormatter` | @default `unstable_defaultDirectiveFormatter` |
 | `onInserted` | `(item) => void` | Fires after the directive text lands in the composer. |
 

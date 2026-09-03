@@ -62,6 +62,10 @@ const isStandardSchemaV1 = (
   );
 };
 
+const isThenable = (value: unknown): value is PromiseLike<unknown> =>
+  typeof (value as PromiseLike<unknown> | null | undefined)?.then ===
+  "function";
+
 function getToolResponse(
   tools: Record<string, Tool> | undefined,
   abortSignal: AbortSignal,
@@ -90,15 +94,15 @@ function getToolResponse(
     let executeFn = toolExecute;
 
     if (isStandardSchemaV1(tool.parameters)) {
-      let result = tool.parameters["~standard"].validate(toolCall.args);
-      if (result instanceof Promise) result = await result;
+      const result = tool.parameters["~standard"].validate(toolCall.args);
+      const validationResult = isThenable(result) ? await result : result;
 
-      if (result.issues) {
+      if (validationResult.issues) {
         executeFn =
           tool.experimental_onSchemaValidationError ??
           (() => {
             throw new Error(
-              `Function parameter validation failed. ${JSON.stringify(result.issues)}`,
+              `Function parameter validation failed. ${JSON.stringify(validationResult.issues)}`,
             );
           });
       }

@@ -127,18 +127,25 @@ function ContextDisplayRoot({
     });
   }, [resetKey, rawTokens, usage]);
 
-  const totalTokens = tokenState.totalTokens;
+  const current =
+    tokenState.resetKey === resetKey
+      ? tokenState
+      : { totalTokens: rawTokens > 0 ? rawTokens : 0, usage };
+  const totalTokens = current.totalTokens;
   const percent = getUsagePercent(totalTokens, modelContextWindow);
+  const hasUsage = current.usage !== undefined || totalTokens > 0;
 
   const contextValue = useMemo(
     () => ({
-      usage: tokenState.usage,
+      usage: current.usage,
       totalTokens,
       percent,
       modelContextWindow,
     }),
-    [tokenState.usage, totalTokens, percent, modelContextWindow],
+    [current.usage, totalTokens, percent, modelContextWindow],
   );
+
+  if (!hasUsage) return null;
 
   return (
     <ContextDisplayContext.Provider value={contextValue}>
@@ -206,15 +213,15 @@ function ContextDisplayContent({
       sideOffset={8}
       data-slot="context-display-popover"
       className={cn(
-        "bg-popover text-popover-foreground w-56 rounded-lg border p-3 text-left [&_[data-slot=tooltip-arrow]]:hidden",
+        "bg-popover text-popover-foreground w-56 border p-3 text-left [&_[data-slot=tooltip-arrow]]:hidden",
         className,
       )}
     >
       <div className="text-xs">
         <div className="flex items-baseline justify-between gap-6 whitespace-nowrap">
-          <span className="font-medium">Context usage</span>
-          <span className="text-muted-foreground tabular-nums">
-            {formatTokenCount(Math.min(totalTokens, modelContextWindow))} of{" "}
+          <span className="text-muted-foreground">Context</span>
+          <span className="font-mono tabular-nums">
+            {formatTokenCount(Math.min(totalTokens, modelContextWindow))} /{" "}
             {formatTokenCount(modelContextWindow)}
           </span>
         </div>
@@ -236,7 +243,7 @@ function ContextDisplayContent({
                 className="flex items-baseline justify-between gap-6"
               >
                 <span className="text-muted-foreground">{segment.label}</span>
-                <span className="tabular-nums">
+                <span className="font-mono tabular-nums">
                   {formatTokenCount(segment.tokens)}
                 </span>
               </div>

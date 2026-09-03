@@ -28,7 +28,7 @@ type MessagePartSnapshotBinding = SubscribableWithState<
 export type MessagePartRuntime = {
   addToolResult(result: any | ToolResponse<any>): void;
   resumeToolCall(payload: unknown): void;
-  respondToToolApproval(response: ToolApprovalResponse): void;
+  respondToToolApproval(response: ToolApprovalResponse): Promise<void>;
 
   readonly path: MessagePartRuntimePath;
   getState(): MessagePartState;
@@ -113,7 +113,7 @@ export class MessagePartRuntimeImpl implements MessagePartRuntime {
     });
   }
 
-  public respondToToolApproval(response: ToolApprovalResponse) {
+  public respondToToolApproval(response: ToolApprovalResponse): Promise<void> {
     const state = this.contentBinding.getState();
     if (!state) throw new Error("Message part is not available");
 
@@ -131,7 +131,7 @@ export class MessagePartRuntimeImpl implements MessagePartRuntime {
 
     if (!this.threadApi) throw new Error("Thread API is not available");
 
-    this.threadApi
+    return this.threadApi
       .getState()
       .respondToToolApproval(
         resolveToolApprovalResponse(state.approval, response),

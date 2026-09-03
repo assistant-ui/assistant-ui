@@ -1,5 +1,19 @@
 # @assistant-ui/react-generative-ui
 
+## 0.0.17
+
+### Patch Changes
+
+- [#6695](https://github.com/assistant-ui/assistant-ui/pull/6695) [`d746b30`](https://github.com/assistant-ui/assistant-ui/commit/d746b30d2cf47648eb9b4db2a7776df174da3719) - refactor: cap the Teams carousel through the shared bounded copy ([@okisdev](https://github.com/okisdev))
+
+- [#6691](https://github.com/assistant-ui/assistant-ui/pull/6691) [`56ce8cc`](https://github.com/assistant-ui/assistant-ui/commit/56ce8ccaa2fe5b2b2a7e724b7b99e99d8801c043) - fix: bound a node whose `has` trap hides `children` from the pre-pass ([@okisdev](https://github.com/okisdev))
+  
+  `boundSpec` gated its record branch on `"children" in value`, a `[[HasProperty]]`, while every consumer reads `children` with `[[Get]]`. A record whose `has` trap answered `false` for `"children"` was returned untouched, and `normalizeSpec` then pulled the array through the `get` trap and walked its full reported length, skipping the children cap, the node budget, and the depth ceiling. Every object is now returned as a plain copy whose `children` comes from the same read the bound used.
+
+- [#6639](https://github.com/assistant-ui/assistant-ui/pull/6639) [`05e3e6d`](https://github.com/assistant-ui/assistant-ui/commit/05e3e6d3971dac4ce20fc7e2a87d187d78b0e449) - chore: update dependencies ([@Yonom](https://github.com/Yonom))
+- Updated dependencies [[`46fad14`](https://github.com/assistant-ui/assistant-ui/commit/46fad145974a890cd18f7fc2df54e9d0bf36b0fb), [`f0d0aa2`](https://github.com/assistant-ui/assistant-ui/commit/f0d0aa2f87b9d881f7003bf6132bbb519509b36b), [`5bdd416`](https://github.com/assistant-ui/assistant-ui/commit/5bdd416af4379a2cc86c12292e06a6e3ce5fcdb9), [`e53299b`](https://github.com/assistant-ui/assistant-ui/commit/e53299be07fd69bd5d64a2f50bd3561d85dc47cc)]:
+  - assistant-stream@0.3.41
+
 ## 0.0.16
 
 ### Patch Changes

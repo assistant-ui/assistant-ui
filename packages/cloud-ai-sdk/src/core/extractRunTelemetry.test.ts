@@ -169,6 +169,24 @@ describe("extractRunTelemetry", () => {
     expect(result.cachedInputTokens).toBe(2);
   });
 
+  it("extracts reasoning and cached input tokens from AI SDK v7 details", () => {
+    const result = extractRunTelemetry([
+      assistantMsg("m-1", [{ type: "text", text: "ok" }], {
+        usage: {
+          inputTokens: 12,
+          outputTokens: 7,
+          inputTokenDetails: { cacheReadTokens: 2 },
+          outputTokenDetails: { reasoningTokens: 3 },
+        },
+      }),
+    ])!;
+
+    expect(result.inputTokens).toBe(12);
+    expect(result.outputTokens).toBe(7);
+    expect(result.reasoningTokens).toBe(3);
+    expect(result.cachedInputTokens).toBe(2);
+  });
+
   it("attaches sampling calls from metadata to matching tool calls", () => {
     const result = extractRunTelemetry([
       assistantMsg(

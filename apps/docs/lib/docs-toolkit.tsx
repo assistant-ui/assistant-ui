@@ -14,6 +14,7 @@ import { MapPin, CloudSun, AlertCircle } from "lucide-react";
 import { z } from "zod";
 import {
   defineToolkit,
+  humanTool,
   unstable_interactableTool,
   useAuiState,
   type ToolCallMessagePartComponent,
@@ -26,6 +27,8 @@ import {
 } from "@assistant-ui/react-generative-ui";
 import { ToolErrorCard, ToolStatusCard, ToolTraceCard } from "@/lib/tool-trace";
 import { Notepad } from "@/components/tool-ui/notepad";
+import { RememberToolUI } from "@/components/pages/home/memory";
+import { SetThemeToolUI } from "@/components/tool-ui/set-theme-card";
 import { styledGenerativeUILibrary } from "@/components/assistant-ui/elements/generative-ui";
 
 const weatherFormatSchema = z.enum(["fahrenheit", "celsius"]);
@@ -206,6 +209,37 @@ export default defineToolkit({
       };
     },
     render: GetWeatherToolUI,
+  },
+  remember: {
+    description:
+      "Save a short fact or preference the user explicitly asks you to remember for future conversations. Call it once per fact, rewritten in the third person.",
+    parameters: z.object({
+      text: z
+        .string()
+        .describe(
+          "The short fact or preference to remember in the third person.",
+        ),
+    }),
+    display: "standalone",
+    execute: async ({ text }: { text: string }) => {
+      "use client";
+      const { addMemory } = await import("@/lib/memory-store");
+      const added = addMemory(text);
+      if (!added) throw new Error("A memory needs some text to store.");
+      return { ...added.record, change: added.change };
+    },
+    render: RememberToolUI,
+  },
+  set_theme: {
+    description:
+      "Change the color theme of this page to light, dark, or system. Call it as soon as the user asks to switch the theme; the page asks the user to confirm before the change applies, so never ask for confirmation yourself.",
+    parameters: z.object({
+      theme: z
+        .enum(["light", "dark", "system"])
+        .describe("The color theme to use for this page."),
+    }),
+    execute: humanTool(),
+    render: SetThemeToolUI,
   },
   present: generative.present({ display: "standalone" }),
   notepad: unstable_interactableTool({

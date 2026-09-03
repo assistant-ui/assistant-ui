@@ -10,11 +10,9 @@ import {
 
 type WebMcpToolResult = {
   content: { type: string; text?: string }[];
+  isError?: boolean;
 };
 
-// Per the spec, a fulfilled execute promise is a successful tool call and a
-// rejected one is a failure — there is no isError channel — so every failure
-// path in this module throws rather than resolving with an error payload.
 type WebMcpToolDescriptor = {
   name: string;
   description: string;
@@ -100,7 +98,7 @@ async function callMcpRoute(
   let payload;
   try {
     payload = (await response.json()) as {
-      result?: WebMcpToolResult & { isError?: boolean };
+      result?: WebMcpToolResult;
       error?: { message?: string };
     } | null;
   } catch (error) {
@@ -119,15 +117,36 @@ async function callMcpRoute(
     throw new Error("Docs request returned an unexpected response");
   }
   // The route reports tool-level failures (e.g. page not found) as MCP
-  // isError results on a 200; surface those as rejections too.
-  if (payload.result.isError) {
-    const text = payload.result.content.find(
-      (item) => typeof item.text === "string",
-    )?.text;
-    throw new Error(text ?? "Docs request failed");
-  }
-  return { content: payload.result.content };
+  // isError results on a 200; pass those through unchanged.
+  return payload.result.isError
+    ? { isError: true, content: payload.result.content }
+    : { content: payload.result.content };
 }
+
+// Chrome's native WebMCP discards a rejected execute's value and reports
+// every rejection as a generic "Tool was executed but the invocation
+// failed", while it JSON-serializes a resolved object whole. A failure
+// therefore keeps its text only by resolving as an isError result. Abort
+// rejections still propagate so a cancellation the caller requested stays
+// a rejection rather than a tool error.
+const withErrorResults =
+  (execute: WebMcpToolDescriptor["execute"]): WebMcpToolDescriptor["execute"] =>
+  async (args, context) => {
+    try {
+      return await execute(args, context);
+    } catch (error) {
+      if (isAbortError(error)) throw error;
+      return {
+        isError: true,
+        content: [
+          {
+            type: "text",
+            text: error instanceof Error ? error.message : String(error),
+          },
+        ],
+      };
+    }
+  };
 
 function stringArg(args: Record<string, unknown>, key: string) {
   const value = args[key];
@@ -181,14 +200,14 @@ function webMcpTools(fetchImpl: FetchLike): WebMcpToolDescriptor[] {
     {
       name: "getDoc",
       description:
-        "Read one assistant-ui docs or Tap docs page as markdown. Accepts a path such as /docs/getting-started or tap/docs/store/state.",
+        "Read one assistant-ui docs or Tap docs page as markdown. Accepts a path such as /docs/installation or tap/docs/store/state.",
       inputSchema: {
         type: "object",
         properties: {
           path: {
             type: "string",
             description:
-              "Docs or Tap page path such as /docs/getting-started or tap/docs/store/state, or a same-origin URL for one of those pages.",
+              "Docs or Tap page path such as /docs/installation or tap/docs/store/state, or a same-origin URL for one of those pages.",
           },
         },
         required: ["path"],
@@ -244,7 +263,10 @@ export function registerWebMcpTools(
   const controller = new AbortController();
   for (const tool of webMcpTools(fetchImpl)) {
     Promise.resolve(
-      modelContext.registerTool(tool, { signal: controller.signal }),
+      modelContext.registerTool(
+        { ...tool, execute: withErrorResults(tool.execute) },
+        { signal: controller.signal },
+      ),
     ).catch((error) => {
       // Registration failures (permissions policy, duplicate names, spec
       // drift) must not break the page, but should be visible in development.

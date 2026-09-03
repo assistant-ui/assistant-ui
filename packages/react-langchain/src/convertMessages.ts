@@ -21,27 +21,52 @@ type LangChainMessageConverterMetadata =
     messageTiming?: Record<string, MessageTiming>;
   };
 
+const warnedMalformedMessages = new Set<string>();
+const warnOnceInDevelopment = (message: string) => {
+  if (
+    typeof process === "undefined" ||
+    process?.env?.NODE_ENV !== "development"
+  )
+    return;
+  if (warnedMalformedMessages.has(message)) return;
+  warnedMalformedMessages.add(message);
+  console.warn(message);
+};
+
 export const getMessageType = (message: LangChainBaseMessage): string => {
   if (typeof message._getType === "function") return message._getType();
   if ("type" in message)
     return (message as Record<string, unknown>).type as string;
-  throw new Error("Cannot determine message type");
+  warnOnceInDevelopment(
+    "Cannot determine message type; rendering the message as system text",
+  );
+  return "unknown";
+};
+
+const contentBlocks = (content: unknown): readonly LangChainContentBlock[] => {
+  if (content == null) return [];
+  if (Array.isArray(content))
+    return content.filter(
+      (block) => typeof block === "object" && block !== null,
+    );
+  warnOnceInDevelopment(
+    `Ignoring message content that is neither a string nor an array: ${typeof content}`,
+  );
+  return [];
 };
 
 const contentToParts = (content: unknown) => {
   if (typeof content === "string")
     return [{ type: "text" as const, text: content }];
 
-  const parts = content as readonly LangChainContentBlock[];
-  return parts
+  return contentBlocks(content)
     .map(convertLangChainContentBlock)
     .filter((part) => part !== null && part !== undefined);
 };
 
 const getStringContent = (content: unknown): string => {
   if (typeof content === "string") return content;
-  const parts = content as readonly LangChainContentBlock[];
-  return parts
+  return contentBlocks(content)
     .filter((c): c is { type: "text"; text: string } => c.type === "text")
     .map((c) => c.text)
     .join("");
@@ -137,7 +162,7 @@ export const convertLangChainBaseMessage = (
             text:
               typeof message.content === "string"
                 ? message.content
-                : JSON.stringify(message.content),
+                : (JSON.stringify(message.content) ?? ""),
           },
         ],
       };

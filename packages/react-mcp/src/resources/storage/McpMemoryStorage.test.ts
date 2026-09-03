@@ -67,3 +67,33 @@ describe("McpMemoryStorage", () => {
     await expect(latest().loadCustomServers()).resolves.toHaveLength(1);
   });
 });
+
+describe("McpMemoryStorage scope identity", () => {
+  it("scopes each instance uniquely and keeps it stable per instance", () => {
+    let first!: MCPStorage;
+    let second!: MCPStorage;
+    const seen: (string | undefined)[] = [];
+    let rerender!: () => void;
+
+    const Host = resource(function useHost() {
+      const [, setTick] = useState(0);
+      rerender = () => setTick((n) => n + 1);
+      first = useResource(McpMemoryStorage());
+      seen.push(first.scopeId);
+      return first;
+    });
+    createTapRoot(function MemoryScopeRootA() {
+      return useResource(Host());
+    });
+    createTapRoot(function MemoryScopeRootB() {
+      second = useResource(McpMemoryStorage());
+      return second;
+    });
+    rerender();
+
+    expect(first.scopeId).toMatch(/^memory:/);
+    expect(second.scopeId).toMatch(/^memory:/);
+    expect(first.scopeId).not.toBe(second.scopeId);
+    expect(new Set(seen).size).toBe(1);
+  });
+});

@@ -100,7 +100,7 @@ The first chip reads "Weather" with "in SF" trailing it, but sends the full weat
 
 ### How a suggestion sends
 
-Each chip uses `ThreadPrimitive.Suggestion` with `method="replace"` and `autoSend`, so clicking one replaces whatever's in the composer with the suggestion's prompt and sends it immediately, with no confirmation step.
+Each chip uses `ThreadPrimitive.Suggestion` with `send`, so clicking one sends the suggestion's prompt immediately and clears the composer, with no confirmation step.
 
 </RuntimeMode>
 
@@ -122,7 +122,7 @@ Each chip uses `ThreadPrimitive.Suggestion` with `method="replace"` and `autoSen
 
 | Part | Notes |
 |------|-------|
-| `ThreadPrimitive.Suggestion` | One chip. Takes `prompt`, `method`, and `autoSend`. |
+| `ThreadPrimitive.Suggestion` | One chip. Takes `prompt` and `send`. |
 
 </RuntimeMode>
 

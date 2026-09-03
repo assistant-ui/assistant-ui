@@ -16,6 +16,13 @@ export type McpLocalStorageOptions = {
   keyPrefix?: string;
   /** Override the underlying Storage. Defaults to globalThis.localStorage. */
   storage?: Storage;
+  /**
+   * Stable identity for the backing data, used to key server reconnects.
+   * Required to get reconnect-on-swap behavior when `storage` is overridden;
+   * without it a custom backing store declares no scope, since a prefix
+   * alone cannot distinguish two different stores.
+   */
+  scopeId?: string;
 };
 
 function resolveStorage(opts: McpLocalStorageOptions): Storage | null {
@@ -211,6 +218,13 @@ export const normalizePersistedAuthState = (
 const useMcpLocalStorage = (opts: McpLocalStorageOptions = {}): MCPStorage => {
   const prefix = opts.keyPrefix ?? "aui-mcp";
   const storage = resolveStorage(opts);
+  // Deriving a scope from the prefix is only honest for the shared
+  // globalThis.localStorage; two custom backing stores under one prefix hold
+  // different data, so an overridden backing declares no scope unless the
+  // caller names one.
+  const scopeId =
+    opts.scopeId ??
+    (opts.storage === undefined ? `local-storage:${prefix}` : undefined);
 
   // Callers key per-server coordination state on this instance, so it has to
   // stay referentially stable for as long as the underlying store does.
@@ -248,6 +262,7 @@ const useMcpLocalStorage = (opts: McpLocalStorageOptions = {}): MCPStorage => {
     };
 
     return {
+      ...(scopeId !== undefined ? { scopeId } : {}),
       loadCustomServers: async () =>
         normalizeCustomServerRecords(read<unknown>(customServersKey, [])),
       saveCustomServers: async (records) => {
@@ -262,7 +277,7 @@ const useMcpLocalStorage = (opts: McpLocalStorageOptions = {}): MCPStorage => {
         remove(authKey(id));
       },
     };
-  }, [prefix, storage]);
+  }, [prefix, storage, scopeId]);
 };
 
 export const McpLocalStorage = resource(useMcpLocalStorage);

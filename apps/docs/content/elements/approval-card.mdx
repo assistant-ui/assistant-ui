@@ -19,31 +19,44 @@ A request like this is exactly what server-side tool approval gates are for: the
 ```tsx title="app/toolkit.tsx"
 "use client";
 
-import { defineToolkit } from "@assistant-ui/react";
+import { defineToolkit, type ToolApprovalResponse } from "@assistant-ui/react";
 import { ApprovalCard } from "@/components/assistant-ui/elements/approval-card";
 
 export const toolkit = defineToolkit({
   run_command: {
     type: "backend",
-    render: ({ args, approval, respondToApproval, result }) => (
-      <ApprovalCard
-        state={
-          approval?.approved === false
-            ? "denied"
-            : approval?.approved === undefined
-              ? "request"
-              : result === undefined
-                ? "running"
-                : "done"
+    render: ({ args, approval, respondToApproval, result }) => {
+      // A refused response rejects and a precondition (an unknown option, an
+      // answer the request does not take) throws, so `try`/`await` covers both
+      // and the controls stay actionable.
+      const answer = async (response: ToolApprovalResponse) => {
+        try {
+          await respondToApproval(response);
+        } catch (failure) {
+          console.error(failure);
         }
-        command={args.command}
-        title={args.title}
-        subtitle={args.subtitle}
-        onAllowOnce={() => respondToApproval({ optionId: "once" })}
-        onAlwaysAllow={() => respondToApproval({ optionId: "always" })}
-        onDeny={() => respondToApproval({ optionId: "deny" })}
-      />
-    ),
+      };
+
+      return (
+        <ApprovalCard
+          state={
+            approval?.approved === false
+              ? "denied"
+              : approval?.approved === undefined
+                ? "request"
+                : result === undefined
+                  ? "running"
+                  : "done"
+          }
+          command={args.command}
+          title={args.title}
+          subtitle={args.subtitle}
+          onAllowOnce={() => void answer({ optionId: "once" })}
+          onAlwaysAllow={() => void answer({ optionId: "always" })}
+          onDeny={() => void answer({ optionId: "deny" })}
+        />
+      );
+    },
   },
 });
 ```
@@ -168,7 +181,7 @@ Both lanes take `className` on the root. The command block uses the `field` surf
 
 ```tsx
 onDeny={() =>
-  respondToApproval({ optionId: "deny", reason: "not in this session" })
+  void answer({ optionId: "deny", reason: "not in this session" })
 }
 ```
 
@@ -198,7 +211,7 @@ onDeny={() => {
 | `args.command` / `args.title` / `args.subtitle` | `string` | The command and its framing copy. |
 | `approval?.approved` | `boolean \| undefined` | `undefined` maps to `"request"`, `false` to `"denied"`, `true` to `"running"` or `"done"` depending on `result`. |
 | `result` | `unknown` | Presence (once `approved` is `true`) maps to `"done"`. |
-| `respondToApproval(response)` | `(response: ToolApprovalResponse) => void` | Sends the decision. Legal only while `approval.approved` is `undefined`. |
+| `respondToApproval(response)` | `(response: ToolApprovalResponse) => Promise<void>` | Sends the decision. Legal only while `approval.approved` is `undefined`. Rejects when the runtime could not record the response. |
 
 </RuntimeMode>
 

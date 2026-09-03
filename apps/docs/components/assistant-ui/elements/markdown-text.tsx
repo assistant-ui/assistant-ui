@@ -1,26 +1,86 @@
 "use client";
 
 import "@assistant-ui/react-markdown/styles/dot.css";
+import "katex/dist/katex.min.css";
 
 import {
-  type CodeHeaderProps,
   MarkdownTextPrimitive,
   unstable_memoizeMarkdownComponents as memoizeMarkdownComponents,
   useIsMarkdownCodeBlock,
 } from "@assistant-ui/react-markdown";
+import rehypeKatex from "rehype-katex";
 import remarkGfm from "remark-gfm";
-import { type FC, memo, useState } from "react";
-import { CheckIcon, CopyIcon } from "lucide-react";
+import remarkMath from "remark-math";
+import { type ComponentProps, memo } from "react";
+import dynamic from "next/dynamic";
 
-import { SyntaxHighlighter } from "@/components/assistant-ui/elements/shiki-highlighter.aui";
-import { TooltipIconButton } from "@/components/assistant-ui/elements/tooltip-icon-button";
+import {
+  type HighlighterProps,
+  SyntaxHighlighter as ShikiSyntaxHighlighter,
+} from "@/components/assistant-ui/elements/shiki-highlighter.aui";
+import { CodeBlock } from "@/components/ui/code-block";
+import { preprocessMath } from "@/lib/markdown-math";
 import { cn } from "@/lib/utils";
+
+// The diagram engine only loads once a mermaid fence arrives, so every other
+// route that renders markdown keeps it out of its initial chunk.
+const LazyMermaidDiagram = dynamic(
+  () =>
+    import("@/components/assistant-ui/elements/mermaid-diagram.aui").then(
+      (mod) => mod.MermaidDiagram,
+    ),
+  {
+    ssr: false,
+    loading: () => (
+      <div
+        aria-hidden
+        className="aui-mermaid-skeleton bg-muted rounded-b-document h-32 animate-pulse"
+      />
+    ),
+  },
+);
+
+// Fenced code and mermaid fences render inside the site's CodeBlock, the same
+// code sheet the docs pages use, so the kit highlighter only supplies tokens
+// and its own chrome is reset.
+const codeSheetReset =
+  "[&_pre]:rounded-none [&_pre]:border-0 [&_pre]:bg-transparent! [&_pre]:px-3.5 [&_pre]:py-0 [&_pre]:text-[12.5px] [&_pre]:overflow-visible";
+
+const SyntaxHighlighter = (props: HighlighterProps) => (
+  <CodeBlock
+    title={props.language || undefined}
+    copyText={props.code}
+    className="my-3"
+  >
+    <ShikiSyntaxHighlighter {...props} className={codeSheetReset} />
+  </CodeBlock>
+);
+
+const MermaidDiagram = (props: ComponentProps<typeof LazyMermaidDiagram>) => (
+  <CodeBlock title="mermaid" copyText={props.code} className="my-3">
+    <LazyMermaidDiagram
+      {...props}
+      className="-my-1.5 rounded-none bg-transparent"
+    />
+  </CodeBlock>
+);
+
+const NoCodeHeader = () => null;
+
+const remarkPlugins = [remarkGfm, remarkMath];
+const rehypePlugins = [rehypeKatex];
+const componentsByLanguage = {
+  mermaid: { SyntaxHighlighter: MermaidDiagram },
+};
 
 const MarkdownTextImpl = () => {
   return (
     <MarkdownTextPrimitive
-      remarkPlugins={[remarkGfm]}
-      className="aui-md"
+      remarkPlugins={remarkPlugins}
+      rehypePlugins={rehypePlugins}
+      componentsByLanguage={componentsByLanguage}
+      preprocess={preprocessMath}
+      className="aui-md [&_.katex-display]:overflow-x-auto [&_.katex-display]:overflow-y-hidden [&_.katex-display]:py-1"
       components={defaultComponents}
       defer
     />
@@ -29,56 +89,9 @@ const MarkdownTextImpl = () => {
 
 export const MarkdownText = memo(MarkdownTextImpl);
 
-const CodeHeader: FC<CodeHeaderProps> = ({ language, code }) => {
-  const { isCopied, copyToClipboard } = useCopyToClipboard();
-  const onCopy = () => {
-    if (!code || isCopied) return;
-    copyToClipboard(code);
-  };
-
-  return (
-    <div className="aui-code-header-root border-border/50 bg-muted/50 mt-3 flex items-center justify-between rounded-t-xl border border-b-0 px-3.5 py-1.5 text-xs">
-      <span className="aui-code-header-language text-muted-foreground font-medium lowercase">
-        {language}
-      </span>
-      <TooltipIconButton tooltip="Copy" onClick={onCopy}>
-        {!isCopied && (
-          <CopyIcon className="animate-in zoom-in-75 fade-in duration-150" />
-        )}
-        {isCopied && (
-          <CheckIcon className="animate-in zoom-in-50 fade-in duration-200 ease-out" />
-        )}
-      </TooltipIconButton>
-    </div>
-  );
-};
-
-const useCopyToClipboard = ({
-  copiedDuration = 3000,
-}: {
-  copiedDuration?: number;
-} = {}) => {
-  const [isCopied, setIsCopied] = useState<boolean>(false);
-
-  const copyToClipboard = (value: string) => {
-    if (!value || typeof navigator === "undefined" || !navigator.clipboard) {
-      return;
-    }
-
-    navigator.clipboard.writeText(value).then(
-      () => {
-        setIsCopied(true);
-        setTimeout(() => setIsCopied(false), copiedDuration);
-      },
-      () => {},
-    );
-  };
-
-  return { isCopied, copyToClipboard };
-};
-
 const defaultComponents = memoizeMarkdownComponents({
   SyntaxHighlighter,
+  CodeHeader: NoCodeHeader,
   h1: ({ className, ...props }) => (
     <h1
       className={cn(
@@ -196,7 +209,7 @@ const defaultComponents = memoizeMarkdownComponents({
   th: ({ className, ...props }) => (
     <th
       className={cn(
-        "aui-md-th bg-muted px-3 py-1.5 text-start font-medium first:rounded-ss-lg last:rounded-se-lg [[align=center]]:text-center [[align=right]]:text-right",
+        "aui-md-th border-foreground/10 bg-foreground/[0.025] dark:bg-foreground/[0.04] first:rounded-ss-document last:rounded-se-document border-b px-3 py-1.5 text-start font-medium [[align=center]]:text-center [[align=right]]:text-right",
         className,
       )}
       {...props}
@@ -205,20 +218,14 @@ const defaultComponents = memoizeMarkdownComponents({
   td: ({ className, ...props }) => (
     <td
       className={cn(
-        "aui-md-td border-muted-foreground/20 border-s border-b px-3 py-1.5 text-start last:border-e [[align=center]]:text-center [[align=right]]:text-right",
+        "aui-md-td border-foreground/10 border-b px-3 py-1.5 text-start [[align=center]]:text-center [[align=right]]:text-right",
         className,
       )}
       {...props}
     />
   ),
   tr: ({ className, ...props }) => (
-    <tr
-      className={cn(
-        "aui-md-tr m-0 border-b p-0 first:border-t [&:last-child>td:first-child]:rounded-es-lg [&:last-child>td:last-child]:rounded-ee-lg",
-        className,
-      )}
-      {...props}
-    />
+    <tr className={cn("aui-md-tr m-0 p-0", className)} {...props} />
   ),
   li: ({ className, ...props }) => (
     <li className={cn("aui-md-li leading-relaxed", className)} {...props} />
@@ -257,5 +264,4 @@ const defaultComponents = memoizeMarkdownComponents({
       />
     );
   },
-  CodeHeader,
 });

@@ -105,11 +105,14 @@ export type RunTelemetryUsage = {
 export type RunTelemetryUsageInit = RunTelemetryUsage & {
   promptTokens?: number;
   completionTokens?: number;
+  inputTokenDetails?: { cacheReadTokens?: number };
+  outputTokenDetails?: { reasoningTokens?: number };
 };
 
 /**
- * Resolves the token counts a provider reports under either the current or the
- * legacy prompt/completion names. Returns undefined when no count is present,
+ * Resolves the token counts a provider reports under any of the names the AI
+ * SDK has used: the current top-level ones, the legacy prompt/completion pair,
+ * and the v7 token detail objects. Returns undefined when no count is present,
  * so callers can tell an empty usage object from a zeroed one.
  */
 export function normalizeRunTelemetryUsage(
@@ -117,12 +120,17 @@ export function normalizeRunTelemetryUsage(
 ): RunTelemetryUsage | undefined {
   const inputTokens = usage.inputTokens ?? usage.promptTokens;
   const outputTokens = usage.outputTokens ?? usage.completionTokens;
+  // AI SDK v7 moved these under token detail objects; v6 kept them top-level.
+  const reasoningTokens =
+    usage.reasoningTokens ?? usage.outputTokenDetails?.reasoningTokens;
+  const cachedInputTokens =
+    usage.cachedInputTokens ?? usage.inputTokenDetails?.cacheReadTokens;
 
   if (
     inputTokens == null &&
     outputTokens == null &&
-    usage.reasoningTokens == null &&
-    usage.cachedInputTokens == null
+    reasoningTokens == null &&
+    cachedInputTokens == null
   ) {
     return undefined;
   }
@@ -130,11 +138,7 @@ export function normalizeRunTelemetryUsage(
   return {
     ...(inputTokens != null ? { inputTokens } : undefined),
     ...(outputTokens != null ? { outputTokens } : undefined),
-    ...(usage.reasoningTokens != null
-      ? { reasoningTokens: usage.reasoningTokens }
-      : undefined),
-    ...(usage.cachedInputTokens != null
-      ? { cachedInputTokens: usage.cachedInputTokens }
-      : undefined),
+    ...(reasoningTokens != null ? { reasoningTokens } : undefined),
+    ...(cachedInputTokens != null ? { cachedInputTokens } : undefined),
   };
 }

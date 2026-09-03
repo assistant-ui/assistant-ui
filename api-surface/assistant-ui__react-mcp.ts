@@ -199,6 +199,7 @@ type MCPServerState = {
 };
 
 type MCPStorage = {
+  scopeId?: string;
   loadCustomServers: () => Promise<MCPCustomServerRecord[]>;
   saveCustomServers: (records: MCPCustomServerRecord[]) => Promise<void>;
   loadAuthState: (serverId: string) => Promise<MCPPersistedAuthState | null>;
@@ -376,6 +377,7 @@ declare const McpLocalStorage: Resource<MCPStorage, [
 type McpLocalStorageOptions = {
   keyPrefix?: string;
   storage?: Storage;
+  scopeId?: string;
 };
 
 declare namespace McpManagerPrimitiveAddCustomTrigger {

@@ -488,6 +488,12 @@ type RunTelemetryUsage = {
 type RunTelemetryUsageInit = RunTelemetryUsage & {
   promptTokens?: number;
   completionTokens?: number;
+  inputTokenDetails?: {
+    cacheReadTokens?: number;
+  };
+  outputTokenDetails?: {
+    reasoningTokens?: number;
+  };
 };
 
 type SamplingCallData = {
