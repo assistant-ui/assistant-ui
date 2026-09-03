@@ -31,8 +31,14 @@ describe("closeDisplayMathFences", () => {
     expect(closeDisplayMathFences("$$a\n= b\n$$")).toBe("$$\na\n= b\n$$");
   });
 
-  it("leaves one line display math at the start of a line alone", () => {
-    expect(closeDisplayMathFences("$$a = b$$\ntext")).toBe("$$a = b$$\ntext");
+  it("fences one line display math that stands alone on its line", () => {
+    expect(closeDisplayMathFences("$$a = b$$\ntext")).toBe(
+      "$$\na = b\n$$\ntext",
+    );
+  });
+
+  it("leaves two display expressions on one line alone", () => {
+    expect(closeDisplayMathFences("$$a$$ and $$b$$")).toBe("$$a$$ and $$b$$");
   });
 
   it("keeps an aligned environment that opens on the fence line", () => {
@@ -189,9 +195,9 @@ describe("preprocessMath", () => {
     ).toBe(`Match $n$ with:\n${code}\nUse \`\\(x\\)\`.`);
   });
 
-  it("normalizes display math that spans lines", () => {
+  it("fences a bracket block so it centers like every display equation", () => {
     expect(preprocessMath("Sum:\n\\[\na = b\n\\]\nDone.")).toBe(
-      normalizeMathDelimiters("Sum:\n\\[\na = b\n\\]\nDone."),
+      "Sum:\n$$\na = b\n$$\nDone.",
     );
   });
 });

@@ -7,6 +7,7 @@ const CODE_FENCE_OPEN = /^ {0,3}(`{3,}|~{3,})/;
 const CODE_FENCE_CLOSE = /^ {0,3}(`{3,}|~{3,})[ \t\r]*$/;
 const MATH_FENCE = /^ {0,3}\$\$[ \t\r]*$/;
 const MATH_FENCE_WITH_CONTENT = /^ {0,3}\$\$(?!\$)[ \t]*(\S.*?)[ \t\r]*$/;
+const MATH_ONE_LINE = /^ {0,3}\$\$(?!\$)[ \t]*(\S.*?\S|\S)[ \t]*\$\$[ \t\r]*$/;
 const TRAILING_MATH_FENCE = /\S[ \t]*\$\$[ \t\r]*$/;
 
 const closesFence = (line: string, fence: string) => {
@@ -20,7 +21,9 @@ const closesFence = (line: string, fence: string) => {
 // display block when the closing fence sits on its own line; models often
 // start the first equation line with `$$` and end the last one with `$$`,
 // which drops the first line and turns the rest of the reply into one
-// unterminated formula.
+// unterminated formula. A `$$…$$` line standing alone is inline math to
+// remark-math, so it renders left aligned while fenced blocks center; it
+// becomes a fenced block so every display equation sits the same way.
 export function closeDisplayMathFences(text: string): string {
   const out: string[] = [];
   let codeFence: string | undefined;
@@ -46,6 +49,12 @@ export function closeDisplayMathFences(text: string): string {
       } else {
         out.push(line);
       }
+      continue;
+    }
+
+    const oneLine = MATH_ONE_LINE.exec(line)?.[1];
+    if (oneLine !== undefined && !oneLine.includes("$$")) {
+      out.push("$$", oneLine, "$$");
       continue;
     }
 
