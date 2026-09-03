@@ -57,8 +57,6 @@ class RedisLikeClient(Protocol):
 
     async def get(self, key: str) -> str | None: ...
 
-    async def exists(self, key: str) -> bool: ...
-
     async def delete(self, keys: list[str]) -> None: ...
 
     async def xrange(
@@ -352,10 +350,6 @@ class _RedisAsyncioAdapter:
             return value.decode("utf-8")
         return str(value)
 
-    async def exists(self, key: str) -> bool:
-        result = await self._client.exists(key)
-        return int(result) > 0
-
     async def delete(self, keys: list[str]) -> None:
         if not keys:
             return
@@ -387,8 +381,6 @@ class _RedisAsyncioAdapter:
                 pipe.xadd(cmd["key"], dict(cmd["fields"]))
             elif cmd_type == "expire":
                 pipe.expire(cmd["key"], cmd["ttlSec"])
-            elif cmd_type == "set":
-                pipe.set(cmd["key"], cmd["value"], ex=cmd["ttlSec"])
         await pipe.execute()
 
     async def finalize_if_unchanged(self, options: dict[str, Any]) -> bool:

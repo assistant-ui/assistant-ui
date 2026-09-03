@@ -34,9 +34,6 @@ class FakeRedisLikeClient:
             await callback()
         return value
 
-    async def exists(self, key: str) -> bool:
-        return key in self.values or key in self.streams
-
     async def delete(self, keys: list[str]) -> None:
         for key in keys:
             self.values.pop(key, None)
@@ -55,8 +52,6 @@ class FakeRedisLikeClient:
         for command in commands:
             if command["type"] == "xAdd":
                 await self.xadd(command["key"], command["fields"])
-            elif command["type"] == "set":
-                self.values[command["key"]] = command["value"]
             elif command["type"] != "expire":
                 raise AssertionError(
                     f"unhandled pipeline command: {command['type']}"

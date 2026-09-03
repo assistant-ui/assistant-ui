@@ -27,13 +27,7 @@ export type PipelineCommand =
       readonly key: string;
       readonly fields: Record<string, string | Uint8Array>;
     }
-  | { readonly type: "expire"; readonly key: string; readonly ttlSec: number }
-  | {
-      readonly type: "set";
-      readonly key: string;
-      readonly value: string;
-      readonly ttlSec: number;
-    };
+  | { readonly type: "expire"; readonly key: string; readonly ttlSec: number };
 
 export type RedisFinalizeOptions = {
   readonly metaKey: string;
@@ -82,15 +76,8 @@ export function finalizeIfUnchangedArgs(
  */
 export interface RedisLikeClient {
   setNX(key: string, value: string, ttlSec: number): Promise<boolean>;
-  set(key: string, value: string, ttlSec: number): Promise<void>;
   get(key: string): Promise<string | null>;
-  expire(key: string, ttlSec: number): Promise<void>;
-  exists(key: string): Promise<boolean>;
   del(keys: string[]): Promise<void>;
-  xAdd(
-    key: string,
-    fields: Record<string, string | Uint8Array>,
-  ): Promise<string>;
   xRange(
     key: string,
     start: string,

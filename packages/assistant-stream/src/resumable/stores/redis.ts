@@ -16,13 +16,7 @@ type NodeRedisFields = Record<string, string | Buffer>;
 interface NodeRedisMultiCommand {
   xAdd(key: string, id: string, fields: NodeRedisFields): NodeRedisMultiCommand;
   expire(key: string, seconds: number): NodeRedisMultiCommand;
-  set(
-    key: string,
-    value: string,
-    options: { EX: number },
-  ): NodeRedisMultiCommand;
   execAsPipeline(): Promise<unknown>;
-  exec(): Promise<unknown>;
 }
 
 /** Structural subset of node-redis v5 used by the adapter. */
@@ -32,16 +26,8 @@ export interface NodeRedisLike {
     value: string,
     options: { NX: true; EX: number },
   ): Promise<string | null>;
-  set(
-    key: string,
-    value: string,
-    options: { EX: number },
-  ): Promise<string | null>;
   get(key: string): Promise<string | null>;
-  expire(key: string, seconds: number): Promise<unknown>;
-  exists(key: string): Promise<number>;
   del(keys: string | string[]): Promise<unknown>;
-  xAdd(key: string, id: string, fields: NodeRedisFields): Promise<string>;
   sendCommand<T = unknown>(
     args: ReadonlyArray<string | Buffer>,
     options?: { typeMapping?: Record<number, unknown> },
@@ -67,25 +53,12 @@ function adapt(client: NodeRedisLike): RedisLikeClient {
       const result = await client.set(key, value, { NX: true, EX: ttlSec });
       return result === "OK";
     },
-    async set(key, value, ttlSec) {
-      await client.set(key, value, { EX: ttlSec });
-    },
     async get(key) {
       return client.get(key);
-    },
-    async expire(key, ttlSec) {
-      await client.expire(key, ttlSec);
-    },
-    async exists(key) {
-      const result = await client.exists(key);
-      return result > 0;
     },
     async del(keys) {
       if (keys.length === 0) return;
       await client.del(keys.length === 1 ? keys[0]! : keys);
-    },
-    async xAdd(key, fields) {
-      return client.xAdd(key, "*", toNodeFields(fields));
     },
     async xRange(key, start, end) {
       const reply = await client.sendCommand<unknown>(
@@ -123,8 +96,6 @@ function applyPipelineCommand(
       return chain.xAdd(cmd.key, "*", toNodeFields(cmd.fields));
     case "expire":
       return chain.expire(cmd.key, cmd.ttlSec);
-    case "set":
-      return chain.set(cmd.key, cmd.value, { EX: cmd.ttlSec });
   }
 }
 

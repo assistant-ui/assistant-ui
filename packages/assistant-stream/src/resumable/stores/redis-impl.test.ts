@@ -31,7 +31,7 @@ class FakeRedisClient implements RedisLikeClient {
     return true;
   }
 
-  async set(key: string, value: string): Promise<void> {
+  private setString(key: string, value: string): void {
     this.strings.set(key, value);
   }
 
@@ -41,12 +41,6 @@ class FakeRedisClient implements RedisLikeClient {
     this.onNextGet = undefined;
     await onNextGet?.();
     return value;
-  }
-
-  async expire(): Promise<void> {}
-
-  async exists(key: string): Promise<boolean> {
-    return this.strings.has(key) || this.streams.has(key);
   }
 
   async del(keys: string[]): Promise<void> {
@@ -91,9 +85,6 @@ class FakeRedisClient implements RedisLikeClient {
         case "xAdd":
           await this.xAdd(command.key, command.fields);
           break;
-        case "set":
-          await this.set(command.key, command.value);
-          break;
         case "expire":
           break;
       }
@@ -104,7 +95,7 @@ class FakeRedisClient implements RedisLikeClient {
     if (this.strings.get(options.metaKey) !== options.expectedMeta)
       return false;
     await this.xAdd(options.dataKey, options.fields);
-    await this.set(options.metaKey, options.nextMeta);
+    this.setString(options.metaKey, options.nextMeta);
     return true;
   }
 }

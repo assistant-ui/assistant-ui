@@ -924,14 +924,8 @@ interface NodeRedisLike {
     NX: true;
     EX: number;
   }): Promise<string | null>;
-  set(key: string, value: string, options: {
-    EX: number;
-  }): Promise<string | null>;
   get(key: string): Promise<string | null>;
-  expire(key: string, seconds: number): Promise<unknown>;
-  exists(key: string): Promise<number>;
   del(keys: string | string[]): Promise<unknown>;
-  xAdd(key: string, id: string, fields: NodeRedisFields): Promise<string>;
   sendCommand<T = unknown>(args: ReadonlyArray<string | Buffer>, options?: {
     typeMapping?: Record<number, unknown>;
   }): Promise<T>;
@@ -941,11 +935,7 @@ interface NodeRedisLike {
 interface NodeRedisMultiCommand {
   xAdd(key: string, id: string, fields: NodeRedisFields): NodeRedisMultiCommand;
   expire(key: string, seconds: number): NodeRedisMultiCommand;
-  set(key: string, value: string, options: {
-    EX: number;
-  }): NodeRedisMultiCommand;
   execAsPipeline(): Promise<unknown>;
-  exec(): Promise<unknown>;
 }
 
 type NodeRole = "all" | "master" | "slave";
@@ -1019,11 +1009,6 @@ type PipelineCommand = {
 } | {
   readonly type: "expire";
   readonly key: string;
-  readonly ttlSec: number;
-} | {
-  readonly type: "set";
-  readonly key: string;
-  readonly value: string;
   readonly ttlSec: number;
 };
 
@@ -24155,12 +24140,8 @@ type RedisKey = string | Buffer;
 
 interface RedisLikeClient {
   setNX(key: string, value: string, ttlSec: number): Promise<boolean>;
-  set(key: string, value: string, ttlSec: number): Promise<void>;
   get(key: string): Promise<string | null>;
-  expire(key: string, ttlSec: number): Promise<void>;
-  exists(key: string): Promise<boolean>;
   del(keys: string[]): Promise<void>;
-  xAdd(key: string, fields: Record<string, string | Uint8Array>): Promise<string>;
   xRange(key: string, start: string, end: string): Promise<Array<{
     id: string;
     fields: Record<string, string | Uint8Array>;
