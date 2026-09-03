@@ -13,6 +13,48 @@ const LATEX_INLINE_DELIMITER = /\\{1,2}\(([^\n]+?)\\{1,2}\)/g;
 const LATEX_DISPLAY_DELIMITER = /\\{1,2}\[([\s\S]+?)\\{1,2}\]/g;
 
 /**
+ * Applies `rewrite` to the stretches of `text` outside code spans and fences,
+ * copying code through verbatim, so a delimiter shown as code is never
+ * rewritten. `\x` escapes are stepped over when scanning so an escaped
+ * backtick does not open a span, an unclosed run reads as literal backticks,
+ * and a delimiter pair straddling a code boundary stays as written. Each
+ * stretch is passed the characters adjacent to it so the rewrite can make
+ * line-boundary decisions that survive the split.
+ */
+function rewriteOutsideCode(
+  text: string,
+  rewrite: (segment: string, precededBy: string, followedBy: string) => string,
+): string {
+  let out = "";
+  let index = 0;
+  let plainStart = 0;
+
+  const flush = (end: number, followedBy: string) => {
+    const segment = text.slice(plainStart, end);
+    if (segment !== "") out += rewrite(segment, out.slice(-1), followedBy);
+  };
+
+  while (index < text.length) {
+    const char = text[index];
+    if (char === "\\") {
+      index += 2;
+    } else if (char === "`") {
+      const end = codeSpanEnd(text, index);
+      const codeEnd = end === -1 ? index + runLength(text, index, "`") : end;
+      flush(index, "`");
+      out += text.slice(index, codeEnd);
+      index = codeEnd;
+      plainStart = codeEnd;
+    } else {
+      index += 1;
+    }
+  }
+  flush(text.length, "");
+
+  return out;
+}
+
+/**
  * Rewrites LaTeX bracket delimiters to dollar delimiters: `\(...\)` becomes
  * `$...$` (inline) and `\[...\]` becomes `$$...$$` (display). A single or double
  * leading backslash is accepted, since models emit both depending on escaping.
@@ -28,25 +70,29 @@ const LATEX_DISPLAY_DELIMITER = /\\{1,2}\[([\s\S]+?)\\{1,2}\]/g;
  * never closes.
  */
 export function rewriteLatexBracketDelimiters(text: string): string {
-  return text
-    .replace(LATEX_INLINE_DELIMITER, (match: string, body: string) => {
-      const trimmed = body.trim();
-      return trimmed === "" ? match : `$${trimmed}$`;
-    })
-    .replace(
-      LATEX_DISPLAY_DELIMITER,
-      (match: string, body: string, offset: number, source: string) => {
+  return rewriteOutsideCode(text, (segment, precededBy, followedBy) =>
+    segment
+      .replace(LATEX_INLINE_DELIMITER, (match: string, body: string) => {
         const trimmed = body.trim();
-        if (trimmed === "") return match;
-        if (!trimmed.includes("\n")) return `$$${trimmed}$$`;
+        return trimmed === "" ? match : `$${trimmed}$`;
+      })
+      .replace(
+        LATEX_DISPLAY_DELIMITER,
+        (match: string, body: string, offset: number, source: string) => {
+          const trimmed = body.trim();
+          if (trimmed === "") return match;
+          if (!trimmed.includes("\n")) return `$$${trimmed}$$`;
 
-        const before = source.slice(0, offset);
-        const after = source.slice(offset + match.length);
-        const lead = before === "" || before.endsWith("\n") ? "" : "\n";
-        const tail = after === "" || after.startsWith("\n") ? "" : "\n";
-        return `${lead}$$\n${trimmed}\n$$${tail}`;
-      },
-    );
+          const before = offset === 0 ? precededBy : source[offset - 1]!;
+          const afterStart = offset + match.length;
+          const after =
+            afterStart === source.length ? followedBy : source[afterStart]!;
+          const lead = before === "" || before === "\n" ? "" : "\n";
+          const tail = after === "" || after === "\n" ? "" : "\n";
+          return `${lead}$$\n${trimmed}\n$$${tail}`;
+        },
+      ),
+  );
 }
 
 const MATH_TAG = /\[\/math\]([\s\S]*?)\[\/math\]/g;
@@ -57,9 +103,11 @@ const INLINE_TAG = /\[\/inline\]([\s\S]*?)\[\/inline\]/g;
  * `[/math]...[/math]` becomes `$$...$$` and `[/inline]...[/inline]` becomes `$...$`.
  */
 export function rewriteCustomMathTags(text: string): string {
-  return text
-    .replace(MATH_TAG, (_, body: string) => `$$${body.trim()}$$`)
-    .replace(INLINE_TAG, (_, body: string) => `$${body.trim()}$`);
+  return rewriteOutsideCode(text, (segment) =>
+    segment
+      .replace(MATH_TAG, (_, body: string) => `$$${body.trim()}$$`)
+      .replace(INLINE_TAG, (_, body: string) => `$${body.trim()}$`),
+  );
 }
 
 /**

@@ -66,6 +66,40 @@ describe("rewriteLatexBracketDelimiters", () => {
       "plain $x$ text",
     );
   });
+
+  it("leaves a delimiter inside an inline code span as written", () => {
+    expect(rewriteLatexBracketDelimiters("a `\\(x\\)` b")).toBe(
+      "a `\\(x\\)` b",
+    );
+  });
+
+  it("leaves a delimiter inside a fenced block as written", () => {
+    expect(rewriteLatexBracketDelimiters("```\n\\[a\nb\\]\n```")).toBe(
+      "```\n\\[a\nb\\]\n```",
+    );
+  });
+
+  it("rewrites prose on the same line as a code span", () => {
+    expect(rewriteLatexBracketDelimiters("\\(a\\) `\\(x\\)` \\(b\\)")).toBe(
+      "$a$ `\\(x\\)` $b$",
+    );
+  });
+
+  it("does not treat an escaped backtick as a code opener", () => {
+    expect(rewriteLatexBracketDelimiters("\\` \\(x\\)")).toBe("\\` $x$");
+  });
+
+  it("fences a multiline display body directly after a code span", () => {
+    expect(rewriteLatexBracketDelimiters("`c` \\[a\nb\\] d")).toBe(
+      "`c` \n$$\na\nb\n$$\n d",
+    );
+  });
+
+  it("leaves a delimiter pair straddling a code span as written", () => {
+    expect(rewriteLatexBracketDelimiters("\\(a `b` c\\)")).toBe(
+      "\\(a `b` c\\)",
+    );
+  });
 });
 
 describe("rewriteCustomMathTags", () => {
@@ -74,12 +108,36 @@ describe("rewriteCustomMathTags", () => {
       rewriteCustomMathTags("[/math]a+b[/math] and [/inline]c[/inline]"),
     ).toBe("$$a+b$$ and $c$");
   });
+
+  it("leaves a tag inside an inline code span as written", () => {
+    expect(rewriteCustomMathTags("`[/math]x[/math]`")).toBe(
+      "`[/math]x[/math]`",
+    );
+  });
+
+  it("leaves a tag inside a fenced block as written", () => {
+    expect(rewriteCustomMathTags("```\n[/inline]x[/inline]\n```")).toBe(
+      "```\n[/inline]x[/inline]\n```",
+    );
+  });
+
+  it("rewrites prose on the same line as a code span", () => {
+    expect(
+      rewriteCustomMathTags("[/inline]a[/inline] `[/inline]x[/inline]`"),
+    ).toBe("$a$ `[/inline]x[/inline]`");
+  });
 });
 
 describe("normalizeMathDelimiters", () => {
   it("normalizes both bracket delimiters and custom tags", () => {
     expect(normalizeMathDelimiters("\\(x\\) [/math]y[/math]")).toBe(
       "$x$ $$y$$",
+    );
+  });
+
+  it("keeps code inert for both delimiter families", () => {
+    expect(normalizeMathDelimiters("`\\(x\\)` and `[/math]y[/math]`")).toBe(
+      "`\\(x\\)` and `[/math]y[/math]`",
     );
   });
 });
