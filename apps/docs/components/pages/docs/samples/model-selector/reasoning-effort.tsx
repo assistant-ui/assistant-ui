@@ -6,7 +6,7 @@ import {
   ModelSelectorTrigger,
   ModelSelectorContent,
   type ModelOption,
-} from "@/components/assistant-ui/model-selector";
+} from "@/components/assistant-ui/elements/model-selector";
 import { SampleFrame } from "@/components/pages/docs/samples/sample-frame";
 
 export function ModelSelectorWithEffort() {
