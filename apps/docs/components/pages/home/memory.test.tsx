@@ -2,7 +2,25 @@
 
 import { cleanup, fireEvent, render, screen } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { RememberToolUI, SidebarMemory } from "./memory";
+
+const mocks = vi.hoisted(() => ({
+  memories: [] as { id: string; text: string; createdAt: number }[],
+  instruction: undefined as string | undefined,
+}));
+
+vi.mock("@assistant-ui/react", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("@assistant-ui/react")>()),
+  useAssistantInstructions: ({ instruction }: { instruction: string }) => {
+    mocks.instruction = instruction;
+  },
+}));
+
+vi.mock("@/lib/memory-store", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("@/lib/memory-store")>()),
+  useMemories: () => mocks.memories,
+}));
+
+import { MemoryInstructions, RememberToolUI, SidebarMemory } from "./memory";
 
 afterEach(() => {
   cleanup();
@@ -60,5 +78,22 @@ describe("SidebarMemory", () => {
     fireEvent.click(screen.getByRole("button", { name: "Forget all" }));
 
     expect(view.container.firstChild).toBeNull();
+  });
+});
+
+describe("MemoryInstructions", () => {
+  it("keeps the instruction block inside the route's system prompt budget", () => {
+    const memories = Array.from({ length: 20 }, (_, index) => ({
+      id: `memory-${index}`,
+      text: "x".repeat(200),
+      createdAt: index,
+    }));
+    mocks.memories = memories;
+
+    render(<MemoryInstructions />);
+
+    const instruction = mocks.instruction!;
+    expect(instruction.length).toBeLessThanOrEqual(1_200);
+    expect(instruction).toContain(memories.at(-1)!.text);
   });
 });
