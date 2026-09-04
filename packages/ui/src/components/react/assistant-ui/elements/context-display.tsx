@@ -62,6 +62,13 @@ const getBarColor = (percent: number): string => {
   if (severity === "warning") return "bg-amber-500";
   return "bg-foreground";
 };
+
+const getPercentColor = (percent: number): string => {
+  const severity = getUsageSeverity(percent);
+  if (severity === "critical") return "text-red-500";
+  if (severity === "warning") return "text-amber-500";
+  return "text-muted-foreground";
+};
 type ContextDisplayContextValue = {
   usage: TokenUsage | undefined;
   totalTokens: number;
@@ -184,6 +191,13 @@ type ContextSegment = {
   tokens: number;
 };
 
+// Whether a provider counts cached tokens inside inputTokens, or reasoning
+// inside outputTokens, differs by provider: OpenAI reports cached_tokens as a
+// subset of prompt_tokens, while Anthropic documents input_tokens as excluding
+// cache_read_input_tokens. Nothing in the usage contract says which is in hand,
+// so these are reported as the counts they are and none of them is given a
+// share of the bar, which stays the one reading that always holds: the
+// provider's own total against the window.
 const getContextSegments = (
   usage: TokenUsage | undefined,
 ): ContextSegment[] => {
@@ -219,7 +233,9 @@ function ContextDisplayContent({
     >
       <div className="text-xs">
         <div className="flex items-baseline justify-between gap-6 whitespace-nowrap">
-          <span className="text-muted-foreground">Context</span>
+          <span className={getPercentColor(percent)}>
+            {Math.round(percent)}% full
+          </span>
           <span className="font-mono tabular-nums">
             {formatTokenCount(Math.min(totalTokens, modelContextWindow))} /{" "}
             {formatTokenCount(modelContextWindow)}

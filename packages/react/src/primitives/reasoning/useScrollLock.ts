@@ -71,11 +71,25 @@ export const useScrollLock = <T extends HTMLElement = HTMLElement>(
     const paddingSide =
       computed.direction === "rtl" ? "paddingLeft" : "paddingRight";
     const previousPadding = scrollContainer.style[paddingSide];
-    const scrollbarSize =
+    const elementScrollbarSize =
       scrollContainer.offsetWidth -
       scrollContainer.clientWidth -
       parseFloat(computed.borderLeftWidth) -
       parseFloat(computed.borderRightWidth);
+    // A root element's offsetWidth already excludes the viewport scrollbar, so
+    // the element formula reports zero once the scroll propagates to the
+    // viewport, and only then does the viewport measure apply. A body that
+    // scrolls in its own right is measured by the element formula like any
+    // other scroller, whether or not the viewport is scrolling too.
+    const ownerDocument = scrollContainer.ownerDocument;
+    const isRootScroller =
+      scrollContainer === ownerDocument.documentElement ||
+      scrollContainer === ownerDocument.body;
+    const scrollbarSize =
+      isRootScroller && elementScrollbarSize <= 0
+        ? (ownerDocument.defaultView?.innerWidth ?? 0) -
+          ownerDocument.documentElement.clientWidth
+        : elementScrollbarSize;
 
     scrollContainer.style.scrollbarWidth = "none";
     if (scrollbarSize > 0) {

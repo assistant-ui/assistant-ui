@@ -402,6 +402,66 @@ describe("RemoteThreadList", () => {
     handle.destroy();
   });
 
+  it("keeps a manual rename made during automatic title generation", async () => {
+    const generatedTitle = deferred<ReadableStream>();
+    const adapter = makeAdapter({
+      list: vi.fn(async () => ({
+        threads: [{ status: "regular" as const, remoteId: "t1", title: "One" }],
+      })),
+      generateTitle: vi.fn(async () => generatedTitle.promise as never),
+    });
+    const { handle } = mountList(adapter);
+    const aui = handle.getClient();
+    await aui.threads.getLoadThreadsPromise();
+    await vi.waitFor(() => {
+      expect(aui.threads.getState().threadIds).toEqual(["t1"]);
+    });
+    flushTapSync(() => aui.threads.switchToThread("t1"));
+    await vi.waitFor(() => {
+      expect(aui.threads.getState().mainThreadId).toBe("t1");
+    });
+
+    const generation = aui.threads
+      .item({ id: "t1" })
+      .generateTitle({ automatic: true });
+    await vi.waitFor(() => {
+      expect(adapter.generateTitle).toHaveBeenCalledOnce();
+    });
+    await aui.threads.item({ id: "t1" }).rename("Manual title");
+    await vi.waitFor(() => {
+      expect(aui.threads.item({ id: "t1" }).getState().title).toBe(
+        "Manual title",
+      );
+    });
+
+    generatedTitle.resolve(
+      new ReadableStream({
+        start(controller) {
+          controller.enqueue({
+            type: "part-start",
+            path: [0],
+            part: { type: "text" },
+          });
+          controller.enqueue({
+            type: "text-delta",
+            path: [0],
+            textDelta: "Generated title",
+          });
+          controller.enqueue({ type: "part-finish", path: [0] });
+          controller.close();
+        },
+      }),
+    );
+    await generation;
+
+    expect(aui.threads.item({ id: "t1" }).getState().title).toBe(
+      "Manual title",
+    );
+    expect(adapter.rename).toHaveBeenNthCalledWith(1, "t1", "Manual title");
+    expect(adapter.rename).toHaveBeenNthCalledWith(2, "t1", "Manual title");
+    handle.destroy();
+  });
+
   it("preserves generated titles across an overlapping reload", async () => {
     const reload = deferred<{
       threads: {

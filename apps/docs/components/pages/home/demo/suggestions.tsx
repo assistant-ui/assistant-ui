@@ -39,8 +39,19 @@ const suggestionChipClass =
   "border-foreground/10 bg-background text-muted-foreground hover:border-foreground/25 hover:text-foreground rounded-control h-8 border px-3 text-[13px] transition-colors";
 
 export function Suggestions(): ReactNode {
+  const isComposerEmpty = useAuiState((s) => s.composer.isEmpty);
+
   return (
-    <div className="animate-in fade-in mx-auto flex max-w-[34rem] flex-wrap items-center justify-center gap-2 duration-200 motion-reduce:animate-none">
+    // Typing hides the suggestions without unmounting them: the empty view is
+    // centred, so collapsing a block this tall moves the composer out from
+    // under the cursor. inert keeps the hidden chips out of the tab order.
+    <div
+      inert={!isComposerEmpty}
+      className={cn(
+        "animate-in fade-in mx-auto flex max-w-[34rem] flex-wrap items-center justify-center gap-2 transition-opacity duration-200 motion-reduce:animate-none",
+        !isComposerEmpty && "opacity-0",
+      )}
+    >
       {SUGGESTIONS.map((suggestion) => (
         <ThreadPrimitive.Suggestion
           key={suggestion.prompt}

@@ -16,6 +16,12 @@ const loadingState: SessionState = { status: "loading" };
 const disabledState: SessionState = { status: "disabled" };
 const anonymousState: SessionState = { status: "anonymous" };
 
+// A dev server rarely carries accounts configuration, and hiding the account
+// row there hides the surface being worked on, so only a deployment reads
+// missing configuration as no sign-in at all.
+const unconfiguredState: SessionState =
+  process.env.NODE_ENV === "development" ? anonymousState : disabledState;
+
 const listeners = new Set<() => void>();
 let state: SessionState = loadingState;
 let started = false;
@@ -39,7 +45,7 @@ const load = () => {
       // arrived says nothing, so it falls back to the signed-out state rather
       // than hiding sign-in for the rest of the visit.
       if (payload === null) return setState(anonymousState);
-      if (!payload.enabled) return setState(disabledState);
+      if (!payload.enabled) return setState(unconfiguredState);
       setState(
         payload.user
           ? { status: "signed-in", user: payload.user }

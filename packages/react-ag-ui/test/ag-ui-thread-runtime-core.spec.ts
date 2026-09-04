@@ -905,6 +905,36 @@ describe("AGUIThreadRuntimeCore", () => {
     expect(agent.abortRun).toHaveBeenCalledTimes(1);
   });
 
+  it("keeps a replacement run active when the cancelled run settles late", async () => {
+    const resolveRuns: Array<() => void> = [];
+    const agent = {
+      runAgent: vi.fn(
+        () =>
+          new Promise<void>((resolve) => {
+            resolveRuns.push(resolve);
+          }),
+      ),
+      abortRun: vi.fn(),
+    } as unknown as HttpAgent;
+
+    const core = createCore(agent);
+    const firstRun = core.append(createAppendMessage());
+    await core.cancel();
+
+    const replacementRun = core.append(createAppendMessage());
+    expect(resolveRuns).toHaveLength(2);
+    expect(core.isRunning()).toBe(true);
+
+    resolveRuns[0]?.();
+    await firstRun;
+
+    expect(core.isRunning()).toBe(true);
+
+    resolveRuns[1]?.();
+    await replacementRun;
+    expect(core.isRunning()).toBe(false);
+  });
+
   it("cancels an active run when the runtime detaches", async () => {
     let runSignal: AbortSignal | undefined;
     const agent = {

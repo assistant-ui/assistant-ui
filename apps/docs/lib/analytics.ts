@@ -288,7 +288,6 @@ export const analytics = {
       thread_id?: string;
       pathname?: string;
       course_id: string;
-      consent: boolean;
     }) => trackEvent("learn_certificate_submitted", props),
 
     playgroundViewed: (props: {

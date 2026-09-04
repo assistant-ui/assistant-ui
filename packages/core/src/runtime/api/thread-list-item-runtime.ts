@@ -30,12 +30,17 @@ import type { ThreadListItemStatus } from "../interfaces/thread-list-runtime-cor
 
 export type { ThreadListItemState, ThreadListItemStatus };
 
+export type ThreadListItemGenerateTitleOptions = {
+  /** Marks a generation started by the automatic title trigger. */
+  automatic?: boolean;
+};
+
 export type ThreadListItemRuntime = {
   readonly path: ThreadListItemRuntimePath;
   getState(): ThreadListItemState;
 
   initialize(): Promise<{ remoteId: string; externalId: string | undefined }>;
-  generateTitle(): Promise<void>;
+  generateTitle(options?: ThreadListItemGenerateTitleOptions): Promise<void>;
 
   switchTo(options?: { unarchive?: boolean }): Promise<void>;
   rename(newTitle: string): Promise<void>;
@@ -147,9 +152,11 @@ export class ThreadListItemRuntimeImpl implements ThreadListItemRuntime {
     return this._threadListBinding.initialize(state.id);
   }
 
-  public generateTitle(): Promise<void> {
+  public generateTitle(
+    options?: ThreadListItemGenerateTitleOptions,
+  ): Promise<void> {
     const state = this._core.getState();
-    return this._threadListBinding.generateTitle(state.id);
+    return this._threadListBinding.generateTitle(state.id, options);
   }
 
   public unstable_on<E extends ThreadListItemEventType>(

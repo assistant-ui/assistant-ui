@@ -13,6 +13,7 @@ export function HomeDemo(): ReactNode {
   // Entering fullscreen portals the shell into a new tree, so the surface the
   // visitor is on is held here rather than inside it.
   const [view, setView] = useState<DemoView>("thread");
+  const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
 
   const demo = (
     <DemoShell
@@ -20,6 +21,8 @@ export function HomeDemo(): ReactNode {
       onToggleExpanded={toggle}
       view={view}
       onViewChange={setView}
+      sidebarCollapsed={sidebarCollapsed}
+      onSidebarCollapsedChange={setSidebarCollapsed}
     />
   );
 

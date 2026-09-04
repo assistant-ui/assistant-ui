@@ -175,13 +175,10 @@ function ImagePreview({
   const error = errorSrc === src;
 
   useEffect(() => {
-    if (
-      typeof src === "string" &&
-      imgRef.current?.complete &&
-      imgRef.current.naturalWidth > 0
-    ) {
-      setLoadedSrc(src);
-    }
+    const image = imgRef.current;
+    if (typeof src !== "string" || !image?.complete) return;
+    if (image.naturalWidth > 0) setLoadedSrc(src);
+    else setErrorSrc(src);
   }, [src]);
 
   return (

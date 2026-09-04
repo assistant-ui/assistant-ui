@@ -32,7 +32,17 @@ import type {
 } from "../../runtimes/remote-thread-list/types";
 import { ThreadListAdapterChangedError } from "../../runtimes/remote-thread-list/adapter-changed";
 import { RemoteThreadListHookInstanceManager } from "./RemoteThreadListHookInstanceManager";
-import { isTitleSourceMessage } from "../../runtimes/remote-thread-list/title";
+import {
+  applyTitleStream,
+  isTitleSourceMessage,
+} from "../../runtimes/remote-thread-list/title";
+import {
+  clearThreadTitleState,
+  finishThreadTitleRename,
+  runThreadTitleGeneration,
+  startThreadTitleRename,
+  type ThreadTitleState,
+} from "../../runtimes/remote-thread-list/title-generation";
 import {
   type ComponentType,
   type FC,
@@ -42,7 +52,6 @@ import {
   useId,
 } from "react";
 import { useAui } from "@assistant-ui/store";
-import { AssistantMessageStream } from "assistant-stream";
 import type { ModelContextProvider } from "../../model-context/types";
 import { RuntimeAdapterProvider } from "./RuntimeAdapterProvider";
 import { useStableRuntimeAdapters } from "./useRuntimeAdapters";
@@ -77,6 +86,7 @@ export class RemoteThreadListThreadListRuntimeCore
   private _staleThreadIdsOnReplace: ReadonlySet<string> | undefined;
   private _switchGeneration = 0;
   private _switchTask: Promise<void> | undefined;
+  private readonly _titleStates = new Map<string, ThreadTitleState>();
 
   private _mainThreadId!: string;
   private readonly _state = new OptimisticState<RemoteThreadState>(
@@ -321,6 +331,7 @@ export class RemoteThreadListThreadListRuntimeCore
         ...this._state.baseValue,
         cursor: undefined,
       });
+      this._titleStates.clear();
     }
 
     if (controlledThreadIdChanged) {
@@ -842,7 +853,10 @@ export class RemoteThreadListThreadListRuntimeCore
     return { remoteId, externalId };
   };
 
-  public generateTitle = async (threadId: string) => {
+  public generateTitle = async (
+    threadId: string,
+    options?: { automatic?: boolean },
+  ) => {
     this._requireAdapterSettled();
     const adapter = this._options.adapter;
     const adapterGeneration = this._adapterGeneration;
@@ -861,30 +875,40 @@ export class RemoteThreadListThreadListRuntimeCore
     // would make the payload race-dependent; the title reads settled
     // messages only, matching the trigger's readiness gate.
     const messages = runtimeCore.messages.filter(isTitleSourceMessage);
-    const stream = await adapter.generateTitle(remoteId, messages);
-    const messageStream = AssistantMessageStream.fromAssistantStream(stream);
-    for await (const result of messageStream) {
-      if (adapterGeneration !== this._adapterGeneration) return;
-      const newTitle = result.parts.filter((c) => c.type === "text")[0]?.text;
-      await this._state.optimisticUpdate({
-        execute: async () => {},
-        optimistic: (state) => {
-          if (adapterGeneration !== this._adapterGeneration) return state;
-          const currentData = getThreadData(state, data.id);
-          if (!currentData) return state;
-          return {
-            ...state,
-            threadData: {
-              ...state.threadData,
-              [currentData.id]: {
-                ...currentData,
-                title: newTitle,
+    await runThreadTitleGeneration({
+      states: this._titleStates,
+      threadId: data.id,
+      automatic: options?.automatic === true,
+      generate: async (onTitle) => {
+        const stream = await adapter.generateTitle(remoteId, messages);
+        this._requireAdapterGeneration(adapterGeneration);
+        await applyTitleStream(stream, onTitle);
+      },
+      rename: async (title) => {
+        this._requireAdapterGeneration(adapterGeneration);
+        await adapter.rename(remoteId, title);
+      },
+      applyTitle: async (title) => {
+        await this._state.optimisticUpdate({
+          execute: async () => {},
+          optimistic: (state) => {
+            if (adapterGeneration !== this._adapterGeneration) return state;
+            const currentData = getThreadData(state, data.id);
+            if (!currentData) return state;
+            return {
+              ...state,
+              threadData: {
+                ...state.threadData,
+                [currentData.id]: {
+                  ...currentData,
+                  title,
+                },
               },
-            },
-          };
-        },
-      });
-    }
+            };
+          },
+        });
+      },
+    });
   };
 
   public async rename(
@@ -899,28 +923,36 @@ export class RemoteThreadListThreadListRuntimeCore
     if (data.status === "new")
       throw threadStatusError(threadIdOrRemoteId, data.status, "be renamed");
 
-    return this._state.optimisticUpdate({
-      execute: async () => {
-        const { remoteId } = await data.initializeTask;
-        this._requireAdapterGeneration(adapterGeneration);
-        return adapter.rename(remoteId, newTitle);
-      },
-      optimistic: (state) => {
-        const data = getThreadData(state, threadIdOrRemoteId);
-        if (!data) return state;
+    const claim = startThreadTitleRename(this._titleStates, data.id, newTitle);
+    try {
+      const result = await this._state.optimisticUpdate({
+        execute: async () => {
+          const { remoteId } = await data.initializeTask;
+          this._requireAdapterGeneration(adapterGeneration);
+          return adapter.rename(remoteId, newTitle);
+        },
+        optimistic: (state) => {
+          const currentData = getThreadData(state, threadIdOrRemoteId);
+          if (!currentData) return state;
 
-        return {
-          ...state,
-          threadData: {
-            ...state.threadData,
-            [data.id]: {
-              ...data,
-              title: newTitle,
+          return {
+            ...state,
+            threadData: {
+              ...state.threadData,
+              [currentData.id]: {
+                ...currentData,
+                title: newTitle,
+              },
             },
-          },
-        };
-      },
-    });
+          };
+        },
+      });
+      finishThreadTitleRename(this._titleStates, data.id, claim, true);
+      return result;
+    } catch (error) {
+      finishThreadTitleRename(this._titleStates, data.id, claim, false);
+      throw error;
+    }
   }
 
   public async updateCustom(
@@ -1064,6 +1096,7 @@ export class RemoteThreadListThreadListRuntimeCore
     await this._ensureThreadIsNotMain(data.id);
     this._requireAdapterGeneration(adapterGeneration);
     this._hookManager.stopThreadRuntime(data.id);
+    clearThreadTitleState(this._titleStates, data.id);
 
     return this._state.optimisticUpdate({
       execute: async () => {

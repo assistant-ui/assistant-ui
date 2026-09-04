@@ -12,6 +12,7 @@ import {
 import { DevToolsModal } from "@assistant-ui/react-devtools";
 import { feedbackAdapter } from "@/lib/feedback-adapter";
 import docsToolkit from "@/lib/docs-toolkit";
+import usageToolkit from "@/lib/usage-toolkit";
 import { MemoryInstructions } from "@/components/shared/memory";
 import {
   followUpSuggestionAdapter,
@@ -72,8 +73,14 @@ export function DocsRuntimeProvider({
     countConversations,
   });
 
+  const toolkit = useMemo(
+    () =>
+      countConversations ? { ...docsToolkit, ...usageToolkit } : docsToolkit,
+    [countConversations],
+  );
+
   const aui = useAui({
-    tools: Tools({ toolkit: docsToolkit }),
+    tools: Tools({ toolkit }),
     unstable_interactables: unstable_Interactables(),
     suggestions: Suggestions(DOCS_SUGGESTIONS),
   });
