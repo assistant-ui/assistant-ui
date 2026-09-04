@@ -15,12 +15,15 @@ import type {
   McpAppsRemoteHostOptions,
 } from "./types";
 
-const { framePropsMock } = vi.hoisted(() => ({ framePropsMock: vi.fn() }));
+const { appendMock, framePropsMock } = vi.hoisted(() => ({
+  appendMock: vi.fn(),
+  framePropsMock: vi.fn(),
+}));
 
 vi.mock("@assistant-ui/store", async (importOriginal) => ({
   ...(await importOriginal()),
   useAui: () => ({
-    thread: () => ({ append: vi.fn() }),
+    thread: { append: appendMock },
   }),
 }));
 
@@ -186,7 +189,25 @@ function RemoteHarness({
 
 describe("McpAppRenderer", () => {
   beforeEach(() => {
+    appendMock.mockReset();
     framePropsMock.mockReset();
+  });
+
+  it("loads newly mounted parts through the committed host", async () => {
+    const hostA = loadingHost();
+    const hostB = loadingHost();
+    const view = render(
+      <OptionsHarness host={hostA} toolCallIds={["call-1"]} />,
+    );
+    await waitFor(() => expect(hostA.loadResource).toHaveBeenCalledOnce());
+    vi.mocked(hostA.loadResource).mockClear();
+
+    view.rerender(
+      <OptionsHarness host={hostB} toolCallIds={["call-1", "call-2"]} />,
+    );
+    await waitFor(() => expect(hostB.loadResource).toHaveBeenCalled());
+
+    expect(hostA.loadResource).not.toHaveBeenCalled();
   });
 
   it("merges forPart handlers over the thread-wide handlers", async () => {
@@ -428,7 +449,7 @@ describe("McpAppRenderer", () => {
     framePropsMock.mockClear();
     view.rerender(<MemoizedHarness host={nextHost} />);
 
-    expect(nextHost.loadResource).toHaveBeenCalledTimes(1);
+    await waitFor(() => expect(nextHost.loadResource).toHaveBeenCalledTimes(1));
     expect(framePropsMock).not.toHaveBeenCalled();
 
     nextResource.resolve({
@@ -649,6 +670,55 @@ describe("McpAppRenderer", () => {
 
     await handlers.listResources?.(params);
     expect(listResources).toHaveBeenCalledWith(params);
+  });
+
+  it("appends MCP Apps message content in the default sendMessage handler", async () => {
+    render(<Harness host={loadingHost()} />);
+    await waitFor(() => expect(framePropsMock).toHaveBeenCalled());
+    const handlers = framePropsMock.mock.lastCall?.[0]
+      .handlers as McpAppBridgeHandlers;
+
+    expect(
+      handlers.sendMessage?.({
+        role: "user",
+        content: [
+          { type: "text", text: "Open Grade 5 Math" },
+          { type: "image", data: "image", mimeType: "image/png" },
+          { type: "text", text: "Period 4" },
+        ],
+      }),
+    ).toEqual({ ok: true });
+    expect(appendMock).toHaveBeenCalledWith({
+      content: [
+        { type: "text", text: "Open Grade 5 Math" },
+        { type: "text", text: "Period 4" },
+      ],
+    });
+
+    expect(handlers.sendMessage?.({ text: "typed instead" })).toEqual({
+      ok: true,
+    });
+    expect(appendMock).toHaveBeenLastCalledWith({
+      content: [{ type: "text", text: "typed instead" }],
+    });
+
+    expect(
+      handlers.sendMessage?.({
+        role: "user",
+        content: [{ type: "image", data: "image", mimeType: "image/png" }],
+      }),
+    ).toEqual({
+      isError: true,
+      ok: false,
+      reason: "no text content to append",
+    });
+
+    expect(handlers.sendMessage?.({ role: "user" })).toEqual({
+      isError: true,
+      ok: false,
+      reason: "unrecognised params shape",
+    });
+    expect(appendMock).toHaveBeenCalledTimes(2);
   });
 
   it("uses caller UI handlers and keeps data-plane handlers on the host", async () => {

@@ -46,7 +46,8 @@ Converts an assistant-ui tool approval response into an Eve input response.
 When `inputRequest` is known, every returned response carries either an
 option the request declares or a free-form answer. A literal option match
 wins, then the `"approve"` / `"cancel"` option the response's boolean decision
-names, then the response's `reason` text when the request takes a free-form
+names, then the response's `text` (or its `reason`, for a caller that
+predates the first-class answer field) when the request takes a free-form
 answer (`display: "text"`, `allowFreeform`, or no options at all, and never
 `display: "confirmation"`) and the response is not a refusal.
 A one-argument call, or a part with no request, still forwards a caller

@@ -3,6 +3,7 @@ import type { AssistantRuntime } from "../../runtime/api/assistant-runtime";
 import type { AssistantStream } from "assistant-stream";
 import type { ThreadHistoryAdapter } from "../../adapters/thread-history";
 import type { AttachmentAdapter } from "../../adapters/attachment";
+import type { FeedbackAdapter } from "../../adapters/feedback";
 import type { ModelContextProvider } from "../../model-context/types";
 
 /* oxlint-disable typescript/no-explicit-any -- structural stand-in for ComponentType without depending on react types */
@@ -40,6 +41,7 @@ export type RuntimeAdapters = {
   modelContext?: ModelContextProvider | undefined;
   history?: ThreadHistoryAdapter | undefined;
   attachments?: AttachmentAdapter | undefined;
+  feedback?: FeedbackAdapter | undefined;
 };
 
 export type RemoteThreadListAdapter = {

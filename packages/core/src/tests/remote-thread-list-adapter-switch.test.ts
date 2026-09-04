@@ -399,6 +399,50 @@ describe("RemoteThreadList adapter changes", () => {
 
     expect(core.getItemById(draftId!)?.remoteId).toBe("created-on-b");
     expect(core.mainThreadId).toBe(draftId);
-    expect(core.threadIds).toContain("created-on-b");
+    expect(core.threadIds).toContain(draftId);
+    expect(core.getItemById("created-on-b")?.id).toBe(draftId);
+  });
+
+  it("keeps one slot when the replacement list already carries the initialized thread", async () => {
+    const adapterA = makeAdapter({
+      list: async () => ({ threads: [thread("thread-a")] }),
+    });
+    const listB = deferred<{ threads: ReturnType<typeof thread>[] }>();
+    const adapterB = makeAdapter({
+      list: vi.fn(() => listB.promise),
+      initialize: vi.fn(async () => ({
+        remoteId: "created-on-b",
+        externalId: "created-on-b",
+      })),
+    });
+    const core = createCore(adapterA);
+
+    await core.getLoadThreadsPromise();
+    const draftId = core.newThreadId;
+
+    core.__internal_setOptions({
+      adapter: adapterB,
+      runtimeHook: () => ({}) as never,
+    });
+    await core.initialize(draftId!);
+
+    listB.resolve({
+      threads: [thread("created-on-b"), thread("thread-b")],
+    });
+    await core.getLoadThreadsPromise();
+
+    expect(
+      Object.values(core.threadItems).filter(
+        (item) => item.remoteId === "created-on-b",
+      ),
+    ).toHaveLength(1);
+    expect(core.threadIds).toEqual([draftId, "thread-b"]);
+    expect(core.getItemById("created-on-b")?.id).toBe(draftId);
+
+    await core.delete("created-on-b");
+
+    expect(core.getItemById("created-on-b")).toBeUndefined();
+    expect(core.getItemById(draftId!)).toBeUndefined();
+    expect(core.threadIds).toEqual(["thread-b"]);
   });
 });

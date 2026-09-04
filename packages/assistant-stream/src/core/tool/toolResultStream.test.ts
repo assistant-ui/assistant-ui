@@ -1,3 +1,4 @@
+import { createContext, runInContext } from "node:vm";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import {
   toolResultStream as unstable_toolResultStream,
@@ -14,6 +15,27 @@ const createDelayedTool = (delay: number, result?: string): Tool => ({
   execute: async () => {
     await new Promise((resolve) => setTimeout(resolve, delay));
     return result ?? `Tool with ${delay}ms delay executed`;
+  },
+});
+
+const createPendingToolMessage = (toolCallId: string): AssistantMessage => ({
+  role: "assistant",
+  status: { type: "requires-action", reason: "tool-calls" },
+  parts: [
+    {
+      type: "tool-call",
+      toolCallId,
+      toolName: "tool",
+      args: {},
+    } as ToolCallPart,
+  ],
+  content: [],
+  metadata: {
+    unstable_state: {},
+    unstable_data: [],
+    unstable_annotations: [],
+    steps: [],
+    custom: {},
   },
 });
 
@@ -214,6 +236,85 @@ describe("unstable_runPendingTools", () => {
       "abort",
       addEventListener.mock.calls[0]![1],
     );
+  });
+
+  it.each([
+    [
+      "thenable",
+      () => ({
+        then(resolve: (value: { issues: unknown[] }) => void) {
+          resolve({ issues: [{ message: "invalid" }] });
+        },
+      }),
+    ],
+    [
+      "cross-realm promise",
+      () =>
+        runInContext(
+          "Promise.resolve({ issues: [{ message: 'invalid' }] })",
+          createContext(),
+        ),
+    ],
+  ] as const)(
+    "awaits a %s schema validation result",
+    async (kind, createValidationResult) => {
+      const execute = vi.fn(async () => "executed");
+      const onSchemaValidationError = vi.fn(async () => "recovered");
+      const message = createPendingToolMessage(kind);
+      const parameters = {
+        "~standard": {
+          version: 1,
+          validate: createValidationResult,
+        },
+      } as NonNullable<Tool["parameters"]>;
+
+      const settled = await unstable_runPendingTools(
+        message,
+        {
+          tool: {
+            parameters,
+            execute,
+            experimental_onSchemaValidationError: onSchemaValidationError,
+          },
+        },
+        new AbortController().signal,
+        async () => {},
+      );
+
+      expect(execute).not.toHaveBeenCalled();
+      expect(onSchemaValidationError).toHaveBeenCalledOnce();
+      expect(settled.parts[0]).toMatchObject({
+        result: "recovered",
+        isError: false,
+      });
+    },
+  );
+
+  it("preserves cancellation ordering for synchronous validation", async () => {
+    const abortController = new AbortController();
+    const execute = vi.fn(async () => "executed");
+    const message = createPendingToolMessage("sync-validation");
+    const parameters = {
+      "~standard": {
+        version: 1,
+        validate: () => ({ issues: undefined }),
+      },
+    } as NonNullable<Tool["parameters"]>;
+
+    const pending = unstable_runPendingTools(
+      message,
+      { tool: { parameters, execute } },
+      abortController.signal,
+      async () => {},
+    );
+    expect(execute).toHaveBeenCalledOnce();
+    queueMicrotask(() => abortController.abort());
+
+    const settled = await pending;
+    expect(settled.parts[0]).toMatchObject({
+      result: "executed",
+      isError: false,
+    });
   });
 
   it.each(["resolves", "rejects"] as const)(

@@ -43,6 +43,7 @@ export const useCloudRuntimeAdapters = (
     () => ({
       history,
       attachments,
+      feedback: history.feedback,
     }),
     [history, attachments],
   );

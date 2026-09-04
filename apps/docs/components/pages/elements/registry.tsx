@@ -52,6 +52,7 @@ import { ComposerContextDemo } from "@/components/demo/elements/composer-context
 import { EmptyStateDemo } from "@/components/demo/elements/empty-state";
 import { ThreadListDemo } from "@/components/demo/elements/thread-list";
 import { ScrollAnchorDemo } from "@/components/demo/elements/scroll-anchor";
+import { ConversationMapDemo } from "@/components/demo/elements/conversation-map";
 import { TodoListDemo } from "@/components/demo/elements/todo-list";
 import { MessageQueueDemo } from "@/components/demo/elements/message-queue";
 import { MessageAttachmentDemo } from "@/components/demo/elements/message-attachment";
@@ -125,6 +126,7 @@ import {
   AuiAttachmentDemo,
   AuiComposerTriggerPopoverDemo,
   AuiContextDisplayDemo,
+  AuiConversationMapDemo,
   AuiDirectiveTextDemo,
   AuiFileDemo,
   AuiFollowUpSuggestionsDemo,
@@ -1197,6 +1199,27 @@ export const ELEMENT_SECTIONS: ElementSection[] = [
         ],
       },
       {
+        slug: "conversation-map",
+        standaloneItem: "elements-conversation-map",
+        replay: false,
+        title: "Conversation map",
+        description:
+          "A rail of the whole thread: one tick per turn, the turn being read marked and the ones on screen deepened, a hover preview, and a click that jumps there.",
+        file: "conversation-map.aui.tsx",
+        registryName: "conversation-map",
+        connection: "AUI",
+        wide: true,
+        Component: AuiConversationMapDemo,
+        variants: [
+          {
+            key: "runtime",
+            label: "Runtime",
+            Component: AuiConversationMapDemo,
+          },
+          { key: "static", label: "Static", Component: ConversationMapDemo },
+        ],
+      },
+      {
         slug: "context-display",
         standaloneItem: "elements-context-display",
         replay: false,
@@ -1306,7 +1329,7 @@ export const ELEMENT_SECTIONS: ElementSection[] = [
         replay: false,
         title: "Sources",
         description:
-          "Runtime URL sources with favicon, title, and an external link.",
+          "Runtime sources with favicon links for URLs and file badges for documents.",
         file: "sources.aui.tsx",
         registryName: "sources",
         connection: "AUI",

@@ -290,9 +290,9 @@ const mention = unstable_useMentionAdapter({
 
 | Option | Type | Behavior |
 | --- | --- | --- |
-| `items` | `Unstable_Mention[]` | Flat list (ignored when `categories` is set) |
+| `items` | `Unstable_Mention[]` | Flat list (ignored when `categories` is set); supplying it keeps the adapter flat even when a tool `category` is configured |
 | `categories` | `{id, label, items}[]` | Drill-down groups |
-| `includeModelContextTools` | `boolean \| object` | Default: `true` iff neither `items` nor `categories` |
+| `includeModelContextTools` | `boolean \| object` | Default: `true` iff neither `items` nor `categories`; an object `category` selects drill-down on its own unless `items` is given |
 | `formatter` | `Unstable_DirectiveFormatter` | Override directive serialization (default: `unstable_defaultDirectiveFormatter`) |
 | `onInserted` | `(item) => void` | Fires after the directive is inserted into the composer |
 | `iconMap` | `Record<string, IconComponent>` | Maps `metadata.icon` / category `id` strings to React components |

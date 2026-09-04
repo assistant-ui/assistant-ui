@@ -533,6 +533,8 @@ describe("transformProject — hasLocalComponents: false", () => {
 
       const args = addCalls[0]![1] as string[];
       expect(args).toContain("button");
+      expect(args).toContain("@assistant-ui/utils");
+      expect(args).not.toContain("utils");
       expect(args).toContain("@assistant-ui/thread");
       expect(args).toContain("@assistant-ui/markdown-text");
       expect(args).toContain("@assistant-ui/elements-streaming-text");

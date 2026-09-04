@@ -2,6 +2,7 @@ import type { ReadonlyJSONObject } from "assistant-stream/utils";
 import type { AssistantCloudAPI } from "./AssistantCloudAPI";
 import {
   readCloudArray,
+  readCloudEnum,
   readCloudInteger,
   readCloudJSONObject,
   readCloudNullableString,
@@ -40,6 +41,17 @@ type AssistantCloudMessageCreateResponse = {
 
 type AssistantCloudThreadMessageUpdateBody = {
   content: ReadonlyJSONObject;
+};
+
+const MESSAGE_FEEDBACK_TYPES = ["positive", "negative"] as const;
+
+export type AssistantCloudThreadMessageFeedbackBody = {
+  type: "positive" | "negative";
+};
+
+export type AssistantCloudThreadMessageFeedbackResponse = {
+  feedback_id: string;
+  type: "positive" | "negative";
 };
 
 export const decodeCloudMessage = (
@@ -111,5 +123,24 @@ export class AssistantCloudThreadMessages {
       `/threads/${encodeURIComponent(threadId)}/messages/${encodeURIComponent(messageId)}`,
       { method: "PUT", body },
     );
+  }
+
+  public async feedback(
+    threadId: string,
+    messageId: string,
+    body: AssistantCloudThreadMessageFeedbackBody,
+  ): Promise<AssistantCloudThreadMessageFeedbackResponse> {
+    const response = readCloudRecord(
+      await this.cloud.makeRequest(
+        `/threads/${encodeURIComponent(threadId)}/messages/${encodeURIComponent(messageId)}/feedback`,
+        { method: "POST", body },
+      ),
+      "thread message feedback response",
+    );
+
+    return {
+      feedback_id: readCloudString(response.feedback_id, "feedback_id"),
+      type: readCloudEnum(response.type, "type", MESSAGE_FEEDBACK_TYPES),
+    };
   }
 }

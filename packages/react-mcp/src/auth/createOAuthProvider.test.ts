@@ -39,6 +39,23 @@ const createStorage = (initial: MCPPersistedAuthState | null = null) => {
   return { storage, getState: () => state };
 };
 
+const createSharedStorages = (scopeId: string) => {
+  let state: MCPPersistedAuthState | null = null;
+  const create = (): MCPStorage => ({
+    scopeId,
+    loadCustomServers: async () => [],
+    saveCustomServers: async () => {},
+    loadAuthState: async () => state,
+    saveAuthState: async (_serverId, next) => {
+      state = next;
+    },
+    clearAuthState: async () => {
+      state = null;
+    },
+  });
+  return { create, getState: () => state };
+};
+
 const createProvider = (storage: MCPStorage) =>
   createOAuthProvider({
     serverId: "docs",
@@ -337,6 +354,65 @@ describe("createOAuthProvider persistence across provider instances", () => {
     storage.saveAuthState = saveAuthState;
     await provider.saveCodeVerifier("late-verifier");
     expect(getState()).toBeNull();
+  });
+
+  it("fences a queued write when clearing through a same-scope storage", async () => {
+    const { create, getState } = createSharedStorages("same-scope-clear");
+    const storage = create();
+    const replacement = create();
+    const pendingWrites: Array<() => void> = [];
+    const saveAuthState = storage.saveAuthState;
+    storage.saveAuthState = async (serverId, next) => {
+      await new Promise<void>((resolve) => pendingWrites.push(resolve));
+      await saveAuthState(serverId, next);
+    };
+    const clearAuthState = vi.spyOn(replacement, "clearAuthState");
+    const provider = createProvider(storage);
+    await provider.tokens();
+
+    const save = provider.saveTokens({
+      access_token: "access-token",
+      token_type: "bearer",
+    });
+    await vi.waitFor(() => expect(pendingWrites).toHaveLength(1));
+
+    const clear = clearOAuthProviderAuthState(replacement, "docs");
+    for (let i = 0; i < 10; i++) await Promise.resolve();
+    expect(clearAuthState).not.toHaveBeenCalled();
+
+    pendingWrites.shift()!();
+    await expect(save).resolves.toBeUndefined();
+    await clear;
+    expect(clearAuthState).toHaveBeenCalledTimes(1);
+    expect(getState()).toBeNull();
+
+    storage.saveAuthState = saveAuthState;
+    await provider.saveCodeVerifier("late-verifier");
+    expect(getState()).toBeNull();
+  });
+
+  it("keeps differently-scoped storages on separate persistence", async () => {
+    const first = createSharedStorages("scope-a");
+    const second = createSharedStorages("scope-b");
+    const firstProvider = createProvider(first.create());
+    const secondProvider = createProvider(second.create());
+
+    await firstProvider.saveTokens({
+      access_token: "first-token",
+      token_type: "bearer",
+    });
+    await secondProvider.saveTokens({
+      access_token: "second-token",
+      token_type: "bearer",
+    });
+    await clearOAuthProviderAuthState(second.create(), "docs");
+    await firstProvider.saveCodeVerifier("first-verifier");
+
+    expect(first.getState()).toEqual({
+      tokens: { access_token: "first-token", token_type: "bearer" },
+      codeVerifier: "first-verifier",
+    });
+    expect(second.getState()).toBeNull();
   });
 
   it("re-derives static client information for a replacement provider", async () => {

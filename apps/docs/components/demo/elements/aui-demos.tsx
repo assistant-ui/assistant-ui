@@ -32,6 +32,7 @@ import { SampleRuntimeProvider } from "@/components/pages/docs/samples/sample-ru
 import { AssistantModalSample } from "@/components/pages/docs/samples/assistant-modal";
 import { AttachmentSample } from "@/components/pages/docs/samples/attachment";
 import { ContextDisplaySample } from "@/components/pages/docs/samples/context-display";
+import { ConversationMapThread } from "@/components/pages/docs/samples/conversation-map";
 import { FollowUpSuggestionsSample } from "@/components/pages/docs/samples/follow-up-suggestions";
 import { MessageTimingSample } from "@/components/pages/docs/samples/message-timing";
 import { ModelSelectorSample } from "@/components/pages/docs/samples/model-selector";
@@ -134,6 +135,16 @@ export function AuiMessageTimingDemo() {
   return (
     <DemoSurface>
       <MessageTimingSample />
+    </DemoSurface>
+  );
+}
+
+export function AuiConversationMapDemo() {
+  return (
+    <DemoSurface className="bg-muted/40">
+      <div className="h-full w-full">
+        <ConversationMapThread />
+      </div>
     </DemoSurface>
   );
 }

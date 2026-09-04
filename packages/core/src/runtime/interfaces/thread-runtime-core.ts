@@ -63,6 +63,8 @@ export type RespondToToolApprovalOptions = {
   approved: boolean;
   /** The approval option that produced this decision, when the request carried options. */
   optionId?: string;
+  /** The free-form answer, when the request asked for one. */
+  text?: string;
   reason?: string;
 };
 
@@ -165,7 +167,21 @@ export type ThreadRuntimeCore = Readonly<{
 
   addToolResult: (options: AddToolResultOptions) => void;
   resumeToolCall: (options: ResumeToolCallOptions) => void;
-  respondToToolApproval: (options: RespondToToolApprovalOptions) => void;
+  /**
+   * Records a decision on a tool approval gate. Resolves once the runtime has
+   * accepted the response and rejects when it could not be recorded, so a
+   * caller can leave the gate retryable rather than spending it. A capability
+   * or state precondition still throws synchronously; a failure to record
+   * arrives as a rejection, including one an adapter raises synchronously.
+   *
+   * Acceptance is as far as the runtime can see the response: one that records
+   * the decision locally settles on the record, while one that answers by
+   * resuming a run settles on the resume. A failure of the work the decision
+   * unblocks is reported through the runtime's own error channel, not here.
+   */
+  respondToToolApproval: (
+    options: RespondToToolApprovalOptions,
+  ) => Promise<void>;
 
   speak: (messageId: string) => void;
   stopSpeaking: () => void;

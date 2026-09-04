@@ -1,4 +1,8 @@
 const isDev = process.env.NODE_ENV === "development";
+import {
+  PUBLIC_ASSISTANT_UNAVAILABLE_MESSAGE,
+  publicAssistantLimitMessage,
+} from "@/lib/public-assistant-errors";
 
 function positiveSafeInteger(
   value: string | undefined,
@@ -87,6 +91,134 @@ const getPublicAssistantRateLimits = async () => {
         "1d",
       ),
     }),
+    mcpDocsIpBurst: new Ratelimit({
+      redis,
+      prefix: "aui:mcp-docs:ip:burst",
+      limiter: Ratelimit.fixedWindow(60, "60s"),
+    }),
+    mcpDocsIpDaily: new Ratelimit({
+      redis,
+      prefix: "aui:mcp-docs:ip:daily",
+      limiter: Ratelimit.fixedWindow(
+        positiveSafeInteger(
+          process.env.AUI_MCP_DOCS_REQUESTS_PER_IP_PER_DAY,
+          5_000,
+        ),
+        "1d",
+      ),
+    }),
+    mcpDocsGlobalDaily: new Ratelimit({
+      redis,
+      prefix: "aui:mcp-docs:global:daily",
+      limiter: Ratelimit.fixedWindow(
+        positiveSafeInteger(
+          process.env.AUI_MCP_DOCS_GLOBAL_REQUESTS_PER_DAY,
+          100_000,
+        ),
+        "1d",
+      ),
+    }),
+    mcpDocsGlobalAlert: new Ratelimit({
+      redis,
+      prefix: "aui:mcp-docs:global:alert",
+      limiter: Ratelimit.fixedWindow(1, "10m"),
+    }),
+    mcpTemplateIpBurst: new Ratelimit({
+      redis,
+      prefix: "aui:mcp-template:ip:burst",
+      limiter: Ratelimit.fixedWindow(15, "60s"),
+    }),
+    mcpTemplateIpDaily: new Ratelimit({
+      redis,
+      prefix: "aui:mcp-template:ip:daily",
+      limiter: Ratelimit.fixedWindow(
+        positiveSafeInteger(
+          process.env.AUI_MCP_TEMPLATE_REQUESTS_PER_IP_PER_DAY,
+          500,
+        ),
+        "1d",
+      ),
+    }),
+    mcpTemplateGlobalDaily: new Ratelimit({
+      redis,
+      prefix: "aui:mcp-template:global:daily",
+      limiter: Ratelimit.fixedWindow(
+        positiveSafeInteger(
+          process.env.AUI_MCP_TEMPLATE_GLOBAL_REQUESTS_PER_DAY,
+          5_000,
+        ),
+        "1d",
+      ),
+    }),
+    mcpTemplateGlobalAlert: new Ratelimit({
+      redis,
+      prefix: "aui:mcp-template:global:alert",
+      limiter: Ratelimit.fixedWindow(1, "10m"),
+    }),
+    followUpIpBurst: new Ratelimit({
+      redis,
+      prefix: "aui:follow-up:ip:burst",
+      limiter: Ratelimit.fixedWindow(10, "60s"),
+    }),
+    followUpIpDaily: new Ratelimit({
+      redis,
+      prefix: "aui:follow-up:ip:daily",
+      limiter: Ratelimit.fixedWindow(
+        positiveSafeInteger(
+          process.env.AUI_FOLLOW_UP_REQUESTS_PER_IP_PER_DAY,
+          300,
+        ),
+        "1d",
+      ),
+    }),
+    followUpGlobalDaily: new Ratelimit({
+      redis,
+      prefix: "aui:follow-up:global:daily",
+      limiter: Ratelimit.fixedWindow(
+        positiveSafeInteger(
+          process.env.AUI_FOLLOW_UP_GLOBAL_REQUESTS_PER_DAY,
+          20_000,
+        ),
+        "1d",
+      ),
+    }),
+    followUpGlobalAlert: new Ratelimit({
+      redis,
+      prefix: "aui:follow-up:global:alert",
+      limiter: Ratelimit.fixedWindow(1, "10m"),
+    }),
+    xuluxDownloadIpBurst: new Ratelimit({
+      redis,
+      prefix: "aui:xulux-download:ip:burst",
+      limiter: Ratelimit.fixedWindow(10, "60s"),
+    }),
+    xuluxDownloadIpDaily: new Ratelimit({
+      redis,
+      prefix: "aui:xulux-download:ip:daily",
+      limiter: Ratelimit.fixedWindow(
+        positiveSafeInteger(
+          process.env.AUI_XULUX_DOWNLOAD_REQUESTS_PER_IP_PER_DAY,
+          200,
+        ),
+        "1d",
+      ),
+    }),
+    xuluxDownloadGlobalDaily: new Ratelimit({
+      redis,
+      prefix: "aui:xulux-download:global:daily",
+      limiter: Ratelimit.fixedWindow(
+        positiveSafeInteger(
+          process.env.AUI_XULUX_DOWNLOAD_GLOBAL_REQUESTS_PER_DAY,
+          2_000,
+        ),
+        "1d",
+      ),
+    }),
+    xuluxDownloadGlobalAlert: new Ratelimit({
+      redis,
+      prefix: "aui:xulux-download:global:alert",
+      limiter: Ratelimit.fixedWindow(1, "10m"),
+    }),
   };
 };
 
@@ -113,8 +245,9 @@ function getClientIp(request: Request): string | null {
   return null;
 }
 
-async function runPublicAssistantRateLimit(
+async function runRateLimitChecks(
   request: Request,
+  surface: string,
   check: (limits: PublicAssistantRateLimits) => Promise<Response | null>,
 ): Promise<Response | null> {
   try {
@@ -125,26 +258,26 @@ async function runPublicAssistantRateLimit(
     console.error(
       JSON.stringify({
         level: "error",
-        message: "public_assistant_rate_limit_unavailable",
+        message: `${surface}_rate_limit_unavailable`,
         requestId: request.headers.get("x-vercel-id"),
         error: error instanceof Error ? error.message : String(error),
       }),
     );
-    return new Response("Public assistant temporarily unavailable", {
+    return new Response(PUBLIC_ASSISTANT_UNAVAILABLE_MESSAGE, {
       status: 503,
     });
   }
 }
 
-function missingClientIpResponse(request: Request): Response {
+function missingClientIpResponse(request: Request, surface: string): Response {
   console.error(
     JSON.stringify({
       level: "error",
-      message: "public_assistant_client_ip_missing",
+      message: `${surface}_client_ip_missing`,
       requestId: request.headers.get("x-vercel-id"),
     }),
   );
-  return new Response("Public assistant temporarily unavailable", {
+  return new Response(PUBLIC_ASSISTANT_UNAVAILABLE_MESSAGE, {
     status: 503,
   });
 }
@@ -161,24 +294,27 @@ export async function checkPublicAssistantRateLimit(
   request: Request,
   sessionId: string,
 ): Promise<Response | null> {
-  return runPublicAssistantRateLimit(request, async (limits) => {
+  return runRateLimitChecks(request, "public_assistant", async (limits) => {
     const ip = getClientIp(request);
-    if (!ip) return missingClientIpResponse(request);
+    if (!ip) return missingClientIpResponse(request, "public_assistant");
 
     const ipBurst = await limits.ipBurst.limit(ip);
     if (!ipBurst.success) {
-      return limitResponse("Rate limit exceeded", ipBurst.reset);
+      return limitResponse(publicAssistantLimitMessage("Rate"), ipBurst.reset);
     }
 
     const ipDaily = await limits.ipDaily.limit(ip);
     if (!ipDaily.success) {
-      return limitResponse("Daily usage limit exceeded", ipDaily.reset);
+      return limitResponse(
+        publicAssistantLimitMessage("Daily usage"),
+        ipDaily.reset,
+      );
     }
 
     const sessionDaily = await limits.sessionDaily.limit(sessionId);
     if (!sessionDaily.success) {
       return limitResponse(
-        "Daily anonymous session limit exceeded",
+        publicAssistantLimitMessage("Daily anonymous session"),
         sessionDaily.reset,
       );
     }
@@ -196,7 +332,7 @@ export async function checkPublicAssistantRateLimit(
         );
       }
       return limitResponse(
-        "Public assistant usage limit exceeded",
+        publicAssistantLimitMessage("Public assistant usage"),
         globalDaily.reset,
       );
     }
@@ -204,20 +340,193 @@ export async function checkPublicAssistantRateLimit(
   });
 }
 
+export async function checkFollowUpSuggestionRateLimit(
+  request: Request,
+): Promise<Response | null> {
+  return runRateLimitChecks(request, "follow_up", async (limits) => {
+    const ip = getClientIp(request);
+    if (!ip) return missingClientIpResponse(request, "follow_up");
+
+    const burst = await limits.followUpIpBurst.limit(ip);
+    if (!burst.success) {
+      return limitResponse("Follow-up rate limit exceeded", burst.reset);
+    }
+
+    const daily = await limits.followUpIpDaily.limit(ip);
+    if (!daily.success) {
+      return limitResponse("Follow-up daily limit exceeded", daily.reset);
+    }
+
+    const globalDaily = await limits.followUpGlobalDaily.limit("all");
+    if (!globalDaily.success) {
+      const alert = await limits.followUpGlobalAlert
+        .limit("all")
+        .catch(() => null);
+      if (alert?.success) {
+        console.error(
+          JSON.stringify({
+            level: "error",
+            message: "follow_up_global_daily_exhausted",
+            requestId: request.headers.get("x-vercel-id"),
+          }),
+        );
+      }
+      return limitResponse("Follow-up daily limit exceeded", globalDaily.reset);
+    }
+
+    return null;
+  });
+}
+
 export async function checkAnonymousSessionIssuanceRateLimit(
   request: Request,
 ): Promise<Response | null> {
-  return runPublicAssistantRateLimit(request, async (limits) => {
+  return runRateLimitChecks(request, "public_assistant", async (limits) => {
     const ip = getClientIp(request);
-    if (!ip) return missingClientIpResponse(request);
+    if (!ip) return missingClientIpResponse(request, "public_assistant");
 
     const burst = await limits.sessionIssuanceBurst.limit(ip);
     if (!burst.success) {
-      return limitResponse("Anonymous session limit exceeded", burst.reset);
+      return limitResponse(
+        publicAssistantLimitMessage("Anonymous session"),
+        burst.reset,
+      );
     }
     const daily = await limits.sessionIssuanceDaily.limit(ip);
     if (!daily.success) {
-      return limitResponse("Anonymous session limit exceeded", daily.reset);
+      return limitResponse(
+        publicAssistantLimitMessage("Anonymous session"),
+        daily.reset,
+      );
+    }
+    return null;
+  });
+}
+
+export async function checkMcpDocsToolRateLimit(
+  request: Request,
+): Promise<Response | null> {
+  return runRateLimitChecks(request, "mcp_docs", async (limits) => {
+    const ip = getClientIp(request);
+    if (!ip) return missingClientIpResponse(request, "mcp_docs");
+
+    const burst = await limits.mcpDocsIpBurst.limit(ip);
+    if (!burst.success) {
+      return limitResponse("Docs tool rate limit exceeded", burst.reset);
+    }
+
+    const daily = await limits.mcpDocsIpDaily.limit(ip);
+    if (!daily.success) {
+      return limitResponse("Docs tool daily limit exceeded", daily.reset);
+    }
+
+    const globalDaily = await limits.mcpDocsGlobalDaily.limit("all");
+    if (!globalDaily.success) {
+      const alert = await limits.mcpDocsGlobalAlert
+        .limit("all")
+        .catch(() => null);
+      if (alert?.success) {
+        console.error(
+          JSON.stringify({
+            level: "error",
+            message: "mcp_docs_global_limit_exceeded",
+            requestId: request.headers.get("x-vercel-id"),
+          }),
+        );
+      }
+      return limitResponse("Docs tool usage limit exceeded", globalDaily.reset);
+    }
+    return null;
+  });
+}
+
+export async function checkMcpTemplateToolRateLimit(
+  request: Request,
+): Promise<Response | null> {
+  return runRateLimitChecks(request, "mcp_template", async (limits) => {
+    const ip = getClientIp(request);
+    if (!ip) return missingClientIpResponse(request, "mcp_template");
+
+    const burst = await limits.mcpTemplateIpBurst.limit(ip);
+    if (!burst.success) {
+      return limitResponse(
+        publicAssistantLimitMessage("Template tool rate"),
+        burst.reset,
+      );
+    }
+
+    const daily = await limits.mcpTemplateIpDaily.limit(ip);
+    if (!daily.success) {
+      return limitResponse(
+        publicAssistantLimitMessage("Template tool daily"),
+        daily.reset,
+      );
+    }
+
+    const globalDaily = await limits.mcpTemplateGlobalDaily.limit("all");
+    if (!globalDaily.success) {
+      const alert = await limits.mcpTemplateGlobalAlert
+        .limit("all")
+        .catch(() => null);
+      if (alert?.success) {
+        console.error(
+          JSON.stringify({
+            level: "error",
+            message: "mcp_template_global_limit_exceeded",
+            requestId: request.headers.get("x-vercel-id"),
+          }),
+        );
+      }
+      return limitResponse(
+        publicAssistantLimitMessage("Template tool usage"),
+        globalDaily.reset,
+      );
+    }
+    return null;
+  });
+}
+
+export async function checkXuluxDownloadProxyRateLimit(
+  request: Request,
+): Promise<Response | null> {
+  return runRateLimitChecks(request, "xulux_download", async (limits) => {
+    const ip = getClientIp(request);
+    if (!ip) return missingClientIpResponse(request, "xulux_download");
+
+    const burst = await limits.xuluxDownloadIpBurst.limit(ip);
+    if (!burst.success) {
+      return limitResponse(
+        publicAssistantLimitMessage("Template download rate"),
+        burst.reset,
+      );
+    }
+
+    const daily = await limits.xuluxDownloadIpDaily.limit(ip);
+    if (!daily.success) {
+      return limitResponse(
+        publicAssistantLimitMessage("Template download daily"),
+        daily.reset,
+      );
+    }
+
+    const globalDaily = await limits.xuluxDownloadGlobalDaily.limit("all");
+    if (!globalDaily.success) {
+      const alert = await limits.xuluxDownloadGlobalAlert
+        .limit("all")
+        .catch(() => null);
+      if (alert?.success) {
+        console.error(
+          JSON.stringify({
+            level: "error",
+            message: "xulux_download_global_limit_exceeded",
+            requestId: request.headers.get("x-vercel-id"),
+          }),
+        );
+      }
+      return limitResponse(
+        publicAssistantLimitMessage("Template download usage"),
+        globalDaily.reset,
+      );
     }
     return null;
   });
@@ -229,7 +538,7 @@ export async function checkRateLimit(req: Request): Promise<Response | null> {
     const ip = req.headers.get("x-forwarded-for") ?? "ip";
     const { success } = await ratelimit.limit(ip);
     if (!success) {
-      return new Response("Rate limit exceeded", { status: 429 });
+      return new Response(publicAssistantLimitMessage("Rate"), { status: 429 });
     }
   }
   return null;

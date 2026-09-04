@@ -119,7 +119,9 @@ export type ExternalThreadProps = {
   /** Branch adapter for runtimes that track sibling variants of messages. */
   branches?: ExternalThreadBranchAdapter;
   /** Callback for tool approval decisions. Absent: responding to an approval throws a capability error. */
-  onRespondToToolApproval?: (options: RespondToToolApprovalOptions) => void;
+  onRespondToToolApproval?: (
+    options: RespondToToolApprovalOptions,
+  ) => void | Promise<void>;
 };
 
 type MessageClientProps = {
@@ -131,7 +133,7 @@ type MessageClientProps = {
   queue?: ExternalThreadQueueAdapter | undefined;
   branches?: ExternalThreadBranchAdapter | undefined;
   onRespondToToolApproval?:
-    | ((options: RespondToToolApprovalOptions) => void)
+    | ((options: RespondToToolApprovalOptions) => void | Promise<void>)
     | undefined;
   onAddToolResult?: ((options: AddToolResultOptions) => void) | undefined;
   onResumeToolCall?: ((options: ResumeToolCallOptions) => void) | undefined;
@@ -314,7 +316,7 @@ type PartResourceProps = {
   status: ToolCallMessagePartStatus;
   messageId: string;
   onRespondToToolApproval?:
-    | ((options: RespondToToolApprovalOptions) => void)
+    | ((options: RespondToToolApprovalOptions) => void | Promise<void>)
     | undefined;
   onAddToolResult?: ((options: AddToolResultOptions) => void) | undefined;
   onResumeToolCall?: ((options: ResumeToolCallOptions) => void) | undefined;
@@ -383,9 +385,12 @@ const usePartResource = ({
       )
         throw new Error("Tool call has no pending approval");
 
-      onRespondToToolApproval(
-        resolveToolApprovalResponse(part.approval, response),
-      );
+      const options = resolveToolApprovalResponse(part.approval, response);
+      try {
+        return Promise.resolve(onRespondToToolApproval(options));
+      } catch (error) {
+        return Promise.reject(error);
+      }
     },
   };
 };

@@ -5,7 +5,7 @@ import type {
   ChatModelRunOptions,
   ChatModelRunResult,
 } from "../../runtime/utils/chat-model-adapter";
-import type { AppendMessage } from "../../types/message";
+import type { AppendMessage, ToolCallMessagePart } from "../../types/message";
 import type { LocalRuntimeOptionsBase } from "./local-runtime-options";
 import {
   ExportedMessageRepository,
@@ -61,7 +61,7 @@ const userMessage = (text: string): AppendMessage => ({
 
 const toolCallPart = (
   toolName: string,
-  approval?: { id: string; resolution?: "cancelled" | "expired" },
+  approval?: ToolCallMessagePart["approval"],
 ) => ({
   type: "tool-call" as const,
   toolCallId: `call-${toolName}`,
@@ -73,7 +73,7 @@ const toolCallPart = (
 
 const toolCallResult = (
   toolName: string,
-  approval?: { id: string; resolution?: "cancelled" | "expired" },
+  approval?: ToolCallMessagePart["approval"],
 ): ChatModelRunResult => ({
   content: [toolCallPart(toolName, approval)],
   status: { type: "requires-action", reason: "tool-calls" },
@@ -482,6 +482,32 @@ describe("LocalThreadRuntimeCore tool approvals", () => {
       id: "a1",
       approved: true,
       optionId: "always",
+    });
+  });
+
+  it("records a free-form answer alongside the decision", async () => {
+    const { thread, runs } = createApprovalThread(
+      toolCallResult("send_email", { id: "a1", display: "text" }),
+    );
+
+    await thread.append(userMessage("send an email"));
+    await flush();
+
+    await thread.respondToToolApproval({
+      approvalId: "a1",
+      approved: true,
+      text: "Quarterly update",
+    });
+    await flush();
+
+    const toolCall = runs[1]!
+      .unstable_getMessage()
+      .content.find((part) => part.type === "tool-call");
+    expect(toolCall?.approval).toEqual({
+      id: "a1",
+      display: "text",
+      approved: true,
+      text: "Quarterly update",
     });
   });
 

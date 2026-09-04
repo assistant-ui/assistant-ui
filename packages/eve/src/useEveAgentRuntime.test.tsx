@@ -394,9 +394,9 @@ describe("useEveAgentRuntime tool approval responses", () => {
     try {
       const { result } = renderHook(() => useEveAgentRuntime());
 
-      expect(() => respondToTextRequest(result, { approved: true })).toThrow(
-        /was not answered by this response/,
-      );
+      await expect(
+        respondToTextRequest(result, { approved: true }),
+      ).rejects.toThrow(/was not answered by this response/);
 
       await flushMicrotasks();
       await flushMicrotasks();
@@ -1211,6 +1211,7 @@ describe("useEveAgentRuntime extras wiring", () => {
     mockUseEveAgent.mockReturnValue(agent as never);
     const { result, rerender } = renderHook(() => useEveAgentRuntime());
 
+    let humanRequests = 0;
     const humanRejections: unknown[] = [];
     act(() => {
       result.current.registerModelContextProvider({
@@ -1222,6 +1223,7 @@ describe("useEveAgentRuntime extras wiring", () => {
                 _args: unknown,
                 context: { human: (payload: unknown) => Promise<unknown> },
               ) => {
+                humanRequests += 1;
                 try {
                   return await context.human({ request: "approve" });
                 } catch (error) {
@@ -1241,7 +1243,7 @@ describe("useEveAgentRuntime extras wiring", () => {
     rerender();
 
     await waitFor(() => {
-      expect(result.current.thread.getState().isRunning).toBe(true);
+      expect(humanRequests).toBe(2);
     });
 
     act(() => {

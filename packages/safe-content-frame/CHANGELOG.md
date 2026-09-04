@@ -1,5 +1,13 @@
 # safe-content-frame
 
+## 0.0.29
+
+### Patch Changes
+
+- [#6604](https://github.com/assistant-ui/assistant-ui/pull/6604) [`6083062`](https://github.com/assistant-ui/assistant-ui/commit/6083062b425c77278728c5a89ef79e0d4a4e4e8a) - fix: tell a missing shim, a shim that failed to start, and a slow render apart ([@rupic-app](https://github.com/apps/rupic-app))
+
+- [#6615](https://github.com/assistant-ui/assistant-ui/pull/6615) [`e7bcf83`](https://github.com/assistant-ui/assistant-ui/commit/e7bcf83c4c5d176ee3bafa8d9dd04b26b1fde772) - feat: name why a frame failed to load with a `code` on the rejection, narrowed by the new `isShimLoadError` guard ([@okisdev](https://github.com/okisdev))
+
 ## 0.0.28
 
 ### Patch Changes

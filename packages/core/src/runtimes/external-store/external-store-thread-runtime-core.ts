@@ -45,6 +45,7 @@ import {
   MessageRepository,
 } from "../../runtime/utils/message-repository";
 import { generateId } from "../../utils/id";
+import { walkToolCallTree } from "../../runtime/utils/tool-call-tree";
 import {
   ToolInvocationTracker,
   type ToolExecutionStatus,
@@ -59,7 +60,7 @@ import {
 const EMPTY_ARRAY: readonly ThreadSuggestion[] = Object.freeze([]);
 
 const observeAdapterCallback = (
-  name: "onAddToolResult" | "onRespondToToolApproval" | "onCancel",
+  name: "onAddToolResult" | "onCancel",
   result: Promise<void> | void,
 ) => {
   void Promise.resolve(result).catch((error) => {
@@ -555,6 +556,7 @@ export class ExternalStoreThreadRuntimeCore
             }
           },
         },
+        (toolCall) => this._store.unstable_isClientToolCall?.(toolCall),
       );
     }
 
@@ -583,17 +585,9 @@ export class ExternalStoreThreadRuntimeCore
   private _findMessageIdForToolCall(toolCallId: string): string | undefined {
     if (this._messagesForToolCallIndex !== this._messages) {
       this._toolCallToMessageId.clear();
-      const visit = (messages: readonly ThreadMessage[]): void => {
-        for (const message of messages) {
-          if (!Array.isArray(message.content)) continue;
-          for (const part of message.content) {
-            if (!part || part.type !== "tool-call") continue;
-            this._toolCallToMessageId.set(part.toolCallId, message.id);
-            if (part.messages) visit(part.messages);
-          }
-        }
-      };
-      visit(this._messages);
+      for (const { part, messageId } of walkToolCallTree(this._messages)) {
+        this._toolCallToMessageId.set(part.toolCallId, messageId);
+      }
       this._messagesForToolCallIndex = this._messages;
     }
     return this._toolCallToMessageId.get(toolCallId);
@@ -697,7 +691,7 @@ export class ExternalStoreThreadRuntimeCore
     // user messages — matches the satellites' historical opt-in cancel
     // behavior, which is now built in.
     if (message.startRun ?? message.role === "user") {
-      await this._toolInvocations?.abort();
+      await this._toolInvocations?.abort({ discardPending: true });
     }
     if (!isThreadRuntimeGenerationCurrent(this, generation)) return;
 
@@ -798,7 +792,7 @@ export class ExternalStoreThreadRuntimeCore
     // Auto-abort in-flight client-side tool executions when a run reloads;
     // any results that land afterward would target a turn that no longer
     // exists. See `append` above for full rationale.
-    await this._toolInvocations?.abort();
+    await this._toolInvocations?.abort({ discardPending: true });
 
     await this._store.onReload(config.parentId, config);
   }
@@ -852,7 +846,7 @@ export class ExternalStoreThreadRuntimeCore
     // Abort any in-flight client-side tool executions. Fire-and-forget —
     // the abort resolves once executions settle, but we don't gate the
     // cancel on it.
-    void this._toolInvocations?.abort();
+    void this._toolInvocations?.abort({ discardPending: true });
 
     // Before the run is aborted, so the settle it produces keeps the pending
     // items instead of dispatching the next one at the moment the user
@@ -962,13 +956,16 @@ export class ExternalStoreThreadRuntimeCore
     );
   }
 
-  public respondToToolApproval(options: RespondToToolApprovalOptions) {
+  public respondToToolApproval(
+    options: RespondToToolApprovalOptions,
+  ): Promise<void> {
     if (!this._store.onRespondToToolApproval)
       throw new Error("Runtime does not support tool approvals.");
-    observeAdapterCallback(
-      "onRespondToToolApproval",
-      this._store.onRespondToToolApproval(options),
-    );
+    try {
+      return Promise.resolve(this._store.onRespondToToolApproval(options));
+    } catch (error) {
+      return Promise.reject(error);
+    }
   }
 
   public override reset(initialMessages?: readonly ThreadMessageLike[]) {

@@ -1,4 +1,8 @@
-export type { CloudMessage } from "./AssistantCloudThreadMessages";
+export type {
+  CloudMessage,
+  AssistantCloudThreadMessageFeedbackBody,
+  AssistantCloudThreadMessageFeedbackResponse,
+} from "./AssistantCloudThreadMessages";
 export type { AssistantCloudTelemetryConfig } from "./AssistantCloudAPI";
 export { CloudAPIError } from "./AssistantCloudAPI";
 export { CloudResponseError } from "./cloudResponse";

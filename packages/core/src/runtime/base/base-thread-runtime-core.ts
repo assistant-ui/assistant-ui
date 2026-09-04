@@ -68,7 +68,7 @@ export abstract class BaseThreadRuntimeCore
   public abstract resumeToolCall(options: ResumeToolCallOptions): void;
   public abstract respondToToolApproval(
     options: RespondToToolApprovalOptions,
-  ): void;
+  ): Promise<void>;
   public abstract cancelRun(): void;
   public abstract exportExternalState(): any;
   public abstract importExternalState(state: any): void;
@@ -518,7 +518,11 @@ export abstract class BaseThreadRuntimeCore
     const wrapped = callback as (payload?: unknown) => void;
     if (event === "modelContextUpdate") {
       // provider.subscribe is `() => void`; pump the typed empty payload to the user callback.
-      return this._contextProvider.subscribe?.(() => wrapped({})) ?? (() => {});
+      return (
+        this._contextProvider.subscribe?.(() =>
+          notifyEventListeners([wrapped], {}, `Thread runtime "${event}"`),
+        ) ?? (() => {})
+      );
     }
 
     let subscribers = this._eventSubscribers.get(event);
@@ -532,7 +536,9 @@ export abstract class BaseThreadRuntimeCore
     // after the thread already initialized, mirroring a BehaviorSubject.
     if (event === "initialize" && this._isInitialized) {
       queueMicrotask(() => {
-        if (subscribers.has(wrapped)) wrapped({});
+        if (subscribers.has(wrapped)) {
+          notifyEventListeners([wrapped], {}, `Thread runtime "${event}"`);
+        }
       });
     }
 

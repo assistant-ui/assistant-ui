@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState, type ReactNode } from "react";
-import { ShimmerLabel } from "@assistant-ui/ui/components/react/assistant-ui/elements/surfaces";
+import { ShimmerLabel } from "@/components/assistant-ui/elements/surfaces";
 
 export function useToolDuration(isRunning: boolean): number | null {
   const startTimeRef = useRef<number | null>(null);

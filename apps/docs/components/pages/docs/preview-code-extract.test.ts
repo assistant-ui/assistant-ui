@@ -155,3 +155,84 @@ describe("extractFunctionCode", () => {
     );
   });
 });
+
+describe("every real preview extracts", () => {
+  // Extraction failure is silent at authoring time: the page renders the
+  // marker where the snippet should be, and nothing else notices. This sweep
+  // covers every previewed source rather than a fixture so that an input the
+  // scanner cannot read fails here instead of on the published page.
+  it("extracts every <PreviewCode> pair referenced from content", async () => {
+    const { readdirSync, readFileSync, existsSync } = await import("node:fs");
+    const { join, resolve } = await import("node:path");
+
+    const docsRoot = resolve(__dirname, "../../..");
+    const mdxFiles: string[] = [];
+    const walk = (dir: string) => {
+      for (const entry of readdirSync(dir, { withFileTypes: true })) {
+        const full = join(dir, entry.name);
+        if (entry.isDirectory()) walk(full);
+        else if (entry.name.endsWith(".mdx")) mdxFiles.push(full);
+      }
+    };
+    walk(join(docsRoot, "content"));
+
+    // Every <PreviewCode occurrence must yield a parsed pair, so a call site
+    // the pair regex cannot read (attribute reordering, an expression
+    // attribute containing ">") fails the sweep instead of silently leaving
+    // that preview unguarded.
+    let occurrences = 0;
+    let parsed = 0;
+    const pairs = new Map<string, { file: string; name: string }>();
+    for (const mdxFile of mdxFiles) {
+      const mdx = readFileSync(mdxFile, "utf8");
+      occurrences += mdx.match(/<PreviewCode[\s>]/g)?.length ?? 0;
+      for (const match of mdx.matchAll(
+        /<PreviewCode\s[^>]*?file="([^"]+)"[^>]*?name="([^"]+)"/gs,
+      )) {
+        parsed += 1;
+        const file = match[1]!;
+        const name = match[2]!;
+        pairs.set(JSON.stringify([file, name]), { file, name });
+      }
+    }
+    expect(occurrences).toBeGreaterThan(0);
+    expect(parsed).toBe(occurrences);
+
+    const failures: string[] = [];
+    const checkExtraction = (sourceFile: string, name: string) => {
+      const source = readFileSync(sourceFile, "utf8");
+      const extracted = extractFunctionCode(source, name);
+      if (extracted.startsWith("// Could not")) {
+        failures.push(`${sourceFile}#${name}: ${extracted}`);
+        return;
+      }
+      // A phantom string that never closes already produces the marker above.
+      // This catches the other half: one that closes, having swallowed a lone
+      // opening delimiter, ends the region early at a boundary that still
+      // reads as code.
+      const endIndex = source.indexOf(extracted) + extracted.length;
+      const rest = source.slice(endIndex).replace(/^[\s;]*/, "");
+      if (
+        rest !== "" &&
+        !/^(export\s|import\s|const\s|let\s|var\s|class\s|function\s|async\s|type\s|interface\s|["']use client["']|\/\/|\/\*)/.test(
+          rest,
+        )
+      ) {
+        failures.push(
+          `${sourceFile}#${name}: truncated extraction (resumes at ${JSON.stringify(rest.slice(0, 40))})`,
+        );
+      }
+    };
+
+    for (const { file, name } of pairs.values()) {
+      const base = join(docsRoot, `${file}.tsx`);
+      const radix = join(docsRoot, `${file}.radix.tsx`);
+      if (existsSync(radix)) checkExtraction(radix, name);
+      if (existsSync(base)) checkExtraction(base, name);
+      if (!existsSync(base) && !existsSync(radix)) {
+        failures.push(`${file}#${name}: source file missing`);
+      }
+    }
+    expect(failures).toEqual([]);
+  });
+});

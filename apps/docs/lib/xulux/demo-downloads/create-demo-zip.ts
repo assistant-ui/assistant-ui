@@ -1,5 +1,4 @@
-import { readFile } from "node:fs/promises";
-import path from "node:path";
+import { loadRepoSourceSnapshot } from "@/lib/repo-source";
 import {
   DEMO_DOWNLOAD_MANIFESTS,
   getDemoDownloadManifest,
@@ -16,13 +15,8 @@ import { createZip, type ZipFileMap } from "./zip";
 
 type SourceSnapshot = Record<string, string>;
 
-export async function loadSourceSnapshot(snapshotPath = defaultSnapshotPath()) {
-  const raw = await readFile(snapshotPath, "utf8");
-  return JSON.parse(raw) as SourceSnapshot;
-}
-
 export async function createDemoZip(slug: string) {
-  const snapshot = await loadSourceSnapshot();
+  const snapshot = await loadRepoSourceSnapshot();
   return createZip(createDemoFileMap(slug, snapshot));
 }
 
@@ -85,10 +79,6 @@ export function getDemoArchiveFilename(slug: DemoDownloadSlug) {
 
 export function supportedDemoSlugs() {
   return Object.keys(DEMO_DOWNLOAD_MANIFESTS) as DemoDownloadSlug[];
-}
-
-function defaultSnapshotPath() {
-  return path.join(process.cwd(), "generated", "source-snapshot.json");
 }
 
 function assertSnapshotFile(snapshot: SourceSnapshot, snapshotKey: string) {
