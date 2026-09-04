@@ -2,6 +2,7 @@ import type { ReadonlyJSONObject } from "assistant-stream/utils";
 import type { AssistantCloudAPI } from "./AssistantCloudAPI";
 import {
   readCloudArray,
+  readCloudEnum,
   readCloudInteger,
   readCloudJSONObject,
   readCloudNullableString,
@@ -42,13 +43,15 @@ type AssistantCloudThreadMessageUpdateBody = {
   content: ReadonlyJSONObject;
 };
 
+const MESSAGE_FEEDBACK_TYPES = ["positive", "negative"] as const;
+
 export type AssistantCloudThreadMessageFeedbackBody = {
   type: "positive" | "negative";
 };
 
 export type AssistantCloudThreadMessageFeedbackResponse = {
   feedback_id: string;
-  type: string;
+  type: "positive" | "negative";
 };
 
 export const decodeCloudMessage = (
@@ -137,7 +140,7 @@ export class AssistantCloudThreadMessages {
 
     return {
       feedback_id: readCloudString(response.feedback_id, "feedback_id"),
-      type: readCloudString(response.type, "type"),
+      type: readCloudEnum(response.type, "type", MESSAGE_FEEDBACK_TYPES),
     };
   }
 }

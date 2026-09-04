@@ -5,7 +5,17 @@ import { act, render } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
 import { useExternalStoreRuntime } from "./useExternalStoreRuntime";
 import type { AssistantRuntime } from "../../runtime/api/assistant-runtime";
+import type { ThreadMessage } from "../../types/message";
 import { RuntimeAdapterProvider } from "./RuntimeAdapterProvider";
+
+const userMessage: ThreadMessage = {
+  id: "user-1",
+  role: "user",
+  content: [{ type: "text", text: "hello" }],
+  attachments: [],
+  createdAt: new Date(0),
+  metadata: { custom: {} },
+};
 
 describe("useExternalStoreRuntime lifecycle", () => {
   it("uses feedback supplied by the per-thread adapter context", () => {
@@ -13,14 +23,7 @@ describe("useExternalStoreRuntime lifecycle", () => {
     const capture: { runtime: AssistantRuntime | null } = { runtime: null };
     const App = () => {
       const runtime = useExternalStoreRuntime({
-        messages: [
-          {
-            id: "user-1",
-            role: "user" as const,
-            content: "hello",
-            createdAt: new Date(0),
-          },
-        ],
+        messages: [userMessage],
         onNew: async () => {},
       });
       capture.runtime = runtime;

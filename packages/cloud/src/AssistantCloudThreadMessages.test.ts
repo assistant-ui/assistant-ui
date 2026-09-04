@@ -57,6 +57,15 @@ describe("AssistantCloudThreadMessages responses", () => {
     await expect(
       messages.feedback("thread-1", "message-1", body),
     ).rejects.toBeInstanceOf(CloudResponseError);
+
+    makeRequest.mockResolvedValueOnce({
+      feedback_id: "feedback-1",
+      type: "neutral",
+    });
+
+    await expect(
+      messages.feedback("thread-1", "message-1", body),
+    ).rejects.toThrow('expected one of "positive", "negative"');
   });
 
   it("decodes canonical message responses without changing content", async () => {
