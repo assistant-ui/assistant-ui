@@ -1,8 +1,14 @@
 // @vitest-environment jsdom
 
 import { act, renderHook, waitFor } from "@testing-library/react";
-import { startTransition, Suspense, type PropsWithChildren } from "react";
+import {
+  startTransition,
+  Suspense,
+  useState,
+  type PropsWithChildren,
+} from "react";
 import { afterEach, describe, expect, it, vi } from "vitest";
+import type { ThreadMessage } from "@assistant-ui/core";
 import type { A2AClient } from "./A2AClient";
 import type { A2AStreamEvent } from "./types";
 import { useA2ARuntime } from "./useA2ARuntime";
@@ -276,5 +282,61 @@ describe("useA2ARuntime", () => {
     expect(fetchMock.mock.calls[1]![1]?.headers).toMatchObject({
       Authorization: "Bearer workspace-a",
     });
+  });
+
+  it("ignores an older thread load after a newer selection", async () => {
+    const { client } = createMockClient();
+    let resolveFirst!: (value: { messages: ThreadMessage[] }) => void;
+    let resolveSecond!: (value: { messages: ThreadMessage[] }) => void;
+    const first = new Promise<{ messages: ThreadMessage[] }>((resolve) => {
+      resolveFirst = resolve;
+    });
+    const second = new Promise<{ messages: ThreadMessage[] }>((resolve) => {
+      resolveSecond = resolve;
+    });
+    const message = (id: string): ThreadMessage => ({
+      id,
+      role: "user",
+      content: [{ type: "text", text: id }],
+      createdAt: new Date(0),
+      metadata: { custom: {} },
+    });
+
+    const { result } = renderHook(() => {
+      const [threadId, setThreadId] = useState("initial");
+      return useA2ARuntime({
+        client,
+        adapters: {
+          threadList: {
+            threadId,
+            onSwitchToThread: async (nextThreadId) => {
+              setThreadId(nextThreadId);
+              return nextThreadId === "thread-a" ? first : second;
+            },
+          },
+        },
+      });
+    });
+
+    let switchA!: Promise<void>;
+    let switchB!: Promise<void>;
+    act(() => {
+      switchA = result.current.threads.switchToThread("thread-a");
+      switchB = result.current.threads.switchToThread("thread-b");
+    });
+    expect(result.current.threads.getState().mainThreadId).toBe("thread-b");
+
+    await act(async () => {
+      resolveSecond({ messages: [message("thread-b")] });
+      await switchB;
+    });
+    await act(async () => {
+      resolveFirst({ messages: [message("thread-a")] });
+      await switchA;
+    });
+
+    expect(result.current.thread.getState().messages.map((m) => m.id)).toEqual([
+      "thread-b",
+    ]);
   });
 });
