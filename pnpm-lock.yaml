@@ -356,6 +356,9 @@ importers:
       assistant-stream:
         specifier: workspace:*
         version: link:../../packages/assistant-stream
+      aui-auth:
+        specifier: ^0.0.3
+        version: 0.0.3(next@16.3.4(@babel/core@8.0.1)(@opentelemetry/api@1.9.1)(@types/node@26.4.0)(babel-plugin-react-compiler@1.0.0)(react-dom@19.2.8(react@19.2.8))(react@19.2.8))
       bash-tool:
         specifier: ^1.3.19
         version: 1.3.19(@vercel/sandbox@3.0.0)(ai@7.0.85(zod@4.5.4))(just-bash@3.4.2(supports-color@10.2.2))
@@ -13105,6 +13108,14 @@ packages:
   attr-accept@2.2.5:
     resolution: {integrity: sha512-0bDNnY/u6pPwHDMoF0FieU354oBi0a8rD9FcsLwzcGWbc8KS8KPIi7y+s13OlVY+gMWc/9xEMUgNE6Qm8ZllYQ==}
     engines: {node: '>=4'}
+
+  aui-auth@0.0.3:
+    resolution: {integrity: sha512-MzX4a2eCRT1mD2TOQvoNCmoc4hDcOReZoyVMYZNlmXL7EHxPBBnY309JkLQb2wDAOt6hURRGcyJ3vUe/4g6odQ==}
+    peerDependencies:
+      next: '>=15'
+    peerDependenciesMeta:
+      next:
+        optional: true
 
   auto-bind@5.0.1:
     resolution: {integrity: sha512-ooviqdwwgfIfNmDwo94wlshcdzfO64XV0Cg6oDsDYBJfITDz1EngD2z7DkbvCWn+XIMsIqW27sEVF6qcpJrRcg==}
@@ -29026,6 +29037,10 @@ snapshots:
   async@3.2.6: {}
 
   attr-accept@2.2.5: {}
+
+  aui-auth@0.0.3(next@16.3.4(@babel/core@8.0.1)(@opentelemetry/api@1.9.1)(@types/node@26.4.0)(babel-plugin-react-compiler@1.0.0)(react-dom@19.2.8(react@19.2.8))(react@19.2.8)):
+    optionalDependencies:
+      next: 16.3.4(@babel/core@8.0.1)(@opentelemetry/api@1.9.1)(@types/node@26.4.0)(babel-plugin-react-compiler@1.0.0)(react-dom@19.2.8(react@19.2.8))(react@19.2.8)
 
   auto-bind@5.0.1: {}
 
