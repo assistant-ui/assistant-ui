@@ -151,7 +151,11 @@ describe("POST /api/demo/claim", () => {
         signedIn: false,
         limit: conversationLimitFor(false),
       },
-      { identity: "user:user-1", signedIn: true, limit: 10 },
+      {
+        identity: "user:user-1",
+        signedIn: true,
+        limit: conversationLimitFor(true),
+      },
     );
   });
 });
