@@ -11,11 +11,11 @@ import {
 // The claim itself is Lua, so what is pinned here is the day key, the reset
 // boundary, and the arguments the script is handed.
 function fakeRedis(result: [number, number] = [1, 1]) {
-  const calls: { keys: string[]; args: string[] }[] = [];
+  const calls: { script: string; keys: string[]; args: string[] }[] = [];
   const redis = {
     scard: async () => 2,
-    eval: async (_script: string, keys: string[], args: string[]) => {
-      calls.push({ keys, args });
+    eval: async (script: string, keys: string[], args: string[]) => {
+      calls.push({ script, keys, args });
       return result;
     },
   } as unknown as Redis;
@@ -77,5 +77,19 @@ describe("createConversationCounter", () => {
       resetAt: Date.UTC(2026, 8, 5, 0, 0, 0),
     });
     expect(calls).toHaveLength(0);
+  });
+
+  it("merges both identities into the destination day as one script", async () => {
+    const { redis, calls } = fakeRedis();
+    const counter = createConversationCounter(redis, "aui:test:");
+
+    await counter.merge("anon:abc", "user:123", NOON);
+
+    expect(calls[0]!.script).toContain("SUNIONSTORE");
+    expect(calls[0]!.keys).toEqual([
+      "aui:test:anon:abc:2026-09-04",
+      "aui:test:user:123:2026-09-04",
+    ]);
+    expect(calls[0]!.args).toEqual([String(2 * 24 * 60 * 60 * 1000)]);
   });
 });

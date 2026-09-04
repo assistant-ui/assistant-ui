@@ -3,11 +3,12 @@
 import { renderHook, waitFor } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import type { SessionPayload } from "@/app/api/auth/session/route";
+import type { SessionState } from "./session";
 
 async function sessionStateFor(
   nodeEnv: string,
   payload: SessionPayload,
-): Promise<string> {
+): Promise<SessionState> {
   vi.stubEnv("NODE_ENV", nodeEnv);
   vi.stubGlobal(
     "fetch",
@@ -20,7 +21,7 @@ async function sessionStateFor(
 
   const { result } = renderHook(() => useSession());
   await waitFor(() => expect(result.current.status).not.toBe("loading"));
-  return result.current.status;
+  return result.current;
 }
 
 afterEach(() => {
@@ -28,24 +29,35 @@ afterEach(() => {
   vi.unstubAllGlobals();
 });
 
-const unconfigured: SessionPayload = { enabled: false, user: null };
+const unconfigured: SessionPayload = {
+  enabled: false,
+  cloudHistory: false,
+  user: null,
+};
 
 describe("useSession", () => {
   it("keeps sign-in hidden on a deployment that carries no accounts config", async () => {
-    expect(await sessionStateFor("production", unconfigured)).toBe("disabled");
+    expect((await sessionStateFor("production", unconfigured)).status).toBe(
+      "disabled",
+    );
   });
 
   it("falls back to the signed-out state on a dev server", async () => {
-    expect(await sessionStateFor("development", unconfigured)).toBe(
+    expect((await sessionStateFor("development", unconfigured)).status).toBe(
       "anonymous",
     );
   });
 
-  it("reports the visitor when the deployment is configured", async () => {
-    const status = await sessionStateFor("production", {
+  it("reports the visitor and account-owned cloud history when configured", async () => {
+    const state = await sessionStateFor("production", {
       enabled: true,
+      cloudHistory: true,
       user: { name: "Ada Lovelace", email: "ada@test", image: null },
     });
-    expect(status).toBe("signed-in");
+    expect(state).toEqual({
+      status: "signed-in",
+      cloudHistory: true,
+      user: { name: "Ada Lovelace", email: "ada@test", image: null },
+    });
   });
 });
