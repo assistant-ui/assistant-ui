@@ -27,7 +27,7 @@ import {
 } from "@assistant-ui/react-generative-ui";
 import { ToolErrorCard, ToolStatusCard, ToolTraceCard } from "@/lib/tool-trace";
 import { Notepad } from "@/components/tool-ui/notepad";
-import { RememberToolUI } from "@/components/pages/home/memory";
+import { RememberToolUI } from "@/components/shared/memory";
 import { SetThemeToolUI } from "@/components/tool-ui/set-theme-card";
 import { styledGenerativeUILibrary } from "@/components/assistant-ui/elements/generative-ui";
 

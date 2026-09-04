@@ -12,7 +12,7 @@ import {
 import { DevToolsModal } from "@assistant-ui/react-devtools";
 import { feedbackAdapter } from "@/lib/feedback-adapter";
 import docsToolkit from "@/lib/docs-toolkit";
-import { MemoryInstructions } from "@/components/pages/home/memory";
+import { MemoryInstructions } from "@/components/shared/memory";
 import {
   followUpSuggestionAdapter,
   useAnonymousCloud,

@@ -4,17 +4,13 @@ import {
   type ToolCallMessagePartProps,
   useAssistantInstructions,
 } from "@assistant-ui/react";
-import { ChevronDownIcon, XIcon } from "lucide-react";
-import { useMemo, useState, type ReactNode } from "react";
+import { useMemo, type ReactNode } from "react";
 import { TraceLine } from "@/components/shared/trace-line";
-import { typeEyebrow } from "@/components/shared/type";
 import {
-  clearMemories,
   forgetMemory,
   useMemories,
   type MemoryRecord,
 } from "@/lib/memory-store";
-import { cn } from "@/lib/utils";
 
 type RememberArgs = {
   text: string;
@@ -91,67 +87,6 @@ export function RememberToolUI({
       >
         forget
       </button>
-    </div>
-  );
-}
-
-export function SidebarMemory({
-  memories,
-  onForget = forgetMemory,
-  onClear = clearMemories,
-}: {
-  memories: readonly MemoryRecord[];
-  onForget?: (id: string) => void;
-  onClear?: () => void;
-}): ReactNode {
-  const [open, setOpen] = useState(false);
-
-  if (memories.length === 0) return null;
-
-  return (
-    <div className="mt-5">
-      <div className="flex items-center">
-        <button
-          type="button"
-          onClick={() => setOpen((previous) => !previous)}
-          aria-expanded={open}
-          className={cn(
-            typeEyebrow,
-            "hover:text-foreground mt-0 mb-1 flex flex-1 items-center gap-1 px-2 transition-colors",
-          )}
-        >
-          <ChevronDownIcon
-            className={cn("size-3 transition-transform", !open && "-rotate-90")}
-          />
-          Memory ({memories.length})
-        </button>
-        <button
-          type="button"
-          onClick={onClear}
-          className="text-muted-foreground hover:text-foreground mb-1 px-2 text-[11px] transition-colors"
-        >
-          Forget all
-        </button>
-      </div>
-      {open ? (
-        <ul className="flex flex-col gap-0.5">
-          {memories.map((memory) => (
-            <li key={memory.id} className="group flex items-start gap-1 px-2">
-              <span className="text-muted-foreground flex-1 py-1 text-[13px] leading-snug">
-                {memory.text}
-              </span>
-              <button
-                type="button"
-                aria-label={`Forget "${memory.text}"`}
-                onClick={() => onForget(memory.id)}
-                className="text-muted-foreground/50 hover:text-foreground rounded-control grid size-6 shrink-0 place-items-center opacity-0 transition-opacity group-hover:opacity-100 focus-visible:opacity-100"
-              >
-                <XIcon className="size-3" />
-              </button>
-            </li>
-          ))}
-        </ul>
-      ) : null}
     </div>
   );
 }

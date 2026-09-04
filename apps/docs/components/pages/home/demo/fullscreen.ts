@@ -1,12 +1,12 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
-import { createPortal } from "react-dom";
-import { HomeThread } from "@/components/pages/home/home-thread";
-import { DocsRuntimeProvider } from "@/runtimes/docs";
-import Link from "next/link";
+import { useEffect, useRef, useState, type RefObject } from "react";
 
-export function ThreadSpecimen() {
+export function useFullscreenOverlay(): {
+  expanded: boolean;
+  toggle: () => void;
+  overlayRef: RefObject<HTMLDivElement | null>;
+} {
   const [expanded, setExpanded] = useState(false);
   const overlayRef = useRef<HTMLDivElement>(null);
 
@@ -86,42 +86,9 @@ export function ThreadSpecimen() {
     };
   }, [expanded]);
 
-  const thread = (
-    <HomeThread
-      expanded={expanded}
-      onToggleExpanded={() => setExpanded((prev) => !prev)}
-    />
-  );
-
-  return (
-    <section aria-label="Thread" className="flex flex-col gap-3">
-      <div className="border-foreground/10 rounded-document h-[min(52rem,88svh)] overflow-hidden border">
-        <DocsRuntimeProvider devtools={false} followUps>
-          {expanded
-            ? createPortal(
-                <div
-                  ref={overlayRef}
-                  role="dialog"
-                  aria-modal="true"
-                  aria-label="Thread fullscreen"
-                  tabIndex={-1}
-                  className="bg-background fixed inset-0 z-50 overflow-hidden outline-none"
-                >
-                  {thread}
-                </div>,
-                document.body,
-              )
-            : thread}
-        </DocsRuntimeProvider>
-      </div>
-      <div className="flex justify-end">
-        <Link
-          href="/examples"
-          className="text-muted-foreground hover:text-foreground text-[13px] transition-colors"
-        >
-          Explore other examples
-        </Link>
-      </div>
-    </section>
-  );
+  return {
+    expanded,
+    toggle: () => setExpanded((prev) => !prev),
+    overlayRef,
+  };
 }
