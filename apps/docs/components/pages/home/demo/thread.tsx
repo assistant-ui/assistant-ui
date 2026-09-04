@@ -96,11 +96,7 @@ export function Thread(): ReactNode {
           <ConversationBudget>
             <Composer />
             <AuiIf condition={isNewChatView}>
-              <div className="min-h-8">
-                <AuiIf condition={(s) => s.composer.isEmpty}>
-                  <Suggestions />
-                </AuiIf>
-              </div>
+              <Suggestions />
             </AuiIf>
           </ConversationBudget>
         </ThreadPrimitive.ViewportFooter>
