@@ -118,7 +118,7 @@ Use `CustomSource` in place of `Sources` in `MessagePrimitive.Parts`, or call it
 
 ### Favicon fallback
 
-When the favicon does not load, `Sources.Icon` shows the `E` domain initial. The demo sets `faviconUrl` to a path that does not exist:
+When the favicon fails to load, `Sources.Icon` falls back to the domain's first letter. The demo points `faviconUrl` at a path that does not resolve:
 
 <PreviewCode file="components/pages/docs/samples/sources/favicon-fallback" name="SourcesFaviconFallback">
   <SourcesFaviconFallbackSample />
