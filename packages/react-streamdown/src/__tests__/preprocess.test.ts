@@ -52,6 +52,16 @@ describe("rewriteLatexBracketDelimiters", () => {
     ).toBe("> quote \n> $$\n> a\n> b\n> $$\n> after");
   });
 
+  it("keeps relative indentation inside the body", () => {
+    expect(
+      rewriteLatexBracketDelimiters(
+        "- item \\[\n\\begin{aligned}\n  a &= b\n\\end{aligned}\n\\]\n- next",
+      ),
+    ).toBe(
+      "- item \n  $$\n  \\begin{aligned}\n    a &= b\n  \\end{aligned}\n  $$\n- next",
+    );
+  });
+
   it("keeps the block prefix when inline math precedes the match", () => {
     expect(
       rewriteLatexBracketDelimiters("- see \\(y\\) \\[\na\nb\n\\]\n- next"),

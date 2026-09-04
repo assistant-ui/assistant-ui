@@ -193,12 +193,20 @@ function emitDisplayMath(
   // is aligned to it.
   const prefix = continuationPrefix(lineHead(offset));
   const quoted = prefix.includes(">");
-  const lines = trimmed.split("\n").map((line) => {
-    // A line already inside the container keeps the spacing it was written
-    // with; `>a` and `> a` are the same blockquote.
-    if (line.startsWith(prefix)) return line;
+  const source_lines = trimmed.split("\n");
+  // Only the indentation the whole body shares is replaced by the container
+  // prefix, so an aligned block keeps its relative indentation.
+  const shared = Math.min(
+    ...source_lines
+      .filter((line) => line.trim() !== "")
+      .map((line) => /^[ \t]*/.exec(line)![0].length),
+  );
+  const lines = source_lines.map((line) => {
+    // A line already carrying the blockquote marker keeps the spacing it was
+    // written with; `>a` and `> a` are the same blockquote. Indentation alone
+    // is not that signal, since a body may legitimately be indented.
     if (quoted && /^[ \t]*>/.test(line)) return line;
-    return `${prefix}${line.trimStart()}`;
+    return `${prefix}${line.slice(shared)}`;
   });
 
   return `${lead}${prefix}$$\n${lines.join("\n")}\n${prefix}$$${tail}`;

@@ -95,8 +95,14 @@ export function searchContent(
   for (const token of all.slice(0, FALLBACK_TOKENS)) {
     for (const match of rank(records, [token], limit)) {
       const seen = perToken.get(match.url);
-      if (seen) seen.hits += 1;
-      else perToken.set(match.url, { match, hits: 1 });
+      if (!seen) {
+        perToken.set(match.url, { match, hits: 1 });
+        continue;
+      }
+      seen.hits += 1;
+      // A later token may be the one that matched prose, and its excerpt says
+      // more than the lead paragraph an earlier metadata match settled for.
+      if (match.excerpt && !seen.match.excerpt) seen.match = match;
     }
   }
 
