@@ -1,7 +1,7 @@
 import type { Redis } from "@upstash/redis";
 
-export const ANONYMOUS_CONVERSATIONS_PER_DAY = 3;
-export const SIGNED_IN_CONVERSATIONS_PER_DAY = 10;
+export const ANONYMOUS_CONVERSATIONS_PER_DAY = 10;
+export const SIGNED_IN_CONVERSATIONS_PER_DAY = 30;
 
 const DAY_MS = 24 * 60 * 60 * 1000;
 
