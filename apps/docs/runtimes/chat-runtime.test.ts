@@ -166,7 +166,6 @@ it("claims a stored anonymous token while switching to account history", async (
   const { result } = renderHook(() => useDocsCloud());
 
   expect(cloudStrategy(result.current.cloud)).toBe("jwt");
-  expect(cloudStrategy(result.current.cloud)).toBe("jwt");
   expect(result.current.claims).toBe(0);
   expect(fetchMock).toHaveBeenCalledWith("/api/demo/claim", {
     method: "POST",
@@ -191,7 +190,6 @@ it("switches without a claim when no anonymous token is stored", () => {
 
   const { result } = renderHook(() => useDocsCloud());
 
-  expect(cloudStrategy(result.current.cloud)).toBe("jwt");
   expect(cloudStrategy(result.current.cloud)).toBe("jwt");
   expect(fetchMock).not.toHaveBeenCalled();
 });
@@ -229,7 +227,6 @@ it.each([
 
     const { result, rerender } = renderHook(() => useDocsCloud());
 
-    expect(cloudStrategy(result.current.cloud)).toBe("jwt");
     expect(cloudStrategy(result.current.cloud)).toBe("jwt");
     await waitFor(() => expect(fetchMock).toHaveBeenCalledOnce());
     await new Promise((resolve) => setTimeout(resolve, 20));
