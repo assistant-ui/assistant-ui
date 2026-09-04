@@ -273,27 +273,34 @@ These two operations cover all complex state mutations: `set` for value updates 
 
 ### Wire format
 
-The response is a Server-Sent Events stream (`Content-Type: text/event-stream`). `AssistantTransportEncoder` writes one `data:` line per `AssistantStreamChunk`, JSON encoded, and a final `data: [DONE]` line when the stream completes. `AssistantTransportDecoder` stops at that marker and reports a stream that ends without it.
+`useAssistantTransportRuntime` speaks the data stream protocol by default (`protocol: "data-stream"`), which is what the reference backends above emit through `DataStreamResponse`.
+
+<Callout type="warn">
+The default wire format will migrate to Server-Sent Events (SSE) in a future release.
+</Callout>
+
+Inspired by [AI SDK's data stream protocol](https://sdk.vercel.ai/docs/ai-sdk-ui/stream-protocol).
 
 **state update:**
 
 ```
-data: {"type":"update-state","path":[],"operations":[{"type":"set","path":["status"],"value":"completed"}]}
-
+aui-state:[{"type":"set","path":["status"],"value":"completed"}]
 ```
 
 **error:**
 
 ```
-data: {"type":"error","path":[],"error":"error message"}
-
+3:"error message"
 ```
 
-**end of stream:**
+Pass `protocol: "assistant-transport"` to consume the SSE encoding that `AssistantTransportEncoder` produces today: one `data:` line per JSON encoded `AssistantStreamChunk` and a final `data: [DONE]` line, which `AssistantTransportDecoder` requires. Message-level chunks such as `update-state` and `error` carry no `path`; the decoder fills in an empty one.
 
 ```
+data: {"type":"update-state","operations":[{"type":"set","path":["status"],"value":"completed"}]}
+
+data: {"type":"error","error":"error message"}
+
 data: [DONE]
-
 ```
 
 ## Building a frontend
