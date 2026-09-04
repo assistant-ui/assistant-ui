@@ -6,6 +6,7 @@ import { useResource, resource, withKey } from "@assistant-ui/tap";
 import { liveRef } from "./liveRef";
 import type { ClientOutput } from "@assistant-ui/store";
 import {
+  unstable_allowClientMethodDuringCleanup,
   useAssistantEmit,
   useClientLookup,
   useClientResource,
@@ -72,6 +73,10 @@ const useThreadClient = ({
     () => liveRef(() => runtime.getState()!.threadId),
     [runtime],
   );
+  const cleanupSafeCancelRun = useMemo(
+    () => unstable_allowClientMethodDuringCleanup(runtime.cancelRun),
+    [runtime],
+  );
 
   const composer = useClientResource(
     ComposerClient({
@@ -119,7 +124,7 @@ const useThreadClient = ({
     startRun: runtime.startRun,
     resumeRun: runtime.resumeRun,
     importExternalState: runtime.importExternalState,
-    cancelRun: runtime.cancelRun,
+    cancelRun: cleanupSafeCancelRun,
     getModelContext: runtime.getModelContext,
     export: runtime.export,
     import: runtime.import,

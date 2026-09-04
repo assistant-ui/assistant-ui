@@ -7,6 +7,7 @@ import type {
 } from "./types/client";
 import { useAui } from "./useAui";
 import { useAuiState } from "./useAuiState";
+import { runClientRead } from "./useClientResource";
 
 type DerivedInstance<K extends ClientNames> = ReturnType<
   AssistantClientAccessor<K>
@@ -16,7 +17,7 @@ export const useDerived = <K extends ClientNames>({
   get,
 }: Derived.Props<K>): DerivedInstance<K> => {
   const aui = useAui();
-  return useAuiState(() => get(aui) as DerivedInstance<K>);
+  return useAuiState(() => runClientRead(() => get(aui)) as DerivedInstance<K>);
 };
 
 /**
