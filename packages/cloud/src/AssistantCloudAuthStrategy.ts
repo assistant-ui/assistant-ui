@@ -256,6 +256,10 @@ const readRefreshToken = (baseUrl: string): RefreshToken | undefined => {
   }
 };
 
+/** The refresh token of the anonymous identity this browser holds for `baseUrl`, or null when it has none. */
+export const readAnonymousRefreshToken = (baseUrl: string): string | null =>
+  readRefreshToken(baseUrl)?.token ?? null;
+
 const writeRefreshToken = (
   baseUrl: string,
   refreshToken: RefreshToken,
