@@ -202,7 +202,11 @@ All values can be set via CSS variables for dynamic control:
 | `--shimmer-repeat-delay` | Pause between cycles (ms) |
 
 ```tsx
-<div style={{ "--shimmer-track-width": containerWidth } as React.CSSProperties}>
+<div
+  style={
+    { "--shimmer-track-width": `${containerWidth}px` } as React.CSSProperties
+  }
+>
   <div className="shimmer shimmer-bg bg-muted h-4 w-full rounded" />
 </div>
 ```

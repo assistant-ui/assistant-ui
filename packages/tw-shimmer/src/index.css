@@ -121,9 +121,14 @@
   animation: tw-shimmer 1s linear 0s infinite backwards;
   animation-duration: calc((var(--_duration) + var(--_repeat-delay)) * 1ms);
 
+  @supports (-webkit-mask-clip: text) {
+    &:where(:not(.shimmer-bg)) {
+      position: relative;
+    }
+  }
+
   &:not(.shimmer-bg) {
     @supports (-webkit-mask-clip: text) {
-      position: relative;
       animation: none;
       background: none;
       -webkit-text-fill-color: currentColor;
@@ -140,26 +145,44 @@
         pointer-events: none;
         background: linear-gradient(
             calc(90deg + var(--shimmer-angle)),
-            transparent 0%,
-            color-mix(in oklch, var(--_overlay), transparent 96%) 6%,
-            color-mix(in oklch, var(--_overlay), transparent 83%) 13%,
-            color-mix(in oklch, var(--_overlay), transparent 67%) 19%,
-            color-mix(in oklch, var(--_overlay), transparent 50%) 25%,
-            color-mix(in oklch, var(--_overlay), transparent 33%) 31%,
-            color-mix(in oklch, var(--_overlay), transparent 17%) 38%,
-            color-mix(in oklch, var(--_overlay), transparent 4%) 44%,
+            transparent calc(50% - var(--_spread) * 0.5),
+            color-mix(in oklch, var(--_overlay), transparent 96%)
+              calc(50% - var(--_spread) * 0.44),
+            color-mix(in oklch, var(--_overlay), transparent 83%)
+              calc(50% - var(--_spread) * 0.37),
+            color-mix(in oklch, var(--_overlay), transparent 67%)
+              calc(50% - var(--_spread) * 0.31),
+            color-mix(in oklch, var(--_overlay), transparent 50%)
+              calc(50% - var(--_spread) * 0.25),
+            color-mix(in oklch, var(--_overlay), transparent 33%)
+              calc(50% - var(--_spread) * 0.19),
+            color-mix(in oklch, var(--_overlay), transparent 17%)
+              calc(50% - var(--_spread) * 0.12),
+            color-mix(in oklch, var(--_overlay), transparent 4%)
+              calc(50% - var(--_spread) * 0.06),
             var(--_overlay) 50%,
-            color-mix(in oklch, var(--_overlay), transparent 4%) 56%,
-            color-mix(in oklch, var(--_overlay), transparent 17%) 63%,
-            color-mix(in oklch, var(--_overlay), transparent 33%) 69%,
-            color-mix(in oklch, var(--_overlay), transparent 50%) 75%,
-            color-mix(in oklch, var(--_overlay), transparent 67%) 81%,
-            color-mix(in oklch, var(--_overlay), transparent 83%) 88%,
-            color-mix(in oklch, var(--_overlay), transparent 96%) 94%,
-            transparent 100%
+            color-mix(in oklch, var(--_overlay), transparent 4%)
+              calc(50% + var(--_spread) * 0.06),
+            color-mix(in oklch, var(--_overlay), transparent 17%)
+              calc(50% + var(--_spread) * 0.12),
+            color-mix(in oklch, var(--_overlay), transparent 33%)
+              calc(50% + var(--_spread) * 0.19),
+            color-mix(in oklch, var(--_overlay), transparent 50%)
+              calc(50% + var(--_spread) * 0.25),
+            color-mix(in oklch, var(--_overlay), transparent 67%)
+              calc(50% + var(--_spread) * 0.31),
+            color-mix(in oklch, var(--_overlay), transparent 83%)
+              calc(50% + var(--_spread) * 0.37),
+            color-mix(in oklch, var(--_overlay), transparent 96%)
+              calc(50% + var(--_spread) * 0.44),
+            transparent calc(50% + var(--_spread) * 0.5)
           )
           0 0 / var(--_gradient-width) 100% no-repeat;
-        will-change: translate;
+
+        @media (prefers-reduced-motion: no-preference) {
+          will-change: translate;
+        }
+
         animation: tw-shimmer-translate
           calc((var(--_duration) + var(--_repeat-delay)) * 1ms) linear infinite;
         animation-play-state: var(--_shimmer-play-state);
