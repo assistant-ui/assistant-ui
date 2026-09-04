@@ -70,6 +70,122 @@ describe("parseAgUiEvent", () => {
     expect(event).toBeNull();
   });
 
+  it.each([
+    ["RUN_STARTED", { type: "RUN_STARTED" }],
+    ["RUN_FINISHED", { type: "RUN_FINISHED" }],
+    ["TEXT_MESSAGE_CONTENT", { type: "TEXT_MESSAGE_CONTENT", delta: "" }],
+    [
+      "REASONING_ENCRYPTED_VALUE",
+      { type: "REASONING_ENCRYPTED_VALUE", encryptedValue: "blob" },
+    ],
+    [
+      "REASONING_ENCRYPTED_VALUE",
+      {
+        type: "REASONING_ENCRYPTED_VALUE",
+        entityId: "entity",
+        encryptedValue: "blob",
+        subtype: "other",
+      },
+    ],
+    ["TOOL_CALL_START", { type: "TOOL_CALL_START" }],
+    ["TOOL_CALL_ARGS", { type: "TOOL_CALL_ARGS" }],
+    ["TOOL_CALL_END", { type: "TOOL_CALL_END" }],
+    ["TOOL_CALL_RESULT", { type: "TOOL_CALL_RESULT" }],
+    ["ACTIVITY_SNAPSHOT", { type: "ACTIVITY_SNAPSHOT", content: {} }],
+    [
+      "ACTIVITY_SNAPSHOT",
+      { type: "ACTIVITY_SNAPSHOT", activityType: "mcp", content: "bad" },
+    ],
+    ["CUSTOM", { type: "CUSTOM" }],
+    ["SUBAGENT_STARTED", { type: "SUBAGENT_STARTED", name: "worker" }],
+    ["SUBAGENT_STARTED", { type: "SUBAGENT_STARTED", subagentRunId: "sub-1" }],
+    ["SUBAGENT_FINISHED", { type: "SUBAGENT_FINISHED" }],
+    ["SUBAGENT_ERROR", { type: "SUBAGENT_ERROR", message: "boom" }],
+    ["SUBAGENT_ERROR", { type: "SUBAGENT_ERROR", subagentRunId: "sub-1" }],
+  ])("logs rejected %s events", (type, payload) => {
+    const debug = vi.fn();
+
+    expect(parseAgUiEvent(payload, { logger: { debug } as any })).toBeNull();
+    expect(debug).toHaveBeenCalledTimes(1);
+    expect(debug).toHaveBeenCalledWith(expect.stringContaining(type), payload);
+  });
+
+  it("logs top-level events without an object or string type", () => {
+    const debug = vi.fn();
+    const logger = { debug } as any;
+
+    expect(parseAgUiEvent(null, { logger })).toBeNull();
+    expect(parseAgUiEvent({ type: 42 }, { logger })).toBeNull();
+
+    expect(debug).toHaveBeenNthCalledWith(
+      1,
+      expect.stringContaining("unknown"),
+      null,
+    );
+    expect(debug).toHaveBeenNthCalledWith(
+      2,
+      expect.stringContaining("unknown"),
+      { type: 42 },
+    );
+  });
+
+  it("keeps TEXT_MESSAGE_START messageId optional", () => {
+    const debug = vi.fn();
+
+    expect(
+      parseAgUiEvent(
+        { type: "TEXT_MESSAGE_START" },
+        { logger: { debug } as any },
+      ),
+    ).toEqual({ type: "TEXT_MESSAGE_START" });
+    expect(debug).not.toHaveBeenCalled();
+  });
+
+  it("rejects malformed message snapshots without rejecting empty snapshots", () => {
+    const debug = vi.fn();
+    expect(
+      parseAgUiEvent(
+        { type: "MESSAGES_SNAPSHOT", messages: {} },
+        { logger: { debug } as any },
+      ),
+    ).toBeNull();
+    expect(debug).toHaveBeenCalledTimes(1);
+    expect(debug).toHaveBeenCalledWith(
+      expect.stringMatching(/MESSAGES_SNAPSHOT missing messages/),
+      { type: "MESSAGES_SNAPSHOT", messages: {} },
+    );
+    expect(parseAgUiEvent({ type: "MESSAGES_SNAPSHOT" })).toBeNull();
+    expect(parseAgUiEvent({ type: "MESSAGES_SNAPSHOT", messages: [] })).toEqual(
+      { type: "MESSAGES_SNAPSHOT", messages: [] },
+    );
+  });
+
+  it("rejects state snapshots without a snapshot while accepting null", () => {
+    const debug = vi.fn();
+    expect(
+      parseAgUiEvent({ type: "STATE_SNAPSHOT" }, { logger: { debug } as any }),
+    ).toBeNull();
+    expect(
+      parseAgUiEvent(
+        { type: "STATE_SNAPSHOT", snapshot: undefined },
+        { logger: { debug } as any },
+      ),
+    ).toBeNull();
+    expect(debug).toHaveBeenCalledTimes(2);
+    expect(debug).toHaveBeenNthCalledWith(
+      1,
+      expect.stringMatching(/STATE_SNAPSHOT missing snapshot/),
+      { type: "STATE_SNAPSHOT" },
+    );
+    expect(
+      parseAgUiEvent({ type: "STATE_SNAPSHOT", snapshot: { count: 1 } }),
+    ).toEqual({ type: "STATE_SNAPSHOT", snapshot: { count: 1 } });
+    expect(parseAgUiEvent({ type: "STATE_SNAPSHOT", snapshot: null })).toEqual({
+      type: "STATE_SNAPSHOT",
+      snapshot: null,
+    });
+  });
+
   it("parses reasoning content with optional message id", () => {
     const event = parseAgUiEvent({
       type: "REASONING_MESSAGE_CONTENT",
@@ -246,21 +362,120 @@ describe("parseAgUiEvent", () => {
     expect(event).toEqual({ type: "RUN_FINISHED", runId: "r1" });
   });
 
-  it("logs a debug entry when interrupt outcome falls back silently", () => {
+  it("logs malformed interrupts when interrupt outcome falls back", () => {
     const debug = vi.fn();
+    const invalidInterrupts = [{ id: "" }, { reason: "" }];
     parseAgUiEvent(
       {
         type: "RUN_FINISHED",
         runId: "r1",
         outcome: {
           type: "interrupt",
-          interrupts: [{ id: "" }, { reason: "" }],
+          interrupts: invalidInterrupts,
         },
       },
       { logger: { debug } as any },
     );
+    expect(debug).toHaveBeenCalledTimes(3);
+    expect(debug).toHaveBeenNthCalledWith(
+      1,
+      expect.stringContaining("RUN_FINISHED"),
+      { runId: "r1", interrupt: invalidInterrupts[0] },
+    );
+    expect(debug).toHaveBeenNthCalledWith(
+      2,
+      expect.stringContaining("RUN_FINISHED"),
+      { runId: "r1", interrupt: invalidInterrupts[1] },
+    );
+    expect(debug).toHaveBeenNthCalledWith(
+      3,
+      expect.stringMatching(/no valid interrupts/),
+      { runId: "r1", interrupts: invalidInterrupts },
+    );
+  });
+
+  it("logs each malformed interrupt in a mixed RUN_FINISHED outcome", () => {
+    const debug = vi.fn();
+    const invalidInterrupt = { id: "int-2" };
+    const event = parseAgUiEvent(
+      {
+        type: "RUN_FINISHED",
+        runId: "r1",
+        outcome: {
+          type: "interrupt",
+          interrupts: [{ id: "int-1", reason: "tool_call" }, invalidInterrupt],
+        },
+      },
+      { logger: { debug } as any },
+    );
+
+    expect(event).toEqual({
+      type: "RUN_FINISHED",
+      runId: "r1",
+      outcome: {
+        type: "interrupt",
+        interrupts: [{ id: "int-1", reason: "tool_call" }],
+      },
+    });
     expect(debug).toHaveBeenCalledTimes(1);
-    expect(debug.mock.calls[0][0]).toMatch(/no valid interrupts/);
+    expect(debug).toHaveBeenCalledWith(
+      expect.stringContaining("RUN_FINISHED"),
+      { runId: "r1", interrupt: invalidInterrupt },
+    );
+  });
+
+  it("logs malformed and unsupported RUN_FINISHED outcomes", () => {
+    const debug = vi.fn();
+    const invalidOutcome = "success";
+    const unsupportedOutcome = { type: "bogus" };
+
+    expect(
+      parseAgUiEvent(
+        { type: "RUN_FINISHED", runId: "r1", outcome: invalidOutcome },
+        { logger: { debug } as any },
+      ),
+    ).toEqual({ type: "RUN_FINISHED", runId: "r1" });
+    expect(
+      parseAgUiEvent(
+        {
+          type: "RUN_FINISHED",
+          runId: "r2",
+          outcome: unsupportedOutcome,
+        },
+        { logger: { debug } as any },
+      ),
+    ).toEqual({ type: "RUN_FINISHED", runId: "r2" });
+
+    expect(debug).toHaveBeenCalledTimes(2);
+    expect(debug).toHaveBeenNthCalledWith(
+      1,
+      expect.stringContaining("RUN_FINISHED"),
+      { runId: "r1", outcome: invalidOutcome },
+    );
+    expect(debug).toHaveBeenNthCalledWith(
+      2,
+      expect.stringContaining("RUN_FINISHED"),
+      { runId: "r2", outcome: unsupportedOutcome },
+    );
+  });
+
+  it("reads a null outcome as an absent one", () => {
+    const debug = vi.fn();
+
+    expect(
+      parseAgUiEvent(
+        { type: "RUN_FINISHED", runId: "r1", outcome: null },
+        { logger: { debug } as any },
+      ),
+    ).toEqual({ type: "RUN_FINISHED", runId: "r1" });
+    expect(
+      parseAgUiEvent(
+        { type: "SUBAGENT_FINISHED", subagentRunId: "sub-1", outcome: null },
+        { logger: { debug } as any },
+      ),
+    ).toEqual({ type: "SUBAGENT_FINISHED", subagentRunId: "sub-1" });
+
+    expect(debug).not.toHaveBeenCalled();
   });
 
   it("parses subagentRunId on TEXT_MESSAGE_START/CONTENT/END", () => {
@@ -550,6 +765,40 @@ describe("parseAgUiEvent", () => {
       subagentRunId: "sub-1",
       outcome: { type: "suspended", interruptIds: ["i1"] },
     });
+  });
+
+  it("logs malformed and unsupported SUBAGENT_FINISHED outcomes", () => {
+    const debug = vi.fn();
+    const invalidEvent = {
+      type: "SUBAGENT_FINISHED",
+      subagentRunId: "sub-1",
+      outcome: "success",
+    };
+    const unsupportedEvent = {
+      type: "SUBAGENT_FINISHED",
+      subagentRunId: "sub-2",
+      outcome: { type: "bogus" },
+    };
+
+    expect(parseAgUiEvent(invalidEvent, { logger: { debug } as any })).toEqual({
+      type: "SUBAGENT_FINISHED",
+      subagentRunId: "sub-1",
+    });
+    expect(
+      parseAgUiEvent(unsupportedEvent, { logger: { debug } as any }),
+    ).toEqual({ type: "SUBAGENT_FINISHED", subagentRunId: "sub-2" });
+
+    expect(debug).toHaveBeenCalledTimes(2);
+    expect(debug).toHaveBeenNthCalledWith(
+      1,
+      expect.stringContaining("SUBAGENT_FINISHED"),
+      { subagentRunId: "sub-1", outcome: invalidEvent.outcome },
+    );
+    expect(debug).toHaveBeenNthCalledWith(
+      2,
+      expect.stringContaining("SUBAGENT_FINISHED"),
+      { subagentRunId: "sub-2", outcome: unsupportedEvent.outcome },
+    );
   });
 
   it("parses SUBAGENT_ERROR", () => {

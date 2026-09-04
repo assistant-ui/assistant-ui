@@ -8,7 +8,11 @@ import {
   useState,
   type ReactNode,
 } from "react";
-import type { McpAppMetadata, ToolCallMessagePart } from "@assistant-ui/core";
+import type {
+  McpAppMetadata,
+  TextMessagePart,
+  ToolCallMessagePart,
+} from "@assistant-ui/core";
 import type {
   ToolCallMessagePartComponent,
   ToolCallMessagePartProps,
@@ -137,14 +141,38 @@ const defaultOpenLink = ({ url }: { url: string }) => {
   window.open(url, "_blank", "noopener,noreferrer");
 };
 
-function extractSendMessageText(params: unknown): string | undefined {
-  if (typeof params === "string") return params;
+function extractSendMessageTexts(params: unknown): string[] | undefined {
+  if (typeof params === "string") return [params];
   if (!params || typeof params !== "object") return undefined;
   const obj = params as Record<string, unknown>;
-  if (typeof obj["prompt"] === "string") return obj["prompt"];
-  if (typeof obj["text"] === "string") return obj["text"];
-  if (typeof obj["message"] === "string") return obj["message"];
+  if (typeof obj["prompt"] === "string") return [obj["prompt"]];
+  if (typeof obj["text"] === "string") return [obj["text"]];
+  if (typeof obj["message"] === "string") return [obj["message"]];
+  if (Array.isArray(obj["content"])) {
+    return obj["content"]
+      .filter(
+        (block): block is { type: "text"; text: string } =>
+          isRecord(block) &&
+          block["type"] === "text" &&
+          typeof block["text"] === "string",
+      )
+      .map((block) => block.text);
+  }
   return undefined;
+}
+
+function extractSendMessageContent(
+  params: unknown,
+): { content: TextMessagePart[] } | { reason: string } {
+  const texts = extractSendMessageTexts(params);
+  if (!texts) return { reason: "unrecognised params shape" };
+  const content = texts
+    .filter((text) => text !== "")
+    .map((text): TextMessagePart => ({ type: "text", text }));
+  if (content.length === 0) {
+    return { reason: "no text content to append" };
+  }
+  return { content };
 }
 
 function resolvePartOptions(
@@ -194,12 +222,16 @@ function InlineRenderer({
     const targetUri = resourceUri;
     const targetServerId = serverId;
 
-    targetHost
-      .loadResource({
-        uri: targetUri,
-        ...(targetServerId ? { serverId: targetServerId } : {}),
-      })
-      .then((res) => {
+    // Host changes are published later in this passive flush. Defer until that
+    // publication lands, then verify this effect still owns the current host.
+    const loadResource = async () => {
+      await Promise.resolve();
+      if (cancelled || useRendererStore.getState().host !== targetHost) return;
+      try {
+        const res = await targetHost.loadResource({
+          uri: targetUri,
+          ...(targetServerId ? { serverId: targetServerId } : {}),
+        });
         if (!cancelled)
           setLoadedResource({
             host: targetHost,
@@ -209,8 +241,7 @@ function InlineRenderer({
               : {}),
             resource: res,
           });
-      })
-      .catch((error: unknown) => {
+      } catch (error: unknown) {
         if (!cancelled) {
           setLoadedResource({
             host: targetHost,
@@ -221,12 +252,14 @@ function InlineRenderer({
             error: error instanceof Error ? error : new Error(String(error)),
           });
         }
-      });
+      }
+    };
+    void loadResource();
 
     return () => {
       cancelled = true;
     };
-  }, [host, resourceUri, serverId]);
+  }, [host, resourceUri, serverId, useRendererStore]);
 
   const bridgeHandlers = useMemo<McpAppBridgeHandlers>(
     () => ({
@@ -235,9 +268,11 @@ function InlineRenderer({
       sendMessage:
         callerHandlers?.sendMessage ??
         ((params) => {
-          const text = extractSendMessageText(params);
-          if (!text) return { ok: false, reason: "unrecognised params shape" };
-          aui.thread.append({ content: [{ type: "text", text }] });
+          const result = extractSendMessageContent(params);
+          if ("reason" in result) {
+            return { isError: true, ok: false, reason: result.reason };
+          }
+          aui.thread.append({ content: result.content });
           return { ok: true };
         }),
       callTool: (params) =>

@@ -2,6 +2,7 @@ import type {
   MessageStatus,
   SourceProviderMetadata,
   ThreadMessage,
+  ToolApprovalDisplay,
   ToolApprovalOption,
 } from "../../../types/message";
 import type { CompleteAttachment } from "../../../types/attachment";
@@ -16,11 +17,15 @@ import type { ExportedMessageRepositoryItem } from "../../../runtime/utils/messa
 
 type AuiV0ToolApproval = {
   readonly id: string;
+  readonly prompt?: string;
+  readonly display?: ToolApprovalDisplay;
+  readonly allowFreeform?: boolean;
   readonly approved?: boolean;
   readonly reason?: string;
   readonly isAutomatic?: boolean;
   readonly options?: readonly ToolApprovalOption[];
   readonly optionId?: string;
+  readonly text?: string;
   readonly resolution?: "cancelled" | "expired";
 };
 

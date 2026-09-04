@@ -260,6 +260,7 @@ export function useAgUiRuntime(
         onRespondToToolApproval: (options) =>
           core.respondToToolApproval(options).catch((error: unknown) => {
             core.reportError(error);
+            throw error;
           }),
         onResume: (config) => core.resume(config),
         setMessages: (messages: readonly ThreadMessage[]) =>

@@ -1,4 +1,7 @@
-import type { ThreadListRuntimeCore } from "../../runtime/interfaces/thread-list-runtime-core";
+import type {
+  ThreadListRuntimeCore,
+  ThreadListRuntimeEvent,
+} from "../../runtime/interfaces/thread-list-runtime-core";
 import {
   BaseSubscribable,
   WritableSubscribable,
@@ -7,6 +10,7 @@ import { useSubscribable } from "../../store/runtime-clients/useSubscribable";
 import { OptimisticState } from "../../runtimes/remote-thread-list/optimistic-state";
 import { EMPTY_THREAD_CORE } from "../../runtimes/remote-thread-list/empty-thread-core";
 import type {
+  ClassifyAccumulator,
   RemoteThreadData,
   RemoteThreadState,
 } from "../../runtimes/remote-thread-list/remote-thread-state";
@@ -151,8 +155,8 @@ export class RemoteThreadListThreadListRuntimeCore
             const fresh = classifyThreads(l.threads, {
               threadIds: [],
               archivedThreadIds: [],
-              threadIdMap: {},
-              threadData: {},
+              threadIdMap: { ...state.threadIdMap },
+              threadData: { ...state.threadData },
             });
             const merged = {
               ...state,
@@ -160,8 +164,8 @@ export class RemoteThreadListThreadListRuntimeCore
               cursor: normalizeCursor(l.nextCursor),
               threadIds: fresh.threadIds,
               archivedThreadIds: fresh.archivedThreadIds,
-              threadIdMap: { ...state.threadIdMap, ...fresh.threadIdMap },
-              threadData: { ...state.threadData, ...fresh.threadData },
+              threadIdMap: fresh.threadIdMap,
+              threadData: fresh.threadData,
             };
             return preserveMidLoadTransitions(merged, state, statusAtRequest);
           },
@@ -341,24 +345,11 @@ export class RemoteThreadListThreadListRuntimeCore
     threads: readonly RemoteThreadMetadata[],
     cursor: string | undefined,
   ): RemoteThreadState {
-    const fresh = classifyThreads(threads, {
-      threadIds: [],
-      archivedThreadIds: [],
-      threadIdMap: {},
-      threadData: {},
-    });
-    const threadIdMap = { ...fresh.threadIdMap };
-    const threadData = { ...fresh.threadData };
-    const threadIds = [...fresh.threadIds];
-    const archivedThreadIds = [...fresh.archivedThreadIds];
-
+    const carried: RemoteThreadData[] = [];
     if (state.newThreadId) {
       const mappingId = state.threadIdMap[state.newThreadId];
       const draft = mappingId ? state.threadData[mappingId] : undefined;
-      if (draft?.status === "new") {
-        threadIdMap[state.newThreadId] = mappingId!;
-        threadData[mappingId!] = draft;
-      }
+      if (draft?.status === "new") carried.push(draft);
     }
 
     const stale = this._staleThreadIdsOnReplace;
@@ -366,25 +357,43 @@ export class RemoteThreadListThreadListRuntimeCore
       for (const item of Object.values(state.threadData)) {
         if (stale.has(item.id)) continue;
         if (item.status !== "new" && item.remoteId === undefined) continue;
-        const mappingId = createThreadMappingId(item.id);
-        if (threadData[mappingId]) continue;
-        threadIdMap[item.id] = mappingId;
-        if (item.remoteId !== undefined) {
-          threadIdMap[item.remoteId] = mappingId;
-        }
-        threadData[mappingId] = item;
-        if (item.remoteId === undefined) continue;
-        if (item.status === "regular" && !threadIds.includes(item.remoteId)) {
-          threadIds.push(item.remoteId);
-        } else if (
-          item.status === "archived" &&
-          !archivedThreadIds.includes(item.remoteId)
-        ) {
-          archivedThreadIds.push(item.remoteId);
-        }
+        carried.push(item);
       }
     }
     this._staleThreadIdsOnReplace = undefined;
+
+    const seed: ClassifyAccumulator = {
+      threadIds: [],
+      archivedThreadIds: [],
+      threadIdMap: {},
+      threadData: {},
+    };
+    for (const item of carried) {
+      const mappingId = createThreadMappingId(item.id);
+      if (seed.threadData[mappingId]) continue;
+      seed.threadIdMap[item.id] = mappingId;
+      if (item.remoteId !== undefined) {
+        seed.threadIdMap[item.remoteId] = mappingId;
+      }
+      seed.threadData[mappingId] = item;
+    }
+
+    const { threadIds, archivedThreadIds, threadIdMap, threadData } =
+      classifyThreads(threads, seed);
+
+    for (const item of carried) {
+      if (item.remoteId === undefined) continue;
+      const current = threadData[createThreadMappingId(item.id)];
+      if (current === undefined) continue;
+      if (current.status === "regular" && !threadIds.includes(current.id)) {
+        threadIds.push(current.id);
+      } else if (
+        current.status === "archived" &&
+        !archivedThreadIds.includes(current.id)
+      ) {
+        archivedThreadIds.push(current.id);
+      }
+    }
 
     let nextState: RemoteThreadState = {
       ...state,
@@ -559,6 +568,12 @@ export class RemoteThreadListThreadListRuntimeCore
     return this._hookManager.__internal_isThreadRunning(data.id);
   }
 
+  public unstable_subscribeThreadEvents(
+    callback: (event: ThreadListRuntimeEvent) => void,
+  ) {
+    return this._hookManager.__internal_subscribeThreadEvents(callback);
+  }
+
   public getItemById(threadIdOrRemoteId: string) {
     return getThreadData(this._state.value, threadIdOrRemoteId);
   }
@@ -633,9 +648,8 @@ export class RemoteThreadListThreadListRuntimeCore
       // A concurrent `list()` may already have placed this thread; keep that
       // position and only merge metadata. A genuinely absent thread stays
       // appended: it may live on an unloaded page, and a prepend would pin it
-      // above newer threads permanently since `classifyThreads` skips ids it
-      // has already seen. Filtering both arrays first still prevents
-      // duplication or a wrong-status entry from `list()`.
+      // above newer threads permanently. Filtering both arrays first still
+      // prevents duplication or a wrong-status entry from `list()`.
       const remoteId = remoteMetadata.remoteId;
       const wasInTarget =
         remoteMetadata.status === "regular"
@@ -688,11 +702,22 @@ export class RemoteThreadListThreadListRuntimeCore
 
     if (generation !== this._switchGeneration) return;
 
-    if (data.status === "archived" && options?.unarchive !== false) {
-      await this.unarchive(data.id);
+    let current = this.getItemById(data.id);
+    if (current?.id !== data.id) return;
+
+    if (current.status === "archived" && options?.unarchive !== false) {
+      await current.initializeTask;
       if (generation !== this._switchGeneration) return;
+      current = this.getItemById(data.id);
+      if (current?.id !== data.id) return;
+      if (current.status === "archived") {
+        await this.unarchive(current.id);
+        if (generation !== this._switchGeneration) return;
+        current = this.getItemById(data.id);
+        if (current?.id !== data.id) return;
+      }
     }
-    this._mainThreadId = data.id;
+    this._mainThreadId = current.id;
 
     this._notifySubscribers();
     this._notifyThreadIdChange(emitThreadIdChange);
@@ -780,21 +805,36 @@ export class RemoteThreadListThreadListRuntimeCore
         if (!data) return state;
 
         const mappingId = createThreadMappingId(threadId);
+        // A list() response that landed while this initialize was in flight
+        // could not know the remote id yet, so it may have minted its own slot
+        // for it; that slot collapses into this one.
+        const listedMappingId = state.threadIdMap[remoteId];
+        const orphan =
+          listedMappingId !== undefined && listedMappingId !== mappingId
+            ? state.threadData[listedMappingId]
+            : undefined;
+
+        const threadData = { ...state.threadData };
+        if (orphan !== undefined) delete threadData[listedMappingId!];
+        threadData[mappingId] = {
+          ...data,
+          initializeTask: Promise.resolve({ remoteId, externalId }),
+          remoteId,
+          externalId,
+        } as RemoteThreadData;
+
+        const rewire = (ids: readonly string[]) =>
+          orphan === undefined ? ids : ids.filter((id) => id !== orphan.id);
+
         return {
           ...state,
+          threadIds: rewire(state.threadIds),
+          archivedThreadIds: rewire(state.archivedThreadIds),
           threadIdMap: {
             ...state.threadIdMap,
             [remoteId]: mappingId,
           },
-          threadData: {
-            ...state.threadData,
-            [mappingId]: {
-              ...data,
-              initializeTask: Promise.resolve({ remoteId, externalId }),
-              remoteId,
-              externalId,
-            },
-          },
+          threadData,
         };
       },
     });

@@ -20,6 +20,13 @@ const PUBLISHED_FIELDS = [
 const WORKSPACE_PROTOCOL = "workspace:";
 const REQUIRED_PROTOCOL = "workspace:^";
 
+const HOST_SUPPLIED_PEERS = new Set([
+  "@assistant-ui/react",
+  "@assistant-ui/react-ink",
+  "@assistant-ui/react-markdown",
+  "assistant-cloud",
+]);
+
 function readWorkspaceManifests(root) {
   const globs = parseWorkspaceGlobs(
     readFileSync(path.join(root, "pnpm-workspace.yaml"), "utf8"),
@@ -69,16 +76,34 @@ export function findNarrowWorkspaceRanges(manifests) {
   return problems;
 }
 
+export function findDriftingPeerRanges(manifests) {
+  const workspaceNames = new Set(manifests.map(({ pkg }) => pkg.name));
+  const problems = [];
+  for (const { manifest, pkg } of manifests) {
+    if (pkg.private === true) continue;
+    for (const [dependency, range] of Object.entries(
+      pkg.peerDependencies ?? {},
+    )) {
+      if (!workspaceNames.has(dependency)) continue;
+      if (HOST_SUPPLIED_PEERS.has(dependency)) continue;
+      if (range === REQUIRED_PROTOCOL) continue;
+      problems.push({ manifest, name: pkg.name, dependency, range });
+    }
+  }
+  return problems;
+}
+
 export function runCheck(root = repoRoot) {
   const manifests = readWorkspaceManifests(root);
   return {
     packageCount: manifests.length,
     problems: findNarrowWorkspaceRanges(manifests),
+    drifting: findDriftingPeerRanges(manifests),
   };
 }
 
 function main() {
-  const { packageCount, problems } = runCheck(
+  const { packageCount, problems, drifting } = runCheck(
     process.env.WORKSPACE_RANGE_CHECK_ROOT,
   );
 
@@ -110,11 +135,59 @@ function main() {
     console.error(
       `\nDeclare the dependency as \`${REQUIRED_PROTOCOL}\`, which publishes as \`^<version>\`, or as a literal \`^\` range.`,
     );
-    process.exit(1);
   }
 
+  if (drifting.length > 0) {
+    if (problems.length > 0) console.error("");
+    console.error(
+      "Published packages declare a peerDependency on a package this workspace releases with a range",
+    );
+    console.error("nothing keeps current:\n");
+    for (const { manifest, name, dependency, range } of drifting) {
+      console.error(
+        `  ${manifest}: "${name}" peerDependencies["${dependency}"] is "${range}"`,
+      );
+    }
+    console.error(
+      "\n`.changeset/config.json` sets `onlyUpdatePeerDependentsWhenOutOfRange`, so `changeset version`",
+    );
+    console.error(
+      "rewrites a peer range only when the new version falls outside it. Every ordinary dependency range",
+    );
+    console.error(
+      "moves on each internal patch under `updateInternalDependencies`, so a hand-written peer floor is the",
+    );
+    console.error(
+      "one published range left behind: it stays where it was typed while the code goes on to import",
+    );
+    console.error(
+      "symbols and subpaths that version never shipped, and scripts/check-changeset-semver.mjs reads the",
+    );
+    console.error("stale number when it computes the release cascade.");
+    console.error(
+      `\nDeclare the dependency as \`${REQUIRED_PROTOCOL}\`, which publishes as \`^<the version released`,
+    );
+    console.error(
+      "alongside it>`. A package this workspace releases reaches a consumer through a distribution package",
+    );
+    console.error(
+      "rather than a direct install, so lock-step is the truth and the protocol is the default here.",
+    );
+    console.error(
+      `\nThe exemptions are the peers a consumer installs themselves, which keep a wide floor raised only`,
+    );
+    console.error(
+      `when the code requires a newer API: ${[...HOST_SUPPLIED_PEERS].join(", ")}. A new peer on a package`,
+    );
+    console.error(
+      "this workspace releases is enforced by default; add it there only when the consumer owns its install.",
+    );
+  }
+
+  if (problems.length > 0 || drifting.length > 0) process.exit(1);
+
   console.log(
-    `All published workspace dependencies deduplicate. (${packageCount} packages scanned)`,
+    `All published workspace dependencies deduplicate and every first-party peer tracks the release train. (${packageCount} packages scanned)`,
   );
 }
 

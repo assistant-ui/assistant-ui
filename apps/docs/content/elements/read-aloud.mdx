@@ -122,14 +122,14 @@ If you're using the browser's native speech synthesis, its utterance fires a bou
   <p>{/* words, the spoken one highlighted */}</p>
   <div>
     <button aria-label="Play" />
-    <span>{/* progress bar, width = spokenIndex / words.length */}</span>
+    <span role="progressbar">{/* progress bar, width = spokenIndex / words.length */}</span>
     <span>{/* elapsed / duration */}</span>
     <button>{/* rate, e.g. 1x */}</button>
   </div>
 </div>
 ```
 
-Progress is computed purely from `spokenIndex` divided by `words.length`, there's no separate progress prop, so the bar and the highlighted word always agree. Words before `spokenIndex` dim, the current word gets a highlight background, and the rest stay at full opacity, so `spokenIndex` alone determines all three states across the whole sentence.
+Progress is computed purely from `spokenIndex` divided by `words.length`, there's no separate progress prop, so the bar and the highlighted word always agree. The bar is a named progressbar with a `0…100` value matching that width, and its value text reads the same `elapsed` and `duration` the row prints. Words before `spokenIndex` dim, the current word gets a highlight background, and the rest stay at full opacity, so `spokenIndex` alone determines all three states across the whole sentence.
 
 ## Examples
 

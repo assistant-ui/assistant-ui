@@ -119,18 +119,20 @@ export class CloudChatCore {
 
     if (this.titlePolicy.shouldGenerateTitle(threadId, messages)) {
       this.titlePolicy.markTitleGenerationStarted(threadId);
-      void this.options.threads.generateTitle(threadId).then(
-        (title) => {
-          if (title) {
-            this.titlePolicy.markTitleGenerated(threadId);
-          } else {
+      void this.options.threads
+        .generateTitle(threadId, { automatic: true })
+        .then(
+          (title) => {
+            if (title) {
+              this.titlePolicy.markTitleGenerated(threadId);
+            } else {
+              this.titlePolicy.markTitleGenerationFailed(threadId);
+            }
+          },
+          () => {
             this.titlePolicy.markTitleGenerationFailed(threadId);
-          }
-        },
-        () => {
-          this.titlePolicy.markTitleGenerationFailed(threadId);
-        },
-      );
+          },
+        );
     }
   }
 

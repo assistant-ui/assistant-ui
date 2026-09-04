@@ -47,26 +47,29 @@ export const LOCAL_THREAD_ID_PREFIX = "__LOCALID_";
 export const normalizeCursor = (c: string | undefined): string | undefined =>
   c || undefined;
 
-type ClassifyAccumulator = {
+export type ClassifyAccumulator = {
   threadIds: string[];
   archivedThreadIds: string[];
   threadIdMap: Record<string, THREAD_MAPPING_ID>;
   threadData: Record<THREAD_MAPPING_ID, RemoteThreadData>;
 };
 
+// A slot's `id` is fixed when it is minted: the hook instance manager keys live
+// thread runtimes by it, so renaming a slot would detach the runtime the user is
+// chatting in. A listed thread whose `remoteId` already maps to a slot therefore
+// refreshes that slot instead of minting a second one, and a slot minted by a
+// list() that raced ahead of the remote id collapses when `initialize()` settles.
+// `threadIds`/`archivedThreadIds` carry slot ids, never remote ids.
 export const classifyThreads = (
   threads: readonly RemoteThreadMetadata[],
   acc: ClassifyAccumulator,
 ): ClassifyAccumulator => {
-  for (const thread of threads) {
-    if (acc.threadIdMap[thread.remoteId] !== undefined) continue;
+  const listed = new Set([...acc.threadIds, ...acc.archivedThreadIds]);
 
+  for (const thread of threads) {
     switch (thread.status) {
       case "regular":
-        acc.threadIds.push(thread.remoteId);
-        break;
       case "archived":
-        acc.archivedThreadIds.push(thread.remoteId);
         break;
       default: {
         const _exhaustiveCheck: never = thread.status;
@@ -74,20 +77,52 @@ export const classifyThreads = (
       }
     }
 
-    const mappingId = createThreadMappingId(thread.remoteId);
+    const existingMappingId = acc.threadIdMap[thread.remoteId];
+    const existing =
+      existingMappingId !== undefined
+        ? acc.threadData[existingMappingId]
+        : undefined;
+    const id = existing?.id ?? thread.remoteId;
+    const mappingId = existingMappingId ?? createThreadMappingId(id);
+    const existingTask =
+      existing !== undefined && existing.status !== "new"
+        ? existing.initializeTask
+        : undefined;
+
+    if (!listed.has(id)) {
+      listed.add(id);
+      if (thread.status === "regular") {
+        acc.threadIds.push(id);
+      } else {
+        acc.archivedThreadIds.push(id);
+      }
+    } else if (existing !== undefined && existing.status !== thread.status) {
+      if (thread.status === "regular") {
+        acc.archivedThreadIds = acc.archivedThreadIds.filter((t) => t !== id);
+        acc.threadIds.push(id);
+      } else {
+        acc.threadIds = acc.threadIds.filter((t) => t !== id);
+        acc.archivedThreadIds.push(id);
+      }
+    }
+
+    acc.threadIdMap[id] = mappingId;
     acc.threadIdMap[thread.remoteId] = mappingId;
     acc.threadData[mappingId] = {
-      id: thread.remoteId,
+      ...(existing?.localOrigin === true ? { localOrigin: true as const } : {}),
+      id,
       remoteId: thread.remoteId,
       externalId: thread.externalId,
       status: thread.status,
       title: thread.title,
       lastMessageAt: thread.lastMessageAt,
       custom: thread.custom,
-      initializeTask: Promise.resolve({
-        remoteId: thread.remoteId,
-        externalId: thread.externalId,
-      }),
+      initializeTask:
+        existingTask ??
+        Promise.resolve({
+          remoteId: thread.remoteId,
+          externalId: thread.externalId,
+        }),
     };
   }
   return acc;
@@ -238,7 +273,7 @@ export const updateStatusReducer = (
   const data = getThreadData(state, threadIdOrRemoteId);
   if (!data) return state;
 
-  const { id, remoteId, status: lastStatus } = data;
+  const { id, status: lastStatus } = data;
   if (lastStatus === newStatus) return state;
 
   const newState = { ...state };
@@ -273,16 +308,20 @@ export const updateStatusReducer = (
       newState.archivedThreadIds = [id, ...newState.archivedThreadIds];
       break;
 
-    case "deleted":
+    case "deleted": {
+      const mappingId = state.threadIdMap[threadIdOrRemoteId]!;
       newState.threadData = Object.fromEntries(
-        Object.entries(newState.threadData).filter(([key]) => key !== id),
+        Object.entries(newState.threadData).filter(
+          ([key]) => key !== mappingId,
+        ),
       );
       newState.threadIdMap = Object.fromEntries(
         Object.entries(newState.threadIdMap).filter(
-          ([key]) => key !== id && key !== remoteId,
+          ([, value]) => value !== mappingId,
         ),
       );
       break;
+    }
 
     default: {
       const _exhaustiveCheck: never = newStatus;

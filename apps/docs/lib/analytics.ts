@@ -110,6 +110,7 @@ export const analytics = {
     feedbackShown: (props: {
       threadId: string;
       messageId: string;
+      surface?: "docs_assistant" | "home_thread";
       user_question_length: number;
       assistant_response_length: number;
       tool_calls_count: number;
@@ -121,6 +122,7 @@ export const analytics = {
     feedbackClicked: (props: {
       threadId: string;
       messageId: string;
+      surface?: "docs_assistant" | "home_thread";
       type: "positive" | "negative";
       category?:
         | "wrong_information"
@@ -140,6 +142,7 @@ export const analytics = {
     feedbackSubmitFailed: (props: {
       threadId: string;
       messageId: string;
+      surface?: "docs_assistant" | "home_thread";
       type: "positive" | "negative";
       category?:
         | "wrong_information"
@@ -221,6 +224,7 @@ export const analytics = {
     feedbackSubmitted: (props: {
       threadId: string;
       messageId: string;
+      surface?: "docs_assistant" | "home_thread";
       type: "positive" | "negative";
       category?:
         | "wrong_information"

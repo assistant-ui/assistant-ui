@@ -6,6 +6,8 @@ import "tsx/esm";
 const {
   buildRegistry,
   collectAttributeSelectorValues,
+  createRegistryPayload,
+  writePackagedFiles,
   createRegistryDependencyUsageExemptions,
   createBaseRegistryItem,
   createRadixRegistryItem,
@@ -62,6 +64,20 @@ const createBuilt = (
   sourceContentsByOutputPath:
     sourceContentsByOutputPath ??
     new Map(files.map(([filePath, content]) => [filePath, content])),
+});
+
+test("packaged file routes are served as text", async () => {
+  const config = JSON.parse(
+    await readFile(new URL("../vercel.json", import.meta.url), "utf8"),
+  );
+
+  for (const source of ["/files/(.*)", "/base/files/(.*)"]) {
+    const rule = config.headers?.find((entry) => entry.source === source);
+    assert.ok(rule, `missing header rule for ${source}`);
+    assert.deepEqual(rule.headers, [
+      { key: "Content-Type", value: "text/plain; charset=utf-8" },
+    ]);
+  }
 });
 
 test("vue registry build emits self-contained staged items", async () => {
@@ -1767,7 +1783,7 @@ test("install validation rejects an unresolved non-ambient local alias", () => {
   assert.match(findings, /provides lib\/feature\.tsx or lib\/feature\.ts/);
 });
 
-test("install validation allows the ambient shadcn utils alias", () => {
+test("install validation allows the ambient lib/utils alias", () => {
   assert.equal(
     findingsFrom([
       componentItem([
@@ -2258,4 +2274,286 @@ test("the real registry build satisfies the emitted install metadata contract", 
       `${outputPath} excludes internal validation metadata`,
     );
   }
+});
+
+test("emitted files carry a repo-root sourcePath for source links", () => {
+  const kit = createRegistryPayload({
+    name: "sourcepath-kit",
+    type: "registry:component",
+    files: [
+      {
+        type: "registry:component",
+        path: "components/assistant-ui/elements/thread.aui.tsx",
+        sourcePath:
+          "../../packages/ui/src/components/react/assistant-ui/elements/thread.aui.tsx",
+      },
+    ],
+  });
+  assert.equal(
+    kit.payload.files[0].sourcePath,
+    "packages/ui/src/components/react/assistant-ui/elements/thread.aui.tsx",
+  );
+
+  const radix = createRegistryPayload(
+    {
+      name: "sourcepath-radix",
+      type: "registry:component",
+      files: [
+        {
+          type: "registry:component",
+          path: "components/assistant-ui/elements/threadlist-sidebar.aui.tsx",
+          sourcePath:
+            "../../packages/ui/src/components/react/assistant-ui/elements/threadlist-sidebar.aui.tsx",
+        },
+      ],
+    },
+    true,
+  );
+  assert.equal(
+    radix.payload.files[0].sourcePath,
+    "packages/ui/src/components/react/assistant-ui/elements/threadlist-sidebar.aui.radix.tsx",
+  );
+
+  const template = createRegistryPayload({
+    name: "sourcepath-template",
+    type: "registry:page",
+    files: [
+      {
+        type: "registry:page",
+        path: "app/api/chat/route.ts",
+        sourcePath: "templates/ai-sdk-backend-resumable/app/api/chat/route.ts",
+        target: "app/api/chat/route.ts",
+      },
+    ],
+  });
+  assert.equal(
+    template.payload.files[0].sourcePath,
+    "apps/registry/templates/ai-sdk-backend-resumable/app/api/chat/route.ts",
+  );
+});
+
+test("every emitted sourcePath exists at the repo root", async () => {
+  const { existsSync, readFileSync, readdirSync } = await import("node:fs");
+  const { join, resolve } = await import("node:path");
+
+  // Build inside the test so it neither ENOENTs in isolation nor validates a
+  // stale dist from an earlier run.
+  const { registry, stagedVueRegistry } = await import("../src/registry.ts");
+  await buildRegistry(registry, stagedVueRegistry);
+
+  const repoRoot = resolve(process.cwd(), "../..");
+  const jsonPaths = [];
+  const walk = (dir) => {
+    for (const entry of readdirSync(dir, { withFileTypes: true })) {
+      const full = join(dir, entry.name);
+      if (entry.isDirectory()) {
+        if (entry.name === "files") continue;
+        walk(full);
+      } else if (entry.name.endsWith(".json")) {
+        jsonPaths.push(full);
+      }
+    }
+  };
+  walk("dist");
+
+  assert.ok(
+    jsonPaths.length > 50,
+    `unexpectedly few items: ${jsonPaths.length}`,
+  );
+
+  const missing = [];
+  for (const jsonPath of jsonPaths) {
+    let item;
+    try {
+      item = JSON.parse(readFileSync(jsonPath, "utf8"));
+    } catch {
+      continue;
+    }
+    if (!item || typeof item !== "object" || !Array.isArray(item.files)) {
+      continue;
+    }
+    for (const file of item.files) {
+      if (typeof file.sourcePath !== "string") {
+        missing.push(`${jsonPath}: ${file.path} has no sourcePath`);
+      } else if (!existsSync(join(repoRoot, file.sourcePath))) {
+        missing.push(`${jsonPath}: ${file.sourcePath}`);
+      }
+    }
+  }
+  assert.deepEqual(missing, [], `emitted sourcePaths missing from the repo`);
+});
+
+test("packaged file contents are written per item at the install target", async () => {
+  const { mkdtemp, readFile: readTmp, rm } = await import("node:fs/promises");
+  const { tmpdir } = await import("node:os");
+  const { join } = await import("node:path");
+
+  const root = await mkdtemp(join(tmpdir(), "aui-registry-files-"));
+  try {
+    await writePackagedFiles(root, [
+      {
+        name: "alpha",
+        type: "registry:page",
+        files: [
+          {
+            type: "registry:page",
+            path: "app/api/chat/route.ts",
+            content: "alpha content",
+          },
+        ],
+      },
+      {
+        name: "beta",
+        type: "registry:page",
+        files: [
+          {
+            type: "registry:page",
+            path: "app/api/chat/route.ts",
+            content: "beta content",
+          },
+        ],
+      },
+      {
+        name: "gamma",
+        type: "registry:page",
+        files: [
+          {
+            type: "registry:page",
+            path: "app/ai-sdk/assistant.tsx",
+            target: "app/assistant.tsx",
+            content: "gamma content",
+          },
+        ],
+      },
+      {
+        name: "chat/b/delta",
+        type: "registry:page",
+        files: [
+          {
+            type: "registry:page",
+            path: "app/api/chat/resume/[streamId]/route.ts",
+            content: "delta content",
+          },
+        ],
+      },
+    ]);
+
+    assert.equal(
+      await readTmp(join(root, "files/alpha/app/api/chat/route.ts"), "utf8"),
+      "alpha content",
+    );
+    assert.equal(
+      await readTmp(join(root, "files/beta/app/api/chat/route.ts"), "utf8"),
+      "beta content",
+    );
+    // Keyed on target ?? path: the location shadcn installs to, which is the
+    // path the docs' packaged-file URLs and curl -o both use.
+    assert.equal(
+      await readTmp(join(root, "files/gamma/app/assistant.tsx"), "utf8"),
+      "gamma content",
+    );
+    // A slash-bearing item name nests as directories, and a bracketed route
+    // segment is preserved verbatim on disk — the URL side percent-encodes it.
+    assert.equal(
+      await readTmp(
+        join(
+          root,
+          "files/chat/b/delta/app/api/chat/resume/[streamId]/route.ts",
+        ),
+        "utf8",
+      ),
+      "delta content",
+    );
+  } finally {
+    await rm(root, { recursive: true, force: true });
+  }
+});
+
+test("the built dist serves every packaged file at the docs' URL convention", async () => {
+  const { readFile: readJson, readdir } = await import("node:fs/promises");
+  const { join } = await import("node:path");
+
+  // Build inside the test so it neither ENOENTs in isolation nor validates a
+  // stale dist from an earlier run.
+  const { registry, stagedVueRegistry } = await import("../src/registry.ts");
+  await buildRegistry(registry, stagedVueRegistry);
+
+  // The consumer half of the convention. Both sides derive the same key
+  // independently, so the docs' own builder runs against the real dist here
+  // rather than against fixtures that could agree with neither.
+  const { buildDownloadCommand, packagedFileUrl } =
+    await import("../../docs/components/pages/docs/fumadocs/install/packaged-file-url.ts");
+
+  // Item names may contain slashes, so the walk is recursive. files/ holds the
+  // packaged bytes themselves, base/ is walked as its own root, and vue/ is a
+  // staged flavor the docs' packaged-file URLs do not serve.
+  const collectItemJsons = async (dir, out) => {
+    for (const entry of await readdir(dir, { withFileTypes: true })) {
+      if (entry.isDirectory()) {
+        if (
+          entry.name === "files" ||
+          entry.name === "base" ||
+          entry.name === "vue"
+        ) {
+          continue;
+        }
+        await collectItemJsons(join(dir, entry.name), out);
+      } else if (entry.name.endsWith(".json")) {
+        out.push(join(dir, entry.name));
+      }
+    }
+  };
+
+  for (const [distRoot, flavor, origin] of [
+    ["dist", "radix", "https://r.assistant-ui.com/files/"],
+    ["dist/base", "base", "https://r.assistant-ui.com/base/files/"],
+  ]) {
+    const jsonPaths = [];
+    await collectItemJsons(distRoot, jsonPaths);
+    for (const jsonPath of jsonPaths) {
+      let item;
+      try {
+        item = JSON.parse(await readJson(jsonPath, "utf8"));
+      } catch {
+        continue;
+      }
+      if (!item || typeof item !== "object" || !Array.isArray(item.files)) {
+        continue;
+      }
+      for (const file of item.files) {
+        const url = packagedFileUrl(flavor, {
+          name: item.name,
+          path: file.target ?? file.path,
+        });
+        assert.equal(url.slice(0, origin.length), origin);
+        const served = await readJson(
+          join(
+            distRoot,
+            "files",
+            url
+              .slice(origin.length)
+              .split("/")
+              .map(decodeURIComponent)
+              .join("/"),
+          ),
+          "utf8",
+        );
+        assert.equal(served, file.content);
+      }
+    }
+  }
+
+  const resumable = JSON.parse(
+    await readJson("dist/ai-sdk-backend-resumable.json", "utf8"),
+  );
+  const bracketed = resumable.files.find((file) =>
+    (file.target ?? file.path).includes("[streamId]"),
+  );
+  assert.equal(
+    buildDownloadCommand(
+      [{ name: resumable.name, path: bracketed.target ?? bracketed.path }],
+      "radix",
+    ),
+    "curl -fsSL --create-dirs \\\n  -o 'app/api/chat/resume/[streamId]/route.ts' https://r.assistant-ui.com/files/ai-sdk-backend-resumable/app/api/chat/resume/%5BstreamId%5D/route.ts",
+  );
 });

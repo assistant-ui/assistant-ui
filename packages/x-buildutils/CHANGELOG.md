@@ -1,5 +1,13 @@
 # @assistant-ui/x-buildutils
 
+## 0.0.25
+
+### Patch Changes
+
+- [#6528](https://github.com/assistant-ui/assistant-ui/pull/6528) [`152a35d`](https://github.com/assistant-ui/assistant-ui/commit/152a35daae0e80b5307865e59af683c4ae720794) - chore: update dependencies ([@okisdev](https://github.com/okisdev))
+
+- [#6543](https://github.com/assistant-ui/assistant-ui/pull/6543) [`317f769`](https://github.com/assistant-ui/assistant-ui/commit/317f769b8f14900dbff586c11317018f3d9dabe7) - chore: unpin rolldown now that 1.2.6 restores the re-exported types it dropped in 1.2.5 ([@okisdev](https://github.com/okisdev))
+
 ## 0.0.24
 
 ### Patch Changes

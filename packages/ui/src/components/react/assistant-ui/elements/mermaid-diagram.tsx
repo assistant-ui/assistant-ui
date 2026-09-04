@@ -320,7 +320,7 @@ const MermaidDiagramImpl: FC<MermaidDiagramProps> = ({
       <div
         data-slot="mermaid-diagram"
         className={cn(
-          "aui-mermaid-diagram bg-muted rounded-b-lg p-2 [&_svg]:mx-auto",
+          "aui-mermaid-diagram bg-muted overflow-x-auto rounded-b-lg p-2 [&_svg]:mx-auto [&_svg]:h-auto [&_svg]:max-w-full",
           className,
         )}
         dangerouslySetInnerHTML={{ __html: result.svg }}

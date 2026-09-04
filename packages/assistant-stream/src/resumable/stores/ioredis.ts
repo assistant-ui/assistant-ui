@@ -4,7 +4,10 @@ import type {
   Redis as IoRedis,
 } from "ioredis";
 import {
+  FINALIZE_IF_UNCHANGED_KEY_COUNT,
+  FINALIZE_IF_UNCHANGED_SCRIPT,
   RedisResumableStreamStore,
+  finalizeIfUnchangedArgs,
   type PipelineCommand,
   type RedisLikeClient,
   type RedisResumableStreamStoreOptions,
@@ -30,26 +33,12 @@ function adapt(client: IoRedisLike): RedisLikeClient {
       const result = await client.set(key, value, "EX", ttlSec, "NX");
       return result === "OK";
     },
-    async set(key, value, ttlSec) {
-      await client.set(key, value, "EX", ttlSec);
-    },
     async get(key) {
       return client.get(key);
-    },
-    async expire(key, ttlSec) {
-      await client.expire(key, ttlSec);
-    },
-    async exists(key) {
-      const result = await client.exists(key);
-      return result > 0;
     },
     async del(keys) {
       if (keys.length === 0) return;
       await client.del(...keys);
-    },
-    async xAdd(key, fields) {
-      const id = await client.xadd(key, "*", ...toFieldArgs(fields));
-      return id ?? "";
     },
     async xRange(key, start, end) {
       const entries = await client.xrangeBuffer(key, start, end);
@@ -69,6 +58,14 @@ function adapt(client: IoRedisLike): RedisLikeClient {
         if (err) throw err;
       }
     },
+    async finalizeIfUnchanged(options) {
+      const result = await client.eval(
+        FINALIZE_IF_UNCHANGED_SCRIPT,
+        FINALIZE_IF_UNCHANGED_KEY_COUNT,
+        ...finalizeIfUnchangedArgs(options),
+      );
+      return result === 1;
+    },
   };
 }
 
@@ -82,9 +79,6 @@ function applyPipelineCommand(
       return;
     case "expire":
       pipe.expire(cmd.key, cmd.ttlSec);
-      return;
-    case "set":
-      pipe.set(cmd.key, cmd.value, "EX", cmd.ttlSec);
       return;
   }
 }

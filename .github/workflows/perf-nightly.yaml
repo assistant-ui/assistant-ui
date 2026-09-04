@@ -1,0 +1,59 @@
+name: Performance Nightly
+
+on:
+  schedule:
+    - cron: "17 4 * * *"
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: ${{ github.workflow }}
+
+jobs:
+  record:
+    runs-on: blacksmith-8vcpu-ubuntu-2404
+    timeout-minutes: 30
+    steps:
+      - name: Checkout code repository
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # ratchet:actions/checkout@v7.0.1
+        with:
+          fetch-depth: 0
+
+      - name: Setup pnpm and node.js
+        uses: pnpm/setup@703c52620218391530e48b9e8870d5c0082e1b9b # ratchet:pnpm/setup@v2.1.0
+        with:
+          runtime: node@24
+          cache: true
+          install: false
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Build measured packages
+        run: pnpm turbo run build --filter=@assistant-ui/tap --filter=@assistant-ui/core --filter=@assistant-ui/store --filter=assistant-stream --filter=@assistant-ui/react --filter=@assistant-ui/react-markdown
+
+      - name: Record nightly benchmarks
+        run: node packages/x-performance/bin/aui-perf.mjs record nightly.json --runs 4
+
+      - name: Append and render the nightly history
+        shell: bash
+        env:
+          SHA: ${{ github.sha }}
+        run: |
+          set -euo pipefail
+          history_dir="$RUNNER_TEMP/history"
+          if git fetch origin perf-history; then
+            git worktree add "$history_dir" FETCH_HEAD
+          else
+            git worktree add --orphan -b perf-history "$history_dir"
+          fi
+          node packages/x-performance/bin/aui-perf.mjs history append --dir "$history_dir/history" --from packages/x-performance/.perf/nightly.json
+          node packages/x-performance/bin/aui-perf.mjs history render --dir "$history_dir/history" --out "$history_dir/README.md"
+          cat "$history_dir/README.md" >> "$GITHUB_STEP_SUMMARY"
+          git -C "$history_dir" config user.name "github-actions[bot]"
+          git -C "$history_dir" config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git -C "$history_dir" add README.md history
+          git -C "$history_dir" commit -m "nightly $SHA"
+          git -C "$history_dir" push origin HEAD:perf-history

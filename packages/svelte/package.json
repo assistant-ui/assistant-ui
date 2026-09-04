@@ -33,9 +33,9 @@
     "test:watch": "vitest"
   },
   "dependencies": {
-    "@assistant-ui/core": "^0.3.16",
-    "@assistant-ui/store": "^0.3.11",
-    "@assistant-ui/tap": "^0.9.15"
+    "@assistant-ui/core": "^0.3.17",
+    "@assistant-ui/store": "^0.3.12",
+    "@assistant-ui/tap": "^0.9.16"
   },
   "peerDependencies": {
     "svelte": "^5.29.0"
@@ -46,7 +46,7 @@
     "@types/node": "^26.4.0",
     "@types/react": "^19.2.18",
     "jsdom": "^30.0.1",
-    "svelte": "^5.56.10",
+    "svelte": "^5.57.0",
     "vitest": "^4.1.11"
   },
   "homepage": "https://www.assistant-ui.com/",

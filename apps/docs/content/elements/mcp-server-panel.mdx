@@ -19,12 +19,23 @@ A compact list of MCP servers, each row collapsed to a name and a status dot unt
 ```tsx title="app/providers.tsx"
 "use client";
 
-import { useAui } from "@assistant-ui/store";
+import { AuiConfig, AuiProvider, useAui } from "@assistant-ui/store";
 import { McpManagerResource } from "@assistant-ui/react-mcp";
 
-function McpManagerMount({ connectors }: { connectors: MCPConnector[] }) {
-  useAui({ mcp: McpManagerResource({ connectors }) });
-  return null;
+function McpManagerMount({
+  connectors,
+  children,
+}: {
+  connectors: MCPConnector[];
+  children: React.ReactNode;
+}) {
+  const aui = useAui();
+  const config = AuiConfig({ mcp: McpManagerResource({ connectors }) });
+  return (
+    <AuiProvider extends={aui} config={config}>
+      {children}
+    </AuiProvider>
+  );
 }
 ```
 

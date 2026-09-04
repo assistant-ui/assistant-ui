@@ -9,6 +9,9 @@ on:
       - "packages/core/**"
       - "packages/store/**"
       - "packages/assistant-stream/**"
+      - "packages/react/**"
+      - "packages/react-markdown/**"
+      - "packages/tw-shimmer/**"
       - ".github/workflows/perf.yaml"
 
 permissions:
@@ -20,16 +23,32 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
-  bench:
-    name: Bench vs base (informational)
+  measure:
+    name: Measure vs base (informational)
     runs-on: blacksmith-8vcpu-ubuntu-2404
-    timeout-minutes: 30
+    timeout-minutes: 40
     steps:
       - name: Checkout code repository
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # ratchet:actions/checkout@v7.0.1
         with:
           fetch-depth: 0
           persist-credentials: false
+
+      - name: Decide which lanes the change touches
+        id: lanes
+        shell: bash
+        env:
+          BASE_SHA: ${{ github.event.pull_request.base.sha }}
+        run: |
+          set -euo pipefail
+          changed=$(git diff --name-only "$BASE_SHA...HEAD")
+          bench=false
+          trace=false
+          if grep -qE '^(packages/(x-performance|tap|core|store|assistant-stream|react|react-markdown)/|\.github/workflows/perf\.yaml)' <<<"$changed"; then bench=true; fi
+          if grep -qE '^(packages/tw-shimmer/|packages/x-performance/(fixtures|lib/trace)|\.github/workflows/perf\.yaml)' <<<"$changed"; then trace=true; fi
+          echo "bench=$bench" >> "$GITHUB_OUTPUT"
+          echo "trace=$trace" >> "$GITHUB_OUTPUT"
+          echo "bench=$bench trace=$trace"
 
       - name: Setup pnpm and node.js
         uses: pnpm/setup@703c52620218391530e48b9e8870d5c0082e1b9b # ratchet:pnpm/setup@v2.1.0
@@ -42,33 +61,67 @@ jobs:
         run: pnpm install --frozen-lockfile
 
       - name: Build measured packages
-        run: pnpm turbo run build --filter=@assistant-ui/tap --filter=@assistant-ui/core --filter=@assistant-ui/store --filter=assistant-stream
+        if: steps.lanes.outputs.bench == 'true'
+        run: pnpm turbo run build --filter=@assistant-ui/tap --filter=@assistant-ui/core --filter=@assistant-ui/store --filter=assistant-stream --filter=@assistant-ui/react --filter=@assistant-ui/react-markdown
 
       - name: Bench PR head against the base commit
+        if: steps.lanes.outputs.bench == 'true'
+        shell: bash
+        env:
+          BASE_SHA: ${{ github.event.pull_request.base.sha }}
+        run: |
+          set -euo pipefail
+          node packages/x-performance/bin/aui-perf.mjs compare --ref "$BASE_SHA" --runs 4 --json "$RUNNER_TEMP/bench.json"
+
+      - name: Ensure Chrome
+        if: steps.lanes.outputs.trace == 'true'
         shell: bash
         run: |
-          set -o pipefail
-          node packages/x-performance/src/cli.mjs compare --ref "${{ github.event.pull_request.base.sha }}" --runs 2 | tee perf-report.txt
+          set -euo pipefail
+          if command -v google-chrome-stable >/dev/null 2>&1; then exit 0; fi
+          curl -fsSL https://dl.google.com/linux/linux_signing_key.pub | sudo gpg --batch --yes --dearmor -o /usr/share/keyrings/google-chrome.gpg
+          echo "deb [arch=amd64 signed-by=/usr/share/keyrings/google-chrome.gpg] https://dl.google.com/linux/chrome/deb/ stable main" | sudo tee /etc/apt/sources.list.d/google-chrome.list >/dev/null
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq google-chrome-stable
+
+      - name: Trace fixtures against the base commit
+        if: steps.lanes.outputs.trace == 'true'
+        shell: bash
+        env:
+          BASE_SHA: ${{ github.event.pull_request.base.sha }}
+        run: |
+          set -euo pipefail
+          node packages/x-performance/bin/aui-perf.mjs trace --ref "$BASE_SHA" packages/x-performance/fixtures/*.html --json "$RUNNER_TEMP/trace.json"
+
+      - name: Upload the side-by-side screenshots
+        if: steps.lanes.outputs.trace == 'true'
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # ratchet:actions/upload-artifact@v7.0.1
+        with:
+          name: trace-screenshots
+          path: packages/x-performance/.perf/trace-*.png
+
+      - name: Assemble the report
+        shell: bash
+        run: |
+          set -euo pipefail
+          args=()
+          [ -f "$RUNNER_TEMP/bench.json" ] && args+=(--bench "$RUNNER_TEMP/bench.json")
+          [ -f "$RUNNER_TEMP/trace.json" ] && args+=(--trace "$RUNNER_TEMP/trace.json")
+          node packages/x-performance/bin/aui-perf.mjs report --out "$RUNNER_TEMP/comment.md" "${args[@]}"
+          cat "$RUNNER_TEMP/comment.md" >> "$GITHUB_STEP_SUMMARY"
 
       - name: Post the report as a sticky PR comment
         if: github.event.pull_request.head.repo.full_name == github.repository
         env:
           GH_TOKEN: ${{ github.token }}
+          REPO: ${{ github.repository }}
+          PR_NUMBER: ${{ github.event.pull_request.number }}
         run: |
+          set -euo pipefail
           marker='<!-- aui-perf-report -->'
-          {
-            echo "$marker"
-            echo "### aui-perf: PR head vs base (informational, never a gate)"
-            echo ""
-            echo "wall-time benches on a shared runner; verdict is ~same unless the delta clears max(2×rme, 3%, 2×SE of the pair deltas). borderline rows at --runs 2 are weak signals."
-            echo ""
-            echo '```text'
-            tail -c 60000 perf-report.txt
-            echo '```'
-          } > comment.md
-          existing=$(gh api "repos/${{ github.repository }}/issues/${{ github.event.pull_request.number }}/comments" --paginate --jq ".[] | select(.body | startswith(\"$marker\")) | .id" | head -1)
+          existing=$(gh api "repos/$REPO/issues/$PR_NUMBER/comments" --paginate --jq ".[] | select(.body | startswith(\"$marker\")) | .id" | sed -n '1p')
           if [ -n "$existing" ]; then
-            gh api "repos/${{ github.repository }}/issues/comments/$existing" --method PATCH -F body=@comment.md
+            gh api "repos/$REPO/issues/comments/$existing" --method PATCH -F body=@"$RUNNER_TEMP/comment.md"
           else
-            gh api "repos/${{ github.repository }}/issues/${{ github.event.pull_request.number }}/comments" --method POST -F body=@comment.md
+            gh api "repos/$REPO/issues/$PR_NUMBER/comments" --method POST -F body=@"$RUNNER_TEMP/comment.md"
           fi

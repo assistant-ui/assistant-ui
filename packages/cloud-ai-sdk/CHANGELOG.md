@@ -1,5 +1,17 @@
 # @assistant-ui/cloud-ai-sdk
 
+## 0.1.37
+
+### Patch Changes
+
+- [#6631](https://github.com/assistant-ui/assistant-ui/pull/6631) [`496e973`](https://github.com/assistant-ui/assistant-ui/commit/496e973f89534306eca0b1c133c721fc6ca7f292) - fix: publish workspace dependencies as caret ranges so they dedupe ([@okisdev](https://github.com/okisdev))
+
+- [#6528](https://github.com/assistant-ui/assistant-ui/pull/6528) [`152a35d`](https://github.com/assistant-ui/assistant-ui/commit/152a35daae0e80b5307865e59af683c4ae720794) - chore: update dependencies ([@okisdev](https://github.com/okisdev))
+
+- [#6639](https://github.com/assistant-ui/assistant-ui/pull/6639) [`05e3e6d`](https://github.com/assistant-ui/assistant-ui/commit/05e3e6d3971dac4ce20fc7e2a87d187d78b0e449) - chore: update dependencies ([@Yonom](https://github.com/Yonom))
+- Updated dependencies [[`99fd86e`](https://github.com/assistant-ui/assistant-ui/commit/99fd86ec6d8a94e7723ed738a086620bd9c5a38b), [`7f7bd54`](https://github.com/assistant-ui/assistant-ui/commit/7f7bd54a2b707d2d1e9bc663f7cd8862dcfca50e), [`5972a5e`](https://github.com/assistant-ui/assistant-ui/commit/5972a5ea8e9c4bf188196f2aacd019b78639575e), [`152a35d`](https://github.com/assistant-ui/assistant-ui/commit/152a35daae0e80b5307865e59af683c4ae720794), [`d9eae73`](https://github.com/assistant-ui/assistant-ui/commit/d9eae7321e61b93486d57aa8e172d043bfb1d8c6), [`d56a66a`](https://github.com/assistant-ui/assistant-ui/commit/d56a66a6d325d6e64abbc405dae204b4ee1dfc1e)]:
+  - assistant-cloud@0.1.43
+
 ## 0.1.36
 
 ### Patch Changes

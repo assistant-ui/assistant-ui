@@ -28,20 +28,17 @@ vi.mock("@assistant-ui/react", async (importOriginal) => ({
   ThreadPrimitive: {
     Suggestion: ({
       prompt,
-      method,
-      autoSend,
+      send,
       children,
     }: {
       prompt: string;
-      method: string;
-      autoSend: boolean;
+      send: boolean;
       children: ReactNode;
     }) => (
       <button
         data-testid="suggestion"
         data-prompt={prompt}
-        data-method={method}
-        data-autosend={String(autoSend)}
+        data-send={String(send)}
       >
         {children}
       </button>
@@ -80,8 +77,7 @@ describe("ThreadFollowupSuggestions", () => {
     expect(rich?.getAttribute("data-prompt")).toBe(
       "What is the weather in San Francisco today?",
     );
-    expect(rich?.getAttribute("data-method")).toBe("replace");
-    expect(rich?.getAttribute("data-autosend")).toBe("true");
+    expect(rich?.getAttribute("data-send")).toBe("true");
     expect(
       rich?.querySelector(".aui-thread-followup-suggestion-label")?.textContent,
     ).toBe("in SF");

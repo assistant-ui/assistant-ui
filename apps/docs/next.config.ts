@@ -11,6 +11,10 @@ const isDev = process.env.NODE_ENV === "development";
 
 const apiCatalogDiscoveryPaths = ["/(.*)"];
 
+// The repo source tree is read at runtime through paths the file tracer cannot
+// follow, so every route that reaches it has to name it.
+const REPO_SOURCE_TRACE = ["./generated/.repo-source/**/*"];
+
 const deployEnv = process.env.VERCEL_ENV ?? process.env.NODE_ENV;
 const faviconVariant =
   deployEnv === "preview" || deployEnv === "development"
@@ -73,6 +77,12 @@ const config: NextConfig = {
       "./components/demo/elements/*.tsx",
       "../../packages/ui/src/components/react/assistant-ui/elements/*.tsx",
     ],
+    "/api/doc/chat": REPO_SOURCE_TRACE,
+    "/api/xulux/chat": REPO_SOURCE_TRACE,
+    "/api/xulux/demo-download": REPO_SOURCE_TRACE,
+    "/api/xulux/learn/chat": REPO_SOURCE_TRACE,
+    "/api/xulux/learn/download": REPO_SOURCE_TRACE,
+    "/api/xulux/learn/source": REPO_SOURCE_TRACE,
   },
   headers: async () => [
     {

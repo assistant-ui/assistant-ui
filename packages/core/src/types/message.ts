@@ -182,12 +182,48 @@ export type ToolApprovalOption = {
   readonly confirm?: boolean | { title?: string; description?: string };
 };
 
+/**
+ * How an approval request should be presented, and which answers it accepts.
+ * Absent: `"decision"`.
+ *
+ * The approval seam carries a host-owned request addressed by its own id and
+ * resolved once; a request wanting an answer these modes cannot express stays
+ * on the `interrupt` seam, which hands the tool an arbitrary payload instead.
+ * Unlike {@link ToolApprovalOptionKind} the set is closed, because a renderer
+ * that cannot cover every mode exhaustively is back to guessing the affordance.
+ */
+export type ToolApprovalDisplay = "decision" | "select" | "text";
+
+/**
+ * Whether the request asks for a free-form answer, on its own or alongside its
+ * options. Renderers read this to decide whether to offer a text affordance,
+ * and the runtime reads it to reject a `text` response the host cannot record.
+ */
+export const toolApprovalAcceptsText = (approval: {
+  readonly display?: ToolApprovalDisplay;
+  readonly allowFreeform?: boolean;
+}): boolean => approval.display === "text" || approval.allowFreeform === true;
+
 export type ToolApprovalResponse =
-  | { readonly approved: boolean; readonly reason?: string }
-  | { readonly optionId: string; readonly reason?: string }
+  | {
+      readonly approved: boolean;
+      readonly text?: string;
+      readonly reason?: string;
+    }
+  | {
+      readonly optionId: string;
+      readonly text?: string;
+      readonly reason?: string;
+    }
   | {
       readonly approved: boolean;
       readonly optionId: string;
+      readonly text?: string;
+      readonly reason?: string;
+    }
+  | {
+      /** Answer to a request that asks a question rather than for a decision. */
+      readonly text: string;
       readonly reason?: string;
     };
 
@@ -228,6 +264,16 @@ export type ToolCallMessagePart<
   /** Server-side approval gate. `respondToApproval` may only be called while `approved` is undefined and no `resolution` is recorded. */
   readonly approval?: {
     readonly id: string;
+    /**
+     * The question put to the user. A request that asks for something other
+     * than permission carries it here, so a renderer can show the question
+     * rather than inferring a decision from the tool name.
+     */
+    readonly prompt?: string;
+    /** How the request should be presented. Absent: a plain decision. */
+    readonly display?: ToolApprovalDisplay;
+    /** Whether a free-form answer is accepted alongside the options. */
+    readonly allowFreeform?: boolean;
     readonly approved?: boolean;
     readonly reason?: string;
     readonly isAutomatic?: boolean;
@@ -235,6 +281,8 @@ export type ToolCallMessagePart<
     readonly options?: readonly ToolApprovalOption[];
     /** The option chosen at resolution, when options were present. */
     readonly optionId?: string;
+    /** The free-form answer recorded at resolution, when one was given. */
+    readonly text?: string;
     /** Terminal non-decision state: the request was cancelled or expired without a user decision. Set by the host. */
     readonly resolution?: "cancelled" | "expired";
   };

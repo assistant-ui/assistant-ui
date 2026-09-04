@@ -218,27 +218,17 @@ export class RunAggregator {
         }
 
         this.interrupts = undefined;
-        const { reachable } = this.nesting();
-        // Classified by the scope a call actually renders in: one flattened to
-        // root is reachable by getPendingToolCalls and therefore answerable,
-        // while one nested inside a subagent message is not.
-        const unresolved = Array.from(this.toolCalls.values()).filter(
+        // A call nested inside a subagent message is answerable the same way
+        // a root call is: getPendingToolCalls and addToolResult walk
+        // ToolCallMessagePart.messages, so any unresolved call keeps the run
+        // resumable.
+        const hasUnresolvedToolCalls = Array.from(this.toolCalls.values()).some(
           (tc) => tc.result === undefined,
         );
-        const hasUnresolvedRootToolCalls = unresolved.some(
-          (tc) =>
-            tc.subagentRunId === undefined || !reachable.has(tc.subagentRunId),
-        );
-        const hasUnresolvedSubagentToolCalls = unresolved.some(
-          (tc) =>
-            tc.subagentRunId !== undefined && reachable.has(tc.subagentRunId),
-        );
 
-        this.status = hasUnresolvedRootToolCalls
+        this.status = hasUnresolvedToolCalls
           ? { type: "requires-action", reason: "tool-calls" }
-          : hasUnresolvedSubagentToolCalls
-            ? { type: "incomplete", reason: "tool-calls" }
-            : { type: "complete", reason: "unknown" };
+          : { type: "complete", reason: "unknown" };
         this.closeOpenSubagentRuns(this.status);
         this.emit();
         break;
@@ -1131,10 +1121,10 @@ export class RunAggregator {
     // A run that ended incomplete can no longer be resumed, so a gate left over
     // from an earlier interrupt outcome is unanswerable and must not stay
     // projected. The interrupts themselves are kept on the message, since the
-    // bespoke hooks read that payload. Bound ids are exactly the calls that
-    // render at root scope, which is also exactly what getPendingToolCalls can
-    // reach: a call nested inside a subagent message is unanswerable, so the
-    // projector collapses the batch rather than showing half of it.
+    // bespoke hooks read that payload. Bound ids cover every call the run
+    // produced, root or nested: the approval seams walk
+    // ToolCallMessagePart.messages, so a gate naming a subagent-scoped call is
+    // answerable and projects onto the nested part.
     const partsByScope = new Map<
       string,
       { index: number; part: PartOrderEntry }[]
@@ -1161,13 +1151,7 @@ export class RunAggregator {
       approvals: projectAgUiToolApprovals(
         this.status?.type === "requires-action" ? this.interrupts : undefined,
         new Set(
-          Array.from(this.toolCalls.values())
-            .filter(
-              (entry) =>
-                entry.subagentRunId === undefined ||
-                !reachable.has(entry.subagentRunId),
-            )
-            .map((entry) => entry.toolCallId),
+          Array.from(this.toolCalls.values()).map((entry) => entry.toolCallId),
         ),
       ),
       root,

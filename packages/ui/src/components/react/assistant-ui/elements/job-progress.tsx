@@ -4,7 +4,7 @@ import type { ComponentProps } from "react";
 import { CheckIcon, Loader2Icon, XIcon } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { ghostButton, mono, paper } from "./surfaces";
-import { clamp, pct, progressOf, take } from "../utils/range";
+import { announced, clamp, pct, progressOf, take } from "../utils/range";
 
 export interface JobStage {
   name: string;
@@ -86,7 +86,14 @@ export function JobProgress({
         )}
       </div>
 
-      <span className="bg-foreground/[0.06] h-1 w-full overflow-hidden rounded-full">
+      <span
+        role="progressbar"
+        aria-label={`${title} progress`}
+        aria-valuemin={0}
+        aria-valuemax={100}
+        aria-valuenow={announced(overall)}
+        className="bg-foreground/[0.06] h-1 w-full overflow-hidden rounded-full"
+      >
         <span
           className={cn(
             "block h-full rounded-full transition-[width] duration-500 ease-out motion-reduce:transition-none",

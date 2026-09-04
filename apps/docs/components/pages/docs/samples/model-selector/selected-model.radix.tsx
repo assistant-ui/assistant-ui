@@ -14,14 +14,16 @@ export function SelectableModel() {
     { id: "gpt-5.6-luna", name: "GPT-5.6 Luna" },
     { id: "gpt-5.6-sol", name: "GPT-5.6 Sol", efforts: true },
   ];
-  const [model, setModel] = useState("gpt-5.6-sol");
+  const [value, setValue] = useState("gpt-5.6-sol");
+  const [effort, setEffort] = useState<string>("high");
 
   return (
     <ModelSelectorRoot
       models={models}
-      value={model}
-      onValueChange={setModel}
-      defaultEffort="high"
+      value={value}
+      onValueChange={setValue}
+      effort={effort}
+      onEffortChange={setEffort}
     >
       <ModelSelectorTrigger />
       <ModelSelectorContent />

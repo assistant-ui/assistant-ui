@@ -34,6 +34,8 @@ const WebMcpTools = () => {
 
 With no `filter`, the provider publishes every enabled frontend tool that has an `execute`; backend tools, disabled tools, and tools with no client-side implementation are skipped. A tool authored without a `type` counts as frontend when it has an `execute`, since that is what separates the deprecated type-less form from a backend or human tool. A `filter` you pass **replaces** that default rather than narrowing it — see below.
 
+A complete setup — a task-list page whose toolkit is published to the browser, with a destructive tool held back — runs in [`examples/with-webmcp`](https://github.com/assistant-ui/assistant-ui/tree/main/examples/with-webmcp).
+
 ## Choosing which tools to publish
 
 Pass a `filter` to choose which tools to publish. It runs for every tool on every model-context change, and changing the function re-syncs the registrations. The inline arrow below is a new function on every render, which is fine: each tool's converted schema is cached against the tool object, so a re-sync that changes nothing costs no schema conversion for tools registered with `useAssistantTool` or a toolkit. Tools added through `ModelContextRegistry.addTool` are rebuilt on every read, so they miss that cache; the re-sync still registers nothing new, it just re-converts.
