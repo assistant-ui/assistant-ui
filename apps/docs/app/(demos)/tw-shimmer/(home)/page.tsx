@@ -36,6 +36,9 @@ export default function TwShimmerPage() {
       <header className="max-w-2xl">
         <h1 className={cn(typePage, "shimmer text-foreground/50")}>
           Loading, pure CSS.
+          <span className="shimmer-clone" aria-hidden="true" inert>
+            Loading, pure CSS.
+          </span>
         </h1>
         <p className={cn(typeDeck, "mt-4 max-w-[52ch]")}>
           Zero-dependency shimmer for Tailwind CSS v4. Sine-eased gradients,
@@ -66,6 +69,9 @@ export default function TwShimmerPage() {
             </div>
             <p className="shimmer text-foreground/45 font-mono text-[12px] tracking-wide">
               &gt; thinking
+              <span className="shimmer-clone" aria-hidden="true" inert>
+                &gt; thinking
+              </span>
             </p>
           </div>
         </div>
@@ -110,10 +116,13 @@ export default function TwShimmerPage() {
           <Example
             title="shimmer"
             description="Base utility. Needs a text color lighter or darker than the page so the sweep can show."
-            code='<span class="shimmer text-foreground/60">Shimmer Effect</span>'
+            code='<span class="shimmer text-foreground/60">Shimmer Effect<span class="shimmer-clone" aria-hidden="true" inert>Shimmer Effect</span></span>'
           >
             <span className="shimmer text-foreground/80 dark:text-foreground/60 text-xl font-medium">
               Shimmer Effect
+              <span className="shimmer-clone" aria-hidden="true" inert>
+                Shimmer Effect
+              </span>
             </span>
           </Example>
 
