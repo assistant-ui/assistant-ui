@@ -11,7 +11,8 @@ import {
 } from "@assistant-ui/react";
 import { DevToolsModal } from "@assistant-ui/react-devtools";
 import { feedbackAdapter } from "@/lib/feedback-adapter";
-import docsToolkit, { usageToolkit } from "@/lib/docs-toolkit";
+import docsToolkit from "@/lib/docs-toolkit";
+import usageToolkit from "@/lib/usage-toolkit";
 import { MemoryInstructions } from "@/components/shared/memory";
 import {
   followUpSuggestionAdapter,
