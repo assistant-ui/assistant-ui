@@ -79,9 +79,15 @@ function asNumber(value: unknown): number {
   return parsed;
 }
 
+// Upstash decodes what parses and hands back the raw string otherwise, so a
+// Data that is not an object arrives already decoded.
 function asJson<T>(value: unknown): T {
-  if (typeof value === "string") return JSON.parse(value) as T;
-  return value as T;
+  if (typeof value !== "string") return value as T;
+  try {
+    return JSON.parse(value) as T;
+  } catch {
+    return value as T;
+  }
 }
 
 function fromEntries(entries: unknown): Record<string, unknown> | null {

@@ -23,18 +23,21 @@ import { Sidebar } from "./sidebar";
 import { menuContentClass, menuItemClass } from "./styles";
 import { Thread } from "./thread";
 
-type DemoView = "thread" | "memory";
+export type DemoView = "thread" | "memory";
 
 export function DemoShell({
   expanded = false,
   onToggleExpanded,
+  view,
+  onViewChange: setView,
 }: {
   expanded?: boolean;
   onToggleExpanded?: (() => void) | undefined;
-} = {}): ReactNode {
+  view: DemoView;
+  onViewChange: (view: DemoView) => void;
+}): ReactNode {
   const rootRef = useRef<HTMLDivElement>(null);
   const [mobileSidebarOpen, setMobileSidebarOpen] = useState(false);
-  const [view, setView] = useState<DemoView>("thread");
   useThreadShortcuts(rootRef);
 
   return (

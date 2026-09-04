@@ -1,8 +1,5 @@
 import { NextResponse } from "next/server";
-import {
-  getAnonymousSession,
-  isPublicAssistantBrowserRequest,
-} from "@/lib/anonymous-session";
+import { getAnonymousSession } from "@/lib/anonymous-session";
 import { readDemoUsage, resolveDemoIdentity } from "@/lib/demo-usage";
 
 export type DemoUsagePayload = {
@@ -17,7 +14,9 @@ export type DemoUsagePayload = {
 // instead of letting them write a message the route would refuse.
 export async function GET(request: Request) {
   const headers = { "Cache-Control": "no-store" };
-  if (!isPublicAssistantBrowserRequest(request)) {
+  // Only the landing demo draws on the budget and it is same-origin, so this
+  // answers nothing cross-origin rather than growing a CORS surface.
+  if (request.headers.get("sec-fetch-site") !== "same-origin") {
     return new Response(null, { status: 403, headers });
   }
 

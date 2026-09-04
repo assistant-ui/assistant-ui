@@ -35,14 +35,18 @@ const load = () => {
   fetch("/api/auth/session", { cache: "no-store" })
     .then((response) => (response.ok ? response.json() : null))
     .then((payload: SessionPayload | null) => {
-      if (!payload?.enabled) return setState(disabledState);
+      // Only the endpoint saying so means unconfigured. A request that never
+      // arrived says nothing, so it falls back to the signed-out state rather
+      // than hiding sign-in for the rest of the visit.
+      if (payload === null) return setState(anonymousState);
+      if (!payload.enabled) return setState(disabledState);
       setState(
         payload.user
           ? { status: "signed-in", user: payload.user }
           : anonymousState,
       );
     })
-    .catch(() => setState(disabledState));
+    .catch(() => setState(anonymousState));
 };
 
 const subscribe = (listener: () => void) => {

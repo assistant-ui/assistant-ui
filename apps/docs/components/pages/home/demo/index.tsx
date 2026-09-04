@@ -2,15 +2,26 @@
 
 import Link from "next/link";
 import type { ReactNode } from "react";
+import { useState } from "react";
 import { createPortal } from "react-dom";
 import { DocsRuntimeProvider } from "@/runtimes/docs";
 import { useFullscreenOverlay } from "./fullscreen";
-import { DemoShell } from "./shell";
+import { DemoShell, type DemoView } from "./shell";
 
 export function HomeDemo(): ReactNode {
   const { expanded, toggle, overlayRef } = useFullscreenOverlay();
+  // Entering fullscreen portals the shell into a new tree, so the surface the
+  // visitor is on is held here rather than inside it.
+  const [view, setView] = useState<DemoView>("thread");
 
-  const demo = <DemoShell expanded={expanded} onToggleExpanded={toggle} />;
+  const demo = (
+    <DemoShell
+      expanded={expanded}
+      onToggleExpanded={toggle}
+      view={view}
+      onViewChange={setView}
+    />
+  );
 
   return (
     <section aria-label="Thread" className="flex flex-col gap-3">

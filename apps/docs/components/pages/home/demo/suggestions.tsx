@@ -40,7 +40,7 @@ const suggestionChipClass =
 
 export function Suggestions(): ReactNode {
   return (
-    <div className="animate-in fade-in mx-auto flex max-w-[34rem] flex-wrap items-center justify-center gap-2 duration-200">
+    <div className="animate-in fade-in mx-auto flex max-w-[34rem] flex-wrap items-center justify-center gap-2 duration-200 motion-reduce:animate-none">
       {SUGGESTIONS.map((suggestion) => (
         <ThreadPrimitive.Suggestion
           key={suggestion.prompt}

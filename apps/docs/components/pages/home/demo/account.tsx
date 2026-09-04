@@ -21,9 +21,11 @@ export function SidebarAccount(): ReactNode {
   const session = useSession();
   const pathname = usePathname();
 
+  if (session.status === "disabled") return null;
+
   return (
     <div className="border-foreground/10 -mx-3 mt-2 shrink-0 border-t px-3 pt-2">
-      {session.status === "disabled" ? null : session.status === "loading" ? (
+      {session.status === "loading" ? (
         <div className="flex h-8 items-center px-2">
           <Skeleton className="h-3.5 w-24" />
         </div>

@@ -14,7 +14,7 @@ export type SessionPayload = {
 // The landing page is statically rendered, so the account row reads the session
 // from here instead of turning the page into a dynamic render.
 export async function GET() {
-  const session = accounts ? await getSession() : null;
+  const session = accounts ? await getSession().catch(() => null) : null;
   const payload: SessionPayload = {
     enabled: accounts !== null,
     user: session

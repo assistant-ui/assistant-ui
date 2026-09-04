@@ -29,9 +29,31 @@ export function ConversationBudget({
     wasEmpty.current = isEmpty;
   }, [isEmpty]);
 
-  // A conversation already under way was counted when it started, so only a
-  // new one meets the gate.
-  if (state.status !== "ready" || state.usage.remaining > 0 || !isEmpty) {
+  // A tab left open across the reset would otherwise keep showing a spent day.
+  useEffect(() => {
+    if (state.status !== "ready" || state.usage.remaining > 0) return;
+    const delay = state.usage.resetAt - Date.now();
+    if (delay <= 0) {
+      refreshDemoUsage();
+      return;
+    }
+    const timer = setTimeout(
+      refreshDemoUsage,
+      Math.min(delay + 1_000, 2 ** 30),
+    );
+    return () => clearTimeout(timer);
+  }, [state]);
+
+  // A conversation already under way was counted when it started, so only a new
+  // one meets the gate, and only once the session is known: which of the two
+  // messages to show depends on it.
+  if (
+    state.status !== "ready" ||
+    session.status === "loading" ||
+    state.usage.remaining > 0 ||
+    state.usage.resetAt <= Date.now() ||
+    !isEmpty
+  ) {
     return children;
   }
 
@@ -41,9 +63,9 @@ export function ConversationBudget({
   return (
     <div className="border-foreground/10 bg-muted/30 rounded-thread flex flex-col gap-3 border px-4 py-3.5 sm:flex-row sm:items-center sm:justify-between">
       <p className="text-[15px] leading-relaxed">
-        {!canSignIn
-          ? `That is all ${limit} conversations for today. The next one opens ${resetsIn(resetAt)}.`
-          : `That is all ${limit} conversations for today. Sign in for ten a day.`}
+        {canSignIn
+          ? `That is all ${limit} conversations for today. Sign in for ten a day.`
+          : `That is all ${limit} conversations for today. The next one opens ${resetsIn(resetAt)}.`}
       </p>
       {canSignIn ? (
         <a

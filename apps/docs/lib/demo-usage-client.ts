@@ -33,9 +33,15 @@ function load(): Promise<void> {
   return inFlight;
 }
 
-/** Re-reads the budget after a send, so a second tab cannot leave it stale. */
+/** Re-reads the budget after a send. A read already in flight was issued before
+ * the send, so it cannot answer for it; queue a fresh one behind it. */
 export function refreshDemoUsage(): void {
-  void load();
+  const pending = inFlight;
+  if (!pending) {
+    void load();
+    return;
+  }
+  void pending.then(() => load());
 }
 
 const subscribe = (listener: () => void) => {
