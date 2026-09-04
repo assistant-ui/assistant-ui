@@ -108,7 +108,7 @@ export function useDocsCloud() {
     [accountOwned, baseUrl],
   );
 
-  return { cloud, accountOwned, claims };
+  return { cloud, claims };
 }
 
 const subscribeToNothing = () => () => {};

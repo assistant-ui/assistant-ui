@@ -165,7 +165,7 @@ it("claims a stored anonymous token while switching to account history", async (
 
   const { result } = renderHook(() => useDocsCloud());
 
-  expect(result.current.accountOwned).toBe(true);
+  expect(cloudStrategy(result.current.cloud)).toBe("jwt");
   expect(cloudStrategy(result.current.cloud)).toBe("jwt");
   expect(result.current.claims).toBe(0);
   expect(fetchMock).toHaveBeenCalledWith("/api/demo/claim", {
@@ -191,7 +191,7 @@ it("switches without a claim when no anonymous token is stored", () => {
 
   const { result } = renderHook(() => useDocsCloud());
 
-  expect(result.current.accountOwned).toBe(true);
+  expect(cloudStrategy(result.current.cloud)).toBe("jwt");
   expect(cloudStrategy(result.current.cloud)).toBe("jwt");
   expect(fetchMock).not.toHaveBeenCalled();
 });
@@ -209,7 +209,7 @@ it("refreshes the budget without a reload after a claim that moved nothing", asy
 
   await waitFor(() => expect(refreshDemoUsage).toHaveBeenCalledOnce());
   expect(result.current.claims).toBe(0);
-  expect(result.current.accountOwned).toBe(true);
+  expect(cloudStrategy(result.current.cloud)).toBe("jwt");
 });
 
 it.each([
@@ -229,7 +229,7 @@ it.each([
 
     const { result, rerender } = renderHook(() => useDocsCloud());
 
-    expect(result.current.accountOwned).toBe(true);
+    expect(cloudStrategy(result.current.cloud)).toBe("jwt");
     expect(cloudStrategy(result.current.cloud)).toBe("jwt");
     await waitFor(() => expect(fetchMock).toHaveBeenCalledOnce());
     await new Promise((resolve) => setTimeout(resolve, 20));
@@ -249,7 +249,7 @@ it("does not claim without signed-in cloud history", () => {
 
   const { result } = renderHook(() => useDocsCloud());
 
-  expect(result.current.accountOwned).toBe(false);
+  expect(cloudStrategy(result.current.cloud)).toBe("anon");
   expect(cloudStrategy(result.current.cloud)).toBe("anon");
   expect(fetchMock).not.toHaveBeenCalled();
 });

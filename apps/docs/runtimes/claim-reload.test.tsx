@@ -10,7 +10,7 @@ const useDocsChatRuntime = vi.hoisted(() =>
 const useSpeechAdapters = vi.hoisted(() => vi.fn(() => ({})));
 const mocks = vi.hoisted(() => ({ claims: 0 }));
 const useDocsCloud = vi.hoisted(() =>
-  vi.fn(() => ({ cloud: "cloud", accountOwned: true, claims: mocks.claims })),
+  vi.fn(() => ({ cloud: "cloud", claims: mocks.claims })),
 );
 
 vi.mock("./chat-runtime", () => ({

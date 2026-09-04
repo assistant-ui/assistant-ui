@@ -6,9 +6,10 @@ export async function GET(request: Request) {
   const headers = { "Cache-Control": "no-store" };
   const fetchSite = request.headers.get("sec-fetch-site");
   const origin = request.headers.get("origin");
-  const sameOrigin = fetchSite
-    ? fetchSite === "same-origin"
-    : !origin || origin === new URL(request.url).origin;
+  const sameOrigin =
+    fetchSite !== null
+      ? fetchSite === "same-origin"
+      : origin !== null && origin === new URL(request.url).origin;
   if (!sameOrigin) {
     return new Response(null, { status: 403, headers });
   }
