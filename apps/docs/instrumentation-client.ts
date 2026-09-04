@@ -43,7 +43,7 @@ if (typeof window !== "undefined") {
   const consent = getStoredConsent();
   if (consent === "granted") {
     start();
-  } else if (consent === null) {
+  } else if (consent === null && apiKey) {
     void isConsentRequired().then((required) => {
       if (!required && getStoredConsent() === null) start();
     });
