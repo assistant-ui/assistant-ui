@@ -239,17 +239,19 @@ it("reaches an already-running tracker through umami's own disable flag", () => 
     writable: true,
   });
 
-  setUmamiTrackingEnabled(false);
-  expect(store.get(UMAMI_DISABLED_STORAGE_KEY)).toBe("1");
+  try {
+    setUmamiTrackingEnabled(false);
+    expect(store.get(UMAMI_DISABLED_STORAGE_KEY)).toBe("1");
 
-  setUmamiTrackingEnabled(true);
-  expect(store.has(UMAMI_DISABLED_STORAGE_KEY)).toBe(false);
-
-  Object.defineProperty(globalThis, "window", {
-    value: original,
-    configurable: true,
-    writable: true,
-  });
+    setUmamiTrackingEnabled(true);
+    expect(store.has(UMAMI_DISABLED_STORAGE_KEY)).toBe(false);
+  } finally {
+    Object.defineProperty(globalThis, "window", {
+      value: original,
+      configurable: true,
+      writable: true,
+    });
+  }
 });
 
 it("drops sends through the before-send hook when storage refuses the flag", () => {
