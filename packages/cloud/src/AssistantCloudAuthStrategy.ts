@@ -257,8 +257,12 @@ const readRefreshToken = (baseUrl: string): RefreshToken | undefined => {
 };
 
 /** The refresh token of the anonymous identity this browser holds for `baseUrl`, or null when it has none. */
-export const readAnonymousRefreshToken = (baseUrl: string): string | null =>
-  readRefreshToken(baseUrl)?.token ?? null;
+export const readAnonymousRefreshToken = (baseUrl: string): string | null => {
+  const refreshToken = readRefreshToken(baseUrl);
+  if (!refreshToken) return null;
+  const refreshExpiry = new Date(refreshToken.expires_at).getTime();
+  return refreshExpiry - Date.now() > 30 * 1000 ? refreshToken.token : null;
+};
 
 const writeRefreshToken = (
   baseUrl: string,

@@ -82,6 +82,35 @@ describe("AssistantCloudAnonymousAuthStrategy", () => {
     expect(readAnonymousRefreshToken(baseUrl)).toBeNull();
   });
 
+  it.each([30_000, 0, -1])(
+    "returns null when the stored anonymous refresh token expires in %i ms",
+    (expiresIn) => {
+      vi.useFakeTimers();
+      const now = Date.UTC(2026, 8, 4, 12, 0, 0);
+      vi.setSystemTime(now);
+      const values = new Map([
+        [
+          refreshTokenKey,
+          JSON.stringify({
+            token: refreshToken.token,
+            expires_at: new Date(now + expiresIn).toISOString(),
+          }),
+        ],
+      ]);
+      installLocalStorage({
+        getItem: (key) => values.get(key) ?? null,
+        setItem: (key, value) => {
+          values.set(key, value);
+        },
+        removeItem: (key) => {
+          values.delete(key);
+        },
+      } as Storage);
+
+      expect(readAnonymousRefreshToken(baseUrl)).toBeNull();
+    },
+  );
+
   it.each([
     "2099-01-01",
     "2099-01-01T00:00:00Z",
