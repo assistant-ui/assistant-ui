@@ -154,7 +154,7 @@ function rewriteOutsideCode(
  * A delimiter pair wrapping nothing is left as written: `$$$$` would itself
  * open a fence that never closes.
  */
-const LINE_PREFIX = /^(?:[ \t]*(?:>[ \t]?)*)(?:(?:[-*+]|\d{1,9}[.)])[ \t]+)?/;
+const LINE_PREFIX = /^(?:[ \t]*(?:>[ \t]*)*)(?:(?:[-*+]|\d{1,9}[.)])[ \t]+)?/;
 
 /**
  * The prefix a following line needs to stay inside the block the match opened
@@ -192,11 +192,14 @@ function emitDisplayMath(
   // math was written inside, so they carry that container's prefix and the body
   // is aligned to it.
   const prefix = continuationPrefix(lineHead(offset));
-  const lines = trimmed
-    .split("\n")
-    .map((line) =>
-      line.startsWith(prefix) ? line : `${prefix}${line.trimStart()}`,
-    );
+  const quoted = prefix.includes(">");
+  const lines = trimmed.split("\n").map((line) => {
+    // A line already inside the container keeps the spacing it was written
+    // with; `>a` and `> a` are the same blockquote.
+    if (line.startsWith(prefix)) return line;
+    if (quoted && /^[ \t]*>/.test(line)) return line;
+    return `${prefix}${line.trimStart()}`;
+  });
 
   return `${lead}${prefix}$$\n${lines.join("\n")}\n${prefix}$$${tail}`;
 }
@@ -210,12 +213,11 @@ function emitDisplayMath(
  * math renders as plain text.
  */
 export function rewriteLatexBracketDelimiters(text: string): string {
+  // The display rewrite runs first: its offsets index the segment as the walker
+  // cut it, and an inline rewrite ahead of it would shift them off the line
+  // whose prefix the fence copies.
   return rewriteOutsideCode(text, (segment, precededBy, followedBy, lineHead) =>
     segment
-      .replace(LATEX_INLINE_DELIMITER, (match: string, body: string) => {
-        const trimmed = body.trim();
-        return trimmed === "" ? match : `$${trimmed}$`;
-      })
       .replace(
         LATEX_DISPLAY_DELIMITER,
         (match: string, body: string, offset: number, source: string) =>
@@ -228,7 +230,11 @@ export function rewriteLatexBracketDelimiters(text: string): string {
             followedBy,
             lineHead,
           ),
-      ),
+      )
+      .replace(LATEX_INLINE_DELIMITER, (match: string, body: string) => {
+        const trimmed = body.trim();
+        return trimmed === "" ? match : `$${trimmed}$`;
+      }),
   );
 }
 

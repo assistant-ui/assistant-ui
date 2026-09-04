@@ -52,6 +52,24 @@ describe("rewriteLatexBracketDelimiters", () => {
     ).toBe("> quote \n> $$\n> a\n> b\n> $$\n> after");
   });
 
+  it("keeps the block prefix when inline math precedes the match", () => {
+    expect(
+      rewriteLatexBracketDelimiters("- see \\(y\\) \\[\na\nb\n\\]\n- next"),
+    ).toBe("- see $y$ \n  $$\n  a\n  b\n  $$\n- next");
+  });
+
+  it("keeps a body line that already carries the blockquote marker", () => {
+    expect(rewriteLatexBracketDelimiters("> q \\[\n>a\n>b\n\\]\n> after")).toBe(
+      "> q \n> $$\n>a\n>b\n> $$\n> after",
+    );
+  });
+
+  it("nests a body inside a list item written in a blockquote", () => {
+    expect(
+      rewriteLatexBracketDelimiters(">  - item \\[\na\nb\n\\]\n>  - next"),
+    ).toBe(">  - item \n>    $$\n>    a\n>    b\n>    $$\n>  - next");
+  });
+
   it("reads the block prefix past a code span on the same line", () => {
     expect(
       rewriteLatexBracketDelimiters("- see `x` \\[\na\nb\n\\]\n- next"),
