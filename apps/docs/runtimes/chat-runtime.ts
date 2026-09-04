@@ -50,55 +50,46 @@ export const followUpSuggestionAdapter = createSuggestionAdapter({
 
 export function useDocsCloud() {
   const session = useSession();
-  const eligible = session.status === "signed-in" && session.cloudHistory;
-  const userKey = eligible ? session.user.email : null;
+  const accountOwned = session.status === "signed-in" && session.cloudHistory;
+  const userKey = accountOwned ? session.user.email : null;
   const baseUrl = process.env.NEXT_PUBLIC_ASSISTANT_BASE_URL!;
-  const [hasAnonymousToken] = useState(
-    () =>
-      typeof window !== "undefined" &&
-      readAnonymousRefreshToken(baseUrl) !== null,
-  );
   const [claimedFor, setClaimedFor] = useState<string | null>(null);
-  const accountOwned =
-    userKey !== null && (!hasAnonymousToken || claimedFor === userKey);
+  const [claims, setClaims] = useState(0);
 
   useEffect(() => {
-    if (userKey === null || !hasAnonymousToken || claimedFor === userKey) {
-      return;
-    }
-
+    if (userKey === null || claimedFor === userKey) return;
     const refreshToken = readAnonymousRefreshToken(baseUrl);
-    let cancelled = false;
-    const request = refreshToken
-      ? fetch("/api/demo/claim", {
-          method: "POST",
-          headers: { "content-type": "application/json" },
-          body: JSON.stringify({ refresh_token: refreshToken }),
-          credentials: "same-origin",
-        }).then((response) => {
-          if (!response.ok) throw new Error(response.statusText);
-          refreshDemoUsage();
-        })
-      : Promise.resolve();
+    if (!refreshToken) return;
 
-    void request.then(
-      () => {
-        if (!cancelled) setClaimedFor(userKey);
-      },
-      () => {},
-    );
+    let cancelled = false;
+    void fetch("/api/demo/claim", {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ refresh_token: refreshToken }),
+      credentials: "same-origin",
+    })
+      .then(async (response) => {
+        if (!response.ok) return;
+        const payload = (await response.json()) as { moved?: unknown };
+        if (cancelled) return;
+        setClaimedFor(userKey);
+        refreshDemoUsage();
+        if (typeof payload.moved === "number" && payload.moved > 0) {
+          setClaims((count) => count + 1);
+        }
+      })
+      .catch(() => {});
 
     return () => {
       cancelled = true;
     };
-  }, [baseUrl, claimedFor, hasAnonymousToken, userKey]);
+  }, [baseUrl, claimedFor, userKey]);
 
-  return useMemo(
-    () => ({
-      accountOwned,
-      cloud: accountOwned
+  const cloud = useMemo(
+    () =>
+      accountOwned
         ? new AssistantCloud({
-            baseUrl: process.env.NEXT_PUBLIC_ASSISTANT_BASE_URL!,
+            baseUrl,
             authToken: async () => {
               try {
                 const response = await fetch("/api/assistant-token", {
@@ -113,13 +104,11 @@ export function useDocsCloud() {
               }
             },
           })
-        : new AssistantCloud({
-            baseUrl: process.env.NEXT_PUBLIC_ASSISTANT_BASE_URL!,
-            anonymous: true,
-          }),
-    }),
-    [accountOwned],
+        : new AssistantCloud({ baseUrl, anonymous: true }),
+    [accountOwned, baseUrl],
   );
+
+  return { cloud, accountOwned, claims };
 }
 
 const subscribeToNothing = () => () => {};

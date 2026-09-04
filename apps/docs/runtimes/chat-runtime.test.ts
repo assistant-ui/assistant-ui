@@ -152,7 +152,7 @@ it("switches cloud ownership only when signed-in history becomes available", asy
   expect(result.current.cloud).toBe(accountCloud);
 });
 
-it("claims a stored anonymous token before switching to account history", async () => {
+it("claims a stored anonymous token while switching to account history", async () => {
   vi.stubEnv("NEXT_PUBLIC_ASSISTANT_BASE_URL", baseUrl);
   installLocalStorage(true);
   mocks.session = signedInSession();
@@ -165,8 +165,9 @@ it("claims a stored anonymous token before switching to account history", async 
 
   const { result } = renderHook(() => useDocsCloud());
 
-  expect(result.current.accountOwned).toBe(false);
-  expect(cloudStrategy(result.current.cloud)).toBe("anon");
+  expect(result.current.accountOwned).toBe(true);
+  expect(cloudStrategy(result.current.cloud)).toBe("jwt");
+  expect(result.current.claims).toBe(0);
   expect(fetchMock).toHaveBeenCalledWith("/api/demo/claim", {
     method: "POST",
     headers: { "content-type": "application/json" },
@@ -175,13 +176,13 @@ it("claims a stored anonymous token before switching to account history", async 
   });
 
   resolveClaim(Response.json({ moved: 2 }));
-  await waitFor(() => expect(result.current.accountOwned).toBe(true));
+  await waitFor(() => expect(result.current.claims).toBe(1));
 
-  expect(cloudStrategy(result.current.cloud)).toBe("jwt");
   expect(refreshDemoUsage).toHaveBeenCalledOnce();
+  expect(fetchMock).toHaveBeenCalledOnce();
 });
 
-it("switches immediately when no anonymous token is stored", () => {
+it("switches without a claim when no anonymous token is stored", () => {
   vi.stubEnv("NEXT_PUBLIC_ASSISTANT_BASE_URL", baseUrl);
   installLocalStorage(false);
   mocks.session = signedInSession();
@@ -195,7 +196,7 @@ it("switches immediately when no anonymous token is stored", () => {
   expect(fetchMock).not.toHaveBeenCalled();
 });
 
-it("refreshes the budget after a claim that moved nothing", async () => {
+it("refreshes the budget without a reload after a claim that moved nothing", async () => {
   vi.stubEnv("NEXT_PUBLIC_ASSISTANT_BASE_URL", baseUrl);
   installLocalStorage(true);
   mocks.session = signedInSession();
@@ -206,8 +207,9 @@ it("refreshes the budget after a claim that moved nothing", async () => {
 
   const { result } = renderHook(() => useDocsCloud());
 
-  await waitFor(() => expect(result.current.accountOwned).toBe(true));
-  expect(refreshDemoUsage).toHaveBeenCalledOnce();
+  await waitFor(() => expect(refreshDemoUsage).toHaveBeenCalledOnce());
+  expect(result.current.claims).toBe(0);
+  expect(result.current.accountOwned).toBe(true);
 });
 
 it.each([
@@ -217,7 +219,7 @@ it.each([
     () => Promise.resolve(new Response(null, { status: 502 })),
   ],
 ])(
-  "keeps the anonymous cloud after a failed claim from a %s",
+  "stays on account history after a failed claim from a %s",
   async (_name, response) => {
     vi.stubEnv("NEXT_PUBLIC_ASSISTANT_BASE_URL", baseUrl);
     installLocalStorage(true);
@@ -225,13 +227,15 @@ it.each([
     const fetchMock = vi.fn(response);
     vi.stubGlobal("fetch", fetchMock);
 
-    const { result } = renderHook(() => useDocsCloud());
+    const { result, rerender } = renderHook(() => useDocsCloud());
 
-    expect(result.current.accountOwned).toBe(false);
+    expect(result.current.accountOwned).toBe(true);
+    expect(cloudStrategy(result.current.cloud)).toBe("jwt");
     await waitFor(() => expect(fetchMock).toHaveBeenCalledOnce());
     await new Promise((resolve) => setTimeout(resolve, 20));
-    expect(result.current.accountOwned).toBe(false);
-    expect(cloudStrategy(result.current.cloud)).toBe("anon");
+    rerender();
+    expect(fetchMock).toHaveBeenCalledOnce();
+    expect(result.current.claims).toBe(0);
     expect(refreshDemoUsage).not.toHaveBeenCalled();
   },
 );

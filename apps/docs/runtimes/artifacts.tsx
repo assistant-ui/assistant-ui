@@ -1,6 +1,6 @@
 "use client";
 
-import { type ReactNode } from "react";
+import { useEffect, type ReactNode } from "react";
 import {
   AssistantRuntimeProvider,
   ModelContextClient as ModelContext,
@@ -43,7 +43,7 @@ export function ArtifactsRuntimeProvider({
 }: {
   children: ReactNode;
 }) {
-  const { cloud } = useDocsCloud();
+  const { cloud, claims } = useDocsCloud();
   const adapters = useSpeechAdapters({ dictation: true });
   const runtime = useDocsChatRuntime({
     cloud,
@@ -55,6 +55,11 @@ export function ArtifactsRuntimeProvider({
     tools: Tools({ toolkit: artifactsToolkit }),
     modelContext: ModelContext(),
   });
+
+  useEffect(() => {
+    if (claims === 0) return;
+    void aui.threads().reload();
+  }, [aui, claims]);
 
   return (
     <AssistantRuntimeProvider runtime={runtime} aui={aui}>
