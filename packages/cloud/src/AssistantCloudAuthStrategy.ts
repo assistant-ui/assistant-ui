@@ -256,9 +256,14 @@ const readRefreshToken = (baseUrl: string): RefreshToken | undefined => {
   }
 };
 
+export const normalizeBaseUrl = (baseUrl: string): string => {
+  if (!baseUrl || !baseUrl.endsWith("/")) return baseUrl;
+  return baseUrl.slice(0, -1);
+};
+
 /** The refresh token of the anonymous identity this browser holds for `baseUrl`, or null when it has none. */
 export const readAnonymousRefreshToken = (baseUrl: string): string | null => {
-  const refreshToken = readRefreshToken(baseUrl);
+  const refreshToken = readRefreshToken(normalizeBaseUrl(baseUrl));
   if (!refreshToken) return null;
   const refreshExpiry = new Date(refreshToken.expires_at).getTime();
   return refreshExpiry - Date.now() > 30 * 1000 ? refreshToken.token : null;

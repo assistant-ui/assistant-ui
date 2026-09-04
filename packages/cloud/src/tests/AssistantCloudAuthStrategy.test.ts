@@ -72,6 +72,17 @@ describe("AssistantCloudAnonymousAuthStrategy", () => {
     expect(readAnonymousRefreshToken(baseUrl)).toBe(refreshToken.token);
   });
 
+  it("reads the token stored for a base url given with a trailing slash", () => {
+    installLocalStorage({
+      getItem: (key) =>
+        key === refreshTokenKey ? JSON.stringify(refreshToken) : null,
+      setItem: vi.fn(),
+      removeItem: vi.fn(),
+    } as unknown as Storage);
+
+    expect(readAnonymousRefreshToken(`${baseUrl}/`)).toBe(refreshToken.token);
+  });
+
   it("returns null when no anonymous refresh token is stored", () => {
     installLocalStorage({
       getItem: () => null,
