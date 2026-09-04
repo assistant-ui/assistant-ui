@@ -71,11 +71,20 @@ export const useScrollLock = <T extends HTMLElement = HTMLElement>(
     const paddingSide =
       computed.direction === "rtl" ? "paddingLeft" : "paddingRight";
     const previousPadding = scrollContainer.style[paddingSide];
-    const scrollbarSize =
-      scrollContainer.offsetWidth -
-      scrollContainer.clientWidth -
-      parseFloat(computed.borderLeftWidth) -
-      parseFloat(computed.borderRightWidth);
+    // The root element's offsetWidth already excludes the viewport scrollbar,
+    // so the element formula reports zero for it and the compensation below
+    // never runs, which is what shifts a page's centered content on open.
+    const ownerDocument = scrollContainer.ownerDocument;
+    const isRootScroller =
+      scrollContainer === ownerDocument.documentElement ||
+      scrollContainer === ownerDocument.body;
+    const scrollbarSize = isRootScroller
+      ? (ownerDocument.defaultView?.innerWidth ?? 0) -
+        ownerDocument.documentElement.clientWidth
+      : scrollContainer.offsetWidth -
+        scrollContainer.clientWidth -
+        parseFloat(computed.borderLeftWidth) -
+        parseFloat(computed.borderRightWidth);
 
     scrollContainer.style.scrollbarWidth = "none";
     if (scrollbarSize > 0) {
