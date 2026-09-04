@@ -65,6 +65,20 @@ function getThreadTitleState(
   return state;
 }
 
+function takeManualTitle(
+  states: Map<string, ThreadTitleState>,
+  threadId: string,
+  state: ThreadTitleState,
+): string | undefined {
+  if (state.pendingClaim !== null || state.manualTitle === undefined) {
+    return undefined;
+  }
+  const title = state.manualTitle;
+  state.manualTitle = undefined;
+  pruneThreadTitleState(states, threadId, state);
+  return title;
+}
+
 function pruneThreadTitleState(
   states: Map<string, ThreadTitleState>,
   threadId: string,
@@ -454,15 +468,13 @@ export function useThreads(options: UseThreadsOptions): UseThreadsResult {
   const generateTitleWithPolicy = useCallback(
     async (tid: string, automatic: boolean): Promise<string | null> => {
       const state = getThreadTitleState(threadTitleGenerationsRef.current, tid);
-      if (
-        automatic &&
-        state.pendingClaim === null &&
-        state.manualTitle !== undefined
-      ) {
-        const title = state.manualTitle;
-        state.manualTitle = undefined;
-        pruneThreadTitleState(threadTitleGenerationsRef.current, tid, state);
-        return title;
+      if (automatic) {
+        const retained = takeManualTitle(
+          threadTitleGenerationsRef.current,
+          tid,
+          state,
+        );
+        if (retained !== undefined) return retained;
       }
       if (!automatic) {
         state.pendingClaim = null;
@@ -487,6 +499,14 @@ export function useThreads(options: UseThreadsOptions): UseThreadsResult {
                 if (generation.claim !== claim) continue;
                 if (!renamed) {
                   generation.claim = null;
+                  if (automatic) {
+                    const retained = takeManualTitle(
+                      threadTitleGenerationsRef.current,
+                      tid,
+                      state,
+                    );
+                    if (retained !== undefined) return retained;
+                  }
                   continue;
                 }
 

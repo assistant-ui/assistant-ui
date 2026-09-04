@@ -370,6 +370,65 @@ describe("useThreads", () => {
     expect(mocks.generateThreadTitle).toHaveBeenCalledTimes(2);
   });
 
+  it("keeps an earlier manual title when a newer rename fails", async () => {
+    const failingRename = createDeferred<void>();
+    const cloud = createCloud("cloud-1");
+    mocks.generateThreadTitle.mockResolvedValue("Generated title");
+    const { result } = renderHook(() =>
+      useThreads({ cloud: cloud as never, enabled: false }),
+    );
+
+    await act(async () => {
+      await result.current.rename("thread-1", "First manual title");
+    });
+    cloud.threads.update.mockReturnValueOnce(failingRename.promise);
+
+    let rename!: Promise<boolean>;
+    let generation!: Promise<string | null>;
+    act(() => {
+      rename = result.current.rename("thread-1", "Second manual title");
+      generation = result.current.generateTitle("thread-1", {
+        automatic: true,
+      });
+    });
+
+    let generatedTitle: string | null = null;
+    await act(async () => {
+      failingRename.reject(new Error("rename failed"));
+      expect(await rename).toBe(false);
+      generatedTitle = await generation;
+    });
+
+    expect(generatedTitle).toBe("First manual title");
+    expect(mocks.generateThreadTitle).not.toHaveBeenCalled();
+  });
+
+  it("drops retained manual titles when the cloud changes", async () => {
+    const cloudA = createCloud("cloud-1");
+    const cloudB = createCloud("cloud-2");
+    mocks.generateThreadTitle.mockResolvedValue("Generated title");
+    const { result, rerender } = renderHook(
+      ({ cloud }) => useThreads({ cloud: cloud as never, enabled: false }),
+      { initialProps: { cloud: cloudA } },
+    );
+
+    await act(async () => {
+      await result.current.rename("thread-1", "Manual title");
+    });
+
+    rerender({ cloud: cloudB });
+
+    let automaticTitle: string | null = null;
+    await act(async () => {
+      automaticTitle = await result.current.generateTitle("thread-1", {
+        automatic: true,
+      });
+    });
+
+    expect(automaticTitle).toBe("Generated title");
+    expect(mocks.generateThreadTitle).toHaveBeenCalledOnce();
+  });
+
   it("loads threads when Strict Mode replays effects", async () => {
     const cloud = {
       threads: {
