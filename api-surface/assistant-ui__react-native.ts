@@ -262,7 +262,7 @@ type AssistantCloudThreadMessageFeedbackBody = {
 
 type AssistantCloudThreadMessageFeedbackResponse = {
   feedback_id: string;
-  type: string;
+  type: "negative" | "positive";
 };
 
 type AssistantCloudThreadMessageListQuery = {
