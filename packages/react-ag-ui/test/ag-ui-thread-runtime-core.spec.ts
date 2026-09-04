@@ -9,7 +9,7 @@ import type {
   ThreadHistoryAdapter,
   ThreadMessage,
 } from "@assistant-ui/core";
-import { HttpAgent } from "@ag-ui/client";
+import { HttpAgent, type AgentSubscriber } from "@ag-ui/client";
 import { AgUiThreadRuntimeCore } from "../src/runtime/AgUiThreadRuntimeCore";
 import { makeLogger, type Logger } from "../src/runtime/logger";
 
@@ -933,6 +933,34 @@ describe("AGUIThreadRuntimeCore", () => {
     resolveRuns[1]?.();
     await replacementRun;
     expect(core.isRunning()).toBe(false);
+  });
+
+  it("keeps replacement run errors with the replacement", async () => {
+    const runs: Array<{ subscriber: AgentSubscriber; resolve: () => void }> =
+      [];
+    const agent = {
+      runAgent: vi.fn(
+        (_input: unknown, subscriber: AgentSubscriber) =>
+          new Promise<void>((resolve) => {
+            runs.push({ subscriber, resolve });
+          }),
+      ),
+      abortRun: vi.fn(),
+    } as unknown as HttpAgent;
+
+    const core = createCore(agent);
+    const firstRun = core.append(createAppendMessage());
+    await core.cancel();
+
+    const replacementRun = core.append(createAppendMessage());
+    const replacementError = new Error("replacement failed");
+    runs[1]?.subscriber.onRunFailed?.({ error: replacementError });
+
+    runs[0]?.resolve();
+    await expect(firstRun).resolves.toBeUndefined();
+
+    runs[1]?.resolve();
+    await expect(replacementRun).rejects.toBe(replacementError);
   });
 
   it("cancels an active run when the runtime detaches", async () => {

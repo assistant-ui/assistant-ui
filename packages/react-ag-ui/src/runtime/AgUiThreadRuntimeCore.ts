@@ -164,7 +164,6 @@ export class AgUiThreadRuntimeCore {
   // mid-run, and cancelling has to reach the agent holding the live request.
   private activeRunAgent: AbstractAgent | null = null;
   private stateSnapshot: ReadonlyJSONValue | undefined;
-  private pendingError: Error | null = null;
   private history: ThreadHistoryAdapter | undefined;
   private lastRunConfig: RunConfig | undefined;
   private readonly assistantHistoryParents = new Map<string, string | null>();
@@ -1005,7 +1004,7 @@ export class AgUiThreadRuntimeCore {
       this.getMessageRepository().messages.map(({ message }) => message.id),
     );
 
-    this.pendingError = null;
+    let pendingError: Error | null = null;
     const assistantParentId = parent ? parentId : this.session.headId;
     let assistantMessageId: string | undefined;
     // A snapshot the preserve gate declines still evicts the in-flight
@@ -1131,16 +1130,17 @@ export class AgUiThreadRuntimeCore {
         // Cancel flips only the status; an aggregator RUN_CANCELLED would emit an empty snapshot and wipe the replayed content.
         cancelRun = () =>
           applyUpdate({ status: { type: "incomplete", reason: "cancelled" } });
-        await this.consumeResumeStream(resumeStream, {
-          runConfig: normalizedRunConfig,
-          threadId: this.agent.threadId || "main",
-          parentId: assistantParentId,
-          historicalMessages,
-          abortSignal,
-          ensureAssistant,
-          applyUpdate,
-          getAssistantMessageId: () => assistantMessageId,
-        });
+        pendingError =
+          (await this.consumeResumeStream(resumeStream, {
+            runConfig: normalizedRunConfig,
+            threadId: this.agent.threadId || "main",
+            parentId: assistantParentId,
+            historicalMessages,
+            abortSignal,
+            ensureAssistant,
+            applyUpdate,
+            getAssistantMessageId: () => assistantMessageId,
+          })) ?? null;
       } else {
         const runId = generateId();
         aggregator.handle({ type: "RUN_STARTED", runId });
@@ -1156,7 +1156,7 @@ export class AgUiThreadRuntimeCore {
           logger: this.logger,
           onRunFailed: (error) => {
             if (abortSignal.aborted) return;
-            this.pendingError = error;
+            pendingError = error;
             invokeRuntimeCallback("onError", this.onError, error);
           },
         });
@@ -1176,16 +1176,15 @@ export class AgUiThreadRuntimeCore {
         const err = error instanceof Error ? error : new Error(String(error));
         dispatch({ type: "RUN_ERROR", message: err.message });
         invokeRuntimeCallback("onError", this.onError, err);
-        this.pendingError = this.pendingError ?? err;
+        pendingError ??= err;
       }
     } finally {
       this.finishRun(abortController);
     }
 
-    if (this.pendingError) {
-      const err = this.pendingError;
+    if (pendingError) {
+      const err = pendingError;
       this.reportedErrors.add(err);
-      this.pendingError = null;
       this.pendingResumeMessageId = null;
       this.pendingA2uiResume = false;
       this.pendingA2uiAction = undefined;
@@ -1243,7 +1242,7 @@ export class AgUiThreadRuntimeCore {
       applyUpdate: (update: ChatModelRunResult) => void;
       getAssistantMessageId: () => string | undefined;
     },
-  ): Promise<void> {
+  ): Promise<Error | undefined> {
     this.pendingA2uiAction = undefined;
     this.pendingA2uiResume = false;
     const assistantId = ctx.ensureAssistant();
@@ -1279,8 +1278,7 @@ export class AgUiThreadRuntimeCore {
         status: { type: "incomplete", reason: "error", error: err.message },
       });
       invokeRuntimeCallback("onError", this.onError, err);
-      this.pendingError = this.pendingError ?? err;
-      return;
+      return err;
     }
 
     if (ctx.abortSignal.aborted) return;
