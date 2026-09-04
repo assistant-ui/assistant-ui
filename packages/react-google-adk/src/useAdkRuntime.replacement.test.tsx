@@ -48,78 +48,84 @@ const deferred = () => {
 };
 
 describe("useAdkRuntime replacement runs", () => {
-  it("ignores events and cleanup from a superseded run", async () => {
-    const gates = [deferred(), deferred()];
-    let calls = 0;
-    const stream = vi.fn(async function* (): AsyncGenerator<AdkEvent> {
-      const call = calls++;
-      await gates[call]!.promise;
-      yield {
-        id: `event-${call}`,
-        invocationId: `run-${call}`,
-        author: "agent",
-        content: { role: "model", parts: [{ text: `done-${call}` }] },
+  it.each([
+    { label: "after cancellation", cancelFirst: true },
+    { label: "without cancellation", cancelFirst: false },
+  ])(
+    "ignores events and cleanup from a superseded run $label",
+    async ({ cancelFirst }) => {
+      const gates = [deferred(), deferred()];
+      let calls = 0;
+      const stream = vi.fn(async function* (): AsyncGenerator<AdkEvent> {
+        const call = calls++;
+        await gates[call]!.promise;
+        yield {
+          id: `event-${call}`,
+          invocationId: `run-${call}`,
+          author: "agent",
+          content: { role: "model", parts: [{ text: `done-${call}` }] },
+        };
+      });
+      const sessionAdapter = makeThreadListAdapter();
+      const capture: { runtime: AssistantRuntime | null } = { runtime: null };
+
+      const Inner: FC = () => {
+        const runtime = useAdkRuntime({
+          stream,
+          sessionAdapter,
+          unstable_allowCancellation: true,
+        });
+        capture.runtime = runtime;
+        return <AssistantRuntimeProvider runtime={runtime} />;
       };
-    });
-    const sessionAdapter = makeThreadListAdapter();
-    const capture: { runtime: AssistantRuntime | null } = { runtime: null };
 
-    const Inner: FC = () => {
-      const runtime = useAdkRuntime({
-        stream,
-        sessionAdapter,
-        unstable_allowCancellation: true,
+      await act(async () => {
+        render(<Inner />);
       });
-      capture.runtime = runtime;
-      return <AssistantRuntimeProvider runtime={runtime} />;
-    };
-
-    await act(async () => {
-      render(<Inner />);
-    });
-    await waitFor(() => expect(capture.runtime).not.toBeNull());
-    await act(async () => {
-      await capture.runtime!.threads.switchToThread("adk-1");
-    });
-
-    let firstSend!: Promise<void>;
-    act(() => {
-      firstSend = capture.runtime!.thread.append({
-        role: "user",
-        content: [{ type: "text", text: "first" }],
+      await waitFor(() => expect(capture.runtime).not.toBeNull());
+      await act(async () => {
+        await capture.runtime!.threads.switchToThread("adk-1");
       });
-    });
-    await waitFor(() => expect(stream).toHaveBeenCalledTimes(1));
 
-    let secondSend!: Promise<void>;
-    await act(async () => {
-      await capture.runtime!.thread.cancelRun();
-      secondSend = capture.runtime!.thread.append({
-        role: "user",
-        content: [{ type: "text", text: "second" }],
+      let firstSend!: Promise<void>;
+      act(() => {
+        firstSend = capture.runtime!.thread.append({
+          role: "user",
+          content: [{ type: "text", text: "first" }],
+        });
       });
-    });
-    await waitFor(() => expect(stream).toHaveBeenCalledTimes(2));
+      await waitFor(() => expect(stream).toHaveBeenCalledTimes(1));
 
-    await act(async () => {
-      gates[0]!.resolve();
-      await firstSend;
-    });
+      let secondSend!: Promise<void>;
+      await act(async () => {
+        if (cancelFirst) await capture.runtime!.thread.cancelRun();
+        secondSend = capture.runtime!.thread.append({
+          role: "user",
+          content: [{ type: "text", text: "second" }],
+        });
+      });
+      await waitFor(() => expect(stream).toHaveBeenCalledTimes(2));
 
-    const messagesAfterFirstSettles = JSON.stringify(
-      capture.runtime!.thread.getState().messages,
-    );
-    expect(messagesAfterFirstSettles).toContain("second");
-    expect(messagesAfterFirstSettles).not.toContain("done-0");
-    expect(capture.runtime!.thread.getState().isRunning).toBe(true);
+      await act(async () => {
+        gates[0]!.resolve();
+        await firstSend;
+      });
 
-    await act(async () => {
-      gates[1]!.resolve();
-      await secondSend;
-    });
-    expect(
-      JSON.stringify(capture.runtime!.thread.getState().messages),
-    ).toContain("done-1");
-    expect(capture.runtime!.thread.getState().isRunning).toBe(false);
-  });
+      const messagesAfterFirstSettles = JSON.stringify(
+        capture.runtime!.thread.getState().messages,
+      );
+      expect(messagesAfterFirstSettles).toContain("second");
+      expect(messagesAfterFirstSettles).not.toContain("done-0");
+      expect(capture.runtime!.thread.getState().isRunning).toBe(true);
+
+      await act(async () => {
+        gates[1]!.resolve();
+        await secondSend;
+      });
+      expect(
+        JSON.stringify(capture.runtime!.thread.getState().messages),
+      ).toContain("done-1");
+      expect(capture.runtime!.thread.getState().isRunning).toBe(false);
+    },
+  );
 });
