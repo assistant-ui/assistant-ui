@@ -82,6 +82,22 @@ describe("useScrollLock", () => {
     expect(body.style.paddingRight).toBe("6px");
   });
 
+  // Both can scroll at once, and the padding lands on the body, so it is the
+  // body's own gutter that has to be replaced rather than the viewport's.
+  it("pads a scrolling body by its own gutter, not the viewport's", () => {
+    const root = document.documentElement;
+    stubWidths(root, { offsetWidth: 1585, clientWidth: 1585 });
+    vi.stubGlobal("innerWidth", 1600);
+    const body = document.body;
+    body.style.overflowY = "auto";
+    body.style.borderWidth = "0px";
+    stubWidths(body, { offsetWidth: 1591, clientWidth: 1585 });
+
+    lockWithin(body)();
+
+    expect(body.style.paddingRight).toBe("6px");
+  });
+
   it("restores the padding it added once the animation is over", () => {
     vi.useFakeTimers();
     const scroller = document.createElement("div");
