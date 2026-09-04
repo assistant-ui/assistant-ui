@@ -8,6 +8,8 @@ import {
   PUBLIC_ASSISTANT_CROSS_ORIGINS,
   requirePublicAssistantSession,
 } from "@/lib/anonymous-session";
+import { claimConversation, resolveDemoIdentity } from "@/lib/demo-usage";
+import { PUBLIC_ASSISTANT_CONVERSATION_LIMIT_MESSAGE } from "@/lib/public-assistant-errors";
 import { validateGeneralChatInput } from "@/lib/validate-input";
 import { resolveChatModel } from "@/lib/ai/provider";
 import { createSearchDocsTool } from "@/lib/ai/search-docs";
@@ -71,7 +73,28 @@ export async function POST(req: Request) {
       tools,
       config,
       searchDocs: searchDocsRequested,
+      id: threadId,
     } = body;
+
+    // The transport sends the thread id, so the day's budget counts distinct
+    // conversations rather than turns: a long conversation costs one.
+    if (typeof threadId === "string" && threadId) {
+      const identity = await resolveDemoIdentity(session.id);
+      const { allowed, usage } = await claimConversation(identity, threadId);
+      if (!allowed) {
+        return withCors(
+          req,
+          new Response(PUBLIC_ASSISTANT_CONVERSATION_LIMIT_MESSAGE, {
+            status: 429,
+            headers: {
+              "Retry-After": String(
+                Math.max(1, Math.ceil((usage.resetAt - Date.now()) / 1_000)),
+              ),
+            },
+          }),
+        );
+      }
+    }
 
     // Basic validation: only accept short system prompts to limit abuse surface
     const MAX_SYSTEM_LENGTH = 4000;
