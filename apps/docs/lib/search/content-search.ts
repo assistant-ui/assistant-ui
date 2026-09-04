@@ -63,6 +63,9 @@ export type ContentMatch = {
 };
 
 const EXCERPT_LENGTH = 600;
+// The fallback ranks once per token, so a long question does not turn into a
+// full corpus scan per word.
+const FALLBACK_TOKENS = 6;
 const EXCERPT_PARAGRAPHS = 3;
 
 /**
@@ -89,7 +92,7 @@ export function searchContent(
   // nothing at all. Falling back to the pages each token finds on its own,
   // ordered by how many tokens found them, answers it with something.
   const perToken = new Map<string, { match: ContentMatch; hits: number }>();
-  for (const token of all) {
+  for (const token of all.slice(0, FALLBACK_TOKENS)) {
     for (const match of rank(records, [token], limit)) {
       const seen = perToken.get(match.url);
       if (seen) seen.hits += 1;
@@ -112,6 +115,9 @@ function rank(
 
   for (const page of records) {
     const titleScore = scoreText(page.title, tokens);
+    // The old MCP filter matched the url, and a path term is often the most
+    // specific thing a caller knows, so slugs still rank.
+    const urlScore = scoreText(page.url.replace(/[/-]/g, " "), tokens);
     const descriptionScore = scoreText(page.description, tokens);
     const headingScore = Math.max(
       0,
@@ -129,6 +135,7 @@ function rank(
     const score =
       titleScore * 8 +
       headingScore * 3 +
+      urlScore * 3 +
       descriptionScore * 2 +
       Math.min(bodyScore, 12);
     if (score === 0) continue;
@@ -137,8 +144,11 @@ function rank(
       .sort((a, b) => b.score - a.score || a.order - b.order)
       .slice(0, EXCERPT_PARAGRAPHS)
       .sort((a, b) => a.order - b.order);
-    const excerpt = (chosen.length > 0 ? chosen : paragraphs)
-      .map((entry) => entry.text)
+    const excerpt = (
+      chosen.length > 0
+        ? chosen.map((entry) => entry.text)
+        : page.contents.slice(0, 1)
+    )
       .join(" ")
       .slice(0, EXCERPT_LENGTH);
 

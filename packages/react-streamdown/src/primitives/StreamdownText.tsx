@@ -16,6 +16,7 @@ import {
   type ComponentRef,
   type FC,
   forwardRef,
+  memo,
   useDeferredValue,
   useMemo,
 } from "react";
@@ -57,6 +58,17 @@ const StreamdownBody: FC<StreamdownBodyProps> = ({
   return <Streamdown {...props}>{repairedText}</Streamdown>;
 };
 
+// Streamdown reparses the whole accumulated text on every render, so the urgent
+// pass of a deferred pair would parse text the previous commit already parsed.
+// Memoizing the body turns that pass into a bail-out.
+const MemoizedStreamdownBody: FC<StreamdownBodyProps> = memo(
+  ({ text, shouldTailRemend, remendConfig, ...props }) => {
+    const repairedText = useRepairedText(text, shouldTailRemend, remendConfig);
+    return <Streamdown {...props}>{repairedText}</Streamdown>;
+  },
+);
+MemoizedStreamdownBody.displayName = "MemoizedStreamdownBody";
+
 // `useDeferredValue` schedules a second render pass whenever its input changes,
 // so the deferred path lives in its own component and `defer={false}` never
 // mounts it. The repair stays below the deferral so it runs in the deferred
@@ -68,12 +80,14 @@ const DeferredStreamdownBody: FC<StreamdownBodyProps> = ({
   ...props
 }) => {
   const deferredText = useDeferredValue(text);
-  const repairedText = useRepairedText(
-    deferredText,
-    shouldTailRemend,
-    remendConfig,
+  return (
+    <MemoizedStreamdownBody
+      text={deferredText}
+      shouldTailRemend={shouldTailRemend}
+      remendConfig={remendConfig}
+      {...props}
+    />
   );
-  return <Streamdown {...props}>{repairedText}</Streamdown>;
 };
 
 // Streamdown extends the default sanitize schema without exporting it, so it is

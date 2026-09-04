@@ -80,6 +80,20 @@ describe("searchContent", () => {
     ]);
   });
 
+  it("matches a term that appears only in the url", () => {
+    expect(
+      searchContent(mocks.records, "runtimes custom", 5).map(
+        (page) => page.url,
+      ),
+    ).toEqual(["/docs/runtimes/custom"]);
+  });
+
+  it("still returns an excerpt for a page matched on metadata alone", () => {
+    expect(searchContent(mocks.records, "keyboard", 1)[0]?.excerpt).toBe(
+      "Press the escape key to dismiss the composer autocomplete popover.",
+    );
+  });
+
   it("caps results at the limit", () => {
     expect(searchContent(mocks.records, "thread", 1)).toHaveLength(1);
   });
