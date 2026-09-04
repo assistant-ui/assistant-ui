@@ -195,25 +195,46 @@ it("switches immediately when no anonymous token is stored", () => {
   expect(fetchMock).not.toHaveBeenCalled();
 });
 
+it("refreshes the budget after a claim that moved nothing", async () => {
+  vi.stubEnv("NEXT_PUBLIC_ASSISTANT_BASE_URL", baseUrl);
+  installLocalStorage(true);
+  mocks.session = signedInSession();
+  vi.stubGlobal(
+    "fetch",
+    vi.fn(() => Promise.resolve(Response.json({ moved: 0 }))),
+  );
+
+  const { result } = renderHook(() => useDocsCloud());
+
+  await waitFor(() => expect(result.current.accountOwned).toBe(true));
+  expect(refreshDemoUsage).toHaveBeenCalledOnce();
+});
+
 it.each([
   ["network rejection", () => Promise.reject(new Error("network failure"))],
   [
     "bad gateway response",
     () => Promise.resolve(new Response(null, { status: 502 })),
   ],
-])("switches after a failed claim from a %s", async (_name, response) => {
-  vi.stubEnv("NEXT_PUBLIC_ASSISTANT_BASE_URL", baseUrl);
-  installLocalStorage(true);
-  mocks.session = signedInSession();
-  vi.stubGlobal("fetch", vi.fn(response));
+])(
+  "keeps the anonymous cloud after a failed claim from a %s",
+  async (_name, response) => {
+    vi.stubEnv("NEXT_PUBLIC_ASSISTANT_BASE_URL", baseUrl);
+    installLocalStorage(true);
+    mocks.session = signedInSession();
+    const fetchMock = vi.fn(response);
+    vi.stubGlobal("fetch", fetchMock);
 
-  const { result } = renderHook(() => useDocsCloud());
+    const { result } = renderHook(() => useDocsCloud());
 
-  expect(result.current.accountOwned).toBe(false);
-  await waitFor(() => expect(result.current.accountOwned).toBe(true));
-  expect(cloudStrategy(result.current.cloud)).toBe("jwt");
-  expect(refreshDemoUsage).not.toHaveBeenCalled();
-});
+    expect(result.current.accountOwned).toBe(false);
+    await waitFor(() => expect(fetchMock).toHaveBeenCalledOnce());
+    await new Promise((resolve) => setTimeout(resolve, 20));
+    expect(result.current.accountOwned).toBe(false);
+    expect(cloudStrategy(result.current.cloud)).toBe("anon");
+    expect(refreshDemoUsage).not.toHaveBeenCalled();
+  },
+);
 
 it("does not claim without signed-in cloud history", () => {
   vi.stubEnv("NEXT_PUBLIC_ASSISTANT_BASE_URL", baseUrl);

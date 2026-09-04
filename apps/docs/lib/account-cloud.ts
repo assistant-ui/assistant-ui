@@ -7,7 +7,6 @@ export function accountCloud(userId: string): AssistantCloud | null {
   if (!apiKey) return null;
 
   return new AssistantCloud({
-    baseUrl: process.env.NEXT_PUBLIC_ASSISTANT_BASE_URL!,
     apiKey,
     userId,
     workspaceId: userId,

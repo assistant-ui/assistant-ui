@@ -75,12 +75,9 @@ export function useDocsCloud() {
           headers: { "content-type": "application/json" },
           body: JSON.stringify({ refresh_token: refreshToken }),
           credentials: "same-origin",
-        }).then(async (response) => {
-          if (!response.ok) return;
-          const payload = (await response.json()) as { moved?: unknown };
-          if (typeof payload.moved === "number" && payload.moved > 0) {
-            refreshDemoUsage();
-          }
+        }).then((response) => {
+          if (!response.ok) throw new Error(response.statusText);
+          refreshDemoUsage();
         })
       : Promise.resolve();
 
@@ -88,9 +85,7 @@ export function useDocsCloud() {
       () => {
         if (!cancelled) setClaimedFor(userKey);
       },
-      () => {
-        if (!cancelled) setClaimedFor(userKey);
-      },
+      () => {},
     );
 
     return () => {
