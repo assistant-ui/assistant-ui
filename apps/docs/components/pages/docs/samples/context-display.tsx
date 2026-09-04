@@ -10,17 +10,18 @@ const RING_RADIUS = (RING_SIZE - RING_STROKE) / 2;
 const RING_CIRCUMFERENCE = 2 * Math.PI * RING_RADIUS;
 const MODEL_CONTEXT_WINDOW = 128_000;
 
+// A null shade marks a count already inside the row above it, which is why it
+// carries no swatch and no share of the bar.
 const POPOVER_SEGMENTS = [
-  { label: "Input", tokens: 30_100, shade: "opacity-100" },
-  { label: "Cached input", tokens: 41_200, shade: "opacity-70" },
-  { label: "Output", tokens: 12_700, shade: "opacity-45" },
-  { label: "Reasoning", tokens: 8_400, shade: "opacity-25" },
+  { label: "Input", tokens: 71_300, shade: "opacity-100" },
+  { label: "of which cached", tokens: 41_200, shade: null },
+  { label: "Output", tokens: 20_900, shade: "opacity-45" },
+  { label: "of which reasoning", tokens: 8_400, shade: null },
 ];
 
-const POPOVER_TOTAL = POPOVER_SEGMENTS.reduce(
-  (sum, segment) => sum + segment.tokens,
-  0,
-);
+const POPOVER_TOTAL = POPOVER_SEGMENTS.filter(
+  (segment) => segment.shade !== null,
+).reduce((sum, segment) => sum + segment.tokens, 0);
 
 const USAGE_LEVELS = [
   { label: "Low", percent: 42 },
@@ -118,13 +119,15 @@ export function ContextDisplaySample() {
             <span className="font-mono tabular-nums">92.2k / 128k</span>
           </div>
           <div className="bg-muted mt-2.5 flex h-1 gap-px overflow-hidden rounded-full">
-            {POPOVER_SEGMENTS.map(({ label, tokens, shade }) => (
-              <div
-                key={label}
-                className={cn("h-full bg-amber-500", shade)}
-                style={{ width: `${(tokens / POPOVER_TOTAL) * 72}%` }}
-              />
-            ))}
+            {POPOVER_SEGMENTS.filter(({ shade }) => shade !== null).map(
+              ({ label, tokens, shade }) => (
+                <div
+                  key={label}
+                  className={cn("h-full bg-amber-500", shade)}
+                  style={{ width: `${(tokens / POPOVER_TOTAL) * 72}%` }}
+                />
+              ),
+            )}
           </div>
           <div className="mt-3 grid gap-1.5">
             {POPOVER_SEGMENTS.map(({ label, tokens, shade }) => (
@@ -133,14 +136,25 @@ export function ContextDisplaySample() {
                 className="flex items-center justify-between gap-6"
               >
                 <span className="flex items-center gap-1.5">
+                  {shade === null ? (
+                    <span aria-hidden className="size-2 shrink-0" />
+                  ) : (
+                    <span
+                      aria-hidden
+                      className={cn(
+                        "size-2 shrink-0 rounded-xs bg-amber-500",
+                        shade,
+                      )}
+                    />
+                  )}
                   <span
-                    aria-hidden
                     className={cn(
-                      "size-2 shrink-0 rounded-xs bg-amber-500",
-                      shade,
+                      "text-muted-foreground",
+                      shade === null && "opacity-70",
                     )}
-                  />
-                  <span className="text-muted-foreground">{label}</span>
+                  >
+                    {label}
+                  </span>
                 </span>
                 <span className="font-mono tabular-nums">
                   {formatTokenCount(tokens)}

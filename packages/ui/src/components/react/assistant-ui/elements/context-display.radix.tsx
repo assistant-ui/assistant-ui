@@ -187,32 +187,30 @@ function ContextDisplayTrigger({
 type ContextSegment = {
   label: string;
   tokens: number;
-  /** Keys a bar span to its legend swatch; steps down so neighbours separate. */
-  shade: string;
+  /** Keys a bar span to its legend swatch; null for a count inside another. */
+  shade: string | null;
 };
 
-const SEGMENT_SHADES = [
-  "opacity-100",
-  "opacity-70",
-  "opacity-45",
-  "opacity-25",
-];
+// Whether a provider counts cached tokens inside inputTokens, or reasoning
+// inside outputTokens, is not part of the usage contract, so only the two
+// counts that never overlap divide the bar. The other two are reported as what
+// they are, a part of the row above, and claim no share of the window.
+const CONTEXT_CATEGORIES = [
+  { label: "Input", key: "inputTokens", shade: "opacity-100" },
+  { label: "of which cached", key: "cachedInputTokens", shade: null },
+  { label: "Output", key: "outputTokens", shade: "opacity-45" },
+  { label: "of which reasoning", key: "reasoningTokens", shade: null },
+] as const;
 
 const getContextSegments = (
   usage: TokenUsage | undefined,
 ): ContextSegment[] => {
   if (!usage) return [];
-  return [
-    { label: "Input", tokens: usage.inputTokens ?? 0 },
-    { label: "Cached input", tokens: usage.cachedInputTokens ?? 0 },
-    { label: "Output", tokens: usage.outputTokens ?? 0 },
-    { label: "Reasoning", tokens: usage.reasoningTokens ?? 0 },
-  ]
-    .filter((segment) => segment.tokens > 0)
-    .map((segment, index) => ({
-      ...segment,
-      shade: SEGMENT_SHADES[index] ?? "opacity-25",
-    }));
+  return CONTEXT_CATEGORIES.map(({ label, key, shade }) => ({
+    label,
+    shade,
+    tokens: usage[key] ?? 0,
+  })).filter((segment) => segment.tokens > 0);
 };
 
 function ContextDisplayContent({
@@ -228,13 +226,14 @@ function ContextDisplayContent({
   // The provider reports totalTokens separately from the category fields, which
   // need not add up to it, so the spans divide the measured fill rather than
   // being measured against the window themselves.
-  const segmentTotal = segments.reduce(
+  const barSegments = segments.filter((segment) => segment.shade !== null);
+  const segmentTotal = barSegments.reduce(
     (sum, segment) => sum + segment.tokens,
     0,
   );
   const segmentWidths =
     segmentTotal > 0
-      ? segments.map((segment) => ({
+      ? barSegments.map((segment) => ({
           segment,
           width: (segment.tokens / segmentTotal) * percent,
         }))
@@ -292,15 +291,26 @@ function ContextDisplayContent({
                 className="flex items-center justify-between gap-6"
               >
                 <span className="flex items-center gap-1.5">
+                  {segment.shade === null ? (
+                    <span aria-hidden className="size-2 shrink-0" />
+                  ) : (
+                    <span
+                      aria-hidden
+                      className={cn(
+                        "size-2 shrink-0 rounded-xs",
+                        getBarColor(percent),
+                        segment.shade,
+                      )}
+                    />
+                  )}
                   <span
-                    aria-hidden
                     className={cn(
-                      "size-2 shrink-0 rounded-xs",
-                      getBarColor(percent),
-                      segment.shade,
+                      "text-muted-foreground",
+                      segment.shade === null && "opacity-70",
                     )}
-                  />
-                  <span className="text-muted-foreground">{segment.label}</span>
+                  >
+                    {segment.label}
+                  </span>
                 </span>
                 <span className="font-mono tabular-nums">
                   {formatTokenCount(segment.tokens)}
