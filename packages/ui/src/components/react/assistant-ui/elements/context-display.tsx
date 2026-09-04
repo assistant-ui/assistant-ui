@@ -62,6 +62,13 @@ const getBarColor = (percent: number): string => {
   if (severity === "warning") return "bg-amber-500";
   return "bg-foreground";
 };
+
+const getPercentColor = (percent: number): string => {
+  const severity = getUsageSeverity(percent);
+  if (severity === "critical") return "text-red-500";
+  if (severity === "warning") return "text-amber-500";
+  return "text-muted-foreground";
+};
 type ContextDisplayContextValue = {
   usage: TokenUsage | undefined;
   totalTokens: number;
@@ -182,7 +189,16 @@ function ContextDisplayTrigger({
 type ContextSegment = {
   label: string;
   tokens: number;
+  /** Keys a bar span to its legend swatch; steps down so neighbours separate. */
+  shade: string;
 };
+
+const SEGMENT_SHADES = [
+  "opacity-100",
+  "opacity-70",
+  "opacity-45",
+  "opacity-25",
+];
 
 const getContextSegments = (
   usage: TokenUsage | undefined,
@@ -193,7 +209,12 @@ const getContextSegments = (
     { label: "Cached input", tokens: usage.cachedInputTokens ?? 0 },
     { label: "Output", tokens: usage.outputTokens ?? 0 },
     { label: "Reasoning", tokens: usage.reasoningTokens ?? 0 },
-  ].filter((segment) => segment.tokens > 0);
+  ]
+    .filter((segment) => segment.tokens > 0)
+    .map((segment, index) => ({
+      ...segment,
+      shade: SEGMENT_SHADES[index] ?? "opacity-25",
+    }));
 };
 
 function ContextDisplayContent({
@@ -206,6 +227,20 @@ function ContextDisplayContent({
   const { usage, totalTokens, percent, modelContextWindow } =
     useContextDisplay();
   const segments = getContextSegments(usage);
+  // The provider reports totalTokens separately from the category fields, which
+  // need not add up to it, so the spans divide the measured fill rather than
+  // being measured against the window themselves.
+  const segmentTotal = segments.reduce(
+    (sum, segment) => sum + segment.tokens,
+    0,
+  );
+  const segmentWidths =
+    segmentTotal > 0
+      ? segments.map((segment) => ({
+          segment,
+          width: (segment.tokens / segmentTotal) * percent,
+        }))
+      : [];
 
   return (
     <TooltipContent
@@ -219,30 +254,56 @@ function ContextDisplayContent({
     >
       <div className="text-xs">
         <div className="flex items-baseline justify-between gap-6 whitespace-nowrap">
-          <span className="text-muted-foreground">Context</span>
+          <span className={getPercentColor(percent)}>
+            {Math.round(percent)}% full
+          </span>
           <span className="font-mono tabular-nums">
             {formatTokenCount(Math.min(totalTokens, modelContextWindow))} /{" "}
             {formatTokenCount(modelContextWindow)}
           </span>
         </div>
-        <div className="bg-muted mt-2.5 h-1 overflow-hidden rounded-full">
-          <div
-            className={cn(
-              "h-full w-(--usage-width) rounded-full transition-[width] duration-300",
-              totalTokens > 0 && "min-w-1",
-              getBarColor(percent),
-            )}
-            style={{ "--usage-width": `${percent}%` } as React.CSSProperties}
-          />
+        <div className="bg-muted mt-2.5 flex h-1 gap-px overflow-hidden rounded-full">
+          {segmentWidths.length > 0 ? (
+            segmentWidths.map(({ segment, width }) => (
+              <div
+                key={segment.label}
+                className={cn(
+                  "h-full w-(--usage-width) transition-[width] duration-300",
+                  getBarColor(percent),
+                  segment.shade,
+                )}
+                style={{ "--usage-width": `${width}%` } as React.CSSProperties}
+              />
+            ))
+          ) : (
+            <div
+              className={cn(
+                "h-full w-(--usage-width) rounded-full transition-[width] duration-300",
+                totalTokens > 0 && "min-w-1",
+                getBarColor(percent),
+              )}
+              style={{ "--usage-width": `${percent}%` } as React.CSSProperties}
+            />
+          )}
         </div>
         {segments.length > 0 && (
           <div className="mt-3 grid gap-1.5">
             {segments.map((segment) => (
               <div
                 key={segment.label}
-                className="flex items-baseline justify-between gap-6"
+                className="flex items-center justify-between gap-6"
               >
-                <span className="text-muted-foreground">{segment.label}</span>
+                <span className="flex items-center gap-1.5">
+                  <span
+                    aria-hidden
+                    className={cn(
+                      "size-2 shrink-0 rounded-xs",
+                      getBarColor(percent),
+                      segment.shade,
+                    )}
+                  />
+                  <span className="text-muted-foreground">{segment.label}</span>
+                </span>
                 <span className="font-mono tabular-nums">
                   {formatTokenCount(segment.tokens)}
                 </span>
