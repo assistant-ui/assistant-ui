@@ -10,18 +10,12 @@ const RING_RADIUS = (RING_SIZE - RING_STROKE) / 2;
 const RING_CIRCUMFERENCE = 2 * Math.PI * RING_RADIUS;
 const MODEL_CONTEXT_WINDOW = 128_000;
 
-// A null shade marks a count already inside the row above it, which is why it
-// carries no swatch and no share of the bar.
 const POPOVER_SEGMENTS = [
-  { label: "Input", tokens: 71_300, shade: "opacity-100" },
-  { label: "of which cached", tokens: 41_200, shade: null },
-  { label: "Output", tokens: 20_900, shade: "opacity-45" },
-  { label: "of which reasoning", tokens: 8_400, shade: null },
+  { label: "Input", tokens: 71_300 },
+  { label: "Cached input", tokens: 41_200 },
+  { label: "Output", tokens: 20_900 },
+  { label: "Reasoning", tokens: 8_400 },
 ];
-
-const POPOVER_TOTAL = POPOVER_SEGMENTS.filter(
-  (segment) => segment.shade !== null,
-).reduce((sum, segment) => sum + segment.tokens, 0);
 
 const USAGE_LEVELS = [
   { label: "Low", percent: 42 },
@@ -118,44 +112,19 @@ export function ContextDisplaySample() {
             <span className="text-amber-500">72% full</span>
             <span className="font-mono tabular-nums">92.2k / 128k</span>
           </div>
-          <div className="bg-muted mt-2.5 flex h-1 gap-px overflow-hidden rounded-full">
-            {POPOVER_SEGMENTS.filter(({ shade }) => shade !== null).map(
-              ({ label, tokens, shade }) => (
-                <div
-                  key={label}
-                  className={cn("h-full bg-amber-500", shade)}
-                  style={{ width: `${(tokens / POPOVER_TOTAL) * 72}%` }}
-                />
-              ),
-            )}
+          <div className="bg-muted mt-2.5 h-1 overflow-hidden rounded-full">
+            <div
+              className="h-full rounded-full bg-amber-500"
+              style={{ width: "72%" }}
+            />
           </div>
           <div className="mt-3 grid gap-1.5">
-            {POPOVER_SEGMENTS.map(({ label, tokens, shade }) => (
+            {POPOVER_SEGMENTS.map(({ label, tokens }) => (
               <div
                 key={label}
-                className="flex items-center justify-between gap-6"
+                className="flex items-baseline justify-between gap-6"
               >
-                <span className="flex items-center gap-1.5">
-                  {shade === null ? (
-                    <span aria-hidden className="size-2 shrink-0" />
-                  ) : (
-                    <span
-                      aria-hidden
-                      className={cn(
-                        "size-2 shrink-0 rounded-xs bg-amber-500",
-                        shade,
-                      )}
-                    />
-                  )}
-                  <span
-                    className={cn(
-                      "text-muted-foreground",
-                      shade === null && "opacity-70",
-                    )}
-                  >
-                    {label}
-                  </span>
-                </span>
+                <span className="text-muted-foreground">{label}</span>
                 <span className="font-mono tabular-nums">
                   {formatTokenCount(tokens)}
                 </span>

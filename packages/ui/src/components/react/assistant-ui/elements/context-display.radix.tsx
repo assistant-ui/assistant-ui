@@ -187,30 +187,25 @@ function ContextDisplayTrigger({
 type ContextSegment = {
   label: string;
   tokens: number;
-  /** Keys a bar span to its legend swatch; null for a count inside another. */
-  shade: string | null;
 };
 
 // Whether a provider counts cached tokens inside inputTokens, or reasoning
-// inside outputTokens, is not part of the usage contract, so only the two
-// counts that never overlap divide the bar. The other two are reported as what
-// they are, a part of the row above, and claim no share of the window.
-const CONTEXT_CATEGORIES = [
-  { label: "Input", key: "inputTokens", shade: "opacity-100" },
-  { label: "of which cached", key: "cachedInputTokens", shade: null },
-  { label: "Output", key: "outputTokens", shade: "opacity-45" },
-  { label: "of which reasoning", key: "reasoningTokens", shade: null },
-] as const;
-
+// inside outputTokens, differs by provider: OpenAI reports cached_tokens as a
+// subset of prompt_tokens, while Anthropic documents input_tokens as excluding
+// cache_read_input_tokens. Nothing in the usage contract says which is in hand,
+// so these are reported as the counts they are and none of them is given a
+// share of the bar, which stays the one reading that always holds: the
+// provider's own total against the window.
 const getContextSegments = (
   usage: TokenUsage | undefined,
 ): ContextSegment[] => {
   if (!usage) return [];
-  return CONTEXT_CATEGORIES.map(({ label, key, shade }) => ({
-    label,
-    shade,
-    tokens: usage[key] ?? 0,
-  })).filter((segment) => segment.tokens > 0);
+  return [
+    { label: "Input", tokens: usage.inputTokens ?? 0 },
+    { label: "Cached input", tokens: usage.cachedInputTokens ?? 0 },
+    { label: "Output", tokens: usage.outputTokens ?? 0 },
+    { label: "Reasoning", tokens: usage.reasoningTokens ?? 0 },
+  ].filter((segment) => segment.tokens > 0);
 };
 
 function ContextDisplayContent({
@@ -223,21 +218,6 @@ function ContextDisplayContent({
   const { usage, totalTokens, percent, modelContextWindow } =
     useContextDisplay();
   const segments = getContextSegments(usage);
-  // The provider reports totalTokens separately from the category fields, which
-  // need not add up to it, so the spans divide the measured fill rather than
-  // being measured against the window themselves.
-  const barSegments = segments.filter((segment) => segment.shade !== null);
-  const segmentTotal = barSegments.reduce(
-    (sum, segment) => sum + segment.tokens,
-    0,
-  );
-  const segmentWidths =
-    segmentTotal > 0
-      ? barSegments.map((segment) => ({
-          segment,
-          width: (segment.tokens / segmentTotal) * percent,
-        }))
-      : [];
 
   return (
     <TooltipContent
@@ -259,62 +239,24 @@ function ContextDisplayContent({
             {formatTokenCount(modelContextWindow)}
           </span>
         </div>
-        <div className="bg-muted mt-2.5 flex h-1 gap-px overflow-hidden rounded-full">
-          {segmentWidths.length > 0 ? (
-            segmentWidths.map(({ segment, width }, index) => (
-              <div
-                key={segment.label}
-                className={cn(
-                  "h-full w-(--usage-width) transition-[width] duration-300",
-                  // A fill under a pixel would round every span away and read
-                  // as an empty bar, so the first one keeps a floor.
-                  totalTokens > 0 && index === 0 && "min-w-1",
-                  getBarColor(percent),
-                  segment.shade,
-                )}
-                style={{ "--usage-width": `${width}%` } as React.CSSProperties}
-              />
-            ))
-          ) : (
-            <div
-              className={cn(
-                "h-full w-(--usage-width) rounded-full transition-[width] duration-300",
-                totalTokens > 0 && "min-w-1",
-                getBarColor(percent),
-              )}
-              style={{ "--usage-width": `${percent}%` } as React.CSSProperties}
-            />
-          )}
+        <div className="bg-muted mt-2.5 h-1 overflow-hidden rounded-full">
+          <div
+            className={cn(
+              "h-full w-(--usage-width) rounded-full transition-[width] duration-300",
+              totalTokens > 0 && "min-w-1",
+              getBarColor(percent),
+            )}
+            style={{ "--usage-width": `${percent}%` } as React.CSSProperties}
+          />
         </div>
         {segments.length > 0 && (
           <div className="mt-3 grid gap-1.5">
             {segments.map((segment) => (
               <div
                 key={segment.label}
-                className="flex items-center justify-between gap-6"
+                className="flex items-baseline justify-between gap-6"
               >
-                <span className="flex items-center gap-1.5">
-                  {segment.shade === null ? (
-                    <span aria-hidden className="size-2 shrink-0" />
-                  ) : (
-                    <span
-                      aria-hidden
-                      className={cn(
-                        "size-2 shrink-0 rounded-xs",
-                        getBarColor(percent),
-                        segment.shade,
-                      )}
-                    />
-                  )}
-                  <span
-                    className={cn(
-                      "text-muted-foreground",
-                      segment.shade === null && "opacity-70",
-                    )}
-                  >
-                    {segment.label}
-                  </span>
-                </span>
+                <span className="text-muted-foreground">{segment.label}</span>
                 <span className="font-mono tabular-nums">
                   {formatTokenCount(segment.tokens)}
                 </span>
