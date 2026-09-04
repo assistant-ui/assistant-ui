@@ -1833,7 +1833,6 @@ type ExternalStoreThreadListAdapter = {
 declare class ExternalStoreThreadListRuntimeCore extends BaseSubscribable implements ThreadListRuntimeCore {
   #private;
   get isLoading(): boolean;
-  get loadError(): undefined;
   get newThreadId(): undefined;
   get threadIds(): readonly string[];
   get archivedThreadIds(): readonly string[];
@@ -2419,7 +2418,6 @@ declare class LocalThreadListRuntimeCore extends BaseSubscribable implements Thr
   #private;
   constructor(_threadFactory: LocalThreadFactory);
   get isLoading(): boolean;
-  get loadError(): undefined;
   getMainThreadRuntimeCore(): LocalThreadRuntimeCore;
   get newThreadId(): string | undefined;
   get threadIds(): readonly string[];
@@ -4753,7 +4751,7 @@ type ThreadListRuntime = {
 
 type ThreadListRuntimeCore = {
   readonly isLoading: boolean;
-  readonly loadError: unknown;
+  readonly loadError?: unknown;
   readonly isLoadingMore?: boolean;
   readonly hasMore?: boolean;
   mainThreadId: string;
