@@ -7,6 +7,7 @@ import { useScrollLock } from "./useScrollLock";
 afterEach(() => {
   vi.useRealTimers();
   document.documentElement.removeAttribute("style");
+  document.body.removeAttribute("style");
   document.body.replaceChildren();
 });
 
@@ -62,6 +63,23 @@ describe("useScrollLock", () => {
 
     expect(root.style.scrollbarWidth).toBe("none");
     expect(root.style.paddingRight).toBe("6px");
+    vi.unstubAllGlobals();
+  });
+
+  // With `html { overflow: hidden }` the body scrolls on its own, so the
+  // viewport measure reports nothing and only the element formula sees the bar.
+  it("compensates when the body is the scroller rather than the viewport", () => {
+    const root = document.documentElement;
+    stubWidths(root, { offsetWidth: 1600, clientWidth: 1600 });
+    vi.stubGlobal("innerWidth", 1600);
+    const body = document.body;
+    body.style.overflowY = "auto";
+    body.style.borderWidth = "0px";
+    stubWidths(body, { offsetWidth: 1606, clientWidth: 1600 });
+
+    lockWithin(body)();
+
+    expect(body.style.paddingRight).toBe("6px");
     vi.unstubAllGlobals();
   });
 
