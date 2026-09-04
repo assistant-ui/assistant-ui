@@ -43,8 +43,8 @@ export function CookieSettingsNotice() {
   if (gpc) {
     return (
       <>
-        Your browser broadcasts Global Privacy Control, so analytics are already
-        disabled for your visit and there is nothing here to change.
+        Your browser is opting you out through Global Privacy Control, so there
+        is no choice here for you to change.
       </>
     );
   }
