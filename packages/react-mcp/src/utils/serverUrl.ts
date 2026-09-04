@@ -20,4 +20,4 @@ export const isAuthStateForServerUrl = (
 
 export const hasPersistedCredentials = (
   state: MCPPersistedAuthState | null,
-): boolean => state?.tokens !== undefined || state?.token !== undefined;
+): boolean => Boolean(state?.tokens) || Boolean(state?.token);

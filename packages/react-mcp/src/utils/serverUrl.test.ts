@@ -51,6 +51,7 @@ describe("isAuthStateForServerUrl", () => {
 describe("hasPersistedCredentials", () => {
   it("counts bearer and OAuth tokens, not flow state", () => {
     expect(hasPersistedCredentials({ token: "t" })).toBe(true);
+    expect(hasPersistedCredentials({ token: "" })).toBe(false);
     expect(
       hasPersistedCredentials({
         tokens: { access_token: "a", token_type: "bearer" },
