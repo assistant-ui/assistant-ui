@@ -168,16 +168,18 @@ const useAdkRuntimeImpl = (options: UseAdkRuntimeOptions) => {
   useInsertionEffect(() => {
     isRunningRef.current = effectiveIsRunning;
   }, [effectiveIsRunning]);
+  const runGenerationRef = useRef(0);
 
   const handleSendMessage = async (
     msgs: AdkMessage[],
     config: AdkSendMessageConfig,
   ) => {
+    const generation = ++runGenerationRef.current;
     try {
       setIsRunning(true);
       await sendMessage(msgs, config);
     } finally {
-      setIsRunning(false);
+      if (runGenerationRef.current === generation) setIsRunning(false);
     }
   };
 

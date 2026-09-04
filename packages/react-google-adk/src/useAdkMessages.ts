@@ -165,6 +165,12 @@ export const useAdkMessages = ({
         });
 
         for await (const event of response) {
+          if (
+            abortController.signal.aborted ||
+            abortControllerRef.current !== abortController
+          ) {
+            break;
+          }
           const updatedMessages = accumulator.processEvent(event);
           setMessagesImmediate(updatedMessages);
           setStateDelta({
