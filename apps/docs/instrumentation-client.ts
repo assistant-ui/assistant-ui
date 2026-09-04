@@ -32,26 +32,29 @@ if (typeof window !== "undefined") {
     };
   };
 
+  // opt_out_capturing persists and init honors it on every later load, so an
+  // accept that reverses a decline has to lift it explicitly, on this page and
+  // on every page after it.
+  const allow = () => {
+    start();
+    if (started && posthog.has_opted_out_capturing())
+      posthog.opt_in_capturing();
+  };
+
   // The head script has already loaded umami by the time the banner is answered,
   // so a decline has to reach the running tracker rather than only the next load.
   subscribeToConsent((choice) => {
     setUmamiTrackingEnabled(choice === "granted");
-    if (choice === "denied") {
-      if (started) posthog.opt_out_capturing();
-      return;
-    }
-    start();
-    // opt_out_capturing persists, and init honors it on every later load, so an
-    // accept after a decline needs the matching opt-in rather than another init.
-    if (started) posthog.opt_in_capturing();
+    if (choice === "granted") allow();
+    else if (started) posthog.opt_out_capturing();
   });
 
   const consent = getStoredConsent();
   if (consent === "granted") {
-    start();
+    allow();
   } else if (consent === null && apiKey) {
     void isConsentRequired().then((required) => {
-      if (!required && getStoredConsent() === null) start();
+      if (!required && getStoredConsent() === null) allow();
     });
   }
 }

@@ -5,6 +5,7 @@ const mocks = vi.hoisted(() => ({
   capture: vi.fn(),
   opt_in_capturing: vi.fn(),
   opt_out_capturing: vi.fn(),
+  has_opted_out_capturing: vi.fn(() => false),
 }));
 
 vi.mock("posthog-js", async (importOriginal) => ({
@@ -59,6 +60,7 @@ const boot = () => import("./instrumentation-client");
 beforeEach(() => {
   vi.resetModules();
   vi.clearAllMocks();
+  mocks.has_opted_out_capturing.mockReturnValue(false);
 });
 
 afterEach(() => {
@@ -109,6 +111,7 @@ describe("client analytics bootstrap", () => {
     const { target } = stubBrowser({ consent: "granted" });
 
     await boot();
+    mocks.has_opted_out_capturing.mockReturnValue(true);
     choose(target, "denied");
     choose(target, "granted");
 
@@ -139,5 +142,26 @@ describe("client analytics bootstrap", () => {
     );
 
     expect(mocks.init).toHaveBeenCalledOnce();
+  });
+
+  it("lifts a persisted opt-out on the next load after an accept", async () => {
+    // posthog persists the opt-out, so a reload after decline-then-accept would
+    // otherwise init into silence
+    stubBrowser({ consent: "granted" });
+    mocks.has_opted_out_capturing.mockReturnValue(true);
+
+    await boot();
+
+    expect(mocks.init).toHaveBeenCalledOnce();
+    expect(mocks.opt_in_capturing).toHaveBeenCalledOnce();
+  });
+
+  it("does not re-opt-in a visitor who never opted out", async () => {
+    stubBrowser({ consent: "granted" });
+    mocks.has_opted_out_capturing.mockReturnValue(false);
+
+    await boot();
+
+    expect(mocks.opt_in_capturing).not.toHaveBeenCalled();
   });
 });

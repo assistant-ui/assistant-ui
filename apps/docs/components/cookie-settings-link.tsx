@@ -32,3 +32,27 @@ export function CookieSettingsLink({ separator = false }) {
     </>
   );
 }
+
+export function CookieSettingsNotice() {
+  const gpc = useSyncExternalStore(
+    subscribe,
+    hasGlobalPrivacyControl,
+    () => false,
+  );
+
+  if (gpc) {
+    return (
+      <>
+        Your browser broadcasts Global Privacy Control, so analytics are already
+        disabled for your visit and there is nothing here to change.
+      </>
+    );
+  }
+
+  return (
+    <>
+      You can change your choice at any time with the <CookieSettingsLink />{" "}
+      control here, or from the footer of our main site pages.
+    </>
+  );
+}

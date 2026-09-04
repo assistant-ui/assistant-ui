@@ -264,26 +264,28 @@ it("drops sends through the before-send hook when storage refuses the flag", () 
     configurable: true,
     writable: true,
   });
-  win["localStorage"] = {
-    getItem: () => null,
-    setItem: () => {
-      throw new Error("blocked");
-    },
-    removeItem: () => {
-      throw new Error("blocked");
-    },
-  };
-  setUmamiTrackingEnabled(false);
+  try {
+    win["localStorage"] = {
+      getItem: () => null,
+      setItem: () => {
+        throw new Error("blocked");
+      },
+      removeItem: () => {
+        throw new Error("blocked");
+      },
+    };
+    setUmamiTrackingEnabled(false);
 
-  const beforeSend = win["__auiUmamiBeforeSend"] as (
-    type: string,
-    payload: unknown,
-  ) => unknown;
-  expect(beforeSend("event", { url: "/" })).toBeNull();
-
-  Object.defineProperty(globalThis, "window", {
-    value: original,
-    configurable: true,
-    writable: true,
-  });
+    const beforeSend = win["__auiUmamiBeforeSend"] as (
+      type: string,
+      payload: unknown,
+    ) => unknown;
+    expect(beforeSend("event", { url: "/" })).toBeNull();
+  } finally {
+    Object.defineProperty(globalThis, "window", {
+      value: original,
+      configurable: true,
+      writable: true,
+    });
+  }
 });
