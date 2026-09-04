@@ -9,6 +9,7 @@ export type ThreadsState = {
   readonly mainThreadId: string;
   readonly newThreadId: string | null;
   readonly isLoading: boolean;
+  readonly loadError: unknown;
   readonly isLoadingMore: boolean;
   readonly hasMore: boolean;
   readonly threadIds: readonly string[];

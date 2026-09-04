@@ -30,6 +30,10 @@ export class LocalThreadListRuntimeCore
     return false;
   }
 
+  public get loadError() {
+    return undefined;
+  }
+
   public getMainThreadRuntimeCore() {
     return this._mainThread;
   }
