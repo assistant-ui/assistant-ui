@@ -220,6 +220,22 @@ describe("rewriteCustomMathTags", () => {
     );
   });
 
+  it("does not add a blank line before a CRLF suffix", () => {
+    expect(rewriteCustomMathTags("[/math]\na\nb\n[/math]\r\nrest")).toBe(
+      "$$\na\nb\n$$\r\nrest",
+    );
+  });
+
+  it("rewrites a custom tag after an unclosed inline backtick run", () => {
+    expect(rewriteCustomMathTags("a ` b [/math]x[/math]")).toBe("a ` b $$x$$");
+  });
+
+  it("rewrites a custom tag after a mid-line code span", () => {
+    expect(rewriteCustomMathTags("a `code` [/math]x[/math]")).toBe(
+      "a `code` $$x$$",
+    );
+  });
+
   it("leaves an empty math tag pair as written", () => {
     expect(rewriteCustomMathTags("[/math][/math]")).toBe("[/math][/math]");
     expect(rewriteCustomMathTags("[/inline][/inline] rest")).toBe(

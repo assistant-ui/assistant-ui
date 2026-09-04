@@ -156,8 +156,12 @@ function emitDisplayMath(
   const before = offset === 0 ? precededBy : source[offset - 1]!;
   const afterStart = offset + match.length;
   const after = afterStart === source.length ? followedBy : source[afterStart]!;
-  const lead = before === "" || before === "\n" ? "" : "\n";
-  const tail = after === "" || after === "\n" ? "" : "\n";
+  // A CRLF document puts the carriage return next to the match, so both endings
+  // count as already being at a line boundary.
+  const endsLine = (char: string) =>
+    char === "" || char === "\n" || char === "\r";
+  const lead = endsLine(before) ? "" : "\n";
+  const tail = endsLine(after) ? "" : "\n";
   return `${lead}$$\n${trimmed}\n$$${tail}`;
 }
 
