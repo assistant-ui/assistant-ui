@@ -29,43 +29,40 @@ export function ConversationBudget({
     wasEmpty.current = isEmpty;
   }, [isEmpty]);
 
+  const spent = state.status === "ready" && state.usage.remaining === 0;
+  const resetAt = state.status === "ready" ? state.usage.resetAt : 0;
+
   // A tab left open across the reset would otherwise keep showing a spent day.
+  // Only a reset still ahead of us is scheduled: a device clock running past it
+  // would otherwise refresh on every answer, and the route is the real gate.
   useEffect(() => {
-    if (state.status !== "ready" || state.usage.remaining > 0) return;
-    const delay = state.usage.resetAt - Date.now();
-    if (delay <= 0) {
-      refreshDemoUsage();
-      return;
-    }
+    if (!spent) return;
+    const delay = resetAt - Date.now();
+    if (delay <= 0) return;
     const timer = setTimeout(
       refreshDemoUsage,
       Math.min(delay + 1_000, 2 ** 30),
     );
     return () => clearTimeout(timer);
-  }, [state]);
+  }, [spent, resetAt]);
 
   // A conversation already under way was counted when it started, so only a new
-  // one meets the gate, and only once the session is known: which of the two
-  // messages to show depends on it.
-  if (
-    state.status !== "ready" ||
-    session.status === "loading" ||
-    state.usage.remaining > 0 ||
-    state.usage.resetAt <= Date.now() ||
-    !isEmpty
-  ) {
-    return children;
-  }
+  // one meets the gate.
+  if (!spent || !isEmpty || state.status !== "ready") return children;
 
-  const { limit, resetAt } = state.usage;
+  // The gate does not wait for the session: leaving the composer live would let
+  // a send through to a 429. Only the action it can offer waits.
   const canSignIn = session.status === "anonymous";
+  const { limit } = state.usage;
 
   return (
     <div className="border-foreground/10 bg-muted/30 rounded-thread flex flex-col gap-3 border px-4 py-3.5 sm:flex-row sm:items-center sm:justify-between">
       <p className="text-[15px] leading-relaxed">
-        {canSignIn
-          ? `That is all ${limit} conversations for today. Sign in for ten a day.`
-          : `That is all ${limit} conversations for today. The next one opens ${resetsIn(resetAt)}.`}
+        {`That is all ${limit} conversations for today.`}
+        {canSignIn ? " Sign in for ten a day." : null}
+        {session.status === "signed-in"
+          ? ` The next one opens ${resetsIn(resetAt)}.`
+          : null}
       </p>
       {canSignIn ? (
         <a

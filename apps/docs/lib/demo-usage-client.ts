@@ -9,6 +9,19 @@ export type DemoUsageState =
 
 const loadingState: DemoUsageState = { status: "loading" };
 
+// A budget that cannot be read is not a spent budget: the route is the gate, so
+// the client settles open rather than sitting in loading and blocking nothing.
+const unknownState: DemoUsageState = {
+  status: "ready",
+  usage: {
+    used: 0,
+    limit: 0,
+    remaining: Number.POSITIVE_INFINITY,
+    resetAt: 0,
+    signedIn: false,
+  },
+};
+
 const listeners = new Set<() => void>();
 let state: DemoUsageState = loadingState;
 let inFlight: Promise<void> | null = null;
@@ -21,12 +34,13 @@ function load(): Promise<void> {
   inFlight ??= fetch("/api/demo/usage", { cache: "no-store" })
     .then((response) => (response.ok ? response.json() : null))
     .then((usage: DemoUsagePayload | null) => {
-      if (usage) {
-        state = { status: "ready", usage };
-        notify();
-      }
+      state = usage ? { status: "ready", usage } : unknownState;
+      notify();
     })
-    .catch(() => {})
+    .catch(() => {
+      state = unknownState;
+      notify();
+    })
     .finally(() => {
       inFlight = null;
     });

@@ -71,7 +71,14 @@ describe("describePublicAssistantError", () => {
 });
 
 it("offers sign-in when the day's conversations are spent", () => {
+  const copy = "You have used today's conversations. Sign in to keep going.";
+
   expect(
     describePublicAssistantError(PUBLIC_ASSISTANT_CONVERSATION_LIMIT_MESSAGE),
-  ).toBe("You have used today's conversations. Sign in to keep going.");
+  ).toBe(copy);
+  expect(
+    describePublicAssistantError(
+      JSON.stringify({ error: PUBLIC_ASSISTANT_CONVERSATION_LIMIT_MESSAGE }),
+    ),
+  ).toBe(copy);
 });

@@ -96,6 +96,27 @@ export async function POST(req: Request) {
       return withCors(req, inputError);
     }
 
+    const { model, providerOptions, reasoning } = resolveChatModel(config);
+    const distinctId = getDistinctId(req);
+    const origin = new URL(req.url).origin;
+
+    const frontendTools = await aiToolkit.tools({ frontend: tools });
+    if (groundInDocs && "search_docs" in frontendTools) {
+      return withCors(
+        req,
+        new Response("search_docs is reserved on this endpoint", {
+          status: 400,
+        }),
+      );
+    }
+
+    const prunedMessages = pruneMessages({
+      messages: await convertToModelMessages(
+        injectInteractableContext(injectQuoteContext(messages)),
+      ),
+      reasoning: "none",
+    });
+
     // Every docs surface shares this route, so only the one that opts in draws
     // on the budget, and only after the deterministic rejections, so a request
     // that was never going to run cannot spend a slot. The transport sends the
@@ -121,27 +142,6 @@ export async function POST(req: Request) {
         );
       }
     }
-
-    const { model, providerOptions, reasoning } = resolveChatModel(config);
-    const distinctId = getDistinctId(req);
-    const origin = new URL(req.url).origin;
-
-    const frontendTools = await aiToolkit.tools({ frontend: tools });
-    if (groundInDocs && "search_docs" in frontendTools) {
-      return withCors(
-        req,
-        new Response("search_docs is reserved on this endpoint", {
-          status: 400,
-        }),
-      );
-    }
-
-    const prunedMessages = pruneMessages({
-      messages: await convertToModelMessages(
-        injectInteractableContext(injectQuoteContext(messages)),
-      ),
-      reasoning: "none",
-    });
 
     const stream = createUIMessageStream({
       execute: async ({ writer }) => {

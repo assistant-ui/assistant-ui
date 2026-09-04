@@ -84,12 +84,19 @@ describe("POST /api/chat access boundary", () => {
 });
 
 describe("POST /api/chat conversation budget", () => {
+  // The claim sits after model resolution and the reserved-tool check, so the
+  // request has to survive that far to reach it.
   const allowed = () => {
     mocks.requireSession.mockReturnValue({
       id: "session_1234567890",
       expiresAt: Date.now() + 60_000,
     });
     mocks.checkRateLimit.mockResolvedValue(null);
+    mocks.resolveChatModel.mockReturnValue({
+      model: {},
+      providerOptions: {},
+      reasoning: undefined,
+    });
   };
 
   // A valid message, because the claim now sits after input validation and a
@@ -124,9 +131,6 @@ describe("POST /api/chat conversation budget", () => {
 
   it("leaves every surface that does not opt in out of the budget", async () => {
     allowed();
-    mocks.resolveChatModel.mockImplementation(() => {
-      throw new Error("reached model selection");
-    });
 
     await send({ messages: [message], id: "thread_1" }).catch(() => null);
 
@@ -154,6 +158,5 @@ describe("POST /api/chat conversation budget", () => {
     expect(response.status).toBe(429);
     expect(await response.text()).toBe("Daily conversation limit reached");
     expect(response.headers.get("Retry-After")).toBeTruthy();
-    expect(mocks.resolveChatModel).not.toHaveBeenCalled();
   });
 });
