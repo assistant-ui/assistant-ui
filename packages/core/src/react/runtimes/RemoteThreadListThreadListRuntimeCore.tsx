@@ -337,6 +337,7 @@ export class RemoteThreadListThreadListRuntimeCore
       this._state.update({
         ...this._state.baseValue,
         cursor: undefined,
+        loadError: undefined,
       });
       this._titleStates.clear();
     }

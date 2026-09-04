@@ -1011,6 +1011,44 @@ describe("RemoteThreadList", () => {
     handle.destroy();
   });
 
+  it("reloads once when the browser comes online after a failed load", async () => {
+    vi.stubGlobal("window", new EventTarget());
+    vi.stubGlobal(
+      "document",
+      Object.assign(new EventTarget(), { visibilityState: "visible" }),
+    );
+    const error = new Error("offline");
+    const firstLoad = deferred<{ threads: [] }>();
+    const list = vi
+      .fn()
+      .mockReturnValueOnce(firstLoad.promise)
+      .mockResolvedValueOnce({ threads: [] });
+    const consoleError = vi
+      .spyOn(console, "error")
+      .mockImplementation(() => {});
+    const { handle } = mountList(makeAdapter({ list }));
+
+    try {
+      await vi.waitFor(() => expect(list).toHaveBeenCalledTimes(1));
+      firstLoad.reject(error);
+      await vi.waitFor(() =>
+        expect(handle.getClient().threads.getState().loadError).toBe(error),
+      );
+
+      window.dispatchEvent(new Event("online"));
+
+      await vi.waitFor(() => expect(list).toHaveBeenCalledTimes(2));
+      await vi.waitFor(() =>
+        expect(handle.getClient().threads.getState().loadError).toBeUndefined(),
+      );
+      expect(list).toHaveBeenCalledTimes(2);
+    } finally {
+      handle.destroy();
+      consoleError.mockRestore();
+      vi.unstubAllGlobals();
+    }
+  });
+
   it("does not send a superseded rename through the replacement adapter", async () => {
     const initializeRequest = deferred<{
       remoteId: string;

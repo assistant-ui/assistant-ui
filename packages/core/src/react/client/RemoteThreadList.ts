@@ -633,6 +633,26 @@ const useRemoteThreadList = (
   ]);
 
   useEffect(() => {
+    if (typeof window === "undefined" || typeof document === "undefined") {
+      return;
+    }
+
+    const reloadAfterError = () => {
+      if (store.value.loadError !== undefined) void reload();
+    };
+    const reloadAfterVisible = () => {
+      if (document.visibilityState === "visible") reloadAfterError();
+    };
+
+    window.addEventListener("online", reloadAfterError);
+    document.addEventListener("visibilitychange", reloadAfterVisible);
+    return () => {
+      window.removeEventListener("online", reloadAfterError);
+      document.removeEventListener("visibilitychange", reloadAfterVisible);
+    };
+  }, [reload, store]);
+
+  useEffect(() => {
     void getLoadThreadsPromise();
   }, [getLoadThreadsPromise]);
 

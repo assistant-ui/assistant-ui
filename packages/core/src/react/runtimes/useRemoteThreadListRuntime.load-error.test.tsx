@@ -57,4 +57,52 @@ describe("useRemoteThreadListRuntime load recovery", () => {
     expect(list).toHaveBeenCalledTimes(2);
     expect(runtimeRef.current!.threads.getState().loadError).toBeUndefined();
   });
+
+  it("reloads once when the page becomes visible after a failed load", async () => {
+    const error = new Error("offline");
+    vi.spyOn(console, "error").mockImplementation(() => {});
+    vi.spyOn(document, "visibilityState", "get").mockReturnValue("visible");
+    const list = vi
+      .fn()
+      .mockRejectedValueOnce(error)
+      .mockResolvedValueOnce({ threads: [] });
+    const adapter = makeAdapter({ list });
+    const runtimeRef: { current: AssistantRuntime | null } = { current: null };
+    const useThreadRuntime = () =>
+      useExternalStoreRuntime({
+        messages: EMPTY_MESSAGES,
+        onNew: async () => {},
+      } as never);
+
+    const App = () => {
+      const runtime = useRemoteThreadListRuntime({
+        adapter,
+        runtimeHook: useThreadRuntime,
+      });
+      runtimeRef.current = runtime;
+      return (
+        <AssistantRuntimeProvider runtime={runtime}>
+          {null}
+        </AssistantRuntimeProvider>
+      );
+    };
+
+    render(<App />);
+    await waitFor(() => expect(list).toHaveBeenCalledTimes(1));
+    await waitFor(() =>
+      expect(runtimeRef.current!.threads.getState().loadError).toBe(error),
+    );
+
+    act(() => document.dispatchEvent(new Event("visibilitychange")));
+
+    await waitFor(() => expect(list).toHaveBeenCalledTimes(2));
+    await waitFor(() =>
+      expect(runtimeRef.current!.threads.getState().loadError).toBeUndefined(),
+    );
+
+    act(() => document.dispatchEvent(new Event("visibilitychange")));
+    await act(async () => {});
+
+    expect(list).toHaveBeenCalledTimes(2);
+  });
 });

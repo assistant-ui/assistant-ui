@@ -38,10 +38,6 @@ export class ExternalStoreThreadListRuntimeCore
     return this.adapter.isLoading ?? false;
   }
 
-  public get loadError() {
-    return undefined;
-  }
-
   public get newThreadId() {
     return undefined;
   }

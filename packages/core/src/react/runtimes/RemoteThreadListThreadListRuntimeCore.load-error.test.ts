@@ -62,6 +62,34 @@ describe("RemoteThreadListThreadListRuntimeCore load errors", () => {
     expect(core.loadError).toBe(error);
   });
 
+  it("clears the previous adapter's error before loading its replacement", async () => {
+    vi.spyOn(console, "error").mockImplementation(() => {});
+    const error = new Error("network error");
+    const core = createCore(
+      makeAdapter({
+        list: vi.fn(async () => {
+          throw error;
+        }),
+      }),
+    );
+    await core.getLoadThreadsPromise();
+    expect(core.loadError).toBe(error);
+
+    const replacementLoad = deferred<RemoteThreadListResponse>();
+    const replacementList = vi.fn(() => replacementLoad.promise);
+    core.__internal_setOptions({
+      adapter: makeAdapter({ list: replacementList }),
+      runtimeHook: () => ({}) as never,
+    });
+
+    expect(replacementList).not.toHaveBeenCalled();
+    expect(core.loadError).toBeUndefined();
+
+    const loadPromise = core.getLoadThreadsPromise();
+    replacementLoad.resolve({ threads: [] });
+    await loadPromise;
+  });
+
   it("clears the error when a reload resolves", async () => {
     vi.spyOn(console, "error").mockImplementation(() => {});
     const error = new Error("network error");
