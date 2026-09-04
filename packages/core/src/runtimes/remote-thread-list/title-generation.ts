@@ -5,7 +5,7 @@ export type ThreadTitleClaim = {
   readonly settle: (renamed: boolean) => void;
 };
 
-export type ThreadTitleGeneration = {
+type ThreadTitleGeneration = {
   readonly automatic: boolean;
   readonly order: number;
   claim: ThreadTitleClaim | null;
@@ -21,7 +21,18 @@ export type ThreadTitleState = {
   nextOrder: number;
 };
 
-export function getThreadTitleState(
+export type ThreadTitleGenerationRun = {
+  states: Map<string, ThreadTitleState>;
+  threadId: string;
+  automatic: boolean;
+  generate: (
+    onTitle: (title: string | undefined) => Promise<void>,
+  ) => Promise<void>;
+  rename: (title: string) => Promise<void>;
+  applyTitle: (title: string | undefined) => Promise<void>;
+};
+
+function getThreadTitleState(
   states: Map<string, ThreadTitleState>,
   threadId: string,
 ): ThreadTitleState {
@@ -37,6 +48,30 @@ export function getThreadTitleState(
     states.set(threadId, state);
   }
   return state;
+}
+
+function pruneThreadTitleState(
+  states: Map<string, ThreadTitleState>,
+  threadId: string,
+  state: ThreadTitleState,
+): void {
+  if (
+    state.generations.size === 0 &&
+    state.pendingClaim === null &&
+    state.manualTitle === undefined &&
+    states.get(threadId) === state
+  ) {
+    states.delete(threadId);
+  }
+}
+
+function isCurrentGeneration(
+  state: ThreadTitleState,
+  generation: ThreadTitleGeneration,
+): boolean {
+  return (
+    !generation.superseded && state.latestExplicitOrder <= generation.order
+  );
 }
 
 export function startThreadTitleRename(
@@ -80,29 +115,27 @@ export function finishThreadTitleRename(
   pruneThreadTitleState(states, threadId, state);
 }
 
-export function startThreadTitleGeneration(
+function startThreadTitleGeneration(
   states: Map<string, ThreadTitleState>,
   threadId: string,
   automatic: boolean,
-): { generation: ThreadTitleGeneration | null; retainedTitle?: string } {
+): ThreadTitleGeneration | null {
   const state = getThreadTitleState(states, threadId);
   if (
     automatic &&
     state.pendingClaim === null &&
     state.manualTitle !== undefined
   ) {
-    const retainedTitle = state.manualTitle;
     state.manualTitle = undefined;
     pruneThreadTitleState(states, threadId, state);
-    return { generation: null, retainedTitle };
+    return null;
   }
 
-  const beforeGenerationClaim = automatic ? null : state.pendingClaim;
   const generation: ThreadTitleGeneration = {
     automatic,
     order: ++state.nextOrder,
     claim: automatic ? state.pendingClaim : null,
-    beforeGenerationClaim,
+    beforeGenerationClaim: automatic ? null : state.pendingClaim,
     superseded: false,
   };
   if (!automatic) {
@@ -114,40 +147,85 @@ export function startThreadTitleGeneration(
     }
   }
   state.generations.add(generation);
-  return { generation };
+  return generation;
 }
 
-export function isCurrentThreadTitleGeneration(
-  state: ThreadTitleState,
-  generation: ThreadTitleGeneration,
-): boolean {
-  return (
-    !generation.superseded && state.latestExplicitOrder <= generation.order
-  );
-}
+/**
+ * Runs one title generation under the per-thread rename claims, so a rename
+ * that lands while the generation is in flight stays the persisted title.
+ *
+ * A generated run persists the title on its own, so a claim that wins after the
+ * stream started is reasserted through `rename` rather than only locally.
+ */
+export async function runThreadTitleGeneration({
+  states,
+  threadId,
+  automatic,
+  generate,
+  rename,
+  applyTitle,
+}: ThreadTitleGenerationRun): Promise<void> {
+  const state = getThreadTitleState(states, threadId);
+  const generation = startThreadTitleGeneration(states, threadId, automatic);
+  if (generation === null) return;
 
-export function finishThreadTitleGeneration(
-  states: Map<string, ThreadTitleState>,
-  threadId: string,
-  generation: ThreadTitleGeneration,
-): void {
-  const state = states.get(threadId);
-  if (state === undefined) return;
-  state.generations.delete(generation);
-  pruneThreadTitleState(states, threadId, state);
-}
+  const settleClaim = async (claim: ThreadTitleClaim) => {
+    const renamed = await claim.settled;
+    if (generation.claim !== claim) return undefined;
+    if (!renamed) {
+      generation.claim = null;
+      if (state.pendingClaim === claim) state.pendingClaim = null;
+    }
+    return renamed;
+  };
 
-function pruneThreadTitleState(
-  states: Map<string, ThreadTitleState>,
-  threadId: string,
-  state: ThreadTitleState,
-): void {
-  if (
-    state.generations.size === 0 &&
-    state.pendingClaim === null &&
-    state.manualTitle === undefined &&
-    states.get(threadId) === state
-  ) {
-    states.delete(threadId);
+  const reassertClaim = async (claim: ThreadTitleClaim) => {
+    await rename(claim.title);
+    await applyTitle(claim.title);
+    generation.superseded = true;
+  };
+
+  try {
+    if (generation.beforeGenerationClaim !== null) {
+      await generation.beforeGenerationClaim.settled;
+    }
+    if (generation.claim !== null) {
+      if ((await settleClaim(generation.claim)) === true) {
+        generation.superseded = true;
+        return;
+      }
+    }
+    if (!isCurrentGeneration(state, generation)) return;
+
+    let sawTitle = false;
+    let lastTitle: string | undefined;
+    await generate(async (title) => {
+      sawTitle = true;
+      lastTitle = title;
+      const claim = generation.claim;
+      if (claim !== null) {
+        const renamed = await settleClaim(claim);
+        if (renamed === undefined) return;
+        if (renamed) {
+          if (isCurrentGeneration(state, generation))
+            await reassertClaim(claim);
+          return;
+        }
+      }
+      if (isCurrentGeneration(state, generation)) await applyTitle(lastTitle);
+    });
+
+    const claim = generation.claim;
+    if (claim === null) return;
+    const renamed = await settleClaim(claim);
+    if (!isCurrentGeneration(state, generation)) return;
+    if (renamed === true) {
+      await reassertClaim(claim);
+    } else if (renamed === false && sawTitle) {
+      await applyTitle(lastTitle);
+    }
+  } finally {
+    state.generations.delete(generation);
+    pruneThreadTitleState(states, threadId, state);
   }
 }

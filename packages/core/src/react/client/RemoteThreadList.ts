@@ -38,22 +38,20 @@ import type {
 } from "../../runtimes/remote-thread-list/types";
 import { ThreadListAdapterChangedError } from "../../runtimes/remote-thread-list/adapter-changed";
 import type { ThreadMessage } from "../../types/message";
-import { AssistantMessageStream } from "assistant-stream";
 import { handleThreadListAction } from "../../store/runtime-clients/handle-thread-list-action";
 import {
   inMemoryThreadListTransformScopes,
   type InMemoryThreadListProps,
 } from "./InMemoryThreadList";
 import { AdaptedRemoteThread } from "./AdaptedRemoteThread";
-import { isTitleSourceMessage } from "../../runtimes/remote-thread-list/title";
 import {
-  finishThreadTitleGeneration,
+  applyTitleStream,
+  isTitleSourceMessage,
+} from "../../runtimes/remote-thread-list/title";
+import {
   finishThreadTitleRename,
-  getThreadTitleState,
-  isCurrentThreadTitleGeneration,
-  startThreadTitleGeneration,
+  runThreadTitleGeneration,
   startThreadTitleRename,
-  type ThreadTitleClaim,
   type ThreadTitleState,
 } from "../../runtimes/remote-thread-list/title-generation";
 
@@ -110,16 +108,6 @@ const toInitializeResult = (
   remoteId: result.remoteId,
   externalId: result.externalId,
 });
-
-const applyTitleStream = async (
-  stream: Parameters<typeof AssistantMessageStream.fromAssistantStream>[0],
-  onTitle: (title: string | undefined) => Promise<void>,
-) => {
-  const messageStream = AssistantMessageStream.fromAssistantStream(stream);
-  for await (const result of messageStream) {
-    await onTitle(result.parts.filter((part) => part.type === "text")[0]?.text);
-  }
-};
 
 const useThreadListItemClient = (props: {
   data: RemoteThreadData;
@@ -1175,113 +1163,40 @@ const useRemoteThreadList = (
         return;
       }
       if (!messages) return;
-      const automatic = options?.automatic === true;
-      const titleState = getThreadTitleState(session.titleStates, data.id);
-      const started = startThreadTitleGeneration(
-        session.titleStates,
-        data.id,
-        automatic,
-      );
-      if (started.retainedTitle !== undefined) return;
-      const generation = started.generation!;
-      const applyTitle = async (title: string | undefined) => {
-        await store.optimisticUpdate({
-          execute: async () => {},
-          optimistic: (state) => {
-            if (adapterGeneration !== session.adapterGeneration) return state;
-            const current = getThreadData(state, data.id);
-            if (!current) return state;
-            return {
-              ...state,
-              threadData: {
-                ...state.threadData,
-                [current.id]: {
-                  ...current,
-                  title,
+      await runThreadTitleGeneration({
+        states: session.titleStates,
+        threadId: data.id,
+        automatic: options?.automatic === true,
+        generate: async (onTitle) => {
+          const stream = await currentAdapter.generateTitle(remoteId, messages);
+          requireAdapterGeneration(adapterGeneration);
+          await applyTitleStream(stream, onTitle);
+        },
+        rename: async (title) => {
+          requireAdapterGeneration(adapterGeneration);
+          await currentAdapter.rename(remoteId, title);
+        },
+        applyTitle: async (title) => {
+          await store.optimisticUpdate({
+            execute: async () => {},
+            optimistic: (state) => {
+              if (adapterGeneration !== session.adapterGeneration) return state;
+              const current = getThreadData(state, data.id);
+              if (!current) return state;
+              return {
+                ...state,
+                threadData: {
+                  ...state.threadData,
+                  [current.id]: {
+                    ...current,
+                    title,
+                  },
                 },
-              },
-            };
-          },
-        });
-      };
-      const settleClaim = async (claim: ThreadTitleClaim) => {
-        const renamed = await claim.settled;
-        if (generation.claim !== claim) return undefined;
-        if (!renamed) {
-          generation.claim = null;
-          if (titleState.pendingClaim === claim) titleState.pendingClaim = null;
-        }
-        return renamed;
-      };
-
-      try {
-        if (generation.beforeGenerationClaim !== null) {
-          await generation.beforeGenerationClaim.settled;
-        }
-        if (generation.claim !== null) {
-          const renamed = await settleClaim(generation.claim);
-          if (renamed === true) {
-            generation.superseded = true;
-            return;
-          }
-        }
-        if (!isCurrentThreadTitleGeneration(titleState, generation)) return;
-
-        const stream = await currentAdapter.generateTitle(remoteId, messages);
-        requireAdapterGeneration(adapterGeneration);
-        let sawTitle = false;
-        let lastTitle: string | undefined;
-        await applyTitleStream(stream, async (newTitle) => {
-          lastTitle = newTitle;
-          sawTitle = true;
-          if (
-            generation.claim === null &&
-            !isCurrentThreadTitleGeneration(titleState, generation)
-          ) {
-            return;
-          }
-          if (generation.claim !== null) {
-            const claim = generation.claim;
-            const renamed = await settleClaim(claim);
-            if (renamed === undefined) return;
-            if (renamed) {
-              if (!isCurrentThreadTitleGeneration(titleState, generation))
-                return;
-              requireAdapterGeneration(adapterGeneration);
-              await currentAdapter.rename(remoteId, claim.title);
-              await applyTitle(claim.title);
-              generation.superseded = true;
-              return;
-            }
-          }
-          if (isCurrentThreadTitleGeneration(titleState, generation)) {
-            await applyTitle(lastTitle);
-          }
-        });
-
-        if (generation.claim !== null) {
-          const claim = generation.claim;
-          const renamed = await settleClaim(claim);
-          if (
-            renamed === true &&
-            sawTitle &&
-            isCurrentThreadTitleGeneration(titleState, generation)
-          ) {
-            requireAdapterGeneration(adapterGeneration);
-            await currentAdapter.rename(remoteId, claim.title);
-            await applyTitle(claim.title);
-            generation.superseded = true;
-          } else if (
-            renamed === false &&
-            sawTitle &&
-            isCurrentThreadTitleGeneration(titleState, generation)
-          ) {
-            await applyTitle(lastTitle);
-          }
-        }
-      } finally {
-        finishThreadTitleGeneration(session.titleStates, data.id, generation);
-      }
+              };
+            },
+          });
+        },
+      });
     },
     [backgroundThreads, requireAdapterGeneration, session, store],
   );
