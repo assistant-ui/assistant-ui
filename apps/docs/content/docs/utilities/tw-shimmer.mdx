@@ -44,12 +44,17 @@ Add to your CSS:
 
 ### Text Shimmer
 
+Add a direct inert clone to use the compositor path:
+
 ```html
-<span class="shimmer text-foreground/60">Loading...</span>
+<span class="shimmer text-foreground/40">
+  Loading...
+  <span class="shimmer-clone" aria-hidden="true" inert>Loading...</span>
+</span>
 ```
 
 <Callout type="info">
-  Set a semi-transparent text color (e.g., `text-foreground/40`) for the shimmer highlight to be visible.
+  The clone must be a direct child. The host must be a one-line text box with no padding, border, or other in-flow content. Use `aria-hidden="true"` and `inert` on the clone so assistive technology reads the text one time.
 </Callout>
 
 ### Skeleton Loader
@@ -77,7 +82,11 @@ Add to your CSS:
 
 #### `shimmer`
 
-Base utility for text shimmer. Applies a gradient animation over the text foreground color.
+Base utility for text shimmer. One-node markup uses the paint path. A direct `shimmer-clone` child uses the compositor path.
+
+#### `shimmer-clone`
+
+An inert text copy for the compositor highlight mask. Firefox hides the clone and uses the paint path. Reduced motion stops the clone path.
 
 #### `shimmer-bg`
 
@@ -105,8 +114,8 @@ CSS-only auto-sizing helper using container queries. Sets `container-type: inlin
 
 | Utility                     | Default (text) | Default (bg) | Description                        |
 | --------------------------- | -------------- | ------------ | ---------------------------------- |
-| `shimmer-speed-{n}`         | `150`          | `1000`       | Animation speed in px/s            |
-| `shimmer-width-{n}`         | `200`          | `800`        | Container width in px for timing   |
+| `shimmer-speed-{n}`         | `200`          | `1000`       | Animation speed in px/s            |
+| `--shimmer-track-width`     | `200px`        | `200px`      | Track width for timing             |
 | `shimmer-spread-{n}`        | `6ch`          | —            | Text shimmer highlight width       |
 | `shimmer-bg-spread-{n}`     | —              | `480px`      | Background shimmer highlight width |
 | `shimmer-color-{color}`     | auto           | auto         | Highlight color (Tailwind palette) |
@@ -117,12 +126,12 @@ CSS-only auto-sizing helper using container queries. Sets `container-type: inlin
 
 All utilities are **inheritable** — set on a parent to affect all shimmer children.
 
-### Speed and Width
+### Speed and Track Width
 
-Speed controls how fast the shimmer moves in pixels per second. Width tells the animation how wide the container is for timing calculations.
+Speed controls how fast the shimmer moves in pixels per second. Track width tells the animation how far the highlight travels for timing calculations.
 
 ```html
-<span class="shimmer shimmer-speed-200 shimmer-width-400 text-foreground/40">
+<span class="shimmer shimmer-speed-200 text-foreground/40" style="--shimmer-track-width: 400px">
   Fast, wide shimmer
 </span>
 ```
@@ -190,7 +199,7 @@ All values can be set via CSS variables for dynamic control:
 | Variable                 | Description               |
 | ------------------------ | ------------------------- |
 | `--shimmer-speed`        | Speed in px/s             |
-| `--shimmer-width`        | Track width in px         |
+| `--shimmer-track-width`  | Track width in px         |
 | `--shimmer-spread`       | Highlight width           |
 | `--shimmer-angle`        | Sweep angle               |
 | `--shimmer-color`        | Highlight color           |
@@ -198,7 +207,7 @@ All values can be set via CSS variables for dynamic control:
 | `--shimmer-repeat-delay` | Pause between cycles (ms) |
 
 ```tsx
-<div style={{ "--shimmer-width": containerWidth } as React.CSSProperties}>
+<div style={{ "--shimmer-track-width": containerWidth } as React.CSSProperties}>
   <div className="shimmer shimmer-bg bg-muted h-4 w-full rounded" />
 </div>
 ```

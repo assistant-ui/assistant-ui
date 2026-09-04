@@ -20,10 +20,13 @@ npm install tw-shimmer
 
 ## Usage
 
-The text shimmer uses `background-clip: text`, so set a text color (typically with low opacity) on the base element:
+Add a direct inert clone to use the compositor path. The host text is the accessible label; the clone is only the highlight mask.
 
 ```html
-<span class="shimmer text-foreground/40">Loading...</span>
+<span class="shimmer text-foreground/40">
+  Loading...
+  <span class="shimmer-clone" aria-hidden="true" inert>Loading...</span>
+</span>
 
 <div class="shimmer-container space-y-2">
   <div class="shimmer-bg h-4 w-full rounded"></div>
@@ -31,17 +34,22 @@ The text shimmer uses `background-clip: text`, so set a text color (typically wi
 </div>
 ```
 
+Use this markup only for a one-line text box. The clone must be a direct child, and the host must have no padding, border, or other in-flow content.
+
 Inside a `shimmer-container`, the plugin derives speed and width from the container size automatically.
+
+The clone must be inert and hidden from assistive technology. Firefox and one-node markup use the paint fallback. Reduced motion stops the clone path.
 
 ## Utilities
 
 | Utility                  | Effect                                                                        |
 | ------------------------ | ----------------------------------------------------------------------------- |
-| `shimmer`                | Base text shimmer. Pair with a low-opacity text color.                        |
+| `shimmer`                | Base text shimmer. A direct clone uses the compositor path.                  |
+| `shimmer-clone`          | Inert text copy for the compositor highlight mask.                            |
 | `shimmer-bg`             | Background shimmer (skeleton placeholders).                                   |
 | `shimmer-container`      | Parent container that auto-derives speed and width for children.              |
-| `shimmer-speed-{value}`  | Animation speed in px per second (text: 150, background: 1000 by default).    |
-| `shimmer-width-{value}`  | Animation track width in px (text: 200, background: 800 by default).          |
+| `shimmer-speed-{value}`  | Animation speed in px per second. The text default is 200; background is 1000. |
+| `--shimmer-track-width`  | Animation track width in px. The default is 200px.                            |
 | `shimmer-spread-{value}` | Highlight thickness.                                                          |
 | `shimmer-angle-{value}`  | Highlight angle in degrees.                                                   |
 | `shimmer-color-{color}`  | Highlight color from your Tailwind palette.                                   |
