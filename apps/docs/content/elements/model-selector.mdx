@@ -125,20 +125,7 @@ The Thinking row (`Effort`) mounts only while the selected model has `efforts` s
 
 A model that declares `efforts` shows the Thinking row. `efforts: true` enables the default Low / Medium / High levels; a list of `{ id, name }` objects defines a custom set instead, and omitting `efforts` hides the row entirely for that model.
 
-```tsx
-{
-  id: "gpt-5.6-sol",
-  name: "GPT-5.6 Sol",
-  efforts: [
-    { id: "minimal", name: "Minimal" },
-    { id: "high", name: "High" },
-  ],
-}
-```
-#### Custom effort levels
-
-Open the picker and select an effort level. The trigger shows the level next to the model name.
-The picker stays open, and you can compare the levels.
+Open the picker and pick a level: the trigger shows it next to the model name, and the picker stays open so you can compare levels.
 
 <PreviewCode file="components/pages/docs/samples/model-selector/reasoning-effort" name="ModelSelectorWithEffort" base={<ModelSelectorEffortSample />}>
   <ModelSelectorEffortRadixSample.ModelSelectorEffortSample />
