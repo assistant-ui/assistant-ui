@@ -205,8 +205,8 @@ All values can be set via CSS variables for dynamic control:
 
 ## Browser Support
 
-Uses modern CSS features: `oklch()`, `color-mix()`, independent `translate` transform, and CSS Container Queries.
+Uses modern CSS features: `@property`, relative `oklch()`, `color-mix()`, `tan()`, and CSS Container Queries.
 
-**Supported:** Chrome 111+, Firefox 113+, Safari 16.4+
+**Supported:** Chrome 119+, Firefox 128+, Safari 16.4+
 
-Older browsers degrade gracefully — shimmer effects simply won't appear.
+Older browsers degrade gracefully. The text remains readable as static text, and `shimmer-bg` keeps its static background when shimmer is unavailable.

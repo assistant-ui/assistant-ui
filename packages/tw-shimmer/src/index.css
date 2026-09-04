@@ -55,9 +55,6 @@
       --shimmer-color,
       oklch(from currentColor l c h / calc(alpha* 0.2))
     );
-
-    background-clip: text;
-    -webkit-text-fill-color: transparent;
   }
 
   @variant dark {
@@ -84,30 +81,38 @@
   --_mix-17: color-mix(in oklch, var(--_fg), var(--_bg) 17%);
   --_mix-4: color-mix(in oklch, var(--_fg), var(--_bg) 4%);
 
-  background: linear-gradient(
-      calc(90deg + var(--shimmer-angle)),
-      var(--_bg) calc(var(--_position) - var(--_spread) * 0.5),
-      var(--_mix-96) calc(var(--_position) - var(--_spread) * 0.44),
-      var(--_mix-83) calc(var(--_position) - var(--_spread) * 0.37),
-      var(--_mix-67) calc(var(--_position) - var(--_spread) * 0.31),
-      var(--_mix-50) calc(var(--_position) - var(--_spread) * 0.25),
-      var(--_mix-33) calc(var(--_position) - var(--_spread) * 0.19),
-      var(--_mix-17) calc(var(--_position) - var(--_spread) * 0.12),
-      var(--_mix-4) calc(var(--_position) - var(--_spread) * 0.06),
-      var(--_fg) var(--_position),
-      var(--_mix-4) calc(var(--_position) + var(--_spread) * 0.06),
-      var(--_mix-17) calc(var(--_position) + var(--_spread) * 0.12),
-      var(--_mix-33) calc(var(--_position) + var(--_spread) * 0.19),
-      var(--_mix-50) calc(var(--_position) + var(--_spread) * 0.25),
-      var(--_mix-67) calc(var(--_position) + var(--_spread) * 0.31),
-      var(--_mix-83) calc(var(--_position) + var(--_spread) * 0.37),
-      var(--_mix-96) calc(var(--_position) + var(--_spread) * 0.44),
-      var(--_bg) calc(var(--_position) + var(--_spread) * 0.5)
-    )
-    0 0 / var(--_bg-width) 100% no-repeat;
+  @supports (color: oklch(from red l c h)) {
+    &:not(.shimmer-bg) {
+      background-color: currentColor;
+      background-clip: text;
+      -webkit-text-fill-color: transparent;
+    }
 
-  animation: tw-shimmer 1s linear 0s infinite backwards;
-  animation-duration: calc((var(--_duration) + var(--_repeat-delay)) * 1ms);
+    background: linear-gradient(
+        calc(90deg + var(--shimmer-angle)),
+        var(--_bg) calc(var(--_position) - var(--_spread) * 0.5),
+        var(--_mix-96) calc(var(--_position) - var(--_spread) * 0.44),
+        var(--_mix-83) calc(var(--_position) - var(--_spread) * 0.37),
+        var(--_mix-67) calc(var(--_position) - var(--_spread) * 0.31),
+        var(--_mix-50) calc(var(--_position) - var(--_spread) * 0.25),
+        var(--_mix-33) calc(var(--_position) - var(--_spread) * 0.19),
+        var(--_mix-17) calc(var(--_position) - var(--_spread) * 0.12),
+        var(--_mix-4) calc(var(--_position) - var(--_spread) * 0.06),
+        var(--_fg) var(--_position),
+        var(--_mix-4) calc(var(--_position) + var(--_spread) * 0.06),
+        var(--_mix-17) calc(var(--_position) + var(--_spread) * 0.12),
+        var(--_mix-33) calc(var(--_position) + var(--_spread) * 0.19),
+        var(--_mix-50) calc(var(--_position) + var(--_spread) * 0.25),
+        var(--_mix-67) calc(var(--_position) + var(--_spread) * 0.31),
+        var(--_mix-83) calc(var(--_position) + var(--_spread) * 0.37),
+        var(--_mix-96) calc(var(--_position) + var(--_spread) * 0.44),
+        var(--_bg) calc(var(--_position) + var(--_spread) * 0.5)
+      )
+      0 0 / var(--_bg-width) 100% no-repeat;
+
+    animation: tw-shimmer 1s linear 0s infinite backwards;
+    animation-duration: calc((var(--_duration) + var(--_repeat-delay)) * 1ms);
+  }
 }
 
 @utility shimmer-bg {
