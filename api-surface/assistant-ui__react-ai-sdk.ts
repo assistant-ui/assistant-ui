@@ -1756,6 +1756,7 @@ type ThreadListState = {
   readonly threadIds: readonly string[];
   readonly archivedThreadIds: readonly string[];
   readonly isLoading: boolean;
+  readonly loadError: unknown;
   readonly isLoadingMore: boolean;
   readonly hasMore: boolean;
   readonly threadItems: Readonly<Record<string, Omit<ThreadListItemState, "isMain" | "isRunning" | "threadId">>>;
