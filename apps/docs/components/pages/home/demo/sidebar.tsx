@@ -94,7 +94,10 @@ function ThreadList({ search }: { search: string }): ReactNode {
           ))}
         </div>
       ) : showLoadError ? (
-        <div className="mt-1 flex h-8 shrink-0 items-center justify-between px-2 text-[13px]">
+        <div
+          role="alert"
+          className="mt-1 flex h-8 shrink-0 items-center justify-between px-2 text-[13px]"
+        >
           <span className="text-muted-foreground">
             Threads could not be loaded
           </span>
