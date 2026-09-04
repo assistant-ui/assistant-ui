@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import type { ReactNode } from "react";
 import { createOgMetadata } from "@/lib/og";
 import { PageCopy, PageFrame } from "@/components/shared/page-frame";
+import { CookieSettingsLink } from "@/components/cookie-settings-link";
 
 const title = "Privacy Policy";
 const description =
@@ -70,7 +71,8 @@ const sections = [
       "For product analytics and error monitoring we use PostHog, which stores a pseudonymous identifier in cookies and local storage on your device. Analytics events may include the pages you visit and the search queries you enter on the site. We also use Vercel Analytics and Vercel Speed Insights, which are cookieless and collect aggregate page-view and performance metrics, and a self-hosted instance of Umami, a cookieless, privacy-focused analytics tool that measures a small random sample of visits.",
       "We use one strictly necessary cookie (aui_anon_session) to prevent abuse of the free AI assistant on our website. It contains a random, signed identifier and expires after 24 hours.",
       "If you are visiting from the European Economic Area, the United Kingdom, or Switzerland, PostHog runs only after you accept it through our consent banner, and you can decline it there. Vercel Analytics and Speed Insights are cookieless and store nothing on your device, so they run before you answer the banner; declining stops them. Our self-hosted Umami also runs before you answer, and it stores one sampling flag on your device, because it measures audience on our own site only, is never shared with anyone, and builds no profile of you across sites. Declining stops Umami as well, both for the rest of that visit and afterwards.",
-      "You can change your choice at any time through the Cookie settings link at the bottom of any page. Wherever you are located, we honor the Global Privacy Control (GPC) signal: if your browser broadcasts GPC, we disable all of the above for your visit.",
+      "You can change your choice at any time with the Cookie settings control, which appears just below and in the footer of our main site pages. Wherever you are located, we honor the Global Privacy Control (GPC) signal: if your browser broadcasts GPC, we disable all of the above for your visit, and we hide the control because there is nothing left for it to change.",
+      <CookieSettingsLink key="cookie-settings" />,
     ],
   },
   {

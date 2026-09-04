@@ -87,7 +87,7 @@ export function Footer(): React.ReactElement {
             <FooterLink href="/privacy-policy">Privacy</FooterLink>
             <span aria-hidden>·</span>
             <FooterLink href="/terms-of-service">Terms</FooterLink>
-            <CookieSettingsLink />
+            <CookieSettingsLink separator />
           </div>
           <div className="flex flex-wrap items-center gap-4">
             <StatusBadge />

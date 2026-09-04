@@ -224,3 +224,28 @@ describe("cross-tab consent", () => {
     expect(seen).toEqual([]);
   });
 });
+
+it("lets a fresh decline outrank a grant that is still persisted", async () => {
+  const store = new Map<string, string>();
+  const target = new EventTarget();
+  let writable = true;
+  vi.stubGlobal("window", {
+    localStorage: {
+      getItem: (key: string) => store.get(key) ?? null,
+      setItem: (key: string, value: string) => {
+        if (!writable) throw new Error("blocked");
+        store.set(key, value);
+      },
+    },
+    addEventListener: target.addEventListener.bind(target),
+    removeEventListener: target.removeEventListener.bind(target),
+    dispatchEvent: target.dispatchEvent.bind(target),
+  });
+  store.set("aui-consent", "granted");
+
+  const { getStoredConsent, setStoredConsent } = await import("./consent");
+  writable = false;
+  setStoredConsent("denied");
+
+  expect(getStoredConsent()).toBe("denied");
+});

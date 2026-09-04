@@ -36,8 +36,14 @@ if (typeof window !== "undefined") {
   // so a decline has to reach the running tracker rather than only the next load.
   subscribeToConsent((choice) => {
     setUmamiTrackingEnabled(choice === "granted");
-    if (choice === "granted") start();
-    else if (started) posthog.opt_out_capturing();
+    if (choice === "denied") {
+      if (started) posthog.opt_out_capturing();
+      return;
+    }
+    start();
+    // opt_out_capturing persists, and init honors it on every later load, so an
+    // accept after a decline needs the matching opt-in rather than another init.
+    if (started) posthog.opt_in_capturing();
   });
 
   const consent = getStoredConsent();

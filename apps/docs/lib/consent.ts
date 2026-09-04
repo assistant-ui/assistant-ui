@@ -5,16 +5,17 @@ export const CONSENT_REOPEN_EVENT = "aui-consent-reopen";
 export type ConsentChoice = "granted" | "denied";
 
 // localStorage writes throw in private modes and wherever site data is blocked.
-// The choice still has to hold for the rest of the page, or every reader below
-// keeps seeing "no choice yet" and a decline is silently ignored.
+// The choice still has to hold for the rest of the page, and it outranks anything
+// persisted, or a decline that failed to write loses to the older stored value.
 let memoryConsent: ConsentChoice | null = null;
 
 export function getStoredConsent(): ConsentChoice | null {
+  if (memoryConsent !== null) return memoryConsent;
   try {
     const value = window.localStorage.getItem(CONSENT_STORAGE_KEY);
     if (value === "granted" || value === "denied") return value;
   } catch {}
-  return memoryConsent;
+  return null;
 }
 
 export function setStoredConsent(choice: ConsentChoice): void {
