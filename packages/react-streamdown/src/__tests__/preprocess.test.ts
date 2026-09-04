@@ -226,6 +226,15 @@ describe("rewriteCustomMathTags", () => {
       "[/inline][/inline] rest",
     );
   });
+
+  it("leaves a whitespace-only tag pair as written", () => {
+    expect(rewriteCustomMathTags("[/math] \n [/math]\nrest")).toBe(
+      "[/math] \n [/math]\nrest",
+    );
+    expect(rewriteCustomMathTags("[/inline]   [/inline] rest")).toBe(
+      "[/inline]   [/inline] rest",
+    );
+  });
 });
 
 describe("normalizeMathDelimiters", () => {
