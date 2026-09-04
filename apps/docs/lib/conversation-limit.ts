@@ -30,6 +30,13 @@ redis.call('PEXPIRE', key, ttl)
 return {1, used + 1}
 `;
 
+const MERGE_SCRIPT = `
+local fromKey, intoKey, ttl = KEYS[1], KEYS[2], ARGV[1]
+redis.call('SUNIONSTORE', intoKey, fromKey, intoKey)
+redis.call('PEXPIRE', intoKey, ttl)
+return 1
+`;
+
 export function conversationLimitFor(signedIn: boolean): number {
   return signedIn
     ? SIGNED_IN_CONVERSATIONS_PER_DAY
@@ -83,6 +90,18 @@ export function createConversationCounter(redis: Redis, prefix: string) {
           resetAt: nextReset(now),
         },
       };
+    },
+
+    async merge(
+      from: string,
+      into: string,
+      now: number = Date.now(),
+    ): Promise<void> {
+      await redis.eval<string[], number>(
+        MERGE_SCRIPT,
+        [key(from, now), key(into, now)],
+        [String(TTL_MS)],
+      );
     },
   };
 }

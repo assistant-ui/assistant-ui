@@ -4,6 +4,7 @@ import { accounts, getSession } from "@/lib/accounts-auth";
 export type SessionPayload = {
   /** False until the deployment carries its accounts configuration. */
   enabled: boolean;
+  cloudHistory: boolean;
   user: {
     name: string;
     email: string;
@@ -17,6 +18,7 @@ export async function GET() {
   const session = accounts ? await getSession().catch(() => null) : null;
   const payload: SessionPayload = {
     enabled: accounts !== null,
+    cloudHistory: accounts !== null && Boolean(process.env.ASSISTANT_API_KEY),
     user: session
       ? {
           name: session.user.name,

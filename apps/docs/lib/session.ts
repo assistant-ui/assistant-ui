@@ -10,7 +10,7 @@ export type SessionState =
   /** The deployment carries no accounts configuration; offer nothing. */
   | { status: "disabled" }
   | { status: "anonymous" }
-  | { status: "signed-in"; user: SessionUser };
+  | { status: "signed-in"; user: SessionUser; cloudHistory: boolean };
 
 const loadingState: SessionState = { status: "loading" };
 const disabledState: SessionState = { status: "disabled" };
@@ -48,7 +48,11 @@ const load = () => {
       if (!payload.enabled) return setState(unconfiguredState);
       setState(
         payload.user
-          ? { status: "signed-in", user: payload.user }
+          ? {
+              status: "signed-in",
+              user: payload.user,
+              cloudHistory: payload.cloudHistory,
+            }
           : anonymousState,
       );
     })

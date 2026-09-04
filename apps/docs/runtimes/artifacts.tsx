@@ -12,7 +12,7 @@ import { DevToolsModal } from "@assistant-ui/react-devtools";
 import { TerminalIcon } from "lucide-react";
 import { z } from "zod";
 import {
-  useAnonymousCloud,
+  useDocsCloud,
   useDocsChatRuntime,
   useSpeechAdapters,
 } from "./chat-runtime";
@@ -43,7 +43,7 @@ export function ArtifactsRuntimeProvider({
 }: {
   children: ReactNode;
 }) {
-  const cloud = useAnonymousCloud();
+  const { cloud } = useDocsCloud();
   const adapters = useSpeechAdapters({ dictation: true });
   const runtime = useDocsChatRuntime({
     cloud,

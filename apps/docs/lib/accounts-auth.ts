@@ -6,8 +6,6 @@ import { createAesGcmCodec } from "aui-auth/database";
 import { withNextRequestScope } from "aui-auth/next";
 import { createRedisSessionStore } from "./session-store";
 
-// Sign-in carries no app state: threads stay anonymous and memories stay in the
-// browser, so the session exists only to name the visitor.
 export type DocsSessionData = Record<string, never>;
 
 const issuer = process.env.NEXT_PUBLIC_AUTH_URL;

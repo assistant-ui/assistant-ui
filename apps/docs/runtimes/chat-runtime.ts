@@ -14,6 +14,7 @@ import {
 } from "@assistant-ui/ai-sdk";
 import { lastAssistantMessageIsCompleteWithToolCalls } from "ai";
 import { anonymousSessionFetch } from "@/lib/anonymous-session-client";
+import { useSession } from "@/lib/session";
 
 type Adapters = UseChatRuntimeOptions["adapters"];
 
@@ -45,14 +46,36 @@ export const followUpSuggestionAdapter = createSuggestionAdapter({
   },
 });
 
-export function useAnonymousCloud() {
+export function useDocsCloud() {
+  const session = useSession();
+  const accountOwned = session.status === "signed-in" && session.cloudHistory;
+
   return useMemo(
-    () =>
-      new AssistantCloud({
-        baseUrl: process.env.NEXT_PUBLIC_ASSISTANT_BASE_URL!,
-        anonymous: true,
-      }),
-    [],
+    () => ({
+      accountOwned,
+      cloud: accountOwned
+        ? new AssistantCloud({
+            baseUrl: process.env.NEXT_PUBLIC_ASSISTANT_BASE_URL!,
+            authToken: async () => {
+              try {
+                const response = await fetch("/api/assistant-token", {
+                  cache: "no-store",
+                  credentials: "same-origin",
+                });
+                if (!response.ok) return null;
+                const payload = (await response.json()) as { token?: unknown };
+                return typeof payload.token === "string" ? payload.token : null;
+              } catch {
+                return null;
+              }
+            },
+          })
+        : new AssistantCloud({
+            baseUrl: process.env.NEXT_PUBLIC_ASSISTANT_BASE_URL!,
+            anonymous: true,
+          }),
+    }),
+    [accountOwned],
   );
 }
 

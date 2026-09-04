@@ -71,3 +71,12 @@ export async function claimConversation(
     .claim(identity.identity, threadId, identity.limit)
     .catch(() => ({ allowed: true, usage: unlimited(identity.limit) }));
 }
+
+export async function mergeConversations(
+  from: DemoIdentity,
+  into: DemoIdentity,
+): Promise<void> {
+  const store = conversationCounter();
+  if (!store) return;
+  await store.merge(from.identity, into.identity).catch(() => {});
+}

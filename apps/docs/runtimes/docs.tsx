@@ -1,25 +1,29 @@
 "use client";
 
-import { useMemo, type ReactNode } from "react";
+import { useEffect, useMemo, type ReactNode } from "react";
 import {
   AssistantRuntimeProvider,
   CloudFileAttachmentAdapter,
   Suggestions,
   Tools,
+  readAnonymousRefreshToken,
   unstable_Interactables,
   useAui,
 } from "@assistant-ui/react";
 import { DevToolsModal } from "@assistant-ui/react-devtools";
 import { feedbackAdapter } from "@/lib/feedback-adapter";
 import docsToolkit from "@/lib/docs-toolkit";
+import { refreshDemoUsage } from "@/lib/demo-usage-client";
 import usageToolkit from "@/lib/usage-toolkit";
 import { MemoryInstructions } from "@/components/shared/memory";
 import {
   followUpSuggestionAdapter,
-  useAnonymousCloud,
+  useDocsCloud,
   useDocsChatRuntime,
   useSpeechAdapters,
 } from "./chat-runtime";
+
+const claimedAnonymousTokens = new Set<string>();
 
 const DOCS_SUGGESTIONS = [
   {
@@ -52,7 +56,7 @@ export function DocsRuntimeProvider({
   /** Only the landing page demo draws on the daily conversation budget. */
   countConversations?: boolean;
 }) {
-  const cloud = useAnonymousCloud();
+  const { cloud, accountOwned } = useDocsCloud();
   const speech = useSpeechAdapters({ dictation: true });
 
   const adapters = useMemo(
@@ -84,6 +88,30 @@ export function DocsRuntimeProvider({
     unstable_interactables: unstable_Interactables(),
     suggestions: Suggestions(DOCS_SUGGESTIONS),
   });
+
+  useEffect(() => {
+    if (!accountOwned) return;
+    const refreshToken = readAnonymousRefreshToken(
+      process.env.NEXT_PUBLIC_ASSISTANT_BASE_URL!,
+    );
+    if (!refreshToken || claimedAnonymousTokens.has(refreshToken)) return;
+    claimedAnonymousTokens.add(refreshToken);
+
+    void fetch("/api/demo/claim", {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ refresh_token: refreshToken }),
+      credentials: "same-origin",
+    })
+      .then(async (response) => {
+        if (!response.ok) return;
+        const payload = (await response.json()) as { moved?: unknown };
+        if (typeof payload.moved !== "number" || payload.moved <= 0) return;
+        refreshDemoUsage();
+        await aui.threads().reload();
+      })
+      .catch(() => {});
+  }, [accountOwned, aui]);
 
   return (
     <AssistantRuntimeProvider aui={aui} runtime={runtime}>
