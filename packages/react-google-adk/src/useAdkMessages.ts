@@ -228,6 +228,7 @@ export const useAdkMessages = ({
       } catch (error) {
         if (
           !abortController.signal.aborted &&
+          abortControllerRef.current === abortController &&
           !(error instanceof Error && error.name === "AbortError")
         ) {
           throw error;

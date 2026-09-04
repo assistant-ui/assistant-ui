@@ -2,4 +2,4 @@
 "@assistant-ui/react-google-adk": patch
 ---
 
-fix: ignore events and cleanup from superseded Google ADK runs
+fix: ignore events, errors, and cleanup from superseded Google ADK runs
