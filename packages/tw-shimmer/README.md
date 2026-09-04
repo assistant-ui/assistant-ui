@@ -35,6 +35,8 @@ Inside a `shimmer-container`, the plugin derives the track width from the contai
 
 The compositor highlight is additive. It defaults to white and `--shimmer-color`, including `shimmer-color-*`, overrides the band color. This matches the gradient on white and dark surfaces but can look different on tinted surfaces. `shimmer-invert` selects a black band.
 
+Text shimmer holds still under `prefers-reduced-motion: reduce` on both paths, leaving the label in its plain text color. `shimmer-bg` keeps animating.
+
 ## Utilities
 
 | Utility                  | Effect                                                                        |

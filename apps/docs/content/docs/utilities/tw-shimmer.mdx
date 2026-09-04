@@ -81,6 +81,8 @@ Base utility for text shimmer. It keeps one text node and, when `-webkit-mask-cl
 
 The compositor band is additive and defaults to white. `--shimmer-color`, `shimmer-color-*`, and `shimmer-invert` select its color. The two paths match on white and dark surfaces; tinted surfaces can differ. Because the host is masked, keep non-text descendants such as icons outside it. Selection backgrounds are clipped to the glyphs on the compositor path.
 
+Both paths hold still under `prefers-reduced-motion: reduce`, leaving the label in its plain text color. `shimmer-bg` keeps animating.
+
 #### `shimmer-bg`
 
 Background shimmer for skeleton loaders. Applies a gradient animation over the element's background. Requires a base `bg-*` class.
