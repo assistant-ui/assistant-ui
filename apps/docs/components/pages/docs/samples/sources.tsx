@@ -38,13 +38,13 @@ function VariantRow({
 
 export function SourcesSample() {
   return (
-    <SampleFrame className="flex h-auto flex-col gap-6 p-6">
+    <SampleFrame className="flex h-auto flex-col gap-4 p-6">
       <VariantRow label="Outline (default)" />
       <VariantRow label="Ghost" variant="ghost" />
       <VariantRow label="Muted" variant="muted" />
       <div className="flex flex-col gap-2">
         <span className="text-muted-foreground text-xs font-medium">
-          Document
+          Document source
         </span>
         <Sources
           type="source"
