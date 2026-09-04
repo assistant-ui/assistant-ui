@@ -75,17 +75,12 @@ export function SourcesVariantsSample() {
   const source = sources[0]!;
 
   return (
-    <SampleFrame className="flex h-auto flex-wrap items-center justify-center gap-x-8 gap-y-5 p-6">
+    <SampleFrame className="flex h-auto flex-wrap items-center justify-center gap-2 p-6">
       {variants.map((variant) => (
-        <div key={variant} className="flex flex-col items-center gap-2">
-          <Source variant={variant} href={source.url}>
-            <SourceIcon url={source.url} />
-            <SourceTitle>{source.title}</SourceTitle>
-          </Source>
-          <span className="text-muted-foreground text-xs font-medium capitalize">
-            {variant}
-          </span>
-        </div>
+        <Source key={variant} variant={variant} href={source.url}>
+          <SourceIcon url={source.url} />
+          <SourceTitle className="capitalize">{variant}</SourceTitle>
+        </Source>
       ))}
     </SampleFrame>
   );
