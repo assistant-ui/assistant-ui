@@ -3425,6 +3425,10 @@ type ThreadListItemEventPayload = {
 
 type ThreadListItemEventType = keyof ThreadListItemEventPayload;
 
+type ThreadListItemGenerateTitleOptions = {
+  automatic?: boolean;
+};
+
 declare namespace ThreadListItemPrimitiveTitle {
   type Props = {
     fallback?: ReactNode;
@@ -3446,7 +3450,7 @@ type ThreadListItemRuntime = {
     remoteId: string;
     externalId: string | undefined;
   }>;
-  generateTitle(): Promise<void>;
+  generateTitle(options?: ThreadListItemGenerateTitleOptions): Promise<void>;
   switchTo(options?: {
     unarchive?: boolean;
   }): Promise<void>;
@@ -3481,7 +3485,7 @@ declare class ThreadListItemRuntimeImpl implements ThreadListItemRuntime {
     remoteId: string;
     externalId: string | undefined;
   }>;
-  generateTitle(): Promise<void>;
+  generateTitle(options?: ThreadListItemGenerateTitleOptions): Promise<void>;
   unstable_on<E extends ThreadListItemEventType>(event: E, callback: ThreadListItemEventCallback<E>): Unsubscribe$1;
   subscribe(callback: () => void): Unsubscribe$1;
   detach(): void;
@@ -3624,7 +3628,9 @@ type ThreadListRuntimeCore = {
     remoteId: string;
     externalId: string | undefined;
   }>;
-  generateTitle(threadId: string): Promise<void>;
+  generateTitle(threadId: string, options?: {
+    automatic?: boolean;
+  }): Promise<void>;
   subscribe(callback: () => void): Unsubscribe$1;
 };
 
