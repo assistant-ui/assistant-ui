@@ -70,7 +70,7 @@ const sections = [
   {
     title: "8. User Generated Contributions",
     body: [
-      "Parts of the Services, such as the AI assistant and interactive playground on our website, allow you to submit content in the form of questions, prompts, and related material. Where we provide you with the opportunity to create, submit, post, display, transmit, perform, publish, distribute, or broadcast content or materials, those contributions may be viewable by other users and through third-party websites.",
+      "Parts of the Services, such as the AI assistant and interactive playground on our website, allow you to submit content in the form of questions, prompts, and related material. Prompts you send to the AI assistant are not published to other users; we handle them as described in our Privacy Notice. Where the Services do give you the opportunity to create, submit, post, display, transmit, perform, publish, distribute, or broadcast content or materials, those contributions may be viewable by other users and through third-party websites.",
       "When you create or make available Contributions, you represent and warrant that they do not infringe third-party rights; that you have the necessary rights and permissions; that they are not false, misleading, unlawful, harassing, abusive, discriminatory, obscene, violent, or otherwise objectionable; and that they do not violate these Legal Terms or applicable law.",
     ],
   },

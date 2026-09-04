@@ -1,24 +1,34 @@
 export const CONSENT_STORAGE_KEY = "aui-consent";
 export const CONSENT_CHANGE_EVENT = "aui-consent-change";
+export const CONSENT_REOPEN_EVENT = "aui-consent-reopen";
 
 export type ConsentChoice = "granted" | "denied";
+
+// localStorage writes throw in private modes and wherever site data is blocked.
+// The choice still has to hold for the rest of the page, or every reader below
+// keeps seeing "no choice yet" and a decline is silently ignored.
+let memoryConsent: ConsentChoice | null = null;
 
 export function getStoredConsent(): ConsentChoice | null {
   try {
     const value = window.localStorage.getItem(CONSENT_STORAGE_KEY);
-    return value === "granted" || value === "denied" ? value : null;
-  } catch {
-    return null;
-  }
+    if (value === "granted" || value === "denied") return value;
+  } catch {}
+  return memoryConsent;
 }
 
 export function setStoredConsent(choice: ConsentChoice): void {
+  memoryConsent = choice;
   try {
     window.localStorage.setItem(CONSENT_STORAGE_KEY, choice);
   } catch {}
   window.dispatchEvent(
     new CustomEvent<ConsentChoice>(CONSENT_CHANGE_EVENT, { detail: choice }),
   );
+}
+
+export function reopenConsentBanner(): void {
+  window.dispatchEvent(new Event(CONSENT_REOPEN_EVENT));
 }
 
 export function hasGlobalPrivacyControl(): boolean {

@@ -38,5 +38,10 @@ const OPT_IN_COUNTRIES = new Set([
 export function GET(req: NextRequest) {
   const country = req.headers.get("x-vercel-ip-country");
   const required = country === null || OPT_IN_COUNTRIES.has(country);
-  return NextResponse.json({ required });
+  // The answer varies by the caller's country, so a shared cache anywhere on
+  // the path would hand one region's verdict to another.
+  return NextResponse.json(
+    { required },
+    { headers: { "Cache-Control": "private, no-store" } },
+  );
 }

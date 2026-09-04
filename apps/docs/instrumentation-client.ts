@@ -8,14 +8,16 @@ import {
   getStoredConsent,
   hasGlobalPrivacyControl,
   isConsentRequired,
+  type ConsentChoice,
 } from "./lib/consent";
+import { setUmamiTrackingEnabled } from "./lib/umami-sampling";
 
 const apiKey = process.env.NEXT_PUBLIC_POSTHOG_API_KEY;
 
-if (apiKey && typeof window !== "undefined" && !hasGlobalPrivacyControl()) {
+if (typeof window !== "undefined") {
   let started = false;
   const start = () => {
-    if (started) return;
+    if (!apiKey || started || hasGlobalPrivacyControl()) return;
     started = true;
 
     posthog.init(apiKey, {
@@ -31,13 +33,19 @@ if (apiKey && typeof window !== "undefined" && !hasGlobalPrivacyControl()) {
     };
   };
 
+  // The head script has already loaded umami by the time the banner is answered,
+  // so a decline has to reach the running tracker rather than only the next load.
+  window.addEventListener(CONSENT_CHANGE_EVENT, (event) => {
+    const choice = (event as CustomEvent<ConsentChoice>).detail;
+    setUmamiTrackingEnabled(choice === "granted");
+    if (choice === "granted") start();
+    else if (started) posthog.opt_out_capturing();
+  });
+
   const consent = getStoredConsent();
   if (consent === "granted") {
     start();
   } else if (consent === null) {
-    window.addEventListener(CONSENT_CHANGE_EVENT, (event) => {
-      if ((event as CustomEvent).detail === "granted") start();
-    });
     void isConsentRequired().then((required) => {
       if (!required && getStoredConsent() === null) start();
     });

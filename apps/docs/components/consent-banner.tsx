@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import {
+  CONSENT_REOPEN_EVENT,
   getStoredConsent,
   hasGlobalPrivacyControl,
   isConsentRequired,
@@ -15,15 +16,21 @@ export function ConsentBanner() {
   const [visible, setVisible] = useState(false);
 
   useEffect(() => {
-    if (hasGlobalPrivacyControl() || getStoredConsent() !== null) return;
+    const reopen = () => setVisible(true);
+    window.addEventListener(CONSENT_REOPEN_EVENT, reopen);
+
     let cancelled = false;
-    void isConsentRequired().then((required) => {
-      if (!cancelled && required && getStoredConsent() === null) {
-        setVisible(true);
-      }
-    });
+    if (!hasGlobalPrivacyControl() && getStoredConsent() === null) {
+      void isConsentRequired().then((required) => {
+        if (!cancelled && required && getStoredConsent() === null) {
+          setVisible(true);
+        }
+      });
+    }
+
     return () => {
       cancelled = true;
+      window.removeEventListener(CONSENT_REOPEN_EVENT, reopen);
     };
   }, []);
 

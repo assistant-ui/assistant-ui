@@ -7,6 +7,19 @@ const WEBSITE_ID = "6f07c001-46a2-411f-9241-4f7f5afb60ee";
 const DOMAINS = "www.assistant-ui.com";
 
 /**
+ * Umami re-reads this key on every send, so writing it stops a tracker that is
+ * already running rather than only the next page load.
+ */
+export const UMAMI_DISABLED_STORAGE_KEY = "umami.disabled";
+
+export function setUmamiTrackingEnabled(enabled: boolean): void {
+  try {
+    if (enabled) window.localStorage.removeItem(UMAMI_DISABLED_STORAGE_KEY);
+    else window.localStorage.setItem(UMAMI_DISABLED_STORAGE_KEY, "1");
+  } catch {}
+}
+
+/**
  * Umami records a sampled slice of traffic; PostHog stays the full-fidelity source.
  *
  * Runs inline in <head> rather than from an effect. Mounting after hydration
