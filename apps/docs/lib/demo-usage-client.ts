@@ -68,7 +68,11 @@ export function refreshDemoUsage(): void {
  */
 export async function readDemoUsage(): Promise<DemoUsagePayload | null> {
   await reload();
-  return state.status === "ready" ? state.usage : null;
+  // The composer settles open on a budget it could not read, which is the right
+  // answer for a gate and the wrong one to report: the route always carries a
+  // limit, so its absence means unread rather than unlimited.
+  if (state.status !== "ready" || state.usage.limit <= 0) return null;
+  return state.usage;
 }
 
 const subscribe = (listener: () => void) => {

@@ -38,22 +38,22 @@ describe("readDemoUsage", () => {
     expect(fetchMock).toHaveBeenCalledTimes(2);
   });
 
-  it("reports no budget rather than a spent one when the read fails", async () => {
+  // The composer settles open on an unreadable budget so the gate does not
+  // block, but reporting that as a real budget would tell the visitor they have
+  // no conversations left and that the day resets at the epoch.
+  it("answers with nothing when the read fails", async () => {
     const fetchMock = vi.fn(async () => new Response(null, { status: 500 }));
     const { readDemoUsage } = await load(fetchMock as unknown as typeof fetch);
 
-    const usage = await readDemoUsage();
-
-    expect(usage?.remaining).toBe(Number.POSITIVE_INFINITY);
-    expect(usage?.limit).toBe(0);
+    expect(await readDemoUsage()).toBeNull();
   });
 
-  it("settles when the request itself throws", async () => {
+  it("answers with nothing when the request itself throws", async () => {
     const fetchMock = vi.fn(async () => {
       throw new Error("offline");
     });
     const { readDemoUsage } = await load(fetchMock as unknown as typeof fetch);
 
-    expect((await readDemoUsage())?.remaining).toBe(Number.POSITIVE_INFINITY);
+    expect(await readDemoUsage()).toBeNull();
   });
 });
