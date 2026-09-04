@@ -293,12 +293,12 @@ aui-state:[{"type":"set","path":["status"],"value":"completed"}]
 3:"error message"
 ```
 
-Pass `protocol: "assistant-transport"` to consume the SSE encoding that `AssistantTransportEncoder` produces today: one `data:` line per JSON encoded `AssistantStreamChunk` and a final `data: [DONE]` line, which `AssistantTransportDecoder` requires. Message-level chunks such as `update-state` and `error` carry no `path`; the decoder fills in an empty one.
+Pass `protocol: "assistant-transport"` to consume the SSE encoding that `AssistantTransportEncoder` produces today: one `data:` line per JSON encoded `AssistantStreamChunk`, each carrying its `path` (`[]` for message-level chunks), and a final `data: [DONE]` line, which `AssistantTransportDecoder` requires. The decoder also accepts message-level chunks such as `update-state` and `error` without a `path`, which is what the Python `assistant_stream` package emits, and fills in the empty one.
 
 ```
-data: {"type":"update-state","operations":[{"type":"set","path":["status"],"value":"completed"}]}
+data: {"type":"update-state","path":[],"operations":[{"type":"set","path":["status"],"value":"completed"}]}
 
-data: {"type":"error","error":"error message"}
+data: {"type":"error","path":[],"error":"error message"}
 
 data: [DONE]
 ```
