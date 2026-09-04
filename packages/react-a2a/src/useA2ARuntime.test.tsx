@@ -94,6 +94,7 @@ const createThreadMessage = (id: string): ThreadMessage => ({
   id,
   role: "user",
   content: [{ type: "text", text: id }],
+  attachments: [],
   createdAt: new Date(0),
   metadata: { custom: {} },
 });
@@ -347,7 +348,7 @@ describe("useA2ARuntime", () => {
       resolveLoad = resolve;
     });
     const { result } = renderHook(() => {
-      const [threadId, setThreadId] = useState<string | undefined>("initial");
+      const [threadId, setThreadId] = useState("initial");
       return useA2ARuntime({
         client,
         adapters: {
@@ -358,7 +359,7 @@ describe("useA2ARuntime", () => {
               return load;
             },
             onSwitchToNewThread: async () => {
-              setThreadId(undefined);
+              setThreadId("thread-new");
             },
           },
         },
