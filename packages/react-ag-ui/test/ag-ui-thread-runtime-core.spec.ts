@@ -746,6 +746,28 @@ describe("AGUIThreadRuntimeCore", () => {
     expect(runAgent.mock.calls[1]?.[0].state).toBeNull();
   });
 
+  it("ignores state snapshots without a snapshot field", async () => {
+    const runAgent = vi.fn(async (_input, subscriber) => {
+      subscriber.onStateSnapshotEvent?.({
+        event:
+          runAgent.mock.calls.length === 1
+            ? { type: "STATE_SNAPSHOT", snapshot: { cart: ["apple"] } }
+            : { type: "STATE_SNAPSHOT" },
+      });
+      subscriber.onRunFinalized?.();
+    });
+    const agent = { runAgent } as unknown as HttpAgent;
+
+    const core = createCore(agent);
+    await core.append(createAppendMessage());
+    expect(core.getState()).toEqual({ cart: ["apple"] });
+
+    await core.append(createAppendMessage());
+
+    expect(core.getState()).toEqual({ cart: ["apple"] });
+    expect(runAgent.mock.calls[1]?.[0].state).toEqual({ cart: ["apple"] });
+  });
+
   it("applies deltas before a snapshot from an empty state object", async () => {
     const runInputs: any[] = [];
     const agent = {
@@ -3038,6 +3060,679 @@ describe("AGUIThreadRuntimeCore", () => {
         (m: any) => m.role === "user" && m.content === "changed my mind",
       ),
     ).toBe(true);
+  });
+
+  it("resolves a subagent's frontend tool call through addToolResult and resumes the run", async () => {
+    const runInputs: any[] = [];
+    let runCount = 0;
+    const runAgent = vi.fn(async (input: any, subscriber: any) => {
+      runInputs.push(JSON.parse(JSON.stringify(input)));
+      runCount++;
+      if (runCount === 1) {
+        subscriber.onToolCallStartEvent?.({
+          event: {
+            type: "TOOL_CALL_START",
+            toolCallId: "t-spawn",
+            toolCallName: "task",
+          },
+        });
+        subscriber.onToolCallEndEvent?.({
+          event: { type: "TOOL_CALL_END", toolCallId: "t-spawn" },
+        });
+        subscriber.onToolCallResultEvent?.({
+          event: {
+            type: "TOOL_CALL_RESULT",
+            messageId: "m-spawn",
+            toolCallId: "t-spawn",
+            content: "spawned",
+            role: "tool",
+          },
+        });
+        subscriber.onSubagentStartedEvent?.({
+          event: {
+            type: "SUBAGENT_STARTED",
+            subagentRunId: "sub-1",
+            name: "investigate",
+            parentToolCallId: "t-spawn",
+          },
+        });
+        subscriber.onToolCallStartEvent?.({
+          event: {
+            type: "TOOL_CALL_START",
+            toolCallId: "nested-1",
+            toolCallName: "search",
+            subagentRunId: "sub-1",
+          },
+        });
+        subscriber.onToolCallArgsEvent?.({
+          event: {
+            type: "TOOL_CALL_ARGS",
+            toolCallId: "nested-1",
+            delta: '{"q":"x"}',
+            subagentRunId: "sub-1",
+          },
+        });
+        subscriber.onToolCallEndEvent?.({
+          event: {
+            type: "TOOL_CALL_END",
+            toolCallId: "nested-1",
+            subagentRunId: "sub-1",
+          },
+        });
+        subscriber.onRunFinishedEvent?.({
+          event: {
+            type: "RUN_FINISHED",
+            runId: input.runId,
+            outcome: { type: "success" },
+          },
+        });
+        subscriber.onRunFinalized?.();
+        return;
+      }
+      subscriber.onRunFinishedEvent?.({
+        event: {
+          type: "RUN_FINISHED",
+          runId: input.runId,
+          outcome: { type: "success" },
+        },
+      });
+      subscriber.onRunFinalized?.();
+    });
+
+    const core = createCore({ runAgent } as unknown as HttpAgent);
+    await core.append(createAppendMessage());
+    await new Promise((r) => setTimeout(r, 0));
+
+    const pending = core.getPendingToolCalls();
+    expect(pending?.toolCallIds).toEqual(["nested-1"]);
+
+    expect(core.findMessageIdForToolCall("nested-1")).toBe(pending!.messageId);
+
+    // Core's ToolInvocationTracker path resolves a nested call to the nested
+    // subagent message's id ("sub-1"), not a session message id — the runtime
+    // must re-anchor it onto the owning top-level message.
+    core.addToolResult({
+      messageId: "sub-1",
+      toolCallId: "nested-1",
+      result: { found: true },
+    });
+    await new Promise((r) => setTimeout(r, 0));
+
+    expect(runCount).toBe(2);
+    const run2Messages = runInputs[1]?.messages ?? [];
+    const toolMsg = run2Messages.find(
+      (m: any) => m.role === "tool" && m.toolCallId === "nested-1",
+    );
+    expect(toolMsg?.content).toContain("found");
+
+    const assistant = core
+      .getMessages()
+      .find((m) => m.role === "assistant") as ThreadAssistantMessage;
+    expect(assistant.status).toMatchObject({ type: "complete" });
+    const spawn = assistant.content.find(
+      (p) => p.type === "tool-call" && p.toolCallId === "t-spawn",
+    ) as any;
+    const nestedPart = spawn.messages?.[0]?.content.find(
+      (p: any) => p.type === "tool-call" && p.toolCallId === "nested-1",
+    );
+    expect(nestedPart?.result).toEqual({ found: true });
+  });
+
+  it("applies a cross-run TOOL_CALL_RESULT to a nested tool call from an earlier run", async () => {
+    let runCount = 0;
+    const runAgent = vi.fn(async (input: any, subscriber: any) => {
+      runCount++;
+      if (runCount === 1) {
+        subscriber.onToolCallStartEvent?.({
+          event: {
+            type: "TOOL_CALL_START",
+            toolCallId: "t-spawn",
+            toolCallName: "task",
+          },
+        });
+        subscriber.onToolCallEndEvent?.({
+          event: { type: "TOOL_CALL_END", toolCallId: "t-spawn" },
+        });
+        subscriber.onToolCallResultEvent?.({
+          event: {
+            type: "TOOL_CALL_RESULT",
+            messageId: "m-spawn",
+            toolCallId: "t-spawn",
+            content: "spawned",
+            role: "tool",
+          },
+        });
+        subscriber.onSubagentStartedEvent?.({
+          event: {
+            type: "SUBAGENT_STARTED",
+            subagentRunId: "sub-1",
+            name: "investigate",
+            parentToolCallId: "t-spawn",
+          },
+        });
+        subscriber.onToolCallStartEvent?.({
+          event: {
+            type: "TOOL_CALL_START",
+            toolCallId: "nested-1",
+            toolCallName: "search",
+            subagentRunId: "sub-1",
+          },
+        });
+        subscriber.onToolCallEndEvent?.({
+          event: {
+            type: "TOOL_CALL_END",
+            toolCallId: "nested-1",
+            subagentRunId: "sub-1",
+          },
+        });
+        subscriber.onRunFinishedEvent?.({
+          event: {
+            type: "RUN_FINISHED",
+            runId: input.runId,
+            outcome: { type: "success" },
+          },
+        });
+        subscriber.onRunFinalized?.();
+        return;
+      }
+      // A different run whose aggregator has never seen nested-1 delivers
+      // its result: the cross-run branch must reach the nested part.
+      subscriber.onToolCallResultEvent?.({
+        event: {
+          type: "TOOL_CALL_RESULT",
+          messageId: "m-late",
+          toolCallId: "nested-1",
+          content: JSON.stringify({ found: "late" }),
+          role: "tool",
+        },
+      });
+      subscriber.onTextMessageStartEvent?.({
+        event: { type: "TEXT_MESSAGE_START", messageId: "t2" },
+      });
+      subscriber.onTextMessageContentEvent?.({
+        event: { type: "TEXT_MESSAGE_CONTENT", messageId: "t2", delta: "ok" },
+      });
+      subscriber.onTextMessageEndEvent?.({
+        event: { type: "TEXT_MESSAGE_END", messageId: "t2" },
+      });
+      subscriber.onRunFinishedEvent?.({
+        event: {
+          type: "RUN_FINISHED",
+          runId: input.runId,
+          outcome: { type: "success" },
+        },
+      });
+      subscriber.onRunFinalized?.();
+    });
+
+    const core = createCore({ runAgent } as unknown as HttpAgent, {
+      autoCancelPendingToolCalls: false,
+    });
+    await core.append(createAppendMessage());
+    await new Promise((r) => setTimeout(r, 0));
+
+    const firstAssistant = core
+      .getMessages()
+      .find((m) => m.role === "assistant") as ThreadAssistantMessage;
+    expect(core.getPendingToolCalls()?.toolCallIds).toEqual(["nested-1"]);
+
+    await core.append(
+      createAppendMessage({ parentId: core.getMessages().at(-1)!.id }),
+    );
+    await new Promise((r) => setTimeout(r, 0));
+
+    expect(runCount).toBe(2);
+    const updated = core
+      .getMessages()
+      .find(
+        (m) => m.role === "assistant" && m.id === firstAssistant.id,
+      ) as ThreadAssistantMessage;
+    const spawn = updated.content.find(
+      (p) => p.type === "tool-call" && p.toolCallId === "t-spawn",
+    ) as any;
+    const nestedPart = spawn.messages?.[0]?.content.find(
+      (p: any) => p.type === "tool-call" && p.toolCallId === "nested-1",
+    );
+    expect(nestedPart?.result).toEqual({ found: "late" });
+    expect(updated.status).toMatchObject({ type: "complete" });
+  });
+
+  it("cancels a subagent's pending tool call on steerAway", async () => {
+    let runCount = 0;
+    const runInputs: any[] = [];
+    const runAgent = vi.fn(async (input: any, subscriber: any) => {
+      runInputs.push(JSON.parse(JSON.stringify(input)));
+      runCount++;
+      if (runCount === 1) {
+        subscriber.onToolCallStartEvent?.({
+          event: {
+            type: "TOOL_CALL_START",
+            toolCallId: "t-spawn",
+            toolCallName: "task",
+          },
+        });
+        subscriber.onToolCallEndEvent?.({
+          event: { type: "TOOL_CALL_END", toolCallId: "t-spawn" },
+        });
+        subscriber.onToolCallResultEvent?.({
+          event: {
+            type: "TOOL_CALL_RESULT",
+            messageId: "m-spawn",
+            toolCallId: "t-spawn",
+            content: "spawned",
+            role: "tool",
+          },
+        });
+        subscriber.onSubagentStartedEvent?.({
+          event: {
+            type: "SUBAGENT_STARTED",
+            subagentRunId: "sub-1",
+            name: "investigate",
+            parentToolCallId: "t-spawn",
+          },
+        });
+        subscriber.onToolCallStartEvent?.({
+          event: {
+            type: "TOOL_CALL_START",
+            toolCallId: "nested-1",
+            toolCallName: "search",
+            subagentRunId: "sub-1",
+          },
+        });
+        subscriber.onToolCallEndEvent?.({
+          event: {
+            type: "TOOL_CALL_END",
+            toolCallId: "nested-1",
+            subagentRunId: "sub-1",
+          },
+        });
+        subscriber.onRunFinishedEvent?.({
+          event: {
+            type: "RUN_FINISHED",
+            runId: input.runId,
+            outcome: { type: "success" },
+          },
+        });
+        subscriber.onRunFinalized?.();
+        return;
+      }
+      subscriber.onRunFinishedEvent?.({
+        event: {
+          type: "RUN_FINISHED",
+          runId: input.runId,
+          outcome: { type: "success" },
+        },
+      });
+      subscriber.onRunFinalized?.();
+    });
+
+    const core = createCore({ runAgent } as unknown as HttpAgent);
+    await core.append(createAppendMessage());
+    await new Promise((r) => setTimeout(r, 0));
+    expect(core.getPendingToolCalls()?.toolCallIds).toEqual(["nested-1"]);
+
+    await core.steerAway("changed my mind");
+    expect(runCount).toBe(2);
+
+    const assistant = core
+      .getMessages()
+      .find((m) => m.role === "assistant") as ThreadAssistantMessage;
+    const spawn = assistant.content.find(
+      (p) => p.type === "tool-call" && p.toolCallId === "t-spawn",
+    ) as any;
+    const nestedPart = spawn.messages?.[0]?.content.find(
+      (p: any) => p.type === "tool-call" && p.toolCallId === "nested-1",
+    );
+    expect(nestedPart?.result).toEqual({
+      error: "Tool call cancelled by user",
+    });
+    expect(nestedPart?.isError).toBe(true);
+
+    const run2Messages = runInputs[1]?.messages ?? [];
+    const toolMsg = run2Messages.find(
+      (m: any) => m.role === "tool" && m.toolCallId === "nested-1",
+    );
+    expect(toolMsg?.content).toContain("cancelled");
+  });
+
+  it("preserves a frontend-injected nested result across an aggregator re-emit", async () => {
+    let releaseStream!: () => void;
+    const streamGate = new Promise<void>((r) => {
+      releaseStream = r;
+    });
+    const runAgent = vi.fn(async (input: any, subscriber: any) => {
+      subscriber.onToolCallStartEvent?.({
+        event: {
+          type: "TOOL_CALL_START",
+          toolCallId: "t-spawn",
+          toolCallName: "task",
+        },
+      });
+      subscriber.onToolCallEndEvent?.({
+        event: { type: "TOOL_CALL_END", toolCallId: "t-spawn" },
+      });
+      subscriber.onToolCallResultEvent?.({
+        event: {
+          type: "TOOL_CALL_RESULT",
+          messageId: "m-spawn",
+          toolCallId: "t-spawn",
+          content: "spawned",
+          role: "tool",
+        },
+      });
+      subscriber.onSubagentStartedEvent?.({
+        event: {
+          type: "SUBAGENT_STARTED",
+          subagentRunId: "sub-1",
+          name: "investigate",
+          parentToolCallId: "t-spawn",
+        },
+      });
+      subscriber.onToolCallStartEvent?.({
+        event: {
+          type: "TOOL_CALL_START",
+          toolCallId: "nested-1",
+          toolCallName: "search",
+          subagentRunId: "sub-1",
+        },
+      });
+      subscriber.onToolCallEndEvent?.({
+        event: {
+          type: "TOOL_CALL_END",
+          toolCallId: "nested-1",
+          subagentRunId: "sub-1",
+        },
+      });
+      await streamGate;
+      // The aggregator regenerates the whole content from its own state on
+      // this event; a result injected meanwhile must survive.
+      subscriber.onTextMessageStartEvent?.({
+        event: { type: "TEXT_MESSAGE_START", messageId: "t1" },
+      });
+      subscriber.onTextMessageContentEvent?.({
+        event: { type: "TEXT_MESSAGE_CONTENT", messageId: "t1", delta: "hi" },
+      });
+      subscriber.onTextMessageEndEvent?.({
+        event: { type: "TEXT_MESSAGE_END", messageId: "t1" },
+      });
+      subscriber.onRunFinishedEvent?.({
+        event: {
+          type: "RUN_FINISHED",
+          runId: input.runId,
+          outcome: { type: "success" },
+        },
+      });
+      subscriber.onRunFinalized?.();
+    });
+
+    const core = createCore({ runAgent } as unknown as HttpAgent, {
+      autoCancelPendingToolCalls: false,
+    });
+    const appendDone = core.append(createAppendMessage());
+    await new Promise((r) => setTimeout(r, 0));
+
+    const messageId = core.findMessageIdForToolCall("nested-1")!;
+    core.addToolResult({
+      messageId,
+      toolCallId: "nested-1",
+      result: { found: "early" },
+    });
+    releaseStream();
+    await appendDone;
+    await new Promise((r) => setTimeout(r, 0));
+
+    const assistant = core
+      .getMessages()
+      .find((m) => m.role === "assistant") as ThreadAssistantMessage;
+    const spawn = assistant.content.find(
+      (p) => p.type === "tool-call" && p.toolCallId === "t-spawn",
+    ) as any;
+    const nestedPart = spawn.messages?.[0]?.content.find(
+      (p: any) => p.type === "tool-call" && p.toolCallId === "nested-1",
+    );
+    expect(nestedPart?.result).toEqual({ found: "early" });
+  });
+
+  it("applies a cross-run mcp activity snapshot to a nested tool call", async () => {
+    let runCount = 0;
+    const runAgent = vi.fn(async (input: any, subscriber: any) => {
+      runCount++;
+      if (runCount === 1) {
+        subscriber.onToolCallStartEvent?.({
+          event: {
+            type: "TOOL_CALL_START",
+            toolCallId: "t-spawn",
+            toolCallName: "task",
+          },
+        });
+        subscriber.onToolCallEndEvent?.({
+          event: { type: "TOOL_CALL_END", toolCallId: "t-spawn" },
+        });
+        subscriber.onToolCallResultEvent?.({
+          event: {
+            type: "TOOL_CALL_RESULT",
+            messageId: "m-spawn",
+            toolCallId: "t-spawn",
+            content: "spawned",
+            role: "tool",
+          },
+        });
+        subscriber.onSubagentStartedEvent?.({
+          event: {
+            type: "SUBAGENT_STARTED",
+            subagentRunId: "sub-1",
+            name: "investigate",
+            parentToolCallId: "t-spawn",
+          },
+        });
+        subscriber.onToolCallStartEvent?.({
+          event: {
+            type: "TOOL_CALL_START",
+            toolCallId: "nested-1",
+            toolCallName: "render_app",
+            subagentRunId: "sub-1",
+          },
+        });
+        subscriber.onToolCallEndEvent?.({
+          event: {
+            type: "TOOL_CALL_END",
+            toolCallId: "nested-1",
+            subagentRunId: "sub-1",
+          },
+        });
+        subscriber.onRunFinishedEvent?.({
+          event: {
+            type: "RUN_FINISHED",
+            runId: input.runId,
+            outcome: { type: "success" },
+          },
+        });
+        subscriber.onRunFinalized?.();
+        return;
+      }
+      subscriber.onActivitySnapshotEvent?.({
+        event: {
+          type: "ACTIVITY_SNAPSHOT",
+          activityType: "mcp-apps",
+          content: {
+            toolCallId: "nested-1",
+            resourceUri: "ui://apps/dashboard",
+            serverId: "apps",
+          },
+        },
+      });
+      subscriber.onRunFinishedEvent?.({
+        event: {
+          type: "RUN_FINISHED",
+          runId: input.runId,
+          outcome: { type: "success" },
+        },
+      });
+      subscriber.onRunFinalized?.();
+    });
+
+    const core = createCore({ runAgent } as unknown as HttpAgent, {
+      autoCancelPendingToolCalls: false,
+    });
+    await core.append(createAppendMessage());
+    await new Promise((r) => setTimeout(r, 0));
+    const firstAssistantId = (
+      core.getMessages().find((m) => m.role === "assistant") as ThreadMessage
+    ).id;
+
+    await core.append(
+      createAppendMessage({ parentId: core.getMessages().at(-1)!.id }),
+    );
+    await new Promise((r) => setTimeout(r, 0));
+    expect(runCount).toBe(2);
+
+    const updated = core
+      .getMessages()
+      .find(
+        (m) => m.role === "assistant" && m.id === firstAssistantId,
+      ) as ThreadAssistantMessage;
+    const spawn = updated.content.find(
+      (p) => p.type === "tool-call" && p.toolCallId === "t-spawn",
+    ) as any;
+    const nestedPart = spawn.messages?.[0]?.content.find(
+      (p: any) => p.type === "tool-call" && p.toolCallId === "nested-1",
+    );
+    expect(nestedPart?.mcp?.app?.resourceUri).toBe("ui://apps/dashboard");
+  });
+
+  it("decides a nested approval gate through respondToToolApproval and resumes", async () => {
+    let runCount = 0;
+    const runInputs: any[] = [];
+    const runAgent = vi.fn(async (input: any, subscriber: any) => {
+      runInputs.push(JSON.parse(JSON.stringify(input)));
+      runCount++;
+      if (runCount === 1) {
+        subscriber.onToolCallStartEvent?.({
+          event: {
+            type: "TOOL_CALL_START",
+            toolCallId: "t-spawn",
+            toolCallName: "task",
+          },
+        });
+        subscriber.onToolCallEndEvent?.({
+          event: { type: "TOOL_CALL_END", toolCallId: "t-spawn" },
+        });
+        subscriber.onToolCallResultEvent?.({
+          event: {
+            type: "TOOL_CALL_RESULT",
+            messageId: "m-spawn",
+            toolCallId: "t-spawn",
+            content: "spawned",
+            role: "tool",
+          },
+        });
+        subscriber.onSubagentStartedEvent?.({
+          event: {
+            type: "SUBAGENT_STARTED",
+            subagentRunId: "sub-1",
+            name: "investigate",
+            parentToolCallId: "t-spawn",
+          },
+        });
+        subscriber.onToolCallStartEvent?.({
+          event: {
+            type: "TOOL_CALL_START",
+            toolCallId: "nested-1",
+            toolCallName: "delete_file",
+            subagentRunId: "sub-1",
+          },
+        });
+        subscriber.onToolCallArgsEvent?.({
+          event: {
+            type: "TOOL_CALL_ARGS",
+            toolCallId: "nested-1",
+            delta: '{"path":"/tmp/a"}',
+            subagentRunId: "sub-1",
+          },
+        });
+        subscriber.onToolCallEndEvent?.({
+          event: {
+            type: "TOOL_CALL_END",
+            toolCallId: "nested-1",
+            subagentRunId: "sub-1",
+          },
+        });
+        subscriber.onRunFinishedEvent?.({
+          event: {
+            type: "RUN_FINISHED",
+            runId: input.runId,
+            outcome: {
+              type: "interrupt",
+              interrupts: [
+                {
+                  id: "int-nested",
+                  reason: "tool_call",
+                  toolCallId: "nested-1",
+                  message: "Delete /tmp/a?",
+                },
+              ],
+            },
+          },
+        });
+        subscriber.onRunFinalized?.();
+        return;
+      }
+      subscriber.onRunFinishedEvent?.({
+        event: {
+          type: "RUN_FINISHED",
+          runId: input.runId,
+          outcome: { type: "success" },
+        },
+      });
+      subscriber.onRunFinalized?.();
+    });
+
+    const core = createCore({ runAgent } as unknown as HttpAgent);
+    await core.append(createAppendMessage());
+    await new Promise((r) => setTimeout(r, 0));
+
+    const assistant = core
+      .getMessages()
+      .find((m) => m.role === "assistant") as ThreadAssistantMessage;
+    const spawn = assistant.content.find(
+      (p) => p.type === "tool-call" && p.toolCallId === "t-spawn",
+    ) as any;
+    const nestedBefore = spawn.messages?.[0]?.content.find(
+      (p: any) => p.type === "tool-call" && p.toolCallId === "nested-1",
+    );
+    expect(nestedBefore?.approval).toEqual({
+      id: "int-nested",
+      prompt: "Delete /tmp/a?",
+    });
+
+    await core.respondToToolApproval({
+      approvalId: "int-nested",
+      approved: true,
+    });
+    await new Promise((r) => setTimeout(r, 0));
+
+    expect(runCount).toBe(2);
+    expect(runInputs[1]?.resume).toEqual([
+      expect.objectContaining({
+        interruptId: "int-nested",
+        status: "resolved",
+        payload: { approved: true },
+      }),
+    ]);
+
+    const updated = core
+      .getMessages()
+      .find((m) => m.role === "assistant") as ThreadAssistantMessage;
+    const spawnAfter = updated.content.find(
+      (p) => p.type === "tool-call" && p.toolCallId === "t-spawn",
+    ) as any;
+    const nestedAfter = spawnAfter.messages?.[0]?.content.find(
+      (p: any) => p.type === "tool-call" && p.toolCallId === "nested-1",
+    );
+    expect(nestedAfter?.approval).toMatchObject({
+      id: "int-nested",
+      approved: true,
+    });
   });
 
   it("steerAway cancels every pending client-side tool call", async () => {

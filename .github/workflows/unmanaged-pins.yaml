@@ -1,0 +1,61 @@
+name: Unmanaged Pins
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - ".github/workflows/**"
+      - "package.json"
+      - "**/package.json"
+      - "pnpm-lock.yaml"
+      - "pnpm-workspace.yaml"
+      - "scripts/check-unmanaged-pins.mjs"
+      - "scripts/check-unmanaged-pins.test.mjs"
+      - "scripts/check-built-declarations.mjs"
+      - "scripts/check-changesets.mjs"
+      - "scripts/lib/workspace.mjs"
+      - "scripts/lib/script-options.mjs"
+  pull_request:
+    branches: [main]
+    paths:
+      - ".github/workflows/**"
+      - "package.json"
+      - "**/package.json"
+      - "pnpm-lock.yaml"
+      - "pnpm-workspace.yaml"
+      - "scripts/check-unmanaged-pins.mjs"
+      - "scripts/check-unmanaged-pins.test.mjs"
+      - "scripts/check-built-declarations.mjs"
+      - "scripts/check-changesets.mjs"
+      - "scripts/lib/workspace.mjs"
+      - "scripts/lib/script-options.mjs"
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  unmanaged-pins:
+    name: Unmanaged Pins
+    runs-on: blacksmith-4vcpu-ubuntu-2404
+    timeout-minutes: 2
+    steps:
+      - name: Checkout code repository
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # ratchet:actions/checkout@v7.0.1
+        with:
+          fetch-depth: 1
+
+      - name: Setup pnpm and node.js
+        uses: pnpm/setup@703c52620218391530e48b9e8870d5c0082e1b9b # ratchet:pnpm/setup@v2.1.0
+        with:
+          runtime: node@24
+          install: false
+
+      - name: Test the unmanaged pin checker
+        run: node --test scripts/check-unmanaged-pins.test.mjs
+
+      - name: Verify the pins no tool manages are current
+        run: node scripts/check-unmanaged-pins.mjs

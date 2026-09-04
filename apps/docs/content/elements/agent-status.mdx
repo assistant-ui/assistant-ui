@@ -120,20 +120,21 @@ Changing `label` alone still animates: the text fades and blurs between values b
 
 ```tsx
 <div data-slot="agent-status">
-  <span>{/* check, or a pulsing dot */}</span>
+  <span>{/* check, a pulsing dot, or an outlined one */}</span>
+  <span>{/* visually hidden state */}</span>
   <span>{/* label */}</span>
   <span>{/* elapsed, only while state !== "done" */}</span>
-  <button aria-label="Pause agent" /* or "Run again" once done */ />
+  <span aria-hidden>{/* decorative trailing icon */}</span>
 </div>
 ```
 
-The leading indicator is a check once `state` is `"done"`, otherwise a pulsing dot: blue while `"working"`, muted while `"waiting"`. `elapsed` only renders when it is supplied and `state` is not `"done"`. The trailing button swaps its icon and label between "Pause agent" and "Run again" based on `state`, but it has no `onClick` prop in this version; it is presentational until you fork the component or attach a handler to it directly. Props spread onto the root pill, not onto that button.
+The leading indicator is a check once `state` is `"done"`, otherwise a dot: filled blue and pulsing while `"working"`, a static muted outline while `"waiting"`, so the two states differ in shape and motion and not only in color. The state is also rendered as visually hidden text, so it is exposed to assistive technology rather than carried by the dot's color alone. `elapsed` only renders when it is supplied and `state` is not `"done"`. The trailing icon swaps between the pause and replay treatments based on `state`, and is decorative: it carries no hover or press treatment and is hidden from assistive technology. Props spread onto the root pill.
 
 ## Examples
 
 ### Restyle the pill
 
-Both lanes take `className` on the root. The elapsed text uses the `mono` token and the button uses `ghostButton`, both from `surfaces.tsx`.
+Both lanes take `className` on the root. The elapsed text uses the `mono` token from `surfaces.tsx`.
 
 ```tsx
 <AgentStatus className="gap-3" state={state} label={label} elapsed={elapsed} />
@@ -167,7 +168,7 @@ Omit `elapsed` for work that is not worth timing, like a wait state with no usef
 
 | Prop | Type | Default | Description |
 |------|------|---------|-------------|
-| `state` | `"working" \| "waiting" \| "done"` | required | Drives the leading indicator and the trailing button's icon. |
+| `state` | `"working" \| "waiting" \| "done"` | required | Drives the leading indicator, visually hidden state text, and trailing icon. |
 | `label` | `string` | required | Crossfades in whenever its value changes. |
 | `elapsed` | `string` | | Shown only while `state` is not `"done"`. |
 | `className` | `string` | | Merged onto the root. |

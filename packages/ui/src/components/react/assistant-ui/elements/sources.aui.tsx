@@ -89,6 +89,10 @@ function SourceIcon({
       className={cn("size-3 shrink-0 rounded-sm", className)}
       onError={() => setErrorSrc(src)}
       {...(props as ComponentProps<"img">)}
+      // A server-rendered image that fails before hydration never fires onError.
+      ref={(el) => {
+        if (el?.complete && el.naturalWidth === 0) setErrorSrc(src);
+      }}
     />
   );
 }

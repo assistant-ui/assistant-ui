@@ -4,7 +4,7 @@
   "private": true,
   "type": "module",
   "bin": {
-    "aui-perf": "./src/cli.mjs"
+    "aui-perf": "./bin/aui-perf.mjs"
   },
   "exports": {
     ".": "./src/index.ts"
@@ -12,20 +12,26 @@
   "scripts": {
     "test": "vitest run",
     "bench": "vitest bench --run",
-    "perf:record": "node ./src/cli.mjs record",
-    "perf:compare": "node ./src/cli.mjs compare"
+    "perf:record": "node ./bin/aui-perf.mjs record",
+    "perf:compare": "node ./bin/aui-perf.mjs compare",
+    "size": "node ./bin/aui-perf.mjs size"
   },
   "devDependencies": {
+    "@assistant-ui/ai-sdk": "workspace:*",
     "@assistant-ui/core": "workspace:*",
+    "@assistant-ui/react": "workspace:*",
+    "@assistant-ui/react-markdown": "workspace:*",
     "@assistant-ui/store": "workspace:*",
     "@assistant-ui/tap": "workspace:*",
     "@assistant-ui/x-buildutils": "workspace:*",
+    "@tailwindcss/cli": "^4.3.3",
     "@types/react": "^19.2.18",
     "@types/react-dom": "^19.2.5",
     "assistant-stream": "workspace:*",
     "jsdom": "^30.0.1",
     "react": "^19.2.8",
     "react-dom": "^19.2.8",
+    "rolldown": "^1.2.6",
     "vitest": "^4.1.11"
   }
 }

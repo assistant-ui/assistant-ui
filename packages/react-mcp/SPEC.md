@@ -191,6 +191,7 @@ type MCPServerMethods = {
 
 ```ts
 type MCPStorage = {
+  scopeId?: string;
   loadCustomServers: () => Promise<MCPCustomServerRecord[]>;
   saveCustomServers: (records: MCPCustomServerRecord[]) => Promise<void>;
   loadAuthState: (serverId: string) => Promise<MCPPersistedAuthState | null>;
@@ -207,12 +208,14 @@ type MCPPersistedAuthState = {
   token?: string;   // bearer
 };
 
-McpLocalStorage(opts?: { keyPrefix?: string; storage?: Storage }): ResourceElement<MCPStorage>;
+McpLocalStorage(opts?: { keyPrefix?: string; storage?: Storage; scopeId?: string }): ResourceElement<MCPStorage>;
 McpMemoryStorage(): ResourceElement<MCPStorage>;
 McpCustomStorage(impl: MCPStorage): ResourceElement<MCPStorage>;
 ```
 
 `McpLocalStorage` defaults to `globalThis.localStorage` under the `aui-mcp:` prefix. Tokens are plain text — production apps should use `McpCustomStorage` against a server endpoint.
+
+`scopeId` is the storage's stable identity: two storages with the same `scopeId` must read and write the same persisted data. Servers with `bearer` or `oauth` auth key their connection on it, so swapping to a differently-scoped storage reconnects (and rebinds the OAuth provider) instead of leaving a live connection on the replaced store. A storage without a `scopeId` never keys a reconnect — the legacy behavior. `McpLocalStorage` derives `local-storage:<keyPrefix>` when backed by the shared `globalThis.localStorage` and declares no scope for a custom `storage` backing unless `scopeId` is passed; `McpMemoryStorage` scopes each instance uniquely (`memory:<id>`), since each holds private data. Only connections key on the scope: `McpManagerResource` loads the custom server list once on mount and does not re-read it when `storage` changes.
 
 ## 3. Mounting
 

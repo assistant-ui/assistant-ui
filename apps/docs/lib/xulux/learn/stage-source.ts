@@ -1,4 +1,4 @@
-import { loadSourceSnapshot } from "../demo-downloads/create-demo-zip";
+import { loadRepoSourceSnapshot } from "@/lib/repo-source";
 import { createZip } from "../demo-downloads/zip";
 import { getLearnCourse, getLearnStage } from "./registry";
 import type { LearnCourseDefinition } from "./types";
@@ -13,7 +13,7 @@ export async function resolveStageFiles(
   return resolveStageFilesFromSnapshot(
     courseId,
     stageId,
-    await loadSourceSnapshot(),
+    await loadRepoSourceSnapshot(),
   );
 }
 

@@ -8,6 +8,10 @@ import {
 import { z } from "zod";
 import { getLLMText } from "@/lib/get-llm-text";
 import {
+  checkMcpDocsToolRateLimit,
+  checkMcpTemplateToolRateLimit,
+} from "@/lib/rate-limit";
+import {
   SEARCH_DOCS_RESULT_LIMIT,
   docsToolDefinitions,
   getNavigationTool,
@@ -33,6 +37,10 @@ import {
 import { normalizeMcpRequestHeaders } from "./normalize-mcp-headers";
 
 export const revalidate = false;
+// One sandbox call bounds the template tools at 30s and the rest is in-process
+// rendering, so this sits well under the platform default and an overrun
+// surfaces here rather than at the CDN in front of it.
+export const maxDuration = 120;
 
 const templateToolDefinitions = [
   {
@@ -269,18 +277,23 @@ function getNavigation() {
   };
 }
 
-function searchDocs(query: string) {
-  const normalized = query.trim().toLowerCase();
-  if (!normalized) return [];
+async function searchDocs(query: string) {
+  const [{ buildContentIndex }, { searchContent }] = await Promise.all([
+    import("@/lib/search/content-index"),
+    import("@/lib/search/content-search"),
+  ]);
 
-  return allPages()
-    .map(({ page }) => pageSummary(page))
-    .filter((page) =>
-      [page.title, page.url, page.description ?? ""].some((value) =>
-        value.toLowerCase().includes(normalized),
-      ),
-    )
-    .slice(0, SEARCH_DOCS_RESULT_LIMIT);
+  return searchContent(
+    await buildContentIndex(),
+    query,
+    SEARCH_DOCS_RESULT_LIMIT,
+  ).map((page) => ({
+    title: page.title,
+    url: page.url,
+    ...(page.description ? { description: page.description } : {}),
+    ...(page.headings.length > 0 ? { headings: page.headings } : {}),
+    ...(page.excerpt ? { excerpt: page.excerpt } : {}),
+  }));
 }
 
 async function readPage(path: string | undefined, requestUrl: string) {
@@ -399,35 +412,44 @@ function templateVarToPath(value: string | string[] | undefined): string {
   return Array.isArray(value) ? value.join("/") : (value ?? "");
 }
 
-function registerResources(server: McpServer, requestUrl: string) {
+function registerResources(server: McpServer, request: NextRequest) {
+  const requestUrl = request.url;
+
   server.registerResource(
     "assistant-ui docs navigation",
     "assistant-ui://navigation",
     { mimeType: "application/json" },
-    async (uri) => ({
-      contents: [
-        {
-          uri: uri.href,
-          mimeType: "application/json",
-          text: JSON.stringify(getNavigation(), null, 2),
-        },
-      ],
-    }),
+    async (uri) => {
+      await requireDocsToolBudget(request);
+      return {
+        contents: [
+          {
+            uri: uri.href,
+            mimeType: "application/json",
+            text: JSON.stringify(getNavigation(), null, 2),
+          },
+        ],
+      };
+    },
   );
 
   server.registerResource(
     "assistant-ui docs pages",
     new ResourceTemplate("assistant-ui://{+path}", {
-      list: async () => ({
-        resources: allPages().map(({ page }) => ({
-          uri: `assistant-ui://${stripLeadingSlashes(page.url)}`,
-          name: page.data.title,
-          mimeType: "text/markdown",
-        })),
-      }),
+      list: async () => {
+        await requireDocsToolBudget(request);
+        return {
+          resources: allPages().map(({ page }) => ({
+            uri: `assistant-ui://${stripLeadingSlashes(page.url)}`,
+            name: page.data.title,
+            mimeType: "text/markdown",
+          })),
+        };
+      },
     }),
     { mimeType: "text/markdown" },
     async (uri, variables) => {
+      await requireDocsToolBudget(request);
       const path = templateVarToPath(variables["path"]);
       const page = await readPage(path, requestUrl);
       return {
@@ -443,11 +465,41 @@ function registerResources(server: McpServer, requestUrl: string) {
   );
 }
 
-function buildMcpServer(requestUrl: string) {
+async function throttleMessage(denial: Response, suffix: string) {
+  const retryAfter = denial.headers.get("Retry-After");
+  return (
+    `${await denial.text()}.` +
+    (retryAfter ? ` Retry in ${retryAfter}s.` : "") +
+    suffix
+  );
+}
+
+async function requireTemplateToolBudget(request: NextRequest) {
+  const denial = await checkMcpTemplateToolRateLimit(request);
+  if (!denial) return;
+
+  const suffix = " The assistant-ui docs tools remain available.";
+  if (denial.status !== 429) {
+    throw new Error(`Template tools are temporarily unavailable.${suffix}`);
+  }
+  throw new Error(await throttleMessage(denial, suffix));
+}
+
+async function requireDocsToolBudget(request: NextRequest) {
+  const denial = await checkMcpDocsToolRateLimit(request);
+  // These tools cost one in-process render and nothing external, so a
+  // rate-limit store outage serves them unmetered rather than taking the
+  // surface down with it. Only an exhausted budget refuses.
+  if (denial?.status !== 429) return;
+  throw new Error(await throttleMessage(denial, ""));
+}
+
+function buildMcpServer(request: NextRequest) {
   const server = new McpServer({
     name: "assistant-ui-docs",
     version: "1.0.0",
   });
+  const requestUrl = request.url;
   const requestOrigin = new URL(requestUrl).origin;
 
   server.registerTool(
@@ -456,7 +508,11 @@ function buildMcpServer(requestUrl: string) {
       description: listPagesTool.description,
       inputSchema: listPagesInputSchema,
     },
-    ({ path }) => toolResult(() => listPages(path)),
+    ({ path }) =>
+      toolResult(async () => {
+        await requireDocsToolBudget(request);
+        return listPages(path);
+      }),
   );
 
   server.registerTool(
@@ -465,7 +521,11 @@ function buildMcpServer(requestUrl: string) {
       description: getNavigationTool.description,
       inputSchema: getNavigationInputSchema,
     },
-    () => toolResult(() => getNavigation()),
+    () =>
+      toolResult(async () => {
+        await requireDocsToolBudget(request);
+        return getNavigation();
+      }),
   );
 
   server.registerTool(
@@ -474,7 +534,11 @@ function buildMcpServer(requestUrl: string) {
       description: searchDocsTool.description,
       inputSchema: searchDocsInputSchema,
     },
-    ({ query }) => toolResult(() => searchDocs(query)),
+    ({ query }) =>
+      toolResult(async () => {
+        await requireDocsToolBudget(request);
+        return searchDocs(query);
+      }),
   );
 
   server.registerTool(
@@ -483,7 +547,11 @@ function buildMcpServer(requestUrl: string) {
       description: readPageTool.description,
       inputSchema: readPageInputSchema,
     },
-    ({ path }) => toolResult(() => readPage(path, requestUrl)),
+    ({ path }) =>
+      toolResult(async () => {
+        await requireDocsToolBudget(request);
+        return readPage(path, requestUrl);
+      }),
   );
 
   server.registerTool(
@@ -492,7 +560,11 @@ function buildMcpServer(requestUrl: string) {
       description: listTemplatesTool.description,
       inputSchema: listTemplatesInputSchema,
     },
-    () => toolResult(() => listTemplates(buildXuluxMcpCatalog(requestOrigin))),
+    () =>
+      toolResult(async () => {
+        await requireDocsToolBudget(request);
+        return listTemplates(buildXuluxMcpCatalog(requestOrigin));
+      }),
   );
 
   server.registerTool(
@@ -502,9 +574,10 @@ function buildMcpServer(requestUrl: string) {
       inputSchema: readTemplateInputSchema,
     },
     (input) =>
-      toolResult(() =>
-        getTemplateDetails(buildXuluxMcpCatalog(requestOrigin), input),
-      ),
+      toolResult(async () => {
+        await requireTemplateToolBudget(request);
+        return getTemplateDetails(buildXuluxMcpCatalog(requestOrigin), input);
+      }),
   );
 
   server.registerTool(
@@ -514,9 +587,13 @@ function buildMcpServer(requestUrl: string) {
       inputSchema: previewTemplateInputSchema,
     },
     (input) =>
-      toolResult(() =>
-        createTemplatePreview(buildXuluxMcpCatalog(requestOrigin), input),
-      ),
+      toolResult(async () => {
+        await requireTemplateToolBudget(request);
+        return createTemplatePreview(
+          buildXuluxMcpCatalog(requestOrigin),
+          input,
+        );
+      }),
   );
 
   server.registerPrompt(
@@ -532,7 +609,7 @@ function buildMcpServer(requestUrl: string) {
     }),
   );
 
-  registerResources(server, requestUrl);
+  registerResources(server, request);
 
   return server;
 }
@@ -560,7 +637,7 @@ export async function GET() {
 }
 
 export async function POST(request: NextRequest) {
-  const server = buildMcpServer(request.url);
+  const server = buildMcpServer(request);
   const transport = new WebStandardStreamableHTTPServerTransport({
     sessionIdGenerator: undefined,
     enableJsonResponse: true,

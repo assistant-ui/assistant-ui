@@ -88,7 +88,7 @@ const mcpApp = McpAppRenderer({
 });
 ```
 
-`openLink` is auto-wired to `window.open(url, "_blank", "noopener,noreferrer")`. `sendMessage` is auto-wired to append a user message to the current thread (accepts `string`, `{ prompt }`, `{ text }`, or `{ message }`).
+`openLink` is auto-wired to `window.open(url, "_blank", "noopener,noreferrer")`. `sendMessage` is auto-wired to append a user message to the current thread. It accepts the MCP Apps `{ role, content }` params and appends each `text` block in order, plus the legacy `string`, `{ prompt }`, `{ text }`, and `{ message }` forms. The host advertises `message: { text: {} }` during `ui/initialize`, so non-text blocks are dropped, and a request carrying no text resolves to `{ isError: true }`.
 
 Pass `handlers` when the widget needs host-side UI or lifecycle callbacks. The capabilities are advertised during mount, so provide the handlers before the widget initializes:
 

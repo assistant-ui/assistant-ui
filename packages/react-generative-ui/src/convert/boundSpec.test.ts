@@ -20,10 +20,12 @@ const nest = (levels: number): unknown =>
     : { type: "Box", children: [nest(levels - 1)] };
 
 describe("boundSpec", () => {
-  it("returns a value without children as-is", () => {
+  it("copies an object without children and passes primitives through", () => {
     const leaf = { type: "Text", props: { value: "hi" } };
+    const { reasons, result } = walk(leaf);
 
-    expect(walk(leaf)).toEqual({ reasons: [], result: leaf });
+    expect({ reasons, result }).toEqual({ reasons: [], result: leaf });
+    expect(result).not.toBe(leaf);
     expect(walk("text").result).toBe("text");
     expect(walk(null).result).toBe(null);
   });
@@ -84,6 +86,49 @@ describe("boundSpec", () => {
 
     expect(reasons).toEqual([]);
     expect(result).toEqual([{ type: "Text" }, { type: "Text" }]);
+  });
+
+  it("bounds a record that hides its children behind a has trap", () => {
+    const hostileChildren = new Proxy([{ type: "Text" }], {
+      get: (target, prop, receiver) =>
+        prop === "length"
+          ? Number.MAX_SAFE_INTEGER
+          : Reflect.get(target, prop, receiver),
+    });
+    const hostile = new Proxy(
+      { type: "Box", children: hostileChildren } as Record<string, unknown>,
+      {
+        has: (target, prop) => prop !== "children" && Reflect.has(target, prop),
+      },
+    );
+
+    const { reasons, result } = walk(hostile);
+
+    expect(reasons).toEqual(["children"]);
+    expect((result as { children: unknown[] }).children).toHaveLength(
+      CHILDREN_CAP,
+    );
+  });
+
+  it("bounds a record that answers a later read of children differently", () => {
+    let reads = 0;
+    const hostile = new Proxy(
+      { type: "Box", children: undefined } as Record<string, unknown>,
+      {
+        get: (target, prop, receiver) => {
+          if (prop !== "children") return Reflect.get(target, prop, receiver);
+          reads += 1;
+          return reads === 1
+            ? undefined
+            : Array(CHILDREN_CAP * 2).fill({ type: "Text" });
+        },
+      },
+    );
+
+    const { reasons, result } = walk(hostile);
+
+    expect(reasons).toEqual([]);
+    expect((result as { children: unknown }).children).toBeUndefined();
   });
 
   it("accepts nesting exactly at the element-depth ceiling", () => {

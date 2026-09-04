@@ -59,9 +59,9 @@ const toolkit = defineToolkit({
 
 ### Provide the Messages from the Backend
 
-Your backend must populate the `messages` field on the tool call result.
+The sub-agent's conversation has to reach `ToolCallMessagePart.messages`. AI SDK and LangGraph backends populate it from the tool result; an AG-UI backend emits the protocol's subagent lifecycle events and the runtime assembles it.
 
-<Tabs items={["AI SDK", "LangGraph"]}>
+<Tabs items={["AI SDK", "LangGraph", "AG-UI"]}>
 <Tab value="AI SDK">
 
 ```ts title="api/chat/route.ts"
@@ -121,6 +121,15 @@ const runtime = useLangGraphRuntime({
 ```
 
 See [LangGraph Streaming](/docs/runtimes/langgraph/streaming) for the full event handler reference.
+
+</Tab>
+<Tab value="AG-UI">
+
+With `@assistant-ui/react-ag-ui` there is no `messages` field to populate: the runtime builds the nesting from the protocol's own subagent lifecycle. A backend running the agents-as-tools pattern emits `SUBAGENT_STARTED` naming the spawning call as `parentToolCallId`, tags every event that subagent produces with its `subagentRunId`, and closes the run with `SUBAGENT_FINISHED` or `SUBAGENT_ERROR`. The runtime groups each run into one nested assistant message and attaches it to that call's `ToolCallMessagePart.messages`, so the tool UI above renders it unchanged.
+
+The subagent's `name`, `description`, `result`, `interruptIds`, and `errorCode` ride on the nested message's `metadata.custom.agui`. A run whose `parentToolCallId` names no reachable call has nowhere to nest and renders in the parent thread instead.
+
+See [AG-UI Subagents](/docs/runtimes/ag-ui/runtime-options#subagents) for the full behavior, the comparison with LangChain's discovery-hook shape, and two limitations (nesting does not survive a reload, and nested human-in-the-loop has no resume path).
 
 </Tab>
 </Tabs>
@@ -233,5 +242,6 @@ function SubConversation({
 - [react-o11y](/docs/utilities/react-o11y) — Visualize sub-agent execution as collapsible span trees, waterfalls, and call timelines
 - [MessagePartPrimitive](/docs/api-reference/primitives/message-part) — API reference for message part primitives
 - [Sub-Agent Model Tracking](/docs/cloud/ai-sdk#sub-agent-model-tracking) — Track delegated model usage and costs in the Cloud dashboard
+- [AG-UI Subagents](/docs/runtimes/ag-ui/runtime-options#subagents) — Nested subagent messages attributed from the AG-UI event stream
 - [LangGraph Streaming](/docs/runtimes/langgraph/streaming) — Event handlers, subgraph events, and message metadata
 - [LangGraph Generative UI](/docs/runtimes/langgraph/generative-ui) — Structured UI components emitted by your graph

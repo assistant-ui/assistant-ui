@@ -150,13 +150,13 @@ describe("vue thread", () => {
         status: {
           type: "incomplete",
           reason: "error",
-          error: new Error("model unavailable"),
+          error: { code: "unknown", message: "model unavailable" },
         },
       },
     ]);
 
     await settle(() => expect(el.textContent).toContain("model unavailable"));
-    expect(el.textContent).not.toContain("Error:");
+    expect(el.textContent).not.toContain("[object Object]");
 
     unmount();
   });

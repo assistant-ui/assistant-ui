@@ -1,7 +1,10 @@
 ---
 title: "Sources"
-description: "Runtime URL sources with favicon, title, and an external link."
+description: "Runtime sources with favicon links for URLs and file badges for documents."
 ---
+
+import { PreviewCode } from "@/components/pages/docs/preview-code.server";
+import { SourcesFaviconFallbackSample } from "@/components/pages/docs/samples/sources/favicon-fallback";
 
 Sources renders one citation from a message: a `url` source as a small link with a favicon and title, or a `document` source as a badge with a document icon. With a runtime it renders straight from a message's source part; standalone you hand it the part yourself. It comes in two designs: the runtime variant renders an inline link or badge next to the message text, and the static source-cards variant collapses every citation into one pill that expands into a grid of scannable cards (see [The source-cards design](#the-source-cards-design)).
 
@@ -112,6 +115,14 @@ function CustomSource(part: ComponentProps<typeof Sources>) {
 ```
 
 Use `CustomSource` in place of `Sources` in `MessagePrimitive.Parts`, or call it directly with a hand-built part.
+
+### Favicon fallback
+
+When the favicon fails to load, `Sources.Icon` falls back to the domain's first letter. The demo points `faviconUrl` at a path that does not resolve:
+
+<PreviewCode file="components/pages/docs/samples/sources/favicon-fallback" name="SourcesFaviconFallback">
+  <SourcesFaviconFallbackSample />
+</PreviewCode>
 
 ### Variants and sizes
 

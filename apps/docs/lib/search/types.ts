@@ -18,6 +18,7 @@ export type SearchHit = {
   content: string;
   type: SearchHitType;
   score: number;
+  element?: HTMLElement;
 };
 
 export type SearchGroup = {

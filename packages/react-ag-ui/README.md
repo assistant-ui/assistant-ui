@@ -39,9 +39,14 @@ An AG-UI backend that runs subagents (the agents-as-tools pattern) emits `SUBAGE
 
 A subagent that names no reachable spawning call (`parentToolCallId` is optional, may name a call this run never saw, or two runs may name each other) has nowhere to nest, so its output renders in the parent thread instead of being dropped. This matches the downgrade the protocol's own pre-subagent compatibility middleware performs.
 
+A subagent's frontend-executed tool calls work the same way the root agent's do: a call nested on `ToolCallMessagePart.messages` is reachable by `getPendingToolCalls()`, resolves through `addToolResult`, and its result rides the resume as a `tool` record on the spawning assistant record, the same flattened wire shape these calls had before subagent attribution.
+
+Approval gates cover nested calls too: a gate that names a subagent-scoped call projects onto the nested part, the frontend tool stays unexecuted while the gate is open, decisions recorded through `respondToToolApproval` land on the nested part, and an undecided gate's result is never exported to the backend.
+
 Two limitations are worth knowing before you rely on this:
 
-- **A subagent cannot run frontend-executed tools.** A tool call inside a nested message is not reachable by `getPendingToolCalls()`, so it is never handed to a frontend tool and never resolved. The run reports `{ type: "incomplete", reason: "tool-calls" }` rather than claiming it finished, but the call does not execute. Before subagent attribution existed these calls landed in the parent thread and did run, so this is a behavior change for a backend that pairs subagents with frontend tools. Tracked in [#6612](https://github.com/assistant-ui/assistant-ui/issues/6612).
+- **Nested structure does not survive a reload.** Thread restore reads the flattened wire shape, so a restored subagent tool call comes back as a root-level part rather than nested under its spawning call. Results and decisions are preserved; only the nesting is not.
+
 - **Nested human-in-the-loop is not wired up.** A `SUBAGENT_FINISHED` with a `suspended` outcome marks the nested message `requires-action`, and its `interruptIds` are preserved on the message metadata, but there is no resume path that answers them yet.
 
 ## See also

@@ -22,6 +22,7 @@ export type {
   GenerativeUINode,
   GenerativeUISpec,
   Unstable_AudioMessagePart,
+  ToolApprovalDisplay,
   ToolApprovalOption,
   ToolApprovalOptionKind,
   ToolApprovalResponse,
@@ -50,7 +51,11 @@ export type {
   AppendMessage,
 } from "./types/message";
 
-export { MCP_APP_URI_SCHEME, isMcpAppUri } from "./types/message";
+export {
+  MCP_APP_URI_SCHEME,
+  isMcpAppUri,
+  toolApprovalAcceptsText,
+} from "./types/message";
 
 export type {
   Attachment,

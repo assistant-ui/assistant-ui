@@ -1,0 +1,3 @@
+@import "../../tw-shimmer/src/index.css";
+@source "./shimmer.html";
+@tailwind utilities;

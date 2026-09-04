@@ -77,6 +77,14 @@ export {
   createToolCallCancellationStub,
   scanPendingToolCalls,
 } from "./runtime/utils/pending-tool-calls";
+// Nested tool-call traversal, reused by framework adapters so the
+// ToolCallMessagePart.messages tree is walked one way.
+export {
+  iterateToolCallParts,
+  mapToolCallPartsDeep,
+  type ToolCallTreeEntry,
+  walkToolCallTree,
+} from "./runtime/utils/tool-call-tree";
 export {
   createAbortableThreadLoad,
   type AbortableThreadLoadPurpose,

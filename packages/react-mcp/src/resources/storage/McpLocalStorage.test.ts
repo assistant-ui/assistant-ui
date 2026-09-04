@@ -425,6 +425,43 @@ describe("McpLocalStorage auth state", () => {
 });
 
 describe("McpLocalStorage instance identity", () => {
+  it("derives a scope from the prefix for the shared default backing", () => {
+    let storage!: MCPStorage;
+
+    createTapRoot(function McpStorageScopeRoot() {
+      storage = useResource(McpLocalStorage({ keyPrefix: "test-mcp" }));
+      return storage;
+    });
+
+    expect(storage.scopeId).toBe("local-storage:test-mcp");
+  });
+
+  it("declares no scope for a custom backing store unless one is named", () => {
+    const backing = createStorage();
+    let unnamed!: MCPStorage;
+    let named!: MCPStorage;
+
+    createTapRoot(function McpStorageCustomScopeRoot() {
+      unnamed = useResource(
+        McpLocalStorage({ keyPrefix: "test-mcp", storage: backing }),
+      );
+      return unnamed;
+    });
+    createTapRoot(function McpStorageNamedScopeRoot() {
+      named = useResource(
+        McpLocalStorage({
+          keyPrefix: "test-mcp",
+          storage: backing,
+          scopeId: "session:alpha",
+        }),
+      );
+      return named;
+    });
+
+    expect(unnamed.scopeId).toBeUndefined();
+    expect(named.scopeId).toBe("session:alpha");
+  });
+
   it("returns the same instance across re-renders", () => {
     const backing = createStorage();
     const seen: MCPStorage[] = [];
