@@ -70,7 +70,11 @@ function takeManualTitle(
   threadId: string,
   state: ThreadTitleState,
 ): string | undefined {
-  if (state.pendingClaim !== null || state.manualTitle === undefined) {
+  if (
+    states.get(threadId) !== state ||
+    state.pendingClaim !== null ||
+    state.manualTitle === undefined
+  ) {
     return undefined;
   }
   const title = state.manualTitle;

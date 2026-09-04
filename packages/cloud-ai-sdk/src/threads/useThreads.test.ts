@@ -429,6 +429,42 @@ describe("useThreads", () => {
     expect(mocks.generateThreadTitle).toHaveBeenCalledOnce();
   });
 
+  it("does not report a previous scope's manual title after a failed rename", async () => {
+    const failingRename = createDeferred<void>();
+    const cloudA = createCloud("cloud-1");
+    const cloudB = createCloud("cloud-2");
+    mocks.generateThreadTitle.mockResolvedValue("Generated title");
+    const { result, rerender } = renderHook(
+      ({ cloud }) => useThreads({ cloud: cloud as never, enabled: false }),
+      { initialProps: { cloud: cloudA } },
+    );
+
+    await act(async () => {
+      await result.current.rename("thread-1", "First manual title");
+    });
+    cloudA.threads.update.mockReturnValueOnce(failingRename.promise);
+
+    let rename!: Promise<boolean>;
+    let generation!: Promise<string | null>;
+    act(() => {
+      rename = result.current.rename("thread-1", "Second manual title");
+      generation = result.current.generateTitle("thread-1", {
+        automatic: true,
+      });
+    });
+
+    rerender({ cloud: cloudB });
+
+    let generatedTitle: string | null = null;
+    await act(async () => {
+      failingRename.reject(new Error("rename failed"));
+      await rename;
+      generatedTitle = await generation;
+    });
+
+    expect(generatedTitle).toBe("Generated title");
+  });
+
   it("loads threads when Strict Mode replays effects", async () => {
     const cloud = {
       threads: {
