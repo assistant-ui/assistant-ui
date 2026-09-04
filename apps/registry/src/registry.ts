@@ -367,6 +367,15 @@ const elementsRegistryItems: RegistryItem[] = [
     dependencies: ["lucide-react"],
   }),
   createElementRegistryItem({
+    slug: "conversation-map",
+    title: "Conversation map",
+    description:
+      "A rail of the whole thread: one tick per turn, the turn being read marked and the ones on screen deepened, and a hover preview of what it says.",
+    file: "conversation-map.tsx",
+    dependencies: ["@base-ui/react"],
+    usesElements: ["range"],
+  }),
+  createElementRegistryItem({
     slug: "todo-list",
     title: "Todo list",
     description:
@@ -874,6 +883,22 @@ const elementsRegistryItems: RegistryItem[] = [
 ];
 
 export const registry: RegistryItem[] = [
+  {
+    name: "utils",
+    type: "registry:lib",
+    title: "Utils",
+    description:
+      "The cn class name helper that every assistant-ui component imports from @/lib/utils.",
+    files: [
+      {
+        type: "registry:lib",
+        path: "lib/utils.ts",
+        sourcePath: "../../packages/ui/src/lib/utils.ts",
+        target: "lib/utils.ts",
+      },
+    ],
+    dependencies: ["cn"],
+  },
   ...elementsRegistryItems,
   {
     name: "shimmer-style",
@@ -1141,6 +1166,25 @@ export const registry: RegistryItem[] = [
     dependencies: ["@assistant-ui/react"],
   },
   {
+    name: "conversation-map",
+    type: "registry:component",
+    title: "Conversation Map",
+    description:
+      "Runtime-backed thread rail: a tick per turn, the turn being read marked and the ones on screen deepened, a hover preview, and a click that scrolls there.",
+    files: [
+      {
+        type: "registry:component",
+        path: "components/assistant-ui/elements/conversation-map.aui.tsx",
+        sourcePath:
+          "../../packages/ui/src/components/react/assistant-ui/elements/conversation-map.aui.tsx",
+      },
+    ],
+    registryDependencies: [
+      "https://r.assistant-ui.com/elements-conversation-map.json",
+    ],
+    dependencies: ["@assistant-ui/react"],
+  },
+  {
     name: "elements-reasoning",
     type: "registry:component",
     title: "Reasoning Panel",
@@ -1387,7 +1431,7 @@ export const registry: RegistryItem[] = [
       },
     ],
     dependencies: ["@assistant-ui/react", "lucide-react", "tw-shimmer"],
-    registryDependencies: ["button", "collapsible"],
+    registryDependencies: ["button", "collapsible", "textarea"],
     css: {
       '@import "tw-shimmer"': {},
       ...collapsibleStateCss,

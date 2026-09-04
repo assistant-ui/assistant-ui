@@ -1,5 +1,29 @@
 # assistant-ui
 
+## 0.0.114
+
+### Patch Changes
+
+- [#6631](https://github.com/assistant-ui/assistant-ui/pull/6631) [`496e973`](https://github.com/assistant-ui/assistant-ui/commit/496e973f89534306eca0b1c133c721fc6ca7f292) - fix: publish workspace dependencies as caret ranges so they dedupe ([@okisdev](https://github.com/okisdev))
+
+- [#6802](https://github.com/assistant-ui/assistant-ui/pull/6802) [`0a2a599`](https://github.com/assistant-ui/assistant-ui/commit/0a2a599c3b02cce6023321eaca343031720be9fb) - feat: scaffold `lib/utils` from the assistant-ui registry so new projects get `cn` ([@okisdev](https://github.com/okisdev))
+  
+  `create-assistant-ui` used to append shadcn's own `utils` item to the component install, which ships `twMerge(clsx(inputs))` and pulls in `clsx` plus `tailwind-merge`. it now requests `@assistant-ui/utils`, a new registry item that ships the same `lib/utils.ts` the monorepo uses (`export { cn } from "cn"`) and declares `cn` alone. templates and examples declare `cn` to match, so a scaffolded project starts on the merge engine shadcn ships rather than the pair it replaces.
+
+- [#6525](https://github.com/assistant-ui/assistant-ui/pull/6525) [`418f922`](https://github.com/assistant-ui/assistant-ui/commit/418f922d5f4ed2a7a33c8c29715e9fa282a1fa73) - fix: fail the upgrade when a codemod exits nonzero ([@okisdev](https://github.com/okisdev))
+
+- [#6499](https://github.com/assistant-ui/assistant-ui/pull/6499) [`7730e8c`](https://github.com/assistant-ui/assistant-ui/commit/7730e8cac04cc049dcc4bab3bcfa94e7fb89d33f) - feat: map scanned component imports onto the elements registry item names ([@okisdev](https://github.com/okisdev))
+
+- [#6627](https://github.com/assistant-ui/assistant-ui/pull/6627) [`48e12ab`](https://github.com/assistant-ui/assistant-ui/commit/48e12ab0692f5f252c8ae57993fecb3520e2bae3) - fix: reconcile legacy component imports with the elements layout the registry installs, so created examples build ([@Kinfe123](https://github.com/Kinfe123))
+
+- [#6492](https://github.com/assistant-ui/assistant-ui/pull/6492) [`ba0a97f`](https://github.com/assistant-ui/assistant-ui/commit/ba0a97f7d54fe0dfc9ea762355eb94538b619fa8) - feat: point the mcp command at the hosted assistant-ui mcp endpoint ([@okisdev](https://github.com/okisdev))
+
+- [#6641](https://github.com/assistant-ui/assistant-ui/pull/6641) [`f9390cd`](https://github.com/assistant-ui/assistant-ui/commit/f9390cd330cba84b025b3db6a7366718ba0df22b) - fix: restrict component import reconciliation to module declarations ([@Kinfe123](https://github.com/Kinfe123))
+
+- [#6528](https://github.com/assistant-ui/assistant-ui/pull/6528) [`152a35d`](https://github.com/assistant-ui/assistant-ui/commit/152a35daae0e80b5307865e59af683c4ae720794) - chore: update dependencies ([@okisdev](https://github.com/okisdev))
+- Updated dependencies [[`152a35d`](https://github.com/assistant-ui/assistant-ui/commit/152a35daae0e80b5307865e59af683c4ae720794)]:
+  - @assistant-ui/agent-launcher@0.1.14
+
 ## 0.0.113
 
 ### Patch Changes

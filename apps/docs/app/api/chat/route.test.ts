@@ -3,7 +3,7 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 const mocks = vi.hoisted(() => ({
   requireSession: vi.fn(),
   checkRateLimit: vi.fn(),
-  getModel: vi.fn(),
+  resolveChatModel: vi.fn(),
   docsToolkit: {},
 }));
 
@@ -19,7 +19,7 @@ vi.mock("@/lib/rate-limit", async (importOriginal) => ({
 
 vi.mock("@/lib/ai/provider", async (importOriginal) => ({
   ...(await importOriginal()),
-  getModel: mocks.getModel,
+  resolveChatModel: mocks.resolveChatModel,
 }));
 
 // @/lib/docs-toolkit's UI component graph does not resolve in the test
@@ -49,7 +49,7 @@ describe("POST /api/chat access boundary", () => {
 
     expect(response.status).toBe(403);
     expect(mocks.checkRateLimit).not.toHaveBeenCalled();
-    expect(mocks.getModel).not.toHaveBeenCalled();
+    expect(mocks.resolveChatModel).not.toHaveBeenCalled();
   });
 
   it("stops before model selection when a generous quota is exhausted", async () => {
@@ -70,6 +70,6 @@ describe("POST /api/chat access boundary", () => {
     );
 
     expect(response.status).toBe(429);
-    expect(mocks.getModel).not.toHaveBeenCalled();
+    expect(mocks.resolveChatModel).not.toHaveBeenCalled();
   });
 });

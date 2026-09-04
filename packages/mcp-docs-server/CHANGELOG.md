@@ -1,5 +1,17 @@
 # @assistant-ui/mcp-docs-server
 
+## 0.3.0
+
+### Minor Changes
+
+- [#6492](https://github.com/assistant-ui/assistant-ui/pull/6492) [`ba0a97f`](https://github.com/assistant-ui/assistant-ui/commit/ba0a97f7d54fe0dfc9ea762355eb94538b619fa8) - feat: proxy the hosted assistant-ui mcp endpoint instead of bundling a docs snapshot. the stdio server now forwards to the hosted tool set, and the programmatic `server` export is removed ([@okisdev](https://github.com/okisdev))
+
+### Patch Changes
+
+- [#6528](https://github.com/assistant-ui/assistant-ui/pull/6528) [`152a35d`](https://github.com/assistant-ui/assistant-ui/commit/152a35daae0e80b5307865e59af683c4ae720794) - chore: update dependencies ([@okisdev](https://github.com/okisdev))
+
+- [#6639](https://github.com/assistant-ui/assistant-ui/pull/6639) [`05e3e6d`](https://github.com/assistant-ui/assistant-ui/commit/05e3e6d3971dac4ce20fc7e2a87d187d78b0e449) - chore: update dependencies ([@Yonom](https://github.com/Yonom))
+
 ## 0.2.3
 
 ### Patch Changes

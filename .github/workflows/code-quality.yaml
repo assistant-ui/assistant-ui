@@ -173,6 +173,9 @@ jobs:
             pnpm run api-surface:check -- --skip-build --filter="...[HEAD^1]"
           fi
 
+      - name: Check bundle size budgets
+        run: pnpm size:check
+
       - name: Check built declarations
         run: |
           if [ "${{ github.event_name }}" = "pull_request" ]; then

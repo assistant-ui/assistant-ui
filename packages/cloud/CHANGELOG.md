@@ -1,5 +1,23 @@
 # assistant-cloud
 
+## 0.1.43
+
+### Patch Changes
+
+- [#6472](https://github.com/assistant-ui/assistant-ui/pull/6472) [`99fd86e`](https://github.com/assistant-ui/assistant-ui/commit/99fd86ec6d8a94e7723ed738a086620bd9c5a38b) - fix: coordinate anonymous authentication across Cloud client instances ([@Kinfe123](https://github.com/Kinfe123))
+
+- [#6487](https://github.com/assistant-ui/assistant-ui/pull/6487) [`7f7bd54`](https://github.com/assistant-ui/assistant-ui/commit/7f7bd54a2b707d2d1e9bc663f7cd8862dcfca50e) - fix: coordinate anonymous authentication across browser tabs ([@rupic-app](https://github.com/apps/rupic-app))
+
+- [#6626](https://github.com/assistant-ui/assistant-ui/pull/6626) [`5972a5e`](https://github.com/assistant-ui/assistant-ui/commit/5972a5ea8e9c4bf188196f2aacd019b78639575e) - fix: deduplicate concurrent message appends while parent persistence is pending ([@Kinfe123](https://github.com/Kinfe123))
+
+- [#6528](https://github.com/assistant-ui/assistant-ui/pull/6528) [`152a35d`](https://github.com/assistant-ui/assistant-ui/commit/152a35daae0e80b5307865e59af683c4ae720794) - chore: update dependencies ([@okisdev](https://github.com/okisdev))
+
+- [#6502](https://github.com/assistant-ui/assistant-ui/pull/6502) [`d9eae73`](https://github.com/assistant-ui/assistant-ui/commit/d9eae7321e61b93486d57aa8e172d043bfb1d8c6) - fix: abort Cloud authentication token requests after their deadline ([@Kinfe123](https://github.com/Kinfe123))
+
+- [#6701](https://github.com/assistant-ui/assistant-ui/pull/6701) [`d56a66a`](https://github.com/assistant-ui/assistant-ui/commit/d56a66a6d325d6e64abbc405dae204b4ee1dfc1e) - fix: report cached and reasoning tokens from the AI SDK v7 token details ([@okisdev](https://github.com/okisdev))
+- Updated dependencies [[`46fad14`](https://github.com/assistant-ui/assistant-ui/commit/46fad145974a890cd18f7fc2df54e9d0bf36b0fb), [`f0d0aa2`](https://github.com/assistant-ui/assistant-ui/commit/f0d0aa2f87b9d881f7003bf6132bbb519509b36b), [`5bdd416`](https://github.com/assistant-ui/assistant-ui/commit/5bdd416af4379a2cc86c12292e06a6e3ce5fcdb9), [`e53299b`](https://github.com/assistant-ui/assistant-ui/commit/e53299be07fd69bd5d64a2f50bd3561d85dc47cc)]:
+  - assistant-stream@0.3.41
+
 ## 0.1.42
 
 ### Patch Changes

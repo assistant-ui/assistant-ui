@@ -220,11 +220,8 @@ export async function transformProject(
     shadcnUI &&
     assistantUI
   ) {
-    const allShadcn = shadcnUI.includes("utils")
-      ? shadcnUI
-      : [...shadcnUI, "utils"];
     const auiComponents = assistantUI.map((c) => `@assistant-ui/${c}`);
-    const components = [...allShadcn, ...auiComponents];
+    const components = ["@assistant-ui/utils", ...shadcnUI, ...auiComponents];
     logger.step(`Installing components: ${components.join(", ")}...`);
     const failure = await installShadcnRegistry(
       projectDir,
@@ -233,7 +230,7 @@ export async function transformProject(
       pm,
     );
     if (failure) return { registryInstallFailure: failure };
-    reconcileAssistantUIImportLayout(projectDir);
+    await reconcileAssistantUIImportLayout(projectDir);
   }
   return {};
 }
@@ -432,7 +429,9 @@ function toAssistantUIItem(specifier: string): string | null {
  * specifier against the files the registry actually installed and rewrite it
  * only when the legacy path is absent and the elements layout has it.
  */
-export function reconcileAssistantUIImportLayout(projectDir: string): void {
+export async function reconcileAssistantUIImportLayout(
+  projectDir: string,
+): Promise<void> {
   const componentRoots = ["components", "src/components"]
     .map((dir) => path.join(projectDir, dir, "assistant-ui"))
     .filter((dir) => fs.existsSync(dir));
@@ -470,21 +469,76 @@ export function reconcileAssistantUIImportLayout(projectDir: string): void {
   }
   if (installedByName.size === 0) return;
 
+  const { default: jscodeshift } = await import("jscodeshift");
+  const parsers = {
+    ts: jscodeshift.withParser("ts"),
+    tsx: jscodeshift.withParser("tsx"),
+  };
+
   for (const { fullPath, content } of readProjectFiles("**/*.{ts,tsx}", {
     cwd: projectDir,
     ignore: LOCAL_PROJECT_ARTIFACT_GLOB_IGNORES,
   })) {
-    const next = content.replace(
-      /(from\s+["'])@\/components\/assistant-ui\/([^"'/]+)(["'])/g,
-      (match, prefix, specifier, suffix) => {
-        const name = stripImportExtension(specifier);
-        const installed = installedByName.get(name);
-        if (resolvesAtLegacyPath(name) || installed === undefined) {
-          return match;
-        }
-        return `${prefix}@/components/assistant-ui/${installed}${suffix}`;
-      },
-    );
+    if (!content.includes("@/components/assistant-ui/")) continue;
+
+    const replacements: Array<{ start: number; end: number; value: string }> =
+      [];
+    const collectReplacement = (source: {
+      value?: unknown;
+      start?: number | null;
+      end?: number | null;
+    }) => {
+      if (
+        typeof source.value !== "string" ||
+        source.start == null ||
+        source.end == null
+      ) {
+        return;
+      }
+
+      const prefix = "@/components/assistant-ui/";
+      if (!source.value.startsWith(prefix)) return;
+      const specifier = source.value.slice(prefix.length);
+      if (specifier.includes("/")) return;
+
+      const name = stripImportExtension(specifier);
+      const installed = installedByName.get(name);
+      if (resolvesAtLegacyPath(name) || installed === undefined) return;
+
+      const raw = content.slice(source.start, source.end);
+      const quote = raw[0];
+      if ((quote !== '"' && quote !== "'") || raw.at(-1) !== quote) return;
+      replacements.push({
+        start: source.start,
+        end: source.end,
+        value: `${quote}@/components/assistant-ui/${installed}${quote}`,
+      });
+    };
+
+    const j = fullPath.endsWith(".tsx") ? parsers.tsx : parsers.ts;
+    let root;
+    try {
+      root = j(content);
+    } catch {
+      continue;
+    }
+    root
+      .find(j.ImportDeclaration)
+      .forEach(({ node }) => collectReplacement(node.source));
+    root
+      .find(j.ExportNamedDeclaration)
+      .forEach(({ node }) => node.source && collectReplacement(node.source));
+    root
+      .find(j.ExportAllDeclaration)
+      .forEach(({ node }) => collectReplacement(node.source));
+
+    let next = content;
+    for (const replacement of replacements.sort((a, b) => b.start - a.start)) {
+      next =
+        next.slice(0, replacement.start) +
+        replacement.value +
+        next.slice(replacement.end);
+    }
     if (next !== content) fs.writeFileSync(fullPath, next);
   }
 }

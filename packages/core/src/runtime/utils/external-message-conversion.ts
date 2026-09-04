@@ -46,6 +46,7 @@ export type ExternalMessageConverterMessage =
 export type ExternalMessageConverterMetadata = {
   readonly toolStatuses?: Record<string, ToolExecutionStatus>;
   readonly error?: ReadonlyJSONValue;
+  readonly cancelledMessageIds?: ReadonlySet<string>;
   readonly messageTiming?: Record<string, MessageTiming>;
 };
 
@@ -381,9 +382,18 @@ export const convertExternalMessageChunk = <T>(
   isRunning: boolean,
   error: ReadonlyJSONValue | undefined,
   cache?: ExternalMessageConversionCache,
+  cancelledMessageIds?: ReadonlySet<string>,
 ) => {
   const isLast = idx === chunkCount - 1;
   const joined = joinExternalMessages(message.outputs);
+  const isCancelled =
+    cancelledMessageIds !== undefined &&
+    message.outputs.some(
+      (output) =>
+        output.role !== "tool" &&
+        output.id != null &&
+        cancelledMessageIds.has(output.id),
+    );
   const hasInterruptedToolCalls =
     typeof joined.content === "object" &&
     joined.content.some(isInterruptedToolCall);
@@ -396,6 +406,7 @@ export const convertExternalMessageChunk = <T>(
     hasInterruptedToolCalls,
     hasPendingToolCalls,
     isLast ? error : undefined,
+    isCancelled,
   );
   const fallbackId = `${FALLBACK_ID_PREFIX}${idx}`;
 
@@ -491,6 +502,8 @@ export const convertExternalMessages = <T extends WeakKey>(
       chunks.length,
       isRunning,
       metadata.error,
+      undefined,
+      metadata.cancelledMessageIds,
     ),
   );
   return completeExternalMessageConversion(result, metadata.error);

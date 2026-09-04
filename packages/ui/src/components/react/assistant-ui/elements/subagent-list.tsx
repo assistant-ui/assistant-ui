@@ -47,6 +47,7 @@ export function SubagentList({
       {agents.map((agent, index) => {
         const done = index < completedCount;
         const width = progress[index] ?? 0;
+        const percentage = pct(width, 100);
 
         return (
           <div
@@ -69,13 +70,20 @@ export function SubagentList({
                 {agent.model}
               </span>
             </div>
-            <span className="bg-foreground/[0.06] h-[3px] w-full overflow-hidden rounded-full">
+            <span
+              role="progressbar"
+              aria-label={`${agent.name} progress`}
+              aria-valuemin={0}
+              aria-valuemax={100}
+              aria-valuenow={percentage}
+              className="bg-foreground/[0.06] h-[3px] w-full overflow-hidden rounded-full"
+            >
               <span
                 className={cn(
                   "block h-full rounded-full transition-[width] duration-700",
                   done ? "bg-emerald-500/70" : "bg-foreground/60",
                 )}
-                style={{ width: `${pct(width, 100)}%` }}
+                style={{ width: `${percentage}%` }}
               />
             </span>
           </div>
@@ -97,11 +105,14 @@ export function SubagentList({
               {summaryAgent.model}
             </span>
           </div>
-          <span className="bg-foreground/[0.06] h-[3px] w-full overflow-hidden rounded-full">
-            <span
-              className="bg-foreground/60 block h-full rounded-full transition-[width] duration-700"
-              style={{ width: "42%" }}
-            />
+          <span
+            role="progressbar"
+            aria-label={`${summaryAgent.name} progress`}
+            aria-valuemin={0}
+            aria-valuemax={100}
+            className="bg-foreground/[0.06] h-[3px] w-full overflow-hidden rounded-full"
+          >
+            <span className="shimmer shimmer-bg block h-full w-full rounded-full motion-reduce:animate-none" />
           </span>
         </div>
       )}

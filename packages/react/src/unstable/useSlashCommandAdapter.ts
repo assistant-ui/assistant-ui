@@ -6,6 +6,7 @@ import type {
   Unstable_TriggerItem,
 } from "@assistant-ui/core";
 import type { Unstable_IconComponent } from "./useMentionAdapter";
+import { matchesTriggerItemQuery } from "../primitives/composer/trigger/matchesTriggerItemQuery";
 
 export type Unstable_SlashCommand = {
   readonly id: string;
@@ -81,7 +82,7 @@ export function unstable_useSlashCommandAdapter(
       categoryItems: () => [],
       search: (query: string) => {
         const lower = query.toLowerCase();
-        return items.filter((item) => matchesQuery(item, lower));
+        return items.filter((item) => matchesTriggerItemQuery(item, lower));
       },
     }),
     [items],
@@ -116,14 +117,6 @@ function toItem(cmd: Unstable_SlashCommand): Unstable_TriggerItem {
     ...(cmd.description !== undefined ? { description: cmd.description } : {}),
     ...(cmd.icon !== undefined ? { metadata: { icon: cmd.icon } } : {}),
   };
-}
-
-function matchesQuery(item: Unstable_TriggerItem, lower: string): boolean {
-  if (!lower) return true;
-  if (item.id.toLowerCase().includes(lower)) return true;
-  if (item.label.toLowerCase().includes(lower)) return true;
-  if (item.description?.toLowerCase().includes(lower)) return true;
-  return false;
 }
 
 function areTriggerItemsEqual(

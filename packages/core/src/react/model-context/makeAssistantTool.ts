@@ -8,7 +8,7 @@ import { type AssistantToolProps, useAssistantTool } from "./useAssistantTool";
  * subtree.
  *
  * @deprecated Use a toolkit with `Tools({ toolkit })` and register it via
- * `useAui({ tools: Tools({ toolkit }) })` instead. See
+ * `AuiConfig({ tools: Tools({ toolkit }) })` on the provider's `config` prop instead. See
  * https://assistant-ui.com/docs/migrations/toolkit-tools.
  */
 export type AssistantTool = FC & {
@@ -25,7 +25,7 @@ export type AssistantTool = FC & {
  * @param tool - Tool definition and name to register.
  *
  * @deprecated Use a toolkit with `Tools({ toolkit })` and register it via
- * `useAui({ tools: Tools({ toolkit }) })` instead. See
+ * `AuiConfig({ tools: Tools({ toolkit }) })` on the provider's `config` prop instead. See
  * https://assistant-ui.com/docs/migrations/toolkit-tools.
  */
 export const makeAssistantTool = <

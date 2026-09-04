@@ -12,7 +12,7 @@ import {
  * Props used to register a tool from React.
  *
  * @deprecated Use a toolkit with `Tools({ toolkit })` and register it via
- * `useAui({ tools: Tools({ toolkit }) })` instead. See
+ * `AuiConfig({ tools: Tools({ toolkit }) })` on the provider's `config` prop instead. See
  * https://assistant-ui.com/docs/migrations/toolkit-tools.
  */
 export type AssistantToolProps<
@@ -39,7 +39,7 @@ export type AssistantToolProps<
  * @param tool - Tool definition and name to register.
  *
  * @deprecated Use a toolkit with `Tools({ toolkit })` and register it via
- * `useAui({ tools: Tools({ toolkit }) })` instead. See
+ * `AuiConfig({ tools: Tools({ toolkit }) })` on the provider's `config` prop instead. See
  * https://assistant-ui.com/docs/migrations/toolkit-tools.
  *
  * @example

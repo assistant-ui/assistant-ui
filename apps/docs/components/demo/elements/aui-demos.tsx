@@ -32,6 +32,7 @@ import { SampleRuntimeProvider } from "@/components/pages/docs/samples/sample-ru
 import { AssistantModalSample } from "@/components/pages/docs/samples/assistant-modal";
 import { AttachmentSample } from "@/components/pages/docs/samples/attachment";
 import { ContextDisplaySample } from "@/components/pages/docs/samples/context-display";
+import { ConversationMapThread } from "@/components/pages/docs/samples/conversation-map";
 import { FollowUpSuggestionsSample } from "@/components/pages/docs/samples/follow-up-suggestions";
 import { MessageTimingSample } from "@/components/pages/docs/samples/message-timing";
 import { ModelSelectorSample } from "@/components/pages/docs/samples/model-selector";
@@ -40,7 +41,10 @@ import { ThreadListSample } from "@/components/pages/docs/samples/threadlist";
 import { ToolFallbackSample } from "@/components/pages/docs/samples/tool-fallback";
 import { ToolGroupSample } from "@/components/pages/docs/samples/tool-group";
 import { QuoteSample } from "@/components/pages/docs/samples/quote";
-import { SourcesSample } from "@/components/pages/docs/samples/sources";
+import {
+  SourcesSample,
+  SourcesVariantsSample,
+} from "@/components/pages/docs/samples/sources";
 import { ImageSample } from "@/components/pages/docs/samples/image";
 import { FileSample } from "@/components/pages/docs/samples/file";
 import { ComposerTriggerPopoverSample } from "@/components/pages/docs/samples/composer-trigger-popover";
@@ -134,6 +138,16 @@ export function AuiMessageTimingDemo() {
   return (
     <DemoSurface>
       <MessageTimingSample />
+    </DemoSurface>
+  );
+}
+
+export function AuiConversationMapDemo() {
+  return (
+    <DemoSurface className="bg-muted/40">
+      <div className="h-full w-full">
+        <ConversationMapThread />
+      </div>
     </DemoSurface>
   );
 }
@@ -274,6 +288,14 @@ export function AuiSourcesDemo() {
   return (
     <DemoSurface>
       <SourcesSample />
+    </DemoSurface>
+  );
+}
+
+export function AuiSourcesVariantsDemo() {
+  return (
+    <DemoSurface>
+      <SourcesVariantsSample />
     </DemoSurface>
   );
 }

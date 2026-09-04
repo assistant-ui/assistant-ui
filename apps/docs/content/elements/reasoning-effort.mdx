@@ -122,11 +122,11 @@ const [spent, setSpent] = useState(0);
 <div data-slot="reasoning-effort">
   <div>{/* "Thinking" label + "spent / budget" */}</div>
   <div>{/* one button per level, aria-pressed on the active one */}</div>
-  <span>{/* progress fill, width = spent / budget as a percentage */}</span>
+  <span role="progressbar">{/* progress track, width = spent / budget as a percentage */}</span>
 </div>
 ```
 
-Levels render in the order given; there is no reordering or grouping. If `selectedKey` does not match any `level.key`, the budget resolves to 0 and the progress fill stays collapsed at 0 percent rather than erroring. The fill's width is `spent` as a share of the matched level's `budget`, clamped between 0 and 100 percent, so an over-large `spent` value does not overflow the bar.
+Levels render in the order given; there is no reordering or grouping. If `selectedKey` does not match any `level.key`, the budget resolves to 0 and the progress fill stays collapsed at 0 percent rather than erroring. The fill's width is `spent` as a share of the matched level's `budget`, clamped between 0 and 100 percent, so an over-large `spent` value does not overflow the bar. The track is a named progressbar, not a meter, because a spent budget climbs over the course of a run rather than resting at a reading; its `0…100` value matches that width and its value text reads the same `spent` of `budget` the header prints.
 
 ## Examples
 

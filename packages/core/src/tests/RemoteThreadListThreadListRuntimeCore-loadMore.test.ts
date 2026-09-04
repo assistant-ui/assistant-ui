@@ -265,6 +265,60 @@ describe("RemoteThreadListThreadListRuntimeCore.loadMore", () => {
     expect(core.threadIds).toEqual(["a", "b"]);
   });
 
+  it("refreshes a thread repeated on a later page instead of dropping it", async () => {
+    const listFn = vi
+      .fn<ListFn>()
+      .mockResolvedValueOnce({
+        threads: [
+          { status: "regular", remoteId: "a", externalId: "a", title: "old" },
+        ],
+        nextCursor: "c1",
+      })
+      .mockResolvedValueOnce({
+        threads: [
+          {
+            status: "regular",
+            remoteId: "a",
+            externalId: "a",
+            title: "updated",
+          },
+          { status: "regular", remoteId: "b", externalId: "b", title: "New" },
+        ],
+      });
+    const core = createCore(makeAdapter({ list: listFn }));
+
+    await core.getLoadThreadsPromise();
+    await core.loadMore();
+
+    expect(core.threadIds).toEqual(["a", "b"]);
+    expect(core.getItemById("a")?.title).toBe("updated");
+  });
+
+  it("moves a thread whose status flips between pages", async () => {
+    const listFn = vi
+      .fn<ListFn>()
+      .mockResolvedValueOnce({
+        threads: [
+          { status: "regular", remoteId: "a", externalId: "a", title: "A" },
+          { status: "regular", remoteId: "b", externalId: "b", title: "B" },
+        ],
+        nextCursor: "c1",
+      })
+      .mockResolvedValueOnce({
+        threads: [
+          { status: "archived", remoteId: "a", externalId: "a", title: "A" },
+        ],
+      });
+    const core = createCore(makeAdapter({ list: listFn }));
+
+    await core.getLoadThreadsPromise();
+    await core.loadMore();
+
+    expect(core.threadIds).toEqual(["b"]);
+    expect(core.archivedThreadIds).toEqual(["a"]);
+    expect(core.getItemById("a")?.status).toBe("archived");
+  });
+
   it("__internal_setOptions clears cursor and dedup handles on adapter swap, then refetches via the new adapter", async () => {
     const firstAdapter = makeAdapter({
       list: vi.fn<ListFn>(async () => ({

@@ -144,12 +144,12 @@ useEffect(() => {
     <span>{/* totalMs, suffixed "ms" */}</span>
   </div>
   <div>
-    {/* one row per visible span: name, positioned bar, bare duration number */}
+    {/* one row per visible span: name, labelled positioned bar, duration */}
   </div>
 </div>
 ```
 
-Only the first `visibleCount` spans render, floored and clamped to the array's length, so a span can exist in `spans` before it's shown. A newly revealed row fades and slides in from the left; a row that was already visible does not replay the animation on a later re-render, since it's the same DOM node. Each bar is positioned at `startMs / totalMs` and sized to `durationMs / totalMs`, both as percentages, with a `totalMs` of `0` treated as `1` so the math never divides by zero. A bar's width never drops below 1.5% of the row, so a very short span still shows a visible sliver. Row indentation follows `depth`, at 0.75rem per level; nothing computes depth for you, it's a field you set. Color follows `status`: blue and pulsing while `"running"`, a flat neutral tone once `"completed"`, red for `"failed"`. The header's total carries an "ms" suffix; each row's own duration does not.
+Only the first `visibleCount` spans render, floored and clamped to the array's length, so a span can exist in `spans` before it's shown. A newly revealed row fades and slides in from the left; a row that was already visible does not replay the animation on a later re-render, since it's the same DOM node. Each bar is positioned at `startMs / totalMs` and sized to `durationMs / totalMs`, both as percentages, with a `totalMs` of `0` treated as `1` so the math never divides by zero. A bar's width never drops below 1.5% of the row, so a very short span still shows a visible sliver. The positioned bar is a labelled image carrying the status and timing that colour and position alone would otherwise hold; the row's own name and duration stay readable text, and neither is a completion progressbar. Row indentation follows `depth`, at 0.75rem per level; nothing computes depth for you, it's a field you set. Color follows `status`: blue and pulsing while `"running"`, a flat neutral tone once `"completed"`, red for `"failed"`. The header's total carries an "ms" suffix; each row's own duration does not.
 
 ## Examples
 
