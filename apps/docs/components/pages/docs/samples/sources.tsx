@@ -60,17 +60,33 @@ export function SourcesSample() {
   );
 }
 
+const variants = [
+  "outline",
+  "secondary",
+  "muted",
+  "ghost",
+  "info",
+  "warning",
+  "success",
+  "destructive",
+] as const;
+
 export function SourcesVariantsSample() {
+  const source = sources[0]!;
+
   return (
-    <SampleFrame className="grid h-auto gap-6 p-6 sm:grid-cols-2">
-      <VariantRow label="Outline (default)" />
-      <VariantRow label="Secondary" variant="secondary" />
-      <VariantRow label="Muted" variant="muted" />
-      <VariantRow label="Ghost" variant="ghost" />
-      <VariantRow label="Info" variant="info" />
-      <VariantRow label="Warning" variant="warning" />
-      <VariantRow label="Success" variant="success" />
-      <VariantRow label="Destructive" variant="destructive" />
+    <SampleFrame className="flex h-auto flex-wrap items-center justify-center gap-x-8 gap-y-5 p-6">
+      {variants.map((variant) => (
+        <div key={variant} className="flex flex-col items-center gap-2">
+          <Source variant={variant} href={source.url}>
+            <SourceIcon url={source.url} />
+            <SourceTitle>{source.title}</SourceTitle>
+          </Source>
+          <span className="text-muted-foreground text-xs font-medium capitalize">
+            {variant}
+          </span>
+        </div>
+      ))}
     </SampleFrame>
   );
 }
