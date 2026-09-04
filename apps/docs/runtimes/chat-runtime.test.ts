@@ -60,3 +60,26 @@ it("passes through the api, cloud and adapters a surface supplies", async () => 
   expect(options().cloud).toBe(cloud);
   expect(options().adapters).toBe(adapters);
 });
+
+it("asks for the conversation budget only when the surface opts in", async () => {
+  const { useDocsChatRuntime } = await import("./chat-runtime");
+
+  useDocsChatRuntime();
+  const plain = options().transport as { options: { body?: unknown } };
+  expect(plain.options.body).toBeUndefined();
+
+  useDocsChatRuntime({ countConversations: true });
+  const counted = options().transport as {
+    options: { body?: Record<string, unknown> };
+  };
+  expect(counted.options.body).toEqual({ countConversations: true });
+
+  useDocsChatRuntime({ searchDocs: true, countConversations: true });
+  const both = options().transport as {
+    options: { body?: Record<string, unknown> };
+  };
+  expect(both.options.body).toEqual({
+    searchDocs: true,
+    countConversations: true,
+  });
+});

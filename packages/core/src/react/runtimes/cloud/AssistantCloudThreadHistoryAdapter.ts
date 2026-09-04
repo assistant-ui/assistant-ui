@@ -20,6 +20,7 @@ import {
 import { auiV0Decode, auiV0Encode } from "./auiV0";
 import { type AssistantClient, getClientId, useAui } from "@assistant-ui/store";
 import type { ThreadListItemMethods } from "../../../store/scopes/thread-list-item";
+import type { FeedbackAdapter } from "../../../adapters/feedback";
 
 type CloudThreadListItem = Pick<
   ThreadListItemMethods,
@@ -63,6 +64,42 @@ class AssistantCloudThreadHistoryAdapter implements ThreadHistoryAdapter {
   private get _persistence(): CloudMessagePersistence {
     return this.getPersistence();
   }
+
+  public readonly feedback: FeedbackAdapter = {
+    submit: ({ message, type }) => {
+      void (async () => {
+        const threadListItem = this.tryGetKeyedThreadListItem();
+        const remoteThreadId = threadListItem?.getState().remoteId;
+        if (!threadListItem || !remoteThreadId) {
+          console.warn(
+            `[assistant-ui] Skipping feedback for message ${message.id}: the thread has no remote id.`,
+          );
+          return;
+        }
+
+        const cloudMessageId = await this.getPersistence(
+          threadListItem,
+        ).getRemoteId(message.id);
+        if (!cloudMessageId) {
+          console.warn(
+            `[assistant-ui] Skipping feedback for message ${message.id}: no cloud message id is mapped.`,
+          );
+          return;
+        }
+
+        await this.cloudRef.current.threads.messages.feedback(
+          remoteThreadId,
+          cloudMessageId,
+          { type },
+        );
+      })().catch((error: unknown) => {
+        console.error(
+          "[assistant-ui] Cloud feedback submission failed:",
+          error,
+        );
+      });
+    },
+  };
 
   private tryGetKeyedThreadListItem(): CloudThreadListItem | undefined {
     const live = this.aui.threadListItem;
@@ -364,14 +401,7 @@ export function extractAuiV0<T>(content: T): TelemetryData | null {
     }[];
     metadata?: {
       modelId?: string;
-      steps?: readonly {
-        usage?: {
-          inputTokens?: number;
-          outputTokens?: number;
-          reasoningTokens?: number;
-          cachedInputTokens?: number;
-        };
-      }[];
+      steps?: readonly { usage?: RunTelemetryUsageInit }[];
       custom?: Record<string, unknown> & { modelId?: string };
     };
   };
@@ -414,20 +444,23 @@ export function extractAuiV0<T>(content: T): TelemetryData | null {
     let hasReasoning = false;
     let hasCachedInput = false;
     for (const step of steps) {
-      if (step.usage?.inputTokens != null) {
-        totalInput += step.usage.inputTokens;
+      if (!step.usage) continue;
+      const usage = normalizeRunTelemetryUsage(step.usage);
+      if (!usage) continue;
+      if (usage.inputTokens != null) {
+        totalInput += usage.inputTokens;
         hasInput = true;
       }
-      if (step.usage?.outputTokens != null) {
-        totalOutput += step.usage.outputTokens;
+      if (usage.outputTokens != null) {
+        totalOutput += usage.outputTokens;
         hasOutput = true;
       }
-      if (step.usage?.reasoningTokens != null) {
-        totalReasoning += step.usage.reasoningTokens;
+      if (usage.reasoningTokens != null) {
+        totalReasoning += usage.reasoningTokens;
         hasReasoning = true;
       }
-      if (step.usage?.cachedInputTokens != null) {
-        totalCachedInput += step.usage.cachedInputTokens;
+      if (usage.cachedInputTokens != null) {
+        totalCachedInput += usage.cachedInputTokens;
         hasCachedInput = true;
       }
     }
@@ -450,20 +483,25 @@ export function extractAuiV0<T>(content: T): TelemetryData | null {
 
   const telemetrySteps: TelemetryStepData[] | undefined =
     steps && steps.length > 1
-      ? steps.map((s) => ({
-          ...(s.usage?.inputTokens != null
-            ? { input_tokens: s.usage.inputTokens }
-            : undefined),
-          ...(s.usage?.outputTokens != null
-            ? { output_tokens: s.usage.outputTokens }
-            : undefined),
-          ...(s.usage?.reasoningTokens != null
-            ? { reasoning_tokens: s.usage.reasoningTokens }
-            : undefined),
-          ...(s.usage?.cachedInputTokens != null
-            ? { cached_input_tokens: s.usage.cachedInputTokens }
-            : undefined),
-        }))
+      ? steps.map((s) => {
+          const usage = s.usage
+            ? normalizeRunTelemetryUsage(s.usage)
+            : undefined;
+          return {
+            ...(usage?.inputTokens != null
+              ? { input_tokens: usage.inputTokens }
+              : undefined),
+            ...(usage?.outputTokens != null
+              ? { output_tokens: usage.outputTokens }
+              : undefined),
+            ...(usage?.reasoningTokens != null
+              ? { reasoning_tokens: usage.reasoningTokens }
+              : undefined),
+            ...(usage?.cachedInputTokens != null
+              ? { cached_input_tokens: usage.cachedInputTokens }
+              : undefined),
+          };
+        })
       : undefined;
 
   return {
@@ -765,7 +803,7 @@ function aggregateAiSdkV6RunSteps<T>(stepMessages: T[]): TelemetryData | null {
 
 export function useAssistantCloudThreadHistoryAdapter(
   cloudRef: RefObject<AssistantCloud>,
-): ThreadHistoryAdapter {
+): ThreadHistoryAdapter & { readonly feedback: FeedbackAdapter } {
   const aui = useAui();
   // Not useEffectEvent: history adapter methods run during render (SSR load).
   const auiRef = useRef(aui);

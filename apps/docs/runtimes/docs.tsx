@@ -12,7 +12,9 @@ import {
 import { DevToolsModal } from "@assistant-ui/react-devtools";
 import { feedbackAdapter } from "@/lib/feedback-adapter";
 import docsToolkit from "@/lib/docs-toolkit";
+import { MemoryInstructions } from "@/components/shared/memory";
 import {
+  followUpSuggestionAdapter,
   useAnonymousCloud,
   useDocsChatRuntime,
   useSpeechAdapters,
@@ -40,9 +42,14 @@ const DOCS_SUGGESTIONS = [
 export function DocsRuntimeProvider({
   children,
   devtools = true,
+  followUps = false,
+  countConversations = false,
 }: {
   children: ReactNode;
   devtools?: boolean;
+  followUps?: boolean;
+  /** Only the landing page demo draws on the daily conversation budget. */
+  countConversations?: boolean;
 }) {
   const cloud = useAnonymousCloud();
   const speech = useSpeechAdapters({ dictation: true });
@@ -52,14 +59,17 @@ export function DocsRuntimeProvider({
       ...speech,
       feedback: feedbackAdapter,
       attachments: new CloudFileAttachmentAdapter(cloud),
+      ...(followUps ? { suggestion: followUpSuggestionAdapter } : {}),
     }),
-    [cloud, speech],
+    [cloud, followUps, speech],
   );
 
   const runtime = useDocsChatRuntime({
     cloud,
     adapters,
     sendAutomatically: true,
+    searchDocs: followUps,
+    countConversations,
   });
 
   const aui = useAui({
@@ -70,6 +80,7 @@ export function DocsRuntimeProvider({
 
   return (
     <AssistantRuntimeProvider aui={aui} runtime={runtime}>
+      <MemoryInstructions />
       {children}
 
       {devtools ? <DevToolsModal /> : null}

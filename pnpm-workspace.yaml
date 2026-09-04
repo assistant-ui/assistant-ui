@@ -23,6 +23,7 @@ minimumReleaseAgeExclude:
   - assistant-cloud
   - assistant-stream
   - assistant-ui
+  - aui-auth
   - create-assistant-ui
   - eve
   - heat-graph
@@ -45,5 +46,4 @@ allowBuilds:
   node-liblzma: false
   protobufjs: false
   react-grab: false
-  sqlite3@5.1.7: true
   vue-demi: false

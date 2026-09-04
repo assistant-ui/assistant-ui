@@ -2546,7 +2546,12 @@ describe("useLangGraphRuntime", () => {
             return;
           }
         });
-        const execute = vi.fn(async () => ({ ok: true }));
+        const executions: ReturnType<typeof deferred<{ ok: boolean }>>[] = [];
+        const execute = vi.fn(() => {
+          const pending = deferred<{ ok: boolean }>();
+          executions.push(pending);
+          return pending.promise;
+        });
 
         const { result: runtimeResult } = renderHook(() =>
           useLangGraphRuntime({ stream: streamMock }),
@@ -2562,19 +2567,26 @@ describe("useLangGraphRuntime", () => {
           auiResult.current.composer.send();
         });
 
-        await waitFor(() => expect(execute).toHaveBeenCalledTimes(1));
-        // flush so tool A's batch is queued before tool B streams in
-        await act(async () => {});
-        expect(streamMock).toHaveBeenCalledTimes(1);
+        expect(execute).not.toHaveBeenCalled();
 
         await act(async () => {
           gateB.resolve();
+        });
+        expect(execute).not.toHaveBeenCalled();
+
+        await act(async () => {
+          gateDrain.resolve();
         });
         await waitFor(() => expect(execute).toHaveBeenCalledTimes(2));
         expect(streamMock).toHaveBeenCalledTimes(1);
 
         await act(async () => {
-          gateDrain.resolve();
+          executions[0]!.resolve({ ok: true });
+        });
+        expect(streamMock).toHaveBeenCalledTimes(1);
+
+        await act(async () => {
+          executions[1]!.resolve({ ok: true });
         });
         await waitFor(() => expect(streamMock).toHaveBeenCalledTimes(2));
         expect(streamMock.mock.calls[1]![0]).toMatchObject([

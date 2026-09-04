@@ -1,4 +1,10 @@
-import { cleanup, fireEvent, render, screen } from "@testing-library/react";
+import {
+  cleanup,
+  fireEvent,
+  render,
+  screen,
+  waitFor,
+} from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import type { ToolCallMessagePartProps } from "@assistant-ui/react";
 
@@ -16,22 +22,6 @@ vi.mock("@assistant-ui/react", async (importOriginal) => ({
 }));
 
 const pendingApproval = { id: "req_1" };
-
-// React reports an error thrown by an event handler through `reportError`,
-// which jsdom surfaces as a window error event rather than to the caller.
-const captureWindowErrors = () => {
-  const errors: ErrorEvent[] = [];
-  const listener = (event: ErrorEvent) => {
-    errors.push(event);
-    event.preventDefault();
-    event.stopImmediatePropagation();
-  };
-  window.addEventListener("error", listener, true);
-  return {
-    errors,
-    restore: () => window.removeEventListener("error", listener, true),
-  };
-};
 
 const button = (name: string) =>
   screen.getByRole("button", { name }) as HTMLButtonElement;
@@ -199,38 +189,165 @@ describe("ToolFallback", () => {
 });
 
 describe("ToolFallbackApproval", () => {
-  it("keeps the controls actionable when the runtime refuses the response", () => {
+  it("reports a synchronous refusal and keeps the controls actionable", async () => {
     let refuses = true;
-    const respondToApproval = vi.fn(() => {
+    const respondToApproval = vi.fn((): Promise<void> => {
       if (refuses) throw new Error("response cannot be mapped");
+      return Promise.resolve();
     });
-    const { errors, restore } = captureWindowErrors();
 
-    try {
-      render(
-        <ToolFallbackApproval
-          approval={pendingApproval}
-          respondToApproval={respondToApproval}
-        />,
-      );
+    render(
+      <ToolFallbackApproval
+        approval={pendingApproval}
+        respondToApproval={respondToApproval}
+      />,
+    );
 
-      fireEvent.click(button("Allow"));
+    fireEvent.click(button("Allow"));
 
-      expect(errors.map((event) => event.error?.message)).toEqual([
-        "response cannot be mapped",
-      ]);
-      expect(respondToApproval).toHaveBeenLastCalledWith({ approved: true });
-      expect(button("Allow").disabled).toBe(false);
-      expect(button("Deny").disabled).toBe(false);
+    expect(respondToApproval).toHaveBeenLastCalledWith({ approved: true });
+    await screen.findByRole("alert");
+    expect(screen.getByRole("alert").textContent).toBe(
+      "response cannot be mapped",
+    );
+    expect(button("Allow").disabled).toBe(false);
+    expect(button("Deny").disabled).toBe(false);
 
-      refuses = false;
-      fireEvent.click(button("Deny"));
+    refuses = false;
+    fireEvent.click(button("Deny"));
 
-      expect(respondToApproval).toHaveBeenLastCalledWith({ approved: false });
-      expect(button("Allow").disabled).toBe(true);
-      expect(button("Deny").disabled).toBe(true);
-    } finally {
-      restore();
-    }
+    expect(respondToApproval).toHaveBeenLastCalledWith({ approved: false });
+    expect(button("Allow").disabled).toBe(true);
+    expect(button("Deny").disabled).toBe(true);
+  });
+
+  it("reports a rejection raised after the response was enqueued", async () => {
+    const respondToApproval = vi.fn(
+      () => new Promise<void>((_, reject) => reject(new Error("gate expired"))),
+    );
+
+    render(
+      <ToolFallbackApproval
+        approval={pendingApproval}
+        respondToApproval={respondToApproval}
+      />,
+    );
+
+    fireEvent.click(button("Allow"));
+    expect(button("Allow").disabled).toBe(true);
+
+    await waitFor(() => {
+      expect(screen.getByRole("alert").textContent).toBe("gate expired");
+    });
+    expect(button("Allow").disabled).toBe(false);
+  });
+
+  it("renders the request's prompt", () => {
+    render(
+      <ToolFallbackApproval
+        approval={{ ...pendingApproval, prompt: "Delete the release branch?" }}
+        respondToApproval={vi.fn(async () => {})}
+      />,
+    );
+
+    expect(screen.getByText("Delete the release branch?")).toBeTruthy();
+  });
+
+  it("answers a free-form request with text instead of a fabricated decision", () => {
+    const respondToApproval = vi.fn(async () => {});
+
+    render(
+      <ToolFallbackApproval
+        approval={{
+          ...pendingApproval,
+          prompt: "Which environment?",
+          display: "text",
+        }}
+        respondToApproval={respondToApproval}
+      />,
+    );
+
+    expect(screen.queryByRole("button", { name: "Allow" })).toBeNull();
+    expect(screen.queryByRole("button", { name: "Deny" })).toBeNull();
+
+    fireEvent.change(
+      screen.getByRole("textbox", { name: "Which environment?" }),
+      {
+        target: { value: "staging" },
+      },
+    );
+    fireEvent.click(button("Send"));
+
+    expect(respondToApproval).toHaveBeenCalledWith({ text: "staging" });
+  });
+
+  it("keeps the decision controls when a gate also takes a typed answer", () => {
+    const respondToApproval = vi.fn(async () => {});
+
+    render(
+      <ToolFallbackApproval
+        approval={{
+          ...pendingApproval,
+          prompt: "Delete the release branch?",
+          display: "decision",
+          allowFreeform: true,
+        }}
+        respondToApproval={respondToApproval}
+      />,
+    );
+
+    expect(button("Allow")).toBeTruthy();
+    expect(button("Deny")).toBeTruthy();
+    // A typed note must not be submittable on its own here: a bare answer
+    // resolves as approved, which would authorize the call.
+    expect(screen.queryByRole("button", { name: "Send" })).toBeNull();
+
+    fireEvent.change(screen.getByRole("textbox", { name: "Note" }), {
+      target: { value: "not this one" },
+    });
+    fireEvent.click(button("Deny"));
+
+    expect(respondToApproval).toHaveBeenCalledWith({
+      approved: false,
+      text: "not this one",
+    });
+  });
+
+  it("never fabricates a decision for a select request that declares no options", () => {
+    render(
+      <ToolFallbackApproval
+        approval={{
+          ...pendingApproval,
+          prompt: "Which environment?",
+          display: "select",
+        }}
+        respondToApproval={vi.fn(async () => {})}
+      />,
+    );
+
+    expect(screen.getByText("Which environment?")).toBeTruthy();
+    expect(screen.queryByRole("button", { name: "Allow" })).toBeNull();
+    expect(screen.queryByRole("button", { name: "Deny" })).toBeNull();
+  });
+
+  it("does not add a refusal to a question that declares its own options", () => {
+    render(
+      <ToolFallbackApproval
+        approval={{
+          ...pendingApproval,
+          prompt: "Which environment?",
+          display: "select",
+          options: [
+            { id: "staging", kind: "_staging", label: "Staging" },
+            { id: "prod", kind: "_prod", label: "Production" },
+          ],
+        }}
+        respondToApproval={vi.fn(async () => {})}
+      />,
+    );
+
+    expect(button("Staging")).toBeTruthy();
+    expect(button("Production")).toBeTruthy();
+    expect(screen.queryByRole("button", { name: "Deny" })).toBeNull();
   });
 });

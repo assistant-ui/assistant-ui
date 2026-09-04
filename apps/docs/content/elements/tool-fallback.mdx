@@ -152,7 +152,7 @@ import { ToolFallbackTrigger, ToolFallbackContent } from "@/components/assistant
 |----------|------|-------------|
 | `addResult` | `(result) => void` | Sets this part's result from the renderer instead of a tool's `execute`. |
 | `resume` | `(payload: unknown) => void` | Resumes a paused frontend tool execution with the requested payload. |
-| `respondToApproval` | `(response: ToolApprovalResponse) => void` | Answers an approval gate: `{ approved }`, `{ optionId }`, or both. |
+| `respondToApproval` | `(response: ToolApprovalResponse) => Promise<void>` | Answers an approval gate: `{ approved }`, `{ optionId }`, both, or `{ text }` when the request takes a free-form answer. |
 
 ### Composition
 

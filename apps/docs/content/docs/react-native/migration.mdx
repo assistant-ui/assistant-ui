@@ -20,7 +20,7 @@ If you already have an assistant-ui web app, most of your code transfers directl
 | `AssistantRuntimeProvider` | `AssistantRuntimeProvider` (same name) |
 | DOM primitives (`div`, `button`, `input`) | Native primitives (`View`, `Pressable`, `TextInput`) |
 | CSS / Tailwind styling | React Native `StyleSheet` or inline styles |
-| `@assistant-ui/ui` (shadcn components) | Build your own native UI with primitives |
+| Styled registry elements (shadcn components) | Build your own native UI with primitives |
 
 ## Step-by-step
 
@@ -82,7 +82,7 @@ export default function App() {
 
 ### Rebuild the UI layer
 
-This is the main migration effort. Web components (`Thread`, `ThreadList` from `@assistant-ui/ui`) don't render in React Native. Replace them with native primitives:
+This is the main migration effort. Web components (the `thread` and `thread-list` elements) don't render in React Native. Replace them with native primitives:
 
 ```tsx
 // Web — DOM-based

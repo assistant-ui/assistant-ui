@@ -183,8 +183,29 @@ export const usePiControllerStateSelector = <T>(
   controller: PiThreadControllerLike,
   selector: (state: PiThreadState) => T,
 ): T => {
-  const state = usePiControllerState(controller);
-  return useMemo(() => selector(state), [selector, state]);
+  // `useSyncExternalStore` compares snapshots with `Object.is`, so selecting
+  // inside `getSnapshot` is what lets the store observe the selected slice
+  // rather than the whole state. Memoizing on the source state keeps repeated
+  // reads of one state object referentially stable; re-keying the memo on the
+  // selector re-runs a changed closure instead of replaying its last result.
+  const getSelection = useMemo(() => {
+    let memo: { state: PiThreadState; selection: T } | undefined;
+    return () => {
+      const state = stateSnapshotOf(controller);
+      if (!memo || memo.state !== state)
+        memo = { state, selection: selector(state) };
+      return memo.selection;
+    };
+  }, [controller, selector]);
+
+  return useSyncExternalStore(
+    useCallback(
+      (listener: () => void) => controller.subscribe(listener),
+      [controller],
+    ),
+    getSelection,
+    getSelection,
+  );
 };
 
 const isPiStateRunning = (state: PiThreadState): boolean =>

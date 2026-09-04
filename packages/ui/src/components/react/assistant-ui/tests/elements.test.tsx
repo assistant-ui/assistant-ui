@@ -5,6 +5,7 @@ import { renderToStaticMarkup } from "react-dom/server";
 import { afterEach, beforeAll, describe, expect, it } from "vitest";
 
 import { AgentPlan } from "../elements/agent-plan";
+import { AgentStatus, type AgentState } from "../elements/agent-status";
 import { Chart } from "../elements/chart";
 import { CodeDiff } from "../elements/code-diff";
 import { CodeRunner } from "../elements/code-runner";
@@ -58,6 +59,9 @@ const list = <T,>(items: number, make: (i: number) => T) =>
 const CASES: Record<string, Case> = {
   "agent-plan": (n, items) => (
     <AgentPlan steps={list(items, (i) => `step ${i}`)} activeIndex={n} />
+  ),
+  "agent-status": () => (
+    <AgentStatus state="working" label={"l".repeat(200)} elapsed="0:12" />
   ),
   chart: (n, items) => (
     <Chart
@@ -572,6 +576,20 @@ describe.each(Object.entries(CASES))("%s", (name, make) => {
     }
   });
 
+  it.each(HOSTILE)(
+    "announces a %s numeric prop without the float error of deriving it",
+    (_label, n, items) => {
+      const markup = renderToStaticMarkup(make(n, items));
+
+      for (const [, value] of markup.matchAll(/aria-valuenow="([^"]*)"/g)) {
+        expect(
+          value,
+          `${name} announced ${value}, which a screen reader reads out in full`,
+        ).toMatch(/^-?\d+(\.\d)?$/);
+      }
+    },
+  );
+
   it.runIf(COUNT_SHAPED.has(name))(
     "reads an out-of-range count as its nearest end",
     () => {
@@ -706,6 +724,378 @@ describe("state that is carried by more than colour", () => {
     const row = container.querySelector<HTMLElement>("button")!;
 
     expect(accessibleName(row)).toContain("connected");
+  });
+
+  it.each(["working", "waiting", "done"] as AgentState[])(
+    "names an agent's %s state and leaves nothing inert behind",
+    (state) => {
+      const { container } = render(
+        <AgentStatus state={state} label="Refactoring composer" />,
+      );
+      const root = container.querySelector<HTMLElement>(
+        '[data-slot="agent-status"]',
+      )!;
+
+      expect(root.querySelector("button")).toBeNull();
+      expect(visibleText(root)).toContain(state);
+      expect(
+        root.lastElementChild!.getAttribute("aria-hidden"),
+        "the trailing icon is still announced as a control",
+      ).toBe("true");
+    },
+  );
+
+  it("separates working from waiting by shape and motion, not colour", () => {
+    const dot = (state: AgentState) =>
+      render(
+        <AgentStatus state={state} label="Refactoring composer" />,
+      ).container.querySelector<HTMLElement>('[data-slot="agent-status"]')!
+        .firstElementChild!.className;
+
+    expect(dot("working")).toContain("animate-pulse");
+    expect(dot("waiting")).not.toContain("animate-pulse");
+    expect(
+      dot("waiting"),
+      "reduced motion leaves colour as the only channel",
+    ).toContain("border");
+    expect(dot("working")).not.toContain("border");
+  });
+
+  it("keeps the trailing icon from reading as pressable", () => {
+    const { container } = render(
+      <AgentStatus state="working" label="Refactoring composer" />,
+    );
+    const icon = container.querySelector<HTMLElement>(
+      '[data-slot="agent-status"]',
+    )!.lastElementChild!;
+
+    expect(icon.className).not.toMatch(/hover:|active:|focus-visible:/);
+  });
+
+  it("values each subagent bar and leaves the summary indeterminate", () => {
+    const { container } = render(
+      <SubagentList
+        agents={[
+          { name: "Explore the runtime", model: "haiku" },
+          { name: "Fix composer types", model: "sonnet" },
+          { name: "Write regression tests", model: "sonnet" },
+        ]}
+        completedCount={1}
+        progress={[-1, 37.5, 101]}
+        showSummary
+        summaryAgent={{ name: "Summarize findings", model: "haiku" }}
+      />,
+    );
+    const progressbars = [
+      ...container.querySelectorAll<HTMLElement>('[role="progressbar"]'),
+    ];
+
+    expect(
+      progressbars.map((bar) => bar.getAttribute("aria-valuenow")),
+      "the summary card has no progress input, so it reports no value",
+    ).toEqual(["0", "37.5", "100", null]);
+    expect(progressbars.map(accessibleName)).toEqual([
+      "Explore the runtime progress",
+      "Fix composer types progress",
+      "Write regression tests progress",
+      "Summarize findings progress",
+    ]);
+    for (const progressbar of progressbars) {
+      expect(progressbar.getAttribute("aria-valuemin")).toBe("0");
+      expect(progressbar.getAttribute("aria-valuemax")).toBe("100");
+    }
+
+    const summary = progressbars.at(-1)!;
+
+    expect(summary.querySelector("[style]")).toBeNull();
+    expect(
+      summary.firstElementChild!.className.split(" "),
+      "shimmer-bg only recolors the sweep the shimmer utility paints, so on its own it renders a transparent, unanimated bar",
+    ).toEqual(
+      expect.arrayContaining([
+        "shimmer",
+        "shimmer-bg",
+        "motion-reduce:animate-none",
+      ]),
+    );
+  });
+
+  it("exposes completion progress for jobs and read-aloud playback", () => {
+    const job = render(
+      <JobProgress
+        title="Indexing"
+        stages={[
+          { name: "Scan", weight: 1 },
+          { name: "Build", weight: 1 },
+        ]}
+        stageIndex={0}
+        stageProgress={0.5}
+        eta="2m"
+      />,
+    ).container.querySelector<HTMLElement>('[role="progressbar"]')!;
+    const playback = render(
+      <ReadAloud
+        words={["one", "two", "three", "four"]}
+        spokenIndex={2}
+        playing
+        rate={1}
+        elapsed="0:02"
+        duration="0:04"
+      />,
+    ).container.querySelector<HTMLElement>('[role="progressbar"]')!;
+
+    expect(accessibleName(job)).toBe("Indexing progress");
+    expect(job.getAttribute("aria-valuenow")).toBe("25");
+    expect(accessibleName(playback)).toBe("Read aloud progress");
+    expect(playback.getAttribute("aria-valuenow")).toBe("50");
+    expect(playback.getAttribute("aria-valuetext")).toBe("0:02 of 0:04");
+  });
+
+  it("exposes scalar values for cost, context, quota, score, and retrieval bars", () => {
+    const cost = render(
+      <CostMeter
+        runCost="$0.10"
+        sessionCost="$1.00"
+        lines={[
+          {
+            model: "alpha",
+            inputTokens: 10,
+            outputTokens: 10,
+            cost: "$0.04",
+            share: 0.25,
+          },
+          {
+            model: "beta",
+            inputTokens: 10,
+            outputTokens: 10,
+            cost: "$0.06",
+            share: 0.75,
+          },
+        ]}
+      />,
+    ).container.querySelectorAll<HTMLElement>('[role="meter"]');
+    const context = render(
+      <ContextBreakdown
+        segments={[
+          { label: "system", tokens: 25, tint: "bg-blue-500" },
+          { label: "messages", tokens: 50, tint: "bg-emerald-500" },
+        ]}
+        limit={100}
+      />,
+    ).container.querySelectorAll<HTMLElement>('[role="meter"]');
+    const quota = render(
+      <QuotaBanner
+        used={25}
+        limit={100}
+        unit="runs"
+        resetsIn="2h"
+        upgradeLabel="Upgrade"
+      />,
+    ).container.querySelector<HTMLElement>('[role="meter"]')!;
+    const score = render(
+      <ScoreBreakdown
+        verdict="Good"
+        total={7}
+        outOf={10}
+        criteria={[
+          { label: "accuracy", score: 7, weight: 1 },
+          { label: "style", score: 3, weight: 1 },
+        ]}
+        visibleCount={2}
+      />,
+    ).container.querySelectorAll<HTMLElement>('[role="meter"]');
+    const retrieval = render(
+      <RetrievalChunks
+        query="q"
+        chunks={[
+          { id: "a", source: "docs", locator: "p1", score: 0.8, text: "a" },
+          { id: "b", source: "wiki", locator: "p2", score: 0.25, text: "b" },
+        ]}
+        visibleCount={2}
+        searching={false}
+      />,
+    ).container.querySelectorAll<HTMLElement>('[role="meter"]');
+
+    expect(
+      [...cost].map((meter) => meter.getAttribute("aria-valuenow")),
+    ).toEqual(["25", "75"]);
+    expect(
+      [...context].map((meter) => meter.getAttribute("aria-valuenow")),
+    ).toEqual(["25", "50"]);
+    expect(quota.getAttribute("aria-label")).toBe("runs used");
+    expect(quota.getAttribute("aria-valuenow")).toBe("25");
+    expect(
+      [...score].map((meter) => meter.getAttribute("aria-valuenow")),
+    ).toEqual(["70", "30"]);
+    expect(
+      [...retrieval].map((meter) => meter.getAttribute("aria-valuenow")),
+    ).toEqual(["80", "25"]);
+
+    expect(
+      [...context].map((meter) => meter.getAttribute("aria-valuetext")),
+      "the percentage is the painted share; the tokens are what the card prints",
+    ).toEqual(["25 of 100", "50 of 100"]);
+    expect(quota.getAttribute("aria-valuetext")).toBe("25 of 100 runs used");
+    expect(
+      [...score].map((meter) => meter.getAttribute("aria-valuetext")),
+    ).toEqual(["7.0 of 10", "3.0 of 10"]);
+    expect(
+      [...retrieval].map((meter) => meter.getAttribute("aria-valuetext")),
+    ).toEqual(["0.80 of 1.00", "0.25 of 1.00"]);
+
+    for (const meter of [...cost, ...context, quota, ...score, ...retrieval]) {
+      expect(meter.getAttribute("aria-valuemin")).toBe("0");
+      expect(meter.getAttribute("aria-valuemax")).toBe("100");
+      expect(accessibleName(meter)).not.toBe("");
+    }
+  });
+
+  it("reads a spent thinking budget as progress, in the units it prints", () => {
+    const reasoning = render(
+      <ReasoningEffort
+        levels={[{ key: "high", label: "High", budget: 1000 }]}
+        selectedKey="high"
+        spent={250}
+      />,
+    ).container.querySelector<HTMLElement>('[role="progressbar"]')!;
+
+    expect(accessibleName(reasoning)).toBe("Thinking budget used");
+    expect(reasoning.getAttribute("aria-valuenow")).toBe("25");
+    expect(reasoning.getAttribute("aria-valuetext")).toBe("250 of 1,000");
+  });
+
+  it.each([
+    "job-progress",
+    "quota-banner",
+    "read-aloud",
+    "reasoning-effort",
+    "retrieval-chunks",
+    "score-breakdown",
+    "subagent-list",
+  ])("%s carries its value on the track, not on the fill", (name) => {
+    const { container } = render(CASES[name]!(2, 3));
+    const bars = [
+      ...container.querySelectorAll<HTMLElement>(
+        '[role="progressbar"], [role="meter"]',
+      ),
+    ];
+
+    expect(bars.length).toBeGreaterThan(0);
+    for (const bar of bars) {
+      expect(
+        bar.style.width,
+        `${name} valued the fill, which collapses to nothing at zero, instead of the track it sits in`,
+      ).toBe("");
+    }
+  });
+
+  it("leaves a slice that paints nothing out of the accessibility tree", () => {
+    const context = render(
+      <ContextBreakdown
+        segments={[
+          { label: "system", tokens: 0, tint: "bg-blue-500" },
+          { label: "messages", tokens: 50, tint: "bg-emerald-500" },
+        ]}
+        limit={100}
+      />,
+    ).container;
+    const cost = render(
+      <CostMeter
+        runCost="$0.10"
+        sessionCost="$1.00"
+        lines={[
+          {
+            model: "alpha",
+            inputTokens: 0,
+            outputTokens: 0,
+            cost: "$0.00",
+            share: 0,
+          },
+          {
+            model: "beta",
+            inputTokens: 10,
+            outputTokens: 10,
+            cost: "$0.10",
+            share: 1,
+          },
+        ]}
+      />,
+    ).container;
+
+    expect(
+      [...context.querySelectorAll<HTMLElement>('[role="meter"]')].map(
+        accessibleName,
+      ),
+    ).toEqual(["messages context usage"]);
+    expect(
+      [...cost.querySelectorAll<HTMLElement>('[role="meter"]')].map(
+        accessibleName,
+      ),
+    ).toEqual(["beta cost share"]);
+  });
+
+  it("describes each trace interval instead of exposing it as progress", () => {
+    const trace = render(
+      <TraceWaterfall
+        spans={[
+          {
+            id: "run",
+            name: "run",
+            depth: 0,
+            startMs: 10,
+            durationMs: 20,
+            status: "completed",
+          },
+          {
+            id: "search",
+            name: "search",
+            depth: 1,
+            startMs: 40,
+            durationMs: 5,
+            status: "running",
+          },
+        ]}
+        totalMs={100}
+        visibleCount={2}
+      />,
+    ).container;
+
+    const bars = [...trace.querySelectorAll<HTMLElement>('[role="img"]')];
+
+    expect(trace.querySelectorAll('[role="progressbar"]').length).toBe(0);
+    expect(bars.map((bar) => bar.getAttribute("aria-label"))).toEqual([
+      "completed, starts at 10ms, runs 20ms",
+      "running, starts at 40ms, runs 5ms",
+    ]);
+    expect(
+      bars.map((bar) => bar.textContent),
+      "the label describes the bar, whose own children carry no text",
+    ).toEqual(["", ""]);
+    expect(
+      [...trace.querySelectorAll<HTMLElement>("span")]
+        .filter((span) => span.textContent === "search")
+        .map((span) => span.closest('[role="img"]')),
+      "a row's name stays readable text rather than becoming presentational",
+    ).toEqual([null]);
+  });
+
+  it("leaves a slice too small to paint out of the accessibility tree", () => {
+    const context = render(
+      <ContextBreakdown
+        segments={[
+          { label: "system", tokens: 1, tint: "bg-blue-500" },
+          { label: "messages", tokens: 40000, tint: "bg-emerald-500" },
+        ]}
+        limit={100000}
+      />,
+    ).container;
+
+    expect(
+      [...context.querySelectorAll<HTMLElement>('[role="meter"]')].map(
+        accessibleName,
+      ),
+      "a 0.001% slice paints nothing, so announcing it as a 0 meter is noise",
+    ).toEqual(["messages context usage"]);
   });
 
   it("marks the current map pin and gives it a 24px target", () => {

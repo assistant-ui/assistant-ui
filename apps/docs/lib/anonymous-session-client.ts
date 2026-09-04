@@ -3,6 +3,20 @@ let sessionToken: string | null = null;
 
 const ANONYMOUS_SESSION_HEADER = "x-assistant-ui-anonymous-session";
 
+// The session route refuses with either a plain text limit body or a JSON
+// `{ error }` envelope; the message that reaches the chat error rail is the
+// human readable part of whichever it sent.
+async function readRefusalMessage(response: Response): Promise<string> {
+  const text = await response.text();
+  try {
+    const parsed = JSON.parse(text) as { error?: unknown };
+    if (typeof parsed?.error === "string" && parsed.error) return parsed.error;
+  } catch {
+    // not JSON
+  }
+  return text || "Unable to start an anonymous session";
+}
+
 export function ensureAnonymousSession(): Promise<void> {
   sessionPromise ??= fetch("/api/anonymous-session", {
     cache: "no-store",
@@ -10,7 +24,7 @@ export function ensureAnonymousSession(): Promise<void> {
   })
     .then(async (response) => {
       if (!response.ok) {
-        throw new Error("Unable to start an anonymous session");
+        throw new Error(await readRefusalMessage(response));
       }
       if (response.status === 204) return;
 

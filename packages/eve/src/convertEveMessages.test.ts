@@ -209,6 +209,143 @@ describe("convertEveMessages", () => {
 
   it.each([
     [
+      "a confirmation request",
+      {
+        requestId: "req_1",
+        kind: "tool-approval",
+        prompt: "Send the email?",
+        display: "confirmation",
+        options: [
+          { id: "approve", label: "Approve" },
+          { id: "cancel", label: "Cancel" },
+        ],
+      },
+      { prompt: "Send the email?", display: "decision" },
+    ],
+    [
+      "a select question that also takes a typed answer",
+      {
+        requestId: "req_1",
+        kind: "question",
+        prompt: "Which environment?",
+        display: "select",
+        allowFreeform: true,
+        options: [{ id: "staging", label: "Staging" }],
+      },
+      {
+        prompt: "Which environment?",
+        display: "select",
+        allowFreeform: true,
+      },
+    ],
+    [
+      "a text question",
+      {
+        requestId: "req_1",
+        kind: "question",
+        prompt: "What should the subject line be?",
+        display: "text",
+      },
+      {
+        prompt: "What should the subject line be?",
+        display: "text",
+        allowFreeform: true,
+      },
+    ],
+    [
+      "a question with neither a display nor options",
+      { requestId: "req_1", kind: "question", prompt: "Anything else?" },
+      { prompt: "Anything else?", display: "text", allowFreeform: true },
+    ],
+  ] satisfies [string, EveMessageInputRequest, object][])(
+    "describes %s on the approval itself",
+    (_label, inputRequest, expected) => {
+      const [message] = convertEveMessages(
+        withApprovalPart({
+          kind: "tool-call",
+          name: "send_email",
+          inputRequest,
+        }),
+      );
+
+      expect(message!.content[0]).toMatchObject({ approval: expected });
+    },
+  );
+
+  it.each([
+    ["no display", undefined],
+    ["a text display", "text" as const],
+    ["a select display", "select" as const],
+  ])(
+    "projects a tool approval whose options were dropped as a decision, with %s",
+    (_label, display) => {
+      const [message] = convertEveMessages(
+        withApprovalPart({
+          kind: "tool-call",
+          name: "send_email",
+          inputRequest: {
+            requestId: "req_1",
+            kind: "tool-approval",
+            prompt: "Send the email?",
+            ...(display && { display }),
+          },
+        }),
+      );
+
+      expect(message!.content[0]).toMatchObject({
+        approval: { display: "decision" },
+      });
+      expect(
+        (message!.content[0] as { approval?: object }).approval,
+      ).not.toHaveProperty("allowFreeform");
+    },
+  );
+
+  it("does not offer a typed answer on a tool approval whose options were dropped", () => {
+    const [message] = convertEveMessages(
+      withApprovalPart({
+        kind: "tool-call",
+        name: "send_email",
+        inputRequest: {
+          requestId: "req_1",
+          kind: "tool-approval",
+          prompt: "Send the email?",
+        },
+      }),
+    );
+
+    // The mapper answers this shape with its approve/cancel branch before it
+    // ever reads a text answer, so the renderer must not offer one.
+    expect(
+      (message!.content[0] as { approval?: object }).approval,
+    ).not.toHaveProperty("allowFreeform");
+  });
+
+  it("does not offer a typed answer on a confirmation request", () => {
+    const [message] = convertEveMessages(
+      withApprovalPart({
+        kind: "tool-call",
+        name: "send_email",
+        inputRequest: {
+          requestId: "req_1",
+          kind: "tool-approval",
+          prompt: "Send the email?",
+          display: "confirmation",
+          options: [
+            { id: "approve", label: "Approve" },
+            { id: "cancel", label: "Cancel" },
+          ],
+        },
+      }),
+    );
+
+    expect(
+      (message!.content[0] as { approval?: object }).approval,
+    ).not.toHaveProperty("allowFreeform");
+  });
+
+  it.each([
+    [
       "the full input request",
       {
         requestId: "req_1",
@@ -1973,13 +2110,36 @@ describe("toEveInputResponse", () => {
     ).toThrow(/a refusal carries no answer for a free-form request/);
   });
 
+  it("submits the response text as the free-form answer", () => {
+    expect(
+      toEveInputResponse(
+        { approvalId: "req_1", approved: true, text: "staging" },
+        withInputRequest({ display: "text" }),
+      ),
+    ).toEqual({ requestId: "req_1", text: "staging" });
+  });
+
+  it("prefers the response text over the reason it used to be smuggled in", () => {
+    expect(
+      toEveInputResponse(
+        {
+          approvalId: "req_1",
+          approved: true,
+          text: "staging",
+          reason: "picked the safe one",
+        },
+        withInputRequest({ display: "text" }),
+      ),
+    ).toEqual({ requestId: "req_1", text: "staging" });
+  });
+
   it("never fabricates approve for a text-display request without an answer", () => {
     expect(() =>
       toEveInputResponse(
         { approvalId: "req_1", approved: true },
         withInputRequest({ display: "text" }),
       ),
-    ).toThrow(/pass the answer as the response reason/);
+    ).toThrow(/pass the answer as the response text/);
   });
 
   it("never fabricates approve for a select request without a chosen option", () => {

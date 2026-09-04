@@ -97,7 +97,7 @@ export function ContextPanel() {
     <span>Context</span>
     <span>{/* used / limit, amber past 85% */}</span>
   </div>
-  <div>{/* stacked bar, one span per segment, widths from tokens / limit */}</div>
+  <div>{/* stacked bar, one named meter per segment, widths from tokens / limit */}</div>
   <div>
     {/* one row per segment: dot, label, count */}
     <div>{/* Headroom row: fixed dot, limit minus used, clamped at 0 */}</div>
@@ -105,7 +105,7 @@ export function ContextPanel() {
 </div>
 ```
 
-Headroom is not a segment you pass; it is `limit` minus the sum of every segment's `tokens`, floored at zero, and it never gets a bar slice of its own, only a legend row. A zero `limit` is treated as zero pressure rather than dividing by it, so the header stays plain instead of showing a red or broken percentage. Every segment supplies its own `tint`, a Tailwind background class shared verbatim between the bar slice and the legend dot, so the two never disagree.
+Headroom is not a segment you pass; it is `limit` minus the sum of every segment's `tokens`, floored at zero, and it never gets a bar slice of its own, only a legend row. A zero `limit` is treated as zero pressure rather than dividing by it, so the header stays plain instead of showing a red or broken percentage. Every segment supplies its own `tint`, a Tailwind background class shared verbatim between the bar slice and the legend dot, so the two never disagree. Each painted segment is a named meter whose `0…100` value matches its share of the context limit and whose value text reads the same token count the legend prints. A segment that rounds to no announced width is left out of the bar entirely rather than announced as an empty one.
 
 ## Examples
 

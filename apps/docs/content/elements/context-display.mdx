@@ -38,7 +38,7 @@ export async function POST(req: Request) {
 }
 ```
 
-Without this step every preset reads a total of zero and the tooltip's breakdown stays empty.
+Without this step there is no usage to read, and `Root` renders nothing at all: no preset, no trigger, no tooltip. The display appears with the first reply that reports usage.
 
   </Step>
   <Step>
@@ -102,7 +102,7 @@ Every preset is the same shape: a trigger wrapped in a shared tooltip.
   {/* Ring: SVG donut + percent. Bar: fill bar + token count. Text: "12k / 128k" */}
 </button>
 <div data-slot="context-display-popover">
-  <div>Context usage   <span>{/* used of total */}</span></div>
+  <div>Context         <span>{/* used / total, monospaced */}</span></div>
   <div>{/* progress bar, min-width 1px once usage is nonzero */}</div>
   <div>Input           <span>{/* only when > 0 */}</span></div>
   <div>Cached input    <span>{/* only when > 0 */}</span></div>
@@ -111,7 +111,7 @@ Every preset is the same shape: a trigger wrapped in a shared tooltip.
 </div>
 ```
 
-The breakdown only lists segments with a nonzero token count, so a usage object that carries only `totalTokens` shows the summary line with no rows underneath it. Percent is clamped to 100 even when usage exceeds the context window. The running total is sticky rather than reactive to every update: it only moves when the incoming total is itself nonzero, or when `resetKey` changes. A momentary usage of `undefined` (or zero) between turns does not flash the number back down, but a changed `resetKey` snaps it immediately to whatever the new usage reports.
+`Root` renders nothing until usage exists, so a thread that has not reported any yet shows no display rather than a zero placeholder. In Runtime mode an explicit `usage={undefined}` is not a way to hide the display: the `.aui` presets read it as "no usage was supplied" and fall back to `useThreadTokenUsage()`. Pass a usage object to control the display yourself, or omit the prop to let the thread drive it. The breakdown only lists segments with a nonzero token count, so a usage object that carries only `totalTokens` shows the summary line with no rows underneath it. Percent is clamped to 100 even when usage exceeds the context window. The running total is sticky rather than reactive to every update: it only moves when the incoming total is itself nonzero, or when `resetKey` changes. A momentary usage of `undefined` (or zero) between turns does not flash the number back down, but a changed `resetKey` snaps it immediately to whatever the new usage reports.
 
 ## Examples
 

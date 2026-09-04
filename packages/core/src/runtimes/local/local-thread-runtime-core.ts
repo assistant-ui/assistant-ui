@@ -900,8 +900,9 @@ export class LocalThreadRuntimeCore
     approvalId,
     approved,
     optionId,
+    text,
     reason,
-  }: RespondToToolApprovalOptions) {
+  }: RespondToToolApprovalOptions): Promise<void> {
     let message = this.repository
       .getMessages()
       .findLast(
@@ -944,6 +945,7 @@ export class LocalThreadRuntimeCore
         ...targetApproval,
         approved,
         ...(optionId != null && { optionId }),
+        ...(text != null && { text }),
         ...(reason != null && { reason }),
       };
       if (approved) return { ...c, approval };
@@ -968,5 +970,7 @@ export class LocalThreadRuntimeCore
     } else {
       this._persistPausedMessage(parentId, message);
     }
+
+    return Promise.resolve();
   }
 }

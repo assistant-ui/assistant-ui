@@ -37,7 +37,7 @@ const cloud = new AssistantCloud({
 const runtime = useLocalRuntime(modelAdapter, { cloud });
 ```
 
-Framework adapters take `cloud` directly. `AISDKThreads({ cloud })` is the store-entry list for `AuiConfig` hosts. It mounts only the visible thread, so a switch cancels an in-flight run and that exchange is not persisted.
+Framework adapters take `cloud` directly. `AISDKThreads({ cloud })` is the store-entry list for `AuiConfig` hosts. With `cloud` it is a `RemoteThreadList` with background threads: every visited thread stays mounted with its own history, a run keeps streaming after a switch and stops on delete, and a freshly created thread titles itself. Without `cloud`, only the visible thread is mounted, and a switched-away chat keeps streaming into its stored state until it settles.
 
 ```tsx
 const runtime = useChatRuntime({ cloud });

@@ -16,6 +16,8 @@ export interface CodeBlockProps extends Omit<
   copyText?: string;
   /** Called after the copy button writes the clipboard. */
   onCopied?: () => void;
+  /** Numbers the lines when the `pre` does not carry `data-line-numbers` itself. */
+  lineNumbers?: boolean;
 }
 
 function CopyButton({
@@ -63,13 +65,14 @@ function CopyButton({
  * shiki's inline colors or `--shiki-light`, and in dark mode fall back to
  * `--shiki-dark`. Lines render as blocks on a `w-max` surface so
  * highlighted rows paint past the scroll fold, and `data-line-numbers` on the
- * `pre` turns on a CSS counter gutter.
+ * `pre` (or the `lineNumbers` prop) turns on a CSS counter gutter.
  */
 export function CodeBlock({
   title,
   viewportClassName,
   copyText,
   onCopied,
+  lineNumbers,
   className,
   children,
   ...props
@@ -115,6 +118,8 @@ export function CodeBlock({
           "[&_pre[data-line-numbers]]:[counter-reset:line]",
           "[&_pre[data-line-numbers]_.line]:relative [&_pre[data-line-numbers]_.line]:pl-8 [&_pre[data-line-numbers]_.line]:[counter-increment:line]",
           "[&_pre[data-line-numbers]_.line]:before:text-muted-foreground/40 [&_pre[data-line-numbers]_.line]:before:absolute [&_pre[data-line-numbers]_.line]:before:left-0 [&_pre[data-line-numbers]_.line]:before:w-5 [&_pre[data-line-numbers]_.line]:before:text-right [&_pre[data-line-numbers]_.line]:before:tabular-nums [&_pre[data-line-numbers]_.line]:before:[content:counter(line)]",
+          lineNumbers &&
+            "[&_.line]:before:text-muted-foreground/40 [counter-reset:line] [&_.line]:relative [&_.line]:pl-8 [&_.line]:[counter-increment:line] [&_.line]:before:absolute [&_.line]:before:left-0 [&_.line]:before:w-5 [&_.line]:before:text-right [&_.line]:before:tabular-nums [&_.line]:before:[content:counter(line)]",
           viewportClassName,
         )}
       >

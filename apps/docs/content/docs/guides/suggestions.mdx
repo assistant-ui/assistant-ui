@@ -274,12 +274,7 @@ function FollowUps() {
     <AuiIf condition={(s) => !s.thread.isEmpty && !s.thread.isRunning}>
       <div className="flex gap-2">
         {suggestions.map((s, i) => (
-          <ThreadPrimitive.Suggestion
-            key={i}
-            prompt={s.prompt}
-            method="replace"
-            autoSend
-          >
+          <ThreadPrimitive.Suggestion key={i} prompt={s.prompt} send>
             {s.title ?? s.prompt}
             {s.label && (
               <span className="text-muted-foreground ms-1">{s.label}</span>

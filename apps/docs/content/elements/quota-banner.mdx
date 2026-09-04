@@ -58,7 +58,7 @@ const resetsIn = formatDistanceToNowStrict(resetAt);
     <span>{/* "{left} {unit} left", amber past 90% used */}</span>
     <span>{/* "resets in {resetsIn}" */}</span>
   </div>
-  <span>{/* fill bar, amber past 90% used */}</span>
+  <span role="meter">{/* bar, named from the unit, amber past 90% used */}</span>
   <div>
     <span>{/* "{used} of {limit} used" */}</span>
     <button>{/* upgradeLabel, always rendered */}</button>
@@ -66,7 +66,7 @@ const resetsIn = formatDistanceToNowStrict(resetAt);
 </div>
 ```
 
-`left` is `limit` minus `used`, floored at zero, so going over quota reads as `"0 {unit} left"` rather than a negative number. The tight, amber state starts at 90% used (`used / limit >= 0.9`), coloring both the headline and the fill bar; a `limit` of `0` is treated as `0%` used rather than producing `NaN`. The upgrade button always renders, whether or not the account is close to its limit, and calls `onUpgrade` if you pass one, there's no default action if you don't.
+`left` is `limit` minus `used`, floored at zero, so going over quota reads as `"0 {unit} left"` rather than a negative number. The tight, amber state starts at 90% used (`used / limit >= 0.9`), coloring both the headline and the fill bar; a `limit` of `0` is treated as `0%` used rather than producing `NaN`. The bar's track is a named meter whose `0…100` value matches the painted used share and whose value text reads the same `used` of `limit` the footer prints; the value sits on the track rather than the fill, which collapses to nothing at zero. The upgrade button always renders, whether or not the account is close to its limit, and calls `onUpgrade` if you pass one, there's no default action if you don't.
 
 ## Examples
 

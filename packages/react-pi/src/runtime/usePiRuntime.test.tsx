@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 
-import { act, createElement } from "react";
+import { act, createElement, useState } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import type { AppendMessage, ExternalStoreAdapter } from "@assistant-ui/react";
@@ -83,7 +83,8 @@ vi.mock("./ThreadController", async (importOriginal) => {
 });
 
 import { ExportedMessageRepository } from "@assistant-ui/react";
-import { createPiThreadState } from "./threadState";
+import { createPiThreadState, type PiThreadState } from "./threadState";
+import type { PiThreadControllerLike } from "./ThreadController";
 import {
   NOOP_CONTROLLER,
   usePiControllerStateSelector,
@@ -282,7 +283,75 @@ describe("usePiRuntime controller subscriptions", () => {
   });
 });
 
+const publishableController = () => {
+  let state = createPiThreadState("t1");
+  const listeners = new Set<() => void>();
+  return {
+    controller: {
+      ...NOOP_CONTROLLER,
+      getState: () => state,
+      getStateSnapshot: () => state,
+      subscribe: (listener: () => void) => {
+        listeners.add(listener);
+        return () => listeners.delete(listener);
+      },
+    } as PiThreadControllerLike,
+    publish: (patch: Partial<PiThreadState> = {}) => {
+      state = { ...state, ...patch };
+      for (const listener of [...listeners]) listener();
+    },
+  };
+};
+
 describe("usePiControllerStateSelector", () => {
+  it("re-renders only when the selected slice changes", async () => {
+    const { controller, publish } = publishableController();
+    const container = document.createElement("div");
+    let renders = 0;
+    const App = () => {
+      const status = usePiControllerStateSelector(
+        controller,
+        (state) => state.runStatus,
+      );
+      renders++;
+      return createElement("div", null, status);
+    };
+
+    root = createRoot(container);
+    await act(async () => root!.render(createElement(App)));
+    expect(renders).toBe(1);
+
+    await act(async () => publish());
+    await act(async () => publish());
+    expect(renders).toBe(1);
+
+    await act(async () => publish({ runStatus: "running" }));
+    expect(renders).toBe(2);
+    expect(container.textContent).toBe("running");
+  });
+
+  it("re-runs a selector whose closure changed without a publish", async () => {
+    const { controller } = publishableController();
+    const container = document.createElement("div");
+    let setLabel: ((label: string) => void) | undefined;
+    const App = () => {
+      const [label, set] = useState("a");
+      setLabel = set;
+      const text = usePiControllerStateSelector(
+        controller,
+        (state) => `${state.runStatus}:${label}`,
+      );
+      return createElement("div", null, text);
+    };
+
+    root = createRoot(container);
+    await act(async () => root!.render(createElement(App)));
+    expect(container.textContent).toBe("idle:a");
+
+    await act(async () => setLabel!("b"));
+    expect(container.textContent).toBe("idle:b");
+  });
+
   it("supports selectors that allocate objects and arrays", async () => {
     const consoleError = vi
       .spyOn(console, "error")

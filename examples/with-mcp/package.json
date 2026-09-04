@@ -11,7 +11,7 @@
     "start:server": "tsx server/server.ts"
   },
   "dependencies": {
-    "@ai-sdk/openai": "^4.0.50",
+    "@ai-sdk/openai": "^4.0.52",
     "@assistant-ui/ai-sdk": "workspace:*",
     "@assistant-ui/react": "workspace:*",
     "@assistant-ui/react-markdown": "workspace:*",
@@ -23,18 +23,17 @@
     "@modelcontextprotocol/node": "^2.0.0",
     "@modelcontextprotocol/server": "^2.0.0",
     "@modelcontextprotocol/server-legacy": "^2.0.0",
-    "ai": "^7.0.83",
+    "ai": "^7.0.85",
     "assistant-stream": "workspace:*",
     "class-variance-authority": "^0.7.1",
-    "clsx": "^2.1.1",
+    "cn": "^0.2.4",
     "cors": "^2.8.6",
     "express": "^5.2.1",
-    "lucide-react": "^1.34.0",
-    "next": "^16.3.3",
+    "lucide-react": "^1.38.0",
+    "next": "^16.3.4",
     "react": "^19.2.8",
     "react-dom": "^19.2.8",
-    "tailwind-merge": "^3.6.0",
-    "zod": "^4.4.3"
+    "zod": "^4.5.4"
   },
   "devDependencies": {
     "@assistant-ui/x-buildutils": "workspace:*",
@@ -47,7 +46,7 @@
     "concurrently": "^10.0.5",
     "postcss": "^8.5.26",
     "tailwindcss": "^4.3.3",
-    "tsx": "^4.23.12",
+    "tsx": "^4.23.13",
     "tw-animate-css": "^1.4.0",
     "typescript": "^7.0.2"
   }

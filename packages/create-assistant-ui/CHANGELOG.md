@@ -1,5 +1,13 @@
 # create-assistant-ui
 
+## 0.0.77
+
+### Patch Changes
+
+- [#6631](https://github.com/assistant-ui/assistant-ui/pull/6631) [`496e973`](https://github.com/assistant-ui/assistant-ui/commit/496e973f89534306eca0b1c133c721fc6ca7f292) - fix: publish workspace dependencies as caret ranges so they dedupe ([@okisdev](https://github.com/okisdev))
+- Updated dependencies [[`496e973`](https://github.com/assistant-ui/assistant-ui/commit/496e973f89534306eca0b1c133c721fc6ca7f292), [`0a2a599`](https://github.com/assistant-ui/assistant-ui/commit/0a2a599c3b02cce6023321eaca343031720be9fb), [`418f922`](https://github.com/assistant-ui/assistant-ui/commit/418f922d5f4ed2a7a33c8c29715e9fa282a1fa73), [`7730e8c`](https://github.com/assistant-ui/assistant-ui/commit/7730e8cac04cc049dcc4bab3bcfa94e7fb89d33f), [`48e12ab`](https://github.com/assistant-ui/assistant-ui/commit/48e12ab0692f5f252c8ae57993fecb3520e2bae3), [`ba0a97f`](https://github.com/assistant-ui/assistant-ui/commit/ba0a97f7d54fe0dfc9ea762355eb94538b619fa8), [`f9390cd`](https://github.com/assistant-ui/assistant-ui/commit/f9390cd330cba84b025b3db6a7366718ba0df22b), [`152a35d`](https://github.com/assistant-ui/assistant-ui/commit/152a35daae0e80b5307865e59af683c4ae720794)]:
+  - assistant-ui@0.0.114
+
 ## 0.0.76
 
 ### Patch Changes

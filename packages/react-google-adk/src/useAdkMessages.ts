@@ -1,4 +1,11 @@
-import { useState, useCallback, useEffect, useRef, useMemo } from "react";
+import {
+  useState,
+  useCallback,
+  useEffect,
+  useInsertionEffect,
+  useRef,
+  useMemo,
+} from "react";
 import { generateId } from "@assistant-ui/core";
 import { useAui } from "@assistant-ui/store";
 import { invokeUserCallback } from "@assistant-ui/core/internal";
@@ -60,14 +67,21 @@ export const useAdkMessages = ({
     Map<string, AdkMessageMetadata>
   >(new Map());
   const lastTransferToAgentRef = useRef<string | undefined>(undefined);
+  // setMessagesImmediate is the only writer of the messages state and publishes
+  // this ref with it, so the ref never trails a commit.
   const messagesRef = useRef(messages);
-  messagesRef.current = messages;
   const stateDeltaRef = useRef(stateDelta);
-  stateDeltaRef.current = stateDelta;
+  useInsertionEffect(() => {
+    stateDeltaRef.current = stateDelta;
+  }, [stateDelta]);
   const artifactDeltaRef = useRef(artifactDelta);
-  artifactDeltaRef.current = artifactDelta;
+  useInsertionEffect(() => {
+    artifactDeltaRef.current = artifactDelta;
+  }, [artifactDelta]);
   const messageMetadataRef = useRef(messageMetadata);
-  messageMetadataRef.current = messageMetadata;
+  useInsertionEffect(() => {
+    messageMetadataRef.current = messageMetadata;
+  }, [messageMetadata]);
 
   const setMessagesImmediate = useCallback((msgs: AdkMessage[]) => {
     messagesRef.current = msgs;

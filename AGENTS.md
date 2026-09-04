@@ -33,6 +33,8 @@ Do not preserve complexity merely because it already exists.
 
 `@assistant-ui/core` holds the framework-agnostic runtime; its `./react` sub-path holds the React-coupled runtime that `@assistant-ui/react` and `@assistant-ui/react-native` re-export. Customers never install core directly; they use one of the three distribution packages (react, react-native, react-ink). Platform runtimes stay in the distribution packages; framework-agnostic logic goes in core.
 
+A peerDependency on a package this workspace releases is load-bearing, not decorative: `scripts/check-changeset-semver.mjs` reads `dependencies` and `peerDependencies` into one graph to compute the release cascade. Because `.changeset/config.json` sets `onlyUpdatePeerDependentsWhenOutOfRange`, `changeset version` never rewrites a peer range that is still satisfied, so a hand-written floor there is the one published range nothing keeps current. So every peer on a package this workspace releases is `workspace:^`, which publishes as `^<the version released alongside it>`. That is the default and `scripts/check-workspace-ranges.mjs` enforces it: a package reaching a consumer through a distribution rather than a direct install (`@assistant-ui/core`, `@assistant-ui/store`, `@assistant-ui/tap`) is in lock-step whether or not anyone remembered to say so. The exemptions are the peers a consumer installs themselves (`@assistant-ui/react`, `@assistant-ui/react-ink`, `@assistant-ui/react-markdown`, `assistant-cloud`), which keep a wide floor raised only when the code requires a newer API; they are named in the check, so adding one is a deliberate act.
+
 `@assistant-ui/ui` is a private shadcn-style kit. We use it directly in the monorepo and copy it into user projects through the registry; it is not published as a dependency.
 
 The public surface of any published package is **append-only**. Re-point a moved export to its new file, but never remove an export that has shipped. The in-repo audit cannot see npm consumers, so even an unused-looking type is a breaking change if removed. Ship a real behavior change as its own deliberate PR.
@@ -91,6 +93,16 @@ Every PR that changes a published package needs a changeset. Always use **patch*
 
 feat: description of the change
 ```
+
+## Performance measurement
+
+`packages/x-performance` owns performance measurement; its README is the reference. Three tiers, and only the first two can fail a PR:
+
+- **Counter contracts gate.** Exact render, commit, notification, resource-run, and converter-call integers asserted as ordinary vitest tests, in `packages/x-performance/contracts/` against the built dists of the public entries, or colocated in a package that takes `createRenderCounter` from `@assistant-ui/x-performance` as a devDependency when the contract needs that package's internals. They run in the normal test job with zero tolerance; changing a pinned integer is a deliberate change that explains the mechanism in the test. `pnpm check:resource-memo` is the other perf gate.
+- **Size budgets gate.** `pnpm size:check` bundles every published entry with rolldown (all bare imports external, minified, gzip) and compares it with `size-budgets.json`. A move past max(2%, 256 B) in either direction fails; `pnpm size:update` after a full build re-records only the entries that moved, and the diff rides in the PR as the reviewable claim.
+- **Wall-time and rendering lanes inform, never gate.** The Performance workflow benches head against base on one runner and traces headless-Chrome fixtures, then posts one sticky PR comment with a `machine-readable` JSON block; the nightly workflow records main on the `perf-history` branch. A row is a verdict only when its bench exercises a package whose built `dist` changed; benches on unchanged dists are controls that calibrate that run's noise floor. A `SLOWER` row on an untouched package is by construction noise, and a green comparison covers only the paths a bench exercises.
+
+Add a measurement by the question, not the code: something countable becomes a contract, a speed question becomes a `bench/` file importing public entry points only, a paint or compositing question becomes a `fixtures/` page. A package new to the measured set needs the four wirings listed in the README.
 
 ## API reference ownership
 
@@ -171,7 +183,7 @@ Don't:
 - **Don't ship a new example app that duplicates one we already ship.** Scan `examples/` first; if with-cloud, with-langgraph, or with-mcp already covers the integration, your example adds no ground. New examples belong in a separate repo on your own account unless a maintainer asked for it in-repo.
 - **Don't fix a bug by introducing a UX regression.** Disabling a feature, dropping an animation, or widening an API to mask a jitter or rendering bug is not an acceptable fix. Diagnose and fix the root cause; a regression is rejected even when the original report is real.
 - **Don't add defensive checks the toolchain already enforces, or comment on formatting.** The repo runs `@tsconfig/strictest` with `exactOptionalPropertyTypes`, so nullability and optional-property guards are redundant; do not add "ensure x is defined" guards the compiler already catches. Formatting is automated (oxfmt), so do not raise spacing or formatting nits in review.
-- **Don't `--admin` merge a PR until `gh pr checks` shows every row passing or explicitly skipped.** Filter out `pass` and `skipping` and confirm the remainder is empty, because the truncated tail once hid a failing Template Sync. If a repo-specific check (template-sync, api-surface, check:resource-memo, changeset-semver) is failing or pending, resolve it first rather than overriding.
+- **Don't `--admin` merge a PR until `gh pr checks` shows every row passing or explicitly skipped.** Filter out `pass` and `skipping` and confirm the remainder is empty, because the truncated tail once hid a failing Template Sync. If a repo-specific check (template-sync, api-surface, check:resource-memo, changeset-semver, unmanaged-pins) is failing or pending, resolve it first rather than overriding.
 
 ## GitButler
 

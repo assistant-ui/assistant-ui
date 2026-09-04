@@ -475,10 +475,11 @@ export const useEveAgentRuntime = (options: UseEveAgentRuntimeOptions = {}) => {
         }
       : {}),
     onRespondToToolApproval: (response) => {
-      // Eve leaves an unanswered request pending, so an unmappable response
-      // must stay answerable. Mapping before the first await lets the mapper's
-      // own error surface synchronously to the caller that rendered the
-      // controls, the only signal the void `respondToApproval` seam carries.
+      // Eve resolves a request the moment any response for it arrives, and an
+      // empty one is recorded as an answer with no content. Mapping before the
+      // send is enqueued keeps an unmappable response unsent, so the request
+      // stays answerable; the mapper's error reaches the caller as the seam's
+      // rejection.
       const inputResponse = toEveInputResponse(
         response,
         findEveInputRequest(agent.data, response.approvalId),
