@@ -6,6 +6,7 @@ import { useScrollLock } from "./useScrollLock";
 
 afterEach(() => {
   vi.useRealTimers();
+  vi.unstubAllGlobals();
   document.documentElement.removeAttribute("style");
   document.body.removeAttribute("style");
   document.body.replaceChildren();
@@ -63,7 +64,6 @@ describe("useScrollLock", () => {
 
     expect(root.style.scrollbarWidth).toBe("none");
     expect(root.style.paddingRight).toBe("6px");
-    vi.unstubAllGlobals();
   });
 
   // With `html { overflow: hidden }` the body scrolls on its own, so the
@@ -80,7 +80,6 @@ describe("useScrollLock", () => {
     lockWithin(body)();
 
     expect(body.style.paddingRight).toBe("6px");
-    vi.unstubAllGlobals();
   });
 
   it("restores the padding it added once the animation is over", () => {
