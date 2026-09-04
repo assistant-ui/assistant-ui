@@ -19,7 +19,7 @@ This integration provides:
 
 ## How It Works
 
-The `useChatRuntime` hook from `@assistant-ui/ai-sdk` wraps AI SDK's `useChat` and adds cloud persistence via the `cloud` parameter. `AISDKThreads({ cloud })` is the store-entry list for `AuiConfig` / `createAssistantClient` hosts. That host mounts only the visible thread, so a switch cancels an in-flight run. The runtime automatically:
+The `useChatRuntime` hook from `@assistant-ui/ai-sdk` wraps AI SDK's `useChat` and adds cloud persistence via the `cloud` parameter. `AISDKThreads({ cloud })` is the store-entry list for `AuiConfig` / `createAssistantClient` hosts. With `cloud` bound it keeps every visited thread mounted, so a run continues after a switch and its exchange is still persisted. The runtime automatically:
 
 1. Creates a cloud thread on the first user message
 2. Persists messages as they complete streaming

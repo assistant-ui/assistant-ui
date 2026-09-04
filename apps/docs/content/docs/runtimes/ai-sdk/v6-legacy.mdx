@@ -327,10 +327,8 @@ On the client, configure `useChat` with `sendAutomaticallyWhen: lastAssistantMes
 "use client";
 
 import { useChat } from "@ai-sdk/react";
-import {
-  AssistantRuntimeProvider,
-  useAISDKRuntime,
-} from "@assistant-ui/react-ai-sdk";
+import { AssistantRuntimeProvider } from "@assistant-ui/react";
+import { useAISDKRuntime } from "@assistant-ui/react-ai-sdk";
 import { lastAssistantMessageIsCompleteWithApprovalResponses } from "ai";
 import { Thread } from "@/components/assistant-ui/elements/thread.aui";
 

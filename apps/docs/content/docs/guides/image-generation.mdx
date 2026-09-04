@@ -52,7 +52,7 @@ const part: ImageMessagePart = {
 
 ## Render with the `Image` component
 
-The `Image` component in `@assistant-ui/ui` handles the render states for you:
+The `image` element (`npx assistant-ui@latest add image`, installed at `components/assistant-ui/elements/image.tsx`) handles the render states for you:
 
 1. **Running** (`status.type === "running"`) renders a spinner.
 2. **Content filter** (`status.type === "incomplete"` with `reason: "content-filter"`) renders an error card with no `<img src>`.
@@ -61,7 +61,7 @@ The `Image` component in `@assistant-ui/ui` handles the render states for you:
 `Image.Actions` provides download and copy buttons, plus a regenerate button when you pass an `onRegenerate` callback. Wire it to the same generation flow you used above; debounce, rate limiting, and confirmation are your call.
 
 ```tsx
-import { Image } from "@assistant-ui/ui";
+import { Image } from "@/components/assistant-ui/elements/image";
 
 <>
   <Image {...imagePart} />

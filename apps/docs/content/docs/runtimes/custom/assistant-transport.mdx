@@ -273,22 +273,27 @@ These two operations cover all complex state mutations: `set` for value updates 
 
 ### Wire format
 
-<Callout type="warn">
-The wire format will migrate to Server-Sent Events (SSE) in a future release.
-</Callout>
-
-Inspired by [AI SDK's data stream protocol](https://sdk.vercel.ai/docs/ai-sdk-ui/stream-protocol).
+The response is a Server-Sent Events stream (`Content-Type: text/event-stream`). `AssistantTransportEncoder` writes one `data:` line per `AssistantStreamChunk`, JSON encoded, and a final `data: [DONE]` line when the stream completes. `AssistantTransportDecoder` stops at that marker and reports a stream that ends without it.
 
 **state update:**
 
 ```
-aui-state:[{"type":"set","path":["status"],"value":"completed"}]
+data: {"type":"update-state","path":[],"operations":[{"type":"set","path":["status"],"value":"completed"}]}
+
 ```
 
 **error:**
 
 ```
-3:"error message"
+data: {"type":"error","path":[],"error":"error message"}
+
+```
+
+**end of stream:**
+
+```
+data: [DONE]
+
 ```
 
 ## Building a frontend
