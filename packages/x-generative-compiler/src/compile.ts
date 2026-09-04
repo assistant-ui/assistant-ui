@@ -1,4 +1,5 @@
-import { existsSync, readFileSync, statSync } from "node:fs";
+import { existsSync, readFileSync } from "node:fs";
+import { createHash } from "node:crypto";
 import { createRequire } from "node:module";
 import * as nodePath from "node:path";
 import { parse } from "@babel/parser";
@@ -1033,10 +1034,12 @@ interface TsconfigResolutionState {
   cacheable: boolean;
 }
 
+// Fingerprints content rather than mtime and size: filesystems with coarse
+// timestamp granularity report an unchanged mtime for a same-length rewrite,
+// which would serve the stale aliases this cache exists to invalidate.
 function tsconfigFileVersion(path: string): string | null {
   try {
-    const stats = statSync(path, { bigint: true });
-    return `${stats.mtimeNs}:${stats.size}`;
+    return createHash("sha1").update(readFileSync(path)).digest("hex");
   } catch {
     return null;
   }

@@ -1,4 +1,10 @@
-import { mkdirSync, mkdtempSync, writeFileSync } from "node:fs";
+import {
+  mkdirSync,
+  mkdtempSync,
+  rmSync,
+  utimesSync,
+  writeFileSync,
+} from "node:fs";
 import { tmpdir } from "node:os";
 import * as nodePath from "node:path";
 import { describe, it, expect, vi } from "vitest";
@@ -1426,6 +1432,54 @@ export default defineToolkit({
     expect(() =>
       compileGenerative(aliasedToolkitSource, { target: "client", filename }),
     ).not.toThrow();
+  });
+
+  it("refreshes cached aliases when a tsconfig is deleted", () => {
+    const appRoot = mkdtempSync(
+      nodePath.join(tmpdir(), "aui-generative-config-delete-"),
+    );
+    writeAliasTarget(appRoot, "generated", generativeChild);
+    mkdirSync(nodePath.join(appRoot, "src"), { recursive: true });
+    const tsconfigPath = nodePath.join(appRoot, "tsconfig.json");
+    writeAliasConfig(tsconfigPath, "./generated/*");
+    const filename = nodePath.join(appRoot, "src", "toolkit.tsx");
+
+    expect(() =>
+      compileGenerative(aliasedToolkitSource, { target: "client", filename }),
+    ).not.toThrow();
+
+    rmSync(tsconfigPath);
+
+    expect(() =>
+      compileGenerative(aliasedToolkitSource, { target: "client", filename }),
+    ).toThrow(/compiler-visible toolkit spread/);
+  });
+
+  it("refreshes cached aliases when an edit preserves size and mtime", () => {
+    const appRoot = mkdtempSync(
+      nodePath.join(tmpdir(), "aui-generative-same-mtime-"),
+    );
+    writeAliasTarget(appRoot, "generated", generativeChild);
+    writeAliasTarget(appRoot, "fallbacks", nonGenerativeChild);
+    const tsconfigPath = nodePath.join(appRoot, "tsconfig.json");
+    const filename = nodePath.join(appRoot, "src", "toolkit.tsx");
+
+    // Both writes are pinned to one timestamp, standing in for a filesystem
+    // whose mtime granularity cannot separate them.
+    const tick = 1700000000;
+    writeAliasConfig(tsconfigPath, "./generated/*");
+    utimesSync(tsconfigPath, tick, tick);
+
+    expect(() =>
+      compileGenerative(aliasedToolkitSource, { target: "client", filename }),
+    ).not.toThrow();
+
+    writeAliasConfig(tsconfigPath, "./fallbacks/*");
+    utimesSync(tsconfigPath, tick, tick);
+
+    expect(() =>
+      compileGenerative(aliasedToolkitSource, { target: "client", filename }),
+    ).toThrow(/compiler-visible toolkit spread/);
   });
 
   it("prefers the most specific tsconfig path alias", () => {
