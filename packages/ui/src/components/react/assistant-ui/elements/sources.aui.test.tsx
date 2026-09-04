@@ -1,5 +1,5 @@
 import { cleanup, fireEvent, render, screen } from "@testing-library/react";
-import { afterEach, describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 
 import { SourceIcon } from "./sources.aui";
 
@@ -69,5 +69,17 @@ describe("SourceIcon", () => {
     fireEvent.error(image);
 
     expect(screen.getByText("E")).toBeTruthy();
+  });
+
+  it("detects the failure even when the caller passes a ref", () => {
+    stubImage(true, 0);
+    const callerRef = vi.fn();
+
+    render(<SourceIcon url="https://example.com/reference" ref={callerRef} />);
+
+    expect(screen.getByText("E")).toBeTruthy();
+    expect(callerRef).toHaveBeenCalledWith(
+      screen.getByText("E") as HTMLSpanElement,
+    );
   });
 });
