@@ -73,10 +73,10 @@ export async function claimConversation(
 }
 
 export async function mergeConversations(
-  from: DemoIdentity,
-  into: DemoIdentity,
+  from: string,
+  into: string,
 ): Promise<void> {
   const store = conversationCounter();
   if (!store) return;
-  await store.merge(from.identity, into.identity).catch(() => {});
+  await store.merge(from, into).catch(() => {});
 }

@@ -2,8 +2,7 @@ import { NextResponse } from "next/server";
 import { accountCloud } from "@/lib/account-cloud";
 import { getSession } from "@/lib/accounts-auth";
 import { getAnonymousSession } from "@/lib/anonymous-session";
-import { conversationLimitFor } from "@/lib/conversation-limit";
-import { mergeConversations, type DemoIdentity } from "@/lib/demo-usage";
+import { mergeConversations } from "@/lib/demo-usage";
 
 export async function POST(request: Request) {
   const headers = { "Cache-Control": "no-store" };
@@ -59,20 +58,11 @@ export async function POST(request: Request) {
     );
   }
 
-  const userIdentity: DemoIdentity = {
-    identity: `user:${session.user.id}`,
-    signedIn: true,
-    limit: conversationLimitFor(true),
-  };
   const anonymousSession = getAnonymousSession(request);
   if (anonymousSession) {
     await mergeConversations(
-      {
-        identity: `anon:${anonymousSession.id}`,
-        signedIn: false,
-        limit: conversationLimitFor(false),
-      },
-      userIdentity,
+      `anon:${anonymousSession.id}`,
+      `user:${session.user.id}`,
     );
   }
 

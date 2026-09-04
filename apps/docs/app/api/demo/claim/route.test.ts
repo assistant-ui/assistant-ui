@@ -1,5 +1,4 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { conversationLimitFor } from "@/lib/conversation-limit";
 
 const mocks = vi.hoisted(() => ({
   getSession: vi.fn(),
@@ -146,16 +145,8 @@ describe("POST /api/demo/claim", () => {
 
     expect(mocks.getAnonymousSession).toHaveBeenCalledWith(claimRequest);
     expect(mocks.mergeConversations).toHaveBeenCalledWith(
-      {
-        identity: "anon:anonymous-session-123",
-        signedIn: false,
-        limit: conversationLimitFor(false),
-      },
-      {
-        identity: "user:user-1",
-        signedIn: true,
-        limit: conversationLimitFor(true),
-      },
+      "anon:anonymous-session-123",
+      "user:user-1",
     );
   });
 });

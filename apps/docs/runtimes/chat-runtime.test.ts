@@ -247,7 +247,6 @@ it("does not claim without signed-in cloud history", () => {
   const { result } = renderHook(() => useDocsCloud());
 
   expect(cloudStrategy(result.current.cloud)).toBe("anon");
-  expect(cloudStrategy(result.current.cloud)).toBe("anon");
   expect(fetchMock).not.toHaveBeenCalled();
 });
 
