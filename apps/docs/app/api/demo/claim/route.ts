@@ -3,19 +3,16 @@ import { accountCloud } from "@/lib/account-cloud";
 import { getSession } from "@/lib/accounts-auth";
 import { getAnonymousSession } from "@/lib/anonymous-session";
 import { conversationLimitFor } from "@/lib/conversation-limit";
-import {
-  mergeConversations,
-  readDemoUsage,
-  type DemoIdentity,
-} from "@/lib/demo-usage";
+import { mergeConversations, type DemoIdentity } from "@/lib/demo-usage";
 
 export async function POST(request: Request) {
   const headers = { "Cache-Control": "no-store" };
   const fetchSite = request.headers.get("sec-fetch-site");
   const origin = request.headers.get("origin");
-  const sameOrigin = fetchSite
-    ? fetchSite === "same-origin"
-    : !origin || origin === new URL(request.url).origin;
+  const sameOrigin =
+    fetchSite !== null
+      ? fetchSite === "same-origin"
+      : origin !== null && origin === new URL(request.url).origin;
   if (!sameOrigin) {
     return new Response(null, { status: 403, headers });
   }
@@ -79,6 +76,5 @@ export async function POST(request: Request) {
     );
   }
 
-  const usage = await readDemoUsage(userIdentity);
-  return NextResponse.json({ moved, usage }, { headers });
+  return NextResponse.json({ moved }, { headers });
 }

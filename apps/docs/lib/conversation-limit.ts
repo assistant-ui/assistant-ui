@@ -33,6 +33,7 @@ return {1, used + 1}
 const MERGE_SCRIPT = `
 local fromKey, intoKey, ttl = KEYS[1], KEYS[2], ARGV[1]
 redis.call('SUNIONSTORE', intoKey, fromKey, intoKey)
+redis.call('DEL', fromKey)
 redis.call('PEXPIRE', intoKey, ttl)
 return 1
 `;
@@ -61,7 +62,10 @@ export function createConversationCounter(redis: Redis, prefix: string) {
       limit: number,
       now: number = Date.now(),
     ): Promise<ConversationUsage> {
-      const used = (await redis.scard(key(identity, now))) ?? 0;
+      const used = Math.min(
+        (await redis.scard(key(identity, now))) ?? 0,
+        limit,
+      );
       return {
         used,
         limit,
@@ -76,11 +80,15 @@ export function createConversationCounter(redis: Redis, prefix: string) {
       limit: number,
       now: number = Date.now(),
     ): Promise<{ allowed: boolean; usage: ConversationUsage }> {
-      const [allowed, used] = await redis.eval<string[], [number, number]>(
+      const [allowed, reportedUsed] = await redis.eval<
+        string[],
+        [number, number]
+      >(
         CLAIM_SCRIPT,
         [key(identity, now)],
         [threadId, String(limit), String(TTL_MS)],
       );
+      const used = Math.min(reportedUsed, limit);
       return {
         allowed: allowed === 1,
         usage: {

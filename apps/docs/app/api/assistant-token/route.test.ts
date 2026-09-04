@@ -72,4 +72,20 @@ describe("GET /api/assistant-token", () => {
     expect(mocks.accountCloud).toHaveBeenCalledWith("user-1");
     expect(mocks.createToken).toHaveBeenCalledOnce();
   });
+
+  it("translates an Assistant Cloud token failure to a bad gateway", async () => {
+    mocks.getSession.mockResolvedValue({ user: { id: "user-1" } });
+    mocks.createToken.mockRejectedValue(new Error("cloud unavailable"));
+    mocks.accountCloud.mockReturnValue({
+      auth: { tokens: { create: mocks.createToken } },
+    });
+
+    const response = await GET(request());
+
+    expect(response.status).toBe(502);
+    expect(await response.json()).toEqual({
+      error: "Assistant Cloud could not mint an account token.",
+    });
+    expect(response.headers.get("Cache-Control")).toBe("no-store");
+  });
 });

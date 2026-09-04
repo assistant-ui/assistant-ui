@@ -29,6 +29,13 @@ export async function GET(request: Request) {
     );
   }
 
-  const { token } = await cloud.auth.tokens.create();
-  return NextResponse.json({ token }, { headers });
+  try {
+    const { token } = await cloud.auth.tokens.create();
+    return NextResponse.json({ token }, { headers });
+  } catch {
+    return NextResponse.json(
+      { error: "Assistant Cloud could not mint an account token." },
+      { status: 502, headers },
+    );
+  }
 }

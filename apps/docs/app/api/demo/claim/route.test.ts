@@ -6,7 +6,6 @@ const mocks = vi.hoisted(() => ({
   claim: vi.fn(),
   getAnonymousSession: vi.fn(),
   mergeConversations: vi.fn(),
-  readDemoUsage: vi.fn(),
 }));
 
 vi.mock("@/lib/accounts-auth", () => ({
@@ -24,7 +23,6 @@ vi.mock("@/lib/anonymous-session", async (importOriginal) => ({
 
 vi.mock("@/lib/demo-usage", () => ({
   mergeConversations: mocks.mergeConversations,
-  readDemoUsage: mocks.readDemoUsage,
 }));
 
 import { POST } from "./route";
@@ -35,7 +33,11 @@ const request = (
 ) =>
   new Request("https://www.assistant-ui.com/api/demo/claim", {
     method: "POST",
-    headers: { "content-type": "application/json", ...headers },
+    headers: {
+      "content-type": "application/json",
+      "sec-fetch-site": "same-origin",
+      ...headers,
+    },
     body,
   });
 
@@ -54,6 +56,19 @@ describe("POST /api/demo/claim", () => {
       request(JSON.stringify({ refresh_token: "anonymous-refresh" }), {
         origin: "https://example.com",
         "sec-fetch-site": "cross-site",
+      }),
+    );
+
+    expect(response.status).toBe(403);
+    expect(mocks.getSession).not.toHaveBeenCalled();
+  });
+
+  it("rejects requests without fetch metadata or an origin", async () => {
+    const response = await POST(
+      new Request("https://www.assistant-ui.com/api/demo/claim", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ refresh_token: "anonymous-refresh" }),
       }),
     );
 
@@ -96,20 +111,18 @@ describe("POST /api/demo/claim", () => {
     const response = await POST(request());
 
     expect(response.status).toBe(502);
-    expect(mocks.readDemoUsage).not.toHaveBeenCalled();
+    expect(mocks.getAnonymousSession).not.toHaveBeenCalled();
   });
 
-  it("returns the moved threads and signed-in usage without caching", async () => {
+  it("returns the moved threads without caching", async () => {
     configureAccountCloud();
     mocks.claim.mockResolvedValue({ moved: 2 });
     mocks.getAnonymousSession.mockReturnValue(null);
-    const usage = { used: 2, limit: 10, remaining: 8, resetAt: 123 };
-    mocks.readDemoUsage.mockResolvedValue(usage);
 
     const response = await POST(request());
 
     expect(response.status).toBe(200);
-    expect(await response.json()).toEqual({ moved: 2, usage });
+    expect(await response.json()).toEqual({ moved: 2 });
     expect(response.headers.get("Cache-Control")).toBe("no-store");
     expect(mocks.claim).toHaveBeenCalledWith({
       refresh_token: "anonymous-refresh",
@@ -123,12 +136,6 @@ describe("POST /api/demo/claim", () => {
     mocks.getAnonymousSession.mockReturnValue({
       id: "anonymous-session-123",
       expiresAt: Date.now() + 60_000,
-    });
-    mocks.readDemoUsage.mockResolvedValue({
-      used: 3,
-      limit: 10,
-      remaining: 7,
-      resetAt: 123,
     });
     const claimRequest = request(undefined, {
       cookie: "aui_anon_session=signed-cookie",
@@ -145,10 +152,5 @@ describe("POST /api/demo/claim", () => {
       },
       { identity: "user:user-1", signedIn: true, limit: 10 },
     );
-    expect(mocks.readDemoUsage).toHaveBeenCalledWith({
-      identity: "user:user-1",
-      signedIn: true,
-      limit: 10,
-    });
   });
 });

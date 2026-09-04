@@ -1,11 +1,12 @@
 "use client";
 
-import { useMemo, useSyncExternalStore } from "react";
+import { useEffect, useMemo, useState, useSyncExternalStore } from "react";
 import {
   AssistantCloud,
   WebSpeechDictationAdapter,
   WebSpeechSynthesisAdapter,
   createSuggestionAdapter,
+  readAnonymousRefreshToken,
 } from "@assistant-ui/react";
 import {
   AssistantChatTransport,
@@ -14,6 +15,7 @@ import {
 } from "@assistant-ui/ai-sdk";
 import { lastAssistantMessageIsCompleteWithToolCalls } from "ai";
 import { anonymousSessionFetch } from "@/lib/anonymous-session-client";
+import { refreshDemoUsage } from "@/lib/demo-usage-client";
 import { useSession } from "@/lib/session";
 
 type Adapters = UseChatRuntimeOptions["adapters"];
@@ -48,7 +50,53 @@ export const followUpSuggestionAdapter = createSuggestionAdapter({
 
 export function useDocsCloud() {
   const session = useSession();
-  const accountOwned = session.status === "signed-in" && session.cloudHistory;
+  const eligible = session.status === "signed-in" && session.cloudHistory;
+  const userKey = eligible ? session.user.email : null;
+  const baseUrl = process.env.NEXT_PUBLIC_ASSISTANT_BASE_URL!;
+  const [hasAnonymousToken] = useState(
+    () =>
+      typeof window !== "undefined" &&
+      readAnonymousRefreshToken(baseUrl) !== null,
+  );
+  const [claimedFor, setClaimedFor] = useState<string | null>(null);
+  const accountOwned =
+    userKey !== null && (!hasAnonymousToken || claimedFor === userKey);
+
+  useEffect(() => {
+    if (userKey === null || !hasAnonymousToken || claimedFor === userKey) {
+      return;
+    }
+
+    const refreshToken = readAnonymousRefreshToken(baseUrl);
+    let cancelled = false;
+    const request = refreshToken
+      ? fetch("/api/demo/claim", {
+          method: "POST",
+          headers: { "content-type": "application/json" },
+          body: JSON.stringify({ refresh_token: refreshToken }),
+          credentials: "same-origin",
+        }).then(async (response) => {
+          if (!response.ok) return;
+          const payload = (await response.json()) as { moved?: unknown };
+          if (typeof payload.moved === "number" && payload.moved > 0) {
+            refreshDemoUsage();
+          }
+        })
+      : Promise.resolve();
+
+    void request.then(
+      () => {
+        if (!cancelled) setClaimedFor(userKey);
+      },
+      () => {
+        if (!cancelled) setClaimedFor(userKey);
+      },
+    );
+
+    return () => {
+      cancelled = true;
+    };
+  }, [baseUrl, claimedFor, hasAnonymousToken, userKey]);
 
   return useMemo(
     () => ({
