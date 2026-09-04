@@ -49,6 +49,7 @@ import {
   isTitleSourceMessage,
 } from "../../runtimes/remote-thread-list/title";
 import {
+  clearThreadTitleState,
   finishThreadTitleRename,
   runThreadTitleGeneration,
   startThreadTitleRename,
@@ -1123,6 +1124,7 @@ const useRemoteThreadList = (
       await ensureNotMain(data.id);
       requireAdapterGeneration(adapterGeneration);
       onDelete?.(data.id);
+      clearThreadTitleState(session.titleStates, data.id);
       return store.optimisticUpdate({
         execute: async () => {
           const { remoteId } = await data.initializeTask;

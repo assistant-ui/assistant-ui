@@ -37,6 +37,7 @@ import {
   isTitleSourceMessage,
 } from "../../runtimes/remote-thread-list/title";
 import {
+  clearThreadTitleState,
   finishThreadTitleRename,
   runThreadTitleGeneration,
   startThreadTitleRename,
@@ -1095,6 +1096,7 @@ export class RemoteThreadListThreadListRuntimeCore
     await this._ensureThreadIsNotMain(data.id);
     this._requireAdapterGeneration(adapterGeneration);
     this._hookManager.stopThreadRuntime(data.id);
+    clearThreadTitleState(this._titleStates, data.id);
 
     return this._state.optimisticUpdate({
       execute: async () => {

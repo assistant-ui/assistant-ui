@@ -1,5 +1,6 @@
 import { describe, expect, it, vi } from "vitest";
 import {
+  clearThreadTitleState,
   finishThreadTitleRename,
   runThreadTitleGeneration,
   startThreadTitleRename,
@@ -99,6 +100,110 @@ describe("runThreadTitleGeneration", () => {
 
     await run();
     expect(generate).toHaveBeenCalledTimes(1);
+  });
+
+  it("reasserts only after generate resolves, never mid-stream", async () => {
+    const states = new Map<string, ThreadTitleState>();
+    const order: string[] = [];
+    const streamOpen = deferred<void>();
+
+    const generation = runThreadTitleGeneration({
+      states,
+      threadId: "t1",
+      automatic: true,
+      generate: async (onTitle) => {
+        await streamOpen.promise;
+        await onTitle("Generated");
+        order.push("generate-resolved");
+      },
+      rename: async () => {
+        order.push("rename");
+      },
+      applyTitle: async () => {
+        order.push("applyTitle");
+      },
+    });
+
+    const claim = startThreadTitleRename(states, "t1", "Manual");
+    finishThreadTitleRename(states, "t1", claim, true);
+    streamOpen.resolve();
+    await generation;
+
+    expect(order).toEqual(["generate-resolved", "rename", "applyTitle"]);
+  });
+
+  it("reasserts the newer claim when a rename starts during the reassert", async () => {
+    const states = new Map<string, ThreadTitleState>();
+    const applied: (string | undefined)[] = [];
+    const renamed: string[] = [];
+    const streamOpen = deferred<void>();
+
+    const generation = runThreadTitleGeneration({
+      states,
+      threadId: "t1",
+      automatic: true,
+      generate: async (onTitle) => {
+        await streamOpen.promise;
+        await onTitle("Generated");
+      },
+      rename: async (title) => {
+        renamed.push(title);
+        if (renamed.length === 1) {
+          const second = startThreadTitleRename(states, "t1", "Second");
+          finishThreadTitleRename(states, "t1", second, true);
+        }
+      },
+      applyTitle: async (title) => {
+        applied.push(title);
+      },
+    });
+
+    const first = startThreadTitleRename(states, "t1", "First");
+    finishThreadTitleRename(states, "t1", first, true);
+    streamOpen.resolve();
+    await generation;
+
+    expect(renamed).toEqual(["First", "Second"]);
+    expect(applied).toEqual(["Second"]);
+  });
+
+  it("keeps an earlier manual title when a newer rename fails", async () => {
+    const states = new Map<string, ThreadTitleState>();
+    const applied: (string | undefined)[] = [];
+    const generate = vi.fn(async (onTitle: (t: string) => Promise<void>) => {
+      await onTitle("Generated");
+    });
+
+    const first = startThreadTitleRename(states, "t1", "First manual title");
+    finishThreadTitleRename(states, "t1", first, true);
+    const second = startThreadTitleRename(states, "t1", "Second manual title");
+
+    const generation = runThreadTitleGeneration({
+      states,
+      threadId: "t1",
+      automatic: true,
+      generate,
+      rename: noop,
+      applyTitle: async (title) => {
+        applied.push(title);
+      },
+    });
+
+    finishThreadTitleRename(states, "t1", second, false);
+    await generation;
+
+    expect(generate).not.toHaveBeenCalled();
+    expect(applied).toEqual([]);
+  });
+
+  it("drops per-thread state when the thread is deleted", async () => {
+    const states = new Map<string, ThreadTitleState>();
+    const claim = startThreadTitleRename(states, "t1", "Manual");
+    finishThreadTitleRename(states, "t1", claim, true);
+    expect(states.size).toBe(1);
+
+    clearThreadTitleState(states, "t1");
+    expect(states.size).toBe(0);
   });
 
   it("lets an explicit generation supersede an in-flight automatic one", async () => {

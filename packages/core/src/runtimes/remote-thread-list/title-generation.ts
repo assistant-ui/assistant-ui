@@ -115,6 +115,25 @@ export function finishThreadTitleRename(
   pruneThreadTitleState(states, threadId, state);
 }
 
+function takeManualTitle(
+  states: Map<string, ThreadTitleState>,
+  threadId: string,
+  state: ThreadTitleState,
+): string | undefined {
+  const retained = state.manualTitle;
+  if (retained === undefined) return undefined;
+  state.manualTitle = undefined;
+  pruneThreadTitleState(states, threadId, state);
+  return retained;
+}
+
+export function clearThreadTitleState(
+  states: Map<string, ThreadTitleState>,
+  threadId: string,
+): void {
+  states.delete(threadId);
+}
+
 function startThreadTitleGeneration(
   states: Map<string, ThreadTitleState>,
   threadId: string,
@@ -124,10 +143,8 @@ function startThreadTitleGeneration(
   if (
     automatic &&
     state.pendingClaim === null &&
-    state.manualTitle !== undefined
+    takeManualTitle(states, threadId, state) !== undefined
   ) {
-    state.manualTitle = undefined;
-    pruneThreadTitleState(states, threadId, state);
     return null;
   }
 
@@ -154,8 +171,10 @@ function startThreadTitleGeneration(
  * Runs one title generation under the per-thread rename claims, so a rename
  * that lands while the generation is in flight stays the persisted title.
  *
- * A generated run persists the title on its own, so a claim that wins after the
- * stream started is reasserted through `rename` rather than only locally.
+ * A generated run persists the title itself, and the adapter exposes no
+ * compare-and-set, so a winning claim is reasserted through `rename` only after
+ * `generate` has resolved. Reasserting mid-stream would race the run's own
+ * write and lose the manual title on the server.
  */
 export async function runThreadTitleGeneration({
   states,
@@ -179,21 +198,20 @@ export async function runThreadTitleGeneration({
     return renamed;
   };
 
-  const reassertClaim = async (claim: ThreadTitleClaim) => {
-    await rename(claim.title);
-    await applyTitle(claim.title);
-    generation.superseded = true;
-  };
+  const retainManualTitle = () =>
+    automatic && takeManualTitle(states, threadId, state) !== undefined;
 
   try {
     if (generation.beforeGenerationClaim !== null) {
       await generation.beforeGenerationClaim.settled;
     }
     if (generation.claim !== null) {
-      if ((await settleClaim(generation.claim)) === true) {
+      const renamed = await settleClaim(generation.claim);
+      if (renamed === true) {
         generation.superseded = true;
         return;
       }
+      if (renamed === false && retainManualTitle()) return;
     }
     if (!isCurrentGeneration(state, generation)) return;
 
@@ -205,24 +223,34 @@ export async function runThreadTitleGeneration({
       const claim = generation.claim;
       if (claim !== null) {
         const renamed = await settleClaim(claim);
-        if (renamed === undefined) return;
-        if (renamed) {
-          if (isCurrentGeneration(state, generation))
-            await reassertClaim(claim);
+        if (renamed !== false) return;
+        if (retainManualTitle()) {
+          generation.superseded = true;
           return;
         }
       }
       if (isCurrentGeneration(state, generation)) await applyTitle(lastTitle);
     });
 
-    const claim = generation.claim;
-    if (claim === null) return;
-    const renamed = await settleClaim(claim);
-    if (!isCurrentGeneration(state, generation)) return;
-    if (renamed === true) {
-      await reassertClaim(claim);
-    } else if (renamed === false && sawTitle) {
-      await applyTitle(lastTitle);
+    while (true) {
+      const claim = generation.claim;
+      if (claim === null) return;
+      const renamed = await settleClaim(claim);
+      if (renamed === undefined) continue;
+      if (renamed === false) {
+        if (retainManualTitle()) return;
+        if (sawTitle && isCurrentGeneration(state, generation)) {
+          await applyTitle(lastTitle);
+        }
+        return;
+      }
+      if (!isCurrentGeneration(state, generation)) return;
+      await rename(claim.title);
+      if (generation.claim !== claim) continue;
+      if (!isCurrentGeneration(state, generation)) return;
+      await applyTitle(claim.title);
+      generation.superseded = true;
+      return;
     }
   } finally {
     state.generations.delete(generation);
