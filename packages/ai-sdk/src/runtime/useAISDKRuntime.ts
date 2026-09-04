@@ -494,10 +494,7 @@ export const useAISDKRuntime = <UI_MESSAGE extends UIMessage = UIMessage>(
       runtimeRef.current.thread.import(exportedRepo);
     },
     onCancel: async () => {
-      const message = chatHelpers.messages.at(-1);
-      const cancelledId =
-        isRunning && message?.role === "assistant" ? message.id : undefined;
-      if (cancelledId) {
+      const markCancelled = (cancelledId: string) => {
         const liveIds = new Set(chatHelpers.messages.map((m) => m.id));
         setCancelledMessages((prev) => {
           const kept =
@@ -509,7 +506,14 @@ export const useAISDKRuntime = <UI_MESSAGE extends UIMessage = UIMessage>(
             ids: new Set([...kept, cancelledId]),
           };
         });
-      }
+      };
+
+      const message = chatHelpers.messages.at(-1);
+      const cancelledId =
+        isRunning && message?.role === "assistant" ? message.id : undefined;
+      if (cancelledId) markCancelled(cancelledId);
+      const stoppedBeforeFirstChunk =
+        !cancelledId && chatHelpers.status === "submitted";
       try {
         await chatHelpers.stop();
       } catch (error) {
@@ -518,6 +522,29 @@ export const useAISDKRuntime = <UI_MESSAGE extends UIMessage = UIMessage>(
           throw error;
         }
       }
+      if (!stoppedBeforeFirstChunk) return;
+
+      // The AI SDK creates the assistant message with the stream's first part,
+      // so a run stopped during `submitted` has nothing to carry the cancelled
+      // status; LocalRuntime appends its assistant message at run start and
+      // keeps it. Synthesize that message after the stop settles — unless a
+      // first chunk raced the abort and created the real one, which then takes
+      // the mark instead.
+      const tail = chatHelpers.messages.at(-1);
+      if (tail?.role === "assistant") {
+        markCancelled(tail.id);
+        return;
+      }
+      const syntheticId = generateId();
+      markCancelled(syntheticId);
+      chatHelpers.setMessages((current) => [
+        ...current,
+        {
+          id: syntheticId,
+          role: "assistant",
+          parts: [],
+        } as UIMessage as UI_MESSAGE,
+      ]);
     },
     onNew: async (message) => {
       const createMessage = (

@@ -352,6 +352,104 @@ describe("useAISDKRuntime", () => {
     });
   });
 
+  it("synthesizes a cancelled assistant message when stopped before the first chunk", async () => {
+    const chat = createChatHelpers([
+      { id: "u1", role: "user", parts: [{ type: "text", text: "hi" }] },
+    ]);
+    chat.status = "submitted";
+    chat.stop = vi.fn(async () => {});
+
+    const { result, rerender } = renderHook(() => useAISDKRuntime(chat));
+
+    await act(async () => {
+      result.current.thread.cancelRun();
+    });
+    act(() => {
+      chat.status = "ready";
+      rerender();
+    });
+
+    await waitFor(() => {
+      const tail = result.current.thread.getState().messages.at(-1);
+      expect(tail?.role).toBe("assistant");
+      expect(tail?.content).toEqual([]);
+      expect(tail?.status).toMatchObject({
+        type: "incomplete",
+        reason: "cancelled",
+      });
+    });
+    expect(chat.messages).toHaveLength(2);
+  });
+
+  it("marks the assistant message that raced the abort instead of synthesizing one", async () => {
+    const chat = createChatHelpers([
+      { id: "u1", role: "user", parts: [{ type: "text", text: "hi" }] },
+    ]);
+    chat.status = "submitted";
+    let resolveStop!: () => void;
+    chat.stop = vi.fn(
+      () =>
+        new Promise<void>((resolve) => {
+          resolveStop = resolve;
+        }),
+    );
+
+    const { result, rerender } = renderHook(() => useAISDKRuntime(chat));
+
+    await act(async () => {
+      result.current.thread.cancelRun();
+      chat.setMessages([
+        ...chat.messages,
+        {
+          id: "assistant-raced",
+          role: "assistant",
+          parts: [{ type: "text", text: "par" }],
+        },
+      ]);
+      resolveStop();
+      await Promise.resolve();
+    });
+    act(() => {
+      chat.status = "ready";
+      rerender();
+    });
+
+    await waitFor(() => {
+      const tail = result.current.thread.getState().messages.at(-1);
+      expect(tail?.id).toBe("assistant-raced");
+      expect(tail?.status).toMatchObject({
+        type: "incomplete",
+        reason: "cancelled",
+      });
+    });
+    expect(chat.messages).toHaveLength(2);
+  });
+
+  it("does not synthesize a message when stop rejects with a real error", async () => {
+    const chat = createChatHelpers([
+      { id: "u1", role: "user", parts: [{ type: "text", text: "hi" }] },
+    ]);
+    chat.status = "submitted";
+    chat.stop = vi.fn(async () => {
+      throw new TypeError("network down");
+    });
+
+    const consoleError = vi
+      .spyOn(console, "error")
+      .mockImplementation(() => {});
+    try {
+      const { result } = renderHook(() => useAISDKRuntime(chat));
+
+      await act(async () => {
+        result.current.thread.cancelRun();
+      });
+
+      expect(chat.messages).toHaveLength(1);
+    } finally {
+      consoleError.mockRestore();
+    }
+  });
+
   it("does not mark completed output cancelled when already idle", async () => {
     const chat = createChatHelpers([
       {
