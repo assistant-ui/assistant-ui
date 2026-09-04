@@ -58,8 +58,8 @@ export function ArtifactsRuntimeProvider({
 
   useEffect(() => {
     if (claims === 0) return;
-    void aui.threads().reload();
-  }, [aui, claims]);
+    void runtime.threads.reload();
+  }, [claims, runtime]);
 
   return (
     <AssistantRuntimeProvider runtime={runtime} aui={aui}>

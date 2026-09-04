@@ -8,7 +8,7 @@ import {
 const useDocsChatRuntime = vi.hoisted(() => vi.fn(() => ({}) as never));
 const useSpeechAdapters = vi.hoisted(() => vi.fn(() => ({ speech: "speech" })));
 const useDocsCloud = vi.hoisted(() =>
-  vi.fn(() => ({ cloud: "cloud", accountOwned: false })),
+  vi.fn(() => ({ cloud: "cloud", accountOwned: false, claims: 0 })),
 );
 
 vi.mock("./chat-runtime", () => ({
