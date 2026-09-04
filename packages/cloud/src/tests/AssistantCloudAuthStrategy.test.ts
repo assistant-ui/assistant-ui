@@ -2,6 +2,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import {
   AssistantCloudAnonymousAuthStrategy,
   AssistantCloudJWTAuthStrategy,
+  readAnonymousRefreshToken,
 } from "../AssistantCloudAuthStrategy";
 import { CloudResponseError } from "../cloudResponse";
 
@@ -54,6 +55,31 @@ describe("AssistantCloudAnonymousAuthStrategy", () => {
     } else {
       delete (globalThis as { localStorage?: Storage }).localStorage;
     }
+  });
+
+  it("reads the stored anonymous refresh token", () => {
+    const values = new Map([[refreshTokenKey, JSON.stringify(refreshToken)]]);
+    installLocalStorage({
+      getItem: (key) => values.get(key) ?? null,
+      setItem: (key, value) => {
+        values.set(key, value);
+      },
+      removeItem: (key) => {
+        values.delete(key);
+      },
+    } as Storage);
+
+    expect(readAnonymousRefreshToken(baseUrl)).toBe(refreshToken.token);
+  });
+
+  it("returns null when no anonymous refresh token is stored", () => {
+    installLocalStorage({
+      getItem: () => null,
+      setItem: vi.fn(),
+      removeItem: vi.fn(),
+    } as unknown as Storage);
+
+    expect(readAnonymousRefreshToken(baseUrl)).toBeNull();
   });
 
   it.each([
