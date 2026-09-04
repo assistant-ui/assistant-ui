@@ -26,6 +26,8 @@ import { Thread } from "./thread";
 
 export type DemoView = "thread" | "memory";
 
+const SIDEBAR_REGION_ID = "aui-demo-sidebar";
+
 export function DemoShell({
   expanded = false,
   onToggleExpanded,
@@ -71,7 +73,9 @@ export function DemoShell({
           type="button"
           onClick={() => setSidebarCollapsed(true)}
           aria-label="Collapse threads"
-          className="text-muted-foreground hover:text-foreground rounded-control -me-1.5 ml-auto grid size-7 shrink-0 place-items-center transition-colors"
+          aria-expanded
+          aria-controls={SIDEBAR_REGION_ID}
+          className="text-muted-foreground hover:text-foreground rounded-control ms-auto -me-1.5 grid size-7 shrink-0 place-items-center transition-colors"
         >
           <PanelLeftIcon className="size-4" />
         </button>
@@ -92,6 +96,8 @@ export function DemoShell({
             type="button"
             onClick={() => setSidebarCollapsed(false)}
             aria-label="Show threads"
+            aria-expanded={false}
+            aria-controls={SIDEBAR_REGION_ID}
             className="text-muted-foreground hover:text-foreground rounded-control -ms-1.5 hidden size-7 shrink-0 place-items-center transition-colors md:grid"
           >
             <PanelLeftIcon className="size-4" />
@@ -117,6 +123,7 @@ export function DemoShell({
         </div>
       </div>
       <div
+        id={SIDEBAR_REGION_ID}
         className={cn(
           "border-foreground/10 bg-foreground/[0.025] dark:bg-foreground/[0.04] hidden min-h-0 flex-col overflow-hidden border-r p-3",
           !sidebarCollapsed && "md:flex",
