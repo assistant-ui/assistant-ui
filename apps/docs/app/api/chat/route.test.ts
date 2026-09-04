@@ -137,6 +137,33 @@ describe("POST /api/chat conversation budget", () => {
     expect(mocks.claimConversation).not.toHaveBeenCalled();
   });
 
+  it("claims the thread under the visitor's identity when it opts in", async () => {
+    allowed();
+    mocks.resolveDemoIdentity.mockResolvedValue({
+      identity: "anon:session_1234567890",
+      signedIn: false,
+      limit: 3,
+    });
+    mocks.claimConversation.mockResolvedValue({
+      allowed: true,
+      usage: { used: 1, limit: 3, remaining: 2, resetAt: Date.now() + 60_000 },
+    });
+
+    await send({
+      messages: [message],
+      id: "thread_1",
+      countConversations: true,
+    }).catch(() => null);
+
+    expect(mocks.resolveDemoIdentity).toHaveBeenCalledWith(
+      "session_1234567890",
+    );
+    expect(mocks.claimConversation).toHaveBeenCalledWith(
+      { identity: "anon:session_1234567890", signedIn: false, limit: 3 },
+      "thread_1",
+    );
+  });
+
   it("refuses a new conversation once the day is spent", async () => {
     allowed();
     mocks.resolveDemoIdentity.mockResolvedValue({

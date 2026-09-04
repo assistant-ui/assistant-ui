@@ -21,6 +21,7 @@ export function ConversationBudget({
   const isEmpty = useAuiState((s) => s.thread.messages.length === 0);
   const pathname = usePathname();
   const wasEmpty = useRef(isEmpty);
+  const refreshedFor = useRef(0);
 
   // A send is the only thing that spends a conversation, and it is the moment
   // the thread stops being empty.
@@ -33,17 +34,22 @@ export function ConversationBudget({
   const resetAt = state.status === "ready" ? state.usage.resetAt : 0;
 
   // A tab left open across the reset would otherwise keep showing a spent day.
-  // Only a reset still ahead of us is scheduled: a device clock running past it
-  // would otherwise refresh on every answer, and the route is the real gate.
+  // A budget that arrived already expired is re-read once per reset rather than
+  // on every answer, so a device clock running ahead cannot spin the endpoint.
   useEffect(() => {
     if (!spent) return;
     const delay = resetAt - Date.now();
-    if (delay <= 0) return;
-    const timer = setTimeout(
-      refreshDemoUsage,
-      Math.min(delay + 1_000, 2 ** 30),
-    );
-    return () => clearTimeout(timer);
+    if (delay > 0) {
+      const timer = setTimeout(
+        refreshDemoUsage,
+        Math.min(delay + 1_000, 2 ** 30),
+      );
+      return () => clearTimeout(timer);
+    }
+    if (refreshedFor.current === resetAt) return;
+    refreshedFor.current = resetAt;
+    refreshDemoUsage();
+    return;
   }, [spent, resetAt]);
 
   // A conversation already under way was counted when it started, so only a new
