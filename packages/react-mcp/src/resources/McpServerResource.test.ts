@@ -205,16 +205,50 @@ describe("McpServerResource automatic authentication", () => {
     });
 
     try {
-      await waitFor(() =>
-        expect(storage.loadAuthState).toHaveBeenCalledWith("docs"),
+      await waitForResourceUpdate(
+        () => root.getValue().getState().connectionState === "error",
       );
-      await flushMacrotask();
 
       expect(root.getValue().getState()).toMatchObject({
-        connectionState: "disconnected",
-        lastError: null,
+        connectionState: "error",
+        lastError: {
+          message: expect.stringContaining(
+            "does not match its current server URL",
+          ),
+        },
       });
       expect(mocks.StreamableHTTPClientTransport).not.toHaveBeenCalled();
+    } finally {
+      root.unmount();
+    }
+  });
+
+  it("uses a configured bearer token instead of mismatched stored auth", async () => {
+    const storage = createStorage();
+    vi.mocked(storage.loadAuthState).mockResolvedValue({
+      serverUrl: "https://other.example.com/mcp",
+      token: "stored-secret",
+    });
+    const root = mount({
+      auth: { type: "bearer", token: "configured-secret" },
+      storage,
+      autoConnect: true,
+    });
+
+    try {
+      await waitForResourceUpdate(
+        () => root.getValue().getState().connectionState === "connected",
+      );
+
+      expect(mocks.StreamableHTTPClientTransport).toHaveBeenCalledWith(
+        new URL("https://example.com/mcp"),
+        {
+          requestInit: {
+            headers: { Authorization: "Bearer configured-secret" },
+          },
+        },
+      );
+      expect(root.getValue().getState().lastError).toBeNull();
     } finally {
       root.unmount();
     }
@@ -230,14 +264,17 @@ describe("McpServerResource automatic authentication", () => {
     });
 
     try {
-      await waitFor(() =>
-        expect(storage.loadAuthState).toHaveBeenCalledWith("docs"),
+      await waitForResourceUpdate(
+        () => root.getValue().getState().connectionState === "error",
       );
-      await flushMacrotask();
 
       expect(root.getValue().getState()).toMatchObject({
-        connectionState: "disconnected",
-        lastError: null,
+        connectionState: "error",
+        lastError: {
+          message: expect.stringContaining(
+            "does not match its current server URL",
+          ),
+        },
       });
       expect(mocks.StreamableHTTPClientTransport).not.toHaveBeenCalled();
     } finally {
@@ -257,14 +294,17 @@ describe("McpServerResource automatic authentication", () => {
     });
 
     try {
-      await waitFor(() =>
-        expect(storage.loadAuthState).toHaveBeenCalledWith("docs"),
+      await waitForResourceUpdate(
+        () => root.getValue().getState().connectionState === "error",
       );
-      await flushMacrotask();
 
       expect(root.getValue().getState()).toMatchObject({
-        connectionState: "disconnected",
-        lastError: null,
+        connectionState: "error",
+        lastError: {
+          message: expect.stringContaining(
+            "does not match its current server URL",
+          ),
+        },
       });
       expect(mocks.StreamableHTTPClientTransport).not.toHaveBeenCalled();
     } finally {

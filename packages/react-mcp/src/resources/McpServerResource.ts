@@ -243,10 +243,18 @@ const useMcpServerResourceInstance = (
     },
   );
 
-  const loadAuthState = useEffectEvent(async () => {
-    const state = await props.storage.loadAuthState(props.id);
-    return isAuthStateForServerUrl(state, props.url) ? state : null;
-  });
+  const loadAuthState = useEffectEvent(
+    async (allowEndpointMismatch = false) => {
+      const state = await props.storage.loadAuthState(props.id);
+      if (state === null || isAuthStateForServerUrl(state, props.url)) {
+        return state;
+      }
+      if (allowEndpointMismatch) return null;
+      throw new Error(
+        `Saved authentication for MCP server "${props.id}" does not match its current server URL. Reconnect OAuth servers or persist bearer credentials with serverUrl.`,
+      );
+    },
+  );
 
   const buildTransport = useEffectEvent(
     async (): Promise<StreamableHTTPClientTransport> => {
@@ -264,7 +272,7 @@ const useMcpServerResourceInstance = (
         });
       }
       if (props.auth.type === "bearer") {
-        const persisted = await loadAuthState();
+        const persisted = await loadAuthState(props.auth.token !== undefined);
         const headers = buildHeaders(props.auth, persisted);
         const transportOpts: StreamableHTTPClientTransportOptions = {};
         if (headers) transportOpts.requestInit = { headers };
