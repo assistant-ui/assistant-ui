@@ -145,7 +145,7 @@ const LOGOS: Logo[] = [
 
 const SLOTS = 9;
 export const ALL_SLOTS = Array.from({ length: SLOTS }, (_, index) => index);
-export const MOBILE_SLOTS = [0, 1, 2, 5, 6, 7];
+export const MOBILE_SLOTS = [0, 1, 2, 5, 6];
 const HOLD_MIN_MS = 1600;
 const HOLD_SPAN_MS = 900;
 const CROSSFADE_MS = 500;
@@ -398,7 +398,7 @@ export function TrustedBy() {
           />
         ))}
       </div>
-      <div className="mx-auto grid w-full grid-cols-3 sm:w-4/5 sm:grid-cols-4">
+      <div className="mx-auto grid w-full grid-cols-2 sm:w-4/5 sm:grid-cols-4">
         {shown.slice(5, SLOTS).map((logo, offset) => (
           <LogoSlot
             key={offset + 5}
