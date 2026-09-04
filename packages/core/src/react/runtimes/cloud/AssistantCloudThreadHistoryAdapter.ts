@@ -20,6 +20,7 @@ import {
 import { auiV0Decode, auiV0Encode } from "./auiV0";
 import { type AssistantClient, getClientId, useAui } from "@assistant-ui/store";
 import type { ThreadListItemMethods } from "../../../store/scopes/thread-list-item";
+import type { FeedbackAdapter } from "../../../adapters/feedback";
 
 type CloudThreadListItem = Pick<
   ThreadListItemMethods,
@@ -63,6 +64,42 @@ class AssistantCloudThreadHistoryAdapter implements ThreadHistoryAdapter {
   private get _persistence(): CloudMessagePersistence {
     return this.getPersistence();
   }
+
+  public readonly feedback: FeedbackAdapter = {
+    submit: ({ message, type }) => {
+      void (async () => {
+        const threadListItem = this.tryGetKeyedThreadListItem();
+        const remoteThreadId = threadListItem?.getState().remoteId;
+        if (!threadListItem || !remoteThreadId) {
+          console.warn(
+            `[assistant-ui] Skipping feedback for message ${message.id}: the thread has no remote id.`,
+          );
+          return;
+        }
+
+        const cloudMessageId = await this.getPersistence(
+          threadListItem,
+        ).getRemoteId(message.id);
+        if (!cloudMessageId) {
+          console.warn(
+            `[assistant-ui] Skipping feedback for message ${message.id}: no cloud message id is mapped.`,
+          );
+          return;
+        }
+
+        await this.cloudRef.current.threads.messages.feedback(
+          remoteThreadId,
+          cloudMessageId,
+          { type },
+        );
+      })().catch((error: unknown) => {
+        console.error(
+          "[assistant-ui] Cloud feedback submission failed:",
+          error,
+        );
+      });
+    },
+  };
 
   private tryGetKeyedThreadListItem(): CloudThreadListItem | undefined {
     const live = this.aui.threadListItem;
@@ -766,7 +803,7 @@ function aggregateAiSdkV6RunSteps<T>(stepMessages: T[]): TelemetryData | null {
 
 export function useAssistantCloudThreadHistoryAdapter(
   cloudRef: RefObject<AssistantCloud>,
-): ThreadHistoryAdapter {
+): ThreadHistoryAdapter & { readonly feedback: FeedbackAdapter } {
   const aui = useAui();
   // Not useEffectEvent: history adapter methods run during render (SSR load).
   const auiRef = useRef(aui);
