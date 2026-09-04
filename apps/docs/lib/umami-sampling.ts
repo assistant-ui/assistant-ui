@@ -12,7 +12,16 @@ const DOMAINS = "www.assistant-ui.com";
  */
 export const UMAMI_DISABLED_STORAGE_KEY = "umami.disabled";
 
+/**
+ * `data-before-send` names a global umami calls on every send, and returning
+ * null drops the payload. It is the half of the stop path that survives a
+ * browser that has stopped accepting writes.
+ */
+const BEFORE_SEND_GLOBAL = "__auiUmamiBeforeSend";
+const SUPPRESSED_GLOBAL = "__auiUmamiSuppressed";
+
 export function setUmamiTrackingEnabled(enabled: boolean): void {
+  (window as unknown as Record<string, unknown>)[SUPPRESSED_GLOBAL] = !enabled;
   try {
     if (enabled) window.localStorage.removeItem(UMAMI_DISABLED_STORAGE_KEY);
     else window.localStorage.setItem(UMAMI_DISABLED_STORAGE_KEY, "1");
@@ -77,11 +86,15 @@ export const umamiBootstrapScript = `
       window.localStorage.setItem(k,JSON.stringify({s:s,b:b}));
     }
     if(!s){return;}
+    window[${JSON.stringify(BEFORE_SEND_GLOBAL)}]=function(type,payload){
+      return window[${JSON.stringify(SUPPRESSED_GLOBAL)}]?null:payload;
+    };
     var el=document.createElement("script");
     el.async=false;
     el.src="/umami/script.js";
     el.setAttribute("data-website-id",${JSON.stringify(WEBSITE_ID)});
     el.setAttribute("data-domains",${JSON.stringify(DOMAINS)});
+    el.setAttribute("data-before-send",${JSON.stringify(BEFORE_SEND_GLOBAL)});
     document.head.appendChild(el);
   }catch(e){}
 })();

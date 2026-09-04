@@ -18,6 +18,7 @@ type RunOptions = {
   storageThrows?: boolean;
   gpc?: boolean;
   consent?: "granted" | "denied";
+  win?: Record<string, unknown>;
 };
 
 const run = ({
@@ -27,6 +28,7 @@ const run = ({
   storageThrows = false,
   gpc = false,
   consent,
+  win = {},
 }: RunOptions = {}) => {
   if (consent) store.set("aui-consent", consent);
   const appended: Appended[] = [];
@@ -83,13 +85,8 @@ const run = ({
     "Math",
     umamiBootstrapScript,
   );
-  fn(
-    { localStorage },
-    { globalPrivacyControl: gpc },
-    document,
-    FakeDate,
-    fakeMath,
-  );
+  win["localStorage"] = localStorage;
+  fn(win, { globalPrivacyControl: gpc }, document, FakeDate, fakeMath);
 
   return { appended, store, rollsUsed };
 };
@@ -247,6 +244,42 @@ it("reaches an already-running tracker through umami's own disable flag", () => 
 
   setUmamiTrackingEnabled(true);
   expect(store.has(UMAMI_DISABLED_STORAGE_KEY)).toBe(false);
+
+  Object.defineProperty(globalThis, "window", {
+    value: original,
+    configurable: true,
+    writable: true,
+  });
+});
+
+it("drops sends through the before-send hook when storage refuses the flag", () => {
+  const store = new Map<string, string>();
+  const win: Record<string, unknown> = {};
+  const { appended } = run({ store, win, rolls: [UMAMI_SAMPLE_RATE / 2] });
+  expect(appended[0]!.attrs["data-before-send"]).toBe("__auiUmamiBeforeSend");
+
+  const original = globalThis.window;
+  Object.defineProperty(globalThis, "window", {
+    value: win,
+    configurable: true,
+    writable: true,
+  });
+  win["localStorage"] = {
+    getItem: () => null,
+    setItem: () => {
+      throw new Error("blocked");
+    },
+    removeItem: () => {
+      throw new Error("blocked");
+    },
+  };
+  setUmamiTrackingEnabled(false);
+
+  const beforeSend = win["__auiUmamiBeforeSend"] as (
+    type: string,
+    payload: unknown,
+  ) => unknown;
+  expect(beforeSend("event", { url: "/" })).toBeNull();
 
   Object.defineProperty(globalThis, "window", {
     value: original,
