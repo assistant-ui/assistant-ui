@@ -11,11 +11,12 @@ const subscribe = () => () => {};
  */
 export function CookieSettingsLink({ separator = false }) {
   // GPC already settles the answer, so there is nothing for the banner to ask.
-  // The server cannot see the signal, hence the client-only snapshot.
+  // The server cannot see the signal and assumes it is absent, which is both the
+  // common case and the one that leaves the sentence around this link complete.
   const available = useSyncExternalStore(
     subscribe,
     () => !hasGlobalPrivacyControl(),
-    () => false,
+    () => true,
   );
   if (!available) return null;
 
