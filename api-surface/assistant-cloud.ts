@@ -174,6 +174,15 @@ type AssistantCloudThreadMessageCreateBody = {
   content: ReadonlyJSONObject;
 };
 
+type AssistantCloudThreadMessageFeedbackBody = {
+  type: "negative" | "positive";
+};
+
+type AssistantCloudThreadMessageFeedbackResponse = {
+  feedback_id: string;
+  type: "negative" | "positive";
+};
+
 type AssistantCloudThreadMessageListQuery = {
   format?: string;
 };
@@ -192,6 +201,7 @@ declare class AssistantCloudThreadMessages {
   list(threadId: string, query?: AssistantCloudThreadMessageListQuery): Promise<AssistantCloudThreadMessageListResponse>;
   create(threadId: string, body: AssistantCloudThreadMessageCreateBody): Promise<AssistantCloudMessageCreateResponse>;
   update(threadId: string, messageId: string, body: AssistantCloudThreadMessageUpdateBody): Promise<void>;
+  feedback(threadId: string, messageId: string, body: AssistantCloudThreadMessageFeedbackBody): Promise<AssistantCloudThreadMessageFeedbackResponse>;
 }
 
 declare class AssistantCloudThreads {
@@ -558,7 +568,7 @@ declare function generateThreadTitle(cloud: AssistantCloud, options: {
 }): Promise<string | null>;
 
 declare namespace entry_root_exports {
-  export { AssistantCloud, AssistantCloudRunReport, AssistantCloudRunReportToolCall, AssistantCloudTelemetryConfig, CloudAPIError, CloudMessage, CloudMessagePersistence, CloudResponseError, McpSamplingHandler, MessageFormatAdapter, RunTelemetryToolCallInit, RunTelemetryUsage, RunTelemetryUsageInit, SamplingCallData, createFormattedPersistence, createRunTelemetryToolCall, createSamplingCollector, generateThreadTitle, normalizeRunTelemetryUsage, truncateRunTelemetryText, wrapSamplingHandler };
+  export { AssistantCloud, AssistantCloudRunReport, AssistantCloudRunReportToolCall, AssistantCloudTelemetryConfig, AssistantCloudThreadMessageFeedbackBody, AssistantCloudThreadMessageFeedbackResponse, CloudAPIError, CloudMessage, CloudMessagePersistence, CloudResponseError, McpSamplingHandler, MessageFormatAdapter, RunTelemetryToolCallInit, RunTelemetryUsage, RunTelemetryUsageInit, SamplingCallData, createFormattedPersistence, createRunTelemetryToolCall, createSamplingCollector, generateThreadTitle, normalizeRunTelemetryUsage, truncateRunTelemetryText, wrapSamplingHandler };
 }
 
 declare function normalizeRunTelemetryUsage(usage: RunTelemetryUsageInit): RunTelemetryUsage | undefined;

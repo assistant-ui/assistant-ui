@@ -153,8 +153,8 @@
   },
   "@assistant-ui/react-markdown": {
     ".": {
-      "min": 6000,
-      "gzip": 2553
+      "min": 7397,
+      "gzip": 3056
     },
     "./code-fence": {
       "min": 84,
@@ -163,8 +163,8 @@
   },
   "@assistant-ui/react-mcp": {
     ".": {
-      "min": 42855,
-      "gzip": 13913
+      "min": 43938,
+      "gzip": 14265
     }
   },
   "@assistant-ui/react-native": {
@@ -201,8 +201,8 @@
   },
   "@assistant-ui/react-streamdown": {
     ".": {
-      "min": 8380,
-      "gzip": 3575
+      "min": 9157,
+      "gzip": 3861
     }
   },
   "@assistant-ui/react-syntax-highlighter": {

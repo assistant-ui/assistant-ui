@@ -16,7 +16,9 @@ import {
   type ComponentRef,
   type FC,
   forwardRef,
+  memo,
   useDeferredValue,
+  useRef,
   useMemo,
 } from "react";
 import { useAdaptedComponents } from "../adapters/components-adapter";
@@ -57,6 +59,57 @@ const StreamdownBody: FC<StreamdownBodyProps> = ({
   return <Streamdown {...props}>{repairedText}</Streamdown>;
 };
 
+const isShallowEqual = (a: unknown, b: unknown, depth = 1): boolean => {
+  if (Object.is(a, b)) return true;
+  if (depth <= 0) return false;
+
+  if (Array.isArray(a) && Array.isArray(b)) {
+    return (
+      a.length === b.length &&
+      a.every((item, i) => isShallowEqual(item, b[i], depth - 1))
+    );
+  }
+
+  const plain = (value: unknown): value is Record<string, unknown> =>
+    typeof value === "object" && value !== null && !Array.isArray(value);
+
+  if (plain(a) && plain(b)) {
+    const keys = Object.keys(a);
+    return (
+      keys.length === Object.keys(b).length &&
+      keys.every(
+        (key) =>
+          Object.hasOwn(b, key) && isShallowEqual(a[key], b[key], depth - 1),
+      )
+    );
+  }
+
+  return false;
+};
+
+/**
+ * Keeps the identity of props whose contents are unchanged, comparing one array
+ * or object level so that an inline `remarkPlugins={[plugin]}` still reaches the
+ * memoized body. A value mutated in place keeps the old identity and is not
+ * observed.
+ */
+function useStableProps<T extends object>(props: T): T {
+  const previous = useRef(props);
+  if (!isShallowEqual(props, previous.current, 2)) previous.current = props;
+  return previous.current;
+}
+
+// Streamdown reparses the whole accumulated text on every render, so the urgent
+// pass of a deferred pair would parse text the previous commit already parsed.
+// Memoizing the body turns that pass into a bail-out.
+const MemoizedStreamdownBody: FC<StreamdownBodyProps> = memo(
+  ({ text, shouldTailRemend, remendConfig, ...props }) => {
+    const repairedText = useRepairedText(text, shouldTailRemend, remendConfig);
+    return <Streamdown {...props}>{repairedText}</Streamdown>;
+  },
+);
+MemoizedStreamdownBody.displayName = "MemoizedStreamdownBody";
+
 // `useDeferredValue` schedules a second render pass whenever its input changes,
 // so the deferred path lives in its own component and `defer={false}` never
 // mounts it. The repair stays below the deferral so it runs in the deferred
@@ -68,12 +121,14 @@ const DeferredStreamdownBody: FC<StreamdownBodyProps> = ({
   ...props
 }) => {
   const deferredText = useDeferredValue(text);
-  const repairedText = useRepairedText(
-    deferredText,
-    shouldTailRemend,
-    remendConfig,
+  return (
+    <MemoizedStreamdownBody
+      text={deferredText}
+      shouldTailRemend={shouldTailRemend}
+      remendConfig={remendConfig}
+      {...props}
+    />
   );
-  return <Streamdown {...props}>{repairedText}</Streamdown>;
 };
 
 // Streamdown extends the default sanitize schema without exporting it, so it is
@@ -287,6 +342,12 @@ export const StreamdownTextPrimitive = forwardRef<
     };
 
     const Body = defer ? DeferredStreamdownBody : StreamdownBody;
+    // An inline option object is a fresh value every render, which would give
+    // the memoized body a new prop identity and defeat its bail-out.
+    const bodyProps = useStableProps({
+      ...optionalProps,
+      ...streamdownProps,
+    });
 
     return (
       <div
@@ -302,8 +363,7 @@ export const StreamdownTextPrimitive = forwardRef<
           mode={mode}
           isAnimating={status.type === "running"}
           components={mergedComponents}
-          {...optionalProps}
-          {...streamdownProps}
+          {...bodyProps}
         />
       </div>
     );

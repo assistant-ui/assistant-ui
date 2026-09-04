@@ -1,8 +1,9 @@
 // @vitest-environment jsdom
 
-import { renderHook } from "@testing-library/react";
+import { renderHook, waitFor } from "@testing-library/react";
 import type { AssistantCloud } from "assistant-cloud";
-import { describe, expect, it, vi } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
+import type { ThreadAssistantMessage } from "../../../types/message";
 import { useAssistantCloudThreadHistoryAdapter } from "./AssistantCloudThreadHistoryAdapter";
 
 const mocks = vi.hoisted(() => {
@@ -64,11 +65,34 @@ const makeCloud = () =>
         list: vi.fn().mockResolvedValue({ messages: [] }),
         create: vi.fn().mockResolvedValue({ message_id: "remote-message-1" }),
         update: vi.fn().mockResolvedValue(undefined),
+        feedback: vi.fn().mockResolvedValue({
+          feedback_id: "feedback-1",
+          type: "positive",
+        }),
       },
     },
     telemetry: { enabled: true },
     runs: { report: vi.fn().mockResolvedValue(undefined) },
   }) as unknown as AssistantCloud;
+
+const makeAssistantMessage = (id: string): ThreadAssistantMessage => ({
+  id,
+  role: "assistant",
+  content: [{ type: "text", text: "done" }],
+  status: { type: "complete", reason: "stop" },
+  createdAt: new Date(0),
+  metadata: {
+    unstable_state: null,
+    unstable_annotations: [],
+    unstable_data: [],
+    steps: [],
+    custom: {},
+  },
+});
+
+afterEach(() => {
+  vi.restoreAllMocks();
+});
 
 describe("useAssistantCloudThreadHistoryAdapter", () => {
   it("refreshes formatted persistence when the Cloud client changes", async () => {
@@ -159,6 +183,91 @@ describe("useAssistantCloudThreadHistoryAdapter", () => {
     await result.current.load();
     expect(cloud.threads.messages.list).toHaveBeenCalledWith("thread-2", {
       format: "aui/v0",
+    });
+  });
+
+  it("submits feedback with the mapped cloud message ID", async () => {
+    mocks.aui = mocks.makeClient("thread-1");
+    const cloud = makeCloud();
+    const cloudRef = { current: cloud };
+    const { result } = renderHook(() =>
+      useAssistantCloudThreadHistoryAdapter(cloudRef),
+    );
+    const message = makeAssistantMessage("local-message-1");
+
+    await result.current.append({ parentId: null, message });
+    result.current.feedback.submit({ message, type: "positive" });
+
+    await waitFor(() => {
+      expect(cloud.threads.messages.feedback).toHaveBeenCalledWith(
+        "thread-1",
+        "remote-message-1",
+        { type: "positive" },
+      );
+    });
+  });
+
+  it("warns and skips feedback before the thread has a remote ID", async () => {
+    mocks.aui = mocks.makeClient(undefined, "local-thread", "thread-1");
+    const cloud = makeCloud();
+    const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
+    const { result } = renderHook(() =>
+      useAssistantCloudThreadHistoryAdapter({ current: cloud }),
+    );
+    const message = makeAssistantMessage("local-message-1");
+
+    result.current.feedback.submit({ message, type: "negative" });
+
+    await waitFor(() => {
+      expect(warn).toHaveBeenCalledWith(
+        "[assistant-ui] Skipping feedback for message local-message-1: the thread has no remote id.",
+      );
+    });
+    expect(cloud.threads.messages.feedback).not.toHaveBeenCalled();
+  });
+
+  it("warns and skips feedback before the message has a cloud ID", async () => {
+    mocks.aui = mocks.makeClient("thread-1");
+    const cloud = makeCloud();
+    const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
+    const { result } = renderHook(() =>
+      useAssistantCloudThreadHistoryAdapter({ current: cloud }),
+    );
+    const message = makeAssistantMessage("local-message-1");
+
+    result.current.feedback.submit({ message, type: "negative" });
+
+    await waitFor(() => {
+      expect(warn).toHaveBeenCalledWith(
+        "[assistant-ui] Skipping feedback for message local-message-1: no cloud message id is mapped.",
+      );
+    });
+    expect(cloud.threads.messages.feedback).not.toHaveBeenCalled();
+  });
+
+  it("reports cloud feedback errors without throwing them into the UI", async () => {
+    mocks.aui = mocks.makeClient("thread-1");
+    const cloud = makeCloud();
+    const error = new Error("feedback unavailable");
+    vi.mocked(cloud.threads.messages.feedback).mockRejectedValue(error);
+    const consoleError = vi
+      .spyOn(console, "error")
+      .mockImplementation(() => {});
+    const { result } = renderHook(() =>
+      useAssistantCloudThreadHistoryAdapter({ current: cloud }),
+    );
+    const message = makeAssistantMessage("local-message-1");
+
+    await result.current.append({ parentId: null, message });
+    expect(() =>
+      result.current.feedback.submit({ message, type: "positive" }),
+    ).not.toThrow();
+
+    await waitFor(() => {
+      expect(consoleError).toHaveBeenCalledWith(
+        "[assistant-ui] Cloud feedback submission failed:",
+        error,
+      );
     });
   });
 

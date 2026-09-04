@@ -16,6 +16,10 @@ import {
 } from "../auth/createOAuthProvider";
 import { buildHeaders } from "../auth/buildHeaders";
 import { assertValidServerId } from "../utils/serverId";
+import {
+  hasPersistedCredentials,
+  isAuthStateForServerUrl,
+} from "../utils/serverUrl";
 import { validateElicitationContent } from "./validateElicitationContent";
 import type { MCPStorage } from "./storage/types";
 import type {
@@ -242,11 +246,23 @@ const useMcpServerResourceInstance = (
     },
   );
 
+  const unboundAuthMessage = () =>
+    `MCP server "${props.id}" has saved authentication for a different URL. Authenticate again to connect to ${props.url}.`;
+
+  const loadAuthState = useEffectEvent(async () => {
+    const state = await props.storage.loadAuthState(props.id);
+    if (isAuthStateForServerUrl(state, props.url)) {
+      return { state, unbound: false };
+    }
+    return { state: null, unbound: hasPersistedCredentials(state) };
+  });
+
   const buildTransport = useEffectEvent(
     async (): Promise<StreamableHTTPClientTransport> => {
       if (props.auth.type === "oauth") {
         const authProvider = createOAuthProvider({
           serverId: props.id,
+          serverUrl: props.url,
           config: props.auth,
           storage: props.storage,
           redirectUri: props.redirectUri,
@@ -257,8 +273,9 @@ const useMcpServerResourceInstance = (
         });
       }
       if (props.auth.type === "bearer") {
-        const persisted = await props.storage.loadAuthState(props.id);
-        const headers = buildHeaders(props.auth, persisted);
+        const { state, unbound } = await loadAuthState();
+        const headers = buildHeaders(props.auth, state);
+        if (!headers && unbound) throw new Error(unboundAuthMessage());
         const transportOpts: StreamableHTTPClientTransportOptions = {};
         if (headers) transportOpts.requestInit = { headers };
         return new StreamableHTTPClientTransport(
@@ -488,10 +505,11 @@ const useMcpServerResourceInstance = (
     }
     pendingAuthValidation.count += 1;
     try {
-      const persisted = await props.storage.loadAuthState(props.id);
+      const { state: persisted, unbound } = await loadAuthState();
       if (!isCurrentConnection(validationGeneration)) {
         throw createInterruptedAuthError();
       }
+      if (unbound) throw new Error(unboundAuthMessage());
       if (!persisted?.state) {
         throw new Error(
           "no pending OAuth authorization request for this server",
@@ -563,9 +581,9 @@ const useMcpServerResourceInstance = (
         return;
       }
       const generation = connectionGenerationRef.current;
-      let persisted: Awaited<ReturnType<MCPStorage["loadAuthState"]>>;
+      let loaded: Awaited<ReturnType<typeof loadAuthState>>;
       try {
-        persisted = await props.storage.loadAuthState(props.id);
+        loaded = await loadAuthState();
       } catch (error) {
         if (signal.cancelled || !isCurrentConnection(generation)) return;
         const message = error instanceof Error ? error.message : String(error);
@@ -576,6 +594,11 @@ const useMcpServerResourceInstance = (
         return;
       }
       if (signal.cancelled || !isCurrentConnection(generation)) return;
+      if (loaded.unbound) {
+        setLastError({ message: unboundAuthMessage() });
+        return;
+      }
+      const persisted = loaded.state;
       if (props.auth.type === "oauth") {
         if (!persisted?.tokens) return;
       } else if (!persisted?.token) {
