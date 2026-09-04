@@ -20,9 +20,12 @@ const sections = [
       "We collect personal information that you voluntarily provide to us when you register on the Services, express an interest in obtaining information about us or our products and Services, participate in activities on the Services, or otherwise contact us.",
       "The personal information we collect depends on the context of your interactions with us and the Services, the choices you make, and the products and features you use. It may include names, email addresses, usernames, passwords, contact or authentication data, and billing addresses.",
       <>
-        We do not process sensitive information. If you choose to make
-        purchases, payment data is handled and stored by Stripe. You may find
-        Stripe&apos;s privacy notice at{" "}
+        We do not ask for or deliberately collect sensitive information, though
+        we do log the messages you send to the AI assistant, so anything
+        sensitive you choose to put in them is processed as described in the
+        section titled &quot;Do We Offer Artificial Intelligence-Based
+        Products?&quot; If you choose to make purchases, payment data is handled
+        and stored by Stripe. You may find Stripe&apos;s privacy notice at{" "}
         <a
           href="https://stripe.com/privacy"
           target="_blank"

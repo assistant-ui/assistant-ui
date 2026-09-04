@@ -172,3 +172,55 @@ describe("consent requirement lookup", () => {
     expect(fetch).toHaveBeenCalledTimes(1);
   });
 });
+
+describe("cross-tab consent", () => {
+  it("carries a choice made in another tab", async () => {
+    const { target } = stubWindow();
+    const seen: string[] = [];
+
+    const { subscribeToConsent, getStoredConsent } = await load();
+    subscribeToConsent((choice) => seen.push(choice));
+    target.dispatchEvent(
+      Object.assign(new Event("storage"), {
+        key: "aui-consent",
+        newValue: "denied",
+      }),
+    );
+
+    expect(seen).toEqual(["denied"]);
+    expect(getStoredConsent()).toBe("denied");
+  });
+
+  it("ignores storage traffic for other keys", async () => {
+    const { target } = stubWindow();
+    const seen: string[] = [];
+
+    const { subscribeToConsent } = await load();
+    subscribeToConsent((choice) => seen.push(choice));
+    target.dispatchEvent(
+      Object.assign(new Event("storage"), {
+        key: "aui-umami-sample",
+        newValue: "denied",
+      }),
+    );
+
+    expect(seen).toEqual([]);
+  });
+
+  it("stops listening once unsubscribed", async () => {
+    const { target } = stubWindow();
+    const seen: string[] = [];
+
+    const { subscribeToConsent, setStoredConsent } = await load();
+    subscribeToConsent((choice) => seen.push(choice))();
+    setStoredConsent("granted");
+    target.dispatchEvent(
+      Object.assign(new Event("storage"), {
+        key: "aui-consent",
+        newValue: "denied",
+      }),
+    );
+
+    expect(seen).toEqual([]);
+  });
+});

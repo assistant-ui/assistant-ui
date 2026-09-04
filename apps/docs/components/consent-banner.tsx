@@ -9,6 +9,7 @@ import {
   hasGlobalPrivacyControl,
   isConsentRequired,
   setStoredConsent,
+  subscribeToConsent,
   type ConsentChoice,
 } from "@/lib/consent";
 
@@ -18,6 +19,7 @@ export function ConsentBanner() {
   useEffect(() => {
     const reopen = () => setVisible(true);
     window.addEventListener(CONSENT_REOPEN_EVENT, reopen);
+    const unsubscribe = subscribeToConsent(() => setVisible(false));
 
     let cancelled = false;
     if (!hasGlobalPrivacyControl() && getStoredConsent() === null) {
@@ -31,6 +33,7 @@ export function ConsentBanner() {
     return () => {
       cancelled = true;
       window.removeEventListener(CONSENT_REOPEN_EVENT, reopen);
+      unsubscribe();
     };
   }, []);
 

@@ -4,11 +4,10 @@ if (process.env.NODE_ENV === "development") {
 
 import posthog from "posthog-js";
 import {
-  CONSENT_CHANGE_EVENT,
   getStoredConsent,
   hasGlobalPrivacyControl,
   isConsentRequired,
-  type ConsentChoice,
+  subscribeToConsent,
 } from "./lib/consent";
 import { setUmamiTrackingEnabled } from "./lib/umami-sampling";
 
@@ -35,8 +34,7 @@ if (typeof window !== "undefined") {
 
   // The head script has already loaded umami by the time the banner is answered,
   // so a decline has to reach the running tracker rather than only the next load.
-  window.addEventListener(CONSENT_CHANGE_EVENT, (event) => {
-    const choice = (event as CustomEvent<ConsentChoice>).detail;
+  subscribeToConsent((choice) => {
     setUmamiTrackingEnabled(choice === "granted");
     if (choice === "granted") start();
     else if (started) posthog.opt_out_capturing();

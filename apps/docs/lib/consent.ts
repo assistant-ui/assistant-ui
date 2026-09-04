@@ -31,6 +31,29 @@ export function reopenConsentBanner(): void {
   window.dispatchEvent(new Event(CONSENT_REOPEN_EVENT));
 }
 
+export function subscribeToConsent(
+  listener: (choice: ConsentChoice) => void,
+): () => void {
+  const onChange = (event: Event) =>
+    listener((event as CustomEvent<ConsentChoice>).detail);
+
+  // A CustomEvent never leaves its own document, so the storage event is the
+  // only thing that carries a choice made in another tab.
+  const onStorage = (event: StorageEvent) => {
+    if (event.key !== CONSENT_STORAGE_KEY) return;
+    if (event.newValue !== "granted" && event.newValue !== "denied") return;
+    memoryConsent = event.newValue;
+    listener(event.newValue);
+  };
+
+  window.addEventListener(CONSENT_CHANGE_EVENT, onChange);
+  window.addEventListener("storage", onStorage);
+  return () => {
+    window.removeEventListener(CONSENT_CHANGE_EVENT, onChange);
+    window.removeEventListener("storage", onStorage);
+  };
+}
+
 export function hasGlobalPrivacyControl(): boolean {
   return (
     typeof navigator !== "undefined" &&
