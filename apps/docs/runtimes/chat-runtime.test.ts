@@ -3,6 +3,7 @@
 import { renderHook } from "@testing-library/react";
 import { afterEach, expect, it, vi } from "vitest";
 import type { SessionState } from "@/lib/session";
+import { useDocsChatRuntime, useDocsCloud } from "./chat-runtime";
 
 const useChatRuntime = vi.hoisted(() => vi.fn(() => ({ runtime: true })));
 const mocks = vi.hoisted(() => ({
@@ -37,7 +38,6 @@ afterEach(() => {
 
 it("switches cloud ownership only when signed-in history becomes available", async () => {
   vi.stubEnv("NEXT_PUBLIC_ASSISTANT_BASE_URL", "https://cloud.test");
-  const { useDocsCloud } = await import("./chat-runtime");
   const { result, rerender } = renderHook(() => useDocsCloud());
 
   const anonymousCloud = result.current.cloud;
@@ -110,24 +110,18 @@ it("switches cloud ownership only when signed-in history becomes available", asy
 });
 
 it("omits sendAutomaticallyWhen unless the surface opts in", async () => {
-  const { useDocsChatRuntime } = await import("./chat-runtime");
-
   useDocsChatRuntime();
 
   expect("sendAutomaticallyWhen" in options()).toBe(false);
 });
 
 it("sets sendAutomaticallyWhen for a surface that opts in", async () => {
-  const { useDocsChatRuntime } = await import("./chat-runtime");
-
   useDocsChatRuntime({ sendAutomatically: true });
 
   expect(typeof options().sendAutomaticallyWhen).toBe("function");
 });
 
 it("omits api and cloud when the surface supplies neither", async () => {
-  const { useDocsChatRuntime } = await import("./chat-runtime");
-
   useDocsChatRuntime();
 
   expect("cloud" in options()).toBe(false);
@@ -137,7 +131,6 @@ it("omits api and cloud when the surface supplies neither", async () => {
 });
 
 it("passes through the api, cloud and adapters a surface supplies", async () => {
-  const { useDocsChatRuntime } = await import("./chat-runtime");
   const cloud = {} as never;
   const adapters = { feedback: {} } as never;
 
@@ -151,8 +144,6 @@ it("passes through the api, cloud and adapters a surface supplies", async () => 
 });
 
 it("asks for the conversation budget only when the surface opts in", async () => {
-  const { useDocsChatRuntime } = await import("./chat-runtime");
-
   useDocsChatRuntime();
   const plain = options().transport as { options: { body?: unknown } };
   expect(plain.options.body).toBeUndefined();
