@@ -360,8 +360,9 @@ describe("RemoteThreadList backgroundThreads", () => {
     listed = [{ status: "regular" as const, remoteId, title: "One" }];
     await aui.threads.reload();
     await vi.waitFor(() => {
-      expect(aui.threads.getState().threadIds).toContain(remoteId);
+      expect(aui.threads.getState().threadIds).toContain(localId);
     });
+    expect(aui.threads.getState().threadIds).not.toContain(remoteId);
 
     flushTapSync(() => aui.threads.switchToNewThread());
     await vi.waitFor(() => {

@@ -139,21 +139,26 @@ When no static configuration is provided, the `suggestions` scope derives from `
 
 See [Suggested Prompts](/docs/guides/suggestions) for end to end examples.
 
-### ThreadPrimitive.Suggestion (Legacy)
+### ThreadPrimitive.Suggestion
 
-`ThreadPrimitive.Suggestion` is a self-contained button that takes a `prompt` prop directly. The newer pattern (`ThreadPrimitive.Suggestions` + `SuggestionPrimitive` parts) is preferred for structured suggestions with title and description:
+`ThreadPrimitive.Suggestion` is a self-contained button that takes its `prompt` as a prop instead of reading the `suggestions` scope. Both paths run the same trigger behavior, including the queueing and disabled handling described above, so the choice is about where the prompt comes from:
+
+- Rendering the `suggestions` scope: use `ThreadPrimitive.Suggestions` with the `SuggestionPrimitive` parts, which supply the title and description for you.
+- Rendering prompts from anywhere else: use `ThreadPrimitive.Suggestion` and pass the prompt directly.
 
 ```tsx
-// Legacy: still works, but limited
-<ThreadPrimitive.Suggestion prompt="Write a blog post" />
-
-// Preferred: structured with title/description
+// Prompts from the suggestions scope
 <ThreadPrimitive.Suggestions>
   {() => <MySuggestionItem />}
 </ThreadPrimitive.Suggestions>
+
+// A prompt the caller already holds
+<ThreadPrimitive.Suggestion prompt="Write a blog post" />
 ```
 
-`ThreadPrimitive.Suggestion` also supports deprecated `autoSend` and `method` props for backwards compatibility. Prefer `send` and `clearComposer`.
+The second case is not a fallback. A component that renders `thread.suggestions` cannot read them through the `suggestions` scope once the app also configures static suggestions, because that configuration takes precedence over the derived values. The shadcn `ThreadFollowupSuggestions` component reads `thread.suggestions` and renders each entry with `ThreadPrimitive.Suggestion` for that reason.
+
+The `autoSend` and `method` props are deprecated; prefer `send` and `clearComposer`.
 
 ## Parts
 

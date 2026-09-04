@@ -5,14 +5,7 @@ import type {
   Unstable_TriggerCategory,
   Unstable_TriggerItem,
 } from "@assistant-ui/core";
-
-function matchesQuery(item: Unstable_TriggerItem, lower: string): boolean {
-  return (
-    item.id.toLowerCase().includes(lower) ||
-    item.label.toLowerCase().includes(lower) ||
-    (item.description?.toLowerCase().includes(lower) ?? false)
-  );
-}
+import { matchesTriggerItemQuery } from "./matchesTriggerItemQuery";
 
 export type TriggerNavigationResourceOutput = {
   /** Filtered categories visible in the list (empty in search mode). */
@@ -76,7 +69,7 @@ const useTriggerNavigationResource = ({
     const lower = query.toLowerCase();
     for (const cat of categories) {
       for (const item of adapter.categoryItems(cat.id)) {
-        if (matchesQuery(item, lower)) {
+        if (matchesTriggerItemQuery(item, lower)) {
           all.push(item);
         }
       }
@@ -97,7 +90,7 @@ const useTriggerNavigationResource = ({
     if (isSearchMode) return searchResults ?? [];
     if (!query) return allItems;
     const lower = query.toLowerCase();
-    return allItems.filter((item) => matchesQuery(item, lower));
+    return allItems.filter((item) => matchesTriggerItemQuery(item, lower));
   }, [allItems, query, isSearchMode, searchResults]);
 
   const navigableList = useMemo(() => {

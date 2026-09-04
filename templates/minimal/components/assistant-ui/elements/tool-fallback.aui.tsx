@@ -9,6 +9,7 @@ import {
   XCircleIcon,
 } from "lucide-react";
 import {
+  toolApprovalAcceptsText,
   useScrollLock,
   useToolCallElapsed,
   type ToolApprovalOption,
@@ -24,6 +25,7 @@ import {
 } from "@/components/ui/collapsible";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
+import { Textarea } from "@/components/ui/textarea";
 
 const ANIMATION_DURATION = 200;
 
@@ -324,6 +326,13 @@ const approvalOptionLabel = (option: ToolApprovalOption) =>
     : undefined) ??
   option.id;
 
+/**
+ * A request that declares how it wants to be presented is asking a question,
+ * not gating an action, so a refusal is not one of the answers it accepts.
+ */
+const isQuestion = (approval: ToolCallMessagePart["approval"]) =>
+  approval?.display === "select" || approval?.display === "text";
+
 const offersInterruptAction = (
   status: ToolCallMessagePartStatus | undefined,
   approval: ToolCallMessagePart["approval"],
@@ -355,6 +364,8 @@ function ToolFallbackApproval({
   }) {
   const [submitted, setSubmitted] = useState(false);
   const [confirmingId, setConfirmingId] = useState<string | null>(null);
+  const [answer, setAnswer] = useState("");
+  const [error, setError] = useState<string | null>(null);
 
   if (
     approval != null &&
@@ -365,8 +376,30 @@ function ToolFallbackApproval({
   if (!offersInterruptAction(status, approval, interrupt)) return null;
 
   // A declared option list is a host constraint: the kit never adds an
-  // approval path beyond it, but always preserves a refusal path.
+  // approval path beyond it, and preserves a refusal path only where the
+  // request is an action the user may refuse.
   const declaredOptions = respondToApproval ? approval?.options : undefined;
+  const acceptsText =
+    approval != null &&
+    respondToApproval != null &&
+    toolApprovalAcceptsText(approval);
+
+  // A refused response leaves the request open, so the controls come back
+  // rather than staying spent on a decision the runtime never recorded.
+  const submit = (send: () => Promise<void> | void) => {
+    setSubmitted(true);
+    setError(null);
+    void (async () => {
+      try {
+        await send();
+      } catch (sendError) {
+        setSubmitted(false);
+        setError(
+          sendError instanceof Error ? sendError.message : String(sendError),
+        );
+      }
+    })();
+  };
 
   const respond = (approved: boolean) => {
     if (submitted) return;
@@ -375,32 +408,39 @@ function ToolFallbackApproval({
       approval.approved === undefined &&
       respondToApproval
     ) {
-      respondToApproval({ approved });
+      submit(() => respondToApproval({ approved, ...typedAnswer() }));
     } else if (interrupt) {
-      resume?.({ approved });
+      submit(() => resume?.({ approved }));
     } else if (
       status?.type === "requires-action" &&
       status.reason === "interrupt"
     ) {
       return;
     } else {
-      addResult?.(approved ? APPROVED_RESULT : DENIED_RESULT);
+      submit(() => addResult?.(approved ? APPROVED_RESULT : DENIED_RESULT));
     }
-    setSubmitted(true);
   };
 
   const respondWithOption = (option: ToolApprovalOption) => {
     if (submitted) return;
+    setConfirmingId(null);
     // A custom kind has no decision class for the runtime to derive, and
     // responding without one throws; picking a declared option is an answer,
     // so it resolves as approved.
-    respondToApproval?.(
-      isKnownKind(option.kind)
-        ? { optionId: option.id }
-        : { optionId: option.id, approved: true },
+    submit(() =>
+      respondToApproval?.(
+        isKnownKind(option.kind)
+          ? { optionId: option.id, ...typedAnswer() }
+          : { optionId: option.id, approved: true, ...typedAnswer() },
+      ),
     );
-    setSubmitted(true);
-    setConfirmingId(null);
+  };
+
+  const typedAnswer = () => (answer.trim() ? { text: answer } : {});
+
+  const submitAnswer = () => {
+    if (submitted || !answer.trim()) return;
+    submit(() => respondToApproval?.({ text: answer }));
   };
 
   const handleOption = (option: ToolApprovalOption) => {
@@ -415,6 +455,47 @@ function ToolFallbackApproval({
     confirmingId != null
       ? declaredOptions?.find((o) => o.id === confirmingId)
       : undefined;
+
+  const question = isQuestion(approval);
+
+  const promptText = approval?.prompt ? (
+    <p className="aui-tool-fallback-approval-prompt text-foreground">
+      {approval.prompt}
+    </p>
+  ) : null;
+
+  const errorText = error ? (
+    <p
+      role="alert"
+      className="aui-tool-fallback-approval-error text-destructive text-xs"
+    >
+      {error}
+    </p>
+  ) : null;
+
+  const answerField = acceptsText ? (
+    <div className="aui-tool-fallback-approval-answer flex flex-col items-start gap-2">
+      <Textarea
+        value={answer}
+        onChange={(event) => setAnswer(event.target.value)}
+        disabled={submitted}
+        aria-label={question ? (approval?.prompt ?? "Answer") : "Note"}
+        placeholder={
+          question ? "Type your answer" : "Add a note to your decision"
+        }
+      />
+      {question && (
+        <Button
+          size="sm"
+          className={pressable}
+          onClick={submitAnswer}
+          disabled={submitted || !answer.trim()}
+        >
+          Send
+        </Button>
+      )}
+    </div>
+  ) : null;
 
   if (confirming) {
     const confirmMeta =
@@ -482,34 +563,60 @@ function ToolFallbackApproval({
       <div
         data-slot="tool-fallback-approval"
         className={cn(
-          "aui-tool-fallback-approval flex flex-wrap items-center gap-2 pt-1",
+          "aui-tool-fallback-approval flex flex-col gap-2 pt-1",
           className,
         )}
         {...props}
       >
-        {[...allowOptions, ...customOptions, ...rejectOptions].map((option) => (
-          <Button
-            key={option.id}
-            size="sm"
-            variant={option === allowOptions[0] ? "default" : "outline"}
-            className={pressable}
-            onClick={() => handleOption(option)}
-            disabled={submitted}
-          >
-            {approvalOptionLabel(option)}
-          </Button>
-        ))}
-        {rejectOptions.length === 0 && (
-          <Button
-            size="sm"
-            variant="outline"
-            className={pressable}
-            onClick={() => respond(false)}
-            disabled={submitted}
-          >
-            Deny
-          </Button>
+        {promptText}
+        <div className="flex flex-wrap items-center gap-2">
+          {[...allowOptions, ...customOptions, ...rejectOptions].map(
+            (option) => (
+              <Button
+                key={option.id}
+                size="sm"
+                variant={option === allowOptions[0] ? "default" : "outline"}
+                className={pressable}
+                onClick={() => handleOption(option)}
+                disabled={submitted}
+              >
+                {approvalOptionLabel(option)}
+              </Button>
+            ),
+          )}
+          {rejectOptions.length === 0 && !question && (
+            <Button
+              size="sm"
+              variant="outline"
+              className={pressable}
+              onClick={() => respond(false)}
+              disabled={submitted}
+            >
+              Deny
+            </Button>
+          )}
+        </div>
+        {answerField}
+        {errorText}
+      </div>
+    );
+  }
+
+  // A question carries no decision to fabricate, so it renders only what the
+  // request declared, even when that leaves nothing to act on here.
+  if (question) {
+    return (
+      <div
+        data-slot="tool-fallback-approval"
+        className={cn(
+          "aui-tool-fallback-approval flex flex-col gap-2 pt-1",
+          className,
         )}
+        {...props}
+      >
+        {promptText}
+        {answerField}
+        {errorText}
       </div>
     );
   }
@@ -518,28 +625,33 @@ function ToolFallbackApproval({
     <div
       data-slot="tool-fallback-approval"
       className={cn(
-        "aui-tool-fallback-approval flex items-center gap-2 pt-1",
+        "aui-tool-fallback-approval flex flex-col gap-2 pt-1",
         className,
       )}
       {...props}
     >
-      <Button
-        size="sm"
-        className={pressable}
-        onClick={() => respond(true)}
-        disabled={submitted}
-      >
-        Allow
-      </Button>
-      <Button
-        size="sm"
-        variant="outline"
-        className={pressable}
-        onClick={() => respond(false)}
-        disabled={submitted}
-      >
-        Deny
-      </Button>
+      {promptText}
+      <div className="flex items-center gap-2">
+        <Button
+          size="sm"
+          className={pressable}
+          onClick={() => respond(true)}
+          disabled={submitted}
+        >
+          Allow
+        </Button>
+        <Button
+          size="sm"
+          variant="outline"
+          className={pressable}
+          onClick={() => respond(false)}
+          disabled={submitted}
+        >
+          Deny
+        </Button>
+      </div>
+      {answerField}
+      {errorText}
     </div>
   );
 }

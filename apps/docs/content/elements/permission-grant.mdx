@@ -19,19 +19,30 @@ A runtime whose backend declares tool approval gates (an AG-UI or ACP agent, for
 ```tsx title="app/shell-toolkit.tsx"
 "use client";
 
-import type { ToolCallMessagePartProps } from "@assistant-ui/react";
+import type { ToolApprovalResponse, ToolCallMessagePartProps } from "@assistant-ui/react";
 
 function ShellApprovalGate({ args, approval, respondToApproval }: ToolCallMessagePartProps<{ command: string }, string>) {
   if (!approval || approval.approved !== undefined || approval.resolution !== undefined) {
     return null;
   }
 
+  // A refused response rejects and a precondition (an unknown option, an answer
+  // the request does not take) throws, so `try`/`await` covers both and the
+  // controls stay actionable.
+  const answer = async (response: ToolApprovalResponse) => {
+    try {
+      await respondToApproval(response);
+    } catch (failure) {
+      console.error(failure);
+    }
+  };
+
   return (
     <div className="flex flex-col gap-3.5 rounded-[20px] border p-4">
       <p className="text-sm font-medium">Run: {args.command}</p>
       <div className="flex flex-wrap gap-2">
         {(approval.options ?? []).map((option) => (
-          <button key={option.id} type="button" onClick={() => respondToApproval({ optionId: option.id })}>
+          <button key={option.id} type="button" onClick={() => void answer({ optionId: option.id })}>
             {option.label ?? option.kind}
           </button>
         ))}
@@ -53,7 +64,7 @@ Each declared option carries its own `grants`, the patterns or rules choosing it
 ```tsx
 {(approval.options ?? []).map((option) => (
   <div key={option.id} className="flex flex-col gap-1">
-    <button type="button" onClick={() => respondToApproval({ optionId: option.id })}>
+    <button type="button" onClick={() => void answer({ optionId: option.id })}>
       {option.label ?? option.kind}
     </button>
     {option.grants?.map((grant) => <span key={grant}>{grant}</span>)}
@@ -138,7 +149,7 @@ if (confirming) {
   return (
     <div>
       <p>{typeof confirming.confirm === "object" ? confirming.confirm.title : `${confirming.label}?`}</p>
-      <button onClick={() => respondToApproval({ optionId: confirming.id })}>Confirm</button>
+      <button onClick={() => void answer({ optionId: confirming.id })}>Confirm</button>
       <button onClick={() => setConfirmingId(null)}>Back</button>
     </div>
   );
@@ -154,10 +165,10 @@ if (confirming) {
 `approval.options` is optional. When it's absent, the gate is a plain yes or no: respond with `approved` instead of an `optionId`.
 
 ```tsx
-<button type="button" onClick={() => respondToApproval({ approved: true })}>
+<button type="button" onClick={() => void answer({ approved: true })}>
   Allow
 </button>
-<button type="button" onClick={() => respondToApproval({ approved: false })}>
+<button type="button" onClick={() => void answer({ approved: false })}>
   Deny
 </button>
 ```
@@ -181,7 +192,7 @@ Both lanes take `className` on the root. The root uses the shared `paper` surfac
 | `approval.options` | `readonly ToolApprovalOption[] \| undefined` | Available decisions; absent means a plain allow or deny. |
 | `approval.optionId` | `string \| undefined` | The option chosen at resolution, when options were present. |
 | `approval.resolution` | `"cancelled" \| "expired" \| undefined` | Set by the host when the request ended without a user decision. |
-| `respondToApproval(response)` | `(response: ToolApprovalResponse) => void` | Answers the gate. Accepts `{ approved }`, `{ optionId }`, or both. Only valid while `approved` and `resolution` are both unset. |
+| `respondToApproval(response)` | `(response: ToolApprovalResponse) => Promise<void>` | Answers the gate. Accepts `{ approved }`, `{ optionId }`, both, or `{ text }` when the request takes a free-form answer. Only valid while `approved` and `resolution` are both unset. |
 
 ### ToolApprovalOption
 

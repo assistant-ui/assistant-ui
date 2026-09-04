@@ -5,6 +5,7 @@ import { generateId } from "@assistant-ui/core";
 import type {
   ThreadMessageLike as CoreThreadMessageLike,
   PartProviderMetadata,
+  ThreadMessage,
   ToolCallMessagePartMcpMetadata,
   ToolModelContentPart,
 } from "@assistant-ui/core";
@@ -106,7 +107,16 @@ type ToolCallPart = {
   modelContent?: readonly ToolModelContentPart[];
   unstable_toolMessageId?: string;
   mcp?: ToolCallMessagePartMcpMetadata;
+  messages?: readonly ThreadMessage[];
+  approval?: CoreToolCallPartApproval;
 };
+
+type CoreToolCallPartApproval = NonNullable<
+  Extract<
+    Exclude<CoreThreadMessageLike["content"], string>[number],
+    { type: "tool-call" }
+  >["approval"]
+>;
 
 const isObject = (value: unknown): value is Record<string, unknown> =>
   typeof value === "object" && value !== null;
@@ -1051,34 +1061,94 @@ function convertAssistantMessage(
     return;
   }
 
+  // A subagent's tool calls live on nested assistant messages. Before
+  // subagent attribution they flattened to root and went out with this
+  // assistant record as their antecedent, so the resume payload restores
+  // exactly that shape: the calls join this record's toolCalls and their
+  // results follow as tool records — never a tool record without its call.
+  // The nested assistant content itself is backend-owned state and is not
+  // re-sent.
+  const nestedToolCalls: {
+    id: string;
+    call: AgUiToolCall;
+    part: ToolCallPart;
+  }[] = [];
+  for (const { part } of toolCalls) {
+    collectNestedToolCalls(part, nestedToolCalls);
+  }
+
   converted.push({
     id: message.id,
     role: "assistant",
     content,
     ...(message.name ? { name: message.name } : {}),
-    ...(toolCalls.length > 0
-      ? { toolCalls: toolCalls.map((entry) => entry.call) }
+    ...(toolCalls.length + nestedToolCalls.length > 0
+      ? {
+          toolCalls: [...toolCalls, ...nestedToolCalls].map(
+            (entry) => entry.call,
+          ),
+        }
       : {}),
   });
 
   for (const { id: toolCallId, part } of toolCalls) {
-    if (part.result === undefined) continue;
-
-    const resultContent =
-      part.modelContent !== undefined
-        ? extractText(part.modelContent)
-        : typeof part.result === "string"
-          ? part.result
-          : JSON.stringify(part.result);
-
-    converted.push({
-      id: part.unstable_toolMessageId ?? `${toolCallId}:tool`,
-      role: "tool",
-      content: resultContent,
-      toolCallId,
-      ...(part.isError ? { error: resultContent } : {}),
-    });
+    emitToolResult(toolCallId, part, converted);
   }
+  for (const { id: toolCallId, part } of nestedToolCalls) {
+    // A result recorded while the call's approval gate is still open must not
+    // reach the backend as if the gate had been decided.
+    const gateOpen =
+      part.approval != null &&
+      part.approval.approved === undefined &&
+      part.approval.resolution === undefined;
+    if (gateOpen) continue;
+    emitToolResult(toolCallId, part, converted);
+  }
+}
+
+function collectNestedToolCalls(
+  part: ToolCallPart,
+  out: { id: string; call: AgUiToolCall; part: ToolCallPart }[],
+): void {
+  for (const nested of part.messages ?? []) {
+    if (!isObject(nested) || nested.role !== "assistant") continue;
+    const nestedContent = Array.isArray(nested.content) ? nested.content : [];
+    for (const nestedPart of nestedContent) {
+      if (!isObject(nestedPart) || nestedPart.type !== "tool-call") continue;
+      const nestedToolCall = nestedPart as ToolCallPart;
+      if (
+        typeof nestedToolCall.toolCallId !== "string" ||
+        nestedToolCall.toolCallId.startsWith("a2ui:")
+      ) {
+        continue;
+      }
+      out.push({ ...normalizeToolCall(nestedToolCall), part: nestedToolCall });
+      collectNestedToolCalls(nestedToolCall, out);
+    }
+  }
+}
+
+function emitToolResult(
+  toolCallId: string,
+  part: ToolCallPart,
+  converted: AgUiMessage[],
+): void {
+  if (part.result === undefined) return;
+
+  const resultContent =
+    part.modelContent !== undefined
+      ? extractText(part.modelContent)
+      : typeof part.result === "string"
+        ? part.result
+        : JSON.stringify(part.result);
+
+  converted.push({
+    id: part.unstable_toolMessageId ?? `${toolCallId}:tool`,
+    role: "tool",
+    content: resultContent,
+    toolCallId,
+    ...(part.isError ? { error: resultContent } : {}),
+  });
 }
 
 function convertToolMessage(

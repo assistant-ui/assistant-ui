@@ -10,6 +10,12 @@ import type {
 } from "@assistant-ui/core";
 import { unstable_defaultDirectiveFormatter } from "@assistant-ui/core";
 import type { ReadonlyJSONObject } from "assistant-stream/utils";
+import { matchesTriggerItemQuery } from "../primitives/composer/trigger/matchesTriggerItemQuery";
+import {
+  shallowEqualRecords,
+  useModelContextSnapshot,
+  type ModelContextSnapshotSource,
+} from "./useModelContextSnapshot";
 
 /** Icon component shape consumed by `ComposerTriggerPopover`'s `iconMap`. */
 export type Unstable_IconComponent = FC<{ className?: string }>;
@@ -31,7 +37,10 @@ export type Unstable_MentionCategory = {
 };
 
 export type Unstable_ModelContextToolsOptions = {
-  /** Wrap tools in a dedicated category (drill-down mode). */
+  /**
+   * Wrap tools in a dedicated category. Selects drill-down mode on its own
+   * when `categories` is unset and `items` is omitted.
+   */
   readonly category?: { readonly id: string; readonly label: string };
   /** Format tool name for display. */
   readonly formatLabel?: (toolName: string) => string;
@@ -40,7 +49,10 @@ export type Unstable_ModelContextToolsOptions = {
 };
 
 export type Unstable_UseMentionAdapterOptions = {
-  /** Flat mention list. Ignored when `categories` is set. */
+  /**
+   * Flat mention list. Ignored when `categories` is set, and keeps the
+   * adapter flat when a tool `category` is configured.
+   */
   readonly items?: readonly Unstable_Mention[];
   /** Categorized mentions for drill-down navigation. */
   readonly categories?: readonly Unstable_MentionCategory[];
@@ -49,7 +61,7 @@ export type Unstable_UseMentionAdapterOptions = {
    * - `false`: exclude.
    * - `true`: include (default when no `items`/`categories`; as a category
    *   if `categories` is set, flat otherwise).
-   * - object: explicit config.
+   * - object: explicit config; `category` also selects drill-down mode.
    *
    * Omitted → defaults to `true` iff neither `items` nor `categories`.
    */
@@ -69,6 +81,42 @@ export type Unstable_UseMentionAdapterOptions = {
 export type Unstable_MentionDirective = {
   readonly formatter: Unstable_DirectiveFormatter;
   readonly onInserted?: ((item: Unstable_TriggerItem) => void) | undefined;
+};
+
+const EMPTY_TOOL_MENTIONS: Readonly<Record<string, string | undefined>> =
+  Object.freeze({});
+
+// The description is copied out rather than reached through the tool, so a
+// provider that returns a stable tool object and edits it in place is observed.
+const toolMentionSource: ModelContextSnapshotSource<
+  Readonly<Record<string, string | undefined>>
+> = {
+  empty: EMPTY_TOOL_MENTIONS,
+  read: (aui) => {
+    const tools = aui.thread.getModelContext().tools;
+    if (!tools) return EMPTY_TOOL_MENTIONS;
+    const mentions: Record<string, string | undefined> = {};
+    for (const [name, tool] of Object.entries(tools)) {
+      mentions[name] = tool.description;
+    }
+    return mentions;
+  },
+  subscribe: (aui, onChange) => {
+    const unsubscribeContext = aui.on("thread.modelContextUpdate", onChange);
+    // Rebinding the thread event subject to a new thread does not replay it,
+    // so a switch between threads carrying different providers is its own
+    // refresh trigger. Subscribed globally because a composer can render
+    // without a thread list scope.
+    const unsubscribeSelection = aui.on(
+      { scope: "*", event: "threads.selectionChanged" },
+      onChange,
+    );
+    return () => {
+      unsubscribeContext();
+      unsubscribeSelection();
+    };
+  },
+  isEqual: shallowEqualRecords,
 };
 
 /**
@@ -103,50 +151,48 @@ export function unstable_useMentionAdapter(
   const wantsTools = includeTools !== false;
   const formatter = options?.formatter;
   const onInserted = options?.onInserted;
+  const isCategorized =
+    (categories !== undefined && categories.length > 0) ||
+    (toolsConfig?.category !== undefined && items === undefined);
+  const toolMentions = useModelContextSnapshot(
+    aui,
+    wantsTools,
+    toolMentionSource,
+  );
 
   const adapter = useMemo<Unstable_TriggerAdapter>(() => {
-    const getModelContextTools = (): Unstable_TriggerItem[] => {
-      if (!wantsTools) return [];
-      const ctx = aui.thread.getModelContext();
-      const tools = ctx.tools;
-      if (!tools) return [];
-      const formatLabel = toolsConfig?.formatLabel;
-      const defaultIcon = toolsConfig?.icon;
-      return Object.entries(tools).map(([name, tool]) =>
-        toTriggerItem({
-          id: name,
-          type: "tool",
-          label: formatLabel ? formatLabel(name) : name,
-          description: tool.description ?? undefined,
-          icon: defaultIcon,
-        }),
-      );
-    };
+    const formatLabel = toolsConfig?.formatLabel;
+    const defaultIcon = toolsConfig?.icon;
+    const toolItems = wantsTools
+      ? Object.entries(toolMentions).map(([name, description]) =>
+          toTriggerItem({
+            id: name,
+            type: "tool",
+            label: formatLabel ? formatLabel(name) : name,
+            description,
+            icon: defaultIcon,
+          }),
+        )
+      : [];
 
     // Categorized: drill-down mode
-    if (categories && categories.length > 0) {
-      const groups = categories.map((cat) => ({
+    if (isCategorized) {
+      const groups = (categories ?? []).map((cat) => ({
         id: cat.id,
         label: cat.label,
         items: cat.items.map(toTriggerItem),
       }));
-
-      let toolCategory: {
-        id: string;
-        label: string;
-        items: Unstable_TriggerItem[];
-      } | null = null;
-      if (wantsTools) {
-        const toolItems = getModelContextTools();
-        if (toolItems.length > 0) {
-          toolCategory = {
-            id: toolsConfig?.category?.id ?? "tools",
-            label: toolsConfig?.category?.label ?? "Tools",
-            items: toolItems,
-          };
-        }
-      }
-      const allGroups = toolCategory ? [...groups, toolCategory] : groups;
+      const allGroups =
+        toolItems.length > 0
+          ? [
+              ...groups,
+              {
+                id: toolsConfig?.category?.id ?? "tools",
+                label: toolsConfig?.category?.label ?? "Tools",
+                items: toolItems,
+              },
+            ]
+          : groups;
 
       return {
         categories: () => allGroups.map(({ id, label }) => ({ id, label })),
@@ -155,30 +201,29 @@ export function unstable_useMentionAdapter(
           const lower = query.toLowerCase();
           return allGroups
             .flatMap((g) => g.items)
-            .filter((item) => matchesQuery(item, lower));
+            .filter((item) => matchesTriggerItemQuery(item, lower));
         },
       };
     }
 
     // Flat: items + (optionally) tools, all in one search pool
     const flatItems = (items ?? []).map(toTriggerItem);
-    const getFlatPool = (): Unstable_TriggerItem[] => {
-      if (!wantsTools) return flatItems;
-      const toolItems = getModelContextTools();
-      // Dedupe by id — explicit items win.
-      const seen = new Set(flatItems.map((i) => i.id));
-      return [...flatItems, ...toolItems.filter((t) => !seen.has(t.id))];
-    };
+    // Dedupe by id — explicit items win.
+    const seen = new Set(flatItems.map((i) => i.id));
+    const flatPool = [
+      ...flatItems,
+      ...toolItems.filter((t) => !seen.has(t.id)),
+    ];
 
     return {
       categories: (): readonly Unstable_TriggerCategory[] => [],
       categoryItems: () => [],
       search: (query) => {
         const lower = query.toLowerCase();
-        return getFlatPool().filter((item) => matchesQuery(item, lower));
+        return flatPool.filter((item) => matchesTriggerItemQuery(item, lower));
       },
     };
-  }, [aui, items, categories, wantsTools, toolsConfig]);
+  }, [items, categories, wantsTools, toolsConfig, isCategorized, toolMentions]);
 
   const directive = useMemo<Unstable_MentionDirective>(
     () => ({
@@ -206,12 +251,4 @@ function toTriggerItem(m: Unstable_Mention): Unstable_TriggerItem {
     ...(m.description !== undefined ? { description: m.description } : {}),
     ...(metadata !== undefined ? { metadata } : {}),
   };
-}
-
-function matchesQuery(item: Unstable_TriggerItem, lower: string): boolean {
-  if (!lower) return true;
-  if (item.id.toLowerCase().includes(lower)) return true;
-  if (item.label.toLowerCase().includes(lower)) return true;
-  if (item.description?.toLowerCase().includes(lower)) return true;
-  return false;
 }

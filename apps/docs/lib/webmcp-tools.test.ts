@@ -11,6 +11,10 @@ const okResult = {
   content: [{ type: "text", text: "hello" }],
 };
 
+function errorResult(text: string) {
+  return { isError: true, content: [{ type: "text", text }] };
+}
+
 function fetchReturning(payload: unknown, ok = true, status = 200) {
   return vi.fn(async () => ({
     ok,
@@ -119,12 +123,12 @@ describe("registered tools", () => {
   it("getDoc calls read_page with the given path", async () => {
     const fetchImpl = fetchReturning({ result: okResult });
     await toolByName(fetchImpl, "getDoc").execute({
-      path: "/docs/getting-started",
+      path: "/docs/installation",
     });
 
     expect(sentRequest(fetchImpl).body.params).toEqual({
       name: "read_page",
-      arguments: { path: "/docs/getting-started" },
+      arguments: { path: "/docs/installation" },
     });
   });
 
@@ -196,44 +200,46 @@ describe("registered tools", () => {
     expect(init.signal).toBe(controller.signal);
   });
 
-  it("rejects on missing arguments without fetching", async () => {
+  it("returns isError results on missing arguments without fetching", async () => {
     const fetchImpl = fetchReturning({ result: okResult });
     await expect(
       toolByName(fetchImpl, "searchDocs").execute({}),
-    ).rejects.toThrow("query is required");
+    ).resolves.toEqual(errorResult("query is required"));
     await expect(
       toolByName(fetchImpl, "getDoc").execute({ path: "  " }),
-    ).rejects.toThrow("path is required");
+    ).resolves.toEqual(errorResult("path is required"));
     await expect(
       toolByName(fetchImpl, "getExample").execute({}),
-    ).rejects.toThrow("path is required");
+    ).resolves.toEqual(errorResult("path is required"));
     expect(fetchImpl).not.toHaveBeenCalled();
   });
 
-  it("rejects on fetch failures, HTTP errors, and JSON-RPC errors", async () => {
+  it("returns isError results on fetch failures, HTTP errors, and JSON-RPC errors", async () => {
     const rejecting = vi.fn(async () => {
       throw new Error("offline");
     });
     await expect(
       toolByName(rejecting as never, "searchDocs").execute({ query: "x" }),
-    ).rejects.toThrow("offline");
+    ).resolves.toEqual(errorResult("Docs request failed: offline"));
 
     await expect(
       toolByName(fetchReturning({}, false, 500), "searchDocs").execute({
         query: "x",
       }),
-    ).rejects.toThrow("500");
+    ).resolves.toEqual(errorResult("Docs request failed with status 500"));
 
     await expect(
       toolByName(
         fetchReturning({ error: { message: "nope" } }),
         "searchDocs",
       ).execute({ query: "x" }),
-    ).rejects.toThrow("nope");
+    ).resolves.toEqual(errorResult("nope"));
 
     await expect(
       toolByName(fetchReturning({}), "searchDocs").execute({ query: "x" }),
-    ).rejects.toThrow("unexpected response");
+    ).resolves.toEqual(
+      errorResult("Docs request returned an unexpected response"),
+    );
   });
 
   it("propagates AbortError rejections without wrapping them", async () => {
@@ -277,7 +283,7 @@ describe("registered tools", () => {
       },
     }));
     const rejection = await toolByName(abortingBody, "getDoc")
-      .execute({ path: "/docs/getting-started" })
+      .execute({ path: "/docs/installation" })
       .then(
         () => {
           throw new Error("expected rejection");
@@ -288,7 +294,7 @@ describe("registered tools", () => {
     expect((rejection as DOMException).name).toBe("AbortError");
   });
 
-  it("rejects on route-level isError results, surfacing the error text", async () => {
+  it("passes route-level isError results through with their error text", async () => {
     const fetchImpl = fetchReturning({
       result: {
         content: [{ type: "text", text: "Page not found: nope" }],
@@ -297,10 +303,10 @@ describe("registered tools", () => {
     });
     await expect(
       toolByName(fetchImpl, "getDoc").execute({ path: "/docs/nope" }),
-    ).rejects.toThrow("Page not found: nope");
+    ).resolves.toEqual(errorResult("Page not found: nope"));
   });
 
-  it("rejects on malformed 200 responses", async () => {
+  it("returns isError results on malformed 200 responses", async () => {
     const invalidJson = vi.fn(async () => ({
       ok: true,
       status: 200,
@@ -310,7 +316,7 @@ describe("registered tools", () => {
     }));
     await expect(
       toolByName(invalidJson, "searchDocs").execute({ query: "x" }),
-    ).rejects.toThrow("invalid JSON");
+    ).resolves.toEqual(errorResult("Docs request returned invalid JSON"));
 
     for (const payload of [null, "ok", { result: { content: "text" } }]) {
       await expect(
@@ -318,7 +324,9 @@ describe("registered tools", () => {
           query: "x",
         }),
         JSON.stringify(payload),
-      ).rejects.toThrow("unexpected response");
+      ).resolves.toEqual(
+        errorResult("Docs request returned an unexpected response"),
+      );
     }
   });
 });

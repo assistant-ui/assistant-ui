@@ -13,6 +13,7 @@ import {
   type ThreadMessage,
   type ThreadMessageLike,
   type ThreadUserMessagePart,
+  type ToolApprovalDisplay,
   type ToolApprovalOption,
   type ToolCallMessagePart,
 } from "@assistant-ui/core";
@@ -161,6 +162,44 @@ const toolApprovalOptionsFromInputRequest = (
   }));
 };
 
+/**
+ * Eve resolves a request the moment any response for it arrives, so the answer
+ * shapes it accepts decide both what the renderer may offer and what
+ * {@link toEveInputResponse} may submit. A request with no options and no
+ * `display` takes a typed answer, which is why the absence of both is not the
+ * same as a confirmation.
+ */
+const isDroppedOptionApproval = (inputRequest: EveMessageInputRequest) =>
+  inputRequest.kind === "tool-approval" && !inputRequest.options?.length;
+
+const acceptsFreeformAnswer = (inputRequest: EveMessageInputRequest): boolean =>
+  inputRequest.display !== "confirmation" &&
+  !isDroppedOptionApproval(inputRequest) &&
+  (inputRequest.display === "text" ||
+    inputRequest.allowFreeform === true ||
+    !inputRequest.options?.length);
+
+const toolApprovalDisplay = (
+  inputRequest: EveMessageInputRequest,
+): ToolApprovalDisplay => {
+  // The mapper answers this shape through its approve/cancel branch whatever
+  // the request declares, so the projection has to agree: presenting it as a
+  // question would offer an answer the mapper turns into a decision.
+  if (isDroppedOptionApproval(inputRequest)) return "decision";
+
+  switch (inputRequest.display) {
+    case "confirmation":
+      return "decision";
+    case "select":
+      return "select";
+    case "text":
+      return "text";
+    default:
+      if (inputRequest.kind === "tool-approval") return "decision";
+      return inputRequest.options?.length ? "select" : "text";
+  }
+};
+
 const toApproval = (
   part: EveDynamicToolPart,
 ): ToolCallMessagePart["approval"] | undefined => {
@@ -176,12 +215,16 @@ const toApproval = (
 
   const approval = part.approval;
   if (!approval) return undefined;
-  const options = toolApprovalOptionsFromInputRequest(
-    part.toolMetadata?.eve?.inputRequest,
-  );
+  const inputRequest = part.toolMetadata?.eve?.inputRequest;
+  const options = toolApprovalOptionsFromInputRequest(inputRequest);
 
   return {
     id: approval.id,
+    ...(inputRequest && {
+      prompt: inputRequest.prompt,
+      display: toolApprovalDisplay(inputRequest),
+      ...(acceptsFreeformAnswer(inputRequest) && { allowFreeform: true }),
+    }),
     ...(approval.approved !== undefined && { approved: approval.approved }),
     ...(approval.reason && { reason: approval.reason }),
     ...(approval.isAutomatic !== undefined && {
@@ -587,7 +630,8 @@ export const findEveInputRequest = (
  * When `inputRequest` is known, every returned response carries either an
  * option the request declares or a free-form answer. A literal option match
  * wins, then the `"approve"` / `"cancel"` option the response's boolean decision
- * names, then the response's `reason` text when the request takes a free-form
+ * names, then the response's `text` (or its `reason`, for a caller that
+ * predates the first-class answer field) when the request takes a free-form
  * answer (`display: "text"`, `allowFreeform`, or no options at all, and never
  * `display: "confirmation"`) and the response is not a refusal.
  * A one-argument call, or a part with no request, still forwards a caller
@@ -611,7 +655,7 @@ export const toEveInputResponse = (
 ): InputResponse => {
   const requestId = response.approvalId;
   const options = inputRequest?.options;
-  const text = response.reason;
+  const text = response.text ?? response.reason;
 
   if (response.optionId !== undefined) {
     if (
@@ -649,11 +693,7 @@ export const toEveInputResponse = (
   // Eve recognises an approval by its literal two-option `approve`/`cancel`
   // shape, so past this point the request is a question and the boolean
   // carries no decision eve would act on.
-  const acceptsText =
-    inputRequest.display !== "confirmation" &&
-    (inputRequest.display === "text" ||
-      inputRequest.allowFreeform === true ||
-      !options?.length);
+  const acceptsText = acceptsFreeformAnswer(inputRequest);
   if (acceptsText && text && response.approved !== false) {
     return { requestId, text };
   }
@@ -665,8 +705,8 @@ export const toEveInputResponse = (
         : !acceptsText
           ? "the request declares no options to respond with"
           : response.approved === false
-            ? "a refusal carries no answer for a free-form request; resend with `approved` unset or true and the answer in the response reason"
-            : "pass the answer as the response reason, because the request takes a free-form answer"
+            ? "a refusal carries no answer for a free-form request; resend with `approved` unset or true and the answer in the response text"
+            : "pass the answer as the response text, because the request takes a free-form answer"
     }`,
   );
 };

@@ -55,7 +55,7 @@ export function collectPageEntries(
     entries.push(entry);
   };
 
-  for (const heading of root.querySelectorAll("h1, h2, h3, h4")) {
+  for (const heading of root.querySelectorAll<HTMLElement>("h1, h2, h3, h4")) {
     if (isSkipped(heading)) continue;
     const content = normalizeText(heading.textContent);
     if (!content || /^[$#>]/.test(content)) continue;
@@ -65,6 +65,7 @@ export function collectPageEntries(
       url: `${pathname}${hash}`,
       content,
       type: "heading",
+      element: heading,
     });
   }
 
@@ -82,7 +83,7 @@ export function collectPageTextMatches(
   const entries: Omit<SearchHit, "score">[] = [];
   const seen = new Set<string>();
 
-  for (const element of root.querySelectorAll("p, li, td, th")) {
+  for (const element of root.querySelectorAll<HTMLElement>("p, li, td, th")) {
     if (isSkipped(element)) continue;
     if (element.closest("h1, h2, h3, h4")) continue;
     const content = normalizeText(element.textContent);
@@ -100,6 +101,7 @@ export function collectPageTextMatches(
       url,
       content: excerpt,
       type: "text",
+      element,
     });
     if (entries.length >= 8) break;
   }

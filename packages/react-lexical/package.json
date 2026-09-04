@@ -1,6 +1,6 @@
 {
   "name": "@assistant-ui/react-lexical",
-  "version": "0.2.11",
+  "version": "0.2.12",
   "description": "Lexical-based rich text composer for assistant-ui with @-mention support",
   "keywords": [
     "lexical",
@@ -40,8 +40,8 @@
   },
   "peerDependencies": {
     "@assistant-ui/react": "^0.15.0",
-    "@assistant-ui/core": "^0.3.0",
-    "@assistant-ui/store": "*",
+    "@assistant-ui/core": "workspace:^",
+    "@assistant-ui/store": "workspace:^",
     "@types/react": "*",
     "react": "^18 || ^19",
     "react-dom": "^18 || ^19"

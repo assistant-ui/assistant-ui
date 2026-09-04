@@ -6,6 +6,8 @@ description: "A searchable runtime model picker with grouped providers and reaso
 import { PreviewCode } from "@/components/pages/docs/preview-code.server";
 import { ModelSelectorSelectedSample } from "@/components/pages/docs/samples/model-selector/selected-model";
 import * as ModelSelectorSelectedRadixSample from "@/components/pages/docs/samples/model-selector/selected-model.radix";
+import { ModelSelectorGroupedSample } from "@/components/pages/docs/samples/model-selector/provider-groups-and-availability";
+import * as ModelSelectorGroupedRadixSample from "@/components/pages/docs/samples/model-selector/provider-groups-and-availability.radix";
 import { ModelSelectorSearchSample } from "@/components/pages/docs/samples/model-selector/search-and-filter";
 import * as ModelSelectorSearchRadixSample from "@/components/pages/docs/samples/model-selector/search-and-filter.radix";
 
@@ -81,39 +83,15 @@ Standalone, the same pieces render with no registration: you own the value, the 
 
 ### Hold the value yourself
 
-```tsx title="app/chat.tsx"
-"use client";
+<PreviewCode
+  file="components/pages/docs/samples/model-selector/selected-model"
+  name="SelectableModel"
+  base={<ModelSelectorSelectedSample />}
+>
+  <ModelSelectorSelectedRadixSample.ModelSelectorSelectedSample />
+</PreviewCode>
 
-import { useState } from "react";
-import {
-  ModelSelectorRoot,
-  ModelSelectorTrigger,
-  ModelSelectorContent,
-} from "@/components/assistant-ui/elements/model-selector";
-
-const MODELS = [
-  { id: "gpt-5.6-luna", name: "GPT-5.6 Luna" },
-  { id: "gpt-5.6-sol", name: "GPT-5.6 Sol", efforts: true },
-];
-
-export function ModelSelect() {
-  const [value, setValue] = useState("gpt-5.6-luna");
-  const [effort, setEffort] = useState<string>();
-
-  return (
-    <ModelSelectorRoot
-      models={MODELS}
-      value={value}
-      onValueChange={setValue}
-      effort={effort}
-      onEffortChange={setEffort}
-    >
-      <ModelSelectorTrigger />
-      <ModelSelectorContent />
-    </ModelSelectorRoot>
-  );
-}
-```
+Open the picker and select a model: the trigger shows the new model once it closes, and the Thinking row follows whichever model declares `efforts`.
 
   </Step>
 </Steps>
@@ -140,14 +118,6 @@ export function ModelSelect() {
 The Thinking row (`Effort`) mounts only while the selected model has `efforts` set; switching to a model without it hides the row without discarding your effort choice; switching back to a model that supports it restores whatever level was selected before, as long as that model also offers it. `Content` needs a focused input to drive the keyboard: with no custom `children` (or `searchable={false}`), it renders a visually hidden `FocusAnchor` automatically; a custom layout that omits both `Search` and `searchable={false}` has no anchor and needs one added by hand to stay keyboard-operable.
 
 ## Examples
-
-### Selected model
-
-Open the picker and select a model. The trigger shows the new model after the picker closes.
-
-<PreviewCode file="components/pages/docs/samples/model-selector/selected-model" name="SelectableModel" base={<ModelSelectorSelectedSample />}>
-  <ModelSelectorSelectedRadixSample.ModelSelectorSelectedSample />
-</PreviewCode>
 
 ### Reasoning efforts
 
@@ -223,6 +193,14 @@ Open the picker and search for a model or provider. Select a result to update th
 
 <PreviewCode file="components/pages/docs/samples/model-selector/search-and-filter" name="SearchableModelSelector" base={<ModelSelectorSearchSample />}>
   <ModelSelectorSearchRadixSample.ModelSelectorSearchSample />
+</PreviewCode>
+
+### Provider groups and availability
+
+Use `ModelSelectorGroup` to group the models by provider. A model with `disabled` shows in the list, but you cannot select it. In this example, Claude Opus 5 is disabled, thus a click on it does not change the selection.
+
+<PreviewCode file="components/pages/docs/samples/model-selector/provider-groups-and-availability" name="ModelAvailabilitySelector" base={<ModelSelectorGroupedSample />}>
+  <ModelSelectorGroupedRadixSample.ModelSelectorGroupedSample />
 </PreviewCode>
 
 ### Variants and sizes

@@ -248,7 +248,7 @@ export function cleanupImports(imports: string[]): string[] {
     .filter((imp) => !imp.includes("SampleFrame"))
     .map((imp) =>
       imp.replace(
-        /(@\/components\/(?:[\w-]+\/)+[\w.-]+?)\.radix(["'])/g,
+        /(@\/components\/[\w-]+(?:\/[\w.-]+)*\/[\w.-]+?)\.radix(["'])/g,
         "$1$2",
       ),
     );
