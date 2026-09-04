@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { resource, useResource, type ResourceElement } from "@assistant-ui/tap";
 import type { ClientMethods, InferClientState } from "./types/client";
 import {
@@ -17,9 +17,37 @@ import { INSTANCE_TAG_SYMBOL } from "./utils/client-accessor";
  * This allows getState() to be optional in the user-facing client.
  */
 const SYMBOL_GET_OUTPUT = Symbol("assistant-ui.store.getValue");
+const SYMBOL_CONNECTION_PHASE = Symbol("assistant-ui.store.connectionPhase");
+
+type ClientConnectionPhase = "connected" | "cleanup" | "disconnected";
+
+const CLIENT_READ_METHODS = new Set([
+  "getState",
+  "subscribe",
+  "composer",
+  "message",
+  "part",
+  "attachment",
+  "item",
+  "queueItem",
+  "thread",
+  "suggestions",
+  "suggestion",
+]);
+
+const isClientReadMethod = (prop: string | symbol) =>
+  typeof prop === "string" && CLIENT_READ_METHODS.has(prop);
+
+const warnDisconnected = (prop: string | symbol) => {
+  console.warn(
+    `Cannot call "${String(prop)}" on a disconnected AuiClient. This call was ignored.`,
+  );
+  return undefined;
+};
 
 type ClientInternal = {
   [SYMBOL_GET_OUTPUT]: ClientMethods;
+  [SYMBOL_CONNECTION_PHASE]: ClientConnectionPhase;
 };
 
 export const getClientState = (client: ClientMethods) => {
@@ -58,6 +86,16 @@ function getOrCreateProxyFn(prop: string | symbol) {
         );
       }
 
+      const connectionPhase = (this as ClientInternal)[SYMBOL_CONNECTION_PHASE];
+      const isRead = isClientReadMethod(prop);
+      if (
+        !isRead &&
+        (connectionPhase === "disconnected" ||
+          (connectionPhase === "cleanup" && prop !== "cancelRun"))
+      ) {
+        return warnDisconnected(prop);
+      }
+
       const method = output[prop];
       if (!method)
         throw new Error(`Method "${String(prop)}" is not implemented.`);
@@ -78,10 +116,12 @@ class ClientProxyHandler
     | Map<string | symbol, (...args: never) => unknown>
     | undefined;
   private cachedReceiver: unknown;
+  private descriptorReceiver: object | undefined;
 
   private readonly outputRef: {
     current: ClientMethods;
   };
+  private readonly connectionPhaseRef: { current: ClientConnectionPhase };
   private readonly tagRef: { current: object };
   private readonly index: number;
 
@@ -89,33 +129,44 @@ class ClientProxyHandler
     outputRef: {
       current: ClientMethods;
     },
+    connectionPhaseRef: { current: ClientConnectionPhase },
     tagRef: { current: object },
     index: number,
   ) {
     super();
     this.outputRef = outputRef;
+    this.connectionPhaseRef = connectionPhaseRef;
     this.tagRef = tagRef;
     this.index = index;
   }
 
+  createProxy<TMethods extends ClientMethods>(): TMethods {
+    const proxy = new Proxy<TMethods>({} as TMethods, this);
+    this.descriptorReceiver = proxy;
+    return proxy;
+  }
+
   get(_: unknown, prop: string | symbol, receiver: unknown) {
     if (prop === SYMBOL_GET_OUTPUT) return this.outputRef.current;
+    if (prop === SYMBOL_CONNECTION_PHASE)
+      return this.connectionPhaseRef.current;
     if (prop === SYMBOL_CLIENT_INDEX) return this.index;
     if (prop === INSTANCE_TAG_SYMBOL) return this.tagRef.current;
     const introspection = handleIntrospectionProp(prop, "ClientProxy");
     if (introspection !== false) return introspection;
     const value = this.outputRef.current[prop];
     if (typeof value === "function") {
-      // receiver-less reads (getOwnPropertyDescriptor) get the raw method so
-      // the bound-fn cache stays keyed on the real receiver
-      if (receiver === undefined) return value;
-      if (!this.boundFns || this.cachedReceiver !== receiver) {
+      const effectiveReceiver = receiver ?? this.descriptorReceiver;
+      if (!effectiveReceiver) {
+        throw new Error("ClientProxy accessed before initialization.");
+      }
+      if (!this.boundFns || this.cachedReceiver !== effectiveReceiver) {
         this.boundFns = new Map();
-        this.cachedReceiver = receiver;
+        this.cachedReceiver = effectiveReceiver;
       }
       let bound = this.boundFns!.get(prop);
       if (!bound) {
-        bound = getOrCreateProxyFn(prop).bind(receiver);
+        bound = getOrCreateProxyFn(prop).bind(effectiveReceiver);
         this.boundFns!.set(prop, bound);
       }
       return bound;
@@ -129,6 +180,7 @@ class ClientProxyHandler
 
   has(_: unknown, prop: string | symbol) {
     if (prop === SYMBOL_GET_OUTPUT) return true;
+    if (prop === SYMBOL_CONNECTION_PHASE) return true;
     if (prop === SYMBOL_CLIENT_INDEX) return true;
     if (prop === INSTANCE_TAG_SYMBOL) return true;
     return prop in this.outputRef.current;
@@ -143,6 +195,8 @@ export const useClientResource = <TMethods extends ClientMethods>(
   key: string | number | undefined;
 } => {
   const valueRef = useRef(null as unknown as TMethods);
+  const connectionPhaseRef = useRef<ClientConnectionPhase>("connected");
+  const [connectionLifecycle] = useState(() => ({ generation: 0 }));
   const tagRef = useRef(null as unknown as object);
 
   // The fiber behind useResource is keyed on (hook, key), so the underlying
@@ -154,18 +208,33 @@ export const useClientResource = <TMethods extends ClientMethods>(
   const instanceTag = useMemo(() => ({}), [element.hook, element.key]);
 
   const index = useClientStack().length;
-  const methods = useMemo(
-    () =>
-      new Proxy<TMethods>(
-        {} as TMethods,
-        new ClientProxyHandler(valueRef, tagRef, index),
-      ),
-    [index],
-  );
+  const methods = useMemo(() => {
+    const handler = new ClientProxyHandler(
+      valueRef,
+      connectionPhaseRef,
+      tagRef,
+      index,
+    );
+    return handler.createProxy<TMethods>();
+  }, [index]);
 
   const value = useClientStackProvider(methods, function WithClientStack() {
     return useResource(element);
   });
+
+  useEffect(() => {
+    ++connectionLifecycle.generation;
+    connectionPhaseRef.current = "connected";
+    const generation = connectionLifecycle.generation;
+    return () => {
+      connectionPhaseRef.current = "cleanup";
+      queueMicrotask(() => {
+        if (connectionLifecycle.generation === generation) {
+          connectionPhaseRef.current = "disconnected";
+        }
+      });
+    };
+  }, [connectionLifecycle]);
 
   if (!valueRef.current) {
     valueRef.current = value;
