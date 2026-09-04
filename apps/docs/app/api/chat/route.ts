@@ -73,12 +73,18 @@ export async function POST(req: Request) {
       tools,
       config,
       searchDocs: searchDocsRequested,
+      countConversations,
       id: threadId,
     } = body;
 
-    // The transport sends the thread id, so the day's budget counts distinct
-    // conversations rather than turns: a long conversation costs one.
-    if (typeof threadId === "string" && threadId) {
+    // Every docs surface shares this route, so only the one that opts in draws
+    // on the budget. The transport sends the thread id, so the day counts
+    // distinct conversations rather than turns: a long one costs a single slot.
+    if (
+      countConversations === true &&
+      typeof threadId === "string" &&
+      threadId
+    ) {
       const identity = await resolveDemoIdentity(session.id);
       const { allowed, usage } = await claimConversation(identity, threadId);
       if (!allowed) {

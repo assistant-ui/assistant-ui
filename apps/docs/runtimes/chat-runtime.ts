@@ -94,17 +94,26 @@ export function useDocsChatRuntime({
   adapters,
   sendAutomatically = false,
   searchDocs = false,
+  countConversations = false,
 }: {
   api?: string;
   cloud?: AssistantCloud;
   adapters?: Adapters;
   sendAutomatically?: boolean;
   searchDocs?: boolean;
+  countConversations?: boolean;
 } = {}) {
   return useChatRuntime({
     transport: new AssistantChatTransport({
       ...(api ? { api } : {}),
-      ...(searchDocs ? { body: { searchDocs: true } } : {}),
+      ...(searchDocs || countConversations
+        ? {
+            body: {
+              ...(searchDocs ? { searchDocs: true } : {}),
+              ...(countConversations ? { countConversations: true } : {}),
+            },
+          }
+        : {}),
       fetch: anonymousSessionFetch,
     }),
     ...(sendAutomatically

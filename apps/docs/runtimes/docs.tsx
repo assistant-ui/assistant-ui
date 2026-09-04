@@ -43,10 +43,13 @@ export function DocsRuntimeProvider({
   children,
   devtools = true,
   followUps = false,
+  countConversations = false,
 }: {
   children: ReactNode;
   devtools?: boolean;
   followUps?: boolean;
+  /** Only the landing page demo draws on the daily conversation budget. */
+  countConversations?: boolean;
 }) {
   const cloud = useAnonymousCloud();
   const speech = useSpeechAdapters({ dictation: true });
@@ -66,6 +69,7 @@ export function DocsRuntimeProvider({
     adapters,
     sendAutomatically: true,
     searchDocs: followUps,
+    countConversations,
   });
 
   const aui = useAui({

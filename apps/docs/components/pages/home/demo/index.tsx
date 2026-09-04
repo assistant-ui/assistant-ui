@@ -15,7 +15,7 @@ export function HomeDemo(): ReactNode {
   return (
     <section aria-label="Thread" className="flex flex-col gap-3">
       <div className="border-foreground/10 rounded-document h-[min(52rem,88svh)] overflow-hidden border">
-        <DocsRuntimeProvider devtools={false} followUps>
+        <DocsRuntimeProvider devtools={false} followUps countConversations>
           {expanded
             ? createPortal(
                 <div
