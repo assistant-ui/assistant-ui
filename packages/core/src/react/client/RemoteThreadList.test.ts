@@ -933,6 +933,7 @@ describe("RemoteThreadList", () => {
   });
 
   it("does not reset again when retrying a failed replacement load", async () => {
+    const error = new Error("network");
     const methodsA = makeAdapter({
       list: vi.fn(async () => ({
         threads: [
@@ -943,8 +944,8 @@ describe("RemoteThreadList", () => {
     const methodsB = makeAdapter({
       list: vi
         .fn()
-        .mockRejectedValueOnce(new Error("network"))
-        .mockResolvedValueOnce({
+        .mockRejectedValueOnce(error)
+        .mockResolvedValue({
           threads: [
             { status: "regular" as const, remoteId: "thread-b", title: "B" },
           ],
@@ -993,6 +994,7 @@ describe("RemoteThreadList", () => {
       const mainAfterFailure = handle
         .getClient()
         .threads.getState().mainThreadId;
+      expect(handle.getClient().threads.getState().loadError).toBe(error);
       await handle.getClient().threads.reload();
       await vi.waitFor(() => {
         expect(handle.getClient().threads.getState().threadIds).toEqual([
@@ -1002,6 +1004,7 @@ describe("RemoteThreadList", () => {
       expect(handle.getClient().threads.getState().mainThreadId).toBe(
         mainAfterFailure,
       );
+      expect(handle.getClient().threads.getState().loadError).toBeUndefined();
     } finally {
       consoleError.mockRestore();
     }

@@ -9,6 +9,7 @@ const createMockCore = (
   loadPromise: Promise<void> = Promise.resolve(),
 ): ThreadListRuntimeCore => ({
   isLoading: false,
+  loadError: undefined,
   mainThreadId: MAIN_THREAD_ID,
   newThreadId: undefined,
   threadIds: [MAIN_THREAD_ID],
