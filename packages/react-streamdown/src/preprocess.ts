@@ -193,20 +193,28 @@ function emitDisplayMath(
   // is aligned to it.
   const prefix = continuationPrefix(lineHead(offset));
   const quoted = prefix.includes(">");
-  const source_lines = trimmed.split("\n");
+  // The body is split before trimming, since trimming would take the shared
+  // indentation off the first line only and leave the block ragged.
+  const bodyLines = body.split("\n");
+  while (bodyLines.length > 0 && bodyLines[0]!.trim() === "") bodyLines.shift();
+  while (bodyLines.length > 0 && bodyLines.at(-1)!.trim() === "") {
+    bodyLines.pop();
+  }
   // Only the indentation the whole body shares is replaced by the container
   // prefix, so an aligned block keeps its relative indentation.
-  const shared = Math.min(
-    ...source_lines
-      .filter((line) => line.trim() !== "")
-      .map((line) => /^[ \t]*/.exec(line)![0].length),
+  const shared = bodyLines.reduce(
+    (least, line) =>
+      line.trim() === ""
+        ? least
+        : Math.min(least, /^[ \t]*/.exec(line)![0].length),
+    Number.POSITIVE_INFINITY,
   );
-  const lines = source_lines.map((line) => {
+  const lines = bodyLines.map((line) => {
     // A line already carrying the blockquote marker keeps the spacing it was
     // written with; `>a` and `> a` are the same blockquote. Indentation alone
     // is not that signal, since a body may legitimately be indented.
     if (quoted && /^[ \t]*>/.test(line)) return line;
-    return `${prefix}${line.slice(shared)}`;
+    return `${prefix}${line.slice(Number.isFinite(shared) ? shared : 0)}`;
   });
 
   return `${lead}${prefix}$$\n${lines.join("\n")}\n${prefix}$$${tail}`;

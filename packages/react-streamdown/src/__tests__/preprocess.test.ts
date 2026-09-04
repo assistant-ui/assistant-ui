@@ -52,6 +52,12 @@ describe("rewriteLatexBracketDelimiters", () => {
     ).toBe("> quote \n> $$\n> a\n> b\n> $$\n> after");
   });
 
+  it("dedents a body whose lines share an indentation", () => {
+    expect(
+      rewriteLatexBracketDelimiters("- item \\[\n  a\n  b\n\\]\n- next"),
+    ).toBe("- item \n  $$\n  a\n  b\n  $$\n- next");
+  });
+
   it("keeps relative indentation inside the body", () => {
     expect(
       rewriteLatexBracketDelimiters(

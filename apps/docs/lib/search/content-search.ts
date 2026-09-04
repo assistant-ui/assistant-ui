@@ -102,7 +102,11 @@ export function searchContent(
       seen.hits += 1;
       // A later token may be the one that matched prose, and its excerpt says
       // more than the lead paragraph an earlier metadata match settled for.
-      if (match.excerpt && !seen.match.excerpt) seen.match = match;
+      const matched = (entry: ContentMatch, term: string) =>
+        entry.excerpt?.toLowerCase().includes(term) ?? false;
+      if (matched(match, token) && !matched(seen.match, token)) {
+        seen.match = match;
+      }
     }
   }
 
