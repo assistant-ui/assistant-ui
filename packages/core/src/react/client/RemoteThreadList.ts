@@ -637,20 +637,20 @@ const useRemoteThreadList = (
       return;
     }
 
-    const reloadAfterError = () => {
-      if (store.value.loadError !== undefined) void reload();
+    const retryAfterError = () => {
+      if (store.value.loadError !== undefined) void getLoadThreadsPromise();
     };
-    const reloadAfterVisible = () => {
-      if (document.visibilityState === "visible") reloadAfterError();
+    const retryAfterVisible = () => {
+      if (document.visibilityState === "visible") retryAfterError();
     };
 
-    window.addEventListener("online", reloadAfterError);
-    document.addEventListener("visibilitychange", reloadAfterVisible);
+    window.addEventListener("online", retryAfterError);
+    document.addEventListener("visibilitychange", retryAfterVisible);
     return () => {
-      window.removeEventListener("online", reloadAfterError);
-      document.removeEventListener("visibilitychange", reloadAfterVisible);
+      window.removeEventListener("online", retryAfterError);
+      document.removeEventListener("visibilitychange", retryAfterVisible);
     };
-  }, [reload, store]);
+  }, [getLoadThreadsPromise, store]);
 
   useEffect(() => {
     void getLoadThreadsPromise();
