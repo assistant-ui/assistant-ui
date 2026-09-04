@@ -87,7 +87,12 @@ function atLineStart(text: string, index: number): boolean {
  */
 function rewriteOutsideCode(
   text: string,
-  rewrite: (segment: string, precededBy: string, followedBy: string) => string,
+  rewrite: (
+    segment: string,
+    precededBy: string,
+    followedBy: string,
+    lineHead: (offset: number) => string,
+  ) => string,
 ): string {
   let out = "";
   let index = 0;
@@ -95,7 +100,15 @@ function rewriteOutsideCode(
 
   const flush = (end: number, followedBy: string) => {
     const segment = text.slice(plainStart, end);
-    if (segment !== "") out += rewrite(segment, out.slice(-1), followedBy);
+    if (segment === "") return;
+    const start = plainStart;
+    // A segment begins after any code span, so the line it sits on can start
+    // earlier than the segment does and only the original text has it.
+    const lineHead = (offset: number) => {
+      const at = start + offset;
+      return text.slice(text.lastIndexOf("\n", at - 1) + 1, at);
+    };
+    out += rewrite(segment, out.slice(-1), followedBy, lineHead);
   };
 
   const copyVerbatim = (to: number) => {
@@ -141,6 +154,17 @@ function rewriteOutsideCode(
  * A delimiter pair wrapping nothing is left as written: `$$$$` would itself
  * open a fence that never closes.
  */
+const LINE_PREFIX = /^(?:[ \t]*(?:>[ \t]?)*)(?:(?:[-*+]|\d{1,9}[.)])[ \t]+)?/;
+
+/**
+ * The prefix a following line needs to stay inside the block the match opened
+ * in: a blockquote marker repeats, a list marker becomes the spaces its content
+ * is indented by, and a plain indent is copied.
+ */
+function continuationPrefix(lineHead: string): string {
+  return (LINE_PREFIX.exec(lineHead)?.[0] ?? "").replace(/[^>\t]/g, " ");
+}
+
 function emitDisplayMath(
   match: string,
   body: string,
@@ -148,6 +172,7 @@ function emitDisplayMath(
   source: string,
   precededBy: string,
   followedBy: string,
+  lineHead: (offset: number) => string,
 ): string {
   const trimmed = body.trim();
   if (trimmed === "") return match;
@@ -162,7 +187,18 @@ function emitDisplayMath(
     char === "" || char === "\n" || char === "\r";
   const lead = endsLine(before) ? "" : "\n";
   const tail = endsLine(after) ? "" : "\n";
-  return `${lead}$$\n${trimmed}\n$$${tail}`;
+
+  // Markers written at the root column would end the list item or blockquote the
+  // math was written inside, so they carry that container's prefix and the body
+  // is aligned to it.
+  const prefix = continuationPrefix(lineHead(offset));
+  const lines = trimmed
+    .split("\n")
+    .map((line) =>
+      line.startsWith(prefix) ? line : `${prefix}${line.trimStart()}`,
+    );
+
+  return `${lead}${prefix}$$\n${lines.join("\n")}\n${prefix}$$${tail}`;
 }
 
 /**
@@ -174,7 +210,7 @@ function emitDisplayMath(
  * math renders as plain text.
  */
 export function rewriteLatexBracketDelimiters(text: string): string {
-  return rewriteOutsideCode(text, (segment, precededBy, followedBy) =>
+  return rewriteOutsideCode(text, (segment, precededBy, followedBy, lineHead) =>
     segment
       .replace(LATEX_INLINE_DELIMITER, (match: string, body: string) => {
         const trimmed = body.trim();
@@ -183,7 +219,15 @@ export function rewriteLatexBracketDelimiters(text: string): string {
       .replace(
         LATEX_DISPLAY_DELIMITER,
         (match: string, body: string, offset: number, source: string) =>
-          emitDisplayMath(match, body, offset, source, precededBy, followedBy),
+          emitDisplayMath(
+            match,
+            body,
+            offset,
+            source,
+            precededBy,
+            followedBy,
+            lineHead,
+          ),
       ),
   );
 }
@@ -197,12 +241,20 @@ const INLINE_TAG = /\[\/inline\]([\s\S]*?)\[\/inline\]/g;
  * {@link emitDisplayMath}) and `[/inline]...[/inline]` becomes `$...$`.
  */
 export function rewriteCustomMathTags(text: string): string {
-  return rewriteOutsideCode(text, (segment, precededBy, followedBy) =>
+  return rewriteOutsideCode(text, (segment, precededBy, followedBy, lineHead) =>
     segment
       .replace(
         MATH_TAG,
         (match: string, body: string, offset: number, source: string) =>
-          emitDisplayMath(match, body, offset, source, precededBy, followedBy),
+          emitDisplayMath(
+            match,
+            body,
+            offset,
+            source,
+            precededBy,
+            followedBy,
+            lineHead,
+          ),
       )
       .replace(INLINE_TAG, (match: string, body: string) => {
         const trimmed = body.trim();

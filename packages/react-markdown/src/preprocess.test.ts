@@ -40,10 +40,22 @@ describe("rewriteLatexBracketDelimiters", () => {
     );
   });
 
-  it("lifts a multiline display body out of its list item", () => {
+  it("keeps a multiline display body inside its list item", () => {
     expect(rewriteLatexBracketDelimiters("- item \\[\na\nb\n\\]\n- next")).toBe(
-      "- item \n$$\na\nb\n$$\n- next",
+      "- item \n  $$\n  a\n  b\n  $$\n- next",
     );
+  });
+
+  it("keeps a multiline display body inside its blockquote", () => {
+    expect(
+      rewriteLatexBracketDelimiters("> quote \\[\na\nb\n\\]\n> after"),
+    ).toBe("> quote \n> $$\n> a\n> b\n> $$\n> after");
+  });
+
+  it("reads the block prefix past a code span on the same line", () => {
+    expect(
+      rewriteLatexBracketDelimiters("- see `x` \\[\na\nb\n\\]\n- next"),
+    ).toBe("- see `x` \n  $$\n  a\n  b\n  $$\n- next");
   });
 
   it("keeps a single-line display body on its line", () => {
