@@ -261,11 +261,14 @@ function ContextDisplayContent({
         </div>
         <div className="bg-muted mt-2.5 flex h-1 gap-px overflow-hidden rounded-full">
           {segmentWidths.length > 0 ? (
-            segmentWidths.map(({ segment, width }) => (
+            segmentWidths.map(({ segment, width }, index) => (
               <div
                 key={segment.label}
                 className={cn(
                   "h-full w-(--usage-width) transition-[width] duration-300",
+                  // A fill under a pixel would round every span away and read
+                  // as an empty bar, so the first one keeps a floor.
+                  totalTokens > 0 && index === 0 && "min-w-1",
                   getBarColor(percent),
                   segment.shade,
                 )}
