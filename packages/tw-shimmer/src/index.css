@@ -16,6 +16,12 @@
       background-position: 100% 0;
     }
   }
+
+  @keyframes tw-shimmer-translate {
+    to {
+      translate: calc(var(--_active-distance) + var(--_repeat-delay-px)) 0;
+    }
+  }
 }
 
 @utility shimmer {
@@ -51,6 +57,7 @@
     --_speed: var(--shimmer-speed, 200);
     --_spread: var(--shimmer-spread, calc(4ch + 80px));
     --_bg: currentColor;
+    --_overlay: var(--shimmer-color, white);
     --_fg: var(
       --shimmer-color,
       oklch(from currentColor l c h / calc(alpha* 0.2))
@@ -108,6 +115,52 @@
 
   animation: tw-shimmer 1s linear 0s infinite backwards;
   animation-duration: calc((var(--_duration) + var(--_repeat-delay)) * 1ms);
+
+  &:not(.shimmer-bg) {
+    @supports (-webkit-mask-clip: text) {
+      position: relative;
+      animation: none;
+      background: none;
+      -webkit-text-fill-color: currentColor;
+      -webkit-mask-image: linear-gradient(#000, #000);
+      -webkit-mask-clip: text;
+      --_shimmer-play-state: running;
+
+      &::before {
+        content: "";
+        position: absolute;
+        inset-block: 0;
+        left: calc(-1 * (var(--_gradient-width) + var(--_xy-offset-px)));
+        width: var(--_active-distance);
+        pointer-events: none;
+        background: linear-gradient(
+            calc(90deg + var(--shimmer-angle)),
+            transparent 0%,
+            color-mix(in oklch, var(--_overlay), transparent 96%) 6%,
+            color-mix(in oklch, var(--_overlay), transparent 83%) 13%,
+            color-mix(in oklch, var(--_overlay), transparent 67%) 19%,
+            color-mix(in oklch, var(--_overlay), transparent 50%) 25%,
+            color-mix(in oklch, var(--_overlay), transparent 33%) 31%,
+            color-mix(in oklch, var(--_overlay), transparent 17%) 38%,
+            color-mix(in oklch, var(--_overlay), transparent 4%) 44%,
+            var(--_overlay) 50%,
+            color-mix(in oklch, var(--_overlay), transparent 4%) 56%,
+            color-mix(in oklch, var(--_overlay), transparent 17%) 63%,
+            color-mix(in oklch, var(--_overlay), transparent 33%) 69%,
+            color-mix(in oklch, var(--_overlay), transparent 50%) 75%,
+            color-mix(in oklch, var(--_overlay), transparent 67%) 81%,
+            color-mix(in oklch, var(--_overlay), transparent 83%) 88%,
+            color-mix(in oklch, var(--_overlay), transparent 96%) 94%,
+            transparent 100%
+          )
+          0 0 / var(--_gradient-width) 100% no-repeat;
+        will-change: translate;
+        animation: tw-shimmer-translate
+          calc((var(--_duration) + var(--_repeat-delay)) * 1ms) linear infinite;
+        animation-play-state: var(--_shimmer-play-state);
+      }
+    }
+  }
 }
 
 @utility shimmer-bg {
@@ -141,6 +194,7 @@
 
 @utility shimmer-invert {
   &:not(.shimmer-bg) {
+    --_overlay: black;
     --shimmer-color: oklch(
       from currentColor min(calc(l - 0.4), 0.2) c h / calc(alpha + 0.4)
     );
@@ -155,6 +209,7 @@
   --alpha: 100%;
   --alpha: calc(--modifier(integer) * 1%);
   --shimmer-color: --alpha(--value(--color, [color]) / var(--alpha, 100%));
+  --_overlay: var(--shimmer-color);
 }
 
 @utility shimmer-spread-* {

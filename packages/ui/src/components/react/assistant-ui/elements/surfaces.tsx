@@ -51,7 +51,11 @@ export function ShimmerLabel({
 }: ComponentProps<"span"> & { active?: boolean }) {
   return (
     <span
-      className={cn(active && "shimmer motion-reduce:animate-none", className)}
+      className={cn(
+        active &&
+          "shimmer motion-reduce:animate-none motion-reduce:[--_shimmer-play-state:paused]",
+        className,
+      )}
       {...props}
     />
   );
