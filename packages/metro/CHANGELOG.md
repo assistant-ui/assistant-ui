@@ -1,5 +1,11 @@
 # @assistant-ui/metro
 
+## 0.0.12
+
+### Patch Changes
+
+- [#6528](https://github.com/assistant-ui/assistant-ui/pull/6528) [`152a35d`](https://github.com/assistant-ui/assistant-ui/commit/152a35daae0e80b5307865e59af683c4ae720794) - chore: update dependencies ([@okisdev](https://github.com/okisdev))
+
 ## 0.0.11
 
 ### Patch Changes

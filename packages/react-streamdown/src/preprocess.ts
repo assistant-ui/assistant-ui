@@ -11,213 +11,180 @@
 
 const LATEX_INLINE_DELIMITER = /\\{1,2}\(([^\n]+?)\\{1,2}\)/g;
 const LATEX_DISPLAY_DELIMITER = /\\{1,2}\[([\s\S]+?)\\{1,2}\]/g;
-const LINE_PREFIX = /(?:[ \t]*(?:>[ \t]?)*)(?:(?:[-*+]|\d{1,9}[.)])[ \t]+)?/y;
 
-/** Length of the run of `char` starting at `start`. */
-function runLength(text: string, start: number, char: string): number {
-  let length = 0;
-  while (text[start + length] === char) length++;
-  return length;
-}
+// A closer has to sit in the same container as its opener: a root fence is not
+// closed by a quoted line, and a quoted fence is closed by one however its
+// marker is spaced. Matching the prefix by shape rather than as a literal keeps
+// `> ~~~` and `>~~~` equivalent.
+const TILDE_FENCE_CLOSE_ROOT = /^ {0,3}(~{3,})[ \t\r]*$/;
+const TILDE_FENCE_CLOSE_QUOTED = /^ {0,3}(?:>[ \t]?)+ {0,3}(~{3,})[ \t\r]*$/;
+const LINE_IS_QUOTED = /^ {0,3}(?:>[ \t]?)+/;
 
 /**
- * End index (exclusive) of the code span or fence whose backtick run starts at
- * `start`, or -1 when that run is never closed and its backticks read as literal
- * text.
+ * End index (exclusive) of the tilde fence opened by the `~` run at `start`,
+ * which the caller has verified starts a line: the end of the first later line
+ * carrying a closing run of at least the same length, or the end of `text`
+ * when none does — an unclosed fence reads as code to the end of the input,
+ * which keeps a fence that is still streaming in inert.
  */
-function codeSpanEnd(text: string, start: number): number {
-  const delimiterLength = runLength(text, start, "`");
-  const delimiter = "`".repeat(delimiterLength);
-  let closed = text.indexOf(delimiter, start + delimiterLength);
+function tildeFenceEnd(text: string, start: number): number {
+  const fenceLength = runLength(text, start, "~");
+  const openerLine = text.slice(text.lastIndexOf("\n", start - 1) + 1, start);
+  const closer = LINE_IS_QUOTED.test(openerLine)
+    ? TILDE_FENCE_CLOSE_QUOTED
+    : TILDE_FENCE_CLOSE_ROOT;
+  let lineStart = text.indexOf("\n", start);
 
-  // Fences may close on a longer run; one- and two-backtick inline spans may not.
-  while (delimiterLength < 3 && closed !== -1) {
-    const closedLength = runLength(text, closed, "`");
-    if (closedLength === delimiterLength) break;
-    closed = text.indexOf(delimiter, closed + closedLength);
+  while (lineStart !== -1) {
+    const lineEnd = text.indexOf("\n", lineStart + 1);
+    const line = text.slice(
+      lineStart + 1,
+      lineEnd === -1 ? undefined : lineEnd,
+    );
+    const close = closer.exec(line);
+    if (close && close[1]!.length >= fenceLength) {
+      return lineEnd === -1 ? text.length : lineEnd;
+    }
+    lineStart = lineEnd;
   }
 
-  if (closed === -1) return -1;
-  // A fence closes on a run at least as long as its own, and every backtick of
-  // that run belongs to it: leaving the extra ones behind would let them open a
-  // run of their own and swallow the prose that follows.
-  return closed + Math.max(delimiterLength, runLength(text, closed, "`"));
+  return text.length;
+}
+
+/** Whether the character at `index` starts a line, allowing ≤3 spaces indent. */
+function atLineStart(text: string, index: number): boolean {
+  let cursor = index;
+  let indent = 0;
+  while (cursor > 0 && text[cursor - 1] === " " && indent < 3) {
+    cursor--;
+    indent++;
+  }
+  if (cursor === 0 || text[cursor - 1] === "\n") return true;
+
+  // A fence keeps its meaning inside a blockquote, so a line carrying only
+  // blockquote markers still opens one. Four spaces would make it an indented
+  // code block instead, so the marker may carry at most three.
+  const lineStart = text.lastIndexOf("\n", cursor - 1) + 1;
+  return /^ {0,3}(?:>[ \t]?)+$/.test(text.slice(lineStart, cursor));
 }
 
 /**
- * Applies `transform` to the prose of `text`, copying code spans and fences
- * through untouched. A delimiter rewrite that ran over code would change what the
- * author wrote: `\(x\)` inside backticks is a literal, not math.
+ * Applies `rewrite` to the stretches of `text` outside code spans and fences,
+ * copying code through verbatim, so a delimiter shown as code is never
+ * rewritten. `\x` escapes are stepped over when scanning so an escaped
+ * backtick does not open a span, and a delimiter pair straddling a code
+ * boundary stays as written. Each stretch is passed the characters adjacent to
+ * it so the rewrite can make line-boundary decisions that survive the split.
  *
- * The transform also receives the characters adjacent to the run in the original
- * text, since a rewrite that needs to know whether it starts a line cannot see
- * past its own segment.
+ * Backtick regions are found with `codeSpanEnd`, which {@link
+ * escapeCurrencyDollars} also uses, and read as CommonMark does: an unclosed
+ * one- or two-backtick run is literal text, an unclosed three-plus run is a
+ * fence still streaming in and protects to the end of the input, and fences are
+ * not line-anchored. The unclosed three-plus case is where this walker and
+ * `escapeCurrencyDollars` differ, since that one treats the run as literal. Tilde
+ * fences are line-anchored per CommonMark: a `~~~` run starting a line opens
+ * one, and it closes on a line carrying only an at-least-as-long tilde run.
  */
-type ProseRun = {
-  /** Character before the run in the original text, "" at the start. */
-  before: string;
-  /** Character after the run in the original text, "" at the end. */
-  after: string;
-  /**
-   * The original text from the start of the line containing `offset` (an index
-   * within the run) up to that index. A run begins after any code span, so the
-   * line it sits on can start earlier than the run does.
-   */
-  lineHead(offset: number): string;
-};
-
-function mapProseRuns(
+function rewriteOutsideCode(
   text: string,
-  transform: (prose: string, run: ProseRun) => string,
+  rewrite: (segment: string, precededBy: string, followedBy: string) => string,
 ): string {
   let out = "";
-  let prose = "";
-  let proseStart = 0;
   let index = 0;
+  let plainStart = 0;
 
-  const flush = (after: string) => {
-    if (prose === "") return;
-    const start = proseStart;
-    out += transform(prose, {
-      before: text[start - 1] ?? "",
-      after,
-      lineHead: (offset) => {
-        const at = start + offset;
-        return text.slice(text.lastIndexOf("\n", at - 1) + 1, at);
-      },
-    });
-    prose = "";
+  const flush = (end: number, followedBy: string) => {
+    const segment = text.slice(plainStart, end);
+    if (segment !== "") out += rewrite(segment, out.slice(-1), followedBy);
+  };
+
+  const copyVerbatim = (to: number) => {
+    flush(index, text[index]!);
+    out += text.slice(index, to);
+    index = to;
+    plainStart = to;
   };
 
   while (index < text.length) {
-    const tick = text.indexOf("`", index);
-    if (tick === -1) {
-      if (prose === "") proseStart = index;
-      prose += text.slice(index);
-      break;
+    const char = text[index];
+    if (char === "\\") {
+      index += 2;
+    } else if (char === "`") {
+      const run = runLength(text, index, "`");
+      const end = codeSpanEnd(text, index);
+      if (end !== -1) copyVerbatim(end);
+      else if (run >= 3) copyVerbatim(text.length);
+      else index += run;
+    } else if (
+      char === "~" &&
+      runLength(text, index, "~") >= 3 &&
+      atLineStart(text, index)
+    ) {
+      copyVerbatim(tildeFenceEnd(text, index));
+    } else {
+      index += 1;
     }
-
-    if (tick > index) {
-      if (prose === "") proseStart = index;
-      prose += text.slice(index, tick);
-      index = tick;
-    }
-
-    const end = codeSpanEnd(text, index);
-    if (end === -1) {
-      // An unclosed fence is a code block to the end of the document, which is
-      // what remark will do with it; while a reply streams, every fence is
-      // unclosed for a while, so rewriting the text after it would corrupt the
-      // block being written. An unclosed one- or two-backtick run is literal
-      // text and stays prose.
-      if (runLength(text, index, "`") >= 3) {
-        flush(text[index] ?? "");
-        out += text.slice(index);
-        return out;
-      }
-
-      const runEnd = index + runLength(text, index, "`");
-      if (prose === "") proseStart = index;
-      prose += text.slice(index, runEnd);
-      index = runEnd;
-      continue;
-    }
-
-    flush(text[index] ?? "");
-    out += text.slice(index, end);
-    index = end;
   }
+  flush(text.length, "");
 
-  flush("");
   return out;
 }
 
 /**
- * The prefix a following line needs to stay inside the block the match started in.
- * A blockquote marker repeats, a list marker becomes the spaces its content is
- * indented by, and a plain indent is copied.
+ * Emits a display-math body in the `$$` form remark-math parses: `$$body$$` on
+ * one span for a single-line body, and for a body spanning lines the fenced
+ * form, on lines the `$$` markers own. remark-math parses multiline `$$` as a
+ * flow construct: the opening marker has to start a line and the closing marker
+ * to end one, and it reads whatever else shares those lines as fence metadata
+ * rather than as math.
+ *
+ * A delimiter pair wrapping nothing is left as written: `$$$$` would itself
+ * open a fence that never closes.
  */
-function continuationPrefix(line: string): string {
-  LINE_PREFIX.lastIndex = 0;
-  const prefix = LINE_PREFIX.exec(line)?.[0] ?? "";
-  return prefix.replace(/[^>\t]/g, " ");
-}
-
-/**
- * Fences a display body on lines the `$$` markers own, keeping every emitted line
- * inside the list item or blockquote the match started in. remark-math parses
- * multiline `$$` as a flow construct: the opening marker has to start a line and
- * the closing marker to end one, and it reads whatever else shares those lines as
- * fence metadata rather than as math.
- */
-function fenceDisplayBody(
+function emitDisplayMath(
+  match: string,
   body: string,
-  head: string,
-  tail: string,
-  run: ProseRun,
+  offset: number,
+  source: string,
+  precededBy: string,
+  followedBy: string,
 ): string {
-  const prefix = continuationPrefix(run.lineHead(head.length));
+  const trimmed = body.trim();
+  if (trimmed === "") return match;
+  if (!trimmed.includes("\n")) return `$$${trimmed}$$`;
 
-  const opensLine =
-    head === ""
-      ? run.before === "" || run.before === "\n"
-      : head.endsWith("\n");
-  const closesLine =
-    tail === ""
-      ? run.after === "" || run.after === "\n"
-      : tail.startsWith("\n");
-
-  const lines = body
-    .split("\n")
-    .map((line) =>
-      line.startsWith(prefix) ? line : `${prefix}${line.trimStart()}`,
-    );
-
-  return [
-    opensLine ? "" : "\n",
-    `${prefix}$$\n`,
-    lines.join("\n"),
-    `\n${prefix}$$`,
-    closesLine ? "" : "\n",
-  ].join("");
+  const before = offset === 0 ? precededBy : source[offset - 1]!;
+  const afterStart = offset + match.length;
+  const after = afterStart === source.length ? followedBy : source[afterStart]!;
+  // A CRLF document puts the carriage return next to the match, so both endings
+  // count as already being at a line boundary.
+  const endsLine = (char: string) =>
+    char === "" || char === "\n" || char === "\r";
+  const lead = endsLine(before) ? "" : "\n";
+  const tail = endsLine(after) ? "" : "\n";
+  return `${lead}$$\n${trimmed}\n$$${tail}`;
 }
 
 /**
  * Rewrites LaTeX bracket delimiters to dollar delimiters: `\(...\)` becomes
- * `$...$` (inline) and `\[...\]` becomes `$$...$$` (display). A single or double
- * leading backslash is accepted, since models emit both depending on escaping.
+ * `$...$` (inline) and `\[...\]` becomes `$$...$$` (display, fenced when the
+ * body spans lines — see {@link emitDisplayMath}). A single or double leading
+ * backslash is accepted, since models emit both depending on escaping.
  * remark-math only recognizes the dollar form, so without this rewrite bracket
  * math renders as plain text.
- *
- * A display body spanning lines is emitted fenced, indented to stay in its block.
- *
- * A pair wrapping nothing is left as written: `$$$$` would itself open a fence that
- * never closes. Code spans and fences are copied through unchanged.
  */
 export function rewriteLatexBracketDelimiters(text: string): string {
-  // Display runs first: its offsets have to index the run as `mapProseRuns` cut
-  // it, and an inline rewrite ahead of it would shift them off the line whose
-  // prefix the fence copies.
-  return mapProseRuns(text, (prose, run) =>
-    prose
-      .replace(
-        LATEX_DISPLAY_DELIMITER,
-        (match: string, body: string, offset: number, source: string) => {
-          const trimmed = body.trim();
-          if (trimmed === "") return match;
-          if (!trimmed.includes("\n")) return `$$${trimmed}$$`;
-          return fenceDisplayBody(
-            trimmed,
-            source.slice(0, offset),
-            source.slice(offset + match.length),
-            run,
-          );
-        },
-      )
+  return rewriteOutsideCode(text, (segment, precededBy, followedBy) =>
+    segment
       .replace(LATEX_INLINE_DELIMITER, (match: string, body: string) => {
         const trimmed = body.trim();
         return trimmed === "" ? match : `$${trimmed}$`;
-      }),
+      })
+      .replace(
+        LATEX_DISPLAY_DELIMITER,
+        (match: string, body: string, offset: number, source: string) =>
+          emitDisplayMath(match, body, offset, source, precededBy, followedBy),
+      ),
   );
 }
 
@@ -226,29 +193,16 @@ const INLINE_TAG = /\[\/inline\]([\s\S]*?)\[\/inline\]/g;
 
 /**
  * Rewrites the custom math tags some models emit to dollar delimiters:
- * `[/math]...[/math]` becomes `$$...$$` and `[/inline]...[/inline]` becomes `$...$`.
- *
- * A display body spanning lines is fenced the same way {@link
- * rewriteLatexBracketDelimiters} fences one, since `$$` with the body's first line
- * beside it reads as fence metadata and swallows the rest of the document. Code
- * spans and fences are copied through unchanged.
+ * `[/math]...[/math]` becomes `$$...$$` (fenced when the body spans lines — see
+ * {@link emitDisplayMath}) and `[/inline]...[/inline]` becomes `$...$`.
  */
 export function rewriteCustomMathTags(text: string): string {
-  return mapProseRuns(text, (prose, run) =>
-    prose
+  return rewriteOutsideCode(text, (segment, precededBy, followedBy) =>
+    segment
       .replace(
         MATH_TAG,
-        (match: string, body: string, offset: number, source: string) => {
-          const trimmed = body.trim();
-          if (trimmed === "") return match;
-          if (!trimmed.includes("\n")) return `$$${trimmed}$$`;
-          return fenceDisplayBody(
-            trimmed,
-            source.slice(0, offset),
-            source.slice(offset + match.length),
-            run,
-          );
-        },
+        (match: string, body: string, offset: number, source: string) =>
+          emitDisplayMath(match, body, offset, source, precededBy, followedBy),
       )
       .replace(INLINE_TAG, (match: string, body: string) => {
         const trimmed = body.trim();
@@ -274,6 +228,33 @@ const LATEX_SYNTAX = /\\[a-zA-Z]|[_^{}]/;
 const BLANK_LINE = /\n[ \t]*\n/;
 const ADJACENT_WORDS = /[A-Za-z]{3,}\s+[A-Za-z]{3,}/;
 const TRAILING_OPERATOR = /[-+*/=<>,;:([\u2013\u2014\u2212]$/;
+
+/** Length of the run of `char` starting at `start`. */
+function runLength(text: string, start: number, char: string): number {
+  let length = 0;
+  while (text[start + length] === char) length++;
+  return length;
+}
+
+/**
+ * End index (exclusive) of the code span or fence whose backtick run starts at
+ * `start`, or -1 when that run is never closed and its backticks read as literal
+ * text.
+ */
+function codeSpanEnd(text: string, start: number): number {
+  const delimiterLength = runLength(text, start, "`");
+  const delimiter = "`".repeat(delimiterLength);
+  let closed = text.indexOf(delimiter, start + delimiterLength);
+
+  // Fences may close on a longer run; one- and two-backtick inline spans may not.
+  while (delimiterLength < 3 && closed !== -1) {
+    const closedLength = runLength(text, closed, "`");
+    if (closedLength === delimiterLength) break;
+    closed = text.indexOf(delimiter, closed + closedLength);
+  }
+
+  return closed === -1 ? -1 : closed + delimiterLength;
+}
 
 /**
  * Index of the `$` that would close an inline math span opened at `openIndex`, or
