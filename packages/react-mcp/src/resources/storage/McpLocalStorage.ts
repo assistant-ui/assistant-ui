@@ -6,7 +6,7 @@ import {
   OAuthProtectedResourceMetadataSchema,
   OAuthTokensSchema,
 } from "@modelcontextprotocol/core";
-import { normalizeMcpServerUrl } from "../../auth/createOAuthProvider";
+import { normalizeMcpServerUrl } from "../../utils/serverUrl";
 import type { MCPAuthConfig, MCPCustomServerRecord } from "../../mcp-scope";
 import type { MCPPersistedAuthState } from "../../auth/types";
 import { assertValidServerId } from "../../utils/serverId";

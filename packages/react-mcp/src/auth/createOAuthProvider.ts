@@ -7,7 +7,10 @@ import type {
 } from "@modelcontextprotocol/client";
 import type { MCPStorage } from "../resources/storage/types";
 import type { MCPAuthConfig } from "../mcp-scope";
-import type { MCPPersistedAuthState } from "./types";
+import {
+  isAuthStateForServerUrl,
+  normalizeMcpServerUrl,
+} from "../utils/serverUrl";
 
 const STATE_PREFIX = "aui-mcp:";
 
@@ -115,24 +118,6 @@ const persistenceByIdentity = new WeakMap<
   object,
   Map<string, OAuthProviderPersistence>
 >();
-
-export const normalizeMcpServerUrl = (serverUrl: string): string =>
-  new URL(serverUrl).toString();
-
-export const isAuthStateForServerUrl = (
-  state: MCPPersistedAuthState | null,
-  serverUrl: string,
-): boolean => {
-  if (state?.serverUrl === undefined) return false;
-  try {
-    return (
-      normalizeMcpServerUrl(state.serverUrl) ===
-      normalizeMcpServerUrl(serverUrl)
-    );
-  } catch {
-    return false;
-  }
-};
 
 const getPersistence = (
   storage: MCPStorage,

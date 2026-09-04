@@ -189,6 +189,9 @@ const mount = (
   });
 };
 
+const unboundAuthMessage =
+  'MCP server "docs" has saved authentication for a different URL. Authenticate again to connect to https://example.com/mcp.';
+
 describe("McpServerResource automatic authentication", () => {
   beforeEach(resetMocks);
 
@@ -205,14 +208,13 @@ describe("McpServerResource automatic authentication", () => {
     });
 
     try {
-      await waitFor(() =>
-        expect(storage.loadAuthState).toHaveBeenCalledWith("docs"),
+      await waitForResourceUpdate(
+        () => root.getValue().getState().lastError !== null,
       );
-      await flushMacrotask();
 
       expect(root.getValue().getState()).toMatchObject({
         connectionState: "disconnected",
-        lastError: null,
+        lastError: { message: unboundAuthMessage },
       });
       expect(mocks.StreamableHTTPClientTransport).not.toHaveBeenCalled();
     } finally {
@@ -230,14 +232,13 @@ describe("McpServerResource automatic authentication", () => {
     });
 
     try {
-      await waitFor(() =>
-        expect(storage.loadAuthState).toHaveBeenCalledWith("docs"),
+      await waitForResourceUpdate(
+        () => root.getValue().getState().lastError !== null,
       );
-      await flushMacrotask();
 
       expect(root.getValue().getState()).toMatchObject({
         connectionState: "disconnected",
-        lastError: null,
+        lastError: { message: unboundAuthMessage },
       });
       expect(mocks.StreamableHTTPClientTransport).not.toHaveBeenCalled();
     } finally {
@@ -257,14 +258,83 @@ describe("McpServerResource automatic authentication", () => {
     });
 
     try {
-      await waitFor(() =>
-        expect(storage.loadAuthState).toHaveBeenCalledWith("docs"),
+      await waitForResourceUpdate(
+        () => root.getValue().getState().lastError !== null,
       );
+
+      expect(root.getValue().getState()).toMatchObject({
+        connectionState: "disconnected",
+        lastError: { message: unboundAuthMessage },
+      });
+      expect(mocks.StreamableHTTPClientTransport).not.toHaveBeenCalled();
+    } finally {
+      root.unmount();
+    }
+  });
+
+  it("keeps a static bearer token usable when the saved record is unbound", async () => {
+    const storage = createStorage();
+    vi.mocked(storage.loadAuthState).mockResolvedValue({ token: "stale" });
+    const root = mount({
+      auth: { type: "bearer", token: "static" },
+      storage,
+      autoConnect: true,
+    });
+
+    try {
+      await waitFor(() => mocks.transports.length > 0);
+      await flushMacrotask();
+
+      expect(mocks.StreamableHTTPClientTransport).toHaveBeenCalledWith(
+        new URL("https://example.com/mcp"),
+        { requestInit: { headers: { Authorization: "Bearer static" } } },
+      );
+      expect(root.getValue().getState().lastError).toBeNull();
+    } finally {
+      root.unmount();
+    }
+  });
+
+  it("does not report a record that holds no credentials", async () => {
+    const storage = createStorage();
+    vi.mocked(storage.loadAuthState).mockResolvedValue({});
+    const root = mount({
+      auth: { type: "bearer" },
+      storage,
+      autoConnect: true,
+    });
+
+    try {
+      await waitFor(() => storage.loadAuthState.mock.calls.length > 0);
       await flushMacrotask();
 
       expect(root.getValue().getState()).toMatchObject({
         connectionState: "disconnected",
         lastError: null,
+      });
+      expect(mocks.StreamableHTTPClientTransport).not.toHaveBeenCalled();
+    } finally {
+      root.unmount();
+    }
+  });
+
+  it("reports an unbound bearer record on a manual connect", async () => {
+    const storage = createStorage();
+    vi.mocked(storage.loadAuthState).mockResolvedValue({
+      serverUrl: "https://other.example.com/mcp",
+      token: "secret",
+    });
+    const root = mount({ auth: { type: "bearer" }, storage });
+
+    try {
+      await expect(root.getValue().connect()).resolves.toBeUndefined();
+      await waitForResourceUpdate(
+        () => root.getValue().getState().connectionState === "error",
+      );
+
+      expect(root.getValue().getState()).toMatchObject({
+        connectionState: "error",
+        lastError: { message: unboundAuthMessage },
       });
       expect(mocks.StreamableHTTPClientTransport).not.toHaveBeenCalled();
     } finally {
