@@ -90,6 +90,14 @@ const createFetchMock = () =>
     );
   });
 
+const createThreadMessage = (id: string): ThreadMessage => ({
+  id,
+  role: "user",
+  content: [{ type: "text", text: id }],
+  createdAt: new Date(0),
+  metadata: { custom: {} },
+});
+
 afterEach(() => {
   vi.unstubAllGlobals();
 });
@@ -294,14 +302,6 @@ describe("useA2ARuntime", () => {
     const second = new Promise<{ messages: ThreadMessage[] }>((resolve) => {
       resolveSecond = resolve;
     });
-    const message = (id: string): ThreadMessage => ({
-      id,
-      role: "user",
-      content: [{ type: "text", text: id }],
-      createdAt: new Date(0),
-      metadata: { custom: {} },
-    });
-
     const { result } = renderHook(() => {
       const [threadId, setThreadId] = useState("initial");
       return useA2ARuntime({
@@ -327,16 +327,56 @@ describe("useA2ARuntime", () => {
     expect(result.current.threads.getState().mainThreadId).toBe("thread-b");
 
     await act(async () => {
-      resolveSecond({ messages: [message("thread-b")] });
+      resolveSecond({ messages: [createThreadMessage("thread-b")] });
       await switchB;
     });
     await act(async () => {
-      resolveFirst({ messages: [message("thread-a")] });
+      resolveFirst({ messages: [createThreadMessage("thread-a")] });
       await switchA;
     });
 
     expect(result.current.thread.getState().messages.map((m) => m.id)).toEqual([
       "thread-b",
     ]);
+  });
+
+  it("ignores a thread load superseded by a new thread", async () => {
+    const { client } = createMockClient();
+    let resolveLoad!: (value: { messages: ThreadMessage[] }) => void;
+    const load = new Promise<{ messages: ThreadMessage[] }>((resolve) => {
+      resolveLoad = resolve;
+    });
+    const { result } = renderHook(() => {
+      const [threadId, setThreadId] = useState<string | undefined>("initial");
+      return useA2ARuntime({
+        client,
+        adapters: {
+          threadList: {
+            threadId,
+            onSwitchToThread: async (nextThreadId) => {
+              setThreadId(nextThreadId);
+              return load;
+            },
+            onSwitchToNewThread: async () => {
+              setThreadId(undefined);
+            },
+          },
+        },
+      });
+    });
+
+    let staleSwitch!: Promise<void>;
+    act(() => {
+      staleSwitch = result.current.threads.switchToThread("thread-a");
+    });
+    await act(async () => {
+      await result.current.threads.switchToNewThread();
+    });
+    await act(async () => {
+      resolveLoad({ messages: [createThreadMessage("thread-a")] });
+      await staleSwitch;
+    });
+
+    expect(result.current.thread.getState().messages).toEqual([]);
   });
 });
