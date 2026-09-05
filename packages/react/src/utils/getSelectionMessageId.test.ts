@@ -116,6 +116,28 @@ describe("getSelectionMessageId", () => {
     ).toBeNull();
   });
 
+  it.each(["", "data-aui-quote-selectable"])(
+    "rejects selections spanning an excluded subtree with root %s",
+    (marker) => {
+      document.body.innerHTML = `
+        <div data-message-id="message-1" ${marker}>
+          <span id="before">before</span>
+          <span data-aui-quote-selectable="false">excluded</span>
+          <span id="after">after</span>
+        </div>
+      `;
+
+      expect(getSelectionMessageId(selectText(textNode("#before")))).toBe(
+        "message-1",
+      );
+      expect(
+        getSelectionMessageId(
+          selectText(textNode("#before"), textNode("#after")),
+        ),
+      ).toBeNull();
+    },
+  );
+
   it("rejects selections outside quote-selectable regions when a message opts in", () => {
     document.body.innerHTML = `
       <div data-message-id="message-1">

@@ -63,6 +63,14 @@ export const getSelectionMessageId = (selection: Selection): string | null => {
   if (anchorMarker && isExcluded(anchorMarker)) return null;
   if (focusMarker && isExcluded(focusMarker)) return null;
 
+  for (const excluded of anchorMessageElement.querySelectorAll(
+    '[data-aui-quote-selectable="false"]',
+  )) {
+    for (let i = 0; i < selection.rangeCount; i++) {
+      if (selection.getRangeAt(i).intersectsNode(excluded)) return null;
+    }
+  }
+
   if (!hasQuoteSelectableRegion(anchorMessageElement)) return messageId;
 
   if (!anchorMarker || anchorMarker !== focusMarker) return null;
