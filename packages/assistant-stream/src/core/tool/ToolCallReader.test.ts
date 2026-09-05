@@ -10,6 +10,17 @@ type Args = {
 const createReader = () => new ToolCallReaderImpl<Args, string>();
 
 describe("ToolCallArgsReader.get", () => {
+  it("waits for all digits of a positive exponent", async () => {
+    const reader = new ToolCallReaderImpl<{ amount: number }, string>();
+    const amount = reader.args.get("amount");
+
+    await reader.appendArgsTextDelta('{"amount":1e+2');
+    await reader.appendArgsTextDelta("3}");
+    await reader.finishArgsText();
+
+    expect(await amount).toBe(1e23);
+  });
+
   it("resolves with the value once the field is complete", async () => {
     const reader = createReader();
     const promise = reader.args.get("required");
