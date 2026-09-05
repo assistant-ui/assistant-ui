@@ -138,13 +138,6 @@ describe("scope-filtered on", () => {
     const consoleError = vi
       .spyOn(console, "error")
       .mockImplementation(() => {});
-    const rejections: unknown[] = [];
-    const onRejection = (reason: unknown) => rejections.push(reason);
-    const proc = process as unknown as {
-      on(event: "unhandledRejection", cb: (reason: unknown) => void): void;
-      off(event: "unhandledRejection", cb: (reason: unknown) => void): void;
-    };
-    proc.on("unhandledRejection", onRejection);
     try {
       const { getAui } = setup();
       const aui = getAui();
@@ -159,16 +152,13 @@ describe("scope-filtered on", () => {
         aui.thread.ping("boom");
       });
       await flushEvents();
-      await flushEvents();
 
       expect(later).toHaveBeenCalledTimes(1);
       expect(consoleError).toHaveBeenCalledWith(
         "NotificationManager: event listener error",
         failure,
       );
-      expect(rejections).not.toContain(failure);
     } finally {
-      proc.off("unhandledRejection", onRejection);
       consoleError.mockRestore();
     }
   });

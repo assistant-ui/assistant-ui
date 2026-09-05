@@ -174,8 +174,7 @@ const useClientFields = ({
         }
 
         const localUnsub = notifications.on(event, (payload, clientStack) => {
-          // The return value flows back so the manager can observe (and
-          // report) a rejecting async listener.
+          // The manager observes the returned value to report a rejecting async listener.
           if (scope === "*") {
             return callback(payload);
           }
@@ -197,7 +196,6 @@ const useClientFields = ({
           if (scopeClient === clientStack[index]) {
             return callback(payload);
           }
-          return undefined;
         });
         if (scope !== "*") {
           // A ridden subscription filters against the subscriber's bindings,

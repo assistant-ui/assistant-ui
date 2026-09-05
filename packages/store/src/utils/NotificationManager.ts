@@ -6,7 +6,7 @@ import type {
 } from "../types/events";
 import type { Unsubscribe } from "../types/client";
 
-type InternalCallback = (payload: unknown, clientStack: ClientStack) => void;
+type InternalCallback = (payload: unknown, clientStack: ClientStack) => unknown;
 
 export type NotificationManager = {
   on<TEvent extends AssistantEventName>(
@@ -29,16 +29,13 @@ const reportListenerError = (error: unknown) => {
   console.error("NotificationManager: event listener error", error);
 };
 
-// Async listeners are legal in the void-callback position, so a rejected
-// return value must be observed too — an unobserved rejection terminates
-// Node/SSR hosts just like the synchronous throw would.
 const invokeListener = (
   cb: InternalCallback,
   payload: unknown,
   clientStack: ClientStack,
 ) => {
   try {
-    const result = cb(payload, clientStack) as unknown;
+    const result = cb(payload, clientStack);
     if (
       result !== null &&
       (typeof result === "object" || typeof result === "function") &&
