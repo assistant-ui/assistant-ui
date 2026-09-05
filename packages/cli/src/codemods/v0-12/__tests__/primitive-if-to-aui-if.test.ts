@@ -20,6 +20,15 @@ function applyTransform(source: string): string | null {
   return transform(fileInfo, api, {});
 }
 
+function expectTransform(input: string, expected: string) {
+  const output = applyTransform(input);
+  if (output === null)
+    throw new Error("The codemod did not transform the input");
+  expect(
+    j.types.astNodesAreEquivalent(j(output).nodes(), j(expected).nodes()),
+  ).toBe(true);
+}
+
 describe("primitive-if-to-aui-if", () => {
   // ── ThreadPrimitive.If ─────────────────────────────────────────────
 
@@ -49,7 +58,7 @@ function MyComponent() {
 }
 `;
 
-      expect(applyTransform(input)?.trim()).toBe(expected.trim());
+      expectTransform(input, expected);
     });
 
     it("should migrate <ThreadPrimitive.If empty={false}>", () => {
@@ -77,7 +86,7 @@ function MyComponent() {
 }
 `;
 
-      expect(applyTransform(input)?.trim()).toBe(expected.trim());
+      expectTransform(input, expected);
     });
 
     it("should migrate <ThreadPrimitive.If running>", () => {
@@ -105,7 +114,7 @@ function MyComponent() {
 }
 `;
 
-      expect(applyTransform(input)?.trim()).toBe(expected.trim());
+      expectTransform(input, expected);
     });
 
     it("should migrate <ThreadPrimitive.If running={false}>", () => {
@@ -133,7 +142,7 @@ function MyComponent() {
 }
 `;
 
-      expect(applyTransform(input)?.trim()).toBe(expected.trim());
+      expectTransform(input, expected);
     });
 
     it("should migrate <ThreadPrimitive.If disabled>", () => {
@@ -161,7 +170,7 @@ function MyComponent() {
 }
 `;
 
-      expect(applyTransform(input)?.trim()).toBe(expected.trim());
+      expectTransform(input, expected);
     });
 
     it("should handle self-closing ThreadPrimitive.If", () => {
@@ -181,7 +190,7 @@ function MyComponent() {
 }
 `;
 
-      expect(applyTransform(input)?.trim()).toBe(expected.trim());
+      expectTransform(input, expected);
     });
   });
 
@@ -213,7 +222,7 @@ function MyComponent() {
 }
 `;
 
-      expect(applyTransform(input)?.trim()).toBe(expected.trim());
+      expectTransform(input, expected);
     });
 
     it("should migrate <MessagePrimitive.If assistant>", () => {
@@ -241,7 +250,7 @@ function MyComponent() {
 }
 `;
 
-      expect(applyTransform(input)?.trim()).toBe(expected.trim());
+      expectTransform(input, expected);
     });
 
     it("should migrate <MessagePrimitive.If copied>", () => {
@@ -269,7 +278,7 @@ function MyComponent() {
 }
 `;
 
-      expect(applyTransform(input)?.trim()).toBe(expected.trim());
+      expectTransform(input, expected);
     });
 
     it("should migrate <MessagePrimitive.If copied={false}>", () => {
@@ -297,7 +306,7 @@ function MyComponent() {
 }
 `;
 
-      expect(applyTransform(input)?.trim()).toBe(expected.trim());
+      expectTransform(input, expected);
     });
 
     it("should migrate <MessagePrimitive.If speaking>", () => {
@@ -325,35 +334,7 @@ function MyComponent() {
 }
 `;
 
-      expect(applyTransform(input)?.trim()).toBe(expected.trim());
-    });
-
-    it("should migrate <MessagePrimitive.If speaking={false}>", () => {
-      const input = `
-import { MessagePrimitive } from "@assistant-ui/react";
-
-function MyComponent() {
-  return (
-    <MessagePrimitive.If speaking={false}>
-      <SpeakIcon />
-    </MessagePrimitive.If>
-  );
-}
-`;
-
-      const expected = `
-import { MessagePrimitive, AuiIf } from "@assistant-ui/react";
-
-function MyComponent() {
-  return (
-    <AuiIf condition={(s) => !s.message.speech != null}>
-      <SpeakIcon />
-    </AuiIf>
-  );
-}
-`;
-
-      expect(applyTransform(input)?.trim()).toBe(expected.trim());
+      expectTransform(input, expected);
     });
 
     it("should migrate <MessagePrimitive.If last>", () => {
@@ -381,7 +362,7 @@ function MyComponent() {
 }
 `;
 
-      expect(applyTransform(input)?.trim()).toBe(expected.trim());
+      expectTransform(input, expected);
     });
 
     it("should migrate <MessagePrimitive.If hasBranches>", () => {
@@ -409,7 +390,7 @@ function MyComponent() {
 }
 `;
 
-      expect(applyTransform(input)?.trim()).toBe(expected.trim());
+      expectTransform(input, expected);
     });
 
     it("should migrate <MessagePrimitive.If hasAttachments>", () => {
@@ -437,7 +418,7 @@ function MyComponent() {
 }
 `;
 
-      expect(applyTransform(input)?.trim()).toBe(expected.trim());
+      expectTransform(input, expected);
     });
 
     it("should migrate <MessagePrimitive.If hasContent>", () => {
@@ -465,7 +446,7 @@ function MyComponent() {
 }
 `;
 
-      expect(applyTransform(input)?.trim()).toBe(expected.trim());
+      expectTransform(input, expected);
     });
 
     it("should migrate <MessagePrimitive.If lastOrHover>", () => {
@@ -493,7 +474,7 @@ function MyComponent() {
 }
 `;
 
-      expect(applyTransform(input)?.trim()).toBe(expected.trim());
+      expectTransform(input, expected);
     });
   });
 
@@ -525,7 +506,7 @@ function MyComponent() {
 }
 `;
 
-      expect(applyTransform(input)?.trim()).toBe(expected.trim());
+      expectTransform(input, expected);
     });
 
     it("should migrate <ComposerPrimitive.If editing={false}>", () => {
@@ -553,7 +534,7 @@ function MyComponent() {
 }
 `;
 
-      expect(applyTransform(input)?.trim()).toBe(expected.trim());
+      expectTransform(input, expected);
     });
 
     it("should migrate <ComposerPrimitive.If dictation>", () => {
@@ -581,7 +562,7 @@ function MyComponent() {
 }
 `;
 
-      expect(applyTransform(input)?.trim()).toBe(expected.trim());
+      expectTransform(input, expected);
     });
   });
 
@@ -613,7 +594,7 @@ function MyComponent() {
 }
 `;
 
-      expect(applyTransform(input)?.trim()).toBe(expected.trim());
+      expectTransform(input, expected);
     });
 
     it("should handle self-closing <ThreadPrimitive.Empty />", () => {
@@ -633,7 +614,7 @@ function MyComponent() {
 }
 `;
 
-      expect(applyTransform(input)?.trim()).toBe(expected.trim());
+      expectTransform(input, expected);
     });
 
     it("should handle ThreadPrimitive.Empty alongside ThreadPrimitive.If", () => {
@@ -671,7 +652,7 @@ function MyComponent() {
 }
 `;
 
-      expect(applyTransform(input)?.trim()).toBe(expected.trim());
+      expectTransform(input, expected);
     });
   });
 
@@ -703,7 +684,7 @@ function MyComponent() {
 }
 `;
 
-      expect(applyTransform(input)?.trim()).toBe(expected.trim());
+      expectTransform(input, expected);
     });
 
     it("should handle multiple Primitive.If in the same file", () => {
@@ -741,7 +722,7 @@ function MyComponent() {
 }
 `;
 
-      expect(applyTransform(input)?.trim()).toBe(expected.trim());
+      expectTransform(input, expected);
     });
 
     it("should not transform if no @assistant-ui import", () => {
@@ -799,7 +780,7 @@ function MyComponent() {
 }
 `;
 
-      expect(applyTransform(input)?.trim()).toBe(expected.trim());
+      expectTransform(input, expected);
     });
 
     it("should preserve other JSX elements alongside migrated ones", () => {
@@ -833,7 +814,7 @@ function MyComponent() {
 }
 `;
 
-      expect(applyTransform(input)?.trim()).toBe(expected.trim());
+      expectTransform(input, expected);
     });
   });
 });
@@ -935,5 +916,59 @@ function MyComponent() {
     expect(output).toContain(
       "(s.message.metadata.submittedFeedback?.type ?? null) === null",
     );
+  });
+});
+
+describe("condition precedence", () => {
+  it.each([
+    {
+      jsx: "<MessagePrimitive.If speaking={false} />",
+      hidden: { message: { speech: { status: "running" } } },
+      visible: { message: { speech: null } },
+    },
+    {
+      jsx: "<ComposerPrimitive.If dictation={false} />",
+      hidden: { composer: { dictation: { status: "running" } } },
+      visible: { composer: { dictation: null } },
+    },
+    {
+      jsx: "<MessagePrimitive.If lastOrHover copied />",
+      hidden: {
+        message: { isHovering: true, isLast: false, isCopied: false },
+      },
+      visible: {
+        message: { isHovering: true, isLast: false, isCopied: true },
+      },
+    },
+    {
+      jsx: "<MessagePrimitive.If copied lastOrHover />",
+      hidden: {
+        message: { isHovering: false, isLast: true, isCopied: false },
+      },
+      visible: {
+        message: { isHovering: false, isLast: true, isCopied: true },
+      },
+    },
+    {
+      jsx: "<MessagePrimitive.If hasAttachments={false} copied />",
+      hidden: { message: { role: "assistant", isCopied: false } },
+      visible: { message: { role: "assistant", isCopied: true } },
+    },
+  ])("preserves the filters in $jsx", ({ jsx, hidden, visible }) => {
+    const output = applyTransform(`
+import { MessagePrimitive, ComposerPrimitive } from "@assistant-ui/react";
+const view = ${jsx};
+`);
+    if (output === null)
+      throw new Error("The codemod did not transform the input");
+    const arrow = j(output).find(j.ArrowFunctionExpression).nodes()[0];
+    if (!arrow) throw new Error("The codemod did not produce a condition");
+    const condition = new Function(
+      "s",
+      `return (${j(arrow.body).toSource()});`,
+    );
+
+    expect(condition(hidden)).toBe(false);
+    expect(condition(visible)).toBe(true);
   });
 });

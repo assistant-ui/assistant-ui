@@ -162,8 +162,8 @@ const getAttrValue = (j: any, attr: any): unknown => {
 };
 
 const buildConditionString = (fragments: ConditionFragment[]): string => {
-  const parts = fragments.map((f) =>
-    f.negated ? `!${f.expression}` : f.expression,
+  const parts = fragments.map(
+    (f) => `${f.negated ? "!" : ""}(${f.expression})`,
   );
   if (parts.length === 1) return parts[0]!;
   return parts.join(" && ");
