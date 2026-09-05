@@ -150,6 +150,11 @@ describe("rewriteLatexBracketDelimiters", () => {
     expect(rewriteLatexBracketDelimiters(streaming)).toBe(streaming);
   });
 
+  it("protects a still-streaming fence opened on a list item's marker line", () => {
+    const streaming = "- ```js\n  const a = \\(x\\);";
+    expect(rewriteLatexBracketDelimiters(streaming)).toBe(streaming);
+  });
+
   it("closes an indented fence whose body carries a blank line", () => {
     const fenced =
       "1. Step\n   - Sub\n     ```js\n     const a = 1;\n\n     const b = 2;\n     ```\n\nafter \\(y\\)";
@@ -456,6 +461,14 @@ describe("escapeCurrencyDollars", () => {
     const fenced = "```\n```js\nconst price = $5;\n```\nafter $10";
     expect(escapeCurrencyDollars(fenced)).toBe(
       "```\n```js\nconst price = $5;\n```\nafter \\$10",
+    );
+  });
+
+  it("does not rewrite a fence opened on a list item's marker line", () => {
+    const fenced =
+      "- ```js\n  const price = $5;\n\n  const tax = $2;\n  ```\n\nafter $10";
+    expect(escapeCurrencyDollars(fenced)).toBe(
+      "- ```js\n  const price = $5;\n\n  const tax = $2;\n  ```\n\nafter \\$10",
     );
   });
 

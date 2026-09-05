@@ -30,6 +30,11 @@ const FENCE_CLOSE_QUOTED = {
 };
 const LINE_IS_QUOTED = /^ {0,3}(?:>[ \t]?)+/;
 
+// What may precede a fence opener on its line: the blockquote and list markers
+// whose containers a fence opens inside of, and the indentation between them.
+const FENCE_OPEN_PREFIX =
+  /^[ \t]*(?:>[ \t]?)*(?:[ \t]*(?:[-*+]|\d{1,9}[.)])[ \t]+)*[ \t]*$/;
+
 /**
  * End index (exclusive) of the fence opened by the `marker` run at `start`,
  * which the caller has verified opens one: the end of the first later line
@@ -84,20 +89,18 @@ function atLineStart(text: string, index: number): boolean {
  *
  * Indentation is not capped at the three columns CommonMark allows, because the
  * cap is relative to the enclosing container and this walker does not track
- * containers: a fence written past a list item's content column is ordinary
- * model output, and reading it as a span costs the closer of any such fence
- * whose body carries a blank line. The cost of the wider reading is that a run
- * indented four columns at the root, where CommonMark reads an indented code
- * block, opens a fence here.
+ * containers: a fence written past a list item's content column, or on its
+ * marker line, is ordinary model output, and reading it as a span costs the
+ * closer of any such fence whose body carries a blank line. The cost of the
+ * wider reading is that a run indented four columns at the root, where
+ * CommonMark reads an indented code block, opens a fence here.
  */
 function opensBacktickFence(text: string, start: number): boolean {
   const fenceLength = runLength(text, start, "`");
   if (fenceLength < 3) return false;
 
   const lineStart = text.lastIndexOf("\n", start - 1) + 1;
-  if (!/^[ \t]*(?:>[ \t]?)*[ \t]*$/.test(text.slice(lineStart, start))) {
-    return false;
-  }
+  if (!FENCE_OPEN_PREFIX.test(text.slice(lineStart, start))) return false;
 
   const lineEnd = text.indexOf("\n", start + fenceLength);
   const info = text.slice(
