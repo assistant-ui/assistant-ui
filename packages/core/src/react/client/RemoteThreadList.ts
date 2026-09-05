@@ -1145,9 +1145,7 @@ const useRemoteThreadList = (
       }
       await ensureNotMain(data.id);
       requireAdapterGeneration(adapterGeneration);
-      onDelete?.(data.id);
-      clearThreadTitleState(session.titleStates, data.id);
-      return store.optimisticUpdate({
+      const result = await store.optimisticUpdate({
         execute: async () => {
           const { remoteId } = await data.initializeTask;
           requireAdapterGeneration(adapterGeneration);
@@ -1155,6 +1153,10 @@ const useRemoteThreadList = (
         },
         optimistic: (state) => updateStatusReducer(state, data.id, "deleted"),
       });
+      requireAdapterGeneration(adapterGeneration);
+      clearThreadTitleState(session.titleStates, data.id);
+      onDelete?.(data.id);
+      return result;
     },
     [ensureNotMain, onDelete, requireAdapterGeneration, session, store],
   );
