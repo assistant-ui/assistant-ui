@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useResources, withKey, type ResourceElement } from "@assistant-ui/tap";
 import type { ClientMethods, InferClientState } from "./types/client";
 import {
@@ -31,7 +31,7 @@ export function useClientLookup<TMethods extends ClientMethods>(
 
   const elementKeys = useMemo(() => elements.map(getElementKey), [elements]);
   const committedElementKeys = useRef(elementKeys);
-  const structuralSubscribers = useMemo(() => new Set<() => void>(), []);
+  const [structuralSubscribers] = useState(() => new Set<() => void>());
   const structuralDependency = useMemo(
     () =>
       createClientSubscriptionDependency((callback) => {
