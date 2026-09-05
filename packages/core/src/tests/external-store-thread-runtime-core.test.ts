@@ -5,6 +5,12 @@ import type { ModelContextProvider } from "../model-context/types";
 import type { ThreadMessageLike } from "../runtime/utils/thread-message-like";
 import type { AppendMessage } from "../types/message";
 import { invalidateThreadRuntime } from "../runtime/utils/thread-runtime-lifecycle";
+import { MessageRepository } from "../runtime/utils/message-repository";
+import {
+  ThreadRuntimeImpl,
+  type ThreadRuntimeCoreBinding,
+} from "../runtime/api/thread-runtime";
+import type { ThreadListItemRuntimeBinding } from "../runtime/api/thread-runtime";
 
 const mockContextProvider: ModelContextProvider = {
   getModelContext: () => ({}),
@@ -18,6 +24,33 @@ const makeStore = (
     onNew: vi.fn(),
     ...overrides,
   }) as ExternalStoreAdapter;
+
+const makeThreadRuntime = (core: ExternalStoreThreadRuntimeCore) => {
+  const path = {
+    ref: "test.thread",
+    threadSelector: { type: "main" as const },
+  };
+  const threadBinding: ThreadRuntimeCoreBinding = {
+    path,
+    getState: () => core,
+    subscribe: (callback) => core.subscribe(callback),
+    outerSubscribe: (callback) => core.subscribe(callback),
+  };
+  const threadListItemBinding: ThreadListItemRuntimeBinding = {
+    path,
+    getState: () => ({
+      id: "test",
+      remoteId: undefined,
+      externalId: undefined,
+      isMain: true,
+      isRunning: false,
+      status: "regular",
+      title: undefined,
+    }),
+    subscribe: () => () => {},
+  };
+  return new ThreadRuntimeImpl(threadBinding, threadListItemBinding);
+};
 
 describe("ExternalStoreThreadRuntimeCore - state reference stability", () => {
   describe("capabilities", () => {
@@ -209,6 +242,624 @@ describe("ExternalStoreThreadRuntimeCore - state reference stability", () => {
 
       expect(onDelete).toHaveBeenCalledWith("m1");
     });
+  });
+});
+
+describe("ExternalStoreThreadRuntimeCore - tail updates", () => {
+  type Raw = {
+    id: string;
+    role: "user" | "assistant";
+    text: string;
+  };
+  const convertMessage = (message: Raw): ThreadMessageLike => ({
+    id: message.id,
+    role: message.role,
+    content: [{ type: "text", text: message.text }],
+  });
+
+  it("keeps cached prefix messages when the list grows", () => {
+    const convert = vi.fn(convertMessage);
+    const first: Raw = { id: "u1", role: "user", text: "hello" };
+    const second: Raw = { id: "a1", role: "assistant", text: "hi" };
+    const runtime = new ExternalStoreThreadRuntimeCore(
+      mockContextProvider,
+      makeStore({ messages: [first, second], convertMessage: convert }),
+    );
+    const before = runtime.messages;
+
+    runtime.__internal_setAdapter(
+      makeStore({
+        messages: [
+          first,
+          second,
+          { id: "u2", role: "user", text: "again" } satisfies Raw,
+        ],
+        convertMessage: convert,
+      }),
+    );
+
+    expect(convert).toHaveBeenCalledTimes(3);
+    expect(runtime.messages[0]).toBe(before[0]);
+    expect(runtime.messages[1]).toBe(before[1]);
+  });
+
+  it("revalidates auto status without reconverting the unchanged prefix", () => {
+    const convert = vi.fn(convertMessage);
+    const first: Raw = { id: "u1", role: "user", text: "hello" };
+    const second: Raw = { id: "a1", role: "assistant", text: "hi" };
+    const runtime = new ExternalStoreThreadRuntimeCore(
+      mockContextProvider,
+      makeStore({
+        messages: [first, second],
+        convertMessage: convert,
+        isRunning: true,
+      }),
+    );
+    const firstMessage = runtime.messages[0];
+
+    runtime.__internal_setAdapter(
+      makeStore({
+        messages: [first, second],
+        convertMessage: convert,
+        isRunning: false,
+      }),
+    );
+
+    expect(convert).toHaveBeenCalledTimes(3);
+    expect(runtime.messages[0]).toBe(firstMessage);
+    expect(runtime.messages[1]?.status).toMatchObject({ type: "complete" });
+  });
+
+  it("updates only the changed tail repository node", () => {
+    const messages: Raw[] = Array.from({ length: 100 }, (_, index) => ({
+      id: `m${index}`,
+      role: index % 2 === 0 ? "user" : "assistant",
+      text: `message ${index}`,
+    }));
+    const runtime = new ExternalStoreThreadRuntimeCore(
+      mockContextProvider,
+      makeStore({ messages, convertMessage }),
+    );
+    const addOrUpdateMessage = vi.spyOn(
+      MessageRepository.prototype,
+      "addOrUpdateMessage",
+    );
+    const resetHead = vi.spyOn(MessageRepository.prototype, "resetHead");
+
+    try {
+      runtime.__internal_setAdapter(
+        makeStore({
+          messages: [
+            ...messages.slice(0, -1),
+            { ...messages.at(-1)!, text: "updated tail" },
+          ],
+          convertMessage,
+        }),
+      );
+
+      expect(addOrUpdateMessage).toHaveBeenCalledTimes(1);
+      expect(resetHead).not.toHaveBeenCalled();
+      expect(runtime.messages.at(-1)?.content[0]).toMatchObject({
+        type: "text",
+        text: "updated tail",
+      });
+    } finally {
+      addOrUpdateMessage.mockRestore();
+      resetHead.mockRestore();
+    }
+  });
+
+  it("skips conversion when an adapter update reuses the message array", () => {
+    const messages: Raw[] = [
+      { id: "u1", role: "user", text: "hello" },
+      { id: "a1", role: "assistant", text: "old" },
+    ];
+    const converter = vi.fn(convertMessage);
+    const runtime = new ExternalStoreThreadRuntimeCore(
+      mockContextProvider,
+      makeStore({ messages, convertMessage: converter }),
+    );
+    converter.mockClear();
+
+    runtime.__internal_setAdapter(
+      makeStore({ messages, convertMessage: converter }),
+    );
+
+    expect(converter).not.toHaveBeenCalled();
+  });
+
+  it("does not inspect the repository during no-op adapter updates", () => {
+    const messages: Raw[] = [
+      { id: "u1", role: "user", text: "hello" },
+      { id: "a1", role: "assistant", text: "old" },
+    ];
+    const runtime = new ExternalStoreThreadRuntimeCore(
+      mockContextProvider,
+      makeStore({ messages, convertMessage }),
+    );
+    const getMessages = vi.spyOn(MessageRepository.prototype, "getMessages");
+
+    try {
+      for (let index = 0; index < 20; index++) {
+        runtime.__internal_setAdapter(makeStore({ messages, convertMessage }));
+      }
+
+      expect(getMessages).not.toHaveBeenCalled();
+    } finally {
+      getMessages.mockRestore();
+    }
+  });
+
+  it("keeps repository snapshots aligned after non-tail feedback", () => {
+    const feedback = { submit: vi.fn() };
+    const first: Raw = { id: "u1", role: "user", text: "hello" };
+    const rated: Raw = { id: "a1", role: "assistant", text: "answer" };
+    const tail: Raw = { id: "u2", role: "user", text: "next" };
+    const runtime = new ExternalStoreThreadRuntimeCore(
+      mockContextProvider,
+      makeStore({
+        messages: [first, rated, tail],
+        convertMessage,
+        adapters: { feedback },
+      }),
+    );
+
+    runtime.submitFeedback({ messageId: "a1", type: "positive" });
+
+    expect(runtime.messages[1]?.metadata.submittedFeedback).toEqual({
+      type: "positive",
+    });
+    expect(runtime.getMessageById("a1")?.message).toBe(runtime.messages[1]);
+
+    runtime.__internal_setAdapter(
+      makeStore({
+        messages: [first, rated, { ...tail, text: "updated tail" }],
+        convertMessage,
+        adapters: { feedback },
+      }),
+    );
+
+    expect(runtime.messages[1]?.metadata.submittedFeedback).toBeUndefined();
+    expect(runtime.getMessageById("a1")?.message).toBe(runtime.messages[1]);
+    expect(runtime.messages[2]?.content[0]).toMatchObject({
+      type: "text",
+      text: "updated tail",
+    });
+  });
+
+  it("does not reuse a host-mutated prefix from an earlier input array", () => {
+    const messages: Raw[] = [
+      { id: "u1", role: "user", text: "old prefix" },
+      { id: "a1", role: "assistant", text: "old tail" },
+    ];
+    const runtime = new ExternalStoreThreadRuntimeCore(
+      mockContextProvider,
+      makeStore({ messages, convertMessage }),
+    );
+
+    messages[0] = { ...messages[0]!, text: "updated prefix" };
+    runtime.__internal_setAdapter(
+      makeStore({
+        messages: [messages[0]!, { ...messages[1]!, text: "updated tail" }],
+        convertMessage,
+      }),
+    );
+
+    expect(runtime.messages.map((message) => message.content[0])).toEqual([
+      expect.objectContaining({ type: "text", text: "updated prefix" }),
+      expect.objectContaining({ type: "text", text: "updated tail" }),
+    ]);
+  });
+
+  it("re-converts stable inputs when the converter callback changes", () => {
+    const messages: Raw[] = [
+      { id: "u1", role: "user", text: "hello" },
+      { id: "u2", role: "user", text: "again" },
+    ];
+    const uppercaseMessage = (message: Raw): ThreadMessageLike => ({
+      id: message.id,
+      role: message.role,
+      content: [{ type: "text", text: message.text.toUpperCase() }],
+    });
+    const runtime = new ExternalStoreThreadRuntimeCore(
+      mockContextProvider,
+      makeStore({ messages, convertMessage }),
+    );
+
+    runtime.__internal_setAdapter(
+      makeStore({ messages, convertMessage: uppercaseMessage }),
+    );
+
+    expect(runtime.messages.map((message) => message.content[0])).toEqual([
+      expect.objectContaining({ type: "text", text: "HELLO" }),
+      expect.objectContaining({ type: "text", text: "AGAIN" }),
+    ]);
+  });
+
+  it("falls back to full reconciliation for structural updates", () => {
+    const first: Raw = { id: "m0", role: "user", text: "first" };
+    const middle: Raw = { id: "m1", role: "user", text: "middle" };
+    const tail: Raw = { id: "m2", role: "user", text: "tail" };
+    const scenarios = [
+      {
+        name: "a changed middle message",
+        initial: [first, middle, tail],
+        updated: [first, { ...middle, text: "changed" }, tail],
+        expectedIds: ["m0", "m1", "m2"],
+        expectedTexts: ["first", "changed", "tail"],
+      },
+      {
+        name: "a removed message",
+        initial: [first, middle, tail],
+        updated: [first, tail],
+        expectedIds: ["m0", "m2"],
+        expectedTexts: ["first", "tail"],
+      },
+      {
+        name: "an inserted message",
+        initial: [first, tail],
+        updated: [first, middle, tail],
+        expectedIds: ["m0", "m1", "m2"],
+        expectedTexts: ["first", "middle", "tail"],
+      },
+      {
+        name: "a reordered prefix with the same tail",
+        initial: [first, middle, tail],
+        updated: [middle, first, tail],
+        expectedIds: ["m1", "m0", "m2"],
+        expectedTexts: ["middle", "first", "tail"],
+      },
+      {
+        name: "a duplicate id",
+        initial: [first, middle, tail],
+        updated: [first, { ...first, text: "replacement" }, tail],
+        expectedIds: ["m0", "m2"],
+        expectedTexts: ["replacement", "tail"],
+      },
+    ];
+    const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
+
+    try {
+      for (const scenario of scenarios) {
+        const runtime = new ExternalStoreThreadRuntimeCore(
+          mockContextProvider,
+          makeStore({ messages: scenario.initial, convertMessage }),
+        );
+        const addOrUpdateMessage = vi.spyOn(
+          MessageRepository.prototype,
+          "addOrUpdateMessage",
+        );
+
+        try {
+          runtime.__internal_setAdapter(
+            makeStore({ messages: scenario.updated, convertMessage }),
+          );
+
+          expect(addOrUpdateMessage, scenario.name).toHaveBeenCalledTimes(
+            scenario.expectedIds.length,
+          );
+          expect(
+            runtime.messages.map((message) => message.id),
+            scenario.name,
+          ).toEqual(scenario.expectedIds);
+          expect(
+            runtime.messages.map(
+              (message) =>
+                (message.content[0] as { type: "text"; text: string }).text,
+            ),
+            scenario.name,
+          ).toEqual(scenario.expectedTexts);
+
+          const parents = new Map(
+            runtime
+              .export()
+              .messages.map(({ message, parentId }) => [message.id, parentId]),
+          );
+          expect(
+            scenario.expectedIds.map((id) => parents.get(id)),
+            scenario.name,
+          ).toEqual(
+            scenario.expectedIds.map((_, index) =>
+              index === 0 ? null : scenario.expectedIds[index - 1],
+            ),
+          );
+        } finally {
+          addOrUpdateMessage.mockRestore();
+        }
+      }
+    } finally {
+      warn.mockRestore();
+    }
+  });
+
+  it("reconciles fully while a runtime placeholder is active", () => {
+    const first: Raw = { id: "u1", role: "user", text: "hello" };
+    const runtime = new ExternalStoreThreadRuntimeCore(
+      mockContextProvider,
+      makeStore({ messages: [first], convertMessage, isRunning: true }),
+    );
+    const addOrUpdateMessage = vi.spyOn(
+      MessageRepository.prototype,
+      "addOrUpdateMessage",
+    );
+
+    try {
+      runtime.__internal_setAdapter(
+        makeStore({
+          messages: [{ ...first, text: "updated" }],
+          convertMessage,
+          isRunning: true,
+        }),
+      );
+
+      expect(addOrUpdateMessage).toHaveBeenCalledTimes(2);
+      expect(runtime.messages[0]?.content[0]).toMatchObject({
+        type: "text",
+        text: "updated",
+      });
+      expect(runtime.messages[1]?.metadata.isOptimistic).toBe(true);
+    } finally {
+      addOrUpdateMessage.mockRestore();
+    }
+  });
+
+  it("reconciles fully while a host deletion is pending", async () => {
+    const first: Raw = { id: "m0", role: "user", text: "first" };
+    const deleted: Raw = { id: "m1", role: "user", text: "deleted" };
+    const tail: Raw = { id: "m2", role: "user", text: "tail" };
+    const onDelete = vi.fn();
+    const runtime = new ExternalStoreThreadRuntimeCore(
+      mockContextProvider,
+      makeStore({
+        messages: [first, deleted, tail],
+        convertMessage,
+        onDelete,
+      }),
+    );
+
+    await runtime.deleteMessage("m1");
+    const addOrUpdateMessage = vi.spyOn(
+      MessageRepository.prototype,
+      "addOrUpdateMessage",
+    );
+
+    try {
+      runtime.__internal_setAdapter(
+        makeStore({
+          messages: [first, tail],
+          convertMessage,
+          onDelete,
+        }),
+      );
+
+      expect(addOrUpdateMessage).toHaveBeenCalledTimes(2);
+      expect(runtime.messages.map((message) => message.id)).toEqual([
+        "m0",
+        "m2",
+      ]);
+      expect(
+        runtime.export().messages.some(({ message }) => message.id === "m1"),
+      ).toBe(false);
+    } finally {
+      addOrUpdateMessage.mockRestore();
+    }
+  });
+
+  it("keeps an owned snapshot when the host provides ready messages", () => {
+    const first = { id: "u1", role: "user" as const, content: [] };
+    const initial = [
+      first,
+      { id: "a1", role: "assistant" as const, content: [] },
+    ];
+    const runtime = new ExternalStoreThreadRuntimeCore(
+      mockContextProvider,
+      makeStore({ messages: initial }),
+    );
+    const updated = [
+      first,
+      {
+        id: "a1",
+        role: "assistant" as const,
+        content: [{ type: "text" as const, text: "updated" }],
+      },
+    ];
+    const getMessages = vi.spyOn(MessageRepository.prototype, "getMessages");
+
+    try {
+      runtime.__internal_setAdapter(makeStore({ messages: updated }));
+
+      expect(getMessages).not.toHaveBeenCalled();
+      expect(runtime.messages).not.toBe(updated);
+      updated.pop();
+      expect(runtime.messages).toHaveLength(2);
+    } finally {
+      getMessages.mockRestore();
+    }
+  });
+
+  it("does not reuse host-mutated ready messages from an earlier input array", () => {
+    const initial = [
+      {
+        id: "u1",
+        role: "user" as const,
+        content: [{ type: "text" as const, text: "old prefix" }],
+      },
+      {
+        id: "a1",
+        role: "assistant" as const,
+        content: [{ type: "text" as const, text: "old tail" }],
+      },
+    ];
+    const runtime = new ExternalStoreThreadRuntimeCore(
+      mockContextProvider,
+      makeStore({ messages: initial }),
+    );
+
+    initial[0] = {
+      ...initial[0]!,
+      content: [{ type: "text", text: "updated prefix" }],
+    };
+    runtime.__internal_setAdapter(
+      makeStore({
+        messages: [
+          initial[0]!,
+          {
+            ...initial[1]!,
+            content: [{ type: "text", text: "updated tail" }],
+          },
+        ],
+      }),
+    );
+
+    expect(runtime.messages.map((message) => message.content[0])).toEqual([
+      expect.objectContaining({ type: "text", text: "updated prefix" }),
+      expect.objectContaining({ type: "text", text: "updated tail" }),
+    ]);
+  });
+
+  it("updates only the changed tail message runtime", () => {
+    const messages: Raw[] = Array.from({ length: 100 }, (_, index) => ({
+      id: `m${index}`,
+      role: index % 2 === 0 ? "user" : "assistant",
+      text: `message ${index}`,
+    }));
+    const core = new ExternalStoreThreadRuntimeCore(
+      mockContextProvider,
+      makeStore({ messages, convertMessage }),
+    );
+    const runtime = makeThreadRuntime(core);
+    const unsubscribers = messages.map((message) =>
+      runtime.getMessageById(message.id).subscribe(() => {}),
+    );
+    const getMessageById = vi.spyOn(core, "getMessageById");
+
+    core.__internal_setAdapter(
+      makeStore({
+        messages: [
+          ...messages.slice(0, -1),
+          { ...messages.at(-1)!, text: "updated tail" },
+        ],
+        convertMessage,
+      }),
+    );
+
+    expect(getMessageById).toHaveBeenCalledTimes(1);
+    for (const unsubscribe of unsubscribers) unsubscribe();
+  });
+
+  it("keeps later message subscribers after an earlier unsubscribe repeats", () => {
+    const messages: Raw[] = [
+      { id: "u1", role: "user", text: "hello" },
+      { id: "a1", role: "assistant", text: "hi" },
+    ];
+    const core = new ExternalStoreThreadRuntimeCore(
+      mockContextProvider,
+      makeStore({ messages, convertMessage }),
+    );
+    const runtime = makeThreadRuntime(core);
+    const firstUnsubscribe = runtime.getMessageById("a1").subscribe(() => {});
+    firstUnsubscribe();
+    const laterSubscriber = vi.fn();
+    const laterUnsubscribe = runtime
+      .getMessageById("a1")
+      .subscribe(laterSubscriber);
+
+    firstUnsubscribe();
+    core.__internal_setAdapter(
+      makeStore({
+        messages: [messages[0]!, { ...messages[1]!, text: "updated" }],
+        convertMessage,
+      }),
+    );
+
+    expect(laterSubscriber).toHaveBeenCalled();
+    laterUnsubscribe();
+  });
+
+  it("keeps direct message subscribers after an earlier unsubscribe repeats", () => {
+    const messages: Raw[] = [
+      { id: "u1", role: "user", text: "hello" },
+      { id: "a1", role: "assistant", text: "hi" },
+    ];
+    const core = new ExternalStoreThreadRuntimeCore(
+      mockContextProvider,
+      makeStore({ messages, convertMessage }),
+    );
+    const firstUnsubscribe = core.subscribeMessage("a1", () => {});
+    firstUnsubscribe();
+    const laterSubscriber = vi.fn();
+    const laterUnsubscribe = core.subscribeMessage("a1", laterSubscriber);
+
+    firstUnsubscribe();
+    core.__internal_setAdapter(
+      makeStore({
+        messages: [messages[0]!, { ...messages[1]!, text: "updated" }],
+        convertMessage,
+      }),
+    );
+
+    expect(laterSubscriber).toHaveBeenCalled();
+    laterUnsubscribe();
+  });
+
+  it("notifies every message and thread subscriber when one throws", () => {
+    const messages: Raw[] = [
+      { id: "u1", role: "user", text: "hello" },
+      { id: "a1", role: "assistant", text: "hi" },
+    ];
+    const core = new ExternalStoreThreadRuntimeCore(
+      mockContextProvider,
+      makeStore({ messages, convertMessage }),
+    );
+    const laterMessageSubscriber = vi.fn();
+    const threadSubscriber = vi.fn();
+    core.subscribeMessage("u1", () => {
+      throw new Error("message subscriber failed");
+    });
+    core.subscribeMessage("a1", laterMessageSubscriber);
+    core.subscribe(threadSubscriber);
+
+    expect(() =>
+      core.__internal_setAdapter(
+        makeStore({
+          messages: [...messages, { id: "u2", role: "user", text: "again" }],
+          convertMessage,
+        }),
+      ),
+    ).toThrow("message subscriber failed");
+    expect(laterMessageSubscriber).toHaveBeenCalled();
+    expect(threadSubscriber).toHaveBeenCalled();
+  });
+
+  it("preserves an undefined message subscriber failure", () => {
+    const messages: Raw[] = [
+      { id: "u1", role: "user", text: "hello" },
+      { id: "a1", role: "assistant", text: "hi" },
+    ];
+    const core = new ExternalStoreThreadRuntimeCore(
+      mockContextProvider,
+      makeStore({ messages, convertMessage }),
+    );
+    const threadSubscriber = vi.fn();
+    core.subscribeMessage("a1", () => {
+      throw undefined;
+    });
+    core.subscribe(threadSubscriber);
+
+    let didThrow = false;
+    try {
+      core.__internal_setAdapter(
+        makeStore({
+          messages: [messages[0]!, { ...messages[1]!, text: "updated" }],
+          convertMessage,
+        }),
+      );
+    } catch {
+      didThrow = true;
+    }
+
+    expect(didThrow).toBe(true);
+    expect(threadSubscriber).toHaveBeenCalled();
   });
 });
 describe("ExternalStoreThreadRuntimeCore - optimistic message reconciliation", () => {
