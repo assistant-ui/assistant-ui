@@ -264,3 +264,18 @@ test("an annotated plain re-export is not reported as misnamed", () => {
   assert.deepEqual(result.errors, []);
   assert.deepEqual(result.misnamed, []);
 });
+
+test("rejects a description that repeats the stability contract", () => {
+  const result = check(
+    `/**\n * Unstable / Experimental, may change in any release.\n * @deprecated ${canonical("2026-08-01")}\n */\nexport const unstable_a = 1;\n`,
+  );
+  assert.equal(result.errors.length, 1);
+  assert.match(result.errors[0], /repeats the stability contract/);
+});
+
+test("leaves an ordinary description alone", () => {
+  const result = check(
+    `/**\n * Renders the message with the given id.\n * @deprecated ${canonical("2026-08-01")}\n */\nexport const unstable_a = 1;\n`,
+  );
+  assert.deepEqual(result.errors, []);
+});

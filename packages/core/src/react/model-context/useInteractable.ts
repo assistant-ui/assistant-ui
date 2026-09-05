@@ -39,7 +39,6 @@ export type Unstable_InteractableVersionInfo<TState> = {
 };
 
 /**
- * Unstable / Experimental — the interactables API is still evolving and may change in any release.
  * @deprecated Experimental since 2026-06-23, extended 2027-09-05. Not scheduled for removal; the API may change in any release.
  */
 export type Unstable_InteractableConfig<

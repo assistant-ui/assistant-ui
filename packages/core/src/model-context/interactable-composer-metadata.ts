@@ -2,7 +2,6 @@ import { isJSONValueEqual } from "../utils/json/is-json-equal";
 import { isJSONValue, isRecord } from "../utils/json/is-json";
 
 /**
- * Unstable / Experimental — the interactables API is still evolving and may change in any release.
  * @deprecated Experimental since 2026-06-23, extended 2027-09-05. Not scheduled for removal; the API may change in any release.
  */
 export type Unstable_InteractableSnapshotEntry = {
@@ -228,7 +227,6 @@ const createAddedItemIdFactory = (result: unknown) => {
 };
 
 /**
- * Unstable / Experimental — the interactables API is still evolving and may change in any release.
  * @deprecated Experimental since 2026-06-23, extended 2027-09-05. Not scheduled for removal; the API may change in any release.
  */
 export type Unstable_InteractableVersion = {

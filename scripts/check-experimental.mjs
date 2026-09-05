@@ -125,6 +125,16 @@ function deprecatedText(node) {
   return undefined;
 }
 
+function descriptionOf(node) {
+  for (const owner of new Set([node, documentable(node)])) {
+    for (const doc of owner.jsDoc ?? []) {
+      const comment = ts.getTextOfJSDocComment(doc.comment);
+      if (comment) return comment.replace(/\s+/g, " ").trim();
+    }
+  }
+  return "";
+}
+
 function deprecatedTextOn(node) {
   for (const doc of node.jsDoc ?? []) {
     for (const tag of doc.tags ?? []) {
@@ -154,6 +164,7 @@ export function collectDeclarations(file, source) {
           declarations.push({
             name,
             deprecated: text,
+            description: descriptionOf(node),
             required:
               !ts.isExportSpecifier(node) || isRenamingExportSpecifier(node),
             line:
@@ -175,7 +186,7 @@ export function checkSource({ file, source, now, windowDays, staleAfterDays }) {
   const warnings = [];
   const misnamed = [];
   for (const declaration of collectDeclarations(file, source)) {
-    const { name, deprecated, line, required } = declaration;
+    const { name, deprecated, line, required, description } = declaration;
     // Two separate questions: whether the name claims to be experimental, and
     // whether this particular site is obliged to say so.
     const prefixed = EXPERIMENTAL_PREFIX_PATTERN.test(name);
@@ -211,6 +222,13 @@ export function checkSource({ file, source, now, windowDays, staleAfterDays }) {
           `${where}: describes an experimental API in free prose; use "Experimental since <date>. ${EXPERIMENTAL_BOILERPLATE}".`,
         );
       }
+      continue;
+    }
+
+    if (/^unstable \/ experimental\b/i.test(description)) {
+      errors.push(
+        `${where}: the description repeats the stability contract the tag already states.`,
+      );
       continue;
     }
 
