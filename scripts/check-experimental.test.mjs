@@ -128,13 +128,6 @@ test("a name annotated elsewhere does not vouch for this declaration", () => {
   assert.match(bare.errors[0], /unstable_on/);
 });
 
-test("a re-export specifier is not required to repeat the annotation", () => {
-  const result = check(
-    'export { convertMessages as unstable_convertMessages } from "./x";\n',
-  );
-  assert.deepEqual(result.errors, []);
-});
-
 test("errors once the window has closed", () => {
   const result = check(
     `/** @deprecated ${canonical("2026-01-01")} */\nexport const unstable_a = 1;\n`,
@@ -195,4 +188,47 @@ test("leaves ordinary deprecations on stable symbols alone", () => {
   );
   assert.deepEqual(result.errors, []);
   assert.deepEqual(result.misnamed, []);
+});
+
+test("an empty @deprecated is not an annotation", () => {
+  const result = check("/** @deprecated */\nexport const unstable_a = 1;\n");
+  assert.equal(result.errors.length, 1);
+  assert.match(result.errors[0], /carries no text/);
+});
+
+test("rejects a ship date in the future", () => {
+  const result = check(
+    `/** @deprecated ${canonical("2027-01-01")} */\nexport const unstable_a = 1;\n`,
+  );
+  assert.equal(result.errors.length, 1);
+  assert.match(result.errors[0], /ships in the future/);
+});
+
+test("the window closes on its stated review date", () => {
+  const onTheDay = check(
+    `/** @deprecated ${canonical("2026-06-07")} */\nexport const unstable_a = 1;\n`,
+  );
+  assert.equal(onTheDay.errors.length, 1);
+  assert.match(onTheDay.errors[0], /window closed 2026-09-05/);
+  const dayBefore = check(
+    `/** @deprecated ${canonical("2026-06-08")} */\nexport const unstable_a = 1;\n`,
+  );
+  assert.deepEqual(dayBefore.errors, []);
+});
+
+test("a renaming export specifier must carry the annotation", () => {
+  const bare = check(
+    'export { convertMessages as unstable_convertMessages } from "./x";\n',
+  );
+  assert.equal(bare.errors.length, 1);
+  assert.match(bare.errors[0], /unstable_convertMessages/);
+  const annotated = check(
+    `/** @deprecated ${canonical("2026-08-01")} */\nexport { convertMessages as unstable_convertMessages } from "./x";\n`,
+  );
+  assert.deepEqual(annotated.errors, []);
+});
+
+test("a plain re-export defers to the declaration it points at", () => {
+  const result = check('export { unstable_useFoo } from "./x";\n');
+  assert.deepEqual(result.errors, []);
 });

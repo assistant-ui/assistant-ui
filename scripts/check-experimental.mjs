@@ -74,7 +74,20 @@ function isDeclaration(node) {
     ts.isMethodDeclaration(node) ||
     ts.isGetAccessorDeclaration(node) ||
     ts.isSetAccessorDeclaration(node) ||
-    ts.isEnumMember(node)
+    ts.isEnumMember(node) ||
+    isRenamingExportSpecifier(node)
+  );
+}
+
+// A plain re-export resolves to a prefixed declaration, which is checked where
+// it is written. A rename is different: it is where the experimental identity
+// is created, and the local name it points at carries no obligation of its own,
+// so the specifier is the only place the annotation can live.
+function isRenamingExportSpecifier(node) {
+  return (
+    ts.isExportSpecifier(node) &&
+    node.propertyName !== undefined &&
+    !EXPERIMENTAL_PREFIX_PATTERN.test(node.propertyName.text)
   );
 }
 
@@ -87,13 +100,17 @@ function declarationName(node) {
 }
 
 // JSDoc attaches to the statement, not to the declarator inside it, so a
-// `const` carries its comment on the enclosing VariableStatement.
+// `const` carries its comment on the enclosing VariableStatement and a lone
+// export specifier carries it on the enclosing export declaration.
 function documentable(node) {
   let current = node;
   while (
     current.parent &&
     (ts.isVariableDeclarationList(current.parent) ||
-      ts.isVariableStatement(current.parent))
+      ts.isVariableStatement(current.parent) ||
+      (ts.isNamedExports(current.parent) &&
+        current.parent.elements.length === 1) ||
+      ts.isExportDeclaration(current.parent))
   ) {
     current = current.parent;
   }
@@ -111,8 +128,6 @@ function deprecatedText(node) {
   return undefined;
 }
 
-// An experimental name reached through a re-export resolves to the declaration
-// that carries the annotation, so a specifier is never required to repeat it.
 export function collectDeclarations(file, source) {
   const sourceFile = ts.createSourceFile(
     file,
@@ -164,6 +179,12 @@ export function checkSource({ file, source, now, windowDays, staleAfterDays }) {
     }
 
     const record = parseDeprecatedTag(deprecated);
+    if (record.kind === "empty") {
+      if (prefixed) {
+        errors.push(`${where}: @deprecated carries no text.`);
+      }
+      continue;
+    }
     if (record.kind === "invalid") {
       errors.push(`${where}: ${record.reason}`);
       continue;
@@ -182,8 +203,12 @@ export function checkSource({ file, source, now, windowDays, staleAfterDays }) {
 
     if (!prefixed) misnamed.push(where);
 
+    if (record.since > now) {
+      errors.push(`${where}: ships in the future (${record.since}).`);
+      continue;
+    }
     const review = reviewDate(record, windowDays);
-    if (review < now) {
+    if (review <= now) {
       errors.push(
         `${where}: experimental window closed ${review}. Graduate it, remove it, or append ", extended <date>" to the tag.`,
       );
@@ -254,7 +279,8 @@ function main() {
     console.error(
       `Annotate experimental API as "@deprecated Experimental since <YYYY-MM-DD>. ${EXPERIMENTAL_BOILERPLATE}"`,
     );
-    process.exit(1);
+    process.exitCode = 1;
+    return;
   }
   console.log(`Checked ${files.length} source file(s).`);
 }
