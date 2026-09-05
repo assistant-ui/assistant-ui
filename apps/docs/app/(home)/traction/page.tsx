@@ -119,7 +119,7 @@ export default async function TractionPage() {
         </p>
         <p className="text-muted-foreground mt-6 flex items-center gap-2 font-mono text-[11px] tracking-wide">
           <LiveDot />
-          live · refreshes hourly
+          live · refreshes through the day
         </p>
       </header>
 
@@ -155,7 +155,7 @@ export default async function TractionPage() {
           <div className="mt-6 grid gap-6 lg:grid-cols-2">
             <Plate
               fig="01"
-              caption="stars over time · sampled from the stargazers api"
+              caption="stars over time · weekly, from the stargazers api"
             >
               <StarHistoryChart data={starHistory} />
             </Plate>
