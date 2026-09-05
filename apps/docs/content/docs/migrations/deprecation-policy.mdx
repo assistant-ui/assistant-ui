@@ -15,7 +15,21 @@ Below is a list of features considered stable and those considered experimental.
 
 ## Experimental Features
 
-These features may be removed at any time without notice.
+Experimental API carries the `unstable_` prefix and a `@deprecated` annotation recording the date it shipped:
+
+```ts
+/** @deprecated Experimental since 2026-09-05. Not scheduled for removal; the API may change in any release. */
+```
+
+The strikethrough your editor draws on these is a stability marker, not a removal notice. Experimental API ships from the same entry point as stable API, so the annotation is the only signal that reaches you while you type; read the hover text to tell the two kinds of strikethrough apart.
+
+Each experimental API gets a three month window from the date it shipped, and it will not be removed inside that window. At the end of the window it is graduated to a stable name, removed, or explicitly extended with a new review date recorded in the same annotation:
+
+```ts
+/** @deprecated Experimental since 2026-06-14, extended 2026-12-05. Not scheduled for removal; the API may change in any release. */
+```
+
+An experimental export with no annotation, or one whose window has closed without an extension, fails CI, so the dates in the source are current by construction.
 
 - Anything marked as `unstable_`, `experimental_`, or `internal`
 - The `RuntimeCore` API (considered internal)
