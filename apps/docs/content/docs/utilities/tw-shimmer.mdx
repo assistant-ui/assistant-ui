@@ -217,4 +217,4 @@ Uses modern CSS features: `@property`, relative `oklch()`, `color-mix()`, `tan()
 
 **Supported:** Chrome 120+, Firefox 128+, Safari 16.4+
 
-Older browsers degrade gracefully. The text shimmer is gated behind `@supports (background-clip: text) and (color: oklch(from red l c h))`, so below the floor the element keeps its normal fill and renders as plain, static text instead of animating. `shimmer-bg` degrades to a static block.
+Older browsers degrade gracefully. The text shimmer is gated behind `@supports (background-clip: text) and (color: oklch(from red l c h))`; when either half is missing the clip is skipped and the gradient and animation are dropped with it, so the element keeps its normal fill and renders as plain, static text instead of painting a gradient behind unclipped glyphs. `shimmer-bg` degrades to a static block.
