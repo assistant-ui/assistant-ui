@@ -20,8 +20,8 @@ export function launch(options: LaunchOptions): void {
 
   const claudeArgs: string[] = [];
 
-  if (skillName && prompt) {
-    claudeArgs.push(`/${skillName} ${prompt}`);
+  if (skillName) {
+    claudeArgs.push(prompt ? `/${skillName} ${prompt}` : `/${skillName}`);
   } else if (prompt) {
     claudeArgs.push(prompt);
   }
