@@ -6,6 +6,7 @@ from assistant_stream import create_run, RunController
 
 from assistant_stream.assistant_stream_chunk import (
     AnnotationsChunk,
+    DataChunk,
     ErrorChunk,
     FileChunk,
     StepFinishChunk,
@@ -21,6 +22,17 @@ from assistant_stream.assistant_stream_chunk import (
 )
 from assistant_stream.modules.tool_call import create_tool_call
 from assistant_stream.serialization.data_stream import DataStreamEncoder
+from assistant_stream.state import AssistantState
+
+
+def test_data_stream_encoder_serializes_draft_proxies() -> None:
+    draft = AssistantState({"items": [1]}).draft(lambda _ops: None)
+
+    encoded = DataStreamEncoder().encode_chunk(
+        DataChunk(data={"root": draft, "items": draft["items"]})
+    )
+
+    assert json.loads(encoded[2:]) == [{"root": {"items": [1]}, "items": [1]}]
 
 
 def test_data_stream_encoder_update_state_shape() -> None:
