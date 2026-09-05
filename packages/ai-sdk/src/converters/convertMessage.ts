@@ -70,6 +70,9 @@ function stripClosingDelimiters(json: string): string {
 
 const MCP_APP_METADATA_CACHE_MAX = 100;
 
+type AISDKToolApproval = NonNullable<ToolCallMessagePart["approval"]> &
+  Record<string, unknown>;
+
 function extractMcpAppMetadata(
   part: unknown,
   cache: Map<string, McpAppMetadata> | undefined,
@@ -154,14 +157,7 @@ function extractMcpAppMetadata(
 
 function getToolApprovalAndInterrupt(
   part: {
-    approval?:
-      | {
-          id: string;
-          approved?: boolean;
-          reason?: string;
-          isAutomatic?: boolean;
-        }
-      | undefined;
+    approval?: AISDKToolApproval | undefined;
   },
   toolStatus: { type: string; payload?: unknown } | undefined,
 ): {
@@ -169,10 +165,12 @@ function getToolApprovalAndInterrupt(
   interrupt?: NonNullable<ToolCallMessagePart["interrupt"]>;
 } {
   if (part.approval && typeof part.approval.id === "string") {
-    const { id, approved, reason, isAutomatic } = part.approval;
+    const { id, approved, reason, isAutomatic, ...additionalApprovalFields } =
+      part.approval;
     return {
       approval: {
         id,
+        ...additionalApprovalFields,
         ...(typeof approved === "boolean" && { approved }),
         ...(typeof reason === "string" && { reason }),
         ...(isAutomatic === true && { isAutomatic: true }),

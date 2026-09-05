@@ -394,6 +394,51 @@ describe("AISDKMessageConverter", () => {
     });
   });
 
+  it("preserves AI SDK and producer-defined approval fields", () => {
+    const options = [{ id: "once", kind: "allow-once", label: "Run once" }];
+    const descriptor = { scope: "account:deploy" };
+    const converted = AISDKMessageConverter.toThreadMessages([
+      {
+        id: "a1",
+        role: "assistant",
+        parts: [
+          {
+            type: "tool-deploy",
+            toolCallId: "tc-1",
+            state: "approval-responded",
+            input: { environment: "production" },
+            approval: {
+              id: "approval-1",
+              approved: true,
+              reason: "approved by operator",
+              descriptor,
+              requestReason: "Production access requires approval",
+              options,
+              optionId: "once",
+              signature: "signed-approval",
+              futureField: "preserved",
+            },
+          },
+        ],
+      } as any,
+    ]);
+
+    const toolCall = converted[0]?.content.find(
+      (part): part is any => part.type === "tool-call",
+    );
+    expect(toolCall?.approval).toEqual({
+      id: "approval-1",
+      approved: true,
+      reason: "approved by operator",
+      descriptor,
+      requestReason: "Production access requires approval",
+      options,
+      optionId: "once",
+      signature: "signed-approval",
+      futureField: "preserved",
+    });
+  });
+
   it("strips closing delimiters from streaming tool argsText", () => {
     const converted = AISDKMessageConverter.toThreadMessages([
       {
