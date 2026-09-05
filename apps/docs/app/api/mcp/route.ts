@@ -626,6 +626,7 @@ function jsonResponse(body: unknown, init?: ResponseInit) {
 
 function acceptsEventStream(request: NextRequest) {
   return (request.headers.get("accept") ?? "")
+    .toLowerCase()
     .split(",")
     .some((range) => range.split(";")[0]?.trim() === "text/event-stream");
 }

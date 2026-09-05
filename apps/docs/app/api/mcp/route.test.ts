@@ -146,9 +146,9 @@ describe("GET /api/mcp", () => {
     });
   });
 
-  it("refuses a stream open listed among other media ranges", async () => {
+  it("refuses a stream open whatever its casing or media range position", async () => {
     const response = await requestDescriptor(
-      "application/json, text/event-stream;q=0.9",
+      "application/json, Text/Event-Stream;q=0.9",
     );
 
     expect(response.status).toBe(405);
