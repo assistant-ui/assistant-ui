@@ -374,4 +374,7 @@ jobs:
           fi
 
       - name: Run React Compiler tests
+        env:
+          TURBO_TOKEN: ${{ secrets.TURBO_TOKEN }}
+          TURBO_TEAM: ${{ secrets.TURBO_TEAM }}
         run: pnpm test:react-compiler
