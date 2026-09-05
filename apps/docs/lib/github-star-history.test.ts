@@ -103,6 +103,15 @@ describe("getStarHistory", () => {
     await expect(getStarHistory()).resolves.toBeNull();
   });
 
+  it("returns null for a list whose buckets are not buckets", async () => {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async () => respond([{ week: "1700000000", total: 1, days: [] }])),
+    );
+
+    await expect(getStarHistory()).resolves.toBeNull();
+  });
+
   it("returns null when a later page fails", async () => {
     vi.stubGlobal(
       "fetch",

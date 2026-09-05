@@ -374,10 +374,16 @@ export async function getStarHistory(
 ): Promise<StarHistoryWeek[] | null> {
   const path = (page: number) =>
     `/stargazers/history?per_page=${STAR_HISTORY_PAGE_SIZE}&page=${page}`;
-  // A 200 carrying an error object would otherwise reach the caller as a
-  // non-iterable and throw where every other fetcher degrades.
+  // A 200 carrying anything but real buckets would otherwise reach the caller
+  // and throw, on the one path where every other fetcher degrades.
   const parse = (value: unknown): StarHistoryWeek[] | null =>
-    Array.isArray(value) ? (value as StarHistoryWeek[]) : null;
+    Array.isArray(value) &&
+    value.every(
+      (bucket) =>
+        typeof bucket?.week === "number" && typeof bucket?.total === "number",
+    )
+      ? (value as StarHistoryWeek[])
+      : null;
 
   try {
     const first = await ghFetch(path(1), revalidate);
