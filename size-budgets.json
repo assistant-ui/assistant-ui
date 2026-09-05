@@ -217,16 +217,16 @@
   },
   "@assistant-ui/store": {
     ".": {
-      "min": 16139,
-      "gzip": 6181
+      "min": 16893,
+      "gzip": 6447
     },
     "./client": {
-      "min": 17074,
-      "gzip": 6381
+      "min": 17819,
+      "gzip": 6640
     },
     "./internal": {
-      "min": 843,
-      "gzip": 441
+      "min": 3061,
+      "gzip": 1324
     }
   },
   "@assistant-ui/tap": {

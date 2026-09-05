@@ -10,7 +10,7 @@ import {
   getTapEffects,
   useAssistantContextValue,
 } from "./utils/react-assistant-context";
-import { useConfiguredAui } from "./useAui";
+import { useProviderAui } from "./useAui";
 import { isDevelopment } from "./utils/env";
 
 const EMPTY_CONFIG = AuiConfig({});
@@ -165,7 +165,7 @@ export const AuiProvider: {
     : hasValue
       ? (props.value ?? DefaultAssistantClient)
       : contextParent;
-  const { client, effects } = useConfiguredAui(parent, config ?? EMPTY_CONFIG);
+  const { client, effects } = useProviderAui(parent, config ?? EMPTY_CONFIG);
   useImperativeHandle(ref, () => client, [client]);
   return (
     <AssistantContext.Provider value={client}>
