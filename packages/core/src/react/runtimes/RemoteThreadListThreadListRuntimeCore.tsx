@@ -1107,10 +1107,7 @@ export class RemoteThreadListThreadListRuntimeCore
 
     await this._ensureThreadIsNotMain(data.id);
     this._requireAdapterGeneration(adapterGeneration);
-    this._hookManager.stopThreadRuntime(data.id);
-    clearThreadTitleState(this._titleStates, data.id);
-
-    return this._state.optimisticUpdate({
+    const result = await this._state.optimisticUpdate({
       execute: async () => {
         const { remoteId } = await data.initializeTask;
         this._requireAdapterGeneration(adapterGeneration);
@@ -1120,6 +1117,10 @@ export class RemoteThreadListThreadListRuntimeCore
         return updateStatusReducer(state, data.id, "deleted");
       },
     });
+    if (adapterGeneration !== this._adapterGeneration) return result;
+    this._hookManager.stopThreadRuntime(data.id);
+    clearThreadTitleState(this._titleStates, data.id);
+    return result;
   }
 
   public __internal_dispose() {

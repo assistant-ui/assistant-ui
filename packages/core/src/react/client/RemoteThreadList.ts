@@ -76,6 +76,7 @@ export type RemoteThreadListProps = {
   onThreadIdChange?: ((threadId: string | undefined) => void) | undefined;
   onSwitchToThread?: ((threadId: string) => void) | undefined;
   onSwitchToNewThread?: (() => void) | undefined;
+  /** Called after the backing adapter successfully deletes the thread. */
   onDelete?: ((threadId: string) => void) | undefined;
   /**
    * Keeps every thread the session switched to mounted, so a run continues
@@ -1145,9 +1146,7 @@ const useRemoteThreadList = (
       }
       await ensureNotMain(data.id);
       requireAdapterGeneration(adapterGeneration);
-      onDelete?.(data.id);
-      clearThreadTitleState(session.titleStates, data.id);
-      return store.optimisticUpdate({
+      const result = await store.optimisticUpdate({
         execute: async () => {
           const { remoteId } = await data.initializeTask;
           requireAdapterGeneration(adapterGeneration);
@@ -1155,6 +1154,10 @@ const useRemoteThreadList = (
         },
         optimistic: (state) => updateStatusReducer(state, data.id, "deleted"),
       });
+      if (adapterGeneration !== session.adapterGeneration) return result;
+      clearThreadTitleState(session.titleStates, data.id);
+      onDelete?.(data.id);
+      return result;
     },
     [ensureNotMain, onDelete, requireAdapterGeneration, session, store],
   );
