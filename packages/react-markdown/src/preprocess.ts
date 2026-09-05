@@ -73,14 +73,23 @@ function atLineStart(text: string, index: number): boolean {
 }
 
 /**
- * Whether the backtick run at `start` opens a fence rather than a code span. A
- * fence is a flow construct, so its run has to start a line and be at least
- * three long, and CommonMark forbids a backtick in a backtick fence's info
- * string, which makes a run sharing its line with another backtick a span.
+ * Whether an unclosed backtick run at `start` reads as a fence still streaming
+ * in: three or more backticks with only indentation and blockquote markers
+ * ahead of them on their line, and an info string, which CommonMark forbids a
+ * backtick in. Indentation is uncapped here, unlike in {@link
+ * opensBacktickFence}, because a fence nested past a list item's content column
+ * is common and holding its body inert until the closer arrives costs one
+ * permanently open run indented four spaces at the root column, while reading it
+ * as prose rewrites every delimiter in the block on the way there.
  */
-function opensBacktickFence(text: string, start: number): boolean {
+function opensStreamingFence(text: string, start: number): boolean {
   const fenceLength = runLength(text, start, "`");
-  if (fenceLength < 3 || !atLineStart(text, start)) return false;
+  if (fenceLength < 3) return false;
+
+  const lineStart = text.lastIndexOf("\n", start - 1) + 1;
+  if (!/^[ \t]*(?:>[ \t]?)*[ \t]*$/.test(text.slice(lineStart, start))) {
+    return false;
+  }
 
   const lineEnd = text.indexOf("\n", start + fenceLength);
   const info = text.slice(
@@ -88,6 +97,15 @@ function opensBacktickFence(text: string, start: number): boolean {
     lineEnd === -1 ? undefined : lineEnd,
   );
   return !info.includes("`");
+}
+
+/**
+ * Whether the backtick run at `start` opens a fence rather than a code span. A
+ * fence is a flow construct, so its run also has to start a line within the
+ * three columns an opener may be indented by.
+ */
+function opensBacktickFence(text: string, start: number): boolean {
+  return opensStreamingFence(text, start) && atLineStart(text, start);
 }
 
 /**
@@ -115,10 +133,10 @@ function backtickEnd(text: string, start: number): number {
  * which closes on a line carrying only an at-least-as-long run, and a run
  * anywhere else opens a code span, which closes on a run of exactly its own
  * length wherever on a line that run sits. An unclosed span reads as literal
- * text, while an unclosed fence is one still streaming in and protects to the
- * end of the input; that last case is where this walker and
- * `escapeCurrencyDollars` differ, since that one treats the run as literal.
- * Tilde runs only ever open a fence, read the same way.
+ * text, while an unclosed run that has an opener's shape is a fence still
+ * streaming in and protects to the end of the input; that last case is where
+ * this walker and `escapeCurrencyDollars` differ, since that one treats the run
+ * as literal. Tilde runs only ever open a fence, read the same way.
  */
 function rewriteOutsideCode(
   text: string,
@@ -160,7 +178,7 @@ function rewriteOutsideCode(
     } else if (char === "`") {
       const end = backtickEnd(text, index);
       if (end !== -1) copyVerbatim(end);
-      else if (opensBacktickFence(text, index)) copyVerbatim(text.length);
+      else if (opensStreamingFence(text, index)) copyVerbatim(text.length);
       else index += runLength(text, index, "`");
     } else if (
       char === "~" &&
@@ -349,20 +367,25 @@ function runLength(text: string, start: number, char: string): number {
  * End index (exclusive) of the code span whose backtick run starts at `start`,
  * or -1 when that run is never closed and its backticks read as literal text. A
  * span closes on a run of exactly its own length, wherever on a line that run
- * sits; a shorter or longer run is content.
+ * sits; a shorter or longer run is content, and a blank line ends the search
+ * with the paragraph.
  */
 function codeSpanEnd(text: string, start: number): number {
   const delimiterLength = runLength(text, start, "`");
   const delimiter = "`".repeat(delimiterLength);
+  // A span is an inline construct, so it cannot reach past the paragraph it
+  // opens in and a run left open in prose does not swallow a later fence.
+  const blank = BLANK_LINE.exec(text.slice(start));
+  const limit = blank ? start + blank.index : text.length;
   let closed = text.indexOf(delimiter, start + delimiterLength);
 
-  while (closed !== -1) {
+  while (closed !== -1 && closed < limit) {
     const closedLength = runLength(text, closed, "`");
     if (closedLength === delimiterLength) break;
     closed = text.indexOf(delimiter, closed + closedLength);
   }
 
-  return closed === -1 ? -1 : closed + delimiterLength;
+  return closed === -1 || closed >= limit ? -1 : closed + delimiterLength;
 }
 
 /**

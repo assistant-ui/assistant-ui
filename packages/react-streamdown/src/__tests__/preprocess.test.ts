@@ -145,6 +145,11 @@ describe("rewriteLatexBracketDelimiters", () => {
     );
   });
 
+  it("protects an unclosed fence indented past a list item's content column", () => {
+    const streaming = "1. Step\n   - Sub\n     ```js\n     const a = \\(x\\);";
+    expect(rewriteLatexBracketDelimiters(streaming)).toBe(streaming);
+  });
+
   it("does not open a fence from a run sharing its line with a backtick", () => {
     expect(
       rewriteLatexBracketDelimiters("```\\(a\\)```b\n\nafter \\(y\\)"),
@@ -443,6 +448,14 @@ describe("escapeCurrencyDollars", () => {
     const fenced = "```\n```js\nconst price = $5;\n```\nafter $10";
     expect(escapeCurrencyDollars(fenced)).toBe(
       "```\n```js\nconst price = $5;\n```\nafter \\$10",
+    );
+  });
+
+  it("does not let a run left open in prose swallow a later fence", () => {
+    const prose =
+      "use ``` to fence code\n\n```js\nconst price = $5;\n```\nafter $10";
+    expect(escapeCurrencyDollars(prose)).toBe(
+      "use ``` to fence code\n\n```js\nconst price = $5;\n```\nafter \\$10",
     );
   });
 
