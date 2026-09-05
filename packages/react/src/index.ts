@@ -166,6 +166,7 @@ export {
    */
   convertExternalMessages as unstable_convertExternalMessages,
 } from "./legacy-runtime/runtime-cores/external-store/external-message-converter";
+/** @deprecated Experimental since 2025-02-02, extended 2027-03-05. Not scheduled for removal; the API may change in any release. */
 export { createMessageConverter as unstable_createMessageConverter } from "./legacy-runtime/runtime-cores/external-store/createMessageConverter";
 
 // --- local ---
@@ -453,9 +454,6 @@ export type {
   GenerativeUIMessagePart,
   GenerativeUINode,
   GenerativeUISpec,
-  /**
-   * @deprecated Experimental since 2025-06-26, extended 2027-03-05. Not scheduled for removal; the API may change in any release.
-   */
   Unstable_AudioMessagePart,
   RespondToToolApprovalOptions,
   ToolApprovalDisplay,
@@ -495,13 +493,7 @@ export type {
   ImageMessagePartProps,
   FileMessagePartComponent,
   FileMessagePartProps,
-  /**
-   * @deprecated Experimental since 2025-06-26, extended 2027-03-05. Not scheduled for removal; the API may change in any release.
-   */
   Unstable_AudioMessagePartComponent,
-  /**
-   * @deprecated Experimental since 2025-06-26, extended 2027-03-05. Not scheduled for removal; the API may change in any release.
-   */
   Unstable_AudioMessagePartProps,
   DataMessagePartComponent,
   DataMessagePartProps,
@@ -753,4 +745,5 @@ export {
    */
   type Unstable_WebMcpProviderResult,
 } from "./unstable/webmcp/useWebMcpProvider";
+/** @deprecated Experimental since 2026-08-29. Not scheduled for removal; the API may change in any release. */
 export { defaultWebMcpFilter as unstable_defaultWebMcpFilter } from "./unstable/webmcp/convertTools";

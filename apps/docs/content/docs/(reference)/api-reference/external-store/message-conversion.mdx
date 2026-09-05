@@ -14,12 +14,6 @@ import { useExternalMessageConverter } from "@/generated/typeDocs";
 
 ## API Reference
 
-### unstable_createMessageConverter
-
-```ts
-const unstable_createMessageConverter: <T extends object>(callback: useExternalMessageConverter.Callback<T>) => { useThreadMessages: ({ messages, isRunning, joinStrategy, metadata, }: { messages: T[]; isRunning: boolean; joinStrategy?: JoinStrategy | undefined; metadata?: useExternalMessageConverter.Metadata; }) => ThreadMessage[]; toThreadMessages: (messages: T[], isRunning?: boolean, metadata?: useExternalMessageConverter.Metadata) => ThreadMessage[]; toOriginalMessages: (input: ThreadState | ThreadMessage | ThreadMessage["content"][number]) => unknown[]; toOriginalMessage: (input: ThreadState | ThreadMessage | ThreadMessage["content"][number]) => {}; useOriginalMessage: () => {}; useOriginalMessages: () => unknown[]; };
-```
-
 ### useExternalMessageConverter
 
 <ParametersTable {...useExternalMessageConverter} />
@@ -61,5 +55,15 @@ const unstable_convertExternalMessages: <T extends WeakKey>(
   isRunning: boolean,
   metadata: useExternalMessageConverter.Metadata,
 ) => ThreadMessage[];
+```
+
+### unstable_createMessageConverter
+
+<Callout type="tip">
+<strong>Experimental.</strong> Shipped 2025-02-02. Not covered by semver; the API may change in any release.
+</Callout>
+
+```ts
+const unstable_createMessageConverter: <T extends object>(callback: useExternalMessageConverter.Callback<T>) => { useThreadMessages: ({ messages, isRunning, joinStrategy, metadata, }: { messages: T[]; isRunning: boolean; joinStrategy?: JoinStrategy | undefined; metadata?: useExternalMessageConverter.Metadata; }) => ThreadMessage[]; toThreadMessages: (messages: T[], isRunning?: boolean, metadata?: useExternalMessageConverter.Metadata) => ThreadMessage[]; toOriginalMessages: (input: ThreadState | ThreadMessage | ThreadMessage["content"][number]) => unknown[]; toOriginalMessage: (input: ThreadState | ThreadMessage | ThreadMessage["content"][number]) => {}; useOriginalMessage: () => {}; useOriginalMessages: () => unknown[]; };
 ```
 {/* api-reference:end */}

@@ -334,7 +334,6 @@ export namespace MessagePrimitiveParts {
          * is anything other than Text or Reasoning.
          *
          * @deprecated Experimental since 2026-01-26, extended 2027-06-05. Not scheduled for removal; the API may change in any release.
-         * @experimental This API is experimental and may change in future versions.
          * @default true
          */
         unstable_showEmptyOnNonTextEnd?: boolean | undefined;

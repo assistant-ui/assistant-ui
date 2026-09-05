@@ -9,6 +9,7 @@ export {
   type ThreadMessagesProps as MessagesProps,
 } from "./thread/ThreadMessages";
 export { ThreadPrimitiveMessageByIndex as MessageByIndex } from "@assistant-ui/core/react";
+/** @deprecated Experimental since 2026-06-23. Not scheduled for removal; the API may change in any release. */
 export { ThreadPrimitiveUnstable_MessageById as Unstable_MessageById } from "@assistant-ui/core/react";
 export {
   ThreadEmpty as Empty,

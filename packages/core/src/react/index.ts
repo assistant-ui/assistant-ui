@@ -138,13 +138,7 @@ export type {
   ImageMessagePartProps,
   FileMessagePartComponent,
   FileMessagePartProps,
-  /**
-   * @deprecated Experimental since 2025-06-26, extended 2027-03-05. Not scheduled for removal; the API may change in any release.
-   */
   Unstable_AudioMessagePartComponent,
-  /**
-   * @deprecated Experimental since 2025-06-26, extended 2027-03-05. Not scheduled for removal; the API may change in any release.
-   */
   Unstable_AudioMessagePartProps,
   DataMessagePartComponent,
   DataMessagePartProps,

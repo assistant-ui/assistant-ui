@@ -15,4 +15,4 @@
 
 docs: give every unstable_ API a dated experimental window
 
-every `unstable_` declaration now carries `@deprecated Experimental since <date>. Not scheduled for removal; the API may change in any release.`, replacing six free-prose wordings for the same idea. the date opens a three month window during which the API will not be removed; extending it is an explicit `, extended <date>` in the same tag. `pnpm experimental:check` fails on an unannotated `unstable_` declaration, a malformed tag, or a window that has closed without an extension.
+every `unstable_` declaration now carries `@deprecated Experimental since <date>. Not scheduled for removal; the API may change in any release.`, replacing six free-prose wordings for the same idea. the date opens a three month window during which the API will not be removed; extending it is an explicit `, extended <date>` in the same tag.
