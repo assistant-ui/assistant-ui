@@ -117,7 +117,9 @@ const EMPTY_TRIGGERS: ReadonlyMap<string, RegisteredTrigger> = new Map();
 const noopSubscribe = () => () => {};
 const getEmptyTriggers = () => EMPTY_TRIGGERS;
 
-/** Like `useTriggerPopoverTriggers` but returns an empty map outside a root. *
+/**
+ * Like `useTriggerPopoverTriggers` but returns an empty map outside a root.
+ *
  * @deprecated Experimental since 2026-04-15, extended 2027-06-05. Not scheduled for removal; the API may change in any release.
  */
 export const useTriggerPopoverTriggersOptional = () => {
@@ -323,6 +325,8 @@ const TriggerPopoverRootInner: FC<
  *   </ComposerPrimitive.Root>
  * </ComposerPrimitive.Unstable_TriggerPopoverRoot>
  * ```
+ *
+ * @deprecated Experimental since 2026-04-06, extended 2027-06-05. Not scheduled for removal; the API may change in any release.
  */
 export const ComposerPrimitiveTriggerPopoverRoot: FC<
   ComposerPrimitiveTriggerPopoverRoot.Props

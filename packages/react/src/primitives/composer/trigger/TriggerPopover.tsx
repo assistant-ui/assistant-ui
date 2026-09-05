@@ -112,6 +112,8 @@ export namespace ComposerPrimitiveTriggerPopover {
  *   </ComposerPrimitive.Unstable_TriggerPopoverItems>
  * </ComposerPrimitive.Unstable_TriggerPopover>
  * ```
+ *
+ * @deprecated Experimental since 2026-04-06, extended 2027-06-05. Not scheduled for removal; the API may change in any release.
  */
 export const ComposerPrimitiveTriggerPopover = forwardRef<
   ComposerPrimitiveTriggerPopover.Element,
