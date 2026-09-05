@@ -27,18 +27,23 @@ const STEP_MS = 12 * 3_600_000;
 
 const starredAt = (n: number) => new Date(EPOCH + n * STEP_MS).toISOString();
 
-const serve = (total = TOTAL, failing: number[] = []) => {
+const serve = (
+  total = TOTAL,
+  { failing = [], link = true }: { failing?: number[]; link?: boolean } = {},
+) => {
   const lastPage = Math.ceil(total / 100);
   getStargazersPage.mockImplementation(async (page: number) => {
-    if (page > lastPage || failing.includes(page)) {
-      return { data: [], lastPage: page === 1 ? null : lastPage };
+    if (failing.includes(page)) {
+      return { ok: false, data: [], lastPage: null };
     }
     const start = (page - 1) * 100;
     return {
-      data: Array.from({ length: Math.min(100, total - start) }, (_, i) => ({
-        starred_at: starredAt(start + i),
-      })),
-      lastPage,
+      ok: true,
+      data: Array.from(
+        { length: Math.max(0, Math.min(100, total - start)) },
+        (_, i) => ({ starred_at: starredAt(start + i) }),
+      ),
+      lastPage: link ? lastPage : null,
     };
   });
 };
@@ -98,7 +103,7 @@ describe("fetchStarHistory", () => {
   });
 
   it("draws nothing rather than a curve missing a page", async () => {
-    serve(TOTAL, [2]);
+    serve(TOTAL, { failing: [2] });
 
     // A kept page-2 failure would shift every later point down by 100 and let
     // the tail close the gap as a cliff, which is a shape nobody measured.
@@ -126,8 +131,30 @@ describe("fetchStarHistory", () => {
     ]);
   });
 
+  it("sweeps on the repo's counter when the Link header is unparsable", async () => {
+    serve(TOTAL, { link: false });
+
+    // Trusting the missing header would stop at page 1 and draw a measured
+    // looking curve that ends 150 stars short.
+    const points = await fetchStarHistory(TOTAL);
+
+    expect(getStargazersPage).toHaveBeenCalledTimes(3);
+    expect(points.at(-1)!.value).toBe(TOTAL);
+  });
+
+  it("reads a page past the end as the end, not as a failure", async () => {
+    // A counter running ahead of the listing makes the sweep ask for one page
+    // too many; an empty ok page ends it rather than blanking the figure.
+    serve(TOTAL, { link: false });
+
+    const points = await fetchStarHistory(TOTAL + 60);
+
+    expect(getStargazersPage).toHaveBeenCalledTimes(4);
+    expect(points.at(-1)!.value).toBe(TOTAL + 60);
+  });
+
   it("returns nothing when the first page is unavailable", async () => {
-    serve(TOTAL, [1]);
+    serve(TOTAL, { failing: [1] });
 
     await expect(fetchStarHistory(TOTAL)).resolves.toEqual([]);
   });

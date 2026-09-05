@@ -771,10 +771,11 @@ export async function fetchStarHistory(
 ): Promise<TimelinePoint[]> {
   try {
     const first = await getStargazersPage(1, revalidate);
-    if (first.data.length === 0) return [];
+    if (!first.ok || first.data.length === 0) return [];
 
-    // No rel="last" link means page 1 is the last page.
-    const lastPage = first.lastPage ?? 1;
+    // The Link header names the last page. Without a parsable one the repo's own
+    // counter bounds the sweep, and pages past the end come back empty and ok.
+    const lastPage = first.lastPage ?? Math.max(1, Math.ceil(totalStars / 100));
     const starredAt = first.data.map((entry) =>
       new Date(entry.starred_at).getTime(),
     );
@@ -786,16 +787,13 @@ export async function fetchStarHistory(
       const batch = await Promise.all(
         rest
           .slice(i, i + STAR_PAGE_CONCURRENCY)
-          .map(
-            async (page) => (await getStargazersPage(page, revalidate)).data,
-          ),
+          .map((page) => getStargazersPage(page, revalidate)),
       );
       for (const page of batch) {
-        // getStargazersPage reports a failed request as an empty page, and every
-        // page in range carries data. Keeping one would shift the whole cumulative
-        // series down and let the tail below close the gap as a vertical cliff.
-        if (page.length === 0) return [];
-        for (const entry of page) {
+        // Dropping a failed page would shift the whole cumulative series down and
+        // let the tail below close the gap as a vertical cliff.
+        if (!page.ok) return [];
+        for (const entry of page.data) {
           starredAt.push(new Date(entry.starred_at).getTime());
         }
       }

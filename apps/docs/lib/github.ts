@@ -364,10 +364,13 @@ export async function getContributors(
 
 export type StargazerEntry = { starred_at: string };
 
+// `ok` separates a failed request from a page that is genuinely empty; a caller
+// building a cumulative series cannot tell them apart from the data alone.
 export async function getStargazersPage(
   page: number,
   revalidate: number = REVALIDATE.COOL,
 ): Promise<{
+  ok: boolean;
   data: StargazerEntry[];
   lastPage: number | null;
 }> {
@@ -377,11 +380,11 @@ export async function getStargazersPage(
       revalidate,
       { headers: { Accept: "application/vnd.github.star+json" } },
     );
-    if (!res.ok) return { data: [], lastPage: null };
+    if (!res.ok) return { ok: false, data: [], lastPage: null };
     const data = (await withTimeout(res.json())) as StargazerEntry[];
-    return { data, lastPage: parseLastPage(res.headers.get("Link")) };
+    return { ok: true, data, lastPage: parseLastPage(res.headers.get("Link")) };
   } catch {
-    return { data: [], lastPage: null };
+    return { ok: false, data: [], lastPage: null };
   }
 }
 
