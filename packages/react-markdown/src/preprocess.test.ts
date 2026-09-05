@@ -86,6 +86,25 @@ describe("rewriteLatexBracketDelimiters", () => {
     );
   });
 
+  it("closes a backtick fence opened inside a blockquote", () => {
+    const fenced = "> ```\n> \\(x\\)\n> ```\nafter \\(y\\)";
+    expect(rewriteLatexBracketDelimiters(fenced)).toBe(
+      "> ```\n> \\(x\\)\n> ```\nafter $y$",
+    );
+  });
+
+  it("closes a code span written mid-line with three backticks", () => {
+    expect(rewriteLatexBracketDelimiters("x ```\\(a\\)``b``` \\(y\\)")).toBe(
+      "x ```\\(a\\)``b``` $y$",
+    );
+  });
+
+  it("does not open a fence from a run sharing its line with a backtick", () => {
+    expect(
+      rewriteLatexBracketDelimiters("```\\(a\\)```b\n\nafter \\(y\\)"),
+    ).toBe("```\\(a\\)```b\n\nafter $y$");
+  });
+
   it("rewrites prose on the same line as a code span", () => {
     expect(rewriteLatexBracketDelimiters("\\(a\\) `\\(x\\)` \\(b\\)")).toBe(
       "$a$ `\\(x\\)` $b$",
@@ -326,6 +345,13 @@ describe("escapeCurrencyDollars", () => {
     const fenced = "```\n```js\nconst price = $5;\n```\nafter $10";
     expect(escapeCurrencyDollars(fenced)).toBe(
       "```\n```js\nconst price = $5;\n```\nafter \\$10",
+    );
+  });
+
+  it("does not rewrite a fenced block opened inside a blockquote", () => {
+    const fenced = "> ```\n> ```js\n> const price = $5;\n> ```\nafter $10";
+    expect(escapeCurrencyDollars(fenced)).toBe(
+      "> ```\n> ```js\n> const price = $5;\n> ```\nafter \\$10",
     );
   });
 

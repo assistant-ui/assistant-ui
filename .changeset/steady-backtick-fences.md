@@ -3,4 +3,4 @@
 "@assistant-ui/react-streamdown": patch
 ---
 
-fix: require whitespace-only closing lines for backtick fences
+fix: read a backtick run as a fence only when it starts a line, so an info string no longer closes a fenced block

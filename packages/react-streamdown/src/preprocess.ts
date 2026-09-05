@@ -16,23 +16,27 @@ const LATEX_DISPLAY_DELIMITER = /\\{1,2}\[([\s\S]+?)\\{1,2}\]/g;
 // closed by a quoted line, and a quoted fence is closed by one however its
 // marker is spaced. Matching the prefix by shape rather than as a literal keeps
 // `> ~~~` and `>~~~` equivalent.
-const TILDE_FENCE_CLOSE_ROOT = /^ {0,3}(~{3,})[ \t\r]*$/;
-const TILDE_FENCE_CLOSE_QUOTED = /^ {0,3}(?:>[ \t]?)+ {0,3}(~{3,})[ \t\r]*$/;
+const FENCE_CLOSE_ROOT = {
+  "`": /^ {0,3}(`{3,})[ \t\r]*$/,
+  "~": /^ {0,3}(~{3,})[ \t\r]*$/,
+};
+const FENCE_CLOSE_QUOTED = {
+  "`": /^ {0,3}(?:>[ \t]?)+ {0,3}(`{3,})[ \t\r]*$/,
+  "~": /^ {0,3}(?:>[ \t]?)+ {0,3}(~{3,})[ \t\r]*$/,
+};
 const LINE_IS_QUOTED = /^ {0,3}(?:>[ \t]?)+/;
 
 /**
- * End index (exclusive) of the tilde fence opened by the `~` run at `start`,
- * which the caller has verified starts a line: the end of the first later line
- * carrying a closing run of at least the same length, or the end of `text`
- * when none does — an unclosed fence reads as code to the end of the input,
- * which keeps a fence that is still streaming in inert.
+ * End index (exclusive) of the fence opened by the `marker` run at `start`,
+ * which the caller has verified opens one: the end of the first later line
+ * carrying a closing run of at least the same length, or -1 when no line does.
  */
-function tildeFenceEnd(text: string, start: number): number {
-  const fenceLength = runLength(text, start, "~");
+function fenceEnd(text: string, start: number, marker: "`" | "~"): number {
+  const fenceLength = runLength(text, start, marker);
   const openerLine = text.slice(text.lastIndexOf("\n", start - 1) + 1, start);
   const closer = LINE_IS_QUOTED.test(openerLine)
-    ? TILDE_FENCE_CLOSE_QUOTED
-    : TILDE_FENCE_CLOSE_ROOT;
+    ? FENCE_CLOSE_QUOTED[marker]
+    : FENCE_CLOSE_ROOT[marker];
   let lineStart = text.indexOf("\n", start);
 
   while (lineStart !== -1) {
@@ -48,7 +52,7 @@ function tildeFenceEnd(text: string, start: number): number {
     lineStart = lineEnd;
   }
 
-  return text.length;
+  return -1;
 }
 
 /** Whether the character at `index` starts a line, allowing ≤3 spaces indent. */
@@ -69,6 +73,35 @@ function atLineStart(text: string, index: number): boolean {
 }
 
 /**
+ * Whether the backtick run at `start` opens a fence rather than a code span. A
+ * fence is a flow construct, so its run has to start a line and be at least
+ * three long, and CommonMark forbids a backtick in a backtick fence's info
+ * string, which makes a run sharing its line with another backtick a span.
+ */
+function opensBacktickFence(text: string, start: number): boolean {
+  const fenceLength = runLength(text, start, "`");
+  if (fenceLength < 3 || !atLineStart(text, start)) return false;
+
+  const lineEnd = text.indexOf("\n", start + fenceLength);
+  const info = text.slice(
+    start + fenceLength,
+    lineEnd === -1 ? undefined : lineEnd,
+  );
+  return !info.includes("`");
+}
+
+/**
+ * End index (exclusive) of the backtick construct opened at `start`: the fence
+ * when {@link opensBacktickFence} accepts the run, the code span otherwise, or
+ * -1 when that construct never closes.
+ */
+function backtickEnd(text: string, start: number): number {
+  return opensBacktickFence(text, start)
+    ? fenceEnd(text, start, "`")
+    : codeSpanEnd(text, start);
+}
+
+/**
  * Applies `rewrite` to the stretches of `text` outside code spans and fences,
  * copying code through verbatim, so a delimiter shown as code is never
  * rewritten. `\x` escapes are stepped over when scanning so an escaped
@@ -76,14 +109,16 @@ function atLineStart(text: string, index: number): boolean {
  * boundary stays as written. Each stretch is passed the characters adjacent to
  * it so the rewrite can make line-boundary decisions that survive the split.
  *
- * Backtick regions are found with `codeSpanEnd`, which {@link
- * escapeCurrencyDollars} also uses, and read as CommonMark does: an unclosed
- * one- or two-backtick run is literal text, an unclosed three-plus run is a
- * fence still streaming in and protects to the end of the input, and fence closers
- * are line-anchored. The unclosed three-plus case is where this walker and
- * `escapeCurrencyDollars` differ, since that one treats the run as literal. Tilde
- * fences are line-anchored per CommonMark: a `~~~` run starting a line opens
- * one, and it closes on a line carrying only an at-least-as-long tilde run.
+ * Backtick regions are found with `backtickEnd`, which {@link
+ * escapeCurrencyDollars} also uses, and split the two constructs a backtick run
+ * opens in CommonMark: a run of three or more starting a line opens a fence,
+ * which closes on a line carrying only an at-least-as-long run, and a run
+ * anywhere else opens a code span, which closes on a run of exactly its own
+ * length wherever on a line that run sits. An unclosed span reads as literal
+ * text, while an unclosed fence is one still streaming in and protects to the
+ * end of the input; that last case is where this walker and
+ * `escapeCurrencyDollars` differ, since that one treats the run as literal.
+ * Tilde runs only ever open a fence, read the same way.
  */
 function rewriteOutsideCode(
   text: string,
@@ -110,17 +145,17 @@ function rewriteOutsideCode(
     if (char === "\\") {
       index += 2;
     } else if (char === "`") {
-      const run = runLength(text, index, "`");
-      const end = codeSpanEnd(text, index);
+      const end = backtickEnd(text, index);
       if (end !== -1) copyVerbatim(end);
-      else if (run >= 3) copyVerbatim(text.length);
-      else index += run;
+      else if (opensBacktickFence(text, index)) copyVerbatim(text.length);
+      else index += runLength(text, index, "`");
     } else if (
       char === "~" &&
       runLength(text, index, "~") >= 3 &&
       atLineStart(text, index)
     ) {
-      copyVerbatim(tildeFenceEnd(text, index));
+      const end = fenceEnd(text, index, "~");
+      copyVerbatim(end === -1 ? text.length : end);
     } else {
       index += 1;
     }
@@ -212,37 +247,16 @@ function runLength(text: string, start: number, char: string): number {
 }
 
 /**
- * End index (exclusive) of the code span or fence whose backtick run starts at
- * `start`, or -1 when that run is never closed and its backticks read as literal
- * text.
+ * End index (exclusive) of the code span whose backtick run starts at `start`,
+ * or -1 when that run is never closed and its backticks read as literal text. A
+ * span closes on a run of exactly its own length, wherever on a line that run
+ * sits; a shorter or longer run is content.
  */
 function codeSpanEnd(text: string, start: number): number {
   const delimiterLength = runLength(text, start, "`");
   const delimiter = "`".repeat(delimiterLength);
   let closed = text.indexOf(delimiter, start + delimiterLength);
 
-  if (delimiterLength >= 3) {
-    while (closed !== -1) {
-      const closedLength = runLength(text, closed, "`");
-      const lineStart = text.lastIndexOf("\n", closed - 1) + 1;
-      const lineEnd = text.indexOf("\n", closed + closedLength);
-      const before = text.slice(lineStart, closed);
-      const after = text.slice(
-        closed + closedLength,
-        lineEnd === -1 ? undefined : lineEnd,
-      );
-
-      if (/^ {0,3}$/.test(before) && /^[ \t\r]*$/.test(after)) {
-        return closed + closedLength;
-      }
-
-      closed = text.indexOf(delimiter, closed + closedLength);
-    }
-
-    return -1;
-  }
-
-  // Fences may close on a longer run; one- and two-backtick inline spans may not.
   while (closed !== -1) {
     const closedLength = runLength(text, closed, "`");
     if (closedLength === delimiterLength) break;
@@ -264,7 +278,7 @@ function findClosingDollar(text: string, openIndex: number): number {
     if (char === "$") return index;
     if (char === "\\") index += 2;
     else if (char === "`") {
-      const end = codeSpanEnd(text, index);
+      const end = backtickEnd(text, index);
       index = end === -1 ? index + runLength(text, index, "`") : end;
     } else index += 1;
   }
@@ -316,7 +330,7 @@ function endOfVerbatimRun(text: string, index: number): number {
   const char = text[index];
   if (char === "\\") return Math.min(index + 2, text.length);
   if (char === "`") {
-    const end = codeSpanEnd(text, index);
+    const end = backtickEnd(text, index);
     return end === -1 ? index + runLength(text, index, "`") : end;
   }
   if (char !== "$") return index + 1;
