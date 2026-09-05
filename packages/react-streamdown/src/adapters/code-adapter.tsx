@@ -29,16 +29,16 @@ interface CodeAdapterOptions {
   componentsByLanguage?: ComponentsByLanguage | undefined;
 }
 
-/**
- * Extracts code string from children.
- */
 function extractCode(children: unknown): string {
   if (typeof children === "string") return children;
-  if (!isValidElement(children)) return "";
-
-  const props = children.props as Record<string, unknown> | null;
-  if (props && typeof props.children === "string") {
-    return props.children;
+  if (typeof children === "number") return String(children);
+  if (Array.isArray(children)) {
+    let code = "";
+    for (const child of children) code += extractCode(child);
+    return code;
+  }
+  if (isValidElement<{ children?: unknown }>(children)) {
+    return extractCode(children.props.children);
   }
   return "";
 }

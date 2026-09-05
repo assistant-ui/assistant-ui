@@ -209,23 +209,31 @@ describe("createCodeAdapter integration", () => {
       expect(screen.getByTestId("syntax").textContent).toBe("const x = 1;");
     });
 
-    it("extracts code from React element children", () => {
-      const MockSyntax = vi.fn(({ code }) => (
-        <div data-testid="syntax">{code}</div>
-      ));
+    it("preserves split and nested code text in the header and highlighter", () => {
       const AdaptedCode = createCodeAdapter({
-        SyntaxHighlighter: MockSyntax,
+        CodeHeader: ({ code }) => <header>{code}</header>,
+        SyntaxHighlighter: ({ code }) => <pre>{code}</pre>,
       });
 
-      const nestedElement = <span>nested code</span>;
-
-      render(
+      const { container } = render(
         <AdaptedCode className="language-js" data-block="true">
-          {nestedElement}
+          <span>const</span>
+          {" x = "}
+          <>
+            <span>
+              <span>{0}</span>
+            </span>
+            {[null, false, undefined, true, ";\n"]}
+          </>
         </AdaptedCode>,
       );
 
-      expect(MockSyntax).toHaveBeenCalled();
+      expect(container.querySelector("header")?.textContent).toBe(
+        "const x = 0;\n",
+      );
+      expect(container.querySelector("pre")?.textContent).toBe(
+        "const x = 0;\n",
+      );
     });
 
     it("handles empty children", () => {
