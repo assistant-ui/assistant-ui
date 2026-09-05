@@ -32,6 +32,9 @@ export type PresentToolOptions = {
 };
 
 type BackendDefaultMetadata = {
+  /**
+   * @deprecated Experimental since 2026-06-02, extended 2027-06-05. Not scheduled for removal; the API may change in any release.
+   */
   unstable_backendDefault?: {
     parameters?: boolean;
   };

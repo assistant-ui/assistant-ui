@@ -5,6 +5,7 @@ import type { ToolCallMessagePartComponent } from "../MessagePartComponentTypes"
 /**
  * Schema type matching Tool["parameters"] from assistant-stream.
  * Accepts both StandardSchemaV1 and JSONSchema7.
+ * @deprecated Experimental since 2026-06-23. Not scheduled for removal; the API may change in any release.
  */
 export type Unstable_InteractableStateSchema = NonNullable<
   Extract<Tool, { parameters: unknown }>["parameters"]
@@ -12,6 +13,9 @@ export type Unstable_InteractableStateSchema = NonNullable<
 
 type InteractableScope = "app" | "thread";
 
+/**
+ * @deprecated Experimental since 2026-06-23. Not scheduled for removal; the API may change in any release.
+ */
 export type Unstable_InteractableDefinition = {
   id: string;
   name: string;
@@ -22,6 +26,9 @@ export type Unstable_InteractableDefinition = {
   scope?: InteractableScope | undefined;
 };
 
+/**
+ * @deprecated Experimental since 2026-06-23. Not scheduled for removal; the API may change in any release.
+ */
 export type Unstable_InteractableRegistration = {
   id: string;
   name: string;
@@ -36,11 +43,17 @@ export type Unstable_InteractableRegistration = {
   updateRender?: ToolCallMessagePartComponent | undefined;
 };
 
+/**
+ * @deprecated Experimental since 2026-06-23. Not scheduled for removal; the API may change in any release.
+ */
 export type Unstable_InteractablePersistenceStatus = {
   isPending: boolean;
   error: unknown;
 };
 
+/**
+ * @deprecated Experimental since 2026-06-23. Not scheduled for removal; the API may change in any release.
+ */
 export type Unstable_InteractablesState = {
   /** Keyed by instance id */
   definitions: Record<string, Unstable_InteractableDefinition>;
@@ -48,11 +61,17 @@ export type Unstable_InteractablesState = {
   persistence: Record<string, Unstable_InteractablePersistenceStatus>;
 };
 
+/**
+ * @deprecated Experimental since 2026-06-23. Not scheduled for removal; the API may change in any release.
+ */
 export type Unstable_InteractablePersistedState = Record<
   string,
   { name: string; state: unknown }
 >;
 
+/**
+ * @deprecated Experimental since 2026-06-23. Not scheduled for removal; the API may change in any release.
+ */
 export type Unstable_InteractablePersistenceAdapter = {
   save(state: Unstable_InteractablePersistedState): void | Promise<void>;
   /**
@@ -67,10 +86,16 @@ export type Unstable_InteractablePersistenceAdapter = {
     | Promise<Unstable_InteractablePersistedState | null | undefined>;
 };
 
+/**
+ * @deprecated Experimental since 2026-06-23. Not scheduled for removal; the API may change in any release.
+ */
 export type Unstable_InteractablesConfig = {
   persistence?: Unstable_InteractablePersistenceAdapter | undefined;
 };
 
+/**
+ * @deprecated Experimental since 2026-06-23. Not scheduled for removal; the API may change in any release.
+ */
 export type Unstable_InteractablesMethods = {
   getState(): Unstable_InteractablesState;
   register(def: Unstable_InteractableRegistration): Unsubscribe;
@@ -83,6 +108,9 @@ export type Unstable_InteractablesMethods = {
   flush(): Promise<void>;
 };
 
+/**
+ * @deprecated Experimental since 2026-06-23. Not scheduled for removal; the API may change in any release.
+ */
 export type Unstable_InteractablesClientSchema = {
   methods: Unstable_InteractablesMethods;
 };

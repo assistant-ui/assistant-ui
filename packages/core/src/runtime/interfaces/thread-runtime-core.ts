@@ -28,6 +28,9 @@ export type RuntimeCapabilities = {
   readonly refetchThread: boolean;
   readonly delete: boolean;
   readonly cancel: boolean;
+  /**
+   * @deprecated Experimental since 2024-09-01, extended 2026-12-05. Not scheduled for removal; the API may change in any release.
+   */
   readonly unstable_copy: boolean;
   readonly speech: boolean;
   readonly dictation: boolean;
@@ -163,6 +166,9 @@ export type ThreadRuntimeCore = Readonly<{
   startRun: (config: StartRunConfig) => void;
   resumeRun: (config: ResumeRunConfig) => void;
   cancelRun: () => void;
+  /**
+   * @deprecated Experimental since 2026-08-14. Not scheduled for removal; the API may change in any release.
+   */
   unstable_notifySessionReset: () => void;
 
   addToolResult: (options: AddToolResultOptions) => void;
@@ -252,11 +258,12 @@ export type ThreadRuntimeCore = Readonly<{
    * the composer. An implementation is therefore responsible for whatever
    * coordination a concurrent run needs. Runtimes without remote state leave
    * it undefined.
+   * @deprecated Experimental since 2026-08-02. Not scheduled for removal; the API may change in any release.
    */
   unstable_refetchThread?: (() => Promise<void>) | undefined;
 
   /**
-   * @deprecated This API is still under active development and might change without notice.
+   * @deprecated Experimental since 2024-10-12, extended 2026-12-05. Not scheduled for removal; the API may change in any release.
    * For state-derivable transitions, prefer `subscribe` + `getState`. This channel is the
    * escape hatch for transient occurrences not represented in state.
    */

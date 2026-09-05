@@ -13,6 +13,9 @@ import type {
   Unstable_TriggerItem,
 } from "@assistant-ui/core";
 
+/**
+ * @deprecated Experimental since 2026-06-15. Not scheduled for removal; the API may change in any release.
+ */
 export type Unstable_UseLiveCompletionAdapterOptions = {
   /**
    * Fetches the items for a query from an async source. Called debounced; the
@@ -35,7 +38,7 @@ export type Unstable_UseLiveCompletionAdapterOptions = {
 const NO_QUERY = "\u0000";
 
 /**
- * @deprecated Under active development and may change without notice.
+ * @deprecated Experimental since 2026-06-15. Not scheduled for removal; the API may change in any release.
  *
  * Bridges an async completion source (a server search, a gateway RPC) into the
  * synchronous `Unstable_TriggerAdapter` that `ComposerTriggerPopover` consumes.

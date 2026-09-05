@@ -333,6 +333,7 @@ export namespace MessagePrimitiveParts {
          * When enabled, shows the Empty component if the last part in the message
          * is anything other than Text or Reasoning.
          *
+         * @deprecated Experimental since 2026-01-26, extended 2027-06-05. Not scheduled for removal; the API may change in any release.
          * @experimental This API is experimental and may change in future versions.
          * @default true
          */
@@ -343,6 +344,9 @@ export namespace MessagePrimitiveParts {
         /** Render function called for each part. Receives the enriched part state. */
         children: (value: { part: EnrichedPartState }) => ReactNode;
         components?: never;
+        /**
+         * @deprecated Experimental since 2026-01-26, extended 2027-06-05. Not scheduled for removal; the API may change in any release.
+         */
         unstable_showEmptyOnNonTextEnd?: never;
       };
 }
@@ -848,6 +852,9 @@ MessagePrimitiveParts.displayName = "MessagePrimitive.Parts";
 
 const MessagePrimitivePartsCompat: FC<{
   components: MessagePrimitiveParts.Props["components"];
+  /**
+   * @deprecated Experimental since 2026-01-26, extended 2027-06-05. Not scheduled for removal; the API may change in any release.
+   */
   unstable_showEmptyOnNonTextEnd: boolean;
 }> = ({ components, unstable_showEmptyOnNonTextEnd }) => {
   const contentLength = useAuiState((s) => s.message.parts.length);

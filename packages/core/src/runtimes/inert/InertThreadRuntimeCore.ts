@@ -73,6 +73,9 @@ export const createInertComposer = <TIsEditing extends boolean>(
     return () => {};
   },
 
+  /**
+   * @deprecated Experimental since 2024-10-12, extended 2026-12-05. Not scheduled for removal; the API may change in any release.
+   */
   unstable_on() {
     return () => {};
   },
@@ -124,6 +127,9 @@ export abstract class InertThreadRuntimeCore
     throw this.error;
   }
 
+  /**
+   * @deprecated Experimental since 2026-08-14. Not scheduled for removal; the API may change in any release.
+   */
   unstable_notifySessionReset(): void {
     throw this.error;
   }
@@ -226,6 +232,9 @@ export abstract class InertThreadRuntimeCore
   suggestions = [] as never[];
   extras = undefined;
 
+  /**
+   * @deprecated Experimental since 2024-10-12, extended 2026-12-05. Not scheduled for removal; the API may change in any release.
+   */
   unstable_on(): Unsubscribe {
     return () => {};
   }

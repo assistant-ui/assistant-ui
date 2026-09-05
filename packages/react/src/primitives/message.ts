@@ -10,6 +10,12 @@ export { MessagePrimitiveError as Error } from "./message/MessageError";
 export { MessagePrimitiveGroupedParts as GroupedParts } from "@assistant-ui/core/react";
 export { MessagePrimitiveGenerativeUI as GenerativeUI } from "@assistant-ui/core/react";
 export {
+  /**
+   * @deprecated Experimental since 2025-07-22, extended 2027-03-05. Not scheduled for removal; the API may change in any release.
+   */
   MessagePrimitiveUnstable_PartsGrouped as Unstable_PartsGrouped,
+  /**
+   * @deprecated Experimental since 2025-07-22, extended 2027-03-05. Not scheduled for removal; the API may change in any release.
+   */
   MessagePrimitiveUnstable_PartsGroupedByParentId as Unstable_PartsGroupedByParentId,
 } from "./message/MessagePartsGrouped";

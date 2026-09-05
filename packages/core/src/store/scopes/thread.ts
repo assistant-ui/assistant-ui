@@ -46,7 +46,7 @@ export type ThreadState = {
   readonly messages: readonly MessageState[];
   /**
    * The thread state.
-   * @deprecated This feature is experimental
+   * @deprecated Experimental since 2024-04-21, extended 2026-12-05. Not scheduled for removal; the API may change in any release.
    */
   readonly state: ReadonlyJSONValue;
   /**
@@ -57,7 +57,7 @@ export type ThreadState = {
    * Custom extra information provided by the runtime.
    */
   readonly extras: unknown;
-  /** @deprecated This API is still under active development and might change without notice. */
+  /** @deprecated Experimental since 2024-09-01, extended 2026-12-05. Not scheduled for removal; the API may change in any release. */
   readonly speech: SpeechState | undefined;
   readonly voice: VoiceSessionState | undefined;
   readonly composer: ComposerState;
@@ -115,6 +115,7 @@ export type ThreadMethods = {
    * `| undefined` stops `ThreadMethods` satisfying `ClientMethods` and
    * collapses the client schema, which only a workspace-level app typecheck
    * surfaces.
+   * @deprecated Experimental since 2026-08-02. Not scheduled for removal; the API may change in any release.
    */
   unstable_refetchThread?(): Promise<void>;
   getModelContext(): ModelContext;
@@ -127,7 +128,7 @@ export type ThreadMethods = {
   reset(initialMessages?: readonly ThreadMessageLike[]): void;
   importExternalState(state: unknown): void;
   message(selector: { id: string } | { index: number }): MessageMethods;
-  /** @deprecated This API is still under active development and might change without notice. */
+  /** @deprecated Experimental since 2024-09-01, extended 2026-12-05. Not scheduled for removal; the API may change in any release. */
   stopSpeaking(): void;
   connectVoice(): void;
   disconnectVoice(): void;

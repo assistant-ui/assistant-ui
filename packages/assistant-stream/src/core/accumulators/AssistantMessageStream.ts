@@ -16,6 +16,9 @@ export class AssistantMessageStream {
     );
   }
 
+  /**
+   * @deprecated Experimental since 2025-01-14, extended 2027-03-05. Not scheduled for removal; the API may change in any release.
+   */
   async unstable_result(): Promise<AssistantMessage> {
     let last: AssistantMessage | undefined;
     for await (const chunk of this) {

@@ -37,6 +37,9 @@ type InternalToolExecutionOptions = {
     args: ReadonlyJSONObject;
     executionId: symbol;
   }) => ReturnType<typeof getToolResponse>;
+  /**
+   * @deprecated Experimental since 2025-02-26, extended 2027-03-05. Not scheduled for removal; the API may change in any release.
+   */
   streamCall: (toolCall: {
     reader: ToolCallReader<any, ReadonlyJSONValue>;
     toolCallId: string;
@@ -212,6 +215,9 @@ const isPendingToolCall = (
   part.state !== "result" &&
   part.result === undefined;
 
+/**
+ * @deprecated Experimental since 2025-04-07, extended 2027-03-05. Not scheduled for removal; the API may change in any release.
+ */
 export async function unstable_runPendingTools(
   message: AssistantMessage,
   tools: Record<string, Tool> | undefined,

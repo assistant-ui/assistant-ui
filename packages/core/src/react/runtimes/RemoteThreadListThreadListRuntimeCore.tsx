@@ -585,12 +585,18 @@ export class RemoteThreadListThreadListRuntimeCore
     return result;
   }
 
+  /**
+   * @deprecated Experimental since 2026-08-03. Not scheduled for removal; the API may change in any release.
+   */
   public unstable_isThreadRunning(threadIdOrRemoteId: string) {
     const data = this.getItemById(threadIdOrRemoteId);
     if (!data) return false;
     return this._hookManager.__internal_isThreadRunning(data.id);
   }
 
+  /**
+   * @deprecated Experimental since 2026-09-01. Not scheduled for removal; the API may change in any release.
+   */
   public unstable_subscribeThreadEvents(
     callback: (event: ThreadListRuntimeEvent) => void,
   ) {

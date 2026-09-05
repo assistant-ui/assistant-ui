@@ -14,6 +14,9 @@ import type { ThreadMessage } from "@assistant-ui/core";
 import { getThreadMessageText } from "@assistant-ui/core/internal";
 import { useTriggerPopoverRootContextOptional } from "../primitives/composer/trigger/TriggerPopoverRootContext";
 
+/**
+ * @deprecated Experimental since 2026-06-11. Not scheduled for removal; the API may change in any release.
+ */
 export type Unstable_ComposerInputHistory = {
   /** Keydown handler to spread onto `ComposerPrimitive.Input`. */
   onKeyDown: KeyboardEventHandler<HTMLTextAreaElement>;
@@ -45,7 +48,7 @@ const isOnLastLine = (value: string, caret: number): boolean =>
   !value.slice(caret).includes("\n");
 
 /**
- * @deprecated Under active development and might change without notice.
+ * @deprecated Experimental since 2026-06-11. Not scheduled for removal; the API may change in any release.
  *
  * Terminal-style input history for the thread composer: ArrowUp on an
  * empty draft recalls previously sent user messages (newest first),

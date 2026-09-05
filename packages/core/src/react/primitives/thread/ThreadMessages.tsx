@@ -202,7 +202,7 @@ export namespace ThreadPrimitiveUnstable_MessageById {
  * `unstable_useThreadMessageIds`. A missing or removed id renders `null` rather
  * than throwing.
  *
- * @deprecated Unstable / Experimental - may change in any release.
+ * @deprecated Experimental since 2026-01-01, extended 2027-06-05. Not scheduled for removal; the API may change in any release.
  *
  * @example
  * ```tsx

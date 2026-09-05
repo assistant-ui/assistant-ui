@@ -15,7 +15,7 @@ const EMPTY_ARRAY: never[] = [];
  * This is a no-op if the target already has a bound message.
  * Use `getExternalStoreMessages` to retrieve the bound messages later.
  *
- * @deprecated This API is experimental and may change without notice.
+ * @deprecated Experimental since 2026-02-25, extended 2027-03-05. Not scheduled for removal; the API may change in any release.
  */
 export const bindExternalStoreMessage = <T>(
   target: object,

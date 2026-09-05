@@ -15,6 +15,7 @@ import { useJSONEqual } from "../utils/useJSONEqual";
  * The state type described by an interactable's `stateSchema`. Resolves the
  * output type of a StandardSchemaV1 schema (e.g. Zod); plain JSON Schema
  * falls back to `unknown`.
+ * @deprecated Experimental since 2026-06-23. Not scheduled for removal; the API may change in any release.
  */
 export type Unstable_InferInteractableState<TSchema> = TSchema extends {
   "~standard": { types?: { output: infer TOutput } | undefined };
@@ -26,6 +27,7 @@ export type Unstable_InferInteractableState<TSchema> = TSchema extends {
  * One message's version of an interactable, for components rendered inside
  * tool-call parts. Show `state` to display history; call `restore()` to set
  * the live instance back to it.
+ * @deprecated Experimental since 2026-06-23. Not scheduled for removal; the API may change in any release.
  */
 export type Unstable_InteractableVersionInfo<TState> = {
   /** The interactable's state as it was at this message. */
@@ -38,7 +40,7 @@ export type Unstable_InteractableVersionInfo<TState> = {
 
 /**
  * Unstable / Experimental — the interactables API is still evolving and may change in any release.
- * @deprecated Unstable / Experimental (not actually removed).
+ * @deprecated Experimental since 2026-06-23. Not scheduled for removal; the API may change in any release.
  */
 export type Unstable_InteractableConfig<
   TSchema extends Unstable_InteractableStateSchema,
@@ -199,7 +201,7 @@ const useInteractable = <TSchema extends Unstable_InteractableStateSchema>(
  * instance `id` is inferred from the call, so the same component works at the
  * creating call and at update calls.
  *
- * @deprecated Unstable / Experimental (not actually removed).
+ * @deprecated Experimental since 2026-06-23. Not scheduled for removal; the API may change in any release.
  */
 export const unstable_useInteractable: <
   TSchema extends Unstable_InteractableStateSchema,
