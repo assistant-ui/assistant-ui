@@ -150,6 +150,14 @@ describe("rewriteLatexBracketDelimiters", () => {
     expect(rewriteLatexBracketDelimiters(streaming)).toBe(streaming);
   });
 
+  it("closes an indented fence whose body carries a blank line", () => {
+    const fenced =
+      "1. Step\n   - Sub\n     ```js\n     const a = 1;\n\n     const b = 2;\n     ```\n\nafter \\(y\\)";
+    expect(rewriteLatexBracketDelimiters(fenced)).toBe(
+      "1. Step\n   - Sub\n     ```js\n     const a = 1;\n\n     const b = 2;\n     ```\n\nafter $y$",
+    );
+  });
+
   it("does not open a fence from a run sharing its line with a backtick", () => {
     expect(
       rewriteLatexBracketDelimiters("```\\(a\\)```b\n\nafter \\(y\\)"),
@@ -448,6 +456,14 @@ describe("escapeCurrencyDollars", () => {
     const fenced = "```\n```js\nconst price = $5;\n```\nafter $10";
     expect(escapeCurrencyDollars(fenced)).toBe(
       "```\n```js\nconst price = $5;\n```\nafter \\$10",
+    );
+  });
+
+  it("does not rewrite an indented fence whose body carries a blank line", () => {
+    const fenced =
+      "1. Step\n   - Sub\n     ```js\n     const price = $5;\n\n     const tax = $2;\n     ```\n\nafter $10";
+    expect(escapeCurrencyDollars(fenced)).toBe(
+      "1. Step\n   - Sub\n     ```js\n     const price = $5;\n\n     const tax = $2;\n     ```\n\nafter \\$10",
     );
   });
 

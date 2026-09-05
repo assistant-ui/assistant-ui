@@ -16,12 +16,16 @@ const LATEX_DISPLAY_DELIMITER = /\\{1,2}\[([\s\S]+?)\\{1,2}\]/g;
 // closed by a quoted line, and a quoted fence is closed by one however its
 // marker is spaced. Matching the prefix by shape rather than as a literal keeps
 // `> ~~~` and `>~~~` equivalent.
+// The backtick patterns accept any indentation because a backtick opener does
+// too, so a fence written past a list item's content column closes on the line
+// it was written to close on. The tilde patterns keep the root indent as #6795
+// shipped them.
 const FENCE_CLOSE_ROOT = {
-  "`": /^ {0,3}(`{3,})[ \t\r]*$/,
+  "`": /^[ \t]*(`{3,})[ \t\r]*$/,
   "~": /^ {0,3}(~{3,})[ \t\r]*$/,
 };
 const FENCE_CLOSE_QUOTED = {
-  "`": /^ {0,3}(?:>[ \t]?)+ {0,3}(`{3,})[ \t\r]*$/,
+  "`": /^ {0,3}(?:>[ \t]?)+[ \t]*(`{3,})[ \t\r]*$/,
   "~": /^ {0,3}(?:>[ \t]?)+ {0,3}(~{3,})[ \t\r]*$/,
 };
 const LINE_IS_QUOTED = /^ {0,3}(?:>[ \t]?)+/;
@@ -73,16 +77,20 @@ function atLineStart(text: string, index: number): boolean {
 }
 
 /**
- * Whether an unclosed backtick run at `start` reads as a fence still streaming
- * in: three or more backticks with only indentation and blockquote markers
- * ahead of them on their line, and an info string, which CommonMark forbids a
- * backtick in. Indentation is uncapped here, unlike in {@link
- * opensBacktickFence}, because a fence nested past a list item's content column
- * is common and holding its body inert until the closer arrives costs one
- * permanently open run indented four spaces at the root column, while reading it
- * as prose rewrites every delimiter in the block on the way there.
+ * Whether the backtick run at `start` opens a fence rather than a code span: a
+ * fence is a flow construct, so its run is three or more backticks carrying
+ * nothing but indentation and blockquote markers ahead of them on their line,
+ * and an info string, which CommonMark forbids a backtick in.
+ *
+ * Indentation is not capped at the three columns CommonMark allows, because the
+ * cap is relative to the enclosing container and this walker does not track
+ * containers: a fence written past a list item's content column is ordinary
+ * model output, and reading it as a span costs the closer of any such fence
+ * whose body carries a blank line. The cost of the wider reading is that a run
+ * indented four columns at the root, where CommonMark reads an indented code
+ * block, opens a fence here.
  */
-function opensStreamingFence(text: string, start: number): boolean {
+function opensBacktickFence(text: string, start: number): boolean {
   const fenceLength = runLength(text, start, "`");
   if (fenceLength < 3) return false;
 
@@ -97,15 +105,6 @@ function opensStreamingFence(text: string, start: number): boolean {
     lineEnd === -1 ? undefined : lineEnd,
   );
   return !info.includes("`");
-}
-
-/**
- * Whether the backtick run at `start` opens a fence rather than a code span. A
- * fence is a flow construct, so its run also has to start a line within the
- * three columns an opener may be indented by.
- */
-function opensBacktickFence(text: string, start: number): boolean {
-  return opensStreamingFence(text, start) && atLineStart(text, start);
 }
 
 /**
@@ -132,11 +131,11 @@ function backtickEnd(text: string, start: number): number {
  * opens in CommonMark: a run of three or more starting a line opens a fence,
  * which closes on a line carrying only an at-least-as-long run, and a run
  * anywhere else opens a code span, which closes on a run of exactly its own
- * length wherever on a line that run sits. An unclosed span reads as literal
- * text, while an unclosed run that has an opener's shape is a fence still
- * streaming in and protects to the end of the input; that last case is where
- * this walker and `escapeCurrencyDollars` differ, since that one treats the run
- * as literal. Tilde runs only ever open a fence, read the same way.
+ * length wherever on a line that run sits, and never past the paragraph it
+ * opens in. An unclosed span reads as literal text, while an unclosed fence is
+ * one still streaming in and protects to the end of the input; that last case is
+ * where this walker and `escapeCurrencyDollars` differ, since that one treats
+ * the run as literal. Tilde runs only ever open a fence, read the same way.
  */
 function rewriteOutsideCode(
   text: string,
@@ -178,7 +177,7 @@ function rewriteOutsideCode(
     } else if (char === "`") {
       const end = backtickEnd(text, index);
       if (end !== -1) copyVerbatim(end);
-      else if (opensStreamingFence(text, index)) copyVerbatim(text.length);
+      else if (opensBacktickFence(text, index)) copyVerbatim(text.length);
       else index += runLength(text, index, "`");
     } else if (
       char === "~" &&
