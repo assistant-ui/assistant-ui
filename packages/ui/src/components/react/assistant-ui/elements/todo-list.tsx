@@ -1,16 +1,17 @@
 "use client";
 
 import type { ComponentProps } from "react";
-import { CheckIcon, Loader2Icon } from "lucide-react";
+import { CheckIcon, Loader2Icon, XIcon } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { mono } from "./surfaces";
 
-export type TodoStatus = "pending" | "active" | "done";
+export type TodoStatus = "pending" | "active" | "done" | "failed";
 
 export interface TodoItem {
   id: string;
   text: string;
   status: TodoStatus;
+  reason?: string;
 }
 
 export function TodoList({
@@ -22,7 +23,9 @@ export function TodoList({
   items: readonly TodoItem[];
   revision?: number;
 }) {
-  const done = items.filter((item) => item.status === "done").length;
+  const complete = items.filter(
+    (item) => item.status === "done" || item.status === "failed",
+  ).length;
 
   return (
     <div
@@ -35,8 +38,8 @@ export function TodoList({
         <span className="text-[13.5px] font-medium">Todos</span>
         <span className={cn(mono, "text-foreground/35 tabular-nums")}>
           {revision === undefined
-            ? `${done}/${items.length}`
-            : `${done}/${items.length} · rev ${revision}`}
+            ? `${complete}/${items.length}`
+            : `${complete}/${items.length} · rev ${revision}`}
         </span>
       </div>
       <ul className="flex flex-col gap-1">
@@ -50,6 +53,10 @@ export function TodoList({
                 <span className="border-foreground/20 bg-foreground/[0.06] flex size-3.5 items-center justify-center rounded-[5px] border">
                   <CheckIcon className="text-foreground/45 size-2.5" />
                 </span>
+              ) : item.status === "failed" ? (
+                <span className="flex size-3.5 items-center justify-center rounded-[5px] border border-red-500/25 bg-red-500/[0.08]">
+                  <XIcon className="size-2.5 text-red-500/70 dark:text-red-400/70" />
+                </span>
               ) : item.status === "active" ? (
                 <Loader2Icon className="size-3.5 animate-spin text-blue-500 motion-reduce:animate-none dark:text-blue-400" />
               ) : (
@@ -59,17 +66,26 @@ export function TodoList({
                 />
               )}
             </span>
-            <span
-              className={cn(
-                "min-w-0 flex-1 leading-5 break-words",
-                item.status === "done" &&
-                  "text-foreground/35 line-through decoration-[1.5px]",
-                item.status === "active" && "text-foreground/90",
-                item.status === "pending" && "text-foreground/50",
-              )}
-            >
-              {item.text}
-            </span>
+            <div className="min-w-0 flex-1">
+              <span
+                className={cn(
+                  "leading-5 break-words",
+                  item.status === "done" &&
+                    "text-foreground/35 line-through decoration-[1.5px]",
+                  item.status === "active" && "text-foreground/90",
+                  item.status === "pending" && "text-foreground/50",
+                  item.status === "failed" &&
+                    "text-red-500/70 dark:text-red-400/70",
+                )}
+              >
+                {item.text}
+              </span>
+              {item.status === "failed" && item.reason ? (
+                <p className="text-foreground/45 text-xs leading-4 break-words">
+                  {item.reason}
+                </p>
+              ) : null}
+            </div>
           </li>
         ))}
       </ul>
