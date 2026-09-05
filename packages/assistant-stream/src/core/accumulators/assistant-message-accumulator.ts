@@ -37,6 +37,9 @@ const appendPart = (
   part: AssistantMessagePart,
 ): AssistantMessage => withParts(message, [...message.parts, part]);
 
+/**
+ * @deprecated Experimental since 2025-09-14, extended 2027-03-05. Not scheduled for removal; the API may change in any release.
+ */
 export const createInitialMessage = ({
   unstable_state = null,
 }: {

@@ -17,6 +17,8 @@ import type {
  * is included, because `execute` is what distinguishes the deprecated
  * type-less form from a backend or human tool. A `filter` replaces this, so
  * pass it through to narrow the default set rather than widen it.
+ *
+ * @deprecated Experimental since 2026-08-29, extended 2027-09-05. Not scheduled for removal; the API may change in any release.
  */
 export const defaultWebMcpFilter = (
   _name: string,

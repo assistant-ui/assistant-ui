@@ -235,7 +235,6 @@ export function checkSource({ file, source, now, windowDays, staleAfterDays }) {
       errors.push(
         `${where}: the description repeats the stability contract the tag already states.`,
       );
-      continue;
     }
 
     if (!prefixed) misnamed.push(where);

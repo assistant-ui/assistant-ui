@@ -299,3 +299,14 @@ test("a description that mentions change in passing is fine", () => {
   );
   assert.deepEqual(result.errors, []);
 });
+
+test("a repeated description does not hide a closed window", () => {
+  const result = check(
+    `/**\n * Experimental API.\n * @deprecated ${canonical("2026-01-01")}\n */\nexport const unstable_a = 1;\n`,
+  );
+  assert.equal(result.errors.length, 2);
+  assert.ok(
+    result.errors.some((e) => /repeats the stability contract/.test(e)),
+  );
+  assert.ok(result.errors.some((e) => /window closed/.test(e)));
+});

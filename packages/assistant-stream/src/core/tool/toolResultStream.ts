@@ -308,6 +308,8 @@ export type ToolResultStreamOptions = {
  * @param abortSignal Signal, or signal getter, used for the current run.
  * @param human Callback used to resolve human-tool requests from UI input.
  * @param options Optional execution lifecycle callbacks.
+ *
+ * @deprecated Experimental since 2025-04-11, extended 2027-03-05. Not scheduled for removal; the API may change in any release.
  */
 export function toolResultStream(
   tools:

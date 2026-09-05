@@ -33,6 +33,9 @@ import type { TriggerMatcher } from "./detectTrigger";
 const TriggerPopoverScopeContext =
   createContext<TriggerPopoverResourceOutput | null>(null);
 
+/**
+ * @deprecated Experimental since 2026-04-15, extended 2027-06-05. Not scheduled for removal; the API may change in any release.
+ */
 export const useTriggerPopoverScopeContext = () => {
   const ctx = useContext(TriggerPopoverScopeContext);
   if (!ctx)
@@ -42,6 +45,9 @@ export const useTriggerPopoverScopeContext = () => {
   return ctx;
 };
 
+/**
+ * @deprecated Experimental since 2026-04-15, extended 2027-06-05. Not scheduled for removal; the API may change in any release.
+ */
 export const useTriggerPopoverScopeContextOptional = () =>
   useContext(TriggerPopoverScopeContext);
 
