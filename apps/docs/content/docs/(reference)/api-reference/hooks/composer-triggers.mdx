@@ -14,51 +14,10 @@ import { unstable_useLiveCompletionAdapter, unstable_useMentionAdapter, unstable
 
 ## API Reference
 
-### unstable_useTriggerPopoverRootContext
-
-```ts
-const unstable_useTriggerPopoverRootContext: () => TriggerPopoverRootContextValue;
-```
-
-### unstable_useTriggerPopoverRootContextOptional
-
-```ts
-const unstable_useTriggerPopoverRootContextOptional: () => TriggerPopoverRootContextValue | null;
-```
-
-### unstable_useTriggerPopoverScopeContext
-
-```ts
-const unstable_useTriggerPopoverScopeContext: () => TriggerPopoverResourceOutput;
-```
-
-### unstable_useTriggerPopoverScopeContextOptional
-
-```ts
-const unstable_useTriggerPopoverScopeContextOptional: () => TriggerPopoverResourceOutput | null;
-```
-
-### unstable_useTriggerPopoverTriggers
-
-Live map of registered triggers, re-rendering on change. Prefer
-`subscribeLifecycle` for incremental add/remove handling.
-
-```ts
-const unstable_useTriggerPopoverTriggers: () => ReadonlyMap<string, RegisteredTrigger>;
-```
-
-### unstable_useTriggerPopoverTriggersOptional
-
-Like `useTriggerPopoverTriggers` but returns an empty map outside a root.
-
-```ts
-const unstable_useTriggerPopoverTriggersOptional: () => ReadonlyMap<string, RegisteredTrigger>;
-```
-
 ### unstable_useLiveCompletionAdapter
 
 <Callout type="tip">
-<strong>Experimental.</strong> Under active development and may change without notice.
+<strong>Experimental.</strong> Shipped 2026-06-15. Not covered by semver; the API may change in any release.
 </Callout>
 
 Bridges an async completion source (a server search, a gateway RPC) into the
@@ -89,7 +48,7 @@ const mentions = unstable_useLiveCompletionAdapter({
 ### unstable_useMentionAdapter
 
 <Callout type="tip">
-<strong>Experimental.</strong> Under active development and might change without notice.
+<strong>Experimental.</strong> Shipped 2026-04-15. Not covered by semver; the API may change in any release.
 </Callout>
 
 Creates a spreadable `{ adapter, directive }` bundle for `@` mentions.
@@ -106,7 +65,7 @@ const mention = unstable_useMentionAdapter();
 ### unstable_useSlashCommandAdapter
 
 <Callout type="tip">
-<strong>Experimental.</strong> Under active development and may change without notice.
+<strong>Experimental.</strong> Shipped 2026-04-06. Not covered by semver; the API may change in any release.
 </Callout>
 
 Bundles slash command definitions (with inline `execute` callbacks) into
@@ -126,4 +85,69 @@ const slash = unstable_useSlashCommandAdapter({
 ```
 
 <ParametersTable {...unstable_useSlashCommandAdapter} />
+
+### unstable_useTriggerPopoverRootContext
+
+<Callout type="tip">
+<strong>Experimental.</strong> Shipped 2026-04-15. Not covered by semver; the API may change in any release.
+</Callout>
+
+```ts
+const unstable_useTriggerPopoverRootContext: () => TriggerPopoverRootContextValue;
+```
+
+### unstable_useTriggerPopoverRootContextOptional
+
+<Callout type="tip">
+<strong>Experimental.</strong> Shipped 2026-04-15. Not covered by semver; the API may change in any release.
+</Callout>
+
+```ts
+const unstable_useTriggerPopoverRootContextOptional: () => TriggerPopoverRootContextValue | null;
+```
+
+### unstable_useTriggerPopoverScopeContext
+
+<Callout type="tip">
+<strong>Experimental.</strong> Shipped 2026-04-15. Not covered by semver; the API may change in any release.
+</Callout>
+
+```ts
+const unstable_useTriggerPopoverScopeContext: () => TriggerPopoverResourceOutput;
+```
+
+### unstable_useTriggerPopoverScopeContextOptional
+
+<Callout type="tip">
+<strong>Experimental.</strong> Shipped 2026-04-15. Not covered by semver; the API may change in any release.
+</Callout>
+
+```ts
+const unstable_useTriggerPopoverScopeContextOptional: () => TriggerPopoverResourceOutput | null;
+```
+
+### unstable_useTriggerPopoverTriggers
+
+<Callout type="tip">
+<strong>Experimental.</strong> Shipped 2026-04-15. Not covered by semver; the API may change in any release.
+</Callout>
+
+Live map of registered triggers, re-rendering on change. Prefer
+`subscribeLifecycle` for incremental add/remove handling.
+
+```ts
+const unstable_useTriggerPopoverTriggers: () => ReadonlyMap<string, RegisteredTrigger>;
+```
+
+### unstable_useTriggerPopoverTriggersOptional
+
+<Callout type="tip">
+<strong>Experimental.</strong> Shipped 2026-04-15. Not covered by semver; the API may change in any release.
+</Callout>
+
+Like `useTriggerPopoverTriggers` but returns an empty map outside a root.
+
+```ts
+const unstable_useTriggerPopoverTriggersOptional: () => ReadonlyMap<string, RegisteredTrigger>;
+```
 {/* api-reference:end */}

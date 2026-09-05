@@ -96,38 +96,6 @@ Response header used by the [Resumable Streams](/docs/guides/resumable-streams) 
 const RESUMABLE_STREAM_ID_HEADER: "x-resumable-stream-id";
 ```
 
-### unstable_injectInteractableContext
-
-Injects interactable state snapshots into messages as model-visible text.
-
-Mirrors [injectQuoteContext](/docs/api-reference/integrations/ai-sdk#injectquotecontext): reads the frozen snapshot stamped on a user
-message's `metadata.custom.interactables` (by the interactables scope at send
-time) and prepends a text part. Run this in your route handler before
-`convertToModelMessages`, which otherwise ignores `metadata.custom`.
-
-Wording is consumer-owned — pass `format` to control how each snapshot reads.
-A snapshot may originate from a user edit or an agent `update_*` call, so the
-default phrasing is neutral. Keep the instance id visible in custom wording:
-the model needs it to address the `update_*` tool's `id` parameter. A custom
-`format` must also handle entries with `partial: true`, whose `state` carries
-only the fields that changed since the model's last known state.
-
-```ts
-import { convertToModelMessages, streamText } from "ai";
-import { unstable_injectInteractableContext } from "@assistant-ui/ai-sdk";
-
-export async function POST(req: Request) {
-  const { messages } = await req.json();
-  const result = streamText({
-    model: myModel,
-    messages: await convertToModelMessages(unstable_injectInteractableContext(messages)),
-  });
-  return result.toUIMessageStreamResponse();
-}
-```
-
-<ParametersTable {...aiSdk_unstable_injectInteractableContext} />
-
 ### useAISDKChat
 
 The underlying `useChat` helpers object, for advanced views — reach
@@ -169,6 +137,42 @@ looks.
 ```ts
 function useThreadTokenUsage(): ThreadTokenUsage | undefined;
 ```
+
+### unstable_injectInteractableContext
+
+<Callout type="tip">
+<strong>Experimental.</strong> Shipped 2026-06-23. Not covered by semver; the API may change in any release.
+</Callout>
+
+Injects interactable state snapshots into messages as model-visible text.
+
+Mirrors [injectQuoteContext](/docs/api-reference/integrations/ai-sdk#injectquotecontext): reads the frozen snapshot stamped on a user
+message's `metadata.custom.interactables` (by the interactables scope at send
+time) and prepends a text part. Run this in your route handler before
+`convertToModelMessages`, which otherwise ignores `metadata.custom`.
+
+Wording is consumer-owned — pass `format` to control how each snapshot reads.
+A snapshot may originate from a user edit or an agent `update_*` call, so the
+default phrasing is neutral. Keep the instance id visible in custom wording:
+the model needs it to address the `update_*` tool's `id` parameter. A custom
+`format` must also handle entries with `partial: true`, whose `state` carries
+only the fields that changed since the model's last known state.
+
+```ts
+import { convertToModelMessages, streamText } from "ai";
+import { unstable_injectInteractableContext } from "@assistant-ui/ai-sdk";
+
+export async function POST(req: Request) {
+  const { messages } = await req.json();
+  const result = streamText({
+    model: myModel,
+    messages: await convertToModelMessages(unstable_injectInteractableContext(messages)),
+  });
+  return result.toUIMessageStreamResponse();
+}
+```
+
+<ParametersTable {...aiSdk_unstable_injectInteractableContext} />
 
 ### generativeTools
 

@@ -25,6 +25,8 @@ export namespace ComposerPrimitiveTriggerPopoverCategories {
 /**
  * Renders the top-level category list via a render function.
  * Only renders when no category is active and search mode is off.
+ *
+ * @deprecated Experimental since 2026-04-06, extended 2027-06-05. Not scheduled for removal; the API may change in any release.
  */
 export const ComposerPrimitiveTriggerPopoverCategories = forwardRef<
   ComposerPrimitiveTriggerPopoverCategories.Element,
@@ -60,6 +62,8 @@ export namespace ComposerPrimitiveTriggerPopoverCategoryItem {
 /**
  * A button that selects a category and triggers drill-down navigation.
  * Automatically receives `data-highlighted` when keyboard-navigated.
+ *
+ * @deprecated Experimental since 2026-04-06, extended 2027-06-05. Not scheduled for removal; the API may change in any release.
  */
 export const ComposerPrimitiveTriggerPopoverCategoryItem = forwardRef<
   ComposerPrimitiveTriggerPopoverCategoryItem.Element,

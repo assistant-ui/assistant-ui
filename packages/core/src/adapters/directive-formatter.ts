@@ -11,6 +11,7 @@ const DIRECTIVE_RE =
  * Default directive formatter using the `:type[label]{name=id}` syntax.
  *
  * When `id` equals `label`, the `{name=…}` attribute is omitted for brevity.
+ * @deprecated Experimental since 2026-03-16, extended 2027-06-05. Not scheduled for removal; the API may change in any release.
  */
 export const unstable_defaultDirectiveFormatter: Unstable_DirectiveFormatter = {
   serialize(item: Unstable_TriggerItem): string {

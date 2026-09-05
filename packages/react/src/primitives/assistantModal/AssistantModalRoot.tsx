@@ -7,6 +7,9 @@ import { useAui } from "@assistant-ui/store";
 
 export namespace AssistantModalPrimitiveRoot {
   export type Props = PopoverPrimitive.PopoverProps & {
+    /**
+     * @deprecated Experimental since 2024-10-12, extended 2026-12-05. Not scheduled for removal; the API may change in any release.
+     */
     unstable_openOnRunStart?: boolean | undefined;
   };
 }
@@ -16,6 +19,9 @@ const useAssistantModalOpenState = ({
   unstable_openOnRunStart = true,
 }: {
   defaultOpen?: boolean | undefined;
+  /**
+   * @deprecated Experimental since 2024-10-12, extended 2026-12-05. Not scheduled for removal; the API may change in any release.
+   */
   unstable_openOnRunStart?: boolean | undefined;
 }) => {
   const state = useState(defaultOpen);

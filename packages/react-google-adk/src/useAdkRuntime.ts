@@ -70,6 +70,9 @@ export type UseAdkRuntimeOptions = ExternalStoreSharedOptions & {
    */
   onThreadIdChange?: ((threadId: string | undefined) => void) | undefined;
   autoCancelPendingToolCalls?: boolean | undefined;
+  /**
+   * @deprecated Experimental since 2025-01-03, extended 2027-03-05. Not scheduled for removal; the API may change in any release.
+   */
   unstable_allowCancellation?: boolean | undefined;
   getCheckpointId?: (
     threadId: string,

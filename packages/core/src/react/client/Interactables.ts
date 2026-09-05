@@ -527,7 +527,7 @@ const useInteractablesResource = ({
 /**
  * Registers the unstable interactables store scope.
  *
- * @deprecated Unstable / Experimental (not actually removed).
+ * @deprecated Experimental since 2026-06-23, extended 2027-09-05. Not scheduled for removal; the API may change in any release.
  */
 export const unstable_Interactables = resource(useInteractablesResource);
 

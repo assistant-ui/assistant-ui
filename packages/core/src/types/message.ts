@@ -23,6 +23,9 @@ export type ReasoningMessagePart = {
   readonly type: "reasoning";
   readonly text: string;
   readonly status?: MessagePartStreamStatus;
+  /**
+   * @deprecated Experimental since 2026-08-07, extended 2027-09-05. Not scheduled for removal; the API may change in any release.
+   */
   readonly unstable_summary?: string;
   readonly providerMetadata?: PartProviderMetadata;
   readonly parentId?: string;
@@ -414,8 +417,17 @@ export type ThreadSystemMessage = MessageCommonProps & {
   readonly role: "system";
   readonly content: readonly [TextMessagePart];
   readonly metadata: {
+    /**
+     * @deprecated Experimental since 2025-05-20, extended 2027-03-05. Not scheduled for removal; the API may change in any release.
+     */
     readonly unstable_state?: undefined;
+    /**
+     * @deprecated Experimental since 2025-01-27, extended 2027-03-05. Not scheduled for removal; the API may change in any release.
+     */
     readonly unstable_annotations?: undefined;
+    /**
+     * @deprecated Experimental since 2025-01-04, extended 2027-03-05. Not scheduled for removal; the API may change in any release.
+     */
     readonly unstable_data?: undefined;
     readonly steps?: undefined;
     readonly submittedFeedback?: undefined;
@@ -429,8 +441,17 @@ export type ThreadUserMessage = MessageCommonProps & {
   readonly content: readonly ThreadUserMessagePart[];
   readonly attachments: readonly CompleteAttachment[];
   readonly metadata: {
+    /**
+     * @deprecated Experimental since 2025-05-20, extended 2027-03-05. Not scheduled for removal; the API may change in any release.
+     */
     readonly unstable_state?: undefined;
+    /**
+     * @deprecated Experimental since 2025-01-27, extended 2027-03-05. Not scheduled for removal; the API may change in any release.
+     */
     readonly unstable_annotations?: undefined;
+    /**
+     * @deprecated Experimental since 2025-01-04, extended 2027-03-05. Not scheduled for removal; the API may change in any release.
+     */
     readonly unstable_data?: undefined;
     readonly steps?: undefined;
     readonly submittedFeedback?: undefined;
@@ -445,8 +466,17 @@ export type ThreadAssistantMessage = MessageCommonProps & {
   readonly content: readonly ThreadAssistantMessagePart[];
   readonly status: MessageStatus;
   readonly metadata: {
+    /**
+     * @deprecated Experimental since 2025-05-20, extended 2027-03-05. Not scheduled for removal; the API may change in any release.
+     */
     readonly unstable_state: ReadonlyJSONValue;
+    /**
+     * @deprecated Experimental since 2025-01-27, extended 2027-03-05. Not scheduled for removal; the API may change in any release.
+     */
     readonly unstable_annotations: readonly ReadonlyJSONValue[];
+    /**
+     * @deprecated Experimental since 2025-01-04, extended 2027-03-05. Not scheduled for removal; the API may change in any release.
+     */
     readonly unstable_data: readonly ReadonlyJSONValue[];
     readonly steps: readonly ThreadStep[];
     readonly submittedFeedback?: { readonly type: "positive" | "negative" };
@@ -463,8 +493,17 @@ export type ThreadAssistantMessage = MessageCommonProps & {
 type BaseThreadMessage = {
   readonly status?: ThreadAssistantMessage["status"];
   readonly metadata: {
+    /**
+     * @deprecated Experimental since 2025-05-20, extended 2027-03-05. Not scheduled for removal; the API may change in any release.
+     */
     readonly unstable_state?: ReadonlyJSONValue;
+    /**
+     * @deprecated Experimental since 2025-01-27, extended 2027-03-05. Not scheduled for removal; the API may change in any release.
+     */
     readonly unstable_annotations?: readonly ReadonlyJSONValue[];
+    /**
+     * @deprecated Experimental since 2025-01-04, extended 2027-03-05. Not scheduled for removal; the API may change in any release.
+     */
     readonly unstable_data?: readonly ReadonlyJSONValue[];
     readonly steps?: readonly ThreadStep[];
     readonly submittedFeedback?: { readonly type: "positive" | "negative" };

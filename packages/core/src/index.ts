@@ -78,12 +78,24 @@ export type {
 export type { QuoteInfo } from "./types/quote";
 
 export type {
+  /**
+   * @deprecated Experimental since 2026-03-16, extended 2027-06-05. Not scheduled for removal; the API may change in any release.
+   */
   Unstable_DirectiveSegment,
+  /**
+   * @deprecated Experimental since 2026-03-16, extended 2027-06-05. Not scheduled for removal; the API may change in any release.
+   */
   Unstable_DirectiveFormatter,
 } from "./types/directive";
 
 export type {
+  /**
+   * @deprecated Experimental since 2026-04-06, extended 2027-06-05. Not scheduled for removal; the API may change in any release.
+   */
   Unstable_TriggerItem,
+  /**
+   * @deprecated Experimental since 2026-04-06, extended 2027-06-05. Not scheduled for removal; the API may change in any release.
+   */
   Unstable_TriggerCategory,
 } from "./types/trigger";
 
@@ -106,10 +118,25 @@ export { mergeModelContexts } from "./model-context/types";
 export { tool } from "./model-context/tool";
 
 export {
+  /**
+   * @deprecated Experimental since 2026-06-23, extended 2027-09-05. Not scheduled for removal; the API may change in any release.
+   */
   unstable_getInteractableSnapshots,
+  /**
+   * @deprecated Experimental since 2026-06-23, extended 2027-09-05. Not scheduled for removal; the API may change in any release.
+   */
   unstable_formatInteractableSnapshot,
+  /**
+   * @deprecated Experimental since 2026-06-23, extended 2027-09-05. Not scheduled for removal; the API may change in any release.
+   */
   unstable_getInteractableVersions,
+  /**
+   * @deprecated Experimental since 2026-06-23, extended 2027-09-05. Not scheduled for removal; the API may change in any release.
+   */
   type Unstable_InteractableSnapshotEntry,
+  /**
+   * @deprecated Experimental since 2026-06-23, extended 2027-09-05. Not scheduled for removal; the API may change in any release.
+   */
   type Unstable_InteractableVersion,
 } from "./model-context/interactable-composer-metadata";
 

@@ -172,7 +172,7 @@ export type ThreadState = {
   /**
    * The thread state.
    *
-   * @deprecated This feature is experimental
+   * @deprecated Experimental since 2024-04-21, extended 2026-12-05. Not scheduled for removal; the API may change in any release.
    */
   readonly state: ReadonlyJSONValue;
 
@@ -187,7 +187,7 @@ export type ThreadState = {
   readonly extras: unknown;
 
   /**
-   * @deprecated This API is still under active development and might change without notice.
+   * @deprecated Experimental since 2024-09-01, extended 2026-12-05. Not scheduled for removal; the API may change in any release.
    */
   readonly speech: SpeechState | undefined;
 
@@ -299,6 +299,7 @@ export type ThreadRuntime = {
    * Clears session-scoped tool-invocation state without run-cancel side
    * effects such as composer draft restoration. Internal API for
    * external-store adapter authors.
+   * @deprecated Experimental since 2026-08-14, extended 2027-09-05. Not scheduled for removal; the API may change in any release.
    */
   unstable_notifySessionReset(): void;
   getModelContext(): ModelContext;
@@ -317,7 +318,7 @@ export type ThreadRuntime = {
   getMessageById(messageId: string): MessageRuntime;
 
   /**
-   * @deprecated This API is still under active development and might change without notice.
+   * @deprecated Experimental since 2024-09-01, extended 2026-12-05. Not scheduled for removal; the API may change in any release.
    */
   stopSpeaking(): void;
 
@@ -328,6 +329,9 @@ export type ThreadRuntime = {
   muteVoice(): void;
   unmuteVoice(): void;
 
+  /**
+   * @deprecated Experimental since 2024-10-12, extended 2026-12-05. Not scheduled for removal; the API may change in any release.
+   */
   unstable_on<E extends ThreadRuntimeEventType>(
     event: E,
     callback: ThreadRuntimeEventCallback<E>,
@@ -476,6 +480,9 @@ export class ThreadRuntimeImpl implements ThreadRuntime {
     this._threadBinding.getState().cancelRun();
   }
 
+  /**
+   * @deprecated Experimental since 2026-08-14, extended 2027-09-05. Not scheduled for removal; the API may change in any release.
+   */
   public unstable_notifySessionReset() {
     this._threadBinding.getState().unstable_notifySessionReset();
   }
@@ -601,6 +608,9 @@ export class ThreadRuntimeImpl implements ThreadRuntime {
     EventSubscriptionSubject<ThreadRuntimeEventType>
   >();
 
+  /**
+   * @deprecated Experimental since 2024-10-12, extended 2026-12-05. Not scheduled for removal; the API may change in any release.
+   */
   public unstable_on<E extends ThreadRuntimeEventType>(
     event: E,
     callback: ThreadRuntimeEventCallback<E>,

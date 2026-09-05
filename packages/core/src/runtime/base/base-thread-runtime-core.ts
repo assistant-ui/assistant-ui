@@ -72,6 +72,9 @@ export abstract class BaseThreadRuntimeCore
   public abstract cancelRun(): void;
   public abstract exportExternalState(): any;
   public abstract importExternalState(state: any): void;
+  /**
+   * @deprecated Experimental since 2026-08-14, extended 2027-09-05. Not scheduled for removal; the API may change in any release.
+   */
   public abstract unstable_notifySessionReset(): void;
 
   protected _voiceMessages: ThreadMessage[] = [];
@@ -511,6 +514,9 @@ export abstract class BaseThreadRuntimeCore
     Set<(payload?: unknown) => void>
   >();
 
+  /**
+   * @deprecated Experimental since 2024-10-12, extended 2026-12-05. Not scheduled for removal; the API may change in any release.
+   */
   public unstable_on<E extends ThreadRuntimeEventType>(
     event: E,
     callback: ThreadRuntimeEventCallback<E>,

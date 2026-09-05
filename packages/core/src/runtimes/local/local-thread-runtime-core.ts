@@ -483,6 +483,9 @@ export class LocalThreadRuntimeCore
     throw new Error("Runtime does not support importing external states.");
   }
 
+  /**
+   * @deprecated Experimental since 2026-08-14, extended 2027-09-05. Not scheduled for removal; the API may change in any release.
+   */
   public unstable_notifySessionReset(): void {
     throw new Error("Runtime does not support resetting sessions.");
   }
@@ -727,6 +730,9 @@ export class LocalThreadRuntimeCore
         unstable_assistantMessageId: message.id,
         unstable_threadId: threadId,
         unstable_parentId: parentId,
+        /**
+         * @deprecated Experimental since 2024-09-28, extended 2026-12-05. Not scheduled for removal; the API may change in any release.
+         */
         unstable_getMessage() {
           return message;
         },

@@ -54,16 +54,19 @@ export namespace ComposerPrimitiveInput {
     cancelOnEscape?: boolean | undefined;
     /**
      * Whether to automatically focus the input when a new run starts.
+     * @deprecated Experimental since 2024-10-12, extended 2026-12-05. Not scheduled for removal; the API may change in any release.
      * @default true
      */
     unstable_focusOnRunStart?: boolean | undefined;
     /**
      * Whether to automatically focus the input when scrolling to bottom.
+     * @deprecated Experimental since 2024-10-12, extended 2026-12-05. Not scheduled for removal; the API may change in any release.
      * @default true
      */
     unstable_focusOnScrollToBottom?: boolean | undefined;
     /**
      * Whether to automatically focus the input when switching threads.
+     * @deprecated Experimental since 2024-10-12, extended 2026-12-05. Not scheduled for removal; the API may change in any release.
      * @default true
      */
     unstable_focusOnThreadSwitched?: boolean | undefined;
@@ -72,6 +75,7 @@ export namespace ComposerPrimitiveInput {
      * instead of submitting, detected via
      * `(pointer: coarse) and (not (any-pointer: fine))`. Only takes effect
      * when `submitMode` resolves to `"enter"`.
+     * @deprecated Experimental since 2026-05-24, extended 2027-06-05. Not scheduled for removal; the API may change in any release.
      * @default false
      */
     unstable_insertNewlineOnTouchEnter?: boolean | undefined;

@@ -20,7 +20,7 @@ type AuiToolOverrides = Record<string, AuiToolOverride<any, any>>;
  * Overrides are registered at priority 1000, above toolkit defaults. Only one
  * mounted override provider may define a given tool name at a time.
  *
- * @deprecated Experimental, API may change.
+ * @deprecated Experimental since 2026-06-03, extended 2027-06-05. Not scheduled for removal; the API may change in any release.
  */
 export function useAuiToolOverrides(overrides: AuiToolOverrides): void {
   const aui = useAui();
