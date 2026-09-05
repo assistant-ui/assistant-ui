@@ -68,15 +68,9 @@
       oklch(from currentColor l c h / calc(alpha* 0.2))
     );
 
-    /*
-     * The gradient below is only paintable when relative color syntax,
-     * color-mix(), tan() and @property are all available. Every engine that
-     * ships relative colors also ships the rest (Chrome 119, Firefox 128,
-     * Safari 16.4), so this one gate stands in for all of them. Below that
-     * floor the background falls back to `none`; clipping the text and
-     * blanking its fill outside the gate would leave the label invisible.
-     */
-    @supports (color: oklch(from red l c h)) {
+    /* Clip the text only where both the clip and the gradient work; blanking
+     * the fill below that floor would leave the label invisible. */
+    @supports (background-clip: text) and (color: oklch(from red l c h)) {
       background-clip: text;
       -webkit-text-fill-color: transparent;
     }
