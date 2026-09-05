@@ -110,8 +110,15 @@ const useThreadViewportStore: { (): ReadonlyStore<ThreadViewportState>; (options
 ### unstable_useComposerInput
 
 <Callout type="tip">
-<strong>Experimental.</strong> Shipped 2026-06-11. Not covered by semver; the API may change in any release. Due for graduation or removal by 2026-09-09.
+<strong>Experimental.</strong> Shipped 2026-06-11. Not covered by semver; the API may change in any release.
 </Callout>
+
+Headless bridge to the composer's text value and send action, for building a
+custom composer input without `ComposerPrimitive.Input`. It is a thin bridge,
+not a second input: it does not own keyboard behavior, autosize, IME or
+contentEditable sync, paste/drop attachments, focus management, or rich-text
+state. Spread `unstable_useTriggerPopoverAriaProps()` onto your element for
+trigger-popover combobox semantics.
 
 ```tsx
 const { value, setText, send, isDisabled, canSend } = unstable_useComposerInput();
@@ -133,8 +140,19 @@ const { value, setText, send, isDisabled, canSend } = unstable_useComposerInput(
 ### unstable_useComposerInputHistory
 
 <Callout type="tip">
-<strong>Experimental.</strong> Shipped 2026-06-11. Not covered by semver; the API may change in any release. Due for graduation or removal by 2026-09-09.
+<strong>Experimental.</strong> Shipped 2026-06-11. Not covered by semver; the API may change in any release.
 </Callout>
+
+Terminal-style input history for the thread composer: ArrowUp on an
+empty draft recalls previously sent user messages (newest first),
+ArrowDown steps back toward the newest and finally restores the draft
+that was being typed when browsing started.
+
+Recall only triggers when the caret is on the first/last line with no
+selection, so multi-line editing keeps native arrow behavior. The
+handler yields to an open mention/slash popover, to IME composition,
+to modifier keys, and to consumer handlers that already called
+`preventDefault`. It is inert on edit composers.
 
 ```tsx
 const history = unstable_useComposerInputHistory();
@@ -148,15 +166,24 @@ function unstable_useComposerInputHistory(): Unstable_ComposerInputHistory;
 ### unstable_useMessageStallDetection
 
 <Callout type="tip">
-<strong>Experimental.</strong> Shipped 2026-06-13. Not covered by semver; the API may change in any release. Due for graduation or removal by 2026-09-11.
+<strong>Experimental.</strong> Shipped 2026-06-13. Not covered by semver; the API may change in any release.
 </Callout>
+
+Detects mid-run output stalls on the current message: while the message is
+running, watches a fingerprint of its content (part count plus text,
+argument, and result sizes) and reports a stall once the fingerprint stops
+changing for `thresholdMs`. Useful for re-surfacing a "still working"
+indicator during tool think-time or provider stalls, after the first
+tokens have already streamed.
+
+Must be used inside a message scope.
 
 <ParametersTable {...unstable_useMessageStallDetection} />
 
 ### unstable_useThreadMessageIds
 
 <Callout type="tip">
-<strong>Experimental.</strong> Shipped 2026-06-23. Not covered by semver; the API may change in any release. Due for graduation or removal by 2026-09-21.
+<strong>Experimental.</strong> Shipped 2026-06-23. Not covered by semver; the API may change in any release.
 </Callout>
 
 Returns the ids of the messages in the current thread, in order.
@@ -173,8 +200,14 @@ const unstable_useThreadMessageIds: () => readonly string[];
 ### unstable_useTriggerPopoverAriaProps
 
 <Callout type="tip">
-<strong>Experimental.</strong> Shipped 2026-06-23. Not covered by semver; the API may change in any release. Due for graduation or removal by 2026-09-21.
+<strong>Experimental.</strong> Shipped 2026-06-23. Not covered by semver; the API may change in any release.
 </Callout>
+
+ARIA combobox attributes for the focused element (typically the composer
+input) describing the open trigger popover, per the WAI-ARIA editable
+combobox pattern. Returns an empty object outside a `TriggerPopoverRoot` or
+when no popover is open. Spread these last so they take precedence over any
+matching ARIA props you set yourself, mirroring `ComposerPrimitive.Input`.
 
 ```tsx
 const aria = unstable_useTriggerPopoverAriaProps();

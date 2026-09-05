@@ -106,6 +106,18 @@ threads title themselves.
 
 <ParametersTable {...Suggestions} />
 
+### unstable_defaultWebMcpFilter
+
+The predicate the WebMCP provider uses when no `filter` is passed: an enabled
+frontend tool with a client-side `execute`. A tool authored without a `type`
+is included, because `execute` is what distinguishes the deprecated
+type-less form from a backend or human tool. A `filter` replaces this, so
+pass it through to narrow the default set rather than widen it.
+
+```ts
+const unstable_defaultWebMcpFilter: (_name: string, tool: Tool<any, any>) => boolean;
+```
+
 ### useSmooth
 
 Animates streamed message part text with a typewriter-style reveal.
@@ -131,10 +143,30 @@ const { text, status } = useSmooth(useMessagePartText(), {
 
 <ParametersTable {...useSmooth} />
 
+### fromThreadMessageLike
+
+<Callout type="tip">
+<strong>Experimental.</strong> Shipped 2024-07-25. Not covered by semver; the API may change in any release.
+</Callout>
+
+```ts
+const fromThreadMessageLike: (like: ThreadMessageLike, fallbackId: string, fallbackStatus: MessageStatus) => ThreadMessage;
+```
+
+### generateId
+
+<Callout type="tip">
+<strong>Experimental.</strong> Shipped 2024-05-31. Not covered by semver; the API may change in any release.
+</Callout>
+
+```ts
+const generateId: (size?: number) => string;
+```
+
 ### unstable_defaultDirectiveFormatter
 
 <Callout type="tip">
-<strong>Experimental.</strong> Shipped 2026-03-16. Not covered by semver; the API may change in any release. Due for graduation or removal by 2027-06-05.
+<strong>Experimental.</strong> Shipped 2026-03-16. Not covered by semver; the API may change in any release.
 </Callout>
 
 Default directive formatter using the `:type[label]{name=id}` syntax.
@@ -145,26 +177,10 @@ When `id` equals `label`, the `{name=…}` attribute is omitted for brevity.
 const unstable_defaultDirectiveFormatter: Unstable_DirectiveFormatter;
 ```
 
-### unstable_defaultWebMcpFilter
-
-<Callout type="tip">
-<strong>Experimental.</strong> Shipped 2026-08-29. Not covered by semver; the API may change in any release. Due for graduation or removal by 2026-11-27.
-</Callout>
-
-The predicate the WebMCP provider uses when no `filter` is passed: an enabled
-frontend tool with a client-side `execute`. A tool authored without a `type`
-is included, because `execute` is what distinguishes the deprecated
-type-less form from a backend or human tool. A `filter` replaces this, so
-pass it through to narrow the default set rather than widen it.
-
-```ts
-const unstable_defaultWebMcpFilter: (_name: string, tool: Tool<any, any>) => boolean;
-```
-
 ### unstable_useWebMcpProvider
 
 <Callout type="tip">
-<strong>Experimental.</strong> Shipped 2026-08-29. Not covered by semver; the API may change in any release. Due for graduation or removal by 2026-11-27.
+<strong>Experimental.</strong> Shipped 2026-08-29. Not covered by semver; the API may change in any release.
 </Callout>
 
 Publishes the frontend tools in the model context to a WebMCP-capable
@@ -175,24 +191,4 @@ Returns `status: "unsupported"` when the page exposes no
 of the tools currently registered with the host.
 
 <ParametersTable {...unstable_useWebMcpProvider} />
-
-### fromThreadMessageLike
-
-<Callout type="warn">
-<strong>Deprecated.</strong> This API is experimental and may change without notice.
-</Callout>
-
-```ts
-const fromThreadMessageLike: (like: ThreadMessageLike, fallbackId: string, fallbackStatus: MessageStatus) => ThreadMessage;
-```
-
-### generateId
-
-<Callout type="warn">
-<strong>Deprecated.</strong> This API is experimental and may change without notice.
-</Callout>
-
-```ts
-const generateId: (size?: number) => string;
-```
 {/* api-reference:end */}

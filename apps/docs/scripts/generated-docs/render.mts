@@ -18,10 +18,7 @@ import {
   type PrimitivePartModel,
 } from "./primitive-extract.mts";
 import type { TypeDoc, TypeDocBindings } from "./type-docs.mts";
-import {
-  parseDeprecatedTag,
-  reviewDate,
-} from "../../../../scripts/lib/experimental-annotations.mjs";
+import { parseDeprecatedTag } from "../../../../scripts/lib/experimental-annotations.mjs";
 
 // ── MDX rendering ──────────────────────────────────────────────────────────
 
@@ -159,15 +156,15 @@ function apiStatusForDeprecatedTag(deprecated?: string): ApiStatus {
 }
 
 // The tag is written for an editor hover, where the reader needs to know that
-// the strikethrough does not mean removal. A page has room to say when the
-// window opened and when it is reviewed, so the callout is composed from the
-// parsed fields instead of echoing the tag.
+// the strikethrough does not mean removal. The callout is composed from the
+// parsed fields rather than echoing it. The review date is deliberately left
+// out: this MDX is static, so a rendered deadline would go stale between
+// regenerations and would read as the removal notice the tag denies.
 function experimentalSentence(deprecated: string): string {
   const record = parseDeprecatedTag(deprecated);
   if (record.kind !== "experimental") return deprecated;
   return [
     `Shipped ${record.since}. Not covered by semver; the API may change in any release.`,
-    `Due for graduation or removal by ${reviewDate(record)}.`,
     record.prose,
   ]
     .filter(Boolean)
