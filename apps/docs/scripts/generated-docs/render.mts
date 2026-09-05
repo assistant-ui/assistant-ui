@@ -18,6 +18,10 @@ import {
   type PrimitivePartModel,
 } from "./primitive-extract.mts";
 import type { TypeDoc, TypeDocBindings } from "./type-docs.mts";
+import {
+  parseDeprecatedTag,
+  reviewDate,
+} from "../../../../scripts/lib/experimental-annotations.mjs";
 
 // ── MDX rendering ──────────────────────────────────────────────────────────
 
@@ -147,15 +151,27 @@ function renderJsDocExample(value: string): string {
 
 type ApiStatus = "stable" | "experimental" | "deprecated";
 
-function isExperimentalDeprecation(deprecated?: string): boolean {
-  return /^(unstable \/ experimental|experimental\b|this (api|feature) is experimental\b|this api is (still )?under active development\b|under active development\b)/i.test(
-    deprecated ?? "",
-  );
-}
-
 function apiStatusForDeprecatedTag(deprecated?: string): ApiStatus {
   if (!deprecated) return "stable";
-  return isExperimentalDeprecation(deprecated) ? "experimental" : "deprecated";
+  return parseDeprecatedTag(deprecated).kind === "experimental"
+    ? "experimental"
+    : "deprecated";
+}
+
+// The tag is written for an editor hover, where the reader needs to know that
+// the strikethrough does not mean removal. A page has room to say when the
+// window opened and when it is reviewed, so the callout is composed from the
+// parsed fields instead of echoing the tag.
+function experimentalSentence(deprecated: string): string {
+  const record = parseDeprecatedTag(deprecated);
+  if (record.kind !== "experimental") return deprecated;
+  return [
+    `Shipped ${record.since}. Not covered by semver; the API may change in any release.`,
+    `Due for graduation or removal by ${reviewDate(record)}.`,
+    record.prose,
+  ]
+    .filter(Boolean)
+    .join(" ");
 }
 
 function apiStatusCallout(deprecated?: string): string[] {
@@ -163,7 +179,7 @@ function apiStatusCallout(deprecated?: string): string[] {
   if (apiStatusForDeprecatedTag(deprecated) === "experimental") {
     return [
       `<Callout type="tip">`,
-      `<strong>Experimental.</strong> ${mdxEscape(deprecated)}`,
+      `<strong>Experimental.</strong> ${mdxEscape(experimentalSentence(deprecated))}`,
       `</Callout>`,
       "",
     ];
@@ -607,11 +623,9 @@ function primitiveParametersTable(
   const statusCallout =
     apiStatusForDeprecatedTag(primitivePart?.deprecated) === "experimental"
       ? [
-          `{${binding}?.deprecated && (`,
-          `  <Callout type="tip">`,
-          `    <strong>Experimental.</strong> {${binding}.deprecated}`,
-          `  </Callout>`,
-          `)}`,
+          `<Callout type="tip">`,
+          `<strong>Experimental.</strong> ${mdxEscape(experimentalSentence(primitivePart?.deprecated ?? ""))}`,
+          `</Callout>`,
         ]
       : [
           `{${binding}?.deprecated && (`,
