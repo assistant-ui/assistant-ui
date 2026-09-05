@@ -3,6 +3,18 @@ title: "Model selector"
 description: "A searchable runtime model picker with grouped providers and reasoning effort controls."
 ---
 
+import { PreviewCode } from "@/components/pages/docs/preview-code.server";
+import { ModelSelectorSelectedSample } from "@/components/pages/docs/samples/model-selector/selected-model";
+import * as ModelSelectorSelectedRadixSample from "@/components/pages/docs/samples/model-selector/selected-model.radix";
+import { ModelSelectorGroupedSample } from "@/components/pages/docs/samples/model-selector/provider-groups-and-availability";
+import * as ModelSelectorGroupedRadixSample from "@/components/pages/docs/samples/model-selector/provider-groups-and-availability.radix";
+import { ModelSelectorSearchSample } from "@/components/pages/docs/samples/model-selector/search-and-filter";
+import * as ModelSelectorSearchRadixSample from "@/components/pages/docs/samples/model-selector/search-and-filter.radix";
+import { ModelSelectorEffortSample } from "@/components/pages/docs/samples/model-selector/reasoning-effort";
+import * as ModelSelectorEffortRadixSample from "@/components/pages/docs/samples/model-selector/reasoning-effort.radix";
+import { ModelSelectorMetadataSample } from "@/components/pages/docs/samples/model-selector/capability-metadata";
+import * as ModelSelectorMetadataRadixSample from "@/components/pages/docs/samples/model-selector/capability-metadata.radix";
+
 Model selector is a popover that lists AI models and, for models that support it, a reasoning effort level: Low, Medium, High, or a custom set. With a runtime the selection registers with assistant-ui's `ModelContext` system automatically, so it reaches your backend on every request; standalone you hold the value and effort yourself. It comes in two designs: the runtime variant renders a popover of models with reasoning-effort controls, and the static variant, `ModelPicker`, renders a full-page list grouped by family with pricing and capability chips (see [The model-picker design](#the-model-picker-design)).
 
 ## Getting started
@@ -75,39 +87,15 @@ Standalone, the same pieces render with no registration: you own the value, the 
 
 ### Hold the value yourself
 
-```tsx title="app/chat.tsx"
-"use client";
+<PreviewCode
+  file="components/pages/docs/samples/model-selector/selected-model"
+  name="SelectableModel"
+  base={<ModelSelectorSelectedSample />}
+>
+  <ModelSelectorSelectedRadixSample.ModelSelectorSelectedSample />
+</PreviewCode>
 
-import { useState } from "react";
-import {
-  ModelSelectorRoot,
-  ModelSelectorTrigger,
-  ModelSelectorContent,
-} from "@/components/assistant-ui/elements/model-selector";
-
-const MODELS = [
-  { id: "gpt-5.6-luna", name: "GPT-5.6 Luna" },
-  { id: "gpt-5.6-sol", name: "GPT-5.6 Sol", efforts: true },
-];
-
-export function ModelSelect() {
-  const [value, setValue] = useState("gpt-5.6-luna");
-  const [effort, setEffort] = useState<string>();
-
-  return (
-    <ModelSelectorRoot
-      models={MODELS}
-      value={value}
-      onValueChange={setValue}
-      effort={effort}
-      onEffortChange={setEffort}
-    >
-      <ModelSelectorTrigger />
-      <ModelSelectorContent />
-    </ModelSelectorRoot>
-  );
-}
-```
+Open the picker and select a model: the trigger shows the new model once it closes, and the Thinking row follows whichever model declares `efforts`.
 
   </Step>
 </Steps>
@@ -139,16 +127,11 @@ The Thinking row (`Effort`) mounts only while the selected model has `efforts` s
 
 A model that declares `efforts` shows the Thinking row. `efforts: true` enables the default Low / Medium / High levels; a list of `{ id, name }` objects defines a custom set instead, and omitting `efforts` hides the row entirely for that model.
 
-```tsx
-{
-  id: "gpt-5.6-sol",
-  name: "GPT-5.6 Sol",
-  efforts: [
-    { id: "minimal", name: "Minimal" },
-    { id: "high", name: "High" },
-  ],
-}
-```
+Open the picker and pick a level: the trigger shows it next to the model name, and the picker stays open so you can compare levels.
+
+<PreviewCode file="components/pages/docs/samples/model-selector/reasoning-effort" name="ModelSelectorWithEffort" base={<ModelSelectorEffortSample />}>
+  <ModelSelectorEffortRadixSample.ModelSelectorEffortSample />
+</PreviewCode>
 
 ### Custom effort UI
 
@@ -195,6 +178,16 @@ Each model's `icon` accepts any `ReactNode` and renders in both the trigger and 
 { id: "claude-opus-4.5", name: "Claude Opus 4.5", icon: <ClaudeLogo /> }
 ```
 
+### Capability metadata
+
+`ModelSelectorItem` accepts custom `children` in place of the default name and description row. This demo uses that to render capability badges.
+
+Open the picker to compare model capabilities. Select a row to update the trigger.
+
+<PreviewCode file="components/pages/docs/samples/model-selector/capability-metadata" name="ModelSelectorWithMetadata" base={<ModelSelectorMetadataSample />}>
+  <ModelSelectorMetadataRadixSample.ModelSelectorMetadataSample />
+</PreviewCode>
+
 ### Search
 
 Search is opt-in: pass `searchable` to the connected `ModelSelector`, or to `ModelSelectorContent` directly when it renders its default children. Matching runs against each model's `id`, `name`, and `keywords`; add a provider name to `keywords` so typing it finds that provider's models.
@@ -204,6 +197,20 @@ Search is opt-in: pass `searchable` to the connected `ModelSelector`, or to `Mod
 {/* or, standalone: */}
 <ModelSelectorContent searchable />
 ```
+
+Open the picker and search for a model or provider. Select a result to update the trigger.
+
+<PreviewCode file="components/pages/docs/samples/model-selector/search-and-filter" name="SearchableModelSelector" base={<ModelSelectorSearchSample />}>
+  <ModelSelectorSearchRadixSample.ModelSelectorSearchSample />
+</PreviewCode>
+
+### Provider groups and availability
+
+Use `ModelSelectorGroup` to group the models by provider. A model with `disabled` shows in the list, but you cannot select it. In this example, Claude Opus 5 is disabled, thus a click on it does not change the selection.
+
+<PreviewCode file="components/pages/docs/samples/model-selector/provider-groups-and-availability" name="ModelAvailabilitySelector" base={<ModelSelectorGroupedSample />}>
+  <ModelSelectorGroupedRadixSample.ModelSelectorGroupedSample />
+</PreviewCode>
 
 ### Variants and sizes
 

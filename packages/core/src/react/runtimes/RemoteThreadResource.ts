@@ -45,10 +45,12 @@ export const subscribeToTitleGeneration = (
   itemRuntime: ThreadListItemRuntime,
 ) => {
   const generate = () =>
-    void itemRuntime.generateTitle().catch((error: unknown) => {
-      if (isSilentRuntimeAction(error)) return;
-      console.error("[assistant-ui] Thread title generation failed", error);
-    });
+    void itemRuntime
+      .generateTitle({ automatic: true })
+      .catch((error: unknown) => {
+        if (isSilentRuntimeAction(error)) return;
+        console.error("[assistant-ui] Thread title generation failed", error);
+      });
 
   const hasTitleSource = () =>
     threadRuntime.getState().messages.some(isTitleSourceMessage);

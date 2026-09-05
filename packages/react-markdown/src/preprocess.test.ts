@@ -23,8 +23,87 @@ describe("rewriteLatexBracketDelimiters", () => {
     expect(rewriteLatexBracketDelimiters("\\( x \\)")).toBe("$x$");
   });
 
-  it("spans newlines only for display math", () => {
-    expect(rewriteLatexBracketDelimiters("\\[a\nb\\]")).toBe("$$a\nb$$");
+  it("fences a multiline display body", () => {
+    expect(
+      rewriteLatexBracketDelimiters(
+        "\\[\\begin{aligned}\nS_n-rS_n\n&=a-ar^{n+1}.\n\\end{aligned}\\]",
+      ),
+    ).toBe("$$\n\\begin{aligned}\nS_n-rS_n\n&=a-ar^{n+1}.\n\\end{aligned}\n$$");
+  });
+
+  it("gives the fence markers their own lines mid-paragraph", () => {
+    expect(rewriteLatexBracketDelimiters("Thus \\[a\nb\\] therefore.")).toBe(
+      "Thus \n$$\na\nb\n$$\n therefore.",
+    );
+    expect(rewriteLatexBracketDelimiters("\\[a\nb\\].")).toBe(
+      "$$\na\nb\n$$\n.",
+    );
+  });
+
+  it("keeps a multiline display body inside its list item", () => {
+    expect(rewriteLatexBracketDelimiters("- item \\[\na\nb\n\\]\n- next")).toBe(
+      "- item \n  $$\n  a\n  b\n  $$\n- next",
+    );
+  });
+
+  it("keeps a multiline display body inside its blockquote", () => {
+    expect(
+      rewriteLatexBracketDelimiters("> quote \\[\na\nb\n\\]\n> after"),
+    ).toBe("> quote \n> $$\n> a\n> b\n> $$\n> after");
+  });
+
+  it("dedents a body whose lines share an indentation", () => {
+    expect(
+      rewriteLatexBracketDelimiters("- item \\[\n  a\n  b\n\\]\n- next"),
+    ).toBe("- item \n  $$\n  a\n  b\n  $$\n- next");
+  });
+
+  it("keeps relative indentation inside the body", () => {
+    expect(
+      rewriteLatexBracketDelimiters(
+        "- item \\[\n\\begin{aligned}\n  a &= b\n\\end{aligned}\n\\]\n- next",
+      ),
+    ).toBe(
+      "- item \n  $$\n  \\begin{aligned}\n    a &= b\n  \\end{aligned}\n  $$\n- next",
+    );
+  });
+
+  it("keeps the block prefix when inline math precedes the match", () => {
+    expect(
+      rewriteLatexBracketDelimiters("- see \\(y\\) \\[\na\nb\n\\]\n- next"),
+    ).toBe("- see $y$ \n  $$\n  a\n  b\n  $$\n- next");
+  });
+
+  it("keeps a body line that already carries the blockquote marker", () => {
+    expect(rewriteLatexBracketDelimiters("> q \\[\n>a\n>b\n\\]\n> after")).toBe(
+      "> q \n> $$\n>a\n>b\n> $$\n> after",
+    );
+  });
+
+  it("nests a body inside a list item written in a blockquote", () => {
+    expect(
+      rewriteLatexBracketDelimiters(">  - item \\[\na\nb\n\\]\n>  - next"),
+    ).toBe(">  - item \n>    $$\n>    a\n>    b\n>    $$\n>  - next");
+  });
+
+  it("reads the block prefix past a code span on the same line", () => {
+    expect(
+      rewriteLatexBracketDelimiters("- see `x` \\[\na\nb\n\\]\n- next"),
+    ).toBe("- see `x` \n  $$\n  a\n  b\n  $$\n- next");
+  });
+
+  it("keeps a single-line display body on its line", () => {
+    expect(rewriteLatexBracketDelimiters("See \\[x=1\\] ok.")).toBe(
+      "See $$x=1$$ ok.",
+    );
+  });
+
+  it("leaves an empty delimiter pair as written", () => {
+    expect(rewriteLatexBracketDelimiters("\\[ \\]")).toBe("\\[ \\]");
+    expect(rewriteLatexBracketDelimiters("\\( \\)")).toBe("\\( \\)");
+  });
+
+  it("does not span newlines for inline math", () => {
     expect(rewriteLatexBracketDelimiters("\\(a\nb\\)")).toBe("\\(a\nb\\)");
   });
 
@@ -32,6 +111,163 @@ describe("rewriteLatexBracketDelimiters", () => {
     expect(rewriteLatexBracketDelimiters("plain $x$ text")).toBe(
       "plain $x$ text",
     );
+  });
+
+  it("leaves a delimiter inside an inline code span as written", () => {
+    expect(rewriteLatexBracketDelimiters("a `\\(x\\)` b")).toBe(
+      "a `\\(x\\)` b",
+    );
+  });
+
+  it("leaves a delimiter inside a fenced block as written", () => {
+    expect(rewriteLatexBracketDelimiters("```\n\\[a\nb\\]\n```")).toBe(
+      "```\n\\[a\nb\\]\n```",
+    );
+  });
+
+  it("does not close a fenced block on a line with an info string", () => {
+    const fenced = "```\n```js\n\\(x\\)\n```\nafter \\(y\\)";
+    expect(rewriteLatexBracketDelimiters(fenced)).toBe(
+      "```\n```js\n\\(x\\)\n```\nafter $y$",
+    );
+  });
+
+  it("closes a backtick fence opened inside a blockquote", () => {
+    const fenced = "> ```\n> \\(x\\)\n> ```\nafter \\(y\\)";
+    expect(rewriteLatexBracketDelimiters(fenced)).toBe(
+      "> ```\n> \\(x\\)\n> ```\nafter $y$",
+    );
+  });
+
+  it("closes a code span written mid-line with three backticks", () => {
+    expect(rewriteLatexBracketDelimiters("x ```\\(a\\)``b``` \\(y\\)")).toBe(
+      "x ```\\(a\\)``b``` $y$",
+    );
+  });
+
+  it("protects an unclosed fence indented past a list item's content column", () => {
+    const streaming = "1. Step\n   - Sub\n     ```js\n     const a = \\(x\\);";
+    expect(rewriteLatexBracketDelimiters(streaming)).toBe(streaming);
+  });
+
+  it("protects a still-streaming fence quoted under a nested list item", () => {
+    const streaming =
+      "- Setup\n  - Note:\n    > ```js\n    > const a = \\(x\\);";
+    expect(rewriteLatexBracketDelimiters(streaming)).toBe(streaming);
+  });
+
+  it("protects a still-streaming fence opened on a list item's marker line", () => {
+    const streaming = "- ```js\n  const a = \\(x\\);";
+    expect(rewriteLatexBracketDelimiters(streaming)).toBe(streaming);
+  });
+
+  it("closes an indented fence whose body carries a blank line", () => {
+    const fenced =
+      "1. Step\n   - Sub\n     ```js\n     const a = 1;\n\n     const b = 2;\n     ```\n\nafter \\(y\\)";
+    expect(rewriteLatexBracketDelimiters(fenced)).toBe(
+      "1. Step\n   - Sub\n     ```js\n     const a = 1;\n\n     const b = 2;\n     ```\n\nafter $y$",
+    );
+  });
+
+  it("does not open a fence from a run sharing its line with a backtick", () => {
+    expect(
+      rewriteLatexBracketDelimiters("```\\(a\\)```b\n\nafter \\(y\\)"),
+    ).toBe("```\\(a\\)```b\n\nafter $y$");
+  });
+
+  it("rewrites prose on the same line as a code span", () => {
+    expect(rewriteLatexBracketDelimiters("\\(a\\) `\\(x\\)` \\(b\\)")).toBe(
+      "$a$ `\\(x\\)` $b$",
+    );
+  });
+
+  it("does not treat an escaped backtick as a code opener", () => {
+    expect(rewriteLatexBracketDelimiters("\\` \\(x\\)")).toBe("\\` $x$");
+  });
+
+  it("fences a multiline display body directly after a code span", () => {
+    expect(rewriteLatexBracketDelimiters("`c` \\[a\nb\\] d")).toBe(
+      "`c` \n$$\na\nb\n$$\n d",
+    );
+  });
+
+  it("leaves a delimiter pair straddling a code span as written", () => {
+    expect(rewriteLatexBracketDelimiters("\\(a `b` c\\)")).toBe(
+      "\\(a `b` c\\)",
+    );
+  });
+
+  it("rewrites across a lone literal backtick", () => {
+    expect(rewriteLatexBracketDelimiters("Use \\(x ` y\\) here")).toBe(
+      "Use $x ` y$ here",
+    );
+  });
+
+  it("protects an unclosed fence still streaming in", () => {
+    expect(rewriteLatexBracketDelimiters("```\n\\(x\\)\nstill streaming")).toBe(
+      "```\n\\(x\\)\nstill streaming",
+    );
+  });
+
+  it("leaves a delimiter inside a tilde fence as written", () => {
+    expect(rewriteLatexBracketDelimiters("~~~\n\\[a\nb\\]\n~~~\n\\(x\\)")).toBe(
+      "~~~\n\\[a\nb\\]\n~~~\n$x$",
+    );
+  });
+
+  it("protects an unclosed tilde fence to the end of the input", () => {
+    expect(rewriteLatexBracketDelimiters("~~~\n\\(x\\)")).toBe("~~~\n\\(x\\)");
+  });
+
+  it("closes a tilde fence written with CRLF line endings", () => {
+    expect(
+      rewriteLatexBracketDelimiters("~~~\r\n\\[a\\]\r\n~~~\r\nafter \\(x\\)"),
+    ).toBe("~~~\r\n\\[a\\]\r\n~~~\r\nafter $x$");
+  });
+
+  it("closes a tilde fence opened inside a blockquote", () => {
+    expect(
+      rewriteLatexBracketDelimiters("> ~~~\n> \\[a\\]\n> ~~~\n\nafter \\(x\\)"),
+    ).toBe("> ~~~\n> \\[a\\]\n> ~~~\n\nafter $x$");
+  });
+
+  it("closes a blockquoted fence whose closer omits the marker space", () => {
+    expect(
+      rewriteLatexBracketDelimiters("> ~~~\n> \\[a\\]\n>~~~\n\nafter \\(x\\)"),
+    ).toBe("> ~~~\n> \\[a\\]\n>~~~\n\nafter $x$");
+  });
+
+  it("closes an indented root fence with an unindented closer", () => {
+    expect(
+      rewriteLatexBracketDelimiters("  ~~~\n\\[a\\]\n~~~\nafter \\(x\\)"),
+    ).toBe("  ~~~\n\\[a\\]\n~~~\nafter $x$");
+  });
+
+  it("does not close a root fence on a quoted tilde line inside it", () => {
+    const fenced = "~~~\n> ~~~\n\\(x\\) still code\n~~~\nafter \\(y\\)";
+    expect(rewriteLatexBracketDelimiters(fenced)).toBe(
+      "~~~\n> ~~~\n\\(x\\) still code\n~~~\nafter $y$",
+    );
+  });
+
+  it("does not open a fence from a four-space indented marker", () => {
+    expect(rewriteLatexBracketDelimiters("    > ~~~\n\\(x\\)")).toBe(
+      "    > ~~~\n$x$",
+    );
+  });
+
+  it("protects a tilde fence nested in a blockquote", () => {
+    const quoted = "> ~~~\n> \\[a\\]\n> ~~~";
+    expect(rewriteLatexBracketDelimiters(quoted)).toBe(quoted);
+  });
+
+  it("leaves custom math tags inside a tilde fence as written", () => {
+    const fenced = "~~~\n[/math]x[/math]\n~~~";
+    expect(rewriteCustomMathTags(fenced)).toBe(fenced);
+  });
+
+  it("rewrites around a mid-line tilde run", () => {
+    expect(rewriteLatexBracketDelimiters("a ~~~ \\(x\\)")).toBe("a ~~~ $x$");
   });
 });
 
@@ -41,12 +277,88 @@ describe("rewriteCustomMathTags", () => {
       rewriteCustomMathTags("[/math]a+b[/math] and [/inline]c[/inline]"),
     ).toBe("$$a+b$$ and $c$");
   });
+
+  it("leaves a tag inside an inline code span as written", () => {
+    expect(rewriteCustomMathTags("`[/math]x[/math]`")).toBe(
+      "`[/math]x[/math]`",
+    );
+  });
+
+  it("leaves a tag inside a fenced block as written", () => {
+    expect(rewriteCustomMathTags("```\n[/inline]x[/inline]\n```")).toBe(
+      "```\n[/inline]x[/inline]\n```",
+    );
+  });
+
+  it("rewrites prose on the same line as a code span", () => {
+    expect(
+      rewriteCustomMathTags("[/inline]a[/inline] `[/inline]x[/inline]`"),
+    ).toBe("$a$ `[/inline]x[/inline]`");
+  });
+
+  it("fences a multiline math tag body", () => {
+    expect(
+      rewriteCustomMathTags(
+        "[/math]\\begin{aligned}\na&=b\n\\end{aligned}[/math]\nDone.",
+      ),
+    ).toBe("$$\n\\begin{aligned}\na&=b\n\\end{aligned}\n$$\nDone.");
+  });
+
+  it("gives the fence markers their own lines mid-paragraph", () => {
+    expect(rewriteCustomMathTags("Thus [/math]a\nb[/math] therefore.")).toBe(
+      "Thus \n$$\na\nb\n$$\n therefore.",
+    );
+  });
+
+  it("keeps a single-line math tag body on its line", () => {
+    expect(rewriteCustomMathTags("See [/math]x=1[/math] ok.")).toBe(
+      "See $$x=1$$ ok.",
+    );
+  });
+
+  it("does not add a blank line before a CRLF suffix", () => {
+    expect(rewriteCustomMathTags("[/math]\na\nb\n[/math]\r\nrest")).toBe(
+      "$$\na\nb\n$$\r\nrest",
+    );
+  });
+
+  it("rewrites a custom tag after an unclosed inline backtick run", () => {
+    expect(rewriteCustomMathTags("a ` b [/math]x[/math]")).toBe("a ` b $$x$$");
+  });
+
+  it("rewrites a custom tag after a mid-line code span", () => {
+    expect(rewriteCustomMathTags("a `code` [/math]x[/math]")).toBe(
+      "a `code` $$x$$",
+    );
+  });
+
+  it("leaves an empty math tag pair as written", () => {
+    expect(rewriteCustomMathTags("[/math][/math]")).toBe("[/math][/math]");
+    expect(rewriteCustomMathTags("[/inline][/inline] rest")).toBe(
+      "[/inline][/inline] rest",
+    );
+  });
+
+  it("leaves a whitespace-only tag pair as written", () => {
+    expect(rewriteCustomMathTags("[/math] \n [/math]\nrest")).toBe(
+      "[/math] \n [/math]\nrest",
+    );
+    expect(rewriteCustomMathTags("[/inline]   [/inline] rest")).toBe(
+      "[/inline]   [/inline] rest",
+    );
+  });
 });
 
 describe("normalizeMathDelimiters", () => {
   it("normalizes both bracket delimiters and custom tags", () => {
     expect(normalizeMathDelimiters("\\(x\\) [/math]y[/math]")).toBe(
       "$x$ $$y$$",
+    );
+  });
+
+  it("keeps code inert for both delimiter families", () => {
+    expect(normalizeMathDelimiters("`\\(x\\)` and `[/math]y[/math]`")).toBe(
+      "`\\(x\\)` and `[/math]y[/math]`",
     );
   });
 });
@@ -148,6 +460,76 @@ describe("escapeCurrencyDollars", () => {
   it("accepts a longer closing run for a fenced block", () => {
     expect(escapeCurrencyDollars("```\nconst price = $5;\n````")).toBe(
       "```\nconst price = $5;\n````",
+    );
+  });
+
+  it("does not close a fenced block on a line with an info string", () => {
+    const fenced = "```\n```js\nconst price = $5;\n```\nafter $10";
+    expect(escapeCurrencyDollars(fenced)).toBe(
+      "```\n```js\nconst price = $5;\n```\nafter \\$10",
+    );
+  });
+
+  it("does not rewrite a quoted fence indented past a nested list item", () => {
+    const fenced =
+      "- Setup\n  - Note:\n    > ```js\n    > const price = $5;\n    >\n    > const tax = $2;\n    > ```\n\nafter $10";
+    expect(escapeCurrencyDollars(fenced)).toBe(
+      "- Setup\n  - Note:\n    > ```js\n    > const price = $5;\n    >\n    > const tax = $2;\n    > ```\n\nafter \\$10",
+    );
+  });
+
+  it("does not rewrite a tab-indented quoted fence", () => {
+    const fenced =
+      "\t> ```js\n\t> const price = $5;\n\t>\n\t> const tax = $2;\n\t> ```\n\nafter $10";
+    expect(escapeCurrencyDollars(fenced)).toBe(
+      "\t> ```js\n\t> const price = $5;\n\t>\n\t> const tax = $2;\n\t> ```\n\nafter \\$10",
+    );
+  });
+
+  it("does not rewrite a fence quoted inside a list item", () => {
+    const fenced =
+      "- > ```js\n  > const price = $5;\n\n  > const tax = $2;\n  > ```\n\nafter $10";
+    expect(escapeCurrencyDollars(fenced)).toBe(
+      "- > ```js\n  > const price = $5;\n\n  > const tax = $2;\n  > ```\n\nafter \\$10",
+    );
+  });
+
+  it("does not rewrite a fence opened on a list item's marker line", () => {
+    const fenced =
+      "- ```js\n  const price = $5;\n\n  const tax = $2;\n  ```\n\nafter $10";
+    expect(escapeCurrencyDollars(fenced)).toBe(
+      "- ```js\n  const price = $5;\n\n  const tax = $2;\n  ```\n\nafter \\$10",
+    );
+  });
+
+  it("does not rewrite an indented fence whose body carries a blank line", () => {
+    const fenced =
+      "1. Step\n   - Sub\n     ```js\n     const price = $5;\n\n     const tax = $2;\n     ```\n\nafter $10";
+    expect(escapeCurrencyDollars(fenced)).toBe(
+      "1. Step\n   - Sub\n     ```js\n     const price = $5;\n\n     const tax = $2;\n     ```\n\nafter \\$10",
+    );
+  });
+
+  it("keeps a run left open in prose from swallowing a fence across CRLF", () => {
+    const prose =
+      "use ``` to fence code\r\n\r\n```js\r\nconst price = $5;\r\n```\r\nafter $10";
+    expect(escapeCurrencyDollars(prose)).toBe(
+      "use ``` to fence code\r\n\r\n```js\r\nconst price = $5;\r\n```\r\nafter \\$10",
+    );
+  });
+
+  it("does not let a run left open in prose swallow a later fence", () => {
+    const prose =
+      "use ``` to fence code\n\n```js\nconst price = $5;\n```\nafter $10";
+    expect(escapeCurrencyDollars(prose)).toBe(
+      "use ``` to fence code\n\n```js\nconst price = $5;\n```\nafter \\$10",
+    );
+  });
+
+  it("does not rewrite a fenced block opened inside a blockquote", () => {
+    const fenced = "> ```\n> ```js\n> const price = $5;\n> ```\nafter $10";
+    expect(escapeCurrencyDollars(fenced)).toBe(
+      "> ```\n> ```js\n> const price = $5;\n> ```\nafter \\$10",
     );
   });
 

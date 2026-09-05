@@ -1,5 +1,21 @@
 # @assistant-ui/react-devtools
 
+## 1.2.17
+
+### Patch Changes
+
+- [#6599](https://github.com/assistant-ui/assistant-ui/pull/6599) [`75b4679`](https://github.com/assistant-ui/assistant-ui/commit/75b4679dfa9cb574dbcbec3a15b6038c32ebf899) - fix: preserve readable model context when individual properties throw ([@Kinfe123](https://github.com/Kinfe123))
+
+- [#6528](https://github.com/assistant-ui/assistant-ui/pull/6528) [`152a35d`](https://github.com/assistant-ui/assistant-ui/commit/152a35daae0e80b5307865e59af683c4ae720794) - chore: update dependencies ([@okisdev](https://github.com/okisdev))
+
+- [#6553](https://github.com/assistant-ui/assistant-ui/pull/6553) [`80a34c4`](https://github.com/assistant-ui/assistant-ui/commit/80a34c4056a9726b8bca26e4d448e675e2d0d40c) - fix: tolerate unreadable runtime properties in DevTools snapshots ([@Kinfe123](https://github.com/Kinfe123))
+
+- [#6639](https://github.com/assistant-ui/assistant-ui/pull/6639) [`05e3e6d`](https://github.com/assistant-ui/assistant-ui/commit/05e3e6d3971dac4ce20fc7e2a87d187d78b0e449) - chore: update dependencies ([@Yonom](https://github.com/Yonom))
+
+- [#6688](https://github.com/assistant-ui/assistant-ui/pull/6688) [`8135d16`](https://github.com/assistant-ui/assistant-ui/commit/8135d16dfb871e807d94a427e958d2b957b19f1e) - fix: peer ranges on the packages this workspace releases now track the release train ([@okisdev](https://github.com/okisdev))
+  
+  changesets rewrites a peer range only when the new version falls outside it, so the hand-written floors had drifted below the code they describe. core declared `@assistant-ui/store: ^0.3.0` while importing `@assistant-ui/store/internal`, a subpath store did not export until 0.3.10, and react-lexical declared `*`. these peers are now `workspace:^`, which publishes as the version released alongside them.
+
 ## 1.2.16
 
 ### Patch Changes

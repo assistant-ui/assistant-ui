@@ -1,7 +1,7 @@
 "use client";
 
 import type React from "react";
-import { forwardRef, useEffect, useImperativeHandle } from "react";
+import { forwardRef, useImperativeHandle, useLayoutEffect } from "react";
 import type { AssistantClient } from "./types/client";
 import { AuiConfig } from "./AuiConfig";
 import {
@@ -17,8 +17,12 @@ const EMPTY_CONFIG = AuiConfig({});
 
 const MountTapEffects = ({ effects }: { effects: () => void }) => {
   "use no memo";
+  // The phase is load-bearing: a descendant layout effect that calls a client
+  // action must observe this commit, and tap maps a resource's own
+  // useLayoutEffect to its normal effect, so the mount phase here is the only
+  // control over it. The commit therefore runs before paint.
   // oxlint-disable-next-line react-hooks/exhaustive-deps
-  useEffect(effects);
+  useLayoutEffect(effects);
   return null;
 };
 

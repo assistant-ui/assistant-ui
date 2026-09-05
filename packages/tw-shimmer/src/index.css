@@ -16,6 +16,12 @@
       background-position: 100% 0;
     }
   }
+
+  @keyframes tw-shimmer-translate {
+    to {
+      translate: var(--_travel) 0;
+    }
+  }
 }
 
 @utility shimmer {
@@ -43,6 +49,11 @@
       var(--_repeat-delay-px)
   );
 
+  --_travel: calc(
+    var(--shimmer-track-width, 100%) + var(--_gradient-width) +
+      var(--_repeat-delay-px)
+  );
+
   --_position: calc(var(--shimmer-track-width, (100% - var(--_gradient-width) -
     var(--_repeat-delay-px)) / 2) + var(--_gradient-width) / 2 +
     var(--_repeat-delay-px) - var(--_xy-offset-px));
@@ -51,6 +62,7 @@
     --_speed: var(--shimmer-speed, 200);
     --_spread: var(--shimmer-spread, calc(4ch + 80px));
     --_bg: currentColor;
+    --_overlay: var(--shimmer-color, white);
     --_fg: var(
       --shimmer-color,
       oklch(from currentColor l c h / calc(alpha* 0.2))
@@ -108,6 +120,80 @@
 
   animation: tw-shimmer 1s linear 0s infinite backwards;
   animation-duration: calc((var(--_duration) + var(--_repeat-delay)) * 1ms);
+
+  @supports (-webkit-mask-clip: text) {
+    &:where(:not(.shimmer-bg)) {
+      position: relative;
+    }
+  }
+
+  &:not(.shimmer-bg) {
+    @supports (-webkit-mask-clip: text) {
+      animation: none;
+      background: none;
+      -webkit-text-fill-color: currentColor;
+      -webkit-mask-image: linear-gradient(#000, #000);
+      -webkit-mask-clip: text;
+      --_shimmer-play-state: running;
+
+      &::before {
+        content: "";
+        position: absolute;
+        inset-block: 0;
+        left: calc(-1 * (var(--_gradient-width) + var(--_xy-offset-px)));
+        width: 100%;
+        pointer-events: none;
+        background: linear-gradient(
+            calc(90deg + var(--shimmer-angle)),
+            transparent calc(50% - var(--_spread) * 0.5),
+            color-mix(in oklch, var(--_overlay), transparent 96%)
+              calc(50% - var(--_spread) * 0.44),
+            color-mix(in oklch, var(--_overlay), transparent 83%)
+              calc(50% - var(--_spread) * 0.37),
+            color-mix(in oklch, var(--_overlay), transparent 67%)
+              calc(50% - var(--_spread) * 0.31),
+            color-mix(in oklch, var(--_overlay), transparent 50%)
+              calc(50% - var(--_spread) * 0.25),
+            color-mix(in oklch, var(--_overlay), transparent 33%)
+              calc(50% - var(--_spread) * 0.19),
+            color-mix(in oklch, var(--_overlay), transparent 17%)
+              calc(50% - var(--_spread) * 0.12),
+            color-mix(in oklch, var(--_overlay), transparent 4%)
+              calc(50% - var(--_spread) * 0.06),
+            var(--_overlay) 50%,
+            color-mix(in oklch, var(--_overlay), transparent 4%)
+              calc(50% + var(--_spread) * 0.06),
+            color-mix(in oklch, var(--_overlay), transparent 17%)
+              calc(50% + var(--_spread) * 0.12),
+            color-mix(in oklch, var(--_overlay), transparent 33%)
+              calc(50% + var(--_spread) * 0.19),
+            color-mix(in oklch, var(--_overlay), transparent 50%)
+              calc(50% + var(--_spread) * 0.25),
+            color-mix(in oklch, var(--_overlay), transparent 67%)
+              calc(50% + var(--_spread) * 0.31),
+            color-mix(in oklch, var(--_overlay), transparent 83%)
+              calc(50% + var(--_spread) * 0.37),
+            color-mix(in oklch, var(--_overlay), transparent 96%)
+              calc(50% + var(--_spread) * 0.44),
+            transparent calc(50% + var(--_spread) * 0.5)
+          )
+          0 0 / var(--_gradient-width) 100% no-repeat;
+
+        @media (prefers-reduced-motion: no-preference) {
+          will-change: translate;
+        }
+
+        animation: tw-shimmer-translate
+          calc((var(--_duration) + var(--_repeat-delay)) * 1ms) linear infinite;
+        animation-play-state: var(--_shimmer-play-state);
+      }
+    }
+
+    @media (prefers-reduced-motion: reduce) {
+      animation-play-state: paused;
+      --_shimmer-play-state: paused;
+    }
+  }
 }
 
 @utility shimmer-bg {
@@ -141,6 +227,7 @@
 
 @utility shimmer-invert {
   &:not(.shimmer-bg) {
+    --_overlay: black;
     --shimmer-color: oklch(
       from currentColor min(calc(l - 0.4), 0.2) c h / calc(alpha + 0.4)
     );

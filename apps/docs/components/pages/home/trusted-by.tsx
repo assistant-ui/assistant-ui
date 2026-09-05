@@ -27,9 +27,17 @@ const LOGOS: Logo[] = [
     invert: false,
   },
   {
-    src: "/icons/cust/langchain.svg",
-    alt: "Langchain",
-    href: "https://langchain.com?ref=assistant-ui",
+    src: "/icons/cust/aws.svg",
+    darkSrc: "/icons/cust/aws-white.svg",
+    alt: "AWS",
+    href: "https://aws.amazon.com?ref=assistant-ui",
+  },
+  {
+    src: "/icons/cust/neon.svg",
+    darkSrc: "/icons/cust/neon-dark.svg",
+    alt: "Neon",
+    href: "https://neon.tech?ref=assistant-ui",
+    invert: false,
   },
   {
     src: "/icons/yc_logo.png",
@@ -38,11 +46,9 @@ const LOGOS: Logo[] = [
     invert: false,
   },
   {
-    src: "/icons/cust/neon.svg",
-    darkSrc: "/icons/cust/neon-dark.svg",
-    alt: "Neon",
-    href: "https://neon.tech?ref=assistant-ui",
-    invert: false,
+    src: "/icons/cust/langchain.svg",
+    alt: "Langchain",
+    href: "https://langchain.com?ref=assistant-ui",
   },
   {
     src: "/icons/cust/builder.svg",
@@ -139,8 +145,8 @@ const LOGOS: Logo[] = [
 
 const SLOTS = 9;
 export const ALL_SLOTS = Array.from({ length: SLOTS }, (_, index) => index);
-export const MOBILE_SLOTS = [0, 1, 2, 5, 6, 7];
-const HOLD_MIN_MS = 1600;
+export const MOBILE_SLOTS = [0, 1, 2, 5, 6];
+export const HOLD_MIN_MS = 1600;
 const HOLD_SPAN_MS = 900;
 const CROSSFADE_MS = 500;
 
@@ -157,6 +163,51 @@ export function takeSlot(queue: readonly number[], visible: readonly number[]) {
   const remaining = queue.filter((slot) => visible.includes(slot));
   const source = remaining.length > 0 ? remaining : shuffle(visible);
   return { slot: source[source.length - 1]!, queue: source.slice(0, -1) };
+}
+
+export function rotateSlot(
+  catalogue: readonly Logo[],
+  shown: readonly Logo[],
+  visible: readonly number[],
+  target: number,
+  pick: (count: number) => number,
+): readonly Logo[] {
+  const onScreen = new Set(visible.map((slot) => shown[slot]!.alt));
+  const pool = catalogue.filter((logo) => !onScreen.has(logo.alt));
+  const next = pool[pick(pool.length)];
+  if (!next) return shown;
+  // A logo parked in a slot the narrow layout hides is in the pool, so it trades
+  // places with the outgoing one; that keeps all nine distinct at every breakpoint.
+  const parked = shown.findIndex((logo) => logo.alt === next.alt);
+  const outgoing = shown[target]!;
+  return shown.map((logo, index) =>
+    index === target ? next : index === parked ? outgoing : logo,
+  );
+}
+
+type SlotState = {
+  current: Logo;
+  previous: Logo | null;
+  entered: boolean;
+};
+
+// A slot adopts the incoming logo outright when it is not painting a cross fade:
+// a hidden slot never loads its images, and a breakpoint change would otherwise
+// reveal a stale layer holding a logo another slot now shows.
+export function slotState(
+  state: SlotState,
+  logo: Logo,
+  layout: { hidden: boolean; changed: boolean },
+): SlotState {
+  if (layout.hidden || layout.changed) {
+    return { current: logo, previous: null, entered: true };
+  }
+  if (logo.alt === state.current.alt) return state;
+  return {
+    current: logo,
+    previous: state.entered ? state.current : state.previous,
+    entered: false,
+  };
 }
 
 function LogoMark({
@@ -200,13 +251,16 @@ function LogoMark({
 function LogoSlot({
   logo,
   hideOnMobile,
+  wide,
 }: {
   logo: Logo;
   hideOnMobile: boolean;
+  wide: boolean;
 }) {
   const [current, setCurrent] = useState(logo);
   const [previous, setPrevious] = useState<Logo | null>(null);
   const [entered, setEntered] = useState(true);
+  const [wasWide, setWasWide] = useState(wide);
   const mark = useRef<HTMLAnchorElement>(null);
 
   // Readiness only counts rendered images: the theme-hidden half of a light/dark
@@ -221,11 +275,14 @@ function LogoSlot({
     setEntered(true);
   };
 
-  if (logo.alt !== current.alt) {
-    if (entered) setPrevious(current);
-    setCurrent(logo);
-    setEntered(false);
-  }
+  if (wasWide !== wide) setWasWide(wide);
+  const next = slotState({ current, previous, entered }, logo, {
+    hidden: hideOnMobile && !wide,
+    changed: wasWide !== wide,
+  });
+  if (next.current !== current) setCurrent(next.current);
+  if (next.previous !== previous) setPrevious(next.previous);
+  if (next.entered !== entered) setEntered(next.entered);
 
   useEffect(() => {
     if (previous === null || !entered) return;
@@ -248,7 +305,7 @@ function LogoSlot({
           rel="noopener noreferrer"
           inert={entered}
           className={cn(
-            "absolute inset-0 flex items-center justify-center",
+            "absolute inset-0 mx-auto flex w-full max-w-[9rem] items-center justify-center",
             entered &&
               "animate-out fade-out fill-mode-forwards duration-500 ease-out",
           )}
@@ -278,7 +335,9 @@ function LogoSlot({
 }
 
 export function TrustedBy() {
-  const [shown, setShown] = useState(() => LOGOS.slice(0, SLOTS));
+  const [shown, setShown] = useState<readonly Logo[]>(() =>
+    LOGOS.slice(0, SLOTS),
+  );
   const [hovered, setHovered] = useState(false);
   const [pageHidden, setPageHidden] = useState(false);
   const [reduceMotion, setReduceMotion] = useState(false);
@@ -314,14 +373,11 @@ export function TrustedBy() {
     const hold = window.setTimeout(() => {
       const taken = takeSlot(order.current, slots);
       order.current = taken.queue;
-      const target = taken.slot;
-      setShown((current) => {
-        const taken = new Set(current.map((logo) => logo.alt));
-        const pool = LOGOS.filter((logo) => !taken.has(logo.alt));
-        const next = pool[Math.floor(Math.random() * pool.length)];
-        if (!next) return current;
-        return current.map((logo, index) => (index === target ? next : logo));
-      });
+      setShown((current) =>
+        rotateSlot(LOGOS, current, slots, taken.slot, (count) =>
+          Math.floor(Math.random() * count),
+        ),
+      );
     }, wait);
     return () => window.clearTimeout(hold);
   }, [frozen, shown, slots]);
@@ -338,15 +394,17 @@ export function TrustedBy() {
             key={index}
             logo={logo}
             hideOnMobile={!MOBILE_SLOTS.includes(index)}
+            wide={wide}
           />
         ))}
       </div>
-      <div className="mx-auto grid w-full grid-cols-3 sm:w-4/5 sm:grid-cols-4">
+      <div className="mx-auto grid w-full grid-cols-2 sm:w-4/5 sm:grid-cols-4">
         {shown.slice(5, SLOTS).map((logo, offset) => (
           <LogoSlot
             key={offset + 5}
             logo={logo}
             hideOnMobile={!MOBILE_SLOTS.includes(offset + 5)}
+            wide={wide}
           />
         ))}
       </div>

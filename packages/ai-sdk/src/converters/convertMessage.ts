@@ -31,6 +31,30 @@ import {
 import { unwrapModelContentEnvelope } from "./modelContentEnvelope";
 
 type MessageMetadata = ThreadMessageLike["metadata"];
+
+const THREAD_METADATA_KEYS = new Set([
+  "unstable_state",
+  "unstable_annotations",
+  "unstable_data",
+  "steps",
+  "timing",
+  "submittedFeedback",
+  "isOptimistic",
+  "custom",
+]);
+
+const toThreadMetadata = (metadata: unknown): MessageMetadata => {
+  if (!metadata || typeof metadata !== "object") return undefined;
+  const result: Record<string, unknown> = {};
+  const extra: Record<string, unknown> = {};
+  for (const [key, value] of Object.entries(metadata)) {
+    (THREAD_METADATA_KEYS.has(key) ? result : extra)[key] = value;
+  }
+  if (Object.keys(extra).length > 0) {
+    result.custom = { ...extra, ...(result.custom as object | undefined) };
+  }
+  return result as MessageMetadata;
+};
 export type AISDKMessageConverterMetadata =
   useExternalMessageConverter.Metadata & {
     toolArgsKeyOrderCache?: Map<string, Map<string, string[]>>;
@@ -427,7 +451,7 @@ export const AISDKMessageConverter = unstable_createMessageConverter(
                 status: { type: "complete" as const },
               };
             }),
-          metadata: message.metadata as MessageMetadata,
+          metadata: toThreadMetadata(message.metadata),
         };
 
       case "system":
@@ -442,7 +466,7 @@ export const AISDKMessageConverter = unstable_createMessageConverter(
           createdAt,
           content,
           metadata: {
-            ...(message.metadata as MessageMetadata),
+            ...toThreadMetadata(message.metadata),
             ...(timing && { timing }),
             ...(isOptimistic && { isOptimistic: true }),
           },

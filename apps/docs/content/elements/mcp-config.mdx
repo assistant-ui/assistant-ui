@@ -17,16 +17,24 @@ MCP config dialog lists every app-defined connector and user-added custom server
 `McpManagerResource` is the entry point: mount it once at the root of your app, with the connectors you want available to every user.
 
 ```tsx title="app/assistant.tsx"
-import { useAui } from "@assistant-ui/react";
+import { AuiConfig, AuiProvider, useAui } from "@assistant-ui/react";
 import { McpManagerResource } from "@assistant-ui/react-mcp";
 
-useAui({
-  mcp: McpManagerResource({
-    connectors: [
-      { id: "linear", name: "Linear", url: "https://mcp.linear.app/mcp", auth: { type: "oauth" } },
-    ],
-  }),
-});
+export function McpProviders({ children }: { children: React.ReactNode }) {
+  const aui = useAui();
+  const config = AuiConfig({
+    mcp: McpManagerResource({
+      connectors: [
+        { id: "linear", name: "Linear", url: "https://mcp.linear.app/mcp", auth: { type: "oauth" } },
+      ],
+    }),
+  });
+  return (
+    <AuiProvider extends={aui} config={config}>
+      {children}
+    </AuiProvider>
+  );
+}
 ```
 
   </Step>

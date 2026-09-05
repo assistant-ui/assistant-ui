@@ -123,14 +123,14 @@ export function Usage() {
     <span>this run</span>
     <span>{/* "{sessionCost} session" */}</span>
   </div>
-  <div>{/* segmented bar, one span per line, width = share */}</div>
+  <div>{/* segmented bar, one named meter per line, width = share */}</div>
   <div>
     {/* one row per line: model name, token counts, cost */}
   </div>
 </div>
 ```
 
-The segmented bar's color is assigned by index, not by value: the first line always gets the solid blue tone, the second a faded blue, and every line after that shares one neutral gray, regardless of how large its `share` is. `share` isn't validated against the others, so shares that don't sum to 1 leave the bar under or overfull. `inputTokens` and `outputTokens` are raw numbers the component formats to one decimal in thousands (`48200` becomes `"48.2k in"`); `runCost`, `sessionCost`, and each line's `cost` are already-formatted strings the component only displays, it does no currency math of its own.
+The segmented bar's color is assigned by index, not by value: the first line always gets the solid blue tone, the second a faded blue, and every line after that shares one neutral gray, regardless of how large its `share` is. Each painted segment is a named meter using that line's `share` as a `0…100` value; a line whose share rounds to no announced width is left out of the bar rather than announced as an empty segment, and the color still follows the line's own index. `share` isn't validated against the others, so shares that don't sum to 1 leave the bar under or overfull. `inputTokens` and `outputTokens` are raw numbers the component formats to one decimal in thousands (`48200` becomes `"48.2k in"`); `runCost`, `sessionCost`, and each line's `cost` are already-formatted strings the component only displays, it does no currency math of its own.
 
 ## Examples
 

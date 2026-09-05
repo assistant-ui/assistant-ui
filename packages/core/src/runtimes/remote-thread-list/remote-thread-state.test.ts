@@ -54,6 +54,7 @@ describe("remote thread state", () => {
   it("creates an empty state", () => {
     expect(createEmptyRemoteThreadState()).toEqual({
       isLoading: true,
+      loadError: undefined,
       isLoadingMore: false,
       cursor: undefined,
       newThreadId: undefined,

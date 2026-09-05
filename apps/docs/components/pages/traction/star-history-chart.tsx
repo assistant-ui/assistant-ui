@@ -11,93 +11,40 @@ import {
 import { formatCompact } from "@/lib/format";
 
 type Point = { date: string; value: number };
-type ChartPoint = {
-  date: string;
-  ts: number;
-  value: number | null;
-  forecast: number | null;
-};
 
 const config = {
   stars: {
     label: "Stars",
     color: "var(--chart-1)",
   },
-  forecast: {
-    label: "Projected",
-    color: "var(--chart-1)",
-  },
 } satisfies ChartConfig;
 
-const FORECAST_WINDOW_DAYS = 90;
-const DAY_MS = 24 * 60 * 60 * 1000;
-
 const formatTick = (ms: number) =>
-  new Date(ms).toLocaleDateString("en-US", { month: "short", year: "2-digit" });
+  new Date(ms).toLocaleDateString("en-US", {
+    month: "short",
+    year: "2-digit",
+    timeZone: "UTC",
+  });
 
 const formatTooltipLabel = (iso: string) =>
   new Date(iso).toLocaleDateString("en-US", {
     month: "long",
     day: "numeric",
     year: "numeric",
+    timeZone: "UTC",
   });
-
-function buildChartData(data: Point[]): ChartPoint[] {
-  const base: ChartPoint[] = data.map((p) => ({
-    date: p.date,
-    ts: new Date(p.date).getTime(),
-    value: p.value,
-    forecast: null,
-  }));
-  if (data.length < 2) return base;
-
-  const last = data[data.length - 1]!;
-  const lastMs = new Date(last.date).getTime();
-
-  const cutoff = lastMs - FORECAST_WINDOW_DAYS * DAY_MS;
-  let anchor = data[0]!;
-  for (let i = data.length - 1; i >= 0; i--) {
-    if (new Date(data[i]!.date).getTime() <= cutoff) {
-      anchor = data[i]!;
-      break;
-    }
-  }
-  const anchorMs = new Date(anchor.date).getTime();
-  if (anchorMs >= lastMs) return base;
-
-  const slope = (last.value - anchor.value) / (lastMs - anchorMs);
-
-  const now = new Date();
-  const monthEnd = Date.UTC(
-    now.getUTCFullYear(),
-    now.getUTCMonth() + 1,
-    0,
-    23,
-    59,
-    59,
-  );
-  if (monthEnd <= lastMs) return base;
-
-  const projected = Math.max(
-    last.value,
-    Math.round(last.value + slope * (monthEnd - lastMs)),
-  );
-
-  // Stamp the last real point with both keys so the dashed forecast line
-  // connects continuously to the solid history line.
-  base[base.length - 1] = { ...base[base.length - 1]!, forecast: last.value };
-  base.push({
-    date: new Date(monthEnd).toISOString(),
-    ts: monthEnd,
-    value: null,
-    forecast: projected,
-  });
-  return base;
-}
 
 export function StarHistoryChart({ data }: { data: Point[] }) {
   const gradientId = useId();
-  const chartData = useMemo(() => buildChartData(data), [data]);
+  const chartData = useMemo(
+    () =>
+      data.map((p) => ({
+        date: p.date,
+        ts: new Date(p.date).getTime(),
+        stars: p.value,
+      })),
+    [data],
+  );
 
   if (data.length < 2) {
     return (
@@ -151,53 +98,22 @@ export function StarHistoryChart({ data }: { data: Point[] }) {
         />
         <ChartTooltip
           cursor={{ stroke: "var(--border)" }}
-          content={({ active, payload, label }) => {
-            // Drop the forecast row at the bridge point so today's tooltip
-            // doesn't show the same value twice.
-            const filtered = payload?.filter(
-              (e) =>
-                !(
-                  e.dataKey === "forecast" &&
-                  (e.payload as { value?: number | null } | undefined)?.value !=
-                    null
-                ),
-            );
-            if (!active || !filtered || filtered.length === 0) return null;
-            return (
-              <ChartTooltipContent
-                active={active}
-                payload={filtered}
-                label={label}
-                labelFormatter={(_, p) => {
-                  const iso = p?.[0]?.payload?.date as string | undefined;
-                  return iso ? formatTooltipLabel(iso) : "";
-                }}
-                formatter={(value, name) => [
-                  `${formatCompact(value as number)} stars${name === "forecast" ? " (projected)" : ""}`,
-                  "",
-                ]}
-                hideIndicator
-              />
-            );
-          }}
+          content={
+            <ChartTooltipContent
+              labelFormatter={(_, p) => {
+                const iso = p?.[0]?.payload?.date as string | undefined;
+                return iso ? formatTooltipLabel(iso) : "";
+              }}
+              formatter={(value) => `${formatCompact(value as number)} stars`}
+            />
+          }
         />
         <Area
-          dataKey="value"
+          dataKey="stars"
           type="monotone"
           stroke="var(--color-stars)"
           strokeWidth={2}
           fill={`url(#${gradientId})`}
-          connectNulls={false}
-          isAnimationActive={false}
-        />
-        <Area
-          dataKey="forecast"
-          type="monotone"
-          stroke="var(--color-forecast)"
-          strokeWidth={2}
-          strokeDasharray="4 4"
-          fill="transparent"
-          connectNulls={false}
           isAnimationActive={false}
         />
       </AreaChart>

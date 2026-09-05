@@ -14,6 +14,7 @@ export default {
   },
   resolve: {
     alias: {
+      "server-only": resolve(__dirname, "./test/server-only"),
       // Keep in step with the tsconfig paths: packages/ui ships stock shadcn
       // sidebars importing this bare alias, and it resolves outside this app.
       "@/hooks/use-mobile": resolve(
@@ -31,6 +32,22 @@ export default {
       "@/components/assistant-ui": resolve(
         __dirname,
         "../../packages/ui/src/components/react/assistant-ui",
+      ),
+      "@/components/icons/discord": resolve(
+        __dirname,
+        "../../packages/ui/src/components/react/icons/discord",
+      ),
+      "@/components/icons/gemini": resolve(
+        __dirname,
+        "../../packages/ui/src/components/react/icons/gemini",
+      ),
+      "@/components/icons/github": resolve(
+        __dirname,
+        "../../packages/ui/src/components/react/icons/github",
+      ),
+      "@/components/icons/grok": resolve(
+        __dirname,
+        "../../packages/ui/src/components/react/icons/grok",
       ),
       "@/lib/utils": resolve(__dirname, "../../packages/ui/src/lib/utils"),
       "@": resolve(__dirname),

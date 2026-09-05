@@ -62,6 +62,13 @@ const getBarColor = (percent: number): string => {
   if (severity === "warning") return "bg-amber-500";
   return "bg-foreground";
 };
+
+const getPercentColor = (percent: number): string => {
+  const severity = getUsageSeverity(percent);
+  if (severity === "critical") return "text-red-500";
+  if (severity === "warning") return "text-amber-500";
+  return "text-muted-foreground";
+};
 type ContextDisplayContextValue = {
   usage: TokenUsage | undefined;
   totalTokens: number;
@@ -127,18 +134,25 @@ function ContextDisplayRoot({
     });
   }, [resetKey, rawTokens, usage]);
 
-  const totalTokens = tokenState.totalTokens;
+  const current =
+    tokenState.resetKey === resetKey
+      ? tokenState
+      : { totalTokens: rawTokens > 0 ? rawTokens : 0, usage };
+  const totalTokens = current.totalTokens;
   const percent = getUsagePercent(totalTokens, modelContextWindow);
+  const hasUsage = current.usage !== undefined || totalTokens > 0;
 
   const contextValue = useMemo(
     () => ({
-      usage: tokenState.usage,
+      usage: current.usage,
       totalTokens,
       percent,
       modelContextWindow,
     }),
-    [tokenState.usage, totalTokens, percent, modelContextWindow],
+    [current.usage, totalTokens, percent, modelContextWindow],
   );
+
+  if (!hasUsage) return null;
 
   return (
     <ContextDisplayContext.Provider value={contextValue}>
@@ -177,6 +191,13 @@ type ContextSegment = {
   tokens: number;
 };
 
+// Whether a provider counts cached tokens inside inputTokens, or reasoning
+// inside outputTokens, differs by provider: OpenAI reports cached_tokens as a
+// subset of prompt_tokens, while Anthropic documents input_tokens as excluding
+// cache_read_input_tokens. Nothing in the usage contract says which is in hand,
+// so these are reported as the counts they are and none of them is given a
+// share of the bar, which stays the one reading that always holds: the
+// provider's own total against the window.
 const getContextSegments = (
   usage: TokenUsage | undefined,
 ): ContextSegment[] => {
@@ -206,15 +227,17 @@ function ContextDisplayContent({
       sideOffset={8}
       data-slot="context-display-popover"
       className={cn(
-        "bg-popover text-popover-foreground w-56 rounded-lg border p-3 text-left [&_[data-slot=tooltip-arrow]]:hidden",
+        "bg-popover text-popover-foreground block w-56 border p-3 text-left [&_[data-slot=tooltip-arrow]]:hidden",
         className,
       )}
     >
       <div className="text-xs">
         <div className="flex items-baseline justify-between gap-6 whitespace-nowrap">
-          <span className="font-medium">Context usage</span>
-          <span className="text-muted-foreground tabular-nums">
-            {formatTokenCount(Math.min(totalTokens, modelContextWindow))} of{" "}
+          <span className={getPercentColor(percent)}>
+            {Math.round(percent)}% full
+          </span>
+          <span className="font-mono tabular-nums">
+            {formatTokenCount(Math.min(totalTokens, modelContextWindow))} /{" "}
             {formatTokenCount(modelContextWindow)}
           </span>
         </div>
@@ -236,7 +259,7 @@ function ContextDisplayContent({
                 className="flex items-baseline justify-between gap-6"
               >
                 <span className="text-muted-foreground">{segment.label}</span>
-                <span className="tabular-nums">
+                <span className="font-mono tabular-nums">
                   {formatTokenCount(segment.tokens)}
                 </span>
               </div>

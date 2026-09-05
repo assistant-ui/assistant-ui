@@ -120,6 +120,57 @@ const cloud = new AssistantCloud({
   Anonymous mode creates a new user for each browser session. Threads won't persist across sessions or devices. Use this only for prototyping.
 </Callout>
 
+#### Claim Anonymous Threads After Sign-In
+
+When an anonymous visitor signs in, read the browser's refresh token with `readAnonymousRefreshToken(baseUrl)` and send it to your server. The server can claim those threads with an API-key client scoped to the signed-in user's workspace. The response reports how many threads moved.
+
+<Tabs items={["Browser", "Server"]}>
+<Tab value="Browser">
+
+```ts title="claim-anonymous-threads.ts"
+import { readAnonymousRefreshToken } from "@assistant-ui/react";
+
+export async function claimAnonymousThreads(baseUrl: string) {
+  const refreshToken = readAnonymousRefreshToken(baseUrl);
+  if (!refreshToken) return { moved: 0 };
+
+  const response = await fetch("/api/threads/claim", {
+    method: "POST",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify({ refresh_token: refreshToken }),
+  });
+  if (!response.ok) throw new Error("Failed to claim anonymous threads");
+  return (await response.json()) as { moved: number };
+}
+```
+
+</Tab>
+<Tab value="Server">
+
+```ts title="app/api/threads/claim/route.ts"
+import { AssistantCloud } from "assistant-cloud";
+import { auth } from "@clerk/nextjs/server";
+
+export async function POST(request: Request) {
+  const { userId } = await auth();
+  if (!userId) return new Response("Unauthorized", { status: 401 });
+
+  const { refresh_token } = (await request.json()) as {
+    refresh_token: string;
+  };
+  const cloud = new AssistantCloud({
+    apiKey: process.env.ASSISTANT_API_KEY!,
+    userId,
+    workspaceId: userId,
+  });
+  const { moved } = await cloud.threads.claim({ refresh_token });
+  return Response.json({ moved });
+}
+```
+
+</Tab>
+</Tabs>
+
 ## Auth Provider Examples
 
 ### Clerk

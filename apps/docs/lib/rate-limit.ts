@@ -155,6 +155,38 @@ const getPublicAssistantRateLimits = async () => {
       prefix: "aui:mcp-template:global:alert",
       limiter: Ratelimit.fixedWindow(1, "10m"),
     }),
+    followUpIpBurst: new Ratelimit({
+      redis,
+      prefix: "aui:follow-up:ip:burst",
+      limiter: Ratelimit.fixedWindow(10, "60s"),
+    }),
+    followUpIpDaily: new Ratelimit({
+      redis,
+      prefix: "aui:follow-up:ip:daily",
+      limiter: Ratelimit.fixedWindow(
+        positiveSafeInteger(
+          process.env.AUI_FOLLOW_UP_REQUESTS_PER_IP_PER_DAY,
+          300,
+        ),
+        "1d",
+      ),
+    }),
+    followUpGlobalDaily: new Ratelimit({
+      redis,
+      prefix: "aui:follow-up:global:daily",
+      limiter: Ratelimit.fixedWindow(
+        positiveSafeInteger(
+          process.env.AUI_FOLLOW_UP_GLOBAL_REQUESTS_PER_DAY,
+          20_000,
+        ),
+        "1d",
+      ),
+    }),
+    followUpGlobalAlert: new Ratelimit({
+      redis,
+      prefix: "aui:follow-up:global:alert",
+      limiter: Ratelimit.fixedWindow(1, "10m"),
+    }),
     xuluxDownloadIpBurst: new Ratelimit({
       redis,
       prefix: "aui:xulux-download:ip:burst",
@@ -304,6 +336,44 @@ export async function checkPublicAssistantRateLimit(
         globalDaily.reset,
       );
     }
+    return null;
+  });
+}
+
+export async function checkFollowUpSuggestionRateLimit(
+  request: Request,
+): Promise<Response | null> {
+  return runRateLimitChecks(request, "follow_up", async (limits) => {
+    const ip = getClientIp(request);
+    if (!ip) return missingClientIpResponse(request, "follow_up");
+
+    const burst = await limits.followUpIpBurst.limit(ip);
+    if (!burst.success) {
+      return limitResponse("Follow-up rate limit exceeded", burst.reset);
+    }
+
+    const daily = await limits.followUpIpDaily.limit(ip);
+    if (!daily.success) {
+      return limitResponse("Follow-up daily limit exceeded", daily.reset);
+    }
+
+    const globalDaily = await limits.followUpGlobalDaily.limit("all");
+    if (!globalDaily.success) {
+      const alert = await limits.followUpGlobalAlert
+        .limit("all")
+        .catch(() => null);
+      if (alert?.success) {
+        console.error(
+          JSON.stringify({
+            level: "error",
+            message: "follow_up_global_daily_exhausted",
+            requestId: request.headers.get("x-vercel-id"),
+          }),
+        );
+      }
+      return limitResponse("Follow-up daily limit exceeded", globalDaily.reset);
+    }
+
     return null;
   });
 }

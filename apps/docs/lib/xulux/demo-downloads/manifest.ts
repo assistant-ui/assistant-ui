@@ -177,7 +177,7 @@ export const DEMO_DOWNLOAD_MANIFESTS: Record<
     extraSourceFiles: [
       ...COMMON_EXTRA_SOURCE_FILES,
       ...CLONE_SIDEBAR_SOURCE_FILES,
-      "apps/docs/components/icons/grok.tsx",
+      "packages/ui/src/components/react/icons/grok.tsx",
     ],
   },
   gemini: {

@@ -32,6 +32,8 @@ export type ThreadListState = {
   readonly threadIds: readonly string[];
   readonly archivedThreadIds: readonly string[];
   readonly isLoading: boolean;
+  /** The error thrown by the most recent thread list load that failed, cleared when a later load starts. */
+  readonly loadError: unknown;
   readonly isLoadingMore: boolean;
   readonly hasMore: boolean;
   readonly threadItems: Readonly<
@@ -97,6 +99,7 @@ const getThreadListState = (
     threadIds: threadList.threadIds,
     archivedThreadIds: threadList.archivedThreadIds,
     isLoading: threadList.isLoading,
+    loadError: threadList.loadError,
     isLoadingMore: threadList.isLoadingMore ?? false,
     hasMore: threadList.hasMore ?? false,
     threadItems: threadList.threadItems,

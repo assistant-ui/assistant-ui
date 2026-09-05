@@ -344,7 +344,7 @@ Plus all other properties from AI SDK's [`UseChatHelpers`](https://sdk.vercel.ai
 | `threads.rename` | `(id: string, title: string) => Promise<boolean>` | Rename a thread |
 | `threads.archive` | `(id: string) => Promise<boolean>` | Archive a thread |
 | `threads.unarchive` | `(id: string) => Promise<boolean>` | Unarchive a thread |
-| `threads.generateTitle` | `(threadId: string) => Promise<string \| null>` | Generate a title using AI |
+| `threads.generateTitle` | `(threadId: string, options?: { automatic?: boolean }) => Promise<string \| null>` | Generate a title using AI; `automatic` protects a manual rename from that next automatic attempt |
 
 ### `useThreads(options)`
 

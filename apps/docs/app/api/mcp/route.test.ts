@@ -51,7 +51,7 @@ import {
   type WebMcpModelContext,
 } from "@/lib/webmcp-tools";
 import { listTemplates } from "@/lib/xulux/template-service";
-import { POST } from "./route";
+import { GET, POST } from "./route";
 
 const ORIGIN = "https://www.assistant-ui.com";
 const encoder = new TextEncoder();
@@ -124,6 +124,47 @@ function inputSchemaShape(schema: Record<string, unknown>) {
 
 afterEach(() => {
   vi.clearAllMocks();
+});
+
+async function requestDescriptor(accept?: string) {
+  const request = new Request(`${ORIGIN}/api/mcp`, {
+    ...(accept ? { headers: { Accept: accept } } : {}),
+  });
+  return await GET(request as Parameters<typeof GET>[0]);
+}
+
+describe("GET /api/mcp", () => {
+  it("refuses the streamable HTTP server-to-client stream", async () => {
+    const response = await requestDescriptor("text/event-stream");
+
+    expect(response.status).toBe(405);
+    expect(response.headers.get("allow")).toBe("POST, OPTIONS");
+    expect(await response.json()).toEqual({
+      jsonrpc: "2.0",
+      error: { code: -32000, message: "Method not allowed." },
+      id: null,
+    });
+  });
+
+  it("refuses a stream open whatever its casing or media range position", async () => {
+    const response = await requestDescriptor(
+      "application/json, Text/Event-Stream;q=0.9",
+    );
+
+    expect(response.status).toBe(405);
+  });
+
+  it("serves the descriptor to discovery clients", async () => {
+    for (const accept of [undefined, "*/*", "application/json"]) {
+      const response = await requestDescriptor(accept);
+
+      expect(response.status).toBe(200);
+      expect(await response.json()).toMatchObject({
+        name: "assistant-ui-docs",
+        protocol: "mcp",
+      });
+    }
+  });
 });
 
 describe("POST /api/mcp", () => {

@@ -49,7 +49,7 @@ Add to your CSS:
 ```
 
 <Callout type="info">
-  Set a semi-transparent text color (e.g., `text-foreground/40`) for the shimmer highlight to be visible.
+  Set a semi-transparent text color (e.g., `text-foreground/40`) for the shimmer highlight to be visible. Text shimmer keeps one text node and uses a compositor highlight when `-webkit-mask-clip: text` is supported; other browsers use the gradient fallback.
 </Callout>
 
 ### Skeleton Loader
@@ -77,7 +77,11 @@ Add to your CSS:
 
 #### `shimmer`
 
-Base utility for text shimmer. Applies a gradient animation over the text foreground color.
+Base utility for text shimmer. It keeps one text node and, when `-webkit-mask-clip: text` is supported, masks the host and animates an additive highlight band on the compositor. The fallback animates the text gradient.
+
+The compositor band is additive and defaults to white. `--shimmer-color`, `shimmer-color-*`, and `shimmer-invert` select its color. The two paths match on white and dark surfaces; tinted surfaces can differ. Because the host is masked, keep non-text descendants such as icons outside it. Selection backgrounds are clipped to the glyphs on the compositor path.
+
+Both paths hold still under `prefers-reduced-motion: reduce`, leaving the label in its plain text color. `shimmer-bg` keeps animating.
 
 #### `shimmer-bg`
 
@@ -105,24 +109,24 @@ CSS-only auto-sizing helper using container queries. Sets `container-type: inlin
 
 | Utility                     | Default (text) | Default (bg) | Description                        |
 | --------------------------- | -------------- | ------------ | ---------------------------------- |
-| `shimmer-speed-{n}`         | `150`          | `1000`       | Animation speed in px/s            |
-| `shimmer-width-{n}`         | `200`          | `800`        | Container width in px for timing   |
+| `shimmer-speed-{n}`         | `200`          | `1000`       | Animation speed in px/s            |
+| `--shimmer-track-width`     | `200px`        | `200px`      | Track width for timing             |
 | `shimmer-spread-{n}`        | `6ch`          | —            | Text shimmer highlight width       |
 | `shimmer-bg-spread-{n}`     | —              | `480px`      | Background shimmer highlight width |
 | `shimmer-color-{color}`     | auto           | auto         | Highlight color (Tailwind palette) |
 | `shimmer-angle-{deg}`       | `90`           | `90`         | Sweep direction in degrees         |
 | `shimmer-duration-{ms}`     | auto           | auto         | Fixed animation duration           |
 | `shimmer-repeat-delay-{ms}` | `1000`         | `1000`       | Pause between cycles               |
-| `shimmer-invert`            | —              | —            | Invert highlight direction         |
+| `shimmer-invert`            | —              | —            | Use a contrasting highlight color  |
 
 All utilities are **inheritable** — set on a parent to affect all shimmer children.
 
-### Speed and Width
+### Speed and Track Width
 
-Speed controls how fast the shimmer moves in pixels per second. Width tells the animation how wide the container is for timing calculations.
+Speed controls how fast the shimmer moves in pixels per second. `--shimmer-track-width` tells the animation how far the highlight travels for timing calculations; `shimmer-container` sets it from the container.
 
 ```html
-<span class="shimmer shimmer-speed-200 shimmer-width-400 text-foreground/40">
+<span class="shimmer shimmer-speed-200 [--shimmer-track-width:400px] text-foreground/40">
   Fast, wide shimmer
 </span>
 ```
@@ -190,7 +194,7 @@ All values can be set via CSS variables for dynamic control:
 | Variable                 | Description               |
 | ------------------------ | ------------------------- |
 | `--shimmer-speed`        | Speed in px/s             |
-| `--shimmer-width`        | Track width in px         |
+| `--shimmer-track-width`  | Track width for timing    |
 | `--shimmer-spread`       | Highlight width           |
 | `--shimmer-angle`        | Sweep angle               |
 | `--shimmer-color`        | Highlight color           |
@@ -198,14 +202,18 @@ All values can be set via CSS variables for dynamic control:
 | `--shimmer-repeat-delay` | Pause between cycles (ms) |
 
 ```tsx
-<div style={{ "--shimmer-width": containerWidth } as React.CSSProperties}>
+<div
+  style={
+    { "--shimmer-track-width": `${containerWidth}px` } as React.CSSProperties
+  }
+>
   <div className="shimmer shimmer-bg bg-muted h-4 w-full rounded" />
 </div>
 ```
 
 ## Browser Support
 
-Uses modern CSS features: `oklch()`, `color-mix()`, independent `translate` transform, and CSS Container Queries.
+Uses modern CSS features: `oklch()`, `color-mix()`, independent `translate`, CSS masking, and CSS Container Queries. The compositor path is gated by `-webkit-mask-clip: text`; browsers that fail that gate keep the gradient fallback.
 
 **Supported:** Chrome 111+, Firefox 113+, Safari 16.4+
 

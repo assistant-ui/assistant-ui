@@ -83,6 +83,8 @@ jobs:
           NEXT_PUBLIC_ASSISTANT_BASE_URL: "https://example.com"
           NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY: "pk_test_placeholder"
           NEXT_TELEMETRY_DISABLED: "1"
+          TURBO_TOKEN: ${{ secrets.TURBO_TOKEN }}
+          TURBO_TEAM: ${{ secrets.TURBO_TEAM }}
         run: |
           filters=""
           for t in $BUNDLE_TEMPLATES; do

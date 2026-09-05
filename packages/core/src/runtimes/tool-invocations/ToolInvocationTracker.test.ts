@@ -247,6 +247,96 @@ describe("ToolInvocationTracker", () => {
     }
   });
 
+  it("keeps a human-input interrupt that execute requests before its first await", async () => {
+    const execute = vi.fn(async (_args, { human }) => ({
+      approved: (await human({ request: "approve" })) === true,
+    }));
+    const getTools = () => ({
+      weatherSearch: {
+        parameters: { type: "object", properties: {} },
+        execute,
+      } satisfies Tool,
+    });
+    const onResult = vi.fn();
+    let statuses: Record<string, ToolExecutionStatus> = {};
+    const onStatusesChange = (s: ReadonlyMap<string, ToolExecutionStatus>) => {
+      statuses = Object.fromEntries(s);
+    };
+
+    const tracker = new ToolInvocationTracker(getTools, {
+      onResult,
+      onStatusesChange,
+    });
+    tracker.setState(createState([], false));
+    tracker.setState(
+      createState(
+        [createAssistantMessage('{"query":"London"}', { query: "London" })],
+        false,
+      ),
+    );
+
+    await waitFor(() => {
+      expect(statuses["tool-1"]?.type).toBe("interrupt");
+    });
+
+    expect(tracker.resume("tool-1", true)).toBe(true);
+
+    await waitFor(() => {
+      expect(onResult).toHaveBeenCalledWith(
+        expect.objectContaining({
+          toolCallId: "tool-1",
+          result: { approved: true },
+        }),
+      );
+    });
+    expect(statuses).toEqual({});
+  });
+
+  it("marks a fresh execution as executing when an earlier one left a human-input request behind", async () => {
+    const execute = vi
+      .fn()
+      .mockImplementationOnce((_args, { human }) =>
+        human({ request: "approve" }),
+      )
+      .mockImplementationOnce(() => new Promise(() => {}));
+    const getTools = () => ({
+      weatherSearch: {
+        parameters: { type: "object", properties: {} },
+        execute,
+      } satisfies Tool,
+    });
+    let statuses: Record<string, ToolExecutionStatus> = {};
+    const tracker = new ToolInvocationTracker(getTools, {
+      onResult: vi.fn(),
+      onStatusesChange: (s: ReadonlyMap<string, ToolExecutionStatus>) => {
+        statuses = Object.fromEntries(s);
+      },
+    });
+    tracker.setState(createState([], false));
+    tracker.setState(
+      createState(
+        [createAssistantMessage('{"query":"London"}', { query: "London" })],
+        false,
+      ),
+    );
+    await waitFor(() => {
+      expect(statuses["tool-1"]?.type).toBe("interrupt");
+    });
+
+    killPipeline(tracker);
+    tracker.setState(
+      createState(
+        [createAssistantMessage('{"query":"Paris"}', { query: "Paris" })],
+        false,
+      ),
+    );
+
+    await waitFor(() => {
+      expect(execute).toHaveBeenCalledTimes(2);
+      expect(statuses["tool-1"]?.type).toBe("executing");
+    });
+  });
+
   it("does not auto-submit a parse-error result for a non-executable tool whose divergent argsText closes", async () => {
     // Same close-gating mismatch as the executable case, but for a tool with
     // no frontend execute. Closing on the divergent complete snapshot would

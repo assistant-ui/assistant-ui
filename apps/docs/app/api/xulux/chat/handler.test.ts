@@ -51,9 +51,13 @@ vi.mock("@/lib/validate-input", async (importOriginal) => ({
   validateDocChatInput: () => null,
 }));
 
-vi.mock("./resolve-model", async (importOriginal) => ({
+vi.mock("@/lib/ai/provider", async (importOriginal) => ({
   ...(await importOriginal()),
-  resolveXuluxModel: () => ({ model: {}, providerOptions: undefined }),
+  resolveChatModel: () => ({
+    model: {},
+    providerOptions: undefined,
+    reasoning: false,
+  }),
 }));
 
 vi.mock("@assistant-ui/ai-sdk", async (importOriginal) => ({

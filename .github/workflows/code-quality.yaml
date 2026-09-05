@@ -154,6 +154,9 @@ jobs:
         run: pnpm install --frozen-lockfile
 
       - name: Build packages
+        env:
+          TURBO_TOKEN: ${{ secrets.TURBO_TOKEN }}
+          TURBO_TEAM: ${{ secrets.TURBO_TEAM }}
         run: |
           if [ "${{ github.event_name }}" = "pull_request" ]; then
             # PR: Build packages changed compared to base branch
@@ -223,6 +226,9 @@ jobs:
 
       # apps/docs is excluded: the Vercel deployment check already builds it on every pull request.
       - name: Build apps
+        env:
+          TURBO_TOKEN: ${{ secrets.TURBO_TOKEN }}
+          TURBO_TEAM: ${{ secrets.TURBO_TEAM }}
         run: |
           if [ "${{ github.event_name }}" = "pull_request" ]; then
             # PR: Build apps, examples, and templates affected by changes compared to base branch
@@ -355,6 +361,9 @@ jobs:
         run: pnpm install --frozen-lockfile
 
       - name: Run tests
+        env:
+          TURBO_TOKEN: ${{ secrets.TURBO_TOKEN }}
+          TURBO_TEAM: ${{ secrets.TURBO_TEAM }}
         run: |
           if [ "${{ github.event_name }}" = "pull_request" ]; then
             # PR: Test packages changed compared to base branch
@@ -365,4 +374,7 @@ jobs:
           fi
 
       - name: Run React Compiler tests
+        env:
+          TURBO_TOKEN: ${{ secrets.TURBO_TOKEN }}
+          TURBO_TEAM: ${{ secrets.TURBO_TEAM }}
         run: pnpm test:react-compiler

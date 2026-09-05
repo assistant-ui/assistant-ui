@@ -31,6 +31,9 @@ const title = "Traction";
 const description =
   "Stars, downloads, and shipping cadence behind assistant-ui. Live from GitHub and npm.";
 
+// A cold render fans out across every package on npm and a year of commits.
+export const maxDuration = 60;
+
 export const metadata: Metadata = {
   title,
   description,
@@ -52,7 +55,7 @@ export default async function TractionPage() {
     commitStats,
   ] = await Promise.all([
     fetchNpmDownloads(),
-    fetchStarHistory(repo?.stars ?? 0),
+    fetchStarHistory(),
     fetchTimelineSeries(TIMELINE_PACKAGES),
     fetchContributors(),
     fetchBotCoAuthors(),
@@ -119,7 +122,7 @@ export default async function TractionPage() {
         </p>
         <p className="text-muted-foreground mt-6 flex items-center gap-2 font-mono text-[11px] tracking-wide">
           <LiveDot />
-          live · refreshes hourly
+          live · refreshes through the day
         </p>
       </header>
 
@@ -155,7 +158,7 @@ export default async function TractionPage() {
           <div className="mt-6 grid gap-6 lg:grid-cols-2">
             <Plate
               fig="01"
-              caption="stars over time · sampled from the stargazers api"
+              caption="stars over time · weekly, from the star history api"
             >
               <StarHistoryChart data={starHistory} />
             </Plate>

@@ -5,7 +5,7 @@ import {
   getCommitsSince,
   getContributors,
   getReleases,
-  getStargazersPage,
+  getStarHistory,
   getUser,
   getUserById,
 } from "./github";
@@ -751,106 +751,24 @@ function projectInflightMonth(
 }
 
 export async function fetchStarHistory(
-  totalStars: number,
   revalidate?: number,
 ): Promise<TimelinePoint[]> {
-  try {
-    const first = await getStargazersPage(1, revalidate);
-    if (first.data.length === 0) return [];
+  const weeks = await getStarHistory(revalidate);
+  if (!weeks || weeks.length < 2) return [];
 
-    const lastPage = first.lastPage ?? Math.max(1, Math.ceil(totalStars / 100));
+  const ordered = [...weeks].sort((a, b) => a.week - b.week);
+  const now = Date.now();
+  let cumulative = 0;
 
-    const samples = new Set<number>([1, lastPage]);
-    const target = 12;
-    if (lastPage > 2) {
-      const step = (lastPage - 1) / (target - 1);
-      for (let i = 1; i < target - 1; i++) {
-        samples.add(Math.max(2, Math.round(1 + i * step)));
-      }
-    }
-    const pages = Array.from(samples)
-      .filter((p) => p >= 1 && p <= lastPage)
-      .sort((a, b) => a - b);
-
-    const fetched = await Promise.all(
-      pages.map(async (page) => {
-        if (page === 1) return { page, data: first.data };
-        const result = await getStargazersPage(page, revalidate);
-        return { page, data: result.data };
-      }),
-    );
-
-    const anchors: TimelinePoint[] = fetched
-      .filter(({ data }) => data.length > 0)
-      .map(({ page, data }) => ({
-        date: data[0]!.starred_at,
-        value: (page - 1) * 100 + 1,
-      }))
-      .sort((a, b) => a.date.localeCompare(b.date))
-      .filter((p, i, arr) => i === 0 || p.value > arr[i - 1]!.value);
-
-    // page sampling stops at the first star on the last page; append (now, totalStars) so the chart reaches today.
-    const now = new Date().toISOString();
-    const lastAnchor = anchors[anchors.length - 1];
-    if (
-      !lastAnchor ||
-      (totalStars > lastAnchor.value && now > lastAnchor.date)
-    ) {
-      anchors.push({ date: now, value: totalStars });
-    }
-
-    if (anchors.length < 2) return anchors;
-
-    return resampleMonthly(anchors);
-  } catch {
-    return [];
-  }
-}
-
-// page-based sampling clusters unevenly in time; resample on a monthly grid so the chart shows real acceleration, not straight segments.
-function resampleMonthly(anchors: TimelinePoint[]): TimelinePoint[] {
-  const startMs = new Date(anchors[0]!.date).getTime();
-  const endAnchor = anchors[anchors.length - 1]!;
-  const endMs = new Date(endAnchor.date).getTime();
-
-  const startDate = new Date(startMs);
-  const cursor = new Date(
-    Date.UTC(startDate.getUTCFullYear(), startDate.getUTCMonth() + 1, 1),
-  );
-
-  const out: TimelinePoint[] = [
-    { date: anchors[0]!.date, value: anchors[0]!.value },
-  ];
-
-  let i = 0;
-  while (cursor.getTime() <= endMs) {
-    const t = cursor.getTime();
-    while (
-      i < anchors.length - 1 &&
-      new Date(anchors[i + 1]!.date).getTime() < t
-    ) {
-      i++;
-    }
-    const a = anchors[i]!;
-    const b = anchors[Math.min(i + 1, anchors.length - 1)]!;
-    const aT = new Date(a.date).getTime();
-    const bT = new Date(b.date).getTime();
-    const ratio =
-      bT === aT ? 0 : Math.min(1, Math.max(0, (t - aT) / (bT - aT)));
-    const value = Math.round(a.value + (b.value - a.value) * ratio);
-    out.push({ date: cursor.toISOString(), value });
-    cursor.setUTCMonth(cursor.getUTCMonth() + 1);
-  }
-
-  // tail point so the line reaches today instead of the latest crossed month boundary.
-  const tailExisting = out[out.length - 1]!;
-  if (
-    new Date(endAnchor.date).getTime() > new Date(tailExisting.date).getTime()
-  ) {
-    out.push(endAnchor);
-  }
-
-  return out;
+  return ordered.map((week) => {
+    cumulative += week.total;
+    // Each point closes its own bucket, and the bucket in progress closes now.
+    const end = (week.week + 7 * 86_400) * 1000;
+    return {
+      date: new Date(Math.min(end, now)).toISOString(),
+      value: cumulative,
+    };
+  });
 }
 
 export function daysSince(isoDate: string): number {

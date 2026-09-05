@@ -2,6 +2,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import {
   AssistantCloudAnonymousAuthStrategy,
   AssistantCloudJWTAuthStrategy,
+  readAnonymousRefreshToken,
 } from "../AssistantCloudAuthStrategy";
 import { CloudResponseError } from "../cloudResponse";
 
@@ -55,6 +56,71 @@ describe("AssistantCloudAnonymousAuthStrategy", () => {
       delete (globalThis as { localStorage?: Storage }).localStorage;
     }
   });
+
+  it("reads the stored anonymous refresh token", () => {
+    const values = new Map([[refreshTokenKey, JSON.stringify(refreshToken)]]);
+    installLocalStorage({
+      getItem: (key) => values.get(key) ?? null,
+      setItem: (key, value) => {
+        values.set(key, value);
+      },
+      removeItem: (key) => {
+        values.delete(key);
+      },
+    } as Storage);
+
+    expect(readAnonymousRefreshToken(baseUrl)).toBe(refreshToken.token);
+  });
+
+  it("reads the token stored for a base url given with a trailing slash", () => {
+    installLocalStorage({
+      getItem: (key) =>
+        key === refreshTokenKey ? JSON.stringify(refreshToken) : null,
+      setItem: vi.fn(),
+      removeItem: vi.fn(),
+    } as unknown as Storage);
+
+    expect(readAnonymousRefreshToken(`${baseUrl}/`)).toBe(refreshToken.token);
+  });
+
+  it("returns null when no anonymous refresh token is stored", () => {
+    installLocalStorage({
+      getItem: () => null,
+      setItem: vi.fn(),
+      removeItem: vi.fn(),
+    } as unknown as Storage);
+
+    expect(readAnonymousRefreshToken(baseUrl)).toBeNull();
+  });
+
+  it.each([30_000, 0, -1])(
+    "returns null when the stored anonymous refresh token expires in %i ms",
+    (expiresIn) => {
+      vi.useFakeTimers();
+      const now = Date.UTC(2026, 8, 4, 12, 0, 0);
+      vi.setSystemTime(now);
+      const values = new Map([
+        [
+          refreshTokenKey,
+          JSON.stringify({
+            token: refreshToken.token,
+            expires_at: new Date(now + expiresIn).toISOString(),
+          }),
+        ],
+      ]);
+      installLocalStorage({
+        getItem: (key) => values.get(key) ?? null,
+        setItem: (key, value) => {
+          values.set(key, value);
+        },
+        removeItem: (key) => {
+          values.delete(key);
+        },
+      } as Storage);
+
+      expect(readAnonymousRefreshToken(baseUrl)).toBeNull();
+    },
+  );
 
   it.each([
     "2099-01-01",

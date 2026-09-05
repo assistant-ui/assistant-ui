@@ -28,6 +28,7 @@ export {
 } from "./stores/InMemoryResumableStreamStore";
 
 export type {
+  RedisFinalizeOptions,
   RedisLikeClient,
   RedisResumableStreamStoreOptions,
 } from "./stores/redis-impl";

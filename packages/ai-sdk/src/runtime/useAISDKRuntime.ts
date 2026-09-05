@@ -1,6 +1,7 @@
 "use client";
 
 import {
+  useCallback,
   useEffect,
   useInsertionEffect,
   useMemo,
@@ -216,6 +217,8 @@ const useGeneratedSuggestions = (
   return suggestions;
 };
 
+const NO_CANCELLED_MESSAGE_IDS: ReadonlySet<string> = new Set();
+
 export const useAISDKRuntime = <UI_MESSAGE extends UIMessage = UIMessage>(
   chatHelpers: ReturnType<typeof useChat<UI_MESSAGE>>,
   adapter: AISDKRuntimeAdapter<UI_MESSAGE> = {},
@@ -235,6 +238,10 @@ export const useAISDKRuntime = <UI_MESSAGE extends UIMessage = UIMessage>(
   const [toolStatuses, setToolStatuses] = useState<
     Record<string, ToolExecutionStatus>
   >({});
+  const [cancelledMessages, setCancelledMessages] = useState<{
+    chatId: string;
+    ids: ReadonlySet<string>;
+  } | null>(null);
   const toolArgsKeyOrderCacheRef = useRef<Map<string, Map<string, string[]>>>(
     new Map(),
   );
@@ -250,6 +257,7 @@ export const useAISDKRuntime = <UI_MESSAGE extends UIMessage = UIMessage>(
   const providerIsRunning =
     chatHelpers.status === "submitted" || chatHelpers.status === "streaming";
   const isRunning = providerIsRunning || hasExecutingTools;
+  const wasProviderRunningRef = useRef(providerIsRunning);
 
   const messageTiming = useStreamingTiming(chatHelpers.messages, isRunning);
 
@@ -258,6 +266,42 @@ export const useAISDKRuntime = <UI_MESSAGE extends UIMessage = UIMessage>(
   const lastMessage = chatHelpers.messages.at(-1);
   const optimisticMessageId =
     isRunning && lastMessage?.role === "assistant" ? lastMessage.id : undefined;
+
+  const cancelledMessageIds =
+    cancelledMessages?.chatId === chatHelpers.id
+      ? cancelledMessages.ids
+      : NO_CANCELLED_MESSAGE_IDS;
+
+  const retractCancellation = useCallback(
+    (chatId: string, messageId: string) => {
+      setCancelledMessages((prev) => {
+        if (prev?.chatId !== chatId || !prev.ids.has(messageId)) return prev;
+        const ids = new Set(prev.ids);
+        ids.delete(messageId);
+        return { chatId, ids };
+      });
+    },
+    [],
+  );
+
+  // A provider run that resumes the stopped response retracts its cancellation;
+  // a run that starts a new response leaves the stopped one marked.
+  const resumedMessageId =
+    providerIsRunning && lastMessage?.role === "assistant"
+      ? lastMessage.id
+      : undefined;
+
+  useEffect(() => {
+    const wasProviderRunning = wasProviderRunningRef.current;
+    wasProviderRunningRef.current = providerIsRunning;
+    if (wasProviderRunning || !resumedMessageId) return;
+    retractCancellation(chatHelpers.id, resumedMessageId);
+  }, [
+    providerIsRunning,
+    resumedMessageId,
+    chatHelpers.id,
+    retractCancellation,
+  ]);
 
   const messages = AISDKMessageConverter.useThreadMessages({
     isRunning,
@@ -272,8 +316,15 @@ export const useAISDKRuntime = <UI_MESSAGE extends UIMessage = UIMessage>(
         mcpAppMetadataCache: mcpAppMetadataCacheRef.current,
         ...(optimisticMessageId && { optimisticMessageId }),
         ...(chatHelpers.error && { error: chatHelpers.error.message }),
+        ...(cancelledMessageIds.size > 0 && { cancelledMessageIds }),
       }),
-      [toolStatuses, messageTiming, optimisticMessageId, chatHelpers.error],
+      [
+        toolStatuses,
+        messageTiming,
+        optimisticMessageId,
+        chatHelpers.error,
+        cancelledMessageIds,
+      ],
     ),
   });
 
@@ -443,10 +494,27 @@ export const useAISDKRuntime = <UI_MESSAGE extends UIMessage = UIMessage>(
       runtimeRef.current.thread.import(exportedRepo);
     },
     onCancel: async () => {
+      const message = chatHelpers.messages.at(-1);
+      const cancelledId =
+        isRunning && message?.role === "assistant" ? message.id : undefined;
+      if (cancelledId) {
+        const liveIds = new Set(chatHelpers.messages.map((m) => m.id));
+        setCancelledMessages((prev) => {
+          const kept =
+            prev?.chatId === chatHelpers.id
+              ? [...prev.ids].filter((id) => liveIds.has(id))
+              : [];
+          return {
+            chatId: chatHelpers.id,
+            ids: new Set([...kept, cancelledId]),
+          };
+        });
+      }
       try {
         await chatHelpers.stop();
       } catch (error) {
         if (!(error instanceof Error && error.name === "AbortError")) {
+          if (cancelledId) retractCancellation(chatHelpers.id, cancelledId);
           throw error;
         }
       }

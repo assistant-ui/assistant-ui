@@ -7,6 +7,10 @@ import type {
 } from "@modelcontextprotocol/client";
 import type { MCPStorage } from "../resources/storage/types";
 import type { MCPAuthConfig } from "../mcp-scope";
+import {
+  isAuthStateForServerUrl,
+  normalizeMcpServerUrl,
+} from "../utils/serverUrl";
 
 const STATE_PREFIX = "aui-mcp:";
 
@@ -49,6 +53,7 @@ export function decodeServerIdFromState(state: string): string | null {
 
 export type CreateOAuthProviderOptions = {
   serverId: string;
+  serverUrl: string;
   /** Must be `auth.type === "oauth"`. */
   config: Extract<MCPAuthConfig, { type: "oauth" }>;
   storage: MCPStorage;
@@ -65,9 +70,15 @@ type OAuthProviderCache = {
   discoveryState?: OAuthDiscoveryState | undefined;
 };
 
-type OAuthProviderPersistence = {
+type OAuthProviderEndpointCache = {
+  serverUrl: string;
   cached: OAuthProviderCache | null;
   cachePromise: Promise<OAuthProviderCache> | null;
+  invalidated: boolean;
+};
+
+type OAuthProviderPersistence = {
+  endpoint: OAuthProviderEndpointCache | null;
   queue: Promise<void>;
   invalidated: boolean;
 };
@@ -111,7 +122,11 @@ const persistenceByIdentity = new WeakMap<
 const getPersistence = (
   storage: MCPStorage,
   serverId: string,
-): OAuthProviderPersistence => {
+  serverUrl: string,
+): {
+  persistence: OAuthProviderPersistence;
+  endpoint: OAuthProviderEndpointCache;
+} => {
   const identity = getStorageIdentity(storage);
   let byServerId = persistenceByIdentity.get(identity);
   if (!byServerId) {
@@ -122,14 +137,25 @@ const getPersistence = (
   let persistence = byServerId.get(serverId);
   if (!persistence) {
     persistence = {
-      cached: null,
-      cachePromise: null,
+      endpoint: null,
       queue: Promise.resolve(),
       invalidated: false,
     };
     byServerId.set(serverId, persistence);
   }
-  return persistence;
+
+  let endpoint = persistence.endpoint;
+  if (endpoint?.serverUrl !== serverUrl) {
+    if (endpoint) endpoint.invalidated = true;
+    endpoint = {
+      serverUrl,
+      cached: null,
+      cachePromise: null,
+      invalidated: false,
+    };
+    persistence.endpoint = endpoint;
+  }
+  return { persistence, endpoint };
 };
 
 /**
@@ -155,7 +181,10 @@ export const clearOAuthProviderAuthState = async (
   byServerId.delete(serverId);
   if (byServerId.size === 0) persistenceByIdentity.delete(identity);
 
-  await Promise.allSettled([persistence.cachePromise, persistence.queue]);
+  if (persistence.endpoint) persistence.endpoint.invalidated = true;
+  const cachePromise = persistence.endpoint?.cachePromise;
+  if (cachePromise) await Promise.allSettled([cachePromise]);
+  await persistence.queue;
   await storage.clearAuthState(serverId);
 };
 
@@ -167,14 +196,26 @@ export const clearOAuthProviderAuthState = async (
 export function createOAuthProvider(
   opts: CreateOAuthProviderOptions,
 ): OAuthClientProvider {
-  const { serverId, config, storage, redirectUri, onAuthorizationUrl } = opts;
-  const persistence = getPersistence(storage, serverId);
+  const {
+    serverId,
+    serverUrl,
+    config,
+    storage,
+    redirectUri,
+    onAuthorizationUrl,
+  } = opts;
+  const normalizedServerUrl = normalizeMcpServerUrl(serverUrl);
+  const { persistence, endpoint } = getPersistence(
+    storage,
+    serverId,
+    normalizedServerUrl,
+  );
   let pendingState: string | undefined;
 
-  // The cache is shared with every other provider for this (storage, serverId),
-  // so a statically configured client stays a read-time overlay owned by this
-  // provider. Writing it into the cache would leak this provider's registration
-  // to a replacement built for a different, or absent, clientId.
+  // The cache is shared with every other provider for this storage, server id,
+  // and server URL, so a statically configured client stays a read-time overlay
+  // owned by this provider. Writing it into the cache would leak this provider's
+  // registration to a replacement built for a different, or absent, clientId.
   const staticClientInformation = (():
     | OAuthClientInformationFull
     | undefined => {
@@ -188,35 +229,41 @@ export function createOAuthProvider(
   })();
 
   const loadCache = (): Promise<OAuthProviderCache> => {
-    if (persistence.cached) return Promise.resolve(persistence.cached);
-    if (persistence.cachePromise) return persistence.cachePromise;
+    if (endpoint.invalidated) return Promise.resolve({});
+    if (endpoint.cached) return Promise.resolve(endpoint.cached);
+    if (endpoint.cachePromise) return endpoint.cachePromise;
 
-    persistence.cachePromise = storage.loadAuthState(serverId).then(
-      (persisted) => {
-        const initial: OAuthProviderCache = {};
-        if (persisted?.tokens) initial.tokens = persisted.tokens;
-        if (persisted?.clientInformation)
-          initial.clientInformation = persisted.clientInformation;
-        if (persisted?.codeVerifier)
-          initial.codeVerifier = persisted.codeVerifier;
-        if (persisted?.state) initial.state = persisted.state;
-        if (persisted?.discoveryState)
-          initial.discoveryState = persisted.discoveryState;
-        persistence.cached = initial;
-        return initial;
-      },
-      (error) => {
-        persistence.cachePromise = null;
-        throw error;
-      },
-    );
-    return persistence.cachePromise;
+    endpoint.cachePromise = persistence.queue
+      .then(() => storage.loadAuthState(serverId))
+      .then(
+        async (persisted) => {
+          const initial: OAuthProviderCache = {};
+          if (endpoint.invalidated) return initial;
+          if (isAuthStateForServerUrl(persisted, normalizedServerUrl)) {
+            if (persisted?.tokens) initial.tokens = persisted.tokens;
+            if (persisted?.clientInformation)
+              initial.clientInformation = persisted.clientInformation;
+            if (persisted?.codeVerifier)
+              initial.codeVerifier = persisted.codeVerifier;
+            if (persisted?.state) initial.state = persisted.state;
+            if (persisted?.discoveryState)
+              initial.discoveryState = persisted.discoveryState;
+          }
+          endpoint.cached = initial;
+          return initial;
+        },
+        (error) => {
+          endpoint.cachePromise = null;
+          throw error;
+        },
+      );
+    return endpoint.cachePromise;
   };
 
-  const persist = () => {
+  function persist() {
     const task = persistence.queue.then(async () => {
-      if (persistence.invalidated) return;
-      const c = persistence.cached;
+      if (persistence.invalidated || endpoint.invalidated) return;
+      const c = endpoint.cached;
       if (!c) return;
       const next: Parameters<typeof storage.saveAuthState>[1] = {};
       if (c.tokens) next.tokens = c.tokens;
@@ -224,11 +271,12 @@ export function createOAuthProvider(
       if (c.codeVerifier) next.codeVerifier = c.codeVerifier;
       if (c.state) next.state = c.state;
       if (c.discoveryState) next.discoveryState = c.discoveryState;
+      next.serverUrl = normalizedServerUrl;
       await storage.saveAuthState(serverId, next);
     });
     persistence.queue = task.catch(() => {});
     return task;
-  };
+  }
 
   const clientMetadata: OAuthClientMetadata = {
     client_name: "assistant-ui",

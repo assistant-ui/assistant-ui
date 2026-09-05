@@ -137,6 +137,17 @@ produces: every entry pending in a snapshot closes in the same
 every call, and an execution parked on `human()` reports `interrupt` rather
 than `executing`, which `_hasExecutingTools` does not count.
 
+That holds even when `execute` opens with `await human()`. The stream
+fires `onExecutionStart` only after `execute` returns, because until then
+it cannot tell a frontend tool from one without an `execute`, so by the
+time the callback runs the body has already parked its resolver and set
+`interrupt`. `_onExecutionStart` still registers the execution for
+`_onExecutionEnd` but leaves the status alone when this execution's own
+request is pending. The check is keyed on the request's execution id,
+not on the status map: a pipeline restart (F.4) clears `_executing` but
+keeps the status map, and a stale `interrupt` must not stop the fresh
+execution from reporting `executing` (#6763).
+
 A call the adapter reports as client-owned (A.9) closes as soon as its
 arguments parse, because the adapter has already said the provider will
 not answer it. Ownership says who answers a call, not whether it is

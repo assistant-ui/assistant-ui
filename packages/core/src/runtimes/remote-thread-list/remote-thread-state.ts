@@ -130,6 +130,7 @@ export const classifyThreads = (
 
 export type RemoteThreadState = {
   readonly isLoading: boolean;
+  readonly loadError: unknown;
   readonly isLoadingMore: boolean;
   readonly cursor: string | undefined;
   readonly newThreadId: string | undefined;
@@ -141,6 +142,7 @@ export type RemoteThreadState = {
 
 export const createEmptyRemoteThreadState = (): RemoteThreadState => ({
   isLoading: true,
+  loadError: undefined,
   isLoadingMore: false,
   cursor: undefined,
   newThreadId: undefined,

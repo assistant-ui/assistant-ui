@@ -26,7 +26,7 @@ export default async function DemoEmbedPage({
 
   return (
     <div className="bg-background flex h-dvh flex-col overflow-hidden">
-      {/* The docs stylesheet sets `overflow-y: scroll` on html for gutter stability; inside the embed iframe that reserves a permanent 6px scrollbar strip along the right edge. */}
+      {/* The docs stylesheet sets `overflow-y: scroll` on html for gutter stability; inside the embed iframe that reserves a permanent scrollbar strip along the right edge wherever the platform draws classic scrollbars. */}
       <style>{`html { overflow: hidden; }`}</style>
       <main className="min-h-0 flex-1">
         <DocsRuntimeProvider>

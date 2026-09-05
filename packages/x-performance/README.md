@@ -19,12 +19,14 @@ bin/         the aui-perf command
 | --- | --- | --- | --- |
 | Exact counters | Renders, commits, store notifications, markdown parses, converter calls, animation-frame commits, and post-unmount retention, pinned as integers in `contracts/` against the built dists, or colocated next to the behavior when a contract needs a package's own internals | The ordinary test job, through `turbo test` | Yes, with zero tolerance. The numbers are deterministic, so a changed integer is a deliberate PR that re-pins it and explains the mechanism |
 | Toolchain proof | `pnpm check:resource-memo` proves the React Compiler still memoizes resources after a compiler or Babel bump | The lint job | Yes |
-| Size budgets | `pnpm size:check` bundles every published client entry with rolldown (all bare imports external, minified, gzip) and compares it with `size-budgets.json` at the repo root | The build job, after the changed packages are built; it measures the entries that job built, which are exactly the ones whose dist could have changed | Yes, on a move past max(2%, 256 B) in either direction. `pnpm size:update` after a full build rewrites the file and the diff rides in the PR |
+| Size budgets | `pnpm size:check` bundles every published client entry with rolldown (all bare imports external, minified, gzip) and compares it with `size-budgets.json` at the repo root | The build job, after the changed packages are built; it measures the entries that job built, which are exactly the ones whose dist could have changed | Yes, on a move past max(2%, 256 B) in either direction. `pnpm size:update` after a full build re-records the entries that moved and the diff rides in the PR |
 | Wall-time benches | `bench/*.bench.ts` head against base, paired and interleaved on one runner | The Performance workflow, as one sticky PR comment shared with the trace lane | Never. Only an infrastructure error reddens the job |
 | Rendering-pipeline traces | `fixtures/*.html` through headless Chrome, base against head, paint and compositor counts plus a screenshot per side | The same workflow and comment, when a fixture or a CSS package changes | Never |
 | Longitudinal record | `aui-perf record` on main every night, appended to the `perf-history` branch and rendered as a trend table | The Performance Nightly workflow | Never |
 
 A counter contract answers "did this change break a memo boundary". A bench answers "did this change make a hot path slower". A size budget answers "did this change ship more bytes". Neither answers the others' questions, and a green comparison covers only the paths a probe exercises: a change no probe touches reads as unmeasured, not as safe.
+
+A bench sees only the work its own flush reaches. `flushSync` flushes discrete work, so anything React schedules at transition priority (a `useDeferredValue` pass, most obviously) lands after the sample closes and is invisible to that row. A bench that needs to measure such a pass has to settle it inside the callback, which changes what the sample includes: those rows become a series of their own and stop being comparable with the rows that do not. The markdown bench carries both, and the counter contracts remain the only evidence for how many times a deferred path parses.
 
 ## Reading the PR comment
 
@@ -54,7 +56,7 @@ pnpm -C packages/x-performance perf:compare before.json after.json
 
 **Report assembly.** `aui-perf report --out comment.md [--bench bench.json] [--trace trace.json]` stacks whichever lanes ran under one sticky-comment marker and appends the machine-readable fold; the workflow posts that file and also writes it to the job summary.
 
-**Size budgets.** `aui-perf size [--update] [--json file]` (`pnpm size:check` and `pnpm size:update` at the root) enumerates every published package's JavaScript export entries, skips tooling packages and entries whose dist is not built, bundles each entry with rolldown, and compares gzip bytes with `size-budgets.json`. Budgets are exact last-recorded sizes with a tolerance of max(2%, 256 B); a shrink past tolerance also asks for the update so the file stays truthful.
+**Size budgets.** `aui-perf size [--update] [--json file]` (`pnpm size:check` and `pnpm size:update` at the root) enumerates every published package's JavaScript export entries, skips tooling packages and entries whose dist is not built, bundles each entry with rolldown, and compares gzip bytes with `size-budgets.json`. A budget is the size recorded the last time its entry moved past the tolerance of max(2%, 256 B). `--update` rewrites only the entries that moved, so the diff carries exactly what a change grew or shrank and not the sub-tolerance drift of another machine's toolchain or dist state; a shrink past tolerance also asks for the update so the file stays truthful.
 
 **Nightly record.** `aui-perf history append --dir <dir> [--from recording.json]` and `aui-perf history render --dir <dir> [--out README.md]` maintain the `perf-history` branch: one JSON point per night, rendered as a table of latest, Δ7d, Δ30d, min, max, and point count per bench with a drift marker past 10%.
 
@@ -64,7 +66,7 @@ Benchmarks import only public package entry points so the react-compiler output 
 
 - A token appended to the streaming message re-renders only that message's text part. It commits twice (host state, then the adapter push through the store) on the external-store and AI SDK runtimes and once on the local runtime, in a 2-message and a 200-message thread alike; `convertMessage` runs once per token.
 - Mounting a 200-message thread renders and converts each message once in a single commit.
-- A markdown message re-parses its whole text once per token, or twice with `defer` on (the previous text at normal priority, the new text in the deferred pass), while only the paragraph that changed re-renders.
+- A markdown message re-parses its whole text once per token, with `defer` on or off: the renderer is memoized, so the urgent pass of a deferred pair carries text that was already parsed and bails out, while only the paragraph that changed re-renders.
 - Smooth streaming commits once per animation frame while draining a chunk; `minCommitMs` batches those commits; smoothing off commits once per chunk.
 - One store slice write notifies once and re-renders only that slice's subscriber; part memoization keys on shallow field identity, not on the outer part object.
 - Unmounting releases the runtime, the converted messages, and the external messages.
