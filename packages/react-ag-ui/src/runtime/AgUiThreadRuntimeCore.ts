@@ -1268,11 +1268,11 @@ export class AgUiThreadRuntimeCore {
 
     try {
       for await (const result of stream(options)) {
-        if (ctx.abortSignal.aborted) return;
+        if (ctx.abortSignal.aborted) return undefined;
         ctx.applyUpdate(result);
       }
     } catch (error) {
-      if (ctx.abortSignal.aborted) return;
+      if (ctx.abortSignal.aborted) return undefined;
       const err = error instanceof Error ? error : new Error(String(error));
       ctx.applyUpdate({
         status: { type: "incomplete", reason: "error", error: err.message },
@@ -1281,11 +1281,12 @@ export class AgUiThreadRuntimeCore {
       return err;
     }
 
-    if (ctx.abortSignal.aborted) return;
+    if (ctx.abortSignal.aborted) return undefined;
     const current = this.session.tryGetMessage(currentId())?.message;
     if (!current || current.status?.type === "running") {
       ctx.applyUpdate({ status: { type: "complete", reason: "unknown" } });
     }
+    return undefined;
   }
 
   private buildRunInput(
