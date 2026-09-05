@@ -358,6 +358,12 @@ const BLANK_LINE = /\n[ \t]*\n/;
 const ADJACENT_WORDS = /[A-Za-z]{3,}\s+[A-Za-z]{3,}/;
 const TRAILING_OPERATOR = /[-+*/=<>,;:([\u2013\u2014\u2212]$/;
 
+// The paragraph break a code span cannot reach past. `BLANK_LINE` cannot serve
+// here: it does not admit the carriage return of a CRLF document, and widening
+// it would change which bodies `isMathBody` accepts. Sticky so the scan starts
+// at the run without copying the rest of the input on every backtick.
+const PARAGRAPH_BREAK = /\n[ \t\r]*\n/g;
+
 /** Length of the run of `char` starting at `start`. */
 function runLength(text: string, start: number, char: string): number {
   let length = 0;
@@ -377,8 +383,9 @@ function codeSpanEnd(text: string, start: number): number {
   const delimiter = "`".repeat(delimiterLength);
   // A span is an inline construct, so it cannot reach past the paragraph it
   // opens in and a run left open in prose does not swallow a later fence.
-  const blank = BLANK_LINE.exec(text.slice(start));
-  const limit = blank ? start + blank.index : text.length;
+  PARAGRAPH_BREAK.lastIndex = start;
+  const blank = PARAGRAPH_BREAK.exec(text);
+  const limit = blank ? blank.index : text.length;
   let closed = text.indexOf(delimiter, start + delimiterLength);
 
   while (closed !== -1 && closed < limit) {

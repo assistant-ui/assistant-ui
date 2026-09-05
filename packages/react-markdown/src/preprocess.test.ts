@@ -480,6 +480,14 @@ describe("escapeCurrencyDollars", () => {
     );
   });
 
+  it("keeps a run left open in prose from swallowing a fence across CRLF", () => {
+    const prose =
+      "use ``` to fence code\r\n\r\n```js\r\nconst price = $5;\r\n```\r\nafter $10";
+    expect(escapeCurrencyDollars(prose)).toBe(
+      "use ``` to fence code\r\n\r\n```js\r\nconst price = $5;\r\n```\r\nafter \\$10",
+    );
+  });
+
   it("does not let a run left open in prose swallow a later fence", () => {
     const prose =
       "use ``` to fence code\n\n```js\nconst price = $5;\n```\nafter $10";
