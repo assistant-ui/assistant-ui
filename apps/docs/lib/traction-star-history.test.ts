@@ -153,6 +153,23 @@ describe("fetchStarHistory", () => {
     expect(points.at(-1)!.value).toBe(TOTAL + 60);
   });
 
+  it("retries a failed page once before giving up on the sweep", async () => {
+    let firstAttempt = true;
+    serve();
+    const settled = getStargazersPage.getMockImplementation()!;
+    getStargazersPage.mockImplementation(async (page: number) => {
+      if (page === 2 && firstAttempt) {
+        firstAttempt = false;
+        return { ok: false, data: [], lastPage: null };
+      }
+      return settled(page);
+    });
+
+    const points = await fetchStarHistory(TOTAL);
+
+    expect(points.at(-1)!.value).toBe(TOTAL);
+  });
+
   it("returns nothing when the first page is unavailable", async () => {
     serve(TOTAL, { failing: [1] });
 

@@ -1,4 +1,5 @@
 import { ImageResponse } from "next/og";
+import type { ReactElement } from "react";
 import type { ImageResponseOptions } from "next/server";
 import { loadOgFonts, OG_FONT_MONO, OG_FONT_SANS } from "@/lib/og-fonts";
 import { getRepo } from "@/lib/github";
@@ -22,6 +23,8 @@ const INNER_W = COLUMN_W - PLATE_PAD * 2 - 2;
 const GUTTER = 44;
 const PLOT_W = INNER_W - GUTTER;
 const PLOT_H = 186;
+// Fixes the frame height so the two plates align whatever their body renders.
+const PLOT_BLOCK_H = PLOT_H + 34;
 const TICK_ROWS = 4;
 
 // The site's tokens resolved out of oklch, which satori cannot parse.
@@ -135,6 +138,54 @@ function Plate({
   fontMono: string;
   theme: Theme;
 }) {
+  const frame = {
+    display: "flex",
+    border: `1px solid ${theme.rule}`,
+    padding: PLATE_PAD,
+    height: PLOT_BLOCK_H,
+  } as const;
+  const shell = (body: ReactElement) => (
+    <div style={{ display: "flex", flexDirection: "column", width: COLUMN_W }}>
+      <span
+        style={{
+          fontSize: 11,
+          fontFamily: fontMono,
+          color: theme.muted,
+          textTransform: "uppercase",
+          letterSpacing: "0.05em",
+          marginBottom: 12,
+        }}
+      >
+        {eyebrow}
+      </span>
+      {body}
+      <span
+        style={{
+          fontSize: 12,
+          color: theme.muted,
+          fontFamily: fontMono,
+          marginTop: 12,
+        }}
+      >
+        {caption}
+      </span>
+    </div>
+  );
+
+  // An empty series would otherwise draw an axis and no curve, which reads as a
+  // chart of roughly zero next to a stat naming the real number.
+  if (points.length < 2) {
+    return shell(
+      <div style={{ ...frame, alignItems: "center" }}>
+        <span
+          style={{ fontSize: 13, color: theme.muted, fontFamily: fontMono }}
+        >
+          currently unavailable
+        </span>
+      </div>,
+    );
+  }
+
   const ceiling = niceCeiling(Math.max(1, ...points.map((p) => p.value)));
   const xs = points.map((p) => new Date(p.date).getTime());
   const minX = Math.min(...xs);
@@ -162,123 +213,87 @@ function Plate({
       )
     : [];
 
-  return (
-    <div style={{ display: "flex", flexDirection: "column", width: COLUMN_W }}>
-      <span
-        style={{
-          fontSize: 11,
-          fontFamily: fontMono,
-          color: theme.muted,
-          textTransform: "uppercase",
-          letterSpacing: "0.05em",
-          marginBottom: 12,
-        }}
-      >
-        {eyebrow}
-      </span>
+  return shell(
+    <div style={frame}>
       <div
         style={{
           display: "flex",
-          border: `1px solid ${theme.rule}`,
-          padding: PLATE_PAD,
+          flexDirection: "column",
+          alignItems: "flex-end",
+          justifyContent: "space-between",
+          width: GUTTER - 10,
+          height: PLOT_H + 13,
+          marginTop: -7,
         }}
       >
+        {yTicks.map((tick, i) => (
+          <span
+            key={i}
+            style={{ fontSize: 11, color: theme.muted, fontFamily: fontMono }}
+          >
+            {tick}
+          </span>
+        ))}
+      </div>
+      <div style={{ display: "flex", flexDirection: "column", marginLeft: 10 }}>
+        <svg width={PLOT_W} height={PLOT_H} viewBox={`0 0 ${PLOT_W} ${PLOT_H}`}>
+          <defs>
+            <linearGradient id={gradientId} x1="0" y1="0" x2="0" y2="1">
+              <stop
+                offset="0%"
+                stopColor={theme.data}
+                stopOpacity={theme.wash}
+              />
+              <stop offset="100%" stopColor={theme.data} stopOpacity="0" />
+            </linearGradient>
+          </defs>
+          {yTicks.map((_, i) => (
+            <line
+              key={i}
+              x1="0"
+              x2={PLOT_W}
+              y1={(PLOT_H * i) / (TICK_ROWS - 1)}
+              y2={(PLOT_H * i) / (TICK_ROWS - 1)}
+              stroke={theme.rule}
+              strokeWidth="1"
+              strokeDasharray="3 3"
+            />
+          ))}
+          {area ? <path d={area} fill={`url(#${gradientId})`} /> : null}
+          {line ? (
+            <path
+              d={line}
+              fill="none"
+              stroke={theme.data}
+              strokeWidth="2"
+              strokeLinejoin="round"
+              strokeLinecap="round"
+            />
+          ) : null}
+        </svg>
         <div
           style={{
             display: "flex",
-            flexDirection: "column",
-            alignItems: "flex-end",
             justifyContent: "space-between",
-            width: GUTTER - 10,
-            height: PLOT_H + 13,
-            marginTop: -7,
+            width: PLOT_W,
+            marginTop: 8,
           }}
         >
-          {yTicks.map((tick, i) => (
+          {xTicks.map((tick, i) => (
             <span
               key={i}
-              style={{ fontSize: 11, color: theme.muted, fontFamily: fontMono }}
+              style={{
+                fontSize: 11,
+                color: theme.muted,
+                fontFamily: fontMono,
+              }}
             >
               {tick}
             </span>
           ))}
         </div>
-        <div
-          style={{ display: "flex", flexDirection: "column", marginLeft: 10 }}
-        >
-          <svg
-            width={PLOT_W}
-            height={PLOT_H}
-            viewBox={`0 0 ${PLOT_W} ${PLOT_H}`}
-          >
-            <defs>
-              <linearGradient id={gradientId} x1="0" y1="0" x2="0" y2="1">
-                <stop
-                  offset="0%"
-                  stopColor={theme.data}
-                  stopOpacity={theme.wash}
-                />
-                <stop offset="100%" stopColor={theme.data} stopOpacity="0" />
-              </linearGradient>
-            </defs>
-            {yTicks.map((_, i) => (
-              <line
-                key={i}
-                x1="0"
-                x2={PLOT_W}
-                y1={(PLOT_H * i) / (TICK_ROWS - 1)}
-                y2={(PLOT_H * i) / (TICK_ROWS - 1)}
-                stroke={theme.rule}
-                strokeWidth="1"
-                strokeDasharray="3 3"
-              />
-            ))}
-            {area ? <path d={area} fill={`url(#${gradientId})`} /> : null}
-            {line ? (
-              <path
-                d={line}
-                fill="none"
-                stroke={theme.data}
-                strokeWidth="2"
-                strokeLinejoin="round"
-                strokeLinecap="round"
-              />
-            ) : null}
-          </svg>
-          <div
-            style={{
-              display: "flex",
-              justifyContent: "space-between",
-              width: PLOT_W,
-              marginTop: 8,
-            }}
-          >
-            {xTicks.map((tick, i) => (
-              <span
-                key={i}
-                style={{
-                  fontSize: 11,
-                  color: theme.muted,
-                  fontFamily: fontMono,
-                }}
-              >
-                {tick}
-              </span>
-            ))}
-          </div>
-        </div>
       </div>
-      <span
-        style={{
-          fontSize: 12,
-          color: theme.muted,
-          fontFamily: fontMono,
-          marginTop: 12,
-        }}
-      >
-        {caption}
-      </span>
-    </div>
+    </div>,
   );
 }
 

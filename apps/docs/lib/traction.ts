@@ -770,7 +770,14 @@ export async function fetchStarHistory(
   revalidate?: number,
 ): Promise<TimelinePoint[]> {
   try {
-    const first = await getStargazersPage(1, revalidate);
+    // The sweep is all-or-nothing, so one transient response would otherwise
+    // discard an entire series.
+    const fetchPage = async (page: number) => {
+      const result = await getStargazersPage(page, revalidate);
+      return result.ok ? result : getStargazersPage(page, revalidate);
+    };
+
+    const first = await fetchPage(1);
     if (!first.ok || first.data.length === 0) return [];
 
     // The Link header names the last page. Without a parsable one the repo's own
@@ -785,9 +792,7 @@ export async function fetchStarHistory(
 
     for (let i = 0; i < rest.length; i += STAR_PAGE_CONCURRENCY) {
       const batch = await Promise.all(
-        rest
-          .slice(i, i + STAR_PAGE_CONCURRENCY)
-          .map((page) => getStargazersPage(page, revalidate)),
+        rest.slice(i, i + STAR_PAGE_CONCURRENCY).map((page) => fetchPage(page)),
       );
       for (const page of batch) {
         // Dropping a failed page would shift the whole cumulative series down and
