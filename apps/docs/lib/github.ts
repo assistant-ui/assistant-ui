@@ -42,7 +42,7 @@ async function ghFetch(
 ): Promise<Response> {
   const { next: initNext, ...rest } = init ?? {};
   const cache = cacheInit(revalidate);
-  return withTimeout(
+  const res = await withTimeout(
     fetch(`${base}${path}`, {
       ...rest,
       headers: ghHeaders(init?.headers),
@@ -51,6 +51,11 @@ async function ghFetch(
         : cache),
     }),
   );
+  // Every caller degrades to a placeholder, so an outage is otherwise invisible.
+  if (!res.ok) {
+    console.warn(`GitHub responded ${res.status} for ${base}${path}.`);
+  }
+  return res;
 }
 
 function parseLastPage(linkHeader: string | null): number | null {
