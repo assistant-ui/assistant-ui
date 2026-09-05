@@ -276,7 +276,7 @@ export class CompositeAttachmentAdapter implements AttachmentAdapter {
     for (const adapter of adapters) {
       if (
         fileMatchesAccept(
-          {
+          attachment.file ?? {
             name: attachment.name,
             type: attachment.contentType ?? "",
           },
