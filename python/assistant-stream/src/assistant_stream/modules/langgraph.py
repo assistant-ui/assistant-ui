@@ -262,7 +262,7 @@ def get_tool_call_subgraph_state(
             # Check if last message is already a ToolMessage
             if last_message["type"] == "tool":
                 # Last message is already a ToolMessage, extract and return artifact field
-                if "artifact" not in last_message:
+                if last_message.get("artifact") is None:
                     last_message["artifact"] = {} if artifact_field_name else default_state
                 artifact = last_message["artifact"]
 
