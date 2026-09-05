@@ -104,8 +104,8 @@ export const appendLangChainChunk = (
       newContent.push({ type: "text", text: curr.content });
     }
   } else if (Array.isArray(curr.content)) {
-    const lastIndex = newContent.length - 1;
     for (const item of curr.content) {
+      const lastIndex = newContent.length - 1;
       if (!("type" in item)) {
         continue;
       }

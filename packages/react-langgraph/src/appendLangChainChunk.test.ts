@@ -351,3 +351,26 @@ describe("appendLangChainChunk updates-event partial_json", () => {
     expect(final).toBe(toolMessage);
   });
 });
+
+describe("appendLangChainChunk content order", () => {
+  it("keeps text after an image in the same chunk", () => {
+    const image = {
+      type: "image_url" as const,
+      image_url: "data:image/png;base64,AA==",
+    };
+    const result = append(
+      { id: "ai-1", type: "ai", content: "Before" },
+      {
+        id: "ai-1",
+        type: "AIMessageChunk",
+        content: [image, { type: "text", text: "After" }],
+      },
+    );
+
+    expect(result.content).toEqual([
+      { type: "text", text: "Before" },
+      image,
+      { type: "text", text: "After" },
+    ]);
+  });
+});
