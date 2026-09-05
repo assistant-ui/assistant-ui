@@ -84,20 +84,12 @@ export function findRemendWindowStart(text: string): number {
 }
 
 /**
- * Run incomplete-markdown repair (`remend`) on only the trailing block rather
- * than the whole message. Streamdown splits into blocks after repair and renders
- * each independently, and inline constructs cannot cross a blank line, so a
- * dangling opener can only be in the last block. Repairing just that block is
- * render-equivalent to repairing the full text, but bounds the heavier `remend`
- * repair to the tail instead of running it over the whole message every flush
- * (the cheap boundary scan still runs over the full text).
+ * Repairs incomplete Markdown across the full message. Custom handlers and
+ * built-in text transforms can change earlier blocks, not only the last block.
  */
 export function tailBoundedRemend(
   text: string,
   options?: RemendOptions,
 ): string {
-  const start = findRemendWindowStart(text);
-  return start <= 0
-    ? remend(text, options)
-    : text.slice(0, start) + remend(text.slice(start), options);
+  return remend(text, options);
 }

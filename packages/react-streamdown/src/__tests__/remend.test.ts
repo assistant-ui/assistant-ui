@@ -41,6 +41,22 @@ Final paragraph with ~~strike~~ and unfinished [link text](https://exa
 const blocksOf = (text: string): string[] => parseMarkdownIntoBlocks(text);
 
 describe("tailBoundedRemend", () => {
+  it("applies custom handlers to earlier paragraphs", () => {
+    expect(
+      tailBoundedRemend("Draft\n\nTail", {
+        handlers: [
+          { name: "rename", handle: (text) => text.replace("Draft", "Final") },
+        ],
+      }),
+    ).toBe("Final\n\nTail");
+  });
+
+  it("keeps numeric ranges escaped after another paragraph starts", () => {
+    expect(tailBoundedRemend("20~25 and 30~35\n\nTail")).toBe(
+      "20\\~25 and 30\\~35\n\nTail",
+    );
+  });
+
   it("matches full remend block output at every streaming prefix", () => {
     for (let end = 1; end <= CORPUS.length; end++) {
       const prefix = CORPUS.slice(0, end);
