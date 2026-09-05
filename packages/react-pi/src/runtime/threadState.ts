@@ -118,6 +118,9 @@ const applySnapshot = (
     streamingMessageIndex: undefined,
     toolExecutions: {},
     runStatus,
+    compaction: runStatus === "running" ? state.compaction : { active: false },
+    retry:
+      runStatus === "running" ? state.retry : { active: false, attempt: 0 },
     // A missing `queuedMessages` means an empty queue (snapshots omit the
     // field when there is nothing queued, and cold threads have no queue at
     // all) — keeping the prior queue here would let items drained while the

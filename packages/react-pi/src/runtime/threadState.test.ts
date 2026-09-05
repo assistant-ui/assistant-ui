@@ -224,6 +224,30 @@ describe("threadState", () => {
     expect(s.retry.active).toBe(false);
   });
 
+  it.each(["idle", "failed", "running"] as const)(
+    "recovers transient flags from a %s snapshot",
+    (status) => {
+      const before = apply(
+        createPiThreadState("t1"),
+        ev({ type: "compaction_start", reason: "threshold" }),
+        ev({ type: "auto_retry_start", attempt: 2, delayMs: 500 }),
+      );
+      const after = apply(
+        before,
+        ev({
+          type: "snapshot",
+          snapshot: { metadata: { id: "t1", status }, messages: [] },
+        }),
+      );
+      expect(after.compaction).toEqual(
+        status === "running" ? before.compaction : { active: false },
+      );
+      expect(after.retry).toEqual(
+        status === "running" ? before.retry : { active: false, attempt: 0 },
+      );
+    },
+  );
+
   it("agent_end with willRetry keeps running", () => {
     let s = apply(
       createPiThreadState("t1"),
