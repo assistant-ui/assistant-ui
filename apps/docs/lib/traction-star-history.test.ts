@@ -2,18 +2,10 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 
 const { getStarHistory } = vi.hoisted(() => ({ getStarHistory: vi.fn() }));
 
-vi.mock("./github", () => ({
+vi.mock("./github", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("./github")>()),
   getStarHistory,
-  getCommitActivityStats: vi.fn(),
-  getCommitCoAuthors: vi.fn(),
-  getCommitsSince: vi.fn(),
-  getContributors: vi.fn(),
-  getReleases: vi.fn(),
-  getUser: vi.fn(),
-  getUserById: vi.fn(),
 }));
-
-vi.mock("./npm", () => ({ getDownloadsRange: vi.fn() }));
 
 const { fetchStarHistory } = await import("./traction");
 

@@ -366,6 +366,8 @@ export type StargazerEntry = { starred_at: string };
 
 export type StarHistoryWeek = { week: number; total: number; days: number[] };
 
+// The endpoint caps per_page at 30 and clamps anything larger without saying so.
+const STAR_HISTORY_PAGE_SIZE = 30;
 const MAX_STAR_HISTORY_PAGES = 60;
 
 /** Privacy-safe weekly star counts, newest first, back to the creation week. */
@@ -373,15 +375,16 @@ export async function getStarHistory(
   revalidate: number = REVALIDATE.COOL,
 ): Promise<StarHistoryWeek[] | null> {
   const path = (page: number) =>
-    `/stargazers/history?per_page=100&page=${page}`;
+    `/stargazers/history?per_page=${STAR_HISTORY_PAGE_SIZE}&page=${page}`;
   try {
     const first = await ghFetch(path(1), revalidate);
     if (!first.ok) return null;
     const weeks = (await withTimeout(first.json())) as StarHistoryWeek[];
-    const lastPage = Math.min(
-      parseLastPage(first.headers.get("Link")) ?? 1,
-      MAX_STAR_HISTORY_PAGES,
-    );
+    const linked = parseLastPage(first.headers.get("Link"));
+    // Page 1 holds the newest weeks while the series accumulates from the oldest,
+    // so a listing truncated here is a rebased curve, not a shorter one.
+    if (linked === null && weeks.length >= STAR_HISTORY_PAGE_SIZE) return null;
+    const lastPage = Math.min(linked ?? 1, MAX_STAR_HISTORY_PAGES);
 
     const rest = await Promise.all(
       Array.from({ length: Math.max(0, lastPage - 1) }, async (_, i) => {
