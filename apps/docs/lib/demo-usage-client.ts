@@ -47,15 +47,32 @@ function load(): Promise<void> {
   return inFlight;
 }
 
-/** Re-reads the budget after a send. A read already in flight was issued before
- * the send, so it cannot answer for it; queue a fresh one behind it. */
-export function refreshDemoUsage(): void {
+/**
+ * A read already in flight was issued before whatever prompted the reload, so
+ * it cannot answer for it; queue a fresh one behind it.
+ */
+function reload(): Promise<void> {
   const pending = inFlight;
-  if (!pending) {
-    void load();
-    return;
-  }
-  void pending.then(() => load());
+  return pending ? pending.then(() => load()) : load();
+}
+
+/** Re-reads the budget after a send. */
+export function refreshDemoUsage(): void {
+  void reload();
+}
+
+/**
+ * The budget as of now, for a caller that cannot subscribe. The assistant reads
+ * it through a tool when the visitor asks what they have left, and a stale
+ * answer there is worse than the round trip.
+ */
+export async function readDemoUsage(): Promise<DemoUsagePayload | null> {
+  await reload();
+  // The composer settles open on a budget it could not read, which is the right
+  // answer for a gate and the wrong one to report: the route always carries a
+  // limit, so its absence means unread rather than unlimited.
+  if (state.status !== "ready" || state.usage.limit <= 0) return null;
+  return state.usage;
 }
 
 const subscribe = (listener: () => void) => {

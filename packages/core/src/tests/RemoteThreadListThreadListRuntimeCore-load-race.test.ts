@@ -160,6 +160,7 @@ describe("preserveMidLoadTransitions", () => {
     lists: { threadIds?: string[]; archivedThreadIds?: string[] } = {},
   ): RemoteThreadState => ({
     isLoading: false,
+    loadError: undefined,
     isLoadingMore: false,
     cursor: undefined,
     newThreadId: undefined,

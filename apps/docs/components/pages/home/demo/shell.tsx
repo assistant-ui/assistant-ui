@@ -17,6 +17,7 @@ import {
   type RefObject,
 } from "react";
 import { Sheet, SheetContent, SheetTitle } from "@/components/ui/sheet";
+import { cn } from "@/lib/utils";
 import { CommandInstructions } from "./commands";
 import { MemoryView } from "./memory";
 import { Sidebar } from "./sidebar";
@@ -25,16 +26,22 @@ import { Thread } from "./thread";
 
 export type DemoView = "thread" | "memory";
 
+const SIDEBAR_REGION_ID = "aui-demo-sidebar";
+
 export function DemoShell({
   expanded = false,
   onToggleExpanded,
   view,
   onViewChange: setView,
+  sidebarCollapsed,
+  onSidebarCollapsedChange: setSidebarCollapsed,
 }: {
   expanded?: boolean;
   onToggleExpanded?: (() => void) | undefined;
   view: DemoView;
   onViewChange: (view: DemoView) => void;
+  sidebarCollapsed: boolean;
+  onSidebarCollapsedChange: (collapsed: boolean) => void;
 }): ReactNode {
   const rootRef = useRef<HTMLDivElement>(null);
   const [mobileSidebarOpen, setMobileSidebarOpen] = useState(false);
@@ -43,15 +50,35 @@ export function DemoShell({
   return (
     <div
       ref={rootRef}
-      className="bg-background grid h-full grid-rows-[3rem_minmax(0,1fr)] md:grid-cols-[15rem_minmax(0,1fr)]"
+      className={cn(
+        "bg-background grid h-full grid-rows-[3rem_minmax(0,1fr)]",
+        sidebarCollapsed
+          ? "md:grid-cols-[minmax(0,1fr)]"
+          : "md:grid-cols-[15rem_minmax(0,1fr)]",
+      )}
     >
       <CommandInstructions />
-      <div className="border-foreground/10 bg-foreground/[0.025] dark:bg-foreground/[0.04] hidden h-12 items-center gap-2 border-r border-b px-4 md:flex">
+      <div
+        className={cn(
+          "border-foreground/10 bg-foreground/[0.025] dark:bg-foreground/[0.04] hidden h-12 items-center gap-2 border-r border-b px-4",
+          !sidebarCollapsed && "md:flex",
+        )}
+      >
         <span
           aria-hidden
           className="bg-foreground/80 block size-4 [mask-image:url(/favicon/icon.svg)] [mask-size:contain] [mask-position:center] [mask-repeat:no-repeat]"
         />
         <span className="text-[13px] font-medium">assistant-ui</span>
+        <button
+          type="button"
+          onClick={() => setSidebarCollapsed(true)}
+          aria-label="Collapse threads"
+          aria-expanded
+          aria-controls={SIDEBAR_REGION_ID}
+          className="text-muted-foreground hover:text-foreground rounded-control ms-auto -me-1.5 grid size-7 shrink-0 place-items-center transition-colors"
+        >
+          <PanelLeftIcon className="size-4" />
+        </button>
       </div>
       <div className="border-foreground/10 flex h-12 min-w-0 items-center gap-2 border-b px-4 md:px-5">
         <button
@@ -62,8 +89,22 @@ export function DemoShell({
         >
           <PanelLeftIcon className="size-4" />
         </button>
+        {/* The collapse control lives in the sidebar header, so bringing the
+            sidebar back needs a control the sidebar does not own. */}
+        {sidebarCollapsed ? (
+          <button
+            type="button"
+            onClick={() => setSidebarCollapsed(false)}
+            aria-label="Show threads"
+            aria-expanded={false}
+            aria-controls={SIDEBAR_REGION_ID}
+            className="text-muted-foreground hover:text-foreground rounded-control -ms-1.5 hidden size-7 shrink-0 place-items-center transition-colors md:grid"
+          >
+            <PanelLeftIcon className="size-4" />
+          </button>
+        ) : null}
         <ThreadTitle view={view} />
-        <div className="ml-auto flex shrink-0 items-center gap-0.5">
+        <div className="-me-1.5 ml-auto flex shrink-0 items-center gap-1.5">
           <DemoMenu view={view} onViewChange={setView} />
           {onToggleExpanded ? (
             <button
@@ -81,7 +122,13 @@ export function DemoShell({
           ) : null}
         </div>
       </div>
-      <div className="border-foreground/10 bg-foreground/[0.025] dark:bg-foreground/[0.04] hidden min-h-0 flex-col overflow-hidden border-r p-3 md:flex">
+      <div
+        id={SIDEBAR_REGION_ID}
+        className={cn(
+          "border-foreground/10 bg-foreground/[0.025] dark:bg-foreground/[0.04] hidden min-h-0 flex-col overflow-hidden border-r p-3",
+          !sidebarCollapsed && "md:flex",
+        )}
+      >
         <Sidebar onNavigate={() => setView("thread")} />
       </div>
       <main

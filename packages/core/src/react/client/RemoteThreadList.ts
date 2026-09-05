@@ -562,7 +562,7 @@ const useRemoteThreadList = (
         execute: () => adapter.list(),
         loading: (state) => {
           if (generation !== session.loadGeneration) return state;
-          return { ...state, isLoading: true };
+          return { ...state, isLoading: true, loadError: undefined };
         },
         then: (state, page) => {
           if (generation !== session.loadGeneration) return state;
@@ -576,6 +576,7 @@ const useRemoteThreadList = (
           const merged = {
             ...state,
             isLoading: false,
+            loadError: undefined,
             cursor: normalizeCursor(page.nextCursor),
             threadIds: fresh.threadIds,
             archivedThreadIds: fresh.archivedThreadIds,
@@ -592,6 +593,7 @@ const useRemoteThreadList = (
         store.update({
           ...store.baseValue,
           isLoading: false,
+          loadError: error,
         });
       })
       .then(() => {});
@@ -629,6 +631,26 @@ const useRemoteThreadList = (
     session,
     store,
   ]);
+
+  useEffect(() => {
+    if (typeof window === "undefined" || typeof document === "undefined") {
+      return;
+    }
+
+    const retryAfterError = () => {
+      if (store.value.loadError !== undefined) void getLoadThreadsPromise();
+    };
+    const retryAfterVisible = () => {
+      if (document.visibilityState === "visible") retryAfterError();
+    };
+
+    window.addEventListener("online", retryAfterError);
+    document.addEventListener("visibilitychange", retryAfterVisible);
+    return () => {
+      window.removeEventListener("online", retryAfterError);
+      document.removeEventListener("visibilitychange", retryAfterVisible);
+    };
+  }, [getLoadThreadsPromise, store]);
 
   useEffect(() => {
     void getLoadThreadsPromise();
@@ -1264,6 +1286,7 @@ const useRemoteThreadList = (
       mainThreadId,
       newThreadId: listState.newThreadId ?? null,
       isLoading: listState.isLoading,
+      loadError: listState.loadError,
       isLoadingMore: listState.isLoadingMore,
       hasMore: listState.cursor !== undefined,
       threadIds: listState.threadIds,
@@ -1275,6 +1298,7 @@ const useRemoteThreadList = (
       listState.archivedThreadIds,
       listState.cursor,
       listState.isLoading,
+      listState.loadError,
       listState.isLoadingMore,
       listState.newThreadId,
       listState.threadIds,

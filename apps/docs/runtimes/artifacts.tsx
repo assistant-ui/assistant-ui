@@ -1,6 +1,6 @@
 "use client";
 
-import { type ReactNode } from "react";
+import { useEffect, type ReactNode } from "react";
 import {
   AssistantRuntimeProvider,
   ModelContextClient as ModelContext,
@@ -12,7 +12,7 @@ import { DevToolsModal } from "@assistant-ui/react-devtools";
 import { TerminalIcon } from "lucide-react";
 import { z } from "zod";
 import {
-  useAnonymousCloud,
+  useDocsCloud,
   useDocsChatRuntime,
   useSpeechAdapters,
 } from "./chat-runtime";
@@ -43,7 +43,7 @@ export function ArtifactsRuntimeProvider({
 }: {
   children: ReactNode;
 }) {
-  const cloud = useAnonymousCloud();
+  const { cloud, claims } = useDocsCloud();
   const adapters = useSpeechAdapters({ dictation: true });
   const runtime = useDocsChatRuntime({
     cloud,
@@ -55,6 +55,11 @@ export function ArtifactsRuntimeProvider({
     tools: Tools({ toolkit: artifactsToolkit }),
     modelContext: ModelContext(),
   });
+
+  useEffect(() => {
+    if (claims === 0) return;
+    void runtime.threads.reload();
+  }, [claims, runtime]);
 
   return (
     <AssistantRuntimeProvider runtime={runtime} aui={aui}>

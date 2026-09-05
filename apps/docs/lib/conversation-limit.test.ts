@@ -10,12 +10,12 @@ import {
 
 // The claim itself is Lua, so what is pinned here is the day key, the reset
 // boundary, and the arguments the script is handed.
-function fakeRedis(result: [number, number] = [1, 1]) {
-  const calls: { keys: string[]; args: string[] }[] = [];
+function fakeRedis(result: [number, number] = [1, 1], readUsed = 2) {
+  const calls: { script: string; keys: string[]; args: string[] }[] = [];
   const redis = {
-    scard: async () => 2,
-    eval: async (_script: string, keys: string[], args: string[]) => {
-      calls.push({ keys, args });
+    scard: async () => readUsed,
+    eval: async (script: string, keys: string[], args: string[]) => {
+      calls.push({ script, keys, args });
       return result;
     },
   } as unknown as Redis;
@@ -77,5 +77,38 @@ describe("createConversationCounter", () => {
       resetAt: Date.UTC(2026, 8, 5, 0, 0, 0),
     });
     expect(calls).toHaveLength(0);
+  });
+
+  it("clamps read and claim usage to the destination limit", async () => {
+    const { redis } = fakeRedis([0, 12], 12);
+    const counter = createConversationCounter(redis, "aui:test:");
+    const usage = {
+      used: 10,
+      limit: 10,
+      remaining: 0,
+      resetAt: Date.UTC(2026, 8, 5, 0, 0, 0),
+    };
+
+    expect(await counter.read("user:123", 10, NOON)).toEqual(usage);
+    expect(await counter.claim("user:123", "thread-13", 10, NOON)).toEqual({
+      allowed: false,
+      usage,
+    });
+  });
+
+  it("merges both identities into the destination day as one script", async () => {
+    const { redis, calls } = fakeRedis();
+    const counter = createConversationCounter(redis, "aui:test:");
+
+    await counter.merge("anon:abc", "user:123", NOON);
+
+    expect(calls[0]!.script).toContain(
+      "redis.call('SUNIONSTORE', intoKey, fromKey, intoKey)\nredis.call('DEL', fromKey)\nredis.call('PEXPIRE', intoKey, ttl)",
+    );
+    expect(calls[0]!.keys).toEqual([
+      "aui:test:anon:abc:2026-09-04",
+      "aui:test:user:123:2026-09-04",
+    ]);
+    expect(calls[0]!.args).toEqual([String(2 * 24 * 60 * 60 * 1000)]);
   });
 });

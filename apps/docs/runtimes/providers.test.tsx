@@ -7,12 +7,14 @@ import {
 
 const useDocsChatRuntime = vi.hoisted(() => vi.fn(() => ({}) as never));
 const useSpeechAdapters = vi.hoisted(() => vi.fn(() => ({ speech: "speech" })));
-const useAnonymousCloud = vi.hoisted(() => vi.fn(() => "cloud"));
+const useDocsCloud = vi.hoisted(() =>
+  vi.fn(() => ({ cloud: "cloud", claims: 0 })),
+);
 
 vi.mock("./chat-runtime", () => ({
   useDocsChatRuntime,
   useSpeechAdapters,
-  useAnonymousCloud,
+  useDocsCloud,
 }));
 
 vi.mock("@assistant-ui/react", async (importOriginal) => ({
@@ -52,7 +54,7 @@ it("wires the docs surface with a cloud, dictation and cloud attachments", async
   renderToString(<DocsRuntimeProvider>{null}</DocsRuntimeProvider>);
 
   expect(useSpeechAdapters).toHaveBeenCalledWith({ dictation: true });
-  expect(useAnonymousCloud).toHaveBeenCalled();
+  expect(useDocsCloud).toHaveBeenCalled();
   expect(runtimeOptions().cloud).toBe("cloud");
   expect(runtimeOptions().sendAutomatically).toBe(true);
   expect(runtimeOptions().adapters?.attachments).toBeInstanceOf(

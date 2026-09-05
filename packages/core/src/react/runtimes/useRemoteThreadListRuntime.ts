@@ -44,6 +44,28 @@ const useRemoteThreadListRuntimeImpl = (
     runtime.threads.__internal_load();
   }, [runtime, options]);
 
+  useEffect(() => {
+    if (typeof window === "undefined" || typeof document === "undefined") {
+      return;
+    }
+
+    const reloadAfterError = () => {
+      if (runtime.threads.loadError !== undefined) {
+        void runtime.threads.reload();
+      }
+    };
+    const reloadAfterVisible = () => {
+      if (document.visibilityState === "visible") reloadAfterError();
+    };
+
+    window.addEventListener("online", reloadAfterError);
+    document.addEventListener("visibilitychange", reloadAfterVisible);
+    return () => {
+      window.removeEventListener("online", reloadAfterError);
+      document.removeEventListener("visibilitychange", reloadAfterVisible);
+    };
+  }, [runtime]);
+
   return useMemo(() => new AssistantRuntimeImpl(runtime), [runtime]);
 };
 

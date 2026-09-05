@@ -933,6 +933,7 @@ describe("RemoteThreadList", () => {
   });
 
   it("does not reset again when retrying a failed replacement load", async () => {
+    const error = new Error("network");
     const methodsA = makeAdapter({
       list: vi.fn(async () => ({
         threads: [
@@ -943,8 +944,8 @@ describe("RemoteThreadList", () => {
     const methodsB = makeAdapter({
       list: vi
         .fn()
-        .mockRejectedValueOnce(new Error("network"))
-        .mockResolvedValueOnce({
+        .mockRejectedValueOnce(error)
+        .mockResolvedValue({
           threads: [
             { status: "regular" as const, remoteId: "thread-b", title: "B" },
           ],
@@ -993,6 +994,7 @@ describe("RemoteThreadList", () => {
       const mainAfterFailure = handle
         .getClient()
         .threads.getState().mainThreadId;
+      expect(handle.getClient().threads.getState().loadError).toBe(error);
       await handle.getClient().threads.reload();
       await vi.waitFor(() => {
         expect(handle.getClient().threads.getState().threadIds).toEqual([
@@ -1002,10 +1004,92 @@ describe("RemoteThreadList", () => {
       expect(handle.getClient().threads.getState().mainThreadId).toBe(
         mainAfterFailure,
       );
+      expect(handle.getClient().threads.getState().loadError).toBeUndefined();
     } finally {
       consoleError.mockRestore();
     }
     handle.destroy();
+  });
+
+  it("reloads once when the browser comes online after a failed load", async () => {
+    vi.stubGlobal("window", new EventTarget());
+    vi.stubGlobal(
+      "document",
+      Object.assign(new EventTarget(), { visibilityState: "visible" }),
+    );
+    const error = new Error("offline");
+    const firstLoad = deferred<{ threads: [] }>();
+    const list = vi
+      .fn()
+      .mockReturnValueOnce(firstLoad.promise)
+      .mockResolvedValueOnce({ threads: [] });
+    const consoleError = vi
+      .spyOn(console, "error")
+      .mockImplementation(() => {});
+    const { handle } = mountList(makeAdapter({ list }));
+
+    try {
+      await vi.waitFor(() => expect(list).toHaveBeenCalledTimes(1));
+      firstLoad.reject(error);
+      await vi.waitFor(() =>
+        expect(handle.getClient().threads.getState().loadError).toBe(error),
+      );
+
+      window.dispatchEvent(new Event("online"));
+
+      await vi.waitFor(() => expect(list).toHaveBeenCalledTimes(2));
+      await vi.waitFor(() =>
+        expect(handle.getClient().threads.getState().loadError).toBeUndefined(),
+      );
+      expect(list).toHaveBeenCalledTimes(2);
+    } finally {
+      handle.destroy();
+      consoleError.mockRestore();
+      vi.unstubAllGlobals();
+    }
+  });
+
+  it("retries once when the document becomes visible after a failed load", async () => {
+    vi.stubGlobal("window", new EventTarget());
+    const document = Object.assign(new EventTarget(), {
+      visibilityState: "hidden",
+    });
+    vi.stubGlobal("document", document);
+    const error = new Error("offline");
+    const firstLoad = deferred<{ threads: [] }>();
+    const list = vi
+      .fn()
+      .mockReturnValueOnce(firstLoad.promise)
+      .mockResolvedValueOnce({ threads: [] });
+    const consoleError = vi
+      .spyOn(console, "error")
+      .mockImplementation(() => {});
+    const { handle } = mountList(makeAdapter({ list }));
+
+    try {
+      await vi.waitFor(() => expect(list).toHaveBeenCalledTimes(1));
+      firstLoad.reject(error);
+      await vi.waitFor(() =>
+        expect(handle.getClient().threads.getState().loadError).toBe(error),
+      );
+
+      document.dispatchEvent(new Event("visibilitychange"));
+      await new Promise((resolve) => setTimeout(resolve, 20));
+      expect(list).toHaveBeenCalledTimes(1);
+
+      document.visibilityState = "visible";
+      document.dispatchEvent(new Event("visibilitychange"));
+
+      await vi.waitFor(() => expect(list).toHaveBeenCalledTimes(2));
+      await vi.waitFor(() =>
+        expect(handle.getClient().threads.getState().loadError).toBeUndefined(),
+      );
+      expect(list).toHaveBeenCalledTimes(2);
+    } finally {
+      handle.destroy();
+      consoleError.mockRestore();
+      vi.unstubAllGlobals();
+    }
   });
 
   it("does not send a superseded rename through the replacement adapter", async () => {

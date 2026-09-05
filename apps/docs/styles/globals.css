@@ -291,9 +291,21 @@
     --removed-body-scroll-bar-size: 0px !important;
   }
 
-  @supports not selector(::-webkit-scrollbar) {
+  :focus-visible {
+    box-shadow: none;
+  }
+}
+
+/* Styling ::-webkit-scrollbar turns a scroller's overlay scrollbar into a classic
+   one that occupies layout width, so the scrollbar look is carried by the standard
+   properties instead. They sit a layer above `base` because tailwind-scrollbar
+   resets both of them on `*` at the end of that layer. */
+@layer components {
+  * {
+    scrollbar-width: thin;
+  }
+  @media (hover: hover) {
     * {
-      scrollbar-width: thin;
       scrollbar-color: transparent transparent;
     }
     *:hover {
@@ -304,38 +316,5 @@
         )
         transparent;
     }
-  }
-  *::-webkit-scrollbar {
-    width: 6px;
-    height: 6px;
-  }
-  *::-webkit-scrollbar-track {
-    background: transparent;
-  }
-  *::-webkit-scrollbar-thumb {
-    background-color: transparent;
-    border-radius: 9999px;
-  }
-  *:hover::-webkit-scrollbar-thumb {
-    background-color: color-mix(
-      in srgb,
-      var(--muted-foreground) 30%,
-      transparent
-    );
-  }
-  *::-webkit-scrollbar-thumb:hover,
-  *::-webkit-scrollbar-thumb:active {
-    background-color: color-mix(
-      in srgb,
-      var(--muted-foreground) 50%,
-      transparent
-    );
-  }
-  *::-webkit-scrollbar-corner {
-    background: transparent;
-  }
-
-  :focus-visible {
-    box-shadow: none;
   }
 }

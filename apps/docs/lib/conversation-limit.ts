@@ -1,7 +1,7 @@
 import type { Redis } from "@upstash/redis";
 
-export const ANONYMOUS_CONVERSATIONS_PER_DAY = 3;
-export const SIGNED_IN_CONVERSATIONS_PER_DAY = 10;
+export const ANONYMOUS_CONVERSATIONS_PER_DAY = 10;
+export const SIGNED_IN_CONVERSATIONS_PER_DAY = 30;
 
 const DAY_MS = 24 * 60 * 60 * 1000;
 
@@ -30,6 +30,14 @@ redis.call('PEXPIRE', key, ttl)
 return {1, used + 1}
 `;
 
+const MERGE_SCRIPT = `
+local fromKey, intoKey, ttl = KEYS[1], KEYS[2], ARGV[1]
+redis.call('SUNIONSTORE', intoKey, fromKey, intoKey)
+redis.call('DEL', fromKey)
+redis.call('PEXPIRE', intoKey, ttl)
+return 1
+`;
+
 export function conversationLimitFor(signedIn: boolean): number {
   return signedIn
     ? SIGNED_IN_CONVERSATIONS_PER_DAY
@@ -54,7 +62,10 @@ export function createConversationCounter(redis: Redis, prefix: string) {
       limit: number,
       now: number = Date.now(),
     ): Promise<ConversationUsage> {
-      const used = (await redis.scard(key(identity, now))) ?? 0;
+      const used = Math.min(
+        (await redis.scard(key(identity, now))) ?? 0,
+        limit,
+      );
       return {
         used,
         limit,
@@ -69,11 +80,15 @@ export function createConversationCounter(redis: Redis, prefix: string) {
       limit: number,
       now: number = Date.now(),
     ): Promise<{ allowed: boolean; usage: ConversationUsage }> {
-      const [allowed, used] = await redis.eval<string[], [number, number]>(
+      const [allowed, reportedUsed] = await redis.eval<
+        string[],
+        [number, number]
+      >(
         CLAIM_SCRIPT,
         [key(identity, now)],
         [threadId, String(limit), String(TTL_MS)],
       );
+      const used = Math.min(reportedUsed, limit);
       return {
         allowed: allowed === 1,
         usage: {
@@ -83,6 +98,18 @@ export function createConversationCounter(redis: Redis, prefix: string) {
           resetAt: nextReset(now),
         },
       };
+    },
+
+    async merge(
+      from: string,
+      into: string,
+      now: number = Date.now(),
+    ): Promise<void> {
+      await redis.eval<string[], number>(
+        MERGE_SCRIPT,
+        [key(from, now), key(into, now)],
+        [String(TTL_MS)],
+      );
     },
   };
 }

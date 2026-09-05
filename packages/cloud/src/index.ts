@@ -18,6 +18,7 @@ export {
   type RunTelemetryUsageInit,
 } from "./runTelemetry";
 export { AssistantCloud } from "./AssistantCloud";
+export { readAnonymousRefreshToken } from "./AssistantCloudAuthStrategy";
 export { CloudMessagePersistence } from "./CloudMessagePersistence";
 export {
   createFormattedPersistence,

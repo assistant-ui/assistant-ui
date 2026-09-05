@@ -119,7 +119,7 @@ export default function TwShimmerPage() {
 
           <Example
             title="shimmer-invert"
-            description="Fades the other way, so you can keep a stronger text color and still get a stark highlight."
+            description="Uses a contrasting dark band for a stark highlight."
             code='<span class="shimmer shimmer-invert text-foreground/60">Shimmer</span>'
           >
             <span className="shimmer shimmer-invert text-foreground/60 dark:text-foreground/80 text-xl font-medium">

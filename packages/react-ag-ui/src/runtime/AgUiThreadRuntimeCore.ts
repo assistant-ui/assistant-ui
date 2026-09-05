@@ -1330,10 +1330,9 @@ export class AgUiThreadRuntimeCore {
   }
 
   private finishRun(controller: AbortController | null) {
-    if (this.abortController === controller) {
-      this.abortController = null;
-      this.activeRunAgent = null;
-    }
+    if (this.abortController !== controller) return;
+    this.abortController = null;
+    this.activeRunAgent = null;
     this.setRunning(false);
   }
 

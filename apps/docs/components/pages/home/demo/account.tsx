@@ -24,7 +24,7 @@ export function SidebarAccount(): ReactNode {
   if (session.status === "disabled") return null;
 
   return (
-    <div className="border-foreground/10 -mx-3 mt-2 shrink-0 border-t px-3 pt-2">
+    <div className="border-foreground/10 -mx-3 mt-3 -mb-3 shrink-0 border-t p-3">
       {session.status === "loading" ? (
         <div className="flex h-8 items-center px-2">
           <Skeleton className="h-3.5 w-24" />

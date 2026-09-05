@@ -54,6 +54,7 @@ describe("SidebarAccount", () => {
   it("names the signed-in visitor and falls back to initials", () => {
     mocks.session = {
       status: "signed-in",
+      cloudHistory: false,
       user: { name: "Harry Yep", email: "harry@assistant-ui.com", image: null },
     };
     render(<SidebarAccount />);

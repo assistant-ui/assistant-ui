@@ -147,6 +147,7 @@ export class RemoteThreadListThreadListRuntimeCore
             return {
               ...state,
               isLoading: true,
+              loadError: undefined,
             };
           },
           then: (state, l) => {
@@ -156,7 +157,7 @@ export class RemoteThreadListThreadListRuntimeCore
               this._replaceListOnNextLoad = false;
               replacedList = true;
               return this._replaceWithThreads(
-                state,
+                { ...state, loadError: undefined },
                 l.threads,
                 normalizeCursor(l.nextCursor),
               );
@@ -171,6 +172,7 @@ export class RemoteThreadListThreadListRuntimeCore
             const merged = {
               ...state,
               isLoading: false,
+              loadError: undefined,
               cursor: normalizeCursor(l.nextCursor),
               threadIds: fresh.threadIds,
               archivedThreadIds: fresh.archivedThreadIds,
@@ -188,13 +190,18 @@ export class RemoteThreadListThreadListRuntimeCore
             this._state.update({
               ...this._state.baseValue,
               isLoading: false,
+              loadError: error,
             });
             return;
           }
           this._replaceListOnNextLoad = false;
           replacedList = true;
           this._state.update(
-            this._replaceWithThreads(this._state.baseValue, [], undefined),
+            this._replaceWithThreads(
+              { ...this._state.baseValue, loadError: error },
+              [],
+              undefined,
+            ),
           );
         })
         .then(() => {
@@ -330,6 +337,7 @@ export class RemoteThreadListThreadListRuntimeCore
       this._state.update({
         ...this._state.baseValue,
         cursor: undefined,
+        loadError: undefined,
       });
       this._titleStates.clear();
     }
@@ -510,6 +518,10 @@ export class RemoteThreadListThreadListRuntimeCore
 
   public get isLoading() {
     return this._state.value.isLoading;
+  }
+
+  public get loadError() {
+    return this._state.value.loadError;
   }
 
   public get isLoadingMore() {

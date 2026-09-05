@@ -1,6 +1,6 @@
 "use client";
 
-import { ThreadListPrimitive, useAuiState } from "@assistant-ui/react";
+import { ThreadListPrimitive, useAui, useAuiState } from "@assistant-ui/react";
 import { ChevronDownIcon, PlusIcon } from "lucide-react";
 import { Fragment, useMemo, useState, type ReactNode } from "react";
 import {
@@ -67,12 +67,17 @@ export function Sidebar({
 }
 
 function ThreadList({ search }: { search: string }): ReactNode {
+  const aui = useAui();
   const isLoading = useAuiState((s) => s.threads.isLoading);
+  const hasLoadError = useAuiState((s) => s.threads.loadError !== undefined);
   const hasThreads = useAuiState((s) => s.threads.threadIds.length > 0);
   const hasArchived = useAuiState(
     (s) => s.threads.archivedThreadIds.length > 0,
   );
-  if (!isLoading && !hasThreads && !hasArchived) return null;
+  if (!isLoading && !hasLoadError && !hasThreads && !hasArchived) return null;
+
+  const showLoadError =
+    !isLoading && hasLoadError && !hasThreads && !hasArchived;
 
   return (
     <>
@@ -87,6 +92,22 @@ function ThreadList({ search }: { search: string }): ReactNode {
               <Skeleton className={cn("h-3.5", width)} />
             </div>
           ))}
+        </div>
+      ) : showLoadError ? (
+        <div
+          role="alert"
+          className="mt-1 flex h-8 shrink-0 items-center justify-between px-2 text-[13px]"
+        >
+          <span className="text-muted-foreground">
+            Threads could not be loaded
+          </span>
+          <button
+            type="button"
+            onClick={() => void aui.threads.reload()}
+            className="text-muted-foreground hover:text-foreground rounded-control -me-2 h-8 px-2 transition-colors"
+          >
+            Retry
+          </button>
         </div>
       ) : (
         <ThreadGroups search={search} />
