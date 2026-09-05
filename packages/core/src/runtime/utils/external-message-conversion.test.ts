@@ -83,6 +83,34 @@ describe("chunkExternalMessages", () => {
 });
 
 describe("convertExternalMessageChunk", () => {
+  it("keeps separate tool calls without IDs", () => {
+    const result = convertExternalMessageChunk(
+      {
+        inputs: [{}],
+        outputs: [
+          {
+            role: "assistant",
+            content: [
+              { type: "tool-call", toolName: "weather", args: {} },
+              { type: "tool-call", toolName: "search", args: {} },
+            ],
+          },
+        ],
+      },
+      0,
+      1,
+      false,
+      undefined,
+    );
+
+    expect(result.content).toMatchObject([
+      { type: "tool-call", toolName: "weather" },
+      { type: "tool-call", toolName: "search" },
+    ]);
+    const calls = result.content.filter((part) => part.type === "tool-call");
+    expect(calls[0]!.toolCallId).not.toBe(calls[1]!.toolCallId);
+  });
+
   it("reuses a cached message when the error status is unchanged", () => {
     const input = {};
     const chunk = {
