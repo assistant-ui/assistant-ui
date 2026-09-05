@@ -233,9 +233,6 @@ export class PiThreadSupervisor {
   ): Promise<void> {
     const record = await this.ensureOpen(threadId);
     record.session.setThinkingLevel(level as never);
-    // No snapshot here: unlike `setModel`, this has a dedicated event the
-    // reducer applies, so a full-transcript broadcast would be redundant.
-    this.emit(record, { type: "thinking_level_changed", level });
   }
 
   async renameThread(threadId: string, title: string): Promise<void> {
