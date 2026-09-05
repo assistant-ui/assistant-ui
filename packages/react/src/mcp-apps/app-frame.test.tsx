@@ -7,6 +7,7 @@ import type {
   SandboxHostProps,
 } from "../sandbox-host/SandboxHost";
 import type { CreateMcpAppBridgeOptions, McpAppBridge } from "./bridge";
+import type * as BridgeModule from "./bridge";
 import { MCP_APP_MIME_TYPE, type McpAppHostContext } from "./types";
 
 const { sandboxHostMock, createMcpAppBridgeMock } = vi.hoisted(() => ({
@@ -99,6 +100,70 @@ describe("McpAppFrame", () => {
 
     sandboxBridge.dispose();
   });
+
+  it.each([
+    { initial: [], next: ["search"], allowed: true },
+    { initial: ["search"], next: [], allowed: false },
+  ])(
+    "applies replacement tool allowlists: $initial -> $next",
+    async ({ initial, next, allowed }) => {
+      const { createMcpAppBridge } =
+        await vi.importActual<typeof BridgeModule>("./bridge");
+      createMcpAppBridgeMock.mockImplementationOnce(createMcpAppBridge);
+      const captured: { createBridge?: SandboxHostProps["createBridge"] } = {};
+      sandboxHostMock.mockImplementation((props: SandboxHostProps) => {
+        captured.createBridge ??= props.createBridge;
+        return null;
+      });
+      const callTool = vi.fn(() => ({ content: [] }));
+      const view = (allowedTools: readonly string[]) => (
+        <McpAppFrame
+          app={{ resourceUri: "ui://example/widget" }}
+          resource={{
+            uri: "ui://example/widget",
+            mimeType: MCP_APP_MIME_TYPE,
+            html: "",
+          }}
+          handlers={{ allowedTools, callTool }}
+        />
+      );
+      const rendered = render(view(initial));
+      if (!captured.createBridge) throw new Error("Frame did not mount");
+      const sendMessage = vi.fn();
+      const bridge = captured.createBridge(
+        {
+          iframe: document.createElement("iframe"),
+          origin: "https://widget.example",
+          sendMessage,
+        },
+        { setHeight: vi.fn() },
+      );
+      try {
+        rendered.rerender(view(next));
+        bridge.onMessage(
+          new MessageEvent("message", {
+            data: {
+              jsonrpc: "2.0",
+              id: 1,
+              method: "tools/call",
+              params: { name: "search" },
+            },
+          }),
+        );
+        await Promise.resolve();
+        expect(sendMessage).toHaveBeenCalledWith(
+          expect.objectContaining(
+            allowed
+              ? { id: 1, result: { content: [] } }
+              : { id: 1, error: expect.objectContaining({ code: -32602 }) },
+          ),
+        );
+        expect(callTool).toHaveBeenCalledTimes(allowed ? 1 : 0);
+      } finally {
+        bridge.dispose();
+      }
+    },
+  );
 
   it("only notifies the widget when host context actually changes", () => {
     let createBridge: SandboxHostProps["createBridge"] | null = null;

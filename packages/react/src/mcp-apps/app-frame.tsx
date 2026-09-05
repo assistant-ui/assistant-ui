@@ -232,6 +232,10 @@ export function McpAppFrame({
         liveHandlers.onSizeChange?.(p);
       },
     };
+    Object.defineProperty(wrappedHandlers, "allowedTools", {
+      get: () => liveHandlers.allowedTools,
+      enumerable: true,
+    });
 
     // Safety net: if the widget never sends notifications/initialized (broken
     // or non-spec-compliant), flush the queue anyway so the host doesn't
