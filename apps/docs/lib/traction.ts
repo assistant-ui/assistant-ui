@@ -831,11 +831,14 @@ export async function fetchStarHistory(
       value: point.value,
     }));
 
-    // The listing trails the repo's counter by a beat; a wider gap is a broken
-    // sweep rather than a lag, and drawing it would invent the jump.
-    const now = Date.now();
+    // The listing trails the repo's counter by a beat. A wider gap means the
+    // sweep is short, and a curve stopping there reads as measured, so it goes
+    // the way a dropped page does rather than merely losing its tail.
     const lag = totalStars - starredAt.length;
-    if (lag > 0 && lag <= MAX_TAIL_GAP && now > endMs) {
+    if (lag > MAX_TAIL_GAP) return [];
+
+    const now = Date.now();
+    if (lag > 0 && now > endMs) {
       points.push({ date: new Date(now).toISOString(), value: totalStars });
     }
 

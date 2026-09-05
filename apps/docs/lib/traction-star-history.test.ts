@@ -110,12 +110,12 @@ describe("fetchStarHistory", () => {
     await expect(fetchStarHistory(TOTAL)).resolves.toEqual([]);
   });
 
-  it("omits a tail the listing cannot explain as lag", async () => {
+  it("drops a sweep the counter says is short, tail and curve alike", async () => {
     serve();
 
-    const points = await fetchStarHistory(TOTAL + 4000);
-
-    expect(points.at(-1)!.value).toBe(TOTAL);
+    // Suppressing only the tail would still draw a measured looking curve that
+    // stops 4000 stars early, which is the trade the page loop refuses above.
+    await expect(fetchStarHistory(TOTAL + 4000)).resolves.toEqual([]);
   });
 
   it("does not repeat the boundary when the last star lands on one", async () => {

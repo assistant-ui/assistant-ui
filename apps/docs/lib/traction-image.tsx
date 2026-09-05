@@ -14,7 +14,7 @@ import type { TimelinePoint } from "@/lib/traction";
 import { formatCompact } from "@/lib/format";
 
 const WIDTH = 1200;
-const HEIGHT = 560;
+const HEIGHT = 590;
 const PAGE_PAD = 56;
 const COLUMN_GAP = 28;
 const PLATE_PAD = 16;
@@ -23,8 +23,11 @@ const INNER_W = COLUMN_W - PLATE_PAD * 2 - 2;
 const GUTTER = 44;
 const PLOT_W = INNER_W - GUTTER;
 const PLOT_H = 186;
-// Fixes the frame height so the two plates align whatever their body renders.
-const PLOT_BLOCK_H = PLOT_H + 34;
+const TICK_GAP = 8;
+const TICK_LINE_H = 14;
+// Yoga reads height as the border box. Spelling the body out keeps the frame
+// tall enough for the tick row and identical across both plate branches.
+const PLATE_H = PLOT_H + TICK_GAP + TICK_LINE_H + PLATE_PAD * 2 + 2;
 const TICK_ROWS = 4;
 
 // The site's tokens resolved out of oklch, which satori cannot parse.
@@ -142,7 +145,7 @@ function Plate({
     display: "flex",
     border: `1px solid ${theme.rule}`,
     padding: PLATE_PAD,
-    height: PLOT_BLOCK_H,
+    height: PLATE_H,
   } as const;
   const shell = (body: ReactElement) => (
     <div style={{ display: "flex", flexDirection: "column", width: COLUMN_W }}>
