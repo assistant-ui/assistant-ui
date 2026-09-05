@@ -1,3 +1,6 @@
+import fs from "node:fs";
+import os from "node:os";
+import path from "node:path";
 import { describe, expect, it, vi } from "vitest";
 import {
   init,
@@ -57,20 +60,26 @@ describe("init command", () => {
     expect(isNonInteractiveShell(true)).toBe(false);
   });
 
-  it("delegates to create.parseAsync with correct args when no package.json exists", async () => {
+  it("keeps the selected directory when delegating project creation", async () => {
+    const cwd = fs.mkdtempSync(path.join(os.tmpdir(), "aui-init-"));
     const parseAsyncSpy = vi
       .spyOn(create, "parseAsync")
       .mockResolvedValue(create);
 
-    await init.parseAsync(["node", "init", "my-app", "--use-pnpm"], {
-      from: "node",
-    });
+    try {
+      await init.parseAsync(
+        ["node", "init", "my-app", "--cwd", cwd, "--use-pnpm"],
+        { from: "node" },
+      );
 
-    expect(parseAsyncSpy).toHaveBeenCalledWith(["my-app", "--use-pnpm"], {
-      from: "user",
-    });
-
-    parseAsyncSpy.mockRestore();
+      expect(parseAsyncSpy).toHaveBeenCalledWith(
+        [path.join(cwd, "my-app"), "--use-pnpm"],
+        { from: "user" },
+      );
+    } finally {
+      parseAsyncSpy.mockRestore();
+      fs.rmSync(cwd, { recursive: true, force: true });
+    }
   });
 
   it("delegates to create.parseAsync with preset args", async () => {
