@@ -486,7 +486,7 @@ class StateProxy:
             return self[key]
 
         self[key] = default
-        return default
+        return self[key]
 
     # Unsupported operations that would be inefficient
     def insert(self, index: int, item: Any) -> None:

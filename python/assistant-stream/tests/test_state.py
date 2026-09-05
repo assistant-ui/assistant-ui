@@ -155,6 +155,19 @@ def test_draft_list_append_emits_index_set() -> None:
     assert state.state["items"] == ["a", "b"]
 
 
+def test_draft_setdefault_container_emits_later_writes() -> None:
+    ops: list[dict[str, Any]] = []
+    state = AssistantState({})
+    draft = state.draft(ops.extend)
+    items = draft.setdefault("items", [])
+    ops.clear()
+
+    items.append("x")
+
+    assert ops == [{"type": "set", "path": ["items", "0"], "value": "x"}]
+    assert state.state == {"items": ["x"]}
+
+
 def test_draft_mutating_list_methods_raise() -> None:
     state = AssistantState({"items": ["a", "b"]})
     draft = state.draft(lambda _ops: None)
