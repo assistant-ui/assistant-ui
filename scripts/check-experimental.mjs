@@ -35,6 +35,12 @@ const TEST_FILE = /(?:\.test\.|\.bench\.|[\\/]__tests__[\\/])/;
 // The wordings this grammar replaces. A removal notice on an experimental
 // symbol is legitimate; describing the experiment itself in free prose is what
 // the grammar exists to stop coming back.
+// Anchored at the start so a description that merely mentions a change
+// somewhere in its prose is untouched; only one that opens by restating the
+// stability contract is a second, competing signal.
+const DESCRIPTION_RESTATES_STABILITY =
+  /^(?:unstable\b|experimental\b|under active development\b|this (?:api|feature|component|hook) is (?:still )?(?:experimental|unstable|under active development)\b)/i;
+
 const LEGACY_EXPERIMENTAL_PROSE =
   /\b(?:experimental|unstable|under active development|may change|might change)\b/i;
 
@@ -225,7 +231,7 @@ export function checkSource({ file, source, now, windowDays, staleAfterDays }) {
       continue;
     }
 
-    if (/^unstable \/ experimental\b/i.test(description)) {
+    if (DESCRIPTION_RESTATES_STABILITY.test(description)) {
       errors.push(
         `${where}: the description repeats the stability contract the tag already states.`,
       );

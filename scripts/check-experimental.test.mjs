@@ -279,3 +279,23 @@ test("leaves an ordinary description alone", () => {
   );
   assert.deepEqual(result.errors, []);
 });
+
+test("catches other stability wordings that open a description", () => {
+  for (const opener of [
+    "Experimental API; may change in any release.",
+    "Under active development.",
+    "This hook is still experimental.",
+  ]) {
+    const result = check(
+      `/**\n * ${opener}\n * @deprecated ${canonical("2026-08-01")}\n */\nexport const unstable_a = 1;\n`,
+    );
+    assert.equal(result.errors.length, 1, opener);
+  }
+});
+
+test("a description that mentions change in passing is fine", () => {
+  const result = check(
+    `/**\n * Renders the parts, which may change as the run streams.\n * @deprecated ${canonical("2026-08-01")}\n */\nexport const unstable_a = 1;\n`,
+  );
+  assert.deepEqual(result.errors, []);
+});
