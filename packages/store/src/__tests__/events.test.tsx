@@ -250,6 +250,30 @@ describe("scope-filtered on", () => {
     await flushEvents();
     expect(cb).toHaveBeenCalledExactlyOnceWith({ value: "first" });
   });
+
+  it("a stale unsubscribe preserves a replacement listener", async () => {
+    const { getAui } = setup();
+    const aui = getAui();
+    const removed = vi.fn();
+    const unsub = aui.on("thread.pinged", removed);
+    unsub();
+
+    const replacement = vi.fn();
+    const unsubReplacement = aui.on("thread.pinged", replacement);
+    unsub();
+    aui.thread.ping("replacement");
+    await flushEvents();
+
+    expect(removed).not.toHaveBeenCalled();
+    expect(replacement).toHaveBeenCalledExactlyOnceWith({
+      value: "replacement",
+    });
+
+    unsubReplacement();
+    aui.thread.ping("removed");
+    await flushEvents();
+    expect(replacement).toHaveBeenCalledTimes(1);
+  });
 });
 
 describe("parent chaining", () => {

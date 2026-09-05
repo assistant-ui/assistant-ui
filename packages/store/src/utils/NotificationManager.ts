@@ -72,7 +72,8 @@ export const createNotificationManager = (): NotificationManager => {
 
       return () => {
         set!.delete(cb);
-        if (set!.size === 0) listeners.delete(event);
+        if (set!.size === 0 && listeners.get(event) === set)
+          listeners.delete(event);
       };
     },
 
