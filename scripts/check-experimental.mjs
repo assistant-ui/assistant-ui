@@ -75,7 +75,7 @@ function isDeclaration(node) {
     ts.isGetAccessorDeclaration(node) ||
     ts.isSetAccessorDeclaration(node) ||
     ts.isEnumMember(node) ||
-    isRenamingExportSpecifier(node)
+    ts.isExportSpecifier(node)
   );
 }
 
@@ -154,6 +154,8 @@ export function collectDeclarations(file, source) {
           declarations.push({
             name,
             deprecated: text,
+            required:
+              !ts.isExportSpecifier(node) || isRenamingExportSpecifier(node),
             line:
               sourceFile.getLineAndCharacterOfPosition(
                 node.getStart(sourceFile, false),
@@ -173,8 +175,8 @@ export function checkSource({ file, source, now, windowDays, staleAfterDays }) {
   const warnings = [];
   const misnamed = [];
   for (const declaration of collectDeclarations(file, source)) {
-    const { name, deprecated, line } = declaration;
-    const prefixed = EXPERIMENTAL_PREFIX_PATTERN.test(name);
+    const { name, deprecated, line, required } = declaration;
+    const prefixed = EXPERIMENTAL_PREFIX_PATTERN.test(name) && required;
     const where = `${file}:${line} (${name})`;
 
     if (deprecated === undefined) {

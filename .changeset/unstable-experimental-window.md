@@ -10,6 +10,7 @@
 "@assistant-ui/react-ink": patch
 "@assistant-ui/react-langchain": patch
 "@assistant-ui/react-langgraph": patch
+"@assistant-ui/react-markdown": patch
 "@assistant-ui/react-native": patch
 ---
 

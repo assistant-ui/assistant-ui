@@ -246,3 +246,13 @@ test("accepts a ship date one day ahead of UTC", () => {
   );
   assert.deepEqual(result.errors, []);
 });
+
+test("validates an annotation on a plain re-export without requiring one", () => {
+  const bare = check('export { unstable_useFoo } from "./x";\n');
+  assert.deepEqual(bare.errors, []);
+  const malformed = check(
+    'export {\n  /** @deprecated Experimental since yesterday. */\n  unstable_useFoo,\n} from "./x";\n',
+  );
+  assert.equal(malformed.errors.length, 1);
+  assert.match(malformed.errors[0], /Experimental since/);
+});
