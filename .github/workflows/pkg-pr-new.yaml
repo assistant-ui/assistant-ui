@@ -11,6 +11,10 @@ on:
       - "turbo.json"
       - ".github/workflows/pkg-pr-new.yaml"
 
+env:
+  TURBO_TOKEN: ${{ secrets.TURBO_TOKEN }}
+  TURBO_TEAM: ${{ secrets.TURBO_TEAM }}
+
 permissions:
   contents: read
 

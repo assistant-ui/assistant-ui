@@ -44,6 +44,10 @@ on:
       - "pnpm-workspace.yaml"
       - ".github/workflows/code-quality.yaml"
 
+env:
+  TURBO_TOKEN: ${{ secrets.TURBO_TOKEN }}
+  TURBO_TEAM: ${{ secrets.TURBO_TEAM }}
+
 permissions:
   contents: read
 
