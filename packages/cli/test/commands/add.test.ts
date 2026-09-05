@@ -1,3 +1,4 @@
+import path from "node:path";
 import { describe, expect, it } from "vitest";
 import { add, createAddComponentsPlan } from "../../src/commands/add";
 
@@ -19,6 +20,18 @@ describe("add command", () => {
 });
 
 describe("createAddComponentsPlan", () => {
+  it("keeps a relative directory anchored outside the child process", () => {
+    const { args } = createAddComponentsPlan({
+      components: ["thread"],
+      packageManager: "npm",
+      cwd: "app",
+    });
+
+    expect(path.resolve("app", args[args.indexOf("--cwd") + 1]!)).toBe(
+      path.resolve("app"),
+    );
+  });
+
   it("uses npx --yes for npm", () => {
     expect(
       createAddComponentsPlan({

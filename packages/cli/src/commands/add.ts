@@ -1,3 +1,4 @@
+import path from "node:path";
 import { Command } from "commander";
 import { logger } from "../lib/utils/logger";
 import { hasConfig } from "../lib/utils/config";
@@ -40,7 +41,7 @@ export function createAddComponentsPlan(params: {
   // This flag is for shadcn's own confirmation prompt.
   if (params.yes) args.push("--yes");
   if (params.overwrite) args.push("--overwrite");
-  if (params.cwd) args.push("--cwd", params.cwd);
+  if (params.cwd) args.push("--cwd", path.resolve(params.cwd));
   if (params.path) args.push("--path", params.path);
 
   return { command, args };
