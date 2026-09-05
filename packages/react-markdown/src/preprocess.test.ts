@@ -464,6 +464,14 @@ describe("escapeCurrencyDollars", () => {
     );
   });
 
+  it("does not rewrite a fence quoted inside a list item", () => {
+    const fenced =
+      "- > ```js\n  > const price = $5;\n\n  > const tax = $2;\n  > ```\n\nafter $10";
+    expect(escapeCurrencyDollars(fenced)).toBe(
+      "- > ```js\n  > const price = $5;\n\n  > const tax = $2;\n  > ```\n\nafter \\$10",
+    );
+  });
+
   it("does not rewrite a fence opened on a list item's marker line", () => {
     const fenced =
       "- ```js\n  const price = $5;\n\n  const tax = $2;\n  ```\n\nafter $10";

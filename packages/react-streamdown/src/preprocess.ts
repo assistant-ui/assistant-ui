@@ -28,12 +28,12 @@ const FENCE_CLOSE_QUOTED = {
   "`": /^ {0,3}(?:>[ \t]?)+[ \t]*(`{3,})[ \t\r]*$/,
   "~": /^ {0,3}(?:>[ \t]?)+ {0,3}(~{3,})[ \t\r]*$/,
 };
-const LINE_IS_QUOTED = /^ {0,3}(?:>[ \t]?)+/;
-
 // What may precede a fence opener on its line: the blockquote and list markers
-// whose containers a fence opens inside of, and the indentation between them.
-const FENCE_OPEN_PREFIX =
-  /^[ \t]*(?:>[ \t]*)*(?:(?:[-*+]|\d{1,9}[.)])[ \t]+)*$/;
+// whose containers a fence opens inside of, nested in either order, and the
+// indentation between them. Each marker takes its own trailing whitespace, so a
+// prefix that fails cannot be re-split across two markers, and a list marker
+// still requires the space that separates it from its content.
+const FENCE_OPEN_PREFIX = /^[ \t]*(?:>[ \t]*|(?:[-*+]|\d{1,9}[.)])[ \t]+)*$/;
 
 /**
  * End index (exclusive) of the fence opened by the `marker` run at `start`,
@@ -43,7 +43,7 @@ const FENCE_OPEN_PREFIX =
 function fenceEnd(text: string, start: number, marker: "`" | "~"): number {
   const fenceLength = runLength(text, start, marker);
   const openerLine = text.slice(text.lastIndexOf("\n", start - 1) + 1, start);
-  const closer = LINE_IS_QUOTED.test(openerLine)
+  const closer = openerLine.includes(">")
     ? FENCE_CLOSE_QUOTED[marker]
     : FENCE_CLOSE_ROOT[marker];
   let lineStart = text.indexOf("\n", start);
