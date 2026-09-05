@@ -33,7 +33,7 @@ const LINE_IS_QUOTED = /^ {0,3}(?:>[ \t]?)+/;
 // What may precede a fence opener on its line: the blockquote and list markers
 // whose containers a fence opens inside of, and the indentation between them.
 const FENCE_OPEN_PREFIX =
-  /^[ \t]*(?:>[ \t]?)*(?:[ \t]*(?:[-*+]|\d{1,9}[.)])[ \t]+)*[ \t]*$/;
+  /^[ \t]*(?:>[ \t]*)*(?:(?:[-*+]|\d{1,9}[.)])[ \t]+)*$/;
 
 /**
  * End index (exclusive) of the fence opened by the `marker` run at `start`,
