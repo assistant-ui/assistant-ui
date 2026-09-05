@@ -9,6 +9,7 @@ import {
   tool,
   stepCountIs,
   zodSchema,
+  jsonSchema,
 } from "ai";
 import { RESUMABLE_STREAM_ID_HEADER } from "assistant-stream/resumable";
 import { z } from "zod";
@@ -59,7 +60,7 @@ function convertFrontendTools(
       name,
       tool({
         ...(t.description ? { description: t.description } : {}),
-        inputSchema: t.parameters as never,
+        inputSchema: jsonSchema(t.parameters),
       }),
     ]),
   );
