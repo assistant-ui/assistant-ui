@@ -3,7 +3,12 @@
 import { act, cleanup, render } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
-import { TrustedBy } from "./trusted-by";
+import { ALL_SLOTS, HOLD_MIN_MS, TrustedBy } from "./trusted-by";
+
+const widthEnvelope = (link: HTMLAnchorElement) =>
+  [...link.classList]
+    .filter((token) => token.startsWith("w-") || token.startsWith("max-w-"))
+    .sort();
 
 beforeEach(() => {
   vi.useFakeTimers();
@@ -28,26 +33,24 @@ afterEach(() => {
 });
 
 describe("TrustedBy", () => {
-  it("keeps both crossfade layers within the centered width envelope", () => {
+  it("gives the outgoing crossfade layer the incoming width envelope", () => {
     const { container } = render(<TrustedBy />);
 
     act(() => {
-      vi.advanceTimersByTime(1600);
+      vi.advanceTimersByTime(HOLD_MIN_MS);
     });
 
     const links = Array.from(container.querySelectorAll("a"));
-    const outgoing = links.find((link) => link.classList.contains("absolute"));
-    const current = links.filter((link) =>
-      link.classList.contains("inline-flex"),
+    const outgoing = links.filter((link) =>
+      link.classList.contains("absolute"),
+    );
+    const incoming = links.filter(
+      (link) => !link.classList.contains("absolute"),
     );
 
-    expect(outgoing).toBeDefined();
-    expect(outgoing?.className).toContain("mx-auto");
-    expect(outgoing?.className).toContain("w-full");
-    expect(outgoing?.className).toContain("max-w-[9rem]");
-    expect(current).toHaveLength(9);
-    expect(
-      current.every((link) => link.classList.contains("max-w-[9rem]")),
-    ).toBe(true);
+    expect(outgoing).toHaveLength(1);
+    expect(incoming).toHaveLength(ALL_SLOTS.length);
+    expect(widthEnvelope(outgoing[0]!)).toEqual(widthEnvelope(incoming[0]!));
+    expect([...outgoing[0]!.classList]).toContain("mx-auto");
   });
 });
