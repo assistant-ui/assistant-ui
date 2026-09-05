@@ -31,6 +31,9 @@ const title = "Traction";
 const description =
   "Stars, downloads, and shipping cadence behind assistant-ui. Live from GitHub and npm.";
 
+// The star sweep pages through the whole stargazer listing on a cold cache.
+export const maxDuration = 60;
+
 export const metadata: Metadata = {
   title,
   description,

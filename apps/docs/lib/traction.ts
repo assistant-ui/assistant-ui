@@ -752,6 +752,8 @@ function projectInflightMonth(
 
 const STAR_PAGE_CONCURRENCY = 16;
 const WEEK_MS = 7 * 86_400_000;
+/** How far the listing may trail the repo's counter before a tail would be a jump rather than a lag. */
+const MAX_TAIL_GAP = 100;
 
 /** Monday 00:00 UTC of the week containing `ms`. */
 const weekStart = (ms: number): number => {
@@ -771,8 +773,11 @@ export async function fetchStarHistory(
     const first = await getStargazersPage(1, revalidate);
     if (first.data.length === 0) return [];
 
-    const lastPage = first.lastPage ?? Math.max(1, Math.ceil(totalStars / 100));
-    const starredAt = first.data.map((entry) => entry.starred_at);
+    // No rel="last" link means page 1 is the last page.
+    const lastPage = first.lastPage ?? 1;
+    const starredAt = first.data.map((entry) =>
+      new Date(entry.starred_at).getTime(),
+    );
 
     const rest: number[] = [];
     for (let page = 2; page <= lastPage; page++) rest.push(page);
@@ -786,37 +791,49 @@ export async function fetchStarHistory(
           ),
       );
       for (const page of batch) {
-        for (const entry of page) starredAt.push(entry.starred_at);
+        // getStargazersPage reports a failed request as an empty page, and every
+        // page in range carries data. Keeping one would shift the whole cumulative
+        // series down and let the tail below close the gap as a vertical cliff.
+        if (page.length === 0) return [];
+        for (const entry of page) {
+          starredAt.push(new Date(entry.starred_at).getTime());
+        }
       }
     }
 
-    starredAt.sort();
+    starredAt.sort((a, b) => a - b);
 
     // Exact cumulative count at every week boundary; no sampling, no interpolation.
-    const points: TimelinePoint[] = [];
-    const endMs = new Date(starredAt[starredAt.length - 1]!).getTime();
-    let cursor = weekStart(new Date(starredAt[0]!).getTime()) + WEEK_MS;
+    const grid: { ms: number; value: number }[] = [];
+    const endMs = starredAt[starredAt.length - 1]!;
+    let cursor = weekStart(starredAt[0]!) + WEEK_MS;
     let counted = 0;
     while (cursor <= endMs) {
-      while (
-        counted < starredAt.length &&
-        new Date(starredAt[counted]!).getTime() < cursor
-      ) {
+      while (counted < starredAt.length && starredAt[counted]! < cursor) {
         counted++;
       }
-      points.push({ date: new Date(cursor).toISOString(), value: counted });
+      grid.push({ ms: cursor, value: counted });
       cursor += WEEK_MS;
     }
-    points.push({
-      date: starredAt[starredAt.length - 1]!,
-      value: starredAt.length,
-    });
 
-    // The listing trails the repo's own counter by a beat; extend to the live count.
-    const last = points[points.length - 1]!;
-    const now = new Date().toISOString();
-    if (totalStars > last.value && now > last.date) {
-      points.push({ date: now, value: totalStars });
+    const closing = { ms: endMs, value: starredAt.length };
+    if (grid[grid.length - 1]?.ms === endMs) {
+      grid[grid.length - 1] = closing;
+    } else {
+      grid.push(closing);
+    }
+
+    const points: TimelinePoint[] = grid.map((point) => ({
+      date: new Date(point.ms).toISOString(),
+      value: point.value,
+    }));
+
+    // The listing trails the repo's counter by a beat; a wider gap is a broken
+    // sweep rather than a lag, and drawing it would invent the jump.
+    const now = Date.now();
+    const lag = totalStars - starredAt.length;
+    if (lag > 0 && lag <= MAX_TAIL_GAP && now > endMs) {
+      points.push({ date: new Date(now).toISOString(), value: totalStars });
     }
 
     return points;

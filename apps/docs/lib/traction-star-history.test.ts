@@ -97,16 +97,33 @@ describe("fetchStarHistory", () => {
     expect(points.at(-1)!.value).toBe(TOTAL);
   });
 
-  it("keeps drawing when a page in the middle fails", async () => {
+  it("draws nothing rather than a curve missing a page", async () => {
     serve(TOTAL, [2]);
 
-    const points = await fetchStarHistory(TOTAL);
+    // A kept page-2 failure would shift every later point down by 100 and let
+    // the tail close the gap as a cliff, which is a shape nobody measured.
+    await expect(fetchStarHistory(TOTAL)).resolves.toEqual([]);
+  });
 
-    // The lost page undercounts the middle; the live tail still closes the
-    // curve on the true count rather than blanking the figure.
-    expect(points.length).toBeGreaterThan(2);
-    expect(points.at(-2)!.value).toBe(TOTAL - 100);
+  it("omits a tail the listing cannot explain as lag", async () => {
+    serve();
+
+    const points = await fetchStarHistory(TOTAL + 4000);
+
     expect(points.at(-1)!.value).toBe(TOTAL);
+  });
+
+  it("does not repeat the boundary when the last star lands on one", async () => {
+    // 2 stars a day from a Monday, so star 15 is starred at exactly EPOCH + 7d.
+    serve(15);
+
+    const points = await fetchStarHistory(15);
+
+    // Without the guard the week boundary and the closing star are two points
+    // at the same instant, a zero gap the series is not allowed to contain.
+    expect(points).toEqual([
+      { date: new Date(EPOCH + 14 * STEP_MS).toISOString(), value: 15 },
+    ]);
   });
 
   it("returns nothing when the first page is unavailable", async () => {

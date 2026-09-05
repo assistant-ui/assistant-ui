@@ -194,9 +194,9 @@ function Plate({
             marginTop: -7,
           }}
         >
-          {yTicks.map((tick) => (
+          {yTicks.map((tick, i) => (
             <span
-              key={tick}
+              key={i}
               style={{ fontSize: 11, color: theme.muted, fontFamily: fontMono }}
             >
               {tick}
@@ -253,9 +253,9 @@ function Plate({
               marginTop: 8,
             }}
           >
-            {xTicks.map((tick) => (
+            {xTicks.map((tick, i) => (
               <span
-                key={tick}
+                key={i}
                 style={{
                   fontSize: 11,
                   color: theme.muted,
