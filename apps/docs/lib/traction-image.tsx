@@ -303,9 +303,9 @@ function Plate({
 export async function renderTractionImage(name: keyof typeof THEMES) {
   const theme = THEMES[name];
 
-  const repo = await getRepo();
-  const [stars, downloads, weekly, contributors] = await Promise.all([
-    fetchStarHistory(repo?.stars ?? 0),
+  const [repo, stars, downloads, weekly, contributors] = await Promise.all([
+    getRepo(),
+    fetchStarHistory(),
     fetchDownloadsTimeline(FLAGSHIP_PACKAGE),
     getWeeklyDownloads(),
     fetchContributors(),
@@ -387,7 +387,7 @@ export async function renderTractionImage(name: keyof typeof THEMES) {
       >
         <Plate
           eyebrow="GitHub stars"
-          caption="fig. 01 · weekly, from the stargazers api"
+          caption="fig. 01 · weekly, from the star history api"
           points={stars}
           gradientId="stars"
           fontMono={fontMono}

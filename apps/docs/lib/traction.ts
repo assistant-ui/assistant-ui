@@ -5,7 +5,7 @@ import {
   getCommitsSince,
   getContributors,
   getReleases,
-  getStargazersPage,
+  getStarHistory,
   getUser,
   getUserById,
 } from "./github";
@@ -750,102 +750,25 @@ function projectInflightMonth(
   return Math.round(blended);
 }
 
-const STAR_PAGE_CONCURRENCY = 16;
-const WEEK_MS = 7 * 86_400_000;
-/** How far the listing may trail the repo's counter before a tail would be a jump rather than a lag. */
-const MAX_TAIL_GAP = 100;
-
-/** Monday 00:00 UTC of the week containing `ms`. */
-const weekStart = (ms: number): number => {
-  const date = new Date(ms);
-  const weekday = (date.getUTCDay() + 6) % 7;
-  return (
-    Date.UTC(date.getUTCFullYear(), date.getUTCMonth(), date.getUTCDate()) -
-    weekday * 86_400_000
-  );
-};
-
 export async function fetchStarHistory(
-  totalStars: number,
   revalidate?: number,
 ): Promise<TimelinePoint[]> {
-  try {
-    // The sweep is all-or-nothing, so one transient response would otherwise
-    // discard an entire series.
-    const fetchPage = async (page: number) => {
-      const result = await getStargazersPage(page, revalidate);
-      return result.ok ? result : getStargazersPage(page, revalidate);
+  const weeks = await getStarHistory(revalidate);
+  if (!weeks || weeks.length < 2) return [];
+
+  const ordered = [...weeks].sort((a, b) => a.week - b.week);
+  const now = Date.now();
+  let cumulative = 0;
+
+  return ordered.map((week) => {
+    cumulative += week.total;
+    // Each point closes its own bucket, and the bucket in progress closes now.
+    const end = (week.week + 7 * 86_400) * 1000;
+    return {
+      date: new Date(Math.min(end, now)).toISOString(),
+      value: cumulative,
     };
-
-    const first = await fetchPage(1);
-    if (!first.ok || first.data.length === 0) return [];
-
-    // The Link header names the last page. Without a parsable one the repo's own
-    // counter bounds the sweep, and pages past the end come back empty and ok.
-    const lastPage = first.lastPage ?? Math.max(1, Math.ceil(totalStars / 100));
-    const starredAt = first.data.map((entry) =>
-      new Date(entry.starred_at).getTime(),
-    );
-
-    const rest: number[] = [];
-    for (let page = 2; page <= lastPage; page++) rest.push(page);
-
-    for (let i = 0; i < rest.length; i += STAR_PAGE_CONCURRENCY) {
-      const batch = await Promise.all(
-        rest.slice(i, i + STAR_PAGE_CONCURRENCY).map((page) => fetchPage(page)),
-      );
-      for (const page of batch) {
-        // Dropping a failed page would shift the whole cumulative series down and
-        // let the tail below close the gap as a vertical cliff.
-        if (!page.ok) return [];
-        for (const entry of page.data) {
-          starredAt.push(new Date(entry.starred_at).getTime());
-        }
-      }
-    }
-
-    starredAt.sort((a, b) => a - b);
-
-    // Exact cumulative count at every week boundary; no sampling, no interpolation.
-    const grid: { ms: number; value: number }[] = [];
-    const endMs = starredAt[starredAt.length - 1]!;
-    let cursor = weekStart(starredAt[0]!) + WEEK_MS;
-    let counted = 0;
-    while (cursor <= endMs) {
-      while (counted < starredAt.length && starredAt[counted]! < cursor) {
-        counted++;
-      }
-      grid.push({ ms: cursor, value: counted });
-      cursor += WEEK_MS;
-    }
-
-    const closing = { ms: endMs, value: starredAt.length };
-    if (grid[grid.length - 1]?.ms === endMs) {
-      grid[grid.length - 1] = closing;
-    } else {
-      grid.push(closing);
-    }
-
-    const points: TimelinePoint[] = grid.map((point) => ({
-      date: new Date(point.ms).toISOString(),
-      value: point.value,
-    }));
-
-    // The listing trails the repo's counter by a beat. A wider gap means the
-    // sweep is short, and a curve stopping there reads as measured, so it goes
-    // the way a dropped page does rather than merely losing its tail.
-    const lag = totalStars - starredAt.length;
-    if (lag > MAX_TAIL_GAP) return [];
-
-    const now = Date.now();
-    if (lag > 0 && now > endMs) {
-      points.push({ date: new Date(now).toISOString(), value: totalStars });
-    }
-
-    return points;
-  } catch {
-    return [];
-  }
+  });
 }
 
 export function daysSince(isoDate: string): number {

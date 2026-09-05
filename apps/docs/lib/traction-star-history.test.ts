@@ -1,11 +1,9 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
-const { getStargazersPage } = vi.hoisted(() => ({
-  getStargazersPage: vi.fn(),
-}));
+const { getStarHistory } = vi.hoisted(() => ({ getStarHistory: vi.fn() }));
 
 vi.mock("./github", () => ({
-  getStargazersPage,
+  getStarHistory,
   getCommitActivityStats: vi.fn(),
   getCommitCoAuthors: vi.fn(),
   getCommitsSince: vi.fn(),
@@ -19,160 +17,80 @@ vi.mock("./npm", () => ({ getDownloadsRange: vi.fn() }));
 
 const { fetchStarHistory } = await import("./traction");
 
-const WEEK_MS = 7 * 86_400_000;
-/** A Monday, so the first star lands exactly on a week boundary. */
-const EPOCH = Date.UTC(2024, 0, 1);
-const TOTAL = 250;
-const STEP_MS = 12 * 3_600_000;
+const WEEK_S = 7 * 86_400;
+const WEEK_MS = WEEK_S * 1000;
+/** A Sunday, matching the week boundary the endpoint buckets on. */
+const FIRST_WEEK = Math.floor(Date.UTC(2024, 0, 7) / 1000);
 
-const starredAt = (n: number) => new Date(EPOCH + n * STEP_MS).toISOString();
-
-const serve = (
-  total = TOTAL,
-  { failing = [], link = true }: { failing?: number[]; link?: boolean } = {},
-) => {
-  const lastPage = Math.ceil(total / 100);
-  getStargazersPage.mockImplementation(async (page: number) => {
-    if (failing.includes(page)) {
-      return { ok: false, data: [], lastPage: null };
-    }
-    const start = (page - 1) * 100;
-    return {
-      ok: true,
-      data: Array.from(
-        { length: Math.max(0, Math.min(100, total - start)) },
-        (_, i) => ({ starred_at: starredAt(start + i) }),
-      ),
-      lastPage: link ? lastPage : null,
-    };
-  });
-};
+const week = (index: number, total: number) => ({
+  week: FIRST_WEEK + index * WEEK_S,
+  total,
+  days: [total, 0, 0, 0, 0, 0, 0],
+});
 
 describe("fetchStarHistory", () => {
   beforeEach(() => {
-    getStargazersPage.mockReset();
+    getStarHistory.mockReset();
   });
 
-  it("counts every star exactly on a weekly grid", async () => {
-    serve();
+  it("accumulates the weekly buckets in order, newest first on the wire", () => {
+    // The endpoint returns newest first, so the reversal is load bearing.
+    getStarHistory.mockResolvedValue([week(2, 5), week(0, 10), week(1, 3)]);
 
-    const points = await fetchStarHistory(TOTAL);
-
-    expect(getStargazersPage).toHaveBeenCalledTimes(3);
-    expect(points.at(-1)).toEqual({ date: starredAt(TOTAL - 1), value: TOTAL });
-
-    // Two stars a day, so a week boundary is a whole number of weeks in.
-    for (const [i, point] of points.slice(0, -1).entries()) {
-      const elapsed = new Date(point.date).getTime() - EPOCH;
-      expect(elapsed).toBe((i + 1) * WEEK_MS);
-      expect(point.value).toBe(Math.min(TOTAL, (i + 1) * 14));
-    }
+    return expect(fetchStarHistory()).resolves.toEqual([
+      { date: new Date((FIRST_WEEK + WEEK_S) * 1000).toISOString(), value: 10 },
+      {
+        date: new Date((FIRST_WEEK + 2 * WEEK_S) * 1000).toISOString(),
+        value: 13,
+      },
+      {
+        date: new Date((FIRST_WEEK + 3 * WEEK_S) * 1000).toISOString(),
+        value: 18,
+      },
+    ]);
   });
 
-  it("is ordered, non-decreasing, and never coarser than a week", async () => {
-    serve();
+  it("closes the bucket in progress at now rather than in the future", async () => {
+    const current = Math.floor((Date.now() - WEEK_MS / 2) / 1000);
+    getStarHistory.mockResolvedValue([
+      { week: current, total: 4, days: [1, 1, 1, 1, 0, 0, 0] },
+      { week: current - WEEK_S, total: 6, days: [6, 0, 0, 0, 0, 0, 0] },
+    ]);
 
-    const points = await fetchStarHistory(TOTAL);
+    const points = await fetchStarHistory();
 
-    expect(points.length).toBeGreaterThan(2);
+    expect(points.at(-1)!.value).toBe(10);
+    expect(new Date(points.at(-1)!.date).getTime()).toBeLessThanOrEqual(
+      Date.now(),
+    );
+  });
+
+  it("is ordered and non-decreasing", async () => {
+    getStarHistory.mockResolvedValue(
+      Array.from({ length: 40 }, (_, i) => week(i, i % 7)),
+    );
+
+    const points = await fetchStarHistory();
+
+    expect(points).toHaveLength(40);
     for (let i = 1; i < points.length; i++) {
-      const gap =
+      expect(
         new Date(points[i]!.date).getTime() -
-        new Date(points[i - 1]!.date).getTime();
-      expect(gap).toBeGreaterThan(0);
-      expect(gap).toBeLessThanOrEqual(WEEK_MS);
+          new Date(points[i - 1]!.date).getTime(),
+      ).toBeGreaterThan(0);
       expect(points[i]!.value).toBeGreaterThanOrEqual(points[i - 1]!.value);
     }
   });
 
-  it("extends the line to the repo's live count", async () => {
-    serve();
+  it("draws nothing when the history is unavailable", async () => {
+    getStarHistory.mockResolvedValue(null);
 
-    const points = await fetchStarHistory(TOTAL + 6);
-
-    expect(points.at(-1)!.value).toBe(TOTAL + 6);
-    expect(points.at(-2)!.value).toBe(TOTAL);
+    await expect(fetchStarHistory()).resolves.toEqual([]);
   });
 
-  it("never draws a drop when the cached count trails the listing", async () => {
-    serve();
+  it("draws nothing rather than a two point line from a single bucket", async () => {
+    getStarHistory.mockResolvedValue([week(0, 10)]);
 
-    const points = await fetchStarHistory(TOTAL - 20);
-
-    expect(points.at(-1)!.value).toBe(TOTAL);
-  });
-
-  it("draws nothing rather than a curve missing a page", async () => {
-    serve(TOTAL, { failing: [2] });
-
-    // A kept page-2 failure would shift every later point down by 100 and let
-    // the tail close the gap as a cliff, which is a shape nobody measured.
-    await expect(fetchStarHistory(TOTAL)).resolves.toEqual([]);
-  });
-
-  it("drops a sweep the counter says is short, tail and curve alike", async () => {
-    serve();
-
-    // Suppressing only the tail would still draw a measured looking curve that
-    // stops 4000 stars early, which is the trade the page loop refuses above.
-    await expect(fetchStarHistory(TOTAL + 4000)).resolves.toEqual([]);
-  });
-
-  it("does not repeat the boundary when the last star lands on one", async () => {
-    // 2 stars a day from a Monday, so star 15 is starred at exactly EPOCH + 7d.
-    serve(15);
-
-    const points = await fetchStarHistory(15);
-
-    // Without the guard the week boundary and the closing star are two points
-    // at the same instant, a zero gap the series is not allowed to contain.
-    expect(points).toEqual([
-      { date: new Date(EPOCH + 14 * STEP_MS).toISOString(), value: 15 },
-    ]);
-  });
-
-  it("sweeps on the repo's counter when the Link header is unparsable", async () => {
-    serve(TOTAL, { link: false });
-
-    // Trusting the missing header would stop at page 1 and draw a measured
-    // looking curve that ends 150 stars short.
-    const points = await fetchStarHistory(TOTAL);
-
-    expect(getStargazersPage).toHaveBeenCalledTimes(3);
-    expect(points.at(-1)!.value).toBe(TOTAL);
-  });
-
-  it("reads a page past the end as the end, not as a failure", async () => {
-    // A counter running ahead of the listing makes the sweep ask for one page
-    // too many; an empty ok page ends it rather than blanking the figure.
-    serve(TOTAL, { link: false });
-
-    const points = await fetchStarHistory(TOTAL + 60);
-
-    expect(getStargazersPage).toHaveBeenCalledTimes(4);
-    expect(points.at(-1)!.value).toBe(TOTAL + 60);
-  });
-
-  it("retries a failed page once before giving up on the sweep", async () => {
-    let firstAttempt = true;
-    serve();
-    const settled = getStargazersPage.getMockImplementation()!;
-    getStargazersPage.mockImplementation(async (page: number) => {
-      if (page === 2 && firstAttempt) {
-        firstAttempt = false;
-        return { ok: false, data: [], lastPage: null };
-      }
-      return settled(page);
-    });
-
-    const points = await fetchStarHistory(TOTAL);
-
-    expect(points.at(-1)!.value).toBe(TOTAL);
-  });
-
-  it("returns nothing when the first page is unavailable", async () => {
-    serve(TOTAL, { failing: [1] });
-
-    await expect(fetchStarHistory(TOTAL)).resolves.toEqual([]);
+    await expect(fetchStarHistory()).resolves.toEqual([]);
   });
 });
