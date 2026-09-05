@@ -374,10 +374,16 @@ export async function getStarHistory(
 ): Promise<StarHistoryWeek[] | null> {
   const path = (page: number) =>
     `/stargazers/history?per_page=${STAR_HISTORY_PAGE_SIZE}&page=${page}`;
+  // A 200 carrying an error object would otherwise reach the caller as a
+  // non-iterable and throw where every other fetcher degrades.
+  const parse = (value: unknown): StarHistoryWeek[] | null =>
+    Array.isArray(value) ? (value as StarHistoryWeek[]) : null;
+
   try {
     const first = await ghFetch(path(1), revalidate);
     if (!first.ok) return null;
-    const weeks = (await withTimeout(first.json())) as StarHistoryWeek[];
+    const weeks = parse(await withTimeout(first.json()));
+    if (!weeks) return null;
     const linked = parseLastPage(first.headers.get("Link"));
     // Page 1 holds the newest weeks while the series accumulates from the oldest,
     // so a listing truncated here is a rebased curve, not a shorter one.
@@ -389,7 +395,7 @@ export async function getStarHistory(
       Array.from({ length: Math.max(0, lastPage - 1) }, async (_, i) => {
         const res = await ghFetch(path(i + 2), revalidate);
         if (!res.ok) return null;
-        return (await withTimeout(res.json())) as StarHistoryWeek[];
+        return parse(await withTimeout(res.json()));
       }),
     );
     // A lost page would flatten the curve across the weeks it covers rather

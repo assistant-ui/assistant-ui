@@ -89,6 +89,20 @@ describe("getStarHistory", () => {
     await expect(getStarHistory()).resolves.toBeNull();
   });
 
+  it("returns null for a 200 that is not a list of weeks", async () => {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(
+        async () =>
+          new Response(JSON.stringify({ message: "Not Found" }), {
+            status: 200,
+          }),
+      ),
+    );
+
+    await expect(getStarHistory()).resolves.toBeNull();
+  });
+
   it("returns null when a later page fails", async () => {
     vi.stubGlobal(
       "fetch",
