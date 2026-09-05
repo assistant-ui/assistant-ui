@@ -133,13 +133,9 @@
 
   &:not(.shimmer-bg) {
     /* Below the clip gate the gradient would paint across the whole box with
-     * unclipped text on top, so drop it and land on plain, static text. */
-    @supports not (color: oklch(from red l c h)) {
-      background: none;
-      animation: none;
-    }
-
-    @supports not (background-clip: text) {
+     * unclipped text on top, so drop it and land on plain, static text.
+     * This condition is the exact complement of the clip gate above. */
+    @supports not ((background-clip: text) and (color: oklch(from red l c h))) {
       background: none;
       animation: none;
     }

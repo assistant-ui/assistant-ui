@@ -215,6 +215,6 @@ All values can be set via CSS variables for dynamic control:
 
 Uses modern CSS features: `@property`, relative `oklch()`, `color-mix()`, `tan()`, independent `translate`, CSS masking, and CSS Container Queries. The compositor path is gated by `-webkit-mask-clip: text`; browsers that fail that gate keep the gradient fallback.
 
-**Supported:** Chrome 120+, Firefox 128+, Safari 16.4+
+**Supported:** Chrome 119+, Firefox 128+, Safari 16.4+
 
-Older browsers degrade gracefully. The text shimmer is gated behind `@supports (background-clip: text) and (color: oklch(from red l c h))`; when either half is missing the clip is skipped and the gradient and animation are dropped with it, so the element keeps its normal fill and renders as plain, static text instead of painting a gradient behind unclipped glyphs. `shimmer-bg` degrades to a static block.
+Older browsers degrade gracefully. On the gradient path the text shimmer is gated behind `@supports (background-clip: text) and (color: oklch(from red l c h))`; when either half is missing the clip is skipped and the gradient and animation are dropped with it, so the element keeps its normal fill and renders as plain, static text instead of painting a gradient behind unclipped glyphs. `shimmer-bg` degrades to a static block.
