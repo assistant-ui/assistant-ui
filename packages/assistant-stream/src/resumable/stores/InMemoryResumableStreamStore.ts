@@ -163,7 +163,10 @@ export function createInMemoryResumableStreamStore(
       }
       const seq = state.nextSeq;
       state.nextSeq += 1;
-      state.entries.push({ cursor: cursorOf(seq), chunk });
+      state.entries.push({
+        cursor: cursorOf(seq),
+        chunk: new Uint8Array(chunk),
+      });
       state.expiresAt = now() + state.ttlMs;
       notify(state);
     },
@@ -195,7 +198,8 @@ export function createInMemoryResumableStreamStore(
 
         while (idx < state.entries.length) {
           if (signal.aborted) return;
-          yield state.entries[idx]!;
+          const entry = state.entries[idx]!;
+          yield { ...entry, chunk: new Uint8Array(entry.chunk) };
           idx += 1;
         }
 
