@@ -122,7 +122,12 @@ function backtickEnd(text: string, start: number): number {
  */
 function rewriteOutsideCode(
   text: string,
-  rewrite: (segment: string, precededBy: string, followedBy: string) => string,
+  rewrite: (
+    segment: string,
+    precededBy: string,
+    followedBy: string,
+    lineHead: (offset: number) => string,
+  ) => string,
 ): string {
   let out = "";
   let index = 0;
@@ -130,7 +135,15 @@ function rewriteOutsideCode(
 
   const flush = (end: number, followedBy: string) => {
     const segment = text.slice(plainStart, end);
-    if (segment !== "") out += rewrite(segment, out.slice(-1), followedBy);
+    if (segment === "") return;
+    const start = plainStart;
+    // A segment begins after any code span, so the line it sits on can start
+    // earlier than the segment does and only the original text has it.
+    const lineHead = (offset: number) => {
+      const at = start + offset;
+      return text.slice(text.lastIndexOf("\n", at - 1) + 1, at);
+    };
+    out += rewrite(segment, out.slice(-1), followedBy, lineHead);
   };
 
   const copyVerbatim = (to: number) => {
@@ -166,43 +179,113 @@ function rewriteOutsideCode(
 }
 
 /**
+ * Emits a display-math body in the `$$` form remark-math parses: `$$body$$` on
+ * one span for a single-line body, and for a body spanning lines the fenced
+ * form, on lines the `$$` markers own. remark-math parses multiline `$$` as a
+ * flow construct: the opening marker has to start a line and the closing marker
+ * to end one, and it reads whatever else shares those lines as fence metadata
+ * rather than as math.
+ *
+ * A delimiter pair wrapping nothing is left as written: `$$$$` would itself
+ * open a fence that never closes.
+ */
+const LINE_PREFIX = /^(?:[ \t]*(?:>[ \t]*)*)(?:(?:[-*+]|\d{1,9}[.)])[ \t]+)?/;
+
+/**
+ * The prefix a following line needs to stay inside the block the match opened
+ * in: a blockquote marker repeats, a list marker becomes the spaces its content
+ * is indented by, and a plain indent is copied.
+ */
+function continuationPrefix(lineHead: string): string {
+  return (LINE_PREFIX.exec(lineHead)?.[0] ?? "").replace(/[^>\t]/g, " ");
+}
+
+function emitDisplayMath(
+  match: string,
+  body: string,
+  offset: number,
+  source: string,
+  precededBy: string,
+  followedBy: string,
+  lineHead: (offset: number) => string,
+): string {
+  const trimmed = body.trim();
+  if (trimmed === "") return match;
+  if (!trimmed.includes("\n")) return `$$${trimmed}$$`;
+
+  const before = offset === 0 ? precededBy : source[offset - 1]!;
+  const afterStart = offset + match.length;
+  const after = afterStart === source.length ? followedBy : source[afterStart]!;
+  // A CRLF document puts the carriage return next to the match, so both endings
+  // count as already being at a line boundary.
+  const endsLine = (char: string) =>
+    char === "" || char === "\n" || char === "\r";
+  const lead = endsLine(before) ? "" : "\n";
+  const tail = endsLine(after) ? "" : "\n";
+
+  // Markers written at the root column would end the list item or blockquote the
+  // math was written inside, so they carry that container's prefix and the body
+  // is aligned to it.
+  const prefix = continuationPrefix(lineHead(offset));
+  const quoted = prefix.includes(">");
+  // The body is split before trimming, since trimming would take the shared
+  // indentation off the first line only and leave the block ragged.
+  const bodyLines = body.split("\n");
+  while (bodyLines.length > 0 && bodyLines[0]!.trim() === "") bodyLines.shift();
+  while (bodyLines.length > 0 && bodyLines.at(-1)!.trim() === "") {
+    bodyLines.pop();
+  }
+  // Only the indentation the whole body shares is replaced by the container
+  // prefix, so an aligned block keeps its relative indentation.
+  const shared = bodyLines.reduce(
+    (least, line) =>
+      line.trim() === ""
+        ? least
+        : Math.min(least, /^[ \t]*/.exec(line)![0].length),
+    Number.POSITIVE_INFINITY,
+  );
+  const lines = bodyLines.map((line) => {
+    // A line already carrying the blockquote marker keeps the spacing it was
+    // written with; `>a` and `> a` are the same blockquote. Indentation alone
+    // is not that signal, since a body may legitimately be indented.
+    if (quoted && /^[ \t]*>/.test(line)) return line;
+    return `${prefix}${line.slice(Number.isFinite(shared) ? shared : 0)}`;
+  });
+
+  return `${lead}${prefix}$$\n${lines.join("\n")}\n${prefix}$$${tail}`;
+}
+
+/**
  * Rewrites LaTeX bracket delimiters to dollar delimiters: `\(...\)` becomes
- * `$...$` (inline) and `\[...\]` becomes `$$...$$` (display). A single or double
- * leading backslash is accepted, since models emit both depending on escaping.
+ * `$...$` (inline) and `\[...\]` becomes `$$...$$` (display, fenced when the
+ * body spans lines — see {@link emitDisplayMath}). A single or double leading
+ * backslash is accepted, since models emit both depending on escaping.
  * remark-math only recognizes the dollar form, so without this rewrite bracket
  * math renders as plain text.
- *
- * A display body spanning lines is emitted fenced, on lines the `$$` markers own.
- * remark-math parses multiline `$$` as a flow construct: the opening marker has to
- * start a line and the closing marker to end one, and it reads whatever else shares
- * those lines as fence metadata rather than as math.
- *
- * A pair wrapping nothing is left as written: `$$$$` would itself open a fence that
- * never closes.
  */
 export function rewriteLatexBracketDelimiters(text: string): string {
-  return rewriteOutsideCode(text, (segment, precededBy, followedBy) =>
+  // The display rewrite runs first: its offsets index the segment as the walker
+  // cut it, and an inline rewrite ahead of it would shift them off the line
+  // whose prefix the fence copies.
+  return rewriteOutsideCode(text, (segment, precededBy, followedBy, lineHead) =>
     segment
+      .replace(
+        LATEX_DISPLAY_DELIMITER,
+        (match: string, body: string, offset: number, source: string) =>
+          emitDisplayMath(
+            match,
+            body,
+            offset,
+            source,
+            precededBy,
+            followedBy,
+            lineHead,
+          ),
+      )
       .replace(LATEX_INLINE_DELIMITER, (match: string, body: string) => {
         const trimmed = body.trim();
         return trimmed === "" ? match : `$${trimmed}$`;
-      })
-      .replace(
-        LATEX_DISPLAY_DELIMITER,
-        (match: string, body: string, offset: number, source: string) => {
-          const trimmed = body.trim();
-          if (trimmed === "") return match;
-          if (!trimmed.includes("\n")) return `$$${trimmed}$$`;
-
-          const before = offset === 0 ? precededBy : source[offset - 1]!;
-          const afterStart = offset + match.length;
-          const after =
-            afterStart === source.length ? followedBy : source[afterStart]!;
-          const lead = before === "" || before === "\n" ? "" : "\n";
-          const tail = after === "" || after === "\n" ? "" : "\n";
-          return `${lead}$$\n${trimmed}\n$$${tail}`;
-        },
-      ),
+      }),
   );
 }
 
@@ -211,13 +294,29 @@ const INLINE_TAG = /\[\/inline\]([\s\S]*?)\[\/inline\]/g;
 
 /**
  * Rewrites the custom math tags some models emit to dollar delimiters:
- * `[/math]...[/math]` becomes `$$...$$` and `[/inline]...[/inline]` becomes `$...$`.
+ * `[/math]...[/math]` becomes `$$...$$` (fenced when the body spans lines — see
+ * {@link emitDisplayMath}) and `[/inline]...[/inline]` becomes `$...$`.
  */
 export function rewriteCustomMathTags(text: string): string {
-  return rewriteOutsideCode(text, (segment) =>
+  return rewriteOutsideCode(text, (segment, precededBy, followedBy, lineHead) =>
     segment
-      .replace(MATH_TAG, (_, body: string) => `$$${body.trim()}$$`)
-      .replace(INLINE_TAG, (_, body: string) => `$${body.trim()}$`),
+      .replace(
+        MATH_TAG,
+        (match: string, body: string, offset: number, source: string) =>
+          emitDisplayMath(
+            match,
+            body,
+            offset,
+            source,
+            precededBy,
+            followedBy,
+            lineHead,
+          ),
+      )
+      .replace(INLINE_TAG, (match: string, body: string) => {
+        const trimmed = body.trim();
+        return trimmed === "" ? match : `$${trimmed}$`;
+      }),
   );
 }
 

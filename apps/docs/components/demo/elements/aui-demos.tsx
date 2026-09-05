@@ -41,7 +41,10 @@ import { ThreadListSample } from "@/components/pages/docs/samples/threadlist";
 import { ToolFallbackSample } from "@/components/pages/docs/samples/tool-fallback";
 import { ToolGroupSample } from "@/components/pages/docs/samples/tool-group";
 import { QuoteSample } from "@/components/pages/docs/samples/quote";
-import { SourcesSample } from "@/components/pages/docs/samples/sources";
+import {
+  SourcesSample,
+  SourcesVariantsSample,
+} from "@/components/pages/docs/samples/sources";
 import { ImageSample } from "@/components/pages/docs/samples/image";
 import { FileSample } from "@/components/pages/docs/samples/file";
 import { ComposerTriggerPopoverSample } from "@/components/pages/docs/samples/composer-trigger-popover";
@@ -285,6 +288,14 @@ export function AuiSourcesDemo() {
   return (
     <DemoSurface>
       <SourcesSample />
+    </DemoSurface>
+  );
+}
+
+export function AuiSourcesVariantsDemo() {
+  return (
+    <DemoSurface>
+      <SourcesVariantsSample />
     </DemoSurface>
   );
 }

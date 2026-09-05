@@ -134,6 +134,35 @@ describe("scope-filtered on", () => {
     });
   });
 
+  it("logs a rejecting async listener registered through aui.on", async () => {
+    const consoleError = vi
+      .spyOn(console, "error")
+      .mockImplementation(() => {});
+    try {
+      const { getAui } = setup();
+      const aui = getAui();
+      const failure = new Error("async listener failed");
+      const later = vi.fn();
+      aui.on({ scope: "thread", event: "thread.pinged" }, async () => {
+        throw failure;
+      });
+      aui.on({ scope: "thread", event: "thread.pinged" }, later);
+
+      act(() => {
+        aui.thread.ping("boom");
+      });
+      await flushEvents();
+
+      expect(later).toHaveBeenCalledTimes(1);
+      expect(consoleError).toHaveBeenCalledWith(
+        "NotificationManager: event listener error",
+        failure,
+      );
+    } finally {
+      consoleError.mockRestore();
+    }
+  });
+
   it("on throws for a scope that is not available", () => {
     const { getAui } = setup();
     expect(() => getAui().on("composer.pinged" as never, vi.fn())).toThrow(

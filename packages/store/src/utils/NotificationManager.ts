@@ -6,7 +6,7 @@ import type {
 } from "../types/events";
 import type { Unsubscribe } from "../types/client";
 
-type InternalCallback = (payload: unknown, clientStack: ClientStack) => void;
+type InternalCallback = (payload: unknown, clientStack: ClientStack) => unknown;
 
 export type NotificationManager = {
   on<TEvent extends AssistantEventName>(
@@ -23,6 +23,31 @@ export type NotificationManager = {
   ): void;
   subscribe(callback: () => void): Unsubscribe;
   notifySubscribers(): void;
+};
+
+const reportListenerError = (error: unknown) => {
+  console.error("NotificationManager: event listener error", error);
+};
+
+const invokeListener = (
+  cb: InternalCallback,
+  payload: unknown,
+  clientStack: ClientStack,
+) => {
+  try {
+    const result = cb(payload, clientStack);
+    if (
+      result !== null &&
+      (typeof result === "object" || typeof result === "function") &&
+      typeof (result as PromiseLike<unknown>).then === "function"
+    ) {
+      void Promise.resolve(result as PromiseLike<unknown>).catch(
+        reportListenerError,
+      );
+    }
+  } catch (e) {
+    reportListenerError(e);
+  }
 };
 
 export const createNotificationManager = (): NotificationManager => {
@@ -55,42 +80,19 @@ export const createNotificationManager = (): NotificationManager => {
       if (!listeners.has(event) && wildcardListeners.size === 0) return;
 
       queueMicrotask(() => {
-        const errors = [];
         // Resolved at flush time: a consumer that unsubscribed and resubscribed
         // since the emit lands in a fresh set, and the live-set contract says
         // the in-flight emission still reaches it
         const eventListeners = listeners.get(event);
         if (eventListeners) {
           for (const cb of eventListeners) {
-            try {
-              cb(payload, clientStack);
-            } catch (e) {
-              errors.push(e);
-            }
+            invokeListener(cb, payload, clientStack);
           }
         }
         if (wildcardListeners.size > 0) {
           const wrapped = { event, payload };
           for (const cb of wildcardListeners) {
-            try {
-              cb(wrapped, clientStack);
-            } catch (e) {
-              errors.push(e);
-            }
-          }
-        }
-
-        if (errors.length > 0) {
-          if (errors.length === 1) {
-            throw errors[0];
-          } else {
-            for (const error of errors) {
-              console.error(error);
-            }
-            throw new AggregateError(
-              errors,
-              "Errors occurred during event emission",
-            );
+            invokeListener(cb, wrapped, clientStack);
           }
         }
       });

@@ -165,6 +165,12 @@ export const useAdkMessages = ({
         });
 
         for await (const event of response) {
+          if (
+            abortController.signal.aborted ||
+            abortControllerRef.current !== abortController
+          ) {
+            break;
+          }
           const updatedMessages = accumulator.processEvent(event);
           setMessagesImmediate(updatedMessages);
           setStateDelta({
@@ -222,6 +228,7 @@ export const useAdkMessages = ({
       } catch (error) {
         if (
           !abortController.signal.aborted &&
+          abortControllerRef.current === abortController &&
           !(error instanceof Error && error.name === "AbortError")
         ) {
           throw error;

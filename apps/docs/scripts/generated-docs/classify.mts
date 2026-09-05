@@ -306,6 +306,7 @@ export const GENERATIVE_UI_PACKAGE_EXPORTS = new Map<
   ["JUSTIFIES", { page: "tokens", role: "primary" }],
   ["BUTTON_STYLES", { page: "tokens", role: "primary" }],
   ["ALERT_TONES", { page: "tokens", role: "primary" }],
+  ["ICON_NAMES", { page: "tokens", role: "primary" }],
   ["TextSize", { page: "tokens", role: "supporting-type" }],
   ["ImageSize", { page: "tokens", role: "supporting-type" }],
   ["Weight", { page: "tokens", role: "supporting-type" }],

@@ -45,6 +45,10 @@ const faviconRewrites = faviconVariant
     ]
   : [];
 
+// Chrome applies form-action to the redirects that follow a submit, and the
+// sign-out form lands on the accounts end-session endpoint.
+const authOrigin = process.env.NEXT_PUBLIC_AUTH_URL ?? "";
+
 // The playground AI Builder renders same-origin preview routes inside an iframe.
 // Keep frame ancestors self-only so external sites still cannot embed docs pages.
 const cspHeader = `
@@ -57,7 +61,7 @@ const cspHeader = `
     font-src 'self' https://fonts.gstatic.com data:;
     object-src 'none';
     base-uri 'self';
-    form-action 'self';
+    form-action 'self' ${authOrigin};
     frame-ancestors 'self';
     upgrade-insecure-requests;
 `;

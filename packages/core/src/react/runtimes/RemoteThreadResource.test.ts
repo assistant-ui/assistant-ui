@@ -53,6 +53,9 @@ describe("subscribeToTitleGeneration", () => {
 
     await vi.waitFor(() => {
       expect(itemRuntime.generateTitle).toHaveBeenCalledOnce();
+      expect(itemRuntime.generateTitle).toHaveBeenCalledWith({
+        automatic: true,
+      });
       expect(consoleError).toHaveBeenCalledWith(
         "[assistant-ui] Thread title generation failed",
         error,
@@ -97,6 +100,9 @@ describe("subscribeToTitleGeneration", () => {
 
     await vi.waitFor(() => {
       expect(itemRuntime.generateTitle).toHaveBeenCalledOnce();
+      expect(itemRuntime.generateTitle).toHaveBeenCalledWith({
+        automatic: true,
+      });
     });
   });
 
@@ -136,6 +142,9 @@ describe("subscribeToTitleGeneration", () => {
 
     await vi.waitFor(() => {
       expect(itemRuntime.generateTitle).toHaveBeenCalledOnce();
+      expect(itemRuntime.generateTitle).toHaveBeenCalledWith({
+        automatic: true,
+      });
     });
   });
 });

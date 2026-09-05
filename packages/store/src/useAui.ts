@@ -171,9 +171,9 @@ const useClientFields = ({
         }
 
         const localUnsub = notifications.on(event, (payload, clientStack) => {
+          // The manager observes the returned value to report a rejecting async listener.
           if (scope === "*") {
-            callback(payload);
-            return;
+            return callback(payload);
           }
 
           // Resolved against the subscribing provider's current client: a
@@ -191,7 +191,7 @@ const useClientFields = ({
           ) as unknown as ClientMethods;
           const index = getClientIndex(scopeClient);
           if (scopeClient === clientStack[index]) {
-            callback(payload);
+            return callback(payload);
           }
         });
         if (scope !== "*") {

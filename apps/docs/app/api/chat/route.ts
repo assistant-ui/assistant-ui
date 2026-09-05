@@ -8,6 +8,8 @@ import {
   PUBLIC_ASSISTANT_CROSS_ORIGINS,
   requirePublicAssistantSession,
 } from "@/lib/anonymous-session";
+import { claimConversation, resolveDemoIdentity } from "@/lib/demo-usage";
+import { PUBLIC_ASSISTANT_CONVERSATION_LIMIT_MESSAGE } from "@/lib/public-assistant-errors";
 import { validateGeneralChatInput } from "@/lib/validate-input";
 import { resolveChatModel } from "@/lib/ai/provider";
 import { createSearchDocsTool } from "@/lib/ai/search-docs";
@@ -71,6 +73,8 @@ export async function POST(req: Request) {
       tools,
       config,
       searchDocs: searchDocsRequested,
+      countConversations,
+      id: threadId,
     } = body;
 
     // Basic validation: only accept short system prompts to limit abuse surface
@@ -112,6 +116,32 @@ export async function POST(req: Request) {
       ),
       reasoning: "none",
     });
+
+    // Every docs surface shares this route, so only the one that opts in draws
+    // on the budget, and only after the deterministic rejections, so a request
+    // that was never going to run cannot spend a slot. The transport sends the
+    // thread id, so the day counts conversations rather than turns.
+    if (
+      countConversations === true &&
+      typeof threadId === "string" &&
+      threadId
+    ) {
+      const identity = await resolveDemoIdentity(session.id);
+      const { allowed, usage } = await claimConversation(identity, threadId);
+      if (!allowed) {
+        return withCors(
+          req,
+          new Response(PUBLIC_ASSISTANT_CONVERSATION_LIMIT_MESSAGE, {
+            status: 429,
+            headers: {
+              "Retry-After": String(
+                Math.max(1, Math.ceil((usage.resetAt - Date.now()) / 1_000)),
+              ),
+            },
+          }),
+        );
+      }
+    }
 
     const stream = createUIMessageStream({
       execute: async ({ writer }) => {

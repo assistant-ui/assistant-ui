@@ -40,10 +40,56 @@ describe("rewriteLatexBracketDelimiters", () => {
     );
   });
 
-  it("lifts a multiline display body out of its list item", () => {
+  it("keeps a multiline display body inside its list item", () => {
     expect(rewriteLatexBracketDelimiters("- item \\[\na\nb\n\\]\n- next")).toBe(
-      "- item \n$$\na\nb\n$$\n- next",
+      "- item \n  $$\n  a\n  b\n  $$\n- next",
     );
+  });
+
+  it("keeps a multiline display body inside its blockquote", () => {
+    expect(
+      rewriteLatexBracketDelimiters("> quote \\[\na\nb\n\\]\n> after"),
+    ).toBe("> quote \n> $$\n> a\n> b\n> $$\n> after");
+  });
+
+  it("dedents a body whose lines share an indentation", () => {
+    expect(
+      rewriteLatexBracketDelimiters("- item \\[\n  a\n  b\n\\]\n- next"),
+    ).toBe("- item \n  $$\n  a\n  b\n  $$\n- next");
+  });
+
+  it("keeps relative indentation inside the body", () => {
+    expect(
+      rewriteLatexBracketDelimiters(
+        "- item \\[\n\\begin{aligned}\n  a &= b\n\\end{aligned}\n\\]\n- next",
+      ),
+    ).toBe(
+      "- item \n  $$\n  \\begin{aligned}\n    a &= b\n  \\end{aligned}\n  $$\n- next",
+    );
+  });
+
+  it("keeps the block prefix when inline math precedes the match", () => {
+    expect(
+      rewriteLatexBracketDelimiters("- see \\(y\\) \\[\na\nb\n\\]\n- next"),
+    ).toBe("- see $y$ \n  $$\n  a\n  b\n  $$\n- next");
+  });
+
+  it("keeps a body line that already carries the blockquote marker", () => {
+    expect(rewriteLatexBracketDelimiters("> q \\[\n>a\n>b\n\\]\n> after")).toBe(
+      "> q \n> $$\n>a\n>b\n> $$\n> after",
+    );
+  });
+
+  it("nests a body inside a list item written in a blockquote", () => {
+    expect(
+      rewriteLatexBracketDelimiters(">  - item \\[\na\nb\n\\]\n>  - next"),
+    ).toBe(">  - item \n>    $$\n>    a\n>    b\n>    $$\n>  - next");
+  });
+
+  it("reads the block prefix past a code span on the same line", () => {
+    expect(
+      rewriteLatexBracketDelimiters("- see `x` \\[\na\nb\n\\]\n- next"),
+    ).toBe("- see `x` \n  $$\n  a\n  b\n  $$\n- next");
   });
 
   it("keeps a single-line display body on its line", () => {
@@ -224,6 +270,58 @@ describe("rewriteCustomMathTags", () => {
     expect(
       rewriteCustomMathTags("[/inline]a[/inline] `[/inline]x[/inline]`"),
     ).toBe("$a$ `[/inline]x[/inline]`");
+  });
+
+  it("fences a multiline math tag body", () => {
+    expect(
+      rewriteCustomMathTags(
+        "[/math]\\begin{aligned}\na&=b\n\\end{aligned}[/math]\nDone.",
+      ),
+    ).toBe("$$\n\\begin{aligned}\na&=b\n\\end{aligned}\n$$\nDone.");
+  });
+
+  it("gives the fence markers their own lines mid-paragraph", () => {
+    expect(rewriteCustomMathTags("Thus [/math]a\nb[/math] therefore.")).toBe(
+      "Thus \n$$\na\nb\n$$\n therefore.",
+    );
+  });
+
+  it("keeps a single-line math tag body on its line", () => {
+    expect(rewriteCustomMathTags("See [/math]x=1[/math] ok.")).toBe(
+      "See $$x=1$$ ok.",
+    );
+  });
+
+  it("does not add a blank line before a CRLF suffix", () => {
+    expect(rewriteCustomMathTags("[/math]\na\nb\n[/math]\r\nrest")).toBe(
+      "$$\na\nb\n$$\r\nrest",
+    );
+  });
+
+  it("rewrites a custom tag after an unclosed inline backtick run", () => {
+    expect(rewriteCustomMathTags("a ` b [/math]x[/math]")).toBe("a ` b $$x$$");
+  });
+
+  it("rewrites a custom tag after a mid-line code span", () => {
+    expect(rewriteCustomMathTags("a `code` [/math]x[/math]")).toBe(
+      "a `code` $$x$$",
+    );
+  });
+
+  it("leaves an empty math tag pair as written", () => {
+    expect(rewriteCustomMathTags("[/math][/math]")).toBe("[/math][/math]");
+    expect(rewriteCustomMathTags("[/inline][/inline] rest")).toBe(
+      "[/inline][/inline] rest",
+    );
+  });
+
+  it("leaves a whitespace-only tag pair as written", () => {
+    expect(rewriteCustomMathTags("[/math] \n [/math]\nrest")).toBe(
+      "[/math] \n [/math]\nrest",
+    );
+    expect(rewriteCustomMathTags("[/inline]   [/inline] rest")).toBe(
+      "[/inline]   [/inline] rest",
+    );
   });
 });
 

@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import {
+  PUBLIC_ASSISTANT_CONVERSATION_LIMIT_MESSAGE,
   PUBLIC_ASSISTANT_LIMITS,
   PUBLIC_ASSISTANT_UNAVAILABLE_MESSAGE,
   describePublicAssistantError,
@@ -67,4 +68,17 @@ describe("describePublicAssistantError", () => {
       describePublicAssistantError("context length limit exceeded"),
     ).toBeUndefined();
   });
+});
+
+it("offers sign-in when the day's conversations are spent", () => {
+  const copy = "You have used today's conversations. Sign in to keep going.";
+
+  expect(
+    describePublicAssistantError(PUBLIC_ASSISTANT_CONVERSATION_LIMIT_MESSAGE),
+  ).toBe(copy);
+  expect(
+    describePublicAssistantError(
+      JSON.stringify({ error: PUBLIC_ASSISTANT_CONVERSATION_LIMIT_MESSAGE }),
+    ),
+  ).toBe(copy);
 });

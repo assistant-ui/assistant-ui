@@ -277,18 +277,23 @@ function getNavigation() {
   };
 }
 
-function searchDocs(query: string) {
-  const normalized = query.trim().toLowerCase();
-  if (!normalized) return [];
+async function searchDocs(query: string) {
+  const [{ buildContentIndex }, { searchContent }] = await Promise.all([
+    import("@/lib/search/content-index"),
+    import("@/lib/search/content-search"),
+  ]);
 
-  return allPages()
-    .map(({ page }) => pageSummary(page))
-    .filter((page) =>
-      [page.title, page.url, page.description ?? ""].some((value) =>
-        value.toLowerCase().includes(normalized),
-      ),
-    )
-    .slice(0, SEARCH_DOCS_RESULT_LIMIT);
+  return searchContent(
+    await buildContentIndex(),
+    query,
+    SEARCH_DOCS_RESULT_LIMIT,
+  ).map((page) => ({
+    title: page.title,
+    url: page.url,
+    ...(page.description ? { description: page.description } : {}),
+    ...(page.headings.length > 0 ? { headings: page.headings } : {}),
+    ...(page.excerpt ? { excerpt: page.excerpt } : {}),
+  }));
 }
 
 async function readPage(path: string | undefined, requestUrl: string) {

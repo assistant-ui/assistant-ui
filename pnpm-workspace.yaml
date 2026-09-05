@@ -23,6 +23,7 @@ minimumReleaseAgeExclude:
   - assistant-cloud
   - assistant-stream
   - assistant-ui
+  - aui-auth
   - create-assistant-ui
   - eve
   - heat-graph
