@@ -176,11 +176,14 @@ export function checkSource({ file, source, now, windowDays, staleAfterDays }) {
   const misnamed = [];
   for (const declaration of collectDeclarations(file, source)) {
     const { name, deprecated, line, required } = declaration;
-    const prefixed = EXPERIMENTAL_PREFIX_PATTERN.test(name) && required;
+    // Two separate questions: whether the name claims to be experimental, and
+    // whether this particular site is obliged to say so.
+    const prefixed = EXPERIMENTAL_PREFIX_PATTERN.test(name);
+    const mustAnnotate = prefixed && required;
     const where = `${file}:${line} (${name})`;
 
     if (deprecated === undefined) {
-      if (prefixed) {
+      if (mustAnnotate) {
         errors.push(
           `${where}: experimental API with no @deprecated annotation.`,
         );
@@ -190,7 +193,7 @@ export function checkSource({ file, source, now, windowDays, staleAfterDays }) {
 
     const record = parseDeprecatedTag(deprecated);
     if (record.kind === "empty") {
-      if (prefixed) {
+      if (mustAnnotate) {
         errors.push(`${where}: @deprecated carries no text.`);
       }
       continue;
@@ -203,7 +206,7 @@ export function checkSource({ file, source, now, windowDays, staleAfterDays }) {
     // instead: the two are successive states of one lifecycle, not separate
     // axes, so a removal notice replaces the experimental window.
     if (record.kind !== "experimental") {
-      if (prefixed && LEGACY_EXPERIMENTAL_PROSE.test(record.prose ?? "")) {
+      if (mustAnnotate && LEGACY_EXPERIMENTAL_PROSE.test(record.prose ?? "")) {
         errors.push(
           `${where}: describes an experimental API in free prose; use "Experimental since <date>. ${EXPERIMENTAL_BOILERPLATE}".`,
         );

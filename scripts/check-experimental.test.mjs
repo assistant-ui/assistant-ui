@@ -256,3 +256,11 @@ test("validates an annotation on a plain re-export without requiring one", () =>
   assert.equal(malformed.errors.length, 1);
   assert.match(malformed.errors[0], /Experimental since/);
 });
+
+test("an annotated plain re-export is not reported as misnamed", () => {
+  const result = check(
+    `export {\n  /** @deprecated ${canonical("2026-08-01")} */\n  unstable_useFoo,\n} from "./x";\n`,
+  );
+  assert.deepEqual(result.errors, []);
+  assert.deepEqual(result.misnamed, []);
+});
