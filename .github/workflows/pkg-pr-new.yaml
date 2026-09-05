@@ -11,10 +11,6 @@ on:
       - "turbo.json"
       - ".github/workflows/pkg-pr-new.yaml"
 
-env:
-  TURBO_TOKEN: ${{ secrets.TURBO_TOKEN }}
-  TURBO_TEAM: ${{ secrets.TURBO_TEAM }}
-
 permissions:
   contents: read
 
@@ -55,6 +51,9 @@ jobs:
         run: pnpm install --frozen-lockfile
 
       - name: Build packages
+        env:
+          TURBO_TOKEN: ${{ secrets.TURBO_TOKEN }}
+          TURBO_TEAM: ${{ secrets.TURBO_TEAM }}
         run: pnpm turbo build --filter="./packages/*"
 
       - name: Publish PR previews

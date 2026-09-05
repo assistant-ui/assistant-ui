@@ -14,10 +14,6 @@ on:
       - "packages/tw-shimmer/**"
       - ".github/workflows/perf.yaml"
 
-env:
-  TURBO_TOKEN: ${{ secrets.TURBO_TOKEN }}
-  TURBO_TEAM: ${{ secrets.TURBO_TEAM }}
-
 permissions:
   contents: read
   pull-requests: write
@@ -65,6 +61,9 @@ jobs:
         run: pnpm install --frozen-lockfile
 
       - name: Build measured packages
+        env:
+          TURBO_TOKEN: ${{ secrets.TURBO_TOKEN }}
+          TURBO_TEAM: ${{ secrets.TURBO_TEAM }}
         if: steps.lanes.outputs.bench == 'true'
         run: pnpm turbo run build --filter=@assistant-ui/tap --filter=@assistant-ui/core --filter=@assistant-ui/store --filter=assistant-stream --filter=@assistant-ui/react --filter=@assistant-ui/react-markdown
 
