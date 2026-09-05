@@ -100,6 +100,49 @@ export const AuthorizationUI = makeAssistantDataUI<EveAuthorizationData>({
 Mount `<AuthorizationUI />` inside the `AssistantRuntimeProvider` tree. The
 standard thread intentionally leaves unmatched data parts unrendered.
 
+## Questions
+
+Eve's built-in `ask_question` tool pauses the turn until the user answers. The
+runtime projects it onto an assistant-ui tool approval that carries the
+`prompt`, the `options`, and whether a free-form answer is accepted, and the
+answer goes back through `respondToApproval`. Eve records a question the user
+never answers as `ignored` when the next message arrives, so a reply typed into
+the composer does not answer it.
+
+Without a renderer for `ask_question`, the question is drawn by the default
+`ToolFallback` inside the collapsed tool group, which reads as a step in the
+agent's trace rather than as the agent talking to the user. The Eve template
+ships a renderer as `components/eve-ask-question.tsx` that presents the question
+on its own with the answer controls, and `eve add @assistant-ui/eve-chat`
+installs it. Add it to an existing app from the registry:
+
+```sh
+eve add @assistant-ui/eve-ask-question
+```
+
+or
+
+```sh
+npx shadcn@latest add https://r.assistant-ui.com/eve-ask-question.json
+```
+
+Then register the toolkit it exports on the runtime provider:
+
+```tsx title="app/page.tsx"
+import { eveAskQuestionToolkit } from "@/components/eve-ask-question";
+import { AssistantRuntimeProvider, AuiConfig, Tools } from "@assistant-ui/react";
+
+const config = AuiConfig({ tools: Tools({ toolkit: eveAskQuestionToolkit }) });
+
+<AssistantRuntimeProvider runtime={runtime} config={config}>
+  <Thread />
+</AssistantRuntimeProvider>;
+```
+
+The renderer builds on `ToolFallback.Approval`, so it inherits the option
+buttons, the free-form answer field, and the confirmation step, and it shows
+the recorded answer once the question is resolved.
+
 ## Requirements
 
 - Node.js 24 or higher.

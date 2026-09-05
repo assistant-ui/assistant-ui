@@ -1017,13 +1017,32 @@ export const registry: RegistryItem[] = [
       },
     ],
     dependencies: ["@assistant-ui/eve"],
-    bundledRegistryDependencies: ["https://r.assistant-ui.com/thread.json"],
+    bundledRegistryDependencies: [
+      "https://r.assistant-ui.com/thread.json",
+      "https://r.assistant-ui.com/eve-ask-question.json",
+    ],
     docs: "Eve installs registry files without touching CSS, so add the reasoning and collapsible styles to app/globals.css, and replace the default auth policy in agent/channels/eve.ts before deploying: https://www.assistant-ui.com/docs/runtimes/eve/quickstart",
     meta: {
       eve: {
         requires: ">=0.27.6",
       },
     },
+  },
+  {
+    name: "eve-ask-question",
+    type: "registry:component",
+    title: "Eve Ask Question",
+    description:
+      "Renders Eve's built-in ask_question tool as a standalone question with answer controls, outside the collapsed tool group.",
+    files: [
+      {
+        type: "registry:component",
+        path: "components/eve-ask-question.tsx",
+        sourcePath: "templates/eve/components/eve-ask-question.tsx",
+      },
+    ],
+    dependencies: ["@assistant-ui/react"],
+    registryDependencies: ["https://r.assistant-ui.com/tool-fallback.json"],
   },
   {
     name: "thread",
