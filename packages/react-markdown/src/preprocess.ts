@@ -25,7 +25,7 @@ const FENCE_CLOSE_ROOT = {
   "~": /^ {0,3}(~{3,})[ \t\r]*$/,
 };
 const FENCE_CLOSE_QUOTED = {
-  "`": /^ {0,3}(?:>[ \t]?)+[ \t]*(`{3,})[ \t\r]*$/,
+  "`": /^[ \t]*(?:>[ \t]?)+[ \t]*(`{3,})[ \t\r]*$/,
   "~": /^ {0,3}(?:>[ \t]?)+ {0,3}(~{3,})[ \t\r]*$/,
 };
 // What may precede a fence opener on its line: the blockquote and list markers

@@ -150,6 +150,12 @@ describe("rewriteLatexBracketDelimiters", () => {
     expect(rewriteLatexBracketDelimiters(streaming)).toBe(streaming);
   });
 
+  it("protects a still-streaming fence quoted under a nested list item", () => {
+    const streaming =
+      "- Setup\n  - Note:\n    > ```js\n    > const a = \\(x\\);";
+    expect(rewriteLatexBracketDelimiters(streaming)).toBe(streaming);
+  });
+
   it("protects a still-streaming fence opened on a list item's marker line", () => {
     const streaming = "- ```js\n  const a = \\(x\\);";
     expect(rewriteLatexBracketDelimiters(streaming)).toBe(streaming);
@@ -461,6 +467,22 @@ describe("escapeCurrencyDollars", () => {
     const fenced = "```\n```js\nconst price = $5;\n```\nafter $10";
     expect(escapeCurrencyDollars(fenced)).toBe(
       "```\n```js\nconst price = $5;\n```\nafter \\$10",
+    );
+  });
+
+  it("does not rewrite a quoted fence indented past a nested list item", () => {
+    const fenced =
+      "- Setup\n  - Note:\n    > ```js\n    > const price = $5;\n    >\n    > const tax = $2;\n    > ```\n\nafter $10";
+    expect(escapeCurrencyDollars(fenced)).toBe(
+      "- Setup\n  - Note:\n    > ```js\n    > const price = $5;\n    >\n    > const tax = $2;\n    > ```\n\nafter \\$10",
+    );
+  });
+
+  it("does not rewrite a tab-indented quoted fence", () => {
+    const fenced =
+      "\t> ```js\n\t> const price = $5;\n\t>\n\t> const tax = $2;\n\t> ```\n\nafter $10";
+    expect(escapeCurrencyDollars(fenced)).toBe(
+      "\t> ```js\n\t> const price = $5;\n\t>\n\t> const tax = $2;\n\t> ```\n\nafter \\$10",
     );
   });
 
