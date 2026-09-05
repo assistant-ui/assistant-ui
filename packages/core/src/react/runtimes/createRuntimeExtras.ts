@@ -20,7 +20,7 @@ export type RuntimeExtras<T extends object> = {
   };
 };
 
-/** @deprecated Experimental since 2026-08-06, extended 2027-09-05. Not scheduled for removal; the API may change in any release.*/
+/** @deprecated Experimental since 2026-08-06, extended 2027-09-05. Not scheduled for removal; the API may change in any release. */
 export const unstable_createRuntimeExtrasFromBrand = <T extends object>(
   brand: RuntimeExtrasBrand<T>,
 ): RuntimeExtras<T> => {

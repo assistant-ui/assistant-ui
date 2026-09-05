@@ -70,7 +70,7 @@ export {
  */
 export { useInteractableState } from "./interactables-legacy/useInteractableState";
 export {
-  /** @deprecated Experimental since 2026-06-23, extended 2027-09-05. Not scheduled for removal; the API may change in any release.*/
+  /** @deprecated Experimental since 2026-06-23, extended 2027-09-05. Not scheduled for removal; the API may change in any release. */
   unstable_useInteractable,
   /**
    * @deprecated Experimental since 2026-06-23, extended 2027-09-05. Not scheduled for removal; the API may change in any release.
@@ -86,15 +86,15 @@ export {
   type Unstable_InteractableVersionInfo,
 } from "./model-context/useInteractable";
 export {
-  /** @deprecated Experimental since 2026-06-23, extended 2027-09-05. Not scheduled for removal; the API may change in any release.*/
+  /** @deprecated Experimental since 2026-06-23, extended 2027-09-05. Not scheduled for removal; the API may change in any release. */
   unstable_useInteractableState,
 } from "./model-context/useInteractableState";
 export {
-  /** @deprecated Experimental since 2026-06-23, extended 2027-09-05. Not scheduled for removal; the API may change in any release.*/
+  /** @deprecated Experimental since 2026-06-23, extended 2027-09-05. Not scheduled for removal; the API may change in any release. */
   unstable_useInteractableVersions,
 } from "./model-context/useInteractableVersions";
 export {
-  /** @deprecated Experimental since 2026-06-23, extended 2027-09-05. Not scheduled for removal; the API may change in any release.*/
+  /** @deprecated Experimental since 2026-06-23, extended 2027-09-05. Not scheduled for removal; the API may change in any release. */
   unstable_interactableTool,
   /**
    * @deprecated Experimental since 2026-06-23, extended 2027-09-05. Not scheduled for removal; the API may change in any release.
@@ -120,7 +120,7 @@ export { DataRenderers } from "./client/DataRenderers";
  */
 export { Interactables } from "./interactables-legacy/Interactables";
 export {
-  /** @deprecated Experimental since 2026-06-23, extended 2027-09-05. Not scheduled for removal; the API may change in any release.*/
+  /** @deprecated Experimental since 2026-06-23, extended 2027-09-05. Not scheduled for removal; the API may change in any release. */
   unstable_Interactables,
 } from "./client/Interactables";
 
