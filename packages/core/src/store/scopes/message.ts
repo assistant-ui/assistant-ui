@@ -12,7 +12,7 @@ export type MessageState = ThreadMessage & {
   readonly branchNumber: number;
   readonly branchCount: number;
   /**
-   * @deprecated Experimental since 2026-01-01, extended 2027-06-05. Not scheduled for removal; the API may change in any release.
+   * @deprecated Experimental since 2024-09-01, extended 2026-12-05. Not scheduled for removal; the API may change in any release.
    *
    * To enable text-to-speech, provide a `SpeechSynthesisAdapter` to the runtime.
    *

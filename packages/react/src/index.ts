@@ -134,9 +134,6 @@ export type {
 export type { ThreadMessageLike } from "@assistant-ui/core";
 export { fromThreadMessageLike, generateId } from "@assistant-ui/core";
 export {
-  /**
-   * @deprecated Experimental since 2025-01-24, extended 2027-03-05. Not scheduled for removal; the API may change in any release.
-   */
   getExternalStoreMessages,
   bindExternalStoreMessage,
   pickExternalStoreSharedOptions,

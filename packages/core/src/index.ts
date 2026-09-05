@@ -343,9 +343,6 @@ export { generateId } from "./utils/id";
 
 // External Store Message Utilities
 export {
-  /**
-   * @deprecated Experimental since 2025-01-24, extended 2027-03-05. Not scheduled for removal; the API may change in any release.
-   */
   getExternalStoreMessages,
   bindExternalStoreMessage,
 } from "./runtime/utils/external-store-message";

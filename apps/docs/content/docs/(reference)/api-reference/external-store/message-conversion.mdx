@@ -14,6 +14,12 @@ import { useExternalMessageConverter } from "@/generated/typeDocs";
 
 ## API Reference
 
+### getExternalStoreMessages
+
+```ts
+const getExternalStoreMessages: <T>(input: { messages: readonly ThreadMessage[]; } | ThreadMessage | ThreadMessage["content"][number]) => T[];
+```
+
 ### useExternalMessageConverter
 
 <ParametersTable {...useExternalMessageConverter} />
@@ -30,16 +36,6 @@ Use `getExternalStoreMessages` to retrieve the bound messages later.
 
 ```ts
 const bindExternalStoreMessage: <T>(target: object, message: T | T[]) => void;
-```
-
-### getExternalStoreMessages
-
-<Callout type="tip">
-<strong>Experimental.</strong> Shipped 2025-01-24. Not covered by semver; the API may change in any release.
-</Callout>
-
-```ts
-const getExternalStoreMessages: <T>(input: { messages: readonly ThreadMessage[]; } | ThreadMessage | ThreadMessage["content"][number]) => T[];
 ```
 
 ### unstable_convertExternalMessages
