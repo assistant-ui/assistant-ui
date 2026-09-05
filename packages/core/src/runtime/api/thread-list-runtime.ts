@@ -68,7 +68,7 @@ export type ThreadListRuntime = {
    * event that fires while its thread is not selected stays observable. Thread
    * lists that mount only the main thread never emit; their main thread's
    * runtime is observed directly.
-   * @deprecated Experimental since 2026-09-01. Not scheduled for removal; the API may change in any release.
+   * @deprecated Experimental since 2026-09-01, extended 2027-09-05. Not scheduled for removal; the API may change in any release.
    */
   unstable_subscribeThreadEvents(
     callback: (event: ThreadListRuntimeEvent) => void,
@@ -215,7 +215,7 @@ export class ThreadListRuntimeImpl implements ThreadListRuntime {
   }
 
   /**
-   * @deprecated Experimental since 2026-09-01. Not scheduled for removal; the API may change in any release.
+   * @deprecated Experimental since 2026-09-01, extended 2027-09-05. Not scheduled for removal; the API may change in any release.
    */
   public unstable_subscribeThreadEvents(
     callback: (event: ThreadListRuntimeEvent) => void,

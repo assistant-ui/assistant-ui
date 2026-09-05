@@ -43,5 +43,5 @@ export { useTriggerPopoverTriggers as unstable_useTriggerPopoverTriggers } from 
 export { useTriggerPopoverTriggersOptional as unstable_useTriggerPopoverTriggersOptional } from "./composer/trigger";
 /** @deprecated Experimental since 2026-04-15, extended 2027-06-05. Not scheduled for removal; the API may change in any release. */
 export type { RegisteredTrigger as Unstable_RegisteredTrigger } from "./composer/trigger";
-/** @deprecated Experimental since 2026-08-25. Not scheduled for removal; the API may change in any release. */
+/** @deprecated Experimental since 2026-08-25, extended 2027-09-05. Not scheduled for removal; the API may change in any release. */
 export type { TriggerMatcher as Unstable_TriggerMatcher } from "./composer/trigger";

@@ -232,3 +232,17 @@ test("a plain re-export defers to the declaration it points at", () => {
   const result = check('export { unstable_useFoo } from "./x";\n');
   assert.deepEqual(result.errors, []);
 });
+
+test("reads an annotation placed on the specifier itself", () => {
+  const result = check(
+    `export {\n  /** @deprecated ${canonical("2026-08-01")} */\n  convertMessages as unstable_convertMessages,\n} from "./x";\n`,
+  );
+  assert.deepEqual(result.errors, []);
+});
+
+test("accepts a ship date one day ahead of UTC", () => {
+  const result = check(
+    `/** @deprecated ${canonical("2026-09-06")} */\nexport const unstable_a = 1;\n`,
+  );
+  assert.deepEqual(result.errors, []);
+});

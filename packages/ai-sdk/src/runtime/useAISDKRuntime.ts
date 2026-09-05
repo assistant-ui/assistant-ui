@@ -90,7 +90,7 @@ export type AISDKRuntimeAdapter<UI_MESSAGE extends UIMessage = UIMessage> =
       | undefined;
     toCreateMessage?: CustomToCreateMessageFunction;
     /**
-     * @deprecated Experimental since 2026-08-28. Not scheduled for removal; the API may change in any release.
+     * @deprecated Experimental since 2026-08-28, extended 2027-09-05. Not scheduled for removal; the API may change in any release.
      */
     unstable_messageRepositoryInstance?: MessageRepository | undefined;
     /**
@@ -136,7 +136,7 @@ export type AISDKRuntimeAdapter<UI_MESSAGE extends UIMessage = UIMessage> =
      * Called after an explicit `switchToBranch` (for example a BranchPicker
      * click). Complements `setMessages` and does not enable switching by itself.
      *
-     * @deprecated Experimental since 2026-06-23. Not scheduled for removal; the API may change in any release.
+     * @deprecated Experimental since 2026-06-23, extended 2027-09-05. Not scheduled for removal; the API may change in any release.
      */
     unstable_onBranchChange?: ExternalStoreAdapter["unstable_onBranchChange"];
   };

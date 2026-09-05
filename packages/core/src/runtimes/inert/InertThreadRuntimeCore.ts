@@ -128,7 +128,7 @@ export abstract class InertThreadRuntimeCore
   }
 
   /**
-   * @deprecated Experimental since 2026-08-14. Not scheduled for removal; the API may change in any release.
+   * @deprecated Experimental since 2026-08-14, extended 2027-09-05. Not scheduled for removal; the API may change in any release.
    */
   unstable_notifySessionReset(): void {
     throw this.error;

@@ -15,7 +15,7 @@ import { getThreadMessageText } from "@assistant-ui/core/internal";
 import { useTriggerPopoverRootContextOptional } from "../primitives/composer/trigger/TriggerPopoverRootContext";
 
 /**
- * @deprecated Experimental since 2026-06-11. Not scheduled for removal; the API may change in any release.
+ * @deprecated Experimental since 2026-06-11, extended 2027-09-05. Not scheduled for removal; the API may change in any release.
  */
 export type Unstable_ComposerInputHistory = {
   /** Keydown handler to spread onto `ComposerPrimitive.Input`. */
@@ -48,7 +48,7 @@ const isOnLastLine = (value: string, caret: number): boolean =>
   !value.slice(caret).includes("\n");
 
 /**
- * @deprecated Experimental since 2026-06-11. Not scheduled for removal; the API may change in any release.
+ * @deprecated Experimental since 2026-06-11, extended 2027-09-05. Not scheduled for removal; the API may change in any release.
  *
  * Terminal-style input history for the thread composer: ArrowUp on an
  * empty draft recalls previously sent user messages (newest first),

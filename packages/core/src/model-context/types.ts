@@ -28,7 +28,7 @@ export type ModelContext = {
    * Persisted message metadata pulled at send time and merged into the outgoing
    * user message's `metadata.custom` (not forwarded to the model directly).
    * Ignored by the transport, which only reads system/tools/callSettings/config.
-   * @deprecated Experimental since 2026-06-23. Not scheduled for removal; the API may change in any release.
+   * @deprecated Experimental since 2026-06-23, extended 2027-09-05. Not scheduled for removal; the API may change in any release.
    */
   unstable_composerMetadata?: Record<string, unknown> | undefined;
 };

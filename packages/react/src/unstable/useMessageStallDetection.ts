@@ -4,7 +4,7 @@ import { useEffect, useRef, useState } from "react";
 import { useAuiState } from "@assistant-ui/store";
 
 /**
- * @deprecated Experimental since 2026-06-13. Not scheduled for removal; the API may change in any release.
+ * @deprecated Experimental since 2026-06-13, extended 2027-09-05. Not scheduled for removal; the API may change in any release.
  */
 export type Unstable_MessageStallDetectionOptions = {
   /**
@@ -16,7 +16,7 @@ export type Unstable_MessageStallDetectionOptions = {
 };
 
 /**
- * @deprecated Experimental since 2026-06-13. Not scheduled for removal; the API may change in any release.
+ * @deprecated Experimental since 2026-06-13, extended 2027-09-05. Not scheduled for removal; the API may change in any release.
  */
 export type Unstable_MessageStallDetection = {
   /** True while the message is running and its content has not changed for at least `thresholdMs`. */
@@ -26,7 +26,7 @@ export type Unstable_MessageStallDetection = {
 };
 
 /**
- * @deprecated Experimental since 2026-06-13. Not scheduled for removal; the API may change in any release.
+ * @deprecated Experimental since 2026-06-13, extended 2027-09-05. Not scheduled for removal; the API may change in any release.
  *
  * Detects mid-run output stalls on the current message: while the message is
  * running, watches a fingerprint of its content (part count plus text,

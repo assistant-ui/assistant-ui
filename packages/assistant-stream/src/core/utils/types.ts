@@ -33,7 +33,7 @@ export type ReasoningPart = {
   text: string;
   status: TextStatus;
   /**
-   * @deprecated Experimental since 2026-08-07. Not scheduled for removal; the API may change in any release.
+   * @deprecated Experimental since 2026-08-07, extended 2027-09-05. Not scheduled for removal; the API may change in any release.
    */
   unstable_summary?: string;
   parentId?: string;

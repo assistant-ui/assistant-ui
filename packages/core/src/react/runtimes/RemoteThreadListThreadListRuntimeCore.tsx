@@ -586,7 +586,7 @@ export class RemoteThreadListThreadListRuntimeCore
   }
 
   /**
-   * @deprecated Experimental since 2026-08-03. Not scheduled for removal; the API may change in any release.
+   * @deprecated Experimental since 2026-08-03, extended 2027-09-05. Not scheduled for removal; the API may change in any release.
    */
   public unstable_isThreadRunning(threadIdOrRemoteId: string) {
     const data = this.getItemById(threadIdOrRemoteId);
@@ -595,7 +595,7 @@ export class RemoteThreadListThreadListRuntimeCore
   }
 
   /**
-   * @deprecated Experimental since 2026-09-01. Not scheduled for removal; the API may change in any release.
+   * @deprecated Experimental since 2026-09-01, extended 2027-09-05. Not scheduled for removal; the API may change in any release.
    */
   public unstable_subscribeThreadEvents(
     callback: (event: ThreadListRuntimeEvent) => void,

@@ -299,7 +299,7 @@ export type ThreadRuntime = {
    * Clears session-scoped tool-invocation state without run-cancel side
    * effects such as composer draft restoration. Internal API for
    * external-store adapter authors.
-   * @deprecated Experimental since 2026-08-14. Not scheduled for removal; the API may change in any release.
+   * @deprecated Experimental since 2026-08-14, extended 2027-09-05. Not scheduled for removal; the API may change in any release.
    */
   unstable_notifySessionReset(): void;
   getModelContext(): ModelContext;
@@ -481,7 +481,7 @@ export class ThreadRuntimeImpl implements ThreadRuntime {
   }
 
   /**
-   * @deprecated Experimental since 2026-08-14. Not scheduled for removal; the API may change in any release.
+   * @deprecated Experimental since 2026-08-14, extended 2027-09-05. Not scheduled for removal; the API may change in any release.
    */
   public unstable_notifySessionReset() {
     this._threadBinding.getState().unstable_notifySessionReset();

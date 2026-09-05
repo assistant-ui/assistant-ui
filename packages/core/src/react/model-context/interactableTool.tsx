@@ -10,7 +10,7 @@ import {
 import { unstable_useInteractableState as useInteractableState } from "./useInteractableState";
 
 /**
- * @deprecated Experimental since 2026-06-23. Not scheduled for removal; the API may change in any release.
+ * @deprecated Experimental since 2026-06-23, extended 2027-09-05. Not scheduled for removal; the API may change in any release.
  */
 export type Unstable_InteractableToolRenderProps<TState> = {
   /**
@@ -31,7 +31,7 @@ export type Unstable_InteractableToolRenderProps<TState> = {
 };
 
 /**
- * @deprecated Experimental since 2026-06-23. Not scheduled for removal; the API may change in any release.
+ * @deprecated Experimental since 2026-06-23, extended 2027-09-05. Not scheduled for removal; the API may change in any release.
  */
 export type Unstable_InteractableToolConfig<
   TSchema extends Unstable_InteractableStateSchema,
@@ -67,7 +67,7 @@ const UPDATE_TOOL_PREFIX = "update_";
  * message's `version`; whether older messages render frozen history or stay
  * live-editable is the render function's choice.
  *
- * @deprecated Experimental since 2026-06-23. Not scheduled for removal; the API may change in any release.
+ * @deprecated Experimental since 2026-06-23, extended 2027-09-05. Not scheduled for removal; the API may change in any release.
  */
 export const unstable_interactableTool = <
   TSchema extends Unstable_InteractableStateSchema,

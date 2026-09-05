@@ -484,7 +484,7 @@ export class LocalThreadRuntimeCore
   }
 
   /**
-   * @deprecated Experimental since 2026-08-14. Not scheduled for removal; the API may change in any release.
+   * @deprecated Experimental since 2026-08-14, extended 2027-09-05. Not scheduled for removal; the API may change in any release.
    */
   public unstable_notifySessionReset(): void {
     throw new Error("Runtime does not support resetting sessions.");

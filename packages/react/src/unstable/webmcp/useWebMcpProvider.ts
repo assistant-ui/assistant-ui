@@ -13,14 +13,14 @@ import {
 } from "../useModelContextSnapshot";
 
 /**
- * @deprecated Experimental since 2026-08-29. Not scheduled for removal; the API may change in any release.
+ * @deprecated Experimental since 2026-08-29, extended 2027-09-05. Not scheduled for removal; the API may change in any release.
  */
 export type Unstable_WebMcpProviderOptions = {
   filter?: (name: string, tool: Tool<any, any>) => boolean;
 };
 
 /**
- * @deprecated Experimental since 2026-08-29. Not scheduled for removal; the API may change in any release.
+ * @deprecated Experimental since 2026-08-29, extended 2027-09-05. Not scheduled for removal; the API may change in any release.
  */
 export type Unstable_WebMcpProviderResult = {
   status: "unsupported" | "active";
@@ -127,7 +127,7 @@ const useWebMcpRegistry = ({
  * Returns `status: "unsupported"` when the page exposes no
  * `document.modelContext` (or `navigator.modelContext`), and the sorted names
  * of the tools currently registered with the host.
- * @deprecated Experimental since 2026-08-29. Not scheduled for removal; the API may change in any release.
+ * @deprecated Experimental since 2026-08-29, extended 2027-09-05. Not scheduled for removal; the API may change in any release.
  */
 export const unstable_useWebMcpProvider = (
   options: Unstable_WebMcpProviderOptions = {},

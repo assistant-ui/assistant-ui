@@ -94,7 +94,7 @@ export type RemoteThreadListAdapter = {
    * thread id (`withKey(id, thread(...))`). History loaders such as
    * `useExternalHistory` run once per mount; an unkeyed factory keeps one
    * instance across switches and the next thread's messages never load.
-   * @deprecated Experimental since 2026-08-18. Not scheduled for removal; the API may change in any release.
+   * @deprecated Experimental since 2026-08-18, extended 2027-09-05. Not scheduled for removal; the API may change in any release.
    */
   unstable_useAdapters?: (() => RuntimeAdapters | null | undefined) | undefined;
 };

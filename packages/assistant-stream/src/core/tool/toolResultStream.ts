@@ -37,9 +37,6 @@ type InternalToolExecutionOptions = {
     args: ReadonlyJSONObject;
     executionId: symbol;
   }) => ReturnType<typeof getToolResponse>;
-  /**
-   * @deprecated Experimental since 2025-02-26, extended 2027-03-05. Not scheduled for removal; the API may change in any release.
-   */
   streamCall: (toolCall: {
     reader: ToolCallReader<any, ReadonlyJSONValue>;
     toolCallId: string;

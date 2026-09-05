@@ -3,7 +3,7 @@ import { isJSONValue, isRecord } from "../utils/json/is-json";
 
 /**
  * Unstable / Experimental — the interactables API is still evolving and may change in any release.
- * @deprecated Experimental since 2026-06-23. Not scheduled for removal; the API may change in any release.
+ * @deprecated Experimental since 2026-06-23, extended 2027-09-05. Not scheduled for removal; the API may change in any release.
  */
 export type Unstable_InteractableSnapshotEntry = {
   id: string;
@@ -35,7 +35,7 @@ type SnapshotCarrierMessage = {
  * state to the model (see `unstable_injectInteractableContext` in
  * `@assistant-ui/ai-sdk` for the AI SDK implementation).
  *
- * @deprecated Experimental since 2026-06-23. Not scheduled for removal; the API may change in any release.
+ * @deprecated Experimental since 2026-06-23, extended 2027-09-05. Not scheduled for removal; the API may change in any release.
  */
 export function unstable_getInteractableSnapshots(message: {
   metadata?: unknown;
@@ -53,7 +53,7 @@ export function unstable_getInteractableSnapshots(message: {
 /**
  * Canonical model-facing wording for one snapshot entry.
  *
- * @deprecated Experimental since 2026-06-23. Not scheduled for removal; the API may change in any release.
+ * @deprecated Experimental since 2026-06-23, extended 2027-09-05. Not scheduled for removal; the API may change in any release.
  */
 export function unstable_formatInteractableSnapshot(
   entry: Unstable_InteractableSnapshotEntry,
@@ -229,7 +229,7 @@ const createAddedItemIdFactory = (result: unknown) => {
 
 /**
  * Unstable / Experimental — the interactables API is still evolving and may change in any release.
- * @deprecated Experimental since 2026-06-23. Not scheduled for removal; the API may change in any release.
+ * @deprecated Experimental since 2026-06-23, extended 2027-09-05. Not scheduled for removal; the API may change in any release.
  */
 export type Unstable_InteractableVersion = {
   /** The full state as of this version. */
@@ -260,7 +260,7 @@ const versionsCache = new WeakMap<
  * The last entry is the state the model knows. Partial snapshots and update
  * calls with no baseline to merge into are skipped.
  *
- * @deprecated Experimental since 2026-06-23. Not scheduled for removal; the API may change in any release.
+ * @deprecated Experimental since 2026-06-23, extended 2027-09-05. Not scheduled for removal; the API may change in any release.
  */
 export function unstable_getInteractableVersions(
   messages: readonly SnapshotCarrierMessage[],

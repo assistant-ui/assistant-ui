@@ -5,7 +5,7 @@ import type { ToolCallMessagePartComponent } from "../MessagePartComponentTypes"
 /**
  * Schema type matching Tool["parameters"] from assistant-stream.
  * Accepts both StandardSchemaV1 and JSONSchema7.
- * @deprecated Experimental since 2026-06-23. Not scheduled for removal; the API may change in any release.
+ * @deprecated Experimental since 2026-06-23, extended 2027-09-05. Not scheduled for removal; the API may change in any release.
  */
 export type Unstable_InteractableStateSchema = NonNullable<
   Extract<Tool, { parameters: unknown }>["parameters"]
@@ -14,7 +14,7 @@ export type Unstable_InteractableStateSchema = NonNullable<
 type InteractableScope = "app" | "thread";
 
 /**
- * @deprecated Experimental since 2026-06-23. Not scheduled for removal; the API may change in any release.
+ * @deprecated Experimental since 2026-06-23, extended 2027-09-05. Not scheduled for removal; the API may change in any release.
  */
 export type Unstable_InteractableDefinition = {
   id: string;
@@ -27,7 +27,7 @@ export type Unstable_InteractableDefinition = {
 };
 
 /**
- * @deprecated Experimental since 2026-06-23. Not scheduled for removal; the API may change in any release.
+ * @deprecated Experimental since 2026-06-23, extended 2027-09-05. Not scheduled for removal; the API may change in any release.
  */
 export type Unstable_InteractableRegistration = {
   id: string;
@@ -44,7 +44,7 @@ export type Unstable_InteractableRegistration = {
 };
 
 /**
- * @deprecated Experimental since 2026-06-23. Not scheduled for removal; the API may change in any release.
+ * @deprecated Experimental since 2026-06-23, extended 2027-09-05. Not scheduled for removal; the API may change in any release.
  */
 export type Unstable_InteractablePersistenceStatus = {
   isPending: boolean;
@@ -52,7 +52,7 @@ export type Unstable_InteractablePersistenceStatus = {
 };
 
 /**
- * @deprecated Experimental since 2026-06-23. Not scheduled for removal; the API may change in any release.
+ * @deprecated Experimental since 2026-06-23, extended 2027-09-05. Not scheduled for removal; the API may change in any release.
  */
 export type Unstable_InteractablesState = {
   /** Keyed by instance id */
@@ -62,7 +62,7 @@ export type Unstable_InteractablesState = {
 };
 
 /**
- * @deprecated Experimental since 2026-06-23. Not scheduled for removal; the API may change in any release.
+ * @deprecated Experimental since 2026-06-23, extended 2027-09-05. Not scheduled for removal; the API may change in any release.
  */
 export type Unstable_InteractablePersistedState = Record<
   string,
@@ -70,7 +70,7 @@ export type Unstable_InteractablePersistedState = Record<
 >;
 
 /**
- * @deprecated Experimental since 2026-06-23. Not scheduled for removal; the API may change in any release.
+ * @deprecated Experimental since 2026-06-23, extended 2027-09-05. Not scheduled for removal; the API may change in any release.
  */
 export type Unstable_InteractablePersistenceAdapter = {
   save(state: Unstable_InteractablePersistedState): void | Promise<void>;
@@ -87,14 +87,14 @@ export type Unstable_InteractablePersistenceAdapter = {
 };
 
 /**
- * @deprecated Experimental since 2026-06-23. Not scheduled for removal; the API may change in any release.
+ * @deprecated Experimental since 2026-06-23, extended 2027-09-05. Not scheduled for removal; the API may change in any release.
  */
 export type Unstable_InteractablesConfig = {
   persistence?: Unstable_InteractablePersistenceAdapter | undefined;
 };
 
 /**
- * @deprecated Experimental since 2026-06-23. Not scheduled for removal; the API may change in any release.
+ * @deprecated Experimental since 2026-06-23, extended 2027-09-05. Not scheduled for removal; the API may change in any release.
  */
 export type Unstable_InteractablesMethods = {
   getState(): Unstable_InteractablesState;
@@ -109,7 +109,7 @@ export type Unstable_InteractablesMethods = {
 };
 
 /**
- * @deprecated Experimental since 2026-06-23. Not scheduled for removal; the API may change in any release.
+ * @deprecated Experimental since 2026-06-23, extended 2027-09-05. Not scheduled for removal; the API may change in any release.
  */
 export type Unstable_InteractablesClientSchema = {
   methods: Unstable_InteractablesMethods;

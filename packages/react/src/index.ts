@@ -241,83 +241,83 @@ export {
   type AssistantInteractableProps,
   useInteractableState,
   /**
-   * @deprecated Experimental since 2026-06-23. Not scheduled for removal; the API may change in any release.
+   * @deprecated Experimental since 2026-06-23, extended 2027-09-05. Not scheduled for removal; the API may change in any release.
    */
   unstable_Interactables,
   /**
-   * @deprecated Experimental since 2026-06-23. Not scheduled for removal; the API may change in any release.
+   * @deprecated Experimental since 2026-06-23, extended 2027-09-05. Not scheduled for removal; the API may change in any release.
    */
   unstable_useInteractable,
   /**
-   * @deprecated Experimental since 2026-06-23. Not scheduled for removal; the API may change in any release.
+   * @deprecated Experimental since 2026-06-23, extended 2027-09-05. Not scheduled for removal; the API may change in any release.
    */
   type Unstable_InteractableConfig,
   /**
-   * @deprecated Experimental since 2026-06-23. Not scheduled for removal; the API may change in any release.
+   * @deprecated Experimental since 2026-06-23, extended 2027-09-05. Not scheduled for removal; the API may change in any release.
    */
   type Unstable_InferInteractableState,
   /**
-   * @deprecated Experimental since 2026-06-23. Not scheduled for removal; the API may change in any release.
+   * @deprecated Experimental since 2026-06-23, extended 2027-09-05. Not scheduled for removal; the API may change in any release.
    */
   type Unstable_InteractableVersionInfo,
   /**
-   * @deprecated Experimental since 2026-06-23. Not scheduled for removal; the API may change in any release.
+   * @deprecated Experimental since 2026-06-23, extended 2027-09-05. Not scheduled for removal; the API may change in any release.
    */
   unstable_useInteractableState,
   /**
-   * @deprecated Experimental since 2026-06-23. Not scheduled for removal; the API may change in any release.
+   * @deprecated Experimental since 2026-06-23, extended 2027-09-05. Not scheduled for removal; the API may change in any release.
    */
   unstable_useInteractableVersions,
   /**
-   * @deprecated Experimental since 2026-06-23. Not scheduled for removal; the API may change in any release.
+   * @deprecated Experimental since 2026-06-23, extended 2027-09-05. Not scheduled for removal; the API may change in any release.
    */
   unstable_interactableTool,
   /**
-   * @deprecated Experimental since 2026-06-23. Not scheduled for removal; the API may change in any release.
+   * @deprecated Experimental since 2026-06-23, extended 2027-09-05. Not scheduled for removal; the API may change in any release.
    */
   type Unstable_InteractableToolConfig,
   /**
-   * @deprecated Experimental since 2026-06-23. Not scheduled for removal; the API may change in any release.
+   * @deprecated Experimental since 2026-06-23, extended 2027-09-05. Not scheduled for removal; the API may change in any release.
    */
   type Unstable_InteractableToolRenderProps,
   /**
-   * @deprecated Experimental since 2026-06-23. Not scheduled for removal; the API may change in any release.
+   * @deprecated Experimental since 2026-06-23, extended 2027-09-05. Not scheduled for removal; the API may change in any release.
    */
   type Unstable_InteractableStateSchema,
   /**
-   * @deprecated Experimental since 2026-06-23. Not scheduled for removal; the API may change in any release.
+   * @deprecated Experimental since 2026-06-23, extended 2027-09-05. Not scheduled for removal; the API may change in any release.
    */
   type Unstable_InteractablesState,
   /**
-   * @deprecated Experimental since 2026-06-23. Not scheduled for removal; the API may change in any release.
+   * @deprecated Experimental since 2026-06-23, extended 2027-09-05. Not scheduled for removal; the API may change in any release.
    */
   type Unstable_InteractableDefinition,
   /**
-   * @deprecated Experimental since 2026-06-23. Not scheduled for removal; the API may change in any release.
+   * @deprecated Experimental since 2026-06-23, extended 2027-09-05. Not scheduled for removal; the API may change in any release.
    */
   type Unstable_InteractableRegistration,
   /**
-   * @deprecated Experimental since 2026-06-23. Not scheduled for removal; the API may change in any release.
+   * @deprecated Experimental since 2026-06-23, extended 2027-09-05. Not scheduled for removal; the API may change in any release.
    */
   type Unstable_InteractablesMethods,
   /**
-   * @deprecated Experimental since 2026-06-23. Not scheduled for removal; the API may change in any release.
+   * @deprecated Experimental since 2026-06-23, extended 2027-09-05. Not scheduled for removal; the API may change in any release.
    */
   type Unstable_InteractablePersistedState,
   /**
-   * @deprecated Experimental since 2026-06-23. Not scheduled for removal; the API may change in any release.
+   * @deprecated Experimental since 2026-06-23, extended 2027-09-05. Not scheduled for removal; the API may change in any release.
    */
   type Unstable_InteractablePersistenceAdapter,
   /**
-   * @deprecated Experimental since 2026-06-23. Not scheduled for removal; the API may change in any release.
+   * @deprecated Experimental since 2026-06-23, extended 2027-09-05. Not scheduled for removal; the API may change in any release.
    */
   type Unstable_InteractablePersistenceStatus,
   /**
-   * @deprecated Experimental since 2026-06-23. Not scheduled for removal; the API may change in any release.
+   * @deprecated Experimental since 2026-06-23, extended 2027-09-05. Not scheduled for removal; the API may change in any release.
    */
   type Unstable_InteractablesClientSchema,
   /**
-   * @deprecated Experimental since 2026-06-23. Not scheduled for removal; the API may change in any release.
+   * @deprecated Experimental since 2026-06-23, extended 2027-09-05. Not scheduled for removal; the API may change in any release.
    */
   type Unstable_InteractablesConfig,
   useToolArgsStatus,
@@ -335,23 +335,23 @@ export { mergeModelContexts } from "@assistant-ui/core";
 
 export {
   /**
-   * @deprecated Experimental since 2026-06-23. Not scheduled for removal; the API may change in any release.
+   * @deprecated Experimental since 2026-06-23, extended 2027-09-05. Not scheduled for removal; the API may change in any release.
    */
   unstable_getInteractableSnapshots,
   /**
-   * @deprecated Experimental since 2026-06-23. Not scheduled for removal; the API may change in any release.
+   * @deprecated Experimental since 2026-06-23, extended 2027-09-05. Not scheduled for removal; the API may change in any release.
    */
   unstable_formatInteractableSnapshot,
   /**
-   * @deprecated Experimental since 2026-06-23. Not scheduled for removal; the API may change in any release.
+   * @deprecated Experimental since 2026-06-23, extended 2027-09-05. Not scheduled for removal; the API may change in any release.
    */
   unstable_getInteractableVersions,
   /**
-   * @deprecated Experimental since 2026-06-23. Not scheduled for removal; the API may change in any release.
+   * @deprecated Experimental since 2026-06-23, extended 2027-09-05. Not scheduled for removal; the API may change in any release.
    */
   type Unstable_InteractableSnapshotEntry,
   /**
-   * @deprecated Experimental since 2026-06-23. Not scheduled for removal; the API may change in any release.
+   * @deprecated Experimental since 2026-06-23, extended 2027-09-05. Not scheduled for removal; the API may change in any release.
    */
   type Unstable_InteractableVersion,
 } from "@assistant-ui/core";
@@ -422,15 +422,15 @@ export { useMessageTiming } from "./hooks/useMessageTiming";
 export { useToolCallElapsed } from "./hooks/useToolCallElapsed";
 export {
   /**
-   * @deprecated Experimental since 2026-06-13. Not scheduled for removal; the API may change in any release.
+   * @deprecated Experimental since 2026-06-13, extended 2027-09-05. Not scheduled for removal; the API may change in any release.
    */
   unstable_useMessageStallDetection,
   /**
-   * @deprecated Experimental since 2026-06-13. Not scheduled for removal; the API may change in any release.
+   * @deprecated Experimental since 2026-06-13, extended 2027-09-05. Not scheduled for removal; the API may change in any release.
    */
   type Unstable_MessageStallDetection,
   /**
-   * @deprecated Experimental since 2026-06-13. Not scheduled for removal; the API may change in any release.
+   * @deprecated Experimental since 2026-06-13, extended 2027-09-05. Not scheduled for removal; the API may change in any release.
    */
   type Unstable_MessageStallDetectionOptions,
 } from "./unstable/useMessageStallDetection";
@@ -596,11 +596,11 @@ export {
 // Unstable - live (async) completion adapter helper
 export {
   /**
-   * @deprecated Experimental since 2026-06-15. Not scheduled for removal; the API may change in any release.
+   * @deprecated Experimental since 2026-06-15, extended 2027-09-05. Not scheduled for removal; the API may change in any release.
    */
   unstable_useLiveCompletionAdapter,
   /**
-   * @deprecated Experimental since 2026-06-15. Not scheduled for removal; the API may change in any release.
+   * @deprecated Experimental since 2026-06-15, extended 2027-09-05. Not scheduled for removal; the API may change in any release.
    */
   type Unstable_UseLiveCompletionAdapterOptions,
 } from "./unstable/useLiveCompletionAdapter";
@@ -638,11 +638,11 @@ export {
    */
   type RegisteredTrigger as Unstable_RegisteredTrigger,
   /**
-   * @deprecated Experimental since 2026-08-25. Not scheduled for removal; the API may change in any release.
+   * @deprecated Experimental since 2026-08-25, extended 2027-09-05. Not scheduled for removal; the API may change in any release.
    */
   type TriggerMatch as Unstable_TriggerMatch,
   /**
-   * @deprecated Experimental since 2026-08-25. Not scheduled for removal; the API may change in any release.
+   * @deprecated Experimental since 2026-08-25, extended 2027-09-05. Not scheduled for removal; the API may change in any release.
    */
   type TriggerMatcher as Unstable_TriggerMatcher,
   /**
@@ -669,11 +669,11 @@ export { unstable_defaultDirectiveFormatter } from "@assistant-ui/core";
 // Unstable - composer input history (terminal-style ArrowUp/ArrowDown recall)
 export {
   /**
-   * @deprecated Experimental since 2026-06-11. Not scheduled for removal; the API may change in any release.
+   * @deprecated Experimental since 2026-06-11, extended 2027-09-05. Not scheduled for removal; the API may change in any release.
    */
   unstable_useComposerInputHistory,
   /**
-   * @deprecated Experimental since 2026-06-11. Not scheduled for removal; the API may change in any release.
+   * @deprecated Experimental since 2026-06-11, extended 2027-09-05. Not scheduled for removal; the API may change in any release.
    */
   type Unstable_ComposerInputHistory,
 } from "./unstable/useComposerInputHistory";
@@ -681,23 +681,23 @@ export {
 // Unstable - headless composer input bridge (value/send without ComposerPrimitive.Input)
 export {
   /**
-   * @deprecated Experimental since 2026-06-11. Not scheduled for removal; the API may change in any release.
+   * @deprecated Experimental since 2026-06-11, extended 2027-09-05. Not scheduled for removal; the API may change in any release.
    */
   unstable_useComposerInput,
   /**
-   * @deprecated Experimental since 2026-06-23. Not scheduled for removal; the API may change in any release.
+   * @deprecated Experimental since 2026-06-23, extended 2027-09-05. Not scheduled for removal; the API may change in any release.
    */
   unstable_useTriggerPopoverAriaProps,
   /**
-   * @deprecated Experimental since 2026-06-23. Not scheduled for removal; the API may change in any release.
+   * @deprecated Experimental since 2026-06-23, extended 2027-09-05. Not scheduled for removal; the API may change in any release.
    */
   type Unstable_UseComposerInputOptions,
   /**
-   * @deprecated Experimental since 2026-06-11. Not scheduled for removal; the API may change in any release.
+   * @deprecated Experimental since 2026-06-11, extended 2027-09-05. Not scheduled for removal; the API may change in any release.
    */
   type Unstable_ComposerInput,
   /**
-   * @deprecated Experimental since 2026-06-23. Not scheduled for removal; the API may change in any release.
+   * @deprecated Experimental since 2026-06-23, extended 2027-09-05. Not scheduled for removal; the API may change in any release.
    */
   type Unstable_TriggerPopoverAriaProps,
 } from "./unstable/useComposerInput";
@@ -733,17 +733,17 @@ export type { ShimLoadError, ShimLoadErrorCode } from "safe-content-frame";
 // Unstable - WebMCP provider (exposes frontend tools to a WebMCP-capable browser)
 export {
   /**
-   * @deprecated Experimental since 2026-08-29. Not scheduled for removal; the API may change in any release.
+   * @deprecated Experimental since 2026-08-29, extended 2027-09-05. Not scheduled for removal; the API may change in any release.
    */
   unstable_useWebMcpProvider,
   /**
-   * @deprecated Experimental since 2026-08-29. Not scheduled for removal; the API may change in any release.
+   * @deprecated Experimental since 2026-08-29, extended 2027-09-05. Not scheduled for removal; the API may change in any release.
    */
   type Unstable_WebMcpProviderOptions,
   /**
-   * @deprecated Experimental since 2026-08-29. Not scheduled for removal; the API may change in any release.
+   * @deprecated Experimental since 2026-08-29, extended 2027-09-05. Not scheduled for removal; the API may change in any release.
    */
   type Unstable_WebMcpProviderResult,
 } from "./unstable/webmcp/useWebMcpProvider";
-/** @deprecated Experimental since 2026-08-29. Not scheduled for removal; the API may change in any release. */
+/** @deprecated Experimental since 2026-08-29, extended 2027-09-05. Not scheduled for removal; the API may change in any release. */
 export { defaultWebMcpFilter as unstable_defaultWebMcpFilter } from "./unstable/webmcp/convertTools";

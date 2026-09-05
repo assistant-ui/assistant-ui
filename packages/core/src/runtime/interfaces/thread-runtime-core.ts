@@ -167,7 +167,7 @@ export type ThreadRuntimeCore = Readonly<{
   resumeRun: (config: ResumeRunConfig) => void;
   cancelRun: () => void;
   /**
-   * @deprecated Experimental since 2026-08-14. Not scheduled for removal; the API may change in any release.
+   * @deprecated Experimental since 2026-08-14, extended 2027-09-05. Not scheduled for removal; the API may change in any release.
    */
   unstable_notifySessionReset: () => void;
 
@@ -258,7 +258,7 @@ export type ThreadRuntimeCore = Readonly<{
    * the composer. An implementation is therefore responsible for whatever
    * coordination a concurrent run needs. Runtimes without remote state leave
    * it undefined.
-   * @deprecated Experimental since 2026-08-02. Not scheduled for removal; the API may change in any release.
+   * @deprecated Experimental since 2026-08-02, extended 2027-09-05. Not scheduled for removal; the API may change in any release.
    */
   unstable_refetchThread?: (() => Promise<void>) | undefined;
 

@@ -73,7 +73,7 @@ export abstract class BaseThreadRuntimeCore
   public abstract exportExternalState(): any;
   public abstract importExternalState(state: any): void;
   /**
-   * @deprecated Experimental since 2026-08-14. Not scheduled for removal; the API may change in any release.
+   * @deprecated Experimental since 2026-08-14, extended 2027-09-05. Not scheduled for removal; the API may change in any release.
    */
   public abstract unstable_notifySessionReset(): void;
 

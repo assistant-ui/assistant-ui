@@ -22,6 +22,6 @@ const useThreadMessageIds = (): readonly string[] => {
  * with `ThreadPrimitive.Unstable_MessageById` to drive a virtualized or custom
  * message list.
  *
- * @deprecated Experimental since 2026-06-23. Not scheduled for removal; the API may change in any release.
+ * @deprecated Experimental since 2026-06-23, extended 2027-09-05. Not scheduled for removal; the API may change in any release.
  */
 export const unstable_useThreadMessageIds = useThreadMessageIds;

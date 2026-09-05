@@ -118,7 +118,15 @@ function documentable(node) {
 }
 
 function deprecatedText(node) {
-  for (const doc of documentable(node).jsDoc ?? []) {
+  for (const owner of new Set([node, documentable(node)])) {
+    const text = deprecatedTextOn(owner);
+    if (text !== undefined) return text;
+  }
+  return undefined;
+}
+
+function deprecatedTextOn(node) {
+  for (const doc of node.jsDoc ?? []) {
     for (const tag of doc.tags ?? []) {
       if (tag.tagName.text !== "deprecated") continue;
       const comment = ts.getTextOfJSDocComment(tag.comment) ?? "";
@@ -203,7 +211,7 @@ export function checkSource({ file, source, now, windowDays, staleAfterDays }) {
 
     if (!prefixed) misnamed.push(where);
 
-    if (record.since > now) {
+    if (record.since > addDays(now, 1)) {
       errors.push(`${where}: ships in the future (${record.since}).`);
       continue;
     }

@@ -36,7 +36,7 @@ export const useCloudThreadListAdapter = (
   );
 
   /**
-   * @deprecated Experimental since 2026-08-18. Not scheduled for removal; the API may change in any release.
+   * @deprecated Experimental since 2026-08-18, extended 2027-09-05. Not scheduled for removal; the API may change in any release.
    */
   const unstable_useAdapters = useCallback(
     function useCloudAdapters() {

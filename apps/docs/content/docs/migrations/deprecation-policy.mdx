@@ -31,6 +31,8 @@ Each experimental API gets a three month window from the date it shipped, and it
 
 Every declaration named `unstable_` is checked where it is written, so an unannotated one, a malformed tag, or a window that has closed without an extension fails CI. The dates in the source are current by construction.
 
+Every API that predates this policy was brought into it with an assigned first review date, staggered by the quarter it shipped in, so those dates say when we will look at each one rather than describing a window it actually served. The three month window applies from here on, to API added after this policy landed.
+
 - Anything marked as `unstable_`, `experimental_`, or `internal`
 - The `RuntimeCore` API (considered internal)
 

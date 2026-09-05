@@ -129,7 +129,7 @@ export class ExternalStoreThreadRuntimeCore
 
   // A getter, not a method, so its presence tracks the adapter.
   /**
-   * @deprecated Experimental since 2026-08-02. Not scheduled for removal; the API may change in any release.
+   * @deprecated Experimental since 2026-08-02, extended 2027-09-05. Not scheduled for removal; the API may change in any release.
    */
   public get unstable_refetchThread(): (() => Promise<void>) | undefined {
     if (!this._store.onRefetchThread) return undefined;
@@ -834,7 +834,7 @@ export class ExternalStoreThreadRuntimeCore
    * Adapter-facing notification that the backing session was discarded.
    * Clears session-scoped tool-invocation state and parks queued work,
    * without run-cancel semantics (`onCancel`, composer draft restoration).
-   * @deprecated Experimental since 2026-08-14. Not scheduled for removal; the API may change in any release.
+   * @deprecated Experimental since 2026-08-14, extended 2027-09-05. Not scheduled for removal; the API may change in any release.
    */
   public unstable_notifySessionReset(): void {
     this._runTrackerUpdate(() => this._toolInvocations?.reset());

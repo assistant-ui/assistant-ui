@@ -72,7 +72,7 @@ export type ExternalStoreMessageConverter<T> = (
 ) => ThreadMessageLike;
 
 /**
- * @deprecated Experimental since 2026-06-23. Not scheduled for removal; the API may change in any release.
+ * @deprecated Experimental since 2026-06-23, extended 2027-09-05. Not scheduled for removal; the API may change in any release.
  */
 export type ExternalStoreBranchChange = {
   headId: string | null;
@@ -119,7 +119,7 @@ type ExternalStoreAdapterBase<T> = {
    * conversations through one runtime keep each conversation's history and
    * branches isolated in its own instance. Omit it to keep the runtime's own
    * repository.
-   * @deprecated Experimental since 2026-08-28. Not scheduled for removal; the API may change in any release.
+   * @deprecated Experimental since 2026-08-28, extended 2027-09-05. Not scheduled for removal; the API may change in any release.
    */
   unstable_messageRepositoryInstance?: MessageRepository | undefined;
   suggestions?: readonly ThreadSuggestion[] | undefined;
@@ -149,7 +149,7 @@ type ExternalStoreAdapterBase<T> = {
    * requires `setMessages`, and this callback does not on its own enable branch
    * switching.
    *
-   * @deprecated Experimental since 2026-06-23. Not scheduled for removal; the API may change in any release.
+   * @deprecated Experimental since 2026-06-23, extended 2027-09-05. Not scheduled for removal; the API may change in any release.
    */
   unstable_onBranchChange?:
     | ((event: ExternalStoreBranchChange) => void)
@@ -244,7 +244,7 @@ type ExternalStoreAdapterBase<T> = {
    * provider's run is still open. Without it, ownership is unknown until the
    * run ends, so a registered tool executes only once the run's outcome is
    * known and cannot fire on a call the provider was about to answer or gate.
-   * @deprecated Experimental since 2026-09-01. Not scheduled for removal; the API may change in any release.
+   * @deprecated Experimental since 2026-09-01, extended 2027-09-05. Not scheduled for removal; the API may change in any release.
    */
   unstable_isClientToolCall?:
     | ((toolCall: ToolCallMessagePart) => boolean)
