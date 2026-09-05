@@ -76,6 +76,7 @@ export type RemoteThreadListProps = {
   onThreadIdChange?: ((threadId: string | undefined) => void) | undefined;
   onSwitchToThread?: ((threadId: string) => void) | undefined;
   onSwitchToNewThread?: (() => void) | undefined;
+  /** Called after the backing adapter successfully deletes the thread. */
   onDelete?: ((threadId: string) => void) | undefined;
   /**
    * Keeps every thread the session switched to mounted, so a run continues
@@ -1153,7 +1154,7 @@ const useRemoteThreadList = (
         },
         optimistic: (state) => updateStatusReducer(state, data.id, "deleted"),
       });
-      requireAdapterGeneration(adapterGeneration);
+      if (adapterGeneration !== session.adapterGeneration) return result;
       clearThreadTitleState(session.titleStates, data.id);
       onDelete?.(data.id);
       return result;
