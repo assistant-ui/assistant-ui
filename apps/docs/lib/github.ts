@@ -374,14 +374,8 @@ export async function getStarHistory(
 ): Promise<StarHistoryWeek[] | null> {
   const path = (page: number) =>
     `/stargazers/history?per_page=${STAR_HISTORY_PAGE_SIZE}&page=${page}`;
-  // The series is all or nothing, so one transient response would otherwise
-  // blank the figure until the next revalidation.
-  const page = async (n: number) => {
-    const res = await ghFetch(path(n), revalidate);
-    return res.ok ? res : ghFetch(path(n), revalidate);
-  };
   try {
-    const first = await page(1);
+    const first = await ghFetch(path(1), revalidate);
     if (!first.ok) return null;
     const weeks = (await withTimeout(first.json())) as StarHistoryWeek[];
     const linked = parseLastPage(first.headers.get("Link"));
@@ -393,7 +387,7 @@ export async function getStarHistory(
 
     const rest = await Promise.all(
       Array.from({ length: Math.max(0, lastPage - 1) }, async (_, i) => {
-        const res = await page(i + 2);
+        const res = await ghFetch(path(i + 2), revalidate);
         if (!res.ok) return null;
         return (await withTimeout(res.json())) as StarHistoryWeek[];
       }),
