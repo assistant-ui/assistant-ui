@@ -286,18 +286,25 @@ export const useAuiRoot = ({
   clientRef,
   notifications,
   destroySignal,
+  supportsScopedSubscriptions,
 }: {
   parent: AssistantClient;
   entries: ScopeEntry[];
   clientRef: ClientRef;
   notifications: NotificationManager;
   destroySignal?: AbortSignal | undefined;
+  supportsScopedSubscriptions?: boolean | undefined;
 }): { client: AssistantClient } => {
   const fields = useClientFields({ notifications, clientRef });
   const building = createClientObject(parent, fields);
   const tapContext = useMemo(
-    () => ({ clientRef, emit: notifications.emit, destroySignal }),
-    [clientRef, notifications, destroySignal],
+    () => ({
+      clientRef,
+      emit: notifications.emit,
+      destroySignal,
+      supportsScopedSubscriptions,
+    }),
+    [clientRef, notifications, destroySignal, supportsScopedSubscriptions],
   );
 
   const accessors = useAssistantTapContextProvider(

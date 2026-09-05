@@ -11,7 +11,7 @@ import {
   handleIntrospectionProp,
 } from "./utils/BaseProxyHandler";
 import { INSTANCE_TAG_SYMBOL } from "./utils/client-accessor";
-import { useAssistantClientDestroySignal } from "./utils/tap-assistant-context";
+import { useSupportsScopedSubscriptions } from "./utils/tap-assistant-context";
 import { shallowEqual } from "./utils/shallow-equal";
 
 /**
@@ -231,11 +231,7 @@ export const useClientResource = <TMethods extends ClientMethods>(
   const valueRef = useRef(null as unknown as TMethods);
   const tagRef = useRef(null as unknown as object);
   const subscribers = useMemo(() => new Set<() => void>(), []);
-  // Standalone Vue and Svelte scopes use createLastValidCache, whose shrink
-  // recovery requires every store notification. React scopes do not use that
-  // cache and can subscribe directly to only the clients their selector reads.
-  const directSubscriptionsEnabled =
-    useAssistantClientDestroySignal() === undefined;
+  const directSubscriptionsEnabled = useSupportsScopedSubscriptions();
   const subscribe = useMemo(
     () =>
       directSubscriptionsEnabled

@@ -165,6 +165,7 @@ export const createAssistantClient = (
         clientRef,
         notifications,
         destroySignal: destroyController.signal,
+        supportsScopedSubscriptions: false,
       });
       // Seeded during render, before the commit runs mount effects that read it
       if (clientRef.current === null) {
