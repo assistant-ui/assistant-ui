@@ -115,6 +115,7 @@ export type ThreadMethods = {
    * `| undefined` stops `ThreadMethods` satisfying `ClientMethods` and
    * collapses the client schema, which only a workspace-level app typecheck
    * surfaces.
+   * @deprecated Experimental since 2026-08-02. Not scheduled for removal; the API may change in any release.
    */
   unstable_refetchThread?(): Promise<void>;
   getModelContext(): ModelContext;

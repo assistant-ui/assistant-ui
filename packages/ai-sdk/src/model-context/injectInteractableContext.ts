@@ -34,6 +34,7 @@ import {
  *   return result.toUIMessageStreamResponse();
  * }
  * ```
+ * @deprecated Experimental since 2026-06-23. Not scheduled for removal; the API may change in any release.
  */
 export function unstable_injectInteractableContext(
   messages: UIMessage[],

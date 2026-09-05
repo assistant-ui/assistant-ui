@@ -37,6 +37,9 @@ type AuiV0MessagePart =
   | {
       readonly type: "reasoning";
       readonly text: string;
+      /**
+       * @deprecated Experimental since 2026-08-07. Not scheduled for removal; the API may change in any release.
+       */
       readonly unstable_summary?: string;
     }
   | {
@@ -136,8 +139,17 @@ type AuiV0Message = {
   readonly content: readonly AuiV0MessagePart[];
   readonly attachments?: readonly AuiV0Attachment[];
   readonly metadata: {
+    /**
+     * @deprecated Experimental since 2025-05-20, extended 2027-03-05. Not scheduled for removal; the API may change in any release.
+     */
     readonly unstable_state?: ReadonlyJSONValue;
+    /**
+     * @deprecated Experimental since 2025-01-27, extended 2027-03-05. Not scheduled for removal; the API may change in any release.
+     */
     readonly unstable_annotations: readonly ReadonlyJSONValue[];
+    /**
+     * @deprecated Experimental since 2025-01-04, extended 2027-03-05. Not scheduled for removal; the API may change in any release.
+     */
     readonly unstable_data: readonly ReadonlyJSONValue[];
     readonly steps: readonly {
       readonly usage?: {

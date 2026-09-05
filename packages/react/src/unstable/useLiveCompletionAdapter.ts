@@ -13,6 +13,9 @@ import type {
   Unstable_TriggerItem,
 } from "@assistant-ui/core";
 
+/**
+ * @deprecated Experimental since 2026-06-15. Not scheduled for removal; the API may change in any release.
+ */
 export type Unstable_UseLiveCompletionAdapterOptions = {
   /**
    * Fetches the items for a query from an async source. Called debounced; the
@@ -35,18 +38,7 @@ export type Unstable_UseLiveCompletionAdapterOptions = {
 const NO_QUERY = "\u0000";
 
 /**
- * @deprecated Under active development and may change without notice.
- *
- * Bridges an async completion source (a server search, a gateway RPC) into the
- * synchronous `Unstable_TriggerAdapter` that `ComposerTriggerPopover` consumes.
- * `search(query)` returns the last fetched items synchronously and schedules a
- * debounced fetch when the query changes; when results arrive the returned
- * `adapter` identity changes, which re-runs the popover's lookup so the fresh
- * items render. This is a search-only adapter (`categories` are empty).
- *
- * `isLoading` is `true` while a fetch is in flight. Pass it to the popover's
- * `isLoading` prop to render a loading state.
- *
+ * @deprecated Experimental since 2026-06-15. Not scheduled for removal; the API may change in any release.
  * @example
  * ```tsx
  * const mentions = unstable_useLiveCompletionAdapter({

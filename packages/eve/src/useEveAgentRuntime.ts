@@ -154,6 +154,9 @@ export const useEveAgentRuntime = (options: UseEveAgentRuntimeOptions = {}) => {
     isDisabled: _isDisabled,
     isSendDisabled: _isSendDisabled,
     suggestions: _suggestions,
+    /**
+     * @deprecated Experimental since 2024-09-01, extended 2026-12-05. Not scheduled for removal; the API may change in any release.
+     */
     unstable_capabilities: _unstable_capabilities,
     ...agentOptions
   } = options;
@@ -377,6 +380,9 @@ export const useEveAgentRuntime = (options: UseEveAgentRuntimeOptions = {}) => {
     messages,
     isRunning: providerIsRunning,
     extras,
+    /**
+     * @deprecated Experimental since 2026-05-26, extended 2027-06-05. Not scheduled for removal; the API may change in any release.
+     */
     unstable_enableToolInvocations: true,
     setToolStatuses,
     adapters: {

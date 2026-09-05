@@ -17,9 +17,15 @@ import {
   type ModelContextSnapshotSource,
 } from "./useModelContextSnapshot";
 
-/** Icon component shape consumed by `ComposerTriggerPopover`'s `iconMap`. */
+/**
+ * Icon component shape consumed by `ComposerTriggerPopover`'s `iconMap`.
+ * @deprecated Experimental since 2026-04-15, extended 2027-06-05. Not scheduled for removal; the API may change in any release.
+ */
 export type Unstable_IconComponent = FC<{ className?: string }>;
 
+/**
+ * @deprecated Experimental since 2026-03-16, extended 2027-06-05. Not scheduled for removal; the API may change in any release.
+ */
 export type Unstable_Mention = {
   readonly id: string;
   readonly type: string;
@@ -30,12 +36,18 @@ export type Unstable_Mention = {
   readonly metadata?: ReadonlyJSONObject | undefined;
 };
 
+/**
+ * @deprecated Experimental since 2026-03-16, extended 2027-06-05. Not scheduled for removal; the API may change in any release.
+ */
 export type Unstable_MentionCategory = {
   readonly id: string;
   readonly label: string;
   readonly items: readonly Unstable_Mention[];
 };
 
+/**
+ * @deprecated Experimental since 2026-04-15, extended 2027-06-05. Not scheduled for removal; the API may change in any release.
+ */
 export type Unstable_ModelContextToolsOptions = {
   /**
    * Wrap tools in a dedicated category. Selects drill-down mode on its own
@@ -48,6 +60,9 @@ export type Unstable_ModelContextToolsOptions = {
   readonly icon?: string;
 };
 
+/**
+ * @deprecated Experimental since 2026-04-15, extended 2027-06-05. Not scheduled for removal; the API may change in any release.
+ */
 export type Unstable_UseMentionAdapterOptions = {
   /**
    * Flat mention list. Ignored when `categories` is set, and keeps the
@@ -78,6 +93,9 @@ export type Unstable_UseMentionAdapterOptions = {
   readonly fallbackIcon?: Unstable_IconComponent;
 };
 
+/**
+ * @deprecated Experimental since 2026-04-15, extended 2027-06-05. Not scheduled for removal; the API may change in any release.
+ */
 export type Unstable_MentionDirective = {
   readonly formatter: Unstable_DirectiveFormatter;
   readonly onInserted?: ((item: Unstable_TriggerItem) => void) | undefined;
@@ -120,12 +138,7 @@ const toolMentionSource: ModelContextSnapshotSource<
 };
 
 /**
- * @deprecated Under active development and might change without notice.
- *
- * Creates a spreadable `{ adapter, directive }` bundle for `@` mentions.
- * Supports tools registered in model context, explicit items, or both —
- * flat or categorized.
- *
+ * @deprecated Experimental since 2026-04-15, extended 2027-06-05. Not scheduled for removal; the API may change in any release.
  * @example
  * ```tsx
  * const mention = unstable_useMentionAdapter();

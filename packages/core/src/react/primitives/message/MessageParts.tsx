@@ -335,6 +335,7 @@ export namespace MessagePrimitiveParts {
          *
          * @experimental This API is experimental and may change in future versions.
          * @default true
+         * @deprecated Experimental since 2026-01-26, extended 2027-06-05. Not scheduled for removal; the API may change in any release.
          */
         unstable_showEmptyOnNonTextEnd?: boolean | undefined;
         children?: never;
@@ -343,6 +344,9 @@ export namespace MessagePrimitiveParts {
         /** Render function called for each part. Receives the enriched part state. */
         children: (value: { part: EnrichedPartState }) => ReactNode;
         components?: never;
+        /**
+         * @deprecated Experimental since 2026-01-26, extended 2027-06-05. Not scheduled for removal; the API may change in any release.
+         */
         unstable_showEmptyOnNonTextEnd?: never;
       };
 }
@@ -393,6 +397,9 @@ export const defaultComponents = {
   Source: () => null,
   Image: () => null,
   File: () => null,
+  /**
+   * @deprecated Experimental since 2024-10-21, extended 2026-12-05. Not scheduled for removal; the API may change in any release.
+   */
   Unstable_Audio: () => null,
   ToolGroup: ({ children }: PropsWithChildren) => children,
   ReasoningGroup: ({ children }: PropsWithChildren) => children,
@@ -409,6 +416,9 @@ export const MessagePartComponent: FC<MessagePartComponentProps> = ({
     Image = defaultComponents.Image,
     Source = defaultComponents.Source,
     File = defaultComponents.File,
+    /**
+     * @deprecated Experimental since 2024-10-21, extended 2026-12-05. Not scheduled for removal; the API may change in any release.
+     */
     Unstable_Audio: Audio = defaultComponents.Unstable_Audio,
     tools = {},
     data,
@@ -830,6 +840,9 @@ const MessagePrimitivePartsInner: FC<{
  */
 export const MessagePrimitiveParts: FC<MessagePrimitiveParts.Props> = ({
   components,
+  /**
+   * @deprecated Experimental since 2026-01-26, extended 2027-06-05. Not scheduled for removal; the API may change in any release.
+   */
   unstable_showEmptyOnNonTextEnd = true,
   children,
 }) => {
@@ -839,6 +852,9 @@ export const MessagePrimitiveParts: FC<MessagePrimitiveParts.Props> = ({
   return (
     <MessagePrimitivePartsCompat
       components={components}
+      /**
+       * @deprecated Experimental since 2026-01-26, extended 2027-06-05. Not scheduled for removal; the API may change in any release.
+       */
       unstable_showEmptyOnNonTextEnd={unstable_showEmptyOnNonTextEnd}
     />
   );
@@ -848,6 +864,9 @@ MessagePrimitiveParts.displayName = "MessagePrimitive.Parts";
 
 const MessagePrimitivePartsCompat: FC<{
   components: MessagePrimitiveParts.Props["components"];
+  /**
+   * @deprecated Experimental since 2026-01-26, extended 2027-06-05. Not scheduled for removal; the API may change in any release.
+   */
   unstable_showEmptyOnNonTextEnd: boolean;
 }> = ({ components, unstable_showEmptyOnNonTextEnd }) => {
   const contentLength = useAuiState((s) => s.message.parts.length);

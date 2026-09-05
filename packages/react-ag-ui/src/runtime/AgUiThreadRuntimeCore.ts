@@ -1252,9 +1252,21 @@ export class AgUiThreadRuntimeCore {
       runConfig: ctx.runConfig,
       abortSignal: ctx.abortSignal,
       context: this.runtime?.thread.getModelContext() ?? {},
+      /**
+       * @deprecated Experimental since 2024-10-24, extended 2026-12-05. Not scheduled for removal; the API may change in any release.
+       */
       unstable_assistantMessageId: assistantId,
+      /**
+       * @deprecated Experimental since 2026-01-20, extended 2027-06-05. Not scheduled for removal; the API may change in any release.
+       */
       unstable_threadId: ctx.threadId,
+      /**
+       * @deprecated Experimental since 2026-01-20, extended 2027-06-05. Not scheduled for removal; the API may change in any release.
+       */
       unstable_parentId: ctx.parentId,
+      /**
+       * @deprecated Experimental since 2024-09-28, extended 2026-12-05. Not scheduled for removal; the API may change in any release.
+       */
       unstable_getMessage: () => {
         const message = this.session.tryGetMessage(currentId())?.message;
         if (!message) {
@@ -1346,8 +1358,17 @@ export class AgUiThreadRuntimeCore {
       status: { type: "running" },
       content: [],
       metadata: {
+        /**
+         * @deprecated Experimental since 2025-05-20, extended 2027-03-05. Not scheduled for removal; the API may change in any release.
+         */
         unstable_state: this.stateSnapshot ?? null,
+        /**
+         * @deprecated Experimental since 2025-01-27, extended 2027-03-05. Not scheduled for removal; the API may change in any release.
+         */
         unstable_annotations: [],
+        /**
+         * @deprecated Experimental since 2025-01-04, extended 2027-03-05. Not scheduled for removal; the API may change in any release.
+         */
         unstable_data: [],
         steps: [],
         isOptimistic: isOptimisticId(id),
@@ -1515,11 +1536,20 @@ export class AgUiThreadRuntimeCore {
       ? [...current.steps, ...incoming.steps]
       : current.steps;
     return {
+      /**
+       * @deprecated Experimental since 2025-05-20, extended 2027-03-05. Not scheduled for removal; the API may change in any release.
+       */
       unstable_state:
         incoming.unstable_state !== undefined
           ? incoming.unstable_state
           : current.unstable_state,
+      /**
+       * @deprecated Experimental since 2025-01-27, extended 2027-03-05. Not scheduled for removal; the API may change in any release.
+       */
       unstable_annotations: annotations,
+      /**
+       * @deprecated Experimental since 2025-01-04, extended 2027-03-05. Not scheduled for removal; the API may change in any release.
+       */
       unstable_data: data,
       steps,
       ...(current.isOptimistic ? { isOptimistic: true } : {}),

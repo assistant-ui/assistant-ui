@@ -32,6 +32,9 @@ export type DirectivePluginProps = {
   onDirectiveSelect?: ((item: Unstable_TriggerItem) => void) | undefined;
 };
 
+/**
+ * @deprecated Experimental since 2026-08-25. Not scheduled for removal; the API may change in any release.
+ */
 type TriggerMatch = {
   query: string;
   node: TextNode;

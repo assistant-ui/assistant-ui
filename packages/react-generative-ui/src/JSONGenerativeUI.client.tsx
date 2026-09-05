@@ -66,6 +66,9 @@ export class JSONGenerativeUI {
   present(options?: PresentToolOptions): PresentTool {
     return {
       ...presentToolBase(this.parameters, options),
+      /**
+       * @deprecated Experimental since 2026-06-02, extended 2027-06-05. Not scheduled for removal; the API may change in any release.
+       */
       unstable_backendDefault: { parameters: true },
       execute: async () => ({}),
       render: this.render,
@@ -75,6 +78,9 @@ export class JSONGenerativeUI {
   promptUser(): PromptUserTool {
     return {
       ...promptUserToolBase(this.parameters),
+      /**
+       * @deprecated Experimental since 2026-06-02, extended 2027-06-05. Not scheduled for removal; the API may change in any release.
+       */
       unstable_backendDefault: { parameters: true },
       render: this.render,
     };

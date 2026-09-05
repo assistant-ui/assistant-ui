@@ -12,7 +12,10 @@ import { type AssistantToolProps, useAssistantTool } from "./useAssistantTool";
  * https://assistant-ui.com/docs/migrations/toolkit-tools.
  */
 export type AssistantTool = FC & {
-  /** Tool definition registered by this component. */
+  /**
+   * Tool definition registered by this component.
+   * @deprecated Experimental since 2024-09-06, extended 2026-12-05. Not scheduled for removal; the API may change in any release.
+   */
   unstable_tool: AssistantToolProps<any, any>;
 };
 

@@ -107,6 +107,9 @@ export class DataStreamEncoder
                 controller.enqueue({
                   type: DataStreamStreamChunkType.AuiReasoningPartStart,
                   value: {
+                    /**
+                     * @deprecated Experimental since 2026-08-07. Not scheduled for removal; the API may change in any release.
+                     */
                     unstable_summary: part.unstable_summary,
                     ...(part.parentId !== undefined
                       ? { parentId: part.parentId }

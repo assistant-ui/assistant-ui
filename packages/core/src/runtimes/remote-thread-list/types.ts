@@ -58,6 +58,9 @@ export type RemoteThreadListAdapter = {
   initialize(threadId: string): Promise<RemoteThreadInitializeResponse>;
   generateTitle(
     remoteId: string,
+    /**
+     * @deprecated Experimental since 2025-02-03, extended 2027-03-05. Not scheduled for removal; the API may change in any release.
+     */
     unstable_messages: readonly ThreadMessage[],
   ): Promise<AssistantStream>;
   fetch(threadId: string): Promise<RemoteThreadMetadata>;
@@ -76,6 +79,7 @@ export type RemoteThreadListAdapter = {
    * behind a loading state, a Suspense boundary, or a `useEffect`-gated render
    * is unsupported and leaves thread context unavailable to downstream
    * consumers. Load data inside an always-mounted child instead.
+   * @deprecated Experimental since 2025-01-03, extended 2027-03-05. Not scheduled for removal; the API may change in any release.
    */
   unstable_Provider?: RemoteThreadListProviderComponent | undefined;
 
@@ -93,6 +97,7 @@ export type RemoteThreadListAdapter = {
    * thread id (`withKey(id, thread(...))`). History loaders such as
    * `useExternalHistory` run once per mount; an unkeyed factory keeps one
    * instance across switches and the next thread's messages never load.
+   * @deprecated Experimental since 2026-08-18. Not scheduled for removal; the API may change in any release.
    */
   unstable_useAdapters?: (() => RuntimeAdapters | null | undefined) | undefined;
 };

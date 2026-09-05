@@ -9,6 +9,9 @@ import {
 } from "./useInteractable";
 import { unstable_useInteractableState as useInteractableState } from "./useInteractableState";
 
+/**
+ * @deprecated Experimental since 2026-06-23. Not scheduled for removal; the API may change in any release.
+ */
 export type Unstable_InteractableToolRenderProps<TState> = {
   /**
    * The live state. While `streaming` is true, fields the model has not
@@ -27,6 +30,9 @@ export type Unstable_InteractableToolRenderProps<TState> = {
   streaming: boolean;
 };
 
+/**
+ * @deprecated Experimental since 2026-06-23. Not scheduled for removal; the API may change in any release.
+ */
 export type Unstable_InteractableToolConfig<
   TSchema extends Unstable_InteractableStateSchema,
 > = {
@@ -34,6 +40,9 @@ export type Unstable_InteractableToolConfig<
   stateSchema: TSchema;
   render: (
     props: Unstable_InteractableToolRenderProps<
+      /**
+       * @deprecated Experimental since 2026-06-23. Not scheduled for removal; the API may change in any release.
+       */
       Unstable_InferInteractableState<TSchema>
     >,
   ) => ReactNode;
@@ -61,7 +70,7 @@ const UPDATE_TOOL_PREFIX = "update_";
  * message's `version`; whether older messages render frozen history or stay
  * live-editable is the render function's choice.
  *
- * @deprecated Unstable / Experimental (not actually removed).
+ * @deprecated Experimental since 2026-06-23. Not scheduled for removal; the API may change in any release.
  */
 export const unstable_interactableTool = <
   TSchema extends Unstable_InteractableStateSchema,

@@ -102,6 +102,9 @@ export class LocalThreadRuntimeCore
     reload: true,
     refetchThread: false,
     cancel: true,
+    /**
+     * @deprecated Experimental since 2024-09-01, extended 2026-12-05. Not scheduled for removal; the API may change in any release.
+     */
     unstable_copy: true,
     speech: false,
     dictation: false,
@@ -483,6 +486,9 @@ export class LocalThreadRuntimeCore
     throw new Error("Runtime does not support importing external states.");
   }
 
+  /**
+   * @deprecated Experimental since 2026-08-14. Not scheduled for removal; the API may change in any release.
+   */
   public unstable_notifySessionReset(): void {
     throw new Error("Runtime does not support resetting sessions.");
   }
@@ -501,8 +507,17 @@ export class LocalThreadRuntimeCore
       status: { type: "running" },
       content: [],
       metadata: {
+        /**
+         * @deprecated Experimental since 2025-05-20, extended 2027-03-05. Not scheduled for removal; the API may change in any release.
+         */
         unstable_state: this.state,
+        /**
+         * @deprecated Experimental since 2025-01-27, extended 2027-03-05. Not scheduled for removal; the API may change in any release.
+         */
         unstable_annotations: [],
+        /**
+         * @deprecated Experimental since 2025-01-04, extended 2027-03-05. Not scheduled for removal; the API may change in any release.
+         */
         unstable_data: [],
         steps: [],
         custom: {},
@@ -724,9 +739,21 @@ export class LocalThreadRuntimeCore
         runConfig: this._lastRunConfig,
         abortSignal,
         context,
+        /**
+         * @deprecated Experimental since 2024-10-24, extended 2026-12-05. Not scheduled for removal; the API may change in any release.
+         */
         unstable_assistantMessageId: message.id,
+        /**
+         * @deprecated Experimental since 2026-01-20, extended 2027-06-05. Not scheduled for removal; the API may change in any release.
+         */
         unstable_threadId: threadId,
+        /**
+         * @deprecated Experimental since 2026-01-20, extended 2027-06-05. Not scheduled for removal; the API may change in any release.
+         */
         unstable_parentId: parentId,
+        /**
+         * @deprecated Experimental since 2024-09-28, extended 2026-12-05. Not scheduled for removal; the API may change in any release.
+         */
         unstable_getMessage() {
           return message;
         },

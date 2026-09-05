@@ -79,10 +79,19 @@ export type ThreadMessageLike = {
     | undefined;
   readonly metadata?:
     | {
+        /**
+         * @deprecated Experimental since 2025-05-20, extended 2027-03-05. Not scheduled for removal; the API may change in any release.
+         */
         readonly unstable_state?: ReadonlyJSONValue;
+        /**
+         * @deprecated Experimental since 2025-01-27, extended 2027-03-05. Not scheduled for removal; the API may change in any release.
+         */
         readonly unstable_annotations?:
           | readonly ReadonlyJSONValue[]
           | undefined;
+        /**
+         * @deprecated Experimental since 2025-01-04, extended 2027-03-05. Not scheduled for removal; the API may change in any release.
+         */
         readonly unstable_data?: readonly ReadonlyJSONValue[] | undefined;
         readonly steps?: readonly ThreadStep[] | undefined;
         readonly timing?: MessageTiming | undefined;
@@ -213,8 +222,17 @@ export const fromThreadMessageLike = (
           .filter((c) => !!c),
         status: status ?? fallbackStatus,
         metadata: {
+          /**
+           * @deprecated Experimental since 2025-05-20, extended 2027-03-05. Not scheduled for removal; the API may change in any release.
+           */
           unstable_state: metadata?.unstable_state ?? null,
+          /**
+           * @deprecated Experimental since 2025-01-27, extended 2027-03-05. Not scheduled for removal; the API may change in any release.
+           */
           unstable_annotations: metadata?.unstable_annotations ?? [],
+          /**
+           * @deprecated Experimental since 2025-01-04, extended 2027-03-05. Not scheduled for removal; the API may change in any release.
+           */
           unstable_data: metadata?.unstable_data ?? [],
           custom: metadata?.custom ?? {},
           steps: metadata?.steps ?? [],

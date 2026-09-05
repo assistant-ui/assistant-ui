@@ -147,11 +147,20 @@ const parseStoredThreadMessage = (value: unknown): ThreadMessage | null => {
       status: status as StoredAssistantMessage["status"],
       createdAt,
       metadata: {
+        /**
+         * @deprecated Experimental since 2025-05-20, extended 2027-03-05. Not scheduled for removal; the API may change in any release.
+         */
         unstable_state: (metadata.unstable_state ??
           null) as StoredAssistantMessage["metadata"]["unstable_state"],
+        /**
+         * @deprecated Experimental since 2025-01-27, extended 2027-03-05. Not scheduled for removal; the API may change in any release.
+         */
         unstable_annotations: Array.isArray(metadata.unstable_annotations)
           ? (metadata.unstable_annotations as StoredAssistantMessage["metadata"]["unstable_annotations"])
           : [],
+        /**
+         * @deprecated Experimental since 2025-01-04, extended 2027-03-05. Not scheduled for removal; the API may change in any release.
+         */
         unstable_data: Array.isArray(metadata.unstable_data)
           ? (metadata.unstable_data as StoredAssistantMessage["metadata"]["unstable_data"])
           : [],
@@ -417,7 +426,13 @@ export const createLocalStorageAdapter = (
   };
 
   const adapter: RemoteThreadListAdapter = {
+    /**
+     * @deprecated Experimental since 2025-01-03, extended 2027-03-05. Not scheduled for removal; the API may change in any release.
+     */
     unstable_Provider: createHistoryProvider(storage, prefix, mutationQueue),
+    /**
+     * @deprecated Experimental since 2026-08-18. Not scheduled for removal; the API may change in any release.
+     */
     unstable_useAdapters: function useLocalStorageAdapters() {
       return useLocalStorageThreadAdapters(storage, prefix, mutationQueue);
     },

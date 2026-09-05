@@ -20,7 +20,8 @@ export type RuntimeExtras<T extends object> = {
   };
 };
 
-/** @deprecated Internal API for external-store adapter authors. Not part of the public API; may change or be removed without notice. */
+/** @deprecated Experimental since 2026-08-06. Not scheduled for removal; the API may change in any release.
+ */
 export const unstable_createRuntimeExtrasFromBrand = <T extends object>(
   brand: RuntimeExtrasBrand<T>,
 ): RuntimeExtras<T> => {
@@ -52,6 +53,9 @@ export const unstable_createRuntimeExtrasFromBrand = <T extends object>(
 export const createRuntimeExtras = <T extends object>(
   runtimeName: string,
 ): RuntimeExtras<T> =>
+  /**
+   * @deprecated Experimental since 2026-08-06. Not scheduled for removal; the API may change in any release.
+   */
   unstable_createRuntimeExtrasFromBrand(
     createRuntimeExtrasBrand<T>(runtimeName),
   );

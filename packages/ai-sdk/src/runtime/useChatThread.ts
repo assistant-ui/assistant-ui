@@ -47,6 +47,9 @@ export type ChatThreadOptions<UI_MESSAGE extends UIMessage = UIMessage> =
       onResumeError?: ((error: unknown) => void) | undefined;
       joinStrategy?: AISDKRuntimeAdapter["joinStrategy"];
       messageRepository?: AISDKRuntimeAdapter<UI_MESSAGE>["messageRepository"];
+      /**
+       * @deprecated Experimental since 2026-06-23. Not scheduled for removal; the API may change in any release.
+       */
       unstable_onBranchChange?: AISDKRuntimeAdapter["unstable_onBranchChange"];
     };
 
@@ -136,6 +139,9 @@ export const splitChatThreadOptions = <UI_MESSAGE extends UIMessage>(
     toCreateMessage,
     isDisabled: _isDisabled,
     isSendDisabled: _isSendDisabled,
+    /**
+     * @deprecated Experimental since 2024-09-01, extended 2026-12-05. Not scheduled for removal; the API may change in any release.
+     */
     unstable_capabilities: _unstable_capabilities,
     suggestions: _suggestions,
     onResume,
@@ -218,6 +224,9 @@ export const useChatThread = <UI_MESSAGE extends UIMessage = UIMessage>(
     ...(joinStrategy && { joinStrategy }),
     ...(messageRepository && { messageRepository }),
     ...(messageRepositoryInstance && {
+      /**
+       * @deprecated Experimental since 2026-08-28. Not scheduled for removal; the API may change in any release.
+       */
       unstable_messageRepositoryInstance: messageRepositoryInstance,
     }),
     ...(unstable_onBranchChange && { unstable_onBranchChange }),

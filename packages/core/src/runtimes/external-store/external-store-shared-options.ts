@@ -11,6 +11,9 @@ export const pickExternalStoreSharedOptions = (
   ({
     isDisabled: options.isDisabled,
     isSendDisabled: options.isSendDisabled,
+    /**
+     * @deprecated Experimental since 2024-09-01, extended 2026-12-05. Not scheduled for removal; the API may change in any release.
+     */
     unstable_capabilities: options.unstable_capabilities,
     suggestions: options.suggestions,
   }) satisfies {

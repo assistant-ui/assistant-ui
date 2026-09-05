@@ -14,6 +14,9 @@ import type { ThreadMessage } from "@assistant-ui/core";
 import { getThreadMessageText } from "@assistant-ui/core/internal";
 import { useTriggerPopoverRootContextOptional } from "../primitives/composer/trigger/TriggerPopoverRootContext";
 
+/**
+ * @deprecated Experimental since 2026-06-11. Not scheduled for removal; the API may change in any release.
+ */
 export type Unstable_ComposerInputHistory = {
   /** Keydown handler to spread onto `ComposerPrimitive.Input`. */
   onKeyDown: KeyboardEventHandler<HTMLTextAreaElement>;
@@ -45,19 +48,7 @@ const isOnLastLine = (value: string, caret: number): boolean =>
   !value.slice(caret).includes("\n");
 
 /**
- * @deprecated Under active development and might change without notice.
- *
- * Terminal-style input history for the thread composer: ArrowUp on an
- * empty draft recalls previously sent user messages (newest first),
- * ArrowDown steps back toward the newest and finally restores the draft
- * that was being typed when browsing started.
- *
- * Recall only triggers when the caret is on the first/last line with no
- * selection, so multi-line editing keeps native arrow behavior. The
- * handler yields to an open mention/slash popover, to IME composition,
- * to modifier keys, and to consumer handlers that already called
- * `preventDefault`. It is inert on edit composers.
- *
+ * @deprecated Experimental since 2026-06-11. Not scheduled for removal; the API may change in any release.
  * @example
  * ```tsx
  * const history = unstable_useComposerInputHistory();

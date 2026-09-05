@@ -245,7 +245,7 @@ export type ComposerRuntime = {
   setQuote(quote: QuoteInfo | undefined): void;
 
   /**
-   * @deprecated This API is still under active development and might change without notice.
+   * @deprecated Experimental since 2024-10-12, extended 2026-12-05. Not scheduled for removal; the API may change in any release.
    */
   unstable_on<E extends ComposerRuntimeEventType>(
     event: E,
@@ -380,6 +380,9 @@ export abstract class ComposerRuntimeImpl implements ComposerRuntime {
     EventSubscriptionSubject<ComposerRuntimeEventType>
   >();
 
+  /**
+   * @deprecated Experimental since 2024-10-12, extended 2026-12-05. Not scheduled for removal; the API may change in any release.
+   */
   public unstable_on<E extends ComposerRuntimeEventType>(
     event: E,
     callback: ComposerRuntimeEventCallback<E>,

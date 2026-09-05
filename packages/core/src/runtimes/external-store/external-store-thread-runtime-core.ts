@@ -90,6 +90,9 @@ export class ExternalStoreThreadRuntimeCore
     reload: false,
     refetchThread: false,
     cancel: false,
+    /**
+     * @deprecated Experimental since 2024-09-01, extended 2026-12-05. Not scheduled for removal; the API may change in any release.
+     */
     unstable_copy: false,
     speech: false,
     dictation: false,
@@ -128,6 +131,9 @@ export class ExternalStoreThreadRuntimeCore
   }
 
   // A getter, not a method, so its presence tracks the adapter.
+  /**
+   * @deprecated Experimental since 2026-08-02. Not scheduled for removal; the API may change in any release.
+   */
   public get unstable_refetchThread(): (() => Promise<void>) | undefined {
     if (!this._store.onRefetchThread) return undefined;
     return () => this._store.onRefetchThread!();
@@ -288,6 +294,9 @@ export class ExternalStoreThreadRuntimeCore
       speech: this._store.adapters?.speech !== undefined,
       dictation: this._store.adapters?.dictation !== undefined,
       voice: this._store.adapters?.voice !== undefined,
+      /**
+       * @deprecated Experimental since 2024-09-01, extended 2026-12-05. Not scheduled for removal; the API may change in any release.
+       */
       unstable_copy: this._store.unstable_capabilities?.copy !== false,
       attachments: !!this._store.adapters?.attachments,
       feedback: !!this._store.adapters?.feedback,
@@ -831,6 +840,7 @@ export class ExternalStoreThreadRuntimeCore
    * Adapter-facing notification that the backing session was discarded.
    * Clears session-scoped tool-invocation state and parks queued work,
    * without run-cancel semantics (`onCancel`, composer draft restoration).
+   * @deprecated Experimental since 2026-08-14. Not scheduled for removal; the API may change in any release.
    */
   public unstable_notifySessionReset(): void {
     this._runTrackerUpdate(() => this._toolInvocations?.reset());

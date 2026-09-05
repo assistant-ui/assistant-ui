@@ -49,6 +49,9 @@ export const MessagePrimitiveParts: FC<MessagePrimitiveParts.Props> = (
           components.Reasoning ?? messagePartsDefaultComponents.Reasoning,
         Source: components.Source ?? messagePartsDefaultComponents.Source,
         File: components.File ?? messagePartsDefaultComponents.File,
+        /**
+         * @deprecated Experimental since 2024-10-21, extended 2026-12-05. Not scheduled for removal; the API may change in any release.
+         */
         Unstable_Audio:
           components.Unstable_Audio ??
           messagePartsDefaultComponents.Unstable_Audio,

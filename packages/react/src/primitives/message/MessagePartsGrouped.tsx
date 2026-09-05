@@ -270,6 +270,9 @@ const defaultComponents = {
   Source: () => null,
   Image: () => <MessagePartPrimitiveImage />,
   File: () => null,
+  /**
+   * @deprecated Experimental since 2024-10-21, extended 2026-12-05. Not scheduled for removal; the API may change in any release.
+   */
   Unstable_Audio: () => null,
   Group: ({ children }) => children,
 } satisfies MessagePrimitiveUnstable_PartsGrouped.Props["components"];
@@ -285,6 +288,9 @@ const MessagePartComponent: FC<MessagePartComponentProps> = ({
     Image = defaultComponents.Image,
     Source = defaultComponents.Source,
     File = defaultComponents.File,
+    /**
+     * @deprecated Experimental since 2024-10-21, extended 2026-12-05. Not scheduled for removal; the API may change in any release.
+     */
     Unstable_Audio: Audio = defaultComponents.Unstable_Audio,
     tools = {},
     data,

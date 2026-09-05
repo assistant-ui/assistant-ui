@@ -69,6 +69,9 @@ type DataStreamRuntimeRequestOptions = {
   tools: any;
   system?: string | undefined;
   runConfig?: any;
+  /**
+   * @deprecated Experimental since 2024-10-24, extended 2026-12-05. Not scheduled for removal; the API may change in any release.
+   */
   unstable_assistantMessageId?: string;
   threadId?: string;
   parentId?: string | null;
@@ -211,6 +214,9 @@ class DataStreamRuntimeAdapter implements ChatModelAdapter {
       const stream = result.body
         .pipeThrough(decoder)
         .pipeThrough(
+          /**
+           * @deprecated Experimental since 2025-04-11, extended 2027-03-05. Not scheduled for removal; the API may change in any release.
+           */
           unstable_toolResultStream(context.tools, abortSignal, () => {
             throw new Error(
               "Tool interrupt is not supported in data stream runtime",
@@ -224,6 +230,9 @@ class DataStreamRuntimeAdapter implements ChatModelAdapter {
       invokeRuntimeCallback(
         "onFinish",
         this.options.onFinish,
+        /**
+         * @deprecated Experimental since 2024-09-28, extended 2026-12-05. Not scheduled for removal; the API may change in any release.
+         */
         unstable_getMessage(),
       );
     } catch (error: unknown) {

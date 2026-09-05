@@ -294,6 +294,9 @@ const useAssistantTransportThreadRuntime = <T>(
       const stream = body.pipeThrough(decoder).pipeThrough(
         new AssistantMessageAccumulator({
           initialMessage: createInitialMessage({
+            /**
+             * @deprecated Experimental since 2025-05-20, extended 2027-03-05. Not scheduled for removal; the API may change in any release.
+             */
             unstable_state:
               (agentStateRef.current as ReadonlyJSONValue) ?? null,
           }),
@@ -406,6 +409,9 @@ const useAssistantTransportThreadRuntime = <T>(
     isRunning: converted.isRunning,
     isLoading: isReplaying,
     adapters: options.adapters,
+    /**
+     * @deprecated Experimental since 2026-05-26, extended 2027-06-05. Not scheduled for removal; the API may change in any release.
+     */
     unstable_enableToolInvocations: true,
     setToolStatuses,
     extras: {

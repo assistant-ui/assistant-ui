@@ -1,5 +1,8 @@
 const WHITESPACE_RE = /\s/u;
 
+/**
+ * @deprecated Experimental since 2026-08-25. Not scheduled for removal; the API may change in any release.
+ */
 export type TriggerMatch = {
   readonly query: string;
   readonly offset: number;
@@ -15,6 +18,7 @@ export type TriggerMatch = {
  *
  * Return null when the caret is at or before the trigger. Escape moves the
  * caret to `offset` so a match there would reopen the popover.
+ * @deprecated Experimental since 2026-08-25. Not scheduled for removal; the API may change in any release.
  */
 export type TriggerMatcher = (
   text: string,
