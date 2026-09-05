@@ -73,6 +73,22 @@ describe("getStarHistory", () => {
     await expect(getStarHistory()).resolves.toHaveLength(2);
   });
 
+  it("refuses a listing longer than it will page through", async () => {
+    // Clamping would drop the oldest weeks, which rebases the curve the same
+    // way an unbounded listing does.
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async () =>
+        respond(
+          Array.from({ length: PAGE_SIZE }, (_, i) => bucket(i)),
+          linkTo(1000),
+        ),
+      ),
+    );
+
+    await expect(getStarHistory()).resolves.toBeNull();
+  });
+
   it("returns null when a later page fails", async () => {
     vi.stubGlobal(
       "fetch",

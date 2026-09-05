@@ -384,7 +384,8 @@ export async function getStarHistory(
     // Page 1 holds the newest weeks while the series accumulates from the oldest,
     // so a listing truncated here is a rebased curve, not a shorter one.
     if (linked === null && weeks.length >= STAR_HISTORY_PAGE_SIZE) return null;
-    const lastPage = Math.min(linked ?? 1, MAX_STAR_HISTORY_PAGES);
+    if (linked !== null && linked > MAX_STAR_HISTORY_PAGES) return null;
+    const lastPage = linked ?? 1;
 
     const rest = await Promise.all(
       Array.from({ length: Math.max(0, lastPage - 1) }, async (_, i) => {
