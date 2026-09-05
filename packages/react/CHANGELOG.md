@@ -1,5 +1,22 @@
 # @assistant-ui/react
 
+## 0.15.19
+
+### Patch Changes
+
+- [#6738](https://github.com/assistant-ui/assistant-ui/pull/6738) [`3c17a5f`](https://github.com/assistant-ui/assistant-ui/commit/3c17a5f08cacc55a5eaa5c6eb7016664847a80a6) - fix: prevent queued live completion requests from starting after unmount ([@Kinfe123](https://github.com/Kinfe123))
+
+- [#6843](https://github.com/assistant-ui/assistant-ui/pull/6843) [`24a288e`](https://github.com/assistant-ui/assistant-ui/commit/24a288eeafb263dc6a91bec263aecf551852de0e) - feat(cloud): claim anonymous threads into a signed-in workspace by exposing the browser's anonymous refresh token and moving its threads into an authenticated Assistant Cloud workspace after sign-in. ([@okisdev](https://github.com/okisdev))
+
+- [#6837](https://github.com/assistant-ui/assistant-ui/pull/6837) [`191bd97`](https://github.com/assistant-ui/assistant-ui/commit/191bd9728471816ead3cc5c5d40bb57b082ff4d2) - fix(react): keep the page from shifting sideways when a collapsible opens ([@okisdev](https://github.com/okisdev))
+  
+  `useScrollLock` hides the scrollbar for the length of the animation and pads the scroll container to keep its width, but it measured the bar as `offsetWidth - clientWidth` minus borders. A root element's `offsetWidth` already excludes the viewport scrollbar, so that reported zero whenever the scroll had propagated to the viewport, no padding was added, and every centered element jumped sideways as the collapsible opened and back as it closed. A root scroller now falls back to measuring against `innerWidth`, but only when the element formula reports nothing, so a body that scrolls in its own right is still padded by its own gutter.
+- Updated dependencies [[`bf2cbbc`](https://github.com/assistant-ui/assistant-ui/commit/bf2cbbcf6838ff2c43eb2d4a1fd9d752be3076af), [`c9e03ef`](https://github.com/assistant-ui/assistant-ui/commit/c9e03ef26ac03f8300b29d5a3a562284b72794f2), [`24a288e`](https://github.com/assistant-ui/assistant-ui/commit/24a288eeafb263dc6a91bec263aecf551852de0e), [`5630967`](https://github.com/assistant-ui/assistant-ui/commit/563096726c1e97553699fb2bebb818bcf3d506de), [`928c580`](https://github.com/assistant-ui/assistant-ui/commit/928c580f4132496ee6ae9dc5a64fe44ca4bfd1b7), [`b2d12e7`](https://github.com/assistant-ui/assistant-ui/commit/b2d12e7b48e790daf085525f1f3de4e3a25c2da1), [`ef584ea`](https://github.com/assistant-ui/assistant-ui/commit/ef584ea623c851ba8a38e76b0a8929893a7d83f0)]:
+  - @assistant-ui/tap@0.9.17
+  - assistant-cloud@0.1.44
+  - @assistant-ui/core@0.3.18
+  - @assistant-ui/store@0.3.13
+
 ## 0.15.18
 
 ### Patch Changes

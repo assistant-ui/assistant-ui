@@ -1,5 +1,11 @@
 # @assistant-ui/tap
 
+## 0.9.17
+
+### Patch Changes
+
+- [#6060](https://github.com/assistant-ui/assistant-ui/pull/6060) [`bf2cbbc`](https://github.com/assistant-ui/assistant-ui/commit/bf2cbbcf6838ff2c43eb2d4a1fd9d752be3076af) - fix: notify every Tap root subscriber when one throws ([@Kinfe123](https://github.com/Kinfe123))
+
 ## 0.9.16
 
 ### Patch Changes

@@ -1,5 +1,14 @@
 # @assistant-ui/react-a2a
 
+## 0.2.34
+
+### Patch Changes
+
+- [#6853](https://github.com/assistant-ui/assistant-ui/pull/6853) [`cc6b727`](https://github.com/assistant-ui/assistant-ui/commit/cc6b7275a86d98ce0f0df237637b2bb4f0c41c27) - fix: ignore thread loads superseded by a newer selection ([@Kinfe123](https://github.com/Kinfe123))
+- Updated dependencies [[`c9e03ef`](https://github.com/assistant-ui/assistant-ui/commit/c9e03ef26ac03f8300b29d5a3a562284b72794f2), [`5630967`](https://github.com/assistant-ui/assistant-ui/commit/563096726c1e97553699fb2bebb818bcf3d506de), [`928c580`](https://github.com/assistant-ui/assistant-ui/commit/928c580f4132496ee6ae9dc5a64fe44ca4bfd1b7), [`b2d12e7`](https://github.com/assistant-ui/assistant-ui/commit/b2d12e7b48e790daf085525f1f3de4e3a25c2da1), [`ef584ea`](https://github.com/assistant-ui/assistant-ui/commit/ef584ea623c851ba8a38e76b0a8929893a7d83f0)]:
+  - @assistant-ui/core@0.3.18
+  - @assistant-ui/store@0.3.13
+
 ## 0.2.33
 
 ### Patch Changes

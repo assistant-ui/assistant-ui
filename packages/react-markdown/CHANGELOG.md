@@ -1,5 +1,19 @@
 # @assistant-ui/react-markdown
 
+## 0.14.15
+
+### Patch Changes
+
+- [#6807](https://github.com/assistant-ui/assistant-ui/pull/6807) [`9d218b3`](https://github.com/assistant-ui/assistant-ui/commit/9d218b33513eb0b71f9854604bda72a833bc071e) - fix: keep a fenced display body inside the list item or blockquote it was written in ([@okisdev](https://github.com/okisdev))
+  
+  giving the `$$` markers their own lines put them at the root column, which ends the container the math was written inside: an equation in a list item rendered as a sibling of the list. the markers now carry the prefix of the line the match opened on and the body is aligned to it, and that line is read from the original text so a code span earlier on it cannot truncate it.
+
+- [#6807](https://github.com/assistant-ui/assistant-ui/pull/6807) [`9d218b3`](https://github.com/assistant-ui/assistant-ui/commit/9d218b33513eb0b71f9854604bda72a833bc071e) - perf: parse once per token with `defer` on ([@okisdev](https://github.com/okisdev))
+  
+  the deferred path rendered the previous text at normal priority and the new text in the deferred pass, and react-markdown parses the whole accumulated text on every render, so a token cost two full parses. the renderer is memoized, which turns the urgent pass into a bail-out because that text was parsed on the previous commit. a caller's inline `remarkPlugins` array no longer defeats the memo.
+
+- [#6810](https://github.com/assistant-ui/assistant-ui/pull/6810) [`910bab3`](https://github.com/assistant-ui/assistant-ui/commit/910bab3c33f9052e69868626f239fa7e8f721498) - fix: read a backtick run as a fence only when it starts a line, so an info string no longer closes a fenced block ([@rupic-app](https://github.com/apps/rupic-app))
+
 ## 0.14.14
 
 ### Patch Changes

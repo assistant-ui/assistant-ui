@@ -1,5 +1,15 @@
 # @assistant-ui/core
 
+## 0.3.18
+
+### Patch Changes
+
+- [#6815](https://github.com/assistant-ui/assistant-ui/pull/6815) [`c9e03ef`](https://github.com/assistant-ui/assistant-ui/commit/c9e03ef26ac03f8300b29d5a3a562284b72794f2) - feat: submit feedback for cloud-persisted thread messages ([@okisdev](https://github.com/okisdev))
+
+- [#6824](https://github.com/assistant-ui/assistant-ui/pull/6824) [`5630967`](https://github.com/assistant-ui/assistant-ui/commit/563096726c1e97553699fb2bebb818bcf3d506de) - fix: preserve a manual thread rename that lands while automatic title generation is in flight. the rename is reasserted through the adapter once the generated run has persisted its own title, so the typed title survives on the server as well as in the list. ([@rupic-app](https://github.com/apps/rupic-app))
+
+- [#6842](https://github.com/assistant-ui/assistant-ui/pull/6842) [`ef584ea`](https://github.com/assistant-ui/assistant-ui/commit/ef584ea623c851ba8a38e76b0a8929893a7d83f0) - fix(core): keep the thread list and report the error when a load fails. failed loads previously looked like an empty thread list; thread list state now exposes `loadError`, clears it when a later load starts, and in browsers retries a failed load once when the window comes back online or the document becomes visible again. React Native has neither event, so it keeps recovering through `reload()`. ([@okisdev](https://github.com/okisdev))
+
 ## 0.3.17
 
 ### Patch Changes

@@ -1,5 +1,16 @@
 # @assistant-ui/eve
 
+## 0.0.17
+
+### Patch Changes
+
+- [#6813](https://github.com/assistant-ui/assistant-ui/pull/6813) [`d49999b`](https://github.com/assistant-ui/assistant-ui/commit/d49999b63a6e620c49f7d7fef3c197465b07c5d0) - fix: show resumed session history at its real times, not "just now" ([@samdickson22](https://github.com/samdickson22))
+  
+  `createdAt` now comes from the `meta.at` of each message's own stream event, so a resumed session renders yesterday's messages at yesterday's times. A confirmed message therefore carries eve's server clock rather than the client's first-observation clock, which is what keeps its time stable across reloads and devices; optimistic and failed sends have no durable event and keep the client wall clock.
+- Updated dependencies [[`c9e03ef`](https://github.com/assistant-ui/assistant-ui/commit/c9e03ef26ac03f8300b29d5a3a562284b72794f2), [`5630967`](https://github.com/assistant-ui/assistant-ui/commit/563096726c1e97553699fb2bebb818bcf3d506de), [`928c580`](https://github.com/assistant-ui/assistant-ui/commit/928c580f4132496ee6ae9dc5a64fe44ca4bfd1b7), [`b2d12e7`](https://github.com/assistant-ui/assistant-ui/commit/b2d12e7b48e790daf085525f1f3de4e3a25c2da1), [`ef584ea`](https://github.com/assistant-ui/assistant-ui/commit/ef584ea623c851ba8a38e76b0a8929893a7d83f0)]:
+  - @assistant-ui/core@0.3.18
+  - @assistant-ui/store@0.3.13
+
 ## 0.0.16
 
 ### Patch Changes
