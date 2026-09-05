@@ -94,8 +94,6 @@ jobs:
         shell: bash
         env:
           BASE_SHA: ${{ github.event.pull_request.base.sha }}
-          TURBO_TOKEN: ${{ secrets.TURBO_TOKEN }}
-          TURBO_TEAM: ${{ secrets.TURBO_TEAM }}
         run: |
           set -euo pipefail
           node packages/x-performance/bin/aui-perf.mjs trace --ref "$BASE_SHA" packages/x-performance/fixtures/*.html --json "$RUNNER_TEMP/trace.json"
