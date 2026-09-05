@@ -351,3 +351,24 @@ describe("appendLangChainChunk updates-event partial_json", () => {
     expect(final).toBe(toolMessage);
   });
 });
+
+describe("appendLangChainChunk content snapshots", () => {
+  it.each(["B", [{ type: "text" as const, text: "B" }]])(
+    "keeps the previous text block unchanged for %j",
+    (content) => {
+      const before: AiMessage = {
+        id: "ai-1",
+        type: "ai",
+        content: [{ type: "text", text: "A" }],
+      };
+      const after = append(before, {
+        id: "ai-1",
+        type: "AIMessageChunk",
+        content,
+      });
+
+      expect(after.content).toEqual([{ type: "text", text: "AB" }]);
+      expect(before.content).toEqual([{ type: "text", text: "A" }]);
+    },
+  );
+});

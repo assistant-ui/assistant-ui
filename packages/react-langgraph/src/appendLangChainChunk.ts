@@ -98,8 +98,10 @@ export const appendLangChainChunk = (
   if (typeof curr?.content === "string") {
     const lastIndex = newContent.length - 1;
     if (newContent[lastIndex]?.type === "text") {
-      (newContent[lastIndex] as MessageContentText).text =
-        (newContent[lastIndex] as MessageContentText).text + curr.content;
+      newContent[lastIndex] = {
+        ...newContent[lastIndex],
+        text: (newContent[lastIndex] as MessageContentText).text + curr.content,
+      };
     } else {
       newContent.push({ type: "text", text: curr.content });
     }
@@ -112,8 +114,11 @@ export const appendLangChainChunk = (
 
       if (item.type === "text") {
         if (newContent[lastIndex]?.type === "text") {
-          (newContent[lastIndex] as MessageContentText).text =
-            (newContent[lastIndex] as MessageContentText).text + item.text;
+          newContent[lastIndex] = {
+            ...newContent[lastIndex],
+            text:
+              (newContent[lastIndex] as MessageContentText).text + item.text,
+          };
         } else {
           newContent.push({ type: "text", text: item.text });
         }
