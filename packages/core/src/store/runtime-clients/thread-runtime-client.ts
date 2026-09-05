@@ -1,7 +1,7 @@
 import type { Unsubscribe } from "../../types/unsubscribe";
 import type { ThreadRuntimeEventType } from "../../runtime/interfaces/thread-runtime-core";
 import type { ThreadRuntime } from "../../runtime/api/thread-runtime";
-import { useMemo, useEffect, type RefObject } from "react";
+import { useMemo, useEffect, useRef, type RefObject } from "react";
 import { useResource, resource, withKey } from "@assistant-ui/tap";
 import { liveRef } from "./liveRef";
 import type { ClientOutput } from "@assistant-ui/store";
@@ -34,6 +34,42 @@ const useMessageClientById = ({
 };
 
 const MessageClientById = resource(useMessageClientById);
+
+const useMessageClientElements = (
+  runtime: ThreadRuntime,
+  messages: readonly { id: string }[],
+  threadIdRef: RefObject<string>,
+) => {
+  const cacheRef = useRef<{
+    runtime: ThreadRuntime;
+    threadIdRef: RefObject<string>;
+    ids: readonly string[];
+    elements: readonly ReturnType<typeof MessageClientById>[];
+  } | null>(null);
+
+  return useMemo(() => {
+    const cached = cacheRef.current;
+    if (
+      cached?.runtime === runtime &&
+      cached.threadIdRef === threadIdRef &&
+      cached.ids.length === messages.length &&
+      messages.every((message, index) => message.id === cached.ids[index])
+    ) {
+      return cached.elements;
+    }
+
+    const ids = messages.map((message) => message.id);
+    const elements = ids.map((id) =>
+      withKey(id, MessageClientById({ runtime, id, threadIdRef }), [
+        runtime,
+        id,
+        threadIdRef,
+      ]),
+    );
+    cacheRef.current = { runtime, threadIdRef, ids, elements };
+    return elements;
+  }, [runtime, messages, threadIdRef]);
+};
 
 const useThreadClient = ({
   runtime,
@@ -83,13 +119,7 @@ const useThreadClient = ({
     ThreadSuggestions(runtimeState.suggestions),
   );
   const messages = useClientLookup(
-    runtimeState.messages.map((m) =>
-      withKey(m.id, MessageClientById({ runtime, id: m.id, threadIdRef }), [
-        runtime,
-        m.id,
-        threadIdRef,
-      ]),
-    ),
+    useMessageClientElements(runtime, runtimeState.messages, threadIdRef),
   );
 
   const state = useMemo<ThreadState>(() => {

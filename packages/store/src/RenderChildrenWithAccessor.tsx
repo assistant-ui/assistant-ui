@@ -2,8 +2,9 @@
 
 import { type ReactNode, useMemo, useRef } from "react";
 import type { AssistantClient } from "./types/client";
-import { useAuiState } from "./useAuiState";
+import { useAuiStateWithDependencies } from "./useAuiState";
 import { useAui } from "./useAui";
+import { collectClientDependencies } from "./useClientResource";
 
 export const useGetItemAccessor = <T,>(
   getItemState: (aui: AssistantClient) => T,
@@ -16,11 +17,14 @@ export const useGetItemAccessor = <T,>(
   // Use the current state as the pre-access snapshot so the post-commit check
   // matches getItemState(aui) and doesn't schedule an unnecessary re-render.
   const accessedRef = useRef(false);
-  const currentValue = accessedRef.current ? null : getItemState(aui);
-  useAuiState(() => {
+  const current = accessedRef.current
+    ? undefined
+    : collectClientDependencies(() => getItemState(aui));
+  const currentValue = current?.value;
+  useAuiStateWithDependencies(() => {
     if (!accessedRef.current) return currentValue;
     return getItemState(aui);
-  });
+  }, current?.dependencies);
 
   return () => {
     accessedRef.current = true;

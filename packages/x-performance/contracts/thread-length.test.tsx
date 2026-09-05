@@ -112,9 +112,8 @@ describe("thread length", () => {
     expect(conversions).toBe(200);
   });
 
-  // The external-store core walks every message on every update (conversion
-  // cache lookups, dedupe, repository relink), so wall time per token still
-  // grows with thread length; this pins that the React work does not.
+  // Tail-only updates reuse the unchanged prefix in the external-store core;
+  // this pins that the React work also stays constant across thread lengths.
   it("streams a token at the same render, commit, and conversion cost in a 2-message and a 200-message thread", () => {
     const short = streamInto(2).perStream;
     const long = streamInto(200).perStream;

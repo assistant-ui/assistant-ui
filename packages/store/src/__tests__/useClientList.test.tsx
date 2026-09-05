@@ -9,6 +9,7 @@ import { AuiProvider } from "../AuiProvider";
 import { useAui } from "../useAui";
 import { useAuiState } from "../useAuiState";
 import { useClientList } from "../useClientList";
+import { subscribeToClient } from "../useClientResource";
 
 type AnyClient = Record<string, any>;
 
@@ -90,15 +91,22 @@ describe("useClientList", () => {
   it("remove unmounts the client and notifies subscribers", () => {
     const { getAui, hook } = setup();
     const subscriber = vi.fn();
+    const itemSubscriber = vi.fn();
     getAui().subscribe(subscriber);
+    const unsubscribeItem = subscribeToClient(
+      getAui().thread.item({ key: "a" }),
+      itemSubscriber,
+    );
 
     act(() => flushTapSync(() => getAui().thread.item({ key: "a" }).remove()));
 
     expect(subscriber).toHaveBeenCalled();
+    expect(itemSubscriber).toHaveBeenCalled();
     expect(hook.result.current).toEqual([{ id: "b", label: "B" }]);
     expect(() => getAui().thread.item({ key: "a" })).toThrow(
       'key "a" not found',
     );
+    unsubscribeItem?.();
   });
 
   it("lookup works by index and by key", () => {

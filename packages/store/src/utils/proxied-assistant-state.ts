@@ -1,9 +1,19 @@
 "use client";
-import { getClientState } from "../useClientResource";
-import type { AssistantClient, AssistantState } from "../types/client";
+import {
+  collectClientDependencies,
+  getClientState,
+  trackClientDependency,
+} from "../useClientResource";
+import type {
+  AssistantClient,
+  AssistantState,
+  ClientMethods,
+} from "../types/client";
 import { BaseProxyHandler, handleIntrospectionProp } from "./BaseProxyHandler";
 import { isScopeAvailable } from "./client-accessor";
 import { clientScopeKeys, isIgnoredClientKey } from "./client-keys";
+
+export const collectAssistantStateDependencies = collectClientDependencies;
 
 /**
  * Proxied state that lazily accesses scope states
@@ -28,7 +38,9 @@ const createProxiedAssistantState = (
       // Collapses absent (a hand-built parent chain without the scope) and
       // unavailable into undefined; only the base state throws for those
       if (!isScopeAvailable(client[scope])) return undefined;
-      return getClientState(client[scope]());
+      const scopeClient = client[scope]() as ClientMethods;
+      trackClientDependency(scopeClient);
+      return getClientState(scopeClient);
     }
 
     ownKeys(): ArrayLike<string | symbol> {
@@ -55,7 +67,9 @@ const createProxiedAssistantState = (
       }
       const scope = prop as keyof AssistantClient;
       if (isIgnoredClientKey(scope)) return undefined;
-      return getClientState(client[scope]());
+      const scopeClient = client[scope]() as ClientMethods;
+      trackClientDependency(scopeClient);
+      return getClientState(scopeClient);
     }
 
     ownKeys(): ArrayLike<string | symbol> {
