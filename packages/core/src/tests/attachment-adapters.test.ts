@@ -8,6 +8,13 @@ import {
 } from "../adapters/attachment";
 
 describe("fileMatchesAccept", () => {
+  it.each([
+    ["BACKUP.TAR.GZ", ".tar.gz", true],
+    ["png", ".png", false],
+  ])("matches the full suffix of %s", (name, accept, expected) => {
+    expect(fileMatchesAccept({ name, type: "" }, accept)).toBe(expected);
+  });
+
   it("matches MIME types with parameters", () => {
     expect(
       fileMatchesAccept(

@@ -142,11 +142,11 @@ export function fileMatchesAccept(
     .split(",")
     .map((type) => type.trim().toLowerCase());
 
-  const fileExtension = `.${file.name.split(".").pop()!.toLowerCase()}`;
+  const fileName = file.name.toLowerCase();
   const fileMimeType = file.type.split(";", 1)[0]!.trim().toLowerCase();
 
   for (const type of allowedTypes) {
-    if (type.startsWith(".") && type === fileExtension) {
+    if (type.startsWith(".") && fileName.endsWith(type)) {
       return true;
     }
 
