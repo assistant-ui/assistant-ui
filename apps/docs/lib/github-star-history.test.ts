@@ -89,6 +89,27 @@ describe("getStarHistory", () => {
     await expect(getStarHistory()).resolves.toBeNull();
   });
 
+  it("retries a transient page failure once", async () => {
+    let stumbled = false;
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async (url: string) => {
+        if (String(url).includes("page=2") && !stumbled) {
+          stumbled = true;
+          return new Response("nope", { status: 500 });
+        }
+        return String(url).includes("page=1")
+          ? respond(
+              Array.from({ length: PAGE_SIZE }, (_, i) => bucket(i)),
+              linkTo(2),
+            )
+          : respond([bucket(PAGE_SIZE)]);
+      }),
+    );
+
+    await expect(getStarHistory()).resolves.toHaveLength(PAGE_SIZE + 1);
+  });
+
   it("returns null when a later page fails", async () => {
     vi.stubGlobal(
       "fetch",
