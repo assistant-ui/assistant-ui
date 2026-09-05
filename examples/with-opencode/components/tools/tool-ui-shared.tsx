@@ -34,9 +34,9 @@ export const getPatchInfo = (patchText: string) => {
 
   const files = unique(
     [...patchText.matchAll(/^\*\*\*\s+(?:Update|Add|Delete)\s+File:\s+(.+)$/gm)]
-      .map((match) => basename(match[1]!.trim()))
+      .map((match) => match[1]!.trim())
       .filter(Boolean),
-  );
+  ).map(basename);
 
   let added = 0;
   let removed = 0;
