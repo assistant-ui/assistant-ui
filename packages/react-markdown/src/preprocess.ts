@@ -464,6 +464,14 @@ function endOfVerbatimRun(text: string, index: number): number {
     const end = backtickEnd(text, index);
     return end === -1 ? index + runLength(text, index, "`") : end;
   }
+  if (
+    char === "~" &&
+    runLength(text, index, "~") >= 3 &&
+    atLineStart(text, index)
+  ) {
+    const end = fenceEnd(text, index, "~");
+    return end === -1 ? index + runLength(text, index, "~") : end;
+  }
   if (char !== "$") return index + 1;
 
   const dollars = runLength(text, index, "$");

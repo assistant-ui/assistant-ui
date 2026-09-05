@@ -457,6 +457,12 @@ describe("escapeCurrencyDollars", () => {
     );
   });
 
+  it("preserves tilde-fenced currency and escapes the following prose", () => {
+    expect(escapeCurrencyDollars("~~~text\n$5\n~~~\nafter $10")).toBe(
+      "~~~text\n$5\n~~~\nafter \\$10",
+    );
+  });
+
   it("accepts a longer closing run for a fenced block", () => {
     expect(escapeCurrencyDollars("```\nconst price = $5;\n````")).toBe(
       "```\nconst price = $5;\n````",
