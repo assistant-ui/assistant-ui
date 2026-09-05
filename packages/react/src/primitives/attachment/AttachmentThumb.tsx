@@ -15,9 +15,6 @@ export namespace AttachmentPrimitiveThumb {
   export type Props = PrimitiveDivProps;
 }
 
-/**
- * @deprecated Experimental since 2024-10-10, extended 2026-12-05. Not scheduled for removal; the API may change in any release.
- */
 export const AttachmentPrimitiveThumb = forwardRef<
   AttachmentPrimitiveThumb.Element,
   AttachmentPrimitiveThumb.Props

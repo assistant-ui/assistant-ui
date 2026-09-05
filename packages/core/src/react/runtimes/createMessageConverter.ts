@@ -9,9 +9,6 @@ import {
 } from "./external-message-converter";
 import { getExternalStoreMessages } from "../../runtime/utils/external-store-message";
 
-/**
- * @deprecated Experimental since 2025-02-02, extended 2027-03-05. Not scheduled for removal; the API may change in any release.
- */
 export const createMessageConverter = <T extends object>(
   callback: useExternalMessageConverter.Callback<T>,
 ) => {

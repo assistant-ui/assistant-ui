@@ -3,9 +3,6 @@
 import { useEffect, useRef, useState } from "react";
 import { useAuiState } from "@assistant-ui/store";
 
-/**
- * @deprecated Experimental since 2026-06-13. Not scheduled for removal; the API may change in any release.
- */
 export type Unstable_MessageStallDetectionOptions = {
   /**
    * Milliseconds of unchanged message content before the message counts as
@@ -15,9 +12,6 @@ export type Unstable_MessageStallDetectionOptions = {
   thresholdMs?: number | undefined;
 };
 
-/**
- * @deprecated Experimental since 2026-06-13. Not scheduled for removal; the API may change in any release.
- */
 export type Unstable_MessageStallDetection = {
   /** True while the message is running and its content has not changed for at least `thresholdMs`. */
   stalled: boolean;
@@ -26,7 +20,16 @@ export type Unstable_MessageStallDetection = {
 };
 
 /**
- * @deprecated Experimental since 2026-06-13. Not scheduled for removal; the API may change in any release.
+ * @deprecated Under active development and might change without notice.
+ *
+ * Detects mid-run output stalls on the current message: while the message is
+ * running, watches a fingerprint of its content (part count plus text,
+ * argument, and result sizes) and reports a stall once the fingerprint stops
+ * changing for `thresholdMs`. Useful for re-surfacing a "still working"
+ * indicator during tool think-time or provider stalls, after the first
+ * tokens have already streamed.
+ *
+ * Must be used inside a message scope.
  */
 export function unstable_useMessageStallDetection(
   options?: Unstable_MessageStallDetectionOptions,

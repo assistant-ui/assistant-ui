@@ -241,9 +241,6 @@ export function useAgUiRuntime(
           state: core.getState(),
           setState: (next) => core.setState(next),
         }),
-        /**
-         * @deprecated Experimental since 2026-05-26, extended 2027-06-05. Not scheduled for removal; the API may change in any release.
-         */
         unstable_enableToolInvocations: true,
         setToolStatuses,
         onNew: (message: AppendMessage) => core.append(message),

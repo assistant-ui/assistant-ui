@@ -25,16 +25,12 @@ export namespace ComposerPrimitiveTriggerPopoverItems {
 /**
  * Renders the list of items within a category or search results via a render function.
  * Only renders when a category is active or search mode is on.
- * @deprecated Experimental since 2026-04-06, extended 2027-06-05. Not scheduled for removal; the API may change in any release.
  */
 export const ComposerPrimitiveTriggerPopoverItems = forwardRef<
   ComposerPrimitiveTriggerPopoverItems.Element,
   ComposerPrimitiveTriggerPopoverItems.Props
 >(({ children, "aria-label": ariaLabel, ...props }, forwardedRef) => {
   const { items, activeCategoryId, isSearchMode, open } =
-    /**
-     * @deprecated Experimental since 2026-04-15, extended 2027-06-05. Not scheduled for removal; the API may change in any release.
-     */
     useTriggerPopoverScopeContext();
 
   if (!open || (!activeCategoryId && !isSearchMode)) return null;
@@ -65,7 +61,6 @@ export namespace ComposerPrimitiveTriggerPopoverItem {
 /**
  * A button that selects a trigger item.
  * Automatically receives `data-highlighted` when keyboard-navigated.
- * @deprecated Experimental since 2026-04-06, extended 2027-06-05. Not scheduled for removal; the API may change in any release.
  */
 export const ComposerPrimitiveTriggerPopoverItem = forwardRef<
   ComposerPrimitiveTriggerPopoverItem.Element,

@@ -10,9 +10,6 @@ import type { DetectedTrigger } from "./triggerDetectionResource";
 /** External override for selection (used by Lexical's DirectivePlugin). */
 export type SelectItemOverride = (item: Unstable_TriggerItem) => boolean;
 
-/**
- * @deprecated Experimental since 2026-04-15, extended 2027-06-05. Not scheduled for removal; the API may change in any release.
- */
 export type TriggerBehavior =
   | {
       readonly kind: "directive";

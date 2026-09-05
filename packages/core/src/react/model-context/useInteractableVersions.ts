@@ -37,7 +37,7 @@ const useInteractableVersions = <TState = unknown>(
  * `restore()` that sets the live instance back to it — enough for a version
  * picker like an artifact's history dropdown.
  *
- * @deprecated Experimental since 2026-06-23. Not scheduled for removal; the API may change in any release.
+ * @deprecated Unstable / Experimental (not actually removed).
  */
 export const unstable_useInteractableVersions: <TState = unknown>(
   id: string,

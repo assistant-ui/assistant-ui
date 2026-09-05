@@ -15,9 +15,6 @@ export type PartInit =
     }
   | {
       readonly type: "reasoning";
-      /**
-       * @deprecated Experimental since 2026-08-07. Not scheduled for removal; the API may change in any release.
-       */
       readonly unstable_summary?: string;
       readonly parentId?: string;
     }

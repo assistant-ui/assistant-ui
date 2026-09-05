@@ -53,9 +53,6 @@ export type ThreadListItemRuntime = {
 
   subscribe(callback: () => void): Unsubscribe;
 
-  /**
-   * @deprecated Experimental since 2024-10-12, extended 2026-12-05. Not scheduled for removal; the API may change in any release.
-   */
   unstable_on<E extends ThreadListItemEventType>(
     event: E,
     callback: ThreadListItemEventCallback<E>,
@@ -162,9 +159,6 @@ export class ThreadListItemRuntimeImpl implements ThreadListItemRuntime {
     return this._threadListBinding.generateTitle(state.id, options);
   }
 
-  /**
-   * @deprecated Experimental since 2024-10-12, extended 2026-12-05. Not scheduled for removal; the API may change in any release.
-   */
   public unstable_on<E extends ThreadListItemEventType>(
     event: E,
     callback: ThreadListItemEventCallback<E>,

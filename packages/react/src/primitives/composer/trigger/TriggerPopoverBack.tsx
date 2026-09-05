@@ -17,16 +17,12 @@ export namespace ComposerPrimitiveTriggerPopoverBack {
 /**
  * A button that navigates back from category items to the category list.
  * Only renders when a category is active (drill-down view).
- * @deprecated Experimental since 2026-04-06, extended 2027-06-05. Not scheduled for removal; the API may change in any release.
  */
 export const ComposerPrimitiveTriggerPopoverBack = forwardRef<
   ComposerPrimitiveTriggerPopoverBack.Element,
   ComposerPrimitiveTriggerPopoverBack.Props
 >(({ onClick, ...props }, forwardedRef) => {
   const { activeCategoryId, isSearchMode, goBack, open } =
-    /**
-     * @deprecated Experimental since 2026-04-15, extended 2027-06-05. Not scheduled for removal; the API may change in any release.
-     */
     useTriggerPopoverScopeContext();
 
   if (!open || !activeCategoryId || isSearchMode) return null;

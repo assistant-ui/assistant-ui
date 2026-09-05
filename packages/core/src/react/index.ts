@@ -70,22 +70,22 @@ export {
  */
 export { useInteractableState } from "./interactables-legacy/useInteractableState";
 export {
-  /** @deprecated Experimental since 2026-06-14. Not scheduled for removal; the API may change in any release. */
+  /** @deprecated Unstable / Experimental — may change in any release. */
   unstable_useInteractable,
   type Unstable_InteractableConfig,
   type Unstable_InferInteractableState,
   type Unstable_InteractableVersionInfo,
 } from "./model-context/useInteractable";
 export {
-  /** @deprecated Experimental since 2026-06-14. Not scheduled for removal; the API may change in any release. */
+  /** @deprecated Unstable / Experimental — may change in any release. */
   unstable_useInteractableState,
 } from "./model-context/useInteractableState";
 export {
-  /** @deprecated Experimental since 2026-06-23. Not scheduled for removal; the API may change in any release. */
+  /** @deprecated Unstable / Experimental — may change in any release. */
   unstable_useInteractableVersions,
 } from "./model-context/useInteractableVersions";
 export {
-  /** @deprecated Experimental since 2026-06-14. Not scheduled for removal; the API may change in any release. */
+  /** @deprecated Unstable / Experimental — may change in any release. */
   unstable_interactableTool,
   type Unstable_InteractableToolConfig,
   type Unstable_InteractableToolRenderProps,
@@ -105,7 +105,7 @@ export { DataRenderers } from "./client/DataRenderers";
  */
 export { Interactables } from "./interactables-legacy/Interactables";
 export {
-  /** @deprecated Experimental since 2026-06-14. Not scheduled for removal; the API may change in any release. */
+  /** @deprecated Unstable / Experimental — may change in any release. */
   unstable_Interactables,
 } from "./client/Interactables";
 

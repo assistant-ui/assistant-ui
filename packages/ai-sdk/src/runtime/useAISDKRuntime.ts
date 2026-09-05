@@ -89,9 +89,6 @@ export type AISDKRuntimeAdapter<UI_MESSAGE extends UIMessage = UIMessage> =
         })
       | undefined;
     toCreateMessage?: CustomToCreateMessageFunction;
-    /**
-     * @deprecated Experimental since 2026-08-28. Not scheduled for removal; the API may change in any release.
-     */
     unstable_messageRepositoryInstance?: MessageRepository | undefined;
     /**
      * Whether to automatically cancel pending interactive tool calls when the user sends a new message.
@@ -136,7 +133,7 @@ export type AISDKRuntimeAdapter<UI_MESSAGE extends UIMessage = UIMessage> =
      * Called after an explicit `switchToBranch` (for example a BranchPicker
      * click). Complements `setMessages` and does not enable switching by itself.
      *
-     * @deprecated Experimental since 2026-06-23. Not scheduled for removal; the API may change in any release.
+     * @deprecated This API is still under active development and might change without notice.
      */
     unstable_onBranchChange?: ExternalStoreAdapter["unstable_onBranchChange"];
   };
@@ -432,9 +429,6 @@ export const useAISDKRuntime = <UI_MESSAGE extends UIMessage = UIMessage>(
     ...(shouldFeedRepository
       ? { messageRepository: exportedMessageRepository }
       : { messages }),
-    /**
-     * @deprecated Experimental since 2026-05-26, extended 2027-06-05. Not scheduled for removal; the API may change in any release.
-     */
     unstable_enableToolInvocations: true,
     setToolStatuses,
     setMessages: (messages) =>
@@ -635,9 +629,6 @@ export const useAISDKRuntime = <UI_MESSAGE extends UIMessage = UIMessage>(
       ),
     ...pickExternalStoreSharedOptions(adapter),
     ...(adapter.unstable_messageRepositoryInstance && {
-      /**
-       * @deprecated Experimental since 2026-08-28. Not scheduled for removal; the API may change in any release.
-       */
       unstable_messageRepositoryInstance:
         adapter.unstable_messageRepositoryInstance,
     }),

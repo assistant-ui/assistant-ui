@@ -8,9 +8,6 @@ import type {
 import type { Unstable_IconComponent } from "./useMentionAdapter";
 import { matchesTriggerItemQuery } from "../primitives/composer/trigger/matchesTriggerItemQuery";
 
-/**
- * @deprecated Experimental since 2026-04-06, extended 2027-06-05. Not scheduled for removal; the API may change in any release.
- */
 export type Unstable_SlashCommand = {
   readonly id: string;
   readonly label?: string | undefined;
@@ -19,9 +16,6 @@ export type Unstable_SlashCommand = {
   readonly execute: () => void;
 };
 
-/**
- * @deprecated Experimental since 2026-04-06, extended 2027-06-05. Not scheduled for removal; the API may change in any release.
- */
 export type Unstable_UseSlashCommandAdapterOptions = {
   readonly commands: readonly Unstable_SlashCommand[];
   /** Strip the trigger text from the composer after executing. @default false */
@@ -32,16 +26,19 @@ export type Unstable_UseSlashCommandAdapterOptions = {
   readonly fallbackIcon?: Unstable_IconComponent;
 };
 
-/**
- * @deprecated Experimental since 2026-04-15, extended 2027-06-05. Not scheduled for removal; the API may change in any release.
- */
 export type Unstable_SlashCommandAction = {
   readonly onExecute: (item: Unstable_TriggerItem) => void;
   readonly removeOnExecute?: boolean | undefined;
 };
 
 /**
- * @deprecated Experimental since 2026-04-06, extended 2027-06-05. Not scheduled for removal; the API may change in any release.
+ * @deprecated Under active development and may change without notice.
+ *
+ * Bundles slash command definitions (with inline `execute` callbacks) into
+ * `{adapter, action}` that plug directly into `ComposerTriggerPopover`.
+ * `execute` stays in the hook closure and is never attached to the returned
+ * `TriggerItem`, keeping items serializable.
+ *
  * @example
  * ```tsx
  * const slash = unstable_useSlashCommandAdapter({

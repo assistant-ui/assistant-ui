@@ -955,17 +955,8 @@ export class RunAggregator {
       status: run.status,
       content,
       metadata: {
-        /**
-         * @deprecated Experimental since 2025-05-20, extended 2027-03-05. Not scheduled for removal; the API may change in any release.
-         */
         unstable_state: null,
-        /**
-         * @deprecated Experimental since 2025-01-27, extended 2027-03-05. Not scheduled for removal; the API may change in any release.
-         */
         unstable_annotations: [],
-        /**
-         * @deprecated Experimental since 2025-01-04, extended 2027-03-05. Not scheduled for removal; the API may change in any release.
-         */
         unstable_data: [],
         steps: [],
         custom: {

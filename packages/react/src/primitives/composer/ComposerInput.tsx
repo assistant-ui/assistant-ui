@@ -55,19 +55,16 @@ export namespace ComposerPrimitiveInput {
     /**
      * Whether to automatically focus the input when a new run starts.
      * @default true
-     * @deprecated Experimental since 2024-10-12, extended 2026-12-05. Not scheduled for removal; the API may change in any release.
      */
     unstable_focusOnRunStart?: boolean | undefined;
     /**
      * Whether to automatically focus the input when scrolling to bottom.
      * @default true
-     * @deprecated Experimental since 2024-10-12, extended 2026-12-05. Not scheduled for removal; the API may change in any release.
      */
     unstable_focusOnScrollToBottom?: boolean | undefined;
     /**
      * Whether to automatically focus the input when switching threads.
      * @default true
-     * @deprecated Experimental since 2024-10-12, extended 2026-12-05. Not scheduled for removal; the API may change in any release.
      */
     unstable_focusOnThreadSwitched?: boolean | undefined;
     /**
@@ -76,7 +73,6 @@ export namespace ComposerPrimitiveInput {
      * `(pointer: coarse) and (not (any-pointer: fine))`. Only takes effect
      * when `submitMode` resolves to `"enter"`.
      * @default false
-     * @deprecated Experimental since 2026-05-24, extended 2027-06-05. Not scheduled for removal; the API may change in any release.
      */
     unstable_insertNewlineOnTouchEnter?: boolean | undefined;
     /**
@@ -166,21 +162,9 @@ export const ComposerPrimitiveInput = forwardRef<
       submitOnEnter,
       submitMode,
       cancelOnEscape = true,
-      /**
-       * @deprecated Experimental since 2024-10-12, extended 2026-12-05. Not scheduled for removal; the API may change in any release.
-       */
       unstable_focusOnRunStart = true,
-      /**
-       * @deprecated Experimental since 2024-10-12, extended 2026-12-05. Not scheduled for removal; the API may change in any release.
-       */
       unstable_focusOnScrollToBottom = true,
-      /**
-       * @deprecated Experimental since 2024-10-12, extended 2026-12-05. Not scheduled for removal; the API may change in any release.
-       */
       unstable_focusOnThreadSwitched = true,
-      /**
-       * @deprecated Experimental since 2026-05-24, extended 2027-06-05. Not scheduled for removal; the API may change in any release.
-       */
       unstable_insertNewlineOnTouchEnter = false,
       addAttachmentOnPaste = true,
       onHeightChange,

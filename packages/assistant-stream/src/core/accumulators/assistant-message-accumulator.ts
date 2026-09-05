@@ -37,18 +37,9 @@ const appendPart = (
   part: AssistantMessagePart,
 ): AssistantMessage => withParts(message, [...message.parts, part]);
 
-/**
- * @deprecated Experimental since 2025-09-14, extended 2027-03-05. Not scheduled for removal; the API may change in any release.
- */
 export const createInitialMessage = ({
-  /**
-   * @deprecated Experimental since 2025-05-20, extended 2027-03-05. Not scheduled for removal; the API may change in any release.
-   */
   unstable_state = null,
 }: {
-  /**
-   * @deprecated Experimental since 2025-05-20, extended 2027-03-05. Not scheduled for removal; the API may change in any release.
-   */
   unstable_state?: ReadonlyJSONValue;
 } = {}): AssistantMessage => ({
   role: "assistant",
@@ -59,13 +50,7 @@ export const createInitialMessage = ({
   },
   metadata: {
     unstable_state,
-    /**
-     * @deprecated Experimental since 2025-01-04, extended 2027-03-05. Not scheduled for removal; the API may change in any release.
-     */
     unstable_data: [],
-    /**
-     * @deprecated Experimental since 2025-01-27, extended 2027-03-05. Not scheduled for removal; the API may change in any release.
-     */
     unstable_annotations: [],
     steps: [],
     custom: {},
@@ -325,9 +310,6 @@ const handleAnnotations = (
     ...message,
     metadata: {
       ...message.metadata,
-      /**
-       * @deprecated Experimental since 2025-01-27, extended 2027-03-05. Not scheduled for removal; the API may change in any release.
-       */
       unstable_annotations: [
         ...message.metadata.unstable_annotations,
         ...chunk.annotations,
@@ -344,9 +326,6 @@ const handleData = (
     ...message,
     metadata: {
       ...message.metadata,
-      /**
-       * @deprecated Experimental since 2025-01-04, extended 2027-03-05. Not scheduled for removal; the API may change in any release.
-       */
       unstable_data: [...message.metadata.unstable_data, ...chunk.data],
     },
   };
@@ -439,9 +418,6 @@ const handleUpdateState = (
     ...message,
     metadata: {
       ...message.metadata,
-      /**
-       * @deprecated Experimental since 2025-05-20, extended 2027-03-05. Not scheduled for removal; the API may change in any release.
-       */
       unstable_state: acc.state,
     },
   };

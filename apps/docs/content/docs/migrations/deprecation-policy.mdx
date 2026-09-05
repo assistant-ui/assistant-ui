@@ -29,7 +29,7 @@ Each experimental API gets a three month window from the date it shipped, and it
 /** @deprecated Experimental since 2026-06-14, extended 2026-12-05. Not scheduled for removal; the API may change in any release. */
 ```
 
-An experimental export with no annotation, or one whose window has closed without an extension, fails CI, so the dates in the source are current by construction.
+Every declaration named `unstable_` is checked where it is written, so an unannotated one, a malformed tag, or a window that has closed without an extension fails CI. The dates in the source are current by construction.
 
 - Anything marked as `unstable_`, `experimental_`, or `internal`
 - The `RuntimeCore` API (considered internal)

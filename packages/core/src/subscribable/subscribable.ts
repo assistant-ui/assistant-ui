@@ -23,9 +23,6 @@ export type EventSubscribable<TEvent extends string> = {
   event: TEvent;
   binding: SubscribableWithState<
     | {
-        /**
-         * @deprecated Experimental since 2024-10-12, extended 2026-12-05. Not scheduled for removal; the API may change in any release.
-         */
         unstable_on: (
           event: TEvent,
           callback: (payload?: unknown) => void,

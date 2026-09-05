@@ -119,7 +119,6 @@ type ExternalStoreAdapterBase<T> = {
    * conversations through one runtime keep each conversation's history and
    * branches isolated in its own instance. Omit it to keep the runtime's own
    * repository.
-   * @deprecated Experimental since 2026-08-28. Not scheduled for removal; the API may change in any release.
    */
   unstable_messageRepositoryInstance?: MessageRepository | undefined;
   suggestions?: readonly ThreadSuggestion[] | undefined;
@@ -149,7 +148,7 @@ type ExternalStoreAdapterBase<T> = {
    * requires `setMessages`, and this callback does not on its own enable branch
    * switching.
    *
-   * @deprecated Experimental since 2026-06-23. Not scheduled for removal; the API may change in any release.
+   * @deprecated This API is still under active development and might change without notice.
    */
   unstable_onBranchChange?:
     | ((event: ExternalStoreBranchChange) => void)
@@ -199,9 +198,6 @@ type ExternalStoreAdapterBase<T> = {
         threadList?: ExternalStoreThreadListAdapter | undefined;
       }
     | undefined;
-  /**
-   * @deprecated Experimental since 2024-09-01, extended 2026-12-05. Not scheduled for removal; the API may change in any release.
-   */
   unstable_capabilities?:
     | {
         copy?: boolean | undefined;
@@ -225,7 +221,6 @@ type ExternalStoreAdapterBase<T> = {
    * or from `streamCall` resolving) flow back through
    * `adapter.onAddToolResult` like any other tool result, with
    * `modelContent` populated when present.
-   * @deprecated Experimental since 2026-05-26, extended 2027-06-05. Not scheduled for removal; the API may change in any release.
    */
   unstable_enableToolInvocations?: boolean | undefined;
   /**
@@ -244,7 +239,6 @@ type ExternalStoreAdapterBase<T> = {
    * provider's run is still open. Without it, ownership is unknown until the
    * run ends, so a registered tool executes only once the run's outcome is
    * known and cannot fire on a call the provider was about to answer or gate.
-   * @deprecated Experimental since 2026-09-01. Not scheduled for removal; the API may change in any release.
    */
   unstable_isClientToolCall?:
     | ((toolCall: ToolCallMessagePart) => boolean)

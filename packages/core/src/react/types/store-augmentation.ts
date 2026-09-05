@@ -8,9 +8,6 @@ declare module "@assistant-ui/store" {
     tools: ToolsClientSchema;
     dataRenderers: DataRenderersClientSchema;
     interactables: LegacyInteractablesClientSchema;
-    /**
-     * @deprecated Experimental since 2026-06-23. Not scheduled for removal; the API may change in any release.
-     */
     unstable_interactables: Unstable_InteractablesClientSchema;
   }
 }

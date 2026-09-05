@@ -202,7 +202,8 @@ export namespace ThreadPrimitiveUnstable_MessageById {
  * `unstable_useThreadMessageIds`. A missing or removed id renders `null` rather
  * than throwing.
  *
- * @deprecated Experimental since 2026-06-23. Not scheduled for removal; the API may change in any release.
+ * @deprecated Unstable / Experimental - may change in any release.
+ *
  * @example
  * ```tsx
  * const messageIds = unstable_useThreadMessageIds();

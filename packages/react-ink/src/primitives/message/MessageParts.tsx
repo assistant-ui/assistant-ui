@@ -38,9 +38,6 @@ const mergeWithInkDefaults = (
     Image: components.Image ?? inkDefaultComponents.Image,
     Source: components.Source ?? inkDefaultComponents.Source,
     File: components.File ?? inkDefaultComponents.File,
-    /**
-     * @deprecated Experimental since 2024-10-21, extended 2026-12-05. Not scheduled for removal; the API may change in any release.
-     */
     Unstable_Audio:
       components.Unstable_Audio ?? messagePartsDefaultComponents.Unstable_Audio,
     data: components.data

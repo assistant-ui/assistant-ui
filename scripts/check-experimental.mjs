@@ -1,12 +1,14 @@
 #!/usr/bin/env node
 
 // Validates the `@deprecated Experimental since ...` annotations that mark
-// experimental API. The public name list comes from the committed api-surface
-// files and the annotations from source, so the check needs no build and runs
-// unfiltered on every pull request: an experimental window closes with the
-// calendar rather than with a diff, so a filtered run would never see it.
+// experimental API. Every declaration named with an experimental prefix is
+// checked in place rather than by name, so a name that already exists annotated
+// in another package cannot vouch for a new unannotated one. Expiry is driven
+// by the calendar, so this runs unfiltered on every pull request: a window
+// closes with the clock rather than with a diff.
 
 import { readFileSync, readdirSync, statSync } from "node:fs";
+import { createRequire } from "node:module";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 
@@ -22,12 +24,19 @@ import {
   today,
 } from "./lib/experimental-annotations.mjs";
 
+const requireFromBuildUtils = createRequire(
+  path.join(process.cwd(), "packages/x-buildutils/package.json"),
+);
+const ts = requireFromBuildUtils("typescript");
+
 const SOURCE_FILE = /\.(?:ts|tsx|mts|cts)$/;
 const TEST_FILE = /(?:\.test\.|\.bench\.|[\\/]__tests__[\\/])/;
-const BLOCK_COMMENT = /\/\*\*([\s\S]*?)\*\//g;
-// `$` must stay end-of-input rather than end-of-line: a tag body wraps across
-// comment lines and runs until the next block tag.
-const DEPRECATED_TAG = /@deprecated\b([\s\S]*?)(?=\n[ \t]*\*?[ \t]*@\w|$)/g;
+
+// The wordings this grammar replaces. A removal notice on an experimental
+// symbol is legitimate; describing the experiment itself in free prose is what
+// the grammar exists to stop coming back.
+const LEGACY_EXPERIMENTAL_PROSE =
+  /\b(?:experimental|unstable|under active development|may change|might change)\b/i;
 
 export function collectSourceFiles(root) {
   let packages;
@@ -52,96 +61,127 @@ export function collectSourceFiles(root) {
     .sort();
 }
 
-function symbolNameAfter(source, index) {
-  const rest = source.slice(index, index + 400);
-  const match = rest.match(
-    /(?:readonly\s+|abstract\s+|declare\s+|export\s+|const\s+|let\s+|var\s+|function\s+|class\s+|interface\s+|type\s+|get\s+|set\s+|static\s+|async\s+|public\s+|protected\s+|private\s+)*([A-Za-z_$][\w$]*)/,
+function isDeclaration(node) {
+  return (
+    ts.isPropertySignature(node) ||
+    ts.isMethodSignature(node) ||
+    ts.isTypeAliasDeclaration(node) ||
+    ts.isInterfaceDeclaration(node) ||
+    ts.isFunctionDeclaration(node) ||
+    ts.isClassDeclaration(node) ||
+    ts.isVariableDeclaration(node) ||
+    ts.isPropertyDeclaration(node) ||
+    ts.isMethodDeclaration(node) ||
+    ts.isGetAccessorDeclaration(node) ||
+    ts.isSetAccessorDeclaration(node) ||
+    ts.isEnumMember(node)
   );
-  return match?.[1];
 }
 
-// A `@deprecated` body runs to the next block tag, so continuation lines are
-// folded back together before the grammar sees them.
-export function extractDeprecatedTags(source) {
-  const tags = [];
-  for (const comment of source.matchAll(BLOCK_COMMENT)) {
-    const body = comment[1] ?? "";
-    const commentEnd = (comment.index ?? 0) + comment[0].length;
-    for (const tag of body.matchAll(DEPRECATED_TAG)) {
-      const text = (tag[1] ?? "")
-        .split("\n")
-        .map((line) => line.replace(/^\s*\*/, "").trim())
-        .join(" ")
-        .replace(/\s+/g, " ")
-        .trim();
-      tags.push({
-        text,
-        line: source.slice(0, comment.index ?? 0).split("\n").length,
-        symbol: symbolNameAfter(source, commentEnd),
-      });
-    }
-  }
-  return tags;
+function declarationName(node) {
+  const name = node.name;
+  if (!name) return undefined;
+  return ts.isIdentifier(name) || ts.isStringLiteral(name)
+    ? name.text
+    : undefined;
 }
 
-// The wordings this grammar replaces. A removal notice on an experimental
-// symbol is legitimate; describing the experiment itself in free prose is what
-// the grammar exists to stop coming back.
-const LEGACY_EXPERIMENTAL_PROSE =
-  /\b(?:experimental|unstable|under active development|may change|might change)\b/i;
+// JSDoc attaches to the statement, not to the declarator inside it, so a
+// `const` carries its comment on the enclosing VariableStatement.
+function documentable(node) {
+  let current = node;
+  while (
+    current.parent &&
+    (ts.isVariableDeclarationList(current.parent) ||
+      ts.isVariableStatement(current.parent))
+  ) {
+    current = current.parent;
+  }
+  return current;
+}
 
-const SURFACE_NAME = /\b(?:unstable_|Unstable_|experimental_)\w+/g;
-const SURFACE_ALIAS = /\b(\w+) as ((?:unstable_|Unstable_|experimental_)\w+)/g;
-
-// api-surface holds exactly what ships, so every experimental identifier in it
-// is public whether it is a top-level export or a member of an exported type.
-// An aliased export (`convertMessages as unstable_convertMessages`) carries its
-// annotation on the local declaration, so both names resolve to one symbol.
-export function collectSurfaceNames(sources) {
-  const names = new Set();
-  const aliasSource = new Map();
-  for (const source of sources) {
-    for (const [name] of source.matchAll(SURFACE_NAME)) names.add(name);
-    for (const [, local, exported] of source.matchAll(SURFACE_ALIAS)) {
-      aliasSource.set(exported, local);
+function deprecatedText(node) {
+  for (const doc of documentable(node).jsDoc ?? []) {
+    for (const tag of doc.tags ?? []) {
+      if (tag.tagName.text !== "deprecated") continue;
+      const comment = ts.getTextOfJSDocComment(tag.comment) ?? "";
+      return comment.replace(/\s+/g, " ").trim();
     }
   }
-  return { names, aliasSource };
+  return undefined;
+}
+
+// An experimental name reached through a re-export resolves to the declaration
+// that carries the annotation, so a specifier is never required to repeat it.
+export function collectDeclarations(file, source) {
+  const sourceFile = ts.createSourceFile(
+    file,
+    source,
+    ts.ScriptTarget.Latest,
+    true,
+    ts.ScriptKind.TSX,
+  );
+  const declarations = [];
+  const visit = (node) => {
+    if (isDeclaration(node)) {
+      const name = declarationName(node);
+      if (name) {
+        const text = deprecatedText(node);
+        if (EXPERIMENTAL_PREFIX_PATTERN.test(name) || text !== undefined) {
+          declarations.push({
+            name,
+            deprecated: text,
+            line:
+              sourceFile.getLineAndCharacterOfPosition(
+                node.getStart(sourceFile, false),
+              ).line + 1,
+          });
+        }
+      }
+    }
+    ts.forEachChild(node, visit);
+  };
+  visit(sourceFile);
+  return declarations;
 }
 
 export function checkSource({ file, source, now, windowDays, staleAfterDays }) {
   const errors = [];
   const warnings = [];
-  const annotated = new Set();
-  const experimental = new Set();
-  for (const tag of extractDeprecatedTags(source)) {
-    const record = parseDeprecatedTag(tag.text);
-    const where = `${file}:${tag.line}${tag.symbol ? ` (${tag.symbol})` : ""}`;
+  const misnamed = [];
+  for (const declaration of collectDeclarations(file, source)) {
+    const { name, deprecated, line } = declaration;
+    const prefixed = EXPERIMENTAL_PREFIX_PATTERN.test(name);
+    const where = `${file}:${line} (${name})`;
+
+    if (deprecated === undefined) {
+      if (prefixed) {
+        errors.push(
+          `${where}: experimental API with no @deprecated annotation.`,
+        );
+      }
+      continue;
+    }
+
+    const record = parseDeprecatedTag(deprecated);
     if (record.kind === "invalid") {
       errors.push(`${where}: ${record.reason}`);
       continue;
     }
-    // An experimental API that is on its way out carries an ordinary
-    // deprecation instead: the two are successive states of one lifecycle, not
-    // separate axes, so a removal notice replaces the experimental window
-    // rather than sitting beside it.
-    if (record.kind === "deprecated") {
-      if (tag.symbol) annotated.add(tag.symbol);
-      if (
-        EXPERIMENTAL_PREFIX_PATTERN.test(tag.symbol ?? "") &&
-        LEGACY_EXPERIMENTAL_PROSE.test(record.prose)
-      ) {
+    // An experimental API on its way out carries an ordinary deprecation
+    // instead: the two are successive states of one lifecycle, not separate
+    // axes, so a removal notice replaces the experimental window.
+    if (record.kind !== "experimental") {
+      if (prefixed && LEGACY_EXPERIMENTAL_PROSE.test(record.prose ?? "")) {
         errors.push(
           `${where}: describes an experimental API in free prose; use "Experimental since <date>. ${EXPERIMENTAL_BOILERPLATE}".`,
         );
       }
       continue;
     }
-    if (record.kind !== "experimental") continue;
-    if (tag.symbol) {
-      annotated.add(tag.symbol);
-      experimental.add(tag.symbol);
-    }
+
+    if (!prefixed) misnamed.push(where);
+
     const review = reviewDate(record, windowDays);
     if (review < now) {
       errors.push(
@@ -151,19 +191,17 @@ export function checkSource({ file, source, now, windowDays, staleAfterDays }) {
     }
     if (record.extended.length >= 2) {
       warnings.push({
-        symbol: tag.symbol ?? where,
+        symbol: name,
         detail: `extended ${record.extended.length} times, shipped ${record.since}`,
-        where,
       });
     } else if (addDays(record.since, staleAfterDays) < now) {
       warnings.push({
-        symbol: tag.symbol ?? where,
+        symbol: name,
         detail: `experimental since ${record.since}, review ${review}`,
-        where,
       });
     }
   }
-  return { errors, warnings, annotated, experimental };
+  return { errors, warnings, misnamed };
 }
 
 function main() {
@@ -174,8 +212,7 @@ function main() {
 
   const errors = [];
   const warnings = [];
-  const annotated = new Set();
-  const experimental = new Set();
+  const misnamed = [];
   for (const file of files) {
     const result = checkSource({
       file: path.relative(repoRoot, file).replaceAll("\\", "/"),
@@ -186,30 +223,11 @@ function main() {
     });
     errors.push(...result.errors);
     warnings.push(...result.warnings);
-    for (const name of result.annotated) annotated.add(name);
-    for (const name of result.experimental) experimental.add(name);
+    misnamed.push(...result.misnamed);
   }
 
-  const surfaceRoot = path.join(repoRoot, "api-surface");
-  const { names, aliasSource } = collectSurfaceNames(
-    readdirSync(surfaceRoot)
-      .filter((entry) => entry.endsWith(".ts"))
-      .map((entry) => readFileSync(path.join(surfaceRoot, entry), "utf8")),
-  );
-
-  const unannotated = [...names]
-    .filter(
-      (name) => !annotated.has(name) && !annotated.has(aliasSource.get(name)),
-    )
-    .sort();
-  const aliasLocals = new Set(aliasSource.values());
-  const misnamed = [...experimental]
-    .filter(
-      (name) =>
-        !EXPERIMENTAL_PREFIX_PATTERN.test(name) && !aliasLocals.has(name),
-    )
-    .sort();
-
+  // One symbol declared across several interfaces warns once, with a site
+  // count, so the list stays a worklist rather than a wall.
   const bySymbol = new Map();
   for (const warning of warnings) {
     const existing = bySymbol.get(warning.symbol);
@@ -224,34 +242,21 @@ function main() {
     }
     console.warn("");
   }
-  if (unannotated.length > 0) {
-    console.error(
-      `Public experimental API with no annotation (${unannotated.length}):`,
-    );
-    for (const name of unannotated) console.error(`  ${name}`);
-    console.error("");
-  }
   if (misnamed.length > 0) {
     console.warn(`Experimental but not named unstable_ (${misnamed.length}):`);
-    for (const name of misnamed) console.warn(`  ${name}`);
+    for (const where of misnamed) console.warn(`  ${where}`);
     console.warn("");
   }
   if (errors.length > 0) {
     console.error(`Experimental annotation errors (${errors.length}):`);
     for (const error of errors) console.error(`  ${error}`);
     console.error("");
-  }
-
-  const failures = errors.length + unannotated.length;
-  if (failures > 0) {
     console.error(
-      `${failures} problem(s). Annotate experimental API as "@deprecated Experimental since <YYYY-MM-DD>. Not scheduled for removal; the API may change in any release."`,
+      `Annotate experimental API as "@deprecated Experimental since <YYYY-MM-DD>. ${EXPERIMENTAL_BOILERPLATE}"`,
     );
     process.exit(1);
   }
-  console.log(
-    `Checked ${names.size} public experimental symbol(s) across ${files.length} source file(s).`,
-  );
+  console.log(`Checked ${files.length} source file(s).`);
 }
 
 if (

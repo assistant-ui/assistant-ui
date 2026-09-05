@@ -412,9 +412,6 @@ const useStreamThreadRuntime = (
     messages: threadMessages,
     adapters,
     extras,
-    /**
-     * @deprecated Experimental since 2026-05-26, extended 2027-06-05. Not scheduled for removal; the API may change in any release.
-     */
     unstable_enableToolInvocations: true,
     setToolStatuses,
     onNew: async (msg) => {
@@ -584,9 +581,6 @@ const useStreamThreadRuntime = (
       );
     },
     onCancel:
-      /**
-       * @deprecated Experimental since 2025-01-03, extended 2027-03-05. Not scheduled for removal; the API may change in any release.
-       */
       unstable_allowCancellation !== false
         ? async () => {
             activeRunConfigRef.current = undefined;

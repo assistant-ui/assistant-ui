@@ -461,17 +461,8 @@ function createErrorAssistantMessage(
     status: { type: "incomplete", reason: "error", error },
     createdAt: new Date(),
     metadata: {
-      /**
-       * @deprecated Experimental since 2025-05-20, extended 2027-03-05. Not scheduled for removal; the API may change in any release.
-       */
       unstable_state: null,
-      /**
-       * @deprecated Experimental since 2025-01-27, extended 2027-03-05. Not scheduled for removal; the API may change in any release.
-       */
       unstable_annotations: [],
-      /**
-       * @deprecated Experimental since 2025-01-04, extended 2027-03-05. Not scheduled for removal; the API may change in any release.
-       */
       unstable_data: [],
       custom: {},
       steps: [],
@@ -494,9 +485,6 @@ export const completeExternalMessageConversion = (
   return messages;
 };
 
-/**
- * @deprecated Experimental since 2025-01-26, extended 2027-03-05. Not scheduled for removal; the API may change in any release.
- */
 export const convertExternalMessages = <T extends WeakKey>(
   messages: T[],
   callback: ExternalMessageConverterCallback<T>,

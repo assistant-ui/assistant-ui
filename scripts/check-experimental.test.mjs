@@ -7,11 +7,7 @@ import {
   parseDeprecatedTag,
   reviewDate,
 } from "./lib/experimental-annotations.mjs";
-import {
-  checkSource,
-  collectSurfaceNames,
-  extractDeprecatedTags,
-} from "./check-experimental.mjs";
+import { checkSource, collectDeclarations } from "./check-experimental.mjs";
 
 const canonical = (since, ...extended) =>
   `Experimental since ${since}${extended.map((date) => `, extended ${date}`).join("")}. ${BOILERPLATE}`;
@@ -85,42 +81,63 @@ test("addDays crosses month and year boundaries in UTC", () => {
   assert.equal(addDays("2024-02-28", 1), "2024-02-29");
 });
 
-test("folds a tag body that wraps across comment lines", () => {
-  const tags = extractDeprecatedTags(
+test("reads a tag that wraps across comment lines", () => {
+  const [decl] = collectDeclarations(
+    "a.ts",
     [
       "/**",
       " * @deprecated Experimental since",
       " * 2026-09-05. Rest.",
       " */",
-      "export const a = 1;",
+      "export const unstable_a = 1;",
     ].join("\n"),
   );
-  assert.equal(tags.length, 1);
-  assert.equal(tags[0].text, "Experimental since 2026-09-05. Rest.");
-  assert.equal(tags[0].symbol, "a");
+  assert.equal(decl.name, "unstable_a");
+  assert.equal(decl.deprecated, "Experimental since 2026-09-05. Rest.");
 });
 
-test("stops a tag body at the next block tag", () => {
-  const tags = extractDeprecatedTags(
-    ["/**", " * @deprecated Gone.", " * @see other", " */", "type A = 1;"].join(
-      "\n",
-    ),
+test("reads a tag on the statement above a const declarator", () => {
+  const [decl] = collectDeclarations(
+    "a.ts",
+    `/** @deprecated ${canonical("2026-08-01")} */\nexport const unstable_a = 1;\n`,
   );
-  assert.equal(tags[0].text, "Gone.");
-  assert.equal(tags[0].symbol, "A");
+  assert.equal(decl.deprecated, canonical("2026-08-01"));
 });
 
 test("passes a live experimental annotation", () => {
   const result = check(
-    `/** @deprecated ${canonical("2026-08-01")} */\nexport const a = 1;\n`,
+    `/** @deprecated ${canonical("2026-08-01")} */\nexport const unstable_a = 1;\n`,
   );
   assert.deepEqual(result.errors, []);
   assert.deepEqual(result.warnings, []);
 });
 
+test("errors on an unstable_ declaration with no annotation", () => {
+  const result = check("export const unstable_a = 1;\n");
+  assert.equal(result.errors.length, 1);
+  assert.match(result.errors[0], /no @deprecated annotation/);
+});
+
+test("a name annotated elsewhere does not vouch for this declaration", () => {
+  const annotated = check(
+    `interface A {\n  /** @deprecated ${canonical("2026-08-01")} */\n  unstable_on(): void;\n}\n`,
+  );
+  assert.deepEqual(annotated.errors, []);
+  const bare = check("interface B {\n  unstable_on(): void;\n}\n");
+  assert.equal(bare.errors.length, 1);
+  assert.match(bare.errors[0], /unstable_on/);
+});
+
+test("a re-export specifier is not required to repeat the annotation", () => {
+  const result = check(
+    'export { convertMessages as unstable_convertMessages } from "./x";\n',
+  );
+  assert.deepEqual(result.errors, []);
+});
+
 test("errors once the window has closed", () => {
   const result = check(
-    `/** @deprecated ${canonical("2026-01-01")} */\nexport const a = 1;\n`,
+    `/** @deprecated ${canonical("2026-01-01")} */\nexport const unstable_a = 1;\n`,
   );
   assert.equal(result.errors.length, 1);
   assert.match(result.errors[0], /window closed 2026-04-01/);
@@ -128,14 +145,14 @@ test("errors once the window has closed", () => {
 
 test("an extension reopens a closed window", () => {
   const result = check(
-    `/** @deprecated ${canonical("2026-01-01", "2026-12-05")} */\nexport const a = 1;\n`,
+    `/** @deprecated ${canonical("2026-01-01", "2026-12-05")} */\nexport const unstable_a = 1;\n`,
   );
   assert.deepEqual(result.errors, []);
 });
 
 test("warns about an API experimental for over a year", () => {
   const result = check(
-    `/** @deprecated ${canonical("2024-09-01", "2026-12-05")} */\nexport const a = 1;\n`,
+    `/** @deprecated ${canonical("2024-09-01", "2026-12-05")} */\nexport const unstable_a = 1;\n`,
   );
   assert.deepEqual(result.errors, []);
   assert.equal(result.warnings.length, 1);
@@ -144,72 +161,38 @@ test("warns about an API experimental for over a year", () => {
 
 test("warns once an API has been extended twice", () => {
   const result = check(
-    `/** @deprecated ${canonical("2026-06-01", "2026-09-01", "2026-12-05")} */\nexport const a = 1;\n`,
+    `/** @deprecated ${canonical("2026-06-01", "2026-09-01", "2026-12-05")} */\nexport const unstable_a = 1;\n`,
   );
   assert.match(result.warnings[0].detail, /extended 2 times/);
 });
 
-test("leaves ordinary deprecations alone", () => {
+test("reports an experimental API that never took the prefix", () => {
   const result = check(
-    "/** @deprecated Use `move()` instead. */\nexport const a = 1;\n",
+    `/** @deprecated ${canonical("2026-08-01")} */\nexport const helper = 1;\n`,
   );
   assert.deepEqual(result.errors, []);
-  assert.deepEqual(result.warnings, []);
-});
-
-test("collects experimental names from a surface file", () => {
-  const { names } = collectSurfaceNames([
-    "declare const unstable_useFoo: () => void;",
-    "interface A {\n  unstable_on(): void;\n  stable: string;\n}",
-  ]);
-  assert.deepEqual([...names].sort(), ["unstable_on", "unstable_useFoo"]);
-});
-
-test("maps an aliased export back to its local declaration", () => {
-  const { names, aliasSource } = collectSurfaceNames([
-    "export { convertMessages as unstable_convertMessages, Thumb as unstable_Thumb };",
-  ]);
-  assert.deepEqual([...names].sort(), [
-    "unstable_Thumb",
-    "unstable_convertMessages",
-  ]);
-  assert.equal(aliasSource.get("unstable_convertMessages"), "convertMessages");
-});
-
-test("ignores stable names and partial matches", () => {
-  const { names } = collectSurfaceNames([
-    "declare const useUnstableThing: () => void;\ndeclare const unstable: number;",
-  ]);
-  assert.deepEqual([...names], []);
+  assert.equal(result.misnamed.length, 1);
 });
 
 test("an ordinary removal notice counts as annotation", () => {
   const result = check(
-    "/** @deprecated Removal after 2027-01-01. Use `move()`. */\nunstable_queueClear?: boolean;\n",
+    "interface A {\n  /** @deprecated Removal after 2027-01-01. Use `move()`. */\n  unstable_queueClear?: boolean;\n}\n",
   );
   assert.deepEqual(result.errors, []);
-  assert.ok(result.annotated.has("unstable_queueClear"));
 });
 
 test("rejects free-prose experimental wording on an unstable symbol", () => {
   const result = check(
-    "/** @deprecated Unstable / Experimental (not actually removed). */\nunstable_on(): void;\n",
+    "interface A {\n  /** @deprecated Unstable / Experimental (not actually removed). */\n  unstable_on(): void;\n}\n",
   );
   assert.equal(result.errors.length, 1);
   assert.match(result.errors[0], /free prose/);
 });
 
-test("leaves free-prose wording on a stable symbol alone", () => {
-  const result = check(
-    "/** @deprecated This may change without notice. */\nexport const helper = 1;\n",
-  );
-  assert.deepEqual(result.errors, []);
-});
-
-test("an ordinary deprecation on a stable symbol is not an experimental claim", () => {
+test("leaves ordinary deprecations on stable symbols alone", () => {
   const result = check(
     "/** @deprecated Use `next()`. */\nexport const helper = 1;\n",
   );
-  assert.equal(result.experimental.size, 0);
-  assert.ok(result.annotated.has("helper"));
+  assert.deepEqual(result.errors, []);
+  assert.deepEqual(result.misnamed, []);
 });

@@ -50,9 +50,6 @@ export const memoCompareNodes = (
   return areNodesEqual(prev.node, next.node);
 };
 
-/**
- * @deprecated Experimental since 2025-02-02, extended 2027-03-05. Not scheduled for removal; the API may change in any release.
- */
 export const memoizeMarkdownComponents = (components: Components = {}) => {
   return Object.fromEntries(
     Object.entries(components ?? {}).map(([key, value]) => {

@@ -18,9 +18,6 @@ import type { TriggerPopoverResourceOutput } from "./TriggerPopoverResource";
 import type { TriggerBehavior } from "./triggerSelectionResource";
 import type { TriggerMatcher } from "./detectTrigger";
 
-/**
- * @deprecated Experimental since 2026-04-15, extended 2027-06-05. Not scheduled for removal; the API may change in any release.
- */
 export type RegisteredTrigger = {
   readonly char: string;
   readonly matcher?: TriggerMatcher | undefined;
@@ -71,9 +68,6 @@ const TriggerPopoverRootContext =
 const TriggerPopoverAriaPublishContext =
   createContext<TriggerPopoverAriaPublish | null>(null);
 
-/**
- * @deprecated Experimental since 2026-04-15, extended 2027-06-05. Not scheduled for removal; the API may change in any release.
- */
 export const useTriggerPopoverRootContext = () => {
   const ctx = useContext(TriggerPopoverRootContext);
   if (!ctx)
@@ -83,9 +77,6 @@ export const useTriggerPopoverRootContext = () => {
   return ctx;
 };
 
-/**
- * @deprecated Experimental since 2026-04-15, extended 2027-06-05. Not scheduled for removal; the API may change in any release.
- */
 export const useTriggerPopoverRootContextOptional = () =>
   useContext(TriggerPopoverRootContext);
 
@@ -105,7 +96,6 @@ export const useTriggerPopoverAriaPublish = (): TriggerPopoverAriaPublish => {
 /**
  * Live map of registered triggers, re-rendering on change. Prefer
  * `subscribeLifecycle` for incremental add/remove handling.
- * @deprecated Experimental since 2026-04-15, extended 2027-06-05. Not scheduled for removal; the API may change in any release.
  */
 export const useTriggerPopoverTriggers = () => {
   const ctx = useTriggerPopoverRootContext();
@@ -116,10 +106,7 @@ const EMPTY_TRIGGERS: ReadonlyMap<string, RegisteredTrigger> = new Map();
 const noopSubscribe = () => () => {};
 const getEmptyTriggers = () => EMPTY_TRIGGERS;
 
-/**
- * Like `useTriggerPopoverTriggers` but returns an empty map outside a root.
- * @deprecated Experimental since 2026-04-15, extended 2027-06-05. Not scheduled for removal; the API may change in any release.
- */
+/** Like `useTriggerPopoverTriggers` but returns an empty map outside a root. */
 export const useTriggerPopoverTriggersOptional = () => {
   const ctx = useTriggerPopoverRootContextOptional();
   return useSyncExternalStore(
@@ -323,7 +310,6 @@ const TriggerPopoverRootInner: FC<
  *   </ComposerPrimitive.Root>
  * </ComposerPrimitive.Unstable_TriggerPopoverRoot>
  * ```
- * @deprecated Experimental since 2026-04-06, extended 2027-06-05. Not scheduled for removal; the API may change in any release.
  */
 export const ComposerPrimitiveTriggerPopoverRoot: FC<
   ComposerPrimitiveTriggerPopoverRoot.Props
