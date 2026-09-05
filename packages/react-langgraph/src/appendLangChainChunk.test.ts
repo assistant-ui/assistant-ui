@@ -66,6 +66,76 @@ describe("appendLangChainChunk content-less chunks", () => {
   });
 });
 
+describe("appendLangChainChunk continuation content", () => {
+  it("keeps reasoning, files, computer calls, and text deltas for conversion", () => {
+    const first = appendLangChainChunk(undefined, {
+      id: "ai-1",
+      type: "AIMessageChunk",
+      content: [],
+    });
+    const merged = appendLangChainChunk(first, {
+      id: "ai-1",
+      type: "AIMessageChunk",
+      content: [
+        { type: "thinking", thinking: "Let me check." },
+        { type: "reasoning", reasoning: "The calculation is correct." },
+        {
+          type: "file",
+          source_type: "url",
+          url: "https://example.com/report.pdf",
+          mime_type: "application/pdf",
+        },
+        {
+          type: "computer_call",
+          id: "computer-1",
+          call_id: "call-1",
+          action: { type: "screenshot" },
+          pending_safety_checks: [],
+          index: 0,
+        },
+        { type: "tool_use" },
+        { type: "input_json_delta" },
+        { type: "text_delta", text: "Done." },
+      ],
+    });
+
+    expect(convertLangChainMessages(merged, {})).toHaveProperty("content", [
+      { type: "reasoning", text: "Let me check." },
+      { type: "reasoning", text: "The calculation is correct." },
+      {
+        type: "file",
+        filename: "file",
+        data: "https://example.com/report.pdf",
+        mimeType: "application/pdf",
+        sourceType: "url",
+      },
+      {
+        type: "tool-call",
+        toolCallId: "call-1",
+        toolName: "computer_call",
+        args: { type: "screenshot" },
+        argsText: '{"type":"screenshot"}',
+      },
+      { type: "text", text: "Done." },
+    ]);
+    expect(merged.content).not.toContainEqual({ type: "tool_use" });
+    expect(merged.content).not.toContainEqual({ type: "input_json_delta" });
+  });
+
+  it("merges a text delta into the preceding text", () => {
+    const merged = appendLangChainChunk(
+      { id: "ai-1", type: "ai", content: "Hello" },
+      {
+        id: "ai-1",
+        type: "AIMessageChunk",
+        content: [{ type: "text_delta", text: " world" }],
+      },
+    );
+
+    expect(merged.content).toEqual([{ type: "text", text: "Hello world" }]);
+  });
+});
+
 describe("appendLangChainChunk tool_call id merging", () => {
   it("merges chunk arriving with real id into entry that started with empty id", () => {
     let acc: AiMessage | undefined;

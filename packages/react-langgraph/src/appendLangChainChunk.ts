@@ -110,14 +110,20 @@ export const appendLangChainChunk = (
         continue;
       }
 
-      if (item.type === "text") {
+      if (item.type === "text" || item.type === "text_delta") {
         if (newContent[lastIndex]?.type === "text") {
           (newContent[lastIndex] as MessageContentText).text =
             (newContent[lastIndex] as MessageContentText).text + item.text;
         } else {
           newContent.push({ type: "text", text: item.text });
         }
-      } else if (item.type === "image_url") {
+      } else if (
+        item.type === "image_url" ||
+        item.type === "thinking" ||
+        item.type === "reasoning" ||
+        item.type === "file" ||
+        item.type === "computer_call"
+      ) {
         newContent.push(item);
       }
     }
