@@ -6,7 +6,6 @@ import { resource, withKey } from "@assistant-ui/tap";
 import {
   AuiConfig,
   AuiProvider,
-  useAui,
   type AssistantClient,
   useAui,
   useAuiState,

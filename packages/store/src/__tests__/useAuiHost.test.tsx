@@ -63,6 +63,11 @@ describe("useAui tap host", () => {
       </Provider>,
     );
 
+    // AuiProvider mounts the host's commit in the layout phase, ahead of every
+    // descendant effect kind, so a consumer reading the client from its own
+    // layout effect sees the render it was mounted with. The cost is that the
+    // commit runs before paint; the passive fallback in useTapHost still
+    // applies to direct host consumers that do not mount `effects` themselves.
     expect(log).toEqual(["tap effect", "consumer layout", "consumer effect"]);
   });
 
