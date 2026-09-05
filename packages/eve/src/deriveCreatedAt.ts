@@ -10,11 +10,32 @@ export type TurnTimestampCache = {
   timestamps: ReadonlyMap<string, TurnTimestamps>;
 };
 
+/**
+ * The reducer cases eve projects into a message: `message.received` creates
+ * `${turnId}:user`, and every assistant entry reaches `updateAssistantMessage`,
+ * which creates `${turnId}:assistant` for a turn that has none. It enumerates
+ * that reducer across the `>=0.32.0` peer range rather than stating a rule
+ * about turn ids, because `turn.started` and the compaction events carry one
+ * before the model runs. An event eve adds to the creating set later is absent
+ * here and falls back to the wall clock instead of stamping a wrong time.
+ */
 const ROLE_BY_EVENT_TYPE: Partial<
   Record<MessageStreamEvent["type"], keyof TurnTimestamps>
 > = {
   "message.received": "user",
   "step.started": "assistant",
+  "reasoning.appended": "assistant",
+  "reasoning.completed": "assistant",
+  "action.input.appended": "assistant",
+  "actions.requested": "assistant",
+  "input.requested": "assistant",
+  "action.result": "assistant",
+  "action.partial": "assistant",
+  "authorization.required": "assistant",
+  "authorization.completed": "assistant",
+  "message.appended": "assistant",
+  "message.completed": "assistant",
+  "result.completed": "assistant",
   "turn.completed": "assistant",
   "turn.cancelled": "assistant",
 };

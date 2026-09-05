@@ -35,6 +35,19 @@ const compactionRequested = (at: string, turnId = TURN) =>
     meta: { at, id: `evt_${at}` },
   }) as const satisfies MessageStreamEvent;
 
+const messageAppended = (at: string, turnId = TURN) =>
+  ({
+    type: "message.appended",
+    data: {
+      messageDelta: "he",
+      messageSoFar: "he",
+      sequence: 4,
+      stepIndex: 0,
+      turnId,
+    },
+    meta: { at, id: `evt_${at}` },
+  }) as const satisfies MessageStreamEvent;
+
 const stepStarted = (at: string, turnId = TURN) =>
   ({
     type: "step.started",
@@ -106,6 +119,22 @@ describe("collectTurnTimestamps", () => {
 
     expect(timestamps.get(TURN)?.assistant).toEqual(
       new Date("2026-01-02T10:00:05.000Z"),
+    );
+  });
+
+  it("stamps the assistant from the turn's first message-creating event when no step.started precedes it", () => {
+    const timestamps = collectTurnTimestamps(
+      [
+        turnStarted("2026-01-02T10:00:00.000Z"),
+        messageReceived("2026-01-02T10:00:01.000Z"),
+        compactionRequested("2026-01-02T10:00:02.000Z"),
+        messageAppended("2026-01-02T10:02:00.000Z"),
+      ],
+      createTurnTimestampCache(),
+    );
+
+    expect(timestamps.get(TURN)?.assistant).toEqual(
+      new Date("2026-01-02T10:02:00.000Z"),
     );
   });
 
