@@ -140,6 +140,22 @@ describe("InMemoryResumableStreamStore", () => {
     expect(collected).toEqual(["x"]);
   });
 
+  it("honors abort after the last buffered chunk before a stored error", async () => {
+    const store = createInMemoryResumableStreamStore();
+    await store.acquire("a");
+    await store.append("a", bytes("partial"));
+    await store.finalize("a", "error", "boom");
+    const ac = new AbortController();
+    const seen: string[] = [];
+
+    for await (const entry of store.read("a", "", ac.signal)) {
+      seen.push(decode(entry.chunk));
+      ac.abort();
+    }
+
+    expect(seen).toEqual(["partial"]);
+  });
+
   it("multiple consumers can read concurrently", async () => {
     const store = createInMemoryResumableStreamStore();
     await store.acquire("a");

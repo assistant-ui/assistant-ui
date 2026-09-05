@@ -199,6 +199,8 @@ export function createInMemoryResumableStreamStore(
           idx += 1;
         }
 
+        if (signal.aborted) return;
+
         if (state.final) {
           if (state.final.kind === "error") {
             throw new Error(state.final.error);
