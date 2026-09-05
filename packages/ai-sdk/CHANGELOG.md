@@ -1,5 +1,18 @@
 # @assistant-ui/ai-sdk
 
+## 0.0.5
+
+### Patch Changes
+
+- [#6807](https://github.com/assistant-ui/assistant-ui/pull/6807) [`9d218b3`](https://github.com/assistant-ui/assistant-ui/commit/9d218b33513eb0b71f9854604bda72a833bc071e) - docs: say where route metadata lands on a thread message ([@okisdev](https://github.com/okisdev))
+  
+  `useThreadTokenUsage` documents that metadata a route attaches through `messageMetadata` reaches the client under `metadata.custom`, which is where the converter puts every key outside the thread metadata shape.
+- Updated dependencies [[`bf2cbbc`](https://github.com/assistant-ui/assistant-ui/commit/bf2cbbcf6838ff2c43eb2d4a1fd9d752be3076af), [`c9e03ef`](https://github.com/assistant-ui/assistant-ui/commit/c9e03ef26ac03f8300b29d5a3a562284b72794f2), [`24a288e`](https://github.com/assistant-ui/assistant-ui/commit/24a288eeafb263dc6a91bec263aecf551852de0e), [`5630967`](https://github.com/assistant-ui/assistant-ui/commit/563096726c1e97553699fb2bebb818bcf3d506de), [`928c580`](https://github.com/assistant-ui/assistant-ui/commit/928c580f4132496ee6ae9dc5a64fe44ca4bfd1b7), [`b2d12e7`](https://github.com/assistant-ui/assistant-ui/commit/b2d12e7b48e790daf085525f1f3de4e3a25c2da1), [`ef584ea`](https://github.com/assistant-ui/assistant-ui/commit/ef584ea623c851ba8a38e76b0a8929893a7d83f0)]:
+  - @assistant-ui/tap@0.9.17
+  - assistant-cloud@0.1.44
+  - @assistant-ui/core@0.3.18
+  - @assistant-ui/store@0.3.13
+
 ## 0.0.4
 
 ### Patch Changes

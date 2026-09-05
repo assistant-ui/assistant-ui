@@ -1,5 +1,15 @@
 # @assistant-ui/react-mcp
 
+## 0.1.17
+
+### Patch Changes
+
+- [#6808](https://github.com/assistant-ui/assistant-ui/pull/6808) [`ef5748e`](https://github.com/assistant-ui/assistant-ui/commit/ef5748eed3d08404318a52ce4f8aca23bba88d7c) - fix: scope persisted authentication to MCP server URLs; a credential saved for a different URL is never sent and is reported on `lastError`, existing OAuth credentials require reconnecting once, and host-persisted bearer records must include `serverUrl` ([@Kinfe123](https://github.com/Kinfe123))
+- Updated dependencies [[`bf2cbbc`](https://github.com/assistant-ui/assistant-ui/commit/bf2cbbcf6838ff2c43eb2d4a1fd9d752be3076af), [`c9e03ef`](https://github.com/assistant-ui/assistant-ui/commit/c9e03ef26ac03f8300b29d5a3a562284b72794f2), [`5630967`](https://github.com/assistant-ui/assistant-ui/commit/563096726c1e97553699fb2bebb818bcf3d506de), [`928c580`](https://github.com/assistant-ui/assistant-ui/commit/928c580f4132496ee6ae9dc5a64fe44ca4bfd1b7), [`b2d12e7`](https://github.com/assistant-ui/assistant-ui/commit/b2d12e7b48e790daf085525f1f3de4e3a25c2da1), [`ef584ea`](https://github.com/assistant-ui/assistant-ui/commit/ef584ea623c851ba8a38e76b0a8929893a7d83f0)]:
+  - @assistant-ui/tap@0.9.17
+  - @assistant-ui/core@0.3.18
+  - @assistant-ui/store@0.3.13
+
 ## 0.1.16
 
 ### Patch Changes
