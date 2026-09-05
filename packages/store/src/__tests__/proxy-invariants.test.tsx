@@ -16,10 +16,10 @@ const useItem = ({ id }: { id: string }) => ({
 const Item = resource(useItem);
 
 const useThread = () => {
-  const items = useClientLookup([withKey("a", Item({ id: "a" }))]);
+  const items = useClientLookup([withKey("__proto__", Item({ id: "a" }))]);
   return {
     getState: () => ({ count: 1 }),
-    item: (lookup: { index: number }) => items.get(lookup),
+    item: (lookup: { index: number } | { key: string }) => items.get(lookup),
   };
 };
 const Thread = resource(useThread);
@@ -45,6 +45,16 @@ afterEach(() => {
 });
 
 describe("proxy invariants", () => {
+  it("retrieves prototype-named keys without inherited matches", () => {
+    render(<App />);
+    expect(probe.aui.thread().item({ key: "__proto__" }).getState()).toEqual({
+      id: "a",
+    });
+    expect(() => probe.aui.thread().item({ key: "constructor" })).toThrow(
+      /not found/,
+    );
+  });
+
   it("supports Object.keys and spread on a client", () => {
     render(<App />);
     const client = probe.aui.thread().item({ index: 0 });
