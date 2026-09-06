@@ -388,6 +388,42 @@ export function resolveCreateProjectDirectory(params: {
   return undefined;
 }
 
+export function resolveProjectDirectoryGuidance(params: {
+  absoluteProjectDir: string;
+  cwd?: string;
+  platform?: NodeJS.Platform;
+}): { display: string; cdCommand: string } {
+  const {
+    absoluteProjectDir,
+    cwd = process.cwd(),
+    platform = process.platform,
+  } = params;
+  const isWindows = platform === "win32";
+  const pathApi = isWindows ? path.win32 : path.posix;
+
+  const relative = pathApi.relative(cwd, absoluteProjectDir);
+  const escapesCwd =
+    relative === ".." || relative.startsWith(`..${pathApi.sep}`);
+  const display =
+    relative && !escapesCwd && !pathApi.isAbsolute(relative)
+      ? relative
+      : absoluteProjectDir;
+
+  const target = display.startsWith("-")
+    ? `.${pathApi.sep}${display}`
+    : display;
+  // Neither Windows shell has a literal quoting form the other accepts: cmd
+  // reads single quotes as part of the name, and double quotes still expand
+  // %VAR% there and $var in PowerShell.
+  const quoted = (isWindows ? /^[\w@.:/\\+-]+$/ : /^[\w@./+-]+$/).test(target)
+    ? target
+    : isWindows
+      ? `"${target}"`
+      : `'${target.replaceAll("'", "'\\''")}'`;
+
+  return { display, cdCommand: `cd ${quoted}` };
+}
+
 const PLAYGROUND_PRESET_BASE_URL =
   "https://www.assistant-ui.com/playground/init";
 
@@ -542,11 +578,13 @@ export const create = new Command()
 
     // Check directory
     const absoluteProjectDir = path.resolve(resolvedProjectDirectory);
+    const { display: displayProjectDir, cdCommand } =
+      resolveProjectDirectoryGuidance({ absoluteProjectDir });
     try {
       const files = fs.readdirSync(absoluteProjectDir);
       if (files.length > 0) {
         logger.error(
-          `Directory ${resolvedProjectDirectory} already exists and is not empty`,
+          `Directory ${displayProjectDir} already exists and is not empty`,
         );
         process.exit(1);
       }
@@ -557,12 +595,12 @@ export const create = new Command()
         // Directory doesn't exist — good, proceed
       } else if (code === "ENOTDIR") {
         logger.error(
-          `${resolvedProjectDirectory} already exists and is not a directory`,
+          `${displayProjectDir} already exists and is not a directory`,
         );
         process.exit(1);
       } else {
         const message = err instanceof Error ? err.message : String(err);
-        logger.error(`Cannot access ${resolvedProjectDirectory}: ${message}`);
+        logger.error(`Cannot access ${displayProjectDir}: ${message}`);
         process.exit(1);
       }
     }
@@ -700,7 +738,7 @@ export const create = new Command()
         logger.break();
         logger.error("Project created with missing components.");
         logger.info("Retry the component install with:");
-        logger.info(`  cd ${resolvedProjectDirectory}`);
+        logger.info(`  ${cdCommand}`);
         logger.info(`  ${transformResult.registryInstallFailure.retryCommand}`);
         process.exit(1);
       }
@@ -758,7 +796,7 @@ export const create = new Command()
       }
 
       logger.info("Next steps:");
-      logger.info(`  cd ${resolvedProjectDirectory}`);
+      logger.info(`  ${cdCommand}`);
       if (opts.skipInstall) {
         logger.info(`  ${pm} install`);
       }
