@@ -156,6 +156,8 @@ export const appendLangChainChunk = (
         // a `text` block carrying only `citations` and no `text` field. Array
         // fields reach `_mergeLists` upstream, which appends rather than
         // replaces, so the citations of one answer accumulate across deltas.
+        // `_mergeLists` also drops an unmatched block whose `text` is empty, so a
+        // `content_block_start` opener never becomes an empty text part.
         const text = item.text ?? "";
         const normalizedItem = { ...item, type: "text" as const, text };
         const index =
@@ -173,7 +175,7 @@ export const appendLangChainChunk = (
             text: existing.text + text,
             ...(citations.length > 0 && { citations }),
           });
-        } else {
+        } else if (item.text !== "") {
           newContent.push(normalizedItem);
         }
       } else if (item.type === "thinking") {

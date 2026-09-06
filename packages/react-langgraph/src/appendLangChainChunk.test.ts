@@ -325,6 +325,29 @@ describe("appendLangChainChunk continuation content", () => {
     ]);
   });
 
+  it("skips an empty opener with no block to merge into", () => {
+    let merged = append(undefined, {
+      id: "ai-1",
+      type: "AIMessageChunk",
+      content: [{ index: 0, type: "text", text: "Hi" }],
+    } as unknown as LangChainMessageChunk);
+    merged = append(merged, {
+      id: "ai-1",
+      type: "AIMessageChunk",
+      content: [{ index: 1, type: "text", text: "" }],
+    } as unknown as LangChainMessageChunk);
+    merged = append(merged, {
+      id: "ai-1",
+      type: "AIMessageChunk",
+      content: [{ index: 1, type: "text_delta", text: "There" }],
+    } as unknown as LangChainMessageChunk);
+
+    expect(merged.content).toEqual([
+      { index: 0, type: "text", text: "Hi" },
+      { index: 1, type: "text", text: "There" },
+    ]);
+  });
+
   it("merges an indexed citation into its matching text block", () => {
     let merged = append(undefined, {
       id: "ai-1",
