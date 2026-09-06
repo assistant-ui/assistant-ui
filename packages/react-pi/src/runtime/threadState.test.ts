@@ -260,6 +260,43 @@ describe("threadState", () => {
     },
   );
 
+  it("keeps metadata activity in step with the live events", () => {
+    let s = apply(
+      createPiThreadState("t1"),
+      ev({
+        type: "snapshot",
+        snapshot: {
+          metadata: {
+            id: "t1",
+            status: "running",
+            compactionActive: true,
+            retryActive: true,
+            retryAttempt: 2,
+          },
+          messages: [],
+        },
+      }),
+    );
+    expect(s.metadata).toMatchObject({
+      compactionActive: true,
+      retryActive: true,
+      retryAttempt: 2,
+    });
+
+    s = apply(
+      s,
+      ev({ type: "compaction_end", aborted: false, willRetry: false }),
+      ev({ type: "auto_retry_end", success: true }),
+    );
+    expect(s.metadata).toMatchObject({
+      compactionActive: false,
+      retryActive: false,
+      retryAttempt: 0,
+    });
+    expect(s.compaction.active).toBe(false);
+    expect(s.retry).toEqual({ active: false, attempt: 0 });
+  });
+
   it("keeps live flags when a snapshot is behind the applied events", () => {
     const before = apply(
       createPiThreadState("t1"),
