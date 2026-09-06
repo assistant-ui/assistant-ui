@@ -24,7 +24,9 @@ export function TodoList({
   items: readonly TodoItem[];
   revision?: number;
 }) {
-  const complete = items.filter((item) => item.status === "done").length;
+  const settled = items.filter(
+    (item) => item.status === "done" || item.status === "failed",
+  ).length;
 
   return (
     <div
@@ -37,8 +39,8 @@ export function TodoList({
         <span className="text-[13.5px] font-medium">Todos</span>
         <span className={cn(mono, "text-foreground/35 tabular-nums")}>
           {revision === undefined
-            ? `${complete}/${items.length}`
-            : `${complete}/${items.length} · rev ${revision}`}
+            ? `${settled}/${items.length}`
+            : `${settled}/${items.length} · rev ${revision}`}
         </span>
       </div>
       <ul className="flex flex-col gap-1">
@@ -55,6 +57,7 @@ export function TodoList({
               ) : item.status === "failed" ? (
                 <span
                   aria-label="Failed"
+                  role="status"
                   className="flex size-3.5 items-center justify-center rounded-[5px] border border-red-600/25 bg-red-600/[0.08] dark:border-red-400/25 dark:bg-red-400/[0.08]"
                 >
                   <XIcon
@@ -71,7 +74,7 @@ export function TodoList({
                 />
               )}
             </span>
-            <div className="min-w-0 flex-1">
+            <div className="min-w-0 flex-1 break-words">
               <span
                 className={cn(
                   "leading-5 break-words",

@@ -40,6 +40,7 @@ import { TerminalBlock } from "../elements/terminal-block";
 import { ThreadList } from "../elements/thread-list";
 import { Timeline } from "../elements/timeline";
 import { ThinkingIndicator } from "../elements/thinking-indicator";
+import { TodoList } from "../elements/todo-list";
 import { ToolCall } from "../elements/tool-call";
 import { ToolTimeline } from "../elements/tool-timeline";
 import { TraceWaterfall } from "../elements/trace-waterfall";
@@ -558,6 +559,43 @@ beforeAll(() => {
 });
 
 afterEach(cleanup);
+
+describe("todo-list", () => {
+  it("renders failed items and counts done and failed items as settled", () => {
+    const { container, getByText } = render(
+      <TodoList
+        items={[
+          { id: "done", text: "Done item", status: "done" },
+          {
+            id: "failed",
+            text: "Failed item",
+            status: "failed",
+            reason: "Timed out",
+          },
+          { id: "active", text: "Active item", status: "active" },
+        ]}
+      />,
+    );
+
+    expect(getByText("2/3")).toBeTruthy();
+    expect(getByText("Failed item")).toBeTruthy();
+    expect(getByText("Timed out")).toBeTruthy();
+    expect(
+      container.querySelector('[role="status"]')?.getAttribute("aria-label"),
+    ).toBe("Failed");
+  });
+
+  it("does not render a failure reason when none is provided", () => {
+    const { container } = render(
+      <TodoList
+        items={[{ id: "failed", text: "Failed item", status: "failed" }]}
+      />,
+    );
+
+    expect(container.textContent).toContain("1/1");
+    expect(container.querySelector("p")).toBeNull();
+  });
+});
 
 describe.each(Object.entries(CASES))("%s", (name, make) => {
   it.each(HOSTILE)("survives a %s numeric prop", (_label, n, items) => {
