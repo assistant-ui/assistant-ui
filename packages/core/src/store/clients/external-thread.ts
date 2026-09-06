@@ -18,11 +18,13 @@ import type {
 } from "../../types/message";
 import type {
   Attachment,
-  CompleteAttachment,
   CreateAttachment,
   PendingAttachment,
 } from "../../types/attachment";
-import { isCreateAttachment } from "../../types/attachment";
+import {
+  isAttachmentComplete,
+  isCreateAttachment,
+} from "../../types/attachment";
 import type {
   AddToolResultOptions,
   RespondToToolApprovalOptions,
@@ -60,9 +62,6 @@ import { SingleThreadList } from "./single-thread-list";
 const EMPTY_QUEUE_ITEMS: readonly QueueItemState[] = [];
 const EMPTY_BRANCH_IDS: readonly string[] = [];
 const EMPTY_SUGGESTIONS: readonly ThreadSuggestion[] = [];
-const isAttachmentComplete = (
-  attachment: Attachment,
-): attachment is CompleteAttachment => attachment.status.type === "complete";
 
 export type ExternalThreadMessage = ThreadMessage & {
   id: string;
@@ -524,21 +523,22 @@ const useComposerClientResource = ({
               try {
                 await attachmentAdapter?.remove(attachment);
               } catch (error) {
-                const message =
+                const errorMessage =
                   error instanceof Error ? error.message : String(error);
                 setAttachments((prev) =>
-                  prev.map((candidate) => {
-                    if (
-                      candidate.id !== attachment.id ||
-                      isAttachmentComplete(candidate)
-                    ) {
-                      return candidate;
-                    }
-                    return {
-                      ...candidate,
-                      status: { type: "incomplete", reason: "error", message },
-                    };
-                  }),
+                  prev.map((candidate) =>
+                    candidate.id === attachment.id &&
+                    !isAttachmentComplete(candidate)
+                      ? {
+                          ...candidate,
+                          status: {
+                            type: "incomplete",
+                            reason: "error",
+                            message: errorMessage,
+                          },
+                        }
+                      : candidate,
+                  ),
                 );
                 throw error;
               }
