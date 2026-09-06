@@ -9,10 +9,17 @@ import {
 
 describe("fileMatchesAccept", () => {
   it.each([
-    ["BACKUP.TAR.GZ", ".tar.gz", true],
-    ["png", ".png", false],
-  ])("matches the full suffix of %s", (name, accept, expected) => {
-    expect(fileMatchesAccept({ name, type: "" }, accept)).toBe(expected);
+    ["BACKUP.TAR.GZ", ".tar.gz"],
+    [".env", ".env"],
+  ])("accepts %s for %s", (name, accept) => {
+    expect(fileMatchesAccept({ name, type: "" }, accept)).toBe(true);
+  });
+
+  it.each([
+    ["png", ".png"],
+    ["foo.mjs", ".js"],
+  ])("rejects %s for %s", (name, accept) => {
+    expect(fileMatchesAccept({ name, type: "" }, accept)).toBe(false);
   });
 
   it("matches MIME types with parameters", () => {
