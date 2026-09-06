@@ -70,9 +70,6 @@ function stripClosingDelimiters(json: string): string {
 
 const MCP_APP_METADATA_CACHE_MAX = 100;
 
-type AISDKToolApproval = NonNullable<ToolCallMessagePart["approval"]> &
-  Record<string, unknown>;
-
 function extractMcpAppMetadata(
   part: unknown,
   cache: Map<string, McpAppMetadata> | undefined,
@@ -157,25 +154,26 @@ function extractMcpAppMetadata(
 
 function getToolApprovalAndInterrupt(
   part: {
-    approval?: AISDKToolApproval | undefined;
+    approval?: Record<string, unknown> | undefined;
   },
   toolStatus: { type: string; payload?: unknown } | undefined,
 ): {
   approval?: NonNullable<ToolCallMessagePart["approval"]>;
   interrupt?: NonNullable<ToolCallMessagePart["interrupt"]>;
 } {
-  if (part.approval && typeof part.approval.id === "string") {
+  if (part.approval) {
     const { id, approved, reason, isAutomatic, ...additionalApprovalFields } =
       part.approval;
-    return {
-      approval: {
-        id,
-        ...additionalApprovalFields,
-        ...(typeof approved === "boolean" && { approved }),
-        ...(typeof reason === "string" && { reason }),
-        ...(isAutomatic === true && { isAutomatic: true }),
-      },
-    };
+    if (typeof id === "string")
+      return {
+        approval: {
+          ...additionalApprovalFields,
+          id,
+          ...(typeof approved === "boolean" && { approved }),
+          ...(typeof reason === "string" && { reason }),
+          ...(isAutomatic === true && { isAutomatic: true }),
+        } as NonNullable<ToolCallMessagePart["approval"]>,
+      };
   }
 
   if (toolStatus?.type === "interrupt") {
