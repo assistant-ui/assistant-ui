@@ -84,7 +84,7 @@ export const init = new Command()
       }
 
       const createArgs: string[] = [];
-      if (projectDirectory) createArgs.push(projectDirectory);
+      if (projectDirectory) createArgs.push(targetDir);
       if (presetUrl) createArgs.push("--preset", presetUrl);
       if (opts.useNpm) createArgs.push("--use-npm");
       if (opts.usePnpm) createArgs.push("--use-pnpm");
