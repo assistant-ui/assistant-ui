@@ -88,7 +88,7 @@ class AssistantState:
     """Authoritative state container. Applies ops; hands out mutation proxies."""
 
     def __init__(self, initial_state: Any | None = None):
-        self._state = initial_state
+        self._state = _detach_value(initial_state)
 
     @property
     def state(self) -> Any:
@@ -195,6 +195,8 @@ def _detach_value(value: Any) -> Any:
     if isinstance(value, dict):
         return {key: _detach_value(item) for key, item in value.items()}
     if isinstance(value, list):
+        return [_detach_value(item) for item in value]
+    if isinstance(value, tuple):
         return [_detach_value(item) for item in value]
     return value
 

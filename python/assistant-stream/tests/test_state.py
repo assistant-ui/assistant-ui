@@ -96,6 +96,17 @@ def test_state_apply_updates_state() -> None:
     assert state.state == {"count": 1}
 
 
+def test_initial_state_is_detached() -> None:
+    initial = {"cfg": {}}
+    state = AssistantState(initial)
+
+    initial["cfg"]["theme"] = "dark"
+
+    assert state.state == {"cfg": {}}
+    assert state.state is not initial
+    assert state.state["cfg"] is not initial["cfg"]
+
+
 def test_draft_writes_apply_and_forward_ops() -> None:
     ops: list[dict[str, Any]] = []
     state = AssistantState({"user": {"name": "John"}})
@@ -143,6 +154,23 @@ def test_draft_assignment_detaches_list_value() -> None:
     assert operation["value"] == [{"name": "first"}]
     assert state.state["items"] is not items
     assert operation["value"] is not items
+
+
+def test_draft_assignment_detaches_tuple_value_as_list() -> None:
+    ops: list[dict[str, Any]] = []
+    state = AssistantState({})
+    draft = state.draft(ops.extend)
+    inner = {"a": 1}
+
+    draft["value"] = (inner,)
+    operation = ops[0]
+    ops.clear()
+    inner["a"] = 2
+
+    assert ops == []
+    assert state.state == {"value": [{"a": 1}]}
+    assert operation["value"] == [{"a": 1}]
+    assert state.state["value"][0] is not inner
 
 
 def test_draft_reads_through_live_state() -> None:
