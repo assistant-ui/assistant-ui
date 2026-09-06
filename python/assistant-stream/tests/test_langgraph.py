@@ -256,3 +256,31 @@ async def test_null_tool_artifact_uses_default_subgraph_state(
     if artifact_field_name:
         artifact = artifact[artifact_field_name]
     assert artifact["answer"] == "42"
+
+
+@pytest.mark.anyio
+@pytest.mark.parametrize(
+    ("artifact", "artifact_field_name", "expected"),
+    [
+        ({"answer": "kept"}, None, {"answer": "kept"}),
+        ({"subgraph_state": {"answer": "kept"}}, "subgraph_state", {"answer": "kept"}),
+        ({"subgraph_state": {}}, "subgraph_state", {}),
+    ],
+)
+async def test_existing_tool_artifact_survives_default_state(
+    artifact, artifact_field_name, expected
+) -> None:
+    controller = RunController(
+        asyncio.Queue(),
+        {"messages": [ToolMessage(content="", tool_call_id="c1", artifact=artifact).model_dump()]},
+    )
+
+    state = get_tool_call_subgraph_state(
+        controller,
+        ("tools:task1",),
+        "tools",
+        {"answer": "default"},
+        artifact_field_name=artifact_field_name,
+    )
+
+    assert state == expected
