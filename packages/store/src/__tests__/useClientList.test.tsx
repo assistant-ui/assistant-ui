@@ -60,7 +60,7 @@ afterEach(() => {
 });
 
 describe("useClientList", () => {
-  it("exposes initial values as client states, in order", () => {
+  it("preserves insertion order for integer-like keys", () => {
     const { hook } = setup();
     expect(hook.result.current).toEqual([
       { id: "10", label: "A" },
@@ -68,7 +68,7 @@ describe("useClientList", () => {
     ]);
   });
 
-  it("add mounts a new client and notifies subscribers", () => {
+  it("appends integer-like keys and notifies subscribers", () => {
     const { getAui, hook } = setup();
     const subscriber = vi.fn();
     getAui().subscribe(subscriber);
@@ -87,18 +87,20 @@ describe("useClientList", () => {
     });
   });
 
-  it("remove unmounts the client and notifies subscribers", () => {
+  it("preserves integer-like key order after removal and notifies subscribers", () => {
     const { getAui, hook } = setup();
+    act(() => flushTapSync(() => getAui().thread.add({ id: "1", label: "C" })));
     const subscriber = vi.fn();
     getAui().subscribe(subscriber);
 
-    act(() => flushTapSync(() => getAui().thread.item({ key: "10" }).remove()));
+    act(() => flushTapSync(() => getAui().thread.item({ key: "2" }).remove()));
 
     expect(subscriber).toHaveBeenCalled();
-    expect(hook.result.current).toEqual([{ id: "2", label: "B" }]);
-    expect(() => getAui().thread.item({ key: "10" })).toThrow(
-      'key "10" not found',
-    );
+    expect(hook.result.current).toEqual([
+      { id: "10", label: "A" },
+      { id: "1", label: "C" },
+    ]);
+    expect(() => getAui().thread.item({ key: "2" })).toThrow(/not found/);
   });
 
   it("lookup works by index and by key", () => {
