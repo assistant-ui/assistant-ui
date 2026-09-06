@@ -249,6 +249,8 @@ describe("PiThreadSupervisor", () => {
 
         await supervisor.setThinkingLevel(metadata.id, "xhigh");
         expect(received).toEqual(levels);
+        const { metadata: after } = await supervisor.getThread(metadata.id);
+        expect(after.config?.thinkingLevel).toBe(levels[0] ?? "off");
       } finally {
         await supervisor.dispose();
         await rm(cwd, { recursive: true, force: true });
