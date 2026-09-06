@@ -1,4 +1,5 @@
 const QUOTE_SELECTABLE_SELECTOR = "[data-aui-quote-selectable]";
+const QUOTE_EXCLUDED_SELECTOR = '[data-aui-quote-selectable="false"]';
 
 const getElement = (node: Node | null): HTMLElement | null => {
   return node instanceof HTMLElement ? node : (node?.parentElement ?? null);
@@ -63,18 +64,32 @@ export const getSelectionMessageId = (selection: Selection): string | null => {
   if (anchorMarker && isExcluded(anchorMarker)) return null;
   if (focusMarker && isExcluded(focusMarker)) return null;
 
-  for (const excluded of anchorMessageElement.querySelectorAll(
-    QUOTE_SELECTABLE_SELECTOR,
-  )) {
-    if (!isExcluded(excluded) || excluded.contains(anchorMarker)) continue;
-    for (let i = 0; i < selection.rangeCount; i++) {
-      if (selection.getRangeAt(i).intersectsNode(excluded)) return null;
-    }
+  if (anchorMarker !== focusMarker) return null;
+  if (!anchorMarker && hasQuoteSelectableRegion(anchorMessageElement)) {
+    return null;
   }
 
-  if (!hasQuoteSelectableRegion(anchorMessageElement)) return messageId;
+  for (let i = 0; i < selection.rangeCount; i++) {
+    const range = selection.getRangeAt(i);
+    const ancestor = getElement(range.commonAncestorContainer);
+    const scope =
+      ancestor && anchorMessageElement.contains(ancestor)
+        ? ancestor
+        : anchorMessageElement;
+    const excludedAncestor = scope.closest(QUOTE_EXCLUDED_SELECTOR);
+    if (
+      excludedAncestor &&
+      anchorMessageElement.contains(excludedAncestor) &&
+      !excludedAncestor.contains(anchorMarker)
+    ) {
+      return null;
+    }
 
-  if (!anchorMarker || anchorMarker !== focusMarker) return null;
+    for (const excluded of scope.querySelectorAll(QUOTE_EXCLUDED_SELECTOR)) {
+      if (excluded.contains(anchorMarker)) continue;
+      if (range.intersectsNode(excluded)) return null;
+    }
+  }
 
   return messageId;
 };

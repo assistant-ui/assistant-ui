@@ -1,7 +1,7 @@
 /**
  * @vitest-environment jsdom
  */
-import { afterEach, assert, describe, expect, it } from "vitest";
+import { afterEach, assert, describe, expect, it, vi } from "vitest";
 import { getSelectionMessageId } from "./getSelectionMessageId";
 
 const selectText = (start: Text, end = start) => {
@@ -24,6 +24,7 @@ const textNode = (selector: string) => {
 };
 
 afterEach(() => {
+  vi.restoreAllMocks();
   window.getSelection()?.removeAllRanges();
   document.body.replaceChildren();
 });
@@ -192,6 +193,56 @@ describe("getSelectionMessageId", () => {
         selectText(textNode("#before"), textNode("#after")),
       ),
     ).toBeNull();
+  });
+
+  it("checks another range outside the active quote region, including its excluded ancestor", () => {
+    document.body.innerHTML = `
+      <div data-message-id="message-1">
+        <p id="other">before <span id="chip" data-aui-quote-selectable="false">[1]</span> after</p>
+        <p id="active" data-aui-quote-selectable>active text</p>
+      </div>
+    `;
+
+    const other = document.querySelector("#other");
+    assert(other);
+    const range = document.createRange();
+    range.selectNodeContents(other);
+    const selection = selectText(textNode("#active"));
+    const active = selection.getRangeAt(0);
+    vi.spyOn(selection, "rangeCount", "get").mockReturnValue(2);
+    vi.spyOn(selection, "getRangeAt").mockImplementation((index) => {
+      if (index === 0) return range;
+      if (index === 1) return active;
+      throw new DOMException("Range index out of bounds", "IndexSizeError");
+    });
+
+    expect(getSelectionMessageId(selection)).toBeNull();
+
+    range.selectNodeContents(textNode("#chip"));
+    expect(getSelectionMessageId(selection)).toBeNull();
+  });
+
+  it("accepts disjoint ranges on either side of an excluded gap", () => {
+    document.body.innerHTML = `
+      <div data-message-id="message-1" data-aui-quote-selectable>
+        <p id="before">before</p>
+        <p data-aui-quote-selectable="false">excluded</p>
+        <p id="after">after</p>
+      </div>
+    `;
+
+    const before = document.createRange();
+    before.selectNodeContents(textNode("#before"));
+    const selection = selectText(textNode("#after"));
+    const after = selection.getRangeAt(0);
+    vi.spyOn(selection, "rangeCount", "get").mockReturnValue(2);
+    vi.spyOn(selection, "getRangeAt").mockImplementation((index) => {
+      if (index === 0) return before;
+      if (index === 1) return after;
+      throw new DOMException("Range index out of bounds", "IndexSizeError");
+    });
+
+    expect(getSelectionMessageId(selection)).toBe("message-1");
   });
 
   it("rejects selections outside quote-selectable regions when a message opts in", () => {
