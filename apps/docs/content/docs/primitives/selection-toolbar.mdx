@@ -78,6 +78,8 @@ By default, any selected text inside a message can be quoted. For rich messages 
 
 Set `data-aui-quote-selectable="false"` to exclude an element instead: on the message root it disables quoting for the entire message, and inside a quotable region it carves that subtree out. The nearest marker wins, and any value other than `"false"` (including empty) marks a quotable region.
 
+If a selection crosses an excluded element, the toolbar does not appear. This includes a full paragraph selection that contains an excluded inline citation. The toolbar does not remove excluded text from a quote. Selections that end immediately before or start immediately after the excluded element remain quotable.
+
 Apps know the message role at render time, so a role gate is a conditional attribute:
 
 ```tsx

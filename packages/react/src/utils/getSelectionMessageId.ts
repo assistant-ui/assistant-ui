@@ -64,8 +64,9 @@ export const getSelectionMessageId = (selection: Selection): string | null => {
   if (focusMarker && isExcluded(focusMarker)) return null;
 
   for (const excluded of anchorMessageElement.querySelectorAll(
-    '[data-aui-quote-selectable="false"]',
+    QUOTE_SELECTABLE_SELECTOR,
   )) {
+    if (!isExcluded(excluded) || excluded.contains(anchorMarker)) continue;
     for (let i = 0; i < selection.rangeCount; i++) {
       if (selection.getRangeAt(i).intersectsNode(excluded)) return null;
     }

@@ -1,7 +1,7 @@
 /**
  * @vitest-environment jsdom
  */
-import { afterEach, describe, expect, it } from "vitest";
+import { afterEach, assert, describe, expect, it } from "vitest";
 import { getSelectionMessageId } from "./getSelectionMessageId";
 
 const selectText = (start: Text, end = start) => {
@@ -137,6 +137,62 @@ describe("getSelectionMessageId", () => {
       ).toBeNull();
     },
   );
+
+  it("rejects a paragraph selection that spans an inline exclusion", () => {
+    document.body.innerHTML = `
+      <div data-message-id="message-1">
+        <p id="text" data-aui-quote-selectable>before <span data-aui-quote-selectable="false">[1]</span> after</p>
+      </div>
+    `;
+
+    const paragraph = document.querySelector("#text");
+    assert(paragraph);
+    const selection = selectText(textNode("#text"));
+    selection.getRangeAt(0).selectNodeContents(paragraph);
+
+    expect(getSelectionMessageId(selection)).toBeNull();
+  });
+
+  it("accepts selections that stop or start at an excluded node boundary", () => {
+    document.body.innerHTML = `
+      <div data-message-id="message-1" data-aui-quote-selectable>
+        <span id="before">before</span><span id="chip" data-aui-quote-selectable="false">[1]</span><span id="after">after</span>
+      </div>
+    `;
+
+    const chip = document.querySelector("#chip");
+    assert(chip);
+    const before = selectText(textNode("#before"));
+    before.getRangeAt(0).setEndBefore(chip);
+    expect(getSelectionMessageId(before)).toBe("message-1");
+
+    const after = selectText(textNode("#after"));
+    after.getRangeAt(0).setStartAfter(chip);
+    expect(getSelectionMessageId(after)).toBe("message-1");
+  });
+
+  it("preserves a nested quote region inside an excluded subtree", () => {
+    document.body.innerHTML = `
+      <div data-message-id="message-1">
+        <div data-aui-quote-selectable="false">
+          <p data-aui-quote-selectable>
+            <span id="before">before</span>
+            <span data-aui-quote-selectable="false">[1]</span>
+            <span id="after">after</span>
+          </p>
+        </div>
+      </div>
+    `;
+
+    expect(getSelectionMessageId(selectText(textNode("#before")))).toBe(
+      "message-1",
+    );
+    expect(
+      getSelectionMessageId(
+        selectText(textNode("#before"), textNode("#after")),
+      ),
+    ).toBeNull();
+  });
 
   it("rejects selections outside quote-selectable regions when a message opts in", () => {
     document.body.innerHTML = `

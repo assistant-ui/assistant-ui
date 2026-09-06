@@ -34,6 +34,8 @@ Place this component inside `ThreadPrimitive.Root`:
 ```
 
 To prevent tool cards or other message UI from being quoted, wrap the message text in `data-aui-quote-selectable`. If a message contains that marker, the toolbar only appears for selections inside the same marked region. Set the attribute to `"false"` to exclude an element instead; on the message root it disables quoting for the whole message.
+
+If a selection crosses an excluded element, the toolbar does not appear. This includes a full paragraph selection that contains an excluded inline citation. The toolbar does not remove excluded text from a quote. Selections that end immediately before or start immediately after the excluded element remain quotable.
 {/* api-manual:end */}
 
 {/* api-reference:start */}
