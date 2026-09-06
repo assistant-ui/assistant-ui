@@ -118,6 +118,7 @@ const applySnapshot = (
     streamingMessageIndex: undefined,
     toolExecutions: {},
     runStatus,
+    // The supervisor reports "running" during compaction and retries.
     compaction: runStatus === "running" ? state.compaction : { active: false },
     retry:
       runStatus === "running" ? state.retry : { active: false, attempt: 0 },
