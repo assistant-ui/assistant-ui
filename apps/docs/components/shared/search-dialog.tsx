@@ -197,12 +197,23 @@ export function SearchDialog({ open, onOpenChange }: SearchDialogProps) {
       });
   }, []);
 
-  useEffect(() => {
-    if (!open) return;
-    setInputValue("");
-    setSelectedIndex(0);
-    setPageEntries(collectPageEntries(pathname));
-  }, [open, pathname]);
+  const [openScope, setOpenScope] = useState<{
+    open: boolean;
+    pathname: string;
+  } | null>(null);
+
+  if (
+    openScope === null ||
+    openScope.open !== open ||
+    openScope.pathname !== pathname
+  ) {
+    setOpenScope({ open, pathname });
+    if (open) {
+      setInputValue("");
+      setSelectedIndex(0);
+      setPageEntries(collectPageEntries(pathname));
+    }
+  }
 
   const query = inputValue.trim();
   const tokens = useMemo(() => tokenize(query), [query]);
@@ -239,9 +250,20 @@ export function SearchDialog({ open, onOpenChange }: SearchDialogProps) {
     resultsLengthRef.current = results.length;
   }, [results.length]);
 
-  useEffect(() => {
+  const [resultScope, setResultScope] = useState({
+    query,
+    onPageHits,
+    otherGroups,
+  });
+
+  if (
+    resultScope.query !== query ||
+    resultScope.onPageHits !== onPageHits ||
+    resultScope.otherGroups !== otherGroups
+  ) {
+    setResultScope({ query, onPageHits, otherGroups });
     setSelectedIndex(0);
-  }, [query, onPageHits, otherGroups]);
+  }
 
   useEffect(() => {
     if (listRef.current && results.length > 0) {

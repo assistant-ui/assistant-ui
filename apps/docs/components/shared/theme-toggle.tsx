@@ -1,7 +1,8 @@
 "use client";
 
 import { useTheme } from "next-themes";
-import { useEffect, useState, type ReactNode } from "react";
+import { type ReactNode } from "react";
+import { useHydrated } from "@/hooks/use-hydrated";
 import { Moon, Sun } from "lucide-react";
 import { cn } from "@/lib/utils";
 
@@ -13,9 +14,7 @@ export function ThemeToggle({
   children?: ReactNode;
 }) {
   const { resolvedTheme, setTheme } = useTheme();
-  const [mounted, setMounted] = useState(false);
-
-  useEffect(() => setMounted(true), []);
+  const mounted = useHydrated();
 
   const toggleTheme = () => {
     setTheme(resolvedTheme === "dark" ? "light" : "dark");

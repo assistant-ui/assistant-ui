@@ -3,6 +3,7 @@
 import { Collapsible } from "@base-ui/react/collapsible";
 import { ChevronDown } from "lucide-react";
 import { type ReactNode, useEffect, useState } from "react";
+import { useHydrated } from "@/hooks/use-hydrated";
 import { cn } from "@/lib/utils";
 
 export type TypeTableRow = {
@@ -58,15 +59,11 @@ function Item({
   parentId?: string | undefined;
 }) {
   const [open, setOpen] = useState(false);
-  const [mounted, setMounted] = useState(false);
+  const mounted = useHydrated();
   const id = parentId ? `${parentId}-${row.name}` : undefined;
 
   const hasContent =
     row.description || row.default || row.children?.length || row.typeFull;
-
-  useEffect(() => {
-    setMounted(true);
-  }, []);
 
   useEffect(() => {
     const expand = () => {

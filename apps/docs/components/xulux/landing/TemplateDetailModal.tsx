@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useState, type ReactNode } from "react";
+import { useRef, useState, type ReactNode } from "react";
 import {
   AlertTriangle,
   Code2,
@@ -45,10 +45,13 @@ export function TemplateDetailModal({
   const [iframeLoaded, setIframeLoaded] = useState(false);
   const scrollRef = useRef<HTMLDivElement>(null);
 
-  useEffect(() => {
+  const [syncedTemplate, setSyncedTemplate] = useState(template);
+
+  if (syncedTemplate !== template) {
+    setSyncedTemplate(template);
     setCurrent(template);
     setIframeLoaded(false);
-  }, [template]);
+  }
 
   const others = allTemplates
     .filter((candidate) => candidate.id !== current?.id)

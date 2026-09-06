@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useHydrated } from "@/hooks/use-hydrated";
 import { LiveDot } from "@/components/shared/live-dot";
 import Link from "next/link";
 import { ArrowUpRight } from "lucide-react";
@@ -178,11 +178,7 @@ export default function NativePage() {
 }
 
 function NativeDemo() {
-  const [src, setSrc] = useState<string | null>(null);
-
-  useEffect(() => {
-    setSrc(DEMO_SRC);
-  }, []);
+  const src = useHydrated() ? DEMO_SRC : null;
 
   return (
     <div className="border-foreground/10 overflow-hidden border">

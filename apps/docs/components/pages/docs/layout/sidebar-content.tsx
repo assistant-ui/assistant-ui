@@ -242,9 +242,18 @@ export function SidebarContent({
     activeSectionId,
   );
 
-  useEffect(() => {
+  const [sectionScope, setSectionScope] = useState({
+    activeSectionId,
+    pathname,
+  });
+
+  if (
+    sectionScope.activeSectionId !== activeSectionId ||
+    sectionScope.pathname !== pathname
+  ) {
+    setSectionScope({ activeSectionId, pathname });
     if (activeSectionId) setOpenSectionId(activeSectionId);
-  }, [activeSectionId, pathname]);
+  }
 
   useEffect(() => {
     if (openSectionId !== activeSectionId) return;

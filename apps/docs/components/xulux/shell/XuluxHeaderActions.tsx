@@ -1,6 +1,7 @@
 "use client";
 
-import { useEffect, useState, type ReactNode } from "react";
+import { type ReactNode } from "react";
+import { useHeaderPortalContainer } from "@/hooks/use-header-portal-container";
 import { createPortal } from "react-dom";
 import { LayoutGrid, Plus } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -8,13 +9,7 @@ import type { XuluxStoredThread } from "../runtime/types";
 import { XuluxHistoryMenu } from "./XuluxHistoryMenu";
 
 function HeaderPortal({ children }: { children: ReactNode }) {
-  const [container, setContainer] = useState<HTMLElement | null>(null);
-
-  useEffect(() => {
-    setContainer(
-      document.querySelector<HTMLElement>("[data-sub-project-header-portal]"),
-    );
-  }, []);
+  const container = useHeaderPortalContainer();
 
   if (!container) return null;
   return createPortal(children, container);
