@@ -31,7 +31,6 @@ type MermaidZoomProps = {
 };
 
 function MermaidZoom({ svg, children }: MermaidZoomProps) {
-  const [isMounted, setIsMounted] = useState(false);
   const [isOpen, setIsOpen] = useState(false);
   const [transform, setTransform] = useState({ x: 0, y: 0, scale: 1 });
   const triggerRef = useRef<HTMLButtonElement>(null);
@@ -55,10 +54,6 @@ function MermaidZoom({ svg, children }: MermaidZoomProps) {
         .replace(/(href|xlink:href)="#([^"]+)"/g, '$1="#$2-zoom"'),
     [svg],
   );
-
-  useEffect(() => {
-    setIsMounted(true);
-  }, []);
 
   const handleClose = useCallback(() => {
     setIsOpen(false);
@@ -177,8 +172,7 @@ function MermaidZoom({ svg, children }: MermaidZoomProps) {
       >
         <Maximize2 className="size-3.5" />
       </button>
-      {isMounted &&
-        isOpen &&
+      {isOpen &&
         createPortal(
           <div
             ref={overlayRef}

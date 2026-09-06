@@ -10,7 +10,6 @@ import { cn } from "@/lib/utils";
 import {
   createContext,
   useContext,
-  useEffect,
   useMemo,
   useState,
   type FC,
@@ -115,7 +114,11 @@ function ContextDisplayRoot({
     usage,
   });
 
-  useEffect(() => {
+  if (
+    tokenState.resetKey !== resetKey ||
+    (rawTokens > 0 && rawTokens !== tokenState.totalTokens) ||
+    usage !== tokenState.usage
+  ) {
     setTokenState((prev) => {
       if (prev.resetKey !== resetKey) {
         return {
@@ -132,7 +135,7 @@ function ContextDisplayRoot({
       }
       return prev;
     });
-  }, [resetKey, rawTokens, usage]);
+  }
 
   const current =
     tokenState.resetKey === resetKey

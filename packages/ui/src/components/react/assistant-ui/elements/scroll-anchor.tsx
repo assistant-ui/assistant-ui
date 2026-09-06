@@ -55,6 +55,9 @@ export function ScrollAnchor({
 
   useEffect(() => {
     if (count === INITIAL_COUNT + 1) {
+      // The unpin lands one commit after the count that triggers it, so the
+      // pinned scroll still runs for that message.
+      // eslint-disable-next-line react-hooks/set-state-in-effect
       setPinned(false);
       const viewport = viewportRef.current;
       if (viewport) viewport.scrollTo({ top: 0, behavior: "smooth" });
@@ -62,12 +65,9 @@ export function ScrollAnchor({
   }, [count]);
 
   useEffect(() => {
+    if (!pinned) return;
     const viewport = viewportRef.current;
-    if (!viewport) return;
-    if (pinned) {
-      viewport.scrollTo({ top: viewport.scrollHeight });
-      setSeenCount(count);
-    }
+    if (viewport) viewport.scrollTo({ top: viewport.scrollHeight });
   }, [count, pinned]);
 
   const jump = useCallback(() => {
@@ -85,7 +85,7 @@ export function ScrollAnchor({
     return () => clearTimeout(id);
   }, [paused, pinned, count, seenCount, jump]);
 
-  const newCount = count - seenCount;
+  const newCount = pinned ? 0 : count - seenCount;
 
   return (
     <div
