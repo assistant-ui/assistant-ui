@@ -3,7 +3,6 @@ import type {
   LangChainMessageChunk,
   LangChainToolCall,
   LangChainToolCallChunk,
-  MessageContentText,
 } from "./types";
 import { parsePartialJsonObject } from "assistant-stream/utils";
 
@@ -80,14 +79,21 @@ export const appendLangChainChunk = (
   }
 
   if (!prev || prev.type !== "ai") {
-    const toolCalls = (curr.tool_call_chunks ?? []).map(chunkToToolCall);
-    return {
-      ...curr,
-      content: curr.content ?? [],
-      type: curr.type.replace("MessageChunk", "").toLowerCase(),
-      tool_call_chunks: undefined,
-      ...(toolCalls.length > 0 && { tool_calls: toolCalls }),
-    } as LangChainMessage;
+    const { id, tool_call_chunks: _chunks, ...message } = curr;
+    prev = {
+      ...message,
+      ...(id !== undefined && { id }),
+      content: [],
+      type: "ai",
+    };
+    if (!Array.isArray(curr.content)) {
+      const toolCalls = (curr.tool_call_chunks ?? []).map(chunkToToolCall);
+      return {
+        ...prev,
+        content: curr.content ?? [],
+        ...(toolCalls.length > 0 && { tool_calls: toolCalls }),
+      };
+    }
   }
 
   const newContent =
@@ -97,33 +103,74 @@ export const appendLangChainChunk = (
 
   if (typeof curr?.content === "string") {
     const lastIndex = newContent.length - 1;
-    if (newContent[lastIndex]?.type === "text") {
-      (newContent[lastIndex] as MessageContentText).text =
-        (newContent[lastIndex] as MessageContentText).text + curr.content;
+    const last = newContent[lastIndex];
+    if (last?.type === "text") {
+      newContent[lastIndex] = { ...last, text: last.text + curr.content };
     } else {
       newContent.push({ type: "text", text: curr.content });
     }
   } else if (Array.isArray(curr.content)) {
-    const lastIndex = newContent.length - 1;
     for (const item of curr.content) {
       if (!("type" in item)) {
         continue;
       }
 
+      const lastIndex = newContent.length - 1;
+      const last = newContent[lastIndex];
       if (item.type === "text" || item.type === "text_delta") {
-        if (newContent[lastIndex]?.type === "text") {
-          (newContent[lastIndex] as MessageContentText).text =
-            (newContent[lastIndex] as MessageContentText).text + item.text;
+        if (last?.type === "text") {
+          newContent[lastIndex] = { ...last, text: last.text + item.text };
         } else {
           newContent.push({ type: "text", text: item.text });
         }
-      } else if (
-        item.type === "image_url" ||
-        item.type === "thinking" ||
-        item.type === "reasoning" ||
-        item.type === "file" ||
-        item.type === "computer_call"
-      ) {
+      } else if (item.type === "thinking" || item.type === "reasoning") {
+        const index =
+          item.index === undefined
+            ? lastIndex
+            : newContent.findIndex(
+                (part) =>
+                  part.type === item.type &&
+                  "index" in part &&
+                  part.index === item.index,
+              );
+        const existing = newContent[index];
+        if (item.type === "thinking") {
+          if (!item.thinking) continue;
+          if (existing?.type === "thinking") {
+            newContent[index] = {
+              ...existing,
+              thinking: (existing.thinking ?? "") + item.thinking,
+            };
+          } else {
+            newContent.push(item);
+          }
+        } else if (existing?.type === "reasoning") {
+          const summary = [...(existing.summary ?? [])];
+          for (const [position, part] of (item.summary ?? []).entries()) {
+            if (!part) continue;
+            const summaryIndex =
+              part.index === undefined
+                ? position
+                : summary.findIndex((s) => s?.index === part.index);
+            const previous = summary[summaryIndex];
+            if (previous) {
+              summary[summaryIndex] = {
+                ...previous,
+                text: (previous.text ?? "") + (part.text ?? ""),
+              };
+            } else {
+              summary.push(part);
+            }
+          }
+          newContent[index] = {
+            ...existing,
+            reasoning: (existing.reasoning ?? "") + (item.reasoning ?? ""),
+            ...(summary.length > 0 && { summary }),
+          };
+        } else {
+          newContent.push(item);
+        }
+      } else if (item.type !== "tool_use" && item.type !== "input_json_delta") {
         newContent.push(item);
       }
     }

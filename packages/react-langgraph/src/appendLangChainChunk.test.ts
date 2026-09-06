@@ -67,7 +67,7 @@ describe("appendLangChainChunk content-less chunks", () => {
 });
 
 describe("appendLangChainChunk continuation content", () => {
-  it("keeps reasoning, files, computer calls, and text deltas for conversion", () => {
+  it("keeps reasoning, files, audio, computer calls, and text deltas for conversion", () => {
     const first = appendLangChainChunk(undefined, {
       id: "ai-1",
       type: "AIMessageChunk",
@@ -84,6 +84,12 @@ describe("appendLangChainChunk continuation content", () => {
           source_type: "url",
           url: "https://example.com/report.pdf",
           mime_type: "application/pdf",
+        },
+        {
+          type: "audio",
+          data: "YXVkaW8=",
+          mime_type: "audio/wav",
+          source_type: "base64",
         },
         {
           type: "computer_call",
@@ -110,6 +116,12 @@ describe("appendLangChainChunk continuation content", () => {
         sourceType: "url",
       },
       {
+        type: "file",
+        filename: "audio.wav",
+        data: "YXVkaW8=",
+        mimeType: "audio/wav",
+      },
+      {
         type: "tool-call",
         toolCallId: "call-1",
         toolName: "computer_call",
@@ -133,6 +145,143 @@ describe("appendLangChainChunk continuation content", () => {
     );
 
     expect(merged.content).toEqual([{ type: "text", text: "Hello world" }]);
+  });
+
+  it("keeps text after intervening content and joins adjacent text deltas", () => {
+    const merged = appendLangChainChunk(
+      { id: "ai-1", type: "ai", content: [{ type: "text", text: "Hello" }] },
+      {
+        id: "ai-1",
+        type: "AIMessageChunk",
+        content: [
+          { type: "thinking", thinking: "Checking." },
+          { type: "text", text: "After thinking." },
+          {
+            type: "file",
+            source_type: "url",
+            url: "https://example.com/report.pdf",
+          },
+          { type: "text_delta", text: "Done" },
+          { type: "text_delta", text: "." },
+        ],
+      },
+    );
+
+    expect(convertLangChainMessages(merged, {})).toHaveProperty("content", [
+      { type: "text", text: "Hello" },
+      { type: "reasoning", text: "Checking." },
+      { type: "text", text: "After thinking." },
+      {
+        type: "file",
+        filename: "file",
+        data: "https://example.com/report.pdf",
+        mimeType: "application/octet-stream",
+        sourceType: "url",
+      },
+      { type: "text", text: "Done." },
+    ]);
+  });
+
+  it("accumulates thinking by block index without changing earlier messages", () => {
+    const first = appendLangChainChunk(undefined, {
+      id: "ai-1",
+      type: "AIMessageChunk",
+      content: [{ type: "thinking", thinking: "Let", index: 0 }],
+    });
+    const merged = appendLangChainChunk(first, {
+      id: "ai-1",
+      type: "AIMessageChunk",
+      content: [
+        { type: "thinking", thinking: "Other.", index: 1 },
+        { type: "thinking", thinking: " me check.", index: 0 },
+      ],
+    });
+    expect(convertLangChainMessages(first, {})).toHaveProperty("content", [
+      { type: "reasoning", text: "Let" },
+    ]);
+    expect(convertLangChainMessages(merged, {})).toHaveProperty("content", [
+      { type: "reasoning", text: "Let me check." },
+      { type: "reasoning", text: "Other." },
+    ]);
+  });
+
+  it("ignores signature-only chunks at the start and during thinking", () => {
+    const signature = JSON.parse(
+      '{"id":"ai-1","type":"AIMessageChunk","content":[{"type":"thinking","signature":"signed","index":0}]}',
+    );
+    const first = appendLangChainChunk(undefined, signature);
+    expect(convertLangChainMessages(first, {})).toHaveProperty("content", []);
+    const thinking = appendLangChainChunk(first, {
+      id: "ai-1",
+      type: "AIMessageChunk",
+      content: [{ type: "thinking", thinking: "Checking.", index: 0 }],
+    });
+    const merged = appendLangChainChunk(thinking, signature);
+    expect(convertLangChainMessages(merged, {})).toHaveProperty("content", [
+      { type: "reasoning", text: "Checking." },
+    ]);
+  });
+
+  it("joins reasoning summary deltas by summary index", () => {
+    let merged: LangChainMessage = { id: "ai-1", type: "ai", content: [] };
+    const blocks = [
+      { type: "reasoning", index: 0, summary: [] },
+      {
+        type: "reasoning",
+        index: 0,
+        summary: [{ type: "summary_text", index: 0, text: "First" }],
+      },
+      {
+        type: "reasoning",
+        index: 0,
+        summary: [{ type: "summary_text", index: 1, text: "Second" }],
+      },
+      {
+        type: "reasoning",
+        index: 0,
+        summary: [{ type: "summary_text", index: 0, text: " step." }],
+      },
+      {
+        type: "reasoning",
+        index: 0,
+        summary: [{ type: "summary_text", index: 1, text: " step." }],
+      },
+      { type: "reasoning", index: 1, reasoning: "Separate." },
+    ] satisfies Exclude<LangChainMessageChunk["content"], string | undefined>;
+    for (const block of blocks) {
+      merged = appendLangChainChunk(merged, {
+        id: "ai-1",
+        type: "AIMessageChunk",
+        content: [block],
+      });
+    }
+    expect(convertLangChainMessages(merged, {})).toHaveProperty("content", [
+      { type: "reasoning", text: "First step.\n\n\nSecond step." },
+      { type: "reasoning", text: "Separate." },
+    ]);
+  });
+
+  it("joins unindexed reasoning deltas only while they are adjacent", () => {
+    let merged = appendLangChainChunk(undefined, {
+      id: "ai-1",
+      type: "AIMessageChunk",
+      content: [{ type: "reasoning", reasoning: "One" }],
+    });
+    merged = appendLangChainChunk(merged, {
+      id: "ai-1",
+      type: "AIMessageChunk",
+      content: [
+        { type: "reasoning", reasoning: " step." },
+        { type: "text_delta", text: "Answer." },
+        { type: "reasoning", reasoning: "Two" },
+        { type: "reasoning", reasoning: " steps." },
+      ],
+    });
+    expect(convertLangChainMessages(merged, {})).toHaveProperty("content", [
+      { type: "reasoning", text: "One step." },
+      { type: "text", text: "Answer." },
+      { type: "reasoning", text: "Two steps." },
+    ]);
   });
 });
 

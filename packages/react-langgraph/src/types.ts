@@ -46,17 +46,20 @@ export type MessageContentImageUrl = {
 export type MessageContentThinking = {
   type: "thinking";
   thinking: string;
+  index?: number;
 };
 
 export type MessageContentReasoningSummaryText = {
   type: "summary_text";
   text?: string;
+  index?: number;
 };
 
 export type MessageContentReasoning = {
   type: "reasoning";
   summary?: MessageContentReasoningSummaryText[];
   reasoning?: string;
+  index?: number;
 };
 
 type MessageContentToolUse = {
@@ -135,6 +138,7 @@ type AssistantMessageContentComplex =
   | MessageContentImageUrl
   | MessageContentToolUse
   | MessageContentFile
+  | MessageContentAudio
   | MessageContentReasoning
   | MessageContentThinking
   | MessageContentComputerCall;
