@@ -116,12 +116,13 @@ class StateDraft:
         return self._state.lookup(path)
 
     def add_operations(self, operations: List[StateOperation]) -> None:
-        operations = [op for op in operations if not self._is_writeback(op)]
+        operations = [
+            {**op, "value": _detach_value(op["value"])} if op["type"] == "set" else op
+            for op in operations
+            if not self._is_writeback(op)
+        ]
         if not operations:
             return
-        for op in operations:
-            if op["type"] == "set":
-                op["value"] = _ensure_no_proxy(op["value"])
         self._state.apply(operations)
         self._on_operations(operations)
 
@@ -185,15 +186,16 @@ class Flusher:
             self._emit(operations)
 
 
-def _ensure_no_proxy(value: Any) -> Any:
+def _detach_value(value: Any) -> Any:
+    """Rebuild containers so state never aliases a value the caller retains."""
     if isinstance(value, StateProxy):
         raise ValueError(
             "Cannot store a StateProxy in state; assign a plain value instead"
         )
     if isinstance(value, dict):
-        return {key: _ensure_no_proxy(item) for key, item in value.items()}
+        return {key: _detach_value(item) for key, item in value.items()}
     if isinstance(value, list):
-        return [_ensure_no_proxy(item) for item in value]
+        return [_detach_value(item) for item in value]
     return value
 
 
