@@ -25,10 +25,7 @@ import {
 } from "../../model-context/interactable-composer-metadata";
 import { notifySubscribers as notifyStateSubscribers } from "../../subscribable/subscribable";
 import { useInteractablePersistenceQueue } from "../interactables-shared/useInteractablePersistenceQueue";
-import {
-  cloneNullProtoRecord,
-  createNullProtoRecord,
-} from "../../utils/record";
+import { nullProtoRecord } from "../../utils/record";
 
 type RestorePersistedStateOptions = {
   stash: Map<string, unknown>;
@@ -81,8 +78,8 @@ const useInteractablesResource = ({
   persistence,
 }: Unstable_InteractablesConfig = {}): ClientOutput<"unstable_interactables"> => {
   const [state, setState] = useState<Unstable_InteractablesState>(() => ({
-    definitions: createNullProtoRecord(),
-    persistence: createNullProtoRecord(),
+    definitions: nullProtoRecord(),
+    persistence: nullProtoRecord(),
   }));
 
   const clientRef = useAssistantClientRef();
@@ -128,7 +125,7 @@ const useInteractablesResource = ({
 
   const exportState = useCallback((): Unstable_InteractablePersistedState => {
     const result =
-      createNullProtoRecord<Unstable_InteractablePersistedState[string]>();
+      nullProtoRecord<Unstable_InteractablePersistedState[string]>();
     for (const [id, def] of Object.entries(stateRef.current.definitions)) {
       if (def.scope === "thread") continue; // thread items persist via snapshot, not the adapter
       result[id] = { name: def.name, state: def.state };
@@ -172,7 +169,7 @@ const useInteractablesResource = ({
       }
       setStateAndRef((prev) => {
         let changed = false;
-        const definitions = cloneNullProtoRecord(prev.definitions);
+        const definitions = nullProtoRecord(prev.definitions);
         for (const [id, entry] of Object.entries(saved)) {
           const def = definitions[id];
           if (!def || !shouldApply(id, def)) continue;
@@ -265,7 +262,7 @@ const useInteractablesResource = ({
         if (!existing) return prev;
         return {
           ...prev,
-          definitions: Object.assign(cloneNullProtoRecord(prev.definitions), {
+          definitions: nullProtoRecord(prev.definitions, {
             [id]: { ...existing, state: updater(existing.state) },
           }),
         };
@@ -454,7 +451,7 @@ const useInteractablesResource = ({
 
       setStateAndRef((prev) => ({
         ...prev,
-        definitions: Object.assign(cloneNullProtoRecord(prev.definitions), {
+        definitions: nullProtoRecord(prev.definitions, {
           [def.id]: {
             id: def.id,
             name: def.name,
@@ -501,8 +498,8 @@ const useInteractablesResource = ({
             }
           }
           partialSchemaCacheRef.current.delete(def.id);
-          const definitions = cloneNullProtoRecord(prev.definitions);
-          const persistence = cloneNullProtoRecord(prev.persistence);
+          const definitions = nullProtoRecord(prev.definitions);
+          const persistence = nullProtoRecord(prev.persistence);
           delete definitions[def.id];
           delete persistence[def.id];
           return { ...prev, definitions, persistence };

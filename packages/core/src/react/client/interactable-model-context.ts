@@ -8,7 +8,6 @@ import {
 } from "../../model-context/interactable-composer-metadata";
 import { generateId } from "../../utils/id";
 import { isRecord } from "../../utils/json/is-json";
-import { createNullProtoRecord } from "../../utils/record";
 
 export type PartialJSONSchema = ReturnType<typeof toJSONSchema>;
 
@@ -159,11 +158,11 @@ export function buildInteractableModelContext(
     byName.set(def.name, list);
   }
 
-  const tools = createNullProtoRecord<Tool<any, any>>();
+  const tools: Record<string, Tool<any, any>> = {};
 
   for (const [name, instances] of byName) {
     const toolName = interactableToolName(name);
-    if (Object.hasOwn(tools, toolName)) {
+    if (tools[toolName]) {
       if (process.env.NODE_ENV !== "production") {
         console.warn(
           `[Interactables] interactable names "${name}" and another registered name ` +

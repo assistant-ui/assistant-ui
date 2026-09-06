@@ -7,10 +7,7 @@ import {
   WritableSubscribable,
 } from "../../subscribable/subscribable";
 import { useSubscribable } from "../../store/runtime-clients/useSubscribable";
-import {
-  cloneNullProtoRecord,
-  createNullProtoRecord,
-} from "../../utils/record";
+import { nullProtoRecord } from "../../utils/record";
 import { OptimisticState } from "../../runtimes/remote-thread-list/optimistic-state";
 import { EMPTY_THREAD_CORE } from "../../runtimes/remote-thread-list/empty-thread-core";
 import type {
@@ -393,8 +390,8 @@ export class RemoteThreadListThreadListRuntimeCore
     const seed: ClassifyAccumulator = {
       threadIds: [],
       archivedThreadIds: [],
-      threadIdMap: createNullProtoRecord(),
-      threadData: createNullProtoRecord(),
+      threadIdMap: nullProtoRecord(),
+      threadData: nullProtoRecord(),
     };
     for (const item of carried) {
       const mappingId = createThreadMappingId(item.id);
@@ -855,7 +852,7 @@ export class RemoteThreadListThreadListRuntimeCore
             ? state.threadData[listedMappingId]
             : undefined;
 
-        const threadData = cloneNullProtoRecord(state.threadData);
+        const threadData = nullProtoRecord(state.threadData);
         if (orphan !== undefined) delete threadData[listedMappingId!];
         threadData[mappingId] = {
           ...data,

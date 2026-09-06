@@ -1,6 +1,5 @@
 import type { Tool } from "assistant-stream";
 import type { InteractableDefinition, InteractableStateSchema } from "./scopes";
-import { createNullProtoRecord } from "../../utils/record";
 
 export function shallowMerge(prev: unknown, partial: unknown): unknown {
   if (
@@ -35,7 +34,7 @@ export function buildInteractableModelContext(
   }
 
   const systemParts: string[] = [];
-  const tools = createNullProtoRecord<Tool<any, any>>();
+  const tools: Record<string, Tool<any, any>> = {};
 
   for (const [name, instances] of byName) {
     const isMulti = instances.length > 1;

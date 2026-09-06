@@ -39,7 +39,7 @@ import type {
 import { ThreadListAdapterChangedError } from "../../runtimes/remote-thread-list/adapter-changed";
 import type { ThreadMessage } from "../../types/message";
 import { handleThreadListAction } from "../../store/runtime-clients/handle-thread-list-action";
-import { cloneNullProtoRecord } from "../../utils/record";
+import { nullProtoRecord } from "../../utils/record";
 import {
   inMemoryThreadListTransformScopes,
   type InMemoryThreadListProps,
@@ -946,7 +946,7 @@ const useRemoteThreadList = (
               ? state.threadData[listedMappingId]
               : undefined;
 
-          const threadData = cloneNullProtoRecord(state.threadData);
+          const threadData = nullProtoRecord(state.threadData);
           if (orphan !== undefined) delete threadData[listedMappingId!];
           threadData[mappingId] = {
             ...data,

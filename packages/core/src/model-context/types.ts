@@ -1,6 +1,6 @@
 import type { Unsubscribe } from "../types/unsubscribe";
 import type { Tool } from "assistant-stream";
-import { createNullProtoRecord } from "../utils/record";
+import { nullProtoRecord } from "../utils/record";
 
 export type LanguageModelV1CallSettings = {
   maxTokens?: number;
@@ -69,7 +69,7 @@ export const mergeModelContexts = (
     .map((c) => c.getModelContext())
     .sort((a, b) => (b.priority ?? 0) - (a.priority ?? 0));
 
-  const toolPriorities = createNullProtoRecord<number>();
+  const toolPriorities = nullProtoRecord<number>();
 
   return configs.reduce((acc, config) => {
     const priority = config.priority ?? 0;
@@ -109,7 +109,7 @@ export const mergeModelContexts = (
           continue;
         }
 
-        if (!acc.tools) acc.tools = createNullProtoRecord();
+        if (!acc.tools) acc.tools = nullProtoRecord();
         acc.tools[name] = stripOverwrite(tool);
         if (!Object.hasOwn(toolPriorities, name)) {
           toolPriorities[name] = priority;

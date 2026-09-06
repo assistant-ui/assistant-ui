@@ -1,5 +1,5 @@
 import { useCallback, useRef, type RefObject } from "react";
-import { cloneNullProtoRecord } from "../../utils/record";
+import { nullProtoRecord } from "../../utils/record";
 
 const PERSISTENCE_DEBOUNCE_MS = 500;
 
@@ -92,7 +92,7 @@ export const useInteractablePersistenceQueue = <State>({
       inFlightPersistenceRef.current += 1;
 
       updatePersistenceStatus((prev) => {
-        const persistence = cloneNullProtoRecord(prev);
+        const persistence = nullProtoRecord(prev);
         for (const id of dirtyIds) {
           persistence[id] = { isPending: true, error: undefined };
         }
@@ -113,9 +113,9 @@ export const useInteractablePersistenceQueue = <State>({
         if (settledIds.length === 0) return;
         updatePersistenceStatus((prev) => {
           let changed = false;
-          const persistence = cloneNullProtoRecord(prev);
+          const persistence = nullProtoRecord(prev);
           for (const id of settledIds) {
-            if (!Object.hasOwn(prev, id)) continue;
+            if (prev[id] === undefined) continue;
             if (status === undefined) delete persistence[id];
             else persistence[id] = status;
             changed = true;
