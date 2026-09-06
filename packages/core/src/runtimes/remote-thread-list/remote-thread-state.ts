@@ -65,9 +65,11 @@ export const classifyThreads = (
   threads: readonly RemoteThreadMetadata[],
   acc: ClassifyAccumulator,
 ): ClassifyAccumulator => {
+  let threadIds = [...acc.threadIds];
+  let archivedThreadIds = [...acc.archivedThreadIds];
   const threadIdMap = nullProtoRecord(acc.threadIdMap);
   const threadData = nullProtoRecord(acc.threadData);
-  const listed = new Set([...acc.threadIds, ...acc.archivedThreadIds]);
+  const listed = new Set([...threadIds, ...archivedThreadIds]);
 
   for (const thread of threads) {
     switch (thread.status) {
@@ -95,17 +97,17 @@ export const classifyThreads = (
     if (!listed.has(id)) {
       listed.add(id);
       if (thread.status === "regular") {
-        acc.threadIds.push(id);
+        threadIds.push(id);
       } else {
-        acc.archivedThreadIds.push(id);
+        archivedThreadIds.push(id);
       }
     } else if (existing !== undefined && existing.status !== thread.status) {
       if (thread.status === "regular") {
-        acc.archivedThreadIds = acc.archivedThreadIds.filter((t) => t !== id);
-        acc.threadIds.push(id);
+        archivedThreadIds = archivedThreadIds.filter((t) => t !== id);
+        threadIds.push(id);
       } else {
-        acc.threadIds = acc.threadIds.filter((t) => t !== id);
-        acc.archivedThreadIds.push(id);
+        threadIds = threadIds.filter((t) => t !== id);
+        archivedThreadIds.push(id);
       }
     }
 
@@ -128,7 +130,7 @@ export const classifyThreads = (
         }),
     };
   }
-  return { ...acc, threadIdMap, threadData };
+  return { threadIds, archivedThreadIds, threadIdMap, threadData };
 };
 
 export type RemoteThreadState = {
