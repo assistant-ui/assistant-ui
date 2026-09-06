@@ -100,13 +100,10 @@ describe("createAddComponentsPlan", () => {
 });
 
 describe("add directory selection", () => {
-  const root = fs.realpathSync(
-    fs.mkdtempSync(path.join(os.tmpdir(), "aui-add-")),
-  );
-  const projectDir = path.join(root, "app");
-  const binDir = path.join(root, "bin");
-  const recordPath = path.join(root, "record.json");
-
+  let root: string;
+  let projectDir: string;
+  let binDir: string;
+  let recordPath: string;
   let originalCwd: string;
   let originalPath: string | undefined;
   let exitSpy: ReturnType<typeof vi.spyOn>;
@@ -122,6 +119,11 @@ describe("add directory selection", () => {
   });
 
   beforeAll(() => {
+    root = fs.realpathSync(fs.mkdtempSync(path.join(os.tmpdir(), "aui-add-")));
+    projectDir = path.join(root, "app");
+    binDir = path.join(root, "bin");
+    recordPath = path.join(root, "record.json");
+
     fs.mkdirSync(projectDir, { recursive: true });
     fs.mkdirSync(binDir, { recursive: true });
     fs.writeFileSync(path.join(projectDir, "package.json"), "{}");
