@@ -185,11 +185,11 @@ describe("PiThreadSupervisor", () => {
   });
 
   it.each([
-    { provider: "anthropic", modelId: "claude-opus-4-5", levels: ["high"] },
-    { provider: "openai", modelId: "gpt-4o", levels: [] },
+    { supportsThinking: true, levels: ["high"] },
+    { supportsThinking: false, levels: [] },
   ])(
-    "keeps the effective thinking level for $modelId subscribers",
-    async ({ provider, modelId, levels }) => {
+    "keeps the effective thinking level when supportsThinking is $supportsThinking",
+    async ({ supportsThinking, levels }) => {
       const actual = await vi.importActual<typeof PiSdk>(
         "@earendil-works/pi-coding-agent",
       );
@@ -201,8 +201,19 @@ describe("PiThreadSupervisor", () => {
           modelsPath: null,
           refreshOnCreate: false,
         });
-        const model = modelRuntime.getModel(provider, modelId);
-        if (!model) throw new Error(`Missing model: ${provider}/${modelId}`);
+        const model = modelRuntime
+          .getModels()
+          .find(({ reasoning, thinkingLevelMap }) =>
+            supportsThinking
+              ? reasoning &&
+                thinkingLevelMap?.xhigh === null &&
+                thinkingLevelMap.max == null &&
+                thinkingLevelMap.high !== null &&
+                thinkingLevelMap.off !== null
+              : !reasoning,
+          );
+        if (!model)
+          throw new Error("Missing model with matching thinking support");
         const settingsManager = actual.SettingsManager.inMemory();
         sdk.create.mockReturnValue(actual.SessionManager.inMemory(cwd));
         sdk.createAgentSession.mockImplementation(
