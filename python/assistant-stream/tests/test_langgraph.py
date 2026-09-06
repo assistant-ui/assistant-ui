@@ -8,12 +8,17 @@ first argument is the state proxy, the event type is langgraph's stream mode nam
 tuple carrying a single message or message chunk.
 """
 
+import asyncio
 from typing import Any
 
 import pytest
-from langchain_core.messages import AIMessage, AIMessageChunk, HumanMessage
+from langchain_core.messages import AIMessage, AIMessageChunk, HumanMessage, ToolMessage
 
-from assistant_stream.modules.langgraph import append_langgraph_event
+from assistant_stream.create_run import RunController
+from assistant_stream.modules.langgraph import (
+    append_langgraph_event,
+    get_tool_call_subgraph_state,
+)
 from assistant_stream.state_manager import StateManager
 
 
@@ -221,3 +226,61 @@ async def test_unknown_event_type_is_ignored() -> None:
     append_langgraph_event(manager.state, (), "custom", "anything")
 
     assert manager.state_data == {"existing": "value"}
+
+
+@pytest.mark.anyio
+@pytest.mark.parametrize(
+    ("artifact", "artifact_field_name"),
+    [(None, None), (None, "subgraph_state"), ({"subgraph_state": None}, "subgraph_state")],
+)
+async def test_null_tool_artifact_uses_default_subgraph_state(
+    artifact, artifact_field_name
+) -> None:
+    controller = RunController(
+        asyncio.Queue(),
+        {"messages": [ToolMessage(content="", tool_call_id="c1", artifact=artifact).model_dump()]},
+    )
+
+    state = get_tool_call_subgraph_state(
+        controller,
+        ("tools:task1",),
+        "tools",
+        {"answer": "pending"},
+        artifact_field_name=artifact_field_name,
+    )
+
+    assert state["answer"] == "pending"
+    append_langgraph_event(state, (), "updates", {"agent": {"answer": "42"}})
+
+    artifact = controller.state["messages"][0]["artifact"]
+    if artifact_field_name:
+        artifact = artifact[artifact_field_name]
+    assert artifact["answer"] == "42"
+
+
+@pytest.mark.anyio
+@pytest.mark.parametrize(
+    ("artifact", "artifact_field_name", "expected"),
+    [
+        ({"answer": "kept"}, None, {"answer": "kept"}),
+        ({"subgraph_state": {"answer": "kept"}}, "subgraph_state", {"answer": "kept"}),
+        ({"subgraph_state": {}}, "subgraph_state", {}),
+    ],
+)
+async def test_existing_tool_artifact_survives_default_state(
+    artifact, artifact_field_name, expected
+) -> None:
+    controller = RunController(
+        asyncio.Queue(),
+        {"messages": [ToolMessage(content="", tool_call_id="c1", artifact=artifact).model_dump()]},
+    )
+
+    state = get_tool_call_subgraph_state(
+        controller,
+        ("tools:task1",),
+        "tools",
+        {"answer": "default"},
+        artifact_field_name=artifact_field_name,
+    )
+
+    assert state == expected

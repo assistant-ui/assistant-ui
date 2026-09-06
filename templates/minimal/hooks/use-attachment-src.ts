@@ -10,7 +10,11 @@ const useFileSrc = (file: File | undefined) => {
   );
 
   useEffect(() => {
+    // The object URL is a browser resource whose lifetime has to straddle
+    // commit, so allocation, revocation, and clearing the entry that names a
+    // revoked URL all belong to the effect.
     if (!file) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect
       setEntry(undefined);
       return;
     }

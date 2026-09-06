@@ -16,17 +16,15 @@ const LATEX_DISPLAY_DELIMITER = /\\{1,2}\[([\s\S]+?)\\{1,2}\]/g;
 // closed by a quoted line, and a quoted fence is closed by one however its
 // marker is spaced. Matching the prefix by shape rather than as a literal keeps
 // `> ~~~` and `>~~~` equivalent.
-// The backtick patterns accept any indentation because a backtick opener does
-// too, so a fence written past a list item's content column closes on the line
-// it was written to close on. The tilde patterns keep the root indent as #6795
-// shipped them.
+// Both marker patterns accept any indentation because their openers do too, so
+// a fence written past a list item's content column closes on its own line.
 const FENCE_CLOSE_ROOT = {
   "`": /^[ \t]*(`{3,})[ \t\r]*$/,
-  "~": /^ {0,3}(~{3,})[ \t\r]*$/,
+  "~": /^[ \t]*(~{3,})[ \t\r]*$/,
 };
 const FENCE_CLOSE_QUOTED = {
   "`": /^[ \t]*(?:>[ \t]?)+[ \t]*(`{3,})[ \t\r]*$/,
-  "~": /^ {0,3}(?:>[ \t]?)+ {0,3}(~{3,})[ \t\r]*$/,
+  "~": /^[ \t]*(?:>[ \t]?)+[ \t]*(~{3,})[ \t\r]*$/,
 };
 // What may precede a fence opener on its line: the blockquote and list markers
 // whose containers a fence opens inside of, nested in either order, and the
@@ -34,18 +32,24 @@ const FENCE_CLOSE_QUOTED = {
 // prefix that fails cannot be re-split across two markers, and a list marker
 // still requires the space that separates it from its content.
 const FENCE_OPEN_PREFIX = /^[ \t]*(?:>[ \t]*|(?:[-*+]|\d{1,9}[.)])[ \t]+)*$/;
+// A fence body takes no lazy continuation, so a quoted fence left unclosed ends
+// on the first line that drops the marker. A blank line stays inside it, the way
+// a fence body carries one at the root.
+const QUOTE_CONTINUATION = /^(?:[ \t]*>|[ \t\r]*$)/;
 
 /**
  * End index (exclusive) of the fence opened by the `marker` run at `start`,
  * which the caller has verified opens one: the end of the first later line
- * carrying a closing run of at least the same length, or -1 when no line does.
+ * carrying a closing run of at least the same length, or the end of the
+ * container when no line does, since an unclosed fence is one still streaming
+ * in. A root fence's container is the whole input; a quoted one ends where its
+ * blockquote does.
  */
 function fenceEnd(text: string, start: number, marker: "`" | "~"): number {
   const fenceLength = runLength(text, start, marker);
   const openerLine = text.slice(text.lastIndexOf("\n", start - 1) + 1, start);
-  const closer = openerLine.includes(">")
-    ? FENCE_CLOSE_QUOTED[marker]
-    : FENCE_CLOSE_ROOT[marker];
+  const quoted = openerLine.includes(">");
+  const closer = quoted ? FENCE_CLOSE_QUOTED[marker] : FENCE_CLOSE_ROOT[marker];
   let lineStart = text.indexOf("\n", start);
 
   while (lineStart !== -1) {
@@ -58,27 +62,11 @@ function fenceEnd(text: string, start: number, marker: "`" | "~"): number {
     if (close && close[1]!.length >= fenceLength) {
       return lineEnd === -1 ? text.length : lineEnd;
     }
+    if (quoted && !QUOTE_CONTINUATION.test(line)) return lineStart;
     lineStart = lineEnd;
   }
 
-  return -1;
-}
-
-/** Whether the character at `index` starts a line, allowing ≤3 spaces indent. */
-function atLineStart(text: string, index: number): boolean {
-  let cursor = index;
-  let indent = 0;
-  while (cursor > 0 && text[cursor - 1] === " " && indent < 3) {
-    cursor--;
-    indent++;
-  }
-  if (cursor === 0 || text[cursor - 1] === "\n") return true;
-
-  // A fence keeps its meaning inside a blockquote, so a line carrying only
-  // blockquote markers still opens one. Four spaces would make it an indented
-  // code block instead, so the marker may carry at most three.
-  const lineStart = text.lastIndexOf("\n", cursor - 1) + 1;
-  return /^ {0,3}(?:>[ \t]?)+$/.test(text.slice(lineStart, cursor));
+  return text.length;
 }
 
 /**
@@ -111,9 +99,20 @@ function opensBacktickFence(text: string, start: number): boolean {
 }
 
 /**
+ * Whether the tilde run at `index` opens a fence. A tilde run only ever opens
+ * one, so unlike a backtick run it needs no info string rule, but it still has
+ * to carry the same container prefix as a backtick fence.
+ */
+function opensTildeFence(text: string, index: number): boolean {
+  if (text[index] !== "~" || runLength(text, index, "~") < 3) return false;
+  const lineStart = text.lastIndexOf("\n", index - 1) + 1;
+  return FENCE_OPEN_PREFIX.test(text.slice(lineStart, index));
+}
+
+/**
  * End index (exclusive) of the backtick construct opened at `start`: the fence
  * when {@link opensBacktickFence} accepts the run, the code span otherwise, or
- * -1 when that construct never closes.
+ * -1 when a span never closes.
  */
 function backtickEnd(text: string, start: number): number {
   return opensBacktickFence(text, start)
@@ -136,9 +135,8 @@ function backtickEnd(text: string, start: number): number {
  * anywhere else opens a code span, which closes on a run of exactly its own
  * length wherever on a line that run sits, and never past the paragraph it
  * opens in. An unclosed span reads as literal text, while an unclosed fence is
- * one still streaming in and protects to the end of the input; that last case is
- * where this walker and `escapeCurrencyDollars` differ, since that one treats
- * the run as literal. Tilde runs only ever open a fence, read the same way.
+ * one still streaming in and protects to the end of its container. Tilde runs
+ * only ever open a fence, read the same way.
  */
 function rewriteOutsideCode(
   text: string,
@@ -180,15 +178,9 @@ function rewriteOutsideCode(
     } else if (char === "`") {
       const end = backtickEnd(text, index);
       if (end !== -1) copyVerbatim(end);
-      else if (opensBacktickFence(text, index)) copyVerbatim(text.length);
       else index += runLength(text, index, "`");
-    } else if (
-      char === "~" &&
-      runLength(text, index, "~") >= 3 &&
-      atLineStart(text, index)
-    ) {
-      const end = fenceEnd(text, index, "~");
-      copyVerbatim(end === -1 ? text.length : end);
+    } else if (opensTildeFence(text, index)) {
+      copyVerbatim(fenceEnd(text, index, "~"));
     } else {
       index += 1;
     }
@@ -454,8 +446,9 @@ function opensCurrencyAmount(text: string, index: number): boolean {
 
 /**
  * End index (exclusive) of the run at `index` that must be copied unchanged: a `\x`
- * escape, a code span, a `$$` display delimiter, an inline math span, or a plain
- * character. Returns `index` itself for a single `$`, which the caller has to decide.
+ * escape, a code span or fence, a `$$` display delimiter, an inline math span, or a
+ * plain character. Returns `index` itself for a single `$`, which the caller has to
+ * decide.
  */
 function endOfVerbatimRun(text: string, index: number): number {
   const char = text[index];
@@ -464,6 +457,7 @@ function endOfVerbatimRun(text: string, index: number): number {
     const end = backtickEnd(text, index);
     return end === -1 ? index + runLength(text, index, "`") : end;
   }
+  if (opensTildeFence(text, index)) return fenceEnd(text, index, "~");
   if (char !== "$") return index + 1;
 
   const dollars = runLength(text, index, "$");

@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
+import { useHydrated } from "@/hooks/use-hydrated";
 import { useTheme } from "next-themes";
 import {
   ArrowUpIcon,
@@ -181,8 +182,7 @@ const useDevToolsDemo = () => {
   const client = useMemo(() => createScopedClient(apiId), [apiId]);
   const aui = useAui({ tools: Tools({ toolkit }) });
   const { resolvedTheme } = useTheme();
-  const [mounted, setMounted] = useState(false);
-  useEffect(() => setMounted(true), []);
+  const mounted = useHydrated();
   return {
     adapter,
     aui,

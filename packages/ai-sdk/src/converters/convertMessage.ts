@@ -154,30 +154,45 @@ function extractMcpAppMetadata(
 
 function getToolApprovalAndInterrupt(
   part: {
-    approval?:
-      | {
-          id: string;
-          approved?: boolean;
-          reason?: string;
-          isAutomatic?: boolean;
-        }
-      | undefined;
+    approval?: Record<string, unknown> | undefined;
   },
   toolStatus: { type: string; payload?: unknown } | undefined,
 ): {
   approval?: NonNullable<ToolCallMessagePart["approval"]>;
   interrupt?: NonNullable<ToolCallMessagePart["interrupt"]>;
 } {
-  if (part.approval && typeof part.approval.id === "string") {
-    const { id, approved, reason, isAutomatic } = part.approval;
-    return {
-      approval: {
-        id,
-        ...(typeof approved === "boolean" && { approved }),
-        ...(typeof reason === "string" && { reason }),
-        ...(isAutomatic === true && { isAutomatic: true }),
-      },
-    };
+  if (part.approval) {
+    // The AI SDK sends only id, approved and reason back to the server, so a
+    // request shape promising any other answer would render controls whose
+    // response cannot travel.
+    const {
+      id,
+      prompt,
+      approved,
+      reason,
+      isAutomatic,
+      resolution,
+      display,
+      allowFreeform,
+      options,
+      optionId,
+      text,
+      ...additionalApprovalFields
+    } = part.approval;
+    if (typeof id === "string")
+      return {
+        approval: {
+          ...additionalApprovalFields,
+          id,
+          ...(typeof prompt === "string" && { prompt }),
+          ...(typeof approved === "boolean" && { approved }),
+          ...(typeof reason === "string" && { reason }),
+          ...(isAutomatic === true && { isAutomatic: true }),
+          ...((resolution === "cancelled" || resolution === "expired") && {
+            resolution,
+          }),
+        } as NonNullable<ToolCallMessagePart["approval"]>,
+      };
   }
 
   if (toolStatus?.type === "interrupt") {

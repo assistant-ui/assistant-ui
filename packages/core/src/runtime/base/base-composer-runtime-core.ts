@@ -1,4 +1,5 @@
 import {
+  isAttachmentComplete,
   isCreateAttachment,
   type Attachment,
   type CompleteAttachment,
@@ -33,9 +34,6 @@ import {
   AttachmentAddOperations,
   drainAttachmentAdd,
 } from "../utils/attachment-add-operations";
-
-const isAttachmentComplete = (a: Attachment): a is CompleteAttachment =>
-  a.status.type === "complete";
 
 export abstract class BaseComposerRuntimeCore
   extends BaseSubscribable

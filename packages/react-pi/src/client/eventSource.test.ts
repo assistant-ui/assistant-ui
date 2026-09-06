@@ -1100,48 +1100,54 @@ describe("openPiEventStream", () => {
     expect(event.type).toBe("snapshot");
   });
 
-  it("requests a snapshot after a malformed live-only event", async () => {
-    const fetchImpl = vi
-      .fn()
-      .mockResolvedValueOnce(
-        sseResponse([
-          rawSseFrame({ type: "message_end", threadId: "t1", seq: 1 }),
-        ]),
-      )
-      .mockResolvedValueOnce(
-        sseResponse([
-          sseFrame({
-            type: "snapshot",
-            threadId: "t1",
-            seq: 2,
-            snapshot: {
-              metadata: { id: "t1", status: "idle" },
-              messages: [],
-            },
-          }),
-        ]),
-      ) as unknown as typeof fetch;
+  it.each(["malformed", "closed", "error"])(
+    "requests a snapshot after a %s live-only stream",
+    async (failure) => {
+      const fetchImpl = vi
+        .fn()
+        .mockImplementationOnce(async () => {
+          if (failure === "error") throw new Error("network drop");
+          return sseResponse(
+            failure === "closed"
+              ? []
+              : [rawSseFrame({ type: "message_end", threadId: "t1", seq: 1 })],
+          );
+        })
+        .mockResolvedValueOnce(
+          sseResponse([
+            sseFrame({
+              type: "snapshot",
+              threadId: "t1",
+              seq: 2,
+              snapshot: {
+                metadata: { id: "t1", status: "idle" },
+                messages: [],
+              },
+            }),
+          ]),
+        ) as unknown as typeof fetch;
 
-    const event = await new Promise<PiAnyClientEvent>((resolve) => {
-      const close = openPiEventStream({
-        url: "/events?snapshot=false",
-        snapshotRecoveryUrl: "/events",
-        expectedThreadId: "t1",
-        fetchImpl,
-        reconnectDelay: () => Promise.resolve(),
-        onEvent: (value) => {
-          close();
-          resolve(value);
-        },
+      const event = await new Promise<PiAnyClientEvent>((resolve) => {
+        const close = openPiEventStream({
+          url: "/events?snapshot=false",
+          snapshotRecoveryUrl: "/events",
+          expectedThreadId: "t1",
+          fetchImpl,
+          reconnectDelay: () => Promise.resolve(),
+          onEvent: (value) => {
+            close();
+            resolve(value);
+          },
+        });
       });
-    });
 
-    expect(event.type).toBe("snapshot");
-    expect(fetchImpl.mock.calls.map(([requestUrl]) => requestUrl)).toEqual([
-      "/events?snapshot=false",
-      "/events",
-    ]);
-  });
+      expect(event.type).toBe("snapshot");
+      expect(fetchImpl.mock.calls.map(([requestUrl]) => requestUrl)).toEqual([
+        "/events?snapshot=false",
+        "/events",
+      ]);
+    },
+  );
 
   it("preserves forward-compatible values in known event types", async () => {
     const events: PiAnyClientEvent[] = [];

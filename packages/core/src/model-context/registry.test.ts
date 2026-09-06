@@ -2,6 +2,18 @@ import { describe, expect, it, vi } from "vitest";
 import { ModelContextRegistry } from "./registry";
 
 describe("ModelContextRegistry", () => {
+  it.each(["__proto__", "constructor", "toString"])(
+    "retains a tool named %s",
+    (toolName) => {
+      const registry = new ModelContextRegistry();
+      registry.addTool({ toolName });
+
+      const tools = registry.getModelContext().tools!;
+      expect(Object.hasOwn(tools, toolName)).toBe(true);
+      expect(Object.keys(tools)).toEqual([toolName]);
+    },
+  );
+
   it("notifies every subscriber and rethrows when a registration subscriber throws", () => {
     const registry = new ModelContextRegistry();
     const error = new Error("subscriber failed");

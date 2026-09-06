@@ -7,6 +7,7 @@ import {
   WritableSubscribable,
 } from "../../subscribable/subscribable";
 import { useSubscribable } from "../../store/runtime-clients/useSubscribable";
+import { nullProtoRecord } from "../../utils/record";
 import { OptimisticState } from "../../runtimes/remote-thread-list/optimistic-state";
 import { EMPTY_THREAD_CORE } from "../../runtimes/remote-thread-list/empty-thread-core";
 import type {
@@ -366,8 +367,13 @@ export class RemoteThreadListThreadListRuntimeCore
   ): RemoteThreadState {
     const carried: RemoteThreadData[] = [];
     if (state.newThreadId) {
-      const mappingId = state.threadIdMap[state.newThreadId];
-      const draft = mappingId ? state.threadData[mappingId] : undefined;
+      const mappingId = Object.hasOwn(state.threadIdMap, state.newThreadId)
+        ? state.threadIdMap[state.newThreadId]
+        : undefined;
+      const draft =
+        mappingId && Object.hasOwn(state.threadData, mappingId)
+          ? state.threadData[mappingId]
+          : undefined;
       if (draft?.status === "new") carried.push(draft);
     }
 
@@ -384,12 +390,12 @@ export class RemoteThreadListThreadListRuntimeCore
     const seed: ClassifyAccumulator = {
       threadIds: [],
       archivedThreadIds: [],
-      threadIdMap: {},
-      threadData: {},
+      threadIdMap: nullProtoRecord(),
+      threadData: nullProtoRecord(),
     };
     for (const item of carried) {
       const mappingId = createThreadMappingId(item.id);
-      if (seed.threadData[mappingId]) continue;
+      if (Object.hasOwn(seed.threadData, mappingId)) continue;
       seed.threadIdMap[item.id] = mappingId;
       if (item.remoteId !== undefined) {
         seed.threadIdMap[item.remoteId] = mappingId;
@@ -402,7 +408,10 @@ export class RemoteThreadListThreadListRuntimeCore
 
     for (const item of carried) {
       if (item.remoteId === undefined) continue;
-      const current = threadData[createThreadMappingId(item.id)];
+      const currentMappingId = createThreadMappingId(item.id);
+      const current = Object.hasOwn(threadData, currentMappingId)
+        ? threadData[currentMappingId]
+        : undefined;
       if (current === undefined) continue;
       if (current.status === "regular" && !threadIds.includes(current.id)) {
         threadIds.push(current.id);
@@ -424,7 +433,7 @@ export class RemoteThreadListThreadListRuntimeCore
       threadData,
       newThreadId:
         state.newThreadId !== undefined &&
-        threadIdMap[state.newThreadId] === undefined
+        !Object.hasOwn(threadIdMap, state.newThreadId)
           ? undefined
           : state.newThreadId,
     };
@@ -816,7 +825,9 @@ export class RemoteThreadListThreadListRuntimeCore
           threadData: {
             ...state.threadData,
             [mappingId]: {
-              ...state.threadData[mappingId],
+              ...(Object.hasOwn(state.threadData, mappingId)
+                ? state.threadData[mappingId]
+                : undefined),
               initializeTask: task,
             },
           },
@@ -831,13 +842,17 @@ export class RemoteThreadListThreadListRuntimeCore
         // A list() response that landed while this initialize was in flight
         // could not know the remote id yet, so it may have minted its own slot
         // for it; that slot collapses into this one.
-        const listedMappingId = state.threadIdMap[remoteId];
+        const listedMappingId = Object.hasOwn(state.threadIdMap, remoteId)
+          ? state.threadIdMap[remoteId]
+          : undefined;
         const orphan =
-          listedMappingId !== undefined && listedMappingId !== mappingId
+          listedMappingId !== undefined &&
+          listedMappingId !== mappingId &&
+          Object.hasOwn(state.threadData, listedMappingId)
             ? state.threadData[listedMappingId]
             : undefined;
 
-        const threadData = { ...state.threadData };
+        const threadData = nullProtoRecord(state.threadData);
         if (orphan !== undefined) delete threadData[listedMappingId!];
         threadData[mappingId] = {
           ...data,
@@ -1107,10 +1122,7 @@ export class RemoteThreadListThreadListRuntimeCore
 
     await this._ensureThreadIsNotMain(data.id);
     this._requireAdapterGeneration(adapterGeneration);
-    this._hookManager.stopThreadRuntime(data.id);
-    clearThreadTitleState(this._titleStates, data.id);
-
-    return this._state.optimisticUpdate({
+    const result = await this._state.optimisticUpdate({
       execute: async () => {
         const { remoteId } = await data.initializeTask;
         this._requireAdapterGeneration(adapterGeneration);
@@ -1120,6 +1132,12 @@ export class RemoteThreadListThreadListRuntimeCore
         return updateStatusReducer(state, data.id, "deleted");
       },
     });
+    // The optimistic layer survives an adapter swap, so a resolved deletion has
+    // dropped the slot from `threadData`, where `_replaceWithThreads` would
+    // otherwise have found it to stop.
+    this._hookManager.stopThreadRuntime(data.id);
+    clearThreadTitleState(this._titleStates, data.id);
+    return result;
   }
 
   public __internal_dispose() {

@@ -36,6 +36,9 @@ const useModelContext = (): ClientOutput<"modelContext"> => {
   );
 
   useEffect(() => {
+    // The composite is an external store; this catches the snapshot up for
+    // providers registered between render and subscribe.
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     setState((prev) => deriveState(composite, prev));
     return composite.subscribe(() => {
       setState((prev) => deriveState(composite, prev));

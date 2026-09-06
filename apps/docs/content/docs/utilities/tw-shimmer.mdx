@@ -213,8 +213,8 @@ All values can be set via CSS variables for dynamic control:
 
 ## Browser Support
 
-Uses modern CSS features: `oklch()`, `color-mix()`, independent `translate`, CSS masking, and CSS Container Queries. The compositor path is gated by `-webkit-mask-clip: text`; browsers that fail that gate keep the gradient fallback.
+Uses modern CSS features: `@property`, relative `oklch()`, `color-mix()`, `tan()`, independent `translate`, CSS masking, and CSS Container Queries. The compositor path is gated by `-webkit-mask-clip: text`; browsers that fail that gate keep the gradient fallback.
 
-**Supported:** Chrome 111+, Firefox 113+, Safari 16.4+
+**Supported:** Chrome 119+, Firefox 128+, Safari 16.4+
 
-Older browsers degrade gracefully — shimmer effects simply won't appear.
+Older browsers degrade gracefully. Below the floor the text shimmer drops its clip, gradient, and animation together, so the element renders as plain static text; `shimmer-bg` renders as a static block.

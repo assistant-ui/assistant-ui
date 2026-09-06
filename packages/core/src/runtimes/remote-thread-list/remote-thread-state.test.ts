@@ -132,6 +132,50 @@ describe("remote thread state", () => {
     expect(listed.threadData[createThreadMappingId("a")]?.title).toBe("second");
   });
 
+  it.each(["__proto__", "constructor", "toString"])(
+    "handles a prototype-named remote id %s",
+    (remoteId) => {
+      const classified = classifyThreads(
+        [
+          {
+            status: "regular",
+            remoteId,
+            externalId: undefined,
+            title: `title-${remoteId}`,
+          },
+          {
+            status: "regular",
+            remoteId: "ok",
+            externalId: undefined,
+            title: "title-ok",
+          },
+        ],
+        {
+          threadIds: [],
+          archivedThreadIds: [],
+          threadIdMap: {},
+          threadData: {},
+        },
+      );
+      const listed: RemoteThreadState = {
+        ...createEmptyRemoteThreadState(),
+        threadIds: classified.threadIds,
+        archivedThreadIds: classified.archivedThreadIds,
+        threadIdMap: classified.threadIdMap,
+        threadData: classified.threadData,
+      };
+
+      expect(Object.keys(listed.threadIdMap)).toEqual([remoteId, "ok"]);
+      expect(typeof listed.threadIdMap[remoteId]).toBe("string");
+      expect(Object.keys(listed.threadData)).toEqual([remoteId, "ok"]);
+
+      const deleted = updateStatusReducer(listed, remoteId, "deleted");
+      expect(Object.keys(deleted.threadIdMap)).toEqual(["ok"]);
+      expect(Object.keys(deleted.threadData)).toEqual(["ok"]);
+      expect(deleted.threadIds).toEqual(["ok"]);
+    },
+  );
+
   it("deletes every alias of an identity, by either id", () => {
     for (const target of ["remote-1", "local"] as const) {
       const draft = initializedDraft();

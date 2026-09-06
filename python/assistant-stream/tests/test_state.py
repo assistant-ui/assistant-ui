@@ -96,6 +96,17 @@ def test_state_apply_updates_state() -> None:
     assert state.state == {"count": 1}
 
 
+def test_initial_state_is_detached() -> None:
+    initial = {"cfg": {}}
+    state = AssistantState(initial)
+
+    initial["cfg"]["theme"] = "dark"
+
+    assert state.state == {"cfg": {}}
+    assert state.state is not initial
+    assert state.state["cfg"] is not initial["cfg"]
+
+
 def test_draft_writes_apply_and_forward_ops() -> None:
     ops: list[dict[str, Any]] = []
     state = AssistantState({"user": {"name": "John"}})
@@ -105,6 +116,61 @@ def test_draft_writes_apply_and_forward_ops() -> None:
 
     assert state.state == {"user": {"name": "Bob"}}
     assert ops == [{"type": "set", "path": ["user", "name"], "value": "Bob"}]
+
+
+def test_draft_assignment_detaches_dict_value() -> None:
+    ops: list[dict[str, Any]] = []
+    state = AssistantState({})
+    draft = state.draft(ops.extend)
+    cfg = {"nested": {"enabled": False}}
+
+    draft["cfg"] = cfg
+    operation = ops[0]
+    ops.clear()
+    cfg["theme"] = "dark"
+    cfg["nested"]["enabled"] = True
+
+    assert ops == []
+    assert state.state == {"cfg": {"nested": {"enabled": False}}}
+    assert operation["value"] == {"nested": {"enabled": False}}
+    assert state.state["cfg"] is not cfg
+    assert operation["value"] is not cfg
+
+
+def test_draft_assignment_detaches_list_value() -> None:
+    ops: list[dict[str, Any]] = []
+    state = AssistantState({})
+    draft = state.draft(ops.extend)
+    items = [{"name": "first"}]
+
+    draft["items"] = items
+    operation = ops[0]
+    ops.clear()
+    items.append({"name": "second"})
+    items[0]["name"] = "changed"
+
+    assert ops == []
+    assert state.state == {"items": [{"name": "first"}]}
+    assert operation["value"] == [{"name": "first"}]
+    assert state.state["items"] is not items
+    assert operation["value"] is not items
+
+
+def test_draft_assignment_detaches_tuple_value_as_list() -> None:
+    ops: list[dict[str, Any]] = []
+    state = AssistantState({})
+    draft = state.draft(ops.extend)
+    inner = {"a": 1}
+
+    draft["value"] = (inner,)
+    operation = ops[0]
+    ops.clear()
+    inner["a"] = 2
+
+    assert ops == []
+    assert state.state == {"value": [{"a": 1}]}
+    assert operation["value"] == [{"a": 1}]
+    assert state.state["value"][0] is not inner
 
 
 def test_draft_reads_through_live_state() -> None:
@@ -153,6 +219,19 @@ def test_draft_list_append_emits_index_set() -> None:
 
     assert ops == [{"type": "set", "path": ["items", "1"], "value": "b"}]
     assert state.state["items"] == ["a", "b"]
+
+
+def test_draft_setdefault_container_emits_later_writes() -> None:
+    ops: list[dict[str, Any]] = []
+    state = AssistantState({})
+    draft = state.draft(ops.extend)
+    items = draft.setdefault("items", [])
+    ops.clear()
+
+    items.append("x")
+
+    assert ops == [{"type": "set", "path": ["items", "0"], "value": "x"}]
+    assert state.state == {"items": ["x"]}
 
 
 def test_draft_mutating_list_methods_raise() -> None:
@@ -277,6 +356,20 @@ def test_flusher_schedules_once_per_batch() -> None:
 
     flusher.add([{"type": "set", "path": ["c"], "value": 3}])
     assert len(scheduled) == 2
+
+
+def test_flusher_emits_detached_assigned_value() -> None:
+    emitted: list[list[dict[str, Any]]] = []
+    scheduled: list[Any] = []
+    state = AssistantState({})
+    draft = state.draft(Flusher(emitted.append, scheduled.append).add)
+    cfg = {}
+
+    draft["cfg"] = cfg
+    cfg["theme"] = "dark"
+    scheduled[0]()
+
+    assert emitted == [[{"type": "set", "path": ["cfg"], "value": {}}]]
 
 
 def test_flusher_add_during_drain_reschedules_and_emits() -> None:

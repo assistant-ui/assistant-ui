@@ -1,27 +1,45 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, useSyncExternalStore } from "react";
 import { XIcon } from "lucide-react";
 import { useAssistantPanel } from "@/components/pages/docs/assistant/context";
 
 const STORAGE_KEY = "aui-ask-ai-ball";
 
+const subscribeToNothing = () => () => {};
+
+const readArmed = () => {
+  try {
+    return localStorage.getItem(STORAGE_KEY) === "1";
+  } catch {
+    return false;
+  }
+};
+
+const notArmed = () => false;
+
 export function AskAiBall() {
   const { open, toggle } = useAssistantPanel();
-  const [armed, setArmed] = useState(false);
+  const storedArmed = useSyncExternalStore(
+    subscribeToNothing,
+    readArmed,
+    notArmed,
+  );
+  const [everOpened, setEverOpened] = useState(false);
+  const [dismissed, setDismissed] = useState(false);
 
-  useEffect(() => {
-    try {
-      setArmed(localStorage.getItem(STORAGE_KEY) === "1");
-    } catch {}
-  }, []);
+  if (open) {
+    if (!everOpened) setEverOpened(true);
+    if (dismissed) setDismissed(false);
+  }
+
+  const armed = !dismissed && (storedArmed || everOpened);
 
   useEffect(() => {
     if (!open) return;
     try {
       localStorage.setItem(STORAGE_KEY, "1");
     } catch {}
-    setArmed(true);
   }, [open]);
 
   if (!armed || open) return null;
@@ -45,7 +63,7 @@ export function AskAiBall() {
           try {
             localStorage.removeItem(STORAGE_KEY);
           } catch {}
-          setArmed(false);
+          setDismissed(true);
         }}
         aria-label="Dismiss Ask AI"
         className="border-border/60 bg-background text-muted-foreground hover:text-foreground rounded-capsule absolute -top-1.5 -right-1.5 grid size-5 place-items-center border opacity-0 transition-opacity group-hover:opacity-100 focus-visible:opacity-100 max-md:opacity-100"

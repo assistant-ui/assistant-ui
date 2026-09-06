@@ -1,6 +1,13 @@
 // @vitest-environment jsdom
 
-import { act, cleanup, render, screen, waitFor } from "@testing-library/react";
+import {
+  act,
+  cleanup,
+  fireEvent,
+  render,
+  screen,
+  waitFor,
+} from "@testing-library/react";
 import {
   afterAll,
   afterEach,
@@ -17,6 +24,7 @@ import { useThreadViewport } from "../../context/react/ThreadViewportContext";
 import * as MessagePrimitive from "../message";
 import { ThreadPrimitiveMessages } from "./ThreadMessages";
 import { ThreadPrimitiveRoot } from "./ThreadRoot";
+import { ThreadPrimitiveScrollToBottom } from "./ThreadScrollToBottom";
 import { ThreadPrimitiveViewport } from "./ThreadViewport";
 import {
   ExportedMessageRepository,
@@ -242,6 +250,35 @@ const DelayedThread = ({
 };
 
 describe("useThreadViewportAutoScroll", () => {
+  it("preserves smooth scrolling from a control outside the viewport", async () => {
+    render(
+      <SyncRuntimeProvider>
+        <Thread autoScroll={false} scrollToBottomOnInitialize={false} />
+        <ThreadPrimitiveScrollToBottom behavior="smooth">
+          Scroll to bottom
+        </ThreadPrimitiveScrollToBottom>
+      </SyncRuntimeProvider>,
+    );
+
+    const viewport = getViewport();
+    act(() => {
+      viewport.dispatchEvent(new Event("scroll"));
+    });
+    const button = screen.getByRole("button", { name: "Scroll to bottom" });
+    await waitFor(() => expect(button.hasAttribute("disabled")).toBe(false));
+
+    const scrollToSpy = vi.spyOn(viewport, "scrollTo");
+    try {
+      fireEvent.click(button);
+      expect(scrollToSpy).toHaveBeenCalledWith({
+        top: viewport.scrollHeight,
+        behavior: "smooth",
+      });
+    } finally {
+      scrollToSpy.mockRestore();
+    }
+  });
+
   it("scrolls sync initialMessages to the bottom when the viewport mounts after initialization", async () => {
     render(
       <SyncRuntimeProvider>

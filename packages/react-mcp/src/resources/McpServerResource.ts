@@ -622,6 +622,9 @@ const useMcpServerResourceInstance = (
     pendingDisposalRef.current = pendingDisposal;
     mountedRef.current = true;
     const signal = { cancelled: false };
+    // Auto-connect opens a transport, so it belongs to the same effect as the
+    // disposal that closes it.
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     void tryAutoConnect(signal);
     return () => {
       mountedRef.current = false;

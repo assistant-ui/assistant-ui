@@ -87,6 +87,41 @@ describe("useClientList", () => {
     });
   });
 
+  it("adds, removes, and re-adds an inherited key without losing plain keys", () => {
+    const { getAui, hook } = setup();
+    const data = { id: "constructor", label: "Added" };
+
+    act(() => flushTapSync(() => getAui().thread.add(data)));
+
+    expect(hook.result.current).toEqual([
+      { id: "10", label: "A" },
+      { id: "2", label: "B" },
+      { id: "constructor", label: "Added" },
+    ]);
+    expect(getAui().thread.item({ key: "constructor" }).getState()).toEqual(
+      data,
+    );
+    expect(getAui().thread.item({ key: "10" }).getState()).toEqual({
+      id: "10",
+      label: "A",
+    });
+
+    act(() =>
+      flushTapSync(() => getAui().thread.item({ key: "constructor" }).remove()),
+    );
+    expect(() => getAui().thread.item({ key: "constructor" })).toThrow(
+      /not found/,
+    );
+
+    act(() => flushTapSync(() => getAui().thread.add(data)));
+    expect(getAui().thread.item({ key: "constructor" }).getState()).toEqual(
+      data,
+    );
+    expect(() =>
+      act(() => flushTapSync(() => getAui().thread.add(data))),
+    ).toThrow(/already exists/);
+  });
+
   it("preserves integer-like key order after removal and notifies subscribers", () => {
     const { getAui, hook } = setup();
     act(() => flushTapSync(() => getAui().thread.add({ id: "1", label: "C" })));

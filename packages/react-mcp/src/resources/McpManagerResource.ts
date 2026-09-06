@@ -120,6 +120,9 @@ const useMcpManagerResource = (
 
   useEffect(() => {
     const signal = { cancelled: false };
+    // Hydration reads persisted records asynchronously; there is no earlier
+    // point than mount at which to start it.
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     void hydrate(signal);
     return () => {
       signal.cancelled = true;

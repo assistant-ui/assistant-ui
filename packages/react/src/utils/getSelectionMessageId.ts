@@ -43,6 +43,17 @@ const findQuoteMarker = (
   return marker;
 };
 
+const intersectsExcluded = (scope: Element, selection: Selection): boolean => {
+  const ranges = Array.from({ length: selection.rangeCount }, (_, i) =>
+    selection.getRangeAt(i),
+  );
+  for (const marker of scope.querySelectorAll(QUOTE_SELECTABLE_SELECTOR)) {
+    if (!isExcluded(marker)) continue;
+    if (ranges.some((range) => range.intersectsNode(marker))) return true;
+  }
+  return false;
+};
+
 export const getSelectionMessageId = (selection: Selection): string | null => {
   const { anchorNode, focusNode } = selection;
   if (!anchorNode || !focusNode) return null;
@@ -63,9 +74,16 @@ export const getSelectionMessageId = (selection: Selection): string | null => {
   if (anchorMarker && isExcluded(anchorMarker)) return null;
   if (focusMarker && isExcluded(focusMarker)) return null;
 
-  if (!hasQuoteSelectableRegion(anchorMessageElement)) return messageId;
+  if (hasQuoteSelectableRegion(anchorMessageElement)) {
+    if (!anchorMarker || anchorMarker !== focusMarker) return null;
+  }
 
-  if (!anchorMarker || anchorMarker !== focusMarker) return null;
+  const scope = anchorMarker ?? anchorMessageElement;
 
-  return messageId;
+  for (let i = 0; i < selection.rangeCount; i++) {
+    const { commonAncestorContainer } = selection.getRangeAt(i);
+    if (!scope.contains(commonAncestorContainer)) return null;
+  }
+
+  return intersectsExcluded(scope, selection) ? null : messageId;
 };

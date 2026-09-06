@@ -21,7 +21,10 @@ import type {
   CreateAttachment,
   PendingAttachment,
 } from "../../types/attachment";
-import { isCreateAttachment } from "../../types/attachment";
+import {
+  isAttachmentComplete,
+  isCreateAttachment,
+} from "../../types/attachment";
 import type {
   AddToolResultOptions,
   RespondToToolApprovalOptions,
@@ -463,6 +466,35 @@ const useLiveState = <T>(initial: T) => {
   return [state, set, ref] as const;
 };
 
+// A try/catch inside the resource makes the React Compiler bail out of the
+// whole hook, so the adapter call and its failure status live at module scope.
+const removeAttachmentThroughAdapter = async (
+  attachment: Attachment,
+  attachmentAdapter: AttachmentAdapter | undefined,
+  setAttachments: (
+    next:
+      | readonly Attachment[]
+      | ((prev: readonly Attachment[]) => readonly Attachment[]),
+  ) => void,
+) => {
+  try {
+    await attachmentAdapter?.remove(attachment);
+  } catch (error) {
+    const message = error instanceof Error ? error.message : String(error);
+    setAttachments((prev) =>
+      prev.map((candidate) =>
+        candidate.id === attachment.id && !isAttachmentComplete(candidate)
+          ? {
+              ...candidate,
+              status: { type: "incomplete", reason: "error", message },
+            }
+          : candidate,
+      ),
+    );
+    throw error;
+  }
+};
+
 // Composer Client - minimal implementation
 const useComposerClientResource = ({
   type,
@@ -516,7 +548,13 @@ const useComposerClientResource = ({
           attachment,
           onRemove: async () => {
             attachmentAddOperations.cancel(attachment.id);
-            await attachmentAdapter?.remove(attachment);
+            if (!isAttachmentComplete(attachment)) {
+              await removeAttachmentThroughAdapter(
+                attachment,
+                attachmentAdapter,
+                setAttachments,
+              );
+            }
             setAttachments((prev) =>
               prev.filter((a) => a.id !== attachment.id),
             );
@@ -905,7 +943,11 @@ const useExternalThread = ({
       : undefined;
   };
 
+  // `messages` changes identity on every streamed token, and this body fans out
+  // to one client per message, so pruning during render would re-run the whole
+  // fan-out per token. The effect bails out on an unchanged map instead.
   useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     setSubmittedFeedback((prev) => {
       const live = Object.entries(prev).filter(([id, entry]) => {
         const msg = messages.find((m) => m.id === id);

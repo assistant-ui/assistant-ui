@@ -1,3 +1,7 @@
+import fs from "node:fs";
+import os from "node:os";
+import path from "node:path";
+import { spawnSync } from "node:child_process";
 import { describe, expect, it, vi, beforeEach, afterEach } from "vitest";
 import {
   create,
@@ -5,6 +9,7 @@ import {
   resolvePresetUrl,
   resolveProject,
   resolveScaffoldSelector,
+  resolveProjectDirectoryGuidance,
   PROJECT_METADATA,
 } from "../../src/commands/create";
 
@@ -342,6 +347,95 @@ describe("resolveCreateProjectDirectory", () => {
       }),
     ).toBe("custom-app");
   });
+});
+
+describe("resolveProjectDirectoryGuidance", () => {
+  it.each([
+    { abs: "/work/my-app", display: "my-app", cdCommand: "cd my-app" },
+    { abs: "/work/a/b", display: "a/b", cdCommand: "cd a/b" },
+    { abs: "/work/my app", display: "my app", cdCommand: "cd 'my app'" },
+    { abs: "/work/it's", display: "it's", cdCommand: "cd 'it'\\''s'" },
+    {
+      abs: "/work/$HOME & co",
+      display: "$HOME & co",
+      cdCommand: "cd '$HOME & co'",
+    },
+    { abs: "/work/-dash", display: "-dash", cdCommand: "cd ./-dash" },
+    {
+      abs: "/opt/apps/x",
+      display: "/opt/apps/x",
+      cdCommand: "cd /opt/apps/x",
+    },
+    {
+      abs: "/opt/apps/my app",
+      display: "/opt/apps/my app",
+      cdCommand: "cd '/opt/apps/my app'",
+    },
+  ])("describes $abs on posix", ({ abs, display, cdCommand }) => {
+    expect(
+      resolveProjectDirectoryGuidance({
+        absoluteProjectDir: abs,
+        cwd: "/work",
+        platform: "linux",
+      }),
+    ).toEqual({ display, cdCommand });
+  });
+
+  it.each([
+    {
+      abs: "C:\\Users\\me\\my-app",
+      display: "my-app",
+      cdCommand: "cd my-app",
+    },
+    { abs: "C:\\Users\\me\\a\\b", display: "a\\b", cdCommand: "cd a\\b" },
+    {
+      abs: "C:\\Users\\me\\my app",
+      display: "my app",
+      cdCommand: 'cd "my app"',
+    },
+    {
+      abs: "D:\\other\\app",
+      display: "D:\\other\\app",
+      cdCommand: "cd D:\\other\\app",
+    },
+  ])("describes $abs on windows", ({ abs, display, cdCommand }) => {
+    expect(
+      resolveProjectDirectoryGuidance({
+        absoluteProjectDir: abs,
+        cwd: "C:\\Users\\me",
+        platform: "win32",
+      }),
+    ).toEqual({ display, cdCommand });
+  });
+
+  it
+    .runIf(process.platform !== "win32")
+    .each(["my-app", "my app", "it's a $HOME & co", "-dash"])(
+    "emits a cd a posix shell can run for %s",
+    (name) => {
+      const cwd = fs.realpathSync(
+        fs.mkdtempSync(path.join(os.tmpdir(), "aui-guidance-")),
+      );
+      const target = path.join(cwd, name);
+      fs.mkdirSync(target);
+
+      try {
+        const { cdCommand } = resolveProjectDirectoryGuidance({
+          absoluteProjectDir: target,
+          cwd,
+        });
+        const result = spawnSync("/bin/sh", ["-c", `${cdCommand} && pwd -P`], {
+          cwd,
+          encoding: "utf8",
+        });
+
+        expect(result.status).toBe(0);
+        expect(result.stdout.trim()).toBe(target);
+      } finally {
+        fs.rmSync(cwd, { recursive: true, force: true });
+      }
+    },
+  );
 });
 
 describe("resolvePresetUrl", () => {

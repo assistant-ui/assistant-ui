@@ -85,12 +85,19 @@ function ToolFallbackStreamingDemo() {
 
   const isRunning = status.type === "running";
 
+  const [syncedRunning, setSyncedRunning] = useState<boolean | null>(null);
+
+  if (syncedRunning !== isRunning) {
+    setSyncedRunning(isRunning);
+    if (isRunning) {
+      setIsOpen(true);
+      setStreamedArgs("");
+      setResult(undefined);
+    }
+  }
+
   useEffect(() => {
     if (!isRunning) return;
-
-    setIsOpen(true);
-    setStreamedArgs("");
-    setResult(undefined);
 
     let index = 0;
     const argsInterval = setInterval(() => {

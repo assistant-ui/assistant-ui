@@ -117,6 +117,7 @@ const mountList = (
   threadId?: string,
   refetch?: () => Promise<void>,
   onSwitchToThread?: (id: string) => void,
+  onDelete?: (id: string) => void,
 ) => {
   const onThreadIdChange = vi.fn();
   const handle = createAssistantClient(
@@ -127,6 +128,7 @@ const mountList = (
         threadId,
         onThreadIdChange,
         onSwitchToThread,
+        onDelete,
       }),
     }),
   );
@@ -683,10 +685,17 @@ describe("RemoteThreadList", () => {
   });
 
   it("keeps one slot per remote id across reload and clears it on delete", async () => {
+    const onDelete = vi.fn();
     const adapter = makeAdapter({
       list: vi.fn(async () => ({ threads: [] })),
     });
-    const { handle } = mountList(adapter);
+    const { handle } = mountList(
+      adapter,
+      undefined,
+      undefined,
+      undefined,
+      onDelete,
+    );
     const aui = handle.getClient();
     await aui.threads.getLoadThreadsPromise();
     const localId = aui.threads.getState().mainThreadId;
@@ -706,6 +715,120 @@ describe("RemoteThreadList", () => {
     });
     expect(() => aui.threads.item({ id: localId }).getState()).toThrow();
     expect(() => aui.threads.item({ id: remoteId }).getState()).toThrow();
+    expect(onDelete).toHaveBeenCalledOnce();
+    expect(onDelete).toHaveBeenCalledWith(localId);
+    handle.destroy();
+  });
+
+  it("does not invoke deletion cleanup when the remote deletion fails", async () => {
+    const error = new Error("delete failed");
+    const onDelete = vi.fn();
+    const adapter = makeAdapter({
+      list: vi.fn(async () => ({
+        threads: [{ status: "regular" as const, remoteId: "t1", title: "One" }],
+      })),
+      delete: vi.fn(async () => {
+        throw error;
+      }),
+    });
+    const { handle } = mountList(
+      adapter,
+      undefined,
+      undefined,
+      undefined,
+      onDelete,
+    );
+    const aui = handle.getClient();
+    await aui.threads.getLoadThreadsPromise();
+    await vi.waitFor(() => {
+      expect(aui.threads.getState().threadIds).toContain("t1");
+    });
+
+    await expect(aui.threads.item({ id: "t1" }).delete()).rejects.toBe(error);
+
+    expect(aui.threads.getState().threadIds).toContain("t1");
+    expect(onDelete).not.toHaveBeenCalled();
+    handle.destroy();
+  });
+
+  const deleteDuringAdapterSwap = async (
+    replacementThreads: readonly {
+      status: "regular";
+      remoteId: string;
+      title: string;
+    }[],
+  ) => {
+    const removal = deferred<void>();
+    const onDelete = vi.fn();
+    const adapterA = makeAdapter({
+      list: vi.fn(async () => ({
+        threads: [{ status: "regular" as const, remoteId: "t1", title: "One" }],
+      })),
+      delete: vi.fn(() => removal.promise),
+    });
+    const adapterB = makeAdapter({
+      list: vi.fn(async () => ({ threads: replacementThreads })),
+    });
+    let adapter: RemoteThreadListAdapter = adapterA;
+    const listeners = new Set<() => void>();
+    const source: AssistantConfigSource = {
+      getConfig: () =>
+        AuiConfig({
+          threads: RemoteThreadList({
+            adapter,
+            thread: (id) => StubThread({ threadId: id }) as never,
+            onDelete,
+          }),
+        }),
+      subscribe: (listener) => {
+        listeners.add(listener);
+        return () => {
+          listeners.delete(listener);
+        };
+      },
+    };
+    const handle = createAssistantClient(source);
+    handle.subscribe(() => {});
+    await handle.getClient().threads.getLoadThreadsPromise();
+    await vi.waitFor(() => {
+      expect(handle.getClient().threads.getState().threadIds).toContain("t1");
+    });
+
+    const deletion = handle.getClient().threads.item({ id: "t1" }).delete();
+    await vi.waitFor(() => {
+      expect(adapterA.delete).toHaveBeenCalledWith("t1");
+    });
+
+    adapter = adapterB;
+    for (const listener of listeners) listener();
+    await vi.waitFor(async () => {
+      flushTapSync(() => {});
+      await handle.getClient().threads.reload();
+      expect(adapterB.list).toHaveBeenCalled();
+      expect(handle.getClient().threads.getState().threadIds).toEqual(
+        replacementThreads.map((thread) => thread.remoteId),
+      );
+    });
+
+    removal.resolve();
+    await deletion;
+    return { handle, onDelete };
+  };
+
+  it("invokes deletion cleanup when the adapter changes during a successful deletion", async () => {
+    const { handle, onDelete } = await deleteDuringAdapterSwap([]);
+
+    expect(onDelete).toHaveBeenCalledWith("t1");
+    handle.destroy();
+  });
+
+  it("skips deletion cleanup when the replacement adapter re-lists the deleted id", async () => {
+    const { handle, onDelete } = await deleteDuringAdapterSwap([
+      { status: "regular" as const, remoteId: "t1", title: "One" },
+    ]);
+
+    expect(handle.getClient().threads.getState().threadIds).toContain("t1");
+    expect(onDelete).not.toHaveBeenCalled();
     handle.destroy();
   });
 

@@ -179,7 +179,7 @@ export const fromThreadMessageLike = (
                 const { parentId, messages, ...basePart } = part;
                 const commonProps = {
                   ...basePart,
-                  toolCallId: part.toolCallId ?? `tool-${generateId()}`,
+                  toolCallId: part.toolCallId || `tool-${generateId()}`,
                   ...(parentId !== undefined && { parentId }),
                   ...(messages !== undefined && { messages }),
                 };

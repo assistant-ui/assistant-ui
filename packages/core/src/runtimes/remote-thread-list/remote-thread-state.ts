@@ -3,6 +3,7 @@ import type {
   RemoteThreadMetadata,
 } from "./types";
 import { generateId } from "../../utils/id";
+import { nullProtoRecord } from "../../utils/record";
 
 export type RemoteThreadData =
   | {
@@ -64,7 +65,11 @@ export const classifyThreads = (
   threads: readonly RemoteThreadMetadata[],
   acc: ClassifyAccumulator,
 ): ClassifyAccumulator => {
-  const listed = new Set([...acc.threadIds, ...acc.archivedThreadIds]);
+  let threadIds = [...acc.threadIds];
+  let archivedThreadIds = [...acc.archivedThreadIds];
+  const threadIdMap = nullProtoRecord(acc.threadIdMap);
+  const threadData = nullProtoRecord(acc.threadData);
+  const listed = new Set([...threadIds, ...archivedThreadIds]);
 
   for (const thread of threads) {
     switch (thread.status) {
@@ -77,10 +82,10 @@ export const classifyThreads = (
       }
     }
 
-    const existingMappingId = acc.threadIdMap[thread.remoteId];
+    const existingMappingId = threadIdMap[thread.remoteId];
     const existing =
       existingMappingId !== undefined
-        ? acc.threadData[existingMappingId]
+        ? threadData[existingMappingId]
         : undefined;
     const id = existing?.id ?? thread.remoteId;
     const mappingId = existingMappingId ?? createThreadMappingId(id);
@@ -92,23 +97,23 @@ export const classifyThreads = (
     if (!listed.has(id)) {
       listed.add(id);
       if (thread.status === "regular") {
-        acc.threadIds.push(id);
+        threadIds.push(id);
       } else {
-        acc.archivedThreadIds.push(id);
+        archivedThreadIds.push(id);
       }
     } else if (existing !== undefined && existing.status !== thread.status) {
       if (thread.status === "regular") {
-        acc.archivedThreadIds = acc.archivedThreadIds.filter((t) => t !== id);
-        acc.threadIds.push(id);
+        archivedThreadIds = archivedThreadIds.filter((t) => t !== id);
+        threadIds.push(id);
       } else {
-        acc.threadIds = acc.threadIds.filter((t) => t !== id);
-        acc.archivedThreadIds.push(id);
+        threadIds = threadIds.filter((t) => t !== id);
+        archivedThreadIds.push(id);
       }
     }
 
-    acc.threadIdMap[id] = mappingId;
-    acc.threadIdMap[thread.remoteId] = mappingId;
-    acc.threadData[mappingId] = {
+    threadIdMap[id] = mappingId;
+    threadIdMap[thread.remoteId] = mappingId;
+    threadData[mappingId] = {
       ...(existing?.localOrigin === true ? { localOrigin: true as const } : {}),
       id,
       remoteId: thread.remoteId,
@@ -125,7 +130,7 @@ export const classifyThreads = (
         }),
     };
   }
-  return acc;
+  return { threadIds, archivedThreadIds, threadIdMap, threadData };
 };
 
 export type RemoteThreadState = {
@@ -148,8 +153,8 @@ export const createEmptyRemoteThreadState = (): RemoteThreadState => ({
   newThreadId: undefined,
   threadIds: [],
   archivedThreadIds: [],
-  threadIdMap: {},
-  threadData: {},
+  threadIdMap: nullProtoRecord(),
+  threadData: nullProtoRecord(),
 });
 
 export const seedNewThread = (
@@ -165,12 +170,10 @@ export const seedNewThread = (
     state: {
       ...state,
       newThreadId: id,
-      threadIdMap: {
-        ...state.threadIdMap,
+      threadIdMap: nullProtoRecord(state.threadIdMap, {
         [id]: mappingId,
-      },
-      threadData: {
-        ...state.threadData,
+      }),
+      threadData: nullProtoRecord(state.threadData, {
         [mappingId]: {
           status: "new",
           id,
@@ -180,7 +183,7 @@ export const seedNewThread = (
           custom: undefined,
           localOrigin: true,
         } satisfies RemoteThreadData,
-      },
+      }),
     },
   };
 };
@@ -262,9 +265,13 @@ export const getThreadData = (
   state: RemoteThreadState,
   threadIdOrRemoteId: string,
 ) => {
-  const idx = state.threadIdMap[threadIdOrRemoteId];
+  const idx = Object.hasOwn(state.threadIdMap, threadIdOrRemoteId)
+    ? state.threadIdMap[threadIdOrRemoteId]
+    : undefined;
   if (idx === undefined) return undefined;
-  return state.threadData[idx];
+  return Object.hasOwn(state.threadData, idx)
+    ? state.threadData[idx]
+    : undefined;
 };
 
 export const updateStatusReducer = (
@@ -312,16 +319,14 @@ export const updateStatusReducer = (
 
     case "deleted": {
       const mappingId = state.threadIdMap[threadIdOrRemoteId]!;
-      newState.threadData = Object.fromEntries(
-        Object.entries(newState.threadData).filter(
-          ([key]) => key !== mappingId,
-        ),
-      );
-      newState.threadIdMap = Object.fromEntries(
-        Object.entries(newState.threadIdMap).filter(
-          ([, value]) => value !== mappingId,
-        ),
-      );
+      const threadData = nullProtoRecord(newState.threadData);
+      delete threadData[mappingId];
+      newState.threadData = threadData;
+      const threadIdMap = nullProtoRecord(newState.threadIdMap);
+      for (const [key, value] of Object.entries(threadIdMap)) {
+        if (value === mappingId) delete threadIdMap[key];
+      }
+      newState.threadIdMap = threadIdMap;
       break;
     }
 

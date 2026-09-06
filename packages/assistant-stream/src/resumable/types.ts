@@ -22,7 +22,10 @@ export interface ResumableStreamStore {
     options?: ResumableStreamAcquireOptions,
   ): Promise<ResumableStreamRole>;
 
-  /** Implementations should refresh the TTL on each call. */
+  /**
+   * Implementations should refresh the TTL on each call.
+   * After the promise resolves, caller mutations must not change stored bytes.
+   */
   append(streamId: string, chunk: Uint8Array): Promise<void>;
 
   finalize(
@@ -35,6 +38,7 @@ export interface ResumableStreamStore {
    * Yields persisted entries strictly after `cursor` (`""` starts from the
    * beginning), then waits for new ones until the stream is finalized.
    * Aborting `signal` resolves the iterable without throwing.
+   * Caller mutations to yielded chunks must not affect other reads.
    */
   read(
     streamId: string,

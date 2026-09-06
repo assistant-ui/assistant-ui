@@ -30,6 +30,9 @@ export function Thumbnail({
     if (!el) return;
 
     if (!("IntersectionObserver" in window)) {
+      // Without the observer there is nothing to subscribe to, so the fallback
+      // resolves inside the effect that would have set it up.
+      // eslint-disable-next-line react-hooks/set-state-in-effect
       setIsNearViewport(true);
       return;
     }

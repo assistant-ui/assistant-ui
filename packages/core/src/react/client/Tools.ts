@@ -21,6 +21,7 @@ import {
 } from "../model-context/toolbox";
 import type { ToolCallMessagePartComponent } from "../types/MessagePartComponentTypes";
 import { ModelContext } from "../../store/clients/model-context-client";
+import { nullProtoRecord } from "../../utils/record";
 
 export type { McpAppResourceOutput };
 
@@ -108,6 +109,9 @@ const useTools = ({
           : undefined);
       if (render) {
         unsubscribes.push(
+          // Registration has to be undone on unmount, so the registry write and
+          // its unsubscribe belong to the same effect.
+          // eslint-disable-next-line react-hooks/set-state-in-effect
           setToolUI(toolName, render, {
             standalone: isStandaloneToolDisplay(tool),
             renderText: toolRenderText,
@@ -141,7 +145,7 @@ const useTools = ({
           acc[name] = rest as Tool<any, any>;
           return acc;
         },
-        {} as Record<string, Tool<any, any>>,
+        nullProtoRecord<Tool<any, any>>(),
       );
 
       const modelContextProvider = {

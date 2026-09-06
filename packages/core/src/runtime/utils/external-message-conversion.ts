@@ -252,7 +252,7 @@ export const joinExternalMessages = (
 
           // Add content parts, merging reasoning parts with same parentId
           for (const part of content) {
-            if (part.type === "tool-call") {
+            if (part.type === "tool-call" && part.toolCallId) {
               const existingIdx = assistantMessage.content.findIndex(
                 (c) =>
                   c.type === "tool-call" && c.toolCallId === part.toolCallId,

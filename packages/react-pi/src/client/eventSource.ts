@@ -72,7 +72,7 @@ export interface PiEventStreamOptions {
   headers?: Record<string, string>;
   /** Thread ID expected in every event envelope. */
   expectedThreadId?: string;
-  /** Snapshot-enabled URL used to recover after a malformed known event. */
+  /** Snapshot-enabled URL used to recover after a stream disconnect. */
   snapshotRecoveryUrl?: string;
   /** Reconnect backoff between a dropped stream and the next attempt. Rejections
    * are reported via `onError`, then followed by the default ~1s backoff. */
@@ -318,17 +318,10 @@ export const openPiEventStream = (
             parsed = parseEventStreamPayload(frame.data, expectedThreadId);
           } catch (error) {
             if (error instanceof InvalidKnownEventStreamPayloadError) {
-              needsSnapshotRecovery = true;
               throw error;
             }
             reportError(error);
             return;
-          }
-          if (
-            requestUrl === snapshotRecoveryUrl &&
-            parsed.type === "snapshot"
-          ) {
-            needsSnapshotRecovery = false;
           }
           if (!closed) emitEvent(parsed);
         };
@@ -378,6 +371,7 @@ export const openPiEventStream = (
         reportError(error);
       }
       if (closed) break;
+      needsSnapshotRecovery = true;
       // Snapshot-first: the next connect replaces local state, so we lose
       // nothing by not replaying. Back off, then retry.
       try {

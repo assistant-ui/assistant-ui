@@ -18,11 +18,12 @@ import { ModelContext } from "../../store";
 import { buildInteractableModelContext } from "./interactable-model-context";
 import { notifySubscribers as notifyStateSubscribers } from "../../subscribable/subscribable";
 import { useInteractablePersistenceQueue } from "../interactables-shared/useInteractablePersistenceQueue";
+import { nullProtoRecord } from "../../utils/record";
 
 const useInteractables = (): ClientOutput<"interactables"> => {
   const [state, setState] = useState<InteractablesState>(() => ({
-    definitions: {},
-    persistence: {},
+    definitions: nullProtoRecord(),
+    persistence: nullProtoRecord(),
   }));
 
   const clientRef = useAssistantClientRef();
@@ -49,7 +50,7 @@ const useInteractables = (): ClientOutput<"interactables"> => {
   );
 
   const exportState = useCallback((): InteractablePersistedState => {
-    const result: InteractablePersistedState = {};
+    const result = nullProtoRecord<InteractablePersistedState[string]>();
     for (const [id, def] of Object.entries(stateRef.current.definitions)) {
       result[id] = { name: def.name, state: def.state };
     }
@@ -86,7 +87,7 @@ const useInteractables = (): ClientOutput<"interactables"> => {
       }
       setStateAndRef((prev) => {
         let changed = false;
-        const definitions = { ...prev.definitions };
+        const definitions = nullProtoRecord(prev.definitions);
         for (const [id, entry] of Object.entries(saved)) {
           if (definitions[id]) {
             definitions[id] = { ...definitions[id], state: entry.state };
@@ -114,10 +115,9 @@ const useInteractables = (): ClientOutput<"interactables"> => {
         if (!existing) return prev;
         return {
           ...prev,
-          definitions: {
-            ...prev.definitions,
+          definitions: nullProtoRecord(prev.definitions, {
             [id]: { ...existing, state: updater(existing.state) },
-          },
+          }),
         };
       });
       if (stateRef.current.definitions[id]) schedulePersistence(id);
@@ -132,10 +132,9 @@ const useInteractables = (): ClientOutput<"interactables"> => {
         if (!existing) return prev;
         return {
           ...prev,
-          definitions: {
-            ...prev.definitions,
+          definitions: nullProtoRecord(prev.definitions, {
             [id]: { ...existing, selected },
-          },
+          }),
         };
       });
     },
@@ -194,8 +193,7 @@ const useInteractables = (): ClientOutput<"interactables"> => {
 
       setStateAndRef((prev) => ({
         ...prev,
-        definitions: {
-          ...prev.definitions,
+        definitions: nullProtoRecord(prev.definitions, {
           [def.id]: {
             id: def.id,
             name: def.name,
@@ -205,7 +203,7 @@ const useInteractables = (): ClientOutput<"interactables"> => {
               prev.definitions[def.id]?.state ?? detached ?? def.initialState,
             selected: def.selected,
           },
-        },
+        }),
       }));
 
       return () => {
@@ -216,9 +214,11 @@ const useInteractables = (): ClientOutput<"interactables"> => {
             detachedStateRef.current.set(def.id, existing.state);
           }
           partialSchemaCacheRef.current.delete(def.id);
-          const { [def.id]: _, ...rest } = prev.definitions;
-          const { [def.id]: __, ...restPersistence } = prev.persistence;
-          return { ...prev, definitions: rest, persistence: restPersistence };
+          const definitions = nullProtoRecord(prev.definitions);
+          const persistence = nullProtoRecord(prev.persistence);
+          delete definitions[def.id];
+          delete persistence[def.id];
+          return { ...prev, definitions, persistence };
         });
       };
     },

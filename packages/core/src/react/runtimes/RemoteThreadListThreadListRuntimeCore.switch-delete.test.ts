@@ -120,6 +120,84 @@ describe("RemoteThreadListThreadListRuntimeCore switch/delete ordering", () => {
     expect(core.getItemById(core.mainThreadId!)).toBeDefined();
   });
 
+  it("preserves thread cleanup state when remote deletion fails", async () => {
+    const error = new Error("delete failed");
+    const adapter = makeAdapter({
+      list: vi.fn(async () => ({
+        threads: [
+          {
+            status: "regular" as const,
+            remoteId: "thread-b",
+            externalId: "thread-b",
+            title: "Thread B",
+          },
+        ],
+      })),
+      delete: vi.fn(async () => {
+        throw error;
+      }),
+    });
+    const core = createCore(adapter);
+    await core.getLoadThreadsPromise();
+    const data = core.getItemById("thread-b")!;
+    const internals = core as unknown as {
+      _hookManager: { stopThreadRuntime: (id: string) => void };
+      _titleStates: Map<string, unknown>;
+    };
+    const stopThreadRuntime = vi.spyOn(
+      internals._hookManager,
+      "stopThreadRuntime",
+    );
+    const titleState = {};
+    internals._titleStates.set(data.id, titleState);
+
+    await expect(core.delete(data.id)).rejects.toBe(error);
+
+    expect(core.getItemById(data.id)).toBeDefined();
+    expect(stopThreadRuntime).not.toHaveBeenCalled();
+    expect(internals._titleStates.get(data.id)).toBe(titleState);
+  });
+
+  it("stops the thread runtime when the adapter changes during a successful deletion", async () => {
+    const removal = deferred<void>();
+    const adapter = makeAdapter({
+      list: vi.fn(async () => ({
+        threads: [
+          {
+            status: "regular" as const,
+            remoteId: "thread-b",
+            externalId: "thread-b",
+            title: "Thread B",
+          },
+        ],
+      })),
+      delete: vi.fn(() => removal.promise),
+    });
+    const core = createCore(adapter);
+    await core.getLoadThreadsPromise();
+    const internals = core as unknown as {
+      _hookManager: { stopThreadRuntime: (id: string) => void };
+    };
+    const stopThreadRuntime = vi.spyOn(
+      internals._hookManager,
+      "stopThreadRuntime",
+    );
+
+    const deletion = core.delete("thread-b");
+    await vi.waitFor(() => {
+      expect(adapter.delete).toHaveBeenCalledWith("thread-b");
+    });
+    core.__internal_setOptions({
+      adapter: makeAdapter(),
+      runtimeHook: () => ({}) as never,
+    });
+    removal.resolve();
+    await deletion;
+
+    expect(core.getItemById("thread-b")).toBeUndefined();
+    expect(stopThreadRuntime).toHaveBeenCalledWith("thread-b");
+  });
+
   it("does not unarchive again when the target became regular during initialization", async () => {
     const initialization = deferred<{
       remoteId: string;

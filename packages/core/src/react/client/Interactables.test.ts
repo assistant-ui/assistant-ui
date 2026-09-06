@@ -210,6 +210,34 @@ describe("Interactables registration", () => {
     expect(stateOf(root, "n1")).toEqual({ v: 7 });
   });
 
+  // `definitions` is read by bare key with ids that reach the runtime from
+  // model tool calls, so it must stay prototype-free through every transition.
+  it.each(["__proto__", "constructor", "toString"])(
+    "registers, updates and unregisters an interactable named %s",
+    (id) => {
+      root = mount();
+      const unregister = root.getValue().register(reg(id));
+      expect(stateOf(root, id)).toEqual({ v: 0 });
+
+      root.getValue().setState(id, () => ({ v: 1 }));
+      expect(stateOf(root, id)).toEqual({ v: 1 });
+      expect(Object.keys(root.getValue().getState().definitions)).toEqual([id]);
+
+      unregister();
+      expect(Object.keys(root.getValue().getState().definitions)).toEqual([]);
+    },
+  );
+
+  it("keeps the state records prototype-free", () => {
+    root = mount();
+    root.getValue().register(reg("n1"));
+    root.getValue().setState("n1", () => ({ v: 1 }));
+
+    const state = root.getValue().getState();
+    expect(Object.getPrototypeOf(state.definitions)).toBeNull();
+    expect(Object.getPrototypeOf(state.persistence)).toBeNull();
+  });
+
   it("restores detached state when an instance re-registers in-session", async () => {
     root = mount();
     const unregister = root.getValue().register(reg("n1"));

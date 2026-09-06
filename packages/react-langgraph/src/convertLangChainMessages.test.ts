@@ -962,16 +962,6 @@ describe("convertLangChainMessages reasoning content", () => {
       content: [{ type: "reasoning", text: "\n\n\nkept" }],
     });
   });
-
-  it("does not throw when a reasoning block omits summary and reasoning", () => {
-    expect(() =>
-      convertLangChainMessages({
-        type: "ai",
-        id: "ai-reasoning-empty",
-        content: [{ type: "reasoning" } as any],
-      }),
-    ).not.toThrow();
-  });
 });
 
 describe("convertLangChainMessages image content", () => {

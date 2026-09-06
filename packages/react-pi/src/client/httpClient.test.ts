@@ -145,6 +145,25 @@ describe("createPiHttpClient", () => {
     expect(calls[0]!.url).toBe("/api/pi/threads/a%2Fb");
   });
 
+  it("accepts activity flags on thread snapshots", async () => {
+    const snapshotWithActivity = {
+      ...snapshot,
+      metadata: {
+        ...snapshot.metadata,
+        status: "running" as const,
+        compactionActive: true,
+        retryActive: true,
+        retryAttempt: 2,
+      },
+      seq: 7,
+    };
+    const { fn } = fakeFetch(() => json(snapshotWithActivity));
+
+    await expect(
+      createPiHttpClient({ fetchImpl: fn }).getThread("t1"),
+    ).resolves.toEqual(snapshotWithActivity);
+  });
+
   it("sends a message wrapped as { input }", async () => {
     const { fn, calls } = fakeFetch(() => new Response(null, { status: 204 }));
     await createPiHttpClient({ fetchImpl: fn }).sendMessage("t1", {

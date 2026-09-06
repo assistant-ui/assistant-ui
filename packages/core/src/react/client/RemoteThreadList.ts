@@ -39,6 +39,7 @@ import type {
 import { ThreadListAdapterChangedError } from "../../runtimes/remote-thread-list/adapter-changed";
 import type { ThreadMessage } from "../../types/message";
 import { handleThreadListAction } from "../../store/runtime-clients/handle-thread-list-action";
+import { nullProtoRecord } from "../../utils/record";
 import {
   inMemoryThreadListTransformScopes,
   type InMemoryThreadListProps,
@@ -76,6 +77,7 @@ export type RemoteThreadListProps = {
   onThreadIdChange?: ((threadId: string | undefined) => void) | undefined;
   onSwitchToThread?: ((threadId: string) => void) | undefined;
   onSwitchToNewThread?: (() => void) | undefined;
+  /** Called after the backing adapter successfully deletes the thread. */
   onDelete?: ((threadId: string) => void) | undefined;
   /**
    * Keeps every thread the session switched to mounted, so a run continues
@@ -919,7 +921,9 @@ const useRemoteThreadList = (
             threadData: {
               ...state.threadData,
               [mappingId]: {
-                ...state.threadData[mappingId],
+                ...(Object.hasOwn(state.threadData, mappingId)
+                  ? state.threadData[mappingId]
+                  : undefined),
                 initializeTask: task,
               },
             },
@@ -933,13 +937,17 @@ const useRemoteThreadList = (
           // A list() response that landed while this initialize was in flight
           // could not know the remote id yet, so it may have minted its own
           // slot for it; that slot collapses into this one.
-          const listedMappingId = state.threadIdMap[remoteId];
+          const listedMappingId = Object.hasOwn(state.threadIdMap, remoteId)
+            ? state.threadIdMap[remoteId]
+            : undefined;
           const orphan =
-            listedMappingId !== undefined && listedMappingId !== mappingId
+            listedMappingId !== undefined &&
+            listedMappingId !== mappingId &&
+            Object.hasOwn(state.threadData, listedMappingId)
               ? state.threadData[listedMappingId]
               : undefined;
 
-          const threadData = { ...state.threadData };
+          const threadData = nullProtoRecord(state.threadData);
           if (orphan !== undefined) delete threadData[listedMappingId!];
           threadData[mappingId] = {
             ...data,
@@ -1145,9 +1153,7 @@ const useRemoteThreadList = (
       }
       await ensureNotMain(data.id);
       requireAdapterGeneration(adapterGeneration);
-      onDelete?.(data.id);
-      clearThreadTitleState(session.titleStates, data.id);
-      return store.optimisticUpdate({
+      const result = await store.optimisticUpdate({
         execute: async () => {
           const { remoteId } = await data.initializeTask;
           requireAdapterGeneration(adapterGeneration);
@@ -1155,6 +1161,13 @@ const useRemoteThreadList = (
         },
         optimistic: (state) => updateStatusReducer(state, data.id, "deleted"),
       });
+      // An adapter swap resets the optimistic layer, and a listed thread's slot
+      // id is its remote id, so a replacement adapter can re-list this slot
+      // while the deletion is in flight.
+      if (getThreadData(store.value, data.id) !== undefined) return result;
+      clearThreadTitleState(session.titleStates, data.id);
+      onDelete?.(data.id);
+      return result;
     },
     [ensureNotMain, onDelete, requireAdapterGeneration, session, store],
   );

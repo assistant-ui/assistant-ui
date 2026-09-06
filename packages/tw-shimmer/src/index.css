@@ -68,8 +68,12 @@
       oklch(from currentColor l c h / calc(alpha* 0.2))
     );
 
-    background-clip: text;
-    -webkit-text-fill-color: transparent;
+    /* Clip only where both the clip and the gradient work; blanking the fill
+     * below that floor would leave the text invisible. */
+    @supports (background-clip: text) and (color: oklch(from red l c h)) {
+      background-clip: text;
+      -webkit-text-fill-color: transparent;
+    }
   }
 
   @variant dark {
@@ -128,6 +132,13 @@
   }
 
   &:not(.shimmer-bg) {
+    /* Below the clip gate the gradient would paint across the whole box with
+     * unclipped text on top, so drop it and land on plain, static text. */
+    @supports not ((background-clip: text) and (color: oklch(from red l c h))) {
+      background: none;
+      animation: none;
+    }
+
     @supports (-webkit-mask-clip: text) {
       animation: none;
       background: none;
