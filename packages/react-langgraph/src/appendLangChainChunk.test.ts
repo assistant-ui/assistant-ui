@@ -66,6 +66,55 @@ describe("appendLangChainChunk content-less chunks", () => {
   });
 });
 
+describe("appendLangChainChunk malformed text blocks", () => {
+  it("ignores citation-only blocks without appending undefined", () => {
+    const first = append(undefined, {
+      type: "AIMessageChunk",
+      id: "ai-1",
+      content: [
+        {
+          type: "text",
+          text: "Paris",
+          citations: [{ type: "char_location", cited_text: "Paris" }],
+        },
+      ],
+    } as unknown as LangChainMessageChunk);
+
+    const merged = append(first, {
+      type: "AIMessageChunk",
+      id: "ai-1",
+      content: [
+        {
+          type: "text",
+          citations: [{ type: "char_location", cited_text: "Paris" }],
+        },
+      ],
+    } as unknown as LangChainMessageChunk);
+
+    expect(merged.content).toEqual([{ type: "text", text: "Paris" }]);
+  });
+
+  it("drops citation-only blocks from initial content", () => {
+    const merged = append(undefined, {
+      type: "AIMessageChunk",
+      id: "ai-1",
+      content: [
+        {
+          type: "text",
+          citations: [{ type: "char_location", cited_text: "Paris" }],
+        },
+        { type: "text", text: "Paris" },
+        { type: "image_url", image_url: "https://example.com/image.png" },
+      ],
+    } as unknown as LangChainMessageChunk);
+
+    expect(merged.content).toEqual([
+      { type: "text", text: "Paris" },
+      { type: "image_url", image_url: "https://example.com/image.png" },
+    ]);
+  });
+});
+
 describe("appendLangChainChunk tool_call id merging", () => {
   it("merges chunk arriving with real id into entry that started with empty id", () => {
     let acc: AiMessage | undefined;

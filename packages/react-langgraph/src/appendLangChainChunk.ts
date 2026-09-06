@@ -8,6 +8,17 @@ import type {
 import { parsePartialJsonObject } from "assistant-stream/utils";
 
 type AiMessage = Extract<LangChainMessage, { type: "ai" }>;
+type LangChainContent = Exclude<
+  NonNullable<LangChainMessageChunk["content"]>,
+  string
+>;
+
+const normalizeContent = (content: LangChainContent) =>
+  content.flatMap((item) => {
+    if (item.type !== "text") return [item];
+    if (typeof item.text !== "string") return [];
+    return [{ type: "text" as const, text: item.text }];
+  });
 
 const chunkToToolCall = (chunk: LangChainToolCallChunk) => {
   const partialJson = chunk.args ?? chunk.args_json ?? "";
@@ -83,7 +94,9 @@ export const appendLangChainChunk = (
     const toolCalls = (curr.tool_call_chunks ?? []).map(chunkToToolCall);
     return {
       ...curr,
-      content: curr.content ?? [],
+      content: Array.isArray(curr.content)
+        ? normalizeContent(curr.content)
+        : (curr.content ?? []),
       type: curr.type.replace("MessageChunk", "").toLowerCase(),
       tool_call_chunks: undefined,
       ...(toolCalls.length > 0 && { tool_calls: toolCalls }),
@@ -93,7 +106,9 @@ export const appendLangChainChunk = (
   const newContent =
     typeof prev.content === "string"
       ? [{ type: "text" as const, text: prev.content }]
-      : [...(prev.content ?? [])];
+      : Array.isArray(prev.content)
+        ? normalizeContent(prev.content)
+        : [];
 
   if (typeof curr?.content === "string") {
     const lastIndex = newContent.length - 1;
@@ -111,6 +126,7 @@ export const appendLangChainChunk = (
       }
 
       if (item.type === "text") {
+        if (typeof item.text !== "string") continue;
         if (newContent[lastIndex]?.type === "text") {
           (newContent[lastIndex] as MessageContentText).text =
             (newContent[lastIndex] as MessageContentText).text + item.text;
