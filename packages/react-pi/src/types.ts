@@ -611,8 +611,10 @@ export interface PiClient {
     response: PiHostUiResponse,
   ): Promise<void>;
 
-  /** Snapshot-first by default; callers that already loaded `getThread()` may
-   * opt out so live events layer on top without repeating snapshot work. */
+  /** Snapshot-first by default. Callers that already loaded `getThread()` can
+   * set `includeSnapshot: false` to skip the initial snapshot. The HTTP client
+   * still receives a snapshot after each stream disconnect to recover missed
+   * messages and thread status. */
   subscribe(
     threadId: string,
     listener: (event: PiClientEvent) => void,

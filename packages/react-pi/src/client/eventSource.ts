@@ -318,17 +318,10 @@ export const openPiEventStream = (
             parsed = parseEventStreamPayload(frame.data, expectedThreadId);
           } catch (error) {
             if (error instanceof InvalidKnownEventStreamPayloadError) {
-              needsSnapshotRecovery = true;
               throw error;
             }
             reportError(error);
             return;
-          }
-          if (
-            requestUrl === snapshotRecoveryUrl &&
-            parsed.type === "snapshot"
-          ) {
-            needsSnapshotRecovery = false;
           }
           if (!closed) emitEvent(parsed);
         };
