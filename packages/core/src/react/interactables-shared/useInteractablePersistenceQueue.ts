@@ -1,4 +1,5 @@
 import { useCallback, useRef, type RefObject } from "react";
+import { cloneNullProtoRecord } from "../../utils/record";
 
 const PERSISTENCE_DEBOUNCE_MS = 500;
 
@@ -90,15 +91,13 @@ export const useInteractablePersistenceQueue = <State>({
       const { adapter, payload, dirtyIds, seq } = resolved;
       inFlightPersistenceRef.current += 1;
 
-      updatePersistenceStatus((prev) => ({
-        ...prev,
-        ...Object.fromEntries(
-          [...dirtyIds].map((id) => [
-            id,
-            { isPending: true, error: undefined },
-          ]),
-        ),
-      }));
+      updatePersistenceStatus((prev) => {
+        const persistence = cloneNullProtoRecord(prev);
+        for (const id of dirtyIds) {
+          persistence[id] = { isPending: true, error: undefined };
+        }
+        return persistence;
+      });
 
       const settleBatch = (status: PersistenceStatus | undefined) => {
         const settledIds: string[] = [];
@@ -114,9 +113,9 @@ export const useInteractablePersistenceQueue = <State>({
         if (settledIds.length === 0) return;
         updatePersistenceStatus((prev) => {
           let changed = false;
-          const persistence = { ...prev };
+          const persistence = cloneNullProtoRecord(prev);
           for (const id of settledIds) {
-            if (prev[id] === undefined) continue;
+            if (!Object.hasOwn(prev, id)) continue;
             if (status === undefined) delete persistence[id];
             else persistence[id] = status;
             changed = true;

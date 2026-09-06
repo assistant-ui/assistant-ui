@@ -3,6 +3,10 @@ import type {
   RemoteThreadMetadata,
 } from "./types";
 import { generateId } from "../../utils/id";
+import {
+  cloneNullProtoRecord,
+  createNullProtoRecord,
+} from "../../utils/record";
 
 export type RemoteThreadData =
   | {
@@ -64,6 +68,8 @@ export const classifyThreads = (
   threads: readonly RemoteThreadMetadata[],
   acc: ClassifyAccumulator,
 ): ClassifyAccumulator => {
+  acc.threadIdMap = cloneNullProtoRecord(acc.threadIdMap);
+  acc.threadData = cloneNullProtoRecord(acc.threadData);
   const listed = new Set([...acc.threadIds, ...acc.archivedThreadIds]);
 
   for (const thread of threads) {
@@ -77,9 +83,12 @@ export const classifyThreads = (
       }
     }
 
-    const existingMappingId = acc.threadIdMap[thread.remoteId];
+    const existingMappingId = Object.hasOwn(acc.threadIdMap, thread.remoteId)
+      ? acc.threadIdMap[thread.remoteId]
+      : undefined;
     const existing =
-      existingMappingId !== undefined
+      existingMappingId !== undefined &&
+      Object.hasOwn(acc.threadData, existingMappingId)
         ? acc.threadData[existingMappingId]
         : undefined;
     const id = existing?.id ?? thread.remoteId;
@@ -148,8 +157,8 @@ export const createEmptyRemoteThreadState = (): RemoteThreadState => ({
   newThreadId: undefined,
   threadIds: [],
   archivedThreadIds: [],
-  threadIdMap: {},
-  threadData: {},
+  threadIdMap: createNullProtoRecord(),
+  threadData: createNullProtoRecord(),
 });
 
 export const seedNewThread = (
@@ -158,19 +167,17 @@ export const seedNewThread = (
   let id: string;
   do {
     id = `${LOCAL_THREAD_ID_PREFIX}${generateId()}`;
-  } while (state.threadIdMap[id]);
+  } while (Object.hasOwn(state.threadIdMap, id));
   const mappingId = createThreadMappingId(id);
   return {
     id,
     state: {
       ...state,
       newThreadId: id,
-      threadIdMap: {
-        ...state.threadIdMap,
+      threadIdMap: Object.assign(cloneNullProtoRecord(state.threadIdMap), {
         [id]: mappingId,
-      },
-      threadData: {
-        ...state.threadData,
+      }),
+      threadData: Object.assign(cloneNullProtoRecord(state.threadData), {
         [mappingId]: {
           status: "new",
           id,
@@ -180,7 +187,7 @@ export const seedNewThread = (
           custom: undefined,
           localOrigin: true,
         } satisfies RemoteThreadData,
-      },
+      }),
     },
   };
 };
@@ -262,9 +269,13 @@ export const getThreadData = (
   state: RemoteThreadState,
   threadIdOrRemoteId: string,
 ) => {
-  const idx = state.threadIdMap[threadIdOrRemoteId];
+  const idx = Object.hasOwn(state.threadIdMap, threadIdOrRemoteId)
+    ? state.threadIdMap[threadIdOrRemoteId]
+    : undefined;
   if (idx === undefined) return undefined;
-  return state.threadData[idx];
+  return Object.hasOwn(state.threadData, idx)
+    ? state.threadData[idx]
+    : undefined;
 };
 
 export const updateStatusReducer = (
@@ -311,17 +322,18 @@ export const updateStatusReducer = (
       break;
 
     case "deleted": {
-      const mappingId = state.threadIdMap[threadIdOrRemoteId]!;
-      newState.threadData = Object.fromEntries(
-        Object.entries(newState.threadData).filter(
-          ([key]) => key !== mappingId,
-        ),
-      );
-      newState.threadIdMap = Object.fromEntries(
-        Object.entries(newState.threadIdMap).filter(
-          ([, value]) => value !== mappingId,
-        ),
-      );
+      const mappingId = Object.hasOwn(state.threadIdMap, threadIdOrRemoteId)
+        ? state.threadIdMap[threadIdOrRemoteId]
+        : undefined;
+      if (mappingId === undefined) return state;
+      const threadData = cloneNullProtoRecord(newState.threadData);
+      delete threadData[mappingId];
+      newState.threadData = threadData;
+      const threadIdMap = cloneNullProtoRecord(newState.threadIdMap);
+      for (const [key, value] of Object.entries(threadIdMap)) {
+        if (value === mappingId) delete threadIdMap[key];
+      }
+      newState.threadIdMap = threadIdMap;
       break;
     }
 
@@ -332,13 +344,15 @@ export const updateStatusReducer = (
   }
 
   if (newStatus !== "deleted") {
-    newState.threadData = {
-      ...newState.threadData,
-      [id]: {
-        ...data,
-        status: newStatus,
+    newState.threadData = Object.assign(
+      cloneNullProtoRecord(newState.threadData),
+      {
+        [id]: {
+          ...data,
+          status: newStatus,
+        },
       },
-    };
+    );
   }
 
   return newState;

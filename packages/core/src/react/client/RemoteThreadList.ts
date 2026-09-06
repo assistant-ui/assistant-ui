@@ -39,6 +39,7 @@ import type {
 import { ThreadListAdapterChangedError } from "../../runtimes/remote-thread-list/adapter-changed";
 import type { ThreadMessage } from "../../types/message";
 import { handleThreadListAction } from "../../store/runtime-clients/handle-thread-list-action";
+import { cloneNullProtoRecord } from "../../utils/record";
 import {
   inMemoryThreadListTransformScopes,
   type InMemoryThreadListProps,
@@ -919,7 +920,9 @@ const useRemoteThreadList = (
             threadData: {
               ...state.threadData,
               [mappingId]: {
-                ...state.threadData[mappingId],
+                ...(Object.hasOwn(state.threadData, mappingId)
+                  ? state.threadData[mappingId]
+                  : undefined),
                 initializeTask: task,
               },
             },
@@ -933,13 +936,17 @@ const useRemoteThreadList = (
           // A list() response that landed while this initialize was in flight
           // could not know the remote id yet, so it may have minted its own
           // slot for it; that slot collapses into this one.
-          const listedMappingId = state.threadIdMap[remoteId];
+          const listedMappingId = Object.hasOwn(state.threadIdMap, remoteId)
+            ? state.threadIdMap[remoteId]
+            : undefined;
           const orphan =
-            listedMappingId !== undefined && listedMappingId !== mappingId
+            listedMappingId !== undefined &&
+            listedMappingId !== mappingId &&
+            Object.hasOwn(state.threadData, listedMappingId)
               ? state.threadData[listedMappingId]
               : undefined;
 
-          const threadData = { ...state.threadData };
+          const threadData = cloneNullProtoRecord(state.threadData);
           if (orphan !== undefined) delete threadData[listedMappingId!];
           threadData[mappingId] = {
             ...data,

@@ -21,6 +21,7 @@ import {
 } from "../model-context/toolbox";
 import type { ToolCallMessagePartComponent } from "../types/MessagePartComponentTypes";
 import { ModelContext } from "../../store/clients/model-context-client";
+import { createNullProtoRecord } from "../../utils/record";
 
 export type { McpAppResourceOutput };
 
@@ -141,7 +142,7 @@ const useTools = ({
           acc[name] = rest as Tool<any, any>;
           return acc;
         },
-        {} as Record<string, Tool<any, any>>,
+        createNullProtoRecord<Tool<any, any>>(),
       );
 
       const modelContextProvider = {
