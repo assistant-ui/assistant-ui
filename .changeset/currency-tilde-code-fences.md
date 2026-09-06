@@ -3,4 +3,4 @@
 "@assistant-ui/react-streamdown": patch
 ---
 
-fix: keep currency text unchanged inside tilde code fences
+fix: read tilde fences in the currency walker, and end an unclosed fence with its blockquote instead of the rest of the input
