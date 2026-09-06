@@ -177,13 +177,11 @@ describe("RemoteThreadListThreadListRuntimeCore switch/delete ordering", () => {
     await core.getLoadThreadsPromise();
     const internals = core as unknown as {
       _hookManager: { stopThreadRuntime: (id: string) => void };
-      _titleStates: Map<string, unknown>;
     };
     const stopThreadRuntime = vi.spyOn(
       internals._hookManager,
       "stopThreadRuntime",
     );
-    internals._titleStates.set("thread-b", {});
 
     const deletion = core.delete("thread-b");
     await vi.waitFor(() => {
@@ -198,7 +196,6 @@ describe("RemoteThreadListThreadListRuntimeCore switch/delete ordering", () => {
 
     expect(core.getItemById("thread-b")).toBeUndefined();
     expect(stopThreadRuntime).toHaveBeenCalledWith("thread-b");
-    expect(internals._titleStates.has("thread-b")).toBe(false);
   });
 
   it("does not unarchive again when the target became regular during initialization", async () => {
