@@ -107,6 +107,44 @@ def test_draft_writes_apply_and_forward_ops() -> None:
     assert ops == [{"type": "set", "path": ["user", "name"], "value": "Bob"}]
 
 
+def test_draft_assignment_detaches_dict_value() -> None:
+    ops: list[dict[str, Any]] = []
+    state = AssistantState({})
+    draft = state.draft(ops.extend)
+    cfg = {"nested": {"enabled": False}}
+
+    draft["cfg"] = cfg
+    operation = ops[0]
+    ops.clear()
+    cfg["theme"] = "dark"
+    cfg["nested"]["enabled"] = True
+
+    assert ops == []
+    assert state.state == {"cfg": {"nested": {"enabled": False}}}
+    assert operation["value"] == {"nested": {"enabled": False}}
+    assert state.state["cfg"] is not cfg
+    assert operation["value"] is not cfg
+
+
+def test_draft_assignment_detaches_list_value() -> None:
+    ops: list[dict[str, Any]] = []
+    state = AssistantState({})
+    draft = state.draft(ops.extend)
+    items = [{"name": "first"}]
+
+    draft["items"] = items
+    operation = ops[0]
+    ops.clear()
+    items.append({"name": "second"})
+    items[0]["name"] = "changed"
+
+    assert ops == []
+    assert state.state == {"items": [{"name": "first"}]}
+    assert operation["value"] == [{"name": "first"}]
+    assert state.state["items"] is not items
+    assert operation["value"] is not items
+
+
 def test_draft_reads_through_live_state() -> None:
     state = AssistantState({"user": {"name": "John"}})
     draft = state.draft(lambda _ops: None)
@@ -290,6 +328,20 @@ def test_flusher_schedules_once_per_batch() -> None:
 
     flusher.add([{"type": "set", "path": ["c"], "value": 3}])
     assert len(scheduled) == 2
+
+
+def test_flusher_emits_detached_assigned_value() -> None:
+    emitted: list[list[dict[str, Any]]] = []
+    scheduled: list[Any] = []
+    state = AssistantState({})
+    draft = state.draft(Flusher(emitted.append, scheduled.append).add)
+    cfg = {}
+
+    draft["cfg"] = cfg
+    cfg["theme"] = "dark"
+    scheduled[0]()
+
+    assert emitted == [[{"type": "set", "path": ["cfg"], "value": {}}]]
 
 
 def test_flusher_add_during_drain_reschedules_and_emits() -> None:

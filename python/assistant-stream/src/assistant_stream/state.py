@@ -121,7 +121,7 @@ class StateDraft:
             return
         for op in operations:
             if op["type"] == "set":
-                _ensure_no_proxy(op["value"])
+                op["value"] = _ensure_no_proxy(op["value"])
         self._state.apply(operations)
         self._on_operations(operations)
 
@@ -185,17 +185,16 @@ class Flusher:
             self._emit(operations)
 
 
-def _ensure_no_proxy(value: Any) -> None:
+def _ensure_no_proxy(value: Any) -> Any:
     if isinstance(value, StateProxy):
         raise ValueError(
             "Cannot store a StateProxy in state; assign a plain value instead"
         )
     if isinstance(value, dict):
-        for item in value.values():
-            _ensure_no_proxy(item)
-    elif isinstance(value, list):
-        for item in value:
-            _ensure_no_proxy(item)
+        return {key: _ensure_no_proxy(item) for key, item in value.items()}
+    if isinstance(value, list):
+        return [_ensure_no_proxy(item) for item in value]
+    return value
 
 
 class StateProxy:
