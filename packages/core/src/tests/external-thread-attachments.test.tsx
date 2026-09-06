@@ -404,6 +404,53 @@ describe("ExternalThread attachments", () => {
     },
   );
 
+  it("preserves pending attachments when adapter removal fails", async () => {
+    const error = new Error("remove failed");
+    const remove = vi.fn(async () => {
+      throw error;
+    });
+    const file = new File(["data"], "notes.txt", { type: "text/plain" });
+    const adapter = {
+      accept: "*",
+      add: async () => ({
+        id: "att-1",
+        type: "file" as const,
+        name: file.name,
+        contentType: file.type,
+        file,
+        status: {
+          type: "requires-action" as const,
+          reason: "composer-send" as const,
+        },
+      }),
+      send: async () => ({}) as never,
+      remove,
+    };
+    const aui = renderThreadWithProps({ attachmentAdapter: adapter });
+    const composer = () => aui().thread.composer();
+
+    await act(() => composer().addAttachment(file));
+    await waitFor(() =>
+      expect(composer().getState().attachments).toHaveLength(1),
+    );
+
+    await expect(
+      act(() => composer().attachment({ id: "att-1" }).remove()),
+    ).rejects.toBe(error);
+
+    expect(remove).toHaveBeenCalledWith(
+      expect.objectContaining({ id: "att-1" }),
+    );
+    expect(composer().getState().attachments).toHaveLength(1);
+    await waitFor(() =>
+      expect(composer().getState().attachments[0]?.status).toEqual({
+        type: "incomplete",
+        reason: "error",
+        message: "remove failed",
+      }),
+    );
+  });
+
   it.each([
     [
       "clearAttachments",

@@ -18,6 +18,7 @@ import type {
 } from "../../types/message";
 import type {
   Attachment,
+  CompleteAttachment,
   CreateAttachment,
   PendingAttachment,
 } from "../../types/attachment";
@@ -59,6 +60,9 @@ import { SingleThreadList } from "./single-thread-list";
 const EMPTY_QUEUE_ITEMS: readonly QueueItemState[] = [];
 const EMPTY_BRANCH_IDS: readonly string[] = [];
 const EMPTY_SUGGESTIONS: readonly ThreadSuggestion[] = [];
+const isAttachmentComplete = (
+  attachment: Attachment,
+): attachment is CompleteAttachment => attachment.status.type === "complete";
 
 export type ExternalThreadMessage = ThreadMessage & {
   id: string;
@@ -516,7 +520,27 @@ const useComposerClientResource = ({
           attachment,
           onRemove: async () => {
             attachmentAddOperations.cancel(attachment.id);
-            await attachmentAdapter?.remove(attachment);
+            try {
+              await attachmentAdapter?.remove(attachment);
+            } catch (error) {
+              const message =
+                error instanceof Error ? error.message : String(error);
+              setAttachments((prev) =>
+                prev.map((candidate) => {
+                  if (
+                    candidate.id !== attachment.id ||
+                    isAttachmentComplete(candidate)
+                  ) {
+                    return candidate;
+                  }
+                  return {
+                    ...candidate,
+                    status: { type: "incomplete", reason: "error", message },
+                  };
+                }),
+              );
+              throw error;
+            }
             setAttachments((prev) =>
               prev.filter((a) => a.id !== attachment.id),
             );
