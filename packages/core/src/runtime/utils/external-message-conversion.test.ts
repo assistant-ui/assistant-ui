@@ -109,6 +109,7 @@ describe("convertExternalMessageChunk", () => {
     ]);
     const calls = result.content.filter((part) => part.type === "tool-call");
     expect(calls[0]!.toolCallId).not.toBe(calls[1]!.toolCallId);
+    expect(calls.map((call) => call.toolCallId)).not.toContain("");
   });
 
   it("keeps separate tool calls with empty IDs", () => {
@@ -145,6 +146,9 @@ describe("convertExternalMessageChunk", () => {
       { type: "tool-call", toolName: "weather" },
       { type: "tool-call", toolName: "search" },
     ]);
+    const calls = result.content.filter((part) => part.type === "tool-call");
+    expect(calls[0]?.toolCallId).not.toBe(calls[1]?.toolCallId);
+    expect(calls.map((call) => call.toolCallId)).not.toContain("");
   });
 
   it("reuses a cached message when the error status is unchanged", () => {
