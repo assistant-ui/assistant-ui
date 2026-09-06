@@ -412,6 +412,9 @@ export function resolveProjectDirectoryGuidance(params: {
   const target = display.startsWith("-")
     ? `.${pathApi.sep}${display}`
     : display;
+  // Neither Windows shell has a literal quoting form the other accepts: cmd
+  // reads single quotes as part of the name, and double quotes still expand
+  // %VAR% there and $var in PowerShell.
   const quoted = (isWindows ? /^[\w@.:/\\+-]+$/ : /^[\w@./+-]+$/).test(target)
     ? target
     : isWindows
