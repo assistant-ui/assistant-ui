@@ -101,7 +101,10 @@ export function createCodeAdapter(options: CodeAdapterOptions) {
       />
     ) : null;
 
-    if (SyntaxHighlighter && typeof children === "string") {
+    if (
+      SyntaxHighlighter &&
+      (children == null || typeof children === "string")
+    ) {
       return (
         <>
           {headerElement}
@@ -109,7 +112,7 @@ export function createCodeAdapter(options: CodeAdapterOptions) {
             node={node}
             components={{ Pre: DefaultPre, Code: DefaultCode }}
             language={language}
-            code={children}
+            code={children ?? ""}
           />
         </>
       );

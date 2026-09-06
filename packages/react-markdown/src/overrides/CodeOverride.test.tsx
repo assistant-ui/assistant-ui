@@ -90,6 +90,39 @@ describe("CodeOverride language extraction", () => {
     const html = render("", undefined, CodeHeader);
     expect(html).toContain(`data-testid="header" data-language=""`);
   });
+
+  it("keeps the highlighter as an empty fence receives code", () => {
+    for (const [markdown, code] of [
+      ["```js\n```", ""],
+      ["```js\n", ""],
+      ["```js\nx", "x\n"],
+    ]) {
+      const html = renderToStaticMarkup(
+        <ReactMarkdown
+          components={{
+            pre: (props) => <PreOverride {...props} fallbackPre={Pre} />,
+            code: (props) => (
+              <CodeOverride
+                {...props}
+                components={{
+                  Pre,
+                  Code,
+                  CodeHeader: () => null,
+                  SyntaxHighlighter: FallbackHighlighter,
+                }}
+              />
+            ),
+          }}
+        >
+          {markdown}
+        </ReactMarkdown>,
+      );
+
+      expect(html).toContain(
+        `data-testid="fallback" data-language="js" data-code="${code}"`,
+      );
+    }
+  });
 });
 
 describe("CodeOverride rehype markup", () => {

@@ -257,21 +257,34 @@ describe("createCodeAdapter integration", () => {
       expect(container.querySelector("[data-rehighlighted]")).toBeNull();
     });
 
-    it("handles empty children", () => {
-      const MockSyntax = vi.fn(({ code }) => (
-        <div data-testid="syntax-empty">{code || "empty"}</div>
-      ));
+    it("keeps the highlighter as an empty fence receives code", () => {
       const AdaptedCode = createCodeAdapter({
-        SyntaxHighlighter: MockSyntax,
+        SyntaxHighlighter: ({ code }) => <pre data-testid="syntax">{code}</pre>,
       });
+      const components = { code: AdaptedCode, pre: PreOverride };
+      const { rerender } = render(
+        <Streamdown components={components}>{"```js\n```"}</Streamdown>,
+      );
 
-      render(
-        <AdaptedCode className="language-js" data-block="true">
-          {""}
+      expect(screen.getByTestId("syntax").textContent).toBe("");
+      rerender(<Streamdown components={components}>{"```js\n"}</Streamdown>);
+      expect(screen.getByTestId("syntax").textContent).toBe("");
+      rerender(<Streamdown components={components}>{"```js\nx"}</Streamdown>);
+      expect(screen.getByTestId("syntax").textContent).toBe("x\n");
+    });
+
+    it("omits null and boolean children from the code header", () => {
+      const AdaptedCode = createCodeAdapter({
+        CodeHeader: ({ code }) => <header>{code}</header>,
+      });
+      const { container } = render(
+        <AdaptedCode data-block="true">
+          {[null, false, undefined, true, ";\n"]}
         </AdaptedCode>,
       );
 
-      expect(screen.getByTestId("syntax-empty").textContent).toBe("empty");
+      expect(container.querySelector("header")?.textContent).toBe(";\n");
+      expect(container.querySelector("pre > code")?.textContent).toBe(";\n");
     });
   });
 

@@ -66,7 +66,7 @@ const CodeBlockOverride: FC<CodeOverrideProps> = ({
   const CodeHeader: ComponentType<CodeHeaderProps> =
     componentsByLanguage[language]?.CodeHeader ?? FallbackCodeHeader;
 
-  if (typeof children !== "string") {
+  if (children != null && typeof children !== "string") {
     return (
       <>
         <CodeHeader
@@ -93,7 +93,7 @@ const CodeBlockOverride: FC<CodeOverrideProps> = ({
         CodeHeader,
       }}
       language={language}
-      code={children}
+      code={children ?? ""}
     />
   );
 };
