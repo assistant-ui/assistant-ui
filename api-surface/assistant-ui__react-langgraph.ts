@@ -278,7 +278,7 @@ type AssistantCloudThreadsUpdateBody = {
 
 type AssistantMessageContent = string | AssistantMessageContentComplex[];
 
-type AssistantMessageContentComplex = MessageContentText | MessageContentImageUrl | MessageContentToolUse | MessageContentFile | MessageContentReasoning | MessageContentThinking | MessageContentComputerCall;
+type AssistantMessageContentComplex = MessageContentText | MessageContentImageUrl | MessageContentToolUse | MessageContentFile | MessageContentAudio | MessageContentReasoning | MessageContentThinking | MessageContentComputerCall;
 
 type AssistantRuntime = {
   readonly threads: ThreadListRuntime;
@@ -1262,11 +1262,13 @@ type MessageContentReasoning = {
   type: "reasoning";
   summary?: MessageContentReasoningSummaryText[];
   reasoning?: string;
+  index?: number;
 };
 
 type MessageContentReasoningSummaryText = {
   type: "summary_text";
   text?: string;
+  index?: number;
 };
 
 type MessageContentText = {
@@ -1277,6 +1279,7 @@ type MessageContentText = {
 type MessageContentThinking = {
   type: "thinking";
   thinking: string;
+  index?: number;
 };
 
 type MessageContentToolUse = {
