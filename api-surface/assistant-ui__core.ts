@@ -939,6 +939,7 @@ declare abstract class BaseThreadRuntimeCore extends BaseSubscribable implements
     index: number;
   } | undefined;
   getBranches(messageId: string): string[];
+  protected _onRepositoryMutation(): void;
   switchToBranch(branchId: string): void;
   _notifyEventSubscribers<E extends ThreadRuntimeEventType>(event: E, payload: ThreadRuntimeEventPayload[E]): void;
   submitFeedback(_param1: SubmitFeedbackOptions): void;
@@ -1873,6 +1874,9 @@ declare class ExternalStoreThreadListRuntimeCore extends BaseSubscribable implem
 
 declare class ExternalStoreThreadRuntimeCore extends BaseThreadRuntimeCore implements ThreadRuntimeCore {
   #private;
+  subscribeMessage(messageId: string, callback: () => void): () => void;
+  protected _notifySubscribers(): void;
+  protected _onRepositoryMutation(): void;
   get capabilities(): RuntimeCapabilities;
   isDisabled: boolean;
   isSendDisabled: boolean;
@@ -3635,6 +3639,7 @@ declare class RemoteThreadListHookInstanceManager extends BaseSubscribable {
     suggestions: readonly ThreadSuggestion[];
     extras: unknown;
     subscribe: (callback: () => void) => Unsubscribe$1;
+    subscribeMessage?: ((messageId: string, callback: () => void) => Unsubscribe$1) | undefined;
     getVoiceVolume: () => number;
     subscribeVoiceVolume: (callback: () => void) => Unsubscribe$1;
     import(repository: ExportedMessageRepository): void;
@@ -3689,6 +3694,7 @@ declare class RemoteThreadListHookInstanceManager extends BaseSubscribable {
     suggestions: readonly ThreadSuggestion[];
     extras: unknown;
     subscribe: (callback: () => void) => Unsubscribe$1;
+    subscribeMessage?: ((messageId: string, callback: () => void) => Unsubscribe$1) | undefined;
     getVoiceVolume: () => number;
     subscribeVoiceVolume: (callback: () => void) => Unsubscribe$1;
     import(repository: ExportedMessageRepository): void;
@@ -3743,6 +3749,7 @@ declare class RemoteThreadListHookInstanceManager extends BaseSubscribable {
     suggestions: readonly ThreadSuggestion[];
     extras: unknown;
     subscribe: (callback: () => void) => Unsubscribe$1;
+    subscribeMessage?: ((messageId: string, callback: () => void) => Unsubscribe$1) | undefined;
     getVoiceVolume: () => number;
     subscribeVoiceVolume: (callback: () => void) => Unsubscribe$1;
     import(repository: ExportedMessageRepository): void;
@@ -3868,6 +3875,7 @@ declare class RemoteThreadListThreadListRuntimeCore extends BaseSubscribable imp
     suggestions: readonly ThreadSuggestion[];
     extras: unknown;
     subscribe: (callback: () => void) => Unsubscribe$1;
+    subscribeMessage?: ((messageId: string, callback: () => void) => Unsubscribe$1) | undefined;
     getVoiceVolume: () => number;
     subscribeVoiceVolume: (callback: () => void) => Unsubscribe$1;
     import(repository: ExportedMessageRepository): void;
@@ -3922,6 +3930,7 @@ declare class RemoteThreadListThreadListRuntimeCore extends BaseSubscribable imp
     suggestions: readonly ThreadSuggestion[];
     extras: unknown;
     subscribe: (callback: () => void) => Unsubscribe$1;
+    subscribeMessage?: ((messageId: string, callback: () => void) => Unsubscribe$1) | undefined;
     getVoiceVolume: () => number;
     subscribeVoiceVolume: (callback: () => void) => Unsubscribe$1;
     import(repository: ExportedMessageRepository): void;
@@ -4855,6 +4864,8 @@ type ThreadMessageClientProps = {
 
 declare class ThreadMessageConverter {
   #private;
+  get reusablePrefixLength(): number;
+  resetPrefix(): void;
   convertMessages<TIn extends WeakKey>(messages: readonly TIn[], converter: ConverterCallback<TIn>): ThreadMessage[];
 }
 
@@ -5069,6 +5080,7 @@ type ThreadRuntimeCore = Readonly<{
   suggestions: readonly ThreadSuggestion[];
   extras: unknown;
   subscribe: (callback: () => void) => Unsubscribe$1;
+  subscribeMessage?: ((messageId: string, callback: () => void) => Unsubscribe$1) | undefined;
   getVoiceVolume: () => number;
   subscribeVoiceVolume: (callback: () => void) => Unsubscribe$1;
   import(repository: ExportedMessageRepository): void;
@@ -5173,6 +5185,7 @@ declare class ThreadRuntimeImpl implements ThreadRuntime {
       suggestions: readonly ThreadSuggestion[];
       extras: unknown;
       subscribe: (callback: () => void) => Unsubscribe$1;
+      subscribeMessage?: ((messageId: string, callback: () => void) => Unsubscribe$1) | undefined;
       getVoiceVolume: () => number;
       subscribeVoiceVolume: (callback: () => void) => Unsubscribe$1;
       import(repository: ExportedMessageRepository): void;

@@ -18,6 +18,7 @@ export type AssistantTapContextValue = {
   clientRef: { parent: AssistantClient; current: AssistantClient | null };
   emit: EmitFn;
   destroySignal?: AbortSignal | undefined;
+  supportsScopedSubscriptions?: boolean | undefined;
 };
 
 const AssistantTapContext = createContext<AssistantTapContextValue | null>(
@@ -51,6 +52,17 @@ export const useAssistantClientRef = () => {
 export const useAssistantClientDestroySignal = (): AbortSignal | undefined => {
   const ctx = use(AssistantTapContext);
   return ctx?.destroySignal;
+};
+
+/**
+ * Whether a client in this tree may publish scoped subscriptions instead of
+ * relying on broad store notifications. A host opts out when its own read path
+ * needs every notification; the standalone client does, because
+ * `createLastValidCache` recovers a shrunk list from them.
+ */
+export const useSupportsScopedSubscriptions = (): boolean => {
+  const ctx = use(AssistantTapContext);
+  return ctx?.supportsScopedSubscriptions ?? true;
 };
 
 /**

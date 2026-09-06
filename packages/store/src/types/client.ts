@@ -119,6 +119,9 @@ type ClientSchemas = keyof ScopeRegistry extends never
 /**
  * Output type that client resources return (just methods).
  *
+ * A client's `getState()` method returns an immutable snapshot. When nested
+ * state changes, replace the containing top-level value as well.
+ *
  * @example
  * ```typescript
  * const useFoo = (): ClientResourceOutput<"foo"> => {

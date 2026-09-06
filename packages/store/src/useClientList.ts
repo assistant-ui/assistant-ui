@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { withKey, type Resource } from "@assistant-ui/tap";
 
 import { useClientLookup } from "./useClientLookup";
@@ -58,12 +58,14 @@ export const useClientList = <TData, TMethods extends ClientMethods>(
     return Object.fromEntries(entries);
   });
 
-  const lookup = useClientLookup<TMethods>(
-    // `props` is stable per item (held in state), so reuse unchanged items.
-    Object.values(items).map((props) =>
-      withKey(props.key, Resource(props), [props]),
-    ),
+  const clientElements = useMemo(
+    () =>
+      Object.values(items).map((props) =>
+        withKey(props.key, Resource(props), [props]),
+      ),
+    [Resource, items],
   );
+  const lookup = useClientLookup<TMethods>(clientElements);
 
   // Clear on commit, not during render, so discarded renders can replay
   useEffect(() => {

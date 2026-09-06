@@ -351,6 +351,27 @@ export class ThreadRuntimeImpl implements ThreadRuntime {
     ThreadRuntimePath
   >;
 
+  private _subscribeMessage(messageId: string, callback: () => void) {
+    let core = this._threadBinding.getState();
+    let unsubscribe =
+      core.subscribeMessage?.(messageId, callback) ?? core.subscribe(callback);
+    const unsubscribeOuter = this._threadBinding.outerSubscribe(() => {
+      const nextCore = this._threadBinding.getState();
+      if (nextCore === core) return;
+      unsubscribe();
+      core = nextCore;
+      unsubscribe =
+        core.subscribeMessage?.(messageId, callback) ??
+        core.subscribe(callback);
+      callback();
+    });
+
+    return () => {
+      unsubscribeOuter();
+      unsubscribe();
+    };
+  }
+
   constructor(
     threadBinding: ThreadRuntimeCoreBinding,
     threadListItemBinding: ThreadListItemRuntimeBinding,
@@ -550,6 +571,7 @@ export class ThreadRuntimeImpl implements ThreadRuntime {
         messageSelector: { type: "messageId", messageId: messageId },
       },
       () => this._threadBinding.getState().getMessageById(messageId),
+      messageId,
     );
   }
 
@@ -558,7 +580,17 @@ export class ThreadRuntimeImpl implements ThreadRuntime {
     callback: () =>
       | { parentId: string | null; message: ThreadMessage; index: number }
       | undefined,
+    messageId?: string,
   ) {
+    const threadBinding =
+      messageId === undefined
+        ? this._threadBinding
+        : {
+            ...this._threadBinding,
+            subscribe: (callback: () => void) =>
+              this._subscribeMessage(messageId, callback),
+          };
+
     return new MessageRuntimeImpl(
       new ShallowMemoizeSubject({
         path,
@@ -590,9 +622,9 @@ export class ThreadRuntimeImpl implements ThreadRuntime {
               speechState?.messageId === message.id ? speechState : undefined,
           } satisfies MessageState;
         },
-        subscribe: (callback) => this._threadBinding.subscribe(callback),
+        subscribe: (callback) => threadBinding.subscribe(callback),
       }),
-      this._threadBinding,
+      threadBinding,
     );
   }
 

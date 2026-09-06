@@ -879,6 +879,68 @@ describe("ExternalStoreThreadRuntimeCore adapter contract", () => {
       expect(core.isRunning).toBe(true);
     });
 
+    it("reconciles tool invocations when the opt-in changes with the same messages", async () => {
+      const execute = vi.fn(async () => ({ forecast: "sunny" }));
+      const initialMessages: ThreadMessage[] = [];
+      const messages = [
+        {
+          ...createAssistantMessage("a1"),
+          status: { type: "requires-action", reason: "tool-calls" } as const,
+          content: [
+            {
+              type: "tool-call" as const,
+              toolCallId: "tc1",
+              toolName: "weatherSearch",
+              args: { city: "London" },
+              argsText: '{"city":"London"}',
+            },
+          ],
+        },
+      ];
+      const context = {
+        getModelContext: () => ({
+          tools: {
+            weatherSearch: {
+              parameters: { type: "object", properties: {} },
+              execute,
+            },
+          },
+        }),
+      };
+      const core = new ExternalStoreThreadRuntimeCore(
+        context,
+        createBaseAdapter({ messages: initialMessages, isRunning: false }),
+      );
+
+      core.__internal_setAdapter(
+        createBaseAdapter({
+          messages: initialMessages,
+          isRunning: false,
+          unstable_enableToolInvocations: true,
+        }),
+      );
+      core.__internal_setAdapter(
+        createBaseAdapter({
+          messages,
+          isRunning: false,
+          unstable_enableToolInvocations: true,
+        }),
+      );
+
+      await vi.waitFor(() => expect(execute).toHaveBeenCalledOnce());
+
+      const setToolStatuses = vi.fn();
+      core.__internal_setAdapter(
+        createBaseAdapter({
+          messages,
+          isRunning: false,
+          unstable_enableToolInvocations: false,
+          setToolStatuses,
+        }),
+      );
+      expect(setToolStatuses).toHaveBeenCalledWith({});
+    });
+
     it("passes an undefined adapter running value through when no tool is executing", () => {
       const core = new ExternalStoreThreadRuntimeCore(
         contextProvider,

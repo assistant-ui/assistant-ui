@@ -71,14 +71,25 @@ export const useExternalMessageConverter = <T extends WeakKey>({
     >(),
     converterCache: new ThreadMessageConverter(),
   }));
+  const [previousConversion] = useState(() => ({
+    current: undefined as
+      | {
+          isRunning: boolean;
+          chunkCount: number;
+          metadata: useExternalMessageConverter.Metadata;
+          callback: useExternalMessageConverter.Callback<T>;
+        }
+      | undefined,
+  }));
 
   const state = useMemo(
     () => ({
       metadata: metadata ?? {},
       callback,
       ...caches,
+      previousConversion,
     }),
-    [callback, metadata, caches],
+    [callback, metadata, caches, previousConversion],
   );
 
   return useMemo(() => {
@@ -117,6 +128,21 @@ export const useExternalMessageConverter = <T extends WeakKey>({
         return message;
       },
     );
+
+    if (
+      state.previousConversion.current?.isRunning !== isRunning ||
+      state.previousConversion.current.chunkCount !== chunks.length ||
+      state.previousConversion.current.metadata !== state.metadata ||
+      state.previousConversion.current.callback !== state.callback
+    ) {
+      state.converterCache.resetPrefix();
+    }
+    state.previousConversion.current = {
+      isRunning,
+      chunkCount: chunks.length,
+      metadata: state.metadata,
+      callback: state.callback,
+    };
 
     const threadMessages = state.converterCache.convertMessages(
       chunks,

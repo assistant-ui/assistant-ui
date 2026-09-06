@@ -141,6 +141,50 @@ describe("useExternalMessageConverter", () => {
     expect(result.current[1]).toBe(first[1]);
   });
 
+  it("refreshes automatic status when running ends", () => {
+    const { result, rerender } = renderHook(
+      ({ isRunning }: { isRunning: boolean }) =>
+        useExternalMessageConverter<TestMessage>({
+          callback: convert,
+          messages: MESSAGES,
+          isRunning,
+          metadata: EMPTY,
+        }),
+      { initialProps: { isRunning: true } },
+    );
+
+    expect(result.current[1]?.status).toMatchObject({ type: "running" });
+
+    rerender({ isRunning: false });
+
+    expect(result.current[1]?.status).toMatchObject({ type: "complete" });
+  });
+
+  it("refreshes the previous tail status when a chunk is appended", () => {
+    const assistant: TestMessage = {
+      id: "a1",
+      role: "assistant",
+      text: "hello",
+    };
+    const user: TestMessage = { id: "u2", role: "user", text: "again" };
+    const { result, rerender } = renderHook(
+      ({ messages }: { messages: TestMessage[] }) =>
+        useExternalMessageConverter<TestMessage>({
+          callback: convert,
+          messages,
+          isRunning: true,
+          metadata: EMPTY,
+        }),
+      { initialProps: { messages: [assistant] } },
+    );
+
+    expect(result.current[0]?.status).toMatchObject({ type: "running" });
+
+    rerender({ messages: [assistant, user] });
+
+    expect(result.current[0]?.status).toMatchObject({ type: "complete" });
+  });
+
   it("re-converts cached messages when metadata changes", () => {
     const { result, rerender } = renderConverter({
       metadata: { optimisticMessageId: "a1" },
@@ -151,6 +195,35 @@ describe("useExternalMessageConverter", () => {
     rerender({ metadata: {} });
 
     expect(result.current.at(-1)?.metadata.isOptimistic).toBeUndefined();
+  });
+
+  it("refreshes automatic status when only metadata error changes", () => {
+    const output = {
+      id: "a1",
+      role: "assistant" as const,
+      content: [{ type: "text" as const, text: "hello" }],
+    };
+    const stableOutput = () => output;
+    const { result, rerender } = renderHook(
+      ({ metadata }: { metadata: TestMetadata }) =>
+        useExternalMessageConverter<TestMessage>({
+          callback: stableOutput,
+          messages: [MESSAGES[1]!],
+          isRunning: false,
+          metadata,
+        }),
+      { initialProps: { metadata: EMPTY } },
+    );
+
+    expect(result.current[0]?.status).toMatchObject({ type: "complete" });
+
+    rerender({ metadata: { error: "failed" } });
+
+    expect(result.current[0]?.status).toMatchObject({
+      type: "incomplete",
+      reason: "error",
+      error: "failed",
+    });
   });
 
   it("re-converts cached messages when the callback changes", () => {

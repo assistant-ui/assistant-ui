@@ -231,6 +231,14 @@ export type ThreadRuntimeCore = Readonly<{
 
   subscribe: (callback: () => void) => Unsubscribe;
 
+  /**
+   * Subscribes to updates that can affect one message. Runtimes that do not
+   * expose message-level update scope fall back to the thread subscription.
+   */
+  subscribeMessage?:
+    | ((messageId: string, callback: () => void) => Unsubscribe)
+    | undefined;
+
   getVoiceVolume: () => number;
   subscribeVoiceVolume: (callback: () => void) => Unsubscribe;
 
