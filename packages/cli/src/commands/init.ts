@@ -59,8 +59,8 @@ export const init = new Command()
   .option("--use-yarn", "explicitly use yarn")
   .option("--use-bun", "explicitly use bun")
   .option("--skip-install", "skip installing packages")
-  .action(async (projectDirectory, opts) => {
-    const cwd = opts.cwd;
+  .action(async (projectDirectory, opts, command) => {
+    const cwd = path.resolve(opts.cwd);
     const presetUrl = opts.preset as string | undefined;
     const targetDir = projectDirectory
       ? path.resolve(cwd, projectDirectory)
@@ -84,7 +84,9 @@ export const init = new Command()
       }
 
       const createArgs: string[] = [];
-      if (projectDirectory) createArgs.push(targetDir);
+      if (projectDirectory || command.getOptionValueSource("cwd") === "cli") {
+        createArgs.push(targetDir);
+      }
       if (presetUrl) createArgs.push("--preset", presetUrl);
       if (opts.useNpm) createArgs.push("--use-npm");
       if (opts.usePnpm) createArgs.push("--use-pnpm");

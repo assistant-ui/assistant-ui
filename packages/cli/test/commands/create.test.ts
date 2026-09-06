@@ -1,3 +1,7 @@
+import fs from "node:fs";
+import os from "node:os";
+import path from "node:path";
+import { spawnSync } from "node:child_process";
 import { describe, expect, it, vi, beforeEach, afterEach } from "vitest";
 import {
   create,
@@ -7,6 +11,7 @@ import {
   resolveScaffoldSelector,
   PROJECT_METADATA,
 } from "../../src/commands/create";
+import { logger } from "../../src/lib/utils/logger";
 
 describe("create command", () => {
   it("exposes --preset option", () => {
@@ -37,6 +42,70 @@ describe("create command", () => {
     expect(debugSourceRootOption).toBeDefined();
     expect(debugSourceRootOption?.hidden).toBe(true);
     expect(create.helpInformation()).not.toContain("--debug-source-root");
+  });
+});
+
+describe("create directory guidance", () => {
+  it.each([
+    { name: "my-app", outside: false },
+    { name: "space's $HOME [app] & %PATH% ! ^ `‘’‚‛", outside: false },
+    { name: "-my-app", outside: false },
+    { name: "outside-app", outside: true },
+  ])("enters the created $name directory", async ({ name, outside }) => {
+    const root = fs.mkdtempSync(path.join(os.tmpdir(), "aui-create-"));
+    const caller = path.join(root, "caller");
+    fs.mkdirSync(caller);
+    const target = path.join(outside ? root : caller, name);
+    const previousCwd = process.cwd();
+    const sourceRoot = path.resolve(import.meta.dirname, "../../../..");
+    const infoSpy = vi.spyOn(logger, "info");
+    process.chdir(caller);
+
+    try {
+      await create.parseAsync(
+        [
+          outside ? target : `./${name}`,
+          "--template",
+          "minimal",
+          "--debug-source-root",
+          sourceRoot,
+          "--skip-install",
+          "--no-skills",
+          "--use-pnpm",
+        ],
+        { from: "user" },
+      );
+
+      expect(
+        JSON.parse(fs.readFileSync(path.join(target, "package.json"), "utf8"))
+          .name,
+      ).toBe(name);
+      const cd = infoSpy.mock.calls
+        .map(([message]) => message)
+        .find((message) => message.trimStart().startsWith("cd "));
+      expect(cd).toBeDefined();
+      const result =
+        process.platform === "win32"
+          ? spawnSync(
+              "powershell.exe",
+              [
+                "-NoProfile",
+                "-NonInteractive",
+                "-Command",
+                `[Console]::OutputEncoding = [System.Text.Encoding]::UTF8; $ErrorActionPreference = 'Stop'; ${cd}; (Get-Location).ProviderPath`,
+              ],
+              { encoding: "utf8" },
+            )
+          : spawnSync("/bin/sh", ["-c", `${cd} && pwd -P`], {
+              encoding: "utf8",
+            });
+      expect(result.status).toBe(0);
+      expect(result.stdout.trim()).toBe(fs.realpathSync(target));
+    } finally {
+      process.chdir(previousCwd);
+      infoSpy.mockRestore();
+      fs.rmSync(root, { recursive: true, force: true });
+    }
   });
 });
 

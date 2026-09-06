@@ -62,52 +62,80 @@ describe("init command", () => {
     expect(isNonInteractiveShell(true)).toBe(false);
   });
 
-  it("keeps the selected directory when delegating project creation", async () => {
-    const cwd = fs.mkdtempSync(path.join(os.tmpdir(), "aui-init space's-"));
-    const sourceRoot = path.resolve(import.meta.dirname, "../../../..");
-    const infoSpy = vi.spyOn(logger, "info");
-    create.setOptionValue("debugSourceRoot", sourceRoot);
-    create.setOptionValue("template", "minimal");
-    create.setOptionValue("skills", false);
-
-    try {
-      await init.parseAsync(
-        [
-          "node",
-          "init",
-          "my-app",
-          "--cwd",
-          cwd,
-          "--use-pnpm",
-          "--skip-install",
-        ],
-        { from: "node" },
+  it.each([
+    { projectDirectory: "my-app", relativeCwd: false },
+    { projectDirectory: "my-app", relativeCwd: true },
+    { projectDirectory: undefined, relativeCwd: false },
+    { projectDirectory: undefined, relativeCwd: true },
+  ])(
+    "keeps the selected directory with $projectDirectory and relative cwd=$relativeCwd",
+    async ({ projectDirectory, relativeCwd }) => {
+      const root = fs.mkdtempSync(
+        path.join(os.tmpdir(), "aui-init space's-$HOME-"),
       );
+      const cwd = path.join(root, "selected-app");
+      const caller = path.join(root, "caller");
+      fs.mkdirSync(cwd);
+      fs.mkdirSync(caller);
+      const previousCwd = process.cwd();
+      const sourceRoot = path.resolve(import.meta.dirname, "../../../..");
+      const infoSpy = vi.spyOn(logger, "info");
+      create.setOptionValue("debugSourceRoot", sourceRoot);
+      create.setOptionValue("template", "minimal");
+      create.setOptionValue("skills", false);
+      create.saveStateBeforeParse();
+      process.chdir(caller);
 
-      const target = path.join(cwd, "my-app");
-      expect(
-        JSON.parse(fs.readFileSync(path.join(target, "package.json"), "utf8"))
-          .name,
-      ).toBe("my-app");
-      if (process.platform !== "win32") {
+      try {
+        await init.parseAsync(
+          [
+            ...(projectDirectory ? [projectDirectory] : []),
+            "--cwd",
+            relativeCwd ? "../selected-app" : cwd,
+            "--use-pnpm",
+            "--skip-install",
+          ],
+          { from: "user" },
+        );
+
+        const target = projectDirectory ? path.join(cwd, "my-app") : cwd;
+        expect(
+          JSON.parse(fs.readFileSync(path.join(target, "package.json"), "utf8"))
+            .name,
+        ).toBe(projectDirectory ? "my-app" : "selected-app");
+        expect(fs.readdirSync(caller)).toEqual([]);
         const cd = infoSpy.mock.calls
           .map(([message]) => message)
           .find((message) => message.trimStart().startsWith("cd "));
         expect(cd).toBeDefined();
-        const result = spawnSync("/bin/sh", ["-c", `${cd} && pwd -P`], {
-          encoding: "utf8",
-        });
+        const result =
+          process.platform === "win32"
+            ? spawnSync(
+                "powershell.exe",
+                [
+                  "-NoProfile",
+                  "-NonInteractive",
+                  "-Command",
+                  `$ErrorActionPreference = 'Stop'; ${cd}; (Get-Location).ProviderPath`,
+                ],
+                { encoding: "utf8" },
+              )
+            : spawnSync("/bin/sh", ["-c", `${cd} && pwd -P`], {
+                encoding: "utf8",
+              });
         expect(result.status).toBe(0);
         expect(result.stdout.trim()).toBe(fs.realpathSync(target));
+      } finally {
+        process.chdir(previousCwd);
+        infoSpy.mockRestore();
+        create.setOptionValue("debugSourceRoot", undefined);
+        create.setOptionValue("template", undefined);
+        create.setOptionValue("skills", undefined);
+        create.saveStateBeforeParse();
+        fs.rmSync(root, { recursive: true, force: true });
       }
-    } finally {
-      infoSpy.mockRestore();
-      create.setOptionValue("debugSourceRoot", undefined);
-      create.setOptionValue("template", undefined);
-      create.setOptionValue("skills", undefined);
-      fs.rmSync(cwd, { recursive: true, force: true });
-    }
-  });
+    },
+  );
 
   it("delegates to create.parseAsync with preset args", async () => {
     const parseAsyncSpy = vi

@@ -542,17 +542,33 @@ export const create = new Command()
 
     // Check directory
     const absoluteProjectDir = path.resolve(resolvedProjectDirectory);
-    const relativeProjectDir =
-      path.relative(process.cwd(), absoluteProjectDir) || ".";
-    const quotedProjectDir =
-      process.platform === "win32"
-        ? `"${relativeProjectDir}"`
-        : `'${relativeProjectDir.replaceAll("'", "'\\''")}'`;
+    const relativeProjectDir = path.relative(process.cwd(), absoluteProjectDir);
+    const displayProjectDir =
+      relativeProjectDir === ".." ||
+      relativeProjectDir.startsWith(`..${path.sep}`) ||
+      path.isAbsolute(relativeProjectDir)
+        ? absoluteProjectDir
+        : relativeProjectDir || ".";
+    const shellProjectDir = displayProjectDir.startsWith("-")
+      ? `./${displayProjectDir}`
+      : displayProjectDir;
+    const isWindows = process.platform === "win32";
+    const quotedProjectDir = (isWindows
+      ? /^[\w./:\\+-]+$/
+      : /^[\w@./+-]+$/
+    ).test(shellProjectDir)
+      ? shellProjectDir
+      : isWindows
+        ? `'${shellProjectDir.replace(/['\u2018-\u201b]/g, "$&$&")}'`
+        : `'${shellProjectDir.replaceAll("'", "'\\''")}'`;
+    const cdCommand = isWindows
+      ? `cd -LiteralPath ${quotedProjectDir}`
+      : `cd ${quotedProjectDir}`;
     try {
       const files = fs.readdirSync(absoluteProjectDir);
       if (files.length > 0) {
         logger.error(
-          `Directory ${resolvedProjectDirectory} already exists and is not empty`,
+          `Directory ${displayProjectDir} already exists and is not empty`,
         );
         process.exit(1);
       }
@@ -563,12 +579,12 @@ export const create = new Command()
         // Directory doesn't exist — good, proceed
       } else if (code === "ENOTDIR") {
         logger.error(
-          `${resolvedProjectDirectory} already exists and is not a directory`,
+          `${displayProjectDir} already exists and is not a directory`,
         );
         process.exit(1);
       } else {
         const message = err instanceof Error ? err.message : String(err);
-        logger.error(`Cannot access ${resolvedProjectDirectory}: ${message}`);
+        logger.error(`Cannot access ${displayProjectDir}: ${message}`);
         process.exit(1);
       }
     }
@@ -705,8 +721,12 @@ export const create = new Command()
         disarmCleanup();
         logger.break();
         logger.error("Project created with missing components.");
-        logger.info("Retry the component install with:");
-        logger.info(`  cd ${quotedProjectDir}`);
+        logger.info(
+          isWindows
+            ? "Retry the component install in PowerShell with:"
+            : "Retry the component install with:",
+        );
+        logger.info(`  ${cdCommand}`);
         logger.info(`  ${transformResult.registryInstallFailure.retryCommand}`);
         process.exit(1);
       }
@@ -763,8 +783,8 @@ export const create = new Command()
         // Fall back to defaults if package.json cannot be read
       }
 
-      logger.info("Next steps:");
-      logger.info(`  cd ${quotedProjectDir}`);
+      logger.info(isWindows ? "Next steps (PowerShell):" : "Next steps:");
+      logger.info(`  ${cdCommand}`);
       if (opts.skipInstall) {
         logger.info(`  ${pm} install`);
       }
