@@ -222,6 +222,30 @@ describe("getSelectionMessageId", () => {
     expect(getSelectionMessageId(selection)).toBeNull();
   });
 
+  it("rejects another range over excluded content beside a nested quote region", () => {
+    document.body.innerHTML = `
+      <div data-message-id="message-1">
+        <div data-aui-quote-selectable="false">
+          <span id="sibling">excluded prose</span>
+          <p id="active" data-aui-quote-selectable>active text</p>
+        </div>
+      </div>
+    `;
+
+    const range = document.createRange();
+    range.selectNodeContents(textNode("#sibling"));
+    const selection = selectText(textNode("#active"));
+    const active = selection.getRangeAt(0);
+    vi.spyOn(selection, "rangeCount", "get").mockReturnValue(2);
+    vi.spyOn(selection, "getRangeAt").mockImplementation((index) => {
+      if (index === 0) return range;
+      if (index === 1) return active;
+      throw new DOMException("Range index out of bounds", "IndexSizeError");
+    });
+
+    expect(getSelectionMessageId(selection)).toBeNull();
+  });
+
   it("accepts disjoint ranges on either side of an excluded gap", () => {
     document.body.innerHTML = `
       <div data-message-id="message-1" data-aui-quote-selectable>

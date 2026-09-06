@@ -1,5 +1,4 @@
 const QUOTE_SELECTABLE_SELECTOR = "[data-aui-quote-selectable]";
-const QUOTE_EXCLUDED_SELECTOR = '[data-aui-quote-selectable="false"]';
 
 const getElement = (node: Node | null): HTMLElement | null => {
   return node instanceof HTMLElement ? node : (node?.parentElement ?? null);
@@ -44,6 +43,17 @@ const findQuoteMarker = (
   return marker;
 };
 
+const intersectsExcluded = (scope: Element, selection: Selection): boolean => {
+  const ranges = Array.from({ length: selection.rangeCount }, (_, i) =>
+    selection.getRangeAt(i),
+  );
+  for (const marker of scope.querySelectorAll(QUOTE_SELECTABLE_SELECTOR)) {
+    if (!isExcluded(marker)) continue;
+    if (ranges.some((range) => range.intersectsNode(marker))) return true;
+  }
+  return false;
+};
+
 export const getSelectionMessageId = (selection: Selection): string | null => {
   const { anchorNode, focusNode } = selection;
   if (!anchorNode || !focusNode) return null;
@@ -64,32 +74,18 @@ export const getSelectionMessageId = (selection: Selection): string | null => {
   if (anchorMarker && isExcluded(anchorMarker)) return null;
   if (focusMarker && isExcluded(focusMarker)) return null;
 
-  if (anchorMarker !== focusMarker) return null;
-  if (!anchorMarker && hasQuoteSelectableRegion(anchorMessageElement)) {
-    return null;
+  if (!hasQuoteSelectableRegion(anchorMessageElement)) {
+    return intersectsExcluded(anchorMessageElement, selection)
+      ? null
+      : messageId;
   }
+
+  if (!anchorMarker || anchorMarker !== focusMarker) return null;
 
   for (let i = 0; i < selection.rangeCount; i++) {
-    const range = selection.getRangeAt(i);
-    const ancestor = getElement(range.commonAncestorContainer);
-    const scope =
-      ancestor && anchorMessageElement.contains(ancestor)
-        ? ancestor
-        : anchorMessageElement;
-    const excludedAncestor = scope.closest(QUOTE_EXCLUDED_SELECTOR);
-    if (
-      excludedAncestor &&
-      anchorMessageElement.contains(excludedAncestor) &&
-      !excludedAncestor.contains(anchorMarker)
-    ) {
-      return null;
-    }
-
-    for (const excluded of scope.querySelectorAll(QUOTE_EXCLUDED_SELECTOR)) {
-      if (excluded.contains(anchorMarker)) continue;
-      if (range.intersectsNode(excluded)) return null;
-    }
+    const { commonAncestorContainer } = selection.getRangeAt(i);
+    if (!anchorMarker.contains(commonAncestorContainer)) return null;
   }
 
-  return messageId;
+  return intersectsExcluded(anchorMarker, selection) ? null : messageId;
 };
