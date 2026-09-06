@@ -267,7 +267,7 @@ def get_tool_call_subgraph_state(
                 artifact = last_message["artifact"]
 
                 if artifact_field_name:
-                    if artifact_field_name not in artifact:
+                    if artifact.get(artifact_field_name) is None:
                         artifact[artifact_field_name] = default_state
                     return artifact[artifact_field_name]
                 else:

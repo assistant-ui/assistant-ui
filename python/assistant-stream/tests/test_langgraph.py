@@ -229,11 +229,16 @@ async def test_unknown_event_type_is_ignored() -> None:
 
 
 @pytest.mark.anyio
-@pytest.mark.parametrize("artifact_field_name", [None, "subgraph_state"])
-async def test_null_tool_artifact_uses_default_subgraph_state(artifact_field_name) -> None:
+@pytest.mark.parametrize(
+    ("artifact", "artifact_field_name"),
+    [(None, None), (None, "subgraph_state"), ({"subgraph_state": None}, "subgraph_state")],
+)
+async def test_null_tool_artifact_uses_default_subgraph_state(
+    artifact, artifact_field_name
+) -> None:
     controller = RunController(
         asyncio.Queue(),
-        {"messages": [ToolMessage(content="", tool_call_id="c1", artifact=None).model_dump()]},
+        {"messages": [ToolMessage(content="", tool_call_id="c1", artifact=artifact).model_dump()]},
     )
 
     state = get_tool_call_subgraph_state(
