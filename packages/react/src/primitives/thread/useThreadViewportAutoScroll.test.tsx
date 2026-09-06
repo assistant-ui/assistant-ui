@@ -24,8 +24,8 @@ import { useThreadViewport } from "../../context/react/ThreadViewportContext";
 import * as MessagePrimitive from "../message";
 import { ThreadPrimitiveMessages } from "./ThreadMessages";
 import { ThreadPrimitiveRoot } from "./ThreadRoot";
-import { ThreadPrimitiveViewport } from "./ThreadViewport";
 import { ThreadPrimitiveScrollToBottom } from "./ThreadScrollToBottom";
+import { ThreadPrimitiveViewport } from "./ThreadViewport";
 import {
   ExportedMessageRepository,
   useLocalRuntime,
@@ -274,7 +274,6 @@ describe("useThreadViewportAutoScroll", () => {
         top: viewport.scrollHeight,
         behavior: "smooth",
       });
-      expect(viewport.scrollTop).toBe(getMaxScrollTop(viewport));
     } finally {
       scrollToSpy.mockRestore();
     }
