@@ -263,6 +263,21 @@ describe("appendLangChainChunk continuation content", () => {
         argsText: '{"type":"click","x":1,"y":2}',
       },
     ]);
+
+    const placeholders = appendLangChainChunk(
+      merged,
+      JSON.parse(
+        '{"id":"ai-1","type":"AIMessageChunk","content":[{"type":"computer_call","index":0,"call_id":"","id":null,"action":null,"status":"completed"}]}',
+      ),
+    );
+    expect(placeholders.content).toEqual([
+      expect.objectContaining({
+        call_id: "call-1",
+        id: "computer-1",
+        action: { type: "click", x: 1, y: 2 },
+        status: "completed",
+      }),
+    ]);
   });
 
   it("joins reasoning summary deltas by summary index", () => {

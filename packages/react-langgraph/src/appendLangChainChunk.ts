@@ -24,6 +24,20 @@ const findByIndex = (
   );
 };
 
+// `_mergeDicts` skips a null incoming value and never lets an empty string
+// replace an accumulated one, so a continuation chunk that repeats a block's
+// keys as placeholders cannot erase what earlier chunks already carried.
+const mergeDefined = (
+  existing: AiContentBlock,
+  item: AiContentBlock,
+): AiContentBlock =>
+  ({
+    ...existing,
+    ...Object.fromEntries(
+      Object.entries(item).filter(([, value]) => value != null && value !== ""),
+    ),
+  }) as AiContentBlock;
+
 const chunkToToolCall = (chunk: LangChainToolCallChunk) => {
   const partialJson = chunk.args ?? chunk.args_json ?? "";
   return {
@@ -193,7 +207,7 @@ export const appendLangChainChunk = (
         const index = findByIndex(newContent, item);
         const existing = newContent[index];
         if (existing) {
-          newContent[index] = { ...existing, ...item };
+          newContent[index] = mergeDefined(existing, item);
         } else {
           newContent.push(item);
         }

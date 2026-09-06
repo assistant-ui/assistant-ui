@@ -304,7 +304,7 @@ export const createLangChainStreamingTimingAccessors = <
           if (typeof part.text === "string") len += part.text.length;
           break;
         case "thinking":
-          if (typeof part.thinking === "string") len += part.thinking.length;
+          if (hasVisibleText(part.thinking)) len += part.thinking.length;
           break;
         case "reasoning":
           len += getReasoningText(part).length;
