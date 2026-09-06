@@ -225,7 +225,7 @@ describe("threadState", () => {
   });
 
   it.each(["idle", "failed", "running"] as const)(
-    "recovers transient flags from a %s snapshot",
+    "reconciles compaction and retry flags with a %s snapshot",
     (status) => {
       const before = apply(
         createPiThreadState("t1"),
