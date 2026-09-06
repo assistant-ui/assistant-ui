@@ -2,8 +2,6 @@
 "@assistant-ui/react-streamdown": patch
 ---
 
-fix: apply Markdown repair to the full message so that custom handlers and built-in transforms retain changes to earlier paragraphs.
+fix: preserve text escapes and custom handler changes in earlier paragraphs without completing or deleting their unfinished Markdown.
 
-This removes the tail-only optimization from 0.3.4 because it can discard repairs in earlier paragraphs. Built-in transforms and custom handlers can change text across the full message.
-
-`tailBoundedRemend` repairs the full message on each call, so repair cost grows with message length. `findRemendWindowStart` remains available for compatibility, but its boundary is not a safe limit for Markdown repair.
+Incomplete Markdown repair stays in the final block. Earlier blocks receive numeric-range escapes, comparison-operator escapes, and custom handlers. Custom handlers receive the earlier text and final block as separate strings.

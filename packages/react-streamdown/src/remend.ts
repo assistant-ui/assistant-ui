@@ -17,11 +17,8 @@ function onlyWhitespace(text: string, from: number, to: number): boolean {
 }
 
 /**
- * Returns a blank-line boundary outside the tracked code fences and `$$` math
- * blocks. This boundary does not limit Markdown repair.
- *
- * @deprecated Use `tailBoundedRemend` with the full message. Transforms and
- * custom handlers can change text before this boundary.
+ * Returns the start of the last block outside open code fences and `$$` math.
+ * Completion can use this boundary, but escapes must also reach earlier text.
  */
 export function findRemendWindowStart(text: string): number {
   const n = text.length;
@@ -85,12 +82,30 @@ export function findRemendWindowStart(text: string): number {
 }
 
 /**
- * Repairs incomplete Markdown across the full message. Custom handlers and
- * built-in text transforms can change earlier blocks, not only the last block.
+ * Repairs incomplete Markdown in the final block and applies text escapes to
+ * earlier blocks. Custom handlers receive the prefix and final block separately.
  */
 export function tailBoundedRemend(
   text: string,
   options?: RemendOptions,
 ): string {
-  return remend(text, options);
+  const start = findRemendWindowStart(text);
+  if (start <= 0) return remend(text, options);
+
+  return (
+    remend(text.slice(0, start), {
+      ...options,
+      bold: false,
+      boldItalic: false,
+      italic: false,
+      inlineCode: false,
+      strikethrough: false,
+      katex: false,
+      inlineKatex: false,
+      links: false,
+      images: false,
+      htmlTags: false,
+      setextHeadings: false,
+    }) + remend(text.slice(start), options)
+  );
 }
