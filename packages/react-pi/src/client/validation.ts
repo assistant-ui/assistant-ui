@@ -257,6 +257,7 @@ export const isThreadMetadata = (value: unknown): value is PiThreadMetadata =>
   isOptionalBoolean(value.archived) &&
   isOptionalBoolean(value.compactionActive) &&
   isOptionalBoolean(value.retryActive) &&
+  isOptionalNumber(value.retryAttempt) &&
   isOptionalString(value.runningRunId) &&
   isThreadConfig(value.config) &&
   (value.contextUsage === undefined || isContextUsage(value.contextUsage)) &&
@@ -304,6 +305,7 @@ const isRenderableTranscriptMessage = (
 export const isThreadSnapshot = (value: unknown): value is PiThreadSnapshot =>
   isRecord(value) &&
   isThreadMetadata(value.metadata) &&
+  isOptionalNumber(value.seq) &&
   Array.isArray(value.messages) &&
   value.messages.every(isRenderableTranscriptMessage) &&
   (value.hostUiRequests === undefined ||

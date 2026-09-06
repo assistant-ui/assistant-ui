@@ -111,6 +111,9 @@ const applySnapshot = (
   // Older supervisors omit activity flags, so settled status remains their
   // only signal that neither operation is in flight.
   const settled = runStatus !== "running";
+  // A fetched snapshot can resolve after live events it predates; one behind
+  // `lastSeq` reports activity those events have already moved past.
+  const behind = snapshot.seq !== undefined && snapshot.seq < state.lastSeq;
   const compactionActive =
     snapshot.metadata.compactionActive ??
     (settled ? false : state.compaction.active);
@@ -126,12 +129,19 @@ const applySnapshot = (
     streamingMessageIndex: undefined,
     toolExecutions: {},
     runStatus,
-    compaction: compactionActive
-      ? { ...state.compaction, active: true }
-      : { active: false },
-    retry: retryActive
-      ? { ...state.retry, active: true }
-      : { active: false, attempt: 0 },
+    compaction: behind
+      ? state.compaction
+      : compactionActive
+        ? { ...state.compaction, active: true }
+        : { active: false },
+    retry: behind
+      ? state.retry
+      : retryActive
+        ? {
+            active: true,
+            attempt: snapshot.metadata.retryAttempt ?? state.retry.attempt,
+          }
+        : { active: false, attempt: 0 },
     // A missing `queuedMessages` means an empty queue (snapshots omit the
     // field when there is nothing queued, and cold threads have no queue at
     // all) — keeping the prior queue here would let items drained while the

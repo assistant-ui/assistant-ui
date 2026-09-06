@@ -152,8 +152,10 @@ describe("createPiHttpClient", () => {
         ...snapshot.metadata,
         status: "running" as const,
         compactionActive: true,
-        retryActive: false,
+        retryActive: true,
+        retryAttempt: 2,
       },
+      seq: 7,
     };
     const { fn } = fakeFetch(() => json(snapshotWithActivity));
 

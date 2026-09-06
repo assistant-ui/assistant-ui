@@ -94,6 +94,7 @@ const createLiveSession = (prompt: AgentSession["prompt"]) =>
     isStreaming: false,
     isCompacting: false,
     isRetrying: false,
+    retryAttempt: 0,
     bindExtensions: vi.fn(async () => {}),
     subscribe: vi.fn(() => () => {}),
     prompt,
@@ -399,6 +400,7 @@ describe("PiThreadSupervisor", () => {
       isStreaming: false,
       isCompacting: false,
       isRetrying: false,
+      retryAttempt: 0,
       subscribe: vi.fn(() => () => {}),
       bindExtensions: vi.fn(async () => {}),
       getContextUsage: vi.fn(),
@@ -425,6 +427,7 @@ describe("PiThreadSupervisor", () => {
       ...createLiveSession(async () => {}),
       isCompacting: true,
       isRetrying: true,
+      retryAttempt: 2,
     } as AgentSession;
     sdk.create.mockReturnValue({});
     sdk.createAgentSession.mockResolvedValue({ session });
@@ -436,7 +439,9 @@ describe("PiThreadSupervisor", () => {
       status: "running",
       compactionActive: true,
       retryActive: true,
+      retryAttempt: 2,
     });
+    expect(snapshot.seq).toBe(0);
     await supervisor.dispose();
   });
 

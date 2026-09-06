@@ -260,6 +260,57 @@ describe("threadState", () => {
     },
   );
 
+  it("keeps live flags when a snapshot is behind the applied events", () => {
+    const before = apply(
+      createPiThreadState("t1"),
+      ev({ type: "compaction_start", reason: "threshold" }),
+      ev({ type: "auto_retry_start", attempt: 2, delayMs: 500 }),
+    );
+    const after = apply(
+      before,
+      ev({
+        type: "snapshot",
+        snapshot: {
+          metadata: {
+            id: "t1",
+            status: "running",
+            compactionActive: false,
+            retryActive: false,
+          },
+          seq: before.lastSeq - 1,
+          messages: [],
+        },
+      }),
+    );
+    expect(after.compaction).toEqual(before.compaction);
+    expect(after.retry).toEqual(before.retry);
+  });
+
+  it("restores the retry attempt from a current snapshot", () => {
+    const before = apply(
+      createPiThreadState("t1"),
+      ev({ type: "agent_start" }),
+    );
+    const after = apply(
+      before,
+      ev({
+        type: "snapshot",
+        snapshot: {
+          metadata: {
+            id: "t1",
+            status: "running",
+            compactionActive: false,
+            retryActive: true,
+            retryAttempt: 3,
+          },
+          seq: before.lastSeq + 1,
+          messages: [],
+        },
+      }),
+    );
+    expect(after.retry).toEqual({ active: true, attempt: 3 });
+  });
+
   it("agent_end with willRetry keeps running", () => {
     let s = apply(
       createPiThreadState("t1"),
