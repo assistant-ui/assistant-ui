@@ -27,6 +27,21 @@ describe("launch", () => {
     }
   });
 
+  it("passes the prompt to the selected skill", () => {
+    const log = vi.spyOn(console, "log").mockImplementation(() => {});
+
+    launch({
+      pluginDir: "/tmp/plugin",
+      skillName: "assistant-ui",
+      prompt: "add a thread",
+      dry: true,
+    });
+
+    expect(log).toHaveBeenCalledWith(
+      'claude "/assistant-ui add a thread" --plugin-dir /tmp/plugin',
+    );
+  });
+
   it("invokes the selected skill when the prompt is empty", () => {
     const log = vi.spyOn(console, "log").mockImplementation(() => {});
 
