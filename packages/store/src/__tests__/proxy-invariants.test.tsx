@@ -16,9 +16,12 @@ const useItem = ({ id }: { id: string }) => ({
 const Item = resource(useItem);
 
 const useThread = () => {
-  const items = useClientLookup([withKey("__proto__", Item({ id: "a" }))]);
+  const items = useClientLookup([
+    withKey("a", Item({ id: "a" })),
+    withKey("__proto__", Item({ id: "proto" })),
+  ]);
   return {
-    getState: () => ({ count: 1 }),
+    getState: () => ({ count: 2 }),
     item: (lookup: { index: number } | { key: string }) => items.get(lookup),
   };
 };
@@ -48,7 +51,7 @@ describe("proxy invariants", () => {
   it("retrieves prototype-named keys without inherited matches", () => {
     render(<App />);
     expect(probe.aui.thread().item({ key: "__proto__" }).getState()).toEqual({
-      id: "a",
+      id: "proto",
     });
     expect(() => probe.aui.thread().item({ key: "constructor" })).toThrow(
       /not found/,
@@ -83,7 +86,7 @@ describe("proxy invariants", () => {
 
     expect(Object.keys(probe.state)).toEqual(["thread", "optional"]);
     const spread = { ...probe.state };
-    expect(spread.thread).toEqual({ count: 1 });
+    expect(spread.thread).toEqual({ count: 2 });
     expect(
       Object.getOwnPropertyDescriptor(probe.state, "thread")?.configurable,
     ).toBe(true);
@@ -110,7 +113,7 @@ describe("proxy invariants", () => {
       "thread",
     ]);
     const spread = { ...probe.state };
-    expect(spread.thread).toEqual({ count: 1 });
+    expect(spread.thread).toEqual({ count: 2 });
     expect(spread.item).toEqual({ id: "x" });
   });
 });
