@@ -40,9 +40,12 @@ export const DevToolsPanel = ({
     resolvedClient,
   );
 
-  if (selectedApiId === null || !apiIds.includes(selectedApiId)) {
-    setSelectedApiId(apiIds[0] ?? null);
-  }
+  const resolvedApiId =
+    selectedApiId !== null && apiIds.includes(selectedApiId)
+      ? selectedApiId
+      : (apiIds[0] ?? null);
+
+  if (resolvedApiId !== selectedApiId) setSelectedApiId(resolvedApiId);
 
   const allPlugins = useMemo(
     () =>
