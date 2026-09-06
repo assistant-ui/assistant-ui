@@ -618,15 +618,30 @@ export const useAISDKRuntime = <UI_MESSAGE extends UIMessage = UIMessage>(
         );
       }
     },
-    onRespondToToolApproval: ({ approvalId, approved, reason }) =>
-      Promise.resolve(
+    onRespondToToolApproval: ({
+      approvalId,
+      approved,
+      reason,
+      optionId,
+      text,
+    }) => {
+      // The AI SDK approval response carries only id, approved and reason, on
+      // addToolApprovalResponse and on the tool-approval-response model part
+      // alike, so a chosen option or free-form answer has nowhere to travel.
+      if (optionId !== undefined || text !== undefined)
+        throw new Error(
+          `Tool approval "${approvalId}" was answered with an option or a free-form answer, which the AI SDK approval response cannot carry; it transports only approved and reason.`,
+        );
+
+      return Promise.resolve(
         chatHelpers.addToolApprovalResponse({
           id: approvalId,
           approved,
           ...(reason != null && { reason }),
           options: { metadata: lastRunConfigRef.current },
         }),
-      ),
+      );
+    },
     ...pickExternalStoreSharedOptions(adapter),
     ...(adapter.unstable_messageRepositoryInstance && {
       unstable_messageRepositoryInstance:
