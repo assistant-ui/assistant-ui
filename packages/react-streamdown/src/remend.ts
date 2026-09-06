@@ -95,6 +95,7 @@ export function tailBoundedRemend(
   return (
     remend(text.slice(0, start), {
       ...options,
+      // This list must disable every remend completion handler. Only escapes and custom handlers can change the prefix.
       bold: false,
       boldItalic: false,
       italic: false,
