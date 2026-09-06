@@ -16,17 +16,15 @@ const LATEX_DISPLAY_DELIMITER = /\\{1,2}\[([\s\S]+?)\\{1,2}\]/g;
 // closed by a quoted line, and a quoted fence is closed by one however its
 // marker is spaced. Matching the prefix by shape rather than as a literal keeps
 // `> ~~~` and `>~~~` equivalent.
-// The backtick patterns accept any indentation because a backtick opener does
-// too, so a fence written past a list item's content column closes on the line
-// it was written to close on. The tilde patterns keep the root indent as #6795
-// shipped them.
+// Both marker patterns accept any indentation because their openers do too, so
+// a fence written past a list item's content column closes on its own line.
 const FENCE_CLOSE_ROOT = {
   "`": /^[ \t]*(`{3,})[ \t\r]*$/,
-  "~": /^ {0,3}(~{3,})[ \t\r]*$/,
+  "~": /^[ \t]*(~{3,})[ \t\r]*$/,
 };
 const FENCE_CLOSE_QUOTED = {
   "`": /^[ \t]*(?:>[ \t]?)+[ \t]*(`{3,})[ \t\r]*$/,
-  "~": /^ {0,3}(?:>[ \t]?)+ {0,3}(~{3,})[ \t\r]*$/,
+  "~": /^[ \t]*(?:>[ \t]?)+[ \t]*(~{3,})[ \t\r]*$/,
 };
 // What may precede a fence opener on its line: the blockquote and list markers
 // whose containers a fence opens inside of, nested in either order, and the
@@ -71,23 +69,6 @@ function fenceEnd(text: string, start: number, marker: "`" | "~"): number {
   return text.length;
 }
 
-/** Whether the character at `index` starts a line, allowing ≤3 spaces indent. */
-function atLineStart(text: string, index: number): boolean {
-  let cursor = index;
-  let indent = 0;
-  while (cursor > 0 && text[cursor - 1] === " " && indent < 3) {
-    cursor--;
-    indent++;
-  }
-  if (cursor === 0 || text[cursor - 1] === "\n") return true;
-
-  // A fence keeps its meaning inside a blockquote, so a line carrying only
-  // blockquote markers still opens one. Four spaces would make it an indented
-  // code block instead, so the marker may carry at most three.
-  const lineStart = text.lastIndexOf("\n", cursor - 1) + 1;
-  return /^ {0,3}(?:>[ \t]?)+$/.test(text.slice(lineStart, cursor));
-}
-
 /**
  * Whether the backtick run at `start` opens a fence rather than a code span: a
  * fence is a flow construct, so its run is three or more backticks carrying
@@ -120,14 +101,12 @@ function opensBacktickFence(text: string, start: number): boolean {
 /**
  * Whether the tilde run at `index` opens a fence. A tilde run only ever opens
  * one, so unlike a backtick run it needs no info string rule, but it still has
- * to start a line to be a flow construct.
+ * to carry the same container prefix as a backtick fence.
  */
 function opensTildeFence(text: string, index: number): boolean {
-  return (
-    text[index] === "~" &&
-    runLength(text, index, "~") >= 3 &&
-    atLineStart(text, index)
-  );
+  if (text[index] !== "~" || runLength(text, index, "~") < 3) return false;
+  const lineStart = text.lastIndexOf("\n", index - 1) + 1;
+  return FENCE_OPEN_PREFIX.test(text.slice(lineStart, index));
 }
 
 /**
