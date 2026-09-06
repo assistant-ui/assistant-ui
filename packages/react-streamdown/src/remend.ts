@@ -17,10 +17,11 @@ function onlyWhitespace(text: string, from: number, to: number): boolean {
 }
 
 /**
- * Index of the start of the last top-level block: the character after the most
- * recent blank line that sits outside any open code fence or `$$` math block.
- * Retained for compatibility. This boundary does not limit Markdown repair:
- * built-in transforms and custom handlers can change text before the boundary.
+ * Returns a blank-line boundary outside the tracked code fences and `$$` math
+ * blocks. This boundary does not limit Markdown repair.
+ *
+ * @deprecated Use `tailBoundedRemend` with the full message. Transforms and
+ * custom handlers can change text before this boundary.
  */
 export function findRemendWindowStart(text: string): number {
   const n = text.length;
