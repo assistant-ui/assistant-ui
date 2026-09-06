@@ -171,6 +171,67 @@ describe("McpAppFrame", () => {
     },
   );
 
+  it("forwards size changes to the sandbox host and live handler", () => {
+    let createBridge: SandboxHostProps["createBridge"] | null = null;
+    sandboxHostMock.mockImplementation((props: SandboxHostProps) => {
+      createBridge ??= props.createBridge;
+      return null;
+    });
+    const bridge: McpAppBridge = {
+      onMessage: vi.fn(),
+      dispose: vi.fn(),
+      notifyToolInput: vi.fn(),
+      notifyToolResult: vi.fn(),
+      notifyHostContextChanged: vi.fn(),
+    };
+    createMcpAppBridgeMock.mockReturnValue(bridge);
+    const initialOnSizeChange = vi.fn();
+    const replacementOnSizeChange = vi.fn();
+    const view = (onSizeChange: typeof initialOnSizeChange) => (
+      <McpAppFrame
+        app={{ resourceUri: "ui://example/widget" }}
+        resource={{
+          uri: "ui://example/widget",
+          mimeType: MCP_APP_MIME_TYPE,
+          html: "",
+        }}
+        handlers={{ onSizeChange }}
+      />
+    );
+    const rendered = render(view(initialOnSizeChange));
+
+    const setHeight = vi.fn();
+    const sandboxBridge = createBridge!(
+      {
+        iframe: document.createElement("iframe"),
+        origin: "https://widget.example",
+        sendMessage: vi.fn(),
+      },
+      { setHeight },
+    );
+    const options = createMcpAppBridgeMock.mock
+      .calls[0]![0] as CreateMcpAppBridgeOptions;
+
+    try {
+      const initialSize = { width: 640, height: 360 };
+      options.handlers?.onSizeChange?.(initialSize);
+      expect(setHeight).toHaveBeenCalledWith(360);
+      expect(initialOnSizeChange).toHaveBeenCalledWith(initialSize);
+
+      rendered.rerender(view(replacementOnSizeChange));
+      const replacementSize = { width: 800, height: 480 };
+      options.handlers?.onSizeChange?.(replacementSize);
+      expect(setHeight).toHaveBeenNthCalledWith(2, 480);
+      expect(initialOnSizeChange).toHaveBeenCalledOnce();
+      expect(replacementOnSizeChange).toHaveBeenCalledOnce();
+      expect(replacementOnSizeChange).toHaveBeenCalledWith(replacementSize);
+    } finally {
+      sandboxBridge.dispose();
+    }
+
+    expect(bridge.dispose).toHaveBeenCalledOnce();
+  });
+
   it("only notifies the widget when host context actually changes", () => {
     let createBridge: SandboxHostProps["createBridge"] | null = null;
     sandboxHostMock.mockImplementation((props: SandboxHostProps) => {
