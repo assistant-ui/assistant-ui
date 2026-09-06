@@ -542,6 +542,12 @@ export const create = new Command()
 
     // Check directory
     const absoluteProjectDir = path.resolve(resolvedProjectDirectory);
+    const relativeProjectDir =
+      path.relative(process.cwd(), absoluteProjectDir) || ".";
+    const quotedProjectDir =
+      process.platform === "win32"
+        ? `"${relativeProjectDir}"`
+        : `'${relativeProjectDir.replaceAll("'", "'\\''")}'`;
     try {
       const files = fs.readdirSync(absoluteProjectDir);
       if (files.length > 0) {
@@ -700,7 +706,7 @@ export const create = new Command()
         logger.break();
         logger.error("Project created with missing components.");
         logger.info("Retry the component install with:");
-        logger.info(`  cd ${resolvedProjectDirectory}`);
+        logger.info(`  cd ${quotedProjectDir}`);
         logger.info(`  ${transformResult.registryInstallFailure.retryCommand}`);
         process.exit(1);
       }
@@ -758,7 +764,7 @@ export const create = new Command()
       }
 
       logger.info("Next steps:");
-      logger.info(`  cd ${resolvedProjectDirectory}`);
+      logger.info(`  cd ${quotedProjectDir}`);
       if (opts.skipInstall) {
         logger.info(`  ${pm} install`);
       }
