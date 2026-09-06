@@ -98,7 +98,9 @@ export const convertLangChainContentBlock = (
       };
     }
     case "thinking":
-      return { type: "reasoning" as const, text: part.thinking };
+      return hasVisibleText(part.thinking)
+        ? { type: "reasoning" as const, text: part.thinking }
+        : null;
     case "reasoning": {
       const text = getReasoningText(part);
       return text ? { type: "reasoning" as const, text } : null;
@@ -263,13 +265,9 @@ const getReasoningText = (part: {
   readonly reasoning?: string;
 }): string => {
   const summary = part.summary?.map((s) => s?.text ?? "").join("\n\n\n") ?? "";
+  if (hasVisibleText(summary)) return summary;
   const reasoning = part.reasoning ?? "";
-  if (!hasVisibleText(summary))
-    return hasVisibleText(reasoning) ? reasoning : "";
-  if (!hasVisibleText(reasoning) || summary.includes(reasoning)) return summary;
-  if (reasoning.includes(summary)) return reasoning;
-
-  return `${reasoning}\n\n\n${summary}`;
+  return hasVisibleText(reasoning) ? reasoning : "";
 };
 
 export const createLangChainStreamingTimingAccessors = <

@@ -1262,6 +1262,7 @@ type MessageContentReasoning = {
   type: "reasoning";
   summary?: MessageContentReasoningSummaryText[];
   reasoning?: string;
+  signature?: string;
   index?: number;
 };
 
@@ -1279,6 +1280,7 @@ type MessageContentText = {
 type MessageContentThinking = {
   type: "thinking";
   thinking: string;
+  signature?: string;
   index?: number;
 };
 

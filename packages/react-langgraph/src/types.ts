@@ -46,6 +46,7 @@ export type MessageContentImageUrl = {
 export type MessageContentThinking = {
   type: "thinking";
   thinking: string;
+  signature?: string;
   index?: number;
 };
 
@@ -59,6 +60,7 @@ export type MessageContentReasoning = {
   type: "reasoning";
   summary?: MessageContentReasoningSummaryText[];
   reasoning?: string;
+  signature?: string;
   index?: number;
 };
 

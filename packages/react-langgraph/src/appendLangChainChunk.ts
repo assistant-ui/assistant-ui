@@ -7,6 +7,22 @@ import type {
 import { parsePartialJsonObject } from "assistant-stream/utils";
 
 type AiMessage = Extract<LangChainMessage, { type: "ai" }>;
+type AiContentBlock = Exclude<AiMessage["content"], string>[number];
+
+// Mirrors `_mergeLists` in @langchain/core: an indexed block names a slot in the
+// accumulated content, so a repeated chunk for that index updates the block
+// rather than appending a duplicate.
+const findByIndex = (
+  content: readonly AiContentBlock[],
+  item: AiContentBlock,
+): number => {
+  const index = "index" in item ? item.index : undefined;
+  if (index === undefined) return -1;
+  return content.findIndex(
+    (part) =>
+      part.type === item.type && "index" in part && part.index === index,
+  );
+};
 
 const chunkToToolCall = (chunk: LangChainToolCallChunk) => {
   const partialJson = chunk.args ?? chunk.args_json ?? "";
@@ -123,28 +139,29 @@ export const appendLangChainChunk = (
         } else {
           newContent.push({ type: "text", text: item.text });
         }
-      } else if (item.type === "thinking" || item.type === "reasoning") {
+      } else if (item.type === "thinking") {
         const index =
-          item.index === undefined
-            ? lastIndex
-            : newContent.findIndex(
-                (part) =>
-                  part.type === item.type &&
-                  "index" in part &&
-                  part.index === item.index,
-              );
+          item.index === undefined ? lastIndex : findByIndex(newContent, item);
         const existing = newContent[index];
-        if (item.type === "thinking") {
-          if (!item.thinking) continue;
-          if (existing?.type === "thinking") {
-            newContent[index] = {
-              ...existing,
-              thinking: (existing.thinking ?? "") + item.thinking,
-            };
-          } else {
-            newContent.push(item);
-          }
-        } else if (existing?.type === "reasoning") {
+        if (existing?.type !== "thinking") {
+          newContent.push({ ...item, thinking: item.thinking ?? "" });
+        } else {
+          const thinking = (existing.thinking ?? "") + (item.thinking ?? "");
+          const signature = (existing.signature ?? "") + (item.signature ?? "");
+          newContent[index] = {
+            ...existing,
+            ...item,
+            ...(thinking && { thinking }),
+            ...(signature && { signature }),
+          };
+        }
+      } else if (item.type === "reasoning") {
+        const index =
+          item.index === undefined ? lastIndex : findByIndex(newContent, item);
+        const existing = newContent[index];
+        if (existing?.type !== "reasoning") {
+          newContent.push(item);
+        } else {
           const summary = [...(existing.summary ?? [])];
           for (const [position, part] of (item.summary ?? []).entries()) {
             if (!part) continue;
@@ -162,17 +179,24 @@ export const appendLangChainChunk = (
               summary.push(part);
             }
           }
+          const reasoning = (existing.reasoning ?? "") + (item.reasoning ?? "");
+          const signature = (existing.signature ?? "") + (item.signature ?? "");
           newContent[index] = {
             ...existing,
             ...item,
-            reasoning: (existing.reasoning ?? "") + (item.reasoning ?? ""),
+            ...(reasoning && { reasoning }),
+            ...(signature && { signature }),
             ...(summary.length > 0 && { summary }),
           };
+        }
+      } else if (item.type !== "tool_use" && item.type !== "input_json_delta") {
+        const index = findByIndex(newContent, item);
+        const existing = newContent[index];
+        if (existing) {
+          newContent[index] = { ...existing, ...item };
         } else {
           newContent.push(item);
         }
-      } else if (item.type !== "tool_use" && item.type !== "input_json_delta") {
-        newContent.push(item);
       }
     }
   }

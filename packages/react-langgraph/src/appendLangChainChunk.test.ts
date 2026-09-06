@@ -205,20 +205,63 @@ describe("appendLangChainChunk continuation content", () => {
     ]);
   });
 
-  it("ignores signature-only chunks at the start and during thinking", () => {
-    const signature = JSON.parse(
-      '{"id":"ai-1","type":"AIMessageChunk","content":[{"type":"thinking","signature":"signed","index":0}]}',
-    );
-    const first = appendLangChainChunk(undefined, signature);
+  it("accumulates thinking signature fragments without rendering an empty part", () => {
+    const signatureChunk = (signature: string) =>
+      JSON.parse(
+        `{"id":"ai-1","type":"AIMessageChunk","content":[{"type":"thinking","signature":"${signature}","index":0}]}`,
+      );
+    const first = appendLangChainChunk(undefined, signatureChunk("sig-"));
     expect(convertLangChainMessages(first, {})).toHaveProperty("content", []);
     const thinking = appendLangChainChunk(first, {
       id: "ai-1",
       type: "AIMessageChunk",
       content: [{ type: "thinking", thinking: "Checking.", index: 0 }],
     });
-    const merged = appendLangChainChunk(thinking, signature);
+    const merged = appendLangChainChunk(thinking, signatureChunk("part2"));
+    expect(merged.content).toEqual([
+      expect.objectContaining({
+        index: 0,
+        thinking: "Checking.",
+        signature: "sig-part2",
+      }),
+    ]);
     expect(convertLangChainMessages(merged, {})).toHaveProperty("content", [
       { type: "reasoning", text: "Checking." },
+    ]);
+  });
+
+  it("merges a repeated indexed block instead of appending a duplicate", () => {
+    const call = (action: Record<string, unknown>) =>
+      ({
+        type: "computer_call",
+        id: "computer-1",
+        call_id: "call-1",
+        action,
+        pending_safety_checks: [],
+        index: 0,
+      }) satisfies Exclude<
+        LangChainMessageChunk["content"],
+        string | undefined
+      >[number];
+    const first = appendLangChainChunk(undefined, {
+      id: "ai-1",
+      type: "AIMessageChunk",
+      content: [call({ type: "screenshot" })],
+    });
+    const merged = appendLangChainChunk(first, {
+      id: "ai-1",
+      type: "AIMessageChunk",
+      content: [call({ type: "click", x: 1, y: 2 })],
+    });
+
+    expect(convertLangChainMessages(merged, {})).toHaveProperty("content", [
+      {
+        type: "tool-call",
+        toolCallId: "call-1",
+        toolName: "computer_call",
+        args: { type: "click", x: 1, y: 2 },
+        argsText: '{"type":"click","x":1,"y":2}',
+      },
     ]);
   });
 
@@ -262,7 +305,7 @@ describe("appendLangChainChunk continuation content", () => {
   });
 
   it.each([{ index: 0 }, {}])(
-    "keeps earlier reasoning when summary chunks arrive with %j",
+    "falls back to the reasoning string until the summary carries text, with %j",
     (block) => {
       const first = appendLangChainChunk(undefined, {
         id: "ai-1",
@@ -271,7 +314,18 @@ describe("appendLangChainChunk continuation content", () => {
           { type: "reasoning", reasoning: "partial thinking", ...block },
         ],
       });
-      const summary = appendLangChainChunk(first, {
+      const blank = appendLangChainChunk(first, {
+        id: "ai-1",
+        type: "AIMessageChunk",
+        content: [
+          {
+            type: "reasoning",
+            ...block,
+            summary: [{ type: "summary_text", index: 0 }],
+          },
+        ],
+      });
+      const summary = appendLangChainChunk(blank, {
         id: "ai-1",
         type: "AIMessageChunk",
         content: [
@@ -300,52 +354,25 @@ describe("appendLangChainChunk continuation content", () => {
       expect(convertLangChainMessages(first, {})).toHaveProperty("content", [
         { type: "reasoning", text: "partial thinking" },
       ]);
+      expect(convertLangChainMessages(blank, {})).toHaveProperty("content", [
+        { type: "reasoning", text: "partial thinking" },
+      ]);
       expect(convertLangChainMessages(summary, {})).toHaveProperty("content", [
-        { type: "reasoning", text: "partial thinking\n\n\nfirst" },
+        { type: "reasoning", text: "first" },
       ]);
       expect(convertLangChainMessages(merged, {})).toHaveProperty("content", [
-        {
-          type: "reasoning",
-          text: "partial thinking\n\n\nfirst summary\n\n\nsecond summary",
-        },
+        { type: "reasoning", text: "first summary\n\n\nsecond summary" },
+      ]);
+      expect(merged.content).toEqual([
+        expect.objectContaining({ reasoning: "partial thinking" }),
       ]);
     },
   );
 
-  it("does not duplicate reasoning as an overlapping summary grows", () => {
-    let merged = appendLangChainChunk(undefined, {
-      id: "ai-1",
-      type: "AIMessageChunk",
-      content: [
-        { type: "reasoning", index: 0, reasoning: "We compare both plans." },
-      ],
-    });
-    for (const [text, expected] of [
-      ["We compare", "We compare both plans."],
-      [" both plans.", "We compare both plans."],
-      [" Then choose.", "We compare both plans. Then choose."],
-    ] as const) {
-      merged = appendLangChainChunk(merged, {
-        id: "ai-1",
-        type: "AIMessageChunk",
-        content: [
-          {
-            type: "reasoning",
-            index: 0,
-            summary: [{ type: "summary_text", index: 0, text }],
-          },
-        ],
-      });
-      expect(convertLangChainMessages(merged, {})).toHaveProperty("content", [
-        { type: "reasoning", text: expected },
-      ]);
-    }
-  });
-
   it("keeps reasoning signatures without empty parts or cross-index text", () => {
     const signature = {
       type: "reasoning" as const,
-      signature: "signed",
+      signature: "sig-",
       index: 0,
     };
     const first = appendLangChainChunk(undefined, {
@@ -379,7 +406,7 @@ describe("appendLangChainChunk continuation content", () => {
     expect(text.content).toEqual([
       expect.objectContaining({
         index: 0,
-        signature: "signed",
+        signature: "sig-",
         reasoning: "Checking.",
       }),
       expect.objectContaining({ index: 1, reasoning: "Separate." }),
@@ -388,12 +415,12 @@ describe("appendLangChainChunk continuation content", () => {
     const signed = appendLangChainChunk(text, {
       id: "ai-1",
       type: "AIMessageChunk",
-      content: [{ ...signature, signature: "completed" }],
+      content: [{ ...signature, signature: "part2" }],
     });
     expect(signed.content).toEqual([
       expect.objectContaining({
         index: 0,
-        signature: "completed",
+        signature: "sig-part2",
         reasoning: "Checking.",
       }),
       expect.objectContaining({ index: 1, reasoning: "Separate." }),

@@ -768,21 +768,25 @@ describe("convertLangChainBaseMessage reasoning content parts", () => {
     expect(contentOf(result)).toEqual([{ type: "text", text: "Answer." }]);
   });
 
-  it("preserves distinct reasoning and summary text with coincidentally matching letters", () => {
-    const result = convertLangChainBaseMessage(
-      aiMessage([
-        {
-          type: "reasoning",
-          reasoning: "Check net",
-          summary: [{ type: "summary_text", text: "temperature" }],
-        },
-      ]),
-      {},
-    );
+  it("renders the summary, falling back to the reasoning string when it is blank", () => {
+    const convert = (summary: string) =>
+      contentOf(
+        convertLangChainBaseMessage(
+          aiMessage([
+            {
+              type: "reasoning",
+              reasoning: "Check net",
+              summary: [{ type: "summary_text", text: summary }],
+            },
+          ]),
+          {},
+        ),
+      );
 
-    expect(contentOf(result)).toEqual([
-      { type: "reasoning", text: "Check net\n\n\ntemperature" },
+    expect(convert("temperature")).toEqual([
+      { type: "reasoning", text: "temperature" },
     ]);
+    expect(convert("  ")).toEqual([{ type: "reasoning", text: "Check net" }]);
   });
 
   it("tolerates null entries inside the summary array", () => {

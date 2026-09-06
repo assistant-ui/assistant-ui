@@ -35,7 +35,7 @@ describe("useLangChainStreamingTiming", () => {
     );
   });
 
-  it("counts both preserved reasoning and summary text", () => {
+  it("counts the summary text the converter renders, not the reasoning it shadows", () => {
     const messages: LangChainBaseMessage[] = [
       {
         id: "msg-1",
@@ -58,7 +58,7 @@ describe("useLangChainStreamingTiming", () => {
     });
 
     expect(result.current["msg-1"]?.tokenCount).toBe(
-      Math.ceil("partial thinking\n\n\nfirst summary".length / 4),
+      Math.ceil("first summary".length / 4),
     );
   });
 });
