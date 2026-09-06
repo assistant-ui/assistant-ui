@@ -162,21 +162,21 @@ function getToolApprovalAndInterrupt(
   interrupt?: NonNullable<ToolCallMessagePart["interrupt"]>;
 } {
   if (part.approval) {
-    // The AI SDK sends only id, approved and reason back to the server, and
-    // models no cancelled or expired state, so a request shape promising any
-    // other answer would render controls whose response cannot travel.
+    // The AI SDK sends only id, approved and reason back to the server, so a
+    // request shape promising any other answer would render controls whose
+    // response cannot travel.
     const {
       id,
       prompt,
       approved,
       reason,
       isAutomatic,
+      resolution,
       display,
       allowFreeform,
       options,
       optionId,
       text,
-      resolution,
       ...additionalApprovalFields
     } = part.approval;
     if (typeof id === "string")
@@ -188,6 +188,9 @@ function getToolApprovalAndInterrupt(
           ...(typeof approved === "boolean" && { approved }),
           ...(typeof reason === "string" && { reason }),
           ...(isAutomatic === true && { isAutomatic: true }),
+          ...((resolution === "cancelled" || resolution === "expired") && {
+            resolution,
+          }),
         } as NonNullable<ToolCallMessagePart["approval"]>,
       };
   }
