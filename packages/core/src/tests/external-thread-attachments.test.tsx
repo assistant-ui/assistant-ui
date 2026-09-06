@@ -4,6 +4,7 @@ import { act, render, waitFor } from "@testing-library/react";
 import type { FC } from "react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { AuiProvider, useAui } from "@assistant-ui/store";
+import { CompositeAttachmentAdapter } from "../adapters/attachment";
 import type {
   ExternalThreadMessage,
   ExternalThreadProps,
@@ -608,6 +609,97 @@ describe("ExternalThread attachments", () => {
       id: "att-edit",
       name: "notes.txt",
     });
+  });
+
+  it("removes complete edit attachments without adapter cleanup", async () => {
+    const remove = vi.fn(async () => {});
+    const completeAttachment = {
+      id: "image-1",
+      type: "image",
+      name: "image",
+      content: [{ type: "image", image: "data:image/png;base64,data" }],
+      status: { type: "complete" },
+    } as unknown as CompleteAttachment;
+    const aui = renderThreadWithProps({
+      messages: [
+        {
+          id: "u1",
+          role: "user",
+          content: [{ type: "text", text: "hi" }],
+          createdAt: new Date(0),
+          attachments: [completeAttachment],
+          metadata: { custom: {} },
+        } as unknown as ExternalThreadMessage,
+      ],
+      onEdit: () => {},
+      attachmentAdapter: new CompositeAttachmentAdapter([
+        {
+          accept: "image/*",
+          add: async () => {
+            throw new Error("not used");
+          },
+          send: async () => {
+            throw new Error("not used");
+          },
+          remove,
+        },
+      ]),
+    });
+    const composer = () => aui().thread.message({ id: "u1" }).composer();
+
+    await act(async () => composer().beginEdit());
+    await waitFor(() =>
+      expect(composer().getState().attachments).toHaveLength(1),
+    );
+    await act(() => composer().attachment({ id: "image-1" }).remove());
+
+    expect(remove).not.toHaveBeenCalled();
+    expect(composer().getState().attachments).toEqual([]);
+  });
+
+  it("calls adapter.remove for pending edit attachments", async () => {
+    const remove = vi.fn(async () => {});
+    const file = new File(["data"], "notes.txt", { type: "text/plain" });
+    const aui = renderThreadWithProps({
+      messages: [
+        {
+          id: "u1",
+          role: "user",
+          content: [{ type: "text", text: "hi" }],
+          createdAt: new Date(0),
+          attachments: [],
+          metadata: { custom: {} },
+        } as unknown as ExternalThreadMessage,
+      ],
+      onEdit: () => {},
+      attachmentAdapter: {
+        accept: "*",
+        add: async () => ({
+          id: "pending-1",
+          type: "document" as const,
+          name: file.name,
+          contentType: file.type,
+          file,
+          status: {
+            type: "requires-action" as const,
+            reason: "composer-send" as const,
+          },
+        }),
+        send: async () => ({}) as never,
+        remove,
+      },
+    });
+    const composer = () => aui().thread.message({ id: "u1" }).composer();
+
+    await act(async () => composer().beginEdit());
+    await act(() => composer().addAttachment(file));
+    await act(() => composer().attachment({ id: "pending-1" }).remove());
+
+    expect(remove).toHaveBeenCalledTimes(1);
+    expect(remove).toHaveBeenCalledWith(
+      expect.objectContaining({ id: "pending-1" }),
+    );
+    expect(composer().getState().attachments).toEqual([]);
   });
 
   it("merges the failed send into a draft the user already modified", async () => {

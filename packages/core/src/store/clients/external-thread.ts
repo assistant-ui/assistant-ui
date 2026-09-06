@@ -516,7 +516,9 @@ const useComposerClientResource = ({
           attachment,
           onRemove: async () => {
             attachmentAddOperations.cancel(attachment.id);
-            await attachmentAdapter?.remove(attachment);
+            if (attachment.status.type !== "complete") {
+              await attachmentAdapter?.remove(attachment);
+            }
             setAttachments((prev) =>
               prev.filter((a) => a.id !== attachment.id),
             );
