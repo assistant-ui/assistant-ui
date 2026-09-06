@@ -1,7 +1,16 @@
 import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
-import { afterAll, beforeAll, describe, expect, it, vi } from "vitest";
+import {
+  afterAll,
+  afterEach,
+  beforeAll,
+  beforeEach,
+  describe,
+  expect,
+  it,
+  vi,
+} from "vitest";
 import { add, createAddComponentsPlan } from "../../src/commands/add";
 
 describe("add command", () => {
@@ -100,6 +109,17 @@ describe("add directory selection", () => {
 
   let originalCwd: string;
   let originalPath: string | undefined;
+  let exitSpy: ReturnType<typeof vi.spyOn>;
+
+  beforeEach(() => {
+    exitSpy = vi.spyOn(process, "exit").mockImplementation((code) => {
+      throw new Error(`process.exit(${String(code)})`);
+    });
+  });
+
+  afterEach(() => {
+    exitSpy.mockRestore();
+  });
 
   beforeAll(() => {
     fs.mkdirSync(projectDir, { recursive: true });
@@ -130,10 +150,6 @@ describe("add directory selection", () => {
   });
 
   it("resolves a relative directory once, against the caller", async () => {
-    vi.spyOn(process, "exit").mockImplementation((code) => {
-      throw new Error(`process.exit(${String(code)})`);
-    });
-
     await add.parseAsync(["thread", "--cwd", "app", "--use-npm"], {
       from: "user",
     });
