@@ -420,6 +420,26 @@ describe("PiThreadSupervisor", () => {
     unsubscribe();
   });
 
+  it("includes compaction and retry activity in live snapshots", async () => {
+    const session = {
+      ...createLiveSession(async () => {}),
+      isCompacting: true,
+      isRetrying: true,
+    } as AgentSession;
+    sdk.create.mockReturnValue({});
+    sdk.createAgentSession.mockResolvedValue({ session });
+    const supervisor = new PiThreadSupervisor({ workspacePath: "/ws" });
+
+    const snapshot = await supervisor.createThread();
+
+    expect(snapshot.metadata).toMatchObject({
+      status: "running",
+      compactionActive: true,
+      retryActive: true,
+    });
+    await supervisor.dispose();
+  });
+
   it("deletes a cold thread and forgets its cached catalog info", async () => {
     const supervisor = new PiThreadSupervisor({ workspacePath: "/ws" });
     await supervisor.getThread("t1"); // primes the per-thread catalog cache

@@ -108,9 +108,14 @@ const applySnapshot = (
       : snapshot.metadata.status === "failed"
         ? "failed"
         : "idle";
-  // The supervisor reports "running" during compaction and retries, so only a
-  // settled snapshot proves neither is in flight.
+  // Older supervisors omit activity flags, so settled status remains their
+  // only signal that neither operation is in flight.
   const settled = runStatus !== "running";
+  const compactionActive =
+    snapshot.metadata.compactionActive ??
+    (settled ? false : state.compaction.active);
+  const retryActive =
+    snapshot.metadata.retryActive ?? (settled ? false : state.retry.active);
 
   return {
     ...state,
@@ -121,8 +126,12 @@ const applySnapshot = (
     streamingMessageIndex: undefined,
     toolExecutions: {},
     runStatus,
-    compaction: settled ? { active: false } : state.compaction,
-    retry: settled ? { active: false, attempt: 0 } : state.retry,
+    compaction: compactionActive
+      ? { ...state.compaction, active: true }
+      : { active: false },
+    retry: retryActive
+      ? { ...state.retry, active: true }
+      : { active: false, attempt: 0 },
     // A missing `queuedMessages` means an empty queue (snapshots omit the
     // field when there is nothing queued, and cold threads have no queue at
     // all) — keeping the prior queue here would let items drained while the

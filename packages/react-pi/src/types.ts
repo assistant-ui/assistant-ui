@@ -387,6 +387,8 @@ export type PiThreadMetadata = {
   workspacePath?: string;
   archived?: boolean;
   status: PiThreadStatus;
+  compactionActive?: boolean;
+  retryActive?: boolean;
   runningRunId?: string;
   queuedMessages?: readonly PiQueuedMessage[];
   config?: {

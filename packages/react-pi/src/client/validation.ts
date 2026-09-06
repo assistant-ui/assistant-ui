@@ -255,6 +255,8 @@ export const isThreadMetadata = (value: unknown): value is PiThreadMetadata =>
   isOptionalString(value.title) &&
   isOptionalString(value.workspacePath) &&
   isOptionalBoolean(value.archived) &&
+  isOptionalBoolean(value.compactionActive) &&
+  isOptionalBoolean(value.retryActive) &&
   isOptionalString(value.runningRunId) &&
   isThreadConfig(value.config) &&
   (value.contextUsage === undefined || isContextUsage(value.contextUsage)) &&

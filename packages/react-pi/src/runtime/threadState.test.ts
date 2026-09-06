@@ -224,9 +224,18 @@ describe("threadState", () => {
     expect(s.retry.active).toBe(false);
   });
 
-  it.each(["idle", "failed", "running"] as const)(
-    "reconciles compaction and retry flags with a %s snapshot",
-    (status) => {
+  it.each([
+    { status: "idle", metadata: {}, clear: true },
+    { status: "failed", metadata: {}, clear: true },
+    {
+      status: "running",
+      metadata: { compactionActive: false, retryActive: false },
+      clear: true,
+    },
+    { status: "running", metadata: {}, clear: false },
+  ] as const)(
+    "reconciles compaction and retry flags with a $status snapshot",
+    ({ status, metadata, clear }) => {
       const before = apply(
         createPiThreadState("t1"),
         ev({ type: "compaction_start", reason: "threshold" }),
@@ -236,14 +245,17 @@ describe("threadState", () => {
         before,
         ev({
           type: "snapshot",
-          snapshot: { metadata: { id: "t1", status }, messages: [] },
+          snapshot: {
+            metadata: { id: "t1", status, ...metadata },
+            messages: [],
+          },
         }),
       );
       expect(after.compaction).toEqual(
-        status === "running" ? before.compaction : { active: false },
+        clear ? { active: false } : before.compaction,
       );
       expect(after.retry).toEqual(
-        status === "running" ? before.retry : { active: false, attempt: 0 },
+        clear ? { active: false, attempt: 0 } : before.retry,
       );
     },
   );

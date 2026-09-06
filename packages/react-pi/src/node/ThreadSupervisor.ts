@@ -736,6 +736,8 @@ export class PiThreadSupervisor {
     return {
       id: record.threadId,
       status: this.runStatus(record),
+      compactionActive: session.isCompacting,
+      retryActive: session.isRetrying,
       workspacePath: record.workspacePath,
       messageCount: session.messages.length,
       ...(session.sessionName ? { title: session.sessionName } : {}),
