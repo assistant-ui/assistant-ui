@@ -96,18 +96,32 @@ type LiveSnapshot = {
   output: unknown;
 };
 
+type FrameLifecycle = {
+  onInitialized: () => void;
+  onSizeChange: (params: { width?: number; height?: number }) => void;
+};
+
 // Proxy each per-call handler through liveRef so the bridge always dispatches
 // to the latest handler reference (e.g. inline callbacks closing over state).
 // Capability presence is snapshot at mount: a handler added later requires a
 // remount (keyed on resource URI) to expose the capability to the widget.
+// The frame's own lifecycle work arrives as a parameter rather than wrapping
+// the result, because spreading this object would evaluate the allowedTools
+// getter and freeze the allowlist at its mount-time value.
 function buildLiveHandlers(
   initial: McpAppBridgeHandlers | undefined,
   liveRef: { readonly current: LiveSnapshot },
+  lifecycle: FrameLifecycle,
 ): McpAppBridgeHandlers {
   const live = () => liveRef.current.handlers;
   const has = <K extends keyof McpAppBridgeHandlers>(key: K) =>
     initial?.[key] !== undefined;
   const out: McpAppBridgeHandlers = {};
+  Object.defineProperty(out, "allowedTools", {
+    get: () => live()?.allowedTools,
+    enumerable: true,
+    configurable: true,
+  });
   const liveCall = <K extends keyof McpAppBridgeHandlers>(
     key: K,
   ): NonNullable<McpAppBridgeHandlers[K]> =>
@@ -127,8 +141,14 @@ function buildLiveHandlers(
     out.updateModelContext = liveCall("updateModelContext");
   if (has("requestDisplayMode"))
     out.requestDisplayMode = liveCall("requestDisplayMode");
-  out.onSizeChange = (p) => live()?.onSizeChange?.(p);
-  out.onInitialized = () => live()?.onInitialized?.();
+  out.onSizeChange = (p) => {
+    lifecycle.onSizeChange(p);
+    live()?.onSizeChange?.(p);
+  };
+  out.onInitialized = () => {
+    lifecycle.onInitialized();
+    live()?.onInitialized?.();
+  };
   out.onRequestTeardown = (p) => live()?.onRequestTeardown?.(p);
   out.onLog = (p) => live()?.onLog?.(p);
   out.onError = (e) => live()?.onError?.(e);
@@ -208,26 +228,17 @@ export function McpAppFrame({
       }
     };
 
-    const liveHandlers = buildLiveHandlers(current.handlers, liveRef);
-    const liveOnInitialized = liveHandlers.onInitialized;
-    const wrappedHandlers: McpAppBridgeHandlers = {
-      ...liveHandlers,
+    const wrappedHandlers = buildLiveHandlers(current.handlers, liveRef, {
       onInitialized: () => {
         if (initTimeoutId !== null) {
           clearTimeout(initTimeoutId);
           initTimeoutId = null;
         }
         flushPending();
-        liveOnInitialized?.();
       },
       onSizeChange: (p) => {
         if (p.height != null) host.setHeight(p.height);
-        liveHandlers.onSizeChange?.(p);
       },
-    };
-    Object.defineProperty(wrappedHandlers, "allowedTools", {
-      get: () => liveRef.current.handlers?.allowedTools,
-      enumerable: true,
     });
 
     // Safety net: if the widget never sends notifications/initialized (broken
