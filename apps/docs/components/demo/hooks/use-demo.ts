@@ -76,10 +76,10 @@ export function useStoryPhases(durations: readonly number[]): StoryPhases {
     stage?.setPlaying(running);
   }, [stage, running]);
 
-  const [syncedRunning, setSyncedRunning] = useState<boolean | null>(null);
+  const [syncedRun, setSyncedRun] = useState({ running, epoch });
 
-  if (syncedRunning !== running) {
-    setSyncedRunning(running);
+  if (syncedRun.running !== running || syncedRun.epoch !== epoch) {
+    setSyncedRun({ running, epoch });
     if (running) setPhase(0);
   }
 
@@ -114,7 +114,7 @@ export function useStoryPhases(durations: readonly number[]): StoryPhases {
 /** Elapsed tenths of a second while `running`, reset on each rising edge. */
 export function useElapsed(running: boolean): number {
   const [tenths, setTenths] = useState(0);
-  const [syncedRunning, setSyncedRunning] = useState<boolean | null>(null);
+  const [syncedRunning, setSyncedRunning] = useState(running);
 
   if (syncedRunning !== running) {
     setSyncedRunning(running);

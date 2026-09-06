@@ -59,6 +59,7 @@ export function ScrollAnchor({
       // pinned scroll still runs for that message.
       // eslint-disable-next-line react-hooks/set-state-in-effect
       setPinned(false);
+      setSeenCount(count);
       const viewport = viewportRef.current;
       if (viewport) viewport.scrollTo({ top: 0, behavior: "smooth" });
     }

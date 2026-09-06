@@ -1,6 +1,6 @@
 "use client";
 
-import { useSyncExternalStore } from "react";
+import { useReducedMotion } from "@/hooks/use-reduced-motion";
 
 import { cn } from "@/lib/utils";
 import {
@@ -17,17 +17,6 @@ import { WeatherDataOverlay } from "./weather-data-overlay";
 
 type TimeCheckpoint = "dawn" | "noon" | "dusk" | "midnight";
 
-const subscribeToReducedMotion = (onStoreChange: () => void) => {
-  const mql = window.matchMedia("(prefers-reduced-motion: reduce)");
-  mql.addEventListener("change", onStoreChange);
-  return () => mql.removeEventListener("change", onStoreChange);
-};
-
-const getReducedMotion = () =>
-  window.matchMedia("(prefers-reduced-motion: reduce)").matches;
-
-const getServerReducedMotion = () => false;
-
 export function WeatherWidget({
   version: _version,
   id,
@@ -40,11 +29,7 @@ export function WeatherWidget({
   className,
   effects,
 }: WeatherWidgetRuntimeProps) {
-  const prefersReducedMotion = useSyncExternalStore(
-    subscribeToReducedMotion,
-    getReducedMotion,
-    getServerReducedMotion,
-  );
+  const prefersReducedMotion = useReducedMotion();
 
   const reducedMotion = effects?.reducedMotion ?? prefersReducedMotion;
   const effectsEnabled = effects?.enabled !== false && !reducedMotion;

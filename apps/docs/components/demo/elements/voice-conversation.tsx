@@ -34,7 +34,13 @@ export function VoiceConversationDemo() {
   const [amplitude, setAmplitude] = useState(0.2);
   const [muted, setMuted] = useState(false);
   const oscillating = running && (mode === "listening" || mode === "speaking");
+  const [syncedOscillating, setSyncedOscillating] = useState(oscillating);
   const displayAmplitude = oscillating ? amplitude : 0.15;
+
+  if (syncedOscillating !== oscillating) {
+    setSyncedOscillating(oscillating);
+    if (oscillating) setAmplitude(0.15);
+  }
 
   useEffect(() => {
     if (!oscillating) return;

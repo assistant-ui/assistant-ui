@@ -31,7 +31,7 @@ function greet(name: string) {
 export const StreamdownSample = () => {
   const [isStreaming, setIsStreaming] = useState(false);
   const [streamedText, setStreamedText] = useState("");
-  const [syncedStreaming, setSyncedStreaming] = useState<boolean | null>(null);
+  const [syncedStreaming, setSyncedStreaming] = useState(isStreaming);
 
   if (syncedStreaming !== isStreaming) {
     setSyncedStreaming(isStreaming);

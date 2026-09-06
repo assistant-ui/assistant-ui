@@ -20,29 +20,30 @@ const subscribeToNothing = () => () => {};
 
 const notEnhanced = () => false;
 
-const canAnimate = () => {
-  if (supportsRoll === undefined) {
-    supportsRoll =
-      typeof CSS !== "undefined" &&
-      typeof CSS.registerProperty === "function" &&
-      CSS.supports(
-        "transform",
-        "translateY(clamp(-1lh, calc((mod(7.5, 10) - 5) * 1lh), 1lh))",
-      );
-    if (supportsRoll) {
-      try {
-        CSS.registerProperty({
-          name: "--aui-number-roll-pos",
-          syntax: "<number>",
-          inherits: true,
-          initialValue: "0",
-        });
-      } catch {
-        /* Already registered by another copy of this component. */
-      }
-    }
+let rollPropertyRegistered = false;
+
+const readSupportsRoll = () =>
+  (supportsRoll ??=
+    typeof CSS !== "undefined" &&
+    typeof CSS.registerProperty === "function" &&
+    CSS.supports(
+      "transform",
+      "translateY(clamp(-1lh, calc((mod(7.5, 10) - 5) * 1lh), 1lh))",
+    ));
+
+const registerRollProperty = () => {
+  if (rollPropertyRegistered) return;
+  rollPropertyRegistered = true;
+  try {
+    CSS.registerProperty({
+      name: "--aui-number-roll-pos",
+      syntax: "<number>",
+      inherits: true,
+      initialValue: "0",
+    });
+  } catch {
+    /* Already registered by another copy of this component. */
   }
-  return supportsRoll;
 };
 
 /* Cached because Intl.NumberFormat construction is expensive and inline format/locales props change identity on every parent render. */
@@ -262,9 +263,13 @@ function NumberRoll({
 }: NumberRollProps) {
   const enhanced = useSyncExternalStore(
     subscribeToNothing,
-    canAnimate,
+    readSupportsRoll,
     notEnhanced,
   );
+
+  useEffect(() => {
+    if (enhanced) registerRollProperty();
+  }, [enhanced]);
 
   const formatter = getFormatter(locales, format);
   const parts = useMemo(

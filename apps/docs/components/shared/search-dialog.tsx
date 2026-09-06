@@ -211,9 +211,16 @@ export function SearchDialog({ open, onOpenChange }: SearchDialogProps) {
     if (open) {
       setInputValue("");
       setSelectedIndex(0);
-      setPageEntries(collectPageEntries(pathname));
     }
   }
+
+  useEffect(() => {
+    if (!open) return;
+    // The headings are collected from the committed page DOM, so this cannot
+    // move into render.
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    setPageEntries(collectPageEntries(pathname));
+  }, [open, pathname]);
 
   const query = inputValue.trim();
   const tokens = useMemo(() => tokenize(query), [query]);

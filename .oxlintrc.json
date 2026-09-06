@@ -104,7 +104,10 @@
       }
     },
     {
-      "files": ["**/*.test.ts", "**/*.test.tsx"],
+      "files": [
+        "packages/react/src/primitives/thread/useThreadViewportAutoScroll.test.tsx",
+        "packages/store/src/createAssistantClient.test.ts"
+      ],
       "rules": {
         "react/set-state-in-effect": "off"
       }
