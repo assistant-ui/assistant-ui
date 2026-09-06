@@ -466,6 +466,35 @@ const useLiveState = <T>(initial: T) => {
   return [state, set, ref] as const;
 };
 
+// A try/catch inside the resource makes the React Compiler bail out of the
+// whole hook, so the adapter call and its failure status live at module scope.
+const removeAttachmentThroughAdapter = async (
+  attachment: Attachment,
+  attachmentAdapter: AttachmentAdapter | undefined,
+  setAttachments: (
+    next:
+      | readonly Attachment[]
+      | ((prev: readonly Attachment[]) => readonly Attachment[]),
+  ) => void,
+) => {
+  try {
+    await attachmentAdapter?.remove(attachment);
+  } catch (error) {
+    const message = error instanceof Error ? error.message : String(error);
+    setAttachments((prev) =>
+      prev.map((candidate) =>
+        candidate.id === attachment.id && !isAttachmentComplete(candidate)
+          ? {
+              ...candidate,
+              status: { type: "incomplete", reason: "error", message },
+            }
+          : candidate,
+      ),
+    );
+    throw error;
+  }
+};
+
 // Composer Client - minimal implementation
 const useComposerClientResource = ({
   type,
@@ -520,28 +549,11 @@ const useComposerClientResource = ({
           onRemove: async () => {
             attachmentAddOperations.cancel(attachment.id);
             if (!isAttachmentComplete(attachment)) {
-              try {
-                await attachmentAdapter?.remove(attachment);
-              } catch (error) {
-                const errorMessage =
-                  error instanceof Error ? error.message : String(error);
-                setAttachments((prev) =>
-                  prev.map((candidate) =>
-                    candidate.id === attachment.id &&
-                    !isAttachmentComplete(candidate)
-                      ? {
-                          ...candidate,
-                          status: {
-                            type: "incomplete",
-                            reason: "error",
-                            message: errorMessage,
-                          },
-                        }
-                      : candidate,
-                  ),
-                );
-                throw error;
-              }
+              await removeAttachmentThroughAdapter(
+                attachment,
+                attachmentAdapter,
+                setAttachments,
+              );
             }
             setAttachments((prev) =>
               prev.filter((a) => a.id !== attachment.id),
