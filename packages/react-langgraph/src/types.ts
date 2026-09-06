@@ -36,6 +36,8 @@ export type LangChainToolCall = {
 export type MessageContentText = {
   type: "text" | "text_delta";
   text: string;
+  index?: number;
+  citations?: readonly unknown[];
 };
 
 export type MessageContentImageUrl = {

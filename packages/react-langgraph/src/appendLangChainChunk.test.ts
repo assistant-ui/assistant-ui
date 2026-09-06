@@ -179,6 +179,43 @@ describe("appendLangChainChunk continuation content", () => {
     ]);
   });
 
+  it("accumulates one citation per delta across a cited answer", () => {
+    const first = { type: "char_location", cited_text: "Paris" };
+    const second = { type: "char_location", cited_text: "France" };
+    const chunk = (content: unknown) =>
+      ({
+        type: "AIMessageChunk",
+        id: "ai-1",
+        content,
+      }) as unknown as LangChainMessageChunk;
+
+    let merged = append(
+      undefined,
+      chunk([{ index: 0, type: "text_delta", text: "Paris" }]),
+    );
+    merged = append(
+      merged,
+      chunk([{ index: 0, type: "text", citations: [first] }]),
+    );
+    merged = append(
+      merged,
+      chunk([{ index: 0, type: "text_delta", text: " is in France" }]),
+    );
+    merged = append(
+      merged,
+      chunk([{ index: 0, type: "text", citations: [second] }]),
+    );
+
+    expect(merged.content).toEqual([
+      {
+        index: 0,
+        type: "text",
+        text: "Paris is in France",
+        citations: [first, second],
+      },
+    ]);
+  });
+
   it("merges a citation-only text_delta into the preceding text", () => {
     const first = append(undefined, {
       type: "AIMessageChunk",
