@@ -1275,6 +1275,8 @@ type MessageContentReasoningSummaryText = {
 type MessageContentText = {
   type: "text" | "text_delta";
   text: string;
+  index?: number;
+  citations?: readonly unknown[];
 };
 
 type MessageContentThinking = {
