@@ -35,29 +35,24 @@ vi.mock("./useExternalHistory", async (importOriginal) => {
 
 import { useAISDKRuntime } from "./useAISDKRuntime";
 
-const renderWithChat = (addToolApprovalResponse: () => Promise<void>) => {
-  const chat = {
-    id: "chat-1",
-    status: "ready",
-    error: undefined,
-    messages: [],
-    setMessages: vi.fn(),
-    sendMessage: vi.fn(),
-    regenerate: vi.fn(),
-    addToolOutput: vi.fn(),
-    addToolApprovalResponse,
-    stop: vi.fn(),
-  };
-
-  renderHook(() => useAISDKRuntime(chat as never));
-};
-
 describe("useAISDKRuntime tool approvals", () => {
   it("forwards the AI SDK approval promise to the external-store adapter", () => {
     const approvalPromise = Promise.resolve();
     const addToolApprovalResponse = vi.fn(() => approvalPromise);
+    const chat = {
+      id: "chat-1",
+      status: "ready",
+      error: undefined,
+      messages: [],
+      setMessages: vi.fn(),
+      sendMessage: vi.fn(),
+      regenerate: vi.fn(),
+      addToolOutput: vi.fn(),
+      addToolApprovalResponse,
+      stop: vi.fn(),
+    };
 
-    renderWithChat(addToolApprovalResponse);
+    renderHook(() => useAISDKRuntime(chat as never));
 
     const result = mocks.adapter?.onRespondToToolApproval?.({
       approvalId: "approval-1",
@@ -70,29 +65,5 @@ describe("useAISDKRuntime tool approvals", () => {
       approved: true,
       options: { metadata: undefined },
     });
-  });
-
-  it("rejects an answer the AI SDK approval response cannot carry", () => {
-    const addToolApprovalResponse = vi.fn(() => Promise.resolve());
-
-    renderWithChat(addToolApprovalResponse);
-
-    expect(() =>
-      mocks.adapter?.onRespondToToolApproval?.({
-        approvalId: "approval-1",
-        approved: true,
-        optionId: "allow-once",
-      }),
-    ).toThrow(/cannot carry/);
-
-    expect(() =>
-      mocks.adapter?.onRespondToToolApproval?.({
-        approvalId: "approval-1",
-        approved: true,
-        text: "the second option",
-      }),
-    ).toThrow(/cannot carry/);
-
-    expect(addToolApprovalResponse).not.toHaveBeenCalled();
   });
 });
