@@ -24,6 +24,11 @@ const findByIndex = (
   );
 };
 
+// The accumulated message stays faithful to the wire, so a block type the
+// converter does not render is still kept: only the tool-call representations
+// are excluded, because the structured tool_call_chunks own those values.
+// Unlike `_mergeDicts` this replaces rather than concatenates a repeated string
+// field, which no provider currently splits across chunks on such a block.
 // `_mergeDicts` skips a null incoming value and never lets an empty string
 // replace an accumulated one, so a continuation chunk that repeats a block's
 // keys as placeholders cannot erase what earlier chunks already carried.
