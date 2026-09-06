@@ -19,8 +19,8 @@ function onlyWhitespace(text: string, from: number, to: number): boolean {
 /**
  * Index of the start of the last top-level block: the character after the most
  * recent blank line that sits outside any open code fence or `$$` math block.
- * An unclosed fence or math span always begins after such a blank, so it stays
- * wholly inside the returned window without separate tracking. One char pass.
+ * Retained for compatibility. This boundary does not limit Markdown repair:
+ * built-in transforms and custom handlers can change text before the boundary.
  */
 export function findRemendWindowStart(text: string): number {
   const n = text.length;
