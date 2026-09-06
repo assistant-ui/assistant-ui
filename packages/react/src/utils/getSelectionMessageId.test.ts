@@ -222,7 +222,7 @@ describe("getSelectionMessageId", () => {
     expect(getSelectionMessageId(selection)).toBeNull();
   });
 
-  it("rejects another range over excluded content beside a nested quote region", () => {
+  it("rejects another range inside the excluded ancestor of the active quote region", () => {
     document.body.innerHTML = `
       <div data-message-id="message-1">
         <div data-aui-quote-selectable="false">
@@ -234,6 +234,28 @@ describe("getSelectionMessageId", () => {
 
     const range = document.createRange();
     range.selectNodeContents(textNode("#sibling"));
+    const selection = selectText(textNode("#active"));
+    const active = selection.getRangeAt(0);
+    vi.spyOn(selection, "rangeCount", "get").mockReturnValue(2);
+    vi.spyOn(selection, "getRangeAt").mockImplementation((index) => {
+      if (index === 0) return range;
+      if (index === 1) return active;
+      throw new DOMException("Range index out of bounds", "IndexSizeError");
+    });
+
+    expect(getSelectionMessageId(selection)).toBeNull();
+  });
+
+  it("rejects another range in a different message", () => {
+    document.body.innerHTML = `
+      <div data-message-id="message-1"><p id="active">active text</p></div>
+      <div data-message-id="message-2">
+        <p id="other" data-aui-quote-selectable="false">excluded prose</p>
+      </div>
+    `;
+
+    const range = document.createRange();
+    range.selectNodeContents(textNode("#other"));
     const selection = selectText(textNode("#active"));
     const active = selection.getRangeAt(0);
     vi.spyOn(selection, "rangeCount", "get").mockReturnValue(2);

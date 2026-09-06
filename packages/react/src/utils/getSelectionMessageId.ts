@@ -74,18 +74,16 @@ export const getSelectionMessageId = (selection: Selection): string | null => {
   if (anchorMarker && isExcluded(anchorMarker)) return null;
   if (focusMarker && isExcluded(focusMarker)) return null;
 
-  if (!hasQuoteSelectableRegion(anchorMessageElement)) {
-    return intersectsExcluded(anchorMessageElement, selection)
-      ? null
-      : messageId;
+  if (hasQuoteSelectableRegion(anchorMessageElement)) {
+    if (!anchorMarker || anchorMarker !== focusMarker) return null;
   }
 
-  if (!anchorMarker || anchorMarker !== focusMarker) return null;
+  const scope = anchorMarker ?? anchorMessageElement;
 
   for (let i = 0; i < selection.rangeCount; i++) {
     const { commonAncestorContainer } = selection.getRangeAt(i);
-    if (!anchorMarker.contains(commonAncestorContainer)) return null;
+    if (!scope.contains(commonAncestorContainer)) return null;
   }
 
-  return intersectsExcluded(anchorMarker, selection) ? null : messageId;
+  return intersectsExcluded(scope, selection) ? null : messageId;
 };
