@@ -387,6 +387,9 @@ export type PiThreadMetadata = {
   workspacePath?: string;
   archived?: boolean;
   status: PiThreadStatus;
+  compactionActive?: boolean;
+  retryActive?: boolean;
+  retryAttempt?: number;
   runningRunId?: string;
   queuedMessages?: readonly PiQueuedMessage[];
   config?: {
@@ -565,6 +568,10 @@ export type PiThreadSnapshot = {
    * supervisor record, not the connection). */
   hostUiRequests?: readonly PiHostUiRequest[];
   readiness?: PiRuntimeReadiness;
+  /** Per-thread seq this snapshot reflects. A response fetched over HTTP can
+   * resolve after live events it predates, so the reducer needs it to tell a
+   * superseded snapshot from a current one. Absent on cold reads. */
+  seq?: number;
   /** Last surfaced runtime/session error, if any. */
   lastError?: string;
 };

@@ -94,6 +94,7 @@ const createLiveSession = (prompt: AgentSession["prompt"]) =>
     isStreaming: false,
     isCompacting: false,
     isRetrying: false,
+    retryAttempt: 0,
     bindExtensions: vi.fn(async () => {}),
     subscribe: vi.fn(() => () => {}),
     prompt,
@@ -399,6 +400,7 @@ describe("PiThreadSupervisor", () => {
       isStreaming: false,
       isCompacting: false,
       isRetrying: false,
+      retryAttempt: 0,
       subscribe: vi.fn(() => () => {}),
       bindExtensions: vi.fn(async () => {}),
       getContextUsage: vi.fn(),
@@ -418,6 +420,29 @@ describe("PiThreadSupervisor", () => {
     await vi.waitFor(() => expect(listener).toHaveBeenCalledTimes(1));
     expect(listener.mock.calls[0]?.[0].type).toBe("snapshot");
     unsubscribe();
+  });
+
+  it("includes compaction and retry activity in live snapshots", async () => {
+    const session = {
+      ...createLiveSession(async () => {}),
+      isCompacting: true,
+      isRetrying: true,
+      retryAttempt: 2,
+    } as AgentSession;
+    sdk.create.mockReturnValue({});
+    sdk.createAgentSession.mockResolvedValue({ session });
+    const supervisor = new PiThreadSupervisor({ workspacePath: "/ws" });
+
+    const snapshot = await supervisor.createThread();
+
+    expect(snapshot.metadata).toMatchObject({
+      status: "running",
+      compactionActive: true,
+      retryActive: true,
+      retryAttempt: 2,
+    });
+    expect(snapshot.seq).toBe(0);
+    await supervisor.dispose();
   });
 
   it("deletes a cold thread and forgets its cached catalog info", async () => {

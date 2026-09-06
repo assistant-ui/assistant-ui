@@ -249,6 +249,26 @@ describe("rewriteLatexBracketDelimiters", () => {
     ).toBe("  ~~~\n\\[a\\]\n~~~\nafter $x$");
   });
 
+  it("preserves tilde fences after list markers, indentation, and tabs", () => {
+    const cases: Array<[string, string]> = [
+      [
+        "- ~~~text\n  \\(x\\)\n  ~~~\nafter \\(y\\)",
+        "- ~~~text\n  \\(x\\)\n  ~~~\nafter $y$",
+      ],
+      [
+        "1. Step\n   - Sub\n     ~~~text\n     \\(x\\)\n     ~~~\nafter \\(y\\)",
+        "1. Step\n   - Sub\n     ~~~text\n     \\(x\\)\n     ~~~\nafter $y$",
+      ],
+      [
+        "\t~~~text\n\t\\(x\\)\n\t~~~\nafter \\(y\\)",
+        "\t~~~text\n\t\\(x\\)\n\t~~~\nafter $y$",
+      ],
+    ];
+    for (const [fenced, expected] of cases) {
+      expect(rewriteLatexBracketDelimiters(fenced)).toBe(expected);
+    }
+  });
+
   it("does not close a root fence on a quoted tilde line inside it", () => {
     const fenced = "~~~\n> ~~~\n\\(x\\) still code\n~~~\nafter \\(y\\)";
     expect(rewriteLatexBracketDelimiters(fenced)).toBe(
@@ -256,9 +276,17 @@ describe("rewriteLatexBracketDelimiters", () => {
     );
   });
 
-  it("does not open a fence from a four-space indented marker", () => {
-    expect(rewriteLatexBracketDelimiters("    > ~~~\n\\(x\\)")).toBe(
-      "    > ~~~\n$x$",
+  it("preserves a tilde fence after an indented blockquote marker", () => {
+    const fenced = "    > ~~~\n> \\(x\\)\n> ~~~\nafter \\(y\\)";
+    expect(rewriteLatexBracketDelimiters(fenced)).toBe(
+      "    > ~~~\n> \\(x\\)\n> ~~~\nafter $y$",
+    );
+  });
+
+  it("accepts a four-space root tilde fence", () => {
+    const fenced = "    ~~~\n\\(x\\)\n    ~~~\nafter \\(y\\)";
+    expect(rewriteLatexBracketDelimiters(fenced)).toBe(
+      "    ~~~\n\\(x\\)\n    ~~~\nafter $y$",
     );
   });
 
@@ -467,6 +495,26 @@ describe("escapeCurrencyDollars", () => {
     expect(escapeCurrencyDollars("~~~text\n$5\n~~~\nafter $10")).toBe(
       "~~~text\n$5\n~~~\nafter \\$10",
     );
+  });
+
+  it("preserves tilde-fenced currency after list markers, indentation, and tabs", () => {
+    const cases: Array<[string, string]> = [
+      [
+        "- ~~~text\n  $5\n  ~~~\nafter $10",
+        "- ~~~text\n  $5\n  ~~~\nafter \\$10",
+      ],
+      [
+        "1. Step\n   - Sub\n     ~~~text\n     $5\n     ~~~\nafter $10",
+        "1. Step\n   - Sub\n     ~~~text\n     $5\n     ~~~\nafter \\$10",
+      ],
+      [
+        "\t~~~text\n\t$5\n\t~~~\nafter $10",
+        "\t~~~text\n\t$5\n\t~~~\nafter \\$10",
+      ],
+    ];
+    for (const [fenced, expected] of cases) {
+      expect(escapeCurrencyDollars(fenced)).toBe(expected);
+    }
   });
 
   it("preserves currency while a tilde fence is incomplete", () => {

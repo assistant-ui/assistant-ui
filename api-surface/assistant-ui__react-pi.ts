@@ -1468,6 +1468,9 @@ type PiThreadMetadata = {
   workspacePath?: string;
   archived?: boolean;
   status: PiThreadStatus;
+  compactionActive?: boolean;
+  retryActive?: boolean;
+  retryAttempt?: number;
   runningRunId?: string;
   queuedMessages?: readonly PiQueuedMessage[];
   config?: {
@@ -1488,6 +1491,7 @@ type PiThreadSnapshot = {
   messages: PiTranscriptMessage[];
   hostUiRequests?: readonly PiHostUiRequest[];
   readiness?: PiRuntimeReadiness;
+  seq?: number;
   lastError?: string;
 };
 

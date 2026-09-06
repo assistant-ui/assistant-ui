@@ -224,9 +224,18 @@ describe("threadState", () => {
     expect(s.retry.active).toBe(false);
   });
 
-  it.each(["idle", "failed", "running"] as const)(
-    "reconciles compaction and retry flags with a %s snapshot",
-    (status) => {
+  it.each([
+    { status: "idle", metadata: {}, clear: true },
+    { status: "failed", metadata: {}, clear: true },
+    {
+      status: "running",
+      metadata: { compactionActive: false, retryActive: false },
+      clear: true,
+    },
+    { status: "running", metadata: {}, clear: false },
+  ] as const)(
+    "reconciles compaction and retry flags with a $status snapshot",
+    ({ status, metadata, clear }) => {
       const before = apply(
         createPiThreadState("t1"),
         ev({ type: "compaction_start", reason: "threshold" }),
@@ -236,17 +245,108 @@ describe("threadState", () => {
         before,
         ev({
           type: "snapshot",
-          snapshot: { metadata: { id: "t1", status }, messages: [] },
+          snapshot: {
+            metadata: { id: "t1", status, ...metadata },
+            messages: [],
+          },
         }),
       );
       expect(after.compaction).toEqual(
-        status === "running" ? before.compaction : { active: false },
+        clear ? { active: false } : before.compaction,
       );
       expect(after.retry).toEqual(
-        status === "running" ? before.retry : { active: false, attempt: 0 },
+        clear ? { active: false, attempt: 0 } : before.retry,
       );
     },
   );
+
+  it("keeps metadata activity in step with the live events", () => {
+    let s = apply(
+      createPiThreadState("t1"),
+      ev({
+        type: "snapshot",
+        snapshot: {
+          metadata: {
+            id: "t1",
+            status: "running",
+            compactionActive: true,
+            retryActive: true,
+            retryAttempt: 2,
+          },
+          messages: [],
+        },
+      }),
+    );
+    expect(s.metadata).toMatchObject({
+      compactionActive: true,
+      retryActive: true,
+      retryAttempt: 2,
+    });
+
+    s = apply(
+      s,
+      ev({ type: "compaction_end", aborted: false, willRetry: false }),
+      ev({ type: "auto_retry_end", success: true }),
+    );
+    expect(s.metadata).toMatchObject({
+      compactionActive: false,
+      retryActive: false,
+      retryAttempt: 0,
+    });
+    expect(s.compaction.active).toBe(false);
+    expect(s.retry).toEqual({ active: false, attempt: 0 });
+  });
+
+  it("keeps live flags when a snapshot is behind the applied events", () => {
+    const before = apply(
+      createPiThreadState("t1"),
+      ev({ type: "compaction_start", reason: "threshold" }),
+      ev({ type: "auto_retry_start", attempt: 2, delayMs: 500 }),
+    );
+    const after = apply(
+      before,
+      ev({
+        type: "snapshot",
+        snapshot: {
+          metadata: {
+            id: "t1",
+            status: "running",
+            compactionActive: false,
+            retryActive: false,
+          },
+          seq: before.lastSeq - 1,
+          messages: [],
+        },
+      }),
+    );
+    expect(after.compaction).toEqual(before.compaction);
+    expect(after.retry).toEqual(before.retry);
+  });
+
+  it("restores the retry attempt from a current snapshot", () => {
+    const before = apply(
+      createPiThreadState("t1"),
+      ev({ type: "agent_start" }),
+    );
+    const after = apply(
+      before,
+      ev({
+        type: "snapshot",
+        snapshot: {
+          metadata: {
+            id: "t1",
+            status: "running",
+            compactionActive: false,
+            retryActive: true,
+            retryAttempt: 3,
+          },
+          seq: before.lastSeq + 1,
+          messages: [],
+        },
+      }),
+    );
+    expect(after.retry).toEqual({ active: true, attempt: 3 });
+  });
 
   it("agent_end with willRetry keeps running", () => {
     let s = apply(

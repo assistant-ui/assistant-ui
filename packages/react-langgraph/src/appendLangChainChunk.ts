@@ -151,26 +151,32 @@ export const appendLangChainChunk = (
       }
 
       const lastIndex = newContent.length - 1;
-      const last = newContent[lastIndex];
       if (item.type === "text" || item.type === "text_delta") {
         // `@langchain/anthropic` sends each citation as its own citations_delta:
         // a `text` block carrying only `citations` and no `text` field. Array
         // fields reach `_mergeLists` upstream, which appends rather than
         // replaces, so the citations of one answer accumulate across deltas.
+        // `_mergeLists` also drops an unmatched block whose `text` is empty, so a
+        // `content_block_start` opener never becomes an empty text part.
         const text = item.text ?? "";
-        if (last?.type === "text") {
+        const normalizedItem = { ...item, type: "text" as const, text };
+        const index =
+          item.index === undefined
+            ? lastIndex
+            : findByIndex(newContent, normalizedItem);
+        const existing = newContent[index];
+        if (existing?.type === "text") {
           const citations = [
-            ...(last.citations ?? []),
+            ...(existing.citations ?? []),
             ...(item.citations ?? []),
           ];
-          newContent[lastIndex] = mergeDefined(last, {
-            ...item,
-            type: "text",
-            text: last.text + text,
+          newContent[index] = mergeDefined(existing, {
+            ...normalizedItem,
+            text: existing.text + text,
             ...(citations.length > 0 && { citations }),
           });
-        } else {
-          newContent.push({ ...item, type: "text", text });
+        } else if (item.text !== "") {
+          newContent.push(normalizedItem);
         }
       } else if (item.type === "thinking") {
         const index =

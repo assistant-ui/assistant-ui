@@ -520,26 +520,28 @@ const useComposerClientResource = ({
           attachment,
           onRemove: async () => {
             attachmentAddOperations.cancel(attachment.id);
-            try {
-              await attachmentAdapter?.remove(attachment);
-            } catch (error) {
-              const message =
-                error instanceof Error ? error.message : String(error);
-              setAttachments((prev) =>
-                prev.map((candidate) => {
-                  if (
-                    candidate.id !== attachment.id ||
-                    isAttachmentComplete(candidate)
-                  ) {
-                    return candidate;
-                  }
-                  return {
-                    ...candidate,
-                    status: { type: "incomplete", reason: "error", message },
-                  };
-                }),
-              );
-              throw error;
+            if (!isAttachmentComplete(attachment)) {
+              try {
+                await attachmentAdapter?.remove(attachment);
+              } catch (error) {
+                const message =
+                  error instanceof Error ? error.message : String(error);
+                setAttachments((prev) =>
+                  prev.map((candidate) => {
+                    if (
+                      candidate.id !== attachment.id ||
+                      isAttachmentComplete(candidate)
+                    ) {
+                      return candidate;
+                    }
+                    return {
+                      ...candidate,
+                      status: { type: "incomplete", reason: "error", message },
+                    };
+                  }),
+                );
+                throw error;
+              }
             }
             setAttachments((prev) =>
               prev.filter((a) => a.id !== attachment.id),
