@@ -2,6 +2,8 @@ import { describe, it, expect, vi, afterEach } from "vitest";
 import { render, screen, cleanup } from "@testing-library/react";
 import { createCodeAdapter } from "../adapters/code-adapter";
 import { PreOverride } from "../adapters/PreOverride";
+import type { Root } from "hast";
+import { Streamdown } from "streamdown";
 
 afterEach(cleanup);
 
@@ -209,31 +211,50 @@ describe("createCodeAdapter integration", () => {
       expect(screen.getByTestId("syntax").textContent).toBe("const x = 1;");
     });
 
-    it("preserves split and nested code text in the header and highlighter", () => {
+    it("keeps rehype markup and passes its text to the code header", () => {
+      const rehypeLines = () => (tree: Root) => {
+        for (const pre of tree.children) {
+          if (pre.type !== "element" || pre.tagName !== "pre") continue;
+          for (const code of pre.children) {
+            if (code.type !== "element" || code.tagName !== "code") continue;
+            code.children = code.children.flatMap<
+              (typeof code.children)[number]
+            >((child) =>
+              child.type === "text"
+                ? child.value.split(/(?<=\n)/).map((value) => ({
+                    type: "element" as const,
+                    tagName: "span",
+                    properties: { className: ["line"] },
+                    children: [{ type: "text" as const, value }],
+                  }))
+                : [child],
+            );
+          }
+        }
+      };
       const AdaptedCode = createCodeAdapter({
         CodeHeader: ({ code }) => <header>{code}</header>,
-        SyntaxHighlighter: ({ code }) => <pre>{code}</pre>,
+        SyntaxHighlighter: ({ code }) => <pre data-rehighlighted>{code}</pre>,
       });
-
+      const code = "const x = 1;\nconst y = 2;\n";
       const { container } = render(
-        <AdaptedCode className="language-js" data-block="true">
-          <span>const</span>
-          {" x = "}
-          <>
-            <span>
-              <span>{0}</span>
-            </span>
-            {[null, false, undefined, true, ";\n"]}
-          </>
-        </AdaptedCode>,
+        <Streamdown
+          components={{ code: AdaptedCode, pre: PreOverride }}
+          rehypePlugins={[rehypeLines]}
+        >
+          {"```js\n" + code + "```"}
+        </Streamdown>,
       );
 
-      expect(container.querySelector("header")?.textContent).toBe(
-        "const x = 0;\n",
-      );
-      expect(container.querySelector("pre")?.textContent).toBe(
-        "const x = 0;\n",
-      );
+      expect(container.querySelector("header")?.textContent).toBe(code);
+      expect(container.querySelector("pre > code")?.textContent).toBe(code);
+      expect(
+        Array.from(
+          container.querySelectorAll("pre > code > span.line"),
+          (line) => line.textContent,
+        ),
+      ).toEqual(["const x = 1;\n", "const y = 2;\n"]);
+      expect(container.querySelector("[data-rehighlighted]")).toBeNull();
     });
 
     it("handles empty children", () => {

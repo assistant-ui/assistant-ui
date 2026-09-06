@@ -84,11 +84,8 @@ export function createCodeAdapter(options: CodeAdapterOptions) {
       );
     }
 
-    // Block code - extract language and code content
     const language = parseLanguageClass(className);
-    const code = extractCode(children);
 
-    // Get language-specific or fallback components
     const SyntaxHighlighter =
       componentsByLanguage[language]?.SyntaxHighlighter ??
       UserSyntaxHighlighter;
@@ -97,10 +94,14 @@ export function createCodeAdapter(options: CodeAdapterOptions) {
       componentsByLanguage[language]?.CodeHeader ?? UserCodeHeader;
 
     const headerElement = CodeHeader ? (
-      <CodeHeader node={node} language={language} code={code} />
+      <CodeHeader
+        node={node}
+        language={language}
+        code={extractCode(children)}
+      />
     ) : null;
 
-    if (SyntaxHighlighter) {
+    if (SyntaxHighlighter && typeof children === "string") {
       return (
         <>
           {headerElement}
@@ -108,7 +109,7 @@ export function createCodeAdapter(options: CodeAdapterOptions) {
             node={node}
             components={{ Pre: DefaultPre, Code: DefaultCode }}
             language={language}
-            code={code}
+            code={children}
           />
         </>
       );

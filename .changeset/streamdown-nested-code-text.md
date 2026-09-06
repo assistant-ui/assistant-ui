@@ -1,5 +1,6 @@
 ---
 "@assistant-ui/react-streamdown": patch
+"@assistant-ui/react-markdown": patch
 ---
 
-fix: keep code text from nested React children in code headers and syntax highlighters.
+fix: preserve rehype plugin markup in code blocks and pass the complete code text to code headers in both Markdown renderers.

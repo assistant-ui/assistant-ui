@@ -109,6 +109,8 @@ const StreamdownText = () => (
 );
 ```
 
+Both renderers preserve code markup from rehype plugins, such as `rehype-highlight` or `rehype-pretty-code`. In this case, `CodeHeader` receives the complete code text, but `SyntaxHighlighter` is skipped to preserve the plugin's markup. Plain string children still use `SyntaxHighlighter`.
+
 ## Props
 
 | Prop | Type | Default | Description |
