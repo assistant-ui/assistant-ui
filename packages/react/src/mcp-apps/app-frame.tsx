@@ -108,13 +108,6 @@ function buildLiveHandlers(
   const has = <K extends keyof McpAppBridgeHandlers>(key: K) =>
     initial?.[key] !== undefined;
   const out: McpAppBridgeHandlers = {};
-  if (has("allowedTools")) {
-    Object.defineProperty(out, "allowedTools", {
-      get: () => live()?.allowedTools,
-      enumerable: true,
-      configurable: true,
-    });
-  }
   const liveCall = <K extends keyof McpAppBridgeHandlers>(
     key: K,
   ): NonNullable<McpAppBridgeHandlers[K]> =>
@@ -233,7 +226,7 @@ export function McpAppFrame({
       },
     };
     Object.defineProperty(wrappedHandlers, "allowedTools", {
-      get: () => liveHandlers.allowedTools,
+      get: () => liveRef.current.handlers?.allowedTools,
       enumerable: true,
     });
 

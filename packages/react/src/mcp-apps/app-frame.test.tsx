@@ -104,6 +104,8 @@ describe("McpAppFrame", () => {
   it.each([
     { initial: [], next: ["search"], allowed: true },
     { initial: ["search"], next: [], allowed: false },
+    { initial: undefined, next: ["other"], allowed: false },
+    { initial: [], next: undefined, allowed: true },
   ])(
     "applies replacement tool allowlists: $initial -> $next",
     async ({ initial, next, allowed }) => {
@@ -116,7 +118,7 @@ describe("McpAppFrame", () => {
         return null;
       });
       const callTool = vi.fn(() => ({ content: [] }));
-      const view = (allowedTools: readonly string[]) => (
+      const view = (allowedTools: readonly string[] | undefined) => (
         <McpAppFrame
           app={{ resourceUri: "ui://example/widget" }}
           resource={{
@@ -124,7 +126,11 @@ describe("McpAppFrame", () => {
             mimeType: MCP_APP_MIME_TYPE,
             html: "",
           }}
-          handlers={{ allowedTools, callTool }}
+          handlers={
+            allowedTools === undefined
+              ? { callTool }
+              : { allowedTools, callTool }
+          }
         />
       );
       const rendered = render(view(initial));
