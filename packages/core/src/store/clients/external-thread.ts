@@ -943,9 +943,11 @@ const useExternalThread = ({
       : undefined;
   };
 
-  const [feedbackMessages, setFeedbackMessages] = useState(messages);
-  if (feedbackMessages !== messages) {
-    setFeedbackMessages(messages);
+  // `messages` changes identity on every streamed token, and this body fans out
+  // to one client per message, so pruning during render would re-run the whole
+  // fan-out per token. The effect bails out on an unchanged map instead.
+  useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     setSubmittedFeedback((prev) => {
       const live = Object.entries(prev).filter(([id, entry]) => {
         const msg = messages.find((m) => m.id === id);
@@ -955,7 +957,7 @@ const useExternalThread = ({
         ? prev
         : Object.fromEntries(live);
     });
-  }
+  }, [messages]);
 
   const handleSubmitFeedback = (
     message: ExternalThreadMessage,
