@@ -755,13 +755,34 @@ describe("convertLangChainBaseMessage reasoning content parts", () => {
     ]);
   });
 
-  it("does not throw when a reasoning block omits both summary and reasoning", () => {
+  it("omits reasoning parts that contain only provider metadata", () => {
     const result = convertLangChainBaseMessage(
-      aiMessage([{ type: "reasoning" }]),
+      aiMessage([
+        { type: "reasoning", signature: "signed", index: 0 },
+        { type: "reasoning", summary: [{ type: "summary_text" }], index: 1 },
+        { type: "text", text: "Answer." },
+      ]),
       {},
     );
 
-    expect(contentOf(result)).toEqual([{ type: "reasoning", text: "" }]);
+    expect(contentOf(result)).toEqual([{ type: "text", text: "Answer." }]);
+  });
+
+  it("preserves distinct reasoning and summary text with coincidentally matching letters", () => {
+    const result = convertLangChainBaseMessage(
+      aiMessage([
+        {
+          type: "reasoning",
+          reasoning: "Check net",
+          summary: [{ type: "summary_text", text: "temperature" }],
+        },
+      ]),
+      {},
+    );
+
+    expect(contentOf(result)).toEqual([
+      { type: "reasoning", text: "Check net\n\n\ntemperature" },
+    ]);
   });
 
   it("tolerates null entries inside the summary array", () => {

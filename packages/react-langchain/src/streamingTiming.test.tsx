@@ -34,4 +34,31 @@ describe("useLangChainStreamingTiming", () => {
       Math.ceil("deduced".length / 4),
     );
   });
+
+  it("counts both preserved reasoning and summary text", () => {
+    const messages: LangChainBaseMessage[] = [
+      {
+        id: "msg-1",
+        _getType: () => "ai",
+        content: [
+          {
+            type: "reasoning",
+            reasoning: "partial thinking",
+            summary: [{ type: "summary_text", text: "first summary" }],
+          },
+        ],
+      },
+    ];
+    const { result, rerender } = renderHook(
+      ({ running }) => useLangChainStreamingTiming(messages, running),
+      { initialProps: { running: true } },
+    );
+    act(() => {
+      rerender({ running: false });
+    });
+
+    expect(result.current["msg-1"]?.tokenCount).toBe(
+      Math.ceil("partial thinking\n\n\nfirst summary".length / 4),
+    );
+  });
 });

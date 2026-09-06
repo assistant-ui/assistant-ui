@@ -164,6 +164,7 @@ export const appendLangChainChunk = (
           }
           newContent[index] = {
             ...existing,
+            ...item,
             reasoning: (existing.reasoning ?? "") + (item.reasoning ?? ""),
             ...(summary.length > 0 && { summary }),
           };

@@ -261,6 +261,150 @@ describe("appendLangChainChunk continuation content", () => {
     ]);
   });
 
+  it.each([{ index: 0 }, {}])(
+    "keeps earlier reasoning when summary chunks arrive with %j",
+    (block) => {
+      const first = appendLangChainChunk(undefined, {
+        id: "ai-1",
+        type: "AIMessageChunk",
+        content: [
+          { type: "reasoning", reasoning: "partial thinking", ...block },
+        ],
+      });
+      const summary = appendLangChainChunk(first, {
+        id: "ai-1",
+        type: "AIMessageChunk",
+        content: [
+          {
+            type: "reasoning",
+            ...block,
+            summary: [{ type: "summary_text", index: 0, text: "first" }],
+          },
+        ],
+      });
+      const merged = appendLangChainChunk(summary, {
+        id: "ai-1",
+        type: "AIMessageChunk",
+        content: [
+          {
+            type: "reasoning",
+            ...block,
+            summary: [
+              { type: "summary_text", index: 0, text: " summary" },
+              { type: "summary_text", index: 1, text: "second summary" },
+            ],
+          },
+        ],
+      });
+
+      expect(convertLangChainMessages(first, {})).toHaveProperty("content", [
+        { type: "reasoning", text: "partial thinking" },
+      ]);
+      expect(convertLangChainMessages(summary, {})).toHaveProperty("content", [
+        { type: "reasoning", text: "partial thinking\n\n\nfirst" },
+      ]);
+      expect(convertLangChainMessages(merged, {})).toHaveProperty("content", [
+        {
+          type: "reasoning",
+          text: "partial thinking\n\n\nfirst summary\n\n\nsecond summary",
+        },
+      ]);
+    },
+  );
+
+  it("does not duplicate reasoning as an overlapping summary grows", () => {
+    let merged = appendLangChainChunk(undefined, {
+      id: "ai-1",
+      type: "AIMessageChunk",
+      content: [
+        { type: "reasoning", index: 0, reasoning: "We compare both plans." },
+      ],
+    });
+    for (const [text, expected] of [
+      ["We compare", "We compare both plans."],
+      [" both plans.", "We compare both plans."],
+      [" Then choose.", "We compare both plans. Then choose."],
+    ] as const) {
+      merged = appendLangChainChunk(merged, {
+        id: "ai-1",
+        type: "AIMessageChunk",
+        content: [
+          {
+            type: "reasoning",
+            index: 0,
+            summary: [{ type: "summary_text", index: 0, text }],
+          },
+        ],
+      });
+      expect(convertLangChainMessages(merged, {})).toHaveProperty("content", [
+        { type: "reasoning", text: expected },
+      ]);
+    }
+  });
+
+  it("keeps reasoning signatures without empty parts or cross-index text", () => {
+    const signature = {
+      type: "reasoning" as const,
+      signature: "signed",
+      index: 0,
+    };
+    const first = appendLangChainChunk(undefined, {
+      id: "ai-1",
+      type: "AIMessageChunk",
+      content: [signature],
+    });
+    expect(convertLangChainMessages(first, {})).toHaveProperty("content", []);
+
+    const sibling = appendLangChainChunk(first, {
+      id: "ai-1",
+      type: "AIMessageChunk",
+      content: [
+        { type: "reasoning", index: 1, reasoning: "Separate." },
+        {
+          type: "reasoning",
+          index: 0,
+          summary: [{ type: "summary_text", index: 0 }],
+        },
+      ],
+    });
+    expect(convertLangChainMessages(sibling, {})).toHaveProperty("content", [
+      { type: "reasoning", text: "Separate." },
+    ]);
+
+    const text = appendLangChainChunk(sibling, {
+      id: "ai-1",
+      type: "AIMessageChunk",
+      content: [{ type: "reasoning", index: 0, reasoning: "Checking." }],
+    });
+    expect(text.content).toEqual([
+      expect.objectContaining({
+        index: 0,
+        signature: "signed",
+        reasoning: "Checking.",
+      }),
+      expect.objectContaining({ index: 1, reasoning: "Separate." }),
+    ]);
+
+    const signed = appendLangChainChunk(text, {
+      id: "ai-1",
+      type: "AIMessageChunk",
+      content: [{ ...signature, signature: "completed" }],
+    });
+    expect(signed.content).toEqual([
+      expect.objectContaining({
+        index: 0,
+        signature: "completed",
+        reasoning: "Checking.",
+      }),
+      expect.objectContaining({ index: 1, reasoning: "Separate." }),
+    ]);
+    expect(convertLangChainMessages(signed, {})).toHaveProperty("content", [
+      { type: "reasoning", text: "Checking." },
+      { type: "reasoning", text: "Separate." },
+    ]);
+    expect(convertLangChainMessages(first, {})).toHaveProperty("content", []);
+  });
+
   it("joins unindexed reasoning deltas only while they are adjacent", () => {
     let merged = appendLangChainChunk(undefined, {
       id: "ai-1",
