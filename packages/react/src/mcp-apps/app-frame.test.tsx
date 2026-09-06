@@ -225,9 +225,50 @@ describe("McpAppFrame", () => {
       expect(initialOnSizeChange).toHaveBeenCalledOnce();
       expect(replacementOnSizeChange).toHaveBeenCalledOnce();
       expect(replacementOnSizeChange).toHaveBeenCalledWith(replacementSize);
+
+      const widthOnlySize = { width: 720 };
+      options.handlers?.onSizeChange?.(widthOnlySize);
+      expect(setHeight).toHaveBeenCalledTimes(2);
+      expect(replacementOnSizeChange).toHaveBeenCalledWith(widthOnlySize);
     } finally {
       sandboxBridge.dispose();
     }
+  });
+
+  it("disposes the underlying bridge with the sandbox bridge", () => {
+    let createBridge: SandboxHostProps["createBridge"] | null = null;
+    sandboxHostMock.mockImplementation((props: SandboxHostProps) => {
+      createBridge ??= props.createBridge;
+      return null;
+    });
+    const bridge: McpAppBridge = {
+      onMessage: vi.fn(),
+      dispose: vi.fn(),
+      notifyToolInput: vi.fn(),
+      notifyToolResult: vi.fn(),
+      notifyHostContextChanged: vi.fn(),
+    };
+    createMcpAppBridgeMock.mockReturnValue(bridge);
+    render(
+      <McpAppFrame
+        app={{ resourceUri: "ui://example/widget" }}
+        resource={{
+          uri: "ui://example/widget",
+          mimeType: MCP_APP_MIME_TYPE,
+          html: "",
+        }}
+      />,
+    );
+
+    const sandboxBridge = createBridge!(
+      {
+        iframe: document.createElement("iframe"),
+        origin: "https://widget.example",
+        sendMessage: vi.fn(),
+      },
+      { setHeight: vi.fn() },
+    );
+    sandboxBridge.dispose();
 
     expect(bridge.dispose).toHaveBeenCalledOnce();
   });
