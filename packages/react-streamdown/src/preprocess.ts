@@ -118,6 +118,19 @@ function opensBacktickFence(text: string, start: number): boolean {
 }
 
 /**
+ * Whether the tilde run at `index` opens a fence. A tilde run only ever opens
+ * one, so unlike a backtick run it needs no info string rule, but it still has
+ * to start a line to be a flow construct.
+ */
+function opensTildeFence(text: string, index: number): boolean {
+  return (
+    text[index] === "~" &&
+    runLength(text, index, "~") >= 3 &&
+    atLineStart(text, index)
+  );
+}
+
+/**
  * End index (exclusive) of the backtick construct opened at `start`: the fence
  * when {@link opensBacktickFence} accepts the run, the code span otherwise, or
  * -1 when a span never closes.
@@ -187,11 +200,7 @@ function rewriteOutsideCode(
       const end = backtickEnd(text, index);
       if (end !== -1) copyVerbatim(end);
       else index += runLength(text, index, "`");
-    } else if (
-      char === "~" &&
-      runLength(text, index, "~") >= 3 &&
-      atLineStart(text, index)
-    ) {
+    } else if (opensTildeFence(text, index)) {
       copyVerbatim(fenceEnd(text, index, "~"));
     } else {
       index += 1;
@@ -469,13 +478,7 @@ function endOfVerbatimRun(text: string, index: number): number {
     const end = backtickEnd(text, index);
     return end === -1 ? index + runLength(text, index, "`") : end;
   }
-  if (
-    char === "~" &&
-    runLength(text, index, "~") >= 3 &&
-    atLineStart(text, index)
-  ) {
-    return fenceEnd(text, index, "~");
-  }
+  if (opensTildeFence(text, index)) return fenceEnd(text, index, "~");
   if (char !== "$") return index + 1;
 
   const dollars = runLength(text, index, "$");
