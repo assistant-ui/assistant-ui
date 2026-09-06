@@ -105,9 +105,10 @@ type FrameLifecycle = {
 // to the latest handler reference (e.g. inline callbacks closing over state).
 // Capability presence is snapshot at mount: a handler added later requires a
 // remount (keyed on resource URI) to expose the capability to the widget.
-// The frame's own lifecycle work arrives as a parameter rather than wrapping
-// the result, because spreading this object would evaluate the allowedTools
-// getter and freeze the allowlist at its mount-time value.
+// allowedTools is the exception: it is never advertised in the ui/initialize
+// response, so it stays a live getter, which means this object must reach the
+// bridge uncopied and the frame passes its lifecycle work in rather than
+// wrapping the result.
 function buildLiveHandlers(
   initial: McpAppBridgeHandlers | undefined,
   liveRef: { readonly current: LiveSnapshot },
