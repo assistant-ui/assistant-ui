@@ -147,6 +147,94 @@ describe("appendLangChainChunk continuation content", () => {
     expect(merged.content).toEqual([{ type: "text", text: "Hello world" }]);
   });
 
+  it("merges a citation-only delta into the preceding text", () => {
+    const first = append(undefined, {
+      type: "AIMessageChunk",
+      id: "ai-1",
+      content: [{ index: 0, type: "text", text: "Paris" }],
+    } as unknown as LangChainMessageChunk);
+
+    const merged = append(first, {
+      type: "AIMessageChunk",
+      id: "ai-1",
+      content: [
+        {
+          index: 0,
+          type: "text",
+          citations: [{ type: "char_location", cited_text: "Paris" }],
+        },
+      ],
+    } as unknown as LangChainMessageChunk);
+
+    expect(merged.content).toEqual([
+      {
+        index: 0,
+        type: "text",
+        text: "Paris",
+        citations: [{ type: "char_location", cited_text: "Paris" }],
+      },
+    ]);
+    expect(convertLangChainMessages(merged, {})).toHaveProperty("content", [
+      { type: "text", text: "Paris" },
+    ]);
+  });
+
+  it("merges a citation-only text_delta into the preceding text", () => {
+    const first = append(undefined, {
+      type: "AIMessageChunk",
+      id: "ai-1",
+      content: [{ index: 0, type: "text_delta", text: "Paris" }],
+    } as unknown as LangChainMessageChunk);
+
+    const merged = append(first, {
+      type: "AIMessageChunk",
+      id: "ai-1",
+      content: [
+        {
+          index: 0,
+          type: "text_delta",
+          citations: [{ type: "char_location", cited_text: "Paris" }],
+        },
+      ],
+    } as unknown as LangChainMessageChunk);
+
+    expect(merged.content).toEqual([
+      {
+        index: 0,
+        type: "text",
+        text: "Paris",
+        citations: [{ type: "char_location", cited_text: "Paris" }],
+      },
+    ]);
+  });
+
+  it("opens a text block for a citation-only delta with no text to merge into", () => {
+    const merged = append(undefined, {
+      type: "AIMessageChunk",
+      id: "ai-1",
+      content: [
+        {
+          index: 0,
+          type: "text",
+          citations: [{ type: "char_location", cited_text: "Paris" }],
+        },
+        { index: 0, type: "text", text: "Paris" },
+      ],
+    } as unknown as LangChainMessageChunk);
+
+    expect(merged.content).toEqual([
+      {
+        index: 0,
+        type: "text",
+        text: "Paris",
+        citations: [{ type: "char_location", cited_text: "Paris" }],
+      },
+    ]);
+    expect(convertLangChainMessages(merged, {})).toHaveProperty("content", [
+      { type: "text", text: "Paris" },
+    ]);
+  });
+
   it("keeps text after intervening content and joins adjacent text deltas", () => {
     const merged = appendLangChainChunk(
       { id: "ai-1", type: "ai", content: [{ type: "text", text: "Hello" }] },

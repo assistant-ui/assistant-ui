@@ -153,10 +153,17 @@ export const appendLangChainChunk = (
       const lastIndex = newContent.length - 1;
       const last = newContent[lastIndex];
       if (item.type === "text" || item.type === "text_delta") {
+        // `@langchain/anthropic` sends a citations_delta as a `text` block that
+        // carries only `citations`, so the declared `text` field can be absent.
+        const text = item.text ?? "";
         if (last?.type === "text") {
-          newContent[lastIndex] = { ...last, text: last.text + item.text };
+          newContent[lastIndex] = mergeDefined(last, {
+            ...item,
+            type: "text",
+            text: last.text + text,
+          });
         } else {
-          newContent.push({ type: "text", text: item.text });
+          newContent.push({ ...item, type: "text", text });
         }
       } else if (item.type === "thinking") {
         const index =
