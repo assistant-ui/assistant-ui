@@ -77,7 +77,7 @@ export const useClientList = <TData, TMethods extends ClientMethods>(
   const add = (data: TData) => {
     const key = getKey(data);
     setItems((items) => {
-      if (key in items) {
+      if (Object.hasOwn(items, key)) {
         throw new Error(
           `Tried to add item with a key ${key} that already exists`,
         );

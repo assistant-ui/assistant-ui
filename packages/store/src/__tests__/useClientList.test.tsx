@@ -87,6 +87,41 @@ describe("useClientList", () => {
     });
   });
 
+  it("adds, removes, and re-adds an inherited key without losing plain keys", () => {
+    const { getAui, hook } = setup();
+    const data = { id: "constructor", label: "Added" };
+
+    act(() => flushTapSync(() => getAui().thread.add(data)));
+
+    expect(hook.result.current).toEqual([
+      { id: "a", label: "A" },
+      { id: "b", label: "B" },
+      { id: "constructor", label: "Added" },
+    ]);
+    expect(getAui().thread.item({ key: "constructor" }).getState()).toEqual(
+      data,
+    );
+    expect(getAui().thread.item({ key: "a" }).getState()).toEqual({
+      id: "a",
+      label: "A",
+    });
+
+    act(() =>
+      flushTapSync(() => getAui().thread.item({ key: "constructor" }).remove()),
+    );
+    expect(() => getAui().thread.item({ key: "constructor" })).toThrow(
+      /not found/,
+    );
+
+    act(() => flushTapSync(() => getAui().thread.add(data)));
+    expect(getAui().thread.item({ key: "constructor" }).getState()).toEqual(
+      data,
+    );
+    expect(() =>
+      act(() => flushTapSync(() => getAui().thread.add(data))),
+    ).toThrow(/already exists/);
+  });
+
   it("remove unmounts the client and notifies subscribers", () => {
     const { getAui, hook } = setup();
     const subscriber = vi.fn();
