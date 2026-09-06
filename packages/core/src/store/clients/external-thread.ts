@@ -943,7 +943,9 @@ const useExternalThread = ({
       : undefined;
   };
 
-  useEffect(() => {
+  const [feedbackMessages, setFeedbackMessages] = useState(messages);
+  if (feedbackMessages !== messages) {
+    setFeedbackMessages(messages);
     setSubmittedFeedback((prev) => {
       const live = Object.entries(prev).filter(([id, entry]) => {
         const msg = messages.find((m) => m.id === id);
@@ -953,7 +955,7 @@ const useExternalThread = ({
         ? prev
         : Object.fromEntries(live);
     });
-  }, [messages]);
+  }
 
   const handleSubmitFeedback = (
     message: ExternalThreadMessage,

@@ -108,6 +108,9 @@ const useTools = ({
           : undefined);
       if (render) {
         unsubscribes.push(
+          // Registration has to be undone on unmount, so the registry write and
+          // its unsubscribe belong to the same effect.
+          // eslint-disable-next-line react-hooks/set-state-in-effect
           setToolUI(toolName, render, {
             standalone: isStandaloneToolDisplay(tool),
             renderText: toolRenderText,

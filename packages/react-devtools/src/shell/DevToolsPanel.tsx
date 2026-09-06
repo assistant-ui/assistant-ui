@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useMemo, useState } from "react";
 import clsx from "clsx";
 import { useDevToolsClient } from "../data/useDevToolsClient";
 import { inProcessClient } from "../data/createInProcessClient";
@@ -40,10 +40,9 @@ export const DevToolsPanel = ({
     resolvedClient,
   );
 
-  useEffect(() => {
-    if (selectedApiId !== null && apiIds.includes(selectedApiId)) return;
+  if (selectedApiId === null || !apiIds.includes(selectedApiId)) {
     setSelectedApiId(apiIds[0] ?? null);
-  }, [apiIds, selectedApiId]);
+  }
 
   const allPlugins = useMemo(
     () =>

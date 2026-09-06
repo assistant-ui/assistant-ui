@@ -146,6 +146,9 @@ export function useThreads(options: UseThreadsOptions): UseThreadsResult {
   const threadId = scope.cloud === cloud ? selection.threadId : null;
 
   useEffect(() => {
+    // The stale-scope commit in between is what lets the layout effect below
+    // clear the previous cloud's threads before the new scope takes over.
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     setSelection((current) =>
       current.scope.cloud === cloud
         ? current
@@ -160,6 +163,8 @@ export function useThreads(options: UseThreadsOptions): UseThreadsResult {
     if (!isActiveScope) {
       listedThreadIdsRef.current.clear();
       threadTitleGenerationsRef.current.clear();
+      // Paired with the ref clears above, which cannot move into render.
+      // eslint-disable-next-line react-hooks/set-state-in-effect
       setThreads([]);
       setError(null);
       setIsLoading(enabled);
@@ -301,6 +306,9 @@ export function useThreads(options: UseThreadsOptions): UseThreadsResult {
 
   useEffect(() => {
     if (!enabled) return;
+    // The refresh is an async fetch against the cloud; its loading state
+    // settles inside it.
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     void refresh();
   }, [refresh, enabled]);
 

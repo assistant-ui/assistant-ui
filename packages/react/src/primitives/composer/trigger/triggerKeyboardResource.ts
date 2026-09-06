@@ -1,4 +1,4 @@
-import { useEffect, useEffectEvent, useState } from "react";
+import { useEffectEvent, useState } from "react";
 import { resource } from "@assistant-ui/tap";
 import type {
   Unstable_TriggerCategory,
@@ -58,14 +58,20 @@ const useTriggerKeyboardResource = ({
   close: () => void;
 }): TriggerKeyboardResourceOutput => {
   const [highlightedIndex, setHighlightedIndex] = useState(0);
+  const [highlightScope, setHighlightScope] = useState({
+    navigableList,
+    isSearchMode,
+    activeCategoryId,
+  });
 
-  useEffect(() => {
+  if (
+    highlightScope.navigableList !== navigableList ||
+    highlightScope.isSearchMode !== isSearchMode ||
+    highlightScope.activeCategoryId !== activeCategoryId
+  ) {
+    setHighlightScope({ navigableList, isSearchMode, activeCategoryId });
     setHighlightedIndex(0);
-  }, [navigableList]);
-
-  useEffect(() => {
-    setHighlightedIndex(0);
-  }, [isSearchMode, activeCategoryId]);
+  }
 
   const highlightIndex = useEffectEvent((index: number) => {
     if (index < 0 || index >= navigableList.length) return;
