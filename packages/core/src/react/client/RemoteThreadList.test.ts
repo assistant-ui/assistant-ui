@@ -751,6 +751,87 @@ describe("RemoteThreadList", () => {
     handle.destroy();
   });
 
+  const deleteDuringAdapterSwap = async (
+    replacementThreads: readonly {
+      status: "regular";
+      remoteId: string;
+      title: string;
+    }[],
+  ) => {
+    const removal = deferred<void>();
+    const onDelete = vi.fn();
+    const adapterA = makeAdapter({
+      list: vi.fn(async () => ({
+        threads: [{ status: "regular" as const, remoteId: "t1", title: "One" }],
+      })),
+      delete: vi.fn(() => removal.promise),
+    });
+    const adapterB = makeAdapter({
+      list: vi.fn(async () => ({ threads: replacementThreads })),
+    });
+    let adapter: RemoteThreadListAdapter = adapterA;
+    const listeners = new Set<() => void>();
+    const source: AssistantConfigSource = {
+      getConfig: () =>
+        AuiConfig({
+          threads: RemoteThreadList({
+            adapter,
+            thread: (id) => StubThread({ threadId: id }) as never,
+            onDelete,
+          }),
+        }),
+      subscribe: (listener) => {
+        listeners.add(listener);
+        return () => {
+          listeners.delete(listener);
+        };
+      },
+    };
+    const handle = createAssistantClient(source);
+    handle.subscribe(() => {});
+    await handle.getClient().threads.getLoadThreadsPromise();
+    await vi.waitFor(() => {
+      expect(handle.getClient().threads.getState().threadIds).toContain("t1");
+    });
+
+    const deletion = handle.getClient().threads.item({ id: "t1" }).delete();
+    await vi.waitFor(() => {
+      expect(adapterA.delete).toHaveBeenCalledWith("t1");
+    });
+
+    adapter = adapterB;
+    for (const listener of listeners) listener();
+    await vi.waitFor(async () => {
+      flushTapSync(() => {});
+      await handle.getClient().threads.reload();
+      expect(adapterB.list).toHaveBeenCalled();
+      expect(handle.getClient().threads.getState().threadIds).toEqual(
+        replacementThreads.map((thread) => thread.remoteId),
+      );
+    });
+
+    removal.resolve();
+    await deletion;
+    return { handle, onDelete };
+  };
+
+  it("invokes deletion cleanup when the adapter changes during a successful deletion", async () => {
+    const { handle, onDelete } = await deleteDuringAdapterSwap([]);
+
+    expect(onDelete).toHaveBeenCalledWith("t1");
+    handle.destroy();
+  });
+
+  it("skips deletion cleanup when the replacement adapter re-lists the deleted id", async () => {
+    const { handle, onDelete } = await deleteDuringAdapterSwap([
+      { status: "regular" as const, remoteId: "t1", title: "One" },
+    ]);
+
+    expect(handle.getClient().threads.getState().threadIds).toContain("t1");
+    expect(onDelete).not.toHaveBeenCalled();
+    handle.destroy();
+  });
+
   const mountRacedInitialize = async (status: "regular" | "archived") => {
     const initialize = deferred<{ remoteId: string; externalId: undefined }>();
     const adapter = makeAdapter({

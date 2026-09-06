@@ -1117,7 +1117,9 @@ export class RemoteThreadListThreadListRuntimeCore
         return updateStatusReducer(state, data.id, "deleted");
       },
     });
-    if (adapterGeneration !== this._adapterGeneration) return result;
+    // The optimistic layer survives an adapter swap, so a resolved deletion has
+    // dropped the slot from `threadData`, where `_replaceWithThreads` would
+    // otherwise have found it to stop.
     this._hookManager.stopThreadRuntime(data.id);
     clearThreadTitleState(this._titleStates, data.id);
     return result;
