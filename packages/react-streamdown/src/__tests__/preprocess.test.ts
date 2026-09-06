@@ -463,6 +463,19 @@ describe("escapeCurrencyDollars", () => {
     );
   });
 
+  it("preserves currency while a tilde fence is incomplete", () => {
+    const text = "~~~text\n$5\n~~~";
+    for (let end = 3; end <= text.length; end++) {
+      expect(escapeCurrencyDollars(text.slice(0, end))).toBe(
+        text.slice(0, end),
+      );
+    }
+  });
+
+  it("does not close an unclosed root fence on a quoted tilde run", () => {
+    expect(escapeCurrencyDollars("~~~a\n$5\n> ~~~")).toBe("~~~a\n$5\n> ~~~");
+  });
+
   it("accepts a longer closing run for a fenced block", () => {
     expect(escapeCurrencyDollars("```\nconst price = $5;\n````")).toBe(
       "```\nconst price = $5;\n````",

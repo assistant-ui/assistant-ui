@@ -138,7 +138,7 @@ function backtickEnd(text: string, start: number): number {
  * opens in. An unclosed span reads as literal text, while an unclosed fence is
  * one still streaming in and protects to the end of the input; that last case is
  * where this walker and `escapeCurrencyDollars` differ, since that one treats
- * the run as literal. Tilde runs only ever open a fence, read the same way.
+ * the run as literal. The two scanners protect unclosed tilde fences to the end.
  */
 function rewriteOutsideCode(
   text: string,
@@ -470,7 +470,7 @@ function endOfVerbatimRun(text: string, index: number): number {
     atLineStart(text, index)
   ) {
     const end = fenceEnd(text, index, "~");
-    return end === -1 ? index + runLength(text, index, "~") : end;
+    return end === -1 ? text.length : end;
   }
   if (char !== "$") return index + 1;
 
