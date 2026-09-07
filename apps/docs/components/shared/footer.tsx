@@ -30,7 +30,6 @@ const FOOTER_LINKS: Record<string, FooterLinkItem[]> = {
   ],
   Primitives: [
     { label: "tw-shimmer", href: "/tw-shimmer" },
-    { label: "tw-glass", href: "/tw-glass" },
     { label: "Heat Graph", href: "/heat-graph" },
     { label: "Safe Content Frame", href: "/safe-content-frame" },
     { label: "react-o11y", href: "/react-o11y" },

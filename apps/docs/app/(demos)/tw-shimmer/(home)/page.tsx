@@ -320,16 +320,6 @@ export default function TwShimmerPage() {
       </div>
 
       <footer className="mt-16 flex flex-col gap-3">
-        <p className="text-muted-foreground text-sm">
-          The refraction sibling:{" "}
-          <Link
-            href="/tw-glass"
-            className="text-foreground font-medium transition-colors"
-          >
-            tw-glass
-          </Link>
-          .
-        </p>
         <Link
           href="/docs/utilities/tw-shimmer"
           className="text-muted-foreground hover:text-foreground group inline-flex items-center gap-1.5 text-sm transition-colors"

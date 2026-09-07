@@ -29,7 +29,6 @@ minimumReleaseAgeExclude:
   - heat-graph
   - next
   - safe-content-frame
-  - tw-glass
   - tw-shimmer
   - typescript
 

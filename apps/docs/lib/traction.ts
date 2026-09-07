@@ -274,11 +274,6 @@ export const PACKAGES: PackageInfo[] = [
     category: "ui",
   },
   {
-    name: "tw-glass",
-    description: "Tailwind v4 plugin for glass refraction effects.",
-    category: "effects",
-  },
-  {
     name: "tw-shimmer",
     description: "Tailwind v4 plugin for shimmer effects.",
     category: "effects",

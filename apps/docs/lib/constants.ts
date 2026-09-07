@@ -33,13 +33,6 @@ export const PRODUCTS: Product[] = [
     external: false,
   },
   {
-    slug: "tw-glass",
-    label: "tw-glass",
-    href: "/tw-glass",
-    description: "Tailwind CSS glass refraction effects",
-    external: false,
-  },
-  {
     slug: "safe-content-frame",
     label: "Safe Content Frame",
     href: "/safe-content-frame",
@@ -116,7 +109,6 @@ export type NavGlyphKind =
   | "cloud-ai-sdk"
   | "playground"
   | "shimmer"
-  | "glass"
   | "heat"
   | "frame"
   | "o11y"
@@ -243,13 +235,6 @@ export const NAV_ITEMS: NavItem[] = [
             description: "Shimmer loading states for Tailwind",
             external: false,
             glyph: "shimmer",
-          },
-          {
-            label: "tw-glass",
-            href: "/tw-glass",
-            description: "Glass refraction in pure CSS",
-            external: false,
-            glyph: "glass",
           },
           {
             label: "Heat Graph",

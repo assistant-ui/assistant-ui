@@ -96,7 +96,6 @@
     "sonner": "^2.0.8",
     "streamdown": "^2.6.0",
     "tailwind-scrollbar": "^4.0.2",
-    "tw-glass": "workspace:*",
     "tw-shimmer": "workspace:*",
     "unified": "^11.0.5",
     "vaul": "^1.1.2",
