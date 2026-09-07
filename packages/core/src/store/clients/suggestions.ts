@@ -4,15 +4,6 @@ import type { ClientOutput } from "@assistant-ui/store";
 import { useClientLookup } from "@assistant-ui/store/client";
 import { shallowEqual } from "@assistant-ui/store/internal";
 import type { SuggestionsState } from "../scopes/suggestions";
-
-const sameEntries = (a: readonly unknown[], b: readonly unknown[]): boolean => {
-  if (a.length !== b.length) return false;
-  for (let i = 0; i < a.length; i++) {
-    if (a[i] !== b[i]) return false;
-  }
-  return true;
-};
-
 import type { SuggestionState } from "../scopes/suggestion";
 import type { ThreadSuggestion } from "../../runtime/interfaces/thread-runtime-core";
 
@@ -33,7 +24,7 @@ const useStableSuggestionsState = (
       : suggestion;
   });
   const state =
-    previous && sameEntries(suggestions, previous.suggestions)
+    previous && shallowEqual(suggestions, previous.suggestions)
       ? previous
       : { suggestions };
 

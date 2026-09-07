@@ -15,13 +15,6 @@ const PREVIEW_LENGTH = 240;
  */
 const TOP_TOLERANCE = 1;
 
-/**
- * The line a message has to cross to count as the one being read. It sits at
- * the top of the viewport for most of a thread, then slides to the bottom
- * across the final screenful: a message that starts within one viewport height
- * of the end can never reach the top, so a fixed line leaves the last screen's
- * worth of ticks permanently unreachable.
- */
 const sameIds = (a: readonly string[], b: readonly string[]): boolean => {
   if (a.length !== b.length) return false;
   for (let i = 0; i < a.length; i++) {
@@ -30,6 +23,13 @@ const sameIds = (a: readonly string[], b: readonly string[]): boolean => {
   return true;
 };
 
+/**
+ * The line a message has to cross to count as the one being read. It sits at
+ * the top of the viewport for most of a thread, then slides to the bottom
+ * across the final screenful: a message that starts within one viewport height
+ * of the end can never reach the top, so a fixed line leaves the last screen's
+ * worth of ticks permanently unreachable.
+ */
 const readingLine = (viewport: HTMLElement) => {
   const rect = viewport.getBoundingClientRect();
   const height = viewport.clientHeight;
