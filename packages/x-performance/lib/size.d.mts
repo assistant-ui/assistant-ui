@@ -22,7 +22,7 @@ export type SizeRow = {
     | SizeStatus
     | "skipped (not built)"
     | "stale"
-    | `${SizeStatus} (kept: unchanged vs origin/main)`;
+    | `${Extract<SizeStatus, "over" | "under">} (kept: unchanged vs origin/main)`;
 };
 
 export type CheckSizesOptions = {
