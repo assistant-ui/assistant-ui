@@ -381,8 +381,14 @@ export class MessageRepository {
       );
 
     const previousHead = this.head;
-    const prevOrRoot = message.prev ?? this.root;
-    prevOrRoot.next = message;
+    for (
+      let current: RepositoryMessage | null = message;
+      current;
+      current = current.prev
+    ) {
+      const prevOrRoot = current.prev ?? this.root;
+      prevOrRoot.next = current;
+    }
 
     this.head = findHead(message);
 
