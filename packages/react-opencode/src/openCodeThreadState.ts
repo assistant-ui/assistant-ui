@@ -83,11 +83,12 @@ const updateExistingMessage = (
   const current = state.messagesById[messageId];
   if (!current) return state;
 
+  const messagesById = copyMessagesById(state.messagesById);
+  messagesById[messageId] = updater(current);
+
   return {
     ...state,
-    messagesById: Object.assign(copyMessagesById(state.messagesById), {
-      [messageId]: updater(current),
-    }),
+    messagesById,
   };
 };
 
