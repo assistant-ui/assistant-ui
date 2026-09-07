@@ -36,7 +36,7 @@ import { useOpenCodeStreamingTiming } from "./useOpenCodeStreamingTiming";
 type OpenCodeControllerRegistry = {
   getEventSource(): OpenCodeEventSource;
   controllers: Map<string, OpenCodeThreadController>;
-  generation: number;
+  readonly generation: number;
   dispose(): void;
 };
 
@@ -290,7 +290,15 @@ const useNewOpenCodeThreadStore = (
         setOptimisticMessages((messages) => [...messages, optimistic]);
 
         const task = sendQueueRef.current.then(async () => {
-          if (registry.generation !== generation) return;
+          const removeOptimisticMessage = () => {
+            setOptimisticMessages((messages) =>
+              messages.filter((candidate) => candidate !== optimistic),
+            );
+          };
+          if (registry.generation !== generation) {
+            removeOptimisticMessage();
+            return;
+          }
           let initialization:
             | Promise<{
                 remoteId: string;
@@ -302,18 +310,17 @@ const useNewOpenCodeThreadStore = (
               initializationRef.current ??
               (initializationRef.current = aui.threadListItem.initialize());
             const { remoteId, externalId } = await initialization;
-            if (registry.generation !== generation) return;
+            if (registry.generation !== generation) {
+              removeOptimisticMessage();
+              return;
+            }
             const sessionId = externalId ?? remoteId;
             const controller = getController(registry, client, sessionId);
             const dispatch = sendOpenCodeMessage(controller, message, options);
-            setOptimisticMessages((messages) =>
-              messages.filter((candidate) => candidate !== optimistic),
-            );
+            removeOptimisticMessage();
             await dispatch;
           } catch (error) {
-            setOptimisticMessages((messages) =>
-              messages.filter((candidate) => candidate !== optimistic),
-            );
+            removeOptimisticMessage();
             invokeErrorCallback(options.onError, error);
             throw error;
           } finally {

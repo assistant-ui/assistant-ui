@@ -95,6 +95,7 @@ type ApprovalAdapter = {
 
 type RuntimeAdapter = ApprovalAdapter & {
   onNew?: (message: { role: "user"; content: [] }) => Promise<void> | void;
+  messageRepository?: { messages: unknown[] };
 };
 
 const stubClient = {
@@ -246,6 +247,45 @@ describe("useOpenCodeRuntime", () => {
     sessionCreate.resolve({ data: { id: "session-1" } });
     await sendPromise;
 
+    expect(mocks.controller.sendMessage).not.toHaveBeenCalled();
+  });
+
+  it("clears pending optimistic messages after client replacement", async () => {
+    const sessionCreate = Promise.withResolvers<{ data: { id: string } }>();
+    mocks.sessionCreate.mockReturnValue(sessionCreate.promise);
+    mocks.threadListItem.externalId = undefined;
+    mocks.threadListItem.remoteId = undefined;
+    mocks.threadListItem.status = "new";
+    mocks.state = createOpenCodeThreadState("session-1");
+
+    const App = ({ client }: { client: typeof stubClient }) => {
+      useOpenCodeRuntime({ client });
+      return null;
+    };
+
+    root = createRoot(document.createElement("div"));
+    await act(async () =>
+      root!.render(createElement(App, { client: stubClient })),
+    );
+
+    const adapter = mocks.adapters.at(-1) as RuntimeAdapter;
+    const sendPromise = adapter.onNew!({ role: "user", content: [] });
+    await vi.waitFor(() => expect(mocks.sessionCreate).toHaveBeenCalledOnce());
+
+    const replacementClient = {
+      ...stubClient,
+    } as ReturnType<typeof createOpencodeClient>;
+    await act(async () =>
+      root!.render(createElement(App, { client: replacementClient })),
+    );
+
+    await act(async () => {
+      sessionCreate.resolve({ data: { id: "session-1" } });
+      await sendPromise;
+    });
+
+    const replacementAdapter = mocks.adapters.at(-1) as RuntimeAdapter;
+    expect(replacementAdapter.messageRepository?.messages).toEqual([]);
     expect(mocks.controller.sendMessage).not.toHaveBeenCalled();
   });
 
