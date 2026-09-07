@@ -263,7 +263,7 @@ export class ThreadListRuntimeImpl implements ThreadListRuntime {
         getState: () => this._core.getThreadRuntimeCore(threadId),
         subscribe: (callback) => this._core.subscribe(callback),
       }),
-      this.mainItem,
+      this.getItemById(threadId),
     );
   }
 
