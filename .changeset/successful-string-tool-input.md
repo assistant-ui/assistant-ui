@@ -2,4 +2,4 @@
 "assistant-stream": patch
 ---
 
-fix: serialize successful string tool inputs as JSON strings
+fix: keep the JSON quotes on a successful tool input that is a plain string, so a tool with a string input schema executes instead of failing with a parameter parsing error
