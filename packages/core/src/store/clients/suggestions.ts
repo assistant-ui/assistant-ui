@@ -20,8 +20,10 @@ const useStableSuggestionsState = (
   // forEach skips array holes, so a sparse caller array normalizes to a dense
   // list here, before the per-suggestion resource lookup indexes every slot.
   const suggestions: SuggestionState[] = [];
-  next.suggestions.forEach((suggestion, index) => {
-    const previousSuggestion = previous?.suggestions[index];
+  next.suggestions.forEach((suggestion) => {
+    // Probed at the compacted destination index, not the sparse source index,
+    // so an equivalent hole-containing update keeps reusing prior identities.
+    const previousSuggestion = previous?.suggestions[suggestions.length];
     suggestions.push(
       previousSuggestion && shallowEqual(previousSuggestion, suggestion)
         ? previousSuggestion

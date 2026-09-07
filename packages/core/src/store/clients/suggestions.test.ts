@@ -171,8 +171,21 @@ describe("ThreadSuggestions", () => {
       const expected = { title: "Prompt B", label: "", prompt: "Prompt B" };
       expect(state.suggestions).toEqual([expected]);
       expect(Object.keys(state.suggestions)).toEqual(["0"]);
-      expect(root.getValue().suggestion({ index: 0 }).getState()).toEqual(
-        expected,
+      const firstSuggestion = root
+        .getValue()
+        .suggestion({ index: 0 })
+        .getState();
+      expect(firstSuggestion).toEqual(expected);
+
+      // An equivalent sparse update keeps both identities stable: the reuse
+      // probe reads the compacted destination index, not the sparse source one.
+      const sparseAgain: ThreadSuggestion[] = new Array(2);
+      sparseAgain[1] = { prompt: "Prompt B" };
+      flushTapSync(() => setSuggestions(sparseAgain));
+
+      expect(root.getValue().getState()).toBe(state);
+      expect(root.getValue().suggestion({ index: 0 }).getState()).toBe(
+        firstSuggestion,
       );
     } finally {
       root.unmount();
