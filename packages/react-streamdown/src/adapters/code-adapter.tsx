@@ -31,7 +31,6 @@ interface CodeAdapterOptions {
 
 function extractCode(children: unknown): string {
   if (typeof children === "string") return children;
-  if (typeof children === "number") return String(children);
   if (Array.isArray(children)) {
     let code = "";
     for (const child of children) code += extractCode(child);
