@@ -124,7 +124,14 @@ const deferred = <T>() => {
 describe("RemoteThreadList backgroundThreads", () => {
   it("keeps the running initialized body when its listed duplicate is selected", async () => {
     const list = deferred<{
-      threads: [{ status: "regular"; remoteId: string; externalId: string }];
+      threads: [
+        {
+          status: "regular";
+          remoteId: string;
+          externalId: string;
+          title: string;
+        },
+      ];
     }>();
     const initialize = deferred<{
       remoteId: string;
@@ -144,7 +151,12 @@ describe("RemoteThreadList backgroundThreads", () => {
 
     list.resolve({
       threads: [
-        { status: "regular", remoteId: "remote-1", externalId: "remote-1" },
+        {
+          status: "regular",
+          remoteId: "remote-1",
+          externalId: "remote-1",
+          title: "Listed thread",
+        },
       ],
     });
     await loadPromise;
@@ -169,6 +181,7 @@ describe("RemoteThreadList backgroundThreads", () => {
     expect(aui.threads.item({ id: "remote-1" }).getState().id).toBe(localId);
     expect(aui.threads.item("main").getState().id).toBe(localId);
     expect(aui.threads.item("main").getState().externalId).toBe("remote-1");
+    expect(aui.threads.item("main").getState().title).toBe("Listed thread");
     expect(aui.threads.item("main").getState().isRunning).toBe(true);
     expect(tracker.mounts.filter((id) => id === localId)).toHaveLength(
       localMountCount,

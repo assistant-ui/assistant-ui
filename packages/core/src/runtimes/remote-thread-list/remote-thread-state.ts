@@ -337,20 +337,17 @@ export const reconcileInitializedThread = (
     remoteId,
     externalId: resolvedExternalId,
   } as RemoteThreadData;
-  threadData[survivorMappingId] =
-    survivorMappingId === mappingId
-      ? initializedData
-      : ({
-          ...listedSlot?.data,
-          ...initializedData,
-          title: data.title ?? listedSlot?.data.title,
-          lastMessageAt:
-            ("lastMessageAt" in data ? data.lastMessageAt : undefined) ??
-            (listedSlot && "lastMessageAt" in listedSlot.data
-              ? listedSlot.data.lastMessageAt
-              : undefined),
-          custom: data.custom ?? listedSlot?.data.custom,
-        } as RemoteThreadData);
+  threadData[survivorMappingId] = {
+    ...listedSlot?.data,
+    ...initializedData,
+    title: data.title ?? listedSlot?.data.title,
+    lastMessageAt:
+      ("lastMessageAt" in data ? data.lastMessageAt : undefined) ??
+      (listedSlot && "lastMessageAt" in listedSlot.data
+        ? listedSlot.data.lastMessageAt
+        : undefined),
+    custom: data.custom ?? listedSlot?.data.custom,
+  } as RemoteThreadData;
 
   const threadIdMap = nullProtoRecord(state.threadIdMap);
   if (removedMappingId !== undefined) {
