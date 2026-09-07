@@ -13,6 +13,14 @@ import { serializeOpenCodeParts } from "./serializeUserParts";
 const PENDING_MATCH_WINDOW_MS = 2 * 60 * 1000;
 const MAX_UNHANDLED_EVENTS = 25;
 
+const copyMessagesById = (
+  messagesById?: Readonly<Record<string, OpenCodeServerMessage>>,
+): Record<string, OpenCodeServerMessage> =>
+  Object.assign(
+    Object.create(null) as Record<string, OpenCodeServerMessage>,
+    messagesById,
+  );
+
 const extractCreatedAt = (message: Message | undefined): number | undefined => {
   const created = message?.time?.created;
   return typeof created === "number" ? created : undefined;
@@ -54,10 +62,8 @@ const upsertMessage = (
 ): OpenCodeThreadState => {
   const current = state.messagesById[messageId];
   const nextMessage = updater(current);
-  const messagesById = {
-    ...state.messagesById,
-    [messageId]: nextMessage,
-  };
+  const messagesById = copyMessagesById(state.messagesById);
+  messagesById[messageId] = nextMessage;
   const messageOrder = current
     ? state.messageOrder
     : sortMessageIds(messagesById, [...state.messageOrder, messageId]);
@@ -79,10 +85,9 @@ const updateExistingMessage = (
 
   return {
     ...state,
-    messagesById: {
-      ...state.messagesById,
+    messagesById: Object.assign(copyMessagesById(state.messagesById), {
       [messageId]: updater(current),
-    },
+    }),
   };
 };
 
@@ -153,7 +158,7 @@ const historyLoaded = (
     ...state,
     session,
     loadState: { type: "ready" },
-    messagesById: {} as Readonly<Record<string, OpenCodeServerMessage>>,
+    messagesById: copyMessagesById(),
     messageOrder: [],
     sync: {
       ...state.sync,
@@ -161,7 +166,7 @@ const historyLoaded = (
     },
   };
 
-  const nextMessagesById: Record<string, OpenCodeServerMessage> = {};
+  const nextMessagesById = copyMessagesById();
   for (const message of messages) {
     const pendingMatch =
       message.info.role === "user"
@@ -242,7 +247,7 @@ export const createOpenCodeThreadState = (
   loadState: { type: "idle" },
   runState: { type: "idle" },
   messageOrder: [],
-  messagesById: {} as Readonly<Record<string, OpenCodeServerMessage>>,
+  messagesById: copyMessagesById(),
   childSessionsById: {} as Readonly<Record<string, OpenCodeThreadState>>,
   pendingUserMessages: {} as Readonly<Record<string, PendingUserMessage>>,
   interactions: {
@@ -417,7 +422,7 @@ export const reduceOpenCodeThreadState = (
 
     case "message.removed": {
       if (!(event.messageId in state.messagesById)) return state;
-      const messagesById = { ...state.messagesById };
+      const messagesById = copyMessagesById(state.messagesById);
       delete messagesById[event.messageId];
       return {
         ...state,
