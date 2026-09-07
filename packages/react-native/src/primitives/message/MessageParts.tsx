@@ -44,7 +44,6 @@ export const MessagePrimitiveParts: FC<MessagePrimitiveParts.Props> = (
           ? { ChainOfThought: components.ChainOfThought }
           : {
               tools: components.tools,
-              data: components.data,
               ToolGroup:
                 components.ToolGroup ?? messagePartsDefaultComponents.ToolGroup,
               ReasoningGroup:
@@ -53,6 +52,8 @@ export const MessagePrimitiveParts: FC<MessagePrimitiveParts.Props> = (
             }),
         Empty: components.Empty,
         Quote: components.Quote,
+        data: components.data,
+        generativeUI: components.generativeUI,
       }
     : rnDefaultComponents;
 
