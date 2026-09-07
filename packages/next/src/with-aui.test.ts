@@ -1,7 +1,7 @@
 import { describe, expect, it, vi } from "vitest";
 import { withAui } from "./with-aui";
 
-type AuiNextConfig = Parameters<typeof withAui>[0];
+type AuiNextConfig = NonNullable<Parameters<typeof withAui>[0]>;
 
 const rulesFor = (config: AuiNextConfig) =>
   withAui(config).turbopack?.rules ?? {};
