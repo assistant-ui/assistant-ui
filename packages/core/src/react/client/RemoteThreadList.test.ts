@@ -441,9 +441,8 @@ describe("RemoteThreadList", () => {
     await aui.threads.item({ id: "t1" }).generateTitle({ automatic: true });
     expect(adapter.generateTitle).toHaveBeenCalledOnce();
 
-    // The undeleted t2 is the control: its manual rename survived the reload,
-    // so its auto-title stays suppressed. A reload that cleared every title
-    // state would generate here and fail, instead of hollowing out the pin.
+    // t2 is the control: a reload that cleared every title state would
+    // generate here as well.
     flushTapSync(() => aui.threads.switchToThread("t2"));
     await vi.waitFor(() => {
       expect(aui.threads.getState().mainThreadId).toBe("t2");
