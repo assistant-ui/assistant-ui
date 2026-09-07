@@ -4,4 +4,4 @@
 "@assistant-ui/react-langgraph": patch
 ---
 
-fix: abort and settle superseded Google ADK streams.
+fix: abort superseded Google ADK streams even when interactive cancellation is disabled.

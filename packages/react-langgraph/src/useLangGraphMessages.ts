@@ -8,7 +8,6 @@ import {
 } from "react";
 import { generateId } from "@assistant-ui/core";
 import { LangGraphMessageAccumulator } from "./LangGraphMessageAccumulator";
-import { abortableIterable, whenAborted } from "./abortableIterable";
 import {
   type EventType,
   type LangChainMessageTupleEvent,
@@ -28,7 +27,11 @@ import {
   type UIMessage,
 } from "./types";
 import { useAui } from "@assistant-ui/store";
-import { invokeUserCallback } from "@assistant-ui/core/internal";
+import {
+  abortableIterable,
+  invokeUserCallback,
+  whenAborted,
+} from "@assistant-ui/core/internal";
 import { normalizeLangGraphTupleMessage } from "./normalizeLangGraphTupleMessage";
 
 const DEFAULT_UI_STATE_KEY = "ui";

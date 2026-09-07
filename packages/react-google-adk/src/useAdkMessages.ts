@@ -11,6 +11,7 @@ import { useAui } from "@assistant-ui/store";
 import {
   abortableIterable,
   invokeUserCallback,
+  whenAborted,
 } from "@assistant-ui/core/internal";
 import { AdkEventAccumulator } from "./AdkEventAccumulator";
 import { contentToParts } from "./contentToParts";
@@ -155,18 +156,31 @@ export const useAdkMessages = ({
       }
       setMessagesImmediate(accumulator.getMessages());
 
+      // Google ADK replaces active runs, while React LangGraph queues sends.
       abortControllerRef.current?.abort();
       const abortController = new AbortController();
       abortControllerRef.current = abortController;
 
       try {
-        const response = await stream(newMessagesWithId, {
-          ...config,
-          abortSignal: abortController.signal,
-          initialize: async () => {
-            return await aui.threadListItem.initialize();
-          },
-        });
+        const opened = Promise.resolve(
+          stream(newMessagesWithId, {
+            ...config,
+            abortSignal: abortController.signal,
+            initialize: async () => {
+              return await aui.threadListItem.initialize();
+            },
+          }),
+        );
+        const response = await Promise.race([
+          opened,
+          whenAborted(abortController.signal),
+        ]);
+        if (!response) {
+          void opened
+            .then((late) => late[Symbol.asyncIterator]().return?.(undefined))
+            .catch(() => {});
+          return;
+        }
 
         for await (const event of abortableIterable(
           response,

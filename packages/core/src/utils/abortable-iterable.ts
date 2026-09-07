@@ -61,6 +61,7 @@ export const abortableIterable = <T>(
             },
             (error: unknown) => {
               release();
+              finalize();
               reject(error);
             },
           );
