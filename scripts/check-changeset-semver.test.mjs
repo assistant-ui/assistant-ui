@@ -549,7 +549,7 @@ test("a PR range that touches no changeset ends the run before any summary", () 
   }
 });
 
-test("an unusable base falls back to every changeset and says so", () => {
+test("an unusable base fails closed instead of grading the tree", () => {
   const root = createWorkspace([{ name: "@fixture/dep", version: "0.12.15" }], {
     "shy-pots-shave.md": '"@fixture/dep": minor',
   });
@@ -560,8 +560,9 @@ test("an unusable base falls back to every changeset and says so", () => {
     });
 
     assert.equal(result.status, 1);
-    assert.match(result.stdout, /Could not diff against base/);
-    assert.match(result.stdout, /shy-pots-shave\.md/);
+    assert.match(result.stdout, /not fetchable/);
+    assert.doesNotMatch(result.stdout, /shy-pots-shave\.md/);
+    assert.doesNotMatch(result.stdout, /Semver-breaking/);
   } finally {
     rmSync(root, { recursive: true, force: true });
   }

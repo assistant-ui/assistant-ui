@@ -259,10 +259,10 @@ function diffChangesetFiles(root, baseSha, headSha) {
     return new Set(diff ? diff.split("\n").map((f) => path.basename(f)) : []);
   } catch {
     annotate(
-      "warning",
-      "Could not diff against base — checking all changeset files",
+      "error",
+      `Could not diff ${baseSha.slice(0, 12)}..${headSha.slice(0, 12)} — the base or head commit is not fetchable (a rerun against a deleted branch?). Failing instead of grading every changeset in the tree.`,
     );
-    return null;
+    process.exit(1);
   }
 }
 
