@@ -31,6 +31,7 @@ export const MessagePrimitiveParts: FC<MessagePrimitiveParts.Props> = (
   const { components, ...rest } = props;
   const merged = components
     ? {
+        ...components,
         Text: components.Text ?? rnDefaultComponents.Text,
         Image: components.Image ?? messagePartsDefaultComponents.Image,
         Reasoning:
@@ -41,19 +42,14 @@ export const MessagePrimitiveParts: FC<MessagePrimitiveParts.Props> = (
           components.Unstable_Audio ??
           messagePartsDefaultComponents.Unstable_Audio,
         ...("ChainOfThought" in components
-          ? { ChainOfThought: components.ChainOfThought }
+          ? {}
           : {
-              tools: components.tools,
               ToolGroup:
                 components.ToolGroup ?? messagePartsDefaultComponents.ToolGroup,
               ReasoningGroup:
                 components.ReasoningGroup ??
                 messagePartsDefaultComponents.ReasoningGroup,
             }),
-        Empty: components.Empty,
-        Quote: components.Quote,
-        data: components.data,
-        generativeUI: components.generativeUI,
       }
     : rnDefaultComponents;
 

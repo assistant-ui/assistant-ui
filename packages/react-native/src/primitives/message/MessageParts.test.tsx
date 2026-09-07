@@ -95,17 +95,22 @@ describe("MessagePrimitiveParts", () => {
     );
   });
 
-  it("keeps data renderers when chain-of-thought grouping changes", async () => {
-    const dataComponents = { data: components.data };
-    await act(async () => root.render(<App components={dataComponents} />));
-    expect(container.textContent).toBe("AnswerChart: 42Data: 7");
+  it("keeps data and generative UI when chain-of-thought grouping changes", async () => {
+    await act(async () => root.render(<App components={components} />));
+    expect(container.textContent).toBe(
+      "AnswerResultUnavailable: UnknownChart: 42Data: 7",
+    );
 
     await act(async () =>
-      root.render(<App components={{ ...dataComponents, ChainOfThought }} />),
+      root.render(<App components={{ ...components, ChainOfThought }} />),
     );
-    expect(container.textContent).toBe("AnswerThought groupChart: 42Data: 7");
+    expect(container.textContent).toBe(
+      "AnswerThought groupResultUnavailable: UnknownChart: 42Data: 7",
+    );
 
-    await act(async () => root.render(<App components={dataComponents} />));
-    expect(container.textContent).toBe("AnswerChart: 42Data: 7");
+    await act(async () => root.render(<App components={components} />));
+    expect(container.textContent).toBe(
+      "AnswerResultUnavailable: UnknownChart: 42Data: 7",
+    );
   });
 });
