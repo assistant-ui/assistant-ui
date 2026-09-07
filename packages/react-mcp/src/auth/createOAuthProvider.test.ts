@@ -404,6 +404,29 @@ describe("createOAuthProvider persistence", () => {
     });
   });
 
+  it("still reads a sanitized cache when the migration write fails", async () => {
+    const storage: MCPStorage = {
+      loadCustomServers: async () => [],
+      saveCustomServers: async () => {},
+      loadAuthState: async () => ({
+        serverUrl,
+        clientInformation: {
+          client_id: "legacy",
+          redirect_uris: ["http://localhost/callback"],
+        },
+        tokens: { access_token: "legacy", token_type: "bearer" },
+      }),
+      saveAuthState: async () => {
+        throw new Error("storage unavailable");
+      },
+      clearAuthState: async () => {},
+    };
+    const provider = createProvider(storage);
+
+    await expect(provider.tokens()).resolves.toBeUndefined();
+    await expect(provider.clientInformation()).resolves.toBeUndefined();
+  });
+
   it("drops tokens when dynamic registration replaces the client", async () => {
     const { storage, getState } = createStorage({
       serverUrl,

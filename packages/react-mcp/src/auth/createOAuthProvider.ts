@@ -321,7 +321,7 @@ export function createOAuthProvider(
               initial.discoveryState = persisted.discoveryState;
           }
           endpoint.cached = initial;
-          if (needsMigration) await persist();
+          if (needsMigration) await persist().catch(() => {});
           return initial;
         },
         (error) => {
