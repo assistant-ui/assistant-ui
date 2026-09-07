@@ -110,6 +110,7 @@ export class ExternalStoreThreadListRuntimeCore
 
     if (
       !initialLoad &&
+      (previousAdapter.isLoading ?? false) === (adapter.isLoading ?? false) &&
       previousThreadId === newThreadId &&
       previousThreads === newThreads &&
       previousArchivedThreads === newArchivedThreads

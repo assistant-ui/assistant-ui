@@ -2,6 +2,7 @@ import { describe, expect, it, vi } from "vitest";
 import { ExternalStoreThreadListRuntimeCore } from "../runtimes/external-store/external-store-thread-list-runtime-core";
 import type { ExternalStoreThreadRuntimeCore } from "../runtimes/external-store/external-store-thread-runtime-core";
 import { ExternalStoreThreadRuntimeCore as ExternalStoreThreadRuntimeCoreImpl } from "../runtimes/external-store/external-store-thread-runtime-core";
+import { ExternalStoreRuntimeCore } from "../runtimes/external-store/external-store-runtime-core";
 import type { ExternalStoreThreadListAdapter } from "../runtimes/external-store/external-store-adapter";
 import type { ExternalStoreAdapter } from "../runtimes/external-store/external-store-adapter";
 import type { ModelContextProvider } from "../model-context/types";
@@ -127,6 +128,38 @@ describe("ExternalStoreThreadListRuntimeCore - construction", () => {
 });
 
 describe("ExternalStoreThreadListRuntimeCore - __internal_setAdapter", () => {
+  it("updates subscribed loading state when thread ids and arrays stay unchanged", () => {
+    const threadList = makeAdapter({
+      threadId: "thread-alpha",
+      threads: [{ id: "thread-alpha", status: "regular" }],
+      archivedThreads: [],
+      isLoading: true,
+    });
+    const adapter: ExternalStoreAdapter = {
+      messages: [],
+      onNew: async () => {},
+      adapters: { threadList },
+    };
+    const core = new ExternalStoreRuntimeCore(adapter);
+    const runtime = new ThreadListRuntimeImpl(core.threads);
+    const seen: boolean[] = [];
+    const unsubscribe = runtime.subscribe(() => {
+      seen.push(runtime.getState().isLoading);
+    });
+    expect(runtime.getState().isLoading).toBe(true);
+
+    for (const isLoading of [false, true, undefined, false]) {
+      core.setAdapter({
+        ...adapter,
+        adapters: { threadList: { ...threadList, isLoading } },
+      });
+    }
+
+    expect(seen).toEqual([false, true, false]);
+    expect(runtime.getState().isLoading).toBe(false);
+    unsubscribe();
+  });
+
   it("updates mainThreadId when adapter.threadId changes", () => {
     const core = new ExternalStoreThreadListRuntimeCore(
       makeAdapter({ threadId: "thread-alpha" }),
