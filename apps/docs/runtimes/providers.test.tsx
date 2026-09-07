@@ -74,6 +74,23 @@ it("wires the artifacts surface with a cloud and dictation but no feedback", asy
   expect(runtimeOptions().adapters?.feedback).toBeUndefined();
 });
 
+it("wires the interactable sample with a cloud and image attachments", async () => {
+  const { InteractableRuntimeProvider } = await import("./interactable");
+
+  renderToString(
+    <InteractableRuntimeProvider>{null}</InteractableRuntimeProvider>,
+  );
+
+  expect(useDocsCloud).toHaveBeenCalled();
+  expect(runtimeOptions().cloud).toBe("cloud");
+  expect(runtimeOptions().sendAutomatically).toBe(true);
+  expect(runtimeOptions().adapters?.attachments).toBeInstanceOf(
+    SimpleImageAttachmentAdapter,
+  );
+  expect(runtimeOptions().adapters?.feedback).toBeUndefined();
+  expect(useSpeechAdapters).not.toHaveBeenCalled();
+});
+
 it("wires the docs assistant onto its own endpoint with no cloud", async () => {
   const { DocsAssistantRuntimeProvider } = await import("./docs-assistant");
 

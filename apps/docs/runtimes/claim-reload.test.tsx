@@ -49,6 +49,10 @@ it.each([
     "artifacts",
     () => import("./artifacts").then((m) => m.ArtifactsRuntimeProvider),
   ],
+  [
+    "interactable sample",
+    () => import("./interactable").then((m) => m.InteractableRuntimeProvider),
+  ],
 ])(
   "reloads the %s runtime's thread list only after a claim moved threads",
   async (_name, load) => {

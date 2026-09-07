@@ -11,7 +11,7 @@ import {
 } from "@assistant-ui/react";
 import { MarkdownTextPrimitive } from "@assistant-ui/react-markdown";
 import { SampleFrame } from "@/components/pages/docs/samples/sample-frame";
-import { InteractableRuntimeProvider } from "./interactable-runtime";
+import { InteractableRuntimeProvider } from "@/runtimes/interactable";
 import remarkGfm from "remark-gfm";
 import {
   ArrowUpIcon,
