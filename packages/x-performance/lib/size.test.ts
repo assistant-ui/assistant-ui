@@ -12,12 +12,26 @@ import { fileURLToPath } from "node:url";
 import { describe, expect, it, vi } from "vitest";
 import {
   budgetStatus,
+  changedPackageNames,
   checkSizes,
   listEntries,
   measureEntry,
 } from "./size.mjs";
 
 const repoRoot = resolve(dirname(fileURLToPath(import.meta.url)), "../../..");
+
+// The fixtures are isolated from the developer's own git configuration: an
+// inherited commit.gpgsign or core.hooksPath would otherwise prompt or run
+// repository hooks from inside the suite.
+const gitEnv = {
+  ...process.env,
+  GIT_CONFIG_GLOBAL: "/dev/null",
+  GIT_CONFIG_SYSTEM: "/dev/null",
+  GIT_AUTHOR_NAME: "t",
+  GIT_AUTHOR_EMAIL: "t@t",
+  GIT_COMMITTER_NAME: "t",
+  GIT_COMMITTER_EMAIL: "t@t",
+};
 
 describe("listEntries", () => {
   it("resolves JavaScript exports in map order", () => {
@@ -82,6 +96,28 @@ describe("budgetStatus", () => {
     expect(budgetStatus(JSON.parse('{"min":100}'), { min: 1, gzip: 1 })).toBe(
       "new",
     );
+  });
+});
+
+describe("changedPackageNames", () => {
+  it("falls back when the root is not a work tree root", () => {
+    const outer = mkdtempSync(join(tmpdir(), "aui-size-outer-"));
+    const git = (...args: string[]) =>
+      execFileSync("git", args, { cwd: outer, encoding: "utf8", env: gitEnv });
+    try {
+      git("init", "--quiet");
+      git("commit", "--allow-empty", "-qm", "base");
+      git("update-ref", "refs/remotes/origin/main", "HEAD");
+      // The outer repository resolves a merge base, so without the work tree
+      // root check the nested root reads as an empty set rather than null.
+      const nested = join(outer, "nested");
+      mkdirSync(join(nested, "packages"), { recursive: true });
+
+      expect(changedPackageNames(nested)).toBeNull();
+      expect(changedPackageNames(outer)).toEqual(new Set());
+    } finally {
+      rmSync(outer, { recursive: true, force: true });
+    }
   });
 });
 
@@ -202,23 +238,8 @@ describe("checkSizes", () => {
 
   it("keeps drifted entries of packages unchanged vs origin/main, still records new ones", async () => {
     const root = mkdtempSync(join(tmpdir(), "aui-size-git-"));
-    // The fixture is isolated from the developer's own git configuration:
-    // an inherited commit.gpgsign or core.hooksPath would otherwise prompt or
-    // run repository hooks from inside the suite.
     const git = (...args: string[]) =>
-      execFileSync("git", args, {
-        cwd: root,
-        encoding: "utf8",
-        env: {
-          ...process.env,
-          GIT_CONFIG_GLOBAL: "/dev/null",
-          GIT_CONFIG_SYSTEM: "/dev/null",
-          GIT_AUTHOR_NAME: "t",
-          GIT_AUTHOR_EMAIL: "t@t",
-          GIT_COMMITTER_NAME: "t",
-          GIT_COMMITTER_EMAIL: "t@t",
-        },
-      });
+      execFileSync("git", args, { cwd: root, encoding: "utf8", env: gitEnv });
     try {
       const touched = writePackage(root, "touched", {
         ".": "export const touched = 1;\n",
