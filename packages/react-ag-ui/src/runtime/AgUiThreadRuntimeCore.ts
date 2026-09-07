@@ -1108,6 +1108,12 @@ export class AgUiThreadRuntimeCore {
 
     const abortController = new AbortController();
     const abortSignal = abortController.signal;
+    const previousAbortController = this.abortController;
+    // Default AG-UI runs supersede active runs; the hook's opt-in message queue
+    // serializes sends instead. abort() invokes onCancel synchronously, so a
+    // callback-started replacement must stay in control of the thread.
+    previousAbortController?.abort();
+    if (this.abortController !== null) return;
     this.abortController = abortController;
     const runAgentInstance = this.agent;
     this.activeRunAgent = runAgentInstance;

@@ -935,6 +935,85 @@ describe("AGUIThreadRuntimeCore", () => {
     expect(core.isRunning()).toBe(false);
   });
 
+  it("aborts and settles a run superseded by a later append", async () => {
+    const signals: AbortSignal[] = [];
+    const runAgent = vi.fn(
+      (
+        _input: unknown,
+        subscriber: AgentSubscriber,
+        { signal }: { signal: AbortSignal },
+      ) => {
+        signals.push(signal);
+        if (signals.length === 1) {
+          return new Promise<void>((resolve) => {
+            signal.addEventListener("abort", () => resolve(), { once: true });
+          });
+        }
+        subscriber.onRunFinalized?.();
+        return Promise.resolve();
+      },
+    );
+    const core = createCore({ runAgent } as unknown as HttpAgent);
+    const firstRun = core.append(createAppendMessage());
+
+    await vi.waitFor(() => expect(signals).toHaveLength(1));
+    const secondRun = core.append(createAppendMessage());
+    await secondRun;
+
+    const firstRunSettled = await new Promise<boolean>((resolve) => {
+      const timer = setTimeout(() => resolve(false), 1000);
+      void firstRun.then(
+        () => {
+          clearTimeout(timer);
+          resolve(true);
+        },
+        () => {
+          clearTimeout(timer);
+          resolve(false);
+        },
+      );
+    });
+
+    expect(firstRunSettled).toBe(true);
+    expect(signals[0]?.aborted).toBe(true);
+    expect(signals[1]?.aborted).toBe(false);
+  });
+
+  it("keeps a callback-started replacement when superseding a run", async () => {
+    const signals: AbortSignal[] = [];
+    let core!: AgUiThreadRuntimeCore;
+    const onCancel = vi.fn(() => {
+      void core.append(createAppendMessage());
+    });
+    const runAgent = vi.fn(
+      (
+        _input: unknown,
+        subscriber: AgentSubscriber,
+        { signal }: { signal: AbortSignal },
+      ) => {
+        signals.push(signal);
+        if (signals.length === 1) {
+          return new Promise<void>((resolve) => {
+            signal.addEventListener("abort", () => resolve(), { once: true });
+          });
+        }
+        subscriber.onRunFinalized?.();
+        return Promise.resolve();
+      },
+    );
+    core = createCore({ runAgent } as unknown as HttpAgent, { onCancel });
+
+    const firstRun = core.append(createAppendMessage());
+    await vi.waitFor(() => expect(signals).toHaveLength(1));
+    await core.append(createAppendMessage());
+    await firstRun;
+
+    expect(onCancel).toHaveBeenCalledTimes(1);
+    expect(runAgent).toHaveBeenCalledTimes(2);
+    expect(signals[0]?.aborted).toBe(true);
+    expect(signals[1]?.aborted).toBe(false);
+  });
+
   it("keeps replacement run errors with the replacement", async () => {
     const runs: Array<{ subscriber: AgentSubscriber; resolve: () => void }> =
       [];
