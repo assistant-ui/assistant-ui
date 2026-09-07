@@ -5,7 +5,7 @@ import {
   isJSONRPCResultResponse,
 } from "@modelcontextprotocol/client";
 import { StdioServerTransport } from "@modelcontextprotocol/server/stdio";
-import type { Readable, Writable } from "node:stream";
+import { type Readable, type Writable, finished } from "node:stream";
 
 const DEFAULT_URL = "https://www.assistant-ui.com/mcp";
 
@@ -22,7 +22,8 @@ export async function runProxy({
   stdin?: NodeJS.ReadableStream;
   stdout?: NodeJS.WritableStream;
 } = {}) {
-  const stdio = new StdioServerTransport(stdin as Readable, stdout as Writable);
+  const input = stdin as Readable;
+  const stdio = new StdioServerTransport(input, stdout as Writable);
   const http = new StreamableHTTPClientTransport(url);
   let initializeRequestId: string | number | undefined;
   let closing = false;
@@ -97,15 +98,23 @@ export async function runProxy({
     closeCounterpart(stdio);
   };
 
+  let releaseInput: (() => void) | undefined;
+
   try {
     await http.start();
     await stdio.start();
+    releaseInput = finished(input, { writable: false }, () => {
+      void stdio.close().catch((error: unknown) => {
+        logError("failed to close transport", error);
+      });
+    });
+    await closed;
   } catch (error) {
     closing = true;
     await Promise.allSettled([http.close(), stdio.close()]);
     resolveClosed();
     throw error;
+  } finally {
+    releaseInput?.();
   }
-
-  await closed;
 }

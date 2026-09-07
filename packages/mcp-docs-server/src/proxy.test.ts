@@ -1,4 +1,5 @@
 import { describe, expect, it, vi } from "vitest";
+import { once } from "node:events";
 import {
   createServer,
   type IncomingMessage,
@@ -148,6 +149,62 @@ const createRpcClient = (stdin: PassThrough, stdout: PassThrough) => {
 };
 
 describe("runProxy", () => {
+  it.each([
+    {
+      scenario: "stdin reached EOF before startup",
+      createStdin: async () => {
+        const stdin = new PassThrough();
+        const ended = once(stdin, "end");
+        stdin.resume();
+        stdin.end();
+        await ended;
+        return stdin;
+      },
+      stopInput: (stdin: PassThrough) => stdin.end(),
+    },
+    {
+      scenario: "stdin reaches EOF after startup",
+      createStdin: async () => new PassThrough(),
+      stopInput: (stdin: PassThrough) => stdin.end(),
+    },
+    {
+      scenario: "stdin ends without emitting close",
+      createStdin: async () => new PassThrough({ autoDestroy: false }),
+      stopInput: (stdin: PassThrough) => stdin.end(),
+    },
+    {
+      scenario: "stdin is destroyed without EOF",
+      createStdin: async () => new PassThrough(),
+      stopInput: (stdin: PassThrough) => stdin.destroy(),
+    },
+  ])("closes when $scenario", async ({ createStdin, stopInput }) => {
+    const stdin = await createStdin();
+    const stdout = new PassThrough();
+    const stderr = vi
+      .spyOn(console, "error")
+      .mockImplementation(() => undefined);
+    const proxy = runProxy({
+      url: new URL("https://example.invalid/mcp"),
+      stdin,
+      stdout,
+    });
+    let closed = false;
+
+    try {
+      await new Promise<void>((resolve) => setImmediate(resolve));
+      stopInput(stdin);
+      await expect(
+        withTimeout(proxy, "proxy shutdown after stdin closed"),
+      ).resolves.toBeUndefined();
+      closed = true;
+    } finally {
+      stdout.destroy(closed ? undefined : new Error("Proxy test cleanup"));
+      await proxy;
+      stdin.destroy();
+      stderr.mockRestore();
+    }
+  });
+
   it("proxies MCP requests and returns transport failures", async () => {
     const inputSchema = fromJsonSchema<{ text: string }>({
       type: "object",
