@@ -24,12 +24,14 @@ export type LocalRuntimeOptionsBase = {
 
   /**
    * Names of tools that pause the run until a result is supplied via `addToolResult`.
+   * @deprecated Experimental since 2025-02-12, extended 2027-03-05. Not scheduled for removal; the API may change in any release.
    */
   unstable_humanToolNames?: string[] | undefined;
 
   /**
    * Opt in to message queuing: a message sent during a run is held in
    * `composer.queue` and sent once the run settles. Steering runs it next.
+   * @deprecated Experimental since 2026-06-04, extended 2027-06-05. Not scheduled for removal; the API may change in any release.
    */
   unstable_enableMessageQueue?: boolean | undefined;
 

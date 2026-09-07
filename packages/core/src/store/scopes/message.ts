@@ -12,7 +12,7 @@ export type MessageState = ThreadMessage & {
   readonly branchNumber: number;
   readonly branchCount: number;
   /**
-   * @deprecated This API is still under active development and might change without notice.
+   * @deprecated Experimental since 2024-09-01, extended 2026-12-05. Not scheduled for removal; the API may change in any release.
    *
    * To enable text-to-speech, provide a `SpeechSynthesisAdapter` to the runtime.
    *
@@ -44,9 +44,9 @@ export type MessageMethods = {
   composer(): ComposerMethods;
   delete(): void | Promise<void>;
   reload(config?: { runConfig?: RunConfig }): void;
-  /** @deprecated This API is still under active development and might change without notice. */
+  /** @deprecated Experimental since 2024-09-01, extended 2026-12-05. Not scheduled for removal; the API may change in any release. */
   speak(): void;
-  /** @deprecated This API is still under active development and might change without notice. */
+  /** @deprecated Experimental since 2024-09-01, extended 2026-12-05. Not scheduled for removal; the API may change in any release. */
   stopSpeaking(): void;
   submitFeedback(feedback: { type: "positive" | "negative" }): void;
   switchToBranch(options: {

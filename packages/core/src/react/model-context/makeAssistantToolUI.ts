@@ -15,7 +15,11 @@ import {
  * See https://assistant-ui.com/docs/migrations/toolkit-tools.
  */
 export type AssistantToolUI = FC & {
-  /** Tool renderer registered by this component. */
+  /**
+   * Tool renderer registered by this component.
+   *
+   * @deprecated Experimental since 2024-09-06, extended 2026-12-05. Not scheduled for removal; the API may change in any release.
+   */
   unstable_tool: AssistantToolUIProps<any, any>;
 };
 

@@ -449,6 +449,8 @@ const EmptyParts = memo(
  *   }}
  * />
  * ```
+ *
+ * @deprecated Experimental since 2025-07-22, extended 2027-03-05. Not scheduled for removal; the API may change in any release.
  */
 export const MessagePrimitiveUnstable_PartsGrouped: FC<
   MessagePrimitiveUnstable_PartsGrouped.Props

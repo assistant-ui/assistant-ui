@@ -1033,7 +1033,12 @@ export class RunAggregator {
             ? { unstable_toolMessageId: entry.toolMessageId }
             : {}),
           ...(nestedMessages.length > 0 ? { messages: nestedMessages } : {}),
-        } as ToolCallMessagePart & { unstable_toolMessageId?: string };
+        } as ToolCallMessagePart & {
+          /**
+           * @deprecated Experimental since 2026-03-08, extended 2027-06-05. Not scheduled for removal; the API may change in any release.
+           */
+          unstable_toolMessageId?: string;
+        };
         snapshot.push(toolPart);
         materialized();
         continue;

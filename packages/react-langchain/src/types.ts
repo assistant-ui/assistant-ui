@@ -137,11 +137,13 @@ export type LangChainRuntimeExtraOptions = ExternalStoreSharedOptions & {
   /**
    * Routes the Cancel button's click to `useStream().stop()`. On by
    * default. Pass `false` to disable the Cancel button.
+   * @deprecated Experimental since 2025-01-03, extended 2027-03-05. Not scheduled for removal; the API may change in any release.
    */
   unstable_allowCancellation?: boolean | undefined;
   /**
    * Custom `RemoteThreadListAdapter`. When provided, replaces the
    * cloud-backed thread list adapter.
+   * @deprecated Experimental since 2026-04-16, extended 2027-06-05. Not scheduled for removal; the API may change in any release.
    */
   unstable_threadListAdapter?: RemoteThreadListAdapter | undefined;
   /** Custom thread-creation hook, forwarded to the cloud adapter. */

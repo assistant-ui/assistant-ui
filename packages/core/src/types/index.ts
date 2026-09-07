@@ -47,7 +47,13 @@ export type { Unsubscribe } from "./unsubscribe";
 export type { QuoteInfo } from "./quote";
 
 export type {
+  /**
+   * @deprecated Experimental since 2026-03-16, extended 2027-06-05. Not scheduled for removal; the API may change in any release.
+   */
   Unstable_DirectiveSegment,
+  /**
+   * @deprecated Experimental since 2026-03-16, extended 2027-06-05. Not scheduled for removal; the API may change in any release.
+   */
   Unstable_DirectiveFormatter,
 } from "./directive";
 

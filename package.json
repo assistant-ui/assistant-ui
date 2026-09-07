@@ -20,6 +20,8 @@
     "changesets:test": "node --test scripts/check-changesets.test.mjs",
     "declarations:check": "node scripts/check-built-declarations.mjs",
     "declarations:test": "node --test scripts/check-built-declarations.test.mjs",
+    "experimental:check": "node scripts/check-experimental.mjs",
+    "experimental:test": "node --test scripts/check-experimental.test.mjs",
     "workspace-ranges:check": "node scripts/check-workspace-ranges.mjs",
     "workspace-ranges:test": "node --test scripts/check-workspace-ranges.test.mjs",
     "unmanaged-pins:check": "node scripts/check-unmanaged-pins.mjs",

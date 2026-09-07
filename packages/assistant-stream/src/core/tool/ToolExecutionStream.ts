@@ -37,6 +37,9 @@ type ToolStreamCallback = <
 
 type ToolExecutionOptions = {
   execute: ToolCallback;
+  /**
+   * @deprecated Experimental since 2025-02-26, extended 2027-03-05. Not scheduled for removal; the API may change in any release.
+   */
   streamCall: ToolStreamCallback;
   onExecutionStart?:
     | ((toolCallId: string, toolName: string) => void)
@@ -54,6 +57,9 @@ type InternalToolExecutionOptions = {
     | Promise<ToolResponse<ReadonlyJSONValue>>
     | ToolResponse<ReadonlyJSONValue>
     | undefined;
+  /**
+   * @deprecated Experimental since 2025-02-26, extended 2027-03-05. Not scheduled for removal; the API may change in any release.
+   */
   streamCall: <
     TArgs extends ReadonlyJSONObject = ReadonlyJSONObject,
     TResult extends ReadonlyJSONValue = ReadonlyJSONValue,

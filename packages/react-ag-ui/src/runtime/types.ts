@@ -28,6 +28,7 @@ type SwitchToThreadResult = {
    * Set when the thread has a run in flight. The runtime resumes the run
    * after hydrating, the same way `ThreadHistoryAdapter.load()` does when it
    * returns `unstable_resume: true`.
+   * @deprecated Experimental since 2025-03-31, extended 2027-03-05. Not scheduled for removal; the API may change in any release.
    */
   unstable_resume?: boolean;
 };
@@ -76,6 +77,7 @@ export type UseAgUiRuntimeOptions = ExternalStoreSharedOptions & {
    * settles, exposing it on `composer.queue` for `ComposerPrimitive.Queue`.
    * The runtime owns the queue lifecycle because flushing needs the agent's
    * send path and the run's own busy and idle edges.
+   * @deprecated Experimental since 2026-06-04, extended 2027-06-05. Not scheduled for removal; the API may change in any release.
    */
   unstable_enableMessageQueue?: boolean | undefined;
   onError?: (e: Error) => void;

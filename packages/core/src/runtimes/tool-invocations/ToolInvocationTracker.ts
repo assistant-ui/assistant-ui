@@ -409,6 +409,9 @@ export class ToolInvocationTracker {
     return Object.fromEntries(
       Object.entries(tools).map(([name, tool]) => {
         const execute = tool.execute;
+        /**
+         * @deprecated Experimental since 2025-02-26, extended 2027-03-05. Not scheduled for removal; the API may change in any release.
+         */
         const streamCall = tool.streamCall;
         if (execute === undefined && streamCall === undefined)
           return [name, tool];

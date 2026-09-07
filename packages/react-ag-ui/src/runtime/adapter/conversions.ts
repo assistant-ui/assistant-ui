@@ -105,6 +105,9 @@ type ToolCallPart = {
   result?: unknown;
   isError?: boolean;
   modelContent?: readonly ToolModelContentPart[];
+  /**
+   * @deprecated Experimental since 2026-03-08, extended 2027-06-05. Not scheduled for removal; the API may change in any release.
+   */
   unstable_toolMessageId?: string;
   mcp?: ToolCallMessagePartMcpMetadata;
   messages?: readonly ThreadMessage[];

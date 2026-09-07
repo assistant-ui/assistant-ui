@@ -110,7 +110,7 @@ const useThreadViewportStore: { (): ReadonlyStore<ThreadViewportState>; (options
 ### unstable_useComposerInput
 
 <Callout type="tip">
-<strong>Experimental.</strong> Under active development and might change without notice.
+<strong>Experimental.</strong> Shipped 2026-06-11. Not covered by semver; the API may change in any release.
 </Callout>
 
 Headless bridge to the composer's text value and send action, for building a
@@ -140,7 +140,7 @@ const { value, setText, send, isDisabled, canSend } = unstable_useComposerInput(
 ### unstable_useComposerInputHistory
 
 <Callout type="tip">
-<strong>Experimental.</strong> Under active development and might change without notice.
+<strong>Experimental.</strong> Shipped 2026-06-11. Not covered by semver; the API may change in any release.
 </Callout>
 
 Terminal-style input history for the thread composer: ArrowUp on an
@@ -166,7 +166,7 @@ function unstable_useComposerInputHistory(): Unstable_ComposerInputHistory;
 ### unstable_useMessageStallDetection
 
 <Callout type="tip">
-<strong>Experimental.</strong> Under active development and might change without notice.
+<strong>Experimental.</strong> Shipped 2026-06-13. Not covered by semver; the API may change in any release.
 </Callout>
 
 Detects mid-run output stalls on the current message: while the message is
@@ -183,7 +183,7 @@ Must be used inside a message scope.
 ### unstable_useThreadMessageIds
 
 <Callout type="tip">
-<strong>Experimental.</strong> Unstable / Experimental - may change in any release.
+<strong>Experimental.</strong> Shipped 2026-06-23. Not covered by semver; the API may change in any release.
 </Callout>
 
 Returns the ids of the messages in the current thread, in order.
@@ -200,7 +200,7 @@ const unstable_useThreadMessageIds: () => readonly string[];
 ### unstable_useTriggerPopoverAriaProps
 
 <Callout type="tip">
-<strong>Experimental.</strong> Under active development and might change without notice.
+<strong>Experimental.</strong> Shipped 2026-06-23. Not covered by semver; the API may change in any release.
 </Callout>
 
 ARIA combobox attributes for the focused element (typically the composer

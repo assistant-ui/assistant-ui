@@ -27,6 +27,9 @@ import { ComposerPrimitiveTriggerPopover as Base } from "./TriggerPopover";
 import { ComposerPrimitiveTriggerPopoverAction } from "./TriggerPopoverAction";
 import { ComposerPrimitiveTriggerPopoverDirective } from "./TriggerPopoverDirective";
 
+/**
+ * @deprecated Experimental since 2026-04-06, extended 2027-06-05. Not scheduled for removal; the API may change in any release.
+ */
 export const ComposerPrimitiveTriggerPopover = Object.assign(Base, {
   Directive: ComposerPrimitiveTriggerPopoverDirective,
   Action: ComposerPrimitiveTriggerPopoverAction,

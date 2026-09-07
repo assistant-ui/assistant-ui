@@ -5,6 +5,9 @@ export {
 } from "./core/modules/assistant-stream";
 export {
   AssistantMessageAccumulator,
+  /**
+   * @deprecated Experimental since 2025-09-14, extended 2027-03-05. Not scheduled for removal; the API may change in any release.
+   */
   createInitialMessage as unstable_createInitialMessage,
 } from "./core/accumulators/assistant-message-accumulator";
 export { AssistantStream } from "./core/AssistantStream";
@@ -47,7 +50,13 @@ export { ToolResponse, type ToolResponseLike } from "./core/tool/ToolResponse";
 export { ToolExecutionStream } from "./core/tool/ToolExecutionStream";
 export type { ProviderOptions, ToolCallReader } from "./core/tool/tool-types";
 export {
+  /**
+   * @deprecated Experimental since 2025-04-11, extended 2027-03-05. Not scheduled for removal; the API may change in any release.
+   */
   toolResultStream as unstable_toolResultStream,
+  /**
+   * @deprecated Experimental since 2025-04-07, extended 2027-03-05. Not scheduled for removal; the API may change in any release.
+   */
   unstable_runPendingTools,
   type ToolResultStreamOptions,
 } from "./core/tool/toolResultStream";

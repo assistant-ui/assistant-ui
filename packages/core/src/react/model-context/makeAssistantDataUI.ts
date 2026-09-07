@@ -11,7 +11,11 @@ import {
  * parts.
  */
 export type AssistantDataUI = FC & {
-  /** Data renderer registered by this component. */
+  /**
+   * Data renderer registered by this component.
+   *
+   * @deprecated Experimental since 2025-01-04, extended 2027-03-05. Not scheduled for removal; the API may change in any release.
+   */
   unstable_data: AssistantDataUIProps;
 };
 

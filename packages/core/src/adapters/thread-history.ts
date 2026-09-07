@@ -60,6 +60,9 @@ export type ThreadHistoryAdapter = {
   load(): Promise<
     ExportedMessageRepository & {
       state?: ReadonlyJSONValue;
+      /**
+       * @deprecated Experimental since 2025-03-31, extended 2027-03-05. Not scheduled for removal; the API may change in any release.
+       */
       unstable_resume?: boolean;
     }
   >;

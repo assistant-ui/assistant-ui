@@ -56,7 +56,7 @@ export type MessageState = ThreadMessage & {
   readonly branchCount: number;
 
   /**
-   * @deprecated This API is still under active development and might change without notice.
+   * @deprecated Experimental since 2024-09-01, extended 2026-12-05. Not scheduled for removal; the API may change in any release.
    */
   readonly speech: SpeechState | undefined;
 };
@@ -76,11 +76,11 @@ export type MessageRuntime = {
   delete(): void | Promise<void>;
   reload(config?: ReloadConfig): void;
   /**
-   * @deprecated This API is still under active development and might change without notice.
+   * @deprecated Experimental since 2024-09-01, extended 2026-12-05. Not scheduled for removal; the API may change in any release.
    */
   speak(): void;
   /**
-   * @deprecated This API is still under active development and might change without notice.
+   * @deprecated Experimental since 2024-09-01, extended 2026-12-05. Not scheduled for removal; the API may change in any release.
    */
   stopSpeaking(): void;
   submitFeedback({ type }: { type: "positive" | "negative" }): void;
@@ -91,6 +91,9 @@ export type MessageRuntime = {
     position?: "previous" | "next" | undefined;
     branchId?: string | undefined;
   }): void;
+  /**
+   * @deprecated Experimental since 2024-10-14, extended 2026-12-05. Not scheduled for removal; the API may change in any release.
+   */
   unstable_getCopyText(): string;
 
   subscribe(callback: () => void): Unsubscribe;
@@ -232,6 +235,9 @@ export class MessageRuntimeImpl implements MessageRuntime {
     this._threadBinding.getState().switchToBranch(targetBranch);
   }
 
+  /**
+   * @deprecated Experimental since 2024-10-14, extended 2026-12-05. Not scheduled for removal; the API may change in any release.
+   */
   public unstable_getCopyText() {
     return getThreadMessageText(this.getState());
   }

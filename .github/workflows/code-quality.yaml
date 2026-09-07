@@ -13,6 +13,9 @@ on:
       - "scripts/check-api-surface.mjs"
       - "scripts/check-built-declarations.mjs"
       - "scripts/check-built-declarations.test.mjs"
+      - "scripts/check-experimental.mjs"
+      - "scripts/check-experimental.test.mjs"
+      - "scripts/lib/experimental-annotations.mjs"
       - "scripts/check-workspace-ranges.mjs"
       - "scripts/check-workspace-ranges.test.mjs"
       - "scripts/lib/script-options.mjs"
@@ -34,6 +37,9 @@ on:
       - "scripts/check-api-surface.mjs"
       - "scripts/check-built-declarations.mjs"
       - "scripts/check-built-declarations.test.mjs"
+      - "scripts/check-experimental.mjs"
+      - "scripts/check-experimental.test.mjs"
+      - "scripts/lib/experimental-annotations.mjs"
       - "scripts/check-workspace-ranges.mjs"
       - "scripts/check-workspace-ranges.test.mjs"
       - "scripts/lib/script-options.mjs"
@@ -77,6 +83,12 @@ jobs:
 
       - name: Check resource memoization (React Compiler)
         run: pnpm check:resource-memo
+
+      - name: Check experimental API annotations
+        run: pnpm experimental:check
+
+      - name: Test experimental annotation checker
+        run: pnpm experimental:test
 
   template-sync:
     name: Template Sync
