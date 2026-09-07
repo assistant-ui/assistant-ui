@@ -10,6 +10,7 @@ export { generateThreadTitle } from "./generateThreadTitle";
 export type { AssistantCloudRunReport } from "./AssistantCloudRuns";
 export {
   createRunTelemetryToolCall,
+  extractRunTelemetryModelId,
   normalizeRunTelemetryUsage,
   truncateRunTelemetryText,
   type AssistantCloudRunReportToolCall,

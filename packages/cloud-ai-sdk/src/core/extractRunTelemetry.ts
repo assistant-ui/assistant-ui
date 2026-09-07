@@ -3,6 +3,7 @@ import { getToolName, isStaticToolUIPart, isToolUIPart } from "ai";
 import {
   type AssistantCloudRunReportToolCall,
   createRunTelemetryToolCall,
+  extractRunTelemetryModelId,
   normalizeRunTelemetryUsage,
   type RunTelemetryUsageInit,
   type SamplingCallData,
@@ -74,8 +75,7 @@ export function extractRunTelemetry(
     : "incomplete";
 
   const metadata = assistant.metadata as Record<string, unknown> | undefined;
-  const modelId =
-    typeof metadata?.modelId === "string" ? metadata.modelId : undefined;
+  const modelId = extractRunTelemetryModelId(metadata);
   const usage = metadata?.usage as RunTelemetryUsageInit | undefined;
   const normalizedUsage = usage ? normalizeRunTelemetryUsage(usage) : undefined;
 
