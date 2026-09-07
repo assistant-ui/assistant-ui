@@ -103,6 +103,45 @@ describe("BaseComposerRuntimeCore", () => {
     expect(listener).not.toHaveBeenCalled();
   });
 
+  it("reset keeps discarded text out of later dictation results", async () => {
+    let emitSpeech!: (result: DictationAdapter.Result) => void;
+    composer.setDictationAdapter({
+      listen: () => ({
+        status: { type: "running" },
+        stop: async () => {},
+        cancel: () => {},
+        onSpeechStart: () => () => {},
+        onSpeechEnd: () => () => {},
+        onSpeech: (callback) => {
+          emitSpeech = callback;
+          return () => {};
+        },
+      }),
+    });
+
+    composer.setText("old");
+    composer.startDictation();
+    try {
+      await composer.reset();
+      expect(composer.text).toBe("");
+      emitSpeech({ transcript: "new", isFinal: true });
+      expect(composer.text).toBe("new");
+
+      emitSpeech({ transcript: "pending", isFinal: false });
+      expect(composer.text).toBe("new pending");
+      await composer.reset();
+      expect(composer.text).toBe("");
+      expect(composer.dictation?.transcript).toBeUndefined();
+
+      emitSpeech({ transcript: "next", isFinal: false });
+      expect(composer.text).toBe("next");
+      emitSpeech({ transcript: "next final", isFinal: true });
+      expect(composer.text).toBe("next final");
+    } finally {
+      composer.stopDictation();
+      await Promise.resolve();
+    }
+  });
   it("send includes quote in metadata and clears it", async () => {
     const quote = { text: "quoted", messageId: "m1" };
     composer.setText("reply");
