@@ -431,6 +431,15 @@ describe("mountTopAnchorReserve", () => {
             removedNodes: { length: 1 },
           } as MutationRecord,
         ]),
+      notifyMixedReplacement: () =>
+        MutationObserverMock.callbacks.at(-1)!([
+          {
+            type: "childList",
+            addedNodes: { length: 1 },
+            removedNodes: { length: 1 },
+          } as MutationRecord,
+          { type: "characterData" } as MutationRecord,
+        ]),
       setNaturalScrollHeight: (height: number) => {
         naturalScrollHeight = height;
       },
@@ -554,6 +563,17 @@ describe("mountTopAnchorReserve", () => {
 
     viewport.scrollTop = 100;
     notifySeparateChildChanges();
+    viewport.dispatchEvent(new Event("scroll"));
+    vi.runOnlyPendingTimers();
+
+    expect(viewport.scrollTo).toHaveBeenCalledTimes(1);
+  });
+
+  it("does not treat a mixed mutation batch as a replacement", () => {
+    const { viewport, notifyMixedReplacement } = mountPinnedViewport();
+
+    viewport.scrollTop = 100;
+    notifyMixedReplacement();
     viewport.dispatchEvent(new Event("scroll"));
     vi.runOnlyPendingTimers();
 

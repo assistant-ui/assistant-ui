@@ -177,12 +177,14 @@ export const mountTopAnchorReserve = (store: TopAnchorStore) => {
   };
 
   const recordPinnedReplacement = (records: readonly MutationRecord[]) => {
-    const replacedContent = records.some(
-      (record) =>
-        record.type === "childList" &&
-        record.addedNodes.length > 0 &&
-        record.removedNodes.length > 0,
-    );
+    const replacedContent =
+      records.length > 0 &&
+      records.every(
+        (record) =>
+          record.type === "childList" &&
+          record.addedNodes.length > 0 &&
+          record.removedNodes.length > 0,
+      );
     pendingPinnedReplacement ||= replacedContent && wasPinnedAtLastScroll();
   };
 
