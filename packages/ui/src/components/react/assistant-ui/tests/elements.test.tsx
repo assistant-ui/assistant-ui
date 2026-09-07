@@ -561,8 +561,8 @@ beforeAll(() => {
 afterEach(cleanup);
 
 describe("todo-list", () => {
-  it("renders failed items and counts done and failed items as settled", () => {
-    const { container, getByText } = render(
+  it("renders a failed item with its reason and keeps it out of the numerator", () => {
+    const { getByText } = render(
       <TodoList
         items={[
           { id: "done", text: "Done item", status: "done" },
@@ -577,12 +577,41 @@ describe("todo-list", () => {
       />,
     );
 
-    expect(getByText("2/3")).toBeTruthy();
+    expect(getByText("1/3")).toBeTruthy();
     expect(getByText("Failed item")).toBeTruthy();
     expect(getByText("Timed out")).toBeTruthy();
+  });
+
+  it("keeps a fully settled list with a failure below its total", () => {
+    const { getByText } = render(
+      <TodoList
+        items={[
+          { id: "a", text: "First", status: "done" },
+          { id: "b", text: "Second", status: "done" },
+          { id: "c", text: "Third", status: "failed" },
+        ]}
+      />,
+    );
+
+    expect(getByText("2/3")).toBeTruthy();
+  });
+
+  it("announces every status as hidden text beside a decorative icon", () => {
+    const { container } = render(
+      <TodoList
+        items={[
+          { id: "pending", text: "Pending item", status: "pending" },
+          { id: "active", text: "Active item", status: "active" },
+          { id: "done", text: "Done item", status: "done" },
+          { id: "failed", text: "Failed item", status: "failed" },
+        ]}
+      />,
+    );
+
     expect(
-      container.querySelector('[role="status"]')?.getAttribute("aria-label"),
-    ).toBe("Failed");
+      [...container.querySelectorAll("li .sr-only")].map((n) => n.textContent),
+    ).toEqual(["pending", "active", "done", "failed"]);
+    expect(container.querySelectorAll("li > [aria-hidden]")).toHaveLength(4);
   });
 
   it("does not render a failure reason when none is provided", () => {
@@ -592,7 +621,7 @@ describe("todo-list", () => {
       />,
     );
 
-    expect(container.textContent).toContain("1/1");
+    expect(container.textContent).toContain("0/1");
     expect(container.querySelector("p")).toBeNull();
   });
 });

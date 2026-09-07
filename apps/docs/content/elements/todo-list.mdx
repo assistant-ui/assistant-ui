@@ -3,7 +3,7 @@ title: "Todo list"
 description: "The agent's own working list, rewritten mid-run as it discovers what else is needed."
 ---
 
-A todo list shows the plan an agent is working through right now: what is done, what is active, and what is still pending. With a runtime the list comes from a tool call the model keeps rewriting as it works; standalone you pass the items in yourself.
+A todo list shows the plan an agent is working through right now: what is done, what is active, what failed, and what is still pending. With a runtime the list comes from a tool call the model keeps rewriting as it works; standalone you pass the items in yourself.
 
 ## Getting started
 
@@ -93,7 +93,8 @@ import { TodoList, type TodoItem } from "@/components/assistant-ui/elements/todo
 const initialItems: TodoItem[] = [
   { id: "1", text: "Read the failing test", status: "done" },
   { id: "2", text: "Reproduce locally", status: "active" },
-  { id: "3", text: "Write the fix", status: "failed", reason: "Tests timed out" },
+  { id: "3", text: "Write the fix", status: "pending" },
+  { id: "4", text: "Re-run the suite", status: "failed", reason: "Tests timed out" },
 ];
 
 export function Plan() {
@@ -147,9 +148,9 @@ function advance(id: string) {
 </div>
 ```
 
-Each row shows one of four status icons: a checked box for `done`, a spinning loader for `active`, an accessible failure marker for `failed`, and an empty outlined box for `pending`. Failed rows may include a reason below the item text. Text dims and gets struck through when done, reads at full opacity when active, sits at reduced opacity while pending, and uses error styling when failed. Rows key off `item.id`; passing a new array with the same ids only restyles the existing rows, while a genuinely new id mounts a row that fades and slides in.
+Each row shows one of four status icons: a checked box for `done`, a spinning loader for `active`, a red cross for `failed`, and an empty outlined box for `pending`. The icon is decorative; every row carries its status as visually hidden text so a screen reader announces it alongside the item. Failed rows may include a reason below the item text. Text dims and gets struck through when done, reads at full opacity when active, sits at reduced opacity while pending, and uses error styling when failed. Rows key off `item.id`; passing a new array with the same ids only restyles the existing rows, while a genuinely new id mounts a row that fades and slides in.
 
-The counter treats both `done` and `failed` items as settled. With zero items the header still renders `0/0` and the list is simply empty; there is no placeholder message. `revision` is decorative and does not affect the count or the render; it only appends `· rev {revision}` next to the ratio when you pass a number.
+A failed item is terminal but it is not a success, so it counts toward the denominator and never toward the numerator: three items that have all settled with one of them failed read `2/3`, not `3/3`. With zero items the header still renders `0/0` and the list is simply empty; there is no placeholder message. `revision` is decorative and does not affect the count or the render; it only appends `· rev {revision}` next to the ratio when you pass a number.
 
 ## Examples
 
@@ -251,7 +252,7 @@ Both lanes take `className` on the root, and the revision counter uses the share
 |-------|------|-------------|
 | `id` | `string` | Row key; stable ids keep entrance animation from replaying on every render. |
 | `text` | `string` | The step's label. |
-| `status` | `"pending" \| "active" \| "done" \| "failed"` | Drives the icon and text styling. `done` and `failed` count as settled. |
+| `status` | `"pending" \| "active" \| "done" \| "failed"` | Drives the icon and text styling. Only `done` counts toward the progress numerator. |
 | `reason` | `string` | Optional detail rendered below a failed item. |
 
 All other `div` props are forwarded to the root.
