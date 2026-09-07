@@ -14,9 +14,11 @@ export namespace AssistantModalPrimitiveRoot {
 const useAssistantModalOpenState = ({
   defaultOpen = false,
   unstable_openOnRunStart = true,
+  onOpenChange,
 }: {
   defaultOpen?: boolean | undefined;
   unstable_openOnRunStart?: boolean | undefined;
+  onOpenChange?: PopoverPrimitive.PopoverProps["onOpenChange"];
 }) => {
   const state = useState(defaultOpen);
 
@@ -26,9 +28,10 @@ const useAssistantModalOpenState = ({
     if (!unstable_openOnRunStart) return undefined;
 
     return aui.on("thread.runStart", () => {
+      onOpenChange?.(true);
       setOpen(true);
     });
-  }, [unstable_openOnRunStart, aui, setOpen]);
+  }, [unstable_openOnRunStart, aui, setOpen, onOpenChange]);
 
   return state;
 };
@@ -48,6 +51,7 @@ export const AssistantModalPrimitiveRoot: FC<
   const [modalOpen, setOpen] = useAssistantModalOpenState({
     defaultOpen,
     unstable_openOnRunStart,
+    onOpenChange,
   });
 
   const openChangeHandler = (open: boolean) => {
