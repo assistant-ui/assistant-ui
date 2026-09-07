@@ -947,6 +947,7 @@ export class AgUiThreadRuntimeCore {
   }
 
   applyExternalMessages(messages: readonly ThreadMessage[]): void {
+    this.pendingResume = null;
     this.pendingA2uiResumeOwner = null;
     this.pendingA2uiAction = undefined;
     this.assistantHistoryParents.clear();
