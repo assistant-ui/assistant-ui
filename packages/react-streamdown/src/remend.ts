@@ -83,9 +83,10 @@ export function findRemendWindowStart(text: string): number {
 
 /**
  * Options remend applies to text anywhere in the message rather than to an
- * incomplete construct at its end. Every other option completes a dangling
- * opener, which mutates or deletes a block that has already settled, so the
- * prefix pass disables all of them.
+ * incomplete construct at its end, plus `linkMode`, which only configures the
+ * disabled `links` handler. Every other option completes a dangling opener,
+ * which mutates or deletes a block that has already settled, so the prefix pass
+ * disables all of them.
  */
 type PrefixSafeOption =
   | "singleTilde"
