@@ -107,7 +107,10 @@ const toAppendMessage = (
 
   return {
     createdAt: message.createdAt ?? new Date(),
-    parentId: message.parentId ?? messages.at(-1)?.id ?? null,
+    parentId:
+      message.parentId === undefined
+        ? (messages.at(-1)?.id ?? null)
+        : message.parentId,
     sourceId: message.sourceId ?? null,
     role: message.role ?? "user",
     content: message.content,
