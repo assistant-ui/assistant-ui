@@ -917,6 +917,8 @@ type RemendConfig = {
   strikethrough?: boolean;
   katex?: boolean;
   setextHeadings?: boolean;
+  singleTilde?: boolean;
+  comparisonOperators?: boolean;
   handlers?: RemendHandler[];
 };
 
