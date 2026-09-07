@@ -14,12 +14,15 @@ import { NavItems, NavItemsRoot } from "@/components/shared/nav-items";
 import { useDocsSidebar } from "@/components/pages/docs/contexts/sidebar";
 import { useAssistantPanel } from "@/components/pages/docs/assistant/context";
 import { ThemeToggle } from "@/components/shared/theme-toggle";
-import { HeaderBrandLink } from "@/components/shared/header-brand-link";
 import { headerBarClassName } from "@/components/shared/header-chrome";
 import { useScrolled } from "@/hooks/use-scrolled";
 import { analytics } from "@/lib/analytics";
 import { cn } from "@/lib/utils";
 import { usePlatform } from "@/components/pages/docs/platform/context";
+import {
+  DocsProjectSwitcher,
+  type DocsProjectOption,
+} from "@/components/pages/docs/layout/docs-project-switcher";
 import {
   buildPlatformSections,
   findPathToNode,
@@ -28,6 +31,7 @@ import {
 interface DocsHeaderProps {
   section: string;
   sectionHref: string;
+  projects: DocsProjectOption[];
   mobileSectionTree?: PageTree.Root | undefined;
 }
 
@@ -128,6 +132,7 @@ function MobileSectionBreadcrumb({
 export function DocsHeader({
   section,
   sectionHref,
+  projects,
   mobileSectionTree,
 }: DocsHeaderProps) {
   const { setOpenSearch } = useSearchContext();
@@ -170,7 +175,7 @@ export function DocsHeader({
           )}
         >
           <div className="flex min-w-0 flex-1 items-center">
-            <HeaderBrandLink labelClassName="hidden sm:inline" />
+            <DocsProjectSwitcher projects={projects} />
             <span
               className={cn(
                 "text-muted-foreground/40 mx-3",
