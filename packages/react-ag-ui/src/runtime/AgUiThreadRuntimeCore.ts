@@ -381,7 +381,11 @@ export class AgUiThreadRuntimeCore {
     } catch (error) {
       this.logger.error?.("[agui] agent abortRun failed", error);
     }
-    return this.abortController === null;
+    if (this.abortController === null) return true;
+    this.logger.debug?.(
+      "[agui] onCancel started a replacement run; dropping the superseding send",
+    );
+    return false;
   }
 
   async resume(config: ResumeRunConfig): Promise<void> {
