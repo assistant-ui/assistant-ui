@@ -238,6 +238,8 @@ Configure how incomplete markdown syntax is handled during streaming:
     inlineCode: true,      // Complete `code → `code`
     strikethrough: true,   // Complete ~~text → ~~text~~
     katex: true,           // Complete $$equation → $$equation$$
+    singleTilde: true,     // Escape 20~25 → 20\~25
+    comparisonOperators: true, // Escape - > 25 → - \> 25
     setextHeadings: true,  // Handle incomplete setext headings
     handlers: [],          // Custom handlers for incomplete markdown completion
   }}

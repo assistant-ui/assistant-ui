@@ -91,6 +91,10 @@ export type RemendConfig = {
   strikethrough?: boolean;
   /** Complete block KaTeX math (e.g., `$$equation` → `$$equation$$`) */
   katex?: boolean;
+  /** Escape single ~ between word characters to prevent false strikethrough */
+  singleTilde?: boolean;
+  /** Escape > as comparison operators in list items */
+  comparisonOperators?: boolean;
   /** Handle incomplete setext headings to prevent misinterpretation */
   setextHeadings?: boolean;
   /** Custom handlers for incomplete markdown completion */

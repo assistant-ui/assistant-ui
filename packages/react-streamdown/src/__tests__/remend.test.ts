@@ -57,6 +57,57 @@ describe("tailBoundedRemend", () => {
     expect(findRemendWindowStart(text)).toBe(text.indexOf("```python"));
   });
 
+  it.each([
+    ["tilde fence", "~~~r\nlm(y~x)\n~~~"],
+    ["indented code", "    lm(y~x)"],
+    ["display math", "$$\nlm(y~x)\n$$"],
+    ["inline math", "$lm(y~x)$"],
+    ["backtick fence", "```r\nlm(y~x)\n```"],
+    ["inline code", "`lm(y~x)`"],
+  ])("preserves tildes inside %s in settled blocks", (_, block) => {
+    const text = `before\n\n${block}\n\nTail`;
+    expect(tailBoundedRemend(text)).toBe(text);
+  });
+
+  it("escapes word-adjacent tildes in settled prose", () => {
+    const text = "before\n\nlm(y~x)\n\nTail";
+    expect(tailBoundedRemend(text)).toBe("before\n\nlm(y\\~x)\n\nTail");
+  });
+
+  it("preserves comparison operators in protected regions", () => {
+    const text = "before\n\n~~~\n- > 25\n~~~\n\nTail";
+    expect(tailBoundedRemend(text)).toBe(text);
+  });
+
+  it("keeps position-independent escapes in earlier paragraphs", () => {
+    const text = "20~25\n\n- > 25\n\nTail";
+    expect(tailBoundedRemend(text)).toBe("20\\~25\n\n- \\> 25\n\nTail");
+  });
+
+  it("forwards disabled position-independent escapes", () => {
+    const text = "20~25\n\n- > 25\n\nTail";
+    expect(
+      tailBoundedRemend(text, {
+        singleTilde: false,
+        comparisonOperators: false,
+      }),
+    ).toBe(text);
+  });
+
+  it("applies custom handlers to earlier paragraphs", () => {
+    const text = "Draft\n\nTail";
+    expect(
+      tailBoundedRemend(text, {
+        handlers: [
+          {
+            name: "rename",
+            handle: (value) => value.replace("Draft", "Final"),
+          },
+        ],
+      }),
+    ).toBe("Final\n\nTail");
+  });
+
   it("bounds the window to the tail paragraph when no fence is open", () => {
     const text = `para one\n\npara two\n\npara three with **bold`;
     expect(findRemendWindowStart(text)).toBe(text.indexOf("para three"));
