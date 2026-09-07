@@ -4,10 +4,6 @@ import type { CloudMessage } from "./AssistantCloudThreadMessages";
 
 const CLOUD_MESSAGE_PAGE_SIZE = 200;
 
-type PendingIdMapping = {
-  readonly task: Promise<string>;
-};
-
 /**
  * Shared persistence logic for cloud message storage.
  *
@@ -20,7 +16,7 @@ type PendingIdMapping = {
  * to get its remote ID before creating B.
  */
 export class CloudMessagePersistence {
-  private idMapping = new Map<string, string | PendingIdMapping>();
+  private idMapping = new Map<string, string | Promise<string>>();
   private getCloud: () => AssistantCloud;
 
   constructor(cloud: AssistantCloud);
@@ -47,8 +43,8 @@ export class CloudMessagePersistence {
   ): Promise<void> {
     const cloud = this.getCloud();
     const existing = this.idMapping.get(messageId);
-    if (typeof existing === "object") {
-      await existing.task;
+    if (existing instanceof Promise) {
+      await existing;
       return;
     }
 
@@ -63,16 +59,15 @@ export class CloudMessagePersistence {
       });
       return message_id;
     })();
-    const pending = { task };
 
-    this.idMapping.set(messageId, pending);
+    this.idMapping.set(messageId, task);
     try {
       const remoteId = await task;
-      if (this.idMapping.get(messageId) === pending) {
+      if (this.idMapping.get(messageId) === task) {
         this.idMapping.set(messageId, remoteId);
       }
     } catch (err) {
-      if (this.idMapping.get(messageId) === pending) {
+      if (this.idMapping.get(messageId) === task) {
         this.idMapping.delete(messageId);
       }
       throw err;
@@ -112,8 +107,8 @@ export class CloudMessagePersistence {
    */
   async getRemoteId(messageId: string): Promise<string | undefined> {
     const entry = this.idMapping.get(messageId);
-    if (typeof entry === "string" || entry === undefined) return entry;
-    return entry.task;
+    if (!entry) return undefined;
+    return entry;
   }
 
   /**
