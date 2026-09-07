@@ -200,10 +200,25 @@ describe("checkSizes", () => {
     }
   });
 
-  it("keeps drifted entries of packages unchanged vs origin/main on update", async () => {
+  it("keeps drifted entries of packages unchanged vs origin/main, still records new ones", async () => {
     const root = mkdtempSync(join(tmpdir(), "aui-size-git-"));
+    // The fixture is isolated from the developer's own git configuration:
+    // an inherited commit.gpgsign or core.hooksPath would otherwise prompt or
+    // run repository hooks from inside the suite.
     const git = (...args: string[]) =>
-      execFileSync("git", args, { cwd: root, encoding: "utf8" });
+      execFileSync("git", args, {
+        cwd: root,
+        encoding: "utf8",
+        env: {
+          ...process.env,
+          GIT_CONFIG_GLOBAL: "/dev/null",
+          GIT_CONFIG_SYSTEM: "/dev/null",
+          GIT_AUTHOR_NAME: "t",
+          GIT_AUTHOR_EMAIL: "t@t",
+          GIT_COMMITTER_NAME: "t",
+          GIT_COMMITTER_EMAIL: "t@t",
+        },
+      });
     try {
       const touched = writePackage(root, "touched", {
         ".": "export const touched = 1;\n",
@@ -213,6 +228,9 @@ describe("checkSizes", () => {
       });
       writePackage(root, "stale", {
         ".": "export const stale = 2;\n",
+      });
+      const fresh = writePackage(root, "fresh", {
+        ".": "export const fresh = 4;\n",
       });
       const budgetsPath = join(root, "size-budgets.json");
       const staleBudget = { min: 5_000, gzip: 5_000 };
@@ -226,32 +244,15 @@ describe("checkSizes", () => {
       );
 
       git("init", "--quiet");
-      git(
-        "-c",
-        "user.email=t@t",
-        "-c",
-        "user.name=t",
-        "commit",
-        "--allow-empty",
-        "-qm",
-        "base",
-      );
+      git("commit", "--allow-empty", "-qm", "base");
       git("add", "-A");
-      git("-c", "user.email=t@t", "-c", "user.name=t", "commit", "-qm", "all");
+      git("commit", "-qm", "all");
       git("update-ref", "refs/remotes/origin/main", "HEAD");
       // touched changes through a commit (the merge-base diff path), dirty
       // through an untracked file (the porcelain path).
       writeFileSync(join(touched, "src.ts"), "changed\n");
       git("add", "-A");
-      git(
-        "-c",
-        "user.email=t@t",
-        "-c",
-        "user.name=t",
-        "commit",
-        "-qm",
-        "touch",
-      );
+      git("commit", "-qm", "touch");
       writeFileSync(join(dirty, "untracked.ts"), "changed\n");
 
       expect(
@@ -268,6 +269,9 @@ describe("checkSizes", () => {
         await measureEntry(join(dirty, "dist/index.js")),
       );
       expect(written["@aui-test/stale"]["."]).toEqual(staleBudget);
+      expect(written["@aui-test/fresh"]["."]).toEqual(
+        await measureEntry(join(fresh, "dist/index.js")),
+      );
 
       expect(
         await silenced(() =>
