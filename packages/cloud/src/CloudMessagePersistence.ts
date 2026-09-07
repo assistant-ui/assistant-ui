@@ -49,8 +49,9 @@ export class CloudMessagePersistence {
     }
 
     const task = (async () => {
+      const parentEntry = parentId ? this.idMapping.get(parentId) : undefined;
       const resolvedParentId = parentId
-        ? ((await this.getRemoteId(parentId)) ?? parentId)
+        ? ((await parentEntry) ?? parentId)
         : null;
       const { message_id } = await cloud.threads.messages.create(threadId, {
         parent_id: resolvedParentId,
@@ -107,7 +108,7 @@ export class CloudMessagePersistence {
    */
   async getRemoteId(messageId: string): Promise<string | undefined> {
     const entry = this.idMapping.get(messageId);
-    if (entry === undefined) return undefined;
+    if (!entry) return undefined;
     return entry;
   }
 

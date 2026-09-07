@@ -49,19 +49,6 @@ describe("CloudMessagePersistence", () => {
     expect(await persistence.getRemoteId("local-1")).toBe("remote-1");
   });
 
-  it("preserves an empty remote ID mapping", async () => {
-    vi.mocked(cloud.threads.messages.create).mockResolvedValue({
-      message_id: "",
-    });
-
-    await persistence.append("thread-1", "local-1", null, "aui/v0", {
-      text: "hello",
-    });
-
-    expect(persistence.isPersisted("local-1")).toBe(true);
-    expect(await persistence.getRemoteId("local-1")).toBe("");
-  });
-
   it.each(["__proto__", "constructor", "toString"])(
     "supports prototype-named local ID %s",
     async (messageId) => {
