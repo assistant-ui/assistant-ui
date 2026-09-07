@@ -259,6 +259,7 @@ describe("createCodeAdapter integration", () => {
 
     it("keeps the highlighter as an empty fence receives code", () => {
       const AdaptedCode = createCodeAdapter({
+        CodeHeader: ({ code }) => <header data-testid="header">{code}</header>,
         SyntaxHighlighter: ({ code }) => <pre data-testid="syntax">{code}</pre>,
       });
       const components = { code: AdaptedCode, pre: PreOverride };
@@ -267,10 +268,13 @@ describe("createCodeAdapter integration", () => {
       );
 
       expect(screen.getByTestId("syntax").textContent).toBe("");
+      expect(screen.getByTestId("header").textContent).toBe("");
       rerender(<Streamdown components={components}>{"```js\n"}</Streamdown>);
       expect(screen.getByTestId("syntax").textContent).toBe("");
+      expect(screen.getByTestId("header").textContent).toBe("");
       rerender(<Streamdown components={components}>{"```js\nx"}</Streamdown>);
       expect(screen.getByTestId("syntax").textContent).toBe("x\n");
+      expect(screen.getByTestId("header").textContent).toBe("x\n");
     });
 
     it("omits null and boolean children from the code header", () => {
