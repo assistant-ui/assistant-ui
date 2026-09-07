@@ -947,7 +947,6 @@ export class AgUiThreadRuntimeCore {
   }
 
   applyExternalMessages(messages: readonly ThreadMessage[]): void {
-    this.pendingResume = null;
     this.pendingA2uiResumeOwner = null;
     this.pendingA2uiAction = undefined;
     this.assistantHistoryParents.clear();
@@ -993,6 +992,14 @@ export class AgUiThreadRuntimeCore {
     this.snapshotHistoryIds.clear();
     for (const { message } of this.getMessageRepository().messages) {
       this.snapshotHistoryIds.add(message.id);
+    }
+    // MESSAGES_SNAPSHOT re-appends the active assistant, so a parked
+    // continuation whose target survived the snapshot is still answerable.
+    if (
+      this.pendingResume &&
+      !this.session.hasMessage(this.pendingResume.messageId)
+    ) {
+      this.pendingResume = null;
     }
     this.notifyUpdate();
   }
