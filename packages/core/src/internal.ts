@@ -67,6 +67,7 @@ export {
   resolveFilePartSource,
 } from "./utils/data-url";
 export { invokeUserCallback } from "./utils/invoke-user-callback";
+export { abortableIterable, whenAborted } from "./utils/abortable-iterable";
 export { detectImageMediaType } from "./utils/image-media-type";
 export {
   resolveFileMediaType,
