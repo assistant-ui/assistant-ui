@@ -1,5 +1,6 @@
 import { generateId } from "@assistant-ui/core";
 import { useAui } from "@assistant-ui/store";
+import { useShallowSelector } from "@assistant-ui/store/internal";
 import type { ReadonlyJSONValue } from "assistant-stream/utils";
 import { adkExtras } from "./adkExtras";
 import { toAdkConfirmationReply } from "./adkToolApproval";
@@ -10,6 +11,7 @@ import type {
   AdkAuthCredential,
   AdkAuthRequest,
   AdkMessageMetadata,
+  AdkRuntimeExtras,
 } from "./types";
 
 const EMPTY_STATE_DELTA: Record<string, unknown> = {};
@@ -126,23 +128,19 @@ const filterByPrefix = (
       .map(([key, value]) => [key.slice(prefix.length), value]),
   );
 
-/** Returns app-level state (keys prefixed with `app:`, prefix stripped). */
-export const useAdkAppState = () =>
+const useAdkStateByPrefix = (prefix: string) =>
   adkExtras.use(
-    (e) => filterByPrefix(e.stateDelta, APP_PREFIX),
+    useShallowSelector((e: AdkRuntimeExtras) =>
+      filterByPrefix(e.stateDelta, prefix),
+    ),
     EMPTY_STATE_DELTA,
   );
+
+/** Returns app-level state (keys prefixed with `app:`, prefix stripped). */
+export const useAdkAppState = () => useAdkStateByPrefix(APP_PREFIX);
 
 /** Returns user-level state (keys prefixed with `user:`, prefix stripped). */
-export const useAdkUserState = () =>
-  adkExtras.use(
-    (e) => filterByPrefix(e.stateDelta, USER_PREFIX),
-    EMPTY_STATE_DELTA,
-  );
+export const useAdkUserState = () => useAdkStateByPrefix(USER_PREFIX);
 
 /** Returns temp state (keys prefixed with `temp:`, prefix stripped). Not persisted. */
-export const useAdkTempState = () =>
-  adkExtras.use(
-    (e) => filterByPrefix(e.stateDelta, TEMP_PREFIX),
-    EMPTY_STATE_DELTA,
-  );
+export const useAdkTempState = () => useAdkStateByPrefix(TEMP_PREFIX);
