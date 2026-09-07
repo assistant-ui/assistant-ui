@@ -43,8 +43,9 @@ export async function runProxy({
       .then(resolveClosed);
   };
 
-  const logTransportError = (message: string, error: unknown) => {
-    if (!closing) logError(message, error);
+  const logUnlessClosing = (message: string, error: unknown) => {
+    if (closing) return;
+    logError(message, error);
   };
 
   stdio.onmessage = (message) => {
@@ -67,7 +68,7 @@ export async function runProxy({
           },
         })
         .catch((sendError: unknown) => {
-          logTransportError("failed to return proxy error response", sendError);
+          logUnlessClosing("failed to return proxy error response", sendError);
         });
     });
   };
@@ -86,15 +87,15 @@ export async function runProxy({
     }
 
     void stdio.send(message).catch((error: unknown) => {
-      logTransportError("failed to forward message to stdio", error);
+      logUnlessClosing("failed to forward message to stdio", error);
     });
   };
 
   stdio.onerror = (error) => {
-    logTransportError("stdio transport error", error);
+    logUnlessClosing("stdio transport error", error);
   };
   http.onerror = (error) => {
-    logTransportError("HTTP transport error", error);
+    logUnlessClosing("HTTP transport error", error);
   };
   stdio.onclose = () => {
     closeCounterpart(http);

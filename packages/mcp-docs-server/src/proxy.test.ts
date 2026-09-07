@@ -5,8 +5,7 @@ import {
   type IncomingMessage,
   type ServerResponse,
 } from "node:http";
-import { PassThrough, Readable } from "node:stream";
-import type { ReadableStream as NodeReadableStream } from "node:stream/web";
+import { PassThrough } from "node:stream";
 import {
   McpServer,
   WebStandardStreamableHTTPServerTransport,
@@ -50,16 +49,12 @@ const toWebRequest = async (request: IncomingMessage) => {
   return new Request(new URL(request.url ?? "/", "http://127.0.0.1"), init);
 };
 
-const writeWebResponse = (response: Response, output: ServerResponse) => {
+const writeWebResponse = async (response: Response, output: ServerResponse) => {
   output.statusCode = response.status;
   response.headers.forEach((value, name) => {
     output.setHeader(name, value);
   });
-  if (response.body === null) {
-    output.end();
-    return;
-  }
-  Readable.fromWeb(response.body as unknown as NodeReadableStream).pipe(output);
+  output.end(Buffer.from(await response.arrayBuffer()));
 };
 
 const listen = (server: ReturnType<typeof createServer>) =>
@@ -304,7 +299,7 @@ describe("runProxy", () => {
     );
     const transport = new WebStandardStreamableHTTPServerTransport({
       sessionIdGenerator: undefined,
-      enableJsonResponse: false,
+      enableJsonResponse: true,
     });
     let resolveInitialized = () => {};
     const initialized = new Promise<void>((resolve) => {
