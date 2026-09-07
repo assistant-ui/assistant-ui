@@ -53,12 +53,12 @@
     "test:watch": "vitest"
   },
   "dependencies": {
-    "@ai-sdk/mcp": "^2.0.41",
-    "@ai-sdk/react": "^4.0.88",
+    "@ai-sdk/mcp": "^2.0.45",
+    "@ai-sdk/react": "^4.0.96",
     "@assistant-ui/core": "^0.3.17",
     "@assistant-ui/store": "^0.3.12",
     "@assistant-ui/tap": "^0.9.16",
-    "ai": "^7.0.85",
+    "ai": "^7.0.93",
     "assistant-cloud": "*",
     "assistant-stream": "^0.3.41"
   },
@@ -79,7 +79,7 @@
     "@testing-library/react": "^16.3.3",
     "@types/json-schema": "^7.0.15",
     "@types/react": "^19.2.18",
-    "@types/react-dom": "^19.2.5",
+    "@types/react-dom": "^19.2.7",
     "jsdom": "^30.0.1",
     "react": "^19.2.8",
     "vitest": "^4.1.11"

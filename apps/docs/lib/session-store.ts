@@ -206,7 +206,7 @@ export function createRedisSessionStore<Data>(
     },
 
     async delete(id, ifLeaseUntil?: number) {
-      await redis.eval<string[], number>(
+      const applied = await redis.eval<string[], number>(
         DELETE_SCRIPT,
         [key(id)],
         [
@@ -214,6 +214,7 @@ export function createRedisSessionStore<Data>(
           ifLeaseUntil === undefined ? "" : String(ifLeaseUntil),
         ],
       );
+      return applied === 1;
     },
   };
 }

@@ -74,10 +74,10 @@
   "devDependencies": {
     "@assistant-ui/react": "workspace:*",
     "@assistant-ui/x-buildutils": "workspace:*",
-    "@earendil-works/pi-coding-agent": "^0.84.4",
-    "@types/node": "^26.4.0",
+    "@earendil-works/pi-coding-agent": "^0.85.1",
+    "@types/node": "^26.4.1",
     "@types/react": "^19.2.18",
-    "@types/react-dom": "^19.2.5",
+    "@types/react-dom": "^19.2.7",
     "jsdom": "^30.0.1",
     "react": "^19.2.8",
     "react-dom": "^19.2.8",

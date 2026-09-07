@@ -43,7 +43,7 @@
   "devDependencies": {
     "@assistant-ui/x-buildutils": "workspace:*",
     "@modelcontextprotocol/core": "^2.0.0",
-    "@types/node": "^26.4.0",
+    "@types/node": "^26.4.1",
     "tsx": "^4.23.13",
     "vitest": "^4.1.11"
   },

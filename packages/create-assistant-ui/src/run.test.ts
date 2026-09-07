@@ -34,7 +34,7 @@ describe("runSpawn", () => {
       .find((listener) => !existingListeners.has(listener));
 
     expect(signalHandler).toBeDefined();
-    signalHandler?.();
+    signalHandler?.("SIGTERM");
     expect(child.kill).toHaveBeenCalledWith("SIGTERM");
 
     child.emit("close", 0, null);
@@ -56,8 +56,8 @@ describe("runSpawn", () => {
       .find((listener) => !existingListeners.has(listener));
 
     expect(signalHandler).toBeDefined();
-    signalHandler?.();
-    signalHandler?.();
+    signalHandler?.("SIGTERM");
+    signalHandler?.("SIGTERM");
 
     expect(child.kill).toHaveBeenNthCalledWith(1, "SIGTERM");
     expect(child.kill).toHaveBeenNthCalledWith(2, "SIGKILL");
@@ -120,7 +120,7 @@ describe("main", () => {
       .listeners("SIGTERM")
       .find((listener) => !existingListeners.has(listener));
     expect(signalHandler).toBeDefined();
-    signalHandler?.();
+    signalHandler?.("SIGTERM");
     child.emit("close", null, "SIGTERM");
 
     await expect(result).rejects.toThrow("process.exit");

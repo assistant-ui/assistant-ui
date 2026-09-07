@@ -8,6 +8,6 @@
     "index.mjs"
   ],
   "dependencies": {
-    "@changesets/get-github-info": "^1.0.0"
+    "@changesets/get-github-info": "^1.0.1"
   }
 }

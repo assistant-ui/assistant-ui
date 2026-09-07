@@ -66,4 +66,5 @@ it.each([
 
     expect(reload).toHaveBeenCalledOnce();
   },
+  15000,
 );

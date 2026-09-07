@@ -13,7 +13,7 @@
     "@assistant-ui/store": "workspace:*",
     "@assistant-ui/svelte": "workspace:*",
     "@assistant-ui/tap": "workspace:*",
-    "@lucide/svelte": "^1.38.0",
+    "@lucide/svelte": "^1.41.0",
     "svelte": "^5.57.0"
   },
   "devDependencies": {
