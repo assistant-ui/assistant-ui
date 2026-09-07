@@ -158,6 +158,33 @@ describe("RemoteThreadListThreadListRuntimeCore switch/delete ordering", () => {
     expect(internals._titleStates.get(data.id)).toBe(titleState);
   });
 
+  it("clears the deleted thread's title state on successful deletion", async () => {
+    const adapter = makeAdapter({
+      list: vi.fn(async () => ({
+        threads: [
+          {
+            status: "regular" as const,
+            remoteId: "thread-b",
+            externalId: "thread-b",
+            title: "Thread B",
+          },
+        ],
+      })),
+    });
+    const core = createCore(adapter);
+    await core.getLoadThreadsPromise();
+    const data = core.getItemById("thread-b")!;
+    const internals = core as unknown as {
+      _titleStates: Map<string, unknown>;
+    };
+    internals._titleStates.set(data.id, {});
+
+    await core.delete(data.id);
+
+    expect(core.getItemById(data.id)).toBeUndefined();
+    expect(internals._titleStates.has(data.id)).toBe(false);
+  });
+
   it("stops the thread runtime when the adapter changes during a successful deletion", async () => {
     const removal = deferred<void>();
     const adapter = makeAdapter({
