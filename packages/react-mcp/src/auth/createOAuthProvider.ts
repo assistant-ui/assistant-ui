@@ -309,6 +309,10 @@ export function createOAuthProvider(
       return staticClientInformation ?? c.clientInformation;
     },
     async saveClientInformation(info) {
+      if (staticClientInformation) {
+        Object.assign(staticClientInformation, info);
+        return;
+      }
       const c = await loadCache();
       c.clientInformation = info as OAuthClientInformationFull;
       await persist();
