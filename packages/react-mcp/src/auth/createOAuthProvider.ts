@@ -64,6 +64,7 @@ export type CreateOAuthProviderOptions = {
 };
 
 type OAuthProviderCache = {
+  token?: string | undefined;
   tokens?: OAuthTokens | undefined;
   tokensClientId?: string | undefined;
   clientInformation?: OAuthClientInformationFull | undefined;
@@ -272,8 +273,8 @@ export function createOAuthProvider(
   };
   let clientInformationOverlay = configuredClientInformation();
 
-  const effectiveClientId = (cache: OAuthProviderCache): string | undefined =>
-    config.clientId ?? registeredClientId(cache);
+  const activeClientId = (cache: OAuthProviderCache): string | undefined =>
+    clientInformationOverlay?.client_id ?? registeredClientId(cache);
 
   const loadCache = (): Promise<OAuthProviderCache> => {
     if (endpoint.invalidated) return Promise.resolve({});
@@ -312,6 +313,7 @@ export function createOAuthProvider(
             ) {
               needsMigration = true;
             }
+            if (persisted?.token) initial.token = persisted.token;
             if (persisted?.codeVerifier)
               initial.codeVerifier = persisted.codeVerifier;
             if (persisted?.state) initial.state = persisted.state;
@@ -319,26 +321,7 @@ export function createOAuthProvider(
               initial.discoveryState = persisted.discoveryState;
           }
           endpoint.cached = initial;
-          if (needsMigration) {
-            const next: Parameters<typeof storage.saveAuthState>[1] = {
-              serverUrl: normalizedServerUrl,
-            };
-            if (initial.clientInformation && initial.clientInformationSource) {
-              next.clientInformation = initial.clientInformation;
-              next.clientInformationSource = initial.clientInformationSource;
-            }
-            if (initial.tokens && initial.tokensClientId) {
-              next.tokens = initial.tokens;
-              next.tokensClientId = initial.tokensClientId;
-            }
-            if (persisted?.token) next.token = persisted.token;
-            if (persisted?.codeVerifier)
-              next.codeVerifier = persisted.codeVerifier;
-            if (persisted?.state) next.state = persisted.state;
-            if (persisted?.discoveryState)
-              next.discoveryState = persisted.discoveryState;
-            await storage.saveAuthState(serverId, next);
-          }
+          if (needsMigration) await persist();
           return initial;
         },
         (error) => {
@@ -363,6 +346,7 @@ export function createOAuthProvider(
         next.clientInformation = c.clientInformation;
         next.clientInformationSource = "registered";
       }
+      if (c.token) next.token = c.token;
       if (c.codeVerifier) next.codeVerifier = c.codeVerifier;
       if (c.state) next.state = c.state;
       if (c.discoveryState) next.discoveryState = c.discoveryState;
@@ -421,12 +405,15 @@ export function createOAuthProvider(
     },
     async tokens() {
       const c = await loadCache();
-      return hasUsableOAuthTokens(c, config) ? c.tokens : undefined;
+      const clientId = activeClientId(c);
+      if (clientId === undefined || c.tokensClientId !== clientId)
+        return undefined;
+      return c.tokens;
     },
     async saveTokens(tokens) {
       const c = await loadCache();
       c.tokens = tokens;
-      const clientId = effectiveClientId(c);
+      const clientId = activeClientId(c);
       if (clientId) c.tokensClientId = clientId;
       else delete c.tokensClientId;
       delete c.state;

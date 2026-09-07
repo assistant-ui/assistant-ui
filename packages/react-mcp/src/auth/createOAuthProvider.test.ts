@@ -343,6 +343,67 @@ describe("createOAuthProvider persistence", () => {
     expect(await provider.tokens()).toBeUndefined();
   });
 
+  it("does not let the migration write overwrite a concurrent save", async () => {
+    let state: MCPPersistedAuthState | null = {
+      serverUrl,
+      clientInformation: {
+        client_id: "legacy",
+        redirect_uris: ["http://localhost/callback"],
+      },
+      tokens: { access_token: "legacy", token_type: "bearer" },
+    };
+    let releaseFirstWrite = () => {};
+    const firstWriteGate = new Promise<void>((resolve) => {
+      releaseFirstWrite = resolve;
+    });
+    let firstWriteSeen = false;
+    const create = (): MCPStorage => ({
+      scopeId: "migration-race",
+      loadCustomServers: async () => [],
+      saveCustomServers: async () => {},
+      loadAuthState: async () => state,
+      saveAuthState: async (_serverId, next) => {
+        if (!firstWriteSeen) {
+          firstWriteSeen = true;
+          await firstWriteGate;
+        }
+        state = next;
+      },
+      clearAuthState: async () => {
+        state = null;
+      },
+    });
+
+    const migrating = createProvider(create()).tokens();
+    await new Promise((resolve) => setTimeout(resolve, 10));
+    const saving = createProvider(create()).saveCodeVerifier("verifier-xyz");
+    setTimeout(releaseFirstWrite, 20);
+    await migrating;
+    await saving;
+
+    expect(state).toEqual({ serverUrl, codeVerifier: "verifier-xyz" });
+  });
+
+  it("keeps a non-persistable re-registration out of storage", async () => {
+    const { storage, getState } = createStorage({ serverUrl });
+    const provider = createStaticProvider(storage);
+
+    await provider.saveClientInformation?.({
+      client_id: "registered-client",
+      redirect_uris: ["http://localhost/callback"],
+    });
+    await provider.saveTokens({
+      access_token: "minted-for-registered",
+      token_type: "bearer",
+    });
+
+    expect(getState()).toEqual({ serverUrl });
+    await expect(provider.tokens()).resolves.toEqual({
+      access_token: "minted-for-registered",
+      token_type: "bearer",
+    });
+  });
+
   it("drops tokens when dynamic registration replaces the client", async () => {
     const { storage, getState } = createStorage({
       serverUrl,
