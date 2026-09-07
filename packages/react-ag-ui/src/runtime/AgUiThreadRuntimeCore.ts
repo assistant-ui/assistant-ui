@@ -995,9 +995,12 @@ export class AgUiThreadRuntimeCore {
     }
     // MESSAGES_SNAPSHOT re-appends the active assistant, so a parked
     // continuation whose target survived the snapshot is still answerable.
+    // Membership is the head branch, not the repository: a soft merge leaves
+    // the messages it dropped behind as off-branch nodes.
+    const resumeTarget = this.pendingResume?.messageId;
     if (
-      this.pendingResume &&
-      !this.session.hasMessage(this.pendingResume.messageId)
+      resumeTarget !== undefined &&
+      !this.session.getMessages().some((message) => message.id === resumeTarget)
     ) {
       this.pendingResume = null;
     }

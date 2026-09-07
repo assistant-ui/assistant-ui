@@ -1372,6 +1372,73 @@ describe("AGUIThreadRuntimeCore", () => {
     await vi.waitFor(() => expect(agent.runAgent).toHaveBeenCalledTimes(2));
   });
 
+  it("drops a deferred resume a snapshot left off-branch", async () => {
+    const runInputs: any[] = [];
+    const runs: Array<{ subscriber: AgentSubscriber; resolve: () => void }> =
+      [];
+    const agent = {
+      runAgent: vi.fn((input: any, subscriber: AgentSubscriber) => {
+        runInputs.push(input);
+        if (runs.length === 1) {
+          subscriber.onRunFinalized?.();
+          return Promise.resolve();
+        }
+        return new Promise<void>((resolve) => {
+          runs.push({ subscriber, resolve });
+        });
+      }),
+      abortRun: vi.fn(),
+    } as unknown as HttpAgent;
+
+    const core = createCore(agent);
+    const firstRun = core.append(createAppendMessage());
+    runs[0]?.subscriber.onToolCallStartEvent?.({
+      event: {
+        type: "TOOL_CALL_START",
+        toolCallId: "call-1",
+        toolCallName: "lookup",
+      },
+    });
+    runs[0]?.subscriber.onToolCallEndEvent?.({
+      event: { type: "TOOL_CALL_END", toolCallId: "call-1" },
+    });
+    runs[0]?.subscriber.onRunFinishedEvent?.({
+      event: { type: "RUN_FINISHED", runId: runInputs[0].runId },
+    });
+
+    const [userMessage, assistant] = core.getMessages() as [
+      ThreadMessage,
+      ThreadAssistantMessage,
+    ];
+    core.addToolResult({
+      messageId: assistant.id,
+      toolCallId: "call-1",
+      toolName: "lookup",
+      result: "done",
+      isError: false,
+    });
+    // The snapshot forks a sibling assistant, so the parked target stays in
+    // the repository while leaving the head branch.
+    core.applyExternalMessages([
+      userMessage,
+      {
+        ...assistant,
+        id: "rival-assistant",
+        content: [{ type: "text", text: "other branch" }],
+        status: { type: "complete", reason: "unknown" },
+      } as ThreadMessage,
+    ]);
+    expect(core.getMessages().map((message) => message.id)).toEqual([
+      userMessage.id,
+      "rival-assistant",
+    ]);
+
+    runs[0]?.resolve();
+    await firstRun;
+    await new Promise((resolve) => setTimeout(resolve, 0));
+    expect(agent.runAgent).toHaveBeenCalledTimes(1);
+  });
+
   it("cancels an active run when the runtime detaches", async () => {
     let runSignal: AbortSignal | undefined;
     const agent = {
