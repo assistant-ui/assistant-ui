@@ -5,7 +5,8 @@ const mocks = vi.hoisted(() => ({
   stateDelta: {} as Record<string, unknown>,
 }));
 
-vi.mock("./adkExtras", () => ({
+vi.mock("./adkExtras", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("./adkExtras")>()),
   adkExtras: {
     use: (
       selector: (extras: { stateDelta: Record<string, unknown> }) => unknown,
