@@ -6,6 +6,7 @@ const SPACE = 32;
 const TAB = 9;
 const CR = 13;
 const BACKSLASH = 92;
+const DOLLAR = 36;
 
 const isSpace = (c: number) => c === SPACE || c === TAB || c === CR;
 
@@ -61,12 +62,19 @@ export function findRemendWindowStart(text: string): number {
     }
 
     if (!inFence && !marker) {
-      for (
-        let s = text.indexOf("$$", lineStart);
-        s !== -1 && s < lineEnd - 1;
-        s = text.indexOf("$$", s + 2)
-      ) {
-        if (s === 0 || text.charCodeAt(s - 1) !== BACKSLASH) inMath = !inMath;
+      let s = lineStart;
+      while (s < lineEnd - 1) {
+        if (
+          text.charCodeAt(s) === DOLLAR &&
+          text.charCodeAt(s + 1) === DOLLAR
+        ) {
+          if (s === 0 || text.charCodeAt(s - 1) !== BACKSLASH) {
+            inMath = !inMath;
+          }
+          s += 2;
+        } else {
+          s += 1;
+        }
       }
     }
 

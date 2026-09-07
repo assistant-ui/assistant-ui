@@ -87,6 +87,11 @@ describe("tailBoundedRemend", () => {
     expect(blocksOf(tailBoundedRemend(text))).toEqual(blocksOf(remend(text)));
   });
 
+  it("ignores escaped math delimiters", () => {
+    const text = "before\n\nescaped \\$$ marker\n\nlast **b";
+    expect(findRemendWindowStart(text)).toBe(text.indexOf("last"));
+  });
+
   it("matches full remend when $$ appears inside a math block", () => {
     for (const text of [
       "intro\n\n$$\nsome content with $$ inside\n\nmore content",
