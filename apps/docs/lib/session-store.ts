@@ -50,8 +50,7 @@ if checkLease == '1' then
   local current = redis.call('HGET', key, '${LEASE_FIELD}')
   if (current or '') ~= expectedLease then return 0 end
 end
-redis.call('DEL', key)
-return 1
+return redis.call('DEL', key)
 `;
 
 export type RedisSessionStoreOptions = {
