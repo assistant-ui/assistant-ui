@@ -263,6 +263,24 @@ describe("buildPresentParameters", () => {
     expect(schema.required).toEqual(["$type"]);
   });
 
+  it("preserves prototype-named component properties", () => {
+    const schema = buildPresentParameters({
+      PrototypeProps: {
+        description: "Uses valid property names shared with Object.prototype.",
+        properties: z.object({
+          ["toString"]: z.string(),
+          ["__proto__"]: z.number(),
+        }),
+        render: () => null,
+      },
+    }) as any;
+
+    expect(Object.hasOwn(schema.properties, "toString")).toBe(true);
+    expect(Object.hasOwn(schema.properties, "__proto__")).toBe(true);
+    expect(schema.properties.toString.type).toBe("string");
+    expect(schema.properties["__proto__"].type).toBe("number");
+  });
+
   it("names every component that declares the same prop in the dev warning", () => {
     const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
     try {
