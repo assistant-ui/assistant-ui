@@ -274,6 +274,98 @@ export const getThreadData = (
     : undefined;
 };
 
+export const reconcileInitializedThread = (
+  state: RemoteThreadState,
+  threadId: string,
+  remoteId: string,
+  externalId: string | undefined,
+  preferredThreadId?: string,
+): {
+  state: RemoteThreadState;
+  removedMappingId: THREAD_MAPPING_ID | undefined;
+} => {
+  const mappingId = createThreadMappingId(threadId);
+  const data = Object.hasOwn(state.threadData, mappingId)
+    ? state.threadData[mappingId]
+    : undefined;
+  if (!data) return { state, removedMappingId: undefined };
+
+  const listedMappingId = Object.hasOwn(state.threadIdMap, remoteId)
+    ? state.threadIdMap[remoteId]
+    : undefined;
+  const orphan =
+    listedMappingId !== undefined &&
+    listedMappingId !== mappingId &&
+    Object.hasOwn(state.threadData, listedMappingId)
+      ? state.threadData[listedMappingId]
+      : undefined;
+  const preferredMappingId =
+    preferredThreadId !== undefined &&
+    Object.hasOwn(state.threadIdMap, preferredThreadId)
+      ? state.threadIdMap[preferredThreadId]
+      : undefined;
+  const survivorMappingId =
+    orphan !== undefined && preferredMappingId === listedMappingId
+      ? listedMappingId
+      : mappingId;
+  const removedMappingId =
+    orphan === undefined
+      ? undefined
+      : survivorMappingId === mappingId
+        ? listedMappingId
+        : mappingId;
+  const threadData = nullProtoRecord(state.threadData);
+  if (removedMappingId !== undefined) delete threadData[removedMappingId];
+  const initializedData = {
+    ...data,
+    id: survivorMappingId,
+    initializeTask: Promise.resolve({ remoteId, externalId }),
+    remoteId,
+    externalId,
+  } as RemoteThreadData;
+  threadData[survivorMappingId] =
+    survivorMappingId === mappingId
+      ? initializedData
+      : ({
+          ...orphan,
+          ...initializedData,
+          title: data.title ?? orphan?.title,
+          lastMessageAt:
+            ("lastMessageAt" in data ? data.lastMessageAt : undefined) ??
+            (orphan && "lastMessageAt" in orphan
+              ? orphan.lastMessageAt
+              : undefined),
+          custom: data.custom ?? orphan?.custom,
+        } as RemoteThreadData);
+
+  const threadIdMap = nullProtoRecord(state.threadIdMap);
+  if (removedMappingId !== undefined) {
+    for (const [id, target] of Object.entries(threadIdMap)) {
+      if (target === removedMappingId) threadIdMap[id] = survivorMappingId;
+    }
+  }
+  threadIdMap[threadId] = survivorMappingId;
+  threadIdMap[remoteId] = survivorMappingId;
+
+  const rewire = (ids: readonly string[]) =>
+    orphan === undefined
+      ? ids
+      : ids
+          .filter((id) => id !== orphan.id)
+          .map((id) => (id === data.id ? survivorMappingId : id));
+
+  return {
+    state: {
+      ...state,
+      threadIds: rewire(state.threadIds),
+      archivedThreadIds: rewire(state.archivedThreadIds),
+      threadIdMap,
+      threadData,
+    },
+    removedMappingId,
+  };
+};
+
 export const updateStatusReducer = (
   state: RemoteThreadState,
   threadIdOrRemoteId: string,

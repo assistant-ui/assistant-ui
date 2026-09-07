@@ -21,6 +21,7 @@ import {
   createThreadMappingId,
   getThreadData,
   normalizeCursor,
+  reconcileInitializedThread,
   updateStatusReducer,
   preserveMidLoadTransitions,
   seedNewThread,
@@ -810,6 +811,7 @@ export class RemoteThreadListThreadListRuntimeCore
       return { remoteId, externalId };
     }
 
+    let removedMappingId: string | undefined;
     const { remoteId, externalId } = await this._state.optimisticUpdate({
       execute: () => {
         this._requireAdapterGeneration(adapterGeneration);
@@ -838,45 +840,21 @@ export class RemoteThreadListThreadListRuntimeCore
         const data = getThreadData(state, threadId);
         if (!data) return state;
 
-        const mappingId = createThreadMappingId(threadId);
-        // A list() response that landed while this initialize was in flight
-        // could not know the remote id yet, so it may have minted its own slot
-        // for it; that slot collapses into this one.
-        const listedMappingId = Object.hasOwn(state.threadIdMap, remoteId)
-          ? state.threadIdMap[remoteId]
-          : undefined;
-        const orphan =
-          listedMappingId !== undefined &&
-          listedMappingId !== mappingId &&
-          Object.hasOwn(state.threadData, listedMappingId)
-            ? state.threadData[listedMappingId]
-            : undefined;
-
-        const threadData = nullProtoRecord(state.threadData);
-        if (orphan !== undefined) delete threadData[listedMappingId!];
-        threadData[mappingId] = {
-          ...data,
-          initializeTask: Promise.resolve({ remoteId, externalId }),
+        const reconciliation = reconcileInitializedThread(
+          state,
+          threadId,
           remoteId,
           externalId,
-        } as RemoteThreadData;
-
-        const rewire = (ids: readonly string[]) =>
-          orphan === undefined ? ids : ids.filter((id) => id !== orphan.id);
-
-        return {
-          ...state,
-          threadIds: rewire(state.threadIds),
-          archivedThreadIds: rewire(state.archivedThreadIds),
-          threadIdMap: {
-            ...state.threadIdMap,
-            [remoteId]: mappingId,
-          },
-          threadData,
-        };
+          this._mainThreadId,
+        );
+        removedMappingId = reconciliation.removedMappingId;
+        return reconciliation.state;
       },
     });
     this._requireAdapterGeneration(adapterGeneration);
+    if (removedMappingId !== undefined) {
+      this._hookManager.stopThreadRuntime(removedMappingId);
+    }
     return { remoteId, externalId };
   };
 
