@@ -82,6 +82,16 @@ const createStaticProvider = (storage: MCPStorage, clientSecret?: string) =>
     onAuthorizationUrl: () => {},
   });
 
+const createStaticProviderForUrl = (storage: MCPStorage, url: string) =>
+  createOAuthProvider({
+    serverId: "docs",
+    serverUrl: url,
+    config: { type: "oauth", clientId: "client-a" },
+    storage,
+    redirectUri: "http://localhost/callback",
+    onAuthorizationUrl: () => {},
+  });
+
 const discoveryStateFor = (issuer: string): OAuthDiscoveryState => ({
   ...discoveryState,
   authorizationServerUrl: issuer,
@@ -106,7 +116,7 @@ const rejectFetch = async () => {
 describe("createOAuthProvider callback state", () => {
   it("persists the generated state with the PKCE verifier", async () => {
     const { storage, getState } = createStorage();
-    const provider = createProvider(storage);
+    const provider = createStaticProvider(storage);
 
     const state = await provider.state?.();
     await provider.saveCodeVerifier("pkce-verifier");
@@ -125,7 +135,7 @@ describe("createOAuthProvider callback state", () => {
       codeVerifier: "pkce-verifier",
       state: "aui-mcp:ZG9jcw.nonce",
     });
-    const provider = createProvider(storage);
+    const provider = createStaticProvider(storage);
 
     await provider.saveTokens({
       access_token: "access-token",
@@ -135,6 +145,7 @@ describe("createOAuthProvider callback state", () => {
     expect(getState()).toEqual({
       serverUrl,
       tokens: { access_token: "access-token", token_type: "bearer" },
+      tokensClientId: "client-a",
       codeVerifier: "pkce-verifier",
     });
   });
@@ -202,6 +213,162 @@ describe("createOAuthProvider discovery state", () => {
 });
 
 describe("createOAuthProvider persistence", () => {
+  it("migrates unmarked OAuth credentials without losing callback state", async () => {
+    const { storage, getState } = createStorage({
+      serverUrl,
+      tokens: {
+        access_token: "legacy-access",
+        token_type: "bearer",
+        refresh_token: "legacy-refresh",
+      },
+      clientInformation: {
+        client_id: "legacy-client",
+        redirect_uris: ["http://localhost/callback"],
+      },
+      codeVerifier: "pkce-verifier",
+      state: "aui-mcp:ZG9jcw.nonce",
+      discoveryState,
+      token: "bearer-token",
+    });
+    const provider = createProvider(storage);
+
+    await expect(provider.clientInformation()).resolves.toBeUndefined();
+    await expect(provider.tokens()).resolves.toBeUndefined();
+
+    expect(getState()).toEqual({
+      serverUrl,
+      codeVerifier: "pkce-verifier",
+      state: "aui-mcp:ZG9jcw.nonce",
+      discoveryState,
+      token: "bearer-token",
+    });
+  });
+
+  it("reuses only marked dynamic credentials for the same client", async () => {
+    const clientInformation = {
+      client_id: "registered-client",
+      redirect_uris: ["http://localhost/callback"],
+    };
+    const { storage } = createStorage({
+      serverUrl,
+      clientInformation,
+      clientInformationSource: "registered",
+      tokens: { access_token: "access-token", token_type: "bearer" },
+      tokensClientId: "registered-client",
+    });
+    const provider = createProvider(storage);
+
+    await expect(provider.clientInformation()).resolves.toEqual(
+      clientInformation,
+    );
+    await expect(provider.tokens()).resolves.toEqual({
+      access_token: "access-token",
+      token_type: "bearer",
+    });
+  });
+
+  it("drops credentials when a configured client changes", async () => {
+    const { storage, getState } = createStorage({
+      serverUrl,
+      clientInformation: {
+        client_id: "client-a",
+        redirect_uris: ["http://localhost/callback"],
+      },
+      clientInformationSource: "registered",
+      tokens: { access_token: "access-token", token_type: "bearer" },
+      tokensClientId: "client-a",
+    });
+    const provider = createOAuthProvider({
+      serverId: "docs",
+      serverUrl,
+      config: { type: "oauth", clientId: "client-b" },
+      storage,
+      redirectUri: "http://localhost/callback",
+      onAuthorizationUrl: () => {},
+    });
+
+    await expect(provider.clientInformation()).resolves.toEqual({
+      client_id: "client-b",
+      redirect_uris: ["http://localhost/callback"],
+    });
+    await expect(provider.tokens()).resolves.toBeUndefined();
+    expect(getState()).toEqual({ serverUrl });
+  });
+
+  it("keeps a registered client when static config uses the same client", async () => {
+    const clientInformation = {
+      client_id: "client-a",
+      redirect_uris: ["http://localhost/callback"],
+    };
+    const { storage, getState } = createStorage({
+      serverUrl,
+      clientInformation,
+      clientInformationSource: "registered",
+      tokens: { access_token: "access-token", token_type: "bearer" },
+      tokensClientId: "client-a",
+    });
+    const provider = createStaticProvider(storage);
+
+    await provider.discoveryState?.();
+
+    expect(getState()).toEqual({
+      serverUrl,
+      clientInformation,
+      clientInformationSource: "registered",
+      tokens: { access_token: "access-token", token_type: "bearer" },
+      tokensClientId: "client-a",
+    });
+  });
+
+  it("drops tokens when dynamic registration replaces the client", async () => {
+    const { storage, getState } = createStorage({
+      serverUrl,
+      clientInformation: {
+        client_id: "client-a",
+        redirect_uris: ["http://localhost/callback"],
+      },
+      clientInformationSource: "registered",
+      tokens: { access_token: "access-token", token_type: "bearer" },
+      tokensClientId: "client-a",
+    });
+    const provider = createProvider(storage);
+
+    await provider.clientInformation();
+    await provider.saveClientInformation?.({
+      client_id: "client-b",
+      redirect_uris: ["http://localhost/callback"],
+    });
+
+    await expect(provider.tokens()).resolves.toBeUndefined();
+    expect(getState()).toEqual({
+      serverUrl,
+      clientInformation: {
+        client_id: "client-b",
+        redirect_uris: ["http://localhost/callback"],
+      },
+      clientInformationSource: "registered",
+    });
+  });
+
+  it("binds newly saved tokens to the effective client", async () => {
+    const { storage, getState } = createStorage();
+    const provider = createProvider(storage);
+
+    await provider.saveClientInformation?.({
+      client_id: "registered-client",
+      redirect_uris: ["http://localhost/callback"],
+    });
+    await provider.saveTokens({
+      access_token: "access-token",
+      token_type: "bearer",
+    });
+
+    expect(getState()).toMatchObject({
+      clientInformationSource: "registered",
+      tokensClientId: "registered-client",
+    });
+  });
+
   it("does not reuse authentication saved for a different server URL", async () => {
     const { storage } = createStorage({
       serverUrl: "https://endpoint-a.example.com/mcp",
@@ -221,27 +388,19 @@ describe("createOAuthProvider persistence", () => {
 
   it("keeps in-memory authentication scoped to its server URL", async () => {
     const { storage } = createStorage();
-    const endpointA = createOAuthProvider({
-      serverId: "docs",
-      serverUrl: "https://endpoint-a.example.com/mcp",
-      config: { type: "oauth" },
+    const endpointA = createStaticProviderForUrl(
       storage,
-      redirectUri: "http://localhost/callback",
-      onAuthorizationUrl: () => {},
-    });
+      "https://endpoint-a.example.com/mcp",
+    );
     await endpointA.saveTokens({
       access_token: "endpoint-a-token",
       token_type: "bearer",
     });
 
-    const endpointB = createOAuthProvider({
-      serverId: "docs",
-      serverUrl: "https://endpoint-b.example.com/mcp",
-      config: { type: "oauth" },
+    const endpointB = createStaticProviderForUrl(
       storage,
-      redirectUri: "http://localhost/callback",
-      onAuthorizationUrl: () => {},
-    });
+      "https://endpoint-b.example.com/mcp",
+    );
 
     await expect(endpointB.tokens()).resolves.toBeUndefined();
     await endpointB.saveTokens({
@@ -267,14 +426,10 @@ describe("createOAuthProvider persistence", () => {
       await saveAuthState(serverId, next);
     };
 
-    const endpointA = createOAuthProvider({
-      serverId: "docs",
-      serverUrl: "https://endpoint-a.example.com/mcp",
-      config: { type: "oauth" },
+    const endpointA = createStaticProviderForUrl(
       storage,
-      redirectUri: "http://localhost/callback",
-      onAuthorizationUrl: () => {},
-    });
+      "https://endpoint-a.example.com/mcp",
+    );
     await endpointA.tokens();
     const pendingSave = endpointA.saveTokens({
       access_token: "endpoint-a-token",
@@ -282,22 +437,11 @@ describe("createOAuthProvider persistence", () => {
     });
     await vi.waitFor(() => expect(releaseWrite).toBeDefined());
 
-    createOAuthProvider({
-      serverId: "docs",
-      serverUrl: "https://endpoint-b.example.com/mcp",
-      config: { type: "oauth" },
+    createStaticProviderForUrl(storage, "https://endpoint-b.example.com/mcp");
+    const replacementA = createStaticProviderForUrl(
       storage,
-      redirectUri: "http://localhost/callback",
-      onAuthorizationUrl: () => {},
-    });
-    const replacementA = createOAuthProvider({
-      serverId: "docs",
-      serverUrl: "https://endpoint-a.example.com/mcp",
-      config: { type: "oauth" },
-      storage,
-      redirectUri: "http://localhost/callback",
-      onAuthorizationUrl: () => {},
-    });
+      "https://endpoint-a.example.com/mcp",
+    );
     const tokens = replacementA.tokens();
 
     await Promise.resolve();
@@ -317,7 +461,7 @@ describe("createOAuthProvider persistence", () => {
       tokens: { access_token: "legacy-token", token_type: "bearer" },
     });
     const saveAuthState = vi.spyOn(storage, "saveAuthState");
-    const provider = createProvider(storage);
+    const provider = createStaticProvider(storage);
 
     await expect(provider.tokens()).resolves.toBeUndefined();
     expect(saveAuthState).not.toHaveBeenCalled();
@@ -333,7 +477,7 @@ describe("createOAuthProvider persistence", () => {
     );
     const { storage } = createStorage();
     storage.loadAuthState = loadAuthState;
-    const provider = createProvider(storage);
+    const provider = createStaticProvider(storage);
 
     const tokens = provider.tokens();
     const clientInformation = provider.clientInformation();
@@ -372,7 +516,7 @@ describe("createOAuthProvider persistence", () => {
       await new Promise<void>((resolve) => pendingWrites.push(resolve));
       persisted = next;
     };
-    const provider = createProvider(storage);
+    const provider = createStaticProvider(storage);
     await provider.tokens();
 
     const tokenSave = provider.saveTokens({
@@ -393,6 +537,7 @@ describe("createOAuthProvider persistence", () => {
     expect(persisted).toEqual({
       serverUrl,
       tokens: { access_token: "access-token", token_type: "bearer" },
+      tokensClientId: "client-a",
       codeVerifier: "pkce-verifier",
     });
   });
@@ -412,7 +557,7 @@ describe("createOAuthProvider persistence", () => {
       }
       persisted = next;
     };
-    const provider = createProvider(storage);
+    const provider = createStaticProvider(storage);
     await provider.tokens();
 
     const tokenSave = provider.saveTokens({
@@ -433,6 +578,7 @@ describe("createOAuthProvider persistence", () => {
     expect(persisted).toEqual({
       serverUrl,
       tokens: { access_token: "access-token", token_type: "bearer" },
+      tokensClientId: "client-a",
       codeVerifier: "pkce-verifier",
     });
   });
@@ -449,8 +595,8 @@ describe("createOAuthProvider persistence across provider instances", () => {
     );
     const { storage } = createStorage();
     storage.loadAuthState = loadAuthState;
-    const provider = createProvider(storage);
-    const replacementProvider = createProvider(storage);
+    const provider = createStaticProvider(storage);
+    const replacementProvider = createStaticProvider(storage);
 
     const tokens = provider.tokens();
     const clientInformation = replacementProvider.clientInformation();
@@ -468,8 +614,8 @@ describe("createOAuthProvider persistence across provider instances", () => {
       await new Promise<void>((resolve) => pendingWrites.push(resolve));
       persisted = next;
     };
-    const provider = createProvider(storage);
-    const replacementProvider = createProvider(storage);
+    const provider = createStaticProvider(storage);
+    const replacementProvider = createStaticProvider(storage);
     await Promise.all([provider.tokens(), replacementProvider.tokens()]);
 
     const tokenSave = provider.saveTokens({
@@ -490,6 +636,7 @@ describe("createOAuthProvider persistence across provider instances", () => {
     expect(persisted).toEqual({
       serverUrl,
       tokens: { access_token: "access-token", token_type: "bearer" },
+      tokensClientId: "client-a",
       codeVerifier: "pkce-verifier",
     });
   });
@@ -503,7 +650,7 @@ describe("createOAuthProvider persistence across provider instances", () => {
       await saveAuthState(serverId, next);
     };
     const clearAuthState = vi.spyOn(storage, "clearAuthState");
-    const provider = createProvider(storage);
+    const provider = createStaticProvider(storage);
     await provider.tokens();
 
     const save = provider.saveTokens({
@@ -538,7 +685,7 @@ describe("createOAuthProvider persistence across provider instances", () => {
       await saveAuthState(serverId, next);
     };
     const clearAuthState = vi.spyOn(replacement, "clearAuthState");
-    const provider = createProvider(storage);
+    const provider = createStaticProvider(storage);
     await provider.tokens();
 
     const save = provider.saveTokens({
@@ -565,8 +712,8 @@ describe("createOAuthProvider persistence across provider instances", () => {
   it("keeps differently-scoped storages on separate persistence", async () => {
     const first = createSharedStorages("scope-a");
     const second = createSharedStorages("scope-b");
-    const firstProvider = createProvider(first.create());
-    const secondProvider = createProvider(second.create());
+    const firstProvider = createStaticProvider(first.create());
+    const secondProvider = createStaticProvider(second.create());
 
     await firstProvider.saveTokens({
       access_token: "first-token",
@@ -582,6 +729,7 @@ describe("createOAuthProvider persistence across provider instances", () => {
     expect(first.getState()).toEqual({
       serverUrl,
       tokens: { access_token: "first-token", token_type: "bearer" },
+      tokensClientId: "client-a",
       codeVerifier: "first-verifier",
     });
     expect(second.getState()).toBeNull();
@@ -725,7 +873,7 @@ describe("createOAuthProvider persistence across provider instances", () => {
       });
       await clearAuthState(serverId);
     };
-    const provider = createProvider(storage);
+    const provider = createStaticProvider(storage);
     await provider.saveTokens({
       access_token: "access-token",
       token_type: "bearer",

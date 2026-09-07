@@ -213,6 +213,9 @@ export const normalizePersistedAuthState = (
     state.serverUrl = normalizeMcpServerUrl(value.serverUrl);
   }
   if (isNonEmptyString(value.token)) state.token = value.token;
+  if (isNonEmptyString(value.tokensClientId)) {
+    state.tokensClientId = value.tokensClientId;
+  }
   if (isNonEmptyString(value.codeVerifier)) {
     state.codeVerifier = value.codeVerifier;
   }
@@ -223,6 +226,12 @@ export const normalizePersistedAuthState = (
 
   const clientInformation = normalizeClientInformation(value.clientInformation);
   if (clientInformation) state.clientInformation = clientInformation;
+  if (
+    value.clientInformationSource === "configured" ||
+    value.clientInformationSource === "registered"
+  ) {
+    state.clientInformationSource = value.clientInformationSource;
+  }
 
   const discoveryState = normalizeDiscoveryState(value.discoveryState);
   if (discoveryState) state.discoveryState = discoveryState;

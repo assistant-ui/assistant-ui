@@ -3,6 +3,7 @@ import type { ClientOutput } from "@assistant-ui/store";
 import { useEffect, useState } from "react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { MCPAuthConfig } from "../mcp-scope";
+import type { MCPPersistedAuthState } from "../auth/types";
 import type { MCPStorage } from "./storage/types";
 import type { McpServerResourceProps } from "./McpServerResource";
 
@@ -265,6 +266,38 @@ describe("McpServerResource automatic authentication", () => {
       expect(root.getValue().getState()).toMatchObject({
         connectionState: "disconnected",
         lastError: { message: unboundAuthMessage },
+      });
+      expect(mocks.StreamableHTTPClientTransport).not.toHaveBeenCalled();
+    } finally {
+      root.unmount();
+    }
+  });
+
+  it("does not auto-connect OAuth tokens for a different client", async () => {
+    const storage = createStorage();
+    vi.mocked(storage.loadAuthState).mockResolvedValue({
+      serverUrl: "https://example.com/mcp",
+      clientInformation: {
+        client_id: "client-a",
+        redirect_uris: ["https://example.com/callback"],
+      },
+      clientInformationSource: "registered",
+      tokens: { access_token: "secret", token_type: "bearer" },
+      tokensClientId: "client-a",
+    });
+    const root = mount({
+      auth: { type: "oauth", clientId: "client-b" },
+      storage,
+      autoConnect: true,
+    });
+
+    try {
+      await waitFor(() => storage.loadAuthState.mock.calls.length > 0);
+      await flushMacrotask();
+
+      expect(root.getValue().getState()).toMatchObject({
+        connectionState: "disconnected",
+        lastError: null,
       });
       expect(mocks.StreamableHTTPClientTransport).not.toHaveBeenCalled();
     } finally {
@@ -712,13 +745,8 @@ describe("McpServerResource completeAuth", () => {
   beforeEach(resetMocks);
 
   it("lets callback validation win over mount-time auto-connect", async () => {
-    const pendingLoads: Array<
-      (value: {
-        serverUrl: string;
-        state?: string;
-        tokens?: { access_token: string };
-      }) => void
-    > = [];
+    const pendingLoads: Array<(value: MCPPersistedAuthState | null) => void> =
+      [];
     const storage = createStorage();
     vi.mocked(storage.loadAuthState).mockImplementation(
       () =>
@@ -743,7 +771,13 @@ describe("McpServerResource completeAuth", () => {
       for (const resolve of pendingLoads.slice(0, callbackLoadIndex)) {
         resolve({
           serverUrl: "https://example.com/mcp",
-          tokens: { access_token: "persisted" },
+          clientInformation: {
+            client_id: "registered-client",
+            redirect_uris: ["https://example.com/callback"],
+          },
+          clientInformationSource: "registered",
+          tokens: { access_token: "persisted", token_type: "bearer" },
+          tokensClientId: "registered-client",
         });
       }
       await flushMacrotask();
@@ -766,13 +800,8 @@ describe("McpServerResource completeAuth", () => {
   });
 
   it("resumes auto-connect when callback validation fails", async () => {
-    const pendingLoads: Array<
-      (value: {
-        serverUrl: string;
-        state?: string;
-        tokens?: { access_token: string };
-      }) => void
-    > = [];
+    const pendingLoads: Array<(value: MCPPersistedAuthState | null) => void> =
+      [];
     const storage = createStorage();
     vi.mocked(storage.loadAuthState).mockImplementation(
       () =>
@@ -797,7 +826,13 @@ describe("McpServerResource completeAuth", () => {
       for (const resolve of pendingLoads.slice(0, callbackLoadIndex)) {
         resolve({
           serverUrl: "https://example.com/mcp",
-          tokens: { access_token: "persisted" },
+          clientInformation: {
+            client_id: "registered-client",
+            redirect_uris: ["https://example.com/callback"],
+          },
+          clientInformationSource: "registered",
+          tokens: { access_token: "persisted", token_type: "bearer" },
+          tokensClientId: "registered-client",
         });
       }
       await flushMacrotask();
@@ -1960,7 +1995,13 @@ describe("McpServerResource oauth storage swap", () => {
   it("reconnects onto the replacement storage when the scope changes", async () => {
     const persisted = {
       serverUrl: "https://example.com/mcp",
+      clientInformation: {
+        client_id: "registered-client",
+        redirect_uris: ["https://example.com/callback"],
+      },
+      clientInformationSource: "registered" as const,
       tokens: { access_token: "tok", token_type: "bearer" },
+      tokensClientId: "registered-client",
     };
     const storageA = {
       ...createStorage(),

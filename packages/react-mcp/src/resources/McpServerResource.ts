@@ -13,6 +13,7 @@ import {
 import {
   clearOAuthProviderAuthState,
   createOAuthProvider,
+  hasUsableOAuthTokens,
 } from "../auth/createOAuthProvider";
 import { buildHeaders } from "../auth/buildHeaders";
 import { assertValidServerId } from "../utils/serverId";
@@ -600,7 +601,7 @@ const useMcpServerResourceInstance = (
       }
       const persisted = loaded.state;
       if (props.auth.type === "oauth") {
-        if (!persisted?.tokens) return;
+        if (!hasUsableOAuthTokens(persisted, props.auth)) return;
       } else if (!persisted?.token) {
         return;
       }

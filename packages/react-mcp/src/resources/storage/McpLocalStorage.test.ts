@@ -174,11 +174,15 @@ describe("normalizePersistedAuthState", () => {
     expect(
       normalizePersistedAuthState({
         tokens,
+        tokensClientId: "client-id",
         clientInformation,
+        clientInformationSource: "registered",
       }),
     ).toEqual({
       tokens,
+      tokensClientId: "client-id",
       clientInformation,
+      clientInformationSource: "registered",
     });
   });
 
