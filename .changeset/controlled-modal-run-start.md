@@ -2,4 +2,4 @@
 "@assistant-ui/react": patch
 ---
 
-fix: notify controlled modal owners when a run starts so the modal can open
+fix: notify controlled and uncontrolled modal owners when a run opens a closed modal

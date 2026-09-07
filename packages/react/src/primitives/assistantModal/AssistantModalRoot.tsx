@@ -1,9 +1,9 @@
 "use client";
 
-import { type FC, useEffect, useState } from "react";
+import { type FC, useState } from "react";
 import { Popover as PopoverPrimitive } from "radix-ui";
 import { type ScopedProps, usePopoverScope } from "./scope";
-import { useAui } from "@assistant-ui/store";
+import { useAuiEvent } from "@assistant-ui/store";
 
 export namespace AssistantModalPrimitiveRoot {
   export type Props = PopoverPrimitive.PopoverProps & {
@@ -11,58 +11,34 @@ export namespace AssistantModalPrimitiveRoot {
   };
 }
 
-const useAssistantModalOpenState = ({
-  defaultOpen = false,
-  unstable_openOnRunStart = true,
-  onOpenChange,
-}: {
-  defaultOpen?: boolean | undefined;
-  unstable_openOnRunStart?: boolean | undefined;
-  onOpenChange?: PopoverPrimitive.PopoverProps["onOpenChange"];
-}) => {
-  const state = useState(defaultOpen);
-
-  const [, setOpen] = state;
-  const aui = useAui();
-  useEffect(() => {
-    if (!unstable_openOnRunStart) return undefined;
-
-    return aui.on("thread.runStart", () => {
-      onOpenChange?.(true);
-      setOpen(true);
-    });
-  }, [unstable_openOnRunStart, aui, setOpen, onOpenChange]);
-
-  return state;
-};
-
 export const AssistantModalPrimitiveRoot: FC<
   AssistantModalPrimitiveRoot.Props
 > = ({
   __scopeAssistantModal,
-  defaultOpen,
-  unstable_openOnRunStart,
+  defaultOpen = false,
+  unstable_openOnRunStart = true,
   open,
   onOpenChange,
   ...rest
 }: ScopedProps<AssistantModalPrimitiveRoot.Props>) => {
   const scope = usePopoverScope(__scopeAssistantModal);
 
-  const [modalOpen, setOpen] = useAssistantModalOpenState({
-    defaultOpen,
-    unstable_openOnRunStart,
-    onOpenChange,
-  });
+  const [modalOpen, setOpen] = useState(defaultOpen);
+  const isOpen = open ?? modalOpen;
 
   const openChangeHandler = (open: boolean) => {
     onOpenChange?.(open);
     setOpen(open);
   };
 
+  useAuiEvent("thread.runStart", () => {
+    if (unstable_openOnRunStart && !isOpen) openChangeHandler(true);
+  });
+
   return (
     <PopoverPrimitive.Root
       {...scope}
-      open={open === undefined ? modalOpen : open}
+      open={isOpen}
       onOpenChange={openChangeHandler}
       {...rest}
     />

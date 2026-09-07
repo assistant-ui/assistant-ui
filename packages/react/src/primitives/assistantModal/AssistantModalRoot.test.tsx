@@ -23,6 +23,7 @@ const adapter = {
 
 const Modal = ({
   controlled = true,
+  onOpenChange,
   ...props
 }: AssistantModalPrimitiveRoot.Props & { controlled?: boolean }) => {
   const runtime = useLocalRuntime(adapter);
@@ -32,7 +33,10 @@ const Modal = ({
       <button onClick={() => runtime.thread.append("Hello")}>Start run</button>
       <AssistantModalPrimitiveRoot
         {...(controlled ? { open } : {})}
-        onOpenChange={setOpen}
+        onOpenChange={(value) => {
+          setOpen(value);
+          onOpenChange?.(value);
+        }}
         {...props}
       >
         <AssistantModalPrimitiveTrigger>
@@ -52,16 +56,39 @@ describe("AssistantModalPrimitiveRoot run start", () => {
   it.each([true, false])(
     "opens on run start and closes through the trigger (controlled: %s)",
     async (controlled) => {
-      render(<Modal controlled={controlled} />);
+      const onOpenChange = vi.fn();
+      render(<Modal controlled={controlled} onOpenChange={onOpenChange} />);
       expect(screen.queryByRole("dialog")).toBeNull();
 
       await act(async () => {
         fireEvent.click(screen.getByRole("button", { name: "Start run" }));
       });
       expect(await screen.findByRole("dialog", { name: "Chat" })).toBeDefined();
+      expect(onOpenChange).toHaveBeenCalledExactlyOnceWith(true);
+
+      await act(async () => {
+        fireEvent.click(screen.getByRole("button", { name: "Start run" }));
+      });
+      expect(onOpenChange).toHaveBeenCalledExactlyOnceWith(true);
 
       fireEvent.click(screen.getByRole("button", { name: "Toggle chat" }));
       expect(screen.queryByRole("dialog")).toBeNull();
+    },
+  );
+
+  it.each([{ open: true }, { controlled: false, defaultOpen: true }])(
+    "does not request opening when already open (%o)",
+    async (props) => {
+      const onOpenChange = vi.fn();
+      render(<Modal {...props} onOpenChange={onOpenChange} />);
+      expect(screen.getByRole("dialog", { name: "Chat" })).toBeDefined();
+
+      await act(async () => {
+        fireEvent.click(screen.getByRole("button", { name: "Start run" }));
+      });
+
+      expect(onOpenChange).not.toHaveBeenCalled();
+      expect(screen.getByRole("dialog", { name: "Chat" })).toBeDefined();
     },
   );
 
