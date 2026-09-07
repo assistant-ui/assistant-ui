@@ -40,7 +40,6 @@ import type {
 import { ThreadListAdapterChangedError } from "../../runtimes/remote-thread-list/adapter-changed";
 import type { ThreadMessage } from "../../types/message";
 import { handleThreadListAction } from "../../store/runtime-clients/handle-thread-list-action";
-import { nullProtoRecord } from "../../utils/record";
 import {
   inMemoryThreadListTransformScopes,
   type InMemoryThreadListProps,

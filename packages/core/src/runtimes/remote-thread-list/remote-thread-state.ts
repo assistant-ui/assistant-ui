@@ -293,11 +293,15 @@ export const reconcileInitializedThread = (
   const listedMappingId = Object.hasOwn(state.threadIdMap, remoteId)
     ? state.threadIdMap[remoteId]
     : undefined;
-  const orphan =
+  const listedData =
     listedMappingId !== undefined &&
     listedMappingId !== mappingId &&
     Object.hasOwn(state.threadData, listedMappingId)
       ? state.threadData[listedMappingId]
+      : undefined;
+  const listedSlot =
+    listedMappingId !== undefined && listedData !== undefined
+      ? { mappingId: listedMappingId, data: listedData }
       : undefined;
   const preferredMappingId =
     preferredThreadId !== undefined &&
@@ -305,14 +309,14 @@ export const reconcileInitializedThread = (
       ? state.threadIdMap[preferredThreadId]
       : undefined;
   const survivorMappingId =
-    orphan !== undefined && preferredMappingId === listedMappingId
-      ? listedMappingId
+    listedSlot !== undefined && preferredMappingId === listedSlot.mappingId
+      ? listedSlot.mappingId
       : mappingId;
   const removedMappingId =
-    orphan === undefined
+    listedSlot === undefined
       ? undefined
       : survivorMappingId === mappingId
-        ? listedMappingId
+        ? listedSlot.mappingId
         : mappingId;
   const threadData = nullProtoRecord(state.threadData);
   if (removedMappingId !== undefined) delete threadData[removedMappingId];
@@ -327,15 +331,15 @@ export const reconcileInitializedThread = (
     survivorMappingId === mappingId
       ? initializedData
       : ({
-          ...orphan,
+          ...listedSlot?.data,
           ...initializedData,
-          title: data.title ?? orphan?.title,
+          title: data.title ?? listedSlot?.data.title,
           lastMessageAt:
             ("lastMessageAt" in data ? data.lastMessageAt : undefined) ??
-            (orphan && "lastMessageAt" in orphan
-              ? orphan.lastMessageAt
+            (listedSlot && "lastMessageAt" in listedSlot.data
+              ? listedSlot.data.lastMessageAt
               : undefined),
-          custom: data.custom ?? orphan?.custom,
+          custom: data.custom ?? listedSlot?.data.custom,
         } as RemoteThreadData);
 
   const threadIdMap = nullProtoRecord(state.threadIdMap);
@@ -348,10 +352,10 @@ export const reconcileInitializedThread = (
   threadIdMap[remoteId] = survivorMappingId;
 
   const rewire = (ids: readonly string[]) =>
-    orphan === undefined
+    listedSlot === undefined
       ? ids
       : ids
-          .filter((id) => id !== orphan.id)
+          .filter((id) => id !== listedSlot.data.id)
           .map((id) => (id === data.id ? survivorMappingId : id));
 
   return {
