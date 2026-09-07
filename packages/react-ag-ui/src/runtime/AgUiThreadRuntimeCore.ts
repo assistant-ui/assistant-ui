@@ -173,9 +173,8 @@ export class AgUiThreadRuntimeCore {
   private _isLoading = false;
   private _loadPromise: Promise<void> | undefined;
   private _loadRequested = false;
-  private pendingResumeMessageId: string | null = null;
-  private pendingResumeOwner: AbortController | null = null;
-  private pendingA2uiResume = false;
+  private pendingResume: { owner: AbortController; messageId: string } | null =
+    null;
   private pendingA2uiResumeOwner: AbortController | null = null;
   private pendingA2uiAction: Record<string, unknown> | undefined;
 
@@ -880,9 +879,9 @@ export class AgUiThreadRuntimeCore {
     }
     this.pendingA2uiAction = userAction;
 
-    if (this.isRunningFlag) {
-      this.pendingA2uiResume = true;
-      this.pendingA2uiResumeOwner = this.abortController;
+    const owner = this.abortController;
+    if (owner) {
+      this.pendingA2uiResumeOwner = owner;
       return;
     }
     this.startResumeRun(parentId);
@@ -894,11 +893,11 @@ export class AgUiThreadRuntimeCore {
   private maybeResumeAfterToolResults(messageId: string): void {
     if (!this.maybeCompleteAfterToolResults(messageId)) return;
 
-    if (this.isRunningFlag) {
+    const owner = this.abortController;
+    if (owner) {
       // A run is still draining (RUN_FINISHED arrived but the stream has not
       // closed). Defer until startRun's tail so we never start two runs.
-      this.pendingResumeMessageId = messageId;
-      this.pendingResumeOwner = this.abortController;
+      this.pendingResume = { owner, messageId };
       return;
     }
     this.startResumeRun(messageId);
@@ -948,7 +947,6 @@ export class AgUiThreadRuntimeCore {
   }
 
   applyExternalMessages(messages: readonly ThreadMessage[]): void {
-    this.pendingA2uiResume = false;
     this.pendingA2uiResumeOwner = null;
     this.pendingA2uiAction = undefined;
     this.assistantHistoryParents.clear();
@@ -1233,23 +1231,15 @@ export class AgUiThreadRuntimeCore {
 
     // A tool result that landed before the run settled deferred its
     // continuation here so a second run never overlaps the first.
-    if (
-      this.pendingResumeOwner === abortController &&
-      this.pendingResumeMessageId !== null
-    ) {
-      const resumeMessageId = this.pendingResumeMessageId;
-      this.pendingResumeMessageId = null;
-      this.pendingResumeOwner = null;
+    if (this.pendingResume?.owner === abortController) {
+      const { messageId } = this.pendingResume;
+      this.pendingResume = null;
       if (!abortSignal.aborted) {
-        this.startResumeRun(resumeMessageId);
+        this.startResumeRun(messageId);
       }
     }
 
-    if (
-      this.pendingA2uiResumeOwner === abortController &&
-      this.pendingA2uiResume
-    ) {
-      this.pendingA2uiResume = false;
+    if (this.pendingA2uiResumeOwner === abortController) {
       this.pendingA2uiResumeOwner = null;
       if (!abortSignal.aborted && this.pendingA2uiAction !== undefined) {
         if (this.getPendingInterrupts()) {
@@ -1290,7 +1280,6 @@ export class AgUiThreadRuntimeCore {
     },
   ): Promise<Error | undefined> {
     this.pendingA2uiAction = undefined;
-    this.pendingA2uiResume = false;
     this.pendingA2uiResumeOwner = null;
     const assistantId = ctx.ensureAssistant();
     const currentId = () => ctx.getAssistantMessageId() ?? assistantId;
@@ -1367,18 +1356,14 @@ export class AgUiThreadRuntimeCore {
       ...(resume !== undefined ? { resume } : {}),
     };
     this.pendingA2uiAction = undefined;
-    this.pendingA2uiResume = false;
-    this.pendingA2uiResumeOwner = null;
     return input;
   }
 
   private clearDeferredContinuations(owner: AbortController): void {
-    if (this.pendingResumeOwner === owner) {
-      this.pendingResumeMessageId = null;
-      this.pendingResumeOwner = null;
+    if (this.pendingResume?.owner === owner) {
+      this.pendingResume = null;
     }
     if (this.pendingA2uiResumeOwner === owner) {
-      this.pendingA2uiResume = false;
       this.pendingA2uiResumeOwner = null;
       this.pendingA2uiAction = undefined;
     }
