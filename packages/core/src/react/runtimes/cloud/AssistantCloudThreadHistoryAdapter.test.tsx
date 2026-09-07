@@ -415,6 +415,43 @@ describe("useAssistantCloudThreadHistoryAdapter", () => {
     );
   });
 
+  it("reports the model ID carried by aui/v0 step metadata", () => {
+    mocks.aui = mocks.makeClient("thread-1");
+    const cloud = makeCloud();
+    const cloudRef = { current: cloud };
+    const { result } = renderHook(() =>
+      useAssistantCloudThreadHistoryAdapter(cloudRef),
+    );
+    const formatted = result.current.withFormat({
+      format: "aui/v0",
+      encode: ({ message }) => message,
+      decode: ({ parent_id, content }) => ({
+        parentId: parent_id,
+        message: content as { id: string },
+      }),
+      getId: (message: { id: string }) => message.id,
+    });
+
+    formatted.reportTelemetry([
+      {
+        parentId: null,
+        message: {
+          id: "message-1",
+          role: "assistant",
+          content: [{ type: "text", text: "done" }],
+          status: { type: "complete" },
+          metadata: {
+            steps: [{ response: { modelId: "provider/model-1" } }],
+          },
+        },
+      },
+    ]);
+
+    expect(cloud.runs.report).toHaveBeenCalledWith(
+      expect.objectContaining({ model_id: "provider/model-1" }),
+    );
+  });
+
   it("reports the model ID carried by ai-sdk/v6 step metadata", () => {
     mocks.aui = mocks.makeClient("thread-1");
     const cloud = makeCloud();

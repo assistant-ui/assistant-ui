@@ -476,11 +476,9 @@ export function extractAuiV0<T>(content: T): TelemetryData | null {
     (statusType && AUI_STATUS_MAP[statusType]) || "completed";
 
   const metadata = msg.metadata?.custom as Record<string, unknown> | undefined;
-  const modelId =
-    msg.metadata?.modelId ??
-    (typeof msg.metadata?.custom?.modelId === "string"
-      ? msg.metadata.custom.modelId
-      : undefined);
+  const modelId = extractRunTelemetryModelId(
+    msg.metadata as Record<string, unknown> | undefined,
+  );
 
   const telemetrySteps: TelemetryStepData[] | undefined =
     steps && steps.length > 1
