@@ -301,6 +301,7 @@ export const createLangChainStreamingTimingAccessors = <
     if (!Array.isArray(content)) return 0;
     let len = 0;
     for (const part of content as readonly LangChainContentBlock[]) {
+      if (typeof part !== "object" || part === null) continue;
       switch (part.type) {
         case "text":
         case "text_delta":
