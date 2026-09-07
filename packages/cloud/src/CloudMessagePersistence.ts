@@ -107,7 +107,7 @@ export class CloudMessagePersistence {
    */
   async getRemoteId(messageId: string): Promise<string | undefined> {
     const entry = this.idMapping.get(messageId);
-    if (!entry) return undefined;
+    if (entry === undefined) return undefined;
     return entry;
   }
 
