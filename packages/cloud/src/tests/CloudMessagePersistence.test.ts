@@ -221,6 +221,66 @@ describe("CloudMessagePersistence", () => {
     expect(persistence.isPersisted("msg-1")).toBe(true);
   });
 
+  it("loads every message page in server order", async () => {
+    const rows = Array.from({ length: 450 }, (_, index) => ({
+      id: `message-${index + 1}`,
+      parent_id: null,
+      height: index,
+      created_at: new Date(0),
+      updated_at: new Date(0),
+      format: "aui/v0",
+      content: {},
+    }));
+    vi.mocked(cloud.threads.messages.list).mockImplementation(
+      async (_threadId, query) => {
+        const start = query?.after
+          ? rows.findIndex((row) => row.id === query.after) + 1
+          : 0;
+        return { messages: rows.slice(start, start + 200) };
+      },
+    );
+
+    const messages = await persistence.load("thread-1", "aui/v0");
+
+    expect(messages.map((message) => message.id)).toEqual(
+      rows.map((row) => row.id),
+    );
+    expect(cloud.threads.messages.list).toHaveBeenNthCalledWith(1, "thread-1", {
+      format: "aui/v0",
+      limit: 200,
+    });
+    expect(cloud.threads.messages.list).toHaveBeenNthCalledWith(2, "thread-1", {
+      format: "aui/v0",
+      limit: 200,
+      after: "message-200",
+    });
+    expect(cloud.threads.messages.list).toHaveBeenNthCalledWith(3, "thread-1", {
+      format: "aui/v0",
+      limit: 200,
+      after: "message-400",
+    });
+  });
+
+  it("stops when message pagination does not advance", async () => {
+    const page = Array.from({ length: 200 }, (_, index) => ({
+      id: `message-${index + 1}`,
+      parent_id: null,
+      height: index,
+      created_at: new Date(0),
+      updated_at: new Date(0),
+      format: "aui/v0",
+      content: {},
+    }));
+    vi.mocked(cloud.threads.messages.list).mockResolvedValue({
+      messages: page,
+    });
+
+    const messages = await persistence.load("thread-1", "aui/v0");
+
+    expect(messages).toHaveLength(200);
+    expect(cloud.threads.messages.list).toHaveBeenCalledTimes(2);
+  });
+
   it("updates an already-persisted message", async () => {
     vi.mocked(cloud.threads.messages.create).mockResolvedValue({
       message_id: "remote-1",

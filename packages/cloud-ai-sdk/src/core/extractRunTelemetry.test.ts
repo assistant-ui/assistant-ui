@@ -187,6 +187,51 @@ describe("extractRunTelemetry", () => {
     expect(result.cachedInputTokens).toBe(2);
   });
 
+  it("falls back to a response model ID on a message part", () => {
+    const result = extractRunTelemetry([
+      assistantMsg("m-1", [
+        {
+          type: "text",
+          text: "ok",
+          response: { modelId: "provider/model-1" },
+        } as unknown as UIMessage["parts"][number],
+      ]),
+    ])!;
+
+    expect(result.modelId).toBe("provider/model-1");
+  });
+
+  it("falls back to a response model ID in v6 step metadata", () => {
+    const result = extractRunTelemetry([
+      assistantMsg("m-1", [{ type: "text", text: "ok" }], {
+        steps: [{ response: { modelId: "provider/model-2" } }],
+      }),
+    ])!;
+
+    expect(result.modelId).toBe("provider/model-2");
+  });
+
+  it("keeps explicit model metadata ahead of response model IDs", () => {
+    const result = extractRunTelemetry([
+      assistantMsg(
+        "m-1",
+        [
+          {
+            type: "text",
+            text: "ok",
+            response: { modelId: "provider/model-fallback" },
+          } as unknown as UIMessage["parts"][number],
+        ],
+        {
+          modelId: "provider/model-explicit",
+          steps: [{ response: { modelId: "provider/model-step" } }],
+        },
+      ),
+    ])!;
+
+    expect(result.modelId).toBe("provider/model-explicit");
+  });
+
   it("attaches sampling calls from metadata to matching tool calls", () => {
     const result = extractRunTelemetry([
       assistantMsg(

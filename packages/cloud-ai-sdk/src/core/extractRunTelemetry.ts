@@ -38,6 +38,40 @@ function buildToolCall(part: ToolPart): AssistantCloudRunReportToolCall {
   });
 }
 
+function extractResponseModelId(response: unknown): string | undefined {
+  if (!response || typeof response !== "object" || Array.isArray(response)) {
+    return undefined;
+  }
+  const modelId = (response as Record<string, unknown>).modelId;
+  return typeof modelId === "string" ? modelId : undefined;
+}
+
+function extractModelId(
+  metadata?: Record<string, unknown>,
+  responseModelIds?: readonly string[],
+): string | undefined {
+  if (metadata) {
+    if (typeof metadata.modelId === "string") return metadata.modelId;
+    const custom = metadata.custom as Record<string, unknown> | undefined;
+    if (typeof custom?.modelId === "string") return custom.modelId;
+
+    const steps = metadata.steps;
+    if (Array.isArray(steps)) {
+      for (const step of steps) {
+        if (!step || typeof step !== "object" || Array.isArray(step)) {
+          continue;
+        }
+        const modelId = extractResponseModelId(
+          (step as Record<string, unknown>).response,
+        );
+        if (modelId) return modelId;
+      }
+    }
+  }
+
+  return responseModelIds?.find(Boolean);
+}
+
 export function extractRunTelemetry(
   messages: UIMessage[],
 ): RunTelemetryData | null {
@@ -74,8 +108,13 @@ export function extractRunTelemetry(
     : "incomplete";
 
   const metadata = assistant.metadata as Record<string, unknown> | undefined;
-  const modelId =
-    typeof metadata?.modelId === "string" ? metadata.modelId : undefined;
+  const responseModelIds = assistant.parts.flatMap((part) => {
+    const modelId = extractResponseModelId(
+      (part as { response?: unknown }).response,
+    );
+    return modelId ? [modelId] : [];
+  });
+  const modelId = extractModelId(metadata, responseModelIds);
   const usage = metadata?.usage as RunTelemetryUsageInit | undefined;
   const normalizedUsage = usage ? normalizeRunTelemetryUsage(usage) : undefined;
 

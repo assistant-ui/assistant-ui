@@ -528,6 +528,7 @@ type AiSdkV6Part = {
   result?: unknown;
   input?: unknown;
   output?: unknown;
+  response?: unknown;
 };
 
 type AiSdkV6Message = {
@@ -563,13 +564,18 @@ function collectAiSdkV6Parts(parts: readonly AiSdkV6Part[]): {
   textParts: string[];
   toolCalls: AssistantCloudRunReportToolCall[];
   stepsData: { tool_calls: AssistantCloudRunReportToolCall[] }[];
+  modelIds: string[];
 } {
   const textParts: string[] = [];
   const toolCalls: AssistantCloudRunReportToolCall[] = [];
   const stepsData: { tool_calls: AssistantCloudRunReportToolCall[] }[] = [];
+  const modelIds: string[] = [];
   let currentStepToolCalls: AssistantCloudRunReportToolCall[] | null = null;
 
   for (const p of parts) {
+    const modelId = extractResponseModelId(p.response);
+    if (modelId) modelIds.push(modelId);
+
     if (p.type === "step-start") {
       if (currentStepToolCalls !== null) {
         stepsData.push({ tool_calls: currentStepToolCalls });
@@ -590,16 +596,42 @@ function collectAiSdkV6Parts(parts: readonly AiSdkV6Part[]): {
     stepsData.push({ tool_calls: currentStepToolCalls });
   }
 
-  return { textParts, toolCalls, stepsData };
+  return { textParts, toolCalls, stepsData, modelIds };
+}
+
+function extractResponseModelId(response: unknown): string | undefined {
+  if (!response || typeof response !== "object" || Array.isArray(response)) {
+    return undefined;
+  }
+  const modelId = (response as Record<string, unknown>).modelId;
+  return typeof modelId === "string" ? modelId : undefined;
 }
 
 function extractModelId(
   metadata?: Record<string, unknown>,
+  responseModelIds?: readonly string[],
 ): string | undefined {
-  if (!metadata) return undefined;
-  if (typeof metadata.modelId === "string") return metadata.modelId;
-  const custom = metadata.custom as Record<string, unknown> | undefined;
-  if (typeof custom?.modelId === "string") return custom.modelId;
+  if (metadata) {
+    if (typeof metadata.modelId === "string") return metadata.modelId;
+    const custom = metadata.custom as Record<string, unknown> | undefined;
+    if (typeof custom?.modelId === "string") return custom.modelId;
+
+    const steps = metadata.steps;
+    if (Array.isArray(steps)) {
+      for (const step of steps) {
+        if (!step || typeof step !== "object" || Array.isArray(step)) {
+          continue;
+        }
+        const modelId = extractResponseModelId(
+          (step as Record<string, unknown>).response,
+        );
+        if (modelId) return modelId;
+      }
+    }
+  }
+
+  const responseModelId = responseModelIds?.find(Boolean);
+  if (responseModelId) return responseModelId;
   return undefined;
 }
 
@@ -615,12 +647,13 @@ function buildAiSdkV6Result(
     reasoningTokens?: number;
     cachedInputTokens?: number;
   },
+  responseModelIds?: readonly string[],
 ): TelemetryData {
   const hasText = textParts.length > 0;
   const outputText = hasText
     ? truncateRunTelemetryText(textParts.join(""))
     : undefined;
-  const modelId = extractModelId(metadata);
+  const modelId = extractModelId(metadata, responseModelIds);
 
   const steps: TelemetryStepData[] | undefined =
     stepsData && stepsData.length > 1
@@ -723,7 +756,7 @@ function extractAiSdkV6<T>(content: T): TelemetryData | null {
   const msg = content as AiSdkV6Message;
   if (msg.role !== "assistant") return null;
 
-  const { textParts, toolCalls, stepsData } = collectAiSdkV6Parts(
+  const { textParts, toolCalls, stepsData, modelIds } = collectAiSdkV6Parts(
     msg.parts ?? [],
   );
   return buildAiSdkV6Result(
@@ -733,6 +766,7 @@ function extractAiSdkV6<T>(content: T): TelemetryData | null {
     msg.metadata,
     stepsData,
     extractAiSdkV6Usage(msg.metadata),
+    modelIds,
   );
 }
 
@@ -740,6 +774,7 @@ function aggregateAiSdkV6RunSteps<T>(stepMessages: T[]): TelemetryData | null {
   const allTextParts: string[] = [];
   const allToolCalls: AssistantCloudRunReportToolCall[] = [];
   const allStepsData: { tool_calls: AssistantCloudRunReportToolCall[] }[] = [];
+  const allModelIds: string[] = [];
   let hasAssistant = false;
   let metadata: Record<string, unknown> | undefined;
   let inputTokens = 0;
@@ -756,12 +791,13 @@ function aggregateAiSdkV6RunSteps<T>(stepMessages: T[]): TelemetryData | null {
     if (msg.role !== "assistant") continue;
     hasAssistant = true;
 
-    const { textParts, toolCalls, stepsData } = collectAiSdkV6Parts(
+    const { textParts, toolCalls, stepsData, modelIds } = collectAiSdkV6Parts(
       msg.parts ?? [],
     );
     allTextParts.push(...textParts);
     allToolCalls.push(...toolCalls);
     allStepsData.push(...stepsData);
+    allModelIds.push(...modelIds);
     if (msg.metadata) metadata = msg.metadata;
 
     const usage = extractAiSdkV6Usage(msg.metadata);
@@ -798,6 +834,7 @@ function aggregateAiSdkV6RunSteps<T>(stepMessages: T[]): TelemetryData | null {
       ...(hasReasoning ? { reasoningTokens } : undefined),
       ...(hasCachedInput ? { cachedInputTokens } : undefined),
     },
+    allModelIds,
   );
 }
 

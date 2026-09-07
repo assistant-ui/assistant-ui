@@ -128,6 +128,7 @@ describe("useAssistantCloudThreadHistoryAdapter", () => {
     expect(secondCloud.threads.messages.list).toHaveBeenCalledOnce();
     expect(secondCloud.threads.messages.list).toHaveBeenCalledWith("thread-1", {
       format: "test",
+      limit: 200,
     });
   });
 
@@ -154,6 +155,7 @@ describe("useAssistantCloudThreadHistoryAdapter", () => {
     await formatted.load();
     expect(cloud.threads.messages.list).toHaveBeenCalledWith("thread-1", {
       format: "test",
+      limit: 200,
     });
 
     mocks.aui = mocks.makeClient("thread-2");
@@ -161,6 +163,7 @@ describe("useAssistantCloudThreadHistoryAdapter", () => {
     await formatted.load();
     expect(cloud.threads.messages.list).toHaveBeenCalledWith("thread-2", {
       format: "test",
+      limit: 200,
     });
   });
 
@@ -175,6 +178,7 @@ describe("useAssistantCloudThreadHistoryAdapter", () => {
     await result.current.load();
     expect(cloud.threads.messages.list).toHaveBeenCalledWith("thread-1", {
       format: "aui/v0",
+      limit: 200,
     });
 
     mocks.aui = mocks.makeClient("thread-2");
@@ -183,6 +187,7 @@ describe("useAssistantCloudThreadHistoryAdapter", () => {
     await result.current.load();
     expect(cloud.threads.messages.list).toHaveBeenCalledWith("thread-2", {
       format: "aui/v0",
+      limit: 200,
     });
   });
 
@@ -407,6 +412,42 @@ describe("useAssistantCloudThreadHistoryAdapter", () => {
           },
         ],
       }),
+    );
+  });
+
+  it("reports a model ID from v6 response step metadata", () => {
+    mocks.aui = mocks.makeClient("thread-1");
+    const cloud = makeCloud();
+    const cloudRef = { current: cloud };
+    const { result } = renderHook(() =>
+      useAssistantCloudThreadHistoryAdapter(cloudRef),
+    );
+    const formatted = result.current.withFormat({
+      format: "ai-sdk/v6",
+      encode: ({ message }) => message,
+      decode: ({ parent_id, content }) => ({
+        parentId: parent_id,
+        message: content as { id: string },
+      }),
+      getId: (message: { id: string }) => message.id,
+    });
+
+    formatted.reportTelemetry([
+      {
+        parentId: null,
+        message: {
+          id: "message-1",
+          role: "assistant",
+          parts: [{ type: "text", text: "done" }],
+          metadata: {
+            steps: [{ response: { modelId: "provider/model-1" } }],
+          },
+        },
+      },
+    ]);
+
+    expect(cloud.runs.report).toHaveBeenCalledWith(
+      expect.objectContaining({ model_id: "provider/model-1" }),
     );
   });
 

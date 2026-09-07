@@ -94,4 +94,19 @@ describe("AssistantCloudThreadMessages responses", () => {
       created_at: "leave-this-string-untouched",
     });
   });
+
+  it("lists thread messages with the query", async () => {
+    const { messages, makeRequest } = createCloudThreadMessages();
+    makeRequest.mockResolvedValue({ messages: [] });
+
+    await messages.list("thread_123", {
+      format: "ai-sdk/v6",
+      limit: 100,
+      after: "message_9",
+    });
+
+    expect(makeRequest).toHaveBeenCalledWith("/threads/thread_123/messages", {
+      query: { format: "ai-sdk/v6", limit: 100, after: "message_9" },
+    });
+  });
 });

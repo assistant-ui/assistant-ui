@@ -95,6 +95,25 @@ describe("CloudTelemetryReporter", () => {
     });
   });
 
+  it("reports a response model ID without application metadata", async () => {
+    const { cloud, reportMock } = createCloud();
+    const reporter = new CloudTelemetryReporter(cloud);
+
+    await reporter.reportFromMessages("thread-1", [
+      assistantMsgWithParts("m-1", [
+        {
+          type: "text",
+          text: "hello",
+          response: { modelId: "provider/model-1" },
+        } as unknown as UIMessage["parts"][number],
+      ]),
+    ]);
+
+    expect(reportMock).toHaveBeenCalledWith(
+      expect.objectContaining({ model_id: "provider/model-1" }),
+    );
+  });
+
   it("applies beforeReport mutation", async () => {
     const { cloud, reportMock } = createCloud({
       beforeReport: (report) => ({

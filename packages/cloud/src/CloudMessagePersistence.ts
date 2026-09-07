@@ -1,6 +1,8 @@
 import type { ReadonlyJSONObject } from "assistant-stream/utils";
 import type { AssistantCloud } from "./AssistantCloud";
 
+const CLOUD_MESSAGE_PAGE_SIZE = 200;
+
 /**
  * Shared persistence logic for cloud message storage.
  *
@@ -120,10 +122,27 @@ export class CloudMessagePersistence {
    */
   async load(threadId: string, format?: string) {
     const cloud = this.getCloud();
-    const { messages } = await cloud.threads.messages.list(
-      threadId,
-      format ? { format } : undefined,
-    );
+    const messages = [] as Awaited<
+      ReturnType<typeof cloud.threads.messages.list>
+    >["messages"];
+    let after: string | undefined;
+
+    while (true) {
+      const response = await cloud.threads.messages.list(threadId, {
+        ...(format ? { format } : undefined),
+        limit: CLOUD_MESSAGE_PAGE_SIZE,
+        ...(after ? { after } : undefined),
+      });
+      const nextAfter = response.messages.at(-1)?.id;
+      if (after && nextAfter === after) break;
+
+      messages.push(...response.messages);
+      if (response.messages.length < CLOUD_MESSAGE_PAGE_SIZE) break;
+
+      if (!nextAfter) break;
+      after = nextAfter;
+    }
+
     // Populate ID mapping so isPersisted() recognizes loaded messages
     for (const m of messages) {
       this.idMapping[m.id] = m.id;
