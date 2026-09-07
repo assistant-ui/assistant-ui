@@ -13,13 +13,14 @@ import {
 import { DocsRuntimeProvider } from "@/runtimes/docs";
 import { CurrentPageProvider } from "@/components/pages/docs/contexts/current-page";
 import { PlatformProvider } from "@/components/pages/docs/platform/context";
-import { OSS_CATEGORIES, OSS_PROJECTS, ossPrimaryUrl } from "@/lib/oss";
+import { OSS_PROJECTS, ossPrimaryUrl } from "@/lib/oss";
 
-const DOCS_PROJECTS = OSS_PROJECTS.map((project) => ({
+const DOCS_PROJECTS = OSS_PROJECTS.filter(
+  (project) => project.category === "sdk",
+).map((project) => ({
   id: project.id,
   name: project.name,
   href: ossPrimaryUrl(project),
-  categoryLabel: OSS_CATEGORIES[project.category].label,
 }));
 
 type DocsRootLayoutProps = {

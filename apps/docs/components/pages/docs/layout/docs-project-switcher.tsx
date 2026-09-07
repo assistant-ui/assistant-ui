@@ -7,9 +7,7 @@ import { ArrowUpRight, Check, ChevronDown, LayoutGrid } from "lucide-react";
 import {
   DropdownMenu,
   DropdownMenuContent,
-  DropdownMenuGroup,
   DropdownMenuItem,
-  DropdownMenuLabel,
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
@@ -19,7 +17,6 @@ export type DocsProjectOption = {
   id: string;
   name: string;
   href: string;
-  categoryLabel: string;
 };
 
 export function DocsProjectSwitcher({
@@ -36,12 +33,6 @@ export function DocsProjectSwitcher({
     )
     .sort((a, b) => b.href.length - a.href.length)[0];
   const currentProject = activeProject ?? projects[0];
-  const groups = projects.reduce((result, project) => {
-    const group = result.get(project.categoryLabel) ?? [];
-    group.push(project);
-    result.set(project.categoryLabel, group);
-    return result;
-  }, new Map<string, DocsProjectOption[]>());
 
   if (!currentProject) return null;
 
@@ -62,22 +53,13 @@ export function DocsProjectSwitcher({
         <ChevronDown className="text-muted-foreground size-3.5 transition-transform group-data-[popup-open]:rotate-180" />
       </DropdownMenuTrigger>
 
-      <DropdownMenuContent
-        align="start"
-        sideOffset={8}
-        className="max-h-[min(70vh,38rem)] w-72 overscroll-contain"
-      >
-        {[...groups].map(([category, options]) => (
-          <DropdownMenuGroup key={category}>
-            <DropdownMenuLabel>{category}</DropdownMenuLabel>
-            {options.map((project) => (
-              <ProjectItem
-                key={project.id}
-                project={project}
-                active={project.id === currentProject.id}
-              />
-            ))}
-          </DropdownMenuGroup>
+      <DropdownMenuContent align="start" sideOffset={8} className="w-64">
+        {projects.map((project) => (
+          <ProjectItem
+            key={project.id}
+            project={project}
+            active={project.id === currentProject.id}
+          />
         ))}
 
         <DropdownMenuSeparator />
