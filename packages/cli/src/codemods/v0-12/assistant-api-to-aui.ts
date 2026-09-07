@@ -253,6 +253,8 @@ const migrateAssistantApiToAui = createTransformer(
             grandparent.source != null
           )
             return;
+          // Babel emits exportKind on ExportSpecifier for inline
+          // `export { type api }`; ast-types' typings omit it.
           if (
             grandparent?.exportKind === "type" ||
             (parent as { exportKind?: string }).exportKind === "type"

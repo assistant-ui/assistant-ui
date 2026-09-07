@@ -61,7 +61,7 @@ describe("AssistantCloudAnonymousAuthStrategy", () => {
   it("reads the stored anonymous refresh token", () => {
     const values = new Map([[refreshTokenKey, JSON.stringify(refreshToken)]]);
     installLocalStorage({
-      getItem: (key: string) => values.get(key) ?? null,
+      getItem: (key) => values.get(key) ?? null,
       setItem: (key, value) => {
         values.set(key, value);
       },
@@ -74,8 +74,10 @@ describe("AssistantCloudAnonymousAuthStrategy", () => {
   });
 
   it("reads the token stored for a base url given with a trailing slash", () => {
+    // The two-step cast below erases the contextual Storage typing the plain
+    // `as Storage` sites get, so this parameter needs its own annotation.
     installLocalStorage({
-      getItem: (key) =>
+      getItem: (key: string) =>
         key === refreshTokenKey ? JSON.stringify(refreshToken) : null,
       setItem: vi.fn(),
       removeItem: vi.fn(),
