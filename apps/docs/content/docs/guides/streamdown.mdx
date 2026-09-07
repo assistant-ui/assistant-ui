@@ -237,6 +237,8 @@ Configure how incomplete markdown syntax is handled during streaming:
     strikethrough: true,   // Complete ~~text → ~~text~~
     katex: true,           // Complete $$equation → $$equation$$
     setextHeadings: true,  // Handle incomplete setext headings
+    singleTilde: true,     // Escape 20~25 → 20\~25 so it is not read as strikethrough
+    comparisonOperators: true, // Escape - > 25 → - \> 25 in list items
     handlers: [],          // Custom handlers for incomplete markdown completion
   }}
 />

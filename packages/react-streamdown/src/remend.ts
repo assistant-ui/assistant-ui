@@ -87,7 +87,7 @@ export function findRemendWindowStart(text: string): number {
  * disabled `links` handler. Every other option completes a dangling opener,
  * which mutates or deletes a block that has already settled, so the prefix pass
  * disables all of them. The two escapes skip backtick fences and inline spans
- * but not `~~~` fences, indented code, or math (#6938).
+ * but not `~~~` fences, indented code, or math.
  */
 type PrefixSafeOption =
   | "singleTilde"
