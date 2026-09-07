@@ -1,16 +1,8 @@
 "use client";
 
-export type ReserveObserverChange =
-  | { type: "resize" }
-  | { type: "mutation"; records: readonly MutationRecord[] };
-
-export const createReserveObservers = (
-  onChange: (change: ReserveObserverChange) => void,
-) => {
-  const resizeObserver = new ResizeObserver(() => onChange({ type: "resize" }));
-  const mutationObserver = new MutationObserver((records) =>
-    onChange({ type: "mutation", records }),
-  );
+export const createReserveObservers = (onChange: () => void) => {
+  const resizeObserver = new ResizeObserver(onChange);
+  const mutationObserver = new MutationObserver(onChange);
 
   let observedViewport: HTMLElement | null = null;
   let observedAnchor: HTMLElement | null = null;

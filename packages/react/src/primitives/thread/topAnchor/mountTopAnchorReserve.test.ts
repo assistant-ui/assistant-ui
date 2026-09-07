@@ -16,10 +16,6 @@ class ResizeObserverMock {
 }
 
 class MutationObserverMock {
-  static callbacks: ((records: MutationRecord[]) => void)[] = [];
-  constructor(callback: (records: MutationRecord[]) => void) {
-    MutationObserverMock.callbacks.push(callback);
-  }
   observe = vi.fn();
   disconnect = vi.fn();
 }
@@ -57,10 +53,8 @@ describe("mountTopAnchorReserve", () => {
   beforeEach(() => {
     vi.useFakeTimers();
     ResizeObserverMock.callbacks = [];
-    MutationObserverMock.callbacks = [];
     vi.stubGlobal("ResizeObserver", ResizeObserverMock);
     vi.stubGlobal("MutationObserver", MutationObserverMock);
-    vi.stubGlobal("CSS", { supports: vi.fn(() => false) });
   });
 
   afterEach(() => {
@@ -406,40 +400,6 @@ describe("mountTopAnchorReserve", () => {
       setState,
       unmount,
       notifyLayout: () => ResizeObserverMock.callbacks.at(-1)!(),
-      notifyReplacement: () =>
-        MutationObserverMock.callbacks.at(-1)!([
-          {
-            type: "childList",
-            addedNodes: { length: 1 },
-            removedNodes: { length: 1 },
-          } as MutationRecord,
-        ]),
-      notifyCharacterData: () =>
-        MutationObserverMock.callbacks.at(-1)!([
-          { type: "characterData" } as MutationRecord,
-        ]),
-      notifySeparateChildChanges: () =>
-        MutationObserverMock.callbacks.at(-1)!([
-          {
-            type: "childList",
-            addedNodes: { length: 1 },
-            removedNodes: { length: 0 },
-          } as MutationRecord,
-          {
-            type: "childList",
-            addedNodes: { length: 0 },
-            removedNodes: { length: 1 },
-          } as MutationRecord,
-        ]),
-      notifyMixedReplacement: () =>
-        MutationObserverMock.callbacks.at(-1)!([
-          {
-            type: "childList",
-            addedNodes: { length: 1 },
-            removedNodes: { length: 1 },
-          } as MutationRecord,
-          { type: "characterData" } as MutationRecord,
-        ]),
       setNaturalScrollHeight: (height: number) => {
         naturalScrollHeight = height;
       },
@@ -462,131 +422,29 @@ describe("mountTopAnchorReserve", () => {
     });
   });
 
-  it("does not restore a reachable programmatic upward scroll", () => {
-    const { viewport, notifyLayout } = mountPinnedViewport();
+  it("does not undo a reachable scrollIntoView movement", () => {
+    const { viewport, target, notifyLayout } = mountPinnedViewport();
+    target.scrollIntoView = vi.fn(() => {
+      viewport.scrollTop = 100;
+      viewport.dispatchEvent(new Event("scroll"));
+    });
 
+    target.scrollIntoView();
     notifyLayout();
+    vi.runOnlyPendingTimers();
+
+    expect(viewport.scrollTo).toHaveBeenCalledTimes(1);
+  });
+
+  it("does not undo reachable focus scrolling", () => {
+    const { viewport, target, notifyLayout } = mountPinnedViewport();
+    const input = document.createElement("input");
+    target.append(input);
+
+    input.focus();
     viewport.scrollTop = 100;
     viewport.dispatchEvent(new Event("scroll"));
-    vi.runOnlyPendingTimers();
-
-    expect(viewport.scrollTo).toHaveBeenCalledTimes(1);
-  });
-
-  it("restores a transient replacement clamp after the range has recovered", () => {
-    const { viewport, notifyReplacement } = mountPinnedViewport();
-
-    viewport.scrollTop = 60;
-    notifyReplacement();
-    viewport.dispatchEvent(new Event("scroll"));
-    vi.runOnlyPendingTimers();
-
-    expect(viewport.scrollTo).toHaveBeenCalledTimes(2);
-    expect(viewport.scrollTo).toHaveBeenLastCalledWith({
-      top: 220,
-      behavior: "instant",
-    });
-  });
-
-  it("does not use the replacement fallback after wheel intent", () => {
-    const { viewport, notifyReplacement } = mountPinnedViewport();
-
-    viewport.dispatchEvent(new WheelEvent("wheel"));
-    viewport.scrollTop = 60;
-    notifyReplacement();
-    viewport.dispatchEvent(new Event("scroll"));
-    vi.runOnlyPendingTimers();
-
-    expect(viewport.scrollTo).toHaveBeenCalledTimes(1);
-  });
-
-  it("does not use the replacement fallback after focus movement", () => {
-    const { viewport, notifyReplacement } = mountPinnedViewport();
-
-    viewport.dispatchEvent(new FocusEvent("focusin"));
-    viewport.scrollTop = 60;
-    notifyReplacement();
-    viewport.dispatchEvent(new Event("scroll"));
-    vi.runOnlyPendingTimers();
-
-    expect(viewport.scrollTo).toHaveBeenCalledTimes(1);
-  });
-
-  it("does not treat caret movement in an editable child as scroll intent", () => {
-    const { viewport, notifyReplacement } = mountPinnedViewport();
-    const textarea = document.createElement("textarea");
-    viewport.append(textarea);
-
-    textarea.dispatchEvent(
-      new KeyboardEvent("keydown", { key: "ArrowUp", bubbles: true }),
-    );
-    viewport.scrollTop = 60;
-    notifyReplacement();
-    viewport.dispatchEvent(new Event("scroll"));
-    vi.runOnlyPendingTimers();
-
-    expect(viewport.scrollTo).toHaveBeenCalledTimes(2);
-  });
-
-  it("does not let a gesture veto an exact range clamp", () => {
-    const { viewport, notifyReplacement, setNaturalScrollHeight } =
-      mountPinnedViewport();
-
-    viewport.dispatchEvent(new WheelEvent("wheel"));
-    setNaturalScrollHeight(400);
-    viewport.scrollTop = 60;
-    notifyReplacement();
-    viewport.dispatchEvent(new Event("scroll"));
-    setNaturalScrollHeight(560);
-    vi.runOnlyPendingTimers();
-
-    expect(viewport.scrollTo).toHaveBeenCalledTimes(2);
-    expect(viewport.scrollTo).toHaveBeenLastCalledWith({
-      top: 220,
-      behavior: "instant",
-    });
-  });
-
-  it("does not restore an upward scroll beside an ordinary content mutation", () => {
-    const { viewport, notifyCharacterData } = mountPinnedViewport();
-
-    viewport.scrollTop = 100;
-    notifyCharacterData();
-    viewport.dispatchEvent(new Event("scroll"));
-    vi.runOnlyPendingTimers();
-
-    expect(viewport.scrollTo).toHaveBeenCalledTimes(1);
-  });
-
-  it("does not combine separate child mutations into a replacement", () => {
-    const { viewport, notifySeparateChildChanges } = mountPinnedViewport();
-
-    viewport.scrollTop = 100;
-    notifySeparateChildChanges();
-    viewport.dispatchEvent(new Event("scroll"));
-    vi.runOnlyPendingTimers();
-
-    expect(viewport.scrollTo).toHaveBeenCalledTimes(1);
-  });
-
-  it("does not treat a mixed mutation batch as a replacement", () => {
-    const { viewport, notifyMixedReplacement } = mountPinnedViewport();
-
-    viewport.scrollTop = 100;
-    notifyMixedReplacement();
-    viewport.dispatchEvent(new Event("scroll"));
-    vi.runOnlyPendingTimers();
-
-    expect(viewport.scrollTo).toHaveBeenCalledTimes(1);
-  });
-
-  it("leaves replacement scrolling to browsers with native scroll anchoring", () => {
-    vi.mocked(CSS.supports).mockReturnValue(true);
-    const { viewport, notifyReplacement } = mountPinnedViewport();
-
-    viewport.scrollTop = 60;
-    notifyReplacement();
-    viewport.dispatchEvent(new Event("scroll"));
+    notifyLayout();
     vi.runOnlyPendingTimers();
 
     expect(viewport.scrollTo).toHaveBeenCalledTimes(1);
