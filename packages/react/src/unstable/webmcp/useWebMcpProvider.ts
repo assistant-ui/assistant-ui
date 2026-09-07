@@ -60,14 +60,19 @@ const modelContextToolSource: ModelContextSnapshotSource<
     aui.modelContext.subscribe?.(onChange) ?? NO_SUBSCRIPTION,
 };
 
+const namesEqual = (a: readonly string[], b: readonly string[]): boolean => {
+  if (a.length !== b.length) return false;
+  for (let i = 0; i < a.length; i++) {
+    if (a[i] !== b[i]) return false;
+  }
+  return true;
+};
+
 const useStableNames = (names: readonly (string | null)[]) => {
   const [cell] = useState(() => ({ names: EMPTY_NAMES }));
   const next = names.filter((name): name is string => name !== null).sort();
   const previous = cell.names;
-  if (
-    previous.length === next.length &&
-    previous.every((name, index) => name === next[index])
-  ) {
+  if (namesEqual(previous, next)) {
     return previous;
   }
   cell.names = next;

@@ -22,6 +22,14 @@ const TOP_TOLERANCE = 1;
  * of the end can never reach the top, so a fixed line leaves the last screen's
  * worth of ticks permanently unreachable.
  */
+const sameIds = (a: readonly string[], b: readonly string[]): boolean => {
+  if (a.length !== b.length) return false;
+  for (let i = 0; i < a.length; i++) {
+    if (a[i] !== b[i]) return false;
+  }
+  return true;
+};
+
 const readingLine = (viewport: HTMLElement) => {
   const rect = viewport.getBoundingClientRect();
   const height = viewport.clientHeight;
@@ -183,10 +191,7 @@ export function ConversationMapAui({
 
       setActiveId(current ?? owners.values().next().value);
       setVisibleIds((previous) =>
-        previous.length === onScreen.length &&
-        previous.every((id, index) => id === onScreen[index])
-          ? previous
-          : onScreen,
+        sameIds(previous, onScreen) ? previous : onScreen,
       );
     };
     const schedule = () => {

@@ -88,9 +88,13 @@ export const getConnectionDependencies = (
 const areConnectionDependenciesEqual = (
   left: readonly unknown[],
   right: readonly unknown[],
-) =>
-  left.length === right.length &&
-  left.every((value, index) => Object.is(value, right[index]));
+) => {
+  if (left.length !== right.length) return false;
+  for (let i = 0; i < left.length; i++) {
+    if (!Object.is(left[i], right[i])) return false;
+  }
+  return true;
+};
 
 const useMcpServerResourceInstance = (
   props: McpServerResourceInstanceProps,
