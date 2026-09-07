@@ -115,7 +115,7 @@ export const MessageContent = ({
   renderFile,
   renderData,
 }: MessageContentProps) => {
-  const content = useAuiState((s) => s.message.content);
+  const content = useAuiState((s) => s.message.parts);
 
   return (
     <>
