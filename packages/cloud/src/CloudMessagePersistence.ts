@@ -4,6 +4,10 @@ import type { CloudMessage } from "./AssistantCloudThreadMessages";
 
 const CLOUD_MESSAGE_PAGE_SIZE = 200;
 
+type PendingIdMapping = {
+  readonly task: Promise<string>;
+};
+
 /**
  * Shared persistence logic for cloud message storage.
  *
@@ -16,7 +20,7 @@ const CLOUD_MESSAGE_PAGE_SIZE = 200;
  * to get its remote ID before creating B.
  */
 export class CloudMessagePersistence {
-  private idMapping = new Map<string, string | Promise<string>>();
+  private idMapping = new Map<string, string | PendingIdMapping>();
   private getCloud: () => AssistantCloud;
 
   constructor(cloud: AssistantCloud);
@@ -43,14 +47,14 @@ export class CloudMessagePersistence {
   ): Promise<void> {
     const cloud = this.getCloud();
     const existing = this.idMapping.get(messageId);
-    if (existing instanceof Promise) {
-      await existing;
+    if (typeof existing === "object") {
+      await existing.task;
       return;
     }
 
     const task = (async () => {
       const resolvedParentId = parentId
-        ? ((await this.idMapping.get(parentId)) ?? parentId)
+        ? ((await this.getRemoteId(parentId)) ?? parentId)
         : null;
       const { message_id } = await cloud.threads.messages.create(threadId, {
         parent_id: resolvedParentId,
@@ -59,15 +63,16 @@ export class CloudMessagePersistence {
       });
       return message_id;
     })();
+    const pending = { task };
 
-    this.idMapping.set(messageId, task);
+    this.idMapping.set(messageId, pending);
     try {
       const remoteId = await task;
-      if (this.idMapping.get(messageId) === task) {
+      if (this.idMapping.get(messageId) === pending) {
         this.idMapping.set(messageId, remoteId);
       }
     } catch (err) {
-      if (this.idMapping.get(messageId) === task) {
+      if (this.idMapping.get(messageId) === pending) {
         this.idMapping.delete(messageId);
       }
       throw err;
@@ -107,8 +112,8 @@ export class CloudMessagePersistence {
    */
   async getRemoteId(messageId: string): Promise<string | undefined> {
     const entry = this.idMapping.get(messageId);
-    if (!entry) return undefined;
-    return entry;
+    if (typeof entry === "string" || entry === undefined) return entry;
+    return entry.task;
   }
 
   /**
