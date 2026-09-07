@@ -14,6 +14,7 @@ import type {
   ComponentsByLanguage,
   SyntaxHighlighterProps,
 } from "../types";
+import { useStreamdownPreProps } from "./PreOverride";
 
 type CodeProps = ComponentPropsWithoutRef<"code"> & {
   node?: Element | undefined;
@@ -72,6 +73,8 @@ export function createCodeAdapter(options: CodeAdapterOptions) {
     "data-block": dataBlock,
     ...props
   }: CodeProps & { "data-block"?: string }) {
+    const preProps = useStreamdownPreProps();
+
     if (!dataBlock) {
       return (
         <code
@@ -120,7 +123,7 @@ export function createCodeAdapter(options: CodeAdapterOptions) {
     return (
       <>
         {headerElement}
-        <DefaultPre node={node}>
+        <DefaultPre {...preProps} node={node}>
           <code className={className} {...props}>
             {children}
           </code>

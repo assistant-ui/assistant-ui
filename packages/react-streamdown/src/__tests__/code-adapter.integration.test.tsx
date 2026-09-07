@@ -215,6 +215,11 @@ describe("createCodeAdapter integration", () => {
       const rehypeLines = () => (tree: Root) => {
         for (const pre of tree.children) {
           if (pre.type !== "element" || pre.tagName !== "pre") continue;
+          pre.properties = {
+            ...pre.properties,
+            className: ["shiki"],
+            "data-theme": "github-dark",
+          };
           for (const code of pre.children) {
             if (code.type !== "element" || code.tagName !== "code") continue;
             code.children = code.children.flatMap<
@@ -248,6 +253,9 @@ describe("createCodeAdapter integration", () => {
 
       expect(container.querySelector("header")?.textContent).toBe(code);
       expect(container.querySelector("pre > code")?.textContent).toBe(code);
+      const pre = container.querySelector("pre");
+      expect(pre?.className).toBe("shiki");
+      expect(pre?.getAttribute("data-theme")).toBe("github-dark");
       expect(
         Array.from(
           container.querySelectorAll("pre > code > span.line"),
