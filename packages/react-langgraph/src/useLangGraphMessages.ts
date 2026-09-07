@@ -30,7 +30,7 @@ import { useAui } from "@assistant-ui/store";
 import {
   abortableIterable,
   invokeUserCallback,
-  whenAborted,
+  openAbortableIterable,
 } from "@assistant-ui/core/internal";
 import { normalizeLangGraphTupleMessage } from "./normalizeLangGraphTupleMessage";
 
@@ -294,7 +294,7 @@ const useLangGraphMessagesInternal = <TMessage extends { id?: string }>({
         // A stream that ignores its abortSignal can park before handing the
         // iterable over, which strands this the same way parking mid-chunk
         // strands the loop below.
-        const opened = Promise.resolve(
+        const response = await openAbortableIterable(
           stream(newMessagesWithId, {
             ...config,
             abortSignal: abortController.signal,
@@ -302,18 +302,9 @@ const useLangGraphMessagesInternal = <TMessage extends { id?: string }>({
               return await aui.threadListItem.initialize();
             },
           }),
+          abortController.signal,
         );
-        const response = await Promise.race([
-          opened,
-          whenAborted(abortController.signal),
-        ]);
-        if (!response) {
-          // finalize whatever it eventually hands over, without waiting for it
-          void opened
-            .then((late) => late?.[Symbol.asyncIterator]().return?.(undefined))
-            .catch(() => {});
-          return;
-        }
+        if (!response) return;
 
         let hasTupleMessageEvents = false;
         let lastValuesMessages: TMessage[] | null = null;

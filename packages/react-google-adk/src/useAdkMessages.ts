@@ -11,7 +11,7 @@ import { useAui } from "@assistant-ui/store";
 import {
   abortableIterable,
   invokeUserCallback,
-  whenAborted,
+  openAbortableIterable,
 } from "@assistant-ui/core/internal";
 import { AdkEventAccumulator } from "./AdkEventAccumulator";
 import { contentToParts } from "./contentToParts";
@@ -162,7 +162,7 @@ export const useAdkMessages = ({
       abortControllerRef.current = abortController;
 
       try {
-        const opened = Promise.resolve(
+        const response = await openAbortableIterable(
           stream(newMessagesWithId, {
             ...config,
             abortSignal: abortController.signal,
@@ -170,17 +170,9 @@ export const useAdkMessages = ({
               return await aui.threadListItem.initialize();
             },
           }),
+          abortController.signal,
         );
-        const response = await Promise.race([
-          opened,
-          whenAborted(abortController.signal),
-        ]);
-        if (!response) {
-          void opened
-            .then((late) => late[Symbol.asyncIterator]().return?.(undefined))
-            .catch(() => {});
-          return;
-        }
+        if (!response) return;
 
         for await (const event of abortableIterable(
           response,

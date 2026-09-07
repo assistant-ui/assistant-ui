@@ -1,11 +1,25 @@
 const done = <T>(): IteratorResult<T> => ({ done: true, value: undefined });
 
 /** Resolves at cancellation, so an await on a stream can stop being the only way out. */
-export const whenAborted = (signal: AbortSignal): Promise<undefined> =>
+const whenAborted = (signal: AbortSignal): Promise<undefined> =>
   new Promise((resolve) => {
     if (signal.aborted) return resolve(undefined);
     signal.addEventListener("abort", () => resolve(undefined), { once: true });
   });
+
+export const openAbortableIterable = async <T>(
+  source: AsyncIterable<T> | Promise<AsyncIterable<T>>,
+  signal: AbortSignal,
+): Promise<AsyncIterable<T> | undefined> => {
+  const opened = Promise.resolve(source);
+  const iterable = await Promise.race([opened, whenAborted(signal)]);
+  if (!iterable) {
+    void opened
+      .then((late) => late[Symbol.asyncIterator]().return?.(undefined))
+      .catch(() => {});
+  }
+  return iterable;
+};
 
 /**
  * Presents a stream as exhausted once the signal aborts, so a consumer stops
