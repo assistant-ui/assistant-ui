@@ -82,6 +82,32 @@ export function findRemendWindowStart(text: string): number {
 }
 
 /**
+ * Options remend applies to text anywhere in the message rather than to an
+ * incomplete construct at its end. Every other option completes a dangling
+ * opener, which mutates or deletes a block that has already settled, so the
+ * prefix pass disables all of them.
+ */
+type PrefixSafeOption =
+  | "singleTilde"
+  | "comparisonOperators"
+  | "handlers"
+  | "linkMode";
+
+const COMPLETION_OFF = {
+  bold: false,
+  boldItalic: false,
+  italic: false,
+  inlineCode: false,
+  strikethrough: false,
+  katex: false,
+  inlineKatex: false,
+  links: false,
+  images: false,
+  htmlTags: false,
+  setextHeadings: false,
+} satisfies Record<Exclude<keyof RemendOptions, PrefixSafeOption>, false>;
+
+/**
  * Repairs incomplete Markdown in the final block and applies text escapes to
  * earlier blocks. Custom handlers receive the prefix and final block separately.
  */
@@ -93,20 +119,7 @@ export function tailBoundedRemend(
   if (start <= 0) return remend(text, options);
 
   return (
-    remend(text.slice(0, start), {
-      ...options,
-      // This list must disable every remend completion handler. Only escapes and custom handlers can change the prefix.
-      bold: false,
-      boldItalic: false,
-      italic: false,
-      inlineCode: false,
-      strikethrough: false,
-      katex: false,
-      inlineKatex: false,
-      links: false,
-      images: false,
-      htmlTags: false,
-      setextHeadings: false,
-    }) + remend(text.slice(start), options)
+    remend(text.slice(0, start), { ...options, ...COMPLETION_OFF }) +
+    remend(text.slice(start), options)
   );
 }
