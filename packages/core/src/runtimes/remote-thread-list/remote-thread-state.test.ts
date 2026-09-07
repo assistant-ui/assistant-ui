@@ -3,6 +3,7 @@ import {
   classifyThreads,
   createEmptyRemoteThreadState,
   createThreadMappingId,
+  reconcileInitializedThread,
   seedNewThread,
   updateStatusReducer,
 } from "./remote-thread-state";
@@ -130,6 +131,43 @@ describe("remote thread state", () => {
 
     expect(listed.threadIds).toEqual(["a"]);
     expect(listed.threadData[createThreadMappingId("a")]?.title).toBe("second");
+  });
+
+  it("retains a listed external id when that slot survives reconciliation", async () => {
+    const seeded = seedNewThread(createEmptyRemoteThreadState());
+    const regular = updateStatusReducer(seeded.state, seeded.id, "regular");
+    const classified = classifyThreads(
+      [
+        {
+          status: "regular",
+          remoteId: "remote-1",
+          externalId: "external-1",
+        },
+      ],
+      {
+        threadIds: [...regular.threadIds],
+        archivedThreadIds: [...regular.archivedThreadIds],
+        threadIdMap: { ...regular.threadIdMap },
+        threadData: { ...regular.threadData },
+      },
+    );
+    const state = { ...regular, ...classified };
+
+    const reconciled = reconcileInitializedThread(
+      state,
+      seeded.id,
+      "remote-1",
+      undefined,
+      "remote-1",
+    );
+    const survivor = reconciled.state.threadData[reconciled.survivorMappingId]!;
+
+    expect(survivor.externalId).toBe("external-1");
+    if (survivor.status === "new") throw new Error("Expected initialized slot");
+    await expect(survivor.initializeTask).resolves.toEqual({
+      remoteId: "remote-1",
+      externalId: "external-1",
+    });
   });
 
   it.each(["__proto__", "constructor", "toString"])(

@@ -324,14 +324,21 @@ export const reconcileInitializedThread = (
       : survivorMappingId === mappingId
         ? listedSlot.mappingId
         : mappingId;
+  const resolvedExternalId =
+    survivorMappingId === listedSlot?.mappingId
+      ? (externalId ?? listedSlot.data.externalId)
+      : externalId;
   const threadData = nullProtoRecord(state.threadData);
   if (removedMappingId !== undefined) delete threadData[removedMappingId];
   const initializedData = {
     ...data,
     id: survivorMappingId,
-    initializeTask: Promise.resolve({ remoteId, externalId }),
+    initializeTask: Promise.resolve({
+      remoteId,
+      externalId: resolvedExternalId,
+    }),
     remoteId,
-    externalId,
+    externalId: resolvedExternalId,
   } as RemoteThreadData;
   threadData[survivorMappingId] =
     survivorMappingId === mappingId
