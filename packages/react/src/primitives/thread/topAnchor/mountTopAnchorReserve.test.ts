@@ -16,6 +16,10 @@ class ResizeObserverMock {
 }
 
 class MutationObserverMock {
+  static callbacks: ((records: MutationRecord[]) => void)[] = [];
+  constructor(callback: (records: MutationRecord[]) => void) {
+    MutationObserverMock.callbacks.push(callback);
+  }
   observe = vi.fn();
   disconnect = vi.fn();
 }
@@ -53,8 +57,10 @@ describe("mountTopAnchorReserve", () => {
   beforeEach(() => {
     vi.useFakeTimers();
     ResizeObserverMock.callbacks = [];
+    MutationObserverMock.callbacks = [];
     vi.stubGlobal("ResizeObserver", ResizeObserverMock);
     vi.stubGlobal("MutationObserver", MutationObserverMock);
+    vi.stubGlobal("CSS", { supports: vi.fn(() => false) });
   });
 
   afterEach(() => {
@@ -340,11 +346,25 @@ describe("mountTopAnchorReserve", () => {
     const viewport = document.createElement("div");
     const anchor = document.createElement("div");
     const target = document.createElement("div");
-    document.body.append(target);
+    const reserveHost = document.createElement("div");
+    reserveHost.append(target);
+    document.body.append(reserveHost);
+
+    let naturalScrollHeight = 560;
 
     defineReadonlyNumber(viewport, "offsetTop", 0);
     defineReadonlyNumber(viewport, "clientHeight", 400);
-    defineReadonlyNumber(viewport, "scrollHeight", 560);
+    Object.defineProperty(viewport, "scrollHeight", {
+      configurable: true,
+      get: () => {
+        const reserve = document.querySelector<HTMLElement>(
+          "[data-aui-top-anchor-reserve]",
+        );
+        return (
+          naturalScrollHeight + Number.parseFloat(reserve?.style.height || "0")
+        );
+      },
+    });
     defineReadonlyNumber(anchor, "offsetTop", 220);
     defineReadonlyNumber(anchor, "offsetHeight", 64);
     anchor.dataset.messageId = "msg-1";
@@ -357,8 +377,16 @@ describe("mountTopAnchorReserve", () => {
       topAnchorTurn: activeTopAnchorTurn,
     });
 
-    mountTopAnchorReserve(store);
+    const unmount = mountTopAnchorReserve(store);
     vi.runOnlyPendingTimers();
+
+    const reserve = reserveHost.querySelector<HTMLElement>(
+      "[data-aui-top-anchor-reserve]",
+    )!;
+    Object.defineProperty(reserve, "offsetHeight", {
+      configurable: true,
+      get: () => Number.parseFloat(reserve.style.height || "0"),
+    });
     vi.runOnlyPendingTimers();
 
     expect(viewport.scrollTo).toHaveBeenCalledTimes(1);
@@ -370,24 +398,52 @@ describe("mountTopAnchorReserve", () => {
     viewport.scrollTop = 220;
     viewport.dispatchEvent(new Event("scroll"));
 
-    // The wrapped observer callback marks an observed layout change and is
-    // what arms the restore gate in the real flow.
-    const armLayoutChange = () => {
-      ResizeObserverMock.callbacks.at(-1)!();
+    return {
+      viewport,
+      anchor,
+      target,
+      store,
+      setState,
+      unmount,
+      notifyLayout: () => ResizeObserverMock.callbacks.at(-1)!(),
+      notifyReplacement: () =>
+        MutationObserverMock.callbacks.at(-1)!([
+          {
+            type: "childList",
+            addedNodes: { length: 1 },
+            removedNodes: { length: 1 },
+          } as MutationRecord,
+        ]),
+      notifyCharacterData: () =>
+        MutationObserverMock.callbacks.at(-1)!([
+          { type: "characterData" } as MutationRecord,
+        ]),
+      notifySeparateChildChanges: () =>
+        MutationObserverMock.callbacks.at(-1)!([
+          {
+            type: "childList",
+            addedNodes: { length: 1 },
+            removedNodes: { length: 0 },
+          } as MutationRecord,
+          {
+            type: "childList",
+            addedNodes: { length: 0 },
+            removedNodes: { length: 1 },
+          } as MutationRecord,
+        ]),
+      setNaturalScrollHeight: (height: number) => {
+        naturalScrollHeight = height;
+      },
     };
-
-    return { viewport, anchor, target, store, setState, armLayoutChange };
   };
 
-  it("restores the pre-clamp position after a layout-adjacent unattributed drop", () => {
-    const { viewport, armLayoutChange } = mountPinnedViewport();
+  it("restores the pre-clamp position when the old offset becomes unreachable", () => {
+    const { viewport, setNaturalScrollHeight } = mountPinnedViewport();
 
-    armLayoutChange();
-    defineReadonlyNumber(viewport, "scrollHeight", 460);
+    setNaturalScrollHeight(400);
     viewport.scrollTop = 60;
     viewport.dispatchEvent(new Event("scroll"));
-    defineReadonlyNumber(viewport, "scrollHeight", 560);
-    vi.runOnlyPendingTimers();
+    setNaturalScrollHeight(560);
     vi.runOnlyPendingTimers();
 
     expect(viewport.scrollTo).toHaveBeenCalledTimes(2);
@@ -397,108 +453,118 @@ describe("mountTopAnchorReserve", () => {
     });
   });
 
-  it("does not restore when no layout change was observed", () => {
-    const { viewport, setState, anchor, target } = mountPinnedViewport();
+  it("does not restore a reachable programmatic upward scroll", () => {
+    const { viewport, notifyLayout } = mountPinnedViewport();
 
-    defineReadonlyNumber(viewport, "scrollHeight", 460);
-    viewport.scrollTop = 60;
+    notifyLayout();
+    viewport.scrollTop = 100;
     viewport.dispatchEvent(new Event("scroll"));
-    defineReadonlyNumber(viewport, "scrollHeight", 560);
-    setState({
-      turnAnchor: "top",
-      element: { viewport, anchor, target },
-      targetConfig: numericClamp,
-      topAnchorTurn: activeTopAnchorTurn,
-    });
-    vi.runOnlyPendingTimers();
     vi.runOnlyPendingTimers();
 
     expect(viewport.scrollTo).toHaveBeenCalledTimes(1);
   });
 
-  it("is a no-op when the browser already preserved the anchor-relative position", () => {
-    const { viewport, anchor, armLayoutChange } = mountPinnedViewport();
+  it("restores a transient replacement clamp after the range has recovered", () => {
+    const { viewport, notifyReplacement } = mountPinnedViewport();
 
-    armLayoutChange();
-    defineReadonlyNumber(anchor, "offsetTop", 100);
-    viewport.scrollTop = 100;
+    viewport.scrollTop = 60;
+    notifyReplacement();
     viewport.dispatchEvent(new Event("scroll"));
     vi.runOnlyPendingTimers();
+
+    expect(viewport.scrollTo).toHaveBeenCalledTimes(2);
+    expect(viewport.scrollTo).toHaveBeenLastCalledWith({
+      top: 220,
+      behavior: "instant",
+    });
+  });
+
+  it("does not restore an upward scroll beside an ordinary content mutation", () => {
+    const { viewport, notifyCharacterData } = mountPinnedViewport();
+
+    viewport.scrollTop = 100;
+    notifyCharacterData();
+    viewport.dispatchEvent(new Event("scroll"));
     vi.runOnlyPendingTimers();
+
+    expect(viewport.scrollTo).toHaveBeenCalledTimes(1);
+  });
+
+  it("does not combine separate child mutations into a replacement", () => {
+    const { viewport, notifySeparateChildChanges } = mountPinnedViewport();
+
+    viewport.scrollTop = 100;
+    notifySeparateChildChanges();
+    viewport.dispatchEvent(new Event("scroll"));
+    vi.runOnlyPendingTimers();
+
+    expect(viewport.scrollTo).toHaveBeenCalledTimes(1);
+  });
+
+  it("leaves replacement scrolling to browsers with native scroll anchoring", () => {
+    vi.mocked(CSS.supports).mockReturnValue(true);
+    const { viewport, notifyReplacement } = mountPinnedViewport();
+
+    viewport.scrollTop = 60;
+    notifyReplacement();
+    viewport.dispatchEvent(new Event("scroll"));
+    vi.runOnlyPendingTimers();
+
+    expect(viewport.scrollTo).toHaveBeenCalledTimes(1);
+  });
+
+  it("does not restore an out-of-range movement that did not land at the maximum", () => {
+    const { viewport, setNaturalScrollHeight, notifyLayout } =
+      mountPinnedViewport();
+
+    setNaturalScrollHeight(400);
+    viewport.scrollTop = 40;
+    viewport.dispatchEvent(new Event("scroll"));
+    setNaturalScrollHeight(560);
+    notifyLayout();
     vi.runOnlyPendingTimers();
 
     expect(viewport.scrollTo).toHaveBeenCalledTimes(1);
   });
 
   it("restores at most once per anchor turn", () => {
-    const { viewport, armLayoutChange } = mountPinnedViewport();
+    const { viewport, setNaturalScrollHeight, notifyLayout } =
+      mountPinnedViewport();
 
-    armLayoutChange();
+    setNaturalScrollHeight(400);
     viewport.scrollTop = 60;
     viewport.dispatchEvent(new Event("scroll"));
-    vi.runOnlyPendingTimers();
+    setNaturalScrollHeight(560);
     vi.runOnlyPendingTimers();
     expect(viewport.scrollTo).toHaveBeenCalledTimes(2);
 
     viewport.scrollTop = 220;
     viewport.dispatchEvent(new Event("scroll"));
-    armLayoutChange();
+    setNaturalScrollHeight(400);
     viewport.scrollTop = 60;
     viewport.dispatchEvent(new Event("scroll"));
-    vi.runOnlyPendingTimers();
+    setNaturalScrollHeight(560);
+    notifyLayout();
     vi.runOnlyPendingTimers();
 
     expect(viewport.scrollTo).toHaveBeenCalledTimes(2);
   });
 
-  it("leaves a wheel-attributed upward scroll alone", () => {
-    const { viewport, armLayoutChange } = mountPinnedViewport();
+  it("drops a pending restore across an anchor-gap thread transition", () => {
+    const { viewport, setState, setNaturalScrollHeight } =
+      mountPinnedViewport();
 
-    armLayoutChange();
-    viewport.dispatchEvent(new Event("wheel"));
-    viewport.scrollTop = 100;
-    viewport.dispatchEvent(new Event("scroll"));
-    vi.runOnlyPendingTimers();
-    vi.runOnlyPendingTimers();
-
-    expect(viewport.scrollTo).toHaveBeenCalledTimes(1);
-  });
-
-  it("leaves a scroll-key-attributed upward scroll alone", () => {
-    const { viewport, armLayoutChange } = mountPinnedViewport();
-
-    armLayoutChange();
-    viewport.dispatchEvent(new KeyboardEvent("keydown", { key: "ArrowUp" }));
-    viewport.scrollTop = 100;
-    viewport.dispatchEvent(new Event("scroll"));
-    vi.runOnlyPendingTimers();
-    vi.runOnlyPendingTimers();
-
-    expect(viewport.scrollTo).toHaveBeenCalledTimes(1);
-  });
-
-  it("leaves upward scrolls alone while a pointer drag is held", () => {
-    const { viewport, armLayoutChange } = mountPinnedViewport();
-
-    armLayoutChange();
-    viewport.dispatchEvent(new Event("pointerdown"));
-    viewport.scrollTop = 180;
-    viewport.dispatchEvent(new Event("scroll"));
-    viewport.scrollTop = 100;
-    viewport.dispatchEvent(new Event("scroll"));
-    window.dispatchEvent(new Event("pointerup"));
-    vi.runOnlyPendingTimers();
-    vi.runOnlyPendingTimers();
-
-    expect(viewport.scrollTo).toHaveBeenCalledTimes(1);
-  });
-
-  it("drops a pending restore when the anchor changes before it applies", () => {
-    const { viewport, setState, armLayoutChange } = mountPinnedViewport();
-
-    armLayoutChange();
+    setNaturalScrollHeight(400);
     viewport.scrollTop = 60;
     viewport.dispatchEvent(new Event("scroll"));
+
+    setState({
+      turnAnchor: "top",
+      element: { viewport, anchor: null, target: null },
+      targetConfig: null,
+      topAnchorTurn: activeTopAnchorTurn,
+    });
+    vi.runOnlyPendingTimers();
 
     const nextAnchor = document.createElement("div");
     const nextTarget = document.createElement("div");
@@ -513,7 +579,7 @@ describe("mountTopAnchorReserve", () => {
       targetConfig: numericClamp,
       topAnchorTurn: { anchorId: "user-2", targetId: "assistant-2" },
     });
-    vi.runOnlyPendingTimers();
+    setNaturalScrollHeight(560);
     vi.runOnlyPendingTimers();
     vi.runOnlyPendingTimers();
 
