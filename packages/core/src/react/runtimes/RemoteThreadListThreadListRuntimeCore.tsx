@@ -1114,6 +1114,7 @@ export class RemoteThreadListThreadListRuntimeCore
         return await adapter.delete(remoteId);
       },
       optimistic: (state) => {
+        if (adapterGeneration !== this._adapterGeneration) return state;
         return updateStatusReducer(state, data.id, "deleted");
       },
     });

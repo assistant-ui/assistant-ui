@@ -158,6 +158,47 @@ describe("RemoteThreadListThreadListRuntimeCore switch/delete ordering", () => {
     expect(internals._titleStates.get(data.id)).toBe(titleState);
   });
 
+  it("does not delete or stop a same-id thread from a replacement adapter", async () => {
+    const deletion = deferred<void>();
+    const thread = {
+      status: "regular" as const,
+      remoteId: "shared-thread",
+      externalId: "shared-thread",
+      title: "Shared thread",
+    };
+    const adapterA = makeAdapter({
+      list: vi.fn(async () => ({ threads: [thread] })),
+      delete: vi.fn(() => deletion.promise),
+    });
+    const adapterB = makeAdapter({
+      list: vi.fn(async () => ({ threads: [thread] })),
+    });
+    const core = createCore(adapterA);
+    await core.getLoadThreadsPromise();
+    const hookManager = (
+      core as unknown as {
+        _hookManager: { stopThreadRuntime: (id: string) => void };
+      }
+    )._hookManager;
+    const stopThreadRuntime = vi.spyOn(hookManager, "stopThreadRuntime");
+
+    const deleteThread = core.delete("shared-thread");
+    await vi.waitFor(() => {
+      expect(adapterA.delete).toHaveBeenCalledWith("shared-thread");
+    });
+    core.__internal_setOptions({
+      adapter: adapterB,
+      runtimeHook: () => ({}) as never,
+    });
+    await core.getLoadThreadsPromise();
+
+    deletion.resolve();
+    await expect(deleteThread).resolves.toBeUndefined();
+
+    expect(core.getItemById("shared-thread")?.remoteId).toBe("shared-thread");
+    expect(stopThreadRuntime).not.toHaveBeenCalledWith("shared-thread");
+  });
+
   it("does not unarchive again when the target became regular during initialization", async () => {
     const initialization = deferred<{
       remoteId: string;
