@@ -15,7 +15,6 @@
 "@assistant-ui/react-ink": patch
 "@assistant-ui/react-langchain": patch
 "@assistant-ui/react-langgraph": patch
-"@assistant-ui/react-lexical": patch
 "@assistant-ui/react-native": patch
 "@assistant-ui/react-o11y": patch
 "@assistant-ui/react-opencode": patch

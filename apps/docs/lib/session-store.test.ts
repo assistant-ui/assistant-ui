@@ -128,10 +128,10 @@ describe("createRedisSessionStore", () => {
       codec,
     });
 
-    await store.delete("session-1");
+    expect(await store.delete("session-1")).toBe(true);
     expect(calls[0]!.args).toEqual(["0", ""]);
 
-    await store.delete("session-1", 9_000);
+    expect(await store.delete("session-1", 9_000)).toBe(true);
     expect(calls[1]!.args).toEqual(["1", "9000"]);
   });
 
