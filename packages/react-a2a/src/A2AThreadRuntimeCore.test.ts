@@ -662,6 +662,11 @@ describe("A2AThreadRuntimeCore", () => {
           { id: edited.id, parentId: parent.id },
         ]),
       );
+      const exportedIds = new Set<string>();
+      for (const { id, parentId } of exportedMessages) {
+        if (parentId !== null) expect(exportedIds.has(parentId)).toBe(true);
+        exportedIds.add(id);
+      }
 
       core.applyExternalMessages([root, parent, source, child]);
       expect(core.getMessages().map((message) => message.id)).toEqual([

@@ -456,6 +456,8 @@ export class MessageRepository {
     // Optimistic messages are ephemeral and never persisted. A persisted child
     // of an optimistic node is re-parented onto its nearest persisted ancestor
     // so the exported tree never references a skipped id.
+    // Import and external-state conversion require parents before children.
+    // Stable sorting also keeps siblings in their insertion order.
     for (const message of [...this.messages.values()].sort(
       (a, b) => a.level - b.level,
     )) {
