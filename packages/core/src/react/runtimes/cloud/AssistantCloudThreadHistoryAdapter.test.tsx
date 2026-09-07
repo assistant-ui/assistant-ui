@@ -128,6 +128,7 @@ describe("useAssistantCloudThreadHistoryAdapter", () => {
     expect(secondCloud.threads.messages.list).toHaveBeenCalledOnce();
     expect(secondCloud.threads.messages.list).toHaveBeenCalledWith("thread-1", {
       format: "test",
+      limit: 200,
     });
   });
 
@@ -154,6 +155,7 @@ describe("useAssistantCloudThreadHistoryAdapter", () => {
     await formatted.load();
     expect(cloud.threads.messages.list).toHaveBeenCalledWith("thread-1", {
       format: "test",
+      limit: 200,
     });
 
     mocks.aui = mocks.makeClient("thread-2");
@@ -161,6 +163,7 @@ describe("useAssistantCloudThreadHistoryAdapter", () => {
     await formatted.load();
     expect(cloud.threads.messages.list).toHaveBeenCalledWith("thread-2", {
       format: "test",
+      limit: 200,
     });
   });
 
@@ -175,6 +178,7 @@ describe("useAssistantCloudThreadHistoryAdapter", () => {
     await result.current.load();
     expect(cloud.threads.messages.list).toHaveBeenCalledWith("thread-1", {
       format: "aui/v0",
+      limit: 200,
     });
 
     mocks.aui = mocks.makeClient("thread-2");
@@ -183,6 +187,7 @@ describe("useAssistantCloudThreadHistoryAdapter", () => {
     await result.current.load();
     expect(cloud.threads.messages.list).toHaveBeenCalledWith("thread-2", {
       format: "aui/v0",
+      limit: 200,
     });
   });
 
