@@ -258,11 +258,7 @@ function diffChangesetFiles(root, baseSha, headSha) {
     ).trim();
     return new Set(diff ? diff.split("\n").map((f) => path.basename(f)) : []);
   } catch {
-    annotate(
-      "error",
-      `Could not diff ${baseSha.slice(0, 12)}..${headSha.slice(0, 12)} — the base or head commit is not fetchable (a rerun against a deleted branch?). Failing instead of grading every changeset in the tree.`,
-    );
-    process.exit(1);
+    return undefined;
   }
 }
 
@@ -271,6 +267,14 @@ function main() {
   const { BASE_SHA, HEAD_SHA } = process.env;
   const changedFiles =
     BASE_SHA && HEAD_SHA ? diffChangesetFiles(root, BASE_SHA, HEAD_SHA) : null;
+  if (changedFiles === undefined) {
+    annotate(
+      "error",
+      `Could not diff ${BASE_SHA.slice(0, 12)}..${HEAD_SHA.slice(0, 12)} — the base or head commit is not fetchable (a rerun against a deleted branch?). Failing instead of grading every changeset in the tree.`,
+    );
+    process.exitCode = 1;
+    return;
+  }
 
   const { files, bumps, violations, cascade } = runCheck(root, changedFiles);
 
