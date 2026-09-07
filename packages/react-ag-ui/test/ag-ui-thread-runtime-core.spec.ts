@@ -1052,6 +1052,62 @@ describe("AGUIThreadRuntimeCore", () => {
     });
   });
 
+  it("clears a cancelled run's deferred continuations", async () => {
+    const runInputs: any[] = [];
+    let firstSubscriber!: AgentSubscriber;
+    let resolveFirstRun!: () => void;
+    const agent = {
+      runAgent: vi.fn((input: any, subscriber: AgentSubscriber) => {
+        runInputs.push(input);
+        if (runInputs.length > 1) {
+          subscriber.onRunFinalized?.();
+          return Promise.resolve();
+        }
+        firstSubscriber = subscriber;
+        return new Promise<void>((resolve) => {
+          resolveFirstRun = resolve;
+        });
+      }),
+      abortRun: vi.fn(),
+    } as unknown as HttpAgent;
+
+    const core = createCore(agent);
+    const firstRun = core.append(createAppendMessage());
+    firstSubscriber.onToolCallStartEvent?.({
+      event: {
+        type: "TOOL_CALL_START",
+        toolCallId: "call-1",
+        toolCallName: "lookup",
+      },
+    });
+    firstSubscriber.onToolCallEndEvent?.({
+      event: { type: "TOOL_CALL_END", toolCallId: "call-1" },
+    });
+    firstSubscriber.onRunFinishedEvent?.({
+      event: { type: "RUN_FINISHED", runId: runInputs[0].runId },
+    });
+
+    const assistant = core.getMessages().at(-1) as ThreadAssistantMessage;
+    core.addToolResult({
+      messageId: assistant.id,
+      toolCallId: "call-1",
+      toolName: "lookup",
+      result: "done",
+      isError: false,
+    });
+    core.sendA2uiAction({ type: "a2ui:action", name: "continue" });
+
+    await core.cancel();
+    resolveFirstRun();
+    await firstRun;
+    await new Promise((resolve) => setTimeout(resolve, 0));
+    expect(agent.runAgent).toHaveBeenCalledTimes(1);
+
+    await core.append(createAppendMessage());
+    expect(agent.runAgent).toHaveBeenCalledTimes(2);
+    expect(runInputs[1].forwardedProps.a2uiAction).toBeUndefined();
+  });
+
   it("cancels an active run when the runtime detaches", async () => {
     let runSignal: AbortSignal | undefined;
     const agent = {
