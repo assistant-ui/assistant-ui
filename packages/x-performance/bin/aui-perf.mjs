@@ -14,7 +14,7 @@ const usage = `usage:
                                                 trace each fixture against <git-ref>'s package sources, both sides plus screenshots
   aui-perf report --out <file.md> [--bench <json>] [--trace <json>]
                                                 assemble the PR comment from lane outputs
-  aui-perf size [--update] [--json <file>]      bundle every published entry with rolldown and check it against size-budgets.json
+  aui-perf size [--update [--all]] [--json <file>]  bundle every published entry with rolldown and check it against size-budgets.json; --update re-records only packages changed vs origin/main, --all re-records every drifted entry
   aui-perf history append --dir <dir> [--from <recording.json>]
   aui-perf history render --dir <dir> [--out <file.md>]
                                                 keep and render the nightly wall-time record
@@ -63,6 +63,7 @@ const lanes = {
 const dir = resolved(takeValue("--dir"));
 const from = resolved(takeValue("--from"));
 const update = takeFlag("--update");
+const updateAll = takeFlag("--all");
 
 if (cmd === "record") record(rest[0], runs);
 else if (cmd === "compare" && rest[0] === "--ref" && rest[1])
@@ -83,6 +84,7 @@ else if (cmd === "report" && out) {
     repoRoot: repoRoot(),
     budgetsPath: resolve(repoRoot(), "size-budgets.json"),
     update,
+    updateAll,
     json: outputs.json,
   });
   process.exit(ok ? 0 : 1);

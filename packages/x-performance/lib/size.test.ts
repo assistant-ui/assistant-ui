@@ -1,3 +1,4 @@
+import { execFileSync } from "node:child_process";
 import {
   mkdirSync,
   mkdtempSync,
@@ -194,6 +195,72 @@ describe("checkSizes", () => {
       expect(
         await silenced(() => checkSizes({ repoRoot: root, budgetsPath })),
       ).toBe(true);
+    } finally {
+      rmSync(root, { recursive: true, force: true });
+    }
+  });
+
+  it("keeps drifted entries of packages unchanged vs origin/main on update", async () => {
+    const root = mkdtempSync(join(tmpdir(), "aui-size-git-"));
+    const git = (...args: string[]) =>
+      execFileSync("git", args, { cwd: root, encoding: "utf8" });
+    try {
+      const touched = writePackage(root, "touched", {
+        ".": "export const touched = 1;\n",
+      });
+      writePackage(root, "stale", {
+        ".": "export const stale = 2;\n",
+      });
+      const budgetsPath = join(root, "size-budgets.json");
+      const staleBudget = { min: 5_000, gzip: 5_000 };
+      writeFileSync(
+        budgetsPath,
+        JSON.stringify({
+          "@aui-test/touched": { ".": { min: 6_000, gzip: 6_000 } },
+          "@aui-test/stale": { ".": staleBudget },
+        }),
+      );
+
+      git("init", "--quiet");
+      git(
+        "-c",
+        "user.email=t@t",
+        "-c",
+        "user.name=t",
+        "commit",
+        "--allow-empty",
+        "-qm",
+        "base",
+      );
+      git("add", "-A");
+      git("-c", "user.email=t@t", "-c", "user.name=t", "commit", "-qm", "all");
+      git("update-ref", "refs/remotes/origin/main", "HEAD");
+      writeFileSync(join(touched, "src.ts"), "changed\n");
+
+      expect(
+        await silenced(() =>
+          checkSizes({ repoRoot: root, budgetsPath, update: true }),
+        ),
+      ).toBe(true);
+
+      const written = JSON.parse(readFileSync(budgetsPath, "utf8"));
+      expect(written["@aui-test/touched"]["."]).toEqual(
+        await measureEntry(join(touched, "dist/index.js")),
+      );
+      expect(written["@aui-test/stale"]["."]).toEqual(staleBudget);
+
+      expect(
+        await silenced(() =>
+          checkSizes({
+            repoRoot: root,
+            budgetsPath,
+            update: true,
+            updateAll: true,
+          }),
+        ),
+      ).toBe(true);
+      const rewritten = JSON.parse(readFileSync(budgetsPath, "utf8"));
+      expect(rewritten["@aui-test/stale"]["."]).not.toEqual(staleBudget);
     } finally {
       rmSync(root, { recursive: true, force: true });
     }
