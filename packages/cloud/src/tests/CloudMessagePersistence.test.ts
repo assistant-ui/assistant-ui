@@ -261,6 +261,28 @@ describe("CloudMessagePersistence", () => {
     });
   });
 
+  it("stops without duplicates when a later cursor stops resolving", async () => {
+    const rows = createCloudMessages(450);
+    vi.mocked(cloud.threads.messages.list).mockImplementation(
+      async (_threadId, query) => {
+        // The third request replays page one, the way the endpoint answers a
+        // cursor whose message no longer resolves.
+        const start =
+          query?.after && query.after !== "message-400"
+            ? rows.findIndex((row) => row.id === query.after) + 1
+            : 0;
+        return { messages: rows.slice(start, start + 200) };
+      },
+    );
+
+    const messages = await persistence.load("thread-1", "aui/v0");
+
+    expect(messages.map((message) => message.id)).toEqual(
+      rows.slice(0, 400).map((row) => row.id),
+    );
+    expect(cloud.threads.messages.list).toHaveBeenCalledTimes(3);
+  });
+
   it("stops when a page does not advance the cursor", async () => {
     vi.mocked(cloud.threads.messages.list).mockResolvedValue({
       messages: createCloudMessages(200),

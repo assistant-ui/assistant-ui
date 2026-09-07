@@ -127,6 +127,7 @@ export class CloudMessagePersistence {
   async load(threadId: string, format?: string) {
     const cloud = this.getCloud();
     const messages: CloudMessage[] = [];
+    const seen = new Set<string>();
     let after: string | undefined;
 
     while (true) {
@@ -136,11 +137,15 @@ export class CloudMessagePersistence {
         ...(after ? { after } : undefined),
       });
       const last = page.messages.at(-1);
-      // A cursor the server cannot resolve drops the keyset filter and returns
-      // the first page again, so a page that does not advance ends the walk.
-      if (!last || last.id === after) break;
+      if (!last) break;
 
-      messages.push(...page.messages);
+      // A cursor the server cannot resolve drops the keyset filter and replays
+      // an earlier page, so already-seen rows end the walk instead of repeating.
+      const fresh = page.messages.filter((m) => !seen.has(m.id));
+      if (fresh.length === 0) break;
+      for (const m of fresh) seen.add(m.id);
+
+      messages.push(...fresh);
       if (page.messages.length < CLOUD_MESSAGE_PAGE_SIZE) break;
       after = last.id;
     }
