@@ -48,15 +48,15 @@ export const followUpSuggestionAdapter = createSuggestionAdapter({
   },
 });
 
-let pendingClaim: { key: string; request: Promise<number | null> } | null =
-  null;
+let claim: { key: string; request: Promise<number | null> } | null = null;
 
-// A docs page mounts several surfaces, each running its own useDocsCloud, but
-// Cloud moves the anonymous threads once: a second POST reports moved: 0 to
-// whichever caller lost the race, leaving that surface's thread list stale. So
-// concurrent callers share one request and read the same moved count.
+// A docs page mounts several surfaces, each running its own useDocsCloud, and
+// they mount and unmount at different times as the visitor navigates. Cloud
+// moves the anonymous threads on the first POST and reports moved: 0 to every
+// later one, which would leave those surfaces with a stale thread list, so the
+// claim is made once per signed-in visitor and every caller reads its result.
 const claimAnonymousThreads = (baseUrl: string, userKey: string) => {
-  if (pendingClaim?.key === userKey) return pendingClaim.request;
+  if (claim?.key === userKey) return claim.request;
 
   const refreshToken = readAnonymousRefreshToken(baseUrl);
   if (!refreshToken) return null;
@@ -75,9 +75,9 @@ const claimAnonymousThreads = (baseUrl: string, userKey: string) => {
     })
     .catch(() => null);
 
-  pendingClaim = { key: userKey, request };
-  void request.finally(() => {
-    if (pendingClaim?.request === request) pendingClaim = null;
+  claim = { key: userKey, request };
+  void request.then((moved) => {
+    if (moved === null && claim?.request === request) claim = null;
   });
 
   return request;
