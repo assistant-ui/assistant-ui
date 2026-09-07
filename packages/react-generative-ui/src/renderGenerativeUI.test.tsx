@@ -263,7 +263,7 @@ describe("buildPresentParameters", () => {
     expect(schema.required).toEqual(["$type"]);
   });
 
-  it("preserves prototype-named component properties", () => {
+  it("preserves safe prototype-named component properties", () => {
     const schema = buildPresentParameters({
       PrototypeProps: {
         description: "Uses valid property names shared with Object.prototype.",
@@ -273,12 +273,17 @@ describe("buildPresentParameters", () => {
         }),
         render: () => null,
       },
+      FollowingProps: {
+        description: "Uses a property that can match a polluted prototype.",
+        properties: z.object({ type: z.string() }),
+        render: () => null,
+      },
     }) as any;
 
     expect(Object.hasOwn(schema.properties, "toString")).toBe(true);
-    expect(Object.hasOwn(schema.properties, "__proto__")).toBe(true);
     expect(schema.properties.toString.type).toBe("string");
-    expect(schema.properties["__proto__"].type).toBe("number");
+    expect(Object.hasOwn(schema.properties, "__proto__")).toBe(false);
+    expect(schema.properties.type.type).toBe("string");
   });
 
   it("names every component that declares the same prop in the dev warning", () => {
