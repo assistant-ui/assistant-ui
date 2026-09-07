@@ -43,7 +43,7 @@ export async function runProxy({
   };
 
   stdio.onmessage = (message) => {
-    if (isInitializeRequest(message)) {
+    if (isJSONRPCRequest(message) && isInitializeRequest(message)) {
       initializeRequestId = message.id;
     }
 

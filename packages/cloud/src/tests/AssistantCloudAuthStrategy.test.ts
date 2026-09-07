@@ -1,3 +1,4 @@
+/// <reference types="node" />
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import {
   AssistantCloudAnonymousAuthStrategy,
@@ -60,7 +61,7 @@ describe("AssistantCloudAnonymousAuthStrategy", () => {
   it("reads the stored anonymous refresh token", () => {
     const values = new Map([[refreshTokenKey, JSON.stringify(refreshToken)]]);
     installLocalStorage({
-      getItem: (key) => values.get(key) ?? null,
+      getItem: (key: string) => values.get(key) ?? null,
       setItem: (key, value) => {
         values.set(key, value);
       },
@@ -335,7 +336,7 @@ describe("AssistantCloudAnonymousAuthStrategy", () => {
                 { once: true },
               );
             }),
-        } as Response),
+        } as unknown as Response),
       )
       .mockResolvedValueOnce({
         ok: true,
@@ -664,7 +665,7 @@ describe("AssistantCloudAnonymousAuthStrategy", () => {
     const removeItem = vi.fn(() => {
       throw new DOMException("blocked", "SecurityError");
     });
-    installLocalStorage({ getItem, setItem, removeItem } as Storage);
+    installLocalStorage({ getItem, setItem, removeItem } as unknown as Storage);
     mockAnonymousTokenFetch();
 
     await expect(
