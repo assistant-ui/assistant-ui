@@ -36,6 +36,7 @@ import { useOpenCodeStreamingTiming } from "./useOpenCodeStreamingTiming";
 type OpenCodeControllerRegistry = {
   getEventSource(): OpenCodeEventSource;
   controllers: Map<string, OpenCodeThreadController>;
+  generation: number;
   dispose(): void;
 };
 
@@ -44,6 +45,7 @@ const createRegistry = (
 ): OpenCodeControllerRegistry => {
   let eventSource: OpenCodeEventSource | null = null;
   const controllers = new Map<string, OpenCodeThreadController>();
+  let generation = 0;
 
   const getEventSource = () => {
     eventSource ??= new OpenCodeEventSource(client);
@@ -53,7 +55,11 @@ const createRegistry = (
   return {
     getEventSource,
     controllers,
+    get generation() {
+      return generation;
+    },
     dispose() {
+      generation += 1;
       eventSource?.dispose();
       eventSource = null;
       for (const controller of controllers.values()) {
@@ -276,6 +282,7 @@ const useNewOpenCodeThreadStore = (
       extras,
       ...(options.adapters && { adapters: options.adapters }),
       onNew: async (message: AppendMessage) => {
+        const generation = registry.generation;
         const optimistic = toOptimisticThreadMessage(
           message,
           optimisticMessageIndexRef.current++,
@@ -283,6 +290,7 @@ const useNewOpenCodeThreadStore = (
         setOptimisticMessages((messages) => [...messages, optimistic]);
 
         const task = sendQueueRef.current.then(async () => {
+          if (registry.generation !== generation) return;
           let initialization:
             | Promise<{
                 remoteId: string;
@@ -294,6 +302,7 @@ const useNewOpenCodeThreadStore = (
               initializationRef.current ??
               (initializationRef.current = aui.threadListItem.initialize());
             const { remoteId, externalId } = await initialization;
+            if (registry.generation !== generation) return;
             const sessionId = externalId ?? remoteId;
             const controller = getController(registry, client, sessionId);
             const dispatch = sendOpenCodeMessage(controller, message, options);

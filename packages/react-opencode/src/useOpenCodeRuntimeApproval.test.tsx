@@ -221,6 +221,34 @@ describe("useOpenCodeRuntime", () => {
     expect(onError).toHaveBeenCalledWith(initializationError);
   });
 
+  it("drops pending new-thread sends after runtime teardown", async () => {
+    const sessionCreate = Promise.withResolvers<{ data: { id: string } }>();
+    mocks.sessionCreate.mockReturnValue(sessionCreate.promise);
+    mocks.threadListItem.externalId = undefined;
+    mocks.threadListItem.remoteId = undefined;
+    mocks.threadListItem.status = "new";
+    mocks.state = createOpenCodeThreadState("session-1");
+
+    const App = () => {
+      useOpenCodeRuntime({ client: stubClient });
+      return null;
+    };
+
+    root = createRoot(document.createElement("div"));
+    await act(async () => root!.render(createElement(App)));
+
+    const adapter = mocks.adapters.at(-1) as RuntimeAdapter;
+    const sendPromise = adapter.onNew!({ role: "user", content: [] });
+    await vi.waitFor(() => expect(mocks.sessionCreate).toHaveBeenCalledOnce());
+
+    act(() => root!.unmount());
+    root = undefined;
+    sessionCreate.resolve({ data: { id: "session-1" } });
+    await sendPromise;
+
+    expect(mocks.controller.sendMessage).not.toHaveBeenCalled();
+  });
+
   it("replies to standard approvals through the OpenCode permission API", async () => {
     mocks.state = createOpenCodeThreadState("session-1");
 
