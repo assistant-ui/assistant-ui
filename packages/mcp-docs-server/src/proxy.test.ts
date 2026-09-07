@@ -5,7 +5,8 @@ import {
   type IncomingMessage,
   type ServerResponse,
 } from "node:http";
-import { PassThrough } from "node:stream";
+import { PassThrough, Readable } from "node:stream";
+import type { ReadableStream as NodeReadableStream } from "node:stream/web";
 import {
   McpServer,
   WebStandardStreamableHTTPServerTransport,
@@ -49,12 +50,16 @@ const toWebRequest = async (request: IncomingMessage) => {
   return new Request(new URL(request.url ?? "/", "http://127.0.0.1"), init);
 };
 
-const writeWebResponse = async (response: Response, output: ServerResponse) => {
+const writeWebResponse = (response: Response, output: ServerResponse) => {
   output.statusCode = response.status;
   response.headers.forEach((value, name) => {
     output.setHeader(name, value);
   });
-  output.end(Buffer.from(await response.arrayBuffer()));
+  if (response.body === null) {
+    output.end();
+    return;
+  }
+  Readable.fromWeb(response.body as unknown as NodeReadableStream).pipe(output);
 };
 
 const listen = (server: ReturnType<typeof createServer>) =>
@@ -205,6 +210,83 @@ describe("runProxy", () => {
     }
   });
 
+  it("does not log errors caused by clean shutdown", async () => {
+    let resolvePendingRequest = () => {};
+    const pendingRequest = new Promise<void>((resolve) => {
+      resolvePendingRequest = resolve;
+    });
+    const httpServer = createServer(async (request, response) => {
+      if (request.method !== "POST") {
+        response.statusCode = 405;
+        response.end();
+        return;
+      }
+
+      let body = "";
+      for await (const chunk of request) body += chunk.toString();
+      const message = JSON.parse(body) as { method: string; id?: number };
+      if (message.method === "initialize") {
+        response.setHeader("content-type", "application/json");
+        response.end(
+          JSON.stringify({
+            jsonrpc: "2.0",
+            id: message.id,
+            result: {
+              protocolVersion: "2025-11-25",
+              capabilities: {},
+              serverInfo: { name: "proxy-test", version: "1.0.0" },
+            },
+          }),
+        );
+        return;
+      }
+
+      response.writeHead(200, {
+        "content-type": "text/event-stream",
+        "cache-control": "no-cache",
+      });
+      response.write(": keep-alive\n\n");
+      resolvePendingRequest();
+    });
+    const url = await listen(httpServer);
+    const proxyStdin = new PassThrough();
+    const proxyStdout = new PassThrough();
+    const stderr = vi
+      .spyOn(console, "error")
+      .mockImplementation(() => undefined);
+    const proxy = runProxy({ url, stdin: proxyStdin, stdout: proxyStdout });
+    const client = createRpcClient(proxyStdin, proxyStdout);
+    let proxyClosed = false;
+
+    try {
+      const initialize = await client.request("initialize", {
+        protocolVersion: "2025-11-25",
+        capabilities: {},
+        clientInfo: { name: "proxy-test-client", version: "1.0.0" },
+      });
+      expect(initialize.error).toBeUndefined();
+
+      client.notify("notifications/initialized");
+      await withTimeout(pendingRequest, "pending request");
+      proxyStdin.end();
+      await expect(
+        withTimeout(proxy, "proxy shutdown after stdin closed"),
+      ).resolves.toBeUndefined();
+      proxyClosed = true;
+
+      expect(stderr).not.toHaveBeenCalled();
+    } finally {
+      if (!proxyClosed) {
+        proxyStdin.destroy();
+        await proxy.catch(() => undefined);
+      }
+      await closeHttpServer(httpServer);
+      proxyStdout.destroy();
+      proxyStdin.destroy();
+      stderr.mockRestore();
+    }
+  });
+
   it("proxies MCP requests and returns transport failures", async () => {
     const inputSchema = fromJsonSchema<{ text: string }>({
       type: "object",
@@ -222,7 +304,7 @@ describe("runProxy", () => {
     );
     const transport = new WebStandardStreamableHTTPServerTransport({
       sessionIdGenerator: undefined,
-      enableJsonResponse: true,
+      enableJsonResponse: false,
     });
     let resolveInitialized = () => {};
     const initialized = new Promise<void>((resolve) => {
