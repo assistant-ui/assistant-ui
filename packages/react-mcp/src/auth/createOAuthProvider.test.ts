@@ -68,6 +68,41 @@ const createProvider = (storage: MCPStorage) =>
     onAuthorizationUrl: () => {},
   });
 
+const createStaticProvider = (storage: MCPStorage, clientSecret?: string) =>
+  createOAuthProvider({
+    serverId: "docs",
+    serverUrl,
+    config: {
+      type: "oauth",
+      clientId: "client-a",
+      ...(clientSecret ? { clientSecret } : {}),
+    },
+    storage,
+    redirectUri: "http://localhost/callback",
+    onAuthorizationUrl: () => {},
+  });
+
+const discoveryStateFor = (issuer: string): OAuthDiscoveryState => ({
+  ...discoveryState,
+  authorizationServerUrl: issuer,
+  authorizationServerMetadata: {
+    issuer,
+    authorization_endpoint: `${issuer}/authorize`,
+    token_endpoint: `${issuer}/token`,
+    registration_endpoint: `${issuer}/register`,
+    response_types_supported: ["code"],
+    code_challenge_methods_supported: ["S256"],
+  },
+  resourceMetadata: {
+    resource: "https://mcp.example.com",
+    authorization_servers: [issuer],
+  },
+});
+
+const rejectFetch = async () => {
+  throw new Error("Unexpected OAuth request");
+};
+
 describe("createOAuthProvider callback state", () => {
   it("persists the generated state with the PKCE verifier", async () => {
     const { storage, getState } = createStorage();
@@ -587,13 +622,7 @@ describe("createOAuthProvider persistence across provider instances", () => {
     async (clientId) => {
       const { storage, getState } = createStorage({
         serverUrl,
-        discoveryState: {
-          ...discoveryState,
-          authorizationServerMetadata: {
-            ...discoveryState.authorizationServerMetadata,
-            code_challenge_methods_supported: ["S256"],
-          },
-        },
+        discoveryState: discoveryStateFor("https://auth.example.com"),
       });
       const dynamicProvider = createProvider(storage);
       if (clientId) {
@@ -602,22 +631,10 @@ describe("createOAuthProvider persistence across provider instances", () => {
           redirect_uris: ["http://localhost/callback"],
         });
       }
-      const staticProvider = createOAuthProvider({
-        serverId: "docs",
-        serverUrl,
-        config: { type: "oauth", clientId: "client-a" },
-        storage,
-        redirectUri: "http://localhost/callback",
-        onAuthorizationUrl: () => {},
-      });
+      const staticProvider = createStaticProvider(storage);
 
       await expect(
-        auth(staticProvider, {
-          serverUrl,
-          fetchFn: async () => {
-            throw new Error("Unexpected OAuth request");
-          },
-        }),
+        auth(staticProvider, { serverUrl, fetchFn: rejectFetch }),
       ).resolves.toBe("REDIRECT");
 
       expect(await dynamicProvider.clientInformation()).toEqual(
@@ -636,6 +653,64 @@ describe("createOAuthProvider persistence across provider instances", () => {
       expect(await staticProvider.clientInformation()).toMatchObject({
         client_id: "client-a",
         issuer: "https://auth.example.com",
+      });
+    },
+  );
+
+  it("drops the configured secret when the SDK re-registers at a new issuer", async () => {
+    const { storage, getState } = createStorage({
+      serverUrl,
+      discoveryState: discoveryStateFor("https://auth.example.com"),
+    });
+    const provider = createStaticProvider(storage, "client-secret");
+
+    await expect(
+      auth(provider, { serverUrl, fetchFn: rejectFetch }),
+    ).resolves.toBe("REDIRECT");
+    await provider.saveDiscoveryState?.(
+      discoveryStateFor("https://moved.example.com"),
+    );
+
+    await expect(
+      auth(provider, {
+        serverUrl,
+        fetchFn: async () =>
+          new Response(
+            JSON.stringify({
+              client_id: "registered-client",
+              redirect_uris: ["http://localhost/callback"],
+            }),
+            { status: 201, headers: { "content-type": "application/json" } },
+          ),
+      }),
+    ).resolves.toBe("REDIRECT");
+
+    expect(await provider.clientInformation()).toEqual({
+      client_id: "registered-client",
+      redirect_uris: ["http://localhost/callback"],
+      issuer: "https://moved.example.com",
+    });
+    expect(getState()?.clientInformation).toBeUndefined();
+  });
+
+  it.each(["client", "all"] as const)(
+    "restores the configured client through the %s invalidation scope",
+    async (scope) => {
+      const { storage } = createStorage({
+        serverUrl,
+        discoveryState: discoveryStateFor("https://auth.example.com"),
+      });
+      const provider = createStaticProvider(storage, "client-secret");
+
+      await expect(
+        auth(provider, { serverUrl, fetchFn: rejectFetch }),
+      ).resolves.toBe("REDIRECT");
+      await provider.invalidateCredentials?.(scope);
+
+      expect(await provider.clientInformation()).toEqual({
+        client_id: "client-a",
+        client_secret: "client-secret",
+        redirect_uris: ["http://localhost/callback"],
       });
     },
   );

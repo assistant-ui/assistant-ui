@@ -216,7 +216,8 @@ export function createOAuthProvider(
   // and server URL, so a statically configured client stays a read-time overlay
   // owned by this provider. Writing it into the cache would leak this provider's
   // registration to a replacement built for a different, or absent, clientId.
-  const staticClientInformation = (():
+  // The SDK's write-backs, its issuer stamp included, replace the overlay.
+  const configuredClientInformation = ():
     | OAuthClientInformationFull
     | undefined => {
     if (!config.clientId) return undefined;
@@ -226,7 +227,8 @@ export function createOAuthProvider(
     };
     if (config.clientSecret) ci.client_secret = config.clientSecret;
     return ci;
-  })();
+  };
+  let clientInformationOverlay = configuredClientInformation();
 
   const loadCache = (): Promise<OAuthProviderCache> => {
     if (endpoint.invalidated) return Promise.resolve({});
@@ -306,11 +308,11 @@ export function createOAuthProvider(
     },
     async clientInformation() {
       const c = await loadCache();
-      return staticClientInformation ?? c.clientInformation;
+      return clientInformationOverlay ?? c.clientInformation;
     },
     async saveClientInformation(info) {
-      if (staticClientInformation) {
-        Object.assign(staticClientInformation, info);
+      if (clientInformationOverlay) {
+        clientInformationOverlay = info as OAuthClientInformationFull;
         return;
       }
       const c = await loadCache();
@@ -358,7 +360,10 @@ export function createOAuthProvider(
     async invalidateCredentials(scope) {
       const c = await loadCache();
       if (scope === "all" || scope === "tokens") delete c.tokens;
-      if (scope === "all" || scope === "client") delete c.clientInformation;
+      if (scope === "all" || scope === "client") {
+        delete c.clientInformation;
+        clientInformationOverlay = configuredClientInformation();
+      }
       if (scope === "all" || scope === "verifier") {
         delete c.codeVerifier;
         delete c.state;
