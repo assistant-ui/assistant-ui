@@ -146,7 +146,7 @@ export const createChunkNormalizer = (): {
         if (tool.emitted) return;
         if (chunk.input !== undefined) {
           tool.deltas = [
-            typeof chunk.input === "string"
+            chunk.type === "tool-input-error" && typeof chunk.input === "string"
               ? chunk.input
               : JSON.stringify(chunk.input),
           ];
