@@ -119,15 +119,12 @@ const TEMP_PREFIX = "temp:";
 const filterByPrefix = (
   state: Record<string, unknown>,
   prefix: string,
-): Record<string, unknown> => {
-  const result: Record<string, unknown> = {};
-  for (const key of Object.keys(state)) {
-    if (key.startsWith(prefix)) {
-      result[key.slice(prefix.length)] = state[key];
-    }
-  }
-  return result;
-};
+): Record<string, unknown> =>
+  Object.fromEntries(
+    Object.entries(state)
+      .filter(([key]) => key.startsWith(prefix))
+      .map(([key, value]) => [key.slice(prefix.length), value]),
+  );
 
 /** Returns app-level state (keys prefixed with `app:`, prefix stripped). */
 export const useAdkAppState = () =>
