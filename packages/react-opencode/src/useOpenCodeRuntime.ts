@@ -36,7 +36,8 @@ import { useOpenCodeStreamingTiming } from "./useOpenCodeStreamingTiming";
 type OpenCodeControllerRegistry = {
   getEventSource(): OpenCodeEventSource;
   controllers: Map<string, OpenCodeThreadController>;
-  readonly generation: number;
+  readonly disposed: boolean;
+  activate(): void;
   dispose(): void;
 };
 
@@ -45,7 +46,7 @@ const createRegistry = (
 ): OpenCodeControllerRegistry => {
   let eventSource: OpenCodeEventSource | null = null;
   const controllers = new Map<string, OpenCodeThreadController>();
-  let generation = 0;
+  let disposed = false;
 
   const getEventSource = () => {
     eventSource ??= new OpenCodeEventSource(client);
@@ -55,11 +56,14 @@ const createRegistry = (
   return {
     getEventSource,
     controllers,
-    get generation() {
-      return generation;
+    get disposed() {
+      return disposed;
+    },
+    activate() {
+      disposed = false;
     },
     dispose() {
-      generation += 1;
+      disposed = true;
       eventSource?.dispose();
       eventSource = null;
       for (const controller of controllers.values()) {
@@ -282,7 +286,6 @@ const useNewOpenCodeThreadStore = (
       extras,
       ...(options.adapters && { adapters: options.adapters }),
       onNew: async (message: AppendMessage) => {
-        const generation = registry.generation;
         const optimistic = toOptimisticThreadMessage(
           message,
           optimisticMessageIndexRef.current++,
@@ -295,7 +298,7 @@ const useNewOpenCodeThreadStore = (
               messages.filter((candidate) => candidate !== optimistic),
             );
           };
-          if (registry.generation !== generation) {
+          if (registry.disposed) {
             removeOptimisticMessage();
             return;
           }
@@ -310,7 +313,7 @@ const useNewOpenCodeThreadStore = (
               initializationRef.current ??
               (initializationRef.current = aui.threadListItem.initialize());
             const { remoteId, externalId } = await initialization;
-            if (registry.generation !== generation) {
+            if (registry.disposed) {
               removeOptimisticMessage();
               return;
             }
@@ -373,6 +376,7 @@ export const useOpenCodeRuntime = (
   const registry = useMemo(() => createRegistry(client), [client]);
 
   useEffect(() => {
+    registry.activate();
     return () => {
       registry.dispose();
     };

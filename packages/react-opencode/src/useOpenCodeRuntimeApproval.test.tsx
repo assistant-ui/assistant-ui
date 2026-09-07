@@ -1,5 +1,5 @@
 // @vitest-environment jsdom
-import { act, createElement } from "react";
+import { act, createElement, StrictMode, useEffect, useRef } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import type { RespondToToolApprovalOptions } from "@assistant-ui/react";
@@ -287,6 +287,41 @@ describe("useOpenCodeRuntime", () => {
     const replacementAdapter = mocks.adapters.at(-1) as RuntimeAdapter;
     expect(replacementAdapter.messageRepository?.messages).toEqual([]);
     expect(mocks.controller.sendMessage).not.toHaveBeenCalled();
+  });
+
+  it("keeps a pending new-thread send across StrictMode effect replay", async () => {
+    const sessionCreate = Promise.withResolvers<{ data: { id: string } }>();
+    mocks.sessionCreate.mockReturnValue(sessionCreate.promise);
+    mocks.threadListItem.externalId = undefined;
+    mocks.threadListItem.remoteId = undefined;
+    mocks.threadListItem.status = "new";
+    mocks.state = createOpenCodeThreadState("session-1");
+    let sendPromise: Promise<void> | void;
+
+    const Harness = () => {
+      useOpenCodeRuntime({ client: stubClient });
+      const sentRef = useRef(false);
+      useEffect(() => {
+        if (sentRef.current) return;
+        sentRef.current = true;
+        const adapter = mocks.adapters.at(-1) as RuntimeAdapter;
+        sendPromise = adapter.onNew!({ role: "user", content: [] });
+      }, []);
+      return null;
+    };
+
+    root = createRoot(document.createElement("div"));
+    await act(async () => {
+      root!.render(createElement(StrictMode, null, createElement(Harness)));
+    });
+    await vi.waitFor(() => expect(mocks.sessionCreate).toHaveBeenCalledOnce());
+
+    await act(async () => {
+      sessionCreate.resolve({ data: { id: "session-1" } });
+      await sendPromise;
+    });
+
+    expect(mocks.controller.sendMessage).toHaveBeenCalledOnce();
   });
 
   it("replies to standard approvals through the OpenCode permission API", async () => {
