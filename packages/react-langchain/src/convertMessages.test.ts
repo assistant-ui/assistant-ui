@@ -1139,6 +1139,28 @@ describe("convertLangChainBaseMessage malformed messages", () => {
     expect(contentOf(result)).toEqual([{ type: "text", text: "kept" }]);
   });
 
+  it("coalesces a text block without a text field to empty text", () => {
+    const result = convertLangChainBaseMessage(
+      humanMessage([{ type: "text" }]),
+      {},
+    );
+
+    expect(contentOf(result)).toEqual([{ type: "text", text: "" }]);
+  });
+
+  it("skips a textless block when collecting system text", () => {
+    const result = convertLangChainBaseMessage(
+      {
+        _getType: () => "system",
+        id: "msg-7",
+        content: [{ type: "text" }, { type: "text", text: "kept" }],
+      },
+      {},
+    );
+
+    expect(contentOf(result)).toEqual([{ type: "text", text: "kept" }]);
+  });
+
   it("skips null entries when collecting system text", () => {
     const result = convertLangChainBaseMessage(
       {
