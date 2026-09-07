@@ -958,7 +958,10 @@ const useRemoteThreadList = (
           prev.filter((startedId) => startedId !== removedMappingId),
         );
       }
-      if (replacementMainThreadId !== undefined) {
+      if (
+        replacementMainThreadId !== undefined &&
+        session.mainThreadId === removedMappingId
+      ) {
         assignMainThreadId(replacementMainThreadId);
       }
       if (threadId === session.mainThreadId) {
