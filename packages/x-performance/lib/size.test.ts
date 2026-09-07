@@ -208,6 +208,9 @@ describe("checkSizes", () => {
       const touched = writePackage(root, "touched", {
         ".": "export const touched = 1;\n",
       });
+      const dirty = writePackage(root, "dirty", {
+        ".": "export const dirty = 3;\n",
+      });
       writePackage(root, "stale", {
         ".": "export const stale = 2;\n",
       });
@@ -217,6 +220,7 @@ describe("checkSizes", () => {
         budgetsPath,
         JSON.stringify({
           "@aui-test/touched": { ".": { min: 6_000, gzip: 6_000 } },
+          "@aui-test/dirty": { ".": { min: 7_000, gzip: 7_000 } },
           "@aui-test/stale": { ".": staleBudget },
         }),
       );
@@ -235,7 +239,20 @@ describe("checkSizes", () => {
       git("add", "-A");
       git("-c", "user.email=t@t", "-c", "user.name=t", "commit", "-qm", "all");
       git("update-ref", "refs/remotes/origin/main", "HEAD");
+      // touched changes through a commit (the merge-base diff path), dirty
+      // through an untracked file (the porcelain path).
       writeFileSync(join(touched, "src.ts"), "changed\n");
+      git("add", "-A");
+      git(
+        "-c",
+        "user.email=t@t",
+        "-c",
+        "user.name=t",
+        "commit",
+        "-qm",
+        "touch",
+      );
+      writeFileSync(join(dirty, "untracked.ts"), "changed\n");
 
       expect(
         await silenced(() =>
@@ -246,6 +263,9 @@ describe("checkSizes", () => {
       const written = JSON.parse(readFileSync(budgetsPath, "utf8"));
       expect(written["@aui-test/touched"]["."]).toEqual(
         await measureEntry(join(touched, "dist/index.js")),
+      );
+      expect(written["@aui-test/dirty"]["."]).toEqual(
+        await measureEntry(join(dirty, "dist/index.js")),
       );
       expect(written["@aui-test/stale"]["."]).toEqual(staleBudget);
 

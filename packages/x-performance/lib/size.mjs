@@ -109,8 +109,8 @@ export const changedPackageNames = (repoRoot) => {
   try {
     const base = git("merge-base", "HEAD", "origin/main").trim();
     files = [
-      ...git("diff", "--name-only", base, "--").split("\n"),
-      ...git("status", "--porcelain")
+      ...git("diff", "--name-only", "--no-renames", base, "--").split("\n"),
+      ...git("status", "--porcelain", "--no-renames")
         .split("\n")
         .map((line) => line.slice(3)),
     ];
