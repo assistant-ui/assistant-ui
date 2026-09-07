@@ -17,11 +17,16 @@ const useStableSuggestionsState = (
   const cell = useMemo(() => ({}) as { state?: SuggestionsState }, []);
   const previous = cell.state;
 
-  const suggestions = next.suggestions.map((suggestion, index) => {
+  // forEach skips array holes, so a sparse caller array normalizes to a dense
+  // list here, before the per-suggestion resource lookup indexes every slot.
+  const suggestions: SuggestionState[] = [];
+  next.suggestions.forEach((suggestion, index) => {
     const previousSuggestion = previous?.suggestions[index];
-    return previousSuggestion && shallowEqual(previousSuggestion, suggestion)
-      ? previousSuggestion
-      : suggestion;
+    suggestions.push(
+      previousSuggestion && shallowEqual(previousSuggestion, suggestion)
+        ? previousSuggestion
+        : suggestion,
+    );
   });
   const state =
     previous && shallowEqual(suggestions, previous.suggestions)

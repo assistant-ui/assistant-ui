@@ -7,6 +7,7 @@ import type { Tool } from "assistant-stream";
 import { getDefaultWebMcpHost, type WebMcpHost } from "./webmcp-host";
 import { defaultWebMcpFilter, toWebMcpInputSchema } from "./convertTools";
 import { WebMcpRegistrationResource } from "./WebMcpRegistrationResource";
+import { shallowEqual } from "@assistant-ui/store/internal";
 import {
   useModelContextSnapshot,
   type ModelContextSnapshotSource,
@@ -60,19 +61,11 @@ const modelContextToolSource: ModelContextSnapshotSource<
     aui.modelContext.subscribe?.(onChange) ?? NO_SUBSCRIPTION,
 };
 
-const namesEqual = (a: readonly string[], b: readonly string[]): boolean => {
-  if (a.length !== b.length) return false;
-  for (let i = 0; i < a.length; i++) {
-    if (a[i] !== b[i]) return false;
-  }
-  return true;
-};
-
 const useStableNames = (names: readonly (string | null)[]) => {
   const [cell] = useState(() => ({ names: EMPTY_NAMES }));
   const next = names.filter((name): name is string => name !== null).sort();
   const previous = cell.names;
-  if (namesEqual(previous, next)) {
+  if (shallowEqual(previous, next)) {
     return previous;
   }
   cell.names = next;

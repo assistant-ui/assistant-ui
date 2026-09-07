@@ -332,6 +332,23 @@ describe("McpAppFrame", () => {
       availableDisplayModes: ["inline", "pip"],
     });
 
+    // A hole is not a value, in either operand order: sparse-to-dense is the
+    // direction Array.prototype.every read as equal by skipping the hole.
+    const sparseModes: ("inline" | "pip")[] = new Array(2);
+    sparseModes[1] = "pip";
+    rendered.rerender(
+      view({ displayMode: "fullscreen", availableDisplayModes: sparseModes }),
+    );
+    expect(bridge.notifyHostContextChanged).toHaveBeenCalledTimes(2);
+
+    rendered.rerender(
+      view({
+        displayMode: "fullscreen",
+        availableDisplayModes: ["inline", "pip"],
+      }),
+    );
+    expect(bridge.notifyHostContextChanged).toHaveBeenCalledTimes(3);
+
     sandboxBridge.dispose();
   });
   it("cancels a queued host context that returns to the delivered value", () => {
