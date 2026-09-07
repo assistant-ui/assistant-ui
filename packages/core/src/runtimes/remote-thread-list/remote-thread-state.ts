@@ -279,17 +279,23 @@ export const reconcileInitializedThread = (
   threadId: string,
   remoteId: string,
   externalId: string | undefined,
-  preferredThreadId?: string,
+  retainedThreadId?: string,
 ): {
   state: RemoteThreadState;
   removedMappingId: THREAD_MAPPING_ID | undefined;
+  survivorMappingId: THREAD_MAPPING_ID;
 } => {
   const mappingId = createThreadMappingId(threadId);
   const data = Object.hasOwn(state.threadData, mappingId)
     ? state.threadData[mappingId]
     : undefined;
-  if (!data) return { state, removedMappingId: undefined };
+  if (!data) {
+    return { state, removedMappingId: undefined, survivorMappingId: mappingId };
+  }
 
+  // A concurrent list cannot associate the remote ID with this initializing
+  // slot and may mint a duplicate. Retain the slot whose mounted runtime owns
+  // local state; initialized metadata remains authoritative over list metadata.
   const listedMappingId = Object.hasOwn(state.threadIdMap, remoteId)
     ? state.threadIdMap[remoteId]
     : undefined;
@@ -303,13 +309,13 @@ export const reconcileInitializedThread = (
     listedMappingId !== undefined && listedData !== undefined
       ? { mappingId: listedMappingId, data: listedData }
       : undefined;
-  const preferredMappingId =
-    preferredThreadId !== undefined &&
-    Object.hasOwn(state.threadIdMap, preferredThreadId)
-      ? state.threadIdMap[preferredThreadId]
+  const retainedMappingId =
+    retainedThreadId !== undefined &&
+    Object.hasOwn(state.threadIdMap, retainedThreadId)
+      ? state.threadIdMap[retainedThreadId]
       : undefined;
   const survivorMappingId =
-    listedSlot !== undefined && preferredMappingId === listedSlot.mappingId
+    listedSlot !== undefined && retainedMappingId === listedSlot.mappingId
       ? listedSlot.mappingId
       : mappingId;
   const removedMappingId =
@@ -367,6 +373,7 @@ export const reconcileInitializedThread = (
       threadData,
     },
     removedMappingId,
+    survivorMappingId,
   };
 };
 

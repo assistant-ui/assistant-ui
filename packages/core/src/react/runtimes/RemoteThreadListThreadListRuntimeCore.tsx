@@ -837,17 +837,17 @@ export class RemoteThreadListThreadListRuntimeCore
       },
       then: (state, { remoteId, externalId }) => {
         if (adapterGeneration !== this._adapterGeneration) return state;
-        const data = getThreadData(state, threadId);
-        if (!data) return state;
-
         const reconciliation = reconcileInitializedThread(
           state,
           threadId,
           remoteId,
           externalId,
-          this._mainThreadId,
+          threadId,
         );
         removedMappingId = reconciliation.removedMappingId;
+        if (removedMappingId === this._mainThreadId) {
+          this._mainThreadId = reconciliation.survivorMappingId;
+        }
         return reconciliation.state;
       },
     });

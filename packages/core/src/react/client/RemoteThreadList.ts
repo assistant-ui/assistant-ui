@@ -909,6 +909,7 @@ const useRemoteThreadList = (
         return result;
       }
       let removedMappingId: string | undefined;
+      let replacementMainThreadId: string | undefined;
       const result = await store.optimisticUpdate({
         execute: () => {
           requireAdapterGeneration(adapterGeneration);
@@ -932,16 +933,17 @@ const useRemoteThreadList = (
         },
         then: (state, { remoteId, externalId }) => {
           if (adapterGeneration !== session.adapterGeneration) return state;
-          const data = getThreadData(state, threadId);
-          if (!data) return state;
           const reconciliation = reconcileInitializedThread(
             state,
             threadId,
             remoteId,
             externalId,
-            session.mainThreadId,
+            backgroundThreads ? threadId : session.mainThreadId,
           );
           removedMappingId = reconciliation.removedMappingId;
+          if (removedMappingId === session.mainThreadId) {
+            replacementMainThreadId = reconciliation.survivorMappingId;
+          }
           return reconciliation.state;
         },
       });
@@ -951,12 +953,22 @@ const useRemoteThreadList = (
           prev.filter((startedId) => startedId !== removedMappingId),
         );
       }
+      if (replacementMainThreadId !== undefined) {
+        assignMainThreadId(replacementMainThreadId);
+      }
       if (threadId === session.mainThreadId) {
         notifyRemoteId(result.remoteId, true);
       }
       return toInitializeResult(result);
     },
-    [notifyRemoteId, requireAdapterGeneration, session, store],
+    [
+      assignMainThreadId,
+      backgroundThreads,
+      notifyRemoteId,
+      requireAdapterGeneration,
+      session,
+      store,
+    ],
   );
 
   const rename = useCallback(

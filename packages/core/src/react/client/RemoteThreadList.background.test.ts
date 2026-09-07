@@ -121,7 +121,7 @@ const deferred = <T>() => {
 };
 
 describe("RemoteThreadList backgroundThreads", () => {
-  it("preserves a listed body selected while initialize was in flight", async () => {
+  it("keeps the running initialized body when its listed duplicate is selected", async () => {
     const list = deferred<{
       threads: [{ status: "regular"; remoteId: string; externalId: string }];
     }>();
@@ -138,6 +138,7 @@ describe("RemoteThreadList backgroundThreads", () => {
     const aui = handle.getClient();
     const loadPromise = aui.threads.getLoadThreadsPromise();
     const localId = aui.threads.getState().mainThreadId;
+    tracker.running.add(localId);
     const initializePromise = aui.threads.item("main").initialize();
 
     list.resolve({
@@ -151,22 +152,24 @@ describe("RemoteThreadList backgroundThreads", () => {
       expect(aui.threads.getState().mainThreadId).toBe("remote-1");
       expect(tracker.alive.has("remote-1")).toBe(true);
     });
-    const remoteMountCount = tracker.mounts.filter(
-      (id) => id === "remote-1",
+    const localMountCount = tracker.mounts.filter(
+      (id) => id === localId,
     ).length;
 
     initialize.resolve({ remoteId: "remote-1", externalId: undefined });
     await initializePromise;
     await vi.waitFor(() => {
-      expect(aui.threads.getState().threadIds).toEqual(["remote-1"]);
-      expect(tracker.alive.has("remote-1")).toBe(true);
-      expect(tracker.alive.has(localId)).toBe(false);
+      expect(aui.threads.getState().mainThreadId).toBe(localId);
+      expect(aui.threads.getState().threadIds).toEqual([localId]);
+      expect(tracker.alive.has(localId)).toBe(true);
+      expect(tracker.alive.has("remote-1")).toBe(false);
     });
 
-    expect(aui.threads.item({ id: localId }).getState().id).toBe("remote-1");
-    expect(aui.threads.item("main").getState().id).toBe("remote-1");
-    expect(tracker.mounts.filter((id) => id === "remote-1")).toHaveLength(
-      remoteMountCount,
+    expect(aui.threads.item({ id: "remote-1" }).getState().id).toBe(localId);
+    expect(aui.threads.item("main").getState().id).toBe(localId);
+    expect(aui.threads.item("main").getState().isRunning).toBe(true);
+    expect(tracker.mounts.filter((id) => id === localId)).toHaveLength(
+      localMountCount,
     );
     handle.destroy();
   });

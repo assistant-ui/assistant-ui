@@ -113,7 +113,7 @@ describe("RemoteThreadListThreadListRuntimeCore load race", () => {
     expect(core.threadIds).toEqual([]);
   });
 
-  it("preserves a listed slot selected while initialize was in flight", async () => {
+  it("keeps the initialized runtime when its listed duplicate is selected", async () => {
     const listDeferred = deferred<ListResult>();
     const initializeDeferred = deferred<{
       remoteId: string;
@@ -124,12 +124,12 @@ describe("RemoteThreadListThreadListRuntimeCore load race", () => {
       initialize: vi.fn(() => initializeDeferred.promise),
     });
     const core = createCore(adapter);
-    const stopThreadRuntime = vi.fn();
-    (
+    const hookManager = (
       core as unknown as {
         _hookManager: { stopThreadRuntime: (threadId: string) => void };
       }
-    )._hookManager.stopThreadRuntime = stopThreadRuntime;
+    )._hookManager;
+    const stopThreadRuntime = vi.spyOn(hookManager, "stopThreadRuntime");
 
     const loadPromise = core.getLoadThreadsPromise();
     await core.switchToNewThread();
@@ -150,12 +150,12 @@ describe("RemoteThreadListThreadListRuntimeCore load race", () => {
     });
     await initializePromise;
 
-    expect(core.mainThreadId).toBe("remote-1");
-    expect(core.threadIds).toEqual(["remote-1"]);
-    expect(Object.keys(core.threadItems)).toEqual(["remote-1"]);
-    expect(core.getItemById(localId)?.id).toBe("remote-1");
-    expect(stopThreadRuntime).toHaveBeenCalledWith(localId);
-    expect(stopThreadRuntime).not.toHaveBeenCalledWith("remote-1");
+    expect(core.mainThreadId).toBe(localId);
+    expect(core.threadIds).toEqual([localId]);
+    expect(Object.keys(core.threadItems)).toEqual([localId]);
+    expect(core.getItemById("remote-1")?.id).toBe(localId);
+    expect(stopThreadRuntime).toHaveBeenCalledWith("remote-1");
+    expect(stopThreadRuntime).not.toHaveBeenCalledWith(localId);
   });
 
   it("does not leave the collapsed slot in both lists when the race reported it archived", async () => {
