@@ -963,6 +963,95 @@ describe("AGUIThreadRuntimeCore", () => {
     await expect(replacementRun).rejects.toBe(replacementError);
   });
 
+  it("keeps a replacement run's deferred tool resume", async () => {
+    const runs: Array<{ subscriber: AgentSubscriber; resolve: () => void }> =
+      [];
+    const agent = {
+      runAgent: vi.fn((_input: unknown, subscriber: AgentSubscriber) => {
+        if (runs.length === 2) {
+          subscriber.onRunFinalized?.();
+          return Promise.resolve();
+        }
+        return new Promise<void>((resolve) => {
+          runs.push({ subscriber, resolve });
+        });
+      }),
+      abortRun: vi.fn(),
+    } as unknown as HttpAgent;
+
+    const core = createCore(agent);
+    const firstRun = core.append(createAppendMessage());
+    await core.cancel();
+
+    const replacementRun = core.append(createAppendMessage());
+    runs[1]?.subscriber.onToolCallStartEvent?.({
+      event: {
+        type: "TOOL_CALL_START",
+        toolCallId: "call-1",
+        toolCallName: "lookup",
+      },
+    });
+    runs[1]?.subscriber.onToolCallEndEvent?.({
+      event: { type: "TOOL_CALL_END", toolCallId: "call-1" },
+    });
+    runs[1]?.subscriber.onRunFinishedEvent?.({
+      event: { type: "RUN_FINISHED", runId: "replacement" },
+    });
+
+    const assistant = core.getMessages().at(-1) as ThreadAssistantMessage;
+    core.addToolResult({
+      messageId: assistant.id,
+      toolCallId: "call-1",
+      toolName: "lookup",
+      result: "done",
+      isError: false,
+    });
+
+    runs[0]?.resolve();
+    await firstRun;
+    runs[1]?.resolve();
+    await replacementRun;
+    await vi.waitFor(() => expect(agent.runAgent).toHaveBeenCalledTimes(3));
+  });
+
+  it("keeps a replacement run's deferred A2UI action", async () => {
+    const runInputs: unknown[] = [];
+    const runs: Array<{ subscriber: AgentSubscriber; resolve: () => void }> =
+      [];
+    const agent = {
+      runAgent: vi.fn((input: unknown, subscriber: AgentSubscriber) => {
+        runInputs.push(input);
+        if (runs.length === 2) {
+          subscriber.onRunFinalized?.();
+          return Promise.resolve();
+        }
+        return new Promise<void>((resolve) => {
+          runs.push({ subscriber, resolve });
+        });
+      }),
+      abortRun: vi.fn(),
+    } as unknown as HttpAgent;
+
+    const core = createCore(agent);
+    const firstRun = core.append(createAppendMessage());
+    await core.cancel();
+
+    const replacementRun = core.append(createAppendMessage());
+    core.sendA2uiAction({ type: "a2ui:action", name: "continue" });
+
+    runs[0]?.resolve();
+    await firstRun;
+    runs[1]?.resolve();
+    await replacementRun;
+    await vi.waitFor(() => expect(agent.runAgent).toHaveBeenCalledTimes(3));
+
+    expect(runInputs[2]).toMatchObject({
+      forwardedProps: {
+        a2uiAction: { userAction: { name: "continue" } },
+      },
+    });
+  });
+
   it("cancels an active run when the runtime detaches", async () => {
     let runSignal: AbortSignal | undefined;
     const agent = {
