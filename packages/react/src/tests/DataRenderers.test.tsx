@@ -3,9 +3,10 @@
 // Data part rendering contract: global renderers > global fallbacks >
 // inline `components.data` config, exercised through the real store.
 
-import { render, screen, waitFor } from "@testing-library/react";
+import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import {
   useEffect,
+  useState,
   type FC,
   type PropsWithChildren,
   type ReactNode,
@@ -95,6 +96,55 @@ describe("data part rendering", () => {
     await waitFor(() => {
       expect(screen.getByTestId("inline").textContent).toBe("chart:42");
     });
+  });
+
+  it("keeps inline data renderers when chain-of-thought grouping changes", async () => {
+    const data = {
+      by_name: { chart: labeled("named") },
+      Fallback: labeled("fallback"),
+    };
+    const ChainOfThought = () => <span>Thought group</span>;
+    const Message: FC = () => {
+      const [grouped, setGrouped] = useState(false);
+      return (
+        <>
+          <button onClick={() => setGrouped(!grouped)}>Toggle grouping</button>
+          <MessagePrimitive.Parts
+            components={grouped ? { data, ChainOfThought } : { data }}
+          />
+        </>
+      );
+    };
+
+    renderThread(
+      [
+        {
+          role: "assistant",
+          content: [
+            { type: "reasoning", text: "Thinking" },
+            { type: "data", name: "chart", data: { value: 42 } },
+            { type: "data", name: "other", data: { value: 7 } },
+          ],
+          status: { type: "complete", reason: "stop" },
+        },
+      ],
+      Message,
+    );
+
+    await waitFor(() => {
+      expect(screen.getByTestId("named").textContent).toBe("chart:42");
+      expect(screen.getByTestId("fallback").textContent).toBe("other:7");
+    });
+
+    fireEvent.click(screen.getByRole("button", { name: "Toggle grouping" }));
+    expect(screen.getByText("Thought group")).toBeTruthy();
+    expect(screen.getByTestId("named").textContent).toBe("chart:42");
+    expect(screen.getByTestId("fallback").textContent).toBe("other:7");
+
+    fireEvent.click(screen.getByRole("button", { name: "Toggle grouping" }));
+    expect(screen.queryByText("Thought group")).toBeNull();
+    expect(screen.getByTestId("named").textContent).toBe("chart:42");
+    expect(screen.getByTestId("fallback").textContent).toBe("other:7");
   });
 
   it("uses the inline Fallback for unmatched names and renders nothing without one", async () => {
