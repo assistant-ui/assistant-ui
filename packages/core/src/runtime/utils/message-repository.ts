@@ -456,7 +456,9 @@ export class MessageRepository {
     // Optimistic messages are ephemeral and never persisted. A persisted child
     // of an optimistic node is re-parented onto its nearest persisted ancestor
     // so the exported tree never references a skipped id.
-    for (const [, message] of this.messages) {
+    for (const message of [...this.messages.values()].sort(
+      (a, b) => a.level - b.level,
+    )) {
       if (message.current.metadata?.isOptimistic) continue;
       let prev = message.prev;
       while (prev && prev.current.metadata?.isOptimistic) {
