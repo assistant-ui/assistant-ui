@@ -35,14 +35,21 @@ const s = \`template \${value}\`
 Final paragraph with ~~strike~~ and unfinished [link text](https://exa
 `;
 
+// Block-level equality is render equality: Streamdown renders each block
+// independently, so two repairs that produce the same blocks render identically
+// even if the raw strings differ. Full `remend` is a valid oracle only for text
+// whose earlier blocks hold no incomplete construct, since the tail-bounded
+// repair deliberately leaves those alone.
+const blocksOf = (text: string): string[] => parseMarkdownIntoBlocks(text);
+
 describe("tailBoundedRemend", () => {
   it("matches full remend block output at every streaming prefix", () => {
     for (let end = 1; end <= CORPUS.length; end++) {
       const prefix = CORPUS.slice(0, end);
       expect(
-        parseMarkdownIntoBlocks(tailBoundedRemend(prefix)),
+        blocksOf(tailBoundedRemend(prefix)),
         `prefix length ${end}`,
-      ).toEqual(parseMarkdownIntoBlocks(remend(prefix)));
+      ).toEqual(blocksOf(remend(prefix)));
     }
   });
 
@@ -94,16 +101,19 @@ describe("tailBoundedRemend", () => {
   it("keeps an unclosed fence inside the window", () => {
     const text = `intro\n\n\`\`\`python\n${"x = 1\n".repeat(500)}print("$dollar")`;
     expect(findRemendWindowStart(text)).toBe(text.indexOf("```python"));
+    expect(blocksOf(tailBoundedRemend(text))).toEqual(blocksOf(remend(text)));
   });
 
   it("bounds the window to the tail paragraph when no fence is open", () => {
     const text = `para one\n\npara two\n\npara three with **bold`;
     expect(findRemendWindowStart(text)).toBe(text.indexOf("para three"));
+    expect(tailBoundedRemend(text)).toBe(remend(text));
   });
 
   it("widens the window across an open $$ math block", () => {
     const text = `before\n\n$$\n\\frac{a}{b}`;
     expect(findRemendWindowStart(text)).toBeLessThanOrEqual(text.indexOf("$$"));
+    expect(blocksOf(tailBoundedRemend(text))).toEqual(blocksOf(remend(text)));
   });
 
   it("leaves closed constructs untouched", () => {
@@ -120,5 +130,15 @@ describe("tailBoundedRemend", () => {
   it("treats CRLF blank lines as block boundaries", () => {
     const text = `para one\r\n\r\npara two with **bold`;
     expect(findRemendWindowStart(text)).toBe(text.indexOf("para two"));
+    expect(blocksOf(tailBoundedRemend(text))).toEqual(blocksOf(remend(text)));
+  });
+
+  it("matches full remend when $$ appears inside a math block", () => {
+    for (const text of [
+      "intro\n\n$$\nsome content with $$ inside\n\nmore content",
+      "p\n\n$$\nx\n$$\n\nafter $$ y $$ done\n\ntail **b",
+    ]) {
+      expect(blocksOf(tailBoundedRemend(text))).toEqual(blocksOf(remend(text)));
+    }
   });
 });
