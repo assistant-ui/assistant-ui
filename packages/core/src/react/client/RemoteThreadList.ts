@@ -933,12 +933,17 @@ const useRemoteThreadList = (
         },
         then: (state, { remoteId, externalId }) => {
           if (adapterGeneration !== session.adapterGeneration) return state;
+          // Background mode still owns the initializing body. Single-body mode
+          // has already replaced it, so retain the currently mounted body.
+          const retainedThreadId = backgroundThreads
+            ? threadId
+            : session.mainThreadId;
           const reconciliation = reconcileInitializedThread(
             state,
             threadId,
             remoteId,
             externalId,
-            backgroundThreads ? threadId : session.mainThreadId,
+            retainedThreadId,
           );
           removedMappingId = reconciliation.removedMappingId;
           if (removedMappingId === session.mainThreadId) {

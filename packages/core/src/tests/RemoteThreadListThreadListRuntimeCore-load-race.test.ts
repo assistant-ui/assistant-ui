@@ -154,6 +154,7 @@ describe("RemoteThreadListThreadListRuntimeCore load race", () => {
     expect(core.threadIds).toEqual([localId]);
     expect(Object.keys(core.threadItems)).toEqual([localId]);
     expect(core.getItemById("remote-1")?.id).toBe(localId);
+    expect(core.getItemById("remote-1")?.externalId).toBe("remote-1");
     expect(stopThreadRuntime).toHaveBeenCalledWith("remote-1");
     expect(stopThreadRuntime).not.toHaveBeenCalledWith(localId);
   });

@@ -324,10 +324,7 @@ export const reconcileInitializedThread = (
       : survivorMappingId === mappingId
         ? listedSlot.mappingId
         : mappingId;
-  const resolvedExternalId =
-    survivorMappingId === listedSlot?.mappingId
-      ? (externalId ?? listedSlot.data.externalId)
-      : externalId;
+  const resolvedExternalId = externalId ?? listedSlot?.data.externalId;
   const threadData = nullProtoRecord(state.threadData);
   if (removedMappingId !== undefined) delete threadData[removedMappingId];
   const initializedData = {

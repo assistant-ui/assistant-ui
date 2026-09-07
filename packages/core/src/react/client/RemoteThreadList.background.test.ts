@@ -88,15 +88,16 @@ const makeAdapter = (
   ...overrides,
 });
 
-const mountBackgroundList = (
+const mountThreadList = (
   adapter: RemoteThreadListAdapter,
   tracker: Tracker,
+  backgroundThreads = true,
 ) => {
   const handle = createAssistantClient(
     AuiConfig({
       threads: RemoteThreadList({
         adapter,
-        backgroundThreads: true,
+        backgroundThreads,
         thread: (id) =>
           withKey(id, TrackedThread({ threadId: id, tracker }) as never),
       }),
@@ -134,7 +135,7 @@ describe("RemoteThreadList backgroundThreads", () => {
       initialize: vi.fn(() => initialize.promise),
     });
     const tracker = createTracker();
-    const handle = mountBackgroundList(adapter, tracker);
+    const handle = mountThreadList(adapter, tracker);
     const aui = handle.getClient();
     const loadPromise = aui.threads.getLoadThreadsPromise();
     const localId = aui.threads.getState().mainThreadId;
@@ -167,9 +168,76 @@ describe("RemoteThreadList backgroundThreads", () => {
 
     expect(aui.threads.item({ id: "remote-1" }).getState().id).toBe(localId);
     expect(aui.threads.item("main").getState().id).toBe(localId);
+    expect(aui.threads.item("main").getState().externalId).toBe("remote-1");
     expect(aui.threads.item("main").getState().isRunning).toBe(true);
     expect(tracker.mounts.filter((id) => id === localId)).toHaveLength(
       localMountCount,
+    );
+    handle.destroy();
+  });
+
+  it("keeps the mounted listed body when an unmounted initialization completes", async () => {
+    const list = deferred<{
+      threads: [
+        {
+          status: "regular";
+          remoteId: string;
+          externalId: string;
+          title: string;
+        },
+      ];
+    }>();
+    const initialize = deferred<{
+      remoteId: string;
+      externalId: undefined;
+    }>();
+    const adapter = makeAdapter({
+      list: vi.fn(() => list.promise),
+      initialize: vi.fn(() => initialize.promise),
+    });
+    const tracker = createTracker();
+    const handle = mountThreadList(adapter, tracker, false);
+    const aui = handle.getClient();
+    const loadPromise = aui.threads.getLoadThreadsPromise();
+    const localId = aui.threads.getState().mainThreadId;
+    const initializePromise = aui.threads.item("main").initialize();
+
+    list.resolve({
+      threads: [
+        {
+          status: "regular",
+          remoteId: "remote-1",
+          externalId: "external-1",
+          title: "Listed thread",
+        },
+      ],
+    });
+    await loadPromise;
+    flushTapSync(() => aui.threads.switchToThread("remote-1"));
+    await vi.waitFor(() => {
+      expect(aui.threads.getState().mainThreadId).toBe("remote-1");
+      expect(tracker.alive.has(localId)).toBe(false);
+      expect(tracker.alive.has("remote-1")).toBe(true);
+    });
+    const listedMountCount = tracker.mounts.filter(
+      (id) => id === "remote-1",
+    ).length;
+
+    initialize.resolve({ remoteId: "remote-1", externalId: undefined });
+    await initializePromise;
+    await vi.waitFor(() => {
+      expect(aui.threads.getState().mainThreadId).toBe("remote-1");
+      expect(aui.threads.getState().threadIds).toEqual(["remote-1"]);
+      expect(tracker.alive.has("remote-1")).toBe(true);
+    });
+
+    expect(aui.threads.item("main").getState()).toMatchObject({
+      id: "remote-1",
+      externalId: "external-1",
+      title: "Listed thread",
+    });
+    expect(tracker.mounts.filter((id) => id === "remote-1")).toHaveLength(
+      listedMountCount,
     );
     handle.destroy();
   });
@@ -181,7 +249,7 @@ describe("RemoteThreadList backgroundThreads", () => {
       })),
     });
     const tracker = createTracker();
-    const handle = mountBackgroundList(adapter, tracker);
+    const handle = mountThreadList(adapter, tracker);
     const aui = handle.getClient();
     await aui.threads.getLoadThreadsPromise();
     await vi.waitFor(() => {
@@ -225,7 +293,7 @@ describe("RemoteThreadList backgroundThreads", () => {
       })),
     });
     const tracker = createTracker();
-    const handle = mountBackgroundList(adapter, tracker);
+    const handle = mountThreadList(adapter, tracker);
     const aui = handle.getClient();
     await aui.threads.getLoadThreadsPromise();
     await vi.waitFor(() => {
@@ -321,7 +389,7 @@ describe("RemoteThreadList backgroundThreads", () => {
     });
     const tracker = createTracker();
     tracker.messagesOf = () => [{ status: { type: "complete" } }];
-    const handle = mountBackgroundList(adapter, tracker);
+    const handle = mountThreadList(adapter, tracker);
     const aui = handle.getClient();
     await aui.threads.getLoadThreadsPromise();
     await vi.waitFor(() => {
@@ -411,7 +479,7 @@ describe("RemoteThreadList backgroundThreads", () => {
       list: vi.fn(async () => ({ threads: listed })),
     });
     const tracker = createTracker();
-    const handle = mountBackgroundList(adapter, tracker);
+    const handle = mountThreadList(adapter, tracker);
     const aui = handle.getClient();
     await aui.threads.getLoadThreadsPromise();
     const localId = aui.threads.getState().mainThreadId;
