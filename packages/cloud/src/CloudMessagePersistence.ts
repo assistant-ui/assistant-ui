@@ -16,7 +16,7 @@ const CLOUD_MESSAGE_PAGE_SIZE = 200;
  * to get its remote ID before creating B.
  */
 export class CloudMessagePersistence {
-  private idMapping: Record<string, string | Promise<string>> = {};
+  private idMapping = new Map<string, string | Promise<string>>();
   private getCloud: () => AssistantCloud;
 
   constructor(cloud: AssistantCloud);
@@ -42,7 +42,7 @@ export class CloudMessagePersistence {
     content: ReadonlyJSONObject,
   ): Promise<void> {
     const cloud = this.getCloud();
-    const existing = this.idMapping[messageId];
+    const existing = this.idMapping.get(messageId);
     if (existing instanceof Promise) {
       await existing;
       return;
@@ -50,7 +50,7 @@ export class CloudMessagePersistence {
 
     const task = (async () => {
       const resolvedParentId = parentId
-        ? ((await this.idMapping[parentId]) ?? parentId)
+        ? ((await this.idMapping.get(parentId)) ?? parentId)
         : null;
       const { message_id } = await cloud.threads.messages.create(threadId, {
         parent_id: resolvedParentId,
@@ -60,15 +60,15 @@ export class CloudMessagePersistence {
       return message_id;
     })();
 
-    this.idMapping[messageId] = task;
+    this.idMapping.set(messageId, task);
     try {
       const remoteId = await task;
-      if (this.idMapping[messageId] === task) {
-        this.idMapping[messageId] = remoteId;
+      if (this.idMapping.get(messageId) === task) {
+        this.idMapping.set(messageId, remoteId);
       }
     } catch (err) {
-      if (this.idMapping[messageId] === task) {
-        delete this.idMapping[messageId];
+      if (this.idMapping.get(messageId) === task) {
+        this.idMapping.delete(messageId);
       }
       throw err;
     }
@@ -98,7 +98,7 @@ export class CloudMessagePersistence {
    * Check if a message has been persisted (or is currently being persisted).
    */
   isPersisted(messageId: string): boolean {
-    return messageId in this.idMapping;
+    return this.idMapping.has(messageId);
   }
 
   /**
@@ -106,7 +106,7 @@ export class CloudMessagePersistence {
    * Returns undefined if not persisted.
    */
   async getRemoteId(messageId: string): Promise<string | undefined> {
-    const entry = this.idMapping[messageId];
+    const entry = this.idMapping.get(messageId);
     if (!entry) return undefined;
     return entry;
   }
@@ -152,7 +152,7 @@ export class CloudMessagePersistence {
 
     // Populate ID mapping so isPersisted() recognizes loaded messages
     for (const m of messages) {
-      this.idMapping[m.id] = m.id;
+      this.idMapping.set(m.id, m.id);
     }
     return messages;
   }
@@ -161,6 +161,6 @@ export class CloudMessagePersistence {
    * Reset the ID mapping (call when switching threads).
    */
   reset() {
-    this.idMapping = {};
+    this.idMapping.clear();
   }
 }
