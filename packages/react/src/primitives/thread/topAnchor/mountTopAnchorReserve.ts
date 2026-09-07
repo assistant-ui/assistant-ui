@@ -142,6 +142,7 @@ export const mountTopAnchorReserve = (store: TopAnchorStore) => {
     const clamp = state.targetConfig;
     if (
       state.turnAnchor !== "top" ||
+      !viewport ||
       viewport !== listenedViewport ||
       !anchor ||
       !clamp ||
