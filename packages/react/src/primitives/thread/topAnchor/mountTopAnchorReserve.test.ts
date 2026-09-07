@@ -479,6 +479,65 @@ describe("mountTopAnchorReserve", () => {
     });
   });
 
+  it("does not use the replacement fallback after wheel intent", () => {
+    const { viewport, notifyReplacement } = mountPinnedViewport();
+
+    viewport.dispatchEvent(new WheelEvent("wheel"));
+    viewport.scrollTop = 60;
+    notifyReplacement();
+    viewport.dispatchEvent(new Event("scroll"));
+    vi.runOnlyPendingTimers();
+
+    expect(viewport.scrollTo).toHaveBeenCalledTimes(1);
+  });
+
+  it("does not use the replacement fallback after focus movement", () => {
+    const { viewport, notifyReplacement } = mountPinnedViewport();
+
+    viewport.dispatchEvent(new FocusEvent("focusin"));
+    viewport.scrollTop = 60;
+    notifyReplacement();
+    viewport.dispatchEvent(new Event("scroll"));
+    vi.runOnlyPendingTimers();
+
+    expect(viewport.scrollTo).toHaveBeenCalledTimes(1);
+  });
+
+  it("does not treat caret movement in an editable child as scroll intent", () => {
+    const { viewport, notifyReplacement } = mountPinnedViewport();
+    const textarea = document.createElement("textarea");
+    viewport.append(textarea);
+
+    textarea.dispatchEvent(
+      new KeyboardEvent("keydown", { key: "ArrowUp", bubbles: true }),
+    );
+    viewport.scrollTop = 60;
+    notifyReplacement();
+    viewport.dispatchEvent(new Event("scroll"));
+    vi.runOnlyPendingTimers();
+
+    expect(viewport.scrollTo).toHaveBeenCalledTimes(2);
+  });
+
+  it("does not let a gesture veto an exact range clamp", () => {
+    const { viewport, notifyReplacement, setNaturalScrollHeight } =
+      mountPinnedViewport();
+
+    viewport.dispatchEvent(new WheelEvent("wheel"));
+    setNaturalScrollHeight(400);
+    viewport.scrollTop = 60;
+    notifyReplacement();
+    viewport.dispatchEvent(new Event("scroll"));
+    setNaturalScrollHeight(560);
+    vi.runOnlyPendingTimers();
+
+    expect(viewport.scrollTo).toHaveBeenCalledTimes(2);
+    expect(viewport.scrollTo).toHaveBeenLastCalledWith({
+      top: 220,
+      behavior: "instant",
+    });
+  });
+
   it("does not restore an upward scroll beside an ordinary content mutation", () => {
     const { viewport, notifyCharacterData } = mountPinnedViewport();
 
