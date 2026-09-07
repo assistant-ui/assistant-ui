@@ -233,6 +233,26 @@ describe("CloudMessagePersistence", () => {
     expect(await persistence.getRemoteId("local-1")).toBe("remote-2");
   });
 
+  it("loaded messages are marked as persisted and not re-created", async () => {
+    vi.mocked(cloud.threads.messages.list).mockResolvedValue({
+      messages: [
+        {
+          id: "msg-1",
+          parent_id: null,
+          height: 0,
+          created_at: "2025-01-01T00:00:00Z" as unknown as Date,
+          updated_at: "2025-01-01T00:00:00Z" as unknown as Date,
+          format: "aui/v0",
+          content: { text: "loaded" },
+        },
+      ],
+    });
+
+    await persistence.load("thread-1");
+
+    expect(persistence.isPersisted("msg-1")).toBe(true);
+  });
+
   it("maps prototype-named loaded messages", async () => {
     vi.mocked(cloud.threads.messages.list).mockResolvedValue({
       messages: [
