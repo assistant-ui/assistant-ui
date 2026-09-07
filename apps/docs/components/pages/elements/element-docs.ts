@@ -1919,16 +1919,10 @@ const matches = useMentionMatches(value, people);
           },
           {
             name: "status",
-            type: '"pending" | "active" | "done" | "failed"',
+            type: '"pending" | "active" | "done"',
             required: true,
             description:
-              "Per-item state. More than one item may be active if the agent works in parallel. Only done counts toward the progress numerator.",
-          },
-          {
-            name: "reason",
-            type: "string",
-            description:
-              "Why a failed item did not complete, rendered under its text.",
+              "Per-item state. More than one item may be active if the agent works in parallel.",
           },
         ],
       },
