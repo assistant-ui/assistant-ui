@@ -257,7 +257,7 @@ def get_tool_call_subgraph_state(
                 ).model_dump()
 
                 messages.append(tool_message)
-                last_message = tool_message
+                last_message = messages[-1]
 
             # Check if last message is already a ToolMessage
             if last_message["type"] == "tool":
