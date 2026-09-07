@@ -1,5 +1,8 @@
 import type { ReadonlyJSONObject } from "assistant-stream/utils";
 import type { AssistantCloud } from "./AssistantCloud";
+import type { CloudMessage } from "./AssistantCloudThreadMessages";
+
+const CLOUD_MESSAGE_PAGE_SIZE = 200;
 
 /**
  * Shared persistence logic for cloud message storage.
@@ -111,6 +114,9 @@ export class CloudMessagePersistence {
   /**
    * Load messages from the cloud and populate the ID mapping.
    *
+   * The list endpoint caps a response at 200 rows, so pages are followed by
+   * message ID cursor until a short page and concatenated in server order.
+   *
    * The ID mapping is populated so that `isPersisted()` returns true for
    * loaded messages, preventing re-persistence of already-stored messages.
    *
@@ -120,10 +126,25 @@ export class CloudMessagePersistence {
    */
   async load(threadId: string, format?: string) {
     const cloud = this.getCloud();
-    const { messages } = await cloud.threads.messages.list(
-      threadId,
-      format ? { format } : undefined,
-    );
+    const messages: CloudMessage[] = [];
+    let after: string | undefined;
+
+    while (true) {
+      const page = await cloud.threads.messages.list(threadId, {
+        ...(format ? { format } : undefined),
+        limit: CLOUD_MESSAGE_PAGE_SIZE,
+        ...(after ? { after } : undefined),
+      });
+      const last = page.messages.at(-1);
+      // A cursor the server cannot resolve drops the keyset filter and returns
+      // the first page again, so a page that does not advance ends the walk.
+      if (!last || last.id === after) break;
+
+      messages.push(...page.messages);
+      if (page.messages.length < CLOUD_MESSAGE_PAGE_SIZE) break;
+      after = last.id;
+    }
+
     // Populate ID mapping so isPersisted() recognizes loaded messages
     for (const m of messages) {
       this.idMapping[m.id] = m.id;

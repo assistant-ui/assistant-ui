@@ -261,8 +261,8 @@
   },
   "assistant-cloud": {
     ".": {
-      "min": 15447,
-      "gzip": 5095
+      "min": 16268,
+      "gzip": 5352
     }
   },
   "assistant-stream": {

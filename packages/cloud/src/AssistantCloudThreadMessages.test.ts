@@ -94,4 +94,19 @@ describe("AssistantCloudThreadMessages responses", () => {
       created_at: "leave-this-string-untouched",
     });
   });
+
+  it("forwards the pagination query to the list endpoint", async () => {
+    const { messages, makeRequest } = createCloudThreadMessages();
+    makeRequest.mockResolvedValueOnce({ messages: [] });
+
+    await messages.list("thread/1", {
+      format: "aui/v0",
+      limit: 200,
+      after: "message-200",
+    });
+
+    expect(makeRequest).toHaveBeenCalledWith("/threads/thread%2F1/messages", {
+      query: { format: "aui/v0", limit: 200, after: "message-200" },
+    });
+  });
 });

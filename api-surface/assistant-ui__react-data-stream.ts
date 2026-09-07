@@ -197,6 +197,8 @@ type AssistantCloudThreadMessageFeedbackResponse = {
 
 type AssistantCloudThreadMessageListQuery = {
   format?: string;
+  limit?: number;
+  after?: string;
 };
 
 type AssistantCloudThreadMessageListResponse = {
