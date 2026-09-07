@@ -54,10 +54,9 @@ class RunController:
     def with_parent_id(self, parent_id: str) -> 'RunController':
         """Create a new RunController instance with the specified parent_id.
 
-        The derived controller is a view over this one — every field but the
-        parent id is shared — so it is built without running ``__init__``,
-        which would construct (and immediately discard) a whole StateManager
-        and require a running event loop.
+        Every field but the parent id is shared with this controller, so the
+        derived one skips ``__init__``, which would build and discard a whole
+        StateManager and require a running event loop.
         """
         controller = RunController.__new__(RunController)
         controller._queue = self._queue
