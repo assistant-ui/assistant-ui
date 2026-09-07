@@ -109,9 +109,11 @@ export const changedPackageNames = (repoRoot) => {
   try {
     const base = git("merge-base", "HEAD", "origin/main").trim();
     files = [
-      ...git("diff", "--name-only", "--no-renames", base, "--").split("\n"),
-      ...git("status", "--porcelain", "--no-renames")
-        .split("\n")
+      ...git("diff", "--name-only", "--no-renames", "-z", base, "--").split(
+        "\0",
+      ),
+      ...git("status", "--porcelain", "--no-renames", "-z")
+        .split("\0")
         .map((line) => line.slice(3)),
     ];
   } catch {
@@ -226,7 +228,10 @@ export const checkSizes = async ({
 
       const actual = await measureEntry(entry.file);
       const status = budgetStatus(budget, actual);
-      const kept = update && status !== "ok" && !recordable(pkg.name);
+      // Withholding a `new` entry would leave the check red with no run able
+      // to clear it, so only a move away from a recorded budget is withheld.
+      const drifted = status === "over" || status === "under";
+      const kept = update && drifted && !recordable(pkg.name);
       rows.push({
         package: pkg.name,
         subpath: entry.subpath,
@@ -282,7 +287,7 @@ export const checkSizes = async ({
     console.log(`wrote ${budgetCount(sortedBudgets)} size budget entries`);
     if (keptEntries > 0) {
       console.log(
-        `kept ${keptEntries} drifted entr${keptEntries === 1 ? "y" : "ies"} of packages unchanged vs origin/main (their local dists are not this branch's claim); pass --all to re-record them`,
+        `kept ${keptEntries} drifted entr${keptEntries === 1 ? "y" : "ies"} of packages unchanged vs origin/main (their local dists are not this branch's claim); run pnpm size:update:all to re-record them`,
       );
     }
     return true;
@@ -293,7 +298,7 @@ export const checkSizes = async ({
   );
   if (hasFailure) {
     console.log(
-      "size budgets need updating: run pnpm size:update. A shrink beyond tolerance also needs the update so the file stays truthful.",
+      "size budgets need updating: run pnpm size:update. A shrink beyond tolerance also needs the update so the file stays truthful. That run keeps the entries of packages unchanged vs origin/main, so a move a toolchain change caused, or a re-baseline on main, needs pnpm size:update:all instead.",
     );
   }
   return !hasFailure;
