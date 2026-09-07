@@ -320,6 +320,29 @@ describe("createOAuthProvider persistence", () => {
     });
   });
 
+  it("keeps a retained registration when only the tokens are migrated away", async () => {
+    const clientInformation = {
+      client_id: "client-a",
+      redirect_uris: ["http://localhost/callback"],
+    };
+    const { storage, getState } = createStorage({
+      serverUrl,
+      clientInformation,
+      clientInformationSource: "registered",
+      tokens: { access_token: "unbound", token_type: "bearer" },
+    });
+    const provider = createStaticProvider(storage);
+
+    await provider.discoveryState?.();
+
+    expect(getState()).toEqual({
+      serverUrl,
+      clientInformation,
+      clientInformationSource: "registered",
+    });
+    expect(await provider.tokens()).toBeUndefined();
+  });
+
   it("drops tokens when dynamic registration replaces the client", async () => {
     const { storage, getState } = createStorage({
       serverUrl,

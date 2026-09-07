@@ -79,7 +79,7 @@ type OAuthCredentialState = {
   tokens?: OAuthTokens | undefined;
   tokensClientId?: string | undefined;
   clientInformation?: OAuthClientInformationFull | undefined;
-  clientInformationSource?: "configured" | "registered" | undefined;
+  clientInformationSource?: "registered" | undefined;
 };
 
 const registeredClientId = (
@@ -271,10 +271,9 @@ export function createOAuthProvider(
     return ci;
   };
   let clientInformationOverlay = configuredClientInformation();
-  let dynamicClientId: string | undefined;
 
   const effectiveClientId = (cache: OAuthProviderCache): string | undefined =>
-    config.clientId ?? dynamicClientId ?? registeredClientId(cache);
+    config.clientId ?? registeredClientId(cache);
 
   const loadCache = (): Promise<OAuthProviderCache> => {
     if (endpoint.invalidated) return Promise.resolve({});
@@ -298,7 +297,6 @@ export function createOAuthProvider(
             ) {
               initial.clientInformation = persisted.clientInformation;
               initial.clientInformationSource = "registered";
-              dynamicClientId = registeredClientId(initial);
             } else if (
               persisted?.clientInformation ||
               persisted?.clientInformationSource !== undefined
@@ -325,6 +323,14 @@ export function createOAuthProvider(
             const next: Parameters<typeof storage.saveAuthState>[1] = {
               serverUrl: normalizedServerUrl,
             };
+            if (initial.clientInformation && initial.clientInformationSource) {
+              next.clientInformation = initial.clientInformation;
+              next.clientInformationSource = initial.clientInformationSource;
+            }
+            if (initial.tokens && initial.tokensClientId) {
+              next.tokens = initial.tokens;
+              next.tokensClientId = initial.tokensClientId;
+            }
             if (persisted?.token) next.token = persisted.token;
             if (persisted?.codeVerifier)
               next.codeVerifier = persisted.codeVerifier;
@@ -397,7 +403,6 @@ export function createOAuthProvider(
       const c = await loadCache();
       if (clientInformationOverlay) return clientInformationOverlay;
       if (c.clientInformationSource !== "registered") return undefined;
-      dynamicClientId = c.clientInformation?.client_id;
       return c.clientInformation;
     },
     async saveClientInformation(info) {
@@ -408,8 +413,7 @@ export function createOAuthProvider(
       const c = await loadCache();
       c.clientInformation = info as OAuthClientInformationFull;
       c.clientInformationSource = "registered";
-      dynamicClientId = c.clientInformation.client_id;
-      if (c.tokensClientId !== dynamicClientId) {
+      if (c.tokensClientId !== c.clientInformation.client_id) {
         delete c.tokens;
         delete c.tokensClientId;
       }
@@ -465,7 +469,6 @@ export function createOAuthProvider(
       if (scope === "all" || scope === "client") {
         delete c.clientInformation;
         delete c.clientInformationSource;
-        dynamicClientId = undefined;
         if (!config.clientId) {
           delete c.tokens;
           delete c.tokensClientId;

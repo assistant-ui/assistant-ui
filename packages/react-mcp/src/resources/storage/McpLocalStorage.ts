@@ -226,10 +226,7 @@ export const normalizePersistedAuthState = (
 
   const clientInformation = normalizeClientInformation(value.clientInformation);
   if (clientInformation) state.clientInformation = clientInformation;
-  if (
-    value.clientInformationSource === "configured" ||
-    value.clientInformationSource === "registered"
-  ) {
+  if (value.clientInformationSource === "registered") {
     state.clientInformationSource = value.clientInformationSource;
   }
 

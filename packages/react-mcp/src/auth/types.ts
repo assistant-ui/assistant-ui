@@ -10,7 +10,7 @@ export type MCPPersistedAuthState = {
   tokens?: OAuthTokens;
   tokensClientId?: string;
   clientInformation?: OAuthClientInformationFull;
-  clientInformationSource?: "configured" | "registered";
+  clientInformationSource?: "registered";
   codeVerifier?: string;
   state?: string;
   discoveryState?: OAuthDiscoveryState;
