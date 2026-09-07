@@ -46,12 +46,17 @@ describe("MessagePartPrimitive.Text", () => {
       <TextMessagePartProvider text="Hello">
         <MessagePartPrimitiveText />
         <MessagePartPrimitiveText component="p" />
+        <MessagePartPrimitiveText component="p" render={<mark />} />
       </TextMessagePartProvider>,
     );
 
     expect(screen.getAllByText("Hello").map((text) => text.tagName)).toEqual([
       "SPAN",
       "P",
+      "MARK",
     ]);
+    expect(
+      screen.getByText("Hello", { selector: "mark" }).hasAttribute("render"),
+    ).toBe(false);
   });
 });

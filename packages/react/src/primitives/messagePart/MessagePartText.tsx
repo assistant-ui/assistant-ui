@@ -1,11 +1,14 @@
 "use client";
 
 import { Primitive } from "../../utils/Primitive";
+import { Slot } from "radix-ui";
 import {
+  cloneElement,
   type ComponentRef,
   forwardRef,
   type ComponentPropsWithoutRef,
   type ElementType,
+  isValidElement,
 } from "react";
 import { useMessagePartText } from "./useMessagePartText";
 import { useSmooth, type SmoothOptions } from "../../utils/smooth/useSmooth";
@@ -53,10 +56,18 @@ export const MessagePartPrimitiveText = forwardRef<
   MessagePartPrimitiveText.Props
 >(
   (
-    { smooth = true, component: Component = Primitive.span, ...rest },
+    { smooth = true, component: Component = Primitive.span, render, ...rest },
     forwardedRef,
   ) => {
     const { text, status } = useSmooth(useMessagePartText(), smooth);
+
+    if (render && isValidElement(render)) {
+      return (
+        <Slot.Root data-status={status.type} {...rest} ref={forwardedRef}>
+          {cloneElement(render, undefined, text)}
+        </Slot.Root>
+      );
+    }
 
     return (
       <Component data-status={status.type} {...rest} ref={forwardedRef}>
