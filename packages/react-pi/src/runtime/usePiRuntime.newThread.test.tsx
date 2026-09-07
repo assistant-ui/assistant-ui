@@ -155,4 +155,33 @@ describe("usePiRuntime new-thread first message", () => {
     expect(createThread.mock.calls[0]?.[0]?.initialMessage).toBeUndefined();
     expect(sentTexts()).toEqual(["message A", "message B"]);
   });
+
+  it("drops a pending new-thread send after runtime teardown", async () => {
+    const sessionCreate = Promise.withResolvers<PiThreadSnapshot>();
+    const { client, createThread } = createClient(() => sessionCreate.promise);
+    let runtime!: AssistantRuntime;
+
+    const Harness = () => {
+      runtime = usePiRuntime({ client });
+      return createElement(AssistantRuntimeProvider, { runtime }, null);
+    };
+
+    root = createRoot(document.createElement("div"));
+    await act(async () => {
+      root!.render(createElement(Harness));
+    });
+    await act(async () => {});
+
+    await act(async () => {
+      runtime.thread.append("late message");
+    });
+    await vi.waitFor(() => expect(createThread).toHaveBeenCalledOnce());
+
+    act(() => root!.unmount());
+    root = undefined;
+    sessionCreate.resolve(snapshot);
+    await new Promise((resolve) => setTimeout(resolve, 0));
+
+    expect(mocks.sendMessage).not.toHaveBeenCalled();
+  });
 });

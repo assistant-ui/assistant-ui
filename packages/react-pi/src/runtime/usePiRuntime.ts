@@ -48,15 +48,21 @@ type PiControllerRegistry = {
   /** The client these controllers are bound to (a new client ⇒ a new registry). */
   client: PiClient;
   controllers: Map<string, PiThreadController>;
+  generation: number;
   dispose(): void;
 };
 
 const createRegistry = (client: PiClient): PiControllerRegistry => {
   const controllers = new Map<string, PiThreadController>();
+  let generation = 0;
   return {
     client,
     controllers,
+    get generation() {
+      return generation;
+    },
     dispose() {
+      generation += 1;
       for (const controller of controllers.values()) controller.dispose();
       // Controllers stay cached so a StrictMode cleanup/remount reuses them;
       // a real unmount drops this whole registry.
@@ -405,6 +411,7 @@ const useNewPiThreadStore = (
       extras: EMPTY_RUNTIME_EXTRAS,
       ...(adapters ? { adapters } : {}),
       onNew: async (message) => {
+        const generation = registry.generation;
         const optimistic = toOptimisticThreadMessage(
           message,
           optimisticMessageIndexRef.current++,
@@ -416,6 +423,7 @@ const useNewPiThreadStore = (
           // deliver the message to the live thread.
           const { remoteId, externalId } =
             await aui.threadListItem.initialize();
+          if (registry.generation !== generation) return;
           await getController(registry, externalId ?? remoteId).sendMessage(
             message,
           );
