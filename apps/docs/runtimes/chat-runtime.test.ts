@@ -181,6 +181,24 @@ it("claims a stored anonymous token while switching to account history", async (
   expect(fetchMock).toHaveBeenCalledOnce();
 });
 
+it("shares one claim across the surfaces mounted on the same page", async () => {
+  vi.stubEnv("NEXT_PUBLIC_ASSISTANT_BASE_URL", baseUrl);
+  installLocalStorage(true);
+  mocks.session = signedInSession();
+  const fetchMock = vi.fn(() => Promise.resolve(Response.json({ moved: 2 })));
+  vi.stubGlobal("fetch", fetchMock);
+
+  const { result } = renderHook(() => ({
+    outer: useDocsCloud(),
+    nested: useDocsCloud(),
+  }));
+
+  await waitFor(() => expect(result.current.outer.claims).toBe(1));
+  expect(result.current.nested.claims).toBe(1);
+  expect(fetchMock).toHaveBeenCalledOnce();
+  expect(refreshDemoUsage).toHaveBeenCalledOnce();
+});
+
 it("switches without a claim when no anonymous token is stored", () => {
   vi.stubEnv("NEXT_PUBLIC_ASSISTANT_BASE_URL", baseUrl);
   installLocalStorage(false);
