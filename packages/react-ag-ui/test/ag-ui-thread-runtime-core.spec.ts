@@ -1247,6 +1247,71 @@ describe("AGUIThreadRuntimeCore", () => {
     expect(requestSignals[1]?.aborted).toBe(false);
   });
 
+  it("keeps the thread linear when an append supersedes a run", async () => {
+    const runInputs: any[] = [];
+    const agent = {
+      runAgent: vi.fn(
+        (_input: any, subscriber: AgentSubscriber, { signal }: any) => {
+          runInputs.push(_input);
+          if (runInputs.length > 1) {
+            subscriber.onRunFinalized?.();
+            return Promise.resolve();
+          }
+          subscriber.onTextMessageContentEvent?.({
+            event: { type: "TEXT_MESSAGE_CONTENT", delta: "partial" },
+          } as never);
+          return new Promise<void>((resolve) => {
+            signal.addEventListener("abort", () => resolve(), { once: true });
+          });
+        },
+      ),
+      abortRun: vi.fn(),
+    } as unknown as HttpAgent;
+
+    const core = createCore(agent);
+    void core.append(createAppendMessage());
+    await vi.waitFor(() => expect(runInputs).toHaveLength(1));
+
+    // callers parent the next message on the in-flight assistant
+    const inFlightAssistantId = core.getMessages().at(-1)!.id;
+    await core.append(createAppendMessage({ parentId: inFlightAssistantId }));
+
+    const parents = core
+      .getMessageRepository()
+      .messages.map(({ parentId }) => parentId);
+    expect(new Set(parents).size).toBe(parents.length);
+    expect(runInputs[1].messages.map((m: { role: string }) => m.role)).toEqual([
+      "user",
+      "assistant",
+      "user",
+    ]);
+  });
+
+  it("starts the superseding run when a subclass abortRun throws", async () => {
+    const runInputs: unknown[] = [];
+    const agent = {
+      runAgent: vi.fn((input: unknown, subscriber: AgentSubscriber) => {
+        runInputs.push(input);
+        if (runInputs.length > 1) {
+          subscriber.onRunFinalized?.();
+          return Promise.resolve();
+        }
+        return new Promise<void>(() => {});
+      }),
+      abortRun: vi.fn(() => {
+        throw new Error("subclass abortRun blew up");
+      }),
+    } as unknown as HttpAgent;
+    const logger = { ...noopLogger, error: vi.fn() };
+
+    const core = createCore(agent, { logger });
+    void core.append(createAppendMessage());
+    await core.append(createAppendMessage());
+
+    expect(runInputs).toHaveLength(2);
+    expect(logger.error).toHaveBeenCalledTimes(1);
+  });
+
   it("keeps a run started by onCancel when an append supersedes", async () => {
     const resolveRuns: Array<() => void> = [];
     let core!: AgUiThreadRuntimeCore;

@@ -295,12 +295,17 @@ export class AgUiThreadRuntimeCore {
 
   async append(message: AppendMessage): Promise<void> {
     const startRun = message.startRun ?? message.role === "user";
+    let ownsThread = true;
     if (startRun) {
       this.assertNoPendingInterrupts();
       this.maybeAutoCancelPendingToolCalls();
+      // Before the message is linked: callers parent it on the in-flight
+      // assistant, and settling that assistant reassigns its optimistic id,
+      // which would evict it and reparent this message onto a branch.
+      ownsThread = this.supersedeActiveRun();
     }
     const threadMessageId = this.appendEntry(message);
-    if (!startRun) return;
+    if (!startRun || !ownsThread) return;
     await this.startRun(threadMessageId, message.runConfig);
   }
 
@@ -361,6 +366,22 @@ export class AgUiThreadRuntimeCore {
     } finally {
       controller.abort();
     }
+  }
+
+  // Starting a run supersedes the active one, and reports whether the caller
+  // still owns the thread afterwards: the local abort runs onCancel
+  // synchronously, so a callback that starts its own run keeps it. abortRun is a
+  // subclass's code, and a throw there must not abandon the run being started,
+  // unlike cancel(), where the failed operation is the caller's own. Calling
+  // this twice for one run is harmless, because the second call finds no active
+  // run to supersede.
+  private supersedeActiveRun(): boolean {
+    try {
+      this.abortActiveRun();
+    } catch (error) {
+      this.logger.error?.("[agui] agent abortRun failed", error);
+    }
+    return this.abortController === null;
   }
 
   async resume(config: ResumeRunConfig): Promise<void> {
@@ -995,11 +1016,9 @@ export class AgUiThreadRuntimeCore {
     resumeStream?: ResumeStream,
   ): Promise<void> {
     // A default AG-UI run supersedes the active run; the hook's opt-in message
-    // queue serializes sends instead. Cancelling before this run reads the
-    // thread lets it build on the superseded run's settled messages, and a
-    // replacement installed by a synchronous onCancel keeps the thread.
-    this.abortActiveRun();
-    if (this.abortController !== null) return;
+    // queue serializes sends instead. append supersedes earlier, before it links
+    // its message; this covers the entry points that start a run without one.
+    if (!this.supersedeActiveRun()) return;
 
     const normalizedRunConfig = runConfig ?? {};
     this.lastRunConfig = normalizedRunConfig;
