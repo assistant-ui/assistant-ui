@@ -25,8 +25,8 @@
       "gzip": 76397
     },
     "./store": {
-      "min": 93075,
-      "gzip": 30821
+      "min": 95034,
+      "gzip": 31499
     },
     "./store/internal": {
       "min": 21420,
