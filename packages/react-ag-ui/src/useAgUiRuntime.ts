@@ -62,6 +62,7 @@ export function useAgUiRuntime(
   const [_version, setVersion] = useState(0);
   const notifyUpdate = useCallback(() => setVersion((v) => v + 1), []);
   const coreRef = useRef<AgUiThreadRuntimeCore | null>(null);
+  const threadSwitchGenerationRef = useRef(0);
   const runtimeAdapters = useRuntimeAdapters();
 
   const historyAdapter = options.adapters?.history ?? runtimeAdapters?.history;
@@ -182,17 +183,21 @@ export function useAgUiRuntime(
       ...rest,
       onSwitchToNewThread: onSwitchToNewThread
         ? async () => {
+            const generation = ++threadSwitchGenerationRef.current;
             await onSwitchToNewThread();
+            if (generation !== threadSwitchGenerationRef.current) return;
             core.applyExternalMessages([]);
             core.resetState();
           }
         : undefined,
       onSwitchToThread: onSwitchToThread
         ? async (threadId: string) => {
+            const generation = ++threadSwitchGenerationRef.current;
             // Clear before the thread id flips, or the old messages leak
             // into the new thread as a sibling branch.
             core.applyExternalMessages([]);
             const result = await onSwitchToThread(threadId);
+            if (generation !== threadSwitchGenerationRef.current) return;
             core.applyExternalMessages(result.messages);
             if (result.state !== undefined) {
               core.loadExternalState(result.state);
