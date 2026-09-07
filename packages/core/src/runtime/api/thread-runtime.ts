@@ -77,6 +77,10 @@ const toStartRunConfig = (message: CreateStartRunConfig): StartRunConfig => {
 export type CreateAppendMessage =
   | string
   | {
+      /**
+       * An omitted value or `undefined` selects the current tail.
+       * `null` selects a root branch.
+       */
       parentId?: string | null | undefined;
       sourceId?: string | null | undefined;
       role?: AppendMessage["role"] | undefined;

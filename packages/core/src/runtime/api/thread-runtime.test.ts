@@ -1,5 +1,6 @@
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 import { LocalRuntimeCore } from "../../runtimes/local/local-runtime-core";
+import { ExternalStoreRuntimeCore } from "../../runtimes/external-store/external-store-runtime-core";
 import { AssistantRuntimeImpl } from "./assistant-runtime";
 
 describe("ThreadRuntime.append", () => {
@@ -39,4 +40,39 @@ describe("ThreadRuntime.append", () => {
       expect(thread.export().messages.at(-1)?.parentId).toBe(expectedParent);
     },
   );
+});
+
+describe("ThreadRuntime.append with an external store", () => {
+  it("routes an explicit root parent to onEdit instead of onNew", async () => {
+    const onNew = vi.fn(async () => {});
+    const onEdit = vi.fn(async () => {});
+    const core = new ExternalStoreRuntimeCore({
+      messages: [
+        {
+          id: "old",
+          role: "user",
+          content: [{ type: "text", text: "old" }],
+          createdAt: new Date(0),
+          attachments: [],
+          metadata: { custom: {} },
+        },
+      ],
+      onNew,
+      onEdit,
+    });
+    const thread = new AssistantRuntimeImpl(core).thread;
+
+    thread.append({
+      parentId: null,
+      content: [{ type: "text", text: "new root" }],
+      startRun: false,
+    });
+
+    await vi.waitFor(() =>
+      expect(onEdit).toHaveBeenCalledExactlyOnceWith(
+        expect.objectContaining({ parentId: null }),
+      ),
+    );
+    expect(onNew).not.toHaveBeenCalled();
+  });
 });
