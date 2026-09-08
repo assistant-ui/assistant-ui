@@ -184,6 +184,9 @@ export class MessageRepository {
 
       if (findHead(child) === this.head || newParentOrRoot.next === null) {
         newParentOrRoot.next = child;
+        if (this.head === newParentOrRoot) {
+          this.head = findHead(child);
+        }
       }
 
       child.prev = newParent;

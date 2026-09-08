@@ -983,5 +983,22 @@ describe("MessageRepository", () => {
 
       expect(repository.headId).toBe("C");
     });
+
+    it("should advance the head when re-parenting onto the current head", () => {
+      repository.addOrUpdateMessage(null, createTestMessage({ id: "a" }));
+      repository.addOrUpdateMessage("a", createTestMessage({ id: "h" }));
+      repository.addOrUpdateMessage(null, createTestMessage({ id: "b" }));
+      repository.addOrUpdateMessage("b", createTestMessage({ id: "c" }));
+
+      repository.addOrUpdateMessage("h", createTestMessage({ id: "c" }));
+
+      expect(repository.getMessages().map((m) => m.id)).toEqual([
+        "a",
+        "h",
+        "c",
+      ]);
+      expect(repository.headId).toBe("c");
+      expect(repository.getMessage("c").parentId).toBe("h");
+    });
   });
 });
