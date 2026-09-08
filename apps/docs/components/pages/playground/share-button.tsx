@@ -25,7 +25,9 @@ export function ShareButton({ className }: ShareButtonProps) {
           url,
         });
         return;
-      } catch {}
+      } catch {
+        // A cancelled or unsupported share falls through to the clipboard copy.
+      }
     }
 
     if (await copyTextToClipboard(url)) {
