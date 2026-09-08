@@ -347,15 +347,15 @@ describe("POST /api/mcp", () => {
     expect(pages[0]?.headings).toEqual(["Bindings"]);
   });
 
-  it("still matches search_docs on page metadata", async () => {
+  it("falls back to the opening paragraph when only metadata matched", async () => {
     const response = await requestMcp("tools/call", {
       name: "search_docs",
       arguments: { query: "thread" },
     });
+    const pages = searchedPages(getToolCallResult(response));
 
-    expect(
-      searchedPages(getToolCallResult(response)).map((page) => page.url),
-    ).toEqual(["/docs/ui/thread"]);
+    expect(pages.map((page) => page.url)).toEqual(["/docs/ui/thread"]);
+    expect(pages[0]?.excerpt).toBe("An unrelated opening paragraph.");
   });
 
   it("returns the catalog-backed template list", async () => {

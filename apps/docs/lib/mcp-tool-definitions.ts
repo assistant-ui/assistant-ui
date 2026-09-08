@@ -39,7 +39,7 @@ export const docsToolDefinitions = [
   {
     name: "search_docs",
     description:
-      "Search assistant-ui docs, examples, design components, elements, and Tap docs. Ranks each page over its title, headings, URL, description, and body text, and returns the paragraphs that matched as an excerpt.",
+      "Search assistant-ui docs, examples, design components, elements, and Tap docs. Ranks each page over its title, headings, URL, description, and body text, and excerpts the paragraphs that matched, falling back to the page's opening paragraph when only its metadata matched.",
     inputSchema: searchDocsInputSchema,
   },
   {
