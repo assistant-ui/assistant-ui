@@ -516,6 +516,24 @@ describe("useThreads", () => {
     expect(result.current.threads[0]?.title).toBe("Explicit");
   });
 
+  it("keeps a failed generation observable on error", async () => {
+    const cloud = createCloud("cloud-1");
+    mocks.generateThreadTitle.mockRejectedValue(new Error("generation failed"));
+    const { result } = renderHook(() =>
+      useThreads({ cloud: cloud as never, enabled: false }),
+    );
+
+    let generated: string | null = "unset";
+    await act(async () => {
+      generated = await result.current.generateTitle("thread-1");
+    });
+
+    expect(generated).toBeNull();
+    await waitFor(() => {
+      expect(result.current.error?.message).toBe("generation failed");
+    });
+  });
+
   it("still reports its generated title when the repair write fails", async () => {
     const cloud = createCloud("cloud-1");
     let writes = 0;

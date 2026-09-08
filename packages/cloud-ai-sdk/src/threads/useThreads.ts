@@ -113,6 +113,10 @@ function takeManualTitle(
   return title;
 }
 
+function toActionError(err: unknown): Error {
+  return err instanceof Error ? err : new Error(String(err));
+}
+
 function pruneThreadTitleState(
   states: Map<string, ThreadTitleState>,
   threadId: string,
@@ -233,9 +237,7 @@ export function useThreads(options: UseThreadsOptions): UseThreadsResult {
         commit(() => setError(null));
         return result;
       } catch (err) {
-        commit(() =>
-          setError(err instanceof Error ? err : new Error(String(err))),
-        );
+        commit(() => setError(toActionError(err)));
         return fallback;
       }
     },
@@ -644,8 +646,18 @@ export function useThreads(options: UseThreadsOptions): UseThreadsResult {
                 if (!isCurrentGeneration(state, generation)) {
                   // The caller reads a null result as a failed generation and
                   // retries, so a superseded run reports the title that won
-                  // rather than the title it did not generate.
-                  title = (await state.latestExplicit?.persisted) ?? null;
+                  // rather than the title it did not generate. The generation
+                  // it defers to may have been outranked while it waited, and
+                  // an outranked one persists nothing.
+                  let winner = state.latestExplicit;
+                  while (winner !== null) {
+                    const winnerTitle = await winner.persisted;
+                    if (state.latestExplicit === winner) {
+                      title = winnerTitle ?? null;
+                      return;
+                    }
+                    winner = state.latestExplicit;
+                  }
                   return;
                 }
                 generated = true;
@@ -674,9 +686,16 @@ export function useThreads(options: UseThreadsOptions): UseThreadsResult {
           null,
           isCurrentCloud,
         );
-        // The caller reads null as a failed generation, so a repair that fails
-        // surfaces through setError without rewriting the run's own result.
-        await withAction(repairLostRace, undefined, isCurrentCloud);
+        // The repair reports a failure but never clears one: its result is
+        // bookkeeping on top of the run, and the caller reads a null result
+        // from the run itself as a failed generation.
+        try {
+          await repairLostRace();
+        } catch (err) {
+          if (mountedRef.current && isCurrentCloud()) {
+            setError(toActionError(err));
+          }
+        }
         return generatedTitle;
       } finally {
         generation.settlePersisted(persistedTitle);
