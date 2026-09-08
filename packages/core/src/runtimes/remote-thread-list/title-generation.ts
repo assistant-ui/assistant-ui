@@ -228,6 +228,16 @@ export async function runThreadTitleGeneration({
   const repairLostRace = async () => {
     if (persistedTitle === undefined) return;
     while (true) {
+      const claim = generation.claim;
+      if (claim !== null && claim.order > persistedOrder) {
+        const renamed = await settleClaim(claim);
+        if (renamed === true) {
+          persistedTitle = claim.title;
+          persistedOrder = claim.order;
+          await rename(claim.title);
+        }
+        continue;
+      }
       const winner = state.latestExplicit;
       if (winner === null || winner.order <= persistedOrder) return;
       const title = await winner.persisted;

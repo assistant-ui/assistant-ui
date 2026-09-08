@@ -378,6 +378,58 @@ describe("runThreadTitleGeneration", () => {
     expect(server).toBe("Manual");
   });
 
+  it("keeps a rename that lands while the superseded run reasserts", async () => {
+    const states = new Map<string, ThreadTitleState>();
+    const streamOpen = deferred<void>();
+    const renameOpen = deferred<void>();
+    let server: string | undefined;
+    let blocked = false;
+    const rename = async (next: string) => {
+      if (!blocked) {
+        blocked = true;
+        await renameOpen.promise;
+      }
+      server = next;
+    };
+
+    const automatic = runThreadTitleGeneration({
+      states,
+      threadId: "t1",
+      automatic: true,
+      generate: async (onTitle) => {
+        await streamOpen.promise;
+        await onTitle("Automatic");
+        server = "Automatic";
+      },
+      rename,
+      applyTitle: noop,
+    });
+
+    await runThreadTitleGeneration({
+      states,
+      threadId: "t1",
+      automatic: false,
+      generate: async (onTitle) => {
+        await onTitle("Explicit");
+        server = "Explicit";
+      },
+      rename,
+      applyTitle: noop,
+    });
+
+    streamOpen.resolve();
+    await flushMicrotasks();
+
+    const claim = startThreadTitleRename(states, "t1", "Manual");
+    server = "Manual";
+    finishThreadTitleRename(states, "t1", claim, true);
+
+    renameOpen.resolve();
+    await automatic;
+
+    expect(server).toBe("Manual");
+  });
+
   it("does not reassert when the superseded run persisted nothing", async () => {
     const states = new Map<string, ThreadTitleState>();
     const streamOpen = deferred<void>();
