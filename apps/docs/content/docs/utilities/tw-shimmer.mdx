@@ -153,9 +153,11 @@ Control the sweep angle. The default is `15deg`.
 ```
 
 <Callout type="warn">
-  Avoid `90deg` and `270deg`, where the angle calculation becomes undefined.
-  Prefer angles from `-75deg` to `75deg`; use an arbitrary property such as
-  `[--shimmer-angle:-15deg]` for negative values.
+  Avoid `90deg` and `270deg`, where `tan()` diverges and the gradient width
+  becomes unbounded. Angles from `0deg` to `75deg` are safe. Negative angles
+  are possible with an arbitrary property such as `[--shimmer-angle:-15deg]`,
+  but angles below roughly `-30deg` can make the text shimmer's gradient width
+  negative and stop the effect.
 </Callout>
 
 ### Position Hints (Angled Shimmer)
