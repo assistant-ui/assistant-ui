@@ -29,6 +29,7 @@ describe("RemoteThreadListThreadListRuntimeCore title generation", () => {
 
     await core.generateTitle("thread-1");
 
+    expect(adapter.generateTitle).toHaveBeenCalledOnce();
     expect(core.getItemById("thread-1")?.title).toBe("Existing title");
   });
 
