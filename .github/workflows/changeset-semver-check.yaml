@@ -16,8 +16,6 @@ concurrency:
 jobs:
   analyze:
     name: Semver Check
-    # actions/checkout diverts a fork PR to the base branch, so the runner never holds the PR's tree or its head commit.
-    if: github.event.pull_request.head.repo.full_name == github.repository
     runs-on: blacksmith-4vcpu-ubuntu-2404
     timeout-minutes: 2
     steps:

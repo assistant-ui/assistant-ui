@@ -232,7 +232,15 @@ export function runCheck(root = repoRoot, changedFiles = null) {
 }
 
 function annotate(level, message) {
-  console.log(process.env.GITHUB_ACTIONS ? `::${level}::${message}` : message);
+  if (!process.env.GITHUB_ACTIONS) {
+    console.log(message);
+    return;
+  }
+  const data = message
+    .replaceAll("%", "%25")
+    .replaceAll("\r", "%0D")
+    .replaceAll("\n", "%0A");
+  console.log(`::${level}::${data}`);
 }
 
 function writeSummary(summary) {

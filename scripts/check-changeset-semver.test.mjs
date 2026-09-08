@@ -623,6 +623,26 @@ test("a range git cannot resolve fails closed instead of grading the tree", () =
   }
 });
 
+test("the annotation escapes what a workflow command cannot carry raw", () => {
+  const root = createWorkspace([{ name: "@fixture/dep", version: "0.12.15" }], {
+    "shy-pots-shave.md": '"@fixture/dep": minor',
+  });
+  try {
+    const result = runExecutable(root, {
+      GITHUB_ACTIONS: "true",
+      BASE_SHA: "100%",
+      HEAD_SHA: "1111111111111111111111111111111111111111",
+    });
+
+    assert.equal(result.status, 1);
+    assert.match(result.stdout, /^::error::/m);
+    assert.match(result.stdout, /100%25/);
+    assert.doesNotMatch(result.stdout, /100%[^2]/);
+  } finally {
+    rmSync(root, { recursive: true, force: true });
+  }
+});
+
 test("a changeset with no releasable bump ends the run before any summary", () => {
   const root = createWorkspace([{ name: "@fixture/dep", version: "1.0.0" }], {
     "shy-pots-shave.md": '"@fixture/gone": patch',
