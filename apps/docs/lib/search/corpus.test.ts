@@ -78,6 +78,9 @@ const mocks = vi.hoisted(() => {
   };
 });
 
+// @/lib/source imports the build-generated "fumadocs-mdx:collections/server"
+// module, which does not resolve in the test environment, so this mock fully
+// replaces the module instead of spreading importOriginal().
 vi.mock("@/lib/source", () => ({
   source: { getPages: () => mocks.docs },
   design: { getPages: () => mocks.design },
