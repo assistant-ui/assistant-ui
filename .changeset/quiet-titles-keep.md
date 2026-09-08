@@ -2,4 +2,4 @@
 "@assistant-ui/core": patch
 ---
 
-fix: preserve existing thread titles when generation returns no title
+fix: keep the existing thread title when title generation produces no text, and stop a streaming generation from briefly blanking it

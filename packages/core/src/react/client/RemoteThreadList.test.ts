@@ -452,6 +452,33 @@ describe("RemoteThreadList", () => {
     handle.destroy();
   });
 
+  it("preserves an existing title when generation returns no title", async () => {
+    const adapter = makeAdapter({
+      list: vi.fn(async () => ({
+        threads: [{ status: "regular" as const, remoteId: "t1", title: "One" }],
+      })),
+    });
+    const { handle } = mountList(adapter);
+    const aui = handle.getClient();
+    await aui.threads.getLoadThreadsPromise();
+    await vi.waitFor(() => {
+      expect(aui.threads.getState().threadIds).toEqual(["t1"]);
+    });
+    flushTapSync(() => aui.threads.switchToThread("t1"));
+    await vi.waitFor(() => {
+      expect(aui.threads.getState().mainThreadId).toBe("t1");
+    });
+
+    await aui.threads.item({ id: "t1" }).generateTitle();
+    // The list item re-renders a tick after the generation resolves, so an
+    // erasing title write lands only once that render has run.
+    await new Promise((resolve) => setTimeout(resolve, 0));
+
+    expect(adapter.generateTitle).toHaveBeenCalledOnce();
+    expect(aui.threads.item({ id: "t1" }).getState().title).toBe("One");
+    handle.destroy();
+  });
+
   it("keeps a manual rename made during automatic title generation", async () => {
     const generatedTitle = deferred<ReadableStream>();
     const adapter = makeAdapter({
