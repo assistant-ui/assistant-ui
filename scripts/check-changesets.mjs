@@ -85,15 +85,10 @@ export function readWorkspacePackages(root) {
         manifest: manifest.replaceAll("\\", "/"),
         isPrivate: pkg.private === true,
         hasVersion: Boolean(pkg.version),
-        releaseRoots: (Array.isArray(pkg.files) ? pkg.files : ["src"])
-          .filter(
-            (entry) =>
-              typeof entry === "string" &&
-              !entry.startsWith("!") &&
-              !entry.endsWith(".md"),
-          )
-          .map((entry) => entry.replace(/^\.\//, "").split("/")[0])
-          .filter((entry) => entry && entry !== "dist"),
+        releaseFiles: (Array.isArray(pkg.files) ? pkg.files : ["src"])
+          .filter((entry) => typeof entry === "string")
+          .map((entry) => entry.replace(/^(!?)\.\//, "$1"))
+          .filter(Boolean),
       });
     }
   }
@@ -198,13 +193,6 @@ export function findUnreleasablePackages(packages, bumps, rules) {
   return problems;
 }
 
-export function isReleaseRelevantSourceFile(file) {
-  const match = file.match(/^packages\/[^/]+\/src\/(.+)$/);
-  if (!match) return false;
-
-  return isReleaseRelevantFile(match[1]);
-}
-
 function isReleaseRelevantFile(relative) {
   const segments = relative.split("/");
   if (
@@ -226,13 +214,38 @@ function isReleaseRelevantFile(relative) {
   return !/\.(?:bench|generated|spec|stories|test)\.[^/]+$/.test(relative);
 }
 
-function isReleaseRelevantPackageFile(file, pkg) {
+function matchesReleasePattern(relative, rawPattern) {
+  const pattern = rawPattern.replace(/^!/, "").replace(/\/$/, "");
+  if (pattern === ".") return true;
+  if (!/[*?{}[\]]/.test(pattern)) {
+    return relative === pattern || relative.startsWith(`${pattern}/`);
+  }
+  return path.matchesGlob(relative, pattern);
+}
+
+export function isReleaseRelevantPackageFile(file, pkg) {
   const packageRoot = path.posix.dirname(pkg.manifest);
   if (!file.startsWith(`${packageRoot}/`)) return false;
 
   const relative = file.slice(packageRoot.length + 1);
-  const root = relative.split("/")[0];
-  return pkg.releaseRoots.includes(root) && isReleaseRelevantFile(relative);
+  if (
+    relative === "package.json" ||
+    relative === "dist" ||
+    relative.startsWith("dist/") ||
+    /\.md$/i.test(relative)
+  ) {
+    return false;
+  }
+
+  const included = pkg.releaseFiles.some(
+    (pattern) =>
+      !pattern.startsWith("!") && matchesReleasePattern(relative, pattern),
+  );
+  const excluded = pkg.releaseFiles.some(
+    (pattern) =>
+      pattern.startsWith("!") && matchesReleasePattern(relative, pattern),
+  );
+  return included && !excluded && isReleaseRelevantFile(relative);
 }
 
 function isOperationalComment(comment) {

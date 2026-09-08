@@ -13,7 +13,7 @@ import test from "node:test";
 import {
   findMissingPackageChangesets,
   findUnreleasablePackages,
-  isReleaseRelevantSourceFile,
+  isReleaseRelevantPackageFile,
   parseBumpLine,
   parseWorkspaceGlobs,
   readSkipRules,
@@ -162,7 +162,11 @@ test("findUnreleasablePackages flags private and unknown names", () => {
   assert.match(problems[1].reason, /is not a workspace package/);
 });
 
-test("isReleaseRelevantSourceFile excludes non-release source files", () => {
+test("isReleaseRelevantPackageFile excludes non-release package files", () => {
+  const pkg = {
+    manifest: "packages/core/package.json",
+    releaseFiles: ["src", "!src/internal", "plugin"],
+  };
   for (const file of [
     "packages/core/src/runtime.test.ts",
     "packages/core/src/runtime.spec.tsx",
@@ -173,13 +177,21 @@ test("isReleaseRelevantSourceFile excludes non-release source files", () => {
     "packages/core/src/fixtures/messages.ts",
     "packages/core/src/generated/protocol.ts",
     "packages/core/src/protocol.generated.ts",
+    "packages/core/src/internal/private.ts",
+    "packages/core/src/guide.md",
+    "packages/core/dist/index.js",
+    "packages/core/package.json",
     "apps/docs/src/page.tsx",
   ]) {
-    assert.equal(isReleaseRelevantSourceFile(file), false, file);
+    assert.equal(isReleaseRelevantPackageFile(file, pkg), false, file);
   }
 
   assert.equal(
-    isReleaseRelevantSourceFile("packages/core/src/runtime.ts"),
+    isReleaseRelevantPackageFile("packages/core/src/runtime.ts", pkg),
+    true,
+  );
+  assert.equal(
+    isReleaseRelevantPackageFile("packages/core/plugin/index.js", pkg),
     true,
   );
 });
@@ -644,16 +656,30 @@ test("published code outside src requires a changeset", () => {
     const pkg = JSON.parse(readFileSync(manifest, "utf8"));
     writeFileSync(
       manifest,
-      JSON.stringify({ ...pkg, files: ["dist", "src", "plugin", "README.md"] }),
+      JSON.stringify({
+        ...pkg,
+        files: ["dist", "src", "!src/internal", "plugin", "README.md"],
+      }),
     );
     const pluginDir = path.join(root, "packages", "published", "plugin");
+    const internalDir = path.join(
+      root,
+      "packages",
+      "published",
+      "src",
+      "internal",
+    );
     mkdirSync(pluginDir);
+    mkdirSync(internalDir, { recursive: true });
     const plugin = path.join(pluginDir, "entry.js");
+    const internal = path.join(internalDir, "private.ts");
     writeFileSync(plugin, "export const value = 1;\n");
+    writeFileSync(internal, "export const privateValue = 1;\n");
     git(root, "init", "-q", "-b", "main");
     const base = commitAll(root, "base");
 
     writeFileSync(plugin, "export const value = 2;\n");
+    writeFileSync(internal, "export const privateValue = 2;\n");
     const head = commitAll(root, "change published plugin");
 
     assert.deepEqual(runChangedPackageCheck(root, base, head), {
