@@ -26,6 +26,7 @@ import {
   getThreadData,
   normalizeCursor,
   reconcileInitializedThread,
+  promoteNewThreadReducer,
   updateStatusReducer,
   type RemoteThreadData,
   type RemoteThreadState,
@@ -908,29 +909,14 @@ const useRemoteThreadList = (
         requireAdapterGeneration(adapterGeneration);
         return result;
       }
+      requireAdapterGeneration(adapterGeneration);
+      const initializeTask = currentAdapter.initialize(threadId);
       let removedMappingId: string | undefined;
       let replacementMainThreadId: string | undefined;
       const result = await store.optimisticUpdate({
-        execute: () => {
-          requireAdapterGeneration(adapterGeneration);
-          return currentAdapter.initialize(threadId);
-        },
-        optimistic: (state) => updateStatusReducer(state, threadId, "regular"),
-        loading: (state, task) => {
-          const mappingId = createThreadMappingId(threadId);
-          return {
-            ...state,
-            threadData: {
-              ...state.threadData,
-              [mappingId]: {
-                ...(Object.hasOwn(state.threadData, mappingId)
-                  ? state.threadData[mappingId]
-                  : undefined),
-                initializeTask: task,
-              },
-            },
-          };
-        },
+        execute: () => initializeTask,
+        optimistic: (state) =>
+          promoteNewThreadReducer(state, threadId, initializeTask),
         then: (state, { remoteId, externalId }) => {
           if (adapterGeneration !== session.adapterGeneration) return state;
           // Background mode still owns the initializing body. Single-body mode

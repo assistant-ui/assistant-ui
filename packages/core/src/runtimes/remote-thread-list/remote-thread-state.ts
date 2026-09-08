@@ -378,10 +378,11 @@ export const reconcileInitializedThread = (
   };
 };
 
-export const updateStatusReducer = (
+const transitionReducer = (
   state: RemoteThreadState,
   threadIdOrRemoteId: string,
   newStatus: "regular" | "archived" | "deleted",
+  initializeTask: Promise<RemoteThreadInitializeResponse> | undefined,
 ) => {
   const data = getThreadData(state, threadIdOrRemoteId);
   if (!data) return state;
@@ -441,14 +442,40 @@ export const updateStatusReducer = (
   }
 
   if (newStatus !== "deleted") {
-    newState.threadData = {
-      ...newState.threadData,
-      [id]: {
-        ...data,
-        status: newStatus,
-      },
-    };
+    if (data.status === "new") {
+      // The new variant holds no initialization promise, so the destination
+      // union member cannot be built unless the caller supplies one.
+      if (initializeTask === undefined) return state;
+      newState.threadData = {
+        ...newState.threadData,
+        [id]: {
+          ...data,
+          initializeTask,
+          status: newStatus,
+        },
+      };
+    } else {
+      newState.threadData = {
+        ...newState.threadData,
+        [id]: {
+          ...data,
+          status: newStatus,
+        },
+      };
+    }
   }
 
   return newState;
 };
+
+export const updateStatusReducer = (
+  state: RemoteThreadState,
+  threadIdOrRemoteId: string,
+  newStatus: "regular" | "archived" | "deleted",
+) => transitionReducer(state, threadIdOrRemoteId, newStatus, undefined);
+
+export const promoteNewThreadReducer = (
+  state: RemoteThreadState,
+  threadIdOrRemoteId: string,
+  initializeTask: Promise<RemoteThreadInitializeResponse>,
+) => transitionReducer(state, threadIdOrRemoteId, "regular", initializeTask);
