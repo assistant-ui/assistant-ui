@@ -47,6 +47,13 @@ export const PreOverride = memo(function PreOverride({
   node,
   ...rest
 }: PreOverrideProps) {
+  const hasCodeChild =
+    node?.children.some(
+      (child) => child.type === "element" && child.tagName === "code",
+    ) ?? true;
+
+  if (!hasCodeChild) return <pre {...rest}>{children}</pre>;
+
   const childWithBlock = isValidElement(children)
     ? cloneElement(children as ReactElement<{ "data-block"?: string }>, {
         "data-block": "true",

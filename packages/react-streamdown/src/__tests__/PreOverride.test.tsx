@@ -2,6 +2,7 @@ import { describe, it, expect, afterEach } from "vitest";
 import { render, renderHook, screen, cleanup } from "@testing-library/react";
 import type { ReactNode } from "react";
 import type { Element } from "hast";
+import { Streamdown } from "streamdown";
 import {
   PreContext,
   PreOverride,
@@ -153,18 +154,17 @@ describe("PreOverride component", () => {
     expect(codeElement.getAttribute("data-block")).toBe("true");
   });
 
-  it("handles non-element children without data-block", () => {
-    render(<PreOverride>plain text</PreOverride>);
-    expect(screen.getByText("plain text")).toBeDefined();
-  });
-
-  it("is memoized and does not re-render unnecessarily", () => {
-    const { rerender } = render(
-      <PreOverride className="test">content</PreOverride>,
+  it("preserves raw preformatted text without a code child", () => {
+    const { container } = render(
+      <Streamdown mode="static" components={{ pre: PreOverride }}>
+        {'<pre title="Plain text">  first\n  second</pre>'}
+      </Streamdown>,
     );
 
-    // Same props should not cause issues
-    rerender(<PreOverride className="test">content</PreOverride>);
-    expect(screen.getByText("content")).toBeDefined();
+    const pre = container.querySelector("pre");
+    expect(pre?.textContent).toBe("  first\n  second");
+    expect(pre?.getAttribute("title")).toBe("Plain text");
+    expect(pre?.hasAttribute("node")).toBe(false);
+    expect(pre?.querySelector("code")).toBeNull();
   });
 });
