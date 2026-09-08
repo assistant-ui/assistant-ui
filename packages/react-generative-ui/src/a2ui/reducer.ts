@@ -11,6 +11,9 @@ const OPERATION_KEYS = new Set([
   "updateDataModel",
   "deleteSurface",
 ]);
+// Mirrors the A2UI renderer limit to prevent unbounded sparse arrays.
+const MAX_AUTO_VIVIFY_ARRAY_INDEX = 10_000;
+const INVALID_POINTER = Symbol("invalidPointer");
 
 const isRecord = (value: unknown): value is Record<string, unknown> =>
   typeof value === "object" && value !== null && !Array.isArray(value);
@@ -115,11 +118,18 @@ const setAtPointer = (
 
     if (Array.isArray(current)) {
       if (segment !== "-" && !isArrayIndex(segment)) return current;
+      const targetIndex = segment === "-" ? current.length : Number(segment);
+      if (
+        segment !== "-" &&
+        targetIndex >= current.length &&
+        targetIndex > MAX_AUTO_VIVIFY_ARRAY_INDEX
+      ) {
+        return INVALID_POINTER;
+      }
+      const next = isLast ? value : update(current[targetIndex], index + 1);
+      if (next === INVALID_POINTER) return INVALID_POINTER;
       const clone = current.slice();
-      const targetIndex = segment === "-" ? clone.length : Number(segment);
-      clone[targetIndex] = isLast
-        ? value
-        : update(clone[targetIndex], index + 1);
+      clone[targetIndex] = next;
       return clone;
     }
 
@@ -127,7 +137,7 @@ const setAtPointer = (
       ? { ...current }
       : {};
     const child = clone[segment];
-    clone[segment] = isLast
+    const next = isLast
       ? value
       : update(
           child ??
@@ -137,10 +147,15 @@ const setAtPointer = (
               : {}),
           index + 1,
         );
+    if (next === INVALID_POINTER) return INVALID_POINTER;
+    clone[segment] = next;
     return clone;
   };
 
-  return { ok: true, value: update(model, 0) };
+  const result = update(model, 0);
+  return result === INVALID_POINTER
+    ? { ok: false, value: model }
+    : { ok: true, value: result };
 };
 
 const dataModelValue = (
