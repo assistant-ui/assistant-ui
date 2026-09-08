@@ -1,8 +1,8 @@
-import { describe, it, expect } from "vitest";
-import { cjk } from "@streamdown/cjk";
-import { code } from "@streamdown/code";
-import { math } from "@streamdown/math";
-import { mermaid } from "@streamdown/mermaid";
+import { describe, it, expect, expectTypeOf } from "vitest";
+import type { cjk } from "@streamdown/cjk";
+import type { code } from "@streamdown/code";
+import type { math } from "@streamdown/math";
+import type { mermaid } from "@streamdown/mermaid";
 import { mergePlugins, DEFAULT_SHIKI_THEME } from "../defaults";
 import type { PluginConfig, ResolvedPluginConfig } from "../types";
 import type {
@@ -19,31 +19,30 @@ describe("DEFAULT_SHIKI_THEME", () => {
 });
 
 describe("PluginConfig", () => {
-  it("accepts the real plugin instances and the false opt-out", () => {
-    const config: PluginConfig = { code, math, cjk, mermaid };
-    expect(config).toEqual({ code, math, cjk, mermaid });
-
-    const disabled: PluginConfig = {
-      code: false,
-      math: false,
-      cjk: false,
-      mermaid: false,
-    };
-    expect(Object.values(disabled)).toEqual([false, false, false, false]);
+  it("accepts the real plugin exports and the false opt-out", () => {
+    expectTypeOf<{
+      code: typeof code;
+      math: typeof math;
+      cjk: typeof cjk;
+      mermaid: typeof mermaid;
+    }>().toMatchTypeOf<PluginConfig>();
+    expectTypeOf<{
+      code: false;
+      math: false;
+      cjk: false;
+      mermaid: false;
+    }>().toMatchTypeOf<PluginConfig>();
   });
 
   it("rejects values that are neither a plugin instance nor false", () => {
-    const config: PluginConfig = {
-      // @ts-expect-error a bare object is not a plugin instance
-      code: { type: "code" },
-      // @ts-expect-error true is not an opt-in
-      math: true,
-      // @ts-expect-error a bare object is not a plugin instance
-      cjk: { type: "cjk" },
-      // @ts-expect-error true is not an opt-in
-      mermaid: true,
-    };
-    expect(Object.keys(config)).toHaveLength(4);
+    // @ts-expect-error a bare object is not a plugin instance
+    expectTypeOf<{ code: { type: "code" } }>().toMatchTypeOf<PluginConfig>();
+    // @ts-expect-error true is not an opt-in
+    expectTypeOf<{ math: true }>().toMatchTypeOf<PluginConfig>();
+    // @ts-expect-error a bare object is not a plugin instance
+    expectTypeOf<{ cjk: { type: "cjk" } }>().toMatchTypeOf<PluginConfig>();
+    // @ts-expect-error true is not an opt-in
+    expectTypeOf<{ mermaid: true }>().toMatchTypeOf<PluginConfig>();
   });
 });
 

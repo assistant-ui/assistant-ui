@@ -235,7 +235,10 @@ type ParentOf<K extends ClientNames> = ClientMeta<K> extends {
 } ? S extends ClientNames ? S : never : never;
 
 type PluginConfig = {
-  [K in "cjk" | "code" | "math" | "mermaid"]?: ResolvedPluginConfig[K] | false | undefined;
+  code?: ResolvedPluginConfig["code"] | false;
+  math?: ResolvedPluginConfig["math"] | false;
+  cjk?: ResolvedPluginConfig["cjk"] | false;
+  mermaid?: ResolvedPluginConfig["mermaid"] | false;
 };
 
 interface Point {

@@ -127,10 +127,14 @@ export type StreamdownTextComponents = NonNullable<
  * <StreamdownTextPrimitive plugins={{ code, math }} />
  */
 export type PluginConfig = {
-  [K in "code" | "math" | "cjk" | "mermaid"]?:
-    | ResolvedPluginConfig[K]
-    | false
-    | undefined;
+  /** Code syntax highlighting plugin. Must be explicitly provided. */
+  code?: ResolvedPluginConfig["code"] | false;
+  /** Math/LaTeX rendering plugin. Must be explicitly provided. */
+  math?: ResolvedPluginConfig["math"] | false;
+  /** CJK text optimization plugin. Must be explicitly provided. */
+  cjk?: ResolvedPluginConfig["cjk"] | false;
+  /** Mermaid diagram plugin. Must be explicitly provided. */
+  mermaid?: ResolvedPluginConfig["mermaid"] | false;
 };
 
 /**
