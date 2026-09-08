@@ -42,7 +42,7 @@ Text shimmer holds still under `prefers-reduced-motion: reduce` on both paths, l
 | Utility                  | Effect                                                                        |
 | ------------------------ | ----------------------------------------------------------------------------- |
 | `shimmer`                | Base text shimmer. Pair with a low-opacity text color.                        |
-| `shimmer-bg`             | Background shimmer; requires `shimmer` and a base `bg-*` class.                |
+| `shimmer-bg`             | Background shimmer; requires `shimmer` and a base `bg-*` class.               |
 | `shimmer-container`      | Parent container that sizes the animation track for children.                 |
 | `shimmer-speed-{value}`  | Animation speed in px per second (text: 200, background: 1000 by default).    |
 | `--shimmer-track-width`  | Animation track width for timing (200px by default).                          |
