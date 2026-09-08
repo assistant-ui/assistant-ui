@@ -123,6 +123,37 @@ describe("tailBoundedRemend", () => {
     expect(tailBoundedRemend(text)).toBe(text);
   });
 
+  it.each([
+    ["tilde fence", "Intro\n\n~~~r\nlm(y~x)\n~~~"],
+    ["display math", "Intro\n\n$$\na~b\n$$"],
+    ["tilde fence with trailing newline", "Intro\n\n~~~r\nlm(y~x)\n~~~\n"],
+  ])("leaves a closed %s untouched when it is the final block", (_, text) => {
+    expect(tailBoundedRemend(text)).toBe(text);
+  });
+
+  it("repairs text that follows a closed final-block fence", () => {
+    expect(tailBoundedRemend("Intro\n\n~~~r\nlm(y~x)\n~~~\nafter **bold")).toBe(
+      "Intro\n\n~~~r\nlm(y~x)\n~~~\nafter **bold**",
+    );
+  });
+
+  it("still repairs a final block that starts with prose before a fence", () => {
+    const text = "intro\n\npara **bold\n~~~\nx~y\n~~~";
+    expect(tailBoundedRemend(text)).toBe(remend(text));
+  });
+
+  it("ignores $$ inside inline code when placing math blocks", () => {
+    const text = "`$$`\n\n$$\na~b\n$$\n\nTail";
+    expect(findRemendWindowStart(text)).toBe(text.indexOf("Tail"));
+    expect(tailBoundedRemend(text)).toBe(text);
+  });
+
+  it("reads a backtick run with a backtick in its info string as inline code", () => {
+    const text = "```code```\n\n20~25\n\nTail";
+    expect(findRemendWindowStart(text)).toBe(text.indexOf("Tail"));
+    expect(tailBoundedRemend(text)).toBe("```code```\n\n20\\~25\n\nTail");
+  });
+
   it("escapes prose on both sides of protected blocks", () => {
     expect(
       tailBoundedRemend(

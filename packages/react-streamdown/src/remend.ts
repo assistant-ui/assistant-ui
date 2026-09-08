@@ -10,6 +10,11 @@ const DOLLAR = 36;
 
 const isSpace = (c: number) => c === SPACE || c === TAB || c === CR;
 
+function hasBacktick(text: string, from: number, to: number): boolean {
+  const i = text.indexOf("`", from);
+  return i !== -1 && i < to;
+}
+
 function onlyWhitespace(text: string, from: number, to: number): boolean {
   for (let i = from; i < to; i += 1) {
     if (!isSpace(text.charCodeAt(i))) return false;
@@ -28,7 +33,9 @@ type BlockScan = {
  * fences and closed `$$` blocks as flat start/end pairs. A range always starts
  * at a line start because remend drops a single trailing space from its input,
  * so a cut inside a line would lose the space before the range; that rule also
- * keeps a `$$` inside a backtick span at a line start out of the set.
+ * keeps a `$$` inside a backtick span at a line start out of the set. Backtick
+ * spans are skipped while scanning a line for `$$`, and a backtick run whose
+ * info string holds another backtick is a code span, not a fence opener.
  */
 function scanBlocks(text: string): BlockScan {
   const n = text.length;
@@ -55,7 +62,10 @@ function scanBlocks(text: string): BlockScan {
     if ((first === BACKTICK || first === TILDE) && i - lineStart <= 3) {
       let run = i;
       while (run < lineEnd && text.charCodeAt(run) === first) run += 1;
-      if (run - i >= 3) {
+      if (
+        run - i >= 3 &&
+        (inFence || first === TILDE || !hasBacktick(text, run, lineEnd))
+      ) {
         marker = true;
         if (!inFence) {
           inFence = true;
@@ -76,7 +86,10 @@ function scanBlocks(text: string): BlockScan {
     if (!inFence && !marker) {
       let s = lineStart;
       while (s < lineEnd - 1) {
-        if (
+        if (text.charCodeAt(s) === BACKTICK) {
+          const close = text.indexOf("`", s + 1);
+          s = close === -1 || close > lineEnd ? lineEnd : close + 1;
+        } else if (
           text.charCodeAt(s) === DOLLAR &&
           text.charCodeAt(s + 1) === DOLLAR
         ) {
@@ -147,7 +160,8 @@ const COMPLETION_OFF = {
 
 /**
  * Repairs incomplete Markdown in the final block and applies text escapes to
- * earlier blocks. Custom handlers receive the final block and each run of
+ * earlier blocks. A closed fence or `$$` block that opens the final block is
+ * copied raw and only the text after it is repaired. Custom handlers receive the final block and each run of
  * earlier prose between protected blocks as separate calls.
  */
 export function tailBoundedRemend(
@@ -172,9 +186,13 @@ export function tailBoundedRemend(
     cursor = to;
   }
 
-  return (
-    out +
-    remend(text.slice(cursor, start), prefixOptions) +
-    remend(text.slice(start), options)
-  );
+  out += remend(text.slice(cursor, start), prefixOptions);
+
+  const tailRange = protectedRanges.indexOf(start);
+  if (tailRange !== -1 && tailRange % 2 === 0) {
+    const to = protectedRanges[tailRange + 1]!;
+    return out + text.slice(start, to) + remend(text.slice(to), options);
+  }
+
+  return out + remend(text.slice(start), options);
 }
