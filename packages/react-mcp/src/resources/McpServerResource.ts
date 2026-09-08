@@ -1,6 +1,7 @@
 import { useState, useRef, useEffect, useMemo, useEffectEvent } from "react";
 import { resource, useResource, withKey } from "@assistant-ui/tap";
 import type { ClientOutput } from "@assistant-ui/store";
+import { shallowEqual } from "@assistant-ui/store/internal";
 import {
   Client,
   StreamableHTTPClientTransport,
@@ -83,17 +84,6 @@ export const getConnectionDependencies = (
     props.cache?.defaultTtlMs,
     props.elicitation !== false,
   ];
-};
-
-const areConnectionDependenciesEqual = (
-  left: readonly unknown[],
-  right: readonly unknown[],
-) => {
-  if (left.length !== right.length) return false;
-  for (let i = 0; i < left.length; i++) {
-    if (!Object.is(left[i], right[i])) return false;
-  }
-  return true;
 };
 
 const useMcpServerResourceInstance = (
@@ -775,7 +765,7 @@ export const McpServerResource = resource(function useMcpServerResource(
   const dependencies = getConnectionDependencies(props);
   const [connection, setConnection] = useState({ dependencies, generation: 0 });
   let currentConnection = connection;
-  if (!areConnectionDependenciesEqual(connection.dependencies, dependencies)) {
+  if (!shallowEqual(connection.dependencies, dependencies)) {
     currentConnection = {
       dependencies,
       generation: connection.generation + 1,
