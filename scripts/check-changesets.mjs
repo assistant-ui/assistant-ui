@@ -1,4 +1,5 @@
 #!/usr/bin/env node
+import { execFileSync } from "node:child_process";
 import { globSync, readFileSync, readdirSync } from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
@@ -45,7 +46,7 @@ export function parseBumpLine(line) {
   return { name: entry[1] ?? entry[2] ?? entry[3], bump };
 }
 
-function readWorkspacePackages(root) {
+export function readWorkspacePackages(root) {
   const globs = parseWorkspaceGlobs(
     readFileSync(path.join(root, "pnpm-workspace.yaml"), "utf8"),
   );
@@ -69,11 +70,12 @@ function readWorkspacePackages(root) {
   return byName;
 }
 
-function readChangesetBumps(root) {
+export function readChangesetBumps(root, files = null) {
   const changesetDir = path.join(root, ".changeset");
   const bumps = [];
   for (const file of readdirSync(changesetDir).sort()) {
     if (!file.endsWith(".md") || file === "README.md") continue;
+    if (files && !files.has(file)) continue;
     const frontmatter = readFileSync(
       path.join(changesetDir, file),
       "utf8",
@@ -166,6 +168,82 @@ export function findUnreleasablePackages(packages, bumps, rules) {
   return problems;
 }
 
+export function apiSurfaceFileName(packageName) {
+  return `api-surface/${packageName.replace(/^@/, "").replaceAll("/", "__")}.ts`;
+}
+
+export function findMissingApiSurfaceChangesets(
+  packages,
+  bumps,
+  changedFiles,
+  rules,
+) {
+  const ignored = expandPackageGlobs(packages.keys(), rules.ignored);
+  const bumped = new Set(bumps.map(({ name }) => name));
+  const missing = [];
+
+  for (const [name, pkg] of packages) {
+    if (
+      ignored.has(name) ||
+      (pkg.isPrivate && rules.skipsPrivate) ||
+      !pkg.hasVersion
+    ) {
+      continue;
+    }
+
+    const file = apiSurfaceFileName(name);
+    if (changedFiles.has(file) && !bumped.has(name)) {
+      missing.push({ file, name });
+    }
+  }
+
+  return missing;
+}
+
+function diffChangedFiles(root, baseSha, headSha) {
+  return execFileSync(
+    "git",
+    [
+      "diff",
+      "--name-only",
+      "--diff-filter=ACMR",
+      `${baseSha}...${headSha}`,
+      "--",
+      "api-surface/*.ts",
+      ".changeset/*.md",
+    ],
+    { cwd: root, encoding: "utf8", stdio: ["ignore", "pipe", "pipe"] },
+  )
+    .trim()
+    .split("\n")
+    .filter(Boolean);
+}
+
+export function runChangedApiSurfaceCheck(root, baseSha, headSha) {
+  const changedFiles = diffChangedFiles(root, baseSha, headSha);
+  const packages = readWorkspacePackages(root);
+  const rules = readSkipRules(
+    readJson(path.join(root, ".changeset", "config.json")),
+  );
+  const changesetFiles = new Set(
+    changedFiles
+      .filter((file) => file.startsWith(".changeset/"))
+      .map((file) => path.basename(file)),
+  );
+
+  return {
+    changedSurfaceCount: changedFiles.filter((file) =>
+      file.startsWith("api-surface/"),
+    ).length,
+    missingChangesets: findMissingApiSurfaceChangesets(
+      packages,
+      readChangesetBumps(root, changesetFiles),
+      new Set(changedFiles),
+      rules,
+    ),
+  };
+}
+
 export function runCheck(root = repoRoot) {
   const packages = readWorkspacePackages(root);
   const rules = readSkipRules(
@@ -182,7 +260,8 @@ export function runCheck(root = repoRoot) {
 }
 
 function main() {
-  const { packageCount, problems } = runCheck(process.env.CHANGESET_CHECK_ROOT);
+  const root = process.env.CHANGESET_CHECK_ROOT ?? repoRoot;
+  const { packageCount, problems } = runCheck(root);
 
   if (problems.length > 0) {
     console.error("Changesets name packages that cannot be released:\n");
@@ -197,6 +276,33 @@ function main() {
     );
     console.error("\nDrop the offending line from the changeset frontmatter.");
     process.exit(1);
+  }
+
+  if (process.argv.includes("--changed-api-surface")) {
+    const { BASE_SHA, HEAD_SHA } = process.env;
+    if (!BASE_SHA || !HEAD_SHA) {
+      console.error(
+        "BASE_SHA and HEAD_SHA are required for changed API surface validation.",
+      );
+      process.exit(1);
+    }
+
+    const { changedSurfaceCount, missingChangesets } =
+      runChangedApiSurfaceCheck(root, BASE_SHA, HEAD_SHA);
+    if (missingChangesets.length > 0) {
+      console.error("Changed API surfaces without a changeset:\n");
+      for (const { file, name } of missingChangesets) {
+        console.error(`  ${file}: add a changeset for "${name}"`);
+      }
+      console.error(
+        "\nEvery changed public API must name its published package in a changeset added by this PR.",
+      );
+      process.exit(1);
+    }
+
+    console.log(
+      `All changed API surfaces have changesets. (${changedSurfaceCount} surfaces scanned)`,
+    );
   }
 
   console.log(

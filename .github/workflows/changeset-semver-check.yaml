@@ -36,6 +36,13 @@ jobs:
       - name: Verify changesets only name releasable packages
         run: node scripts/check-changesets.mjs
 
+      - name: Verify changed API surfaces have changesets
+        if: ${{ startsWith(github.head_ref, 'changeset-release/') == false }}
+        env:
+          BASE_SHA: ${{ github.event.pull_request.base.sha }}
+          HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+        run: node scripts/check-changesets.mjs --changed-api-surface
+
       - name: Test the changeset semver checker
         run: node --test scripts/check-changeset-semver.test.mjs
 

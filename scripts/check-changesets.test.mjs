@@ -1,14 +1,17 @@
 import assert from "node:assert/strict";
-import { spawnSync } from "node:child_process";
+import { execFileSync, spawnSync } from "node:child_process";
 import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import test from "node:test";
 import {
+  apiSurfaceFileName,
+  findMissingApiSurfaceChangesets,
   findUnreleasablePackages,
   parseBumpLine,
   parseWorkspaceGlobs,
   readSkipRules,
+  runChangedApiSurfaceCheck,
   runCheck,
 } from "./check-changesets.mjs";
 
@@ -153,6 +156,64 @@ test("findUnreleasablePackages flags private and unknown names", () => {
   assert.match(problems[1].reason, /is not a workspace package/);
 });
 
+test("apiSurfaceFileName matches generated surface names", () => {
+  assert.equal(
+    apiSurfaceFileName("@assistant-ui/store"),
+    "api-surface/assistant-ui__store.ts",
+  );
+  assert.equal(
+    apiSurfaceFileName("assistant-stream"),
+    "api-surface/assistant-stream.ts",
+  );
+});
+
+test("findMissingApiSurfaceChangesets requires the changed package bump", () => {
+  const packages = new Map([
+    [
+      "@assistant-ui/store",
+      {
+        manifest: "packages/store/package.json",
+        isPrivate: false,
+        hasVersion: true,
+      },
+    ],
+    [
+      "@assistant-ui/core",
+      {
+        manifest: "packages/core/package.json",
+        isPrivate: false,
+        hasVersion: true,
+      },
+    ],
+  ]);
+  const changedFiles = new Set(["api-surface/assistant-ui__store.ts"]);
+  const rules = { ignored: [], skipsPrivate: true };
+
+  assert.deepEqual(
+    findMissingApiSurfaceChangesets(
+      packages,
+      [{ file: "core.md", name: "@assistant-ui/core" }],
+      changedFiles,
+      rules,
+    ),
+    [
+      {
+        file: "api-surface/assistant-ui__store.ts",
+        name: "@assistant-ui/store",
+      },
+    ],
+  );
+  assert.deepEqual(
+    findMissingApiSurfaceChangesets(
+      packages,
+      [{ file: "store.md", name: "@assistant-ui/store" }],
+      changedFiles,
+      rules,
+    ),
+    [],
+  );
+});
+
 test("runCheck accepts a workspace whose changesets are all releasable", () => {
   const root = createWorkspace(
     '---\n"@fixture/published": patch\n---\n\nfix: something\n',
@@ -287,13 +348,93 @@ test("runCheck allows a private package when the config versions it", () => {
   }
 });
 
-function runExecutable(root) {
+function git(root, ...args) {
+  return execFileSync("git", args, { cwd: root, encoding: "utf8" }).trim();
+}
+
+function commitAll(root, message) {
+  git(root, "add", ".");
+  git(
+    root,
+    "-c",
+    "user.name=fixture",
+    "-c",
+    "user.email=fixture@example.com",
+    "commit",
+    "-q",
+    "-m",
+    message,
+  );
+  return git(root, "rev-parse", "HEAD");
+}
+
+function runExecutable(root, { args = [], env = {} } = {}) {
   return spawnSync(
     process.execPath,
-    [path.join(repoRoot, "scripts", "check-changesets.mjs")],
-    { encoding: "utf8", env: { ...process.env, CHANGESET_CHECK_ROOT: root } },
+    [path.join(repoRoot, "scripts", "check-changesets.mjs"), ...args],
+    {
+      encoding: "utf8",
+      env: { ...process.env, CHANGESET_CHECK_ROOT: root, ...env },
+    },
   );
 }
+
+test("changed API surface validation only accepts a changeset from the PR", () => {
+  const root = createWorkspace(
+    '---\n"@fixture/published": patch\n---\n\nfix: already on base\n',
+  );
+  try {
+    mkdirSync(path.join(root, "api-surface"));
+    const surface = path.join(root, "api-surface", "fixture__published.ts");
+    writeFileSync(surface, "export type Existing = string;\n");
+    git(root, "init", "-q", "-b", "main");
+    const base = commitAll(root, "base");
+
+    writeFileSync(
+      surface,
+      "export type Existing = string;\nexport type Added = string;\n",
+    );
+    const missingHead = commitAll(root, "surface without changeset");
+
+    assert.deepEqual(
+      runChangedApiSurfaceCheck(root, base, missingHead).missingChangesets.map(
+        ({ name }) => name,
+      ),
+      ["@fixture/published"],
+    );
+    const missingResult = runExecutable(root, {
+      args: ["--changed-api-surface"],
+      env: { BASE_SHA: base, HEAD_SHA: missingHead },
+    });
+    assert.equal(missingResult.status, 1);
+    assert.match(
+      missingResult.stderr,
+      /add a changeset for "@fixture\/published"/,
+    );
+
+    writeFileSync(
+      path.join(root, ".changeset", "added-by-pr.md"),
+      '---\n"@fixture/published": patch\n---\n\nfeat: publish added type\n',
+    );
+    const coveredHead = commitAll(root, "add changeset");
+    const coveredResult = runExecutable(root, {
+      args: ["--changed-api-surface"],
+      env: { BASE_SHA: base, HEAD_SHA: coveredHead },
+    });
+
+    assert.equal(
+      coveredResult.status,
+      0,
+      coveredResult.stdout + coveredResult.stderr,
+    );
+    assert.match(
+      coveredResult.stdout,
+      /All changed API surfaces have changesets\./,
+    );
+  } finally {
+    rmSync(root, { recursive: true, force: true });
+  }
+});
 
 test("the executable reports success and exits 0", () => {
   const root = createWorkspace(
