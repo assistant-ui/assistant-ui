@@ -3,8 +3,7 @@
 import type { ReactNode } from "react";
 
 /**
- * Memo comparison function for components with children prop.
- * Inspired by react-markdown's approach.
+ * Compares props with strict equality, including child element identity.
  */
 export function memoCompareNodes<
   T extends { children?: ReactNode; [key: string]: unknown },
