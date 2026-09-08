@@ -102,7 +102,7 @@ export function scheduleResourceFiberDisposal<R>(
   markResourceFiberForDisposal(fiber);
   if (!fiber.isMounted) {
     // A hidden React subtree has already consumed its passive cleanup.
-    queueMicrotask(() => disposeResourceFiber(fiber));
+    disposeResourceFiber(fiber);
   }
 }
 

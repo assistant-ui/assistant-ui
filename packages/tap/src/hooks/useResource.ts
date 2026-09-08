@@ -29,14 +29,10 @@ export function useResource<E extends ResourceElement<any>>(
     hasContextDepsChanged(fiber),
   );
 
-  if (parentFiber === null) {
-    // The React-hosted or Tap-hosted execution path is invariant.
-    // oxlint-disable-next-line react-hooks/rules-of-hooks
-    useInsertionEffect(
-      () => () => scheduleResourceFiberDisposal(fiber),
-      [fiber],
-    );
-  }
+  useInsertionEffect(() => {
+    if (parentFiber !== null) return undefined;
+    return () => scheduleResourceFiberDisposal(fiber);
+  }, [fiber, parentFiber]);
 
   const committedFiberRef = useRef<typeof fiber | null>(null);
   const committedFiber = committedFiberRef.current;

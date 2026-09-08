@@ -40,14 +40,10 @@ export const useTapHost = <R>(callback: () => R): useTapHost.Result<R> => {
 
   const render = renderResourceFiber(fiber, [callback]);
 
-  if (parentFiber === null) {
-    // The React-hosted or Tap-hosted execution path is invariant.
-    // oxlint-disable-next-line react-hooks/rules-of-hooks
-    useInsertionEffect(
-      () => () => scheduleResourceFiberDisposal(fiber),
-      [fiber],
-    );
-  }
+  useInsertionEffect(() => {
+    if (parentFiber !== null) return undefined;
+    return () => scheduleResourceFiberDisposal(fiber);
+  }, [fiber, parentFiber]);
 
   useEffect(() => {
     if (parentFiber !== null) attachResourceFiberToParent(fiber, parentFiber);

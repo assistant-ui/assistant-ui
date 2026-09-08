@@ -1,45 +1,5 @@
 import { useEffect, useInsertionEffect, useRef } from "react";
 import { peekResourceFiber } from "../core/helpers/execution-context";
-import type { ResourceFiber } from "../core/types";
-
-const useTapResourceDispose = (
-  fiber: ResourceFiber<unknown>,
-  callback: () => void,
-) => {
-  useEffect(() => {
-    fiber.disposeCallbacks.add(callback);
-  }, [callback, fiber]);
-};
-
-const useReactHostDispose = (callback: () => void) => {
-  const disposePendingRef = useRef(false);
-  const passiveMountedRef = useRef(false);
-  const disposedRef = useRef(false);
-  const runDispose = useRef(() => {
-    if (disposedRef.current) return;
-    disposedRef.current = true;
-    callback();
-  }).current;
-
-  useInsertionEffect(
-    () => () => {
-      if (passiveMountedRef.current) {
-        disposePendingRef.current = true;
-      } else {
-        // A hidden React subtree has already consumed its passive cleanup.
-        runDispose();
-      }
-    },
-    [runDispose],
-  );
-  useEffect(() => {
-    passiveMountedRef.current = true;
-    return () => {
-      passiveMountedRef.current = false;
-      if (disposePendingRef.current) runDispose();
-    };
-  }, [runDispose]);
-};
 
 /**
  * Runs a callback when the current resource or React host is permanently
@@ -47,18 +7,47 @@ const useReactHostDispose = (callback: () => void) => {
  */
 export const useResourceDispose = (dispose: () => void): void => {
   const fiber = peekResourceFiber();
-  const disposeRef = useRef(dispose);
-  const callback = useRef(() => disposeRef.current()).current;
+  const stateRef = useRef({
+    dispose,
+    disposePending: false,
+    passiveMounted: false,
+    disposed: false,
+  });
+  const callback = useRef(() => {
+    const state = stateRef.current;
+    if (state.disposed) return;
+    state.disposed = true;
+    state.dispose();
+  }).current;
 
   useEffect(() => {
-    disposeRef.current = dispose;
+    stateRef.current.dispose = dispose;
   });
 
-  if (fiber === null) {
-    // oxlint-disable-next-line react-hooks/rules-of-hooks
-    useReactHostDispose(callback);
-  } else {
-    // oxlint-disable-next-line react-hooks/rules-of-hooks
-    useTapResourceDispose(fiber, callback);
-  }
+  useInsertionEffect(() => {
+    if (fiber !== null) return undefined;
+    return () => {
+      const state = stateRef.current;
+      if (state.passiveMounted) {
+        state.disposePending = true;
+      } else {
+        // A hidden React subtree has already consumed its passive cleanup.
+        callback();
+      }
+    };
+  }, [callback, fiber]);
+
+  useEffect(() => {
+    if (fiber !== null) {
+      fiber.disposeCallbacks.add(callback);
+      return undefined;
+    }
+
+    const state = stateRef.current;
+    state.passiveMounted = true;
+    return () => {
+      state.passiveMounted = false;
+      if (state.disposePending) callback();
+    };
+  }, [callback, fiber]);
 };
