@@ -75,6 +75,7 @@ export function withAui<T extends MetroConfigLike>(config: T): T {
 
   // A double-wrap is a re-entry: the first call already captured the real
   // upstream, and replacing it with our transformer would cause recursion.
+  // An explicit `aui` on a rewrap still replaces the backendless setting.
   const isRewrap = upstream === self;
 
   if (aui !== undefined || !isRewrap) {
