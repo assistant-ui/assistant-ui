@@ -658,7 +658,7 @@ const TIMELINE_MONTHS_BACK = 12;
 // npm backfills a day or two behind, so a month is only final once that lag passes.
 const TRAILING_LAG_DAYS = 2;
 // 13 windows against an unreachable npm would otherwise outlast the route itself.
-const TIMELINE_BUDGET_MS = 20_000;
+const TIMELINE_BUDGET_MS = 30_000;
 
 type MonthBucket = {
   month: string;

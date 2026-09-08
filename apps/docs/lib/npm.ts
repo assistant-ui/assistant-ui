@@ -8,29 +8,76 @@ export const NPM_REVALIDATE = {
   COOL: 21_600,
 } as const;
 
+// api.npmjs.org rate limits per IP, and a deploy asks it about every package at
+// once from an address shared with every other build on the platform. Pacing the
+// requests and retrying a refusal is what keeps a burst from reading as no data.
+const MAX_IN_FLIGHT = 4;
+const RETRY_BACKOFF_MS = [200, 600, 1800];
+
 export type NpmDailyDownloads = { day: string; downloads: number };
+
+let inFlight = 0;
+const waiting: (() => void)[] = [];
+
+async function withSlot<T>(run: () => Promise<T>): Promise<T> {
+  if (inFlight >= MAX_IN_FLIGHT) {
+    await new Promise<void>((resolve) => waiting.push(resolve));
+  }
+  inFlight++;
+  try {
+    return await run();
+  } finally {
+    inFlight--;
+    waiting.shift()?.();
+  }
+}
+
+const delay = (ms: number) =>
+  new Promise<void>((resolve) => setTimeout(resolve, ms));
+
+function npmAttempt(
+  url: string,
+  revalidate: number | false,
+): Promise<{ ok: boolean; status: number; body: unknown }> {
+  return withSlot(() =>
+    withTimeout(
+      (async () => {
+        const res = await fetch(
+          url,
+          revalidate === 0 ? { cache: "no-store" } : { next: { revalidate } },
+        );
+        return {
+          ok: res.ok,
+          status: res.status,
+          body: res.ok ? await res.json() : null,
+        };
+      })(),
+    ),
+  );
+}
 
 async function npmGetJson(
   path: string,
   revalidate: number | false,
 ): Promise<unknown> {
-  try {
-    return await withTimeout(
-      (async () => {
-        const res = await fetch(
-          `${NPM_BASE}${path}`,
-          revalidate === 0 ? { cache: "no-store" } : { next: { revalidate } },
-        );
-        if (!res.ok) {
-          console.error(`npm ${path} answered ${res.status}.`);
-          return null;
-        }
-        return await res.json();
-      })(),
-    );
-  } catch (error) {
-    console.error(`npm ${path} could not be read.`, error);
-    return null;
+  const url = `${NPM_BASE}${path}`;
+
+  for (let attempt = 0; ; attempt++) {
+    let result: Awaited<ReturnType<typeof npmAttempt>>;
+    try {
+      result = await npmAttempt(url, revalidate);
+    } catch (error) {
+      console.error(`npm ${path} could not be read.`, error);
+      return null;
+    }
+    if (result.ok) return result.body;
+
+    const backoff = RETRY_BACKOFF_MS[attempt];
+    if (result.status !== 429 || backoff === undefined) {
+      console.error(`npm ${path} answered ${result.status}.`);
+      return null;
+    }
+    await delay(backoff);
   }
 }
 

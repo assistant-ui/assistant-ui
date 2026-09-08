@@ -110,8 +110,10 @@ describe("fetchDownloadsTimeline", () => {
 
     const points = await fetchDownloadsTimeline("@assistant-ui/react");
 
-    expect(getDownloadsRange).toHaveBeenCalledTimes(4);
+    expect(getDownloadsRange).toHaveBeenCalledTimes(6);
     expect(points.map((point) => point.date)).toEqual([
+      "2026-04",
+      "2026-05",
       "2026-06",
       "2026-07",
       "2026-08",
