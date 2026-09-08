@@ -7,6 +7,7 @@ import type { Tool } from "assistant-stream";
 import { getDefaultWebMcpHost, type WebMcpHost } from "./webmcp-host";
 import { defaultWebMcpFilter, toWebMcpInputSchema } from "./convertTools";
 import { WebMcpRegistrationResource } from "./WebMcpRegistrationResource";
+import { shallowEqual } from "@assistant-ui/store/internal";
 import {
   useModelContextSnapshot,
   type ModelContextSnapshotSource,
@@ -64,10 +65,7 @@ const useStableNames = (names: readonly (string | null)[]) => {
   const [cell] = useState(() => ({ names: EMPTY_NAMES }));
   const next = names.filter((name): name is string => name !== null).sort();
   const previous = cell.names;
-  if (
-    previous.length === next.length &&
-    previous.every((name, index) => name === next[index])
-  ) {
+  if (shallowEqual(previous, next)) {
     return previous;
   }
   cell.names = next;

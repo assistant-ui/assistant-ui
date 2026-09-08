@@ -15,6 +15,14 @@ const PREVIEW_LENGTH = 240;
  */
 const TOP_TOLERANCE = 1;
 
+const sameIds = (a: readonly string[], b: readonly string[]): boolean => {
+  if (a.length !== b.length) return false;
+  for (let i = 0; i < a.length; i++) {
+    if (a[i] !== b[i]) return false;
+  }
+  return true;
+};
+
 /**
  * The line a message has to cross to count as the one being read. It sits at
  * the top of the viewport for most of a thread, then slides to the bottom
@@ -183,10 +191,7 @@ export function ConversationMapAui({
 
       setActiveId(current ?? owners.values().next().value);
       setVisibleIds((previous) =>
-        previous.length === onScreen.length &&
-        previous.every((id, index) => id === onScreen[index])
-          ? previous
-          : onScreen,
+        sameIds(previous, onScreen) ? previous : onScreen,
       );
     };
     const schedule = () => {

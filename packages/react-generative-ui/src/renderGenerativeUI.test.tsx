@@ -263,6 +263,37 @@ describe("buildPresentParameters", () => {
     expect(schema.required).toEqual(["$type"]);
   });
 
+  it("keeps props whose names are inherited from Object.prototype", () => {
+    const schema = buildPresentParameters({
+      PrototypeProps: {
+        description: "Declares props that shadow Object.prototype members.",
+        properties: z.object({
+          toString: z.string(),
+          valueOf: z.number(),
+          constructor: z.boolean(),
+        }),
+        render: () => null,
+      },
+    }) as any;
+
+    expect(schema.properties.toString.type).toBe("string");
+    expect(schema.properties.valueOf.type).toBe("number");
+    expect(schema.properties.constructor.type).toBe("boolean");
+  });
+
+  it("omits __proto__, which the tool-argument decoder rejects", () => {
+    const schema = buildPresentParameters({
+      PrototypeProps: {
+        description: "Declares an undeliverable prop name.",
+        properties: z.object({ ["__proto__"]: z.number(), label: z.string() }),
+        render: () => null,
+      },
+    }) as any;
+
+    expect(Object.hasOwn(schema.properties, "__proto__")).toBe(false);
+    expect(schema.properties.label.type).toBe("string");
+  });
+
   it("names every component that declares the same prop in the dev warning", () => {
     const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
     try {
