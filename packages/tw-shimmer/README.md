@@ -42,13 +42,13 @@ Text shimmer holds still under `prefers-reduced-motion: reduce` on both paths, l
 | Utility                  | Effect                                                                        |
 | ------------------------ | ----------------------------------------------------------------------------- |
 | `shimmer`                | Base text shimmer. Pair with a low-opacity text color.                        |
-| `shimmer-bg`             | Background shimmer (skeleton placeholders).                                   |
+| `shimmer-bg`             | Background shimmer; requires `shimmer` and a base `bg-*` class.                |
 | `shimmer-container`      | Parent container that sizes the animation track for children.                 |
 | `shimmer-speed-{value}`  | Animation speed in px per second (text: 200, background: 1000 by default).    |
 | `--shimmer-track-width`  | Animation track width for timing (200px by default).                          |
 | `shimmer-spread-{value}` | Highlight thickness (text: `calc(4ch + 80px)`, background: 480px by default). |
 | `shimmer-angle-{value}`  | Highlight angle in degrees (15 by default).                                   |
-| `shimmer-repeat-delay-{value}` | Pause between cycles in ms (text: 100, background: 20 by default).     |
+| `shimmer-repeat-delay-*` | Pause between cycles in ms (text: 100, background: 20 by default).            |
 | `shimmer-color-{color}`  | Highlight color from your Tailwind palette.                                   |
 | `shimmer-invert`         | Use a contrasting additive highlight band.                                    |
 
