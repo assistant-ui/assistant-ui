@@ -156,9 +156,10 @@ Control the sweep angle. The default is `15deg`.
   Avoid `90deg` and `270deg`, where `tan()` diverges and the gradient width
   becomes unbounded. Angles from `0deg` to `75deg` are safe. Negative angles
   are possible with an arbitrary property such as `[--shimmer-angle:-15deg]`,
-  but only shallow ones: when `--shimmer-track-height * tan()` exceeds the
-  spread, the gradient width goes negative and the effect stops. At the default
-  `200px` track height that is around `-30deg` for text; inside a
+  but only shallow ones: when the magnitude of
+  `--shimmer-track-height * tan()` exceeds the spread, the gradient width goes
+  negative and the effect stops. At the default `200px` track height that is
+  around `-30deg` for text; inside a
   `shimmer-container` the track height can be larger, making the limit
   shallower.
 </Callout>
@@ -207,8 +208,8 @@ All values can be set via CSS variables for dynamic control:
 | `--shimmer-color`        | Highlight color                              |
 | `--shimmer-duration`     | Override duration (ms)                       |
 | `--shimmer-repeat-delay` | Pause between cycles (ms)                    |
-| `--shimmer-x`            | Horizontal position hint (unitless, px)     |
-| `--shimmer-y`            | Vertical position hint (unitless, px)       |
+| `--shimmer-x`            | Horizontal position hint (unitless, px)      |
+| `--shimmer-y`            | Vertical position hint (unitless, px)        |
 
 ```tsx
 <div
