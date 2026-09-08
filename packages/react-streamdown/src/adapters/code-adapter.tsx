@@ -9,6 +9,7 @@ import {
   type ReactNode,
 } from "react";
 import { parseLanguageClass } from "@assistant-ui/react-markdown/code-fence";
+import { useCallbackRef } from "@radix-ui/react-use-callback-ref";
 import type {
   CodeHeaderProps,
   ComponentsByLanguage,
@@ -74,6 +75,12 @@ export function createCodeAdapter(options: CodeAdapterOptions) {
     ...props
   }: CodeProps & { "data-block"?: string }) {
     const preProps = useStreamdownPreProps();
+    const WrappedPre = useCallbackRef((p: PreProps) => (
+      <Pre {...preProps} {...p} />
+    ));
+    const WrappedCode = useCallbackRef((p: CodeProps) => (
+      <Code node={node} className={className} {...props} {...p} />
+    ));
 
     if (!dataBlock) {
       return (
@@ -113,7 +120,7 @@ export function createCodeAdapter(options: CodeAdapterOptions) {
           {headerElement}
           <SyntaxHighlighter
             node={node}
-            components={{ Pre, Code }}
+            components={{ Pre: WrappedPre, Code: WrappedCode }}
             language={language}
             code={children ?? ""}
           />

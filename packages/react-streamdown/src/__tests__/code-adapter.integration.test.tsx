@@ -318,8 +318,15 @@ describe("createCodeAdapter integration", () => {
       expect(el.className).toContain("lang");
     });
 
-    it("hands the user Pre and Code to the SyntaxHighlighter", () => {
-      const SyntaxHighlighter = vi.fn((_: SyntaxHighlighterProps) => null);
+    it("renders the highlighter Pre and Code through the user components", () => {
+      const SyntaxHighlighter = ({
+        components: { Pre: HlPre, Code: HlCode },
+        code,
+      }: SyntaxHighlighterProps) => (
+        <HlPre>
+          <HlCode>{code}</HlCode>
+        </HlPre>
+      );
       const AdaptedCode = createCodeAdapter({ SyntaxHighlighter, Pre, Code });
       render(
         <AdaptedCode className="language-ts" data-block="true">
@@ -327,9 +334,32 @@ describe("createCodeAdapter integration", () => {
         </AdaptedCode>,
       );
 
-      expect(SyntaxHighlighter.mock.calls[0]![0]).toMatchObject({
-        components: { Pre, Code },
-      });
+      expect(
+        screen.getByTestId("user-pre").querySelector("[data-testid=user-code]")
+          ?.textContent,
+      ).toBe("code");
+    });
+
+    it("hands the highlighter Pre and Code that carry the source props", () => {
+      const SyntaxHighlighter = ({
+        components: { Pre: HlPre, Code: HlCode },
+        code,
+      }: SyntaxHighlighterProps) => (
+        <HlPre data-testid="hl-pre">
+          <HlCode data-testid="hl-code">{code}</HlCode>
+        </HlPre>
+      );
+      const AdaptedCode = createCodeAdapter({ SyntaxHighlighter, Pre, Code });
+      render(
+        <PreOverride className="from-pre">
+          <AdaptedCode className="language-ts" data-block="true">
+            code
+          </AdaptedCode>
+        </PreOverride>,
+      );
+
+      expect(screen.getByTestId("hl-pre").className).toBe("from-pre");
+      expect(screen.getByTestId("hl-code").className).toBe("language-ts");
     });
 
     it("wraps the block fallback in the user Pre and Code", () => {

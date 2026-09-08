@@ -444,6 +444,33 @@ describe("StreamdownTextPrimitive", () => {
       expect(container.querySelector("pre")?.textContent).toBe("raw text");
     });
 
+    it("keeps the pre element mounted when components is a fresh inline object", () => {
+      const pre = ({ node: _, ...p }: any) => (
+        <pre data-testid="user-pre" {...p} />
+      );
+      const view = (
+        <TextMessagePartProvider text="<pre>raw text</pre>" isRunning={false}>
+          <StreamdownTextPrimitive
+            mode="static"
+            components={{ pre } as StreamdownTextComponents}
+          />
+        </TextMessagePartProvider>
+      );
+      const { rerender } = render(view);
+      const first = screen.getByTestId("user-pre");
+
+      rerender(
+        <TextMessagePartProvider text="<pre>raw text</pre>" isRunning={false}>
+          <StreamdownTextPrimitive
+            mode="static"
+            components={{ pre } as StreamdownTextComponents}
+          />
+        </TextMessagePartProvider>,
+      );
+
+      expect(screen.getByTestId("user-pre")).toBe(first);
+    });
+
     it("accepts intrinsic tag names for pre and code", () => {
       const SyntaxHighlighter = ({
         code,
