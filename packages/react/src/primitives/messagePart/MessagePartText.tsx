@@ -29,6 +29,7 @@ export namespace MessagePartPrimitiveText {
     smooth?: boolean | SmoothOptions;
     /**
      * The HTML element or React component to render as.
+     * Ignored when a valid `render` element is supplied.
      * @default "span"
      */
     component?: ElementType;
