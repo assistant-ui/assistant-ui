@@ -15,6 +15,7 @@ import { useMemoCache as useMemoCacheInternal } from "./react-hooks/useMemoCache
  */
 export const useMemoCache = useMemoCacheInternal;
 export { useResource } from "./hooks/useResource";
+export { useResourceDispose } from "./hooks/useResourceDispose";
 export { useResources } from "./hooks/useResources";
 export { useTapRoot } from "./hooks/useTapRoot";
 export { useTapHost } from "./hooks/useTapHost";

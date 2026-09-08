@@ -9,6 +9,7 @@ import { withResourceFiber } from "./helpers/execution-context";
 import { withReactDispatcher } from "./react-dispatcher";
 import { isDevelopment } from "./helpers/env";
 import { commitRoot } from "./helpers/root";
+import { throwAggregated } from "./helpers/throwAggregated";
 
 export function createResourceFiber<R>(
   hook: (...args: any[]) => R,
@@ -23,6 +24,7 @@ export function createResourceFiber<R>(
     devStrictMode: strictMode,
     cells: [],
     effectCells: [],
+    disposeCallbacks: new Set(),
     contextDeps: null,
     wipContextDeps: null,
     wipCommitCallbacks: null,
@@ -35,6 +37,8 @@ export function createResourceFiber<R>(
     currentIndex: 0,
     isFirstRender: true,
     isMounted: false,
+    isDisposePending: false,
+    isDisposing: false,
     isNeverMounted: true,
   };
 }
@@ -52,6 +56,35 @@ export function unmountResourceFiber<R>(fiber: ResourceFiber<R>): void {
 
   fiber.isMounted = false;
   cleanupAllEffects(fiber);
+}
+
+export function disposeResourceFiber<R>(fiber: ResourceFiber<R>): void {
+  if (fiber.isDisposing) return;
+  fiber.isDisposePending = false;
+  fiber.isDisposing = true;
+
+  const errors: unknown[] = [];
+  try {
+    unmountResourceFiber(fiber);
+  } catch (error) {
+    errors.push(error);
+  }
+
+  const callbacks = [...fiber.disposeCallbacks];
+  fiber.disposeCallbacks.clear();
+  for (const callback of callbacks) {
+    try {
+      callback();
+    } catch (error) {
+      errors.push(error);
+    }
+  }
+
+  throwAggregated(errors, "Errors during resource disposal");
+}
+
+export function markResourceFiberForDisposal<R>(fiber: ResourceFiber<R>): void {
+  if (!fiber.isDisposing) fiber.isDisposePending = true;
 }
 
 export function renderResourceFiber<R>(

@@ -52,7 +52,11 @@ const mocks = vi.hoisted(() => {
 });
 
 vi.mock("@ai-sdk/react", () => ({
-  useChat: mocks.useChat,
+  useChat: (...args: unknown[]) => {
+    const chat = mocks.useChat(...args);
+    chat.stop ??= vi.fn().mockResolvedValue(undefined);
+    return chat;
+  },
 }));
 
 vi.mock("@assistant-ui/core/react", async (importOriginal) => ({

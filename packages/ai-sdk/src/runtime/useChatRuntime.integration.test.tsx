@@ -183,6 +183,56 @@ describe("useChatRuntime integration", () => {
     view.unmount();
     await waitFor(() => expect(getCancelCount()).toBe(1));
   });
+
+  it("aborts a nested runtime when only its own panel unmounts", async () => {
+    const outer = createCancellableTransport();
+    const { transport, getCancelCount } = createCancellableTransport();
+    let nested: AssistantRuntime | undefined;
+    let setVisible: ((visible: boolean) => void) | undefined;
+
+    const NestedChat = () => {
+      nested = useChatRuntime({ transport });
+      return null;
+    };
+    const Shell = () => {
+      const [visible, set] = useState(true);
+      setVisible = set;
+      return (
+        <AuiProvider
+          config={AuiConfig({
+            threads: AISDKChat({ transport: outer.transport }),
+          })}
+        >
+          {visible && <NestedChat />}
+        </AuiProvider>
+      );
+    };
+
+    const view = render(<Shell />);
+    await waitFor(() => expect(nested).toBeDefined());
+    await act(async () => {
+      await nested!.thread.append("first stream");
+    });
+    await waitFor(() => expect(nested!.thread.getState().isRunning).toBe(true));
+
+    await act(async () => setVisible?.(false));
+    await waitFor(() => expect(getCancelCount()).toBe(1));
+
+    nested = undefined;
+    await act(async () => setVisible?.(true));
+    await waitFor(() => expect(nested).toBeDefined());
+    await act(async () => {
+      await nested!.thread.append("second stream");
+    });
+    await waitFor(() => expect(nested!.thread.getState().isRunning).toBe(true));
+
+    await act(async () => setVisible?.(false));
+    await waitFor(() => expect(getCancelCount()).toBe(2));
+
+    view.unmount();
+    await act(nextTask);
+    expect(getCancelCount()).toBe(2);
+  });
 });
 
 const StreamingApp = ({

@@ -1,32 +1,59 @@
-import { useEffect, useRef } from "react";
+import { useCallback, useEffect, useRef } from "react";
+import { useResourceDispose } from "@assistant-ui/tap";
 import { useAssistantClientDestroySignal } from "@assistant-ui/store/internal";
 
 export const useResourceCleanup = (enabled: boolean, cleanup: () => void) => {
   const destroySignal = useAssistantClientDestroySignal();
-  const cleanupRef = useRef(cleanup);
-  const enabledRef = useRef(enabled);
-  const registeredSignalRef = useRef<AbortSignal | undefined>(undefined);
+  const stateRef = useRef<{
+    cleanup: () => void;
+    enabled: boolean;
+    cleaned: boolean;
+    registration: {
+      signal: AbortSignal;
+      listener: () => void;
+    } | null;
+  }>({ cleanup, enabled, cleaned: false, registration: null });
 
   useEffect(() => {
-    cleanupRef.current = cleanup;
-    enabledRef.current = enabled;
+    stateRef.current.cleanup = cleanup;
+    stateRef.current.enabled = enabled;
   });
 
+  const removeRegistration = useCallback(() => {
+    const state = stateRef.current;
+    const registration = state.registration;
+    if (registration === null) return;
+    state.registration = null;
+    registration.signal.removeEventListener("abort", registration.listener);
+  }, []);
+
+  const dispose = useCallback(() => {
+    const state = stateRef.current;
+    removeRegistration();
+    if (state.cleaned) return;
+    state.cleaned = true;
+    if (state.enabled) state.cleanup();
+  }, [removeRegistration]);
+
+  useResourceDispose(dispose);
+
   useEffect(() => {
-    if (!enabled || !destroySignal) return undefined;
-    if (registeredSignalRef.current === destroySignal) return undefined;
+    const current = stateRef.current.registration;
+    if (current !== null && (current.signal !== destroySignal || !enabled)) {
+      removeRegistration();
+    }
+    if (!enabled || !destroySignal || stateRef.current.cleaned) {
+      return undefined;
+    }
+    if (stateRef.current.registration?.signal === destroySignal) {
+      return undefined;
+    }
 
-    registeredSignalRef.current = destroySignal;
-    destroySignal.addEventListener(
-      "abort",
-      () => {
-        if (enabledRef.current) cleanupRef.current();
-      },
-      { once: true },
-    );
+    const listener = () => dispose();
+    stateRef.current.registration = { signal: destroySignal, listener };
+    if (destroySignal.aborted) dispose();
+    else destroySignal.addEventListener("abort", listener, { once: true });
 
-    // The listener must survive standalone soft unmounts so a later permanent
-    // client destroy still cleans up the retained resource state.
     return undefined;
-  }, [destroySignal, enabled]);
+  }, [destroySignal, dispose, enabled, removeRegistration]);
 };

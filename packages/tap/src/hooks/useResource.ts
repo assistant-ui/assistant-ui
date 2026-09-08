@@ -1,17 +1,22 @@
 import type { ExtractResourceReturnType, ResourceElement } from "../core/types";
 import {
+  disposeResourceFiber,
+  markResourceFiberForDisposal,
   unmountResourceFiber,
   renderResourceFiber,
   commitResourceFiber,
 } from "../core/ResourceFiber";
 import { hasContextDepsChanged } from "../core/context";
 import { useResourceFiberHost } from "./utils/useResourceFiberHostUtils";
-import { useEffect, useMemo } from "react";
+import { useEffect, useInsertionEffect, useMemo, useRef } from "react";
 import { useRenderMemo } from "./utils/useRenderMemo";
+import { peekResourceFiber } from "../core/helpers/execution-context";
+import { addCommit } from "../core/helpers/root";
 
 export function useResource<E extends ResourceElement<any>>(
   element: E,
 ): ExtractResourceReturnType<E> {
+  const parentFiber = peekResourceFiber();
   const { version, createFiber } = useResourceFiberHost();
   const fiber = useMemo(() => {
     return createFiber(element.hook, element.key);
@@ -23,7 +28,41 @@ export function useResource<E extends ResourceElement<any>>(
     hasContextDepsChanged(fiber),
   );
 
-  useEffect(() => () => unmountResourceFiber(fiber), [fiber]);
+  useInsertionEffect(() => {
+    if (parentFiber !== null) return undefined;
+    return () => disposeResourceFiber(fiber);
+  }, [fiber, parentFiber]);
+
+  const committedFiberRef = useRef<typeof fiber | null>(null);
+  const committedFiber = committedFiberRef.current;
+  if (
+    parentFiber !== null &&
+    committedFiber !== null &&
+    committedFiber !== fiber
+  ) {
+    addCommit(parentFiber, () => markResourceFiberForDisposal(committedFiber));
+  }
+
+  useEffect(() => {
+    const previous = committedFiberRef.current;
+    committedFiberRef.current = fiber;
+    if (
+      previous !== null &&
+      previous !== fiber &&
+      (parentFiber === null || previous.isDisposePending)
+    ) {
+      disposeResourceFiber(previous);
+    }
+  }, [fiber, parentFiber]);
+
+  useEffect(
+    () => () => {
+      if (fiber.isDisposePending || parentFiber?.isDisposing) {
+        disposeResourceFiber(fiber);
+      } else unmountResourceFiber(fiber);
+    },
+    [fiber, parentFiber],
+  );
   useEffect(() => {
     void result;
     commitResourceFiber(fiber);

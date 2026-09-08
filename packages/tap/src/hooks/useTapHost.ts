@@ -1,10 +1,12 @@
 import {
+  disposeResourceFiber,
   unmountResourceFiber,
   renderResourceFiber,
   commitResourceFiber,
 } from "../core/ResourceFiber";
 import { useResourceFiberHost } from "./utils/useResourceFiberHostUtils";
-import { useEffect, useMemo } from "react";
+import { useEffect, useInsertionEffect, useMemo } from "react";
+import { peekResourceFiber } from "../core/helpers/execution-context";
 
 export namespace useTapHost {
   export interface Result<R> {
@@ -27,6 +29,7 @@ export namespace useTapHost {
 const useHostRender = <R>(render: () => R): R => render();
 
 export const useTapHost = <R>(callback: () => R): useTapHost.Result<R> => {
+  const parentFiber = peekResourceFiber();
   const { createFiber } = useResourceFiberHost();
   const fiber = useMemo(
     () => createFiber(useHostRender<R>, undefined),
@@ -35,11 +38,17 @@ export const useTapHost = <R>(callback: () => R): useTapHost.Result<R> => {
 
   const render = renderResourceFiber(fiber, [callback]);
 
+  useInsertionEffect(() => {
+    if (parentFiber !== null) return undefined;
+    return () => disposeResourceFiber(fiber);
+  }, [fiber, parentFiber]);
+
   useEffect(() => {
     return () => {
-      unmountResourceFiber(fiber);
+      if (parentFiber?.isDisposing) disposeResourceFiber(fiber);
+      else unmountResourceFiber(fiber);
     };
-  }, [fiber]);
+  }, [fiber, parentFiber]);
 
   let renderCommitted = false;
   const effects = () => {

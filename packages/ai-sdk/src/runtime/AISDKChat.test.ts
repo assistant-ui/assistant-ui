@@ -1,6 +1,11 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { flushTapSync } from "@assistant-ui/tap";
-import { AuiConfig, createAssistantClient } from "@assistant-ui/store/client";
+import { flushTapSync, resource, useResource } from "@assistant-ui/tap";
+import { runtimeAdapterTransformScopes } from "@assistant-ui/core/store";
+import {
+  attachTransformScopes,
+  AuiConfig,
+  createAssistantClient,
+} from "@assistant-ui/store/client";
 import { AISDKChat } from "./AISDKChat";
 import {
   createCancellableTransport,
@@ -110,6 +115,57 @@ describe("AISDKChat as a standalone client config entry", () => {
     await vi.waitFor(() => {
       expect(getCancelCount()).toBe(1);
     });
+  });
+
+  it("releases a superseded chat when its resource hook is replaced", async () => {
+    const first = createCancellableTransport();
+    const second = createCancellableTransport();
+    function useFirst() {
+      return useResource(AISDKChat({ transport: first.transport }));
+    }
+    function useSecond() {
+      return useResource(AISDKChat({ transport: second.transport }));
+    }
+    attachTransformScopes(useFirst, runtimeAdapterTransformScopes);
+    attachTransformScopes(useSecond, runtimeAdapterTransformScopes);
+    const First = resource(useFirst);
+    const Second = resource(useSecond);
+    let config = AuiConfig({ threads: First() });
+    const listeners = new Set<() => void>();
+    const handle = createAssistantClient({
+      getConfig: () => config,
+      subscribe: (listener) => {
+        listeners.add(listener);
+        return () => listeners.delete(listener);
+      },
+    });
+    handle.subscribe(() => {});
+
+    let aui = handle.getClient();
+    flushTapSync(() => aui.composer.setText("first"));
+    flushTapSync(() => aui.composer.send());
+    await vi.waitFor(() => {
+      expect(aui.thread.getState().isRunning).toBe(true);
+    });
+
+    config = AuiConfig({ threads: Second() });
+    flushTapSync(() => listeners.forEach((listener) => listener()));
+    await vi.waitFor(() => {
+      expect(first.getCancelCount()).toBe(1);
+    });
+
+    aui = handle.getClient();
+    flushTapSync(() => aui.composer.setText("second"));
+    flushTapSync(() => aui.composer.send());
+    await vi.waitFor(() => {
+      expect(aui.thread.getState().isRunning).toBe(true);
+    });
+
+    handle.destroy();
+    await vi.waitFor(() => {
+      expect(second.getCancelCount()).toBe(1);
+    });
+    expect(first.getCancelCount()).toBe(1);
   });
 
   it("installs the RuntimeAdapter scope defaults", () => {

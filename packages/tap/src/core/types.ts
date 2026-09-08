@@ -95,6 +95,7 @@ export interface ResourceFiber<R> {
 
   cells: Cell[];
   effectCells: EffectCell[];
+  disposeCallbacks: Set<() => void>;
 
   wipContextDeps: ResourceContextDeps | null;
   contextDeps: ResourceContextDeps | null;
@@ -113,6 +114,8 @@ export interface ResourceFiber<R> {
   renderPendingCells: Set<ReducerCell> | null;
 
   isMounted: boolean;
+  isDisposePending: boolean;
+  isDisposing: boolean;
   isFirstRender: boolean;
   isNeverMounted: boolean;
 }
