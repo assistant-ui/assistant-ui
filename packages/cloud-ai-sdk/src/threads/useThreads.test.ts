@@ -370,6 +370,101 @@ describe("useThreads", () => {
     expect(mocks.generateThreadTitle).toHaveBeenCalledTimes(2);
   });
 
+  it("keeps the explicit title when the superseded automatic run persists last", async () => {
+    const automaticTitle = createDeferred<string>();
+    const explicitTitle = createDeferred<string>();
+    const cloud = createCloud("cloud-1");
+    mocks.generateThreadTitle
+      .mockImplementationOnce(async (currentCloud, threadId) => {
+        const title = await automaticTitle.promise;
+        await currentCloud.threads.update(threadId, { title });
+        return title;
+      })
+      .mockImplementationOnce(async (currentCloud, threadId) => {
+        const title = await explicitTitle.promise;
+        await currentCloud.threads.update(threadId, { title });
+        return title;
+      });
+    const { result } = renderHook(() =>
+      useThreads({ cloud: cloud as never, enabled: true }),
+    );
+
+    await waitFor(() => expect(result.current.isLoading).toBe(false));
+
+    let automatic!: Promise<string | null>;
+    let explicit!: Promise<string | null>;
+    act(() => {
+      automatic = result.current.generateTitle("cloud-1", {
+        automatic: true,
+      });
+      explicit = result.current.generateTitle("cloud-1");
+    });
+    await waitFor(() =>
+      expect(mocks.generateThreadTitle).toHaveBeenCalledTimes(2),
+    );
+
+    await act(async () => {
+      explicitTitle.resolve("Explicit title");
+      await explicit;
+    });
+    await act(async () => {
+      automaticTitle.resolve("Automatic title");
+      await automatic;
+    });
+
+    expect(result.current.threads[0]?.title).toBe("Explicit title");
+    expect(cloud.threads.update).toHaveBeenCalledTimes(3);
+    expect(cloud.threads.update).toHaveBeenLastCalledWith("cloud-1", {
+      title: "Explicit title",
+    });
+  });
+
+  it("keeps the explicit title when the superseded automatic run persists first", async () => {
+    const automaticTitle = createDeferred<string>();
+    const explicitTitle = createDeferred<string>();
+    const cloud = createCloud("cloud-1");
+    mocks.generateThreadTitle
+      .mockImplementationOnce(async (currentCloud, threadId) => {
+        const title = await automaticTitle.promise;
+        await currentCloud.threads.update(threadId, { title });
+        return title;
+      })
+      .mockImplementationOnce(async (currentCloud, threadId) => {
+        const title = await explicitTitle.promise;
+        await currentCloud.threads.update(threadId, { title });
+        return title;
+      });
+    const { result } = renderHook(() =>
+      useThreads({ cloud: cloud as never, enabled: true }),
+    );
+
+    await waitFor(() => expect(result.current.isLoading).toBe(false));
+
+    let automatic!: Promise<string | null>;
+    let explicit!: Promise<string | null>;
+    act(() => {
+      automatic = result.current.generateTitle("cloud-1", {
+        automatic: true,
+      });
+      explicit = result.current.generateTitle("cloud-1");
+    });
+    await waitFor(() =>
+      expect(mocks.generateThreadTitle).toHaveBeenCalledTimes(2),
+    );
+
+    await act(async () => {
+      automaticTitle.resolve("Automatic title");
+      explicitTitle.resolve("Explicit title");
+      await Promise.all([automatic, explicit]);
+    });
+
+    expect(result.current.threads[0]?.title).toBe("Explicit title");
+    expect(cloud.threads.update).toHaveBeenCalledTimes(3);
+    expect(cloud.threads.update).toHaveBeenLastCalledWith("cloud-1", {
+      title: "Explicit title",
+    });
+  });
+
   it("keeps an earlier manual title when a newer rename fails", async () => {
     const failingRename = createDeferred<void>();
     const cloud = createCloud("cloud-1");

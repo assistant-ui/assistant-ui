@@ -37,16 +37,26 @@ function toCloudThread(t: {
 const CLOUD_THREAD_PAGE_SIZE = 20;
 
 type ThreadTitleClaim = {
-  title: string;
-  settled: Promise<boolean>;
+  readonly title: string;
+  readonly order: number;
+  readonly settled: Promise<boolean>;
 };
 
-type ThreadTitleGeneration = { claim: ThreadTitleClaim | null };
+type ThreadTitleGeneration = {
+  readonly automatic: boolean;
+  readonly order: number;
+  claim: ThreadTitleClaim | null;
+  superseded: boolean;
+  readonly persisted: Promise<string | undefined>;
+  readonly settlePersisted: (title: string | undefined) => void;
+};
 
 type ThreadTitleState = {
   generations: Set<ThreadTitleGeneration>;
   pendingClaim: ThreadTitleClaim | null;
   manualTitle: string | undefined;
+  latestExplicit: ThreadTitleGeneration | null;
+  nextOrder: number;
 };
 
 function getThreadTitleState(
@@ -59,10 +69,29 @@ function getThreadTitleState(
       generations: new Set(),
       pendingClaim: null,
       manualTitle: undefined,
+      latestExplicit: null,
+      nextOrder: 0,
     };
     states.set(threadId, state);
   }
   return state;
+}
+
+function isCurrentGeneration(
+  state: ThreadTitleState,
+  generation: ThreadTitleGeneration,
+): boolean {
+  return (
+    !generation.superseded &&
+    (state.latestExplicit?.order ?? 0) <= generation.order
+  );
+}
+
+function isCurrentClaim(
+  state: ThreadTitleState,
+  claim: ThreadTitleClaim,
+): boolean {
+  return (state.latestExplicit?.order ?? 0) < claim.order;
 }
 
 function takeManualTitle(
@@ -378,9 +407,11 @@ export function useThreads(options: UseThreadsOptions): UseThreadsResult {
       const settled = new Promise<boolean>((resolve) => {
         settleClaim = resolve;
       });
-      const claim = { title, settled };
+      const claim = { title, order: ++state.nextOrder, settled };
       state.pendingClaim = claim;
-      for (const generation of state.generations) generation.claim = claim;
+      for (const generation of state.generations) {
+        if (generation.order < claim.order) generation.claim = claim;
+      }
 
       const renamed = await withAction(
         async (commit) => {
@@ -493,69 +524,145 @@ export function useThreads(options: UseThreadsOptions): UseThreadsResult {
         state.manualTitle = undefined;
       }
 
+      let settlePersisted!: (title: string | undefined) => void;
+      const persisted = new Promise<string | undefined>((resolve) => {
+        settlePersisted = resolve;
+      });
       const generation: ThreadTitleGeneration = {
+        automatic,
+        order: ++state.nextOrder,
         claim: automatic ? state.pendingClaim : null,
+        superseded: false,
+        persisted,
+        settlePersisted,
       };
+      if (!automatic) {
+        state.latestExplicit = generation;
+        for (const active of state.generations) {
+          if (active.automatic) active.superseded = true;
+        }
+      }
       state.generations.add(generation);
 
+      let persistedTitle: string | undefined;
+      let persistedOrder = generation.order;
       try {
         return await withAction(
           async (commit) => {
             let title: string | null = null;
             let generated = false;
 
-            while (true) {
-              if (generation.claim) {
-                const claim = generation.claim;
-                const renamed = await claim.settled;
-                if (generation.claim !== claim) continue;
-                if (!renamed) {
-                  generation.claim = null;
-                  if (automatic) {
-                    const retained = takeManualTitle(
-                      threadTitleGenerationsRef.current,
-                      tid,
-                      state,
-                    );
-                    if (retained !== undefined) return retained;
+            const settleClaim = async (claim: ThreadTitleClaim) => {
+              const renamed = await claim.settled;
+              if (generation.claim !== claim) return undefined;
+              if (!renamed) {
+                generation.claim = null;
+                if (state.pendingClaim === claim) state.pendingClaim = null;
+              }
+              return renamed;
+            };
+
+            const runGeneration = async () => {
+              while (true) {
+                if (generation.claim) {
+                  const claim = generation.claim;
+                  const renamed = await settleClaim(claim);
+                  if (renamed === undefined) continue;
+                  if (renamed === false) {
+                    if (automatic) {
+                      const retained = takeManualTitle(
+                        threadTitleGenerationsRef.current,
+                        tid,
+                        state,
+                      );
+                      if (retained !== undefined) {
+                        title = retained;
+                        return;
+                      }
+                    }
+                    continue;
                   }
-                  continue;
+
+                  if (generated) {
+                    if (!isCurrentClaim(state, claim)) return;
+                    await cloud.threads.update(tid, { title: claim.title });
+                    if (generation.claim !== claim) continue;
+                    persistedTitle = claim.title;
+                    persistedOrder = claim.order;
+                    commit(() =>
+                      setThreads((prev) =>
+                        prev.map((t) =>
+                          t.id === tid ? { ...t, title: claim.title } : t,
+                        ),
+                      ),
+                    );
+                  }
+                  if (automatic) state.manualTitle = undefined;
+                  title = claim.title;
+                  return;
                 }
 
-                if (generated) {
-                  await cloud.threads.update(tid, { title: claim.title });
-                  if (generation.claim !== claim) continue;
+                if (generated) break;
+                generated = true;
+                title = await generateThreadTitle(cloud, tid);
+              }
+
+              if (title) {
+                const generatedTitle = title;
+                persistedTitle = generatedTitle;
+                if (isCurrentGeneration(state, generation)) {
                   commit(() =>
                     setThreads((prev) =>
                       prev.map((t) =>
-                        t.id === tid ? { ...t, title: claim.title } : t,
+                        t.id === tid ? { ...t, title: generatedTitle } : t,
                       ),
                     ),
                   );
                 }
-                if (automatic) state.manualTitle = undefined;
-                return claim.title;
               }
+            };
 
-              if (generated) break;
-              generated = true;
-              title = await generateThreadTitle(cloud, tid);
-            }
+            const repairLostRace = async () => {
+              if (persistedTitle === undefined) return;
+              while (true) {
+                const claim = generation.claim;
+                if (claim !== null && claim.order > persistedOrder) {
+                  const renamed = await settleClaim(claim);
+                  if (renamed === undefined) continue;
+                  if (renamed === true) {
+                    if (!isCurrentClaim(state, claim)) return;
+                    await cloud.threads.update(tid, { title: claim.title });
+                    persistedTitle = claim.title;
+                    persistedOrder = claim.order;
+                  }
+                  continue;
+                }
 
-            if (title) {
-              commit(() =>
-                setThreads((prev) =>
-                  prev.map((t) => (t.id === tid ? { ...t, title } : t)),
-                ),
-              );
-            }
+                const winner = state.latestExplicit;
+                if (winner === null || winner.order <= persistedOrder) return;
+                const winnerTitle = await winner.persisted;
+                if (state.latestExplicit !== winner) continue;
+                persistedOrder = winner.order;
+                if (
+                  winnerTitle === undefined ||
+                  winnerTitle === persistedTitle
+                ) {
+                  return;
+                }
+                persistedTitle = winnerTitle;
+                await cloud.threads.update(tid, { title: winnerTitle });
+              }
+            };
 
+            await runGeneration();
+            await repairLostRace();
             return title;
           },
           null,
           isCurrentCloud,
         );
       } finally {
+        generation.settlePersisted(persistedTitle);
         state.generations.delete(generation);
         pruneThreadTitleState(threadTitleGenerationsRef.current, tid, state);
       }
