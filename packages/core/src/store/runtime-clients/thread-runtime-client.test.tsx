@@ -6,8 +6,8 @@ import {
   AuiProvider,
   type AssistantClient,
 } from "@assistant-ui/store";
-import { flushSync } from "react-dom";
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
+import type { ModelContextProvider } from "../../model-context/types";
 import type { ThreadMessage } from "../../types/message";
 import type { ThreadListItemState } from "../../runtime/api/bindings";
 import {
@@ -15,7 +15,7 @@ import {
   type ThreadListItemRuntimeBinding,
   type ThreadRuntimeCoreBinding,
 } from "../../runtime/api/thread-runtime";
-import { ReadonlyThreadRuntimeCore } from "../../runtimes/readonly/ReadonlyThreadRuntimeCore";
+import { ExternalStoreThreadRuntimeCore } from "../../runtimes/external-store/external-store-thread-runtime-core";
 import { ThreadClient } from "./thread-runtime-client";
 
 const path = {
@@ -42,10 +42,20 @@ const message = {
   metadata: { custom: {} },
 } as ThreadMessage;
 
+const contextProvider: ModelContextProvider = {
+  getModelContext: () => ({}),
+};
+
 describe("ThreadClient", () => {
-  it("filters a removed message during an earlier subscriber's synchronous rerender", async () => {
-    const core = new ReadonlyThreadRuntimeCore();
-    core.setMessages([message]);
+  it("keeps cancellation removal coherent before deferred reconciliation", () => {
+    vi.useFakeTimers();
+    const core = new ExternalStoreThreadRuntimeCore(contextProvider, {
+      messages: [message],
+      isRunning: true,
+      onNew: vi.fn(),
+      onCancel: vi.fn(),
+      setMessages: vi.fn(),
+    });
 
     const threadBinding: ThreadRuntimeCoreBinding = {
       path,
@@ -60,14 +70,12 @@ describe("ThreadClient", () => {
     };
     const runtime = new ThreadRuntimeImpl(threadBinding, threadListItemBinding);
 
-    let client: AssistantClient | null = null;
-    const App = ({ revision }: { revision: number }) => {
+    const App = () => {
       const config = AuiConfig({ thread: ThreadClient({ runtime }) });
       return (
         <AuiProvider
-          key={revision}
           config={config}
-          ref={(value) => {
+          ref={(value: AssistantClient | null) => {
             client = value;
           }}
         >
@@ -76,24 +84,23 @@ describe("ThreadClient", () => {
       );
     };
 
-    let revision = 0;
-    let rerender: ReturnType<typeof render>["rerender"] | undefined;
-    const unsubscribe = core.subscribe(() => {
-      if (!rerender) return;
-      flushSync(() => rerender!(<App revision={++revision} />));
+    const unsubscribe = runtime.subscribe(() => {});
+    expect(runtime.getState().messages.map(({ id }) => id)).toContain(
+      message.id,
+    );
+
+    runtime.cancelRun();
+
+    let client: AssistantClient | null = null;
+    act(() => {
+      render(<App />);
     });
 
-    await act(async () => {
-      rerender = render(<App revision={revision} />).rerender;
-    });
-
-    expect(runtime.getState().messages).toEqual([message]);
-
-    await act(async () => {
-      core.setMessages([]);
-    });
-
+    expect(runtime.getState().messages).toEqual([]);
+    expect(core.messages).toEqual([]);
     expect(client!.thread.getState().messages).toEqual([]);
     unsubscribe();
+    vi.runAllTimers();
+    vi.useRealTimers();
   });
 });

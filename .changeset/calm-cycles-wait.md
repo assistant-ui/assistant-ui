@@ -2,4 +2,4 @@
 "@assistant-ui/core": patch
 ---
 
-fix: avoid rendering messages removed during runtime reconciliation
+fix: publish cancellation message rollbacks before deferred adapter reconciliation

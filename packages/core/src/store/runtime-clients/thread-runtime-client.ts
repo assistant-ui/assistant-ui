@@ -15,18 +15,6 @@ import { MessageClient } from "./message-runtime-client";
 import { ThreadSuggestions } from "../clients/suggestions";
 import { useSubscribable } from "./useSubscribable";
 import type { ThreadState } from "../scopes/thread";
-import type { ThreadMessage } from "../../types/message";
-import type { ThreadRuntimeCoreBinding } from "../../runtime/api/thread-runtime";
-
-const getRenderableMessages = (
-  snapshot: readonly ThreadMessage[],
-  current: readonly ThreadMessage[],
-) => {
-  if (snapshot === current) return snapshot;
-
-  const currentIds = new Set(current.map(({ id }) => id));
-  return snapshot.filter(({ id }) => currentIds.has(id));
-};
 
 const useMessageClientById = ({
   runtime,
@@ -94,17 +82,8 @@ const useThreadClient = ({
   const suggestions = useClientResource(
     ThreadSuggestions(runtimeState.suggestions),
   );
-  const liveMessages = (
-    runtime as ThreadRuntime & {
-      readonly __internal_threadBinding?: ThreadRuntimeCoreBinding;
-    }
-  ).__internal_threadBinding?.getState().messages;
-  const renderableMessages = getRenderableMessages(
-    runtimeState.messages,
-    liveMessages ?? runtimeState.messages,
-  );
   const messages = useClientLookup(
-    renderableMessages.map((m) =>
+    runtimeState.messages.map((m) =>
       withKey(m.id, MessageClientById({ runtime, id: m.id, threadIdRef }), [
         runtime,
         m.id,
