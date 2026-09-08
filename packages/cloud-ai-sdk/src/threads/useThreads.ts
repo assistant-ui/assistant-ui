@@ -55,6 +55,7 @@ type ThreadTitleGeneration = {
 type ThreadTitleState = {
   generations: Set<ThreadTitleGeneration>;
   pendingClaim: ThreadTitleClaim | null;
+  inFlightClaim: ThreadTitleClaim | null;
   manualTitle: string | undefined;
   latestExplicit: ThreadTitleGeneration | null;
   nextOrder: number;
@@ -69,6 +70,7 @@ function getThreadTitleState(
     state = {
       generations: new Set(),
       pendingClaim: null,
+      inFlightClaim: null,
       manualTitle: undefined,
       latestExplicit: null,
       nextOrder: 0,
@@ -125,6 +127,7 @@ function pruneThreadTitleState(
   if (
     state.generations.size === 0 &&
     state.pendingClaim === null &&
+    state.inFlightClaim === null &&
     state.manualTitle === undefined &&
     states.get(threadId) === state
   ) {
@@ -412,6 +415,7 @@ export function useThreads(options: UseThreadsOptions): UseThreadsResult {
       });
       const claim = { title, order: ++state.nextOrder, settled };
       state.pendingClaim = claim;
+      state.inFlightClaim = claim;
       for (const generation of state.generations) {
         if (generation.order < claim.order) generation.claim = claim;
       }
@@ -430,6 +434,7 @@ export function useThreads(options: UseThreadsOptions): UseThreadsResult {
         isCurrentCloud,
       );
       settleClaim(renamed);
+      if (state.inFlightClaim === claim) state.inFlightClaim = null;
       if (state.pendingClaim === claim) {
         state.pendingClaim = null;
         if (renamed) state.manualTitle = title;
@@ -531,7 +536,7 @@ export function useThreads(options: UseThreadsOptions): UseThreadsResult {
         automatic,
         order: ++state.nextOrder,
         claim: automatic ? state.pendingClaim : null,
-        beforeGenerationClaim: automatic ? null : state.pendingClaim,
+        beforeGenerationClaim: automatic ? null : state.inFlightClaim,
         superseded: false,
         persisted,
         settlePersisted,

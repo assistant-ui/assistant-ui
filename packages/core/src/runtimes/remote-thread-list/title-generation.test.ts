@@ -247,6 +247,47 @@ describe("runThreadTitleGeneration", () => {
     expect(applied).toEqual(["Explicit"]);
   });
 
+  it("holds every explicit generation until a pending rename settles", async () => {
+    const states = new Map<string, ThreadTitleState>();
+    const renameOpen = deferred<void>();
+    const generated: string[] = [];
+    let server: string | undefined;
+
+    const claim = startThreadTitleRename(states, "t1", "Manual");
+    const rename = (async () => {
+      await renameOpen.promise;
+      server = claim.title;
+      finishThreadTitleRename(states, "t1", claim, true);
+    })();
+    const runOf = (title: string) =>
+      runThreadTitleGeneration({
+        states,
+        threadId: "t1",
+        automatic: false,
+        generate: async (onTitle) => {
+          generated.push(title);
+          server = title;
+          await onTitle(title);
+        },
+        rename: async (next) => {
+          server = next;
+        },
+        applyTitle: noop,
+      });
+
+    const first = runOf("First");
+    const second = runOf("Second");
+    await flushMicrotasks();
+
+    expect(generated).toEqual([]);
+
+    renameOpen.resolve();
+    await Promise.all([rename, first, second]);
+
+    expect(generated).toEqual(["Second"]);
+    expect(server).toBe("Second");
+  });
+
   it("reasserts the explicit title when the superseded run persists last", async () => {
     const states = new Map<string, ThreadTitleState>();
     const streamOpen = deferred<void>();
