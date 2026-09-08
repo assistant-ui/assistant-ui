@@ -159,6 +159,7 @@ export abstract class BaseComposerRuntimeCore
   private _emptyTextAndAttachments() {
     this._attachments = [];
     this._text = "";
+    this._rebaseDictation("");
     this._notifySubscribers();
   }
 
