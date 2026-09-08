@@ -73,7 +73,11 @@ export function withAui<T extends MetroConfigLike>(config: T): T {
   const { aui, ...baseConfig } = config;
   const upstream = config.transformer?.babelTransformerPath;
 
-  if (aui?.backendless) process.env[BACKENDLESS_ENV] = "1";
+  if (aui?.backendless) {
+    process.env[BACKENDLESS_ENV] = "1";
+  } else if (aui !== undefined || upstream !== self) {
+    delete process.env[BACKENDLESS_ENV];
+  }
 
   // Guard against a double-wrap (`withAui(withAui(config))`, or a shared config
   // already wrapped): if it already points at our transformer, keep the real
@@ -81,6 +85,8 @@ export function withAui<T extends MetroConfigLike>(config: T): T {
   // which would make `resolveUpstream()` return this transformer and recurse.
   if (upstream && upstream !== self) {
     process.env[UPSTREAM_TRANSFORMER_ENV] = upstream;
+  } else if (upstream !== self) {
+    delete process.env[UPSTREAM_TRANSFORMER_ENV];
   }
 
   return {
