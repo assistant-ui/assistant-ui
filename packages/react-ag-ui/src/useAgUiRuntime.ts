@@ -149,7 +149,7 @@ export function useAgUiRuntime(
     const controller = queueRef.current;
     queueRef.current = null;
     controller.clear();
-  });
+  }, [options.unstable_enableMessageQueue]);
 
   // Feeds the store memo below: the runtime core skips an adapter whose
   // identity is unchanged, so queue items have to move the store reference or
