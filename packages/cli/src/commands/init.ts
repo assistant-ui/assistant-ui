@@ -45,7 +45,7 @@ export const init = new Command()
   .option("-o, --overwrite", "overwrite existing files.", false)
   .option(
     "-c, --cwd <cwd>",
-    "the directory used to resolve project paths. defaults to the current directory.",
+    "the project directory, or the parent directory used to resolve new project paths. defaults to the current directory.",
     process.cwd(),
   )
   .addOption(
