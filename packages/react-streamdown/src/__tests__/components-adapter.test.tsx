@@ -72,6 +72,49 @@ describe("useAdaptedComponents", () => {
     });
   });
 
+  describe("pre identity", () => {
+    const rawPreNode = {
+      type: "element",
+      tagName: "pre",
+      properties: {},
+      children: [{ type: "text", value: "raw" }],
+    } as never;
+
+    it("keeps the same pre component across renders with a fresh components object", () => {
+      const Pre = ({ node: _, ...p }: any) => <pre {...p} />;
+      const { result, rerender } = renderHook(
+        ({ components }) => useAdaptedComponents({ components }),
+        { initialProps: { components: { pre: Pre } } },
+      );
+      const first = result.current.pre;
+      rerender({ components: { pre: Pre } });
+      expect(result.current.pre).toBe(first);
+    });
+
+    it("renders through the new user pre in the render that carries it", () => {
+      const PreA = ({ node: _, ...p }: any) => (
+        <pre data-testid="pre-a" {...p} />
+      );
+      const PreB = ({ node: _, ...p }: any) => (
+        <pre data-testid="pre-b" {...p} />
+      );
+      const Host = ({ pre }: { pre: typeof PreA }) => {
+        const adapted = useAdaptedComponents({ components: { pre } });
+        return createElement(
+          adapted.pre as React.ComponentType<Record<string, unknown>>,
+          { node: rawPreNode },
+          "raw",
+        );
+      };
+      const { rerender } = render(<Host pre={PreA} />);
+      expect(screen.getByTestId("pre-a").textContent).toBe("raw");
+
+      rerender(<Host pre={PreB} />);
+
+      expect(screen.getByTestId("pre-b").textContent).toBe("raw");
+    });
+  });
+
   describe("with SyntaxHighlighter", () => {
     it("creates code adapter when SyntaxHighlighter provided", () => {
       const MockSyntax = vi.fn(() => null);

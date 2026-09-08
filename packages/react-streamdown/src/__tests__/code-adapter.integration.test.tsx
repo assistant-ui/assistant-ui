@@ -345,8 +345,10 @@ describe("createCodeAdapter integration", () => {
         components: { Pre: HlPre, Code: HlCode },
         code,
       }: SyntaxHighlighterProps) => (
-        <HlPre data-testid="hl-pre">
-          <HlCode data-testid="hl-code">{code}</HlCode>
+        <HlPre data-testid="hl-pre" className="hl-pre">
+          <HlCode data-testid="hl-code" className="hljs">
+            {code}
+          </HlCode>
         </HlPre>
       );
       const AdaptedCode = createCodeAdapter({ SyntaxHighlighter, Pre, Code });
@@ -358,8 +360,8 @@ describe("createCodeAdapter integration", () => {
         </PreOverride>,
       );
 
-      expect(screen.getByTestId("hl-pre").className).toBe("from-pre");
-      expect(screen.getByTestId("hl-code").className).toBe("language-ts");
+      expect(screen.getByTestId("hl-pre").className).toBe("from-pre hl-pre");
+      expect(screen.getByTestId("hl-code").className).toBe("language-ts hljs");
     });
 
     it("wraps the block fallback in the user Pre and Code", () => {

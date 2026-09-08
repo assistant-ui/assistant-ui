@@ -33,6 +33,11 @@ interface CodeAdapterOptions {
   Code?: ComponentType<CodeProps> | undefined;
 }
 
+function joinClassNames(...names: (string | undefined)[]): string | undefined {
+  const joined = names.filter(Boolean).join(" ");
+  return joined || undefined;
+}
+
 function extractCode(children: unknown): string {
   if (typeof children === "string") return children;
   if (Array.isArray(children)) {
@@ -75,12 +80,25 @@ export function createCodeAdapter(options: CodeAdapterOptions) {
     ...props
   }: CodeProps & { "data-block"?: string }) {
     const preProps = useStreamdownPreProps();
-    const WrappedPre = useCallbackRef((p: PreProps) => (
-      <Pre {...preProps} {...p} />
-    ));
-    const WrappedCode = useCallbackRef((p: CodeProps) => (
-      <Code node={node} className={className} {...props} {...p} />
-    ));
+    const WrappedPre = useCallbackRef(
+      ({ className: ownClassName, ...p }: PreProps) => (
+        <Pre
+          {...preProps}
+          {...p}
+          className={joinClassNames(preProps?.className, ownClassName)}
+        />
+      ),
+    );
+    const WrappedCode = useCallbackRef(
+      ({ className: ownClassName, ...p }: CodeProps) => (
+        <Code
+          node={node}
+          {...props}
+          {...p}
+          className={joinClassNames(className, ownClassName)}
+        />
+      ),
+    );
 
     if (!dataBlock) {
       return (

@@ -418,6 +418,29 @@ describe("StreamdownTextPrimitive", () => {
       ).toContain("const x = 1;");
     });
 
+    it("wraps a fenced block in user pre and code with no other adapter trigger", () => {
+      const pre = ({ node: _, ...p }: any) => (
+        <pre data-testid="user-pre" {...p} />
+      );
+      const code = ({ node: _, ...p }: any) => (
+        <code data-testid="user-code" {...p} />
+      );
+      const { container } = render(
+        <TextMessagePartProvider text={fencedMarkdown} isRunning={false}>
+          <StreamdownTextPrimitive
+            mode="static"
+            components={{ pre, code } as StreamdownTextComponents}
+          />
+        </TextMessagePartProvider>,
+      );
+
+      expect(
+        container.querySelector(
+          "[data-testid=user-pre] > [data-testid=user-code]",
+        )?.textContent,
+      ).toContain("const x = 1;");
+    });
+
     it("renders a raw pre without a code child through the user pre", () => {
       const pre = ({ node: _, ...p }: any) => (
         <pre data-testid="user-pre" {...p} />

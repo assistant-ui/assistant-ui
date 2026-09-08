@@ -1,6 +1,5 @@
 "use client";
 
-import { useCallbackRef } from "@radix-ui/react-use-callback-ref";
 import { type ComponentType, createElement, useMemo } from "react";
 import type { StreamdownProps } from "streamdown";
 import { createCodeAdapter, shouldUseCodeAdapter } from "./code-adapter";
@@ -47,23 +46,28 @@ export function useAdaptedComponents({
   componentsByLanguage,
 }: UseAdaptedComponentsOptions): NonNullable<StreamdownProps["components"]> {
   const Pre = toComponent<PreOverrideProps>(components?.pre);
-  const PreWithFallback: PreComponent = useCallbackRef((props) =>
-    createElement(PreOverride, { fallbackPre: Pre, ...props }),
+  const PreWithFallback: PreComponent = useMemo(
+    () =>
+      function PreWithFallback(props: PreOverrideProps) {
+        return createElement(PreOverride, { fallbackPre: Pre, ...props });
+      },
+    [Pre],
   );
 
   return useMemo(() => {
     const { SyntaxHighlighter, CodeHeader, pre, code, ...htmlComponents } =
       components ?? {};
 
+    const Code = toComponent(code);
     const codeAdapterOptions = {
       SyntaxHighlighter,
       CodeHeader,
       componentsByLanguage,
       Pre: toComponent<PreOverrideProps>(pre),
-      Code: toComponent(code),
+      Code,
     };
 
-    if (!shouldUseCodeAdapter(codeAdapterOptions)) {
+    if (!shouldUseCodeAdapter(codeAdapterOptions) && !(Pre && Code)) {
       return { ...htmlComponents, ...(code && { code }), pre: PreWithFallback };
     }
 
@@ -72,5 +76,5 @@ export function useAdaptedComponents({
       pre: PreWithFallback,
       code: createCodeAdapter(codeAdapterOptions),
     };
-  }, [components, componentsByLanguage, PreWithFallback]);
+  }, [components, componentsByLanguage, Pre, PreWithFallback]);
 }
