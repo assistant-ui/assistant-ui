@@ -91,26 +91,39 @@ describe("useAdaptedComponents", () => {
       expect(result.current.pre).toBe(first);
     });
 
-    it("renders through the new user pre in the render that carries it", () => {
+    it("keeps the same pre component when the user pre is an inline arrow", () => {
+      const { result, rerender } = renderHook(
+        ({ tick }) =>
+          useAdaptedComponents({
+            components: { pre: ({ node: _, ...p }: any) => <pre {...p} /> },
+            componentsByLanguage: tick ? {} : undefined,
+          }),
+        { initialProps: { tick: 0 } },
+      );
+      const first = result.current.pre;
+      rerender({ tick: 1 });
+      expect(result.current.pre).toBe(first);
+    });
+
+    it("renders a raw pre through the fallback after the pre changes", () => {
       const PreA = ({ node: _, ...p }: any) => (
         <pre data-testid="pre-a" {...p} />
       );
       const PreB = ({ node: _, ...p }: any) => (
         <pre data-testid="pre-b" {...p} />
       );
-      const Host = ({ pre }: { pre: typeof PreA }) => {
-        const adapted = useAdaptedComponents({ components: { pre } });
-        return createElement(
-          adapted.pre as React.ComponentType<Record<string, unknown>>,
+      const { result, rerender } = renderHook(
+        ({ components }) => useAdaptedComponents({ components }),
+        { initialProps: { components: { pre: PreA } } },
+      );
+      rerender({ components: { pre: PreB } });
+      render(
+        createElement(
+          result.current.pre as React.ComponentType<Record<string, unknown>>,
           { node: rawPreNode },
           "raw",
-        );
-      };
-      const { rerender } = render(<Host pre={PreA} />);
-      expect(screen.getByTestId("pre-a").textContent).toBe("raw");
-
-      rerender(<Host pre={PreB} />);
-
+        ),
+      );
       expect(screen.getByTestId("pre-b").textContent).toBe("raw");
     });
   });

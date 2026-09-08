@@ -180,6 +180,7 @@ export function shouldUseCodeAdapter(options: CodeAdapterOptions): boolean {
     options.SyntaxHighlighter ||
     options.CodeHeader ||
     (options.componentsByLanguage &&
-      Object.keys(options.componentsByLanguage).length > 0)
+      Object.keys(options.componentsByLanguage).length > 0) ||
+    (options.Pre && options.Code)
   );
 }
