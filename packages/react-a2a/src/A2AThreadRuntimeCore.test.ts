@@ -645,28 +645,19 @@ describe("A2AThreadRuntimeCore", () => {
         parent.id,
         edited.id,
       ]);
-      const exportedMessages = core
-        .getMessageRepository()
-        .messages.map(({ message, parentId }) => ({
+      expect(
+        core.getMessageRepository().messages.map(({ message, parentId }) => ({
           id: message.id,
           parentId,
-        }));
-      expect(exportedMessages).toHaveLength(6);
-      expect(exportedMessages).toEqual(
-        expect.arrayContaining([
-          { id: root.id, parentId: null },
-          { id: parent.id, parentId: root.id },
-          { id: source.id, parentId: parent.id },
-          { id: child.id, parentId: source.id },
-          { id: sibling.id, parentId: parent.id },
-          { id: edited.id, parentId: parent.id },
-        ]),
-      );
-      const exportedIds = new Set<string>();
-      for (const { id, parentId } of exportedMessages) {
-        if (parentId !== null) expect(exportedIds.has(parentId)).toBe(true);
-        exportedIds.add(id);
-      }
+        })),
+      ).toEqual([
+        { id: root.id, parentId: null },
+        { id: parent.id, parentId: root.id },
+        { id: source.id, parentId: parent.id },
+        { id: child.id, parentId: source.id },
+        { id: sibling.id, parentId: parent.id },
+        { id: edited.id, parentId: parent.id },
+      ]);
 
       core.applyExternalMessages([root, parent, source, child]);
       expect(core.getMessages().map((message) => message.id)).toEqual([
