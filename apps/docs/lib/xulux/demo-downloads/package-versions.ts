@@ -1,4 +1,13 @@
-type Snapshot = Record<string, string>;
+import type { RepoSourceReader } from "@/lib/repo-source";
+
+type PackageJson = {
+  version?: string;
+  dependencies?: Record<string, string>;
+  devDependencies?: Record<string, string>;
+  peerDependencies?: Record<string, string>;
+};
+
+type PackageJsonReader = (snapshotKey: string) => Promise<PackageJson>;
 
 const WORKSPACE_PACKAGE_JSON: Record<string, string> = {
   "@assistant-ui/ai-sdk": "packages/ai-sdk/package.json",
@@ -40,45 +49,57 @@ export const DEMO_DEV_DEPENDENCIES = [
   "typescript",
 ] as const;
 
-export function dependencyVersions(
-  snapshot: Snapshot,
+export async function dependencyVersions(
+  reader: RepoSourceReader,
   names: readonly string[],
 ) {
+  const readPackageJson = createPackageJsonReader(reader);
   return Object.fromEntries(
-    names.map((name) => [name, dependencyVersion(snapshot, name)]),
+    await Promise.all(
+      names.map(async (name): Promise<[string, string]> => [
+        name,
+        await dependencyVersion(readPackageJson, name),
+      ]),
+    ),
   );
 }
 
-export function dependencyVersionsFromPackage(
-  snapshot: Snapshot,
+export async function dependencyVersionsFromPackage(
+  reader: RepoSourceReader,
   packagePath: string,
   names: readonly string[],
 ) {
-  const pkg = packageJsonFromSnapshot(snapshot, packagePath);
+  const readPackageJson = createPackageJsonReader(reader);
+  const pkg = await readPackageJson(packagePath);
   return Object.fromEntries(
-    names.map((name) => {
-      const version =
-        pkg.dependencies?.[name] ??
-        pkg.devDependencies?.[name] ??
-        pkg.peerDependencies?.[name];
-      if (isInstallableVersion(version)) {
-        return [name, version];
-      }
-      return [name, dependencyVersion(snapshot, name)];
-    }),
+    await Promise.all(
+      names.map(async (name): Promise<[string, string]> => {
+        const version =
+          pkg.dependencies?.[name] ??
+          pkg.devDependencies?.[name] ??
+          pkg.peerDependencies?.[name];
+        if (isInstallableVersion(version)) {
+          return [name, version];
+        }
+        return [name, await dependencyVersion(readPackageJson, name)];
+      }),
+    ),
   );
 }
 
-function dependencyVersion(snapshot: Snapshot, name: string) {
+async function dependencyVersion(
+  readPackageJson: PackageJsonReader,
+  name: string,
+) {
   const workspacePackagePath = WORKSPACE_PACKAGE_JSON[name];
   if (workspacePackagePath) {
-    const pkg = packageJsonFromSnapshot(snapshot, workspacePackagePath);
+    const pkg = await readPackageJson(workspacePackagePath);
     if (typeof pkg.version === "string" && pkg.version) {
       return `^${pkg.version}`;
     }
   }
 
-  const docsPkg = packageJsonFromSnapshot(snapshot, "apps/docs/package.json");
+  const docsPkg = await readPackageJson("apps/docs/package.json");
   const version =
     docsPkg.dependencies?.[name] ??
     docsPkg.devDependencies?.[name] ??
@@ -99,17 +120,30 @@ function isInstallableVersion(version: unknown): version is string {
   );
 }
 
-function packageJsonFromSnapshot(snapshot: Snapshot, snapshotKey: string) {
-  const raw = snapshot[snapshotKey];
+// Every dependency falls back to the docs manifest, so one resolution pass
+// would otherwise read and parse the same file once per name.
+function createPackageJsonReader(reader: RepoSourceReader): PackageJsonReader {
+  const parsed = new Map<string, Promise<PackageJson>>();
+
+  return (snapshotKey) => {
+    const cached = parsed.get(snapshotKey);
+    if (cached) return cached;
+
+    const pending = readPackageJson(reader, snapshotKey);
+    parsed.set(snapshotKey, pending);
+    return pending;
+  };
+}
+
+async function readPackageJson(
+  reader: RepoSourceReader,
+  snapshotKey: string,
+): Promise<PackageJson> {
+  const raw = await reader.readFile(snapshotKey);
   if (typeof raw !== "string") {
     throw new Error(
       `Missing package metadata in source snapshot: ${snapshotKey}`,
     );
   }
-  return JSON.parse(raw) as {
-    version?: string;
-    dependencies?: Record<string, string>;
-    devDependencies?: Record<string, string>;
-    peerDependencies?: Record<string, string>;
-  };
+  return JSON.parse(raw) as PackageJson;
 }

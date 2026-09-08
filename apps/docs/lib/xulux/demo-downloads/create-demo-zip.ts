@@ -1,4 +1,9 @@
-import { loadRepoSourceSnapshot } from "@/lib/repo-source";
+import {
+  createRepoSourceReader,
+  snapshotSourceReader,
+  type RepoSourceReader,
+  type RepoSourceSnapshot,
+} from "@/lib/repo-source";
 import {
   DEMO_DOWNLOAD_MANIFESTS,
   getDemoDownloadManifest,
@@ -13,28 +18,36 @@ import {
 } from "./package-versions";
 import { createZip, type ZipFileMap } from "./zip";
 
-type SourceSnapshot = Record<string, string>;
-
 export async function createDemoZip(slug: string) {
-  const snapshot = await loadRepoSourceSnapshot();
-  return createZip(createDemoFileMap(slug, snapshot));
+  return createZip(await buildDemoFileMap(slug, createRepoSourceReader()));
 }
 
-export function createDemoFileMap(slug: string, snapshot: SourceSnapshot) {
+export function createDemoFileMap(
+  slug: string,
+  snapshot: RepoSourceSnapshot,
+): Promise<ZipFileMap> {
+  return buildDemoFileMap(slug, snapshotSourceReader(snapshot));
+}
+
+async function buildDemoFileMap(
+  slug: string,
+  reader: RepoSourceReader,
+): Promise<ZipFileMap> {
   const manifest = getDemoDownloadManifest(slug);
   if (!manifest) {
     throw new Error(`Unsupported demo slug: ${slug}`);
   }
 
   if (manifest.target === "node-cli") {
-    return createNodeCliDemoFileMap(manifest, snapshot);
+    return createNodeCliDemoFileMap(manifest, reader);
   }
 
-  const demoSource = flattenUiFlavorImports(
-    assertSnapshotFile(snapshot, manifest.entry),
-  );
+  const [demoSource, demoPackageJson] = await Promise.all([
+    readSourceFile(reader, manifest.entry).then(flattenUiFlavorImports),
+    packageJson(manifest, reader),
+  ]);
   const files: ZipFileMap = {
-    "package.json": packageJson(manifest, snapshot),
+    "package.json": demoPackageJson,
     "next.config.ts": nextConfigTs(),
     "tsconfig.json": tsconfigJson(),
     "postcss.config.mjs": postcssConfigMjs(),
@@ -58,17 +71,20 @@ export function createDemoFileMap(slug: string, snapshot: SourceSnapshot) {
     [`components/examples/${manifest.slug}.tsx`]: demoSource,
   };
 
-  for (const sourceFile of manifest.extraSourceFiles ?? []) {
+  const extraSourceFiles = manifest.extraSourceFiles ?? [];
+  const extraSources = await Promise.all(
+    extraSourceFiles.map((sourceFile) => readSourceFile(reader, sourceFile)),
+  );
+
+  extraSourceFiles.forEach((sourceFile, index) => {
     const target = targetPathForSourceFile(sourceFile);
     if (target in files) {
       throw new Error(
         `Demo zip target collision: ${sourceFile} flattens onto ${target}`,
       );
     }
-    files[target] = flattenUiFlavorImports(
-      assertSnapshotFile(snapshot, sourceFile),
-    );
-  }
+    files[target] = flattenUiFlavorImports(extraSources[index]!);
+  });
 
   return files;
 }
@@ -81,8 +97,8 @@ export function supportedDemoSlugs() {
   return Object.keys(DEMO_DOWNLOAD_MANIFESTS) as DemoDownloadSlug[];
 }
 
-function assertSnapshotFile(snapshot: SourceSnapshot, snapshotKey: string) {
-  const contents = snapshot[snapshotKey];
+async function readSourceFile(reader: RepoSourceReader, snapshotKey: string) {
+  const contents = await reader.readFile(snapshotKey);
   if (typeof contents !== "string") {
     throw new Error(`Missing source snapshot entry: ${snapshotKey}`);
   }
@@ -128,47 +144,55 @@ const REACT_INK_SOURCE_FILES = [
   "examples/with-react-ink/src/tools.tsx",
 ] as const;
 
-function createNodeCliDemoFileMap(
+async function createNodeCliDemoFileMap(
   manifest: DemoDownloadManifest,
-  snapshot: SourceSnapshot,
+  reader: RepoSourceReader,
 ) {
   if (manifest.slug !== "react-ink") {
     throw new Error(`Unsupported node-cli demo slug: ${manifest.slug}`);
   }
 
-  const files: ZipFileMap = {
-    "package.json": nodeCliPackageJson(manifest, snapshot),
-    "tsconfig.json": assertSnapshotFile(
-      snapshot,
-      "examples/with-react-ink/tsconfig.json",
+  const [demoPackageJson, tsconfig, sources] = await Promise.all([
+    nodeCliPackageJson(manifest, reader),
+    readSourceFile(reader, "examples/with-react-ink/tsconfig.json"),
+    Promise.all(
+      REACT_INK_SOURCE_FILES.map((sourceFile) =>
+        readSourceFile(reader, sourceFile),
+      ),
     ),
+  ]);
+  const files: ZipFileMap = {
+    "package.json": demoPackageJson,
+    "tsconfig.json": tsconfig,
     "README.md": nodeCliReadme(manifest),
   };
 
-  for (const sourceFile of REACT_INK_SOURCE_FILES) {
+  REACT_INK_SOURCE_FILES.forEach((sourceFile, index) => {
     files[sourceFile.replace(/^examples\/with-react-ink\//, "")] =
-      assertSnapshotFile(snapshot, sourceFile);
-  }
+      sources[index]!;
+  });
 
   return files;
 }
 
-function nodeCliPackageJson(
+async function nodeCliPackageJson(
   manifest: DemoDownloadManifest,
-  snapshot: SourceSnapshot,
+  reader: RepoSourceReader,
 ) {
   const packagePath = "examples/with-react-ink/package.json";
-  const dependencies = dependencyVersionsFromPackage(snapshot, packagePath, [
-    "@assistant-ui/react-ink",
-    "@assistant-ui/react-ink-markdown",
-    "ink",
-    "react",
-  ]);
-  const devDependencies = dependencyVersionsFromPackage(snapshot, packagePath, [
-    "@types/react",
-    "esbuild",
-    "tsx",
-    "typescript",
+  const [dependencies, devDependencies] = await Promise.all([
+    dependencyVersionsFromPackage(reader, packagePath, [
+      "@assistant-ui/react-ink",
+      "@assistant-ui/react-ink-markdown",
+      "ink",
+      "react",
+    ]),
+    dependencyVersionsFromPackage(reader, packagePath, [
+      "@types/react",
+      "esbuild",
+      "tsx",
+      "typescript",
+    ]),
   ]);
 
   return `${JSON.stringify(
@@ -194,7 +218,15 @@ function nodeCliReadme(manifest: DemoDownloadManifest) {
   return `# Xulux ${manifest.name}\n\n${manifest.description}\n\nThis is a Node.js terminal app. It renders a Claude Code or Codex CLI-style assistant UI with React Ink and assistant-ui terminal primitives.\n\n## Run\n\n\`\`\`bash\nnpm install\nnpm run dev\n\`\`\`\n\n## Build\n\n\`\`\`bash\nnpm run build\nnpm start\n\`\`\`\n\nSource demo: \`${manifest.sourcePath ?? "examples/with-react-ink"}\`\n`;
 }
 
-function packageJson(manifest: DemoDownloadManifest, snapshot: SourceSnapshot) {
+async function packageJson(
+  manifest: DemoDownloadManifest,
+  reader: RepoSourceReader,
+) {
+  const [dependencies, devDependencies] = await Promise.all([
+    dependencyVersions(reader, DEMO_DEPENDENCIES),
+    dependencyVersions(reader, DEMO_DEV_DEPENDENCIES),
+  ]);
+
   return `${JSON.stringify(
     {
       name: `xulux-${manifest.slug}-demo`,
@@ -206,8 +238,8 @@ function packageJson(manifest: DemoDownloadManifest, snapshot: SourceSnapshot) {
         build: "next build",
         start: "next start",
       },
-      dependencies: dependencyVersions(snapshot, DEMO_DEPENDENCIES),
-      devDependencies: dependencyVersions(snapshot, DEMO_DEV_DEPENDENCIES),
+      dependencies,
+      devDependencies,
     },
     null,
     2,

@@ -3,6 +3,15 @@ import path from "node:path";
 
 export type RepoSourceSnapshot = Record<string, string>;
 
+/**
+ * Callers name the files they want rather than materializing the tree, so a
+ * request costs the entries it references instead of every tracked file.
+ */
+export type RepoSourceReader = {
+  readFile(filePath: string): Promise<string | undefined>;
+  readUnder(prefix: string): Promise<Record<string, string>>;
+};
+
 // Matches the generator's bound. Reading the tree unbounded keeps a descriptor
 // open per file and exhausts a 1024 descriptor limit well before the tree ends.
 const READ_CONCURRENCY = 32;
@@ -14,30 +23,103 @@ export function repoSourceRoot() {
   return path.join(process.cwd(), "generated", ".repo-source");
 }
 
-export async function loadRepoSourceSnapshot(
+export function createRepoSourceReader(
   sourceRoot = repoSourceRoot(),
-): Promise<RepoSourceSnapshot> {
-  const filePaths = await listFiles(sourceRoot);
-  const snapshot: RepoSourceSnapshot = {};
-  let index = 0;
+): RepoSourceReader {
+  return {
+    async readFile(filePath) {
+      try {
+        return await readFile(resolveWithin(sourceRoot, filePath), "utf-8");
+      } catch (error) {
+        if (isMissing(error)) return undefined;
+        throw error;
+      }
+    },
 
-  async function worker() {
-    while (index < filePaths.length) {
-      const relativePath = filePaths[index++]!;
-      snapshot[relativePath] = await readFile(
-        path.join(sourceRoot, relativePath),
-        "utf-8",
+    async readUnder(prefix) {
+      const directory = resolveWithin(sourceRoot, prefix);
+      let relativePaths: string[];
+
+      try {
+        relativePaths = await listFiles(directory);
+      } catch (error) {
+        if (isMissing(error)) return {};
+        throw error;
+      }
+
+      const files: Record<string, string> = {};
+      let index = 0;
+
+      async function worker() {
+        while (index < relativePaths.length) {
+          const relativePath = relativePaths[index++]!;
+          files[relativePath] = await readFile(
+            path.join(directory, relativePath),
+            "utf-8",
+          );
+        }
+      }
+
+      await Promise.all(
+        Array.from(
+          { length: Math.min(READ_CONCURRENCY, relativePaths.length) },
+          () => worker(),
+        ),
       );
-    }
+
+      return files;
+    },
+  };
+}
+
+export function snapshotSourceReader(
+  snapshot: RepoSourceSnapshot,
+): RepoSourceReader {
+  return {
+    async readFile(filePath) {
+      return snapshot[filePath];
+    },
+
+    async readUnder(prefix) {
+      const sourcePrefix = `${prefix}/`;
+      const files: Record<string, string> = {};
+
+      for (const snapshotPath of Object.keys(snapshot)) {
+        if (!snapshotPath.startsWith(sourcePrefix)) continue;
+        const relativePath = snapshotPath.slice(sourcePrefix.length);
+        if (!relativePath) continue;
+        files[relativePath] = snapshot[snapshotPath]!;
+      }
+
+      return files;
+    },
+  };
+}
+
+// The tree mirrors the monorepo on disk, so a path that climbs out of it would
+// read the deployment rather than the snapshot.
+function resolveWithin(sourceRoot: string, relativePath: string) {
+  const normalized = path.posix.normalize(relativePath.replaceAll("\\", "/"));
+
+  if (
+    !relativePath ||
+    normalized.startsWith("/") ||
+    normalized === "." ||
+    normalized === ".." ||
+    normalized.startsWith("../")
+  ) {
+    throw new Error(`Unsafe repo source path: ${relativePath}`);
   }
 
-  await Promise.all(
-    Array.from({ length: Math.min(READ_CONCURRENCY, filePaths.length) }, () =>
-      worker(),
-    ),
-  );
+  return path.join(sourceRoot, normalized);
+}
 
-  return snapshot;
+function isMissing(error: unknown) {
+  return (
+    error instanceof Error &&
+    "code" in error &&
+    (error.code === "ENOENT" || error.code === "ENOTDIR")
+  );
 }
 
 // Level by level rather than depth first: a recursive walk serializes every
