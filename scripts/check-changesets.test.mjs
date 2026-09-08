@@ -1,6 +1,12 @@
 import assert from "node:assert/strict";
 import { execFileSync, spawnSync } from "node:child_process";
-import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
+import {
+  mkdirSync,
+  mkdtempSync,
+  readFileSync,
+  rmSync,
+  writeFileSync,
+} from "node:fs";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import test from "node:test";
@@ -475,6 +481,41 @@ test("deleting published source requires a changeset", () => {
       missingChangesets: [
         {
           files: ["packages/published/src/removed.ts"],
+          name: "@fixture/published",
+        },
+      ],
+    });
+  } finally {
+    rmSync(root, { recursive: true, force: true });
+  }
+});
+
+test("published code outside src requires a changeset", () => {
+  const root = createWorkspace(
+    '---\n"@fixture/held": patch\n---\n\nfix: unrelated package\n',
+  );
+  try {
+    const manifest = path.join(root, "packages", "published", "package.json");
+    const pkg = JSON.parse(readFileSync(manifest, "utf8"));
+    writeFileSync(
+      manifest,
+      JSON.stringify({ ...pkg, files: ["dist", "src", "plugin", "README.md"] }),
+    );
+    const pluginDir = path.join(root, "packages", "published", "plugin");
+    mkdirSync(pluginDir);
+    const plugin = path.join(pluginDir, "entry.js");
+    writeFileSync(plugin, "export const value = 1;\n");
+    git(root, "init", "-q", "-b", "main");
+    const base = commitAll(root, "base");
+
+    writeFileSync(plugin, "export const value = 2;\n");
+    const head = commitAll(root, "change published plugin");
+
+    assert.deepEqual(runChangedPackageCheck(root, base, head), {
+      changedSourceCount: 1,
+      missingChangesets: [
+        {
+          files: ["packages/published/plugin/entry.js"],
           name: "@fixture/published",
         },
       ],

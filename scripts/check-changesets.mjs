@@ -64,6 +64,15 @@ export function readWorkspacePackages(root) {
         manifest: manifest.replaceAll("\\", "/"),
         isPrivate: pkg.private === true,
         hasVersion: Boolean(pkg.version),
+        releaseRoots: (Array.isArray(pkg.files) ? pkg.files : ["src"])
+          .filter(
+            (entry) =>
+              typeof entry === "string" &&
+              !entry.startsWith("!") &&
+              !entry.endsWith(".md"),
+          )
+          .map((entry) => entry.replace(/^\.\//, "").split("/")[0])
+          .filter((entry) => entry && entry !== "dist"),
       });
     }
   }
@@ -172,7 +181,10 @@ export function isReleaseRelevantSourceFile(file) {
   const match = file.match(/^packages\/[^/]+\/src\/(.+)$/);
   if (!match) return false;
 
-  const relative = match[1];
+  return isReleaseRelevantFile(match[1]);
+}
+
+function isReleaseRelevantFile(relative) {
   const segments = relative.split("/");
   if (
     segments.some((segment) =>
@@ -191,6 +203,15 @@ export function isReleaseRelevantSourceFile(file) {
   }
 
   return !/\.(?:bench|generated|spec|stories|test)\.[^/]+$/.test(relative);
+}
+
+function isReleaseRelevantPackageFile(file, pkg) {
+  const packageRoot = path.posix.dirname(pkg.manifest);
+  if (!file.startsWith(`${packageRoot}/`)) return false;
+
+  const relative = file.slice(packageRoot.length + 1);
+  const root = relative.split("/")[0];
+  return pkg.releaseRoots.includes(root) && isReleaseRelevantFile(relative);
 }
 
 export function findMissingPackageChangesets(
@@ -214,7 +235,7 @@ export function findMissingPackageChangesets(
 
     const packageRoot = path.posix.dirname(pkg.manifest);
     const files = [...changedFiles].filter((file) =>
-      file.startsWith(`${packageRoot}/src/`),
+      file.startsWith(`${packageRoot}/`),
     );
     if (files.length > 0 && !bumped.has(name)) {
       missing.push({ files, name });
@@ -236,7 +257,7 @@ function diffChangedFiles(root, baseSha, headSha) {
         "--no-renames",
         range,
         "--",
-        "packages/*/src/**",
+        "packages/**",
       ],
       { cwd: root, encoding: "utf8", stdio: ["ignore", "pipe", "pipe"] },
     )
@@ -255,7 +276,7 @@ function diffChangedFiles(root, baseSha, headSha) {
         "--ignore-matching-lines=^[[:space:]]*//",
         range,
         "--",
-        "packages/*/src/**",
+        "packages/**",
       ],
       { cwd: root, encoding: "utf8", stdio: ["ignore", "pipe", "pipe"] },
     );
@@ -298,7 +319,13 @@ export function runChangedPackageCheck(root, baseSha, headSha) {
       .filter((file) => file.startsWith(".changeset/"))
       .map((file) => path.basename(file)),
   );
-  const sourceFiles = new Set(changedFiles.filter(isReleaseRelevantSourceFile));
+  const sourceFiles = new Set(
+    changedFiles.filter((file) =>
+      [...packages.values()].some((pkg) =>
+        isReleaseRelevantPackageFile(file, pkg),
+      ),
+    ),
+  );
 
   return {
     changedSourceCount: sourceFiles.size,
