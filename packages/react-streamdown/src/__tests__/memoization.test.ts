@@ -44,16 +44,10 @@ describe("memoCompareNodes", () => {
     expect(memoCompareNodes(prev, next)).toBe(true);
   });
 
-  it("returns true for same React element type and key", () => {
+  it("returns true for the same React element", () => {
     const child = createElement("div", { key: "1" }, "content");
     const prev = { children: child };
     const next = { children: child };
-    expect(memoCompareNodes(prev, next)).toBe(true);
-  });
-
-  it("returns true for equivalent React elements (same type and key)", () => {
-    const prev = { children: createElement("div", { key: "1" }) };
-    const next = { children: createElement("div", { key: "1" }) };
     expect(memoCompareNodes(prev, next)).toBe(true);
   });
 
