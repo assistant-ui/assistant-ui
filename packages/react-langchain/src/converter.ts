@@ -61,7 +61,10 @@ export const convertLangChainContentBlock = (
   switch (type) {
     case "text":
     case "text_delta":
-      return { type: "text" as const, text: part.text };
+      return {
+        type: "text" as const,
+        text: typeof part.text === "string" ? part.text : "",
+      };
     case "image_url": {
       const image =
         typeof part.image_url === "string"
@@ -298,6 +301,7 @@ export const createLangChainStreamingTimingAccessors = <
     if (!Array.isArray(content)) return 0;
     let len = 0;
     for (const part of content as readonly LangChainContentBlock[]) {
+      if (typeof part !== "object" || part === null) continue;
       switch (part.type) {
         case "text":
         case "text_delta":

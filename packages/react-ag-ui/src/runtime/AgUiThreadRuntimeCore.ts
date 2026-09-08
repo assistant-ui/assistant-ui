@@ -750,7 +750,8 @@ export class AgUiThreadRuntimeCore {
     }
     return {
       createdAt: message.createdAt ?? new Date(),
-      parentId: message.parentId ?? this.session.headId,
+      parentId:
+        message.parentId === undefined ? this.session.headId : message.parentId,
       sourceId: message.sourceId ?? null,
       role: message.role ?? "user",
       content: message.content,

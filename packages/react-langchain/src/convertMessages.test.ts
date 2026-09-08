@@ -6,6 +6,7 @@ import {
   getMessageContent,
   getMessageType,
 } from "./convertMessages";
+import { createLangChainStreamingTimingAccessors } from "./converter";
 import type { LangChainBaseMessage, UIMessage } from "./types";
 
 const humanMessage = (content: unknown): LangChainBaseMessage => ({
@@ -1133,6 +1134,49 @@ describe("convertLangChainBaseMessage malformed messages", () => {
   it("skips null entries inside a content array", () => {
     const result = convertLangChainBaseMessage(
       humanMessage([null, { type: "text", text: "kept" }, undefined]),
+      {},
+    );
+
+    expect(contentOf(result)).toEqual([{ type: "text", text: "kept" }]);
+  });
+
+  it("coalesces a text block without a text field to empty text", () => {
+    const result = convertLangChainBaseMessage(
+      humanMessage([{ type: "text" }]),
+      {},
+    );
+
+    expect(contentOf(result)).toEqual([{ type: "text", text: "" }]);
+  });
+
+  it("skips null entries when measuring streamed text length", () => {
+    const { getTextLength } = createLangChainStreamingTimingAccessors<{
+      id?: string | undefined;
+      content?: unknown;
+      _getType: () => string;
+    }>((message) => message._getType());
+
+    expect(
+      getTextLength(
+        [
+          {
+            _getType: () => "ai",
+            id: "ai-1",
+            content: [null, { type: "text", text: "abc" }, undefined],
+          },
+        ],
+        "ai-1",
+      ),
+    ).toBe(3);
+  });
+
+  it("renders a textless block as empty system text", () => {
+    const result = convertLangChainBaseMessage(
+      {
+        _getType: () => "system",
+        id: "msg-7",
+        content: [{ type: "text" }, { type: "text", text: "kept" }],
+      },
       {},
     );
 

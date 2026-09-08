@@ -77,6 +77,10 @@ const toStartRunConfig = (message: CreateStartRunConfig): StartRunConfig => {
 export type CreateAppendMessage =
   | string
   | {
+      /**
+       * An omitted value or `undefined` selects the current tail.
+       * `null` selects a root branch.
+       */
       parentId?: string | null | undefined;
       sourceId?: string | null | undefined;
       role?: AppendMessage["role"] | undefined;
@@ -107,7 +111,10 @@ const toAppendMessage = (
 
   return {
     createdAt: message.createdAt ?? new Date(),
-    parentId: message.parentId ?? messages.at(-1)?.id ?? null,
+    parentId:
+      message.parentId === undefined
+        ? (messages.at(-1)?.id ?? null)
+        : message.parentId,
     sourceId: message.sourceId ?? null,
     role: message.role ?? "user",
     content: message.content,

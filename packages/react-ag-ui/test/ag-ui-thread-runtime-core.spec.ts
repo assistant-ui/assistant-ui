@@ -3483,7 +3483,7 @@ describe("AGUIThreadRuntimeCore", () => {
     await core.append(createAppendMessage());
     expect(core.getPendingInterrupts()).toBeNull();
 
-    await core.steerAway(createAppendMessage());
+    await core.steerAway({ content: [{ type: "text", text: "hi" }] });
 
     expect(runCount).toBe(2);
     expect(runInputs[1].resume).toBeUndefined();

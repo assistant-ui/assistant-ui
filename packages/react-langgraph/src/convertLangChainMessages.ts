@@ -123,6 +123,7 @@ const contentToParts = (
   if (typeof content === "string")
     return [{ type: "text" as const, text: content }];
   return content
+    .filter((part) => typeof part === "object" && part !== null)
     .map(
       (
         part,
