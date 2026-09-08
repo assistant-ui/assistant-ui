@@ -1,6 +1,7 @@
 import {
   useState,
   useEffect,
+  useInsertionEffect,
   useMemo,
   useRef,
   useCallback,
@@ -39,6 +40,16 @@ const useRemoteThreadListRuntimeImpl = (
   options: RemoteThreadListOptions,
 ): AssistantRuntime => {
   const [runtime] = useState(() => new RemoteThreadListRuntimeCore(options));
+
+  // Insertion-effect cleanup runs only when React deletes the fiber, so a
+  // hidden <Activity> or a re-suspended boundary keeps the threads alive; the
+  // disposal is deferred to a microtask because it notifies subscribers and
+  // React forbids scheduling updates from an insertion effect.
+  useInsertionEffect(
+    () => () => queueMicrotask(() => runtime.threads.__internal_dispose()),
+    [runtime],
+  );
+
   useEffect(() => {
     runtime.threads.__internal_setOptions(options);
     runtime.threads.__internal_load();
