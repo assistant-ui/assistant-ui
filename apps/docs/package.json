@@ -115,6 +115,7 @@
     "@types/react-syntax-highlighter": "^15.5.13",
     "jsdom": "^30.0.1",
     "postcss": "^8.5.28",
+    "redis": "^6.2.1",
     "react-grab": "^0.2.0",
     "tailwindcss": "^4.3.3",
     "ts-morph": "^28.0.0",

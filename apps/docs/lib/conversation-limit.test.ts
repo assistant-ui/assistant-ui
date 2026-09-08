@@ -1,24 +1,25 @@
 import { describe, expect, it } from "vitest";
-import type { Redis } from "@upstash/redis";
 import {
   ANONYMOUS_CONVERSATIONS_PER_DAY,
   SIGNED_IN_CONVERSATIONS_PER_DAY,
   conversationLimitFor,
   createConversationCounter,
   nextReset,
+  type ConversationRedisClient,
 } from "./conversation-limit";
 
-// The claim itself is Lua, so what is pinned here is the day key, the reset
-// boundary, and the arguments the script is handed.
+// What is pinned here is the day key, the reset boundary, and the arguments
+// each script is handed. The scripts themselves run in
+// conversation-limit.redis.test.ts, against a server.
 function fakeRedis(result: [number, number] = [1, 1], readUsed = 2) {
   const calls: { script: string; keys: string[]; args: string[] }[] = [];
-  const redis = {
+  const redis: ConversationRedisClient = {
     scard: async () => readUsed,
-    eval: async (script: string, keys: string[], args: string[]) => {
+    eval: async (script, keys, args) => {
       calls.push({ script, keys, args });
       return result;
     },
-  } as unknown as Redis;
+  };
   return { redis, calls };
 }
 

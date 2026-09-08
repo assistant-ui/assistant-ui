@@ -1,10 +1,11 @@
 import "server-only";
 
 import { Redis } from "@upstash/redis";
+import { after } from "next/server";
 import { createAccountsAuth, createMemorySessionStore } from "aui-auth";
 import { createAesGcmCodec } from "aui-auth/database";
+import { createRedisSessionStore } from "aui-auth/database/redis";
 import { withNextRequestScope } from "aui-auth/next";
-import { createRedisSessionStore } from "./session-store";
 
 export type DocsSessionData = Record<string, never>;
 
@@ -39,8 +40,11 @@ export const accounts =
         cookieName: "assistant-ui.www_session",
         cache: { secret: encryptionKey },
         store,
-        onSignIn: async () => ({}),
-        onRevalidate: async () => ({}),
+        // The account row renders the name and the avatar, so a profile edited
+        // on accounts has to reach the session; the re-read runs after the
+        // response rather than in front of it.
+        revalidateUser: true,
+        deferRevalidation: after,
       })
     : null;
 
