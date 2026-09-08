@@ -1,7 +1,7 @@
 import {
   attachResourceFiberToParent,
   disposeResourceFiber,
-  markResourceFiberForDisposal,
+  scheduleResourceFiberDisposal,
   unmountResourceFiber,
   renderResourceFiber,
   commitResourceFiber,
@@ -42,7 +42,7 @@ export const useTapHost = <R>(callback: () => R): useTapHost.Result<R> => {
 
   useInsertionEffect(() => {
     if (parentFiber !== null) return undefined;
-    return () => markResourceFiberForDisposal(fiber);
+    return () => scheduleResourceFiberDisposal(fiber);
   }, [fiber, parentFiber]);
 
   useEffect(() => {

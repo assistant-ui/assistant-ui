@@ -3,6 +3,7 @@ import { act, cleanup, render, screen } from "@testing-library/react";
 import { Activity, Component, StrictMode, type ReactNode } from "react";
 import {
   resource,
+  flushTapSync,
   useResource,
   useResourceDispose,
   useResources,
@@ -119,7 +120,13 @@ describe("useResourceDispose in React hosts", () => {
 
       rerender(<App hidden={true} />);
       expect(dispose).not.toHaveBeenCalled();
-      act(() => read().setCount(1));
+      act(() => {
+        if (hostKind === "useTapRoot") {
+          flushTapSync(() => read().setCount(1));
+        } else {
+          read().setCount(1);
+        }
+      });
 
       rerender(<App hidden={false} />);
       expect(read().count).toBe(1);
@@ -129,6 +136,50 @@ describe("useResourceDispose in React hosts", () => {
       expect(dispose).toHaveBeenCalledOnce();
     },
   );
+
+  it.each(hostKinds)(
+    "%s disposes when deleted while Activity remains hidden",
+    async (hostKind) => {
+      const dispose = vi.fn();
+      const Host = createHosts(dispose, () => {})[hostKind];
+      function App({ hidden }: { hidden: boolean }) {
+        return (
+          <Activity mode={hidden ? "hidden" : "visible"}>
+            <Host />
+          </Activity>
+        );
+      }
+
+      const { rerender, unmount } = render(<App hidden={false} />);
+      rerender(<App hidden={true} />);
+      expect(dispose).not.toHaveBeenCalled();
+
+      unmount();
+      await vi.waitFor(() => expect(dispose).toHaveBeenCalledOnce());
+    },
+  );
+
+  it("disposes a direct React host deleted while Activity remains hidden", async () => {
+    const dispose = vi.fn();
+    function Host() {
+      useResourceDispose(dispose);
+      return null;
+    }
+    function App({ hidden }: { hidden: boolean }) {
+      return (
+        <Activity mode={hidden ? "hidden" : "visible"}>
+          <Host />
+        </Activity>
+      );
+    }
+
+    const { rerender, unmount } = render(<App hidden={false} />);
+    rerender(<App hidden={true} />);
+    expect(dispose).not.toHaveBeenCalled();
+
+    unmount();
+    await vi.waitFor(() => expect(dispose).toHaveBeenCalledOnce());
+  });
 
   it.each(hostKinds)(
     "%s does not dispose during a StrictMode mount replay",

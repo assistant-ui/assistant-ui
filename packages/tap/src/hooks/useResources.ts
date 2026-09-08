@@ -7,7 +7,7 @@ import {
   attachResourceFiberToParent,
   discardWipRender,
   disposeResourceFiber,
-  markResourceFiberForDisposal,
+  scheduleResourceFiberDisposal,
   unmountResourceFiber,
   renderResourceFiber,
   commitResourceFiber,
@@ -169,7 +169,7 @@ export function useResources<E extends ResourceElement<any>>(
     if (parentFiber !== null) return undefined;
     return () => {
       for (const state of fibers.values()) {
-        markResourceFiberForDisposal(state.fiber);
+        scheduleResourceFiberDisposal(state.fiber);
       }
     };
   }, [fibers, parentFiber]);

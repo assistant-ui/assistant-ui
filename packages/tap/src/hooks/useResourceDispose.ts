@@ -13,19 +13,32 @@ const useTapResourceDispose = (
 
 const useReactHostDispose = (callback: () => void) => {
   const disposePendingRef = useRef(false);
+  const passiveMountedRef = useRef(false);
+  const disposedRef = useRef(false);
+  const runDispose = useRef(() => {
+    if (disposedRef.current) return;
+    disposedRef.current = true;
+    callback();
+  }).current;
 
   useInsertionEffect(
     () => () => {
-      disposePendingRef.current = true;
+      if (passiveMountedRef.current) {
+        disposePendingRef.current = true;
+      } else {
+        // A hidden React subtree has already consumed its passive cleanup.
+        queueMicrotask(runDispose);
+      }
     },
-    [],
+    [runDispose],
   );
-  useEffect(
-    () => () => {
-      if (disposePendingRef.current) callback();
-    },
-    [callback],
-  );
+  useEffect(() => {
+    passiveMountedRef.current = true;
+    return () => {
+      passiveMountedRef.current = false;
+      if (disposePendingRef.current) runDispose();
+    };
+  }, [runDispose]);
 };
 
 /**

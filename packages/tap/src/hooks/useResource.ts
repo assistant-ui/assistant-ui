@@ -2,7 +2,7 @@ import type { ExtractResourceReturnType, ResourceElement } from "../core/types";
 import {
   attachResourceFiberToParent,
   disposeResourceFiber,
-  markResourceFiberForDisposal,
+  scheduleResourceFiberDisposal,
   unmountResourceFiber,
   renderResourceFiber,
   commitResourceFiber,
@@ -31,7 +31,7 @@ export function useResource<E extends ResourceElement<any>>(
 
   useInsertionEffect(() => {
     if (parentFiber !== null) return undefined;
-    return () => markResourceFiberForDisposal(fiber);
+    return () => scheduleResourceFiberDisposal(fiber);
   }, [fiber, parentFiber]);
 
   const committedFiberRef = useRef<typeof fiber | null>(null);
@@ -41,7 +41,7 @@ export function useResource<E extends ResourceElement<any>>(
     committedFiber !== null &&
     committedFiber !== fiber
   ) {
-    addCommit(parentFiber, () => markResourceFiberForDisposal(committedFiber));
+    addCommit(parentFiber, () => scheduleResourceFiberDisposal(committedFiber));
   }
 
   useEffect(() => {

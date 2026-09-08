@@ -96,6 +96,16 @@ export function markResourceFiberForDisposal<R>(fiber: ResourceFiber<R>): void {
   if (!fiber.isDisposing) fiber.isDisposePending = true;
 }
 
+export function scheduleResourceFiberDisposal<R>(
+  fiber: ResourceFiber<R>,
+): void {
+  markResourceFiberForDisposal(fiber);
+  if (!fiber.isMounted) {
+    // A hidden React subtree has already consumed its passive cleanup.
+    queueMicrotask(() => disposeResourceFiber(fiber));
+  }
+}
+
 export function attachResourceFiberToParent<R>(
   fiber: ResourceFiber<R>,
   parent: ResourceFiber<unknown>,

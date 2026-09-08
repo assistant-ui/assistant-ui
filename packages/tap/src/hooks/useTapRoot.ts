@@ -3,7 +3,7 @@ import {
   commitResourceFiber,
   createResourceFiber,
   disposeResourceFiber,
-  markResourceFiberForDisposal,
+  scheduleResourceFiberDisposal,
   renderResourceFiber,
   unmountResourceFiber,
 } from "../core/ResourceFiber";
@@ -225,7 +225,7 @@ export const useTapRoot = <R>(render: () => R): useTapRoot.Root<R> => {
 
   useInsertionEffect(() => {
     if (parentFiber !== null) return undefined;
-    return () => markResourceFiberForDisposal(inst.fiber);
+    return () => scheduleResourceFiberDisposal(inst.fiber);
   }, [inst, parentFiber]);
 
   useEffect(() => {
