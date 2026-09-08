@@ -17,7 +17,7 @@ Reference for the runtime's API surface. Start with [quickstart](/docs/runtimes/
 | `autoCancelPendingToolCalls` | `boolean` | Cancel unresolved client-side tool calls automatically when the user sends, edits, or reloads a message. Defaults to `true`. See [below](#auto-cancelling-pending-tool-calls). |
 | `resumeTranscript` | `"full" \| "appended"` | What `messages` carries on a run that also carries `resume`. Defaults to `"full"`. See [below](#the-transcript-on-a-resume-run). |
 | `onError` | `(e: Error) => void` | Error callback fired on `RUN_ERROR` events and protocol errors. |
-| `onCancel` | `() => void` | Cancellation callback fired when a run is cancelled, including user cancel and runtime teardown. |
+| `onCancel` | `() => void` | Cancellation callback fired when a run is cancelled, including user cancel, thread switching, and runtime teardown. |
 | `adapters` | `UseAgUiRuntimeAdapters` | Standard adapter slots (see below). |
 
 ## Adapter slots
@@ -138,8 +138,8 @@ guard your adapter's thread ID update against a newer selection.
 
 Starting a thread switch cancels the active agent run and discards messages queued
 for the previous thread before calling your adapter. Cancelling an active run
-invokes `onCancel`; a newer thread selection or replacement run started by that
-callback takes precedence over the original switch.
+invokes `onCancel`; a newer thread selection, replacement run, or queued send
+started synchronously by that callback takes precedence over the original switch.
 
 ## Interrupts (experimental)
 

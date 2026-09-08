@@ -187,10 +187,15 @@ export function useAgUiRuntime(
         ? async () => {
             const generation = ++threadSwitchGenerationRef.current;
             queueRef.current?.clear();
-            await core.cancel();
+            const ownsThread = core.supersedeActiveRun();
+            // Public append yields while cancelling frontend tools before starting a run.
+            await Promise.resolve();
             if (
+              !ownsThread ||
               generation !== threadSwitchGenerationRef.current ||
-              core.isRunning()
+              core.isRunning() ||
+              queueRef.current?.adapter.items.length ||
+              queueRef.current?.adapter.steerItems.length
             )
               return;
             await onSwitchToNewThread();
@@ -203,10 +208,15 @@ export function useAgUiRuntime(
         ? async (threadId: string) => {
             const generation = ++threadSwitchGenerationRef.current;
             queueRef.current?.clear();
-            await core.cancel();
+            const ownsThread = core.supersedeActiveRun();
+            // Public append yields while cancelling frontend tools before starting a run.
+            await Promise.resolve();
             if (
+              !ownsThread ||
               generation !== threadSwitchGenerationRef.current ||
-              core.isRunning()
+              core.isRunning() ||
+              queueRef.current?.adapter.items.length ||
+              queueRef.current?.adapter.steerItems.length
             )
               return;
             // Clear before the thread id flips, or the old messages leak
