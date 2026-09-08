@@ -130,6 +130,7 @@ function FileIconDisplay({
       className={cn("text-muted-foreground shrink-0", className)}
       {...props}
     >
+      {/* eslint-disable-next-line react-hooks/static-components -- The helper only selects module-level icon components. */}
       {children ?? <IconComponent className="size-5" />}
     </span>
   );
