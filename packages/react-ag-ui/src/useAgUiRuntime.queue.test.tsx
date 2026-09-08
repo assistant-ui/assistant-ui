@@ -1,6 +1,7 @@
 // @vitest-environment jsdom
 
 import { describe, it, expect, vi, afterEach } from "vitest";
+import { startTransition, useEffect } from "react";
 import {
   act,
   cleanup,
@@ -407,6 +408,59 @@ describe("useAgUiRuntime unstable_enableMessageQueue", () => {
     await waitFor(() =>
       expect(screen.getByTestId("queued").textContent).toBe(""),
     );
+  });
+
+  it("does not clear the committed queue from a suspended render", async () => {
+    const { agent, runAgent } = gatedAgent();
+    let runtime: AssistantRuntime | undefined;
+    const never = new Promise<void>(() => {});
+
+    const Harness = ({
+      enabled,
+      suspend,
+    }: {
+      enabled: boolean;
+      suspend: boolean;
+    }) => {
+      const nextRuntime = useAgUiRuntime({
+        agent,
+        unstable_enableMessageQueue: enabled,
+      });
+      useEffect(() => {
+        runtime = nextRuntime;
+      }, [nextRuntime]);
+      if (suspend) throw never;
+      return null;
+    };
+
+    const view = render(<Harness enabled suspend={false} />);
+    await waitFor(() => expect(runtime).toBeDefined());
+    mount(runtime!);
+
+    await act(async () => {
+      await runtime!.thread.append({
+        role: "user",
+        content: [{ type: "text", text: "first" }],
+      });
+    });
+    await waitFor(() => expect(runAgent).toHaveBeenCalledTimes(1));
+
+    await act(async () => {
+      await runtime!.thread.append({
+        role: "user",
+        content: [{ type: "text", text: "second" }],
+        parentId: runtime!.thread.getState().messages.at(-1)?.id ?? null,
+      });
+    });
+    await waitFor(() =>
+      expect(screen.getByTestId("queued").textContent).toBe("second"),
+    );
+
+    act(() => {
+      startTransition(() => view.rerender(<Harness enabled={false} suspend />));
+    });
+
+    expect(screen.getByTestId("queued").textContent).toBe("second");
   });
 
   it("leaves the queue capability off when the flag is not set", () => {
