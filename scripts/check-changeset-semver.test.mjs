@@ -549,7 +549,56 @@ test("a PR range that touches no changeset ends the run before any summary", () 
   }
 });
 
-test("an unusable base falls back to every changeset and says so", () => {
+test("the PR range is measured from the fork point, not the base tip", () => {
+  const root = createWorkspace([{ name: "@fixture/dep", version: "0.12.15" }], {
+    "already-on-base.md": '"@fixture/dep": patch',
+  });
+  try {
+    git(root, "init", "-q", "-b", "main");
+    commitAll(root, "base");
+
+    git(root, "checkout", "-q", "-b", "pr");
+    writeFileSync(
+      path.join(root, ".changeset", "added-by-the-pr.md"),
+      '---\n"@fixture/dep": patch\n---\n\nfix: fixture\n',
+    );
+    const head = commitAll(root, "head");
+
+    git(root, "checkout", "-q", "main");
+    writeFileSync(
+      path.join(root, ".changeset", "already-on-base.md"),
+      '---\n"@fixture/dep": minor\n---\n\nfeat: fixture\n',
+    );
+    const base = commitAll(root, "base moves on");
+    git(
+      root,
+      "-c",
+      "user.name=fixture",
+      "-c",
+      "user.email=fixture@example.com",
+      "merge",
+      "-q",
+      "--no-ff",
+      "-m",
+      "merge",
+      "pr",
+    );
+
+    const result = runExecutable(root, { BASE_SHA: base, HEAD_SHA: head });
+
+    assert.equal(result.status, 0, result.stdout + result.stderr);
+    assert.match(result.stdout, /`added-by-the-pr\.md`/);
+    assert.doesNotMatch(
+      result.stdout,
+      /already-on-base/,
+      "a changeset only the base branch changed was graded against the PR",
+    );
+  } finally {
+    rmSync(root, { recursive: true, force: true });
+  }
+});
+
+test("a range git cannot resolve fails closed instead of grading the tree", () => {
   const root = createWorkspace([{ name: "@fixture/dep", version: "0.12.15" }], {
     "shy-pots-shave.md": '"@fixture/dep": minor',
   });
@@ -560,8 +609,35 @@ test("an unusable base falls back to every changeset and says so", () => {
     });
 
     assert.equal(result.status, 1);
-    assert.match(result.stdout, /Could not diff against base/);
-    assert.match(result.stdout, /shy-pots-shave\.md/);
+    assert.match(result.stdout, /Could not diff 0{40}\.{3}1{40}/);
+    assert.ok(
+      /Could not diff [^:]+: (.+)\. Failing instead of grading/.exec(
+        result.stdout,
+      )?.[1],
+      "the annotation dropped git's own error",
+    );
+    assert.doesNotMatch(result.stdout, /shy-pots-shave\.md/);
+    assert.doesNotMatch(result.stdout, /Semver-breaking/);
+  } finally {
+    rmSync(root, { recursive: true, force: true });
+  }
+});
+
+test("the annotation escapes what a workflow command cannot carry raw", () => {
+  const root = createWorkspace([{ name: "@fixture/dep", version: "0.12.15" }], {
+    "shy-pots-shave.md": '"@fixture/dep": minor',
+  });
+  try {
+    const result = runExecutable(root, {
+      GITHUB_ACTIONS: "true",
+      BASE_SHA: "100%",
+      HEAD_SHA: "1111111111111111111111111111111111111111",
+    });
+
+    assert.equal(result.status, 1);
+    assert.match(result.stdout, /^::error::/m);
+    assert.match(result.stdout, /100%25/);
+    assert.doesNotMatch(result.stdout, /100%[^2]/);
   } finally {
     rmSync(root, { recursive: true, force: true });
   }

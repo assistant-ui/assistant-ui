@@ -139,6 +139,30 @@ describe("AISDKToolkit", () => {
     mocks.createMCPClient.mockReset();
   });
 
+  it("preserves prototype-named MCP tools", async () => {
+    const prototypeTool = { inputSchema: {} };
+    mocks.tools.mockResolvedValue(
+      Object.fromEntries([["__proto__", prototypeTool]]),
+    );
+    mocks.createMCPClient.mockResolvedValue({
+      tools: mocks.tools,
+      close: mocks.close,
+    });
+
+    const toolkit = new AISDKToolkit({
+      toolkit: {
+        docs: {
+          type: "mcp",
+          server: { type: "http", url: "http://localhost:3001/mcp" },
+        },
+      },
+    });
+
+    const tools = await toolkit.tools();
+    expect(Object.hasOwn(tools, "__proto__")).toBe(true);
+    expect(tools["__proto__"]).toBe(prototypeTool);
+  });
+
   it("loads MCP tools through pooled clients", async () => {
     mocks.tools.mockResolvedValue({ echo: { inputSchema: {} } });
     mocks.createMCPClient.mockResolvedValue({

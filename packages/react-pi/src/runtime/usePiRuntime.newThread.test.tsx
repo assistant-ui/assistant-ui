@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 
-import { act, createElement } from "react";
+import { act, createElement, StrictMode, useEffect, useRef } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import {
@@ -11,8 +11,22 @@ import type { AssistantRuntime } from "@assistant-ui/react";
 import type { PiClient, PiThreadSnapshot } from "../types";
 
 const mocks = vi.hoisted(() => ({
+  adapters: [] as unknown[],
   sendMessage: vi.fn().mockResolvedValue(undefined),
 }));
+
+vi.mock("@assistant-ui/react", async (importOriginal) => {
+  const original = await importOriginal<typeof import("@assistant-ui/react")>();
+  return {
+    ...original,
+    useExternalStoreRuntime: (
+      adapter: Parameters<typeof original.useExternalStoreRuntime>[0],
+    ) => {
+      mocks.adapters.push(adapter);
+      return original.useExternalStoreRuntime(adapter);
+    },
+  };
+});
 
 vi.mock("./ThreadController", async (importOriginal) => {
   const original = await importOriginal<typeof import("./ThreadController")>();
@@ -84,6 +98,7 @@ let root: Root | undefined;
 afterEach(() => {
   act(() => root?.unmount());
   root = undefined;
+  mocks.adapters.length = 0;
   vi.clearAllMocks();
 });
 
@@ -154,5 +169,74 @@ describe("usePiRuntime new-thread first message", () => {
     expect(createThread).toHaveBeenCalledTimes(1);
     expect(createThread.mock.calls[0]?.[0]?.initialMessage).toBeUndefined();
     expect(sentTexts()).toEqual(["message A", "message B"]);
+  });
+
+  it("drops a pending new-thread send after runtime teardown", async () => {
+    const sessionCreate = Promise.withResolvers<PiThreadSnapshot>();
+    const { client, createThread } = createClient(() => sessionCreate.promise);
+    let runtime!: AssistantRuntime;
+
+    const Harness = () => {
+      runtime = usePiRuntime({ client });
+      return createElement(AssistantRuntimeProvider, { runtime }, null);
+    };
+
+    root = createRoot(document.createElement("div"));
+    await act(async () => {
+      root!.render(createElement(Harness));
+    });
+    await act(async () => {});
+
+    await act(async () => {
+      runtime.thread.append("late message");
+    });
+    await vi.waitFor(() => expect(createThread).toHaveBeenCalledOnce());
+
+    act(() => root!.unmount());
+    root = undefined;
+    sessionCreate.resolve(snapshot);
+    await new Promise((resolve) => setTimeout(resolve, 0));
+
+    expect(mocks.sendMessage).not.toHaveBeenCalled();
+  });
+
+  it("keeps a pending new-thread send across StrictMode effect replay", async () => {
+    const sessionCreate = Promise.withResolvers<PiThreadSnapshot>();
+    const { client, createThread } = createClient(() => sessionCreate.promise);
+    let sendPromise: Promise<void> | void;
+
+    const Harness = () => {
+      const runtime = usePiRuntime({ client });
+      const sentRef = useRef(false);
+      useEffect(() => {
+        if (sentRef.current) return;
+        sentRef.current = true;
+        const adapter = mocks.adapters.at(-1) as {
+          onNew: (message: {
+            role: "user";
+            content: [{ type: "text"; text: string }];
+          }) => Promise<void>;
+        };
+        sendPromise = adapter.onNew({
+          role: "user",
+          content: [{ type: "text", text: "strict mode message" }],
+        });
+      }, []);
+      return createElement(AssistantRuntimeProvider, { runtime }, null);
+    };
+
+    root = createRoot(document.createElement("div"));
+    await act(async () => {
+      root!.render(createElement(StrictMode, null, createElement(Harness)));
+    });
+    await vi.waitFor(() => expect(createThread).toHaveBeenCalledOnce());
+
+    await act(async () => {
+      sessionCreate.resolve(snapshot);
+      await sendPromise;
+    });
+
+    expect(mocks.sendMessage).toHaveBeenCalledOnce();
+    expect(sentTexts()).toEqual(["strict mode message"]);
   });
 });

@@ -229,6 +229,29 @@ describe("ExternalThread unset optional callbacks", () => {
   });
 });
 
+describe("ExternalThread append parent selection", () => {
+  it("passes an explicit null parent to the host", () => {
+    const onNew = vi.fn();
+    const { aui } = renderThread({
+      messages: [assistantMessage({ type: "complete", reason: "stop" })],
+      onNew,
+    });
+
+    aui().thread.append({
+      parentId: null,
+      content: [{ type: "text", text: "new root" }],
+      startRun: false,
+    });
+
+    expect(onNew).toHaveBeenCalledExactlyOnceWith(
+      expect.objectContaining({
+        parentId: null,
+        content: [{ type: "text", text: "new root" }],
+      }),
+    );
+  });
+});
+
 describe("ExternalThread composer", () => {
   it("dispatches a synchronous setText + send sequence", async () => {
     const onNew = vi.fn();

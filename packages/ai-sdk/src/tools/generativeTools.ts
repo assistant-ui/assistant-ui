@@ -254,7 +254,7 @@ export class AISDKToolkit {
         }),
     );
 
-    const tools: ToolSet = {};
+    const tools = Object.create(null) as ToolSet;
     const toolSources = new Map<string, string>();
     for (const [serverName, mcpTool, toolSet] of toolSets) {
       for (const [toolName, tool] of Object.entries(toolSet)) {

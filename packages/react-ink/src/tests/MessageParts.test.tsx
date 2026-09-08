@@ -88,6 +88,20 @@ describe("MessagePrimitive.Parts", () => {
     expect(components.ChainOfThought).toBeUndefined();
   });
 
+  it("forwards generativeUI in both grouping modes", async () => {
+    const generativeUI = { components: { Card: () => null } };
+
+    await renderFrame(<MessagePrimitive.Parts components={{ generativeUI }} />);
+    expect(lastComponents().generativeUI).toBe(generativeUI);
+
+    await renderFrame(
+      <MessagePrimitive.Parts
+        components={{ generativeUI, ChainOfThought: () => null }}
+      />,
+    );
+    expect(lastComponents().generativeUI).toBe(generativeUI);
+  });
+
   it("injects ink data.Fallback when components is omitted", async () => {
     await renderFrame(<MessagePrimitive.Parts />);
 

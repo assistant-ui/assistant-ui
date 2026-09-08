@@ -3,6 +3,7 @@ import { resource } from "@assistant-ui/tap";
 import type { ClientOutput } from "@assistant-ui/store";
 import { CompositeContextProvider } from "../../utils/composite-context-provider";
 import type { ModelContextState } from "../scopes/model-context";
+import { shallowEqual } from "@assistant-ui/store/internal";
 
 const EMPTY_TOOL_NAMES: readonly string[] = [];
 
@@ -12,7 +13,7 @@ const INITIAL_STATE: ModelContextState = {
 };
 
 const toolNamesEqual = (a: readonly string[], b: readonly string[]): boolean =>
-  a === b || (a.length === b.length && a.every((v, i) => v === b[i]));
+  a === b || shallowEqual(a, b);
 
 const deriveState = (
   composite: CompositeContextProvider,

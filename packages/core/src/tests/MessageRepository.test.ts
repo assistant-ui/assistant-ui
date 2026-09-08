@@ -240,6 +240,48 @@ describe("MessageRepository", () => {
       expect(messages2.map((m) => m.id)).toEqual(["parent-id", "branch2-id"]);
     });
 
+    it("keeps a nested branch selected when revisiting its ancestor", () => {
+      repository.addOrUpdateMessage(null, createTestMessage({ id: "r" }));
+      repository.addOrUpdateMessage("r", createTestMessage({ id: "a" }));
+      repository.addOrUpdateMessage("a", createTestMessage({ id: "x" }));
+      repository.addOrUpdateMessage("r", createTestMessage({ id: "b" }));
+      repository.addOrUpdateMessage("b", createTestMessage({ id: "y" }));
+
+      repository.switchToBranch("y");
+      expect(repository.getMessages().map((m) => m.id)).toEqual([
+        "r",
+        "b",
+        "y",
+      ]);
+
+      repository.switchToBranch("r");
+      expect(repository.getMessages().map((m) => m.id)).toEqual([
+        "r",
+        "b",
+        "y",
+      ]);
+
+      repository.switchToBranch("x");
+      repository.switchToBranch("r");
+      expect(repository.getMessages().map((m) => m.id)).toEqual([
+        "r",
+        "a",
+        "x",
+      ]);
+    });
+
+    it("keeps the selected root branch when deletion selects from the root", () => {
+      repository.addOrUpdateMessage(null, createTestMessage({ id: "a" }));
+      repository.addOrUpdateMessage("a", createTestMessage({ id: "x" }));
+      repository.addOrUpdateMessage(null, createTestMessage({ id: "b" }));
+      repository.addOrUpdateMessage("b", createTestMessage({ id: "y" }));
+
+      repository.switchToBranch("y");
+      repository.deleteMessage("y", null);
+
+      expect(repository.getMessages().map((m) => m.id)).toEqual(["b"]);
+    });
+
     it("should operate on a long message history without overflowing the stack", () => {
       const messageCount = 30_000;
       const messages = createLongBranchMessages(messageCount);

@@ -10,7 +10,12 @@ const h = vi.hoisted(() => ({
   resumeToolCall: vi.fn(),
   respondToToolApproval: vi.fn(),
   state: {
-    message: { content: [] as AnyPart[] },
+    message: {
+      content: [] as AnyPart[],
+      get parts() {
+        return this.content;
+      },
+    },
     tools: { toolUIs: {} as Record<string, unknown> },
     dataRenderers: { renderers: {} as Record<string, unknown> },
   },

@@ -496,17 +496,17 @@ Use `MessagePrimitive.Unstable_PartsGrouped` only when you need to collect non-a
 ```tsx
 <MessagePrimitive.Unstable_PartsGrouped
   groupingFunction={(parts) => {
-    const groups = new Map<string, number[]>();
+    const groups = new Map<string | number, number[]>();
 
     parts.forEach((part, index) => {
-      const key = part.parentId ?? `__ungrouped_${index}`;
+      const key = part.parentId ?? index;
       const indices = groups.get(key) ?? [];
       indices.push(index);
       groups.set(key, indices);
     });
 
     return Array.from(groups.entries()).map(([key, indices]) => ({
-      groupKey: key.startsWith("__ungrouped_") ? undefined : key,
+      groupKey: typeof key === "string" ? key : undefined,
       indices,
     }));
   }}
