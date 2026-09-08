@@ -104,6 +104,7 @@ const setAtPointer = (
   model: unknown,
   path: string,
   value: unknown,
+  nullDeletes: boolean,
 ): { readonly ok: boolean; readonly value: unknown } => {
   const segments = decodePointer(path);
   if (!segments) return { ok: false, value: model };
@@ -124,7 +125,8 @@ const setAtPointer = (
           return current;
         }
         const clone = current.slice();
-        clone[targetIndex] = null;
+        // Preserve indices referenced by other JSON Pointers.
+        delete clone[targetIndex];
         return clone;
       }
       const child = current[targetIndex];
@@ -150,7 +152,9 @@ const setAtPointer = (
     return { ...current, [segment]: next };
   };
 
-  if (value === null) return { ok: true, value: remove(model, 0) };
+  if (nullDeletes && value === null) {
+    return { ok: true, value: remove(model, 0) };
+  }
 
   const update = (current: unknown, index: number): unknown => {
     const segment = segments[index]!;
@@ -307,7 +311,12 @@ export function applyA2uiOperations(
         );
         continue;
       }
-      const result = setAtPointer(surface.dataModel, path, update.value);
+      const result = setAtPointer(
+        surface.dataModel,
+        path,
+        update.value,
+        version === "v1.0",
+      );
       if (!result.ok) {
         warnings.push(
           `Operation at index ${index} has an invalid JSON Pointer path.`,
