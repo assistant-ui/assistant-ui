@@ -7,9 +7,13 @@ import type {
 import type { ComponentPropsWithoutRef, ComponentType, ReactNode } from "react";
 import type { Options as RemarkRehypeOptions } from "remark-rehype";
 import type {
-  StreamdownProps,
-  MermaidOptions,
+  CjkPlugin,
+  CodeHighlighterPlugin,
+  DiagramPlugin,
+  MathPlugin,
   MermaidErrorComponentProps,
+  MermaidOptions,
+  StreamdownProps,
 } from "streamdown";
 
 /**
@@ -128,13 +132,13 @@ export type StreamdownTextComponents = NonNullable<
  */
 export type PluginConfig = {
   /** Code syntax highlighting plugin. Must be explicitly provided. */
-  code?: unknown | false | undefined;
+  code?: CodeHighlighterPlugin | false | undefined;
   /** Math/LaTeX rendering plugin. Must be explicitly provided. */
-  math?: unknown | false | undefined;
+  math?: MathPlugin | false | undefined;
   /** CJK text optimization plugin. Must be explicitly provided. */
-  cjk?: unknown | false | undefined;
+  cjk?: CjkPlugin | false | undefined;
   /** Mermaid diagram plugin. Must be explicitly provided. */
-  mermaid?: unknown | false | undefined;
+  mermaid?: DiagramPlugin | false | undefined;
 };
 
 /**

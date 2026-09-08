@@ -12,7 +12,7 @@ import { Options as RemarkRehypeOptions } from "remark-rehype";
 
 import { RemendOptions } from "remend";
 
-import { BundledLanguage, BundledTheme, BundledTheme as BundledTheme$1, CjkPlugin, CodeHighlighterPlugin, DiagramPlugin, HighlightOptions, MathPlugin, MermaidErrorComponentProps, MermaidOptions, StreamdownContext, StreamdownProps, StreamdownProps as StreamdownProps$1, StreamdownProps as StreamdownProps$2, parseMarkdownIntoBlocks } from "streamdown";
+import { BundledLanguage, BundledTheme, BundledTheme as BundledTheme$1, CjkPlugin, CjkPlugin as CjkPlugin$1, CodeHighlighterPlugin, CodeHighlighterPlugin as CodeHighlighterPlugin$1, DiagramPlugin, DiagramPlugin as DiagramPlugin$1, HighlightOptions, MathPlugin, MathPlugin as MathPlugin$1, MermaidErrorComponentProps, MermaidOptions, StreamdownContext, StreamdownProps, StreamdownProps as StreamdownProps$1, StreamdownProps as StreamdownProps$2, parseMarkdownIntoBlocks } from "streamdown";
 
 import "zustand";
 
@@ -235,10 +235,10 @@ type ParentOf<K extends ClientNames> = ClientMeta<K> extends {
 } ? S extends ClientNames ? S : never : never;
 
 type PluginConfig = {
-  code?: unknown | false | undefined;
-  math?: unknown | false | undefined;
-  cjk?: unknown | false | undefined;
-  mermaid?: unknown | false | undefined;
+  code?: CodeHighlighterPlugin | false | undefined;
+  math?: MathPlugin | false | undefined;
+  cjk?: CjkPlugin | false | undefined;
+  mermaid?: DiagramPlugin | false | undefined;
 };
 
 interface Point {
@@ -1092,7 +1092,7 @@ declare global {
 }
 
 declare namespace entry_root_exports {
-  export { AllowedTags, BlockProps, BundledLanguage, BundledTheme$1 as BundledTheme, CaretStyle, CjkPlugin, CodeHeaderProps, CodeHighlighterPlugin, ComponentsByLanguage, ControlsConfig, DEFAULT_SHIKI_THEME, DiagramPlugin, HighlightOptions, LinkSafetyConfig, LinkSafetyModalProps, MathPlugin, MermaidErrorComponentProps, MermaidOptions, PluginConfig, RemarkRehypeOptions, RemendConfig, RemendHandler, ResolvedPluginConfig, SecurityConfig, StreamdownContext, StreamdownProps$1 as StreamdownProps, StreamdownTextComponents, StreamdownTextPrimitive, StreamdownTextPrimitiveProps, SyntaxHighlighterProps, escapeCurrencyDollars, findRemendWindowStart, memoCompareNodes, normalizeMathDelimiters, parseMarkdownIntoBlocks, rewriteCustomMathTags, rewriteLatexBracketDelimiters, tailBoundedRemend, useIsStreamdownCodeBlock, useStreamdownPreProps };
+  export { AllowedTags, BlockProps, BundledLanguage, BundledTheme$1 as BundledTheme, CaretStyle, CjkPlugin$1 as CjkPlugin, CodeHeaderProps, CodeHighlighterPlugin$1 as CodeHighlighterPlugin, ComponentsByLanguage, ControlsConfig, DEFAULT_SHIKI_THEME, DiagramPlugin$1 as DiagramPlugin, HighlightOptions, LinkSafetyConfig, LinkSafetyModalProps, MathPlugin$1 as MathPlugin, MermaidErrorComponentProps, MermaidOptions, PluginConfig, RemarkRehypeOptions, RemendConfig, RemendHandler, ResolvedPluginConfig, SecurityConfig, StreamdownContext, StreamdownProps$1 as StreamdownProps, StreamdownTextComponents, StreamdownTextPrimitive, StreamdownTextPrimitiveProps, SyntaxHighlighterProps, escapeCurrencyDollars, findRemendWindowStart, memoCompareNodes, normalizeMathDelimiters, parseMarkdownIntoBlocks, rewriteCustomMathTags, rewriteLatexBracketDelimiters, tailBoundedRemend, useIsStreamdownCodeBlock, useStreamdownPreProps };
 }
 
 declare function memoCompareNodes<T extends {
