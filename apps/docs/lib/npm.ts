@@ -10,7 +10,10 @@ export const NPM_REVALIDATE = {
 
 export type NpmDailyDownloads = { day: string; downloads: number };
 
-async function npmGetJson(path: string, revalidate: number): Promise<unknown> {
+async function npmGetJson(
+  path: string,
+  revalidate: number | false,
+): Promise<unknown> {
   try {
     return await withTimeout(
       (async () => {
@@ -18,18 +21,22 @@ async function npmGetJson(path: string, revalidate: number): Promise<unknown> {
           `${NPM_BASE}${path}`,
           revalidate === 0 ? { cache: "no-store" } : { next: { revalidate } },
         );
-        if (!res.ok) return null;
+        if (!res.ok) {
+          console.error(`npm ${path} answered ${res.status}.`);
+          return null;
+        }
         return await res.json();
       })(),
     );
-  } catch {
+  } catch (error) {
+    console.error(`npm ${path} could not be read.`, error);
     return null;
   }
 }
 
 async function npmFetch(
   path: string,
-  revalidate: number,
+  revalidate: number | false,
 ): Promise<NpmDailyDownloads[]> {
   const data = (await npmGetJson(path, revalidate)) as {
     downloads?: NpmDailyDownloads[];
@@ -41,7 +48,7 @@ export function getDownloadsRange(
   pkg: string,
   startDate: string,
   endDate: string,
-  revalidate: number = NPM_REVALIDATE.WARM,
+  revalidate: number | false = NPM_REVALIDATE.WARM,
 ): Promise<NpmDailyDownloads[]> {
   return npmFetch(
     `/downloads/range/${startDate}:${endDate}/${pkg}`,

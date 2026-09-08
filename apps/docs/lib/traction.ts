@@ -9,7 +9,11 @@ import {
   getUser,
   getUserById,
 } from "./github";
-import { getDownloadsRange } from "./npm";
+import {
+  NPM_REVALIDATE,
+  type NpmDailyDownloads,
+  getDownloadsRange,
+} from "./npm";
 
 export type PackageInfo = {
   name: string;
@@ -651,55 +655,73 @@ export async function fetchTimelineSeries(
   };
 }
 
+const TIMELINE_MONTHS_BACK = 12;
+
+type MonthBucket = {
+  month: string;
+  sum: number;
+  dailies: NpmDailyDownloads[];
+};
+
+function monthKeysBack(now: Date, count: number): string[] {
+  return Array.from({ length: count + 1 }, (_, i) =>
+    new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth() - (count - i), 1))
+      .toISOString()
+      .slice(0, 7),
+  );
+}
+
+function monthWindow(month: string, today: string): [string, string] {
+  const [year, monthOfYear] = month.split("-").map(Number);
+  const lastDay = new Date(Date.UTC(year!, monthOfYear!, 0))
+    .toISOString()
+    .slice(0, 10);
+  return [`${month}-01`, lastDay < today ? lastDay : today];
+}
+
 export async function fetchDownloadsTimeline(
   name: string,
   revalidate?: number,
 ): Promise<TimelinePoint[]> {
-  // npm's last-year endpoint stops at the last complete day, so it omits the
-  // in-flight month entirely; an explicit range through today keeps it.
-  const today = new Date();
-  const end = today.toISOString().slice(0, 10);
-  const start = new Date(
-    Date.UTC(today.getUTCFullYear() - 1, today.getUTCMonth(), 1),
-  )
-    .toISOString()
-    .slice(0, 10);
-  const downloads = await getDownloadsRange(name, start, end, revalidate);
-  if (!downloads.length) return [];
+  const now = new Date();
+  const today = now.toISOString().slice(0, 10);
   const cutoff = currentMonthKey();
-  type MonthBucket = {
-    sum: number;
-    dailies: { day: string; downloads: number }[];
-  };
-  const byMonth = new Map<string, MonthBucket>();
-  for (const point of downloads) {
-    const month = point.day.slice(0, 7);
-    const entry = byMonth.get(month) ?? { sum: 0, dailies: [] };
-    entry.sum += point.downloads;
-    entry.dailies.push({ day: point.day, downloads: point.downloads });
-    byMonth.set(month, entry);
-  }
-  const sorted = Array.from(byMonth.entries()).sort(([a], [b]) =>
-    a.localeCompare(b),
-  );
-  const fullMonths = sorted.filter(([k]) => k !== cutoff);
-  const lastFullMonth = fullMonths[fullMonths.length - 1];
-  const priorFullMonth = fullMonths[fullMonths.length - 2];
 
-  return sorted.map(([date, bucket]) => {
-    if (date !== cutoff || bucket.dailies.length === 0) {
-      return { date, value: bucket.sum };
-    }
-    return {
-      date,
-      value: projectInflightMonth(
-        date,
-        bucket,
-        lastFullMonth?.[1].sum,
-        priorFullMonth?.[1].sum,
-      ),
-    };
-  });
+  const buckets: MonthBucket[] = [];
+  for (const month of monthKeysBack(now, TIMELINE_MONTHS_BACK)) {
+    const [start, end] = monthWindow(month, today);
+    // A month that has ended never gains downloads again, so it is fetched once
+    // and held, and a window that fails costs one point, not the whole series.
+    const dailies = await getDownloadsRange(
+      name,
+      start,
+      end,
+      revalidate ?? (month === cutoff ? NPM_REVALIDATE.WARM : false),
+    );
+    if (!dailies.length) continue;
+    buckets.push({
+      month,
+      sum: dailies.reduce((total, day) => total + day.downloads, 0),
+      dailies,
+    });
+  }
+
+  const fullMonths = buckets.filter((bucket) => bucket.month !== cutoff);
+  const lastFullMonth = fullMonths.at(-1);
+  const priorFullMonth = fullMonths.at(-2);
+
+  return buckets.map((bucket) => ({
+    date: bucket.month,
+    value:
+      bucket.month === cutoff
+        ? projectInflightMonth(
+            bucket.month,
+            bucket,
+            lastFullMonth?.sum,
+            priorFullMonth?.sum,
+          )
+        : bucket.sum,
+  }));
 }
 
 function projectInflightMonth(
