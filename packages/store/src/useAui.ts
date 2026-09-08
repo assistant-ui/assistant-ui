@@ -564,10 +564,11 @@ const useScopeEntries = (
 
 type DestroyChain = {
   signal: AbortSignal | undefined;
+  attach: () => void;
   dispose: () => void;
 };
 
-const NO_DISPOSE = () => {};
+const NO_OP = () => {};
 
 // A host given its own signal under a parent that has one dies with either.
 // Hand-rolled rather than AbortSignal.any, which is outside the browserslist
@@ -580,10 +581,10 @@ const createDestroyChain = (
   own: AbortSignal | undefined,
 ): DestroyChain => {
   if (!inherited || !own || inherited === own) {
-    return { signal: own ?? inherited, dispose: NO_DISPOSE };
+    return { signal: own ?? inherited, attach: NO_OP, dispose: NO_OP };
   }
   if (inherited.aborted || own.aborted) {
-    return { signal: AbortSignal.abort(), dispose: NO_DISPOSE };
+    return { signal: AbortSignal.abort(), attach: NO_OP, dispose: NO_OP };
   }
   const chained = new AbortController();
   const onInherited = () => chained.abort();
@@ -591,10 +592,13 @@ const createDestroyChain = (
     inherited.removeEventListener("abort", onInherited);
     chained.abort();
   };
-  inherited.addEventListener("abort", onInherited, { once: true });
-  own.addEventListener("abort", onOwn, { once: true });
   return {
     signal: chained.signal,
+    attach: () => {
+      if (inherited.aborted || own.aborted) return chained.abort();
+      inherited.addEventListener("abort", onInherited, { once: true });
+      own.addEventListener("abort", onOwn, { once: true });
+    },
     dispose: () => {
       inherited.removeEventListener("abort", onInherited);
       own.removeEventListener("abort", onOwn);
@@ -602,9 +606,9 @@ const createDestroyChain = (
   };
 };
 
-// Disposal is commit-scoped: an abandoned render must not release the chain the
-// committed client still holds, or nothing would abort it later. Building a
-// chain during render only adds listeners, so a discarded one is inert.
+// Both sides of the chain's lifetime are commit-scoped, so a render React
+// abandons leaves nothing behind and never releases the chain the committed
+// client still holds. Creating a chain is inert until it is attached.
 const useDestroyChain = (
   inherited: AbortSignal | undefined,
   own: AbortSignal | undefined,
@@ -613,12 +617,13 @@ const useDestroyChain = (
     () => createDestroyChain(inherited, own),
     [inherited, own],
   );
-  const committed = useRef(chain);
+  const committed = useRef<DestroyChain | null>(null);
 
   useInsertionEffect(() => {
     if (committed.current === chain) return;
-    committed.current.dispose();
+    committed.current?.dispose();
     committed.current = chain;
+    chain.attach();
   });
 
   return chain.signal;

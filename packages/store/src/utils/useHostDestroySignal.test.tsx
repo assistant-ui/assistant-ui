@@ -45,7 +45,12 @@ describe("useHostDestroySignal", () => {
     expect(signal).toBe(captured);
     expect(captured.aborted).toBe(false);
 
-    view.rerender(<App mode="hidden" />);
+    await act(async () => {
+      view.rerender(<App mode="hidden" />);
+    });
+    await act(nextTask);
+    expect(captured.aborted).toBe(false);
+
     view.unmount();
     expect(captured.aborted).toBe(false);
     await act(async () => {});
