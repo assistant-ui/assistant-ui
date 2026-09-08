@@ -326,22 +326,35 @@ describe("toWebMcpTool cancellation", () => {
     expect(lifecycleRemove).toHaveBeenCalledTimes(1);
   });
 
-  it("returns an error result when a signal listener cannot be installed", async () => {
-    const execute = vi.fn(async () => "never");
-    const unusableSignal = {
+  it("merges a caller signal that is not a native AbortSignal", async () => {
+    const listeners: (() => void)[] = [];
+    const foreignSignal = {
       aborted: false,
-      addEventListener: () => {
-        throw new Error("cannot add abort listener");
+      reason: new Error("host cancelled"),
+      addEventListener: (_type: string, listener: () => void) => {
+        listeners.push(listener);
       },
       removeEventListener: () => {},
     } as unknown as AbortSignal;
 
-    const result = await descriptorFor(
-      { execute },
+    const pending = descriptorFor(
+      {
+        execute: async (_args: unknown, context: any) =>
+          new Promise((_resolve, reject) => {
+            context.abortSignal.addEventListener("abort", () =>
+              reject(new Error("aborted")),
+            );
+          }),
+      },
       new AbortController().signal,
-    ).execute({}, { signal: unusableSignal });
-    expect(result.isError).toBe(true);
-    expect(execute).not.toHaveBeenCalled();
+    ).execute({}, { signal: foreignSignal });
+
+    for (const listener of listeners) listener();
+
+    await expect(pending).resolves.toEqual({
+      isError: true,
+      content: [text("aborted")],
+    });
   });
 });
 

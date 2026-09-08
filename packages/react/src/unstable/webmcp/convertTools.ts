@@ -118,39 +118,35 @@ const isStandardSchema = (schema: unknown): schema is StandardSchemaLike =>
   "~standard" in schema &&
   (schema as StandardSchemaLike)["~standard"].version === 1;
 
+// AbortSignal.any is above the browserslist floor, and it brand-checks its
+// inputs, so a caller signal from the WebMCP host's realm fails it on every
+// browser.
 const combineAbortSignals = (
   callerSignal: AbortSignal,
   lifecycleSignal: AbortSignal,
 ): { signal: AbortSignal; cleanup: () => void } => {
   const controller = new AbortController();
-  let cleanedUp = false;
+  const teardown: (() => void)[] = [];
   const cleanup = () => {
-    if (cleanedUp) return;
-    cleanedUp = true;
-    callerSignal.removeEventListener("abort", onCallerAbort);
-    lifecycleSignal.removeEventListener("abort", onLifecycleAbort);
+    while (teardown.length) teardown.pop()!();
   };
   const abort = (reason: unknown) => {
     cleanup();
     controller.abort(reason);
   };
-  const onCallerAbort = () => abort(callerSignal.reason);
-  const onLifecycleAbort = () => abort(lifecycleSignal.reason);
+  const listen = (signal: AbortSignal) => {
+    const onAbort = () => abort(signal.reason);
+    signal.addEventListener("abort", onAbort, { once: true });
+    teardown.push(() => signal.removeEventListener("abort", onAbort));
+  };
 
   if (callerSignal.aborted) {
     abort(callerSignal.reason);
   } else if (lifecycleSignal.aborted) {
     abort(lifecycleSignal.reason);
   } else {
-    try {
-      callerSignal.addEventListener("abort", onCallerAbort, { once: true });
-      lifecycleSignal.addEventListener("abort", onLifecycleAbort, {
-        once: true,
-      });
-    } catch (error) {
-      cleanup();
-      throw error;
-    }
+    listen(callerSignal);
+    listen(lifecycleSignal);
   }
 
   return { signal: controller.signal, cleanup };
