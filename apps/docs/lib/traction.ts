@@ -657,10 +657,6 @@ export async function fetchTimelineSeries(
 const TIMELINE_MONTHS_BACK = 12;
 // npm backfills a day or two behind, so a month is only final once that lag passes.
 const TRAILING_LAG_DAYS = 2;
-// api.npmjs.org refuses a deploy's burst, and a refusal costs a retry ladder each;
-// the loop stops before an unreachable npm can outlast the route it renders.
-const TIMELINE_BUDGET_MS = 30_000;
-
 type MonthBucket = {
   month: string;
   sum: number;
@@ -699,12 +695,12 @@ export async function fetchDownloadsTimeline(
   // Everything up to the last month npm has finished backfilling is final, so it
   // is read as one window on a long revalidation and only the unsettled tail is
   // read every render. Asking per month instead would multiply a deploy's
-  // requests by thirteen, and the burst is what npm refuses.
+  // requests by thirteen, and the burst is what npm refuses; asking for the
+  // whole year at once cost the entire series whenever the one request was.
   const settled = months
     .filter((month) => shiftDays(monthEnd(month), TRAILING_LAG_DAYS) < today)
     .at(-1);
 
-  const deadline = Date.now() + TIMELINE_BUDGET_MS;
   const dailies: NpmDailyDownloads[] = [];
   if (settled) {
     dailies.push(
@@ -717,7 +713,7 @@ export async function fetchDownloadsTimeline(
     );
   }
   const tail = settled ? shiftDays(monthEnd(settled), 1) : start;
-  if (tail <= today && Date.now() < deadline) {
+  if (tail <= today) {
     dailies.push(
       ...(await getDownloadsRange(
         name,

@@ -44,13 +44,13 @@ describe("npm", () => {
     );
   });
 
-  it("holds a window indefinitely when asked to", async () => {
+  it("carries a long revalidation for settled history", async () => {
     respond({ downloads: [] });
 
-    await range(false);
+    await range(NPM_REVALIDATE.COLD);
 
     expect(fetchMock.mock.calls[0]![1]).toEqual({
-      next: { revalidate: false },
+      next: { revalidate: NPM_REVALIDATE.COLD },
     });
   });
 
@@ -99,37 +99,6 @@ describe("npm", () => {
     await expect(range()).resolves.toEqual([]);
     expect(fetchMock).toHaveBeenCalledTimes(1);
     expect(console.error).toHaveBeenCalledWith(expect.stringContaining("404"));
-  });
-
-  it("paces requests so a deploy cannot burst the whole package list at npm", async () => {
-    const release: (() => void)[] = [];
-    let peak = 0;
-    let open = 0;
-    fetchMock.mockImplementation(() => {
-      open++;
-      peak = Math.max(peak, open);
-      return new Promise((resolve) => {
-        release.push(() => {
-          open--;
-          resolve({
-            ok: true,
-            status: 200,
-            json: () => Promise.resolve({ downloads: [] }),
-          });
-        });
-      });
-    });
-
-    const all = Promise.all(Array.from({ length: 10 }, () => range()));
-    while (release.length) release.shift()!();
-    await new Promise((resolve) => setTimeout(resolve, 0));
-    while (release.length) release.shift()!();
-    await new Promise((resolve) => setTimeout(resolve, 0));
-    while (release.length) release.shift()!();
-    await all;
-
-    expect(peak).toBe(4);
-    expect(fetchMock).toHaveBeenCalledTimes(10);
   });
 
   it("names the error when the request never lands", async () => {

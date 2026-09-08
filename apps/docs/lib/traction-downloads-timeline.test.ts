@@ -126,19 +126,6 @@ describe("fetchDownloadsTimeline", () => {
     ).resolves.toEqual([]);
   });
 
-  it("does not open the tail once the wall-clock budget is spent", async () => {
-    getDownloadsRange.mockImplementation(
-      (_pkg: string, start: string, end: string) => {
-        vi.setSystemTime(new Date(Date.now() + 31_000));
-        return Promise.resolve(daysIn(start, end));
-      },
-    );
-
-    await fetchDownloadsTimeline("@assistant-ui/react");
-
-    expect(windows()).toEqual(["2025-09-01:2026-08-31"]);
-  });
-
   it("sums whole months and projects the month in flight", async () => {
     const points = await fetchDownloadsTimeline("@assistant-ui/react");
 

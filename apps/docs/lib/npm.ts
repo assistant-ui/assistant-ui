@@ -10,29 +10,11 @@ export const NPM_REVALIDATE = {
 } as const;
 
 // api.npmjs.org rate limits per IP, and a deploy asks it about every package at
-// once from an address it shares with every other build on the platform. Pacing
-// the requests and retrying a refusal is what keeps a burst from reading as no
-// data. The pacing sits inside the deadline so a queued caller still gives up.
-const MAX_IN_FLIGHT = 4;
+// once from an address it shares with every other build on the platform. A 429
+// there is transient, so a refused request is retried rather than read as no data.
 const RETRY_BACKOFF_MS = [300, 1200];
 
 export type NpmDailyDownloads = { day: string; downloads: number };
-
-let inFlight = 0;
-const waiting: (() => void)[] = [];
-
-async function withSlot<T>(run: () => Promise<T>): Promise<T> {
-  if (inFlight >= MAX_IN_FLIGHT) {
-    await new Promise<void>((resolve) => waiting.push(resolve));
-  }
-  inFlight++;
-  try {
-    return await run();
-  } finally {
-    inFlight--;
-    waiting.shift()?.();
-  }
-}
 
 const delay = (ms: number) =>
   new Promise<void>((resolve) => setTimeout(resolve, ms));
@@ -42,7 +24,7 @@ function npmAttempt(
   revalidate: number,
 ): Promise<{ ok: boolean; status: number; body: unknown }> {
   return withTimeout(
-    withSlot(async () => {
+    (async () => {
       const res = await fetch(
         url,
         revalidate === 0 ? { cache: "no-store" } : { next: { revalidate } },
@@ -52,7 +34,7 @@ function npmAttempt(
         status: res.status,
         body: res.ok ? await res.json() : null,
       };
-    }),
+    })(),
   );
 }
 
