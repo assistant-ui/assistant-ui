@@ -317,6 +317,41 @@ describe("unstable_runPendingTools", () => {
     });
   });
 
+  it("does not execute a tool cancelled during async validation", async () => {
+    const abortController = new AbortController();
+    const validation = promiseWithResolvers<{
+      value: Record<string, unknown>;
+    }>();
+    const execute = vi.fn(() => "executed");
+    const pending = unstable_runPendingTools(
+      createPendingToolMessage("async-validation"),
+      {
+        tool: {
+          parameters: {
+            "~standard": {
+              version: 1,
+              vendor: "test",
+              validate: () => validation.promise,
+            },
+          },
+          execute,
+        },
+      },
+      abortController.signal,
+      async () => {},
+    );
+
+    abortController.abort();
+    validation.resolve({ value: {} });
+    const settled = await pending;
+
+    expect(execute).not.toHaveBeenCalled();
+    expect(settled.parts[0]).toMatchObject({
+      state: "result",
+      isError: true,
+    });
+  });
+
   it.each(["resolves", "rejects"] as const)(
     "does not enqueue pending tool output after cancellation when execution %s",
     async (settlement) => {

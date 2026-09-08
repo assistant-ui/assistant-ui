@@ -108,6 +108,13 @@ function getToolResponse(
       }
     }
 
+    if (abortSignal.aborted) {
+      return new ToolResponse({
+        result: "Tool execution was cancelled.",
+        isError: true,
+      });
+    }
+
     // Create abort promise that resolves after 2 microtasks
     // This gives tools that handle abort a chance to win the race
     let onAbort!: () => void;
