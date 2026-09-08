@@ -223,10 +223,14 @@ export const useTapRoot = <R>(render: () => R): useTapRoot.Root<R> => {
     inst.value = value;
   }
 
-  useInsertionEffect(() => {
-    if (parentFiber !== null) return undefined;
-    return () => scheduleResourceFiberDisposal(inst.fiber);
-  }, [inst, parentFiber]);
+  if (parentFiber === null) {
+    // The React-hosted or Tap-hosted execution path is invariant.
+    // oxlint-disable-next-line react-hooks/rules-of-hooks
+    useInsertionEffect(
+      () => () => scheduleResourceFiberDisposal(inst.fiber),
+      [inst],
+    );
+  }
 
   useEffect(() => {
     inst.isMounted = true;

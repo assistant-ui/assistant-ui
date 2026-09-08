@@ -165,14 +165,18 @@ export function useResources<E extends ResourceElement<any>>(
   );
 
   // Cleanup on unmount
-  useInsertionEffect(() => {
-    if (parentFiber !== null) return undefined;
-    return () => {
-      for (const state of fibers.values()) {
-        scheduleResourceFiberDisposal(state.fiber);
-      }
-    };
-  }, [fibers, parentFiber]);
+  if (parentFiber === null) {
+    // The React-hosted or Tap-hosted execution path is invariant.
+    // oxlint-disable-next-line react-hooks/rules-of-hooks
+    useInsertionEffect(
+      () => () => {
+        for (const state of fibers.values()) {
+          scheduleResourceFiberDisposal(state.fiber);
+        }
+      },
+      [fibers],
+    );
+  }
 
   useEffect(() => {
     return () => {
