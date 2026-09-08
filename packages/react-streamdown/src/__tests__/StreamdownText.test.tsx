@@ -471,6 +471,24 @@ describe("StreamdownTextPrimitive", () => {
       expect(screen.getByTestId("user-pre")).toBe(first);
     });
 
+    it("accepts intrinsic tag names for pre and code as typed components", () => {
+      const components: StreamdownTextComponents = {
+        pre: "section",
+        code: "span",
+      };
+      const { container } = render(
+        <TextMessagePartProvider
+          text={"inline `x`\n\n<pre>raw text</pre>"}
+          isRunning={false}
+        >
+          <StreamdownTextPrimitive mode="static" components={components} />
+        </TextMessagePartProvider>,
+      );
+
+      expect(container.querySelector("p > span")?.textContent).toBe("x");
+      expect(container.querySelector("section")?.textContent).toBe("raw text");
+    });
+
     it("accepts intrinsic tag names for pre and code", () => {
       const SyntaxHighlighter = ({
         code,
