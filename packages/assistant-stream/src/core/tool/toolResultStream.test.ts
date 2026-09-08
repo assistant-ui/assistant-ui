@@ -59,6 +59,31 @@ afterEach(() => {
 });
 
 describe("unstable_runPendingTools", () => {
+  it("keeps provider messages when a pending tool settles", async () => {
+    const settled = await unstable_runPendingTools(
+      createPendingToolMessage("messages"),
+      {
+        tool: {
+          parameters: { type: "object", properties: {} },
+          execute: () =>
+            new ToolResponse({
+              result: "done",
+              messages: [{ role: "assistant", content: [] }],
+            }),
+        },
+      },
+      new AbortController().signal,
+      async () => {},
+    );
+
+    expect(settled.parts[0]).toMatchObject({
+      state: "result",
+      result: "done",
+      messages: [{ role: "assistant", content: [] }],
+    });
+    expect(settled.content).toEqual(settled.parts);
+  });
+
   it("settles a tool that returns no value with a concrete result", async () => {
     const message: AssistantMessage = {
       role: "assistant",

@@ -271,6 +271,9 @@ export async function unstable_runPendingTools(
           ...(toolResponse.modelContent !== undefined
             ? { modelContent: toolResponse.modelContent }
             : {}),
+          ...(toolResponse.messages !== undefined
+            ? { messages: toolResponse.messages }
+            : {}),
           result: toolResponse.result as ReadonlyJSONValue,
           isError: toolResponse.isError,
         };

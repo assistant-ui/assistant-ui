@@ -64,13 +64,19 @@ describe("ToolCallStreamController", () => {
     const reader = await toolReaderPromise;
     expect(await reader.args.get("query")).toBe("London");
 
-    toolCall.setResponse(new ToolResponse({ result: { source: "backend" } }));
+    toolCall.setResponse(
+      new ToolResponse({
+        result: { source: "backend" },
+        messages: [{ role: "assistant", content: [] }],
+      }),
+    );
     toolCall.close();
     controller.close();
 
     const response = await reader.response.get();
     expect(response.result).toEqual({ source: "backend" });
     expect(response.isError).toBe(false);
+    expect(response.messages).toEqual([{ role: "assistant", content: [] }]);
     expect(execute).not.toHaveBeenCalled();
     await drain;
     const results = chunks.filter((chunk) => chunk.type === "result");
@@ -78,6 +84,7 @@ describe("ToolCallStreamController", () => {
     expect(results[0]).toMatchObject({
       result: { source: "backend" },
       isError: false,
+      messages: [{ role: "assistant", content: [] }],
     });
   });
 
