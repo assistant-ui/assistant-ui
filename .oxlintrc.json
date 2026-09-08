@@ -73,14 +73,36 @@
   ],
   "overrides": [
     {
-      "files": ["packages/**"],
+      "files": ["packages/**/src/**"],
+      "excludeFiles": [
+        "packages/agent-launcher/**",
+        "packages/cli/**",
+        "packages/create-assistant-ui/**",
+        "packages/mcp-docs-server/**",
+        "packages/metro/**",
+        "packages/next/**",
+        "packages/react-ink/**",
+        "packages/react-ink-markdown/**",
+        "packages/react-native/**",
+        "packages/vite/**",
+        "packages/x-*/**",
+        "packages/**/src/**/node/**",
+        "packages/**/src/**/server/**",
+        "packages/**/*.node.*",
+        "packages/**/*.server.*",
+        "packages/**/src/**/__tests__/**",
+        "packages/**/src/**/*.test.*",
+        "packages/assistant-stream/src/resumable/stores/redis-impl.ts",
+        "packages/assistant-stream/src/resumable/stores/redis.ts",
+        "packages/assistant-stream/src/resumable/stores/ioredis.ts"
+      ],
       "rules": {
         "no-restricted-properties": [
           "error",
           {
             "object": "AbortSignal",
             "property": "any",
-            "message": "AbortSignal.any is not supported by the browserslist floor. Use a compatibility-safe signal combiner instead."
+            "message": "AbortSignal.any is not supported by the browserslist floor. Use the combineAbortSignals pattern or another compatibility-safe signal combiner instead."
           }
         ]
       }
