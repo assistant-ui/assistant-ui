@@ -2,6 +2,9 @@
 
 import { afterEach, expect, it, vi } from "vitest";
 import { render } from "@testing-library/react";
+import { DocsRuntimeProvider } from "./docs";
+import { ArtifactsRuntimeProvider } from "./artifacts";
+import { InteractableRuntimeProvider } from "./interactable";
 
 const reload = vi.hoisted(() => vi.fn(() => Promise.resolve()));
 const useDocsChatRuntime = vi.hoisted(() =>
@@ -44,19 +47,12 @@ afterEach(() => {
 });
 
 it.each([
-  ["docs", () => import("./docs").then((m) => m.DocsRuntimeProvider)],
-  [
-    "artifacts",
-    () => import("./artifacts").then((m) => m.ArtifactsRuntimeProvider),
-  ],
-  [
-    "interactable sample",
-    () => import("./interactable").then((m) => m.InteractableRuntimeProvider),
-  ],
+  ["docs", DocsRuntimeProvider],
+  ["artifacts", ArtifactsRuntimeProvider],
+  ["interactable sample", InteractableRuntimeProvider],
 ])(
   "reloads the %s runtime's thread list only after a claim moved threads",
-  async (_name, load) => {
-    const Provider = await load();
+  (_name, Provider) => {
     const { rerender } = render(<Provider>{null}</Provider>);
 
     expect(reload).not.toHaveBeenCalled();
