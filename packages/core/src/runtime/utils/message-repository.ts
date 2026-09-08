@@ -134,6 +134,16 @@ export class MessageRepository {
     }
   }
 
+  private selectPathTo(message: RepositoryMessage) {
+    for (
+      let current: RepositoryMessage | null = message;
+      current;
+      current = current.prev
+    ) {
+      (current.prev ?? this.root).next = current;
+    }
+  }
+
   private performOp(
     newParent: RepositoryMessage | null,
     child: RepositoryMessage,
@@ -182,11 +192,11 @@ export class MessageRepository {
         child.current.id,
       ];
 
-      if (findHead(child) === this.head || newParentOrRoot.next === null) {
-        newParentOrRoot.next = child;
-      }
-
       child.prev = newParent;
+
+      if (findHead(child) === this.head || newParentOrRoot.next === null) {
+        this.selectPathTo(child);
+      }
 
       const newLevel = newParent ? newParent.level + 1 : 0;
       this.updateLevels(child, newLevel);
@@ -381,14 +391,7 @@ export class MessageRepository {
       );
 
     const previousHead = this.head;
-    for (
-      let current: RepositoryMessage | null = message;
-      current;
-      current = current.prev
-    ) {
-      const prevOrRoot = current.prev ?? this.root;
-      prevOrRoot.next = current;
-    }
+    this.selectPathTo(message);
 
     this.head = findHead(message);
 
@@ -429,17 +432,7 @@ export class MessageRepository {
     }
 
     this.head = message;
-    for (
-      let current: RepositoryMessage | null = message;
-      current;
-      current = current.prev
-    ) {
-      if (current.prev) {
-        current.prev.next = current;
-      } else {
-        this.root.next = current;
-      }
-    }
+    this.selectPathTo(message);
 
     this.evictOffBranchOptimisticMessages(previousHead, this.head);
 

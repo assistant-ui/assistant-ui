@@ -282,6 +282,24 @@ describe("MessageRepository", () => {
       expect(repository.getMessages().map((m) => m.id)).toEqual(["b"]);
     });
 
+    it("keeps the selected root branch after relinking a message", () => {
+      repository.addOrUpdateMessage(null, createTestMessage({ id: "a" }));
+      repository.addOrUpdateMessage("a", createTestMessage({ id: "m" }));
+      repository.addOrUpdateMessage("m", createTestMessage({ id: "x" }));
+      repository.addOrUpdateMessage(null, createTestMessage({ id: "b" }));
+      repository.addOrUpdateMessage("b", createTestMessage({ id: "m" }));
+
+      expect(repository.getMessages().map((m) => m.id)).toEqual([
+        "b",
+        "m",
+        "x",
+      ]);
+
+      repository.deleteMessage("x", null);
+
+      expect(repository.getMessages().map((m) => m.id)).toEqual(["b", "m"]);
+    });
+
     it("should operate on a long message history without overflowing the stack", () => {
       const messageCount = 30_000;
       const messages = createLongBranchMessages(messageCount);
