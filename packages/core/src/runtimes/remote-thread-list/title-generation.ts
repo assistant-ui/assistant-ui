@@ -9,7 +9,7 @@ type ThreadTitleGeneration = {
   readonly automatic: boolean;
   readonly order: number;
   claim: ThreadTitleClaim | null;
-  beforeGenerationClaim: ThreadTitleClaim | null;
+  beforeGenerationClaims: readonly ThreadTitleClaim[];
   superseded: boolean;
   readonly persisted: Promise<string | undefined>;
   readonly settlePersisted: (title: string | undefined) => void;
@@ -18,7 +18,7 @@ type ThreadTitleGeneration = {
 export type ThreadTitleState = {
   generations: Set<ThreadTitleGeneration>;
   pendingClaim: ThreadTitleClaim | null;
-  inFlightClaim: ThreadTitleClaim | null;
+  inFlightClaims: Set<ThreadTitleClaim>;
   manualTitle: string | undefined;
   latestExplicit: ThreadTitleGeneration | null;
   nextOrder: number;
@@ -44,7 +44,7 @@ function getThreadTitleState(
     state = {
       generations: new Set(),
       pendingClaim: null,
-      inFlightClaim: null,
+      inFlightClaims: new Set(),
       manualTitle: undefined,
       latestExplicit: null,
       nextOrder: 0,
@@ -62,7 +62,7 @@ function pruneThreadTitleState(
   if (
     state.generations.size === 0 &&
     state.pendingClaim === null &&
-    state.inFlightClaim === null &&
+    state.inFlightClaims.size === 0 &&
     state.manualTitle === undefined &&
     states.get(threadId) === state
   ) {
@@ -104,7 +104,7 @@ export function startThreadTitleRename(
     settle,
   };
   state.pendingClaim = claim;
-  state.inFlightClaim = claim;
+  state.inFlightClaims.add(claim);
   for (const generation of state.generations) {
     if (generation.order < claim.order) generation.claim = claim;
   }
@@ -120,7 +120,7 @@ export function finishThreadTitleRename(
   claim.settle(renamed);
   const state = states.get(threadId);
   if (state === undefined) return;
-  if (state.inFlightClaim === claim) state.inFlightClaim = null;
+  state.inFlightClaims.delete(claim);
   if (state.pendingClaim === claim) {
     state.pendingClaim = null;
     if (renamed) {
@@ -171,7 +171,7 @@ function startThreadTitleGeneration(
     automatic,
     order: ++state.nextOrder,
     claim: automatic ? state.pendingClaim : null,
-    beforeGenerationClaim: automatic ? null : state.inFlightClaim,
+    beforeGenerationClaims: automatic ? [] : [...state.inFlightClaims],
     superseded: false,
     persisted,
     settlePersisted,
@@ -259,8 +259,10 @@ export async function runThreadTitleGeneration({
   };
 
   const runGeneration = async () => {
-    if (generation.beforeGenerationClaim !== null) {
-      await generation.beforeGenerationClaim.settled;
+    if (generation.beforeGenerationClaims.length > 0) {
+      await Promise.all(
+        generation.beforeGenerationClaims.map((claim) => claim.settled),
+      );
     }
     if (generation.claim !== null) {
       const renamed = await settleClaim(generation.claim);

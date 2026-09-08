@@ -417,6 +417,53 @@ describe("useThreads", () => {
     expect(applied).toEqual(["Manual title", "Second title"]);
   });
 
+  it("waits for every overlapping rename before explicit generation", async () => {
+    const firstUpdate = createDeferred<void>();
+    const secondUpdate = createDeferred<void>();
+    const applied: string[] = [];
+    const cloud = createCloud("cloud-1");
+    cloud.threads.update.mockImplementation(
+      async (_id: string, patch: { title?: string }) => {
+        if (patch.title === undefined) return;
+        if (patch.title === "First") await firstUpdate.promise;
+        if (patch.title === "Second") await secondUpdate.promise;
+        applied.push(patch.title);
+      },
+    );
+    mocks.generateThreadTitle.mockImplementation(
+      async (currentCloud: typeof cloud, tid: string) => {
+        await currentCloud.threads.update(tid, { title: "Explicit" });
+        return "Explicit";
+      },
+    );
+    const { result } = renderHook(() =>
+      useThreads({ cloud: cloud as never, enabled: false }),
+    );
+
+    let first!: Promise<boolean>;
+    let second!: Promise<boolean>;
+    let generation!: Promise<string | null>;
+    act(() => {
+      first = result.current.rename("thread-1", "First");
+      second = result.current.rename("thread-1", "Second");
+      generation = result.current.generateTitle("thread-1");
+    });
+
+    await act(async () => {
+      secondUpdate.resolve();
+      await second;
+    });
+    expect(mocks.generateThreadTitle).not.toHaveBeenCalled();
+
+    await act(async () => {
+      firstUpdate.resolve();
+      await Promise.all([first, generation]);
+    });
+
+    expect(await generation).toBe("Explicit");
+    expect(applied).toEqual(["Second", "First", "Explicit"]);
+  });
+
   it("leaves the server on the explicit title when a rename lands late", async () => {
     const applied: string[] = [];
     const renameLanded = createDeferred<void>();

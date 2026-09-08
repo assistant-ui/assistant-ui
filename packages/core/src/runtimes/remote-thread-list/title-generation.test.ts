@@ -288,6 +288,52 @@ describe("runThreadTitleGeneration", () => {
     expect(server).toBe("Second");
   });
 
+  it("waits for every overlapping rename before explicit generation", async () => {
+    const states = new Map<string, ThreadTitleState>();
+    const firstOpen = deferred<void>();
+    const secondOpen = deferred<void>();
+    const generated: string[] = [];
+    let server: string | undefined;
+
+    const firstClaim = startThreadTitleRename(states, "t1", "First");
+    const firstRename = (async () => {
+      await firstOpen.promise;
+      server = firstClaim.title;
+      finishThreadTitleRename(states, "t1", firstClaim, true);
+    })();
+    const secondClaim = startThreadTitleRename(states, "t1", "Second");
+    const secondRename = (async () => {
+      await secondOpen.promise;
+      server = secondClaim.title;
+      finishThreadTitleRename(states, "t1", secondClaim, true);
+    })();
+    const generation = runThreadTitleGeneration({
+      states,
+      threadId: "t1",
+      automatic: false,
+      generate: async (onTitle) => {
+        generated.push("Explicit");
+        server = "Explicit";
+        await onTitle("Explicit");
+      },
+      rename: async (title) => {
+        server = title;
+      },
+      applyTitle: noop,
+    });
+
+    secondOpen.resolve();
+    await secondRename;
+    await flushMicrotasks();
+    expect(generated).toEqual([]);
+
+    firstOpen.resolve();
+    await Promise.all([firstRename, generation]);
+
+    expect(generated).toEqual(["Explicit"]);
+    expect(server).toBe("Explicit");
+  });
+
   it("reasserts the explicit title when the superseded run persists last", async () => {
     const states = new Map<string, ThreadTitleState>();
     const streamOpen = deferred<void>();
