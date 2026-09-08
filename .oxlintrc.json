@@ -85,6 +85,8 @@
         "packages/react-ink-markdown/**",
         "packages/vite/**",
         "packages/x-*/**",
+        "packages/*/src/node.ts",
+        "packages/*/src/server.ts",
         "packages/*/src/node/**",
         "packages/*/src/server/**",
         "packages/**/*.node.*",
