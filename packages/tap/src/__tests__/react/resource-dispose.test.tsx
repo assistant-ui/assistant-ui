@@ -31,13 +31,13 @@ class ErrorBoundary extends Component<
   { children: ReactNode },
   { error: Error | null }
 > {
-  state = { error: null };
+  override state: { error: Error | null } = { error: null };
 
   static getDerivedStateFromError(error: Error) {
     return { error };
   }
 
-  render() {
+  override render() {
     return this.state.error ? (
       <div role="alert">{this.state.error.message}</div>
     ) : (
