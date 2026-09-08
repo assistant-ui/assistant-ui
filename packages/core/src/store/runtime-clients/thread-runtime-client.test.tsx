@@ -1,12 +1,12 @@
 // @vitest-environment jsdom
 
-import { act, render } from "@testing-library/react";
+import { act, cleanup, render } from "@testing-library/react";
 import {
   AuiConfig,
   AuiProvider,
   type AssistantClient,
 } from "@assistant-ui/store";
-import { describe, expect, it, vi } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 import type { ModelContextProvider } from "../../model-context/types";
 import type { ThreadMessage } from "../../types/message";
 import type { ThreadListItemState } from "../../runtime/api/bindings";
@@ -46,7 +46,75 @@ const contextProvider: ModelContextProvider = {
   getModelContext: () => ({}),
 };
 
+const createRuntime = (core: ExternalStoreThreadRuntimeCore) => {
+  const threadBinding: ThreadRuntimeCoreBinding = {
+    path,
+    getState: () => core,
+    subscribe: (callback) => core.subscribe(callback),
+    outerSubscribe: (callback) => core.subscribe(callback),
+  };
+  const threadListItemBinding: ThreadListItemRuntimeBinding = {
+    path,
+    getState: () => threadListItem,
+    subscribe: () => () => {},
+  };
+  return new ThreadRuntimeImpl(threadBinding, threadListItemBinding);
+};
+
+const renderClient = (runtime: ThreadRuntimeImpl) => {
+  let client: AssistantClient | null = null;
+  const App = () => {
+    const config = AuiConfig({ thread: ThreadClient({ runtime }) });
+    return (
+      <AuiProvider
+        config={config}
+        ref={(value: AssistantClient | null) => {
+          client = value;
+        }}
+      >
+        {null}
+      </AuiProvider>
+    );
+  };
+
+  act(() => {
+    render(<App />);
+  });
+  if (!client) throw new Error("Expected the assistant client to mount.");
+  return client;
+};
+
 describe("ThreadClient", () => {
+  afterEach(() => {
+    act(() => vi.runOnlyPendingTimers());
+    cleanup();
+    vi.useRealTimers();
+  });
+
+  it("mounts after cancellation drops an optimistic head", () => {
+    vi.useFakeTimers();
+    const core = new ExternalStoreThreadRuntimeCore(contextProvider, {
+      messages: [message],
+      isRunning: true,
+      onNew: vi.fn(),
+      onCancel: vi.fn(),
+    });
+    const runtime = createRuntime(core);
+    const optimisticId = core.messages.at(-1)!.id;
+    expect(optimisticId).not.toBe(message.id);
+
+    runtime.cancelRun();
+    const client = renderClient(runtime);
+
+    expect(core.messages.map(({ id }) => id)).toEqual([message.id]);
+    expect(runtime.getState().messages.map(({ id }) => id)).toEqual([
+      message.id,
+    ]);
+    expect(client.thread.getState().messages.map(({ id }) => id)).toEqual([
+      message.id,
+    ]);
+  });
+
   it("keeps cancellation removal coherent through deferred reconciliation", () => {
     vi.useFakeTimers();
     const onCancel = vi.fn();
@@ -59,34 +127,7 @@ describe("ThreadClient", () => {
       setMessages,
     });
 
-    const threadBinding: ThreadRuntimeCoreBinding = {
-      path,
-      getState: () => core,
-      subscribe: (callback) => core.subscribe(callback),
-      outerSubscribe: (callback) => core.subscribe(callback),
-    };
-    const threadListItemBinding: ThreadListItemRuntimeBinding = {
-      path,
-      getState: () => threadListItem,
-      subscribe: () => () => {},
-    };
-    const runtime = new ThreadRuntimeImpl(threadBinding, threadListItemBinding);
-
-    const App = () => {
-      const config = AuiConfig({ thread: ThreadClient({ runtime }) });
-      return (
-        <AuiProvider
-          config={config}
-          ref={(value: AssistantClient | null) => {
-            client = value;
-          }}
-        >
-          {null}
-        </AuiProvider>
-      );
-    };
-
-    const unsubscribe = runtime.subscribe(() => {});
+    const runtime = createRuntime(core);
     expect(runtime.getState().messages.map(({ id }) => id)).toContain(
       message.id,
     );
@@ -106,18 +147,14 @@ describe("ThreadClient", () => {
     expect(runtime.getState().messages.map(({ id }) => id)).toContain(
       message.id,
     );
-    vi.runAllTimers();
+    const client = renderClient(runtime);
 
-    let client: AssistantClient | null = null;
     act(() => {
-      render(<App />);
+      vi.runAllTimers();
     });
 
     expect(runtime.getState().messages).toEqual([]);
     expect(core.messages).toEqual([]);
-    expect(client!.thread.getState().messages).toEqual([]);
-    unsubscribe();
-    vi.runAllTimers();
-    vi.useRealTimers();
+    expect(client.thread.getState().messages).toEqual([]);
   });
 });

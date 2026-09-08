@@ -764,9 +764,9 @@ export class ExternalStoreThreadRuntimeCore
     this._publishRepositoryMessages();
   }
 
-  private _publishRepositoryMessages(force = false) {
+  private _publishRepositoryMessages() {
     const messages = this.repository.getMessages();
-    if (!force && messages === this._messages) return;
+    if (messages === this._messages) return;
     this._messages = messages;
     this._notifySubscribers();
   }
@@ -898,7 +898,7 @@ export class ExternalStoreThreadRuntimeCore
         movedLeaf = { id: trailingUserLeaf.id, draft };
       }
     }
-    this._publishRepositoryMessages(true);
+    this._publishRepositoryMessages();
 
     // The resync commits what the cancel left (a kept optimistic message, the
     // restored branch) back to the store a macrotask later. The store may move
