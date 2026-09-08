@@ -183,6 +183,7 @@ const handleToolCallArgsTextFinish = (
     return {
       ...part,
       state: "call",
+      status: { type: "running", isArgsComplete: true },
     };
   });
 };
