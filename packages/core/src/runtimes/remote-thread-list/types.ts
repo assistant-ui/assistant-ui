@@ -56,6 +56,14 @@ export type RemoteThreadListAdapter = {
   unarchive(remoteId: string): Promise<void>;
   delete(remoteId: string): Promise<void>;
   initialize(threadId: string): Promise<RemoteThreadInitializeResponse>;
+  /**
+   * Generates a title for the thread and streams it back.
+   *
+   * When the generation persists the title itself, the returned stream must
+   * not complete before that write has landed. Concurrent generations are
+   * ordered by stream completion, and a run whose write outlives its stream
+   * can overwrite a newer title.
+   */
   generateTitle(
     remoteId: string,
     unstable_messages: readonly ThreadMessage[],
