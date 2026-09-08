@@ -5,13 +5,13 @@ import { tmpdir } from "node:os";
 import path from "node:path";
 import test from "node:test";
 import {
-  apiSurfaceFileName,
-  findMissingApiSurfaceChangesets,
+  findMissingPackageChangesets,
   findUnreleasablePackages,
+  isReleaseRelevantSourceFile,
   parseBumpLine,
   parseWorkspaceGlobs,
   readSkipRules,
-  runChangedApiSurfaceCheck,
+  runChangedPackageCheck,
   runCheck,
 } from "./check-changesets.mjs";
 
@@ -156,18 +156,29 @@ test("findUnreleasablePackages flags private and unknown names", () => {
   assert.match(problems[1].reason, /is not a workspace package/);
 });
 
-test("apiSurfaceFileName matches generated surface names", () => {
+test("isReleaseRelevantSourceFile excludes non-release source files", () => {
+  for (const file of [
+    "packages/core/src/runtime.test.ts",
+    "packages/core/src/runtime.spec.tsx",
+    "packages/core/src/runtime.stories.tsx",
+    "packages/core/src/runtime.bench.ts",
+    "packages/core/src/__tests__/runtime.ts",
+    "packages/core/src/tests/helper.ts",
+    "packages/core/src/fixtures/messages.ts",
+    "packages/core/src/generated/protocol.ts",
+    "packages/core/src/protocol.generated.ts",
+    "apps/docs/src/page.tsx",
+  ]) {
+    assert.equal(isReleaseRelevantSourceFile(file), false, file);
+  }
+
   assert.equal(
-    apiSurfaceFileName("@assistant-ui/store"),
-    "api-surface/assistant-ui__store.ts",
-  );
-  assert.equal(
-    apiSurfaceFileName("assistant-stream"),
-    "api-surface/assistant-stream.ts",
+    isReleaseRelevantSourceFile("packages/core/src/runtime.ts"),
+    true,
   );
 });
 
-test("findMissingApiSurfaceChangesets requires the changed package bump", () => {
+test("findMissingPackageChangesets requires each changed package bump", () => {
   const packages = new Map([
     [
       "@assistant-ui/store",
@@ -186,11 +197,11 @@ test("findMissingApiSurfaceChangesets requires the changed package bump", () => 
       },
     ],
   ]);
-  const changedFiles = new Set(["api-surface/assistant-ui__store.ts"]);
+  const changedFiles = new Set(["packages/store/src/index.ts"]);
   const rules = { ignored: [], skipsPrivate: true };
 
   assert.deepEqual(
-    findMissingApiSurfaceChangesets(
+    findMissingPackageChangesets(
       packages,
       [{ file: "core.md", name: "@assistant-ui/core" }],
       changedFiles,
@@ -198,13 +209,13 @@ test("findMissingApiSurfaceChangesets requires the changed package bump", () => 
     ),
     [
       {
-        file: "api-surface/assistant-ui__store.ts",
+        files: ["packages/store/src/index.ts"],
         name: "@assistant-ui/store",
       },
     ],
   );
   assert.deepEqual(
-    findMissingApiSurfaceChangesets(
+    findMissingPackageChangesets(
       packages,
       [{ file: "store.md", name: "@assistant-ui/store" }],
       changedFiles,
@@ -379,38 +390,46 @@ function runExecutable(root, { args = [], env = {} } = {}) {
   );
 }
 
-test("changed API surface validation only accepts a changeset from the PR", () => {
+test("changed package validation ignores non-release edits and requires a PR changeset", () => {
   const root = createWorkspace(
     '---\n"@fixture/published": patch\n---\n\nfix: already on base\n',
   );
   try {
-    mkdirSync(path.join(root, "api-surface"));
-    const surface = path.join(root, "api-surface", "fixture__published.ts");
-    writeFileSync(surface, "export type Existing = string;\n");
+    const sourceDir = path.join(root, "packages", "published", "src");
+    mkdirSync(sourceDir);
+    const source = path.join(sourceDir, "index.ts");
+    const testFile = path.join(sourceDir, "index.test.ts");
+    writeFileSync(source, "// original\nexport const existing = 1;\n");
+    writeFileSync(testFile, "// original test\n");
     git(root, "init", "-q", "-b", "main");
     const base = commitAll(root, "base");
 
+    writeFileSync(source, "// clarified\nexport const existing = 1;\n");
+    writeFileSync(testFile, "// expanded test\n");
+    const nonReleaseHead = commitAll(root, "comments and tests");
+    assert.deepEqual(runChangedPackageCheck(root, base, nonReleaseHead), {
+      changedSourceCount: 0,
+      missingChangesets: [],
+    });
+
     writeFileSync(
-      surface,
-      "export type Existing = string;\nexport type Added = string;\n",
+      source,
+      "// clarified\nexport const existing = 1;\nexport const added = 2;\n",
     );
-    const missingHead = commitAll(root, "surface without changeset");
+    const missingHead = commitAll(root, "source without changeset");
 
     assert.deepEqual(
-      runChangedApiSurfaceCheck(root, base, missingHead).missingChangesets.map(
+      runChangedPackageCheck(root, base, missingHead).missingChangesets.map(
         ({ name }) => name,
       ),
       ["@fixture/published"],
     );
     const missingResult = runExecutable(root, {
-      args: ["--changed-api-surface"],
+      args: ["--changed-packages"],
       env: { BASE_SHA: base, HEAD_SHA: missingHead },
     });
     assert.equal(missingResult.status, 1);
-    assert.match(
-      missingResult.stderr,
-      /add a changeset for "@fixture\/published"/,
-    );
+    assert.match(missingResult.stderr, /"@fixture\/published"/);
 
     writeFileSync(
       path.join(root, ".changeset", "added-by-pr.md"),
@@ -418,7 +437,7 @@ test("changed API surface validation only accepts a changeset from the PR", () =
     );
     const coveredHead = commitAll(root, "add changeset");
     const coveredResult = runExecutable(root, {
-      args: ["--changed-api-surface"],
+      args: ["--changed-packages"],
       env: { BASE_SHA: base, HEAD_SHA: coveredHead },
     });
 
@@ -429,8 +448,93 @@ test("changed API surface validation only accepts a changeset from the PR", () =
     );
     assert.match(
       coveredResult.stdout,
-      /All changed API surfaces have changesets\./,
+      /All changed published packages have changesets\./,
     );
+  } finally {
+    rmSync(root, { recursive: true, force: true });
+  }
+});
+
+test("deleting published source requires a changeset", () => {
+  const root = createWorkspace(
+    '---\n"@fixture/held": patch\n---\n\nfix: unrelated package\n',
+  );
+  try {
+    const sourceDir = path.join(root, "packages", "published", "src");
+    mkdirSync(sourceDir);
+    const source = path.join(sourceDir, "removed.ts");
+    writeFileSync(source, "export const removed = true;\n");
+    git(root, "init", "-q", "-b", "main");
+    const base = commitAll(root, "base");
+
+    rmSync(source);
+    const head = commitAll(root, "delete source");
+
+    assert.deepEqual(runChangedPackageCheck(root, base, head), {
+      changedSourceCount: 1,
+      missingChangesets: [
+        {
+          files: ["packages/published/src/removed.ts"],
+          name: "@fixture/published",
+        },
+      ],
+    });
+  } finally {
+    rmSync(root, { recursive: true, force: true });
+  }
+});
+
+test("a version-only PR passes without a branch-name exemption", () => {
+  const root = createWorkspace(
+    '---\n"@fixture/published": patch\n---\n\nfix: release\n',
+  );
+  try {
+    const sourceDir = path.join(root, "packages", "published", "src");
+    mkdirSync(sourceDir);
+    writeFileSync(
+      path.join(sourceDir, "index.ts"),
+      "export const value = 1;\n",
+    );
+    git(root, "init", "-q", "-b", "main");
+    const base = commitAll(root, "base");
+
+    const manifest = path.join(root, "packages", "published", "package.json");
+    writeFileSync(
+      manifest,
+      JSON.stringify({ name: "@fixture/published", version: "1.0.1" }),
+    );
+    rmSync(path.join(root, ".changeset", "entry.md"));
+    const head = commitAll(root, "version packages");
+
+    assert.deepEqual(runChangedPackageCheck(root, base, head), {
+      changedSourceCount: 0,
+      missingChangesets: [],
+    });
+    const result = runExecutable(root, {
+      args: ["--changed-packages"],
+      env: { BASE_SHA: base, HEAD_SHA: head },
+    });
+    assert.equal(result.status, 0, result.stdout + result.stderr);
+  } finally {
+    rmSync(root, { recursive: true, force: true });
+  }
+});
+
+test("changed package validation reports an unresolvable range", () => {
+  const root = createWorkspace(
+    '---\n"@fixture/published": patch\n---\n\nfix: fixture\n',
+  );
+  try {
+    git(root, "init", "-q", "-b", "main");
+    const head = commitAll(root, "base");
+    const result = runExecutable(root, {
+      args: ["--changed-packages"],
+      env: { BASE_SHA: "missing-base", HEAD_SHA: head },
+    });
+
+    assert.equal(result.status, 1);
+    assert.match(result.stderr, /Could not diff missing-base/);
+    assert.doesNotMatch(result.stderr, /at diffChangedFiles/);
   } finally {
     rmSync(root, { recursive: true, force: true });
   }

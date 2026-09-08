@@ -168,11 +168,32 @@ export function findUnreleasablePackages(packages, bumps, rules) {
   return problems;
 }
 
-export function apiSurfaceFileName(packageName) {
-  return `api-surface/${packageName.replace(/^@/, "").replaceAll("/", "__")}.ts`;
+export function isReleaseRelevantSourceFile(file) {
+  const match = file.match(/^packages\/[^/]+\/src\/(.+)$/);
+  if (!match) return false;
+
+  const relative = match[1];
+  const segments = relative.split("/");
+  if (
+    segments.some((segment) =>
+      [
+        "__fixtures__",
+        "__generated__",
+        "__tests__",
+        "fixtures",
+        "generated",
+        "test",
+        "tests",
+      ].includes(segment),
+    )
+  ) {
+    return false;
+  }
+
+  return !/\.(?:bench|generated|spec|stories|test)\.[^/]+$/.test(relative);
 }
 
-export function findMissingApiSurfaceChangesets(
+export function findMissingPackageChangesets(
   packages,
   bumps,
   changedFiles,
@@ -191,9 +212,12 @@ export function findMissingApiSurfaceChangesets(
       continue;
     }
 
-    const file = apiSurfaceFileName(name);
-    if (changedFiles.has(file) && !bumped.has(name)) {
-      missing.push({ file, name });
+    const packageRoot = path.posix.dirname(pkg.manifest);
+    const files = [...changedFiles].filter((file) =>
+      file.startsWith(`${packageRoot}/src/`),
+    );
+    if (files.length > 0 && !bumped.has(name)) {
+      missing.push({ files, name });
     }
   }
 
@@ -201,26 +225,69 @@ export function findMissingApiSurfaceChangesets(
 }
 
 function diffChangedFiles(root, baseSha, headSha) {
-  return execFileSync(
-    "git",
-    [
-      "diff",
-      "--name-only",
-      "--diff-filter=ACMR",
-      `${baseSha}...${headSha}`,
-      "--",
-      "api-surface/*.ts",
-      ".changeset/*.md",
-    ],
-    { cwd: root, encoding: "utf8", stdio: ["ignore", "pipe", "pipe"] },
-  )
-    .trim()
-    .split("\n")
-    .filter(Boolean);
+  try {
+    const range = `${baseSha}...${headSha}`;
+    const addedDeletedOrRenamed = execFileSync(
+      "git",
+      [
+        "diff",
+        "--name-only",
+        "--diff-filter=ACDR",
+        range,
+        "--",
+        "packages/*/src/**",
+      ],
+      { cwd: root, encoding: "utf8", stdio: ["ignore", "pipe", "pipe"] },
+    )
+      .trim()
+      .split("\n")
+      .filter(Boolean);
+    const modifiedPatch = execFileSync(
+      "git",
+      [
+        "diff",
+        "--unified=0",
+        "--no-color",
+        "--no-ext-diff",
+        "--diff-filter=M",
+        "--ignore-all-space",
+        "--ignore-matching-lines=^[[:space:]]*//",
+        range,
+        "--",
+        "packages/*/src/**",
+      ],
+      { cwd: root, encoding: "utf8", stdio: ["ignore", "pipe", "pipe"] },
+    );
+    const modified = modifiedPatch
+      .split("\n")
+      .filter((line) => line.startsWith("+++ b/"))
+      .map((line) => line.slice("+++ b/".length));
+    const changesets = execFileSync(
+      "git",
+      [
+        "diff",
+        "--name-only",
+        "--diff-filter=ACMR",
+        range,
+        "--",
+        ".changeset/*.md",
+      ],
+      { cwd: root, encoding: "utf8", stdio: ["ignore", "pipe", "pipe"] },
+    )
+      .trim()
+      .split("\n")
+      .filter(Boolean);
+    return [...new Set([...addedDeletedOrRenamed, ...modified, ...changesets])];
+  } catch (error) {
+    const stderr = String(error.stderr ?? "").trim();
+    return { error: stderr.split("\n").at(-1) || error.message };
+  }
 }
 
-export function runChangedApiSurfaceCheck(root, baseSha, headSha) {
+export function runChangedPackageCheck(root, baseSha, headSha) {
   const changedFiles = diffChangedFiles(root, baseSha, headSha);
+  if (!Array.isArray(changedFiles)) return changedFiles;
+
   const packages = readWorkspacePackages(root);
   const rules = readSkipRules(
     readJson(path.join(root, ".changeset", "config.json")),
@@ -230,15 +297,14 @@ export function runChangedApiSurfaceCheck(root, baseSha, headSha) {
       .filter((file) => file.startsWith(".changeset/"))
       .map((file) => path.basename(file)),
   );
+  const sourceFiles = new Set(changedFiles.filter(isReleaseRelevantSourceFile));
 
   return {
-    changedSurfaceCount: changedFiles.filter((file) =>
-      file.startsWith("api-surface/"),
-    ).length,
-    missingChangesets: findMissingApiSurfaceChangesets(
+    changedSourceCount: sourceFiles.size,
+    missingChangesets: findMissingPackageChangesets(
       packages,
       readChangesetBumps(root, changesetFiles),
-      new Set(changedFiles),
+      sourceFiles,
       rules,
     ),
   };
@@ -278,30 +344,37 @@ function main() {
     process.exit(1);
   }
 
-  if (process.argv.includes("--changed-api-surface")) {
+  if (process.argv.includes("--changed-packages")) {
     const { BASE_SHA, HEAD_SHA } = process.env;
     if (!BASE_SHA || !HEAD_SHA) {
       console.error(
-        "BASE_SHA and HEAD_SHA are required for changed API surface validation.",
+        "BASE_SHA and HEAD_SHA are required for changed package validation.",
       );
       process.exit(1);
     }
 
-    const { changedSurfaceCount, missingChangesets } =
-      runChangedApiSurfaceCheck(root, BASE_SHA, HEAD_SHA);
+    const result = runChangedPackageCheck(root, BASE_SHA, HEAD_SHA);
+    if ("error" in result) {
+      console.error(
+        `Could not diff ${BASE_SHA}...${HEAD_SHA}: ${result.error}. Failing instead of skipping changeset validation.`,
+      );
+      process.exit(1);
+    }
+
+    const { changedSourceCount, missingChangesets } = result;
     if (missingChangesets.length > 0) {
-      console.error("Changed API surfaces without a changeset:\n");
-      for (const { file, name } of missingChangesets) {
-        console.error(`  ${file}: add a changeset for "${name}"`);
+      console.error("Changed published packages without a changeset:\n");
+      for (const { files, name } of missingChangesets) {
+        console.error(`  "${name}" (${files.join(", ")})`);
       }
       console.error(
-        "\nEvery changed public API must name its published package in a changeset added by this PR.",
+        "\nAdd a changeset from this PR that names every changed published package.",
       );
       process.exit(1);
     }
 
     console.log(
-      `All changed API surfaces have changesets. (${changedSurfaceCount} surfaces scanned)`,
+      `All changed published packages have changesets. (${changedSourceCount} source files scanned)`,
     );
   }
 
