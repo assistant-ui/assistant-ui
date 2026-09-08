@@ -657,7 +657,8 @@ export async function fetchTimelineSeries(
 const TIMELINE_MONTHS_BACK = 12;
 // npm backfills a day or two behind, so a month is only final once that lag passes.
 const TRAILING_LAG_DAYS = 2;
-// 13 windows against an unreachable npm would otherwise outlast the route itself.
+// api.npmjs.org refuses a deploy's burst, and a refusal costs a retry ladder each;
+// the loop stops before an unreachable npm can outlast the route it renders.
 const TIMELINE_BUDGET_MS = 30_000;
 
 type MonthBucket = {
@@ -674,34 +675,15 @@ function monthKeysBack(now: Date, count: number): string[] {
   );
 }
 
-function monthWindow(month: string, today: string): [string, string] {
+function monthEnd(month: string): string {
   const [year, monthOfYear] = month.split("-").map(Number);
-  const lastDay = new Date(Date.UTC(year!, monthOfYear!, 0))
-    .toISOString()
-    .slice(0, 10);
-  return [`${month}-01`, lastDay < today ? lastDay : today];
+  return new Date(Date.UTC(year!, monthOfYear!, 0)).toISOString().slice(0, 10);
 }
 
 function shiftDays(day: string, by: number): string {
   const date = new Date(`${day}T00:00:00Z`);
   date.setUTCDate(date.getUTCDate() + by);
   return date.toISOString().slice(0, 10);
-}
-
-/**
- * A month is refetched while it can still change: warm while it is in flight,
- * cool until npm's trailing lag has passed, then held for good.
- */
-function windowRevalidate(
-  month: string,
-  end: string,
-  cutoff: string,
-  today: string,
-): number | false {
-  if (month === cutoff) return NPM_REVALIDATE.WARM;
-  return today > shiftDays(end, TRAILING_LAG_DAYS)
-    ? false
-    : NPM_REVALIDATE.COOL;
 }
 
 export async function fetchDownloadsTimeline(
@@ -711,28 +693,53 @@ export async function fetchDownloadsTimeline(
   const now = new Date();
   const today = now.toISOString().slice(0, 10);
   const cutoff = currentMonthKey();
+  const months = monthKeysBack(now, TIMELINE_MONTHS_BACK);
+  const start = `${months[0]}-01`;
+
+  // Everything up to the last month npm has finished backfilling is final, so it
+  // is read as one window and held; only the unsettled tail is read every render.
+  // Asking per month instead would multiply a deploy's requests by thirteen, and
+  // the burst is what npm refuses.
+  const settled = months
+    .filter((month) => shiftDays(monthEnd(month), TRAILING_LAG_DAYS) < today)
+    .at(-1);
 
   const deadline = Date.now() + TIMELINE_BUDGET_MS;
-  const buckets: MonthBucket[] = [];
-  // Newest first, so a spent budget drops the oldest bars rather than the ones
-  // the page leads with, and a window that fails costs one point, not the series.
-  for (const month of monthKeysBack(now, TIMELINE_MONTHS_BACK).reverse()) {
-    if (Date.now() >= deadline) break;
-    const [start, end] = monthWindow(month, today);
-    const dailies = await getDownloadsRange(
-      name,
-      start,
-      end,
-      revalidate ?? windowRevalidate(month, end, cutoff, today),
+  const dailies: NpmDailyDownloads[] = [];
+  if (settled) {
+    dailies.push(
+      ...(await getDownloadsRange(
+        name,
+        start,
+        monthEnd(settled),
+        revalidate ?? false,
+      )),
     );
-    if (!dailies.length) continue;
-    buckets.push({
-      month,
-      sum: dailies.reduce((total, day) => total + day.downloads, 0),
-      dailies,
-    });
   }
-  buckets.reverse();
+  const tail = settled ? shiftDays(monthEnd(settled), 1) : start;
+  if (tail <= today && Date.now() < deadline) {
+    dailies.push(
+      ...(await getDownloadsRange(
+        name,
+        tail,
+        today,
+        revalidate ?? NPM_REVALIDATE.WARM,
+      )),
+    );
+  }
+  if (!dailies.length) return [];
+
+  const byMonth = new Map<string, MonthBucket>();
+  for (const point of dailies) {
+    const month = point.day.slice(0, 7);
+    const bucket = byMonth.get(month) ?? { month, sum: 0, dailies: [] };
+    bucket.sum += point.downloads;
+    bucket.dailies.push(point);
+    byMonth.set(month, bucket);
+  }
+  const buckets = Array.from(byMonth.values()).sort((a, b) =>
+    a.month.localeCompare(b.month),
+  );
 
   const fullMonths = buckets.filter((bucket) => bucket.month !== cutoff);
   const lastFullMonth = fullMonths.at(-1);
