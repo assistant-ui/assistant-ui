@@ -51,7 +51,10 @@ import { sliceMessagesUntil } from "../utils/sliceMessagesUntil";
 import { toCreateMessage } from "../converters/toCreateMessage";
 import { vercelAttachmentAdapter } from "../adapters/vercelAttachmentAdapter";
 import { getVercelAIMessages } from "../utils/getVercelAIMessages";
-import { AISDKMessageConverter } from "../converters/convertMessage";
+import {
+  AISDKMessageConverter,
+  type AISDKMessageConverterMetadata,
+} from "../converters/convertMessage";
 import { wrapModelContentEnvelope } from "../converters/modelContentEnvelope";
 import {
   type AISDKStorageFormat,
@@ -287,7 +290,7 @@ export const useAISDKRuntime = <UI_MESSAGE extends UIMessage = UIMessage>(
     (sourceMessages: UI_MESSAGE[]) =>
       AISDKMessageConverter.toThreadMessages(sourceMessages, false, {
         supportsRichToolApprovalResponses,
-      }),
+      } as AISDKMessageConverterMetadata),
     [supportsRichToolApprovalResponses],
   );
 
@@ -326,7 +329,7 @@ export const useAISDKRuntime = <UI_MESSAGE extends UIMessage = UIMessage>(
     isRunning,
     messages: chatHelpers.messages,
     joinStrategy,
-    metadata: useMemo(
+    metadata: useMemo<AISDKMessageConverterMetadata>(
       () => ({
         toolStatuses,
         messageTiming,
