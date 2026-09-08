@@ -47,14 +47,16 @@ const contextProvider: ModelContextProvider = {
 };
 
 describe("ThreadClient", () => {
-  it("keeps cancellation removal coherent before deferred reconciliation", () => {
+  it("keeps cancellation removal coherent through deferred reconciliation", () => {
     vi.useFakeTimers();
+    const onCancel = vi.fn();
+    const setMessages = vi.fn();
     const core = new ExternalStoreThreadRuntimeCore(contextProvider, {
       messages: [message],
       isRunning: true,
       onNew: vi.fn(),
-      onCancel: vi.fn(),
-      setMessages: vi.fn(),
+      onCancel,
+      setMessages,
     });
 
     const threadBinding: ThreadRuntimeCoreBinding = {
@@ -90,6 +92,21 @@ describe("ThreadClient", () => {
     );
 
     runtime.cancelRun();
+
+    expect(runtime.getState().messages).toEqual([]);
+    expect(core.messages).toEqual([]);
+
+    core.__internal_setAdapter({
+      messages: [message],
+      isRunning: true,
+      onNew: vi.fn(),
+      onCancel,
+      setMessages,
+    });
+    expect(runtime.getState().messages.map(({ id }) => id)).toContain(
+      message.id,
+    );
+    vi.runAllTimers();
 
     let client: AssistantClient | null = null;
     act(() => {
