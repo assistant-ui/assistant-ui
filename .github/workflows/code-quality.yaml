@@ -378,3 +378,11 @@ jobs:
           TURBO_TOKEN: ${{ secrets.TURBO_TOKEN }}
           TURBO_TEAM: ${{ secrets.TURBO_TEAM }}
         run: pnpm test:react-compiler
+
+      - name: Type-check changed packages
+        run: |
+          if [ "${{ github.event_name }}" = "pull_request" ]; then
+            pnpm --filter="[origin/${{ github.base_ref }}]" --workspace-concurrency=4 --no-bail exec sh -c '! test -f tsconfig.json || tsc --noEmit'
+          else
+            pnpm --filter="[HEAD^1]" --workspace-concurrency=4 --no-bail exec sh -c '! test -f tsconfig.json || tsc --noEmit'
+          fi
