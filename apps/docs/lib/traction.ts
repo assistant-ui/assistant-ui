@@ -697,9 +697,9 @@ export async function fetchDownloadsTimeline(
   const start = `${months[0]}-01`;
 
   // Everything up to the last month npm has finished backfilling is final, so it
-  // is read as one window and held; only the unsettled tail is read every render.
-  // Asking per month instead would multiply a deploy's requests by thirteen, and
-  // the burst is what npm refuses.
+  // is read as one window on a long revalidation and only the unsettled tail is
+  // read every render. Asking per month instead would multiply a deploy's
+  // requests by thirteen, and the burst is what npm refuses.
   const settled = months
     .filter((month) => shiftDays(monthEnd(month), TRAILING_LAG_DAYS) < today)
     .at(-1);
@@ -712,7 +712,7 @@ export async function fetchDownloadsTimeline(
         name,
         start,
         monthEnd(settled),
-        revalidate ?? false,
+        revalidate ?? NPM_REVALIDATE.COLD,
       )),
     );
   }

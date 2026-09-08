@@ -10,7 +10,8 @@ vi.mock("./npm", async (importOriginal) => ({
 }));
 
 const { NPM_REVALIDATE } = await import("./npm");
-const { fetchDownloadsTimeline } = await import("./traction");
+const { fetchDownloadsTimeline, fetchTimelineSeries } =
+  await import("./traction");
 
 const NOW = new Date("2026-09-08T12:00:00Z");
 const PER_DAY = 100;
@@ -59,7 +60,7 @@ describe("fetchDownloadsTimeline", () => {
       "2025-09-01:2026-08-31",
       "2026-09-01:2026-09-08",
     ]);
-    expect(revalidations()).toEqual([false, NPM_REVALIDATE.WARM]);
+    expect(revalidations()).toEqual([NPM_REVALIDATE.COLD, NPM_REVALIDATE.WARM]);
   });
 
   it("leaves a just-ended month in the tail until npm has backfilled it", async () => {
@@ -71,7 +72,7 @@ describe("fetchDownloadsTimeline", () => {
       "2025-09-01:2026-07-31",
       "2026-08-01:2026-09-01",
     ]);
-    expect(revalidations()).toEqual([false, NPM_REVALIDATE.WARM]);
+    expect(revalidations()).toEqual([NPM_REVALIDATE.COLD, NPM_REVALIDATE.WARM]);
   });
 
   it("covers thirteen months, one point each", async () => {
@@ -144,5 +145,34 @@ describe("fetchDownloadsTimeline", () => {
     expect(points.at(-2)).toEqual({ date: "2026-08", value: 31 * PER_DAY });
     // 6 settled days of 100 over a 30 day month, blended 0.2/0.8 with August's 3100.
     expect(points.at(-1)).toEqual({ date: "2026-09", value: 3080 });
+  });
+});
+
+describe("fetchTimelineSeries", () => {
+  beforeEach(() => {
+    vi.useFakeTimers();
+    vi.setSystemTime(NOW);
+    getDownloadsRange.mockReset();
+  });
+
+  afterEach(() => {
+    vi.useRealTimers();
+  });
+
+  it("leaves a month it could not read out of the row rather than calling it zero", async () => {
+    getDownloadsRange.mockImplementation(
+      (pkg: string, start: string, end: string) =>
+        Promise.resolve(
+          pkg === "quiet" && start.startsWith("2025-09")
+            ? []
+            : daysIn(start, end),
+        ),
+    );
+
+    const timeline = await fetchTimelineSeries(["loud", "quiet"]);
+
+    const august = timeline.data.find((row) => row.date === "2026-08")!;
+    expect(august["s0"]).toBe(31 * PER_DAY);
+    expect("s1" in august).toBe(false);
   });
 });

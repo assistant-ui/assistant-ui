@@ -190,8 +190,8 @@ export function DownloadsChart({ timeline }: { timeline: TimelineSeries }) {
               fill={
                 isHidden ? "transparent" : `url(#${gradientPrefix}-${s.key})`
               }
-              // A month npm could not be read for bridges rather than reading as a
-              // collapse to zero.
+              // A month npm could not be read for is absent from the row rather
+              // than zero, and the curve bridges it instead of breaking in two.
               connectNulls
               isAnimationActive={false}
             />

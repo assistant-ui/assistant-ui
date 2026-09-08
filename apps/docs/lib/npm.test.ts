@@ -11,7 +11,7 @@ const respond = (body: unknown, ok = true, status = 200) =>
     json: () => Promise.resolve(body),
   });
 
-const range = (revalidate?: number | false) =>
+const range = (revalidate?: number) =>
   getDownloadsRange(
     "@assistant-ui/react",
     "2026-08-01",
@@ -74,7 +74,7 @@ describe("npm", () => {
       });
 
     const downloads = range();
-    await vi.advanceTimersByTimeAsync(200);
+    await vi.advanceTimersByTimeAsync(300);
 
     await expect(downloads).resolves.toEqual([{ day: "d", downloads: 3 }]);
     expect(fetchMock).toHaveBeenCalledTimes(2);
@@ -86,10 +86,10 @@ describe("npm", () => {
     respond(null, false, 429);
 
     const downloads = range();
-    await vi.advanceTimersByTimeAsync(200 + 600 + 1800);
+    await vi.advanceTimersByTimeAsync(300 + 1200);
 
     await expect(downloads).resolves.toEqual([]);
-    expect(fetchMock).toHaveBeenCalledTimes(4);
+    expect(fetchMock).toHaveBeenCalledTimes(3);
     expect(console.error).toHaveBeenCalledWith(expect.stringContaining("429"));
   });
 

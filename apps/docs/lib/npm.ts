@@ -6,13 +6,15 @@ const NPM_BASE = "https://api.npmjs.org";
 export const NPM_REVALIDATE = {
   WARM: 3600,
   COOL: 21_600,
+  COLD: 2_592_000,
 } as const;
 
 // api.npmjs.org rate limits per IP, and a deploy asks it about every package at
-// once from an address shared with every other build on the platform. Pacing the
-// requests and retrying a refusal is what keeps a burst from reading as no data.
+// once from an address it shares with every other build on the platform. Pacing
+// the requests and retrying a refusal is what keeps a burst from reading as no
+// data. The pacing sits inside the deadline so a queued caller still gives up.
 const MAX_IN_FLIGHT = 4;
-const RETRY_BACKOFF_MS = [200, 600, 1800];
+const RETRY_BACKOFF_MS = [300, 1200];
 
 export type NpmDailyDownloads = { day: string; downloads: number };
 
@@ -37,29 +39,24 @@ const delay = (ms: number) =>
 
 function npmAttempt(
   url: string,
-  revalidate: number | false,
+  revalidate: number,
 ): Promise<{ ok: boolean; status: number; body: unknown }> {
-  return withSlot(() =>
-    withTimeout(
-      (async () => {
-        const res = await fetch(
-          url,
-          revalidate === 0 ? { cache: "no-store" } : { next: { revalidate } },
-        );
-        return {
-          ok: res.ok,
-          status: res.status,
-          body: res.ok ? await res.json() : null,
-        };
-      })(),
-    ),
+  return withTimeout(
+    withSlot(async () => {
+      const res = await fetch(
+        url,
+        revalidate === 0 ? { cache: "no-store" } : { next: { revalidate } },
+      );
+      return {
+        ok: res.ok,
+        status: res.status,
+        body: res.ok ? await res.json() : null,
+      };
+    }),
   );
 }
 
-async function npmGetJson(
-  path: string,
-  revalidate: number | false,
-): Promise<unknown> {
+async function npmGetJson(path: string, revalidate: number): Promise<unknown> {
   const url = `${NPM_BASE}${path}`;
 
   for (let attempt = 0; ; attempt++) {
@@ -83,7 +80,7 @@ async function npmGetJson(
 
 async function npmFetch(
   path: string,
-  revalidate: number | false,
+  revalidate: number,
 ): Promise<NpmDailyDownloads[]> {
   const data = (await npmGetJson(path, revalidate)) as {
     downloads?: NpmDailyDownloads[];
@@ -95,7 +92,7 @@ export function getDownloadsRange(
   pkg: string,
   startDate: string,
   endDate: string,
-  revalidate: number | false = NPM_REVALIDATE.WARM,
+  revalidate: number = NPM_REVALIDATE.WARM,
 ): Promise<NpmDailyDownloads[]> {
   return npmFetch(
     `/downloads/range/${startDate}:${endDate}/${pkg}`,
