@@ -47,6 +47,7 @@ describe("MessagePartPrimitive.Text", () => {
         <MessagePartPrimitiveText />
         <MessagePartPrimitiveText component="p" />
         <MessagePartPrimitiveText component="p" render={<mark />} />
+        <MessagePartPrimitiveText component="p" render={undefined} />
       </TextMessagePartProvider>,
     );
 
@@ -54,6 +55,7 @@ describe("MessagePartPrimitive.Text", () => {
       "SPAN",
       "P",
       "MARK",
+      "P",
     ]);
     expect(
       screen.getByText("Hello", { selector: "mark" }).hasAttribute("render"),
