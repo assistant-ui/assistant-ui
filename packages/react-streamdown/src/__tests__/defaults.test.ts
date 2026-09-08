@@ -1,5 +1,8 @@
 import { describe, it, expect } from "vitest";
+import { cjk } from "@streamdown/cjk";
 import { code } from "@streamdown/code";
+import { math } from "@streamdown/math";
+import { mermaid } from "@streamdown/mermaid";
 import { mergePlugins, DEFAULT_SHIKI_THEME } from "../defaults";
 import type { PluginConfig, ResolvedPluginConfig } from "../types";
 import type {
@@ -16,15 +19,17 @@ describe("DEFAULT_SHIKI_THEME", () => {
 });
 
 describe("PluginConfig", () => {
-  it("accepts a real plugin instance, a cast instance, and the false opt-out", () => {
-    const config: PluginConfig = {
-      code,
+  it("accepts the real plugin instances and the false opt-out", () => {
+    const config: PluginConfig = { code, math, cjk, mermaid };
+    expect(config).toEqual({ code, math, cjk, mermaid });
+
+    const disabled: PluginConfig = {
+      code: false,
       math: false,
-      cjk: { name: "cjk" } as unknown as CjkPlugin,
-      mermaid: { name: "mermaid" } as unknown as DiagramPlugin,
+      cjk: false,
+      mermaid: false,
     };
-    expect(config.code).toBe(code);
-    expect(config.math).toBe(false);
+    expect(Object.values(disabled)).toEqual([false, false, false, false]);
   });
 
   it("rejects values that are neither a plugin instance nor false", () => {

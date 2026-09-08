@@ -7,10 +7,6 @@ import type {
 import type { ComponentPropsWithoutRef, ComponentType, ReactNode } from "react";
 import type { Options as RemarkRehypeOptions } from "remark-rehype";
 import type {
-  CjkPlugin,
-  CodeHighlighterPlugin,
-  DiagramPlugin,
-  MathPlugin,
   MermaidErrorComponentProps,
   MermaidOptions,
   StreamdownProps,
@@ -118,9 +114,9 @@ export type StreamdownTextComponents = NonNullable<
 };
 
 /**
- * Plugin configuration type.
- * Set to `false` to explicitly disable a plugin.
- * Set to a plugin instance to use that plugin.
+ * Plugin configuration type. Each slot takes the matching streamdown plugin
+ * instance, or `false` to disable that plugin explicitly; the slot types come
+ * from streamdown's own `plugins` prop so the two cannot drift.
  *
  * NOTE: Plugins are NOT auto-detected for tree-shaking optimization.
  * You must explicitly import and provide them.
@@ -131,14 +127,10 @@ export type StreamdownTextComponents = NonNullable<
  * <StreamdownTextPrimitive plugins={{ code, math }} />
  */
 export type PluginConfig = {
-  /** Code syntax highlighting plugin. Must be explicitly provided. */
-  code?: CodeHighlighterPlugin | false | undefined;
-  /** Math/LaTeX rendering plugin. Must be explicitly provided. */
-  math?: MathPlugin | false | undefined;
-  /** CJK text optimization plugin. Must be explicitly provided. */
-  cjk?: CjkPlugin | false | undefined;
-  /** Mermaid diagram plugin. Must be explicitly provided. */
-  mermaid?: DiagramPlugin | false | undefined;
+  [K in "code" | "math" | "cjk" | "mermaid"]?:
+    | ResolvedPluginConfig[K]
+    | false
+    | undefined;
 };
 
 /**
