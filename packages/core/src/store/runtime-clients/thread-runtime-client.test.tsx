@@ -6,6 +6,7 @@ import {
   AuiProvider,
   type AssistantClient,
 } from "@assistant-ui/store";
+import { flushSync } from "react-dom";
 import { describe, expect, it } from "vitest";
 import type { ThreadMessage } from "../../types/message";
 import type { ThreadListItemState } from "../../runtime/api/bindings";
@@ -42,7 +43,7 @@ const message = {
 } as ThreadMessage;
 
 describe("ThreadClient", () => {
-  it("does not render a message removed from the live core", async () => {
+  it("filters a removed message during an earlier subscriber's synchronous rerender", async () => {
     const core = new ReadonlyThreadRuntimeCore();
     core.setMessages([message]);
 
@@ -59,21 +60,12 @@ describe("ThreadClient", () => {
     };
     const runtime = new ThreadRuntimeImpl(threadBinding, threadListItemBinding);
 
-    const unsubscribe = runtime.subscribe(() => {});
-    expect(runtime.getState().messages).toEqual([message]);
-
-    (core as unknown as { _messages: readonly ThreadMessage[] })._messages = [];
-    expect(runtime.getState().messages).toEqual([message]);
-    expect(runtime.__internal_threadBinding.getState().messages).toEqual([]);
-    expect(() => runtime.getMessageById(message.id)).toThrow(
-      "Entry not available in the store",
-    );
-
     let client: AssistantClient | null = null;
-    const App = () => {
+    const App = ({ revision }: { revision: number }) => {
       const config = AuiConfig({ thread: ThreadClient({ runtime }) });
       return (
         <AuiProvider
+          key={revision}
           config={config}
           ref={(value) => {
             client = value;
@@ -84,9 +76,23 @@ describe("ThreadClient", () => {
       );
     };
 
-    await act(async () => {
-      render(<App />);
+    let revision = 0;
+    let rerender: ReturnType<typeof render>["rerender"] | undefined;
+    const unsubscribe = core.subscribe(() => {
+      if (!rerender) return;
+      flushSync(() => rerender!(<App revision={++revision} />));
     });
+
+    await act(async () => {
+      rerender = render(<App revision={revision} />).rerender;
+    });
+
+    expect(runtime.getState().messages).toEqual([message]);
+
+    await act(async () => {
+      core.setMessages([]);
+    });
+
     expect(client!.thread.getState().messages).toEqual([]);
     unsubscribe();
   });
