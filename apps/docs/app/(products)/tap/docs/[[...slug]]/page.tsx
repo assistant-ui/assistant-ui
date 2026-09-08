@@ -73,6 +73,7 @@ export default async function Page(props: {
               {...(footerPrevious && { previous: { url: footerPrevious.url } })}
               {...(footerNext && { next: { url: footerNext.url } })}
               markdownUrl={markdownUrl}
+              title={page.data.title}
             />
           </div>
           {page.data.description && (
