@@ -26,6 +26,7 @@ import {
   copyTextToClipboard,
   getClaudePageUrl,
 } from "@/lib/docs-page-actions";
+import { analytics } from "@/lib/analytics";
 import { toast } from "sonner";
 
 type PagerItem = {
@@ -51,9 +52,7 @@ function PageAction({
       <span className="block text-sm font-medium whitespace-nowrap">
         {title}
       </span>
-      <span className="text-muted-foreground block text-xs whitespace-nowrap">
-        {description}
-      </span>
+      <span className="text-muted-foreground block text-xs">{description}</span>
     </span>
   );
 }
@@ -137,6 +136,7 @@ export function DocsPager({
             </DropdownMenuItem>
             <DropdownMenuItem
               className="items-start gap-3 py-2"
+              onClick={() => analytics.toc.actionClicked("claude")}
               render={
                 <a
                   href={getClaudePageUrl(markdownUrl, title)}
@@ -153,6 +153,7 @@ export function DocsPager({
             </DropdownMenuItem>
             <DropdownMenuItem
               className="items-start gap-3 py-2"
+              onClick={() => analytics.toc.actionClicked("codex")}
               render={
                 <a href={CODEX_URL} target="_blank" rel="noreferrer noopener" />
               }

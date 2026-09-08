@@ -97,8 +97,9 @@ export const analytics = {
   },
 
   toc: {
-    actionClicked: (action: "copy" | "markdown" | "github" | "ask_ai") =>
-      trackEvent("toc_action_clicked", { action }),
+    actionClicked: (
+      action: "copy" | "markdown" | "github" | "ask_ai" | "claude" | "codex",
+    ) => trackEvent("toc_action_clicked", { action }),
   },
 
   install: {
