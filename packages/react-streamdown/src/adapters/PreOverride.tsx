@@ -1,10 +1,12 @@
 "use client";
 
 import type { Element } from "hast";
+import type { Components } from "streamdown";
 import {
   type ComponentPropsWithoutRef,
   type ReactElement,
   cloneElement,
+  createElement,
   createContext,
   isValidElement,
   memo,
@@ -45,14 +47,21 @@ export function useStreamdownPreProps(): PreOverrideProps | null {
 export const PreOverride = memo(function PreOverride({
   children,
   node,
+  fallbackPre: FallbackPre = "pre",
   ...rest
-}: PreOverrideProps) {
+}: PreOverrideProps & { fallbackPre?: Components["pre"] }) {
   const hasCodeChild =
     node?.children.some(
       (child) => child.type === "element" && child.tagName === "code",
     ) ?? true;
 
-  if (!hasCodeChild) return <pre {...rest}>{children}</pre>;
+  if (!hasCodeChild) {
+    return createElement(
+      FallbackPre,
+      typeof FallbackPre === "string" ? rest : { node, ...rest },
+      children,
+    );
+  }
 
   const childWithBlock = isValidElement(children)
     ? cloneElement(children as ReactElement<{ "data-block"?: string }>, {
