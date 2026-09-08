@@ -240,6 +240,28 @@ describe("ComposerPrimitiveInput", () => {
     return textarea;
   };
 
+  it("composes a render element with the computed input props", async () => {
+    await act(async () => {
+      root.render(
+        <form>
+          <ComposerPrimitiveInput
+            render={<textarea data-testid="custom" className="child" />}
+            className="parent"
+          />
+        </form>,
+      );
+    });
+
+    const textarea = container.querySelector(
+      "textarea[data-testid='custom']",
+    ) as HTMLTextAreaElement;
+    expect(textarea).not.toBeNull();
+    expect(textarea.className).toContain("parent");
+    expect(textarea.className).toContain("child");
+    expect(textarea.name).toBe("input");
+    expect(textarea.hasAttribute("render")).toBe(false);
+  });
+
   it("syncs setText during active composition so React 19 cannot reset the textarea", async () => {
     const textarea = await mount();
 
