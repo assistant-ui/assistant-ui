@@ -4,6 +4,7 @@ import { createCodeAdapter } from "../adapters/code-adapter";
 import { PreOverride } from "../adapters/PreOverride";
 import type { Root } from "hast";
 import { Streamdown } from "streamdown";
+import type { SyntaxHighlighterProps } from "../types";
 
 afterEach(cleanup);
 
@@ -297,6 +298,54 @@ describe("createCodeAdapter integration", () => {
 
       expect(container.querySelector("header")?.textContent).toBe(";\n");
       expect(container.querySelector("pre > code")?.textContent).toBe(";\n");
+    });
+  });
+
+  describe("user Pre and Code", () => {
+    const Pre = ({ node: _, ...p }: any) => (
+      <pre data-testid="user-pre" {...p} />
+    );
+    const Code = ({ node: _, ...p }: any) => (
+      <code data-testid="user-code" {...p} />
+    );
+
+    it("renders inline code through the user Code with the inline class", () => {
+      const AdaptedCode = createCodeAdapter({ Code });
+      render(<AdaptedCode className="lang">x</AdaptedCode>);
+
+      const el = screen.getByTestId("user-code");
+      expect(el.className).toContain("aui-streamdown-inline-code");
+      expect(el.className).toContain("lang");
+    });
+
+    it("hands the user Pre and Code to the SyntaxHighlighter", () => {
+      const SyntaxHighlighter = vi.fn((_: SyntaxHighlighterProps) => null);
+      const AdaptedCode = createCodeAdapter({ SyntaxHighlighter, Pre, Code });
+      render(
+        <AdaptedCode className="language-ts" data-block="true">
+          code
+        </AdaptedCode>,
+      );
+
+      expect(SyntaxHighlighter.mock.calls[0]![0]).toMatchObject({
+        components: { Pre, Code },
+      });
+    });
+
+    it("wraps the block fallback in the user Pre and Code", () => {
+      const AdaptedCode = createCodeAdapter({ Pre, Code });
+      render(
+        <PreOverride>
+          <AdaptedCode className="language-ts" data-block="true">
+            code
+          </AdaptedCode>
+        </PreOverride>,
+      );
+
+      expect(
+        screen.getByTestId("user-pre").querySelector("[data-testid=user-code]")
+          ?.textContent,
+      ).toBe("code");
     });
   });
 

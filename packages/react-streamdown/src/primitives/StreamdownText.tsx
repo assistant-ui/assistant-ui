@@ -294,19 +294,10 @@ export const StreamdownTextPrimitive = forwardRef<
       [shikiTheme, resolvedPlugins?.code],
     );
 
-    const adaptedComponents = useAdaptedComponents({
+    const mergedComponents = useAdaptedComponents({
       components,
       componentsByLanguage,
     });
-
-    const mergedComponents = useMemo(() => {
-      const {
-        SyntaxHighlighter: _,
-        CodeHeader: __,
-        ...userHtmlComponents
-      } = components ?? {};
-      return { ...userHtmlComponents, ...adaptedComponents };
-    }, [components, adaptedComponents]);
 
     const containerClass = useMemo(() => {
       const classes = [containerClassName, containerProps?.className]

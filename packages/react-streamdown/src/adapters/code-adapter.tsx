@@ -14,7 +14,7 @@ import type {
   ComponentsByLanguage,
   SyntaxHighlighterProps,
 } from "../types";
-import { useStreamdownPreProps } from "./PreOverride";
+import { DefaultPre, useStreamdownPreProps } from "./PreOverride";
 
 type CodeProps = ComponentPropsWithoutRef<"code"> & {
   node?: Element | undefined;
@@ -28,6 +28,8 @@ interface CodeAdapterOptions {
   SyntaxHighlighter?: ComponentType<SyntaxHighlighterProps> | undefined;
   CodeHeader?: ComponentType<CodeHeaderProps> | undefined;
   componentsByLanguage?: ComponentsByLanguage | undefined;
+  Pre?: ComponentType<PreProps> | undefined;
+  Code?: ComponentType<CodeProps> | undefined;
 }
 
 function extractCode(children: unknown): string {
@@ -43,10 +45,6 @@ function extractCode(children: unknown): string {
   return "";
 }
 
-function DefaultPre({ node: _, ...props }: PreProps): ReactNode {
-  return <pre {...props} />;
-}
-
 function DefaultCode({ node: _, ...props }: CodeProps): ReactNode {
   return <code {...props} />;
 }
@@ -60,6 +58,8 @@ export function createCodeAdapter(options: CodeAdapterOptions) {
     SyntaxHighlighter: UserSyntaxHighlighter,
     CodeHeader: UserCodeHeader,
     componentsByLanguage = {},
+    Pre = DefaultPre,
+    Code = DefaultCode,
   } = options;
 
   /**
@@ -77,12 +77,13 @@ export function createCodeAdapter(options: CodeAdapterOptions) {
 
     if (!dataBlock) {
       return (
-        <code
+        <Code
+          node={node}
           className={`aui-streamdown-inline-code ${className ?? ""}`.trim()}
           {...props}
         >
           {children}
-        </code>
+        </Code>
       );
     }
 
@@ -112,7 +113,7 @@ export function createCodeAdapter(options: CodeAdapterOptions) {
           {headerElement}
           <SyntaxHighlighter
             node={node}
-            components={{ Pre: DefaultPre, Code: DefaultCode }}
+            components={{ Pre, Code }}
             language={language}
             code={children ?? ""}
           />
@@ -123,11 +124,11 @@ export function createCodeAdapter(options: CodeAdapterOptions) {
     return (
       <>
         {headerElement}
-        <DefaultPre {...preProps} node={node}>
-          <code className={className} {...props}>
+        <Pre {...preProps}>
+          <Code node={node} className={className} {...props}>
             {children}
-          </code>
-        </DefaultPre>
+          </Code>
+        </Pre>
       </>
     );
   }

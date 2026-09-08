@@ -42,6 +42,36 @@ describe("useAdaptedComponents", () => {
     });
   });
 
+  describe("user pre and code", () => {
+    it("passes user code through untouched when no adapter trigger is set", () => {
+      const Code = vi.fn(() => null);
+      const { result } = renderHook(() =>
+        useAdaptedComponents({ components: { code: Code } }),
+      );
+      expect(result.current.code).toBe(Code);
+    });
+
+    it("replaces user code with the adapter when SyntaxHighlighter is set", () => {
+      const Code = vi.fn(() => null);
+      const MockSyntax = vi.fn(() => null);
+      const { result } = renderHook(() =>
+        useAdaptedComponents({
+          components: { code: Code, SyntaxHighlighter: MockSyntax } as never,
+        }),
+      );
+      expect(result.current.code).not.toBe(Code);
+      expect(result.current.pre).toBeDefined();
+    });
+
+    it("never hands user pre or code to streamdown directly", () => {
+      const Pre = vi.fn(() => null);
+      const { result } = renderHook(() =>
+        useAdaptedComponents({ components: { pre: Pre } }),
+      );
+      expect(result.current.pre).not.toBe(Pre);
+    });
+  });
+
   describe("with SyntaxHighlighter", () => {
     it("creates code adapter when SyntaxHighlighter provided", () => {
       const MockSyntax = vi.fn(() => null);
