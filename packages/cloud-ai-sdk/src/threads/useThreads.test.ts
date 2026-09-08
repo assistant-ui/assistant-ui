@@ -412,6 +412,51 @@ describe("useThreads", () => {
     expect(applied).toEqual(["Manual title", "Generated title"]);
   });
 
+  it("repairs the server when a rename interleaves the superseded run", async () => {
+    const applied: string[] = [];
+    const cloud = createCloud("cloud-1");
+    cloud.threads.update.mockImplementation(
+      async (_id: string, patch: { title?: string }) => {
+        if (patch.title !== undefined) applied.push(patch.title);
+      },
+    );
+    const automaticOpen = createDeferred<void>();
+    mocks.generateThreadTitle
+      .mockImplementationOnce(async (currentCloud, threadId) => {
+        await automaticOpen.promise;
+        await currentCloud.threads.update(threadId, { title: "Automatic" });
+        return "Automatic";
+      })
+      .mockImplementationOnce(async (currentCloud, threadId) => {
+        await currentCloud.threads.update(threadId, { title: "Explicit" });
+        return "Explicit";
+      });
+    const { result } = renderHook(() =>
+      useThreads({ cloud: cloud as never, enabled: false }),
+    );
+
+    let automatic!: Promise<string | null>;
+    act(() => {
+      automatic = result.current.generateTitle("thread-1", { automatic: true });
+    });
+
+    let rename!: Promise<boolean>;
+    let explicit!: Promise<string | null>;
+    act(() => {
+      rename = result.current.rename("thread-1", "Manual");
+      explicit = result.current.generateTitle("thread-1");
+    });
+
+    await act(async () => {
+      await rename;
+      await explicit;
+      automaticOpen.resolve();
+      await automatic;
+    });
+
+    expect(applied).toEqual(["Manual", "Explicit", "Automatic", "Explicit"]);
+  });
+
   it("does not generate for an automatic run an explicit one outranked", async () => {
     const failingRename = createDeferred<void>();
     const cloud = createCloud("cloud-1");

@@ -592,9 +592,9 @@ export function useThreads(options: UseThreadsOptions): UseThreadsResult {
                   if (generated) {
                     if (!isCurrentClaim(state, claim)) return;
                     await cloud.threads.update(tid, { title: claim.title });
-                    if (generation.claim !== claim) continue;
                     persistedTitle = claim.title;
                     persistedOrder = claim.order;
+                    if (generation.claim !== claim) continue;
                     commit(() =>
                       setThreads((prev) =>
                         prev.map((t) =>
@@ -611,21 +611,22 @@ export function useThreads(options: UseThreadsOptions): UseThreadsResult {
                 if (generated) break;
                 if (!isCurrentGeneration(state, generation)) return;
                 generated = true;
+                // `generateThreadTitle` persists what it generated before it
+                // resolves, so the run owes a repair from here on however it
+                // exits.
                 title = await generateThreadTitle(cloud, tid);
+                if (title) persistedTitle = title;
               }
 
-              if (title) {
+              if (title && isCurrentGeneration(state, generation)) {
                 const generatedTitle = title;
-                persistedTitle = generatedTitle;
-                if (isCurrentGeneration(state, generation)) {
-                  commit(() =>
-                    setThreads((prev) =>
-                      prev.map((t) =>
-                        t.id === tid ? { ...t, title: generatedTitle } : t,
-                      ),
+                commit(() =>
+                  setThreads((prev) =>
+                    prev.map((t) =>
+                      t.id === tid ? { ...t, title: generatedTitle } : t,
                     ),
-                  );
-                }
+                  ),
+                );
               }
             };
 
@@ -633,14 +634,16 @@ export function useThreads(options: UseThreadsOptions): UseThreadsResult {
               if (persistedTitle === undefined) return;
               while (true) {
                 const claim = generation.claim;
-                if (claim !== null && claim.order > persistedOrder) {
+                if (
+                  claim !== null &&
+                  claim.order > persistedOrder &&
+                  isCurrentClaim(state, claim)
+                ) {
                   const renamed = await settleClaim(claim);
-                  if (renamed === undefined) continue;
                   if (renamed === true) {
-                    if (!isCurrentClaim(state, claim)) return;
-                    await cloud.threads.update(tid, { title: claim.title });
                     persistedTitle = claim.title;
                     persistedOrder = claim.order;
+                    await cloud.threads.update(tid, { title: claim.title });
                   }
                   continue;
                 }
