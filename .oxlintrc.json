@@ -102,7 +102,7 @@
           {
             "object": "AbortSignal",
             "property": "any",
-            "message": "AbortSignal.any is not supported by the browserslist floor. Use the combineAbortSignals pattern or another compatibility-safe signal combiner instead."
+            "message": "AbortSignal.any needs chrome/edge 116, firefox 124, safari 17.4, above the browserslist floor (chrome/edge/firefox 111, safari 16.4). Use the combineAbortSignals pattern or another compatibility-safe signal combiner instead."
           }
         ]
       }
