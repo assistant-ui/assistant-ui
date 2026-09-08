@@ -149,6 +149,12 @@ export class RemoteThreadListHookInstanceManager extends BaseSubscribable {
     if (!instance) return this.startThreadRuntime(threadId);
 
     if (instance.runtime) invalidateThreadRuntime(instance.runtime);
+    // Detach before aborting, as stopThreadRuntime does: the abort runs the
+    // destroy listeners synchronously, and a listener that stops the outgoing
+    // runtime would otherwise emit that generation's terminal events through
+    // the subscription the next generation is about to reuse.
+    instance.unsubscribeRunning?.();
+    instance.unsubscribeRunning = undefined;
     instance.destroy.abort();
     instance.destroy = new AbortController();
     instance.generation = this.nextGeneration++;

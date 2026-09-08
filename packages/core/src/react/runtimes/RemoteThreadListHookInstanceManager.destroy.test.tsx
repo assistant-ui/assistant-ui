@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import type { ThreadListRuntimeCore } from "../../runtime/interfaces/thread-list-runtime-core";
+import type { ThreadRuntimeCore } from "../../runtime/interfaces/thread-runtime-core";
 import { RemoteThreadListHookInstanceManager } from "./RemoteThreadListHookInstanceManager";
 
 const makeManager = () =>
@@ -86,5 +87,86 @@ describe("RemoteThreadListHookInstanceManager destroy signal", () => {
     manager.__internal_dispose();
 
     expect(signals.map((signal) => signal.aborted)).toEqual([true, true]);
+  });
+});
+
+const makeRunningRuntime = () => {
+  const subscribers = new Set<() => void>();
+  const eventListeners = new Map<string, Set<() => void>>();
+  const runtime = {
+    isRunning: true,
+    messages: [],
+    subscribe: (callback: () => void) => {
+      subscribers.add(callback);
+      return () => subscribers.delete(callback);
+    },
+    unstable_on: (event: string, callback: () => void) => {
+      let listeners = eventListeners.get(event);
+      if (!listeners) {
+        listeners = new Set();
+        eventListeners.set(event, listeners);
+      }
+      listeners.add(callback);
+      return () => listeners.delete(callback);
+    },
+  } as unknown as ThreadRuntimeCore & { isRunning: boolean };
+
+  return {
+    runtime,
+    // what a stopOnClientDestroy consumer does when the destroy signal fires
+    stop: () => {
+      runtime.isRunning = false;
+      for (const callback of eventListeners.get("runEnd") ?? []) callback();
+      for (const callback of subscribers) callback();
+    },
+  };
+};
+
+const publish = (
+  manager: RemoteThreadListHookInstanceManager,
+  threadId: string,
+  runtime: ThreadRuntimeCore,
+) => {
+  const internals = manager as unknown as {
+    instances: Map<string, { generation: number }>;
+    _publishThreadRuntime: (
+      threadId: string,
+      runtime: ThreadRuntimeCore,
+      generation: number,
+    ) => void;
+  };
+  internals._publishThreadRuntime(
+    threadId,
+    runtime,
+    internals.instances.get(threadId)!.generation,
+  );
+};
+
+describe("RemoteThreadListHookInstanceManager restart teardown", () => {
+  it("keeps the outgoing generation's terminal events off the thread's subscribers", () => {
+    const manager = makeManager();
+    start(manager, "thread-1");
+    const { runtime, stop } = makeRunningRuntime();
+    publish(manager, "thread-1", runtime);
+
+    const signal = publishedSignal(manager, "thread-1")!;
+    signal.addEventListener("abort", stop, { once: true });
+
+    const events: string[] = [];
+    manager.__internal_subscribeThreadEvents((event) =>
+      events.push(event.type),
+    );
+    const runningChanges: boolean[] = [];
+    manager.__internal_subscribeRunningChanged(() =>
+      runningChanges.push(manager.__internal_isThreadRunning("thread-1")),
+    );
+    expect(manager.__internal_isThreadRunning("thread-1")).toBe(true);
+
+    restart(manager, "thread-1");
+
+    expect(signal.aborted).toBe(true);
+    expect(events).toEqual([]);
+    expect(runningChanges).toEqual([]);
+    expect(manager.__internal_isThreadRunning("thread-1")).toBe(true);
   });
 });
