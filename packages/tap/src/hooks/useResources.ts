@@ -6,6 +6,7 @@ import type {
 import {
   discardWipRender,
   disposeResourceFiber,
+  markResourceFiberForDisposal,
   unmountResourceFiber,
   renderResourceFiber,
   commitResourceFiber,
@@ -167,7 +168,7 @@ export function useResources<E extends ResourceElement<any>>(
     if (parentFiber !== null) return undefined;
     return () => {
       for (const state of fibers.values()) {
-        disposeResourceFiber(state.fiber);
+        markResourceFiberForDisposal(state.fiber);
       }
     };
   }, [fibers, parentFiber]);
@@ -175,8 +176,9 @@ export function useResources<E extends ResourceElement<any>>(
   useEffect(() => {
     return () => {
       for (const state of fibers.values()) {
-        if (parentFiber?.isDisposing) disposeResourceFiber(state.fiber);
-        else unmountResourceFiber(state.fiber);
+        if (state.fiber.isDisposePending || parentFiber?.isDisposing) {
+          disposeResourceFiber(state.fiber);
+        } else unmountResourceFiber(state.fiber);
       }
     };
   }, [fibers, parentFiber]);

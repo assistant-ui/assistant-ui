@@ -6,17 +6,15 @@ export const useResourceCleanup = (enabled: boolean, cleanup: () => void) => {
   const destroySignal = useAssistantClientDestroySignal();
   const stateRef = useRef<{
     cleanup: () => void;
-    enabled: boolean;
     cleaned: boolean;
     registration: {
       signal: AbortSignal;
       listener: () => void;
     } | null;
-  }>({ cleanup, enabled, cleaned: false, registration: null });
+  }>({ cleanup, cleaned: false, registration: null });
 
   useEffect(() => {
     stateRef.current.cleanup = cleanup;
-    stateRef.current.enabled = enabled;
   });
 
   const removeRegistration = useCallback(() => {
@@ -32,7 +30,7 @@ export const useResourceCleanup = (enabled: boolean, cleanup: () => void) => {
     removeRegistration();
     if (state.cleaned) return;
     state.cleaned = true;
-    if (state.enabled) state.cleanup();
+    state.cleanup();
   }, [removeRegistration]);
 
   useResourceDispose(dispose);

@@ -2,6 +2,7 @@ import {
   commitResourceFiber,
   createResourceFiber,
   disposeResourceFiber,
+  markResourceFiberForDisposal,
   renderResourceFiber,
   unmountResourceFiber,
 } from "../core/ResourceFiber";
@@ -223,15 +224,16 @@ export const useTapRoot = <R>(render: () => R): useTapRoot.Root<R> => {
 
   useInsertionEffect(() => {
     if (parentFiber !== null) return undefined;
-    return () => disposeResourceFiber(inst.fiber);
+    return () => markResourceFiberForDisposal(inst.fiber);
   }, [inst, parentFiber]);
 
   useEffect(() => {
     inst.isMounted = true;
     return () => {
       inst.isMounted = false;
-      if (parentFiber?.isDisposing) disposeResourceFiber(inst.fiber);
-      else unmountResourceFiber(inst.fiber);
+      if (inst.fiber.isDisposePending || parentFiber?.isDisposing) {
+        disposeResourceFiber(inst.fiber);
+      } else unmountResourceFiber(inst.fiber);
     };
   }, [inst, parentFiber]);
 

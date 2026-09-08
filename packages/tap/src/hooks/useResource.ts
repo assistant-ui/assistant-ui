@@ -30,7 +30,7 @@ export function useResource<E extends ResourceElement<any>>(
 
   useInsertionEffect(() => {
     if (parentFiber !== null) return undefined;
-    return () => disposeResourceFiber(fiber);
+    return () => markResourceFiberForDisposal(fiber);
   }, [fiber, parentFiber]);
 
   const committedFiberRef = useRef<typeof fiber | null>(null);
@@ -44,16 +44,8 @@ export function useResource<E extends ResourceElement<any>>(
   }
 
   useEffect(() => {
-    const previous = committedFiberRef.current;
     committedFiberRef.current = fiber;
-    if (
-      previous !== null &&
-      previous !== fiber &&
-      (parentFiber === null || previous.isDisposePending)
-    ) {
-      disposeResourceFiber(previous);
-    }
-  }, [fiber, parentFiber]);
+  }, [fiber]);
 
   useEffect(
     () => () => {

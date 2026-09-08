@@ -1,5 +1,6 @@
 import {
   disposeResourceFiber,
+  markResourceFiberForDisposal,
   unmountResourceFiber,
   renderResourceFiber,
   commitResourceFiber,
@@ -40,13 +41,14 @@ export const useTapHost = <R>(callback: () => R): useTapHost.Result<R> => {
 
   useInsertionEffect(() => {
     if (parentFiber !== null) return undefined;
-    return () => disposeResourceFiber(fiber);
+    return () => markResourceFiberForDisposal(fiber);
   }, [fiber, parentFiber]);
 
   useEffect(() => {
     return () => {
-      if (parentFiber?.isDisposing) disposeResourceFiber(fiber);
-      else unmountResourceFiber(fiber);
+      if (fiber.isDisposePending || parentFiber?.isDisposing) {
+        disposeResourceFiber(fiber);
+      } else unmountResourceFiber(fiber);
     };
   }, [fiber, parentFiber]);
 
