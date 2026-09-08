@@ -287,7 +287,7 @@ Adjacent `reasoning` parts still coalesce into one `group-thought`, while each t
 
   For MCP Apps, keep one host-owned container mounted for the lifetime of the app. Switching between an inline element and a portal, or changing a portal's target, remounts the frame. Reparenting its live iframe with `appendChild` or `insertBefore` also reloads the document and loses in-app state.
 
-  When [`Element.prototype.moveBefore`](https://developer.mozilla.org/en-US/docs/Web/API/Element/moveBefore) is available, use it to move the already-connected container without reloading the frame. Insert the container normally on its first mount because `moveBefore` cannot move a detached node. In browsers without `moveBefore`, leave the container in place and reposition it with CSS, or treat relocation as a reload and reinitialize the app.
+  Feature-detect [`moveBefore`](https://developer.mozilla.org/en-US/docs/Web/API/Element/moveBefore) on `Element.prototype`, not `Node.prototype`. When available, use it to move the already-connected container without reloading the frame. Insert the container normally on its first mount because `moveBefore` cannot move a detached node. In browsers without `moveBefore`, leave the container in place and reposition it with CSS, or treat relocation as a reload and reinitialize the app.
 </Callout>
 
 ### Group by Custom Metadata
