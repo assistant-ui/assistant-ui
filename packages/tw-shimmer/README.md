@@ -31,7 +31,7 @@ Text shimmer keeps one text node. Where `-webkit-mask-clip: text` is supported, 
 </div>
 ```
 
-Inside a `shimmer-container`, the plugin derives the track width and height from the container automatically. Text shimmer hosts should contain text only: the host mask clips every descendant, including icons. Selection backgrounds are clipped to the glyphs on the compositor path.
+Inside a `shimmer-container`, the plugin derives the track width from the container width. Because the container exposes only its inline size, the height term for angled gradients uses the nearest block-size query container when available and otherwise the small viewport height, with half the container width and `200px` as minimums. Text shimmer hosts should contain text only: the host mask clips every descendant, including icons. Selection backgrounds are clipped to the glyphs on the compositor path.
 
 The compositor highlight is additive. It defaults to white and `--shimmer-color`, including `shimmer-color-*`, overrides the band color. This matches the gradient on white and dark surfaces but can look different on tinted surfaces. `shimmer-invert` selects a black band.
 

@@ -93,7 +93,7 @@ Background shimmer for skeleton loaders. Applies a gradient animation over the e
 
 #### `shimmer-container`
 
-CSS-only auto-sizing helper using container queries. Sets `container-type: inline-size`, uses the container width as the animation track width, and accounts for the container height when sizing angled gradients.
+CSS-only auto-sizing helper using container queries. It uses the container width as the animation track width. Because it establishes inline-size containment only, the height term for angled gradients uses the nearest block-size query container when one exists and otherwise falls back to the small viewport height; half the container width and `200px` remain its minimums.
 
 ```html
 <div class="shimmer-container">
