@@ -168,6 +168,7 @@ function getToolApprovalAndInterrupt(
     const {
       id,
       prompt,
+      requestReason,
       approved,
       reason,
       isAutomatic,
@@ -184,7 +185,11 @@ function getToolApprovalAndInterrupt(
         approval: {
           ...additionalApprovalFields,
           id,
-          ...(typeof prompt === "string" && { prompt }),
+          ...(typeof prompt === "string"
+            ? { prompt }
+            : typeof requestReason === "string"
+              ? { prompt: requestReason }
+              : {}),
           ...(typeof approved === "boolean" && { approved }),
           ...(typeof reason === "string" && { reason }),
           ...(isAutomatic === true && { isAutomatic: true }),
