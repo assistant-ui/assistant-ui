@@ -259,6 +259,8 @@ export async function runThreadTitleGeneration({
   };
 
   const runGeneration = async () => {
+    // An explicit generation waits for every earlier rename because any of
+    // those server writes may settle last.
     if (generation.beforeGenerationClaims.length > 0) {
       await Promise.all(
         generation.beforeGenerationClaims.map((claim) => claim.settled),
