@@ -12,6 +12,7 @@ import type {
 import { HttpAgent, type AgentSubscriber } from "@ag-ui/client";
 import { AgUiThreadRuntimeCore } from "../src/runtime/AgUiThreadRuntimeCore";
 import { makeLogger, type Logger } from "../src/runtime/logger";
+import type { AgUiResumeTranscript } from "../src/runtime/types";
 
 const createAppendMessage = (
   overrides: Partial<AppendMessage> = {},
@@ -37,12 +38,14 @@ const createCore = (
     history?: ThreadHistoryAdapter;
     logger?: Logger;
     autoCancelPendingToolCalls?: boolean;
+    resumeTranscript?: AgUiResumeTranscript;
   } = {},
 ) =>
   new AgUiThreadRuntimeCore({
     agent,
     logger: hooks.logger ?? noopLogger,
     showThinking: true,
+    resumeTranscript: hooks.resumeTranscript,
     autoCancelPendingToolCalls: hooks.autoCancelPendingToolCalls,
     ...(hooks.onError ? { onError: hooks.onError } : {}),
     ...(hooks.onCancel ? { onCancel: hooks.onCancel } : {}),
@@ -3352,6 +3355,137 @@ describe("AGUIThreadRuntimeCore", () => {
       .find((m) => m.role === "assistant") as ThreadAssistantMessage;
     expect(assistant.status).toMatchObject({ type: "complete" });
     expect(assistant.metadata.custom.agui).toBeUndefined();
+  });
+
+  describe("resumeTranscript", () => {
+    const interruptThenSucceed = (runInputs: any[]) => {
+      let runCount = 0;
+      return vi.fn(async (input: any, subscriber: any) => {
+        runInputs.push(JSON.parse(JSON.stringify(input)));
+        runCount++;
+        if (runCount === 1) {
+          subscriber.onToolCallStartEvent?.({
+            event: {
+              type: "TOOL_CALL_START",
+              toolCallId: "call-1",
+              toolCallName: "delete_file",
+            },
+          });
+          subscriber.onToolCallArgsEvent?.({
+            event: {
+              type: "TOOL_CALL_ARGS",
+              toolCallId: "call-1",
+              delta: "{}",
+            },
+          });
+          subscriber.onToolCallEndEvent?.({
+            event: { type: "TOOL_CALL_END", toolCallId: "call-1" },
+          });
+          subscriber.onRunFinishedEvent?.({
+            event: {
+              type: "RUN_FINISHED",
+              runId: input.runId,
+              outcome: {
+                type: "interrupt",
+                interrupts: [
+                  { id: "int-1", reason: "tool_call", toolCallId: "call-1" },
+                ],
+              },
+            },
+          });
+          subscriber.onRunFinalized?.();
+          return;
+        }
+        subscriber.onTextMessageContentEvent?.({
+          event: { type: "TEXT_MESSAGE_CONTENT", delta: "Done." },
+        });
+        subscriber.onRunFinishedEvent?.({
+          event: {
+            type: "RUN_FINISHED",
+            runId: input.runId,
+            outcome: { type: "success" },
+          },
+        });
+        subscriber.onRunFinalized?.();
+      });
+    };
+
+    it("defaults to replaying the whole transcript on an approval resume", async () => {
+      const runInputs: any[] = [];
+      const core = createCore({
+        runAgent: interruptThenSucceed(runInputs),
+      } as unknown as HttpAgent);
+
+      await core.append(createAppendMessage());
+      await core.submitInterruptResponses([
+        { interruptId: "int-1", status: "resolved", payload: { ok: true } },
+      ]);
+
+      expect(runInputs[1].messages.map((m: any) => m.role)).toEqual([
+        "user",
+        "assistant",
+      ]);
+    });
+
+    it("sends no transcript on an approval resume when set to appended", async () => {
+      const runInputs: any[] = [];
+      const core = createCore(
+        { runAgent: interruptThenSucceed(runInputs) } as unknown as HttpAgent,
+        { resumeTranscript: "appended" },
+      );
+
+      await core.append(createAppendMessage());
+      await core.submitInterruptResponses([
+        { interruptId: "int-1", status: "resolved", payload: { ok: true } },
+      ]);
+
+      expect(runInputs[1].messages).toEqual([]);
+      expect(runInputs[1].resume).toEqual([
+        { interruptId: "int-1", status: "resolved", payload: { ok: true } },
+      ]);
+    });
+
+    it("sends only the appended turn on a steerAway resume when set to appended", async () => {
+      const runInputs: any[] = [];
+      const core = createCore(
+        { runAgent: interruptThenSucceed(runInputs) } as unknown as HttpAgent,
+        { resumeTranscript: "appended" },
+      );
+
+      await core.append(createAppendMessage());
+      await core.steerAway("changed my mind");
+
+      expect(runInputs[1].messages).toMatchObject([
+        { role: "user", content: "changed my mind" },
+      ]);
+      expect(runInputs[1].resume).toEqual([
+        { interruptId: "int-1", status: "cancelled" },
+      ]);
+    });
+
+    it("leaves a run without resume on the whole transcript when set to appended", async () => {
+      const runInputs: any[] = [];
+      const core = createCore(
+        { runAgent: interruptThenSucceed(runInputs) } as unknown as HttpAgent,
+        { resumeTranscript: "appended" },
+      );
+
+      await core.append(createAppendMessage());
+      await core.submitInterruptResponses([
+        { interruptId: "int-1", status: "resolved", payload: { ok: true } },
+      ]);
+      await core.append(
+        createAppendMessage({ parentId: core.getMessages().at(-1)!.id }),
+      );
+
+      expect(runInputs[2].resume).toBeUndefined();
+      expect(runInputs[2].messages.map((m: any) => m.role)).toEqual([
+        "user",
+        "assistant",
+        "assistant",
+        "user",
+      ]);
+    });
   });
 
   it("steerAway cancels the open interrupt and resumes with the new user message", async () => {
