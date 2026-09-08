@@ -260,6 +260,7 @@ export const appendLangChainChunk = (
         ...chunk,
         ...existing,
         id: existing.id || chunk.id,
+        name: existing.name || chunk.name,
         partial_json: partialJson,
         args:
           parsePartialJsonObject(partialJson) ??
