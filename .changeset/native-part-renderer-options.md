@@ -2,4 +2,4 @@
 "@assistant-ui/react-native": patch
 ---
 
-fix: render configured generative UI in MessagePrimitive.Parts and keep data renderers when ChainOfThought is active.
+fix: forward every part renderer option through `MessagePrimitive.Parts`, so configured generative UI renders and data renderers survive `ChainOfThought`
