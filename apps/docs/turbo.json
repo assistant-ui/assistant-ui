@@ -6,6 +6,9 @@
       "dependsOn": ["^build"],
       "cache": false,
       "persistent": true
+    },
+    "test": {
+      "env": ["REDIS_*"]
     }
   }
 }
