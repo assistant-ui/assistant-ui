@@ -112,6 +112,24 @@ describe("useChatRuntime", () => {
     expect(mocks.useChat.mock.calls[1]?.[0]).not.toHaveProperty("throttle");
   });
 
+  it("forwards a custom approval handler to the runtime only", () => {
+    const onRespondToToolApproval = vi.fn();
+    mocks.useChat.mockReturnValue({
+      resumeStream: vi.fn(),
+      status: "ready",
+    });
+
+    renderHook(() => useChatRuntime({ onRespondToToolApproval }));
+
+    expect(mocks.useAISDKRuntime).toHaveBeenCalledWith(
+      expect.anything(),
+      expect.objectContaining({ onRespondToToolApproval }),
+    );
+    expect(mocks.useChat.mock.calls[0]?.[0]).not.toHaveProperty(
+      "onRespondToToolApproval",
+    );
+  });
+
   it("waits for external history to load before resuming a stream", async () => {
     mocks.state.isLoadingHistory = true;
     const resumeStream = vi.fn().mockResolvedValue(undefined);
