@@ -5,6 +5,7 @@ import { spawnSync } from "node:child_process";
 import { describe, expect, it, vi, beforeEach, afterEach } from "vitest";
 import {
   create,
+  resolveAbsoluteProjectDirectory,
   resolveCreateProjectDirectory,
   resolvePresetUrl,
   resolveProject,
@@ -353,6 +354,17 @@ describe("resolveCreateProjectDirectory", () => {
         stdinIsTTY: false,
       }),
     ).toBe("custom-app");
+  });
+});
+
+describe("resolveAbsoluteProjectDirectory", () => {
+  it("resolves a selected project name beneath the forwarded directory", () => {
+    expect(
+      resolveAbsoluteProjectDirectory({
+        projectDirectory: "selected-app",
+        cwd: "/workspace/projects",
+      }),
+    ).toBe(path.resolve("/workspace/projects", "selected-app"));
   });
 });
 
