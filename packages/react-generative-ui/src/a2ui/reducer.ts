@@ -11,7 +11,7 @@ const OPERATION_KEYS = new Set([
   "updateDataModel",
   "deleteSurface",
 ]);
-// Mirrors the A2UI renderer limit to prevent unbounded sparse arrays.
+// This defensive ceiling is well above the renderer's displayed-item limit.
 const MAX_AUTO_VIVIFY_ARRAY_INDEX = 10_000;
 const INVALID_POINTER = Symbol("invalidPointer");
 
