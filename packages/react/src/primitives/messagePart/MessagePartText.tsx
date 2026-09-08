@@ -1,9 +1,7 @@
 "use client";
 
-import { Primitive } from "../../utils/Primitive";
-import { Slot } from "radix-ui";
+import { Primitive, renderSlot } from "../../utils/Primitive";
 import {
-  cloneElement,
   type ComponentRef,
   forwardRef,
   type ComponentPropsWithoutRef,
@@ -62,19 +60,17 @@ export const MessagePartPrimitiveText = forwardRef<
   ) => {
     const { text, status } = useSmooth(useMessagePartText(), smooth);
 
+    const mergedProps = {
+      "data-status": status.type,
+      ...rest,
+      ref: forwardedRef,
+    };
+
     if (render && isValidElement(render)) {
-      return (
-        <Slot.Root data-status={status.type} {...rest} ref={forwardedRef}>
-          {cloneElement(render, undefined, text)}
-        </Slot.Root>
-      );
+      return renderSlot(render, text, mergedProps);
     }
 
-    return (
-      <Component data-status={status.type} {...rest} ref={forwardedRef}>
-        {text}
-      </Component>
-    );
+    return <Component {...mergedProps}>{text}</Component>;
   },
 );
 
