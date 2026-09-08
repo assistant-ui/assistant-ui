@@ -300,6 +300,20 @@ describe("MessageRepository", () => {
       expect(repository.getMessages().map((m) => m.id)).toEqual(["b", "m"]);
     });
 
+    it("keeps the selected branch when relinking an off-branch message", () => {
+      repository.addOrUpdateMessage(null, createTestMessage({ id: "a" }));
+      repository.addOrUpdateMessage("a", createTestMessage({ id: "m" }));
+      repository.addOrUpdateMessage("a", createTestMessage({ id: "n" }));
+      repository.addOrUpdateMessage(null, createTestMessage({ id: "b" }));
+      repository.addOrUpdateMessage("b", createTestMessage({ id: "n" }));
+
+      expect(repository.getMessages().map((m) => m.id)).toEqual(["a", "m"]);
+
+      repository.deleteMessage("m", null);
+
+      expect(repository.getMessages().map((m) => m.id)).toEqual(["a"]);
+    });
+
     it("should operate on a long message history without overflowing the stack", () => {
       const messageCount = 30_000;
       const messages = createLongBranchMessages(messageCount);
