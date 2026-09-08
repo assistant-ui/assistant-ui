@@ -109,6 +109,43 @@ const setAtPointer = (
   if (!segments) return { ok: false, value: model };
   if (segments.length === 0) return { ok: true, value };
 
+  const remove = (current: unknown, index: number): unknown => {
+    const segment = segments[index]!;
+    const isLast = index === segments.length - 1;
+
+    if (Array.isArray(current)) {
+      if (segment !== "-" && !isArrayIndex(segment)) return current;
+      const targetIndex = segment === "-" ? current.length : Number(segment);
+      if (isLast) {
+        const clone = current.slice();
+        clone[targetIndex] = null;
+        return clone;
+      }
+      const child = current[targetIndex];
+      if (!Array.isArray(child) && !isRecord(child)) return current;
+      const next = remove(child, index + 1);
+      if (next === child) return current;
+      const clone = current.slice();
+      clone[targetIndex] = next;
+      return clone;
+    }
+
+    if (!isRecord(current)) return current;
+    if (!Object.prototype.hasOwnProperty.call(current, segment)) return current;
+    if (isLast) {
+      const clone = { ...current };
+      delete clone[segment];
+      return clone;
+    }
+    const child = current[segment];
+    if (!Array.isArray(child) && !isRecord(child)) return current;
+    const next = remove(child, index + 1);
+    if (next === child) return current;
+    return { ...current, [segment]: next };
+  };
+
+  if (value === null) return { ok: true, value: remove(model, 0) };
+
   const update = (current: unknown, index: number): unknown => {
     const segment = segments[index]!;
     const isLast = index === segments.length - 1;
