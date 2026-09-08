@@ -16,7 +16,7 @@ export function commitAllCallbacks(callbacks: CommitCallbacks): void {
   throwAggregated(errors, "Errors during commit");
 }
 
-function setupEffect(cell: EffectCell): void {
+function setupEffect(fiber: ResourceFiber<unknown>, cell: EffectCell): void {
   const setup = cell.setup!;
   const deps = cell.setupDeps;
   const generation = cell.generation;
@@ -31,7 +31,7 @@ function setupEffect(cell: EffectCell): void {
     }
     cleanup = result;
   } finally {
-    if (cell.generation === generation) {
+    if (cell.generation === generation && !fiber.isDisposing) {
       cell.cleanup = cleanup;
       cell.deps = deps;
     } else {
@@ -58,19 +58,23 @@ export function reconcileEffects<R>(fiber: ResourceFiber<R>): void {
   for (const cell of pending) {
     cell.deps = null;
     if (cell.cleanup === undefined) continue;
+    const cleanup = cell.cleanup;
+    cell.cleanup = undefined;
     try {
-      cell.cleanup();
+      cleanup();
     } catch (e) {
       errors.push(e);
-    } finally {
-      cell.cleanup = undefined;
     }
+    if (fiber.isDisposing) break;
   }
-  for (const cell of pending) {
-    try {
-      setupEffect(cell);
-    } catch (e) {
-      errors.push(e);
+  if (!fiber.isDisposing) {
+    for (const cell of pending) {
+      try {
+        setupEffect(fiber, cell);
+      } catch (e) {
+        errors.push(e);
+      }
+      if (fiber.isDisposing) break;
     }
   }
 

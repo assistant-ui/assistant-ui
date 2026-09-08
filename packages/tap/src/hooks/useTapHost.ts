@@ -1,4 +1,5 @@
 import {
+  attachResourceFiberToParent,
   disposeResourceFiber,
   markResourceFiberForDisposal,
   unmountResourceFiber,
@@ -45,6 +46,7 @@ export const useTapHost = <R>(callback: () => R): useTapHost.Result<R> => {
   }, [fiber, parentFiber]);
 
   useEffect(() => {
+    if (parentFiber !== null) attachResourceFiberToParent(fiber, parentFiber);
     return () => {
       if (fiber.isDisposePending || parentFiber?.isDisposing) {
         disposeResourceFiber(fiber);

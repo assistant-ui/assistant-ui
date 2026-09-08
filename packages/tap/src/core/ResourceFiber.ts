@@ -11,6 +11,15 @@ import { isDevelopment } from "./helpers/env";
 import { commitRoot } from "./helpers/root";
 import { throwAggregated } from "./helpers/throwAggregated";
 
+const parentDisposalLinks = new WeakMap<
+  ResourceFiber<unknown>,
+  {
+    parent: ResourceFiber<unknown>;
+    dispose: () => void;
+    unlink: () => void;
+  }
+>();
+
 export function createResourceFiber<R>(
   hook: (...args: any[]) => R,
   root: TapRoot,
@@ -87,6 +96,27 @@ export function markResourceFiberForDisposal<R>(fiber: ResourceFiber<R>): void {
   if (!fiber.isDisposing) fiber.isDisposePending = true;
 }
 
+export function attachResourceFiberToParent<R>(
+  fiber: ResourceFiber<R>,
+  parent: ResourceFiber<unknown>,
+): void {
+  const existing = parentDisposalLinks.get(fiber);
+  if (existing?.parent === parent) return;
+  if (existing !== undefined) {
+    existing.parent.disposeCallbacks.delete(existing.dispose);
+    fiber.disposeCallbacks.delete(existing.unlink);
+  }
+
+  const dispose = () => disposeResourceFiber(fiber);
+  const unlink = () => {
+    parent.disposeCallbacks.delete(dispose);
+    parentDisposalLinks.delete(fiber);
+  };
+  parent.disposeCallbacks.add(dispose);
+  fiber.disposeCallbacks.add(unlink);
+  parentDisposalLinks.set(fiber, { parent, dispose, unlink });
+}
+
 export function renderResourceFiber<R>(
   fiber: ResourceFiber<R>,
   args: readonly unknown[],
@@ -124,6 +154,7 @@ export function renderResourceFiber<R>(
 }
 
 export function commitResourceFiber<R>(fiber: ResourceFiber<R>): void {
+  if (fiber.isDisposing) return;
   const commitCallbacks = fiber.wipCommitCallbacks;
   fiber.wipCommitCallbacks = null;
   const strictReplay =

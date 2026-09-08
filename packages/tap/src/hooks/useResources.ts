@@ -4,6 +4,7 @@ import type {
   ResourceFiber,
 } from "../core/types";
 import {
+  attachResourceFiberToParent,
   discardWipRender,
   disposeResourceFiber,
   markResourceFiberForDisposal,
@@ -201,6 +202,9 @@ export function useResources<E extends ResourceElement<any>>(
           disposeResourceFiber(state.fiber);
           state.fiber = next.remount;
         }
+        if (parentFiber !== null) {
+          attachResourceFiberToParent(state.fiber, parentFiber);
+        }
         commitResourceFiber(state.fiber);
         state.committedDeps = next.deps;
         state.committedValue = next.value;
@@ -208,7 +212,7 @@ export function useResources<E extends ResourceElement<any>>(
         state.next = "skip";
       }
     }
-  }, [val, fibers]);
+  }, [val, fibers, parentFiber]);
 
   return val;
 }

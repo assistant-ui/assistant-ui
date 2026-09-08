@@ -1,4 +1,5 @@
 import {
+  attachResourceFiberToParent,
   commitResourceFiber,
   createResourceFiber,
   disposeResourceFiber,
@@ -229,6 +230,9 @@ export const useTapRoot = <R>(render: () => R): useTapRoot.Root<R> => {
 
   useEffect(() => {
     inst.isMounted = true;
+    if (parentFiber !== null) {
+      attachResourceFiberToParent(inst.fiber, parentFiber);
+    }
     return () => {
       inst.isMounted = false;
       if (inst.fiber.isDisposePending || parentFiber?.isDisposing) {

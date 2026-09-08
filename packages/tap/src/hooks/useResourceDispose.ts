@@ -1,5 +1,32 @@
 import { useEffect, useInsertionEffect, useRef } from "react";
 import { peekResourceFiber } from "../core/helpers/execution-context";
+import type { ResourceFiber } from "../core/types";
+
+const useTapResourceDispose = (
+  fiber: ResourceFiber<unknown>,
+  callback: () => void,
+) => {
+  useEffect(() => {
+    fiber.disposeCallbacks.add(callback);
+  }, [callback, fiber]);
+};
+
+const useReactHostDispose = (callback: () => void) => {
+  const disposePendingRef = useRef(false);
+
+  useInsertionEffect(
+    () => () => {
+      disposePendingRef.current = true;
+    },
+    [],
+  );
+  useEffect(
+    () => () => {
+      if (disposePendingRef.current) callback();
+    },
+    [callback],
+  );
+};
 
 /**
  * Runs a callback when the current resource or React host is permanently
@@ -14,13 +41,11 @@ export const useResourceDispose = (dispose: () => void): void => {
     disposeRef.current = dispose;
   });
 
-  useEffect(() => {
-    if (fiber === null) return;
-    fiber.disposeCallbacks.add(callback);
-  }, [callback, fiber]);
-
-  useInsertionEffect(() => {
-    if (fiber !== null) return undefined;
-    return () => queueMicrotask(callback);
-  }, [callback, fiber]);
+  if (fiber === null) {
+    // oxlint-disable-next-line react-hooks/rules-of-hooks
+    useReactHostDispose(callback);
+  } else {
+    // oxlint-disable-next-line react-hooks/rules-of-hooks
+    useTapResourceDispose(fiber, callback);
+  }
 };

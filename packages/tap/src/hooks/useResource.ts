@@ -1,5 +1,6 @@
 import type { ExtractResourceReturnType, ResourceElement } from "../core/types";
 import {
+  attachResourceFiberToParent,
   disposeResourceFiber,
   markResourceFiberForDisposal,
   unmountResourceFiber,
@@ -47,14 +48,14 @@ export function useResource<E extends ResourceElement<any>>(
     committedFiberRef.current = fiber;
   }, [fiber]);
 
-  useEffect(
-    () => () => {
+  useEffect(() => {
+    if (parentFiber !== null) attachResourceFiberToParent(fiber, parentFiber);
+    return () => {
       if (fiber.isDisposePending || parentFiber?.isDisposing) {
         disposeResourceFiber(fiber);
       } else unmountResourceFiber(fiber);
-    },
-    [fiber, parentFiber],
-  );
+    };
+  }, [fiber, parentFiber]);
   useEffect(() => {
     void result;
     commitResourceFiber(fiber);

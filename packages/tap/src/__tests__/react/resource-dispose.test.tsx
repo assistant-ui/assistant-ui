@@ -1,6 +1,6 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { act, cleanup, render } from "@testing-library/react";
-import { Activity, StrictMode } from "react";
+import { act, cleanup, render, screen } from "@testing-library/react";
+import { Activity, Component, StrictMode, type ReactNode } from "react";
 import {
   resource,
   useResource,
@@ -25,6 +25,25 @@ const hostKinds = [
 ] as const;
 
 type HostKind = (typeof hostKinds)[number];
+
+class ErrorBoundary extends Component<
+  { children: ReactNode },
+  { error: Error | null }
+> {
+  state = { error: null };
+
+  static getDerivedStateFromError(error: Error) {
+    return { error };
+  }
+
+  render() {
+    return this.state.error ? (
+      <div role="alert">{this.state.error.message}</div>
+    ) : (
+      this.props.children
+    );
+  }
+}
 
 const createHosts = (
   dispose: () => void,
@@ -74,7 +93,10 @@ const createHosts = (
 };
 
 describe("useResourceDispose in React hosts", () => {
-  afterEach(cleanup);
+  afterEach(() => {
+    cleanup();
+    vi.restoreAllMocks();
+  });
 
   it.each(hostKinds)(
     "%s preserves resources while Activity is hidden and disposes on deletion",
@@ -125,4 +147,22 @@ describe("useResourceDispose in React hosts", () => {
       expect(dispose).toHaveBeenCalledOnce();
     },
   );
+
+  it("routes direct React-host disposal errors through React", () => {
+    vi.spyOn(console, "error").mockImplementation(() => {});
+    function Host() {
+      useResourceDispose(() => {
+        throw new Error("dispose failed");
+      });
+      return null;
+    }
+    function App({ show }: { show: boolean }) {
+      return <ErrorBoundary>{show ? <Host /> : null}</ErrorBoundary>;
+    }
+
+    const { rerender } = render(<App show={true} />);
+    rerender(<App show={false} />);
+
+    expect(screen.getByRole("alert").textContent).toBe("dispose failed");
+  });
 });
