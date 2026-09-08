@@ -46,6 +46,7 @@ type ThreadTitleGeneration = {
   readonly automatic: boolean;
   readonly order: number;
   claim: ThreadTitleClaim | null;
+  readonly beforeGenerationClaim: ThreadTitleClaim | null;
   superseded: boolean;
   readonly persisted: Promise<string | undefined>;
   readonly settlePersisted: (title: string | undefined) => void;
@@ -519,10 +520,6 @@ export function useThreads(options: UseThreadsOptions): UseThreadsResult {
         );
         if (retained !== undefined) return retained;
       }
-      if (!automatic) {
-        state.pendingClaim = null;
-        state.manualTitle = undefined;
-      }
 
       let settlePersisted!: (title: string | undefined) => void;
       const persisted = new Promise<string | undefined>((resolve) => {
@@ -532,11 +529,14 @@ export function useThreads(options: UseThreadsOptions): UseThreadsResult {
         automatic,
         order: ++state.nextOrder,
         claim: automatic ? state.pendingClaim : null,
+        beforeGenerationClaim: automatic ? null : state.pendingClaim,
         superseded: false,
         persisted,
         settlePersisted,
       };
       if (!automatic) {
+        state.pendingClaim = null;
+        state.manualTitle = undefined;
         state.latestExplicit = generation;
         for (const active of state.generations) {
           if (active.automatic) active.superseded = true;
@@ -563,6 +563,12 @@ export function useThreads(options: UseThreadsOptions): UseThreadsResult {
             };
 
             const runGeneration = async () => {
+              // `rename` resolves only once its own server write lands, so an
+              // explicit generation that started mid-rename waits rather than
+              // racing that write with its own.
+              if (generation.beforeGenerationClaim !== null) {
+                await generation.beforeGenerationClaim.settled;
+              }
               while (true) {
                 if (generation.claim) {
                   const claim = generation.claim;
@@ -603,6 +609,7 @@ export function useThreads(options: UseThreadsOptions): UseThreadsResult {
                 }
 
                 if (generated) break;
+                if (!isCurrentGeneration(state, generation)) return;
                 generated = true;
                 title = await generateThreadTitle(cloud, tid);
               }

@@ -7,8 +7,8 @@
   },
   "@assistant-ui/cloud-ai-sdk": {
     ".": {
-      "min": 16045,
-      "gzip": 5555
+      "min": 17316,
+      "gzip": 5902
     }
   },
   "@assistant-ui/core": {
