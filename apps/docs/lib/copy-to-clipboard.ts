@@ -14,6 +14,7 @@ export async function copyTextToClipboard(value: string): Promise<boolean> {
   textArea.style.position = "fixed";
   textArea.style.opacity = "0";
   document.body.appendChild(textArea);
+  textArea.focus();
   textArea.select();
 
   try {
