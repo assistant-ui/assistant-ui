@@ -155,6 +155,129 @@ describe("applyA2uiOperations", () => {
     expect(resultModel.items[10_002]).toBe("appended");
   });
 
+  it("deletes object properties updated to null", () => {
+    const dataModel = {
+      profile: { name: "Ada", role: "admin" },
+      tags: ["first", "second"],
+    };
+    const state: A2uiState = new Map([
+      ["main", { components: new Map(), dataModel }],
+    ]);
+
+    const result = applyA2uiOperations(state, [
+      {
+        version: "v1.0",
+        updateDataModel: {
+          surfaceId: "main",
+          path: "/profile/name",
+          value: null,
+        },
+      },
+      {
+        version: "v1.0",
+        updateDataModel: {
+          surfaceId: "main",
+          path: "/tags/1",
+          value: null,
+        },
+      },
+    ]);
+
+    expect(result.warnings).toEqual([]);
+    const resultModel = result.state.get("main")?.dataModel as typeof dataModel;
+    expect(resultModel.profile).toEqual({ role: "admin" });
+    expect(resultModel.tags).toHaveLength(2);
+    expect(resultModel.tags[0]).toBe("first");
+    expect(Object.prototype.hasOwnProperty.call(resultModel.tags, 1)).toBe(
+      false,
+    );
+    expect(dataModel).toEqual({
+      profile: { name: "Ada", role: "admin" },
+      tags: ["first", "second"],
+    });
+  });
+
+  it("preserves null values in v0.9 data model updates", () => {
+    const state: A2uiState = new Map([
+      [
+        "main",
+        { components: new Map(), dataModel: { profile: { name: "Ada" } } },
+      ],
+    ]);
+
+    const result = applyA2uiOperations(state, [
+      {
+        version: "v0.9",
+        updateDataModel: {
+          surfaceId: "main",
+          path: "/profile/name",
+          value: null,
+        },
+      },
+    ]);
+
+    expect(result.warnings).toEqual([]);
+    expect(result.state.get("main")?.dataModel).toEqual({
+      profile: { name: null },
+    });
+  });
+
+  it("does not create missing paths for null updates", () => {
+    const dataModel = { profile: { name: "Ada" }, tags: ["first", "second"] };
+    const state: A2uiState = new Map([
+      ["main", { components: new Map(), dataModel }],
+    ]);
+
+    const result = applyA2uiOperations(state, [
+      {
+        version: "v1.0",
+        updateDataModel: {
+          surfaceId: "main",
+          path: "/missing/value",
+          value: null,
+        },
+      },
+      {
+        version: "v1.0",
+        updateDataModel: {
+          surfaceId: "main",
+          path: "/tags/-",
+          value: null,
+        },
+      },
+      {
+        version: "v1.0",
+        updateDataModel: {
+          surfaceId: "main",
+          path: "/tags/7",
+          value: null,
+        },
+      },
+    ]);
+
+    expect(result.warnings).toEqual([]);
+    expect(result.state.get("main")?.dataModel).toBe(dataModel);
+  });
+
+  it("allows null to replace the data model root", () => {
+    const state: A2uiState = new Map([
+      [
+        "main",
+        { components: new Map(), dataModel: { profile: { name: "Ada" } } },
+      ],
+    ]);
+
+    const result = applyA2uiOperations(state, [
+      {
+        version: "v1.0",
+        updateDataModel: { surfaceId: "main", value: null },
+      },
+    ]);
+
+    expect(result.warnings).toEqual([]);
+    expect(result.state.get("main")?.dataModel).toBeNull();
+  });
+
   it("clones the touched surface and component map", () => {
     const components = new Map<string, Record<string, unknown>>([
       ["root", { id: "root", component: "Divider" }],
