@@ -595,6 +595,7 @@ export function useThreads(options: UseThreadsOptions): UseThreadsResult {
                     persistedTitle = claim.title;
                     persistedOrder = claim.order;
                     if (generation.claim !== claim) continue;
+                    if (!isCurrentGeneration(state, generation)) return;
                     commit(() =>
                       setThreads((prev) =>
                         prev.map((t) =>

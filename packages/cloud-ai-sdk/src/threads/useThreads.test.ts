@@ -457,6 +457,65 @@ describe("useThreads", () => {
     expect(applied).toEqual(["Manual", "Explicit", "Automatic", "Explicit"]);
   });
 
+  it("keeps the explicit title locally when a claim write outlives the race", async () => {
+    const applied: string[] = [];
+    const claimWrite = createDeferred<void>();
+    let sawClaimWrite = false;
+    const cloud = createCloud("cloud-1");
+    cloud.threads.list.mockResolvedValue(
+      createThreadListResponse("New Chat", "thread-1"),
+    );
+    cloud.threads.update.mockImplementation(
+      async (_id: string, patch: { title?: string }) => {
+        if (patch.title === undefined) return;
+        if (patch.title === "Manual" && sawClaimWrite) await claimWrite.promise;
+        if (patch.title === "Manual") sawClaimWrite = true;
+        applied.push(patch.title);
+      },
+    );
+    const automaticOpen = createDeferred<void>();
+    mocks.generateThreadTitle
+      .mockImplementationOnce(async (currentCloud, threadId) => {
+        await automaticOpen.promise;
+        await currentCloud.threads.update(threadId, { title: "Automatic" });
+        return "Automatic";
+      })
+      .mockImplementationOnce(async (currentCloud, threadId) => {
+        await currentCloud.threads.update(threadId, { title: "Explicit" });
+        return "Explicit";
+      });
+    const { result } = renderHook(() => useThreads({ cloud: cloud as never }));
+    await waitFor(() => expect(result.current.threads).toHaveLength(1));
+
+    let automatic!: Promise<string | null>;
+    act(() => {
+      automatic = result.current.generateTitle("thread-1", { automatic: true });
+    });
+    await act(async () => {
+      await result.current.rename("thread-1", "Manual");
+    });
+
+    // release the automatic generation so it reaches its claim re-write, then
+    // let the explicit run supersede it while that write is still in flight
+    act(() => automaticOpen.resolve());
+    await act(async () => {
+      await Promise.resolve();
+      await Promise.resolve();
+      await Promise.resolve();
+    });
+    await act(async () => {
+      await result.current.generateTitle("thread-1");
+    });
+
+    await act(async () => {
+      claimWrite.resolve();
+      await automatic;
+    });
+
+    expect(applied.at(-1)).toBe("Explicit");
+    expect(result.current.threads[0]?.title).toBe("Explicit");
+  });
+
   it("does not generate for an automatic run an explicit one outranked", async () => {
     const failingRename = createDeferred<void>();
     const cloud = createCloud("cloud-1");
