@@ -32,6 +32,7 @@ vi.mock("@/lib/source", () => {
     url: string,
     title: string,
     description: string,
+    headings: string[],
     contents: string[],
   ) => ({
     url,
@@ -39,7 +40,10 @@ vi.mock("@/lib/source", () => {
       title,
       description,
       structuredData: () => ({
-        headings: [],
+        headings: headings.map((content) => ({
+          id: content.toLowerCase(),
+          content,
+        })),
         contents: contents.map((content) => ({ content })),
       }),
     },
@@ -49,12 +53,22 @@ vi.mock("@/lib/source", () => {
     source: {
       ...makeSource(),
       getPages: vi.fn(() => [
-        docsPage("/docs/ui/thread", "Thread", "Render a conversation.", [
-          "An unrelated opening paragraph.",
-        ]),
-        docsPage("/docs/guides/keyboard", "Keyboard", "Shortcuts.", [
-          "Press the escape key to dismiss the composer autocomplete popover.",
-        ]),
+        docsPage(
+          "/docs/ui/thread",
+          "Thread",
+          "Render a conversation.",
+          [],
+          ["An unrelated opening paragraph."],
+        ),
+        docsPage(
+          "/docs/guides/keyboard",
+          "Keyboard",
+          "Shortcuts.",
+          ["Bindings"],
+          [
+            "Press the escape key to dismiss the composer autocomplete popover.",
+          ],
+        ),
       ]),
     },
     examples: makeSource(),
@@ -320,6 +334,17 @@ describe("POST /api/mcp", () => {
 
     expect(pages.map((page) => page.url)).toEqual(["/docs/guides/keyboard"]);
     expect(pages[0]?.excerpt).toContain("autocomplete popover");
+  });
+
+  it("ranks a heading-only match and returns the headings with it", async () => {
+    const response = await requestMcp("tools/call", {
+      name: "search_docs",
+      arguments: { query: "bindings" },
+    });
+    const pages = searchedPages(getToolCallResult(response));
+
+    expect(pages.map((page) => page.url)).toEqual(["/docs/guides/keyboard"]);
+    expect(pages[0]?.headings).toEqual(["Bindings"]);
   });
 
   it("still matches search_docs on page metadata", async () => {
