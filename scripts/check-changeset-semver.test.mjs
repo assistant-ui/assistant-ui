@@ -403,8 +403,8 @@ function runExecutable(root, env = {}) {
       encoding: "utf8",
       env: {
         ...process.env,
-        BASE_SHA: "",
-        HEAD_SHA: "",
+        BASE_REV: "",
+        HEAD_REV: "",
         GITHUB_ACTIONS: "",
         GITHUB_STEP_SUMMARY: "",
         CHANGESET_SEMVER_CHECK_ROOT: root,
@@ -510,7 +510,7 @@ test("the executable analyzes only the changesets the PR range adds", () => {
     );
     const head = commitAll(root, "head");
 
-    const result = runExecutable(root, { BASE_SHA: base, HEAD_SHA: head });
+    const result = runExecutable(root, { BASE_REV: base, HEAD_REV: head });
 
     assert.equal(result.status, 0, result.stdout + result.stderr);
     assert.match(
@@ -540,7 +540,7 @@ test("a PR range that touches no changeset ends the run before any summary", () 
     );
     const head = commitAll(root, "head");
 
-    const result = runExecutable(root, { BASE_SHA: base, HEAD_SHA: head });
+    const result = runExecutable(root, { BASE_REV: base, HEAD_REV: head });
 
     assert.equal(result.status, 0, result.stdout + result.stderr);
     assert.match(result.stdout, /No changeset files changed in this PR\./);
@@ -549,18 +549,77 @@ test("a PR range that touches no changeset ends the run before any summary", () 
   }
 });
 
-test("an unusable base fails closed instead of grading the tree", () => {
+test("a merge-ref checkout grades only what the PR itself changed", () => {
+  const root = createWorkspace([{ name: "@fixture/dep", version: "0.12.15" }], {
+    "already-on-base.md": '"@fixture/dep": patch',
+  });
+  try {
+    git(root, "init", "-q", "-b", "main");
+    commitAll(root, "base");
+
+    git(root, "checkout", "-q", "-b", "pr");
+    writeFileSync(
+      path.join(root, ".changeset", "added-by-the-pr.md"),
+      '---\n"@fixture/dep": patch\n---\n\nfix: fixture\n',
+    );
+    commitAll(root, "head");
+
+    git(root, "checkout", "-q", "main");
+    writeFileSync(
+      path.join(root, ".changeset", "already-on-base.md"),
+      '---\n"@fixture/dep": minor\n---\n\nfeat: fixture\n',
+    );
+    commitAll(root, "base moves on");
+    git(
+      root,
+      "-c",
+      "user.name=fixture",
+      "-c",
+      "user.email=fixture@example.com",
+      "merge",
+      "-q",
+      "--no-ff",
+      "-m",
+      "merge",
+      "pr",
+    );
+    git(root, "branch", "-D", "pr");
+
+    const result = runExecutable(root, {
+      BASE_REV: "HEAD^1",
+      HEAD_REV: "HEAD^2",
+    });
+
+    assert.equal(result.status, 0, result.stdout + result.stderr);
+    assert.match(result.stdout, /`added-by-the-pr\.md`/);
+    assert.doesNotMatch(
+      result.stdout,
+      /already-on-base/,
+      "a changeset only the base branch changed was graded against the PR",
+    );
+  } finally {
+    rmSync(root, { recursive: true, force: true });
+  }
+});
+
+test("a range git cannot resolve fails closed instead of grading the tree", () => {
   const root = createWorkspace([{ name: "@fixture/dep", version: "0.12.15" }], {
     "shy-pots-shave.md": '"@fixture/dep": minor',
   });
   try {
     const result = runExecutable(root, {
-      BASE_SHA: "0000000000000000000000000000000000000000",
-      HEAD_SHA: "1111111111111111111111111111111111111111",
+      BASE_REV: "0000000000000000000000000000000000000000",
+      HEAD_REV: "1111111111111111111111111111111111111111",
     });
 
     assert.equal(result.status, 1);
-    assert.match(result.stdout, /not fetchable/);
+    assert.match(result.stdout, /Could not diff 0{40}\.{3}1{40}/);
+    assert.ok(
+      /Could not diff [^:]+: (.+)\. Failing instead of grading/.exec(
+        result.stdout,
+      )?.[1],
+      "the annotation dropped git's own error",
+    );
     assert.doesNotMatch(result.stdout, /shy-pots-shave\.md/);
     assert.doesNotMatch(result.stdout, /Semver-breaking/);
   } finally {

@@ -241,7 +241,7 @@ function writeSummary(summary) {
   else process.stdout.write(summary);
 }
 
-function diffChangesetFiles(root, baseSha, headSha) {
+function diffChangesetFiles(root, baseRev, headRev) {
   try {
     const diff = execFileSync(
       "git",
@@ -249,28 +249,28 @@ function diffChangesetFiles(root, baseSha, headSha) {
         "diff",
         "--name-only",
         "--diff-filter=ACM",
-        baseSha,
-        headSha,
+        `${baseRev}...${headRev}`,
         "--",
         ".changeset/*.md",
       ],
-      { cwd: root, encoding: "utf8" },
+      { cwd: root, encoding: "utf8", stdio: ["ignore", "pipe", "pipe"] },
     ).trim();
     return new Set(diff ? diff.split("\n").map((f) => path.basename(f)) : []);
-  } catch {
-    return undefined;
+  } catch (error) {
+    const stderr = String(error.stderr ?? "").trim();
+    return { error: stderr.split("\n").at(-1) || error.message };
   }
 }
 
 function main() {
   const root = process.env.CHANGESET_SEMVER_CHECK_ROOT ?? repoRoot;
-  const { BASE_SHA, HEAD_SHA } = process.env;
+  const { BASE_REV, HEAD_REV } = process.env;
   const changedFiles =
-    BASE_SHA && HEAD_SHA ? diffChangesetFiles(root, BASE_SHA, HEAD_SHA) : null;
-  if (changedFiles === undefined) {
+    BASE_REV && HEAD_REV ? diffChangesetFiles(root, BASE_REV, HEAD_REV) : null;
+  if (changedFiles && !(changedFiles instanceof Set)) {
     annotate(
       "error",
-      `Could not diff ${BASE_SHA.slice(0, 12)}..${HEAD_SHA.slice(0, 12)} — the base or head commit is not fetchable (a rerun against a deleted branch?). Failing instead of grading every changeset in the tree.`,
+      `Could not diff ${BASE_REV}...${HEAD_REV}: ${changedFiles.error}. Failing instead of grading every changeset in the tree.`,
     );
     process.exitCode = 1;
     return;

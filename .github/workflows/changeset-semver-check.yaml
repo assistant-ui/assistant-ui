@@ -41,6 +41,7 @@ jobs:
 
       - name: Check changeset bump types against package versions
         env:
-          BASE_SHA: ${{ github.event.pull_request.base.sha }}
-          HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+          # The payload head sha is not in the object store on fork PRs; the checked-out merge ref's parents always resolve.
+          BASE_REV: HEAD^1
+          HEAD_REV: HEAD^2
         run: node scripts/check-changeset-semver.mjs
