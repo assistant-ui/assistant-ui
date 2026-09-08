@@ -41,6 +41,7 @@ Each response streams the state operations as `aui-state:` lines, one batch per 
 ```
 aui-state:[{"type": "set", "path": ["message"], "value": "Hello"}]
 aui-state:[{"type": "append-text", "path": ["message"], "value": " world"}]
+aui-state:[{"type": "append-text", "path": ["message"], "value": "!"}]
 aui-state:[{"type": "set", "path": ["uppercase"], "value": "HELLO WORLD!"}]
 ```
 
