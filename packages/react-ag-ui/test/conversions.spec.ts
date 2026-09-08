@@ -672,6 +672,35 @@ describe("adapter conversions", () => {
     expect(toAgUiMessages(imported)).toEqual(snapshot);
   });
 
+  it("restores reasoning ahead of prose it followed in the run", () => {
+    // A run can emit prose and then reason about it, and the export hoists
+    // every reasoning part ahead of its assistant record, so that order is
+    // already gone on the wire and no import rule can recover it.
+    const live = [
+      {
+        id: "m-1",
+        role: "assistant",
+        content: [
+          { type: "text", text: "prose first" },
+          { type: "reasoning", text: "afterthought" },
+        ],
+      },
+    ];
+
+    const exported = toAgUiMessages(live as any);
+    expect(exported).toEqual([
+      { id: "m-1:reasoning-0", role: "reasoning", content: "afterthought" },
+      { id: "m-1", role: "assistant", content: "prose first" },
+    ]);
+
+    const imported = fromAgUiMessages(exported as any);
+    expect(imported).toHaveLength(1);
+    expect((imported[0] as any).content.map((p: any) => p.type)).toEqual([
+      "reasoning",
+      "text",
+    ]);
+  });
+
   it("skips empty reasoning messages", () => {
     const result = fromAgUiMessages([
       { id: "r-1", role: "reasoning", content: "" },
