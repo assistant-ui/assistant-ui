@@ -27,7 +27,7 @@ const useReactHostDispose = (callback: () => void) => {
         disposePendingRef.current = true;
       } else {
         // A hidden React subtree has already consumed its passive cleanup.
-        queueMicrotask(runDispose);
+        runDispose();
       }
     },
     [runDispose],

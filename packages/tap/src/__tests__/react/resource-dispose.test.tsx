@@ -216,4 +216,31 @@ describe("useResourceDispose in React hosts", () => {
 
     expect(screen.getByRole("alert").textContent).toBe("dispose failed");
   });
+
+  it("routes hidden React-host disposal errors through React", () => {
+    vi.spyOn(console, "error").mockImplementation(() => {});
+    function Host() {
+      useResourceDispose(() => {
+        throw new Error("hidden dispose failed");
+      });
+      return null;
+    }
+    function App({ hidden, show }: { hidden: boolean; show: boolean }) {
+      return (
+        <ErrorBoundary>
+          {show ? (
+            <Activity mode={hidden ? "hidden" : "visible"}>
+              <Host />
+            </Activity>
+          ) : null}
+        </ErrorBoundary>
+      );
+    }
+
+    const { rerender } = render(<App hidden={false} show={true} />);
+    rerender(<App hidden={true} show={true} />);
+    rerender(<App hidden={true} show={false} />);
+
+    expect(screen.getByRole("alert").textContent).toBe("hidden dispose failed");
+  });
 });
