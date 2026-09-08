@@ -241,7 +241,7 @@ function writeSummary(summary) {
   else process.stdout.write(summary);
 }
 
-function diffChangesetFiles(root, baseRev, headRev) {
+function diffChangesetFiles(root, baseSha, headSha) {
   try {
     const diff = execFileSync(
       "git",
@@ -249,7 +249,7 @@ function diffChangesetFiles(root, baseRev, headRev) {
         "diff",
         "--name-only",
         "--diff-filter=ACM",
-        `${baseRev}...${headRev}`,
+        `${baseSha}...${headSha}`,
         "--",
         ".changeset/*.md",
       ],
@@ -264,13 +264,13 @@ function diffChangesetFiles(root, baseRev, headRev) {
 
 function main() {
   const root = process.env.CHANGESET_SEMVER_CHECK_ROOT ?? repoRoot;
-  const { BASE_REV, HEAD_REV } = process.env;
+  const { BASE_SHA, HEAD_SHA } = process.env;
   const changedFiles =
-    BASE_REV && HEAD_REV ? diffChangesetFiles(root, BASE_REV, HEAD_REV) : null;
+    BASE_SHA && HEAD_SHA ? diffChangesetFiles(root, BASE_SHA, HEAD_SHA) : null;
   if (changedFiles && !(changedFiles instanceof Set)) {
     annotate(
       "error",
-      `Could not diff ${BASE_REV}...${HEAD_REV}: ${changedFiles.error}. Failing instead of grading every changeset in the tree.`,
+      `Could not diff ${BASE_SHA}...${HEAD_SHA}: ${changedFiles.error}. Failing instead of grading every changeset in the tree.`,
     );
     process.exitCode = 1;
     return;

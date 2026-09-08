@@ -403,8 +403,8 @@ function runExecutable(root, env = {}) {
       encoding: "utf8",
       env: {
         ...process.env,
-        BASE_REV: "",
-        HEAD_REV: "",
+        BASE_SHA: "",
+        HEAD_SHA: "",
         GITHUB_ACTIONS: "",
         GITHUB_STEP_SUMMARY: "",
         CHANGESET_SEMVER_CHECK_ROOT: root,
@@ -510,7 +510,7 @@ test("the executable analyzes only the changesets the PR range adds", () => {
     );
     const head = commitAll(root, "head");
 
-    const result = runExecutable(root, { BASE_REV: base, HEAD_REV: head });
+    const result = runExecutable(root, { BASE_SHA: base, HEAD_SHA: head });
 
     assert.equal(result.status, 0, result.stdout + result.stderr);
     assert.match(
@@ -540,7 +540,7 @@ test("a PR range that touches no changeset ends the run before any summary", () 
     );
     const head = commitAll(root, "head");
 
-    const result = runExecutable(root, { BASE_REV: base, HEAD_REV: head });
+    const result = runExecutable(root, { BASE_SHA: base, HEAD_SHA: head });
 
     assert.equal(result.status, 0, result.stdout + result.stderr);
     assert.match(result.stdout, /No changeset files changed in this PR\./);
@@ -549,7 +549,7 @@ test("a PR range that touches no changeset ends the run before any summary", () 
   }
 });
 
-test("a merge-ref checkout grades only what the PR itself changed", () => {
+test("the PR range is measured from the fork point, not the base tip", () => {
   const root = createWorkspace([{ name: "@fixture/dep", version: "0.12.15" }], {
     "already-on-base.md": '"@fixture/dep": patch',
   });
@@ -562,14 +562,14 @@ test("a merge-ref checkout grades only what the PR itself changed", () => {
       path.join(root, ".changeset", "added-by-the-pr.md"),
       '---\n"@fixture/dep": patch\n---\n\nfix: fixture\n',
     );
-    commitAll(root, "head");
+    const head = commitAll(root, "head");
 
     git(root, "checkout", "-q", "main");
     writeFileSync(
       path.join(root, ".changeset", "already-on-base.md"),
       '---\n"@fixture/dep": minor\n---\n\nfeat: fixture\n',
     );
-    commitAll(root, "base moves on");
+    const base = commitAll(root, "base moves on");
     git(
       root,
       "-c",
@@ -583,12 +583,8 @@ test("a merge-ref checkout grades only what the PR itself changed", () => {
       "merge",
       "pr",
     );
-    git(root, "branch", "-D", "pr");
 
-    const result = runExecutable(root, {
-      BASE_REV: "HEAD^1",
-      HEAD_REV: "HEAD^2",
-    });
+    const result = runExecutable(root, { BASE_SHA: base, HEAD_SHA: head });
 
     assert.equal(result.status, 0, result.stdout + result.stderr);
     assert.match(result.stdout, /`added-by-the-pr\.md`/);
@@ -608,8 +604,8 @@ test("a range git cannot resolve fails closed instead of grading the tree", () =
   });
   try {
     const result = runExecutable(root, {
-      BASE_REV: "0000000000000000000000000000000000000000",
-      HEAD_REV: "1111111111111111111111111111111111111111",
+      BASE_SHA: "0000000000000000000000000000000000000000",
+      HEAD_SHA: "1111111111111111111111111111111111111111",
     });
 
     assert.equal(result.status, 1);
