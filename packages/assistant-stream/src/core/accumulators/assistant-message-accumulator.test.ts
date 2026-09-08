@@ -105,6 +105,47 @@ describe("AssistantMessageAccumulator timing", () => {
     expect(timing.totalStreamTime).toBeGreaterThanOrEqual(0);
   });
 
+  it.each([
+    { stepTokens: [], finalTokens: 20, expected: 20 },
+    { stepTokens: [7], finalTokens: 20, expected: 20 },
+    { stepTokens: [3, 4], finalTokens: 0, expected: 7 },
+    { stepTokens: [3, 4], finalTokens: undefined, expected: 7 },
+  ])(
+    "uses $expected tokens for steps $stepTokens and final usage $finalTokens",
+    async ({ stepTokens, finalTokens, expected }) => {
+      const chunks: AssistantStreamChunk[] = [
+        { type: "part-start", path: [], part: { type: "text" } },
+        { type: "text-delta", path: [0], textDelta: "test" },
+        { type: "part-finish", path: [0] },
+      ];
+      for (const outputTokens of stepTokens) {
+        chunks.push({
+          type: "step-finish",
+          path: [],
+          finishReason: "stop",
+          usage: { inputTokens: 5, outputTokens },
+          isContinued: false,
+        });
+      }
+      if (finalTokens !== undefined) {
+        chunks.push({
+          type: "message-finish",
+          path: [],
+          finishReason: "stop",
+          usage: { inputTokens: 5, outputTokens: finalTokens },
+        });
+      }
+      chunks.push({ type: "annotations", path: [], annotations: ["done"] });
+
+      const messages = await collectStream(chunks);
+
+      expect(messages.at(-1)?.metadata.timing?.tokenCount).toBe(expected);
+      if (finalTokens !== undefined) {
+        expect(messages.at(-2)?.metadata.timing?.tokenCount).toBe(expected);
+      }
+    },
+  );
+
   it("should track tool calls in timing", async () => {
     const chunks: AssistantStreamChunk[] = [
       {

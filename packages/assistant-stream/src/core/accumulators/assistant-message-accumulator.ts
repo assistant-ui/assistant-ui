@@ -426,7 +426,10 @@ const handleUpdateState = (
 const computeTiming = (
   tracker: TimingTracker,
   message: AssistantMessage,
+  finalOutputTokens = 0,
 ): AssistantMessageTiming => {
+  if (finalOutputTokens > 0) return tracker.getTiming(finalOutputTokens);
+
   let outputTokens = 0;
   for (const step of message.metadata.steps) {
     if (step.state === "finished" && step.usage) {
@@ -476,6 +479,7 @@ export class AssistantMessageAccumulator extends TransformStream<
   } = {}) {
     let message = initialMessage ?? createInitialMessage();
     let stateAccumulator: GorpStreamAccumulator | undefined;
+    let finalOutputTokens: number | undefined;
     const tracker = new TimingTracker();
     const warnedKeys = new Set<string>();
     const warnOnce: WarnOnce = (key, warning) => {
@@ -526,6 +530,7 @@ export class AssistantMessageAccumulator extends TransformStream<
             message = handleResult(message, chunk, warnOnce);
             break;
           case "message-finish":
+            finalOutputTokens = chunk.usage?.outputTokens;
             message = handleMessageFinish(message, chunk);
             break;
           case "annotations":
@@ -562,7 +567,7 @@ export class AssistantMessageAccumulator extends TransformStream<
             ...message,
             metadata: {
               ...message.metadata,
-              timing: computeTiming(tracker, message),
+              timing: computeTiming(tracker, message, finalOutputTokens),
             },
           };
         }
@@ -593,7 +598,7 @@ export class AssistantMessageAccumulator extends TransformStream<
             ...message,
             metadata: {
               ...message.metadata,
-              timing: computeTiming(tracker, message),
+              timing: computeTiming(tracker, message, finalOutputTokens),
             },
           };
 
