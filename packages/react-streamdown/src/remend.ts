@@ -17,18 +17,30 @@ function onlyWhitespace(text: string, from: number, to: number): boolean {
   return true;
 }
 
+type BlockScan = {
+  boundary: number;
+  protectedRanges: number[];
+};
+
 /**
- * Returns the start of the last block outside open code fences and `$$` math.
- * Completion can use this boundary, but escapes must also reach earlier text.
+ * Single pass over the message. `boundary` is the start of the last block
+ * outside open code fences and `$$` math. `protectedRanges` holds closed
+ * fences and closed `$$` blocks as flat start/end pairs. A range always starts
+ * at a line start because remend drops a single trailing space from its input,
+ * so a cut inside a line would lose the space before the range; that rule also
+ * keeps a `$$` inside a backtick span at a line start out of the set.
  */
-export function findRemendWindowStart(text: string): number {
+function scanBlocks(text: string): BlockScan {
   const n = text.length;
   let inFence = false;
   let fenceChar = 0;
   let fenceRun = 0;
+  let fenceStart = 0;
   let inMath = false;
+  let mathStart = -1;
   let boundary = 0;
   let pending = -1;
+  const protectedRanges: number[] = [];
 
   for (let lineStart = 0; lineStart <= n;) {
     let lineEnd = text.indexOf("\n", lineStart);
@@ -49,12 +61,14 @@ export function findRemendWindowStart(text: string): number {
           inFence = true;
           fenceChar = first;
           fenceRun = run - i;
+          fenceStart = lineStart;
         } else if (
           first === fenceChar &&
           run - i >= fenceRun &&
           onlyWhitespace(text, run, lineEnd)
         ) {
           inFence = false;
+          if (!inMath) protectedRanges.push(fenceStart, lineEnd);
         }
       }
     }
@@ -67,6 +81,11 @@ export function findRemendWindowStart(text: string): number {
           text.charCodeAt(s + 1) === DOLLAR
         ) {
           if (s === 0 || text.charCodeAt(s - 1) !== BACKSLASH) {
+            if (inMath) {
+              if (mathStart !== -1) protectedRanges.push(mathStart, s + 2);
+            } else {
+              mathStart = s === i ? lineStart : -1;
+            }
             inMath = !inMath;
           }
           s += 2;
@@ -86,7 +105,15 @@ export function findRemendWindowStart(text: string): number {
     lineStart = lineEnd + 1;
   }
 
-  return boundary;
+  return { boundary, protectedRanges };
+}
+
+/**
+ * Returns the start of the last block outside open code fences and `$$` math.
+ * Completion can use this boundary, but escapes must also reach earlier text.
+ */
+export function findRemendWindowStart(text: string): number {
+  return scanBlocks(text).boundary;
 }
 
 /**
@@ -95,7 +122,8 @@ export function findRemendWindowStart(text: string): number {
  * disabled `links` handler. Every other option completes a dangling opener,
  * which mutates or deletes a block that has already settled, so the prefix pass
  * disables all of them. The two escapes skip backtick fences and inline spans
- * but not `~~~` fences, indented code, or math.
+ * but not `~~~` fences or math, so the prefix pass hands remend only the text
+ * between the closed fences and `$$` blocks the scan found.
  */
 type PrefixSafeOption =
   | "singleTilde"
@@ -119,17 +147,34 @@ const COMPLETION_OFF = {
 
 /**
  * Repairs incomplete Markdown in the final block and applies text escapes to
- * earlier blocks. Custom handlers receive the prefix and final block separately.
+ * earlier blocks. Custom handlers receive the final block and each run of
+ * earlier prose between protected blocks as separate calls.
  */
 export function tailBoundedRemend(
   text: string,
   options?: RemendOptions,
 ): string {
-  const start = findRemendWindowStart(text);
+  const { boundary: start, protectedRanges } = scanBlocks(text);
   if (start <= 0) return remend(text, options);
 
+  const prefixOptions = { ...options, ...COMPLETION_OFF };
+  let out = "";
+  let cursor = 0;
+  for (
+    let k = 0;
+    k + 1 < protectedRanges.length && protectedRanges[k + 1]! <= start;
+    k += 2
+  ) {
+    const from = protectedRanges[k]!;
+    const to = protectedRanges[k + 1]!;
+    out +=
+      remend(text.slice(cursor, from), prefixOptions) + text.slice(from, to);
+    cursor = to;
+  }
+
   return (
-    remend(text.slice(0, start), { ...options, ...COMPLETION_OFF }) +
+    out +
+    remend(text.slice(cursor, start), prefixOptions) +
     remend(text.slice(start), options)
   );
 }

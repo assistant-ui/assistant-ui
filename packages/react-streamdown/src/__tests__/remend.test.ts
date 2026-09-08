@@ -98,6 +98,60 @@ describe("tailBoundedRemend", () => {
     );
   });
 
+  it.each([
+    ["Costs $5 today. Use lm(y~x) now.", "Costs $5 today. Use lm(y\\~x) now."],
+    [
+      "Price is $5.\n\nUse lm(y~x) here.",
+      "Price is $5.\n\nUse lm(y\\~x) here.",
+    ],
+    ["Some prose\n    lm(y~x)", "Some prose\n    lm(y\\~x)"],
+    ["- a\n    - b uses x~y", "- a\n    - b uses x\\~y"],
+  ])("keeps escaping prose near currency and indentation: %j", (text, out) => {
+    expect(tailBoundedRemend(text)).toBe(out);
+    expect(tailBoundedRemend(`${text}\n\nTail`)).toBe(`${out}\n\nTail`);
+  });
+
+  it.each([
+    ["backtick fence", "```r\nlm(y~x)\n```"],
+    ["tilde fence", "~~~r\nlm(y~x)\n~~~"],
+    ["display math", "$$\na~b\n$$"],
+    ["single-line display math", "$$a~b$$"],
+    ["fence with a list comparison", "~~~\n- > 25\n~~~"],
+    ["fence inside display math", "$$\n```\na~b\n```\n$$"],
+  ])("leaves a settled %s untouched", (_, block) => {
+    const text = `${block}\n\nTail`;
+    expect(tailBoundedRemend(text)).toBe(text);
+  });
+
+  it("escapes prose on both sides of protected blocks", () => {
+    expect(
+      tailBoundedRemend(
+        "20~25\n\n~~~\nx~y\n~~~\n\n$$\na~b\n$$ and 1~2\n\n30~35\n\n- > 25\n\nTail",
+      ),
+    ).toBe(
+      "20\\~25\n\n~~~\nx~y\n~~~\n\n$$\na~b\n$$ and 1\\~2\n\n30\\~35\n\n- \\> 25\n\nTail",
+    );
+  });
+
+  it("protects only $$ blocks that open a line", () => {
+    expect(tailBoundedRemend("See $$a~b$$ here\n\nTail")).toBe(
+      "See $$a\\~b$$ here\n\nTail",
+    );
+    expect(tailBoundedRemend("`$$` x~y\n\n`$$` 1~2\n\nTail")).toBe(
+      "`$$` x\\~y\n\n`$$` 1\\~2\n\nTail",
+    );
+  });
+
+  it("runs custom handlers on the prose between protected blocks", () => {
+    expect(
+      tailBoundedRemend("Draft\n\n~~~\nDraft\n~~~\n\nDraft\n\nTail", {
+        handlers: [
+          { name: "rename", handle: (text) => text.replace("Draft", "Final") },
+        ],
+      }),
+    ).toBe("Final\n\n~~~\nDraft\n~~~\n\nFinal\n\nTail");
+  });
+
   it("keeps an unclosed fence inside the window", () => {
     const text = `intro\n\n\`\`\`python\n${"x = 1\n".repeat(500)}print("$dollar")`;
     expect(findRemendWindowStart(text)).toBe(text.indexOf("```python"));
