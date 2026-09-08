@@ -28,8 +28,35 @@ vi.mock("@/lib/source", () => {
     getPages: vi.fn(() => []),
   });
 
+  const docsPage = (
+    url: string,
+    title: string,
+    description: string,
+    contents: string[],
+  ) => ({
+    url,
+    data: {
+      title,
+      description,
+      structuredData: () => ({
+        headings: [],
+        contents: contents.map((content) => ({ content })),
+      }),
+    },
+  });
+
   return {
-    source: makeSource(),
+    source: {
+      ...makeSource(),
+      getPages: vi.fn(() => [
+        docsPage("/docs/ui/thread", "Thread", "Render a conversation.", [
+          "An unrelated opening paragraph.",
+        ]),
+        docsPage("/docs/guides/keyboard", "Keyboard", "Shortcuts.", [
+          "Press the escape key to dismiss the composer autocomplete popover.",
+        ]),
+      ]),
+    },
     examples: makeSource(),
     design: makeSource(),
     elementsDocs: makeSource(),
@@ -89,6 +116,20 @@ async function requestMcp(
 function getToolCallResult(response: JsonRpcResponse): ToolCallResult {
   expect(response.error).toBeUndefined();
   return response.result as ToolCallResult;
+}
+
+type SearchedPage = {
+  title: string;
+  url: string;
+  description?: string;
+  headings?: string[];
+  excerpt?: string;
+};
+
+function searchedPages(result: ToolCallResult): SearchedPage[] {
+  return JSON.parse(
+    result.content.find((block) => block.type === "text")?.text ?? "[]",
+  ) as SearchedPage[];
 }
 
 function registerBrowserTools(fetchImpl: FetchLike) {
@@ -231,9 +272,13 @@ describe("POST /api/mcp", () => {
     const searchTool = tools.find((tool) => tool.name === "searchDocs");
     if (!searchTool) throw new Error("missing searchDocs tool");
 
-    await expect(searchTool.execute({ query: "tools" })).resolves.toEqual({
-      content: [{ type: "text", text: "[]" }],
-    });
+    const searched = (await searchTool.execute({
+      query: "dismiss the popover",
+    })) as ToolCallResult;
+
+    const pages = searchedPages(searched);
+    expect(pages.map((page) => page.url)).toEqual(["/docs/guides/keyboard"]);
+    expect(pages[0]?.excerpt).toContain("autocomplete popover");
     expect(responseContentType).toContain("application/json");
   });
 
@@ -264,6 +309,28 @@ describe("POST /api/mcp", () => {
         inputSchemaShape(routeTool!.inputSchema),
       );
     }
+  });
+
+  it("ranks search_docs over page content, not metadata alone", async () => {
+    const response = await requestMcp("tools/call", {
+      name: "search_docs",
+      arguments: { query: "dismiss the popover" },
+    });
+    const pages = searchedPages(getToolCallResult(response));
+
+    expect(pages.map((page) => page.url)).toEqual(["/docs/guides/keyboard"]);
+    expect(pages[0]?.excerpt).toContain("autocomplete popover");
+  });
+
+  it("still matches search_docs on page metadata", async () => {
+    const response = await requestMcp("tools/call", {
+      name: "search_docs",
+      arguments: { query: "thread" },
+    });
+
+    expect(
+      searchedPages(getToolCallResult(response)).map((page) => page.url),
+    ).toEqual(["/docs/ui/thread"]);
   });
 
   it("returns the catalog-backed template list", async () => {
@@ -451,14 +518,14 @@ describe("POST /api/mcp", () => {
 
     const response = await requestMcp("tools/call", {
       name: "search_docs",
-      arguments: { query: "runtime" },
+      arguments: { query: "keyboard" },
     });
     const result = getToolCallResult(response);
 
     expect(result.isError).toBeFalsy();
-    expect(result.content.find((block) => block.type === "text")?.text).toBe(
-      "[]",
-    );
+    expect(searchedPages(result).map((page) => page.url)).toEqual([
+      "/docs/guides/keyboard",
+    ]);
   });
 
   it("surfaces a throttled template tool without reaching the sandbox", async () => {
