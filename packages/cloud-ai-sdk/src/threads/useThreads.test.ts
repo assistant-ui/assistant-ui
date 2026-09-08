@@ -516,6 +516,49 @@ describe("useThreads", () => {
     expect(result.current.threads[0]?.title).toBe("Explicit");
   });
 
+  it("still reports its generated title when the repair write fails", async () => {
+    const cloud = createCloud("cloud-1");
+    let writes = 0;
+    cloud.threads.update.mockImplementation(async () => {
+      writes += 1;
+      // the explicit write, then the automatic run's own write, then its repair
+      if (writes === 3) throw new Error("repair failed");
+    });
+    const automaticOpen = createDeferred<void>();
+    mocks.generateThreadTitle
+      .mockImplementationOnce(async (currentCloud, threadId) => {
+        await automaticOpen.promise;
+        await currentCloud.threads.update(threadId, { title: "Automatic" });
+        return "Automatic";
+      })
+      .mockImplementationOnce(async (currentCloud, threadId) => {
+        await currentCloud.threads.update(threadId, { title: "Explicit" });
+        return "Explicit";
+      });
+    const { result } = renderHook(() =>
+      useThreads({ cloud: cloud as never, enabled: false }),
+    );
+
+    let automatic!: Promise<string | null>;
+    act(() => {
+      automatic = result.current.generateTitle("thread-1", { automatic: true });
+    });
+    await act(async () => {
+      await result.current.generateTitle("thread-1");
+    });
+
+    let automaticTitle: string | null = null;
+    await act(async () => {
+      automaticOpen.resolve();
+      automaticTitle = await automatic;
+    });
+
+    expect(automaticTitle).toBe("Automatic");
+    await waitFor(() => {
+      expect(result.current.error?.message).toBe("repair failed");
+    });
+  });
+
   it("does not generate for an automatic run an explicit one outranked", async () => {
     const failingRename = createDeferred<void>();
     const cloud = createCloud("cloud-1");

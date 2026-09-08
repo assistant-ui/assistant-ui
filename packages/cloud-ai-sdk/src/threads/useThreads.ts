@@ -546,21 +546,52 @@ export function useThreads(options: UseThreadsOptions): UseThreadsResult {
 
       let persistedTitle: string | undefined;
       let persistedOrder = generation.order;
+      const settleClaim = async (claim: ThreadTitleClaim) => {
+        const renamed = await claim.settled;
+        if (generation.claim !== claim) return undefined;
+        if (!renamed) {
+          generation.claim = null;
+          if (state.pendingClaim === claim) state.pendingClaim = null;
+        }
+        return renamed;
+      };
+
+      const repairLostRace = async () => {
+        if (persistedTitle === undefined) return;
+        while (true) {
+          const claim = generation.claim;
+          if (
+            claim !== null &&
+            claim.order > persistedOrder &&
+            isCurrentClaim(state, claim)
+          ) {
+            const renamed = await settleClaim(claim);
+            if (renamed === true) {
+              persistedTitle = claim.title;
+              persistedOrder = claim.order;
+              await cloud.threads.update(tid, { title: claim.title });
+            }
+            continue;
+          }
+
+          const winner = state.latestExplicit;
+          if (winner === null || winner.order <= persistedOrder) return;
+          const winnerTitle = await winner.persisted;
+          if (state.latestExplicit !== winner) continue;
+          persistedOrder = winner.order;
+          if (winnerTitle === undefined || winnerTitle === persistedTitle) {
+            return;
+          }
+          persistedTitle = winnerTitle;
+          await cloud.threads.update(tid, { title: winnerTitle });
+        }
+      };
+
       try {
-        return await withAction(
+        const generatedTitle = await withAction(
           async (commit) => {
             let title: string | null = null;
             let generated = false;
-
-            const settleClaim = async (claim: ThreadTitleClaim) => {
-              const renamed = await claim.settled;
-              if (generation.claim !== claim) return undefined;
-              if (!renamed) {
-                generation.claim = null;
-                if (state.pendingClaim === claim) state.pendingClaim = null;
-              }
-              return renamed;
-            };
 
             const runGeneration = async () => {
               // `rename` resolves only once its own server write lands, so an
@@ -637,47 +668,16 @@ export function useThreads(options: UseThreadsOptions): UseThreadsResult {
               }
             };
 
-            const repairLostRace = async () => {
-              if (persistedTitle === undefined) return;
-              while (true) {
-                const claim = generation.claim;
-                if (
-                  claim !== null &&
-                  claim.order > persistedOrder &&
-                  isCurrentClaim(state, claim)
-                ) {
-                  const renamed = await settleClaim(claim);
-                  if (renamed === true) {
-                    persistedTitle = claim.title;
-                    persistedOrder = claim.order;
-                    await cloud.threads.update(tid, { title: claim.title });
-                  }
-                  continue;
-                }
-
-                const winner = state.latestExplicit;
-                if (winner === null || winner.order <= persistedOrder) return;
-                const winnerTitle = await winner.persisted;
-                if (state.latestExplicit !== winner) continue;
-                persistedOrder = winner.order;
-                if (
-                  winnerTitle === undefined ||
-                  winnerTitle === persistedTitle
-                ) {
-                  return;
-                }
-                persistedTitle = winnerTitle;
-                await cloud.threads.update(tid, { title: winnerTitle });
-              }
-            };
-
             await runGeneration();
-            await repairLostRace();
             return title;
           },
           null,
           isCurrentCloud,
         );
+        // The caller reads null as a failed generation, so a repair that fails
+        // surfaces through setError without rewriting the run's own result.
+        await withAction(repairLostRace, undefined, isCurrentCloud);
+        return generatedTitle;
       } finally {
         generation.settlePersisted(persistedTitle);
         state.generations.delete(generation);
