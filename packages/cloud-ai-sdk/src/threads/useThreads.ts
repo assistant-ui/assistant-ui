@@ -644,11 +644,13 @@ export function useThreads(options: UseThreadsOptions): UseThreadsResult {
 
                 if (generated) break;
                 if (!isCurrentGeneration(state, generation)) {
-                  // The caller reads a null result as a failed generation and
-                  // retries, so a superseded run reports the title that won
-                  // rather than the title it did not generate. The generation
-                  // it defers to may have been outranked while it waited, and
-                  // an outranked one persists nothing.
+                  // A run reports the title it generated, which is what lets
+                  // the caller tell a generation that produced something from
+                  // one that failed and should be retried. This path generated
+                  // nothing at all, so it falls back to the winner rather than
+                  // reporting a failure. The generation it defers to may have
+                  // been outranked while it waited, and an outranked one
+                  // persists nothing.
                   let winner = state.latestExplicit;
                   while (winner !== null) {
                     const winnerTitle = await winner.persisted;
