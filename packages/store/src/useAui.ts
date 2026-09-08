@@ -665,8 +665,8 @@ export function useAui(clients?: useAui.Props): AssistantClient {
   const parent = useAssistantContextValue();
   if (clients) {
     // oxlint-disable-next-line react-hooks/rules-of-hooks -- fixed per call site
-    // oxlint-disable-next-line react-hooks/rules-of-hooks -- fixed per call site
     const destroySignal = useHostDestroySignal();
+    // oxlint-disable-next-line react-hooks/rules-of-hooks -- fixed per call site
     const { client, effects } = useConfiguredAuiImpl(
       parent,
       clients,

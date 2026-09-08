@@ -5,7 +5,13 @@ import { act, cleanup, render } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { useHostDestroySignal } from "./useHostDestroySignal";
 
-afterEach(cleanup);
+let consoleErrors: ReturnType<typeof vi.spyOn> | undefined;
+
+afterEach(() => {
+  cleanup();
+  consoleErrors?.mockRestore();
+  consoleErrors = undefined;
+});
 
 const nextTask = () => new Promise((resolve) => setTimeout(resolve, 0));
 
@@ -59,6 +65,7 @@ describe("useHostDestroySignal", () => {
 
   it("lets an abort listener update a surviving component", async () => {
     const errors = vi.spyOn(console, "error").mockImplementation(() => {});
+    consoleErrors = errors;
     let bump: (() => void) | undefined;
     const Sibling = () => {
       const [, set] = useState(0);
@@ -79,7 +86,6 @@ describe("useHostDestroySignal", () => {
     await act(async () => view.rerender(<Shell mounted={false} />));
     expect(captured.aborted).toBe(true);
     expect(errors).not.toHaveBeenCalled();
-    errors.mockRestore();
   });
 
   it("stays armed while a sibling keeps the boundary re-suspended", async () => {

@@ -26,6 +26,8 @@ describe("AISDKChat React integration", () => {
 
     await act(async () => send());
     await waitFor(() => expect(isRunning()).toBe(true));
+    // the Strict Mode double mount already ran a host cleanup by now
+    expect(getCancelCount()).toBe(0);
 
     view.unmount();
     await waitFor(() => expect(getCancelCount()).toBe(1));
@@ -58,6 +60,7 @@ describe("AISDKChat legacy useAui host integration", () => {
 
     await act(async () => send());
     await waitFor(() => expect(isRunning()).toBe(true));
+    expect(getCancelCount()).toBe(0);
 
     view.unmount();
     await waitFor(() => expect(getCancelCount()).toBe(1));

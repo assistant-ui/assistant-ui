@@ -104,6 +104,8 @@ describe("useChatRuntime integration", () => {
 
     await act(async () => send());
     await waitFor(() => expect(isRunning()).toBe(true));
+    // the Strict Mode double mount already ran a host cleanup by now
+    expect(getCancelCount()).toBe(0);
 
     view.unmount();
     await waitFor(() => expect(getCancelCount()).toBe(1));
@@ -148,7 +150,7 @@ describe("useChatRuntime integration", () => {
     await waitFor(() => expect(getCancelCount()).toBe(1));
   });
 
-  it("aborts a nested runtime's stream when the host it runs under unmounts", async () => {
+  it("aborts a nested runtime's stream when the provider above it unmounts", async () => {
     const outer = createCancellableTransport();
     const { transport, getCancelCount } = createCancellableTransport();
     let nested: AssistantRuntime | undefined;
