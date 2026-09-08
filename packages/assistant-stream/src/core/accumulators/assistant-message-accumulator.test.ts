@@ -97,6 +97,24 @@ describe("AssistantMessageAccumulator tool argument status", () => {
       status: { type: "complete", reason: "stop" },
     });
   });
+
+  it("preserves completed status when argument text finishes after the part", async () => {
+    const messages = await collectStream([
+      {
+        type: "part-start",
+        path: [],
+        part: { type: "tool-call", toolCallId: "tc-1", toolName: "search" },
+      },
+      { type: "text-delta", path: [0], textDelta: '{"q":"test"}' },
+      { type: "part-finish", path: [0] },
+      { type: "tool-call-args-text-finish", path: [0] },
+    ]);
+
+    expect(messages[3]?.parts[0]).toMatchObject({
+      state: "call",
+      status: { type: "complete", reason: "unknown" },
+    });
+  });
 });
 
 describe("AssistantMessageAccumulator timing", () => {
