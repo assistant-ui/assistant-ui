@@ -24,6 +24,16 @@ export function useAdaptedComponents({
   components,
   componentsByLanguage,
 }: UseAdaptedComponentsOptions): StreamdownProps["components"] {
+  const userPre = components?.pre;
+  const PreComponent = useMemo(
+    () =>
+      userPre
+        ? (props: ComponentProps<typeof PreOverride>) =>
+            createElement(PreOverride, { ...props, fallbackPre: userPre })
+        : PreOverride,
+    [userPre],
+  );
+
   return useMemo(() => {
     const { SyntaxHighlighter, CodeHeader, ...htmlComponents } =
       components ?? {};
@@ -34,15 +44,7 @@ export function useAdaptedComponents({
       componentsByLanguage,
     };
 
-    const baseComponents = {
-      pre: htmlComponents.pre
-        ? (props: ComponentProps<typeof PreOverride>) =>
-            createElement(PreOverride, {
-              ...props,
-              fallbackPre: htmlComponents.pre,
-            })
-        : PreOverride,
-    };
+    const baseComponents = { pre: PreComponent };
 
     if (!shouldUseCodeAdapter(codeAdapterOptions)) {
       return { ...htmlComponents, ...baseComponents };
@@ -55,5 +57,5 @@ export function useAdaptedComponents({
       ...baseComponents,
       code: AdaptedCode,
     };
-  }, [components, componentsByLanguage]);
+  }, [components, componentsByLanguage, PreComponent]);
 }

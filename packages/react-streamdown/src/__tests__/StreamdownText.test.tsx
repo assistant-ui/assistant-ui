@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, afterEach } from "vitest";
-import { cleanup, render, screen } from "@testing-library/react";
+import { cleanup, fireEvent, render, screen } from "@testing-library/react";
 import { TextMessagePartProvider } from "@assistant-ui/react";
 import type { ReactNode } from "react";
 import { defaultRehypePlugins } from "streamdown";
@@ -25,6 +25,84 @@ describe("StreamdownTextPrimitive", () => {
       ),
     ).not.toThrow();
   });
+
+  it.each(["components", "componentsByLanguage"])(
+    "preserves pre content and focus when %s gets a new object",
+    async (changedProp) => {
+      const Pre: NonNullable<StreamdownTextComponents["pre"]> = ({
+        node,
+        children,
+        ...props
+      }) => (
+        <pre {...props} className="custom-pre" data-tag={node?.tagName}>
+          {children}
+        </pre>
+      );
+      const Code: NonNullable<StreamdownTextComponents["code"]> = ({
+        children,
+      }) => (
+        <pre>
+          <code>{children}</code>
+          <input aria-label="Code note" defaultValue="Draft" />
+        </pre>
+      );
+      const components = { pre: Pre, code: Code };
+      const componentsByLanguage = {};
+      const text =
+        '<pre title="Plain text">  first\n  second</pre>\n\n```ts\nconst x = 1;\n```';
+      const { container, rerender } = render(
+        <TextMessagePartProvider text={text} isRunning={false}>
+          <StreamdownTextPrimitive
+            mode="static"
+            components={components}
+            componentsByLanguage={componentsByLanguage}
+          />
+        </TextMessagePartProvider>,
+      );
+
+      await screen.findByText("const x = 1;");
+      const pre = container.querySelector("pre.custom-pre");
+      const code = container.querySelector("pre > code");
+      expect(pre?.textContent).toBe("  first\n  second");
+      expect(pre?.getAttribute("title")).toBe("Plain text");
+      expect(pre?.getAttribute("data-tag")).toBe("pre");
+      expect(pre?.hasAttribute("node")).toBe(false);
+      expect(code?.textContent).toContain("const x = 1;");
+      const input = screen.getByRole<HTMLInputElement>("textbox");
+      fireEvent.change(input, { target: { value: "Keep this note" } });
+      input.focus();
+
+      rerender(
+        <TextMessagePartProvider
+          text={text.replace("first", "third").replace("1;", "2;")}
+          isRunning={false}
+        >
+          <StreamdownTextPrimitive
+            mode="static"
+            components={
+              changedProp === "components" ? { ...components } : components
+            }
+            componentsByLanguage={
+              changedProp === "componentsByLanguage" ? {} : componentsByLanguage
+            }
+          />
+        </TextMessagePartProvider>,
+      );
+
+      expect(container.querySelector("pre.custom-pre")?.textContent).toBe(
+        "  third\n  second",
+      );
+      expect(container.querySelector("pre > code")?.textContent).toContain(
+        "const x = 2;",
+      );
+      expect(screen.getByRole<HTMLInputElement>("textbox").value).toBe(
+        "Keep this note",
+      );
+      expect(document.activeElement).toBe(input);
+      expect(container.querySelector("pre.custom-pre")).toBe(pre);
+      expect(container.querySelector("pre > code")).toBe(code);
+    },
+  );
 
   it("updates streamdown controls when the message completes", async () => {
     const table = `| a | b |\n| - | - |\n| 1 | 2 |`;
