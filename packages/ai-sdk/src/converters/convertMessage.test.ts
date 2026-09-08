@@ -488,7 +488,21 @@ describe("AISDKMessageConverter", () => {
                 id: "approval-1",
                 display: "select",
                 allowFreeform: true,
-                options: [{ id: "once", kind: "allow-once" }],
+                options: [
+                  {
+                    id: "once",
+                    kind: "allow-once",
+                    label: "Only once",
+                    grants: ["repository", 42],
+                    confirm: {
+                      title: "Confirm access",
+                      description: { invalid: true },
+                    },
+                  },
+                  "invalid",
+                  { id: 1, kind: "allow-always" },
+                  { id: "always", kind: 2 },
+                ],
                 optionId: "once",
                 text: "an answer",
               },
@@ -507,7 +521,15 @@ describe("AISDKMessageConverter", () => {
       id: "approval-1",
       display: "select",
       allowFreeform: true,
-      options: [{ id: "once", kind: "allow-once" }],
+      options: [
+        {
+          id: "once",
+          kind: "allow-once",
+          label: "Only once",
+          grants: ["repository"],
+          confirm: { title: "Confirm access" },
+        },
+      ],
       optionId: "once",
       text: "an answer",
     });

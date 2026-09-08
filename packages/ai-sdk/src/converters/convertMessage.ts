@@ -12,6 +12,7 @@ import {
 import {
   isMcpAppUri,
   type ReasoningMessagePart,
+  type ToolApprovalOption,
   type ToolCallMessagePart,
   type TextMessagePart,
   type DataMessagePart,
@@ -153,6 +154,55 @@ function extractMcpAppMetadata(
   return out;
 }
 
+const normalizeToolApprovalOptions = (
+  options: unknown,
+): readonly ToolApprovalOption[] | undefined => {
+  if (!Array.isArray(options)) return undefined;
+
+  return options.flatMap<ToolApprovalOption>((value) => {
+    if (!value || typeof value !== "object" || Array.isArray(value)) return [];
+    const option = value as Record<string, unknown>;
+    if (typeof option.id !== "string" || typeof option.kind !== "string")
+      return [];
+
+    const confirm = option.confirm;
+    const confirmDetails =
+      confirm && typeof confirm === "object" && !Array.isArray(confirm)
+        ? (confirm as Record<string, unknown>)
+        : undefined;
+
+    return [
+      {
+        id: option.id,
+        kind: option.kind,
+        ...(typeof option.label === "string" && { label: option.label }),
+        ...(typeof option.description === "string" && {
+          description: option.description,
+        }),
+        ...(Array.isArray(option.grants) && {
+          grants: option.grants.filter(
+            (grant): grant is string => typeof grant === "string",
+          ),
+        }),
+        ...(typeof confirm === "boolean"
+          ? { confirm }
+          : confirmDetails
+            ? {
+                confirm: {
+                  ...(typeof confirmDetails.title === "string" && {
+                    title: confirmDetails.title,
+                  }),
+                  ...(typeof confirmDetails.description === "string" && {
+                    description: confirmDetails.description,
+                  }),
+                },
+              }
+            : {}),
+      },
+    ];
+  });
+};
+
 function getToolApprovalAndInterrupt(
   part: {
     approval?: Record<string, unknown> | undefined;
@@ -164,9 +214,9 @@ function getToolApprovalAndInterrupt(
   interrupt?: NonNullable<ToolCallMessagePart["interrupt"]>;
 } {
   if (part.approval) {
-    // The AI SDK sends only id, approved and reason back to the server, so a
-    // request shape promising any other answer would render controls whose
-    // response cannot travel.
+    // The built-in AI SDK channel sends only id, approved and reason back to
+    // the server, so a request shape promising any other answer would render
+    // controls whose response cannot travel.
     const {
       id,
       prompt,
@@ -181,6 +231,7 @@ function getToolApprovalAndInterrupt(
       text,
       ...additionalApprovalFields
     } = part.approval;
+    const normalizedOptions = normalizeToolApprovalOptions(options);
     if (typeof id === "string")
       return {
         approval: {
@@ -195,7 +246,7 @@ function getToolApprovalAndInterrupt(
               display === "select" ||
               display === "text") && { display }),
             ...(typeof allowFreeform === "boolean" && { allowFreeform }),
-            ...(Array.isArray(options) && { options }),
+            ...(normalizedOptions && { options: normalizedOptions }),
             ...(typeof optionId === "string" && { optionId }),
             ...(typeof text === "string" && { text }),
           }),
