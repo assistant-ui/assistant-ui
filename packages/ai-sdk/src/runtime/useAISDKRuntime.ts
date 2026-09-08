@@ -115,6 +115,14 @@ export type AISDKRuntimeAdapter<UI_MESSAGE extends UIMessage = UIMessage> =
      */
     onResumeToolCall?: ExternalStoreAdapter["onResumeToolCall"];
     /**
+     * Called when the user answers a tool approval request.
+     *
+     * When omitted, responses are sent through the AI SDK's
+     * `addToolApprovalResponse`. Custom handlers receive the complete normalized
+     * response, including option and free-form answers.
+     */
+    onRespondToToolApproval?: ExternalStoreAdapter["onRespondToToolApproval"];
+    /**
      * How consecutive assistant messages are rendered.
      *
      * `"concat-content"` (the default) merges them into a single thread message.
@@ -229,6 +237,7 @@ export const useAISDKRuntime = <UI_MESSAGE extends UIMessage = UIMessage>(
     cancelPendingToolCallsOnSend = true,
     onResume,
     onResumeToolCall,
+    onRespondToToolApproval: customOnRespondToToolApproval,
     joinStrategy,
     messageRepository,
     unstable_onBranchChange,
@@ -271,6 +280,16 @@ export const useAISDKRuntime = <UI_MESSAGE extends UIMessage = UIMessage>(
     cancelledMessages?.chatId === chatHelpers.id
       ? cancelledMessages.ids
       : NO_CANCELLED_MESSAGE_IDS;
+  const supportsRichToolApprovalResponses =
+    customOnRespondToToolApproval != null;
+
+  const toThreadMessages = useCallback(
+    (sourceMessages: UI_MESSAGE[]) =>
+      AISDKMessageConverter.toThreadMessages(sourceMessages, false, {
+        supportsRichToolApprovalResponses,
+      }),
+    [supportsRichToolApprovalResponses],
+  );
 
   const retractCancellation = useCallback(
     (chatId: string, messageId: string) => {
@@ -314,6 +333,7 @@ export const useAISDKRuntime = <UI_MESSAGE extends UIMessage = UIMessage>(
         toolArgsKeyOrderCache: toolArgsKeyOrderCacheRef.current,
         toolLastInputCache: toolLastInputCacheRef.current,
         mcpAppMetadataCache: mcpAppMetadataCacheRef.current,
+        supportsRichToolApprovalResponses,
         ...(optimisticMessageId && { optimisticMessageId }),
         ...(chatHelpers.error && { error: chatHelpers.error.message }),
         ...(cancelledMessageIds.size > 0 && { cancelledMessageIds }),
@@ -324,6 +344,7 @@ export const useAISDKRuntime = <UI_MESSAGE extends UIMessage = UIMessage>(
         optimisticMessageId,
         chatHelpers.error,
         cancelledMessageIds,
+        supportsRichToolApprovalResponses,
       ],
     ),
   });
@@ -331,13 +352,11 @@ export const useAISDKRuntime = <UI_MESSAGE extends UIMessage = UIMessage>(
   const exportedMessageRepository = useMemo(() => {
     if (!messageRepository) return undefined;
     const converted = toExportedMessageRepository(
-      AISDKMessageConverter.toThreadMessages as (
-        messages: UI_MESSAGE[],
-      ) => ThreadMessage[],
+      toThreadMessages,
       messageRepository,
     );
     return converted.messages.length > 0 ? converted : undefined;
-  }, [messageRepository]);
+  }, [messageRepository, toThreadMessages]);
 
   const generatedSuggestions = useGeneratedSuggestions(
     suggestionAdapter,
@@ -354,9 +373,7 @@ export const useAISDKRuntime = <UI_MESSAGE extends UIMessage = UIMessage>(
   const { isLoading, deleteMessage: deleteHistoryMessage } = useExternalHistory(
     runtimeRef,
     adapters?.history ?? contextAdapters?.history,
-    AISDKMessageConverter.toThreadMessages as (
-      messages: UI_MESSAGE[],
-    ) => ThreadMessage[],
+    toThreadMessages,
     aiSDKV6FormatAdapter as MessageFormatAdapter<
       UI_MESSAGE,
       AISDKStorageFormat
@@ -485,10 +502,7 @@ export const useAISDKRuntime = <UI_MESSAGE extends UIMessage = UIMessage>(
     },
     onLoadExternalState: (repo: MessageFormatRepository<UI_MESSAGE>) => {
       // Convert MessageFormatRepository to ExportedMessageRepository
-      const exportedRepo = toExportedMessageRepository(
-        AISDKMessageConverter.toThreadMessages,
-        repo,
-      );
+      const exportedRepo = toExportedMessageRepository(toThreadMessages, repo);
 
       // Import into the thread's MessageRepository
       runtimeRef.current.thread.import(exportedRepo);
@@ -618,15 +632,17 @@ export const useAISDKRuntime = <UI_MESSAGE extends UIMessage = UIMessage>(
         );
       }
     },
-    onRespondToToolApproval: ({ approvalId, approved, reason }) =>
-      Promise.resolve(
-        chatHelpers.addToolApprovalResponse({
-          id: approvalId,
-          approved,
-          ...(reason != null && { reason }),
-          options: { metadata: lastRunConfigRef.current },
-        }),
-      ),
+    onRespondToToolApproval:
+      customOnRespondToToolApproval ??
+      (({ approvalId, approved, reason }) =>
+        Promise.resolve(
+          chatHelpers.addToolApprovalResponse({
+            id: approvalId,
+            approved,
+            ...(reason != null && { reason }),
+            options: { metadata: lastRunConfigRef.current },
+          }),
+        )),
     ...pickExternalStoreSharedOptions(adapter),
     ...(adapter.unstable_messageRepositoryInstance && {
       unstable_messageRepositoryInstance:

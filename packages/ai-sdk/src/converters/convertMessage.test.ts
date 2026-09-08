@@ -472,6 +472,47 @@ describe("AISDKMessageConverter", () => {
     });
   });
 
+  it("preserves rich approval fields for a custom response channel", () => {
+    const converted = AISDKMessageConverter.toThreadMessages(
+      [
+        {
+          id: "a1",
+          role: "assistant",
+          parts: [
+            {
+              type: "tool-deploy",
+              toolCallId: "tc-1",
+              state: "approval-responded",
+              input: {},
+              approval: {
+                id: "approval-1",
+                display: "select",
+                allowFreeform: true,
+                options: [{ id: "once", kind: "allow-once" }],
+                optionId: "once",
+                text: "an answer",
+              },
+            },
+          ],
+        } as any,
+      ],
+      false,
+      { supportsRichToolApprovalResponses: true },
+    );
+
+    const toolCall = converted[0]?.content.find(
+      (part): part is any => part.type === "tool-call",
+    );
+    expect(toolCall?.approval).toEqual({
+      id: "approval-1",
+      display: "select",
+      allowFreeform: true,
+      options: [{ id: "once", kind: "allow-once" }],
+      optionId: "once",
+      text: "an answer",
+    });
+  });
+
   it("drops a resolution the core contract does not declare", () => {
     const converted = AISDKMessageConverter.toThreadMessages([
       {

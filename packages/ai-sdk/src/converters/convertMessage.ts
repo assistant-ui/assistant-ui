@@ -60,6 +60,7 @@ export type AISDKMessageConverterMetadata =
     toolArgsKeyOrderCache?: Map<string, Map<string, string[]>>;
     toolLastInputCache?: Map<string, ReadonlyJSONObject>;
     mcpAppMetadataCache?: Map<string, McpAppMetadata>;
+    supportsRichToolApprovalResponses?: boolean;
     /** Id of the currently-streaming message, flagged optimistic (#4037). */
     optimisticMessageId?: string | undefined;
   };
@@ -157,6 +158,7 @@ function getToolApprovalAndInterrupt(
     approval?: Record<string, unknown> | undefined;
   },
   toolStatus: { type: string; payload?: unknown } | undefined,
+  supportsRichToolApprovalResponses: boolean,
 ): {
   approval?: NonNullable<ToolCallMessagePart["approval"]>;
   interrupt?: NonNullable<ToolCallMessagePart["interrupt"]>;
@@ -188,6 +190,15 @@ function getToolApprovalAndInterrupt(
           ...(typeof approved === "boolean" && { approved }),
           ...(typeof reason === "string" && { reason }),
           ...(isAutomatic === true && { isAutomatic: true }),
+          ...(supportsRichToolApprovalResponses && {
+            ...((display === "decision" ||
+              display === "select" ||
+              display === "text") && { display }),
+            ...(typeof allowFreeform === "boolean" && { allowFreeform }),
+            ...(Array.isArray(options) && { options }),
+            ...(typeof optionId === "string" && { optionId }),
+            ...(typeof text === "string" && { text }),
+          }),
           ...((resolution === "cancelled" || resolution === "expired") && {
             resolution,
           }),
@@ -342,7 +353,11 @@ function convertParts(
                   part.callProviderMetadata as PartProviderMetadata,
               }
             : undefined),
-          ...getToolApprovalAndInterrupt(part, toolStatus),
+          ...getToolApprovalAndInterrupt(
+            part,
+            toolStatus,
+            metadata.supportsRichToolApprovalResponses === true,
+          ),
         } satisfies ToolCallMessagePart;
       }
 
