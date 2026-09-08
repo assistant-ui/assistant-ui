@@ -1,6 +1,11 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
-import type { RealtimeVoiceAdapter } from "../../adapters/voice";
+import {
+  createVoiceSession,
+  type RealtimeVoiceAdapter,
+  type VoiceSessionHelpers,
+} from "../../adapters/voice";
 import type { ModelContextProvider } from "../../model-context/types";
+import { LocalRuntimeCore } from "../../runtimes/local/local-runtime-core";
 import type { AppendMessage } from "../../types/message";
 import { CompositeContextProvider } from "../../utils/composite-context-provider";
 import type {
@@ -294,5 +299,64 @@ describe("BaseThreadRuntimeCore voice volume subscriptions", () => {
         listenerError,
       );
     });
+  });
+});
+
+describe("BaseThreadRuntimeCore voice transcripts", () => {
+  it("completes a final-only reply before the next streamed reply", async () => {
+    const { promise, resolve } = Promise.withResolvers<VoiceSessionHelpers>();
+    const core = new LocalRuntimeCore(
+      {
+        adapters: {
+          chatModel: { run: async () => ({ content: [] }) },
+          voice: {
+            connect: (options) =>
+              createVoiceSession(options, async (helpers) => {
+                resolve(helpers);
+                return { disconnect() {}, mute() {}, unmute() {} };
+              }),
+          },
+        },
+      },
+      undefined,
+    );
+    const runtime = core.threads.getMainThreadRuntimeCore();
+    runtime.connectVoice();
+    const { emitTranscript } = await promise;
+
+    try {
+      emitTranscript({
+        role: "assistant",
+        text: "Finished reply",
+        isFinal: true,
+      });
+      expect(runtime.messages).toMatchObject([
+        {
+          content: [{ type: "text", text: "Finished reply" }],
+          status: { type: "complete", reason: "stop" },
+        },
+      ]);
+
+      emitTranscript({ role: "assistant", text: "Next" });
+      expect(runtime.messages.at(-1)?.status).toEqual({ type: "running" });
+
+      emitTranscript({
+        role: "assistant",
+        text: "Next reply",
+        isFinal: true,
+      });
+      expect(runtime.messages).toMatchObject([
+        {
+          content: [{ type: "text", text: "Finished reply" }],
+          status: { type: "complete", reason: "stop" },
+        },
+        {
+          content: [{ type: "text", text: "Next reply" }],
+          status: { type: "complete", reason: "stop" },
+        },
+      ]);
+    } finally {
+      runtime.disconnectVoice();
+    }
   });
 });

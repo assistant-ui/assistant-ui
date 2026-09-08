@@ -405,7 +405,9 @@ export abstract class BaseThreadRuntimeCore
             steps: [],
             custom: {},
           },
-          status: { type: "running" },
+          status: transcript.isFinal
+            ? { type: "complete", reason: "stop" }
+            : { type: "running" },
           createdAt: new Date(),
         };
         this._voiceMessages.push(this._currentAssistantMsg);
