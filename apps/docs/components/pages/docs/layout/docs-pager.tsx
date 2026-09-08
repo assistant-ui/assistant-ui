@@ -74,7 +74,7 @@ export function DocsPager({
   const { copy, prefetch, isLoading } = useMarkdownCopy(markdownUrl);
 
   const handleCopy = () => {
-    analytics.toc.actionClicked("copy", "pager");
+    analytics.pageActions.actionClicked("copy");
     copy();
   };
 
@@ -125,7 +125,7 @@ export function DocsPager({
             </DropdownMenuItem>
             <DropdownMenuItem
               className="items-start gap-3 py-2"
-              onClick={() => analytics.toc.actionClicked("markdown", "pager")}
+              onClick={() => analytics.pageActions.actionClicked("markdown")}
               render={
                 <a
                   href={`${BASE_URL}${markdownUrl}`}
@@ -142,7 +142,7 @@ export function DocsPager({
             </DropdownMenuItem>
             <DropdownMenuItem
               className="items-start gap-3 py-2"
-              onClick={() => analytics.toc.actionClicked("claude", "pager")}
+              onClick={() => analytics.pageActions.actionClicked("claude")}
               render={
                 <a
                   href={getClaudePageUrl(markdownUrl, title)}
@@ -159,7 +159,7 @@ export function DocsPager({
             </DropdownMenuItem>
             <DropdownMenuItem
               className="items-start gap-3 py-2"
-              onClick={() => analytics.toc.actionClicked("codex", "pager")}
+              onClick={() => analytics.pageActions.actionClicked("codex")}
               render={
                 <a href={CODEX_URL} target="_blank" rel="noreferrer noopener" />
               }
@@ -174,7 +174,7 @@ export function DocsPager({
             <DropdownMenuItem
               className="items-start gap-3 py-2"
               onClick={() => {
-                analytics.toc.actionClicked("mcp", "pager");
+                analytics.pageActions.actionClicked("mcp");
                 void copyText(DOCS_MCP_URL, "MCP server URL copied");
               }}
             >

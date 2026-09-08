@@ -97,17 +97,13 @@ export const analytics = {
   },
 
   toc: {
-    actionClicked: (
-      action:
-        | "copy"
-        | "markdown"
-        | "github"
-        | "ask_ai"
-        | "claude"
-        | "codex"
-        | "mcp",
-      surface: "toc" | "pager" = "toc",
-    ) => trackEvent("toc_action_clicked", { action, surface }),
+    actionClicked: (action: "copy" | "markdown" | "github" | "ask_ai") =>
+      trackEvent("toc_action_clicked", { action }),
+  },
+
+  pageActions: {
+    actionClicked: (action: "copy" | "markdown" | "claude" | "codex" | "mcp") =>
+      trackEvent("page_action_clicked", { action }),
   },
 
   install: {
