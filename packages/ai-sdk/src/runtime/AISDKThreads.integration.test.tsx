@@ -7,24 +7,12 @@ import { flushTapSync } from "@assistant-ui/tap";
 import { afterEach, describe, expect, it } from "vitest";
 import { AISDKThreads } from "./AISDKThreads";
 import {
-  createCancellableTransport,
   createStreamHarness,
+  createThreadTransports,
   nextTask,
 } from "./__tests__/controlled-transport";
 
 afterEach(cleanup);
-
-const createThreadTransports = () => {
-  const chats: ReturnType<typeof createCancellableTransport>[] = [];
-  return {
-    chats,
-    transport: () => {
-      const chat = createCancellableTransport();
-      chats.push(chat);
-      return chat.transport;
-    },
-  };
-};
 
 describe("AISDKThreads React host integration", () => {
   it("stops every cached chat when the React host unmounts", async () => {

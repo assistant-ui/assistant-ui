@@ -44,6 +44,18 @@ export const createCancellableTransport = () => {
   };
 };
 
+export const createThreadTransports = () => {
+  const chats: ReturnType<typeof createCancellableTransport>[] = [];
+  return {
+    chats,
+    transport: () => {
+      const chat = createCancellableTransport();
+      chats.push(chat);
+      return chat.transport;
+    },
+  };
+};
+
 export const nextTask = () => new Promise((resolve) => setTimeout(resolve, 0));
 
 export const createStreamHarness = () => {

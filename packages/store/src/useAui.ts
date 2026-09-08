@@ -602,33 +602,26 @@ const createDestroyChain = (
   };
 };
 
-// Ref-cached rather than useMemo: the chain holds listeners on two signals, so
-// a dropped memo cache would strand them. Superseding disposes in place, which
-// is safe to repeat because removeEventListener is idempotent.
+// Disposal is commit-scoped: an abandoned render must not release the chain the
+// committed client still holds, or nothing would abort it later. Building a
+// chain during render only adds listeners, so a discarded one is inert.
 const useDestroyChain = (
   inherited: AbortSignal | undefined,
   own: AbortSignal | undefined,
 ): AbortSignal | undefined => {
-  const cache = useRef<{
-    inherited: AbortSignal | undefined;
-    own: AbortSignal | undefined;
-    chain: DestroyChain;
-  } | null>(null);
+  const chain = useMemo(
+    () => createDestroyChain(inherited, own),
+    [inherited, own],
+  );
+  const committed = useRef(chain);
 
-  if (
-    cache.current === null ||
-    cache.current.inherited !== inherited ||
-    cache.current.own !== own
-  ) {
-    cache.current?.chain.dispose();
-    cache.current = {
-      inherited,
-      own,
-      chain: createDestroyChain(inherited, own),
-    };
-  }
+  useInsertionEffect(() => {
+    if (committed.current === chain) return;
+    committed.current.dispose();
+    committed.current = chain;
+  });
 
-  return cache.current.chain.signal;
+  return chain.signal;
 };
 
 // The rooted half of `useConfiguredAuiImpl`, extracted so its hooks run
