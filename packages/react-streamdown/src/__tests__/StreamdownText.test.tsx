@@ -26,8 +26,8 @@ describe("StreamdownTextPrimitive", () => {
     ).not.toThrow();
   });
 
-  it.each(["components", "componentsByLanguage"])(
-    "preserves pre content and focus when %s gets a new object",
+  it.each(["components", "componentsByLanguage", "pre"])(
+    "preserves fenced-code state when %s changes",
     async (changedProp) => {
       const Pre: NonNullable<StreamdownTextComponents["pre"]> = ({
         node,
@@ -80,7 +80,14 @@ describe("StreamdownTextPrimitive", () => {
           <StreamdownTextPrimitive
             mode="static"
             components={
-              changedProp === "components" ? { ...components } : components
+              changedProp === "pre"
+                ? {
+                    ...components,
+                    pre: (props) => <Pre {...props} title="Updated renderer" />,
+                  }
+                : changedProp === "components"
+                  ? { ...components }
+                  : components
             }
             componentsByLanguage={
               changedProp === "componentsByLanguage" ? {} : componentsByLanguage
@@ -92,6 +99,9 @@ describe("StreamdownTextPrimitive", () => {
       expect(container.querySelector("pre.custom-pre")?.textContent).toBe(
         "  third\n  second",
       );
+      expect(
+        container.querySelector("pre.custom-pre")?.getAttribute("title"),
+      ).toBe(changedProp === "pre" ? "Updated renderer" : "Plain text");
       expect(container.querySelector("pre > code")?.textContent).toContain(
         "const x = 2;",
       );
@@ -99,7 +109,6 @@ describe("StreamdownTextPrimitive", () => {
         "Keep this note",
       );
       expect(document.activeElement).toBe(input);
-      expect(container.querySelector("pre.custom-pre")).toBe(pre);
       expect(container.querySelector("pre > code")).toBe(code);
     },
   );

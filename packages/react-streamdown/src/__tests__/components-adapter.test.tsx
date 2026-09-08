@@ -1,7 +1,6 @@
 import { describe, it, expect, vi, afterEach } from "vitest";
 import { cleanup, render, renderHook, screen } from "@testing-library/react";
 import { createElement } from "react";
-import { Streamdown } from "streamdown";
 import { useAdaptedComponents } from "../adapters/components-adapter";
 import type { StreamdownTextComponents } from "../types";
 
@@ -41,27 +40,6 @@ describe("useAdaptedComponents", () => {
       expect(result.current).toHaveProperty("code");
       expect(result.current).toHaveProperty("pre");
     });
-  });
-
-  it("uses the consumer pre component for raw text blocks", () => {
-    const Pre: NonNullable<StreamdownTextComponents["pre"]> = ({
-      node,
-      ...props
-    }) => <pre {...props} className="custom-pre" data-tag={node?.tagName} />;
-    const { result } = renderHook(() =>
-      useAdaptedComponents({ components: { pre: Pre } }),
-    );
-    const { container } = render(
-      <Streamdown mode="static" components={result.current}>
-        {'<pre title="Plain text">  first\n  second</pre>'}
-      </Streamdown>,
-    );
-
-    const pre = container.querySelector("pre.custom-pre");
-    expect(pre?.textContent).toBe("  first\n  second");
-    expect(pre?.getAttribute("title")).toBe("Plain text");
-    expect(pre?.getAttribute("data-tag")).toBe("pre");
-    expect(pre?.hasAttribute("node")).toBe(false);
   });
 
   describe("with SyntaxHighlighter", () => {

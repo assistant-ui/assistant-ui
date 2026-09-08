@@ -1,6 +1,6 @@
 "use client";
 
-import { type ComponentProps, createElement, useMemo } from "react";
+import { useMemo } from "react";
 import type { StreamdownProps } from "streamdown";
 import { createCodeAdapter, shouldUseCodeAdapter } from "./code-adapter";
 import { PreOverride } from "./PreOverride";
@@ -24,16 +24,6 @@ export function useAdaptedComponents({
   components,
   componentsByLanguage,
 }: UseAdaptedComponentsOptions): StreamdownProps["components"] {
-  const userPre = components?.pre;
-  const PreComponent = useMemo(
-    () =>
-      userPre
-        ? (props: ComponentProps<typeof PreOverride>) =>
-            createElement(PreOverride, { ...props, fallbackPre: userPre })
-        : PreOverride,
-    [userPre],
-  );
-
   return useMemo(() => {
     const { SyntaxHighlighter, CodeHeader, ...htmlComponents } =
       components ?? {};
@@ -44,7 +34,7 @@ export function useAdaptedComponents({
       componentsByLanguage,
     };
 
-    const baseComponents = { pre: PreComponent };
+    const baseComponents = { pre: PreOverride };
 
     if (!shouldUseCodeAdapter(codeAdapterOptions)) {
       return { ...htmlComponents, ...baseComponents };
@@ -57,5 +47,5 @@ export function useAdaptedComponents({
       ...baseComponents,
       code: AdaptedCode,
     };
-  }, [components, componentsByLanguage, PreComponent]);
+  }, [components, componentsByLanguage]);
 }

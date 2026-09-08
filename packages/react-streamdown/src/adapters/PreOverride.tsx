@@ -25,6 +25,9 @@ type PreOverrideProps = ComponentPropsWithoutRef<"pre"> & {
  */
 export const PreContext = createContext<PreOverrideProps | null>(null);
 
+export const PreComponentContext =
+  createContext<NonNullable<Components["pre"]>>("pre");
+
 /**
  * Hook to check if the current element is rendered within a block code fence.
  */
@@ -47,9 +50,9 @@ export function useStreamdownPreProps(): PreOverrideProps | null {
 export const PreOverride = memo(function PreOverride({
   children,
   node,
-  fallbackPre: FallbackPre = "pre",
   ...rest
-}: PreOverrideProps & { fallbackPre?: Components["pre"] }) {
+}: PreOverrideProps) {
+  const FallbackPre = useContext(PreComponentContext);
   const hasCodeChild =
     node?.children.some(
       (child) => child.type === "element" && child.tagName === "code",

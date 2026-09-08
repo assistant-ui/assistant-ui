@@ -22,6 +22,7 @@ import {
   useMemo,
 } from "react";
 import { useAdaptedComponents } from "../adapters/components-adapter";
+import { PreComponentContext } from "../adapters/PreOverride";
 import { DEFAULT_SHIKI_THEME, mergePlugins } from "../defaults";
 import { tailBoundedRemend } from "../remend";
 import type {
@@ -357,15 +358,17 @@ export const StreamdownTextPrimitive = forwardRef<
         {...containerProps}
         className={containerClass}
       >
-        <Body
-          text={text}
-          shouldTailRemend={shouldTailRemend}
-          remendConfig={remend}
-          mode={mode}
-          isAnimating={status.type === "running"}
-          components={mergedComponents}
-          {...bodyProps}
-        />
+        <PreComponentContext.Provider value={components?.pre ?? "pre"}>
+          <Body
+            text={text}
+            shouldTailRemend={shouldTailRemend}
+            remendConfig={remend}
+            mode={mode}
+            isAnimating={status.type === "running"}
+            components={mergedComponents}
+            {...bodyProps}
+          />
+        </PreComponentContext.Provider>
       </div>
     );
   },
