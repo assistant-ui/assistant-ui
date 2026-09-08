@@ -766,6 +766,8 @@ export class ExternalStoreThreadRuntimeCore
 
   private _publishRepositoryMessages() {
     const messages = this.repository.getMessages();
+    // Repository mutations invalidate this cached array, so equal identity
+    // means there is nothing new to publish.
     if (messages === this._messages) return;
     this._messages = messages;
     this._notifySubscribers();
