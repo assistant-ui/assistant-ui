@@ -277,7 +277,7 @@ describe("runThreadTitleGeneration", () => {
     expect(server).toBe("Explicit");
   });
 
-  it("reasserts the explicit title when the superseded run persists first", async () => {
+  it("leaves the explicit title alone when the superseded run persists first", async () => {
     const states = new Map<string, ThreadTitleState>();
     const automaticStream = deferred<void>();
     const explicitStream = deferred<void>();
@@ -428,6 +428,39 @@ describe("runThreadTitleGeneration", () => {
     await automatic;
 
     expect(server).toBe("Manual");
+  });
+
+  it("skips a claim a newer explicit generation has outranked", async () => {
+    const states = new Map<string, ThreadTitleState>();
+    const streamOpen = deferred<void>();
+    const renamed: string[] = [];
+    const runOf = (automatic: boolean, title: string, open?: Promise<void>) =>
+      runThreadTitleGeneration({
+        states,
+        threadId: "t1",
+        automatic,
+        generate: async (onTitle) => {
+          if (open) await open;
+          await onTitle(title);
+        },
+        rename: async (next) => {
+          renamed.push(next);
+        },
+        applyTitle: noop,
+      });
+
+    const automatic = runOf(true, "Automatic", streamOpen.promise);
+    await runOf(false, "Explicit");
+
+    const claim = startThreadTitleRename(states, "t1", "Manual");
+    finishThreadTitleRename(states, "t1", claim, true);
+
+    await runOf(false, "Newer");
+
+    streamOpen.resolve();
+    await automatic;
+
+    expect(renamed).toEqual(["Newer"]);
   });
 
   it("does not reassert when the superseded run persisted nothing", async () => {

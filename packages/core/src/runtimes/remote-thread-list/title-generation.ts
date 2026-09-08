@@ -229,7 +229,11 @@ export async function runThreadTitleGeneration({
     if (persistedTitle === undefined) return;
     while (true) {
       const claim = generation.claim;
-      if (claim !== null && claim.order > persistedOrder) {
+      if (
+        claim !== null &&
+        claim.order > persistedOrder &&
+        isCurrentClaim(state, claim)
+      ) {
         const renamed = await settleClaim(claim);
         if (renamed === true) {
           persistedTitle = claim.title;
