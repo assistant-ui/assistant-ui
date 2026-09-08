@@ -23,9 +23,9 @@ import { OpenAILogo } from "@/components/assistant-ui/elements/logos";
 import {
   CODEX_URL,
   DOCS_MCP_URL,
-  copyTextToClipboard,
   getClaudePageUrl,
 } from "@/lib/docs-page-actions";
+import { copyTextToClipboard } from "@/lib/copy-to-clipboard";
 import { analytics } from "@/lib/analytics";
 import { toast } from "sonner";
 
@@ -73,6 +73,11 @@ export function DocsPager({
 }: DocsPagerProps) {
   const { copy, prefetch, isLoading } = useMarkdownCopy(markdownUrl);
 
+  const handleCopy = () => {
+    analytics.toc.actionClicked("copy", "pager");
+    copy();
+  };
+
   const buttonClass =
     "flex size-7 items-center justify-center rounded-md bg-muted/50 text-muted-foreground transition-colors hover:bg-muted hover:text-foreground sm:size-8";
   const disabledClass =
@@ -109,7 +114,7 @@ export function DocsPager({
           <DropdownMenuContent align="end" className="w-72">
             <DropdownMenuItem
               className="items-start gap-3 py-2"
-              onClick={copy}
+              onClick={handleCopy}
               disabled={isLoading}
             >
               <Copy className="mt-0.5 size-4" />
@@ -120,6 +125,7 @@ export function DocsPager({
             </DropdownMenuItem>
             <DropdownMenuItem
               className="items-start gap-3 py-2"
+              onClick={() => analytics.toc.actionClicked("markdown", "pager")}
               render={
                 <a
                   href={`${BASE_URL}${markdownUrl}`}
@@ -136,7 +142,7 @@ export function DocsPager({
             </DropdownMenuItem>
             <DropdownMenuItem
               className="items-start gap-3 py-2"
-              onClick={() => analytics.toc.actionClicked("claude")}
+              onClick={() => analytics.toc.actionClicked("claude", "pager")}
               render={
                 <a
                   href={getClaudePageUrl(markdownUrl, title)}
@@ -153,7 +159,7 @@ export function DocsPager({
             </DropdownMenuItem>
             <DropdownMenuItem
               className="items-start gap-3 py-2"
-              onClick={() => analytics.toc.actionClicked("codex")}
+              onClick={() => analytics.toc.actionClicked("codex", "pager")}
               render={
                 <a href={CODEX_URL} target="_blank" rel="noreferrer noopener" />
               }
@@ -167,9 +173,10 @@ export function DocsPager({
             <DropdownMenuSeparator />
             <DropdownMenuItem
               className="items-start gap-3 py-2"
-              onClick={() =>
-                void copyText(DOCS_MCP_URL, "MCP server URL copied")
-              }
+              onClick={() => {
+                analytics.toc.actionClicked("mcp", "pager");
+                void copyText(DOCS_MCP_URL, "MCP server URL copied");
+              }}
             >
               <McpIcon className="mt-0.5 size-4" />
               <PageAction

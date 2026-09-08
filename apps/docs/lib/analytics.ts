@@ -98,8 +98,16 @@ export const analytics = {
 
   toc: {
     actionClicked: (
-      action: "copy" | "markdown" | "github" | "ask_ai" | "claude" | "codex",
-    ) => trackEvent("toc_action_clicked", { action }),
+      action:
+        | "copy"
+        | "markdown"
+        | "github"
+        | "ask_ai"
+        | "claude"
+        | "codex"
+        | "mcp",
+      surface: "toc" | "pager" = "toc",
+    ) => trackEvent("toc_action_clicked", { action, surface }),
   },
 
   install: {

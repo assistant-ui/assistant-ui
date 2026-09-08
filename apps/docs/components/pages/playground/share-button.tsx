@@ -4,6 +4,7 @@ import { useState, useCallback } from "react";
 import { Check, Link2 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { analytics } from "@/lib/analytics";
+import { copyTextToClipboard } from "@/lib/copy-to-clipboard";
 
 interface ShareButtonProps {
   className?: string;
@@ -16,7 +17,6 @@ export function ShareButton({ className }: ShareButtonProps) {
     analytics.builder.shareClicked();
     const url = window.location.href;
 
-    // Try Web Share API on mobile
     if (navigator.share && /mobile|android/i.test(navigator.userAgent)) {
       try {
         await navigator.share({
@@ -25,26 +25,10 @@ export function ShareButton({ className }: ShareButtonProps) {
           url,
         });
         return;
-      } catch {
-        // User cancelled or not supported, fall through to copy
-      }
+      } catch {}
     }
 
-    // Copy to clipboard
-    try {
-      await navigator.clipboard.writeText(url);
-      setCopied(true);
-      setTimeout(() => setCopied(false), 2000);
-    } catch {
-      // Fallback for older browsers
-      const textArea = document.createElement("textarea");
-      textArea.value = url;
-      textArea.style.position = "fixed";
-      textArea.style.left = "-9999px";
-      document.body.appendChild(textArea);
-      textArea.select();
-      document.execCommand("copy");
-      document.body.removeChild(textArea);
+    if (await copyTextToClipboard(url)) {
       setCopied(true);
       setTimeout(() => setCopied(false), 2000);
     }

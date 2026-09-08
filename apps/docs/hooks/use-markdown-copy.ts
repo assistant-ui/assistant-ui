@@ -2,7 +2,7 @@
 
 import { useRef, useState, useCallback } from "react";
 import { toast } from "sonner";
-import { copyTextToClipboard } from "@/lib/docs-page-actions";
+import { copyTextToClipboard } from "@/lib/copy-to-clipboard";
 
 export function useMarkdownCopy(markdownUrl: string | undefined) {
   const [content, setContent] = useState<string | null>(null);
