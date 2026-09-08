@@ -36,6 +36,68 @@ function toCloudThread(t: {
 
 const CLOUD_THREAD_PAGE_SIZE = 20;
 
+type ThreadTitleClaim = {
+  title: string;
+  settled: Promise<boolean>;
+};
+
+type ThreadTitleGeneration = { claim: ThreadTitleClaim | null };
+
+type ThreadTitleState = {
+  generations: Set<ThreadTitleGeneration>;
+  pendingClaim: ThreadTitleClaim | null;
+  manualTitle: string | undefined;
+};
+
+function getThreadTitleState(
+  states: Map<string, ThreadTitleState>,
+  threadId: string,
+): ThreadTitleState {
+  let state = states.get(threadId);
+  if (!state) {
+    state = {
+      generations: new Set(),
+      pendingClaim: null,
+      manualTitle: undefined,
+    };
+    states.set(threadId, state);
+  }
+  return state;
+}
+
+function takeManualTitle(
+  states: Map<string, ThreadTitleState>,
+  threadId: string,
+  state: ThreadTitleState,
+): string | undefined {
+  if (
+    states.get(threadId) !== state ||
+    state.pendingClaim !== null ||
+    state.manualTitle === undefined
+  ) {
+    return undefined;
+  }
+  const title = state.manualTitle;
+  state.manualTitle = undefined;
+  pruneThreadTitleState(states, threadId, state);
+  return title;
+}
+
+function pruneThreadTitleState(
+  states: Map<string, ThreadTitleState>,
+  threadId: string,
+  state: ThreadTitleState,
+): void {
+  if (
+    state.generations.size === 0 &&
+    state.pendingClaim === null &&
+    state.manualTitle === undefined &&
+    states.get(threadId) === state
+  ) {
+    states.delete(threadId);
+  }
+}
+
 async function listAllThreads(
   cloud: UseThreadsOptions["cloud"],
   isArchived: boolean,
@@ -61,6 +123,7 @@ async function listAllThreads(
 
 export function useThreads(options: UseThreadsOptions): UseThreadsResult {
   const { cloud, includeArchived = false, enabled = true } = options;
+  const threadTitleGenerationsRef = useRef(new Map<string, ThreadTitleState>());
   const includeArchivedRef = useRef(includeArchived);
   useLayoutEffect(() => {
     includeArchivedRef.current = includeArchived;
@@ -83,6 +146,9 @@ export function useThreads(options: UseThreadsOptions): UseThreadsResult {
   const threadId = scope.cloud === cloud ? selection.threadId : null;
 
   useEffect(() => {
+    // The stale-scope commit in between is what lets the layout effect below
+    // clear the previous cloud's threads before the new scope takes over.
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     setSelection((current) =>
       current.scope.cloud === cloud
         ? current
@@ -96,6 +162,9 @@ export function useThreads(options: UseThreadsOptions): UseThreadsResult {
     activeScopeRef.current = isActiveScope ? scope : null;
     if (!isActiveScope) {
       listedThreadIdsRef.current.clear();
+      threadTitleGenerationsRef.current.clear();
+      // Paired with the ref clears above, which cannot move into render.
+      // eslint-disable-next-line react-hooks/set-state-in-effect
       setThreads([]);
       setError(null);
       setIsLoading(enabled);
@@ -237,6 +306,9 @@ export function useThreads(options: UseThreadsOptions): UseThreadsResult {
 
   useEffect(() => {
     if (!enabled) return;
+    // The refresh is an async fetch against the cloud; its loading state
+    // settles inside it.
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     void refresh();
   }, [refresh, enabled]);
 
@@ -282,6 +354,7 @@ export function useThreads(options: UseThreadsOptions): UseThreadsResult {
         async (commit) => {
           await cloud.threads.delete(id);
           commit(() => {
+            threadTitleGenerationsRef.current.delete(id);
             setThreads((prev) => prev.filter((t) => t.id !== id));
             setSelection((current) =>
               current.scope === scope && current.threadId === id
@@ -300,7 +373,16 @@ export function useThreads(options: UseThreadsOptions): UseThreadsResult {
 
   const rename = useCallback(
     async (id: string, title: string): Promise<boolean> => {
-      return await withAction(
+      const state = getThreadTitleState(threadTitleGenerationsRef.current, id);
+      let settleClaim!: (renamed: boolean) => void;
+      const settled = new Promise<boolean>((resolve) => {
+        settleClaim = resolve;
+      });
+      const claim = { title, settled };
+      state.pendingClaim = claim;
+      for (const generation of state.generations) generation.claim = claim;
+
+      const renamed = await withAction(
         async (commit) => {
           await cloud.threads.update(id, { title });
           commit(() =>
@@ -313,6 +395,13 @@ export function useThreads(options: UseThreadsOptions): UseThreadsResult {
         false,
         isCurrentCloud,
       );
+      settleClaim(renamed);
+      if (state.pendingClaim === claim) {
+        state.pendingClaim = null;
+        if (renamed) state.manualTitle = title;
+      }
+      pruneThreadTitleState(threadTitleGenerationsRef.current, id, state);
+      return renamed;
     },
     [cloud, isCurrentCloud, withAction],
   );
@@ -388,27 +477,96 @@ export function useThreads(options: UseThreadsOptions): UseThreadsResult {
     [isCurrentCloud, scope],
   );
 
-  const generateTitle = useCallback(
-    async (tid: string): Promise<string | null> => {
-      return await withAction(
-        async (commit) => {
-          const title = await generateThreadTitle(cloud, tid);
+  const generateTitleWithPolicy = useCallback(
+    async (tid: string, automatic: boolean): Promise<string | null> => {
+      const state = getThreadTitleState(threadTitleGenerationsRef.current, tid);
+      if (automatic) {
+        const retained = takeManualTitle(
+          threadTitleGenerationsRef.current,
+          tid,
+          state,
+        );
+        if (retained !== undefined) return retained;
+      }
+      if (!automatic) {
+        state.pendingClaim = null;
+        state.manualTitle = undefined;
+      }
 
-          if (title) {
-            commit(() =>
-              setThreads((prev) =>
-                prev.map((t) => (t.id === tid ? { ...t, title } : t)),
-              ),
-            );
-          }
+      const generation: ThreadTitleGeneration = {
+        claim: automatic ? state.pendingClaim : null,
+      };
+      state.generations.add(generation);
 
-          return title;
-        },
-        null,
-        isCurrentCloud,
-      );
+      try {
+        return await withAction(
+          async (commit) => {
+            let title: string | null = null;
+            let generated = false;
+
+            while (true) {
+              if (generation.claim) {
+                const claim = generation.claim;
+                const renamed = await claim.settled;
+                if (generation.claim !== claim) continue;
+                if (!renamed) {
+                  generation.claim = null;
+                  if (automatic) {
+                    const retained = takeManualTitle(
+                      threadTitleGenerationsRef.current,
+                      tid,
+                      state,
+                    );
+                    if (retained !== undefined) return retained;
+                  }
+                  continue;
+                }
+
+                if (generated) {
+                  await cloud.threads.update(tid, { title: claim.title });
+                  if (generation.claim !== claim) continue;
+                  commit(() =>
+                    setThreads((prev) =>
+                      prev.map((t) =>
+                        t.id === tid ? { ...t, title: claim.title } : t,
+                      ),
+                    ),
+                  );
+                }
+                if (automatic) state.manualTitle = undefined;
+                return claim.title;
+              }
+
+              if (generated) break;
+              generated = true;
+              title = await generateThreadTitle(cloud, tid);
+            }
+
+            if (title) {
+              commit(() =>
+                setThreads((prev) =>
+                  prev.map((t) => (t.id === tid ? { ...t, title } : t)),
+                ),
+              );
+            }
+
+            return title;
+          },
+          null,
+          isCurrentCloud,
+        );
+      } finally {
+        state.generations.delete(generation);
+        pruneThreadTitleState(threadTitleGenerationsRef.current, tid, state);
+      }
     },
     [cloud, isCurrentCloud, withAction],
+  );
+
+  const generateTitle = useCallback(
+    (tid: string, options?: { automatic?: boolean }) =>
+      generateTitleWithPolicy(tid, options?.automatic ?? false),
+    [generateTitleWithPolicy],
   );
 
   return {

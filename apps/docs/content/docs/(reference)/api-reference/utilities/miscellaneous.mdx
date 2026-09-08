@@ -76,6 +76,14 @@ restored.
 
 <ParametersTable {...MessageNotSentError} />
 
+### readAnonymousRefreshToken
+
+The refresh token of the anonymous identity this browser holds for `baseUrl`, or null when it has none.
+
+```ts
+const readAnonymousRefreshToken: (baseUrl: string) => string | null;
+```
+
 ### RemoteThreadList
 
 `AuiConfig` `threads` entry backed by a `RemoteThreadListAdapter`. Thread

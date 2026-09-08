@@ -13,6 +13,7 @@ import {
   CloudMessagePersistence,
   createFormattedPersistence,
   createRunTelemetryToolCall,
+  extractRunTelemetryModelId,
   normalizeRunTelemetryUsage,
   type RunTelemetryUsageInit,
   truncateRunTelemetryText,
@@ -20,6 +21,7 @@ import {
 import { auiV0Decode, auiV0Encode } from "./auiV0";
 import { type AssistantClient, getClientId, useAui } from "@assistant-ui/store";
 import type { ThreadListItemMethods } from "../../../store/scopes/thread-list-item";
+import type { FeedbackAdapter } from "../../../adapters/feedback";
 
 type CloudThreadListItem = Pick<
   ThreadListItemMethods,
@@ -63,6 +65,42 @@ class AssistantCloudThreadHistoryAdapter implements ThreadHistoryAdapter {
   private get _persistence(): CloudMessagePersistence {
     return this.getPersistence();
   }
+
+  public readonly feedback: FeedbackAdapter = {
+    submit: ({ message, type }) => {
+      void (async () => {
+        const threadListItem = this.tryGetKeyedThreadListItem();
+        const remoteThreadId = threadListItem?.getState().remoteId;
+        if (!threadListItem || !remoteThreadId) {
+          console.warn(
+            `[assistant-ui] Skipping feedback for message ${message.id}: the thread has no remote id.`,
+          );
+          return;
+        }
+
+        const cloudMessageId = await this.getPersistence(
+          threadListItem,
+        ).getRemoteId(message.id);
+        if (!cloudMessageId) {
+          console.warn(
+            `[assistant-ui] Skipping feedback for message ${message.id}: no cloud message id is mapped.`,
+          );
+          return;
+        }
+
+        await this.cloudRef.current.threads.messages.feedback(
+          remoteThreadId,
+          cloudMessageId,
+          { type },
+        );
+      })().catch((error: unknown) => {
+        console.error(
+          "[assistant-ui] Cloud feedback submission failed:",
+          error,
+        );
+      });
+    },
+  };
 
   private tryGetKeyedThreadListItem(): CloudThreadListItem | undefined {
     const live = this.aui.threadListItem;
@@ -438,11 +476,9 @@ export function extractAuiV0<T>(content: T): TelemetryData | null {
     (statusType && AUI_STATUS_MAP[statusType]) || "completed";
 
   const metadata = msg.metadata?.custom as Record<string, unknown> | undefined;
-  const modelId =
-    msg.metadata?.modelId ??
-    (typeof msg.metadata?.custom?.modelId === "string"
-      ? msg.metadata.custom.modelId
-      : undefined);
+  const modelId = extractRunTelemetryModelId(
+    msg.metadata as Record<string, unknown> | undefined,
+  );
 
   const telemetrySteps: TelemetryStepData[] | undefined =
     steps && steps.length > 1
@@ -556,16 +592,6 @@ function collectAiSdkV6Parts(parts: readonly AiSdkV6Part[]): {
   return { textParts, toolCalls, stepsData };
 }
 
-function extractModelId(
-  metadata?: Record<string, unknown>,
-): string | undefined {
-  if (!metadata) return undefined;
-  if (typeof metadata.modelId === "string") return metadata.modelId;
-  const custom = metadata.custom as Record<string, unknown> | undefined;
-  if (typeof custom?.modelId === "string") return custom.modelId;
-  return undefined;
-}
-
 function buildAiSdkV6Result(
   textParts: string[],
   toolCalls: AssistantCloudRunReportToolCall[],
@@ -583,7 +609,7 @@ function buildAiSdkV6Result(
   const outputText = hasText
     ? truncateRunTelemetryText(textParts.join(""))
     : undefined;
-  const modelId = extractModelId(metadata);
+  const modelId = extractRunTelemetryModelId(metadata);
 
   const steps: TelemetryStepData[] | undefined =
     stepsData && stepsData.length > 1
@@ -766,7 +792,7 @@ function aggregateAiSdkV6RunSteps<T>(stepMessages: T[]): TelemetryData | null {
 
 export function useAssistantCloudThreadHistoryAdapter(
   cloudRef: RefObject<AssistantCloud>,
-): ThreadHistoryAdapter {
+): ThreadHistoryAdapter & { readonly feedback: FeedbackAdapter } {
   const aui = useAui();
   // Not useEffectEvent: history adapter methods run during render (SSR load).
   const auiRef = useRef(aui);

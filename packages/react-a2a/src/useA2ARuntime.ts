@@ -110,6 +110,7 @@ export function useA2ARuntime(options: UseA2ARuntimeOptions): AssistantRuntime {
   });
 
   // Thread list
+  const threadSwitchGenerationRef = useRef(0);
   const threadList = useMemo(() => {
     if (!threadListAdapter) return undefined;
 
@@ -119,7 +120,9 @@ export function useA2ARuntime(options: UseA2ARuntimeOptions): AssistantRuntime {
       threadId: threadListAdapter.threadId,
       onSwitchToNewThread: onSwitchToNewThread
         ? async () => {
+            const generation = ++threadSwitchGenerationRef.current;
             await onSwitchToNewThread();
+            if (generation !== threadSwitchGenerationRef.current) return;
             // Apply first so the abort inside resetContext finds an already
             // cleared repository and cannot persist the old thread's partial
             // assistant message.
@@ -129,7 +132,9 @@ export function useA2ARuntime(options: UseA2ARuntimeOptions): AssistantRuntime {
         : undefined,
       onSwitchToThread: onSwitchToThread
         ? async (threadId: string) => {
+            const generation = ++threadSwitchGenerationRef.current;
             const result = await onSwitchToThread(threadId);
+            if (generation !== threadSwitchGenerationRef.current) return;
             core.applyExternalMessages(result.messages);
             core.resetContext();
           }

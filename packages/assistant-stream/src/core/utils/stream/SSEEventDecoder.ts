@@ -12,6 +12,7 @@ export class SSEEventDecoder {
   private lastEventId: string | undefined;
   private retry: number | undefined;
   private pendingLF = false;
+  private started = false;
   private readonly trailing: "drop" | "dispatch";
 
   constructor(options?: { trailing?: "drop" | "dispatch" }) {
@@ -21,6 +22,11 @@ export class SSEEventDecoder {
   push(text: string): SSEEvent[] {
     const events: SSEEvent[] = [];
     if (text === "") return events;
+
+    if (!this.started) {
+      this.started = true;
+      if (text.startsWith("\uFEFF")) text = text.slice(1);
+    }
 
     // Lines end with LF, CRLF, or CR. A chunk-trailing "\r" terminates its
     // line immediately; pendingLF then swallows the leading "\n" of the next

@@ -161,12 +161,23 @@ const getAttrValue = (j: any, attr: any): unknown => {
   return UNSUPPORTED_VALUE;
 };
 
-const buildConditionString = (fragments: ConditionFragment[]): string => {
-  const parts = fragments.map((f) =>
-    f.negated ? `!${f.expression}` : f.expression,
-  );
-  if (parts.length === 1) return parts[0]!;
-  return parts.join(" && ");
+// Composed as a syntax tree so the printer parenthesizes by precedence;
+// concatenated text lets `!` and `&&` reassociate a fragment's own operators.
+const buildConditionString = (
+  j: any,
+  fragments: ConditionFragment[],
+): string => {
+  const parseExpression = (source: string) =>
+    j(`${source};`).find(j.ExpressionStatement).nodes()[0]!.expression;
+
+  const condition = fragments
+    .map((f) => {
+      const expression = parseExpression(f.expression);
+      return f.negated ? j.unaryExpression("!", expression) : expression;
+    })
+    .reduce((left: any, right: any) => j.logicalExpression("&&", left, right));
+
+  return j(condition).toSource();
 };
 
 const migratePrimitiveIfToAuiIf = createTransformer(
@@ -290,7 +301,7 @@ const migratePrimitiveIfToAuiIf = createTransformer(
       // If we couldn't map all props, skip this element
       if (hasUnknownProp || fragments.length === 0) return;
 
-      convertElementToAuiIf(path, buildConditionString(fragments));
+      convertElementToAuiIf(path, buildConditionString(j, fragments));
     });
 
     // Add AuiIf import if needed

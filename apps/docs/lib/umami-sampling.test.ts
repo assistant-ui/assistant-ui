@@ -1,5 +1,10 @@
 import { expect, it } from "vitest";
-import { UMAMI_SAMPLE_RATE, umamiBootstrapScript } from "./umami-sampling";
+import {
+  setUmamiTrackingEnabled,
+  UMAMI_DISABLED_STORAGE_KEY,
+  UMAMI_SAMPLE_RATE,
+  umamiBootstrapScript,
+} from "./umami-sampling";
 
 const MONTH_START = Date.UTC(2026, 7, 1);
 const NEXT_MONTH = Date.UTC(2026, 8, 1);
@@ -11,6 +16,9 @@ type RunOptions = {
   rolls?: number[];
   now?: number;
   storageThrows?: boolean;
+  gpc?: boolean;
+  consent?: "granted" | "denied";
+  win?: Record<string, unknown>;
 };
 
 const run = ({
@@ -18,7 +26,11 @@ const run = ({
   rolls = [UMAMI_SAMPLE_RATE / 2],
   now = MONTH_START,
   storageThrows = false,
+  gpc = false,
+  consent,
+  win = {},
 }: RunOptions = {}) => {
+  if (consent) store.set("aui-consent", consent);
   const appended: Appended[] = [];
   let rollsUsed = 0;
 
@@ -67,12 +79,14 @@ const run = ({
 
   const fn = new Function(
     "window",
+    "navigator",
     "document",
     "Date",
     "Math",
     umamiBootstrapScript,
   );
-  fn({ localStorage }, document, FakeDate, fakeMath);
+  win["localStorage"] = localStorage;
+  fn(win, { globalPrivacyControl: gpc }, document, FakeDate, fakeMath);
 
   return { appended, store, rollsUsed };
 };
@@ -167,4 +181,113 @@ it("does not track at all when storage is unavailable", () => {
 
   expect(first.appended).toHaveLength(0);
   expect(second.appended).toHaveLength(0);
+});
+
+it("stays out of the way of a browser broadcasting GPC", () => {
+  const store = new Map<string, string>();
+
+  const { appended } = run({
+    store,
+    gpc: true,
+    rolls: [UMAMI_SAMPLE_RATE / 2],
+  });
+
+  expect(appended).toHaveLength(0);
+  // the sampling flag is device storage, so GPC has to precede reading it too
+  expect(store.size).toBe(0);
+});
+
+it("stays out of the way of a visitor who declined", () => {
+  const store = new Map<string, string>();
+
+  const { appended } = run({ store, consent: "denied" });
+
+  expect(appended).toHaveLength(0);
+  expect(store.has("aui-umami-sample")).toBe(false);
+});
+
+it("measures a visitor whose consent choice is still pending", () => {
+  // the audience-measurement carve-out the privacy policy documents; changing
+  // this changes what that section may claim
+  const { appended, store } = run({ rolls: [UMAMI_SAMPLE_RATE / 2] });
+
+  expect(appended).toHaveLength(1);
+  expect(store.has("aui-umami-sample")).toBe(true);
+});
+
+it("measures a visitor who accepted", () => {
+  const { appended } = run({
+    consent: "granted",
+    rolls: [UMAMI_SAMPLE_RATE / 2],
+  });
+
+  expect(appended).toHaveLength(1);
+});
+
+it("reaches an already-running tracker through umami's own disable flag", () => {
+  const store = new Map<string, string>();
+  const original = globalThis.window;
+  Object.defineProperty(globalThis, "window", {
+    value: {
+      localStorage: {
+        getItem: (key: string) => store.get(key) ?? null,
+        setItem: (key: string, value: string) => void store.set(key, value),
+        removeItem: (key: string) => void store.delete(key),
+      },
+    },
+    configurable: true,
+    writable: true,
+  });
+
+  try {
+    setUmamiTrackingEnabled(false);
+    expect(store.get(UMAMI_DISABLED_STORAGE_KEY)).toBe("1");
+
+    setUmamiTrackingEnabled(true);
+    expect(store.has(UMAMI_DISABLED_STORAGE_KEY)).toBe(false);
+  } finally {
+    Object.defineProperty(globalThis, "window", {
+      value: original,
+      configurable: true,
+      writable: true,
+    });
+  }
+});
+
+it("drops sends through the before-send hook when storage refuses the flag", () => {
+  const store = new Map<string, string>();
+  const win: Record<string, unknown> = {};
+  const { appended } = run({ store, win, rolls: [UMAMI_SAMPLE_RATE / 2] });
+  expect(appended[0]!.attrs["data-before-send"]).toBe("__auiUmamiBeforeSend");
+
+  const original = globalThis.window;
+  Object.defineProperty(globalThis, "window", {
+    value: win,
+    configurable: true,
+    writable: true,
+  });
+  try {
+    win["localStorage"] = {
+      getItem: () => null,
+      setItem: () => {
+        throw new Error("blocked");
+      },
+      removeItem: () => {
+        throw new Error("blocked");
+      },
+    };
+    setUmamiTrackingEnabled(false);
+
+    const beforeSend = win["__auiUmamiBeforeSend"] as (
+      type: string,
+      payload: unknown,
+    ) => unknown;
+    expect(beforeSend("event", { url: "/" })).toBeNull();
+  } finally {
+    Object.defineProperty(globalThis, "window", {
+      value: original,
+      configurable: true,
+      writable: true,
+    });
+  }
 });

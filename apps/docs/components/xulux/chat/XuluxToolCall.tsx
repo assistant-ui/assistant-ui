@@ -480,8 +480,6 @@ function CertificateDialog({
 }) {
   const analyticsCtx = useXuluxAnalytics();
   const [name, setName] = useState(certificateName ?? "");
-  const [email, setEmail] = useState("");
-  const [consent, setConsent] = useState(false);
   const [generatedAt, setGeneratedAt] = useState(
     certificateGeneratedAt ?? null,
   );
@@ -587,7 +585,6 @@ function CertificateDialog({
                 analytics.xulux.learnCertificateSubmitted(
                   withXuluxContext(analyticsCtx, {
                     course_id: courseId,
-                    consent,
                   }),
                 );
                 setGeneratedAt(awardedAt);
@@ -602,28 +599,6 @@ function CertificateDialog({
                   onChange={(e) => setName(e.target.value)}
                   className="bg-background mt-1 w-full rounded-md border px-3 py-2"
                 />
-              </label>
-              <label className="block text-sm">
-                Email
-                <input
-                  type="email"
-                  value={email}
-                  onChange={(e) => setEmail(e.target.value)}
-                  className="bg-background mt-1 w-full rounded-md border px-3 py-2"
-                />
-                <span className="text-muted-foreground mt-1 block text-xs">
-                  Optional
-                </span>
-              </label>
-              <label className="flex items-start gap-2 text-xs">
-                <input
-                  type="checkbox"
-                  checked={consent}
-                  onChange={(e) => setConsent(e.target.checked)}
-                  className="mt-0.5"
-                />
-                I’m interested in future assistant-ui learning updates
-                (optional).
               </label>
               <div className="flex justify-end gap-2 pt-2">
                 <Button

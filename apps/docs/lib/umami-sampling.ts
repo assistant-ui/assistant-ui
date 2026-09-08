@@ -1,8 +1,32 @@
+import { CONSENT_STORAGE_KEY } from "./consent";
+
 export const UMAMI_SAMPLE_RATE = 0.01;
 
 const STORAGE_KEY = "aui-umami-sample";
 const WEBSITE_ID = "6f07c001-46a2-411f-9241-4f7f5afb60ee";
 const DOMAINS = "www.assistant-ui.com";
+
+/**
+ * Umami re-reads this key on every send, so writing it stops a tracker that is
+ * already running rather than only the next page load.
+ */
+export const UMAMI_DISABLED_STORAGE_KEY = "umami.disabled";
+
+/**
+ * `data-before-send` names a global umami calls on every send, and returning
+ * null drops the payload. It is the half of the stop path that survives a
+ * browser that has stopped accepting writes.
+ */
+const BEFORE_SEND_GLOBAL = "__auiUmamiBeforeSend";
+const SUPPRESSED_GLOBAL = "__auiUmamiSuppressed";
+
+export function setUmamiTrackingEnabled(enabled: boolean): void {
+  (window as unknown as Record<string, unknown>)[SUPPRESSED_GLOBAL] = !enabled;
+  try {
+    if (enabled) window.localStorage.removeItem(UMAMI_DISABLED_STORAGE_KEY);
+    else window.localStorage.setItem(UMAMI_DISABLED_STORAGE_KEY, "1");
+  } catch {}
+}
 
 /**
  * Umami records a sampled slice of traffic; PostHog stays the full-fidelity source.
@@ -42,10 +66,18 @@ const DOMAINS = "www.assistant-ui.com";
  *
  * Not an invariant: a visit straddling the month boundary is still half sent,
  * at about E[visit] / 30d.
+ *
+ * The script exits for visitors broadcasting Global Privacy Control and for
+ * visitors who declined the consent banner. It still runs while a choice is
+ * pending because the measurement is first-party, cookieless, and sampled —
+ * the audience-measurement posture the privacy policy describes; keep the
+ * policy's cookies section in sync when changing this.
  */
 export const umamiBootstrapScript = `
 (function(){
   try{
+    if(navigator.globalPrivacyControl===true){return;}
+    if(window.localStorage.getItem(${JSON.stringify(CONSENT_STORAGE_KEY)})==="denied"){return;}
     var k=${JSON.stringify(STORAGE_KEY)},t=new Date(Date.now()),b=t.getUTCFullYear()*12+t.getUTCMonth(),s=null;
     var raw=window.localStorage.getItem(k);
     if(raw){try{var p=JSON.parse(raw);if(p&&typeof p.s==="number"&&p.b===b){s=p.s;}}catch(e){}}
@@ -54,11 +86,15 @@ export const umamiBootstrapScript = `
       window.localStorage.setItem(k,JSON.stringify({s:s,b:b}));
     }
     if(!s){return;}
+    window[${JSON.stringify(BEFORE_SEND_GLOBAL)}]=function(type,payload){
+      return window[${JSON.stringify(SUPPRESSED_GLOBAL)}]?null:payload;
+    };
     var el=document.createElement("script");
     el.async=false;
     el.src="/umami/script.js";
     el.setAttribute("data-website-id",${JSON.stringify(WEBSITE_ID)});
     el.setAttribute("data-domains",${JSON.stringify(DOMAINS)});
+    el.setAttribute("data-before-send",${JSON.stringify(BEFORE_SEND_GLOBAL)});
     document.head.appendChild(el);
   }catch(e){}
 })();

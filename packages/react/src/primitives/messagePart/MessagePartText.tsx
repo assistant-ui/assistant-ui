@@ -1,6 +1,6 @@
 "use client";
 
-import type { Primitive } from "../../utils/Primitive";
+import { Primitive } from "../../utils/Primitive";
 import {
   type ComponentRef,
   forwardRef,
@@ -51,14 +51,19 @@ export namespace MessagePartPrimitiveText {
 export const MessagePartPrimitiveText = forwardRef<
   MessagePartPrimitiveText.Element,
   MessagePartPrimitiveText.Props
->(({ smooth = true, component: Component = "span", ...rest }, forwardedRef) => {
-  const { text, status } = useSmooth(useMessagePartText(), smooth);
+>(
+  (
+    { smooth = true, component: Component = Primitive.span, ...rest },
+    forwardedRef,
+  ) => {
+    const { text, status } = useSmooth(useMessagePartText(), smooth);
 
-  return (
-    <Component data-status={status.type} {...rest} ref={forwardedRef}>
-      {text}
-    </Component>
-  );
-});
+    return (
+      <Component data-status={status.type} {...rest} ref={forwardedRef}>
+        {text}
+      </Component>
+    );
+  },
+);
 
 MessagePartPrimitiveText.displayName = "MessagePartPrimitive.Text";

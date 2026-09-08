@@ -163,6 +163,14 @@ function findLatestMessageWithUsage(
   return undefined;
 }
 
+/**
+ * Reads token usage from the newest assistant message that reports any.
+ *
+ * A route attaches usage through the AI SDK's `messageMetadata` option. Because
+ * a thread message carries a fixed metadata shape, the converter moves every
+ * other key the route returns into `metadata.custom`, which is where this hook
+ * looks.
+ */
 export function useThreadTokenUsage(): ThreadTokenUsage | undefined {
   const msg = useAuiState((s) => findLatestMessageWithUsage(s.thread.messages));
   return useMemo(() => getThreadMessageTokenUsage(msg), [msg]);

@@ -32,6 +32,26 @@ afterEach(() => {
 });
 
 describe("useLocalRuntime", () => {
+  it("enables feedback for Cloud threads", async () => {
+    const cloud = makeCloud();
+    let runtime: ReturnType<typeof useLocalRuntime> | null = null;
+    const App = () => {
+      runtime = useLocalRuntime(chatModel, { cloud });
+      return (
+        <AssistantRuntimeProvider runtime={runtime}>
+          <div />
+        </AssistantRuntimeProvider>
+      );
+    };
+
+    render(<App />);
+
+    await waitFor(() => {
+      expect(cloud.threads.list).toHaveBeenCalledTimes(2);
+      expect(runtime!.thread.getState().capabilities.feedback).toBe(true);
+    });
+  });
+
   it("surfaces the live thread after mount without user input", async () => {
     const auiRef: { current: ReturnType<typeof useAui> | null } = {
       current: null,

@@ -232,7 +232,15 @@ export function runCheck(root = repoRoot, changedFiles = null) {
 }
 
 function annotate(level, message) {
-  console.log(process.env.GITHUB_ACTIONS ? `::${level}::${message}` : message);
+  if (!process.env.GITHUB_ACTIONS) {
+    console.log(message);
+    return;
+  }
+  const data = message
+    .replaceAll("%", "%25")
+    .replaceAll("\r", "%0D")
+    .replaceAll("\n", "%0A");
+  console.log(`::${level}::${data}`);
 }
 
 function writeSummary(summary) {
@@ -249,20 +257,16 @@ function diffChangesetFiles(root, baseSha, headSha) {
         "diff",
         "--name-only",
         "--diff-filter=ACM",
-        baseSha,
-        headSha,
+        `${baseSha}...${headSha}`,
         "--",
         ".changeset/*.md",
       ],
-      { cwd: root, encoding: "utf8" },
+      { cwd: root, encoding: "utf8", stdio: ["ignore", "pipe", "pipe"] },
     ).trim();
     return new Set(diff ? diff.split("\n").map((f) => path.basename(f)) : []);
-  } catch {
-    annotate(
-      "warning",
-      "Could not diff against base — checking all changeset files",
-    );
-    return null;
+  } catch (error) {
+    const stderr = String(error.stderr ?? "").trim();
+    return { error: stderr.split("\n").at(-1) || error.message };
   }
 }
 
@@ -271,6 +275,14 @@ function main() {
   const { BASE_SHA, HEAD_SHA } = process.env;
   const changedFiles =
     BASE_SHA && HEAD_SHA ? diffChangesetFiles(root, BASE_SHA, HEAD_SHA) : null;
+  if (changedFiles && !(changedFiles instanceof Set)) {
+    annotate(
+      "error",
+      `Could not diff ${BASE_SHA}...${HEAD_SHA}: ${changedFiles.error}. Failing instead of grading every changeset in the tree.`,
+    );
+    process.exitCode = 1;
+    return;
+  }
 
   const { files, bumps, violations, cascade } = runCheck(root, changedFiles);
 

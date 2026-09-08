@@ -209,6 +209,7 @@ const useInMemoryThreadList = (
       mainThreadId,
       newThreadId: null,
       isLoading: false,
+      loadError: undefined,
       isLoadingMore: false,
       hasMore: false,
       threadIds: regularThreads.map((t) => t.id),

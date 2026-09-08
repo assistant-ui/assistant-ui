@@ -1,5 +1,6 @@
 import { describe, expect, it, vi } from "vitest";
-import type { SearchRecord } from "@/lib/search/types";
+import type { ContentRecord } from "@/lib/search/content-search";
+
 const mocks = vi.hoisted(() => ({
   records: [
     {
@@ -7,84 +8,98 @@ const mocks = vi.hoisted(() => ({
       title: "Thread List",
       description: "Render and manage conversation history.",
       headings: [{ id: "usage", content: "Usage" }],
+      contents: [
+        "An unrelated opening paragraph.",
+        "Render the thread list beside your thread.",
+      ],
     },
     {
       url: "/docs/runtimes/custom",
       title: "Custom Runtime",
       description: "Connect an external store.",
       headings: [{ id: "thread-list", content: "Thread List" }],
+      contents: ["Wire an external store into the runtime."],
     },
-  ],
-  pages: [
     {
-      url: "/docs/ui/thread-list",
-      data: {
-        structuredData: () => ({
-          contents: [
-            { content: "An unrelated opening paragraph." },
-            { content: "Render the thread list beside your thread." },
-          ],
-        }),
-      },
+      url: "/docs/guides/keyboard",
+      title: "Keyboard",
+      description: "Shortcuts.",
+      headings: [],
+      contents: [
+        "Press the escape key to dismiss the composer autocomplete popover.",
+      ],
     },
-  ],
+  ] satisfies ContentRecord[],
 }));
 
-vi.mock("@/lib/search/pages", async (importOriginal) => ({
-  ...(await importOriginal<typeof import("@/lib/search/pages")>()),
-  buildSearchIndex: () => mocks.records,
+vi.mock("@/lib/search/content-index", () => ({
+  buildContentIndex: () => Promise.resolve(mocks.records),
 }));
 
-vi.mock("@/lib/source", () => ({
-  source: { getPages: () => mocks.pages },
-  getTapDocsPages: () => [],
-  design: { getPages: () => [] },
-  elementsDocs: { getPages: () => [] },
-}));
+import { searchContent } from "@/lib/search/content-search";
+import { createSearchDocsTool } from "./search-docs";
 
-import { createSearchDocsTool, searchDocs } from "./search-docs";
-
-const records: SearchRecord[] = mocks.records;
-
-describe("searchDocs", () => {
+describe("searchContent", () => {
   it("ranks a title match above a heading-only match", () => {
     expect(
-      searchDocs(records, "thread list", 5).map((page) => page.url),
+      searchContent(mocks.records, "thread list", 5).map((page) => page.url),
     ).toEqual(["/docs/ui/thread-list", "/docs/runtimes/custom"]);
   });
 
-  it("deduplicates urls", () => {
+  it("finds a page whose terms appear only in its body", () => {
     expect(
-      searchDocs([...records, records[0]!], "thread list", 5),
-    ).toHaveLength(2);
+      searchContent(mocks.records, "dismiss the popover", 5).map(
+        (page) => page.url,
+      ),
+    ).toEqual(["/docs/guides/keyboard"]);
+  });
+
+  it("excerpts the paragraphs that matched", () => {
+    expect(searchContent(mocks.records, "thread list", 1)[0]?.excerpt).toBe(
+      "Render the thread list beside your thread.",
+    );
+  });
+
+  it("ignores filler words in a natural-language question", () => {
+    expect(
+      searchContent(mocks.records, "how do I render a thread list", 5).map(
+        (page) => page.url,
+      ),
+    ).toEqual(["/docs/ui/thread-list"]);
+  });
+
+  it("falls back to the pages each term finds when no page has them all", () => {
+    expect(
+      searchContent(mocks.records, "thread list keyboard escape", 5).map(
+        (page) => page.url,
+      ),
+    ).toEqual([
+      "/docs/ui/thread-list",
+      "/docs/runtimes/custom",
+      "/docs/guides/keyboard",
+    ]);
+  });
+
+  it("matches a term that appears only in the url", () => {
+    expect(
+      searchContent(mocks.records, "runtimes custom", 5).map(
+        (page) => page.url,
+      ),
+    ).toEqual(["/docs/runtimes/custom"]);
+  });
+
+  it("still returns an excerpt for a page matched on metadata alone", () => {
+    expect(searchContent(mocks.records, "keyboard", 1)[0]?.excerpt).toBe(
+      "Press the escape key to dismiss the composer autocomplete popover.",
+    );
   });
 
   it("caps results at the limit", () => {
-    const matchingRecords = [
-      ...records,
-      {
-        url: "/docs/ui/thread-list-item",
-        title: "Thread List Item",
-        description: "Render one thread.",
-        headings: [],
-      },
-    ];
-
-    expect(searchDocs(matchingRecords, "thread list", 2)).toHaveLength(2);
+    expect(searchContent(mocks.records, "thread", 1)).toHaveLength(1);
   });
 
-  it("falls back to pages that match part of the query", () => {
-    expect(
-      searchDocs(records, "thread list runtime", 5).map((page) => page.url),
-    ).toEqual(
-      expect.arrayContaining(["/docs/ui/thread-list", "/docs/runtimes/custom"]),
-    );
-    expect(searchDocs(records, "thread list runtime", 5)).toHaveLength(2);
-  });
-
-  it("returns no results for empty or all-stopword queries", () => {
-    expect(searchDocs(records, "", 5)).toEqual([]);
-    expect(searchDocs(records, "the and or", 5)).toEqual([]);
+  it("returns nothing for a query of only filler", () => {
+    expect(searchContent(mocks.records, "   ", 5)).toEqual([]);
   });
 });
 
@@ -102,12 +117,15 @@ describe("createSearchDocsTool", () => {
         toolCallId: "1",
         messages: [],
       },
-    )) as { results: { url: string; title: string }[] };
+    )) as { results: { url: string; title: string; excerpt?: string }[] };
 
     expect(output.results.map((page) => page.url)).toEqual([
       "https://www.assistant-ui.com/docs/ui/thread-list",
       "https://www.assistant-ui.com/docs/runtimes/custom",
     ]);
+    expect(output.results[0]?.excerpt).toBe(
+      "Render the thread list beside your thread.",
+    );
     expect(written).toEqual(
       output.results.map((page) => ({
         type: "source-url",
@@ -116,25 +134,5 @@ describe("createSearchDocsTool", () => {
         title: page.title,
       })),
     );
-  });
-
-  it("excerpts the paragraphs that match the query", async () => {
-    const tool = createSearchDocsTool({
-      writer: { write: () => {} } as never,
-      origin: "https://www.assistant-ui.com",
-    });
-
-    const output = (await tool.execute!(
-      { query: "thread list" },
-      {
-        toolCallId: "1",
-        messages: [],
-      },
-    )) as { results: { url: string; excerpt?: string }[] };
-
-    expect(output.results[0]?.excerpt).toBe(
-      "Render the thread list beside your thread.",
-    );
-    expect(output.results[1]?.excerpt).toBeUndefined();
   });
 });

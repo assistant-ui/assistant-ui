@@ -1,17 +1,13 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useHydrated } from "@/hooks/use-hydrated";
 import { LiveDot } from "@/components/shared/live-dot";
 
 const INK_DEMO_URL =
   process.env.NEXT_PUBLIC_INK_DEMO_URL ?? "https://assistant-ui-ink.vercel.app";
 
 export function TerminalDemo() {
-  const [src, setSrc] = useState<string | null>(null);
-
-  useEffect(() => {
-    setSrc(INK_DEMO_URL);
-  }, []);
+  const src = useHydrated() ? INK_DEMO_URL : null;
 
   return (
     <div className="border-foreground/10 overflow-hidden border">

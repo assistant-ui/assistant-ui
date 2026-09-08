@@ -25,6 +25,7 @@ import {
   createThreadMappingId,
   getThreadData,
   normalizeCursor,
+  reconcileInitializedThread,
   updateStatusReducer,
   type RemoteThreadData,
   type RemoteThreadState,
@@ -38,14 +39,23 @@ import type {
 } from "../../runtimes/remote-thread-list/types";
 import { ThreadListAdapterChangedError } from "../../runtimes/remote-thread-list/adapter-changed";
 import type { ThreadMessage } from "../../types/message";
-import { AssistantMessageStream } from "assistant-stream";
 import { handleThreadListAction } from "../../store/runtime-clients/handle-thread-list-action";
 import {
   inMemoryThreadListTransformScopes,
   type InMemoryThreadListProps,
 } from "./InMemoryThreadList";
 import { AdaptedRemoteThread } from "./AdaptedRemoteThread";
-import { isTitleSourceMessage } from "../../runtimes/remote-thread-list/title";
+import {
+  applyTitleStream,
+  isTitleSourceMessage,
+} from "../../runtimes/remote-thread-list/title";
+import {
+  clearThreadTitleState,
+  finishThreadTitleRename,
+  runThreadTitleGeneration,
+  startThreadTitleRename,
+  type ThreadTitleState,
+} from "../../runtimes/remote-thread-list/title-generation";
 
 const RESOLVED_PROMISE = Promise.resolve();
 
@@ -67,6 +77,7 @@ export type RemoteThreadListProps = {
   onThreadIdChange?: ((threadId: string | undefined) => void) | undefined;
   onSwitchToThread?: ((threadId: string) => void) | undefined;
   onSwitchToNewThread?: (() => void) | undefined;
+  /** Called after the backing adapter successfully deletes the thread. */
   onDelete?: ((threadId: string) => void) | undefined;
   /**
    * Keeps every thread the session switched to mounted, so a run continues
@@ -101,16 +112,6 @@ const toInitializeResult = (
   externalId: result.externalId,
 });
 
-const applyTitleStream = async (
-  stream: Parameters<typeof AssistantMessageStream.fromAssistantStream>[0],
-  onTitle: (title: string | undefined) => Promise<void>,
-) => {
-  const messageStream = AssistantMessageStream.fromAssistantStream(stream);
-  for await (const result of messageStream) {
-    await onTitle(result.parts.filter((part) => part.type === "text")[0]?.text);
-  }
-};
-
 const useThreadListItemClient = (props: {
   data: RemoteThreadData;
   isRunning: boolean;
@@ -120,7 +121,7 @@ const useThreadListItemClient = (props: {
   onArchive: () => void;
   onUnarchive: () => void;
   onDelete: () => void;
-  onGenerateTitle: () => void;
+  onGenerateTitle: (options?: { automatic?: boolean }) => void;
   onInitialize: () => Promise<{
     remoteId: string;
     externalId: string | undefined;
@@ -271,7 +272,7 @@ const useRemoteThreadBody = ({
     useEffect(() => {
       if (!hasTitleSource || titleFiredRef.current) return;
       titleFiredRef.current = true;
-      client.threadListItem.generateTitle();
+      client.threadListItem.generateTitle({ automatic: true });
     }, [hasTitleSource]);
     return body.methods;
   });
@@ -343,6 +344,7 @@ const useRemoteThreadListView = ({
   onGenerateTitle: (
     threadId: string,
     messages: readonly ThreadMessage[] | undefined,
+    options?: { automatic?: boolean },
   ) => Promise<void>;
   onInitialize: (threadId: string) => Promise<{
     remoteId: string;
@@ -385,7 +387,7 @@ const useRemoteThreadListView = ({
       onUnarchive: () =>
         handleThreadListAction("unarchive", () => onUnarchive(data.id)),
       onDelete: () => handleThreadListAction("delete", () => onDelete(data.id)),
-      onGenerateTitle: () =>
+      onGenerateTitle: (options) =>
         handleThreadListAction("generate title", () =>
           onGenerateTitle(
             data.id,
@@ -394,6 +396,7 @@ const useRemoteThreadListView = ({
               : mainThreadClient.state.messages) as
               | readonly ThreadMessage[]
               | undefined,
+            options,
           ),
         ),
       onInitialize: () => onInitialize(data.id),
@@ -489,6 +492,7 @@ const useRemoteThreadList = (
         adapter,
         adapterAtLoad: adapter,
         adapterGeneration: 0,
+        titleStates: new Map<string, ThreadTitleState>(),
         loadGeneration: 0,
         switchGeneration: 0,
         loadPromise: undefined as Promise<void> | undefined,
@@ -560,7 +564,7 @@ const useRemoteThreadList = (
         execute: () => adapter.list(),
         loading: (state) => {
           if (generation !== session.loadGeneration) return state;
-          return { ...state, isLoading: true };
+          return { ...state, isLoading: true, loadError: undefined };
         },
         then: (state, page) => {
           if (generation !== session.loadGeneration) return state;
@@ -574,6 +578,7 @@ const useRemoteThreadList = (
           const merged = {
             ...state,
             isLoading: false,
+            loadError: undefined,
             cursor: normalizeCursor(page.nextCursor),
             threadIds: fresh.threadIds,
             archivedThreadIds: fresh.archivedThreadIds,
@@ -590,6 +595,7 @@ const useRemoteThreadList = (
         store.update({
           ...store.baseValue,
           isLoading: false,
+          loadError: error,
         });
       })
       .then(() => {});
@@ -603,6 +609,7 @@ const useRemoteThreadList = (
     session.loadMorePromise = undefined;
     if (adapterChanged) {
       session.adapterGeneration++;
+      session.titleStates.clear();
       session.switchGeneration++;
       session.switchTask = undefined;
       session.adapterAtLoad = adapter;
@@ -626,6 +633,26 @@ const useRemoteThreadList = (
     session,
     store,
   ]);
+
+  useEffect(() => {
+    if (typeof window === "undefined" || typeof document === "undefined") {
+      return;
+    }
+
+    const retryAfterError = () => {
+      if (store.value.loadError !== undefined) void getLoadThreadsPromise();
+    };
+    const retryAfterVisible = () => {
+      if (document.visibilityState === "visible") retryAfterError();
+    };
+
+    window.addEventListener("online", retryAfterError);
+    document.addEventListener("visibilitychange", retryAfterVisible);
+    return () => {
+      window.removeEventListener("online", retryAfterError);
+      document.removeEventListener("visibilitychange", retryAfterVisible);
+    };
+  }, [getLoadThreadsPromise, store]);
 
   useEffect(() => {
     void getLoadThreadsPromise();
@@ -881,6 +908,8 @@ const useRemoteThreadList = (
         requireAdapterGeneration(adapterGeneration);
         return result;
       }
+      let removedMappingId: string | undefined;
+      let replacementMainThreadId: string | undefined;
       const result = await store.optimisticUpdate({
         execute: () => {
           requireAdapterGeneration(adapterGeneration);
@@ -894,7 +923,9 @@ const useRemoteThreadList = (
             threadData: {
               ...state.threadData,
               [mappingId]: {
-                ...state.threadData[mappingId],
+                ...(Object.hasOwn(state.threadData, mappingId)
+                  ? state.threadData[mappingId]
+                  : undefined),
                 initializeTask: task,
               },
             },
@@ -902,49 +933,50 @@ const useRemoteThreadList = (
         },
         then: (state, { remoteId, externalId }) => {
           if (adapterGeneration !== session.adapterGeneration) return state;
-          const data = getThreadData(state, threadId);
-          if (!data) return state;
-          const mappingId = createThreadMappingId(threadId);
-          // A list() response that landed while this initialize was in flight
-          // could not know the remote id yet, so it may have minted its own
-          // slot for it; that slot collapses into this one.
-          const listedMappingId = state.threadIdMap[remoteId];
-          const orphan =
-            listedMappingId !== undefined && listedMappingId !== mappingId
-              ? state.threadData[listedMappingId]
-              : undefined;
-
-          const threadData = { ...state.threadData };
-          if (orphan !== undefined) delete threadData[listedMappingId!];
-          threadData[mappingId] = {
-            ...data,
-            initializeTask: Promise.resolve({ remoteId, externalId }),
+          // Background mode still owns the initializing body. Single-body mode
+          // has already replaced it, so retain the currently mounted body.
+          const retainedThreadId = backgroundThreads
+            ? threadId
+            : session.mainThreadId;
+          const reconciliation = reconcileInitializedThread(
+            state,
+            threadId,
             remoteId,
             externalId,
-          } as RemoteThreadData;
-
-          const rewire = (ids: readonly string[]) =>
-            orphan === undefined ? ids : ids.filter((id) => id !== orphan.id);
-
-          return {
-            ...state,
-            threadIds: rewire(state.threadIds),
-            archivedThreadIds: rewire(state.archivedThreadIds),
-            threadIdMap: {
-              ...state.threadIdMap,
-              [remoteId]: mappingId,
-            },
-            threadData,
-          };
+            retainedThreadId,
+          );
+          removedMappingId = reconciliation.removedMappingId;
+          if (removedMappingId === session.mainThreadId) {
+            replacementMainThreadId = reconciliation.survivorMappingId;
+          }
+          return reconciliation.state;
         },
       });
       requireAdapterGeneration(adapterGeneration);
+      if (removedMappingId !== undefined) {
+        setStartedIds((prev) =>
+          prev.filter((startedId) => startedId !== removedMappingId),
+        );
+      }
+      if (
+        replacementMainThreadId !== undefined &&
+        session.mainThreadId === removedMappingId
+      ) {
+        assignMainThreadId(replacementMainThreadId);
+      }
       if (threadId === session.mainThreadId) {
         notifyRemoteId(result.remoteId, true);
       }
       return toInitializeResult(result);
     },
-    [notifyRemoteId, requireAdapterGeneration, session, store],
+    [
+      assignMainThreadId,
+      backgroundThreads,
+      notifyRemoteId,
+      requireAdapterGeneration,
+      session,
+      store,
+    ],
   );
 
   const rename = useCallback(
@@ -956,27 +988,43 @@ const useRemoteThreadList = (
       if (data.status === "new") {
         throw threadStatusError(threadIdOrRemoteId, data.status, "be renamed");
       }
-      return store.optimisticUpdate({
-        execute: async () => {
-          const { remoteId } = await data.initializeTask;
-          requireAdapterGeneration(adapterGeneration);
-          return currentAdapter.rename(remoteId, newTitle);
-        },
-        optimistic: (state) => {
-          const current = getThreadData(state, threadIdOrRemoteId);
-          if (!current) return state;
-          return {
-            ...state,
-            threadData: {
-              ...state.threadData,
-              [current.id]: {
-                ...current,
-                title: newTitle,
+      const claim = startThreadTitleRename(
+        session.titleStates,
+        data.id,
+        newTitle,
+      );
+      return store
+        .optimisticUpdate({
+          execute: async () => {
+            const { remoteId } = await data.initializeTask;
+            requireAdapterGeneration(adapterGeneration);
+            return currentAdapter.rename(remoteId, newTitle);
+          },
+          optimistic: (state) => {
+            const current = getThreadData(state, threadIdOrRemoteId);
+            if (!current) return state;
+            return {
+              ...state,
+              threadData: {
+                ...state.threadData,
+                [current.id]: {
+                  ...current,
+                  title: newTitle,
+                },
               },
-            },
-          };
-        },
-      });
+            };
+          },
+        })
+        .then(
+          (result) => {
+            finishThreadTitleRename(session.titleStates, data.id, claim, true);
+            return result;
+          },
+          (error: unknown) => {
+            finishThreadTitleRename(session.titleStates, data.id, claim, false);
+            throw error;
+          },
+        );
     },
     [requireAdapterGeneration, session, store],
   );
@@ -1104,8 +1152,7 @@ const useRemoteThreadList = (
       }
       await ensureNotMain(data.id);
       requireAdapterGeneration(adapterGeneration);
-      onDelete?.(data.id);
-      return store.optimisticUpdate({
+      const result = await store.optimisticUpdate({
         execute: async () => {
           const { remoteId } = await data.initializeTask;
           requireAdapterGeneration(adapterGeneration);
@@ -1113,6 +1160,13 @@ const useRemoteThreadList = (
         },
         optimistic: (state) => updateStatusReducer(state, data.id, "deleted"),
       });
+      // An adapter swap resets the optimistic layer, and a listed thread's slot
+      // id is its remote id, so a replacement adapter can re-list this slot
+      // while the deletion is in flight.
+      if (getThreadData(store.value, data.id) !== undefined) return result;
+      clearThreadTitleState(session.titleStates, data.id);
+      onDelete?.(data.id);
+      return result;
     },
     [ensureNotMain, onDelete, requireAdapterGeneration, session, store],
   );
@@ -1121,6 +1175,7 @@ const useRemoteThreadList = (
     async (
       threadIdOrRemoteId: string,
       messages: readonly ThreadMessage[] | undefined,
+      options?: { automatic?: boolean },
     ) => {
       const currentAdapter = session.adapter;
       const adapterGeneration = session.adapterGeneration;
@@ -1144,27 +1199,39 @@ const useRemoteThreadList = (
         return;
       }
       if (!messages) return;
-      const stream = await currentAdapter.generateTitle(remoteId, messages);
-      requireAdapterGeneration(adapterGeneration);
-      await applyTitleStream(stream, async (newTitle) => {
-        await store.optimisticUpdate({
-          execute: async () => {},
-          optimistic: (state) => {
-            if (adapterGeneration !== session.adapterGeneration) return state;
-            const current = getThreadData(state, data.id);
-            if (!current) return state;
-            return {
-              ...state,
-              threadData: {
-                ...state.threadData,
-                [current.id]: {
-                  ...current,
-                  title: newTitle,
+      await runThreadTitleGeneration({
+        states: session.titleStates,
+        threadId: data.id,
+        automatic: options?.automatic === true,
+        generate: async (onTitle) => {
+          const stream = await currentAdapter.generateTitle(remoteId, messages);
+          requireAdapterGeneration(adapterGeneration);
+          await applyTitleStream(stream, onTitle);
+        },
+        rename: async (title) => {
+          requireAdapterGeneration(adapterGeneration);
+          await currentAdapter.rename(remoteId, title);
+        },
+        applyTitle: async (title) => {
+          await store.optimisticUpdate({
+            execute: async () => {},
+            optimistic: (state) => {
+              if (adapterGeneration !== session.adapterGeneration) return state;
+              const current = getThreadData(state, data.id);
+              if (!current) return state;
+              return {
+                ...state,
+                threadData: {
+                  ...state.threadData,
+                  [current.id]: {
+                    ...current,
+                    title,
+                  },
                 },
-              },
-            };
-          },
-        });
+              };
+            },
+          });
+        },
       });
     },
     [backgroundThreads, requireAdapterGeneration, session, store],
@@ -1192,7 +1259,8 @@ const useRemoteThreadList = (
       onArchive: (id) => archive(id),
       onUnarchive: (id) => unarchive(id),
       onDelete: (id) => deleteThread(id),
-      onGenerateTitle: (id, messages) => generateTitle(id, messages),
+      onGenerateTitle: (id, messages, options) =>
+        generateTitle(id, messages, options),
       onInitialize: async (id) => toInitializeResult(await initialize(id)),
       onDetach: (id) => detach(id),
     });
@@ -1230,6 +1298,7 @@ const useRemoteThreadList = (
       mainThreadId,
       newThreadId: listState.newThreadId ?? null,
       isLoading: listState.isLoading,
+      loadError: listState.loadError,
       isLoadingMore: listState.isLoadingMore,
       hasMore: listState.cursor !== undefined,
       threadIds: listState.threadIds,
@@ -1241,6 +1310,7 @@ const useRemoteThreadList = (
       listState.archivedThreadIds,
       listState.cursor,
       listState.isLoading,
+      listState.loadError,
       listState.isLoadingMore,
       listState.newThreadId,
       listState.threadIds,

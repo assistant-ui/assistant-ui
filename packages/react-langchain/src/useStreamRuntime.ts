@@ -324,6 +324,9 @@ const useStreamThreadRuntime = (
     if (remainingStagedMessages.length === 0) {
       stagedBaseMessagesRef.current = null;
       visibleMessagesRef.current = baseMessages;
+      // Reconciling against the upstream stream mutates the staged refs above,
+      // which cannot happen during render.
+      // eslint-disable-next-line react-hooks/set-state-in-effect
       setStagedMessages(null);
       return;
     }

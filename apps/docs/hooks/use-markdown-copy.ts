@@ -1,17 +1,12 @@
 "use client";
 
-import { useEffect, useRef, useState, useCallback } from "react";
+import { useRef, useState, useCallback } from "react";
 import { toast } from "sonner";
 
 export function useMarkdownCopy(markdownUrl: string | undefined) {
   const [content, setContent] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   const hasFetched = useRef(false);
-
-  useEffect(() => {
-    hasFetched.current = false;
-    setContent(null);
-  }, []);
 
   const prefetch = useCallback(() => {
     if (!markdownUrl || hasFetched.current) return;

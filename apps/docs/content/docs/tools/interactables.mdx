@@ -652,10 +652,10 @@ State changes are automatically debounced (500ms) before saving. When the owning
 For custom persistence strategies, use `exportState` and `importState` directly:
 
 ```tsx
-const snapshot = aui.interactables.exportState();
+const snapshot = aui.unstable_interactables.exportState();
 // => { "note-1": { name: "note", state: { title: "Hello" } }, ... }
 
-aui.interactables.importState(snapshot);
+aui.unstable_interactables.importState(snapshot);
 // Imported state is picked up when components next register
 ```
 

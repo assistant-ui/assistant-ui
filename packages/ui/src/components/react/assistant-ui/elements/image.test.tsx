@@ -8,7 +8,7 @@ import {
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { ImageMessagePart } from "@assistant-ui/react";
 
-import { ImageActions, ImageZoom } from "./image";
+import { ImageActions, ImagePreview, ImageZoom } from "./image";
 
 class FakeClipboardItem {
   constructor(public readonly items: Record<string, Blob>) {}
@@ -58,17 +58,116 @@ const originalClipboardDescriptor = Object.getOwnPropertyDescriptor(
   navigator,
   "clipboard",
 );
+const originalImageCompleteDescriptor = Object.getOwnPropertyDescriptor(
+  HTMLImageElement.prototype,
+  "complete",
+);
+const originalImageNaturalWidthDescriptor = Object.getOwnPropertyDescriptor(
+  HTMLImageElement.prototype,
+  "naturalWidth",
+);
+
+const setImageState = (complete: boolean, naturalWidth: number) => {
+  Object.defineProperty(HTMLImageElement.prototype, "complete", {
+    configurable: true,
+    value: complete,
+  });
+  Object.defineProperty(HTMLImageElement.prototype, "naturalWidth", {
+    configurable: true,
+    value: naturalWidth,
+  });
+};
+
+const restoreImageDescriptor = (
+  property: "complete" | "naturalWidth",
+  descriptor: PropertyDescriptor | undefined,
+) => {
+  if (descriptor) {
+    Object.defineProperty(HTMLImageElement.prototype, property, descriptor);
+  } else {
+    Reflect.deleteProperty(HTMLImageElement.prototype, property);
+  }
+};
 
 afterEach(() => {
   cleanup();
   vi.unstubAllGlobals();
   URL.createObjectURL = originalCreateObjectURL;
   URL.revokeObjectURL = originalRevokeObjectURL;
+  restoreImageDescriptor("complete", originalImageCompleteDescriptor);
+  restoreImageDescriptor("naturalWidth", originalImageNaturalWidthDescriptor);
   if (originalClipboardDescriptor) {
     Object.defineProperty(navigator, "clipboard", originalClipboardDescriptor);
   } else {
     Reflect.deleteProperty(navigator, "clipboard");
   }
+});
+
+describe("ImagePreview loading states", () => {
+  it("shows the error state when a failed image completed before hydration", async () => {
+    setImageState(true, 0);
+    render(<ImagePreview src="https://example.test/missing.png" />);
+
+    await waitFor(() =>
+      expect(
+        document.querySelector('[data-slot="image-preview-error"]'),
+      ).not.toBeNull(),
+    );
+    expect(
+      document.querySelector('[data-slot="image-preview-loading"]'),
+    ).toBeNull();
+  });
+
+  it("shows a completed image that loaded before hydration", async () => {
+    setImageState(true, 640);
+    render(<ImagePreview src="https://example.test/image.png" />);
+
+    await waitFor(() =>
+      expect(
+        document.querySelector('[data-slot="image-preview-loading"]'),
+      ).toBeNull(),
+    );
+    expect(screen.getByRole("img").className).not.toContain("invisible");
+  });
+
+  it("updates from loading when the image load event fires", () => {
+    const onLoad = vi.fn();
+    render(<ImagePreview src="image.png" onLoad={onLoad} />);
+
+    fireEvent.load(screen.getByRole("img"));
+
+    expect(onLoad).toHaveBeenCalledOnce();
+    expect(
+      document.querySelector('[data-slot="image-preview-loading"]'),
+    ).toBeNull();
+  });
+
+  it("updates to the error state when the image error event fires", () => {
+    const onError = vi.fn();
+    render(<ImagePreview src="missing.png" onError={onError} />);
+
+    fireEvent.error(screen.getByRole("img"));
+
+    expect(onError).toHaveBeenCalledOnce();
+    expect(
+      document.querySelector('[data-slot="image-preview-error"]'),
+    ).not.toBeNull();
+    expect(
+      document.querySelector('[data-slot="image-preview-loading"]'),
+    ).toBeNull();
+  });
+
+  it("does not carry a loaded state to a new source", () => {
+    const { rerender } = render(<ImagePreview src="first.png" />);
+    fireEvent.load(screen.getByRole("img"));
+
+    rerender(<ImagePreview src="second.png" />);
+
+    expect(
+      document.querySelector('[data-slot="image-preview-loading"]'),
+    ).not.toBeNull();
+    expect(screen.getByRole("img").className).toContain("invisible");
+  });
 });
 
 describe("ImageActions data URI handling", () => {

@@ -6,6 +6,7 @@ const SPACE = 32;
 const TAB = 9;
 const CR = 13;
 const BACKSLASH = 92;
+const DOLLAR = 36;
 
 const isSpace = (c: number) => c === SPACE || c === TAB || c === CR;
 
@@ -17,10 +18,8 @@ function onlyWhitespace(text: string, from: number, to: number): boolean {
 }
 
 /**
- * Index of the start of the last top-level block: the character after the most
- * recent blank line that sits outside any open code fence or `$$` math block.
- * An unclosed fence or math span always begins after such a blank, so it stays
- * wholly inside the returned window without separate tracking. One char pass.
+ * Returns the start of the last block outside open code fences and `$$` math.
+ * Completion can use this boundary, but escapes must also reach earlier text.
  */
 export function findRemendWindowStart(text: string): number {
   const n = text.length;
@@ -61,12 +60,19 @@ export function findRemendWindowStart(text: string): number {
     }
 
     if (!inFence && !marker) {
-      for (
-        let s = text.indexOf("$$", lineStart);
-        s !== -1 && s < lineEnd - 1;
-        s = text.indexOf("$$", s + 2)
-      ) {
-        if (s === 0 || text.charCodeAt(s - 1) !== BACKSLASH) inMath = !inMath;
+      let s = lineStart;
+      while (s < lineEnd - 1) {
+        if (
+          text.charCodeAt(s) === DOLLAR &&
+          text.charCodeAt(s + 1) === DOLLAR
+        ) {
+          if (s === 0 || text.charCodeAt(s - 1) !== BACKSLASH) {
+            inMath = !inMath;
+          }
+          s += 2;
+        } else {
+          s += 1;
+        }
       }
     }
 
@@ -84,20 +90,46 @@ export function findRemendWindowStart(text: string): number {
 }
 
 /**
- * Run incomplete-markdown repair (`remend`) on only the trailing block rather
- * than the whole message. Streamdown splits into blocks after repair and renders
- * each independently, and inline constructs cannot cross a blank line, so a
- * dangling opener can only be in the last block. Repairing just that block is
- * render-equivalent to repairing the full text, but bounds the heavier `remend`
- * repair to the tail instead of running it over the whole message every flush
- * (the cheap boundary scan still runs over the full text).
+ * Options remend applies to text anywhere in the message rather than to an
+ * incomplete construct at its end, plus `linkMode`, which only configures the
+ * disabled `links` handler. Every other option completes a dangling opener,
+ * which mutates or deletes a block that has already settled, so the prefix pass
+ * disables all of them. The two escapes skip backtick fences and inline spans
+ * but not `~~~` fences, indented code, or math.
+ */
+type PrefixSafeOption =
+  | "singleTilde"
+  | "comparisonOperators"
+  | "handlers"
+  | "linkMode";
+
+const COMPLETION_OFF = {
+  bold: false,
+  boldItalic: false,
+  italic: false,
+  inlineCode: false,
+  strikethrough: false,
+  katex: false,
+  inlineKatex: false,
+  links: false,
+  images: false,
+  htmlTags: false,
+  setextHeadings: false,
+} satisfies Record<Exclude<keyof RemendOptions, PrefixSafeOption>, false>;
+
+/**
+ * Repairs incomplete Markdown in the final block and applies text escapes to
+ * earlier blocks. Custom handlers receive the prefix and final block separately.
  */
 export function tailBoundedRemend(
   text: string,
   options?: RemendOptions,
 ): string {
   const start = findRemendWindowStart(text);
-  return start <= 0
-    ? remend(text, options)
-    : text.slice(0, start) + remend(text.slice(start), options);
+  if (start <= 0) return remend(text, options);
+
+  return (
+    remend(text.slice(0, start), { ...options, ...COMPLETION_OFF }) +
+    remend(text.slice(start), options)
+  );
 }

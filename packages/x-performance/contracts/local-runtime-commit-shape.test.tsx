@@ -90,11 +90,23 @@ describe("local runtime commit shape", () => {
     );
 
     // Mid-stream, each yielded chunk costs one commit and one text render with
-    // the message wrapper untouched; the boundaries add the rest: the first
-    // chunk also swaps the synthetic empty running part for the real one, and
-    // run completion flips part status, re-rendering text and the wrapper.
+    // the message wrapper untouched.
     expect(delta).toEqual({
-      "commits:thread": TOKENS + 1,
+      "commits:thread": TOKENS,
+      "renders:text": TOKENS,
+      "renders:message": 0,
+    });
+
+    await until(() => !runtime.thread.getState().isRunning);
+
+    // The boundaries add the rest: the append renders the message and its
+    // synthetic empty running part, the first chunk swaps that part for the
+    // real one, and run completion flips part status, re-rendering text and the
+    // wrapper. AuiProvider commits the host in the layout phase, so the append
+    // lands before the mid-stream baseline above instead of inside it; the
+    // whole-run totals are what stay invariant across that phase.
+    expect(counter.snapshot()).toEqual({
+      "commits:thread": TOKENS + 2,
       "renders:text": TOKENS + 2,
       "renders:message": 2,
     });

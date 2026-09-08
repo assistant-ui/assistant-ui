@@ -68,7 +68,7 @@ The sub-agent's conversation has to reach `ToolCallMessagePart.messages`. AI SDK
 tools: {
   invoke_researcher: tool({
     description: "Invoke the researcher sub-agent",
-    parameters: z.object({ query: z.string() }),
+    inputSchema: z.object({ query: z.string() }),
     execute: async ({ query }) => {
       const subAgentMessages = await runResearcherAgent(query);
       return {

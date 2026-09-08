@@ -3,6 +3,7 @@ import { AssistantCloudThreadMessages } from "./AssistantCloudThreadMessages";
 import {
   readCloudArray,
   readCloudBoolean,
+  readCloudInteger,
   readCloudNullableString,
   readCloudRecord,
   readCloudString,
@@ -41,6 +42,14 @@ type AssistantCloudThreadsCreateBody = {
 
 type AssistantCloudThreadsCreateResponse = {
   thread_id: string;
+};
+
+type AssistantCloudThreadsClaimBody = {
+  refresh_token: string;
+};
+
+type AssistantCloudThreadsClaimResponse = {
+  moved: number;
 };
 
 type AssistantCloudThreadsUpdateBody = {
@@ -133,6 +142,18 @@ export class AssistantCloudThreads {
       method: "PUT",
       body,
     });
+  }
+
+  /** Moves every thread of the anonymous identity behind `refresh_token` into the caller's workspace. */
+  public async claim(
+    body: AssistantCloudThreadsClaimBody,
+  ): Promise<AssistantCloudThreadsClaimResponse> {
+    const response = readCloudRecord(
+      await this.cloud.makeRequest("/threads/claim", { method: "POST", body }),
+      "thread claim response",
+    );
+
+    return { moved: readCloudInteger(response.moved, "moved") };
   }
 
   public async delete(threadId: string): Promise<void> {

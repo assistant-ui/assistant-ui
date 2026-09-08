@@ -122,12 +122,12 @@ describe("markdown streaming", () => {
     app.unmount();
   });
 
-  // `defer` buys interruptibility with a second parse: React renders the
-  // previous text at normal priority and the new text in the deferred pass,
-  // and react-markdown has no incremental mode that would make the first pass
-  // free. Collapsing that to one parse is an optimization; a third is a
-  // regression.
-  it("re-parses once for the previous text and once for the new one when deferred", () => {
+  // `defer` buys interruptibility, and since the renderer is memoized it no
+  // longer costs a second parse: React renders the previous text at normal
+  // priority, which the memo bails out of because that text was parsed on the
+  // last commit, and only the deferred pass parses. The commit count is what
+  // `defer` still costs, one extra per token for the second pass.
+  it("parses only the deferred pass when deferred", () => {
     counter.reset();
     parses = 0;
     const app = mount(true);
@@ -141,7 +141,7 @@ describe("markdown streaming", () => {
 
     expect(counter.renders("p")).toBe(MOUNT_PARAGRAPHS + TOKENS);
     expect(counter.renders("message")).toBe(2);
-    expect(parses).toBe(2 + 2 * TOKENS);
+    expect(parses).toBe(2 + TOKENS);
     expect(counter.commits("thread") - mountedCommits).toBe(3 * TOKENS);
     app.unmount();
   });

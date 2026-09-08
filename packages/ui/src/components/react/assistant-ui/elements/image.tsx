@@ -175,13 +175,10 @@ function ImagePreview({
   const error = errorSrc === src;
 
   useEffect(() => {
-    if (
-      typeof src === "string" &&
-      imgRef.current?.complete &&
-      imgRef.current.naturalWidth > 0
-    ) {
-      setLoadedSrc(src);
-    }
+    const image = imgRef.current;
+    if (typeof src !== "string" || !image?.complete) return;
+    if (image.naturalWidth > 0) setLoadedSrc(src);
+    else setErrorSrc(src);
   }, [src]);
 
   return (
@@ -256,15 +253,10 @@ type ImageZoomProps = PropsWithChildren<{
 }>;
 
 function ImageZoom({ src, alt = "Image preview", children }: ImageZoomProps) {
-  const [isMounted, setIsMounted] = useState(false);
   const [isOpen, setIsOpen] = useState(false);
   const triggerRef = useRef<HTMLDivElement>(null);
   const closeRef = useRef<HTMLButtonElement>(null);
   const overlayRef = useRef<HTMLDivElement>(null);
-
-  useEffect(() => {
-    setIsMounted(true);
-  }, []);
 
   const handleOpen = useCallback(() => setIsOpen(true), []);
   const handleClose = useCallback(() => {
@@ -324,8 +316,7 @@ function ImageZoom({ src, alt = "Image preview", children }: ImageZoomProps) {
       >
         {children}
       </div>
-      {isMounted &&
-        isOpen &&
+      {isOpen &&
         createPortal(
           <div
             ref={overlayRef}

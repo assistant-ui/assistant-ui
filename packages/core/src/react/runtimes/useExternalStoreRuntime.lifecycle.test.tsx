@@ -5,8 +5,49 @@ import { act, render } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
 import { useExternalStoreRuntime } from "./useExternalStoreRuntime";
 import type { AssistantRuntime } from "../../runtime/api/assistant-runtime";
+import type { ThreadMessage } from "../../types/message";
+import { RuntimeAdapterProvider } from "./RuntimeAdapterProvider";
+
+const userMessage: ThreadMessage = {
+  id: "user-1",
+  role: "user",
+  content: [{ type: "text", text: "hello" }],
+  attachments: [],
+  createdAt: new Date(0),
+  metadata: { custom: {} },
+};
 
 describe("useExternalStoreRuntime lifecycle", () => {
+  it("uses feedback supplied by the per-thread adapter context", () => {
+    const submit = vi.fn();
+    const capture: { runtime: AssistantRuntime | null } = { runtime: null };
+    const App = () => {
+      const runtime = useExternalStoreRuntime({
+        messages: [userMessage],
+        onNew: async () => {},
+      });
+      capture.runtime = runtime;
+      return null;
+    };
+
+    render(
+      <RuntimeAdapterProvider adapters={{ feedback: { submit } }}>
+        <App />
+      </RuntimeAdapterProvider>,
+    );
+
+    expect(capture.runtime!.thread.getState().capabilities.feedback).toBe(true);
+    act(() => {
+      capture
+        .runtime!.thread.getMessageById("user-1")
+        .submitFeedback({ type: "positive" });
+    });
+    expect(submit).toHaveBeenCalledWith({
+      message: expect.objectContaining({ id: "user-1" }),
+      type: "positive",
+    });
+  });
+
   it("keeps dispatching appends after StrictMode's simulated remount", async () => {
     const onNew = vi.fn(async () => {});
     const capture: { runtime: AssistantRuntime | null } = { runtime: null };

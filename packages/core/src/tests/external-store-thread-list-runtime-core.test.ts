@@ -2,6 +2,7 @@ import { describe, expect, it, vi } from "vitest";
 import { ExternalStoreThreadListRuntimeCore } from "../runtimes/external-store/external-store-thread-list-runtime-core";
 import type { ExternalStoreThreadRuntimeCore } from "../runtimes/external-store/external-store-thread-runtime-core";
 import { ExternalStoreThreadRuntimeCore as ExternalStoreThreadRuntimeCoreImpl } from "../runtimes/external-store/external-store-thread-runtime-core";
+import { ExternalStoreRuntimeCore } from "../runtimes/external-store/external-store-runtime-core";
 import type { ExternalStoreThreadListAdapter } from "../runtimes/external-store/external-store-adapter";
 import type { ExternalStoreAdapter } from "../runtimes/external-store/external-store-adapter";
 import type { ModelContextProvider } from "../model-context/types";
@@ -109,10 +110,56 @@ describe("ExternalStoreThreadListRuntimeCore - construction", () => {
     // Two empty-adapter constructions should share the frozen DEFAULT_THREAD_DATA
     // singleton rather than each getting a fresh `{ ... }` clone.
     expect(a.threadItems).toBe(b.threadItems);
+    expect(Object.getPrototypeOf(a.threadItems)).toBeNull();
   });
+
+  it.each(["__proto__", "constructor", "toString"])(
+    "returns undefined for an absent prototype-named thread id %s",
+    (threadId) => {
+      const core = new ExternalStoreThreadListRuntimeCore(
+        makeAdapter(),
+        makeFactory(),
+      );
+
+      expect(core.getItemById(threadId)).toBeUndefined();
+      expect(Object.hasOwn(core.threadItems, threadId)).toBe(false);
+    },
+  );
 });
 
 describe("ExternalStoreThreadListRuntimeCore - __internal_setAdapter", () => {
+  it("updates subscribed loading state when thread ids and arrays stay unchanged", () => {
+    const threadList = makeAdapter({
+      threadId: "thread-alpha",
+      threads: [{ id: "thread-alpha", status: "regular" }],
+      archivedThreads: [],
+      isLoading: true,
+    });
+    const adapter: ExternalStoreAdapter = {
+      messages: [],
+      onNew: async () => {},
+      adapters: { threadList },
+    };
+    const core = new ExternalStoreRuntimeCore(adapter);
+    const runtime = new ThreadListRuntimeImpl(core.threads);
+    const seen: boolean[] = [];
+    const unsubscribe = runtime.subscribe(() => {
+      seen.push(runtime.getState().isLoading);
+    });
+    expect(runtime.getState().isLoading).toBe(true);
+
+    for (const isLoading of [false, true, undefined, false]) {
+      core.setAdapter({
+        ...adapter,
+        adapters: { threadList: { ...threadList, isLoading } },
+      });
+    }
+
+    expect(seen).toEqual([false, true, false]);
+    expect(runtime.getState().isLoading).toBe(false);
+    unsubscribe();
+  });
+
   it("updates mainThreadId when adapter.threadId changes", () => {
     const core = new ExternalStoreThreadListRuntimeCore(
       makeAdapter({ threadId: "thread-alpha" }),
@@ -197,6 +244,42 @@ describe("ExternalStoreThreadListRuntimeCore - __internal_setAdapter", () => {
     expect(item).toBeDefined();
     expect(item?.id).toBe("thread-beta");
   });
+
+  it.each(["__proto__", "constructor", "toString"])(
+    "synthesizes a main entry for a prototype-named thread id %s",
+    (threadId) => {
+      const core = new ExternalStoreThreadListRuntimeCore(
+        makeAdapter({ threadId }),
+        makeFactory(),
+      );
+
+      expect(core.getItemById(threadId)).toEqual(
+        expect.objectContaining({ id: threadId, status: "regular" }),
+      );
+      expect(Object.hasOwn(core.threadItems, threadId)).toBe(true);
+      expect(Object.getPrototypeOf(core.threadItems)).toBeNull();
+    },
+  );
+
+  it.each(["regular", "archived"] as const)(
+    "preserves a prototype-named %s adapter entry",
+    (status) => {
+      const adapter: ExternalStoreThreadListAdapter =
+        status === "regular"
+          ? { threads: [{ id: "__proto__", status }] }
+          : { archivedThreads: [{ id: "__proto__", status }] };
+      const core = new ExternalStoreThreadListRuntimeCore(
+        makeAdapter(adapter),
+        makeFactory(),
+      );
+
+      expect(core.getItemById("__proto__")).toEqual(
+        expect.objectContaining({ id: "__proto__", status }),
+      );
+      expect(Object.hasOwn(core.threadItems, "__proto__")).toBe(true);
+      expect(Object.getPrototypeOf(core.threadItems)).toBeNull();
+    },
+  );
 
   it("does not retain stale synthesized entries across mainThreadId switches", () => {
     const core = new ExternalStoreThreadListRuntimeCore(

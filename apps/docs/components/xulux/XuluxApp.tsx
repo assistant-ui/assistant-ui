@@ -85,6 +85,9 @@ export function XuluxApp({
   useEffect(() => {
     if (mode !== "learn") return;
     const stored = readLearnProgress(window.localStorage, courseId);
+    // The stored progress is a fresh object per read, so it cannot back a
+    // cached external-store snapshot.
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     setLearnProgress(stored);
     if (stored.threadId) setSessionId(stored.threadId);
     setLearnReady(true);
@@ -202,10 +205,12 @@ function XuluxRuntimeProviderInner({
   const learnProgressRef = useRef(learnProgress);
   learnProgressRef.current = learnProgress;
   const [limitBlock, setLimitBlock] = useState<XuluxLimitBlock | null>(null);
+  const [limitSessionId, setLimitSessionId] = useState(sessionId);
 
-  useEffect(() => {
+  if (limitSessionId !== sessionId) {
+    setLimitSessionId(sessionId);
     setLimitBlock(null);
-  }, [sessionId]);
+  }
 
   const assistantCloud = useMemo(
     () =>

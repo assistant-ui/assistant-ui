@@ -1468,6 +1468,9 @@ type PiThreadMetadata = {
   workspacePath?: string;
   archived?: boolean;
   status: PiThreadStatus;
+  compactionActive?: boolean;
+  retryActive?: boolean;
+  retryAttempt?: number;
   runningRunId?: string;
   queuedMessages?: readonly PiQueuedMessage[];
   config?: {
@@ -1488,6 +1491,7 @@ type PiThreadSnapshot = {
   messages: PiTranscriptMessage[];
   hostUiRequests?: readonly PiHostUiRequest[];
   readiness?: PiRuntimeReadiness;
+  seq?: number;
   lastError?: string;
 };
 
@@ -1903,6 +1907,10 @@ type ThreadListItemEventPayload = {
 
 type ThreadListItemEventType = keyof ThreadListItemEventPayload;
 
+type ThreadListItemGenerateTitleOptions = {
+  automatic?: boolean;
+};
+
 type ThreadListItemRuntime = {
   readonly path: ThreadListItemRuntimePath;
   getState(): ThreadListItemState;
@@ -1910,7 +1918,7 @@ type ThreadListItemRuntime = {
     remoteId: string;
     externalId: string | undefined;
   }>;
-  generateTitle(): Promise<void>;
+  generateTitle(options?: ThreadListItemGenerateTitleOptions): Promise<void>;
   switchTo(options?: {
     unarchive?: boolean;
   }): Promise<void>;
@@ -1986,6 +1994,7 @@ type ThreadListState = {
   readonly threadIds: readonly string[];
   readonly archivedThreadIds: readonly string[];
   readonly isLoading: boolean;
+  readonly loadError: unknown;
   readonly isLoadingMore: boolean;
   readonly hasMore: boolean;
   readonly threadItems: Readonly<Record<string, Omit<ThreadListItemState, "isMain" | "isRunning" | "threadId">>>;

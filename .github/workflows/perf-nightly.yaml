@@ -32,6 +32,9 @@ jobs:
         run: pnpm install --frozen-lockfile
 
       - name: Build measured packages
+        env:
+          TURBO_TOKEN: ${{ secrets.TURBO_TOKEN }}
+          TURBO_TEAM: ${{ secrets.TURBO_TEAM }}
         run: pnpm turbo run build --filter=@assistant-ui/tap --filter=@assistant-ui/core --filter=@assistant-ui/store --filter=assistant-stream --filter=@assistant-ui/react --filter=@assistant-ui/react-markdown
 
       - name: Record nightly benchmarks

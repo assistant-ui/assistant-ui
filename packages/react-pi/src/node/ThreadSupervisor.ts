@@ -233,9 +233,6 @@ export class PiThreadSupervisor {
   ): Promise<void> {
     const record = await this.ensureOpen(threadId);
     record.session.setThinkingLevel(level as never);
-    // No snapshot here: unlike `setModel`, this has a dedicated event the
-    // reducer applies, so a full-transcript broadcast would be redundant.
-    this.emit(record, { type: "thinking_level_changed", level });
   }
 
   async renameThread(threadId: string, title: string): Promise<void> {
@@ -739,6 +736,9 @@ export class PiThreadSupervisor {
     return {
       id: record.threadId,
       status: this.runStatus(record),
+      compactionActive: session.isCompacting,
+      retryActive: session.isRetrying,
+      retryAttempt: session.retryAttempt,
       workspacePath: record.workspacePath,
       messageCount: session.messages.length,
       ...(session.sessionName ? { title: session.sessionName } : {}),
@@ -766,6 +766,7 @@ export class PiThreadSupervisor {
       metadata: this.metadataOf(record),
       messages: toPiMessages(record.session.messages),
       readiness: this.readinessOf(record),
+      seq: record.seq,
       ...(record.hostUiRequests.length
         ? { hostUiRequests: [...record.hostUiRequests] }
         : {}),

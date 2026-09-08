@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 
-import { createRef, startTransition, Suspense } from "react";
+import { createRef, startTransition, Suspense, useLayoutEffect } from "react";
 import { act, render, waitFor } from "@testing-library/react";
 import { resource, withKey } from "@assistant-ui/tap";
 import {
@@ -68,6 +68,47 @@ const makeAdapter = (): RemoteThreadListAdapter => ({
 });
 
 describe("RemoteThreadList concurrent rendering", () => {
+  it("reloads through the committed adapter from a descendant layout effect", async () => {
+    const adapterA = makeAdapter();
+    const adapterB = makeAdapter();
+
+    const ReloadOnSwap = ({ workspace }: { workspace: string }) => {
+      const aui = useAui();
+      useLayoutEffect(() => {
+        if (workspace === "A") return;
+        void aui.threads.reload();
+      }, [aui, workspace]);
+      return null;
+    };
+    const App = ({
+      adapter,
+      workspace,
+    }: {
+      adapter: RemoteThreadListAdapter;
+      workspace: string;
+    }) => (
+      <AuiProvider
+        config={AuiConfig({
+          threads: RemoteThreadList({
+            adapter,
+            thread: () => StubThread() as never,
+          }),
+        })}
+      >
+        <ReloadOnSwap workspace={workspace} />
+      </AuiProvider>
+    );
+
+    const view = render(<App adapter={adapterA} workspace="A" />);
+    await waitFor(() => expect(adapterA.list).toHaveBeenCalledOnce());
+
+    act(() => {
+      view.rerender(<App adapter={adapterB} workspace="B" />);
+    });
+    await waitFor(() => expect(adapterB.list).toHaveBeenCalled());
+    expect(adapterA.list).toHaveBeenCalledOnce();
+  });
+
   it("keeps actions scoped to the committed adapter", async () => {
     const adapterA = makeAdapter();
     const adapterB = makeAdapter();

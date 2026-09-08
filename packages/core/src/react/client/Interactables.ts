@@ -25,6 +25,7 @@ import {
 } from "../../model-context/interactable-composer-metadata";
 import { notifySubscribers as notifyStateSubscribers } from "../../subscribable/subscribable";
 import { useInteractablePersistenceQueue } from "../interactables-shared/useInteractablePersistenceQueue";
+import { nullProtoRecord } from "../../utils/record";
 
 type RestorePersistedStateOptions = {
   stash: Map<string, unknown>;
@@ -77,8 +78,8 @@ const useInteractablesResource = ({
   persistence,
 }: Unstable_InteractablesConfig = {}): ClientOutput<"unstable_interactables"> => {
   const [state, setState] = useState<Unstable_InteractablesState>(() => ({
-    definitions: {},
-    persistence: {},
+    definitions: nullProtoRecord(),
+    persistence: nullProtoRecord(),
   }));
 
   const clientRef = useAssistantClientRef();
@@ -123,7 +124,8 @@ const useInteractablesResource = ({
   );
 
   const exportState = useCallback((): Unstable_InteractablePersistedState => {
-    const result: Unstable_InteractablePersistedState = {};
+    const result =
+      nullProtoRecord<Unstable_InteractablePersistedState[string]>();
     for (const [id, def] of Object.entries(stateRef.current.definitions)) {
       if (def.scope === "thread") continue; // thread items persist via snapshot, not the adapter
       result[id] = { name: def.name, state: def.state };
@@ -167,7 +169,7 @@ const useInteractablesResource = ({
       }
       setStateAndRef((prev) => {
         let changed = false;
-        const definitions = { ...prev.definitions };
+        const definitions = nullProtoRecord(prev.definitions);
         for (const [id, entry] of Object.entries(saved)) {
           const def = definitions[id];
           if (!def || !shouldApply(id, def)) continue;
@@ -260,10 +262,9 @@ const useInteractablesResource = ({
         if (!existing) return prev;
         return {
           ...prev,
-          definitions: {
-            ...prev.definitions,
+          definitions: nullProtoRecord(prev.definitions, {
             [id]: { ...existing, state: updater(existing.state) },
-          },
+          }),
         };
       });
       if (stateRef.current.definitions[id]?.scope !== "thread") {
@@ -450,8 +451,7 @@ const useInteractablesResource = ({
 
       setStateAndRef((prev) => ({
         ...prev,
-        definitions: {
-          ...prev.definitions,
+        definitions: nullProtoRecord(prev.definitions, {
           [def.id]: {
             id: def.id,
             name: def.name,
@@ -466,7 +466,7 @@ const useInteractablesResource = ({
               loaded ??
               def.initialState,
           },
-        },
+        }),
       }));
 
       return () => {
@@ -498,9 +498,11 @@ const useInteractablesResource = ({
             }
           }
           partialSchemaCacheRef.current.delete(def.id);
-          const { [def.id]: _, ...rest } = prev.definitions;
-          const { [def.id]: __, ...restPersistence } = prev.persistence;
-          return { ...prev, definitions: rest, persistence: restPersistence };
+          const definitions = nullProtoRecord(prev.definitions);
+          const persistence = nullProtoRecord(prev.persistence);
+          delete definitions[def.id];
+          delete persistence[def.id];
+          return { ...prev, definitions, persistence };
         });
       };
     },

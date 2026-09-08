@@ -136,6 +136,27 @@ describe("normalizePersistedAuthState", () => {
     });
   });
 
+  it("keeps valid server URL bindings", () => {
+    expect(
+      normalizePersistedAuthState({
+        serverUrl: "http://mcp.example.com/docs",
+        token: "bearer-token",
+      }),
+    ).toEqual({
+      serverUrl: "http://mcp.example.com/docs",
+      token: "bearer-token",
+    });
+  });
+
+  it("rejects auth state with an unsafe server URL binding", () => {
+    expect(
+      normalizePersistedAuthState({
+        serverUrl: "javascript:alert(1)",
+        token: "bearer-token",
+      }),
+    ).toBeNull();
+  });
+
   it("keeps valid OAuth tokens and client information", () => {
     const tokens = {
       access_token: "access-token",
@@ -153,11 +174,15 @@ describe("normalizePersistedAuthState", () => {
     expect(
       normalizePersistedAuthState({
         tokens,
+        tokensClientId: "client-id",
         clientInformation,
+        clientInformationSource: "registered",
       }),
     ).toEqual({
       tokens,
+      tokensClientId: "client-id",
       clientInformation,
+      clientInformationSource: "registered",
     });
   });
 
@@ -377,6 +402,7 @@ describe("McpLocalStorage auth state", () => {
     const createProvider = () =>
       createOAuthProvider({
         serverId: "docs",
+        serverUrl: "https://mcp.example.com/mcp",
         config: { type: "oauth", clientId: "client-id" },
         storage: loadStorage(storage),
         redirectUri: "http://localhost/callback",

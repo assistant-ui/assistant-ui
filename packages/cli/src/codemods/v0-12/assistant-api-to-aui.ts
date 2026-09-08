@@ -113,6 +113,7 @@ const migrateAssistantApiToAui = createTransformer(
         }
         if (j.VariableDeclaration.check(statement)) {
           for (const declarator of statement.declarations) {
+            if (!j.VariableDeclarator.check(declarator)) continue;
             if (
               j.Identifier.check(declarator.id) &&
               declarator.id.name === "api"
@@ -252,9 +253,11 @@ const migrateAssistantApiToAui = createTransformer(
             grandparent.source != null
           )
             return;
+          // Babel emits exportKind on ExportSpecifier for inline
+          // `export { type api }`; ast-types' typings omit it.
           if (
             grandparent?.exportKind === "type" ||
-            parent.exportKind === "type"
+            (parent as { exportKind?: string }).exportKind === "type"
           )
             return;
           if (parent.exported === path.value && parent.local !== path.value)

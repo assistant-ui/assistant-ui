@@ -121,14 +121,19 @@ const runtime = useAgUiRuntime({
         setCurrentThreadId(await createThread());
       },
       onSwitchToThread: async (id) => {
-        const { messages, state } = await loadThread(id);
         setCurrentThreadId(id);
+        const { messages, state } = await loadThread(id);
         return { messages, state };
       },
     },
   },
 });
 ```
+
+Set the selected thread ID before awaiting its history. The runtime ignores messages,
+state, and resume requests returned by a superseded thread switch, but it cannot
+undo state updates inside your adapter. If creating a thread is asynchronous, also
+guard your adapter's thread ID update against a newer selection.
 
 ## Interrupts (experimental)
 

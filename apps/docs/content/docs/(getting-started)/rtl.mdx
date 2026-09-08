@@ -4,7 +4,7 @@ description: Use assistant-ui with right-to-left languages like Arabic, Hebrew, 
 platforms: ["react"]
 ---
 
-Components shipped through `@assistant-ui/ui` (npm) and the shadcn registry (`npx shadcn@latest add @assistant-ui/<name>`) use logical Tailwind classes (`ms-*`, `pe-*`, `text-start`, `end-*`, `border-s`, ...). They flip automatically under `dir="rtl"` and render byte-identically under `dir="ltr"` (the default) — there is nothing to opt out of.
+Components shipped through the shadcn registry (`npx shadcn@latest add @assistant-ui/<name>`) use logical Tailwind classes (`ms-*`, `pe-*`, `text-start`, `end-*`, `border-s`, ...). They flip automatically under `dir="rtl"` and render byte-identically under `dir="ltr"` (the default) — there is nothing to opt out of.
 
 If you scaffolded from one of our templates (e.g. `npx assistant-ui@latest create -t default`), the generated `components/` folder still uses physical classes (`ml-*`, `text-left`, ...). Run shadcn's built-in migration **once** to convert both the shadcn primitives and assistant-ui's wrappers:
 
@@ -56,7 +56,7 @@ For apps that need to switch direction at runtime, drive `dir` from state and al
 
 ## How it works
 
-Every physical class (`ml-4`, `text-left`, `right-3`, `border-l`, ...) in `@assistant-ui/ui` is authored in logical form (`ms-4`, `text-start`, `end-3`, `border-s`, ...). Logical properties resolve to the matching physical side based on the ancestor with a `dir` attribute:
+Every physical class (`ml-4`, `text-left`, `right-3`, `border-l`, ...) in the registry components is authored in logical form (`ms-4`, `text-start`, `end-3`, `border-s`, ...). Logical properties resolve to the matching physical side based on the ancestor with a `dir` attribute:
 
 | Class | `dir="ltr"` | `dir="rtl"` |
 | ----- | ----------- | ----------- |

@@ -3,8 +3,8 @@
 import {
   createContext,
   useContext,
-  useEffect,
   useState,
+  useSyncExternalStore,
   type ReactNode,
 } from "react";
 import { cn } from "@/lib/utils";
@@ -12,6 +12,20 @@ import { cn } from "@/lib/utils";
 export type ElementMode = "runtime" | "standalone";
 
 const STORAGE_KEY = "aui-element-mode";
+
+const subscribeToNothing = () => () => {};
+
+const readStoredMode = (): ElementMode | null => {
+  try {
+    const fromUrl = new URL(window.location.href).searchParams.get("mode");
+    const value = fromUrl ?? window.localStorage.getItem(STORAGE_KEY);
+    return value === "runtime" || value === "standalone" ? value : null;
+  } catch {
+    return null;
+  }
+};
+
+const noStoredMode = () => null;
 
 const ElementModeContext = createContext<{
   mode: ElementMode;
@@ -25,21 +39,16 @@ export function ElementModeProvider({
   className?: string;
   children: ReactNode;
 }) {
-  const [mode, setModeState] = useState<ElementMode>("runtime");
-
-  useEffect(() => {
-    try {
-      const fromUrl = new URL(window.location.href).searchParams.get("mode");
-      const stored = window.localStorage.getItem(STORAGE_KEY);
-      const value = fromUrl ?? stored;
-      if (value === "runtime" || value === "standalone") setModeState(value);
-    } catch {
-      /* storage unavailable */
-    }
-  }, []);
+  const storedMode = useSyncExternalStore(
+    subscribeToNothing,
+    readStoredMode,
+    noStoredMode,
+  );
+  const [chosenMode, setChosenMode] = useState<ElementMode | null>(null);
+  const mode = chosenMode ?? storedMode ?? "runtime";
 
   const setMode = (next: ElementMode) => {
-    setModeState(next);
+    setChosenMode(next);
     try {
       window.localStorage.setItem(STORAGE_KEY, next);
     } catch {

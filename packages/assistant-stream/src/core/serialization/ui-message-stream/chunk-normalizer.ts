@@ -145,10 +145,11 @@ export const createChunkNormalizer = (): {
         }
         if (tool.emitted) return;
         if (chunk.input !== undefined) {
+          const isUnparsedInputText =
+            chunk.type === "tool-input-error" &&
+            typeof chunk.input === "string";
           tool.deltas = [
-            typeof chunk.input === "string"
-              ? chunk.input
-              : JSON.stringify(chunk.input),
+            isUnparsedInputText ? chunk.input : JSON.stringify(chunk.input),
           ];
         }
         if (chunk.type === "tool-input-error") {

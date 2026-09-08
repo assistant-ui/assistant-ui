@@ -1,4 +1,5 @@
 import { existsSync, readFileSync } from "node:fs";
+import { createHash } from "node:crypto";
 import { createRequire } from "node:module";
 import * as nodePath from "node:path";
 import { parse } from "@babel/parser";
@@ -260,6 +261,7 @@ export function compileGenerative(
   code: string,
   options: CompileOptions,
 ): CompileResult {
+  currentCompilePass++;
   const { target, filename } = options;
   const backendless = options.backendless ?? false;
 
@@ -1055,25 +1057,89 @@ function matchAliasPattern(pattern: string, source: string): string | null {
   return null;
 }
 
-/**
- * Memoizes resolved aliases per start directory. The compiler runs once per
- * file across a build, so without this every aliased spread re-walks and
- * re-parses the same `tsconfig.json`. Process-lifetime, like
- * `checkedCorePackageJsonPaths`.
- */
-const tsconfigAliasesByDir = new Map<string, TsconfigAliases | null>();
+interface TsconfigAliasesCacheEntry {
+  aliases: TsconfigAliases | null;
+  fileVersions: Map<string, string | null>;
+  validatedInPass: number;
+  reuseAcrossPasses: boolean;
+}
+
+const tsconfigAliasesByDir = new Map<string, TsconfigAliasesCacheEntry>();
+let currentCompilePass = 0;
+
+interface TsconfigResolutionState {
+  fileVersions: Map<string, string | null>;
+  fileContents: Map<string, string | null>;
+  cacheable: boolean;
+}
+
+// Fingerprints content rather than mtime and size: filesystems with coarse
+// timestamp granularity report an unchanged mtime for a same-length rewrite,
+// which would serve the stale aliases this cache exists to invalidate.
+function tsconfigFileVersion(content: string): string {
+  return createHash("sha1").update(content).digest("hex");
+}
+
+function readTsconfigFile(
+  state: TsconfigResolutionState,
+  path: string,
+): string | null {
+  const cached = state.fileContents.get(path);
+  if (cached !== undefined) return cached;
+
+  let content: string | null;
+  try {
+    content = readFileSync(path, "utf8");
+  } catch {
+    content = null;
+  }
+  state.fileContents.set(path, content);
+  state.fileVersions.set(
+    path,
+    content === null ? null : tsconfigFileVersion(content),
+  );
+  return content;
+}
+
+function currentFileVersion(path: string): string | null {
+  try {
+    return tsconfigFileVersion(readFileSync(path, "utf8"));
+  } catch {
+    return null;
+  }
+}
+
+function isTsconfigCacheCurrent(entry: TsconfigAliasesCacheEntry): boolean {
+  for (const [path, version] of entry.fileVersions) {
+    if (currentFileVersion(path) !== version) return false;
+  }
+  return true;
+}
 
 /** Walks up from a directory to the nearest `tsconfig.json` that declares `paths`. */
 function loadTsconfigAliases(fromDir: string): TsconfigAliases | null {
   const cached = tsconfigAliasesByDir.get(fromDir);
-  if (cached !== undefined) return cached;
+  if (cached) {
+    if (
+      cached.validatedInPass === currentCompilePass ||
+      (cached.reuseAcrossPasses && isTsconfigCacheCurrent(cached))
+    ) {
+      cached.validatedInPass = currentCompilePass;
+      return cached.aliases;
+    }
+  }
 
   let aliases: TsconfigAliases | null = null;
+  const state: TsconfigResolutionState = {
+    fileVersions: new Map(),
+    fileContents: new Map(),
+    cacheable: true,
+  };
   let dir = fromDir;
   for (;;) {
     const tsconfigPath = nodePath.join(dir, "tsconfig.json");
-    if (existsSync(tsconfigPath)) {
-      aliases = readTsconfigAliases(tsconfigPath, new Set());
+    if (readTsconfigFile(state, tsconfigPath) !== null) {
+      aliases = readTsconfigAliases(tsconfigPath, new Set(), state);
       if (aliases) break;
     }
     const parent = nodePath.dirname(dir);
@@ -1081,7 +1147,14 @@ function loadTsconfigAliases(fromDir: string): TsconfigAliases | null {
     dir = parent;
   }
 
-  tsconfigAliasesByDir.set(fromDir, aliases);
+  // Cache misses too; tracked absent paths invalidate when a config appears.
+  // Unresolved package configs are reused only within the current compile.
+  tsconfigAliasesByDir.set(fromDir, {
+    aliases,
+    fileVersions: state.fileVersions,
+    validatedInPass: currentCompilePass,
+    reuseAcrossPasses: state.cacheable,
+  });
   return aliases;
 }
 
@@ -1089,16 +1162,20 @@ function loadTsconfigAliases(fromDir: string): TsconfigAliases | null {
 function readTsconfigAliases(
   tsconfigPath: string,
   seen: Set<string>,
+  state: TsconfigResolutionState,
 ): TsconfigAliases | null {
   if (seen.has(tsconfigPath)) return null;
   seen.add(tsconfigPath);
+
+  const raw = readTsconfigFile(state, tsconfigPath);
+  if (raw === null) return null;
 
   let config: {
     extends?: string | string[];
     compilerOptions?: { baseUrl?: string; paths?: Record<string, string[]> };
   } | null;
   try {
-    config = parseJsonc(readFileSync(tsconfigPath, "utf8"));
+    config = parseJsonc(raw);
   } catch {
     return null;
   }
@@ -1125,9 +1202,9 @@ function readTsconfigAliases(
   for (let i = extendsList.length - 1; i >= 0; i--) {
     const entry = extendsList[i];
     if (typeof entry !== "string") continue;
-    const extended = resolveExtendedTsconfig(entry, configDir);
+    const extended = resolveExtendedTsconfig(entry, configDir, state);
     if (extended) {
-      const aliases = readTsconfigAliases(extended, seen);
+      const aliases = readTsconfigAliases(extended, seen, state);
       if (aliases) return aliases;
     }
   }
@@ -1138,18 +1215,33 @@ function readTsconfigAliases(
 function resolveExtendedTsconfig(
   extendsValue: string,
   configDir: string,
+  state: TsconfigResolutionState,
 ): string | null {
   if (extendsValue.startsWith(".")) {
     const base = nodePath.resolve(configDir, extendsValue);
     const candidates =
       nodePath.extname(base) === ".json" ? [base] : [`${base}.json`, base];
-    return candidates.find((candidate) => existsSync(candidate)) ?? null;
+    for (const candidate of candidates) {
+      if (readTsconfigFile(state, candidate) !== null) {
+        return candidate;
+      }
+    }
+    return null;
   }
+
+  const request = extendsValue.endsWith(".json")
+    ? extendsValue
+    : `${extendsValue}.json`;
+  const requireFromConfig = createRequire(
+    nodePath.join(configDir, "package.json"),
+  );
+
   try {
-    return createRequire(nodePath.join(configDir, "package.json")).resolve(
-      extendsValue.endsWith(".json") ? extendsValue : `${extendsValue}.json`,
-    );
+    const resolved = requireFromConfig.resolve(request);
+    readTsconfigFile(state, resolved);
+    return resolved;
   } catch {
+    state.cacheable = false;
     return null;
   }
 }

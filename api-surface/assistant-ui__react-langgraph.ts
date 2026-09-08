@@ -198,8 +198,19 @@ type AssistantCloudThreadMessageCreateBody = {
   content: ReadonlyJSONObject;
 };
 
+type AssistantCloudThreadMessageFeedbackBody = {
+  type: "negative" | "positive";
+};
+
+type AssistantCloudThreadMessageFeedbackResponse = {
+  feedback_id: string;
+  type: "negative" | "positive";
+};
+
 type AssistantCloudThreadMessageListQuery = {
   format?: string;
+  limit?: number;
+  after?: string;
 };
 
 type AssistantCloudThreadMessageListResponse = {
@@ -216,6 +227,7 @@ declare class AssistantCloudThreadMessages {
   list(threadId: string, query?: AssistantCloudThreadMessageListQuery): Promise<AssistantCloudThreadMessageListResponse>;
   create(threadId: string, body: AssistantCloudThreadMessageCreateBody): Promise<AssistantCloudMessageCreateResponse>;
   update(threadId: string, messageId: string, body: AssistantCloudThreadMessageUpdateBody): Promise<void>;
+  feedback(threadId: string, messageId: string, body: AssistantCloudThreadMessageFeedbackBody): Promise<AssistantCloudThreadMessageFeedbackResponse>;
 }
 
 declare class AssistantCloudThreads {
@@ -226,8 +238,17 @@ declare class AssistantCloudThreads {
   get(threadId: string): Promise<CloudThread>;
   create(body: AssistantCloudThreadsCreateBody): Promise<AssistantCloudThreadsCreateResponse>;
   update(threadId: string, body: AssistantCloudThreadsUpdateBody): Promise<void>;
+  claim(body: AssistantCloudThreadsClaimBody): Promise<AssistantCloudThreadsClaimResponse>;
   delete(threadId: string): Promise<void>;
 }
+
+type AssistantCloudThreadsClaimBody = {
+  refresh_token: string;
+};
+
+type AssistantCloudThreadsClaimResponse = {
+  moved: number;
+};
 
 type AssistantCloudThreadsCreateBody = {
   title?: string | undefined;
@@ -259,7 +280,7 @@ type AssistantCloudThreadsUpdateBody = {
 
 type AssistantMessageContent = string | AssistantMessageContentComplex[];
 
-type AssistantMessageContentComplex = MessageContentText | MessageContentImageUrl | MessageContentToolUse | MessageContentFile | MessageContentReasoning | MessageContentThinking | MessageContentComputerCall;
+type AssistantMessageContentComplex = MessageContentText | MessageContentImageUrl | MessageContentToolUse | MessageContentFile | MessageContentAudio | MessageContentReasoning | MessageContentThinking | MessageContentComputerCall;
 
 type AssistantRuntime = {
   readonly threads: ThreadListRuntime;
@@ -1243,21 +1264,28 @@ type MessageContentReasoning = {
   type: "reasoning";
   summary?: MessageContentReasoningSummaryText[];
   reasoning?: string;
+  signature?: string;
+  index?: number;
 };
 
 type MessageContentReasoningSummaryText = {
   type: "summary_text";
   text?: string;
+  index?: number;
 };
 
 type MessageContentText = {
   type: "text" | "text_delta";
   text: string;
+  index?: number;
+  citations?: readonly unknown[];
 };
 
 type MessageContentThinking = {
   type: "thinking";
   thinking: string;
+  signature?: string;
+  index?: number;
 };
 
 type MessageContentToolUse = {
@@ -1676,6 +1704,7 @@ type RuntimeAdapters = {
   modelContext?: ModelContextProvider | undefined;
   history?: ThreadHistoryAdapter | undefined;
   attachments?: AttachmentAdapter | undefined;
+  feedback?: FeedbackAdapter | undefined;
 };
 
 type RuntimeCapabilities = {
@@ -1846,6 +1875,10 @@ type ThreadListItemEventPayload = {
 
 type ThreadListItemEventType = keyof ThreadListItemEventPayload;
 
+type ThreadListItemGenerateTitleOptions = {
+  automatic?: boolean;
+};
+
 type ThreadListItemRuntime = {
   readonly path: ThreadListItemRuntimePath;
   getState(): ThreadListItemState;
@@ -1853,7 +1886,7 @@ type ThreadListItemRuntime = {
     remoteId: string;
     externalId: string | undefined;
   }>;
-  generateTitle(): Promise<void>;
+  generateTitle(options?: ThreadListItemGenerateTitleOptions): Promise<void>;
   switchTo(options?: {
     unarchive?: boolean;
   }): Promise<void>;
@@ -1929,6 +1962,7 @@ type ThreadListState = {
   readonly threadIds: readonly string[];
   readonly archivedThreadIds: readonly string[];
   readonly isLoading: boolean;
+  readonly loadError: unknown;
   readonly isLoadingMore: boolean;
   readonly hasMore: boolean;
   readonly threadItems: Readonly<Record<string, Omit<ThreadListItemState, "isMain" | "isRunning" | "threadId">>>;

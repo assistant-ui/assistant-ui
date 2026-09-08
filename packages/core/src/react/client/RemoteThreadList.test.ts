@@ -117,6 +117,7 @@ const mountList = (
   threadId?: string,
   refetch?: () => Promise<void>,
   onSwitchToThread?: (id: string) => void,
+  onDelete?: (id: string) => void,
 ) => {
   const onThreadIdChange = vi.fn();
   const handle = createAssistantClient(
@@ -127,6 +128,7 @@ const mountList = (
         threadId,
         onThreadIdChange,
         onSwitchToThread,
+        onDelete,
       }),
     }),
   );
@@ -402,6 +404,114 @@ describe("RemoteThreadList", () => {
     handle.destroy();
   });
 
+  it("clears the deleted thread's title state so a reborn slot can auto-title", async () => {
+    const adapter = makeAdapter({
+      list: vi.fn(async () => ({
+        threads: [
+          { status: "regular" as const, remoteId: "t1", title: "One" },
+          { status: "regular" as const, remoteId: "t2", title: "Two" },
+        ],
+      })),
+    });
+    const { handle } = mountList(adapter);
+    const aui = handle.getClient();
+    await aui.threads.getLoadThreadsPromise();
+    await vi.waitFor(() => {
+      expect(aui.threads.getState().threadIds).toEqual(["t1", "t2"]);
+    });
+
+    await aui.threads.item({ id: "t1" }).rename("Manual title");
+    await aui.threads.item({ id: "t2" }).rename("Kept manual title");
+    await aui.threads.item({ id: "t1" }).delete();
+    await vi.waitFor(() => {
+      expect(aui.threads.getState().threadIds).toEqual(["t2"]);
+    });
+
+    // The server still lists t1, so a reload rebirths the slot under the same
+    // remote id; a leaked manual-rename entry would suppress its auto-title.
+    await aui.threads.reload();
+    await vi.waitFor(() => {
+      expect(aui.threads.getState().threadIds).toEqual(["t1", "t2"]);
+    });
+    flushTapSync(() => aui.threads.switchToThread("t1"));
+    await vi.waitFor(() => {
+      expect(aui.threads.getState().mainThreadId).toBe("t1");
+    });
+
+    await aui.threads.item({ id: "t1" }).generateTitle({ automatic: true });
+    expect(adapter.generateTitle).toHaveBeenCalledOnce();
+
+    // t2 is the control: a reload that cleared every title state would
+    // generate here as well.
+    flushTapSync(() => aui.threads.switchToThread("t2"));
+    await vi.waitFor(() => {
+      expect(aui.threads.getState().mainThreadId).toBe("t2");
+    });
+    await aui.threads.item({ id: "t2" }).generateTitle({ automatic: true });
+    expect(adapter.generateTitle).toHaveBeenCalledOnce();
+    handle.destroy();
+  });
+
+  it("keeps a manual rename made during automatic title generation", async () => {
+    const generatedTitle = deferred<ReadableStream>();
+    const adapter = makeAdapter({
+      list: vi.fn(async () => ({
+        threads: [{ status: "regular" as const, remoteId: "t1", title: "One" }],
+      })),
+      generateTitle: vi.fn(async () => generatedTitle.promise as never),
+    });
+    const { handle } = mountList(adapter);
+    const aui = handle.getClient();
+    await aui.threads.getLoadThreadsPromise();
+    await vi.waitFor(() => {
+      expect(aui.threads.getState().threadIds).toEqual(["t1"]);
+    });
+    flushTapSync(() => aui.threads.switchToThread("t1"));
+    await vi.waitFor(() => {
+      expect(aui.threads.getState().mainThreadId).toBe("t1");
+    });
+
+    const generation = aui.threads
+      .item({ id: "t1" })
+      .generateTitle({ automatic: true });
+    await vi.waitFor(() => {
+      expect(adapter.generateTitle).toHaveBeenCalledOnce();
+    });
+    await aui.threads.item({ id: "t1" }).rename("Manual title");
+    await vi.waitFor(() => {
+      expect(aui.threads.item({ id: "t1" }).getState().title).toBe(
+        "Manual title",
+      );
+    });
+
+    generatedTitle.resolve(
+      new ReadableStream({
+        start(controller) {
+          controller.enqueue({
+            type: "part-start",
+            path: [0],
+            part: { type: "text" },
+          });
+          controller.enqueue({
+            type: "text-delta",
+            path: [0],
+            textDelta: "Generated title",
+          });
+          controller.enqueue({ type: "part-finish", path: [0] });
+          controller.close();
+        },
+      }),
+    );
+    await generation;
+
+    expect(aui.threads.item({ id: "t1" }).getState().title).toBe(
+      "Manual title",
+    );
+    expect(adapter.rename).toHaveBeenNthCalledWith(1, "t1", "Manual title");
+    expect(adapter.rename).toHaveBeenNthCalledWith(2, "t1", "Manual title");
+    handle.destroy();
+  });
+
   it("preserves generated titles across an overlapping reload", async () => {
     const reload = deferred<{
       threads: {
@@ -623,10 +733,17 @@ describe("RemoteThreadList", () => {
   });
 
   it("keeps one slot per remote id across reload and clears it on delete", async () => {
+    const onDelete = vi.fn();
     const adapter = makeAdapter({
       list: vi.fn(async () => ({ threads: [] })),
     });
-    const { handle } = mountList(adapter);
+    const { handle } = mountList(
+      adapter,
+      undefined,
+      undefined,
+      undefined,
+      onDelete,
+    );
     const aui = handle.getClient();
     await aui.threads.getLoadThreadsPromise();
     const localId = aui.threads.getState().mainThreadId;
@@ -646,6 +763,120 @@ describe("RemoteThreadList", () => {
     });
     expect(() => aui.threads.item({ id: localId }).getState()).toThrow();
     expect(() => aui.threads.item({ id: remoteId }).getState()).toThrow();
+    expect(onDelete).toHaveBeenCalledOnce();
+    expect(onDelete).toHaveBeenCalledWith(localId);
+    handle.destroy();
+  });
+
+  it("does not invoke deletion cleanup when the remote deletion fails", async () => {
+    const error = new Error("delete failed");
+    const onDelete = vi.fn();
+    const adapter = makeAdapter({
+      list: vi.fn(async () => ({
+        threads: [{ status: "regular" as const, remoteId: "t1", title: "One" }],
+      })),
+      delete: vi.fn(async () => {
+        throw error;
+      }),
+    });
+    const { handle } = mountList(
+      adapter,
+      undefined,
+      undefined,
+      undefined,
+      onDelete,
+    );
+    const aui = handle.getClient();
+    await aui.threads.getLoadThreadsPromise();
+    await vi.waitFor(() => {
+      expect(aui.threads.getState().threadIds).toContain("t1");
+    });
+
+    await expect(aui.threads.item({ id: "t1" }).delete()).rejects.toBe(error);
+
+    expect(aui.threads.getState().threadIds).toContain("t1");
+    expect(onDelete).not.toHaveBeenCalled();
+    handle.destroy();
+  });
+
+  const deleteDuringAdapterSwap = async (
+    replacementThreads: readonly {
+      status: "regular";
+      remoteId: string;
+      title: string;
+    }[],
+  ) => {
+    const removal = deferred<void>();
+    const onDelete = vi.fn();
+    const adapterA = makeAdapter({
+      list: vi.fn(async () => ({
+        threads: [{ status: "regular" as const, remoteId: "t1", title: "One" }],
+      })),
+      delete: vi.fn(() => removal.promise),
+    });
+    const adapterB = makeAdapter({
+      list: vi.fn(async () => ({ threads: replacementThreads })),
+    });
+    let adapter: RemoteThreadListAdapter = adapterA;
+    const listeners = new Set<() => void>();
+    const source: AssistantConfigSource = {
+      getConfig: () =>
+        AuiConfig({
+          threads: RemoteThreadList({
+            adapter,
+            thread: (id) => StubThread({ threadId: id }) as never,
+            onDelete,
+          }),
+        }),
+      subscribe: (listener) => {
+        listeners.add(listener);
+        return () => {
+          listeners.delete(listener);
+        };
+      },
+    };
+    const handle = createAssistantClient(source);
+    handle.subscribe(() => {});
+    await handle.getClient().threads.getLoadThreadsPromise();
+    await vi.waitFor(() => {
+      expect(handle.getClient().threads.getState().threadIds).toContain("t1");
+    });
+
+    const deletion = handle.getClient().threads.item({ id: "t1" }).delete();
+    await vi.waitFor(() => {
+      expect(adapterA.delete).toHaveBeenCalledWith("t1");
+    });
+
+    adapter = adapterB;
+    for (const listener of listeners) listener();
+    await vi.waitFor(async () => {
+      flushTapSync(() => {});
+      await handle.getClient().threads.reload();
+      expect(adapterB.list).toHaveBeenCalled();
+      expect(handle.getClient().threads.getState().threadIds).toEqual(
+        replacementThreads.map((thread) => thread.remoteId),
+      );
+    });
+
+    removal.resolve();
+    await deletion;
+    return { handle, onDelete };
+  };
+
+  it("invokes deletion cleanup when the adapter changes during a successful deletion", async () => {
+    const { handle, onDelete } = await deleteDuringAdapterSwap([]);
+
+    expect(onDelete).toHaveBeenCalledWith("t1");
+    handle.destroy();
+  });
+
+  it("skips deletion cleanup when the replacement adapter re-lists the deleted id", async () => {
+    const { handle, onDelete } = await deleteDuringAdapterSwap([
+      { status: "regular" as const, remoteId: "t1", title: "One" },
+    ]);
+
+    expect(handle.getClient().threads.getState().threadIds).toContain("t1");
+    expect(onDelete).not.toHaveBeenCalled();
     handle.destroy();
   });
 
@@ -873,6 +1104,7 @@ describe("RemoteThreadList", () => {
   });
 
   it("does not reset again when retrying a failed replacement load", async () => {
+    const error = new Error("network");
     const methodsA = makeAdapter({
       list: vi.fn(async () => ({
         threads: [
@@ -883,8 +1115,8 @@ describe("RemoteThreadList", () => {
     const methodsB = makeAdapter({
       list: vi
         .fn()
-        .mockRejectedValueOnce(new Error("network"))
-        .mockResolvedValueOnce({
+        .mockRejectedValueOnce(error)
+        .mockResolvedValue({
           threads: [
             { status: "regular" as const, remoteId: "thread-b", title: "B" },
           ],
@@ -933,6 +1165,7 @@ describe("RemoteThreadList", () => {
       const mainAfterFailure = handle
         .getClient()
         .threads.getState().mainThreadId;
+      expect(handle.getClient().threads.getState().loadError).toBe(error);
       await handle.getClient().threads.reload();
       await vi.waitFor(() => {
         expect(handle.getClient().threads.getState().threadIds).toEqual([
@@ -942,10 +1175,92 @@ describe("RemoteThreadList", () => {
       expect(handle.getClient().threads.getState().mainThreadId).toBe(
         mainAfterFailure,
       );
+      expect(handle.getClient().threads.getState().loadError).toBeUndefined();
     } finally {
       consoleError.mockRestore();
     }
     handle.destroy();
+  });
+
+  it("reloads once when the browser comes online after a failed load", async () => {
+    vi.stubGlobal("window", new EventTarget());
+    vi.stubGlobal(
+      "document",
+      Object.assign(new EventTarget(), { visibilityState: "visible" }),
+    );
+    const error = new Error("offline");
+    const firstLoad = deferred<{ threads: [] }>();
+    const list = vi
+      .fn()
+      .mockReturnValueOnce(firstLoad.promise)
+      .mockResolvedValueOnce({ threads: [] });
+    const consoleError = vi
+      .spyOn(console, "error")
+      .mockImplementation(() => {});
+    const { handle } = mountList(makeAdapter({ list }));
+
+    try {
+      await vi.waitFor(() => expect(list).toHaveBeenCalledTimes(1));
+      firstLoad.reject(error);
+      await vi.waitFor(() =>
+        expect(handle.getClient().threads.getState().loadError).toBe(error),
+      );
+
+      window.dispatchEvent(new Event("online"));
+
+      await vi.waitFor(() => expect(list).toHaveBeenCalledTimes(2));
+      await vi.waitFor(() =>
+        expect(handle.getClient().threads.getState().loadError).toBeUndefined(),
+      );
+      expect(list).toHaveBeenCalledTimes(2);
+    } finally {
+      handle.destroy();
+      consoleError.mockRestore();
+      vi.unstubAllGlobals();
+    }
+  });
+
+  it("retries once when the document becomes visible after a failed load", async () => {
+    vi.stubGlobal("window", new EventTarget());
+    const document = Object.assign(new EventTarget(), {
+      visibilityState: "hidden",
+    });
+    vi.stubGlobal("document", document);
+    const error = new Error("offline");
+    const firstLoad = deferred<{ threads: [] }>();
+    const list = vi
+      .fn()
+      .mockReturnValueOnce(firstLoad.promise)
+      .mockResolvedValueOnce({ threads: [] });
+    const consoleError = vi
+      .spyOn(console, "error")
+      .mockImplementation(() => {});
+    const { handle } = mountList(makeAdapter({ list }));
+
+    try {
+      await vi.waitFor(() => expect(list).toHaveBeenCalledTimes(1));
+      firstLoad.reject(error);
+      await vi.waitFor(() =>
+        expect(handle.getClient().threads.getState().loadError).toBe(error),
+      );
+
+      document.dispatchEvent(new Event("visibilitychange"));
+      await new Promise((resolve) => setTimeout(resolve, 20));
+      expect(list).toHaveBeenCalledTimes(1);
+
+      document.visibilityState = "visible";
+      document.dispatchEvent(new Event("visibilitychange"));
+
+      await vi.waitFor(() => expect(list).toHaveBeenCalledTimes(2));
+      await vi.waitFor(() =>
+        expect(handle.getClient().threads.getState().loadError).toBeUndefined(),
+      );
+      expect(list).toHaveBeenCalledTimes(2);
+    } finally {
+      handle.destroy();
+      consoleError.mockRestore();
+      vi.unstubAllGlobals();
+    }
   });
 
   it("does not send a superseded rename through the replacement adapter", async () => {

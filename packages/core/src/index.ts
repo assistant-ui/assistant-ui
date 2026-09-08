@@ -261,6 +261,7 @@ export type {
   ThreadListItemEventCallback,
   ThreadListItemEventPayload,
   ThreadListItemEventType,
+  ThreadListItemGenerateTitleOptions,
   ThreadListItemRuntime,
 } from "./runtime/api/thread-list-item-runtime";
 

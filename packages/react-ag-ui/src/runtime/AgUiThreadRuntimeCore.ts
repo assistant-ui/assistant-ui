@@ -164,7 +164,6 @@ export class AgUiThreadRuntimeCore {
   // mid-run, and cancelling has to reach the agent holding the live request.
   private activeRunAgent: AbstractAgent | null = null;
   private stateSnapshot: ReadonlyJSONValue | undefined;
-  private pendingError: Error | null = null;
   private history: ThreadHistoryAdapter | undefined;
   private lastRunConfig: RunConfig | undefined;
   private readonly assistantHistoryParents = new Map<string, string | null>();
@@ -174,8 +173,9 @@ export class AgUiThreadRuntimeCore {
   private _isLoading = false;
   private _loadPromise: Promise<void> | undefined;
   private _loadRequested = false;
-  private pendingResumeMessageId: string | null = null;
-  private pendingA2uiResume = false;
+  private pendingResume: { owner: AbortController; messageId: string } | null =
+    null;
+  private pendingA2uiResumeOwner: AbortController | null = null;
   private pendingA2uiAction: Record<string, unknown> | undefined;
 
   constructor(options: CoreOptions) {
@@ -296,12 +296,17 @@ export class AgUiThreadRuntimeCore {
 
   async append(message: AppendMessage): Promise<void> {
     const startRun = message.startRun ?? message.role === "user";
+    let ownsThread = true;
     if (startRun) {
       this.assertNoPendingInterrupts();
       this.maybeAutoCancelPendingToolCalls();
+      // Before the message is linked: callers parent it on the in-flight
+      // assistant, and settling that assistant reassigns its optimistic id,
+      // which would evict it and reparent this message onto a branch.
+      ownsThread = this.supersedeActiveRun();
     }
     const threadMessageId = this.appendEntry(message);
-    if (!startRun) return;
+    if (!startRun || !ownsThread) return;
     await this.startRun(threadMessageId, message.runConfig);
   }
 
@@ -344,17 +349,44 @@ export class AgUiThreadRuntimeCore {
   }
 
   async cancel(): Promise<void> {
-    if (!this.abortController) return;
-    // Before the local abort, whose listener runs onCancel synchronously: a
-    // callback that starts another run replaces the agent's controller, and
-    // aborting afterwards would kill that replacement and leave this run live.
-    // The local abort is unconditional because abortRun is a user subclass's
-    // code, and a throw there would otherwise strand the thread as running.
+    this.abortActiveRun();
+  }
+
+  // abortRun is what stops an upstream agent: AbstractAgent.runAgent declares
+  // two parameters and HttpAgent binds its request to a controller of its own,
+  // so the run options object reaches only subclasses that read it. The local
+  // abort comes last and is unconditional: its listener runs onCancel
+  // synchronously, so a callback that starts another run must keep the
+  // controller it installed, and a throw from a subclass's abortRun would
+  // otherwise strand the thread as running.
+  private abortActiveRun(): void {
+    const controller = this.abortController;
+    if (!controller) return;
     try {
       (this.activeRunAgent ?? this.agent).abortRun();
     } finally {
-      this.abortController.abort();
+      controller.abort();
     }
+  }
+
+  // Starting a run supersedes the active one, and reports whether the caller
+  // still owns the thread afterwards: the local abort runs onCancel
+  // synchronously, so a callback that starts its own run keeps it. abortRun is a
+  // subclass's code, and a throw there must not abandon the run being started,
+  // unlike cancel(), where the failed operation is the caller's own. Calling
+  // this twice for one run is harmless, because the second call finds no active
+  // run to supersede.
+  private supersedeActiveRun(): boolean {
+    try {
+      this.abortActiveRun();
+    } catch (error) {
+      this.logger.error?.("[agui] agent abortRun failed", error);
+    }
+    if (this.abortController === null) return true;
+    this.logger.debug?.(
+      "[agui] onCancel started a replacement run; dropping the superseding send",
+    );
+    return false;
   }
 
   async resume(config: ResumeRunConfig): Promise<void> {
@@ -718,7 +750,8 @@ export class AgUiThreadRuntimeCore {
     }
     return {
       createdAt: message.createdAt ?? new Date(),
-      parentId: message.parentId ?? this.session.headId,
+      parentId:
+        message.parentId === undefined ? this.session.headId : message.parentId,
       sourceId: message.sourceId ?? null,
       role: message.role ?? "user",
       content: message.content,
@@ -847,8 +880,9 @@ export class AgUiThreadRuntimeCore {
     }
     this.pendingA2uiAction = userAction;
 
-    if (this.isRunningFlag) {
-      this.pendingA2uiResume = true;
+    const owner = this.abortController;
+    if (owner) {
+      this.pendingA2uiResumeOwner = owner;
       return;
     }
     this.startResumeRun(parentId);
@@ -860,10 +894,11 @@ export class AgUiThreadRuntimeCore {
   private maybeResumeAfterToolResults(messageId: string): void {
     if (!this.maybeCompleteAfterToolResults(messageId)) return;
 
-    if (this.isRunningFlag) {
+    const owner = this.abortController;
+    if (owner) {
       // A run is still draining (RUN_FINISHED arrived but the stream has not
       // closed). Defer until startRun's tail so we never start two runs.
-      this.pendingResumeMessageId = messageId;
+      this.pendingResume = { owner, messageId };
       return;
     }
     this.startResumeRun(messageId);
@@ -913,7 +948,7 @@ export class AgUiThreadRuntimeCore {
   }
 
   applyExternalMessages(messages: readonly ThreadMessage[]): void {
-    this.pendingA2uiResume = false;
+    this.pendingA2uiResumeOwner = null;
     this.pendingA2uiAction = undefined;
     this.assistantHistoryParents.clear();
 
@@ -959,6 +994,17 @@ export class AgUiThreadRuntimeCore {
     for (const { message } of this.getMessageRepository().messages) {
       this.snapshotHistoryIds.add(message.id);
     }
+    // MESSAGES_SNAPSHOT re-appends the active assistant, so a parked
+    // continuation whose target survived the snapshot is still answerable.
+    // Membership is the head branch, not the repository: a soft merge leaves
+    // the messages it dropped behind as off-branch nodes.
+    const resumeTarget = this.pendingResume?.messageId;
+    if (
+      resumeTarget !== undefined &&
+      !this.session.getMessages().some((message) => message.id === resumeTarget)
+    ) {
+      this.pendingResume = null;
+    }
     this.notifyUpdate();
   }
 
@@ -988,6 +1034,11 @@ export class AgUiThreadRuntimeCore {
     resume?: AgUiResumeEntry[],
     resumeStream?: ResumeStream,
   ): Promise<void> {
+    // A default AG-UI run supersedes the active run; the hook's opt-in message
+    // queue serializes sends instead. append supersedes earlier, before it links
+    // its message; this covers the entry points that start a run without one.
+    if (!this.supersedeActiveRun()) return;
+
     const normalizedRunConfig = runConfig ?? {};
     this.lastRunConfig = normalizedRunConfig;
     const parent =
@@ -1005,7 +1056,7 @@ export class AgUiThreadRuntimeCore {
       this.getMessageRepository().messages.map(({ message }) => message.id),
     );
 
-    this.pendingError = null;
+    let pendingError: Error | null = null;
     const assistantParentId = parent ? parentId : this.session.headId;
     let assistantMessageId: string | undefined;
     // A snapshot the preserve gate declines still evicts the in-flight
@@ -1131,16 +1182,17 @@ export class AgUiThreadRuntimeCore {
         // Cancel flips only the status; an aggregator RUN_CANCELLED would emit an empty snapshot and wipe the replayed content.
         cancelRun = () =>
           applyUpdate({ status: { type: "incomplete", reason: "cancelled" } });
-        await this.consumeResumeStream(resumeStream, {
-          runConfig: normalizedRunConfig,
-          threadId: this.agent.threadId || "main",
-          parentId: assistantParentId,
-          historicalMessages,
-          abortSignal,
-          ensureAssistant,
-          applyUpdate,
-          getAssistantMessageId: () => assistantMessageId,
-        });
+        pendingError =
+          (await this.consumeResumeStream(resumeStream, {
+            runConfig: normalizedRunConfig,
+            threadId: this.agent.threadId || "main",
+            parentId: assistantParentId,
+            historicalMessages,
+            abortSignal,
+            ensureAssistant,
+            applyUpdate,
+            getAssistantMessageId: () => assistantMessageId,
+          })) ?? null;
       } else {
         const runId = generateId();
         aggregator.handle({ type: "RUN_STARTED", runId });
@@ -1156,7 +1208,7 @@ export class AgUiThreadRuntimeCore {
           logger: this.logger,
           onRunFailed: (error) => {
             if (abortSignal.aborted) return;
-            this.pendingError = error;
+            pendingError = error;
             invokeRuntimeCallback("onError", this.onError, error);
           },
         });
@@ -1176,36 +1228,31 @@ export class AgUiThreadRuntimeCore {
         const err = error instanceof Error ? error : new Error(String(error));
         dispatch({ type: "RUN_ERROR", message: err.message });
         invokeRuntimeCallback("onError", this.onError, err);
-        this.pendingError = this.pendingError ?? err;
+        pendingError ??= err;
       }
     } finally {
       this.finishRun(abortController);
     }
 
-    if (this.pendingError) {
-      const err = this.pendingError;
+    if (pendingError) {
+      const err = pendingError;
       this.reportedErrors.add(err);
-      this.pendingError = null;
-      this.pendingResumeMessageId = null;
-      this.pendingA2uiResume = false;
-      this.pendingA2uiAction = undefined;
+      this.clearDeferredContinuations(abortController);
       throw err;
     }
 
     // A tool result that landed before the run settled deferred its
     // continuation here so a second run never overlaps the first.
-    if (this.pendingResumeMessageId !== null) {
-      const resumeMessageId = this.pendingResumeMessageId;
-      this.pendingResumeMessageId = null;
+    if (this.pendingResume?.owner === abortController) {
+      const { messageId } = this.pendingResume;
+      this.pendingResume = null;
       if (!abortSignal.aborted) {
-        this.startResumeRun(resumeMessageId);
-      } else {
-        this.pendingA2uiAction = undefined;
+        this.startResumeRun(messageId);
       }
     }
 
-    if (this.pendingA2uiResume) {
-      this.pendingA2uiResume = false;
+    if (this.pendingA2uiResumeOwner === abortController) {
+      this.pendingA2uiResumeOwner = null;
       if (!abortSignal.aborted && this.pendingA2uiAction !== undefined) {
         if (this.getPendingInterrupts()) {
           this.pendingA2uiAction = undefined;
@@ -1243,9 +1290,9 @@ export class AgUiThreadRuntimeCore {
       applyUpdate: (update: ChatModelRunResult) => void;
       getAssistantMessageId: () => string | undefined;
     },
-  ): Promise<void> {
+  ): Promise<Error | undefined> {
     this.pendingA2uiAction = undefined;
-    this.pendingA2uiResume = false;
+    this.pendingA2uiResumeOwner = null;
     const assistantId = ctx.ensureAssistant();
     const currentId = () => ctx.getAssistantMessageId() ?? assistantId;
     const options: ChatModelRunOptions = {
@@ -1269,25 +1316,25 @@ export class AgUiThreadRuntimeCore {
 
     try {
       for await (const result of stream(options)) {
-        if (ctx.abortSignal.aborted) return;
+        if (ctx.abortSignal.aborted) return undefined;
         ctx.applyUpdate(result);
       }
     } catch (error) {
-      if (ctx.abortSignal.aborted) return;
+      if (ctx.abortSignal.aborted) return undefined;
       const err = error instanceof Error ? error : new Error(String(error));
       ctx.applyUpdate({
         status: { type: "incomplete", reason: "error", error: err.message },
       });
       invokeRuntimeCallback("onError", this.onError, err);
-      this.pendingError = this.pendingError ?? err;
-      return;
+      return err;
     }
 
-    if (ctx.abortSignal.aborted) return;
+    if (ctx.abortSignal.aborted) return undefined;
     const current = this.session.tryGetMessage(currentId())?.message;
     if (!current || current.status?.type === "running") {
       ctx.applyUpdate({ status: { type: "complete", reason: "unknown" } });
     }
+    return undefined;
   }
 
   private buildRunInput(
@@ -1324,16 +1371,25 @@ export class AgUiThreadRuntimeCore {
     return input;
   }
 
+  private clearDeferredContinuations(owner: AbortController): void {
+    if (this.pendingResume?.owner === owner) {
+      this.pendingResume = null;
+    }
+    if (this.pendingA2uiResumeOwner === owner) {
+      this.pendingA2uiResumeOwner = null;
+      this.pendingA2uiAction = undefined;
+    }
+  }
+
   private setRunning(running: boolean) {
     this.isRunningFlag = running;
     this.notifyUpdate();
   }
 
   private finishRun(controller: AbortController | null) {
-    if (this.abortController === controller) {
-      this.abortController = null;
-      this.activeRunAgent = null;
-    }
+    if (this.abortController !== controller) return;
+    this.abortController = null;
+    this.activeRunAgent = null;
     this.setRunning(false);
   }
 

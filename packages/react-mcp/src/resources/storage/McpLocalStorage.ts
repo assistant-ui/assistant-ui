@@ -6,6 +6,7 @@ import {
   OAuthProtectedResourceMetadataSchema,
   OAuthTokensSchema,
 } from "@modelcontextprotocol/core";
+import { normalizeMcpServerUrl } from "../../utils/serverUrl";
 import type { MCPAuthConfig, MCPCustomServerRecord } from "../../mcp-scope";
 import type { MCPPersistedAuthState } from "../../auth/types";
 import { assertValidServerId } from "../../utils/serverId";
@@ -160,6 +161,16 @@ const isSecureNetworkUrl = (value: unknown): value is string => {
   }
 };
 
+const isMcpServerUrl = (value: unknown): value is string => {
+  if (typeof value !== "string") return false;
+  try {
+    const url = new URL(value);
+    return url.protocol === "https:" || url.protocol === "http:";
+  } catch {
+    return false;
+  }
+};
+
 const normalizeDiscoveryState = (
   value: unknown,
 ): MCPPersistedAuthState["discoveryState"] | undefined => {
@@ -195,9 +206,16 @@ export const normalizePersistedAuthState = (
   value: unknown,
 ): MCPPersistedAuthState | null => {
   if (!isRecord(value)) return null;
+  if ("serverUrl" in value && !isMcpServerUrl(value.serverUrl)) return null;
 
   const state: MCPPersistedAuthState = {};
+  if (isMcpServerUrl(value.serverUrl)) {
+    state.serverUrl = normalizeMcpServerUrl(value.serverUrl);
+  }
   if (isNonEmptyString(value.token)) state.token = value.token;
+  if (isNonEmptyString(value.tokensClientId)) {
+    state.tokensClientId = value.tokensClientId;
+  }
   if (isNonEmptyString(value.codeVerifier)) {
     state.codeVerifier = value.codeVerifier;
   }
@@ -208,6 +226,9 @@ export const normalizePersistedAuthState = (
 
   const clientInformation = normalizeClientInformation(value.clientInformation);
   if (clientInformation) state.clientInformation = clientInformation;
+  if (value.clientInformationSource === "registered") {
+    state.clientInformationSource = value.clientInformationSource;
+  }
 
   const discoveryState = normalizeDiscoveryState(value.discoveryState);
   if (discoveryState) state.discoveryState = discoveryState;

@@ -3,6 +3,7 @@ import {
   AssistantCloudJWTAuthStrategy,
   AssistantCloudAPIKeyAuthStrategy,
   AssistantCloudAnonymousAuthStrategy,
+  normalizeBaseUrl,
 } from "./AssistantCloudAuthStrategy";
 import type { AssistantCloudRunReport } from "./AssistantCloudRuns";
 
@@ -63,11 +64,6 @@ type MakeRequestOptions = {
   headers?: Record<string, string> | undefined;
   query?: Record<string, string | number | boolean> | undefined;
   body?: object | undefined;
-};
-
-const normalizeBaseUrl = (baseUrl: string) => {
-  if (!baseUrl || !baseUrl.endsWith("/")) return baseUrl;
-  return baseUrl.slice(0, -1);
 };
 
 export class AssistantCloudAPI {

@@ -82,6 +82,7 @@ const useThreadListClient = ({
       mainThreadId: runtimeState.mainThreadId,
       newThreadId: runtimeState.newThreadId ?? null,
       isLoading: runtimeState.isLoading,
+      loadError: runtimeState.loadError,
       isLoadingMore: runtimeState.isLoadingMore,
       hasMore: runtimeState.hasMore,
       threadIds: runtimeState.threadIds,

@@ -277,18 +277,23 @@ function getNavigation() {
   };
 }
 
-function searchDocs(query: string) {
-  const normalized = query.trim().toLowerCase();
-  if (!normalized) return [];
+async function searchDocs(query: string) {
+  const [{ buildContentIndex }, { searchContent }] = await Promise.all([
+    import("@/lib/search/content-index"),
+    import("@/lib/search/content-search"),
+  ]);
 
-  return allPages()
-    .map(({ page }) => pageSummary(page))
-    .filter((page) =>
-      [page.title, page.url, page.description ?? ""].some((value) =>
-        value.toLowerCase().includes(normalized),
-      ),
-    )
-    .slice(0, SEARCH_DOCS_RESULT_LIMIT);
+  return searchContent(
+    await buildContentIndex(),
+    query,
+    SEARCH_DOCS_RESULT_LIMIT,
+  ).map((page) => ({
+    title: page.title,
+    url: page.url,
+    ...(page.description ? { description: page.description } : {}),
+    ...(page.headings.length > 0 ? { headings: page.headings } : {}),
+    ...(page.excerpt ? { excerpt: page.excerpt } : {}),
+  }));
 }
 
 async function readPage(path: string | undefined, requestUrl: string) {
@@ -619,7 +624,28 @@ function jsonResponse(body: unknown, init?: ResponseInit) {
   });
 }
 
-export async function GET() {
+function acceptsEventStream(request: NextRequest) {
+  return (request.headers.get("accept") ?? "")
+    .toLowerCase()
+    .split(",")
+    .some((range) => range.split(";")[0]?.trim() === "text/event-stream");
+}
+
+export async function GET(request: NextRequest) {
+  // `Accept: text/event-stream` opens the Streamable HTTP server-to-client
+  // stream, which this stateless endpoint does not offer; a 200 reads as a
+  // stream that opened and closed, and clients answer that by reconnecting.
+  if (acceptsEventStream(request)) {
+    return jsonResponse(
+      {
+        jsonrpc: "2.0",
+        error: { code: -32000, message: "Method not allowed." },
+        id: null,
+      },
+      { status: 405, headers: { Allow: "POST, OPTIONS" } },
+    );
+  }
+
   return jsonResponse({
     name: "assistant-ui-docs",
     protocol: "mcp",

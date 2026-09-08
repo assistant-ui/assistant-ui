@@ -9,7 +9,7 @@ import type {
   ThreadHistoryAdapter,
   ThreadMessage,
 } from "@assistant-ui/core";
-import { HttpAgent } from "@ag-ui/client";
+import { HttpAgent, type AgentSubscriber } from "@ag-ui/client";
 import { AgUiThreadRuntimeCore } from "../src/runtime/AgUiThreadRuntimeCore";
 import { makeLogger, type Logger } from "../src/runtime/logger";
 
@@ -905,6 +905,540 @@ describe("AGUIThreadRuntimeCore", () => {
     expect(agent.abortRun).toHaveBeenCalledTimes(1);
   });
 
+  it("keeps a replacement run active when the cancelled run settles late", async () => {
+    const resolveRuns: Array<() => void> = [];
+    const agent = {
+      runAgent: vi.fn(
+        () =>
+          new Promise<void>((resolve) => {
+            resolveRuns.push(resolve);
+          }),
+      ),
+      abortRun: vi.fn(),
+    } as unknown as HttpAgent;
+
+    const core = createCore(agent);
+    const firstRun = core.append(createAppendMessage());
+    await core.cancel();
+
+    const replacementRun = core.append(createAppendMessage());
+    expect(resolveRuns).toHaveLength(2);
+    expect(core.isRunning()).toBe(true);
+
+    resolveRuns[0]?.();
+    await firstRun;
+
+    expect(core.isRunning()).toBe(true);
+
+    resolveRuns[1]?.();
+    await replacementRun;
+    expect(core.isRunning()).toBe(false);
+  });
+
+  it("keeps replacement run errors with the replacement", async () => {
+    const runs: Array<{ subscriber: AgentSubscriber; resolve: () => void }> =
+      [];
+    const agent = {
+      runAgent: vi.fn(
+        (_input: unknown, subscriber: AgentSubscriber) =>
+          new Promise<void>((resolve) => {
+            runs.push({ subscriber, resolve });
+          }),
+      ),
+      abortRun: vi.fn(),
+    } as unknown as HttpAgent;
+
+    const core = createCore(agent);
+    const firstRun = core.append(createAppendMessage());
+    await core.cancel();
+
+    const replacementRun = core.append(createAppendMessage());
+    const replacementError = new Error("replacement failed");
+    runs[1]?.subscriber.onRunFailed?.({ error: replacementError });
+
+    runs[0]?.resolve();
+    await expect(firstRun).resolves.toBeUndefined();
+
+    runs[1]?.resolve();
+    await expect(replacementRun).rejects.toBe(replacementError);
+  });
+
+  it("keeps a replacement run's deferred tool resume", async () => {
+    const runs: Array<{ subscriber: AgentSubscriber; resolve: () => void }> =
+      [];
+    const agent = {
+      runAgent: vi.fn((_input: unknown, subscriber: AgentSubscriber) => {
+        if (runs.length === 2) {
+          subscriber.onRunFinalized?.();
+          return Promise.resolve();
+        }
+        return new Promise<void>((resolve) => {
+          runs.push({ subscriber, resolve });
+        });
+      }),
+      abortRun: vi.fn(),
+    } as unknown as HttpAgent;
+
+    const core = createCore(agent);
+    const firstRun = core.append(createAppendMessage());
+    await core.cancel();
+
+    const replacementRun = core.append(createAppendMessage());
+    runs[1]?.subscriber.onToolCallStartEvent?.({
+      event: {
+        type: "TOOL_CALL_START",
+        toolCallId: "call-1",
+        toolCallName: "lookup",
+      },
+    });
+    runs[1]?.subscriber.onToolCallEndEvent?.({
+      event: { type: "TOOL_CALL_END", toolCallId: "call-1" },
+    });
+    runs[1]?.subscriber.onRunFinishedEvent?.({
+      event: { type: "RUN_FINISHED", runId: "replacement" },
+    });
+
+    const assistant = core.getMessages().at(-1) as ThreadAssistantMessage;
+    core.addToolResult({
+      messageId: assistant.id,
+      toolCallId: "call-1",
+      toolName: "lookup",
+      result: "done",
+      isError: false,
+    });
+
+    runs[0]?.resolve();
+    await firstRun;
+    runs[1]?.resolve();
+    await replacementRun;
+    await vi.waitFor(() => expect(agent.runAgent).toHaveBeenCalledTimes(3));
+  });
+
+  it("keeps a replacement run's deferred A2UI action", async () => {
+    const runInputs: unknown[] = [];
+    const runs: Array<{ subscriber: AgentSubscriber; resolve: () => void }> =
+      [];
+    const agent = {
+      runAgent: vi.fn((input: unknown, subscriber: AgentSubscriber) => {
+        runInputs.push(input);
+        if (runs.length === 2) {
+          subscriber.onRunFinalized?.();
+          return Promise.resolve();
+        }
+        return new Promise<void>((resolve) => {
+          runs.push({ subscriber, resolve });
+        });
+      }),
+      abortRun: vi.fn(),
+    } as unknown as HttpAgent;
+
+    const core = createCore(agent);
+    const firstRun = core.append(createAppendMessage());
+    await core.cancel();
+
+    const replacementRun = core.append(createAppendMessage());
+    core.sendA2uiAction({ type: "a2ui:action", name: "continue" });
+
+    runs[0]?.resolve();
+    await firstRun;
+    runs[1]?.resolve();
+    await replacementRun;
+    await vi.waitFor(() => expect(agent.runAgent).toHaveBeenCalledTimes(3));
+
+    expect(runInputs[2]).toMatchObject({
+      forwardedProps: {
+        a2uiAction: { userAction: { name: "continue" } },
+      },
+    });
+  });
+
+  it("clears a cancelled run's deferred continuations", async () => {
+    const runInputs: any[] = [];
+    let firstSubscriber!: AgentSubscriber;
+    let resolveFirstRun!: () => void;
+    const agent = {
+      runAgent: vi.fn((input: any, subscriber: AgentSubscriber) => {
+        runInputs.push(input);
+        if (runInputs.length > 1) {
+          subscriber.onRunFinalized?.();
+          return Promise.resolve();
+        }
+        firstSubscriber = subscriber;
+        return new Promise<void>((resolve) => {
+          resolveFirstRun = resolve;
+        });
+      }),
+      abortRun: vi.fn(),
+    } as unknown as HttpAgent;
+
+    const core = createCore(agent);
+    const firstRun = core.append(createAppendMessage());
+    firstSubscriber.onToolCallStartEvent?.({
+      event: {
+        type: "TOOL_CALL_START",
+        toolCallId: "call-1",
+        toolCallName: "lookup",
+      },
+    });
+    firstSubscriber.onToolCallEndEvent?.({
+      event: { type: "TOOL_CALL_END", toolCallId: "call-1" },
+    });
+    firstSubscriber.onRunFinishedEvent?.({
+      event: { type: "RUN_FINISHED", runId: runInputs[0].runId },
+    });
+
+    const assistant = core.getMessages().at(-1) as ThreadAssistantMessage;
+    core.addToolResult({
+      messageId: assistant.id,
+      toolCallId: "call-1",
+      toolName: "lookup",
+      result: "done",
+      isError: false,
+    });
+    core.sendA2uiAction({ type: "a2ui:action", name: "continue" });
+
+    await core.cancel();
+    resolveFirstRun();
+    await firstRun;
+    await new Promise((resolve) => setTimeout(resolve, 0));
+    expect(agent.runAgent).toHaveBeenCalledTimes(1);
+
+    await core.append(createAppendMessage());
+    expect(agent.runAgent).toHaveBeenCalledTimes(2);
+    expect(runInputs[1].forwardedProps.a2uiAction).toBeUndefined();
+  });
+
+  it("keeps a replacement run's A2UI action when a cancelled run owns the tool resume", async () => {
+    const runInputs: any[] = [];
+    const runs: Array<{ subscriber: AgentSubscriber; resolve: () => void }> =
+      [];
+    const agent = {
+      runAgent: vi.fn((input: any, subscriber: AgentSubscriber) => {
+        runInputs.push(input);
+        if (runs.length === 2) {
+          subscriber.onRunFinalized?.();
+          return Promise.resolve();
+        }
+        return new Promise<void>((resolve) => {
+          runs.push({ subscriber, resolve });
+        });
+      }),
+      abortRun: vi.fn(),
+    } as unknown as HttpAgent;
+
+    const core = createCore(agent);
+    const firstRun = core.append(createAppendMessage());
+    runs[0]?.subscriber.onToolCallStartEvent?.({
+      event: {
+        type: "TOOL_CALL_START",
+        toolCallId: "call-1",
+        toolCallName: "lookup",
+      },
+    });
+    runs[0]?.subscriber.onToolCallEndEvent?.({
+      event: { type: "TOOL_CALL_END", toolCallId: "call-1" },
+    });
+    runs[0]?.subscriber.onRunFinishedEvent?.({
+      event: { type: "RUN_FINISHED", runId: runInputs[0].runId },
+    });
+
+    const assistant = core.getMessages().at(-1) as ThreadAssistantMessage;
+    core.addToolResult({
+      messageId: assistant.id,
+      toolCallId: "call-1",
+      toolName: "lookup",
+      result: "done",
+      isError: false,
+    });
+
+    await core.cancel();
+    const replacementRun = core.append(createAppendMessage());
+    core.sendA2uiAction({ type: "a2ui:action", name: "continue" });
+
+    runs[0]?.resolve();
+    await firstRun;
+    runs[1]?.resolve();
+    await replacementRun;
+    await vi.waitFor(() => expect(agent.runAgent).toHaveBeenCalledTimes(3));
+
+    expect(runInputs[2]).toMatchObject({
+      forwardedProps: {
+        a2uiAction: { userAction: { name: "continue" } },
+      },
+    });
+  });
+
+  it("keeps a replacement run's deferred resume when the cancelled run failed", async () => {
+    const runInputs: any[] = [];
+    const runs: Array<{ subscriber: AgentSubscriber; resolve: () => void }> =
+      [];
+    const agent = {
+      runAgent: vi.fn((input: any, subscriber: AgentSubscriber) => {
+        runInputs.push(input);
+        if (runs.length === 2) {
+          subscriber.onRunFinalized?.();
+          return Promise.resolve();
+        }
+        return new Promise<void>((resolve) => {
+          runs.push({ subscriber, resolve });
+        });
+      }),
+      abortRun: vi.fn(),
+    } as unknown as HttpAgent;
+
+    const core = createCore(agent, { onError: () => {} });
+    const firstError = new Error("first failed");
+    const firstRun = core.append(createAppendMessage());
+    runs[0]?.subscriber.onRunFailed?.({ error: firstError });
+
+    await core.cancel();
+    const replacementRun = core.append(createAppendMessage());
+    runs[1]?.subscriber.onToolCallStartEvent?.({
+      event: {
+        type: "TOOL_CALL_START",
+        toolCallId: "call-1",
+        toolCallName: "lookup",
+      },
+    });
+    runs[1]?.subscriber.onToolCallEndEvent?.({
+      event: { type: "TOOL_CALL_END", toolCallId: "call-1" },
+    });
+    runs[1]?.subscriber.onRunFinishedEvent?.({
+      event: { type: "RUN_FINISHED", runId: runInputs[1].runId },
+    });
+
+    const assistant = core.getMessages().at(-1) as ThreadAssistantMessage;
+    core.addToolResult({
+      messageId: assistant.id,
+      toolCallId: "call-1",
+      toolName: "lookup",
+      result: "done",
+      isError: false,
+    });
+
+    runs[0]?.resolve();
+    await expect(firstRun).rejects.toBe(firstError);
+    runs[1]?.resolve();
+    await replacementRun;
+    await vi.waitFor(() => expect(agent.runAgent).toHaveBeenCalledTimes(3));
+  });
+
+  it("never adopts a deferred resume another run parked", async () => {
+    const runInputs: any[] = [];
+    const runs: Array<{ subscriber: AgentSubscriber; resolve: () => void }> =
+      [];
+    const agent = {
+      runAgent: vi.fn((input: any, subscriber: AgentSubscriber) => {
+        runInputs.push(input);
+        if (runs.length === 1) {
+          subscriber.onRunFinalized?.();
+          return Promise.resolve();
+        }
+        return new Promise<void>((resolve) => {
+          runs.push({ subscriber, resolve });
+        });
+      }),
+      abortRun: vi.fn(),
+    } as unknown as HttpAgent;
+
+    const core = createCore(agent);
+    void core.append(createAppendMessage());
+    runs[0]?.subscriber.onToolCallStartEvent?.({
+      event: {
+        type: "TOOL_CALL_START",
+        toolCallId: "call-1",
+        toolCallName: "lookup",
+      },
+    });
+    runs[0]?.subscriber.onToolCallEndEvent?.({
+      event: { type: "TOOL_CALL_END", toolCallId: "call-1" },
+    });
+    runs[0]?.subscriber.onRunFinishedEvent?.({
+      event: { type: "RUN_FINISHED", runId: runInputs[0].runId },
+    });
+
+    const assistant = core.getMessages().at(-1) as ThreadAssistantMessage;
+    core.addToolResult({
+      messageId: assistant.id,
+      toolCallId: "call-1",
+      toolName: "lookup",
+      result: "done",
+      isError: false,
+    });
+
+    // The cancelled run never settles, so its parked resume outlives it.
+    await core.cancel();
+    await core.append(createAppendMessage());
+    await new Promise((resolve) => setTimeout(resolve, 0));
+    expect(agent.runAgent).toHaveBeenCalledTimes(2);
+  });
+
+  it("drops a deferred resume when external messages replace the thread", async () => {
+    const runInputs: any[] = [];
+    const runs: Array<{ subscriber: AgentSubscriber; resolve: () => void }> =
+      [];
+    const agent = {
+      runAgent: vi.fn((input: any, subscriber: AgentSubscriber) => {
+        runInputs.push(input);
+        if (runs.length === 1) {
+          subscriber.onRunFinalized?.();
+          return Promise.resolve();
+        }
+        return new Promise<void>((resolve) => {
+          runs.push({ subscriber, resolve });
+        });
+      }),
+      abortRun: vi.fn(),
+    } as unknown as HttpAgent;
+
+    const core = createCore(agent);
+    const firstRun = core.append(createAppendMessage());
+    runs[0]?.subscriber.onToolCallStartEvent?.({
+      event: {
+        type: "TOOL_CALL_START",
+        toolCallId: "call-1",
+        toolCallName: "lookup",
+      },
+    });
+    runs[0]?.subscriber.onToolCallEndEvent?.({
+      event: { type: "TOOL_CALL_END", toolCallId: "call-1" },
+    });
+    runs[0]?.subscriber.onRunFinishedEvent?.({
+      event: { type: "RUN_FINISHED", runId: runInputs[0].runId },
+    });
+
+    const assistant = core.getMessages().at(-1) as ThreadAssistantMessage;
+    core.addToolResult({
+      messageId: assistant.id,
+      toolCallId: "call-1",
+      toolName: "lookup",
+      result: "done",
+      isError: false,
+    });
+    core.applyExternalMessages([]);
+
+    runs[0]?.resolve();
+    await firstRun;
+    await new Promise((resolve) => setTimeout(resolve, 0));
+    expect(agent.runAgent).toHaveBeenCalledTimes(1);
+  });
+
+  it("keeps a deferred resume when a snapshot preserves its target", async () => {
+    const runInputs: any[] = [];
+    const runs: Array<{ subscriber: AgentSubscriber; resolve: () => void }> =
+      [];
+    const agent = {
+      runAgent: vi.fn((input: any, subscriber: AgentSubscriber) => {
+        runInputs.push(input);
+        if (runs.length === 1) {
+          subscriber.onRunFinalized?.();
+          return Promise.resolve();
+        }
+        return new Promise<void>((resolve) => {
+          runs.push({ subscriber, resolve });
+        });
+      }),
+      abortRun: vi.fn(),
+    } as unknown as HttpAgent;
+
+    const core = createCore(agent);
+    const firstRun = core.append(createAppendMessage());
+    runs[0]?.subscriber.onToolCallStartEvent?.({
+      event: {
+        type: "TOOL_CALL_START",
+        toolCallId: "call-1",
+        toolCallName: "lookup",
+      },
+    });
+    runs[0]?.subscriber.onToolCallEndEvent?.({
+      event: { type: "TOOL_CALL_END", toolCallId: "call-1" },
+    });
+    runs[0]?.subscriber.onRunFinishedEvent?.({
+      event: { type: "RUN_FINISHED", runId: runInputs[0].runId },
+    });
+
+    const assistant = core.getMessages().at(-1) as ThreadAssistantMessage;
+    core.addToolResult({
+      messageId: assistant.id,
+      toolCallId: "call-1",
+      toolName: "lookup",
+      result: "done",
+      isError: false,
+    });
+    core.applyExternalMessages(core.getMessages());
+
+    runs[0]?.resolve();
+    await firstRun;
+    await vi.waitFor(() => expect(agent.runAgent).toHaveBeenCalledTimes(2));
+  });
+
+  it("drops a deferred resume a snapshot left off-branch", async () => {
+    const runInputs: any[] = [];
+    const runs: Array<{ subscriber: AgentSubscriber; resolve: () => void }> =
+      [];
+    const agent = {
+      runAgent: vi.fn((input: any, subscriber: AgentSubscriber) => {
+        runInputs.push(input);
+        if (runs.length === 1) {
+          subscriber.onRunFinalized?.();
+          return Promise.resolve();
+        }
+        return new Promise<void>((resolve) => {
+          runs.push({ subscriber, resolve });
+        });
+      }),
+      abortRun: vi.fn(),
+    } as unknown as HttpAgent;
+
+    const core = createCore(agent);
+    const firstRun = core.append(createAppendMessage());
+    runs[0]?.subscriber.onToolCallStartEvent?.({
+      event: {
+        type: "TOOL_CALL_START",
+        toolCallId: "call-1",
+        toolCallName: "lookup",
+      },
+    });
+    runs[0]?.subscriber.onToolCallEndEvent?.({
+      event: { type: "TOOL_CALL_END", toolCallId: "call-1" },
+    });
+    runs[0]?.subscriber.onRunFinishedEvent?.({
+      event: { type: "RUN_FINISHED", runId: runInputs[0].runId },
+    });
+
+    const [userMessage, assistant] = core.getMessages() as [
+      ThreadMessage,
+      ThreadAssistantMessage,
+    ];
+    core.addToolResult({
+      messageId: assistant.id,
+      toolCallId: "call-1",
+      toolName: "lookup",
+      result: "done",
+      isError: false,
+    });
+    // The snapshot forks a sibling assistant, so the parked target stays in
+    // the repository while leaving the head branch.
+    core.applyExternalMessages([
+      userMessage,
+      {
+        ...assistant,
+        id: "rival-assistant",
+        content: [{ type: "text", text: "other branch" }],
+        status: { type: "complete", reason: "unknown" },
+      } as ThreadMessage,
+    ]);
+    expect(core.getMessages().map((message) => message.id)).toEqual([
+      userMessage.id,
+      "rival-assistant",
+    ]);
+
+    runs[0]?.resolve();
+    await firstRun;
+    await new Promise((resolve) => setTimeout(resolve, 0));
+    expect(agent.runAgent).toHaveBeenCalledTimes(1);
+  });
+
   it("cancels an active run when the runtime detaches", async () => {
     let runSignal: AbortSignal | undefined;
     const agent = {
@@ -1148,6 +1682,141 @@ describe("AGUIThreadRuntimeCore", () => {
       type: "incomplete",
       reason: "cancelled",
     });
+  });
+
+  it("aborts the superseded HttpAgent request when a later append starts", async () => {
+    const requestSignals: AbortSignal[] = [];
+    let resolveFirstRequest!: () => void;
+    const firstRequestStarted = new Promise<void>((resolve) => {
+      resolveFirstRequest = resolve;
+    });
+    const agent = new HttpAgent({
+      url: "https://example.invalid",
+      fetch: async (_url, requestInit) => {
+        const signal = requestInit.signal;
+        if (!signal) throw new Error("missing request signal");
+        requestSignals.push(signal);
+        if (requestSignals.length === 1) resolveFirstRequest();
+        return await new Promise<Response>((_, reject) => {
+          signal.addEventListener(
+            "abort",
+            () => {
+              const error = new Error("aborted");
+              error.name = "AbortError";
+              reject(error);
+            },
+            { once: true },
+          );
+        });
+      },
+    });
+
+    const core = createCore(agent);
+    const superseded = core.append(createAppendMessage());
+    await firstRequestStarted;
+
+    void core.append(createAppendMessage());
+    await superseded;
+    await vi.waitFor(() => expect(requestSignals).toHaveLength(2));
+
+    expect(requestSignals[0]?.aborted).toBe(true);
+    expect(requestSignals[1]?.aborted).toBe(false);
+  });
+
+  it("keeps the thread linear when an append supersedes a run", async () => {
+    const runInputs: any[] = [];
+    const agent = {
+      runAgent: vi.fn(
+        (_input: any, subscriber: AgentSubscriber, { signal }: any) => {
+          runInputs.push(_input);
+          if (runInputs.length > 1) {
+            subscriber.onRunFinalized?.();
+            return Promise.resolve();
+          }
+          subscriber.onTextMessageContentEvent?.({
+            event: { type: "TEXT_MESSAGE_CONTENT", delta: "partial" },
+          } as never);
+          return new Promise<void>((resolve) => {
+            signal.addEventListener("abort", () => resolve(), { once: true });
+          });
+        },
+      ),
+      abortRun: vi.fn(),
+    } as unknown as HttpAgent;
+
+    const core = createCore(agent);
+    void core.append(createAppendMessage());
+    await vi.waitFor(() => expect(runInputs).toHaveLength(1));
+
+    // callers parent the next message on the in-flight assistant
+    const inFlightAssistantId = core.getMessages().at(-1)!.id;
+    await core.append(createAppendMessage({ parentId: inFlightAssistantId }));
+
+    const parents = core
+      .getMessageRepository()
+      .messages.map(({ parentId }) => parentId);
+    expect(new Set(parents).size).toBe(parents.length);
+    expect(runInputs[1].messages.map((m: { role: string }) => m.role)).toEqual([
+      "user",
+      "assistant",
+      "user",
+    ]);
+  });
+
+  it("starts the superseding run when a subclass abortRun throws", async () => {
+    const runInputs: unknown[] = [];
+    const agent = {
+      runAgent: vi.fn((input: unknown, subscriber: AgentSubscriber) => {
+        runInputs.push(input);
+        if (runInputs.length > 1) {
+          subscriber.onRunFinalized?.();
+          return Promise.resolve();
+        }
+        return new Promise<void>(() => {});
+      }),
+      abortRun: vi.fn(() => {
+        throw new Error("subclass abortRun blew up");
+      }),
+    } as unknown as HttpAgent;
+    const logger = { ...noopLogger, error: vi.fn() };
+
+    const core = createCore(agent, { logger });
+    void core.append(createAppendMessage());
+    await core.append(createAppendMessage());
+
+    expect(runInputs).toHaveLength(2);
+    expect(logger.error).toHaveBeenCalledTimes(1);
+  });
+
+  it("keeps a run started by onCancel when an append supersedes", async () => {
+    const resolveRuns: Array<() => void> = [];
+    let core!: AgUiThreadRuntimeCore;
+    const onCancel = vi.fn(() => {
+      void core.append(createAppendMessage());
+    });
+    const agent = {
+      runAgent: vi.fn(
+        () =>
+          new Promise<void>((resolve) => {
+            resolveRuns.push(resolve);
+          }),
+      ),
+      abortRun: vi.fn(),
+    } as unknown as HttpAgent;
+
+    core = createCore(agent, { onCancel });
+    const superseded = core.append(createAppendMessage());
+    void core.append(createAppendMessage());
+
+    // the superseding append cancelled the first run, and onCancel started its
+    // own; that replacement owns the thread, so the append must not run again
+    expect(onCancel).toHaveBeenCalledTimes(1);
+    expect(resolveRuns).toHaveLength(2);
+    expect(core.isRunning()).toBe(true);
+
+    resolveRuns[0]?.();
+    await superseded;
+    expect(core.isRunning()).toBe(true);
   });
 
   it("surfaces errors and rejects append", async () => {
@@ -2814,7 +3483,7 @@ describe("AGUIThreadRuntimeCore", () => {
     await core.append(createAppendMessage());
     expect(core.getPendingInterrupts()).toBeNull();
 
-    await core.steerAway(createAppendMessage());
+    await core.steerAway({ content: [{ type: "text", text: "hi" }] });
 
     expect(runCount).toBe(2);
     expect(runInputs[1].resume).toBeUndefined();
@@ -6210,6 +6879,7 @@ describe("AGUIThreadRuntimeCore", () => {
         }
         subscriber.onRunFinalized?.();
       }),
+      abortRun: vi.fn(),
     } as unknown as HttpAgent;
     const core = createCore(agent);
 
@@ -6236,6 +6906,7 @@ describe("AGUIThreadRuntimeCore", () => {
         if (runInputs.length === 1) await activeRun;
         subscriber.onRunFinalized?.();
       }),
+      abortRun: vi.fn(),
     } as unknown as HttpAgent;
     const core = createCore(agent);
 
@@ -6305,6 +6976,7 @@ describe("AGUIThreadRuntimeCore", () => {
         if (runInputs.length === 1) await activeRun;
         subscriber.onRunFinalized?.();
       }),
+      abortRun: vi.fn(),
     } as unknown as HttpAgent;
     const core = createCore(agent);
 

@@ -1,8 +1,8 @@
 import { promises as fs } from "node:fs";
 import path from "node:path";
+import { HomeDemo } from "@/components/pages/home/demo";
 import { Hero } from "@/components/pages/home/hero";
 import { LibraryBody } from "@/components/pages/home/library-body";
-import { ThreadSpecimen } from "@/components/pages/home/thread-specimen";
 import { PageFrame } from "@/components/shared/page-frame";
 import { getRepo } from "@/lib/github";
 import { highlightElementSource } from "@/lib/element-source";
@@ -172,7 +172,7 @@ export default async function HomePage() {
     <PageFrame pad="heroBody" className="relative z-2 flex flex-col">
       <div className="flex flex-col gap-10 md:gap-16">
         <Hero stars={repo?.stars ?? null} downloads={downloads} />
-        <ThreadSpecimen />
+        <HomeDemo />
       </div>
       <LibraryBody setupTabs={setupTabs} reactVersion={reactVersion} />
     </PageFrame>

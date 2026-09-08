@@ -10,7 +10,7 @@ import { PublicAssistantSessionBoundary } from "@/components/xulux/learn/PublicA
 // Each preview needs its own server-side usage-budget session.
 export const dynamic = "force-dynamic";
 
-// The docs stylesheet sets `overflow-y: scroll` on html for gutter stability; inside the preview iframe that reserves a permanent 6px scrollbar strip along the right edge.
+// The docs stylesheet sets `overflow-y: scroll` on html for gutter stability; inside the preview iframe that reserves a permanent scrollbar strip along the right edge wherever the platform draws classic scrollbars.
 const PreviewShell = ({ children }: { children: React.ReactNode }) => (
   <div className="bg-background h-dvh overflow-hidden">
     <style>{`html { overflow: hidden; }`}</style>

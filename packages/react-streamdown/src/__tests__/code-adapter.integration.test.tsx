@@ -2,6 +2,8 @@ import { describe, it, expect, vi, afterEach } from "vitest";
 import { render, screen, cleanup } from "@testing-library/react";
 import { createCodeAdapter } from "../adapters/code-adapter";
 import { PreOverride } from "../adapters/PreOverride";
+import type { Root } from "hast";
+import { Streamdown } from "streamdown";
 
 afterEach(cleanup);
 
@@ -209,40 +211,92 @@ describe("createCodeAdapter integration", () => {
       expect(screen.getByTestId("syntax").textContent).toBe("const x = 1;");
     });
 
-    it("extracts code from React element children", () => {
-      const MockSyntax = vi.fn(({ code }) => (
-        <div data-testid="syntax">{code}</div>
-      ));
+    it("keeps rehype markup and passes its text to the code header", () => {
+      const rehypeLines = () => (tree: Root) => {
+        for (const pre of tree.children) {
+          if (pre.type !== "element" || pre.tagName !== "pre") continue;
+          pre.properties = {
+            ...pre.properties,
+            className: ["shiki"],
+            "data-theme": "github-dark",
+          };
+          for (const code of pre.children) {
+            if (code.type !== "element" || code.tagName !== "code") continue;
+            code.children = code.children.flatMap<
+              (typeof code.children)[number]
+            >((child) =>
+              child.type === "text"
+                ? child.value.split(/(?<=\n)/).map((value) => ({
+                    type: "element" as const,
+                    tagName: "span",
+                    properties: { className: ["line"] },
+                    children: [{ type: "text" as const, value }],
+                  }))
+                : [child],
+            );
+          }
+        }
+      };
       const AdaptedCode = createCodeAdapter({
-        SyntaxHighlighter: MockSyntax,
+        CodeHeader: ({ code }) => <header>{code}</header>,
+        SyntaxHighlighter: ({ code }) => <pre data-rehighlighted>{code}</pre>,
       });
-
-      const nestedElement = <span>nested code</span>;
-
-      render(
-        <AdaptedCode className="language-js" data-block="true">
-          {nestedElement}
-        </AdaptedCode>,
+      const code = "const x = 1;\nconst y = 2;\n";
+      const { container } = render(
+        <Streamdown
+          components={{ code: AdaptedCode, pre: PreOverride }}
+          rehypePlugins={[rehypeLines]}
+        >
+          {"```js\n" + code + "```"}
+        </Streamdown>,
       );
 
-      expect(MockSyntax).toHaveBeenCalled();
+      expect(container.querySelector("header")?.textContent).toBe(code);
+      expect(container.querySelector("pre > code")?.textContent).toBe(code);
+      const pre = container.querySelector("pre");
+      expect(pre?.className).toBe("shiki");
+      expect(pre?.getAttribute("data-theme")).toBe("github-dark");
+      expect(
+        Array.from(
+          container.querySelectorAll("pre > code > span.line"),
+          (line) => line.textContent,
+        ),
+      ).toEqual(["const x = 1;\n", "const y = 2;\n"]);
+      expect(container.querySelector("[data-rehighlighted]")).toBeNull();
     });
 
-    it("handles empty children", () => {
-      const MockSyntax = vi.fn(({ code }) => (
-        <div data-testid="syntax-empty">{code || "empty"}</div>
-      ));
+    it("keeps the highlighter as an empty fence receives code", () => {
       const AdaptedCode = createCodeAdapter({
-        SyntaxHighlighter: MockSyntax,
+        CodeHeader: ({ code }) => <header data-testid="header">{code}</header>,
+        SyntaxHighlighter: ({ code }) => <pre data-testid="syntax">{code}</pre>,
       });
+      const components = { code: AdaptedCode, pre: PreOverride };
+      const { rerender } = render(
+        <Streamdown components={components}>{"```js\n```"}</Streamdown>,
+      );
 
-      render(
-        <AdaptedCode className="language-js" data-block="true">
-          {""}
+      expect(screen.getByTestId("syntax").textContent).toBe("");
+      expect(screen.getByTestId("header").textContent).toBe("");
+      rerender(<Streamdown components={components}>{"```js\n"}</Streamdown>);
+      expect(screen.getByTestId("syntax").textContent).toBe("");
+      expect(screen.getByTestId("header").textContent).toBe("");
+      rerender(<Streamdown components={components}>{"```js\nx"}</Streamdown>);
+      expect(screen.getByTestId("syntax").textContent).toBe("x\n");
+      expect(screen.getByTestId("header").textContent).toBe("x\n");
+    });
+
+    it("omits null and boolean children from the code header", () => {
+      const AdaptedCode = createCodeAdapter({
+        CodeHeader: ({ code }) => <header>{code}</header>,
+      });
+      const { container } = render(
+        <AdaptedCode data-block="true">
+          {[null, false, undefined, true, ";\n"]}
         </AdaptedCode>,
       );
 
-      expect(screen.getByTestId("syntax-empty").textContent).toBe("empty");
+      expect(container.querySelector("header")?.textContent).toBe(";\n");
+      expect(container.querySelector("pre > code")?.textContent).toBe(";\n");
     });
   });
 

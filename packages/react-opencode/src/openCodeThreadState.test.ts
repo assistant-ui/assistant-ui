@@ -328,6 +328,60 @@ describe("reduceOpenCodeThreadState", () => {
     expect(history.messageOrder).toEqual(["msg_1"]);
   });
 
+  it("loads a history message whose ID is __proto__", () => {
+    const initial = createOpenCodeThreadState("ses_1");
+
+    const history = reduceOpenCodeThreadState(initial, {
+      type: "history.loaded",
+      session: null,
+      messages: [
+        {
+          info: {
+            id: "__proto__",
+            role: "assistant",
+            sessionID: "ses_1",
+            time: { created: 1000 },
+          },
+          parts: [],
+        } as unknown as MessageWithParts,
+      ],
+    });
+
+    expect(history.messageOrder).toEqual(["__proto__"]);
+    expect(Object.hasOwn(history.messagesById, "__proto__")).toBe(true);
+    expect(history.messagesById["__proto__"]?.id).toBe("__proto__");
+  });
+
+  it.each(["__proto__", "constructor", "toString"])(
+    "adds a streamed message whose ID is %s",
+    (messageId) => {
+      const initial = createOpenCodeThreadState("ses_1");
+      const withExisting = reduceOpenCodeThreadState(initial, {
+        type: "message.updated",
+        info: {
+          id: "msg_existing",
+          role: "assistant",
+          sessionID: "ses_1",
+          time: { created: 1000 },
+        } as never,
+      });
+
+      const updated = reduceOpenCodeThreadState(withExisting, {
+        type: "message.updated",
+        info: {
+          id: messageId,
+          role: "assistant",
+          sessionID: "ses_1",
+          time: { created: 1001 },
+        } as never,
+      });
+
+      expect(updated.messageOrder).toEqual(["msg_existing", messageId]);
+      expect(Object.hasOwn(updated.messagesById, messageId)).toBe(true);
+      expect(updated.messagesById[messageId]?.id).toBe(messageId);
+    },
+  );
+
   it("adds assistant parts without losing message order", () => {
     const initial = createOpenCodeThreadState("ses_1");
 

@@ -109,6 +109,8 @@ const StreamdownText = () => (
 );
 ```
 
+Both renderers preserve code markup from rehype plugins, such as `rehype-highlight` or `rehype-pretty-code`. In this case, `CodeHeader` receives the complete code text, but `SyntaxHighlighter` is skipped to preserve the plugin's markup. Plain string children still use `SyntaxHighlighter`.
+
 ## Props
 
 | Prop | Type | Default | Description |
@@ -237,6 +239,8 @@ Configure how incomplete markdown syntax is handled during streaming:
     strikethrough: true,   // Complete ~~text → ~~text~~
     katex: true,           // Complete $$equation → $$equation$$
     setextHeadings: true,  // Handle incomplete setext headings
+    singleTilde: true,     // Escape 20~25 → 20\~25 so it is not read as strikethrough
+    comparisonOperators: true, // Escape - > 25 → - \> 25 in list items
     handlers: [],          // Custom handlers for incomplete markdown completion
   }}
 />

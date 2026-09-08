@@ -3,6 +3,7 @@ import type {
   RemoteThreadMetadata,
 } from "./types";
 import { generateId } from "../../utils/id";
+import { nullProtoRecord } from "../../utils/record";
 
 export type RemoteThreadData =
   | {
@@ -64,7 +65,11 @@ export const classifyThreads = (
   threads: readonly RemoteThreadMetadata[],
   acc: ClassifyAccumulator,
 ): ClassifyAccumulator => {
-  const listed = new Set([...acc.threadIds, ...acc.archivedThreadIds]);
+  let threadIds = [...acc.threadIds];
+  let archivedThreadIds = [...acc.archivedThreadIds];
+  const threadIdMap = nullProtoRecord(acc.threadIdMap);
+  const threadData = nullProtoRecord(acc.threadData);
+  const listed = new Set([...threadIds, ...archivedThreadIds]);
 
   for (const thread of threads) {
     switch (thread.status) {
@@ -77,10 +82,10 @@ export const classifyThreads = (
       }
     }
 
-    const existingMappingId = acc.threadIdMap[thread.remoteId];
+    const existingMappingId = threadIdMap[thread.remoteId];
     const existing =
       existingMappingId !== undefined
-        ? acc.threadData[existingMappingId]
+        ? threadData[existingMappingId]
         : undefined;
     const id = existing?.id ?? thread.remoteId;
     const mappingId = existingMappingId ?? createThreadMappingId(id);
@@ -92,23 +97,23 @@ export const classifyThreads = (
     if (!listed.has(id)) {
       listed.add(id);
       if (thread.status === "regular") {
-        acc.threadIds.push(id);
+        threadIds.push(id);
       } else {
-        acc.archivedThreadIds.push(id);
+        archivedThreadIds.push(id);
       }
     } else if (existing !== undefined && existing.status !== thread.status) {
       if (thread.status === "regular") {
-        acc.archivedThreadIds = acc.archivedThreadIds.filter((t) => t !== id);
-        acc.threadIds.push(id);
+        archivedThreadIds = archivedThreadIds.filter((t) => t !== id);
+        threadIds.push(id);
       } else {
-        acc.threadIds = acc.threadIds.filter((t) => t !== id);
-        acc.archivedThreadIds.push(id);
+        threadIds = threadIds.filter((t) => t !== id);
+        archivedThreadIds.push(id);
       }
     }
 
-    acc.threadIdMap[id] = mappingId;
-    acc.threadIdMap[thread.remoteId] = mappingId;
-    acc.threadData[mappingId] = {
+    threadIdMap[id] = mappingId;
+    threadIdMap[thread.remoteId] = mappingId;
+    threadData[mappingId] = {
       ...(existing?.localOrigin === true ? { localOrigin: true as const } : {}),
       id,
       remoteId: thread.remoteId,
@@ -125,11 +130,12 @@ export const classifyThreads = (
         }),
     };
   }
-  return acc;
+  return { threadIds, archivedThreadIds, threadIdMap, threadData };
 };
 
 export type RemoteThreadState = {
   readonly isLoading: boolean;
+  readonly loadError: unknown;
   readonly isLoadingMore: boolean;
   readonly cursor: string | undefined;
   readonly newThreadId: string | undefined;
@@ -141,13 +147,14 @@ export type RemoteThreadState = {
 
 export const createEmptyRemoteThreadState = (): RemoteThreadState => ({
   isLoading: true,
+  loadError: undefined,
   isLoadingMore: false,
   cursor: undefined,
   newThreadId: undefined,
   threadIds: [],
   archivedThreadIds: [],
-  threadIdMap: {},
-  threadData: {},
+  threadIdMap: nullProtoRecord(),
+  threadData: nullProtoRecord(),
 });
 
 export const seedNewThread = (
@@ -163,12 +170,10 @@ export const seedNewThread = (
     state: {
       ...state,
       newThreadId: id,
-      threadIdMap: {
-        ...state.threadIdMap,
+      threadIdMap: nullProtoRecord(state.threadIdMap, {
         [id]: mappingId,
-      },
-      threadData: {
-        ...state.threadData,
+      }),
+      threadData: nullProtoRecord(state.threadData, {
         [mappingId]: {
           status: "new",
           id,
@@ -178,7 +183,7 @@ export const seedNewThread = (
           custom: undefined,
           localOrigin: true,
         } satisfies RemoteThreadData,
-      },
+      }),
     },
   };
 };
@@ -260,9 +265,117 @@ export const getThreadData = (
   state: RemoteThreadState,
   threadIdOrRemoteId: string,
 ) => {
-  const idx = state.threadIdMap[threadIdOrRemoteId];
+  const idx = Object.hasOwn(state.threadIdMap, threadIdOrRemoteId)
+    ? state.threadIdMap[threadIdOrRemoteId]
+    : undefined;
   if (idx === undefined) return undefined;
-  return state.threadData[idx];
+  return Object.hasOwn(state.threadData, idx)
+    ? state.threadData[idx]
+    : undefined;
+};
+
+export const reconcileInitializedThread = (
+  state: RemoteThreadState,
+  threadId: string,
+  remoteId: string,
+  externalId: string | undefined,
+  retainedThreadId?: string,
+): {
+  state: RemoteThreadState;
+  removedMappingId: THREAD_MAPPING_ID | undefined;
+  survivorMappingId: THREAD_MAPPING_ID;
+} => {
+  const mappingId = createThreadMappingId(threadId);
+  const data = Object.hasOwn(state.threadData, mappingId)
+    ? state.threadData[mappingId]
+    : undefined;
+  if (!data) {
+    return { state, removedMappingId: undefined, survivorMappingId: mappingId };
+  }
+
+  // A concurrent list cannot associate the remote ID with this initializing
+  // slot and may mint a duplicate. Retain the slot whose mounted runtime owns
+  // local state; initialized metadata remains authoritative over list metadata.
+  const listedMappingId = Object.hasOwn(state.threadIdMap, remoteId)
+    ? state.threadIdMap[remoteId]
+    : undefined;
+  const listedData =
+    listedMappingId !== undefined &&
+    listedMappingId !== mappingId &&
+    Object.hasOwn(state.threadData, listedMappingId)
+      ? state.threadData[listedMappingId]
+      : undefined;
+  const listedSlot =
+    listedMappingId !== undefined && listedData !== undefined
+      ? { mappingId: listedMappingId, data: listedData }
+      : undefined;
+  const retainedMappingId =
+    retainedThreadId !== undefined &&
+    Object.hasOwn(state.threadIdMap, retainedThreadId)
+      ? state.threadIdMap[retainedThreadId]
+      : undefined;
+  const survivorMappingId =
+    listedSlot !== undefined && retainedMappingId === listedSlot.mappingId
+      ? listedSlot.mappingId
+      : mappingId;
+  const removedMappingId =
+    listedSlot === undefined
+      ? undefined
+      : survivorMappingId === mappingId
+        ? listedSlot.mappingId
+        : mappingId;
+  const resolvedExternalId = externalId ?? listedSlot?.data.externalId;
+  const threadData = nullProtoRecord(state.threadData);
+  if (removedMappingId !== undefined) delete threadData[removedMappingId];
+  const initializedData = {
+    ...data,
+    id: survivorMappingId,
+    initializeTask: Promise.resolve({
+      remoteId,
+      externalId: resolvedExternalId,
+    }),
+    remoteId,
+    externalId: resolvedExternalId,
+  } as RemoteThreadData;
+  threadData[survivorMappingId] = {
+    ...listedSlot?.data,
+    ...initializedData,
+    title: data.title ?? listedSlot?.data.title,
+    lastMessageAt:
+      ("lastMessageAt" in data ? data.lastMessageAt : undefined) ??
+      (listedSlot && "lastMessageAt" in listedSlot.data
+        ? listedSlot.data.lastMessageAt
+        : undefined),
+    custom: data.custom ?? listedSlot?.data.custom,
+  } as RemoteThreadData;
+
+  const threadIdMap = nullProtoRecord(state.threadIdMap);
+  if (removedMappingId !== undefined) {
+    for (const [id, target] of Object.entries(threadIdMap)) {
+      if (target === removedMappingId) threadIdMap[id] = survivorMappingId;
+    }
+  }
+  threadIdMap[threadId] = survivorMappingId;
+  threadIdMap[remoteId] = survivorMappingId;
+
+  const rewire = (ids: readonly string[]) =>
+    listedSlot === undefined
+      ? ids
+      : ids
+          .filter((id) => id !== listedSlot.data.id)
+          .map((id) => (id === data.id ? survivorMappingId : id));
+
+  return {
+    state: {
+      ...state,
+      threadIds: rewire(state.threadIds),
+      archivedThreadIds: rewire(state.archivedThreadIds),
+      threadIdMap,
+      threadData,
+    },
+    removedMappingId,
+    survivorMappingId,
+  };
 };
 
 export const updateStatusReducer = (
@@ -310,16 +423,14 @@ export const updateStatusReducer = (
 
     case "deleted": {
       const mappingId = state.threadIdMap[threadIdOrRemoteId]!;
-      newState.threadData = Object.fromEntries(
-        Object.entries(newState.threadData).filter(
-          ([key]) => key !== mappingId,
-        ),
-      );
-      newState.threadIdMap = Object.fromEntries(
-        Object.entries(newState.threadIdMap).filter(
-          ([, value]) => value !== mappingId,
-        ),
-      );
+      const threadData = nullProtoRecord(newState.threadData);
+      delete threadData[mappingId];
+      newState.threadData = threadData;
+      const threadIdMap = nullProtoRecord(newState.threadIdMap);
+      for (const [key, value] of Object.entries(threadIdMap)) {
+        if (value === mappingId) delete threadIdMap[key];
+      }
+      newState.threadIdMap = threadIdMap;
       break;
     }
 

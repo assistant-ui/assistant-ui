@@ -31,7 +31,8 @@
   "scripts": {
     "build": "aui-build",
     "test": "vitest run",
-    "test:watch": "vitest"
+    "test:watch": "vitest",
+    "bench": "vitest bench --run"
   },
   "dependencies": {
     "@assistant-ui/react-markdown": "^0.14.14",

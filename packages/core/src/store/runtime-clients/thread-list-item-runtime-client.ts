@@ -52,8 +52,10 @@ const useThreadListItemClient = ({
     unarchive: () =>
       handleThreadListAction("unarchive", () => runtime.unarchive()),
     delete: () => handleThreadListAction("delete", () => runtime.delete()),
-    generateTitle: () =>
-      handleThreadListAction("generate title", () => runtime.generateTitle()),
+    generateTitle: (options) =>
+      handleThreadListAction("generate title", () =>
+        runtime.generateTitle(options),
+      ),
     initialize: runtime.initialize,
     detach: runtime.detach,
     __internal_getRuntime: () => runtime,

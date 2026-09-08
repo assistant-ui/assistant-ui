@@ -14,6 +14,7 @@ export default {
   },
   resolve: {
     alias: {
+      "server-only": resolve(__dirname, "./test/server-only"),
       // Keep in step with the tsconfig paths: packages/ui ships stock shadcn
       // sidebars importing this bare alias, and it resolves outside this app.
       "@/hooks/use-mobile": resolve(

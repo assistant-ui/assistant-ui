@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import {
   createRunTelemetryToolCall,
+  extractRunTelemetryModelId,
   normalizeRunTelemetryUsage,
   truncateRunTelemetryText,
 } from "./runTelemetry";
@@ -165,6 +166,47 @@ describe("normalizeRunTelemetryUsage", () => {
       normalizeRunTelemetryUsage({
         inputTokenDetails: {},
         outputTokenDetails: {},
+      }),
+    ).toBeUndefined();
+  });
+});
+
+describe("extractRunTelemetryModelId", () => {
+  it("prefers an explicit model ID over every fallback", () => {
+    expect(
+      extractRunTelemetryModelId({
+        modelId: "explicit",
+        custom: { modelId: "custom" },
+        steps: [{ response: { modelId: "step" } }],
+      }),
+    ).toBe("explicit");
+  });
+
+  it("falls back to the custom bag before the steps", () => {
+    expect(
+      extractRunTelemetryModelId({
+        custom: { modelId: "custom" },
+        steps: [{ response: { modelId: "step" } }],
+      }),
+    ).toBe("custom");
+  });
+
+  it("reads the first step that carries a response model ID", () => {
+    expect(
+      extractRunTelemetryModelId({
+        steps: [{ usage: { inputTokens: 1 } }, { response: { modelId: "b" } }],
+      }),
+    ).toBe("b");
+  });
+
+  it("returns undefined when no channel carries one", () => {
+    expect(extractRunTelemetryModelId(undefined)).toBeUndefined();
+    expect(extractRunTelemetryModelId({})).toBeUndefined();
+    expect(
+      extractRunTelemetryModelId({
+        modelId: 7,
+        custom: { modelId: null },
+        steps: [null, "step", { response: null }, { response: { modelId: 7 } }],
       }),
     ).toBeUndefined();
   });

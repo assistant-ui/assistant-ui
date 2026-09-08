@@ -53,7 +53,6 @@ describe("NAV_ITEMS", () => {
       "Cloud AI SDK",
       "Playground",
       "tw-shimmer",
-      "tw-glass",
       "Heat Graph",
       "Safe Content Frame",
       "react-o11y",

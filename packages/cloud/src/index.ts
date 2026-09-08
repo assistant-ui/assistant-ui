@@ -1,4 +1,8 @@
-export type { CloudMessage } from "./AssistantCloudThreadMessages";
+export type {
+  CloudMessage,
+  AssistantCloudThreadMessageFeedbackBody,
+  AssistantCloudThreadMessageFeedbackResponse,
+} from "./AssistantCloudThreadMessages";
 export type { AssistantCloudTelemetryConfig } from "./AssistantCloudAPI";
 export { CloudAPIError } from "./AssistantCloudAPI";
 export { CloudResponseError } from "./cloudResponse";
@@ -6,6 +10,7 @@ export { generateThreadTitle } from "./generateThreadTitle";
 export type { AssistantCloudRunReport } from "./AssistantCloudRuns";
 export {
   createRunTelemetryToolCall,
+  extractRunTelemetryModelId,
   normalizeRunTelemetryUsage,
   truncateRunTelemetryText,
   type AssistantCloudRunReportToolCall,
@@ -14,6 +19,7 @@ export {
   type RunTelemetryUsageInit,
 } from "./runTelemetry";
 export { AssistantCloud } from "./AssistantCloud";
+export { readAnonymousRefreshToken } from "./AssistantCloudAuthStrategy";
 export { CloudMessagePersistence } from "./CloudMessagePersistence";
 export {
   createFormattedPersistence,

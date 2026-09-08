@@ -56,6 +56,17 @@ describe("convertLangChainMessages content-less messages", () => {
     expect(result.role).toBe("user");
     expect(result.content).toEqual([]);
   });
+
+  it("skips null entries inside a content array", () => {
+    const result = convertLangChainMessages({
+      type: "human",
+      id: "h-2",
+      content: [null, { type: "text", text: "kept" }, undefined],
+    } as unknown as LangChainMessage);
+
+    expect(result.role).toBe("user");
+    expect(result.content).toEqual([{ type: "text", text: "kept" }]);
+  });
 });
 
 describe("convertLangChainMessages metadata", () => {
@@ -961,16 +972,6 @@ describe("convertLangChainMessages reasoning content", () => {
       role: "assistant",
       content: [{ type: "reasoning", text: "\n\n\nkept" }],
     });
-  });
-
-  it("does not throw when a reasoning block omits summary and reasoning", () => {
-    expect(() =>
-      convertLangChainMessages({
-        type: "ai",
-        id: "ai-reasoning-empty",
-        content: [{ type: "reasoning" } as any],
-      }),
-    ).not.toThrow();
   });
 });
 

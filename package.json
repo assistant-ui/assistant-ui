@@ -28,6 +28,7 @@
     "check:resource-memo": "node packages/x-buildutils/check-resource-memoization.mjs",
     "size:check": "node packages/x-performance/bin/aui-perf.mjs size",
     "size:update": "node packages/x-performance/bin/aui-perf.mjs size --update",
+    "size:update:all": "node packages/x-performance/bin/aui-perf.mjs size --update --all",
     "lint:fix": "pnpm exec oxlint --fix && pnpm exec oxfmt",
     "format": "pnpm exec oxfmt --check",
     "format:fix": "pnpm exec oxfmt",

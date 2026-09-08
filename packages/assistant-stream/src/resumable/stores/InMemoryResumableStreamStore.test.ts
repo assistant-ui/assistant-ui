@@ -15,6 +15,25 @@ async function drain(
 }
 
 describe("InMemoryResumableStreamStore", () => {
+  it("keeps replay bytes independent of producer and consumer buffers", async () => {
+    const store = createInMemoryResumableStreamStore();
+    const chunk = Buffer.from("a");
+    await store.acquire("a");
+    await store.append("a", chunk);
+    await store.finalize("a", "done");
+    chunk[0] = 98;
+
+    const signal = new AbortController().signal;
+    const seen: string[] = [];
+    for await (const entry of store.read("a", "", signal)) {
+      seen.push(decode(entry.chunk));
+      entry.chunk[0] = 99;
+    }
+
+    expect(seen).toEqual(["a"]);
+    expect(await drain(store.read("a", "", signal))).toEqual(["a"]);
+  });
+
   it("elects exactly one producer per stream id", async () => {
     const store = createInMemoryResumableStreamStore();
     const first = await store.acquire("a");
@@ -138,6 +157,22 @@ describe("InMemoryResumableStreamStore", () => {
     ac.abort();
     await reading;
     expect(collected).toEqual(["x"]);
+  });
+
+  it("honors abort after the last buffered chunk before a stored error", async () => {
+    const store = createInMemoryResumableStreamStore();
+    await store.acquire("a");
+    await store.append("a", bytes("partial"));
+    await store.finalize("a", "error", "boom");
+    const ac = new AbortController();
+    const seen: string[] = [];
+
+    for await (const entry of store.read("a", "", ac.signal)) {
+      seen.push(decode(entry.chunk));
+      ac.abort();
+    }
+
+    expect(seen).toEqual(["partial"]);
   });
 
   it("multiple consumers can read concurrently", async () => {

@@ -151,6 +151,46 @@ describe("ThreadSuggestions", () => {
     }
   });
 
+  it("drops sparse holes before the per-suggestion lookup", () => {
+    let setSuggestions!: (suggestions: ThreadSuggestion[]) => void;
+    const root = createTapRoot(function ThreadSuggestionsRoot() {
+      const [suggestions, setValue] = useState<ThreadSuggestion[]>([
+        { prompt: "Prompt A" },
+        { prompt: "Prompt B" },
+      ]);
+      setSuggestions = setValue;
+      return useResource(ThreadSuggestions(suggestions));
+    });
+
+    try {
+      const sparse: ThreadSuggestion[] = new Array(2);
+      sparse[1] = { prompt: "Prompt B" };
+      flushTapSync(() => setSuggestions(sparse));
+
+      const state = root.getValue().getState();
+      const expected = { title: "Prompt B", label: "", prompt: "Prompt B" };
+      expect(state.suggestions).toEqual([expected]);
+      expect(Object.keys(state.suggestions)).toEqual(["0"]);
+      const firstSuggestion = root
+        .getValue()
+        .suggestion({ index: 0 })
+        .getState();
+      expect(firstSuggestion).toEqual(expected);
+
+      // An equivalent sparse update keeps both identities stable.
+      const sparseAgain: ThreadSuggestion[] = new Array(2);
+      sparseAgain[1] = { prompt: "Prompt B" };
+      flushTapSync(() => setSuggestions(sparseAgain));
+
+      expect(root.getValue().getState()).toBe(state);
+      expect(root.getValue().suggestion({ index: 0 }).getState()).toBe(
+        firstSuggestion,
+      );
+    } finally {
+      root.unmount();
+    }
+  });
+
   it("reuses unchanged suggestion state when one entry changes", () => {
     let setSuggestions!: (suggestions: ThreadSuggestion[]) => void;
     const root = createTapRoot(function ThreadSuggestionsRoot() {

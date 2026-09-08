@@ -52,12 +52,19 @@ class RunController:
         self._cancelled_signal = ReadOnlyCancellationSignal(self._cancelled_event)
 
     def with_parent_id(self, parent_id: str) -> 'RunController':
-        """Create a new RunController instance with the specified parent_id."""
-        controller = RunController(self._queue, self._state_manager.state_data, parent_id)
+        """Create a new RunController instance with the specified parent_id.
+
+        Every field but the parent id is shared with this controller, so the
+        derived one skips ``__init__``, which would build and discard a whole
+        StateManager and require a running event loop.
+        """
+        controller = RunController.__new__(RunController)
+        controller._queue = self._queue
         controller._loop = self._loop
         controller._dispose_callbacks = self._dispose_callbacks
         controller._stream_tasks = self._stream_tasks
         controller._state_manager = self._state_manager
+        controller._parent_id = parent_id
         controller._cancelled_event = self._cancelled_event
         controller._cancelled_signal = self._cancelled_signal
         return controller

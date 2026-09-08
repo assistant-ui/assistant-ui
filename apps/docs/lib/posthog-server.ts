@@ -1,4 +1,6 @@
+import { createHmac } from "node:crypto";
 import { PostHog } from "posthog-node";
+import { getAnonymousSessionSecret } from "./anonymous-session";
 
 const apiKey = process.env.NEXT_PUBLIC_POSTHOG_API_KEY;
 
@@ -20,6 +22,13 @@ export function getDistinctId(req: Request): string {
     }
   }
 
-  const ip = req.headers.get("x-forwarded-for") ?? "unknown";
-  return `anon_${ip}`;
+  // A checked-in key would make this HMAC a reversible encoding of the address:
+  // the IPv4 space is small enough to brute force once the key is public.
+  const secret = getAnonymousSessionSecret();
+  if (!secret) return "anon_unknown";
+
+  const ip = req.headers.get("x-forwarded-for")?.split(",")[0]?.trim();
+  if (!ip) return "anon_unknown";
+
+  return `anon_${createHmac("sha256", secret).update(ip).digest("base64url").slice(0, 24)}`;
 }

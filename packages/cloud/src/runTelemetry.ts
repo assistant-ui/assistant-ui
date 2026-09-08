@@ -95,6 +95,33 @@ export function createRunTelemetryToolCall(
   return call;
 }
 
+/**
+ * Resolves the model ID a run reports, in the order an app can supply it: an
+ * explicit `modelId`, the `custom` bag, then the per-step `response.modelId`
+ * that a `messageMetadata` callback copies off the AI SDK's finish-step part.
+ * The AI SDK puts no model ID on a UI message part, so message metadata is the
+ * only channel one arrives on.
+ */
+export function extractRunTelemetryModelId(
+  metadata: Record<string, unknown> | undefined,
+): string | undefined {
+  if (!metadata) return undefined;
+  if (typeof metadata.modelId === "string") return metadata.modelId;
+  const custom = metadata.custom as Record<string, unknown> | undefined;
+  if (typeof custom?.modelId === "string") return custom.modelId;
+
+  const steps: unknown = metadata.steps;
+  if (!Array.isArray(steps)) return undefined;
+  for (const step of steps as unknown[]) {
+    if (!step || typeof step !== "object") continue;
+    const response = (step as Record<string, unknown>).response;
+    if (!response || typeof response !== "object") continue;
+    const modelId = (response as Record<string, unknown>).modelId;
+    if (typeof modelId === "string") return modelId;
+  }
+  return undefined;
+}
+
 export type RunTelemetryUsage = {
   inputTokens?: number;
   outputTokens?: number;

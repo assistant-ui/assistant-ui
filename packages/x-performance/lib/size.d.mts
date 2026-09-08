@@ -18,13 +18,18 @@ export type SizeRow = {
   min: number | null;
   gzip: number | null;
   budget: SizeBudget | null;
-  status: SizeStatus | "skipped (not built)" | "stale";
+  status:
+    | SizeStatus
+    | "skipped (not built)"
+    | "stale"
+    | `${Extract<SizeStatus, "over" | "under">} (kept: unchanged vs origin/main)`;
 };
 
 export type CheckSizesOptions = {
   repoRoot: string;
   budgetsPath: string;
   update?: boolean;
+  updateAll?: boolean;
   json?: string | undefined;
 };
 
@@ -42,6 +47,9 @@ export declare const budgetStatus: (
   budget: SizeBudget | undefined,
   actual: SizeMeasurement,
 ) => SizeStatus;
+export declare const changedPackageNames: (
+  repoRoot: string,
+) => Set<string> | null;
 export declare const checkSizes: (
   options: CheckSizesOptions,
 ) => Promise<boolean>;

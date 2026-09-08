@@ -102,6 +102,32 @@ describe("useTapRoot host renders", () => {
     );
   });
 
+  it("notifies later root subscribers when one throws", () => {
+    let root!: useTapRoot.Root<number>;
+    let setCount!: (value: number) => void;
+
+    function Host() {
+      root = useTapRoot(function Counter() {
+        const [count, setState] = useResourceState(0);
+        setCount = setState;
+        return count;
+      });
+      return null;
+    }
+
+    render(<Host />);
+    const error = new Error("subscriber failed");
+    const laterSubscriber = vi.fn();
+    root.subscribe(() => {
+      throw error;
+    });
+    root.subscribe(laterSubscriber);
+
+    expect(() => flushTapSync(() => setCount(1))).toThrow(error);
+    expect(laterSubscriber).toHaveBeenCalledOnce();
+    expect(root.getValue()).toBe(1);
+  });
+
   it("a host render consumes pending updates and the scheduled flush no-ops", async () => {
     let renders = 0;
     let bump!: (value: number) => void;

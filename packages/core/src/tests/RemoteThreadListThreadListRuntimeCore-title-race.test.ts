@@ -6,6 +6,68 @@ import {
 } from "./remote-thread-list-test-helpers";
 
 describe("RemoteThreadListThreadListRuntimeCore title generation", () => {
+  it("keeps a manual rename made during automatic title generation", async () => {
+    const generatedTitle = deferred<ReadableStream>();
+    const adapter = makeAdapter({
+      list: vi.fn(async () => ({
+        threads: [
+          {
+            status: "regular" as const,
+            remoteId: "thread-1",
+            externalId: "thread-1",
+            title: "New chat",
+          },
+        ],
+      })),
+      generateTitle: vi.fn(async () => generatedTitle.promise as never),
+    });
+    const core = createCore(adapter);
+    await core.getLoadThreadsPromise();
+
+    const internals = core as unknown as {
+      _hookManager: { getThreadRuntimeCore: () => { messages: never[] } };
+    };
+    internals._hookManager.getThreadRuntimeCore = () => ({ messages: [] });
+
+    const generation = core.generateTitle("thread-1", { automatic: true });
+    await vi.waitFor(() => {
+      expect(adapter.generateTitle).toHaveBeenCalledOnce();
+    });
+    await core.rename("thread-1", "Manual title");
+
+    generatedTitle.resolve(
+      new ReadableStream({
+        start(controller) {
+          controller.enqueue({
+            type: "part-start",
+            path: [0],
+            part: { type: "text" },
+          });
+          controller.enqueue({
+            type: "text-delta",
+            path: [0],
+            textDelta: "Generated title",
+          });
+          controller.enqueue({ type: "part-finish", path: [0] });
+          controller.close();
+        },
+      }),
+    );
+    await generation;
+
+    expect(core.getItemById("thread-1")?.title).toBe("Manual title");
+    expect(adapter.rename).toHaveBeenNthCalledWith(
+      1,
+      "thread-1",
+      "Manual title",
+    );
+    expect(adapter.rename).toHaveBeenNthCalledWith(
+      2,
+      "thread-1",
+      "Manual title",
+    );
+  });
+
   it("keeps a generated title when an earlier rename completes during another update", async () => {
     const reloadRequest = deferred<{
       threads: {

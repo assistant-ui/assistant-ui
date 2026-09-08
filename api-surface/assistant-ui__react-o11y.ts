@@ -104,6 +104,15 @@ type SpanMethods = {
   toggleCollapse: () => void;
 };
 
+declare namespace SpanPrimitiveChildByIndex {
+  type Props = {
+    index: number;
+    components: SpanChildrenComponentConfig;
+  };
+}
+
+declare const SpanPrimitiveChildByIndex: FC<SpanPrimitiveChildByIndex.Props>;
+
 declare namespace SpanPrimitiveChildren {
   type Props = {
     components: SpanChildrenComponentConfig;
@@ -242,7 +251,7 @@ declare namespace entry_root_exports {
 }
 
 declare namespace span_d_exports {
-  export { SpanPrimitiveChildren as Children, SpanPrimitiveCollapseToggle as CollapseToggle, SpanPrimitiveIndent as Indent, SpanPrimitiveName as Name, SpanPrimitiveRoot as Root, SpanTimelineRange, SpanPrimitiveStatusIndicator as StatusIndicator, SpanPrimitiveTimeline as Timeline, SpanPrimitiveTimelineBar as TimelineBar, SpanPrimitiveTypeBadge as TypeBadge };
+  export { SpanPrimitiveChildByIndex as ChildByIndex, SpanPrimitiveChildren as Children, SpanPrimitiveCollapseToggle as CollapseToggle, SpanPrimitiveIndent as Indent, SpanPrimitiveName as Name, SpanPrimitiveRoot as Root, SpanTimelineRange, SpanPrimitiveStatusIndicator as StatusIndicator, SpanPrimitiveTimeline as Timeline, SpanPrimitiveTimelineBar as TimelineBar, SpanPrimitiveTypeBadge as TypeBadge };
 }
 
 export { entry_root_exports as entry_root };

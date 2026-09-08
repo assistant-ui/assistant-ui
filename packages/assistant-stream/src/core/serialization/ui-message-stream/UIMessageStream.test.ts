@@ -896,6 +896,29 @@ describe("UIMessageStreamDecoder", () => {
       expect(result?.result).toEqual({ temp: 20 });
     });
 
+    it("serializes successful string input as a JSON string", async () => {
+      const events = [
+        JSON.stringify({
+          type: "tool-input-available",
+          toolCallId: "call_abc",
+          toolName: "weather",
+          input: "Berlin",
+        }),
+        "[DONE]",
+      ];
+
+      const chunks = await collectChunks(
+        createUIMessageStream(events).pipeThrough(new UIMessageStreamDecoder()),
+      );
+
+      const argsText = chunks
+        .filter((c) => c.type === "text-delta")
+        .map((c) => c.textDelta)
+        .join("");
+      expect(argsText).toBe('"Berlin"');
+      expect(JSON.parse(argsText)).toBe("Berlin");
+    });
+
     it("prefers tool-input-available.input over earlier deltas", async () => {
       const events = [
         JSON.stringify({ type: "start", messageId: "msg_123" }),

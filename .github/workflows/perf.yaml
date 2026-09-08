@@ -61,6 +61,9 @@ jobs:
         run: pnpm install --frozen-lockfile
 
       - name: Build measured packages
+        env:
+          TURBO_TOKEN: ${{ secrets.TURBO_TOKEN }}
+          TURBO_TEAM: ${{ secrets.TURBO_TEAM }}
         if: steps.lanes.outputs.bench == 'true'
         run: pnpm turbo run build --filter=@assistant-ui/tap --filter=@assistant-ui/core --filter=@assistant-ui/store --filter=assistant-stream --filter=@assistant-ui/react --filter=@assistant-ui/react-markdown
 
@@ -69,6 +72,8 @@ jobs:
         shell: bash
         env:
           BASE_SHA: ${{ github.event.pull_request.base.sha }}
+          TURBO_TOKEN: ${{ secrets.TURBO_TOKEN }}
+          TURBO_TEAM: ${{ secrets.TURBO_TEAM }}
         run: |
           set -euo pipefail
           node packages/x-performance/bin/aui-perf.mjs compare --ref "$BASE_SHA" --runs 4 --json "$RUNNER_TEMP/bench.json"

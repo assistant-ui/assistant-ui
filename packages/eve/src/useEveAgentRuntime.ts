@@ -39,6 +39,10 @@ import {
   getEveMessageContent,
   toEveInputResponse,
 } from "./convertEveMessages";
+import {
+  collectTurnTimestamps,
+  createTurnTimestampCache,
+} from "./deriveCreatedAt";
 import { eveExtras } from "./eveExtras";
 
 const USER_STAGED_STATUS = {
@@ -211,6 +215,14 @@ export const useEveAgentRuntime = (options: UseEveAgentRuntimeOptions = {}) => {
     agent.status === "submitted" || agent.status === "streaming";
   const isRunning = providerIsRunning || hasExecutingTools;
 
+  // Kept apart from the message memo so events that teach no timestamp keep
+  // the map identity and skip rebuilding every ThreadMessage.
+  const turnTimestampCacheRef = useRef(createTurnTimestampCache());
+  const turnTimestamps = useMemo(
+    () => collectTurnTimestamps(agent.events, turnTimestampCacheRef.current),
+    [agent.events],
+  );
+
   const convertedMessages = useMemo(() => {
     const createdAtByMessageId = createdAtByMessageIdRef.current;
     const messageIds = new Set(
@@ -224,6 +236,13 @@ export const useEveAgentRuntime = (options: UseEveAgentRuntimeOptions = {}) => {
       isRunning,
       error: agent.error,
       getCreatedAt: (message) => {
+        const turnId = message.metadata?.turnId;
+        const durable =
+          turnId === undefined
+            ? undefined
+            : turnTimestamps.get(turnId)?.[message.role];
+        if (durable !== undefined) return durable;
+
         const existing = createdAtByMessageId.get(message.id);
         if (existing) return existing;
 
@@ -232,7 +251,7 @@ export const useEveAgentRuntime = (options: UseEveAgentRuntimeOptions = {}) => {
         return createdAt;
       },
     });
-  }, [agent.data, agent.error, isRunning]);
+  }, [agent.data, agent.error, isRunning, turnTimestamps]);
 
   const messages = stagedMessages ?? convertedMessages;
   const messagesRef = useRef(messages);

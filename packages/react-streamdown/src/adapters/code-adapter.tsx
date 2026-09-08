@@ -14,6 +14,7 @@ import type {
   ComponentsByLanguage,
   SyntaxHighlighterProps,
 } from "../types";
+import { useStreamdownPreProps } from "./PreOverride";
 
 type CodeProps = ComponentPropsWithoutRef<"code"> & {
   node?: Element | undefined;
@@ -29,16 +30,15 @@ interface CodeAdapterOptions {
   componentsByLanguage?: ComponentsByLanguage | undefined;
 }
 
-/**
- * Extracts code string from children.
- */
 function extractCode(children: unknown): string {
   if (typeof children === "string") return children;
-  if (!isValidElement(children)) return "";
-
-  const props = children.props as Record<string, unknown> | null;
-  if (props && typeof props.children === "string") {
-    return props.children;
+  if (Array.isArray(children)) {
+    let code = "";
+    for (const child of children) code += extractCode(child);
+    return code;
+  }
+  if (isValidElement<{ children?: unknown }>(children)) {
+    return extractCode(children.props.children);
   }
   return "";
 }
@@ -73,6 +73,8 @@ export function createCodeAdapter(options: CodeAdapterOptions) {
     "data-block": dataBlock,
     ...props
   }: CodeProps & { "data-block"?: string }) {
+    const preProps = useStreamdownPreProps();
+
     if (!dataBlock) {
       return (
         <code
@@ -84,11 +86,8 @@ export function createCodeAdapter(options: CodeAdapterOptions) {
       );
     }
 
-    // Block code - extract language and code content
     const language = parseLanguageClass(className);
-    const code = extractCode(children);
 
-    // Get language-specific or fallback components
     const SyntaxHighlighter =
       componentsByLanguage[language]?.SyntaxHighlighter ??
       UserSyntaxHighlighter;
@@ -97,10 +96,17 @@ export function createCodeAdapter(options: CodeAdapterOptions) {
       componentsByLanguage[language]?.CodeHeader ?? UserCodeHeader;
 
     const headerElement = CodeHeader ? (
-      <CodeHeader node={node} language={language} code={code} />
+      <CodeHeader
+        node={node}
+        language={language}
+        code={extractCode(children)}
+      />
     ) : null;
 
-    if (SyntaxHighlighter) {
+    if (
+      SyntaxHighlighter &&
+      (children == null || typeof children === "string")
+    ) {
       return (
         <>
           {headerElement}
@@ -108,7 +114,7 @@ export function createCodeAdapter(options: CodeAdapterOptions) {
             node={node}
             components={{ Pre: DefaultPre, Code: DefaultCode }}
             language={language}
-            code={code}
+            code={children ?? ""}
           />
         </>
       );
@@ -117,7 +123,7 @@ export function createCodeAdapter(options: CodeAdapterOptions) {
     return (
       <>
         {headerElement}
-        <DefaultPre node={node}>
+        <DefaultPre {...preProps} node={node}>
           <code className={className} {...props}>
             {children}
           </code>

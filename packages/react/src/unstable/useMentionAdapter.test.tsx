@@ -11,7 +11,10 @@ import type { Unstable_TriggerAdapter } from "@assistant-ui/core";
 import { useState } from "react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { TriggerNavigationResource } from "../primitives/composer/trigger/triggerNavigationResource";
-import { unstable_useMentionAdapter } from "./useMentionAdapter";
+import {
+  unstable_useMentionAdapter,
+  type Unstable_UseMentionAdapterOptions,
+} from "./useMentionAdapter";
 
 const runtime = vi.hoisted(() => {
   const state = {
@@ -64,6 +67,49 @@ describe("unstable_useMentionAdapter", () => {
     runtime.state.tools = {};
     runtime.listeners.clear();
     runtime.events.length = 0;
+  });
+
+  it("ignores flat items when categories is explicitly empty", () => {
+    const { result } = renderHook(() =>
+      unstable_useMentionAdapter({
+        items: [{ id: "alice", type: "person", label: "Alice" }],
+        categories: [],
+      }),
+    );
+
+    expect(result.current.adapter.search?.("")).toEqual([]);
+  });
+
+  it("does not expose flat items when the last category is removed", () => {
+    const items = [{ id: "alice", type: "person", label: "Alice" }];
+    const { result, rerender } = renderHook(
+      (options: Unstable_UseMentionAdapterOptions) =>
+        unstable_useMentionAdapter(options),
+      {
+        initialProps: {
+          items,
+          categories: [
+            {
+              id: "people",
+              label: "People",
+              items: [{ id: "bob", type: "person", label: "Bob" }],
+            },
+          ],
+        },
+      },
+    );
+
+    expect(result.current.adapter.search?.("")).toEqual([
+      { id: "bob", type: "person", label: "Bob" },
+    ]);
+
+    rerender({ items, categories: [] });
+    expect(result.current.adapter.search?.("")).toEqual([]);
+
+    rerender({ items });
+    expect(result.current.adapter.search?.("")).toEqual([
+      { id: "alice", type: "person", label: "Alice" },
+    ]);
   });
 
   it("keeps categorized model-context tools current", () => {

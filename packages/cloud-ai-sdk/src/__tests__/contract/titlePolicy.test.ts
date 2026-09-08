@@ -65,7 +65,9 @@ describe("Contract: Title policy", () => {
     await core.persistChatMessages("chat-1", registry);
 
     expect(generateTitle).toHaveBeenCalledTimes(1);
-    expect(generateTitle).toHaveBeenCalledWith("thread-1");
+    expect(generateTitle).toHaveBeenCalledWith("thread-1", {
+      automatic: true,
+    });
   });
 
   it("retries title generation after a failed attempt", async () => {
@@ -85,8 +87,12 @@ describe("Contract: Title policy", () => {
     await core.persistChatMessages("chat-1", registry);
 
     expect(generateTitle).toHaveBeenCalledTimes(2);
-    expect(generateTitle).toHaveBeenNthCalledWith(1, "thread-1");
-    expect(generateTitle).toHaveBeenNthCalledWith(2, "thread-1");
+    expect(generateTitle).toHaveBeenNthCalledWith(1, "thread-1", {
+      automatic: true,
+    });
+    expect(generateTitle).toHaveBeenNthCalledWith(2, "thread-1", {
+      automatic: true,
+    });
   });
 
   it("does not duplicate title generation while an attempt is pending", async () => {

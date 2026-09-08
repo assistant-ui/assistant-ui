@@ -273,8 +273,10 @@ These two operations cover all complex state mutations: `set` for value updates 
 
 ### Wire format
 
+`useAssistantTransportRuntime` speaks the data stream protocol by default (`protocol: "data-stream"`), which is what the reference backends above emit through `DataStreamResponse`.
+
 <Callout type="warn">
-The wire format will migrate to Server-Sent Events (SSE) in a future release.
+The default wire format will migrate to Server-Sent Events (SSE) in a future release.
 </Callout>
 
 Inspired by [AI SDK's data stream protocol](https://sdk.vercel.ai/docs/ai-sdk-ui/stream-protocol).
@@ -289,6 +291,16 @@ aui-state:[{"type":"set","path":["status"],"value":"completed"}]
 
 ```
 3:"error message"
+```
+
+Pass `protocol: "assistant-transport"` to consume the SSE encoding that `AssistantTransportEncoder` produces today: one `data:` line per JSON encoded `AssistantStreamChunk`, each carrying its `path` (`[]` for message-level chunks), and a final `data: [DONE]` line, which `AssistantTransportDecoder` requires. The decoder also accepts message-level chunks such as `update-state` and `error` without a `path`, which is what the Python `assistant_stream` package emits, and fills in the empty one.
+
+```
+data: {"type":"update-state","path":[],"operations":[{"type":"set","path":["status"],"value":"completed"}]}
+
+data: {"type":"error","path":[],"error":"error message"}
+
+data: [DONE]
 ```
 
 ## Building a frontend

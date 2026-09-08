@@ -36,6 +36,8 @@ import { useOpenCodeStreamingTiming } from "./useOpenCodeStreamingTiming";
 type OpenCodeControllerRegistry = {
   getEventSource(): OpenCodeEventSource;
   controllers: Map<string, OpenCodeThreadController>;
+  readonly disposed: boolean;
+  activate(): void;
   dispose(): void;
 };
 
@@ -44,6 +46,7 @@ const createRegistry = (
 ): OpenCodeControllerRegistry => {
   let eventSource: OpenCodeEventSource | null = null;
   const controllers = new Map<string, OpenCodeThreadController>();
+  let disposed = false;
 
   const getEventSource = () => {
     eventSource ??= new OpenCodeEventSource(client);
@@ -53,7 +56,14 @@ const createRegistry = (
   return {
     getEventSource,
     controllers,
+    get disposed() {
+      return disposed;
+    },
+    activate() {
+      disposed = false;
+    },
     dispose() {
+      disposed = true;
       eventSource?.dispose();
       eventSource = null;
       for (const controller of controllers.values()) {
@@ -283,6 +293,15 @@ const useNewOpenCodeThreadStore = (
         setOptimisticMessages((messages) => [...messages, optimistic]);
 
         const task = sendQueueRef.current.then(async () => {
+          const removeOptimisticMessage = () => {
+            setOptimisticMessages((messages) =>
+              messages.filter((candidate) => candidate !== optimistic),
+            );
+          };
+          if (registry.disposed) {
+            removeOptimisticMessage();
+            return;
+          }
           let initialization:
             | Promise<{
                 remoteId: string;
@@ -294,17 +313,17 @@ const useNewOpenCodeThreadStore = (
               initializationRef.current ??
               (initializationRef.current = aui.threadListItem.initialize());
             const { remoteId, externalId } = await initialization;
+            if (registry.disposed) {
+              removeOptimisticMessage();
+              return;
+            }
             const sessionId = externalId ?? remoteId;
             const controller = getController(registry, client, sessionId);
             const dispatch = sendOpenCodeMessage(controller, message, options);
-            setOptimisticMessages((messages) =>
-              messages.filter((candidate) => candidate !== optimistic),
-            );
+            removeOptimisticMessage();
             await dispatch;
           } catch (error) {
-            setOptimisticMessages((messages) =>
-              messages.filter((candidate) => candidate !== optimistic),
-            );
+            removeOptimisticMessage();
             invokeErrorCallback(options.onError, error);
             throw error;
           } finally {
@@ -357,6 +376,7 @@ export const useOpenCodeRuntime = (
   const registry = useMemo(() => createRegistry(client), [client]);
 
   useEffect(() => {
+    registry.activate();
     return () => {
       registry.dispose();
     };

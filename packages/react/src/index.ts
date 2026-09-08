@@ -46,7 +46,7 @@ export type {
 export { toolApprovalAcceptsText } from "@assistant-ui/core";
 
 export { useCloudThreadListRuntime } from "@assistant-ui/core/react";
-export { AssistantCloud } from "assistant-cloud";
+export { AssistantCloud, readAnonymousRefreshToken } from "assistant-cloud";
 
 // --- adapters/attachment ---
 export type { AttachmentAdapter } from "@assistant-ui/core";

@@ -187,6 +187,33 @@ describe("extractRunTelemetry", () => {
     expect(result.cachedInputTokens).toBe(2);
   });
 
+  it("resolves the model ID from the custom bag and from step metadata", () => {
+    expect(
+      extractRunTelemetry([
+        assistantMsg("m-1", [{ type: "text", text: "ok" }], {
+          custom: { modelId: "provider/from-custom" },
+        }),
+      ])!.modelId,
+    ).toBe("provider/from-custom");
+
+    expect(
+      extractRunTelemetry([
+        assistantMsg("m-2", [{ type: "text", text: "ok" }], {
+          steps: [{ response: { modelId: "provider/from-step" } }],
+        }),
+      ])!.modelId,
+    ).toBe("provider/from-step");
+
+    expect(
+      extractRunTelemetry([
+        assistantMsg("m-3", [{ type: "text", text: "ok" }], {
+          modelId: "provider/explicit",
+          steps: [{ response: { modelId: "provider/from-step" } }],
+        }),
+      ])!.modelId,
+    ).toBe("provider/explicit");
+  });
+
   it("attaches sampling calls from metadata to matching tool calls", () => {
     const result = extractRunTelemetry([
       assistantMsg(

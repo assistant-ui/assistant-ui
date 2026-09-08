@@ -1,3 +1,5 @@
+const EMPTY = Symbol("last-valid-cache.empty");
+
 /**
  * Guards a positional or id-addressed scope resolution across a collection shrink. The scope
  * re-resolves inside the store notification, before the binding's queued
@@ -18,14 +20,14 @@ export const createLastValidCache = <T>(
   reportStale: (() => void) | null,
   scheduleExpiry: (callback: () => void) => void,
 ) => {
-  let last: T | undefined;
+  let last: T | typeof EMPTY = EMPTY;
   let generation = 0;
   const expire = () => {
     const scheduledAt = generation;
     scheduleExpiry(() => {
       if (generation !== scheduledAt) return;
-      if (last === undefined) return;
-      last = undefined;
+      if (last === EMPTY) return;
+      last = EMPTY;
       reportStale?.();
     });
   };
@@ -36,8 +38,8 @@ export const createLastValidCache = <T>(
         last = resolveItem();
         return last;
       }
-      if (last) expire();
-      return last ?? resolveItem();
+      if (last !== EMPTY) expire();
+      return last === EMPTY ? resolveItem() : last;
     },
   };
 };

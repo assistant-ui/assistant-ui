@@ -131,6 +131,105 @@ describe("ADK runtime callbacks", () => {
 });
 
 describe("ADK stream lifecycle", () => {
+  it("settles a superseded send while its stream is still opening", async () => {
+    const signals: AbortSignal[] = [];
+    const parked = new Promise<AsyncGenerator<AdkEvent>>(() => {});
+    let calls = 0;
+    const stream = vi.fn(function (_messages, { abortSignal }) {
+      signals.push(abortSignal);
+      if (calls++ === 0) return parked;
+      return (async function* () {
+        yield {
+          id: "event-1",
+          invocationId: "run-1",
+          author: "agent",
+          content: { role: "model", parts: [{ text: "done-1" }] },
+        };
+      })();
+    }) satisfies AdkStreamCallback;
+    const { result } = renderHook(() => useAdkMessages({ stream }));
+
+    let firstSend!: Promise<void>;
+    act(() => {
+      firstSend = result.current.sendMessage(
+        [{ id: "user-1", type: "human", content: "first" }],
+        {},
+      );
+    });
+    await vi.waitFor(() => expect(stream).toHaveBeenCalledOnce());
+
+    let secondSend!: Promise<void>;
+    act(() => {
+      secondSend = result.current.sendMessage(
+        [{ id: "user-2", type: "human", content: "second" }],
+        {},
+      );
+    });
+
+    await act(async () => {
+      await Promise.all([firstSend, secondSend]);
+    });
+    expect(signals[0]?.aborted).toBe(true);
+    expect(signals[1]?.aborted).toBe(false);
+    expect(result.current.messages.at(-1)).toMatchObject({
+      type: "ai",
+      content: [{ type: "text", text: "done-1" }],
+    });
+  });
+
+  it("aborts and settles a superseded stream that stops yielding", async () => {
+    const signals: AbortSignal[] = [];
+    const parked = new Promise<void>(() => {});
+    let calls = 0;
+    const stream = vi.fn(function (
+      _messages,
+      { abortSignal },
+    ): AsyncGenerator<AdkEvent> {
+      signals.push(abortSignal);
+      if (calls++ === 0) {
+        return (async function* () {
+          await parked;
+        })();
+      }
+      return (async function* () {
+        yield {
+          id: "event-1",
+          invocationId: "run-1",
+          author: "agent",
+          content: { role: "model", parts: [{ text: "done-1" }] },
+        };
+      })();
+    }) satisfies AdkStreamCallback;
+    const { result } = renderHook(() => useAdkMessages({ stream }));
+
+    let firstSend!: Promise<void>;
+    act(() => {
+      firstSend = result.current.sendMessage(
+        [{ id: "user-1", type: "human", content: "first" }],
+        {},
+      );
+    });
+    await vi.waitFor(() => expect(stream).toHaveBeenCalledOnce());
+
+    let secondSend!: Promise<void>;
+    act(() => {
+      secondSend = result.current.sendMessage(
+        [{ id: "user-2", type: "human", content: "second" }],
+        {},
+      );
+    });
+
+    await act(async () => {
+      await Promise.all([firstSend, secondSend]);
+    });
+    expect(signals[0]?.aborted).toBe(true);
+    expect(signals[1]?.aborted).toBe(false);
+    expect(result.current.messages.at(-1)).toMatchObject({
+      type: "ai",
+      content: [{ type: "text", text: "done-1" }],
+    });
+  });
+
   it("aborts the active stream when the hook unmounts", async () => {
     let runSignal: AbortSignal | undefined;
     let resolveStarted!: () => void;

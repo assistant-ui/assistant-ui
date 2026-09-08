@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, type ReactNode } from "react";
+import { useEffect, useMemo, type ReactNode } from "react";
 import {
   AssistantRuntimeProvider,
   CloudFileAttachmentAdapter,
@@ -12,10 +12,11 @@ import {
 import { DevToolsModal } from "@assistant-ui/react-devtools";
 import { feedbackAdapter } from "@/lib/feedback-adapter";
 import docsToolkit from "@/lib/docs-toolkit";
-import { MemoryInstructions } from "@/components/pages/home/memory";
+import usageToolkit from "@/lib/usage-toolkit";
+import { MemoryInstructions } from "@/components/shared/memory";
 import {
   followUpSuggestionAdapter,
-  useAnonymousCloud,
+  useDocsCloud,
   useDocsChatRuntime,
   useSpeechAdapters,
 } from "./chat-runtime";
@@ -43,12 +44,15 @@ export function DocsRuntimeProvider({
   children,
   devtools = true,
   followUps = false,
+  countConversations = false,
 }: {
   children: ReactNode;
   devtools?: boolean;
   followUps?: boolean;
+  /** Only the landing page demo draws on the daily conversation budget. */
+  countConversations?: boolean;
 }) {
-  const cloud = useAnonymousCloud();
+  const { cloud, claims } = useDocsCloud();
   const speech = useSpeechAdapters({ dictation: true });
 
   const adapters = useMemo(
@@ -66,13 +70,25 @@ export function DocsRuntimeProvider({
     adapters,
     sendAutomatically: true,
     searchDocs: followUps,
+    countConversations,
   });
 
+  const toolkit = useMemo(
+    () =>
+      countConversations ? { ...docsToolkit, ...usageToolkit } : docsToolkit,
+    [countConversations],
+  );
+
   const aui = useAui({
-    tools: Tools({ toolkit: docsToolkit }),
+    tools: Tools({ toolkit }),
     unstable_interactables: unstable_Interactables(),
     suggestions: Suggestions(DOCS_SUGGESTIONS),
   });
+
+  useEffect(() => {
+    if (claims === 0) return;
+    void runtime.threads.reload();
+  }, [claims, runtime]);
 
   return (
     <AssistantRuntimeProvider aui={aui} runtime={runtime}>

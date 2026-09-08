@@ -1,4 +1,11 @@
-import { existsSync, readFileSync, readdirSync, writeFileSync } from "node:fs";
+import { execFileSync } from "node:child_process";
+import {
+  existsSync,
+  readFileSync,
+  readdirSync,
+  realpathSync,
+  writeFileSync,
+} from "node:fs";
 import { isAbsolute, join, resolve } from "node:path";
 import { gzipSync } from "node:zlib";
 
@@ -89,6 +96,56 @@ export const budgetStatus = (budget, actual) => {
   return "ok";
 };
 
+/**
+ * Names of the packages whose files differ from the merge base with
+ * origin/main, committed or not. Every entry is externalized to bare imports
+ * when measured, so only a package's own files can move its size — this is the
+ * set whose local dists an update may trust. Returns null when the set cannot
+ * be determined (repoRoot is not the root of a git work tree, or there is no
+ * origin/main), in which case every package is treated as changed.
+ */
+export const changedPackageNames = (repoRoot) => {
+  const git = (...args) =>
+    execFileSync("git", args, {
+      cwd: repoRoot,
+      encoding: "utf8",
+      stdio: ["ignore", "pipe", "ignore"],
+      maxBuffer: 64 * 1024 * 1024,
+    });
+  let files;
+  try {
+    // Paths arrive relative to the work tree's root, so a repoRoot nested in
+    // some other work tree would match none of them and read as an empty set,
+    // which withholds every entry instead of falling back.
+    if (
+      realpathSync(git("rev-parse", "--show-toplevel").trim()) !==
+      realpathSync(repoRoot)
+    )
+      return null;
+    const base = git("merge-base", "HEAD", "origin/main").trim();
+    files = [
+      ...git("diff", "--name-only", "--no-renames", "-z", base, "--").split(
+        "\0",
+      ),
+      ...git("status", "--porcelain", "--no-renames", "-z")
+        .split("\0")
+        .map((line) => line.slice(3)),
+    ];
+  } catch {
+    return null;
+  }
+  const names = new Set();
+  for (const file of files) {
+    const match = /^packages\/([^/]+)\//.exec(file);
+    if (!match) continue;
+    const manifestPath = join(repoRoot, "packages", match[1], "package.json");
+    if (!existsSync(manifestPath)) continue;
+    const name = JSON.parse(readFileSync(manifestPath, "utf8")).name;
+    if (typeof name === "string") names.add(name);
+  }
+  return names;
+};
+
 const readBudgets = (budgetsPath) =>
   existsSync(budgetsPath) ? JSON.parse(readFileSync(budgetsPath, "utf8")) : {};
 
@@ -136,10 +193,18 @@ export const checkSizes = async ({
   repoRoot,
   budgetsPath,
   update = false,
+  updateAll = false,
   json,
 }) => {
   const budgets = readBudgets(budgetsPath);
   const nextBudgets = cloneBudgets(budgets);
+  // A dist a PR never touched is often older than the merge base or built by
+  // a different toolchain, so re-recording it would land a stale value that
+  // surfaces as an unexplained `over` on the next PR that really touches the
+  // package. An update trusts only dists of packages changed vs origin/main.
+  const changed = update && !updateAll ? changedPackageNames(repoRoot) : null;
+  const recordable = (name) => changed === null || changed.has(name);
+  let keptEntries = 0;
   const declaredEntries = new Map();
   const rows = [];
   const measured = new Set();
@@ -178,18 +243,23 @@ export const checkSizes = async ({
 
       const actual = await measureEntry(entry.file);
       const status = budgetStatus(budget, actual);
+      // Withholding a `new` entry would leave the check red with no run able
+      // to clear it, so only a move away from a recorded budget is withheld.
+      const drifted = status === "over" || status === "under";
+      const kept = update && drifted && !recordable(pkg.name);
       rows.push({
         package: pkg.name,
         subpath: entry.subpath,
         ...actual,
         budget: budget ?? null,
-        status,
+        status: kept ? `${status} (kept: unchanged vs origin/main)` : status,
       });
       measured.add(`${pkg.name}\u0000${entry.subpath}`);
-      if (status !== "ok") {
+      if (status !== "ok" && !kept) {
         nextBudgets[pkg.name] ??= {};
         nextBudgets[pkg.name][entry.subpath] = actual;
       }
+      if (kept) keptEntries += 1;
     }
   }
 
@@ -230,6 +300,16 @@ export const checkSizes = async ({
     const sortedBudgets = sortBudgets(nextBudgets);
     writeFileSync(budgetsPath, `${JSON.stringify(sortedBudgets, null, 2)}\n`);
     console.log(`wrote ${budgetCount(sortedBudgets)} size budget entries`);
+    if (!updateAll && changed === null) {
+      console.log(
+        "could not determine the packages changed vs origin/main, so every drifted entry was re-recorded; check that this is a git work tree with an origin/main",
+      );
+    }
+    if (keptEntries > 0) {
+      console.log(
+        `kept ${keptEntries} drifted entr${keptEntries === 1 ? "y" : "ies"} of packages unchanged vs origin/main (their local dists are not this branch's claim); run pnpm size:update:all to re-record them`,
+      );
+    }
     return true;
   }
 
@@ -238,7 +318,7 @@ export const checkSizes = async ({
   );
   if (hasFailure) {
     console.log(
-      "size budgets need updating: run pnpm size:update. A shrink beyond tolerance also needs the update so the file stays truthful.",
+      "size budgets need updating: run pnpm size:update. A shrink beyond tolerance also needs the update so the file stays truthful. That run keeps the entries of packages unchanged vs origin/main, so a move a toolchain change caused, or a re-baseline on main, needs pnpm size:update:all instead.",
     );
   }
   return !hasFailure;

@@ -6,7 +6,7 @@ type StructuredHeading = {
   content?: string;
 };
 
-function headingsFrom(structuredData: {
+export function headingsFrom(structuredData: {
   headings?: StructuredHeading[];
 }): SearchHeading[] {
   const headings: SearchHeading[] = [];

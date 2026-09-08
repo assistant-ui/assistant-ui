@@ -160,26 +160,35 @@ describe("ExternalStoreThreadRuntimeCore adapter contract", () => {
       expect(onNew).not.toHaveBeenCalled();
     });
 
-    it("throws when adapter has no onEdit and parentId differs from head", async () => {
-      const messages = [createUserMessage("u1"), createAssistantMessage("a1")];
-      const adapter = createBaseAdapter({ messages });
-      const core = new ExternalStoreThreadRuntimeCore(contextProvider, adapter);
+    it.each(["u1", null])(
+      "rejects parent %s without onEdit",
+      async (parentId) => {
+        const messages = [
+          createUserMessage("u1"),
+          createAssistantMessage("a1"),
+        ];
+        const adapter = createBaseAdapter({ messages });
+        const core = new ExternalStoreThreadRuntimeCore(
+          contextProvider,
+          adapter,
+        );
 
-      const appendMessage: AppendMessage = {
-        role: "user",
-        content: [{ type: "text", text: "Edit" }],
-        attachments: [],
-        createdAt: new Date(),
-        parentId: "u1",
-        sourceId: null,
-        runConfig: undefined,
-        metadata: { custom: {} },
-      } as AppendMessage;
+        const appendMessage: AppendMessage = {
+          role: "user",
+          content: [{ type: "text", text: "Edit" }],
+          attachments: [],
+          createdAt: new Date(),
+          parentId,
+          sourceId: null,
+          runConfig: undefined,
+          metadata: { custom: {} },
+        } as AppendMessage;
 
-      await expect(core.append(appendMessage)).rejects.toThrow(
-        "Runtime does not support editing messages.",
-      );
-    });
+        await expect(core.append(appendMessage)).rejects.toThrow(
+          "Runtime does not support editing messages.",
+        );
+      },
+    );
   });
 
   describe("startRun", () => {

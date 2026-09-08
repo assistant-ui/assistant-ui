@@ -27,7 +27,7 @@
     "react/preserve-manual-memoization": "off",
     "react/purity": "off",
     "react/refs": "off",
-    "react/set-state-in-effect": "warn",
+    "react/set-state-in-effect": "error",
     "react/static-components": "off",
     "react/use-memo": "off",
     "no-unused-vars": "off",
@@ -101,6 +101,15 @@
       "rules": {
         "react/exhaustive-deps": "off",
         "react/rules-of-hooks": "off"
+      }
+    },
+    {
+      "files": [
+        "packages/react/src/primitives/thread/useThreadViewportAutoScroll.test.tsx",
+        "packages/store/src/createAssistantClient.test.ts"
+      ],
+      "rules": {
+        "react/set-state-in-effect": "off"
       }
     }
   ]

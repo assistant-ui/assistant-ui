@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import {
   Composer,
   ComposerActions,
@@ -25,9 +25,12 @@ export function ComposerVoiceDemo() {
   const transcribing = running && phase === 2;
   const active = recording || transcribing;
 
-  useEffect(() => {
+  const [syncedPhase, setSyncedPhase] = useState(phase);
+
+  if (syncedPhase !== phase) {
+    setSyncedPhase(phase);
     if (phase >= 3) setValue(TRANSCRIPT);
-  }, [phase]);
+  }
 
   return (
     <Composer>

@@ -14,6 +14,18 @@ function createMockCloud() {
   } as unknown as AssistantCloud;
 }
 
+function createCloudMessages(count: number) {
+  return Array.from({ length: count }, (_, index) => ({
+    id: `message-${index + 1}`,
+    parent_id: null,
+    height: index,
+    created_at: "2025-01-01T00:00:00Z" as unknown as Date,
+    updated_at: "2025-01-01T00:00:00Z" as unknown as Date,
+    format: "aui/v0",
+    content: {},
+  }));
+}
+
 describe("CloudMessagePersistence", () => {
   let cloud: AssistantCloud;
   let persistence: CloudMessagePersistence;
@@ -36,6 +48,26 @@ describe("CloudMessagePersistence", () => {
     expect(persistence.isPersisted("local-1")).toBe(true);
     expect(await persistence.getRemoteId("local-1")).toBe("remote-1");
   });
+
+  it.each(["__proto__", "constructor", "toString"])(
+    "supports prototype-named local ID %s",
+    async (messageId) => {
+      vi.mocked(cloud.threads.messages.create).mockResolvedValue({
+        message_id: `remote-${messageId}`,
+      });
+
+      expect(persistence.isPersisted(messageId)).toBe(false);
+
+      await persistence.append("thread-1", messageId, null, "aui/v0", {
+        text: "hello",
+      });
+
+      expect(persistence.isPersisted(messageId)).toBe(true);
+      expect(await persistence.getRemoteId(messageId)).toBe(
+        `remote-${messageId}`,
+      );
+    },
+  );
 
   it("uses the current client without losing ID mappings", async () => {
     const firstCloud = createMockCloud();
@@ -219,6 +251,88 @@ describe("CloudMessagePersistence", () => {
     await persistence.load("thread-1");
 
     expect(persistence.isPersisted("msg-1")).toBe(true);
+  });
+
+  it("maps prototype-named loaded messages", async () => {
+    vi.mocked(cloud.threads.messages.list).mockResolvedValue({
+      messages: [
+        {
+          id: "__proto__",
+          parent_id: null,
+          height: 0,
+          created_at: "2025-01-01T00:00:00Z" as unknown as Date,
+          updated_at: "2025-01-01T00:00:00Z" as unknown as Date,
+          format: "aui/v0",
+          content: { text: "loaded" },
+        },
+      ],
+    });
+
+    await persistence.load("thread-1");
+
+    expect(persistence.isPersisted("__proto__")).toBe(true);
+    expect(await persistence.getRemoteId("__proto__")).toBe("__proto__");
+  });
+
+  it("follows the message cursor across pages in server order", async () => {
+    const rows = createCloudMessages(450);
+    vi.mocked(cloud.threads.messages.list).mockImplementation(
+      async (_threadId, query) => {
+        const start = query?.after
+          ? rows.findIndex((row) => row.id === query.after) + 1
+          : 0;
+        return { messages: rows.slice(start, start + 200) };
+      },
+    );
+
+    const messages = await persistence.load("thread-1", "aui/v0");
+
+    expect(messages.map((message) => message.id)).toEqual(
+      rows.map((row) => row.id),
+    );
+    expect(cloud.threads.messages.list).toHaveBeenCalledTimes(3);
+    expect(cloud.threads.messages.list).toHaveBeenNthCalledWith(1, "thread-1", {
+      format: "aui/v0",
+      limit: 200,
+    });
+    expect(cloud.threads.messages.list).toHaveBeenNthCalledWith(3, "thread-1", {
+      format: "aui/v0",
+      limit: 200,
+      after: "message-400",
+    });
+  });
+
+  it("stops without duplicates when a later cursor stops resolving", async () => {
+    const rows = createCloudMessages(450);
+    vi.mocked(cloud.threads.messages.list).mockImplementation(
+      async (_threadId, query) => {
+        // The third request replays page one, the way the endpoint answers a
+        // cursor whose message no longer resolves.
+        const start =
+          query?.after && query.after !== "message-400"
+            ? rows.findIndex((row) => row.id === query.after) + 1
+            : 0;
+        return { messages: rows.slice(start, start + 200) };
+      },
+    );
+
+    const messages = await persistence.load("thread-1", "aui/v0");
+
+    expect(messages.map((message) => message.id)).toEqual(
+      rows.slice(0, 400).map((row) => row.id),
+    );
+    expect(cloud.threads.messages.list).toHaveBeenCalledTimes(3);
+  });
+
+  it("stops when a page does not advance the cursor", async () => {
+    vi.mocked(cloud.threads.messages.list).mockResolvedValue({
+      messages: createCloudMessages(200),
+    });
+
+    const messages = await persistence.load("thread-1", "aui/v0");
+
+    expect(messages).toHaveLength(200);
+    expect(cloud.threads.messages.list).toHaveBeenCalledTimes(2);
   });
 
   it("updates an already-persisted message", async () => {
