@@ -1,4 +1,5 @@
 import { describe, expect, it } from "vitest";
+import type { StandardJSONSchemaV1 } from "@standard-schema/spec";
 import {
   toJSONSchema,
   toPartialJSONSchema,
@@ -116,25 +117,37 @@ describe("toJSONSchema", () => {
     );
   });
 
-  it("converts StandardSchemaV1 with ~standard.jsonSchema.input()", () => {
-    const mockStandardSchema = {
+  it("converts Standard JSON Schema inputs to draft-07 for tool parameters", () => {
+    const schema = {
       "~standard": {
         version: 1 as const,
         vendor: "test",
         validate: () => ({ value: {} }),
         jsonSchema: {
-          input: () => ({
-            type: "object",
-            properties: { name: { type: "string" } },
-          }),
+          input: ({ target }: StandardJSONSchemaV1.Options) => {
+            expect(target).toBe("draft-07");
+            return {
+              type: "object",
+              properties: { name: { type: "string" } },
+            };
+          },
+          output: () => ({ type: "number" }),
         },
       },
     };
 
-    const result = toJSONSchema(mockStandardSchema);
+    const result = toJSONSchema(schema);
     expect(result).toEqual({
       type: "object",
       properties: { name: { type: "string" } },
+    });
+    expect(toToolsJSONSchema({ example: { parameters: schema } })).toEqual({
+      example: {
+        parameters: {
+          type: "object",
+          properties: { name: { type: "string" } },
+        },
+      },
     });
   });
 });
