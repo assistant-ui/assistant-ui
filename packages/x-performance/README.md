@@ -69,6 +69,7 @@ Benchmarks import only public package entry points so the react-compiler output 
 - A token appended to the streaming message re-renders only that message's text part. It commits twice (host state, then the adapter push through the store) on the external-store and AI SDK runtimes and once on the local runtime, in a 2-message and a 200-message thread alike; `convertMessage` runs once per token.
 - Mounting a 200-message thread renders and converts each message once in a single commit.
 - A markdown message re-parses its whole text once per token, with `defer` on or off: the renderer is memoized, so the urgent pass of a deferred pair carries text that was already parsed and bails out, while only the paragraph that changed re-renders.
+- A Streamdown message renders its primitive twice per token with `defer` on or off. Deferred work stays below that boundary, so it does not add a third render.
 - Smooth streaming commits once per animation frame while draining a chunk; `minCommitMs` batches those commits; smoothing off commits once per chunk.
 - One store slice write notifies once and re-renders only that slice's subscriber; part memoization keys on shallow field identity, not on the outer part object.
 - Unmounting releases the runtime, the converted messages, and the external messages.
