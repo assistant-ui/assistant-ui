@@ -41,7 +41,8 @@ export function buildPresentParameters(
     }
     for (const [key, schema] of Object.entries(propsSchema.properties ?? {})) {
       if (key.startsWith("$") || key === "children") continue;
-      // Tool arguments are decoded with secure-json-parse, which rejects this key.
+      // secure-json-parse rejects the whole tool-argument payload on this key,
+      // so advertising it would cost the model the node rather than one prop.
       if (key === "__proto__") continue;
       if (!props.has(key)) {
         props.set(key, schema);
