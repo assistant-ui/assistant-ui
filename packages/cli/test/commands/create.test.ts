@@ -5,7 +5,6 @@ import { spawnSync } from "node:child_process";
 import { describe, expect, it, vi, beforeEach, afterEach } from "vitest";
 import {
   create,
-  resolveAbsoluteProjectDirectory,
   resolveCreateProjectDirectory,
   resolvePresetUrl,
   resolveProject,
@@ -354,26 +353,6 @@ describe("resolveCreateProjectDirectory", () => {
         stdinIsTTY: false,
       }),
     ).toBe("custom-app");
-  });
-});
-
-describe("resolveAbsoluteProjectDirectory", () => {
-  it("resolves a project name from the selected working directory", () => {
-    expect(
-      resolveAbsoluteProjectDirectory({
-        projectDirectory: "my-aui-app",
-        cwd: "/tmp/projects",
-      }),
-    ).toBe(path.resolve("/tmp/projects/my-aui-app"));
-  });
-
-  it("keeps an absolute project directory unchanged", () => {
-    expect(
-      resolveAbsoluteProjectDirectory({
-        projectDirectory: "/tmp/projects/my-aui-app",
-        cwd: "/other",
-      }),
-    ).toBe(path.resolve("/tmp/projects/my-aui-app"));
   });
 });
 
