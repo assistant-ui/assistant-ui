@@ -176,7 +176,7 @@ const handleToolCallArgsTextFinish = (
       return part;
     }
 
-    if (part.state !== "partial-call") return { ...part };
+    if (part.state !== "partial-call") return part;
 
     return {
       ...part,
