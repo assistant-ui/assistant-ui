@@ -136,6 +136,11 @@ state, and resume requests returned by a superseded thread switch, but it cannot
 undo state updates inside your adapter. If creating a thread is asynchronous, also
 guard your adapter's thread ID update against a newer selection.
 
+Starting a thread switch cancels the active agent run and discards messages queued
+for the previous thread before calling your adapter. Cancelling an active run
+invokes `onCancel`; a newer thread selection or replacement run started by that
+callback takes precedence over the original switch.
+
 ## Interrupts (experimental)
 
 <Callout type="warn">
