@@ -2,6 +2,7 @@
 
 import { useState, useCallback } from "react";
 import { Check, Link2 } from "lucide-react";
+import { toast } from "sonner";
 import { cn } from "@/lib/utils";
 import { analytics } from "@/lib/analytics";
 import { copyTextToClipboard } from "@/lib/copy-to-clipboard";
@@ -33,6 +34,8 @@ export function ShareButton({ className }: ShareButtonProps) {
     if (await copyTextToClipboard(url)) {
       setCopied(true);
       setTimeout(() => setCopied(false), 2000);
+    } else {
+      toast.error("Failed to copy");
     }
   }, []);
 
