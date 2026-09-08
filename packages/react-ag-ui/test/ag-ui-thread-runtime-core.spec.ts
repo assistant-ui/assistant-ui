@@ -3346,6 +3346,7 @@ describe("AGUIThreadRuntimeCore", () => {
     expect(runInputs[1].resume).toEqual([
       { interruptId: "int-1", status: "resolved", payload: { ok: true } },
     ]);
+    expect(runInputs[1].messages).toEqual([]);
 
     const assistant = core
       .getMessages()
@@ -3401,13 +3402,11 @@ describe("AGUIThreadRuntimeCore", () => {
     expect(runInputs[1].resume).toEqual([
       { interruptId: "int-1", status: "cancelled" },
     ]);
-    const run2Messages = runInputs[1]?.messages ?? [];
-    expect(
-      run2Messages.some(
-        (m: { role: string; content: unknown }) =>
-          m.role === "user" && m.content === "changed my mind",
-      ),
-    ).toBe(true);
+    expect(runInputs[1].messages).toHaveLength(1);
+    expect(runInputs[1].messages[0]).toMatchObject({
+      role: "user",
+      content: "changed my mind",
+    });
 
     const assistant = core
       .getMessages()

@@ -1344,8 +1344,17 @@ export class AgUiThreadRuntimeCore {
     resume?: AgUiResumeEntry[],
   ) {
     const threadId = this.agent.threadId || "main";
+    const sourceMessages = historyMessages ?? this.session.getMessages();
     const messages = toAgUiMessages(
-      historyMessages ?? this.session.getMessages(),
+      resume === undefined
+        ? sourceMessages
+        : sourceMessages.at(-1)?.role === "user"
+          ? sourceMessages.slice(
+              sourceMessages.findLastIndex(
+                (message) => message.role === "user",
+              ),
+            )
+          : [],
     );
     const context = this.runtime?.thread.getModelContext();
     const input = {
