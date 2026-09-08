@@ -46,6 +46,8 @@ import {
   type NotificationManager,
 } from "./utils/NotificationManager";
 import { useAssistantTapContextProvider } from "./utils/tap-assistant-context";
+import { useDestroySignalProvider } from "./utils/destroy-signal-context";
+import { useHostDestroySignal } from "./utils/useHostDestroySignal";
 import { ClientResource } from "./useClientResource";
 import { useShallowStable } from "./utils/useShallowStable";
 import {
@@ -316,20 +318,18 @@ export const useAuiRoot = ({
 const useHostedAssistantClient = ({
   parent,
   entries,
-}: {
-  parent: AssistantClient;
-  entries: ScopeEntry[];
-}): ScopedAuiClient => {
+  destroySignal,
+}: HostProps): ScopedAuiClient => {
   const clientRef = useRef<ClientRef>({ parent, current: null }).current;
   const { value: client, effects } = useTapHost(function AssistantClientHost() {
     const notifications = useNotificationManager();
 
-    const { client } = useAuiRoot({
-      parent,
-      entries,
-      clientRef,
-      notifications,
-    });
+    const { client } = useDestroySignalProvider(
+      destroySignal,
+      function useOwnedRoot() {
+        return useAuiRoot({ parent, entries, clientRef, notifications });
+      },
+    );
 
     useEffect(
       () => parent.subscribe(notifications.notifySubscribers),
@@ -360,17 +360,17 @@ const useHostedAssistantClient = ({
 const useTapRootAssistantClient = ({
   parent,
   entries,
-}: {
-  parent: AssistantClient;
-  entries: ScopeEntry[];
-}): ScopedAuiClient => {
+  destroySignal,
+}: HostProps): ScopedAuiClient => {
   const clientRef = useRef<ClientRef>({ parent, current: null }).current;
   const { value: client, effects } = useTapHost(
     function LegacyAssistantClientHost() {
       const notifications = useNotificationManager();
 
       const store = useTapRoot(function AuiRoot() {
-        return useAuiRoot({ parent, entries, clientRef, notifications });
+        return useDestroySignalProvider(destroySignal, function useOwnedRoot() {
+          return useAuiRoot({ parent, entries, clientRef, notifications });
+        });
       });
 
       const client = useSyncExternalStore(
@@ -525,6 +525,12 @@ const useDerivedOnlyClient = (
 
 type ScopedAuiClient = { client: AssistantClient; effects?: () => void };
 
+type HostProps = {
+  parent: AssistantClient;
+  entries: ScopeEntry[];
+  destroySignal: AbortSignal | undefined;
+};
+
 const useScopeEntries = (
   parent: AssistantClient,
   clients: AuiConfig.Input,
@@ -550,17 +556,21 @@ const useScopeEntries = (
 // React root) with the scopes in the config; context is never consulted.
 // `effects` (rooted mode only) commits the host — the provider mounts it
 // ahead of its children's effects; hosts also self-commit as a fallback.
-// `useHost` is fixed per call site.
+// `useHost` is fixed per call site. `destroySignal` is the permanent teardown
+// of whatever owns the client; a caller that owns no distinct lifetime passes
+// none and the enclosing owner keeps standing. A derived-only client resolves
+// its owner on read instead, so only a rooted config carries one.
 const useConfiguredAuiImpl = (
   parent: AssistantClient,
   clients: AuiConfig.Input,
   useHost: typeof useHostedAssistantClient,
+  destroySignal: AbortSignal | undefined,
 ): ScopedAuiClient => {
   const { entries, rooted } = useScopeEntries(parent, clients);
 
   if (rooted) {
     // oxlint-disable-next-line react-hooks/rules-of-hooks
-    return useHost({ parent, entries });
+    return useHost({ parent, entries, destroySignal });
   }
   // oxlint-disable-next-line react-hooks/rules-of-hooks
   return { client: useDerivedOnlyClient(parent, entries) };
@@ -569,8 +579,14 @@ const useConfiguredAuiImpl = (
 export const useConfiguredAui = (
   parent: AssistantClient,
   clients: AuiConfig.Input,
+  destroySignal?: AbortSignal,
 ): ScopedAuiClient =>
-  useConfiguredAuiImpl(parent, clients, useHostedAssistantClient);
+  useConfiguredAuiImpl(
+    parent,
+    clients,
+    useHostedAssistantClient,
+    destroySignal,
+  );
 
 export namespace useAui {
   export type Props = AuiConfig.Input;
@@ -649,10 +665,13 @@ export function useAui(clients?: useAui.Props): AssistantClient {
   const parent = useAssistantContextValue();
   if (clients) {
     // oxlint-disable-next-line react-hooks/rules-of-hooks -- fixed per call site
+    // oxlint-disable-next-line react-hooks/rules-of-hooks -- fixed per call site
+    const destroySignal = useHostDestroySignal();
     const { client, effects } = useConfiguredAuiImpl(
       parent,
       clients,
       useTapRootAssistantClient,
+      destroySignal,
     );
     if (effects) setTapEffects(client, effects);
     return client;

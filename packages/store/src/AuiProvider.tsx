@@ -11,6 +11,8 @@ import {
   useAssistantContextValue,
 } from "./utils/react-assistant-context";
 import { useConfiguredAui } from "./useAui";
+import { DestroySignalContext } from "./utils/destroy-signal-context";
+import { useHostDestroySignal } from "./utils/useHostDestroySignal";
 import { isDevelopment } from "./utils/env";
 
 const EMPTY_CONFIG = AuiConfig({});
@@ -169,13 +171,24 @@ export const AuiProvider: {
     : hasValue
       ? (props.value ?? DefaultAssistantClient)
       : contextParent;
-  const { client, effects } = useConfiguredAui(parent, config ?? EMPTY_CONFIG);
+  // Published twice because tap's context is a snapshot taken at tap-root
+  // creation and never reads React's: the tap side reaches the client's own
+  // scope mounts, the React side reaches consumers that run as plain hooks
+  // under this provider.
+  const destroySignal = useHostDestroySignal();
+  const { client, effects } = useConfiguredAui(
+    parent,
+    config ?? EMPTY_CONFIG,
+    destroySignal,
+  );
   useImperativeHandle(ref, () => client, [client]);
   return (
-    <AssistantContext.Provider value={client}>
-      <MountTapEffects effects={getTapEffects(parent)} />
-      {effects && <MountTapEffects effects={effects} />}
-      {children}
-    </AssistantContext.Provider>
+    <DestroySignalContext.Provider value={destroySignal}>
+      <AssistantContext.Provider value={client}>
+        <MountTapEffects effects={getTapEffects(parent)} />
+        {effects && <MountTapEffects effects={effects} />}
+        {children}
+      </AssistantContext.Provider>
+    </DestroySignalContext.Provider>
   );
 }) as never;

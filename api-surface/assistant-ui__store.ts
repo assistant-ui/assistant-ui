@@ -374,7 +374,7 @@ declare const useClientResource: <TMethods extends ClientMethods>(element: Resou
   key: string | number | undefined;
 };
 
-declare const useConfiguredAui: (parent: AssistantClient, clients: AuiConfig.Input) => ScopedAuiClient;
+declare const useConfiguredAui: (parent: AssistantClient, clients: AuiConfig.Input, destroySignal?: AbortSignal) => ScopedAuiClient;
 
 declare const useDestroySignalProvider: <TResult>(destroySignal: AbortSignal | undefined, fn: () => TResult) => TResult;
 
