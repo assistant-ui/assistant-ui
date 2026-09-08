@@ -71,7 +71,6 @@
   },
   "devDependencies": {
     "@assistant-ui/react": "workspace:*",
-    "@assistant-ui/x-performance": "workspace:*",
     "@assistant-ui/x-buildutils": "workspace:*",
     "@streamdown/code": "^1.1.1",
     "@testing-library/react": "^16.3.3",

@@ -4966,9 +4966,6 @@ importers:
       '@assistant-ui/x-buildutils':
         specifier: workspace:*
         version: link:../x-buildutils
-      '@assistant-ui/x-performance':
-        specifier: workspace:*
-        version: link:../x-performance
       '@streamdown/code':
         specifier: ^1.1.1
         version: 1.1.1(react@19.2.8)
@@ -5422,6 +5419,9 @@ importers:
       '@assistant-ui/react-markdown':
         specifier: workspace:*
         version: link:../react-markdown
+      '@assistant-ui/react-streamdown':
+        specifier: workspace:*
+        version: link:../react-streamdown
       '@assistant-ui/store':
         specifier: workspace:*
         version: link:../store
