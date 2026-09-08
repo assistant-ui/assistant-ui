@@ -98,7 +98,7 @@ jobs:
 
       - name: Review
         id: review
-        uses: anthropics/claude-code-action@a874e9ecd7bb36efdad65429c6b35815f5a08f10 # ratchet:anthropics/claude-code-action@v1.0.210
+        uses: anthropics/claude-code-action@9c5ddab2e6d17b83ea679153b31f1d5f023cf636 # ratchet:anthropics/claude-code-action@v1.0.217
         with:
           claude_code_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
           prompt: ${{ env.REVIEW_PROMPT }}
@@ -189,7 +189,7 @@ jobs:
 
       - name: Review external PR
         id: review
-        uses: anthropics/claude-code-action@a874e9ecd7bb36efdad65429c6b35815f5a08f10 # ratchet:anthropics/claude-code-action@v1.0.210
+        uses: anthropics/claude-code-action@9c5ddab2e6d17b83ea679153b31f1d5f023cf636 # ratchet:anthropics/claude-code-action@v1.0.217
         with:
           claude_code_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
           github_token: ${{ github.token }}
