@@ -1,4 +1,5 @@
 #!/usr/bin/env node
+import { parse } from "@babel/parser";
 import { execFileSync } from "node:child_process";
 import { globSync, readFileSync, readdirSync } from "node:fs";
 import path from "node:path";
@@ -12,6 +13,26 @@ const repoRoot = path.resolve(
 );
 
 const BUMP_VALUES = new Set(["patch", "minor", "major"]);
+const PARSED_SOURCE_EXTENSIONS = new Set([
+  ".cjs",
+  ".cts",
+  ".js",
+  ".jsx",
+  ".mjs",
+  ".mts",
+  ".ts",
+  ".tsx",
+]);
+const AST_METADATA_KEYS = new Set([
+  "comments",
+  "end",
+  "errors",
+  "extra",
+  "loc",
+  "start",
+]);
+const OPERATIONAL_COMMENT =
+  /(?:^\s*\/\s*<reference\b|@(?:jsx|ts-(?:check|nocheck|ignore|expect-error))\b|[#@]__(?:NO_SIDE_EFFECTS|PURE)__\b|\b(?:sourceMappingURL|sourceURL|vite-ignore|webpack\w*)\b|^!)/i;
 
 export function parseWorkspaceGlobs(source) {
   const globs = [];
@@ -214,6 +235,111 @@ function isReleaseRelevantPackageFile(file, pkg) {
   return pkg.releaseRoots.includes(root) && isReleaseRelevantFile(relative);
 }
 
+function isOperationalComment(comment) {
+  return (
+    typeof comment?.value === "string" &&
+    OPERATIONAL_COMMENT.test(comment.value.trim())
+  );
+}
+
+function pruneSyntaxTree(value) {
+  if (Array.isArray(value)) return value.map(pruneSyntaxTree);
+  if (value === null || typeof value !== "object") return value;
+
+  const result = {};
+  for (const [key, child] of Object.entries(value)) {
+    if (
+      key === "innerComments" ||
+      key === "leadingComments" ||
+      key === "trailingComments"
+    ) {
+      const comments = child
+        .filter(isOperationalComment)
+        .map(({ type, value: commentValue }) => ({
+          type,
+          value: commentValue.trim(),
+        }));
+      if (comments.length > 0) result[key] = comments;
+    } else if (!AST_METADATA_KEYS.has(key)) {
+      result[key] = pruneSyntaxTree(child);
+    }
+  }
+  return result;
+}
+
+function sourceSignature(file, contents) {
+  if (!PARSED_SOURCE_EXTENSIONS.has(path.extname(file))) return contents;
+
+  const source = contents.toString("utf8");
+  const isTypeScript = /\.[cm]?tsx?$/.test(file);
+  const isDts = /\.d\.[cm]?ts$/.test(file);
+  const usesJsx = /\.[jt]sx$/.test(file);
+  const plugins = ["decorators-legacy"];
+  if (isTypeScript) plugins.push(["typescript", { dts: isDts }]);
+  if (usesJsx) plugins.push("jsx");
+
+  try {
+    const syntaxTree = parse(source, {
+      attachComment: true,
+      plugins,
+      sourceType: "unambiguous",
+    });
+    const unattachedOperationalComments = syntaxTree.comments
+      .filter(isOperationalComment)
+      .map(({ type, value }) => ({ type, value: value.trim() }));
+    return JSON.stringify({
+      program: pruneSyntaxTree(syntaxTree.program),
+      operationalComments: unattachedOperationalComments,
+    });
+  } catch {
+    return contents;
+  }
+}
+
+function contentsDiffer(file, baseContents, headContents) {
+  const empty = Buffer.alloc(0);
+  const baseSignature = sourceSignature(file, baseContents ?? empty);
+  const headSignature = sourceSignature(file, headContents ?? empty);
+  if (Buffer.isBuffer(baseSignature) && Buffer.isBuffer(headSignature)) {
+    return !baseSignature.equals(headSignature);
+  }
+  return baseSignature !== headSignature;
+}
+
+function readGitFile(root, sha, file) {
+  return execFileSync("git", ["show", `${sha}:${file}`], {
+    cwd: root,
+    stdio: ["ignore", "pipe", "pipe"],
+  });
+}
+
+function findReleaseOwner(packages, file) {
+  for (const [name, pkg] of packages) {
+    if (isReleaseRelevantPackageFile(file, pkg)) return name;
+  }
+  return null;
+}
+
+function parseNameStatus(output) {
+  const fields = output.toString("utf8").split("\0");
+  if (fields.at(-1) === "") fields.pop();
+
+  const entries = [];
+  for (let index = 0; index < fields.length;) {
+    const status = fields[index++];
+    if (status.startsWith("R") || status.startsWith("C")) {
+      entries.push({
+        status: status[0],
+        oldFile: fields[index++],
+        file: fields[index++],
+      });
+    } else {
+      entries.push({ status: status[0], file: fields[index++] });
+    }
+  }
+  return entries;
+}
+
 export function findMissingPackageChangesets(
   packages,
   bumps,
@@ -245,61 +371,73 @@ export function findMissingPackageChangesets(
   return missing;
 }
 
-function diffChangedFiles(root, baseSha, headSha) {
+function diffChangedFiles(root, baseSha, headSha, packages) {
   try {
     const range = `${baseSha}...${headSha}`;
-    const addedDeletedOrRenamed = execFileSync(
-      "git",
-      [
-        "diff",
-        "--name-only",
-        "--diff-filter=ACDR",
-        "--no-renames",
-        range,
-        "--",
-        "packages/**",
-      ],
-      { cwd: root, encoding: "utf8", stdio: ["ignore", "pipe", "pipe"] },
-    )
-      .trim()
-      .split("\n")
-      .filter(Boolean);
-    const modifiedPatch = execFileSync(
-      "git",
-      [
-        "diff",
-        "--unified=0",
-        "--no-color",
-        "--no-ext-diff",
-        "--diff-filter=M",
-        "--ignore-all-space",
-        "--ignore-matching-lines=^[[:space:]]*//",
-        range,
-        "--",
-        "packages/**",
-      ],
-      { cwd: root, encoding: "utf8", stdio: ["ignore", "pipe", "pipe"] },
+    const packageChanges = parseNameStatus(
+      execFileSync(
+        "git",
+        [
+          "diff",
+          "--name-status",
+          "-z",
+          "--find-renames",
+          "--diff-filter=ACDMRT",
+          range,
+          "--",
+          "packages/**",
+        ],
+        { cwd: root, stdio: ["ignore", "pipe", "pipe"] },
+      ),
     );
-    const modified = modifiedPatch
-      .split("\n")
-      .filter((line) => line.startsWith("+++ b/"))
-      .map((line) => line.slice("+++ b/".length));
+    const changedPackageFiles = [];
+    for (const { status, oldFile, file } of packageChanges) {
+      const owner = findReleaseOwner(packages, file);
+      if (status === "R") {
+        const oldOwner = findReleaseOwner(packages, oldFile);
+        if (oldOwner && oldOwner === owner) changedPackageFiles.push(file);
+        else {
+          if (oldOwner) changedPackageFiles.push(oldFile);
+          if (owner) changedPackageFiles.push(file);
+        }
+        continue;
+      }
+      if (status === "C") {
+        if (
+          owner &&
+          contentsDiffer(file, null, readGitFile(root, headSha, file))
+        ) {
+          changedPackageFiles.push(file);
+        }
+        continue;
+      }
+      if (!owner) continue;
+
+      const baseContents =
+        status === "A" ? null : readGitFile(root, baseSha, file);
+      const headContents =
+        status === "D" ? null : readGitFile(root, headSha, file);
+      if (contentsDiffer(file, baseContents, headContents)) {
+        changedPackageFiles.push(file);
+      }
+    }
     const changesets = execFileSync(
       "git",
       [
         "diff",
+        "-z",
         "--name-only",
         "--diff-filter=ACMR",
         range,
         "--",
         ".changeset/*.md",
       ],
-      { cwd: root, encoding: "utf8", stdio: ["ignore", "pipe", "pipe"] },
+      { cwd: root, stdio: ["ignore", "pipe", "pipe"] },
     )
-      .trim()
-      .split("\n")
+      .toString("utf8")
+      .split("\0")
       .filter(Boolean);
-    return [...new Set([...addedDeletedOrRenamed, ...modified, ...changesets])];
+    return [...new Set([...changedPackageFiles, ...changesets])];
   } catch (error) {
     const stderr = String(error.stderr ?? "").trim();
     return { error: stderr.split("\n").at(-1) || error.message };
@@ -307,10 +445,10 @@ function diffChangedFiles(root, baseSha, headSha) {
 }
 
 export function runChangedPackageCheck(root, baseSha, headSha) {
-  const changedFiles = diffChangedFiles(root, baseSha, headSha);
+  const packages = readWorkspacePackages(root);
+  const changedFiles = diffChangedFiles(root, baseSha, headSha, packages);
   if (!Array.isArray(changedFiles)) return changedFiles;
 
-  const packages = readWorkspacePackages(root);
   const rules = readSkipRules(
     readJson(path.join(root, ".changeset", "config.json")),
   );
@@ -365,6 +503,13 @@ function annotateError(message) {
   console.error(`::error::${data}`);
 }
 
+function summarizeFiles(files) {
+  const limit = 5;
+  const summary = files.slice(0, limit).join(", ");
+  const remaining = files.length - limit;
+  return remaining > 0 ? `${summary}, and ${remaining} more` : summary;
+}
+
 function main() {
   const root = process.env.CHANGESET_CHECK_ROOT ?? repoRoot;
   const checksChangedPackages = process.argv.includes("--changed-packages");
@@ -415,7 +560,7 @@ function main() {
   if (missingChangesets.length > 0) {
     console.error("Changed published packages without a changeset:\n");
     for (const { files, name } of missingChangesets) {
-      console.error(`  "${name}" (${files.join(", ")})`);
+      console.error(`  "${name}" (${summarizeFiles(files)})`);
     }
     console.error(
       "\nAdd a changeset from this PR that names every changed published package.",

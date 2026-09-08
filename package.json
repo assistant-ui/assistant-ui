@@ -42,6 +42,7 @@
   },
   "devDependencies": {
     "@assistant-ui/x-changelog": "workspace:*",
+    "@babel/parser": "^8.0.4",
     "@changesets/cli": "^3.0.2",
     "husky": "^9.1.7",
     "lint-staged": "^17.5.0",
