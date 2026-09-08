@@ -332,8 +332,7 @@ describe("McpAppFrame", () => {
       availableDisplayModes: ["inline", "pip"],
     });
 
-    // A hole is not a value, in either operand order: sparse-to-dense is the
-    // direction Array.prototype.every read as equal by skipping the hole.
+    // A hole is not a value, in either operand order.
     const sparseModes: ("inline" | "pip")[] = new Array(2);
     sparseModes[1] = "pip";
     rendered.rerender(

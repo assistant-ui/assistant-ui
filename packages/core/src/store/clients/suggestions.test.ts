@@ -177,8 +177,7 @@ describe("ThreadSuggestions", () => {
         .getState();
       expect(firstSuggestion).toEqual(expected);
 
-      // An equivalent sparse update keeps both identities stable: the reuse
-      // probe reads the compacted destination index, not the sparse source one.
+      // An equivalent sparse update keeps both identities stable.
       const sparseAgain: ThreadSuggestion[] = new Array(2);
       sparseAgain[1] = { prompt: "Prompt B" };
       flushTapSync(() => setSuggestions(sparseAgain));
