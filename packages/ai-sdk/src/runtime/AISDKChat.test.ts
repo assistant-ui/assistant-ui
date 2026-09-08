@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { flushTapSync } from "@assistant-ui/tap";
+import { flushTapSync, resource, useResource } from "@assistant-ui/tap";
 import { AuiConfig, createAssistantClient } from "@assistant-ui/store/client";
 import { AISDKChat } from "./AISDKChat";
 import {
@@ -10,6 +10,7 @@ import {
 describe("AISDKChat as a standalone client config entry", () => {
   afterEach(() => {
     vi.unstubAllGlobals();
+    vi.restoreAllMocks();
   });
 
   it("streams a chat round trip without React", async () => {
@@ -110,6 +111,41 @@ describe("AISDKChat as a standalone client config entry", () => {
     await vi.waitFor(() => {
       expect(getCancelCount()).toBe(1);
     });
+  });
+
+  it("keeps one destroy listener when the resource hook is remounted", () => {
+    const { transport } = createControlledTransport();
+    const First = resource(() => useResource(AISDKChat({ transport })));
+    const Second = resource(() => useResource(AISDKChat({ transport })));
+    let config = AuiConfig({ threads: First() });
+    const listeners = new Set<() => void>();
+    const source = {
+      getConfig: () => config,
+      subscribe: (listener: () => void) => {
+        listeners.add(listener);
+        return () => listeners.delete(listener);
+      },
+    };
+    const addEventListener = vi.spyOn(
+      AbortSignal.prototype,
+      "addEventListener",
+    );
+    const handle = createAssistantClient(source);
+
+    try {
+      handle.subscribe(() => {});
+      const abortListenerCount = () =>
+        addEventListener.mock.calls.filter(([type]) => type === "abort").length;
+
+      expect(abortListenerCount()).toBe(1);
+
+      config = AuiConfig({ threads: Second() });
+      flushTapSync(() => listeners.forEach((listener) => listener()));
+
+      expect(abortListenerCount()).toBe(1);
+    } finally {
+      handle.destroy();
+    }
   });
 
   it("installs the RuntimeAdapter scope defaults", () => {

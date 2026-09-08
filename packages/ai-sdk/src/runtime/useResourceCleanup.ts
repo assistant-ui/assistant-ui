@@ -1,6 +1,13 @@
 import { useEffect, useRef } from "react";
 import { useAssistantClientDestroySignal } from "@assistant-ui/store/internal";
 
+type CleanupRegistration = {
+  cleanupRef: { current: () => void };
+  enabledRef: { current: boolean };
+};
+
+const registrations = new WeakMap<AbortSignal, Set<CleanupRegistration>>();
+
 export const useResourceCleanup = (enabled: boolean, cleanup: () => void) => {
   const destroySignal = useAssistantClientDestroySignal();
   const cleanupRef = useRef(cleanup);
@@ -17,10 +24,22 @@ export const useResourceCleanup = (enabled: boolean, cleanup: () => void) => {
     if (registeredSignalRef.current === destroySignal) return undefined;
 
     registeredSignalRef.current = destroySignal;
+    const registration = { cleanupRef, enabledRef };
+    const signalRegistrations = registrations.get(destroySignal);
+    if (signalRegistrations) {
+      signalRegistrations.add(registration);
+      return undefined;
+    }
+
+    const registrationsForSignal = new Set([registration]);
+    registrations.set(destroySignal, registrationsForSignal);
     destroySignal.addEventListener(
       "abort",
       () => {
-        if (enabledRef.current) cleanupRef.current();
+        registrations.delete(destroySignal);
+        for (const entry of registrationsForSignal) {
+          if (entry.enabledRef.current) entry.cleanupRef.current();
+        }
       },
       { once: true },
     );
