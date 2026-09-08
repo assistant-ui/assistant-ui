@@ -267,41 +267,79 @@ describe("toWebMcpTool cancellation", () => {
     });
   });
 
-  it("merges the caller signal with the lifecycle signal", async () => {
+  it.for(["caller", "lifecycle"] as const)(
+    "merges signals without AbortSignal.any when the %s signal aborts",
+    async (abortedSignal) => {
+      const lifecycle = new AbortController();
+      const caller = new AbortController();
+      const abortSignalConstructor = AbortSignal as typeof AbortSignal & {
+        any?: (signals: Iterable<AbortSignal>) => AbortSignal;
+      };
+      const originalAbortSignalAny = abortSignalConstructor.any;
+      Object.defineProperty(abortSignalConstructor, "any", {
+        configurable: true,
+        value: () => {
+          throw new Error("AbortSignal.any is not available");
+        },
+      });
+      try {
+        const descriptor = descriptorFor(
+          {
+            execute: async (_args: unknown, context: any) =>
+              new Promise((_resolve, reject) => {
+                context.abortSignal.addEventListener("abort", () =>
+                  reject(new Error("aborted")),
+                );
+              }),
+          },
+          lifecycle.signal,
+        );
+
+        const pending = descriptor.execute({}, { signal: caller.signal });
+        (abortedSignal === "caller" ? caller : lifecycle).abort();
+        await expect(pending).resolves.toEqual({
+          isError: true,
+          content: [text("aborted")],
+        });
+      } finally {
+        Object.defineProperty(abortSignalConstructor, "any", {
+          configurable: true,
+          value: originalAbortSignalAny,
+        });
+      }
+    },
+  );
+
+  it("removes merged signal listeners after execution", async () => {
     const lifecycle = new AbortController();
     const caller = new AbortController();
-    const descriptor = descriptorFor(
-      {
-        execute: async (_args: unknown, context: any) =>
-          new Promise((_resolve, reject) => {
-            context.abortSignal.addEventListener("abort", () =>
-              reject(new Error("aborted")),
-            );
-          }),
-      },
-      lifecycle.signal,
-    );
+    const callerRemove = vi.spyOn(caller.signal, "removeEventListener");
+    const lifecycleRemove = vi.spyOn(lifecycle.signal, "removeEventListener");
 
-    const pending = descriptor.execute({}, { signal: caller.signal });
-    lifecycle.abort();
-    await expect(pending).resolves.toEqual({
-      isError: true,
-      content: [text("aborted")],
-    });
+    const result = await descriptorFor(
+      { execute: async () => "ok" },
+      lifecycle.signal,
+    ).execute({}, { signal: caller.signal });
+
+    expect(result).toEqual({ content: [text("ok")] });
+    expect(callerRemove).toHaveBeenCalledTimes(1);
+    expect(lifecycleRemove).toHaveBeenCalledTimes(1);
   });
 
-  it("returns an error result when the caller signal cannot be merged", async () => {
+  it("returns an error result when a signal listener cannot be installed", async () => {
     const execute = vi.fn(async () => "never");
-    const foreignSignal = {
+    const unusableSignal = {
       aborted: false,
-      addEventListener: () => {},
+      addEventListener: () => {
+        throw new Error("cannot add abort listener");
+      },
       removeEventListener: () => {},
     } as unknown as AbortSignal;
 
     const result = await descriptorFor(
       { execute },
       new AbortController().signal,
-    ).execute({}, { signal: foreignSignal });
+    ).execute({}, { signal: unusableSignal });
     expect(result.isError).toBe(true);
     expect(execute).not.toHaveBeenCalled();
   });

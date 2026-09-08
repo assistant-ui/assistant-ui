@@ -118,6 +118,44 @@ const isStandardSchema = (schema: unknown): schema is StandardSchemaLike =>
   "~standard" in schema &&
   (schema as StandardSchemaLike)["~standard"].version === 1;
 
+const combineAbortSignals = (
+  callerSignal: AbortSignal,
+  lifecycleSignal: AbortSignal,
+): { signal: AbortSignal; cleanup: () => void } => {
+  const controller = new AbortController();
+  let cleanedUp = false;
+  const cleanup = () => {
+    if (cleanedUp) return;
+    cleanedUp = true;
+    callerSignal.removeEventListener("abort", onCallerAbort);
+    lifecycleSignal.removeEventListener("abort", onLifecycleAbort);
+  };
+  const abort = (reason: unknown) => {
+    cleanup();
+    controller.abort(reason);
+  };
+  const onCallerAbort = () => abort(callerSignal.reason);
+  const onLifecycleAbort = () => abort(lifecycleSignal.reason);
+
+  if (callerSignal.aborted) {
+    abort(callerSignal.reason);
+  } else if (lifecycleSignal.aborted) {
+    abort(lifecycleSignal.reason);
+  } else {
+    try {
+      callerSignal.addEventListener("abort", onCallerAbort, { once: true });
+      lifecycleSignal.addEventListener("abort", onLifecycleAbort, {
+        once: true,
+      });
+    } catch (error) {
+      cleanup();
+      throw error;
+    }
+  }
+
+  return { signal: controller.signal, cleanup };
+};
+
 export const toWebMcpTool = (
   name: string,
   getTool: () => Tool<any, any>,
@@ -133,13 +171,17 @@ export const toWebMcpTool = (
     const tool = getTool();
     const args = (rawArgs ?? {}) as Record<string, unknown>;
     const toolCallId = generateId();
+    let cleanup: (() => void) | undefined;
     try {
       const callerSignal = context?.signal;
-      const abortSignal = !callerSignal
-        ? lifecycleSignal
-        : !lifecycleSignal
-          ? callerSignal
-          : AbortSignal.any([callerSignal, lifecycleSignal]);
+      let abortSignal: AbortSignal | undefined;
+      if (callerSignal && lifecycleSignal) {
+        const combined = combineAbortSignals(callerSignal, lifecycleSignal);
+        abortSignal = combined.signal;
+        cleanup = combined.cleanup;
+      } else {
+        abortSignal = callerSignal ?? lifecycleSignal;
+      }
       let executeFn = tool.execute;
       if (isStandardSchema(tool.parameters)) {
         let validation = tool.parameters["~standard"].validate(args);
@@ -175,6 +217,8 @@ export const toWebMcpTool = (
       return await toMcpContent(result, { tool, toolCallId, args });
     } catch (e) {
       return errorResult(e instanceof Error ? e.message : String(e));
+    } finally {
+      cleanup?.();
     }
   },
 });
