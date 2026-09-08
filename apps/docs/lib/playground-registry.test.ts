@@ -4,6 +4,7 @@ import {
   type FontSize,
 } from "../components/pages/playground/types";
 import { generateRegistryJson } from "./playground-registry";
+import { decodeConfig } from "./playground-url-state";
 
 describe("generateRegistryJson", () => {
   it.each<{ fontSize: FontSize; className: string }>([
@@ -25,4 +26,13 @@ describe("generateRegistryJson", () => {
       );
     },
   );
+
+  it("uses the fallback for an unknown font size in decoded configuration", () => {
+    const encoded = Buffer.from(
+      JSON.stringify({ styles: { fontSize: "18px" } }),
+    ).toString("base64url");
+    const registry = generateRegistryJson(decodeConfig(encoded));
+
+    expect(registry.files[0]?.content).toContain('bg-background text-base"');
+  });
 });

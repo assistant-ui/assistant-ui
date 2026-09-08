@@ -184,7 +184,7 @@ ${externalImports}
 
 ${internalImports}`;
 
-  const fontSizeClass = FONT_SIZE_CLASS[styles.fontSize];
+  const fontSizeClass = FONT_SIZE_CLASS[styles.fontSize] ?? "text-base";
   const messageSpacingClass = getMessageSpacingClass(styles.messageSpacing);
   const accentColor = styles.colors.accent.light;
   const accentForeground = isLightColor(accentColor) ? "#000000" : "#ffffff";
