@@ -1,4 +1,5 @@
 import { describe, it, expect } from "vitest";
+import { code } from "@streamdown/code";
 import { mergePlugins, DEFAULT_SHIKI_THEME } from "../defaults";
 import type { PluginConfig, ResolvedPluginConfig } from "../types";
 import type {
@@ -15,16 +16,29 @@ describe("DEFAULT_SHIKI_THEME", () => {
 });
 
 describe("PluginConfig", () => {
-  it("accepts plugin instances and the false opt-out only", () => {
+  it("accepts a real plugin instance, a cast instance, and the false opt-out", () => {
     const config: PluginConfig = {
-      code: false,
-      math: { name: "math" } as unknown as MathPlugin,
+      code,
+      math: false,
+      cjk: { name: "cjk" } as unknown as CjkPlugin,
+      mermaid: { name: "mermaid" } as unknown as DiagramPlugin,
+    };
+    expect(config.code).toBe(code);
+    expect(config.math).toBe(false);
+  });
+
+  it("rejects values that are neither a plugin instance nor false", () => {
+    const config: PluginConfig = {
+      // @ts-expect-error a bare object is not a plugin instance
+      code: { type: "code" },
+      // @ts-expect-error true is not an opt-in
+      math: true,
       // @ts-expect-error a bare object is not a plugin instance
       cjk: { type: "cjk" },
       // @ts-expect-error true is not an opt-in
       mermaid: true,
     };
-    expect(config.code).toBe(false);
+    expect(Object.keys(config)).toHaveLength(4);
   });
 });
 
