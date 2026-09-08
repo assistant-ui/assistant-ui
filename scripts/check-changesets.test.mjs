@@ -484,6 +484,39 @@ test("deleting published source requires a changeset", () => {
   }
 });
 
+test("moving source between published packages requires both changesets", () => {
+  const root = createWorkspace(
+    '---\n"@fixture/unversioned": patch\n---\n\nfix: unrelated package\n',
+  );
+  try {
+    mkdirSync(path.join(root, "packages", "published", "src"));
+    mkdirSync(path.join(root, "packages", "held", "src"));
+    writeFileSync(
+      path.join(root, "packages", "published", "src", "moved.ts"),
+      "export const moved = true;\n",
+    );
+    git(root, "init", "-q", "-b", "main");
+    const base = commitAll(root, "base");
+
+    git(
+      root,
+      "mv",
+      "packages/published/src/moved.ts",
+      "packages/held/src/moved.ts",
+    );
+    const head = commitAll(root, "move source");
+
+    assert.deepEqual(
+      runChangedPackageCheck(root, base, head).missingChangesets.map(
+        ({ name }) => name,
+      ),
+      ["@fixture/published", "@fixture/held"],
+    );
+  } finally {
+    rmSync(root, { recursive: true, force: true });
+  }
+});
+
 test("a version-only PR passes without a branch-name exemption", () => {
   const root = createWorkspace(
     '---\n"@fixture/published": patch\n---\n\nfix: release\n',

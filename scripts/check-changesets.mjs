@@ -233,6 +233,7 @@ function diffChangedFiles(root, baseSha, headSha) {
         "diff",
         "--name-only",
         "--diff-filter=ACDR",
+        "--no-renames",
         range,
         "--",
         "packages/*/src/**",
@@ -325,61 +326,78 @@ export function runCheck(root = repoRoot) {
   };
 }
 
+function annotateError(message) {
+  if (!process.env.GITHUB_ACTIONS) {
+    console.error(message);
+    return;
+  }
+  const data = message
+    .replaceAll("%", "%25")
+    .replaceAll("\r", "%0D")
+    .replaceAll("\n", "%0A");
+  console.error(`::error::${data}`);
+}
+
 function main() {
   const root = process.env.CHANGESET_CHECK_ROOT ?? repoRoot;
-  const { packageCount, problems } = runCheck(root);
+  const checksChangedPackages = process.argv.includes("--changed-packages");
 
-  if (problems.length > 0) {
-    console.error("Changesets name packages that cannot be released:\n");
-    for (const { file, name, reason } of problems) {
-      console.error(`  .changeset/${file}: "${name}" ${reason}`);
-    }
-    console.error(
-      "\nChangesets refuses a changeset that mixes a skipped package with a released one,",
-    );
-    console.error(
-      "so `changeset version` aborts and every release stays blocked until the line is removed.",
-    );
-    console.error("\nDrop the offending line from the changeset frontmatter.");
-    process.exit(1);
-  }
+  if (!checksChangedPackages) {
+    const { packageCount, problems } = runCheck(root);
 
-  if (process.argv.includes("--changed-packages")) {
-    const { BASE_SHA, HEAD_SHA } = process.env;
-    if (!BASE_SHA || !HEAD_SHA) {
-      console.error(
-        "BASE_SHA and HEAD_SHA are required for changed package validation.",
-      );
-      process.exit(1);
-    }
-
-    const result = runChangedPackageCheck(root, BASE_SHA, HEAD_SHA);
-    if ("error" in result) {
-      console.error(
-        `Could not diff ${BASE_SHA}...${HEAD_SHA}: ${result.error}. Failing instead of skipping changeset validation.`,
-      );
-      process.exit(1);
-    }
-
-    const { changedSourceCount, missingChangesets } = result;
-    if (missingChangesets.length > 0) {
-      console.error("Changed published packages without a changeset:\n");
-      for (const { files, name } of missingChangesets) {
-        console.error(`  "${name}" (${files.join(", ")})`);
+    if (problems.length > 0) {
+      console.error("Changesets name packages that cannot be released:\n");
+      for (const { file, name, reason } of problems) {
+        console.error(`  .changeset/${file}: "${name}" ${reason}`);
       }
       console.error(
-        "\nAdd a changeset from this PR that names every changed published package.",
+        "\nChangesets refuses a changeset that mixes a skipped package with a released one,",
+      );
+      console.error(
+        "so `changeset version` aborts and every release stays blocked until the line is removed.",
+      );
+      console.error(
+        "\nDrop the offending line from the changeset frontmatter.",
       );
       process.exit(1);
     }
 
     console.log(
-      `All changed published packages have changesets. (${changedSourceCount} source files scanned)`,
+      `All changeset bumps name releasable workspace packages. (${packageCount} packages scanned)`,
     );
+    return;
+  }
+
+  const { BASE_SHA, HEAD_SHA } = process.env;
+  if (!BASE_SHA || !HEAD_SHA) {
+    console.error(
+      "BASE_SHA and HEAD_SHA are required for changed package validation.",
+    );
+    process.exit(1);
+  }
+
+  const result = runChangedPackageCheck(root, BASE_SHA, HEAD_SHA);
+  if ("error" in result) {
+    annotateError(
+      `Could not diff ${BASE_SHA}...${HEAD_SHA}: ${result.error}. Failing instead of skipping changeset validation.`,
+    );
+    process.exit(1);
+  }
+
+  const { changedSourceCount, missingChangesets } = result;
+  if (missingChangesets.length > 0) {
+    console.error("Changed published packages without a changeset:\n");
+    for (const { files, name } of missingChangesets) {
+      console.error(`  "${name}" (${files.join(", ")})`);
+    }
+    console.error(
+      "\nAdd a changeset from this PR that names every changed published package.",
+    );
+    process.exit(1);
   }
 
   console.log(
-    `All changeset bumps name releasable workspace packages. (${packageCount} packages scanned)`,
+    `All changed published packages have changesets. (${changedSourceCount} source files scanned)`,
   );
 }
 
