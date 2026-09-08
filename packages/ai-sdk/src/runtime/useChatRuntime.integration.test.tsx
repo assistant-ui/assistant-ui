@@ -2,7 +2,9 @@
 
 import { act, render, screen, waitFor } from "@testing-library/react";
 import { AssistantRuntimeProvider } from "@assistant-ui/core/react";
-import { useAuiState } from "@assistant-ui/store";
+import { AuiConfig, AuiProvider, useAuiState } from "@assistant-ui/store";
+import type { AssistantRuntime } from "@assistant-ui/core";
+import { AISDKChat } from "./AISDKChat";
 import type { ChatTransport, UIMessage } from "ai";
 import { Activity, StrictMode, useState, type ReactNode } from "react";
 import { describe, expect, it } from "vitest";
@@ -90,7 +92,24 @@ describe("useChatRuntime integration", () => {
     view.unmount();
   });
 
-  it("keeps a hidden thread streaming", async () => {
+  it("aborts the in-flight transport after a real unmount", async () => {
+    const { transport, getCancelCount } = createCancellableTransport();
+    const { Probe, send, isRunning } = createStreamHarness();
+
+    const view = render(
+      <StrictMode>
+        <StreamingApp transport={transport} probe={<Probe />} />
+      </StrictMode>,
+    );
+
+    await act(async () => send());
+    await waitFor(() => expect(isRunning()).toBe(true));
+
+    view.unmount();
+    await waitFor(() => expect(getCancelCount()).toBe(1));
+  });
+
+  it("keeps streaming while hidden and aborts when the hidden host unmounts", async () => {
     const { transport, getCancelCount } = createCancellableTransport();
     const { Probe, send, isRunning } = createStreamHarness();
 
@@ -124,7 +143,43 @@ describe("useChatRuntime integration", () => {
     expect(getCancelCount()).toBe(0);
     expect(isRunning()).toBe(true);
 
+    await act(async () => setMode?.("hidden"));
     view.unmount();
+    await waitFor(() => expect(getCancelCount()).toBe(1));
+  });
+
+  it("aborts a nested runtime's stream when the host it runs under unmounts", async () => {
+    const outer = createCancellableTransport();
+    const { transport, getCancelCount } = createCancellableTransport();
+    let nested: AssistantRuntime | undefined;
+
+    // allowNesting: the inner useChatRuntime runs its thread hook directly, as
+    // a plain React hook under the provider rather than inside a tap resource.
+    const NestedChat = () => {
+      nested = useChatRuntime({ transport });
+      return null;
+    };
+
+    const view = render(
+      <StrictMode>
+        <AuiProvider
+          config={AuiConfig({
+            threads: AISDKChat({ transport: outer.transport }),
+          })}
+        >
+          <NestedChat />
+        </AuiProvider>
+      </StrictMode>,
+    );
+
+    await waitFor(() => expect(nested).toBeDefined());
+    await act(async () => {
+      await nested!.thread.append("keep streaming");
+    });
+    await waitFor(() => expect(nested!.thread.getState().isRunning).toBe(true));
+
+    view.unmount();
+    await waitFor(() => expect(getCancelCount()).toBe(1));
   });
 });
 
