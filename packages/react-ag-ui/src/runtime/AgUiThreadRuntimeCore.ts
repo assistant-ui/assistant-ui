@@ -35,7 +35,12 @@ import type {
 import jsonpatch, { type Operation } from "fast-json-patch";
 import type { Logger } from "./logger";
 import { readMcpAppResourceUri } from "./mcp-tool-result";
-import type { AgUiEvent, AgUiInterrupt, AgUiResumeEntry } from "./types";
+import type {
+  AgUiEvent,
+  AgUiInterrupt,
+  AgUiResumeEntry,
+  AgUiResumeTranscript,
+} from "./types";
 import type { ReadonlyJSONValue } from "assistant-stream/utils";
 import {
   AG_UI_METADATA_NAMESPACE,
@@ -87,10 +92,21 @@ type ResumeRunConfig = {
   stream?: ResumeStream;
 };
 
+/**
+ * A resume submission, pairing the entries that answer the open interrupts with
+ * the assistant message they were opened on. That message anchors the resume
+ * transcript: under `resumeTranscript: "appended"` only what follows it is sent.
+ */
+type ResumeDispatch = {
+  entries: AgUiResumeEntry[];
+  interruptedMessageId: string;
+};
+
 type CoreOptions = {
   agent: AbstractAgent;
   logger: Logger;
   showThinking: boolean;
+  resumeTranscript?: AgUiResumeTranscript | undefined;
   autoCancelPendingToolCalls?: boolean | undefined;
   onError?: (error: Error) => void;
   onCancel?: () => void;
@@ -135,6 +151,7 @@ export class AgUiThreadRuntimeCore {
   private agent: AbstractAgent;
   private logger: Logger;
   private showThinking: boolean;
+  private resumeTranscript: AgUiResumeTranscript;
   private autoCancelPendingToolCalls: boolean | undefined;
   private onError: ((error: Error) => void) | undefined;
   private onCancel: (() => void) | undefined;
@@ -182,6 +199,7 @@ export class AgUiThreadRuntimeCore {
     this.agent = options.agent;
     this.logger = options.logger;
     this.showThinking = options.showThinking;
+    this.resumeTranscript = options.resumeTranscript ?? "full";
     this.autoCancelPendingToolCalls = options.autoCancelPendingToolCalls;
     this.onError = options.onError;
     this.onCancel = options.onCancel;
@@ -193,6 +211,7 @@ export class AgUiThreadRuntimeCore {
     this.agent = options.agent;
     this.logger = options.logger;
     this.showThinking = options.showThinking;
+    this.resumeTranscript = options.resumeTranscript ?? "full";
     this.autoCancelPendingToolCalls = options.autoCancelPendingToolCalls;
     this.onError = options.onError;
     this.onCancel = options.onCancel;
@@ -522,7 +541,10 @@ export class AgUiThreadRuntimeCore {
     resume: AgUiResumeEntry[],
   ): Promise<void> {
     this.clearPendingInterrupts(messageId, resume);
-    await this.startRun(messageId, this.lastRunConfig, resume);
+    await this.startRun(messageId, this.lastRunConfig, {
+      entries: resume,
+      interruptedMessageId: messageId,
+    });
   }
 
   /**
@@ -681,7 +703,10 @@ export class AgUiThreadRuntimeCore {
     const normalized = this.toAppendMessage(message);
     this.clearPendingInterrupts(pending.messageId, resume);
     const threadMessageId = this.appendEntry(normalized);
-    await this.startRun(threadMessageId, normalized.runConfig, resume);
+    await this.startRun(threadMessageId, normalized.runConfig, {
+      entries: resume,
+      interruptedMessageId: pending.messageId,
+    });
   }
 
   private resolveSteerAwayResume(
@@ -1031,7 +1056,7 @@ export class AgUiThreadRuntimeCore {
   private async startRun(
     parentId: string | null,
     runConfig?: RunConfig,
-    resume?: AgUiResumeEntry[],
+    resume?: ResumeDispatch,
     resumeStream?: ResumeStream,
   ): Promise<void> {
     // A default AG-UI run supersedes the active run; the hook's opt-in message
@@ -1341,11 +1366,14 @@ export class AgUiThreadRuntimeCore {
     runId: string,
     runConfig: RunConfig | undefined,
     historyMessages: readonly ThreadMessage[] | undefined,
-    resume?: AgUiResumeEntry[],
+    resume?: ResumeDispatch,
   ) {
     const threadId = this.agent.threadId || "main";
     const messages = toAgUiMessages(
-      historyMessages ?? this.session.getMessages(),
+      this.selectRunMessages(
+        historyMessages ?? this.session.getMessages(),
+        resume,
+      ),
     );
     const context = this.runtime?.thread.getModelContext();
     const input = {
@@ -1365,10 +1393,30 @@ export class AgUiThreadRuntimeCore {
           ? { a2uiAction: { userAction: this.pendingA2uiAction } }
           : {}),
       },
-      ...(resume !== undefined ? { resume } : {}),
+      ...(resume !== undefined ? { resume: resume.entries } : {}),
     };
     this.pendingA2uiAction = undefined;
     return input;
+  }
+
+  /**
+   * An anchor the thread no longer carries falls back to the whole transcript.
+   * The anchor is missing exactly when a snapshot import replaced the messages
+   * this resume was raised against, and a host that expects a delta tolerates
+   * being told more than it knows, while one rebuilding the run from the
+   * transcript cannot recover from being told less.
+   */
+  private selectRunMessages(
+    messages: readonly ThreadMessage[],
+    resume: ResumeDispatch | undefined,
+  ): readonly ThreadMessage[] {
+    if (resume === undefined || this.resumeTranscript !== "appended")
+      return messages;
+    const anchor = messages.findIndex(
+      (message) => message.id === resume.interruptedMessageId,
+    );
+    if (anchor === -1) return messages;
+    return messages.slice(anchor + 1);
   }
 
   private clearDeferredContinuations(owner: AbortController): void {

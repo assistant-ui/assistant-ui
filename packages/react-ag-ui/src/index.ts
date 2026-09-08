@@ -20,6 +20,7 @@ export type {
   AgUiInterrupt,
   AgUiInterruptReason,
   AgUiResumeEntry,
+  AgUiResumeTranscript,
   AgUiRunFinishedOutcome,
   UseAgUiRuntimeOptions,
   UseAgUiRuntimeAdapters,
