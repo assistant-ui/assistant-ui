@@ -623,8 +623,7 @@ export async function fetchTimelineSeries(
     const row: { date: string; [key: string]: number | string } = { date };
     for (const { key, points } of fetched) {
       const point = points.find((p) => p.date === date);
-      const value = point?.value ?? 0;
-      if (!isProjected) row[key] = value;
+      if (!isProjected && point) row[key] = point.value;
     }
     return row;
   });
@@ -635,8 +634,8 @@ export async function fetchTimelineSeries(
       const row = data[idx]!;
       const rowDate = row.date as string;
       for (const { key, points } of fetched) {
-        const val = points.find((p) => p.date === rowDate)?.value ?? 0;
-        row[`${key}_proj`] = val;
+        const point = points.find((p) => p.date === rowDate);
+        if (point) row[`${key}_proj`] = point.value;
       }
     }
   }
@@ -656,6 +655,10 @@ export async function fetchTimelineSeries(
 }
 
 const TIMELINE_MONTHS_BACK = 12;
+// npm backfills a day or two behind, so a month is only final once that lag passes.
+const TRAILING_LAG_DAYS = 2;
+// 13 windows against an unreachable npm would otherwise outlast the route itself.
+const TIMELINE_BUDGET_MS = 20_000;
 
 type MonthBucket = {
   month: string;
@@ -679,6 +682,28 @@ function monthWindow(month: string, today: string): [string, string] {
   return [`${month}-01`, lastDay < today ? lastDay : today];
 }
 
+function shiftDays(day: string, by: number): string {
+  const date = new Date(`${day}T00:00:00Z`);
+  date.setUTCDate(date.getUTCDate() + by);
+  return date.toISOString().slice(0, 10);
+}
+
+/**
+ * A month is refetched while it can still change: warm while it is in flight,
+ * cool until npm's trailing lag has passed, then held for good.
+ */
+function windowRevalidate(
+  month: string,
+  end: string,
+  cutoff: string,
+  today: string,
+): number | false {
+  if (month === cutoff) return NPM_REVALIDATE.WARM;
+  return today > shiftDays(end, TRAILING_LAG_DAYS)
+    ? false
+    : NPM_REVALIDATE.COOL;
+}
+
 export async function fetchDownloadsTimeline(
   name: string,
   revalidate?: number,
@@ -687,16 +712,18 @@ export async function fetchDownloadsTimeline(
   const today = now.toISOString().slice(0, 10);
   const cutoff = currentMonthKey();
 
+  const deadline = Date.now() + TIMELINE_BUDGET_MS;
   const buckets: MonthBucket[] = [];
-  for (const month of monthKeysBack(now, TIMELINE_MONTHS_BACK)) {
+  // Newest first, so a spent budget drops the oldest bars rather than the ones
+  // the page leads with, and a window that fails costs one point, not the series.
+  for (const month of monthKeysBack(now, TIMELINE_MONTHS_BACK).reverse()) {
+    if (Date.now() >= deadline) break;
     const [start, end] = monthWindow(month, today);
-    // A month that has ended never gains downloads again, so it is fetched once
-    // and held, and a window that fails costs one point, not the whole series.
     const dailies = await getDownloadsRange(
       name,
       start,
       end,
-      revalidate ?? (month === cutoff ? NPM_REVALIDATE.WARM : false),
+      revalidate ?? windowRevalidate(month, end, cutoff, today),
     );
     if (!dailies.length) continue;
     buckets.push({
@@ -705,6 +732,7 @@ export async function fetchDownloadsTimeline(
       dailies,
     });
   }
+  buckets.reverse();
 
   const fullMonths = buckets.filter((bucket) => bucket.month !== cutoff);
   const lastFullMonth = fullMonths.at(-1);
@@ -730,8 +758,6 @@ function projectInflightMonth(
   lastFullMonthSum: number | undefined,
   priorFullMonthSum: number | undefined,
 ): number {
-  // npm aggregation lags 1-2 days; trailing days under-report and would drag the daily average down.
-  const TRAILING_LAG_DAYS = 2;
   const dailies = [...bucket.dailies].sort((a, b) =>
     a.day.localeCompare(b.day),
   );

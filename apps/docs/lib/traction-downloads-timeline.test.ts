@@ -13,14 +13,30 @@ const { NPM_REVALIDATE } = await import("./npm");
 const { fetchDownloadsTimeline } = await import("./traction");
 
 const NOW = new Date("2026-09-08T12:00:00Z");
+const PER_DAY = 100;
 
-const daysOf = (month: string, through: number, downloads: number) =>
-  Array.from({ length: through }, (_, i) => ({
-    day: `${month}-${String(i + 1).padStart(2, "0")}`,
-    downloads,
-  }));
+/** Every day the window actually spans, so a mis-built window shows up as a wrong sum. */
+const daysIn = (start: string, end: string) => {
+  const days: { day: string; downloads: number }[] = [];
+  for (
+    const cursor = new Date(`${start}T00:00:00Z`);
+    cursor.toISOString().slice(0, 10) <= end;
+    cursor.setUTCDate(cursor.getUTCDate() + 1)
+  ) {
+    days.push({
+      day: cursor.toISOString().slice(0, 10),
+      downloads: PER_DAY,
+    });
+  }
+  return days;
+};
 
-/** Every window npm was asked for, as `start:end`. */
+const serveWindows = () =>
+  getDownloadsRange.mockImplementation(
+    (_pkg: string, start: string, end: string) =>
+      Promise.resolve(daysIn(start, end)),
+  );
+
 const windows = () =>
   getDownloadsRange.mock.calls.map(([, start, end]) => `${start}:${end}`);
 
@@ -34,9 +50,7 @@ describe("fetchDownloadsTimeline", () => {
     vi.useFakeTimers();
     vi.setSystemTime(NOW);
     getDownloadsRange.mockReset();
-    getDownloadsRange.mockImplementation((_pkg: string, start: string) =>
-      Promise.resolve(daysOf(start.slice(0, 7), 28, 100)),
-    );
+    serveWindows();
   });
 
   afterEach(() => {
@@ -46,7 +60,7 @@ describe("fetchDownloadsTimeline", () => {
   it("asks for one calendar window per month across the trailing year", async () => {
     await fetchDownloadsTimeline("@assistant-ui/react");
 
-    expect(windows()).toEqual([
+    expect(windows().slice().sort()).toEqual([
       "2025-09-01:2025-09-30",
       "2025-10-01:2025-10-31",
       "2025-11-01:2025-11-30",
@@ -63,25 +77,59 @@ describe("fetchDownloadsTimeline", () => {
     ]);
   });
 
-  it("holds a month that has ended and only refetches the one in flight", async () => {
+  it("reads the newest month first so a spent budget drops the oldest", async () => {
     await fetchDownloadsTimeline("@assistant-ui/react");
 
-    expect(revalidateFor("2026-08-01:2026-08-31")).toBe(false);
+    expect(windows()[0]).toBe("2026-09-01:2026-09-08");
+    expect(windows().at(-1)).toBe("2025-09-01:2025-09-30");
+  });
+
+  it("holds a month only once npm's trailing lag has passed", async () => {
+    await fetchDownloadsTimeline("@assistant-ui/react");
+
     expect(revalidateFor("2026-09-01:2026-09-08")).toBe(NPM_REVALIDATE.WARM);
+    expect(revalidateFor("2026-08-01:2026-08-31")).toBe(false);
+  });
+
+  it("keeps a just-ended month refreshing while npm is still settling it", async () => {
+    vi.setSystemTime(new Date("2026-09-01T06:00:00Z"));
+
+    await fetchDownloadsTimeline("@assistant-ui/react");
+
+    expect(revalidateFor("2026-08-01:2026-08-31")).toBe(NPM_REVALIDATE.COOL);
+    expect(revalidateFor("2026-07-01:2026-07-31")).toBe(false);
+  });
+
+  it("stops scheduling windows once the wall-clock budget is spent", async () => {
+    getDownloadsRange.mockImplementation(
+      (_pkg: string, start: string, end: string) => {
+        vi.setSystemTime(new Date(Date.now() + 5_000));
+        return Promise.resolve(daysIn(start, end));
+      },
+    );
+
+    const points = await fetchDownloadsTimeline("@assistant-ui/react");
+
+    expect(getDownloadsRange).toHaveBeenCalledTimes(4);
+    expect(points.map((point) => point.date)).toEqual([
+      "2026-06",
+      "2026-07",
+      "2026-08",
+      "2026-09",
+    ]);
   });
 
   it("keeps the rest of the series when one window cannot be read", async () => {
-    getDownloadsRange.mockImplementation((_pkg: string, start: string) =>
-      Promise.resolve(
-        start.startsWith("2026-03") ? [] : daysOf(start.slice(0, 7), 28, 100),
-      ),
+    getDownloadsRange.mockImplementation(
+      (_pkg: string, start: string, end: string) =>
+        Promise.resolve(start.startsWith("2026-03") ? [] : daysIn(start, end)),
     );
 
     const points = await fetchDownloadsTimeline("@assistant-ui/react");
 
     expect(points).toHaveLength(12);
     expect(points.map((point) => point.date)).not.toContain("2026-03");
-    expect(points[0]).toEqual({ date: "2025-09", value: 2800 });
+    expect(points[0]).toEqual({ date: "2025-09", value: 30 * PER_DAY });
   });
 
   it("returns nothing when npm is unreachable for every window", async () => {
@@ -92,20 +140,11 @@ describe("fetchDownloadsTimeline", () => {
     ).resolves.toEqual([]);
   });
 
-  it("sums whole months and projects the month in flight past its elapsed days", async () => {
-    getDownloadsRange.mockImplementation((_pkg: string, start: string) =>
-      Promise.resolve(
-        start.startsWith("2026-09")
-          ? daysOf("2026-09", 8, 100)
-          : daysOf(start.slice(0, 7), 28, 100),
-      ),
-    );
-
+  it("sums whole months and projects the month in flight", async () => {
     const points = await fetchDownloadsTimeline("@assistant-ui/react");
 
-    expect(points.at(-2)).toEqual({ date: "2026-08", value: 2800 });
-    const inflight = points.at(-1)!;
-    expect(inflight.date).toBe("2026-09");
-    expect(inflight.value).toBeGreaterThan(800);
+    expect(points.at(-2)).toEqual({ date: "2026-08", value: 31 * PER_DAY });
+    // 6 settled days of 100 over a 30 day month, blended 0.2/0.8 with August's 3100.
+    expect(points.at(-1)).toEqual({ date: "2026-09", value: 3080 });
   });
 });
