@@ -1,7 +1,7 @@
 #!/usr/bin/env node
-import { parse } from "@babel/parser";
 import { execFileSync } from "node:child_process";
 import { globSync, readFileSync, readdirSync } from "node:fs";
+import { createRequire } from "node:module";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { isExecutedAsMain } from "./check-built-declarations.mjs";
@@ -33,6 +33,13 @@ const AST_METADATA_KEYS = new Set([
 ]);
 const OPERATIONAL_COMMENT =
   /(?:^\s*\/\s*<reference\b|@(?:jsx|ts-(?:check|nocheck|ignore|expect-error))\b|[#@]__(?:NO_SIDE_EFFECTS|PURE)__\b|\b(?:sourceMappingURL|sourceURL|vite-ignore|webpack\w*)\b|^!)/i;
+const require = createRequire(import.meta.url);
+let parseSource;
+
+function getSourceParser() {
+  parseSource ??= require("@babel/parser").parse;
+  return parseSource;
+}
 
 export function parseWorkspaceGlobs(source) {
   const globs = [];
@@ -292,7 +299,7 @@ function sourceSignature(file, contents) {
   if (usesJsx) plugins.push("jsx");
 
   try {
-    const syntaxTree = parse(source, {
+    const syntaxTree = getSourceParser()(source, {
       attachComment: true,
       plugins,
       sourceType: "unambiguous",
