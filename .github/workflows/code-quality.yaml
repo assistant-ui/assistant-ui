@@ -16,6 +16,7 @@ on:
       - "scripts/check-workspace-ranges.mjs"
       - "scripts/check-workspace-ranges.test.mjs"
       - "scripts/lib/script-options.mjs"
+      - "scripts/test-types.sh"
       - "scripts/sync-templates.sh"
       - "turbo.json"
       - "package.json"
@@ -37,6 +38,7 @@ on:
       - "scripts/check-workspace-ranges.mjs"
       - "scripts/check-workspace-ranges.test.mjs"
       - "scripts/lib/script-options.mjs"
+      - "scripts/test-types.sh"
       - "scripts/sync-templates.sh"
       - "turbo.json"
       - "package.json"
@@ -315,6 +317,37 @@ jobs:
             exit 1
           fi
 
+  typecheck:
+    name: Type-check Changed Packages
+    runs-on: blacksmith-8vcpu-ubuntu-2404
+    timeout-minutes: 10
+    steps:
+      - name: Checkout code repository
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # ratchet:actions/checkout@v7.0.1
+        with:
+          fetch-depth: 0
+
+      - name: Setup pnpm and node.js
+        uses: pnpm/setup@703c52620218391530e48b9e8870d5c0082e1b9b # ratchet:pnpm/setup@v2.1.0
+        with:
+          runtime: node@24
+          cache: true
+          install: false
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Type-check changed packages
+        env:
+          TURBO_TOKEN: ${{ secrets.TURBO_TOKEN }}
+          TURBO_TEAM: ${{ secrets.TURBO_TEAM }}
+        run: |
+          if [ "${{ github.event_name }}" = "pull_request" ]; then
+            pnpm test:types -- "[origin/${{ github.base_ref }}]"
+          else
+            pnpm test:types -- "[HEAD^1]"
+          fi
+
   test:
     name: Test Changed Packages
     runs-on: blacksmith-8vcpu-ubuntu-2404
@@ -378,16 +411,3 @@ jobs:
           TURBO_TOKEN: ${{ secrets.TURBO_TOKEN }}
           TURBO_TEAM: ${{ secrets.TURBO_TEAM }}
         run: pnpm test:react-compiler
-
-      - name: Type-check changed packages
-        env:
-          TURBO_TOKEN: ${{ secrets.TURBO_TOKEN }}
-          TURBO_TEAM: ${{ secrets.TURBO_TEAM }}
-        run: |
-          if [ "${{ github.event_name }}" = "pull_request" ]; then
-            pnpm turbo build --filter="[origin/${{ github.base_ref }}]^..."
-            pnpm --filter="[origin/${{ github.base_ref }}]" --workspace-concurrency=4 --no-bail exec sh -c '! test -f tsconfig.json || tsc --noEmit'
-          else
-            pnpm turbo build --filter="[HEAD^1]^..."
-            pnpm --filter="[HEAD^1]" --workspace-concurrency=4 --no-bail exec sh -c '! test -f tsconfig.json || tsc --noEmit'
-          fi
