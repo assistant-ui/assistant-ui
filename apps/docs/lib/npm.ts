@@ -12,7 +12,10 @@ export const NPM_REVALIDATE = {
 // api.npmjs.org rate limits per IP, and a deploy asks it about every package at
 // once from an address it shares with every other build on the platform. A 429
 // there is transient, so a refused request is retried rather than read as no data.
+// The wait is jittered because a refusal arrives at the whole fan-out at once,
+// and an exact backoff would replay that burst intact.
 const RETRY_BACKOFF_MS = [300, 1200];
+const jittered = (backoff: number) => backoff / 2 + Math.random() * backoff;
 
 export type NpmDailyDownloads = { day: string; downloads: number };
 
@@ -56,7 +59,7 @@ async function npmGetJson(path: string, revalidate: number): Promise<unknown> {
       console.error(`npm ${path} answered ${result.status}.`);
       return null;
     }
-    await delay(backoff);
+    await delay(jittered(backoff));
   }
 }
 
