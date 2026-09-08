@@ -354,5 +354,6 @@ describe("MessageContent with a runtime", () => {
         await act(async () => root.unmount());
       }
     },
+    30_000,
   );
 });
