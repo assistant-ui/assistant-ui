@@ -175,8 +175,6 @@ test("isReleaseRelevantPackageFile excludes non-release package files", () => {
     "packages/core/src/__tests__/runtime.ts",
     "packages/core/src/tests/helper.ts",
     "packages/core/src/fixtures/messages.ts",
-    "packages/core/src/generated/protocol.ts",
-    "packages/core/src/protocol.generated.ts",
     "packages/core/src/internal/private.ts",
     "packages/core/src/guide.md",
     "packages/core/dist/index.js",
@@ -192,6 +190,13 @@ test("isReleaseRelevantPackageFile excludes non-release package files", () => {
   );
   assert.equal(
     isReleaseRelevantPackageFile("packages/core/plugin/index.js", pkg),
+    true,
+  );
+  assert.equal(
+    isReleaseRelevantPackageFile(
+      "packages/core/src/generated/protocol.generated.ts",
+      pkg,
+    ),
     true,
   );
 });
@@ -609,6 +614,77 @@ test("changed package validation handles non-ASCII paths", () => {
       missingChangesets: [
         {
           files: ["packages/published/src/café.ts"],
+          name: "@fixture/published",
+        },
+      ],
+    });
+  } finally {
+    rmSync(root, { recursive: true, force: true });
+  }
+});
+
+test("changed package validation scans published packages outside packages", () => {
+  const root = createWorkspace(
+    '---\n"@fixture/held": patch\n---\n\nfix: unrelated package\n',
+  );
+  try {
+    writeFileSync(
+      path.join(root, "pnpm-workspace.yaml"),
+      "packages:\n  - packages/*\n  - libs/*\n",
+    );
+    const sourceDir = path.join(root, "libs", "published", "src");
+    mkdirSync(sourceDir, { recursive: true });
+    writeFileSync(
+      path.join(root, "libs", "published", "package.json"),
+      JSON.stringify({ name: "@fixture/outside", version: "1.0.0" }),
+    );
+    const source = path.join(sourceDir, "index.ts");
+    writeFileSync(source, "export const value = 1;\n");
+    git(root, "init", "-q", "-b", "main");
+    const base = commitAll(root, "base");
+
+    writeFileSync(source, "export const value = 2;\n");
+    const head = commitAll(root, "change published package outside packages");
+
+    assert.deepEqual(runChangedPackageCheck(root, base, head), {
+      changedSourceCount: 1,
+      missingChangesets: [
+        {
+          files: ["libs/published/src/index.ts"],
+          name: "@fixture/outside",
+        },
+      ],
+    });
+  } finally {
+    rmSync(root, { recursive: true, force: true });
+  }
+});
+
+test("changed package validation reads old contents from the merge base", () => {
+  const root = createWorkspace(
+    '---\n"@fixture/held": patch\n---\n\nfix: unrelated package\n',
+  );
+  try {
+    const sourceDir = path.join(root, "packages", "published", "src");
+    mkdirSync(sourceDir);
+    const source = path.join(sourceDir, "index.ts");
+    writeFileSync(source, "export const value = 1;\n");
+    git(root, "init", "-q", "-b", "main");
+    commitAll(root, "fork point");
+
+    git(root, "switch", "-q", "-c", "feature");
+    writeFileSync(source, "export const value = 2;\n");
+    const head = commitAll(root, "change source on feature");
+
+    git(root, "switch", "-q", "main");
+    rmSync(source);
+    const base = commitAll(root, "delete source on target");
+
+    assert.deepEqual(runChangedPackageCheck(root, base, head), {
+      changedSourceCount: 1,
+      missingChangesets: [
+        {
+          files: ["packages/published/src/index.ts"],
           name: "@fixture/published",
         },
       ],

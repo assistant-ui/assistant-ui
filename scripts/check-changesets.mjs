@@ -204,21 +204,15 @@ function isReleaseRelevantFile(relative) {
   const segments = relative.split("/");
   if (
     segments.some((segment) =>
-      [
-        "__fixtures__",
-        "__generated__",
-        "__tests__",
-        "fixtures",
-        "generated",
-        "test",
-        "tests",
-      ].includes(segment),
+      ["__fixtures__", "__tests__", "fixtures", "test", "tests"].includes(
+        segment,
+      ),
     )
   ) {
     return false;
   }
 
-  return !/\.(?:bench|generated|spec|stories|test)\.[^/]+$/.test(relative);
+  return !/\.(?:bench|spec|stories|test)\.[^/]+$/.test(relative);
 }
 
 function matchesReleasePattern(relative, rawPattern) {
@@ -393,7 +387,19 @@ export function findMissingPackageChangesets(
 
 function diffChangedFiles(root, baseSha, headSha, packages) {
   try {
-    const range = `${baseSha}...${headSha}`;
+    const mergeBase = execFileSync("git", ["merge-base", baseSha, headSha], {
+      cwd: root,
+      encoding: "utf8",
+      stdio: ["ignore", "pipe", "pipe"],
+    }).trim();
+    const range = `${mergeBase}..${headSha}`;
+    const packageRoots = [
+      ...new Set(
+        [...packages.values()].map(
+          (pkg) => `${path.posix.dirname(pkg.manifest)}/**`,
+        ),
+      ),
+    ];
     const packageChanges = parseNameStatus(
       execFileSync(
         "git",
@@ -402,10 +408,10 @@ function diffChangedFiles(root, baseSha, headSha, packages) {
           "--name-status",
           "-z",
           "--find-renames",
-          "--diff-filter=ACDMRT",
+          "--diff-filter=ADMRT",
           range,
           "--",
-          "packages/**",
+          ...packageRoots,
         ],
         { cwd: root, stdio: ["ignore", "pipe", "pipe"] },
       ),
@@ -422,19 +428,10 @@ function diffChangedFiles(root, baseSha, headSha, packages) {
         }
         continue;
       }
-      if (status === "C") {
-        if (
-          owner &&
-          contentsDiffer(file, null, readGitFile(root, headSha, file))
-        ) {
-          changedPackageFiles.push(file);
-        }
-        continue;
-      }
       if (!owner) continue;
 
       const baseContents =
-        status === "A" ? null : readGitFile(root, baseSha, file);
+        status === "A" ? null : readGitFile(root, mergeBase, file);
       const headContents =
         status === "D" ? null : readGitFile(root, headSha, file);
       if (contentsDiffer(file, baseContents, headContents)) {
