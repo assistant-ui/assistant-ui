@@ -19,10 +19,12 @@ export const bindClientDestroySignal = (
 };
 
 /**
- * Resolves the destroy signal of the host that owns `client`. Clients
- * extend their parent through the prototype chain, so a client that never
- * bound a signal of its own (a derived-only provider) falls through to the
- * owning host's instead of silently reporting none.
+ * Resolves the destroy signal of the host that owns `client`. Clients extend
+ * their parent through the prototype chain, so a client that never bound a
+ * signal of its own (a derived-only provider) falls through to the owning
+ * host's instead of silently reporting none. The chain is the ownership graph:
+ * a client built without its parent as prototype resolves to no signal, which
+ * degrades to a retained resource rather than to an error.
  */
 export const getClientDestroySignal = (
   client: AssistantClient,

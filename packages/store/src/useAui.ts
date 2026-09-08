@@ -562,62 +562,110 @@ const useScopeEntries = (
   return { entries, rooted };
 };
 
+type DestroyChain = {
+  signal: AbortSignal | undefined;
+  dispose: () => void;
+};
+
+const NO_DISPOSE = () => {};
+
 // A host given its own signal under a parent that has one dies with either.
-// Hand-rolled rather than AbortSignal.any (outside the browserslist floor);
-// the parent-side listener is dropped once the own signal fires so a torn
-// down child leaves nothing behind on the long-lived parent signal.
-const chainDestroySignals = (
+// Hand-rolled rather than AbortSignal.any, which is outside the browserslist
+// floor. The parent-side listener is dropped once the own signal fires, so a
+// torn down child leaves nothing behind on the long-lived parent signal;
+// `dispose` covers the other direction, where the chain is superseded because
+// the client was re-parented while both signals are still live.
+const createDestroyChain = (
+  inherited: AbortSignal | undefined,
+  own: AbortSignal | undefined,
+): DestroyChain => {
+  if (!inherited || !own || inherited === own) {
+    return { signal: own ?? inherited, dispose: NO_DISPOSE };
+  }
+  if (inherited.aborted || own.aborted) {
+    return { signal: AbortSignal.abort(), dispose: NO_DISPOSE };
+  }
+  const chained = new AbortController();
+  const onInherited = () => chained.abort();
+  const onOwn = () => {
+    inherited.removeEventListener("abort", onInherited);
+    chained.abort();
+  };
+  inherited.addEventListener("abort", onInherited, { once: true });
+  own.addEventListener("abort", onOwn, { once: true });
+  return {
+    signal: chained.signal,
+    dispose: () => {
+      inherited.removeEventListener("abort", onInherited);
+      own.removeEventListener("abort", onOwn);
+    },
+  };
+};
+
+// Ref-cached rather than useMemo: the chain holds listeners on two signals, so
+// a dropped memo cache would strand them. Superseding disposes in place, which
+// is safe to repeat because removeEventListener is idempotent.
+const useDestroyChain = (
   inherited: AbortSignal | undefined,
   own: AbortSignal | undefined,
 ): AbortSignal | undefined => {
-  if (!inherited || !own || inherited === own) return own ?? inherited;
-  if (inherited.aborted || own.aborted) return AbortSignal.abort();
-  const chained = new AbortController();
-  const onInherited = () => chained.abort();
-  inherited.addEventListener("abort", onInherited, { once: true });
-  own.addEventListener(
-    "abort",
-    () => {
-      inherited.removeEventListener("abort", onInherited);
-      chained.abort();
-    },
-    { once: true },
-  );
-  return chained.signal;
+  const cache = useRef<{
+    inherited: AbortSignal | undefined;
+    own: AbortSignal | undefined;
+    chain: DestroyChain;
+  } | null>(null);
+
+  if (
+    cache.current === null ||
+    cache.current.inherited !== inherited ||
+    cache.current.own !== own
+  ) {
+    cache.current?.chain.dispose();
+    cache.current = {
+      inherited,
+      own,
+      chain: createDestroyChain(inherited, own),
+    };
+  }
+
+  return cache.current.chain.signal;
+};
+
+// The rooted half of `useConfiguredAuiImpl`, extracted so its hooks run
+// unconditionally and lint as an ordinary hook body.
+const useRootedAui = (
+  parent: AssistantClient,
+  entries: ScopeEntry[],
+  useHost: typeof useHostedAssistantClient,
+  useOwnDestroySignal: () => AbortSignal | undefined,
+): ScopedAuiClient => {
+  const own = useOwnDestroySignal();
+  const inherited = getClientDestroySignal(parent);
+  const destroySignal = useDestroyChain(inherited, own);
+  return useHost({ parent, entries, destroySignal });
 };
 
 // Creates a client extending an explicit parent (which may live in another
 // React root) with the scopes in the config; context is never consulted.
 // `effects` (rooted mode only) commits the host — the provider mounts it
 // ahead of its children's effects; hosts also self-commit as a fallback.
-// `useHost` is fixed per call site. `destroySignal` is the permanent
-// teardown of whatever owns the client: a signal from a parent resource
-// that drops it, or `"react"` for a React host, which mints its own. A host
+// `useHost` and `useOwnDestroySignal` are fixed per call site. The own signal
+// is the permanent teardown of whatever owns the client: a signal from a
+// parent resource that drops it, or one minted for a React host. A host
 // mounted without one shares its parent's. Only a rooted config does any
-// signal work; a derived-only client (the per-message providers) resolves
-// its parent's signal on read instead.
+// signal work; a derived-only client (the per-message providers) resolves its
+// parent's signal on read instead.
 const useConfiguredAuiImpl = (
   parent: AssistantClient,
   clients: AuiConfig.Input,
   useHost: typeof useHostedAssistantClient,
-  destroySignal: AbortSignal | "react" | undefined,
+  useOwnDestroySignal: () => AbortSignal | undefined,
 ): ScopedAuiClient => {
   const { entries, rooted } = useScopeEntries(parent, clients);
 
   if (rooted) {
-    const own =
-      destroySignal === "react"
-        ? // oxlint-disable-next-line react-hooks/rules-of-hooks
-          useHostDestroySignal()
-        : destroySignal;
-    const inherited = getClientDestroySignal(parent);
     // oxlint-disable-next-line react-hooks/rules-of-hooks
-    const hostSignal = useMemo(
-      () => chainDestroySignals(inherited, own),
-      [inherited, own],
-    );
-    // oxlint-disable-next-line react-hooks/rules-of-hooks
-    return useHost({ parent, entries, destroySignal: hostSignal });
+    return useRootedAui(parent, entries, useHost, useOwnDestroySignal);
   }
   // oxlint-disable-next-line react-hooks/rules-of-hooks
   return { client: useDerivedOnlyClient(parent, entries) };
@@ -632,7 +680,7 @@ export const useConfiguredAui = (
     parent,
     clients,
     useHostedAssistantClient,
-    destroySignal,
+    () => destroySignal,
   );
 
 // AuiProvider's host: a rooted config mints the React host signal
@@ -640,7 +688,12 @@ export const useProviderAui = (
   parent: AssistantClient,
   clients: AuiConfig.Input,
 ): ScopedAuiClient =>
-  useConfiguredAuiImpl(parent, clients, useHostedAssistantClient, "react");
+  useConfiguredAuiImpl(
+    parent,
+    clients,
+    useHostedAssistantClient,
+    useHostDestroySignal,
+  );
 
 export namespace useAui {
   export type Props = AuiConfig.Input;
@@ -723,7 +776,7 @@ export function useAui(clients?: useAui.Props): AssistantClient {
       parent,
       clients,
       useTapRootAssistantClient,
-      "react",
+      useHostDestroySignal,
     );
     if (effects) setTapEffects(client, effects);
     return client;
