@@ -78,7 +78,7 @@ describe("AssistantMessageAccumulator tool argument status", () => {
       },
       { type: "text-delta", path: [0], textDelta: '{"q":"test"}' },
       { type: "tool-call-args-text-finish", path: [0] },
-      { type: "result", path: [0], result: "found" },
+      { type: "result", path: [0], result: "found", isError: false },
       { type: "tool-call-args-text-finish", path: [0] },
     ]);
 
