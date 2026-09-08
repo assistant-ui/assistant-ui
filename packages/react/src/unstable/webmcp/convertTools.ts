@@ -118,9 +118,10 @@ const isStandardSchema = (schema: unknown): schema is StandardSchemaLike =>
   "~standard" in schema &&
   (schema as StandardSchemaLike)["~standard"].version === 1;
 
-// AbortSignal.any is above the browserslist floor, and it brand-checks its
-// inputs, so a caller signal from the WebMCP host's realm fails it on every
-// browser.
+// AbortSignal.any sits above the browserslist floor and rejects any input that
+// is not a native AbortSignal, which a navigator.modelContext polyfill's signal
+// is not. The merged signal tracks its inputs only until cleanup runs, where
+// the single-signal path hands the caller the lifecycle signal itself.
 const combineAbortSignals = (
   callerSignal: AbortSignal,
   lifecycleSignal: AbortSignal,
