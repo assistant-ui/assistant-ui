@@ -82,7 +82,8 @@ export function generateCssVars(
   }
 
   vars["--aui-max-width"] = styles.maxWidth;
-  vars["--aui-border-radius"] = COMPOSER_RADIUS[styles.borderRadius];
+  vars["--aui-border-radius"] =
+    COMPOSER_RADIUS[styles.borderRadius] ?? "0.5rem";
   vars["--aui-font-family"] = styles.fontFamily;
 
   return vars;
@@ -178,7 +179,7 @@ ${internalImports}`;
   const accentColor = styles.colors.accent.light;
   const accentForeground = isLightColor(accentColor) ? "#000000" : "#ffffff";
 
-  const composerRadius = COMPOSER_RADIUS[styles.borderRadius];
+  const composerRadius = COMPOSER_RADIUS[styles.borderRadius] ?? "0.5rem";
 
   const threadComponent = `
 export function Thread() {
