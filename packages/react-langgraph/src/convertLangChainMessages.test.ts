@@ -75,7 +75,7 @@ describe("convertLangChainMessages tool result names", () => {
         false,
         {},
       ),
-    ).toThrow();
+    ).toThrow(/does not match existing tool call/);
   });
 });
 
