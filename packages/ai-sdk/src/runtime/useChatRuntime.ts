@@ -29,6 +29,7 @@ const useChatThreadRuntime = <UI_MESSAGE extends UIMessage = UIMessage>(
     isMainThread,
     getThreadListItem: () =>
       aui.threadListItem.source ? aui.threadListItem : undefined,
+    stopOnClientDestroy: true,
   });
 };
 

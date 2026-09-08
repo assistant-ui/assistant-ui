@@ -1,12 +1,17 @@
 // @vitest-environment jsdom
 
-import { render, screen, waitFor } from "@testing-library/react";
+import { act, render, screen, waitFor } from "@testing-library/react";
 import { AssistantRuntimeProvider } from "@assistant-ui/core/react";
 import { useAuiState } from "@assistant-ui/store";
 import type { UIMessage } from "ai";
 import { StrictMode, useState } from "react";
 import { describe, expect, it } from "vitest";
 import { AssistantChatTransport } from "../transport/AssistantChatTransport";
+import {
+  createCancellableTransport,
+  createStreamHarness,
+  nextTask,
+} from "./__tests__/controlled-transport";
 import { useChatRuntime } from "./useChatRuntime";
 import { useThreadTokenUsage } from "../usage";
 
@@ -64,6 +69,36 @@ describe("useChatRuntime integration", () => {
         "Hello from the server",
       );
     });
+  });
+
+  it("aborts a deleted thread's stream while the host stays mounted", async () => {
+    const { transport, getCancelCount } = createCancellableTransport();
+    const { Probe, send, isRunning, client } = createStreamHarness();
+
+    const StreamingApp = () => {
+      const runtime = useChatRuntime({ transport });
+      return (
+        <AssistantRuntimeProvider runtime={runtime}>
+          <Probe />
+        </AssistantRuntimeProvider>
+      );
+    };
+
+    const view = render(
+      <StrictMode>
+        <StreamingApp />
+      </StrictMode>,
+    );
+
+    await act(async () => send());
+    await waitFor(() => expect(isRunning()).toBe(true));
+
+    await act(async () => client().threadListItem.delete());
+    await waitFor(() => expect(getCancelCount()).toBe(1));
+
+    view.unmount();
+    await act(nextTask);
+    expect(getCancelCount()).toBe(1);
   });
 });
 

@@ -5,8 +5,33 @@ import type {
   AssistantEventPayload,
 } from "../types/events";
 import type { AssistantClient, ClientNames } from "../types/client";
+import { AssistantContext } from "./react-assistant-context";
 import { getClientInstanceId, isScopeAvailable } from "./client-accessor";
 import { useClientStack, type ClientStack } from "./tap-client-stack-context";
+
+const clientDestroySignals = new WeakMap<AssistantClient, AbortSignal>();
+
+export const bindClientDestroySignal = (
+  client: AssistantClient,
+  signal: AbortSignal | undefined,
+) => {
+  if (signal) clientDestroySignals.set(client, signal);
+  else clientDestroySignals.delete(client);
+};
+
+export const getClientDestroySignal = (
+  client: AssistantClient,
+): AbortSignal | undefined => {
+  for (
+    let current: object | null = client;
+    current !== null;
+    current = Object.getPrototypeOf(current)
+  ) {
+    const signal = clientDestroySignals.get(current as AssistantClient);
+    if (signal) return signal;
+  }
+  return undefined;
+};
 
 type EmitFn = <TEvent extends Exclude<AssistantEventName, "*">>(
   event: TEvent,
@@ -50,7 +75,8 @@ export const useAssistantClientRef = () => {
  */
 export const useAssistantClientDestroySignal = (): AbortSignal | undefined => {
   const ctx = use(AssistantTapContext);
-  return ctx?.destroySignal;
+  const client = use(AssistantContext);
+  return ctx?.destroySignal ?? getClientDestroySignal(client);
 };
 
 /**

@@ -37,13 +37,19 @@ describe("RemoteThreadListHookInstanceManager", () => {
     const internals = manager as unknown as {
       instances: Map<
         string,
-        { runtime: typeof runtime; generation: number; isRunning: boolean }
+        {
+          runtime: typeof runtime;
+          generation: number;
+          isRunning: boolean;
+          destroy: AbortController;
+        }
       >;
     };
     internals.instances.set("thread-1", {
       runtime,
       generation: 0,
       isRunning: false,
+      destroy: new AbortController(),
     });
 
     const appendPromise = runtime.append({
@@ -225,5 +231,55 @@ describe("RemoteThreadListHookInstanceManager.__internal_restartThreadRuntime", 
     await Promise.resolve();
     await Promise.resolve();
     expect(settled).toBe(false);
+  });
+});
+
+describe("RemoteThreadListHookInstanceManager destroy signals", () => {
+  const makeManager = () =>
+    new RemoteThreadListHookInstanceManager(
+      () => ({}) as never,
+      {} as ThreadListRuntimeCore,
+    );
+
+  const internalsOf = (manager: RemoteThreadListHookInstanceManager) =>
+    manager as unknown as {
+      instances: Map<string, { destroy: AbortController; generation: number }>;
+    };
+
+  it("aborts a thread signal when the runtime stops", () => {
+    const manager = makeManager();
+    manager.startThreadRuntime("thread-1").catch(() => {});
+    const signal =
+      internalsOf(manager).instances.get("thread-1")!.destroy.signal;
+
+    manager.stopThreadRuntime("thread-1");
+
+    expect(signal.aborted).toBe(true);
+  });
+
+  it("aborts the old generation and replaces its signal on restart", () => {
+    const manager = makeManager();
+    manager.startThreadRuntime("thread-1").catch(() => {});
+    const first = internalsOf(manager).instances.get("thread-1")!.destroy;
+
+    manager.__internal_restartThreadRuntime("thread-1").catch(() => {});
+    const second = internalsOf(manager).instances.get("thread-1")!.destroy;
+
+    expect(first.signal.aborted).toBe(true);
+    expect(second).not.toBe(first);
+    expect(second.signal.aborted).toBe(false);
+  });
+
+  it("aborts every thread signal when the manager is disposed", () => {
+    const manager = makeManager();
+    manager.startThreadRuntime("thread-1").catch(() => {});
+    manager.startThreadRuntime("thread-2").catch(() => {});
+    const signals = [...internalsOf(manager).instances.values()].map(
+      ({ destroy }) => destroy.signal,
+    );
+
+    manager.__internal_dispose();
+
+    expect(signals.every((signal) => signal.aborted)).toBe(true);
   });
 });

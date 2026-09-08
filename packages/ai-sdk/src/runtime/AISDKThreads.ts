@@ -149,7 +149,6 @@ const useAISDKChatThread = <UI_MESSAGE extends UIMessage = UIMessage>({
           : fallbackItem,
       chat,
       messageRepositoryInstance: repository,
-      stopOnClientDestroy: cloud,
     },
   );
 
