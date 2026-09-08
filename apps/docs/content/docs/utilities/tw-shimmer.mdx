@@ -107,16 +107,16 @@ CSS-only auto-sizing helper using container queries. Sets `container-type: inlin
 
 ### Customization Utilities
 
-| Utility                     | Default (text) | Default (bg) | Description                        |
-| --------------------------- | -------------- | ------------ | ---------------------------------- |
-| `shimmer-speed-{n}`         | `200`                | `1000`  | Animation speed in px/s            |
-| `--shimmer-track-width`     | `200px`              | `200px` | Track width for timing             |
-| `shimmer-spread-{n}`        | `calc(4ch + 80px)`   | `480px` | Shimmer highlight width            |
-| `shimmer-color-{color}`     | auto                 | auto    | Highlight color (Tailwind palette) |
-| `shimmer-angle-{deg}`       | `15`                 | `15`    | Sweep angle in degrees             |
-| `shimmer-duration-{ms}`     | auto                 | auto    | Fixed animation duration           |
-| `shimmer-repeat-delay-{ms}` | `100`                | `20`    | Pause between cycles               |
-| `shimmer-invert`            | —                    | —       | Use a contrasting highlight color  |
+| Utility                     | Default (text)     | Default (bg) | Description                        |
+| --------------------------- | ------------------ | ------------ | ---------------------------------- |
+| `shimmer-speed-{n}`         | `200`              | `1000`       | Animation speed in px/s            |
+| `--shimmer-track-width`     | `200px`            | `200px`      | Track width for timing             |
+| `shimmer-spread-{n}`        | `calc(4ch + 80px)` | `480px`      | Shimmer highlight width            |
+| `shimmer-color-{color}`     | auto               | auto         | Highlight color (Tailwind palette) |
+| `shimmer-angle-{deg}`       | `15`               | `15`         | Sweep angle in degrees             |
+| `shimmer-duration-{ms}`     | auto               | auto         | Fixed animation duration           |
+| `shimmer-repeat-delay-{ms}` | `100`              | `20`         | Pause between cycles               |
+| `shimmer-invert`            | —                  | —            | Use a contrasting highlight color  |
 
 All utilities are **inheritable** — set on a parent to affect all shimmer children.
 
@@ -153,7 +153,9 @@ Control the sweep angle. The default is `15deg`.
 ```
 
 <Callout type="warn">
-  Avoid exactly `0deg` and `180deg` — they cause extreme animation delays. Safe range: 15-75° or 105-165°.
+  Avoid `90deg` and `270deg`, where the angle calculation becomes undefined.
+  Prefer angles from `-75deg` to `75deg`; use an arbitrary property such as
+  `[--shimmer-angle:-15deg]` for negative values.
 </Callout>
 
 ### Position Hints (Angled Shimmer)
