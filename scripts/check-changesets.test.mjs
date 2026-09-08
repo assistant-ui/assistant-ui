@@ -176,7 +176,7 @@ test("isReleaseRelevantPackageFile excludes non-release package files", () => {
     "packages/core/src/tests/helper.ts",
     "packages/core/src/fixtures/messages.ts",
     "packages/core/src/internal/private.ts",
-    "packages/core/src/guide.md",
+    "packages/core/README.md",
     "packages/core/dist/index.js",
     "packages/core/package.json",
     "apps/docs/src/page.tsx",
@@ -190,6 +190,10 @@ test("isReleaseRelevantPackageFile excludes non-release package files", () => {
   );
   assert.equal(
     isReleaseRelevantPackageFile("packages/core/plugin/index.js", pkg),
+    true,
+  );
+  assert.equal(
+    isReleaseRelevantPackageFile("packages/core/plugin/SKILL.md", pkg),
     true,
   );
   assert.equal(
@@ -632,7 +636,7 @@ test("changed package validation scans published packages outside packages", () 
       path.join(root, "pnpm-workspace.yaml"),
       "packages:\n  - packages/*\n  - libs/*\n",
     );
-    const sourceDir = path.join(root, "libs", "published", "src");
+    const sourceDir = path.join(root, "libs", "published", "plugin");
     mkdirSync(sourceDir, { recursive: true });
     writeFileSync(
       path.join(root, "libs", "published", "package.json"),
@@ -650,7 +654,7 @@ test("changed package validation scans published packages outside packages", () 
       changedSourceCount: 1,
       missingChangesets: [
         {
-          files: ["libs/published/src/index.ts"],
+          files: ["libs/published/plugin/index.ts"],
           name: "@fixture/outside",
         },
       ],

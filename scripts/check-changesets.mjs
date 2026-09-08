@@ -92,7 +92,7 @@ export function readWorkspacePackages(root) {
         manifest: manifest.replaceAll("\\", "/"),
         isPrivate: pkg.private === true,
         hasVersion: Boolean(pkg.version),
-        releaseFiles: (Array.isArray(pkg.files) ? pkg.files : ["src"])
+        releaseFiles: (Array.isArray(pkg.files) ? pkg.files : ["."])
           .filter((entry) => typeof entry === "string")
           .map((entry) => entry.replace(/^(!?)\.\//, "$1"))
           .filter(Boolean),
@@ -233,7 +233,7 @@ export function isReleaseRelevantPackageFile(file, pkg) {
     relative === "package.json" ||
     relative === "dist" ||
     relative.startsWith("dist/") ||
-    /\.md$/i.test(relative)
+    (!relative.includes("/") && /\.md$/i.test(relative))
   ) {
     return false;
   }
