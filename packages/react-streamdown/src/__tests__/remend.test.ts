@@ -142,8 +142,13 @@ describe("tailBoundedRemend", () => {
     expect(tailBoundedRemend(text)).toBe(remend(text));
   });
 
-  it("ignores $$ inside inline code when placing math blocks", () => {
-    const text = "`$$`\n\n$$\na~b\n$$\n\nTail";
+  it.each([
+    ["single backtick", "`$$`"],
+    ["double backtick", "``$$``"],
+    ["double backtick holding a single one", "``a ` $$``"],
+    ["double backtick around a single-backtick span", "`` `$$` ``"],
+  ])("ignores $$ inside a %s code span when placing math blocks", (_, span) => {
+    const text = `${span}\n\n$$\na~b\n$$\n\nTail`;
     expect(findRemendWindowStart(text)).toBe(text.indexOf("Tail"));
     expect(tailBoundedRemend(text)).toBe(text);
   });

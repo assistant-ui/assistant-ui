@@ -15,6 +15,25 @@ function hasBacktick(text: string, from: number, to: number): boolean {
   return i !== -1 && i < to;
 }
 
+function backtickRun(text: string, from: number, to: number): number {
+  let end = from;
+  while (end < to && text.charCodeAt(end) === BACKTICK) end += 1;
+  return end;
+}
+
+function skipCodeSpan(text: string, from: number, lineEnd: number): number {
+  const open = backtickRun(text, from, lineEnd);
+  const length = open - from;
+  for (let s = open; s < lineEnd;) {
+    const next = text.indexOf("`", s);
+    if (next === -1 || next >= lineEnd) break;
+    const end = backtickRun(text, next, lineEnd);
+    if (end - next === length) return end;
+    s = end;
+  }
+  return open;
+}
+
 function onlyWhitespace(text: string, from: number, to: number): boolean {
   for (let i = from; i < to; i += 1) {
     if (!isSpace(text.charCodeAt(i))) return false;
@@ -87,8 +106,7 @@ function scanBlocks(text: string): BlockScan {
       let s = lineStart;
       while (s < lineEnd - 1) {
         if (text.charCodeAt(s) === BACKTICK) {
-          const close = text.indexOf("`", s + 1);
-          s = close === -1 || close > lineEnd ? lineEnd : close + 1;
+          s = skipCodeSpan(text, s, lineEnd);
         } else if (
           text.charCodeAt(s) === DOLLAR &&
           text.charCodeAt(s + 1) === DOLLAR
@@ -174,13 +192,11 @@ export function tailBoundedRemend(
   const prefixOptions = { ...options, ...COMPLETION_OFF };
   let out = "";
   let cursor = 0;
-  for (
-    let k = 0;
-    k + 1 < protectedRanges.length && protectedRanges[k + 1]! <= start;
-    k += 2
-  ) {
+  let k = 0;
+  for (; k + 1 < protectedRanges.length; k += 2) {
     const from = protectedRanges[k]!;
     const to = protectedRanges[k + 1]!;
+    if (to > start) break;
     out +=
       remend(text.slice(cursor, from), prefixOptions) + text.slice(from, to);
     cursor = to;
@@ -188,9 +204,8 @@ export function tailBoundedRemend(
 
   out += remend(text.slice(cursor, start), prefixOptions);
 
-  const tailRange = protectedRanges.indexOf(start);
-  if (tailRange !== -1 && tailRange % 2 === 0) {
-    const to = protectedRanges[tailRange + 1]!;
+  if (protectedRanges[k] === start) {
+    const to = protectedRanges[k + 1]!;
     return out + text.slice(start, to) + remend(text.slice(to), options);
   }
 
