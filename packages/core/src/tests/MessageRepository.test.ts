@@ -494,8 +494,16 @@ describe("MessageRepository", () => {
       repository.addOrUpdateMessage(null, createTestMessage({ id: "X" }));
       repository.addOrUpdateMessage("X", messageA);
 
+      const exported = repository.export();
+      expect(exported.messages.map((m) => m.message.id)).toEqual([
+        "X",
+        "A",
+        "B",
+        "C",
+      ]);
+
       const restored = new MessageRepository();
-      restored.import(repository.export());
+      restored.import(exported);
 
       expect(restored.headId).toBe("B");
       expect(restored.getMessages().map((m) => m.id)).toEqual(["X", "A", "B"]);
