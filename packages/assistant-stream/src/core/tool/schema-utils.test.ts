@@ -175,6 +175,31 @@ describe("toPartialJSONSchema", () => {
     expect(address.required).toBeUndefined();
   });
 
+  it("removes nested required without properties and preserves value constraints", () => {
+    const schema = {
+      type: "object" as const,
+      properties: {
+        settings: {
+          type: "object" as const,
+          required: ["name"],
+          additionalProperties: { type: "string" as const },
+        },
+      },
+      required: ["settings"],
+    };
+
+    expect(toPartialJSONSchema(schema)).toEqual({
+      type: "object",
+      properties: {
+        settings: {
+          type: "object",
+          additionalProperties: { type: "string" },
+        },
+      },
+    });
+    expect(schema.properties.settings.required).toEqual(["name"]);
+  });
+
   it("leaves array item schemas unchanged", () => {
     const schema = {
       type: "object" as const,

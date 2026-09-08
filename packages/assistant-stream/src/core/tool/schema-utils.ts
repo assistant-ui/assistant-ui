@@ -120,8 +120,7 @@ export function toPartialJSONSchema(schema: JSONSchema7): JSONSchema7 {
     result.properties = Object.fromEntries(
       Object.entries(result.properties).map(([key, prop]) => {
         if (typeof prop === "object" && prop !== null && !Array.isArray(prop)) {
-          const p = prop as JSONSchema7;
-          return [key, p.properties != null ? toPartialJSONSchema(p) : prop];
+          return [key, toPartialJSONSchema(prop)];
         }
         return [key, prop];
       }),
