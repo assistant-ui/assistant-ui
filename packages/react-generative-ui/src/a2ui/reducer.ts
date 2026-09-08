@@ -117,6 +117,12 @@ const setAtPointer = (
       if (segment !== "-" && !isArrayIndex(segment)) return current;
       const targetIndex = segment === "-" ? current.length : Number(segment);
       if (isLast) {
+        if (
+          segment === "-" ||
+          !Object.prototype.hasOwnProperty.call(current, targetIndex)
+        ) {
+          return current;
+        }
         const clone = current.slice();
         clone[targetIndex] = null;
         return clone;

@@ -122,7 +122,7 @@ describe("applyA2uiOperations", () => {
   });
 
   it("does not create missing paths for null updates", () => {
-    const dataModel = { profile: { name: "Ada" } };
+    const dataModel = { profile: { name: "Ada" }, tags: ["first", "second"] };
     const state: A2uiState = new Map([
       ["main", { components: new Map(), dataModel }],
     ]);
@@ -133,6 +133,22 @@ describe("applyA2uiOperations", () => {
         updateDataModel: {
           surfaceId: "main",
           path: "/missing/value",
+          value: null,
+        },
+      },
+      {
+        version: "v1.0",
+        updateDataModel: {
+          surfaceId: "main",
+          path: "/tags/-",
+          value: null,
+        },
+      },
+      {
+        version: "v1.0",
+        updateDataModel: {
+          surfaceId: "main",
+          path: "/tags/7",
           value: null,
         },
       },
