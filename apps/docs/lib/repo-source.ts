@@ -9,6 +9,7 @@ export type RepoSourceSnapshot = Record<string, string>;
  */
 export type RepoSourceReader = {
   readFile(filePath: string): Promise<string | undefined>;
+  readFiles(filePaths: readonly string[]): Promise<(string | undefined)[]>;
   readUnder(prefix: string): Promise<Record<string, string>>;
 };
 
@@ -26,7 +27,7 @@ export function repoSourceRoot() {
 export function createRepoSourceReader(
   sourceRoot = repoSourceRoot(),
 ): RepoSourceReader {
-  return {
+  const reader: RepoSourceReader = {
     async readFile(filePath) {
       try {
         return await readFile(resolveWithin(sourceRoot, filePath), "utf-8");
@@ -34,6 +35,10 @@ export function createRepoSourceReader(
         if (isMissing(error)) return undefined;
         throw error;
       }
+    },
+
+    async readFiles(filePaths) {
+      return mapBounded(filePaths, (filePath) => reader.readFile(filePath));
     },
 
     async readUnder(prefix) {
@@ -47,62 +52,86 @@ export function createRepoSourceReader(
         throw error;
       }
 
-      const files: Record<string, string> = {};
-      let index = 0;
-
-      async function worker() {
-        while (index < relativePaths.length) {
-          const relativePath = relativePaths[index++]!;
-          files[relativePath] = await readFile(
-            path.join(directory, relativePath),
-            "utf-8",
-          );
-        }
-      }
-
-      await Promise.all(
-        Array.from(
-          { length: Math.min(READ_CONCURRENCY, relativePaths.length) },
-          () => worker(),
-        ),
+      const contents = await mapBounded(relativePaths, (relativePath) =>
+        readFile(path.join(directory, relativePath), "utf-8"),
       );
+      const files: Record<string, string> = {};
+
+      relativePaths.forEach((relativePath, index) => {
+        files[relativePath] = contents[index]!;
+      });
 
       return files;
     },
   };
+
+  return reader;
 }
 
 export function snapshotSourceReader(
   snapshot: RepoSourceSnapshot,
 ): RepoSourceReader {
-  return {
+  const reader: RepoSourceReader = {
     async readFile(filePath) {
-      return snapshot[filePath];
+      return snapshot[normalizeSourcePath(filePath)];
+    },
+
+    async readFiles(filePaths) {
+      return Promise.all(
+        filePaths.map((filePath) => reader.readFile(filePath)),
+      );
     },
 
     async readUnder(prefix) {
-      const sourcePrefix = `${prefix}/`;
+      const sourcePrefix = `${normalizeSourcePath(prefix)}/`;
       const files: Record<string, string> = {};
 
       for (const snapshotPath of Object.keys(snapshot)) {
         if (!snapshotPath.startsWith(sourcePrefix)) continue;
         const relativePath = snapshotPath.slice(sourcePrefix.length);
-        if (!relativePath) continue;
+        if (!relativePath || relativePath.startsWith("../")) continue;
         files[relativePath] = snapshot[snapshotPath]!;
       }
 
       return files;
     },
   };
+
+  return reader;
+}
+
+async function mapBounded<T, R>(
+  items: readonly T[],
+  run: (item: T) => Promise<R>,
+): Promise<R[]> {
+  const results: R[] = new Array<R>(items.length);
+  let index = 0;
+
+  async function worker() {
+    while (index < items.length) {
+      const current = index++;
+      results[current] = await run(items[current]!);
+    }
+  }
+
+  await Promise.all(
+    Array.from({ length: Math.min(READ_CONCURRENCY, items.length) }, () =>
+      worker(),
+    ),
+  );
+
+  return results;
 }
 
 // The tree mirrors the monorepo on disk, so a path that climbs out of it would
 // read the deployment rather than the snapshot.
-function resolveWithin(sourceRoot: string, relativePath: string) {
-  const normalized = path.posix.normalize(relativePath.replaceAll("\\", "/"));
+function normalizeSourcePath(relativePath: string) {
+  const normalized = path.posix
+    .normalize(relativePath.replaceAll("\\", "/"))
+    .replace(/\/+$/, "");
 
   if (
-    !relativePath ||
+    !normalized ||
     normalized.startsWith("/") ||
     normalized === "." ||
     normalized === ".." ||
@@ -111,7 +140,11 @@ function resolveWithin(sourceRoot: string, relativePath: string) {
     throw new Error(`Unsafe repo source path: ${relativePath}`);
   }
 
-  return path.join(sourceRoot, normalized);
+  return normalized;
+}
+
+function resolveWithin(sourceRoot: string, relativePath: string) {
+  return path.join(sourceRoot, normalizeSourcePath(relativePath));
 }
 
 function isMissing(error: unknown) {

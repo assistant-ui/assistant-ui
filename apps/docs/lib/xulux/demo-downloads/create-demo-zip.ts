@@ -13,8 +13,10 @@ import {
 import {
   DEMO_DEPENDENCIES,
   DEMO_DEV_DEPENDENCIES,
+  createPackageJsonReader,
   dependencyVersionsFromPackage,
   dependencyVersions,
+  type PackageJsonReader,
 } from "./package-versions";
 import { createZip, type ZipFileMap } from "./zip";
 
@@ -38,13 +40,15 @@ async function buildDemoFileMap(
     throw new Error(`Unsupported demo slug: ${slug}`);
   }
 
+  const readPackageJson = createPackageJsonReader(reader);
+
   if (manifest.target === "node-cli") {
-    return createNodeCliDemoFileMap(manifest, reader);
+    return createNodeCliDemoFileMap(manifest, reader, readPackageJson);
   }
 
   const [demoSource, demoPackageJson] = await Promise.all([
     readSourceFile(reader, manifest.entry).then(flattenUiFlavorImports),
-    packageJson(manifest, reader),
+    packageJson(manifest, readPackageJson),
   ]);
   const files: ZipFileMap = {
     "package.json": demoPackageJson,
@@ -72,9 +76,7 @@ async function buildDemoFileMap(
   };
 
   const extraSourceFiles = manifest.extraSourceFiles ?? [];
-  const extraSources = await Promise.all(
-    extraSourceFiles.map((sourceFile) => readSourceFile(reader, sourceFile)),
-  );
+  const extraSources = await readSourceFiles(reader, extraSourceFiles);
 
   extraSourceFiles.forEach((sourceFile, index) => {
     const target = targetPathForSourceFile(sourceFile);
@@ -98,11 +100,21 @@ export function supportedDemoSlugs() {
 }
 
 async function readSourceFile(reader: RepoSourceReader, snapshotKey: string) {
-  const contents = await reader.readFile(snapshotKey);
-  if (typeof contents !== "string") {
-    throw new Error(`Missing source snapshot entry: ${snapshotKey}`);
-  }
-  return contents;
+  return (await readSourceFiles(reader, [snapshotKey]))[0]!;
+}
+
+async function readSourceFiles(
+  reader: RepoSourceReader,
+  snapshotKeys: readonly string[],
+) {
+  const contents = await reader.readFiles(snapshotKeys);
+
+  return contents.map((value, index) => {
+    if (typeof value !== "string") {
+      throw new Error(`Missing source snapshot entry: ${snapshotKeys[index]}`);
+    }
+    return value;
+  });
 }
 
 function flattenUiFlavorImports(source: string) {
@@ -147,19 +159,16 @@ const REACT_INK_SOURCE_FILES = [
 async function createNodeCliDemoFileMap(
   manifest: DemoDownloadManifest,
   reader: RepoSourceReader,
+  readPackageJson: PackageJsonReader,
 ) {
   if (manifest.slug !== "react-ink") {
     throw new Error(`Unsupported node-cli demo slug: ${manifest.slug}`);
   }
 
   const [demoPackageJson, tsconfig, sources] = await Promise.all([
-    nodeCliPackageJson(manifest, reader),
+    nodeCliPackageJson(manifest, readPackageJson),
     readSourceFile(reader, "examples/with-react-ink/tsconfig.json"),
-    Promise.all(
-      REACT_INK_SOURCE_FILES.map((sourceFile) =>
-        readSourceFile(reader, sourceFile),
-      ),
-    ),
+    readSourceFiles(reader, REACT_INK_SOURCE_FILES),
   ]);
   const files: ZipFileMap = {
     "package.json": demoPackageJson,
@@ -177,17 +186,17 @@ async function createNodeCliDemoFileMap(
 
 async function nodeCliPackageJson(
   manifest: DemoDownloadManifest,
-  reader: RepoSourceReader,
+  readPackageJson: PackageJsonReader,
 ) {
   const packagePath = "examples/with-react-ink/package.json";
   const [dependencies, devDependencies] = await Promise.all([
-    dependencyVersionsFromPackage(reader, packagePath, [
+    dependencyVersionsFromPackage(readPackageJson, packagePath, [
       "@assistant-ui/react-ink",
       "@assistant-ui/react-ink-markdown",
       "ink",
       "react",
     ]),
-    dependencyVersionsFromPackage(reader, packagePath, [
+    dependencyVersionsFromPackage(readPackageJson, packagePath, [
       "@types/react",
       "esbuild",
       "tsx",
@@ -220,11 +229,11 @@ function nodeCliReadme(manifest: DemoDownloadManifest) {
 
 async function packageJson(
   manifest: DemoDownloadManifest,
-  reader: RepoSourceReader,
+  readPackageJson: PackageJsonReader,
 ) {
   const [dependencies, devDependencies] = await Promise.all([
-    dependencyVersions(reader, DEMO_DEPENDENCIES),
-    dependencyVersions(reader, DEMO_DEV_DEPENDENCIES),
+    dependencyVersions(readPackageJson, DEMO_DEPENDENCIES),
+    dependencyVersions(readPackageJson, DEMO_DEV_DEPENDENCIES),
   ]);
 
   return `${JSON.stringify(

@@ -7,7 +7,7 @@ type PackageJson = {
   peerDependencies?: Record<string, string>;
 };
 
-type PackageJsonReader = (snapshotKey: string) => Promise<PackageJson>;
+export type PackageJsonReader = (snapshotKey: string) => Promise<PackageJson>;
 
 const WORKSPACE_PACKAGE_JSON: Record<string, string> = {
   "@assistant-ui/ai-sdk": "packages/ai-sdk/package.json",
@@ -50,10 +50,9 @@ export const DEMO_DEV_DEPENDENCIES = [
 ] as const;
 
 export async function dependencyVersions(
-  reader: RepoSourceReader,
+  readPackageJson: PackageJsonReader,
   names: readonly string[],
 ) {
-  const readPackageJson = createPackageJsonReader(reader);
   return Object.fromEntries(
     await Promise.all(
       names.map(async (name): Promise<[string, string]> => [
@@ -65,11 +64,10 @@ export async function dependencyVersions(
 }
 
 export async function dependencyVersionsFromPackage(
-  reader: RepoSourceReader,
+  readPackageJson: PackageJsonReader,
   packagePath: string,
   names: readonly string[],
 ) {
-  const readPackageJson = createPackageJsonReader(reader);
   const pkg = await readPackageJson(packagePath);
   return Object.fromEntries(
     await Promise.all(
@@ -120,9 +118,11 @@ function isInstallableVersion(version: unknown): version is string {
   );
 }
 
-// Every dependency falls back to the docs manifest, so one resolution pass
-// would otherwise read and parse the same file once per name.
-function createPackageJsonReader(reader: RepoSourceReader): PackageJsonReader {
+// Every dependency falls back to the docs manifest, so a request would
+// otherwise read and parse the same file once per name.
+export function createPackageJsonReader(
+  reader: RepoSourceReader,
+): PackageJsonReader {
   const parsed = new Map<string, Promise<PackageJson>>();
 
   return (snapshotKey) => {

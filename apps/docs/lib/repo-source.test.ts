@@ -124,6 +124,23 @@ describe("createRepoSourceReader", () => {
     ).resolves.toEqual({});
   });
 
+  it("bounds a named batch the same way a subtree read is bounded", async () => {
+    const files = Object.fromEntries(
+      Array.from({ length: 200 }, (_, index) => [
+        `packages/p${index % 20}/file-${index}.ts`,
+        `export const n = ${index};\n`,
+      ]),
+    );
+    const root = await createSourceTree(files);
+
+    const contents = await createRepoSourceReader(root).readFiles(
+      Object.keys(files),
+    );
+
+    expect(contents).toEqual(Object.keys(files).map((key) => files[key]));
+    expect(reads.peak).toBeLessThanOrEqual(32);
+  });
+
   it("bounds concurrent reads so a large subtree cannot exhaust file descriptors", async () => {
     const files = Object.fromEntries(
       Array.from({ length: 400 }, (_, index) => [
@@ -141,12 +158,14 @@ describe("createRepoSourceReader", () => {
 });
 
 describe("snapshotSourceReader", () => {
+  const snapshot = {
+    "AGENTS.md": "# assistant-ui\n",
+    "packages/core/src/index.ts": "export const a = 1;\n",
+    "packages/core-other/secret.ts": "not part of the package\n",
+  };
+
   it("serves named entries and prefix reads from a literal map", async () => {
-    const reader = snapshotSourceReader({
-      "AGENTS.md": "# assistant-ui\n",
-      "packages/core/src/index.ts": "export const a = 1;\n",
-      "packages/core-other/secret.ts": "not part of the package\n",
-    });
+    const reader = snapshotSourceReader(snapshot);
 
     await expect(reader.readFile("AGENTS.md")).resolves.toBe(
       "# assistant-ui\n",
@@ -154,8 +173,39 @@ describe("snapshotSourceReader", () => {
     await expect(
       reader.readFile("packages/absent.ts"),
     ).resolves.toBeUndefined();
+    await expect(
+      reader.readFiles(["AGENTS.md", "packages/absent.ts"]),
+    ).resolves.toEqual(["# assistant-ui\n", undefined]);
     await expect(reader.readUnder("packages/core")).resolves.toEqual({
       "src/index.ts": "export const a = 1;\n",
     });
+  });
+
+  it("resolves an equivalent prefix to the same subtree as the disk reader", async () => {
+    const root = await createSourceTree(snapshot);
+
+    for (const prefix of [
+      "packages/core",
+      "packages/core/",
+      "./packages/core",
+    ]) {
+      await expect(
+        snapshotSourceReader(snapshot).readUnder(prefix),
+      ).resolves.toEqual(await createRepoSourceReader(root).readUnder(prefix));
+    }
+  });
+
+  it("keeps a snapshot key that climbs out of the prefix out of the result", async () => {
+    const reader = snapshotSourceReader({
+      ...snapshot,
+      "packages/core/../escaped.ts": "outside the package\n",
+    });
+
+    await expect(reader.readUnder("packages/core")).resolves.toEqual({
+      "src/index.ts": "export const a = 1;\n",
+    });
+    await expect(reader.readFile("../../etc/passwd")).rejects.toThrow(
+      /Unsafe repo source path/,
+    );
   });
 });

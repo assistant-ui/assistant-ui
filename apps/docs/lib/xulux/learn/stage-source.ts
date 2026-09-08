@@ -141,8 +141,8 @@ async function resolveSharedFiles(
       ([outputPath, snapshotPath]) =>
         [normalizeOutputPath(outputPath), snapshotPath] as const,
     );
-  const sources = await Promise.all(
-    entries.map(([, snapshotPath]) => reader.readFile(snapshotPath)),
+  const sources = await reader.readFiles(
+    entries.map(([, snapshotPath]) => snapshotPath),
   );
   const files: LearnStageFiles = {};
 
