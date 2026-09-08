@@ -1,7 +1,11 @@
 // @vitest-environment jsdom
 
 import { act, render } from "@testing-library/react";
-import { AuiConfig, AuiProvider } from "@assistant-ui/store";
+import {
+  AuiConfig,
+  AuiProvider,
+  type AssistantClient,
+} from "@assistant-ui/store";
 import { describe, expect, it } from "vitest";
 import type { ThreadMessage } from "../../types/message";
 import type { ThreadListItemState } from "../../runtime/api/bindings";
@@ -65,14 +69,25 @@ describe("ThreadClient", () => {
       "Entry not available in the store",
     );
 
+    let client: AssistantClient | null = null;
     const App = () => {
       const config = AuiConfig({ thread: ThreadClient({ runtime }) });
-      return <AuiProvider config={config}>{null}</AuiProvider>;
+      return (
+        <AuiProvider
+          config={config}
+          ref={(value) => {
+            client = value;
+          }}
+        >
+          {null}
+        </AuiProvider>
+      );
     };
 
     await act(async () => {
       render(<App />);
     });
+    expect(client!.thread.getState().messages).toEqual([]);
     unsubscribe();
   });
 });
