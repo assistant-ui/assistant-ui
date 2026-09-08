@@ -64,6 +64,8 @@ type AgUiResumeEntry = {
   payload?: unknown;
 };
 
+type AgUiResumeTranscript = "appended" | "full";
+
 type AgUiRunFinishedOutcome = {
   type: "success";
 } | {
@@ -1677,6 +1679,7 @@ type UseAgUiRuntimeOptions = ExternalStoreSharedOptions & {
   agent: AbstractAgent;
   logger?: Partial<Logger>;
   showThinking?: boolean;
+  resumeTranscript?: AgUiResumeTranscript | undefined;
   autoCancelPendingToolCalls?: boolean | undefined;
   unstable_enableMessageQueue?: boolean | undefined;
   onError?: (e: Error) => void;
@@ -1704,7 +1707,7 @@ declare global {
 }
 
 declare namespace entry_root_exports {
-  export { AgUiAssistantRuntime, AgUiInterrupt, AgUiInterruptReason, AgUiMessage, AgUiResumeEntry, AgUiRunFinishedOutcome, FromAgUiMessagesOptions, UseAgUiRuntimeAdapters, UseAgUiRuntimeOptions, UseAgUiThreadListAdapter, fromAgUiMessages, toAgUiMessages, useAgUiInterrupts, useAgUiRuntime, useAgUiSendA2uiAction, useAgUiSetState, useAgUiState, useAgUiSteerAway, useAgUiSubmitInterruptResponses };
+  export { AgUiAssistantRuntime, AgUiInterrupt, AgUiInterruptReason, AgUiMessage, AgUiResumeEntry, AgUiResumeTranscript, AgUiRunFinishedOutcome, FromAgUiMessagesOptions, UseAgUiRuntimeAdapters, UseAgUiRuntimeOptions, UseAgUiThreadListAdapter, fromAgUiMessages, toAgUiMessages, useAgUiInterrupts, useAgUiRuntime, useAgUiSendA2uiAction, useAgUiSetState, useAgUiState, useAgUiSteerAway, useAgUiSubmitInterruptResponses };
 }
 
 declare function toAgUiMessages(messages: readonly ThreadMessageLike$1[]): AgUiMessage[];
