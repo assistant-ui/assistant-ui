@@ -25,24 +25,24 @@ describe("PluginConfig", () => {
       math: typeof math;
       cjk: typeof cjk;
       mermaid: typeof mermaid;
-    }>().toMatchTypeOf<PluginConfig>();
+    }>().toExtend<PluginConfig>();
     expectTypeOf<{
       code: false;
       math: false;
       cjk: false;
       mermaid: false;
-    }>().toMatchTypeOf<PluginConfig>();
+    }>().toExtend<PluginConfig>();
   });
 
   it("rejects values that are neither a plugin instance nor false", () => {
     // @ts-expect-error a bare object is not a plugin instance
-    expectTypeOf<{ code: { type: "code" } }>().toMatchTypeOf<PluginConfig>();
+    expectTypeOf<{ code: { type: "code" } }>().toExtend<PluginConfig>();
     // @ts-expect-error true is not an opt-in
-    expectTypeOf<{ math: true }>().toMatchTypeOf<PluginConfig>();
+    expectTypeOf<{ math: true }>().toExtend<PluginConfig>();
     // @ts-expect-error a bare object is not a plugin instance
-    expectTypeOf<{ cjk: { type: "cjk" } }>().toMatchTypeOf<PluginConfig>();
+    expectTypeOf<{ cjk: { type: "cjk" } }>().toExtend<PluginConfig>();
     // @ts-expect-error true is not an opt-in
-    expectTypeOf<{ mermaid: true }>().toMatchTypeOf<PluginConfig>();
+    expectTypeOf<{ mermaid: true }>().toExtend<PluginConfig>();
   });
 });
 
