@@ -25,7 +25,9 @@ afterEach(() => {
 
 describe("getStarHistory", () => {
   it("asks for the page size the endpoint actually grants", async () => {
-    const fetchMock = vi.fn(async () => respond([bucket(0)]));
+    const fetchMock = vi.fn(async (_input: RequestInfo | URL) =>
+      respond([bucket(0)]),
+    );
     vi.stubGlobal("fetch", fetchMock);
 
     await getStarHistory();

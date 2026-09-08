@@ -1,6 +1,20 @@
 {
   "extends": "@assistant-ui/x-buildutils/ts/next",
   "compilerOptions": {
+    "types": ["browser-process", "vitest/globals"],
+    "allowImportingTsExtensions": true,
+    "typeRoots": [
+      "${configDir}/node_modules",
+      "${configDir}/node_modules/@types",
+      "${configDir}/../node_modules/@types",
+      "${configDir}/../../node_modules/@types",
+      "${configDir}/../../../node_modules/@types",
+      "${configDir}/node_modules/@assistant-ui/x-buildutils/types",
+      "${configDir}/../node_modules/@assistant-ui/x-buildutils/types",
+      "${configDir}/../../node_modules/@assistant-ui/x-buildutils/types",
+      "${configDir}/../../../node_modules/@assistant-ui/x-buildutils/types",
+      "${configDir}/types"
+    ],
     "paths": {
       "@/components/ui/*": [
         "../../packages/ui/src/components/react/ui/base/*",
@@ -49,5 +63,5 @@
     }
   },
   "include": ["**/*.ts", "**/*.tsx", ".next/types/**/*.ts"],
-  "exclude": ["node_modules", "**/*.test.ts", "**/*.test.tsx"]
+  "exclude": ["node_modules"]
 }
