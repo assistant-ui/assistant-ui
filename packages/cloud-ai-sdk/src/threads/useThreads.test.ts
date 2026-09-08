@@ -482,7 +482,7 @@ describe("useThreads", () => {
     await act(async () => {
       failingRename.reject(new Error("rename failed"));
       expect(await rename).toBe(false);
-      await expect(automatic).resolves.toBeNull();
+      await expect(automatic).resolves.toBe("Generated title");
       await expect(explicit).resolves.toBe("Generated title");
     });
 

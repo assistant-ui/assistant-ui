@@ -609,7 +609,13 @@ export function useThreads(options: UseThreadsOptions): UseThreadsResult {
                 }
 
                 if (generated) break;
-                if (!isCurrentGeneration(state, generation)) return;
+                if (!isCurrentGeneration(state, generation)) {
+                  // The caller reads a null result as a failed generation and
+                  // retries, so a superseded run reports the title that won
+                  // rather than the title it did not generate.
+                  title = (await state.latestExplicit?.persisted) ?? null;
+                  return;
+                }
                 generated = true;
                 // `generateThreadTitle` persists what it generated before it
                 // resolves, so the run owes a repair from here on however it
