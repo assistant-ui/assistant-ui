@@ -430,6 +430,7 @@ describe("AISDKMessageConverter", () => {
       reason: "approved by operator",
       prompt: "Deploy to production?",
       descriptor,
+      requestReason: "Production access requires approval",
       signature: "signed-approval",
       futureField: "preserved",
     });
@@ -468,6 +469,7 @@ describe("AISDKMessageConverter", () => {
       id: "approval-1",
       prompt: "kept",
       resolution: "cancelled",
+      requestReason: "kept",
     });
   });
 

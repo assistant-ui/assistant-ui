@@ -168,7 +168,6 @@ function getToolApprovalAndInterrupt(
     const {
       id,
       prompt,
-      requestReason,
       approved,
       reason,
       isAutomatic,
@@ -180,6 +179,7 @@ function getToolApprovalAndInterrupt(
       text,
       ...additionalApprovalFields
     } = part.approval;
+    const requestReason = additionalApprovalFields.requestReason;
     if (typeof id === "string")
       return {
         approval: {
