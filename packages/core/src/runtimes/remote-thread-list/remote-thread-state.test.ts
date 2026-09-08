@@ -110,13 +110,16 @@ describe("remote thread state", () => {
     expect(promoted.threadIds).toEqual([seeded.id]);
   });
 
-  it("leaves a new thread untouched when promoted without an initialization task", () => {
-    const seeded = seedNewThread(createEmptyRemoteThreadState());
+  it.each(["regular", "archived"] as const)(
+    "leaves a new thread untouched when moved to %s without an initialization task",
+    (newStatus) => {
+      const seeded = seedNewThread(createEmptyRemoteThreadState());
 
-    expect(updateStatusReducer(seeded.state, seeded.id, "regular")).toBe(
-      seeded.state,
-    );
-  });
+      expect(updateStatusReducer(seeded.state, seeded.id, newStatus)).toBe(
+        seeded.state,
+      );
+    },
+  );
 
   it("refreshes the local slot when a listed thread already has a mapping", () => {
     const draft = initializedDraft();
