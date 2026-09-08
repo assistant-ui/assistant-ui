@@ -16,8 +16,9 @@ import { ThreadSuggestions } from "../clients/suggestions";
 import { useSubscribable } from "./useSubscribable";
 import type { ThreadState } from "../scopes/thread";
 import type { ThreadMessage } from "../../types/message";
+import type { ThreadRuntimeCoreBinding } from "../../runtime/api/thread-runtime";
 
-export const getRenderableMessages = (
+const getRenderableMessages = (
   snapshot: readonly ThreadMessage[],
   current: readonly ThreadMessage[],
 ) => {
@@ -93,9 +94,14 @@ const useThreadClient = ({
   const suggestions = useClientResource(
     ThreadSuggestions(runtimeState.suggestions),
   );
+  const liveMessages = (
+    runtime as ThreadRuntime & {
+      readonly __internal_threadBinding?: ThreadRuntimeCoreBinding;
+    }
+  ).__internal_threadBinding?.getState().messages;
   const renderableMessages = getRenderableMessages(
     runtimeState.messages,
-    runtime.getState().messages,
+    liveMessages ?? runtimeState.messages,
   );
   const messages = useClientLookup(
     renderableMessages.map((m) =>
