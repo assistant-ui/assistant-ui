@@ -33,7 +33,10 @@ describe("markdown response headers", () => {
   });
 
   it("changes the validator when the content changes", () => {
-    expect(createMarkdownResponse("first").headers.get("ETag")).not.toBe(
+    const firstETag = createMarkdownResponse("first").headers.get("ETag");
+
+    expect(firstETag).toBe(createMarkdownResponse("first").headers.get("ETag"));
+    expect(firstETag).not.toBe(
       createMarkdownResponse("second").headers.get("ETag"),
     );
   });
