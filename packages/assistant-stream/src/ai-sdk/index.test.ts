@@ -1,4 +1,4 @@
-import { describe, expect, it, vi } from "vitest";
+import { beforeEach, describe, expect, it, vi } from "vitest";
 
 const loaded = vi.hoisted(() => ({ ai: false }));
 
@@ -8,6 +8,11 @@ vi.mock("ai", async (importOriginal) => {
 });
 
 describe("ai-sdk entry", () => {
+  beforeEach(() => {
+    vi.resetModules();
+    loaded.ai = false;
+  });
+
   it("keeps `ai` out of the root entry's module graph", async () => {
     await import("../index");
 

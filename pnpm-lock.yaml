@@ -3786,9 +3786,6 @@ importers:
       ai:
         specifier: ^7.0.93
         version: 7.0.93(zod@4.5.4)
-      ai-v6:
-        specifier: npm:ai@^6.0.277
-        version: ai@6.0.277(zod@4.5.4)
       ioredis:
         specifier: ^6.0.0
         version: 6.0.0(supports-color@10.2.2)

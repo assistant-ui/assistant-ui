@@ -1,4 +1,4 @@
-import { jsonSchema, type ToolSet } from "ai";
+import { jsonSchema, type Tool, type ToolSet } from "ai";
 import type { ToolJSONSchema } from "../core/tool/schema-utils";
 import { unwrapModelContentEnvelope } from "./modelContentEnvelope";
 import { toAISDKContent, toAISDKDefaultOutput } from "./toolOutputConversion";
@@ -6,7 +6,9 @@ import { toAISDKContent, toAISDKDefaultOutput } from "./toolOutputConversion";
 /** Frontend tool definitions uploaded by AssistantChatTransport. */
 export type FrontendTools = Record<string, ToolJSONSchema>;
 
-const defaultToModelOutput = ({ output }: { output: unknown }) => {
+const defaultToModelOutput: NonNullable<Tool["toModelOutput"]> = ({
+  output,
+}) => {
   const { result, modelContent } = unwrapModelContentEnvelope(output);
   if (modelContent !== undefined) {
     return toAISDKContent(modelContent);
