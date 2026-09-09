@@ -5,46 +5,49 @@ import {
   PLATFORMS,
   type Platform,
 } from "@/lib/constants";
+import type { LLMRenderContext } from "@/lib/get-llm-text";
 import type { PlatformTabsProps } from "./mdx";
 
-// Emit only the React (default) tab — other platforms duplicate content and have
-// their own doc trees (/docs/react-native, /docs/ink). Label it so the code isn't
-// read as universal.
-export function PlatformTabsLLM({ children }: PlatformTabsProps): ReactNode {
+// Emit only the requested platform tab so the text does not read like every
+// platform-specific instruction applies at once.
+export function PlatformTabsLLM(
+  { children }: PlatformTabsProps,
+  ctx?: LLMRenderContext,
+): ReactNode {
+  const platform = ctx?.platform ?? DEFAULT_PLATFORM;
   const tabs = Children.toArray(children).filter(isValidElement);
-  const reactTab =
+  const selectedTab =
     tabs.find(
       (child) =>
-        (child.props as { value?: string }).value ===
-        PLATFORM_LABELS[DEFAULT_PLATFORM],
+        (child.props as { value?: string }).value === PLATFORM_LABELS[platform],
     ) ?? tabs[0];
-  if (!reactTab) return null;
+  if (!selectedTab) return null;
 
   return (
     <>
       <p>
-        <strong>{PLATFORM_LABELS[DEFAULT_PLATFORM]}</strong>
+        <strong>{PLATFORM_LABELS[platform]}</strong>
       </p>
-      {reactTab}
+      {selectedTab}
     </>
   );
 }
 
-export function PlatformOnlyLLM({
-  children,
-  except,
-  platforms,
-}: {
-  children: ReactNode;
-  except?: readonly Platform[];
-  platforms?: readonly Platform[];
-}): ReactNode {
-  if (except?.includes(DEFAULT_PLATFORM)) return null;
-  if (
-    platforms &&
-    platforms.length > 0 &&
-    !platforms.includes(DEFAULT_PLATFORM)
-  )
+export function PlatformOnlyLLM(
+  {
+    children,
+    except,
+    platforms,
+  }: {
+    children: ReactNode;
+    except?: readonly Platform[];
+    platforms?: readonly Platform[];
+  },
+  ctx?: LLMRenderContext,
+): ReactNode {
+  const platform = ctx?.platform ?? DEFAULT_PLATFORM;
+  if (except?.includes(platform)) return null;
+  if (platforms && platforms.length > 0 && !platforms.includes(platform))
     return null;
 
   const applicable = PLATFORMS.filter(
