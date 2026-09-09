@@ -56,8 +56,20 @@ import {
   captureThreadRuntimeGeneration,
   isThreadRuntimeGenerationCurrent,
 } from "../../runtime/utils/thread-runtime-lifecycle";
+import { notifySubscribers } from "../../subscribable/subscribable";
 
 const EMPTY_ARRAY: readonly ThreadSuggestion[] = Object.freeze([]);
+
+const getCommonPrefixLength = (
+  previous: readonly unknown[] | undefined,
+  current: readonly unknown[],
+) => {
+  if (!previous) return 0;
+  const maxLength = Math.min(previous.length, current.length);
+  let index = 0;
+  while (index < maxLength && previous[index] === current[index]) index++;
+  return index;
+};
 
 const observeAdapterCallback = (
   name: "onAddToolResult" | "onCancel",
@@ -82,6 +94,83 @@ export class ExternalStoreThreadRuntimeCore
   extends BaseThreadRuntimeCore
   implements ThreadRuntimeCore
 {
+  private _messageSubscribers = new Map<string, Set<() => void>>();
+
+  public subscribeMessage(messageId: string, callback: () => void) {
+    let subscribers = this._messageSubscribers.get(messageId);
+    if (!subscribers) {
+      subscribers = new Set();
+      this._messageSubscribers.set(messageId, subscribers);
+    }
+    subscribers.add(callback);
+    let isSubscribed = true;
+    return () => {
+      if (!isSubscribed) return;
+      isSubscribed = false;
+      subscribers.delete(callback);
+      if (
+        subscribers.size === 0 &&
+        this._messageSubscribers.get(messageId) === subscribers
+      ) {
+        this._messageSubscribers.delete(messageId);
+      }
+    };
+  }
+
+  private _notifyMessageSubscribers(subscriberSets: Iterable<Set<() => void>>) {
+    return notifySubscribers(
+      (function* () {
+        for (const subscribers of subscriberSets) yield* subscribers;
+      })(),
+    );
+  }
+
+  private *_getMessageSubscriberSets(messageIds: readonly string[]) {
+    for (const messageId of messageIds) {
+      const subscribers = this._messageSubscribers.get(messageId);
+      if (subscribers) yield subscribers;
+    }
+  }
+
+  private _notifyMessageAndThreadSubscribers(
+    subscriberSets: Iterable<Set<() => void>>,
+  ) {
+    let messageError: unknown;
+    let hasMessageError = false;
+    try {
+      this._notifyMessageSubscribers(subscriberSets);
+    } catch (error) {
+      hasMessageError = true;
+      messageError = error;
+    }
+
+    try {
+      super._notifySubscribers();
+    } catch (threadError) {
+      if (hasMessageError) {
+        throw new AggregateError([messageError, threadError]);
+      }
+      throw threadError;
+    }
+
+    if (hasMessageError) throw messageError;
+  }
+
+  protected override _notifySubscribers() {
+    this._notifyMessageAndThreadSubscribers(this._messageSubscribers.values());
+  }
+
+  protected override _onRepositoryMutation(): void {
+    this._messages = this.repository.getMessages();
+    this._converter.resetPrefix();
+  }
+
+  private _notifyMessageUpdates(messageIds: readonly string[]) {
+    this._notifyMessageAndThreadSubscribers(
+      this._getMessageSubscriberSets(messageIds),
+    );
+  }
+
   private _capabilities: RuntimeCapabilities = {
     switchToBranch: false,
     switchBranchDuringRun: false,
@@ -340,6 +429,8 @@ export class ExternalStoreThreadRuntimeCore
     } else if (store.messages) {
       // Handle messages array
 
+      let reusablePrefixLength = 0;
+
       if (oldStore) {
         // flush the converter cache when the convertMessage prop changes
         if (oldStore.convertMessage !== store.convertMessage) {
@@ -348,11 +439,28 @@ export class ExternalStoreThreadRuntimeCore
           !repositoryChanged &&
           oldStore.isRunning === store.isRunning &&
           oldStore.messages === store.messages &&
-          previousIsRunning === isRunning
+          previousIsRunning === isRunning &&
+          oldStore.unstable_enableToolInvocations ===
+            store.unstable_enableToolInvocations
         ) {
           this._notifySubscribers();
           // no conversion update
           return;
+        } else {
+          if (!store.convertMessage) {
+            reusablePrefixLength = getCommonPrefixLength(
+              this._messages,
+              store.messages,
+            );
+          }
+
+          if (
+            oldStore.messages?.length !== store.messages.length ||
+            previousIsRunning !== isRunning
+          ) {
+            this._converter.resetPrefix();
+            reusablePrefixLength = 0;
+          }
         }
       }
 
@@ -391,6 +499,40 @@ export class ExternalStoreThreadRuntimeCore
             bindExternalStoreMessage(newMessage, m);
             return newMessage;
           });
+
+      if (store.convertMessage) {
+        reusablePrefixLength = this._converter.reusablePrefixLength;
+      }
+
+      const previousTail = this._messages?.at(-1);
+      const tail = messages.at(-1);
+      const isTailOnlyUpdate =
+        oldStore?.messages !== undefined &&
+        oldStore.convertMessage === store.convertMessage &&
+        oldStore.messages.length === store.messages.length &&
+        reusablePrefixLength === store.messages.length - 1 &&
+        messages.length === store.messages.length &&
+        this._messages.length === messages.length &&
+        previousIsRunning === isRunning &&
+        !repositoryChanged &&
+        this._pendingDeleteEvictions.size === 0 &&
+        this._optimistic === null &&
+        !hasUpcomingMessage(isRunning, messages) &&
+        previousTail !== undefined &&
+        tail !== undefined &&
+        previousTail.id === tail.id &&
+        this.repository.headId === previousTail.id;
+
+      if (isTailOnlyUpdate) {
+        this.repository.addOrUpdateMessage(messages.at(-2)?.id ?? null, tail);
+        // addOrUpdateMessage invalidates the repository's branch cache, so
+        // reading it here would rebuild the full chain. The converter owns
+        // this array and the guard proved its prefix matches that chain.
+        this._messages = store.convertMessage ? messages : messages.slice();
+        this._runTrackerUpdate(() => this._driveToolInvocations());
+        this._notifyMessageUpdates([tail.id]);
+        return;
+      }
 
       const seenIds = new Set<string>();
       const deduped: ThreadMessage[] = [];

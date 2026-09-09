@@ -110,6 +110,10 @@ type ExternalStoreAdapterBase<T> = {
    */
   isRunning?: boolean | undefined;
   isLoading?: boolean | undefined;
+  /**
+   * Immutable message snapshot. Pass a new array reference when its contents
+   * change.
+   */
   messages?: readonly T[];
   messageRepository?: ExportedMessageRepository;
   /**
