@@ -138,6 +138,15 @@ describe("walkToolCallTree", () => {
     expect(entries).toHaveLength(depth);
     expect(entries.at(-1)?.part.toolCallId).toBe(String(depth - 1));
   });
+
+  it("rejects cyclic tool-call trees", () => {
+    const messages: ThreadMessage[] = [];
+    messages.push(assistant("m1", [toolCall("a", messages)]));
+
+    expect(() => [...walkToolCallTree(messages)]).toThrow(
+      "Cyclic tool-call message tree",
+    );
+  });
 });
 
 describe("iterateToolCallParts", () => {
@@ -235,6 +244,16 @@ describe("mapToolCallPartsDeep", () => {
     expect(result.changed).toBe(true);
     expect([...iterateToolCallParts(result.content)].at(-1)?.isError).toBe(
       true,
+    );
+  });
+
+  it("rejects cyclic tool-call trees", () => {
+    const messages: ThreadMessage[] = [];
+    const part = toolCall("a", messages);
+    messages.push(assistant("m1", [part]));
+
+    expect(() => mapToolCallPartsDeep([part], (current) => current)).toThrow(
+      "Cyclic tool-call message tree",
     );
   });
 });

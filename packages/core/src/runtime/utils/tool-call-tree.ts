@@ -41,11 +41,21 @@ export function* walkToolCallTree(
       };
 
   const frames: Frame[] = [{ type: "messages", values: messages, index: 0 }];
+  const activeArrays = new WeakSet<object>([messages]);
+
+  const pushFrame = (frame: Frame) => {
+    if (activeArrays.has(frame.values)) {
+      throw new TypeError("Cyclic tool-call message tree");
+    }
+    activeArrays.add(frame.values);
+    frames.push(frame);
+  };
 
   while (frames.length > 0) {
     const frame = frames[frames.length - 1]!;
     if (frame.index >= frame.values.length) {
       frames.pop();
+      activeArrays.delete(frame.values);
       continue;
     }
 
@@ -54,7 +64,7 @@ export function* walkToolCallTree(
       if (message?.role !== "assistant" || !Array.isArray(message.content)) {
         continue;
       }
-      frames.push({
+      pushFrame({
         type: "content",
         values: message.content,
         messageId: message.id,
@@ -67,7 +77,7 @@ export function* walkToolCallTree(
     if (!part || part.type !== "tool-call") continue;
     yield { part, messageId: frame.messageId };
     if (part.messages?.length) {
-      frames.push({ type: "messages", values: part.messages, index: 0 });
+      pushFrame({ type: "messages", values: part.messages, index: 0 });
     }
   }
 }
@@ -131,6 +141,15 @@ export function mapToolCallPartsDeep(
     changed: false,
   };
   const frames: Array<ContentFrame | MessagesFrame> = [root];
+  const activeArrays = new WeakSet<object>([content]);
+
+  const pushFrame = (frame: ContentFrame | MessagesFrame) => {
+    if (activeArrays.has(frame.values)) {
+      throw new TypeError("Cyclic tool-call message tree");
+    }
+    activeArrays.add(frame.values);
+    frames.push(frame);
+  };
 
   while (frames.length > 0) {
     const frame = frames[frames.length - 1]!;
@@ -138,6 +157,7 @@ export function mapToolCallPartsDeep(
     if (frame.type === "content") {
       if (frame.index >= frame.values.length) {
         frames.pop();
+        activeArrays.delete(frame.values);
         const nextContent = frame.changed ? frame.next : frame.values;
         if (!frame.parent) {
           return { content: nextContent, changed: frame.changed };
@@ -166,7 +186,7 @@ export function mapToolCallPartsDeep(
         continue;
       }
 
-      frames.push({
+      pushFrame({
         type: "messages",
         values: mapped.messages,
         originalPart: part,
@@ -181,6 +201,7 @@ export function mapToolCallPartsDeep(
 
     if (frame.index >= frame.values.length) {
       frames.pop();
+      activeArrays.delete(frame.values);
       const mapped = frame.changed
         ? { ...frame.mappedPart, messages: frame.next }
         : frame.mappedPart;
@@ -196,7 +217,7 @@ export function mapToolCallPartsDeep(
     }
 
     const assistant = nested as ThreadAssistantMessage;
-    frames.push({
+    pushFrame({
       type: "content",
       values: assistant.content,
       parent: { frame, message: assistant },
@@ -206,5 +227,5 @@ export function mapToolCallPartsDeep(
     });
   }
 
-  return { content, changed: false };
+  throw new Error("Tool-call tree traversal ended without a root result");
 }
