@@ -9,6 +9,20 @@ const cellSchema = z
   .union([z.string(), z.number(), z.boolean()])
   .describe("A cell value.");
 
+type TableColumn = { label: string };
+type TableCell = string | number | boolean;
+
+const isTableColumn = (column: unknown): column is TableColumn =>
+  column !== null &&
+  typeof column === "object" &&
+  "label" in column &&
+  typeof column.label === "string";
+
+const isTableCell = (cell: unknown): cell is TableCell =>
+  typeof cell === "string" ||
+  typeof cell === "number" ||
+  typeof cell === "boolean";
+
 const CHART_HEIGHT = 40;
 const CHART_WIDTH = 100;
 
@@ -282,37 +296,40 @@ export const dataVocabulary = {
       columns: z.array(columnSchema).optional().describe("Column definitions."),
       rows: z.array(z.array(cellSchema)).optional().describe("Rows of cells."),
     }),
-    render: ({ columns, rows, children }) => (
-      <table data-aui="table">
-        {Array.isArray(columns) && columns.length ? (
-          <thead>
-            <tr>
-              {columns.map((column, i) =>
-                column && typeof column.label === "string" ? (
+    render: ({ columns, rows, children }) => {
+      const safeColumns = Array.isArray(columns)
+        ? columns.filter(isTableColumn)
+        : [];
+      const safeRows = Array.isArray(rows) ? rows.filter(Array.isArray) : [];
+
+      return (
+        <table data-aui="table">
+          {safeColumns.length ? (
+            <thead>
+              <tr>
+                {safeColumns.map((column, i) => (
                   <th key={i} data-aui="table-col">
                     {column.label}
                   </th>
-                ) : null,
-              )}
-            </tr>
-          </thead>
-        ) : null}
-        {Array.isArray(rows) && rows.length ? (
-          <tbody>
-            {rows.map((row, r) =>
-              Array.isArray(row) ? (
+                ))}
+              </tr>
+            </thead>
+          ) : null}
+          {safeRows.length ? (
+            <tbody>
+              {safeRows.map((row, r) => (
                 <tr key={r}>
-                  {row.map((cell, c) => (
-                    <td key={c}>{String(cell)}</td>
-                  ))}
+                  {row.map((cell, c) =>
+                    isTableCell(cell) ? <td key={c}>{String(cell)}</td> : null,
+                  )}
                 </tr>
-              ) : null,
-            )}
-          </tbody>
-        ) : null}
-        {children}
-      </table>
-    ),
+              ))}
+            </tbody>
+          ) : null}
+          {children}
+        </table>
+      );
+    },
   },
   Markdown: {
     description:

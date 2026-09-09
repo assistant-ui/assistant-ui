@@ -107,10 +107,18 @@ describe("interactiveVocabulary", () => {
     expect(render({ $type: "Select" })).toBe(
       '<select data-aui="select"></select>',
     );
+    expect(render({ $type: "Select", options: "not-an-array" })).toBe(
+      '<select data-aui="select"></select>',
+    );
     expect(
       render({
         $type: "Select",
-        options: [null, { label: "Missing value" }, { label: "A", value: "a" }],
+        options: [
+          null,
+          { label: "Missing value" },
+          { value: "Missing label" },
+          { label: "A", value: "a" },
+        ],
       }),
     ).toBe('<select data-aui="select"><option value="a">A</option></select>');
   });

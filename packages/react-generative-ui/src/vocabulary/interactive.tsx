@@ -10,8 +10,18 @@ const optionSchema = z.object({
   value: z.string(),
 });
 
+type Option = { label: string; value: string };
+
+const isOption = (option: unknown): option is Option =>
+  option !== null &&
+  typeof option === "object" &&
+  "label" in option &&
+  typeof option.label === "string" &&
+  "value" in option &&
+  typeof option.value === "string";
+
 type RadioGroupRenderProps = {
-  options: { label: string; value: string }[];
+  options: Option[];
   name?: string;
   label?: string;
   defaultValue?: string;
@@ -29,29 +39,25 @@ function RadioGroupRender({
 }: RadioGroupRenderProps) {
   const generatedName = useId();
   const fieldName = name ?? generatedName;
-  const safeOptions = Array.isArray(options) ? options : [];
+  const safeOptions = Array.isArray(options) ? options.filter(isOption) : [];
   return (
     <fieldset
       data-aui="radiogroup"
       data-aui-action={actionAttr($action)}
       aria-label={label}
     >
-      {safeOptions.map((option, i) =>
-        option &&
-        typeof option.label === "string" &&
-        typeof option.value === "string" ? (
-          <label key={i} data-aui="radiogroup-option">
-            <input
-              type="radio"
-              name={fieldName}
-              value={option.value}
-              defaultChecked={defaultValue === option.value}
-              onChange={() => fire($action, $dispatch, option.value)}
-            />
-            {option.label}
-          </label>
-        ) : null,
-      )}
+      {safeOptions.map((option, i) => (
+        <label key={i} data-aui="radiogroup-option">
+          <input
+            type="radio"
+            name={fieldName}
+            value={option.value}
+            defaultChecked={defaultValue === option.value}
+            onChange={() => fire($action, $dispatch, option.value)}
+          />
+          {option.label}
+        </label>
+      ))}
     </fieldset>
   );
 }
@@ -134,14 +140,12 @@ export const interactiveVocabulary = {
             {placeholder}
           </option>
         ) : null}
-        {(Array.isArray(options) ? options : []).map((option, i) =>
-          option &&
-          typeof option.label === "string" &&
-          typeof option.value === "string" ? (
+        {(Array.isArray(options) ? options.filter(isOption) : []).map(
+          (option, i) => (
             <option key={i} value={option.value}>
               {option.label}
             </option>
-          ) : null,
+          ),
         )}
         {children}
       </select>
