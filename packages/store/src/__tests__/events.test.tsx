@@ -223,7 +223,7 @@ describe("scope-filtered on", () => {
           ? { thread: ThreadClient(), message: messageDerived() }
           : { thread: ThreadClient() }) as unknown as useAui.Props,
       );
-      return <AuiProvider value={aui as never}>{null}</AuiProvider>;
+      return <AuiProvider value={aui as never} />;
     };
     const view = render(<Harness hasMessage />);
     const cb = vi.fn();

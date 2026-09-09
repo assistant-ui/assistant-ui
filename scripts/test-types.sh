@@ -14,8 +14,8 @@ if [ -z "$selector" ]; then
 fi
 
 # Only directly changed workspaces are checked so unrelated type drift in
-# dependents does not block a focused change. Their workspace dependencies are
-# built explicitly because examples and templates may not have a test task.
-pnpm turbo build --filter="${selector}^..."
-exec pnpm --filter="$selector" --workspace-concurrency=4 --no-bail exec sh -c \
+# dependents does not block a focused change. Build the selected workspaces and
+# their dependency closure so a dependency that is also changed is not omitted.
+pnpm turbo build --filter="${selector}..."
+exec pnpm -r --filter="$selector" --workspace-concurrency=4 --no-bail exec sh -c \
   '! test -f tsconfig.json || tsc --noEmit'
