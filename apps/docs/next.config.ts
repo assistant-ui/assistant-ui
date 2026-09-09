@@ -428,7 +428,17 @@ const config: NextConfig = {
       },
       {
         source: "/design/:path+.md",
+        has: [{ type: "query", key: "view", value: "radix-ui" }],
+        destination: "/radix-llms.mdx/design/:path*",
+      },
+      {
+        source: "/design/:path+.md",
         destination: "/llms.mdx/design/:path*",
+      },
+      {
+        source: "/design/:path+.mdx",
+        has: [{ type: "query", key: "view", value: "radix-ui" }],
+        destination: "/radix-llms.mdx/design/:path*",
       },
       {
         source: "/design/:path+.mdx",
@@ -489,6 +499,14 @@ const config: NextConfig = {
           { type: "header", key: "accept", value: "(?:.*text/markdown.*)" },
         ],
         destination: "/llms.mdx/examples/:path*",
+      },
+      {
+        source: "/design/:path*",
+        has: [
+          { type: "header", key: "accept", value: "(?:.*text/markdown.*)" },
+          { type: "query", key: "view", value: "radix-ui" },
+        ],
+        destination: "/radix-llms.mdx/design/:path*",
       },
       {
         source: "/design/:path*",

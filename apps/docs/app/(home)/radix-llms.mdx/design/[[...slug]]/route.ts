@@ -11,7 +11,7 @@ export async function GET(
   { params }: { params: Promise<{ slug?: string[] }> },
 ) {
   const { slug } = await params;
-  return createMarkdownResponse(await getDesignMarkdown(slug, "base"));
+  return createMarkdownResponse(await getDesignMarkdown(slug, "radix"));
 }
 
 export function generateStaticParams() {
