@@ -1,6 +1,7 @@
 "use client";
 
-import { useMemo } from "react";
+import { useMemo, useRef } from "react";
+import { compareComponentsByLanguage } from "@assistant-ui/react-markdown/code-fence";
 import type { StreamdownProps } from "streamdown";
 import { createCodeAdapter, shouldUseCodeAdapter } from "./code-adapter";
 import { PreOverride } from "./PreOverride";
@@ -24,6 +25,17 @@ export function useAdaptedComponents({
   components,
   componentsByLanguage,
 }: UseAdaptedComponentsOptions): StreamdownProps["components"] {
+  const stableComponentsByLanguage = useRef(componentsByLanguage);
+  if (
+    !compareComponentsByLanguage(
+      stableComponentsByLanguage.current,
+      componentsByLanguage,
+    )
+  ) {
+    stableComponentsByLanguage.current = componentsByLanguage;
+  }
+  const currentComponentsByLanguage = stableComponentsByLanguage.current;
+
   return useMemo(() => {
     const { SyntaxHighlighter, CodeHeader, ...htmlComponents } =
       components ?? {};
@@ -31,7 +43,7 @@ export function useAdaptedComponents({
     const codeAdapterOptions = {
       SyntaxHighlighter,
       CodeHeader,
-      componentsByLanguage,
+      componentsByLanguage: currentComponentsByLanguage,
     };
 
     const baseComponents = { pre: PreOverride };
@@ -47,5 +59,5 @@ export function useAdaptedComponents({
       ...baseComponents,
       code: AdaptedCode,
     };
-  }, [components, componentsByLanguage]);
+  }, [components, currentComponentsByLanguage]);
 }
