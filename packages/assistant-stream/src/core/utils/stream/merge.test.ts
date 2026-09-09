@@ -1,7 +1,82 @@
 import { describe, expect, it, vi } from "vitest";
+import type { AssistantStreamChunk } from "../../AssistantStreamChunk";
 import { createMergeStream } from "./merge";
 
+const textDelta = (textDelta: string): AssistantStreamChunk => ({
+  type: "text-delta",
+  path: [0],
+  textDelta,
+});
+
 describe("createMergeStream", () => {
+  it("reuses one reader for ordered raw chunks", async () => {
+    const getReader = vi.spyOn(ReadableStream.prototype, "getReader");
+    const merger = createMergeStream();
+    const received: AssistantStreamChunk[] = [];
+
+    merger.enqueue(textDelta("a"));
+    merger.enqueue(textDelta("b"));
+    merger.enqueue(textDelta("c"));
+
+    expect(getReader).toHaveBeenCalledOnce();
+    getReader.mockRestore();
+
+    merger.seal();
+    await merger.readable.pipeTo(
+      new WritableStream({
+        write(chunk) {
+          received.push(chunk);
+        },
+      }),
+    );
+
+    expect(received).toEqual([textDelta("a"), textDelta("b"), textDelta("c")]);
+  });
+
+  it("preserves raw chunk order around a merged stream", async () => {
+    const merger = createMergeStream();
+    const received: AssistantStreamChunk[] = [];
+
+    merger.enqueue(textDelta("before"));
+    merger.addStream(
+      new ReadableStream({
+        start(controller) {
+          controller.enqueue(textDelta("child"));
+          controller.close();
+        },
+      }),
+    );
+    merger.enqueue(textDelta("after"));
+    merger.seal();
+
+    await merger.readable.pipeTo(
+      new WritableStream({
+        write(chunk) {
+          received.push(chunk);
+        },
+      }),
+    );
+
+    expect(received).toEqual([
+      textDelta("before"),
+      textDelta("child"),
+      textDelta("after"),
+    ]);
+  });
+
+  it("discards raw chunks after cancellation", async () => {
+    const getReader = vi.spyOn(ReadableStream.prototype, "getReader");
+    const merger = createMergeStream();
+
+    merger.enqueue(textDelta("before"));
+    await merger.readable.cancel();
+    merger.enqueue(textDelta("after"));
+
+    expect(merger.isCancelled()).toBe(true);
+    expect(getReader).toHaveBeenCalledOnce();
+    getReader.mockRestore();
+  });
+
   it("releases child readers after successful completion", async () => {
     const child = new ReadableStream<never>({
       start(controller) {

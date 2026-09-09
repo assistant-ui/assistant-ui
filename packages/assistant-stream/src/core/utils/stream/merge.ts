@@ -13,6 +13,9 @@ export const createMergeStream = () => {
   let cancelled = false;
   let errored = false;
   let controller: ReadableStreamDefaultController<AssistantStreamChunk>;
+  let rawChunkController:
+    | ReadableStreamDefaultController<AssistantStreamChunk>
+    | undefined;
   let currentPull: ReturnType<typeof promiseWithResolvers<void>> | undefined;
   let cleanupPromise: Promise<void> | undefined;
 
@@ -93,6 +96,39 @@ export const createMergeStream = () => {
     },
   });
 
+  const closeRawChunkStream = () => {
+    rawChunkController?.close();
+    rawChunkController = undefined;
+  };
+
+  const addStreamItem = (
+    stream: ReadableStream<AssistantStreamChunk>,
+    pipeTask?: Promise<unknown>,
+  ) => {
+    const item = { reader: stream.getReader(), pipeTask };
+    list.push(item);
+    handlePull(item);
+  };
+
+  const addStream = (
+    stream: ReadableStream<AssistantStreamChunk>,
+    pipeTask?: Promise<unknown>,
+  ) => {
+    const handledPipeTask = pipeTask?.catch(() => undefined);
+    if (cancelled || errored) {
+      void stream.cancel().catch(() => undefined);
+      return;
+    }
+
+    if (sealed) {
+      void stream.cancel().catch(() => undefined);
+      throw new Error("Cannot add streams after the run callback has settled.");
+    }
+
+    closeRawChunkStream();
+    addStreamItem(stream, handledPipeTask);
+  };
+
   return {
     readable,
     isSealed() {
@@ -107,38 +143,32 @@ export const createMergeStream = () => {
     seal() {
       if (sealed || cancelled || errored) return;
       sealed = true;
+      closeRawChunkStream();
       if (list.length === 0) controller.close();
     },
-    addStream(
-      stream: ReadableStream<AssistantStreamChunk>,
-      pipeTask?: Promise<unknown>,
-    ) {
-      const handledPipeTask = pipeTask?.catch(() => undefined);
-      if (cancelled || errored) {
-        void stream.cancel().catch(() => undefined);
-        return;
-      }
-
+    addStream,
+    enqueue(chunk: AssistantStreamChunk) {
+      if (cancelled || errored) return;
       if (sealed) {
-        void stream.cancel().catch(() => undefined);
         throw new Error(
           "Cannot add streams after the run callback has settled.",
         );
       }
 
-      const item = { reader: stream.getReader(), pipeTask: handledPipeTask };
-      list.push(item);
-      handlePull(item);
-    },
-    enqueue(chunk: AssistantStreamChunk) {
-      this.addStream(
-        new ReadableStream({
-          start(c) {
-            c.enqueue(chunk);
-            c.close();
-          },
-        }),
-      );
+      if (!rawChunkController) {
+        addStreamItem(
+          new ReadableStream({
+            start(c) {
+              rawChunkController = c;
+            },
+            cancel() {
+              rawChunkController = undefined;
+            },
+          }),
+        );
+      }
+
+      rawChunkController?.enqueue(chunk);
     },
   };
 };
