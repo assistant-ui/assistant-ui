@@ -1,7 +1,11 @@
-import { describe, expect, it, vi } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 import type { UIMessage } from "@ai-sdk/react";
 import type { AssistantCloud } from "assistant-cloud";
 import { CloudEngagementReporter } from "./CloudEngagementReporter";
+
+afterEach(() => {
+  vi.useRealTimers();
+});
 
 const message = (
   id: string,
