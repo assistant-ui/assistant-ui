@@ -149,13 +149,7 @@ describe("AssistantFrameProvider", () => {
   it("reports tool results that cannot cross the frame boundary", async () => {
     const execute = vi.fn(async () => () => undefined);
     vi.mocked(parentWindow.postMessage).mockImplementation((data) => {
-      const message = (data as { message?: Record<string, unknown> }).message;
-      if (message?.["type"] === "tool-result" && "result" in message) {
-        throw new DOMException(
-          "The object could not be cloned.",
-          "DataCloneError",
-        );
-      }
+      structuredClone(data);
     });
     AssistantFrameProvider.addModelContextProvider({
       getModelContext: () => ({

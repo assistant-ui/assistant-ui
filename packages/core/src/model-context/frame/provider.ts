@@ -108,7 +108,7 @@ export class AssistantFrameProvider {
       case "tool-call":
         void this.handleToolCall(message, event).catch((error: unknown) => {
           console.error(
-            "[assistant-ui] Failed to send AssistantFrame tool result.",
+            "[assistant-ui] AssistantFrame tool call failed.",
             error,
           );
         });
