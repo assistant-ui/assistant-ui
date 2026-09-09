@@ -6,6 +6,7 @@ import {
   getTapDocsPages,
 } from "@/lib/source";
 import { getLLMText } from "@/lib/get-llm-text";
+import { PLAIN_TEXT_RESPONSE_HEADERS } from "@/lib/markdown-response";
 
 export const revalidate = false;
 
@@ -20,10 +21,6 @@ export async function GET() {
   const scanned = await Promise.all(scan);
 
   return new Response(scanned.join("\n\n"), {
-    headers: {
-      "Cache-Control": "no-cache, must-revalidate",
-      "Content-Type": "text/plain; charset=utf-8",
-      "X-Robots-Tag": "noindex, follow",
-    },
+    headers: PLAIN_TEXT_RESPONSE_HEADERS,
   });
 }
