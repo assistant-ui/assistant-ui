@@ -118,6 +118,33 @@ const isStandardSchema = (schema: unknown): schema is StandardSchemaLike =>
   "~standard" in schema &&
   (schema as StandardSchemaLike)["~standard"].version === 1;
 
+const awaitWithAbort = async <T>(
+  value: T | PromiseLike<T>,
+  signal: AbortSignal | undefined,
+): Promise<T> => {
+  if (!signal) return await value;
+  if (signal.aborted) throw new Error("Tool execution was cancelled.");
+
+  return await new Promise<T>((resolve, reject) => {
+    const onAbort = () => {
+      signal.removeEventListener("abort", onAbort);
+      reject(new Error("Tool execution was cancelled."));
+    };
+    signal.addEventListener("abort", onAbort, { once: true });
+
+    Promise.resolve(value).then(
+      (result) => {
+        signal.removeEventListener("abort", onAbort);
+        resolve(result);
+      },
+      (error: unknown) => {
+        signal.removeEventListener("abort", onAbort);
+        reject(error);
+      },
+    );
+  });
+};
+
 // AbortSignal.any sits above the browserslist floor and rejects any input that
 // is not a native AbortSignal, which a navigator.modelContext polyfill's signal
 // is not. The merged signal tracks its inputs only until cleanup runs, where
@@ -179,10 +206,15 @@ export const toWebMcpTool = (
       } else {
         abortSignal = callerSignal ?? lifecycleSignal;
       }
+
+      if (abortSignal?.aborted) {
+        return errorResult("Tool execution was cancelled.");
+      }
+
       let executeFn = tool.execute;
       if (isStandardSchema(tool.parameters)) {
         let validation = tool.parameters["~standard"].validate(args);
-        validation = await validation;
+        validation = await awaitWithAbort(validation, abortSignal);
         if (validation.issues) {
           const issues = validation.issues;
           executeFn =
@@ -193,10 +225,6 @@ export const toWebMcpTool = (
               );
             });
         }
-      }
-
-      if (abortSignal?.aborted) {
-        return errorResult("Tool execution was cancelled.");
       }
 
       if (!executeFn) {

@@ -268,6 +268,37 @@ describe("toWebMcpTool cancellation", () => {
   });
 
   it.for(["caller", "lifecycle"] as const)(
+    "settles while async validation is pending when the %s signal aborts",
+    async (abortedSignal) => {
+      const lifecycle = new AbortController();
+      const caller = new AbortController();
+      let finishValidation!: (result: { issues?: readonly unknown[] }) => void;
+      const schema = z.object({ city: z.string() });
+      (schema as any)["~standard"] = {
+        ...schema["~standard"],
+        validate: () =>
+          new Promise<{ issues?: readonly unknown[] }>((resolve) => {
+            finishValidation = resolve;
+          }),
+      };
+      const execute = vi.fn(async () => "never");
+      const pending = descriptorFor(
+        { execute, parameters: schema },
+        lifecycle.signal,
+      ).execute({ city: "Paris" }, { signal: caller.signal });
+
+      (abortedSignal === "caller" ? caller : lifecycle).abort();
+
+      await expect(pending).resolves.toEqual({
+        isError: true,
+        content: [text("Tool execution was cancelled.")],
+      });
+      expect(execute).not.toHaveBeenCalled();
+      finishValidation({});
+    },
+  );
+
+  it.for(["caller", "lifecycle"] as const)(
     "merges signals without AbortSignal.any when the %s signal aborts",
     async (abortedSignal) => {
       const lifecycle = new AbortController();
