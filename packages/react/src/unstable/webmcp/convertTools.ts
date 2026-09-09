@@ -138,7 +138,7 @@ const raceWithAbort = async <T>(
   });
 
   try {
-    // Cancellation wins when validation aborts and rejects synchronously.
+    // Unlike assistant-stream's helper, cancellation wins when validation aborts and rejects synchronously.
     return await Promise.race([abortPromise, value]);
   } finally {
     abortSignal.removeEventListener("abort", onAbort);
