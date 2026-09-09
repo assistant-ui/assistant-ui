@@ -16,7 +16,8 @@ on:
       - "scripts/check-workspace-ranges.mjs"
       - "scripts/check-workspace-ranges.test.mjs"
       - "scripts/lib/script-options.mjs"
-      - "scripts/test-types.sh"
+      - "scripts/test-types.mjs"
+      - "scripts/test-types.test.mjs"
       - "scripts/sync-templates.sh"
       - "turbo.json"
       - "package.json"
@@ -38,7 +39,8 @@ on:
       - "scripts/check-workspace-ranges.mjs"
       - "scripts/check-workspace-ranges.test.mjs"
       - "scripts/lib/script-options.mjs"
-      - "scripts/test-types.sh"
+      - "scripts/test-types.mjs"
+      - "scripts/test-types.test.mjs"
       - "scripts/sync-templates.sh"
       - "turbo.json"
       - "package.json"
@@ -347,6 +349,9 @@ jobs:
 
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
+
+      - name: Test typecheck dependency selection
+        run: pnpm test:types:script
 
       - name: Type-check changed packages
         env:
