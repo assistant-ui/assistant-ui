@@ -93,6 +93,7 @@ declare class AssistantCloudEvents {
   #private;
   constructor(cloud: AssistantCloudAPI, isEnabled: () => boolean);
   track(event: AssistantCloudEvent): void;
+  dispose(): void;
 }
 
 declare class AssistantCloudFiles {

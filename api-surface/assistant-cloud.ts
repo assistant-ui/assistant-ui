@@ -71,6 +71,7 @@ declare class AssistantCloudEvents {
   #private;
   constructor(cloud: AssistantCloudAPI, isEnabled: () => boolean);
   track(event: AssistantCloudEvent): void;
+  dispose(): void;
 }
 
 declare class AssistantCloudFiles {
@@ -641,6 +642,7 @@ type RunReportInit = {
   provider?: string | undefined;
   usage?: RunTelemetryUsageInit | undefined;
   steps?: RunReportStepInit[] | undefined;
+  totalSteps?: number | undefined;
   toolCalls?: AssistantCloudRunReportToolCall[] | undefined;
   durationMs?: number | undefined;
   firstTokenMs?: number | undefined;
