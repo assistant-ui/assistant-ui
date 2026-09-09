@@ -261,10 +261,13 @@ async def create_run(
     controller = RunController(queue, state_data=state)
 
     async def background_task():
+        callback_failed = False
         try:
             await callback(controller)
-        except Exception as e:
-            controller.add_error(str(e))
+        except BaseException as e:
+            callback_failed = True
+            if isinstance(e, Exception):
+                controller.add_error(str(e))
             raise
         finally:
             # Flush any pending state updates before disposing
@@ -279,27 +282,33 @@ async def create_run(
                     dispose_index += 1
                     dispose()
 
+            async def cancel_stream_tasks():
+                task_index = 0
+                while task_index < len(controller._stream_tasks):
+                    drain_dispose_callbacks()
+                    tasks = controller._stream_tasks[task_index:]
+                    for task in tasks:
+                        if not task.done():
+                            task.cancel()
+                    await asyncio.gather(*tasks, return_exceptions=True)
+                    task_index += len(tasks)
+                drain_dispose_callbacks()
+
             drain_dispose_callbacks()
             try:
-                try:
-                    task_index = 0
-                    while task_index < len(controller._stream_tasks):
-                        tasks = controller._stream_tasks[task_index:]
-                        await asyncio.gather(*tasks)
-                        task_index += len(tasks)
-                        drain_dispose_callbacks()
-                except BaseException:
-                    task_index = 0
-                    while task_index < len(controller._stream_tasks):
-                        drain_dispose_callbacks()
-                        tasks = controller._stream_tasks[task_index:]
-                        for task in tasks:
-                            if not task.done():
-                                task.cancel()
-                        await asyncio.gather(*tasks, return_exceptions=True)
-                        task_index += len(tasks)
-                    drain_dispose_callbacks()
-                    raise
+                if callback_failed:
+                    await cancel_stream_tasks()
+                else:
+                    try:
+                        task_index = 0
+                        while task_index < len(controller._stream_tasks):
+                            tasks = controller._stream_tasks[task_index:]
+                            await asyncio.gather(*tasks)
+                            task_index += len(tasks)
+                            drain_dispose_callbacks()
+                    except BaseException:
+                        await cancel_stream_tasks()
+                        raise
             finally:
                 enqueue_threadsafe(asyncio.get_running_loop(), queue, None)
 

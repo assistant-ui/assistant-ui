@@ -187,6 +187,39 @@ async def test_early_stream_close_forces_background_task_cancellation():
 
 
 @pytest.mark.anyio
+async def test_early_stream_close_cancels_and_awaits_substreams():
+    substream_started = asyncio.Event()
+    substream_cancelled = asyncio.Event()
+    substream_finished = asyncio.Event()
+
+    async def blocking_stream():
+        substream_started.set()
+        try:
+            await asyncio.Event().wait()
+        except asyncio.CancelledError:
+            substream_cancelled.set()
+            raise
+        finally:
+            substream_finished.set()
+        yield
+
+    async def run_callback(controller: RunController):
+        controller.add_stream(blocking_stream())
+        controller.append_text("start")
+        await substream_started.wait()
+        await asyncio.Event().wait()
+
+    stream = create_run(run_callback)
+    first_chunk = await anext(stream)
+    assert first_chunk.type == "text-delta"
+
+    await asyncio.wait_for(stream.aclose(), timeout=1)
+
+    assert substream_cancelled.is_set()
+    assert substream_finished.is_set()
+
+
+@pytest.mark.anyio
 async def test_early_stream_close_does_not_raise_callback_exception():
     async def run_callback(controller: RunController):
         controller.append_text("start")
