@@ -138,7 +138,7 @@ const raceWithAbort = async <T>(
   });
 
   try {
-    return await Promise.race([value, abortPromise]);
+    return await Promise.race([abortPromise, value]);
   } finally {
     abortSignal.removeEventListener("abort", onAbort);
   }

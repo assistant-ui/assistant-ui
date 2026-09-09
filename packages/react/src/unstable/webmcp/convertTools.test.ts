@@ -326,21 +326,41 @@ describe("toWebMcpTool cancellation", () => {
     expect(execute).not.toHaveBeenCalled();
   });
 
-  it("does not execute when cancellation follows validation", async () => {
+  it("prefers cancellation when validation aborts before rejecting", async () => {
     const caller = new AbortController();
-    const removeEventListener = caller.signal.removeEventListener.bind(
-      caller.signal,
-    );
-    vi.spyOn(caller.signal, "removeEventListener").mockImplementation(
-      (...args) => {
-        removeEventListener(...args);
-        caller.abort();
-      },
-    );
     const schema = z.object({ city: z.string() });
     (schema as any)["~standard"] = {
       ...schema["~standard"],
-      validate: async () => ({}),
+      validate: () => {
+        caller.abort();
+        return Promise.reject(new Error("validation failed"));
+      },
+    };
+    const execute = vi.fn(async () => "never");
+
+    const result = await descriptorFor({ execute, parameters: schema }).execute(
+      { city: "Paris" },
+      { signal: caller.signal },
+    );
+
+    expect(result).toEqual({
+      isError: true,
+      content: [text("Tool execution was cancelled.")],
+    });
+    expect(execute).not.toHaveBeenCalled();
+  });
+
+  it("does not execute when cancellation follows validation", async () => {
+    const caller = new AbortController();
+    const schema = z.object({ city: z.string() });
+    (schema as any)["~standard"] = {
+      ...schema["~standard"],
+      validate: () => ({
+        then: (resolve: (value: { issues?: readonly unknown[] }) => void) => {
+          resolve({});
+          caller.abort();
+        },
+      }),
     };
     const execute = vi.fn(async () => "never");
 
