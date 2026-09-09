@@ -1,4 +1,4 @@
-import { createHash } from "node:crypto";
+import { sha256 } from "./sha256";
 
 const CACHE_CONTROL = "no-cache, must-revalidate";
 
@@ -6,7 +6,7 @@ export function createMarkdownResponse(
   content: string,
   contentType = "text/markdown; charset=utf-8",
 ) {
-  const digest = createHash("sha256").update(content).digest("base64url");
+  const digest = sha256(content);
 
   return new Response(content, {
     headers: {

@@ -12,7 +12,7 @@ describe("markdown response headers", () => {
     expect(response.headers.get("Content-Type")).toBe(
       "text/markdown; charset=utf-8",
     );
-    expect(response.headers.get("ETag")).toMatch(/^"sha256-[\w-]+"$/);
+    expect(response.headers.get("ETag")).toMatch(/^"sha256-[a-f0-9]{64}"$/);
     expect(response.headers.get("X-Robots-Tag")).toBe("noindex, follow");
   });
 
@@ -28,7 +28,7 @@ describe("markdown response headers", () => {
     expect(response.headers.get("Content-Type")).toBe(
       "text/plain; charset=utf-8",
     );
-    expect(response.headers.get("ETag")).toMatch(/^"sha256-[\w-]+"$/);
+    expect(response.headers.get("ETag")).toMatch(/^"sha256-[a-f0-9]{64}"$/);
     expect(response.headers.get("X-Robots-Tag")).toBe("noindex, follow");
   });
 
