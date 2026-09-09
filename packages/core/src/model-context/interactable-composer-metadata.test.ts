@@ -155,6 +155,51 @@ describe("shallowMergeInteractableState", () => {
       title: "final",
     });
   });
+
+  it("keeps first-match and strict ID behavior for malformed patches and items", () => {
+    const prev = {
+      tasks: [
+        { id: "a", title: "A" },
+        { id: "missing", title: "Missing" },
+        { id: 1, title: "Number" },
+        { id: Number.NaN, title: "NaN" },
+        { title: "No ID" },
+        null,
+        42,
+        ["array"],
+      ],
+    };
+
+    expect(
+      shallowMergeInteractableState(prev, {
+        tasks: {
+          update: [
+            null,
+            ["invalid"],
+            { id: "a", title: "first" },
+            { id: "a", title: "second" },
+            { id: "missing", title: "Updated" },
+            { id: "1", title: "Wrong type" },
+            { id: 1, title: "Number updated" },
+            { id: "unused", title: "Unused" },
+            { id: undefined, title: "Invalid ID" },
+            { id: Number.NaN, title: "Invalid NaN" },
+          ],
+        },
+      }),
+    ).toEqual({
+      tasks: [
+        { id: "a", title: "first" },
+        { id: "missing", title: "Updated" },
+        { id: 1, title: "Number updated" },
+        { id: Number.NaN, title: "NaN" },
+        { title: "No ID" },
+        null,
+        42,
+        ["array"],
+      ],
+    });
+  });
 });
 
 describe("findModelKnownState", () => {

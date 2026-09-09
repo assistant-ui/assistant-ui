@@ -94,12 +94,24 @@ function applyArrayUpdate(
 
   const patches = update.update;
   if (Array.isArray(patches) && patches.length > 0) {
+    const patchesById = new Map<string | number, Record<string, unknown>>();
+    for (const patch of patches) {
+      if (!isRecord(patch)) continue;
+      const id = patch.id;
+      if (
+        (typeof id !== "string" && typeof id !== "number") ||
+        (typeof id === "number" && Number.isNaN(id)) ||
+        patchesById.has(id)
+      ) {
+        continue;
+      }
+      patchesById.set(id, patch);
+    }
+
     next = next.map((item) => {
       const id = getArrayItemId(item);
       if (id === undefined || !isRecord(item)) return item;
-      const patch = patches.find(
-        (candidate) => isRecord(candidate) && candidate.id === id,
-      );
+      const patch = patchesById.get(id);
       return patch ? { ...item, ...patch } : item;
     });
   }
