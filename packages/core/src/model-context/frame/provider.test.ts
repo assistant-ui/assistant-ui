@@ -147,6 +147,9 @@ describe("AssistantFrameProvider", () => {
   });
 
   it("reports tool results that cannot cross the frame boundary", async () => {
+    const consoleError = vi
+      .spyOn(console, "error")
+      .mockImplementation(() => undefined);
     const execute = vi.fn(async () => () => undefined);
     vi.mocked(parentWindow.postMessage).mockImplementation((data) => {
       structuredClone(data);
@@ -160,6 +163,10 @@ describe("AssistantFrameProvider", () => {
     dispatchToolCall(window.location.origin);
 
     await vi.waitFor(() => {
+      expect(consoleError).toHaveBeenCalledWith(
+        "[assistant-ui] AssistantFrame tool result could not be sent.",
+        expect.objectContaining({ name: "DataCloneError" }),
+      );
       expect(parentWindow.postMessage).toHaveBeenCalledWith(
         {
           channel: FRAME_MESSAGE_CHANNEL,

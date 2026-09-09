@@ -170,6 +170,10 @@ export class AssistantFrameProvider {
     } catch (sendError) {
       if (error !== undefined) throw sendError;
 
+      console.error(
+        "[assistant-ui] AssistantFrame tool result could not be sent.",
+        sendError,
+      );
       this.sendMessage(event, {
         type: "tool-result",
         id: message.id,
