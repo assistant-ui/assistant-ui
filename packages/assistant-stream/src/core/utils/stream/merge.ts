@@ -5,6 +5,8 @@ type MergeStreamItem = {
   reader: ReadableStreamDefaultReader<AssistantStreamChunk>;
   pipeTask?: Promise<unknown> | undefined;
   promise?: Promise<unknown> | undefined;
+  startAfter?: PromiseLike<unknown> | undefined;
+  done: ReturnType<typeof promiseWithResolvers<void>>;
 };
 
 export const createMergeStream = () => {
@@ -13,6 +15,11 @@ export const createMergeStream = () => {
   let cancelled = false;
   let errored = false;
   let controller: ReadableStreamDefaultController<AssistantStreamChunk>;
+  let rawChunkController:
+    | ReadableStreamDefaultController<AssistantStreamChunk>
+    | undefined;
+  let lastRawChunkDone: Promise<void> | undefined;
+  let childItemsSinceRaw: MergeStreamItem[] = [];
   let currentPull: ReturnType<typeof promiseWithResolvers<void>> | undefined;
   let cleanupPromise: Promise<void> | undefined;
 
@@ -24,6 +31,7 @@ export const createMergeStream = () => {
           await item.reader.cancel().catch(() => undefined);
           await item.pipeTask;
         } finally {
+          item.done.resolve();
           item.reader.releaseLock();
         }
       }),
@@ -38,15 +46,37 @@ export const createMergeStream = () => {
       // ideally, using assistant-stream w sync run method + piping to a sync WritableStream runs in the same microtask
       // this is useful because we often use AssistantStreams internally as a serialization utility, e. g. AssistantTransformStream
       // idea: avoid reader.read() by instead using a WritableStream & if (!hasPendingPull) await waitForPull()?
-      item.promise = item.reader
-        .read()
-        .then(({ done, value }) => {
+      const handleError = (e: unknown) => {
+        item.done.resolve();
+        if (cancelled || errored) return;
+
+        errored = true;
+        console.error(e);
+        void cancelAllReaders();
+
+        controller.error(e);
+
+        currentPull?.reject(e);
+        currentPull = undefined;
+      };
+
+      const read = () => {
+        if (cancelled || errored) {
+          item.done.resolve();
+          return;
+        }
+
+        return item.reader.read().then(({ done, value }) => {
           item.promise = undefined;
-          if (cancelled || errored) return;
+          if (cancelled || errored) {
+            item.done.resolve();
+            return;
+          }
 
           if (done) {
             list.splice(list.indexOf(item), 1);
             item.reader.releaseLock();
+            item.done.resolve();
             if (sealed && list.length === 0) {
               controller.close();
             }
@@ -56,19 +86,13 @@ export const createMergeStream = () => {
 
           currentPull?.resolve();
           currentPull = undefined;
-        })
-        .catch((e) => {
-          if (cancelled || errored) return;
-
-          errored = true;
-          console.error(e);
-          void cancelAllReaders();
-
-          controller.error(e);
-
-          currentPull?.reject(e);
-          currentPull = undefined;
         });
+      };
+
+      const readTask = item.startAfter
+        ? Promise.resolve(item.startAfter).then(read)
+        : read();
+      item.promise = readTask?.catch(handleError);
     }
   };
 
@@ -93,6 +117,48 @@ export const createMergeStream = () => {
     },
   });
 
+  const closeRawChunkStream = () => {
+    rawChunkController?.close();
+    rawChunkController = undefined;
+  };
+
+  const addStreamItem = (
+    stream: ReadableStream<AssistantStreamChunk>,
+    pipeTask?: Promise<unknown>,
+    startAfter?: PromiseLike<unknown>,
+  ) => {
+    const item: MergeStreamItem = {
+      reader: stream.getReader(),
+      pipeTask,
+      startAfter,
+      done: promiseWithResolvers<void>(),
+    };
+    list.push(item);
+    handlePull(item);
+    return item;
+  };
+
+  const addStream = (
+    stream: ReadableStream<AssistantStreamChunk>,
+    pipeTask?: Promise<unknown>,
+  ) => {
+    const handledPipeTask = pipeTask?.catch(() => undefined);
+    if (cancelled || errored) {
+      void stream.cancel().catch(() => undefined);
+      return;
+    }
+
+    if (sealed) {
+      void stream.cancel().catch(() => undefined);
+      throw new Error("Cannot add streams after the run callback has settled.");
+    }
+
+    const previousRawChunkDone = lastRawChunkDone;
+    closeRawChunkStream();
+    const item = addStreamItem(stream, handledPipeTask, previousRawChunkDone);
+    childItemsSinceRaw.push(item);
+  };
+
   return {
     readable,
     isSealed() {
@@ -107,38 +173,40 @@ export const createMergeStream = () => {
     seal() {
       if (sealed || cancelled || errored) return;
       sealed = true;
+      closeRawChunkStream();
       if (list.length === 0) controller.close();
     },
-    addStream(
-      stream: ReadableStream<AssistantStreamChunk>,
-      pipeTask?: Promise<unknown>,
-    ) {
-      const handledPipeTask = pipeTask?.catch(() => undefined);
-      if (cancelled || errored) {
-        void stream.cancel().catch(() => undefined);
-        return;
-      }
-
+    addStream,
+    enqueue(chunk: AssistantStreamChunk) {
+      if (cancelled || errored) return;
       if (sealed) {
-        void stream.cancel().catch(() => undefined);
         throw new Error(
           "Cannot add streams after the run callback has settled.",
         );
       }
 
-      const item = { reader: stream.getReader(), pipeTask: handledPipeTask };
-      list.push(item);
-      handlePull(item);
-    },
-    enqueue(chunk: AssistantStreamChunk) {
-      this.addStream(
-        new ReadableStream({
-          start(c) {
-            c.enqueue(chunk);
-            c.close();
-          },
-        }),
-      );
+      if (!rawChunkController) {
+        const startAfter =
+          childItemsSinceRaw.length === 0
+            ? undefined
+            : Promise.all(childItemsSinceRaw.map((item) => item.done.promise));
+        const item = addStreamItem(
+          new ReadableStream({
+            start(c) {
+              rawChunkController = c;
+            },
+            cancel() {
+              rawChunkController = undefined;
+            },
+          }),
+          undefined,
+          startAfter,
+        );
+        lastRawChunkDone = item.done.promise;
+        childItemsSinceRaw = [];
+      }
+
+      rawChunkController!.enqueue(chunk);
     },
   };
 };
