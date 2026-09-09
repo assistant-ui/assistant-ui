@@ -373,11 +373,9 @@ export function Chat() {
 The `useChatRuntime` hook captures full run telemetry including timing data. This integrates with the assistant-ui runtime to provide:
 
 **Automatically captured:**
-- `status`: `"completed"`, `"incomplete"`, or `"error"`
-- `outcome_type`: why an incomplete run ended, `"aborted"`, `"disconnected"`, `"length"`, or `"content_filter"`
-- `error_code` and `error`: the failed run's error code (its `code`, else its class name) and message
+- `status`: `"completed"` or `"incomplete"`
 - `message_id`: the persisted assistant message the run produced
-- `first_token_ms` and `duration_ms`: time to first streamed token and total run duration
+- `duration_ms`: total run duration
 - `steps`: per-step timing, usage, and tool calls; the per-step `finish_reason` is reported by `useCloudChat` only, because the assistant-ui step metadata carries no finish reason
 - `tool_calls`: tool invocations with name, arguments, and results. MCP tool calls are explicitly tagged with `tool_source: "mcp"`
 - `total_steps`: number of reasoning and tool steps in the response
@@ -389,7 +387,10 @@ No message content is sent apart from `output_text`, which is the assistant outp
 **Requires route configuration:**
 - `model_id`: the model used
 - `provider`: the provider that served the model (`model.provider` below); server spans carry it as well
+- `outcome_type` (`"length"`, `"content_filter"`) and the `"error"` status: read from `finishReason` in the message metadata (`finishReason: part.finishReason` below); `"aborted"` and `"disconnected"` are reported by `useCloudChat` only
 - `input_tokens` / `output_tokens`: token usage statistics
+
+**Not reported by `useChatRuntime` yet:** `first_token_ms` ([#7112](https://github.com/assistant-ui/assistant-ui/issues/7112)) and `error` with `error_code` ([#7116](https://github.com/assistant-ui/assistant-ui/issues/7116)); the AI SDK message the runtime persists carries neither the timing nor the error. `useCloudChat` reports all three.
 
 To capture model and usage data, add the `messageMetadata` callback to your AI SDK route:
 
@@ -411,6 +412,7 @@ export async function POST(req: Request) {
       if (part.type === "finish") {
         return {
           usage: part.totalUsage,
+          finishReason: part.finishReason,
         };
       }
       if (part.type === "finish-step") {
