@@ -66,6 +66,20 @@ const tree = () => {
   return { a, b, c, d };
 };
 
+const deepTree = (depth: number) => {
+  let part = toolCall(String(depth - 1));
+  for (let index = depth - 2; index >= 0; index--) {
+    part = toolCall(String(index), [
+      {
+        id: `m${index + 1}`,
+        role: "assistant",
+        content: [part],
+      } as ThreadMessage,
+    ]);
+  }
+  return part;
+};
+
 describe("walkToolCallTree", () => {
   it("yields every part in document order, each ahead of its descendants", () => {
     const { a } = tree();
@@ -113,6 +127,16 @@ describe("walkToolCallTree", () => {
         (entry) => entry.part.toolCallId,
       ),
     ).toEqual(["a"]);
+  });
+
+  it("walks deeply nested tool calls without overflowing the stack", () => {
+    const depth = 10_000;
+    const entries = [
+      ...walkToolCallTree([assistant("root", [deepTree(depth)])]),
+    ];
+
+    expect(entries).toHaveLength(depth);
+    expect(entries.at(-1)?.part.toolCallId).toBe(String(depth - 1));
   });
 });
 
@@ -187,5 +211,30 @@ describe("mapToolCallPartsDeep", () => {
     expect(mapped).not.toBe(a);
     expect(mapped.messages?.[1]).toBe(sibling);
     expect(mapped.messages?.[0]).not.toBe(nested);
+  });
+
+  it("applies the mapper in document order", () => {
+    const { a } = tree();
+    const order: string[] = [];
+
+    mapToolCallPartsDeep([a, toolCall("e")], (part) => {
+      order.push(part.toolCallId);
+      return part;
+    });
+
+    expect(order).toEqual(["a", "b", "c", "d", "e"]);
+  });
+
+  it("rewrites deeply nested tool calls without overflowing the stack", () => {
+    const depth = 10_000;
+    const target = String(depth - 1);
+    const result = mapToolCallPartsDeep([deepTree(depth)], (part) =>
+      part.toolCallId === target ? { ...part, isError: true } : part,
+    );
+
+    expect(result.changed).toBe(true);
+    expect([...iterateToolCallParts(result.content)].at(-1)?.isError).toBe(
+      true,
+    );
   });
 });
