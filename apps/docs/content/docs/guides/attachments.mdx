@@ -601,7 +601,7 @@ class ServerUploadAdapter implements AttachmentAdapter {
 ```
 
 <Callout type="tip">
-  [assistant-ui Cloud](/docs/cloud/ai-sdk-assistant-ui) includes `CloudFileAttachmentAdapter` which handles large file uploads via presigned URLs out of the box.
+  [assistant-ui Cloud](/docs/cloud/ai-sdk-assistant-ui) includes `CloudFileAttachmentAdapter`, whose uploads return `key` beside `publicUrl`, persist the public URL with the message, and use `cloud.files.generatePresignedDownloadUrl({ key })` or `cloud.files.generatePresignedDownloadUrl({ url })` for signed 15-minute reads from private buckets once every reader uses signed URLs.
 </Callout>
 
 ## Best Practices

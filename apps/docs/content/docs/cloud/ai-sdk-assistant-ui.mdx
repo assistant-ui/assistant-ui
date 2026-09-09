@@ -373,16 +373,23 @@ export function Chat() {
 The `useChatRuntime` hook captures full run telemetry including timing data. This integrates with the assistant-ui runtime to provide:
 
 **Automatically captured:**
-- `status` — `"completed"`, `"incomplete"`, or `"error"`
-- `duration_ms` — Total run duration (measured client-side)
-- `steps` — Per-step breakdowns with timing, usage, and tool calls
-- `tool_calls` — Tool invocations with name, arguments, results, and source
-- `total_steps` — Number of reasoning/tool steps
-- `output_text` — Full response text (truncated at 50K characters)
+- `status`: `"completed"`, `"incomplete"`, or `"error"`
+- `outcome_type`: why an incomplete run ended, `"aborted"`, `"disconnected"`, `"length"`, or `"content_filter"`
+- `provider`: the provider associated with the model call
+- `error_code`: the error identifier, when one is available
+- `message_id`: the persisted assistant message the run produced
+- `first_token_ms` and `duration_ms`: time to first streamed token and total run duration
+- `steps`: per-step timing, usage, tool calls, and `finish_reason`
+- `tool_calls`: tool invocations with name, arguments, and results. MCP tool calls are explicitly tagged with `tool_source: "mcp"`
+- `total_steps`: number of reasoning and tool steps in the response
+- `output_text`: full response text, truncated at 50K characters
+- `trace_id`: joins the browser report to server spans when trace correlation is enabled
+
+No message content is sent apart from `output_text`, which is the assistant output already listed above.
 
 **Requires route configuration:**
-- `model_id` — The model used
-- `input_tokens` / `output_tokens` — Token usage statistics
+- `model_id`: the model used
+- `input_tokens` / `output_tokens`: token usage statistics
 
 To capture model and usage data, add the `messageMetadata` callback to your AI SDK route:
 
@@ -418,24 +425,108 @@ export async function POST(req: Request) {
 
 Without this configuration, model and token data will be omitted from telemetry reports.
 
-### Customizing Reports
+### Outcomes
 
-Use the `beforeReport` hook to add custom metadata or filter reports:
+| `outcome_type` | `status` | Meaning |
+|----------------|----------|---------|
+| `aborted` | `"incomplete"` | The user stopped the run. |
+| `disconnected` | `"incomplete"` | The stream disconnected before completion. |
+| `length` | `"incomplete"` | The model reached its length limit. |
+| `content_filter` | `"incomplete"` | The provider filtered the response. |
+
+### Deployment dimensions
+
+Set `telemetry.environment`, `telemetry.release`, and `telemetry.tags` to attach deployment dimensions to every report. Use `beforeReport` to add run attributes or filter reports:
 
 ```tsx
 const cloud = new AssistantCloud({
   baseUrl: process.env.NEXT_PUBLIC_ASSISTANT_BASE_URL!,
   anonymous: true,
   telemetry: {
+    environment: "production",
+    release: "2026.09.1",
+    tags: ["web"],
     beforeReport: (report) => ({
       ...report,
-      metadata: { userTier: "pro", region: "us-east" },
+      metadata: { userTier: "pro" },
     }),
   },
 });
 ```
 
-Return `null` from `beforeReport` to skip reporting a specific run. To disable telemetry entirely, pass `telemetry: false`.
+Assistant Cloud stores the `metadata` returned from `beforeReport` as the run's attributes. Return `null` from `beforeReport` to skip a report. To disable telemetry entirely, pass `telemetry: false`.
+
+### Trace correlation
+
+Create the Assistant Cloud trace exporter and span processor in Next.js `instrumentation.ts`:
+
+```ts title="instrumentation.ts"
+import { registerOTel } from "@vercel/otel";
+import {
+  createAssistantCloudSpanProcessor,
+  createAssistantCloudTraceExporter,
+} from "assistant-cloud/telemetry";
+
+export function register() {
+  registerOTel({
+    serviceName: "assistant-ui",
+    spanProcessors: [
+      "auto",
+      createAssistantCloudSpanProcessor(
+        createAssistantCloudTraceExporter({
+          apiKey: process.env.ASSISTANT_API_KEY!,
+        }),
+      ),
+    ],
+  });
+}
+```
+
+Enable the AI SDK OpenTelemetry integration and pass the trace ID through the stream response:
+
+```ts title="app/api/chat/route.ts"
+import { OpenTelemetry } from "@ai-sdk/otel";
+import { openai } from "@ai-sdk/openai";
+import { streamText } from "ai";
+import { withAssistantCloudTraceMetadata } from "assistant-cloud/telemetry";
+
+export async function POST(request: Request) {
+  const { messages } = await request.json();
+  const result = streamText({
+    model: openai("gpt-5.6-luna"),
+    messages,
+    telemetry: { integrations: [new OpenTelemetry()] },
+  });
+
+  return result.toUIMessageStreamResponse({
+    messageMetadata: withAssistantCloudTraceMetadata(),
+  });
+}
+```
+
+`withAssistantCloudTraceMetadata(messageMetadata?)` preserves an existing metadata callback. Use `assistantCloudTraceMetadata()` when composing the metadata yourself. The dashboard merges the browser report and server spans into one run.
+
+### Engagement Events
+
+The runtime also reports `message_sent`, `message_edited`, `run_stopped`, `message_regenerated`, `message_copied`, `branch_switched`, `suggestions_shown`, `suggestion_clicked`, `attachment_added`, `attachment_failed`, `thread_switched`, `tool_approved`, `tool_rejected`, `speech_started`, `voice_started`, and `error_shown`. Events carry counts, durations, and content types, never message text, and are batched with `keepalive`.
+
+Pass `telemetry: { events: false }` to keep run reports and stop engagement events. `telemetry: false` disables both.
+
+### Feedback and scores
+
+When `cloud` is set, `useChatRuntime` installs the Assistant Cloud `FeedbackAdapter` automatically. The runtime submits message feedback with `cloud.threads.messages.feedback(threadId, messageId, { type })`.
+
+Create evaluation scores for a run, a thread, or a message with `cloud.scores.create({ name, data_type, value | string_value, comment?, thread_id? | message_id + thread_id | run_id })`:
+
+```ts
+await cloud.scores.create({
+  name: "helpfulness",
+  data_type: "number",
+  value: 1,
+  comment: "Resolved the question",
+  thread_id: threadId,
+});
+```
 
 ### Sub-Agent Model Tracking
 
