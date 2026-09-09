@@ -1,7 +1,13 @@
 import type { Unsubscribe } from "../../types/unsubscribe";
 import type { ThreadRuntimeEventType } from "../../runtime/interfaces/thread-runtime-core";
 import type { ThreadRuntime } from "../../runtime/api/thread-runtime";
-import { useMemo, useEffect, useCallback, type RefObject } from "react";
+import {
+  useMemo,
+  useEffect,
+  useEffectEvent,
+  useCallback,
+  type RefObject,
+} from "react";
 import { useResource, resource, withKey } from "@assistant-ui/tap";
 import { liveRef } from "./liveRef";
 import type { ClientOutput } from "@assistant-ui/store";
@@ -20,17 +26,21 @@ const useMessageClientById = ({
   runtime,
   id,
   threadIdRef,
+  threadId,
 }: {
   runtime: ThreadRuntime;
   id: string;
   threadIdRef: RefObject<string>;
+  threadId: string;
 }) => {
   const messageRuntime = useMemo(
     () => runtime.getMessageById(id),
     [runtime, id],
   );
 
-  return useResource(MessageClient({ runtime: messageRuntime, threadIdRef }));
+  return useResource(
+    MessageClient({ runtime: messageRuntime, threadIdRef, threadId }),
+  );
 };
 
 const MessageClientById = resource(useMessageClientById);
@@ -72,6 +82,11 @@ const useThreadClient = ({
     () => liveRef(() => runtime.getState()!.threadId),
     [runtime],
   );
+  const emitThreadEvent = useEffectEvent(
+    (event: "thread.cancelRun" | "thread.voiceStarted") => {
+      emit(event, { threadId: runtime.getState()!.threadId });
+    },
+  );
   const isSuggestion = useCallback(
     (text: string) =>
       runtime
@@ -92,11 +107,16 @@ const useThreadClient = ({
   );
   const messages = useClientLookup(
     runtimeState.messages.map((m) =>
-      withKey(m.id, MessageClientById({ runtime, id: m.id, threadIdRef }), [
-        runtime,
+      withKey(
         m.id,
-        threadIdRef,
-      ]),
+        MessageClientById({
+          runtime,
+          id: m.id,
+          threadIdRef,
+          threadId: runtimeState.threadId,
+        }),
+        [runtime, m.id, threadIdRef],
+      ),
     ),
   );
 
@@ -128,9 +148,7 @@ const useThreadClient = ({
     resumeRun: runtime.resumeRun,
     importExternalState: runtime.importExternalState,
     cancelRun: () => {
-      if (runtimeState.isRunning) {
-        emit("thread.cancelRun", { threadId: threadIdRef.current });
-      }
+      if (runtimeState.isRunning) emitThreadEvent("thread.cancelRun");
       runtime.cancelRun();
     },
     getModelContext: runtime.getModelContext,
@@ -140,7 +158,7 @@ const useThreadClient = ({
     stopSpeaking: runtime.stopSpeaking,
     connectVoice: () => {
       runtime.connectVoice();
-      emit("thread.voiceStarted", { threadId: threadIdRef.current });
+      emitThreadEvent("thread.voiceStarted");
     },
     disconnectVoice: runtime.disconnectVoice,
     getVoiceVolume: runtime.getVoiceVolume,

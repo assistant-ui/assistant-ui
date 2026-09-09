@@ -51,9 +51,11 @@ const MessagePartByIndex = resource(useMessagePartByIndex);
 const useMessageClient = ({
   runtime,
   threadIdRef,
+  threadId,
 }: {
   runtime: MessageRuntime;
   threadIdRef: { current: string };
+  threadId: string;
 }): ClientOutput<"message"> => {
   const runtimeState = useSubscribable(runtime);
   const emit = useAssistantEmit();
@@ -66,6 +68,15 @@ const useMessageClient = ({
     [runtime],
   );
   const previousStatus = useRef(runtimeState.status);
+  const emitMessageEvent = (
+    event:
+      | "message.reload"
+      | "message.speak"
+      | "message.branchSwitched"
+      | "message.copied",
+  ) => {
+    emit(event, { threadId, messageId: runtime.getState().id });
+  };
 
   useEffect(() => {
     const status = runtimeState.status;
@@ -77,12 +88,12 @@ const useMessageClient = ({
       (previous?.type !== "incomplete" || previous.reason !== "error")
     ) {
       emit("message.error", {
-        threadId: threadIdRef.current,
-        messageId: messageIdRef.current,
+        threadId,
+        messageId: runtimeState.id,
         reason: "error",
       });
     }
-  }, [runtimeState.status, emit, threadIdRef, messageIdRef]);
+  }, [runtimeState.status, runtimeState.id, emit, threadId]);
 
   const composer = useClientResource(
     ComposerClient({
@@ -138,26 +149,17 @@ const useMessageClient = ({
 
     delete: () => runtime.delete(),
     reload: (config) => {
-      emit("message.reload", {
-        threadId: threadIdRef.current,
-        messageId: messageIdRef.current,
-      });
+      emitMessageEvent("message.reload");
       return runtime.reload(config);
     },
     speak: () => {
-      emit("message.speak", {
-        threadId: threadIdRef.current,
-        messageId: messageIdRef.current,
-      });
+      emitMessageEvent("message.speak");
       return runtime.speak();
     },
     stopSpeaking: () => runtime.stopSpeaking(),
     submitFeedback: (feedback) => runtime.submitFeedback(feedback),
     switchToBranch: (options) => {
-      emit("message.branchSwitched", {
-        threadId: threadIdRef.current,
-        messageId: messageIdRef.current,
-      });
+      emitMessageEvent("message.branchSwitched");
       return runtime.switchToBranch(options);
     },
     getCopyText: () => runtime.unstable_getCopyText(),
@@ -179,10 +181,7 @@ const useMessageClient = ({
 
     setIsCopied: (value) => {
       if (value) {
-        emit("message.copied", {
-          threadId: threadIdRef.current,
-          messageId: messageIdRef.current,
-        });
+        emitMessageEvent("message.copied");
       }
       setIsCopied(value);
     },
