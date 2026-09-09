@@ -66,7 +66,16 @@ export type MessageMeta = {
   query: { type: "id"; id: string } | { type: "index"; index: number };
 };
 
+export type MessageEvents = {
+  "message.reload": { threadId: string; messageId: string };
+  "message.branchSwitched": { threadId: string; messageId: string };
+  "message.copied": { threadId: string; messageId: string };
+  "message.speak": { threadId: string; messageId: string };
+  "message.error": { threadId: string; messageId: string; reason: "error" };
+};
+
 export type MessageClientSchema = {
   methods: MessageMethods;
   meta: MessageMeta;
+  events: MessageEvents;
 };

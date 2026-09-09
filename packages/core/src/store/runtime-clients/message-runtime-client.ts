@@ -1,7 +1,11 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useResource, withKey, resource } from "@assistant-ui/tap";
 import type { ClientOutput } from "@assistant-ui/store";
-import { useClientLookup, useClientResource } from "@assistant-ui/store/client";
+import {
+  useAssistantEmit,
+  useClientLookup,
+  useClientResource,
+} from "@assistant-ui/store/client";
 import type { MessageRuntime } from "../../runtime/api/message-runtime";
 import { useSubscribable } from "./useSubscribable";
 import { liveRef } from "./liveRef";
@@ -52,6 +56,7 @@ const useMessageClient = ({
   threadIdRef: { current: string };
 }): ClientOutput<"message"> => {
   const runtimeState = useSubscribable(runtime);
+  const emit = useAssistantEmit();
 
   const [isCopiedState, setIsCopied] = useState(false);
   const [isHoveringState, setIsHovering] = useState(false);
@@ -60,6 +65,24 @@ const useMessageClient = ({
     () => liveRef(() => runtime.getState().id),
     [runtime],
   );
+  const previousStatus = useRef(runtimeState.status);
+
+  useEffect(() => {
+    const status = runtimeState.status;
+    const previous = previousStatus.current;
+    previousStatus.current = status;
+    if (
+      status?.type === "incomplete" &&
+      status.reason === "error" &&
+      (previous?.type !== "incomplete" || previous.reason !== "error")
+    ) {
+      emit("message.error", {
+        threadId: threadIdRef.current,
+        messageId: messageIdRef.current,
+        reason: "error",
+      });
+    }
+  }, [runtimeState.status, emit, threadIdRef, messageIdRef]);
 
   const composer = useClientResource(
     ComposerClient({
@@ -114,11 +137,29 @@ const useMessageClient = ({
     composer: () => composer.methods,
 
     delete: () => runtime.delete(),
-    reload: (config) => runtime.reload(config),
-    speak: () => runtime.speak(),
+    reload: (config) => {
+      emit("message.reload", {
+        threadId: threadIdRef.current,
+        messageId: messageIdRef.current,
+      });
+      return runtime.reload(config);
+    },
+    speak: () => {
+      emit("message.speak", {
+        threadId: threadIdRef.current,
+        messageId: messageIdRef.current,
+      });
+      return runtime.speak();
+    },
     stopSpeaking: () => runtime.stopSpeaking(),
     submitFeedback: (feedback) => runtime.submitFeedback(feedback),
-    switchToBranch: (options) => runtime.switchToBranch(options),
+    switchToBranch: (options) => {
+      emit("message.branchSwitched", {
+        threadId: threadIdRef.current,
+        messageId: messageIdRef.current,
+      });
+      return runtime.switchToBranch(options);
+    },
     getCopyText: () => runtime.unstable_getCopyText(),
     part: (selector) => {
       if ("index" in selector) {
@@ -136,7 +177,15 @@ const useMessageClient = ({
       }
     },
 
-    setIsCopied,
+    setIsCopied: (value) => {
+      if (value) {
+        emit("message.copied", {
+          threadId: threadIdRef.current,
+          messageId: messageIdRef.current,
+        });
+      }
+      setIsCopied(value);
+    },
     setIsHovering,
 
     __internal_getRuntime: () => runtime,

@@ -24,8 +24,14 @@ const mocks = vi.hoisted(() => {
       threadListItem,
       threads: {
         item: vi.fn(() => threadListItem),
-        getState: () => ({ threadItems: [{ id, remoteId }] }),
+        getState: () => ({
+          mainThreadId: id,
+          threadItems: [{ id, remoteId }],
+        }),
       },
+      thread: { getState: () => ({ isEmpty: false, suggestions: [] }) },
+      on: () => () => {},
+      subscribe: () => () => {},
     } as unknown as import("@assistant-ui/store").AssistantClient;
   };
 
@@ -41,8 +47,14 @@ const mocks = vi.hoisted(() => {
       threadListItem: live,
       threads: {
         item: vi.fn(() => listItem),
-        getState: () => ({ threadItems: [{ id: remoteId, remoteId }] }),
+        getState: () => ({
+          mainThreadId: remoteId,
+          threadItems: [{ id: remoteId, remoteId }],
+        }),
       },
+      thread: { getState: () => ({ isEmpty: false, suggestions: [] }) },
+      on: () => () => {},
+      subscribe: () => () => {},
     } as unknown as import("@assistant-ui/store").AssistantClient;
   };
 
@@ -58,7 +70,7 @@ vi.mock("@assistant-ui/store", async (importOriginal) => ({
   useAui: () => mocks.aui,
 }));
 
-const makeCloud = () =>
+const makeCloud = (telemetry: Partial<AssistantCloud["telemetry"]> = {}) =>
   ({
     threads: {
       messages: {
@@ -71,7 +83,8 @@ const makeCloud = () =>
         }),
       },
     },
-    telemetry: { enabled: true },
+    events: { track: vi.fn() },
+    telemetry: { enabled: true, ...telemetry },
     runs: { report: vi.fn().mockResolvedValue(undefined) },
   }) as unknown as AssistantCloud;
 
@@ -95,6 +108,150 @@ afterEach(() => {
 });
 
 describe("useAssistantCloudThreadHistoryAdapter", () => {
+  it("tracks cloud engagement events without message content", async () => {
+    const now = vi.spyOn(Date, "now").mockReturnValue(100);
+    const listeners = new Map<string, (payload: any) => void>();
+    let notify: (() => void) | undefined;
+    const threadState = {
+      isEmpty: false,
+      suggestions: [] as { prompt: string }[],
+    };
+    const threadListItem = {
+      source: "threads",
+      getState: () => ({ id: "thread-1", remoteId: "thread-1" }),
+      initialize: async () => ({ remoteId: "thread-1", externalId: undefined }),
+    };
+    mocks.aui = {
+      threadListItem,
+      threads: {
+        item: vi.fn(() => threadListItem),
+        getState: () => ({
+          mainThreadId: "thread-1",
+          threadItems: [{ id: "thread-1", remoteId: "thread-1" }],
+        }),
+      },
+      thread: { getState: () => threadState },
+      on: vi.fn((selector, callback) => {
+        listeners.set(selector.event, callback);
+        return () => listeners.delete(selector.event);
+      }),
+      subscribe: vi.fn((callback) => {
+        notify = callback;
+        return () => {};
+      }),
+    } as unknown as import("@assistant-ui/store").AssistantClient;
+    const cloud = makeCloud();
+    const { result } = renderHook(() =>
+      useAssistantCloudThreadHistoryAdapter({ current: cloud }),
+    );
+    const message = makeAssistantMessage("local-message-1");
+
+    await result.current.append({ parentId: null, message });
+    await waitFor(() => expect(listeners.size).toBeGreaterThan(0));
+
+    listeners.get("thread.runEnd")!({ threadId: "thread-1" });
+    now.mockReturnValue(125);
+    listeners.get("composer.send")!({
+      threadId: "thread-1",
+      chars: 5,
+      attachments: 1,
+      suggestion: true,
+    });
+    listeners.get("composer.send")!({
+      threadId: "thread-1",
+      messageId: "local-message-1",
+      chars: 7,
+      attachments: 0,
+    });
+    listeners.get("thread.runStart")!({ threadId: "thread-1" });
+    now.mockReturnValue(150);
+    listeners.get("thread.cancelRun")!({ threadId: "thread-1" });
+    listeners.get("message.reload")!({
+      threadId: "thread-1",
+      messageId: "local-message-1",
+    });
+    listeners.get("message.branchSwitched")!({
+      threadId: "thread-1",
+      messageId: "local-message-1",
+    });
+    listeners.get("message.copied")!({
+      threadId: "thread-1",
+      messageId: "local-message-1",
+    });
+    listeners.get("composer.attachmentAdd")!({
+      threadId: "thread-1",
+      contentType: "image/png",
+    });
+    listeners.get("composer.attachmentAddError")!({
+      threadId: "thread-1",
+      reason: "adapter-error",
+      message: "not sent",
+      contentType: "application/pdf",
+    });
+    listeners.get("threads.selectionChanged")!({
+      threadId: "thread-1",
+      previousThreadId: "thread-0",
+    });
+    listeners.get("message.speak")!({
+      threadId: "thread-1",
+      messageId: "local-message-1",
+    });
+    listeners.get("thread.voiceStarted")!({ threadId: "thread-1" });
+    listeners.get("message.error")!({
+      threadId: "thread-1",
+      messageId: "local-message-1",
+      reason: "error",
+    });
+    threadState.isEmpty = true;
+    threadState.suggestions = [{ prompt: "one" }, { prompt: "two" }];
+    notify!();
+    await waitFor(() =>
+      expect(vi.mocked(cloud.events.track).mock.calls.length).toBeGreaterThan(
+        12,
+      ),
+    );
+
+    expect(
+      vi.mocked(cloud.events.track).mock.calls.map(([event]) => event),
+    ).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          kind: "message_sent",
+          thread_id: "thread-1",
+          value: 25,
+          props: { chars: 5, attachments: 1 },
+        }),
+        expect.objectContaining({
+          kind: "message_edited",
+          thread_id: "thread-1",
+          message_id: "remote-message-1",
+          props: { chars: 7 },
+        }),
+        expect.objectContaining({ kind: "suggestion_clicked" }),
+        expect.objectContaining({ kind: "run_stopped", value: 25 }),
+        expect.objectContaining({ kind: "message_regenerated" }),
+        expect.objectContaining({ kind: "branch_switched" }),
+        expect.objectContaining({ kind: "message_copied" }),
+        expect.objectContaining({
+          kind: "attachment_added",
+          props: { type: "image/png" },
+        }),
+        expect.objectContaining({
+          kind: "attachment_failed",
+          props: { type: "application/pdf" },
+        }),
+        expect.objectContaining({ kind: "thread_switched" }),
+        expect.objectContaining({ kind: "speech_started" }),
+        expect.objectContaining({ kind: "voice_started" }),
+        expect.objectContaining({
+          kind: "error_shown",
+          props: { reason: "error" },
+        }),
+        expect.objectContaining({ kind: "suggestions_shown", value: 2 }),
+      ]),
+    );
+  });
+
   it("refreshes formatted persistence when the Cloud client changes", async () => {
     mocks.aui = mocks.makeClient("thread-1");
     const firstCloud = makeCloud();
@@ -323,6 +480,108 @@ describe("useAssistantCloudThreadHistoryAdapter", () => {
     );
   });
 
+  it("reports persisted assistant telemetry dimensions", async () => {
+    mocks.aui = mocks.makeClient("thread-1");
+    const cloud = makeCloud({
+      release: "web-2026.09.08",
+      environment: "production",
+      tags: ["region:sg", "tier:paid"],
+    });
+    const { result } = renderHook(() =>
+      useAssistantCloudThreadHistoryAdapter({ current: cloud }),
+    );
+    const message: ThreadAssistantMessage = {
+      ...makeAssistantMessage("local-message-1"),
+      status: { type: "incomplete", reason: "length" },
+      metadata: {
+        ...makeAssistantMessage("local-message-1").metadata,
+        custom: {
+          traceId: "AABBCCDDEEFF00112233445566778899",
+          provider: "openai",
+        },
+        timing: {
+          streamStartTime: 100,
+          firstTokenTime: 155.6,
+          totalChunks: 1,
+          toolCallCount: 0,
+        },
+      },
+    };
+
+    await result.current.append({ parentId: null, message });
+
+    expect(cloud.runs.report).toHaveBeenCalledWith(
+      expect.objectContaining({
+        thread_id: "thread-1",
+        status: "incomplete",
+        outcome_type: "length",
+        message_id: "remote-message-1",
+        first_token_ms: 56,
+        trace_id: "aabbccddeeff00112233445566778899",
+        provider: "openai",
+        provider_type: "openai",
+        release: "web-2026.09.08",
+        environment: "production",
+        tags: ["region:sg", "tier:paid"],
+      }),
+    );
+  });
+
+  it.each([
+    ["cancelled", "aborted"],
+    ["length", "length"],
+    ["content-filter", "content_filter"],
+  ] as const)("maps incomplete %s to outcome %s", async (reason, outcome) => {
+    mocks.aui = mocks.makeClient("thread-1");
+    const cloud = makeCloud();
+    const { result } = renderHook(() =>
+      useAssistantCloudThreadHistoryAdapter({ current: cloud }),
+    );
+    const message: ThreadAssistantMessage = {
+      ...makeAssistantMessage("local-message-1"),
+      status: { type: "incomplete", reason },
+    };
+
+    await result.current.append({ parentId: null, message });
+
+    expect(cloud.runs.report).toHaveBeenCalledWith(
+      expect.objectContaining({ outcome_type: outcome }),
+    );
+  });
+
+  it("omits a clean outcome and an unknown cloud message ID", () => {
+    mocks.aui = mocks.makeClient("thread-1");
+    const cloud = makeCloud();
+    const { result } = renderHook(() =>
+      useAssistantCloudThreadHistoryAdapter({ current: cloud }),
+    );
+    const formatted = result.current.withFormat({
+      format: "aui/v0",
+      encode: ({ message }) => message,
+      decode: ({ parent_id, content }) => ({
+        parentId: parent_id,
+        message: content as { id: string },
+      }),
+      getId: (message: { id: string }) => message.id,
+    });
+
+    formatted.reportTelemetry([
+      {
+        parentId: null,
+        message: {
+          id: "local-message-1",
+          role: "assistant",
+          content: [{ type: "text", text: "done" }],
+          status: { type: "complete", reason: "stop" },
+        },
+      },
+    ]);
+
+    const report = vi.mocked(cloud.runs.report).mock.calls[0]![0]!;
+    expect(report).not.toHaveProperty("outcome_type");
+    expect(report).not.toHaveProperty("message_id");
+  });
+
   it("reports frontend and MCP sources for ai-sdk/v6 tool calls", () => {
     mocks.aui = mocks.makeClient("thread-1");
     const cloud = makeCloud();
@@ -369,6 +628,10 @@ describe("useAssistantCloudThreadHistoryAdapter", () => {
               output: { result: "ok" },
             },
           ],
+          metadata: {
+            traceId: "00112233445566778899AABBCCDDEEFF",
+            provider: "anthropic",
+          },
         },
       },
     ]);
@@ -411,6 +674,9 @@ describe("useAssistantCloudThreadHistoryAdapter", () => {
             ],
           },
         ],
+        trace_id: "00112233445566778899aabbccddeeff",
+        provider: "anthropic",
+        provider_type: "anthropic",
       }),
     );
   });

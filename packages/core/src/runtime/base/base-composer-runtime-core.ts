@@ -300,7 +300,10 @@ export abstract class BaseComposerRuntimeCore
       void sendTask.catch((error) => {
         this._restoreUnsentDraft(error, generation, draft);
       });
-    this._notifyEventSubscribers("send", {});
+    this._notifyEventSubscribers("send", {
+      chars: text.length,
+      attachments: finalAttachments.length,
+    });
   }
 
   /**
@@ -416,6 +419,7 @@ export abstract class BaseComposerRuntimeCore
           message,
           undefined,
           err,
+          fileOrAttachment.contentType,
         );
         throw err;
       }
@@ -430,7 +434,9 @@ export abstract class BaseComposerRuntimeCore
       };
       this._attachments = [...this._attachments, a];
       this._notifySubscribers();
-      this._notifyEventSubscribers("attachmentAdd", {});
+      this._notifyEventSubscribers("attachmentAdd", {
+        ...(a.contentType ? { contentType: a.contentType } : undefined),
+      });
       return;
     }
 
@@ -438,7 +444,13 @@ export abstract class BaseComposerRuntimeCore
     if (!adapter) {
       const message = "Attachments are not supported";
       const err = new Error(message);
-      this._safeEmitAttachmentAddError("no-adapter", message, undefined, err);
+      this._safeEmitAttachmentAddError(
+        "no-adapter",
+        message,
+        undefined,
+        err,
+        fileOrAttachment.type,
+      );
       throw err;
     }
 
@@ -450,7 +462,13 @@ export abstract class BaseComposerRuntimeCore
     ) {
       const message = `File type ${fileOrAttachment.type || "unknown"} is not accepted. Accepted types: ${adapter.accept}`;
       const err = new Error(message);
-      this._safeEmitAttachmentAddError("not-accepted", message, undefined, err);
+      this._safeEmitAttachmentAddError(
+        "not-accepted",
+        message,
+        undefined,
+        err,
+        fileOrAttachment.type,
+      );
       throw err;
     }
 
@@ -500,6 +518,7 @@ export abstract class BaseComposerRuntimeCore
         e instanceof Error ? e.message : String(e),
         lastAttachment?.id,
         e instanceof Error ? e : undefined,
+        lastAttachment?.contentType ?? fileOrAttachment.type,
       );
       throw e;
     } finally {
@@ -516,9 +535,17 @@ export abstract class BaseComposerRuntimeCore
         lastAttachment.status.message ??
           "Attachment upload did not complete successfully.",
         lastAttachment.id,
+        undefined,
+        lastAttachment.contentType ?? fileOrAttachment.type,
       );
     } else {
-      this._notifyEventSubscribers("attachmentAdd", {});
+      this._notifyEventSubscribers("attachmentAdd", {
+        ...(lastAttachment?.contentType
+          ? { contentType: lastAttachment.contentType }
+          : fileOrAttachment.type
+            ? { contentType: fileOrAttachment.type }
+            : undefined),
+      });
     }
   }
 
@@ -527,6 +554,7 @@ export abstract class BaseComposerRuntimeCore
     message: string,
     attachmentId?: string,
     error?: Error,
+    contentType?: string,
   ) {
     try {
       this._notifyEventSubscribers("attachmentAddError", {
@@ -534,6 +562,7 @@ export abstract class BaseComposerRuntimeCore
         message,
         ...(attachmentId !== undefined && { attachmentId }),
         ...(error !== undefined && { error }),
+        ...(contentType ? { contentType } : undefined),
       });
     } catch (subscriberError) {
       console.error(

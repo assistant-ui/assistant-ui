@@ -155,6 +155,8 @@ export type ThreadEvents = {
    * state.
    */
   "thread.runEnd": { threadId: string };
+  "thread.cancelRun": { threadId: string };
+  "thread.voiceStarted": { threadId: string };
   /**
    * The thread transitioned from new to initialized. Fires before the first
    * message is added, so read thread state via `useAuiState` rather than

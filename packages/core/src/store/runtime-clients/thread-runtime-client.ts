@@ -1,7 +1,7 @@
 import type { Unsubscribe } from "../../types/unsubscribe";
 import type { ThreadRuntimeEventType } from "../../runtime/interfaces/thread-runtime-core";
 import type { ThreadRuntime } from "../../runtime/api/thread-runtime";
-import { useMemo, useEffect, type RefObject } from "react";
+import { useMemo, useEffect, useCallback, type RefObject } from "react";
 import { useResource, resource, withKey } from "@assistant-ui/tap";
 import { liveRef } from "./liveRef";
 import type { ClientOutput } from "@assistant-ui/store";
@@ -72,11 +72,19 @@ const useThreadClient = ({
     () => liveRef(() => runtime.getState()!.threadId),
     [runtime],
   );
+  const isSuggestion = useCallback(
+    (text: string) =>
+      runtime
+        .getState()!
+        .suggestions.some((suggestion) => suggestion.prompt === text),
+    [runtime],
+  );
 
   const composer = useClientResource(
     ComposerClient({
       runtime: runtime.composer,
       threadIdRef,
+      isSuggestion,
     }),
   );
   const suggestions = useClientResource(
@@ -119,13 +127,21 @@ const useThreadClient = ({
     startRun: runtime.startRun,
     resumeRun: runtime.resumeRun,
     importExternalState: runtime.importExternalState,
-    cancelRun: runtime.cancelRun,
+    cancelRun: () => {
+      if (runtimeState.isRunning) {
+        emit("thread.cancelRun", { threadId: threadIdRef.current });
+      }
+      runtime.cancelRun();
+    },
     getModelContext: runtime.getModelContext,
     export: runtime.export,
     import: runtime.import,
     reset: runtime.reset,
     stopSpeaking: runtime.stopSpeaking,
-    connectVoice: runtime.connectVoice,
+    connectVoice: () => {
+      runtime.connectVoice();
+      emit("thread.voiceStarted", { threadId: threadIdRef.current });
+    },
     disconnectVoice: runtime.disconnectVoice,
     getVoiceVolume: runtime.getVoiceVolume,
     subscribeVoiceVolume: runtime.subscribeVoiceVolume,
