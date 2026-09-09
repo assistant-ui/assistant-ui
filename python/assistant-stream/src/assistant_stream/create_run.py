@@ -270,8 +270,16 @@ async def create_run(
             # Flush any pending state updates before disposing
             controller._state_manager.flush()
 
-            for dispose in controller._dispose_callbacks:
-                dispose()
+            dispose_index = 0
+
+            def drain_dispose_callbacks():
+                nonlocal dispose_index
+                while dispose_index < len(controller._dispose_callbacks):
+                    dispose = controller._dispose_callbacks[dispose_index]
+                    dispose_index += 1
+                    dispose()
+
+            drain_dispose_callbacks()
             try:
                 try:
                     task_index = 0
@@ -279,15 +287,18 @@ async def create_run(
                         tasks = controller._stream_tasks[task_index:]
                         await asyncio.gather(*tasks)
                         task_index += len(tasks)
+                        drain_dispose_callbacks()
                 except BaseException:
                     task_index = 0
                     while task_index < len(controller._stream_tasks):
+                        drain_dispose_callbacks()
                         tasks = controller._stream_tasks[task_index:]
                         for task in tasks:
                             if not task.done():
                                 task.cancel()
                         await asyncio.gather(*tasks, return_exceptions=True)
                         task_index += len(tasks)
+                    drain_dispose_callbacks()
                     raise
             finally:
                 enqueue_threadsafe(asyncio.get_running_loop(), queue, None)

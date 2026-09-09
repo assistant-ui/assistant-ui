@@ -140,20 +140,9 @@ async def test_substream_failure_cancels_and_awaits_sibling_streams():
 
 
 @pytest.mark.anyio
-async def test_waits_for_substreams_registered_by_substreams():
-    nested_started = asyncio.Event()
-    release_nested = asyncio.Event()
-    completion_order: list[str] = []
-
-    async def nested_stream():
-        nested_started.set()
-        await release_nested.wait()
-        completion_order.append("nested")
-        if False:
-            yield
-
+async def test_closes_tool_streams_registered_by_substreams():
     async def parent_stream(controller: RunController):
-        controller.add_stream(nested_stream())
+        await controller.add_tool_call("lookup", "tool-1")
         if False:
             yield
 
@@ -161,16 +150,14 @@ async def test_waits_for_substreams_registered_by_substreams():
         controller.add_stream(parent_stream(controller))
 
     async def consume():
-        async for _ in create_run(run_callback):
-            pass
-        completion_order.append("run")
+        return [chunk async for chunk in create_run(run_callback)]
 
-    consume_task = asyncio.create_task(consume())
-    await asyncio.wait_for(nested_started.wait(), timeout=1)
-    release_nested.set()
-    await asyncio.wait_for(consume_task, timeout=1)
+    chunks = await asyncio.wait_for(consume(), timeout=1)
 
-    assert completion_order == ["nested", "run"]
+    assert [chunk.type for chunk in chunks] == [
+        "tool-call-begin",
+        "tool-call-args-text-finish",
+    ]
 
 
 @pytest.mark.anyio
