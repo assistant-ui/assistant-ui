@@ -84,6 +84,37 @@ describe("unstable_runPendingTools", () => {
     expect(settled.content).toEqual(settled.parts);
   });
 
+  it.each(["constructor", "toString", "__proto__"])(
+    "does not assign inherited results to a %s tool call ID",
+    async (toolCallId) => {
+      const message = createPendingToolMessage("executed");
+      const unavailablePart = {
+        ...message.parts[0],
+        toolCallId,
+        toolName: "unavailable",
+      } as ToolCallPart;
+      message.parts.push(unavailablePart);
+
+      const settled = await unstable_runPendingTools(
+        message,
+        {
+          tool: {
+            parameters: { type: "object", properties: {} },
+            execute: async () => "done",
+          },
+        },
+        new AbortController().signal,
+        async () => {},
+      );
+
+      expect(settled.parts[0]).toMatchObject({
+        state: "result",
+        result: "done",
+      });
+      expect(settled.parts[1]).toBe(unavailablePart);
+    },
+  );
+
   it("settles a tool that returns no value with a concrete result", async () => {
     const message: AssistantMessage = {
       role: "assistant",

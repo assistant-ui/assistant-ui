@@ -251,17 +251,13 @@ export async function unstable_runPendingTools(
     return message;
   }
 
-  const toolCallResultsById = toolCallResults.reduce(
-    (acc, { toolCallId, result }) => {
-      acc[toolCallId] = result;
-      return acc;
-    },
-    {} as Record<string, ToolResponse<ReadonlyJSONValue>>,
+  const toolCallResultsById = new Map(
+    toolCallResults.map(({ toolCallId, result }) => [toolCallId, result]),
   );
 
   const updatedParts = message.parts.map((p) => {
     if (isPendingToolCall(p)) {
-      const toolResponse = toolCallResultsById[p.toolCallId];
+      const toolResponse = toolCallResultsById.get(p.toolCallId);
       if (toolResponse) {
         return {
           ...p,
