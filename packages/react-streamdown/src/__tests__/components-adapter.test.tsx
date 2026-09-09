@@ -128,6 +128,51 @@ describe("useAdaptedComponents", () => {
     });
   });
 
+  describe("code identity", () => {
+    it("keeps the same code component across renders with a fresh components object", () => {
+      const Pre = ({ node: _, ...p }: any) => <pre {...p} />;
+      const Code = ({ node: _, ...p }: any) => <code {...p} />;
+      const { result, rerender } = renderHook(
+        ({ components }) => useAdaptedComponents({ components }),
+        { initialProps: { components: { pre: Pre, code: Code } } },
+      );
+      const first = result.current.code;
+      rerender({ components: { pre: Pre, code: Code } });
+      expect(result.current.code).toBe(first);
+    });
+
+    it("keeps the same code component when the user pre and code are inline arrows", () => {
+      const { result, rerender } = renderHook(
+        ({ tick }) =>
+          useAdaptedComponents({
+            components: {
+              pre: ({ node: _, ...p }: any) => <pre {...p} />,
+              code: ({ node: _, ...p }: any) => <code {...p} />,
+            },
+            componentsByLanguage: tick ? {} : undefined,
+          }),
+        { initialProps: { tick: 0 } },
+      );
+      const first = result.current.code;
+      rerender({ tick: 1 });
+      expect(result.current.code).toBe(first);
+    });
+
+    it("keeps the same code component when componentsByLanguage is a fresh object", () => {
+      const SyntaxHighlighter = () => null;
+      const { result, rerender } = renderHook(
+        ({ componentsByLanguage }) =>
+          useAdaptedComponents({ componentsByLanguage }),
+        {
+          initialProps: { componentsByLanguage: { ts: { SyntaxHighlighter } } },
+        },
+      );
+      const first = result.current.code;
+      rerender({ componentsByLanguage: { ts: { SyntaxHighlighter } } });
+      expect(result.current.code).toBe(first);
+    });
+  });
+
   describe("with SyntaxHighlighter", () => {
     it("creates code adapter when SyntaxHighlighter provided", () => {
       const MockSyntax = vi.fn(() => null);

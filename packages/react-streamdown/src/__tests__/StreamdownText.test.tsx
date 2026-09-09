@@ -494,6 +494,35 @@ describe("StreamdownTextPrimitive", () => {
       expect(screen.getByTestId("user-pre")).toBe(first);
     });
 
+    it("keeps a fenced block mounted while the text grows", () => {
+      const pre = ({ node: _, ...p }: any) => (
+        <pre data-testid="user-pre" {...p} />
+      );
+      const code = ({ node: _, ...p }: any) => (
+        <code data-testid="user-code" {...p} />
+      );
+      const view = (intro: string) => (
+        <TextMessagePartProvider
+          text={`${intro}\n\n${fencedMarkdown}`}
+          isRunning={false}
+        >
+          <StreamdownTextPrimitive
+            mode="static"
+            components={{ pre, code } as StreamdownTextComponents}
+          />
+        </TextMessagePartProvider>
+      );
+
+      const { rerender } = render(view("intro"));
+      const firstPre = screen.getByTestId("user-pre");
+      const firstCode = screen.getByTestId("user-code");
+
+      for (let token = 1; token <= 3; token++) rerender(view(`intro ${token}`));
+
+      expect(screen.getByTestId("user-pre")).toBe(firstPre);
+      expect(screen.getByTestId("user-code")).toBe(firstCode);
+    });
+
     it("accepts intrinsic tag names for pre and code as typed components", () => {
       const components: StreamdownTextComponents = {
         pre: "section",
