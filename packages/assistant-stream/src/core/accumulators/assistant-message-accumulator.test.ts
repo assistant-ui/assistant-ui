@@ -147,6 +147,28 @@ describe("AssistantMessageAccumulator timing", () => {
     },
   );
 
+  it("falls back to the step total when message-finish omits usage", async () => {
+    const messages = await collectStream([
+      { type: "part-start", path: [], part: { type: "text" } },
+      { type: "text-delta", path: [0], textDelta: "test" },
+      { type: "part-finish", path: [0] },
+      {
+        type: "step-finish",
+        path: [],
+        finishReason: "stop",
+        usage: { inputTokens: 5, outputTokens: 9 },
+        isContinued: false,
+      },
+      {
+        type: "message-finish",
+        path: [],
+        finishReason: "stop",
+      } as unknown as AssistantStreamChunk,
+    ]);
+
+    expect(messages.at(-1)?.metadata.timing?.tokenCount).toBe(9);
+  });
+
   it("should track tool calls in timing", async () => {
     const chunks: AssistantStreamChunk[] = [
       {
