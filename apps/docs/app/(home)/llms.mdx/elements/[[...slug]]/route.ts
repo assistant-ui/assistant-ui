@@ -1,8 +1,7 @@
-import { NextResponse } from "next/server";
 import { getLLMText } from "@/lib/get-llm-text";
 import { elementsDocs } from "@/lib/source";
 import { notFound } from "next/navigation";
-import { MARKDOWN_RESPONSE_HEADERS } from "@/lib/markdown-response";
+import { createMarkdownResponse } from "@/lib/markdown-response";
 
 export const revalidate = false;
 
@@ -25,17 +24,13 @@ export async function GET(
       }),
     ];
 
-    return new NextResponse(lines.join("\n"), {
-      headers: MARKDOWN_RESPONSE_HEADERS,
-    });
+    return createMarkdownResponse(lines.join("\n"));
   }
 
   const page = elementsDocs.getPage(slug);
   if (!page) notFound();
 
-  return new NextResponse(await getLLMText(page), {
-    headers: MARKDOWN_RESPONSE_HEADERS,
-  });
+  return createMarkdownResponse(await getLLMText(page));
 }
 
 export function generateStaticParams() {

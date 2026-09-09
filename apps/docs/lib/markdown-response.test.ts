@@ -1,22 +1,40 @@
 import { describe, expect, it } from "vitest";
-import {
-  MARKDOWN_RESPONSE_HEADERS,
-  PLAIN_TEXT_RESPONSE_HEADERS,
-} from "./markdown-response";
+import { createMarkdownResponse } from "./markdown-response";
 
 describe("markdown response headers", () => {
-  it("keeps browsers fresh while allowing shared caches to reuse markdown", () => {
-    expect(MARKDOWN_RESPONSE_HEADERS).toEqual({
-      "Cache-Control":
-        "public, max-age=0, s-maxage=86400, stale-while-revalidate=86400",
-      "Content-Type": "text/markdown; charset=utf-8",
-      "X-Robots-Tag": "noindex, follow",
-    });
+  it("provides a validator for always-fresh markdown", async () => {
+    const response = createMarkdownResponse("# Documentation");
+
+    expect(await response.text()).toBe("# Documentation");
+    expect(response.headers.get("Cache-Control")).toBe(
+      "no-cache, must-revalidate",
+    );
+    expect(response.headers.get("Content-Type")).toBe(
+      "text/markdown; charset=utf-8",
+    );
+    expect(response.headers.get("ETag")).toMatch(/^"sha256-[\w-]+"$/);
+    expect(response.headers.get("X-Robots-Tag")).toBe("noindex, follow");
   });
 
-  it("uses plain text for the combined llms document", () => {
-    expect(PLAIN_TEXT_RESPONSE_HEADERS["Content-Type"]).toBe(
+  it("uses plain text without changing the cache policy", () => {
+    const response = createMarkdownResponse(
+      "# Documentation",
       "text/plain; charset=utf-8",
+    );
+
+    expect(response.headers.get("Cache-Control")).toBe(
+      "no-cache, must-revalidate",
+    );
+    expect(response.headers.get("Content-Type")).toBe(
+      "text/plain; charset=utf-8",
+    );
+    expect(response.headers.get("ETag")).toMatch(/^"sha256-[\w-]+"$/);
+    expect(response.headers.get("X-Robots-Tag")).toBe("noindex, follow");
+  });
+
+  it("changes the validator when the content changes", () => {
+    expect(createMarkdownResponse("first").headers.get("ETag")).not.toBe(
+      createMarkdownResponse("second").headers.get("ETag"),
     );
   });
 });

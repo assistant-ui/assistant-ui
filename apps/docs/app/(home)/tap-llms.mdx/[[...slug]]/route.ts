@@ -1,8 +1,8 @@
-import { type NextRequest, NextResponse } from "next/server";
+import type { NextRequest } from "next/server";
 import { getLLMText } from "@/lib/get-llm-text";
 import { getTapDocsPage, tapDocs } from "@/lib/source";
 import { notFound } from "next/navigation";
-import { MARKDOWN_RESPONSE_HEADERS } from "@/lib/markdown-response";
+import { createMarkdownResponse } from "@/lib/markdown-response";
 
 export const revalidate = false;
 
@@ -15,9 +15,7 @@ export async function GET(
   const page = getTapDocsPage(slug);
   if (!page) notFound();
 
-  return new NextResponse(await getLLMText(page), {
-    headers: MARKDOWN_RESPONSE_HEADERS,
-  });
+  return createMarkdownResponse(await getLLMText(page));
 }
 
 export function generateStaticParams() {
