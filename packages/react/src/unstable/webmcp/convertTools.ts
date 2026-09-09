@@ -118,31 +118,30 @@ const isStandardSchema = (schema: unknown): schema is StandardSchemaLike =>
   "~standard" in schema &&
   (schema as StandardSchemaLike)["~standard"].version === 1;
 
-const awaitWithAbort = async <T>(
-  value: T | PromiseLike<T>,
-  signal: AbortSignal | undefined,
-): Promise<T> => {
-  if (!signal) return await value;
-  if (signal.aborted) throw new Error("Tool execution was cancelled.");
+const TOOL_ABORTED = Symbol("assistant-ui.webmcp-tool-aborted");
 
-  return await new Promise<T>((resolve, reject) => {
-    const onAbort = () => {
-      signal.removeEventListener("abort", onAbort);
-      reject(new Error("Tool execution was cancelled."));
-    };
-    signal.addEventListener("abort", onAbort, { once: true });
+const isThenable = <T>(value: T | PromiseLike<T>): value is PromiseLike<T> =>
+  typeof (value as PromiseLike<T> | null | undefined)?.then === "function";
 
-    Promise.resolve(value).then(
-      (result) => {
-        signal.removeEventListener("abort", onAbort);
-        resolve(result);
-      },
-      (error: unknown) => {
-        signal.removeEventListener("abort", onAbort);
-        reject(error);
-      },
-    );
+const raceWithAbort = async <T>(
+  value: PromiseLike<T>,
+  abortSignal: AbortSignal,
+): Promise<T | typeof TOOL_ABORTED> => {
+  let onAbort!: () => void;
+  const abortPromise = new Promise<typeof TOOL_ABORTED>((resolve) => {
+    onAbort = () => resolve(TOOL_ABORTED);
+    if (abortSignal.aborted) {
+      onAbort();
+    } else {
+      abortSignal.addEventListener("abort", onAbort, { once: true });
+    }
   });
+
+  try {
+    return await Promise.race([value, abortPromise]);
+  } finally {
+    abortSignal.removeEventListener("abort", onAbort);
+  }
 };
 
 // AbortSignal.any sits above the browserslist floor and rejects any input that
@@ -213,8 +212,15 @@ export const toWebMcpTool = (
 
       let executeFn = tool.execute;
       if (isStandardSchema(tool.parameters)) {
-        let validation = tool.parameters["~standard"].validate(args);
-        validation = await awaitWithAbort(validation, abortSignal);
+        const result = tool.parameters["~standard"].validate(args);
+        const validation = isThenable(result)
+          ? abortSignal
+            ? await raceWithAbort(result, abortSignal)
+            : await result
+          : result;
+        if (validation === TOOL_ABORTED) {
+          return errorResult("Tool execution was cancelled.");
+        }
         if (validation.issues) {
           const issues = validation.issues;
           executeFn =
@@ -225,6 +231,10 @@ export const toWebMcpTool = (
               );
             });
         }
+      }
+
+      if (abortSignal?.aborted) {
+        return errorResult("Tool execution was cancelled.");
       }
 
       if (!executeFn) {
