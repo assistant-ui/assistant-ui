@@ -423,19 +423,26 @@ const handleUpdateState = (
   };
 };
 
-const computeTiming = (
-  tracker: TimingTracker,
-  message: AssistantMessage,
-  finalOutputTokens = 0,
-): AssistantMessageTiming => {
-  if (finalOutputTokens > 0) return tracker.getTiming(finalOutputTokens);
-
+const sumFinishedStepOutputTokens = (message: AssistantMessage): number => {
   let outputTokens = 0;
   for (const step of message.metadata.steps) {
     if (step.state === "finished" && step.usage) {
       outputTokens += step.usage.outputTokens;
     }
   }
+  return outputTokens;
+};
+
+const computeTiming = (
+  tracker: TimingTracker,
+  message: AssistantMessage,
+  finalOutputTokens = 0,
+): AssistantMessageTiming => {
+  const outputTokens =
+    finalOutputTokens > 0
+      ? finalOutputTokens
+      : sumFinishedStepOutputTokens(message);
+  if (outputTokens > 0) return tracker.getTiming(outputTokens);
 
   let totalText = "";
   for (const part of message.parts) {
@@ -444,10 +451,7 @@ const computeTiming = (
     }
   }
 
-  return tracker.getTiming(
-    outputTokens > 0 ? outputTokens : undefined,
-    totalText || undefined,
-  );
+  return tracker.getTiming(undefined, totalText || undefined);
 };
 
 const throttleCallback = (callback: () => void) => {

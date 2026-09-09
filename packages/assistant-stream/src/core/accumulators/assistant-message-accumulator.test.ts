@@ -138,10 +138,11 @@ describe("AssistantMessageAccumulator timing", () => {
       chunks.push({ type: "annotations", path: [], annotations: ["done"] });
 
       const messages = await collectStream(chunks);
+      const timed = messages.filter((m) => m.metadata.timing !== undefined);
 
-      expect(messages.at(-1)?.metadata.timing?.tokenCount).toBe(expected);
-      if (finalTokens !== undefined) {
-        expect(messages.at(-2)?.metadata.timing?.tokenCount).toBe(expected);
+      expect(timed.length).toBeGreaterThan(0);
+      for (const message of timed) {
+        expect(message.metadata.timing?.tokenCount).toBe(expected);
       }
     },
   );
