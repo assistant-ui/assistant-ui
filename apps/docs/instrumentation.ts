@@ -85,6 +85,7 @@ export function register() {
                   ? { baseUrl: assistantCloud.baseUrl }
                   : {}),
               }),
+              { filter: isAiSpan },
             ),
           ]
         : []),

@@ -12,9 +12,9 @@ import path from "node:path";
 import test from "node:test";
 import {
   buildDependencyGraph,
-  findIntendedRangeBreaks,
   bumpVersion,
   computeCascade,
+  findIntendedRangeBreaks,
   findRangeBreakingBumps,
   isOutsideCaretRange,
   renderSummary,
