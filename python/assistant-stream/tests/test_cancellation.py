@@ -103,6 +103,43 @@ async def test_normal_completion_surfaces_callback_exception():
 
 
 @pytest.mark.anyio
+async def test_substream_failure_cancels_and_awaits_sibling_streams():
+    sibling_started = asyncio.Event()
+    sibling_cancelled = asyncio.Event()
+    sibling_finished = asyncio.Event()
+
+    async def blocking_stream():
+        sibling_started.set()
+        try:
+            await asyncio.Event().wait()
+        except asyncio.CancelledError:
+            sibling_cancelled.set()
+            raise
+        finally:
+            sibling_finished.set()
+        yield
+
+    async def failing_stream():
+        await sibling_started.wait()
+        raise RuntimeError("substream failed")
+        yield
+
+    async def run_callback(controller: RunController):
+        controller.add_stream(blocking_stream())
+        controller.add_stream(failing_stream())
+
+    async def consume():
+        with pytest.raises(RuntimeError, match="substream failed"):
+            async for _ in create_run(run_callback):
+                pass
+
+    await asyncio.wait_for(consume(), timeout=1)
+
+    assert sibling_cancelled.is_set()
+    assert sibling_finished.is_set()
+
+
+@pytest.mark.anyio
 async def test_early_stream_close_forces_background_task_cancellation():
     callback_cancelled = asyncio.Event()
     callback_finished = asyncio.Event()

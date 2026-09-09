@@ -273,8 +273,16 @@ async def create_run(
             for dispose in controller._dispose_callbacks:
                 dispose()
             try:
-                for task in controller._stream_tasks:
-                    await task
+                try:
+                    await asyncio.gather(*controller._stream_tasks)
+                except BaseException:
+                    for task in controller._stream_tasks:
+                        if not task.done():
+                            task.cancel()
+                    await asyncio.gather(
+                        *controller._stream_tasks, return_exceptions=True
+                    )
+                    raise
             finally:
                 enqueue_threadsafe(asyncio.get_running_loop(), queue, None)
 
