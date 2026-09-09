@@ -71,8 +71,8 @@ if ! pnpm install --no-frozen-lockfile ||
     // The SDK native-module matrix, read rather than hardcoded so the set tracks
     // the SDK. `expo install --fix` also merges relatedPackages from the versions
     // endpoint, which needs the network, so those entries are left to taze.
-    // The example pins @react-native/metro-config to react-native's exact
-    // version for @react-native/community-cli-plugin's peer resolution, so
+    // The example pins @react-native/metro-config to react-native package exact
+    // version for @react-native/community-cli-plugin package peer resolution, so
     // restoring react-native without its scoped packages leaves a silent mismatch.
     const expoFamily = /^(@expo\/.+|@react-native\/.+|expo|expo-.+|react|react-dom|react-native|react-native-.+)$/;
     let matrixKeys = new Set();
