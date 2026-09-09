@@ -5,6 +5,10 @@ import type {
 import { BatchSpanProcessor } from "@opentelemetry/sdk-trace-base";
 import { PostHogTraceExporter } from "@posthog/ai/otel";
 import { OTLPHttpProtoTraceExporter, registerOTel } from "@vercel/otel";
+import {
+  createAssistantCloudSpanProcessor,
+  createAssistantCloudTraceExporter,
+} from "assistant-cloud/telemetry";
 
 // Mirrors the prefixes PostHogTraceExporter filters on, so both legs carry the
 // same spans. Without it Axiom would also receive every request and fetch span
@@ -53,6 +57,16 @@ export function axiomExporterConfig(env: NodeJS.ProcessEnv) {
   };
 }
 
+export function assistantCloudExporterConfig(env: NodeJS.ProcessEnv) {
+  const apiKey = env.ASSISTANT_API_KEY;
+  if (!apiKey) return null;
+
+  return {
+    apiKey,
+    baseUrl: env.ASSISTANT_BACKEND_URL || undefined,
+  };
+}
+
 function axiomProcessor() {
   const config = axiomExporterConfig(process.env);
   if (!config) return null;
@@ -62,6 +76,7 @@ function axiomProcessor() {
 
 export function register() {
   const axiom = axiomProcessor();
+  const assistantCloud = assistantCloudExporterConfig(process.env);
 
   registerOTel({
     serviceName: "assistant-ui-docs",
@@ -70,6 +85,21 @@ export function register() {
     }),
     // "auto" keeps the environment's default processors, including the Vercel
     // tracing integration that an explicit list would otherwise replace.
-    spanProcessors: axiom ? ["auto", axiom] : ["auto"],
+    spanProcessors: [
+      "auto",
+      ...(axiom ? [axiom] : []),
+      ...(assistantCloud
+        ? [
+            createAssistantCloudSpanProcessor(
+              createAssistantCloudTraceExporter({
+                apiKey: assistantCloud.apiKey,
+                ...(assistantCloud.baseUrl
+                  ? { baseUrl: assistantCloud.baseUrl }
+                  : {}),
+              }),
+            ),
+          ]
+        : []),
+    ],
   });
 }

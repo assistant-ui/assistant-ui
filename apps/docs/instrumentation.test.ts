@@ -3,7 +3,12 @@ import type {
   SpanProcessor,
 } from "@opentelemetry/sdk-trace-base";
 import { describe, expect, it, vi } from "vitest";
-import { aiOnly, axiomExporterConfig, isAiSpan } from "./instrumentation";
+import {
+  aiOnly,
+  assistantCloudExporterConfig,
+  axiomExporterConfig,
+  isAiSpan,
+} from "./instrumentation";
 
 function span(name: string, attributes: Record<string, unknown> = {}) {
   return { name, attributes } as unknown as ReadableSpan;
@@ -113,6 +118,46 @@ describe("axiomExporterConfig", () => {
     expect(axiomExporterConfig(creds)?.headers).toEqual({
       Authorization: "Bearer xaat-test",
       "X-Axiom-Dataset": "traces",
+    });
+  });
+});
+
+describe("assistantCloudExporterConfig", () => {
+  it("returns null without an API key", () => {
+    expect(assistantCloudExporterConfig({})).toBeNull();
+    expect(assistantCloudExporterConfig({ ASSISTANT_API_KEY: "" })).toBeNull();
+  });
+
+  it("returns the API key with the default backend", () => {
+    expect(
+      assistantCloudExporterConfig({ ASSISTANT_API_KEY: "aask-test" }),
+    ).toEqual({
+      apiKey: "aask-test",
+      baseUrl: undefined,
+    });
+  });
+
+  it("uses a configured backend URL", () => {
+    expect(
+      assistantCloudExporterConfig({
+        ASSISTANT_API_KEY: "aask-test",
+        ASSISTANT_BACKEND_URL: "https://staging.assistant-api.com",
+      }),
+    ).toEqual({
+      apiKey: "aask-test",
+      baseUrl: "https://staging.assistant-api.com",
+    });
+  });
+
+  it("falls back to the default backend when its URL is blank", () => {
+    expect(
+      assistantCloudExporterConfig({
+        ASSISTANT_API_KEY: "aask-test",
+        ASSISTANT_BACKEND_URL: "",
+      }),
+    ).toEqual({
+      apiKey: "aask-test",
+      baseUrl: undefined,
     });
   });
 });
