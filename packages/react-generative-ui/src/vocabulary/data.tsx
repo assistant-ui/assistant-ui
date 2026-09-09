@@ -284,26 +284,30 @@ export const dataVocabulary = {
     }),
     render: ({ columns, rows, children }) => (
       <table data-aui="table">
-        {columns?.length ? (
+        {Array.isArray(columns) && columns.length ? (
           <thead>
             <tr>
-              {columns.map((c: { label: string }, i: number) => (
-                <th key={i} data-aui="table-col">
-                  {c.label}
-                </th>
-              ))}
+              {columns.map((column, i) =>
+                column && typeof column.label === "string" ? (
+                  <th key={i} data-aui="table-col">
+                    {column.label}
+                  </th>
+                ) : null,
+              )}
             </tr>
           </thead>
         ) : null}
-        {rows?.length ? (
+        {Array.isArray(rows) && rows.length ? (
           <tbody>
-            {rows.map((row: (string | number | boolean)[], r: number) => (
-              <tr key={r}>
-                {row.map((cell: string | number | boolean, c: number) => (
-                  <td key={c}>{String(cell)}</td>
-                ))}
-              </tr>
-            ))}
+            {rows.map((row, r) =>
+              Array.isArray(row) ? (
+                <tr key={r}>
+                  {row.map((cell, c) => (
+                    <td key={c}>{String(cell)}</td>
+                  ))}
+                </tr>
+              ) : null,
+            )}
           </tbody>
         ) : null}
         {children}

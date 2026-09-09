@@ -134,11 +134,15 @@ export const interactiveVocabulary = {
             {placeholder}
           </option>
         ) : null}
-        {options.map((o: { label: string; value: string }, i: number) => (
-          <option key={i} value={o.value}>
-            {o.label}
-          </option>
-        ))}
+        {(Array.isArray(options) ? options : []).map((option, i) =>
+          option &&
+          typeof option.label === "string" &&
+          typeof option.value === "string" ? (
+            <option key={i} value={option.value}>
+              {option.label}
+            </option>
+          ) : null,
+        )}
         {children}
       </select>
     ),
