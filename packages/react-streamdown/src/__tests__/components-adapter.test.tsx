@@ -2,7 +2,7 @@ import { describe, it, expect, vi, afterEach } from "vitest";
 import { cleanup, render, renderHook, screen } from "@testing-library/react";
 import { createElement } from "react";
 import { useAdaptedComponents } from "../adapters/components-adapter";
-import type { StreamdownTextComponents } from "../types";
+import type { ComponentsByLanguage, StreamdownTextComponents } from "../types";
 
 afterEach(cleanup);
 
@@ -161,6 +161,91 @@ describe("useAdaptedComponents", () => {
       const firstResult = result.current;
       rerender({ comps: { span: vi.fn(() => null) } });
       expect(result.current).not.toBe(firstResult);
+    });
+
+    it("keeps the code adapter for structurally equal language maps", () => {
+      const SyntaxHighlighter = vi.fn(() => null);
+      const { result, rerender } = renderHook(
+        ({
+          componentsByLanguage,
+        }: {
+          componentsByLanguage: ComponentsByLanguage;
+        }) => useAdaptedComponents({ componentsByLanguage }),
+        {
+          initialProps: {
+            componentsByLanguage: {
+              mermaid: { SyntaxHighlighter },
+            } as ComponentsByLanguage,
+          },
+        },
+      );
+
+      const firstCode = result.current?.code;
+      expect(firstCode).toBeDefined();
+      rerender({
+        componentsByLanguage: {
+          mermaid: { SyntaxHighlighter },
+        },
+      });
+
+      expect(result.current?.code).toBe(firstCode);
+    });
+
+    it("rebuilds the code adapter when a language entry changes", () => {
+      const FirstHighlighter = vi.fn(() => null);
+      const SecondHighlighter = vi.fn(() => null);
+      const { result, rerender } = renderHook(
+        ({
+          componentsByLanguage,
+        }: {
+          componentsByLanguage: ComponentsByLanguage;
+        }) => useAdaptedComponents({ componentsByLanguage }),
+        {
+          initialProps: {
+            componentsByLanguage: {
+              mermaid: { SyntaxHighlighter: FirstHighlighter },
+            },
+          },
+        },
+      );
+
+      const firstCode = result.current?.code;
+      expect(firstCode).toBeDefined();
+      rerender({
+        componentsByLanguage: {
+          mermaid: { SyntaxHighlighter: SecondHighlighter },
+        },
+      });
+
+      expect(result.current?.code).not.toBe(firstCode);
+    });
+
+    it("rebuilds the code adapter when a language key changes", () => {
+      const SyntaxHighlighter = vi.fn(() => null);
+      const { result, rerender } = renderHook(
+        ({
+          componentsByLanguage,
+        }: {
+          componentsByLanguage: ComponentsByLanguage;
+        }) => useAdaptedComponents({ componentsByLanguage }),
+        {
+          initialProps: {
+            componentsByLanguage: {
+              mermaid: { SyntaxHighlighter },
+            } as ComponentsByLanguage,
+          },
+        },
+      );
+
+      const firstCode = result.current?.code;
+      expect(firstCode).toBeDefined();
+      rerender({
+        componentsByLanguage: {
+          python: { SyntaxHighlighter },
+        },
+      });
+
+      expect(result.current?.code).not.toBe(firstCode);
     });
   });
 

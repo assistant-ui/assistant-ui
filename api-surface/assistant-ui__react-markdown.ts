@@ -961,8 +961,10 @@ type WildcardPayload = {
 }[Extract<keyof ClientEventMap, string>];
 
 declare namespace entry_code_fence_exports {
-  export { CodeComponent, CodeHeaderProps, ComponentsByLanguage, PreComponent, SyntaxHighlighterProps, parseLanguageClass };
+  export { CodeComponent, CodeHeaderProps, ComponentsByLanguage, PreComponent, SyntaxHighlighterProps, compareComponentsByLanguage, parseLanguageClass };
 }
+
+declare const compareComponentsByLanguage: (prev: Record<string, ComponentsByLanguage[string] | undefined> | undefined, next: Record<string, ComponentsByLanguage[string] | undefined> | undefined) => boolean;
 
 declare function escapeCurrencyDollars(text: string): string;
 
