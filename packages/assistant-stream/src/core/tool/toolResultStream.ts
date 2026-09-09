@@ -69,12 +69,19 @@ const isThenable = <T>(value: T | PromiseLike<T>): value is PromiseLike<T> =>
 const raceWithAbort = async <T>(
   value: PromiseLike<T>,
   abortSignal: AbortSignal,
+  delayAbort = false,
 ): Promise<T | typeof TOOL_ABORTED> => {
   if (abortSignal.aborted) return TOOL_ABORTED;
 
   let onAbort!: () => void;
   const abortPromise = new Promise<typeof TOOL_ABORTED>((resolve) => {
-    onAbort = () => resolve(TOOL_ABORTED);
+    onAbort = () => {
+      if (delayAbort) {
+        queueMicrotask(() => queueMicrotask(() => resolve(TOOL_ABORTED)));
+      } else {
+        resolve(TOOL_ABORTED);
+      }
+    };
     abortSignal.addEventListener("abort", onAbort, { once: true });
   });
 
@@ -139,26 +146,6 @@ function getToolResponse(
       return cancelledToolResponse();
     }
 
-    // Create abort promise that resolves after 2 microtasks
-    // This gives tools that handle abort a chance to win the race
-    let onAbort!: () => void;
-    const abortPromise = new Promise<ToolResponse<ReadonlyJSONValue>>(
-      (resolve) => {
-        onAbort = () => {
-          queueMicrotask(() => {
-            queueMicrotask(() => {
-              resolve(cancelledToolResponse());
-            });
-          });
-        };
-        if (abortSignal.aborted) {
-          onAbort();
-        } else {
-          abortSignal.addEventListener("abort", onAbort, { once: true });
-        }
-      },
-    );
-
     const executePromise = (async () => {
       const executionContext = {
         toolCallId: toolCall.toolCallId,
@@ -200,11 +187,14 @@ function getToolResponse(
       return response;
     })();
 
-    try {
-      return await Promise.race([executePromise, abortPromise]);
-    } finally {
-      abortSignal.removeEventListener("abort", onAbort);
-    }
+    const executionResult = await raceWithAbort(
+      executePromise,
+      abortSignal,
+      true,
+    );
+    return executionResult === TOOL_ABORTED
+      ? cancelledToolResponse()
+      : executionResult;
   };
 
   return getResult(tool.execute);
