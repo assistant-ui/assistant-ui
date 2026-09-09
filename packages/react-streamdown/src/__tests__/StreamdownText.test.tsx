@@ -524,6 +524,7 @@ describe("StreamdownTextPrimitive", () => {
 
       expect(screen.getByTestId("user-pre")).toBe(firstPre);
       expect(screen.getByTestId("user-code")).toBe(firstCode);
+      expect(firstCode.textContent).toContain("const x3 = 3;");
     });
 
     it("accepts intrinsic tag names for pre and code as typed components", () => {
