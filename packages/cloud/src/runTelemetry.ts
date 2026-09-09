@@ -44,6 +44,8 @@ export function deriveRunOutcome(input: {
       return { status: "incomplete", outcome: "content_filter" };
     case "cancelled":
       return { status: "incomplete", outcome: "aborted" };
+    case "error":
+      return { status: "error" };
     default:
       return { status: "completed" };
   }
@@ -190,6 +192,7 @@ export type RunReportInit = {
   provider?: string | undefined;
   usage?: RunTelemetryUsageInit | undefined;
   steps?: RunReportStepInit[] | undefined;
+  totalSteps?: number | undefined;
   toolCalls?: AssistantCloudRunReportToolCall[] | undefined;
   durationMs?: number | undefined;
   firstTokenMs?: number | undefined;
@@ -289,6 +292,8 @@ export function createRunReport(init: RunReportInit): AssistantCloudRunReport {
   if (init.steps !== undefined) {
     report.steps = init.steps.map(createRunReportStep);
     report.total_steps = init.steps.length;
+  } else if (init.totalSteps !== undefined) {
+    report.total_steps = init.totalSteps;
   }
   if (init.toolCalls !== undefined) report.tool_calls = init.toolCalls;
   const durationMs = normalizeRunReportMilliseconds(init.durationMs);

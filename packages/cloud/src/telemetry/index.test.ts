@@ -233,6 +233,16 @@ describe("withAssistantCloudTraceMetadata", () => {
     expect(result).toEqual({ type: "start", traceId: TRACE_ID });
   });
 
+  it("passes through start metadata when no span is active", () => {
+    const value = { started: true };
+    const messageMetadata = withAssistantCloudTraceMetadata(() => value);
+
+    expect(messageMetadata({ part: { type: "start" } })).toBe(value);
+    expect(withAssistantCloudTraceMetadata()({ part: { type: "start" } })).toBe(
+      undefined,
+    );
+  });
+
   it("passes through metadata for other parts", () => {
     const value = { usage: { totalTokens: 42 } };
     const messageMetadata = withAssistantCloudTraceMetadata(() => value);

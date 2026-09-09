@@ -38,27 +38,6 @@
   "dependencies": {
     "assistant-stream": "^0.3.41"
   },
-  "devDependencies": {
-    "@assistant-ui/x-buildutils": "workspace:*",
-    "@opentelemetry/api": "^1.9.0",
-    "@opentelemetry/exporter-trace-otlp-http": "^0.205.0",
-    "@opentelemetry/sdk-trace-base": "^2.1.0",
-    "@types/node": "^26.4.1",
-    "vitest": "^4.1.11"
-  },
-  "publishConfig": {
-    "access": "public",
-    "provenance": true
-  },
-  "homepage": "https://www.assistant-ui.com/",
-  "repository": {
-    "type": "git",
-    "url": "git+https://github.com/assistant-ui/assistant-ui.git",
-    "directory": "packages/cloud"
-  },
-  "bugs": {
-    "url": "https://github.com/assistant-ui/assistant-ui/issues"
-  },
   "peerDependencies": {
     "@opentelemetry/api": "^1.9.0",
     "@opentelemetry/exporter-trace-otlp-http": "^0.205.0",
@@ -74,5 +53,27 @@
     "@opentelemetry/sdk-trace-base": {
       "optional": true
     }
+  },
+  "devDependencies": {
+    "@assistant-ui/x-buildutils": "workspace:*",
+    "@opentelemetry/api": "^1.9.0",
+    "@opentelemetry/exporter-trace-otlp-http": "^0.205.0",
+    "@opentelemetry/sdk-trace-base": "^2.1.0",
+    "@types/node": "^26.4.1",
+    "jsdom": "^30.0.1",
+    "vitest": "^4.1.11"
+  },
+  "publishConfig": {
+    "access": "public",
+    "provenance": true
+  },
+  "homepage": "https://www.assistant-ui.com/",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/assistant-ui/assistant-ui.git",
+    "directory": "packages/cloud"
+  },
+  "bugs": {
+    "url": "https://github.com/assistant-ui/assistant-ui/issues"
   }
 }

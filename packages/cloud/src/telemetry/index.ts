@@ -85,8 +85,8 @@ export function withAssistantCloudTraceMetadata<
 ): (options: { part: Part }) => Record<string, unknown> | undefined {
   return (options) => {
     const metadata = messageMetadata?.(options);
-    return options.part.type === "start"
-      ? { ...metadata, ...assistantCloudTraceMetadata() }
-      : metadata;
+    if (options.part.type !== "start") return metadata;
+    const trace = assistantCloudTraceMetadata();
+    return trace.traceId === undefined ? metadata : { ...metadata, ...trace };
   };
 }

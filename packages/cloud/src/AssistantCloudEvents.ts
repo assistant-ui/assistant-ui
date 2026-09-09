@@ -39,18 +39,17 @@ export class AssistantCloudEvents {
   private readonly cloud: AssistantCloudAPI;
   private readonly isEnabled: () => boolean;
 
+  private listening = false;
+
   constructor(cloud: AssistantCloudAPI, isEnabled: () => boolean) {
     this.cloud = cloud;
     this.isEnabled = isEnabled;
-    if (typeof window !== "undefined") {
-      window.addEventListener("pagehide", this.flush);
-      document.addEventListener("visibilitychange", this.onVisibilityChange);
-    }
   }
 
   public track(event: AssistantCloudEvent): void {
     if (!this.isEnabled()) return;
 
+    this.listen();
     this.buffer.push(normalizeEvent(event));
     if (this.buffer.length >= FLUSH_SIZE) {
       void this.flush();
@@ -58,6 +57,32 @@ export class AssistantCloudEvents {
     }
 
     this.scheduleFlush();
+  }
+
+  private listen(): void {
+    if (
+      this.listening ||
+      typeof window === "undefined" ||
+      typeof document === "undefined"
+    ) {
+      return;
+    }
+    this.listening = true;
+    window.addEventListener("pagehide", this.flush);
+    document.addEventListener("visibilitychange", this.onVisibilityChange);
+  }
+
+  public dispose(): void {
+    if (this.listening) {
+      this.listening = false;
+      window.removeEventListener("pagehide", this.flush);
+      document.removeEventListener("visibilitychange", this.onVisibilityChange);
+    }
+    if (this.timer !== undefined) {
+      clearTimeout(this.timer);
+      this.timer = undefined;
+    }
+    void this.flush();
   }
 
   private onVisibilityChange = () => {

@@ -32,6 +32,7 @@ describe("deriveRunOutcome", () => {
     [{ finishReason: "tool-calls" }, { status: "completed" }],
     [{}, { status: "completed" }],
     [{ finishReason: "other" }, { status: "completed" }],
+    [{ finishReason: "error" }, { status: "error" }],
   ])("maps %o", (input, expected) => {
     expect(deriveRunOutcome(input)).toEqual(expected);
   });
