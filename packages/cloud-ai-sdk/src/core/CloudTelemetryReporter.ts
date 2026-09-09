@@ -3,6 +3,7 @@ import {
   type AssistantCloud,
   createRunReport,
   deriveRunOutcome,
+  describeRunError,
   type RunReportStepInit,
   type RunTelemetryUsageInit,
 } from "assistant-cloud";
@@ -17,6 +18,7 @@ export type TelemetryFinishEvent = {
   isAbort: boolean;
   isDisconnect: boolean;
   isError: boolean;
+  error?: unknown;
 };
 
 export type TelemetryRunTiming = {
@@ -57,7 +59,9 @@ export class CloudTelemetryReporter {
     const dedupeKey = `${threadId}:${extracted.assistantMessageId}`;
     if (this.reported.has(dedupeKey)) return;
 
-    const outcome = event ? deriveRunOutcome(event) : undefined;
+    const outcome = event
+      ? deriveRunOutcome(event, extracted.status)
+      : undefined;
     const metadata = getAssistantMetadata(
       messages,
       extracted.assistantMessageId,
@@ -66,6 +70,7 @@ export class CloudTelemetryReporter {
       threadId,
       status: outcome?.status ?? extracted.status,
       outcome: outcome?.outcome,
+      ...describeRunError(event?.error),
       messageId: getResolvedRemoteId?.(extracted.assistantMessageId),
       traceId:
         typeof metadata?.traceId === "string" ? metadata.traceId : undefined,

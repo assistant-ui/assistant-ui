@@ -357,6 +357,40 @@ describe("CloudTelemetryReporter", () => {
     expect(reportMock.mock.calls[0]![0]!.status).toBe("completed");
   });
 
+  it("keeps the message-shape status when the event carries no finish reason", async () => {
+    const { cloud, reportMock } = createCloud();
+    const reporter = new CloudTelemetryReporter(cloud);
+
+    await reporter.reportFromMessages(
+      "thread-1",
+      [assistantMsgWithParts("m-1", [{ type: "step-start" }])],
+      event({}),
+    );
+
+    expect(reportMock).toHaveBeenCalledOnce();
+    expect(reportMock.mock.calls[0]![0]!.status).toBe("incomplete");
+  });
+
+  it("reports the failed run's error message and code", async () => {
+    const { cloud, reportMock } = createCloud();
+    const reporter = new CloudTelemetryReporter(cloud);
+    const error = new Error("Rate limited");
+    error.name = "AI_APICallError";
+
+    await reporter.reportFromMessages(
+      "thread-1",
+      [assistantMsg("m-1", "")],
+      event({ isError: true, error }),
+    );
+
+    expect(reportMock).toHaveBeenCalledOnce();
+    expect(reportMock.mock.calls[0]![0]).toMatchObject({
+      status: "error",
+      error: "Rate limited",
+      error_code: "AI_APICallError",
+    });
+  });
+
   it("falls back to the message-shape heuristic when no event is provided", async () => {
     const { cloud, reportMock } = createCloud();
     const reporter = new CloudTelemetryReporter(cloud);

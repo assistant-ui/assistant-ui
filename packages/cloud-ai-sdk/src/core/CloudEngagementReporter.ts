@@ -9,7 +9,6 @@ type ResolveRemoteMessageId = (
 export class CloudEngagementReporter {
   private runStartedAt = new Map<string, number>();
   private stoppedRuns = new Set<string>();
-  private regeneratingThreads = new Set<string>();
   private shownErrors = new Set<string>();
 
   private readonly cloud: AssistantCloud;
@@ -28,7 +27,7 @@ export class CloudEngagementReporter {
     this.runStartedAt.set(threadId, Date.now());
     this.stoppedRuns.delete(threadId);
     this.shownErrors.delete(threadId);
-    if (this.regeneratingThreads.delete(threadId) || !message) return;
+    if (!message) return;
 
     this.track({
       kind: "message_sent",
@@ -57,7 +56,6 @@ export class CloudEngagementReporter {
 
   public messageRegenerated(threadId: string, messages: UIMessage[]): void {
     const message = getLastMessage(messages, "assistant");
-    this.regeneratingThreads.add(threadId);
     this.runStartedAt.set(threadId, Date.now());
     this.stoppedRuns.delete(threadId);
     this.shownErrors.delete(threadId);

@@ -28,6 +28,7 @@ export type CloudChatCoreOptions = {
 type ActiveTelemetryTiming = {
   startedAt: number;
   firstTokenMs?: number;
+  error?: unknown;
 };
 
 export class CloudChatCore {
@@ -211,10 +212,15 @@ export class CloudChatCore {
           roles: ["user"],
           strict: true,
         });
-        this.engagementReporter.messageSent(
-          currentThreadId,
-          messagesForDurableUserPersist,
-        );
+        if (
+          opts.trigger === "submit-message" &&
+          opts.messages.at(-1)?.role === "user"
+        ) {
+          this.engagementReporter.messageSent(
+            currentThreadId,
+            messagesForDurableUserPersist,
+          );
+        }
 
         const timing: ActiveTelemetryTiming = { startedAt: Date.now() };
         this.telemetryTimings.set(chatKey, timing);
@@ -275,15 +281,21 @@ export class CloudChatCore {
               );
             }
           }
+          const finishEvent =
+            activeTiming?.error === undefined
+              ? event
+              : { ...event, error: activeTiming.error };
           const persist = timing
-            ? this.persistChatMessages(chatKey, registry, event, timing)
-            : this.persistChatMessages(chatKey, registry, event);
+            ? this.persistChatMessages(chatKey, registry, finishEvent, timing)
+            : this.persistChatMessages(chatKey, registry, finishEvent);
           void persist.catch((error) => {
             this.handleSyncError(error);
           });
         }
       },
       onError: (error) => {
+        const activeTiming = this.telemetryTimings.get(chatKey);
+        if (activeTiming) activeTiming.error = error;
         const threadId = registry.getMeta(chatKey)?.threadId;
         const chatInstance = registry.get(chatKey);
         if (threadId && chatInstance) {

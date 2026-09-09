@@ -218,6 +218,80 @@ describe("CloudChatCore", () => {
     );
   });
 
+  it("reports message_sent for a user submission only", async () => {
+    const sendMessages = vi.fn(() => Promise.resolve(new ReadableStream()));
+    const core = createCore({
+      baseTransport: { sendMessages, reconnectToStream: vi.fn() },
+    });
+    const user = { id: "user-1", role: "user", parts: [] };
+    const assistant = { id: "assistant-1", role: "assistant", parts: [] };
+    const chatRegistry = {
+      getMeta: () => ({ threadId: "thread-1" }),
+      get: () => undefined,
+    } as never;
+    vi.spyOn(core, "ensureThreadId").mockResolvedValue("thread-1");
+    vi.spyOn(core, "persist").mockResolvedValue(undefined);
+    const messageSent = vi
+      .spyOn(core.engagementReporter, "messageSent")
+      .mockImplementation(() => undefined);
+    const transport = core.createTransport("chat-1", chatRegistry);
+
+    await transport.sendMessages({
+      trigger: "submit-message",
+      messages: [user],
+    } as never);
+    expect(messageSent).toHaveBeenCalledTimes(1);
+
+    await transport.sendMessages({
+      trigger: "submit-message",
+      messageId: "assistant-1",
+      messages: [user, assistant],
+    } as never);
+    await transport.sendMessages({
+      trigger: "regenerate-message",
+      messages: [user, assistant],
+    } as never);
+    expect(messageSent).toHaveBeenCalledTimes(1);
+  });
+
+  it("hands the stream error to the run report", async () => {
+    const source = new ReadableStream();
+    const sendMessages = vi.fn().mockResolvedValue(source);
+    const core = createCore({
+      baseTransport: { sendMessages, reconnectToStream: vi.fn() },
+    });
+    const messages = [{ id: "assistant-1", role: "assistant", parts: [] }];
+    const chatRegistry = {
+      getMeta: () => ({ threadId: "thread-1" }),
+      get: () => ({ messages }),
+    } as never;
+    vi.spyOn(core, "ensureThreadId").mockResolvedValue("thread-1");
+    vi.spyOn(core, "persist").mockResolvedValue(undefined);
+    const report = vi
+      .spyOn(core.telemetryReporter, "reportFromMessages")
+      .mockResolvedValue(undefined);
+
+    core.createChat("chat-1", chatRegistry);
+    await core
+      .createTransport("chat-1", chatRegistry)
+      .sendMessages({ trigger: "submit-message", messages } as never);
+    const error = new Error("boom");
+    (chatOptionsRef.current?.onError as (error: Error) => void)(error);
+    (chatOptionsRef.current?.onFinish as (event: unknown) => void)({
+      isAbort: false,
+      isDisconnect: false,
+      isError: true,
+    });
+
+    await vi.waitFor(() => expect(report).toHaveBeenCalledOnce());
+    expect(report.mock.calls[0]![2]).toEqual({
+      isAbort: false,
+      isDisconnect: false,
+      isError: true,
+      error,
+    });
+  });
+
   it("preserves synchronous finish callback failures", () => {
     const error = new Error("finish failed");
     const onFinish = vi.fn(() => {

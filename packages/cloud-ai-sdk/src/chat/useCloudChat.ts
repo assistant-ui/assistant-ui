@@ -86,7 +86,7 @@ export function useCloudChat(
       const threadId = threads.threadId;
       if (!threadId) throw new Error("No active thread");
 
-      const remoteMessageId = core.persistence.getResolvedRemoteId(
+      const remoteMessageId = await core.persistence.getRemoteId(
         threadId,
         messageId,
       );

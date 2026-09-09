@@ -58,6 +58,9 @@ vi.mock("assistant-cloud", () => ({
       load = vi.fn().mockResolvedValue({ messages: [] });
       append = vi.fn().mockResolvedValue(undefined);
       getResolvedRemoteId = mockResolvedRemoteId;
+      getRemoteId = vi.fn((messageId: string) =>
+        Promise.resolve(mockResolvedRemoteId(messageId)),
+      );
     },
   ),
   createFormattedPersistence: vi.fn(() => ({
