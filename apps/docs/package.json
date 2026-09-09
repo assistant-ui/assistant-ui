@@ -36,6 +36,8 @@
     "@hookform/resolvers": "^5.9.1",
     "@langchain/langgraph-sdk": "^1.10.2",
     "@modelcontextprotocol/server": "^2.0.0",
+    "@opentelemetry/api": "^1.9.0",
+    "@opentelemetry/exporter-trace-otlp-http": "^0.205.0",
     "@opentelemetry/sdk-trace-base": "^2.11.0",
     "@posthog/ai": "^8.10.1",
     "@shikijs/transformers": "^4.4.3",

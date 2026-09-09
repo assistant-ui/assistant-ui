@@ -216,6 +216,7 @@ export function renderSummary({ bumps, violations, cascade, intended = [] }) {
   }
   parts.push(
     "\n",
+    renderIntendedSection(intended),
     renderCascadeSection(cascade),
     "### What this means\n\n",
     "- **0.x packages**: `^0.12.15` only matches `>=0.12.15 <0.13.0` — ",

@@ -785,9 +785,14 @@ declare function deriveRunOutcome(input: {
   isAbort?: boolean | undefined;
   isDisconnect?: boolean | undefined;
   isError?: boolean | undefined;
-}): {
+}, fallbackStatus?: "completed" | "incomplete"): {
   status: "completed" | "error" | "incomplete";
   outcome?: RunReportOutcome;
+};
+
+declare function describeRunError(error: unknown): {
+  error?: string;
+  errorCode?: string;
 };
 
 declare function extractRunTelemetryModelId(metadata: Record<string, unknown> | undefined): string | undefined;
@@ -804,7 +809,7 @@ declare function generateThreadTitle(cloud: AssistantCloud, options: {
 }): Promise<string | null>;
 
 declare namespace entry_root_exports {
-  export { AssistantCloud, AssistantCloudEvent, AssistantCloudEventKind, AssistantCloudEvents, AssistantCloudRunReport, AssistantCloudRunReportToolCall, AssistantCloudScoreBody, AssistantCloudScoreResponse, AssistantCloudScores, AssistantCloudTelemetryConfig, AssistantCloudThreadMessageFeedbackBody, AssistantCloudThreadMessageFeedbackResponse, CloudAPIError, CloudMessage, CloudMessagePersistence, CloudResponseError, GeneratePresignedDownloadUrlResponse, McpSamplingHandler, MessageFormatAdapter, RunReportInit, RunReportOutcome, RunReportStepInit, RunTelemetryToolCallInit, RunTelemetryUsage, RunTelemetryUsageInit, SamplingCallData, createFormattedPersistence, createRunReport, createRunTelemetryToolCall, createSamplingCollector, deriveRunOutcome, extractRunTelemetryModelId, generateThreadTitle, normalizeRunTelemetryUsage, readAnonymousRefreshToken, truncateRunTelemetryText, wrapSamplingHandler };
+  export { AssistantCloud, AssistantCloudEvent, AssistantCloudEventKind, AssistantCloudEvents, AssistantCloudRunReport, AssistantCloudRunReportToolCall, AssistantCloudScoreBody, AssistantCloudScoreResponse, AssistantCloudScores, AssistantCloudTelemetryConfig, AssistantCloudThreadMessageFeedbackBody, AssistantCloudThreadMessageFeedbackResponse, CloudAPIError, CloudMessage, CloudMessagePersistence, CloudResponseError, GeneratePresignedDownloadUrlResponse, McpSamplingHandler, MessageFormatAdapter, RunReportInit, RunReportOutcome, RunReportStepInit, RunTelemetryToolCallInit, RunTelemetryUsage, RunTelemetryUsageInit, SamplingCallData, createFormattedPersistence, createRunReport, createRunTelemetryToolCall, createSamplingCollector, deriveRunOutcome, describeRunError, extractRunTelemetryModelId, generateThreadTitle, normalizeRunTelemetryUsage, readAnonymousRefreshToken, truncateRunTelemetryText, wrapSamplingHandler };
 }
 
 declare namespace entry_telemetry_exports {

@@ -735,6 +735,36 @@ Declared with \`caret-break: intended\` in the changeset body: consumers on the 
   );
 });
 
+test("an intended range break stays listed next to an unaccepted violation", () => {
+  const summary = renderSummary({
+    bumps: [],
+    violations: [
+      {
+        file: "wild-cats-run.md",
+        name: "@fixture/other",
+        version: "0.3.1",
+        bumpType: "minor",
+        reason: "0.x package — minor bump breaks `^` caret range",
+      },
+    ],
+    intended: [
+      {
+        file: "cloud-0-2.md",
+        name: "@fixture/dep",
+        version: "0.12.15",
+        bumpType: "minor",
+        intended: true,
+        reason: "0.x package — minor bump breaks `^` caret range",
+      },
+    ],
+    cascade: [],
+  });
+  assert.match(summary, /## ⚠️ Semver-Breaking Changeset Detected/);
+  assert.match(summary, /\| `wild-cats-run.md` \| `@fixture\/other` \|/);
+  assert.match(summary, /### Intended range breaks \(1\)/);
+  assert.match(summary, /\| `cloud-0-2.md` \| `@fixture\/dep` \|/);
+});
+
 test("runCheck reads the intended marker from the changeset body", () => {
   const root = createWorkspace([{ name: "@fixture/dep", version: "0.12.15" }], {
     "cloud-0-2.md": '"@fixture/dep": minor',
