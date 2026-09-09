@@ -327,15 +327,17 @@ async def test_cancelled_close_retrieves_late_callback_failure(
     stream = create_run(run_callback)
     first_chunk = await anext(stream)
     assert first_chunk.type == "text-delta"
-    await cleanup_started.wait()
+    await asyncio.wait_for(cleanup_started.wait(), timeout=1)
 
     close_task = asyncio.create_task(stream.aclose())
-    await asyncio.sleep(cancel_delay)
-    close_task.cancel()
-    with pytest.raises(asyncio.CancelledError):
-        await close_task
+    try:
+        await asyncio.sleep(cancel_delay)
+        close_task.cancel()
+        with pytest.raises(asyncio.CancelledError):
+            await asyncio.wait_for(close_task, timeout=1)
+    finally:
+        release_cleanup.set()
 
-    release_cleanup.set()
     await asyncio.wait_for(reader_finished.wait(), timeout=1)
     for _ in range(20):
         if "interrupted early-close cleanup" in caplog.text:
