@@ -94,12 +94,18 @@ function applyArrayUpdate(
 
   const patches = update.update;
   if (Array.isArray(patches) && patches.length > 0) {
+    const patchesById = new Map<string | number, Record<string, unknown>>();
+    for (const candidate of patches) {
+      const id = getArrayItemId(candidate);
+      if (id !== undefined && !patchesById.has(id)) {
+        patchesById.set(id, candidate as Record<string, unknown>);
+      }
+    }
+
     next = next.map((item) => {
       const id = getArrayItemId(item);
       if (id === undefined || !isRecord(item)) return item;
-      const patch = patches.find(
-        (candidate) => isRecord(candidate) && candidate.id === id,
-      );
+      const patch = patchesById.get(id);
       return patch ? { ...item, ...patch } : item;
     });
   }

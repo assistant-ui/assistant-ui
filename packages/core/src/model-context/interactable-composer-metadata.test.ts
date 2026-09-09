@@ -131,6 +131,25 @@ describe("shallowMergeInteractableState", () => {
     });
   });
 
+  it("uses the first valid patch for each array item id", () => {
+    expect(
+      shallowMergeInteractableState(
+        { tasks: [{ id: 1, title: "Original", done: false }] },
+        {
+          tasks: {
+            update: [
+              null,
+              { title: "Missing id" },
+              { id: "1", title: "String id" },
+              { id: 1, title: "First", done: true },
+              { id: 1, title: "Second" },
+            ],
+          },
+        },
+      ),
+    ).toEqual({ tasks: [{ id: 1, title: "First", done: true }] });
+  });
+
   it("keeps raw array replacement semantics", () => {
     expect(
       shallowMergeInteractableState(
