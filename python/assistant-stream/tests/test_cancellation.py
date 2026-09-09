@@ -161,6 +161,27 @@ async def test_closes_tool_streams_registered_by_substreams():
 
 
 @pytest.mark.anyio
+@pytest.mark.parametrize("with_result", [False, True])
+async def test_callback_failure_drains_tool_streams(with_result: bool):
+    async def run_callback(controller: RunController):
+        tool_call = await controller.add_tool_call("lookup", "tool-1")
+        if with_result:
+            tool_call.set_response("found")
+        raise RuntimeError("boom")
+
+    chunks = []
+    with pytest.raises(RuntimeError, match="boom"):
+        async for chunk in create_run(run_callback):
+            chunks.append(chunk)
+
+    chunk_types = [chunk.type for chunk in chunks]
+    assert chunk_types[-1] == "tool-call-args-text-finish"
+    if with_result:
+        tool_result = next(chunk for chunk in chunks if chunk.type == "tool-result")
+        assert tool_result.result == "found"
+
+
+@pytest.mark.anyio
 async def test_early_stream_close_forces_background_task_cancellation():
     callback_cancelled = asyncio.Event()
     callback_finished = asyncio.Event()

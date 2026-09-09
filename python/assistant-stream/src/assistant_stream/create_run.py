@@ -46,6 +46,7 @@ class RunController:
         self._loop = asyncio.get_running_loop()
         self._dispose_callbacks = []
         self._stream_tasks = []
+        self._stream_tasks_to_drain = []
         self._state_manager = StateManager(self._put_chunk_nowait, state_data)
         self._parent_id = parent_id
         self._cancelled_event = asyncio.Event()
@@ -63,6 +64,7 @@ class RunController:
         controller._loop = self._loop
         controller._dispose_callbacks = self._dispose_callbacks
         controller._stream_tasks = self._stream_tasks
+        controller._stream_tasks_to_drain = self._stream_tasks_to_drain
         controller._state_manager = self._state_manager
         controller._parent_id = parent_id
         controller._cancelled_event = self._cancelled_event
@@ -111,6 +113,7 @@ class RunController:
         self._dispose_callbacks.append(controller.close)
 
         self.add_stream(stream)
+        self._stream_tasks_to_drain.append(self._stream_tasks[-1])
         return controller
 
     def add_tool_result(self, tool_call_id: str, result: Any) -> None:
@@ -284,8 +287,19 @@ async def create_run(
 
             async def cancel_stream_tasks():
                 task_index = 0
-                while task_index < len(controller._stream_tasks):
+                drain_index = 0
+                while True:
                     drain_dispose_callbacks()
+
+                    tasks_to_drain = controller._stream_tasks_to_drain[drain_index:]
+                    if tasks_to_drain:
+                        await asyncio.gather(*tasks_to_drain, return_exceptions=True)
+                        drain_index += len(tasks_to_drain)
+                        continue
+
+                    if task_index >= len(controller._stream_tasks):
+                        break
+
                     tasks = controller._stream_tasks[task_index:]
                     for task in tasks:
                         if not task.done():
