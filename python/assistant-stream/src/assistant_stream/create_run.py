@@ -31,7 +31,7 @@ def _log_detached_task_error(task: asyncio.Task[None]) -> None:
     try:
         task.result()
     except asyncio.CancelledError:
-        pass
+        return
     except Exception:
         logger.warning(
             "Suppressed callback exception after interrupted early-close cleanup",
