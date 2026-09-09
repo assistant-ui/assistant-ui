@@ -297,7 +297,10 @@ async def test_early_close_during_callback_failure_finishes_reader_cleanup():
 
 
 @pytest.mark.anyio
-async def test_cancelled_close_retrieves_late_callback_failure(caplog):
+@pytest.mark.parametrize("cancel_delay", [0.01, 0.1])
+async def test_cancelled_close_retrieves_late_callback_failure(
+    caplog, cancel_delay
+):
     reader_started = asyncio.Event()
     cleanup_started = asyncio.Event()
     release_cleanup = asyncio.Event()
@@ -327,7 +330,7 @@ async def test_cancelled_close_retrieves_late_callback_failure(caplog):
     await cleanup_started.wait()
 
     close_task = asyncio.create_task(stream.aclose())
-    await asyncio.sleep(0.1)
+    await asyncio.sleep(cancel_delay)
     close_task.cancel()
     with pytest.raises(asyncio.CancelledError):
         await close_task

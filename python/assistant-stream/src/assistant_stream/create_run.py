@@ -383,6 +383,9 @@ async def create_run(
                 except asyncio.TimeoutError:
                     # Timeout means cooperative shutdown did not finish in time.
                     pass
+                except asyncio.CancelledError:
+                    task.add_done_callback(_log_detached_task_error)
+                    raise
                 except Exception:
                     # The stream consumer already disconnected, so suppress callback errors
                     # but keep a log signal for postmortem debugging.
