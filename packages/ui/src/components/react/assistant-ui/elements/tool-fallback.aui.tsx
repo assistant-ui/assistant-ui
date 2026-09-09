@@ -243,9 +243,10 @@ function ToolFallbackArgs({
 
 const formatUnknownValue = (value: unknown, space?: number): string => {
   if (typeof value === "string") return value;
-  if (value instanceof Error) return String(value);
 
   try {
+    if (value instanceof Error) return String(value);
+
     const json = JSON.stringify(value, null, space);
     if (json !== undefined) return json;
   } catch {}
@@ -295,7 +296,7 @@ function ToolFallbackError({
   const errorText =
     error === undefined || error === null ? null : formatUnknownValue(error);
 
-  if (errorText === null) return null;
+  if (!errorText) return null;
 
   const isCancelled = status.reason === "cancelled";
   const headerText = isCancelled ? "Cancelled reason:" : "Error:";

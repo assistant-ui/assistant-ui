@@ -92,6 +92,18 @@ describe("ToolFallback", () => {
     render(<ToolFallback.Result result={result} />);
 
     expect(screen.getByText("[Unserializable value]")).toBeTruthy();
+
+    const error = new Error("cannot convert");
+    error.toString = () => {
+      throw new Error("cannot convert");
+    };
+
+    const view = render(
+      <ToolFallback.Error
+        status={{ type: "incomplete", reason: "error", error }}
+      />,
+    );
+    expect(view.container.textContent).toContain("[Unserializable value]");
   });
 
   it("does not offer a fabricated result for an unprojected interrupt", () => {
