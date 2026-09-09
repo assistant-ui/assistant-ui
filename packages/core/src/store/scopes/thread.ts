@@ -155,7 +155,9 @@ export type ThreadEvents = {
    * state.
    */
   "thread.runEnd": { threadId: string };
+  /** The user stopped the run in progress on this thread. */
   "thread.cancelRun": { threadId: string };
+  /** The user started a voice session on this thread. */
   "thread.voiceStarted": { threadId: string };
   /**
    * The thread transitioned from new to initialized. Fires before the first

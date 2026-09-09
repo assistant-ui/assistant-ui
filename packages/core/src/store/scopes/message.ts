@@ -67,10 +67,15 @@ export type MessageMeta = {
 };
 
 export type MessageEvents = {
+  /** The user asked for this assistant message to be generated again. */
   "message.reload": { threadId: string; messageId: string };
+  /** The user moved to another branch at this message. */
   "message.branchSwitched": { threadId: string; messageId: string };
+  /** The user copied this message. */
   "message.copied": { threadId: string; messageId: string };
+  /** Speech synthesis started for this message. */
   "message.speak": { threadId: string; messageId: string };
+  /** This message entered an error status. */
   "message.error": { threadId: string; messageId: string; reason: "error" };
 };
 

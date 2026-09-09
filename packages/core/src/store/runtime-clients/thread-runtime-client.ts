@@ -157,8 +157,8 @@ const useThreadClient = ({
     reset: runtime.reset,
     stopSpeaking: runtime.stopSpeaking,
     connectVoice: () => {
-      runtime.connectVoice();
       emitThreadEvent("thread.voiceStarted");
+      runtime.connectVoice();
     },
     disconnectVoice: runtime.disconnectVoice,
     getVoiceVolume: runtime.getVoiceVolume,

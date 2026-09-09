@@ -10,7 +10,6 @@ import type { ExportedMessageRepositoryItem } from "../../../runtime/utils/messa
 import {
   type AssistantCloud,
   type AssistantCloudEvent,
-  type AssistantCloudRunReport,
   type AssistantCloudRunReportToolCall,
   CloudMessagePersistence,
   createFormattedPersistence,
@@ -369,7 +368,8 @@ class AssistantCloudThreadHistoryAdapter implements ThreadHistoryAdapter {
         reasoningTokens: data.reasoningTokens,
         cachedInputTokens: data.cachedInputTokens,
       },
-      steps: toRunReportSteps(mergedSteps, data.totalSteps),
+      steps: toRunReportSteps(mergedSteps),
+      totalSteps: data.totalSteps,
       toolCalls: data.toolCalls,
       durationMs,
       firstTokenMs: messageInfo?.firstTokenMs,
@@ -400,17 +400,9 @@ type StepTimestamp = { start_ms: number; end_ms: number };
 
 function toRunReportSteps(
   steps: TelemetryStepData[] | undefined,
-  totalSteps: number | undefined,
 ): RunReportStepInit[] | undefined {
-  const source =
-    steps ??
-    (totalSteps === undefined
-      ? undefined
-      : Array.from(
-          { length: totalSteps },
-          (): NonNullable<AssistantCloudRunReport["steps"]>[number] => ({}),
-        ));
-  return source?.map((step) => ({
+  if (!steps) return undefined;
+  return steps.map((step) => ({
     usage: {
       inputTokens: step.input_tokens,
       outputTokens: step.output_tokens,
