@@ -274,14 +274,20 @@ async def create_run(
                 dispose()
             try:
                 try:
-                    await asyncio.gather(*controller._stream_tasks)
+                    task_index = 0
+                    while task_index < len(controller._stream_tasks):
+                        tasks = controller._stream_tasks[task_index:]
+                        await asyncio.gather(*tasks)
+                        task_index += len(tasks)
                 except BaseException:
-                    for task in controller._stream_tasks:
-                        if not task.done():
-                            task.cancel()
-                    await asyncio.gather(
-                        *controller._stream_tasks, return_exceptions=True
-                    )
+                    task_index = 0
+                    while task_index < len(controller._stream_tasks):
+                        tasks = controller._stream_tasks[task_index:]
+                        for task in tasks:
+                            if not task.done():
+                                task.cancel()
+                        await asyncio.gather(*tasks, return_exceptions=True)
+                        task_index += len(tasks)
                     raise
             finally:
                 enqueue_threadsafe(asyncio.get_running_loop(), queue, None)
