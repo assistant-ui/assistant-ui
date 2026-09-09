@@ -243,15 +243,17 @@ function ToolFallbackArgs({
 
 const formatUnknownValue = (value: unknown, space?: number): string => {
   if (typeof value === "string") return value;
+  if (value instanceof Error) return String(value);
 
   try {
-    return JSON.stringify(value, null, space) ?? String(value);
+    const json = JSON.stringify(value, null, space);
+    if (json !== undefined) return json;
+  } catch {}
+
+  try {
+    return String(value);
   } catch {
-    try {
-      return String(value);
-    } catch {
-      return "[Unserializable value]";
-    }
+    return "[Unserializable value]";
   }
 };
 
@@ -290,9 +292,10 @@ function ToolFallbackError({
   if (status?.type !== "incomplete") return null;
 
   const error = status.error;
-  const errorText = error ? formatUnknownValue(error) : null;
+  const errorText =
+    error === undefined || error === null ? null : formatUnknownValue(error);
 
-  if (!errorText) return null;
+  if (errorText === null) return null;
 
   const isCancelled = status.reason === "cancelled";
   const headerText = isCancelled ? "Cancelled reason:" : "Error:";

@@ -59,6 +59,24 @@ describe("ToolFallback", () => {
       />,
     );
     expect(view.container.textContent).toContain("1");
+
+    view.rerender(
+      <ToolFallback.Error
+        status={{ type: "incomplete", reason: "error", error: false }}
+      />,
+    );
+    expect(view.container.textContent).toContain("false");
+
+    view.rerender(
+      <ToolFallback.Error
+        status={{
+          type: "incomplete",
+          reason: "error",
+          error: new Error("tool failed"),
+        }}
+      />,
+    );
+    expect(view.container.textContent).toContain("Error: tool failed");
   });
 
   it("renders a placeholder when a result cannot be converted to text", () => {
