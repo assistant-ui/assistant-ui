@@ -298,6 +298,34 @@ describe("toWebMcpTool cancellation", () => {
     },
   );
 
+  it("consumes a validator rejection after cancellation", async () => {
+    const caller = new AbortController();
+    let failValidation!: (error: unknown) => void;
+    const schema = z.object({ city: z.string() });
+    (schema as any)["~standard"] = {
+      ...schema["~standard"],
+      validate: () =>
+        new Promise((_resolve, reject) => {
+          failValidation = reject;
+        }),
+    };
+    const execute = vi.fn(async () => "never");
+    const pending = descriptorFor({ execute, parameters: schema }).execute(
+      { city: "Paris" },
+      { signal: caller.signal },
+    );
+
+    caller.abort();
+
+    await expect(pending).resolves.toEqual({
+      isError: true,
+      content: [text("Tool execution was cancelled.")],
+    });
+    failValidation(new Error("late validation failure"));
+    await new Promise((resolve) => setTimeout(resolve, 0));
+    expect(execute).not.toHaveBeenCalled();
+  });
+
   it("does not execute when cancellation follows validation", async () => {
     const caller = new AbortController();
     const removeEventListener = caller.signal.removeEventListener.bind(
