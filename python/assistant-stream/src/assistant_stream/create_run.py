@@ -27,6 +27,18 @@ from assistant_stream.state_manager import StateManager
 logger = logging.getLogger(__name__)
 
 
+def _log_detached_task_error(task: asyncio.Task[None]) -> None:
+    try:
+        task.result()
+    except asyncio.CancelledError:
+        pass
+    except Exception:
+        logger.warning(
+            "Suppressed callback exception after interrupted early-close cleanup",
+            exc_info=True,
+        )
+
+
 class ReadOnlyCancellationSignal:
     """Read-only view over an asyncio.Event used for cancellation."""
 
@@ -321,6 +333,7 @@ async def create_run(
                         await asyncio.shield(cleanup_task)
                         return
                     except asyncio.CancelledError:
+                        # Cleanup remains uncancellable so nested readers cannot be orphaned.
                         if cleanup_task.done():
                             cleanup_task.result()
                             return
@@ -389,6 +402,7 @@ async def create_run(
                     pass
                 else:
                     # Preserve caller-initiated cancellation (e.g. wait_for timeout).
+                    task.add_done_callback(_log_detached_task_error)
                     raise
             except Exception:
                 # The stream consumer already disconnected, so suppress callback errors

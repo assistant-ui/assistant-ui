@@ -297,6 +297,52 @@ async def test_early_close_during_callback_failure_finishes_reader_cleanup():
 
 
 @pytest.mark.anyio
+async def test_cancelled_close_retrieves_late_callback_failure(caplog):
+    reader_started = asyncio.Event()
+    cleanup_started = asyncio.Event()
+    release_cleanup = asyncio.Event()
+    reader_finished = asyncio.Event()
+
+    async def blocking_stream():
+        reader_started.set()
+        try:
+            await asyncio.Event().wait()
+        except asyncio.CancelledError:
+            cleanup_started.set()
+            await release_cleanup.wait()
+            raise
+        finally:
+            reader_finished.set()
+        yield
+
+    async def run_callback(controller: RunController):
+        controller.add_stream(blocking_stream())
+        controller.append_text("start")
+        await reader_started.wait()
+        raise RuntimeError("boom")
+
+    stream = create_run(run_callback)
+    first_chunk = await anext(stream)
+    assert first_chunk.type == "text-delta"
+    await cleanup_started.wait()
+
+    close_task = asyncio.create_task(stream.aclose())
+    await asyncio.sleep(0.1)
+    close_task.cancel()
+    with pytest.raises(asyncio.CancelledError):
+        await close_task
+
+    release_cleanup.set()
+    await asyncio.wait_for(reader_finished.wait(), timeout=1)
+    for _ in range(20):
+        if "interrupted early-close cleanup" in caplog.text:
+            break
+        await asyncio.sleep(0.01)
+
+    assert "interrupted early-close cleanup" in caplog.text
+
+
+@pytest.mark.anyio
 async def test_early_stream_close_does_not_raise_callback_exception():
     async def run_callback(controller: RunController):
         controller.append_text("start")
