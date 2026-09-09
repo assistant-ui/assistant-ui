@@ -146,6 +146,40 @@ describe("AssistantFrameProvider", () => {
     });
   });
 
+  it("reports tool results that cannot cross the frame boundary", async () => {
+    const execute = vi.fn(async () => () => undefined);
+    vi.mocked(parentWindow.postMessage).mockImplementation((data) => {
+      const message = (data as { message?: Record<string, unknown> }).message;
+      if (message?.["type"] === "tool-result" && "result" in message) {
+        throw new DOMException(
+          "The object could not be cloned.",
+          "DataCloneError",
+        );
+      }
+    });
+    AssistantFrameProvider.addModelContextProvider({
+      getModelContext: () => ({
+        tools: { sensitiveTool: { execute } },
+      }),
+    });
+
+    dispatchToolCall(window.location.origin);
+
+    await vi.waitFor(() => {
+      expect(parentWindow.postMessage).toHaveBeenCalledWith(
+        {
+          channel: FRAME_MESSAGE_CHANNEL,
+          message: {
+            type: "tool-result",
+            id: "tool-call-1",
+            error: "Tool result could not be sent across the frame boundary",
+          },
+        },
+        { targetOrigin: window.location.origin },
+      );
+    });
+  });
+
   it("aborts in-flight tool calls when the parent cancels them", async () => {
     let toolSignal: AbortSignal | undefined;
     const execute = vi.fn(
