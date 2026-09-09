@@ -112,8 +112,8 @@ class RunController:
         stream, controller = await create_tool_call(tool_name, tool_call_id, self._parent_id)
         self._dispose_callbacks.append(controller.close)
 
-        self.add_stream(stream)
-        self._stream_tasks_to_drain.append(self._stream_tasks[-1])
+        task = self._add_stream_task(stream)
+        self._stream_tasks_to_drain.append(task)
         return controller
 
     def add_tool_result(self, tool_call_id: str, result: Any) -> None:
@@ -126,6 +126,11 @@ class RunController:
 
     def add_stream(self, stream: AsyncGenerator[AssistantStreamChunk, None]) -> None:
         """Append a substream to the main stream."""
+        self._add_stream_task(stream)
+
+    def _add_stream_task(
+        self, stream: AsyncGenerator[AssistantStreamChunk, None]
+    ) -> asyncio.Task[None]:
 
         async def reader():
             async for chunk in stream:
@@ -133,6 +138,7 @@ class RunController:
 
         task = asyncio.create_task(reader())
         self._stream_tasks.append(task)
+        return task
 
     def add_data(self, data: Any) -> None:
         """Emit an event to the main stream."""
@@ -308,10 +314,21 @@ async def create_run(
                     task_index += len(tasks)
                 drain_dispose_callbacks()
 
+            async def finish_stream_task_cancellation():
+                cleanup_task = asyncio.create_task(cancel_stream_tasks())
+                while True:
+                    try:
+                        await asyncio.shield(cleanup_task)
+                        return
+                    except asyncio.CancelledError:
+                        if cleanup_task.done():
+                            cleanup_task.result()
+                            return
+
             drain_dispose_callbacks()
             try:
                 if callback_failed:
-                    await cancel_stream_tasks()
+                    await finish_stream_task_cancellation()
                 else:
                     try:
                         task_index = 0
@@ -321,7 +338,7 @@ async def create_run(
                             task_index += len(tasks)
                             drain_dispose_callbacks()
                     except BaseException:
-                        await cancel_stream_tasks()
+                        await finish_stream_task_cancellation()
                         raise
             finally:
                 enqueue_threadsafe(asyncio.get_running_loop(), queue, None)

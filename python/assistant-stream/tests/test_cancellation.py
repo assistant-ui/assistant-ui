@@ -241,6 +241,62 @@ async def test_early_stream_close_cancels_and_awaits_substreams():
 
 
 @pytest.mark.anyio
+async def test_early_close_during_callback_failure_finishes_reader_cleanup():
+    parent_started = asyncio.Event()
+    cleanup_started = asyncio.Event()
+    release_cleanup = asyncio.Event()
+    nested_started = asyncio.Event()
+    nested_cancelled = asyncio.Event()
+    nested_finished = asyncio.Event()
+
+    async def nested_stream():
+        nested_started.set()
+        try:
+            await asyncio.Event().wait()
+        except asyncio.CancelledError:
+            nested_cancelled.set()
+            raise
+        finally:
+            nested_finished.set()
+        yield
+
+    async def parent_stream(controller: RunController):
+        parent_started.set()
+        try:
+            await asyncio.Event().wait()
+        except asyncio.CancelledError:
+            controller.add_stream(nested_stream())
+            await nested_started.wait()
+            cleanup_started.set()
+            await release_cleanup.wait()
+            raise
+        yield
+
+    async def run_callback(controller: RunController):
+        controller.add_stream(parent_stream(controller))
+        controller.append_text("start")
+        await parent_started.wait()
+        raise RuntimeError("boom")
+
+    stream = create_run(run_callback)
+    first_chunk = await anext(stream)
+    assert first_chunk.type == "text-delta"
+    await cleanup_started.wait()
+
+    close_task = asyncio.create_task(stream.aclose())
+    try:
+        await asyncio.sleep(0.1)
+        assert not close_task.done()
+        assert not nested_cancelled.is_set()
+    finally:
+        release_cleanup.set()
+        await asyncio.wait_for(close_task, timeout=1)
+
+    assert nested_cancelled.is_set()
+    assert nested_finished.is_set()
+
+
+@pytest.mark.anyio
 async def test_early_stream_close_does_not_raise_callback_exception():
     async def run_callback(controller: RunController):
         controller.append_text("start")
