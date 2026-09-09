@@ -49,7 +49,6 @@ export const docsMarkdownVariantRewrites = (
         ...required,
         { type: "query" as const, key: "view", value: "radix-ui" },
       ],
-      missing: [{ type: "query" as const, key: "platform" }],
       destination: `/platform-llms.mdx/react/radix${destinationSuffix}`,
     },
   ];

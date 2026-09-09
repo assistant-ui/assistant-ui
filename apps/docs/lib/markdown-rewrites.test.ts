@@ -63,7 +63,6 @@ describe("docsMarkdownVariantRewrites", () => {
       },
       { type: "query", key: "view", value: "radix-ui" },
     ]);
-    expect(rewrites[2]?.missing).toEqual([{ type: "query", key: "platform" }]);
   });
 
   it("keeps content negotiation on every variant rewrite", () => {
@@ -91,7 +90,7 @@ describe("docsMarkdownVariantRewrites", () => {
 
   it("falls back without losing a supported platform", () => {
     expect(resolveVariant({ platform: "unknown", view: "radix-ui" })).toBe(
-      "/llms.mdx",
+      "/platform-llms.mdx/react/radix",
     );
     expect(resolveVariant({ platform: "unknown" })).toBe("/llms.mdx");
     expect(resolveVariant({ platform: "rn", view: "base-ui" })).toBe(
