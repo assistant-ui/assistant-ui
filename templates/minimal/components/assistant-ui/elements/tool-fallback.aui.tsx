@@ -241,6 +241,20 @@ function ToolFallbackArgs({
   );
 }
 
+const formatUnknownValue = (value: unknown, space?: number): string => {
+  if (typeof value === "string") return value;
+
+  try {
+    return JSON.stringify(value, null, space) ?? String(value);
+  } catch {
+    try {
+      return String(value);
+    } catch {
+      return "[Unserializable value]";
+    }
+  }
+};
+
 function ToolFallbackResult({
   result,
   className,
@@ -260,7 +274,7 @@ function ToolFallbackResult({
         Result:
       </p>
       <pre className="aui-tool-fallback-result-content bg-muted/50 text-foreground/90 mt-1 rounded-md p-2.5 text-xs whitespace-pre-wrap">
-        {typeof result === "string" ? result : JSON.stringify(result, null, 2)}
+        {formatUnknownValue(result, 2)}
       </pre>
     </div>
   );
@@ -276,11 +290,7 @@ function ToolFallbackError({
   if (status?.type !== "incomplete") return null;
 
   const error = status.error;
-  const errorText = error
-    ? typeof error === "string"
-      ? error
-      : JSON.stringify(error)
-    : null;
+  const errorText = error ? formatUnknownValue(error) : null;
 
   if (!errorText) return null;
 
