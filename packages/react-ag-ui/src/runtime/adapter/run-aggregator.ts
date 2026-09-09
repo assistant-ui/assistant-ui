@@ -893,7 +893,6 @@ export class RunAggregator {
     if (!entry) return;
     if (!entry.argsTextScanner) {
       entry.argsTextScanner = createJSONContainerScanner();
-      scanJSONContainerDelta(entry.argsTextScanner, entry.argsText);
     }
     entry.argsText += delta;
     const shouldParse = scanJSONContainerDelta(entry.argsTextScanner, delta);
