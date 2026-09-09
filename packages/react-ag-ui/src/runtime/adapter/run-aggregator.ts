@@ -87,6 +87,7 @@ type ToolCallState = {
   toolCallId: string;
   toolCallName: string;
   argsText: string;
+  argsTextScanner?: JSONContainerScanner | undefined;
   parsedArgs: Record<string, unknown> | undefined;
   result: unknown;
   isError: boolean | undefined;
@@ -97,6 +98,80 @@ type ToolCallState = {
   modelContent?: ToolModelContentPart[];
   snapshotResultApplied: boolean;
   subagentRunId?: string;
+};
+
+type JSONContainerScanner = {
+  state: "pending" | "open" | "complete" | "invalid";
+  stack: ("{" | "[")[];
+  inString: boolean;
+  escaped: boolean;
+};
+
+const createJSONContainerScanner = (): JSONContainerScanner => ({
+  state: "pending",
+  stack: [],
+  inString: false,
+  escaped: false,
+});
+
+const isJSONWhitespace = (char: string): boolean =>
+  char === " " || char === "\t" || char === "\n" || char === "\r";
+
+const scanJSONContainerDelta = (
+  scanner: JSONContainerScanner,
+  delta: string,
+): boolean => {
+  let completed = false;
+
+  for (const char of delta) {
+    if (scanner.state === "invalid") continue;
+    if (scanner.state === "complete") {
+      if (isJSONWhitespace(char)) continue;
+      scanner.state = "invalid";
+      continue;
+    }
+    if (scanner.state === "pending") {
+      if (isJSONWhitespace(char)) continue;
+      if (char !== "{" && char !== "[") {
+        scanner.state = "invalid";
+        continue;
+      }
+      scanner.state = "open";
+      scanner.stack.push(char);
+      continue;
+    }
+    if (scanner.inString) {
+      if (scanner.escaped) {
+        scanner.escaped = false;
+      } else if (char === "\\") {
+        scanner.escaped = true;
+      } else if (char === '"') {
+        scanner.inString = false;
+      }
+      continue;
+    }
+    if (char === '"') {
+      scanner.inString = true;
+      continue;
+    }
+    if (char === "{" || char === "[") {
+      scanner.stack.push(char);
+      continue;
+    }
+    if (char === "}" || char === "]") {
+      const expected = char === "}" ? "{" : "[";
+      if (scanner.stack.pop() !== expected) {
+        scanner.state = "invalid";
+        continue;
+      }
+      if (scanner.stack.length === 0) {
+        scanner.state = "complete";
+        completed = true;
+      }
+    }
+  }
+
+  return completed && scanner.state === "complete";
 };
 
 export const MCP_APPS_ACTIVITY_TYPE = "mcp-apps";
@@ -816,7 +891,18 @@ export class RunAggregator {
   private appendToolArgs(id: string | undefined, delta: string) {
     const entry = id ? this.toolCalls.get(id) : undefined;
     if (!entry) return;
+    if (!entry.argsTextScanner) {
+      entry.argsTextScanner = createJSONContainerScanner();
+      scanJSONContainerDelta(entry.argsTextScanner, entry.argsText);
+    }
     entry.argsText += delta;
+    const shouldParse = scanJSONContainerDelta(entry.argsTextScanner, delta);
+    if (!shouldParse) {
+      if (entry.argsTextScanner.state === "invalid") {
+        entry.parsedArgs = undefined;
+      }
+      return;
+    }
     try {
       const parsed = JSON.parse(entry.argsText);
       if (parsed && typeof parsed === "object") {
