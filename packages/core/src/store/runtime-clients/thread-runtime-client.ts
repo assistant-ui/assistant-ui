@@ -1,6 +1,9 @@
 import type { Unsubscribe } from "../../types/unsubscribe";
 import type { ThreadRuntimeEventType } from "../../runtime/interfaces/thread-runtime-core";
-import type { ThreadRuntime } from "../../runtime/api/thread-runtime";
+import type {
+  CreateAppendMessage,
+  ThreadRuntime,
+} from "../../runtime/api/thread-runtime";
 import {
   useMemo,
   useEffect,
@@ -142,7 +145,24 @@ const useThreadClient = ({
     getState: () => state,
     composer: () => composer.methods,
     suggestions: () => suggestions.methods,
-    append: runtime.append,
+    append: (message) => {
+      const appended: Exclude<CreateAppendMessage, string> =
+        typeof message === "string"
+          ? { content: [{ type: "text", text: message }] }
+          : message;
+      if ((appended.role ?? "user") === "user") {
+        const text = appended.content
+          .map((part) => (part.type === "text" ? part.text : ""))
+          .join("");
+        emit("composer.send", {
+          threadId: runtime.getState()!.threadId,
+          chars: text.length,
+          attachments: appended.attachments?.length ?? 0,
+          ...(isSuggestion(text) ? { suggestion: true } : undefined),
+        });
+      }
+      runtime.append(message);
+    },
     deleteMessage: runtime.deleteMessage,
     startRun: runtime.startRun,
     resumeRun: runtime.resumeRun,

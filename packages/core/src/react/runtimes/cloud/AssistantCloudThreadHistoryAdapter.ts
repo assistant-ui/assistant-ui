@@ -16,6 +16,7 @@ import {
   createRunReport,
   createRunTelemetryToolCall,
   deriveRunOutcome,
+  describeRunError,
   extractRunTelemetryModelId,
   normalizeRunTelemetryUsage,
   type RunReportOutcome,
@@ -358,6 +359,8 @@ class AssistantCloudThreadHistoryAdapter implements ThreadHistoryAdapter {
       threadId: remoteId,
       status: data.status,
       outcome: messageInfo?.outcomeType,
+      error: messageInfo?.error,
+      errorCode: messageInfo?.errorCode,
       messageId,
       traceId: messageInfo?.traceId,
       modelId: data.modelId,
@@ -446,6 +449,8 @@ type TelemetryData = {
 type RunMessageInfo = {
   localMessageId?: string;
   outcomeType?: RunReportOutcome;
+  error?: string;
+  errorCode?: string;
   firstTokenMs?: number;
   traceId?: string;
   provider?: string;
@@ -500,6 +505,8 @@ function extractRunMessageInfo(
     finishReason: typeof finishReason === "string" ? finishReason : undefined,
     isError: status?.type === "error",
   }).outcome;
+  const failure =
+    status?.type === "error" ? describeRunError(status.error) : {};
   const messageId =
     localMessageId ?? (typeof message.id === "string" ? message.id : undefined);
   const traceId =
@@ -518,6 +525,7 @@ function extractRunMessageInfo(
   return {
     ...(messageId ? { localMessageId: messageId } : undefined),
     ...(outcomeType ? { outcomeType } : undefined),
+    ...failure,
     ...(firstTokenMs != null && firstTokenMs >= 0
       ? { firstTokenMs }
       : undefined),

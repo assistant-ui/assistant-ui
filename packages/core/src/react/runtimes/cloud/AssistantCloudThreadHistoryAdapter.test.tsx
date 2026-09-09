@@ -527,6 +527,30 @@ describe("useAssistantCloudThreadHistoryAdapter", () => {
     );
   });
 
+  it("reports the error message and code of a failed run", async () => {
+    mocks.aui = mocks.makeClient("thread-1");
+    const cloud = makeCloud();
+    const { result } = renderHook(() =>
+      useAssistantCloudThreadHistoryAdapter({ current: cloud }),
+    );
+    const error = new Error("Rate limited");
+    error.name = "AI_APICallError";
+    const message: ThreadAssistantMessage = {
+      ...makeAssistantMessage("local-message-1"),
+      status: { type: "error", error },
+    };
+
+    await result.current.append({ parentId: null, message });
+
+    expect(cloud.runs.report).toHaveBeenCalledWith(
+      expect.objectContaining({
+        status: "error",
+        error: "Rate limited",
+        error_code: "AI_APICallError",
+      }),
+    );
+  });
+
   it.each([
     ["cancelled", "aborted"],
     ["length", "length"],

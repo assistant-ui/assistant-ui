@@ -109,8 +109,8 @@ export type ComposerMeta = {
 
 export type ComposerEvents = {
   /**
-   * The user sent the composer contents. `messageId` is set when the send
-   * came from an edit composer.
+   * The user sent a message, from the composer or through `thread.append`.
+   * `messageId` is set when the send came from an edit composer.
    */
   "composer.send": {
     threadId: string;
