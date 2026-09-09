@@ -6,6 +6,10 @@ import {
   API_CATALOG_LINK_HEADER,
 } from "./lib/agent-discovery-routes";
 import { isWebMcpEnabled } from "./lib/feature-flags";
+import {
+  docsMarkdownAcceptRewrites,
+  docsMarkdownFileRewrites,
+} from "./lib/markdown-rewrites";
 
 const isDev = process.env.NODE_ENV === "development";
 
@@ -394,22 +398,7 @@ const config: NextConfig = {
         source: "/docs/.well-known/mcp",
         destination: "/api/mcp",
       },
-      {
-        source: "/docs.md",
-        destination: "/llms.mdx",
-      },
-      {
-        source: "/docs.mdx",
-        destination: "/llms.mdx",
-      },
-      {
-        source: "/docs/:path*.md",
-        destination: "/llms.mdx/:path*",
-      },
-      {
-        source: "/docs/:path*.mdx",
-        destination: "/llms.mdx/:path*",
-      },
+      ...docsMarkdownFileRewrites(),
       {
         source: "/examples.md",
         destination: "/llms.mdx/examples",
@@ -486,13 +475,7 @@ const config: NextConfig = {
         source: "/pricing.mdx",
         destination: "/pricing.md",
       },
-      {
-        source: "/docs/:path*",
-        has: [
-          { type: "header", key: "accept", value: "(?:.*text/markdown.*)" },
-        ],
-        destination: "/llms.mdx/:path*",
-      },
+      ...docsMarkdownAcceptRewrites(),
       {
         source: "/examples/:path*",
         has: [
