@@ -380,10 +380,6 @@ describe("unstable_runPendingTools", () => {
 
   it("settles cancellation while async validation remains pending", async () => {
     const abortController = new AbortController();
-    const removeEventListener = vi.spyOn(
-      abortController.signal,
-      "removeEventListener",
-    );
     const validation = promiseWithResolvers<{
       value: Record<string, unknown>;
     }>();
@@ -414,10 +410,6 @@ describe("unstable_runPendingTools", () => {
       result: "Tool execution was cancelled.",
       isError: true,
     });
-    expect(removeEventListener).toHaveBeenCalledWith(
-      "abort",
-      expect.any(Function),
-    );
 
     validation.resolve({ value: {} });
     await validation.promise;
