@@ -6,15 +6,16 @@ import {
   type CodeAdapterProps,
 } from "../adapters/code-adapter";
 
+import { PreOverride } from "../adapters/PreOverride";
+import type { Root } from "hast";
+import { Streamdown } from "streamdown";
+import type { SyntaxHighlighterProps } from "../types";
+
 const bindAdapter =
   (adapter: CodeAdapterOptions) =>
   (props: Omit<CodeAdapterProps, "adapter">) => (
     <CodeAdapter adapter={adapter} {...props} />
   );
-import { PreOverride } from "../adapters/PreOverride";
-import type { Root } from "hast";
-import { Streamdown } from "streamdown";
-import type { SyntaxHighlighterProps } from "../types";
 
 afterEach(cleanup);
 
