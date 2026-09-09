@@ -72,8 +72,6 @@ const raceWithAbort = async <T>(
   // Tool execution gets two microtasks to settle after handling an abort.
   delayAbort = false,
 ): Promise<T | typeof TOOL_ABORTED> => {
-  if (abortSignal.aborted && !delayAbort) return TOOL_ABORTED;
-
   let onAbort!: () => void;
   const abortPromise = new Promise<typeof TOOL_ABORTED>((resolve) => {
     onAbort = () => {
