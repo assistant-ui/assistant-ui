@@ -375,8 +375,7 @@ The `useCloudChat` hook automatically reports run telemetry to Assistant Cloud a
 **Automatically captured:**
 - `status`: `"completed"`, `"incomplete"`, or `"error"`
 - `outcome_type`: why an incomplete run ended, `"aborted"`, `"disconnected"`, `"length"`, or `"content_filter"`
-- `provider`: the provider associated with the model call
-- `error_code`: the error identifier, when one is available
+- `error_code` and `error`: the failed run's error code (its `code`, else its class name) and message
 - `message_id`: the persisted assistant message the run produced
 - `first_token_ms` and `duration_ms`: time to first streamed token and total run duration
 - `steps`: per-step timing, usage, tool calls, and `finish_reason`
@@ -389,6 +388,7 @@ No message content is sent apart from `output_text`, which is the assistant outp
 
 **Requires route configuration:**
 - `model_id`: the model used for the response
+- `provider`: the provider that served the model (`model.provider` below); server spans carry it as well
 - `input_tokens` / `output_tokens`: token usage statistics
 - `reasoning_tokens`: tokens used for chain of thought reasoning (for example GPT-5.6 Luna or other reasoning models)
 - `cached_input_tokens`: input tokens served from the provider's prompt cache
@@ -402,8 +402,9 @@ import { openai } from "@ai-sdk/openai";
 export async function POST(req: Request) {
   const { messages } = await req.json();
 
+  const model = openai("gpt-5.6-luna");
   const result = streamText({
-    model: openai("gpt-5.6-luna"),
+    model,
     messages,
   });
 
@@ -417,6 +418,7 @@ export async function POST(req: Request) {
       if (part.type === "finish-step") {
         return {
           modelId: part.response.modelId,
+          provider: model.provider,
         };
       }
       return undefined;
@@ -425,7 +427,7 @@ export async function POST(req: Request) {
 }
 ```
 
-Without this configuration, model and token data will be omitted from telemetry reports.
+Without this configuration, model, provider and token data will be omitted from telemetry reports.
 
 ### Outcomes
 
@@ -510,9 +512,9 @@ export async function POST(request: Request) {
 
 ### Engagement Events
 
-`useCloudChat` also reports `message_sent`, `message_edited`, `run_stopped`, `message_regenerated`, `message_copied`, `branch_switched`, `suggestions_shown`, `suggestion_clicked`, `attachment_added`, `attachment_failed`, `thread_switched`, `tool_approved`, `tool_rejected`, `speech_started`, `voice_started`, and `error_shown`. Events carry counts, durations, and content types, never message text, and are batched with `keepalive`.
+`useCloudChat` also reports `message_sent`, `run_stopped`, `message_regenerated`, `thread_switched`, and `error_shown`. Edits, copies, branch switches, suggestions, attachments, speech and voice are store events of the assistant-ui runtime, so they are reported by the [assistant-ui integration](/docs/cloud/ai-sdk-assistant-ui#engagement-events) only. Events carry counts, durations, and content types, never message text, and are batched with `keepalive`.
 
-Pass `telemetry: { events: false }` to keep run reports and stop engagement events. `telemetry: false` disables both.
+Configure `telemetry: { events: false }` on the `AssistantCloud` instance passed as `useCloudChat({ cloud })` to keep run reports and stop engagement events. `telemetry: false` disables both.
 
 ### Feedback and scores
 

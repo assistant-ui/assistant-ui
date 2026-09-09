@@ -22,7 +22,7 @@ The span processor exports the AI SDK spans, while the stream metadata carries t
 ### Install the OpenTelemetry packages
 
 ```sh
-npm i @vercel/otel @ai-sdk/otel @opentelemetry/api @opentelemetry/sdk-trace-base @opentelemetry/exporter-trace-otlp-http
+npm i assistant-cloud @vercel/otel @ai-sdk/otel @opentelemetry/api @opentelemetry/sdk-trace-base @opentelemetry/exporter-trace-otlp-http
 ```
 
 </Step>
@@ -93,7 +93,7 @@ Each correlated run includes the server spans, tool calls, sampling calls, and f
 ## Notes
 
 - The API key never leaves the server.
-- `createAssistantCloudTraceExporter({ apiKey, baseUrl? })` sends OTLP/HTTP JSON or protobuf to `POST /v1/traces` on `https://backend.assistant-api.com` using API-key authentication only. Pass `baseUrl` when your backend host differs.
+- `createAssistantCloudTraceExporter({ apiKey, baseUrl? })` sends OTLP/HTTP JSON to `POST /v1/traces` on `https://backend.assistant-api.com` using API-key authentication only. Pass `baseUrl` when your backend host differs.
 
 ## Related
 
