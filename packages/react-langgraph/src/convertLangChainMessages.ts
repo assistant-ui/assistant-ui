@@ -235,13 +235,15 @@ export const convertLangChainMessages: useExternalMessageConverter.Callback<
     case "ai": {
       const toolCallChunksById = new Map<string, LangChainToolCallChunk>();
       const toolCallChunksByIndex = new Map<number, LangChainToolCallChunk>();
-      for (const toolCallChunk of message.tool_call_chunks ?? []) {
-        const { id, index } = toolCallChunk;
-        if (!toolCallChunksById.has(id)) {
-          toolCallChunksById.set(id, toolCallChunk);
-        }
-        if (!toolCallChunksByIndex.has(index)) {
-          toolCallChunksByIndex.set(index, toolCallChunk);
+      if (message.tool_calls?.length) {
+        for (const toolCallChunk of message.tool_call_chunks ?? []) {
+          const { id, index } = toolCallChunk;
+          if (!toolCallChunksById.has(id)) {
+            toolCallChunksById.set(id, toolCallChunk);
+          }
+          if (!Number.isNaN(index) && !toolCallChunksByIndex.has(index)) {
+            toolCallChunksByIndex.set(index, toolCallChunk);
+          }
         }
       }
 

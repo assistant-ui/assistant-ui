@@ -1327,6 +1327,52 @@ describe("convertLangChainMessages tool call id stability", () => {
 
     expect(readId).toHaveBeenCalledTimes(toolCallCount);
   });
+
+  it("does not index chunks when there are no completed tool calls", () => {
+    const readId = vi.fn();
+
+    convertLangChainMessages({
+      type: "ai",
+      id: "ai-1",
+      content: "",
+      tool_call_chunks: [
+        {
+          index: 0,
+          name: "search",
+          args: '{"query":"weather"}',
+          get id() {
+            readId();
+            return "tool-1";
+          },
+        },
+      ],
+    });
+
+    expect(readId).not.toHaveBeenCalled();
+  });
+
+  it("does not match tool-call chunks with NaN indices", () => {
+    const result = convertLangChainMessages({
+      type: "ai",
+      id: "ai-1",
+      content: "",
+      tool_calls: [
+        { id: "", name: "search", args: { source: "tool-call" }, index: NaN },
+      ],
+      tool_call_chunks: [
+        {
+          id: "",
+          index: NaN,
+          name: "search",
+          args: '{"source":"tool-call-chunk"}',
+        },
+      ],
+    });
+
+    expect(result.content.find((part) => part.type === "tool-call")).toEqual(
+      expect.objectContaining({ argsText: '{"source":"tool-call"}' }),
+    );
+  });
 });
 
 describe("getMessageContent audio and data parts", () => {
