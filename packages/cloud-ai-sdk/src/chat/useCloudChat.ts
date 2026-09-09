@@ -65,8 +65,41 @@ export function useCloudChat(
   useThreadMessageLoader(threads.threadId, registry, core);
 
   const chat = useChat({ chat: activeChat });
+  const stop = useCallback(
+    (...args: Parameters<typeof chat.stop>) => {
+      if (chat.status === "submitted" || chat.status === "streaming") {
+        core.trackRunStopped(threads.threadId);
+      }
+      return chat.stop(...args);
+    },
+    [chat, core, threads.threadId],
+  );
+  const regenerate = useCallback(
+    (...args: Parameters<typeof chat.regenerate>) => {
+      core.trackRegenerated(threads.threadId, chat.messages);
+      return chat.regenerate(...args);
+    },
+    [chat, core, threads.threadId],
+  );
+  const feedback = useCallback(
+    async (messageId: string, type: "positive" | "negative") => {
+      const threadId = threads.threadId;
+      if (!threadId) throw new Error("No active thread");
 
-  return { ...chat, threads };
+      const remoteMessageId = core.persistence.getResolvedRemoteId(
+        threadId,
+        messageId,
+      );
+      if (!remoteMessageId) throw new Error("Message is not persisted yet");
+
+      await cloud.threads.messages.feedback(threadId, remoteMessageId, {
+        type,
+      });
+    },
+    [cloud, core.persistence, threads.threadId],
+  );
+
+  return { ...chat, stop, regenerate, threads, feedback };
 }
 
 function useResolvedCloud(

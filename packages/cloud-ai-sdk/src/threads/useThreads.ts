@@ -508,12 +508,20 @@ export function useThreads(options: UseThreadsOptions): UseThreadsResult {
       if (!isCurrentCloud()) return;
 
       const nextSelection = { scope, threadId: id };
+      const previousSelection = selectionRef.current;
       selectionRef.current = nextSelection;
       setSelection((current) =>
         current.scope === scope ? nextSelection : current,
       );
+      if (
+        id &&
+        previousSelection.threadId &&
+        previousSelection.threadId !== id
+      ) {
+        cloud.events?.track({ kind: "thread_switched", thread_id: id });
+      }
     },
-    [isCurrentCloud, scope],
+    [cloud, isCurrentCloud, scope],
   );
 
   const generateTitleWithPolicy = useCallback(

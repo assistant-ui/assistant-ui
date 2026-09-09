@@ -1,25 +1,32 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { CloudChatCore } from "./CloudChatCore";
 
-const { persistMock, loadMessagesMock, MessagePersistenceMock } = vi.hoisted(
-  () => {
-    const persist = vi.fn<(...args: unknown[]) => Promise<void>>();
-    const loadMessages = vi.fn<(...args: unknown[]) => Promise<unknown[]>>();
+const {
+  persistMock,
+  loadMessagesMock,
+  getResolvedRemoteIdMock,
+  MessagePersistenceMock,
+} = vi.hoisted(() => {
+  const persist = vi.fn<(...args: unknown[]) => Promise<void>>();
+  const loadMessages = vi.fn<(...args: unknown[]) => Promise<unknown[]>>();
+  const getResolvedRemoteId =
+    vi.fn<(...args: unknown[]) => string | undefined>();
 
-    const MockedClass = vi.fn(
-      class {
-        persist = persist;
-        loadMessages = loadMessages;
-      },
-    );
+  const MockedClass = vi.fn(
+    class {
+      persist = persist;
+      loadMessages = loadMessages;
+      getResolvedRemoteId = getResolvedRemoteId;
+    },
+  );
 
-    return {
-      persistMock: persist,
-      loadMessagesMock: loadMessages,
-      MessagePersistenceMock: MockedClass,
-    };
-  },
-);
+  return {
+    persistMock: persist,
+    loadMessagesMock: loadMessages,
+    getResolvedRemoteIdMock: getResolvedRemoteId,
+    MessagePersistenceMock: MockedClass,
+  };
+});
 
 const chatOptionsRef = vi.hoisted(() => ({
   current: null as Record<string, unknown> | null,
@@ -38,10 +45,13 @@ vi.mock("../chat/MessagePersistence", () => ({
   MessagePersistence: MessagePersistenceMock,
 }));
 
+const registry = { getMeta: () => undefined, get: () => undefined } as never;
+
 function createCore(overrides?: {
   onSyncError?: (...args: unknown[]) => void;
   generateTitle?: (...args: unknown[]) => Promise<string | null>;
   chatConfig?: Record<string, unknown>;
+  baseTransport?: Record<string, unknown>;
 }) {
   const generateTitle =
     overrides?.generateTitle ??
@@ -57,7 +67,11 @@ function createCore(overrides?: {
     onSyncError: onSyncError as ((error: Error) => void) | undefined,
   };
 
-  const core = new CloudChatCore({} as never, refs, {} as never);
+  const core = new CloudChatCore(
+    {} as never,
+    refs,
+    (overrides?.baseTransport ?? {}) as never,
+  );
   return core;
 }
 
@@ -66,6 +80,7 @@ describe("CloudChatCore", () => {
     vi.clearAllMocks();
     persistMock.mockResolvedValue(undefined);
     loadMessagesMock.mockResolvedValue([]);
+    getResolvedRemoteIdMock.mockReset();
     chatOptionsRef.current = null;
   });
 
@@ -116,7 +131,7 @@ describe("CloudChatCore", () => {
     const onToolCall = vi.fn(() => completion);
     const core = createCore({ chatConfig: { onToolCall } });
 
-    core.createChat("chat-1", {} as never);
+    core.createChat("chat-1", registry);
 
     const wrappedOnToolCall = chatOptionsRef.current?.onToolCall;
     expect(wrappedOnToolCall).toBeTypeOf("function");
@@ -133,15 +148,73 @@ describe("CloudChatCore", () => {
     const currentMessages = [{ id: "current" }];
     const core = createCore({ chatConfig: { messages: initialMessages } });
 
-    core.createChat(
-      "chat-1",
-      {} as never,
-      {
-        messages: currentMessages,
-      } as never,
-    );
+    core.createChat("chat-1", registry, {
+      messages: currentMessages,
+    } as never);
 
     expect(chatOptionsRef.current?.messages).toBe(currentMessages);
+  });
+
+  it("reports transport duration, first-token timing, and remote assistant IDs", async () => {
+    const now = vi.spyOn(Date, "now");
+    let clock = 100;
+    now.mockImplementation(() => clock);
+    let controller: ReadableStreamDefaultController | undefined;
+    const source = new ReadableStream({
+      start(streamController) {
+        controller = streamController;
+      },
+    });
+    const sendMessages = vi.fn().mockResolvedValue(source);
+    const core = createCore({
+      baseTransport: { sendMessages, reconnectToStream: vi.fn() },
+    });
+    const messages = [{ id: "assistant-1", role: "assistant", parts: [] }];
+    const chatRegistry = {
+      getMeta: () => ({ threadId: "thread-1" }),
+      get: () => ({ messages }),
+    } as never;
+    vi.spyOn(core, "ensureThreadId").mockResolvedValue("thread-1");
+    vi.spyOn(core, "persist").mockResolvedValue(undefined);
+    vi.spyOn(core.engagementReporter, "messageSent").mockImplementation(
+      () => undefined,
+    );
+    const report = vi
+      .spyOn(core.telemetryReporter, "reportFromMessages")
+      .mockResolvedValue(undefined);
+
+    core.createChat("chat-1", chatRegistry);
+    const stream = await core
+      .createTransport("chat-1", chatRegistry)
+      .sendMessages({
+        messages,
+      } as never);
+    clock = 125;
+    expect(controller).toBeDefined();
+    controller!.enqueue({ type: "text-start", id: "part-1" });
+    controller!.close();
+    await Promise.resolve();
+    await stream.getReader().read();
+    clock = 180;
+    const onFinish = chatOptionsRef.current?.onFinish as (
+      event: unknown,
+    ) => void;
+    onFinish({ isAbort: false, isDisconnect: false, isError: false });
+
+    await vi.waitFor(() => expect(report).toHaveBeenCalledOnce());
+    expect(report).toHaveBeenCalledWith(
+      "thread-1",
+      messages,
+      { isAbort: false, isDisconnect: false, isError: false },
+      { durationMs: 80, firstTokenMs: 25 },
+      expect.any(Function),
+    );
+    const resolveRemoteId = report.mock.calls[0]![4]!;
+    resolveRemoteId("assistant-1");
+    expect(getResolvedRemoteIdMock).toHaveBeenCalledWith(
+      "thread-1",
+      "assistant-1",
+    );
   });
 
   it("preserves synchronous finish callback failures", () => {
@@ -154,7 +227,7 @@ describe("CloudChatCore", () => {
       .spyOn(core, "persistChatMessages")
       .mockResolvedValue(undefined);
 
-    core.createChat("chat-1", {} as never);
+    core.createChat("chat-1", registry);
 
     const wrappedOnFinish = chatOptionsRef.current?.onFinish;
     expect(wrappedOnFinish).toBeTypeOf("function");
@@ -175,7 +248,7 @@ describe("CloudChatCore", () => {
     const core = createCore({ onSyncError });
     vi.spyOn(core, "persistChatMessages").mockRejectedValue(error);
 
-    core.createChat("chat-1", {} as never);
+    core.createChat("chat-1", registry);
 
     const wrappedOnFinish = chatOptionsRef.current?.onFinish;
     expect(wrappedOnFinish).toBeTypeOf("function");
@@ -195,7 +268,7 @@ describe("CloudChatCore", () => {
     const core = createCore({ onSyncError });
     vi.spyOn(core, "persistChatMessages").mockRejectedValue(persistenceError);
 
-    core.createChat("chat-1", {} as never);
+    core.createChat("chat-1", registry);
 
     const wrappedOnFinish = chatOptionsRef.current?.onFinish;
     expect(wrappedOnFinish).toBeTypeOf("function");
