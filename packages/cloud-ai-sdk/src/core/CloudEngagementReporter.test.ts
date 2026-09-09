@@ -41,7 +41,6 @@ describe("CloudEngagementReporter", () => {
     reporter.runStopped("thread-1");
     reporter.messageRegenerated("thread-1", messages);
     reporter.errorShown("thread-1", messages);
-    reporter.threadSwitched("thread-1");
 
     expect(track).toHaveBeenCalledWith({
       kind: "message_sent",
@@ -64,10 +63,6 @@ describe("CloudEngagementReporter", () => {
       thread_id: "thread-1",
       message_id: "cloud-assistant-1",
       props: { reason: "error" },
-    });
-    expect(track).toHaveBeenCalledWith({
-      kind: "thread_switched",
-      thread_id: "thread-1",
     });
     expect(JSON.stringify(track.mock.calls)).not.toContain("hello");
     expect(JSON.stringify(track.mock.calls)).not.toContain("private.png");

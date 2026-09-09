@@ -242,7 +242,7 @@ describe("CloudTelemetryReporter", () => {
     expect(reportMock.mock.calls[0]![0]!.status).toBe("error");
   });
 
-  it("maps an unknown finish reason to completed", async () => {
+  it("maps finishReason='error' (without isError) to error status", async () => {
     const { cloud, reportMock } = createCloud();
     const reporter = new CloudTelemetryReporter(cloud);
     const messages = [assistantMsg("m-1", "partial")];
@@ -253,7 +253,7 @@ describe("CloudTelemetryReporter", () => {
       event({ finishReason: "error" }),
     );
 
-    expect(reportMock.mock.calls[0]![0]!.status).toBe("completed");
+    expect(reportMock.mock.calls[0]![0]!.status).toBe("error");
   });
 
   it("maps isAbort / isDisconnect to incomplete", async () => {

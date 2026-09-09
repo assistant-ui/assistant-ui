@@ -192,9 +192,10 @@ describe("CloudChatCore", () => {
     clock = 125;
     expect(controller).toBeDefined();
     controller!.enqueue({ type: "text-start", id: "part-1" });
+    controller!.enqueue({ type: "text-delta", id: "part-1", delta: "hi" });
     controller!.close();
-    await Promise.resolve();
     await stream.getReader().read();
+    await new Promise((resolve) => setTimeout(resolve, 0));
     clock = 180;
     const onFinish = chatOptionsRef.current?.onFinish as (
       event: unknown,

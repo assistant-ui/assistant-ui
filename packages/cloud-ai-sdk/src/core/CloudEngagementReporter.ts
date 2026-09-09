@@ -84,10 +84,6 @@ export class CloudEngagementReporter {
     });
   }
 
-  public threadSwitched(threadId: string): void {
-    this.track({ kind: "thread_switched", thread_id: threadId });
-  }
-
   private track(event: AssistantCloudEvent): void {
     this.cloud.events?.track(event);
   }

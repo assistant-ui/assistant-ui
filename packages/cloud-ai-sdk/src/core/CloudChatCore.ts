@@ -308,11 +308,17 @@ export class CloudChatCore {
   ): ReadableStream<UIMessageChunk> {
     const [chatStream, timingStream] = stream.tee();
     const reader = timingStream.getReader();
-    void reader
-      .read()
-      .then(({ done }) => {
-        if (!done) timing.firstTokenMs = Date.now() - timing.startedAt;
-      })
+    const readUntilFirstToken = async () => {
+      while (true) {
+        const { done, value } = await reader.read();
+        if (done) return;
+        if (value.type === "text-delta" || value.type === "reasoning-delta") {
+          timing.firstTokenMs = Date.now() - timing.startedAt;
+          return;
+        }
+      }
+    };
+    void readUntilFirstToken()
       .catch(() => {})
       .finally(() => reader.cancel().catch(() => {}));
     return chatStream;
