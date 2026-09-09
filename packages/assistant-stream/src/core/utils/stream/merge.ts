@@ -125,15 +125,6 @@ export const createMergeStream = () => {
     rawChunkBatch.push(chunk);
   };
 
-  const addStreamItem = (
-    stream: ReadableStream<AssistantStreamChunk>,
-    pipeTask?: Promise<unknown>,
-  ) => {
-    const item = { reader: stream.getReader(), pipeTask };
-    list.push(item);
-    handlePull(item);
-  };
-
   const addStream = (
     stream: ReadableStream<AssistantStreamChunk>,
     pipeTask?: Promise<unknown>,
@@ -149,8 +140,11 @@ export const createMergeStream = () => {
       throw new Error("Cannot add streams after the run callback has settled.");
     }
 
+    // A ready child must stay ahead of raw chunks enqueued after it.
     rawChunkBatch = undefined;
-    addStreamItem(stream, handledPipeTask);
+    const item = { reader: stream.getReader(), pipeTask: handledPipeTask };
+    list.push(item);
+    handlePull(item);
   };
 
   return {
