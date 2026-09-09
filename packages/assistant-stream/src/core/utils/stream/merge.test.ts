@@ -1,4 +1,4 @@
-import { describe, expect, it, vi } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 import type { AssistantStreamChunk } from "../../AssistantStreamChunk";
 import { createMergeStream } from "./merge";
 
@@ -8,8 +8,12 @@ const textDelta = (textDelta: string): AssistantStreamChunk => ({
   textDelta,
 });
 
+afterEach(() => {
+  vi.restoreAllMocks();
+});
+
 describe("createMergeStream", () => {
-  it("reuses one reader for ordered raw chunks", async () => {
+  it("does not create readers for ordered raw chunks", async () => {
     const getReader = vi.spyOn(ReadableStream.prototype, "getReader");
     const merger = createMergeStream();
     const received: AssistantStreamChunk[] = [];
@@ -18,8 +22,7 @@ describe("createMergeStream", () => {
     merger.enqueue(textDelta("b"));
     merger.enqueue(textDelta("c"));
 
-    expect(getReader).toHaveBeenCalledOnce();
-    getReader.mockRestore();
+    expect(getReader).not.toHaveBeenCalled();
 
     merger.seal();
     await merger.readable.pipeTo(
@@ -37,7 +40,8 @@ describe("createMergeStream", () => {
     const merger = createMergeStream();
     const received: AssistantStreamChunk[] = [];
 
-    merger.enqueue(textDelta("before"));
+    merger.enqueue(textDelta("before-1"));
+    merger.enqueue(textDelta("before-2"));
     merger.addStream(
       new ReadableStream({
         start(controller) {
@@ -58,9 +62,74 @@ describe("createMergeStream", () => {
     );
 
     expect(received).toEqual([
-      textDelta("before"),
+      textDelta("before-1"),
+      textDelta("before-2"),
       textDelta("child"),
       textDelta("after"),
+    ]);
+  });
+
+  it("keeps an immediately ready child ahead of a later raw chunk", async () => {
+    const merger = createMergeStream();
+    const received: AssistantStreamChunk[] = [];
+
+    merger.addStream(
+      new ReadableStream({
+        start(controller) {
+          controller.enqueue(textDelta("child"));
+          controller.close();
+        },
+      }),
+    );
+    merger.enqueue(textDelta("raw"));
+    merger.seal();
+
+    await merger.readable.pipeTo(
+      new WritableStream({
+        write(chunk) {
+          received.push(chunk);
+        },
+      }),
+    );
+
+    expect(received).toEqual([textDelta("child"), textDelta("raw")]);
+  });
+
+  it("does not block raw chunks on a delayed child", async () => {
+    let childController!: ReadableStreamDefaultController<AssistantStreamChunk>;
+    const merger = createMergeStream();
+    const received: AssistantStreamChunk[] = [];
+
+    merger.enqueue(textDelta("before"));
+    merger.addStream(
+      new ReadableStream({
+        start(controller) {
+          childController = controller;
+        },
+      }),
+    );
+    merger.enqueue(textDelta("after"));
+    merger.seal();
+
+    const drain = merger.readable.pipeTo(
+      new WritableStream({
+        write(chunk) {
+          received.push(chunk);
+        },
+      }),
+    );
+    await vi.waitFor(() => {
+      expect(received).toEqual([textDelta("before"), textDelta("after")]);
+    });
+
+    childController.enqueue(textDelta("child"));
+    childController.close();
+    await drain;
+
+    expect(received).toEqual([
+      textDelta("before"),
+      textDelta("after"),
+      textDelta("child"),
     ]);
   });
 
@@ -73,8 +142,7 @@ describe("createMergeStream", () => {
     merger.enqueue(textDelta("after"));
 
     expect(merger.isCancelled()).toBe(true);
-    expect(getReader).toHaveBeenCalledOnce();
-    getReader.mockRestore();
+    expect(getReader).not.toHaveBeenCalled();
   });
 
   it("releases child readers after successful completion", async () => {

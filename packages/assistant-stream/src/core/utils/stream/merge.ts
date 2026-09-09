@@ -13,14 +13,14 @@ export const createMergeStream = () => {
   let cancelled = false;
   let errored = false;
   let controller: ReadableStreamDefaultController<AssistantStreamChunk>;
-  let rawChunkController:
-    | ReadableStreamDefaultController<AssistantStreamChunk>
-    | undefined;
+  let rawChunkBatch: AssistantStreamChunk[] | undefined;
+  let pendingRawBatches = 0;
   let currentPull: ReturnType<typeof promiseWithResolvers<void>> | undefined;
   let cleanupPromise: Promise<void> | undefined;
 
   const cancelAllReaders = () => {
     // Repeated cancellation must wait for cleanup already in progress.
+    rawChunkBatch = undefined;
     cleanupPromise ??= Promise.all(
       list.splice(0).map(async (item) => {
         try {
@@ -32,6 +32,19 @@ export const createMergeStream = () => {
       }),
     ).then(() => undefined);
     return cleanupPromise;
+  };
+
+  const handleError = (e: unknown) => {
+    if (cancelled || errored) return;
+
+    errored = true;
+    console.error(e);
+    void cancelAllReaders();
+
+    controller.error(e);
+
+    currentPull?.reject(e);
+    currentPull = undefined;
   };
 
   const handlePull = (item: MergeStreamItem) => {
@@ -50,7 +63,7 @@ export const createMergeStream = () => {
           if (done) {
             list.splice(list.indexOf(item), 1);
             item.reader.releaseLock();
-            if (sealed && list.length === 0) {
+            if (sealed && list.length === 0 && pendingRawBatches === 0) {
               controller.close();
             }
           } else {
@@ -60,18 +73,7 @@ export const createMergeStream = () => {
           currentPull?.resolve();
           currentPull = undefined;
         })
-        .catch((e) => {
-          if (cancelled || errored) return;
-
-          errored = true;
-          console.error(e);
-          void cancelAllReaders();
-
-          controller.error(e);
-
-          currentPull?.reject(e);
-          currentPull = undefined;
-        });
+        .catch(handleError);
     }
   };
 
@@ -96,9 +98,31 @@ export const createMergeStream = () => {
     },
   });
 
-  const closeRawChunkStream = () => {
-    rawChunkController?.close();
-    rawChunkController = undefined;
+  const enqueueRawChunk = (chunk: AssistantStreamChunk) => {
+    if (!rawChunkBatch) {
+      const batch: AssistantStreamChunk[] = [];
+      rawChunkBatch = batch;
+      pendingRawBatches++;
+
+      // Match the readiness ordering of the one-chunk streams this replaces.
+      void Promise.resolve()
+        .then(() => {
+          pendingRawBatches--;
+          if (rawChunkBatch === batch) rawChunkBatch = undefined;
+          if (cancelled || errored) return;
+
+          for (const rawChunk of batch) controller.enqueue(rawChunk);
+          if (sealed && list.length === 0 && pendingRawBatches === 0) {
+            controller.close();
+          }
+
+          currentPull?.resolve();
+          currentPull = undefined;
+        })
+        .catch(handleError);
+    }
+
+    rawChunkBatch.push(chunk);
   };
 
   const addStreamItem = (
@@ -125,7 +149,7 @@ export const createMergeStream = () => {
       throw new Error("Cannot add streams after the run callback has settled.");
     }
 
-    closeRawChunkStream();
+    rawChunkBatch = undefined;
     addStreamItem(stream, handledPipeTask);
   };
 
@@ -143,8 +167,8 @@ export const createMergeStream = () => {
     seal() {
       if (sealed || cancelled || errored) return;
       sealed = true;
-      closeRawChunkStream();
-      if (list.length === 0) controller.close();
+      rawChunkBatch = undefined;
+      if (list.length === 0 && pendingRawBatches === 0) controller.close();
     },
     addStream,
     enqueue(chunk: AssistantStreamChunk) {
@@ -155,20 +179,7 @@ export const createMergeStream = () => {
         );
       }
 
-      if (!rawChunkController) {
-        addStreamItem(
-          new ReadableStream({
-            start(c) {
-              rawChunkController = c;
-            },
-            cancel() {
-              rawChunkController = undefined;
-            },
-          }),
-        );
-      }
-
-      rawChunkController?.enqueue(chunk);
+      enqueueRawChunk(chunk);
     },
   };
 };

@@ -2,4 +2,4 @@
 "assistant-stream": patch
 ---
 
-perf: reuse the raw AssistantStream enqueue channel
+fix: batch raw AssistantStream enqueue calls
