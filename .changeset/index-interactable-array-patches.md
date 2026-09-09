@@ -2,4 +2,4 @@
 "@assistant-ui/core": patch
 ---
 
-fix: index interactable array patches by item id
+fix: speed up large interactable array updates with indexed ID matching
