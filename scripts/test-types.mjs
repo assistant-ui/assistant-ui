@@ -7,6 +7,8 @@ import { optionArgs } from "./lib/script-options.mjs";
 
 const repoRoot = fileURLToPath(new URL("..", import.meta.url));
 
+// Core has 103 existing test-fixture errors across 29 files. Remove this
+// exception when https://github.com/assistant-ui/assistant-ui/issues/7102 lands.
 export const DIRECT_TYPECHECK_EXCLUSIONS = ["@assistant-ui/core"];
 
 export function dependencyBuildFilters(packageNames) {

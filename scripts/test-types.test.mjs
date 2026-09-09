@@ -48,7 +48,7 @@ test("builds a dependency that is also directly changed", () => {
   assert.equal(buildSelection.has("@assistant-ui/x-buildutils"), true);
 });
 
-test("keeps the incremental gate on workspaces with a clean baseline", () => {
+test("temporarily excludes Core until its typecheck baseline is restored", () => {
   const selected = collectDirectTypecheckPackageNames(
     repoRoot,
     "@assistant-ui/core",
