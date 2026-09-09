@@ -225,9 +225,14 @@ describe("useAgUiRuntime thread switching", () => {
 });
 
 describe("useAgUiRuntime active runs during thread switching", () => {
-  it.each(["existing", "new"])(
-    "keeps a queued onCancel replacement on the original thread when switching to %s",
-    async (destination) => {
+  it.each([
+    { destination: "existing", hasQueuedSend: false },
+    { destination: "new", hasQueuedSend: false },
+    { destination: "existing", hasQueuedSend: true },
+    { destination: "new", hasQueuedSend: true },
+  ])(
+    "keeps a queued onCancel replacement on the original thread when switching to $destination with hasQueuedSend=$hasQueuedSend",
+    async ({ destination, hasQueuedSend }) => {
       const { agent, signals, started } = pendingAgent();
       const load = vi.fn(async (id: string) => ({ messages: [message(id)] }));
       const create = vi.fn(async () => {});
@@ -262,6 +267,17 @@ describe("useAgUiRuntime active runs during thread switching", () => {
         result.current.thread.append("hello");
       });
       await started;
+      if (hasQueuedSend) {
+        await act(async () => {
+          result.current.thread.composer.setText("queued-for-old-thread");
+          result.current.thread.composer.send({ steer: false });
+        });
+      }
+      const queuedBeforeSwitch =
+        result.current.thread.composer.getState().queue;
+      expect(queuedBeforeSwitch.map((item) => item.prompt)).toEqual(
+        hasQueuedSend ? ["queued-for-old-thread"] : [],
+      );
       await act(async () => {
         if (destination === "existing") {
           await result.current.threads.switchToThread("superseded-thread");
@@ -273,6 +289,9 @@ describe("useAgUiRuntime active runs during thread switching", () => {
       expect(load).not.toHaveBeenCalled();
       expect(create).not.toHaveBeenCalled();
       expect(result.current.threads.getState().mainThreadId).toBe("initial");
+      expect(result.current.thread.composer.getState().queue).toEqual(
+        queuedBeforeSwitch,
+      );
       expect(signals).toHaveLength(2);
       expect(signals[0]?.aborted).toBe(true);
       expect(signals[1]?.aborted).toBe(false);

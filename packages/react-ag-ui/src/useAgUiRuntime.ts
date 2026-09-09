@@ -181,21 +181,32 @@ export function useAgUiRuntime(
     const { onSwitchToNewThread, onSwitchToThread, ...rest } =
       threadListAdapter;
 
+    const prepareThreadSwitch = async (generation: number) => {
+      const queuedCount = queueRef.current?.adapter.items.length ?? 0;
+      const steerCount = queueRef.current?.adapter.steerItems.length ?? 0;
+      const ownsThread = core.supersedeActiveRun();
+      // Public append's tool-abort fast path yields once before starting a run.
+      await Promise.resolve();
+      if (
+        !ownsThread ||
+        generation !== threadSwitchGenerationRef.current ||
+        core.isRunning() ||
+        (queueRef.current?.adapter.items.length ?? 0) !== queuedCount ||
+        (queueRef.current?.adapter.steerItems.length ?? 0) !== steerCount
+      )
+        return false;
+      queueRef.current?.clear();
+      return true;
+    };
+
     return {
       ...rest,
       onSwitchToNewThread: onSwitchToNewThread
         ? async () => {
             const generation = ++threadSwitchGenerationRef.current;
-            queueRef.current?.clear();
-            const ownsThread = core.supersedeActiveRun();
-            // Public append yields while cancelling frontend tools before starting a run.
-            await Promise.resolve();
             if (
-              !ownsThread ||
-              generation !== threadSwitchGenerationRef.current ||
-              core.isRunning() ||
-              queueRef.current?.adapter.items.length ||
-              queueRef.current?.adapter.steerItems.length
+              !(await prepareThreadSwitch(generation)) ||
+              generation !== threadSwitchGenerationRef.current
             )
               return;
             await onSwitchToNewThread();
@@ -207,16 +218,9 @@ export function useAgUiRuntime(
       onSwitchToThread: onSwitchToThread
         ? async (threadId: string) => {
             const generation = ++threadSwitchGenerationRef.current;
-            queueRef.current?.clear();
-            const ownsThread = core.supersedeActiveRun();
-            // Public append yields while cancelling frontend tools before starting a run.
-            await Promise.resolve();
             if (
-              !ownsThread ||
-              generation !== threadSwitchGenerationRef.current ||
-              core.isRunning() ||
-              queueRef.current?.adapter.items.length ||
-              queueRef.current?.adapter.steerItems.length
+              !(await prepareThreadSwitch(generation)) ||
+              generation !== threadSwitchGenerationRef.current
             )
               return;
             // Clear before the thread id flips, or the old messages leak
