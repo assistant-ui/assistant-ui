@@ -1,18 +1,6 @@
 import type { NextRequest } from "next/server";
 import { describe, expect, it, vi } from "vitest";
-
-vi.mock("fumadocs-mdx:collections/server", () => {
-  const emptyCollection = { toFumadocsSource: () => ({ files: [] }) };
-  return {
-    blog: [],
-    careers: [],
-    design: [],
-    docs: emptyCollection,
-    elements: [],
-    examples: [],
-    tapDocs: emptyCollection,
-  };
-});
+import "@/test/mock-fumadocs-collections";
 
 vi.mock("@/lib/get-llm-text", async (importOriginal) => ({
   ...(await importOriginal<typeof import("@/lib/get-llm-text")>()),

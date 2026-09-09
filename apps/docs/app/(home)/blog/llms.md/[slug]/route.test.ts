@@ -1,3 +1,4 @@
+import type { NextRequest } from "next/server";
 import { describe, expect, it, vi } from "vitest";
 import "@/test/mock-fumadocs-collections";
 
@@ -6,9 +7,17 @@ vi.mock("@/lib/source", async (importOriginal) => {
 
   return {
     ...actual,
-    elementsDocs: {
-      ...actual.elementsDocs,
-      getPages: () => [],
+    blog: {
+      ...actual.blog,
+      getPage: () => ({
+        data: {
+          description: "Description",
+          getText: vi.fn(async () => "Post body"),
+          title: "Post",
+        },
+        path: "post.mdx",
+        url: "/blog/post",
+      }),
     },
   };
 });
@@ -16,11 +25,13 @@ vi.mock("@/lib/source", async (importOriginal) => {
 import { GET } from "./route";
 
 describe("GET", () => {
-  it("returns cache validators for the elements index", async () => {
-    const response = await GET(new Request("https://example.com"), {
-      params: Promise.resolve({}),
-    });
+  it("returns cache validators with blog markdown", async () => {
+    const response = await GET(
+      new Request("https://example.com/blog/post.md") as NextRequest,
+      { params: Promise.resolve({ slug: "post" }) },
+    );
 
+    expect(await response.text()).toContain("# Post");
     expect(response.headers.get("Cache-Control")).toBe(
       "no-cache, must-revalidate",
     );
