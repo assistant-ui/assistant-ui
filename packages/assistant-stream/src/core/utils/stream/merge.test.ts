@@ -133,6 +133,32 @@ describe("createMergeStream", () => {
     ]);
   });
 
+  it("propagates child errors while raw chunks are pending", async () => {
+    const error = new Error("child failed");
+    const consoleError = vi
+      .spyOn(console, "error")
+      .mockImplementation(() => {});
+    let childController!: ReadableStreamDefaultController<AssistantStreamChunk>;
+    const child = new ReadableStream<AssistantStreamChunk>({
+      start(controller) {
+        childController = controller;
+      },
+    });
+    const merger = createMergeStream();
+
+    merger.enqueue(textDelta("before"));
+    merger.addStream(child);
+    merger.enqueue(textDelta("after"));
+    merger.seal();
+
+    const drain = merger.readable.pipeTo(new WritableStream());
+    childController.error(error);
+
+    await expect(drain).rejects.toBe(error);
+    await vi.waitFor(() => expect(child.locked).toBe(false));
+    expect(consoleError).toHaveBeenCalledWith(error);
+  });
+
   it("discards raw chunks after cancellation", async () => {
     const getReader = vi.spyOn(ReadableStream.prototype, "getReader");
     const merger = createMergeStream();

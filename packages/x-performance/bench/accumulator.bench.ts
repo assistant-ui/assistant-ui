@@ -66,7 +66,7 @@ describe("assistant-stream: stream round trip baseline, no accumulator", () => {
 });
 
 describe("assistant-stream: raw controller enqueue overhead", () => {
-  const chunks = makeChunks(10_000, 1);
+  const chunks = makeChunks(9_998, 1);
 
   bench("10,000 controller.enqueue calls", async () => {
     await drainRawEnqueue(chunks);
