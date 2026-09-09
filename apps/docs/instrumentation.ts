@@ -1,8 +1,4 @@
-import type {
-  ReadableSpan,
-  SpanProcessor,
-} from "@opentelemetry/sdk-trace-base";
-import { BatchSpanProcessor } from "@opentelemetry/sdk-trace-base";
+import type { ReadableSpan } from "@opentelemetry/sdk-trace-base";
 import { PostHogTraceExporter } from "@posthog/ai/otel";
 import { OTLPHttpProtoTraceExporter, registerOTel } from "@vercel/otel";
 import {
@@ -22,17 +18,6 @@ export function isAiSpan(span: ReadableSpan) {
       AI_SPAN_PREFIXES.some((prefix) => key.startsWith(prefix)),
     )
   );
-}
-
-export function aiOnly(inner: SpanProcessor): SpanProcessor {
-  return {
-    onStart: (span, context) => inner.onStart(span, context),
-    onEnd: (span) => {
-      if (isAiSpan(span)) inner.onEnd(span);
-    },
-    forceFlush: () => inner.forceFlush(),
-    shutdown: () => inner.shutdown(),
-  };
 }
 
 // PostHog's OTLP ingestion drops span attributes it does not recognise, which
@@ -71,7 +56,10 @@ function axiomProcessor() {
   const config = axiomExporterConfig(process.env);
   if (!config) return null;
 
-  return aiOnly(new BatchSpanProcessor(new OTLPHttpProtoTraceExporter(config)));
+  return createAssistantCloudSpanProcessor(
+    new OTLPHttpProtoTraceExporter(config),
+    { filter: isAiSpan },
+  );
 }
 
 export function register() {
