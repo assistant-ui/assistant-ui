@@ -2704,6 +2704,7 @@ declare const MessageClient: Resource<ClientOutput<"message">, [
     threadIdRef: {
       current: string;
     };
+    threadId: string;
   }
 ]>;
 
