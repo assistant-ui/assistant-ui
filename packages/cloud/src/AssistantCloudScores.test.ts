@@ -9,6 +9,26 @@ const createCloudScores = () => {
 };
 
 describe("AssistantCloudScores", () => {
+  it("decodes the number the cloud stores for a boolean score", async () => {
+    const { scores, makeRequest } = createCloudScores();
+    makeRequest.mockResolvedValue({
+      score_id: "score_2",
+      name: "resolved",
+      data_type: "boolean",
+      value: 1,
+      string_value: null,
+    });
+
+    await expect(
+      scores.create({
+        name: "resolved",
+        data_type: "boolean",
+        value: true,
+        thread_id: "thread_1",
+      }),
+    ).resolves.toMatchObject({ data_type: "boolean", value: 1 });
+  });
+
   it("posts the score body as given and decodes the response", async () => {
     const { scores, makeRequest } = createCloudScores();
     makeRequest.mockResolvedValue({

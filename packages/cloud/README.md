@@ -36,7 +36,7 @@ export function Provider({ children }: { children: React.ReactNode }) {
 Send AI SDK 7 GenAI spans to Assistant Cloud from a Next.js `instrumentation.ts` file. The `assistant-cloud/telemetry` entry needs the OpenTelemetry packages installed next to it:
 
 ```sh
-npm i @opentelemetry/api @opentelemetry/sdk-trace-base @opentelemetry/exporter-trace-otlp-http
+npm i @vercel/otel @opentelemetry/api @opentelemetry/sdk-trace-base @opentelemetry/exporter-trace-otlp-http
 ```
 
 ```ts
