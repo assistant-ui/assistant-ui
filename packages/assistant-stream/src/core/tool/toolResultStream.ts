@@ -69,9 +69,10 @@ const isThenable = <T>(value: T | PromiseLike<T>): value is PromiseLike<T> =>
 const raceWithAbort = async <T>(
   value: PromiseLike<T>,
   abortSignal: AbortSignal,
+  // Tool execution gets two microtasks to settle after handling an abort.
   delayAbort = false,
 ): Promise<T | typeof TOOL_ABORTED> => {
-  if (abortSignal.aborted) return TOOL_ABORTED;
+  if (abortSignal.aborted && !delayAbort) return TOOL_ABORTED;
 
   let onAbort!: () => void;
   const abortPromise = new Promise<typeof TOOL_ABORTED>((resolve) => {
@@ -82,7 +83,11 @@ const raceWithAbort = async <T>(
         resolve(TOOL_ABORTED);
       }
     };
-    abortSignal.addEventListener("abort", onAbort, { once: true });
+    if (abortSignal.aborted) {
+      onAbort();
+    } else {
+      abortSignal.addEventListener("abort", onAbort, { once: true });
+    }
   });
 
   try {
