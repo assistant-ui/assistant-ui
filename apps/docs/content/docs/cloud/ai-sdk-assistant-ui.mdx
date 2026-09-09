@@ -512,7 +512,7 @@ export async function POST(request: Request) {
 
 ### Engagement Events
 
-The runtime also reports `message_sent`, `message_edited`, `run_stopped`, `message_regenerated`, `message_copied`, `branch_switched`, `suggestions_shown`, `suggestion_clicked`, `attachment_added`, `attachment_failed`, `thread_switched`, `speech_started`, `voice_started`, and `error_shown`. Events carry counts, durations, and content types, never message text, and are batched with `keepalive`.
+The runtime also reports `message_sent`, `message_edited`, `run_stopped`, `message_regenerated`, `message_copied`, `branch_switched`, `suggestions_shown`, `suggestion_clicked`, `attachment_added`, `attachment_failed`, `thread_switched`, `tool_approved`, `tool_rejected`, `speech_started`, `voice_started`, and `error_shown`. Events carry counts, durations, and content types, never message text, and are batched with `keepalive`.
 
 Configure `telemetry: { events: false }` on the `AssistantCloud` instance to keep run reports and stop engagement events. `telemetry: false` disables both.
 

@@ -51,7 +51,18 @@ export type PartMeta =
       query: { type: "index"; index: number };
     };
 
+export type PartEvents = {
+  /** The user answered a tool approval gate on this part. */
+  "part.toolApprovalResponded": {
+    threadId: string;
+    messageId: string;
+    toolCallId: string;
+    approved: boolean;
+  };
+};
+
 export type PartClientSchema = {
   methods: PartMethods;
   meta: PartMeta;
+  events: PartEvents;
 };

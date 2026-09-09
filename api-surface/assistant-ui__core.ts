@@ -2812,6 +2812,12 @@ declare class MessageNotSentError extends Error {
 declare const MessagePartClient: Resource<ClientOutput<"part">, [
   {
     runtime: MessagePartRuntime;
+    eventContext?: {
+      threadId: string;
+      messageIdRef: {
+        current: string;
+      };
+    };
   }
 ]>;
 
@@ -3332,6 +3338,16 @@ declare const PartByIndexProvider: FC<PropsWithChildren<{
 type PartClientSchema = {
   methods: PartMethods;
   meta: PartMeta;
+  events: PartEvents;
+};
+
+type PartEvents = {
+  "part.toolApprovalResponded": {
+    threadId: string;
+    messageId: string;
+    toolCallId: string;
+    approved: boolean;
+  };
 };
 
 type PartInit = {

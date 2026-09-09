@@ -1169,6 +1169,15 @@ const useAssistantCloudEngagementEvents = (
           );
         },
       ),
+      aui.on(
+        { scope: "thread", event: "part.toolApprovalResponded" },
+        (payload) =>
+          track(
+            { kind: payload.approved ? "tool_approved" : "tool_rejected" },
+            payload.threadId,
+            payload.messageId,
+          ),
+      ),
       aui.on({ scope: "thread", event: "message.copied" }, (payload) => {
         track({ kind: "message_copied" }, payload.threadId, payload.messageId);
       }),

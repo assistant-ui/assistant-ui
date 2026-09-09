@@ -174,6 +174,14 @@ describe("useAssistantCloudThreadHistoryAdapter", () => {
       threadId: "thread-1",
       messageId: "local-message-1",
     });
+    for (const approved of [true, false]) {
+      listeners.get("part.toolApprovalResponded")!({
+        threadId: "thread-1",
+        messageId: "local-message-1",
+        toolCallId: "tc-1",
+        approved,
+      });
+    }
     listeners.get("message.copied")!({
       threadId: "thread-1",
       messageId: "local-message-1",
@@ -207,7 +215,7 @@ describe("useAssistantCloudThreadHistoryAdapter", () => {
     notify!();
     await waitFor(() =>
       expect(vi.mocked(cloud.events.track).mock.calls.length).toBeGreaterThan(
-        12,
+        14,
       ),
     );
 
@@ -232,6 +240,14 @@ describe("useAssistantCloudThreadHistoryAdapter", () => {
         expect.objectContaining({ kind: "message_regenerated" }),
         expect.objectContaining({ kind: "branch_switched" }),
         expect.objectContaining({ kind: "message_copied" }),
+        expect.objectContaining({
+          kind: "tool_approved",
+          message_id: "remote-message-1",
+        }),
+        expect.objectContaining({
+          kind: "tool_rejected",
+          message_id: "remote-message-1",
+        }),
         expect.objectContaining({
           kind: "attachment_added",
           props: { type: "image/png" },

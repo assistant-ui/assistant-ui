@@ -8,6 +8,7 @@ const { mockUseChat, mockCloud, mockResolvedRemoteId } = vi.hoisted(() => {
   const resolvedRemoteId = vi.fn();
 
   const cloud = {
+    events: { track: vi.fn() },
     threads: {
       create: mockThreadsCreate,
       list: vi.fn().mockResolvedValue({ threads: [] }),
@@ -131,6 +132,84 @@ describe("useCloudChat", () => {
       stop: vi.fn(),
       setMessages: vi.fn(),
       status: "ready",
+    });
+  });
+
+  describe("addToolApprovalResponse", () => {
+    const approvalMessage = (approved?: boolean) => ({
+      id: "local-message-1",
+      role: "assistant" as const,
+      parts: [
+        {
+          type: "tool-delete",
+          toolCallId: "tc-1",
+          state:
+            approved === undefined
+              ? "approval-requested"
+              : "approval-responded",
+          input: {},
+          approval: {
+            id: "approval-1",
+            ...(approved !== undefined && { approved }),
+          },
+        },
+      ],
+    });
+    const args = { id: "approval-1", approved: true, reason: "private reason" };
+
+    // Captures the live Chat the hook renders so the test can drive its state
+    // the way the SDK does, instead of the render snapshot.
+    const setup = (addToolApprovalResponse: ReturnType<typeof vi.fn>) => {
+      const base = mockUseChat();
+      let liveChat!: { messages: unknown[] };
+      mockUseChat.mockImplementation(({ chat }: { chat: typeof liveChat }) => {
+        liveChat = chat;
+        return { ...base, addToolApprovalResponse };
+      });
+      mockResolvedRemoteId.mockReturnValue("remote-message-1");
+      const threads = createThreads(mockCloud, "thread-1");
+      const { result } = renderHook(() =>
+        useCloudChat({ threads: threads as never }),
+      );
+      liveChat.messages = [approvalMessage()];
+      return { result, liveChat };
+    };
+
+    it("reports the decision the SDK recorded, once", async () => {
+      let liveChat: { messages: unknown[] } | undefined;
+      const addToolApprovalResponse = vi.fn(
+        async ({ approved }: { approved: boolean }) => {
+          const last = liveChat!.messages.at(-1) as ReturnType<
+            typeof approvalMessage
+          >;
+          if (last.parts[0]!.state === "approval-requested")
+            liveChat!.messages = [approvalMessage(approved)];
+        },
+      );
+      const harness = setup(addToolApprovalResponse);
+      liveChat = harness.liveChat;
+      await harness.result.current.addToolApprovalResponse(args);
+      // A repeat before the next render: the SDK keeps the first answer.
+      await harness.result.current.addToolApprovalResponse({
+        ...args,
+        approved: false,
+      });
+      expect(addToolApprovalResponse).toHaveBeenCalledTimes(2);
+      expect(addToolApprovalResponse).toHaveBeenNthCalledWith(1, args);
+      expect(mockCloud.events.track).toHaveBeenCalledExactlyOnceWith({
+        kind: "tool_approved",
+        thread_id: "thread-1",
+        message_id: "remote-message-1",
+      });
+    });
+
+    it("reports nothing when the SDK rejects the decision", async () => {
+      const error = new Error("stale");
+      const { result } = setup(vi.fn().mockRejectedValue(error));
+      await expect(result.current.addToolApprovalResponse(args)).rejects.toBe(
+        error,
+      );
+      expect(mockCloud.events.track).not.toHaveBeenCalled();
     });
   });
 

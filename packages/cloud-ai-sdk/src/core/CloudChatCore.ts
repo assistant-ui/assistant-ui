@@ -170,6 +170,19 @@ export class CloudChatCore {
     if (threadId) this.engagementReporter.runStopped(threadId);
   }
 
+  trackToolApprovalResponded(
+    threadId: string | null,
+    messages: UIMessage[],
+    decision: { id: string; approved: boolean },
+  ): void {
+    if (threadId)
+      this.engagementReporter.toolApprovalResponded(
+        threadId,
+        messages,
+        decision,
+      );
+  }
+
   trackRegenerated(threadId: string | null, messages: UIMessage[]): void {
     if (threadId) {
       this.engagementReporter.messageRegenerated(threadId, messages);
