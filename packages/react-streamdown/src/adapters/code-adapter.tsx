@@ -9,7 +9,7 @@ import {
   type ReactNode,
 } from "react";
 import { parseLanguageClass } from "@assistant-ui/react-markdown/code-fence";
-import { useCallbackRef } from "@radix-ui/react-use-callback-ref";
+import { useCallbackRef } from "../useCallbackRef";
 import type {
   CodeHeaderProps,
   ComponentsByLanguage,

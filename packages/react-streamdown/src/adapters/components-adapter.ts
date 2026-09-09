@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallbackRef } from "@radix-ui/react-use-callback-ref";
+import { useCallbackRef } from "../useCallbackRef";
 import { type ComponentType, createElement, useMemo } from "react";
 import type { StreamdownProps } from "streamdown";
 import {
