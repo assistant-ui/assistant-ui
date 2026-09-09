@@ -19,9 +19,58 @@ type Components = {
   CodeHeader?: ComponentType<Omit<CodeHeaderProps, "node">> | undefined;
 };
 
-const areChildrenEqual = (prev: string | unknown, next: string | unknown) => {
-  if (typeof prev === "string") return prev === next;
-  return JSON.stringify(prev) === JSON.stringify(next);
+const areValuesEqual = (
+  prev: unknown,
+  next: unknown,
+  ignoreMetadata = false,
+): boolean => {
+  if (Object.is(prev, next)) return true;
+
+  if (
+    typeof prev !== "object" ||
+    prev === null ||
+    typeof next !== "object" ||
+    next === null
+  )
+    return false;
+
+  if (Array.isArray(prev) || Array.isArray(next)) {
+    if (!Array.isArray(prev) || !Array.isArray(next)) return false;
+    if (prev.length !== next.length) return false;
+    for (let i = 0; i < prev.length; i++) {
+      if (!areValuesEqual(prev[i], next[i])) return false;
+    }
+    return true;
+  }
+
+  const previous = prev as Record<string, unknown>;
+  const following = next as Record<string, unknown>;
+  let previousKeys = 0;
+  let followingKeys = 0;
+
+  for (const key in previous) {
+    if (
+      !Object.hasOwn(previous, key) ||
+      (ignoreMetadata && (key === "position" || key === "data"))
+    )
+      continue;
+    previousKeys += 1;
+    if (
+      !Object.hasOwn(following, key) ||
+      !areValuesEqual(previous[key], following[key])
+    )
+      return false;
+  }
+
+  for (const key in following) {
+    if (
+      Object.hasOwn(following, key) &&
+      !(ignoreMetadata && (key === "position" || key === "data"))
+    )
+      followingKeys += 1;
+  }
+
+  return previousKeys === followingKeys;
 };
 
 export const areNodesEqual = (
@@ -29,17 +78,11 @@ export const areNodesEqual = (
   next: Element | undefined,
 ) => {
   if (!prev || !next) return false;
-
-  const excludeMetadata = (props: Element["properties"]) => {
-    const { position, data, ...rest } =
-      (props as Record<string, unknown>) || {};
-    return rest;
-  };
+  if (prev === next) return true;
 
   return (
-    JSON.stringify(excludeMetadata(prev.properties)) ===
-      JSON.stringify(excludeMetadata(next.properties)) &&
-    areChildrenEqual(prev.children, next.children)
+    areValuesEqual(prev.properties, next.properties, true) &&
+    areValuesEqual(prev.children, next.children)
   );
 };
 
