@@ -97,7 +97,7 @@ function applyArrayUpdate(
     const patchesById = new Map<string | number, Record<string, unknown>>();
     for (const candidate of patches) {
       const id = getArrayItemId(candidate);
-      if (id !== undefined && !patchesById.has(id)) {
+      if (id !== undefined && !Number.isNaN(id) && !patchesById.has(id)) {
         patchesById.set(id, candidate as Record<string, unknown>);
       }
     }

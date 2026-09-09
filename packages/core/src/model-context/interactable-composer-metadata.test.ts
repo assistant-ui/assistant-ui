@@ -150,6 +150,15 @@ describe("shallowMergeInteractableState", () => {
     ).toEqual({ tasks: [{ id: 1, title: "First", done: true }] });
   });
 
+  it("does not match NaN array item ids", () => {
+    expect(
+      shallowMergeInteractableState(
+        { tasks: [{ id: Number.NaN, title: "Original" }] },
+        { tasks: { update: [{ id: Number.NaN, title: "Patched" }] } },
+      ),
+    ).toEqual({ tasks: [{ id: Number.NaN, title: "Original" }] });
+  });
+
   it("keeps raw array replacement semantics", () => {
     expect(
       shallowMergeInteractableState(
