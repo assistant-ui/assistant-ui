@@ -1,11 +1,6 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
-import {
-  createVoiceSession,
-  type RealtimeVoiceAdapter,
-  type VoiceSessionHelpers,
-} from "../../adapters/voice";
+import type { RealtimeVoiceAdapter } from "../../adapters/voice";
 import type { ModelContextProvider } from "../../model-context/types";
-import { LocalRuntimeCore } from "../../runtimes/local/local-runtime-core";
 import type { AppendMessage } from "../../types/message";
 import { CompositeContextProvider } from "../../utils/composite-context-provider";
 import type {
@@ -21,6 +16,9 @@ import { BaseThreadRuntimeCore } from "./base-thread-runtime-core";
 
 const createVoiceAdapter = () => {
   let volumeCallback: ((volume: number) => void) | undefined;
+  let transcriptCallback:
+    | ((transcript: RealtimeVoiceAdapter.TranscriptItem) => void)
+    | undefined;
   const session: RealtimeVoiceAdapter.Session = {
     status: { type: "running" },
     isMuted: false,
@@ -28,7 +26,12 @@ const createVoiceAdapter = () => {
     mute: vi.fn(),
     unmute: vi.fn(),
     onStatusChange: () => () => {},
-    onTranscript: () => () => {},
+    onTranscript: (callback) => {
+      transcriptCallback = callback;
+      return () => {
+        transcriptCallback = undefined;
+      };
+    },
     onModeChange: () => () => {},
     onVolumeChange: (callback) => {
       volumeCallback = callback;
@@ -41,10 +44,13 @@ const createVoiceAdapter = () => {
   return {
     adapter: { connect: () => session },
     emitVolume: (volume: number) => volumeCallback?.(volume),
+    emitTranscript: (transcript: RealtimeVoiceAdapter.TranscriptItem) =>
+      transcriptCallback?.(transcript),
     session,
   } satisfies {
     adapter: RealtimeVoiceAdapter;
     emitVolume: (volume: number) => void;
+    emitTranscript: (transcript: RealtimeVoiceAdapter.TranscriptItem) => void;
     session: RealtimeVoiceAdapter.Session;
   };
 };
@@ -303,29 +309,13 @@ describe("BaseThreadRuntimeCore voice volume subscriptions", () => {
 });
 
 describe("BaseThreadRuntimeCore voice transcripts", () => {
-  it("completes a final-only reply before the next streamed reply", async () => {
-    const { promise, resolve } = Promise.withResolvers<VoiceSessionHelpers>();
-    const core = new LocalRuntimeCore(
-      {
-        adapters: {
-          chatModel: { run: async () => ({ content: [] }) },
-          voice: {
-            connect: (options) =>
-              createVoiceSession(options, async (helpers) => {
-                resolve(helpers);
-                return { disconnect() {}, mute() {}, unmute() {} };
-              }),
-          },
-        },
-      },
-      undefined,
-    );
-    const runtime = core.threads.getMainThreadRuntimeCore();
+  it("completes a final-only reply before the next streamed reply", () => {
+    const voiceAdapter = createVoiceAdapter();
+    const runtime = new TestRuntime(voiceAdapter);
     runtime.connectVoice();
-    const { emitTranscript } = await promise;
 
     try {
-      emitTranscript({
+      voiceAdapter.emitTranscript({
         role: "assistant",
         text: "Finished reply",
         isFinal: true,
@@ -337,10 +327,10 @@ describe("BaseThreadRuntimeCore voice transcripts", () => {
         },
       ]);
 
-      emitTranscript({ role: "assistant", text: "Next" });
+      voiceAdapter.emitTranscript({ role: "assistant", text: "Next" });
       expect(runtime.messages.at(-1)?.status).toEqual({ type: "running" });
 
-      emitTranscript({
+      voiceAdapter.emitTranscript({
         role: "assistant",
         text: "Next reply",
         isFinal: true,
