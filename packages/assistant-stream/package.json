@@ -23,6 +23,10 @@
       "types": "./dist/utils.d.ts",
       "default": "./dist/utils.js"
     },
+    "./ai-sdk": {
+      "types": "./dist/ai-sdk/index.d.ts",
+      "default": "./dist/ai-sdk/index.js"
+    },
     "./resumable": {
       "types": "./dist/resumable/index.d.ts",
       "default": "./dist/resumable/index.js"
@@ -47,10 +51,12 @@
   "sideEffects": false,
   "scripts": {
     "build": "aui-build",
-    "test": "pnpm run test:v6 && pnpm run test:peer-v5 && pnpm run test:types:peer-v5",
+    "test": "pnpm run test:v6 && pnpm run test:peer-v5 && pnpm run test:types:peer-v5 && pnpm run test:peer-ai-v6 && pnpm run test:types:peer-ai-v6",
     "test:v6": "vitest run",
     "test:peer-v5": "vitest run --config vitest.peer-v5.config.ts",
     "test:types:peer-v5": "tsc --noEmit --project tsconfig.peer-v5.json",
+    "test:peer-ai-v6": "vitest run --config vitest.peer-ai-v6.config.ts",
+    "test:types:peer-ai-v6": "tsc --noEmit --project tsconfig.peer-ai-v6.json",
     "test:watch": "vitest"
   },
   "dependencies": {
@@ -59,10 +65,14 @@
     "secure-json-parse": "^4.1.0"
   },
   "peerDependencies": {
+    "ai": "^6.0.0 || ^7.0.0",
     "ioredis": "^5.10.1 || ^6.0.0",
     "redis": "^5.12.1"
   },
   "peerDependenciesMeta": {
+    "ai": {
+      "optional": true
+    },
     "ioredis": {
       "optional": true
     },
@@ -73,6 +83,8 @@
   "devDependencies": {
     "@assistant-ui/x-buildutils": "workspace:*",
     "@types/json-schema": "^7.0.15",
+    "ai": "^7.0.93",
+    "ai-v6": "npm:ai@^6.0.277",
     "ioredis": "^6.0.0",
     "ioredis-v5": "npm:ioredis@^5.11.1",
     "redis": "^6.2.1",

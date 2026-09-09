@@ -52,7 +52,7 @@ import { toCreateMessage } from "../converters/toCreateMessage";
 import { vercelAttachmentAdapter } from "../adapters/vercelAttachmentAdapter";
 import { getVercelAIMessages } from "../utils/getVercelAIMessages";
 import { AISDKMessageConverter } from "../converters/convertMessage";
-import { wrapModelContentEnvelope } from "../converters/modelContentEnvelope";
+import { wrapModelContentEnvelope } from "assistant-stream/ai-sdk";
 import {
   type AISDKStorageFormat,
   aiSDKV6FormatAdapter,

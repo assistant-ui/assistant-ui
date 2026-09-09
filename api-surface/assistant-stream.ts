@@ -1,5 +1,7 @@
 import { StandardSchemaV1 } from "@standard-schema/spec";
 
+import { JSONValue, ToolSet } from "ai";
+
 import Deque from "denque";
 
 import { SrvRecord } from "dns";
@@ -650,6 +652,8 @@ type DeepPartial<T> = T extends readonly any[] ? readonly DeepPartial<T[number]>
 
 type DelSet = CommandNameFlags["EXIT_SUBSCRIBER_MODE"][number];
 
+declare const ENVELOPE_KEY = "__aui_modelContent";
+
 type ErrorEmitter = (type: string, err: Error) => void;
 
 type FieldState = "complete" | "partial";
@@ -678,6 +682,8 @@ type FrontendTool<TArgs extends Record<string, unknown> = Record<string, unknown
   experimental_onSchemaValidationError?: OnSchemaValidationErrorFunction<TResult>;
   providerOptions?: ProviderOptions;
 };
+
+type FrontendTools = Record<string, ToolJSONSchema>;
 
 type GenericAssistantMessage = {
   role: "assistant";
@@ -899,6 +905,11 @@ type MessagePartLike = {
     [key: string]: unknown;
   };
   interrupt?: unknown;
+};
+
+type ModelContentEnvelope<TResult = unknown> = {
+  readonly [ENVELOPE_KEY]: readonly ToolModelContentPart[];
+  readonly value: TResult;
 };
 
 type NatMap = {
@@ -24740,11 +24751,17 @@ declare function createResumeAssistantStreamResponse(options: CreateResumeAssist
 
 declare const fromObjectStreamResponse: (response: Response) => ReadableStream<GorpStreamChunk>;
 
+declare const frontendTools: (tools: FrontendTools) => ToolSet;
+
 declare const getPartialJsonObjectFieldState: (obj: Record<string, unknown>, fieldPath: (string | number)[]) => FieldState;
 
 declare const getPartialJsonObjectMeta: (obj: Record<symbol, unknown>) => PartialJsonObjectMeta | undefined;
 
 declare const hasHimportCoordinator: unique symbol;
+
+declare namespace entry_ai_sdk_exports {
+  export { FrontendTools, ModelContentEnvelope, frontendTools, toAISDKContent, toAISDKDefaultOutput, unwrapModelContentEnvelope, wrapModelContentEnvelope };
+}
 
 declare namespace entry_resumable_exports {
   export { CreateResumableAssistantStreamResponseOptions, CreateResumeAssistantStreamResponseOptions, InMemoryResumableStreamStoreOptions, RESUMABLE_STREAM_ID_HEADER, RedisFinalizeOptions, RedisLikeClient, RedisResumableStreamStoreOptions, ResumableStreamAcquireOptions, ResumableStreamContext, ResumableStreamContextOptions, ResumableStreamEntry, ResumableStreamError, ResumableStreamErrorCode, ResumableStreamRole, ResumableStreamStatus, ResumableStreamStore, createInMemoryResumableStreamStore, createResumableAssistantStreamResponse, createResumableStreamContext, createResumeAssistantStreamResponse };
@@ -24766,6 +24783,31 @@ declare namespace entry_resumable_redis_exports {
   export { NodeRedisLike, createRedisResumableStreamStore };
 }
 
+declare const toAISDKContent: (parts: readonly ToolModelContentPart[]) => {
+  type: "content";
+  value: ({
+    type: "text";
+    text: string;
+  } | {
+    filename?: string;
+    type: "file";
+    data: {
+      type: "data";
+      data: string;
+    };
+    mediaType: string;
+    text?: never;
+  })[];
+};
+
+declare const toAISDKDefaultOutput: (output: unknown) => {
+  type: "text";
+  value: string;
+} | {
+  type: "json";
+  value: JSONValue;
+};
+
 declare function toGenericMessages(messages: readonly ThreadMessageLike[]): GenericMessage[];
 
 declare function toJSONSchema(schema: StandardSchemaV1 | JSONSchema7): JSONSchema7;
@@ -24778,8 +24820,15 @@ declare function toolResultStream(tools: Record<string, Tool> | (() => Record<st
 
 declare function unstable_runPendingTools(message: AssistantMessage, tools: Record<string, Tool> | undefined, abortSignal: AbortSignal, human: (toolCallId: string, payload: unknown) => Promise<unknown>): Promise<AssistantMessage>;
 
+declare function unwrapModelContentEnvelope<TResult>(output: TResult | ModelContentEnvelope<TResult>): {
+  result: TResult;
+  modelContent?: readonly ToolModelContentPart[];
+};
+
 declare namespace entry_utils_exports {
   export { AssistantMetaTransformStream, AssistantTransformStream, AsyncIterableStream, ReadonlyJSONArray, ReadonlyJSONObject, ReadonlyJSONValue, SSEEvent, SSEEventDecoder, asAsyncIterableStream, getPartialJsonObjectFieldState, getPartialJsonObjectMeta, parsePartialJsonObject };
 }
 
-export { entry_resumable_exports as entry_resumable, entry_resumable_ioredis_exports as entry_resumable_ioredis, entry_resumable_redis_exports as entry_resumable_redis, entry_root_exports as entry_root, entry_utils_exports as entry_utils };
+declare function wrapModelContentEnvelope<TResult>(result: TResult, modelContent: readonly ToolModelContentPart[]): ModelContentEnvelope<TResult>;
+
+export { entry_ai_sdk_exports as entry_ai_sdk, entry_resumable_exports as entry_resumable, entry_resumable_ioredis_exports as entry_resumable_ioredis, entry_resumable_redis_exports as entry_resumable_redis, entry_root_exports as entry_root, entry_utils_exports as entry_utils };

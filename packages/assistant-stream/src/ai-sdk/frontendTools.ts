@@ -1,15 +1,12 @@
 import { jsonSchema, type ToolSet } from "ai";
-import type { ToolJSONSchema } from "assistant-stream";
-import { unwrapModelContentEnvelope } from "../converters/modelContentEnvelope";
-import {
-  toAISDKContent,
-  toAISDKDefaultOutput,
-} from "../converters/toolOutputConversion";
+import type { ToolJSONSchema } from "../core/tool/schema-utils";
+import { unwrapModelContentEnvelope } from "./modelContentEnvelope";
+import { toAISDKContent, toAISDKDefaultOutput } from "./toolOutputConversion";
 
 /** Frontend tool definitions uploaded by AssistantChatTransport. */
 export type FrontendTools = Record<string, ToolJSONSchema>;
 
-export const defaultToModelOutput = ({ output }: { output: unknown }) => {
+const defaultToModelOutput = ({ output }: { output: unknown }) => {
   const { result, modelContent } = unwrapModelContentEnvelope(output);
   if (modelContent !== undefined) {
     return toAISDKContent(modelContent);
