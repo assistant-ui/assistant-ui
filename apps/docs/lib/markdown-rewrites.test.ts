@@ -63,7 +63,6 @@ describe("docsMarkdownVariantRewrites", () => {
       },
       { type: "query", key: "view", value: "radix-ui" },
     ]);
-    expect(rewrites[1]?.missing).toEqual([{ type: "query", key: "view" }]);
     expect(rewrites[2]?.missing).toEqual([{ type: "query", key: "platform" }]);
   });
 
@@ -90,13 +89,16 @@ describe("docsMarkdownVariantRewrites", () => {
     },
   );
 
-  it("uses the default only for invalid selections", () => {
+  it("falls back without losing a supported platform", () => {
     expect(resolveVariant({ platform: "unknown", view: "radix-ui" })).toBe(
       "/llms.mdx",
     );
     expect(resolveVariant({ platform: "unknown" })).toBe("/llms.mdx");
+    expect(resolveVariant({ platform: "rn", view: "base-ui" })).toBe(
+      "/platform-llms.mdx/rn/base",
+    );
     expect(resolveVariant({ platform: "rn", view: "compact" })).toBe(
-      "/llms.mdx",
+      "/platform-llms.mdx/rn/base",
     );
     expect(resolveVariant({ view: "radix-ui" })).toBe(
       "/platform-llms.mdx/react/radix",

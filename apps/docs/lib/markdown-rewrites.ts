@@ -41,7 +41,6 @@ export const docsMarkdownVariantRewrites = (
           value: docsPlatformPattern,
         },
       ],
-      missing: [{ type: "query" as const, key: "view" }],
       destination: `/platform-llms.mdx/:docsPlatform/base${destinationSuffix}`,
     },
     {
