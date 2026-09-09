@@ -551,6 +551,64 @@ describe("useAssistantCloudThreadHistoryAdapter", () => {
     );
   });
 
+  it("reports ai-sdk/v6 terminal error and timing context", () => {
+    mocks.aui = mocks.makeClient("thread-1");
+    const cloud = makeCloud();
+    const { result } = renderHook(() =>
+      useAssistantCloudThreadHistoryAdapter({ current: cloud }),
+    );
+    const formatted = result.current.withFormat({
+      format: "ai-sdk/v6",
+      encode: ({ message }) => message,
+      decode: ({ parent_id, content }) => ({
+        parentId: parent_id,
+        message: content as { id: string },
+      }),
+      getId: (message: { id: string }) => message.id,
+    });
+    const baseMessage = makeAssistantMessage("local-message-1");
+    const terminalMessage: ThreadAssistantMessage = {
+      ...baseMessage,
+      status: {
+        type: "incomplete",
+        reason: "error",
+        error: { message: "Rate limited", name: "AI_APICallError" },
+      },
+      metadata: {
+        ...baseMessage.metadata,
+        timing: {
+          streamStartTime: 100,
+          firstTokenTime: 145,
+          totalChunks: 1,
+          toolCallCount: 0,
+        },
+      },
+    };
+
+    formatted.reportTelemetry(
+      [
+        {
+          parentId: null,
+          message: {
+            id: "local-message-1",
+            role: "assistant",
+            parts: [{ type: "text", text: "partial" }],
+          },
+        },
+      ],
+      { terminalMessage },
+    );
+
+    expect(cloud.runs.report).toHaveBeenCalledWith(
+      expect.objectContaining({
+        status: "error",
+        error: "Rate limited",
+        error_code: "AI_APICallError",
+        first_token_ms: 45,
+      }),
+    );
+  });
+
   it.each([
     ["cancelled", "aborted"],
     ["length", "length"],

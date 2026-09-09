@@ -29,6 +29,7 @@ import { auiV0Decode, auiV0Encode } from "./auiV0";
 import { type AssistantClient, getClientId, useAui } from "@assistant-ui/store";
 import type { ThreadListItemMethods } from "../../../store/scopes/thread-list-item";
 import type { FeedbackAdapter } from "../../../adapters/feedback";
+import type { ThreadMessage } from "../../../types/message";
 
 type CloudThreadListItem = Pick<
   ThreadListItemMethods,
@@ -215,6 +216,7 @@ class AssistantCloudThreadHistoryAdapter implements ThreadHistoryAdapter {
         options?: {
           durationMs?: number;
           stepTimestamps?: StepTimestamp[];
+          terminalMessage?: ThreadMessage;
         },
       ) {
         const encodedRunMessages = items.map((item) =>
@@ -225,7 +227,11 @@ class AssistantCloudThreadHistoryAdapter implements ThreadHistoryAdapter {
           encodedRunMessages,
           options,
           resolvePinned(),
-          extractLastRunMessageInfo(items, formatAdapter),
+          extractLastRunMessageInfo(
+            items,
+            formatAdapter,
+            options?.terminalMessage,
+          ),
         );
       },
       async load(): Promise<MessageFormatRepository<TMessage>> {
@@ -463,7 +469,18 @@ function extractLastRunMessageInfo<
 >(
   items: MessageFormatItem<TMessage>[],
   formatAdapter: MessageFormatAdapter<TMessage, TStorageFormat>,
+  terminalMessage?: ThreadMessage,
 ): RunMessageInfo | undefined {
+  if (terminalMessage) {
+    const lastItem = items.at(-1);
+    const terminalInfo = extractRunMessageInfo(
+      terminalMessage,
+      formatAdapter.format,
+      lastItem ? formatAdapter.getId(lastItem.message) : undefined,
+    );
+    if (terminalInfo) return terminalInfo;
+  }
+
   for (let i = items.length - 1; i >= 0; i--) {
     const item = items[i]!;
     const info = extractRunMessageInfo(
@@ -501,7 +518,9 @@ function extractRunMessageInfo(
       ? status.reason
       : typeof metadata?.finishReason === "string"
         ? metadata.finishReason
-        : undefined;
+        : typeof custom?.finishReason === "string"
+          ? custom.finishReason
+          : undefined;
   const failed = status?.type === "incomplete" && status.reason === "error";
   const outcome = deriveRunOutcome({
     finishReason: typeof finishReason === "string" ? finishReason : undefined,
@@ -515,7 +534,7 @@ function extractRunMessageInfo(
     format === "aui/v0"
       ? custom?.traceId
       : format === "ai-sdk/v6"
-        ? metadata?.traceId
+        ? (metadata?.traceId ?? custom?.traceId)
         : undefined;
   const provider =
     typeof custom?.provider === "string"

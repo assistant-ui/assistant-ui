@@ -315,7 +315,20 @@ export const useAISDKRuntime = <UI_MESSAGE extends UIMessage = UIMessage>(
         toolLastInputCache: toolLastInputCacheRef.current,
         mcpAppMetadataCache: mcpAppMetadataCacheRef.current,
         ...(optimisticMessageId && { optimisticMessageId }),
-        ...(chatHelpers.error && { error: chatHelpers.error.message }),
+        ...(chatHelpers.error && {
+          error: {
+            message: chatHelpers.error.message,
+            ...(chatHelpers.error.name !== "Error"
+              ? { name: chatHelpers.error.name }
+              : undefined),
+            ...(typeof (chatHelpers.error as Error & { code?: unknown })
+              .code === "string"
+              ? {
+                  code: (chatHelpers.error as Error & { code: string }).code,
+                }
+              : undefined),
+          },
+        }),
         ...(cancelledMessageIds.size > 0 && { cancelledMessageIds }),
       }),
       [

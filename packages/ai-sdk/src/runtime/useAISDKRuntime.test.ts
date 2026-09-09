@@ -1487,4 +1487,34 @@ describe("useAISDKRuntime", () => {
       error: chat.error,
     });
   });
+
+  it("keeps the AI SDK error code on the converted terminal message", async () => {
+    const chat = createChatHelpers([
+      {
+        id: "assistant-1",
+        role: "assistant",
+        parts: [{ type: "text", text: "partial" }],
+      },
+    ]);
+    chat.error = Object.assign(new Error("Rate limited"), {
+      name: "AI_APICallError",
+      code: "rate_limited",
+    });
+
+    const { result } = renderHook(() => useAISDKRuntime(chat));
+
+    await waitFor(() => {
+      expect(result.current.thread.getState().messages.at(-1)).toMatchObject({
+        status: {
+          type: "incomplete",
+          reason: "error",
+          error: {
+            message: "Rate limited",
+            name: "AI_APICallError",
+            code: "rate_limited",
+          },
+        },
+      });
+    });
+  });
 });

@@ -782,6 +782,27 @@ describe("useExternalHistory persistence", () => {
     );
   });
 
+  it("passes the terminal ThreadMessage to run telemetry", async () => {
+    const { reportTelemetry, runCycle, flush } =
+      createPersistenceHarness(false);
+    const message = createAssistantMessage(
+      {
+        type: "incomplete",
+        reason: "error",
+        error: { message: "Rate limited", name: "AI_APICallError" },
+      },
+      [{ id: "inner-a", parts: ["partial"] }],
+    );
+
+    await runCycle([message]);
+    await flush();
+
+    expect(reportTelemetry).toHaveBeenCalledWith(
+      [{ parentId: null, message: { id: "inner-a", parts: ["partial"] } }],
+      expect.objectContaining({ terminalMessage: message }),
+    );
+  });
+
   it("restores deferred telemetry for reloaded paused messages", async () => {
     const { append, update, reportTelemetry, load, runCycle, flush } =
       createPersistenceHarness(true, {

@@ -371,7 +371,10 @@ export const useExternalHistory = <TMessage>(
 
             if (deferredTelemetryIds.current.has(message.id) && isTerminal) {
               deferredTelemetryIds.current.delete(message.id);
-              adapter.reportTelemetry?.(batchItems, telemetryOptions);
+              adapter.reportTelemetry?.(batchItems, {
+                ...telemetryOptions,
+                terminalMessage: message,
+              });
             }
           }
         })
