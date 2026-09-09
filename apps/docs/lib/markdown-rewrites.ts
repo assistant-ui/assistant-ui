@@ -1,3 +1,7 @@
+import { PLATFORMS } from "./constants";
+
+const docsPlatformPattern = `(?<docsPlatform>${PLATFORMS.join("|")})`;
+
 export const docsMarkdownVariantRewrites = (
   source: string,
   destinationSuffix: string,
@@ -21,7 +25,7 @@ export const docsMarkdownVariantRewrites = (
         {
           type: "query" as const,
           key: "platform",
-          value: "(?<docsPlatform>react|rn|ink)",
+          value: docsPlatformPattern,
         },
         { type: "query" as const, key: "view", value: "radix-ui" },
       ],
@@ -34,9 +38,10 @@ export const docsMarkdownVariantRewrites = (
         {
           type: "query" as const,
           key: "platform",
-          value: "(?<docsPlatform>react|rn|ink)",
+          value: docsPlatformPattern,
         },
       ],
+      missing: [{ type: "query" as const, key: "view" }],
       destination: `/platform-llms.mdx/:docsPlatform/base${destinationSuffix}`,
     },
     {

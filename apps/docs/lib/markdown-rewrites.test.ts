@@ -1,4 +1,5 @@
 import { describe, expect, it } from "vitest";
+import { PLATFORMS } from "./constants";
 import {
   docsMarkdownAcceptRewrites,
   docsMarkdownFileRewrites,
@@ -18,7 +19,9 @@ type Rewrite = {
 };
 
 const resolveVariant = (query: Record<string, string | undefined>) => {
-  const rewrites = docsMarkdownVariantRewrites("/docs.md", "") as Rewrite[];
+  const rewrites = docsMarkdownFileRewrites().filter(
+    (rewrite) => rewrite.source === "/docs.md",
+  ) as Rewrite[];
   const matches = (condition: RewriteCondition) => {
     const value = query[condition.key];
     return (
@@ -35,11 +38,13 @@ const resolveVariant = (query: Record<string, string | undefined>) => {
       ),
   );
 
-  return (
-    rewrite?.destination.replace(":docsPlatform", query.platform ?? "") ??
-    "/llms.mdx"
-  );
+  return rewrite?.destination.replace(":docsPlatform", query.platform ?? "");
 };
+
+const variantCases = PLATFORMS.flatMap((platform) => [
+  [platform, undefined, `/platform-llms.mdx/${platform}/base`] as const,
+  [platform, "radix-ui", `/platform-llms.mdx/${platform}/radix`] as const,
+]);
 
 describe("docsMarkdownVariantRewrites", () => {
   it("maps platform and flavor to stable internal paths", () => {
@@ -54,10 +59,11 @@ describe("docsMarkdownVariantRewrites", () => {
       {
         type: "query",
         key: "platform",
-        value: "(?<docsPlatform>react|rn|ink)",
+        value: `(?<docsPlatform>${PLATFORMS.join("|")})`,
       },
       { type: "query", key: "view", value: "radix-ui" },
     ]);
+    expect(rewrites[1]?.missing).toEqual([{ type: "query", key: "view" }]);
     expect(rewrites[2]?.missing).toEqual([{ type: "query", key: "platform" }]);
   });
 
@@ -77,22 +83,21 @@ describe("docsMarkdownVariantRewrites", () => {
     }
   });
 
-  it.each([
-    ["react", undefined, "/platform-llms.mdx/react/base"],
-    ["react", "radix-ui", "/platform-llms.mdx/react/radix"],
-    ["rn", undefined, "/platform-llms.mdx/rn/base"],
-    ["rn", "radix-ui", "/platform-llms.mdx/rn/radix"],
-    ["ink", undefined, "/platform-llms.mdx/ink/base"],
-    ["ink", "radix-ui", "/platform-llms.mdx/ink/radix"],
-  ])("maps platform %s and view %s", (platform, view, expected) => {
-    expect(resolveVariant({ noise: "1", platform, view })).toBe(expected);
-  });
+  it.each(variantCases)(
+    "maps platform %s and view %s",
+    (platform, view, expected) => {
+      expect(resolveVariant({ noise: "1", platform, view })).toBe(expected);
+    },
+  );
 
   it("uses the default only for invalid selections", () => {
     expect(resolveVariant({ platform: "unknown", view: "radix-ui" })).toBe(
       "/llms.mdx",
     );
     expect(resolveVariant({ platform: "unknown" })).toBe("/llms.mdx");
+    expect(resolveVariant({ platform: "rn", view: "compact" })).toBe(
+      "/llms.mdx",
+    );
     expect(resolveVariant({ view: "radix-ui" })).toBe(
       "/platform-llms.mdx/react/radix",
     );
