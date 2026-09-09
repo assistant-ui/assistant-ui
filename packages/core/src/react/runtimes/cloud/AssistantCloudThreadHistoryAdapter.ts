@@ -357,7 +357,7 @@ class AssistantCloudThreadHistoryAdapter implements ThreadHistoryAdapter {
       : undefined;
     const initial = createRunReport({
       threadId: remoteId,
-      status: data.status,
+      status: messageInfo?.status ?? data.status,
       outcome: messageInfo?.outcomeType,
       error: messageInfo?.error,
       errorCode: messageInfo?.errorCode,
@@ -448,6 +448,7 @@ type TelemetryData = {
 
 type RunMessageInfo = {
   localMessageId?: string;
+  status?: "error";
   outcomeType?: RunReportOutcome;
   error?: string;
   errorCode?: string;
@@ -501,12 +502,13 @@ function extractRunMessageInfo(
       : typeof metadata?.finishReason === "string"
         ? metadata.finishReason
         : undefined;
-  const outcomeType = deriveRunOutcome({
+  const failed = status?.type === "incomplete" && status.reason === "error";
+  const outcome = deriveRunOutcome({
     finishReason: typeof finishReason === "string" ? finishReason : undefined,
-    isError: status?.type === "error",
-  }).outcome;
-  const failure =
-    status?.type === "error" ? describeRunError(status.error) : {};
+    isError: failed,
+  });
+  const outcomeType = outcome.outcome;
+  const failure = failed ? describeRunError(status.error) : {};
   const messageId =
     localMessageId ?? (typeof message.id === "string" ? message.id : undefined);
   const traceId =
@@ -524,6 +526,7 @@ function extractRunMessageInfo(
 
   return {
     ...(messageId ? { localMessageId: messageId } : undefined),
+    ...(outcome.status === "error" ? { status: "error" as const } : undefined),
     ...(outcomeType ? { outcomeType } : undefined),
     ...failure,
     ...(firstTokenMs != null && firstTokenMs >= 0
@@ -571,7 +574,7 @@ const AUI_STATUS_MAP: Record<string, TelemetryData["status"]> = {
 export function extractAuiV0<T>(content: T): TelemetryData | null {
   const msg = content as {
     role?: string;
-    status?: { type: string };
+    status?: { type: string; reason?: string };
     content?: readonly {
       type: string;
       text?: string;
@@ -654,7 +657,9 @@ export function extractAuiV0<T>(content: T): TelemetryData | null {
 
   const statusType = msg.status?.type;
   const status: TelemetryData["status"] =
-    (statusType && AUI_STATUS_MAP[statusType]) || "completed";
+    statusType === "incomplete" && msg.status?.reason === "error"
+      ? "error"
+      : (statusType && AUI_STATUS_MAP[statusType]) || "completed";
 
   const metadata = msg.metadata?.custom as Record<string, unknown> | undefined;
   const modelId = extractRunTelemetryModelId(
@@ -981,18 +986,19 @@ export function useAssistantCloudThreadHistoryAdapter(
 type RootEngagementTracker = {
   count: number;
   adapter: AssistantCloudThreadHistoryAdapter;
+  cloudRef: RefObject<AssistantCloud>;
   dispose: () => void;
 };
 
 const rootEngagementTrackers = new WeakMap<
-  AssistantCloud,
+  AssistantClient,
   RootEngagementTracker
 >();
 
 /**
- * Thread switches are a thread list event, so one subscription per cloud
- * instance reports them; every mounted thread runtime shares it and the last
- * one to unmount removes it.
+ * Thread switches are a thread list event, so one subscription per assistant
+ * client reports them; every thread runtime mounted under it shares the
+ * subscription and the last one to unmount removes it.
  */
 const useRootEngagementEvents = (
   cloudRef: RefObject<AssistantCloud>,
@@ -1000,12 +1006,12 @@ const useRootEngagementEvents = (
   aui: AssistantClient,
 ) => {
   useEffect(() => {
-    const cloud = cloudRef.current;
-    let tracker = rootEngagementTrackers.get(cloud);
+    let tracker = rootEngagementTrackers.get(aui);
     if (!tracker) {
       const created: RootEngagementTracker = {
         count: 0,
         adapter,
+        cloudRef,
         dispose: () => {},
       };
       created.dispose = aui.on(
@@ -1015,21 +1021,26 @@ const useRootEngagementEvents = (
             .resolveEngagementEventIds(payload.threadId)
             .then((ids) => {
               if (!ids.thread_id) return;
-              cloud.events?.track({ kind: "thread_switched", ...ids });
-            });
+              created.cloudRef.current.events?.track({
+                kind: "thread_switched",
+                ...ids,
+              });
+            })
+            .catch(() => {});
         },
       );
-      rootEngagementTrackers.set(cloud, created);
+      rootEngagementTrackers.set(aui, created);
       tracker = created;
     }
     const active = tracker;
     active.adapter = adapter;
+    active.cloudRef = cloudRef;
     active.count += 1;
     return () => {
       active.count -= 1;
       if (active.count === 0) {
         active.dispose();
-        rootEngagementTrackers.delete(cloud);
+        rootEngagementTrackers.delete(aui);
       }
     };
   }, [adapter, aui, cloudRef]);
@@ -1056,7 +1067,8 @@ const useAssistantCloudEngagementEvents = (
         .resolveEngagementEventIds(threadId, messageId, options)
         .then((ids) => {
           cloudRef.current.events?.track({ ...event, ...ids });
-        });
+        })
+        .catch(() => {});
     };
     const trackRunStopped = (threadId: string) => {
       const startedAt = runStartedAt.current.get(threadId);

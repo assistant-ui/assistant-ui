@@ -21,8 +21,8 @@ export type AttachmentAddErrorEvent = {
 
 export type ComposerRuntimeEventPayload = {
   /**
-   * @deprecated State-derivable. Observe `state.text` clearing via
-   * `subscribe` + `getState` instead. Kept for backward compatibility.
+   * Fired after a send with the size of what went out. The composer state is
+   * already cleared when it fires, so the counts are only available here.
    */
   send: {
     readonly chars: number;

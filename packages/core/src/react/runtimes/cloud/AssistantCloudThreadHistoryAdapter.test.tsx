@@ -537,7 +537,7 @@ describe("useAssistantCloudThreadHistoryAdapter", () => {
     error.name = "AI_APICallError";
     const message: ThreadAssistantMessage = {
       ...makeAssistantMessage("local-message-1"),
-      status: { type: "error", error },
+      status: { type: "incomplete", reason: "error", error },
     };
 
     await result.current.append({ parentId: null, message });

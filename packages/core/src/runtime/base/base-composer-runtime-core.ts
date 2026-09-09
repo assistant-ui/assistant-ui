@@ -518,7 +518,7 @@ export abstract class BaseComposerRuntimeCore
         e instanceof Error ? e.message : String(e),
         lastAttachment?.id,
         e instanceof Error ? e : undefined,
-        lastAttachment?.contentType ?? fileOrAttachment.type,
+        lastAttachment?.contentType || fileOrAttachment.type,
       );
       throw e;
     } finally {
@@ -536,7 +536,7 @@ export abstract class BaseComposerRuntimeCore
           "Attachment upload did not complete successfully.",
         lastAttachment.id,
         undefined,
-        lastAttachment.contentType ?? fileOrAttachment.type,
+        lastAttachment.contentType || fileOrAttachment.type,
       );
     } else {
       this._notifyEventSubscribers("attachmentAdd", {

@@ -4,13 +4,7 @@ import type {
   CreateAppendMessage,
   ThreadRuntime,
 } from "../../runtime/api/thread-runtime";
-import {
-  useMemo,
-  useEffect,
-  useEffectEvent,
-  useCallback,
-  type RefObject,
-} from "react";
+import { useMemo, useEffect, useCallback, type RefObject } from "react";
 import { useResource, resource, withKey } from "@assistant-ui/tap";
 import { liveRef } from "./liveRef";
 import type { ClientOutput } from "@assistant-ui/store";
@@ -85,11 +79,11 @@ const useThreadClient = ({
     () => liveRef(() => runtime.getState()!.threadId),
     [runtime],
   );
-  const emitThreadEvent = useEffectEvent(
-    (event: "thread.cancelRun" | "thread.voiceStarted") => {
-      emit(event, { threadId: runtime.getState()!.threadId });
-    },
-  );
+  const emitThreadEvent = (
+    event: "thread.cancelRun" | "thread.voiceStarted",
+  ) => {
+    emit(event, { threadId: runtime.getState()!.threadId });
+  };
   const isSuggestion = useCallback(
     (text: string) =>
       runtime
@@ -118,7 +112,7 @@ const useThreadClient = ({
           threadIdRef,
           threadId: runtimeState.threadId,
         }),
-        [runtime, m.id, threadIdRef],
+        [runtime, m.id, threadIdRef, runtimeState.threadId],
       ),
     ),
   );
@@ -177,8 +171,8 @@ const useThreadClient = ({
     reset: runtime.reset,
     stopSpeaking: runtime.stopSpeaking,
     connectVoice: () => {
-      emitThreadEvent("thread.voiceStarted");
       runtime.connectVoice();
+      emitThreadEvent("thread.voiceStarted");
     },
     disconnectVoice: runtime.disconnectVoice,
     getVoiceVolume: runtime.getVoiceVolume,
