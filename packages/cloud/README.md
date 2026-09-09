@@ -31,6 +31,42 @@ export function Provider({ children }: { children: React.ReactNode }) {
 }
 ```
 
+## Server telemetry
+
+Send AI SDK 7 GenAI spans to Assistant Cloud from a Next.js `instrumentation.ts` file:
+
+```ts
+import { registerOTel } from "@vercel/otel";
+import {
+  createAssistantCloudSpanProcessor,
+  createAssistantCloudTraceExporter,
+} from "assistant-cloud/telemetry";
+
+export function register() {
+  registerOTel({
+    serviceName: "my-app",
+    spanProcessors: [
+      "auto",
+      createAssistantCloudSpanProcessor(
+        createAssistantCloudTraceExporter({
+          apiKey: process.env.ASSISTANT_API_KEY!,
+        }),
+      ),
+    ],
+  });
+}
+```
+
+Pass the active server trace ID to the browser with `messageMetadata` in the route that calls `streamText`:
+
+```ts
+import { withAssistantCloudTraceMetadata } from "assistant-cloud/telemetry";
+
+return result.toUIMessageStreamResponse({
+  messageMetadata: withAssistantCloudTraceMetadata(),
+});
+```
+
 ## Authentication
 
 | Mode             | Required fields                                         | Use case                              |
