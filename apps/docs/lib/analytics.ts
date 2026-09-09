@@ -101,6 +101,11 @@ export const analytics = {
       trackEvent("toc_action_clicked", { action }),
   },
 
+  pageActions: {
+    actionClicked: (action: "copy" | "markdown" | "claude" | "codex" | "mcp") =>
+      trackEvent("page_action_clicked", { action }),
+  },
+
   install: {
     packageManagerSelected: (pm: string) =>
       trackEvent("package_manager_selected", { package_manager: pm }),

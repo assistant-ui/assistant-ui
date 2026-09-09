@@ -2,6 +2,7 @@
 
 import { useRef, useState, useCallback } from "react";
 import { toast } from "sonner";
+import { copyTextToClipboard } from "@/lib/copy-to-clipboard";
 
 export function useMarkdownCopy(markdownUrl: string | undefined) {
   const [content, setContent] = useState<string | null>(null);
@@ -27,10 +28,13 @@ export function useMarkdownCopy(markdownUrl: string | undefined) {
       toast.error("Content not loaded yet");
       return;
     }
-    navigator.clipboard
-      .writeText(content)
-      .then(() => toast.success("Copied to clipboard"))
-      .catch(() => toast.error("Failed to copy"));
+    void copyTextToClipboard(content).then((copied) => {
+      if (copied) {
+        toast.success("Copied to clipboard");
+      } else {
+        toast.error("Failed to copy");
+      }
+    });
   }, [content]);
 
   return { copy, prefetch, isLoading };
