@@ -14,8 +14,13 @@ if [ -z "$selector" ]; then
 fi
 
 # Only directly changed workspaces are checked so unrelated type drift in
-# dependents does not block a focused change. Build the selected workspaces and
-# their dependency closure so a dependency that is also changed is not omitted.
-pnpm turbo build --filter="${selector}..."
+# dependents does not block a focused change. Build selected packages and their
+# package dependencies without duplicating application, example, or template
+# builds.
+pnpm turbo build \
+  --filter="${selector}..." \
+  --filter="!./apps/*" \
+  --filter="!./examples/*" \
+  --filter="!./templates/*"
 exec pnpm -r --filter="$selector" --workspace-concurrency=4 --no-bail exec sh -c \
-  '! test -f tsconfig.json || tsc --noEmit'
+  'if test -f tsconfig.json; then echo "Type-checking $PWD"; tsc --noEmit; fi'
