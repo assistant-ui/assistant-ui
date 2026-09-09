@@ -7,8 +7,8 @@
   },
   "@assistant-ui/cloud-ai-sdk": {
     ".": {
-      "min": 16045,
-      "gzip": 5555
+      "min": 17316,
+      "gzip": 5902
     }
   },
   "@assistant-ui/core": {
@@ -53,8 +53,8 @@
   },
   "@assistant-ui/react-ag-ui": {
     ".": {
-      "min": 74627,
-      "gzip": 19567
+      "min": 76084,
+      "gzip": 19965
     }
   },
   "@assistant-ui/react-ai-sdk": {
@@ -201,8 +201,8 @@
   },
   "@assistant-ui/react-streamdown": {
     ".": {
-      "min": 10138,
-      "gzip": 4194
+      "min": 10856,
+      "gzip": 4454
     }
   },
   "@assistant-ui/react-syntax-highlighter": {

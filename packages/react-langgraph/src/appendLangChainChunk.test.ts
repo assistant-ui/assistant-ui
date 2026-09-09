@@ -1,6 +1,7 @@
 import { describe, it, expect } from "vitest";
 import { appendLangChainChunk } from "./appendLangChainChunk";
 import { convertLangChainMessages } from "./convertLangChainMessages";
+import { normalizeLangGraphTupleMessage } from "./normalizeLangGraphTupleMessage";
 import type { LangChainMessage, LangChainMessageChunk } from "./types";
 
 type AiMessage = Extract<LangChainMessage, { type: "ai" }>;
@@ -672,6 +673,52 @@ describe("appendLangChainChunk continuation content", () => {
       { type: "text", text: "Answer." },
       { type: "reasoning", text: "Two steps." },
     ]);
+  });
+});
+
+describe("appendLangChainChunk tool_call name merging", () => {
+  it("accepts a late tool name and keeps it through unnamed chunks", () => {
+    const first = normalizeLangGraphTupleMessage({
+      id: "ai-1",
+      type: "ai",
+      content: "",
+      tool_call_chunks: [{ index: 0 }],
+    });
+    const next = normalizeLangGraphTupleMessage({
+      id: "ai-1",
+      type: "ai",
+      content: "",
+      tool_call_chunks: [
+        { index: 0, id: "call-1", name: "search", args: "{}" },
+      ],
+    });
+    if (!first || !next) throw new Error("Expected normalized chunks");
+
+    const merged = appendLangChainChunk(
+      appendLangChainChunk(undefined, first.message),
+      next.message,
+    );
+    const expected = expect.arrayContaining([
+      expect.objectContaining({
+        type: "tool-call",
+        toolCallId: "call-1",
+        toolName: "search",
+        argsText: "{}",
+      }),
+    ]);
+    expect(convertLangChainMessages(merged, {})).toHaveProperty(
+      "content",
+      expected,
+    );
+
+    const continued = appendLangChainChunk(
+      merged,
+      aiChunk([{ index: 0, id: "call-1", name: "", args: "" }]),
+    );
+    expect(convertLangChainMessages(continued, {})).toHaveProperty(
+      "content",
+      expected,
+    );
   });
 });
 

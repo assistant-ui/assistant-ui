@@ -42,15 +42,20 @@ describe("MessagePartPrimitive.Text", () => {
   });
 
   it("keeps the default span and explicit component behavior", () => {
+    const spanRef = createRef<HTMLSpanElement>();
+    const componentRef = createRef<HTMLElement>();
     render(
       <TextMessagePartProvider text="Hello">
-        <MessagePartPrimitiveText />
-        <MessagePartPrimitiveText component="p" />
+        <MessagePartPrimitiveText ref={spanRef} />
+        <MessagePartPrimitiveText component="p" ref={componentRef} />
         <MessagePartPrimitiveText component="p" render={<mark />} />
         <MessagePartPrimitiveText component="p" render={undefined} />
       </TextMessagePartProvider>,
     );
 
+    expect(spanRef.current?.tagName).toBe("SPAN");
+    expect(spanRef.current?.getAttribute("data-status")).toBe("complete");
+    expect(componentRef.current?.tagName).toBe("P");
     expect(screen.getAllByText("Hello").map((text) => text.tagName)).toEqual([
       "SPAN",
       "P",

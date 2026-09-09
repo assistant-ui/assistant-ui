@@ -73,6 +73,44 @@ describe("CloudChatCore", () => {
     vi.restoreAllMocks();
   });
 
+  it("stops automatic title generation once a run reports a title", async () => {
+    const generateTitle = vi
+      .fn<(...args: unknown[]) => Promise<string | null>>()
+      .mockResolvedValue("Explicit title");
+    const core = createCore({ generateTitle });
+    const messages = [{ id: "m1", role: "assistant" }];
+    const registry = {
+      getMeta: () => ({ threadId: "thread-1" }),
+      get: () => ({ messages }),
+    } as never;
+    core.titlePolicy.markNewThread("thread-1");
+
+    await core.persistChatMessages("chat-1", registry);
+    await Promise.resolve();
+    await core.persistChatMessages("chat-1", registry);
+
+    expect(generateTitle).toHaveBeenCalledOnce();
+  });
+
+  it("retries automatic title generation when a run reports no title", async () => {
+    const generateTitle = vi
+      .fn<(...args: unknown[]) => Promise<string | null>>()
+      .mockResolvedValue(null);
+    const core = createCore({ generateTitle });
+    const messages = [{ id: "m1", role: "assistant" }];
+    const registry = {
+      getMeta: () => ({ threadId: "thread-1" }),
+      get: () => ({ messages }),
+    } as never;
+    core.titlePolicy.markNewThread("thread-1");
+
+    await core.persistChatMessages("chat-1", registry);
+    await Promise.resolve();
+    await core.persistChatMessages("chat-1", registry);
+
+    expect(generateTitle).toHaveBeenCalledTimes(2);
+  });
+
   it("forwards async tool call completion to the AI SDK chat", () => {
     const completion = Promise.resolve();
     const onToolCall = vi.fn(() => completion);

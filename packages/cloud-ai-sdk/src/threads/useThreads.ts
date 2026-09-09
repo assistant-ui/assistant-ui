@@ -37,16 +37,28 @@ function toCloudThread(t: {
 const CLOUD_THREAD_PAGE_SIZE = 20;
 
 type ThreadTitleClaim = {
-  title: string;
-  settled: Promise<boolean>;
+  readonly title: string;
+  readonly order: number;
+  readonly settled: Promise<boolean>;
 };
 
-type ThreadTitleGeneration = { claim: ThreadTitleClaim | null };
+type ThreadTitleGeneration = {
+  readonly automatic: boolean;
+  readonly order: number;
+  claim: ThreadTitleClaim | null;
+  readonly beforeGenerationClaims: readonly ThreadTitleClaim[];
+  superseded: boolean;
+  readonly persisted: Promise<string | undefined>;
+  readonly settlePersisted: (title: string | undefined) => void;
+};
 
 type ThreadTitleState = {
   generations: Set<ThreadTitleGeneration>;
   pendingClaim: ThreadTitleClaim | null;
+  inFlightClaims: Set<ThreadTitleClaim>;
   manualTitle: string | undefined;
+  latestExplicit: ThreadTitleGeneration | null;
+  nextOrder: number;
 };
 
 function getThreadTitleState(
@@ -58,11 +70,31 @@ function getThreadTitleState(
     state = {
       generations: new Set(),
       pendingClaim: null,
+      inFlightClaims: new Set(),
       manualTitle: undefined,
+      latestExplicit: null,
+      nextOrder: 0,
     };
     states.set(threadId, state);
   }
   return state;
+}
+
+function isCurrentGeneration(
+  state: ThreadTitleState,
+  generation: ThreadTitleGeneration,
+): boolean {
+  return (
+    !generation.superseded &&
+    (state.latestExplicit?.order ?? 0) <= generation.order
+  );
+}
+
+function isCurrentClaim(
+  state: ThreadTitleState,
+  claim: ThreadTitleClaim,
+): boolean {
+  return (state.latestExplicit?.order ?? 0) < claim.order;
 }
 
 function takeManualTitle(
@@ -83,6 +115,10 @@ function takeManualTitle(
   return title;
 }
 
+function toActionError(err: unknown): Error {
+  return err instanceof Error ? err : new Error(String(err));
+}
+
 function pruneThreadTitleState(
   states: Map<string, ThreadTitleState>,
   threadId: string,
@@ -91,6 +127,7 @@ function pruneThreadTitleState(
   if (
     state.generations.size === 0 &&
     state.pendingClaim === null &&
+    state.inFlightClaims.size === 0 &&
     state.manualTitle === undefined &&
     states.get(threadId) === state
   ) {
@@ -203,9 +240,7 @@ export function useThreads(options: UseThreadsOptions): UseThreadsResult {
         commit(() => setError(null));
         return result;
       } catch (err) {
-        commit(() =>
-          setError(err instanceof Error ? err : new Error(String(err))),
-        );
+        commit(() => setError(toActionError(err)));
         return fallback;
       }
     },
@@ -378,9 +413,12 @@ export function useThreads(options: UseThreadsOptions): UseThreadsResult {
       const settled = new Promise<boolean>((resolve) => {
         settleClaim = resolve;
       });
-      const claim = { title, settled };
+      const claim = { title, order: ++state.nextOrder, settled };
       state.pendingClaim = claim;
-      for (const generation of state.generations) generation.claim = claim;
+      state.inFlightClaims.add(claim);
+      for (const generation of state.generations) {
+        if (generation.order < claim.order) generation.claim = claim;
+      }
 
       const renamed = await withAction(
         async (commit) => {
@@ -396,6 +434,7 @@ export function useThreads(options: UseThreadsOptions): UseThreadsResult {
         isCurrentCloud,
       );
       settleClaim(renamed);
+      state.inFlightClaims.delete(claim);
       if (state.pendingClaim === claim) {
         state.pendingClaim = null;
         if (renamed) state.manualTitle = title;
@@ -488,74 +527,188 @@ export function useThreads(options: UseThreadsOptions): UseThreadsResult {
         );
         if (retained !== undefined) return retained;
       }
+
+      let settlePersisted!: (title: string | undefined) => void;
+      const persisted = new Promise<string | undefined>((resolve) => {
+        settlePersisted = resolve;
+      });
+      const generation: ThreadTitleGeneration = {
+        automatic,
+        order: ++state.nextOrder,
+        claim: automatic ? state.pendingClaim : null,
+        beforeGenerationClaims: automatic ? [] : [...state.inFlightClaims],
+        superseded: false,
+        persisted,
+        settlePersisted,
+      };
       if (!automatic) {
         state.pendingClaim = null;
         state.manualTitle = undefined;
+        state.latestExplicit = generation;
+        for (const active of state.generations) {
+          if (active.automatic) active.superseded = true;
+        }
       }
-
-      const generation: ThreadTitleGeneration = {
-        claim: automatic ? state.pendingClaim : null,
-      };
       state.generations.add(generation);
 
+      let persistedTitle: string | undefined;
+      let persistedOrder = generation.order;
+      const settleClaim = async (claim: ThreadTitleClaim) => {
+        const renamed = await claim.settled;
+        if (generation.claim !== claim) return undefined;
+        if (!renamed) {
+          generation.claim = null;
+          if (state.pendingClaim === claim) state.pendingClaim = null;
+        }
+        return renamed;
+      };
+
+      const repairLostRace = async () => {
+        if (persistedTitle === undefined) return;
+        while (true) {
+          const claim = generation.claim;
+          if (
+            claim !== null &&
+            claim.order > persistedOrder &&
+            isCurrentClaim(state, claim)
+          ) {
+            const renamed = await settleClaim(claim);
+            if (renamed === true) {
+              persistedTitle = claim.title;
+              persistedOrder = claim.order;
+              await cloud.threads.update(tid, { title: claim.title });
+            }
+            continue;
+          }
+
+          const winner = state.latestExplicit;
+          if (winner === null || winner.order <= persistedOrder) return;
+          const winnerTitle = await winner.persisted;
+          if (state.latestExplicit !== winner) continue;
+          persistedOrder = winner.order;
+          if (winnerTitle === undefined || winnerTitle === persistedTitle) {
+            return;
+          }
+          persistedTitle = winnerTitle;
+          await cloud.threads.update(tid, { title: winnerTitle });
+        }
+      };
+
       try {
-        return await withAction(
+        const generatedTitle = await withAction(
           async (commit) => {
             let title: string | null = null;
             let generated = false;
 
-            while (true) {
-              if (generation.claim) {
-                const claim = generation.claim;
-                const renamed = await claim.settled;
-                if (generation.claim !== claim) continue;
-                if (!renamed) {
-                  generation.claim = null;
-                  if (automatic) {
-                    const retained = takeManualTitle(
-                      threadTitleGenerationsRef.current,
-                      tid,
-                      state,
-                    );
-                    if (retained !== undefined) return retained;
+            const runGeneration = async () => {
+              // An explicit generation waits for every earlier rename because
+              // any of those server writes may settle last.
+              if (generation.beforeGenerationClaims.length > 0) {
+                await Promise.all(
+                  generation.beforeGenerationClaims.map(
+                    (claim) => claim.settled,
+                  ),
+                );
+              }
+              while (true) {
+                if (generation.claim) {
+                  const claim = generation.claim;
+                  const renamed = await settleClaim(claim);
+                  if (renamed === undefined) continue;
+                  if (renamed === false) {
+                    if (automatic) {
+                      const retained = takeManualTitle(
+                        threadTitleGenerationsRef.current,
+                        tid,
+                        state,
+                      );
+                      if (retained !== undefined) {
+                        title = retained;
+                        return;
+                      }
+                    }
+                    continue;
                   }
-                  continue;
+
+                  if (generated) {
+                    if (!isCurrentClaim(state, claim)) return;
+                    await cloud.threads.update(tid, { title: claim.title });
+                    persistedTitle = claim.title;
+                    persistedOrder = claim.order;
+                    if (generation.claim !== claim) continue;
+                    if (!isCurrentGeneration(state, generation)) return;
+                    commit(() =>
+                      setThreads((prev) =>
+                        prev.map((t) =>
+                          t.id === tid ? { ...t, title: claim.title } : t,
+                        ),
+                      ),
+                    );
+                  }
+                  if (automatic) state.manualTitle = undefined;
+                  title = claim.title;
+                  return;
                 }
 
-                if (generated) {
-                  await cloud.threads.update(tid, { title: claim.title });
-                  if (generation.claim !== claim) continue;
-                  commit(() =>
-                    setThreads((prev) =>
-                      prev.map((t) =>
-                        t.id === tid ? { ...t, title: claim.title } : t,
-                      ),
-                    ),
-                  );
+                if (generated) break;
+                if (!isCurrentGeneration(state, generation)) {
+                  // A run reports the title it generated, which is what lets
+                  // the caller tell a generation that produced something from
+                  // one that failed and should be retried. This path generated
+                  // nothing at all, so it falls back to the winner rather than
+                  // reporting a failure. The generation it defers to may have
+                  // been outranked while it waited, and an outranked one
+                  // persists nothing.
+                  let winner = state.latestExplicit;
+                  while (winner !== null) {
+                    const winnerTitle = await winner.persisted;
+                    if (state.latestExplicit === winner) {
+                      title = winnerTitle ?? null;
+                      return;
+                    }
+                    winner = state.latestExplicit;
+                  }
+                  return;
                 }
-                if (automatic) state.manualTitle = undefined;
-                return claim.title;
+                generated = true;
+                // `generateThreadTitle` persists what it generated before it
+                // resolves, so the run owes a repair from here on however it
+                // exits.
+                title = await generateThreadTitle(cloud, tid);
+                if (title) persistedTitle = title;
               }
 
-              if (generated) break;
-              generated = true;
-              title = await generateThreadTitle(cloud, tid);
-            }
+              if (title && isCurrentGeneration(state, generation)) {
+                const generatedTitle = title;
+                commit(() =>
+                  setThreads((prev) =>
+                    prev.map((t) =>
+                      t.id === tid ? { ...t, title: generatedTitle } : t,
+                    ),
+                  ),
+                );
+              }
+            };
 
-            if (title) {
-              commit(() =>
-                setThreads((prev) =>
-                  prev.map((t) => (t.id === tid ? { ...t, title } : t)),
-                ),
-              );
-            }
-
+            await runGeneration();
             return title;
           },
           null,
           isCurrentCloud,
         );
+        // The repair reports a failure but never clears one: its result is
+        // bookkeeping on top of the run, and the caller reads a null result
+        // from the run itself as a failed generation.
+        try {
+          await repairLostRace();
+        } catch (err) {
+          if (mountedRef.current && isCurrentCloud()) {
+            setError(toActionError(err));
+          }
+        }
+        return generatedTitle;
       } finally {
+        generation.settlePersisted(persistedTitle);
         state.generations.delete(generation);
         pruneThreadTitleState(threadTitleGenerationsRef.current, tid, state);
       }

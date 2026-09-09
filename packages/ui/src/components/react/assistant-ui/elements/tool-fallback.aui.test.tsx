@@ -43,6 +43,69 @@ const renderTool = (props: Partial<ToolCallMessagePartProps> = {}) => {
 };
 
 describe("ToolFallback", () => {
+  it("renders non-JSON tool values without throwing", () => {
+    const circular: { self?: unknown } = {};
+    circular.self = circular;
+
+    const view = render(<ToolFallback.Result result={1n} />);
+    expect(view.container.textContent).toContain("1");
+
+    view.rerender(<ToolFallback.Result result={circular} />);
+    expect(view.container.textContent).toContain("[object Object]");
+
+    view.rerender(
+      <ToolFallback.Error
+        status={{ type: "incomplete", reason: "error", error: 1n }}
+      />,
+    );
+    expect(view.container.textContent).toContain("1");
+
+    view.rerender(
+      <ToolFallback.Error
+        status={{ type: "incomplete", reason: "error", error: false }}
+      />,
+    );
+    expect(view.container.textContent).toContain("false");
+
+    view.rerender(
+      <ToolFallback.Error
+        status={{
+          type: "incomplete",
+          reason: "error",
+          error: new Error("tool failed"),
+        }}
+      />,
+    );
+    expect(view.container.textContent).toContain("Error: tool failed");
+  });
+
+  it("renders a placeholder when a result cannot be converted to text", () => {
+    const result = {
+      toJSON() {
+        throw new Error("cannot serialize");
+      },
+      [Symbol.toPrimitive]() {
+        throw new Error("cannot convert");
+      },
+    };
+
+    render(<ToolFallback.Result result={result} />);
+
+    expect(screen.getByText("[Unserializable value]")).toBeTruthy();
+
+    const error = new Error("cannot convert");
+    error.toString = () => {
+      throw new Error("cannot convert");
+    };
+
+    const view = render(
+      <ToolFallback.Error
+        status={{ type: "incomplete", reason: "error", error }}
+      />,
+    );
+    expect(view.container.textContent).toContain("[Unserializable value]");
+  });
+
   it("does not offer a fabricated result for an unprojected interrupt", () => {
     renderTool({ addResult: vi.fn() });
 

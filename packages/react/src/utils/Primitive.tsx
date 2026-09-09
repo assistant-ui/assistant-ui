@@ -1,4 +1,5 @@
 import {
+  type ComponentProps,
   type ComponentPropsWithoutRef,
   type ComponentRef,
   type ElementType,
@@ -12,6 +13,7 @@ import {
   isValidElement,
 } from "react";
 import { Primitive as RadixPrimitive } from "radix-ui/internal";
+import { Slot } from "radix-ui";
 
 /**
  * Thin wrapper around Radix `Primitive` that adds `render` prop support.
@@ -64,6 +66,39 @@ type PrimitiveRef<E extends PrimitiveNode> = ComponentRef<
   (typeof RadixPrimitive)[E]
 >;
 
+/**
+ * Composes the children of a `render` element. Outer children win when supplied;
+ * the render element's own children are the fallback.
+ */
+function composeRenderElement(
+  render: ReactElement,
+  children: ReactNode,
+): ReactElement {
+  return cloneElement(
+    render,
+    undefined,
+    children !== undefined
+      ? children
+      : (render.props as { children?: ReactNode }).children,
+  );
+}
+
+/**
+ * Composes a `render` element at a call site that has already computed its props.
+ *
+ * `withRenderProp` wraps a component; this covers the case where the props are
+ * already in hand and the composition happens inline.
+ */
+function renderSlot(
+  render: ReactElement,
+  children: ReactNode,
+  props: ComponentProps<typeof Slot.Root>,
+): ReactElement {
+  return (
+    <Slot.Root {...props}>{composeRenderElement(render, children)}</Slot.Root>
+  );
+}
+
 function withRenderProp<T extends ElementType>(Component: T) {
   const Wrapped = forwardRef<ComponentRef<T>, WithRenderPropRuntimeProps<T>>(
     (
@@ -78,14 +113,9 @@ function withRenderProp<T extends ElementType>(Component: T) {
       const Comp = Component as any;
 
       if (render && isValidElement(render)) {
-        const renderChildren =
-          children !== undefined
-            ? children
-            : ((render.props as Record<string, unknown>).children as ReactNode);
-
         return (
           <Comp {...(rest as any)} asChild ref={ref}>
-            {cloneElement(render, undefined, renderChildren)}
+            {composeRenderElement(render, children)}
           </Comp>
         );
       }
@@ -129,5 +159,5 @@ const Primitive = NODES.reduce(
   },
 );
 
-export { Primitive, withRenderProp };
+export { Primitive, renderSlot, withRenderProp };
 export type { PrimitiveProps, WithRenderPropProps };

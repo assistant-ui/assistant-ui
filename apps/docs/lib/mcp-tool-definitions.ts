@@ -3,7 +3,11 @@ export const SEARCH_DOCS_RESULT_LIMIT = 20;
 export const searchDocsInputSchema = {
   type: "object",
   properties: {
-    query: { type: "string", description: "Search query." },
+    query: {
+      type: "string",
+      description:
+        "A short phrase of distinctive documentation terms, with filler words omitted.",
+    },
   },
   required: ["query"],
   additionalProperties: false,
@@ -35,7 +39,7 @@ export const docsToolDefinitions = [
   {
     name: "search_docs",
     description:
-      "Search assistant-ui docs, examples, design components, elements, and Tap docs by title, description, or URL.",
+      "Search assistant-ui docs, examples, design components, elements, and Tap docs. Ranks each page over its title, headings, URL, description, and body text, and excerpts the paragraphs that matched, falling back to the page's opening paragraph when only its metadata matched.",
     inputSchema: searchDocsInputSchema,
   },
   {

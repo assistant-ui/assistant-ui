@@ -155,6 +155,39 @@ describe("RemoteThreadListHookInstanceManager run tracking", () => {
     expect(onChange).toHaveBeenCalledTimes(2);
   });
 
+  it("notifies every running subscriber when one throws", () => {
+    const manager = makeManager();
+    start(manager, "thread-1");
+    const thread = makeRuntime({ isRunning: false });
+    publish(manager, "thread-1", thread.runtime);
+    const error = new Error("listener failed");
+    manager.__internal_subscribeRunningChanged(() => {
+      throw error;
+    });
+    const laterSubscriber = vi.fn();
+    manager.__internal_subscribeRunningChanged(laterSubscriber);
+
+    expect(() => thread.setRunning(true)).toThrow(error);
+    expect(laterSubscriber).toHaveBeenCalledOnce();
+  });
+
+  it("notifies every replacement subscriber when one throws", () => {
+    const manager = makeManager();
+    start(manager, "thread-1");
+    publish(manager, "thread-1", makeRuntime().runtime);
+    const error = new Error("listener failed");
+    manager.__internal_subscribeRuntimeReplaced(() => {
+      throw error;
+    });
+    const laterSubscriber = vi.fn();
+    manager.__internal_subscribeRuntimeReplaced(laterSubscriber);
+
+    expect(() => publish(manager, "thread-1", makeRuntime().runtime)).toThrow(
+      error,
+    );
+    expect(laterSubscriber).toHaveBeenCalledOnce();
+  });
+
   it("moves tracking to the runtime a restart publishes", () => {
     const manager = makeManager();
     start(manager, "thread-1");

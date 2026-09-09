@@ -66,6 +66,12 @@ const isThenable = (value: unknown): value is PromiseLike<unknown> =>
   typeof (value as PromiseLike<unknown> | null | undefined)?.then ===
   "function";
 
+const cancelledToolResponse = (): ToolResponse<ReadonlyJSONValue> =>
+  new ToolResponse({
+    result: "Tool execution was cancelled.",
+    isError: true,
+  });
+
 function getToolResponse(
   tools: Record<string, Tool> | undefined,
   abortSignal: AbortSignal,
@@ -83,12 +89,8 @@ function getToolResponse(
   const getResult = async (
     toolExecute: ToolExecuteFunction<ReadonlyJSONObject, unknown>,
   ): Promise<ToolResponse<ReadonlyJSONValue>> => {
-    // Check if already aborted before starting
     if (abortSignal.aborted) {
-      return new ToolResponse({
-        result: "Tool execution was cancelled.",
-        isError: true,
-      });
+      return cancelledToolResponse();
     }
 
     let executeFn = toolExecute;
@@ -108,6 +110,10 @@ function getToolResponse(
       }
     }
 
+    if (abortSignal.aborted) {
+      return cancelledToolResponse();
+    }
+
     // Create abort promise that resolves after 2 microtasks
     // This gives tools that handle abort a chance to win the race
     let onAbort!: () => void;
@@ -116,12 +122,7 @@ function getToolResponse(
         onAbort = () => {
           queueMicrotask(() => {
             queueMicrotask(() => {
-              resolve(
-                new ToolResponse({
-                  result: "Tool execution was cancelled.",
-                  isError: true,
-                }),
-              );
+              resolve(cancelledToolResponse());
             });
           });
         };
@@ -270,6 +271,9 @@ export async function unstable_runPendingTools(
             : {}),
           ...(toolResponse.modelContent !== undefined
             ? { modelContent: toolResponse.modelContent }
+            : {}),
+          ...(toolResponse.messages !== undefined
+            ? { messages: toolResponse.messages }
             : {}),
           result: toolResponse.result as ReadonlyJSONValue,
           isError: toolResponse.isError,

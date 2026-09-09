@@ -338,7 +338,7 @@ describe("useThreads", () => {
     expect(mocks.generateThreadTitle).not.toHaveBeenCalled();
   });
 
-  it("starts explicit generation while a rename is pending", async () => {
+  it("holds explicit generation until a pending rename has been written", async () => {
     const renameUpdate = createDeferred<void>();
     const cloud = createCloud("cloud-1");
     cloud.threads.update.mockReturnValueOnce(renameUpdate.promise);
@@ -356,18 +356,443 @@ describe("useThreads", () => {
       generation = result.current.generateTitle("thread-1");
     });
 
-    await expect(generation).resolves.toBe("Regenerated title");
-    expect(mocks.generateThreadTitle).toHaveBeenCalledOnce();
+    await Promise.resolve();
+    expect(mocks.generateThreadTitle).not.toHaveBeenCalled();
 
     await act(async () => {
       renameUpdate.resolve();
       await rename;
     });
 
+    await expect(generation).resolves.toBe("Regenerated title");
+    expect(mocks.generateThreadTitle).toHaveBeenCalledOnce();
+
     await expect(
       result.current.generateTitle("thread-1", { automatic: true }),
     ).resolves.toBe("Automatic title");
     expect(mocks.generateThreadTitle).toHaveBeenCalledTimes(2);
+  });
+
+  it("holds every explicit generation until a pending rename settles", async () => {
+    const renameUpdate = createDeferred<void>();
+    const applied: string[] = [];
+    const cloud = createCloud("cloud-1");
+    cloud.threads.update.mockImplementation(
+      async (_id: string, patch: { title?: string }) => {
+        if (patch.title === undefined) return;
+        if (patch.title === "Manual title") await renameUpdate.promise;
+        applied.push(patch.title);
+      },
+    );
+    mocks.generateThreadTitle.mockImplementation(
+      async (currentCloud: typeof cloud, tid: string) => {
+        await currentCloud.threads.update(tid, { title: "Second title" });
+        return "Second title";
+      },
+    );
+    const { result } = renderHook(() =>
+      useThreads({ cloud: cloud as never, enabled: false }),
+    );
+
+    let rename!: Promise<boolean>;
+    let first!: Promise<string | null>;
+    let second!: Promise<string | null>;
+    act(() => {
+      rename = result.current.rename("thread-1", "Manual title");
+      first = result.current.generateTitle("thread-1");
+      second = result.current.generateTitle("thread-1");
+    });
+    await Promise.resolve();
+
+    expect(mocks.generateThreadTitle).not.toHaveBeenCalled();
+
+    await act(async () => {
+      renameUpdate.resolve();
+      await Promise.all([rename, first, second]);
+    });
+
+    expect(await first).toBe("Second title");
+    expect(await second).toBe("Second title");
+    expect(mocks.generateThreadTitle).toHaveBeenCalledOnce();
+    expect(applied).toEqual(["Manual title", "Second title"]);
+  });
+
+  it("waits for every overlapping rename before explicit generation", async () => {
+    const firstUpdate = createDeferred<void>();
+    const secondUpdate = createDeferred<void>();
+    const applied: string[] = [];
+    const cloud = createCloud("cloud-1");
+    cloud.threads.update.mockImplementation(
+      async (_id: string, patch: { title?: string }) => {
+        if (patch.title === undefined) return;
+        if (patch.title === "First") await firstUpdate.promise;
+        if (patch.title === "Second") await secondUpdate.promise;
+        applied.push(patch.title);
+      },
+    );
+    mocks.generateThreadTitle.mockImplementation(
+      async (currentCloud: typeof cloud, tid: string) => {
+        await currentCloud.threads.update(tid, { title: "Explicit" });
+        return "Explicit";
+      },
+    );
+    const { result } = renderHook(() =>
+      useThreads({ cloud: cloud as never, enabled: false }),
+    );
+
+    let first!: Promise<boolean>;
+    let second!: Promise<boolean>;
+    let generation!: Promise<string | null>;
+    act(() => {
+      first = result.current.rename("thread-1", "First");
+      second = result.current.rename("thread-1", "Second");
+      generation = result.current.generateTitle("thread-1");
+    });
+
+    await act(async () => {
+      secondUpdate.resolve();
+      await second;
+    });
+    expect(mocks.generateThreadTitle).not.toHaveBeenCalled();
+
+    await act(async () => {
+      firstUpdate.resolve();
+      await Promise.all([first, generation]);
+    });
+
+    expect(await generation).toBe("Explicit");
+    expect(applied).toEqual(["Second", "First", "Explicit"]);
+  });
+
+  it("leaves the server on the explicit title when a rename lands late", async () => {
+    const applied: string[] = [];
+    const renameLanded = createDeferred<void>();
+    const cloud = createCloud("cloud-1");
+    cloud.threads.update.mockImplementation(
+      async (_id: string, patch: { title?: string }) => {
+        if (patch.title === undefined) return;
+        if (patch.title === "Manual title") await renameLanded.promise;
+        applied.push(patch.title);
+      },
+    );
+    // Mirrors assistant-cloud's generateThreadTitle: it writes the title it
+    // generated before it resolves.
+    mocks.generateThreadTitle.mockImplementation(
+      async (currentCloud: typeof cloud, tid: string) => {
+        await currentCloud.threads.update(tid, { title: "Generated title" });
+        return "Generated title";
+      },
+    );
+    const { result } = renderHook(() =>
+      useThreads({ cloud: cloud as never, enabled: false }),
+    );
+
+    let rename!: Promise<boolean>;
+    let generation!: Promise<string | null>;
+    act(() => {
+      rename = result.current.rename("thread-1", "Manual title");
+      generation = result.current.generateTitle("thread-1");
+    });
+
+    await act(async () => {
+      renameLanded.resolve();
+      await rename;
+      await generation;
+    });
+
+    expect(applied).toEqual(["Manual title", "Generated title"]);
+  });
+
+  it("repairs the server when a rename interleaves the superseded run", async () => {
+    const applied: string[] = [];
+    const cloud = createCloud("cloud-1");
+    cloud.threads.update.mockImplementation(
+      async (_id: string, patch: { title?: string }) => {
+        if (patch.title !== undefined) applied.push(patch.title);
+      },
+    );
+    const automaticOpen = createDeferred<void>();
+    mocks.generateThreadTitle
+      .mockImplementationOnce(async (currentCloud, threadId) => {
+        await automaticOpen.promise;
+        await currentCloud.threads.update(threadId, { title: "Automatic" });
+        return "Automatic";
+      })
+      .mockImplementationOnce(async (currentCloud, threadId) => {
+        await currentCloud.threads.update(threadId, { title: "Explicit" });
+        return "Explicit";
+      });
+    const { result } = renderHook(() =>
+      useThreads({ cloud: cloud as never, enabled: false }),
+    );
+
+    let automatic!: Promise<string | null>;
+    act(() => {
+      automatic = result.current.generateTitle("thread-1", { automatic: true });
+    });
+
+    let rename!: Promise<boolean>;
+    let explicit!: Promise<string | null>;
+    act(() => {
+      rename = result.current.rename("thread-1", "Manual");
+      explicit = result.current.generateTitle("thread-1");
+    });
+
+    await act(async () => {
+      await rename;
+      await explicit;
+      automaticOpen.resolve();
+      await automatic;
+    });
+
+    expect(applied).toEqual(["Manual", "Explicit", "Automatic", "Explicit"]);
+  });
+
+  it("keeps the explicit title locally when a claim write outlives the race", async () => {
+    const applied: string[] = [];
+    const claimWrite = createDeferred<void>();
+    let sawClaimWrite = false;
+    const cloud = createCloud("cloud-1");
+    cloud.threads.list.mockResolvedValue(
+      createThreadListResponse("New Chat", "thread-1"),
+    );
+    cloud.threads.update.mockImplementation(
+      async (_id: string, patch: { title?: string }) => {
+        if (patch.title === undefined) return;
+        if (patch.title === "Manual" && sawClaimWrite) await claimWrite.promise;
+        if (patch.title === "Manual") sawClaimWrite = true;
+        applied.push(patch.title);
+      },
+    );
+    const automaticOpen = createDeferred<void>();
+    mocks.generateThreadTitle
+      .mockImplementationOnce(async (currentCloud, threadId) => {
+        await automaticOpen.promise;
+        await currentCloud.threads.update(threadId, { title: "Automatic" });
+        return "Automatic";
+      })
+      .mockImplementationOnce(async (currentCloud, threadId) => {
+        await currentCloud.threads.update(threadId, { title: "Explicit" });
+        return "Explicit";
+      });
+    const { result } = renderHook(() => useThreads({ cloud: cloud as never }));
+    await waitFor(() => expect(result.current.threads).toHaveLength(1));
+
+    let automatic!: Promise<string | null>;
+    act(() => {
+      automatic = result.current.generateTitle("thread-1", { automatic: true });
+    });
+    await act(async () => {
+      await result.current.rename("thread-1", "Manual");
+    });
+
+    // release the automatic generation so it reaches its claim re-write, then
+    // let the explicit run supersede it while that write is still in flight
+    act(() => automaticOpen.resolve());
+    await act(async () => {
+      await Promise.resolve();
+      await Promise.resolve();
+      await Promise.resolve();
+    });
+    await act(async () => {
+      await result.current.generateTitle("thread-1");
+    });
+
+    await act(async () => {
+      claimWrite.resolve();
+      await automatic;
+    });
+
+    expect(applied.at(-1)).toBe("Explicit");
+    expect(result.current.threads[0]?.title).toBe("Explicit");
+  });
+
+  it("keeps a failed generation observable on error", async () => {
+    const cloud = createCloud("cloud-1");
+    mocks.generateThreadTitle.mockRejectedValue(new Error("generation failed"));
+    const { result } = renderHook(() =>
+      useThreads({ cloud: cloud as never, enabled: false }),
+    );
+
+    let generated: string | null = "unset";
+    await act(async () => {
+      generated = await result.current.generateTitle("thread-1");
+    });
+
+    expect(generated).toBeNull();
+    await waitFor(() => {
+      expect(result.current.error?.message).toBe("generation failed");
+    });
+  });
+
+  it("still reports its generated title when the repair write fails", async () => {
+    const cloud = createCloud("cloud-1");
+    let writes = 0;
+    cloud.threads.update.mockImplementation(async () => {
+      writes += 1;
+      // the explicit write, then the automatic run's own write, then its repair
+      if (writes === 3) throw new Error("repair failed");
+    });
+    const automaticOpen = createDeferred<void>();
+    mocks.generateThreadTitle
+      .mockImplementationOnce(async (currentCloud, threadId) => {
+        await automaticOpen.promise;
+        await currentCloud.threads.update(threadId, { title: "Automatic" });
+        return "Automatic";
+      })
+      .mockImplementationOnce(async (currentCloud, threadId) => {
+        await currentCloud.threads.update(threadId, { title: "Explicit" });
+        return "Explicit";
+      });
+    const { result } = renderHook(() =>
+      useThreads({ cloud: cloud as never, enabled: false }),
+    );
+
+    let automatic!: Promise<string | null>;
+    act(() => {
+      automatic = result.current.generateTitle("thread-1", { automatic: true });
+    });
+    await act(async () => {
+      await result.current.generateTitle("thread-1");
+    });
+
+    let automaticTitle: string | null = null;
+    await act(async () => {
+      automaticOpen.resolve();
+      automaticTitle = await automatic;
+    });
+
+    expect(automaticTitle).toBe("Automatic");
+    await waitFor(() => {
+      expect(result.current.error?.message).toBe("repair failed");
+    });
+  });
+
+  it("does not generate for an automatic run an explicit one outranked", async () => {
+    const failingRename = createDeferred<void>();
+    const cloud = createCloud("cloud-1");
+    cloud.threads.update.mockReturnValueOnce(failingRename.promise);
+    mocks.generateThreadTitle.mockResolvedValue("Generated title");
+    const { result } = renderHook(() =>
+      useThreads({ cloud: cloud as never, enabled: false }),
+    );
+
+    let rename!: Promise<boolean>;
+    let automatic!: Promise<string | null>;
+    act(() => {
+      rename = result.current.rename("thread-1", "Manual title");
+      automatic = result.current.generateTitle("thread-1", { automatic: true });
+    });
+    expect(mocks.generateThreadTitle).not.toHaveBeenCalled();
+
+    let explicit!: Promise<string | null>;
+    act(() => {
+      explicit = result.current.generateTitle("thread-1");
+    });
+
+    await act(async () => {
+      failingRename.reject(new Error("rename failed"));
+      expect(await rename).toBe(false);
+      await expect(automatic).resolves.toBe("Generated title");
+      await expect(explicit).resolves.toBe("Generated title");
+    });
+
+    expect(mocks.generateThreadTitle).toHaveBeenCalledOnce();
+  });
+
+  it("keeps the explicit title when the superseded automatic run persists last", async () => {
+    const automaticTitle = createDeferred<string>();
+    const explicitTitle = createDeferred<string>();
+    const cloud = createCloud("cloud-1");
+    mocks.generateThreadTitle
+      .mockImplementationOnce(async (currentCloud, threadId) => {
+        const title = await automaticTitle.promise;
+        await currentCloud.threads.update(threadId, { title });
+        return title;
+      })
+      .mockImplementationOnce(async (currentCloud, threadId) => {
+        const title = await explicitTitle.promise;
+        await currentCloud.threads.update(threadId, { title });
+        return title;
+      });
+    const { result } = renderHook(() =>
+      useThreads({ cloud: cloud as never, enabled: true }),
+    );
+
+    await waitFor(() => expect(result.current.isLoading).toBe(false));
+
+    let automatic!: Promise<string | null>;
+    let explicit!: Promise<string | null>;
+    act(() => {
+      automatic = result.current.generateTitle("cloud-1", {
+        automatic: true,
+      });
+      explicit = result.current.generateTitle("cloud-1");
+    });
+    await waitFor(() =>
+      expect(mocks.generateThreadTitle).toHaveBeenCalledTimes(2),
+    );
+
+    await act(async () => {
+      explicitTitle.resolve("Explicit title");
+      await explicit;
+    });
+    await act(async () => {
+      automaticTitle.resolve("Automatic title");
+      await automatic;
+    });
+
+    expect(result.current.threads[0]?.title).toBe("Explicit title");
+    expect(cloud.threads.update).toHaveBeenCalledTimes(3);
+    expect(cloud.threads.update).toHaveBeenLastCalledWith("cloud-1", {
+      title: "Explicit title",
+    });
+  });
+
+  it("keeps the explicit title when the superseded automatic run persists first", async () => {
+    const automaticTitle = createDeferred<string>();
+    const explicitTitle = createDeferred<string>();
+    const cloud = createCloud("cloud-1");
+    mocks.generateThreadTitle
+      .mockImplementationOnce(async (currentCloud, threadId) => {
+        const title = await automaticTitle.promise;
+        await currentCloud.threads.update(threadId, { title });
+        return title;
+      })
+      .mockImplementationOnce(async (currentCloud, threadId) => {
+        const title = await explicitTitle.promise;
+        await currentCloud.threads.update(threadId, { title });
+        return title;
+      });
+    const { result } = renderHook(() =>
+      useThreads({ cloud: cloud as never, enabled: true }),
+    );
+
+    await waitFor(() => expect(result.current.isLoading).toBe(false));
+
+    let automatic!: Promise<string | null>;
+    let explicit!: Promise<string | null>;
+    act(() => {
+      automatic = result.current.generateTitle("cloud-1", {
+        automatic: true,
+      });
+      explicit = result.current.generateTitle("cloud-1");
+    });
+    await waitFor(() =>
+      expect(mocks.generateThreadTitle).toHaveBeenCalledTimes(2),
+    );
+
+    await act(async () => {
+      automaticTitle.resolve("Automatic title");
+      explicitTitle.resolve("Explicit title");
+      await Promise.all([automatic, explicit]);
+    });
+
+    expect(result.current.threads[0]?.title).toBe("Explicit title");
+    expect(cloud.threads.update).toHaveBeenCalledTimes(3);
+    expect(cloud.threads.update).toHaveBeenLastCalledWith("cloud-1", {
+      title: "Explicit title",
+    });
   });
 
   it("keeps an earlier manual title when a newer rename fails", async () => {

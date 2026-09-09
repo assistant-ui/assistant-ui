@@ -5,7 +5,6 @@ import {
   useCallback,
   useState,
   type ReactElement,
-  cloneElement,
   isValidElement,
 } from "react";
 
@@ -13,6 +12,7 @@ import { composeEventHandlers } from "radix-ui/internal";
 import { Slot } from "radix-ui";
 import type React from "react";
 import { useAui } from "@assistant-ui/store";
+import { renderSlot } from "../../utils/Primitive";
 
 export namespace ComposerPrimitiveAttachmentDropzone {
   export type Element = HTMLDivElement;
@@ -116,15 +116,7 @@ export const ComposerPrimitiveAttachmentDropzone = forwardRef<
   };
 
   if (render && isValidElement(render)) {
-    const renderChildren =
-      children !== undefined
-        ? children
-        : (render.props as Record<string, unknown>).children;
-    return (
-      <Slot.Root {...mergedProps}>
-        {cloneElement(render, undefined, renderChildren as React.ReactNode)}
-      </Slot.Root>
-    );
+    return renderSlot(render, children, mergedProps);
   }
 
   const Comp = asChild ? Slot.Root : "div";
