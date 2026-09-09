@@ -501,9 +501,12 @@ describe("StreamdownTextPrimitive", () => {
       const code = ({ node: _, ...p }: any) => (
         <code data-testid="user-code" {...p} />
       );
-      const view = (intro: string) => (
+      const view = (lines: number) => (
         <TextMessagePartProvider
-          text={`${intro}\n\n${fencedMarkdown}`}
+          text={`intro\n\n\`\`\`ts\n${Array.from(
+            { length: lines },
+            (_, index) => `const x${index} = ${index};`,
+          ).join("\n")}\n\`\`\``}
           isRunning={false}
         >
           <StreamdownTextPrimitive
@@ -513,11 +516,11 @@ describe("StreamdownTextPrimitive", () => {
         </TextMessagePartProvider>
       );
 
-      const { rerender } = render(view("intro"));
+      const { rerender } = render(view(1));
       const firstPre = screen.getByTestId("user-pre");
       const firstCode = screen.getByTestId("user-code");
 
-      for (let token = 1; token <= 3; token++) rerender(view(`intro ${token}`));
+      for (let token = 2; token <= 4; token++) rerender(view(token));
 
       expect(screen.getByTestId("user-pre")).toBe(firstPre);
       expect(screen.getByTestId("user-code")).toBe(firstCode);
