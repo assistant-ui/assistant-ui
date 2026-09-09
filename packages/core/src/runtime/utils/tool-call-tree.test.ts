@@ -148,6 +148,16 @@ describe("walkToolCallTree", () => {
     );
   });
 
+  it("rejects cycles that repeat content before messages", () => {
+    const content: ThreadAssistantMessagePart[] = [];
+    const nestedMessages = [assistant("nested", content)];
+    content.push(toolCall("a", nestedMessages));
+
+    expect(() => [...walkToolCallTree([assistant("root", content)])]).toThrow(
+      "Cyclic tool-call message tree",
+    );
+  });
+
   it("allows sibling tool calls to share an acyclic message subtree", () => {
     const shared = [assistant("shared", [toolCall("nested")])];
     const messages = [
@@ -264,6 +274,16 @@ describe("mapToolCallPartsDeep", () => {
     messages.push(assistant("m1", [part]));
 
     expect(() => mapToolCallPartsDeep([part], (current) => current)).toThrow(
+      "Cyclic tool-call message tree",
+    );
+  });
+
+  it("rejects cycles that repeat content before messages", () => {
+    const content: ThreadAssistantMessagePart[] = [];
+    const nestedMessages = [assistant("nested", content)];
+    content.push(toolCall("a", nestedMessages));
+
+    expect(() => mapToolCallPartsDeep(content, (part) => part)).toThrow(
       "Cyclic tool-call message tree",
     );
   });

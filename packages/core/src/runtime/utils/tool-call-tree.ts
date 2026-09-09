@@ -41,14 +41,23 @@ export function* walkToolCallTree(
       };
 
   const frames: Frame[] = [{ type: "messages", values: messages, index: 0 }];
-  let activeArrays: WeakSet<object> | undefined;
+  let activeMessageArrays: WeakSet<object> | undefined;
 
-  const pushFrame = (frame: Frame) => {
-    activeArrays ??= new WeakSet(frames.map((active) => active.values));
-    if (activeArrays.has(frame.values)) {
+  const pushMessagesFrame = (
+    frame: Extract<Frame, { readonly type: "messages" }>,
+  ) => {
+    if (!activeMessageArrays) {
+      activeMessageArrays = new WeakSet<object>();
+      for (const active of frames) {
+        if (active.type === "messages") {
+          activeMessageArrays.add(active.values);
+        }
+      }
+    }
+    if (activeMessageArrays.has(frame.values)) {
       throw new TypeError("Cyclic tool-call message tree");
     }
-    activeArrays.add(frame.values);
+    activeMessageArrays.add(frame.values);
     frames.push(frame);
   };
 
@@ -56,7 +65,9 @@ export function* walkToolCallTree(
     const frame = frames[frames.length - 1]!;
     if (frame.index >= frame.values.length) {
       frames.pop();
-      activeArrays?.delete(frame.values);
+      if (frame.type === "messages") {
+        activeMessageArrays?.delete(frame.values);
+      }
       continue;
     }
 
@@ -65,7 +76,7 @@ export function* walkToolCallTree(
       if (message?.role !== "assistant" || !Array.isArray(message.content)) {
         continue;
       }
-      pushFrame({
+      frames.push({
         type: "content",
         values: message.content,
         messageId: message.id,
@@ -78,7 +89,7 @@ export function* walkToolCallTree(
     if (!part || part.type !== "tool-call") continue;
     yield { part, messageId: frame.messageId };
     if (part.messages?.length) {
-      pushFrame({ type: "messages", values: part.messages, index: 0 });
+      pushMessagesFrame({ type: "messages", values: part.messages, index: 0 });
     }
   }
 }
@@ -142,14 +153,21 @@ export function mapToolCallPartsDeep(
     changed: false,
   };
   const frames: Array<ContentFrame | MessagesFrame> = [root];
-  let activeArrays: WeakSet<object> | undefined;
+  let activeMessageArrays: WeakSet<object> | undefined;
 
-  const pushFrame = (frame: ContentFrame | MessagesFrame) => {
-    activeArrays ??= new WeakSet(frames.map((active) => active.values));
-    if (activeArrays.has(frame.values)) {
+  const pushMessagesFrame = (frame: MessagesFrame) => {
+    if (!activeMessageArrays) {
+      activeMessageArrays = new WeakSet<object>();
+      for (const active of frames) {
+        if (active.type === "messages") {
+          activeMessageArrays.add(active.values);
+        }
+      }
+    }
+    if (activeMessageArrays.has(frame.values)) {
       throw new TypeError("Cyclic tool-call message tree");
     }
-    activeArrays.add(frame.values);
+    activeMessageArrays.add(frame.values);
     frames.push(frame);
   };
 
@@ -159,7 +177,6 @@ export function mapToolCallPartsDeep(
     if (frame.type === "content") {
       if (frame.index >= frame.values.length) {
         frames.pop();
-        activeArrays?.delete(frame.values);
         const nextContent = frame.changed ? frame.next : frame.values;
         if (!frame.parent) {
           return { content: nextContent, changed: frame.changed };
@@ -188,7 +205,7 @@ export function mapToolCallPartsDeep(
         continue;
       }
 
-      pushFrame({
+      pushMessagesFrame({
         type: "messages",
         values: mapped.messages,
         originalPart: part,
@@ -203,7 +220,7 @@ export function mapToolCallPartsDeep(
 
     if (frame.index >= frame.values.length) {
       frames.pop();
-      activeArrays?.delete(frame.values);
+      activeMessageArrays?.delete(frame.values);
       const mapped = frame.changed
         ? { ...frame.mappedPart, messages: frame.next }
         : frame.mappedPart;
@@ -219,7 +236,7 @@ export function mapToolCallPartsDeep(
     }
 
     const assistant = nested as ThreadAssistantMessage;
-    pushFrame({
+    frames.push({
       type: "content",
       values: assistant.content,
       parent: { frame, message: assistant },
