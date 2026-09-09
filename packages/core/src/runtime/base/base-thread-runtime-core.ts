@@ -393,6 +393,10 @@ export abstract class BaseThreadRuntimeCore
         this._notifySubscribers();
       }
     } else {
+      const status: ThreadAssistantMessage["status"] = transcript.isFinal
+        ? { type: "complete", reason: "stop" }
+        : { type: "running" };
+
       if (!this._currentAssistantMsg) {
         this._currentAssistantMsg = {
           id: generateId(),
@@ -405,9 +409,7 @@ export abstract class BaseThreadRuntimeCore
             steps: [],
             custom: {},
           },
-          status: transcript.isFinal
-            ? { type: "complete", reason: "stop" }
-            : { type: "running" },
+          status,
           createdAt: new Date(),
         };
         this._voiceMessages.push(this._currentAssistantMsg);
@@ -417,9 +419,7 @@ export abstract class BaseThreadRuntimeCore
         const updated: ThreadAssistantMessage = {
           ...this._currentAssistantMsg,
           content: [{ type: "text", text: transcript.text }],
-          ...(transcript.isFinal
-            ? { status: { type: "complete", reason: "stop" } }
-            : {}),
+          status,
         };
         this._voiceMessages[idx] = updated;
         this._currentAssistantMsg = updated;
