@@ -147,6 +147,17 @@ describe("walkToolCallTree", () => {
       "Cyclic tool-call message tree",
     );
   });
+
+  it("allows sibling tool calls to share an acyclic message subtree", () => {
+    const shared = [assistant("shared", [toolCall("nested")])];
+    const messages = [
+      assistant("root", [toolCall("a", shared), toolCall("b", shared)]),
+    ];
+
+    expect(
+      [...walkToolCallTree(messages)].map((entry) => entry.part.toolCallId),
+    ).toEqual(["a", "nested", "b", "nested"]);
+  });
 });
 
 describe("iterateToolCallParts", () => {
@@ -255,5 +266,17 @@ describe("mapToolCallPartsDeep", () => {
     expect(() => mapToolCallPartsDeep([part], (current) => current)).toThrow(
       "Cyclic tool-call message tree",
     );
+  });
+
+  it("allows sibling tool calls to share an acyclic message subtree", () => {
+    const shared = [assistant("shared", [toolCall("nested")])];
+    const content = [toolCall("a", shared), toolCall("b", shared)];
+
+    const result = mapToolCallPartsDeep(content, (part) => part);
+
+    expect(result).toEqual({ content, changed: false });
+    expect(result.content).toBe(content);
+    expect((result.content[0] as ToolCallMessagePart).messages).toBe(shared);
+    expect((result.content[1] as ToolCallMessagePart).messages).toBe(shared);
   });
 });
