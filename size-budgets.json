@@ -53,8 +53,8 @@
   },
   "@assistant-ui/react-ag-ui": {
     ".": {
-      "min": 74627,
-      "gzip": 19567
+      "min": 76589,
+      "gzip": 20144
     }
   },
   "@assistant-ui/react-ai-sdk": {
