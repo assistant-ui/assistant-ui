@@ -167,17 +167,6 @@ export const CodeAdapter = memo(CodeAdapterInner, (prev, next) => {
 CodeAdapter.displayName = "CodeAdapter";
 
 /**
- * Binds adapter options to a standalone code component.
- */
-export function createCodeAdapter(adapter: CodeAdapterOptions) {
-  const BoundCodeAdapter = (props: Omit<CodeAdapterProps, "adapter">) => (
-    <CodeAdapter adapter={adapter} {...props} />
-  );
-  BoundCodeAdapter.displayName = "BoundCodeAdapter";
-  return BoundCodeAdapter;
-}
-
-/**
  * Checks if the code adapter should be used (i.e., user provided custom components).
  */
 export function shouldUseCodeAdapter(options: CodeAdapterOptions): boolean {
