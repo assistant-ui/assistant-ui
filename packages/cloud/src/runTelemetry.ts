@@ -22,12 +22,19 @@ export type RunReportOutcome =
   | "length"
   | "content_filter";
 
-export function deriveRunOutcome(input: {
-  finishReason?: string | undefined;
-  isAbort?: boolean | undefined;
-  isDisconnect?: boolean | undefined;
-  isError?: boolean | undefined;
-}): {
+/**
+ * Maps a finish event to the report status and outcome. `fallbackStatus`
+ * applies when the event carries neither a finish reason nor a failure flag.
+ */
+export function deriveRunOutcome(
+  input: {
+    finishReason?: string | undefined;
+    isAbort?: boolean | undefined;
+    isDisconnect?: boolean | undefined;
+    isError?: boolean | undefined;
+  },
+  fallbackStatus: "completed" | "incomplete" = "completed",
+): {
   status: "completed" | "incomplete" | "error";
   outcome?: RunReportOutcome;
 } {
@@ -47,8 +54,46 @@ export function deriveRunOutcome(input: {
     case "error":
       return { status: "error" };
     default:
-      return { status: "completed" };
+      return {
+        status: input.finishReason === undefined ? fallbackStatus : "completed",
+      };
   }
+}
+
+const MAX_RUN_ERROR_CODE_LENGTH = 64;
+const MAX_RUN_ERROR_LENGTH = 2048;
+
+/**
+ * Reads the message and code the runs endpoint stores for a failed run. The
+ * code is the error's `code` when it has one, else its class name.
+ */
+export function describeRunError(error: unknown): {
+  error?: string;
+  errorCode?: string;
+} {
+  if (error == null) return {};
+  const record =
+    typeof error === "object" ? (error as Record<string, unknown>) : undefined;
+  const message =
+    typeof error === "string"
+      ? error
+      : typeof record?.message === "string"
+        ? record.message
+        : undefined;
+  const code =
+    typeof record?.code === "string"
+      ? record.code
+      : typeof record?.name === "string" && record.name !== "Error"
+        ? record.name
+        : undefined;
+  return {
+    ...(message
+      ? { error: message.slice(0, MAX_RUN_ERROR_LENGTH) }
+      : undefined),
+    ...(code
+      ? { errorCode: code.slice(0, MAX_RUN_ERROR_CODE_LENGTH) }
+      : undefined),
+  };
 }
 
 /**
@@ -256,7 +301,7 @@ function normalizeRunReportTags(
   const result: string[] = [];
   const seen = new Set<string>();
   for (const tag of tags) {
-    const normalized = tag.trim().slice(0, 64);
+    const normalized = tag.trim().slice(0, 64).trim();
     if (!normalized || seen.has(normalized)) continue;
     seen.add(normalized);
     result.push(normalized);

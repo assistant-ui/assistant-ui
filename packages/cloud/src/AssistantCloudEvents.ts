@@ -72,16 +72,16 @@ export class AssistantCloudEvents {
     document.addEventListener("visibilitychange", this.onVisibilityChange);
   }
 
+  private unlisten(): void {
+    if (!this.listening) return;
+    this.listening = false;
+    window.removeEventListener("pagehide", this.flush);
+    document.removeEventListener("visibilitychange", this.onVisibilityChange);
+  }
+
   public dispose(): void {
-    if (this.listening) {
-      this.listening = false;
-      window.removeEventListener("pagehide", this.flush);
-      document.removeEventListener("visibilitychange", this.onVisibilityChange);
-    }
-    if (this.timer !== undefined) {
-      clearTimeout(this.timer);
-      this.timer = undefined;
-    }
+    this.unlisten();
+    this.clearFlushTimer();
     void this.flush();
   }
 
@@ -95,6 +95,7 @@ export class AssistantCloudEvents {
     if (!this.isEnabled()) {
       this.buffer = [];
       this.clearFlushTimer();
+      this.unlisten();
       return;
     }
     if (this.flushing) return this.flushing;
@@ -107,6 +108,7 @@ export class AssistantCloudEvents {
       this.flushing = undefined;
       if (this.buffer.length === 0) {
         this.clearFlushTimer();
+        this.unlisten();
       } else {
         void this.flush();
       }

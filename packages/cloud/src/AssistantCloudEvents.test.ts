@@ -44,6 +44,34 @@ describe("AssistantCloudEvents", () => {
     });
   });
 
+  it("keeps its page listeners only while events are buffered", async () => {
+    const add = vi.spyOn(window, "addEventListener");
+    const remove = vi.spyOn(window, "removeEventListener");
+    const { events, makeRequest } = createEvents();
+
+    for (let index = 0; index < 20; index++) events.track(event(index));
+    expect(add).toHaveBeenCalledWith("pagehide", expect.any(Function));
+
+    await vi.waitFor(() => expect(makeRequest).toHaveBeenCalledOnce());
+    await vi.waitFor(() =>
+      expect(remove).toHaveBeenCalledWith("pagehide", expect.any(Function)),
+    );
+  });
+
+  it("dispose removes the listeners and flushes what is buffered", async () => {
+    const remove = vi.spyOn(document, "removeEventListener");
+    const { events, makeRequest } = createEvents();
+
+    events.track(event(1));
+    events.dispose();
+
+    expect(remove).toHaveBeenCalledWith(
+      "visibilitychange",
+      expect.any(Function),
+    );
+    await vi.waitFor(() => expect(makeRequest).toHaveBeenCalledOnce());
+  });
+
   it("flushes buffered events after two seconds", async () => {
     vi.useFakeTimers();
     const { events, makeRequest } = createEvents();

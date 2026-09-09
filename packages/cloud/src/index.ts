@@ -23,6 +23,7 @@ export {
   createRunReport,
   createRunTelemetryToolCall,
   deriveRunOutcome,
+  describeRunError,
   extractRunTelemetryModelId,
   normalizeRunTelemetryUsage,
   truncateRunTelemetryText,

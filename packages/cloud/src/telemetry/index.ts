@@ -31,12 +31,18 @@ export function assistantCloudTraceExportOptions({
   if (!apiKey) throw new Error("An Assistant Cloud API key is required");
 
   return {
-    url: `${baseUrl.replace(/\/+$/, "")}/v1/traces`,
+    url: `${trimTrailingSlashes(baseUrl)}/v1/traces`,
     headers: {
       Authorization: `Bearer ${apiKey}`,
       ...headers,
     },
   };
+}
+
+function trimTrailingSlashes(url: string): string {
+  let end = url.length;
+  while (end > 0 && url[end - 1] === "/") end--;
+  return url.slice(0, end);
 }
 
 export function createAssistantCloudTraceExporter(

@@ -3,6 +3,7 @@ import {
   createRunReport,
   createRunTelemetryToolCall,
   deriveRunOutcome,
+  describeRunError,
   extractRunTelemetryModelId,
   normalizeRunTelemetryUsage,
   truncateRunTelemetryText,
@@ -35,6 +36,52 @@ describe("deriveRunOutcome", () => {
     [{ finishReason: "error" }, { status: "error" }],
   ])("maps %o", (input, expected) => {
     expect(deriveRunOutcome(input)).toEqual(expected);
+  });
+
+  it("uses the fallback status only when the event carries no finish reason", () => {
+    expect(deriveRunOutcome({}, "incomplete")).toEqual({
+      status: "incomplete",
+    });
+    expect(deriveRunOutcome({ finishReason: "stop" }, "incomplete")).toEqual({
+      status: "completed",
+    });
+    expect(deriveRunOutcome({ finishReason: "length" }, "incomplete")).toEqual({
+      status: "incomplete",
+      outcome: "length",
+    });
+    expect(deriveRunOutcome({ isError: true }, "incomplete")).toEqual({
+      status: "error",
+    });
+  });
+});
+
+describe("describeRunError", () => {
+  it("reads the message and the class name of an AI SDK error", () => {
+    const error = new Error("Rate limited");
+    error.name = "AI_APICallError";
+    expect(describeRunError(error)).toEqual({
+      error: "Rate limited",
+      errorCode: "AI_APICallError",
+    });
+  });
+
+  it("prefers an explicit code and skips the plain Error name", () => {
+    expect(
+      describeRunError(Object.assign(new Error("boom"), { code: "ETIMEDOUT" })),
+    ).toEqual({ error: "boom", errorCode: "ETIMEDOUT" });
+    expect(describeRunError(new Error("boom"))).toEqual({ error: "boom" });
+    expect(describeRunError("boom")).toEqual({ error: "boom" });
+    expect(describeRunError(undefined)).toEqual({});
+    expect(describeRunError(42)).toEqual({});
+  });
+
+  it("clamps the message and code to what the runs endpoint accepts", () => {
+    const error = new Error("m".repeat(3000));
+    error.name = "c".repeat(100);
+    expect(describeRunError(error)).toEqual({
+      error: "m".repeat(2048),
+      errorCode: "c".repeat(64),
+    });
   });
 });
 
@@ -208,6 +255,16 @@ describe("createRunReport", () => {
       "a".repeat(64),
       ...Array.from({ length: 18 }, (_, index) => `tag:${index}`),
     ]);
+  });
+
+  it("trims the whitespace a 64-character cut leaves behind", () => {
+    const report = createRunReport({
+      threadId: "thread",
+      status: "completed",
+      telemetry: { tags: [`${"b".repeat(63)} tail`] },
+    });
+
+    expect(report.tags).toEqual(["b".repeat(63)]);
   });
 
   it("lowercases valid trace IDs, omits invalid IDs, and omits undefined keys", () => {
