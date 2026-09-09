@@ -39,25 +39,27 @@ function RadioGroupRender({
 }: RadioGroupRenderProps) {
   const generatedName = useId();
   const fieldName = name ?? generatedName;
-  const safeOptions = Array.isArray(options) ? options.filter(isOption) : [];
+  const safeOptions = Array.isArray(options) ? options : [];
   return (
     <fieldset
       data-aui="radiogroup"
       data-aui-action={actionAttr($action)}
       aria-label={label}
     >
-      {safeOptions.map((option, i) => (
-        <label key={i} data-aui="radiogroup-option">
-          <input
-            type="radio"
-            name={fieldName}
-            value={option.value}
-            defaultChecked={defaultValue === option.value}
-            onChange={() => fire($action, $dispatch, option.value)}
-          />
-          {option.label}
-        </label>
-      ))}
+      {safeOptions.map((option, i) =>
+        isOption(option) ? (
+          <label key={i} data-aui="radiogroup-option">
+            <input
+              type="radio"
+              name={fieldName}
+              value={option.value}
+              defaultChecked={defaultValue === option.value}
+              onChange={() => fire($action, $dispatch, option.value)}
+            />
+            {option.label}
+          </label>
+        ) : null,
+      )}
     </fieldset>
   );
 }
@@ -140,12 +142,12 @@ export const interactiveVocabulary = {
             {placeholder}
           </option>
         ) : null}
-        {(Array.isArray(options) ? options.filter(isOption) : []).map(
-          (option, i) => (
+        {(Array.isArray(options) ? options : []).map((option, i) =>
+          isOption(option) ? (
             <option key={i} value={option.value}>
               {option.label}
             </option>
-          ),
+          ) : null,
         )}
         {children}
       </select>
