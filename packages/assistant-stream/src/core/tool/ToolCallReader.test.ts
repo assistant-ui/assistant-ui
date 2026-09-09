@@ -64,6 +64,29 @@ describe("ToolCallArgsReader.get", () => {
 
     expect(await sideEffect).toBe("fallback");
   });
+
+  it("registers a reader after earlier deltas", async () => {
+    const reader = createReader();
+
+    await reader.appendArgsTextDelta('{"required":"hel');
+    const required = reader.args.get("required");
+    await reader.appendArgsTextDelta('lo"}');
+
+    expect(await required).toBe("hello");
+  });
+
+  it("removes a get reader after it settles", async () => {
+    const reader = createReader();
+    const handles = (reader.args as unknown as { handles: Set<unknown> })
+      .handles;
+    const required = reader.args.get("required");
+
+    expect(handles.size).toBe(1);
+    await reader.appendArgsTextDelta('{"required":"hello"}');
+    await required;
+
+    expect(handles.size).toBe(0);
+  });
 });
 
 describe("ToolCallArgsReader streams", () => {
@@ -93,5 +116,17 @@ describe("ToolCallArgsReader streams", () => {
     }
 
     expect(seen).toEqual(["a", "b"]);
+  });
+
+  it("removes a stream reader when it is cancelled", async () => {
+    const reader = createReader();
+    const handles = (reader.args as unknown as { handles: Set<unknown> })
+      .handles;
+    const streamReader = reader.args.streamText("required").getReader();
+
+    expect(handles.size).toBe(1);
+    await streamReader.cancel();
+
+    expect(handles.size).toBe(0);
   });
 });

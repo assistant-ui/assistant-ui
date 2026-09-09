@@ -58,6 +58,53 @@ afterEach(() => {
   vi.restoreAllMocks();
 });
 
+describe("tool-result stream argument readers", () => {
+  it("executes a tool without a partial argument reader", async () => {
+    const execute = vi.fn(async (args: Record<string, unknown>) => args);
+    const input = new ReadableStream<AssistantStreamChunk>({
+      start(controller) {
+        controller.enqueue({
+          type: "part-start",
+          path: [],
+          part: {
+            type: "tool-call",
+            toolCallId: "no-reader",
+            toolName: "echo",
+          },
+        });
+        controller.enqueue({
+          type: "text-delta",
+          path: [0],
+          textDelta: '{"code":"generated"}',
+        });
+        controller.enqueue({ type: "tool-call-args-text-finish", path: [0] });
+        controller.enqueue({ type: "part-finish", path: [0] });
+        controller.close();
+      },
+    });
+
+    await input
+      .pipeThrough(
+        unstable_toolResultStream(
+          {
+            echo: {
+              parameters: { type: "object", properties: {} },
+              execute,
+            },
+          },
+          new AbortController().signal,
+          async () => {},
+        ),
+      )
+      .pipeTo(new WritableStream<AssistantStreamChunk>());
+
+    expect(execute).toHaveBeenCalledWith(
+      { code: "generated" },
+      expect.objectContaining({ toolCallId: "no-reader" }),
+    );
+  });
+});
+
 describe("unstable_runPendingTools", () => {
   it("keeps provider messages when a pending tool settles", async () => {
     const settled = await unstable_runPendingTools(
