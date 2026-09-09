@@ -139,13 +139,15 @@ guard your adapter's thread ID update against a newer selection.
 Starting a thread switch cancels the active agent run. Cancelling an active run
 invokes `onCancel`; a newer thread selection, replacement run, or queued send
 started synchronously by that callback takes precedence over the original switch.
-Messages queued for the previous thread are discarded only if the switch proceeds,
-before calling your adapter. An abandoned switch preserves the queue.
+When the switch is accepted, messages queued for the previous thread are discarded
+before calling your adapter. A switch abandoned because of the cancellation callback
+does not clear that queue. If the adapter subsequently rejects, discarded messages
+are not restored.
 
-The callback ownership check assumes frontend-tool cancellation settles immediately,
-as on the normal message-append path. If your application resumes a run while a
-previous frontend tool is still settling, coordinate that work before switching;
-the callback precedence guarantee does not cover that overlap.
+If a frontend tool from an earlier run is still executing, a replacement run started
+from `onCancel` may stream into the thread being switched to. Let earlier frontend
+tools finish before resuming a run and switching threads; the callback precedence
+guarantee does not cover that overlap.
 
 ## Interrupts (experimental)
 
