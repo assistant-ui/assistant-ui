@@ -7,8 +7,8 @@
   },
   "@assistant-ui/cloud-ai-sdk": {
     ".": {
-      "min": 17316,
-      "gzip": 5902
+      "min": 21635,
+      "gzip": 7146
     }
   },
   "@assistant-ui/core": {
@@ -21,16 +21,16 @@
       "gzip": 30953
     },
     "./react": {
-      "min": 277026,
-      "gzip": 76397
+      "min": 282601,
+      "gzip": 78038
     },
     "./store": {
       "min": 95034,
       "gzip": 31499
     },
     "./store/internal": {
-      "min": 21420,
-      "gzip": 7876
+      "min": 19661,
+      "gzip": 7134
     }
   },
   "@assistant-ui/eve": {
@@ -261,8 +261,12 @@
   },
   "assistant-cloud": {
     ".": {
-      "min": 16268,
-      "gzip": 5352
+      "min": 22473,
+      "gzip": 7115
+    },
+    "./telemetry": {
+      "min": 1174,
+      "gzip": 628
     }
   },
   "assistant-stream": {
