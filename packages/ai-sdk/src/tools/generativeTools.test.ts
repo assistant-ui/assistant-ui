@@ -1,7 +1,7 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { defineMcpToolkit } from "@assistant-ui/core/react";
 import { AISDKToolkit } from "./generativeTools";
-import { wrapModelContentEnvelope } from "assistant-stream/ai-sdk";
+import { wrapModelContentEnvelope } from "assistant-stream/internal";
 
 const mocks = vi.hoisted(() => ({
   close: vi.fn(),

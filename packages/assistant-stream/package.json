@@ -27,6 +27,10 @@
       "types": "./dist/ai-sdk/index.d.ts",
       "default": "./dist/ai-sdk/index.js"
     },
+    "./internal": {
+      "types": "./dist/internal.d.ts",
+      "default": "./dist/internal.js"
+    },
     "./resumable": {
       "types": "./dist/resumable/index.d.ts",
       "default": "./dist/resumable/index.js"

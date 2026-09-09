@@ -278,6 +278,10 @@
       "min": 1793,
       "gzip": 728
     },
+    "./internal": {
+      "min": 685,
+      "gzip": 380
+    },
     "./resumable": {
       "min": 16391,
       "gzip": 5490

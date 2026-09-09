@@ -19,6 +19,12 @@ describe("ai-sdk entry", () => {
     expect(loaded.ai).toBe(false);
   });
 
+  it("keeps `ai` out of the internal entry's module graph", async () => {
+    await import("../internal");
+
+    expect(loaded.ai).toBe(false);
+  });
+
   it("loads `ai` only through the ai-sdk subpath", async () => {
     const entry = await import("./index");
 

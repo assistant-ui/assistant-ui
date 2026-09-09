@@ -24760,7 +24760,7 @@ declare const getPartialJsonObjectMeta: (obj: Record<symbol, unknown>) => Partia
 declare const hasHimportCoordinator: unique symbol;
 
 declare namespace entry_ai_sdk_exports {
-  export { FrontendTools, ModelContentEnvelope, frontendTools, toAISDKContent, toAISDKDefaultOutput, unwrapModelContentEnvelope, wrapModelContentEnvelope };
+  export { FrontendTools, frontendTools };
 }
 
 declare namespace entry_resumable_exports {
@@ -24769,6 +24769,10 @@ declare namespace entry_resumable_exports {
 
 declare namespace entry_root_exports {
   export { AssistantMessage, AssistantMessageAccumulator, AssistantMessageStream, AssistantMessageTiming, AssistantStream, AssistantStreamChunk, AssistantStreamController, AssistantTransportDecoder, GorpStreamDeltaTracker as AssistantTransportDeltaTracker, AssistantTransportEncoder, AssistantTransportStateOperation, DataPart, DataStreamDecoder, DataStreamEncoder, GenericAssistantMessage, GenericFilePart, GenericMessage, GenericSystemMessage, GenericTextPart, GenericToolCallPart, GenericToolMessage, GenericToolResultPart, GenericUserMessage, McpServerConfig, ObjectStreamChunk, ObjectStreamResponse, PlainTextDecoder, PlainTextEncoder, ProviderOptions, TextStreamController, ToToolsJSONSchemaOptions, Tool, ToolCallReader, ToolCallStreamController, ToolCallTiming, ToolDeclaration, ToolExecutionStream, ToolJSONSchema, ToolModelContentPart, ToolModelOutputFunction, ToolResponse, ToolResponseLike, ToolResultStreamOptions, UIMessageStreamChunk, UIMessageStreamDataChunk, UIMessageStreamDecoder, UIMessageStreamDecoderOptions, createAssistantStream, createAssistantStreamController, createAssistantStreamResponse, createObjectStream, fromObjectStreamResponse, toGenericMessages, toJSONSchema, toPartialJSONSchema, toToolsJSONSchema, createInitialMessage as unstable_createInitialMessage, unstable_runPendingTools, toolResultStream as unstable_toolResultStream };
+}
+
+declare namespace entry_internal_exports {
+  export { ModelContentEnvelope, toAISDKContent, toAISDKDefaultOutput, unwrapModelContentEnvelope, wrapModelContentEnvelope };
 }
 
 declare namespace entry_resumable_ioredis_exports {
@@ -24831,4 +24835,4 @@ declare namespace entry_utils_exports {
 
 declare function wrapModelContentEnvelope<TResult>(result: TResult, modelContent: readonly ToolModelContentPart[]): ModelContentEnvelope<TResult>;
 
-export { entry_ai_sdk_exports as entry_ai_sdk, entry_resumable_exports as entry_resumable, entry_resumable_ioredis_exports as entry_resumable_ioredis, entry_resumable_redis_exports as entry_resumable_redis, entry_root_exports as entry_root, entry_utils_exports as entry_utils };
+export { entry_ai_sdk_exports as entry_ai_sdk, entry_internal_exports as entry_internal, entry_resumable_exports as entry_resumable, entry_resumable_ioredis_exports as entry_resumable_ioredis, entry_resumable_redis_exports as entry_resumable_redis, entry_root_exports as entry_root, entry_utils_exports as entry_utils };

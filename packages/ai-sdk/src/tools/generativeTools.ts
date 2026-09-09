@@ -13,14 +13,13 @@ import type {
   Toolkit,
   ToolkitDefinition,
 } from "@assistant-ui/core/react";
+import { frontendTools, type FrontendTools } from "assistant-stream/ai-sdk";
 import {
-  frontendTools,
   toAISDKContent,
   toAISDKDefaultOutput,
   unwrapModelContentEnvelope,
-  type FrontendTools,
   type ModelContentEnvelope,
-} from "assistant-stream/ai-sdk";
+} from "assistant-stream/internal";
 
 const EMPTY_SCHEMA = { type: "object" as const, properties: {} };
 
