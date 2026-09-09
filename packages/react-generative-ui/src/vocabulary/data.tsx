@@ -297,19 +297,18 @@ export const dataVocabulary = {
       rows: z.array(z.array(cellSchema)).optional().describe("Rows of cells."),
     }),
     render: ({ columns, rows, children }) => {
-      const safeColumns = Array.isArray(columns)
-        ? columns.filter(isTableColumn)
-        : [];
+      const safeColumns = Array.isArray(columns) ? columns : [];
+      const hasColumns = safeColumns.some(isTableColumn);
       const safeRows = Array.isArray(rows) ? rows.filter(Array.isArray) : [];
 
       return (
         <table data-aui="table">
-          {safeColumns.length ? (
+          {hasColumns ? (
             <thead>
               <tr>
                 {safeColumns.map((column, i) => (
                   <th key={i} data-aui="table-col">
-                    {column.label}
+                    {isTableColumn(column) ? column.label : ""}
                   </th>
                 ))}
               </tr>
@@ -319,9 +318,9 @@ export const dataVocabulary = {
             <tbody>
               {safeRows.map((row, r) => (
                 <tr key={r}>
-                  {row.map((cell, c) =>
-                    isTableCell(cell) ? <td key={c}>{String(cell)}</td> : null,
-                  )}
+                  {row.map((cell, c) => (
+                    <td key={c}>{isTableCell(cell) ? String(cell) : ""}</td>
+                  ))}
                 </tr>
               ))}
             </tbody>

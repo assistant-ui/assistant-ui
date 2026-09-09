@@ -40,7 +40,7 @@ describe("dataVocabulary", () => {
         rows: [["kept", null, {}, false], null],
       }),
     ).toBe(
-      '<table data-aui="table"><tbody><tr><td>kept</td><td>false</td></tr></tbody></table>',
+      '<table data-aui="table"><tbody><tr><td>kept</td><td></td><td></td><td>false</td></tr></tbody></table>',
     );
 
     expect(render({ $type: "Table", columns: [null], rows: [null] })).toBe(
@@ -54,7 +54,7 @@ describe("dataVocabulary", () => {
         rows: "not-an-array",
       }),
     ).toBe(
-      '<table data-aui="table"><thead><tr><th data-aui="table-col">Name</th></tr></thead></table>',
+      '<table data-aui="table"><thead><tr><th data-aui="table-col"></th><th data-aui="table-col">Name</th></tr></thead></table>',
     );
   });
 
