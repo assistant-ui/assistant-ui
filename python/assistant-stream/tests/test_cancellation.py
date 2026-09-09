@@ -363,6 +363,7 @@ async def test_early_stream_close_does_not_raise_callback_exception():
 
 @pytest.mark.anyio
 async def test_early_stream_close_does_not_swallow_close_task_cancellation():
+    callback_cancelled = asyncio.Event()
     callback_finished = asyncio.Event()
     loop = asyncio.get_running_loop()
 
@@ -374,6 +375,7 @@ async def test_early_stream_close_does_not_swallow_close_task_cancellation():
                 try:
                     await asyncio.sleep(0.01)
                 except asyncio.CancelledError:
+                    callback_cancelled.set()
                     # Simulate non-cooperative callback behavior: ignore cancellation.
                     continue
         finally:
@@ -393,5 +395,6 @@ async def test_early_stream_close_does_not_swallow_close_task_cancellation():
         assert close_task.cancelled()
     finally:
         await asyncio.wait_for(callback_finished.wait(), timeout=2)
+        assert callback_cancelled.is_set()
         if not close_task.done():
             await asyncio.wait({close_task}, timeout=1)

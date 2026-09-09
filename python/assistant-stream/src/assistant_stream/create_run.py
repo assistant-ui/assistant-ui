@@ -39,6 +39,11 @@ def _log_detached_task_error(task: asyncio.Task[None]) -> None:
         )
 
 
+def _cancel_detached_task(task: asyncio.Task[None]) -> None:
+    task.add_done_callback(_log_detached_task_error)
+    task.cancel()
+
+
 class ReadOnlyCancellationSignal:
     """Read-only view over an asyncio.Event used for cancellation."""
 
@@ -372,7 +377,11 @@ async def create_run(
         else:
             controller._mark_cancelled()
             # Yield to the event loop to allow the cancel signal to propagate.
-            await asyncio.sleep(0)
+            try:
+                await asyncio.sleep(0)
+            except asyncio.CancelledError:
+                _cancel_detached_task(task)
+                raise
             if not task.done():
                 # Give callbacks a brief chance to observe `is_cancelled`
                 # and exit cooperatively before forcing cancellation.
@@ -384,7 +393,7 @@ async def create_run(
                     # Timeout means cooperative shutdown did not finish in time.
                     pass
                 except asyncio.CancelledError:
-                    task.add_done_callback(_log_detached_task_error)
+                    _cancel_detached_task(task)
                     raise
                 except Exception:
                     # The stream consumer already disconnected, so suppress callback errors
@@ -405,7 +414,7 @@ async def create_run(
                     pass
                 else:
                     # Preserve caller-initiated cancellation (e.g. wait_for timeout).
-                    task.add_done_callback(_log_detached_task_error)
+                    _cancel_detached_task(task)
                     raise
             except Exception:
                 # The stream consumer already disconnected, so suppress callback errors
