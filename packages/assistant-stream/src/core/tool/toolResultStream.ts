@@ -66,6 +66,12 @@ const isThenable = (value: unknown): value is PromiseLike<unknown> =>
   typeof (value as PromiseLike<unknown> | null | undefined)?.then ===
   "function";
 
+const cancelledToolResponse = (): ToolResponse<ReadonlyJSONValue> =>
+  new ToolResponse({
+    result: "Tool execution was cancelled.",
+    isError: true,
+  });
+
 function getToolResponse(
   tools: Record<string, Tool> | undefined,
   abortSignal: AbortSignal,
@@ -83,12 +89,8 @@ function getToolResponse(
   const getResult = async (
     toolExecute: ToolExecuteFunction<ReadonlyJSONObject, unknown>,
   ): Promise<ToolResponse<ReadonlyJSONValue>> => {
-    // Check if already aborted before starting
     if (abortSignal.aborted) {
-      return new ToolResponse({
-        result: "Tool execution was cancelled.",
-        isError: true,
-      });
+      return cancelledToolResponse();
     }
 
     let executeFn = toolExecute;
@@ -109,10 +111,7 @@ function getToolResponse(
     }
 
     if (abortSignal.aborted) {
-      return new ToolResponse({
-        result: "Tool execution was cancelled.",
-        isError: true,
-      });
+      return cancelledToolResponse();
     }
 
     // Create abort promise that resolves after 2 microtasks
@@ -123,12 +122,7 @@ function getToolResponse(
         onAbort = () => {
           queueMicrotask(() => {
             queueMicrotask(() => {
-              resolve(
-                new ToolResponse({
-                  result: "Tool execution was cancelled.",
-                  isError: true,
-                }),
-              );
+              resolve(cancelledToolResponse());
             });
           });
         };

@@ -348,6 +348,7 @@ describe("unstable_runPendingTools", () => {
     expect(execute).not.toHaveBeenCalled();
     expect(settled.parts[0]).toMatchObject({
       state: "result",
+      result: "Tool execution was cancelled.",
       isError: true,
     });
   });
