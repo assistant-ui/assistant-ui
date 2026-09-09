@@ -1226,6 +1226,118 @@ describe("A2AThreadRuntimeCore", () => {
   // --- Cancel ---
 
   describe("cancel", () => {
+    it.each(["same-task", "new-task", "new-thread"] as const)(
+      "ignores a late cancel response after %s takes ownership",
+      async (replacement) => {
+        let resolveCancel!: (task: A2ATask) => void;
+        const cancelTask = vi.fn().mockImplementation(
+          () =>
+            new Promise<A2ATask>((resolve) => {
+              resolveCancel = resolve;
+            }),
+        );
+        let streamCount = 0;
+        const core = createCore({
+          cancelTask,
+          streamMessage: vi.fn().mockImplementation(async function* (
+            _message,
+            _configuration,
+            _metadata,
+            signal: AbortSignal,
+          ) {
+            streamCount++;
+            yield {
+              type: "task",
+              task: {
+                id:
+                  streamCount === 1 || replacement === "same-task"
+                    ? "old"
+                    : "new",
+                status: { state: "working" },
+              },
+            } satisfies A2AStreamEvent;
+            await new Promise<void>((resolve) => {
+              if (signal.aborted) resolve();
+              else
+                signal.addEventListener("abort", () => resolve(), {
+                  once: true,
+                });
+            });
+          }),
+        });
+        const first = core.append(createUserAppendMessage("first"));
+        await vi.waitFor(() => expect(core.getTask()?.id).toBe("old"));
+        const originalTask = core.getTask();
+        const cancellation = core.cancel();
+        await first;
+        expect(cancelTask).toHaveBeenCalledWith("old");
+        let second: Promise<void> | undefined;
+        if (replacement === "new-thread") {
+          core.applyExternalMessages([]);
+          core.resetContext();
+        } else {
+          second = core.append(createUserAppendMessage("second"));
+          await vi.waitFor(() => expect(streamCount).toBe(2));
+          await vi.waitFor(() => expect(core.getTask()).not.toBe(originalTask));
+          expect(core.getTask()?.id).toBe(
+            replacement === "same-task" ? "old" : "new",
+          );
+          expect(core.isRunning()).toBe(true);
+        }
+        const ownedTask = core.getTask();
+        resolveCancel({ id: "old", status: { state: "canceled" } });
+        await cancellation;
+        try {
+          expect(core.getTask()).toBe(ownedTask);
+        } finally {
+          core.detachRuntime();
+          await second;
+        }
+      },
+    );
+
+    it("cancels the original server task when onCancel clears the thread", async () => {
+      const cancelTask = vi.fn().mockResolvedValue({
+        id: "old",
+        status: { state: "canceled" },
+      } satisfies A2ATask);
+      const core = createCore(
+        {
+          cancelTask,
+          streamMessage: vi.fn().mockImplementation(async function* (
+            _message,
+            _configuration,
+            _metadata,
+            signal: AbortSignal,
+          ) {
+            yield {
+              type: "task",
+              task: { id: "old", status: { state: "working" } },
+            } satisfies A2AStreamEvent;
+            await new Promise<void>((resolve) => {
+              if (signal.aborted) resolve();
+              else
+                signal.addEventListener("abort", () => resolve(), {
+                  once: true,
+                });
+            });
+          }),
+        },
+        {
+          onCancel: () => {
+            core.applyExternalMessages([]);
+            core.resetContext();
+          },
+        },
+      );
+      const append = core.append(createUserAppendMessage("first"));
+      await vi.waitFor(() => expect(core.getTask()?.id).toBe("old"));
+      await core.cancel();
+      await append;
+      expect(cancelTask).toHaveBeenCalledWith("old");
+      expect(core.getTask()).toBeUndefined();
+    });
+
     it("updates task from server cancel response", async () => {
       const cancelTask = vi.fn().mockResolvedValue({
         id: "t1",
