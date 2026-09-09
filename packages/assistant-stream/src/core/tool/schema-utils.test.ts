@@ -200,6 +200,82 @@ describe("toPartialJSONSchema", () => {
     expect(schema.properties.settings.required).toEqual(["name"]);
   });
 
+  it("recursively removes required from combinator branches", () => {
+    const schema = {
+      type: "object" as const,
+      properties: {
+        nullable: {
+          anyOf: [
+            {
+              type: "object" as const,
+              properties: { value: { type: "string" as const } },
+              required: ["value"],
+            },
+            { type: "null" as const },
+          ],
+        },
+        union: {
+          oneOf: [
+            {
+              type: "object" as const,
+              properties: { kind: { const: "a" as const } },
+              required: ["kind"],
+            },
+            {
+              type: "object" as const,
+              properties: { kind: { const: "b" as const } },
+              required: ["kind"],
+            },
+          ],
+        },
+        composed: {
+          allOf: [
+            {
+              type: "object" as const,
+              properties: { name: { type: "string" as const } },
+              required: ["name"],
+            },
+          ],
+        },
+        excluded: {
+          not: {
+            type: "object" as const,
+            properties: { blocked: { type: "boolean" as const } },
+            required: ["blocked"],
+          },
+        },
+      },
+      required: ["nullable", "union", "composed", "excluded"],
+    };
+
+    expect(toPartialJSONSchema(schema)).toEqual({
+      type: "object",
+      properties: {
+        nullable: {
+          anyOf: [
+            { type: "object", properties: { value: { type: "string" } } },
+            { type: "null" },
+          ],
+        },
+        union: {
+          oneOf: [
+            { type: "object", properties: { kind: { const: "a" } } },
+            { type: "object", properties: { kind: { const: "b" } } },
+          ],
+        },
+        composed: {
+          allOf: [{ type: "object", properties: { name: { type: "string" } } }],
+        },
+        excluded: {
+          not: {
+            type: "object",
+            properties: { blocked: { type: "boolean" } },
+          },
+        },
+      },
+    });
+  });
+
   it("leaves array item schemas unchanged", () => {
     const schema = {
       type: "object" as const,

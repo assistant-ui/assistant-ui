@@ -1,4 +1,4 @@
-import type { JSONSchema7 } from "json-schema";
+import type { JSONSchema7, JSONSchema7Definition } from "json-schema";
 import type { StandardSchemaV1 } from "@standard-schema/spec";
 import type { ProviderOptions, Tool } from "./tool-types";
 
@@ -111,7 +111,8 @@ export function toJSONSchema(
 
 /**
  * Returns a copy of the JSON Schema with `required` removed recursively,
- * making every property optional. Array item schemas are left unchanged.
+ * traversing `properties`, `anyOf`, `oneOf`, `allOf`, and `not` branches.
+ * Array item schemas are left unchanged.
  */
 export function toPartialJSONSchema(schema: JSONSchema7): JSONSchema7 {
   const { required: _, ...result } = schema;
@@ -119,15 +120,31 @@ export function toPartialJSONSchema(schema: JSONSchema7): JSONSchema7 {
   if (result.properties) {
     result.properties = Object.fromEntries(
       Object.entries(result.properties).map(([key, prop]) => {
-        if (typeof prop === "object" && prop !== null && !Array.isArray(prop)) {
-          return [key, toPartialJSONSchema(prop)];
-        }
-        return [key, prop];
+        return [key, toPartialJSONSchemaDefinition(prop)];
       }),
     );
   }
 
+  for (const keyword of ["anyOf", "oneOf", "allOf"] as const) {
+    if (result[keyword]) {
+      result[keyword] = result[keyword].map(toPartialJSONSchemaDefinition);
+    }
+  }
+
+  if (result.not !== undefined) {
+    result.not = toPartialJSONSchemaDefinition(result.not);
+  }
+
   return result;
+}
+
+function toPartialJSONSchemaDefinition(
+  schema: JSONSchema7Definition,
+): JSONSchema7Definition {
+  if (typeof schema === "object" && schema !== null && !Array.isArray(schema)) {
+    return toPartialJSONSchema(schema);
+  }
+  return schema;
 }
 
 function defaultToolFilter(_name: string, tool: Tool): boolean {
