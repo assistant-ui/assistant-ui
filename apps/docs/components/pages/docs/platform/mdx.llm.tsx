@@ -16,11 +16,10 @@ export function PlatformTabsLLM(
 ): ReactNode {
   const platform = ctx?.platform ?? DEFAULT_PLATFORM;
   const tabs = Children.toArray(children).filter(isValidElement);
-  const selectedTab =
-    tabs.find(
-      (child) =>
-        (child.props as { value?: string }).value === PLATFORM_LABELS[platform],
-    ) ?? tabs[0];
+  const selectedTab = tabs.find(
+    (child) =>
+      (child.props as { value?: string }).value === PLATFORM_LABELS[platform],
+  );
   if (!selectedTab) return null;
 
   return (

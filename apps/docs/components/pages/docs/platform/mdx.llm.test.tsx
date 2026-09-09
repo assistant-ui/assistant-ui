@@ -45,6 +45,19 @@ describe("platform markdown components", () => {
     expect(html).not.toContain("Native instructions");
   });
 
+  it("omits a platform group when the requested tab is missing", () => {
+    const html = renderToStaticMarkup(
+      PlatformTabsLLM(
+        {
+          children: createElement(Tab, { value: "React" }, "Web instructions"),
+        },
+        { flavor: "base", platform: "ink" },
+      ),
+    );
+
+    expect(html).toBe("");
+  });
+
   it("filters platform-only content against the requested platform", () => {
     const props = {
       children: "Native-only details",
