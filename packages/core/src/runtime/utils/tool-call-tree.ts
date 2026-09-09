@@ -41,9 +41,10 @@ export function* walkToolCallTree(
       };
 
   const frames: Frame[] = [{ type: "messages", values: messages, index: 0 }];
-  const activeArrays = new WeakSet<object>([messages]);
+  let activeArrays: WeakSet<object> | undefined;
 
   const pushFrame = (frame: Frame) => {
+    activeArrays ??= new WeakSet(frames.map((active) => active.values));
     if (activeArrays.has(frame.values)) {
       throw new TypeError("Cyclic tool-call message tree");
     }
@@ -55,7 +56,7 @@ export function* walkToolCallTree(
     const frame = frames[frames.length - 1]!;
     if (frame.index >= frame.values.length) {
       frames.pop();
-      activeArrays.delete(frame.values);
+      activeArrays?.delete(frame.values);
       continue;
     }
 
@@ -141,9 +142,10 @@ export function mapToolCallPartsDeep(
     changed: false,
   };
   const frames: Array<ContentFrame | MessagesFrame> = [root];
-  const activeArrays = new WeakSet<object>([content]);
+  let activeArrays: WeakSet<object> | undefined;
 
   const pushFrame = (frame: ContentFrame | MessagesFrame) => {
+    activeArrays ??= new WeakSet(frames.map((active) => active.values));
     if (activeArrays.has(frame.values)) {
       throw new TypeError("Cyclic tool-call message tree");
     }
@@ -157,7 +159,7 @@ export function mapToolCallPartsDeep(
     if (frame.type === "content") {
       if (frame.index >= frame.values.length) {
         frames.pop();
-        activeArrays.delete(frame.values);
+        activeArrays?.delete(frame.values);
         const nextContent = frame.changed ? frame.next : frame.values;
         if (!frame.parent) {
           return { content: nextContent, changed: frame.changed };
@@ -201,7 +203,7 @@ export function mapToolCallPartsDeep(
 
     if (frame.index >= frame.values.length) {
       frames.pop();
-      activeArrays.delete(frame.values);
+      activeArrays?.delete(frame.values);
       const mapped = frame.changed
         ? { ...frame.mappedPart, messages: frame.next }
         : frame.mappedPart;
