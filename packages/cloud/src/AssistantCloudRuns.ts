@@ -37,6 +37,7 @@ export type AssistantCloudRunReport = {
   model_id?: string;
   provider_type?: string;
   duration_ms?: number;
+  first_token_ms?: number;
   output_text?: string;
   metadata?: Record<string, unknown>;
 };

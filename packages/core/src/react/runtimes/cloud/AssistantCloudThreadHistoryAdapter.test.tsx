@@ -369,6 +369,12 @@ describe("useAssistantCloudThreadHistoryAdapter", () => {
               output: { result: "ok" },
             },
           ],
+          metadata: {
+            timing: {
+              streamStartTime: 100,
+              firstTokenTime: 125,
+            },
+          },
         },
       },
     ]);
@@ -411,6 +417,7 @@ describe("useAssistantCloudThreadHistoryAdapter", () => {
             ],
           },
         ],
+        first_token_ms: 25,
       }),
     );
   });
@@ -441,6 +448,10 @@ describe("useAssistantCloudThreadHistoryAdapter", () => {
           content: [{ type: "text", text: "done" }],
           status: { type: "complete" },
           metadata: {
+            timing: {
+              streamStartTime: 200,
+              firstTokenTime: 230,
+            },
             steps: [{ response: { modelId: "provider/model-1" } }],
           },
         },
@@ -448,7 +459,10 @@ describe("useAssistantCloudThreadHistoryAdapter", () => {
     ]);
 
     expect(cloud.runs.report).toHaveBeenCalledWith(
-      expect.objectContaining({ model_id: "provider/model-1" }),
+      expect.objectContaining({
+        model_id: "provider/model-1",
+        first_token_ms: 30,
+      }),
     );
   });
 

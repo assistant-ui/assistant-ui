@@ -8,6 +8,7 @@ import type {
   MessageFormatItem,
   MessageFormatRepository,
   ExportedMessageRepository,
+  MessageTiming,
 } from "@assistant-ui/core";
 import { getExternalStoreMessages } from "@assistant-ui/core";
 import { MessageRepository } from "@assistant-ui/core/internal";
@@ -54,6 +55,22 @@ const encodeContent = <TMessage>(
   storageFormatAdapter: MessageFormatAdapter<TMessage, any>,
   item: MessageFormatItem<TMessage>,
 ) => JSON.stringify(storageFormatAdapter.encode(item));
+
+const withTimingMetadata = <TMessage>(
+  message: TMessage,
+  timing: MessageTiming,
+): TMessage => {
+  if (message === null || typeof message !== "object") return message;
+  const source = message as Record<string, unknown>;
+  const metadata = source.metadata;
+  return {
+    ...source,
+    metadata: {
+      ...(metadata && typeof metadata === "object" ? metadata : undefined),
+      timing,
+    },
+  } as TMessage;
+};
 
 export const useExternalHistory = <TMessage>(
   runtimeRef: RefObject<AssistantRuntime>,
@@ -334,7 +351,16 @@ export const useExternalHistory = <TMessage>(
               deferredTelemetryIds.current.add(message.id);
             }
 
-            const batchItems = toBatchItems(innerMessages);
+            const timing =
+              message.role === "assistant"
+                ? message.metadata.timing
+                : undefined;
+            const persistedMessages = timing
+              ? innerMessages.map((innerMessage) =>
+                  withTimingMetadata(innerMessage, timing),
+                )
+              : innerMessages;
+            const batchItems = toBatchItems(persistedMessages);
             for (const item of batchItems) {
               const innerId = storageFormatAdapter.getId(item.message);
               const persisted = persistedInnerMessages.current.get(innerId);

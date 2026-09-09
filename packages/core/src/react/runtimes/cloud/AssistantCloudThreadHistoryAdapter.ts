@@ -302,6 +302,9 @@ class AssistantCloudThreadHistoryAdapter implements ThreadHistoryAdapter {
         ? { cached_input_tokens: data.cachedInputTokens }
         : undefined),
       ...(durationMs != null ? { duration_ms: durationMs } : undefined),
+      ...(data.firstTokenMs != null
+        ? { first_token_ms: data.firstTokenMs }
+        : undefined),
       ...(data.outputText != null
         ? { output_text: data.outputText }
         : undefined),
@@ -355,6 +358,7 @@ type TelemetryData = {
   metadata?: Record<string, unknown>;
   steps?: TelemetryStepData[];
   modelId?: string;
+  firstTokenMs?: number;
 };
 
 function extractTelemetry<T>(format: string, content: T): TelemetryData | null {
@@ -402,6 +406,10 @@ export function extractAuiV0<T>(content: T): TelemetryData | null {
     }[];
     metadata?: {
       modelId?: string;
+      timing?: {
+        streamStartTime?: number;
+        firstTokenTime?: number;
+      };
       steps?: readonly { usage?: RunTelemetryUsageInit }[];
       custom?: Record<string, unknown> & { modelId?: string };
     };
@@ -502,6 +510,7 @@ export function extractAuiV0<T>(content: T): TelemetryData | null {
           };
         })
       : undefined;
+  const firstTokenMs = extractFirstTokenMs(msg.metadata);
 
   return {
     status,
@@ -515,6 +524,7 @@ export function extractAuiV0<T>(content: T): TelemetryData | null {
     ...(metadata ? { metadata } : undefined),
     ...(telemetrySteps ? { steps: telemetrySteps } : undefined),
     ...(modelId ? { modelId } : undefined),
+    ...(firstTokenMs != null ? { firstTokenMs } : undefined),
   };
 }
 
@@ -533,6 +543,24 @@ type AiSdkV6Message = {
   role?: string;
   parts?: readonly AiSdkV6Part[];
   metadata?: Record<string, unknown>;
+};
+
+const isRecord = (value: unknown): value is Record<string, unknown> =>
+  value !== null && typeof value === "object";
+
+const extractFirstTokenMs = (metadata: unknown): number | undefined => {
+  if (!isRecord(metadata) || !isRecord(metadata.timing)) return undefined;
+  const { streamStartTime, firstTokenTime } = metadata.timing;
+  if (
+    typeof streamStartTime !== "number" ||
+    typeof firstTokenTime !== "number"
+  ) {
+    return undefined;
+  }
+  const firstTokenMs = firstTokenTime - streamStartTime;
+  return Number.isFinite(firstTokenMs) && firstTokenMs >= 0
+    ? Math.round(firstTokenMs)
+    : undefined;
 };
 
 function isToolCallPart(p: AiSdkV6Part): boolean {
@@ -619,6 +647,7 @@ function buildAiSdkV6Result(
             : undefined),
         }))
       : undefined;
+  const firstTokenMs = extractFirstTokenMs(metadata);
 
   return {
     status: hasText ? "completed" : "incomplete",
@@ -640,6 +669,7 @@ function buildAiSdkV6Result(
     ...(metadata ? { metadata } : undefined),
     ...(steps ? { steps } : undefined),
     ...(modelId ? { modelId } : undefined),
+    ...(firstTokenMs != null ? { firstTokenMs } : undefined),
   };
 }
 

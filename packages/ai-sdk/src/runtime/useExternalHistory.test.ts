@@ -349,7 +349,11 @@ describe("useExternalHistory persistence", () => {
     mocks.listeners.clear();
   });
 
-  type InnerMessage = { id: string; parts: string[] };
+  type InnerMessage = {
+    id: string;
+    parts: string[];
+    metadata?: Record<string, unknown>;
+  };
 
   const persistenceStorageFormat: MessageFormatAdapter<
     InnerMessage,
@@ -559,6 +563,53 @@ describe("useExternalHistory persistence", () => {
       parentId: null,
       message: { id: "inner-1", parts: ["answer"] },
     });
+  });
+
+  it("persists finalized assistant timing with bound messages", async () => {
+    const { append, reportTelemetry, step, flush } =
+      createPersistenceHarness(false);
+    const innerMessage = {
+      id: "inner-timing",
+      parts: ["answer"],
+      metadata: { custom: { source: "route" } },
+    };
+    const baseMessage = createAssistantMessage(
+      { type: "complete", reason: "stop" },
+      [innerMessage],
+      "assistant-timing",
+    );
+    const message = {
+      ...baseMessage,
+      metadata: {
+        ...baseMessage.metadata,
+        timing: {
+          streamStartTime: 100,
+          firstTokenTime: 125,
+          totalChunks: 1,
+          toolCallCount: 0,
+        },
+      },
+    } as ThreadAssistantMessage;
+
+    await step({ isRunning: true, messages: [baseMessage] });
+    await step({ isRunning: false, messages: [message] });
+    await flush();
+
+    const persistedMessage = {
+      ...innerMessage,
+      metadata: {
+        ...innerMessage.metadata,
+        timing: message.metadata.timing,
+      },
+    };
+    expect(append).toHaveBeenCalledWith({
+      parentId: null,
+      message: persistedMessage,
+    });
+    expect(reportTelemetry).toHaveBeenCalledWith(
+      [{ parentId: null, message: persistedMessage }],
+      expect.anything(),
+    );
   });
 
   it("persists a turn that is already running when the subscription starts", async () => {
