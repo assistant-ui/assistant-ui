@@ -11,6 +11,7 @@ import type { AssistantMessage, ToolCallPart } from "../utils/types";
 import type { ReadonlyJSONObject, ReadonlyJSONValue } from "../../utils";
 
 const TOOL_EXECUTION_ID = Symbol.for("assistant-stream.tool-execution-id");
+const TOOL_ABORTED = Symbol("assistant-stream.tool-aborted");
 
 type InternalHumanCallback = (
   toolCallId: string,
@@ -62,9 +63,27 @@ const isStandardSchemaV1 = (
   );
 };
 
-const isThenable = (value: unknown): value is PromiseLike<unknown> =>
-  typeof (value as PromiseLike<unknown> | null | undefined)?.then ===
-  "function";
+const isThenable = <T>(value: T | PromiseLike<T>): value is PromiseLike<T> =>
+  typeof (value as PromiseLike<T> | null | undefined)?.then === "function";
+
+const raceWithAbort = async <T>(
+  value: PromiseLike<T>,
+  abortSignal: AbortSignal,
+): Promise<T | typeof TOOL_ABORTED> => {
+  if (abortSignal.aborted) return TOOL_ABORTED;
+
+  let onAbort!: () => void;
+  const abortPromise = new Promise<typeof TOOL_ABORTED>((resolve) => {
+    onAbort = () => resolve(TOOL_ABORTED);
+    abortSignal.addEventListener("abort", onAbort, { once: true });
+  });
+
+  try {
+    return await Promise.race([value, abortPromise]);
+  } finally {
+    abortSignal.removeEventListener("abort", onAbort);
+  }
+};
 
 const cancelledToolResponse = (): ToolResponse<ReadonlyJSONValue> =>
   new ToolResponse({
@@ -97,7 +116,13 @@ function getToolResponse(
 
     if (isStandardSchemaV1(tool.parameters)) {
       const result = tool.parameters["~standard"].validate(toolCall.args);
-      const validationResult = isThenable(result) ? await result : result;
+      const validationResult = isThenable(result)
+        ? await raceWithAbort(result, abortSignal)
+        : result;
+
+      if (validationResult === TOOL_ABORTED) {
+        return cancelledToolResponse();
+      }
 
       if (validationResult.issues) {
         executeFn =
