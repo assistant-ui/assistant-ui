@@ -59,6 +59,31 @@ afterEach(() => {
 });
 
 describe("unstable_runPendingTools", () => {
+  it("keeps provider messages when a pending tool settles", async () => {
+    const settled = await unstable_runPendingTools(
+      createPendingToolMessage("messages"),
+      {
+        tool: {
+          parameters: { type: "object", properties: {} },
+          execute: () =>
+            new ToolResponse({
+              result: "done",
+              messages: [{ role: "assistant", content: [] }],
+            }),
+        },
+      },
+      new AbortController().signal,
+      async () => {},
+    );
+
+    expect(settled.parts[0]).toMatchObject({
+      state: "result",
+      result: "done",
+      messages: [{ role: "assistant", content: [] }],
+    });
+    expect(settled.content).toEqual(settled.parts);
+  });
+
   it("settles a tool that returns no value with a concrete result", async () => {
     const message: AssistantMessage = {
       role: "assistant",
@@ -314,6 +339,42 @@ describe("unstable_runPendingTools", () => {
     expect(settled.parts[0]).toMatchObject({
       result: "executed",
       isError: false,
+    });
+  });
+
+  it("does not execute a tool cancelled during async validation", async () => {
+    const abortController = new AbortController();
+    const validation = promiseWithResolvers<{
+      value: Record<string, unknown>;
+    }>();
+    const execute = vi.fn(() => "executed");
+    const pending = unstable_runPendingTools(
+      createPendingToolMessage("async-validation"),
+      {
+        tool: {
+          parameters: {
+            "~standard": {
+              version: 1,
+              vendor: "test",
+              validate: () => validation.promise,
+            },
+          },
+          execute,
+        },
+      },
+      abortController.signal,
+      async () => {},
+    );
+
+    abortController.abort();
+    validation.resolve({ value: {} });
+    const settled = await pending;
+
+    expect(execute).not.toHaveBeenCalled();
+    expect(settled.parts[0]).toMatchObject({
+      state: "result",
+      result: "Tool execution was cancelled.",
+      isError: true,
     });
   });
 

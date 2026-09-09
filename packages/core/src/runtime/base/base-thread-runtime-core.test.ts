@@ -16,6 +16,9 @@ import { BaseThreadRuntimeCore } from "./base-thread-runtime-core";
 
 const createVoiceAdapter = () => {
   let volumeCallback: ((volume: number) => void) | undefined;
+  let transcriptCallback:
+    | ((transcript: RealtimeVoiceAdapter.TranscriptItem) => void)
+    | undefined;
   const session: RealtimeVoiceAdapter.Session = {
     status: { type: "running" },
     isMuted: false,
@@ -23,7 +26,12 @@ const createVoiceAdapter = () => {
     mute: vi.fn(),
     unmute: vi.fn(),
     onStatusChange: () => () => {},
-    onTranscript: () => () => {},
+    onTranscript: (callback) => {
+      transcriptCallback = callback;
+      return () => {
+        transcriptCallback = undefined;
+      };
+    },
     onModeChange: () => () => {},
     onVolumeChange: (callback) => {
       volumeCallback = callback;
@@ -36,10 +44,13 @@ const createVoiceAdapter = () => {
   return {
     adapter: { connect: () => session },
     emitVolume: (volume: number) => volumeCallback?.(volume),
+    emitTranscript: (transcript: RealtimeVoiceAdapter.TranscriptItem) =>
+      transcriptCallback?.(transcript),
     session,
   } satisfies {
     adapter: RealtimeVoiceAdapter;
     emitVolume: (volume: number) => void;
+    emitTranscript: (transcript: RealtimeVoiceAdapter.TranscriptItem) => void;
     session: RealtimeVoiceAdapter.Session;
   };
 };
@@ -294,5 +305,48 @@ describe("BaseThreadRuntimeCore voice volume subscriptions", () => {
         listenerError,
       );
     });
+  });
+});
+
+describe("BaseThreadRuntimeCore voice transcripts", () => {
+  it("completes a final-only reply before the next streamed reply", () => {
+    const voiceAdapter = createVoiceAdapter();
+    const runtime = new TestRuntime(voiceAdapter);
+    runtime.connectVoice();
+
+    try {
+      voiceAdapter.emitTranscript({
+        role: "assistant",
+        text: "Finished reply",
+        isFinal: true,
+      });
+      expect(runtime.messages).toMatchObject([
+        {
+          content: [{ type: "text", text: "Finished reply" }],
+          status: { type: "complete", reason: "stop" },
+        },
+      ]);
+
+      voiceAdapter.emitTranscript({ role: "assistant", text: "Next" });
+      expect(runtime.messages.at(-1)?.status).toEqual({ type: "running" });
+
+      voiceAdapter.emitTranscript({
+        role: "assistant",
+        text: "Next reply",
+        isFinal: true,
+      });
+      expect(runtime.messages).toMatchObject([
+        {
+          content: [{ type: "text", text: "Finished reply" }],
+          status: { type: "complete", reason: "stop" },
+        },
+        {
+          content: [{ type: "text", text: "Next reply" }],
+          status: { type: "complete", reason: "stop" },
+        },
+      ]);
+    } finally {
+      runtime.disconnectVoice();
+    }
   });
 });

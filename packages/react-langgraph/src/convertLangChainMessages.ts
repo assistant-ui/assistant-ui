@@ -304,7 +304,7 @@ export const convertLangChainMessages: useExternalMessageConverter.Callback<
     case "tool":
       return {
         role: "tool",
-        toolName: message.name,
+        toolName: message.name || undefined,
         toolCallId: message.tool_call_id,
         result: message.content,
         artifact: message.artifact,

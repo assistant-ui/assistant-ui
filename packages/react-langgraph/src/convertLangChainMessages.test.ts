@@ -27,6 +27,58 @@ const convertLangChainMessages = (
     ) => ConvertResult
   )(message, metadata);
 
+describe("convertLangChainMessages tool result names", () => {
+  const assistant: LangChainMessage = {
+    id: "ai-1",
+    type: "ai",
+    content: "",
+    tool_calls: [{ id: "call-1", name: "search", args: {} }],
+  };
+  const tool: LangChainMessage = {
+    id: "tool-1",
+    type: "tool",
+    tool_call_id: "call-1",
+    name: "",
+    content: "found",
+    status: "success",
+  };
+
+  it("joins a result with an empty name to its tool call", () => {
+    const messages = convertExternalMessages(
+      [assistant, tool],
+      convertLangChainMessagesImpl,
+      false,
+      {},
+    );
+
+    expect(messages).toMatchObject([
+      {
+        role: "assistant",
+        content: [
+          {
+            type: "tool-call",
+            toolCallId: "call-1",
+            toolName: "search",
+            result: "found",
+            isError: false,
+          },
+        ],
+      },
+    ]);
+  });
+
+  it("rejects a result with a different nonempty tool name", () => {
+    expect(() =>
+      convertExternalMessages(
+        [assistant, { ...tool, name: "other" }],
+        convertLangChainMessagesImpl,
+        false,
+        {},
+      ),
+    ).toThrow(/does not match existing tool call/);
+  });
+});
+
 describe("convertLangChainMessages content-less messages", () => {
   it("converts an ai message without content", () => {
     const result = convertLangChainMessages({
