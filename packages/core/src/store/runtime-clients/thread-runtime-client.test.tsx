@@ -102,9 +102,13 @@ describe("ThreadClient", () => {
     const runtime = createRuntime(core);
     const optimisticId = core.messages.at(-1)!.id;
     expect(optimisticId).not.toBe(message.id);
-
-    runtime.cancelRun();
     const client = renderClient(runtime);
+    expect(client.thread.getState().messages.map(({ id }) => id)).toEqual([
+      message.id,
+      optimisticId,
+    ]);
+
+    act(() => runtime.cancelRun());
 
     expect(core.messages.map(({ id }) => id)).toEqual([message.id]);
     expect(runtime.getState().messages.map(({ id }) => id)).toEqual([
@@ -128,26 +132,31 @@ describe("ThreadClient", () => {
     });
 
     const runtime = createRuntime(core);
-    expect(runtime.getState().messages.map(({ id }) => id)).toContain(
+    const client = renderClient(runtime);
+    expect(client.thread.getState().messages.map(({ id }) => id)).toContain(
       message.id,
     );
 
-    runtime.cancelRun();
+    act(() => runtime.cancelRun());
 
     expect(runtime.getState().messages).toEqual([]);
     expect(core.messages).toEqual([]);
 
-    core.__internal_setAdapter({
-      messages: [message],
-      isRunning: true,
-      onNew: vi.fn(),
-      onCancel,
-      setMessages,
+    act(() => {
+      core.__internal_setAdapter({
+        messages: [message],
+        isRunning: true,
+        onNew: vi.fn(),
+        onCancel,
+        setMessages,
+      });
     });
     expect(runtime.getState().messages.map(({ id }) => id)).toContain(
       message.id,
     );
-    const client = renderClient(runtime);
+    expect(client.thread.getState().messages.map(({ id }) => id)).toContain(
+      message.id,
+    );
 
     act(() => {
       vi.runAllTimers();
