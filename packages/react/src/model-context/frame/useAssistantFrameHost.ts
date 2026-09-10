@@ -43,23 +43,23 @@ export const useAssistantFrameHost = ({
     return () => {
       let cleanupFailed = false;
       let cleanupError: unknown;
-      const runCleanup = (cleanup: () => void, laterFailureMessage: string) => {
+      const runCleanup = (
+        cleanup: () => void,
+        laterFailureMessage?: string,
+      ) => {
         try {
           cleanup();
         } catch (error) {
           if (cleanupFailed) {
-            console.error(laterFailureMessage, error);
-          } else {
-            cleanupFailed = true;
-            cleanupError = error;
+            if (laterFailureMessage) console.error(laterFailureMessage, error);
+            return;
           }
+          cleanupFailed = true;
+          cleanupError = error;
         }
       };
 
-      runCleanup(
-        () => frameHost.dispose(),
-        "[assistant-ui] AssistantFrameHost disposal failed.",
-      );
+      runCleanup(() => frameHost.dispose());
       runCleanup(
         unsubscribe,
         "[assistant-ui] AssistantFrameHost unregistration failed.",
