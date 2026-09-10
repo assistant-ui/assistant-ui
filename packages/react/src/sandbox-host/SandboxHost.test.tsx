@@ -327,6 +327,54 @@ describe("SandboxHost", () => {
     expect(onMessage).not.toHaveBeenCalled();
   });
 
+  it("disposes the frame when bridge cleanup throws", async () => {
+    const rendered = fakeRendered();
+    renderHtmlMock.mockResolvedValue(rendered);
+    const bridgeError = new Error("bridge cleanup failed");
+    const frameError = new Error("frame cleanup failed");
+    const bridge: SandboxBridge = {
+      onMessage: vi.fn(),
+      dispose: vi.fn(() => {
+        throw bridgeError;
+      }),
+    };
+    rendered.dispose.mockImplementation(() => {
+      throw frameError;
+    });
+
+    await act(async () => {
+      root.render(
+        <SandboxHost
+          content={{ html: "" }}
+          contentKey="k"
+          createBridge={() => bridge}
+        />,
+      );
+    });
+    await flush();
+
+    let cleanupError: unknown;
+    try {
+      await act(async () => {
+        root.unmount();
+      });
+    } catch (error) {
+      cleanupError = error;
+    }
+
+    expect(cleanupError).toBe(bridgeError);
+    expect(rendered.dispose).toHaveBeenCalledOnce();
+
+    window.dispatchEvent(
+      new MessageEvent("message", {
+        data: validData,
+        origin: rendered.origin,
+        source: rendered.iframe.contentWindow,
+      }),
+    );
+    expect(bridge.onMessage).not.toHaveBeenCalled();
+  });
+
   it("calls onError when rendering rejects", async () => {
     renderHtmlMock.mockRejectedValue(new Error("boom"));
     const onError = vi.fn();

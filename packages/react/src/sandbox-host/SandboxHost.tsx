@@ -193,15 +193,42 @@ export function SandboxHost({
 
     return () => {
       cancelled = true;
-      if (onMessage) {
-        window.removeEventListener("message", onMessage);
-        onMessage = null;
+      let cleanupError: unknown;
+      let cleanupFailed = false;
+      const runCleanup = (cleanup: () => void) => {
+        try {
+          cleanup();
+        } catch (error) {
+          if (!cleanupFailed) {
+            cleanupError = error;
+            cleanupFailed = true;
+          }
+        }
+      };
+
+      const currentOnMessage = onMessage;
+      onMessage = null;
+      if (currentOnMessage) {
+        runCleanup(() =>
+          window.removeEventListener("message", currentOnMessage),
+        );
       }
-      bridge?.dispose();
+
+      const currentBridge = bridge;
       bridge = null;
-      frame?.dispose();
+      if (currentBridge) {
+        runCleanup(() => currentBridge.dispose());
+      }
+
+      const currentFrame = frame;
       frame = null;
-      setContentHeight(undefined);
+      if (currentFrame) {
+        runCleanup(() => currentFrame.dispose());
+      }
+
+      runCleanup(() => setContentHeight(undefined));
+
+      if (cleanupFailed) throw cleanupError;
     };
     // oxlint-disable-next-line react/exhaustive-deps -- re-init only on contentKey change; live values flow through liveRef
   }, [contentKey]);
