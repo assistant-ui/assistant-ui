@@ -296,6 +296,28 @@ describe("CloudChatCore", () => {
     expect(source.locked).toBe(false);
   });
 
+  it("allows cancellation after a tokenless source has closed", async () => {
+    const source = new ReadableStream({
+      start(controller) {
+        controller.enqueue({ type: "text-start", id: "part-1" });
+        controller.close();
+      },
+    });
+    const sendMessages = vi.fn().mockResolvedValue(source);
+    const core = createCore({
+      baseTransport: { sendMessages, reconnectToStream: vi.fn() },
+    });
+    vi.spyOn(core, "ensureThreadId").mockResolvedValue("thread-1");
+    vi.spyOn(core, "persist").mockResolvedValue(undefined);
+
+    const stream = await core
+      .createTransport("chat-1", registry)
+      .sendMessages({ messages: [] } as never);
+    await vi.waitFor(() => expect(source.locked).toBe(false));
+
+    await expect(stream.cancel(new Error("stopped"))).resolves.toBeUndefined();
+  });
+
   it("reports message_sent for a user submission only", async () => {
     const sendMessages = vi.fn(() => Promise.resolve(new ReadableStream()));
     const core = createCore({

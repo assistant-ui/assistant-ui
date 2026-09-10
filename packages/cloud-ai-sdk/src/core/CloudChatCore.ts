@@ -318,6 +318,7 @@ export class CloudChatCore {
     stream: ReadableStream<UIMessageChunk>,
     timing: ActiveTelemetryTiming,
   ): ReadableStream<UIMessageChunk> {
+    // Read eagerly until the first token so its timing reflects arrival rather than downstream consumption.
     const reader = stream.getReader();
     let observeFirstToken = timing.firstTokenMs === undefined;
     let cancelled = false;
@@ -376,7 +377,9 @@ export class CloudChatCore {
       async cancel(reason) {
         cancelled = true;
         try {
-          await reader.cancel(reason);
+          if (!readerReleased) {
+            await reader.cancel(reason);
+          }
         } finally {
           releaseReader();
         }
