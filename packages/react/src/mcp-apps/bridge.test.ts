@@ -124,6 +124,41 @@ describe("createMcpAppBridge", () => {
     bridge.dispose();
   });
 
+  it("stops handling messages and posting notifications after disposal", async () => {
+    let resolveTool!: (value: unknown) => void;
+    const callTool = vi.fn(
+      () =>
+        new Promise<unknown>((resolve) => {
+          resolveTool = resolve;
+        }),
+    );
+    const { frame, captured } = makeFrame();
+    const bridge = createMcpAppBridge({ frame, handlers: { callTool } });
+
+    deliver(bridge, {
+      jsonrpc: "2.0",
+      id: 1,
+      method: "tools/call",
+      params: { name: "pending" },
+    });
+    bridge.dispose();
+    bridge.dispose();
+    deliver(bridge, {
+      jsonrpc: "2.0",
+      id: 2,
+      method: "tools/call",
+      params: { name: "ignored" },
+    });
+    bridge.notifyToolInput({ ignored: true });
+    bridge.notifyToolResult({ ignored: true });
+    bridge.notifyHostContextChanged({ theme: "dark" });
+    resolveTool({ ok: true });
+    await flush();
+
+    expect(callTool).toHaveBeenCalledTimes(1);
+    expect(captured).toEqual([]);
+  });
+
   it.each([
     [
       "throws",
