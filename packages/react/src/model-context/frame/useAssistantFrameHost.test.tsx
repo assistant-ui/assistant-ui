@@ -11,11 +11,17 @@ afterEach(() => {
 
 describe("useAssistantFrameHost", () => {
   it("unregisters the host when disposal throws", () => {
-    const error = new Error("tool cancellation failed");
+    const disposalError = new Error("tool cancellation failed");
+    const unregistrationError = new Error("unregistration failed");
     vi.spyOn(AssistantFrameHost.prototype, "dispose").mockImplementation(() => {
-      throw error;
+      throw disposalError;
     });
-    const unsubscribe = vi.fn();
+    const consoleError = vi
+      .spyOn(console, "error")
+      .mockImplementation(() => undefined);
+    const unsubscribe = vi.fn(() => {
+      throw unregistrationError;
+    });
     const register = vi.fn(() => unsubscribe);
     const iframeRef = {
       current: {
@@ -26,7 +32,11 @@ describe("useAssistantFrameHost", () => {
       useAssistantFrameHost({ iframeRef, register }),
     );
 
-    expect(() => unmount()).toThrow(error);
+    expect(() => unmount()).toThrow(disposalError);
     expect(unsubscribe).toHaveBeenCalledOnce();
+    expect(consoleError).toHaveBeenCalledWith(
+      "[assistant-ui] AssistantFrameHost unregistration failed.",
+      unregistrationError,
+    );
   });
 });
