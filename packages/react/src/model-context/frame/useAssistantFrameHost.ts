@@ -43,10 +43,7 @@ export const useAssistantFrameHost = ({
     return () => {
       let cleanupFailed = false;
       let cleanupError: unknown;
-      const runCleanup = (
-        cleanup: () => void,
-        laterFailureMessage: string,
-      ) => {
+      const runCleanup = (cleanup: () => void, laterFailureMessage: string) => {
         try {
           cleanup();
         } catch (error) {
