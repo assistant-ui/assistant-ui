@@ -539,7 +539,7 @@ export const initializeIncrementalToolCallArgs = (
 ): ReadonlyJSONObject => {
   const parser = IncrementalToolCallArgsParser.from(
     argsText,
-    parsePartialJsonObject("")!,
+    argsText.length === 0 ? parsePartialJsonObject("")! : {},
   );
   parserByToolCall.set(toolCall, parser);
   return parser.currentArgs;

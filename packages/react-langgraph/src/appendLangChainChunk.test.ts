@@ -109,6 +109,7 @@ describe("appendLangChainChunk incremental tool arguments", () => {
     '{"duplicate":"first","duplicate":"second","tail":0}',
     '{"constructor":1,"tail":"ok"}',
     '{\n  "a" : [ 1 , { "b" : true } ] ,\n  "c" : "d"\n}\n',
+    '  {"a":1}',
   ];
 
   it.each(inputs)(
@@ -116,6 +117,7 @@ describe("appendLangChainChunk incremental tool arguments", () => {
     (input) => {
       let accumulated: AiMessage | undefined;
       let prefix = "";
+      let expected = {};
 
       for (const char of input) {
         prefix += char;
@@ -125,11 +127,10 @@ describe("appendLangChainChunk incremental tool arguments", () => {
         );
 
         const actual = accumulated.tool_calls?.[0]?.args;
-        const expected = parsePartialJsonObject(prefix);
-        expect(expected, `prefix=${prefix}`).toBeDefined();
+        expected = parsePartialJsonObject(prefix) ?? expected;
         expect(actual, `prefix=${prefix}`).toEqual(expected);
         expect(getPartialJsonObjectMeta(actual!)).toEqual(
-          getPartialJsonObjectMeta(expected!),
+          getPartialJsonObjectMeta(expected),
         );
       }
     },
