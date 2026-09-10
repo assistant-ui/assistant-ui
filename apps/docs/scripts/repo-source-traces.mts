@@ -31,13 +31,22 @@ export function findIncompleteRouteTraces(
   sourceRoot: string,
   sourceFiles: readonly string[],
   routeTraces: readonly RouteTrace[],
+  requiredTracePaths: ReadonlySet<string> = new Set(),
 ): IncompleteRouteTrace[] {
   const sourceSet = new Set(sourceFiles.map((file) => path.resolve(file)));
+  const requiredTraceSet = new Set(
+    [...requiredTracePaths].map((file) => path.resolve(file)),
+  );
 
   return routeTraces.flatMap((trace) => {
     const tracedSourceFiles = getTracedSourceFiles(sourceRoot, trace);
 
-    if (tracedSourceFiles.size === 0) return [];
+    if (
+      tracedSourceFiles.size === 0 &&
+      !requiredTraceSet.has(path.resolve(trace.filePath))
+    ) {
+      return [];
+    }
 
     const missingFiles = [...sourceSet]
       .filter((file) => !tracedSourceFiles.has(file))
@@ -74,8 +83,8 @@ export function formatIncompleteRouteTraces(
   incomplete: readonly IncompleteRouteTrace[],
 ) {
   return [
-    `Found ${incomplete.length} route bundle${incomplete.length === 1 ? "" : "s"} with a partial repo-source trace.`,
-    "Each route must trace either the complete generated repo source tree or none of it.",
+    `Found ${incomplete.length} server bundle${incomplete.length === 1 ? "" : "s"} with an incomplete repo-source trace.`,
+    "Required routes must trace the complete generated repo source tree; every other bundle must trace all or none of it.",
     "",
     ...incomplete.flatMap((trace, index) => [
       ...(index === 0 ? [] : [""]),

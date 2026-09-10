@@ -9,7 +9,15 @@ import {
 
 const DOCS_ROOT = process.cwd();
 const SOURCE_ROOT = path.join(DOCS_ROOT, "generated", ".repo-source");
-const ROUTES_ROOT = path.join(DOCS_ROOT, ".next", "server", "app");
+const SERVER_ROOT = path.join(DOCS_ROOT, ".next", "server");
+const REQUIRED_REPO_SOURCE_ROUTE_TRACES = [
+  "app/api/doc/chat/route.js.nft.json",
+  "app/api/xulux/chat/route.js.nft.json",
+  "app/api/xulux/demo-download/route.js.nft.json",
+  "app/api/xulux/learn/chat/route.js.nft.json",
+  "app/api/xulux/learn/download/route.js.nft.json",
+  "app/api/xulux/learn/source/route.js.nft.json",
+] as const;
 
 async function listFiles(directory: string): Promise<string[]> {
   const entries = await fs.readdir(directory, { withFileTypes: true });
@@ -38,38 +46,64 @@ async function readRouteTrace(filePath: string): Promise<RouteTrace> {
 }
 
 async function main() {
-  const [sourceFiles, routeTracePaths] = await Promise.all([
+  const [sourceFiles, serverTracePaths] = await Promise.all([
     listFiles(SOURCE_ROOT),
-    listFiles(ROUTES_ROOT).then((files) =>
-      files.filter((file) => file.endsWith(`${path.sep}route.js.nft.json`)),
+    listFiles(SERVER_ROOT).then((files) =>
+      files.filter((file) => file.endsWith(".js.nft.json")),
     ),
   ]);
 
   if (sourceFiles.length === 0) {
     throw new Error(`Generated repo source tree is empty: ${SOURCE_ROOT}`);
   }
-  if (routeTracePaths.length === 0) {
-    throw new Error(`No Next.js route traces found under ${ROUTES_ROOT}`);
+  if (serverTracePaths.length === 0) {
+    throw new Error(`No Next.js server traces found under ${SERVER_ROOT}`);
   }
 
-  const routeTraces = await Promise.all(routeTracePaths.map(readRouteTrace));
+  const requiredTracePaths = new Set(
+    REQUIRED_REPO_SOURCE_ROUTE_TRACES.map((file) =>
+      path.join(SERVER_ROOT, file),
+    ),
+  );
+  const emittedTracePaths = new Set(serverTracePaths);
+  const missingRequiredTracePaths = [...requiredTracePaths].filter(
+    (file) => !emittedTracePaths.has(file),
+  );
+
+  if (missingRequiredTracePaths.length > 0) {
+    console.error(
+      [
+        "Required repo-source route traces were not emitted:",
+        ...missingRequiredTracePaths.map((file) =>
+          path.relative(SERVER_ROOT, file),
+        ),
+      ].join("\n"),
+    );
+    process.exitCode = 1;
+    return;
+  }
+
+  const routeTraces = await Promise.all(serverTracePaths.map(readRouteTrace));
   const incomplete = findIncompleteRouteTraces(
     SOURCE_ROOT,
     sourceFiles,
     routeTraces,
+    requiredTracePaths,
   );
 
   if (incomplete.length > 0) {
-    throw new Error(
+    console.error(
       formatIncompleteRouteTraces(SOURCE_ROOT, sourceFiles.length, incomplete),
     );
+    process.exitCode = 1;
+    return;
   }
 
   const tracedRouteCount = routeTraces.filter(
     (trace) => getTracedSourceFiles(SOURCE_ROOT, trace).size > 0,
   ).length;
   console.log(
-    `Verified ${routeTraces.length} route bundles: ${tracedRouteCount} trace all ${sourceFiles.length} repo-source files and ${routeTraces.length - tracedRouteCount} trace none.`,
+    `Verified ${routeTraces.length} server bundles: ${tracedRouteCount} trace all ${sourceFiles.length} repo-source files and ${routeTraces.length - tracedRouteCount} trace none.`,
   );
 }
 

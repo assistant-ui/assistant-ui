@@ -49,6 +49,28 @@ describe("findIncompleteRouteTraces", () => {
     ]);
   });
 
+  it("reports a required route bundle that traces none of the source tree", () => {
+    const emptyTrace = trace("required", [
+      path.resolve("/workspace/apps/docs/package.json"),
+    ]);
+
+    expect(
+      findIncompleteRouteTraces(
+        sourceRoot,
+        sourceFiles,
+        [emptyTrace],
+        new Set([emptyTrace.filePath]),
+      ),
+    ).toEqual([
+      {
+        filePath: emptyTrace.filePath,
+        tracedFileCount: 0,
+        missingFiles: sourceFiles,
+        unexpectedFiles: [],
+      },
+    ]);
+  });
+
   it("reports stale traced files that are not in the generated tree", () => {
     const staleFile = path.join(sourceRoot, "deleted.ts");
     const result = findIncompleteRouteTraces(sourceRoot, sourceFiles, [
@@ -71,7 +93,7 @@ describe("formatIncompleteRouteTraces", () => {
       incomplete,
     );
 
-    expect(output).toContain("partial repo-source trace");
+    expect(output).toContain("incomplete repo-source trace");
     expect(output).toContain("traced 1 of 2 source files");
     expect(output).toContain(`Missing (1):\n  nested${path.sep}b.ts`);
   });
