@@ -73,9 +73,10 @@ export class AssistantFrameHost implements ModelContextProvider {
     this._targetOrigin = targetOrigin;
 
     this.handleMessage = this.handleMessage.bind(this);
-    window.addEventListener("message", this.handleMessage);
-
+    // A posted message cannot be delivered before this constructor returns, so
+    // requesting first means a failed request leaves no listener to clean up.
     this.requestContext();
+    window.addEventListener("message", this.handleMessage);
   }
 
   private handleMessage(event: MessageEvent) {

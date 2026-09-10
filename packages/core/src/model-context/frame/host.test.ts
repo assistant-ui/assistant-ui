@@ -74,9 +74,31 @@ beforeEach(() => {
 afterEach(() => {
   vi.useRealTimers();
   vi.unstubAllGlobals();
+  vi.restoreAllMocks();
 });
 
 describe("AssistantFrameHost", () => {
+  it("does not install its message listener when initialization fails", () => {
+    const addEventListener = vi.fn();
+    const removeEventListener = vi.fn();
+    vi.stubGlobal("window", {
+      addEventListener,
+      removeEventListener,
+      location: { origin: DEFAULT_ORIGIN },
+    });
+    const error = new Error("postMessage failed");
+    const iframeWindow = {
+      postMessage: vi.fn(() => {
+        throw error;
+      }),
+    } as unknown as Window;
+
+    expect(() => new AssistantFrameHost(iframeWindow)).toThrow(error);
+
+    expect(addEventListener).not.toHaveBeenCalled();
+    expect(removeEventListener).not.toHaveBeenCalled();
+  });
+
   it("defaults to the current origin", () => {
     const { host, postMessage } = createHost();
 
