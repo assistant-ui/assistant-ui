@@ -78,6 +78,20 @@ describe("dataVocabulary", () => {
     ).toBe('<div data-aui="markdown">partial</div>');
   });
 
+  it("Markdown ignores malformed streaming values", () => {
+    expect(
+      renderToStaticMarkup(
+        <>
+          {renderGenerativeUI(
+            { $type: "Markdown", value: { unexpected: true } },
+            dataVocabulary,
+            { status: "streaming" },
+          )}
+        </>,
+      ),
+    ).toBe('<div data-aui="markdown"></div>');
+  });
+
   it("Chart bar variant renders one rect per data point", () => {
     const html = render({
       $type: "Chart",
