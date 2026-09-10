@@ -465,20 +465,23 @@ describe("gateInteractableComposerMetadata", () => {
     expect(gated?.interactables).toEqual([entry("a", { v: 1 })]);
   });
 
-  it("treats a removed prototype-named field as a full snapshot", () => {
-    const known = Object.fromEntries([
-      ["__proto__", { enabled: true }],
-      ["title", "draft"],
-      ["stable", true],
-    ]);
-    const current = { title: "edited", stable: true };
-    const meta = { interactables: [entry("a", current)] };
-    const history = [userMsg([entry("a", known)])];
+  it.each(["__proto__", "toString"])(
+    "treats a removed prototype-named field %s as a full snapshot",
+    (field) => {
+      const known = Object.fromEntries([
+        [field, { enabled: true }],
+        ["title", "draft"],
+        ["stable", true],
+      ]);
+      const current = { title: "edited", stable: true };
+      const meta = { interactables: [entry("a", current)] };
+      const history = [userMsg([entry("a", known)])];
 
-    const gated = gateInteractableComposerMetadata(meta, history);
+      const gated = gateInteractableComposerMetadata(meta, history);
 
-    expect(gated?.interactables).toEqual([entry("a", current)]);
-  });
+      expect(gated?.interactables).toEqual([entry("a", current)]);
+    },
+  );
 
   it("omits an interactable the model already knows via its own update_* call", () => {
     const meta = { interactables: [entry("a", { v: 2 }, "note")] };
