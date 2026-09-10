@@ -194,7 +194,7 @@ describe("CloudChatCore", () => {
     controller!.enqueue({ type: "text-start", id: "part-1" });
     controller!.enqueue({ type: "text-delta", id: "part-1", delta: "hi" });
     controller!.close();
-    await stream.getReader().read();
+    await stream.pipeTo(new WritableStream());
     await new Promise((resolve) => setTimeout(resolve, 0));
     clock = 180;
     const onFinish = chatOptionsRef.current?.onFinish as (
@@ -235,6 +235,7 @@ describe("CloudChatCore", () => {
     await stream.cancel(reason);
 
     expect(cancel).toHaveBeenCalledOnce();
+    expect(cancel).toHaveBeenCalledWith(reason);
   });
 
   it("reports message_sent for a user submission only", async () => {
