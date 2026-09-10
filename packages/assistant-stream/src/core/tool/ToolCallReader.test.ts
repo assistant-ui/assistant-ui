@@ -51,7 +51,9 @@ describe("ToolCallArgsReader parsing", () => {
     expect(parsePartialJsonObjectCalls).not.toHaveBeenCalled();
 
     const stream = reader.args.streamText("required");
-    expect(parsePartialJsonObjectCalls).toHaveBeenCalledOnce();
+    expect(parsePartialJsonObjectCalls).not.toHaveBeenCalledWith(
+      '{"required":"hel',
+    );
 
     await reader.appendArgsTextDelta('lo"}');
     await reader.finishArgsText();
@@ -84,7 +86,9 @@ describe("ToolCallArgsReader parsing", () => {
     expect(parsePartialJsonObjectCalls).not.toHaveBeenCalled();
 
     await expect(reader.args.get("required")).resolves.toBe("hello");
-    expect(parsePartialJsonObjectCalls).toHaveBeenCalledOnce();
+    expect(parsePartialJsonObjectCalls).not.toHaveBeenCalledWith(
+      '{"required":"hello"}',
+    );
   });
 
   it("stops parsing after a reader is cancelled", async () => {
@@ -93,7 +97,9 @@ describe("ToolCallArgsReader parsing", () => {
 
     await reader.appendArgsTextDelta('{"required":"hel');
     const streamReader = reader.args.streamText("required").getReader();
-    expect(parsePartialJsonObjectCalls).toHaveBeenCalledOnce();
+    expect(parsePartialJsonObjectCalls).not.toHaveBeenCalledWith(
+      '{"required":"hel',
+    );
 
     await streamReader.cancel();
     parsePartialJsonObjectCalls.mockClear();

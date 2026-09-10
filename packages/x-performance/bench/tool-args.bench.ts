@@ -1,5 +1,6 @@
 import { bench, describe } from "vitest";
 import {
+  AssistantMessageStream,
   unstable_toolResultStream,
   type AssistantStreamChunk,
 } from "assistant-stream";
@@ -45,6 +46,11 @@ const drain = async (readable: ReadableStream<unknown>) => {
   while (!(await reader.read()).done);
 };
 
+const drainAccumulator = async (chunks: AssistantStreamChunk[]) => {
+  const source = chunkSource(chunks);
+  await AssistantMessageStream.fromAssistantStream(source).unstable_result();
+};
+
 describe("assistant-stream: execute-only tool arguments (16-char deltas)", () => {
   for (const size of [1000, 5000, 10000]) {
     const chunks = makeChunks(size, 16);
@@ -63,6 +69,15 @@ describe("assistant-stream: execute-only tool arguments (16-char deltas)", () =>
           ),
         ),
       );
+    });
+  }
+});
+
+describe("assistant-stream: accumulator tool arguments (16-char deltas)", () => {
+  for (const size of [1000, 5000, 10000]) {
+    const chunks = makeChunks(size, 16);
+    bench(`${size} bytes`, async () => {
+      await drainAccumulator(chunks);
     });
   }
 });

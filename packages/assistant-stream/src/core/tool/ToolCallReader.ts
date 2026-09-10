@@ -1,8 +1,5 @@
 import { promiseWithResolvers } from "../../utils/promiseWithResolvers";
-import {
-  parsePartialJsonObject,
-  getPartialJsonObjectFieldState,
-} from "../../utils/json/parse-partial-json-object";
+import { getPartialJsonObjectFieldState } from "../../utils/json/parse-partial-json-object";
 import type {
   ToolCallArgsReader,
   ToolCallReader,
@@ -11,12 +8,12 @@ import type {
 import type { DeepPartial, TypeAtPath, TypePath } from "./type-path-utils";
 import type { ToolResponse } from "./ToolResponse";
 import { asAsyncIterableStream } from "../../utils/AsyncIterableStream";
-import type {
-  AsyncIterableStream,
-  ReadonlyJSONObject,
-  ReadonlyJSONValue,
+import {
+  IncrementalJsonObjectParser,
+  type AsyncIterableStream,
+  type ReadonlyJSONObject,
+  type ReadonlyJSONValue,
 } from "../../utils";
-
 // TODO: remove dispose
 
 function getField<T>(obj: T, fieldPath: (string | number)[]): unknown {
@@ -287,7 +284,7 @@ export class ToolCallArgsReaderImpl<
   private argTextDeltas: ReadableStream<string>;
   private handles: Set<Handle> = new Set();
   private accumulatedText = "";
-  private parsedTextLength = -1;
+  private parser: IncrementalJsonObjectParser | undefined;
   private args: unknown = undefined;
   private finished = false;
 
@@ -307,7 +304,7 @@ export class ToolCallArgsReaderImpl<
         this.accumulatedText += value;
         if (this.handles.size === 0) continue;
 
-        if (this.parseCurrentArgs()) this.updateHandles();
+        if (this.parseCurrentArgs(value)) this.updateHandles();
       }
     } catch (error) {
       console.error("Error processing argument stream:", error);
@@ -320,18 +317,29 @@ export class ToolCallArgsReaderImpl<
     }
   }
 
-  private parseCurrentArgs(): boolean {
-    if (this.parsedTextLength === this.accumulatedText.length) return false;
+  private parseCurrentArgs(delta?: string): boolean {
+    if (this.parser?.currentText === this.accumulatedText) return false;
 
-    const parsedArgs = parsePartialJsonObject(this.accumulatedText);
-    this.parsedTextLength = this.accumulatedText.length;
-    if (parsedArgs === undefined) {
-      this.args ??= parsePartialJsonObject("");
-      return false;
+    const previousArgs = this.args;
+    if (!this.parser) {
+      this.parser = IncrementalJsonObjectParser.from(
+        this.accumulatedText,
+        this.args as ReadonlyJSONObject | undefined,
+      );
+    } else if (
+      delta !== undefined &&
+      this.parser.currentText + delta === this.accumulatedText
+    ) {
+      this.parser = this.parser.append(delta);
+    } else {
+      this.parser = IncrementalJsonObjectParser.from(
+        this.accumulatedText,
+        this.args as ReadonlyJSONObject | undefined,
+      );
     }
 
-    this.args = parsedArgs;
-    return true;
+    this.args = this.parser.currentArgs;
+    return this.args !== previousArgs;
   }
 
   private updateHandles(): void {
