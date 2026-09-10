@@ -1,6 +1,19 @@
 import { isJSONValueEqual } from "../utils/json/is-json-equal";
 import { isJSONValue, isRecord } from "../utils/json/is-json";
 
+const setOwnProperty = (
+  target: Record<string, unknown>,
+  key: string,
+  value: unknown,
+) => {
+  Object.defineProperty(target, key, {
+    value,
+    enumerable: true,
+    configurable: true,
+    writable: true,
+  });
+};
+
 /**
  * Unstable / Experimental — the interactables API is still evolving and may change in any release.
  * @deprecated Unstable / Experimental (not actually removed).
@@ -158,9 +171,9 @@ export function shallowMergeInteractableState(
         (options.idKeyedFields === undefined || options.idKeyedFields.has(key))
           ? () => options.idFactory?.(key)
           : undefined;
-      next[key] = applyArrayUpdate(baseValue, value, mintId);
+      setOwnProperty(next, key, applyArrayUpdate(baseValue, value, mintId));
     } else {
-      next[key] = value;
+      setOwnProperty(next, key, value);
     }
   }
   return next;
@@ -179,12 +192,12 @@ function shallowDiffInteractableState(
 ): Record<string, unknown> | undefined {
   if (!isRecord(known) || !isRecord(next)) return undefined;
   for (const key of Object.keys(known)) {
-    if (!(key in next)) return undefined;
+    if (!Object.hasOwn(next, key)) return undefined;
   }
   const diff: Record<string, unknown> = {};
   for (const [key, value] of Object.entries(next)) {
-    if (!(key in known) || !isJSONValueEqual(known[key], value)) {
-      diff[key] = value;
+    if (!Object.hasOwn(known, key) || !isJSONValueEqual(known[key], value)) {
+      setOwnProperty(diff, key, value);
     }
   }
   const changed = Object.keys(diff).length;

@@ -104,6 +104,18 @@ describe("interactableToolName", () => {
 });
 
 describe("shallowMergeInteractableState", () => {
+  it("adds prototype-named fields as own properties", () => {
+    const value = { enabled: true };
+    const result = shallowMergeInteractableState(
+      { title: "Example" },
+      Object.fromEntries([["__proto__", value]]),
+    ) as Record<string, unknown>;
+
+    expect(Object.getPrototypeOf(result)).toBe(Object.prototype);
+    expect(Object.hasOwn(result, "__proto__")).toBe(true);
+    expect(result["__proto__"]).toBe(value);
+  });
+
   it("applies array operations from a baseline", () => {
     const prev = {
       tasks: [
@@ -451,6 +463,21 @@ describe("gateInteractableComposerMetadata", () => {
     const history = [userMsg([entry("a", { v: 1, title: "draft" })])];
     const gated = gateInteractableComposerMetadata(meta, history);
     expect(gated?.interactables).toEqual([entry("a", { v: 1 })]);
+  });
+
+  it("treats a removed prototype-named field as a full snapshot", () => {
+    const known = Object.fromEntries([
+      ["__proto__", { enabled: true }],
+      ["title", "draft"],
+      ["stable", true],
+    ]);
+    const current = { title: "edited", stable: true };
+    const meta = { interactables: [entry("a", current)] };
+    const history = [userMsg([entry("a", known)])];
+
+    const gated = gateInteractableComposerMetadata(meta, history);
+
+    expect(gated?.interactables).toEqual([entry("a", current)]);
   });
 
   it("omits an interactable the model already knows via its own update_* call", () => {

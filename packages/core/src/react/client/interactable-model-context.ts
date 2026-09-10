@@ -8,6 +8,7 @@ import {
 } from "../../model-context/interactable-composer-metadata";
 import { generateId } from "../../utils/id";
 import { isRecord } from "../../utils/json/is-json";
+import { nullProtoRecord } from "../../utils/record";
 
 export type PartialJSONSchema = ReturnType<typeof toJSONSchema>;
 
@@ -243,7 +244,7 @@ export function buildInteractableModelContext(
         }
         const baseline = streamBaselines.get(toolCallId);
         streamBaselines.delete(toolCallId);
-        const addedItemIds: Record<string, string[]> = {};
+        const addedItemIds = nullProtoRecord<string[]>();
         setDefState(target.id, (prev) =>
           shallowMergeInteractableState(prev, partial, {
             arrayBaseline:
