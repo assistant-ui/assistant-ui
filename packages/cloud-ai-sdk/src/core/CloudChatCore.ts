@@ -319,10 +319,21 @@ export class CloudChatCore {
     timing: ActiveTelemetryTiming,
   ): ReadableStream<UIMessageChunk> {
     const [chatStream, timingStream] = stream.tee();
-    const reader = timingStream.getReader();
+    const timingReader = timingStream.getReader();
+    let timingCleanup: Promise<void> | undefined;
+    const stopTiming = (reason?: unknown) => {
+      timingCleanup ??= (async () => {
+        try {
+          await timingReader.cancel(reason);
+        } finally {
+          timingReader.releaseLock();
+        }
+      })();
+      return timingCleanup;
+    };
     const readUntilFirstToken = async () => {
       while (true) {
-        const { done, value } = await reader.read();
+        const { done, value } = await timingReader.read();
         if (done) return;
         if (value.type === "text-delta" || value.type === "reasoning-delta") {
           timing.firstTokenMs = Date.now() - timing.startedAt;
@@ -332,8 +343,46 @@ export class CloudChatCore {
     };
     void readUntilFirstToken()
       .catch(() => {})
-      .finally(() => reader.cancel().catch(() => {}));
-    return chatStream;
+      .finally(() => stopTiming().catch(() => {}));
+
+    const chatReader = chatStream.getReader();
+    let chatCleanup: Promise<void> | undefined;
+    let chatReaderReleased = false;
+    const releaseChatReader = () => {
+      if (chatReaderReleased) return;
+      chatReaderReleased = true;
+      chatReader.releaseLock();
+    };
+    const stopChat = (reason?: unknown) => {
+      chatCleanup ??= (async () => {
+        try {
+          await chatReader.cancel(reason);
+        } finally {
+          releaseChatReader();
+        }
+      })();
+      return chatCleanup;
+    };
+
+    return new ReadableStream<UIMessageChunk>({
+      async pull(controller) {
+        try {
+          const { done, value } = await chatReader.read();
+          if (done) {
+            releaseChatReader();
+            controller.close();
+          } else {
+            controller.enqueue(value);
+          }
+        } catch (error) {
+          releaseChatReader();
+          controller.error(error);
+        }
+      },
+      async cancel(reason) {
+        await Promise.all([stopChat(reason), stopTiming(reason)]);
+      },
+    });
   }
 
   private handleSyncError(err: unknown): void {

@@ -218,6 +218,25 @@ describe("CloudChatCore", () => {
     );
   });
 
+  it("cancels the transport stream while waiting for the first token", async () => {
+    const cancel = vi.fn();
+    const source = new ReadableStream({ cancel });
+    const sendMessages = vi.fn().mockResolvedValue(source);
+    const core = createCore({
+      baseTransport: { sendMessages, reconnectToStream: vi.fn() },
+    });
+    vi.spyOn(core, "ensureThreadId").mockResolvedValue("thread-1");
+    vi.spyOn(core, "persist").mockResolvedValue(undefined);
+
+    const stream = await core
+      .createTransport("chat-1", registry)
+      .sendMessages({ messages: [] } as never);
+    const reason = new Error("stopped");
+    await stream.cancel(reason);
+
+    expect(cancel).toHaveBeenCalledOnce();
+  });
+
   it("reports message_sent for a user submission only", async () => {
     const sendMessages = vi.fn(() => Promise.resolve(new ReadableStream()));
     const core = createCore({
