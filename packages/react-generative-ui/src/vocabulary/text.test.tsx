@@ -70,4 +70,31 @@ describe("textVocabulary", () => {
       '<p data-aui="caption">muted note</p>',
     );
   });
+
+  it.each([
+    [
+      { $type: "Header", text: { unexpected: true } },
+      undefined,
+      '<h2 data-aui="header" data-aui-size="lg"></h2>',
+    ],
+    [
+      { $type: "Text", value: { unexpected: true } },
+      { status: "streaming" as const },
+      '<span data-aui="text" data-aui-size="md"></span>',
+    ],
+    [
+      { $type: "Caption", value: { unexpected: true } },
+      { status: "streaming" as const },
+      '<p data-aui="caption"></p>',
+    ],
+  ])(
+    "renders malformed text properties as empty text",
+    (node, options, expected) => {
+      expect(
+        renderToStaticMarkup(
+          <>{renderGenerativeUI(node, textVocabulary, options)}</>,
+        ),
+      ).toBe(expected);
+    },
+  );
 });

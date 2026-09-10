@@ -2,6 +2,9 @@ import { z } from "zod";
 import type { GenerativeUILibrary } from "../types";
 import { COLORS, TEXT_SIZES, WEIGHTS } from "../ir";
 
+const safeTextValue = (value: unknown) =>
+  typeof value === "string" ? value : null;
+
 export const textVocabulary = {
   Header: {
     description: "A section heading. Renders as a bold title.",
@@ -14,7 +17,7 @@ export const textVocabulary = {
     }),
     render: ({ text, size, children }) => (
       <h2 data-aui="header" data-aui-size={size ?? "lg"}>
-        {text}
+        {safeTextValue(text)}
         {children}
       </h2>
     ),
@@ -38,7 +41,7 @@ export const textVocabulary = {
         data-aui-weight={weight}
         data-aui-color={color}
       >
-        {value}
+        {safeTextValue(value)}
         {children}
       </span>
     ),
@@ -51,7 +54,7 @@ export const textVocabulary = {
     streamProperties: true,
     render: ({ value, children }) => (
       <p data-aui="caption">
-        {value}
+        {safeTextValue(value)}
         {children}
       </p>
     ),
