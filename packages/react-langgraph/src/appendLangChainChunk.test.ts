@@ -98,6 +98,19 @@ const generatedJsonObjects = () => {
   }));
 };
 
+const makeMalformedJson = (input: string, index: number) => {
+  switch (index % 4) {
+    case 0:
+      return `${input}x`;
+    case 1:
+      return input.replace(":", "::");
+    case 2:
+      return `${input.slice(0, -1)},}`;
+    default:
+      return `${input.slice(0, 2)}\u0000${input.slice(2)}`;
+  }
+};
+
 describe("appendLangChainChunk incremental tool arguments", () => {
   const inputs = [
     JSON.stringify({
@@ -185,6 +198,30 @@ describe("appendLangChainChunk incremental tool arguments", () => {
       expect(getPartialJsonObjectMeta(actual!)).toEqual(
         getPartialJsonObjectMeta(expected),
       );
+    }
+  });
+
+  it("matches the existing parser for malformed generated prefixes", () => {
+    for (const [index, document] of generatedJsonObjects().entries()) {
+      const input = makeMalformedJson(JSON.stringify(document), index);
+      let prefix = "";
+      let expected = {};
+      let accumulated: AiMessage | undefined;
+
+      for (const char of input) {
+        prefix += char;
+        accumulated = append(
+          accumulated,
+          aiChunk([{ id: "call-1", index: 0, name: "search", args: char }]),
+        );
+
+        expected = parsePartialJsonObject(prefix) ?? expected;
+        const actual = accumulated.tool_calls?.[0]?.args;
+        expect(actual, `input=${input} prefix=${prefix}`).toEqual(expected);
+        expect(getPartialJsonObjectMeta(actual!)).toEqual(
+          getPartialJsonObjectMeta(expected),
+        );
+      }
     }
   });
 

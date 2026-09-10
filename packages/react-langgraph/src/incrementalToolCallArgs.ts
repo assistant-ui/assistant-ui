@@ -172,18 +172,8 @@ class IncrementalToolCallArgsParser {
     parser.text = this.text;
     parser.mode = this.mode;
     parser.root = this.root;
-    parser.frames = this.frames.map((frame) => ({
-      ...frame,
-      path: [...frame.path],
-    }));
-    parser.token = this.token
-      ? {
-          ...this.token,
-          ...("path" in this.token && this.token.path
-            ? { path: [...this.token.path] }
-            : undefined),
-        }
-      : undefined;
+    parser.frames = this.frames.map((frame) => ({ ...frame }));
+    parser.token = this.token ? { ...this.token } : undefined;
     return parser;
   }
 
