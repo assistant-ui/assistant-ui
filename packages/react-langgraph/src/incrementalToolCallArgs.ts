@@ -332,8 +332,6 @@ class IncrementalToolCallArgsParser {
   }
 
   private startValue(char: string, path: JSONPath) {
-    if (JSON_WHITESPACE.test(char)) return;
-
     if (char === "{") {
       this.writeValue(path, {});
       this.frames.push({
