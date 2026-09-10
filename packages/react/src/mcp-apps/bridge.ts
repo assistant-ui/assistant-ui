@@ -127,6 +127,7 @@ export function createMcpAppBridge(
   };
 
   const reportError = (error: Error) => {
+    if (disposed) return;
     invokeUserCallback(
       "assistant-ui",
       "MCP App onError",

@@ -92,6 +92,37 @@ describe("createMcpAppBridge", () => {
     expect(captured).toEqual([]);
   });
 
+  it("does not report an async error after disposal", async () => {
+    const { frame, captured } = makeFrame();
+    let rejectCall!: (reason?: unknown) => void;
+    const callTool = vi.fn(
+      () =>
+        new Promise((_resolve, reject) => {
+          rejectCall = reject;
+        }),
+    );
+    const onError = vi.fn();
+    const bridge = createMcpAppBridge({
+      frame,
+      handlers: { callTool, onError },
+    });
+
+    deliver(bridge, {
+      jsonrpc: "2.0",
+      id: 1,
+      method: "tools/call",
+      params: { name: "search" },
+    });
+    expect(callTool).toHaveBeenCalledOnce();
+
+    bridge.dispose();
+    rejectCall(new Error("tool failed"));
+    await flush();
+
+    expect(onError).not.toHaveBeenCalled();
+    expect(captured).toEqual([]);
+  });
+
   it("does not send host notifications after disposal", () => {
     const { frame, captured } = makeFrame();
     const bridge = createMcpAppBridge({ frame });
