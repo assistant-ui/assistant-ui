@@ -30,7 +30,7 @@
     },
     "./store/internal": {
       "min": 24070,
-      "gzip": 9036
+      "gzip": 9047
     }
   },
   "@assistant-ui/eve": {
