@@ -1,9 +1,15 @@
 import { describe, it, expect, vi } from "vitest";
-import type { AppendMessage } from "@assistant-ui/core";
+import type {
+  AppendMessage,
+  CompleteAttachment,
+  MessageTiming,
+} from "@assistant-ui/core";
 import { convertExternalMessages } from "@assistant-ui/core/react";
 import {
   convertLangChainMessages as convertLangChainMessagesImpl,
+  createLangGraphMetadataKey,
   getMessageContent,
+  type LangGraphMessageConverterMetadata,
 } from "./convertLangChainMessages";
 import type { LangChainMessage, UIMessage } from "./types";
 
@@ -26,6 +32,133 @@ const convertLangChainMessages = (
       metadata: Record<string, unknown>,
     ) => ConvertResult
   )(message, metadata);
+
+describe("createLangGraphMetadataKey", () => {
+  const assistant = (id: string): LangChainMessage => ({
+    id,
+    type: "ai",
+    content: "",
+  });
+  const ui = (id: string, parentId: string, value: number): UIMessage => ({
+    type: "ui",
+    id,
+    name: "chart",
+    props: { value },
+    metadata: { message_id: parentId },
+  });
+
+  it("changes only the parent key when UI data is added, updated, or removed", () => {
+    const getMetadataKey = createLangGraphMetadataKey();
+    const first = assistant("a1");
+    const second = assistant("a2");
+    const third = assistant("a3");
+    const firstUI = ui("ui-1", "a1", 1);
+    const secondUI = ui("ui-2", "a2", 1);
+    const initial: LangGraphMessageConverterMetadata = {
+      uiMessagesByParent: new Map([
+        ["a1", [firstUI]],
+        ["a2", [secondUI]],
+      ]),
+    };
+    const firstKey = getMetadataKey(first, initial);
+    const secondKey = getMetadataKey(second, initial);
+    const thirdKey = getMetadataKey(third, initial);
+
+    const updated: LangGraphMessageConverterMetadata = {
+      uiMessagesByParent: new Map([
+        ["a1", [firstUI]],
+        ["a2", [ui("ui-2", "a2", 2)]],
+      ]),
+    };
+    expect(getMetadataKey(first, updated)).toBe(firstKey);
+    const updatedSecondKey = getMetadataKey(second, updated);
+    expect(updatedSecondKey).not.toBe(secondKey);
+    expect(getMetadataKey(third, updated)).toBe(thirdKey);
+
+    const added: LangGraphMessageConverterMetadata = {
+      uiMessagesByParent: new Map([
+        ...updated.uiMessagesByParent!,
+        ["a3", [ui("ui-3", "a3", 1)]] as const,
+      ]),
+    };
+    expect(getMetadataKey(first, added)).toBe(firstKey);
+    expect(getMetadataKey(third, added)).not.toBe(thirdKey);
+
+    const removed: LangGraphMessageConverterMetadata = {
+      uiMessagesByParent: new Map([["a1", [firstUI]]]),
+    };
+    expect(getMetadataKey(second, removed)).not.toBe(updatedSecondKey);
+    expect(getMetadataKey(first, removed)).toBe(firstKey);
+  });
+
+  it("tracks timing and attachments only for the roles that consume them", () => {
+    const getMetadataKey = createLangGraphMetadataKey();
+    const aiMessage = assistant("a1");
+    const userMessage: LangChainMessage = {
+      id: "u1",
+      type: "human",
+      content: "hello",
+    };
+    const toolMessage: LangChainMessage = {
+      id: "t1",
+      type: "tool",
+      content: "done",
+      tool_call_id: "call-1",
+      name: "search",
+      status: "success",
+    };
+    const initialTiming: MessageTiming = {
+      streamStartTime: 1,
+      totalChunks: 1,
+      toolCallCount: 0,
+    };
+    const initialAttachments: readonly CompleteAttachment[] = [
+      {
+        id: "attachment-1",
+        type: "file",
+        name: "notes.txt",
+        status: { type: "complete" },
+        content: [{ type: "text", text: "notes" }],
+      },
+    ];
+    const initial: LangGraphMessageConverterMetadata = {
+      messageTiming: { a1: initialTiming },
+      attachmentsByMessageId: new Map([["u1", initialAttachments]]),
+    };
+    const aiKey = getMetadataKey(aiMessage, initial);
+    const userKey = getMetadataKey(userMessage, initial);
+    const toolKey = getMetadataKey(toolMessage, initial);
+
+    const nextTiming: MessageTiming = {
+      ...initialTiming,
+      totalChunks: 2,
+    };
+    const timingUpdated: LangGraphMessageConverterMetadata = {
+      ...initial,
+      messageTiming: { a1: nextTiming },
+    };
+    const nextAiKey = getMetadataKey(aiMessage, timingUpdated);
+    expect(nextAiKey).not.toBe(aiKey);
+    expect(getMetadataKey(userMessage, timingUpdated)).toBe(userKey);
+    expect(getMetadataKey(toolMessage, timingUpdated)).toBe(toolKey);
+
+    const attachmentsUpdated: LangGraphMessageConverterMetadata = {
+      ...timingUpdated,
+      attachmentsByMessageId: new Map([
+        [
+          "u1",
+          [
+            ...initialAttachments,
+            { ...initialAttachments[0]!, id: "attachment-2" },
+          ],
+        ],
+      ]),
+    };
+    expect(getMetadataKey(aiMessage, attachmentsUpdated)).toBe(nextAiKey);
+    expect(getMetadataKey(userMessage, attachmentsUpdated)).not.toBe(userKey);
+    expect(getMetadataKey(toolMessage, attachmentsUpdated)).toBe(toolKey);
+  });
+});
 
 describe("convertLangChainMessages tool result names", () => {
   const assistant: LangChainMessage = {

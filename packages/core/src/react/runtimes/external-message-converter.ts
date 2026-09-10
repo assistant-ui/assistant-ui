@@ -29,6 +29,10 @@ export namespace useExternalMessageConverter {
   export type Message = ExternalMessageConverterMessage;
   export type Metadata = ExternalMessageConverterMetadata;
   export type Callback<T> = ExternalMessageConverterCallback<T>;
+  export type GetMetadataKey<T> = (
+    message: T,
+    metadata: ExternalMessageConverterMetadata,
+  ) => unknown;
 }
 
 export const convertExternalMessages: <T extends WeakKey>(
@@ -39,7 +43,7 @@ export const convertExternalMessages: <T extends WeakKey>(
 ) => ThreadMessage[] = convertExternalMessagesInternal;
 
 type CallbackCacheEntry<T> = ExternalMessageConverterCallbackResult<T> & {
-  metadata: useExternalMessageConverter.Metadata;
+  metadataKey: unknown;
   callback: useExternalMessageConverter.Callback<T>;
 };
 
@@ -49,12 +53,19 @@ export const useExternalMessageConverter = <T extends WeakKey>({
   isRunning,
   joinStrategy,
   metadata,
+  getMetadataKey,
 }: {
   callback: useExternalMessageConverter.Callback<T>;
   messages: T[];
   isRunning: boolean;
   joinStrategy?: JoinStrategy | undefined;
   metadata?: useExternalMessageConverter.Metadata | undefined;
+  /**
+   * Returns the metadata dependency for one message. The value must change
+   * whenever metadata read by the callback for that message changes.
+   * Defaults to the complete metadata object identity.
+   */
+  getMetadataKey?: useExternalMessageConverter.GetMetadataKey<T> | undefined;
 }) => {
   // The caches live for the component lifetime; React Compiler hoists
   // allocations without reactive dependencies out of useMemo, so re-creating
@@ -76,18 +87,22 @@ export const useExternalMessageConverter = <T extends WeakKey>({
     () => ({
       metadata: metadata ?? {},
       callback,
+      getMetadataKey,
       ...caches,
     }),
-    [callback, metadata, caches],
+    [callback, metadata, getMetadataKey, caches],
   );
 
   return useMemo(() => {
     const callbackResults: ExternalMessageConverterCallbackResult<T>[] = [];
     for (const message of messages) {
+      const metadataKey = state.getMetadataKey
+        ? state.getMetadataKey(message, state.metadata)
+        : state.metadata;
       let result = state.callbackCache.get(message);
       if (
         !result ||
-        result.metadata !== state.metadata ||
+        !Object.is(result.metadataKey, metadataKey) ||
         result.callback !== state.callback
       ) {
         result = {
@@ -96,7 +111,7 @@ export const useExternalMessageConverter = <T extends WeakKey>({
             state.callback,
             state.metadata,
           ),
-          metadata: state.metadata,
+          metadataKey,
           callback: state.callback,
         };
         state.callbackCache.set(message, result);

@@ -196,6 +196,42 @@ const runtime = useExternalStoreRuntime({
 
 `joinStrategy` controls how adjacent assistant messages combine: `concat-content` (default) merges them into one; `none` keeps them separate.
 
+When shared metadata changes frequently but each message reads only a small part
+of it, use `getMetadataKey` to keep unrelated messages cached. The returned key
+must change whenever the metadata read by `callback` changes for that message:
+
+```tsx
+type MyMetadata = useExternalMessageConverter.Metadata & {
+  labelById: Record<string, string>;
+};
+
+const convertWithMetadata: useExternalMessageConverter.Callback<MyMessage> = (
+  message,
+  metadata,
+) => {
+  const { labelById } = metadata as MyMetadata;
+  return {
+    role: message.role,
+    content: [
+      { type: "text", text: `${message.text} ${labelById[message.id] ?? ""}` },
+    ],
+  };
+};
+
+const getMetadataKey: useExternalMessageConverter.GetMetadataKey<MyMessage> = (
+  message,
+  metadata,
+) => (metadata as MyMetadata).labelById[message.id];
+
+const convertedMessages = useExternalMessageConverter({
+  callback: convertWithMetadata,
+  messages,
+  isRunning,
+  metadata: { labelById },
+  getMetadataKey,
+});
+```
+
 ## Handler matrix
 
 Each handler enables a specific UI feature.
