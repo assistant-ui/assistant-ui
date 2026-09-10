@@ -100,6 +100,12 @@ export interface GenerativeToolsOptions {
 }
 
 export type AISDKToolkitOptions = {
+  /**
+   * Static provider and backend tools. Their AI SDK definitions are compiled
+   * on the first {@link AISDKToolkit.tools} call and reused for the lifetime of
+   * this instance. Create a new instance after changing these toolkit entries.
+   * Frontend tools and MCP discovery remain dynamic on every call.
+   */
   toolkit: Toolkit;
 };
 
@@ -156,6 +162,8 @@ export const generativeTools = (options: GenerativeToolsOptions): ToolSet => {
 export class AISDKToolkit {
   readonly #toolkit: Toolkit;
   readonly #mcpClients = new Map<string, Promise<MCPClient>>();
+  #staticToolSets: { provider: ToolSet; server: ToolSet } | undefined =
+    undefined;
 
   constructor(options: AISDKToolkitOptions) {
     this.#toolkit = options.toolkit;
@@ -166,8 +174,8 @@ export class AISDKToolkit {
       ? frontendTools(options.frontend)
       : {};
     const mcpToolSet = await this.#mcpTools();
-    const providerToolSet = toProviderToolSet(this.#toolkit);
-    const serverToolSet = toServerToolSet(this.#toolkit as ToolkitDefinition);
+    const { provider: providerToolSet, server: serverToolSet } =
+      this.#staticTools();
 
     assertNoMcpToolNameCollisions(mcpToolSet, [
       { source: "frontend", tools: frontendToolSet },
@@ -181,6 +189,13 @@ export class AISDKToolkit {
       ...providerToolSet,
       ...serverToolSet,
     };
+  }
+
+  #staticTools(): { provider: ToolSet; server: ToolSet } {
+    return (this.#staticToolSets ??= {
+      provider: toProviderToolSet(this.#toolkit),
+      server: toServerToolSet(this.#toolkit as ToolkitDefinition),
+    });
   }
 
   async close(): Promise<void> {

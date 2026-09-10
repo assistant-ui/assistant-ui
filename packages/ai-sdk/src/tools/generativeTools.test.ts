@@ -1,5 +1,8 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { defineMcpToolkit } from "@assistant-ui/core/react";
+import {
+  defineMcpToolkit,
+  type ToolkitDefinition,
+} from "@assistant-ui/core/react";
 import { AISDKToolkit } from "./generativeTools";
 import { wrapModelContentEnvelope } from "../converters/modelContentEnvelope";
 
@@ -129,6 +132,117 @@ describe("AISDKToolkit.tools()", () => {
     expect(toolSet.web_search).toMatchObject({
       supportsDeferredResults: false,
     });
+  });
+
+  it("compiles static provider and backend tools once per instance", async () => {
+    const toBackendJSONSchema = vi.fn(() => ({
+      type: "object" as const,
+      properties: {},
+    }));
+    const toProviderJSONSchema = vi.fn(() => ({
+      type: "object" as const,
+      properties: {},
+    }));
+    const toolkit = new AISDKToolkit({
+      toolkit: {
+        serverTool: {
+          type: "backend",
+          parameters: { toJSONSchema: toBackendJSONSchema },
+          execute: async () => "ok",
+        } as never,
+        providerTool: {
+          type: "provider",
+          providerId: "provider.tool",
+          args: {},
+          parameters: { toJSONSchema: toProviderJSONSchema },
+        } as never,
+      },
+    });
+
+    const first = await toolkit.tools();
+    const second = await toolkit.tools();
+
+    expect(toBackendJSONSchema).toHaveBeenCalledTimes(1);
+    expect(toProviderJSONSchema).toHaveBeenCalledTimes(1);
+    expect(second.serverTool).toBe(first.serverTool);
+    expect(second.providerTool).toBe(first.providerTool);
+  });
+
+  it("converts the current frontend tools on every call", async () => {
+    const toolkit = new AISDKToolkit({ toolkit: {} });
+
+    const first = await toolkit.tools({
+      frontend: {
+        firstClientTool: {
+          parameters: { type: "object", properties: {} },
+        },
+      },
+    });
+    const second = await toolkit.tools({
+      frontend: {
+        secondClientTool: {
+          parameters: { type: "object", properties: {} },
+        },
+      },
+    });
+
+    expect(first).toHaveProperty("firstClientTool");
+    expect(first).not.toHaveProperty("secondClientTool");
+    expect(second).toHaveProperty("secondClientTool");
+    expect(second).not.toHaveProperty("firstClientTool");
+  });
+
+  it("does not compile disabled static toolkit entries", async () => {
+    const toJSONSchema = vi.fn(() => ({
+      type: "object" as const,
+      properties: {},
+    }));
+    const toolkit = new AISDKToolkit({
+      toolkit: {
+        disabledServerTool: {
+          type: "backend",
+          disabled: true,
+          parameters: { toJSONSchema },
+        } as never,
+        disabledProviderTool: {
+          type: "provider",
+          disabled: true,
+          providerId: "provider.tool",
+          args: {},
+          parameters: { toJSONSchema },
+        } as never,
+      },
+    });
+
+    await expect(toolkit.tools()).resolves.toEqual({});
+    expect(toJSONSchema).not.toHaveBeenCalled();
+  });
+
+  it("requires a new instance after replacing static toolkit entries", async () => {
+    const definition: ToolkitDefinition = {
+      serverTool: {
+        type: "backend",
+        description: "Original tool",
+        parameters: { type: "object", properties: {} },
+        execute: async () => "original",
+      },
+    };
+    const toolkit = new AISDKToolkit({ toolkit: definition });
+
+    const first = await toolkit.tools();
+    definition.serverTool = {
+      type: "backend",
+      description: "Replacement tool",
+      parameters: { type: "object", properties: {} },
+      execute: async () => "replacement",
+    };
+
+    const cached = await toolkit.tools();
+    const refreshed = await new AISDKToolkit({ toolkit: definition }).tools();
+
+    expect(first.serverTool?.description).toBe("Original tool");
+    expect(cached.serverTool).toBe(first.serverTool);
+    expect(refreshed.serverTool?.description).toBe("Replacement tool");
   });
 });
 
