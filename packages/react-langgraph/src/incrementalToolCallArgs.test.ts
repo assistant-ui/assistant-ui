@@ -51,6 +51,31 @@ it("does not feed accumulated prefixes back through the full parser", () => {
   });
 });
 
+it("keeps ordinary constructor keys on the incremental path", () => {
+  const input = '{"constructor":1,"value":"ok"}';
+  let accumulated: AiMessage | undefined;
+
+  mocks.parsePartialJsonObject.mockClear();
+  for (const delta of input.match(/.{1,4}/gs)!) {
+    accumulated = append(accumulated, {
+      type: "AIMessageChunk",
+      id: "ai-1",
+      content: "",
+      tool_call_chunks: [
+        { id: "call-1", index: 0, name: "write", args: delta },
+      ],
+    });
+  }
+
+  expect(
+    mocks.parsePartialJsonObject.mock.calls.every(([value]) => value === ""),
+  ).toBe(true);
+  expect(accumulated?.tool_calls?.[0]?.args).toMatchObject({
+    constructor: 1,
+    value: "ok",
+  });
+});
+
 it("keeps the full-parser fallback for externally constructed messages", () => {
   const partialJson = '{"query":"pizza';
   mocks.parsePartialJsonObject.mockClear();

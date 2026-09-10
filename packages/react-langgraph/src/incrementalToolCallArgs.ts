@@ -26,14 +26,22 @@ type ArrayFrame = {
 
 type Frame = ObjectFrame | ArrayFrame;
 
-type StringToken = {
-  kind: "string";
-  role: "key" | "value";
-  path?: JSONPath | undefined;
-  value: string;
-  escape: "none" | "single" | "unicode";
-  unicode: string;
-};
+type StringToken =
+  | {
+      kind: "string";
+      role: "key";
+      value: string;
+      escape: "none" | "single" | "unicode";
+      unicode: string;
+    }
+  | {
+      kind: "string";
+      role: "value";
+      path: JSONPath;
+      value: string;
+      escape: "none" | "single" | "unicode";
+      unicode: string;
+    };
 
 type NumberToken = {
   kind: "number";
@@ -66,17 +74,12 @@ const SINGLE_ESCAPES: Record<string, string> = {
 const isContainer = (value: unknown): value is MutableJSONContainer =>
   typeof value === "object" && value !== null;
 
-const defineValue = (
+const setValue = (
   target: MutableJSONContainer,
   key: string | number,
   value: ReadonlyJSONValue,
 ) => {
-  Object.defineProperty(target, key, {
-    value,
-    configurable: true,
-    enumerable: true,
-    writable: true,
-  });
+  (target as Record<string | number, ReadonlyJSONValue>)[key] = value;
 };
 
 const writeAtPath = (
@@ -94,13 +97,13 @@ const writeAtPath = (
     const key = path[depth]!;
 
     if (depth === path.length - 1) {
-      defineValue(clone, key, value);
+      setValue(clone, key, value);
       return clone;
     }
 
     const child = container[key as keyof typeof container];
     if (!isContainer(child)) throw new Error("Invalid incremental JSON path");
-    defineValue(clone, key, update(child, depth + 1));
+    setValue(clone, key, update(child, depth + 1));
     return clone;
   };
 
@@ -114,7 +117,7 @@ const createArgsSnapshot = (
 ): ReadonlyJSONObject => {
   const result = parsePartialJsonObject("")! as MutableJSONObject;
   for (const [key, value] of Object.entries(root)) {
-    defineValue(result, key, value);
+    setValue(result, key, value);
   }
 
   const meta = getPartialJsonObjectMeta(result)!;
@@ -217,7 +220,7 @@ class IncrementalToolCallArgsParser {
     }
 
     if (this.token?.kind === "string" && this.token.role === "value") {
-      this.writeValue(this.token.path!, this.token.value);
+      this.writeValue(this.token.path, this.token.value);
     } else if (
       this.token?.kind === "number" &&
       COMPLETE_NUMBER.test(this.token.value)
@@ -278,11 +281,11 @@ class IncrementalToolCallArgsParser {
         if (char === "}") this.closeContainer();
         else if (char === '"') {
           frame.state = "key";
-          this.startString("key");
+          this.startKeyString();
         } else this.mode = "fallback";
         break;
       case "key":
-        if (char === '"') this.startString("key");
+        if (char === '"') this.startKeyString();
         else this.mode = "fallback";
         break;
       case "colon":
@@ -346,7 +349,7 @@ class IncrementalToolCallArgsParser {
       });
     } else if (char === '"') {
       this.writeValue(path, "");
-      this.startString("value", path);
+      this.startValueString(path);
     } else if (char === "t" || char === "f" || char === "n") {
       const value = char === "t" ? "true" : char === "f" ? "false" : "null";
       this.writeValue(
@@ -362,10 +365,20 @@ class IncrementalToolCallArgsParser {
     }
   }
 
-  private startString(role: "key" | "value", path?: JSONPath) {
+  private startKeyString() {
     this.token = {
       kind: "string",
-      role,
+      role: "key",
+      value: "",
+      escape: "none",
+      unicode: "",
+    };
+  }
+
+  private startValueString(path: JSONPath) {
+    this.token = {
+      kind: "string",
+      role: "value",
       path,
       value: "",
       escape: "none",
@@ -424,7 +437,7 @@ class IncrementalToolCallArgsParser {
 
     this.token = undefined;
     if (token.role === "key") {
-      if (token.value === "__proto__" || token.value === "constructor") {
+      if (token.value === "__proto__") {
         this.mode = "fallback";
         return false;
       }
@@ -436,7 +449,7 @@ class IncrementalToolCallArgsParser {
       frame.key = token.value;
       frame.state = "colon";
     } else {
-      this.writeValue(token.path!, token.value);
+      this.writeValue(token.path, token.value);
       this.finishValue();
     }
     return false;

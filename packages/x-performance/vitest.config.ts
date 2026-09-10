@@ -33,7 +33,7 @@ export default defineConfig({
         // Benches import built packages; serve dist as plain Node modules so
         // vitest's evaluator doesn't skew numbers.
         external: [
-          /\/packages\/(tap|core|store|assistant-stream|react|react-markdown|ai-sdk)\/dist\//,
+          /\/packages\/(tap|core|store|assistant-stream|react|react-markdown|react-langgraph|ai-sdk)\/dist\//,
         ],
       },
     },

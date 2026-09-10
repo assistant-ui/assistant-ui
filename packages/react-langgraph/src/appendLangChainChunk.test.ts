@@ -55,6 +55,7 @@ describe("appendLangChainChunk incremental tool arguments", () => {
     '{"escaped":"line\\nfeed","unicode":"\\uD83D\\uDE00"}',
     '{"negative":-12.5,"positiveExponent":1e+2,"negativeExponent":-3.5E-2,"array":[-1e3]}',
     '{"duplicate":"first","duplicate":"second","tail":0}',
+    '{"constructor":1,"tail":"ok"}',
   ];
 
   it.each(inputs)(
