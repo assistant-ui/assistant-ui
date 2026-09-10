@@ -141,8 +141,8 @@
   },
   "@assistant-ui/react-langgraph": {
     ".": {
-      "min": 33059,
-      "gzip": 11175
+      "min": 27476,
+      "gzip": 9483
     }
   },
   "@assistant-ui/react-lexical": {
@@ -271,8 +271,8 @@
   },
   "assistant-stream": {
     ".": {
-      "min": 57356,
-      "gzip": 16121
+      "min": 58274,
+      "gzip": 16448
     },
     "./resumable": {
       "min": 16391,
@@ -287,8 +287,8 @@
       "gzip": 2422
     },
     "./utils": {
-      "min": 14549,
-      "gzip": 4604
+      "min": 20452,
+      "gzip": 6390
     }
   },
   "heat-graph": {

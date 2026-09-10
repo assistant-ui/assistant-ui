@@ -3,6 +3,7 @@ export {
   getPartialJsonObjectFieldState,
   getPartialJsonObjectMeta,
 } from "./utils/json/parse-partial-json-object";
+export { IncrementalPartialJsonObjectParser } from "./utils/json/incremental-partial-json-object-parser";
 export {
   type AsyncIterableStream,
   asAsyncIterableStream,
