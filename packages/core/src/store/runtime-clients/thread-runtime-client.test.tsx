@@ -62,14 +62,14 @@ const createRuntime = (core: ExternalStoreThreadRuntimeCore) => {
 };
 
 const renderClient = (runtime: ThreadRuntimeImpl) => {
-  let client: AssistantClient | null = null;
+  const captured: { current: AssistantClient | null } = { current: null };
   const App = () => {
     const config = AuiConfig({ thread: ThreadClient({ runtime }) });
     return (
       <AuiProvider
         config={config}
         ref={(value: AssistantClient | null) => {
-          client = value;
+          captured.current = value;
         }}
       >
         {null}
@@ -80,8 +80,9 @@ const renderClient = (runtime: ThreadRuntimeImpl) => {
   act(() => {
     render(<App />);
   });
-  if (!client) throw new Error("Expected the assistant client to mount.");
-  return client;
+  if (!captured.current)
+    throw new Error("Expected the assistant client to mount.");
+  return captured.current;
 };
 
 describe("ThreadClient", () => {
@@ -91,7 +92,7 @@ describe("ThreadClient", () => {
     vi.useRealTimers();
   });
 
-  it("mounts after cancellation drops an optimistic head", () => {
+  it("keeps the optimistic head visible until cancellation drops it", () => {
     vi.useFakeTimers();
     const core = new ExternalStoreThreadRuntimeCore(contextProvider, {
       messages: [message],
