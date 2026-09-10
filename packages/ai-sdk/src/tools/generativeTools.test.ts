@@ -134,7 +134,7 @@ describe("AISDKToolkit.tools()", () => {
     });
   });
 
-  it("compiles static provider and backend tools once per instance", async () => {
+  it("converts unchanged provider and backend schemas once", async () => {
     const toBackendJSONSchema = vi.fn(() => ({
       type: "object" as const,
       properties: {},
@@ -164,8 +164,8 @@ describe("AISDKToolkit.tools()", () => {
 
     expect(toBackendJSONSchema).toHaveBeenCalledTimes(1);
     expect(toProviderJSONSchema).toHaveBeenCalledTimes(1);
-    expect(second.serverTool).toBe(first.serverTool);
-    expect(second.providerTool).toBe(first.providerTool);
+    expect(second.serverTool).not.toBe(first.serverTool);
+    expect(second.providerTool).not.toBe(first.providerTool);
   });
 
   it("converts the current frontend tools on every call", async () => {
@@ -192,7 +192,7 @@ describe("AISDKToolkit.tools()", () => {
     expect(second).not.toHaveProperty("firstClientTool");
   });
 
-  it("does not compile disabled static toolkit entries", async () => {
+  it("does not convert disabled static toolkit entries", async () => {
     const toJSONSchema = vi.fn(() => ({
       type: "object" as const,
       properties: {},
@@ -218,7 +218,7 @@ describe("AISDKToolkit.tools()", () => {
     expect(toJSONSchema).not.toHaveBeenCalled();
   });
 
-  it("requires a new instance after replacing static toolkit entries", async () => {
+  it("reflects replaced toolkit entries on the next call", async () => {
     const definition: ToolkitDefinition = {
       serverTool: {
         type: "backend",
@@ -237,12 +237,54 @@ describe("AISDKToolkit.tools()", () => {
       execute: async () => "replacement",
     };
 
-    const cached = await toolkit.tools();
-    const refreshed = await new AISDKToolkit({ toolkit: definition }).tools();
+    const refreshed = await toolkit.tools();
 
     expect(first.serverTool?.description).toBe("Original tool");
-    expect(cached.serverTool).toBe(first.serverTool);
     expect(refreshed.serverTool?.description).toBe("Replacement tool");
+  });
+
+  it("reflects in-place toolkit entry changes on the next call", async () => {
+    const definition: ToolkitDefinition = {
+      serverTool: {
+        type: "backend",
+        description: "Original tool",
+        parameters: { type: "object", properties: {} },
+        execute: async () => "ok",
+      },
+    };
+    const toolkit = new AISDKToolkit({ toolkit: definition });
+
+    expect((await toolkit.tools()).serverTool?.description).toBe(
+      "Original tool",
+    );
+
+    definition.serverTool!.description = "Updated tool";
+    expect((await toolkit.tools()).serverTool?.description).toBe(
+      "Updated tool",
+    );
+
+    definition.serverTool!.disabled = true;
+    expect(await toolkit.tools()).not.toHaveProperty("serverTool");
+  });
+
+  it("does not share mutable tool entries between calls", async () => {
+    const toolkit = new AISDKToolkit({
+      toolkit: {
+        serverTool: {
+          type: "backend",
+          description: "Original tool",
+          parameters: { type: "object", properties: {} },
+          execute: async () => "ok",
+        },
+      },
+    });
+
+    const first = await toolkit.tools();
+    first.serverTool!.description = "Changed returned tool";
+
+    const second = await toolkit.tools();
+
+    expect(second.serverTool?.description).toBe("Original tool");
   });
 });
 

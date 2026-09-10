@@ -32,7 +32,7 @@ await Promise.all(
   [...reusedToolkits.values()].map((toolkit) => toolkit.tools()),
 );
 
-describe("ai-sdk: reuse compiled AISDKToolkit definitions", () => {
+describe("ai-sdk: reuse converted AISDKToolkit schemas", () => {
   for (const size of SIZES) {
     bench(`${size} static tools`, async () => {
       await reusedToolkits.get(size)!.tools();
@@ -40,12 +40,10 @@ describe("ai-sdk: reuse compiled AISDKToolkit definitions", () => {
   }
 });
 
-describe("ai-sdk: compile a fresh AISDKToolkit", () => {
+describe("ai-sdk: convert fresh AISDKToolkit schemas", () => {
   for (const size of SIZES) {
-    const definition = makeToolkit(size);
-
     bench(`${size} static tools`, async () => {
-      await new AISDKToolkit({ toolkit: definition }).tools();
+      await new AISDKToolkit({ toolkit: makeToolkit(size) }).tools();
     });
   }
 });

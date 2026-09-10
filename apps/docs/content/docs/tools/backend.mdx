@@ -54,13 +54,6 @@ export async function POST(req: Request) {
 
 `AISDKToolkit.tools()` registers every toolkit tool with the model using its schema, wires the backend `execute` where the server build carries one, and merges in the uploaded frontend tools. A server `execute` wins over an uploaded entry of the same name. Frontend and human tools (no server `execute`) are exposed schema-only and left for the client and the user to fulfill.
 
-Create `AISDKToolkit` once at module scope. On its first `.tools()` call, the
-instance compiles its provider and backend definitions and then reuses them
-across requests. Uploaded frontend tools and MCP tools are still refreshed on
-every call. If you replace or mutate a provider or backend toolkit entry while
-the server is running, create a new `AISDKToolkit` instance to pick up that
-change.
-
 <Callout type="info">
   If your toolkit spreads in MCP server tools (`defineMcpToolkit`), `.tools()`
   also opens those connections. A module-scope `aiToolkit` pools them across

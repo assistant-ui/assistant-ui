@@ -2,4 +2,4 @@
 "@assistant-ui/ai-sdk": patch
 ---
 
-perf: reuse compiled provider and backend tool definitions across requests
+fix: avoid repeated toolkit parameter schema conversion
