@@ -243,6 +243,34 @@ describe("AISDKToolkit.tools()", () => {
     expect(refreshed.serverTool?.description).toBe("Replacement tool");
   });
 
+  it("reconverts a replaced parameters object", async () => {
+    const firstConversion = vi.fn(() => ({
+      type: "object" as const,
+      properties: { first: { type: "string" } },
+    }));
+    const secondConversion = vi.fn(() => ({
+      type: "object" as const,
+      properties: { second: { type: "string" } },
+    }));
+    const definition: ToolkitDefinition = {
+      serverTool: {
+        type: "backend",
+        parameters: { toJSONSchema: firstConversion },
+        execute: async () => "ok",
+      } as never,
+    };
+    const toolkit = new AISDKToolkit({ toolkit: definition });
+
+    await toolkit.tools();
+    definition.serverTool!.parameters = {
+      toJSONSchema: secondConversion,
+    } as never;
+    await toolkit.tools();
+
+    expect(firstConversion).toHaveBeenCalledOnce();
+    expect(secondConversion).toHaveBeenCalledOnce();
+  });
+
   it("reflects in-place toolkit entry changes on the next call", async () => {
     const definition: ToolkitDefinition = {
       serverTool: {
