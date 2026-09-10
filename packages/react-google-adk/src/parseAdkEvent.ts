@@ -28,16 +28,13 @@ export function parseAdkEventValue(
   }
 
   const content = event.content;
-  if (content !== undefined) {
+  if (content != null) {
     if (!isRecord(content)) {
       throw invalidField(errorPrefix, "content", "an object when present");
     }
 
     const parts = content.parts;
-    if (
-      parts !== undefined &&
-      (!Array.isArray(parts) || !parts.every(isRecord))
-    ) {
+    if (parts != null && (!Array.isArray(parts) || !parts.every(isRecord))) {
       throw invalidField(
         errorPrefix,
         "content.parts",

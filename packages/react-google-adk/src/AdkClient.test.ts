@@ -473,7 +473,6 @@ describe("createAdkStream - SSE parsing", () => {
   );
 
   it.each([
-    [{ content: null }, "content", "an object"],
     [{ content: [] }, "content", "an object"],
     [{ content: { parts: 42 } }, "content.parts", "an array of objects"],
     [{ content: { parts: [null] } }, "content.parts", "an array of objects"],
@@ -498,6 +497,27 @@ describe("createAdkStream - SSE parsing", () => {
       await expect(consume()).rejects.toThrow(
         `Invalid ADK stream event: expected "${field}" to be ${expectation} when present.`,
       );
+    },
+  );
+
+  it.each([{ content: null }, { content: { parts: null } }])(
+    "accepts null optional nested stream event content: %#",
+    async (event) => {
+      mockFetch.mockResolvedValueOnce(
+        sseResponse(sseBody(`data: ${JSON.stringify(event)}\n\n`)),
+      );
+
+      const stream = createAdkStream({ api: "/api/adk" });
+      const gen = await stream(
+        [{ id: "m1", type: "human", content: "Hi" }],
+        makeConfig(),
+      );
+      const collected: AdkEvent[] = [];
+      for await (const parsedEvent of gen) {
+        collected.push(parsedEvent);
+      }
+
+      expect(collected).toHaveLength(1);
     },
   );
 
