@@ -13,6 +13,11 @@ import type {
 } from "./external-thread-queue-adapter";
 
 export type MessageQueueDriver = {
+  /**
+   * A synchronous throw is treated as a run that never started and restores
+   * the message. A driver that already started work must call `notifyBusy`
+   * before throwing.
+   */
   run: (message: AppendMessage, options: { steer: boolean }) => void;
   /** When omitted, steering degrades to "process next" instead of interrupting. */
   cancel?: (() => void) | undefined;
@@ -37,6 +42,12 @@ export type MessageQueueController = {
 };
 
 type Lane = "queue" | "steer";
+
+type DispatchItem = {
+  id: string;
+  item: QueueItemState;
+  message: AppendMessage;
+};
 
 const getQueueItemParts = (
   message: AppendMessage,
@@ -83,6 +94,7 @@ export const createMessageQueue = (
   // settles from cancelled runs that must drop `running` without advancing
   let cancelSettles = 0;
   let interrupting = false;
+  let busyEdges = 0;
 
   const notify = () => {
     notifyEventListeners(subscribers, undefined, "Message queue");
@@ -101,6 +113,19 @@ export const createMessageQueue = (
     parts: getQueueItemParts(message),
   });
 
+  const restore = (lane: Lane, dispatch: DispatchItem, index = 0) => {
+    paused = true;
+    messages.set(dispatch.id, dispatch.message);
+    setLanes({
+      ...lanes,
+      [lane]: [
+        ...lanes[lane].slice(0, index),
+        dispatch.item,
+        ...lanes[lane].slice(index),
+      ],
+    });
+  };
+
   const laneOf = (queueItemId: string): Lane | undefined => {
     if (lanes.steer.some((item) => item.id === queueItemId)) return "steer";
     if (lanes.queue.some((item) => item.id === queueItemId)) return "queue";
@@ -116,27 +141,69 @@ export const createMessageQueue = (
     messages.delete(head.id);
     setLanes({ ...lanes, [lane]: lanes[lane].slice(1) });
     if (!message) return;
+    const dispatch = { id: head.id, item: head, message };
     running = true;
-    driver.run(dispatchTransform(message), { steer: false });
+    const busyEdgesBeforeRun = busyEdges;
+    try {
+      driver.run(dispatchTransform(message), { steer: false });
+    } catch (error) {
+      if (busyEdges === busyEdgesBeforeRun) {
+        running = false;
+        restore(lane, dispatch);
+      }
+      throw error;
+    }
   };
 
-  const interrupt = (message: AppendMessage) => {
+  const interrupt = (
+    dispatch: DispatchItem,
+    restoreLane: Lane = "steer",
+    restoreIndex = 0,
+  ) => {
     paused = false;
+    let transformed: AppendMessage;
+    try {
+      transformed = dispatchTransform(dispatch.message);
+    } catch (error) {
+      restore(restoreLane, dispatch, restoreIndex);
+      throw error;
+    }
+
     // the interrupted run settles exactly once, whether or not it was
     // already cancel-notified
     suppressIdle += Math.max(cancelSettles, 1);
     cancelSettles = 0;
+    const restoreInterrupted = (replacementStarted = false) => {
+      if (replacementStarted) return;
+      // The live count distinguishes an outstanding cancellation settle
+      // from one delivered synchronously by cancel().
+      const pendingSettles = suppressIdle;
+      suppressIdle = Math.max(pendingSettles - 1, 0);
+      cancelSettles = pendingSettles > 0 ? 1 : 0;
+      running = pendingSettles > 0;
+      restore(restoreLane, dispatch, restoreIndex);
+    };
     // a driver whose cancel routes through the runtime notifies this queue
     // back; the interrupt already accounted for that settle and is dispatching
     // in its place
     interrupting = true;
     try {
       driver.cancel!();
+    } catch (error) {
+      restoreInterrupted();
+      throw error;
     } finally {
       interrupting = false;
     }
     running = true;
-    driver.run(dispatchTransform(message), { steer: true });
+    const busyEdgesBeforeRun = busyEdges;
+    try {
+      driver.run(transformed, { steer: true });
+    } catch (error) {
+      const replacementStarted = busyEdges !== busyEdgesBeforeRun;
+      restoreInterrupted(replacementStarted);
+      throw error;
+    }
   };
 
   const push = (lane: Lane, message: AppendMessage) => {
@@ -153,7 +220,8 @@ export const createMessageQueue = (
 
   const steer = (message: AppendMessage) => {
     if (running && driver.cancel) {
-      interrupt(message);
+      const id = generateId();
+      interrupt({ id, item: toItem(id, message), message });
       return;
     }
     push("steer", message);
@@ -164,7 +232,8 @@ export const createMessageQueue = (
     if (!fromLane) throw new Error(`Unknown queue item "${queueItemId}".`);
     const toLane = placement.lane ?? fromLane;
 
-    const item = lanes[fromLane].find((i) => i.id === queueItemId)!;
+    const fromIndex = lanes[fromLane].findIndex((i) => i.id === queueItemId);
+    const item = lanes[fromLane][fromIndex]!;
     const dest = (toLane === fromLane ? lanes[fromLane] : lanes[toLane]).filter(
       (i) => i.id !== queueItemId,
     );
@@ -217,7 +286,7 @@ export const createMessageQueue = (
         queue: lanes.queue.filter((i) => i.id !== queueItemId),
         steer: lanes.steer,
       });
-      interrupt(message);
+      interrupt({ id: queueItemId, item, message }, fromLane, fromIndex);
       return;
     }
 
@@ -280,6 +349,7 @@ export const createMessageQueue = (
       suppressIdle += cancelSettles;
       cancelSettles = 0;
       running = true;
+      busyEdges++;
     },
     notifyIdle: () => {
       if (suppressIdle > 0) {
