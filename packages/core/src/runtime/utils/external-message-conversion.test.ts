@@ -33,7 +33,7 @@ describe("convertExternalMessageCallback", () => {
 });
 
 describe("joinExternalMessages", () => {
-  it("preserves runtime equality for malformed tool-call IDs", () => {
+  it("preserves strict equality for malformed numeric tool-call IDs", () => {
     const messages = [
       {
         role: "assistant",
@@ -57,7 +57,6 @@ describe("joinExternalMessages", () => {
           },
         ],
       },
-      { role: "tool", toolCallId: 1, result: "found" },
     ] as unknown as ExternalMessageConverterMessage[];
 
     expect(joinExternalMessages(messages).content).toMatchObject([
@@ -65,8 +64,35 @@ describe("joinExternalMessages", () => {
         type: "tool-call",
         toolCallId: 1,
         args: { query: "new" },
-        result: "found",
       },
+    ]);
+  });
+
+  it("does not merge malformed NaN tool-call IDs", () => {
+    const messages = [
+      {
+        role: "assistant",
+        content: [
+          {
+            type: "tool-call",
+            toolCallId: Number.NaN,
+            toolName: "search",
+            args: { query: "first" },
+          },
+          {
+            type: "tool-call",
+            toolCallId: Number.NaN,
+            toolName: "search",
+            args: { query: "second" },
+          },
+        ],
+      },
+      { role: "tool", toolCallId: Number.NaN, result: "found" },
+    ] as unknown as ExternalMessageConverterMessage[];
+
+    expect(joinExternalMessages(messages).content).toMatchObject([
+      { type: "tool-call", args: { query: "first" } },
+      { type: "tool-call", args: { query: "second" } },
     ]);
   });
 });

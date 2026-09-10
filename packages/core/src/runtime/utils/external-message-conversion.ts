@@ -142,11 +142,14 @@ export const joinExternalMessages = (
     role: "assistant",
     content: [],
   };
-  const toolCallIndices = new Map<string | undefined, number>();
+  const toolCallIndices = new Map<unknown, number>();
   const reasoningIndices = new Map<string, number>();
   for (const output of messages) {
     if (output.role === "tool") {
-      const toolCallIdx = toolCallIndices.get(output.toolCallId) ?? -1;
+      const toolCallIdx =
+        output.toolCallId === output.toolCallId
+          ? (toolCallIndices.get(output.toolCallId) ?? -1)
+          : -1;
       // Ignore orphaned tool results so one bad tool message does not
       // prevent rendering the rest of the conversation.
       if (toolCallIdx !== -1) {
@@ -289,6 +292,7 @@ export const joinExternalMessages = (
             assistantMessage.content.push(part);
             if (
               part.type === "tool-call" &&
+              part.toolCallId === part.toolCallId &&
               !toolCallIndices.has(part.toolCallId)
             ) {
               toolCallIndices.set(part.toolCallId, partIdx);
