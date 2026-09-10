@@ -62,8 +62,10 @@ export const useExternalMessageConverter = <T extends WeakKey>({
   metadata?: useExternalMessageConverter.Metadata | undefined;
   /**
    * Returns the metadata dependency for one message. The value must change
-   * whenever metadata read by the callback for that message changes.
-   * Defaults to the complete metadata object identity.
+   * whenever metadata read by the callback for that message changes and remain
+   * stable while those values are unchanged. Prefer a primitive or an object
+   * whose identity is preserved across renders. Defaults to the complete
+   * metadata object identity.
    */
   getMetadataKey?: useExternalMessageConverter.GetMetadataKey<T> | undefined;
 }) => {

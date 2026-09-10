@@ -11,6 +11,7 @@ import type {
 import type { useExternalMessageConverter } from "@assistant-ui/core/react";
 import {
   parseDataUrl,
+  shallowArrayEqual,
   stableStringifyToolArgs,
   trackToolArgsKeyOrder,
 } from "@assistant-ui/core/internal";
@@ -48,16 +49,6 @@ type LangGraphMetadataKeyEntry = {
 
 const EMPTY_METADATA_KEY = Object.freeze({});
 
-const shallowArrayEqual = <T>(
-  left: readonly T[] | undefined,
-  right: readonly T[] | undefined,
-) =>
-  left === right ||
-  (left !== undefined &&
-    right !== undefined &&
-    left.length === right.length &&
-    left.every((value, index) => value === right[index]));
-
 export const createLangGraphMetadataKey =
   (): useExternalMessageConverter.GetMetadataKey<LangChainMessage> => {
     const cache = new WeakMap<LangChainMessage, LangGraphMetadataKeyEntry>();
@@ -89,7 +80,10 @@ export const createLangGraphMetadataKey =
       const cached = cache.get(message);
       if (
         cached &&
-        shallowArrayEqual(cached.uiMessages, uiMessages) &&
+        (cached.uiMessages === uiMessages ||
+          (cached.uiMessages !== undefined &&
+            uiMessages !== undefined &&
+            shallowArrayEqual(cached.uiMessages, uiMessages))) &&
         cached.timing === timing &&
         cached.attachments === attachments
       ) {

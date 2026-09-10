@@ -71,4 +71,43 @@ describe("LangGraph-style UI metadata invalidation", () => {
 
     act(() => root.unmount());
   });
+
+  it("re-converts the full history without a message metadata key", () => {
+    let conversions = 0;
+    let updateLastParentUI!: () => void;
+    const callback = (message: Message): ThreadMessageLike => {
+      conversions += 1;
+      return {
+        id: message.id,
+        role: message.role,
+        content: [{ type: "text", text: message.text }],
+      };
+    };
+
+    const App = () => {
+      const [uiByParentId, setUIByParentId] = useState<
+        Metadata["uiByParentId"]
+      >({});
+      updateLastParentUI = () =>
+        setUIByParentId({
+          [`message-${MESSAGE_COUNT - 1}`]: { value: 1 },
+        });
+      useExternalMessageConverter({
+        callback,
+        messages,
+        isRunning: false,
+        metadata: { uiByParentId } as Metadata,
+      });
+      return null;
+    };
+
+    const root = createRoot(document.createElement("div"));
+    act(() => root.render(createElement(App)));
+    expect(conversions).toBe(MESSAGE_COUNT);
+
+    act(updateLastParentUI);
+    expect(conversions).toBe(2 * MESSAGE_COUNT);
+
+    act(() => root.unmount());
+  });
 });

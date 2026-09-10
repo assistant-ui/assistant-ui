@@ -198,7 +198,9 @@ const runtime = useExternalStoreRuntime({
 
 When shared metadata changes frequently but each message reads only a small part
 of it, use `getMetadataKey` to keep unrelated messages cached. The returned key
-must change whenever the metadata read by `callback` changes for that message:
+must change whenever the metadata read by `callback` changes for that message.
+Return a primitive or a value whose identity stays stable while that metadata is
+unchanged:
 
 ```tsx
 type MyMetadata = useExternalMessageConverter.Metadata & {
