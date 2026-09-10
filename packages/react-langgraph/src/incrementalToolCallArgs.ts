@@ -432,6 +432,7 @@ class IncrementalToolCallArgsParser {
         this.mode = "fallback";
         return false;
       }
+      // Mirrors secure-json-parse: reject __proto__ and direct constructor.prototype keys.
       if (
         token.value === "__proto__" ||
         (token.value === "prototype" && frame.path.at(-1) === "constructor")
@@ -527,6 +528,7 @@ export const initializeIncrementalToolCallArgs = (
   toolCall: LangChainToolCall,
   argsText: string,
 ): ReadonlyJSONObject => {
+  // Empty input carries partial metadata; other unparseable prefixes historically keep {}.
   const parser = IncrementalToolCallArgsParser.from(
     argsText,
     argsText.length === 0 ? parsePartialJsonObject("")! : {},
