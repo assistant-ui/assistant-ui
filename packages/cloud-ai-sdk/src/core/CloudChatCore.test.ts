@@ -194,8 +194,9 @@ describe("CloudChatCore", () => {
     controller!.enqueue({ type: "text-start", id: "part-1" });
     controller!.enqueue({ type: "text-delta", id: "part-1", delta: "hi" });
     controller!.close();
-    await stream.pipeTo(new WritableStream());
     await new Promise((resolve) => setTimeout(resolve, 0));
+    await stream.pipeTo(new WritableStream());
+    expect(source.locked).toBe(false);
     clock = 180;
     const onFinish = chatOptionsRef.current?.onFinish as (
       event: unknown,
@@ -232,10 +233,42 @@ describe("CloudChatCore", () => {
       .createTransport("chat-1", registry)
       .sendMessages({ messages: [] } as never);
     const reason = new Error("stopped");
+    const cancellation = stream.cancel(reason);
+
+    await vi.waitFor(() => expect(cancel).toHaveBeenCalledOnce(), {
+      timeout: 250,
+    });
+    await cancellation;
+    expect(cancel).toHaveBeenCalledWith(reason);
+    expect(source.locked).toBe(false);
+  });
+
+  it("cancels the transport stream after observing the first token", async () => {
+    let controller: ReadableStreamDefaultController | undefined;
+    const cancel = vi.fn();
+    const source = new ReadableStream({
+      start(sourceController) {
+        controller = sourceController;
+      },
+      cancel,
+    });
+    const sendMessages = vi.fn().mockResolvedValue(source);
+    const core = createCore({
+      baseTransport: { sendMessages, reconnectToStream: vi.fn() },
+    });
+    vi.spyOn(core, "ensureThreadId").mockResolvedValue("thread-1");
+    vi.spyOn(core, "persist").mockResolvedValue(undefined);
+
+    const stream = await core
+      .createTransport("chat-1", registry)
+      .sendMessages({ messages: [] } as never);
+    controller!.enqueue({ type: "text-delta", id: "part-1", delta: "hi" });
+    await new Promise((resolve) => setTimeout(resolve, 0));
+    const reason = new Error("stopped");
     await stream.cancel(reason);
 
-    expect(cancel).toHaveBeenCalledOnce();
     expect(cancel).toHaveBeenCalledWith(reason);
+    expect(source.locked).toBe(false);
   });
 
   it("reports message_sent for a user submission only", async () => {
