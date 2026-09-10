@@ -127,6 +127,30 @@ describe("appendLangChainChunk incremental tool arguments", () => {
     ).toMatchObject({ limit: 10 });
   });
 
+  it("retains structured arguments when the first continuation is malformed", () => {
+    const structured: AiMessage = {
+      type: "ai",
+      id: "ai-1",
+      content: "",
+      tool_calls: [
+        {
+          id: "call-1",
+          index: 0,
+          name: "search",
+          args: { limit: 10 },
+        },
+      ],
+    };
+
+    const accumulated = append(
+      structured,
+      aiChunk([{ id: "call-1", index: 0, name: "search", args: "x" }]),
+    );
+
+    expect(accumulated.tool_calls?.[0]?.partial_json).toBe("x");
+    expect(accumulated.tool_calls?.[0]?.args).toEqual({ limit: 10 });
+  });
+
   it("keeps incremental state separate for interleaved tool calls", () => {
     let accumulated = append(
       undefined,

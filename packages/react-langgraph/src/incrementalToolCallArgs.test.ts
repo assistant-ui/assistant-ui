@@ -76,6 +76,28 @@ it("keeps ordinary constructor keys on the incremental path", () => {
   });
 });
 
+it("falls back when a streamed number gets an invalid leading zero", () => {
+  let accumulated = append(undefined, {
+    type: "AIMessageChunk",
+    id: "ai-1",
+    content: "",
+    tool_call_chunks: [
+      { id: "call-1", index: 0, name: "write", args: '{"value":0' },
+    ],
+  });
+
+  mocks.parsePartialJsonObject.mockClear();
+  accumulated = append(accumulated, {
+    type: "AIMessageChunk",
+    id: "ai-1",
+    content: "",
+    tool_call_chunks: [{ id: "call-1", index: 0, name: "write", args: "1" }],
+  });
+
+  expect(mocks.parsePartialJsonObject).toHaveBeenCalledWith('{"value":01');
+  expect(accumulated.tool_calls?.[0]?.args).toMatchObject({ value: 0 });
+});
+
 it("keeps the full-parser fallback for externally constructed messages", () => {
   const partialJson = '{"query":"pizza';
   mocks.parsePartialJsonObject.mockClear();

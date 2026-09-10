@@ -58,6 +58,8 @@ type LiteralToken = {
 type Token = StringToken | NumberToken | LiteralToken;
 
 const COMPLETE_NUMBER = /^-?(?:0|[1-9]\d*)(?:\.\d+)?(?:[eE][+-]?\d+)?$/;
+const PARTIAL_NUMBER =
+  /^-?$|^-?(?:0|[1-9]\d*)(?:\.\d*)?$|^-?(?:0|[1-9]\d*)(?:\.\d+)?[eE][+-]?\d*$/;
 const JSON_WHITESPACE = /^[\t\n\r ]$/;
 const HEX_DIGIT = /^[0-9a-fA-F]$/;
 const SINGLE_ESCAPES: Record<string, string> = {
@@ -190,7 +192,7 @@ class IncrementalToolCallArgsParser {
       return parsePartialJsonObject(this.text) ?? fallback;
     }
 
-    if (this.mode === "start") return parsePartialJsonObject("")!;
+    if (this.mode === "start") return fallback;
 
     return createArgsSnapshot(
       this.root,
@@ -464,7 +466,12 @@ class IncrementalToolCallArgsParser {
       char === "-" ||
       char === "."
     ) {
-      token.value += char;
+      const value = token.value + char;
+      if (!PARTIAL_NUMBER.test(value)) {
+        this.mode = "fallback";
+        return false;
+      }
+      token.value = value;
       if (COMPLETE_NUMBER.test(token.value)) {
         this.writeValue(token.path, Number(token.value));
       }
