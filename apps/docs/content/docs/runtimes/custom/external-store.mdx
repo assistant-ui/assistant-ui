@@ -83,7 +83,12 @@ import {
   AssistantRuntimeProvider,
 } from "@assistant-ui/react";
 
-type MyMessage = { role: "user" | "assistant"; content: string };
+type MyMessage = {
+  id: string;
+  role: "user" | "assistant";
+  content: string;
+  timestamp: string;
+};
 
 const convertMessage = (message: MyMessage): ThreadMessageLike => ({
   role: message.role,
@@ -91,7 +96,12 @@ const convertMessage = (message: MyMessage): ThreadMessageLike => ({
 });
 
 const backendApi = async (input: string): Promise<MyMessage> => {
-  return { role: "assistant", content: "Hello, world!" };
+  return {
+    id: crypto.randomUUID(),
+    role: "assistant",
+    content: "Hello, world!",
+    timestamp: new Date().toISOString(),
+  };
 };
 
 export function MyRuntimeProvider({
@@ -105,7 +115,15 @@ export function MyRuntimeProvider({
       throw new Error("Only text messages are supported");
     }
     const input = message.content[0].text;
-    setMessages((prev) => [...prev, { role: "user", content: input }]);
+    setMessages((prev) => [
+      ...prev,
+      {
+        id: crypto.randomUUID(),
+        role: "user",
+        content: input,
+        timestamp: new Date().toISOString(),
+      },
+    ]);
 
     setIsRunning(true);
     const assistant = await backendApi(input);
@@ -158,7 +176,7 @@ Two approaches.
 ```tsx
 const convertMessage = (message: MyMessage): ThreadMessageLike => ({
   role: message.role,
-  content: [{ type: "text", text: message.text }],
+  content: [{ type: "text", text: message.content }],
   id: message.id,
   createdAt: new Date(message.timestamp),
 });
@@ -180,7 +198,7 @@ import { useExternalMessageConverter } from "@assistant-ui/react";
 const convertedMessages = useExternalMessageConverter({
   callback: (message: MyMessage): ThreadMessageLike => ({
     role: message.role,
-    content: [{ type: "text", text: message.text }],
+    content: [{ type: "text", text: message.content }],
     id: message.id,
   }),
   messages,
@@ -215,7 +233,10 @@ const convertWithMetadata: useExternalMessageConverter.Callback<MyMessage> = (
   return {
     role: message.role,
     content: [
-      { type: "text", text: `${message.text} ${labelById[message.id] ?? ""}` },
+      {
+        type: "text",
+        text: `${message.content} ${labelById[message.id] ?? ""}`,
+      },
     ],
   };
 };
