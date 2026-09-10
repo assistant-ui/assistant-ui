@@ -1,4 +1,8 @@
 import { describe, it, expect } from "vitest";
+import {
+  getPartialJsonObjectMeta,
+  parsePartialJsonObject,
+} from "assistant-stream/utils";
 import { appendLangChainChunk } from "./appendLangChainChunk";
 import { convertLangChainMessages } from "./convertLangChainMessages";
 import { normalizeLangGraphTupleMessage } from "./normalizeLangGraphTupleMessage";
@@ -40,6 +44,130 @@ const aiChunk = (
   id: "ai-1",
   content: "",
   tool_call_chunks: toolCallChunks,
+});
+
+describe("appendLangChainChunk incremental tool arguments", () => {
+  const inputs = [
+    JSON.stringify({
+      text: 'brace } quote " slash \\ emoji 😀',
+      nested: { values: [1, -2.5e3, true, false, null, { value: "x" }] },
+    }),
+    '{"escaped":"line\\nfeed","unicode":"\\uD83D\\uDE00"}',
+    '{"negative":-12.5,"positiveExponent":1e+2,"negativeExponent":-3.5E-2,"array":[-1e3]}',
+    '{"duplicate":"first","duplicate":"second","tail":0}',
+  ];
+
+  it.each(inputs)(
+    "matches the existing partial parser for every prefix of %s",
+    (input) => {
+      let accumulated: AiMessage | undefined;
+      let prefix = "";
+
+      for (const char of input) {
+        prefix += char;
+        accumulated = append(
+          accumulated,
+          aiChunk([{ id: "call-1", index: 0, name: "search", args: char }]),
+        );
+
+        const actual = accumulated.tool_calls?.[0]?.args;
+        const expected = parsePartialJsonObject(prefix);
+        expect(expected, `prefix=${prefix}`).toBeDefined();
+        expect(actual, `prefix=${prefix}`).toEqual(expected);
+        expect(getPartialJsonObjectMeta(actual!)).toEqual(
+          getPartialJsonObjectMeta(expected!),
+        );
+      }
+    },
+  );
+
+  it("keeps branches from the same accumulated prefix independent", () => {
+    let prefix: AiMessage | undefined;
+    for (const char of '{"choice":"') {
+      prefix = append(
+        prefix,
+        aiChunk([{ id: "call-1", index: 0, name: "choose", args: char }]),
+      );
+    }
+
+    const left = append(
+      prefix,
+      aiChunk([{ id: "call-1", index: 0, name: "choose", args: 'left"}' }]),
+    );
+    const right = append(
+      prefix,
+      aiChunk([{ id: "call-1", index: 0, name: "choose", args: 'right"}' }]),
+    );
+
+    expect(left.tool_calls?.[0]?.args).toMatchObject({ choice: "left" });
+    expect(right.tool_calls?.[0]?.args).toMatchObject({ choice: "right" });
+    expect(prefix.tool_calls?.[0]?.args).toMatchObject({ choice: "" });
+  });
+
+  it("retains the last parsed arguments after a malformed delta", () => {
+    const partial = append(
+      undefined,
+      aiChunk([
+        { id: "call-1", index: 0, name: "search", args: '{"limit":10' },
+      ]),
+    );
+
+    expect(() =>
+      append(
+        partial,
+        aiChunk([{ id: "call-1", index: 0, name: "search", args: "x" }]),
+      ),
+    ).not.toThrow();
+    expect(
+      append(
+        partial,
+        aiChunk([{ id: "call-1", index: 0, name: "search", args: "x" }]),
+      ).tool_calls?.[0]?.args,
+    ).toMatchObject({ limit: 10 });
+  });
+
+  it("keeps incremental state separate for interleaved tool calls", () => {
+    let accumulated = append(
+      undefined,
+      aiChunk([
+        { id: "call-1", index: 0, name: "search", args: '{"query":"' },
+        { id: "call-2", index: 1, name: "fetch", args: '{"url":"' },
+      ]),
+    );
+    accumulated = append(
+      accumulated,
+      aiChunk([
+        { id: "call-2", index: 1, name: "fetch", args: 'example.com"}' },
+        { id: "call-1", index: 0, name: "search", args: 'pizza"}' },
+      ]),
+    );
+
+    expect(accumulated.tool_calls).toEqual([
+      expect.objectContaining({
+        args: expect.objectContaining({ query: "pizza" }),
+      }),
+      expect.objectContaining({
+        args: expect.objectContaining({ url: "example.com" }),
+      }),
+    ]);
+  });
+
+  it("does not expose prototype keys from streamed arguments", () => {
+    const accumulated = append(
+      undefined,
+      aiChunk([
+        {
+          id: "call-1",
+          index: 0,
+          name: "unsafe",
+          args: '{"__proto__":{"polluted":true}}',
+        },
+      ]),
+    );
+
+    expect(accumulated.tool_calls?.[0]?.args).toEqual({});
+    expect(({} as { polluted?: boolean }).polluted).toBeUndefined();
+  });
 });
 
 describe("appendLangChainChunk content-less chunks", () => {

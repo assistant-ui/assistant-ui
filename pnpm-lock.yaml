@@ -5449,6 +5449,9 @@ importers:
       '@assistant-ui/react':
         specifier: workspace:*
         version: link:../react
+      '@assistant-ui/react-langgraph':
+        specifier: workspace:*
+        version: link:../react-langgraph
       '@assistant-ui/react-markdown':
         specifier: workspace:*
         version: link:../react-markdown
