@@ -195,6 +195,7 @@ describe("CloudChatCore", () => {
     controller!.enqueue({ type: "text-delta", id: "part-1", delta: "hi" });
     controller!.close();
     await new Promise((resolve) => setTimeout(resolve, 0));
+    clock = 150;
     await stream.pipeTo(new WritableStream());
     expect(source.locked).toBe(false);
     clock = 180;
