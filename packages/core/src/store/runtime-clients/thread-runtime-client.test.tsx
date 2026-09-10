@@ -167,4 +167,32 @@ describe("ThreadClient", () => {
     expect(core.messages).toEqual([]);
     expect(client.thread.getState().messages).toEqual([]);
   });
+
+  it("does not publish a content-identical message snapshot on cancel", () => {
+    vi.useFakeTimers();
+    const assistantMessage = {
+      ...message,
+      id: "assistant",
+      role: "assistant",
+    } as ThreadMessage;
+    const core = new ExternalStoreThreadRuntimeCore(contextProvider, {
+      messages: [assistantMessage],
+      isRunning: true,
+      onNew: vi.fn(),
+      onCancel: vi.fn(),
+    });
+    core.__internal_setAdapter({
+      messages: [assistantMessage],
+      isRunning: true,
+      onNew: vi.fn(),
+      onCancel: vi.fn(),
+    });
+    const subscriber = vi.fn();
+    core.subscribe(subscriber);
+
+    core.cancelRun();
+    vi.runAllTimers();
+
+    expect(subscriber).not.toHaveBeenCalled();
+  });
 });
