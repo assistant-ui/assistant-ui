@@ -9,7 +9,7 @@ import type {
   RemoteThreadListAdapter,
 } from "@assistant-ui/core";
 import { useAui } from "@assistant-ui/store";
-import type { LangChainBaseMessage } from "./types";
+import type { LangChainBaseMessage, UIMessage } from "./types";
 import { startTransition, Suspense, type ReactNode } from "react";
 import {
   useLangChainRespond,
@@ -19,17 +19,32 @@ import {
   useLangChainSubmit,
 } from "./hooks";
 
-const { mockUseChannel, mockUseStream, streamController } = vi.hoisted(() => ({
-  mockUseChannel: vi.fn(() => []),
-  mockUseStream: vi.fn(),
-  streamController: Symbol("STREAM_CONTROLLER"),
-}));
+const { conversionSpy, mockUseChannel, mockUseStream, streamController } =
+  vi.hoisted(() => ({
+    conversionSpy: vi.fn(),
+    mockUseChannel: vi.fn(() => []),
+    mockUseStream: vi.fn(),
+    streamController: Symbol("STREAM_CONTROLLER"),
+  }));
 
 vi.mock("@langchain/react", () => ({
   STREAM_CONTROLLER: streamController,
   useChannel: mockUseChannel,
   useStream: mockUseStream,
 }));
+
+vi.mock("./convertMessages", async (importOriginal) => {
+  const original = await importOriginal<typeof import("./convertMessages")>();
+  return {
+    ...original,
+    convertLangChainBaseMessage: (
+      ...args: Parameters<typeof original.convertLangChainBaseMessage>
+    ) => {
+      conversionSpy(args[0].id);
+      return original.convertLangChainBaseMessage(...args);
+    },
+  };
+});
 
 import { useStreamRuntime } from "./useStreamRuntime";
 
@@ -121,6 +136,45 @@ const getText = (aui: ReturnType<typeof useAui>) =>
       .map((part) => part.text)
       .join(""),
   );
+
+describe("useStreamRuntime metadata cache", () => {
+  it("re-converts only the parent when a UI event changes", () => {
+    const messageCount = 1_000;
+    const messages = Array.from({ length: messageCount }, (_, index) =>
+      message(
+        `message-${index}`,
+        index % 2 === 0 ? "human" : "ai",
+        `Message ${index}`,
+      ),
+    );
+    const parentId = `message-${messageCount - 1}`;
+    const parentUI: UIMessage = {
+      type: "ui",
+      id: "ui-1",
+      name: "chart",
+      props: { value: 1 },
+      metadata: { message_id: parentId },
+    };
+    const stream = createMockStream(messages);
+    const { auiResult, rerender } = renderAui(stream);
+
+    expect(conversionSpy).toHaveBeenCalledTimes(messageCount);
+    conversionSpy.mockClear();
+
+    mockUseChannel.mockReturnValue([{ params: { data: parentUI } }] as never);
+    rerender();
+
+    expect(conversionSpy).toHaveBeenCalledOnce();
+    expect(conversionSpy).toHaveBeenCalledWith(parentId);
+    expect(
+      auiResult.current.thread.getState().messages.at(-1)?.content.at(-1),
+    ).toMatchObject({
+      type: "data",
+      name: "chart",
+      data: { value: 1 },
+    });
+  });
+});
 
 const makeThreadListAdapter = (): RemoteThreadListAdapter => ({
   list: vi.fn(async () => ({
