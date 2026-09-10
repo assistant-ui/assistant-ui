@@ -17,8 +17,8 @@ const useMessagePartClient = ({
   const state = useSubscribable(runtime);
   const emit = useAssistantEmit();
   // A runtime whose state settles asynchronously accepts a repeat decision
-  // before the gate reads as decided, so one part reports at most once.
-  const reported = useRef(false);
+  // before the gate reads as decided, so each approval reports at most once.
+  const reportedApprovalId = useRef<string>();
 
   return {
     getState: () => state,
@@ -29,12 +29,12 @@ const useMessagePartClient = ({
       return runtime.respondToToolApproval(response).then(() => {
         if (
           !eventContext ||
-          reported.current ||
           part.type !== "tool-call" ||
-          !part.approval
+          !part.approval ||
+          reportedApprovalId.current === part.approval.id
         )
           return;
-        reported.current = true;
+        reportedApprovalId.current = part.approval.id;
         emit("part.toolApprovalResponded", {
           threadId: eventContext.threadId,
           messageId: eventContext.messageIdRef.current,

@@ -36,7 +36,7 @@ const setup = (
     aui = useAui();
     return null;
   };
-  const Harness = () => {
+  const Harness = ({ messages }: { messages: ThreadMessageLike[] }) => {
     const runtime = useExternalStoreRuntime({
       messages,
       convertMessage: (message) => message,
@@ -49,12 +49,14 @@ const setup = (
       </AssistantRuntimeProvider>
     );
   };
-  render(<Harness />);
+  const { rerender } = render(<Harness messages={messages} />);
   const listener = vi.fn();
   aui.on({ scope: "thread", event: "part.toolApprovalResponded" }, listener);
   return {
     aui,
     listener,
+    rerender: (next: ThreadMessageLike[]) =>
+      rerender(<Harness messages={next} />),
     onRespondToToolApproval,
     part: aui.thread.message({ id: "message-1" }).part({ toolCallId: "tc-1" }),
   };
@@ -91,6 +93,27 @@ describe("MessagePartClient tool approval events", () => {
     expect(onRespondToToolApproval).toHaveBeenCalledTimes(2);
     expect(listener).toHaveBeenCalledExactlyOnceWith(
       expect.objectContaining({ approved: true }),
+    );
+  });
+
+  it("reports a second gate on the same part", async () => {
+    const { part, listener, rerender } = setup();
+    await act(async () => {
+      await part.respondToToolApproval({ approved: true });
+    });
+    const [message] = messages as [ThreadMessageLike & { content: any[] }];
+    rerender([
+      {
+        ...message,
+        content: [{ ...message.content[0], approval: { id: "approval-2" } }],
+      },
+    ]);
+    await act(async () => {
+      await part.respondToToolApproval({ approved: false });
+    });
+    expect(listener).toHaveBeenCalledTimes(2);
+    expect(listener).toHaveBeenLastCalledWith(
+      expect.objectContaining({ toolCallId: "tc-1", approved: false }),
     );
   });
 
