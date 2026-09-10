@@ -212,17 +212,16 @@ export class A2AThreadRuntimeCore {
     const load = this.loadAgentCard();
     if (signal.aborted) return false;
 
-    let onAbort: (() => void) | undefined;
+    let onAbort!: () => void;
     const abort = new Promise<void>((resolve) => {
       onAbort = resolve;
       signal.addEventListener("abort", onAbort, { once: true });
-      if (signal.aborted) resolve();
     });
 
     try {
       await Promise.race([load, abort]);
     } finally {
-      if (onAbort) signal.removeEventListener("abort", onAbort);
+      signal.removeEventListener("abort", onAbort);
     }
     return !signal.aborted;
   }
