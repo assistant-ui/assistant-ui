@@ -261,12 +261,18 @@ describe("AssistantFrameHost", () => {
       { ...executionContext, abortSignal: secondAbortController.signal },
     ).catch(secondRejected);
 
-    const transportError = new Error("tool cancellation failed");
+    const firstTransportError = new Error("first tool cancellation failed");
+    const secondTransportError = new Error("second tool cancellation failed");
+    let cancellationCount = 0;
     postMessage.mockImplementation((data) => {
-      if (data.message.type === "tool-cancel") throw transportError;
+      if (data.message.type !== "tool-cancel") return;
+      cancellationCount += 1;
+      throw cancellationCount === 1
+        ? firstTransportError
+        : secondTransportError;
     });
 
-    expect(() => host.dispose()).toThrow(transportError);
+    expect(() => host.dispose()).toThrow(firstTransportError);
     await Promise.resolve();
 
     expect(firstRejected).toHaveBeenCalledWith(
@@ -293,7 +299,10 @@ describe("AssistantFrameHost", () => {
       expect.any(Function),
     );
     expect(vi.getTimerCount()).toBe(0);
-    expect(consoleError).toHaveBeenCalledOnce();
+    expect(consoleError).toHaveBeenCalledWith(
+      "[assistant-ui] AssistantFrameHost tool cancellation could not be sent.",
+      secondTransportError,
+    );
     expect(() => host.dispose()).not.toThrow();
   });
 
