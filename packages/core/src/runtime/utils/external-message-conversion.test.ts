@@ -90,10 +90,14 @@ describe("joinExternalMessages", () => {
       { role: "tool", toolCallId: Number.NaN, result: "found" },
     ] as unknown as ExternalMessageConverterMessage[];
 
-    expect(joinExternalMessages(messages).content).toMatchObject([
+    const result = joinExternalMessages(messages);
+
+    expect(result.content).toMatchObject([
       { type: "tool-call", args: { query: "first" } },
       { type: "tool-call", args: { query: "second" } },
     ]);
+    expect(result.content[0]).not.toHaveProperty("result");
+    expect(result.content[1]).not.toHaveProperty("result");
   });
 });
 
