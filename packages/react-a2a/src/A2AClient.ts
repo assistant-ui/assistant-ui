@@ -70,14 +70,15 @@ const JSONRPC_STATE_MAP: Record<string, string> = {
   unknown: "unspecified",
 };
 
-const NULLABLE_PART_FIELDS = [
+const PART_STRING_FIELDS = [
   "text",
   "raw",
   "url",
-  "metadata",
   "filename",
   "mediaType",
 ] as const;
+
+const NULLABLE_PART_FIELDS = [...PART_STRING_FIELDS, "metadata"] as const;
 
 function normalizePartNulls(
   part: Record<string, unknown>,
@@ -302,14 +303,14 @@ const hasOptionalStringFields = (
 
 const isPart = (value: unknown): value is A2APart =>
   isRecord(value) &&
-  hasOptionalStringFields(value, [
-    "text",
-    "raw",
-    "url",
-    "filename",
-    "mediaType",
-  ]) &&
+  hasOptionalStringFields(value, PART_STRING_FIELDS) &&
   (value.metadata === undefined || isRecord(value.metadata));
+
+const hasValidNestedParts = (value: unknown): boolean =>
+  !isRecord(value) || !Array.isArray(value.parts) || value.parts.every(isPart);
+
+const hasValidNestedPartsInCollection = (value: unknown): boolean =>
+  !Array.isArray(value) || value.every(hasValidNestedParts);
 
 const isTask = (value: unknown): value is A2ATask =>
   isRecord(value) &&
@@ -317,7 +318,10 @@ const isTask = (value: unknown): value is A2ATask =>
   value.id.length > 0 &&
   hasOptionalStringIds(value, ["contextId"]) &&
   isRecord(value.status) &&
-  isTaskState(value.status.state);
+  isTaskState(value.status.state) &&
+  hasValidNestedParts(value.status.message) &&
+  hasValidNestedPartsInCollection(value.artifacts) &&
+  hasValidNestedPartsInCollection(value.history);
 
 const isMessage = (value: unknown): value is A2AMessage =>
   isRecord(value) &&
@@ -385,7 +389,8 @@ const isStatusUpdate = (
   (allowEmptyTaskId || value.taskId.length > 0) &&
   hasOptionalStringIds(value, ["contextId"]) &&
   isRecord(value.status) &&
-  isTaskState(value.status.state);
+  isTaskState(value.status.state) &&
+  hasValidNestedParts(value.status.message);
 
 const toWrappedStatusUpdate = (
   value: unknown,

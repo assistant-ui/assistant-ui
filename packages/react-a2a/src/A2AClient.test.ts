@@ -529,6 +529,34 @@ describe("A2AClient", () => {
     });
 
     it.each([
+      [
+        "status message",
+        {
+          status: {
+            state: "completed",
+            message: { parts: [{ text: { invalid: true } }] },
+          },
+        },
+      ],
+      ["history message", { history: [{ parts: [{ raw: 42 }] }] }],
+      ["artifact", { artifacts: [{ parts: [{ metadata: [] }] }] }],
+    ])("rejects a task with malformed %s parts", async (_name, nested) => {
+      fetchMock.mockResolvedValue(
+        mockFetchResponse({
+          task: {
+            id: "t1",
+            status: { state: "completed" },
+            ...nested,
+          },
+        }),
+      );
+
+      await expect(client.sendMessage(userMessage)).rejects.toThrow(
+        "Invalid A2A message:send response: expected a valid task or message payload.",
+      );
+    });
+
+    it.each([
       ["task", { id: "t1", status: { state: "completed" } }],
       [
         "message",
@@ -1137,6 +1165,25 @@ describe("A2AClient", () => {
             artifact: {
               artifact_id: "a1",
               parts: [{ url: 42 }],
+            },
+          },
+        },
+        {
+          status_update: {
+            task_id: "t1",
+            context_id: "c1",
+            status: {
+              state: "TASK_STATE_WORKING",
+              message: { parts: [{ text: { invalid: true } }] },
+            },
+          },
+        },
+        {
+          task: {
+            id: "t1",
+            status: {
+              state: "TASK_STATE_WORKING",
+              message: { parts: [{ text: { invalid: true } }] },
             },
           },
         },
