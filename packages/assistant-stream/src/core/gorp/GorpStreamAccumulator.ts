@@ -90,7 +90,8 @@ export class GorpStreamAccumulator {
       assertSafePathSegment(key);
       if (Array.isArray(current)) {
         let index = Number(key);
-        // Numeric wire segments are tolerated, but string indices must be canonical.
+        // The wire can deliver numeric segments (op.path is only type-checked,
+        // not runtime-validated), so canonicality is compared via String(key).
         if (!Number.isInteger(index) || String(index) !== String(key)) {
           throw new Error(
             `Expected array index at [${path.slice(depth).join(", ")}]`,
@@ -111,8 +112,9 @@ export class GorpStreamAccumulator {
         frames.push({ kind: "array", state: current, key: index });
         current = Object.hasOwn(current, index) ? current[index] : undefined;
       } else {
-        frames.push({ kind: "object", state: current, key });
-        current = Object.hasOwn(current, key) ? current[key] : undefined;
+        const object = current as ReadonlyJSONObject;
+        frames.push({ kind: "object", state: object, key });
+        current = Object.hasOwn(object, key) ? object[key] : undefined;
       }
     }
 
