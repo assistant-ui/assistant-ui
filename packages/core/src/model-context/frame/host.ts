@@ -75,7 +75,12 @@ export class AssistantFrameHost implements ModelContextProvider {
     this.handleMessage = this.handleMessage.bind(this);
     window.addEventListener("message", this.handleMessage);
 
-    this.requestContext();
+    try {
+      this.requestContext();
+    } catch (error) {
+      window.removeEventListener("message", this.handleMessage);
+      throw error;
+    }
   }
 
   private handleMessage(event: MessageEvent) {
