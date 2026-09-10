@@ -52,7 +52,7 @@ const createRuntime = (core: ExternalStoreThreadRuntimeCore) => {
   return new ThreadRuntimeImpl(threadBinding, threadListItemBinding);
 };
 
-const message = (id: string, role: "user" | "assistant", optimistic = false) =>
+const message = (id: string, role: "user" | "assistant") =>
   ({
     id,
     createdAt: new Date(0),
@@ -61,11 +61,8 @@ const message = (id: string, role: "user" | "assistant", optimistic = false) =>
     attachments: [],
     metadata: {
       custom: {},
-      ...(optimistic ? { isOptimistic: true } : undefined),
     },
-    ...(role === "assistant"
-      ? { status: optimistic ? { type: "running" } : { type: "complete" } }
-      : undefined),
+    ...(role === "assistant" ? { status: { type: "complete" } } : undefined),
   }) as ThreadMessage;
 
 const adapter = (
@@ -113,21 +110,5 @@ describe("ThreadPrimitiveMessages", () => {
 
     expect(screen.queryByText("second:second")).not.toBeNull();
     expect(screen.queryByText("first:second")).toBeNull();
-  });
-
-  it("does not remount when a streaming message receives its server id", () => {
-    const user = message("user", "user");
-    const optimistic = message("client_id", "assistant", true);
-    const core = new ExternalStoreThreadRuntimeCore(
-      contextProvider,
-      adapter([user, optimistic], true),
-    );
-    renderMessages(core);
-
-    const server = message("server_id", "assistant", true);
-    act(() => core.__internal_setAdapter(adapter([user, server], true)));
-
-    expect(screen.queryByText("client_id:server_id")).not.toBeNull();
-    expect(screen.queryByText("server_id:server_id")).toBeNull();
   });
 });

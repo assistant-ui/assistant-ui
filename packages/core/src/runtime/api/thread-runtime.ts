@@ -44,7 +44,6 @@ import type {
   ChatModelRunResult,
 } from "../utils/chat-model-adapter";
 import type { ReadonlyJSONValue } from "assistant-stream/utils";
-import { exposeThreadMessageRenderKey } from "../utils/thread-message-render-key";
 
 export type CreateStartRunConfig = {
   parentId: string | null;
@@ -586,7 +585,6 @@ export class ThreadRuntimeImpl implements ThreadRuntime {
           return {
             ...message,
             ...{ [symbolInnerMessage]: (message as any)[symbolInnerMessage] },
-            ...exposeThreadMessageRenderKey(message),
 
             index,
             isLast: messages.at(-1)?.id === message.id,
