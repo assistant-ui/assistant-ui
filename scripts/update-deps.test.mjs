@@ -85,8 +85,10 @@ fi
 printf 'package.json\\0examples/with-expo/package.json\\0'
 `,
     );
-    writeExecutable(path.join(bin, "bash"), "#!/bin/sh\nexit 0\n");
-
+    writeExecutable(
+      path.join(root, "scripts", "generate-deps-changeset.sh"),
+      "#!/usr/bin/env bash\nexit 0\n",
+    );
     const result = spawnSync(
       "/bin/bash",
       [path.join(root, "scripts", "update-deps.sh")],

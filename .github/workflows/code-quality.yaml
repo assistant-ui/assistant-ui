@@ -15,6 +15,8 @@ on:
       - "scripts/check-built-declarations.test.mjs"
       - "scripts/check-workspace-ranges.mjs"
       - "scripts/check-workspace-ranges.test.mjs"
+      - "scripts/update-deps.sh"
+      - "scripts/update-deps.test.mjs"
       - "scripts/lib/script-options.mjs"
       - "scripts/sync-templates.sh"
       - "turbo.json"
@@ -36,6 +38,8 @@ on:
       - "scripts/check-built-declarations.test.mjs"
       - "scripts/check-workspace-ranges.mjs"
       - "scripts/check-workspace-ranges.test.mjs"
+      - "scripts/update-deps.sh"
+      - "scripts/update-deps.test.mjs"
       - "scripts/lib/script-options.mjs"
       - "scripts/sync-templates.sh"
       - "turbo.json"
@@ -372,6 +376,9 @@ jobs:
             # Push to main: Test packages changed in last commit
             pnpm turbo test --filter="...[HEAD^1]"
           fi
+
+      - name: Test dependency update fallback
+        run: pnpm update-deps:test
 
       - name: Run React Compiler tests
         env:

@@ -24,6 +24,7 @@
     "workspace-ranges:test": "node --test scripts/check-workspace-ranges.test.mjs",
     "unmanaged-pins:check": "node scripts/check-unmanaged-pins.mjs",
     "unmanaged-pins:test": "node --test scripts/check-unmanaged-pins.test.mjs",
+    "update-deps:test": "node --test scripts/update-deps.test.mjs",
     "lint": "pnpm exec oxlint && pnpm exec oxfmt --check",
     "check:resource-memo": "node packages/x-buildutils/check-resource-memoization.mjs",
     "size:check": "node packages/x-performance/bin/aui-perf.mjs size",
