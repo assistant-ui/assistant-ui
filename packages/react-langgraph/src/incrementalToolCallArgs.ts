@@ -156,13 +156,13 @@ class IncrementalToolCallArgsParser {
     return this.args;
   }
 
-  append(delta: string) {
+  append(delta: string, fullText: string) {
     if (delta.length === 0) return this;
 
     const parser = this.clone();
     const fallback = this.args;
     parser.consumeDelta(delta);
-    parser.text += delta;
+    parser.text = fullText;
     parser.args = parser.snapshot(fallback);
     return parser;
   }
@@ -439,12 +439,15 @@ class IncrementalToolCallArgsParser {
 
     this.token = undefined;
     if (token.role === "key") {
-      if (token.value === "__proto__") {
+      const frame = this.frames.at(-1);
+      if (!frame || frame.kind !== "object") {
         this.mode = "fallback";
         return false;
       }
-      const frame = this.frames.at(-1);
-      if (!frame || frame.kind !== "object") {
+      if (
+        token.value === "__proto__" ||
+        (token.value === "prototype" && frame.path.at(-1) === "constructor")
+      ) {
         this.mode = "fallback";
         return false;
       }
@@ -555,7 +558,8 @@ export const appendIncrementalToolCallArgs = (
     parser = IncrementalToolCallArgsParser.from(previousText, previous.args);
   }
 
-  const nextParser = parser.append(delta);
+  const nextText = next.partial_json ?? previousText + delta;
+  const nextParser = parser.append(delta, nextText);
   parserByToolCall.set(next, nextParser);
   return nextParser.currentArgs;
 };

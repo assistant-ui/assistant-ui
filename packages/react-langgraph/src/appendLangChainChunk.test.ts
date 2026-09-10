@@ -294,6 +294,33 @@ describe("appendLangChainChunk incremental tool arguments", () => {
     expect(Object.hasOwn(args!, "__proto__")).toBe(false);
     expect(({} as { polluted?: boolean }).polluted).toBeUndefined();
   });
+
+  it("keeps the previous arguments for constructor prototype payloads", () => {
+    const input = '{"constructor":{"prototype":{}},"tail":1}';
+    let prefix = "";
+    let expected = parsePartialJsonObject("")!;
+    let accumulated: AiMessage | undefined;
+
+    for (const char of input) {
+      prefix += char;
+      expected = parsePartialJsonObject(prefix) ?? expected;
+      accumulated = append(
+        accumulated,
+        aiChunk([{ id: "call-1", index: 0, name: "unsafe", args: char }]),
+      );
+
+      const actual = accumulated.tool_calls?.[0]?.args;
+      expect(actual, `prefix=${prefix}`).toEqual(expected);
+      expect(getPartialJsonObjectMeta(actual!)).toEqual(
+        getPartialJsonObjectMeta(expected),
+      );
+    }
+
+    expect(accumulated?.tool_calls?.[0]?.args).toMatchObject({
+      constructor: {},
+    });
+    expect(accumulated?.tool_calls?.[0]?.args).not.toHaveProperty("tail");
+  });
 });
 
 describe("appendLangChainChunk content-less chunks", () => {
