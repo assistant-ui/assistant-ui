@@ -10,6 +10,7 @@ import type {
 } from "@assistant-ui/core";
 import type { useExternalMessageConverter } from "@assistant-ui/core/react";
 import {
+  createExternalMessageMetadataKey,
   parseDataUrl,
   shallowArrayEqual,
   stableStringifyToolArgs,
@@ -40,66 +41,42 @@ export type LangGraphMessageConverterMetadata =
     attachmentsByMessageId?: Map<string, readonly CompleteAttachment[]>;
   };
 
-type LangGraphMetadataKeyEntry = {
-  uiMessages: readonly UIMessage[] | undefined;
-  timing: MessageTiming | undefined;
-  attachments: readonly CompleteAttachment[] | undefined;
-  key: object;
-};
-
-const EMPTY_METADATA_KEY = Object.freeze({});
-
 export const createLangGraphMetadataKey =
-  (): useExternalMessageConverter.GetMetadataKey<LangChainMessage> => {
-    const cache = new WeakMap<LangChainMessage, LangGraphMetadataKeyEntry>();
-
-    return (message, metadata) => {
-      if (!message.id) return EMPTY_METADATA_KEY;
-      const langGraphMetadata = metadata as LangGraphMessageConverterMetadata;
-      const uiMessages =
-        message.type === "ai"
-          ? langGraphMetadata.uiMessagesByParent?.get(message.id)
-          : undefined;
-      const timing =
-        message.type === "ai"
-          ? langGraphMetadata.messageTiming?.[message.id]
-          : undefined;
-      const attachments =
-        message.type === "human"
-          ? langGraphMetadata.attachmentsByMessageId?.get(message.id)
-          : undefined;
-
-      if (
-        uiMessages === undefined &&
-        timing === undefined &&
-        attachments === undefined
-      ) {
-        return EMPTY_METADATA_KEY;
-      }
-
-      const cached = cache.get(message);
-      if (
-        cached &&
-        (cached.uiMessages === uiMessages ||
-          (cached.uiMessages !== undefined &&
-            uiMessages !== undefined &&
-            shallowArrayEqual(cached.uiMessages, uiMessages))) &&
-        cached.timing === timing &&
-        cached.attachments === attachments
-      ) {
-        return cached.key;
-      }
-
-      const entry: LangGraphMetadataKeyEntry = {
-        uiMessages,
-        timing,
-        attachments,
-        key: {},
-      };
-      cache.set(message, entry);
-      return entry.key;
-    };
-  };
+  (): useExternalMessageConverter.GetMetadataKey<LangChainMessage> =>
+    createExternalMessageMetadataKey<LangChainMessage>([
+      {
+        select: (message, metadata) =>
+          message.id && message.type === "ai"
+            ? (
+                metadata as LangGraphMessageConverterMetadata
+              ).uiMessagesByParent?.get(message.id)
+            : undefined,
+        isEqual: (previous, current) =>
+          previous === current ||
+          (previous !== undefined &&
+            current !== undefined &&
+            shallowArrayEqual(
+              previous as readonly UIMessage[],
+              current as readonly UIMessage[],
+            )),
+      },
+      {
+        select: (message, metadata) =>
+          message.id && message.type === "ai"
+            ? (metadata as LangGraphMessageConverterMetadata).messageTiming?.[
+                message.id
+              ]
+            : undefined,
+      },
+      {
+        select: (message, metadata) =>
+          message.id && message.type === "human"
+            ? (
+                metadata as LangGraphMessageConverterMetadata
+              ).attachmentsByMessageId?.get(message.id)
+            : undefined,
+      },
+    ]);
 
 const getToolArgsCacheKey = (
   messageId: string | undefined,

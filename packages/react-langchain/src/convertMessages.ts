@@ -2,7 +2,10 @@
 
 import type { MessageTiming } from "@assistant-ui/core";
 import type { useExternalMessageConverter } from "@assistant-ui/core/react";
-import { shallowArrayEqual } from "@assistant-ui/core/internal";
+import {
+  createExternalMessageMetadataKey,
+  shallowArrayEqual,
+} from "@assistant-ui/core/internal";
 import type { ReadonlyJSONObject } from "assistant-stream/utils";
 import {
   convertLangChainContentBlock,
@@ -22,52 +25,34 @@ export type LangChainMessageConverterMetadata =
     messageTiming?: Record<string, MessageTiming>;
   };
 
-type LangChainMetadataKeyEntry = {
-  uiMessages: readonly UIMessage[] | undefined;
-  timing: MessageTiming | undefined;
-  key: object;
-};
-
-const EMPTY_METADATA_KEY = Object.freeze({});
-
 export const createLangChainMetadataKey =
-  (): useExternalMessageConverter.GetMetadataKey<LangChainBaseMessage> => {
-    const cache = new WeakMap<
-      LangChainBaseMessage,
-      LangChainMetadataKeyEntry
-    >();
-
-    return (message, metadata) => {
-      if (!message.id || getMessageType(message) !== "ai")
-        return EMPTY_METADATA_KEY;
-      const langChainMetadata = metadata as LangChainMessageConverterMetadata;
-      const uiMessages = langChainMetadata.uiMessagesByParent?.get(message.id);
-      const timing = langChainMetadata.messageTiming?.[message.id];
-
-      if (uiMessages === undefined && timing === undefined)
-        return EMPTY_METADATA_KEY;
-
-      const cached = cache.get(message);
-      if (
-        cached &&
-        (cached.uiMessages === uiMessages ||
-          (cached.uiMessages !== undefined &&
-            uiMessages !== undefined &&
-            shallowArrayEqual(cached.uiMessages, uiMessages))) &&
-        cached.timing === timing
-      ) {
-        return cached.key;
-      }
-
-      const entry: LangChainMetadataKeyEntry = {
-        uiMessages,
-        timing,
-        key: {},
-      };
-      cache.set(message, entry);
-      return entry.key;
-    };
-  };
+  (): useExternalMessageConverter.GetMetadataKey<LangChainBaseMessage> =>
+    createExternalMessageMetadataKey<LangChainBaseMessage>([
+      {
+        select: (message, metadata) =>
+          message.id && getMessageType(message) === "ai"
+            ? (
+                metadata as LangChainMessageConverterMetadata
+              ).uiMessagesByParent?.get(message.id)
+            : undefined,
+        isEqual: (previous, current) =>
+          previous === current ||
+          (previous !== undefined &&
+            current !== undefined &&
+            shallowArrayEqual(
+              previous as readonly UIMessage[],
+              current as readonly UIMessage[],
+            )),
+      },
+      {
+        select: (message, metadata) =>
+          message.id && getMessageType(message) === "ai"
+            ? (metadata as LangChainMessageConverterMetadata).messageTiming?.[
+                message.id
+              ]
+            : undefined,
+      },
+    ]);
 
 const warnedMalformedMessages = new Set<string>();
 const warnOnceInDevelopment = (message: string) => {

@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
 
 import { act, render, renderHook, waitFor } from "@testing-library/react";
-import { describe, expect, it, vi } from "vitest";
+import { beforeEach, describe, expect, it, vi } from "vitest";
 import { AssistantRuntimeProvider } from "@assistant-ui/core/react";
 import type {
   AssistantRuntime,
@@ -47,6 +47,11 @@ vi.mock("./convertMessages", async (importOriginal) => {
 });
 
 import { useStreamRuntime } from "./useStreamRuntime";
+
+beforeEach(() => {
+  conversionSpy.mockClear();
+  mockUseChannel.mockReturnValue([]);
+});
 
 type MockStream = {
   messages: LangChainBaseMessage[];
