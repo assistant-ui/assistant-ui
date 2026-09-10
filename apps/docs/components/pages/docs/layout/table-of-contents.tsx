@@ -8,6 +8,7 @@ import { useMarkdownCopy } from "@/hooks/use-markdown-copy";
 import { useAssistantPanel } from "@/components/pages/docs/assistant/context";
 import { useCurrentPage } from "@/components/pages/docs/contexts/current-page";
 import { analytics } from "@/lib/analytics";
+import { usePlatformMarkdownUrl } from "@/hooks/use-platform-markdown-url";
 
 type TOCItem = {
   title: ReactNode;
@@ -19,16 +20,23 @@ type TableOfContentsProps = {
   items: TOCItem[];
   githubEditUrl?: string;
   markdownUrl?: string;
+  platformAwareMarkdown?: boolean;
 };
 
 function TOCActions({
   markdownUrl,
   githubEditUrl,
+  platformAwareMarkdown,
 }: {
   markdownUrl: string | undefined;
   githubEditUrl: string | undefined;
+  platformAwareMarkdown: boolean;
 }) {
-  const { copy, prefetch, isLoading } = useMarkdownCopy(markdownUrl);
+  const resolvedMarkdownUrl = usePlatformMarkdownUrl(
+    markdownUrl,
+    platformAwareMarkdown,
+  );
+  const { copy, prefetch, isLoading } = useMarkdownCopy(resolvedMarkdownUrl);
   const { askAI } = useAssistantPanel();
   const currentPage = useCurrentPage();
 
@@ -77,7 +85,7 @@ function TOCActions({
             {isLoading ? "Loading..." : "Copy page"}
           </button>
           <a
-            href={`${BASE_URL}${markdownUrl}`}
+            href={`${BASE_URL}${resolvedMarkdownUrl}`}
             target="_blank"
             rel="noreferrer noopener"
             className={linkClass}
@@ -112,6 +120,7 @@ export function TableOfContents({
   items,
   githubEditUrl,
   markdownUrl,
+  platformAwareMarkdown = false,
 }: TableOfContentsProps) {
   const [activeId, setActiveId] = useState<string | null>(null);
   const listRef = useRef<HTMLUListElement>(null);
@@ -196,7 +205,11 @@ export function TableOfContents({
           })}
         </ul>
         <div className="mt-6 shrink-0">
-          <TOCActions markdownUrl={markdownUrl} githubEditUrl={githubEditUrl} />
+          <TOCActions
+            markdownUrl={markdownUrl}
+            githubEditUrl={githubEditUrl}
+            platformAwareMarkdown={platformAwareMarkdown}
+          />
         </div>
       </div>
     </div>

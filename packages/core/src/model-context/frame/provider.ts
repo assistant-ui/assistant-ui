@@ -106,7 +106,12 @@ export class AssistantFrameProvider {
         break;
 
       case "tool-call":
-        this.handleToolCall(message, event);
+        void this.handleToolCall(message, event).catch((error: unknown) => {
+          console.error(
+            "[assistant-ui] AssistantFrame tool call failed.",
+            error,
+          );
+        });
         break;
 
       case "tool-cancel":
@@ -156,11 +161,25 @@ export class AssistantFrameProvider {
     if (this._activeToolCalls.get(message.id) !== activeCall) return;
     this._activeToolCalls.delete(message.id);
 
-    this.sendMessage(event, {
-      type: "tool-result",
-      id: message.id,
-      ...(error !== undefined ? { error } : { result }),
-    });
+    try {
+      this.sendMessage(event, {
+        type: "tool-result",
+        id: message.id,
+        ...(error !== undefined ? { error } : { result }),
+      });
+    } catch (sendError) {
+      if (error !== undefined) throw sendError;
+
+      console.error(
+        "[assistant-ui] AssistantFrame tool result could not be sent.",
+        sendError,
+      );
+      this.sendMessage(event, {
+        type: "tool-result",
+        id: message.id,
+        error: "Tool result could not be sent across the frame boundary",
+      });
+    }
   }
 
   private cancelToolCall(id: string) {

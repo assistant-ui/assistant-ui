@@ -171,6 +171,22 @@ export async function POST(request: Request) {
 </Tab>
 </Tabs>
 
+### Allowed origins
+
+In Settings › General › Allowed origins, list the browser origins that the project API should answer, one per line. For example:
+
+```text
+https://app.example.com
+http://localhost:3000
+https://*.preview.example.com
+```
+
+An empty list allows every origin. An origin outside the list receives no CORS headers, so the browser reports a failed fetch. Changes reach the API within one minute.
+
+### Active user limits
+
+When an API-key request creates a new end user after the plan's active user cap, Assistant Cloud returns `402` with `CloudAPIError.code` set to `"plan_limit_reached"`. `CloudAPIError.details` includes `plan`, `cap`, and `period_end` so your server can show the right upgrade or retry state.
+
 ## Auth Provider Examples
 
 ### Clerk

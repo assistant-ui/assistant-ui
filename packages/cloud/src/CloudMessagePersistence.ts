@@ -112,6 +112,11 @@ export class CloudMessagePersistence {
     return entry;
   }
 
+  getResolvedRemoteId(messageId: string): string | undefined {
+    const entry = this.idMapping.get(messageId);
+    return typeof entry === "string" ? entry : undefined;
+  }
+
   /**
    * Load messages from the cloud and populate the ID mapping.
    *

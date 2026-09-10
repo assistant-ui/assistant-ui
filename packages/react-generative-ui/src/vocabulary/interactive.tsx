@@ -4,14 +4,25 @@ import type { Action } from "../ir";
 import { BUTTON_STYLES } from "../ir";
 import type { GenerativeUIDispatch, GenerativeUILibrary } from "../types";
 import { actionAttr, fire } from "./dispatch";
+import { toTextContent } from "./toTextContent";
 
 const optionSchema = z.object({
   label: z.string(),
   value: z.string(),
 });
 
+type Option = { label: string; value: string };
+
+const isOption = (option: unknown): option is Option =>
+  option !== null &&
+  typeof option === "object" &&
+  "label" in option &&
+  typeof option.label === "string" &&
+  "value" in option &&
+  typeof option.value === "string";
+
 type RadioGroupRenderProps = {
-  options: { label: string; value: string }[];
+  options: Option[];
   name?: string;
   label?: string;
   defaultValue?: string;
@@ -37,9 +48,7 @@ function RadioGroupRender({
       aria-label={label}
     >
       {safeOptions.map((option, i) =>
-        option &&
-        typeof option.label === "string" &&
-        typeof option.value === "string" ? (
+        isOption(option) ? (
           <label key={i} data-aui="radiogroup-option">
             <input
               type="radio"
@@ -92,7 +101,7 @@ export const interactiveVocabulary = {
         data-aui-action={actionAttr($action)}
         onClick={submit ? undefined : () => fire($action, $dispatch)}
       >
-        {label}
+        {toTextContent(label)}
         {children}
       </button>
     ),
@@ -120,28 +129,33 @@ export const interactiveVocabulary = {
       $action,
       $dispatch,
       children,
-    }) => (
-      <select
-        data-aui="select"
-        data-aui-action={actionAttr($action)}
-        name={name}
-        aria-label={label}
-        defaultValue=""
-        onChange={(e) => fire($action, $dispatch, e.currentTarget.value)}
-      >
-        {placeholder ? (
-          <option value="" disabled>
-            {placeholder}
-          </option>
-        ) : null}
-        {options.map((o: { label: string; value: string }, i: number) => (
-          <option key={i} value={o.value}>
-            {o.label}
-          </option>
-        ))}
-        {children}
-      </select>
-    ),
+    }) => {
+      const placeholderText = toTextContent(placeholder);
+      return (
+        <select
+          data-aui="select"
+          data-aui-action={actionAttr($action)}
+          name={name}
+          aria-label={label}
+          defaultValue=""
+          onChange={(e) => fire($action, $dispatch, e.currentTarget.value)}
+        >
+          {placeholderText ? (
+            <option value="" disabled>
+              {placeholderText}
+            </option>
+          ) : null}
+          {(Array.isArray(options) ? options : []).map((option, i) =>
+            isOption(option) ? (
+              <option key={i} value={option.value}>
+                {option.label}
+              </option>
+            ) : null,
+          )}
+          {children}
+        </select>
+      );
+    },
   },
   Input: {
     description:
@@ -251,7 +265,7 @@ export const interactiveVocabulary = {
           defaultChecked={defaultChecked}
           onChange={(e) => fire($action, $dispatch, e.currentTarget.checked)}
         />
-        <span data-aui="checkbox-label">{label}</span>
+        <span data-aui="checkbox-label">{toTextContent(label)}</span>
       </label>
     ),
   },

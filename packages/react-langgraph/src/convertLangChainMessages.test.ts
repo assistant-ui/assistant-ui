@@ -27,6 +27,58 @@ const convertLangChainMessages = (
     ) => ConvertResult
   )(message, metadata);
 
+describe("convertLangChainMessages tool result names", () => {
+  const assistant: LangChainMessage = {
+    id: "ai-1",
+    type: "ai",
+    content: "",
+    tool_calls: [{ id: "call-1", name: "search", args: {} }],
+  };
+  const tool: LangChainMessage = {
+    id: "tool-1",
+    type: "tool",
+    tool_call_id: "call-1",
+    name: "",
+    content: "found",
+    status: "success",
+  };
+
+  it("joins a result with an empty name to its tool call", () => {
+    const messages = convertExternalMessages(
+      [assistant, tool],
+      convertLangChainMessagesImpl,
+      false,
+      {},
+    );
+
+    expect(messages).toMatchObject([
+      {
+        role: "assistant",
+        content: [
+          {
+            type: "tool-call",
+            toolCallId: "call-1",
+            toolName: "search",
+            result: "found",
+            isError: false,
+          },
+        ],
+      },
+    ]);
+  });
+
+  it("rejects a result with a different nonempty tool name", () => {
+    expect(() =>
+      convertExternalMessages(
+        [assistant, { ...tool, name: "other" }],
+        convertLangChainMessagesImpl,
+        false,
+        {},
+      ),
+    ).toThrow(/does not match existing tool call/);
+  });
+});
+
 describe("convertLangChainMessages content-less messages", () => {
   it("converts an ai message without content", () => {
     const result = convertLangChainMessages({
@@ -1220,6 +1272,106 @@ describe("convertLangChainMessages tool call id stability", () => {
     expect(toolCallPart).toMatchObject({
       argsText: '{"url":"https://example.com"}',
     });
+  });
+
+  it("uses the first tool_call_chunk for duplicate ids and indices", () => {
+    const result = convertLangChainMessages({
+      type: "ai",
+      id: "ai-1",
+      content: "",
+      tool_calls: [
+        { id: "tool-1", name: "by_id", args: {} },
+        { id: "", name: "by_index", args: {}, index: 1 },
+      ],
+      tool_call_chunks: [
+        { id: "tool-1", index: 7, name: "by_id", args: '{"match":1}' },
+        { id: "tool-1", index: 8, name: "by_id", args: '{"match":2}' },
+        { id: "", index: 1, name: "by_index", args: '{"match":3}' },
+        { id: "", index: 1, name: "by_index", args: '{"match":4}' },
+      ],
+    });
+
+    expect(result.content.filter((part) => part.type === "tool-call")).toEqual([
+      expect.objectContaining({ argsText: '{"match":1}' }),
+      expect.objectContaining({ argsText: '{"match":3}' }),
+    ]);
+  });
+
+  it("reads each streamed tool-call identity once", () => {
+    const toolCallCount = 100;
+    const readId = vi.fn();
+    const toolCallChunks = Array.from(
+      { length: toolCallCount },
+      (_, index) => ({
+        index,
+        name: "search",
+        args: `{"index":${index}}`,
+        get id() {
+          readId();
+          return `tool-${index}`;
+        },
+      }),
+    );
+
+    convertLangChainMessages({
+      type: "ai",
+      id: "ai-1",
+      content: "",
+      tool_calls: Array.from({ length: toolCallCount }, (_, index) => ({
+        id: `tool-${index}`,
+        name: "search",
+        args: {},
+      })),
+      tool_call_chunks: toolCallChunks,
+    });
+
+    expect(readId).toHaveBeenCalledTimes(toolCallCount);
+  });
+
+  it("does not index chunks when there are no completed tool calls", () => {
+    const readId = vi.fn();
+
+    convertLangChainMessages({
+      type: "ai",
+      id: "ai-1",
+      content: "",
+      tool_call_chunks: [
+        {
+          index: 0,
+          name: "search",
+          args: '{"query":"weather"}',
+          get id() {
+            readId();
+            return "tool-1";
+          },
+        },
+      ],
+    });
+
+    expect(readId).not.toHaveBeenCalled();
+  });
+
+  it("does not match tool-call chunks with NaN indices", () => {
+    const result = convertLangChainMessages({
+      type: "ai",
+      id: "ai-1",
+      content: "",
+      tool_calls: [
+        { id: "", name: "search", args: { source: "tool-call" }, index: NaN },
+      ],
+      tool_call_chunks: [
+        {
+          id: "",
+          index: NaN,
+          name: "search",
+          args: '{"source":"tool-call-chunk"}',
+        },
+      ],
+    });
+
+    expect(result.content.find((part) => part.type === "tool-call")).toEqual(
+      expect.objectContaining({ argsText: '{"source":"tool-call"}' }),
+    );
   });
 });
 

@@ -14,12 +14,19 @@ import {
   PLATFORMS,
   type Platform,
 } from "@/lib/constants";
+import { isPlatform } from "@/lib/docs-platform";
 import {
   createPersistedPreference,
   usePersistedPreference,
 } from "@/lib/persisted-preference";
 
-export { DEFAULT_PLATFORM, PLATFORM_LABELS, PLATFORMS, type Platform };
+export {
+  DEFAULT_PLATFORM,
+  isPlatform,
+  PLATFORM_LABELS,
+  PLATFORMS,
+  type Platform,
+};
 
 export const PLATFORM_DOC_BASE_PATHS: Record<Platform, string> = {
   react: "/docs",
@@ -29,12 +36,6 @@ export const PLATFORM_DOC_BASE_PATHS: Record<Platform, string> = {
 
 const STORAGE_KEY = "assistant-ui::docs:platform";
 const URL_PARAM = "platform";
-
-export function isPlatform(
-  value: string | null | undefined,
-): value is Platform {
-  return value != null && (PLATFORMS as readonly string[]).includes(value);
-}
 
 const platformPreference = createPersistedPreference<Platform>({
   key: STORAGE_KEY,

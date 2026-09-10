@@ -191,6 +191,7 @@ export class ToolExecutionStream extends PipeableTransformStream<
                   artifact: chunk.artifact,
                   isError: chunk.isError,
                   modelContent: chunk.modelContent,
+                  messages: chunk.messages,
                 }),
               );
               toolCallIdsWithBackendResult.add(executionId!);

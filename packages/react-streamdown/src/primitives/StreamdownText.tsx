@@ -294,19 +294,12 @@ export const StreamdownTextPrimitive = forwardRef<
       [shikiTheme, resolvedPlugins?.code],
     );
 
-    const adaptedComponents = useAdaptedComponents({
-      components,
-      componentsByLanguage,
-    });
-
-    const mergedComponents = useMemo(() => {
-      const {
-        SyntaxHighlighter: _,
-        CodeHeader: __,
-        ...userHtmlComponents
-      } = components ?? {};
-      return { ...userHtmlComponents, ...adaptedComponents };
-    }, [components, adaptedComponents]);
+    // The documented usage of `components` is an inline object literal, so the
+    // map is stabilized here; without it the memoized body sees a new prop
+    // identity every render and never bails out.
+    const mergedComponents = useStableProps(
+      useAdaptedComponents({ components, componentsByLanguage }),
+    );
 
     const containerClass = useMemo(() => {
       const classes = [containerClassName, containerProps?.className]

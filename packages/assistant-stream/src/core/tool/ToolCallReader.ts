@@ -31,6 +31,7 @@ function getField<T>(obj: T, fieldPath: (string | number)[]): unknown {
 }
 
 interface Handle {
+  readonly isDisposed: boolean;
   update(args: unknown): void;
   end(args: unknown): void;
   dispose(): void;
@@ -41,6 +42,10 @@ class GetHandle<T, TValue> implements Handle {
   private reject: (reason: unknown) => void;
   private disposed = false;
   private fieldPath: (string | number)[];
+
+  get isDisposed() {
+    return this.disposed;
+  }
 
   constructor(
     resolve: (value: TValue) => void,
@@ -98,6 +103,10 @@ class StreamValuesHandle<T> implements Handle {
   private disposed = false;
   private fieldPath: (string | number)[];
 
+  get isDisposed() {
+    return this.disposed;
+  }
+
   constructor(
     controller: ReadableStreamDefaultController<unknown>,
     fieldPath: (string | number)[],
@@ -148,6 +157,10 @@ class StreamTextHandle<T> implements Handle {
   private disposed = false;
   private fieldPath: (string | number)[];
   private lastValue: string | undefined = undefined;
+
+  get isDisposed() {
+    return this.disposed;
+  }
 
   constructor(
     controller: ReadableStreamDefaultController<unknown>,
@@ -201,6 +214,10 @@ class ForEachHandle<T> implements Handle {
   private disposed = false;
   private fieldPath: (string | number)[];
   private processedIndexes = new Set<number>();
+
+  get isDisposed() {
+    return this.disposed;
+  }
 
   constructor(
     controller: ReadableStreamDefaultController<unknown>,
@@ -269,7 +286,9 @@ export class ToolCallArgsReaderImpl<
 > implements ToolCallArgsReader<T> {
   private argTextDeltas: ReadableStream<string>;
   private handles: Set<Handle> = new Set();
-  private args: unknown = parsePartialJsonObject("");
+  private accumulatedText = "";
+  private parsedTextLength = -1;
+  private args: unknown = undefined;
   private finished = false;
 
   constructor(argTextDeltas: ReadableStream<string>) {
@@ -279,23 +298,16 @@ export class ToolCallArgsReaderImpl<
 
   private async processStream(): Promise<void> {
     try {
-      let accumulatedText = "";
       const reader = this.argTextDeltas.getReader();
 
       while (true) {
         const { value, done } = await reader.read();
         if (done) break;
 
-        accumulatedText += value;
-        const parsedArgs = parsePartialJsonObject(accumulatedText);
+        this.accumulatedText += value;
+        if (this.handles.size === 0) continue;
 
-        if (parsedArgs !== undefined) {
-          this.args = parsedArgs;
-          // Notify all handles of the updated args
-          for (const handle of this.handles) {
-            handle.update(parsedArgs);
-          }
-        }
+        if (this.parseCurrentArgs()) this.updateHandles();
       }
     } catch (error) {
       console.error("Error processing argument stream:", error);
@@ -308,6 +320,40 @@ export class ToolCallArgsReaderImpl<
     }
   }
 
+  private parseCurrentArgs(): boolean {
+    if (this.parsedTextLength === this.accumulatedText.length) return false;
+
+    const parsedArgs = parsePartialJsonObject(this.accumulatedText);
+    this.parsedTextLength = this.accumulatedText.length;
+    if (parsedArgs === undefined) {
+      this.args ??= parsePartialJsonObject("");
+      return false;
+    }
+
+    this.args = parsedArgs;
+    return true;
+  }
+
+  private updateHandles(): void {
+    for (const handle of this.handles) {
+      handle.update(this.args);
+      if (handle.isDisposed) this.handles.delete(handle);
+    }
+  }
+
+  private activateHandle(handle: Handle): void {
+    this.parseCurrentArgs();
+    handle.update(this.args);
+    if (handle.isDisposed) return;
+
+    if (this.finished) {
+      handle.end(this.args);
+      return;
+    }
+
+    this.handles.add(handle);
+  }
+
   get<PathT extends TypePath<T>>(
     ...fieldPath: PathT
   ): Promise<TypeAtPath<T, PathT>> {
@@ -317,29 +363,7 @@ export class ToolCallArgsReaderImpl<
         reject,
         fieldPath,
       );
-
-      // Check if the field is already complete in current args
-      if (
-        this.args &&
-        getPartialJsonObjectFieldState(
-          this.args as Record<string, unknown>,
-          fieldPath,
-        ) === "complete"
-      ) {
-        const value = getField(this.args as T, fieldPath);
-        if (value !== undefined) {
-          resolve(value as TypeAtPath<T, PathT>);
-          return;
-        }
-      }
-
-      if (this.finished) {
-        handle.end(this.args);
-        return;
-      }
-
-      this.handles.add(handle);
-      handle.update(this.args);
+      this.activateHandle(handle);
     });
   }
 
@@ -353,12 +377,7 @@ export class ToolCallArgsReaderImpl<
     const stream = new ReadableStream<DeepPartial<TypeAtPath<T, PathT>>>({
       start: (controller) => {
         handle = new StreamValuesHandle<T>(controller, simplePath);
-        if (!this.finished) this.handles.add(handle);
-
-        // Check current args immediately
-        handle.update(this.args);
-
-        if (this.finished) handle.end();
+        this.activateHandle(handle);
       },
       cancel: () => {
         // Dispose this stream's own handle (captured above) — scanning for the
@@ -385,12 +404,7 @@ export class ToolCallArgsReaderImpl<
     const stream = new ReadableStream<unknown>({
       start: (controller) => {
         handle = new StreamTextHandle<T>(controller, simplePath);
-        if (!this.finished) this.handles.add(handle);
-
-        // Check current args immediately
-        handle.update(this.args);
-
-        if (this.finished) handle.end();
+        this.activateHandle(handle);
       },
       cancel: () => {
         // Dispose this stream's own handle (captured above) — scanning for the
@@ -417,12 +431,7 @@ export class ToolCallArgsReaderImpl<
     const stream = new ReadableStream<unknown>({
       start: (controller) => {
         handle = new ForEachHandle<T>(controller, simplePath);
-        if (!this.finished) this.handles.add(handle);
-
-        // Check current args immediately
-        handle.update(this.args);
-
-        if (this.finished) handle.end();
+        this.activateHandle(handle);
       },
       cancel: () => {
         // Dispose this stream's own handle (captured above) — scanning for the

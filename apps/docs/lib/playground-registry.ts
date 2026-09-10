@@ -1,4 +1,5 @@
 import type { BuilderConfig } from "@/components/pages/playground/types";
+import { COMPOSER_RADIUS } from "./builder-utils";
 
 const REGISTRY_BASE_URL = "https://r.assistant-ui.com";
 
@@ -81,21 +82,11 @@ export function generateCssVars(
   }
 
   vars["--aui-max-width"] = styles.maxWidth;
-  vars["--aui-border-radius"] = getBorderRadiusValue(styles.borderRadius);
+  vars["--aui-border-radius"] =
+    COMPOSER_RADIUS[styles.borderRadius] ?? "0.5rem";
   vars["--aui-font-family"] = styles.fontFamily;
 
   return vars;
-}
-
-function getBorderRadiusValue(radius: string): string {
-  const map: Record<string, string> = {
-    none: "0",
-    sm: "0.125rem",
-    md: "0.375rem",
-    lg: "0.5rem",
-    full: "1.5rem",
-  };
-  return map[radius] || "0.5rem";
 }
 
 function isLightColor(hexColor: string): boolean {
@@ -188,7 +179,7 @@ ${internalImports}`;
   const accentColor = styles.colors.accent.light;
   const accentForeground = isLightColor(accentColor) ? "#000000" : "#ffffff";
 
-  const composerRadius = getBorderRadiusValue(styles.borderRadius);
+  const composerRadius = COMPOSER_RADIUS[styles.borderRadius] ?? "0.5rem";
 
   const threadComponent = `
 export function Thread() {

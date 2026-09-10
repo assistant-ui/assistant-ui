@@ -54,6 +54,7 @@ export type UseCloudChatOptions = ChatInit<UIMessage> & {
 
 export type UseCloudChatResult = UseChatHelpers<UIMessage> & {
   threads: UseThreadsResult;
+  feedback: (messageId: string, type: "positive" | "negative") => Promise<void>;
 };
 
 export type ChatMeta = {

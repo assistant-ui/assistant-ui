@@ -16,6 +16,7 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { BASE_URL } from "@/lib/constants";
 import { useMarkdownCopy } from "@/hooks/use-markdown-copy";
+import { usePlatformMarkdownUrl } from "@/hooks/use-platform-markdown-url";
 
 type PagerItem = {
   url: string;
@@ -25,10 +26,20 @@ type DocsPagerProps = {
   previous?: PagerItem;
   next?: PagerItem;
   markdownUrl?: string;
+  platformAwareMarkdown?: boolean;
 };
 
-export function DocsPager({ previous, next, markdownUrl }: DocsPagerProps) {
-  const { copy, prefetch, isLoading } = useMarkdownCopy(markdownUrl);
+export function DocsPager({
+  previous,
+  next,
+  markdownUrl,
+  platformAwareMarkdown = false,
+}: DocsPagerProps) {
+  const resolvedMarkdownUrl = usePlatformMarkdownUrl(
+    markdownUrl,
+    platformAwareMarkdown,
+  );
+  const { copy, prefetch, isLoading } = useMarkdownCopy(resolvedMarkdownUrl);
 
   const buttonClass =
     "flex size-7 items-center justify-center rounded-md bg-muted/50 text-muted-foreground transition-colors hover:bg-muted hover:text-foreground sm:size-8";
@@ -68,7 +79,7 @@ export function DocsPager({ previous, next, markdownUrl }: DocsPagerProps) {
             <DropdownMenuItem
               render={
                 <a
-                  href={`${BASE_URL}${markdownUrl}`}
+                  href={`${BASE_URL}${resolvedMarkdownUrl}`}
                   target="_blank"
                   rel="noreferrer noopener"
                 />

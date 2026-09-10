@@ -7,8 +7,8 @@
   },
   "@assistant-ui/cloud-ai-sdk": {
     ".": {
-      "min": 17316,
-      "gzip": 5902
+      "min": 21635,
+      "gzip": 7146
     }
   },
   "@assistant-ui/core": {
@@ -21,16 +21,16 @@
       "gzip": 31509
     },
     "./react": {
-      "min": 277026,
-      "gzip": 76397
+      "min": 286679,
+      "gzip": 79735
     },
     "./store": {
-      "min": 95034,
-      "gzip": 31499
+      "min": 97961,
+      "gzip": 32602
     },
     "./store/internal": {
-      "min": 21420,
-      "gzip": 7876
+      "min": 23573,
+      "gzip": 8788
     }
   },
   "@assistant-ui/eve": {
@@ -201,8 +201,8 @@
   },
   "@assistant-ui/react-streamdown": {
     ".": {
-      "min": 10138,
-      "gzip": 4194
+      "min": 10856,
+      "gzip": 4454
     }
   },
   "@assistant-ui/react-syntax-highlighter": {
@@ -261,8 +261,12 @@
   },
   "assistant-cloud": {
     ".": {
-      "min": 16268,
-      "gzip": 5352
+      "min": 22473,
+      "gzip": 7115
+    },
+    "./telemetry": {
+      "min": 1174,
+      "gzip": 628
     }
   },
   "assistant-stream": {
