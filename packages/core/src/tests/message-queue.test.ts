@@ -546,7 +546,7 @@ describe("createMessageQueue", () => {
       });
 
       expect(() => adapter.steer(msg("urgent"))).toThrow(error);
-      expect(cancel).not.toHaveBeenCalled();
+      expect(cancel).toHaveBeenCalledOnce();
       expect(prompts(adapter.steerItems)).toEqual(["urgent"]);
 
       notifyIdle();

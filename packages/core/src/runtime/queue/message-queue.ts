@@ -161,14 +161,6 @@ export const createMessageQueue = (
     restoreIndex = 0,
   ) => {
     paused = false;
-    let transformed: AppendMessage;
-    try {
-      transformed = dispatchTransform(dispatch.message);
-    } catch (error) {
-      restore(restoreLane, dispatch, restoreIndex);
-      throw error;
-    }
-
     // the interrupted run settles exactly once, whether or not it was
     // already cancel-notified
     suppressIdle += Math.max(cancelSettles, 1);
@@ -198,7 +190,7 @@ export const createMessageQueue = (
     running = true;
     const busyEdgesBeforeRun = busyEdges;
     try {
-      driver.run(transformed, { steer: true });
+      driver.run(dispatchTransform(dispatch.message), { steer: true });
     } catch (error) {
       const replacementStarted = busyEdges !== busyEdgesBeforeRun;
       restoreInterrupted(replacementStarted);
