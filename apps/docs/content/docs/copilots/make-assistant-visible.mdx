@@ -26,6 +26,7 @@ const ClickableButton = makeAssistantVisible(Button, {
 // With editable configuration
 const EditableInput = makeAssistantVisible(Input, {
   editable: true, // Enables the edit tool
+  settleDelayMs: 100, // Wait after click or edit actions (default: 2000)
 });
 ```
 
@@ -37,6 +38,7 @@ const EditableInput = makeAssistantVisible(Input, {
 - `config`: Optional configuration object
   - `clickable`: When true, enables the assistant to programmatically click the component
   - `editable`: When true, enables the assistant to programmatically set the value of an input or textarea within the component
+  - `settleDelayMs`: Time to wait after a successful click or edit before the tool completes. Defaults to `2000`. Use `0` to disable the wait. Values below `0`, above `2147483647`, or non-finite values throw a `RangeError` when `makeAssistantVisible` is called
 
 ### Behavior
 
@@ -77,6 +79,7 @@ When a component is made readable:
 - The component's `outerHTML` is provided as system context
 - If `clickable` is true, a unique `data-click-id` is added and a `click` tool is provided
 - The click tool uses `querySelector` and simulates a click event
+- Click and edit tools wait for `settleDelayMs` after a successful action so the interface can update before the assistant continues
 - If `editable` is true, a unique `data-edit-id` is added and an `edit` tool is provided
 - The edit tool uses `querySelector` to find an `<input>` or `<textarea>` and sets its value, dispatching `input` and `change` events
 - All props and refs are properly forwarded to maintain component functionality
