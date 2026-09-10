@@ -500,9 +500,12 @@ describe("createAdkStream - SSE parsing", () => {
     },
   );
 
-  it.each([{ content: null }, { content: { parts: null } }])(
+  it.each([
+    [{ id: "e1", content: null }, undefined],
+    [{ id: "e1", content: { role: "model", parts: null } }, { role: "model" }],
+  ])(
     "accepts null optional nested stream event content: %#",
-    async (event) => {
+    async (event, expectedContent) => {
       mockFetch.mockResolvedValueOnce(
         sseResponse(sseBody(`data: ${JSON.stringify(event)}\n\n`)),
       );
@@ -518,6 +521,7 @@ describe("createAdkStream - SSE parsing", () => {
       }
 
       expect(collected).toHaveLength(1);
+      expect(collected[0]!.content).toEqual(expectedContent);
     },
   );
 

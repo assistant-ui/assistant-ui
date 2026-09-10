@@ -16,7 +16,11 @@ export function parseAdkEventValue(
     throw new Error(`${errorPrefix}: expected a non-empty object.`);
   }
 
-  const { id: rawId, ...event } = value as Record<string, unknown>;
+  const {
+    id: rawId,
+    content: rawContent,
+    ...event
+  } = value as Record<string, unknown>;
   if (
     rawId != null &&
     typeof rawId !== "string" &&
@@ -27,13 +31,13 @@ export function parseAdkEventValue(
     );
   }
 
-  const content = event.content;
-  if (content != null) {
-    if (!isRecord(content)) {
+  let content: Record<string, unknown> | undefined;
+  if (rawContent != null) {
+    if (!isRecord(rawContent)) {
       throw invalidField(errorPrefix, "content", "an object when present");
     }
 
-    const parts = content.parts;
+    const { parts, ...contentFields } = rawContent;
     if (parts != null && (!Array.isArray(parts) || !parts.every(isRecord))) {
       throw invalidField(
         errorPrefix,
@@ -41,6 +45,11 @@ export function parseAdkEventValue(
         "an array of objects when present",
       );
     }
+
+    content = {
+      ...contentFields,
+      ...(parts != null && { parts }),
+    };
   }
 
   const errorMessage =
@@ -49,6 +58,7 @@ export function parseAdkEventValue(
       : undefined;
   return {
     ...event,
+    ...(content !== undefined && { content }),
     ...(rawId != null && { id: String(rawId) }),
     ...(errorMessage !== undefined &&
       !("errorMessage" in event) &&
