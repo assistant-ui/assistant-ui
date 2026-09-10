@@ -536,7 +536,10 @@ export const initializeIncrementalToolCallArgs = (
   toolCall: LangChainToolCall,
   argsText: string,
 ): ReadonlyJSONObject => {
-  const parser = IncrementalToolCallArgsParser.from(argsText, {});
+  const parser = IncrementalToolCallArgsParser.from(
+    argsText,
+    parsePartialJsonObject("")!,
+  );
   parserByToolCall.set(toolCall, parser);
   return parser.currentArgs;
 };
