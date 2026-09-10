@@ -85,6 +85,37 @@ describe("AssistantFrameHost", () => {
     host.dispose();
   });
 
+  it("removes its message listener when the initial request fails", () => {
+    const addEventListener = vi.fn();
+    const removeEventListener = vi.fn();
+    vi.stubGlobal("window", {
+      addEventListener,
+      removeEventListener,
+      location: { origin: DEFAULT_ORIGIN },
+    });
+    const error = new Error("send failed");
+    const iframeWindow = {
+      postMessage: vi.fn(() => {
+        throw error;
+      }),
+    } as unknown as Window;
+
+    let thrownError: unknown;
+    try {
+      new AssistantFrameHost(iframeWindow);
+    } catch (caughtError) {
+      thrownError = caughtError;
+    }
+
+    expect(thrownError).toBe(error);
+    expect(addEventListener).toHaveBeenCalledWith(
+      "message",
+      expect.any(Function),
+    );
+    const listener = addEventListener.mock.calls[0]?.[1];
+    expect(removeEventListener).toHaveBeenCalledWith("message", listener);
+  });
+
   it("ignores context updates from another origin", () => {
     const { dispatchMessage, host } = createHost();
 
