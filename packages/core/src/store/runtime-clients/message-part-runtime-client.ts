@@ -18,7 +18,7 @@ const useMessagePartClient = ({
   const emit = useAssistantEmit();
   // A runtime whose state settles asynchronously accepts a repeat decision
   // before the gate reads as decided, so each approval reports at most once.
-  const reportedApprovalId = useRef<string>();
+  const reportedApprovalId = useRef<string | undefined>(undefined);
 
   return {
     getState: () => state,
