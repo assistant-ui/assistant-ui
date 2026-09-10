@@ -195,10 +195,16 @@ export class AssistantFrameHost implements ModelContextProvider {
       }, timeout);
       abortSignal?.addEventListener("abort", onAbort, { once: true });
 
-      this._iframeWindow.postMessage(
-        { channel: FRAME_MESSAGE_CHANNEL, message },
-        this._targetOrigin,
-      );
+      try {
+        this._iframeWindow.postMessage(
+          { channel: FRAME_MESSAGE_CHANNEL, message },
+          this._targetOrigin,
+        );
+      } catch (error) {
+        const pending = this._pendingRequests.get(message.id);
+        this._pendingRequests.delete(message.id);
+        pending?.reject(error);
+      }
     });
   }
 

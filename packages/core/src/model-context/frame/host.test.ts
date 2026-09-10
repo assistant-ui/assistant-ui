@@ -133,6 +133,30 @@ describe("AssistantFrameHost", () => {
     host.dispose();
   });
 
+  it("cleans up tool calls when posting the request fails", async () => {
+    const { execute, host, postMessage } = createHost();
+    const error = new Error("postMessage failed");
+    const abortController = new AbortController();
+    const removeEventListener = vi.spyOn(
+      abortController.signal,
+      "removeEventListener",
+    );
+    postMessage.mockImplementation((data) => {
+      if (data.message.type === "tool-call") throw error;
+    });
+
+    await expect(
+      execute({}, { ...executionContext, abortSignal: abortController.signal }),
+    ).rejects.toBe(error);
+
+    expect(vi.getTimerCount()).toBe(0);
+    expect(removeEventListener).toHaveBeenCalledWith(
+      "abort",
+      expect.any(Function),
+    );
+    host.dispose();
+  });
+
   it("rejects tool results that carry an empty error message", async () => {
     const { dispatchMessage, execute, getToolCallId, host } = createHost();
     const result = Promise.resolve(
