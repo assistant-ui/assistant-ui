@@ -94,6 +94,7 @@ it("falls back when a streamed number gets an invalid leading zero", () => {
     tool_call_chunks: [{ id: "call-1", index: 0, name: "write", args: "1" }],
   });
 
+  expect(mocks.parsePartialJsonObject).toHaveBeenCalledWith('{"value":01');
   expect(accumulated.tool_calls?.[0]?.args).toMatchObject({ value: 0 });
 });
 

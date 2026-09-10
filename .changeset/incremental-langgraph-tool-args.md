@@ -1,6 +1,5 @@
 ---
 "@assistant-ui/react-langgraph": patch
-"assistant-stream": patch
 ---
 
-fix: add shared incremental partial-JSON parsing and use it for streamed LangGraph tool arguments
+fix: parse streamed LangGraph tool arguments incrementally instead of reparsing the complete prefix for every delta

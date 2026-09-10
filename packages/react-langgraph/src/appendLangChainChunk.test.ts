@@ -46,6 +46,58 @@ const aiChunk = (
   tool_call_chunks: toolCallChunks,
 });
 
+type GeneratedJSON =
+  | null
+  | boolean
+  | number
+  | string
+  | GeneratedJSON[]
+  | { [key: string]: GeneratedJSON };
+
+const generatedJsonObjects = () => {
+  let state = 0x7166;
+  const random = () => {
+    state = (Math.imul(state, 1_664_525) + 1_013_904_223) >>> 0;
+    return state / 0x1_0000_0000;
+  };
+  const pick = <T>(values: readonly T[]) =>
+    values[Math.floor(random() * values.length)]!;
+  const strings = [
+    "",
+    "plain",
+    'quote"slash\\',
+    "line\nfeed\ttab",
+    "emoji 😀",
+    "constructor",
+  ];
+  const numbers = [0, -1, 12.5, -3.5e-2, 1e21];
+
+  const value = (depth: number): GeneratedJSON => {
+    const kind = Math.floor(random() * (depth < 3 ? 6 : 4));
+    if (kind === 0) return null;
+    if (kind === 1) return random() < 0.5;
+    if (kind === 2) return pick(numbers);
+    if (kind === 3) return pick(strings);
+    if (kind === 4) {
+      return Array.from({ length: Math.floor(random() * 4) }, () =>
+        value(depth + 1),
+      );
+    }
+
+    return Object.fromEntries(
+      Array.from({ length: Math.floor(random() * 4) }, (_, index) => [
+        `${pick(strings)}-${index}`,
+        value(depth + 1),
+      ]),
+    );
+  };
+
+  return Array.from({ length: 30 }, (_, index) => ({
+    [`field-${index}`]: value(0),
+    nested: value(0),
+  }));
+};
+
 describe("appendLangChainChunk incremental tool arguments", () => {
   const inputs = [
     JSON.stringify({
@@ -75,7 +127,9 @@ describe("appendLangChainChunk incremental tool arguments", () => {
         );
 
         const actual = accumulated.tool_calls?.[0]?.args;
-        expected = parsePartialJsonObject(prefix) ?? expected;
+        const parsed = parsePartialJsonObject(prefix);
+        if (prefix.trim().length > 0) expect(parsed).toBeDefined();
+        expected = parsed ?? expected;
         expect(actual, `prefix=${prefix}`).toEqual(expected);
         expect(getPartialJsonObjectMeta(actual!)).toEqual(
           getPartialJsonObjectMeta(expected),
@@ -96,6 +150,42 @@ describe("appendLangChainChunk incremental tool arguments", () => {
       state: "partial",
       partialPath: [],
     });
+  });
+
+  it("matches the existing parser for generated JSON object prefixes", () => {
+    for (const document of generatedJsonObjects()) {
+      const input = JSON.stringify(document);
+      let prefix = "";
+      let accumulated = append(
+        undefined,
+        aiChunk([{ id: "call-1", index: 0, name: "search" }]),
+      );
+
+      for (const char of input) {
+        const actual = accumulated.tool_calls?.[0]?.args;
+        const expected = parsePartialJsonObject(prefix);
+        if (expected === undefined) {
+          throw new Error(`reference parser rejected prefix=${prefix}`);
+        }
+        expect(actual, `input=${input} prefix=${prefix}`).toEqual(expected);
+        expect(getPartialJsonObjectMeta(actual!)).toEqual(
+          getPartialJsonObjectMeta(expected),
+        );
+
+        prefix += char;
+        accumulated = append(
+          accumulated,
+          aiChunk([{ id: "call-1", index: 0, name: "search", args: char }]),
+        );
+      }
+
+      const expected = parsePartialJsonObject(input)!;
+      const actual = accumulated.tool_calls?.[0]?.args;
+      expect(actual).toEqual(expected);
+      expect(getPartialJsonObjectMeta(actual!)).toEqual(
+        getPartialJsonObjectMeta(expected),
+      );
+    }
   });
 
   it("keeps branches from the same accumulated prefix independent", () => {
