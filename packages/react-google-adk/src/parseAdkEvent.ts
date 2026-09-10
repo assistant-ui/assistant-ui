@@ -1,15 +1,20 @@
 import type { AdkEvent } from "./types";
 
+const isRecord = (value: unknown): value is Record<string, unknown> =>
+  typeof value === "object" && value !== null && !Array.isArray(value);
+
+const invalidField = (
+  errorPrefix: string,
+  field: string,
+  expectation: string,
+): Error =>
+  new Error(`${errorPrefix}: expected "${field}" to be ${expectation}.`);
+
 export function parseAdkEventValue(
   value: unknown,
   errorPrefix: string,
 ): AdkEvent {
-  if (
-    typeof value !== "object" ||
-    value === null ||
-    Array.isArray(value) ||
-    Object.keys(value).length === 0
-  ) {
+  if (!isRecord(value) || Object.keys(value).length === 0) {
     throw new Error(`${errorPrefix}: expected a non-empty object.`);
   }
 
@@ -22,6 +27,25 @@ export function parseAdkEventValue(
     throw new Error(
       `${errorPrefix}: expected "id" to be a string or finite number when present.`,
     );
+  }
+
+  const content = event.content;
+  if (content !== undefined) {
+    if (!isRecord(content)) {
+      throw invalidField(errorPrefix, "content", "an object when present");
+    }
+
+    const parts = content.parts;
+    if (
+      parts !== undefined &&
+      (!Array.isArray(parts) || !parts.every(isRecord))
+    ) {
+      throw invalidField(
+        errorPrefix,
+        "content.parts",
+        "an array of objects when present",
+      );
+    }
   }
 
   const errorMessage =

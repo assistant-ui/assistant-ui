@@ -472,6 +472,35 @@ describe("createAdkStream - SSE parsing", () => {
     },
   );
 
+  it.each([
+    [{ content: null }, "content", "an object"],
+    [{ content: [] }, "content", "an object"],
+    [{ content: { parts: 42 } }, "content.parts", "an array of objects"],
+    [{ content: { parts: [null] } }, "content.parts", "an array of objects"],
+  ])(
+    "rejects malformed nested stream event content: %#",
+    async (event, field, expectation) => {
+      mockFetch.mockResolvedValueOnce(
+        sseResponse(sseBody(`data: ${JSON.stringify(event)}\n\n`)),
+      );
+
+      const stream = createAdkStream({ api: "/api/adk" });
+      const consume = async () => {
+        const gen = await stream(
+          [{ id: "m1", type: "human", content: "Hi" }],
+          makeConfig(),
+        );
+        for await (const _event of gen) {
+          void _event;
+        }
+      };
+
+      await expect(consume()).rejects.toThrow(
+        `Invalid ADK stream event: expected "${field}" to be ${expectation} when present.`,
+      );
+    },
+  );
+
   it("reports invalid JSON as an ADK stream event error", async () => {
     mockFetch.mockResolvedValueOnce(sseResponse(sseBody("data: not-json\n\n")));
 
