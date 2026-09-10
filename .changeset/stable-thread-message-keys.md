@@ -2,4 +2,4 @@
 "@assistant-ui/core": patch
 ---
 
-fix: preserve message component state when messages are removed or reordered
+fix: preserve component state when stable message IDs move
