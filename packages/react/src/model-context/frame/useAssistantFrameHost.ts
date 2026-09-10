@@ -41,8 +41,26 @@ export const useAssistantFrameHost = ({
     const unsubscribe = register(frameHost);
 
     return () => {
-      frameHost.dispose();
-      unsubscribe();
+      let disposeFailed = false;
+      let disposeError: unknown;
+      try {
+        frameHost.dispose();
+      } catch (error) {
+        disposeFailed = true;
+        disposeError = error;
+      }
+
+      try {
+        unsubscribe();
+      } catch (error) {
+        if (!disposeFailed) throw error;
+        console.error(
+          "[assistant-ui] AssistantFrameHost unregistration failed.",
+          error,
+        );
+      }
+
+      if (disposeFailed) throw disposeError;
     };
   }, [iframeRef, targetOrigin, register]);
 };
