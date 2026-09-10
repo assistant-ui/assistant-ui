@@ -79,7 +79,7 @@ When a component is made readable:
 - The component's `outerHTML` is provided as system context
 - If `clickable` is true, a unique `data-click-id` is added and a `click` tool is provided
 - The click tool uses `querySelector` and simulates a click event
-- Click and edit tools wait for `settleDelayMs` after a successful action so the interface can update before the assistant continues
+- Click and edit tools wait for `settleDelayMs` after a successful action so the interface can update before the assistant continues; a configured value is rendered as `data-action-settle-delay` on the action element
 - If `editable` is true, a unique `data-edit-id` is added and an `edit` tool is provided
 - The edit tool uses `querySelector` to find an `<input>` or `<textarea>` and sets its value, dispatching `input` and `change` events
 - All props and refs are properly forwarded to maintain component functionality
