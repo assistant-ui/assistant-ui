@@ -250,7 +250,7 @@ const convertedMessages = useExternalMessageConverter({
   callback: convertWithMetadata,
   messages,
   isRunning,
-  metadata: { labelById },
+  metadata: { labelById } as MyMetadata,
   getMetadataKey,
 });
 ```
