@@ -1,5 +1,13 @@
 # @assistant-ui/x-generative-compiler
 
+## 0.0.17
+
+### Patch Changes
+
+- [#6993](https://github.com/assistant-ui/assistant-ui/pull/6993) [`91689ab`](https://github.com/assistant-ui/assistant-ui/commit/91689ab92fa8ccaecff463c6fdc3e6a666bf93e5) - chore: update dependencies ([@Yonom](https://github.com/Yonom))
+
+- [#5955](https://github.com/assistant-ui/assistant-ui/pull/5955) [`da3ac39`](https://github.com/assistant-ui/assistant-ui/commit/da3ac399c040771415eb17c58dcac0eada7f9b02) - fix: refresh TypeScript path aliases after config changes ([@Kinfe123](https://github.com/Kinfe123))
+
 ## 0.0.16
 
 ### Patch Changes

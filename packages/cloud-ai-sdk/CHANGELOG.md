@@ -1,5 +1,41 @@
 # @assistant-ui/cloud-ai-sdk
 
+## 0.2.0
+
+### Minor Changes
+
+- [#7115](https://github.com/assistant-ui/assistant-ui/pull/7115) [`4767a92`](https://github.com/assistant-ui/assistant-ui/commit/4767a923d818cc2a4a7b0e50ce12d2abbe83bccb) - feat: align the cloud SDK with Assistant Cloud 0.2 ([@okisdev](https://github.com/okisdev))
+  
+  <!-- caret-break: intended -->
+  
+  - run reports now carry `provider`, `outcome_type` (`aborted`, `disconnected`, `length`, `content_filter`), `error_code` and `error`, `message_id`, `first_token_ms`, `duration_ms`, a `finish_reason` per step from `useCloudChat` and `trace_id`, plus `environment`, `release` and `tags` from the `telemetry` config; one `createRunReport` builder in `assistant-cloud` assembles the body for the assistant-ui runtime and for `@assistant-ui/cloud-ai-sdk`, and `provider_type` and `metadata` stay on the wire for older self hosted clouds
+  - `assistant-cloud/telemetry` (server side): `createAssistantCloudTraceExporter`, `createAssistantCloudSpanProcessor`, `assistantCloudTraceMetadata` and `withAssistantCloudTraceMetadata` send AI SDK GenAI spans to `POST /v1/traces` and hand the trace id to the browser, so a client report and its server spans merge into one run; the OpenTelemetry packages are optional peers of the subpath only
+  - engagement events: sends, edits, stops, regenerates, copies, branch switches, suggestions, attachments, thread switches, speech, voice and shown errors are batched to `POST /v1/events` without any message content; `telemetry.events: false` opts out
+  - `cloud.scores.create` for custom scores, and message feedback through `useCloudChat().feedback` next to the assistant-ui `FeedbackAdapter`
+  - `cloud.files.generatePresignedDownloadUrl` and the object `key` on upload responses
+  - `CloudAPIError.code` and `details`, including `plan_limit_reached` on a 402
+  - `@assistant-ui/core` requires `assistant-cloud@^0.2.0`, and its store emits the composer, message and thread events the engagement reporter reads
+
+### Patch Changes
+
+- [#6993](https://github.com/assistant-ui/assistant-ui/pull/6993) [`91689ab`](https://github.com/assistant-ui/assistant-ui/commit/91689ab92fa8ccaecff463c6fdc3e6a666bf93e5) - chore: update dependencies ([@Yonom](https://github.com/Yonom))
+
+- [#7151](https://github.com/assistant-ui/assistant-ui/pull/7151) [`1a5da0f`](https://github.com/assistant-ui/assistant-ui/commit/1a5da0f272668cf313e5213e49aa70e0f987de6d) - fix: propagate chat cancellation through telemetry stream observation ([@Kinfe123](https://github.com/Kinfe123))
+
+- [#6799](https://github.com/assistant-ui/assistant-ui/pull/6799) [`c5c303b`](https://github.com/assistant-ui/assistant-ui/commit/c5c303b9592b16041a3d6ff74af803b9805ead95) - fix: preserve manual thread titles when automatic generation is pending ([@Kinfe123](https://github.com/Kinfe123))
+
+- [#7031](https://github.com/assistant-ui/assistant-ui/pull/7031) [`6bf3caf`](https://github.com/assistant-ui/assistant-ui/commit/6bf3caf4a20c599f3ed40493bacefacb8e48f8e2) - fix: order thread title generations against each other and against renames ([@rupic-app](https://github.com/apps/rupic-app))
+
+- [#6931](https://github.com/assistant-ui/assistant-ui/pull/6931) [`5febc06`](https://github.com/assistant-ui/assistant-ui/commit/5febc06a6af98ed4aa48eea8f7737d890bd35015) - refactor: adjust state during render where an effect only mirrored a prop ([@okisdev](https://github.com/okisdev))
+  
+  The composer trigger's keyboard and navigation resources, and the devtools panel and thread tab, reset their state during render instead of scheduling a second pass from an effect, so a prop change settles in one render. Effects that genuinely synchronize with an external system (a clock, a subscription catch-up, an async load, a registry write undone on unmount) keep their `setState`.
+
+- [#6964](https://github.com/assistant-ui/assistant-ui/pull/6964) [`a05828f`](https://github.com/assistant-ui/assistant-ui/commit/a05828f67001b3d7feceb2b94dab00b45d84ed0d) - fix: resolve run telemetry model IDs from per-step response metadata ([@okisdev](https://github.com/okisdev))
+
+- [#7084](https://github.com/assistant-ui/assistant-ui/pull/7084) [`441168d`](https://github.com/assistant-ui/assistant-ui/commit/441168dd1a76b1c68e6b895d7951ed8183270ace) - fix: keep explicit title generations ordered after in-flight renames ([@Kinfe123](https://github.com/Kinfe123))
+- Updated dependencies [[`4767a92`](https://github.com/assistant-ui/assistant-ui/commit/4767a923d818cc2a4a7b0e50ce12d2abbe83bccb), [`c9e03ef`](https://github.com/assistant-ui/assistant-ui/commit/c9e03ef26ac03f8300b29d5a3a562284b72794f2), [`71cc3ff`](https://github.com/assistant-ui/assistant-ui/commit/71cc3ffa294d9fe6026a23c478e8983fe5048dd0), [`24a288e`](https://github.com/assistant-ui/assistant-ui/commit/24a288eeafb263dc6a91bec263aecf551852de0e), [`91689ab`](https://github.com/assistant-ui/assistant-ui/commit/91689ab92fa8ccaecff463c6fdc3e6a666bf93e5), [`27a3442`](https://github.com/assistant-ui/assistant-ui/commit/27a34422a5f580acc01a2a52e297c617b4633b24), [`a05828f`](https://github.com/assistant-ui/assistant-ui/commit/a05828f67001b3d7feceb2b94dab00b45d84ed0d)]:
+  - assistant-cloud@0.2.0
+
 ## 0.1.37
 
 ### Patch Changes

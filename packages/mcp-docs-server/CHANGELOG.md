@@ -1,5 +1,17 @@
 # @assistant-ui/mcp-docs-server
 
+## 0.3.1
+
+### Patch Changes
+
+- [#6959](https://github.com/assistant-ui/assistant-ui/pull/6959) [`17116ea`](https://github.com/assistant-ui/assistant-ui/commit/17116ea023e34cfea2025963490b38d7d867aeb8) - fix: close the docs proxy and its HTTP transport once stdin can no longer deliver messages, whether it reaches EOF or is destroyed ([@ephraimduncan](https://github.com/ephraimduncan))
+
+- [#6993](https://github.com/assistant-ui/assistant-ui/pull/6993) [`91689ab`](https://github.com/assistant-ui/assistant-ui/commit/91689ab92fa8ccaecff463c6fdc3e6a666bf93e5) - chore: update dependencies ([@Yonom](https://github.com/Yonom))
+
+- [#6970](https://github.com/assistant-ui/assistant-ui/pull/6970) [`fefab67`](https://github.com/assistant-ui/assistant-ui/commit/fefab677dd290cea49385d52e5da041a042e0f63) - fix: keep clean proxy shutdowns from logging transport errors ([@rupic-app](https://github.com/apps/rupic-app))
+
+- [#6939](https://github.com/assistant-ui/assistant-ui/pull/6939) [`9af436c`](https://github.com/assistant-ui/assistant-ui/commit/9af436c16792cce10ea4eebd647ee9e88e126dc8) - fix: repair the type drift tsc --noEmit catches in the codemod and proxy sources ([@Kinfe123](https://github.com/Kinfe123))
+
 ## 0.3.0
 
 ### Minor Changes
