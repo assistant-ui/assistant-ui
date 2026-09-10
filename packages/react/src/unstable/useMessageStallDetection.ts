@@ -24,10 +24,10 @@ export type Unstable_MessageStallDetection = {
  * @deprecated Under active development and might change without notice.
  *
  * Detects mid-run output stalls on the current message: while the message is
- * running, watches its text, argument, and result content and reports a stall
- * once that content stops changing for `thresholdMs`. Useful for re-surfacing
- * a "still working" indicator during tool think-time or provider stalls,
- * after the first tokens have already streamed.
+ * running, watches its text, reasoning, and tool-argument values plus tool-result
+ * availability and reports a stall once they stop changing for `thresholdMs`.
+ * Useful for re-surfacing a "still working" indicator during tool think-time or
+ * provider stalls, after the first tokens have already streamed.
  *
  * Must be used inside a message scope.
  */
@@ -39,8 +39,9 @@ export function unstable_useMessageStallDetection(
   const activity = useAuiState(
     useShallowSelector((s) => {
       const running = s.message.status?.type === "running";
-      const values: unknown[] = [running, s.message.content.length];
-      if (!running) return values;
+      if (!running) return [false];
+
+      const values: unknown[] = [true, s.message.content.length];
 
       for (const part of s.message.content) {
         if (part.type === "text" || part.type === "reasoning") {
