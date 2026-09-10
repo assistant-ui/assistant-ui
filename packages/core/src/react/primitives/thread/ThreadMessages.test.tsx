@@ -75,4 +75,13 @@ describe("ThreadPrimitiveMessages", () => {
     expect(screen.queryByText("first:zeroth")).toBeNull();
     expect(screen.queryByText("second:first")).toBeNull();
   });
+
+  it("remounts a message when its runtime ID changes", () => {
+    const thread = renderMessages([message("client-id", "assistant")]);
+
+    thread.rerender([message("server-id", "assistant")]);
+
+    expect(screen.queryByText("server-id:server-id")).not.toBeNull();
+    expect(screen.queryByText("client-id:server-id")).toBeNull();
+  });
 });
