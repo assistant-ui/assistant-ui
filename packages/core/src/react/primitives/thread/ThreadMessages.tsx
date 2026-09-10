@@ -6,9 +6,11 @@ import {
   useMemo,
 } from "react";
 import { RenderChildrenWithAccessor, useAuiState } from "@assistant-ui/store";
+import { useShallowSelector } from "@assistant-ui/store/internal";
 import { MessageByIndexProvider } from "../../providers/MessageByIndexProvider";
 import { MessageByIdProvider } from "../../providers/MessageByIdProvider";
 import type { MessageState } from "../../../store";
+import { getThreadMessageRenderKey } from "../../../runtime/utils/thread-message-render-key";
 
 type MessagesComponentConfig =
   | {
@@ -241,12 +243,14 @@ ThreadPrimitiveUnstable_MessageById.displayName =
 const ThreadPrimitiveMessagesInner: FC<{
   children: (value: { message: MessageState }) => ReactNode;
 }> = ({ children }) => {
-  const messagesLength = useAuiState((s) => s.thread.messages.length);
+  const messageRenderKeys = useAuiState(
+    useShallowSelector((s) => s.thread.messages.map(getThreadMessageRenderKey)),
+  );
 
   return useMemo(() => {
-    if (messagesLength === 0) return null;
-    return Array.from({ length: messagesLength }, (_, index) => (
-      <MessageByIndexProvider key={index} index={index}>
+    if (messageRenderKeys.length === 0) return null;
+    return messageRenderKeys.map((renderKey, index) => (
+      <MessageByIndexProvider key={renderKey} index={index}>
         <RenderChildrenWithAccessor
           getItemState={(aui) => aui.thread.message({ index }).getState()}
         >
@@ -260,7 +264,7 @@ const ThreadPrimitiveMessagesInner: FC<{
         </RenderChildrenWithAccessor>
       </MessageByIndexProvider>
     ));
-  }, [messagesLength, children]);
+  }, [messageRenderKeys, children]);
 };
 
 /**

@@ -56,6 +56,7 @@ import {
   captureThreadRuntimeGeneration,
   isThreadRuntimeGenerationCurrent,
 } from "../../runtime/utils/thread-runtime-lifecycle";
+import { inheritThreadMessageRenderKey } from "../../runtime/utils/thread-message-render-key";
 
 const EMPTY_ARRAY: readonly ThreadSuggestion[] = Object.freeze([]);
 
@@ -376,6 +377,7 @@ export class ExternalStoreThreadRuntimeCore
                 cache.id !== fallbackId
               ) {
                 const updated = { ...cache, id: fallbackId };
+                inheritThreadMessageRenderKey(cache, updated);
                 bindExternalStoreMessage(updated, m);
                 return updated;
               }

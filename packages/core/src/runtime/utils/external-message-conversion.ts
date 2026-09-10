@@ -24,6 +24,7 @@ import {
   fromThreadMessageLike,
   type ThreadMessageLike,
 } from "./thread-message-like";
+import { inheritThreadMessageRenderKey } from "./thread-message-render-key";
 
 export type JoinStrategy = "concat-content" | "none";
 
@@ -435,6 +436,7 @@ export const convertExternalMessageChunk = <T>(
         cachedMessage.id !== fallbackId
       ) {
         const updated = { ...cachedMessage, id: fallbackId };
+        inheritThreadMessageRenderKey(cachedMessage, updated);
         cache.generatedFallbackMessages.add(updated);
         bindExternalStoreMessage(updated, message.inputs);
         return updated;

@@ -4,6 +4,11 @@ import { generateId } from "../../utils/id";
 import type { ThreadMessageLike } from "./thread-message-like";
 import { getContentAutoStatus } from "./auto-status";
 import { fromThreadMessageLike } from "./thread-message-like";
+import {
+  ensureThreadMessageRenderKey,
+  hasThreadMessageRenderKey,
+  inheritThreadMessageRenderKey,
+} from "./thread-message-render-key";
 
 export type ExportedMessageRepositoryItem = {
   message: ThreadMessage;
@@ -262,10 +267,24 @@ export class MessageRepository {
       );
 
     if (existingItem) {
+      if (!hasThreadMessageRenderKey(message)) {
+        inheritThreadMessageRenderKey(existingItem.current, message);
+      }
       existingItem.current = message;
       this.performOp(prev, existingItem, "relink");
       this._messages.dirty();
       return;
+    }
+
+    const selectedSibling = (prev ?? this.root).next;
+    if (
+      !hasThreadMessageRenderKey(message) &&
+      selectedSibling?.current.metadata?.isOptimistic &&
+      selectedSibling.current.role === message.role
+    ) {
+      inheritThreadMessageRenderKey(selectedSibling.current, message);
+    } else {
+      ensureThreadMessageRenderKey(message);
     }
 
     const newItem: RepositoryMessage = {

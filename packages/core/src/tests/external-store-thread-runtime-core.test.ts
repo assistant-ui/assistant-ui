@@ -5,6 +5,7 @@ import type { ModelContextProvider } from "../model-context/types";
 import type { ThreadMessageLike } from "../runtime/utils/thread-message-like";
 import type { AppendMessage } from "../types/message";
 import { invalidateThreadRuntime } from "../runtime/utils/thread-runtime-lifecycle";
+import { getThreadMessageRenderKey } from "../runtime/utils/thread-message-render-key";
 
 const mockContextProvider: ModelContextProvider = {
   getModelContext: () => ({}),
@@ -248,6 +249,7 @@ describe("ExternalStoreThreadRuntimeCore - optimistic message reconciliation", (
         isRunning: true,
       }),
     );
+    const renderKey = getThreadMessageRenderKey(runtime.messages[1]!);
 
     // AI SDK v6 swaps the client-generated id for the server-provided one.
     runtime.__internal_setAdapter(
@@ -270,6 +272,7 @@ describe("ExternalStoreThreadRuntimeCore - optimistic message reconciliation", (
     // message has a single child. export() omits the still-optimistic
     // streaming message, so assert against the live getBranches instead.
     expect(runtime.getBranches("server_id")).toEqual(["server_id"]);
+    expect(getThreadMessageRenderKey(runtime.messages[1]!)).toBe(renderKey);
   });
 
   it("clears the optimistic flag once the run settles", () => {
@@ -1587,6 +1590,7 @@ describe("ExternalStoreThreadRuntimeCore - id-less converted messages", () => {
         storeWith([m1, m2]),
       );
       expect(runtime.messages).toHaveLength(2);
+      const renderKeys = runtime.messages.map(getThreadMessageRenderKey);
 
       runtime.__internal_setAdapter(storeWith([m0, m1, m2]));
 
@@ -1597,6 +1601,9 @@ describe("ExternalStoreThreadRuntimeCore - id-less converted messages", () => {
         "newer-user",
         "newer-assistant",
       ]);
+      expect(runtime.messages.slice(1).map(getThreadMessageRenderKey)).toEqual(
+        renderKeys,
+      );
     } finally {
       warn.mockRestore();
     }
