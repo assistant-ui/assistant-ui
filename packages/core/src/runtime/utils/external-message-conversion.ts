@@ -132,6 +132,9 @@ const mergeInnerMessages = (existing: object, incoming: object) => ({
   ],
 });
 
+const isNaNToolCallId = (toolCallId: unknown) =>
+  typeof toolCallId === "number" && Number.isNaN(toolCallId);
+
 export const joinExternalMessages = (
   messages: readonly ExternalMessageConverterMessage[],
 ): ThreadMessageLike => {
@@ -146,10 +149,9 @@ export const joinExternalMessages = (
   const reasoningIndices = new Map<string, number>();
   for (const output of messages) {
     if (output.role === "tool") {
-      const toolCallIdx =
-        output.toolCallId === output.toolCallId
-          ? (toolCallIndices.get(output.toolCallId) ?? -1)
-          : -1;
+      const toolCallIdx = !isNaNToolCallId(output.toolCallId)
+        ? (toolCallIndices.get(output.toolCallId) ?? -1)
+        : -1;
       // Ignore orphaned tool results so one bad tool message does not
       // prevent rendering the rest of the conversation.
       if (toolCallIdx !== -1) {
@@ -292,7 +294,7 @@ export const joinExternalMessages = (
             assistantMessage.content.push(part);
             if (
               part.type === "tool-call" &&
-              part.toolCallId === part.toolCallId &&
+              !isNaNToolCallId(part.toolCallId) &&
               !toolCallIndices.has(part.toolCallId)
             ) {
               toolCallIndices.set(part.toolCallId, partIdx);
