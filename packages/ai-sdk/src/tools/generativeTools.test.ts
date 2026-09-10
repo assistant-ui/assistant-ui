@@ -143,24 +143,24 @@ describe("AISDKToolkit.tools()", () => {
       type: "object" as const,
       properties: {},
     }));
-    const toolkit = new AISDKToolkit({
-      toolkit: {
-        serverTool: {
-          type: "backend",
-          parameters: { toJSONSchema: toBackendJSONSchema },
-          execute: async () => "ok",
-        } as never,
-        providerTool: {
-          type: "provider",
-          providerId: "provider.tool",
-          args: {},
-          parameters: { toJSONSchema: toProviderJSONSchema },
-        } as never,
-      },
-    });
+    const toolkitDefinition = {
+      serverTool: {
+        type: "backend",
+        parameters: { toJSONSchema: toBackendJSONSchema },
+        execute: async () => "ok",
+      } as never,
+      providerTool: {
+        type: "provider",
+        providerId: "provider.tool",
+        args: {},
+        parameters: { toJSONSchema: toProviderJSONSchema },
+      } as never,
+    };
+    const firstToolkit = new AISDKToolkit({ toolkit: toolkitDefinition });
+    const secondToolkit = new AISDKToolkit({ toolkit: toolkitDefinition });
 
-    const first = await toolkit.tools();
-    const second = await toolkit.tools();
+    const first = await firstToolkit.tools();
+    const second = await secondToolkit.tools();
 
     expect(toBackendJSONSchema).toHaveBeenCalledTimes(1);
     expect(toProviderJSONSchema).toHaveBeenCalledTimes(1);
