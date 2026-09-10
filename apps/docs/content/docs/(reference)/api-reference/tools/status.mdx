@@ -14,8 +14,8 @@ description: Read tool arguments, execution status, and result state inside assi
 
 ### useToolArgsStatus
 
-Reads whether each argument field for the current tool-call message part is
-still streaming or complete.
+Reads whether the arguments for the current tool-call message part are
+still streaming or complete, both as a whole and for each field.
 
 Use inside a tool-call renderer to avoid showing incomplete argument values
 as final.
@@ -24,7 +24,8 @@ as final.
 function WeatherToolUI({
   args,
 }: ToolCallMessagePartProps<{ city: string }>) {
-  const { propStatus } = useToolArgsStatus<{ city: string }>();
+  const { allPropsStatus, propStatus } =
+    useToolArgsStatus<{ city: string }>();
 
   return (
     <span>

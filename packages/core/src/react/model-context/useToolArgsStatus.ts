@@ -15,13 +15,15 @@ export type ToolArgsStatus<
 > = {
   /** Overall lifecycle state of the tool-call part. */
   status: "running" | "complete" | "incomplete" | "requires-action";
+  /** Status of the full arguments payload. */
+  allPropsStatus: PropFieldStatus;
   /** Per-argument status keyed by argument name. */
   propStatus: Partial<Record<keyof TArgs, PropFieldStatus>>;
 };
 
 /**
- * Reads whether each argument field for the current tool-call message part is
- * still streaming or complete.
+ * Reads whether the arguments for the current tool-call message part are
+ * still streaming or complete, both as a whole and for each field.
  *
  * Use inside a tool-call renderer to avoid showing incomplete argument values
  * as final.
@@ -33,7 +35,8 @@ export type ToolArgsStatus<
  * function WeatherToolUI({
  *   args,
  * }: ToolCallMessagePartProps<{ city: string }>) {
- *   const { propStatus } = useToolArgsStatus<{ city: string }>();
+ *   const { allPropsStatus, propStatus } =
+ *     useToolArgsStatus<{ city: string }>();
  *
  *   return (
  *     <span>
@@ -60,6 +63,8 @@ export const useToolArgsStatus = <
     const isStreaming = statusType === "running";
     const args = part.args as Record<string, unknown>;
     const meta = getPartialJsonObjectMeta(args as Record<symbol, unknown>);
+    const allPropsStatus: PropFieldStatus =
+      meta?.state === "complete" || !isStreaming ? "complete" : "streaming";
     const propStatus: Partial<Record<string, PropFieldStatus>> = {};
 
     for (const key of Object.keys(args)) {
@@ -74,6 +79,7 @@ export const useToolArgsStatus = <
 
     return {
       status: statusType,
+      allPropsStatus,
       propStatus: propStatus as Partial<Record<keyof TArgs, PropFieldStatus>>,
     };
   }, [part]);

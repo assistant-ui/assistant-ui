@@ -768,7 +768,7 @@ For the opposite pattern (showing partial data as it streams in), see [Field-Lev
 
 ### Field-Level Streaming State
 
-Use `useToolArgsStatus` to react to per-field streaming state. The hook returns a `propStatus` map where each top-level key in the args object resolves from `"streaming"` to `"complete"` as the partial JSON arrives. Call it inside a tool-call message part context:
+Use `useToolArgsStatus` to react to argument streaming state. The hook returns `allPropsStatus`, which resolves from `"streaming"` to `"complete"` for the full arguments payload, and a `propStatus` map where each top-level key in the args object resolves from `"streaming"` to `"complete"` as the partial JSON arrives. `allPropsStatus` remains useful when a field has not appeared in `propStatus` yet. Call it inside a tool-call message part context:
 
 ```tsx
 import { useToolArgsStatus } from "@assistant-ui/react";
