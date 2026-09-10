@@ -271,6 +271,7 @@ describe("buildInteractableModelContext", () => {
         addedItemIds: Record<string, string[]>;
       };
 
+      expect(Object.getPrototypeOf(result.addedItemIds)).toBe(Object.prototype);
       expect(Object.hasOwn(result.addedItemIds, "__proto__")).toBe(true);
       expect(result.addedItemIds["__proto__"]).toEqual(["generated-id"]);
       expect(Object.hasOwn(defs.b1.state as object, "__proto__")).toBe(true);

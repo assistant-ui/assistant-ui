@@ -265,7 +265,7 @@ export function buildInteractableModelContext(
           addedItemIds?: Record<string, string[]>;
         } = { success: true, id: target.id };
         if (Object.keys(addedItemIds).length > 0) {
-          result.addedItemIds = addedItemIds;
+          result.addedItemIds = { ...addedItemIds };
         }
         return result;
       },
