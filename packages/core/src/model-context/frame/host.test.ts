@@ -212,6 +212,62 @@ describe("AssistantFrameHost", () => {
     expect(vi.getTimerCount()).toBe(0);
   });
 
+  it("cleans up every pending tool call when cancellation fails during disposal", async () => {
+    const { execute, host, postMessage } = createHost();
+    const firstAbortController = new AbortController();
+    const secondAbortController = new AbortController();
+    const firstRemoveEventListener = vi.spyOn(
+      firstAbortController.signal,
+      "removeEventListener",
+    );
+    const secondRemoveEventListener = vi.spyOn(
+      secondAbortController.signal,
+      "removeEventListener",
+    );
+    const firstResult = execute(
+      {},
+      {
+        ...executionContext,
+        abortSignal: firstAbortController.signal,
+      },
+    );
+    const secondResult = execute(
+      {},
+      {
+        ...executionContext,
+        abortSignal: secondAbortController.signal,
+      },
+    );
+    const firstRejection = expect(firstResult).rejects.toThrow(
+      "AssistantFrameHost has been disposed",
+    );
+    const secondRejection = expect(secondResult).rejects.toThrow(
+      "AssistantFrameHost has been disposed",
+    );
+    const cancellationError = new Error("cancel transport failed");
+    postMessage.mockImplementation((data) => {
+      if (data.message.type === "tool-cancel") throw cancellationError;
+    });
+
+    expect(() => host.dispose()).toThrow(cancellationError);
+
+    await Promise.all([firstRejection, secondRejection]);
+    expect(
+      postMessage.mock.calls.filter(
+        ([data]) => data.message.type === "tool-cancel",
+      ),
+    ).toHaveLength(2);
+    expect(firstRemoveEventListener).toHaveBeenCalledWith(
+      "abort",
+      expect.any(Function),
+    );
+    expect(secondRemoveEventListener).toHaveBeenCalledWith(
+      "abort",
+      expect.any(Function),
+    );
+    expect(vi.getTimerCount()).toBe(0);
+  });
+
   it("rejects pending tool calls when execution is aborted", async () => {
     const { execute, getToolCallId, host, postMessage } = createHost();
     const abortController = new AbortController();

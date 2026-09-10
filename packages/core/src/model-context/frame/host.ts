@@ -248,10 +248,29 @@ export class AssistantFrameHost implements ModelContextProvider {
     window.removeEventListener("message", this.handleMessage);
     this._subscribers.clear();
     const error = new Error("AssistantFrameHost has been disposed");
+
+    let cleanupFailed = false;
+    let cleanupError: unknown;
+    const runCleanup = (cleanup: () => void) => {
+      try {
+        cleanup();
+      } catch (error) {
+        if (cleanupFailed) {
+          console.error(error);
+        } else {
+          cleanupFailed = true;
+          cleanupError = error;
+        }
+      }
+    };
+
     for (const [id, pending] of this._pendingRequests) {
-      this.cancelToolCall(id);
+      runCleanup(() => this.cancelToolCall(id));
+      this._pendingRequests.delete(id);
       pending.reject(error);
     }
     this._pendingRequests.clear();
+
+    if (cleanupFailed) throw cleanupError;
   }
 }
