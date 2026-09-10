@@ -512,7 +512,7 @@ export async function POST(request: Request) {
 
 ### Engagement Events
 
-`useCloudChat` also reports `message_sent`, `run_stopped`, `message_regenerated`, `thread_switched`, and `error_shown`. Edits, copies, branch switches, suggestions, attachments, speech and voice are store events of the assistant-ui runtime, so they are reported by the [assistant-ui integration](/docs/cloud/ai-sdk-assistant-ui#engagement-events) only. Events carry counts, durations, and content types, never message text, and are batched with `keepalive`.
+`useCloudChat` also reports `message_sent`, `run_stopped`, `message_regenerated`, `thread_switched`, `tool_approved`, `tool_rejected`, and `error_shown`. Edits, copies, branch switches, suggestions, attachments, speech and voice are store events of the assistant-ui runtime, so they are reported by the [assistant-ui integration](/docs/cloud/ai-sdk-assistant-ui#engagement-events) only. Events carry counts, durations, and content types, never message text, and are batched with `keepalive`.
 
 Configure `telemetry: { events: false }` on the `AssistantCloud` instance passed as `useCloudChat({ cloud })` to keep run reports and stop engagement events. `telemetry: false` disables both.
 

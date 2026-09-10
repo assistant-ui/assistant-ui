@@ -77,9 +77,10 @@ export class CloudEngagementReporter {
     // Reports the decision the SDK recorded: it only answers gates on the last
     // message, keeps the first answer, and ignores repeats.
     const message = messages.at(-1);
+    const approvalKey = `${threadId}:${decision.id}`;
     if (
       !message ||
-      this.reportedApprovals.has(decision.id) ||
+      this.reportedApprovals.has(approvalKey) ||
       !message.parts.some(
         (part) =>
           "approval" in part &&
@@ -89,7 +90,7 @@ export class CloudEngagementReporter {
     ) {
       return;
     }
-    this.reportedApprovals.add(decision.id);
+    this.reportedApprovals.add(approvalKey);
     this.track({
       kind: decision.approved ? "tool_approved" : "tool_rejected",
       thread_id: threadId,

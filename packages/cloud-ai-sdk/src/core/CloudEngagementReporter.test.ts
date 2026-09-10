@@ -92,6 +92,17 @@ describe("CloudEngagementReporter", () => {
     expect(track).toHaveBeenCalledOnce();
   });
 
+  it("keys approvals by thread, so threads sharing an approval id both report", () => {
+    const { reporter, track } = createReporter();
+    const decision = { id: "approval-1", approved: true };
+    reporter.toolApprovalResponded("thread-1", [answered(true)], decision);
+    reporter.toolApprovalResponded("thread-2", [answered(true)], decision);
+    expect(track).toHaveBeenCalledTimes(2);
+    expect(track).toHaveBeenLastCalledWith(
+      expect.objectContaining({ kind: "tool_approved", thread_id: "thread-2" }),
+    );
+  });
+
   it("tracks sends, stops, regeneration, and errors without message text", () => {
     vi.useFakeTimers();
     vi.setSystemTime(100);

@@ -175,33 +175,40 @@ describe("useCloudChat", () => {
       return { result, liveChat };
     };
 
-    it("reports the decision the SDK recorded, once", async () => {
-      let liveChat: { messages: unknown[] } | undefined;
-      const addToolApprovalResponse = vi.fn(
-        async ({ approved }: { approved: boolean }) => {
-          const last = liveChat!.messages.at(-1) as ReturnType<
-            typeof approvalMessage
-          >;
-          if (last.parts[0]!.state === "approval-requested")
-            liveChat!.messages = [approvalMessage(approved)];
-        },
-      );
-      const harness = setup(addToolApprovalResponse);
-      liveChat = harness.liveChat;
-      await harness.result.current.addToolApprovalResponse(args);
-      // A repeat before the next render: the SDK keeps the first answer.
-      await harness.result.current.addToolApprovalResponse({
-        ...args,
-        approved: false,
-      });
-      expect(addToolApprovalResponse).toHaveBeenCalledTimes(2);
-      expect(addToolApprovalResponse).toHaveBeenNthCalledWith(1, args);
-      expect(mockCloud.events.track).toHaveBeenCalledExactlyOnceWith({
-        kind: "tool_approved",
-        thread_id: "thread-1",
-        message_id: "remote-message-1",
-      });
-    });
+    it.each([
+      [true, "tool_approved"],
+      [false, "tool_rejected"],
+    ])(
+      "reports the decision the SDK recorded (approved=%s), once",
+      async (approved, kind) => {
+        let liveChat: { messages: unknown[] } | undefined;
+        const addToolApprovalResponse = vi.fn(
+          async ({ approved }: { approved: boolean }) => {
+            const last = liveChat!.messages.at(-1) as ReturnType<
+              typeof approvalMessage
+            >;
+            if (last.parts[0]!.state === "approval-requested")
+              liveChat!.messages = [approvalMessage(approved)];
+          },
+        );
+        const harness = setup(addToolApprovalResponse);
+        liveChat = harness.liveChat;
+        const decision = { ...args, approved };
+        await harness.result.current.addToolApprovalResponse(decision);
+        // A repeat before the next render: the SDK keeps the first answer.
+        await harness.result.current.addToolApprovalResponse({
+          ...args,
+          approved: !approved,
+        });
+        expect(addToolApprovalResponse).toHaveBeenCalledTimes(2);
+        expect(addToolApprovalResponse).toHaveBeenNthCalledWith(1, decision);
+        expect(mockCloud.events.track).toHaveBeenCalledExactlyOnceWith({
+          kind,
+          thread_id: "thread-1",
+          message_id: "remote-message-1",
+        });
+      },
+    );
 
     it("reports nothing when the SDK rejects the decision", async () => {
       const error = new Error("stale");
