@@ -1,19 +1,6 @@
 import { isJSONValueEqual } from "../utils/json/is-json-equal";
 import { isJSONValue, isRecord } from "../utils/json/is-json";
 
-const setOwnProperty = (
-  target: Record<string, unknown>,
-  key: string,
-  value: unknown,
-) => {
-  Object.defineProperty(target, key, {
-    value,
-    enumerable: true,
-    configurable: true,
-    writable: true,
-  });
-};
-
 /**
  * Unstable / Experimental — the interactables API is still evolving and may change in any release.
  * @deprecated Unstable / Experimental (not actually removed).
@@ -162,7 +149,7 @@ export function shallowMergeInteractableState(
   const baseline = isRecord(options?.arrayBaseline)
     ? options.arrayBaseline
     : prev;
-  const next = { ...prev };
+  const next = Object.entries(prev);
   for (const [key, value] of Object.entries(partial)) {
     const baseValue = baseline[key];
     if (Array.isArray(baseValue) && isRecord(value)) {
@@ -171,12 +158,12 @@ export function shallowMergeInteractableState(
         (options.idKeyedFields === undefined || options.idKeyedFields.has(key))
           ? () => options.idFactory?.(key)
           : undefined;
-      setOwnProperty(next, key, applyArrayUpdate(baseValue, value, mintId));
+      next.push([key, applyArrayUpdate(baseValue, value, mintId)]);
     } else {
-      setOwnProperty(next, key, value);
+      next.push([key, value]);
     }
   }
-  return next;
+  return Object.fromEntries(next);
 }
 
 /**
@@ -194,15 +181,15 @@ function shallowDiffInteractableState(
   for (const key of Object.keys(known)) {
     if (!Object.hasOwn(next, key)) return undefined;
   }
-  const diff: Record<string, unknown> = {};
+  const diff: [string, unknown][] = [];
   for (const [key, value] of Object.entries(next)) {
     if (!Object.hasOwn(known, key) || !isJSONValueEqual(known[key], value)) {
-      setOwnProperty(diff, key, value);
+      diff.push([key, value]);
     }
   }
-  const changed = Object.keys(diff).length;
+  const changed = diff.length;
   if (changed === 0 || changed === Object.keys(next).length) return undefined;
-  return diff;
+  return Object.fromEntries(diff);
 }
 
 type ToolCallLikePart = {
