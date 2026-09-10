@@ -142,7 +142,7 @@ export const joinExternalMessages = (
     role: "assistant",
     content: [],
   };
-  const toolCallIndices = new Map<string, number>();
+  const toolCallIndices = new Map<unknown, number>();
   const reasoningIndices = new Map<string, number>();
   for (const output of messages) {
     if (output.role === "tool") {
@@ -289,7 +289,6 @@ export const joinExternalMessages = (
             assistantMessage.content.push(part);
             if (
               part.type === "tool-call" &&
-              typeof part.toolCallId === "string" &&
               !toolCallIndices.has(part.toolCallId)
             ) {
               toolCallIndices.set(part.toolCallId, partIdx);

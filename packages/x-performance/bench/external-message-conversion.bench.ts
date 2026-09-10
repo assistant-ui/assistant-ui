@@ -1,7 +1,12 @@
-import { convertExternalMessages } from "@assistant-ui/core/react";
+import {
+  convertExternalMessages,
+  type useExternalMessageConverter,
+} from "@assistant-ui/core/react";
 import { bench, describe } from "vitest";
 
-const makeMessage = (count: number) => ({
+type Message = useExternalMessageConverter.Message;
+
+const makeToolCallMessage = (count: number): Message => ({
   role: "assistant" as const,
   content: Array.from({ length: count }, (_, index) => ({
     type: "tool-call" as const,
@@ -11,11 +16,47 @@ const makeMessage = (count: number) => ({
   })),
 });
 
-describe("core: external message tool calls", () => {
-  for (const count of [100, 1_000, 5_000]) {
-    const messages = [makeMessage(count)];
-    bench(`${count} unique tool calls`, () => {
-      convertExternalMessages(messages, (message) => message, false, {});
-    });
-  }
-});
+const makeToolResults = (count: number): Message[] => [
+  makeToolCallMessage(count),
+  ...Array.from({ length: count }, (_, index) => ({
+    role: "tool" as const,
+    toolCallId: `call-${index}`,
+    result: { index },
+  })),
+];
+
+const makeReasoningContinuations = (count: number): Message[] => [
+  {
+    role: "assistant",
+    content: [
+      ...Array.from({ length: count }, (_, index) => ({
+        type: "reasoning" as const,
+        parentId: `reasoning-${index}`,
+        text: `start-${index}`,
+      })),
+      ...Array.from({ length: count }, (_, index) => ({
+        type: "reasoning" as const,
+        parentId: `reasoning-${index}`,
+        text: `end-${index}`,
+      })),
+    ],
+  },
+];
+
+const benchmarkScenario = (
+  name: string,
+  makeOutputs: (count: number) => Message[],
+) => {
+  describe(`core: external message ${name}`, () => {
+    for (const count of [100, 1_000, 5_000]) {
+      const inputs = [{ outputs: makeOutputs(count) }];
+      bench(`${count} matches`, () => {
+        convertExternalMessages(inputs, (input) => input.outputs, false, {});
+      });
+    }
+  });
+};
+
+benchmarkScenario("unique tool calls", (count) => [makeToolCallMessage(count)]);
+benchmarkScenario("tool results", makeToolResults);
+benchmarkScenario("reasoning continuations", makeReasoningContinuations);
