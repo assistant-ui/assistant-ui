@@ -3,6 +3,8 @@ import { createResumableStreamContext } from "./ResumableStreamContext";
 import { ResumableStreamError } from "./errors";
 import { createInMemoryResumableStreamStore } from "./stores/InMemoryResumableStreamStore";
 
+import type { ResumableStreamStore } from "./types";
+
 const enc = new TextEncoder();
 const dec = new TextDecoder();
 
@@ -39,6 +41,65 @@ function makeStringStream(parts: string[]): ReadableStream<Uint8Array> {
 }
 
 describe("createResumableStreamContext", () => {
+  it.each(["done", "error"] as const)(
+    "passes the acquisition lease to append and %s finalize",
+    async (status) => {
+      const lease = { streamId: "a", token: "producer-token" };
+      const append = vi.fn<ResumableStreamStore["append"]>(async () => {
+        if (status === "error") throw new Error("append failed");
+      });
+      const finalize = vi.fn<ResumableStreamStore["finalize"]>(async () => {});
+      const acquire = vi.fn<ResumableStreamStore["acquire"]>();
+      const acquireLease = vi.fn<
+        NonNullable<ResumableStreamStore["acquireLease"]>
+      >(async () => ({ role: "producer", lease }));
+      const store: ResumableStreamStore = {
+        acquire,
+        acquireLease,
+        append,
+        finalize,
+        async *read() {},
+        async status() {
+          return "streaming";
+        },
+        async delete() {},
+      };
+      const tasks: Promise<unknown>[] = [];
+      const ctx = createResumableStreamContext({
+        store,
+        ttlMs: 123,
+        waitUntil: (task) => tasks.push(task),
+      });
+      await ctx.run("a", () => makeStringStream(["x"]));
+      await Promise.all(tasks);
+      expect(acquire).not.toHaveBeenCalled();
+      expect(acquireLease).toHaveBeenCalledWith("a", { ttlMs: 123 });
+      expect(append).toHaveBeenCalledWith("a", bytes("x"), lease);
+      expect(finalize).toHaveBeenCalledWith(
+        "a",
+        status,
+        status === "error" ? "append failed" : undefined,
+        lease,
+      );
+    },
+  );
+
+  it("runs a producer through acquire when acquireLease is absent", async () => {
+    const backing = createInMemoryResumableStreamStore();
+    const store: ResumableStreamStore = {
+      acquire: vi.fn(backing.acquire),
+      append: backing.append,
+      finalize: backing.finalize,
+      read: backing.read,
+      status: backing.status,
+      delete: backing.delete,
+    };
+    const ctx = createResumableStreamContext({ store });
+    expect(
+      await collect(await ctx.run("a", () => makeStringStream(["legacy"]))),
+    ).toBe("legacy");
+    expect(store.acquire).toHaveBeenCalledWith("a", undefined);
+  });
   it("producer caller receives full byte stream", async () => {
     const ctx = createResumableStreamContext({
       store: createInMemoryResumableStreamStore(),

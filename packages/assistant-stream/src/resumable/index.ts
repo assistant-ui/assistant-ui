@@ -1,5 +1,7 @@
 export type {
   ResumableStreamStore,
+  ResumableStreamLease,
+  ResumableStreamAcquisition,
   ResumableStreamRole,
   ResumableStreamStatus,
   ResumableStreamEntry,

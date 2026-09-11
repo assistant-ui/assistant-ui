@@ -24224,6 +24224,13 @@ type ResumableStreamAcquireOptions = {
   readonly ttlMs?: number;
 };
 
+type ResumableStreamAcquisition = {
+  readonly role: "producer";
+  readonly lease: ResumableStreamLease;
+} | {
+  readonly role: "consumer";
+};
+
 interface ResumableStreamContext {
   run(streamId: string, makeStream: () => ReadableStream<Uint8Array>): Promise<ReadableStream<Uint8Array>>;
   resume(streamId: string): Promise<ReadableStream<Uint8Array> | null>;
@@ -24254,17 +24261,23 @@ declare class ResumableStreamError extends Error {
 
 type ResumableStreamErrorCode = "exists" | "finalized" | "invalid-id" | "missing";
 
+type ResumableStreamLease = {
+  readonly streamId: string;
+  readonly token: string;
+};
+
 type ResumableStreamRole = "consumer" | "producer";
 
 type ResumableStreamStatus = "done" | "error" | "missing" | "streaming";
 
 interface ResumableStreamStore {
   acquire(streamId: string, options?: ResumableStreamAcquireOptions): Promise<ResumableStreamRole>;
-  append(streamId: string, chunk: Uint8Array): Promise<void>;
-  finalize(streamId: string, status: "done" | "error", error?: string): Promise<void>;
+  acquireLease?(streamId: string, options?: ResumableStreamAcquireOptions): Promise<ResumableStreamAcquisition>;
+  append(streamId: string, chunk: Uint8Array, lease?: ResumableStreamLease): Promise<void>;
+  finalize(streamId: string, status: "done" | "error", error?: string, lease?: ResumableStreamLease): Promise<void>;
   read(streamId: string, cursor: string, signal: AbortSignal): AsyncIterable<ResumableStreamEntry>;
   status(streamId: string): Promise<ResumableStreamStatus>;
-  delete(streamId: string): Promise<void>;
+  delete(streamId: string, lease?: ResumableStreamLease): Promise<void>;
 }
 
 type RetryStrategy = ((times: number) => number | void | null) | null | undefined;
@@ -24747,7 +24760,7 @@ declare const getPartialJsonObjectMeta: (obj: Record<symbol, unknown>) => Partia
 declare const hasHimportCoordinator: unique symbol;
 
 declare namespace entry_resumable_exports {
-  export { CreateResumableAssistantStreamResponseOptions, CreateResumeAssistantStreamResponseOptions, InMemoryResumableStreamStoreOptions, RESUMABLE_STREAM_ID_HEADER, RedisFinalizeOptions, RedisLikeClient, RedisResumableStreamStoreOptions, ResumableStreamAcquireOptions, ResumableStreamContext, ResumableStreamContextOptions, ResumableStreamEntry, ResumableStreamError, ResumableStreamErrorCode, ResumableStreamRole, ResumableStreamStatus, ResumableStreamStore, createInMemoryResumableStreamStore, createResumableAssistantStreamResponse, createResumableStreamContext, createResumeAssistantStreamResponse };
+  export { CreateResumableAssistantStreamResponseOptions, CreateResumeAssistantStreamResponseOptions, InMemoryResumableStreamStoreOptions, RESUMABLE_STREAM_ID_HEADER, RedisFinalizeOptions, RedisLikeClient, RedisResumableStreamStoreOptions, ResumableStreamAcquireOptions, ResumableStreamAcquisition, ResumableStreamContext, ResumableStreamContextOptions, ResumableStreamEntry, ResumableStreamError, ResumableStreamErrorCode, ResumableStreamLease, ResumableStreamRole, ResumableStreamStatus, ResumableStreamStore, createInMemoryResumableStreamStore, createResumableAssistantStreamResponse, createResumableStreamContext, createResumeAssistantStreamResponse };
 }
 
 declare namespace entry_root_exports {

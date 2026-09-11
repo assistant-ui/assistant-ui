@@ -304,4 +304,56 @@ describe("RedisResumableStreamStore", () => {
     expect(result).not.toBe("timeout");
     expect(result).toMatchObject({ done: true });
   });
+  it("keeps a superseded producer out of a stream reacquired on the same instance", async () => {
+    const client = new FakeRedisClient();
+    const store = new RedisResumableStreamStore(client, { keyPrefix: "test" });
+    const a = await store.acquireLease("s");
+    if (a.role !== "producer") throw new Error("Expected producer");
+    await store.append("s", encoder.encode("before"), a.lease);
+    client.strings.delete("test:{s}:meta");
+    const b = await store.acquireLease("s");
+    if (b.role !== "producer") throw new Error("Expected producer");
+    await expect(store.acquireLease("s")).resolves.toEqual({
+      role: "consumer",
+    });
+    await store.append("s", encoder.encode("fresh"), b.lease);
+    await expect(
+      store.append("s", encoder.encode("stale"), a.lease),
+    ).rejects.toMatchObject({
+      code: "missing",
+      message: "Stream superseded by a new acquisition: s",
+    });
+    await expect(
+      store.finalize("s", "done", undefined, a.lease),
+    ).resolves.toBeUndefined();
+    await expect(store.status("s")).resolves.toBe("streaming");
+    await expect(store.delete("s", a.lease)).resolves.toBeUndefined();
+    await expect(store.status("s")).resolves.toBe("streaming");
+    await store.finalize("s", "done", undefined, b.lease);
+    await expect(
+      store.append("s", encoder.encode("late"), a.lease),
+    ).rejects.toMatchObject({
+      code: "missing",
+    });
+    const chunks: string[] = [];
+    for await (const entry of store.read(
+      "s",
+      "",
+      new AbortController().signal,
+    )) {
+      chunks.push(decoder.decode(entry.chunk));
+    }
+    expect(chunks).toEqual(["fresh"]);
+  });
+
+  it("lets the current lease delete its own stream", async () => {
+    const client = new FakeRedisClient();
+    const store = new RedisResumableStreamStore(client, { keyPrefix: "test" });
+    await store.acquireLease("s");
+    client.strings.delete("test:{s}:meta");
+    const b = await store.acquireLease("s");
+    if (b.role !== "producer") throw new Error("Expected producer");
+    await store.delete("s", b.lease);
+    await expect(store.status("s")).resolves.toBe("missing");
+  });
 });
