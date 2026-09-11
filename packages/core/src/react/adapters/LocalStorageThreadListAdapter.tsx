@@ -171,7 +171,7 @@ const parseStoredToolModelContent = (
 ): ToolModelContentPart[] | undefined => {
   if (!Array.isArray(value)) return undefined;
 
-  return value.flatMap((entry) => {
+  return value.flatMap((entry): ToolModelContentPart[] => {
     if (!isRecord(entry)) return [];
     if (entry.type === "text" && typeof entry.text === "string") {
       return [{ type: "text", text: entry.text }];
