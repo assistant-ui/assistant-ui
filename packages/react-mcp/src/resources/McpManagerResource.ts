@@ -41,6 +41,26 @@ function defaultRedirectUri(): string {
 // Stable empty fallback so an absent `connectors` prop doesn't produce a fresh
 // array each render (which would invalidate the serverElements memo below).
 const NO_CONNECTORS: MCPConnector[] = [];
+const NO_CUSTOM_SERVERS: MCPCustomServerRecord[] = [];
+const UNDECLARED_SCOPE = Symbol("undeclared-mcp-storage-scope");
+const INTERNAL_KEY_SEPARATOR = "\x1f";
+
+type StorageScopeKey = string | typeof UNDECLARED_SCOPE;
+type PersistenceQueueKey = string | MCPStorage;
+
+const getStorageScopeKey = (storage: MCPStorage): StorageScopeKey =>
+  storage.scopeId ?? UNDECLARED_SCOPE;
+
+const getPersistenceQueueKey = (storage: MCPStorage): PersistenceQueueKey =>
+  storage.scopeId ?? storage;
+
+const getCustomServerLookupKey = (
+  scopeKey: StorageScopeKey,
+  id: string,
+): string => {
+  if (scopeKey === UNDECLARED_SCOPE) return id;
+  return `custom${INTERNAL_KEY_SEPARATOR}${scopeKey}${INTERNAL_KEY_SEPARATOR}${id}`;
+};
 
 const reportCustomStorageFailure = (
   operation: "load" | "save",
@@ -74,73 +94,124 @@ const useMcpManagerResource = (
   const storageElement = props.storage ?? McpLocalStorage();
   const storage = useResource(storageElement);
 
-  const [customServers, setCustomServers] = useState<MCPCustomServerRecord[]>(
-    [],
-  );
+  const scopeKey = getStorageScopeKey(storage);
+  const scopeStateRef = useRef({
+    key: scopeKey,
+    generation: 0,
+  });
+  const scopeChanged = scopeStateRef.current.key !== scopeKey;
+  if (scopeChanged) {
+    scopeStateRef.current = {
+      key: scopeKey,
+      generation: scopeStateRef.current.generation + 1,
+    };
+  }
+  const scopeGeneration = scopeStateRef.current.generation;
+
+  const [customServersByScope, setCustomServersByScope] = useState<
+    Map<StorageScopeKey, MCPCustomServerRecord[]>
+  >(() => new Map());
   const [isHydrated, setIsHydrated] = useState(false);
 
   const hydratedRef = useRef(false);
-  const storageRef = useRef(storage);
-  const persistenceQueueRef = useRef(Promise.resolve());
+  const persistenceQueuesRef = useRef(
+    new Map<PersistenceQueueKey, Promise<void>>(),
+  );
+
+  const isCurrentScope = (
+    targetScopeKey: StorageScopeKey,
+    generation: number,
+  ) =>
+    scopeStateRef.current.key === targetScopeKey &&
+    scopeStateRef.current.generation === generation;
+
+  const enqueuePersistence = useEffectEvent(
+    (targetStorage: MCPStorage, records: MCPCustomServerRecord[]) => {
+      const queueKey = getPersistenceQueueKey(targetStorage);
+      const previous =
+        persistenceQueuesRef.current.get(queueKey) ?? Promise.resolve();
+      const next = previous.then(() =>
+        persistCustomServers(targetStorage, [...records]),
+      );
+      persistenceQueuesRef.current.set(queueKey, next);
+    },
+  );
+
+  const hydrate = useEffectEvent(
+    async (
+      targetStorage: MCPStorage,
+      targetScopeKey: StorageScopeKey,
+      generation: number,
+    ) => {
+      const pendingPersistence = persistenceQueuesRef.current.get(
+        getPersistenceQueueKey(targetStorage),
+      );
+      if (pendingPersistence) await pendingPersistence;
+      if (!isCurrentScope(targetScopeKey, generation)) return;
+
+      let records: Awaited<ReturnType<typeof targetStorage.loadCustomServers>>;
+      try {
+        records = await targetStorage.loadCustomServers();
+      } catch (error) {
+        if (isCurrentScope(targetScopeKey, generation)) {
+          reportCustomStorageFailure("load", error);
+          hydratedRef.current = true;
+          setIsHydrated(true);
+        }
+        return;
+      }
+
+      if (!isCurrentScope(targetScopeKey, generation)) return;
+      setCustomServersByScope((current) => {
+        if (!isCurrentScope(targetScopeKey, generation)) return current;
+        const previous = current.get(targetScopeKey) ?? [];
+        const persistedIds = new Set(records.map((record) => record.id));
+        const merged =
+          previous.length === 0
+            ? records
+            : [
+                ...records,
+                ...previous.filter((record) => !persistedIds.has(record.id)),
+              ];
+        const next = new Map(current);
+        next.set(targetScopeKey, merged);
+        return next;
+      });
+      if (!isCurrentScope(targetScopeKey, generation)) return;
+      hydratedRef.current = true;
+      setIsHydrated(true);
+    },
+  );
 
   useEffect(() => {
-    storageRef.current = storage;
-  }, [storage]);
-
-  const hydrate = useEffectEvent(async (signal: { cancelled: boolean }) => {
-    const markHydrated = () => {
-      if (!signal.cancelled) {
-        hydratedRef.current = true;
-        setIsHydrated(true);
-      }
-    };
-
-    let records: Awaited<ReturnType<typeof storage.loadCustomServers>>;
-    try {
-      records = await storage.loadCustomServers();
-    } catch (error) {
-      if (!signal.cancelled) {
-        reportCustomStorageFailure("load", error);
-      }
-      markHydrated();
-      return;
-    }
-
-    if (signal.cancelled) return;
-    // Merge rather than replace so any addCustomServer calls that
-    // happened before hydration resolved aren't silently overwritten.
-    // Persisted order wins; pre-hydration locals append.
-    setCustomServers((prev) => {
-      if (prev.length === 0) return records;
-      const persistedIds = new Set(records.map((r) => r.id));
-      return [...records, ...prev.filter((r) => !persistedIds.has(r.id))];
-    });
-    markHydrated();
-  });
-
-  useEffect(() => {
-    const signal = { cancelled: false };
-    // Hydration reads persisted records asynchronously; there is no earlier
-    // point than mount at which to start it.
+    hydratedRef.current = false;
     // eslint-disable-next-line react-hooks/set-state-in-effect
-    void hydrate(signal);
-    return () => {
-      signal.cancelled = true;
-    };
-  }, []);
+    setCustomServersByScope((current) => {
+      if (!current.has(scopeKey)) return current;
+      const next = new Map(current);
+      next.delete(scopeKey);
+      return next;
+    });
+    setIsHydrated(false);
+    void hydrate(storage, scopeKey, scopeGeneration);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [scopeKey]);
+
+  const currentCustomServers = scopeChanged
+    ? NO_CUSTOM_SERVERS
+    : (customServersByScope.get(scopeKey) ?? NO_CUSTOM_SERVERS);
 
   useEffect(() => {
-    if (!hydratedRef.current) return;
-    const targetStorage = storageRef.current;
-    persistenceQueueRef.current = persistenceQueueRef.current.then(() =>
-      persistCustomServers(targetStorage, customServers),
-    );
-  }, [customServers]);
+    if (!hydratedRef.current || scopeChanged) return;
+    if (!isCurrentScope(scopeKey, scopeGeneration)) return;
+    enqueuePersistence(storage, currentCustomServers);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [customServersByScope, scopeKey]);
 
   const serverElements = useMemo(() => {
     assertUniqueServerIds([
       ...connectors.map((c) => c.id),
-      ...customServers.map((s) => s.id),
+      ...currentCustomServers.map((s) => s.id),
     ]);
 
     const connectorElements = connectors.map((c) =>
@@ -167,9 +238,9 @@ const useMcpManagerResource = (
         }),
       ),
     );
-    const customElements = customServers.map((s) =>
+    const customElements = currentCustomServers.map((s) =>
       withKey(
-        s.id,
+        getCustomServerLookupKey(scopeKey, s.id),
         McpServerResource({
           id: s.id,
           kind: "custom",
@@ -185,7 +256,16 @@ const useMcpManagerResource = (
             ? { elicitation: s.elicitation }
             : {}),
           onRemove: async () => {
-            setCustomServers((prev) => prev.filter((x) => x.id !== s.id));
+            if (!isCurrentScope(scopeKey, scopeGeneration)) return;
+            setCustomServersByScope((current) => {
+              if (!isCurrentScope(scopeKey, scopeGeneration)) return current;
+              const next = new Map(current);
+              next.set(
+                scopeKey,
+                (current.get(scopeKey) ?? []).filter((x) => x.id !== s.id),
+              );
+              return next;
+            });
           },
         }),
       ),
@@ -193,8 +273,10 @@ const useMcpManagerResource = (
     return [...connectorElements, ...customElements];
   }, [
     connectors,
-    customServers,
+    currentCustomServers,
     storage,
+    scopeKey,
+    scopeGeneration,
     redirectUri,
     autoConnect,
     connectionTimeout,
@@ -208,9 +290,14 @@ const useMcpManagerResource = (
       servers: all,
       connectors: all.filter((s) => s.kind === "connector"),
       customServers: all.filter((s) => s.kind === "custom"),
-      isHydrated,
+      isHydrated: scopeChanged ? false : isHydrated,
     };
-  }, [lookup.state, isHydrated]);
+  }, [lookup.state, isHydrated, scopeChanged]);
+
+  const getLookupKey = (id: string) =>
+    currentCustomServers.some((server) => server.id === id)
+      ? getCustomServerLookupKey(scopeKey, id)
+      : id;
 
   // ─── Auto-register MCP tools as frontend tools in modelContext ─────
   // Build the toolkit from connected servers; re-register when the visible
@@ -224,6 +311,10 @@ const useMcpManagerResource = (
       if (server.connectionState !== "connected") continue;
       for (const tool of server.tools) {
         const fullName = `${server.id}__${tool.name}`;
+        const lookupKey =
+          server.kind === "custom"
+            ? getCustomServerLookupKey(scopeKey, server.id)
+            : server.id;
         out[fullName] = {
           type: "frontend",
           ...(tool.description !== undefined
@@ -231,12 +322,12 @@ const useMcpManagerResource = (
             : {}),
           parameters: tool.inputSchema as never,
           execute: (args) =>
-            lookup.get({ key: server.id }).callTool(tool.name, args as unknown),
+            lookup.get({ key: lookupKey }).callTool(tool.name, args as unknown),
         };
       }
     }
     return out;
-  }, [state, lookup]);
+  }, [state, lookup, scopeKey]);
 
   const clientRef = useAssistantClientRef();
 
@@ -260,13 +351,13 @@ const useMcpManagerResource = (
         `McpManagerResource: no ${kind} at index ${index} (length ${list.length})`,
       );
     }
-    return lookup.get({ key: entry.id });
+    return lookup.get({ key: getLookupKey(entry.id) });
   };
 
   return {
     getState: () => state,
     server: (query) => {
-      if ("id" in query) return lookup.get({ key: query.id });
+      if ("id" in query) return lookup.get({ key: getLookupKey(query.id) });
       return serverByKind(query.kind, query.index);
     },
     connector: ({ index }) => serverByKind("connector", index),
@@ -289,10 +380,17 @@ const useMcpManagerResource = (
         ...(elicitation !== undefined ? { elicitation } : {}),
         createdAt: Date.now(),
       };
-      setCustomServers((prev) => [...prev, record]);
+      if (!isCurrentScope(scopeKey, scopeGeneration)) return record.id;
+      setCustomServersByScope((current) => {
+        if (!isCurrentScope(scopeKey, scopeGeneration)) return current;
+        const next = new Map(current);
+        next.set(scopeKey, [...(current.get(scopeKey) ?? []), record]);
+        return next;
+      });
       return record.id;
     },
     removeServer: async (id) => {
+      if (!isCurrentScope(scopeKey, scopeGeneration)) return;
       // removeServer is custom-server only — connectors are app-defined
       // and not user-removable. Refuse rather than silently no-op.
       if (state.connectors.some((c) => c.id === id)) {
@@ -305,10 +403,19 @@ const useMcpManagerResource = (
       // place. Fallback to manual cleanup if the lookup is empty
       // (server already gone).
       try {
-        await lookup.get({ key: id }).remove();
+        await lookup.get({ key: getLookupKey(id) }).remove();
       } catch {
+        if (!isCurrentScope(scopeKey, scopeGeneration)) return;
         await clearOAuthProviderAuthState(storage, id);
-        setCustomServers((prev) => prev.filter((s) => s.id !== id));
+        setCustomServersByScope((current) => {
+          if (!isCurrentScope(scopeKey, scopeGeneration)) return current;
+          const next = new Map(current);
+          next.set(
+            scopeKey,
+            (current.get(scopeKey) ?? []).filter((s) => s.id !== id),
+          );
+          return next;
+        });
       }
     },
   };
