@@ -119,6 +119,35 @@ describe("convertLangChainMessages content-less messages", () => {
     expect(result.role).toBe("user");
     expect(result.content).toEqual([{ type: "text", text: "kept" }]);
   });
+
+  it("ignores non-array human message content", () => {
+    const result = convertLangChainMessages({
+      type: "human",
+      id: "h-3",
+      content: 42,
+    } as unknown as LangChainMessage);
+
+    expect(result.role).toBe("user");
+    expect(result.content).toEqual([]);
+  });
+
+  it("ignores non-array ai message content", () => {
+    const result = convertLangChainMessages({
+      type: "ai",
+      id: "ai-2",
+      content: { text: "invalid" },
+      tool_calls: [{ id: "call-2", name: "search", args: { q: 1 } }],
+    } as unknown as LangChainMessage);
+
+    expect(result.role).toBe("assistant");
+    expect(result.content).toMatchObject([
+      {
+        type: "tool-call",
+        toolCallId: "call-2",
+        toolName: "search",
+      },
+    ]);
+  });
 });
 
 describe("convertLangChainMessages metadata", () => {
