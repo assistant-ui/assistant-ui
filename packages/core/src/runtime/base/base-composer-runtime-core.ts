@@ -217,8 +217,13 @@ export abstract class BaseComposerRuntimeCore
     if (!this.canSend || this._isSending) return;
 
     if (this._dictationSession) {
-      this._dictationSession.cancel();
-      this._cleanupDictation();
+      try {
+        this._dictationSession.cancel();
+      } catch (error) {
+        console.error("[assistant-ui] Dictation session cancel threw", error);
+      } finally {
+        this._cleanupDictation();
+      }
     }
 
     const adapter = this.getAttachmentAdapter();
@@ -643,7 +648,7 @@ export abstract class BaseComposerRuntimeCore
     if (this._dictationSession) {
       const oldSession = this._dictationSession;
       this._cleanupDictation({ notify: false });
-      oldSession.stop().catch(() => {});
+      this._stopDictationSession(oldSession);
     }
 
     const inputDisabled = adapter.disableInputDuringDictation ?? false;
@@ -729,9 +734,25 @@ export abstract class BaseComposerRuntimeCore
     const session = this._dictationSession;
     const sessionId = this._activeDictationSessionId;
     const cleanup = () => this._cleanupDictation({ sessionId });
-    void session.stop().then(cleanup, (error) => {
+    this._stopDictationSession(session, cleanup);
+  }
+
+  private _stopDictationSession(
+    session: DictationAdapter.Session,
+    onSettled: () => void = () => {},
+  ): void {
+    let task: Promise<void>;
+    try {
+      task = session.stop();
+    } catch (error) {
+      console.error("[assistant-ui] Dictation session stop threw", error);
+      onSettled();
+      return;
+    }
+
+    void task.then(onSettled, (error) => {
       console.error("[assistant-ui] Dictation session stop rejected", error);
-      cleanup();
+      onSettled();
     });
   }
 
