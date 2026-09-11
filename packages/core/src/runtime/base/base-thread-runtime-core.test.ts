@@ -274,6 +274,42 @@ describe("BaseThreadRuntimeCore voice volume subscriptions", () => {
     );
   });
 
+  it("rolls back a new session when initialization throws", () => {
+    vi.spyOn(console, "error").mockImplementation(() => {});
+    const voice = createVoiceAdapter();
+    const runtime = new TestRuntime(voice);
+    const listenerError = new Error("subscriber failed");
+    runtime.subscribe(() => {
+      throw listenerError;
+    });
+
+    expect(() => runtime.connectVoice()).toThrow(listenerError);
+    expect(voice.session.disconnect).toHaveBeenCalledOnce();
+    expect(runtime.voice).toBeUndefined();
+    expect(runtime.getVoiceVolume()).toBe(0);
+  });
+
+  it("rethrows one subscriber error once while disconnecting", () => {
+    const voice = createVoiceAdapter();
+    const runtime = new TestRuntime(voice);
+    runtime.connectVoice();
+    voice.emitTranscript({ role: "assistant", text: "Partial" });
+    const listenerError = new Error("subscriber failed");
+    runtime.subscribe(() => {
+      throw listenerError;
+    });
+
+    let thrown: unknown;
+    try {
+      runtime.disconnectVoice();
+    } catch (error) {
+      thrown = error;
+    }
+
+    expect(thrown).toBe(listenerError);
+    expect(voice.session.disconnect).toHaveBeenCalledOnce();
+  });
+
   it("continues notifying subscribers when one throws", () => {
     const consoleError = vi
       .spyOn(console, "error")

@@ -320,62 +320,73 @@ export abstract class BaseThreadRuntimeCore
     const session = adapter.connect({});
     this._voiceSession = session;
     const unsubs: Array<() => void> = [];
-
-    let currentMode: RealtimeVoiceAdapter.Mode = "listening";
-
-    this.voice = {
-      status: session.status,
-      isMuted: session.isMuted,
-      mode: currentMode,
-    };
-    this._voiceVolume = 0;
-    this._notifySubscribers();
-
-    unsubs.push(
-      session.onStatusChange((status) => {
-        if (status.type === "ended") {
-          this._finishVoiceAssistantMessage();
-          this._voiceSession = undefined;
-          this.voice = undefined;
-        } else {
-          this.voice = {
-            status,
-            isMuted: session.isMuted,
-            mode: currentMode,
-          };
-        }
-        this._notifySubscribers();
-      }),
-    );
-
-    unsubs.push(
-      session.onModeChange((mode) => {
-        currentMode = mode;
-        if (this.voice) {
-          this.voice = { ...this.voice, mode };
-          this._notifySubscribers();
-        }
-      }),
-    );
-
-    unsubs.push(
-      session.onVolumeChange((volume) => {
-        this._voiceVolume = volume;
-        notifyEventListeners(
-          this._voiceVolumeSubscribers,
-          undefined,
-          "Voice volume",
-        );
-      }),
-    );
-
-    unsubs.push(
-      session.onTranscript((transcript) => {
-        this._handleVoiceTranscript(transcript);
-      }),
-    );
-
     this._voiceUnsubs = unsubs;
+
+    try {
+      let currentMode: RealtimeVoiceAdapter.Mode = "listening";
+
+      this.voice = {
+        status: session.status,
+        isMuted: session.isMuted,
+        mode: currentMode,
+      };
+      this._voiceVolume = 0;
+      this._notifySubscribers();
+
+      unsubs.push(
+        session.onStatusChange((status) => {
+          if (status.type === "ended") {
+            this._finishVoiceAssistantMessage();
+            this._voiceSession = undefined;
+            this.voice = undefined;
+          } else {
+            this.voice = {
+              status,
+              isMuted: session.isMuted,
+              mode: currentMode,
+            };
+          }
+          this._notifySubscribers();
+        }),
+      );
+
+      unsubs.push(
+        session.onModeChange((mode) => {
+          currentMode = mode;
+          if (this.voice) {
+            this.voice = { ...this.voice, mode };
+            this._notifySubscribers();
+          }
+        }),
+      );
+
+      unsubs.push(
+        session.onVolumeChange((volume) => {
+          this._voiceVolume = volume;
+          notifyEventListeners(
+            this._voiceVolumeSubscribers,
+            undefined,
+            "Voice volume",
+          );
+        }),
+      );
+
+      unsubs.push(
+        session.onTranscript((transcript) => {
+          this._handleVoiceTranscript(transcript);
+        }),
+      );
+    } catch (error) {
+      try {
+        this.disconnectVoice();
+      } catch (cleanupError) {
+        console.error(
+          "[assistant-ui] Voice rollback cleanup threw",
+          cleanupError,
+        );
+      }
+      throw error;
+    }
   }
 
   private _currentAssistantMsg: ThreadAssistantMessage | null = null;
@@ -444,7 +455,7 @@ export abstract class BaseThreadRuntimeCore
     }
   }
 
-  private _finishVoiceAssistantMessage() {
+  private _finishVoiceAssistantMessage(notify = true) {
     const last = this._voiceMessages.at(-1);
     if (last?.role === "assistant" && last.status.type === "running") {
       const idx = this._voiceMessages.length - 1;
@@ -453,19 +464,12 @@ export abstract class BaseThreadRuntimeCore
         status: { type: "complete", reason: "stop" },
       };
       this._markVoiceMessagesDirty();
-      this._notifySubscribers();
+      if (notify) this._notifySubscribers();
     }
   }
 
   public disconnectVoice() {
-    let finishFailed = false;
-    let finishError: unknown;
-    try {
-      this._finishVoiceAssistantMessage();
-    } catch (error) {
-      finishFailed = true;
-      finishError = error;
-    }
+    this._finishVoiceAssistantMessage(false);
     this._currentAssistantMsg = null;
     const unsubs = this._voiceUnsubs;
     this._voiceUnsubs = [];
@@ -477,13 +481,6 @@ export abstract class BaseThreadRuntimeCore
     this._markVoiceMessagesDirty();
 
     notifySubscribers([
-      ...(finishFailed
-        ? [
-            () => {
-              throw finishError;
-            },
-          ]
-        : []),
       ...unsubs,
       ...(session ? [() => session.disconnect()] : []),
       () =>
