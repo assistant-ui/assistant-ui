@@ -166,6 +166,14 @@ describe("AISDKToolkit.tools()", () => {
     expect(toProviderJSONSchema).toHaveBeenCalledTimes(1);
     expect(second.serverTool).not.toBe(first.serverTool);
     expect(second.providerTool).not.toBe(first.providerTool);
+    expect(second.serverTool!.inputSchema).not.toBe(
+      first.serverTool!.inputSchema,
+    );
+    expect(
+      (second.serverTool!.inputSchema as { jsonSchema: unknown }).jsonSchema,
+    ).toBe(
+      (first.serverTool!.inputSchema as { jsonSchema: unknown }).jsonSchema,
+    );
   });
 
   it("converts the current frontend tools on every call", async () => {

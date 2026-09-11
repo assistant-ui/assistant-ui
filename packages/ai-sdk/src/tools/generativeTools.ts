@@ -76,6 +76,7 @@ const withMcpConnectionTimeout = async <T>(
   }
 };
 
+// Converted schemas are shared by parameter identity and treated as immutable.
 const convertedParameterSchemas = new WeakMap<
   object,
   ReturnType<typeof toJSONSchema>
