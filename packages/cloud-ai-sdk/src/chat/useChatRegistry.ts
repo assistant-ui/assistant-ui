@@ -57,6 +57,10 @@ export function useChatRegistry({
     registry.register(activeChatKey, threadId, activeChat);
   }, [activeChat, activeChatKey, registry, threadId]);
 
+  // Insertion-effect cleanup runs only when React deletes the fiber, so a
+  // hidden <Activity> or a re-suspended boundary keeps chats alive; the stop
+  // is deferred because it notifies subscribers and React forbids scheduling
+  // updates from an insertion effect.
   useInsertionEffect(
     () => () => queueMicrotask(() => void registry.stopAll()),
     [registry],
