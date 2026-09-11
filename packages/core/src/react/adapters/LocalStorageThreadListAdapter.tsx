@@ -374,9 +374,7 @@ const isThreadStep = (value: unknown): boolean =>
   isRecord(value) &&
   (value.messageId === undefined || typeof value.messageId === "string") &&
   (value.usage === undefined ||
-    (isRecord(value.usage) &&
-      typeof value.usage.inputTokens === "number" &&
-      typeof value.usage.outputTokens === "number"));
+    (isRecord(value.usage) && isJSONValue(value.usage)));
 
 const isMessageTiming = (value: unknown): boolean =>
   isRecord(value) &&

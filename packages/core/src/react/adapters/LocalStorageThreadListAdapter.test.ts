@@ -305,6 +305,10 @@ describe("parseStoredMessageRepository", () => {
                 steps: [
                   null,
                   { messageId: "step-1" },
+                  {
+                    messageId: "legacy-step",
+                    usage: { promptTokens: 10, completionTokens: 5 },
+                  },
                   { messageId: 42 },
                   { usage: { inputTokens: 1, outputTokens: "bad" } },
                 ],
@@ -312,6 +316,10 @@ describe("parseStoredMessageRepository", () => {
               },
             },
             parentId: null,
+          },
+          {
+            message: storedMessage("child"),
+            parentId: "invalid-status",
           },
           {
             message: {
@@ -337,15 +345,25 @@ describe("parseStoredMessageRepository", () => {
 
     expect(repo.messages.map((item) => item.message.id)).toEqual([
       "invalid-status",
+      "child",
       "non-array-steps",
       "valid",
     ]);
     expect(repo.messages[0]?.message).toMatchObject({
       status: { type: "complete", reason: "unknown" },
-      metadata: { steps: [{ messageId: "step-1" }] },
+      metadata: {
+        steps: [
+          { messageId: "step-1" },
+          {
+            messageId: "legacy-step",
+            usage: { promptTokens: 10, completionTokens: 5 },
+          },
+          { usage: { inputTokens: 1, outputTokens: "bad" } },
+        ],
+      },
     });
     expect(repo.messages[0]?.message.metadata.timing).toBeUndefined();
-    expect(repo.messages[1]?.message.metadata.steps).toEqual([]);
+    expect(repo.messages[2]?.message.metadata.steps).toEqual([]);
   });
 
   it("preserves supported content and attachment fields", () => {
