@@ -879,8 +879,10 @@ export class PiThreadMessageProjector {
         this.projectedSourceIndices.splice(
           projectedStartIndex,
           this.projectedSourceIndices.length - projectedStartIndex,
-          ...suffixSourceIndices,
         );
+        for (const index of suffixSourceIndices) {
+          this.projectedSourceIndices.push(index);
+        }
       } else {
         this.projectedSourceIndices = undefined;
       }
