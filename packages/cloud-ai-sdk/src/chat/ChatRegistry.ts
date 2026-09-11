@@ -6,6 +6,7 @@ export class ChatRegistry {
   private chatByKey = new Map<string, Chat<UIMessage>>();
   private metaByKey = new Map<string, ChatMeta>();
   private keyByThreadId = new Map<string, string>();
+  private disposed = false;
 
   private createChatFn: (chatKey: string) => Chat<UIMessage>;
 
@@ -74,12 +75,19 @@ export class ChatRegistry {
     return this.keyByThreadId.get(threadId);
   }
 
-  // The maps stay populated: stopping emits onFinish(isAbort) whose
-  // persistence path resolves this registry's meta, so the aborted partial
-  // run still saves through the scope it belongs to.
+  get isDisposed(): boolean {
+    return this.disposed;
+  }
+
   async stopAll(): Promise<void> {
+    this.disposed = true;
+    const chats = [...this.chatByKey.values()];
+    this.chatByKey.clear();
+    this.metaByKey.clear();
+    this.keyByThreadId.clear();
+
     await Promise.allSettled(
-      [...this.chatByKey.values()].map(async (chat) => {
+      chats.map(async (chat) => {
         await chat.stop();
       }),
     );

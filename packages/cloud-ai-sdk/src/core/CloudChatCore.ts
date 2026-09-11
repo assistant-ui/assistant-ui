@@ -270,27 +270,29 @@ export class CloudChatCore {
               }
             : undefined;
           this.telemetryTimings.delete(chatKey);
-          const threadId = registry.getMeta(chatKey)?.threadId;
-          const chatInstance = registry.get(chatKey);
-          if (threadId && chatInstance) {
-            if (event.isAbort) this.engagementReporter.runStopped(threadId);
-            if (event.isError || event.finishReason === "error") {
-              this.engagementReporter.errorShown(
-                threadId,
-                chatInstance.messages,
-              );
+          if (!registry.isDisposed) {
+            const threadId = registry.getMeta(chatKey)?.threadId;
+            const chatInstance = registry.get(chatKey);
+            if (threadId && chatInstance) {
+              if (event.isAbort) this.engagementReporter.runStopped(threadId);
+              if (event.isError || event.finishReason === "error") {
+                this.engagementReporter.errorShown(
+                  threadId,
+                  chatInstance.messages,
+                );
+              }
             }
+            const finishEvent =
+              activeTiming?.error === undefined
+                ? event
+                : { ...event, error: activeTiming.error };
+            const persist = timing
+              ? this.persistChatMessages(chatKey, registry, finishEvent, timing)
+              : this.persistChatMessages(chatKey, registry, finishEvent);
+            void persist.catch((error) => {
+              this.handleSyncError(error);
+            });
           }
-          const finishEvent =
-            activeTiming?.error === undefined
-              ? event
-              : { ...event, error: activeTiming.error };
-          const persist = timing
-            ? this.persistChatMessages(chatKey, registry, finishEvent, timing)
-            : this.persistChatMessages(chatKey, registry, finishEvent);
-          void persist.catch((error) => {
-            this.handleSyncError(error);
-          });
         }
       },
       onError: (error) => {

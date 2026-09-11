@@ -29,6 +29,10 @@ describe("ChatRegistry", () => {
       stopAllSettled = true;
     });
 
+    expect(registry.isDisposed).toBe(true);
+    expect(registry.get("first")).toBeUndefined();
+    expect(registry.get("second")).toBeUndefined();
+
     await new Promise((resolve) => setTimeout(resolve, 0));
 
     expect(firstStop).toHaveBeenCalledOnce();
