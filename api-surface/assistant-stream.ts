@@ -24161,9 +24161,9 @@ interface RedisLikeClient {
     fields: Record<string, string | Uint8Array>;
   }>>;
   pipeline(commands: readonly PipelineCommand[]): Promise<void>;
-  appendIfUnchanged(options: RedisAppendOptions): Promise<boolean>;
+  appendIfUnchanged?(options: RedisAppendOptions): Promise<boolean>;
   finalizeIfUnchanged(options: RedisFinalizeOptions): Promise<boolean>;
-  deleteIfUnchanged(options: RedisDeleteOptions): Promise<boolean>;
+  deleteIfUnchanged?(options: RedisDeleteOptions): Promise<boolean>;
 }
 
 type RedisOptions = CommonRedisOptions & SentinelConnectionOptions & StandaloneConnectionOptions;

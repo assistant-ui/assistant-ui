@@ -90,11 +90,7 @@ class RedisLikeClient(Protocol):
 
     async def pipeline(self, commands: list[dict[str, Any]]) -> None: ...
 
-    async def append_if_unchanged(self, options: dict[str, Any]) -> bool: ...
-
     async def finalize_if_unchanged(self, options: dict[str, Any]) -> bool: ...
-
-    async def delete_if_unchanged(self, options: dict[str, Any]) -> bool: ...
 
 
 class RedisResumableStreamStore:
@@ -181,7 +177,22 @@ class RedisResumableStreamStore:
         if not isinstance(ttl_sec, int):
             ttl_sec = _ms_to_sec(self._default_ttl_ms)
         data_key = self._data_key(stream_id, _meta_generation(meta))
-        appended = await self._client.append_if_unchanged(
+        append_if_unchanged = getattr(self._client, "append_if_unchanged", None)
+        if append_if_unchanged is None:
+            await self._client.pipeline(
+                [
+                    {
+                        "type": "xAdd",
+                        "key": data_key,
+                        "fields": {FIELD_CHUNK: chunk},
+                    },
+                    {"type": "expire", "key": data_key, "ttlSec": ttl_sec},
+                    {"type": "expire", "key": meta_key, "ttlSec": ttl_sec},
+                ]
+            )
+            return
+
+        appended = await append_if_unchanged(
             {
                 "meta_key": meta_key,
                 "expected_meta": existing_raw,
@@ -337,14 +348,41 @@ class RedisResumableStreamStore:
             await self._client.delete([legacy_data_key])
             return
 
-        generation = _meta_generation(_parse_meta(existing_raw))
+        existing = _parse_meta(existing_raw)
+        if existing is not None and self._is_superseded_generation(
+            stream_id, existing
+        ):
+            acquired_generation = self._acquired_generations.get(stream_id)
+            if acquired_generation is not None:
+                await self._client.delete(
+                    [self._data_key(stream_id, acquired_generation)]
+                )
+            return
+
+        generation = _meta_generation(existing)
+        delete_if_unchanged = getattr(self._client, "delete_if_unchanged", None)
+        if delete_if_unchanged is None:
+            self._acquired_generations.pop(stream_id, None)
+            await self._client.delete(
+                list(
+                    dict.fromkeys(
+                        [
+                            meta_key,
+                            self._data_key(stream_id, generation),
+                            legacy_data_key,
+                        ]
+                    )
+                )
+            )
+            return
+
         while True:
             data_keys = list(
                 dict.fromkeys(
                     [self._data_key(stream_id, generation), legacy_data_key]
                 )
             )
-            deleted = await self._client.delete_if_unchanged(
+            deleted = await delete_if_unchanged(
                 {
                     "meta_key": meta_key,
                     "expected_meta": existing_raw,

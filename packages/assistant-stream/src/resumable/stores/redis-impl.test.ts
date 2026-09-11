@@ -356,6 +356,8 @@ describe("RedisResumableStreamStore", () => {
 
     await expect(freshStore.status(streamId)).resolves.toBe("streaming");
     expect(client.streams.has(staleDataKey)).toBe(false);
+    await staleStore.delete(streamId);
+    await expect(freshStore.status(streamId)).resolves.toBe("streaming");
     await expect(
       staleStore.append(streamId, encoder.encode("stale")),
     ).rejects.toThrow(/superseded/);

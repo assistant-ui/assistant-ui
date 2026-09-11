@@ -142,13 +142,13 @@ export interface RedisLikeClient {
   >;
   /** Executes the commands as a single pipeline batch (one round trip). */
   pipeline(commands: readonly PipelineCommand[]): Promise<void>;
-  appendIfUnchanged(options: RedisAppendOptions): Promise<boolean>;
+  appendIfUnchanged?(options: RedisAppendOptions): Promise<boolean>;
   /**
    * Atomically finalizes a stream only while its metadata is unchanged, so a
    * producer superseded by a newer acquisition cannot finalize the replacement.
    */
   finalizeIfUnchanged(options: RedisFinalizeOptions): Promise<boolean>;
-  deleteIfUnchanged(options: RedisDeleteOptions): Promise<boolean>;
+  deleteIfUnchanged?(options: RedisDeleteOptions): Promise<boolean>;
 }
 
 export type RedisResumableStreamStoreOptions = {
@@ -244,6 +244,15 @@ export class RedisResumableStreamStore implements ResumableStreamStore {
     }
     const ttlSec = meta.ttlSec ?? msToSec(this.defaultTtlMs);
     const dataKey = this.dataKey(streamId, meta.generation);
+    if (!this.client.appendIfUnchanged) {
+      await this.client.pipeline([
+        { type: "xAdd", key: dataKey, fields: { [FIELD_CHUNK]: chunk } },
+        { type: "expire", key: dataKey, ttlSec },
+        { type: "expire", key: metaKey, ttlSec },
+      ]);
+      return;
+    }
+
     const appended = await this.client.appendIfUnchanged({
       metaKey,
       expectedMeta: existingRaw,
@@ -389,7 +398,24 @@ export class RedisResumableStreamStore implements ResumableStreamStore {
       return;
     }
 
-    const generation = parseMeta(existingRaw)?.generation;
+    const existing = parseMeta(existingRaw);
+    if (existing && this.isSupersededGeneration(streamId, existing)) {
+      const acquiredGeneration = this.acquiredGenerations.get(streamId);
+      if (acquiredGeneration !== undefined) {
+        await this.client.del([this.dataKey(streamId, acquiredGeneration)]);
+      }
+      return;
+    }
+    const generation = existing?.generation;
+    if (!this.client.deleteIfUnchanged) {
+      this.acquiredGenerations.delete(streamId);
+      await this.client.del([
+        metaKey,
+        ...new Set([this.dataKey(streamId, generation), legacyDataKey]),
+      ]);
+      return;
+    }
+
     while (true) {
       const deleted = await this.client.deleteIfUnchanged({
         metaKey,

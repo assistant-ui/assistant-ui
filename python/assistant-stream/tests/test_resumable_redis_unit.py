@@ -181,6 +181,8 @@ async def test_in_flight_delete_cannot_remove_reacquired_stream() -> None:
 
     assert await fresh_store.status(stream_id) == "streaming"
     assert stale_data_key not in client.streams
+    await stale_store.delete(stream_id)
+    assert await fresh_store.status(stream_id) == "streaming"
     with pytest.raises(ResumableStreamError, match="superseded"):
         await stale_store.append(stream_id, b"stale")
 
