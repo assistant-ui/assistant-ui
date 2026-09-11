@@ -109,8 +109,8 @@
   },
   "@assistant-ui/react-hook-form": {
     ".": {
-      "min": 3380,
-      "gzip": 1428
+      "min": 4107,
+      "gzip": 1712
     }
   },
   "@assistant-ui/react-ink": {

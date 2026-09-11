@@ -305,7 +305,12 @@ describe("useAssistantForm", () => {
         </form>
       ) : null;
     };
-    render(<FormOwner />);
+    const host = document.createElement("div");
+    const shadowRoot = host.attachShadow({ mode: "open" });
+    const container = document.createElement("div");
+    shadowRoot.append(container);
+    document.body.append(host);
+    render(<FormOwner />, { container });
 
     const submission = executeSubmitForm();
     await waitFor(() => expect(validationStarted).toBe(true));
@@ -319,6 +324,38 @@ describe("useAssistantForm", () => {
 
     await act(() => resolveValidation({ values: { name: "Ada" }, errors: {} }));
     expect(onValid).not.toHaveBeenCalled();
+    host.remove();
+  });
+
+  it("suppresses a valid callback when validation disconnects the form", async () => {
+    type FormValues = { name: string };
+    let formElement: HTMLFormElement | null = null;
+    const resolver: Resolver<FormValues> = async () => {
+      formElement?.remove();
+      return { values: { name: "Ada" }, errors: {} };
+    };
+    const onValid = vi.fn();
+
+    const Form = () => {
+      const form = useAssistantForm<FormValues>({ resolver });
+      return (
+        <form
+          ref={(element) => {
+            formElement = element;
+          }}
+          onSubmit={form.handleSubmit(onValid)}
+        >
+          <input {...form.register("name")} />
+        </form>
+      );
+    };
+    render(<Form />);
+
+    await expect(executeSubmitForm()).resolves.toEqual({
+      success: false,
+      message: "The form is no longer available.",
+    });
+    expect(onValid).not.toHaveBeenCalled();
   });
 
   it("reports success when a valid submit handler unmounts the form", async () => {
@@ -331,14 +368,21 @@ describe("useAssistantForm", () => {
       const [visible, setVisible] = useState(true);
       hideForm = () => setVisible(false);
       return visible ? (
-        <form onSubmit={form.handleSubmit(hideForm)}>
+        <form
+          data-testid="handler-unmount-form"
+          onSubmit={form.handleSubmit(hideForm)}
+        >
           <input {...form.register("name", { required: true })} />
         </form>
       ) : null;
     };
-    render(<FormOwner />);
+    const { queryByTestId } = render(<FormOwner />);
 
+    expect(queryByTestId("handler-unmount-form")).not.toBeNull();
     await expect(executeSubmitForm()).resolves.toEqual({ success: true });
+    await waitFor(() =>
+      expect(queryByTestId("handler-unmount-form")).toBeNull(),
+    );
   });
 
   it("reports when requestSubmit does not dispatch a submit event", async () => {

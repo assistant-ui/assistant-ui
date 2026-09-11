@@ -22,6 +22,7 @@ type PendingAssistantSubmit = {
   cancel: () => void;
   dispose: () => void;
   dispatching: boolean;
+  form: HTMLFormElement;
   event: unknown;
   handlerInvoked: boolean;
   outcome: boolean | undefined;
@@ -137,12 +138,18 @@ export const useAssistantForm = <
       const submit = baseHandleSubmit(
         (...args) => {
           const assistantSubmit = getAssistantSubmit(args[1]);
+          if (assistantSubmit && !assistantSubmit.form.isConnected) {
+            assistantSubmit.cancel();
+          }
           if (assistantSubmit?.unavailable) return undefined;
           if (assistantSubmit) assistantSubmit.outcome = true;
           return onValid(...args);
         },
         (...args) => {
           const assistantSubmit = getAssistantSubmit(args[1]);
+          if (assistantSubmit && !assistantSubmit.form.isConnected) {
+            assistantSubmit.cancel();
+          }
           if (assistantSubmit?.unavailable) return undefined;
           if (assistantSubmit) assistantSubmit.outcome = false;
           return onInvalid?.(...args);
@@ -280,6 +287,7 @@ export const useAssistantForm = <
                 },
                 dispose: () => observer?.disconnect(),
                 dispatching: true,
+                form: formElement,
                 event: undefined,
                 handlerInvoked: false,
                 outcome: undefined,
@@ -296,10 +304,17 @@ export const useAssistantForm = <
                     assistantSubmit.cancel();
                   }
                 });
-                observer.observe(formElement.ownerDocument, {
+                const root = formElement.getRootNode();
+                observer.observe(root, {
                   childList: true,
                   subtree: true,
                 });
+                if (root !== formElement.ownerDocument) {
+                  observer.observe(formElement.ownerDocument, {
+                    childList: true,
+                    subtree: true,
+                  });
+                }
               }
               const onSubmit = (event: SubmitEvent) => {
                 if (
