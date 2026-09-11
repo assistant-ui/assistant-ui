@@ -774,6 +774,15 @@ type InMemoryResumableStreamStoreOptions = {
   readonly gcIntervalMs?: number;
 };
 
+declare class IncrementalJsonObjectParser {
+  #private;
+  private constructor();
+  static from(text?: string, fallback?: ReadonlyJSONObject): IncrementalJsonObjectParser;
+  get currentText(): string;
+  get currentArgs(): ReadonlyJSONObject;
+  append(delta: string): IncrementalJsonObjectParser;
+}
+
 type IoRedisLike = Redis | Cluster;
 
 type IpcOptions = Pick<IpcNetConnectOpts, "path">;
@@ -24779,7 +24788,7 @@ declare function toolResultStream(tools: Record<string, Tool> | (() => Record<st
 declare function unstable_runPendingTools(message: AssistantMessage, tools: Record<string, Tool> | undefined, abortSignal: AbortSignal, human: (toolCallId: string, payload: unknown) => Promise<unknown>): Promise<AssistantMessage>;
 
 declare namespace entry_utils_exports {
-  export { AssistantMetaTransformStream, AssistantTransformStream, AsyncIterableStream, ReadonlyJSONArray, ReadonlyJSONObject, ReadonlyJSONValue, SSEEvent, SSEEventDecoder, asAsyncIterableStream, getPartialJsonObjectFieldState, getPartialJsonObjectMeta, parsePartialJsonObject };
+  export { AssistantMetaTransformStream, AssistantTransformStream, AsyncIterableStream, IncrementalJsonObjectParser, ReadonlyJSONArray, ReadonlyJSONObject, ReadonlyJSONValue, SSEEvent, SSEEventDecoder, asAsyncIterableStream, getPartialJsonObjectFieldState, getPartialJsonObjectMeta, parsePartialJsonObject };
 }
 
 export { entry_resumable_exports as entry_resumable, entry_resumable_ioredis_exports as entry_resumable_ioredis, entry_resumable_redis_exports as entry_resumable_redis, entry_root_exports as entry_root, entry_utils_exports as entry_utils };

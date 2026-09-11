@@ -850,3 +850,28 @@ describe("AssistantMessageAccumulator content alias", () => {
     }
   });
 });
+
+describe("AssistantMessageAccumulator tool arguments", () => {
+  it("keeps nested values and partial arguments across small deltas", async () => {
+    const input = '{"query":"pizza","filters":{"limit":2}}';
+    const messages = await collectStream([
+      {
+        type: "part-start",
+        path: [0],
+        part: { type: "tool-call", toolCallId: "call-1", toolName: "search" },
+      },
+      ...[...input].map((text) => ({
+        type: "text-delta" as const,
+        path: [0],
+        textDelta: text,
+      })),
+      { type: "tool-call-args-text-finish", path: [0] },
+    ]);
+
+    expect(messages.at(-1)?.parts[0]).toMatchObject({
+      type: "tool-call",
+      argsText: input,
+      args: { query: "pizza", filters: { limit: 2 } },
+    });
+  });
+});
