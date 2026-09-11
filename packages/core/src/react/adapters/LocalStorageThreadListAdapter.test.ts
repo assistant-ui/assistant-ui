@@ -1,10 +1,34 @@
-import { describe, expect, it } from "vitest";
+// @vitest-environment jsdom
+
+import { renderHook } from "@testing-library/react";
+import {
+  AssistantMessageAccumulator,
+  type AssistantMessage,
+  type AssistantStreamChunk,
+} from "assistant-stream";
+import { describe, expect, it, vi } from "vitest";
+import type { ThreadMessage } from "../../types/message";
 import type { AsyncStorageLike } from "./LocalStorageThreadListAdapter";
 import {
   createLocalStorageAdapter,
   parseStoredMessageRepository,
   parseStoredThreadMetadata,
 } from "./LocalStorageThreadListAdapter";
+
+const mocks = vi.hoisted(() => ({ remoteId: "thread-1" }));
+
+vi.mock("@assistant-ui/store", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("@assistant-ui/store")>()),
+  useAui: () => ({
+    threadListItem: {
+      getState: () => ({ remoteId: mocks.remoteId }),
+      initialize: async () => ({
+        remoteId: mocks.remoteId,
+        externalId: undefined,
+      }),
+    },
+  }),
+}));
 
 const storedMessage = (
   id: string,
@@ -221,6 +245,41 @@ describe("parseStoredMessageRepository", () => {
     ]);
     expect(repo.messages[3]?.message.content).toEqual([]);
     expect(repo.messages[4]?.message.content).toEqual([]);
+  });
+
+  it("drops tool calls with malformed approval or MCP metadata", () => {
+    const toolCall = {
+      type: "tool-call",
+      toolCallId: "tool-1",
+      toolName: "search",
+      args: {},
+      argsText: "{}",
+    };
+    const repo = parseStoredMessageRepository(
+      JSON.stringify({
+        messages: [
+          {
+            message: {
+              ...storedMessage("assistant", "assistant"),
+              content: [
+                {
+                  ...toolCall,
+                  approval: { id: "approval-1", approved: "yes" },
+                },
+                {
+                  ...toolCall,
+                  toolCallId: "tool-2",
+                  mcp: { app: { resourceUri: 42 } },
+                },
+              ],
+            },
+            parentId: null,
+          },
+        ],
+      }),
+    );
+
+    expect(repo.messages[0]?.message.content).toEqual([]);
   });
 
   it("normalizes malformed attachments, statuses, and metadata", () => {
@@ -441,7 +500,7 @@ describe("parseStoredMessageRepository", () => {
       "user",
     ]);
     expect(repo.messages[0]?.message.content).toEqual([
-      { type: "text", text: "" },
+      { type: "text", text: "instructions" },
     ]);
   });
 
@@ -492,6 +551,75 @@ describe("parseStoredMessageRepository", () => {
 });
 
 describe("createLocalStorageAdapter", () => {
+  it("round-trips accumulator-produced tool calls through history", async () => {
+    mocks.remoteId = "thread-round-trip";
+    const storage = createStorage();
+    const adapter = createLocalStorageAdapter({ storage });
+    const { result } = renderHook(() => adapter.unstable_useAdapters?.());
+    const accumulator = new AssistantMessageAccumulator();
+    const accumulated: AssistantMessage[] = [];
+    const chunks: AssistantStreamChunk[] = [
+      {
+        type: "part-start",
+        path: [0],
+        part: {
+          type: "tool-call",
+          toolCallId: "tool-1",
+          toolName: "search",
+        },
+      },
+      { type: "text-delta", path: [0], textDelta: '{"q":"test"}' },
+      { type: "tool-call-args-text-finish", path: [0] },
+      { type: "result", path: [0], result: false, isError: false },
+      { type: "part-finish", path: [0] },
+      {
+        type: "message-finish",
+        path: [],
+        finishReason: "stop",
+        usage: { inputTokens: 1, outputTokens: 2 },
+      },
+    ];
+    const source = new ReadableStream<AssistantStreamChunk>({
+      start(controller) {
+        for (const chunk of chunks) controller.enqueue(chunk);
+        controller.close();
+      },
+    });
+
+    await source.pipeThrough(accumulator).pipeTo(
+      new WritableStream({
+        write(message) {
+          accumulated.push(message);
+        },
+      }),
+    );
+    const assistantMessage = accumulated.at(-1)!;
+    const message: ThreadMessage = {
+      id: "assistant-1",
+      createdAt: new Date("2026-01-01T00:00:00.000Z"),
+      role: "assistant",
+      content: assistantMessage.parts,
+      status: assistantMessage.status,
+      metadata: assistantMessage.metadata,
+    };
+
+    await result.current?.history?.append({
+      message,
+      parentId: null,
+    });
+    const loaded = await result.current?.history?.load();
+
+    expect(loaded?.messages[0]?.message.content).toMatchObject([
+      {
+        type: "tool-call",
+        state: "result",
+        status: { type: "complete", reason: "unknown" },
+        args: { q: "test" },
+        result: false,
+      },
+    ]);
+  });
+
   it("lists no threads when the stored thread list is invalid JSON", async () => {
     const storage = createStorage({ "@assistant-ui:threads": "{not-json" });
     const adapter = createLocalStorageAdapter({ storage });

@@ -198,6 +198,59 @@ const isToolModelContent = (value: unknown): boolean =>
           (part.filename === undefined || typeof part.filename === "string"))),
   );
 
+const isToolApprovalOption = (value: unknown): boolean =>
+  isRecord(value) &&
+  typeof value.id === "string" &&
+  typeof value.kind === "string" &&
+  (value.label === undefined || typeof value.label === "string") &&
+  (value.description === undefined || typeof value.description === "string") &&
+  (value.grants === undefined ||
+    (Array.isArray(value.grants) &&
+      value.grants.every((grant) => typeof grant === "string"))) &&
+  (value.confirm === undefined ||
+    typeof value.confirm === "boolean" ||
+    (isRecord(value.confirm) &&
+      (value.confirm.title === undefined ||
+        typeof value.confirm.title === "string") &&
+      (value.confirm.description === undefined ||
+        typeof value.confirm.description === "string")));
+
+const isToolApproval = (value: unknown): boolean =>
+  isRecord(value) &&
+  typeof value.id === "string" &&
+  (value.prompt === undefined || typeof value.prompt === "string") &&
+  (value.display === undefined ||
+    value.display === "decision" ||
+    value.display === "select" ||
+    value.display === "text") &&
+  (value.allowFreeform === undefined ||
+    typeof value.allowFreeform === "boolean") &&
+  (value.approved === undefined || typeof value.approved === "boolean") &&
+  (value.reason === undefined || typeof value.reason === "string") &&
+  (value.isAutomatic === undefined || typeof value.isAutomatic === "boolean") &&
+  (value.options === undefined ||
+    (Array.isArray(value.options) &&
+      value.options.every(isToolApprovalOption))) &&
+  (value.optionId === undefined || typeof value.optionId === "string") &&
+  (value.text === undefined || typeof value.text === "string") &&
+  (value.resolution === undefined ||
+    value.resolution === "cancelled" ||
+    value.resolution === "expired");
+
+const isMcpAppMetadata = (value: unknown): boolean =>
+  isRecord(value) &&
+  typeof value.resourceUri === "string" &&
+  (value.mimeType === undefined || typeof value.mimeType === "string") &&
+  (value.visibility === undefined ||
+    (Array.isArray(value.visibility) &&
+      value.visibility.every(
+        (visibility) => visibility === "model" || visibility === "app",
+      ))) &&
+  (value.serverId === undefined || typeof value.serverId === "string");
+
+const isToolCallMcpMetadata = (value: unknown): boolean =>
+  isRecord(value) && (value.app === undefined || isMcpAppMetadata(value.app));
+
 const hasValidToolCallMetadata = (value: Record<string, unknown>): boolean =>
   hasValidPartMetadata(value) &&
   (value.isError === undefined || typeof value.isError === "boolean") &&
@@ -206,9 +259,8 @@ const hasValidToolCallMetadata = (value: Record<string, unknown>): boolean =>
     isToolModelContent(value.modelContent)) &&
   (value.interrupt === undefined ||
     (isRecord(value.interrupt) && value.interrupt.type === "human")) &&
-  (value.approval === undefined ||
-    (isRecord(value.approval) && typeof value.approval.id === "string")) &&
-  (value.mcp === undefined || isRecord(value.mcp));
+  (value.approval === undefined || isToolApproval(value.approval)) &&
+  (value.mcp === undefined || isToolCallMcpMetadata(value.mcp));
 
 const isStoredMessagePart = (
   value: unknown,
@@ -443,7 +495,11 @@ function parseStoredThreadMessage(
   if (value.content.length !== 1) return null;
   const content =
     parseStoredMessagePart(value.content[0], "system", depth) ??
-    ({ type: "text", text: "" } as const);
+    (isRecord(value.content[0]) &&
+    value.content[0].type === "text" &&
+    typeof value.content[0].text === "string"
+      ? { type: "text", text: value.content[0].text }
+      : ({ type: "text", text: "" } as const));
 
   return {
     id: value.id,
