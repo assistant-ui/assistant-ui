@@ -116,6 +116,15 @@ class FakeRedisClient implements RedisLikeClient {
   }
 }
 
+const withoutFencedMutations = (client: FakeRedisClient): RedisLikeClient => ({
+  setNX: (key, value) => client.setNX(key, value),
+  get: (...args) => client.get(...args),
+  del: (...args) => client.del(...args),
+  xRange: (key, start) => client.xRange(key, start),
+  pipeline: (...args) => client.pipeline(...args),
+  finalizeIfUnchanged: (...args) => client.finalizeIfUnchanged(...args),
+});
+
 describe("RedisResumableStreamStore", () => {
   it("does not expose stale data while a stream id is reacquired", async () => {
     const client = new FakeRedisClient();
@@ -171,6 +180,35 @@ describe("RedisResumableStreamStore", () => {
     }
 
     expect(chunks).toEqual(["legacy"]);
+  });
+
+  it("supports custom clients without fenced mutation capabilities", async () => {
+    const client = new FakeRedisClient();
+    const keyPrefix = "test";
+    const streamId = "custom-client";
+    const metaKey = `${keyPrefix}:{${streamId}}:meta`;
+    const legacyDataKey = `${keyPrefix}:{${streamId}}:data`;
+    const store = new RedisResumableStreamStore(
+      withoutFencedMutations(client),
+      { keyPrefix },
+    );
+
+    await store.acquire(streamId);
+    const generation = (
+      JSON.parse(client.strings.get(metaKey)!) as { generation: string }
+    ).generation;
+    const dataKey = `${keyPrefix}:{${streamId}}:data:${generation}`;
+    await client.xAdd(legacyDataKey, { c: encoder.encode("legacy") });
+
+    await store.append(streamId, encoder.encode("current"));
+    expect(client.streams.get(dataKey)?.[0]?.fields.c).toEqual(
+      encoder.encode("current"),
+    );
+
+    await store.delete(streamId);
+    expect(client.strings.has(metaKey)).toBe(false);
+    expect(client.streams.has(dataKey)).toBe(false);
+    expect(client.streams.has(legacyDataKey)).toBe(false);
   });
 
   it("finalizes and replays generation-scoped streams", async () => {

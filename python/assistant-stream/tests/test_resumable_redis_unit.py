@@ -83,6 +83,55 @@ class FakeRedisLikeClient:
         return True
 
 
+class LegacyFakeRedisLikeClient:
+    def __init__(self, client: FakeRedisLikeClient) -> None:
+        self.client = client
+
+    async def set_nx(self, key: str, value: str, ttl_sec: int) -> bool:
+        return await self.client.set_nx(key, value, ttl_sec)
+
+    async def get(self, key: str) -> str | None:
+        return await self.client.get(key)
+
+    async def delete(self, keys: list[str]) -> None:
+        await self.client.delete(keys)
+
+    async def xrange(
+        self, key: str, start: str, end: str
+    ) -> list[dict[str, Any]]:
+        return await self.client.xrange(key, start, end)
+
+    async def pipeline(self, commands: list[dict[str, Any]]) -> None:
+        await self.client.pipeline(commands)
+
+    async def finalize_if_unchanged(self, options: dict[str, Any]) -> bool:
+        return await self.client.finalize_if_unchanged(options)
+
+
+@pytest.mark.anyio
+async def test_custom_client_without_fencing_capabilities_uses_legacy_mutations() -> None:
+    client = FakeRedisLikeClient()
+    store = RedisResumableStreamStore(
+        LegacyFakeRedisLikeClient(client), key_prefix="test"
+    )
+    stream_id = "custom-client"
+    meta_key = "test:{custom-client}:meta"
+    legacy_data_key = "test:{custom-client}:data"
+
+    await store.acquire(stream_id)
+    generation = json.loads(client.values[meta_key])["generation"]
+    data_key = f"test:{{{stream_id}}}:data:{generation}"
+    await client.xadd(legacy_data_key, {"c": b"legacy"})
+
+    await store.append(stream_id, b"current")
+    assert client.streams[data_key][0]["fields"]["c"] == b"current"
+
+    await store.delete(stream_id)
+    assert meta_key not in client.values
+    assert data_key not in client.streams
+    assert legacy_data_key not in client.streams
+
+
 @pytest.mark.anyio
 async def test_stale_finalizer_cannot_finalize_reacquired_stream() -> None:
     client = FakeRedisLikeClient()
