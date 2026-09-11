@@ -319,6 +319,56 @@ describe("CloudChatCore", () => {
     await expect(stream.cancel(new Error("stopped"))).resolves.toBeUndefined();
   });
 
+  it("does not continue a new-thread send after registry disposal", async () => {
+    let resolveThread!: (value: { thread_id: string }) => void;
+    const createThread = vi.fn(
+      () =>
+        new Promise<{ thread_id: string }>((resolve) => {
+          resolveThread = resolve;
+        }),
+    );
+    const selectThread = vi.fn();
+    const refresh = vi.fn();
+    const sendMessages = vi.fn();
+    const core = new CloudChatCore(
+      {} as never,
+      {
+        threads: {
+          cloud: { threads: { create: createThread } },
+          selectThread,
+          refresh,
+        } as never,
+        chatConfig: {},
+      },
+      { sendMessages, reconnectToStream: vi.fn() },
+    );
+    const stop = vi.fn().mockResolvedValue(undefined);
+    const chatRegistry = new ChatRegistry(
+      () => ({ messages: [], stop }) as never,
+    );
+    chatRegistry.getOrCreate("chat-1");
+    const persist = vi.spyOn(core, "persist").mockResolvedValue(undefined);
+
+    const send = core.createTransport("chat-1", chatRegistry).sendMessages({
+      trigger: "submit-message",
+      messages: [],
+      abortSignal: new AbortController().signal,
+    } as never);
+    await vi.waitFor(() => expect(createThread).toHaveBeenCalledOnce());
+
+    await chatRegistry.stopAll();
+    resolveThread({ thread_id: "thread-1" });
+
+    await expect(send).rejects.toMatchObject({ name: "AbortError" });
+    expect(stop).toHaveBeenCalledOnce();
+    expect(chatRegistry.getMeta("chat-1")).toBeUndefined();
+    expect(chatRegistry.getChatKeyForThread("thread-1")).toBeUndefined();
+    expect(selectThread).not.toHaveBeenCalled();
+    expect(refresh).not.toHaveBeenCalled();
+    expect(persist).not.toHaveBeenCalled();
+    expect(sendMessages).not.toHaveBeenCalled();
+  });
+
   it("reports message_sent for a user submission only", async () => {
     const sendMessages = vi.fn(() => Promise.resolve(new ReadableStream()));
     const core = createCore({

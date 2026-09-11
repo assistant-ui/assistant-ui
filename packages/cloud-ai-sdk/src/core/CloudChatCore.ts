@@ -31,6 +31,13 @@ type ActiveTelemetryTiming = {
   error?: unknown;
 };
 
+const throwIfRegistryDisposed = (registry: ChatRegistry): void => {
+  if (!registry.isDisposed) return;
+  const error = new Error("Chat registry is disposed");
+  error.name = "AbortError";
+  throw error;
+};
+
 export class CloudChatCore {
   readonly cloud: AssistantCloud;
   readonly persistence: MessagePersistence;
@@ -199,7 +206,9 @@ export class CloudChatCore {
   ): ChatTransport<UIMessage> {
     return {
       sendMessages: async (opts) => {
+        throwIfRegistryDisposed(registry);
         const currentThreadId = await this.ensureThreadId(chatKey, registry);
+        throwIfRegistryDisposed(registry);
 
         if (!currentThreadId) {
           throw new Error("useCloudChat: Failed to resolve thread id");
@@ -212,6 +221,7 @@ export class CloudChatCore {
           roles: ["user"],
           strict: true,
         });
+        throwIfRegistryDisposed(registry);
         if (
           opts.trigger === "submit-message" &&
           opts.messages.at(-1)?.role === "user"

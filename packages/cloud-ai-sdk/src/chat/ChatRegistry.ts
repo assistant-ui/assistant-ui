@@ -15,6 +15,7 @@ export class ChatRegistry {
   }
 
   getOrCreate(chatKey: string, threadId?: string | null): Chat<UIMessage> {
+    this.throwIfDisposed();
     const existing = this.chatByKey.get(chatKey);
     if (existing) {
       if (threadId) {
@@ -38,6 +39,7 @@ export class ChatRegistry {
     threadId: string | null,
     chat: Chat<UIMessage>,
   ): void {
+    this.throwIfDisposed();
     this.chatByKey.set(chatKey, chat);
     this.getOrCreateMeta(chatKey, threadId);
   }
@@ -47,6 +49,7 @@ export class ChatRegistry {
   }
 
   getOrCreateMeta(chatKey: string, threadId?: string | null): ChatMeta {
+    this.throwIfDisposed();
     const existing = this.metaByKey.get(chatKey);
     if (existing) {
       if (threadId && !existing.threadId) {
@@ -77,6 +80,13 @@ export class ChatRegistry {
 
   get isDisposed(): boolean {
     return this.disposed;
+  }
+
+  private throwIfDisposed(): void {
+    if (!this.disposed) return;
+    const error = new Error("Chat registry is disposed");
+    error.name = "AbortError";
+    throw error;
   }
 
   async stopAll(): Promise<void> {
