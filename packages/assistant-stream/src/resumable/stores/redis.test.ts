@@ -238,6 +238,74 @@ for (const adapter of adapters) {
         );
       });
 
+      it("does not let an in-flight append mutate a reacquired stream", async () => {
+        const id = `id-${Math.random()}`;
+        const staleStore = makeStore();
+        const freshStore = makeStore();
+        await staleStore.acquire(id);
+
+        let resumeAppend!: () => void;
+        const appendPaused = new Promise<void>((resolve) => {
+          pauseNextGet(
+            () =>
+              new Promise<void>((resume) => {
+                resumeAppend = resume;
+                resolve();
+              }),
+          );
+        });
+        const appending = staleStore.append(id, bytes("stale"));
+        await appendPaused;
+
+        await deleteKey(`${keyPrefix}:{${id}}:meta`);
+        await expect(freshStore.acquire(id)).resolves.toBe("producer");
+        resumeAppend();
+
+        await expect(appending).rejects.toThrow(/superseded/);
+        await freshStore.append(id, bytes("fresh"));
+        await freshStore.finalize(id, "done");
+
+        const chunks: string[] = [];
+        for await (const entry of freshStore.read(
+          id,
+          "",
+          new AbortController().signal,
+        )) {
+          chunks.push(text(entry.chunk));
+        }
+        expect(chunks).toEqual(["fresh"]);
+      });
+
+      it("does not let an in-flight delete remove a reacquired stream", async () => {
+        const id = `id-${Math.random()}`;
+        const staleStore = makeStore();
+        const freshStore = makeStore();
+        await staleStore.acquire(id);
+
+        let resumeDelete!: () => void;
+        const deletePaused = new Promise<void>((resolve) => {
+          pauseNextGet(
+            () =>
+              new Promise<void>((resume) => {
+                resumeDelete = resume;
+                resolve();
+              }),
+          );
+        });
+        const deleting = staleStore.delete(id);
+        await deletePaused;
+
+        await deleteKey(`${keyPrefix}:{${id}}:meta`);
+        await expect(freshStore.acquire(id)).resolves.toBe("producer");
+        resumeDelete();
+        await deleting;
+
+        await expect(freshStore.status(id)).resolves.toBe("streaming");
+        await expect(staleStore.append(id, bytes("stale"))).rejects.toThrow(
+          /superseded/,
+        );
+      });
+
       it("read throws on error finalize after draining buffered entries", async () => {
         const id = `id-${Math.random()}`;
         await store.acquire(id);

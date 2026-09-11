@@ -57,6 +57,12 @@ class FakeRedisLikeClient:
                     f"unhandled pipeline command: {command['type']}"
                 )
 
+    async def append_if_unchanged(self, options: dict[str, Any]) -> bool:
+        if self.values.get(options["meta_key"]) != options["expected_meta"]:
+            return False
+        await self.xadd(options["data_key"], options["fields"])
+        return True
+
     async def xadd(self, key: str, fields: dict[str, Any]) -> str:
         self.next_stream_id += 1
         entry_id = f"{self.next_stream_id}-0"
@@ -68,6 +74,12 @@ class FakeRedisLikeClient:
             return False
         await self.xadd(options["data_key"], options["fields"])
         self.values[options["meta_key"]] = options["next_meta"]
+        return True
+
+    async def delete_if_unchanged(self, options: dict[str, Any]) -> bool:
+        if self.values.get(options["meta_key"]) != options["expected_meta"]:
+            return False
+        await self.delete([options["meta_key"], *options["data_keys"]])
         return True
 
 
@@ -99,6 +111,72 @@ async def test_stale_finalizer_cannot_finalize_reacquired_stream() -> None:
 
     assert await fresh_store.status(stream_id) == "streaming"
 
+    with pytest.raises(ResumableStreamError, match="superseded"):
+        await stale_store.append(stream_id, b"stale")
+
+
+@pytest.mark.anyio
+async def test_in_flight_append_cannot_mutate_reacquired_stream() -> None:
+    client = FakeRedisLikeClient()
+    stale_store = RedisResumableStreamStore(client, key_prefix="test")
+    fresh_store = RedisResumableStreamStore(client, key_prefix="test")
+    stream_id = "append-race"
+    meta_key = "test:{append-race}:meta"
+    await stale_store.acquire(stream_id)
+
+    paused = asyncio.Event()
+    resume = asyncio.Event()
+
+    async def pause_after_read() -> None:
+        paused.set()
+        await resume.wait()
+
+    client.on_next_get = pause_after_read
+    appending = asyncio.create_task(stale_store.append(stream_id, b"stale"))
+    await paused.wait()
+
+    await client.delete([meta_key])
+    assert await fresh_store.acquire(stream_id) == "producer"
+    resume.set()
+
+    with pytest.raises(ResumableStreamError, match="superseded"):
+        await appending
+
+    await fresh_store.append(stream_id, b"fresh")
+    await fresh_store.finalize(stream_id, "done")
+    chunks = [
+        entry.chunk
+        async for entry in fresh_store.read(stream_id, "", asyncio.Event())
+    ]
+    assert chunks == [b"fresh"]
+
+
+@pytest.mark.anyio
+async def test_in_flight_delete_cannot_remove_reacquired_stream() -> None:
+    client = FakeRedisLikeClient()
+    stale_store = RedisResumableStreamStore(client, key_prefix="test")
+    fresh_store = RedisResumableStreamStore(client, key_prefix="test")
+    stream_id = "delete-race"
+    meta_key = "test:{delete-race}:meta"
+    await stale_store.acquire(stream_id)
+
+    paused = asyncio.Event()
+    resume = asyncio.Event()
+
+    async def pause_after_read() -> None:
+        paused.set()
+        await resume.wait()
+
+    client.on_next_get = pause_after_read
+    deleting = asyncio.create_task(stale_store.delete(stream_id))
+    await paused.wait()
+
+    await client.delete([meta_key])
+    assert await fresh_store.acquire(stream_id) == "producer"
+    resume.set()
+    await deleting
+
+    assert await fresh_store.status(stream_id) == "streaming"
     with pytest.raises(ResumableStreamError, match="superseded"):
         await stale_store.append(stream_id, b"stale")
 

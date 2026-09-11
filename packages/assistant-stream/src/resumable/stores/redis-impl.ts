@@ -38,6 +38,20 @@ export type RedisFinalizeOptions = {
   readonly ttlSec: number;
 };
 
+export type RedisAppendOptions = {
+  readonly metaKey: string;
+  readonly expectedMeta: string;
+  readonly dataKey: string;
+  readonly fields: Record<string, string | Uint8Array>;
+  readonly ttlSec: number;
+};
+
+export type RedisDeleteOptions = {
+  readonly metaKey: string;
+  readonly expectedMeta: string;
+  readonly dataKeys: readonly string[];
+};
+
 // `XADD *` is non-deterministic; Redis 5.x and 6.x configured with
 // `lua-replicate-commands no` reject it unless effects replication is requested.
 export const FINALIZE_IF_UNCHANGED_SCRIPT = `
@@ -57,6 +71,31 @@ return 1
 
 export const FINALIZE_IF_UNCHANGED_KEY_COUNT = 2;
 
+export const APPEND_IF_UNCHANGED_SCRIPT = `
+redis.replicate_commands()
+if redis.call("GET", KEYS[1]) ~= ARGV[1] then
+  return 0
+end
+local xadd = { "XADD", KEYS[2], "*" }
+for i = 3, #ARGV do
+  table.insert(xadd, ARGV[i])
+end
+redis.call(unpack(xadd))
+redis.call("EXPIRE", KEYS[2], ARGV[2])
+redis.call("EXPIRE", KEYS[1], ARGV[2])
+return 1
+`;
+
+export const APPEND_IF_UNCHANGED_KEY_COUNT = 2;
+
+export const DELETE_IF_UNCHANGED_SCRIPT = `
+if redis.call("GET", KEYS[1]) ~= ARGV[1] then
+  return 0
+end
+redis.call("DEL", unpack(KEYS))
+return 1
+`;
+
 export function finalizeIfUnchangedArgs(
   options: RedisFinalizeOptions,
 ): string[] {
@@ -68,6 +107,22 @@ export function finalizeIfUnchangedArgs(
     String(options.ttlSec),
     ...Object.entries(options.fields).flat(),
   ];
+}
+
+export function appendIfUnchangedArgs(
+  options: RedisAppendOptions,
+): Array<string | Uint8Array> {
+  return [
+    options.metaKey,
+    options.dataKey,
+    options.expectedMeta,
+    String(options.ttlSec),
+    ...Object.entries(options.fields).flat(),
+  ];
+}
+
+export function deleteIfUnchangedArgs(options: RedisDeleteOptions): string[] {
+  return [options.metaKey, ...options.dataKeys, options.expectedMeta];
 }
 
 /**
@@ -87,11 +142,13 @@ export interface RedisLikeClient {
   >;
   /** Executes the commands as a single pipeline batch (one round trip). */
   pipeline(commands: readonly PipelineCommand[]): Promise<void>;
+  appendIfUnchanged(options: RedisAppendOptions): Promise<boolean>;
   /**
    * Atomically finalizes a stream only while its metadata is unchanged, so a
    * producer superseded by a newer acquisition cannot finalize the replacement.
    */
   finalizeIfUnchanged(options: RedisFinalizeOptions): Promise<boolean>;
+  deleteIfUnchanged(options: RedisDeleteOptions): Promise<boolean>;
 }
 
 export type RedisResumableStreamStoreOptions = {
@@ -172,10 +229,12 @@ export class RedisResumableStreamStore implements ResumableStreamStore {
       );
     }
     const metaKey = this.metaKey(streamId);
-    const meta = await this.readMeta(streamId);
-    if (!meta) {
+    const existingRaw = await this.client.get(metaKey);
+    if (existingRaw === null) {
       throw new Error(`Stream not found: ${streamId}`);
     }
+    const meta = parseMeta(existingRaw);
+    if (!meta) throw new Error(`Stream not found: ${streamId}`);
     this.assertOwnedGeneration(streamId, meta);
     if (meta.status !== "streaming") {
       throw new ResumableStreamError(
@@ -185,11 +244,28 @@ export class RedisResumableStreamStore implements ResumableStreamStore {
     }
     const ttlSec = meta.ttlSec ?? msToSec(this.defaultTtlMs);
     const dataKey = this.dataKey(streamId, meta.generation);
-    await this.client.pipeline([
-      { type: "xAdd", key: dataKey, fields: { [FIELD_CHUNK]: chunk } },
-      { type: "expire", key: dataKey, ttlSec },
-      { type: "expire", key: metaKey, ttlSec },
-    ]);
+    const appended = await this.client.appendIfUnchanged({
+      metaKey,
+      expectedMeta: existingRaw,
+      dataKey,
+      fields: { [FIELD_CHUNK]: chunk },
+      ttlSec,
+    });
+    if (appended) return;
+
+    const current = await this.readMeta(streamId);
+    if (!current) throw new Error(`Stream not found: ${streamId}`);
+    this.assertOwnedGeneration(streamId, current);
+    if (current.status !== "streaming") {
+      throw new ResumableStreamError(
+        "finalized",
+        `Stream already finalized: ${streamId}`,
+      );
+    }
+    throw new ResumableStreamError(
+      "missing",
+      `Stream changed while appending: ${streamId}`,
+    );
   }
 
   async finalize(
@@ -304,15 +380,34 @@ export class RedisResumableStreamStore implements ResumableStreamStore {
 
   async delete(streamId: string): Promise<void> {
     validateStreamId(streamId);
-    this.acquiredGenerations.delete(streamId);
-    const meta = await this.readMeta(streamId);
-    await this.client.del([
-      this.metaKey(streamId),
-      ...new Set([
-        this.dataKey(streamId, meta?.generation),
-        this.dataKey(streamId),
-      ]),
-    ]);
+    const metaKey = this.metaKey(streamId);
+    let existingRaw = await this.client.get(metaKey);
+    const legacyDataKey = this.dataKey(streamId);
+    if (existingRaw === null) {
+      this.acquiredGenerations.delete(streamId);
+      await this.client.del([legacyDataKey]);
+      return;
+    }
+
+    const generation = parseMeta(existingRaw)?.generation;
+    while (true) {
+      const deleted = await this.client.deleteIfUnchanged({
+        metaKey,
+        expectedMeta: existingRaw,
+        dataKeys: [
+          ...new Set([this.dataKey(streamId, generation), legacyDataKey]),
+        ],
+      });
+      if (deleted) {
+        this.acquiredGenerations.delete(streamId);
+        return;
+      }
+
+      const currentRaw = await this.client.get(metaKey);
+      if (currentRaw === null) return;
+      if (parseMeta(currentRaw)?.generation !== generation) return;
+      existingRaw = currentRaw;
+    }
   }
 
   private async readMeta(streamId: string): Promise<ParsedMeta | undefined> {

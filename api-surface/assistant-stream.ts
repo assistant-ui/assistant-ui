@@ -1159,6 +1159,14 @@ interface Redis<ReplyMapping extends "legacy" | "resp3" = "legacy"> extends Even
 interface Redis<ReplyMapping extends "legacy" | "resp3" = "legacy"> extends Transaction<ReplyMapping extends "resp3" ? "resp3" : "resp2"> {
 }
 
+type RedisAppendOptions = {
+  readonly metaKey: string;
+  readonly expectedMeta: string;
+  readonly dataKey: string;
+  readonly fields: Record<string, string | Uint8Array>;
+  readonly ttlSec: number;
+};
+
 interface RedisCommander<Context extends ClientContext = {
   type: "default";
 }> {
@@ -24127,6 +24135,12 @@ interface RedisCommander<Context extends ClientContext = {
   ]): Result<number, Context>;
 }
 
+type RedisDeleteOptions = {
+  readonly metaKey: string;
+  readonly expectedMeta: string;
+  readonly dataKeys: readonly string[];
+};
+
 type RedisFinalizeOptions = {
   readonly metaKey: string;
   readonly expectedMeta: string;
@@ -24147,7 +24161,9 @@ interface RedisLikeClient {
     fields: Record<string, string | Uint8Array>;
   }>>;
   pipeline(commands: readonly PipelineCommand[]): Promise<void>;
+  appendIfUnchanged(options: RedisAppendOptions): Promise<boolean>;
   finalizeIfUnchanged(options: RedisFinalizeOptions): Promise<boolean>;
+  deleteIfUnchanged(options: RedisDeleteOptions): Promise<boolean>;
 }
 
 type RedisOptions = CommonRedisOptions & SentinelConnectionOptions & StandaloneConnectionOptions;
@@ -24747,7 +24763,7 @@ declare const getPartialJsonObjectMeta: (obj: Record<symbol, unknown>) => Partia
 declare const hasHimportCoordinator: unique symbol;
 
 declare namespace entry_resumable_exports {
-  export { CreateResumableAssistantStreamResponseOptions, CreateResumeAssistantStreamResponseOptions, InMemoryResumableStreamStoreOptions, RESUMABLE_STREAM_ID_HEADER, RedisFinalizeOptions, RedisLikeClient, RedisResumableStreamStoreOptions, ResumableStreamAcquireOptions, ResumableStreamContext, ResumableStreamContextOptions, ResumableStreamEntry, ResumableStreamError, ResumableStreamErrorCode, ResumableStreamRole, ResumableStreamStatus, ResumableStreamStore, createInMemoryResumableStreamStore, createResumableAssistantStreamResponse, createResumableStreamContext, createResumeAssistantStreamResponse };
+  export { CreateResumableAssistantStreamResponseOptions, CreateResumeAssistantStreamResponseOptions, InMemoryResumableStreamStoreOptions, RESUMABLE_STREAM_ID_HEADER, RedisAppendOptions, RedisDeleteOptions, RedisFinalizeOptions, RedisLikeClient, RedisResumableStreamStoreOptions, ResumableStreamAcquireOptions, ResumableStreamContext, ResumableStreamContextOptions, ResumableStreamEntry, ResumableStreamError, ResumableStreamErrorCode, ResumableStreamRole, ResumableStreamStatus, ResumableStreamStore, createInMemoryResumableStreamStore, createResumableAssistantStreamResponse, createResumableStreamContext, createResumeAssistantStreamResponse };
 }
 
 declare namespace entry_root_exports {

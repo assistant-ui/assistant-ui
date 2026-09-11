@@ -1,7 +1,12 @@
 import {
+  APPEND_IF_UNCHANGED_KEY_COUNT,
+  APPEND_IF_UNCHANGED_SCRIPT,
+  DELETE_IF_UNCHANGED_SCRIPT,
   FINALIZE_IF_UNCHANGED_KEY_COUNT,
   FINALIZE_IF_UNCHANGED_SCRIPT,
   RedisResumableStreamStore,
+  appendIfUnchangedArgs,
+  deleteIfUnchangedArgs,
   finalizeIfUnchangedArgs,
   type PipelineCommand,
   type RedisLikeClient,
@@ -75,12 +80,32 @@ function adapt(client: NodeRedisLike): RedisLikeClient {
       }
       await chain.execAsPipeline();
     },
+    async appendIfUnchanged(options) {
+      const result = await client.sendCommand<number>([
+        "EVAL",
+        APPEND_IF_UNCHANGED_SCRIPT,
+        String(APPEND_IF_UNCHANGED_KEY_COUNT),
+        ...appendIfUnchangedArgs(options).map((arg) =>
+          typeof arg === "string" ? arg : toBuffer(arg),
+        ),
+      ]);
+      return result === 1;
+    },
     async finalizeIfUnchanged(options) {
       const result = await client.sendCommand<number>([
         "EVAL",
         FINALIZE_IF_UNCHANGED_SCRIPT,
         String(FINALIZE_IF_UNCHANGED_KEY_COUNT),
         ...finalizeIfUnchangedArgs(options),
+      ]);
+      return result === 1;
+    },
+    async deleteIfUnchanged(options) {
+      const result = await client.sendCommand<number>([
+        "EVAL",
+        DELETE_IF_UNCHANGED_SCRIPT,
+        String(options.dataKeys.length + 1),
+        ...deleteIfUnchangedArgs(options),
       ]);
       return result === 1;
     },

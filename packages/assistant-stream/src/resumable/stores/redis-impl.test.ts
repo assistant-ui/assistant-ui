@@ -1,6 +1,8 @@
 import { describe, expect, it } from "vitest";
 import {
   RedisResumableStreamStore,
+  type RedisAppendOptions,
+  type RedisDeleteOptions,
   type RedisFinalizeOptions,
   type PipelineCommand,
   type RedisLikeClient,
@@ -91,11 +93,25 @@ class FakeRedisClient implements RedisLikeClient {
     }
   }
 
+  async appendIfUnchanged(options: RedisAppendOptions): Promise<boolean> {
+    if (this.strings.get(options.metaKey) !== options.expectedMeta)
+      return false;
+    await this.xAdd(options.dataKey, options.fields);
+    return true;
+  }
+
   async finalizeIfUnchanged(options: RedisFinalizeOptions): Promise<boolean> {
     if (this.strings.get(options.metaKey) !== options.expectedMeta)
       return false;
     await this.xAdd(options.dataKey, options.fields);
     this.setString(options.metaKey, options.nextMeta);
+    return true;
+  }
+
+  async deleteIfUnchanged(options: RedisDeleteOptions): Promise<boolean> {
+    if (this.strings.get(options.metaKey) !== options.expectedMeta)
+      return false;
+    await this.del([options.metaKey, ...options.dataKeys]);
     return true;
   }
 }
@@ -262,6 +278,76 @@ describe("RedisResumableStreamStore", () => {
     await expect(freshStore.acquire(streamId)).resolves.toBe("producer");
     resumeFinalizer();
     await finalizing;
+
+    await expect(freshStore.status(streamId)).resolves.toBe("streaming");
+    await expect(
+      staleStore.append(streamId, encoder.encode("stale")),
+    ).rejects.toThrow(/superseded/);
+  });
+
+  it("does not let an in-flight append mutate a reacquired stream", async () => {
+    const client = new FakeRedisClient();
+    const keyPrefix = "test";
+    const streamId = "append-race";
+    const metaKey = `${keyPrefix}:{${streamId}}:meta`;
+    const staleStore = new RedisResumableStreamStore(client, { keyPrefix });
+    const freshStore = new RedisResumableStreamStore(client, { keyPrefix });
+    await staleStore.acquire(streamId);
+
+    let resumeAppend!: () => void;
+    const appendPaused = new Promise<void>((resolve) => {
+      client.onNextGet = () =>
+        new Promise<void>((resume) => {
+          resumeAppend = resume;
+          resolve();
+        });
+    });
+    const appending = staleStore.append(streamId, encoder.encode("stale"));
+    await appendPaused;
+
+    client.strings.delete(metaKey);
+    await expect(freshStore.acquire(streamId)).resolves.toBe("producer");
+    resumeAppend();
+
+    await expect(appending).rejects.toThrow(/superseded/);
+    await freshStore.append(streamId, encoder.encode("fresh"));
+    await freshStore.finalize(streamId, "done");
+
+    const chunks: string[] = [];
+    for await (const entry of freshStore.read(
+      streamId,
+      "",
+      new AbortController().signal,
+    )) {
+      chunks.push(decoder.decode(entry.chunk));
+    }
+    expect(chunks).toEqual(["fresh"]);
+  });
+
+  it("does not let an in-flight delete remove a reacquired stream", async () => {
+    const client = new FakeRedisClient();
+    const keyPrefix = "test";
+    const streamId = "delete-race";
+    const metaKey = `${keyPrefix}:{${streamId}}:meta`;
+    const staleStore = new RedisResumableStreamStore(client, { keyPrefix });
+    const freshStore = new RedisResumableStreamStore(client, { keyPrefix });
+    await staleStore.acquire(streamId);
+
+    let resumeDelete!: () => void;
+    const deletePaused = new Promise<void>((resolve) => {
+      client.onNextGet = () =>
+        new Promise<void>((resume) => {
+          resumeDelete = resume;
+          resolve();
+        });
+    });
+    const deleting = staleStore.delete(streamId);
+    await deletePaused;
+
+    client.strings.delete(metaKey);
+    await expect(freshStore.acquire(streamId)).resolves.toBe("producer");
+    resumeDelete();
+    await deleting;
 
     await expect(freshStore.status(streamId)).resolves.toBe("streaming");
     await expect(
