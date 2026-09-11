@@ -441,8 +441,9 @@ function parseStoredThreadMessage(
   }
 
   if (value.content.length !== 1) return null;
-  const content = parseStoredMessagePart(value.content[0], "system", depth);
-  if (!content) return null;
+  const content =
+    parseStoredMessagePart(value.content[0], "system", depth) ??
+    ({ type: "text", text: "" } as const);
 
   return {
     id: value.id,

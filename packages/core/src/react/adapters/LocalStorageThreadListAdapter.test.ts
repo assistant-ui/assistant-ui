@@ -411,6 +411,40 @@ describe("parseStoredMessageRepository", () => {
     }
   });
 
+  it("preserves descendants of system messages with malformed content", () => {
+    const repo = parseStoredMessageRepository(
+      JSON.stringify({
+        messages: [
+          {
+            message: {
+              ...storedMessage("system", "system"),
+              content: [
+                {
+                  type: "text",
+                  text: "instructions",
+                  status: { type: "incomplete", reason: "tool-calls" },
+                },
+              ],
+            },
+            parentId: null,
+          },
+          {
+            message: storedMessage("user"),
+            parentId: "system",
+          },
+        ],
+      }),
+    );
+
+    expect(repo.messages.map((item) => item.message.id)).toEqual([
+      "system",
+      "user",
+    ]);
+    expect(repo.messages[0]?.message.content).toEqual([
+      { type: "text", text: "" },
+    ]);
+  });
+
   it("skips messages whose parent is missing, skipped, or appears later", () => {
     const repo = parseStoredMessageRepository(
       JSON.stringify({
