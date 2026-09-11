@@ -105,19 +105,26 @@ const dataPart = (
 
 /** Build the toolCallId → result pairing map across the whole transcript so
  * out-of-order parallel results pair correctly. */
+type ProjectedToolResult = {
+  result: string | undefined;
+  isError: boolean;
+  details: unknown;
+};
+
+const projectToolResult = (
+  message: PiToolResultMessage,
+): ProjectedToolResult => ({
+  result: extractResultText({ content: message.content }),
+  isError: message.isError,
+  details: message.details,
+});
+
 const buildToolResultMap = (messages: readonly PiAgentMessage[]) => {
-  const map = new Map<
-    string,
-    { result: string | undefined; isError: boolean; details: unknown }
-  >();
+  const map = new Map<string, ProjectedToolResult>();
   for (const message of messages) {
     if (message.role !== "toolResult") continue;
     const m = message as PiToolResultMessage;
-    map.set(m.toolCallId, {
-      result: extractResultText({ content: m.content }),
-      isError: m.isError,
-      details: m.details,
-    });
+    map.set(m.toolCallId, projectToolResult(m));
   }
   return map;
 };
@@ -268,11 +275,12 @@ const assistantStatus = (
   return { type: "complete", reason: "stop" };
 };
 
-export const projectPiThreadMessages = (
+const projectPiThreadMessagesFrom = (
   input: PiProjectionInput,
+  startIndex: number,
+  toolResults: ReturnType<typeof buildToolResultMap>,
 ): ThreadMessageLike[] => {
   const { messages } = input;
-  const toolResults = buildToolResultMap(messages);
   const out: ThreadMessageLike[] = [];
   let group: GroupAccumulator | null = null;
 
@@ -282,7 +290,8 @@ export const projectPiThreadMessages = (
     group = null;
   };
 
-  messages.forEach((message, index) => {
+  for (let index = startIndex; index < messages.length; index++) {
+    const message = messages[index]!;
     const isLast = index === messages.length - 1;
     switch (message.role) {
       case "assistant": {
@@ -393,13 +402,18 @@ export const projectPiThreadMessages = (
         );
         break;
     }
-  });
+  }
 
   // A transcript ending on a `toolResult` leaves the assistant group open; mark
   // it last so the live run status ("running") propagates.
   flush(true);
   return out;
 };
+
+export const projectPiThreadMessages = (
+  input: PiProjectionInput,
+): ThreadMessageLike[] =>
+  projectPiThreadMessagesFrom(input, 0, buildToolResultMap(input.messages));
 
 const standaloneData = (
   index: number,
@@ -479,11 +493,404 @@ export const shareProjectedThreadMessages = (
   return changed ? shared : previous;
 };
 
-export const projectPiThreadMessagesShared = (
-  input: PiProjectionInput,
-  previous: readonly ThreadMessageLike[],
-): readonly ThreadMessageLike[] =>
-  shareProjectedThreadMessages(projectPiThreadMessages(input), previous);
+const firstChangedMessageIndex = (
+  previous: readonly PiAgentMessage[],
+  next: readonly PiAgentMessage[],
+): number | undefined => {
+  const sharedLength = Math.min(previous.length, next.length);
+  for (let index = 0; index < sharedLength; index++) {
+    if (previous[index] !== next[index]) return index;
+  }
+  return previous.length === next.length ? undefined : sharedLength;
+};
+
+const collectToolResultIds = (
+  messages: readonly PiAgentMessage[],
+  startIndex: number,
+  ids: Set<string>,
+) => {
+  for (let index = startIndex; index < messages.length; index++) {
+    const message = messages[index]!;
+    if (message.role === "toolResult") {
+      ids.add((message as PiToolResultMessage).toolCallId);
+    }
+  }
+};
+
+const updateToolResults = (
+  toolResults: Map<string, ProjectedToolResult>,
+  previous: readonly PiAgentMessage[],
+  next: readonly PiAgentMessage[],
+  startIndex: number,
+) => {
+  const removedIds = new Set<string>();
+  for (let index = startIndex; index < previous.length; index++) {
+    const message = previous[index]!;
+    if (message.role === "toolResult") {
+      const id = (message as PiToolResultMessage).toolCallId;
+      removedIds.add(id);
+      toolResults.delete(id);
+    }
+  }
+  for (let index = startIndex; index < next.length; index++) {
+    const message = next[index]!;
+    if (message.role === "toolResult") {
+      const result = message as PiToolResultMessage;
+      removedIds.delete(result.toolCallId);
+      toolResults.set(result.toolCallId, projectToolResult(result));
+    }
+  }
+  for (const id of removedIds) {
+    for (
+      let index = Math.min(startIndex, next.length) - 1;
+      index >= 0;
+      index--
+    ) {
+      const message = next[index]!;
+      if (
+        message.role === "toolResult" &&
+        (message as PiToolResultMessage).toolCallId === id
+      ) {
+        toolResults.set(id, projectToolResult(message as PiToolResultMessage));
+        break;
+      }
+    }
+  }
+};
+
+const updateToolCallIndices = (
+  indices: Map<string, number>,
+  previous: readonly PiAgentMessage[],
+  next: readonly PiAgentMessage[],
+  startIndex: number,
+) => {
+  const removedIds = new Set<string>();
+  for (let index = startIndex; index < previous.length; index++) {
+    const message = previous[index]!;
+    if (message.role !== "assistant") continue;
+    for (const part of (message as PiAssistantMessage).content) {
+      if (part.type === "toolCall") {
+        removedIds.add(part.id);
+        indices.delete(part.id);
+      }
+    }
+  }
+  for (let index = startIndex; index < next.length; index++) {
+    const message = next[index]!;
+    if (message.role !== "assistant") continue;
+    for (const part of (message as PiAssistantMessage).content) {
+      if (part.type === "toolCall") {
+        removedIds.delete(part.id);
+        indices.set(part.id, index);
+      }
+    }
+  }
+  for (const id of removedIds) {
+    for (
+      let index = Math.min(startIndex, next.length) - 1;
+      index >= 0;
+      index--
+    ) {
+      const message = next[index]!;
+      if (message.role !== "assistant") continue;
+      if (
+        (message as PiAssistantMessage).content.some(
+          (part) => part.type === "toolCall" && part.id === id,
+        )
+      ) {
+        indices.set(id, index);
+        break;
+      }
+    }
+  }
+};
+
+const buildToolCallIndices = (messages: readonly PiAgentMessage[]) => {
+  const indices = new Map<string, number>();
+  updateToolCallIndices(indices, [], messages, 0);
+  return indices;
+};
+
+const changedToolExecutionIds = (
+  previous: PiProjectionInput["toolExecutions"],
+  next: PiProjectionInput["toolExecutions"],
+): Set<string> => {
+  const ids = new Set<string>();
+  if (previous === next) return ids;
+  for (const id of Object.keys(previous)) {
+    if (previous[id] !== next[id]) ids.add(id);
+  }
+  for (const id of Object.keys(next)) {
+    if (previous[id] !== next[id]) ids.add(id);
+  }
+  return ids;
+};
+
+const changedHostUiToolCallIds = (
+  previous: readonly PiHostUiRequest[],
+  next: readonly PiHostUiRequest[],
+): Set<string> => {
+  const ids = new Set<string>();
+  if (previous === next) return ids;
+  if (
+    previous.length === next.length &&
+    previous.every((request, index) => request === next[index])
+  ) {
+    return ids;
+  }
+  for (const request of previous) {
+    if (request.toolCallId) ids.add(request.toolCallId);
+  }
+  for (const request of next) {
+    if (request.toolCallId) ids.add(request.toolCallId);
+  }
+  return ids;
+};
+
+const isAssistantGroupMessage = (message: PiAgentMessage | undefined) => {
+  const role = message?.role;
+  return role === "assistant" || role === "toolResult";
+};
+
+const assistantGroupStart = (
+  messages: readonly PiAgentMessage[],
+  index: number,
+) => {
+  if (index >= messages.length || !isAssistantGroupMessage(messages[index])) {
+    return index;
+  }
+  let start = index;
+  while (start > 0 && isAssistantGroupMessage(messages[start - 1])) start -= 1;
+  return start;
+};
+
+const trailingAssistantMessageIndex = (messages: readonly PiAgentMessage[]) => {
+  for (let index = messages.length - 1; index >= 0; index--) {
+    const role = messages[index]!.role;
+    if (role === "assistant") return index;
+    if (role !== "toolResult") return undefined;
+  }
+  return undefined;
+};
+
+const projectedSourceIndex = (message: ThreadMessageLike) => {
+  if (typeof message.id !== "string" || !message.id.startsWith("pi-msg:")) {
+    return undefined;
+  }
+  const index = Number(message.id.slice("pi-msg:".length));
+  return Number.isSafeInteger(index) && index >= 0 ? index : undefined;
+};
+
+const validatedProjectedSourceIndices = (
+  messages: readonly ThreadMessageLike[],
+  minimumExclusive = -1,
+): number[] | undefined => {
+  const indices: number[] = [];
+  let previous = minimumExclusive;
+  for (const message of messages) {
+    const index = projectedSourceIndex(message);
+    if (index === undefined || index <= previous) return undefined;
+    indices.push(index);
+    previous = index;
+  }
+  return indices;
+};
+
+const firstProjectedIndexAtOrAfter = (
+  indices: readonly number[],
+  sourceIndex: number,
+): number => {
+  let low = 0;
+  let high = indices.length;
+  while (low < high) {
+    const middle = (low + high) >>> 1;
+    const projectedIndex = indices[middle]!;
+    if (projectedIndex >= sourceIndex) {
+      high = middle;
+    } else {
+      low = middle + 1;
+    }
+  }
+  return low;
+};
+
+export class PiThreadMessageProjector {
+  private previousInput: PiProjectionInput | undefined;
+  private projectedMessages: readonly ThreadMessageLike[] = [];
+  private projectedSourceIndices: number[] | undefined = [];
+  private changedProjectedIndex: number | undefined;
+  private toolResults = new Map<string, ProjectedToolResult>();
+  private toolCallIndices = new Map<string, number>();
+
+  public getChangedProjectedIndex() {
+    return this.changedProjectedIndex;
+  }
+
+  public project(input: PiProjectionInput): readonly ThreadMessageLike[] {
+    const previousInput = this.previousInput;
+    if (!previousInput) {
+      const previousProjectedMessages = this.projectedMessages;
+      this.toolResults = buildToolResultMap(input.messages);
+      this.toolCallIndices = buildToolCallIndices(input.messages);
+      this.projectedMessages = shareProjectedThreadMessages(
+        projectPiThreadMessagesFrom(input, 0, this.toolResults),
+        this.projectedMessages,
+      );
+      this.projectedSourceIndices = validatedProjectedSourceIndices(
+        this.projectedMessages,
+      );
+      this.changedProjectedIndex =
+        this.projectedMessages === previousProjectedMessages ? undefined : 0;
+      this.previousInput = input;
+      return this.projectedMessages;
+    }
+
+    const messageChangeIndex = firstChangedMessageIndex(
+      previousInput.messages,
+      input.messages,
+    );
+    const affectedToolCallIds = changedToolExecutionIds(
+      previousInput.toolExecutions,
+      input.toolExecutions,
+    );
+    for (const id of changedHostUiToolCallIds(
+      previousInput.hostUiRequests,
+      input.hostUiRequests,
+    )) {
+      affectedToolCallIds.add(id);
+    }
+
+    let dirtyIndex = messageChangeIndex;
+    if (messageChangeIndex !== undefined) {
+      for (const index of [
+        trailingAssistantMessageIndex(previousInput.messages),
+        trailingAssistantMessageIndex(input.messages),
+      ]) {
+        if (index !== undefined) {
+          dirtyIndex = Math.min(dirtyIndex, index);
+        }
+      }
+      collectToolResultIds(
+        previousInput.messages,
+        messageChangeIndex,
+        affectedToolCallIds,
+      );
+      collectToolResultIds(
+        input.messages,
+        messageChangeIndex,
+        affectedToolCallIds,
+      );
+    }
+
+    for (const id of affectedToolCallIds) {
+      const index = this.toolCallIndices.get(id);
+      if (index !== undefined) {
+        dirtyIndex =
+          dirtyIndex === undefined ? index : Math.min(dirtyIndex, index);
+      }
+    }
+
+    if (messageChangeIndex !== undefined) {
+      updateToolResults(
+        this.toolResults,
+        previousInput.messages,
+        input.messages,
+        messageChangeIndex,
+      );
+      updateToolCallIndices(
+        this.toolCallIndices,
+        previousInput.messages,
+        input.messages,
+        messageChangeIndex,
+      );
+      for (const id of affectedToolCallIds) {
+        const index = this.toolCallIndices.get(id);
+        if (index !== undefined) {
+          dirtyIndex =
+            dirtyIndex === undefined ? index : Math.min(dirtyIndex, index);
+        }
+      }
+    }
+
+    if (previousInput.runStatus !== input.runStatus) {
+      const index = trailingAssistantMessageIndex(input.messages);
+      if (index !== undefined) {
+        dirtyIndex =
+          dirtyIndex === undefined ? index : Math.min(dirtyIndex, index);
+      }
+    }
+
+    if (dirtyIndex === undefined) {
+      this.changedProjectedIndex = undefined;
+      this.previousInput = input;
+      return this.projectedMessages;
+    }
+
+    const startIndex = Math.min(
+      assistantGroupStart(previousInput.messages, dirtyIndex),
+      assistantGroupStart(input.messages, dirtyIndex),
+    );
+    const projectedBoundary = this.projectedSourceIndices
+      ? firstProjectedIndexAtOrAfter(this.projectedSourceIndices, startIndex)
+      : undefined;
+    const projectedStartIndex = projectedBoundary ?? 0;
+    const projectionStartIndex =
+      projectedBoundary === undefined ? 0 : startIndex;
+    const previousSuffix = this.projectedMessages.slice(projectedStartIndex);
+    const nextSuffix = shareProjectedThreadMessages(
+      projectPiThreadMessagesFrom(
+        input,
+        projectionStartIndex,
+        this.toolResults,
+      ),
+      previousSuffix,
+    );
+
+    if (
+      nextSuffix.length === previousSuffix.length &&
+      nextSuffix.every(
+        (message, index) =>
+          message === this.projectedMessages[projectedStartIndex + index],
+      )
+    ) {
+      if (this.projectedSourceIndices === undefined) {
+        this.projectedSourceIndices = validatedProjectedSourceIndices(
+          this.projectedMessages,
+        );
+      }
+      this.changedProjectedIndex = undefined;
+      this.previousInput = input;
+      return this.projectedMessages;
+    }
+
+    if (this.projectedSourceIndices) {
+      const suffixSourceIndices = validatedProjectedSourceIndices(
+        nextSuffix,
+        this.projectedSourceIndices[projectedStartIndex - 1],
+      );
+      if (suffixSourceIndices) {
+        this.projectedSourceIndices.splice(
+          projectedStartIndex,
+          this.projectedSourceIndices.length - projectedStartIndex,
+        );
+        for (const index of suffixSourceIndices) {
+          this.projectedSourceIndices.push(index);
+        }
+      } else {
+        this.projectedSourceIndices = undefined;
+      }
+    } else {
+      this.projectedSourceIndices = validatedProjectedSourceIndices(nextSuffix);
+    }
+    this.projectedMessages = [
+      ...this.projectedMessages.slice(0, projectedStartIndex),
+      ...nextSuffix,
+    ];
+    this.changedProjectedIndex = projectedStartIndex;
+    this.previousInput = input;
+    return this.projectedMessages;
+  }
+}
 
 export const projectPiThreadRepository = (input: PiProjectionInput) =>
   ExportedMessageRepository.fromArray(projectPiThreadMessages(input));

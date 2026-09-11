@@ -22,7 +22,7 @@ import {
 } from "./threadState";
 import { errorText } from "../utils";
 import { isKnownPiClientEventType } from "../eventTypes";
-import { projectPiThreadMessagesShared } from "./messageProjection";
+import { PiThreadMessageProjector } from "./messageProjection";
 import {
   responseForApproval,
   responseForInterrupt,
@@ -100,6 +100,22 @@ const notifyListeners = (listeners: Iterable<() => void>) => {
       console.error("[react-pi] Listener threw an error", error);
     }
   }
+};
+
+const updateMessageRepository = (
+  previous: ReturnType<typeof ExportedMessageRepository.fromArray>,
+  messages: readonly ThreadMessageLike[],
+  changedIndex: number,
+) => {
+  const prefix = previous.messages.slice(0, changedIndex);
+  const suffix = ExportedMessageRepository.fromArray(
+    messages.slice(changedIndex),
+  ).messages;
+  const first = suffix[0];
+  if (first) {
+    first.parentId = prefix.at(-1)?.message.id ?? null;
+  }
+  return { messages: [...prefix, ...suffix] };
 };
 
 /** Event types the reducer acts on. Anything else triggers a snapshot refresh
@@ -238,7 +254,8 @@ const markStateRunning = (state: PiThreadState): PiThreadState => {
 export class PiThreadController implements PiThreadControllerLike {
   private state: PiThreadState;
   private stateSnapshot: PiThreadState;
-  private projectedMessages: readonly ThreadMessageLike[] = [];
+  private projectedMessages: readonly ThreadMessageLike[];
+  private readonly messageProjector: PiThreadMessageProjector;
   private messageRepository = ExportedMessageRepository.fromArray([]);
   private version = 0;
   private readonly allListeners = new Set<() => void>();
@@ -272,6 +289,13 @@ export class PiThreadController implements PiThreadControllerLike {
     this.options = options;
     this.state = createPiThreadState(threadId);
     this.stateSnapshot = this.state;
+    this.messageProjector = new PiThreadMessageProjector();
+    this.projectedMessages = this.messageProjector.project({
+      messages: this.state.messages,
+      toolExecutions: this.state.toolExecutions,
+      runStatus: this.state.runStatus,
+      hostUiRequests: this.state.hostUiRequests,
+    });
   }
 
   public getState() {
@@ -656,15 +680,12 @@ export class PiThreadController implements PiThreadControllerLike {
   }
 
   private projectMessages() {
-    return projectPiThreadMessagesShared(
-      {
-        messages: this.projectedInputMessages(),
-        toolExecutions: this.state.toolExecutions,
-        runStatus: this.state.runStatus,
-        hostUiRequests: this.state.hostUiRequests,
-      },
-      this.projectedMessages,
-    );
+    return this.messageProjector.project({
+      messages: this.projectedInputMessages(),
+      toolExecutions: this.state.toolExecutions,
+      runStatus: this.state.runStatus,
+      hostUiRequests: this.state.hostUiRequests,
+    });
   }
 
   private recomputeProjectedMessagesAndNotify() {
@@ -674,9 +695,11 @@ export class PiThreadController implements PiThreadControllerLike {
       return;
     }
     this.projectedMessages = next;
-    // `fromArray` chains messages linearly and keeps their stable `pi-msg:N`
-    // ids (its generated id is only a fallback for id-less messages).
-    this.messageRepository = ExportedMessageRepository.fromArray(next);
+    this.messageRepository = updateMessageRepository(
+      this.messageRepository,
+      next,
+      this.messageProjector.getChangedProjectedIndex() ?? 0,
+    );
     this.notifyMessageListeners();
   }
 
