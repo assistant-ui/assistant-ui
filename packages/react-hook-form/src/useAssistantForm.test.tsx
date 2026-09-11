@@ -7,7 +7,7 @@ import {
   waitFor,
 } from "@testing-library/react";
 import type { ModelContext } from "@assistant-ui/core";
-import type { FormEvent, ReactNode } from "react";
+import { type FormEvent, type ReactNode, useState } from "react";
 import type { Resolver, ResolverResult } from "react-hook-form";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
@@ -280,38 +280,66 @@ describe("useAssistantForm", () => {
     });
   });
 
-  it("settles a pending assistant submission when the form unmounts", async () => {
+  it("settles when the form unmounts but the hook owner remains", async () => {
     type FormValues = { name: string };
     let validationStarted = false;
+    let resolveValidation: (result: ResolverResult<FormValues>) => void =
+      () => {};
     const resolver: Resolver<FormValues> = () => {
       validationStarted = true;
-      return new Promise(() => {});
+      return new Promise((resolve) => {
+        resolveValidation = resolve;
+      });
     };
+    const onValid = vi.fn();
+    let hideForm = () => {};
 
-    const Form = () => {
+    const FormOwner = () => {
       const form = useAssistantForm<FormValues>({ resolver });
-      return (
-        <form onSubmit={form.handleSubmit(vi.fn())}>
+      const [visible, setVisible] = useState(true);
+      hideForm = () => setVisible(false);
+      return visible ? (
+        <form onSubmit={form.handleSubmit(onValid)}>
           <input {...form.register("name")} />
         </form>
-      );
+      ) : null;
     };
-    const { unmount } = render(<Form />);
+    render(<FormOwner />);
 
-    let settled = false;
-    const submission = executeSubmitForm().finally(() => {
-      settled = true;
-    });
+    const submission = executeSubmitForm();
     await waitFor(() => expect(validationStarted).toBe(true));
 
-    unmount();
-    await act(() => Promise.resolve());
+    act(() => hideForm());
 
-    expect(settled).toBe(true);
     await expect(submission).resolves.toEqual({
       success: false,
       message: "The form is no longer available.",
     });
+
+    await act(() =>
+      resolveValidation({ values: { name: "Ada" }, errors: {} }),
+    );
+    expect(onValid).not.toHaveBeenCalled();
+  });
+
+  it("reports success when a valid submit handler unmounts the form", async () => {
+    let hideForm = () => {};
+
+    const FormOwner = () => {
+      const form = useAssistantForm<{ name: string }>({
+        defaultValues: { name: "Ada" },
+      });
+      const [visible, setVisible] = useState(true);
+      hideForm = () => setVisible(false);
+      return visible ? (
+        <form onSubmit={form.handleSubmit(hideForm)}>
+          <input {...form.register("name", { required: true })} />
+        </form>
+      ) : null;
+    };
+    render(<FormOwner />);
+
+    await expect(executeSubmitForm()).resolves.toEqual({ success: true });
   });
 
   it("reports when requestSubmit does not dispatch a submit event", async () => {

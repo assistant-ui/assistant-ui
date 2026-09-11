@@ -19,13 +19,15 @@ import type { z } from "zod";
 import { formTools } from "./formTools";
 
 type PendingAssistantSubmit = {
+  cancel: () => void;
+  dispose: () => void;
   dispatching: boolean;
   event: unknown;
-  formUnavailable: boolean;
   handlerInvoked: boolean;
   outcome: boolean | undefined;
   resolve: (outcome: boolean) => void;
   reject: (error: unknown) => void;
+  unavailable: boolean;
 };
 
 export type UseAssistantFormProps<
@@ -98,6 +100,7 @@ export const useAssistantForm = <
     if (!pending) return;
 
     pendingAssistantSubmitRef.current = null;
+    pending.dispose();
     pending.resolve(outcome);
   }, []);
   const rejectAssistantSubmit = useCallback((error: unknown) => {
@@ -105,34 +108,43 @@ export const useAssistantForm = <
     if (!pending) return;
 
     pendingAssistantSubmitRef.current = null;
+    pending.dispose();
     pending.reject(error);
   }, []);
   useEffect(
     () => () => {
-      const pending = pendingAssistantSubmitRef.current;
-      if (!pending) return;
-
-      pending.formUnavailable = true;
-      settleAssistantSubmit(false);
+      pendingAssistantSubmitRef.current?.cancel();
     },
-    [settleAssistantSubmit],
+    [],
   );
 
   const handleSubmit = useCallback<
     UseFormReturn<TFieldValues, TContext, TTransformedValues>["handleSubmit"]
   >(
     (onValid, onInvalid) => {
+      const assistantSubmitsByEvent = new WeakMap<
+        object,
+        PendingAssistantSubmit
+      >();
+      const getAssistantSubmit = (event: unknown) => {
+        const nativeEvent = (event as { nativeEvent?: unknown } | undefined)
+          ?.nativeEvent;
+        const key = nativeEvent ?? event;
+        return typeof key === "object" && key !== null
+          ? assistantSubmitsByEvent.get(key)
+          : undefined;
+      };
       const submit = baseHandleSubmit(
         (...args) => {
-          const pending = pendingAssistantSubmitRef.current;
-          const event = args[1]?.nativeEvent ?? args[1];
-          if (pending && pending.event === event) pending.outcome = true;
+          const assistantSubmit = getAssistantSubmit(args[1]);
+          if (assistantSubmit?.unavailable) return undefined;
+          if (assistantSubmit) assistantSubmit.outcome = true;
           return onValid(...args);
         },
         (...args) => {
-          const pending = pendingAssistantSubmitRef.current;
-          const event = args[1]?.nativeEvent ?? args[1];
-          if (pending && pending.event === event) pending.outcome = false;
+          const assistantSubmit = getAssistantSubmit(args[1]);
+          if (assistantSubmit?.unavailable) return undefined;
+          if (assistantSubmit) assistantSubmit.outcome = false;
           return onInvalid?.(...args);
         },
       );
@@ -152,6 +164,13 @@ export const useAssistantForm = <
           assistantSubmit.event = nativeEvent;
           assistantSubmit.handlerInvoked = true;
         }
+        const eventKey =
+          typeof nativeEvent === "object" && nativeEvent !== null
+            ? nativeEvent
+            : null;
+        if (assistantSubmit && eventKey) {
+          assistantSubmitsByEvent.set(eventKey, assistantSubmit);
+        }
 
         try {
           const result = await submit(event);
@@ -167,6 +186,8 @@ export const useAssistantForm = <
             rejectAssistantSubmit(error);
           }
           throw error;
+        } finally {
+          if (eventKey) assistantSubmitsByEvent.delete(eventKey);
         }
       }) as typeof submit;
     },
@@ -243,16 +264,43 @@ export const useAssistantForm = <
                   rejectSubmission = reject;
                 },
               );
+              let observer: MutationObserver | undefined;
               const assistantSubmit: PendingAssistantSubmit = {
+                cancel: () => {
+                  if (
+                    pendingAssistantSubmitRef.current !== assistantSubmit ||
+                    assistantSubmit.outcome !== undefined
+                  ) {
+                    return;
+                  }
+                  pendingAssistantSubmitRef.current = null;
+                  assistantSubmit.unavailable = true;
+                  assistantSubmit.dispose();
+                  assistantSubmit.resolve(false);
+                },
+                dispose: () => observer?.disconnect(),
                 dispatching: true,
                 event: undefined,
-                formUnavailable: false,
                 handlerInvoked: false,
                 outcome: undefined,
                 resolve: resolveSubmission,
                 reject: rejectSubmission,
+                unavailable: false,
               };
               pendingAssistantSubmitRef.current = assistantSubmit;
+              const MutationObserverImpl =
+                formElement.ownerDocument.defaultView?.MutationObserver;
+              if (MutationObserverImpl) {
+                observer = new MutationObserverImpl(() => {
+                  if (!formElement.isConnected) {
+                    assistantSubmit.cancel();
+                  }
+                });
+                observer.observe(formElement.ownerDocument, {
+                  childList: true,
+                  subtree: true,
+                });
+              }
               const onSubmit = (event: SubmitEvent) => {
                 if (
                   pendingAssistantSubmitRef.current === assistantSubmit &&
@@ -287,7 +335,7 @@ export const useAssistantForm = <
               }
 
               const submitted = await submissionResult;
-              if (assistantSubmit.formUnavailable) {
+              if (assistantSubmit.unavailable) {
                 return {
                   success: false,
                   message: "The form is no longer available.",
