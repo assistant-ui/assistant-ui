@@ -175,6 +175,7 @@ describe("useAgUiRuntime tool approvals", () => {
       messageId,
       approved: true,
       toolCallId: "tc-1",
+      approvalId: "int-1",
     });
   });
 

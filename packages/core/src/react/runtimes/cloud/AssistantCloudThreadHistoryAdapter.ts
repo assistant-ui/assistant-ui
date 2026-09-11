@@ -1055,6 +1055,9 @@ const useAssistantCloudEngagementEvents = (
   const runStartedAt = useRef(new Map<string, number>());
   const runEndedAt = useRef(new Map<string, number>());
   const shownSuggestions = useRef(new Set<string>());
+  // part.toolApprovalResponded fires for every accepted response; count one
+  // decision per gate, keyed like CloudEngagementReporter does.
+  const reportedApprovals = useRef(new Set<string>());
 
   useEffect(() => {
     const track = (
@@ -1171,12 +1174,16 @@ const useAssistantCloudEngagementEvents = (
       ),
       aui.on(
         { scope: "thread", event: "part.toolApprovalResponded" },
-        (payload) =>
+        (payload) => {
+          const approvalKey = `${payload.threadId}:${payload.approvalId}`;
+          if (reportedApprovals.current.has(approvalKey)) return;
+          reportedApprovals.current.add(approvalKey);
           track(
             { kind: payload.approved ? "tool_approved" : "tool_rejected" },
             payload.threadId,
             payload.messageId,
-          ),
+          );
+        },
       ),
       aui.on({ scope: "thread", event: "message.copied" }, (payload) => {
         track({ kind: "message_copied" }, payload.threadId, payload.messageId);

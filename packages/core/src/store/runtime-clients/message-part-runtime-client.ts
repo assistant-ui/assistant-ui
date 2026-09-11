@@ -23,15 +23,16 @@ const useMessagePartClient = ({
     respondToToolApproval: (response) => {
       const part = runtime.getState();
       return runtime.respondToToolApproval(response).then(() => {
-        // Emitted as a raw fact like message.copied: the runtime rejects a
-        // response once the gate is decided, and consumers that must count
-        // once per approval dedupe by thread and approval id themselves.
+        // Emitted for every accepted response (see PartEvents): the runtime
+        // rejects a response once the gate is decided, and consumers that
+        // must count once per gate dedupe by threadId and approvalId.
         if (!eventContext || part.type !== "tool-call" || !part.approval)
           return;
         emit("part.toolApprovalResponded", {
           threadId: eventContext.threadId,
           messageId: eventContext.messageIdRef.current,
           toolCallId: part.toolCallId,
+          approvalId: part.approval.id,
           approved: resolveToolApprovalResponse(part.approval, response)
             .approved,
         });

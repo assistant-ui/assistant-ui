@@ -179,9 +179,19 @@ describe("useAssistantCloudThreadHistoryAdapter", () => {
         threadId: "thread-1",
         messageId: "local-message-1",
         toolCallId: "tc-1",
+        approvalId: approved ? "approval-1" : "approval-2",
         approved,
       });
     }
+    // A repeat accepted before the gate settled: same thread and approval id,
+    // opposite decision, counted once.
+    listeners.get("part.toolApprovalResponded")!({
+      threadId: "thread-1",
+      messageId: "local-message-1",
+      toolCallId: "tc-1",
+      approvalId: "approval-1",
+      approved: false,
+    });
     listeners.get("message.copied")!({
       threadId: "thread-1",
       messageId: "local-message-1",
@@ -266,6 +276,13 @@ describe("useAssistantCloudThreadHistoryAdapter", () => {
         expect.objectContaining({ kind: "suggestions_shown", value: 2 }),
       ]),
     );
+    expect(
+      vi
+        .mocked(cloud.events.track)
+        .mock.calls.filter(([event]) =>
+          ["tool_approved", "tool_rejected"].includes(event.kind),
+        ),
+    ).toHaveLength(2);
   });
 
   it("refreshes formatted persistence when the Cloud client changes", async () => {

@@ -29,8 +29,8 @@
       "gzip": 32602
     },
     "./store/internal": {
-      "min": 25613,
-      "gzip": 9685
+      "min": 25638,
+      "gzip": 9690
     }
   },
   "@assistant-ui/eve": {

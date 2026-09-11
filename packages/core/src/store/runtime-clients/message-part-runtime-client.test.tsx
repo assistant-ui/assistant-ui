@@ -79,6 +79,7 @@ describe("MessagePartClient tool approval events", () => {
         threadId,
         messageId: "message-1",
         toolCallId: "tc-1",
+        approvalId: "approval-1",
         approved,
       });
     },
@@ -87,7 +88,7 @@ describe("MessagePartClient tool approval events", () => {
   it("reports every response the runtime accepts, without deduplication", async () => {
     // The runtime rejects a response once the gate reads as decided; before
     // that, each accepted response is a fact and consumers dedupe by thread
-    // and approval id (CloudEngagementReporter does).
+    // and approval id (the cloud history adapter and CloudEngagementReporter do).
     const { part, listener, onRespondToToolApproval } = setup();
     await act(async () => {
       await part.respondToToolApproval({ approved: true });
@@ -96,7 +97,7 @@ describe("MessagePartClient tool approval events", () => {
     expect(onRespondToToolApproval).toHaveBeenCalledTimes(2);
     expect(listener).toHaveBeenCalledTimes(2);
     expect(listener).toHaveBeenLastCalledWith(
-      expect.objectContaining({ toolCallId: "tc-1", approved: false }),
+      expect.objectContaining({ approvalId: "approval-1", approved: false }),
     );
   });
 
@@ -117,7 +118,7 @@ describe("MessagePartClient tool approval events", () => {
     });
     expect(listener).toHaveBeenCalledTimes(2);
     expect(listener).toHaveBeenLastCalledWith(
-      expect.objectContaining({ toolCallId: "tc-1", approved: false }),
+      expect.objectContaining({ approvalId: "approval-2", approved: false }),
     );
   });
 

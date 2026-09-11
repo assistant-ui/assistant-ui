@@ -3346,6 +3346,7 @@ type PartEvents = {
     threadId: string;
     messageId: string;
     toolCallId: string;
+    approvalId: string;
     approved: boolean;
   };
 };
