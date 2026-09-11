@@ -16,12 +16,19 @@ import type {
   ThreadHistoryAdapter,
   ThreadMessage,
   RunConfig,
+  CompleteAttachment,
+  MessagePartStreamStatus,
+  MessageStatus,
+  MessageTiming,
+  ThreadAssistantMessagePart,
+  ThreadStep,
+  ThreadUserMessagePart,
 } from "../../index";
 import type {
   ExportedMessageRepository,
   ExportedMessageRepositoryItem,
 } from "../../internal";
-import { isRecord } from "../../utils/json/is-json";
+import { isJSONObject, isJSONValue, isRecord } from "../../utils/json/is-json";
 import {
   RuntimeAdapterProvider,
   type RuntimeAdapters,
@@ -120,10 +127,376 @@ const parseDate = (value: unknown): Date | null => {
 const isMessageRole = (value: unknown): value is ThreadMessage["role"] =>
   value === "system" || value === "user" || value === "assistant";
 
+const isFiniteNumber = (value: unknown): value is number =>
+  typeof value === "number" && Number.isFinite(value);
+
+const hasOptionalString = (
+  value: Record<string, unknown>,
+  key: string,
+): boolean => value[key] === undefined || typeof value[key] === "string";
+
+const hasOptionalBoolean = (
+  value: Record<string, unknown>,
+  key: string,
+): boolean => value[key] === undefined || typeof value[key] === "boolean";
+
+const isPartProviderMetadata = (value: unknown): boolean =>
+  value === undefined ||
+  (isRecord(value) && Object.values(value).every(isJSONObject));
+
+const hasCommonPartFields = (value: Record<string, unknown>): boolean =>
+  hasOptionalString(value, "parentId") &&
+  isPartProviderMetadata(value.providerMetadata);
+
+const isMessagePartStreamStatus = (
+  value: unknown,
+): value is MessagePartStreamStatus => {
+  if (!isRecord(value)) return false;
+  if (value.type === "running" || value.type === "complete") return true;
+  return (
+    value.type === "incomplete" &&
+    (value.reason === "cancelled" ||
+      value.reason === "length" ||
+      value.reason === "content-filter" ||
+      value.reason === "other" ||
+      value.reason === "error")
+  );
+};
+
+const hasOptionalPartStatus = (value: Record<string, unknown>): boolean =>
+  value.status === undefined || isMessagePartStreamStatus(value.status);
+
+const isTextMessagePart = (
+  value: unknown,
+): value is Extract<ThreadUserMessagePart, { type: "text" }> =>
+  isRecord(value) &&
+  value.type === "text" &&
+  typeof value.text === "string" &&
+  hasOptionalPartStatus(value) &&
+  hasCommonPartFields(value);
+
+const isImageMessagePart = (
+  value: unknown,
+): value is Extract<ThreadUserMessagePart, { type: "image" }> =>
+  isRecord(value) &&
+  value.type === "image" &&
+  typeof value.image === "string" &&
+  hasOptionalString(value, "filename") &&
+  isPartProviderMetadata(value.providerMetadata);
+
+const isFileMessagePart = (
+  value: unknown,
+): value is Extract<ThreadUserMessagePart, { type: "file" }> =>
+  isRecord(value) &&
+  value.type === "file" &&
+  typeof value.data === "string" &&
+  typeof value.mimeType === "string" &&
+  hasOptionalString(value, "filename") &&
+  (value.sourceType === undefined ||
+    value.sourceType === "url" ||
+    value.sourceType === "id") &&
+  hasCommonPartFields(value);
+
+const isDataMessagePart = (
+  value: unknown,
+): value is Extract<ThreadUserMessagePart, { type: "data" }> =>
+  isRecord(value) &&
+  value.type === "data" &&
+  typeof value.name === "string" &&
+  "data" in value;
+
+const isAudioMessagePart = (
+  value: unknown,
+): value is Extract<ThreadUserMessagePart, { type: "audio" }> =>
+  isRecord(value) &&
+  value.type === "audio" &&
+  isRecord(value.audio) &&
+  typeof value.audio.data === "string" &&
+  (value.audio.format === "mp3" || value.audio.format === "wav");
+
+const isSourceMessagePart = (
+  value: unknown,
+): value is Extract<ThreadAssistantMessagePart, { type: "source" }> => {
+  if (
+    !isRecord(value) ||
+    value.type !== "source" ||
+    typeof value.id !== "string" ||
+    !hasCommonPartFields(value)
+  ) {
+    return false;
+  }
+  if (value.sourceType === "url") {
+    return typeof value.url === "string" && hasOptionalString(value, "title");
+  }
+  return (
+    value.sourceType === "document" &&
+    typeof value.title === "string" &&
+    typeof value.mediaType === "string" &&
+    hasOptionalString(value, "filename")
+  );
+};
+
+const isGenerativeUINode = (value: unknown, depth = 0): boolean => {
+  if (depth > 100) return false;
+  if (typeof value === "string") return true;
+  if (!isRecord(value) || typeof value.component !== "string") return false;
+  if (value.props !== undefined && !isRecord(value.props)) return false;
+  if (!hasOptionalString(value, "key")) return false;
+  return (
+    value.children === undefined ||
+    (Array.isArray(value.children) &&
+      value.children.every((child) => isGenerativeUINode(child, depth + 1)))
+  );
+};
+
+const isGenerativeUIMessagePart = (
+  value: unknown,
+): value is Extract<ThreadAssistantMessagePart, { type: "generative-ui" }> => {
+  if (
+    !isRecord(value) ||
+    value.type !== "generative-ui" ||
+    !isRecord(value.spec) ||
+    !hasOptionalString(value, "id") ||
+    !hasOptionalString(value, "parentId")
+  ) {
+    return false;
+  }
+  const root = value.spec.root;
+  return Array.isArray(root)
+    ? root.every((node) => isGenerativeUINode(node))
+    : isGenerativeUINode(root);
+};
+
+const isToolCallTiming = (value: unknown): boolean =>
+  isRecord(value) &&
+  isFiniteNumber(value.startedAt) &&
+  (value.completedAt === undefined || isFiniteNumber(value.completedAt));
+
+const isApprovalOption = (value: unknown): boolean => {
+  if (
+    !isRecord(value) ||
+    typeof value.id !== "string" ||
+    typeof value.kind !== "string" ||
+    !hasOptionalString(value, "label") ||
+    !hasOptionalString(value, "description")
+  ) {
+    return false;
+  }
+  if (value.confirm !== undefined && typeof value.confirm !== "boolean") {
+    if (!isRecord(value.confirm)) return false;
+    if (
+      !hasOptionalString(value.confirm, "title") ||
+      !hasOptionalString(value.confirm, "description")
+    ) {
+      return false;
+    }
+  }
+  return (
+    value.grants === undefined ||
+    (Array.isArray(value.grants) &&
+      value.grants.every((grant) => typeof grant === "string"))
+  );
+};
+
+const isToolApproval = (value: unknown): boolean =>
+  isRecord(value) &&
+  typeof value.id === "string" &&
+  hasOptionalString(value, "prompt") &&
+  (value.display === undefined ||
+    value.display === "decision" ||
+    value.display === "select" ||
+    value.display === "text") &&
+  hasOptionalBoolean(value, "allowFreeform") &&
+  hasOptionalBoolean(value, "approved") &&
+  hasOptionalString(value, "reason") &&
+  hasOptionalBoolean(value, "isAutomatic") &&
+  hasOptionalString(value, "optionId") &&
+  hasOptionalString(value, "text") &&
+  (value.resolution === undefined ||
+    value.resolution === "cancelled" ||
+    value.resolution === "expired") &&
+  (value.options === undefined ||
+    (Array.isArray(value.options) && value.options.every(isApprovalOption)));
+
+const isMcpMetadata = (value: unknown): boolean => {
+  if (!isRecord(value)) return false;
+  if (value.app === undefined) return true;
+  return (
+    isRecord(value.app) &&
+    typeof value.app.resourceUri === "string" &&
+    hasOptionalString(value.app, "mimeType") &&
+    hasOptionalString(value.app, "serverId") &&
+    (value.app.visibility === undefined ||
+      (Array.isArray(value.app.visibility) &&
+        value.app.visibility.every(
+          (entry) => entry === "model" || entry === "app",
+        )))
+  );
+};
+
+const isToolCallMessagePart = (
+  value: unknown,
+  depth: number,
+): value is Extract<ThreadAssistantMessagePart, { type: "tool-call" }> =>
+  isRecord(value) &&
+  value.type === "tool-call" &&
+  typeof value.toolCallId === "string" &&
+  typeof value.toolName === "string" &&
+  isJSONObject(value.args) &&
+  typeof value.argsText === "string" &&
+  hasOptionalBoolean(value, "isError") &&
+  (value.timing === undefined || isToolCallTiming(value.timing)) &&
+  (value.modelContent === undefined || Array.isArray(value.modelContent)) &&
+  (value.interrupt === undefined ||
+    (isRecord(value.interrupt) && value.interrupt.type === "human")) &&
+  (value.approval === undefined || isToolApproval(value.approval)) &&
+  (value.mcp === undefined || isMcpMetadata(value.mcp)) &&
+  hasCommonPartFields(value) &&
+  (value.messages === undefined ||
+    (depth < 100 &&
+      Array.isArray(value.messages) &&
+      value.messages.every((message) =>
+        isStoredThreadMessageShape(message, depth + 1),
+      )));
+
+const isUserMessagePart = (value: unknown): value is ThreadUserMessagePart =>
+  isTextMessagePart(value) ||
+  isImageMessagePart(value) ||
+  isFileMessagePart(value) ||
+  isDataMessagePart(value) ||
+  isAudioMessagePart(value);
+
+const isAssistantMessagePart = (
+  value: unknown,
+  depth = 0,
+): value is ThreadAssistantMessagePart => {
+  if (
+    isTextMessagePart(value) ||
+    isImageMessagePart(value) ||
+    isFileMessagePart(value) ||
+    isDataMessagePart(value)
+  ) {
+    return true;
+  }
+  if (!isRecord(value)) return false;
+  if (value.type === "reasoning") {
+    return (
+      typeof value.text === "string" &&
+      hasOptionalString(value, "unstable_summary") &&
+      hasOptionalPartStatus(value) &&
+      hasCommonPartFields(value)
+    );
+  }
+  return (
+    isSourceMessagePart(value) ||
+    isGenerativeUIMessagePart(value) ||
+    isToolCallMessagePart(value, depth)
+  );
+};
+
+const isMessageStatus = (value: unknown): value is MessageStatus => {
+  if (!isRecord(value)) return false;
+  if (value.type === "running") return true;
+  if (value.type === "requires-action") {
+    return value.reason === "tool-calls" || value.reason === "interrupt";
+  }
+  if (value.type === "complete") {
+    return value.reason === "stop" || value.reason === "unknown";
+  }
+  return (
+    value.type === "incomplete" &&
+    (value.reason === "cancelled" ||
+      value.reason === "tool-calls" ||
+      value.reason === "length" ||
+      value.reason === "content-filter" ||
+      value.reason === "other" ||
+      value.reason === "error") &&
+    (value.error === undefined || isJSONValue(value.error))
+  );
+};
+
+const isThreadStep = (value: unknown): value is ThreadStep =>
+  isRecord(value) &&
+  hasOptionalString(value, "messageId") &&
+  (value.usage === undefined ||
+    (isRecord(value.usage) &&
+      isFiniteNumber(value.usage.inputTokens) &&
+      isFiniteNumber(value.usage.outputTokens)));
+
+const isMessageTiming = (value: unknown): value is MessageTiming =>
+  isRecord(value) &&
+  isFiniteNumber(value.streamStartTime) &&
+  (value.firstTokenTime === undefined ||
+    isFiniteNumber(value.firstTokenTime)) &&
+  (value.totalStreamTime === undefined ||
+    isFiniteNumber(value.totalStreamTime)) &&
+  (value.tokenCount === undefined || isFiniteNumber(value.tokenCount)) &&
+  (value.tokensPerSecond === undefined ||
+    isFiniteNumber(value.tokensPerSecond)) &&
+  isFiniteNumber(value.totalChunks) &&
+  isFiniteNumber(value.toolCallCount);
+
+const isAssistantMetadata = (value: Record<string, unknown>): boolean =>
+  (value.unstable_state === undefined || isJSONValue(value.unstable_state)) &&
+  (value.unstable_annotations === undefined ||
+    (Array.isArray(value.unstable_annotations) &&
+      value.unstable_annotations.every(isJSONValue))) &&
+  (value.unstable_data === undefined ||
+    (Array.isArray(value.unstable_data) &&
+      value.unstable_data.every(isJSONValue))) &&
+  (value.steps === undefined ||
+    (Array.isArray(value.steps) && value.steps.every(isThreadStep))) &&
+  (value.submittedFeedback === undefined ||
+    (isRecord(value.submittedFeedback) &&
+      (value.submittedFeedback.type === "positive" ||
+        value.submittedFeedback.type === "negative"))) &&
+  (value.timing === undefined || isMessageTiming(value.timing)) &&
+  hasOptionalBoolean(value, "isOptimistic");
+
+const isCompleteAttachment = (value: unknown): value is CompleteAttachment =>
+  isRecord(value) &&
+  typeof value.id === "string" &&
+  typeof value.type === "string" &&
+  typeof value.name === "string" &&
+  hasOptionalString(value, "contentType") &&
+  isRecord(value.status) &&
+  value.status.type === "complete" &&
+  Array.isArray(value.content) &&
+  value.content.every(isUserMessagePart);
+
+function isStoredThreadMessageShape(value: unknown, depth = 0): boolean {
+  if (
+    depth > 100 ||
+    !isRecord(value) ||
+    typeof value.id !== "string" ||
+    !isMessageRole(value.role) ||
+    parseDate(value.createdAt) === null ||
+    !isRecord(value.metadata) ||
+    !isRecord(value.metadata.custom) ||
+    !Array.isArray(value.content)
+  ) {
+    return false;
+  }
+  if (value.role === "assistant") {
+    return (
+      value.content.every((part) => isAssistantMessagePart(part, depth)) &&
+      isMessageStatus(value.status) &&
+      isAssistantMetadata(value.metadata)
+    );
+  }
+  if (value.role === "user") {
+    return (
+      value.content.every(isUserMessagePart) &&
+      (value.attachments === undefined ||
+        (Array.isArray(value.attachments) &&
+          value.attachments.every(isCompleteAttachment)))
+    );
+  }
+  return value.content.length === 1 && isTextMessagePart(value.content[0]);
+}
+
 const parseStoredThreadMessage = (value: unknown): ThreadMessage | null => {
-  if (!isRecord(value) || typeof value.id !== "string") return null;
-  if (!isMessageRole(value.role)) return null;
-  if (!Array.isArray(value.content)) return null;
+  if (!isStoredThreadMessageShape(value) || !isRecord(value)) return null;
 
   const createdAt = parseDate(value.createdAt);
   if (!createdAt) return null;
@@ -133,7 +506,7 @@ const parseStoredThreadMessage = (value: unknown): ThreadMessage | null => {
 
   if (value.role === "assistant") {
     const status = value.status;
-    if (!isRecord(status) || typeof status.type !== "string") return null;
+    if (!isMessageStatus(status)) return null;
 
     const submittedFeedback = isRecord(metadata.submittedFeedback)
       ? metadata.submittedFeedback
@@ -182,13 +555,18 @@ const parseStoredThreadMessage = (value: unknown): ThreadMessage | null => {
   }
 
   if (value.role === "user") {
+    const attachments = value.attachments ?? [];
+    if (
+      !Array.isArray(attachments) ||
+      !attachments.every(isCompleteAttachment)
+    ) {
+      return null;
+    }
     return {
       id: value.id,
       role: "user",
       content: value.content as StoredUserMessage["content"],
-      attachments: Array.isArray(value.attachments)
-        ? (value.attachments as StoredUserMessage["attachments"])
-        : [],
+      attachments,
       createdAt,
       metadata: {
         custom: metadata.custom,
