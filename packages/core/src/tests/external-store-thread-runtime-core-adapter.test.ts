@@ -7,6 +7,7 @@ import type { ExternalStoreAdapter } from "../runtimes/external-store/external-s
 import type { ModelContextProvider } from "../model-context/types";
 import type { AppendMessage, ThreadMessage } from "../types/message";
 import { createMessageQueue } from "../runtime/queue/message-queue";
+import { MessageRepository } from "../runtime/utils/message-repository";
 import { getThreadMessageText } from "../utils/text";
 import { invalidateThreadRuntime } from "../runtime/utils/thread-runtime-lifecycle";
 
@@ -216,6 +217,310 @@ describe("ExternalStoreThreadRuntimeCore adapter contract", () => {
   });
 
   describe("cancelRun", () => {
+    const stopBeforeStream = (
+      overrides: Partial<ExternalStoreAdapter<ThreadMessage>> = {},
+    ) => {
+      const user = createUserMessage("u1", "hello");
+      const adapter = createBaseAdapter({
+        messages: [user],
+        isRunning: true,
+        onCancel: vi.fn(),
+        setMessages: vi.fn(),
+        onReload: vi.fn(),
+        onEdit: vi.fn(),
+        ...overrides,
+      });
+      const core = new ExternalStoreThreadRuntimeCore(contextProvider, adapter);
+      core.composer.setText("draft");
+      core.cancelRun();
+      return { core, adapter, user };
+    };
+
+    const expectCancelledTurn = (core: ExternalStoreThreadRuntimeCore) => {
+      expect(core.messages).toHaveLength(2);
+      expect(core.messages[0]?.id).toBe("u1");
+      const marker = core.messages[1]!;
+      expect(marker).toMatchObject({
+        role: "assistant",
+        content: [],
+        status: { type: "incomplete", reason: "cancelled" },
+        metadata: { isOptimistic: true },
+      });
+      expect(core.getMessageById(marker.id)?.parentId).toBe("u1");
+      return marker.id;
+    };
+
+    it.each([
+      "assistant",
+      "user",
+      "session reset",
+      "reset",
+      "import",
+      "repository",
+    ] as const)(
+      "keeps the cancelled turn across snapshots until the %s changes",
+      async (change) => {
+        const { core, adapter, user } = stopBeforeStream();
+        const markerId = expectCancelledTurn(core);
+        await new Promise((resolve) => setTimeout(resolve, 0));
+        const settled = { ...adapter, isRunning: false, messages: [user] };
+        core.__internal_setAdapter(settled);
+        expect(expectCancelledTurn(core)).toBe(markerId);
+        core.__internal_setAdapter({ ...settled });
+        expect(expectCancelledTurn(core)).toBe(markerId);
+        if (change === "repository") {
+          const replacement = new MessageRepository();
+          core.__internal_setAdapter({
+            ...settled,
+            unstable_messageRepositoryInstance: replacement,
+          });
+          expect(core.messages.map((m) => m.id)).toEqual(["u1"]);
+        } else {
+          const messages =
+            change === "assistant"
+              ? [user, createAssistantMessage("a1")]
+              : change === "user"
+                ? [user, createUserMessage("u2")]
+                : change === "import"
+                  ? [user]
+                  : [];
+          if (change === "session reset") core.unstable_notifySessionReset();
+          if (change === "reset") core.reset();
+          if (change === "import") core.import(core.export());
+          core.__internal_setAdapter({ ...settled, messages });
+          expect(core.messages).toEqual(messages);
+        }
+        core.__internal_setAdapter(settled);
+        expect(core.messages).toEqual([user]);
+      },
+    );
+
+    it("keeps the cancelled turn when the host settles late", async () => {
+      const { core, adapter, user } = stopBeforeStream();
+      const markerId = expectCancelledTurn(core);
+      await new Promise((resolve) => setTimeout(resolve, 0));
+      core.__internal_setAdapter({
+        ...adapter,
+        isRunning: true,
+        messages: [user],
+      });
+      expect(core.messages.at(-1)).toMatchObject({
+        status: { type: "running" },
+      });
+      expect(core.messages.at(-1)?.id).not.toBe(markerId);
+      core.__internal_setAdapter({
+        ...adapter,
+        isRunning: false,
+        messages: [user],
+      });
+      expect(expectCancelledTurn(core)).toBe(markerId);
+      core.__internal_setAdapter({
+        ...adapter,
+        isRunning: true,
+        messages: [user],
+      });
+      core.__internal_setAdapter({
+        ...adapter,
+        isRunning: false,
+        messages: [user],
+      });
+      expect(core.messages).toEqual([user]);
+    });
+
+    it("does not leave a cancelled turn when stopped while idle", async () => {
+      const { core, user } = stopBeforeStream({ isRunning: false });
+      await new Promise((resolve) => setTimeout(resolve, 0));
+      expect(core.messages).toEqual([user]);
+    });
+
+    it("deletes the cancelled turn with its user parent without restoring it on a snapshot", async () => {
+      const { core, adapter } = stopBeforeStream();
+      expectCancelledTurn(core);
+      await new Promise((resolve) => setTimeout(resolve, 0));
+      await core.deleteMessage("u1");
+      expect(core.messages).toEqual([]);
+      expect(adapter.setMessages).toHaveBeenLastCalledWith([]);
+      core.__internal_setAdapter({
+        ...adapter,
+        isRunning: false,
+        messages: [],
+      });
+      expect(core.messages).toEqual([]);
+    });
+
+    it("keeps the cancelled turn until the host confirms the parent deletion", async () => {
+      const { core, adapter, user } = stopBeforeStream({ onDelete: vi.fn() });
+      const markerId = expectCancelledTurn(core);
+      await new Promise((resolve) => setTimeout(resolve, 0));
+      await core.deleteMessage("u1");
+      expect(expectCancelledTurn(core)).toBe(markerId);
+      core.__internal_setAdapter({
+        ...adapter,
+        isRunning: false,
+        messages: [user],
+      });
+      expect(expectCancelledTurn(core)).toBe(markerId);
+      core.__internal_setAdapter({
+        ...adapter,
+        isRunning: false,
+        messages: [],
+      });
+      expect(core.messages).toEqual([]);
+    });
+
+    it("does not commit the cancelled turn when a reset races the resync", async () => {
+      const { core, adapter } = stopBeforeStream();
+      const markerId = expectCancelledTurn(core);
+      core.reset();
+      await new Promise((resolve) => setTimeout(resolve, 0));
+      const committed = vi
+        .mocked(adapter.setMessages!)
+        .mock.calls.flatMap(([messages]) => messages.map((m) => m.id));
+      expect(committed).not.toContain(markerId);
+    });
+
+    it("retries the cancelled turn from its user parent", async () => {
+      const { core, adapter, user } = stopBeforeStream();
+      const markerId = expectCancelledTurn(core);
+      await new Promise((resolve) => setTimeout(resolve, 0));
+      await core.startRun({
+        parentId: "u1",
+        sourceId: markerId,
+        runConfig: {},
+      });
+      expect(adapter.onReload).toHaveBeenCalledWith("u1", {
+        parentId: "u1",
+        sourceId: markerId,
+        runConfig: {},
+      });
+      core.__internal_setAdapter({
+        ...adapter,
+        isRunning: true,
+        messages: [user],
+      });
+      expect(core.messages.at(-1)).toMatchObject({
+        status: { type: "running" },
+      });
+      expect(core.messages.at(-1)?.id).not.toBe(markerId);
+      const reply = createAssistantMessage("a1");
+      core.__internal_setAdapter({
+        ...adapter,
+        isRunning: false,
+        messages: [user, reply],
+      });
+      expect(core.messages).toEqual([user, reply]);
+    });
+
+    it("does not resurface the cancelled turn for a retry started before the host settles", async () => {
+      const { core, adapter, user } = stopBeforeStream();
+      const markerId = expectCancelledTurn(core);
+      await new Promise((resolve) => setTimeout(resolve, 0));
+      await core.startRun({
+        parentId: "u1",
+        sourceId: markerId,
+        runConfig: {},
+      });
+      core.__internal_setAdapter({
+        ...adapter,
+        isRunning: true,
+        messages: [user],
+      });
+      core.__internal_setAdapter({
+        ...adapter,
+        isRunning: false,
+        messages: [user],
+      });
+      expect(core.messages).toEqual([user]);
+    });
+
+    it("restores the prompt on a second stop once the composer is free", async () => {
+      const { core, adapter, user } = stopBeforeStream();
+      expectCancelledTurn(core);
+      await new Promise((resolve) => setTimeout(resolve, 0));
+      core.composer.setText("");
+      core.cancelRun();
+      await new Promise((resolve) => setTimeout(resolve, 0));
+      expect(core.messages).toEqual([]);
+      expect(core.composer.text).toBe(getThreadMessageText(user));
+      expect(adapter.setMessages).toHaveBeenLastCalledWith([]);
+    });
+
+    it("sends after the cancelled turn using its user parent without editing", async () => {
+      const { core, adapter, user } = stopBeforeStream();
+      const markerId = expectCancelledTurn(core);
+      await new Promise((resolve) => setTimeout(resolve, 0));
+      core.__internal_setAdapter({
+        ...adapter,
+        isRunning: false,
+        messages: [user],
+      });
+      await core.append({
+        role: "user",
+        createdAt: new Date(),
+        metadata: { custom: {} },
+        parentId: markerId,
+        content: [{ type: "text", text: "next" }],
+        attachments: [],
+        runConfig: {},
+        sourceId: null,
+      });
+      expect(adapter.onNew).toHaveBeenCalledWith(
+        expect.objectContaining({ parentId: "u1" }),
+      );
+      expect(adapter.onEdit).not.toHaveBeenCalled();
+    });
+
+    it("dispatches queued sends from the cancelled turn's user parent", async () => {
+      const run = vi.fn();
+      const queue = createMessageQueue({ run });
+      const { core, adapter, user } = stopBeforeStream({
+        queue: queue.adapter,
+      });
+      const markerId = expectCancelledTurn(core);
+      await new Promise((resolve) => setTimeout(resolve, 0));
+      core.__internal_setAdapter({
+        ...adapter,
+        isRunning: false,
+        messages: [user],
+      });
+      await core.append({
+        role: "user",
+        createdAt: new Date(),
+        metadata: { custom: {} },
+        parentId: markerId,
+        sourceId: null,
+        runConfig: {},
+        content: [{ type: "text", text: "next" }],
+        attachments: [],
+      });
+      expect(run).toHaveBeenCalledWith(
+        expect.objectContaining({ parentId: "u1" }),
+        { steer: false },
+      );
+      expect(adapter.onEdit).not.toHaveBeenCalled();
+    });
+
+    it("deletes the cancelled turn locally without restoring it on a snapshot", async () => {
+      const onDelete = vi.fn();
+      const { core, adapter, user } = stopBeforeStream({ onDelete });
+      const markerId = expectCancelledTurn(core);
+      await new Promise((resolve) => setTimeout(resolve, 0));
+      vi.mocked(adapter.setMessages!).mockClear();
+      const notified = vi.fn(() => core.messages.map((m) => m.id));
+      core.subscribe(notified);
+      await core.deleteMessage(markerId);
+      expect(core.messages).toEqual([user]);
+      expect(notified).toHaveLastReturnedWith(["u1"]);
+      expect(onDelete).not.toHaveBeenCalled();
+      expect(adapter.setMessages).not.toHaveBeenCalled();
+      core.__internal_setAdapter({
+        ...adapter,
+        isRunning: false,
+        messages: [user],
+      });
+      expect(core.messages).toEqual([user]);
+    });
+
     it("delegates to onCancel", () => {
       const onCancel = vi.fn();
       const messages = [createUserMessage("u1"), createAssistantMessage("a1")];
@@ -537,6 +842,7 @@ describe("ExternalStoreThreadRuntimeCore adapter contract", () => {
       core.cancelRun();
 
       await new Promise((resolve) => setTimeout(resolve, 0));
+      expectCancelledTurn(core);
       expect(core.composer.text).toBe("");
       expect(core.export().messages.map((m) => m.message.id)).toContain("u1");
     });
@@ -550,12 +856,21 @@ describe("ExternalStoreThreadRuntimeCore adapter contract", () => {
       });
       const core = new ExternalStoreThreadRuntimeCore(contextProvider, adapter);
       core.composer.setText("something else");
+      const notified = vi.fn(() => core.messages);
+      core.subscribe(notified);
 
       core.cancelRun();
+      const markerId = expectCancelledTurn(core);
+      expect(notified).toHaveLastReturnedWith(core.messages);
 
       await new Promise((resolve) => setTimeout(resolve, 0));
+      expect(expectCancelledTurn(core)).toBe(markerId);
       expect(core.composer.text).toBe("something else");
       expect(core.export().messages.map((m) => m.message.id)).toContain("u1");
+      expect(core.export().messages.map((m) => m.message.id)).not.toContain(
+        markerId,
+      );
+      expect(adapter.setMessages).toHaveBeenLastCalledWith([core.messages[0]]);
     });
 
     it("keeps a message with non-text content in the thread", async () => {
@@ -577,8 +892,10 @@ describe("ExternalStoreThreadRuntimeCore adapter contract", () => {
       core.cancelRun();
 
       await new Promise((resolve) => setTimeout(resolve, 0));
+      expectCancelledTurn(core);
       expect(core.composer.text).toBe("");
       expect(core.export().messages.map((m) => m.message.id)).toContain("u1");
+      expect(adapter.setMessages).toHaveBeenLastCalledWith([userMessage]);
     });
 
     it("restores the message whole when the composer is free", async () => {
@@ -605,8 +922,10 @@ describe("ExternalStoreThreadRuntimeCore adapter contract", () => {
       const core = new ExternalStoreThreadRuntimeCore(contextProvider, adapter);
 
       core.cancelRun();
+      expect(core.messages).toEqual([]);
 
       await new Promise((resolve) => setTimeout(resolve, 0));
+      expect(adapter.setMessages).toHaveBeenLastCalledWith([]);
       expect(core.composer.text).toBe("cancel me");
       expect(core.composer.attachments).toEqual([attachment]);
       expect(core.composer.quote).toEqual(quote);

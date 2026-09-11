@@ -152,6 +152,7 @@ export class ExternalStoreThreadRuntimeCore
   // passes while the same tail message awaits its response so the placeholder
   // keeps one identity per response.
   private _optimistic: { id: string; parentId: string | null } | null = null;
+  private _cancelledRun: { id: string; parentId: string } | null = null;
 
   private _store!: ExternalStoreAdapter<any>;
 
@@ -250,6 +251,7 @@ export class ExternalStoreThreadRuntimeCore
       repositoryInstance !== undefined &&
       repositoryInstance !== this.repository;
     if (repositoryChanged) {
+      this._cancelledRun = null;
       this.repository = repositoryInstance;
       this._pendingDeleteEvictions.clear();
     }
@@ -260,7 +262,11 @@ export class ExternalStoreThreadRuntimeCore
         // the prefix gated against is the one the message lands on whatever
         // the host routes by. Queuing only ever accepts a tail append, so a
         // later tail is the same intent.
-        const parentId = this.messages.at(-1)?.id ?? null;
+        const tailId = this.messages.at(-1)?.id ?? null;
+        const parentId =
+          tailId === this._cancelledRun?.id
+            ? this._cancelledRun.parentId
+            : tailId;
         return this.enrichAppendMetadata({ ...message, parentId }, parentId);
       });
       if (store.queue?.__internal_setDispatchTransform)
@@ -465,6 +471,17 @@ export class ExternalStoreThreadRuntimeCore
     }
 
     if (optimisticId === null) this._optimistic = null;
+    if (
+      this._cancelledRun &&
+      ((!previousIsRunning && isRunning) ||
+        messages.at(-1)?.id !== this._cancelledRun.parentId)
+    ) {
+      this._cancelledRun = null;
+    }
+    if (optimisticId === null && this._cancelledRun) {
+      this._addCancelledRunMessage(this._cancelledRun);
+      optimisticId = this._cancelledRun.id;
+    }
     this.repository.resetHead(optimisticId ?? messages.at(-1)?.id ?? null);
 
     const messagesSnapshot = this.repository.getMessages();
@@ -643,6 +660,10 @@ export class ExternalStoreThreadRuntimeCore
       rawMessage.sourceId != null ||
       rawMessage.parentId !== (this.messages.at(-1)?.id ?? null);
 
+    if (!isEdit && rawMessage.parentId === this._cancelledRun?.id) {
+      rawMessage = { ...rawMessage, parentId: this._cancelledRun.parentId };
+    }
+
     // A transformed-queue send is stamped at flush; any other queue's
     // transform would gate against its own thread's messages, so those stamp
     // at send.
@@ -706,6 +727,11 @@ export class ExternalStoreThreadRuntimeCore
   }
 
   public async deleteMessage(messageId: string): Promise<void> {
+    if (messageId === this._cancelledRun?.id) {
+      this._dropCancelledRun();
+      return;
+    }
+
     if (this._store.onDelete) {
       // The host owns deletion here, and it may decline (fail a server call,
       // cancel a confirm dialog, ignore an off-branch id). The eviction is
@@ -732,6 +758,10 @@ export class ExternalStoreThreadRuntimeCore
     if (this._getEffectiveIsRunning(this._store)) {
       await this._toolInvocations?.abort();
     }
+
+    // The host-owned path above evicts on the confirming snapshot, which also
+    // clears the cancelled turn; a local delete of its parent drops it now.
+    if (messageId === this._cancelledRun?.parentId) this._dropCancelledRun();
 
     const messages = this.repository.getMessages();
     const messageIndex = messages.findIndex((m) => m.id === messageId);
@@ -788,6 +818,9 @@ export class ExternalStoreThreadRuntimeCore
       throw new Error("Runtime does not support reloading messages.");
 
     this._pendingDeleteEvictions.clear();
+    // A retry started before the host settles the stopped run must not
+    // resurface the cancelled turn if it ends without output.
+    this._dropCancelledRun();
 
     // Auto-abort in-flight client-side tool executions when a run reloads;
     // any results that land afterward would target a turn that no longer
@@ -838,6 +871,7 @@ export class ExternalStoreThreadRuntimeCore
   }
 
   public cancelRun(): void {
+    const wasRunning = this._effectiveIsRunning;
     if (!this._store.onCancel)
       throw new Error("Runtime does not support cancelling runs.");
 
@@ -855,6 +889,9 @@ export class ExternalStoreThreadRuntimeCore
 
     observeAdapterCallback("onCancel", this._store.onCancel());
 
+    // A second stop re-evaluates the rollback from scratch, so a composer
+    // freed since the first one takes the prompt back.
+    this._dropCancelledRun();
     this.dropEmptyOptimisticHead();
 
     const messages = this.repository.getMessages();
@@ -892,6 +929,11 @@ export class ExternalStoreThreadRuntimeCore
         movedLeaf = { id: trailingUserLeaf.id, draft };
       }
     }
+    if (!movedLeaf && wasRunning && previousMessage?.role === "user") {
+      this._cancelledRun = { id: generateId(), parentId: previousMessage.id };
+      this._addCancelledRunMessage(this._cancelledRun);
+    }
+    this._messages = this.repository.getMessages();
     if (!movedLeaf) this._notifySubscribers();
 
     // The resync commits what the cancel left (a kept optimistic message, the
@@ -918,11 +960,42 @@ export class ExternalStoreThreadRuntimeCore
     }, 0);
   }
 
-  // Placeholder or pre-stream message; a partially-streamed one is kept and
+  private _addCancelledRunMessage({
+    id,
+    parentId,
+  }: {
+    id: string;
+    parentId: string;
+  }): void {
+    this.repository.addOrUpdateMessage(
+      parentId,
+      fromThreadMessageLike(
+        { role: "assistant", content: [], metadata: { isOptimistic: true } },
+        id,
+        { type: "incomplete", reason: "cancelled" },
+      ),
+    );
+  }
+
+  // Clearing the record must also evict the node: a cancel resync still
+  // pending would otherwise commit it to the host once the filter is gone.
+  private _dropCancelledRun(): void {
+    if (!this._cancelledRun) return;
+    const { id } = this._cancelledRun;
+    this._cancelledRun = null;
+    this._evictDeletedMessage(id);
+  }
+
+  // Running placeholder or pre-stream message; a partially-streamed one is kept and
   // committed to the store by the cancel resync.
   private dropEmptyOptimisticHead(): void {
     const head = this.repository.getMessages().at(-1);
-    if (head && head.metadata.isOptimistic && head.content.length === 0) {
+    if (
+      head?.role === "assistant" &&
+      head.status.type === "running" &&
+      head.metadata.isOptimistic &&
+      head.content.length === 0
+    ) {
       this.repository.deleteMessage(head.id);
     }
   }
@@ -969,12 +1042,14 @@ export class ExternalStoreThreadRuntimeCore
   }
 
   public override reset(initialMessages?: readonly ThreadMessageLike[]) {
+    this._dropCancelledRun();
     const repo = new MessageRepository();
     repo.import(ExportedMessageRepository.fromArray(initialMessages ?? []));
     this.updateMessages(repo.getMessages());
   }
 
   public override import(data: ExportedMessageRepository) {
+    this._dropCancelledRun();
     super.import(data);
 
     if (this._store.onImport) {
@@ -983,6 +1058,8 @@ export class ExternalStoreThreadRuntimeCore
   }
 
   private updateMessages = (messages: readonly ThreadMessage[]) => {
+    const cancelledId = this._cancelledRun?.id;
+    if (cancelledId) messages = messages.filter((m) => m.id !== cancelledId);
     const hasConverter = this._store.convertMessage !== undefined;
     if (hasConverter) {
       this._store.setMessages?.(messages.flatMap(getExternalStoreMessages));
