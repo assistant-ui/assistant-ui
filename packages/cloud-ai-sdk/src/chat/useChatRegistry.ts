@@ -1,4 +1,4 @@
-import { useEffect, useInsertionEffect, useMemo, useRef } from "react";
+import { useInsertionEffect, useMemo } from "react";
 import type { Chat } from "@ai-sdk/react";
 import type { UIMessage } from "@ai-sdk/react";
 import { ChatRegistry } from "./ChatRegistry";
@@ -57,23 +57,10 @@ export function useChatRegistry({
     registry.register(activeChatKey, threadId, activeChat);
   }, [activeChat, activeChatKey, registry, threadId]);
 
-  const committedRegistryRef = useRef(registry);
-  const registryEffectGenerationRef = useRef(0);
-  useEffect(() => {
-    const generation = ++registryEffectGenerationRef.current;
-    const previousRegistry = committedRegistryRef.current;
-    committedRegistryRef.current = registry;
-    if (previousRegistry !== registry) {
-      void previousRegistry.stopAll();
-    }
-
-    return () => {
-      queueMicrotask(() => {
-        if (registryEffectGenerationRef.current !== generation) return;
-        void registry.stopAll();
-      });
-    };
-  }, [registry]);
+  useInsertionEffect(
+    () => () => queueMicrotask(() => void registry.stopAll()),
+    [registry],
+  );
 
   return { registry, activeChat };
 }

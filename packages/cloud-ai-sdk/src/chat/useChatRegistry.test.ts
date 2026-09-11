@@ -1,7 +1,14 @@
 // @vitest-environment jsdom
 
 import { act, render, renderHook } from "@testing-library/react";
-import { createElement, startTransition, StrictMode, Suspense } from "react";
+import {
+  Activity,
+  createElement,
+  startTransition,
+  StrictMode,
+  Suspense,
+  type ComponentProps,
+} from "react";
 import { describe, expect, it, vi } from "vitest";
 import { useChatRegistry } from "./useChatRegistry";
 
@@ -91,7 +98,7 @@ describe("useChatRegistry", () => {
     expect(result.current.activeChat.id).not.toBe(initialNewChatKey);
   });
 
-  it("creates a new registry and chat when the scope changes", () => {
+  it("creates a new registry and chat when the scope changes", async () => {
     const stop = vi.fn().mockResolvedValue(undefined);
     const createChat = vi.fn().mockImplementation((chatKey: string) => ({
       id: chatKey,
@@ -114,6 +121,8 @@ describe("useChatRegistry", () => {
     const chatA = result.current.activeChat;
 
     rerender({ scope: scopeB });
+
+    await act(async () => {});
 
     expect(result.current.registry).not.toBe(registryA);
     expect(result.current.activeChat).not.toBe(chatA);
@@ -172,6 +181,67 @@ describe("useChatRegistry", () => {
     await act(async () => {
       await new Promise<void>((resolve) => queueMicrotask(resolve));
     });
+    expect(stop).toHaveBeenCalledOnce();
+  });
+
+  it("stops owned chats after a production unmount", async () => {
+    const scope = {};
+    const stop = vi.fn().mockResolvedValue(undefined);
+    const createChat = vi.fn().mockImplementation((chatKey: string) => ({
+      id: chatKey,
+      messages: [],
+      stop,
+    }));
+
+    const { unmount } = renderHook(() =>
+      useChatRegistry({
+        scope,
+        threadId: "thread-1",
+        createChat: createChat as never,
+      }),
+    );
+
+    unmount();
+    await act(async () => {});
+
+    expect(stop).toHaveBeenCalledOnce();
+  });
+
+  it("keeps owned chats running while an Activity is hidden", async () => {
+    const scope = {};
+    const stop = vi.fn().mockResolvedValue(undefined);
+    const createChat = vi.fn().mockImplementation((chatKey: string) => ({
+      id: chatKey,
+      messages: [],
+      stop,
+    }));
+    const Probe = () => {
+      useChatRegistry({
+        scope,
+        threadId: "thread-1",
+        createChat: createChat as never,
+      });
+      return null;
+    };
+    const app = (mode: "visible" | "hidden") =>
+      createElement(
+        Activity,
+        { mode } as ComponentProps<typeof Activity>,
+        createElement(Probe),
+      );
+
+    const view = render(app("visible"));
+
+    view.rerender(app("hidden"));
+    await act(async () => {});
+    expect(stop).not.toHaveBeenCalled();
+
+    view.rerender(app("visible"));
+    await act(async () => {});
+    expect(stop).not.toHaveBeenCalled();
+
+    view.unmount();
+    await act(async () => {});
     expect(stop).toHaveBeenCalledOnce();
   });
 
