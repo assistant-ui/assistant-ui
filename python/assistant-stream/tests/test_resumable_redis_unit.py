@@ -159,6 +159,9 @@ async def test_in_flight_delete_cannot_remove_reacquired_stream() -> None:
     stream_id = "delete-race"
     meta_key = "test:{delete-race}:meta"
     await stale_store.acquire(stream_id)
+    generation = json.loads(client.values[meta_key])["generation"]
+    stale_data_key = f"test:{{delete-race}}:data:{generation}"
+    await stale_store.append(stream_id, b"stale")
 
     paused = asyncio.Event()
     resume = asyncio.Event()
@@ -177,6 +180,7 @@ async def test_in_flight_delete_cannot_remove_reacquired_stream() -> None:
     await deleting
 
     assert await fresh_store.status(stream_id) == "streaming"
+    assert stale_data_key not in client.streams
     with pytest.raises(ResumableStreamError, match="superseded"):
         await stale_store.append(stream_id, b"stale")
 
@@ -217,14 +221,17 @@ async def test_legacy_metadata_and_data_remain_readable() -> None:
 
 
 @pytest.mark.anyio
-async def test_redis_adapter_uses_atomic_finalize_script() -> None:
+async def test_redis_adapter_uses_registered_finalize_script() -> None:
     class EvalClient:
         def __init__(self) -> None:
-            self.args: tuple[Any, ...] | None = None
+            self.calls: list[tuple[str, list[str], list[Any]]] = []
 
-        async def eval(self, *args: Any) -> int:
-            self.args = args
-            return 1
+        def register_script(self, script: str) -> Callable[..., Awaitable[int]]:
+            async def execute(*, keys: list[str], args: list[Any]) -> int:
+                self.calls.append((script, keys, args))
+                return 1
+
+            return execute
 
     client = EvalClient()
     adapter = _RedisAsyncioAdapter(client)
@@ -238,14 +245,13 @@ async def test_redis_adapter_uses_atomic_finalize_script() -> None:
             "ttl_sec": 60,
         }
     )
-    assert client.args is not None
-    assert client.args[1] == 2
-    assert client.args[2:] == (
-        "meta",
-        "data:generation",
+    assert len(client.calls) == 1
+    _, keys, args = client.calls[0]
+    assert keys == ["meta", "data:generation"]
+    assert args == [
         "old",
         "new",
         "60",
         "fin",
         "done",
-    )
+    ]

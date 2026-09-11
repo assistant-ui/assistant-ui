@@ -1,3 +1,4 @@
+import { createHash } from "node:crypto";
 import type {
   ChainableCommander,
   Cluster as IoRedisCluster,
@@ -18,6 +19,10 @@ import {
   type RedisResumableStreamStoreOptions,
 } from "./redis-impl";
 import type { ResumableStreamStore } from "../types";
+
+const APPEND_IF_UNCHANGED_SHA = scriptSha(APPEND_IF_UNCHANGED_SCRIPT);
+const FINALIZE_IF_UNCHANGED_SHA = scriptSha(FINALIZE_IF_UNCHANGED_SCRIPT);
+const DELETE_IF_UNCHANGED_SHA = scriptSha(DELETE_IF_UNCHANGED_SCRIPT);
 
 export type IoRedisLike = IoRedis | IoRedisCluster;
 
@@ -64,32 +69,59 @@ function adapt(client: IoRedisLike): RedisLikeClient {
       }
     },
     async appendIfUnchanged(options) {
-      const result = await client.eval(
+      const result = await runScript(
+        client,
+        APPEND_IF_UNCHANGED_SHA,
         APPEND_IF_UNCHANGED_SCRIPT,
         APPEND_IF_UNCHANGED_KEY_COUNT,
-        ...appendIfUnchangedArgs(options).map((arg) =>
+        appendIfUnchangedArgs(options).map((arg) =>
           typeof arg === "string" ? arg : toBuffer(arg),
         ),
       );
       return result === 1;
     },
     async finalizeIfUnchanged(options) {
-      const result = await client.eval(
+      const result = await runScript(
+        client,
+        FINALIZE_IF_UNCHANGED_SHA,
         FINALIZE_IF_UNCHANGED_SCRIPT,
         FINALIZE_IF_UNCHANGED_KEY_COUNT,
-        ...finalizeIfUnchangedArgs(options),
+        finalizeIfUnchangedArgs(options),
       );
       return result === 1;
     },
     async deleteIfUnchanged(options) {
-      const result = await client.eval(
+      const result = await runScript(
+        client,
+        DELETE_IF_UNCHANGED_SHA,
         DELETE_IF_UNCHANGED_SCRIPT,
         options.dataKeys.length + 1,
-        ...deleteIfUnchangedArgs(options),
+        deleteIfUnchangedArgs(options),
       );
       return result === 1;
     },
   };
+}
+
+function scriptSha(script: string): string {
+  return createHash("sha1").update(script).digest("hex");
+}
+
+async function runScript(
+  client: IoRedisLike,
+  sha: string,
+  script: string,
+  keyCount: number,
+  args: Array<string | Buffer>,
+): Promise<unknown> {
+  try {
+    return await client.evalsha(sha, keyCount, ...args);
+  } catch (error) {
+    if (!(error instanceof Error) || !error.message.includes("NOSCRIPT")) {
+      throw error;
+    }
+    return client.eval(script, keyCount, ...args);
+  }
 }
 
 function applyPipelineCommand(

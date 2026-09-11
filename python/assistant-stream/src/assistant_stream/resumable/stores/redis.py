@@ -356,9 +356,14 @@ class RedisResumableStreamStore:
                 return
 
             current_raw = await self._client.get(meta_key)
-            if current_raw is None:
-                return
-            if _meta_generation(_parse_meta(current_raw)) != generation:
+            if (
+                current_raw is None
+                or _meta_generation(_parse_meta(current_raw)) != generation
+            ):
+                if generation is not None:
+                    await self._client.delete(
+                        [self._data_key(stream_id, generation)]
+                    )
                 return
             existing_raw = current_raw
 
@@ -408,6 +413,15 @@ def _to_bytes(value: str | bytes) -> bytes:
 class _RedisAsyncioAdapter:
     def __init__(self, client: Any) -> None:
         self._client = client
+        self._append_if_unchanged = client.register_script(
+            APPEND_IF_UNCHANGED_SCRIPT
+        )
+        self._finalize_if_unchanged = client.register_script(
+            FINALIZE_IF_UNCHANGED_SCRIPT
+        )
+        self._delete_if_unchanged = client.register_script(
+            DELETE_IF_UNCHANGED_SCRIPT
+        )
 
     async def set_nx(self, key: str, value: str, ttl_sec: int) -> bool:
         result = await self._client.set(key, value, nx=True, ex=ttl_sec)
@@ -460,14 +474,9 @@ class _RedisAsyncioAdapter:
             for field, field_value in options["fields"].items()
             for value in (field, field_value)
         ]
-        result = await self._client.eval(
-            APPEND_IF_UNCHANGED_SCRIPT,
-            APPEND_IF_UNCHANGED_KEY_COUNT,
-            options["meta_key"],
-            options["data_key"],
-            options["expected_meta"],
-            str(options["ttl_sec"]),
-            *field_args,
+        result = await self._append_if_unchanged(
+            keys=[options["meta_key"], options["data_key"]],
+            args=[options["expected_meta"], str(options["ttl_sec"]), *field_args],
         )
         return result == 1 or result == b"1" or result == "1"
 
@@ -477,25 +486,22 @@ class _RedisAsyncioAdapter:
             for field, field_value in options["fields"].items()
             for value in (field, field_value)
         ]
-        result = await self._client.eval(
-            FINALIZE_IF_UNCHANGED_SCRIPT,
-            FINALIZE_IF_UNCHANGED_KEY_COUNT,
-            options["meta_key"],
-            options["data_key"],
-            options["expected_meta"],
-            options["next_meta"],
-            str(options["ttl_sec"]),
-            *field_args,
+        result = await self._finalize_if_unchanged(
+            keys=[options["meta_key"], options["data_key"]],
+            args=[
+                options["expected_meta"],
+                options["next_meta"],
+                str(options["ttl_sec"]),
+                *field_args,
+            ],
         )
         return result == 1 or result == b"1" or result == "1"
 
     async def delete_if_unchanged(self, options: dict[str, Any]) -> bool:
         keys = [options["meta_key"], *options["data_keys"]]
-        result = await self._client.eval(
-            DELETE_IF_UNCHANGED_SCRIPT,
-            len(keys),
-            *keys,
-            options["expected_meta"],
+        result = await self._delete_if_unchanged(
+            keys=keys,
+            args=[options["expected_meta"]],
         )
         return result == 1 or result == b"1" or result == "1"
 

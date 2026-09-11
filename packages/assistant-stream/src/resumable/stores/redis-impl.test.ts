@@ -332,6 +332,11 @@ describe("RedisResumableStreamStore", () => {
     const staleStore = new RedisResumableStreamStore(client, { keyPrefix });
     const freshStore = new RedisResumableStreamStore(client, { keyPrefix });
     await staleStore.acquire(streamId);
+    const generation = (
+      JSON.parse(client.strings.get(metaKey)!) as { generation: string }
+    ).generation;
+    const staleDataKey = `${keyPrefix}:{${streamId}}:data:${generation}`;
+    await staleStore.append(streamId, encoder.encode("stale"));
 
     let resumeDelete!: () => void;
     const deletePaused = new Promise<void>((resolve) => {
@@ -350,6 +355,7 @@ describe("RedisResumableStreamStore", () => {
     await deleting;
 
     await expect(freshStore.status(streamId)).resolves.toBe("streaming");
+    expect(client.streams.has(staleDataKey)).toBe(false);
     await expect(
       staleStore.append(streamId, encoder.encode("stale")),
     ).rejects.toThrow(/superseded/);

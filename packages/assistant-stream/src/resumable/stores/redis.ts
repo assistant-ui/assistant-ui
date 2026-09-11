@@ -1,3 +1,4 @@
+import { createHash } from "node:crypto";
 import {
   APPEND_IF_UNCHANGED_KEY_COUNT,
   APPEND_IF_UNCHANGED_SCRIPT,
@@ -15,6 +16,9 @@ import {
 import type { ResumableStreamStore } from "../types";
 
 const RESP_BLOB_STRING = 36;
+const APPEND_IF_UNCHANGED_SHA = scriptSha(APPEND_IF_UNCHANGED_SCRIPT);
+const FINALIZE_IF_UNCHANGED_SHA = scriptSha(FINALIZE_IF_UNCHANGED_SCRIPT);
+const DELETE_IF_UNCHANGED_SHA = scriptSha(DELETE_IF_UNCHANGED_SCRIPT);
 
 type NodeRedisFields = Record<string, string | Buffer>;
 
@@ -81,35 +85,69 @@ function adapt(client: NodeRedisLike): RedisLikeClient {
       await chain.execAsPipeline();
     },
     async appendIfUnchanged(options) {
-      const result = await client.sendCommand<number>([
-        "EVAL",
+      const result = await runScript(
+        client,
+        APPEND_IF_UNCHANGED_SHA,
         APPEND_IF_UNCHANGED_SCRIPT,
-        String(APPEND_IF_UNCHANGED_KEY_COUNT),
-        ...appendIfUnchangedArgs(options).map((arg) =>
+        APPEND_IF_UNCHANGED_KEY_COUNT,
+        appendIfUnchangedArgs(options).map((arg) =>
           typeof arg === "string" ? arg : toBuffer(arg),
         ),
-      ]);
+      );
       return result === 1;
     },
     async finalizeIfUnchanged(options) {
-      const result = await client.sendCommand<number>([
-        "EVAL",
+      const result = await runScript(
+        client,
+        FINALIZE_IF_UNCHANGED_SHA,
         FINALIZE_IF_UNCHANGED_SCRIPT,
-        String(FINALIZE_IF_UNCHANGED_KEY_COUNT),
-        ...finalizeIfUnchangedArgs(options),
-      ]);
+        FINALIZE_IF_UNCHANGED_KEY_COUNT,
+        finalizeIfUnchangedArgs(options),
+      );
       return result === 1;
     },
     async deleteIfUnchanged(options) {
-      const result = await client.sendCommand<number>([
-        "EVAL",
+      const result = await runScript(
+        client,
+        DELETE_IF_UNCHANGED_SHA,
         DELETE_IF_UNCHANGED_SCRIPT,
-        String(options.dataKeys.length + 1),
-        ...deleteIfUnchangedArgs(options),
-      ]);
+        options.dataKeys.length + 1,
+        deleteIfUnchangedArgs(options),
+      );
       return result === 1;
     },
   };
+}
+
+function scriptSha(script: string): string {
+  return createHash("sha1").update(script).digest("hex");
+}
+
+async function runScript(
+  client: NodeRedisLike,
+  sha: string,
+  script: string,
+  keyCount: number,
+  args: Array<string | Buffer>,
+): Promise<number> {
+  try {
+    return await client.sendCommand<number>([
+      "EVALSHA",
+      sha,
+      String(keyCount),
+      ...args,
+    ]);
+  } catch (error) {
+    if (!(error instanceof Error) || !error.message.includes("NOSCRIPT")) {
+      throw error;
+    }
+    return client.sendCommand<number>([
+      "EVAL",
+      script,
+      String(keyCount),
+      ...args,
+    ]);
+  }
 }
 
 function applyPipelineCommand(

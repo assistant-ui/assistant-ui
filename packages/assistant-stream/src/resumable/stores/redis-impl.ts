@@ -404,8 +404,15 @@ export class RedisResumableStreamStore implements ResumableStreamStore {
       }
 
       const currentRaw = await this.client.get(metaKey);
-      if (currentRaw === null) return;
-      if (parseMeta(currentRaw)?.generation !== generation) return;
+      if (
+        currentRaw === null ||
+        parseMeta(currentRaw)?.generation !== generation
+      ) {
+        if (generation !== undefined) {
+          await this.client.del([this.dataKey(streamId, generation)]);
+        }
+        return;
+      }
       existingRaw = currentRaw;
     }
   }
