@@ -11,10 +11,7 @@ export async function runCachedRedisScript<T>(
   try {
     return await runSha();
   } catch (error) {
-    if (
-      !(error instanceof Error) ||
-      (!error.message.includes("NOSCRIPT") && !error.message.includes("NOPERM"))
-    ) {
+    if (!(error instanceof Error) || !error.message.includes("NOSCRIPT")) {
       throw error;
     }
     return runSource();

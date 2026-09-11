@@ -186,6 +186,39 @@ async def test_in_flight_delete_cannot_remove_reacquired_stream() -> None:
 
 
 @pytest.mark.anyio
+async def test_delete_does_not_clear_same_store_reacquisition() -> None:
+    client = FakeRedisLikeClient()
+    store = RedisResumableStreamStore(client, key_prefix="test")
+    stream_id = "same-store-delete-race"
+    meta_key = "test:{same-store-delete-race}:meta"
+    await store.acquire(stream_id)
+    await store.append(stream_id, b"stale")
+
+    await client.delete([meta_key])
+    paused = asyncio.Event()
+    resume = asyncio.Event()
+
+    async def pause_after_read() -> None:
+        paused.set()
+        await resume.wait()
+
+    client.on_next_get = pause_after_read
+    deleting = asyncio.create_task(store.delete(stream_id))
+    await paused.wait()
+
+    assert await store.acquire(stream_id) == "producer"
+    await store.append(stream_id, b"fresh")
+    resume.set()
+    await deleting
+    await store.finalize(stream_id, "done")
+
+    chunks = [
+        entry.chunk async for entry in store.read(stream_id, "", asyncio.Event())
+    ]
+    assert chunks == [b"fresh"]
+
+
+@pytest.mark.anyio
 async def test_new_acquisition_preserves_legacy_data_without_replaying_it() -> None:
     client = FakeRedisLikeClient()
     legacy_key = "test:{reused}:data"

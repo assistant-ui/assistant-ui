@@ -8,19 +8,16 @@ describe("redis script execution", () => {
     );
   });
 
-  it.each(["NOSCRIPT missing", "NOPERM command not allowed"])(
-    "falls back to the script source after %s",
-    async (message) => {
-      const runSource = vi.fn(async () => 1);
+  it("falls back to the script source after a cache miss", async () => {
+    const runSource = vi.fn(async () => 1);
 
-      await expect(
-        runCachedRedisScript(async () => {
-          throw new Error(message);
-        }, runSource),
-      ).resolves.toBe(1);
-      expect(runSource).toHaveBeenCalledOnce();
-    },
-  );
+    await expect(
+      runCachedRedisScript(async () => {
+        throw new Error("NOSCRIPT missing");
+      }, runSource),
+    ).resolves.toBe(1);
+    expect(runSource).toHaveBeenCalledOnce();
+  });
 
   it("preserves unrelated failures", async () => {
     const error = new Error("connection lost");

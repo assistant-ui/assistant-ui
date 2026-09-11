@@ -392,11 +392,11 @@ export class RedisResumableStreamStore implements ResumableStreamStore {
   async delete(streamId: string): Promise<void> {
     validateStreamId(streamId);
     const metaKey = this.metaKey(streamId);
+    const acquiredGeneration = this.acquiredGenerations.get(streamId);
     let existingRaw = await this.client.get(metaKey);
     const legacyDataKey = this.dataKey(streamId);
     if (existingRaw === null) {
-      const acquiredGeneration = this.acquiredGenerations.get(streamId);
-      this.acquiredGenerations.delete(streamId);
+      this.clearAcquiredGeneration(streamId, acquiredGeneration);
       await this.client.del([
         ...(acquiredGeneration === undefined
           ? []
@@ -409,7 +409,7 @@ export class RedisResumableStreamStore implements ResumableStreamStore {
     const existing = parseMeta(existingRaw);
     const generation = existing?.generation;
     if (!this.client.deleteIfUnchanged) {
-      this.acquiredGenerations.delete(streamId);
+      this.clearAcquiredGeneration(streamId, acquiredGeneration);
       await this.client.del([
         metaKey,
         ...new Set([this.dataKey(streamId, generation), legacyDataKey]),
@@ -426,7 +426,7 @@ export class RedisResumableStreamStore implements ResumableStreamStore {
         ],
       });
       if (deleted) {
-        this.acquiredGenerations.delete(streamId);
+        this.clearAcquiredGeneration(streamId, acquiredGeneration);
         return;
       }
 
@@ -435,13 +435,22 @@ export class RedisResumableStreamStore implements ResumableStreamStore {
         currentRaw === null ||
         parseMeta(currentRaw)?.generation !== generation
       ) {
-        this.acquiredGenerations.delete(streamId);
+        this.clearAcquiredGeneration(streamId, acquiredGeneration);
         if (generation !== undefined) {
           await this.client.del([this.dataKey(streamId, generation)]);
         }
         return;
       }
       existingRaw = currentRaw;
+    }
+  }
+
+  private clearAcquiredGeneration(
+    streamId: string,
+    generation: string | undefined,
+  ): void {
+    if (this.acquiredGenerations.get(streamId) === generation) {
+      this.acquiredGenerations.delete(streamId);
     }
   }
 

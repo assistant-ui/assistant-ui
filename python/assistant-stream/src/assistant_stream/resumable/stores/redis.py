@@ -341,10 +341,11 @@ class RedisResumableStreamStore:
     async def delete(self, stream_id: str) -> None:
         validate_stream_id(stream_id)
         meta_key = self._meta_key(stream_id)
+        acquired_generation = self._acquired_generations.get(stream_id)
         existing_raw = await self._client.get(meta_key)
         legacy_data_key = self._data_key(stream_id)
         if existing_raw is None:
-            acquired_generation = self._acquired_generations.pop(stream_id, None)
+            self._clear_acquired_generation(stream_id, acquired_generation)
             keys = [legacy_data_key]
             if acquired_generation is not None:
                 keys.insert(0, self._data_key(stream_id, acquired_generation))
@@ -355,7 +356,7 @@ class RedisResumableStreamStore:
         generation = _meta_generation(existing)
         delete_if_unchanged = getattr(self._client, "delete_if_unchanged", None)
         if delete_if_unchanged is None:
-            self._acquired_generations.pop(stream_id, None)
+            self._clear_acquired_generation(stream_id, acquired_generation)
             await self._client.delete(
                 list(
                     dict.fromkeys(
@@ -383,7 +384,7 @@ class RedisResumableStreamStore:
                 }
             )
             if deleted:
-                self._acquired_generations.pop(stream_id, None)
+                self._clear_acquired_generation(stream_id, acquired_generation)
                 return
 
             current_raw = await self._client.get(meta_key)
@@ -391,13 +392,19 @@ class RedisResumableStreamStore:
                 current_raw is None
                 or _meta_generation(_parse_meta(current_raw)) != generation
             ):
-                self._acquired_generations.pop(stream_id, None)
+                self._clear_acquired_generation(stream_id, acquired_generation)
                 if generation is not None:
                     await self._client.delete(
                         [self._data_key(stream_id, generation)]
                     )
                 return
             existing_raw = current_raw
+
+    def _clear_acquired_generation(
+        self, stream_id: str, generation: str | None
+    ) -> None:
+        if self._acquired_generations.get(stream_id) == generation:
+            self._acquired_generations.pop(stream_id, None)
 
 
 def _ms_to_sec(ms: int) -> int:

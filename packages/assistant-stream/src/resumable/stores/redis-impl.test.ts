@@ -360,6 +360,44 @@ describe("RedisResumableStreamStore", () => {
     await expect(freshStore.status(streamId)).resolves.toBe("missing");
   });
 
+  it("does not clear a same-store acquisition completed during delete", async () => {
+    const client = new FakeRedisClient();
+    const keyPrefix = "test";
+    const streamId = "same-store-delete-race";
+    const metaKey = `${keyPrefix}:{${streamId}}:meta`;
+    const store = new RedisResumableStreamStore(client, { keyPrefix });
+    await store.acquire(streamId);
+    await store.append(streamId, encoder.encode("stale"));
+
+    client.strings.delete(metaKey);
+    let resumeDelete!: () => void;
+    const deletePaused = new Promise<void>((resolve) => {
+      client.onNextGet = () =>
+        new Promise<void>((resume) => {
+          resumeDelete = resume;
+          resolve();
+        });
+    });
+    const deleting = store.delete(streamId);
+    await deletePaused;
+
+    await expect(store.acquire(streamId)).resolves.toBe("producer");
+    await store.append(streamId, encoder.encode("fresh"));
+    resumeDelete();
+    await deleting;
+    await store.finalize(streamId, "done");
+
+    const chunks: string[] = [];
+    for await (const entry of store.read(
+      streamId,
+      "",
+      new AbortController().signal,
+    )) {
+      chunks.push(decoder.decode(entry.chunk));
+    }
+    expect(chunks).toEqual(["fresh"]);
+  });
+
   it("stops an existing reader when the stream generation changes", async () => {
     const client = new FakeRedisClient();
     const keyPrefix = "test";
