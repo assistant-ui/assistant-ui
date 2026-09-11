@@ -4,7 +4,7 @@ export type FilePartSource =
   | { kind: "url"; url: string }
   | { kind: "data"; data: string; mimeType: string };
 
-const DEFAULT_DATA_URL_MEDIA_TYPE = "application/octet-stream";
+const DEFAULT_DATA_URL_MEDIA_TYPE = "text/plain;charset=US-ASCII";
 
 export function parseDataUrl(
   value: string,
@@ -56,5 +56,7 @@ export function isParsableUrl(value: string): boolean {
  * bytes; this reads the declaration alone.
  */
 export function dataUrlMediaType(value: string): string | undefined {
-  return /^data:([^;,]+)(?:[;,])/i.exec(value)?.[1]?.toLowerCase();
+  const match = /^data:([^;,]*)(?:[;,])/i.exec(value);
+  if (!match) return undefined;
+  return match[1]?.toLowerCase() || DEFAULT_DATA_URL_MEDIA_TYPE;
 }
