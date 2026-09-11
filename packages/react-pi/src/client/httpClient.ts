@@ -31,6 +31,7 @@ import {
   createPiEventStreamConnection,
   openPiEventStream,
 } from "./eventSource";
+import type { PiEventStreamConnection } from "./eventSource";
 import { isThreadMetadata, isThreadSnapshot } from "./validation";
 import type {
   PiClient,
@@ -67,7 +68,8 @@ type SharedStream = {
   liveSnapshotSeq: number;
   awaitingLiveSnapshot: boolean;
   snapshotLoad: SharedSnapshotLoad | undefined;
-  close: ReturnType<typeof createPiEventStreamConnection>;
+  connection: PiEventStreamConnection;
+  reconnectOnReturnAvailable: boolean;
   closeTimer: ReturnType<typeof setTimeout> | undefined;
 };
 
@@ -419,7 +421,8 @@ export const createPiHttpClient = (
           awaitingLiveSnapshot: false,
           snapshotLoad: undefined,
           closeTimer: undefined,
-          close: createPiEventStreamConnection({
+          reconnectOnReturnAvailable: true,
+          connection: createPiEventStreamConnection({
             url: eventsUrl,
             expectedThreadId: threadId,
             ...(!includeSnapshot && {
@@ -505,7 +508,12 @@ export const createPiHttpClient = (
       } else if (stream.closeTimer) {
         clearTimeout(stream.closeTimer);
         stream.closeTimer = undefined;
-        stream.close.reconnect();
+        if (
+          stream.reconnectOnReturnAvailable &&
+          stream.connection.reconnect()
+        ) {
+          stream.reconnectOnReturnAvailable = false;
+        }
       }
 
       const isNewListener = !stream.listeners.has(listener);
@@ -656,14 +664,14 @@ export const createPiHttpClient = (
         }
         if (current.listeners.size > 0 || current.closeTimer) return;
         if (streamCloseDelayMs <= 0) {
-          current.close();
+          current.connection.close();
           streams.delete(streamKey);
           return;
         }
         current.closeTimer = setTimeout(() => {
           const latest = streams.get(streamKey);
           if (!latest || latest.listeners.size > 0) return;
-          latest.close();
+          latest.connection.close();
           streams.delete(streamKey);
         }, streamCloseDelayMs);
       };

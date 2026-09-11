@@ -550,6 +550,45 @@ describe("createPiHttpClient", () => {
     finishBackoff();
   });
 
+  it("allows only one prompt reconnect during a retained stream lifetime", async () => {
+    const finishBackoffs: Array<() => void> = [];
+    const reconnectDelay = vi.fn(
+      () =>
+        new Promise<void>((resolve) => {
+          finishBackoffs.push(resolve);
+        }),
+    );
+    const fetchImpl = vi.fn(async () =>
+      sseResponse(
+        { type: "agent_start", threadId: "t1", seq: 1 },
+        { keepOpen: fetchImpl.mock.calls.length > 2 },
+      ),
+    ) as unknown as typeof fetch;
+    const client = createPiHttpClient({
+      fetchImpl,
+      reconnectDelay,
+      streamCloseDelayMs: 100,
+    });
+
+    const unsubscribeFirst = client.subscribe("t1", () => {});
+    await vi.waitFor(() => expect(reconnectDelay).toHaveBeenCalledOnce());
+    unsubscribeFirst();
+
+    const unsubscribeSecond = client.subscribe("t1", () => {});
+    await vi.waitFor(() => expect(reconnectDelay).toHaveBeenCalledTimes(2));
+    unsubscribeSecond();
+
+    const unsubscribeThird = client.subscribe("t1", () => {});
+    await Promise.resolve();
+    await Promise.resolve();
+    expect(fetchImpl).toHaveBeenCalledTimes(2);
+
+    finishBackoffs[1]!();
+    await vi.waitFor(() => expect(fetchImpl).toHaveBeenCalledTimes(3));
+    unsubscribeThird();
+    finishBackoffs[0]!();
+  });
+
   it("isolates listener errors while delivering shared stream events", async () => {
     const event: PiAnyClientEvent = {
       type: "agent_start",
