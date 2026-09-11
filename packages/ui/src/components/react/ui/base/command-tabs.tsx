@@ -48,9 +48,18 @@ export function CommandTabs({
   const copyTimer = useRef<ReturnType<typeof setTimeout> | undefined>(
     undefined,
   );
+  const copyGeneration = useRef(0);
 
   const commandsRef = useRef(commands);
   commandsRef.current = commands;
+
+  useEffect(
+    () => () => {
+      copyGeneration.current += 1;
+      clearTimeout(copyTimer.current);
+    },
+    [],
+  );
 
   useEffect(() => {
     if (!storageKey) return;
@@ -127,11 +136,14 @@ export function CommandTabs({
           type="button"
           aria-label="Copy command"
           onClick={async () => {
+            const generation = ++copyGeneration.current;
             try {
               await navigator.clipboard.writeText(command);
             } catch {
               return;
             }
+            if (generation !== copyGeneration.current) return;
+
             setCopied(true);
             clearTimeout(copyTimer.current);
             copyTimer.current = setTimeout(() => setCopied(false), 1500);
