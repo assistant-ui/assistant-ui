@@ -15,6 +15,7 @@ export interface SafeContentFrameOptions {
 }
 
 export interface SafeContentFrameRenderOptions {
+  /** Cancels the render while its iframe is still loading. */
   signal?: AbortSignal;
 }
 
@@ -115,21 +116,6 @@ function randomSalt(): ArrayBuffer {
   return arr.buffer as ArrayBuffer;
 }
 
-function getAbortError(signal: AbortSignal): Error {
-  if (signal.reason instanceof Error) return signal.reason;
-  const error = new Error(
-    signal.reason === undefined
-      ? "The operation was aborted"
-      : String(signal.reason),
-  );
-  error.name = "AbortError";
-  return error;
-}
-
-function throwIfAborted(signal?: AbortSignal): void {
-  if (signal?.aborted) throw getAbortError(signal);
-}
-
 async function contentSalt(
   content: Uint8Array,
   pathname: string,
@@ -193,7 +179,7 @@ export class SafeContentFrame {
     opts?: SafeContentFrameHtmlRenderOptions,
   ): Promise<RenderedFrame> {
     const signal = opts?.signal;
-    throwIfAborted(signal);
+    signal?.throwIfAborted();
     const origin = window.location.origin;
     const salt = this.options.salt
       ? (new TextEncoder().encode(this.options.salt).buffer as ArrayBuffer)
@@ -201,9 +187,9 @@ export class SafeContentFrame {
         ? await contentSalt(content, location.pathname)
         : randomSalt();
 
-    throwIfAborted(signal);
+    signal?.throwIfAborted();
     const hash = await computeOriginHash(this.product, salt, origin);
-    throwIfAborted(signal);
+    signal?.throwIfAborted();
     const shimUrl = `https://${hash}-${PRODUCT_HASH}.${SCF_HOST}/${this.product}/shim.html?origin=${encodeURIComponent(origin)}${this.options.enableBrowserCaching ? "&cache=1" : ""}`;
     const iframeOrigin = new URL(shimUrl).origin;
 
@@ -261,16 +247,11 @@ export class SafeContentFrame {
 
       function onAbort() {
         if (!signal) return;
-        const error = getAbortError(signal);
-        onLoadError(error);
+        onLoadError(signal.reason);
         cleanup();
-        reject(error);
+        reject(signal.reason);
       }
       signal?.addEventListener("abort", onAbort, { once: true });
-      if (signal?.aborted) {
-        onAbort();
-        return;
-      }
 
       channel.port1.onmessage = (e) => {
         if (e.data?.type === "msg") onLoaded();
@@ -301,6 +282,7 @@ export class SafeContentFrame {
             [channel.port2],
           );
           channelTransferred = true;
+          signal?.removeEventListener("abort", onAbort);
         } catch (error) {
           cleanup();
           reject(error);

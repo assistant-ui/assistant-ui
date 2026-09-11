@@ -162,6 +162,38 @@ describe("SafeContentFrame", () => {
     expect(MockMessageChannel.instances).toHaveLength(0);
   });
 
+  it("keeps a resolved frame alive when the render signal aborts", async () => {
+    const container = document.createElement("div");
+    document.body.appendChild(container);
+    const renderer = new SafeContentFrame("test", { salt: "fixed" });
+    const controller = new AbortController();
+
+    const framePromise = renderer.renderHtml("<p>Hello</p>", container, {
+      signal: controller.signal,
+    });
+    await vi.waitFor(() => {
+      expect(container.querySelector("iframe")).toBeTruthy();
+    });
+
+    const iframe = container.querySelector("iframe")!;
+    setContentWindow(iframe);
+    iframe.dispatchEvent(new Event("load"));
+    const frame = await framePromise;
+
+    controller.abort();
+
+    expect(container.contains(iframe)).toBe(true);
+    expect(MockMessageChannel.instances[0]!.port1.close).not.toHaveBeenCalled();
+    frame.sendMessage({ type: "ping" });
+    expect(iframe.contentWindow?.postMessage).toHaveBeenCalledWith(
+      { type: "ping" },
+      frame.origin,
+      undefined,
+    );
+
+    frame.dispose();
+  });
+
   it("surfaces shim errors reported after the iframe loads", async () => {
     const container = document.createElement("div");
     document.body.appendChild(container);
