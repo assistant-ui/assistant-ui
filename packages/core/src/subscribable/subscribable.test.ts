@@ -110,6 +110,28 @@ describe("ShallowMemoizeSubject", () => {
     expect(subject.getState()).toEqual({ status: "ready" });
     expect(subscriber).not.toHaveBeenCalled();
   });
+
+  it("reconnects after the previous connection cleanup throws", () => {
+    let subscribeCount = 0;
+    const cleanupError = new Error("cleanup failed");
+    const binding: SubscribableWithState<TestState, null> = {
+      path: null,
+      getState: () => ({ status: "ready" }),
+      subscribe: () => {
+        subscribeCount += 1;
+        return () => {
+          throw cleanupError;
+        };
+      },
+    };
+    const subject = new ShallowMemoizeSubject(binding);
+
+    const unsubscribe = subject.subscribe(() => {});
+    expect(() => unsubscribe()).toThrow(cleanupError);
+
+    subject.subscribe(() => {});
+    expect(subscribeCount).toBe(2);
+  });
 });
 
 describe("LazyMemoizeSubject", () => {

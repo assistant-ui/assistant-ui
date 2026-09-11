@@ -136,8 +136,9 @@ export abstract class BaseSubject {
       if (this._connection) return;
       this._connection = this._connect();
     } else {
-      this._connection?.();
+      const connection = this._connection;
       this._connection = undefined;
+      connection?.();
     }
   }
 
