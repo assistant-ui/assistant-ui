@@ -797,6 +797,9 @@ describe("A2AThreadRuntimeCore", () => {
 
   describe("sync fallback", () => {
     it("retries agent card discovery after a transient failure", async () => {
+      let now = 1_000;
+      vi.spyOn(Date, "now").mockImplementation(() => now);
+      const transportOrder: string[] = [];
       const getAgentCard = vi
         .fn()
         .mockRejectedValueOnce(new Error("temporary failure"))
@@ -804,21 +807,42 @@ describe("A2AThreadRuntimeCore", () => {
           name: "Agent",
           capabilities: { streaming: false },
         } as A2AAgentCard);
-      const sendMessage = vi.fn().mockResolvedValue({
-        id: "t1",
-        status: { state: "completed" },
-      } satisfies A2ATask);
+      const sendMessage = vi.fn().mockImplementation(async () => {
+        transportOrder.push("sync");
+        return {
+          id: "t1",
+          status: { state: "completed" },
+        } satisfies A2ATask;
+      });
       const streamMessage = vi.fn().mockImplementation(async function* () {
+        transportOrder.push("stream");
         yield statusUpdateEvent("completed");
       });
       const core = createCore({ getAgentCard, sendMessage, streamMessage });
 
       await core.append(createUserAppendMessage("First"));
+      now += 5_000;
       await core.append(createUserAppendMessage("Second"));
 
       expect(getAgentCard).toHaveBeenCalledTimes(2);
       expect(streamMessage).toHaveBeenCalledOnce();
       expect(sendMessage).toHaveBeenCalledOnce();
+      expect(transportOrder).toEqual(["stream", "sync"]);
+    });
+
+    it("does not repeat failed discovery during the retry delay", async () => {
+      vi.spyOn(Date, "now").mockReturnValue(1_000);
+      const getAgentCard = vi.fn().mockRejectedValue(new Error("unavailable"));
+      const streamMessage = vi.fn().mockImplementation(async function* () {
+        yield statusUpdateEvent("completed");
+      });
+      const core = createCore({ getAgentCard, streamMessage });
+
+      await core.append(createUserAppendMessage("First"));
+      await core.append(createUserAppendMessage("Second"));
+
+      expect(getAgentCard).toHaveBeenCalledOnce();
+      expect(streamMessage).toHaveBeenCalledTimes(2);
     });
 
     it("waits for agent capabilities before choosing the first send method", async () => {

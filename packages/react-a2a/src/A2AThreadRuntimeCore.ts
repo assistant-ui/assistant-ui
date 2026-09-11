@@ -25,12 +25,15 @@ import type {
   A2ATaskArtifactUpdateEvent,
   A2ATaskStatusUpdateEvent,
 } from "./types";
+
 import {
   a2aMessageToContent,
   isTerminalTaskState,
   threadMessageToA2AMessage,
   taskStateToMessageStatus,
 } from "./conversions";
+
+const AGENT_CARD_RETRY_DELAY_MS = 5_000;
 
 export type A2AThreadRuntimeCoreOptions = {
   client: A2AClient;
@@ -93,6 +96,7 @@ export class A2AThreadRuntimeCore {
   private _loadPromise: Promise<void> | undefined;
   private _loadRequested = false;
   private _agentCardPromise: Promise<void> | undefined;
+  private _agentCardRetryAfter = 0;
 
   private lastOptionsContextId: string | undefined;
 
@@ -198,12 +202,16 @@ export class A2AThreadRuntimeCore {
   }
 
   private loadAgentCard(): Promise<void> {
+    if (Date.now() < this._agentCardRetryAfter) return Promise.resolve();
+
     this._agentCardPromise ??= this.client.getAgentCard().then(
       (agentCard) => {
         this.agentCardValue = agentCard;
+        this._agentCardRetryAfter = 0;
         this.notifyUpdate();
       },
       () => {
+        this._agentCardRetryAfter = Date.now() + AGENT_CARD_RETRY_DELAY_MS;
         this._agentCardPromise = undefined;
       },
     );
