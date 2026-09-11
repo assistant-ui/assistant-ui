@@ -179,9 +179,8 @@ export class RedisResumableStreamStore implements ResumableStreamStore {
     this.maxChunkBytes = options.maxChunkBytes;
   }
 
-  // Fencing state for producers acquired through this instance: an append or
-  // finalize whose current metadata carries a different generation lost the
-  // stream to a newer acquisition and must not write into it.
+  // Tracks the latest producer acquired through this store instance. The
+  // current store contract does not carry producer identity into mutations.
   private readonly acquiredGenerations = new Map<string, string>();
 
   async acquire(
@@ -294,8 +293,8 @@ export class RedisResumableStreamStore implements ResumableStreamStore {
     if (!existing) {
       throw new Error(`Stream not found: ${streamId}`);
     }
-    // a second finalize must not append a duplicate FIN entry, and a producer
-    // superseded by a newer acquisition must not finalize the new stream.
+    // A second finalize must not append a duplicate FIN entry. A generation
+    // change observed by this store must not finalize the replacement stream.
     if (existing.status !== "streaming") return;
     if (this.isSupersededGeneration(streamId, existing)) return;
     const ttlSec = existing.ttlSec ?? msToSec(this.defaultTtlMs);
