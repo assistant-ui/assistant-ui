@@ -199,28 +199,6 @@ describe("parseStoredMessageRepository", () => {
           },
           {
             message: {
-              ...storedMessage("invalid-generative-ui", "assistant"),
-              content: [{ type: "generative-ui", spec: {} }],
-            },
-            parentId: null,
-          },
-          {
-            message: {
-              ...storedMessage("invalid-optional-fields", "assistant"),
-              content: [
-                { type: "text", text: "safe", status: null },
-                {
-                  type: "file",
-                  data: "aGVsbG8=",
-                  mimeType: "text/plain",
-                  filename: 42,
-                },
-              ],
-            },
-            parentId: null,
-          },
-          {
-            message: {
               ...storedMessage("valid"),
               content: [{ type: "text", text: "hello" }],
             },
@@ -233,7 +211,43 @@ describe("parseStoredMessageRepository", () => {
     expect(repo.messages.map((item) => item.message.id)).toEqual(["valid"]);
   });
 
-  it("drops tool calls with malformed approval or MCP metadata", () => {
+  it("strips malformed optional part metadata", () => {
+    const repo = parseStoredMessageRepository(
+      JSON.stringify({
+        messages: [
+          {
+            message: {
+              ...storedMessage("assistant", "assistant"),
+              content: [
+                {
+                  type: "text",
+                  text: "safe",
+                  status: null,
+                  providerMetadata: { provider: 42 },
+                },
+                {
+                  type: "file",
+                  data: "aGVsbG8=",
+                  mimeType: "text/plain",
+                  filename: 42,
+                },
+                { type: "generative-ui", spec: {} },
+              ],
+            },
+            parentId: null,
+          },
+        ],
+      }),
+    );
+
+    expect(repo.messages[0]?.message.content).toEqual([
+      { type: "text", text: "safe" },
+      { type: "file", data: "aGVsbG8=", mimeType: "text/plain" },
+      { type: "generative-ui", spec: {} },
+    ]);
+  });
+
+  it("strips malformed approval or MCP metadata", () => {
     const toolCall = {
       type: "tool-call",
       toolCallId: "tool-1",
@@ -265,10 +279,13 @@ describe("parseStoredMessageRepository", () => {
       }),
     );
 
-    expect(repo.messages).toEqual([]);
+    expect(repo.messages[0]?.message.content).toEqual([
+      toolCall,
+      { ...toolCall, toolCallId: "tool-2" },
+    ]);
   });
 
-  it("rejects malformed attachments, statuses, and metadata", () => {
+  it("rejects malformed attachments and normalizes message metadata", () => {
     const repo = parseStoredMessageRepository(
       JSON.stringify({
         messages: [
@@ -304,6 +321,13 @@ describe("parseStoredMessageRepository", () => {
             parentId: null,
           },
           {
+            message: {
+              ...storedMessage("non-array-steps", "assistant"),
+              metadata: { custom: {}, steps: {} },
+            },
+            parentId: null,
+          },
+          {
             message: storedMessage("valid", "assistant"),
             parentId: null,
           },
@@ -311,7 +335,17 @@ describe("parseStoredMessageRepository", () => {
       }),
     );
 
-    expect(repo.messages.map((item) => item.message.id)).toEqual(["valid"]);
+    expect(repo.messages.map((item) => item.message.id)).toEqual([
+      "invalid-status",
+      "non-array-steps",
+      "valid",
+    ]);
+    expect(repo.messages[0]?.message).toMatchObject({
+      status: { type: "complete", reason: "unknown" },
+      metadata: { steps: [{ messageId: "step-1" }] },
+    });
+    expect(repo.messages[0]?.message.metadata.timing).toBeUndefined();
+    expect(repo.messages[1]?.message.metadata.steps).toEqual([]);
   });
 
   it("preserves supported content and attachment fields", () => {
@@ -454,7 +488,7 @@ describe("parseStoredMessageRepository", () => {
               content: [
                 {
                   type: "text",
-                  text: "instructions",
+                  text: 42,
                   status: { type: "incomplete", reason: "tool-calls" },
                 },
               ],
@@ -467,6 +501,34 @@ describe("parseStoredMessageRepository", () => {
           },
         ],
       }),
+    );
+
+    expect(repo.messages).toEqual([]);
+  });
+
+  it("rejects tool messages beyond the nesting limit", () => {
+    let nested: Record<string, unknown> = storedMessage(
+      "nested-101",
+      "assistant",
+    );
+    for (let depth = 100; depth >= 0; depth -= 1) {
+      nested = {
+        ...storedMessage(`nested-${depth}`, "assistant"),
+        content: [
+          {
+            type: "tool-call",
+            toolCallId: `tool-${depth}`,
+            toolName: "delegate",
+            args: {},
+            argsText: "{}",
+            messages: [nested],
+          },
+        ],
+      };
+    }
+
+    const repo = parseStoredMessageRepository(
+      JSON.stringify({ messages: [{ message: nested, parentId: null }] }),
     );
 
     expect(repo.messages).toEqual([]);

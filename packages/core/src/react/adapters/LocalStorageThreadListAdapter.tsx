@@ -155,32 +155,10 @@ const isMessagePartStatus = (value: unknown): boolean => {
 };
 
 const isProviderMetadata = (value: unknown): boolean =>
-  isRecord(value) && Object.values(value).every(isRecord);
-
-const hasValidPartMetadata = (value: Record<string, unknown>): boolean =>
-  (value.status === undefined || isMessagePartStatus(value.status)) &&
-  (value.providerMetadata === undefined ||
-    isProviderMetadata(value.providerMetadata)) &&
-  (value.parentId === undefined || typeof value.parentId === "string");
-
-const isGenerativeUINode = (value: unknown, depth = 0): boolean => {
-  if (depth > 100) return false;
-  if (typeof value === "string") return true;
-  if (!isRecord(value) || typeof value.component !== "string") return false;
-  if (value.props !== undefined && !isRecord(value.props)) return false;
-  if (value.key !== undefined && typeof value.key !== "string") return false;
-  return (
-    value.children === undefined ||
-    (Array.isArray(value.children) &&
-      value.children.every((child) => isGenerativeUINode(child, depth + 1)))
-  );
-};
-
-const isGenerativeUISpec = (value: unknown): boolean =>
   isRecord(value) &&
-  (Array.isArray(value.root)
-    ? value.root.every((node) => isGenerativeUINode(node))
-    : isGenerativeUINode(value.root));
+  Object.values(value).every(
+    (provider) => isRecord(provider) && isJSONValue(provider),
+  );
 
 const isToolCallTiming = (value: unknown): boolean =>
   isRecord(value) &&
@@ -252,17 +230,6 @@ const isMcpAppMetadata = (value: unknown): boolean =>
 const isToolCallMcpMetadata = (value: unknown): boolean =>
   isRecord(value) && (value.app === undefined || isMcpAppMetadata(value.app));
 
-const hasValidToolCallMetadata = (value: Record<string, unknown>): boolean =>
-  hasValidPartMetadata(value) &&
-  (value.isError === undefined || typeof value.isError === "boolean") &&
-  (value.timing === undefined || isToolCallTiming(value.timing)) &&
-  (value.modelContent === undefined ||
-    isToolModelContent(value.modelContent)) &&
-  (value.interrupt === undefined ||
-    (isRecord(value.interrupt) && value.interrupt.type === "human")) &&
-  (value.approval === undefined || isToolApproval(value.approval)) &&
-  (value.mcp === undefined || isToolCallMcpMetadata(value.mcp));
-
 const isStoredMessagePart = (
   value: unknown,
   role: ThreadMessage["role"],
@@ -271,25 +238,14 @@ const isStoredMessagePart = (
 
   switch (value.type) {
     case "text":
-      return typeof value.text === "string" && hasValidPartMetadata(value);
+      return typeof value.text === "string";
     case "image":
-      return (
-        role !== "system" &&
-        typeof value.image === "string" &&
-        (value.filename === undefined || typeof value.filename === "string") &&
-        (value.providerMetadata === undefined ||
-          isProviderMetadata(value.providerMetadata))
-      );
+      return role !== "system" && typeof value.image === "string";
     case "file":
       return (
         role !== "system" &&
         typeof value.data === "string" &&
-        typeof value.mimeType === "string" &&
-        (value.filename === undefined || typeof value.filename === "string") &&
-        (value.sourceType === undefined ||
-          value.sourceType === "url" ||
-          value.sourceType === "id") &&
-        hasValidPartMetadata(value)
+        typeof value.mimeType === "string"
       );
     case "data":
       return role !== "system" && typeof value.name === "string";
@@ -301,34 +257,18 @@ const isStoredMessagePart = (
         (value.audio.format === "mp3" || value.audio.format === "wav")
       );
     case "reasoning":
-      return (
-        role === "assistant" &&
-        typeof value.text === "string" &&
-        (value.unstable_summary === undefined ||
-          typeof value.unstable_summary === "string") &&
-        hasValidPartMetadata(value)
-      );
+      return role === "assistant" && typeof value.text === "string";
     case "source":
       return (
         role === "assistant" &&
         typeof value.id === "string" &&
-        hasValidPartMetadata(value) &&
-        ((value.sourceType === "url" &&
-          typeof value.url === "string" &&
-          (value.title === undefined || typeof value.title === "string")) ||
+        ((value.sourceType === "url" && typeof value.url === "string") ||
           (value.sourceType === "document" &&
             typeof value.title === "string" &&
-            typeof value.mediaType === "string" &&
-            (value.filename === undefined ||
-              typeof value.filename === "string")))
+            typeof value.mediaType === "string"))
       );
     case "generative-ui":
-      return (
-        role === "assistant" &&
-        isGenerativeUISpec(value.spec) &&
-        (value.id === undefined || typeof value.id === "string") &&
-        (value.parentId === undefined || typeof value.parentId === "string")
-      );
+      return role === "assistant" && isRecord(value.spec);
     case "tool-call":
       return (
         role === "assistant" &&
@@ -336,12 +276,87 @@ const isStoredMessagePart = (
         typeof value.toolName === "string" &&
         isRecord(value.args) &&
         typeof value.argsText === "string" &&
-        hasValidToolCallMetadata(value) &&
         (value.messages === undefined || Array.isArray(value.messages))
       );
     default:
       return false;
   }
+};
+
+const isToolCallPartStatus = (value: unknown): boolean =>
+  isMessagePartStatus(value) ||
+  (isRecord(value) &&
+    ((value.type === "requires-action" &&
+      (value.reason === "tool-calls" || value.reason === "interrupt")) ||
+      (value.type === "incomplete" && value.reason === "tool-calls")));
+
+const sanitizeStoredMessagePart = (
+  value: Record<string, unknown>,
+): StoredMessagePart => {
+  const part = { ...value };
+  const statusIsValid =
+    part.type === "tool-call"
+      ? isToolCallPartStatus(part.status)
+      : isMessagePartStatus(part.status);
+  if (part.status !== undefined && !statusIsValid) delete part.status;
+  if (
+    part.providerMetadata !== undefined &&
+    !isProviderMetadata(part.providerMetadata)
+  ) {
+    delete part.providerMetadata;
+  }
+  if (part.parentId !== undefined && typeof part.parentId !== "string") {
+    delete part.parentId;
+  }
+  if (part.filename !== undefined && typeof part.filename !== "string") {
+    delete part.filename;
+  }
+
+  if (part.type === "file") {
+    if (
+      part.sourceType !== undefined &&
+      part.sourceType !== "url" &&
+      part.sourceType !== "id"
+    ) {
+      delete part.sourceType;
+    }
+  } else if (part.type === "reasoning") {
+    if (
+      part.unstable_summary !== undefined &&
+      typeof part.unstable_summary !== "string"
+    ) {
+      delete part.unstable_summary;
+    }
+  } else if (part.type === "generative-ui") {
+    if (part.id !== undefined && typeof part.id !== "string") delete part.id;
+  } else if (part.type === "tool-call") {
+    if (part.isError !== undefined && typeof part.isError !== "boolean") {
+      delete part.isError;
+    }
+    if (part.timing !== undefined && !isToolCallTiming(part.timing)) {
+      delete part.timing;
+    }
+    if (
+      part.modelContent !== undefined &&
+      !isToolModelContent(part.modelContent)
+    ) {
+      delete part.modelContent;
+    }
+    if (
+      part.interrupt !== undefined &&
+      (!isRecord(part.interrupt) || part.interrupt.type !== "human")
+    ) {
+      delete part.interrupt;
+    }
+    if (part.approval !== undefined && !isToolApproval(part.approval)) {
+      delete part.approval;
+    }
+    if (part.mcp !== undefined && !isToolCallMcpMetadata(part.mcp)) {
+      delete part.mcp;
+    }
+  }
+
+  return part as StoredMessagePart;
 };
 
 const isStoredAttachment = (value: unknown): boolean =>
@@ -387,16 +402,17 @@ const parseStoredMessagePart = (
   depth: number,
 ): StoredMessagePart | null => {
   if (!isStoredMessagePart(value, role)) return null;
-  if (value.type !== "tool-call" || !Array.isArray(value.messages)) {
-    return value as StoredMessagePart;
+  const part = sanitizeStoredMessagePart(value);
+  if (part.type !== "tool-call" || !Array.isArray(part.messages)) {
+    return part;
   }
 
-  const messages = value.messages.map((message) =>
+  const messages = part.messages.map((message) =>
     parseStoredThreadMessage(message, depth + 1),
   );
   if (messages.some((message) => message === null)) return null;
 
-  return { ...value, messages: messages as ThreadMessage[] };
+  return { ...part, messages: messages as ThreadMessage[] };
 };
 
 function parseStoredThreadMessage(
@@ -420,58 +436,19 @@ function parseStoredThreadMessage(
       parseStoredMessagePart(part, "assistant", depth),
     );
     if (content.some((part) => part === null)) return null;
-    if (!isMessageStatus(value.status)) return null;
-    if (
-      metadata.unstable_state !== undefined &&
-      !isJSONValue(metadata.unstable_state)
-    ) {
-      return null;
-    }
-    if (
-      metadata.unstable_annotations !== undefined &&
-      (!Array.isArray(metadata.unstable_annotations) ||
-        !metadata.unstable_annotations.every((item) => isJSONValue(item)))
-    ) {
-      return null;
-    }
-    if (
-      metadata.unstable_data !== undefined &&
-      (!Array.isArray(metadata.unstable_data) ||
-        !metadata.unstable_data.every((item) => isJSONValue(item)))
-    ) {
-      return null;
-    }
-    if (
-      metadata.steps !== undefined &&
-      (!Array.isArray(metadata.steps) || !metadata.steps.every(isThreadStep))
-    ) {
-      return null;
-    }
-    if (metadata.timing !== undefined && !isMessageTiming(metadata.timing)) {
-      return null;
-    }
-    if (
-      metadata.isOptimistic !== undefined &&
-      typeof metadata.isOptimistic !== "boolean"
-    ) {
-      return null;
-    }
-    if (
-      metadata.submittedFeedback !== undefined &&
-      (!isRecord(metadata.submittedFeedback) ||
-        (metadata.submittedFeedback.type !== "positive" &&
-          metadata.submittedFeedback.type !== "negative"))
-    ) {
-      return null;
-    }
-    const submittedFeedback = metadata.submittedFeedback;
+    const status = isMessageStatus(value.status)
+      ? (value.status as StoredAssistantMessage["status"])
+      : ({ type: "complete", reason: "unknown" } as const);
+    const submittedFeedback = isRecord(metadata.submittedFeedback)
+      ? metadata.submittedFeedback
+      : undefined;
     const submittedFeedbackType = submittedFeedback?.type;
 
     return {
       id: value.id,
       role: "assistant",
       content: content as StoredAssistantMessage["content"],
-      status: value.status as StoredAssistantMessage["status"],
+      status,
       createdAt,
       metadata: {
         unstable_state: (metadata.unstable_state ??
@@ -482,8 +459,11 @@ function parseStoredThreadMessage(
         unstable_data: Array.isArray(metadata.unstable_data)
           ? (metadata.unstable_data as StoredAssistantMessage["metadata"]["unstable_data"])
           : [],
-        steps: (metadata.steps ??
-          []) as StoredAssistantMessage["metadata"]["steps"],
+        steps: Array.isArray(metadata.steps)
+          ? (metadata.steps.filter(
+              isThreadStep,
+            ) as StoredAssistantMessage["metadata"]["steps"])
+          : [],
         ...(submittedFeedbackType === "positive" ||
         submittedFeedbackType === "negative"
           ? {
@@ -519,12 +499,6 @@ function parseStoredThreadMessage(
     ) {
       return null;
     }
-    if (
-      metadata.isOptimistic !== undefined &&
-      typeof metadata.isOptimistic !== "boolean"
-    ) {
-      return null;
-    }
     return {
       id: value.id,
       role: "user",
@@ -533,8 +507,8 @@ function parseStoredThreadMessage(
         []) as StoredUserMessage["attachments"],
       createdAt,
       metadata: {
-        ...(metadata.isOptimistic !== undefined
-          ? { isOptimistic: metadata.isOptimistic }
+        ...(metadata.isOptimistic === true
+          ? { isOptimistic: true }
           : undefined),
         custom: metadata.custom,
       },
