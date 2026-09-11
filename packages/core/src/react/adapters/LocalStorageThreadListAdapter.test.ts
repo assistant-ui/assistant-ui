@@ -293,6 +293,7 @@ describe("parseStoredMessageRepository", () => {
         filename: "reference.txt",
         providerMetadata: { provider: { sourceId: "provider-source" } },
         parentId: "group-1",
+        status: { type: "complete", reason: "unknown" },
       },
       { type: "generative-ui", spec: { root: "Hello" }, id: "ui-1" },
       {
@@ -303,12 +304,15 @@ describe("parseStoredMessageRepository", () => {
         sourceType: "id",
         providerMetadata: { provider: { fileId: "provider-file" } },
         parentId: "group-1",
+        status: { type: "complete", reason: "unknown" },
       },
       { type: "data", name: "empty" },
       {
         type: "tool-call",
         toolCallId: "tool-1",
         toolName: "delegate",
+        state: "result",
+        status: { type: "complete", reason: "unknown" },
         args: { task: "review" },
         argsText: '{"task":"review"}',
         result: false,

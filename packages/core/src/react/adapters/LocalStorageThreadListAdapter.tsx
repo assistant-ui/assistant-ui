@@ -156,12 +156,8 @@ const isMessagePartStatus = (value: unknown): boolean => {
 const isProviderMetadata = (value: unknown): boolean =>
   isRecord(value) && Object.values(value).every(isRecord);
 
-const hasValidPartMetadata = (
-  value: Record<string, unknown>,
-  hasStatus: boolean,
-): boolean =>
-  (value.status === undefined ||
-    (hasStatus && isMessagePartStatus(value.status))) &&
+const hasValidPartMetadata = (value: Record<string, unknown>): boolean =>
+  (value.status === undefined || isMessagePartStatus(value.status)) &&
   (value.providerMetadata === undefined ||
     isProviderMetadata(value.providerMetadata)) &&
   (value.parentId === undefined || typeof value.parentId === "string");
@@ -203,7 +199,7 @@ const isToolModelContent = (value: unknown): boolean =>
   );
 
 const hasValidToolCallMetadata = (value: Record<string, unknown>): boolean =>
-  hasValidPartMetadata(value, false) &&
+  hasValidPartMetadata(value) &&
   (value.isError === undefined || typeof value.isError === "boolean") &&
   (value.timing === undefined || isToolCallTiming(value.timing)) &&
   (value.modelContent === undefined ||
@@ -222,9 +218,7 @@ const isStoredMessagePart = (
 
   switch (value.type) {
     case "text":
-      return (
-        typeof value.text === "string" && hasValidPartMetadata(value, true)
-      );
+      return typeof value.text === "string" && hasValidPartMetadata(value);
     case "image":
       return (
         role !== "system" &&
@@ -242,7 +236,7 @@ const isStoredMessagePart = (
         (value.sourceType === undefined ||
           value.sourceType === "url" ||
           value.sourceType === "id") &&
-        hasValidPartMetadata(value, false)
+        hasValidPartMetadata(value)
       );
     case "data":
       return role !== "system" && typeof value.name === "string";
@@ -259,13 +253,13 @@ const isStoredMessagePart = (
         typeof value.text === "string" &&
         (value.unstable_summary === undefined ||
           typeof value.unstable_summary === "string") &&
-        hasValidPartMetadata(value, true)
+        hasValidPartMetadata(value)
       );
     case "source":
       return (
         role === "assistant" &&
         typeof value.id === "string" &&
-        hasValidPartMetadata(value, false) &&
+        hasValidPartMetadata(value) &&
         ((value.sourceType === "url" &&
           typeof value.url === "string" &&
           (value.title === undefined || typeof value.title === "string")) ||
