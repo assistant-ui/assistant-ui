@@ -4,12 +4,18 @@ export type FilePartSource =
   | { kind: "url"; url: string }
   | { kind: "data"; data: string; mimeType: string };
 
+const DEFAULT_DATA_URL_MEDIA_TYPE = "text/plain;charset=US-ASCII";
+
 export function parseDataUrl(
   value: string,
+  fallbackMimeType = DEFAULT_DATA_URL_MEDIA_TYPE,
 ): { mimeType: string; data: string } | null {
-  const match = value.match(/^data:([^;,]+)(?:;[^;,]+)*;base64,(.*)$/i);
+  const match = value.match(/^data:([^;,]*)(?:;[^;,]+)*;base64,(.*)$/i);
   if (!match) return null;
-  return { mimeType: match[1]!.toLowerCase(), data: match[2]! };
+  return {
+    mimeType: match[1] ? match[1].toLowerCase() : fallbackMimeType,
+    data: match[2]!,
+  };
 }
 
 export const resolveFilePartSource = (part: {
@@ -21,7 +27,7 @@ export const resolveFilePartSource = (part: {
     return { kind: "url", url: part.data };
   }
 
-  const parsed = parseDataUrl(part.data);
+  const parsed = parseDataUrl(part.data, part.mimeType || undefined);
   return {
     kind: "data",
     data: parsed?.data ?? part.data,
