@@ -70,14 +70,23 @@ This is intentional, it lets you run setup logic both before and after children,
 
 Cleanup on unmount runs in the same order as mount (FIFO), matching the order effects were originally registered.
 
-## Mount and unmount
+## Mount, soft unmount, and disposal
 
 A resource is **mounted** after its first commit. At this point, effects have run and the resource is live.
 
-A resource is **unmounted** when its owner removes it, all effect cleanups run and the resource is disposed. This happens automatically when:
+A resource is **soft-unmounted** when its effects disconnect but its state and
+identity are preserved for a later remount. A hidden React `Activity` and a
+`createTapRoot` root with `mountOnSubscribe: true` and no subscribers use this
+lifecycle.
 
-- A parent resource stops rendering the child via `useResource`
-- A React component using `useResource` unmounts
+A resource is **disposed** when it permanently leaves its owner. All effect
+cleanups run, its state is released, and callbacks registered with
+[`useResourceDispose`](/tap/docs/tap/api-reference#useresourcedispose) run once.
+This happens automatically when:
+
+- A parent resource removes or replaces a child through `useResource` or
+  `useResources`
+- A React component using `useResource` is deleted
 - `root.unmount()` is called on a `createTapRoot` root
 
 ## Concurrent mode

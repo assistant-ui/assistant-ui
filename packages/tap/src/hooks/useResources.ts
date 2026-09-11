@@ -4,7 +4,10 @@ import type {
   ResourceFiber,
 } from "../core/types";
 import {
+  attachResourceFiberToParent,
   discardWipRender,
+  disposeResourceFiber,
+  scheduleResourceFiberDisposal,
   unmountResourceFiber,
   renderResourceFiber,
   commitResourceFiber,
@@ -15,9 +18,10 @@ import {
   hasContextDepsChanged,
 } from "../core/context";
 import { useResourceFiberHost } from "./utils/useResourceFiberHostUtils";
-import { useEffect, useState } from "react";
+import { useEffect, useInsertionEffect, useState } from "react";
 import { useRenderMemo } from "./utils/useRenderMemo";
 import { depsShallowEqual } from "./utils/depsShallowEqual";
+import { peekResourceFiber } from "../core/helpers/execution-context";
 
 // What this render decided for a child, applied in the commit phase.
 //   { ... }   render to commit; `remount` set when the hook changed
@@ -74,6 +78,7 @@ const hasAnyChildContextDepsChanged = (
 export function useResources<E extends ResourceElement<any>>(
   elements: readonly E[],
 ): ExtractResourceReturnType<E>[] {
+  const parentFiber = peekResourceFiber();
   const [fibers] = useState(() => new Map<string | number, FiberState>());
 
   // Process each element
@@ -160,13 +165,24 @@ export function useResources<E extends ResourceElement<any>>(
   );
 
   // Cleanup on unmount
-  useEffect(() => {
+  useInsertionEffect(() => {
+    if (parentFiber !== null) return undefined;
     return () => {
-      for (const key of fibers.keys()) {
-        unmountResourceFiber(fibers.get(key)!.fiber);
+      for (const state of fibers.values()) {
+        scheduleResourceFiberDisposal(state.fiber);
       }
     };
-  }, [fibers]);
+  }, [fibers, parentFiber]);
+
+  useEffect(() => {
+    return () => {
+      for (const state of fibers.values()) {
+        if (state.fiber.isDisposePending || parentFiber?.isDisposing) {
+          disposeResourceFiber(state.fiber);
+        } else unmountResourceFiber(state.fiber);
+      }
+    };
+  }, [fibers, parentFiber]);
 
   useEffect(() => {
     void val; // as a performance optimization, we only run if the results have changed
@@ -174,7 +190,7 @@ export function useResources<E extends ResourceElement<any>>(
     for (const [key, state] of fibers.entries()) {
       const next = state.next;
       if (next === "delete") {
-        unmountResourceFiber(state.fiber);
+        disposeResourceFiber(state.fiber);
         fibers.delete(key);
       } else if (next === "skip") {
         // Bailed this render: nothing to commit, keep committed deps/value.
@@ -183,8 +199,11 @@ export function useResources<E extends ResourceElement<any>>(
         }
       } else {
         if (next.remount) {
-          unmountResourceFiber(state.fiber);
+          disposeResourceFiber(state.fiber);
           state.fiber = next.remount;
+        }
+        if (parentFiber !== null) {
+          attachResourceFiberToParent(state.fiber, parentFiber);
         }
         commitResourceFiber(state.fiber);
         state.committedDeps = next.deps;
@@ -193,7 +212,7 @@ export function useResources<E extends ResourceElement<any>>(
         state.next = "skip";
       }
     }
-  }, [val, fibers]);
+  }, [val, fibers, parentFiber]);
 
   return val;
 }

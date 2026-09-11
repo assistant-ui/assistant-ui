@@ -1,6 +1,12 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { flushTapSync } from "@assistant-ui/tap";
-import { AuiConfig, createAssistantClient } from "@assistant-ui/store/client";
+import { flushTapSync, resource, useResource } from "@assistant-ui/tap";
+import { runtimeAdapterTransformScopes } from "@assistant-ui/core/store";
+import { useAssistantClientDestroySignal } from "@assistant-ui/store/internal";
+import {
+  attachTransformScopes,
+  AuiConfig,
+  createAssistantClient,
+} from "@assistant-ui/store/client";
 import { AISDKChat } from "./AISDKChat";
 import {
   createCancellableTransport,
@@ -9,6 +15,7 @@ import {
 
 describe("AISDKChat as a standalone client config entry", () => {
   afterEach(() => {
+    vi.restoreAllMocks();
     vi.unstubAllGlobals();
   });
 
@@ -110,6 +117,91 @@ describe("AISDKChat as a standalone client config entry", () => {
     await vi.waitFor(() => {
       expect(getCancelCount()).toBe(1);
     });
+  });
+
+  it("releases a superseded chat when its resource hook is replaced", async () => {
+    const first = createCancellableTransport();
+    const second = createCancellableTransport();
+    const abortListeners = new Map<
+      AbortSignal,
+      Set<EventListenerOrEventListenerObject>
+    >();
+    const addEventListener = AbortSignal.prototype.addEventListener;
+    const removeEventListener = AbortSignal.prototype.removeEventListener;
+    vi.spyOn(AbortSignal.prototype, "addEventListener").mockImplementation(
+      function (this: AbortSignal, type, listener, options) {
+        if (type === "abort" && listener !== null) {
+          let listeners = abortListeners.get(this);
+          if (listeners === undefined) {
+            listeners = new Set();
+            abortListeners.set(this, listeners);
+          }
+          listeners.add(listener);
+        }
+        return addEventListener.call(this, type, listener, options);
+      },
+    );
+    vi.spyOn(AbortSignal.prototype, "removeEventListener").mockImplementation(
+      function (this: AbortSignal, type, listener, options) {
+        if (type === "abort" && listener !== null) {
+          abortListeners.get(this)?.delete(listener);
+        }
+        return removeEventListener.call(this, type, listener, options);
+      },
+    );
+    let destroySignal!: AbortSignal;
+    function useFirst() {
+      destroySignal = useAssistantClientDestroySignal()!;
+      return useResource(AISDKChat({ transport: first.transport }));
+    }
+    function useSecond() {
+      destroySignal = useAssistantClientDestroySignal()!;
+      return useResource(AISDKChat({ transport: second.transport }));
+    }
+    attachTransformScopes(useFirst, runtimeAdapterTransformScopes);
+    attachTransformScopes(useSecond, runtimeAdapterTransformScopes);
+    const First = resource(useFirst);
+    const Second = resource(useSecond);
+    let config = AuiConfig({ threads: First() });
+    const listeners = new Set<() => void>();
+    const handle = createAssistantClient({
+      getConfig: () => config,
+      subscribe: (listener) => {
+        listeners.add(listener);
+        return () => listeners.delete(listener);
+      },
+    });
+    handle.subscribe(() => {});
+
+    try {
+      let aui = handle.getClient();
+      flushTapSync(() => aui.composer.setText("first"));
+      flushTapSync(() => aui.composer.send());
+      await vi.waitFor(() => {
+        expect(aui.thread.getState().isRunning).toBe(true);
+      });
+      expect(abortListeners.get(destroySignal)?.size).toBe(1);
+
+      config = AuiConfig({ threads: Second() });
+      flushTapSync(() => listeners.forEach((listener) => listener()));
+      await vi.waitFor(() => {
+        expect(first.getCancelCount()).toBe(1);
+      });
+      expect(abortListeners.get(destroySignal)?.size).toBe(1);
+
+      aui = handle.getClient();
+      flushTapSync(() => aui.composer.setText("second"));
+      flushTapSync(() => aui.composer.send());
+      await vi.waitFor(() => {
+        expect(aui.thread.getState().isRunning).toBe(true);
+      });
+    } finally {
+      handle.destroy();
+    }
+    await vi.waitFor(() => {
+      expect(second.getCancelCount()).toBe(1);
+    });
+    expect(first.getCancelCount()).toBe(1);
   });
 
   it("installs the RuntimeAdapter scope defaults", () => {

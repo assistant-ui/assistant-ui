@@ -1,6 +1,9 @@
 import {
+  attachResourceFiberToParent,
   commitResourceFiber,
   createResourceFiber,
+  disposeResourceFiber,
+  scheduleResourceFiberDisposal,
   renderResourceFiber,
   unmountResourceFiber,
 } from "../core/ResourceFiber";
@@ -15,8 +18,15 @@ import { cloneCurrentTapContext, withTapContextRoot } from "../core/context";
 import { isThenable } from "../core/helpers/thenable";
 import { throwAggregated } from "../core/helpers/throwAggregated";
 import type { ResourceContext, ResourceFiber } from "../core/types";
-import { useEffect, useMemo, useRef, useState } from "react";
+import {
+  useEffect,
+  useInsertionEffect,
+  useMemo,
+  useRef,
+  useState,
+} from "react";
 import { useDevStrictMode } from "./utils/useDevStrictMode";
+import { peekResourceFiber } from "../core/helpers/execution-context";
 
 export namespace useTapRoot {
   export type Unsubscribe = () => void;
@@ -174,6 +184,7 @@ const createInstance = <R>(
 };
 
 export const useTapRoot = <R>(render: () => R): useTapRoot.Root<R> => {
+  const parentFiber = peekResourceFiber();
   const [, forceHostRender] = useState(0);
   const getDevStrictMode = useDevStrictMode();
 
@@ -212,13 +223,23 @@ export const useTapRoot = <R>(render: () => R): useTapRoot.Root<R> => {
     inst.value = value;
   }
 
+  useInsertionEffect(() => {
+    if (parentFiber !== null) return undefined;
+    return () => scheduleResourceFiberDisposal(inst.fiber);
+  }, [inst, parentFiber]);
+
   useEffect(() => {
     inst.isMounted = true;
+    if (parentFiber !== null) {
+      attachResourceFiberToParent(inst.fiber, parentFiber);
+    }
     return () => {
       inst.isMounted = false;
-      unmountResourceFiber(inst.fiber);
+      if (inst.fiber.isDisposePending || parentFiber?.isDisposing) {
+        disposeResourceFiber(inst.fiber);
+      } else unmountResourceFiber(inst.fiber);
     };
-  }, [inst]);
+  }, [inst, parentFiber]);
 
   useEffect(() => {
     if (renderState.processed) {

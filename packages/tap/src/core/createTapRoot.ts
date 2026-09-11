@@ -1,5 +1,6 @@
 import {
   createResourceFiber,
+  disposeResourceFiber,
   unmountResourceFiber,
   renderResourceFiber,
   commitResourceFiber,
@@ -62,7 +63,7 @@ export const createTapRoot = <R>(
 
     return {
       ...root,
-      unmount: () => unmountResourceFiber(fiber),
+      unmount: () => disposeResourceFiber(fiber),
     };
   }
 

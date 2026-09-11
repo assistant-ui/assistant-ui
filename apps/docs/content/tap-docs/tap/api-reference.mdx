@@ -128,6 +128,25 @@ const values = useResources(
 );
 ```
 
+## useResourceDispose
+
+Registers a callback that runs once when the current resource or React host is
+permanently disposed. Soft unmounts, including a hidden React `Activity` or a
+`mountOnSubscribe` root with no subscribers, preserve the callback for a later
+remount.
+
+```ts
+function useResourceDispose(dispose: () => void): void;
+```
+
+```ts
+useResourceDispose(() => connection.close());
+```
+
+Use an effect cleanup for work that should run on every soft unmount. Use
+`useResourceDispose` to release state that must survive a soft unmount but must
+not outlive its owner.
+
 ## useTapRoot
 
 Hosts a render callback behind a subscribable boundary. It returns a stable root

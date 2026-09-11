@@ -54,6 +54,10 @@ export type ChatThreadEnvironment<UI_MESSAGE extends UIMessage = UIMessage> = {
   id: string;
   isMainThread: boolean;
   getThreadListItem: () => InitializableThreadListItem | undefined;
+  /**
+   * Stops the chat when the owning assistant client is destroyed. Permanent
+   * disposal of the hosting resource always stops the chat.
+   */
   stopOnClientDestroy?: boolean;
   /**
    * An externally owned chat instance. State lives on the instance, so it
