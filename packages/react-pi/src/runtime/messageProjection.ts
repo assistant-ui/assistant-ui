@@ -493,12 +493,6 @@ export const shareProjectedThreadMessages = (
   return changed ? shared : previous;
 };
 
-export const projectPiThreadMessagesShared = (
-  input: PiProjectionInput,
-  previous: readonly ThreadMessageLike[],
-): readonly ThreadMessageLike[] =>
-  shareProjectedThreadMessages(projectPiThreadMessages(input), previous);
-
 const firstChangedMessageIndex = (
   previous: readonly PiAgentMessage[],
   next: readonly PiAgentMessage[],
