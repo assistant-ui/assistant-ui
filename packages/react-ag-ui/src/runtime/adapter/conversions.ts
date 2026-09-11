@@ -1110,20 +1110,57 @@ function collectNestedToolCalls(
   part: ToolCallPart,
   out: { id: string; call: AgUiToolCall; part: ToolCallPart }[],
 ): void {
-  for (const nested of part.messages ?? []) {
-    if (!isObject(nested) || nested.role !== "assistant") continue;
-    const nestedContent = Array.isArray(nested.content) ? nested.content : [];
-    for (const nestedPart of nestedContent) {
-      if (!isObject(nestedPart) || nestedPart.type !== "tool-call") continue;
-      const nestedToolCall = nestedPart as ToolCallPart;
-      if (
-        typeof nestedToolCall.toolCallId !== "string" ||
-        nestedToolCall.toolCallId.startsWith("a2ui:")
-      ) {
-        continue;
+  const rootMessages = part.messages;
+  if (!rootMessages?.length) return;
+
+  type Frame = {
+    readonly type: "messages" | "content";
+    readonly values: readonly unknown[];
+    index: number;
+  };
+
+  const frames: Frame[] = [
+    { type: "messages", values: rootMessages, index: 0 },
+  ];
+  const activeMessageArrays = new WeakSet<object>([rootMessages]);
+
+  while (frames.length > 0) {
+    const frame = frames[frames.length - 1]!;
+    if (frame.index >= frame.values.length) {
+      frames.pop();
+      if (frame.type === "messages") {
+        activeMessageArrays.delete(frame.values);
       }
-      out.push({ ...normalizeToolCall(nestedToolCall), part: nestedToolCall });
-      collectNestedToolCalls(nestedToolCall, out);
+      continue;
+    }
+
+    const value = frame.values[frame.index++];
+    if (frame.type === "messages") {
+      if (!isObject(value) || value.role !== "assistant") continue;
+      const content = Array.isArray(value.content) ? value.content : [];
+      if (content.length > 0) {
+        frames.push({ type: "content", values: content, index: 0 });
+      }
+      continue;
+    }
+
+    if (!isObject(value) || value.type !== "tool-call") continue;
+    const nestedToolCall = value as ToolCallPart;
+    if (
+      typeof nestedToolCall.toolCallId !== "string" ||
+      nestedToolCall.toolCallId.startsWith("a2ui:")
+    ) {
+      continue;
+    }
+
+    out.push({ ...normalizeToolCall(nestedToolCall), part: nestedToolCall });
+    const messages = nestedToolCall.messages;
+    if (messages?.length) {
+      if (activeMessageArrays.has(messages)) {
+        throw new TypeError("Cyclic nested tool-call messages");
+      }
+      activeMessageArrays.add(messages);
+      frames.push({ type: "messages", values: messages, index: 0 });
     }
   }
 }
