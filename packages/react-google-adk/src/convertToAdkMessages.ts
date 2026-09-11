@@ -36,7 +36,7 @@ export const getMessageContent = (msg: AppendMessage) => {
         }
         return {
           type: "file" as const,
-          mimeType: part.mimeType,
+          mimeType: source.mimeType,
           // Lands in Gemini `inlineData.data`, which takes bare base64, so a
           // data URL envelope is stripped rather than forwarded.
           data: source.data,
