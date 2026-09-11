@@ -234,8 +234,83 @@ describe("AssistantFrameHost", () => {
     expect(vi.getTimerCount()).toBe(0);
   });
 
+  it("settles every pending tool call when cancellation posting fails", async () => {
+    const { execute, host, postMessage } = createHost();
+    const consoleError = vi
+      .spyOn(console, "error")
+      .mockImplementation(() => undefined);
+    const firstAbortController = new AbortController();
+    const secondAbortController = new AbortController();
+    const firstRemoveEventListener = vi.spyOn(
+      firstAbortController.signal,
+      "removeEventListener",
+    );
+    const secondRemoveEventListener = vi.spyOn(
+      secondAbortController.signal,
+      "removeEventListener",
+    );
+    const firstRejected = vi.fn();
+    const secondRejected = vi.fn();
+
+    void execute(
+      {},
+      { ...executionContext, abortSignal: firstAbortController.signal },
+    ).catch(firstRejected);
+    void execute(
+      {},
+      { ...executionContext, abortSignal: secondAbortController.signal },
+    ).catch(secondRejected);
+
+    const firstTransportError = new Error("first tool cancellation failed");
+    const secondTransportError = new Error("second tool cancellation failed");
+    let cancellationCount = 0;
+    postMessage.mockImplementation((data) => {
+      if (data.message.type !== "tool-cancel") return;
+      cancellationCount += 1;
+      throw cancellationCount === 1
+        ? firstTransportError
+        : secondTransportError;
+    });
+
+    expect(() => host.dispose()).toThrow(firstTransportError);
+    await Promise.resolve();
+
+    expect(firstRejected).toHaveBeenCalledWith(
+      expect.objectContaining({
+        message: "AssistantFrameHost has been disposed",
+      }),
+    );
+    expect(secondRejected).toHaveBeenCalledWith(
+      expect.objectContaining({
+        message: "AssistantFrameHost has been disposed",
+      }),
+    );
+    expect(
+      postMessage.mock.calls.filter(
+        ([data]) => data.message.type === "tool-cancel",
+      ),
+    ).toHaveLength(2);
+    expect(firstRemoveEventListener).toHaveBeenCalledWith(
+      "abort",
+      expect.any(Function),
+    );
+    expect(secondRemoveEventListener).toHaveBeenCalledWith(
+      "abort",
+      expect.any(Function),
+    );
+    expect(vi.getTimerCount()).toBe(0);
+    expect(consoleError).toHaveBeenCalledWith(
+      "[assistant-ui] AssistantFrameHost tool cancellation could not be sent.",
+      secondTransportError,
+    );
+    expect(() => host.dispose()).not.toThrow();
+  });
+
   it("rejects pending tool calls when execution is aborted", async () => {
     const { execute, getToolCallId, host, postMessage } = createHost();
+    const consoleError = vi
+      .spyOn(console, "error")
+      .mockImplementation(() => undefined);
     const abortController = new AbortController();
     const abortError = new Error("Run cancelled");
     abortError.name = "AbortError";
@@ -251,8 +326,13 @@ describe("AssistantFrameHost", () => {
     const onRejected = vi.fn();
     void result.catch(onRejected);
     const toolCallId = getToolCallId();
+    postMessage.mockImplementation((data) => {
+      if (data.message.type === "tool-cancel") {
+        throw new Error("tool cancellation failed");
+      }
+    });
 
-    abortController.abort(abortError);
+    expect(() => abortController.abort(abortError)).not.toThrow();
     await Promise.resolve();
 
     expect(onRejected).toHaveBeenCalledWith(abortError);
@@ -263,17 +343,26 @@ describe("AssistantFrameHost", () => {
       },
       DEFAULT_ORIGIN,
     );
+    expect(consoleError).toHaveBeenCalledOnce();
     expect(vi.getTimerCount()).toBe(0);
     host.dispose();
   });
 
   it("cancels tool calls when they time out", async () => {
     const { execute, getToolCallId, host, postMessage } = createHost();
+    const consoleError = vi
+      .spyOn(console, "error")
+      .mockImplementation(() => undefined);
     const result = Promise.resolve(execute({}, executionContext));
     const toolCallId = getToolCallId();
     const rejection = expect(result).rejects.toThrow(
       'Tool call "search" timed out',
     );
+    postMessage.mockImplementation((data) => {
+      if (data.message.type === "tool-cancel") {
+        throw new Error("tool cancellation failed");
+      }
+    });
 
     await vi.advanceTimersByTimeAsync(30000);
 
@@ -285,6 +374,7 @@ describe("AssistantFrameHost", () => {
       },
       DEFAULT_ORIGIN,
     );
+    expect(consoleError).toHaveBeenCalledOnce();
     expect(vi.getTimerCount()).toBe(0);
     host.dispose();
   });
