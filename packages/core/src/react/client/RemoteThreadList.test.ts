@@ -118,8 +118,9 @@ const mountList = (
   refetch?: () => Promise<void>,
   onSwitchToThread?: (id: string) => void,
   onDelete?: (id: string) => void,
+  providedOnThreadIdChange?: (id: string | undefined) => void,
 ) => {
-  const onThreadIdChange = vi.fn();
+  const onThreadIdChange = providedOnThreadIdChange ?? vi.fn();
   const handle = createAssistantClient(
     AuiConfig({
       threads: RemoteThreadList({
@@ -1926,6 +1927,41 @@ describe("RemoteThreadList", () => {
     await aui.threads.item("main").initialize();
     await vi.waitFor(() => {
       expect(onThreadIdChange).toHaveBeenCalledWith(`remote-${localId}`);
+    });
+    handle.destroy();
+  });
+
+  it("keeps a completed switch when onThreadIdChange throws", async () => {
+    const callbackError = new Error("host callback failed");
+    const errorSpy = vi.spyOn(console, "error").mockImplementation(() => {});
+    const onThreadIdChange = vi.fn(() => {
+      throw callbackError;
+    });
+    const adapter = makeAdapter({
+      list: vi.fn(async () => ({
+        threads: [{ status: "regular" as const, remoteId: "t1", title: "One" }],
+      })),
+    });
+    const { handle } = mountList(
+      adapter,
+      undefined,
+      undefined,
+      undefined,
+      undefined,
+      onThreadIdChange,
+    );
+    const threads = handle.getClient().threads;
+    await threads.getLoadThreadsPromise();
+
+    flushTapSync(() => threads.switchToThread("t1"));
+
+    await vi.waitFor(() => {
+      expect(handle.getClient().threads.getState().mainThreadId).toBe("t1");
+      expect(onThreadIdChange).toHaveBeenCalledExactlyOnceWith("t1");
+      expect(errorSpy).toHaveBeenCalledWith(
+        "[assistant-ui] onThreadIdChange callback threw an error",
+        callbackError,
+      );
     });
     handle.destroy();
   });
