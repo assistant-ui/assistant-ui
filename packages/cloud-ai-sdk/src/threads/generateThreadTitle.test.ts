@@ -17,7 +17,9 @@ const titleStream = (title: string) =>
     },
   });
 
-const createCloud = (messages: ReturnType<typeof cloudMessage>[]) => {
+const createCloud = (
+  messages: { id: string; format: string; content: object }[],
+) => {
   const list = vi.fn(
     async (_threadId: string, query?: { limit?: number; after?: string }) => {
       const start = query?.after
@@ -93,6 +95,25 @@ describe("generateThreadTitle", () => {
         content: [{ type: "text", text: `Message m${index + 1}` }],
       })),
     );
+  });
+
+  it("titles a thread whose opening messages are in another format", async () => {
+    const messages = Array.from({ length: 250 }, (_, index) => {
+      const id = 250 - index;
+      return id > 200
+        ? cloudMessage(`m${id}`, "user", `Message m${id}`)
+        : { id: `m${id}`, format: "aui/v0", content: { role: "user" } };
+    });
+    const { cloud, stream } = createCloud(messages);
+
+    expect(await generateThreadTitle(cloud, "thread-1")).toBe("Weather chat");
+
+    const input = stream.mock.calls[0]![0].messages;
+    expect(input).toHaveLength(50);
+    expect(input[0]).toEqual({
+      role: "user",
+      content: [{ type: "text", text: "Message m201" }],
+    });
   });
 
   it("retries an empty first page before generating a title", async () => {

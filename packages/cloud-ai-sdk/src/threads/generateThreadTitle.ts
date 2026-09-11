@@ -25,16 +25,17 @@ export async function generateThreadTitle(
     return persistence.load(threadId);
   };
 
-  // Pages arrive newest-first; keep only the opening messages and reverse
-  // them so the title input is bounded and chronological.
-  const messages = (await loadMessages()).slice(-TITLE_MESSAGE_LIMIT).reverse();
-  if (messages.length === 0) return null;
-
-  const aiSdkMessages = messages.filter(
-    (msg) =>
-      msg.format === MESSAGE_FORMAT ||
-      (msg.content && Array.isArray(msg.content.parts)),
-  );
+  // Pages arrive newest-first; filter first so a thread whose opening rows
+  // are in another format still titles, then keep the oldest usable messages
+  // in chronological order.
+  const aiSdkMessages = (await loadMessages())
+    .filter(
+      (msg) =>
+        msg.format === MESSAGE_FORMAT ||
+        (msg.content && Array.isArray(msg.content.parts)),
+    )
+    .slice(-TITLE_MESSAGE_LIMIT)
+    .reverse();
   if (aiSdkMessages.length === 0) return null;
 
   const convertedMessages = aiSdkMessages
