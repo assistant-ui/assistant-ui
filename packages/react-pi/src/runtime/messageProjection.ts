@@ -564,18 +564,43 @@ const updateToolCallIndices = (
   next: readonly PiAgentMessage[],
   startIndex: number,
 ) => {
+  const removedIds = new Set<string>();
   for (let index = startIndex; index < previous.length; index++) {
     const message = previous[index]!;
     if (message.role !== "assistant") continue;
     for (const part of (message as PiAssistantMessage).content) {
-      if (part.type === "toolCall") indices.delete(part.id);
+      if (part.type === "toolCall") {
+        removedIds.add(part.id);
+        indices.delete(part.id);
+      }
     }
   }
   for (let index = startIndex; index < next.length; index++) {
     const message = next[index]!;
     if (message.role !== "assistant") continue;
     for (const part of (message as PiAssistantMessage).content) {
-      if (part.type === "toolCall") indices.set(part.id, index);
+      if (part.type === "toolCall") {
+        removedIds.delete(part.id);
+        indices.set(part.id, index);
+      }
+    }
+  }
+  for (const id of removedIds) {
+    for (
+      let index = Math.min(startIndex, next.length) - 1;
+      index >= 0;
+      index--
+    ) {
+      const message = next[index]!;
+      if (message.role !== "assistant") continue;
+      if (
+        (message as PiAssistantMessage).content.some(
+          (part) => part.type === "toolCall" && part.id === id,
+        )
+      ) {
+        indices.set(id, index);
+        break;
+      }
     }
   }
 };
@@ -666,13 +691,14 @@ const projectedSourceIndex = (message: ThreadMessageLike) => {
 const firstProjectedIndexAtOrAfter = (
   messages: readonly ThreadMessageLike[],
   sourceIndex: number,
-) => {
+): number | undefined => {
   let low = 0;
   let high = messages.length;
   while (low < high) {
     const middle = (low + high) >>> 1;
     const projectedIndex = projectedSourceIndex(messages[middle]!);
-    if (projectedIndex === undefined || projectedIndex >= sourceIndex) {
+    if (projectedIndex === undefined) return undefined;
+    if (projectedIndex >= sourceIndex) {
       high = middle;
     } else {
       low = middle + 1;
@@ -793,13 +819,20 @@ export class PiThreadMessageProjector {
       assistantGroupStart(previousInput.messages, dirtyIndex),
       assistantGroupStart(input.messages, dirtyIndex),
     );
-    const projectedStartIndex = firstProjectedIndexAtOrAfter(
+    const projectedBoundary = firstProjectedIndexAtOrAfter(
       this.projectedMessages,
       startIndex,
     );
+    const projectedStartIndex = projectedBoundary ?? 0;
+    const projectionStartIndex =
+      projectedBoundary === undefined ? 0 : startIndex;
     const previousSuffix = this.projectedMessages.slice(projectedStartIndex);
     const nextSuffix = shareProjectedThreadMessages(
-      projectPiThreadMessagesFrom(input, startIndex, this.toolResults),
+      projectPiThreadMessagesFrom(
+        input,
+        projectionStartIndex,
+        this.toolResults,
+      ),
       previousSuffix,
     );
 

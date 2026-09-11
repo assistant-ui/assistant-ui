@@ -505,6 +505,70 @@ describe("messageProjection", () => {
     expect(contentParts(projected[0]!)[0]).toMatchObject({ result: "first" });
   });
 
+  it("restores an earlier tool-call index when a later duplicate is removed", () => {
+    const projector = new PiThreadMessageProjector();
+    const firstCall = assistant([toolCall("tc1", "bash", {})]);
+    const separator: PiAgentMessage = {
+      role: "user",
+      content: "continue",
+      timestamp: 2,
+    };
+    const duplicateCall = assistant([toolCall("tc1", "bash", {})], {
+      timestamp: 3,
+    });
+
+    projector.project(input([firstCall, separator, duplicateCall]));
+    projector.project(input([firstCall, separator]));
+    const next = input([firstCall, separator], {
+      toolExecutions: {
+        tc1: {
+          toolCallId: "tc1",
+          status: "running",
+          partialResult: {
+            content: [{ type: "text", text: "partial" }],
+          },
+        },
+      },
+    });
+    const projected = projector.project(next);
+
+    expect(projected).toEqual(projectPiThreadMessages(next));
+    expect(contentParts(projected[0]!)[0]).toMatchObject({ result: "partial" });
+  });
+
+  it("falls back to full projection for an unexpected cached message id", () => {
+    const projector = new PiThreadMessageProjector();
+    const first: PiAgentMessage = {
+      role: "user",
+      content: "first",
+      timestamp: 1,
+    };
+    const second: PiAgentMessage = {
+      role: "user",
+      content: "second",
+      timestamp: 2,
+    };
+    const third: PiAgentMessage = {
+      role: "user",
+      content: "third",
+      timestamp: 3,
+    };
+    const projected = projector.project(input([first, second, third]));
+    (
+      projector as unknown as { projectedMessages: typeof projected }
+    ).projectedMessages = projected.map((message, index) =>
+      index === 1 ? { ...message, id: "unexpected" } : message,
+    );
+
+    const next = input([
+      first,
+      second,
+      { role: "user", content: "updated", timestamp: 4 },
+    ]);
+
+    expect(projector.project(next)).toEqual(projectPiThreadMessages(next));
+  });
+
   it("updates the trailing assistant status when a user message is appended", () => {
     const projector = new PiThreadMessageProjector();
     const reply = assistant([{ type: "text", text: "done" }]);
