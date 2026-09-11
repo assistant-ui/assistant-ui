@@ -2,6 +2,7 @@
 
 import { create } from "zustand";
 import type { Unsubscribe } from "@assistant-ui/core";
+import { notifyEventListeners } from "@assistant-ui/core/internal";
 
 export type SizeHandle = {
   /** Update the height */
@@ -184,9 +185,11 @@ export const makeThreadViewportStore = (
   const store = create<ThreadViewportState>(() => ({
     isAtBottom: true,
     scrollToBottom: ({ behavior = "auto" } = {}) => {
-      for (const listener of scrollToBottomListeners) {
-        listener({ behavior });
-      }
+      notifyEventListeners(
+        scrollToBottomListeners,
+        { behavior },
+        "Thread viewport",
+      );
     },
     onScrollToBottom: (callback) => {
       scrollToBottomListeners.add(callback);
