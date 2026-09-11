@@ -283,8 +283,9 @@ describe("useAssistantForm", () => {
   it("settles when the form unmounts but the hook owner remains", async () => {
     type FormValues = { name: string };
     let validationStarted = false;
-    let resolveValidation: (result: ResolverResult<FormValues>) => void =
-      () => {};
+    let resolveValidation: (
+      result: ResolverResult<FormValues>,
+    ) => void = () => {};
     const resolver: Resolver<FormValues> = () => {
       validationStarted = true;
       return new Promise((resolve) => {
@@ -316,9 +317,7 @@ describe("useAssistantForm", () => {
       message: "The form is no longer available.",
     });
 
-    await act(() =>
-      resolveValidation({ values: { name: "Ada" }, errors: {} }),
-    );
+    await act(() => resolveValidation({ values: { name: "Ada" }, errors: {} }));
     expect(onValid).not.toHaveBeenCalled();
   });
 
