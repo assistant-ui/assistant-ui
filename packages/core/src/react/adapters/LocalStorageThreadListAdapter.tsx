@@ -381,6 +381,15 @@ function parseStoredThreadMessage(
     };
   }
 
+  if (
+    value.content.length !== 1 ||
+    !isRecord(value.content[0]) ||
+    value.content[0].type !== "text" ||
+    typeof value.content[0].text !== "string"
+  ) {
+    return null;
+  }
+
   try {
     return fromThreadMessageLike(
       {

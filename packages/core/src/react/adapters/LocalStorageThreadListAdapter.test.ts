@@ -200,6 +200,33 @@ describe("parseStoredMessageRepository", () => {
     ]);
   });
 
+  it("skips system messages with malformed text content", () => {
+    const repo = parseStoredMessageRepository(
+      JSON.stringify({
+        messages: [
+          {
+            message: {
+              ...storedMessage("invalid-system", "system"),
+              content: [{ type: "text", text: 42 }],
+            },
+            parentId: null,
+          },
+          {
+            message: {
+              ...storedMessage("valid-system", "system"),
+              content: [{ type: "text", text: "Follow the instructions" }],
+            },
+            parentId: null,
+          },
+        ],
+      }),
+    );
+
+    expect(repo.messages.map((item) => item.message.id)).toEqual([
+      "valid-system",
+    ]);
+  });
+
   it("preserves supported user content loaded from storage", () => {
     const repo = parseStoredMessageRepository(
       JSON.stringify({
