@@ -13,25 +13,24 @@ export const useCopyToClipboard = ({
   const copiedTimer = useRef<ReturnType<typeof setTimeout> | undefined>(
     undefined,
   );
-  const copyGeneration = useRef(0);
+  const isMounted = useRef(true);
 
-  useEffect(
-    () => () => {
-      copyGeneration.current += 1;
+  useEffect(() => {
+    isMounted.current = true;
+    return () => {
+      isMounted.current = false;
       clearTimeout(copiedTimer.current);
-    },
-    [],
-  );
+    };
+  }, []);
 
   const copyToClipboard = (value: string) => {
     if (!value || typeof navigator === "undefined" || !navigator.clipboard) {
       return;
     }
 
-    const generation = ++copyGeneration.current;
     navigator.clipboard.writeText(value).then(
       () => {
-        if (generation !== copyGeneration.current) return;
+        if (!isMounted.current) return;
 
         clearTimeout(copiedTimer.current);
         setIsCopied(true);

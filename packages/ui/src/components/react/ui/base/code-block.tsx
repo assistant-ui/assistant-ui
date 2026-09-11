@@ -39,30 +39,30 @@ function CopyButton({
   const copyTimer = useRef<ReturnType<typeof setTimeout> | undefined>(
     undefined,
   );
-  const copyGeneration = useRef(0);
+  const isMounted = useRef(true);
 
-  useEffect(
-    () => () => {
-      copyGeneration.current += 1;
+  useEffect(() => {
+    isMounted.current = true;
+    return () => {
+      isMounted.current = false;
       clearTimeout(copyTimer.current);
-    },
-    [],
-  );
+    };
+  }, []);
 
   return (
     <button
       type="button"
       aria-label="Copy code"
       onClick={async () => {
-        const generation = ++copyGeneration.current;
         try {
           await navigator.clipboard.writeText(getText());
         } catch {
           return;
         }
-        if (generation !== copyGeneration.current) return;
+        if (!isMounted.current) return;
 
         onCopied?.();
+        if (!isMounted.current) return;
         setCopied(true);
         clearTimeout(copyTimer.current);
         copyTimer.current = setTimeout(() => {

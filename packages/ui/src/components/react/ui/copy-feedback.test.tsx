@@ -1,0 +1,113 @@
+import { act, fireEvent, render, screen } from "@testing-library/react";
+import { afterEach, describe, expect, it, onTestFinished, vi } from "vitest";
+import { CodeBlock as BaseCodeBlock } from "./base/code-block";
+import { CommandTabs as BaseCommandTabs } from "./base/command-tabs";
+import { CodeBlock as RadixCodeBlock } from "./radix/code-block";
+import { CommandTabs as RadixCommandTabs } from "./radix/command-tabs";
+
+vi.mock("react-shiki", () => ({ useShikiHighlighter: () => null }));
+
+const mockClipboard = (writeText: (value: string) => Promise<void>) => {
+  const descriptor = Object.getOwnPropertyDescriptor(navigator, "clipboard");
+  Object.defineProperty(navigator, "clipboard", {
+    configurable: true,
+    value: { writeText: vi.fn(writeText) },
+  });
+  onTestFinished(() => {
+    if (descriptor) {
+      Object.defineProperty(navigator, "clipboard", descriptor);
+    } else {
+      delete (navigator as { clipboard?: unknown }).clipboard;
+    }
+  });
+};
+
+afterEach(() => {
+  vi.useRealTimers();
+});
+
+describe.each([
+  ["Base", BaseCodeBlock],
+  ["Radix", RadixCodeBlock],
+] as const)("%s CodeBlock copy feedback", (_name, CodeBlock) => {
+  it("preserves an earlier successful write after a newer rejection", async () => {
+    let resolveFirst!: () => void;
+    const firstWrite = new Promise<void>((resolve) => {
+      resolveFirst = resolve;
+    });
+    mockClipboard(
+      vi
+        .fn()
+        .mockReturnValueOnce(firstWrite)
+        .mockRejectedValueOnce(new Error("denied")),
+    );
+    const onCopied = vi.fn();
+    const view = render(
+      <CodeBlock title="Example" onCopied={onCopied}>
+        <pre>value</pre>
+      </CodeBlock>,
+    );
+
+    fireEvent.click(screen.getByRole("button", { name: "Copy code" }));
+    fireEvent.click(screen.getByRole("button", { name: "Copy code" }));
+    await act(async () => Promise.resolve());
+    resolveFirst();
+    await act(async () => firstWrite);
+
+    expect(onCopied).toHaveBeenCalledOnce();
+    view.unmount();
+  });
+
+  it("does not schedule feedback when onCopied unmounts the component", async () => {
+    vi.useFakeTimers();
+    mockClipboard(() => Promise.resolve());
+    let view!: ReturnType<typeof render>;
+    const onCopied = vi.fn(() => view.unmount());
+    view = render(
+      <CodeBlock title="Example" onCopied={onCopied}>
+        <pre>value</pre>
+      </CodeBlock>,
+    );
+
+    fireEvent.click(screen.getByRole("button", { name: "Copy code" }));
+    await act(async () => Promise.resolve());
+
+    expect(onCopied).toHaveBeenCalledOnce();
+    expect(vi.getTimerCount()).toBe(0);
+  });
+});
+
+describe.each([
+  ["Base", BaseCommandTabs],
+  ["Radix", RadixCommandTabs],
+] as const)("%s CommandTabs copy feedback", (_name, CommandTabs) => {
+  it("clears an active feedback timer when unmounted", async () => {
+    vi.useFakeTimers();
+    mockClipboard(() => Promise.resolve());
+    const view = render(<CommandTabs commands={{ npm: "npm install" }} />);
+
+    fireEvent.click(screen.getByRole("button", { name: "Copy command" }));
+    await act(async () => Promise.resolve());
+    expect(vi.getTimerCount()).toBe(1);
+
+    view.unmount();
+    expect(vi.getTimerCount()).toBe(0);
+  });
+
+  it("ignores a pending write after unmount", async () => {
+    vi.useFakeTimers();
+    let resolveWrite!: () => void;
+    const write = new Promise<void>((resolve) => {
+      resolveWrite = resolve;
+    });
+    mockClipboard(() => write);
+    const view = render(<CommandTabs commands={{ npm: "npm install" }} />);
+
+    fireEvent.click(screen.getByRole("button", { name: "Copy command" }));
+    view.unmount();
+    resolveWrite();
+    await write;
+
+    expect(vi.getTimerCount()).toBe(0);
+  });
+});
