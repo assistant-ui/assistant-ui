@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
 
 import { act, render, renderHook } from "@testing-library/react";
-import { createElement, startTransition, Suspense } from "react";
+import { createElement, startTransition, StrictMode, Suspense } from "react";
 import { describe, expect, it, vi } from "vitest";
 import { useChatRegistry } from "./useChatRegistry";
 
@@ -142,6 +142,37 @@ describe("useChatRegistry", () => {
     rerender();
 
     expect(stop).not.toHaveBeenCalled();
+  });
+
+  it("keeps owned chats running during Strict Mode effect replay", async () => {
+    const scope = {};
+    const stop = vi.fn().mockResolvedValue(undefined);
+    const createChat = vi.fn().mockImplementation((chatKey: string) => ({
+      id: chatKey,
+      messages: [],
+      stop,
+    }));
+
+    const { unmount } = renderHook(
+      () =>
+        useChatRegistry({
+          scope,
+          threadId: "thread-1",
+          createChat: createChat as never,
+        }),
+      { wrapper: StrictMode },
+    );
+
+    await act(async () => {
+      await new Promise<void>((resolve) => queueMicrotask(resolve));
+    });
+    expect(stop).not.toHaveBeenCalled();
+
+    unmount();
+    await act(async () => {
+      await new Promise<void>((resolve) => queueMicrotask(resolve));
+    });
+    expect(stop).toHaveBeenCalledOnce();
   });
 
   it("does not register chats from abandoned renders", () => {
