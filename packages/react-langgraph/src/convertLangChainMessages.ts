@@ -39,6 +39,11 @@ type LangGraphMessageConverterMetadata =
     attachmentsByMessageId?: Map<string, readonly CompleteAttachment[]>;
   };
 
+type LangChainMessageContentBlock = Exclude<
+  LangChainMessage["content"],
+  string
+>[number];
+
 const getToolArgsCacheKey = (
   messageId: string | undefined,
   kind: "tool" | "computer",
@@ -114,17 +119,38 @@ const warnForUnknownMessageType = (type: string) => {
   console.warn(`Unknown message type: ${type}`);
 };
 
+const warnedMalformedMessageContentTypes = new Set<string>();
+const warnForMalformedMessageContent = (content: unknown) => {
+  if (
+    typeof process === "undefined" ||
+    process?.env?.NODE_ENV !== "development"
+  )
+    return;
+  const type = typeof content;
+  if (warnedMalformedMessageContentTypes.has(type)) return;
+  warnedMalformedMessageContentTypes.add(type);
+  console.warn(
+    `Ignoring message content that is neither a string nor an array: ${type}`,
+  );
+};
+
 const contentToParts = (
-  content: unknown,
+  content: LangChainMessage["content"],
   metadata: LangGraphMessageConverterMetadata,
   messageId: string | undefined,
 ) => {
   if (content == null) return [];
   if (typeof content === "string")
     return [{ type: "text" as const, text: content }];
-  if (!Array.isArray(content)) return [];
+  if (!Array.isArray(content)) {
+    warnForMalformedMessageContent(content);
+    return [];
+  }
   return content
-    .filter((part) => typeof part === "object" && part !== null)
+    .filter(
+      (part): part is LangChainMessageContentBlock =>
+        typeof part === "object" && part !== null,
+    )
     .map(
       (
         part,
@@ -155,6 +181,24 @@ const contentToParts = (
       },
     )
     .filter((a) => a !== null);
+};
+
+const getStringContent = (content: LangChainMessage["content"]): string => {
+  if (typeof content === "string") return content;
+  if (!Array.isArray(content)) {
+    warnForMalformedMessageContent(content);
+    return "";
+  }
+  return content
+    .filter(
+      (part): part is { type: "text" | "text_delta"; text: string } =>
+        typeof part === "object" &&
+        part !== null &&
+        (part.type === "text" || part.type === "text_delta") &&
+        typeof part.text === "string",
+    )
+    .map((part) => part.text)
+    .join("");
 };
 
 const normalizePayload = (value: string) => parseDataUrl(value)?.data ?? value;
@@ -215,7 +259,7 @@ export const convertLangChainMessages: useExternalMessageConverter.Callback<
       return {
         role: "system",
         id: message.id,
-        content: [{ type: "text", text: message.content }],
+        content: [{ type: "text", text: getStringContent(message.content) }],
         metadata: { custom: getCustomMetadata(message.additional_kwargs) },
       };
     case "human": {

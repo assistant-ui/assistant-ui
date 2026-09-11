@@ -148,6 +148,41 @@ describe("convertLangChainMessages content-less messages", () => {
       },
     ]);
   });
+
+  it("warns once in development about non-array content", () => {
+    vi.stubEnv("NODE_ENV", "development");
+    const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
+    try {
+      const message = {
+        type: "human",
+        id: "h-4",
+        content: 42,
+      } as unknown as LangChainMessage;
+      convertLangChainMessages(message);
+      convertLangChainMessages(message);
+
+      expect(warn).toHaveBeenCalledTimes(1);
+      expect(warn).toHaveBeenCalledWith(
+        "Ignoring message content that is neither a string nor an array: number",
+      );
+    } finally {
+      warn.mockRestore();
+      vi.unstubAllEnvs();
+    }
+  });
+
+  it("joins text blocks in system message content", () => {
+    const result = convertLangChainMessages({
+      type: "system",
+      id: "system-1",
+      content: [
+        { type: "text", text: "first" },
+        { type: "text_delta", text: " second" },
+      ],
+    } as unknown as LangChainMessage);
+
+    expect(result.content).toEqual([{ type: "text", text: "first second" }]);
+  });
 });
 
 describe("convertLangChainMessages metadata", () => {
