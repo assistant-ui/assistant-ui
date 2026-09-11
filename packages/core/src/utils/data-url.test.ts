@@ -33,7 +33,7 @@ describe("parseDataUrl", () => {
 
   it("parses a base64 data URL without an explicit media type", () => {
     expect(parseDataUrl("data:;base64,SGVsbG8=")).toEqual({
-      mimeType: "text/plain;charset=US-ASCII",
+      mimeType: "application/octet-stream",
       data: "SGVsbG8=",
     });
   });
@@ -139,7 +139,7 @@ describe("resolveFilePartSource", () => {
     });
   });
 
-  it("uses the data URL default when neither source declares a media type", () => {
+  it("uses the binary fallback when neither source declares a media type", () => {
     expect(
       resolveFilePartSource({
         data: "data:;base64,SGVsbG8=",
@@ -148,7 +148,7 @@ describe("resolveFilePartSource", () => {
     ).toEqual({
       kind: "data",
       data: "SGVsbG8=",
-      mimeType: "text/plain;charset=US-ASCII",
+      mimeType: "application/octet-stream",
     });
   });
 
