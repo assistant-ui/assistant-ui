@@ -12,9 +12,9 @@ export type MCPStorage = {
    * the replaced store. Clearing through a same-scoped replacement still waits
    * for writes queued against the storage it replaced. When absent, the fence
    * falls back to object identity while custom servers and connections never
-   * re-key, so a storage rebuilt on every render has to declare a scopeId;
-   * without one a clear runs unfenced against writes queued by the object it
-   * replaced.
+   * re-key. Replacing an unscoped storage can therefore persist the previous
+   * store's custom servers into the replacement, and a clear runs unfenced
+   * against writes queued by the object it replaced.
    */
   scopeId?: string;
   loadCustomServers: () => Promise<MCPCustomServerRecord[]>;
