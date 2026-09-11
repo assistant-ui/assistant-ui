@@ -688,16 +688,30 @@ const projectedSourceIndex = (message: ThreadMessageLike) => {
   return Number.isSafeInteger(index) && index >= 0 ? index : undefined;
 };
 
-const firstProjectedIndexAtOrAfter = (
+const validatedProjectedSourceIndices = (
   messages: readonly ThreadMessageLike[],
+  minimumExclusive = -1,
+): number[] | undefined => {
+  const indices: number[] = [];
+  let previous = minimumExclusive;
+  for (const message of messages) {
+    const index = projectedSourceIndex(message);
+    if (index === undefined || index <= previous) return undefined;
+    indices.push(index);
+    previous = index;
+  }
+  return indices;
+};
+
+const firstProjectedIndexAtOrAfter = (
+  indices: readonly number[],
   sourceIndex: number,
-): number | undefined => {
+): number => {
   let low = 0;
-  let high = messages.length;
+  let high = indices.length;
   while (low < high) {
     const middle = (low + high) >>> 1;
-    const projectedIndex = projectedSourceIndex(messages[middle]!);
-    if (projectedIndex === undefined) return undefined;
+    const projectedIndex = indices[middle]!;
     if (projectedIndex >= sourceIndex) {
       high = middle;
     } else {
@@ -710,6 +724,7 @@ const firstProjectedIndexAtOrAfter = (
 export class PiThreadMessageProjector {
   private previousInput: PiProjectionInput | undefined;
   private projectedMessages: readonly ThreadMessageLike[] = [];
+  private projectedSourceIndices: number[] | undefined = [];
   private changedProjectedIndex: number | undefined;
   private toolResults = new Map<string, ProjectedToolResult>();
   private toolCallIndices = new Map<string, number>();
@@ -726,6 +741,9 @@ export class PiThreadMessageProjector {
       this.toolCallIndices = buildToolCallIndices(input.messages);
       this.projectedMessages = shareProjectedThreadMessages(
         projectPiThreadMessagesFrom(input, 0, this.toolResults),
+        this.projectedMessages,
+      );
+      this.projectedSourceIndices = validatedProjectedSourceIndices(
         this.projectedMessages,
       );
       this.changedProjectedIndex =
@@ -819,10 +837,9 @@ export class PiThreadMessageProjector {
       assistantGroupStart(previousInput.messages, dirtyIndex),
       assistantGroupStart(input.messages, dirtyIndex),
     );
-    const projectedBoundary = firstProjectedIndexAtOrAfter(
-      this.projectedMessages,
-      startIndex,
-    );
+    const projectedBoundary = this.projectedSourceIndices
+      ? firstProjectedIndexAtOrAfter(this.projectedSourceIndices, startIndex)
+      : undefined;
     const projectedStartIndex = projectedBoundary ?? 0;
     const projectionStartIndex =
       projectedBoundary === undefined ? 0 : startIndex;
@@ -843,11 +860,33 @@ export class PiThreadMessageProjector {
           message === this.projectedMessages[projectedStartIndex + index],
       )
     ) {
+      if (this.projectedSourceIndices === undefined) {
+        this.projectedSourceIndices = validatedProjectedSourceIndices(
+          this.projectedMessages,
+        );
+      }
       this.changedProjectedIndex = undefined;
       this.previousInput = input;
       return this.projectedMessages;
     }
 
+    if (this.projectedSourceIndices) {
+      const suffixSourceIndices = validatedProjectedSourceIndices(
+        nextSuffix,
+        this.projectedSourceIndices[projectedStartIndex - 1],
+      );
+      if (suffixSourceIndices) {
+        this.projectedSourceIndices.splice(
+          projectedStartIndex,
+          this.projectedSourceIndices.length - projectedStartIndex,
+          ...suffixSourceIndices,
+        );
+      } else {
+        this.projectedSourceIndices = undefined;
+      }
+    } else {
+      this.projectedSourceIndices = validatedProjectedSourceIndices(nextSuffix);
+    }
     this.projectedMessages = [
       ...this.projectedMessages.slice(0, projectedStartIndex),
       ...nextSuffix,

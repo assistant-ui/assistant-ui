@@ -554,11 +554,14 @@ describe("messageProjection", () => {
       timestamp: 3,
     };
     const projected = projector.project(input([first, second, third]));
-    (
-      projector as unknown as { projectedMessages: typeof projected }
-    ).projectedMessages = projected.map((message, index) =>
+    const cachedProjector = projector as unknown as {
+      projectedMessages: typeof projected;
+      projectedSourceIndices: undefined;
+    };
+    cachedProjector.projectedMessages = projected.map((message, index) =>
       index === 1 ? { ...message, id: "unexpected" } : message,
     );
+    cachedProjector.projectedSourceIndices = undefined;
 
     const next = input([
       first,
