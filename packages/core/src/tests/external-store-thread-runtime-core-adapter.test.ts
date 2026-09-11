@@ -964,6 +964,11 @@ describe("ExternalStoreThreadRuntimeCore adapter contract", () => {
       });
       const core = new ExternalStoreThreadRuntimeCore(contextProvider, adapter);
 
+      // a mounted message subscriber resolves every published id
+      core.subscribe(() => {
+        for (const message of core.messages) core.getBranches(message.id);
+      });
+
       core.cancelRun();
       // the placeholder is gone at once; the prompt stays until the resync
       expect(core.messages).toEqual([userMessage]);

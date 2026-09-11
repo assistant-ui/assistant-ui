@@ -930,8 +930,10 @@ export class ExternalStoreThreadRuntimeCore
         attachments: trailingUserLeaf.attachments,
         quote: trailingUserLeaf.metadata.custom.quote as QuoteInfo | undefined,
       };
+      // The repository keeps the leaf until the resync commits its removal:
+      // subscribers notified below resolve every published id, and a host
+      // render in between would otherwise flash the prompt out and back in.
       if (this.composer.restoreDraft(draft)) {
-        this.repository.deleteMessage(trailingUserLeaf.id);
         movedLeaf = { id: trailingUserLeaf.id, draft };
       }
     }
@@ -939,10 +941,7 @@ export class ExternalStoreThreadRuntimeCore
       this._cancelledRun = { id: generateId(), parentId: previousMessage.id };
       this._addCancelledRunMessage(this._cancelledRun);
     }
-    // Publish the placeholder drop now; a moved leaf stays visible until the
-    // resync commits its removal, so a host render in between does not flash
-    // it out and back in.
-    this._messages = movedLeaf ? messages : this.repository.getMessages();
+    this._messages = this.repository.getMessages();
     this._notifySubscribers();
 
     // The resync commits what the cancel left (a kept optimistic message, the
