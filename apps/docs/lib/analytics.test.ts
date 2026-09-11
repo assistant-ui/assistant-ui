@@ -106,3 +106,30 @@ it("tracks assistant feedback lifecycle events to PostHog", () => {
     }),
   );
 });
+
+it("tracks WebMCP calls and host detection to PostHog", () => {
+  const capture = vi.fn();
+  globalObject.window = { posthog: { capture } };
+  const props = { tool: "searchDocs", status: "ok", latency_ms: 12 } as const;
+
+  analytics.webmcp.hostDetected();
+  analytics.webmcp.toolCalled(props);
+
+  expect(capture.mock.calls).toEqual([
+    ["webmcp_host_detected", undefined],
+    ["webmcp_tool_called", props],
+  ]);
+});
+
+it("WebMCP tracking does not throw when posthog is undefined", () => {
+  globalObject.window = {};
+
+  expect(() => {
+    analytics.webmcp.hostDetected();
+    analytics.webmcp.toolCalled({
+      tool: "getDoc",
+      status: "error",
+      latency_ms: 0,
+    });
+  }).not.toThrow();
+});

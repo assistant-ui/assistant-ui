@@ -351,4 +351,14 @@ export const analytics = {
       template_id?: string;
     }) => trackEvent("xulux_converted", props),
   },
+
+  webmcp: {
+    hostDetected: () => trackEvent("webmcp_host_detected"),
+
+    toolCalled: (props: {
+      tool: "searchDocs" | "getDoc" | "getExample";
+      status: "ok" | "error" | "aborted";
+      latency_ms: number;
+    }) => trackEvent("webmcp_tool_called", props),
+  },
 };

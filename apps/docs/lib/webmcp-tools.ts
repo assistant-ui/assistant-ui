@@ -7,6 +7,7 @@ import {
   readPageTool,
   searchDocsTool,
 } from "@/lib/mcp-tool-definitions";
+import { analytics } from "./analytics";
 
 type WebMcpToolResult = {
   content: { type: string; text?: string }[];
@@ -14,7 +15,7 @@ type WebMcpToolResult = {
 };
 
 type WebMcpToolDescriptor = {
-  name: string;
+  name: "searchDocs" | "getDoc" | "getExample";
   description: string;
   inputSchema: Record<string, unknown>;
   annotations?: { readOnlyHint?: boolean };
@@ -148,6 +149,44 @@ const withErrorResults =
     }
   };
 
+type WebMcpTracker = typeof analytics.webmcp;
+
+function trackSafely(label: string, track: () => void) {
+  try {
+    track();
+  } catch (error) {
+    if (process.env.NODE_ENV !== "production") {
+      console.warn(`WebMCP: failed to track ${label}`, error);
+    }
+  }
+}
+
+const withCallCounter =
+  (
+    tool: WebMcpToolDescriptor["name"],
+    execute: WebMcpToolDescriptor["execute"],
+    tracker: WebMcpTracker,
+  ): WebMcpToolDescriptor["execute"] =>
+  async (args, context) => {
+    const start = performance.now();
+    const report = (status: "ok" | "error" | "aborted") =>
+      trackSafely(tool, () =>
+        tracker.toolCalled({
+          tool,
+          status,
+          latency_ms: Math.round(performance.now() - start),
+        }),
+      );
+    try {
+      const result = await execute(args, context);
+      report(result.isError ? "error" : "ok");
+      return result;
+    } catch (error) {
+      report(isAbortError(error) ? "aborted" : "error");
+      throw error;
+    }
+  };
+
 function stringArg(args: Record<string, unknown>, key: string) {
   const value = args[key];
   return typeof value === "string" ? value.trim() : "";
@@ -259,12 +298,21 @@ function webMcpTools(fetchImpl: FetchLike): WebMcpToolDescriptor[] {
 export function registerWebMcpTools(
   modelContext: WebMcpModelContext,
   fetchImpl: FetchLike,
+  tracker: WebMcpTracker = analytics.webmcp,
 ): () => void {
+  trackSafely("host detection", () => tracker.hostDetected());
   const controller = new AbortController();
   for (const tool of webMcpTools(fetchImpl)) {
     Promise.resolve(
       modelContext.registerTool(
-        { ...tool, execute: withErrorResults(tool.execute) },
+        {
+          ...tool,
+          execute: withCallCounter(
+            tool.name,
+            withErrorResults(tool.execute),
+            tracker,
+          ),
+        },
         { signal: controller.signal },
       ),
     ).catch((error) => {

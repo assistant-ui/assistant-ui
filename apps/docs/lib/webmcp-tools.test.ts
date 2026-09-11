@@ -23,7 +23,16 @@ function fetchReturning(payload: unknown, ok = true, status = 200) {
   }));
 }
 
-function registeredTools(fetchImpl: FetchLike) {
+type Tracker = Parameters<typeof registerWebMcpTools>[2];
+
+function spyTracker() {
+  return { hostDetected: vi.fn(), toolCalled: vi.fn() };
+}
+
+function registeredTools(
+  fetchImpl: FetchLike,
+  tracker: Tracker = spyTracker(),
+) {
   const tools: Parameters<WebMcpModelContext["registerTool"]>[0][] = [];
   registerWebMcpTools(
     {
@@ -33,12 +42,13 @@ function registeredTools(fetchImpl: FetchLike) {
       },
     },
     fetchImpl,
+    tracker,
   );
   return tools;
 }
 
-function toolByName(fetchImpl: FetchLike, name: string) {
-  const tool = registeredTools(fetchImpl).find((t) => t.name === name);
+function toolByName(fetchImpl: FetchLike, name: string, tracker?: Tracker) {
+  const tool = registeredTools(fetchImpl, tracker).find((t) => t.name === name);
   if (!tool) throw new Error(`missing tool ${name}`);
   return tool;
 }
@@ -366,6 +376,143 @@ describe("registerWebMcpTools lifecycle", () => {
       });
     } finally {
       warn.mockRestore();
+    }
+  });
+});
+
+describe("WebMCP call counter", () => {
+  it("reports host detection exactly once per registration", () => {
+    const tracker = spyTracker();
+    const fetchImpl = fetchReturning({ result: okResult });
+    registeredTools(fetchImpl, tracker);
+    expect(tracker.hostDetected.mock.calls).toEqual([[]]);
+    registeredTools(fetchImpl, tracker);
+    expect(tracker.hostDetected.mock.calls).toEqual([[], []]);
+    expect(tracker.toolCalled).not.toHaveBeenCalled();
+  });
+
+  it("reports successful searches with rounded latency", async () => {
+    const tracker = spyTracker();
+    const now = vi
+      .spyOn(performance, "now")
+      .mockReturnValueOnce(10)
+      .mockReturnValueOnce(12.6);
+    try {
+      await expect(
+        toolByName(
+          fetchReturning({ result: okResult }),
+          "searchDocs",
+          tracker,
+        ).execute({ query: "tools" }),
+      ).resolves.toEqual(okResult);
+      expect(tracker.toolCalled).toHaveBeenCalledExactlyOnceWith({
+        tool: "searchDocs",
+        status: "ok",
+        latency_ms: 3,
+      });
+    } finally {
+      now.mockRestore();
+    }
+  });
+
+  it("reports route isError results and passes them through", async () => {
+    const tracker = spyTracker();
+    const routeResult = errorResult("Page not found: nope");
+    await expect(
+      toolByName(
+        fetchReturning({ result: routeResult }),
+        "getDoc",
+        tracker,
+      ).execute({ path: "/docs/nope" }),
+    ).resolves.toEqual(routeResult);
+    expect(tracker.toolCalled).toHaveBeenCalledExactlyOnceWith({
+      tool: "getDoc",
+      status: "error",
+      latency_ms: expect.any(Number),
+    });
+  });
+
+  it("reports thrown non-abort errors after conversion to error results", async () => {
+    const tracker = spyTracker();
+    await expect(
+      toolByName(fetchReturning({}, false, 500), "searchDocs", tracker).execute(
+        { query: "tools" },
+      ),
+    ).resolves.toEqual(errorResult("Docs request failed with status 500"));
+    expect(tracker.toolCalled).toHaveBeenCalledExactlyOnceWith({
+      tool: "searchDocs",
+      status: "error",
+      latency_ms: expect.any(Number),
+    });
+  });
+
+  it("reports aborts and preserves the rejection reference", async () => {
+    const tracker = spyTracker();
+    const controller = new AbortController();
+    controller.abort();
+    const fetchImpl: FetchLike = async (_url, init) => {
+      init.signal?.throwIfAborted();
+      throw new Error("expected an aborted signal");
+    };
+    await expect(
+      toolByName(fetchImpl, "searchDocs", tracker).execute(
+        { query: "tools" },
+        { signal: controller.signal },
+      ),
+    ).rejects.toBe(controller.signal.reason);
+    expect(controller.signal.reason.name).toBe("AbortError");
+    expect(tracker.toolCalled).toHaveBeenCalledExactlyOnceWith({
+      tool: "searchDocs",
+      status: "aborted",
+      latency_ms: expect.any(Number),
+    });
+  });
+
+  it.each(["throwing", "pending"])(
+    "isolates a %s tracker from the tool result",
+    async (failure) => {
+      const track = vi.fn(() => {
+        if (failure === "throwing") throw new Error("tracking failed");
+        return new Promise<void>(() => {});
+      });
+      const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
+      try {
+        await expect(
+          toolByName(fetchReturning({ result: okResult }), "searchDocs", {
+            hostDetected: track,
+            toolCalled: track,
+          }).execute({ query: "tools" }),
+        ).resolves.toEqual(okResult);
+        expect(warn).toHaveBeenCalledTimes(failure === "throwing" ? 2 : 0);
+      } finally {
+        warn.mockRestore();
+      }
+    },
+  );
+
+  it("sends only tool, status, and latency for all three tools", async () => {
+    const tracker = spyTracker();
+    const tools = registeredTools(
+      fetchReturning({ result: okResult }),
+      tracker,
+    );
+    for (const tool of tools) {
+      await tool.execute({ query: "private query", path: "private/path" });
+    }
+    expect(tracker.toolCalled.mock.calls.map(([props]) => props.tool)).toEqual([
+      "searchDocs",
+      "getDoc",
+      "getExample",
+    ]);
+    for (const [props] of tracker.toolCalled.mock.calls) {
+      expect(Object.keys(props).sort()).toEqual([
+        "latency_ms",
+        "status",
+        "tool",
+      ]);
+      expect(props.status).toBe("ok");
+      expect(Number.isInteger(props.latency_ms)).toBe(true);
+      expect(props.latency_ms).toBeGreaterThanOrEqual(0);
     }
   });
 });
