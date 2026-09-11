@@ -1,7 +1,9 @@
 import { describe, expect, it, vi } from "vitest";
 import type { SubscribableWithState } from "./subscribable";
 import {
+  EventSubscriptionSubject,
   LazyMemoizeSubject,
+  NestedSubscriptionSubject,
   runCleanups,
   ShallowMemoizeSubject,
 } from "./subscribable";
@@ -74,6 +76,40 @@ describe("runCleanups", () => {
       ]),
     ).toThrow(cleanupError);
     expect(laterCleanup).toHaveBeenCalledOnce();
+  });
+
+  it("preserves every error when multiple cleanups throw", () => {
+    const firstError = new Error("first cleanup failed");
+    const secondError = new Error("second cleanup failed");
+    const consoleError = vi
+      .spyOn(console, "error")
+      .mockImplementation(() => {});
+
+    try {
+      let thrown: unknown;
+      try {
+        runCleanups([
+          () => {
+            throw firstError;
+          },
+          () => {
+            throw secondError;
+          },
+        ]);
+      } catch (error) {
+        thrown = error;
+      }
+
+      expect(thrown).toBeInstanceOf(AggregateError);
+      expect((thrown as AggregateError).errors).toEqual([
+        firstError,
+        secondError,
+      ]);
+      expect(consoleError).toHaveBeenNthCalledWith(1, firstError);
+      expect(consoleError).toHaveBeenNthCalledWith(2, secondError);
+    } finally {
+      consoleError.mockRestore();
+    }
   });
 });
 
@@ -223,5 +259,81 @@ describe("LazyMemoizeSubject", () => {
     const second = subject.getState();
     expect(second).not.toBe(first);
     expect(second).toEqual({ status: "done" });
+  });
+});
+
+describe("nested subscription swaps", () => {
+  it("connects the next nested source when the previous cleanup throws", () => {
+    const cleanupError = new Error("cleanup failed");
+    let outerUpdate!: () => void;
+    let nextUpdate!: () => void;
+    const previous = {
+      subscribe: () => () => {
+        throw cleanupError;
+      },
+    };
+    const nextSubscribe = vi.fn((callback: () => void) => {
+      nextUpdate = callback;
+      return () => {};
+    });
+    const next = { subscribe: nextSubscribe };
+    let current = previous;
+    const subject = new NestedSubscriptionSubject({
+      path: null,
+      getState: () => current,
+      subscribe: (callback) => {
+        outerUpdate = callback;
+        return () => {};
+      },
+    });
+    const listener = vi.fn();
+    subject.subscribe(listener);
+
+    current = next;
+    expect(() => outerUpdate()).toThrow(cleanupError);
+    expect(nextSubscribe).toHaveBeenCalledOnce();
+    expect(listener).toHaveBeenCalledOnce();
+
+    nextUpdate();
+    expect(listener).toHaveBeenCalledTimes(2);
+  });
+
+  it("connects the next event source when the previous cleanup throws", () => {
+    const cleanupError = new Error("cleanup failed");
+    let outerUpdate!: () => void;
+    let nextEvent!: (payload?: unknown) => void;
+    const previous = {
+      unstable_on: () => () => {
+        throw cleanupError;
+      },
+    };
+    const nextSubscribe = vi.fn(
+      (_event: string, callback: (payload?: unknown) => void) => {
+        nextEvent = callback;
+        return () => {};
+      },
+    );
+    const next = { unstable_on: nextSubscribe };
+    let current = previous;
+    const subject = new EventSubscriptionSubject({
+      event: "test",
+      binding: {
+        path: null,
+        getState: () => current,
+        subscribe: (callback) => {
+          outerUpdate = callback;
+          return () => {};
+        },
+      },
+    });
+    const listener = vi.fn();
+    subject.subscribe(listener);
+
+    current = next;
+    expect(() => outerUpdate()).toThrow(cleanupError);
+    expect(nextSubscribe).toHaveBeenCalledOnce();
+
+    nextEvent("payload");
+    expect(listener).toHaveBeenCalledWith("payload");
   });
 });

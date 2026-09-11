@@ -289,10 +289,14 @@ export class NestedSubscriptionSubject<
       if (newState === lastState) return;
       lastState = newState;
 
-      innerUnsubscribe?.();
-      innerUnsubscribe = newState?.subscribe(callback);
-
-      callback();
+      const previousInner = innerUnsubscribe;
+      innerUnsubscribe = undefined;
+      try {
+        previousInner?.();
+      } finally {
+        innerUnsubscribe = newState?.subscribe(callback);
+        callback();
+      }
     };
 
     const outerUnsubscribe = this.outerSubscribe(onRuntimeUpdate);
@@ -332,8 +336,13 @@ export class EventSubscriptionSubject<
       if (newState === lastState) return;
       lastState = newState;
 
-      innerUnsubscribe?.();
-      innerUnsubscribe = newState?.unstable_on(this.config.event, callback);
+      const previousInner = innerUnsubscribe;
+      innerUnsubscribe = undefined;
+      try {
+        previousInner?.();
+      } finally {
+        innerUnsubscribe = newState?.unstable_on(this.config.event, callback);
+      }
     };
 
     const outerUnsubscribe = this.outerSubscribe(onRuntimeUpdate);
