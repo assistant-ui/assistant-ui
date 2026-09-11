@@ -198,13 +198,15 @@ export class A2AThreadRuntimeCore {
   }
 
   private loadAgentCard(): Promise<void> {
-    this._agentCardPromise ??= this.client
-      .getAgentCard()
-      .then((agentCard) => {
+    this._agentCardPromise ??= this.client.getAgentCard().then(
+      (agentCard) => {
         this.agentCardValue = agentCard;
         this.notifyUpdate();
-      })
-      .catch(() => undefined);
+      },
+      () => {
+        this._agentCardPromise = undefined;
+      },
+    );
     return this._agentCardPromise;
   }
 

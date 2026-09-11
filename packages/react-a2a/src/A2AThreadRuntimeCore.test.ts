@@ -796,6 +796,31 @@ describe("A2AThreadRuntimeCore", () => {
   // --- Sync (non-streaming) fallback ---
 
   describe("sync fallback", () => {
+    it("retries agent card discovery after a transient failure", async () => {
+      const getAgentCard = vi
+        .fn()
+        .mockRejectedValueOnce(new Error("temporary failure"))
+        .mockResolvedValue({
+          name: "Agent",
+          capabilities: { streaming: false },
+        } as A2AAgentCard);
+      const sendMessage = vi.fn().mockResolvedValue({
+        id: "t1",
+        status: { state: "completed" },
+      } satisfies A2ATask);
+      const streamMessage = vi.fn().mockImplementation(async function* () {
+        yield statusUpdateEvent("completed");
+      });
+      const core = createCore({ getAgentCard, sendMessage, streamMessage });
+
+      await core.append(createUserAppendMessage("First"));
+      await core.append(createUserAppendMessage("Second"));
+
+      expect(getAgentCard).toHaveBeenCalledTimes(2);
+      expect(streamMessage).toHaveBeenCalledOnce();
+      expect(sendMessage).toHaveBeenCalledOnce();
+    });
+
     it("waits for agent capabilities before choosing the first send method", async () => {
       let resolveAgentCard!: (value: A2AAgentCard) => void;
       const getAgentCard = vi.fn(
