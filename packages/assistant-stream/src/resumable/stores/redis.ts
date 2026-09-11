@@ -1,4 +1,3 @@
-import { createHash } from "node:crypto";
 import {
   APPEND_IF_UNCHANGED_KEY_COUNT,
   APPEND_IF_UNCHANGED_SCRIPT,
@@ -13,12 +12,13 @@ import {
   type RedisLikeClient,
   type RedisResumableStreamStoreOptions,
 } from "./redis-impl";
+import { redisScriptSha, runCachedRedisScript } from "./redis-script";
 import type { ResumableStreamStore } from "../types";
 
 const RESP_BLOB_STRING = 36;
-const APPEND_IF_UNCHANGED_SHA = scriptSha(APPEND_IF_UNCHANGED_SCRIPT);
-const FINALIZE_IF_UNCHANGED_SHA = scriptSha(FINALIZE_IF_UNCHANGED_SCRIPT);
-const DELETE_IF_UNCHANGED_SHA = scriptSha(DELETE_IF_UNCHANGED_SCRIPT);
+const APPEND_IF_UNCHANGED_SHA = redisScriptSha(APPEND_IF_UNCHANGED_SCRIPT);
+const FINALIZE_IF_UNCHANGED_SHA = redisScriptSha(FINALIZE_IF_UNCHANGED_SCRIPT);
+const DELETE_IF_UNCHANGED_SHA = redisScriptSha(DELETE_IF_UNCHANGED_SCRIPT);
 
 type NodeRedisFields = Record<string, string | Buffer>;
 
@@ -119,10 +119,6 @@ function adapt(client: NodeRedisLike): RedisLikeClient {
   };
 }
 
-function scriptSha(script: string): string {
-  return createHash("sha1").update(script).digest("hex");
-}
-
 async function runScript(
   client: NodeRedisLike,
   sha: string,
@@ -130,24 +126,12 @@ async function runScript(
   keyCount: number,
   args: Array<string | Buffer>,
 ): Promise<number> {
-  try {
-    return await client.sendCommand<number>([
-      "EVALSHA",
-      sha,
-      String(keyCount),
-      ...args,
-    ]);
-  } catch (error) {
-    if (!(error instanceof Error) || !error.message.includes("NOSCRIPT")) {
-      throw error;
-    }
-    return client.sendCommand<number>([
-      "EVAL",
-      script,
-      String(keyCount),
-      ...args,
-    ]);
-  }
+  return runCachedRedisScript(
+    () =>
+      client.sendCommand<number>(["EVALSHA", sha, String(keyCount), ...args]),
+    () =>
+      client.sendCommand<number>(["EVAL", script, String(keyCount), ...args]),
+  );
 }
 
 function applyPipelineCommand(

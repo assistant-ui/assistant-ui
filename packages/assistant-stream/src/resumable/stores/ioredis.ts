@@ -1,4 +1,3 @@
-import { createHash } from "node:crypto";
 import type {
   ChainableCommander,
   Cluster as IoRedisCluster,
@@ -18,11 +17,12 @@ import {
   type RedisLikeClient,
   type RedisResumableStreamStoreOptions,
 } from "./redis-impl";
+import { redisScriptSha, runCachedRedisScript } from "./redis-script";
 import type { ResumableStreamStore } from "../types";
 
-const APPEND_IF_UNCHANGED_SHA = scriptSha(APPEND_IF_UNCHANGED_SCRIPT);
-const FINALIZE_IF_UNCHANGED_SHA = scriptSha(FINALIZE_IF_UNCHANGED_SCRIPT);
-const DELETE_IF_UNCHANGED_SHA = scriptSha(DELETE_IF_UNCHANGED_SCRIPT);
+const APPEND_IF_UNCHANGED_SHA = redisScriptSha(APPEND_IF_UNCHANGED_SCRIPT);
+const FINALIZE_IF_UNCHANGED_SHA = redisScriptSha(FINALIZE_IF_UNCHANGED_SCRIPT);
+const DELETE_IF_UNCHANGED_SHA = redisScriptSha(DELETE_IF_UNCHANGED_SCRIPT);
 
 export type IoRedisLike = IoRedis | IoRedisCluster;
 
@@ -103,10 +103,6 @@ function adapt(client: IoRedisLike): RedisLikeClient {
   };
 }
 
-function scriptSha(script: string): string {
-  return createHash("sha1").update(script).digest("hex");
-}
-
 async function runScript(
   client: IoRedisLike,
   sha: string,
@@ -114,14 +110,10 @@ async function runScript(
   keyCount: number,
   args: Array<string | Buffer>,
 ): Promise<unknown> {
-  try {
-    return await client.evalsha(sha, keyCount, ...args);
-  } catch (error) {
-    if (!(error instanceof Error) || !error.message.includes("NOSCRIPT")) {
-      throw error;
-    }
-    return client.eval(script, keyCount, ...args);
-  }
+  return runCachedRedisScript(
+    () => client.evalsha(sha, keyCount, ...args),
+    () => client.eval(script, keyCount, ...args),
+  );
 }
 
 function applyPipelineCommand(
