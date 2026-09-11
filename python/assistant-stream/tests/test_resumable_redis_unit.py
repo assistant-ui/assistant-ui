@@ -192,6 +192,8 @@ async def test_delete_does_not_clear_same_store_reacquisition() -> None:
     stream_id = "same-store-delete-race"
     meta_key = "test:{same-store-delete-race}:meta"
     await store.acquire(stream_id)
+    generation = json.loads(client.values[meta_key])["generation"]
+    stale_data_key = f"test:{{{stream_id}}}:data:{generation}"
     await store.append(stream_id, b"stale")
 
     await client.delete([meta_key])
@@ -210,6 +212,7 @@ async def test_delete_does_not_clear_same_store_reacquisition() -> None:
     await store.append(stream_id, b"fresh")
     resume.set()
     await asyncio.wait_for(deleting, timeout=1)
+    assert stale_data_key not in client.streams
     await store.finalize(stream_id, "done")
 
     chunks = [

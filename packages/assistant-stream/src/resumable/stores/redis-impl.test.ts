@@ -367,6 +367,10 @@ describe("RedisResumableStreamStore", () => {
     const metaKey = `${keyPrefix}:{${streamId}}:meta`;
     const store = new RedisResumableStreamStore(client, { keyPrefix });
     await store.acquire(streamId);
+    const generation = (
+      JSON.parse(client.strings.get(metaKey)!) as { generation: string }
+    ).generation;
+    const staleDataKey = `${keyPrefix}:{${streamId}}:data:${generation}`;
     await store.append(streamId, encoder.encode("stale"));
 
     client.strings.delete(metaKey);
@@ -385,6 +389,7 @@ describe("RedisResumableStreamStore", () => {
     await store.append(streamId, encoder.encode("fresh"));
     resumeDelete();
     await deleting;
+    expect(client.streams.has(staleDataKey)).toBe(false);
     await store.finalize(streamId, "done");
 
     const chunks: string[] = [];
