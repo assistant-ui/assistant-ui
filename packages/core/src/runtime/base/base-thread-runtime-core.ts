@@ -36,7 +36,10 @@ import type { RealtimeVoiceAdapter } from "../../adapters/voice";
 import type { ThreadMessageLike } from "../utils/thread-message-like";
 import { notifyEventListeners } from "../../utils/notify-event-listeners";
 import { gateInteractableComposerMetadata } from "../../model-context/interactable-composer-metadata";
-import { BaseSubscribable } from "../../subscribable/subscribable";
+import {
+  BaseSubscribable,
+  notifySubscribers,
+} from "../../subscribable/subscribable";
 
 type BaseThreadAdapters = {
   speech?: SpeechSynthesisAdapter | undefined;
@@ -305,7 +308,14 @@ export abstract class BaseThreadRuntimeCore
     const adapter = this.adapters?.voice;
     if (!adapter) throw new Error("Voice adapter not configured");
 
-    this.disconnectVoice();
+    try {
+      this.disconnectVoice();
+    } catch (error) {
+      console.error(
+        "[assistant-ui] Voice cleanup threw before reconnect",
+        error,
+      );
+    }
 
     const session = adapter.connect({});
     this._voiceSession = session;
@@ -448,22 +458,14 @@ export abstract class BaseThreadRuntimeCore
   }
 
   public disconnectVoice() {
-    let cleanupFailed = false;
-    let cleanupError: unknown;
-    const runCleanup = (cleanup: () => void) => {
-      try {
-        cleanup();
-      } catch (error) {
-        if (cleanupFailed) {
-          console.error(error);
-        } else {
-          cleanupFailed = true;
-          cleanupError = error;
-        }
-      }
-    };
-
-    runCleanup(() => this._finishVoiceAssistantMessage());
+    let finishFailed = false;
+    let finishError: unknown;
+    try {
+      this._finishVoiceAssistantMessage();
+    } catch (error) {
+      finishFailed = true;
+      finishError = error;
+    }
     this._currentAssistantMsg = null;
     const unsubs = this._voiceUnsubs;
     this._voiceUnsubs = [];
@@ -474,18 +476,24 @@ export abstract class BaseThreadRuntimeCore
     this._voiceMessages = [];
     this._markVoiceMessagesDirty();
 
-    for (const unsub of unsubs) runCleanup(unsub);
-    if (session) runCleanup(() => session.disconnect());
-    runCleanup(() =>
-      notifyEventListeners(
-        this._voiceVolumeSubscribers,
-        undefined,
-        "Voice volume",
-      ),
-    );
-    runCleanup(() => this._notifySubscribers());
-
-    if (cleanupFailed) throw cleanupError;
+    notifySubscribers([
+      ...(finishFailed
+        ? [
+            () => {
+              throw finishError;
+            },
+          ]
+        : []),
+      ...unsubs,
+      ...(session ? [() => session.disconnect()] : []),
+      () =>
+        notifyEventListeners(
+          this._voiceVolumeSubscribers,
+          undefined,
+          "Voice volume",
+        ),
+      () => this._notifySubscribers(),
+    ]);
   }
 
   public muteVoice() {

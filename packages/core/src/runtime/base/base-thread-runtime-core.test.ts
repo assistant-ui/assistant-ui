@@ -253,6 +253,27 @@ describe("BaseThreadRuntimeCore voice volume subscriptions", () => {
     expect(voice.session.disconnect).toHaveBeenCalledOnce();
   });
 
+  it("reconnects after cleanup from the previous session throws", () => {
+    const consoleError = vi
+      .spyOn(console, "error")
+      .mockImplementation(() => {});
+    const cleanupError = new Error("cleanup failed");
+    const voice = createVoiceAdapter();
+    voice.adapter.connect = vi.fn(voice.adapter.connect);
+    voice.session.onStatusChange = () => () => {
+      throw cleanupError;
+    };
+    const runtime = new TestRuntime(voice);
+    runtime.connectVoice();
+
+    expect(() => runtime.connectVoice()).not.toThrow();
+    expect(voice.adapter.connect).toHaveBeenCalledTimes(2);
+    expect(consoleError).toHaveBeenCalledWith(
+      "[assistant-ui] Voice cleanup threw before reconnect",
+      cleanupError,
+    );
+  });
+
   it("continues notifying subscribers when one throws", () => {
     const consoleError = vi
       .spyOn(console, "error")
