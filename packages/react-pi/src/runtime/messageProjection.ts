@@ -664,13 +664,6 @@ const assistantGroupStart = (
   return start;
 };
 
-const lastAssistantMessageIndex = (messages: readonly PiAgentMessage[]) => {
-  for (let index = messages.length - 1; index >= 0; index--) {
-    if (messages[index]!.role === "assistant") return index;
-  }
-  return undefined;
-};
-
 const trailingAssistantMessageIndex = (messages: readonly PiAgentMessage[]) => {
   for (let index = messages.length - 1; index >= 0; index--) {
     const role = messages[index]!.role;
@@ -820,7 +813,7 @@ export class PiThreadMessageProjector {
     }
 
     if (previousInput.runStatus !== input.runStatus) {
-      const index = lastAssistantMessageIndex(input.messages);
+      const index = trailingAssistantMessageIndex(input.messages);
       if (index !== undefined) {
         dirtyIndex =
           dirtyIndex === undefined ? index : Math.min(dirtyIndex, index);
