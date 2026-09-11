@@ -305,6 +305,66 @@ describe("useAgUiRuntime active runs during thread switching", () => {
   );
 
   it.each(["existing", "new"])(
+    "preserves a same-length queue replacement before switching to %s",
+    async (destination) => {
+      const { agent, started } = pendingAgent();
+      const load = vi.fn(async () => ({ messages: [] }));
+      const create = vi.fn(async () => {});
+      const { result } = renderHook(() => {
+        const [threadId, setThreadId] = useState("initial");
+        return useAgUiRuntime({
+          agent,
+          unstable_enableMessageQueue: true,
+          onCancel: () => {
+            const composer = result.current.thread.composer;
+            const original = composer.getState().queue[0];
+            if (!original) return;
+            composer.removeQueueItem(original.id);
+            composer.setText("callback-replacement");
+            composer.send({ steer: false });
+          },
+          adapters: {
+            threadList: {
+              threadId,
+              onSwitchToThread: (id) => {
+                setThreadId(id);
+                return load();
+              },
+              onSwitchToNewThread: () => {
+                setThreadId("new-thread");
+                return create();
+              },
+            },
+          },
+        });
+      });
+      act(() => {
+        result.current.thread.append("hello");
+      });
+      await started;
+      await act(async () => {
+        result.current.thread.composer.setText("old-queued");
+        result.current.thread.composer.send({ steer: false });
+      });
+      expect(result.current.thread.composer.getState().queue).toHaveLength(1);
+      await act(async () => {
+        if (destination === "existing")
+          await result.current.threads.switchToThread("other");
+        else await result.current.threads.switchToNewThread();
+      });
+      expect(load).not.toHaveBeenCalled();
+      expect(create).not.toHaveBeenCalled();
+      expect(result.current.threads.getState().mainThreadId).toBe("initial");
+      expect(
+        result.current.thread
+          .getState()
+          .messages.findLast((m) => m.role === "user")?.content,
+      ).toEqual([{ type: "text", text: "callback-replacement" }]);
+      expect(result.current.thread.getState().isRunning).toBe(true);
+    },
+  );
+
+  it.each(["existing", "new"])(
     "switches to %s even when the agent abort hook throws",
     async (destination) => {
       const { agent, started } = pendingAgent();

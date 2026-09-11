@@ -186,8 +186,10 @@ export function useAgUiRuntime(
       threadListAdapter;
 
     const prepareThreadSwitch = async (generation: number) => {
-      const queuedCount = queueRef.current?.adapter.items.length ?? 0;
-      const steerCount = queueRef.current?.adapter.steerItems.length ?? 0;
+      const queuedIds =
+        queueRef.current?.adapter.items.map((item) => item.id) ?? [];
+      const steerIds =
+        queueRef.current?.adapter.steerItems.map((item) => item.id) ?? [];
       const ownsThread = core.supersedeActiveRun();
       // Public append's tool-abort fast path yields once before starting a run.
       await Promise.resolve();
@@ -195,8 +197,15 @@ export function useAgUiRuntime(
         !ownsThread ||
         generation !== threadSwitchGenerationRef.current ||
         core.isRunning() ||
-        (queueRef.current?.adapter.items.length ?? 0) !== queuedCount ||
-        (queueRef.current?.adapter.steerItems.length ?? 0) !== steerCount
+        (queueRef.current?.adapter.items.length ?? 0) !== queuedIds.length ||
+        queuedIds.some(
+          (id, index) => queueRef.current?.adapter.items[index]?.id !== id,
+        ) ||
+        (queueRef.current?.adapter.steerItems.length ?? 0) !==
+          steerIds.length ||
+        steerIds.some(
+          (id, index) => queueRef.current?.adapter.steerItems[index]?.id !== id,
+        )
       )
         return false;
       queueRef.current?.clear();
