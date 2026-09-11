@@ -1,7 +1,12 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import { A2AThreadRuntimeCore } from "./A2AThreadRuntimeCore";
 import type { A2AClient } from "./A2AClient";
-import type { A2AMessage, A2AStreamEvent, A2ATask } from "./types";
+import type {
+  A2AAgentCard,
+  A2AMessage,
+  A2AStreamEvent,
+  A2ATask,
+} from "./types";
 import type { AppendMessage, ThreadMessage } from "@assistant-ui/core";
 
 // --- Mock client factory ---
@@ -791,6 +796,53 @@ describe("A2AThreadRuntimeCore", () => {
   // --- Sync (non-streaming) fallback ---
 
   describe("sync fallback", () => {
+    it("waits for agent capabilities before choosing the first send method", async () => {
+      let resolveAgentCard!: (value: A2AAgentCard) => void;
+      const getAgentCard = vi.fn(
+        () =>
+          new Promise<A2AAgentCard>((resolve) => {
+            resolveAgentCard = resolve;
+          }),
+      );
+      const sendMessage = vi.fn().mockResolvedValue({
+        id: "t1",
+        status: { state: "completed" },
+      } satisfies A2ATask);
+      const streamMessage = vi.fn();
+      const core = createCore({ getAgentCard, sendMessage, streamMessage });
+
+      const run = core.append(createUserAppendMessage("Hello"));
+      expect(sendMessage).not.toHaveBeenCalled();
+      expect(streamMessage).not.toHaveBeenCalled();
+
+      resolveAgentCard({
+        name: "Agent",
+        capabilities: { streaming: false },
+      } as A2AAgentCard);
+      await run;
+
+      expect(getAgentCard).toHaveBeenCalledOnce();
+      expect(sendMessage).toHaveBeenCalledOnce();
+      expect(streamMessage).not.toHaveBeenCalled();
+    });
+
+    it("stops waiting for agent capabilities when the run is cancelled", async () => {
+      const getAgentCard = vi.fn(() => new Promise<A2AAgentCard>(() => {}));
+      const sendMessage = vi.fn();
+      const streamMessage = vi.fn();
+      const core = createCore({ getAgentCard, sendMessage, streamMessage });
+
+      const run = core.append(createUserAppendMessage("Hello"));
+      expect(core.isRunning()).toBe(true);
+
+      await core.cancel();
+      await run;
+
+      expect(core.isRunning()).toBe(false);
+      expect(sendMessage).not.toHaveBeenCalled();
+      expect(streamMessage).not.toHaveBeenCalled();
+    });
+
     it("uses sendMessage when streaming is false in agent card", async () => {
       const sendMessage = vi.fn().mockResolvedValue({
         id: "t1",

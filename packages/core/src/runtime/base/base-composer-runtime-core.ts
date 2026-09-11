@@ -203,6 +203,10 @@ export abstract class BaseComposerRuntimeCore
 
   public async clearAttachments() {
     this._cancelAllAttachmentAdds();
+    if (this._isSending) {
+      for (const attachment of this._attachments)
+        this._removedDuringSend.add(attachment.id);
+    }
     const task = this._onClearAttachments();
     this.setAttachments([]);
 
