@@ -217,7 +217,7 @@ const hasValidToolCallMetadata = (value: Record<string, unknown>): boolean =>
 const isStoredMessagePart = (
   value: unknown,
   role: ThreadMessage["role"],
-): boolean => {
+): value is StoredMessagePart => {
   if (!isRecord(value)) return false;
 
   switch (value.type) {
@@ -339,7 +339,7 @@ const parseStoredMessagePart = (
   role: ThreadMessage["role"],
   depth: number,
 ): StoredMessagePart | null => {
-  if (!isStoredMessagePart(value, role) || !isRecord(value)) return null;
+  if (!isStoredMessagePart(value, role)) return null;
   if (value.type !== "tool-call" || !Array.isArray(value.messages)) {
     return value as StoredMessagePart;
   }
@@ -348,7 +348,7 @@ const parseStoredMessagePart = (
     const parsed = parseStoredThreadMessage(message, depth + 1);
     return parsed ? [parsed] : [];
   });
-  return { ...value, messages } as StoredMessagePart;
+  return { ...value, messages };
 };
 
 function parseStoredThreadMessage(
@@ -413,8 +413,9 @@ function parseStoredThreadMessage(
           : undefined),
         ...(isMessageTiming(metadata.timing)
           ? {
-              timing:
-                metadata.timing as StoredAssistantMessage["metadata"]["timing"],
+              timing: metadata.timing as NonNullable<
+                StoredAssistantMessage["metadata"]["timing"]
+              >,
             }
           : undefined),
         ...(metadata.isOptimistic === true
