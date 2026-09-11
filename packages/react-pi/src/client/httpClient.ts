@@ -27,7 +27,10 @@
  *   GET    /threads/:id/events      → SSE of PiClientEvent (?snapshot=false skips initial snapshot)
  */
 import { isRecord } from "@assistant-ui/core/internal";
-import { openPiEventStream } from "./eventSource";
+import {
+  createPiEventStreamConnection,
+  openPiEventStream,
+} from "./eventSource";
 import { isThreadMetadata, isThreadSnapshot } from "./validation";
 import type {
   PiClient,
@@ -64,7 +67,7 @@ type SharedStream = {
   liveSnapshotSeq: number;
   awaitingLiveSnapshot: boolean;
   snapshotLoad: SharedSnapshotLoad | undefined;
-  close: () => void;
+  close: ReturnType<typeof createPiEventStreamConnection>;
   closeTimer: ReturnType<typeof setTimeout> | undefined;
 };
 
@@ -416,7 +419,7 @@ export const createPiHttpClient = (
           awaitingLiveSnapshot: false,
           snapshotLoad: undefined,
           closeTimer: undefined,
-          close: openPiEventStream({
+          close: createPiEventStreamConnection({
             url: eventsUrl,
             expectedThreadId: threadId,
             ...(!includeSnapshot && {
@@ -502,6 +505,7 @@ export const createPiHttpClient = (
       } else if (stream.closeTimer) {
         clearTimeout(stream.closeTimer);
         stream.closeTimer = undefined;
+        stream.close.reconnect();
       }
 
       const isNewListener = !stream.listeners.has(listener);

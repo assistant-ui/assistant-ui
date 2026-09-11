@@ -236,7 +236,13 @@ const parseEventStreamPayload = (
  */
 export const openPiEventStream = (
   options: PiEventStreamOptions,
-): (() => void) => {
+): (() => void) => createPiEventStreamConnection(options);
+
+type PiEventStreamConnection = (() => void) & { reconnect: () => void };
+
+export const createPiEventStreamConnection = (
+  options: PiEventStreamOptions,
+): PiEventStreamConnection => {
   const {
     url,
     onEvent,
@@ -252,6 +258,7 @@ export const openPiEventStream = (
   let closed = false;
   let needsSnapshotRecovery = false;
   let cancelActiveReader: (() => void) | undefined;
+  let interruptReconnectWait: (() => void) | undefined;
   const abort = new AbortController();
   const reportCallbackError = (callbackError: unknown) => {
     console.error("[react-pi] onError callback threw an error", callbackError);
@@ -286,6 +293,35 @@ export const openPiEventStream = (
       void Promise.resolve(onConnect()).catch(reportConnectCallbackError);
     } catch (callbackError) {
       reportConnectCallbackError(callbackError);
+    }
+  };
+
+  const waitForReconnect = async () => {
+    let interrupt!: () => void;
+    const interrupted = new Promise<void>((resolve) => {
+      interrupt = resolve;
+    });
+    interruptReconnectWait = interrupt;
+
+    try {
+      const result = await Promise.race([
+        Promise.resolve()
+          .then(() => reconnectDelay())
+          .then(
+            () => ({ status: "ready" as const }),
+            (error: unknown) => ({ status: "error" as const, error }),
+          ),
+        interrupted.then(() => ({ status: "interrupted" as const })),
+      ]);
+
+      if (result.status === "error" && !closed) {
+        reportError(result.error);
+        await Promise.race([defaultReconnectDelay(), interrupted]);
+      }
+    } finally {
+      if (interruptReconnectWait === interrupt) {
+        interruptReconnectWait = undefined;
+      }
     }
   };
 
@@ -374,22 +410,19 @@ export const openPiEventStream = (
       needsSnapshotRecovery = true;
       // Snapshot-first: the next connect replaces local state, so we lose
       // nothing by not replaying. Back off, then retry.
-      try {
-        await reconnectDelay();
-      } catch (error) {
-        if (closed) break;
-        reportError(error);
-        await defaultReconnectDelay();
-        if (closed) break;
-      }
+      await waitForReconnect();
     }
   };
 
   void run();
 
-  return () => {
-    closed = true;
-    abort.abort();
-    cancelActiveReader?.();
-  };
+  return Object.assign(
+    () => {
+      closed = true;
+      abort.abort();
+      cancelActiveReader?.();
+      interruptReconnectWait?.();
+    },
+    { reconnect: () => interruptReconnectWait?.() },
+  );
 };

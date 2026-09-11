@@ -519,6 +519,37 @@ describe("createPiHttpClient", () => {
     expect(events).toEqual([event]);
   });
 
+  it("reconnects promptly when a listener joins during backoff", async () => {
+    let finishBackoff!: () => void;
+    const reconnectDelay = vi.fn(
+      () =>
+        new Promise<void>((resolve) => {
+          finishBackoff = resolve;
+        }),
+    );
+    const fetchImpl = vi.fn(async () =>
+      sseResponse(
+        { type: "agent_start", threadId: "t1", seq: 1 },
+        { keepOpen: fetchImpl.mock.calls.length > 1 },
+      ),
+    ) as unknown as typeof fetch;
+    const client = createPiHttpClient({
+      fetchImpl,
+      reconnectDelay,
+      streamCloseDelayMs: 1,
+    });
+
+    const unsubscribeFirst = client.subscribe("t1", () => {});
+    await vi.waitFor(() => expect(reconnectDelay).toHaveBeenCalledOnce());
+    unsubscribeFirst();
+
+    const unsubscribeSecond = client.subscribe("t1", () => {});
+    await vi.waitFor(() => expect(fetchImpl).toHaveBeenCalledTimes(2));
+
+    unsubscribeSecond();
+    finishBackoff();
+  });
+
   it("isolates listener errors while delivering shared stream events", async () => {
     const event: PiAnyClientEvent = {
       type: "agent_start",
