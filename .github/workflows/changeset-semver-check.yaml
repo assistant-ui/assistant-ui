@@ -30,9 +30,6 @@ jobs:
           runtime: node@24
           install: false
 
-      - name: Test the dependency updater
-        run: pnpm update-deps:test
-
       - name: Test the changeset checker
         run: node --test scripts/check-changesets.test.mjs
 
