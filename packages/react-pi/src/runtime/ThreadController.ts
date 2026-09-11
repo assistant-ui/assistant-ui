@@ -254,10 +254,8 @@ const markStateRunning = (state: PiThreadState): PiThreadState => {
 export class PiThreadController implements PiThreadControllerLike {
   private state: PiThreadState;
   private stateSnapshot: PiThreadState;
-  private projectedMessages: readonly ThreadMessageLike[] = [];
-  private readonly messageProjector = new PiThreadMessageProjector(
-    this.projectedMessages,
-  );
+  private projectedMessages: readonly ThreadMessageLike[];
+  private readonly messageProjector: PiThreadMessageProjector;
   private messageRepository = ExportedMessageRepository.fromArray([]);
   private version = 0;
   private readonly allListeners = new Set<() => void>();
@@ -291,6 +289,13 @@ export class PiThreadController implements PiThreadControllerLike {
     this.options = options;
     this.state = createPiThreadState(threadId);
     this.stateSnapshot = this.state;
+    this.messageProjector = new PiThreadMessageProjector();
+    this.projectedMessages = this.messageProjector.project({
+      messages: this.state.messages,
+      toolExecutions: this.state.toolExecutions,
+      runStatus: this.state.runStatus,
+      hostUiRequests: this.state.hostUiRequests,
+    });
   }
 
   public getState() {

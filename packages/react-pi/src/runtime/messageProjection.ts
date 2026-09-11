@@ -694,10 +694,6 @@ export class PiThreadMessageProjector {
   private toolResults = new Map<string, ProjectedToolResult>();
   private toolCallIndices = new Map<string, number>();
 
-  public constructor(projectedMessages: readonly ThreadMessageLike[] = []) {
-    this.projectedMessages = projectedMessages;
-  }
-
   public getChangedProjectedIndex() {
     return this.changedProjectedIndex;
   }
