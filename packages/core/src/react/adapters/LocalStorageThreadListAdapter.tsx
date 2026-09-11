@@ -232,10 +232,36 @@ const parseStoredAssistantContent = (
     }
   });
 
+const isStoredUserContentPart = (value: unknown): boolean => {
+  if (!isRecord(value) || typeof value.type !== "string") return false;
+
+  switch (value.type) {
+    case "text":
+      return typeof value.text === "string";
+    case "image":
+      return typeof value.image === "string";
+    case "file":
+      return (
+        typeof value.data === "string" && typeof value.mimeType === "string"
+      );
+    case "audio":
+      return (
+        isRecord(value.audio) &&
+        typeof value.audio.data === "string" &&
+        (value.audio.format === "mp3" || value.audio.format === "wav")
+      );
+    case "data":
+      return typeof value.name === "string" && "data" in value;
+    default:
+      return value.type.startsWith("data-") && "data" in value;
+  }
+};
+
 const parseStoredUserContent = (
   content: unknown[],
 ): StoredUserMessage["content"] =>
   content.flatMap((part) => {
+    if (!isStoredUserContentPart(part)) return [];
     try {
       const message = fromThreadMessageLike(
         { role: "user", content: [part] } as unknown as ThreadMessageLike,
