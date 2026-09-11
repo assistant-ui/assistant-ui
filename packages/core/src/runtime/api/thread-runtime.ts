@@ -18,7 +18,7 @@ import {
 } from "./message-runtime";
 import { NestedSubscriptionSubject } from "../../subscribable/subscribable";
 import {
-  notifySubscribers,
+  runCleanups,
   ShallowMemoizeSubject,
   SKIP_UPDATE,
 } from "../../subscribable/subscribable";
@@ -373,7 +373,7 @@ export class ThreadRuntimeImpl implements ThreadRuntime {
       subscribe: (callback) => {
         const sub1 = threadBinding.subscribe(callback);
         const sub2 = threadListItemBinding.subscribe(callback);
-        return () => notifySubscribers([sub1, sub2]);
+        return () => runCleanups([sub1, sub2]);
       },
     });
 

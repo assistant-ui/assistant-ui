@@ -58,6 +58,10 @@ export const notifySubscribers = <TArgs extends unknown[]>(
   }
 };
 
+export const runCleanups = (cleanups: Iterable<Unsubscribe>): void => {
+  notifySubscribers(cleanups);
+};
+
 const shallowEqualOrUndefined = <T extends object>(
   a: T | undefined,
   b: T | undefined,
@@ -292,10 +296,8 @@ export class NestedSubscriptionSubject<
     };
 
     const outerUnsubscribe = this.outerSubscribe(onRuntimeUpdate);
-    return () => {
-      outerUnsubscribe?.();
-      innerUnsubscribe?.();
-    };
+    return () =>
+      runCleanups([() => outerUnsubscribe?.(), () => innerUnsubscribe?.()]);
   }
 }
 
@@ -335,9 +337,7 @@ export class EventSubscriptionSubject<
     };
 
     const outerUnsubscribe = this.outerSubscribe(onRuntimeUpdate);
-    return () => {
-      outerUnsubscribe?.();
-      innerUnsubscribe?.();
-    };
+    return () =>
+      runCleanups([() => outerUnsubscribe?.(), () => innerUnsubscribe?.()]);
   }
 }

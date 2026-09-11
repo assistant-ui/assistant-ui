@@ -1,6 +1,10 @@
 import { describe, expect, it, vi } from "vitest";
 import type { SubscribableWithState } from "./subscribable";
-import { LazyMemoizeSubject, ShallowMemoizeSubject } from "./subscribable";
+import {
+  LazyMemoizeSubject,
+  runCleanups,
+  ShallowMemoizeSubject,
+} from "./subscribable";
 
 type TestState = {
   status: string;
@@ -55,6 +59,23 @@ const createRebuildingBinding = (initialState: TestState) => {
     },
   };
 };
+
+describe("runCleanups", () => {
+  it("runs every cleanup before rethrowing an error", () => {
+    const cleanupError = new Error("cleanup failed");
+    const laterCleanup = vi.fn();
+
+    expect(() =>
+      runCleanups([
+        () => {
+          throw cleanupError;
+        },
+        laterCleanup,
+      ]),
+    ).toThrow(cleanupError);
+    expect(laterCleanup).toHaveBeenCalledOnce();
+  });
+});
 
 describe("ShallowMemoizeSubject", () => {
   it("notifies subscribers when a state key is removed", () => {
