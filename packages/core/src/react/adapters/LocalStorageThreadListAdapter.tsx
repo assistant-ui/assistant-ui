@@ -130,6 +130,7 @@ const DEFAULT_STORED_MESSAGE_STATUS = {
   type: "complete",
   reason: "unknown",
 } as const satisfies MessageStatus;
+const MAX_STORED_MESSAGE_DEPTH = 100;
 
 const parseStoredMessageStatus = (value: unknown): MessageStatus => {
   if (!isRecord(value)) return DEFAULT_STORED_MESSAGE_STATUS;
@@ -199,6 +200,7 @@ const parseStoredToolModelContent = (
 
 const parseStoredAssistantContent = (
   content: unknown[],
+  depth: number,
 ): StoredAssistantMessage["content"] =>
   content.flatMap((rawPart) => {
     try {
@@ -214,7 +216,7 @@ const parseStoredAssistantContent = (
           ...(Array.isArray(messages)
             ? {
                 messages: messages.flatMap((message) => {
-                  const parsed = parseStoredThreadMessage(message);
+                  const parsed = parseStoredThreadMessage(message, depth + 1);
                   return parsed ? [parsed] : [];
                 }),
               }
@@ -299,7 +301,11 @@ const parseStoredAttachment = (value: unknown): CompleteAttachment | null => {
   };
 };
 
-function parseStoredThreadMessage(value: unknown): ThreadMessage | null {
+function parseStoredThreadMessage(
+  value: unknown,
+  depth = 0,
+): ThreadMessage | null {
+  if (depth > MAX_STORED_MESSAGE_DEPTH) return null;
   if (!isRecord(value) || typeof value.id !== "string") return null;
   if (!isMessageRole(value.role)) return null;
   if (!Array.isArray(value.content)) return null;
@@ -319,7 +325,7 @@ function parseStoredThreadMessage(value: unknown): ThreadMessage | null {
     return {
       id: value.id,
       role: "assistant",
-      content: parseStoredAssistantContent(value.content),
+      content: parseStoredAssistantContent(value.content, depth),
       status: parseStoredMessageStatus(value.status),
       createdAt,
       metadata: {

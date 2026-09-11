@@ -313,6 +313,40 @@ describe("parseStoredMessageRepository", () => {
     ).not.toThrow();
   });
 
+  it("bounds nested tool-call message normalization", () => {
+    let nestedMessage: unknown = storedMessage("leaf", "assistant");
+    for (let depth = 101; depth >= 0; depth -= 1) {
+      nestedMessage = {
+        ...storedMessage(`nested-${depth}`, "assistant"),
+        content: [
+          {
+            type: "tool-call",
+            toolCallId: `call-${depth}`,
+            toolName: "delegate",
+            args: {},
+            messages: [nestedMessage],
+          },
+        ],
+      };
+    }
+
+    const repo = parseStoredMessageRepository(
+      JSON.stringify({
+        messages: [{ message: nestedMessage, parentId: null }],
+      }),
+    );
+
+    let message = repo.messages[0]?.message;
+    let parsedDepth = 0;
+    while (message?.role === "assistant") {
+      const part = message.content[0];
+      if (part?.type !== "tool-call" || !part.messages?.[0]) break;
+      parsedDepth += 1;
+      message = part.messages[0];
+    }
+    expect(parsedDepth).toBe(100);
+  });
+
   it("drops malformed attachments and defaults an invalid assistant status", () => {
     const repo = parseStoredMessageRepository(
       JSON.stringify({
