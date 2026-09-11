@@ -141,7 +141,6 @@ export const useAssistantForm = <
           if (assistantSubmit && !assistantSubmit.form.isConnected) {
             assistantSubmit.cancel();
           }
-          if (assistantSubmit?.unavailable) return undefined;
           if (assistantSubmit) assistantSubmit.outcome = true;
           return onValid(...args);
         },
@@ -150,7 +149,6 @@ export const useAssistantForm = <
           if (assistantSubmit && !assistantSubmit.form.isConnected) {
             assistantSubmit.cancel();
           }
-          if (assistantSubmit?.unavailable) return undefined;
           if (assistantSubmit) assistantSubmit.outcome = false;
           return onInvalid?.(...args);
         },

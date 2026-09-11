@@ -323,11 +323,11 @@ describe("useAssistantForm", () => {
     });
 
     await act(() => resolveValidation({ values: { name: "Ada" }, errors: {} }));
-    expect(onValid).not.toHaveBeenCalled();
+    expect(onValid).toHaveBeenCalledOnce();
     host.remove();
   });
 
-  it("suppresses a valid callback when validation disconnects the form", async () => {
+  it("invokes a valid callback when validation disconnects the form", async () => {
     type FormValues = { name: string };
     let formElement: HTMLFormElement | null = null;
     const resolver: Resolver<FormValues> = async () => {
@@ -355,7 +355,7 @@ describe("useAssistantForm", () => {
       success: false,
       message: "The form is no longer available.",
     });
-    expect(onValid).not.toHaveBeenCalled();
+    expect(onValid).toHaveBeenCalledOnce();
   });
 
   it("reports success when a valid submit handler unmounts the form", async () => {
