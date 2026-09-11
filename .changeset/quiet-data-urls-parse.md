@@ -1,5 +1,6 @@
 ---
 "@assistant-ui/core": patch
+"@assistant-ui/react-google-adk": patch
 ---
 
-fix: parse base64 data URLs that omit their media type
+fix: parse base64 data URLs without a media type across core converters and Google ADK
