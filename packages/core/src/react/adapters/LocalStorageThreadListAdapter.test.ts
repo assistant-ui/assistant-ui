@@ -175,6 +175,28 @@ describe("parseStoredMessageRepository", () => {
           },
           {
             message: {
+              ...storedMessage("invalid-generative-ui", "assistant"),
+              content: [{ type: "generative-ui", spec: {} }],
+            },
+            parentId: null,
+          },
+          {
+            message: {
+              ...storedMessage("invalid-optional-fields", "assistant"),
+              content: [
+                { type: "text", text: "safe", status: null },
+                {
+                  type: "file",
+                  data: "aGVsbG8=",
+                  mimeType: "text/plain",
+                  filename: 42,
+                },
+              ],
+            },
+            parentId: null,
+          },
+          {
+            message: {
               ...storedMessage("valid"),
               content: [{ type: "text", text: "hello" }],
             },
@@ -188,6 +210,8 @@ describe("parseStoredMessageRepository", () => {
       "null-part",
       "invalid-text",
       "invalid-nested-message",
+      "invalid-generative-ui",
+      "invalid-optional-fields",
       "valid",
     ]);
     expect(repo.messages[0]?.message.content).toEqual([]);
@@ -195,6 +219,8 @@ describe("parseStoredMessageRepository", () => {
     expect(repo.messages[2]?.message.content).toEqual([
       expect.objectContaining({ messages: [] }),
     ]);
+    expect(repo.messages[3]?.message.content).toEqual([]);
+    expect(repo.messages[4]?.message.content).toEqual([]);
   });
 
   it("normalizes malformed attachments, statuses, and metadata", () => {
@@ -214,8 +240,13 @@ describe("parseStoredMessageRepository", () => {
               status: { type: "complete", reason: "length" },
               metadata: {
                 custom: {},
-                steps: [null, { messageId: "step-1" }],
-                timing: null,
+                steps: [
+                  null,
+                  { messageId: "step-1" },
+                  { messageId: 42 },
+                  { usage: { inputTokens: 1, outputTokens: "bad" } },
+                ],
+                timing: { streamStartTime: "bad" },
               },
             },
             parentId: null,
@@ -246,6 +277,7 @@ describe("parseStoredMessageRepository", () => {
       status: { type: "complete", reason: "unknown" },
       metadata: { steps: [{ messageId: "step-1" }] },
     });
+    expect(repo.messages[1]?.message.metadata.timing).toBeUndefined();
     expect(repo.messages[2]?.message.attachments).toEqual([]);
   });
 
@@ -259,6 +291,8 @@ describe("parseStoredMessageRepository", () => {
         title: "Reference",
         mediaType: "text/plain",
         filename: "reference.txt",
+        providerMetadata: { provider: { sourceId: "provider-source" } },
+        parentId: "group-1",
       },
       { type: "generative-ui", spec: { root: "Hello" }, id: "ui-1" },
       {
@@ -266,6 +300,9 @@ describe("parseStoredMessageRepository", () => {
         data: "aGVsbG8=",
         mimeType: "text/plain",
         filename: "hello.txt",
+        sourceType: "id",
+        providerMetadata: { provider: { fileId: "provider-file" } },
+        parentId: "group-1",
       },
       { type: "data", name: "empty" },
       {
@@ -293,7 +330,28 @@ describe("parseStoredMessageRepository", () => {
       JSON.stringify({
         messages: [
           {
-            message: { ...storedMessage("assistant", "assistant"), content },
+            message: {
+              ...storedMessage("assistant", "assistant"),
+              content,
+              metadata: {
+                custom: {},
+                steps: [
+                  {
+                    messageId: "assistant",
+                    usage: { inputTokens: 4, outputTokens: 5 },
+                  },
+                ],
+                timing: {
+                  streamStartTime: 1,
+                  firstTokenTime: 2,
+                  totalStreamTime: 3,
+                  tokenCount: 4,
+                  tokensPerSecond: 5,
+                  totalChunks: 6,
+                  toolCallCount: 7,
+                },
+              },
+            },
             parentId: null,
           },
           {
@@ -321,6 +379,23 @@ describe("parseStoredMessageRepository", () => {
       },
     ]);
     expect(repo.messages[1]?.message.attachments).toEqual([attachment]);
+    expect(repo.messages[0]?.message.metadata).toMatchObject({
+      steps: [
+        {
+          messageId: "assistant",
+          usage: { inputTokens: 4, outputTokens: 5 },
+        },
+      ],
+      timing: {
+        streamStartTime: 1,
+        firstTokenTime: 2,
+        totalStreamTime: 3,
+        tokenCount: 4,
+        tokensPerSecond: 5,
+        totalChunks: 6,
+        toolCallCount: 7,
+      },
+    });
     const toolCall = repo.messages[0]?.message.content[4];
     expect(toolCall).toMatchObject({
       type: "tool-call",

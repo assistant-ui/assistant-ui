@@ -140,6 +140,80 @@ const isMessageStatus = (value: unknown): boolean => {
   );
 };
 
+const isMessagePartStatus = (value: unknown): boolean => {
+  if (!isRecord(value)) return false;
+  if (value.type === "running" || value.type === "complete") return true;
+  return (
+    value.type === "incomplete" &&
+    (value.reason === "cancelled" ||
+      value.reason === "length" ||
+      value.reason === "content-filter" ||
+      value.reason === "other" ||
+      value.reason === "error")
+  );
+};
+
+const isProviderMetadata = (value: unknown): boolean =>
+  isRecord(value) && Object.values(value).every(isRecord);
+
+const hasValidPartMetadata = (
+  value: Record<string, unknown>,
+  hasStatus: boolean,
+): boolean =>
+  (value.status === undefined ||
+    (hasStatus && isMessagePartStatus(value.status))) &&
+  (value.providerMetadata === undefined ||
+    isProviderMetadata(value.providerMetadata)) &&
+  (value.parentId === undefined || typeof value.parentId === "string");
+
+const isGenerativeUINode = (value: unknown, depth = 0): boolean => {
+  if (depth > 100) return false;
+  if (typeof value === "string") return true;
+  if (!isRecord(value) || typeof value.component !== "string") return false;
+  if (value.props !== undefined && !isRecord(value.props)) return false;
+  if (value.key !== undefined && typeof value.key !== "string") return false;
+  return (
+    value.children === undefined ||
+    (Array.isArray(value.children) &&
+      value.children.every((child) => isGenerativeUINode(child, depth + 1)))
+  );
+};
+
+const isGenerativeUISpec = (value: unknown): boolean =>
+  isRecord(value) &&
+  (Array.isArray(value.root)
+    ? value.root.every((node) => isGenerativeUINode(node))
+    : isGenerativeUINode(value.root));
+
+const isToolCallTiming = (value: unknown): boolean =>
+  isRecord(value) &&
+  typeof value.startedAt === "number" &&
+  (value.completedAt === undefined || typeof value.completedAt === "number");
+
+const isToolModelContent = (value: unknown): boolean =>
+  Array.isArray(value) &&
+  value.every(
+    (part) =>
+      isRecord(part) &&
+      ((part.type === "text" && typeof part.text === "string") ||
+        (part.type === "file" &&
+          typeof part.data === "string" &&
+          typeof part.mediaType === "string" &&
+          (part.filename === undefined || typeof part.filename === "string"))),
+  );
+
+const hasValidToolCallMetadata = (value: Record<string, unknown>): boolean =>
+  hasValidPartMetadata(value, false) &&
+  (value.isError === undefined || typeof value.isError === "boolean") &&
+  (value.timing === undefined || isToolCallTiming(value.timing)) &&
+  (value.modelContent === undefined ||
+    isToolModelContent(value.modelContent)) &&
+  (value.interrupt === undefined ||
+    (isRecord(value.interrupt) && value.interrupt.type === "human")) &&
+  (value.approval === undefined ||
+    (isRecord(value.approval) && typeof value.approval.id === "string")) &&
+  (value.mcp === undefined || isRecord(value.mcp));
+
 const isStoredMessagePart = (
   value: unknown,
   role: ThreadMessage["role"],
@@ -148,14 +222,27 @@ const isStoredMessagePart = (
 
   switch (value.type) {
     case "text":
-      return typeof value.text === "string";
+      return (
+        typeof value.text === "string" && hasValidPartMetadata(value, true)
+      );
     case "image":
-      return role !== "system" && typeof value.image === "string";
+      return (
+        role !== "system" &&
+        typeof value.image === "string" &&
+        (value.filename === undefined || typeof value.filename === "string") &&
+        (value.providerMetadata === undefined ||
+          isProviderMetadata(value.providerMetadata))
+      );
     case "file":
       return (
         role !== "system" &&
         typeof value.data === "string" &&
-        typeof value.mimeType === "string"
+        typeof value.mimeType === "string" &&
+        (value.filename === undefined || typeof value.filename === "string") &&
+        (value.sourceType === undefined ||
+          value.sourceType === "url" ||
+          value.sourceType === "id") &&
+        hasValidPartMetadata(value, false)
       );
     case "data":
       return role !== "system" && typeof value.name === "string";
@@ -167,18 +254,34 @@ const isStoredMessagePart = (
         (value.audio.format === "mp3" || value.audio.format === "wav")
       );
     case "reasoning":
-      return role === "assistant" && typeof value.text === "string";
+      return (
+        role === "assistant" &&
+        typeof value.text === "string" &&
+        (value.unstable_summary === undefined ||
+          typeof value.unstable_summary === "string") &&
+        hasValidPartMetadata(value, true)
+      );
     case "source":
       return (
         role === "assistant" &&
         typeof value.id === "string" &&
-        ((value.sourceType === "url" && typeof value.url === "string") ||
+        hasValidPartMetadata(value, false) &&
+        ((value.sourceType === "url" &&
+          typeof value.url === "string" &&
+          (value.title === undefined || typeof value.title === "string")) ||
           (value.sourceType === "document" &&
             typeof value.title === "string" &&
-            typeof value.mediaType === "string"))
+            typeof value.mediaType === "string" &&
+            (value.filename === undefined ||
+              typeof value.filename === "string")))
       );
     case "generative-ui":
-      return role === "assistant" && isRecord(value.spec);
+      return (
+        role === "assistant" &&
+        isGenerativeUISpec(value.spec) &&
+        (value.id === undefined || typeof value.id === "string") &&
+        (value.parentId === undefined || typeof value.parentId === "string")
+      );
     case "tool-call":
       return (
         role === "assistant" &&
@@ -186,6 +289,7 @@ const isStoredMessagePart = (
         typeof value.toolName === "string" &&
         isRecord(value.args) &&
         typeof value.argsText === "string" &&
+        hasValidToolCallMetadata(value) &&
         (value.messages === undefined || Array.isArray(value.messages))
       );
     default:
@@ -198,10 +302,32 @@ const isStoredAttachment = (value: unknown): boolean =>
   typeof value.id === "string" &&
   typeof value.type === "string" &&
   typeof value.name === "string" &&
+  (value.contentType === undefined || typeof value.contentType === "string") &&
   isRecord(value.status) &&
   value.status.type === "complete" &&
   Array.isArray(value.content) &&
   value.content.every((part) => isStoredMessagePart(part, "user"));
+
+const isThreadStep = (value: unknown): boolean =>
+  isRecord(value) &&
+  (value.messageId === undefined || typeof value.messageId === "string") &&
+  (value.usage === undefined ||
+    (isRecord(value.usage) &&
+      typeof value.usage.inputTokens === "number" &&
+      typeof value.usage.outputTokens === "number"));
+
+const isMessageTiming = (value: unknown): boolean =>
+  isRecord(value) &&
+  typeof value.streamStartTime === "number" &&
+  typeof value.totalChunks === "number" &&
+  typeof value.toolCallCount === "number" &&
+  (value.firstTokenTime === undefined ||
+    typeof value.firstTokenTime === "number") &&
+  (value.totalStreamTime === undefined ||
+    typeof value.totalStreamTime === "number") &&
+  (value.tokenCount === undefined || typeof value.tokenCount === "number") &&
+  (value.tokensPerSecond === undefined ||
+    typeof value.tokensPerSecond === "number");
 
 type StoredMessagePart =
   | StoredSystemMessage["content"][number]
@@ -274,7 +400,7 @@ function parseStoredThreadMessage(
           : [],
         steps: Array.isArray(metadata.steps)
           ? (metadata.steps.filter(
-              isRecord,
+              isThreadStep,
             ) as StoredAssistantMessage["metadata"]["steps"])
           : [],
         ...(submittedFeedbackType === "positive" ||
@@ -285,7 +411,7 @@ function parseStoredThreadMessage(
               },
             }
           : undefined),
-        ...(isRecord(metadata.timing)
+        ...(isMessageTiming(metadata.timing)
           ? {
               timing:
                 metadata.timing as StoredAssistantMessage["metadata"]["timing"],
