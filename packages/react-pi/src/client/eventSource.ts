@@ -410,6 +410,7 @@ export const createPiEventStreamConnection = (
         }
       } catch (error) {
         if (closed || abort.signal.aborted) break;
+        reconnectPending = true;
         reportError(error);
       }
       if (closed) break;
