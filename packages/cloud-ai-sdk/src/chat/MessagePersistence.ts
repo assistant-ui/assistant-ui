@@ -64,6 +64,17 @@ export class MessagePersistence {
     return created;
   }
 
+  getResolvedRemoteId(threadId: string, messageId: string): string | undefined {
+    return this.getPersistence(threadId).getResolvedRemoteId(messageId);
+  }
+
+  getRemoteId(
+    threadId: string,
+    messageId: string,
+  ): Promise<string | undefined> {
+    return this.getPersistence(threadId).getRemoteId(messageId);
+  }
+
   async persist(
     threadId: string,
     messages: UIMessage[],

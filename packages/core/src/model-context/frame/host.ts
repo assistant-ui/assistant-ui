@@ -73,9 +73,10 @@ export class AssistantFrameHost implements ModelContextProvider {
     this._targetOrigin = targetOrigin;
 
     this.handleMessage = this.handleMessage.bind(this);
-    window.addEventListener("message", this.handleMessage);
-
+    // A posted message cannot be delivered before this constructor returns, so
+    // requesting first means a failed request leaves no listener to clean up.
     this.requestContext();
+    window.addEventListener("message", this.handleMessage);
   }
 
   private handleMessage(event: MessageEvent) {
@@ -195,10 +196,16 @@ export class AssistantFrameHost implements ModelContextProvider {
       }, timeout);
       abortSignal?.addEventListener("abort", onAbort, { once: true });
 
-      this._iframeWindow.postMessage(
-        { channel: FRAME_MESSAGE_CHANNEL, message },
-        this._targetOrigin,
-      );
+      try {
+        this._iframeWindow.postMessage(
+          { channel: FRAME_MESSAGE_CHANNEL, message },
+          this._targetOrigin,
+        );
+      } catch (error) {
+        const pending = this._pendingRequests.get(message.id);
+        this._pendingRequests.delete(message.id);
+        pending?.reject(error);
+      }
     });
   }
 

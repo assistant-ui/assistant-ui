@@ -5,6 +5,21 @@ import { renderHook } from "@testing-library/react";
 import type { AssistantCloud } from "assistant-cloud";
 import { createCloudThreadListAdapter } from "./createCloudThreadListAdapter";
 
+vi.mock("@assistant-ui/store", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("@assistant-ui/store")>()),
+  useAui: () => ({
+    threads: {
+      getState: () => ({ mainThreadId: "local-1", threadItems: [] }),
+    },
+    thread: { getState: () => ({ isEmpty: true, suggestions: [] }) },
+    threadListItem: {
+      getState: () => ({ id: "local-1", remoteId: "remote-1" }),
+    },
+    on: () => () => {},
+    subscribe: () => () => {},
+  }),
+}));
+
 const makeCloud = () =>
   ({
     threads: {

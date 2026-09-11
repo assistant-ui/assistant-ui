@@ -23,6 +23,13 @@ describe("AssistantCloud telemetry config", () => {
     expect(createCloud({ enabled: false }).telemetry.enabled).toBe(false);
   });
 
+  it("can disable engagement events without disabling run reports", () => {
+    expect(createCloud({ events: false }).telemetry).toEqual({
+      enabled: true,
+      events: false,
+    });
+  });
+
   it("stays enabled when the config object carries an undefined enabled", () => {
     const beforeReport: NonNullable<
       AssistantCloudTelemetryConfig["beforeReport"]
@@ -35,5 +42,20 @@ describe("AssistantCloud telemetry config", () => {
     } as unknown as AssistantCloudTelemetryConfig).telemetry;
     expect(telemetry.enabled).toBe(true);
     expect(telemetry.beforeReport).toBe(beforeReport);
+  });
+
+  it("preserves configured run report dimensions", () => {
+    expect(
+      createCloud({
+        release: "web-2026.09.08",
+        environment: "production",
+        tags: ["region:sg", "tier:paid"],
+      }).telemetry,
+    ).toEqual({
+      enabled: true,
+      release: "web-2026.09.08",
+      environment: "production",
+      tags: ["region:sg", "tier:paid"],
+    });
   });
 });

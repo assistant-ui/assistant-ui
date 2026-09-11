@@ -233,15 +233,29 @@ export const convertLangChainMessages: useExternalMessageConverter.Callback<
       };
     }
     case "ai": {
+      const toolCallChunksById = new Map<string, LangChainToolCallChunk>();
+      const toolCallChunksByIndex = new Map<number, LangChainToolCallChunk>();
+      if (message.tool_calls?.length) {
+        for (const toolCallChunk of message.tool_call_chunks ?? []) {
+          const { id, index } = toolCallChunk;
+          if (!toolCallChunksById.has(id)) {
+            toolCallChunksById.set(id, toolCallChunk);
+          }
+          if (!Number.isNaN(index) && !toolCallChunksByIndex.has(index)) {
+            toolCallChunksByIndex.set(index, toolCallChunk);
+          }
+        }
+      }
+
       const toolCallParts =
         message.tool_calls?.map((chunk, idx): ToolCallMessagePart => {
           const fallbackIndex = chunk.index ?? idx;
           const toolCallId = chunk.id
             ? chunk.id
             : `lc-toolcall-${message.id ?? "unknown"}-${fallbackIndex}`;
-          const matchingToolCallChunk = message.tool_call_chunks?.find((c) =>
-            chunk.id ? c.id === chunk.id : c.index === fallbackIndex,
-          );
+          const matchingToolCallChunk = chunk.id
+            ? toolCallChunksById.get(chunk.id)
+            : toolCallChunksByIndex.get(fallbackIndex);
           const { args, argsText } = resolveToolCallArgs({
             chunk,
             matchingToolCallChunk,

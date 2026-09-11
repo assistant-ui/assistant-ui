@@ -26,6 +26,16 @@ describe("alertVocabulary", () => {
     ).toContain('data-aui-tone="danger"');
   });
 
+  it("Alert ignores malformed text properties", () => {
+    expect(
+      render({
+        $type: "Alert",
+        title: { unexpected: true },
+        description: { unexpected: true },
+      }),
+    ).toBe('<div data-aui="alert" data-aui-tone="info" role="alert"></div>');
+  });
+
   it("Carousel wraps each child Card in a slide, capped at 10", () => {
     const children = Array.from({ length: 12 }, (_, i) => ({
       $type: "Card",

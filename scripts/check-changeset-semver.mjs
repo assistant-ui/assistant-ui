@@ -99,26 +99,46 @@ export function computeCascade(bumps, pkgMap, revDeps) {
   return cascade;
 }
 
+const INTENDED_MARKER =
+  /^\s*(?:<!--\s*)?caret-break:\s*intended\s*(?:-->)?\s*$/m;
+
+function rangeBreakReason(bump) {
+  const major = Number(bump.version.split(".")[0]);
+  // A 0.0.x patch also leaves `^0.0.x`, which matches exactly. It is left
+  // unreported so that pre-stable packages can ship a patch without every
+  // release being flagged; the cascade table still shows who it moves.
+  const breaksRange =
+    (major === 0 && bump.bumpType !== "patch") ||
+    (major >= 1 && bump.bumpType === "major");
+  if (!breaksRange) return null;
+  return major === 0
+    ? `0.x package — ${bump.bumpType} bump breaks \`^\` caret range`
+    : "major bump breaks `^` caret range";
+}
+
 export function findRangeBreakingBumps(bumps) {
   const problems = [];
   for (const bump of bumps) {
-    const major = Number(bump.version.split(".")[0]);
-    // A 0.0.x patch also leaves `^0.0.x`, which matches exactly. It is left
-    // unreported so that pre-stable packages can ship a patch without every
-    // release being flagged; the cascade table still shows who it moves.
-    const breaksRange =
-      (major === 0 && bump.bumpType !== "patch") ||
-      (major >= 1 && bump.bumpType === "major");
-    if (!breaksRange) continue;
-    problems.push({
-      ...bump,
-      reason:
-        major === 0
-          ? `0.x package — ${bump.bumpType} bump breaks \`^\` caret range`
-          : "major bump breaks `^` caret range",
-    });
+    if (bump.intended) continue;
+    const reason = rangeBreakReason(bump);
+    if (reason) problems.push({ ...bump, reason });
   }
   return problems;
+}
+
+/**
+ * A changeset whose body carries `caret-break: intended` (an HTML comment
+ * keeps it out of the changelog) declares the range break as a release
+ * decision; its bumps are listed instead of failing the check.
+ */
+export function findIntendedRangeBreaks(bumps) {
+  const accepted = [];
+  for (const bump of bumps) {
+    if (!bump.intended) continue;
+    const reason = rangeBreakReason(bump);
+    if (reason) accepted.push({ ...bump, reason });
+  }
+  return accepted;
 }
 
 function renderCascadeSection(cascade) {
@@ -146,7 +166,25 @@ function renderCascadeSection(cascade) {
   return parts.join("");
 }
 
-export function renderSummary({ bumps, violations, cascade }) {
+function renderIntendedSection(intended) {
+  if (intended.length === 0) return "";
+  const parts = [
+    `### Intended range breaks (${intended.length})\n\n`,
+    "| File | Package | Version | Bump | Why |\n",
+    "| --- | --- | --- | --- | --- |\n",
+  ];
+  for (const entry of intended) {
+    parts.push(
+      `| \`${entry.file}\` | \`${entry.name}\` | ${entry.version} | **${entry.bumpType}** | ${entry.reason} |\n`,
+    );
+  }
+  parts.push(
+    "\nDeclared with `caret-break: intended` in the changeset body: consumers on the previous `^` range must move to the new line.\n\n",
+  );
+  return parts.join("");
+}
+
+export function renderSummary({ bumps, violations, cascade, intended = [] }) {
   if (violations.length === 0) {
     const parts = [
       "## Changeset Impact Summary\n\n",
@@ -158,7 +196,11 @@ export function renderSummary({ bumps, violations, cascade }) {
         `| \`${bump.file}\` | \`${bump.name}\` | ${bump.version} | ${bump.bumpType} |\n`,
       );
     }
-    parts.push("\n", renderCascadeSection(cascade));
+    parts.push(
+      "\n",
+      renderIntendedSection(intended),
+      renderCascadeSection(cascade),
+    );
     return parts.join("");
   }
 
@@ -174,6 +216,7 @@ export function renderSummary({ bumps, violations, cascade }) {
   }
   parts.push(
     "\n",
+    renderIntendedSection(intended),
     renderCascadeSection(cascade),
     "### What this means\n\n",
     "- **0.x packages**: `^0.12.15` only matches `>=0.12.15 <0.13.0` — ",
@@ -195,11 +238,10 @@ function readChangesetFiles(root, changedFiles) {
 function readChangesetBumps(root, files, pkgMap) {
   const bumps = [];
   for (const file of files) {
-    const frontmatter = readFileSync(
-      path.join(root, ".changeset", file),
-      "utf8",
-    ).match(/^---\r?\n([\s\S]*?)\r?\n---/);
+    const source = readFileSync(path.join(root, ".changeset", file), "utf8");
+    const frontmatter = source.match(/^---\r?\n([\s\S]*?)\r?\n---/);
     if (!frontmatter) continue;
+    const intended = INTENDED_MARKER.test(source.slice(frontmatter[0].length));
     for (const line of frontmatter[1].split("\n")) {
       const parsed = parseBumpLine(line);
       if (!parsed) continue;
@@ -210,6 +252,7 @@ function readChangesetBumps(root, files, pkgMap) {
         name: parsed.name,
         bumpType: parsed.bump,
         version: pkg.version,
+        ...(intended ? { intended } : {}),
       });
     }
   }
@@ -227,6 +270,7 @@ export function runCheck(root = repoRoot, changedFiles = null) {
     files,
     bumps,
     violations: findRangeBreakingBumps(bumps),
+    intended: findIntendedRangeBreaks(bumps),
     cascade: computeCascade(bumps, pkgMap, revDeps),
   };
 }
@@ -284,7 +328,10 @@ function main() {
     return;
   }
 
-  const { files, bumps, violations, cascade } = runCheck(root, changedFiles);
+  const { files, bumps, violations, intended, cascade } = runCheck(
+    root,
+    changedFiles,
+  );
 
   if (files.length === 0) {
     console.log("No changeset files changed in this PR.");
@@ -295,9 +342,17 @@ function main() {
     return;
   }
 
-  writeSummary(renderSummary({ bumps, violations, cascade }));
+  writeSummary(renderSummary({ bumps, violations, cascade, intended }));
 
   if (violations.length === 0) {
+    if (intended.length > 0) {
+      annotate(
+        "notice",
+        `Intended range breaks accepted: ${intended
+          .map((entry) => `${entry.name}@${entry.bumpType}`)
+          .join(", ")}`,
+      );
+    }
     console.log(
       "All changeset bump types are safe for current package versions. ✓",
     );

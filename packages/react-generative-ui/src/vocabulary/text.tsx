@@ -1,6 +1,7 @@
 import { z } from "zod";
 import type { GenerativeUILibrary } from "../types";
 import { COLORS, TEXT_SIZES, WEIGHTS } from "../ir";
+import { toTextContent } from "./toTextContent";
 
 export const textVocabulary = {
   Header: {
@@ -14,7 +15,7 @@ export const textVocabulary = {
     }),
     render: ({ text, size, children }) => (
       <h2 data-aui="header" data-aui-size={size ?? "lg"}>
-        {text}
+        {toTextContent(text)}
         {children}
       </h2>
     ),
@@ -38,7 +39,7 @@ export const textVocabulary = {
         data-aui-weight={weight}
         data-aui-color={color}
       >
-        {value}
+        {toTextContent(value)}
         {children}
       </span>
     ),
@@ -51,7 +52,7 @@ export const textVocabulary = {
     streamProperties: true,
     render: ({ value, children }) => (
       <p data-aui="caption">
-        {value}
+        {toTextContent(value)}
         {children}
       </p>
     ),

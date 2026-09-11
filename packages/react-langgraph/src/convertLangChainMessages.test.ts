@@ -1273,6 +1273,106 @@ describe("convertLangChainMessages tool call id stability", () => {
       argsText: '{"url":"https://example.com"}',
     });
   });
+
+  it("uses the first tool_call_chunk for duplicate ids and indices", () => {
+    const result = convertLangChainMessages({
+      type: "ai",
+      id: "ai-1",
+      content: "",
+      tool_calls: [
+        { id: "tool-1", name: "by_id", args: {} },
+        { id: "", name: "by_index", args: {}, index: 1 },
+      ],
+      tool_call_chunks: [
+        { id: "tool-1", index: 7, name: "by_id", args: '{"match":1}' },
+        { id: "tool-1", index: 8, name: "by_id", args: '{"match":2}' },
+        { id: "", index: 1, name: "by_index", args: '{"match":3}' },
+        { id: "", index: 1, name: "by_index", args: '{"match":4}' },
+      ],
+    });
+
+    expect(result.content.filter((part) => part.type === "tool-call")).toEqual([
+      expect.objectContaining({ argsText: '{"match":1}' }),
+      expect.objectContaining({ argsText: '{"match":3}' }),
+    ]);
+  });
+
+  it("reads each streamed tool-call identity once", () => {
+    const toolCallCount = 100;
+    const readId = vi.fn();
+    const toolCallChunks = Array.from(
+      { length: toolCallCount },
+      (_, index) => ({
+        index,
+        name: "search",
+        args: `{"index":${index}}`,
+        get id() {
+          readId();
+          return `tool-${index}`;
+        },
+      }),
+    );
+
+    convertLangChainMessages({
+      type: "ai",
+      id: "ai-1",
+      content: "",
+      tool_calls: Array.from({ length: toolCallCount }, (_, index) => ({
+        id: `tool-${index}`,
+        name: "search",
+        args: {},
+      })),
+      tool_call_chunks: toolCallChunks,
+    });
+
+    expect(readId).toHaveBeenCalledTimes(toolCallCount);
+  });
+
+  it("does not index chunks when there are no completed tool calls", () => {
+    const readId = vi.fn();
+
+    convertLangChainMessages({
+      type: "ai",
+      id: "ai-1",
+      content: "",
+      tool_call_chunks: [
+        {
+          index: 0,
+          name: "search",
+          args: '{"query":"weather"}',
+          get id() {
+            readId();
+            return "tool-1";
+          },
+        },
+      ],
+    });
+
+    expect(readId).not.toHaveBeenCalled();
+  });
+
+  it("does not match tool-call chunks with NaN indices", () => {
+    const result = convertLangChainMessages({
+      type: "ai",
+      id: "ai-1",
+      content: "",
+      tool_calls: [
+        { id: "", name: "search", args: { source: "tool-call" }, index: NaN },
+      ],
+      tool_call_chunks: [
+        {
+          id: "",
+          index: NaN,
+          name: "search",
+          args: '{"source":"tool-call-chunk"}',
+        },
+      ],
+    });
+
+    expect(result.content.find((part) => part.type === "tool-call")).toEqual(
+      expect.objectContaining({ argsText: '{"source":"tool-call"}' }),
+    );
+  });
 });
 
 describe("getMessageContent audio and data parts", () => {

@@ -63,6 +63,7 @@ export default async function Page(props: {
           items={toc}
           githubEditUrl={githubEditUrl}
           markdownUrl={markdownUrl}
+          platformAwareMarkdown
         />
       }
     >
@@ -76,6 +77,7 @@ export default async function Page(props: {
               {...(footerPrevious && { previous: { url: footerPrevious.url } })}
               {...(footerNext && { next: { url: footerNext.url } })}
               markdownUrl={markdownUrl}
+              platformAwareMarkdown
             />
           </div>
           {page.data.description && (

@@ -1,5 +1,117 @@
 # @assistant-ui/core
 
+## 0.3.18
+
+### Patch Changes
+
+- [#6979](https://github.com/assistant-ui/assistant-ui/pull/6979) [`a360dda`](https://github.com/assistant-ui/assistant-ui/commit/a360ddaa0b3e5806a92172cfa58e0490b81e65e3) - fix: keep an explicit null parent when a thread appends a message ([@ephraimduncan](https://github.com/ephraimduncan))
+  
+  An explicit `parentId: null` selects a root branch instead of the current tail. This also applies to AG-UI steering and the tap `ExternalThread` client.
+  
+  For AG-UI, this includes a normalized `AppendMessage` with `parentId: null` passed to `steerAway` or `useAgUiSteerAway`. Such a message starts a root branch. To continue the current branch, omit `parentId` or pass `undefined`.
+  
+  On a nonempty `useExternalStoreRuntime` thread, an explicit null parent calls `onEdit` instead of `onNew`. Without `onEdit`, the runtime reports that it cannot edit messages. To append at the current tail, omit `parentId` or pass `undefined`.
+  
+  The tap `ExternalThread` client instead passes the null parent straight to `onNew`. Its `thread.append` has no `onEdit` route, so the host owns what a root append means there.
+
+- [#6933](https://github.com/assistant-ui/assistant-ui/pull/6933) [`931b808`](https://github.com/assistant-ui/assistant-ui/commit/931b8084b56d02406076b15fdd87e48478218db8) - fix: abort superseded Google ADK streams even when interactive cancellation is disabled. ([@Kinfe123](https://github.com/Kinfe123))
+
+- [#6974](https://github.com/assistant-ui/assistant-ui/pull/6974) [`57ce984`](https://github.com/assistant-ui/assistant-ui/commit/57ce984e029bfb131dd03bb03e4567837c520211) - fix: preserve selected remote thread runtimes when raced slots collapse ([@Kinfe123](https://github.com/Kinfe123))
+
+- [#7090](https://github.com/assistant-ui/assistant-ui/pull/7090) [`0ab9b12`](https://github.com/assistant-ui/assistant-ui/commit/0ab9b120bc534edf1c08b1fea103798be941222c) - fix: notify every remote thread lifecycle subscriber ([@Kinfe123](https://github.com/Kinfe123))
+
+- [#7183](https://github.com/assistant-ui/assistant-ui/pull/7183) [`93d1526`](https://github.com/assistant-ui/assistant-ui/commit/93d1526888085b49c67ef6610dcd772e333fd2fc) - fix: complete context provider cleanup when unsubscribe throws ([@Kinfe123](https://github.com/Kinfe123))
+
+- [#7165](https://github.com/assistant-ui/assistant-ui/pull/7165) [`0b1c5a1`](https://github.com/assistant-ui/assistant-ui/commit/0b1c5a12c2caa8b25b02a8cd64323e730a8bc2df) - fix: release frame tool request resources when sending the request fails ([@Kinfe123](https://github.com/Kinfe123))
+
+- [#6981](https://github.com/assistant-ui/assistant-ui/pull/6981) [`7f6e012`](https://github.com/assistant-ui/assistant-ui/commit/7f6e0128848410419fe610aa6b6dbfacdd00a1c7) - fix: keep discarded composer text out of dictation results after reset ([@ephraimduncan](https://github.com/ephraimduncan))
+
+- [#7115](https://github.com/assistant-ui/assistant-ui/pull/7115) [`4767a92`](https://github.com/assistant-ui/assistant-ui/commit/4767a923d818cc2a4a7b0e50ce12d2abbe83bccb) - feat: align the cloud SDK with Assistant Cloud 0.2 ([@okisdev](https://github.com/okisdev))
+  
+  <!-- caret-break: intended -->
+  
+  - run reports now carry `provider`, `outcome_type` (`aborted`, `disconnected`, `length`, `content_filter`), `error_code` and `error`, `message_id`, `first_token_ms`, `duration_ms`, a `finish_reason` per step from `useCloudChat` and `trace_id`, plus `environment`, `release` and `tags` from the `telemetry` config; one `createRunReport` builder in `assistant-cloud` assembles the body for the assistant-ui runtime and for `@assistant-ui/cloud-ai-sdk`, and `provider_type` and `metadata` stay on the wire for older self hosted clouds
+  - `assistant-cloud/telemetry` (server side): `createAssistantCloudTraceExporter`, `createAssistantCloudSpanProcessor`, `assistantCloudTraceMetadata` and `withAssistantCloudTraceMetadata` send AI SDK GenAI spans to `POST /v1/traces` and hand the trace id to the browser, so a client report and its server spans merge into one run; the OpenTelemetry packages are optional peers of the subpath only
+  - engagement events: sends, edits, stops, regenerates, copies, branch switches, suggestions, attachments, thread switches, speech, voice and shown errors are batched to `POST /v1/events` without any message content; `telemetry.events: false` opts out
+  - `cloud.scores.create` for custom scores, and message feedback through `useCloudChat().feedback` next to the assistant-ui `FeedbackAdapter`
+  - `cloud.files.generatePresignedDownloadUrl` and the object `key` on upload responses
+  - `CloudAPIError.code` and `details`, including `plan_limit_reached` on a 402
+  - `@assistant-ui/core` requires `assistant-cloud@^0.2.0`, and its store emits the composer, message and thread events the engagement reporter reads
+
+- [#6815](https://github.com/assistant-ui/assistant-ui/pull/6815) [`c9e03ef`](https://github.com/assistant-ui/assistant-ui/commit/c9e03ef26ac03f8300b29d5a3a562284b72794f2) - feat: submit feedback for cloud-persisted thread messages ([@okisdev](https://github.com/okisdev))
+
+- [#6987](https://github.com/assistant-ui/assistant-ui/pull/6987) [`b8c5e68`](https://github.com/assistant-ui/assistant-ui/commit/b8c5e68298a81ff6c9c99b504bc57479c5dd4f05) - fix: compare arrays with indexed loops so sparse-array holes cannot read as equal; a sparse suggestions list now compacts to a dense one before it reaches the per-suggestion lookup ([@Kinfe123](https://github.com/Kinfe123))
+
+- [#7062](https://github.com/assistant-ui/assistant-ui/pull/7062) [`571cd7c`](https://github.com/assistant-ui/assistant-ui/commit/571cd7c673130d896692f15257037a777711df44) - fix: complete assistant voice messages when the first transcript is final ([@ephraimduncan](https://github.com/ephraimduncan))
+
+- [#7010](https://github.com/assistant-ui/assistant-ui/pull/7010) [`a19db37`](https://github.com/assistant-ui/assistant-ui/commit/a19db37dd2f973e7fc481ff6c5f86c7f4b889c72) - fix: keep the selected head aligned when relinking a message ([@rupic-app](https://github.com/apps/rupic-app))
+
+- [#6895](https://github.com/assistant-ui/assistant-ui/pull/6895) [`18c12e6`](https://github.com/assistant-ui/assistant-ui/commit/18c12e6050f23890a16fdefd808c9f42cfdca7d1) - fix: use the original file to select the adapter for attachment removal when contentType is absent ([@ephraimduncan](https://github.com/ephraimduncan))
+
+- [#6911](https://github.com/assistant-ui/assistant-ui/pull/6911) [`0d09f05`](https://github.com/assistant-ui/assistant-ui/commit/0d09f051c7745c27fb5e572fb7543d9689bd9ab1) - Handle prototype-named tool and remote thread keys safely. ([@rupic-app](https://github.com/apps/rupic-app))
+
+- [#7145](https://github.com/assistant-ui/assistant-ui/pull/7145) [`ddb7503`](https://github.com/assistant-ui/assistant-ui/commit/ddb7503755496e1eba7511a257b72a25f83e09d7) - fix: speed up large interactable array updates with indexed ID matching ([@Kinfe123](https://github.com/Kinfe123))
+
+- [#6875](https://github.com/assistant-ui/assistant-ui/pull/6875) [`73b24d5`](https://github.com/assistant-ui/assistant-ui/commit/73b24d54ee6d753682508c8e7d8911e82ddde797) - fix: keep separate tool calls when their IDs are absent ([@ephraimduncan](https://github.com/ephraimduncan))
+
+- [#6880](https://github.com/assistant-ui/assistant-ui/pull/6880) [`2c1e65e`](https://github.com/assistant-ui/assistant-ui/commit/2c1e65eb61c8eada5431b168782ab69de0e71e36) - fix: match attachment extensions against the complete filename suffix, so `.tar.gz` accepts `backup.tar.gz` and `.png` rejects extensionless `png`. ([@ephraimduncan](https://github.com/ephraimduncan))
+
+- [#6980](https://github.com/assistant-ui/assistant-ui/pull/6980) [`d4fbb2a`](https://github.com/assistant-ui/assistant-ui/commit/d4fbb2ac71b67d635fdd8dc9eb801b9d3bfe0446) - fix: export parent messages before their children ([@ephraimduncan](https://github.com/ephraimduncan))
+  
+  a thread whose message was reparented (`addOrUpdateMessage` with a new parent) exported in map insertion order, so a parent could be emitted after its own child. importing that export threw `Parent message not found`, and consumers that resolve each item's parent as they walk the exported array (`exportExternalState`, the external-store `messageRepository` prop) attached messages to the wrong parent. the export now walks the tree in pre-order, which also emits siblings in branch order, so branch positions survive a round-trip.
+
+- [#6978](https://github.com/assistant-ui/assistant-ui/pull/6978) [`a9efcfa`](https://github.com/assistant-ui/assistant-ui/commit/a9efcfacf386976f7d4ef0da37708de1f7d0d4e0) - fix: keep the selected nested branch when an ancestor is selected again ([@ephraimduncan](https://github.com/ephraimduncan))
+
+- [#7027](https://github.com/assistant-ui/assistant-ui/pull/7027) [`6c85699`](https://github.com/assistant-ui/assistant-ui/commit/6c85699526007e2febe3add80515af16ae84111f) - fix(core): cancel a thread's in-flight request when its runtime is torn down ([@okisdev](https://github.com/okisdev))
+  
+  each thread the remote thread list hosts now owns a destroy signal that aborts when its runtime is stopped or restarted, and `useChatRuntime` stops the chat on it. deleting or detaching a thread, replacing the thread list with one that drops it, or restarting its runtime now cancels the request that thread had in flight instead of leaving it streaming into a runtime nothing reads. hiding a thread under `<Activity mode="hidden">` is a soft unmount and keeps streaming.
+
+- [#6930](https://github.com/assistant-ui/assistant-ui/pull/6930) [`4802e15`](https://github.com/assistant-ui/assistant-ui/commit/4802e150970e3f9234b47521d16a0d45881d034d) - fix: keep the initialization task on a new thread promoted to regular ([@rupic-app](https://github.com/apps/rupic-app))
+
+- [#6920](https://github.com/assistant-ui/assistant-ui/pull/6920) [`071a879`](https://github.com/assistant-ui/assistant-ui/commit/071a879e9b03d28e092dfa35623dcbbc4ff107e3) - fix: preserve attachment removal errors in the tap composer ([@rupic-app](https://github.com/apps/rupic-app))
+
+- [#7122](https://github.com/assistant-ui/assistant-ui/pull/7122) [`0529e2d`](https://github.com/assistant-ui/assistant-ui/commit/0529e2d53ddacca05ab722705529a0999119a6a8) - fix: report AssistantFrame tool results that cannot cross the frame boundary ([@Kinfe123](https://github.com/Kinfe123))
+
+- [#7029](https://github.com/assistant-ui/assistant-ui/pull/7029) [`d777777`](https://github.com/assistant-ui/assistant-ui/commit/d77777776fc33ac01154c025733bfb4288c9c920) - fix: keep the existing thread title when title generation produces no text, and stop a streaming generation from briefly blanking it ([@rupic-app](https://github.com/apps/rupic-app))
+
+- [#6824](https://github.com/assistant-ui/assistant-ui/pull/6824) [`5630967`](https://github.com/assistant-ui/assistant-ui/commit/563096726c1e97553699fb2bebb818bcf3d506de) - fix: preserve a manual thread rename that lands while automatic title generation is in flight. the rename is reasserted through the adapter once the generated run has persisted its own title, so the typed title survives on the server as well as in the list. ([@rupic-app](https://github.com/apps/rupic-app))
+
+- [#7033](https://github.com/assistant-ui/assistant-ui/pull/7033) [`40f0978`](https://github.com/assistant-ui/assistant-ui/commit/40f0978744647043bac9089d63ab4a777d29d5ec) - fix(store): cancel in-flight work when the React host that owns it unmounts ([@okisdev](https://github.com/okisdev))
+  
+  a React-hosted client now carries a permanent teardown signal, so unmounting an `AuiProvider`, a `useAui(config)` host, or a `useRemoteThreadListRuntime` host cancels the requests it owned instead of leaving them streaming into a deleted tree. a hidden `<Activity>`, a Strict Mode replay, and a re-suspended boundary are soft and keep streaming.
+
+- [#7002](https://github.com/assistant-ui/assistant-ui/pull/7002) [`ce22d18`](https://github.com/assistant-ui/assistant-ui/commit/ce22d18d89ba54b4b9e7b3e615a4ef86c61aca71) - fix: keep ancestor branch pointers current after relinking a message ([@rupic-app](https://github.com/apps/rupic-app))
+
+- [#6982](https://github.com/assistant-ui/assistant-ui/pull/6982) [`9a882be`](https://github.com/assistant-ui/assistant-ui/commit/9a882be66285ff1b718911e2fb344e1475647d60) - fix: return the requested thread's metadata from getById when another thread is selected ([@ephraimduncan](https://github.com/ephraimduncan))
+
+- [#6928](https://github.com/assistant-ui/assistant-ui/pull/6928) [`73a1e76`](https://github.com/assistant-ui/assistant-ui/commit/73a1e76ec248a213c35071262d4de8a12684aaab) - fix: isolate external-store thread records from prototype-named ids ([@rupic-app](https://github.com/apps/rupic-app))
+
+- [#6931](https://github.com/assistant-ui/assistant-ui/pull/6931) [`5febc06`](https://github.com/assistant-ui/assistant-ui/commit/5febc06a6af98ed4aa48eea8f7737d890bd35015) - refactor: adjust state during render where an effect only mirrored a prop ([@okisdev](https://github.com/okisdev))
+  
+  The composer trigger's keyboard and navigation resources, and the devtools panel and thread tab, reset their state during render instead of scheduling a second pass from an effect, so a prop change settles in one render. Effects that genuinely synchronize with an external system (a clock, a subscription catch-up, an async load, a registry write undone on unmount) keep their `setState`.
+
+- [#7187](https://github.com/assistant-ui/assistant-ui/pull/7187) [`7ea4669`](https://github.com/assistant-ui/assistant-ui/commit/7ea4669741aa8e4c016588add137e28e3a7657b7) - fix: stop frame provider broadcasts after disposal ([@Kinfe123](https://github.com/Kinfe123))
+
+- [#6964](https://github.com/assistant-ui/assistant-ui/pull/6964) [`a05828f`](https://github.com/assistant-ui/assistant-ui/commit/a05828f67001b3d7feceb2b94dab00b45d84ed0d) - fix: resolve run telemetry model IDs from per-step response metadata ([@okisdev](https://github.com/okisdev))
+
+- [#6842](https://github.com/assistant-ui/assistant-ui/pull/6842) [`ef584ea`](https://github.com/assistant-ui/assistant-ui/commit/ef584ea623c851ba8a38e76b0a8929893a7d83f0) - fix(core): keep the thread list and report the error when a load fails. failed loads previously looked like an empty thread list; thread list state now exposes `loadError`, clears it when a later load starts, and in browsers retries a failed load once when the window comes back online or the document becomes visible again. React Native has neither event, so it keeps recovering through `reload()`. ([@okisdev](https://github.com/okisdev))
+
+- [#6958](https://github.com/assistant-ui/assistant-ui/pull/6958) [`84b6ae2`](https://github.com/assistant-ui/assistant-ui/commit/84b6ae235e4726d252f9d6b21eedfb3290980480) - fix: Notify thread-list subscribers when only the loading state changes. ([@ephraimduncan](https://github.com/ephraimduncan))
+
+- [#6864](https://github.com/assistant-ui/assistant-ui/pull/6864) [`6f0d7af`](https://github.com/assistant-ui/assistant-ui/commit/6f0d7afb1dee5fe756c4c25d4829e901fd52e81f) - fix: defer remote thread deletion cleanup until persistence succeeds ([@Kinfe123](https://github.com/Kinfe123))
+
+- [#7084](https://github.com/assistant-ui/assistant-ui/pull/7084) [`441168d`](https://github.com/assistant-ui/assistant-ui/commit/441168dd1a76b1c68e6b895d7951ed8183270ace) - fix: keep explicit title generations ordered after in-flight renames ([@Kinfe123](https://github.com/Kinfe123))
+
+- [#7024](https://github.com/assistant-ui/assistant-ui/pull/7024) [`f756047`](https://github.com/assistant-ui/assistant-ui/commit/f7560475d9f9ec17d72684b5c5ff10b3f7cb0193) - fix: keep the server on the title that wins the ordering race ([@okisdev](https://github.com/okisdev))
+  
+  an automatic title generation persists its title server-side through its own run, so an explicit generation that superseded it locally could still be overwritten once the older run finished. the losing run now waits for the winner to persist its title and writes that title back, and a rename that outranks the winning generation is reasserted the same way.
+
+- [#7157](https://github.com/assistant-ui/assistant-ui/pull/7157) [`306bed1`](https://github.com/assistant-ui/assistant-ui/commit/306bed1725efd8bfbbedfce45cb07bb98c0c2a03) - fix: preserve prototype-named tool UI registrations and argument statuses ([@Kinfe123](https://github.com/Kinfe123))
+
+- [#6915](https://github.com/assistant-ui/assistant-ui/pull/6915) [`1f80dd0`](https://github.com/assistant-ui/assistant-ui/commit/1f80dd02fd40172d92d9f6de6f08ebeafa8a30a3) - fix: skip adapter cleanup for complete edit attachments ([@rupic-app](https://github.com/apps/rupic-app))
+- Updated dependencies [[`3bcd6db`](https://github.com/assistant-ui/assistant-ui/commit/3bcd6dbacd4ac0d13c30cf82b974e98aaa514ad9), [`a16b990`](https://github.com/assistant-ui/assistant-ui/commit/a16b9908d0a4ee74573ee94228b4d87aa4f977f8), [`253c80d`](https://github.com/assistant-ui/assistant-ui/commit/253c80de81d07ee556978d99e342f8bc1b57cb0a), [`e6158c8`](https://github.com/assistant-ui/assistant-ui/commit/e6158c8af3306f9af4af2fea8987ded698d6393e), [`623d5ff`](https://github.com/assistant-ui/assistant-ui/commit/623d5ff90ef93a892152f8f1219b0560ea124d97), [`07eeb54`](https://github.com/assistant-ui/assistant-ui/commit/07eeb54de16fed4b7a1afc7de0b2aa264c51a299), [`12c5447`](https://github.com/assistant-ui/assistant-ui/commit/12c54477a18b0ebd2b9cf397da1a1427704ea0c9), [`9b9d5e9`](https://github.com/assistant-ui/assistant-ui/commit/9b9d5e936395ce878464c9c50a75e8344aaeb067), [`afac9e0`](https://github.com/assistant-ui/assistant-ui/commit/afac9e02911f05684309087b4e2d9e0ee9b2bc1f), [`4cdcabb`](https://github.com/assistant-ui/assistant-ui/commit/4cdcabb1a914b48af214da59896fe3c716465321), [`23d2865`](https://github.com/assistant-ui/assistant-ui/commit/23d286573f68875ade98b2fd01ed3e36c0d629f4), [`b505555`](https://github.com/assistant-ui/assistant-ui/commit/b505555a7a8c98e09bdcb718dd74aaa48eb57bee), [`01fdd4b`](https://github.com/assistant-ui/assistant-ui/commit/01fdd4b204f4c3d2c151f7a0ac356706de5b923b), [`59a8251`](https://github.com/assistant-ui/assistant-ui/commit/59a825190f80f6036984650bc36c5aa260e7e332)]:
+  - assistant-stream@0.3.42
+
 ## 0.3.17
 
 ### Patch Changes

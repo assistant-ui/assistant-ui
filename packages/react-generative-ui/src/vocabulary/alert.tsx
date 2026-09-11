@@ -2,6 +2,7 @@ import { Children } from "react";
 import { z } from "zod";
 import type { GenerativeUILibrary } from "../types";
 import { ALERT_TONES } from "../ir";
+import { toTextContent } from "./toTextContent";
 
 const MAX_CARDS = 10;
 
@@ -20,13 +21,21 @@ export const alertVocabulary = {
         .optional()
         .describe("Severity tone; defaults to `info`."),
     }),
-    render: ({ title, description, tone, children }) => (
-      <div data-aui="alert" data-aui-tone={tone ?? "info"} role="alert">
-        {title ? <header data-aui="alert-title">{title}</header> : null}
-        {description ? <p data-aui="alert-desc">{description}</p> : null}
-        {children}
-      </div>
-    ),
+    render: ({ title, description, tone, children }) => {
+      const alertTitle = toTextContent(title);
+      const alertDescription = toTextContent(description);
+      return (
+        <div data-aui="alert" data-aui-tone={tone ?? "info"} role="alert">
+          {alertTitle ? (
+            <header data-aui="alert-title">{alertTitle}</header>
+          ) : null}
+          {alertDescription ? (
+            <p data-aui="alert-desc">{alertDescription}</p>
+          ) : null}
+          {children}
+        </div>
+      );
+    },
   },
   Carousel: {
     description:

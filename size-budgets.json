@@ -7,30 +7,30 @@
   },
   "@assistant-ui/cloud-ai-sdk": {
     ".": {
-      "min": 17316,
-      "gzip": 5902
+      "min": 21635,
+      "gzip": 7146
     }
   },
   "@assistant-ui/core": {
     ".": {
-      "min": 32191,
-      "gzip": 10869
+      "min": 33252,
+      "gzip": 11134
     },
     "./internal": {
-      "min": 121183,
-      "gzip": 30953
+      "min": 123266,
+      "gzip": 31583
     },
     "./react": {
-      "min": 277026,
-      "gzip": 76397
+      "min": 286679,
+      "gzip": 79735
     },
     "./store": {
-      "min": 95034,
-      "gzip": 31499
+      "min": 97961,
+      "gzip": 32602
     },
     "./store/internal": {
-      "min": 21420,
-      "gzip": 7876
+      "min": 24070,
+      "gzip": 9047
     }
   },
   "@assistant-ui/eve": {
@@ -53,8 +53,8 @@
   },
   "@assistant-ui/react-ag-ui": {
     ".": {
-      "min": 76084,
-      "gzip": 19965
+      "min": 76589,
+      "gzip": 20144
     }
   },
   "@assistant-ui/react-ai-sdk": {
@@ -261,8 +261,12 @@
   },
   "assistant-cloud": {
     ".": {
-      "min": 16268,
-      "gzip": 5352
+      "min": 22473,
+      "gzip": 7115
+    },
+    "./telemetry": {
+      "min": 1174,
+      "gzip": 628
     }
   },
   "assistant-stream": {

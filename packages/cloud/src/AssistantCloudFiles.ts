@@ -26,6 +26,13 @@ type GeneratePresignedUploadUrlResponse = {
   signedUrl: string;
   expiresAt: string;
   publicUrl: string;
+  key?: string;
+};
+
+export type GeneratePresignedDownloadUrlResponse = {
+  signedUrl: string;
+  expiresAt: string;
+  key: string;
 };
 
 export class AssistantCloudFiles {
@@ -93,6 +100,38 @@ export class AssistantCloudFiles {
         response.publicUrl,
         "presigned upload response.publicUrl",
       ),
+      ...("key" in response
+        ? {
+            key: readCloudString(response.key, "presigned upload response.key"),
+          }
+        : {}),
+    };
+  }
+
+  public async generatePresignedDownloadUrl(
+    body: { key: string } | { url: string },
+  ): Promise<GeneratePresignedDownloadUrlResponse> {
+    const response = readCloudRecord(
+      await this.cloud.makeRequest(
+        "/files/attachments/generate-presigned-download-url",
+        {
+          method: "POST",
+          body,
+        },
+      ),
+      "presigned download response",
+    );
+
+    return {
+      signedUrl: readCloudString(
+        response.signedUrl,
+        "presigned download response.signedUrl",
+      ),
+      expiresAt: readCloudString(
+        response.expiresAt,
+        "presigned download response.expiresAt",
+      ),
+      key: readCloudString(response.key, "presigned download response.key"),
     };
   }
 }

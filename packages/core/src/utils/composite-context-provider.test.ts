@@ -114,6 +114,31 @@ describe("CompositeContextProvider", () => {
     expect(composite.getModelContext().system).toBeUndefined();
   });
 
+  it("finishes unregistering when the provider cleanup throws", () => {
+    const composite = new CompositeContextProvider();
+    const cleanupError = new Error("cleanup failed");
+    const subscriber = vi.fn();
+    const unsubscribe = vi.fn(() => {
+      throw cleanupError;
+    });
+
+    composite.subscribe(subscriber);
+    const unregister = composite.registerModelContextProvider({
+      getModelContext: () => ({ system: "provider instructions" }),
+      subscribe: () => unsubscribe,
+    });
+    subscriber.mockClear();
+
+    expect(() => unregister()).toThrow(cleanupError);
+    expect(composite.getModelContext().system).toBeUndefined();
+    expect(subscriber).toHaveBeenCalledOnce();
+    expect(unsubscribe).toHaveBeenCalledOnce();
+
+    expect(() => unregister()).not.toThrow();
+    expect(subscriber).toHaveBeenCalledOnce();
+    expect(unsubscribe).toHaveBeenCalledOnce();
+  });
+
   it("notifies every subscriber and rethrows on provider updates", () => {
     const composite = new CompositeContextProvider();
     const error = new Error("subscriber failed");
