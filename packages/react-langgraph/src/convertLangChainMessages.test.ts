@@ -149,7 +149,7 @@ describe("convertLangChainMessages content-less messages", () => {
     ]);
   });
 
-  it("warns once in development about non-array content", () => {
+  it("warns once per malformed content type in development", () => {
     vi.stubEnv("NODE_ENV", "development");
     const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
     try {
@@ -161,9 +161,20 @@ describe("convertLangChainMessages content-less messages", () => {
       convertLangChainMessages(message);
       convertLangChainMessages(message);
 
-      expect(warn).toHaveBeenCalledTimes(1);
+      const aiMessage = {
+        type: "ai",
+        id: "ai-3",
+        content: { text: "invalid" },
+      } as unknown as LangChainMessage;
+      convertLangChainMessages(aiMessage);
+      convertLangChainMessages(aiMessage);
+
+      expect(warn).toHaveBeenCalledTimes(2);
       expect(warn).toHaveBeenCalledWith(
         "Ignoring message content that is neither a string nor an array: number",
+      );
+      expect(warn).toHaveBeenCalledWith(
+        "Ignoring message content that is neither a string nor an array: object",
       );
     } finally {
       warn.mockRestore();

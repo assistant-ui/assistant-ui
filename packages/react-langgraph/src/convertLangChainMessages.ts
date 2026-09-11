@@ -95,42 +95,40 @@ const resolveToolCallArgs = ({
   return { args, argsText };
 };
 
-const warnedMessagePartTypes = new Set<string>();
-const warnForUnknownMessagePartType = (type: string) => {
+const warnedDevelopmentMessages = new Set<string>();
+const warnOnceInDevelopment = (message: string) => {
   if (
     typeof process === "undefined" ||
     process?.env?.NODE_ENV !== "development"
   )
     return;
-  if (warnedMessagePartTypes.has(type)) return;
-  warnedMessagePartTypes.add(type);
-  console.warn(`Unknown message part type: ${type}`);
+  if (warnedDevelopmentMessages.has(message)) return;
+  warnedDevelopmentMessages.add(message);
+  console.warn(message);
 };
 
-const warnedMessageTypes = new Set<string>();
-const warnForUnknownMessageType = (type: string) => {
-  if (
-    typeof process === "undefined" ||
-    process?.env?.NODE_ENV !== "development"
-  )
-    return;
-  if (warnedMessageTypes.has(type)) return;
-  warnedMessageTypes.add(type);
-  console.warn(`Unknown message type: ${type}`);
-};
+const warnForUnknownMessagePartType = (type: string) =>
+  warnOnceInDevelopment(`Unknown message part type: ${type}`);
 
-const warnedMalformedMessageContentTypes = new Set<string>();
-const warnForMalformedMessageContent = (content: unknown) => {
-  if (
-    typeof process === "undefined" ||
-    process?.env?.NODE_ENV !== "development"
-  )
-    return;
-  const type = typeof content;
-  if (warnedMalformedMessageContentTypes.has(type)) return;
-  warnedMalformedMessageContentTypes.add(type);
-  console.warn(
-    `Ignoring message content that is neither a string nor an array: ${type}`,
+const warnForUnknownMessageType = (type: string) =>
+  warnOnceInDevelopment(`Unknown message type: ${type}`);
+
+const warnForMalformedMessageContent = (content: unknown) =>
+  warnOnceInDevelopment(
+    `Ignoring message content that is neither a string nor an array: ${typeof content}`,
+  );
+
+const contentBlocks = (
+  content: LangChainMessage["content"],
+): LangChainMessageContentBlock[] => {
+  if (content == null || typeof content === "string") return [];
+  if (!Array.isArray(content)) {
+    warnForMalformedMessageContent(content);
+    return [];
+  }
+  return content.filter(
+    (part): part is LangChainMessageContentBlock =>
+      typeof part === "object" && part !== null,
   );
 };
 
@@ -142,15 +140,7 @@ const contentToParts = (
   if (content == null) return [];
   if (typeof content === "string")
     return [{ type: "text" as const, text: content }];
-  if (!Array.isArray(content)) {
-    warnForMalformedMessageContent(content);
-    return [];
-  }
-  return content
-    .filter(
-      (part): part is LangChainMessageContentBlock =>
-        typeof part === "object" && part !== null,
-    )
+  return contentBlocks(content)
     .map(
       (
         part,
@@ -185,11 +175,7 @@ const contentToParts = (
 
 const getStringContent = (content: LangChainMessage["content"]): string => {
   if (typeof content === "string") return content;
-  if (!Array.isArray(content)) {
-    warnForMalformedMessageContent(content);
-    return "";
-  }
-  return content
+  return contentBlocks(content)
     .filter(
       (part): part is { type: "text" | "text_delta"; text: string } =>
         typeof part === "object" &&
@@ -321,9 +307,7 @@ export const convertLangChainMessages: useExternalMessageConverter.Callback<
       const normalizedContent =
         typeof message.content === "string"
           ? [{ type: "text" as const, text: message.content }]
-          : Array.isArray(message.content)
-            ? message.content
-            : [];
+          : contentBlocks(message.content);
 
       const allContent = [
         message.additional_kwargs?.reasoning,
