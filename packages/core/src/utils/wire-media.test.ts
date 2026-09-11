@@ -63,6 +63,12 @@ describe("resolveFileMediaType", () => {
     );
   });
 
+  it("uses the data URL default when its media type is omitted", () => {
+    expect(resolveFileMediaType("data:;base64,QUJD", "")).toBe(
+      "text/plain;charset=US-ASCII",
+    );
+  });
+
   it("floors to application/octet-stream", () => {
     expect(resolveFileMediaType("QUJD", "")).toBe("application/octet-stream");
   });

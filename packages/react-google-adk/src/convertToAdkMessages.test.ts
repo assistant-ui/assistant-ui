@@ -210,7 +210,7 @@ describe("getMessageContent", () => {
     ]);
   });
 
-  it("uses the binary fallback for a media-less file", () => {
+  it("uses the data URL default for a media-less file", () => {
     const result = getMessageContent(
       makeAppendMessage([
         {
@@ -223,7 +223,7 @@ describe("getMessageContent", () => {
     expect(result).toEqual([
       {
         type: "file",
-        mimeType: "application/octet-stream",
+        mimeType: "text/plain;charset=US-ASCII",
         data: "SGVsbG8=",
       },
     ]);
