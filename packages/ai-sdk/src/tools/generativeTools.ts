@@ -81,17 +81,22 @@ const convertedParameterSchemas = new WeakMap<
   ReturnType<typeof toJSONSchema>
 >();
 
+const getOrConvertParameterSchema = (
+  parameters: NonNullable<Tool["parameters"]>,
+) => {
+  const cached = convertedParameterSchemas.get(parameters);
+  if (cached) return cached;
+
+  const converted = toJSONSchema(parameters);
+  convertedParameterSchemas.set(parameters, converted);
+  return converted;
+};
+
 const parametersToInputSchema = (
   parameters: Tool["parameters"] | undefined,
 ) => {
   if (!parameters) return jsonSchema(EMPTY_SCHEMA);
-
-  let schema = convertedParameterSchemas.get(parameters);
-  if (!schema) {
-    schema = toJSONSchema(parameters);
-    convertedParameterSchemas.set(parameters, schema);
-  }
-  return jsonSchema(schema);
+  return jsonSchema(getOrConvertParameterSchema(parameters));
 };
 
 /**
