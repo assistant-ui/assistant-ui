@@ -1226,6 +1226,62 @@ describe("A2AThreadRuntimeCore", () => {
   // --- Cancel ---
 
   describe("cancel", () => {
+    it("ignores a late cancel response after a replacement run starts", async () => {
+      let resolveCancel!: (task: A2ATask) => void;
+      const cancelTask = vi.fn().mockImplementation(
+        () =>
+          new Promise<A2ATask>((resolve) => {
+            resolveCancel = resolve;
+          }),
+      );
+      let streamCount = 0;
+      const core = createCore({
+        cancelTask,
+        streamMessage: vi.fn().mockImplementation(async function* (
+          _message,
+          _configuration,
+          _metadata,
+          signal: AbortSignal,
+        ) {
+          streamCount++;
+          if (streamCount === 1) {
+            yield {
+              type: "task",
+              task: { id: "old", status: { state: "working" } },
+            } satisfies A2AStreamEvent;
+          }
+          await new Promise<void>((resolve) => {
+            if (signal.aborted) resolve();
+            else
+              signal.addEventListener("abort", () => resolve(), {
+                once: true,
+              });
+          });
+        }),
+      });
+
+      const first = core.append(createUserAppendMessage("first"));
+      await vi.waitFor(() => expect(core.getTask()?.id).toBe("old"));
+      const originalTask = core.getTask();
+      const cancellation = core.cancel();
+      await first;
+
+      const second = core.append(createUserAppendMessage("second"));
+      await vi.waitFor(() => expect(streamCount).toBe(2));
+      expect(core.getTask()).toBe(originalTask);
+
+      resolveCancel({ id: "old", status: { state: "canceled" } });
+      await cancellation;
+
+      try {
+        expect(core.getTask()).toBe(originalTask);
+        expect(core.isRunning()).toBe(true);
+      } finally {
+        core.detachRuntime();
+        await second;
+      }
+    });
+
     it.each(["same-task", "new-task", "new-thread"] as const)(
       "ignores a late cancel response after %s takes ownership",
       async (replacement) => {
@@ -1352,11 +1408,13 @@ describe("A2AThreadRuntimeCore", () => {
         status: { state: "working" },
       };
       (core as any).abortController = new AbortController();
+      notifyUpdate.mockClear();
 
       await core.cancel();
 
       expect(cancelTask).toHaveBeenCalledWith("t1");
       expect(core.getTask()!.status.state).toBe("canceled");
+      expect(notifyUpdate).toHaveBeenCalledOnce();
     });
 
     it("does nothing when no abort controller", async () => {

@@ -79,6 +79,7 @@ export class A2AThreadRuntimeCore {
   private readonly session = createMessageRepositorySession();
   private isRunningFlag = false;
   private abortController: AbortController | null = null;
+  private runGeneration = 0;
   private pendingError: Error | null = null;
 
   // A2A-specific state
@@ -284,6 +285,7 @@ export class A2AThreadRuntimeCore {
     if (!this.abortController) return;
 
     const task = this.currentTask;
+    const runGeneration = this.runGeneration;
 
     // Abort locally first so the stream stops immediately
     this.abortController.abort();
@@ -292,7 +294,10 @@ export class A2AThreadRuntimeCore {
     if (task?.id) {
       try {
         const updated = await this.client.cancelTask(task.id);
-        if (this.currentTask === task) this.currentTask = updated;
+        if (this.runGeneration === runGeneration && this.currentTask === task) {
+          this.currentTask = updated;
+          this.notifyUpdate();
+        }
       } catch {
         // Server cancel failed; local abort already handled
       }
@@ -362,6 +367,8 @@ export class A2AThreadRuntimeCore {
   // --- Run logic ---
 
   private async startRun(userThreadMessage: ThreadMessage): Promise<void> {
+    this.runGeneration++;
+
     // Cancel any in-progress run before starting a new one
     if (this.abortController) {
       this.abortController.abort();
