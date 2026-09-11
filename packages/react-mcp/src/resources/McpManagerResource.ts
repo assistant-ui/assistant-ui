@@ -13,7 +13,10 @@ import {
   attachTransformScopes,
   type ClientOutput,
 } from "@assistant-ui/store";
+import { useAssistantScopeEffect } from "@assistant-ui/store/client";
 import { ModelContext } from "@assistant-ui/core/store";
+import { createMcpId } from "../utils/createMcpId";
+import { clearOAuthProviderAuthState } from "../auth/createOAuthProvider";
 import type { Tool } from "assistant-stream";
 import { McpServerResource } from "./McpServerResource";
 import { McpLocalStorage } from "./storage/McpLocalStorage";
@@ -35,13 +38,6 @@ export type McpManagerResourceProps = {
   autoConnect?: boolean | undefined;
   /** Optional timeout in milliseconds for connect/listTools calls. Disabled by default. */
   connectionTimeout?: number | undefined;
-  /**
-   * Identifies the custom storage account, tenant, or workspace. Required when
-   * a `McpCustomStorage` implementation can switch scopes; without it, the
-   * manager cannot distinguish them. `McpLocalStorage` derives this identity
-   * from `keyPrefix`.
-   */
-  storageScopeKey?: string | number | undefined;
 };
 
 function defaultRedirectUri(): string {
@@ -52,60 +48,6 @@ function defaultRedirectUri(): string {
 // Stable empty fallback so an absent `connectors` prop doesn't produce a fresh
 // array each render (which would invalidate the serverElements memo below).
 const NO_CONNECTORS: MCPConnector[] = [];
-const NO_CUSTOM_SERVERS: MCPCustomServerRecord[] = [];
-
-type StorageScope = {
-  hook: MCPStorageElement["hook"];
-  key: MCPStorageElement["key"];
-  storageScopeKey: McpManagerResourceProps["storageScopeKey"];
-};
-
-type CustomServerState = {
-  storageScope: StorageScope;
-  records: MCPCustomServerRecord[];
-  isHydrated: boolean;
-  persistenceRevision: number;
-};
-
-type StoragePersistenceQueueRegistry = WeakMap<
-  MCPStorageElement["hook"],
-  Map<
-    MCPStorageElement["key"],
-    Map<McpManagerResourceProps["storageScopeKey"], Promise<void>>
-  >
->;
-
-const getStoragePersistenceQueue = (
-  registry: StoragePersistenceQueueRegistry,
-  storageHook: MCPStorageElement["hook"],
-  storageElementKey: MCPStorageElement["key"],
-) => {
-  let queuesByElementKey = registry.get(storageHook);
-  if (!queuesByElementKey) {
-    queuesByElementKey = new Map();
-    registry.set(storageHook, queuesByElementKey);
-  }
-
-  let queuesByExplicitKey = queuesByElementKey.get(storageElementKey);
-  if (!queuesByExplicitKey) {
-    queuesByExplicitKey = new Map();
-    queuesByElementKey.set(storageElementKey, queuesByExplicitKey);
-  }
-
-  return queuesByExplicitKey;
-};
-
-const storageScopeResourceKeys = new WeakMap<object, number>();
-let nextStorageScopeResourceKey = 0;
-
-const getStorageScopeResourceKey = (storageScope: object) => {
-  const existing = storageScopeResourceKeys.get(storageScope);
-  if (existing !== undefined) return existing;
-
-  const key = nextStorageScopeResourceKey++;
-  storageScopeResourceKeys.set(storageScope, key);
-  return key;
-};
 
 const reportCustomStorageFailure = (
   operation: "load" | "save",
@@ -128,6 +70,96 @@ const persistCustomServers = async (
   }
 };
 
+type CustomServerPersistenceQueues = Map<string, Promise<void>>;
+
+type McpCustomServersResourceProps = {
+  storage: MCPStorage;
+  scopeKey: string;
+  persistenceQueues: CustomServerPersistenceQueues;
+};
+
+const useMcpCustomServersResource = ({
+  storage,
+  scopeKey,
+  persistenceQueues,
+}: McpCustomServersResourceProps) => {
+  const [customServers, setCustomServers] = useState<MCPCustomServerRecord[]>(
+    [],
+  );
+  const [isHydrated, setIsHydrated] = useState(false);
+
+  const hydratedRef = useRef(false);
+  const storageRef = useRef(storage);
+
+  useEffect(() => {
+    storageRef.current = storage;
+  }, [storage]);
+
+  const hydrate = useEffectEvent(async (signal: { cancelled: boolean }) => {
+    const pendingPersistence = persistenceQueues.get(scopeKey);
+    if (pendingPersistence) await pendingPersistence;
+    if (signal.cancelled) return;
+
+    let records: Awaited<ReturnType<typeof storage.loadCustomServers>>;
+    try {
+      records = await storage.loadCustomServers();
+    } catch (error) {
+      if (!signal.cancelled) {
+        reportCustomStorageFailure("load", error);
+        hydratedRef.current = true;
+        setIsHydrated(true);
+      }
+      return;
+    }
+
+    if (signal.cancelled) return;
+    setCustomServers((prev) => {
+      if (prev.length === 0) return records;
+      const persistedIds = new Set(records.map((record) => record.id));
+      return [
+        ...records,
+        ...prev.filter((record) => !persistedIds.has(record.id)),
+      ];
+    });
+    hydratedRef.current = true;
+    setIsHydrated(true);
+  });
+
+  useEffect(() => {
+    const signal = { cancelled: false };
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    void hydrate(signal);
+    return () => {
+      signal.cancelled = true;
+    };
+  }, []);
+
+  useEffect(() => {
+    if (!hydratedRef.current) return;
+    const targetStorage = storageRef.current;
+    const previous = persistenceQueues.get(scopeKey);
+    const next = (previous ?? Promise.resolve()).then(() =>
+      persistCustomServers(targetStorage, customServers),
+    );
+    persistenceQueues.set(scopeKey, next);
+    void next.then(() => {
+      if (persistenceQueues.get(scopeKey) === next) {
+        persistenceQueues.delete(scopeKey);
+      }
+    });
+  }, [customServers, persistenceQueues, scopeKey]);
+
+  const updateCustomServers = useCallback(
+    (updater: (records: MCPCustomServerRecord[]) => MCPCustomServerRecord[]) =>
+      setCustomServers(updater),
+    [],
+  );
+
+  return { customServers, isHydrated, updateCustomServers };
+};
+
+const McpCustomServersResource = resource(useMcpCustomServersResource);
+
 const useMcpManagerResource = (
   props: McpManagerResourceProps,
 ): ClientOutput<"mcp"> => {
@@ -135,167 +167,24 @@ const useMcpManagerResource = (
   const autoConnect = props.autoConnect ?? true;
   const redirectUri = props.oauthRedirectUri ?? defaultRedirectUri();
   const connectionTimeout = props.connectionTimeout;
-  const storageScopeKey = props.storageScopeKey;
 
   const storageElement = props.storage ?? McpLocalStorage();
-  const storageHook = storageElement.hook;
-  const storageElementKey = storageElement.key;
   const storage = useResource(storageElement);
-
-  // Tap resource identity excludes args because they may be recreated inline.
-  const storageScope = useMemo(
-    () => ({
-      hook: storageHook,
-      key: storageElementKey,
+  const [persistenceQueues] = useState<CustomServerPersistenceQueues>(
+    () => new Map(),
+  );
+  const storageScopeKey =
+    storage.scopeId === undefined ? "unscoped" : `scoped:${storage.scopeId}`;
+  const { customServers, isHydrated, updateCustomServers } = useResource(
+    withKey(
       storageScopeKey,
-    }),
-    [storageHook, storageElementKey, storageScopeKey],
+      McpCustomServersResource({
+        storage,
+        scopeKey: storageScopeKey,
+        persistenceQueues,
+      }),
+    ),
   );
-  const serverResourceKeyPrefix = `${getStorageScopeResourceKey(storageScope)}:`;
-  const [customServerState, setCustomServerState] = useState<CustomServerState>(
-    () => ({
-      storageScope,
-      records: [],
-      isHydrated: false,
-      persistenceRevision: 0,
-    }),
-  );
-  const isCurrentStorage = customServerState.storageScope === storageScope;
-  const customServers = isCurrentStorage
-    ? customServerState.records
-    : NO_CUSTOM_SERVERS;
-  const isHydrated = isCurrentStorage && customServerState.isHydrated;
-  const persistenceRevision = isCurrentStorage
-    ? customServerState.persistenceRevision
-    : 0;
-
-  const storageRef = useRef(storage);
-  const persistenceQueuesRef = useRef<StoragePersistenceQueueRegistry>(
-    new WeakMap(),
-  );
-
-  useEffect(() => {
-    storageRef.current = storage;
-  }, [storage]);
-
-  const hydrate = useEffectEvent(
-    async (
-      signal: { cancelled: boolean },
-      targetScope: StorageScope,
-      targetStorage: MCPStorage,
-      queueRegistry: StoragePersistenceQueueRegistry,
-    ) => {
-      const finishHydration = (records?: MCPCustomServerRecord[]) => {
-        if (signal.cancelled) return;
-        setCustomServerState((prev) => {
-          if (prev.storageScope !== targetScope) return prev;
-          if (!records) return { ...prev, isHydrated: true };
-
-          const persistedIds = new Set(records.map((record) => record.id));
-          const unpersistedRecords = prev.records.filter(
-            (record) => !persistedIds.has(record.id),
-          );
-          return {
-            storageScope: targetScope,
-            records: [...records, ...unpersistedRecords],
-            isHydrated: true,
-            persistenceRevision:
-              unpersistedRecords.length > 0 ? prev.persistenceRevision : 0,
-          };
-        });
-      };
-
-      const pendingPersistence = queueRegistry
-        .get(targetScope.hook)
-        ?.get(targetScope.key)
-        ?.get(targetScope.storageScopeKey);
-      if (pendingPersistence) await pendingPersistence;
-      if (signal.cancelled) return;
-
-      let records: Awaited<ReturnType<typeof targetStorage.loadCustomServers>>;
-      try {
-        records = await targetStorage.loadCustomServers();
-      } catch (error) {
-        if (!signal.cancelled) {
-          reportCustomStorageFailure("load", error);
-        }
-        finishHydration();
-        return;
-      }
-
-      finishHydration(records);
-    },
-  );
-
-  const updateCustomServers = useCallback(
-    (
-      updater: (records: MCPCustomServerRecord[]) => MCPCustomServerRecord[],
-    ) => {
-      setCustomServerState((prev) => {
-        if (prev.storageScope !== storageScope) return prev;
-        return {
-          storageScope,
-          records: updater(prev.records),
-          isHydrated: prev.isHydrated,
-          persistenceRevision: prev.persistenceRevision + 1,
-        };
-      });
-    },
-    [storageScope],
-  );
-
-  useEffect(() => {
-    const signal = { cancelled: false };
-    setCustomServerState((prev) => {
-      if (prev.storageScope === storageScope && !prev.isHydrated) return prev;
-      return {
-        storageScope,
-        records: [],
-        isHydrated: false,
-        persistenceRevision: 0,
-      };
-    });
-    void hydrate(
-      signal,
-      storageScope,
-      storageRef.current,
-      persistenceQueuesRef.current,
-    );
-    return () => {
-      signal.cancelled = true;
-    };
-  }, [storageScope]);
-
-  useEffect(() => {
-    if (!isHydrated || persistenceRevision === 0) return;
-    const targetStorage = storageRef.current;
-    const queueRegistry = persistenceQueuesRef.current;
-    const queues = getStoragePersistenceQueue(
-      queueRegistry,
-      storageHook,
-      storageElementKey,
-    );
-    const previous = queues.get(storageScopeKey);
-    const next = (previous ?? Promise.resolve()).then(() =>
-      persistCustomServers(targetStorage, customServers),
-    );
-    queues.set(storageScopeKey, next);
-    void next.then(() => {
-      if (queues.get(storageScopeKey) !== next) return;
-      queues.delete(storageScopeKey);
-
-      const queuesByElementKey = queueRegistry.get(storageHook);
-      if (queues.size === 0) queuesByElementKey?.delete(storageElementKey);
-      if (queuesByElementKey?.size === 0) queueRegistry.delete(storageHook);
-    });
-  }, [
-    customServers,
-    isHydrated,
-    persistenceRevision,
-    storageElementKey,
-    storageHook,
-    storageScopeKey,
-  ]);
 
   const serverElements = useMemo(() => {
     assertUniqueServerIds([
@@ -305,7 +194,7 @@ const useMcpManagerResource = (
 
     const connectorElements = connectors.map((c) =>
       withKey(
-        `${serverResourceKeyPrefix}${c.id}`,
+        c.id,
         McpServerResource({
           id: c.id,
           kind: "connector",
@@ -329,7 +218,7 @@ const useMcpManagerResource = (
     );
     const customElements = customServers.map((s) =>
       withKey(
-        `${serverResourceKeyPrefix}${s.id}`,
+        s.id,
         McpServerResource({
           id: s.id,
           kind: "custom",
@@ -360,16 +249,10 @@ const useMcpManagerResource = (
     redirectUri,
     autoConnect,
     connectionTimeout,
-    serverResourceKeyPrefix,
     updateCustomServers,
   ]);
 
   const lookup = useClientLookup(serverElements);
-
-  const getServerById = useCallback(
-    (id: string) => lookup.get({ key: `${serverResourceKeyPrefix}${id}` }),
-    [lookup, serverResourceKeyPrefix],
-  );
 
   const state = useMemo<MCPManagerState>(() => {
     const all = lookup.state;
@@ -400,22 +283,26 @@ const useMcpManagerResource = (
             : {}),
           parameters: tool.inputSchema as never,
           execute: (args) =>
-            getServerById(server.id).callTool(tool.name, args as unknown),
+            lookup.get({ key: server.id }).callTool(tool.name, args as unknown),
         };
       }
     }
     return out;
-  }, [state, getServerById]);
+  }, [state, lookup]);
 
   const clientRef = useAssistantClientRef();
 
-  useEffect(() => {
-    const client = clientRef.current;
-    if (!client) return;
-    return client.modelContext.register({
-      getModelContext: () => ({ tools: toolkit }),
-    });
-  }, [toolkit, clientRef]);
+  useAssistantScopeEffect(
+    "modelContext",
+    () => {
+      const client = clientRef.current;
+      if (!client) return;
+      return client.modelContext.register({
+        getModelContext: () => ({ tools: toolkit }),
+      });
+    },
+    [toolkit],
+  );
 
   const serverByKind = (kind: "connector" | "custom", index: number) => {
     const list = kind === "connector" ? state.connectors : state.customServers;
@@ -425,13 +312,13 @@ const useMcpManagerResource = (
         `McpManagerResource: no ${kind} at index ${index} (length ${list.length})`,
       );
     }
-    return getServerById(entry.id);
+    return lookup.get({ key: entry.id });
   };
 
   return {
     getState: () => state,
     server: (query) => {
-      if ("id" in query) return getServerById(query.id);
+      if ("id" in query) return lookup.get({ key: query.id });
       return serverByKind(query.kind, query.index);
     },
     connector: ({ index }) => serverByKind("connector", index),
@@ -445,10 +332,7 @@ const useMcpManagerResource = (
       elicitation,
     }) => {
       const record: MCPCustomServerRecord = {
-        id:
-          typeof crypto !== "undefined" && "randomUUID" in crypto
-            ? crypto.randomUUID()
-            : `mcp-${Date.now()}-${Math.random().toString(36).slice(2)}`,
+        id: createMcpId(),
         name,
         url,
         auth: auth as MCPAuthConfig,
@@ -473,9 +357,9 @@ const useMcpManagerResource = (
       // place. Fallback to manual cleanup if the lookup is empty
       // (server already gone).
       try {
-        await getServerById(id).remove();
+        await lookup.get({ key: id }).remove();
       } catch {
-        await storage.clearAuthState(id);
+        await clearOAuthProviderAuthState(storage, id);
         updateCustomServers((prev) =>
           prev.filter((record) => record.id !== id),
         );

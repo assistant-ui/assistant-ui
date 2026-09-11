@@ -428,8 +428,8 @@ npx shadcn@latest add https://r.assistant-ui.com/thread-list.json
 Then add it to your application layout:
 
 ```tsx title="app/chat/page.tsx"
-import { Thread } from "@/components/assistant-ui/thread";
-import { ThreadList } from "@/components/assistant-ui/thread-list";
+import { Thread } from "@/components/assistant-ui/elements/thread.aui";
+import { ThreadList } from "@/components/assistant-ui/elements/thread-list.aui";
 
 export default function ChatPage() {
   return (
@@ -452,7 +452,7 @@ import {
   ThreadListItemPrimitive,
   ThreadListPrimitive,
 } from "@assistant-ui/react-native";
-import { Thread } from "@/components/assistant-ui/thread";
+import { Thread } from "@/components/assistant-ui/elements/thread.aui";
 
 function ThreadList() {
   return (

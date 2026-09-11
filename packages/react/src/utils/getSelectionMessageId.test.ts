@@ -1,7 +1,7 @@
 /**
  * @vitest-environment jsdom
  */
-import { afterEach, describe, expect, it } from "vitest";
+import { afterEach, assert, describe, expect, it, vi } from "vitest";
 import { getSelectionMessageId } from "./getSelectionMessageId";
 
 const selectText = (start: Text, end = start) => {
@@ -24,6 +24,7 @@ const textNode = (selector: string) => {
 };
 
 afterEach(() => {
+  vi.restoreAllMocks();
   window.getSelection()?.removeAllRanges();
   document.body.replaceChildren();
 });
@@ -114,6 +115,180 @@ describe("getSelectionMessageId", () => {
     expect(
       getSelectionMessageId(selectText(textNode("#text"), textNode("#chip"))),
     ).toBeNull();
+  });
+
+  it.each(["", "data-aui-quote-selectable"])(
+    "rejects selections spanning an excluded subtree with root %s",
+    (marker) => {
+      document.body.innerHTML = `
+        <div data-message-id="message-1" ${marker}>
+          <span id="before">before</span>
+          <span data-aui-quote-selectable="false">excluded</span>
+          <span id="after">after</span>
+        </div>
+      `;
+
+      expect(getSelectionMessageId(selectText(textNode("#before")))).toBe(
+        "message-1",
+      );
+      expect(
+        getSelectionMessageId(
+          selectText(textNode("#before"), textNode("#after")),
+        ),
+      ).toBeNull();
+    },
+  );
+
+  it("rejects a paragraph selection that spans an inline exclusion", () => {
+    document.body.innerHTML = `
+      <div data-message-id="message-1">
+        <p id="text" data-aui-quote-selectable>before <span data-aui-quote-selectable="false">[1]</span> after</p>
+      </div>
+    `;
+
+    const paragraph = document.querySelector("#text");
+    assert(paragraph);
+    const selection = selectText(textNode("#text"));
+    selection.getRangeAt(0).selectNodeContents(paragraph);
+
+    expect(getSelectionMessageId(selection)).toBeNull();
+  });
+
+  it("accepts selections that stop or start at an excluded node boundary", () => {
+    document.body.innerHTML = `
+      <div data-message-id="message-1" data-aui-quote-selectable>
+        <span id="before">before</span><span id="chip" data-aui-quote-selectable="false">[1]</span><span id="after">after</span>
+      </div>
+    `;
+
+    const chip = document.querySelector("#chip");
+    assert(chip);
+    const before = selectText(textNode("#before"));
+    before.getRangeAt(0).setEndBefore(chip);
+    expect(getSelectionMessageId(before)).toBe("message-1");
+
+    const after = selectText(textNode("#after"));
+    after.getRangeAt(0).setStartAfter(chip);
+    expect(getSelectionMessageId(after)).toBe("message-1");
+  });
+
+  it("preserves a nested quote region inside an excluded subtree", () => {
+    document.body.innerHTML = `
+      <div data-message-id="message-1">
+        <div data-aui-quote-selectable="false">
+          <p data-aui-quote-selectable>
+            <span id="before">before</span>
+            <span data-aui-quote-selectable="false">[1]</span>
+            <span id="after">after</span>
+          </p>
+        </div>
+      </div>
+    `;
+
+    expect(getSelectionMessageId(selectText(textNode("#before")))).toBe(
+      "message-1",
+    );
+    expect(
+      getSelectionMessageId(
+        selectText(textNode("#before"), textNode("#after")),
+      ),
+    ).toBeNull();
+  });
+
+  it("checks another range outside the active quote region, including its excluded ancestor", () => {
+    document.body.innerHTML = `
+      <div data-message-id="message-1">
+        <p id="other">before <span id="chip" data-aui-quote-selectable="false">[1]</span> after</p>
+        <p id="active" data-aui-quote-selectable>active text</p>
+      </div>
+    `;
+
+    const other = document.querySelector("#other");
+    assert(other);
+    const range = document.createRange();
+    range.selectNodeContents(other);
+    const selection = selectText(textNode("#active"));
+    const active = selection.getRangeAt(0);
+    vi.spyOn(selection, "rangeCount", "get").mockReturnValue(2);
+    vi.spyOn(selection, "getRangeAt").mockImplementation((index) => {
+      if (index === 0) return range;
+      if (index === 1) return active;
+      throw new DOMException("Range index out of bounds", "IndexSizeError");
+    });
+
+    expect(getSelectionMessageId(selection)).toBeNull();
+
+    range.selectNodeContents(textNode("#chip"));
+    expect(getSelectionMessageId(selection)).toBeNull();
+  });
+
+  it("rejects another range inside the excluded ancestor of the active quote region", () => {
+    document.body.innerHTML = `
+      <div data-message-id="message-1">
+        <div data-aui-quote-selectable="false">
+          <span id="sibling">excluded prose</span>
+          <p id="active" data-aui-quote-selectable>active text</p>
+        </div>
+      </div>
+    `;
+
+    const range = document.createRange();
+    range.selectNodeContents(textNode("#sibling"));
+    const selection = selectText(textNode("#active"));
+    const active = selection.getRangeAt(0);
+    vi.spyOn(selection, "rangeCount", "get").mockReturnValue(2);
+    vi.spyOn(selection, "getRangeAt").mockImplementation((index) => {
+      if (index === 0) return range;
+      if (index === 1) return active;
+      throw new DOMException("Range index out of bounds", "IndexSizeError");
+    });
+
+    expect(getSelectionMessageId(selection)).toBeNull();
+  });
+
+  it("rejects another range in a different message", () => {
+    document.body.innerHTML = `
+      <div data-message-id="message-1"><p id="active">active text</p></div>
+      <div data-message-id="message-2">
+        <p id="other" data-aui-quote-selectable="false">excluded prose</p>
+      </div>
+    `;
+
+    const range = document.createRange();
+    range.selectNodeContents(textNode("#other"));
+    const selection = selectText(textNode("#active"));
+    const active = selection.getRangeAt(0);
+    vi.spyOn(selection, "rangeCount", "get").mockReturnValue(2);
+    vi.spyOn(selection, "getRangeAt").mockImplementation((index) => {
+      if (index === 0) return range;
+      if (index === 1) return active;
+      throw new DOMException("Range index out of bounds", "IndexSizeError");
+    });
+
+    expect(getSelectionMessageId(selection)).toBeNull();
+  });
+
+  it("accepts disjoint ranges on either side of an excluded gap", () => {
+    document.body.innerHTML = `
+      <div data-message-id="message-1" data-aui-quote-selectable>
+        <p id="before">before</p>
+        <p data-aui-quote-selectable="false">excluded</p>
+        <p id="after">after</p>
+      </div>
+    `;
+
+    const before = document.createRange();
+    before.selectNodeContents(textNode("#before"));
+    const selection = selectText(textNode("#after"));
+    const after = selection.getRangeAt(0);
+    vi.spyOn(selection, "rangeCount", "get").mockReturnValue(2);
+    vi.spyOn(selection, "getRangeAt").mockImplementation((index) => {
+      if (index === 0) return before;
+      if (index === 1) return after;
+      throw new DOMException("Range index out of bounds", "IndexSizeError");
+    });
+
+    expect(getSelectionMessageId(selection)).toBe("message-1");
   });
 
   it("rejects selections outside quote-selectable regions when a message opts in", () => {

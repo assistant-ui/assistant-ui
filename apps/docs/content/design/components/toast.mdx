@@ -1,0 +1,101 @@
+---
+title: "Toast"
+description: "A passing message for outcomes: success, error, and undo."
+links:
+  - label: Source
+    url: https://github.com/assistant-ui/assistant-ui/blob/main/packages/ui/src/components/ui/base/sonner.tsx
+  - label: Sonner
+    url: https://sonner.emilkowal.ski
+---
+
+import { PreviewCode } from "@/components/pages/docs/preview-code.server";
+import { KitInstall } from "@/components/pages/design/kit-install";
+import {
+  ToastSpecimen,
+  ToastTypesSpecimen,
+} from "@/components/pages/design/specimens";
+import * as RadixSpecimens from "@/components/pages/design/specimens.radix";
+import { FlavorSwitcher } from "@/components/pages/docs/contexts/flavor.server";
+
+<FlavorSwitcher />
+
+<PreviewCode file="components/pages/design/specimens" name="ToastSpecimen" base={<ToastSpecimen />}>
+  <RadixSpecimens.ToastSpecimen />
+</PreviewCode>
+
+The wrapper restyles [Sonner](https://sonner.emilkowal.ski) and is identical in both flavors. Typed toasts carry one hue across the ring, the faint fill, and the icon, while the message itself stays in ink. The card keeps the overlay radius: a toast floats above the page, so it rounds like every lifted surface in the kit.
+
+## Installation
+
+<KitInstall name="sonner" />
+
+## Usage
+
+Mount one `Toaster` at the root, then call `toast` from anywhere. This site mounts it in the root provider.
+
+```tsx
+import { Toaster } from "@/components/ui/sonner";
+
+export function RootLayout({ children }: { children: React.ReactNode }) {
+  return (
+    <>
+      {children}
+      <Toaster position="top-center" />
+    </>
+  );
+}
+```
+
+```tsx
+import { toast } from "sonner";
+
+toast.success("Command copied");
+toast("Thread archived", {
+  description: "It stays in the archive until you restore it.",
+  action: { label: "Undo", onClick: restore },
+});
+```
+
+## Examples
+
+### Types and promises
+
+`info` and `warning` follow the callout hues. `toast.promise` renders the loading state with the kit's one sanctioned spinner, then settles into success or error.
+
+<PreviewCode file="components/pages/design/specimens" name="ToastTypesSpecimen" base={<ToastTypesSpecimen />}>
+  <RadixSpecimens.ToastTypesSpecimen />
+</PreviewCode>
+
+## API Reference
+
+### Toaster
+
+Wraps Sonner's `Toaster` and accepts all of its props; the wrapper only sets the house styling through `toastOptions.classNames` and reads the theme from `next-themes`.
+
+<ParametersTable
+  type="ToasterProps"
+  parameters={[
+    {
+      name: "position",
+      type: '"top-left" | "top-center" | "top-right" | "bottom-left" | "bottom-center" | "bottom-right"',
+      default: '"bottom-right"',
+      description: "Where the stack lives. This site uses top-center.",
+    },
+    {
+      name: "toastOptions",
+      type: "ToastOptions",
+      description:
+        "Per-toast defaults. Class overrides merge after the house styles.",
+    },
+    {
+      name: "closeButton",
+      type: "boolean",
+      default: "false",
+      description: "Adds a dismiss button to every toast.",
+    },
+  ]}
+/>
+
+### toast
+
+Import `toast` from `sonner` directly: `toast(title, options)`, `toast.success`, `toast.error`, `toast.info`, `toast.warning`, and `toast.promise` are the calls this kit styles.

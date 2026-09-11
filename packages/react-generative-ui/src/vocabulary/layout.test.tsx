@@ -38,7 +38,22 @@ describe("layoutVocabulary", () => {
         background: "var(--muted)",
       }),
     ).toBe(
-      '<section data-aui="card" data-aui-padding="2" data-aui-background="var(--muted)" style="background:var(--muted);color:white"><header data-aui="card-title">T</header></section>',
+      '<section data-aui="card" data-aui-padding="2" data-aui-background="var(--muted)" data-aui-surface="" style="background:var(--muted);color:white"><header data-aui="card-title">T</header></section>',
+    );
+  });
+
+  it("Card flags itself as a surface only when a background or a footer makes it one", () => {
+    expect(render({ $type: "Card", title: "Plain" })).not.toContain(
+      "data-aui-surface",
+    );
+    expect(render({ $type: "Card", background: "var(--muted)" })).toContain(
+      "data-aui-surface",
+    );
+    expect(render({ $type: "Card", confirm: { label: "Yes" } })).toContain(
+      "data-aui-surface",
+    );
+    expect(render({ $type: "Card", cancel: { label: "No" } })).toContain(
+      "data-aui-surface",
     );
   });
 
@@ -97,6 +112,22 @@ describe("layoutVocabulary", () => {
   it("Badge renders a span with the value and variant hook", () => {
     expect(render({ $type: "Badge", value: "new", variant: "success" })).toBe(
       '<span data-aui="badge" data-aui-variant="success">new</span>',
+    );
+  });
+
+  it("ignores malformed card and badge text properties", () => {
+    expect(
+      render({
+        $type: "Card",
+        title: { unexpected: true },
+        confirm: { label: { unexpected: true } },
+        cancel: { label: { unexpected: true } },
+      }),
+    ).toBe(
+      '<section data-aui="card" data-aui-surface=""><footer data-aui="card-footer"><button type="button" data-aui="card-confirm"></button><button type="button" data-aui="card-cancel"></button></footer></section>',
+    );
+    expect(render({ $type: "Badge", value: { unexpected: true } })).toBe(
+      '<span data-aui="badge"></span>',
     );
   });
 });

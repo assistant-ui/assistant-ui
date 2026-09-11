@@ -5,14 +5,14 @@ import {
   useCallback,
   useState,
   type ReactElement,
-  cloneElement,
   isValidElement,
 } from "react";
 
-import { composeEventHandlers } from "@radix-ui/primitive";
+import { composeEventHandlers } from "radix-ui/internal";
 import { Slot } from "radix-ui";
 import type React from "react";
 import { useAui } from "@assistant-ui/store";
+import { renderSlot } from "../../utils/Primitive";
 
 export namespace ComposerPrimitiveAttachmentDropzone {
   export type Element = HTMLDivElement;
@@ -30,22 +30,34 @@ export const ComposerPrimitiveAttachmentDropzone = forwardRef<
   const [isDragging, setIsDragging] = useState(false);
   const aui = useAui();
 
+  // An unprevented file drop navigates the tab to the file, so file drags are
+  // claimed via preventDefault even when the runtime does not support attachments.
   const handleDragEnterCapture = useCallback(
     (e: React.DragEvent) => {
       if (disabled) return;
+      if (!e.dataTransfer.types.includes("Files")) return;
       e.preventDefault();
+      if (!aui.thread.getState().capabilities.attachments) {
+        e.dataTransfer.dropEffect = "none";
+        return;
+      }
       setIsDragging(true);
     },
-    [disabled],
+    [disabled, aui],
   );
 
   const handleDragOverCapture = useCallback(
     (e: React.DragEvent) => {
       if (disabled) return;
+      if (!e.dataTransfer.types.includes("Files")) return;
       e.preventDefault();
+      if (!aui.thread.getState().capabilities.attachments) {
+        e.dataTransfer.dropEffect = "none";
+        return;
+      }
       if (!isDragging) setIsDragging(true);
     },
-    [disabled, isDragging],
+    [disabled, isDragging, aui],
   );
 
   const handleDragLeaveCapture = useCallback(
@@ -64,9 +76,12 @@ export const ComposerPrimitiveAttachmentDropzone = forwardRef<
   const handleDrop = useCallback(
     async (e: React.DragEvent) => {
       if (disabled) return;
-      e.preventDefault();
       setIsDragging(false);
+      if (!e.dataTransfer.types.includes("Files")) return;
+      e.preventDefault();
       const files = Array.from(e.dataTransfer.files);
+      if (!aui.thread.getState().capabilities.attachments || files.length === 0)
+        return;
       await Promise.all(
         files.map(async (file) => {
           try {
@@ -101,15 +116,7 @@ export const ComposerPrimitiveAttachmentDropzone = forwardRef<
   };
 
   if (render && isValidElement(render)) {
-    const renderChildren =
-      children !== undefined
-        ? children
-        : (render.props as Record<string, unknown>).children;
-    return (
-      <Slot.Root {...mergedProps}>
-        {cloneElement(render, undefined, renderChildren as React.ReactNode)}
-      </Slot.Root>
-    );
+    return renderSlot(render, children, mergedProps);
   }
 
   const Comp = asChild ? Slot.Root : "div";

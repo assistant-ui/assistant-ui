@@ -23,7 +23,12 @@ const getExternalStoreMessages: <T>(input: { messages: readonly ThreadMessage[];
 ### unstable_convertExternalMessages
 
 ```ts
-const unstable_convertExternalMessages: <T extends WeakKey>(messages: T[], callback: useExternalMessageConverter.Callback<T>, isRunning: boolean, metadata: useExternalMessageConverter.Metadata) => ThreadMessage[];
+const unstable_convertExternalMessages: <T extends WeakKey>(
+  messages: T[],
+  callback: useExternalMessageConverter.Callback<T>,
+  isRunning: boolean,
+  metadata: useExternalMessageConverter.Metadata,
+) => ThreadMessage[];
 ```
 
 ### unstable_createMessageConverter

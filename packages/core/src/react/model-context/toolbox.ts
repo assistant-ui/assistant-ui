@@ -9,6 +9,15 @@ import type {
   ToolCallMessagePartComponent,
   ToolCallMessagePartProps,
 } from "../types/MessagePartComponentTypes";
+import {
+  resolveToolCallText,
+  type ToolCallText as NeutralToolCallText,
+} from "../../model-context/tool-call-text";
+
+export type ToolCallText<
+  TArgs extends Record<string, unknown>,
+  TResult,
+> = NeutralToolCallText<TArgs, TResult, ReactNode>;
 
 /**
  * Resolves whether a tool's UI should be presented standalone (outside the
@@ -60,42 +69,6 @@ type ToolStreamCall<TArgs extends Record<string, unknown>, TResult> = (
   reader: ToolCallReader<TArgs, TResult>,
   context: ToolExecuteContext,
 ) => void;
-
-type ToolCallRunningText<TArgs extends Record<string, unknown>> =
-  | ReactNode
-  | ((options: { args: TArgs }) => ReactNode);
-
-type ToolCallCompleteText<TArgs extends Record<string, unknown>, TResult> =
-  | ReactNode
-  | ((options: { args: TArgs; result: TResult | undefined }) => ReactNode);
-
-export type ToolCallText<TArgs extends Record<string, unknown>, TResult> =
-  | {
-      running: ToolCallRunningText<TArgs>;
-      complete?: ToolCallCompleteText<TArgs, TResult> | undefined;
-    }
-  | {
-      running?: ToolCallRunningText<TArgs> | undefined;
-      complete: ToolCallCompleteText<TArgs, TResult>;
-    };
-
-const resolveToolCallText = <TArgs extends Record<string, unknown>, TResult>(
-  text: ToolCallText<TArgs, TResult>,
-  part: ToolCallMessagePartProps<TArgs, TResult>,
-): ReactNode => {
-  const isRunning =
-    part.status?.type === "running" || part.status?.type === "requires-action";
-
-  if (!isRunning) {
-    const value = text.complete;
-    if (typeof value !== "function") return value ?? null;
-    return value({ args: part.args, result: part.result });
-  }
-
-  const value = text.running;
-  if (typeof value !== "function") return value ?? null;
-  return value({ args: part.args });
-};
 
 export const makeToolCallTextComponent = <
   TArgs extends Record<string, unknown>,

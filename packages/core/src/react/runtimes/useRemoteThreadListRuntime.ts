@@ -1,6 +1,7 @@
 import {
   useState,
   useEffect,
+  useInsertionEffect,
   useMemo,
   useRef,
   useCallback,
@@ -12,6 +13,8 @@ import type { RemoteThreadListOptions } from "../../runtimes/remote-thread-list/
 import type { AssistantRuntimeCore } from "../../runtime/interfaces/assistant-runtime-core";
 import type { AssistantRuntime } from "../../runtime/api/assistant-runtime";
 import { RemoteThreadListThreadListRuntimeCore } from "./RemoteThreadListThreadListRuntimeCore";
+import { WritableSubscribable } from "../../subscribable/subscribable";
+import { useSubscribable } from "../../store/runtime-clients/useSubscribable";
 import { useAui } from "@assistant-ui/store";
 
 class RemoteThreadListRuntimeCore
@@ -37,10 +40,42 @@ const useRemoteThreadListRuntimeImpl = (
   options: RemoteThreadListOptions,
 ): AssistantRuntime => {
   const [runtime] = useState(() => new RemoteThreadListRuntimeCore(options));
+
+  // Insertion-effect cleanup runs only when React deletes the fiber, so a
+  // hidden <Activity> or a re-suspended boundary keeps the threads alive; the
+  // disposal is deferred to a microtask because it notifies subscribers and
+  // React forbids scheduling updates from an insertion effect.
+  useInsertionEffect(
+    () => () => queueMicrotask(() => runtime.threads.__internal_dispose()),
+    [runtime],
+  );
+
   useEffect(() => {
     runtime.threads.__internal_setOptions(options);
     runtime.threads.__internal_load();
   }, [runtime, options]);
+
+  useEffect(() => {
+    if (typeof window === "undefined" || typeof document === "undefined") {
+      return;
+    }
+
+    const reloadAfterError = () => {
+      if (runtime.threads.loadError !== undefined) {
+        void runtime.threads.reload();
+      }
+    };
+    const reloadAfterVisible = () => {
+      if (document.visibilityState === "visible") reloadAfterError();
+    };
+
+    window.addEventListener("online", reloadAfterError);
+    document.addEventListener("visibilitychange", reloadAfterVisible);
+    return () => {
+      window.removeEventListener("online", reloadAfterError);
+      document.removeEventListener("visibilitychange", reloadAfterVisible);
+    };
+  }, [runtime]);
 
   return useMemo(() => new AssistantRuntimeImpl(runtime), [runtime]);
 };
@@ -48,14 +83,30 @@ const useRemoteThreadListRuntimeImpl = (
 export const useRemoteThreadListRuntime = (
   options: RemoteThreadListOptions,
 ): AssistantRuntime => {
-  const runtimeHookRef = useRef(options.runtimeHook);
-  runtimeHookRef.current = options.runtimeHook;
+  const [runtimeHookStore] = useState(
+    () => new WritableSubscribable(options.runtimeHook),
+  );
+  useEffect(() => {
+    runtimeHookStore.setState(options.runtimeHook);
+  }, [runtimeHookStore, options.runtimeHook]);
 
   const initialThreadIdRef = useRef(options.initialThreadId);
 
-  const stableRuntimeHook = useCallback(() => {
-    return runtimeHookRef.current();
-  }, []);
+  // Thread resources subscribe to the store rather than reading a ref, so a
+  // hook published at commit reaches exactly the resources that use it and an
+  // abandoned render publishes nothing. The store pins its server snapshot to
+  // the constructor value for hydration, which tap reads on any never-mounted
+  // fiber, so the live state serves as the server snapshot here.
+  const stableRuntimeHook = useCallback(
+    function useCommittedRuntimeHook() {
+      return useSubscribable({
+        subscribe: runtimeHookStore.subscribe,
+        getState: runtimeHookStore.getState,
+        getServerSnapshot: runtimeHookStore.getState,
+      })();
+    },
+    [runtimeHookStore],
+  );
 
   const onThreadIdChange = useEffectEvent((threadId: string | undefined) => {
     options.onThreadIdChange?.(threadId);
@@ -91,7 +142,7 @@ export const useRemoteThreadListRuntime = (
 
     // If allowNesting is true and already inside a thread list context,
     // just call the runtimeHook directly (no-op behavior)
-    return stableRuntimeHook();
+    return options.runtimeHook();
   }
 
   const runtime = useRemoteThreadListRuntimeImpl(stableOptions);

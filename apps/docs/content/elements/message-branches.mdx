@@ -1,0 +1,282 @@
+---
+title: "Message branches"
+description: "Navigate between regenerated versions of the same answer without losing your place."
+---
+
+A regenerated answer does not replace the previous one; it becomes a sibling branch. This element shows the active branch and a `n / m` stepper to move between siblings. With a runtime the branches come from the thread; standalone you pass them in.
+
+## Getting started
+
+<RuntimeMode>
+
+Every assistant-ui runtime tracks branches per message. The stepper reads `branchNumber` and `branchCount` from the message and switches branches through the runtime, so nothing is stored in component state.
+
+<Steps>
+  <Step>
+
+### Compose the branch picker
+
+Build the stepper from `BranchPickerPrimitive`. The primitives own the behavior (which branch is active, disabling at the ends, hiding when there is only one); the element's classes give it this look.
+
+```tsx title="components/assistant-ui/elements/branch-picker.tsx"
+"use client";
+
+import { BranchPickerPrimitive } from "@assistant-ui/react";
+import { ChevronLeftIcon, ChevronRightIcon } from "lucide-react";
+import { cn } from "@/lib/utils";
+import { ghostButton, mono } from "@/components/assistant-ui/elements/surfaces";
+
+export function BranchPicker() {
+  return (
+    <BranchPickerPrimitive.Root
+      hideWhenSingleBranch
+      className="flex items-center gap-1"
+    >
+      <BranchPickerPrimitive.Previous
+        aria-label="Show previous response"
+        className={cn(ghostButton, "size-6")}
+      >
+        <ChevronLeftIcon className="size-3.5" />
+      </BranchPickerPrimitive.Previous>
+      <span className={cn(mono, "text-foreground/35 tabular-nums")}>
+        <BranchPickerPrimitive.Number /> / <BranchPickerPrimitive.Count />
+      </span>
+      <BranchPickerPrimitive.Next
+        aria-label="Show next response"
+        className={cn(ghostButton, "size-6")}
+      >
+        <ChevronRightIcon className="size-3.5" />
+      </BranchPickerPrimitive.Next>
+    </BranchPickerPrimitive.Root>
+  );
+}
+```
+
+  </Step>
+  <Step>
+
+### Place it in the message
+
+The picker must render inside a message scope, so it knows which message's branches to show. Put it in the assistant message's action row, next to copy and regenerate.
+
+```tsx title="components/assistant-ui/elements/thread.aui.tsx"
+import { MessagePrimitive } from "@assistant-ui/react";
+import { BranchPicker } from "./branch-picker";
+
+function AssistantMessage() {
+  return (
+    <MessagePrimitive.Root>
+      <MessagePrimitive.Parts />
+      <div className="flex items-center gap-1">
+        <BranchPicker />
+        {/* copy, regenerate, ... */}
+      </div>
+    </MessagePrimitive.Root>
+  );
+}
+```
+
+The `Thread` element already ships this composition for both user and assistant messages, so installing `@assistant-ui/thread` gives you branch navigation without any of the above.
+
+  </Step>
+</Steps>
+
+</RuntimeMode>
+
+<StandaloneMode>
+
+Standalone, the element is a controlled component: you own the list of variants and the active index. It renders the active variant and the stepper, and reports index changes back to you.
+
+<Steps>
+  <Step>
+
+### Hold the branch state
+
+```tsx title="app/answer.tsx"
+"use client";
+
+import { useState } from "react";
+import { MessageBranches } from "@/components/assistant-ui/elements/message-branches";
+
+const variants = [
+  "Paris is the capital of France.",
+  "The capital of France is Paris, on the Seine.",
+  "France's capital city is Paris.",
+];
+
+export function Answer() {
+  const [index, setIndex] = useState(0);
+  return (
+    <MessageBranches variants={variants} index={index} onIndexChange={setIndex} />
+  );
+}
+```
+
+  </Step>
+  <Step>
+
+### Regenerate into a new branch
+
+Append the new answer and move the index to it. The stepper's count follows the array length.
+
+```tsx
+async function regenerate() {
+  const next = await fetchAnswer();
+  setVariants((prev) => [...prev, next]);
+  setIndex(variants.length);
+}
+```
+
+  </Step>
+</Steps>
+
+</StandaloneMode>
+
+## Anatomy
+
+```tsx
+<div data-slot="message-branches">
+  <p>{/* the active variant, keyed on index so it fades in on change */}</p>
+  <div>
+    <button aria-label="Show previous response" />
+    <span>{/* n / m */}</span>
+    <button aria-label="Show next response" />
+  </div>
+</div>
+```
+
+Standalone, the stepper wraps around: previous on the first variant goes to the last, next on the last goes to the first. With a single variant both buttons render disabled and the counter reads `1 / 1`; with no variants it reads `0 / 0`. The runtime primitives instead disable at the ends.
+
+## Examples
+
+### Stepper only
+
+<RuntimeMode>
+
+When the message body is already rendered by `MessagePrimitive.Parts`, render only the stepper. `hideWhenSingleBranch` removes it from the layout until a second branch exists, which keeps the action row stable.
+
+```tsx
+<BranchPickerPrimitive.Root hideWhenSingleBranch className="flex items-center gap-1">
+  <BranchPickerPrimitive.Previous className={cn(ghostButton, "size-6")}>
+    <ChevronLeftIcon className="size-3.5" />
+  </BranchPickerPrimitive.Previous>
+  <span className={cn(mono, "text-foreground/35 tabular-nums")}>
+    <BranchPickerPrimitive.Number /> / <BranchPickerPrimitive.Count />
+  </span>
+  <BranchPickerPrimitive.Next className={cn(ghostButton, "size-6")}>
+    <ChevronRightIcon className="size-3.5" />
+  </BranchPickerPrimitive.Next>
+</BranchPickerPrimitive.Root>
+```
+
+</RuntimeMode>
+
+<StandaloneMode>
+
+The element always renders the active variant above the stepper. To show the stepper on its own, pass the variants and render your own body from `variants[index]`:
+
+```tsx
+<div>
+  <Markdown>{variants[index]}</Markdown>
+  <MessageBranches
+    className="[&>p]:hidden"
+    variants={variants}
+    index={index}
+    onIndexChange={setIndex}
+  />
+</div>
+```
+
+</StandaloneMode>
+
+### Where branches come from
+
+<RuntimeMode>
+
+Reloading an assistant message creates a sibling branch and switches to it; editing a user message branches the conversation at that point. A regenerate button next to the picker is all it takes for the stepper to appear:
+
+```tsx
+import { useAui } from "@assistant-ui/react";
+import { RefreshCwIcon } from "lucide-react";
+
+function RegenerateButton() {
+  const aui = useAui();
+  return (
+    <button
+      type="button"
+      aria-label="Regenerate"
+      onClick={() => aui.message.reload()}
+      className={cn(ghostButton, "size-6")}
+    >
+      <RefreshCwIcon className="size-3.5" />
+    </button>
+  );
+}
+```
+
+For controls that address a branch directly, `switchToBranch` steps with `{ position: "previous" | "next" }` or jumps with `{ branchId }` when you hold the message id of a specific branch.
+
+</RuntimeMode>
+
+<StandaloneMode>
+
+Branches are whatever you append to `variants`; regenerating means fetching a new answer into the array. `onIndexChange` is the only write path, so any control that calls it with a valid index jumps directly:
+
+```tsx
+<select value={index} onChange={(e) => setIndex(Number(e.target.value))}>
+  {variants.map((_, i) => (
+    <option key={i} value={i}>
+      Version {i + 1}
+    </option>
+  ))}
+</select>
+```
+
+</StandaloneMode>
+
+### Restyle the stepper
+
+Both lanes take `className` on the root. The buttons use the shared `ghostButton` surface and the counter the `mono` surface from `surfaces.tsx`, so restyling those two tokens restyles every element that uses them.
+
+```tsx
+<MessageBranches className="max-w-none gap-3" /* ... */ />
+```
+
+## API reference
+
+<RuntimeMode>
+
+### BranchPickerPrimitive
+
+| Part | Renders | Notes |
+|------|---------|-------|
+| `Root` | `div` | `hideWhenSingleBranch` returns `null` while `branchCount <= 1`. Must be inside a message scope. |
+| `Previous` | `button` | Disabled on the first branch. Accepts `asChild`. |
+| `Next` | `button` | Disabled on the last branch. Accepts `asChild`. |
+| `Number` | text | The 1-based `branchNumber`. |
+| `Count` | text | The `branchCount`. |
+
+### Message state
+
+| Selector | Type | Description |
+|----------|------|-------------|
+| `s.message.branchNumber` | `number` | 1-based index of the branch being shown. |
+| `s.message.branchCount` | `number` | Number of sibling branches for this message. |
+| `aui.message.switchToBranch(options)` | `{ position?: "previous" \| "next"; branchId?: string }` | Switches the shown branch; `position` steps, `branchId` jumps to a branch whose message id you hold. |
+
+</RuntimeMode>
+
+<StandaloneMode>
+
+### MessageBranches
+
+| Prop | Type | Default | Description |
+|------|------|---------|-------------|
+| `variants` | `readonly string[]` | required | The sibling answers, in order. |
+| `index` | `number` | required | Index of the variant to show. An out-of-range index falls back to the first variant. |
+| `onIndexChange` | `(index: number) => void` | required | Called with the next index when a stepper button is pressed. Wraps around at both ends. |
+| `className` | `string` | | Merged onto the root. |
+
+All other `div` props are forwarded to the root.
+
+</StandaloneMode>

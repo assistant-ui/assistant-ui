@@ -1,0 +1,228 @@
+---
+title: "Computer use"
+description: "The screen the agent is driving, with a cursor trail and what it is doing right now."
+---
+
+A browser chrome frame around whatever the agent is looking at, with a cursor that moves to each action and a fading trail behind it. With a runtime this is a composition of grouped tool calls, not a shipped primitive; standalone you pass the steps and the active index in.
+
+## Getting started
+
+<RuntimeMode>
+
+There's no built-in "computer use" tool. This is a `computer` tool you define yourself, one call per action, rendered together by grouping consecutive calls to it.
+
+<Steps>
+  <Step>
+
+### Define the action as a tool call
+
+```tsx title="app/computer-toolkit.tsx"
+"use client";
+
+import type { ToolCallMessagePartComponent } from "@assistant-ui/react";
+import { defineToolkit } from "@assistant-ui/react";
+import { MousePointer2Icon } from "lucide-react";
+import { z } from "zod";
+
+type ComputerArgs = { action: string; target: string; x: number; y: number };
+
+const ComputerStepMarker: ToolCallMessagePartComponent<ComputerArgs> = ({ args, status }) => (
+  <MousePointer2Icon
+    className="absolute size-4 fill-blue-500 text-blue-500 transition-[left,top] duration-500"
+    style={{ left: `${args.x}%`, top: `${args.y}%`, opacity: status?.type === "running" ? 1 : 0.4 }}
+  />
+);
+
+const toolkit = defineToolkit({
+  computer: {
+    type: "backend",
+    description: "Click, type, or scroll at a point on the screen.",
+    parameters: z.object({ action: z.string(), target: z.string(), x: z.number(), y: z.number() }),
+    render: ComputerStepMarker,
+  },
+});
+```
+
+`action`, `target`, `x`, and `y` are this example's own parameters schema, not a built-in shape; a computer-use provider's real tool defines whatever fields it needs.
+
+  </Step>
+  <Step>
+
+### Group consecutive actions into one screen
+
+```tsx title="components/assistant-ui/elements/thread.aui.tsx"
+import { MessagePrimitive } from "@assistant-ui/react";
+
+function AssistantMessage() {
+  return (
+    <MessagePrimitive.GroupedParts
+      groupBy={(part) =>
+        part.type === "tool-call" && part.toolName === "computer" ? ["group-computer"] : []
+      }
+    >
+      {({ part, children }) => {
+        switch (part.type) {
+          case "group-computer":
+            return <div className="relative overflow-hidden rounded-2xl border">{children}</div>;
+          case "tool-call":
+            return part.toolUI ?? null;
+          default:
+            return null;
+        }
+      }}
+    </MessagePrimitive.GroupedParts>
+  );
+}
+```
+
+`groupBy` branches on `part.toolName` here instead of `groupPartByType`'s part-type map, because the grouping key isn't the part type, it's which tool was called. The group wrapper is `position: relative`; each `ComputerStepMarker` positions itself `absolute` inside it, so consecutive calls lay out as a trail with no extra plumbing.
+
+  </Step>
+</Steps>
+
+</RuntimeMode>
+
+<StandaloneMode>
+
+Standalone, the element is a controlled component: you own the step list, which one is active, and the screen content underneath the trail.
+
+<Steps>
+  <Step>
+
+### Hold the steps and the active index
+
+```tsx title="app/screen.tsx"
+"use client";
+
+import { useState } from "react";
+import { ComputerUse, type ComputerStep } from "@/components/assistant-ui/elements/computer-use";
+
+const steps: ComputerStep[] = [
+  { id: "1", action: "click", target: "Sign in", x: 62, y: 24 },
+  { id: "2", action: "type", target: "harry@example.com", x: 40, y: 38 },
+];
+
+export function Screen() {
+  const [activeIndex, setActiveIndex] = useState(0);
+  return (
+    <ComputerUse url="app.example.com/login" steps={steps} activeIndex={activeIndex}>
+      <img src="/screenshot.png" alt="" className="size-full object-cover" />
+    </ComputerUse>
+  );
+}
+```
+
+  </Step>
+  <Step>
+
+### Advance as the run streams
+
+```tsx
+useEffect(() => {
+  const id = setInterval(() => setActiveIndex((i) => i + 1), 1200);
+  return () => clearInterval(id);
+}, []);
+```
+
+`activeIndex` is clamped into range internally, so it's safe to keep incrementing past the last step.
+
+  </Step>
+</Steps>
+
+</StandaloneMode>
+
+## Anatomy
+
+```tsx
+<div data-slot="computer-use">
+  <div>{/* traffic-light dots, url */}</div>
+  <div>{/* children (the screen), trail dots, cursor */}</div>
+  {/* footer: action, target, "n/total"; only when steps is non-empty */}
+</div>
+```
+
+`activeIndex` clamps into `0…steps.length - 1`, so a negative or out-of-range index still resolves to a real step rather than nothing. The trail is the two steps before the active one plus the active one itself, at opacity `0.18 * (i + 1)`, fading in toward the cursor's full-opacity mark. With zero steps there's no cursor and no footer, only the header and `children`.
+
+## Examples
+
+### Provide the screen content
+
+<RuntimeMode>
+
+The group wrapper from step two is where a live screen goes, alongside the markers `children` supplies through `MessagePrimitive.GroupedParts`:
+
+```tsx
+case "group-computer":
+  return (
+    <div className="relative overflow-hidden rounded-2xl border">
+      <img src={screenshotUrl} alt="" className="absolute inset-0 size-full object-cover" />
+      {children}
+    </div>
+  );
+```
+
+</RuntimeMode>
+
+<StandaloneMode>
+
+`children` is required, not optional: the frame has nothing to show underneath the trail until you pass it.
+
+```tsx
+<ComputerUse url={url} steps={steps} activeIndex={activeIndex}>
+  <iframe src={liveViewUrl} className="size-full" />
+</ComputerUse>
+```
+
+</StandaloneMode>
+
+### Fade the marker as the call settles
+
+<RuntimeMode>
+
+`ComputerStepMarker` above already reads `status?.type`; a call still `"running"` gets the full-opacity cursor treatment, and one that finished settles into a dimmer trail dot the next call's marker renders past.
+
+</RuntimeMode>
+
+### Restyle the frame
+
+Both lanes take `className` on the root. The chrome uses the shared `field`, `mono`, and `paper` tokens; the traffic-light dots and cursor color are literal Tailwind classes on the element itself, so restyling those means editing the component's className strings directly rather than a shared token.
+
+## API reference
+
+<RuntimeMode>
+
+There's no dedicated computer-use primitive: this is `MessagePrimitive.GroupedParts` plus an ordinary tool-call renderer, so the table below names the render props that pattern reads, not a shipped API surface.
+
+### Render props used
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `args` | your tool's `TArgs` | Whatever parameters schema you declare; `action`/`target`/`x`/`y` above is one convention, not a built-in shape. |
+| `status` | `ToolCallMessagePartStatus` | Read `status?.type === "running"` to distinguish the in-progress call from settled ones. |
+
+</RuntimeMode>
+
+<StandaloneMode>
+
+### ComputerUse
+
+| Prop | Type | Default | Description |
+|------|------|---------|-------------|
+| `url` | `string` | required | Shown in the chrome's address field. |
+| `steps` | `readonly ComputerStep[]` | required | The actions to trail through. |
+| `activeIndex` | `number` | required | Index of the current step; clamped into range. |
+| `children` | `ReactNode` | required | The screen content, rendered beneath the trail and cursor. |
+| `className` | `string` | | Merged onto the root. |
+
+### ComputerStep
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `id` | `string` | React key. |
+| `action` | `string` | Shown in the footer, e.g. `"click"`. |
+| `target` | `string` | What the action acted on. |
+| `x`, `y` | `number` | Position as a percentage of the frame, `0…100`. |
+
+All other `div` props are forwarded to the root.
+
+</StandaloneMode>

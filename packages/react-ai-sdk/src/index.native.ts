@@ -1,3 +1,1 @@
-/// <reference types="@assistant-ui/core/react" />
-
-export * from "./client";
+export * from "@assistant-ui/ai-sdk";

@@ -1,50 +1,120 @@
+/** @vitest-environment jsdom */
+import { render, screen } from "@testing-library/react";
+import { useState, type ReactNode } from "react";
 import { describe, expect, it, vi } from "vitest";
-import type { ReactElement } from "react";
+import type { CompleteAttachment } from "../../../types/attachment";
+
+const mocks = vi.hoisted(() => ({
+  role: "user" as "user" | "assistant",
+  attachments: undefined as CompleteAttachment[] | undefined,
+  aui: {
+    message: {
+      attachment: ({ index }: { index: number }) => ({
+        getState: () => mocks.attachments?.[index],
+      }),
+    },
+  },
+}));
+
+vi.mock("@assistant-ui/store", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("@assistant-ui/store")>()),
+  useAui: () => mocks.aui,
+  useAuiState: (selector: (state: unknown) => unknown) =>
+    selector({
+      message: {
+        role: mocks.role,
+        attachments: mocks.attachments,
+      },
+    }),
+  RenderChildrenWithAccessor: ({
+    getItemState,
+    children,
+  }: {
+    getItemState: (aui: typeof mocks.aui) => CompleteAttachment;
+    children: (getItem: () => CompleteAttachment) => ReactNode;
+  }) => children(() => getItemState(mocks.aui)),
+}));
+
+vi.mock(
+  "../../providers/AttachmentByIndexProvider",
+  async (importOriginal) => ({
+    ...(await importOriginal<
+      typeof import("../../providers/AttachmentByIndexProvider")
+    >()),
+    MessageAttachmentByIndexProvider: ({ children }: { children: ReactNode }) =>
+      children,
+  }),
+);
+
 import { MessagePrimitiveAttachments } from "./MessageAttachments";
 
-const mockUseAuiState = vi.fn();
-type UseAuiStateSelector = Parameters<
-  (typeof import("@assistant-ui/store"))["useAuiState"]
->[0];
-type AttachmentsElement = ReactElement<{ children: () => null }>;
-
-vi.mock("react", async (importOriginal) => {
-  const actual = await importOriginal<typeof import("react")>();
-  return {
-    ...actual,
-    useMemo: (factory: () => unknown) => factory(),
-  };
+const attachment = (id: string): CompleteAttachment => ({
+  id,
+  type: "file",
+  name: `${id}.txt`,
+  status: { type: "complete" },
+  content: [],
 });
 
-vi.mock("@assistant-ui/store", async (importOriginal) => {
-  const actual = await importOriginal<typeof import("@assistant-ui/store")>();
-  return {
-    ...actual,
-    useAuiState: (selector: UseAuiStateSelector) => mockUseAuiState(selector),
-  };
-});
-
-const renderAttachmentsInner = () => {
-  const element = MessagePrimitiveAttachments({
-    children: () => null,
-  }) as AttachmentsElement;
-
-  const Inner = element.type as (props: typeof element.props) => unknown;
-  return Inner(element.props);
+const StatefulAttachment = ({
+  attachment,
+}: {
+  attachment: CompleteAttachment;
+}) => {
+  const [initialId] = useState(attachment.id);
+  return <span>{initialId}</span>;
 };
 
 describe("MessagePrimitiveAttachments", () => {
   it("treats missing user message attachments as empty", () => {
-    mockUseAuiState.mockImplementation((selector: UseAuiStateSelector) =>
-      selector({
-        message: {
-          role: "user",
-          attachments: undefined,
-        },
-      } as never),
+    mocks.role = "user";
+    mocks.attachments = undefined;
+
+    const view = render(
+      <MessagePrimitiveAttachments>{() => null}</MessagePrimitiveAttachments>,
     );
 
-    expect(() => renderAttachmentsInner()).not.toThrow();
-    expect(renderAttachmentsInner()).toEqual([]);
+    expect(view.container.childElementCount).toBe(0);
+  });
+
+  it("does not reuse component state for a different attachment", () => {
+    mocks.role = "user";
+    mocks.attachments = [attachment("first-file"), attachment("second-file")];
+
+    const view = render(
+      <MessagePrimitiveAttachments>
+        {({ attachment }) => <StatefulAttachment attachment={attachment} />}
+      </MessagePrimitiveAttachments>,
+    );
+
+    mocks.attachments = [mocks.attachments[1]!];
+    view.rerender(
+      <MessagePrimitiveAttachments>
+        {({ attachment }) => <StatefulAttachment attachment={attachment} />}
+      </MessagePrimitiveAttachments>,
+    );
+
+    expect(screen.queryByText("second-file")).not.toBeNull();
+    expect(screen.queryByText("first-file")).toBeNull();
+  });
+
+  it("keeps component state with attachments when they are reordered", () => {
+    mocks.role = "user";
+    mocks.attachments = [attachment("first-file"), attachment("second-file")];
+
+    const view = render(
+      <MessagePrimitiveAttachments>
+        {({ attachment }) => <StatefulAttachment attachment={attachment} />}
+      </MessagePrimitiveAttachments>,
+    );
+
+    mocks.attachments = [mocks.attachments[1]!, mocks.attachments[0]!];
+    view.rerender(
+      <MessagePrimitiveAttachments>
+        {({ attachment }) => <StatefulAttachment attachment={attachment} />}
+      </MessagePrimitiveAttachments>,
+    );
+
+    expect(view.container.textContent).toBe("second-filefirst-file");
   });
 });

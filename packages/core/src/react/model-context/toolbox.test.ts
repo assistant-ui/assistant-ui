@@ -19,7 +19,7 @@ describe("makeToolCallTextComponent", () => {
         status: { type: "running" },
         addResult: () => {},
         resume: () => {},
-        respondToApproval: () => {},
+        respondToApproval: async () => {},
       }),
     ).toBe("Searching...");
 
@@ -34,7 +34,7 @@ describe("makeToolCallTextComponent", () => {
         status: { type: "complete" },
         addResult: () => {},
         resume: () => {},
-        respondToApproval: () => {},
+        respondToApproval: async () => {},
       }),
     ).toBe("Done searching");
   });
@@ -59,7 +59,7 @@ describe("makeToolCallTextComponent", () => {
         status: { type: "running" },
         addResult: () => {},
         resume: () => {},
-        respondToApproval: () => {},
+        respondToApproval: async () => {},
       }),
     ).toBe("Searching docs...");
 
@@ -74,7 +74,7 @@ describe("makeToolCallTextComponent", () => {
         status: { type: "complete" },
         addResult: () => {},
         resume: () => {},
-        respondToApproval: () => {},
+        respondToApproval: async () => {},
       }),
     ).toBe("Found 3 results for docs");
   });
@@ -94,7 +94,7 @@ describe("makeToolCallTextComponent", () => {
         argsText: "{}",
         addResult: () => {},
         resume: () => {},
-        respondToApproval: () => {},
+        respondToApproval: async () => {},
       } as unknown as ToolCallMessagePartProps),
     ).toBe("Complete");
   });
@@ -115,7 +115,7 @@ describe("makeToolCallTextComponent", () => {
         status: { type: "incomplete", reason: "error" },
         addResult: () => {},
         resume: () => {},
-        respondToApproval: () => {},
+        respondToApproval: async () => {},
       }),
     ).toBe("Finished");
   });
@@ -136,7 +136,7 @@ describe("makeToolCallTextComponent", () => {
         status: { type: "requires-action", reason: "interrupt" },
         addResult: () => {},
         resume: () => {},
-        respondToApproval: () => {},
+        respondToApproval: async () => {},
       }),
     ).toBe("Waiting for approval...");
   });
@@ -156,7 +156,7 @@ describe("makeToolCallTextComponent", () => {
         status: { type: "complete" },
         addResult: () => {},
         resume: () => {},
-        respondToApproval: () => {},
+        respondToApproval: async () => {},
       }),
     ).toBeNull();
   });
@@ -176,7 +176,7 @@ describe("makeToolCallTextComponent", () => {
         status: { type: "running" },
         addResult: () => {},
         resume: () => {},
-        respondToApproval: () => {},
+        respondToApproval: async () => {},
       }),
     ).toBeNull();
   });

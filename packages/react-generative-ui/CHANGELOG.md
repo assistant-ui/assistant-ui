@@ -1,5 +1,111 @@
 # @assistant-ui/react-generative-ui
 
+## 0.0.18
+
+### Patch Changes
+
+- [#7092](https://github.com/assistant-ui/assistant-ui/pull/7092) [`d078061`](https://github.com/assistant-ui/assistant-ui/commit/d078061491d40abc0d5089d000891420620c48db) - fix: preserve prototype-named A2UI action context fields ([@Kinfe123](https://github.com/Kinfe123))
+
+- [#7078](https://github.com/assistant-ui/assistant-ui/pull/7078) [`bc28f59`](https://github.com/assistant-ui/assistant-ui/commit/bc28f59ae79e3ce3e12adf2bc2d0158b04c5fe5e) - fix: bound A2UI data model array expansion ([@Kinfe123](https://github.com/Kinfe123))
+
+- [#7130](https://github.com/assistant-ui/assistant-ui/pull/7130) [`83122bc`](https://github.com/assistant-ui/assistant-ui/commit/83122bc9054d4e78c8453860e79a2e21fe1f1fe4) - fix: treat inherited library properties as unknown component names ([@Kinfe123](https://github.com/Kinfe123))
+
+- [#7086](https://github.com/assistant-ui/assistant-ui/pull/7086) [`52ee9df`](https://github.com/assistant-ui/assistant-ui/commit/52ee9df98f523e421d45c3807d6ac4d97b90ec79) - fix: preserve prototype-named A2UI data model paths ([@Kinfe123](https://github.com/Kinfe123))
+
+- [#7131](https://github.com/assistant-ui/assistant-ui/pull/7131) [`efebf22`](https://github.com/assistant-ui/assistant-ui/commit/efebf22ed3dcfb075d19d234bb5477152495ff99) - fix: tolerate malformed Select and Table collection props while ignoring invalid entries ([@Kinfe123](https://github.com/Kinfe123))
+
+- [#7153](https://github.com/assistant-ui/assistant-ui/pull/7153) [`c46251c`](https://github.com/assistant-ui/assistant-ui/commit/c46251c1d6797eda7627738a403efd3c0adb2354) - fix: tolerate malformed text properties while rendering generated UI ([@Kinfe123](https://github.com/Kinfe123))
+
+- [#7072](https://github.com/assistant-ui/assistant-ui/pull/7072) [`bcc621f`](https://github.com/assistant-ui/assistant-ui/commit/bcc621f3a9f633ae11f7e53882f82f996edf8af9) - fix: apply A2UI null updates as data model deletions ([@Kinfe123](https://github.com/Kinfe123))
+
+- [#6991](https://github.com/assistant-ui/assistant-ui/pull/6991) [`873ca16`](https://github.com/assistant-ui/assistant-ui/commit/873ca169f6271fc247e317eb24fd5d897b96d657) - fix: preserve prototype-named properties in generated component schemas ([@Kinfe123](https://github.com/Kinfe123))
+- Updated dependencies [[`3bcd6db`](https://github.com/assistant-ui/assistant-ui/commit/3bcd6dbacd4ac0d13c30cf82b974e98aaa514ad9), [`a16b990`](https://github.com/assistant-ui/assistant-ui/commit/a16b9908d0a4ee74573ee94228b4d87aa4f977f8), [`253c80d`](https://github.com/assistant-ui/assistant-ui/commit/253c80de81d07ee556978d99e342f8bc1b57cb0a), [`e6158c8`](https://github.com/assistant-ui/assistant-ui/commit/e6158c8af3306f9af4af2fea8987ded698d6393e), [`623d5ff`](https://github.com/assistant-ui/assistant-ui/commit/623d5ff90ef93a892152f8f1219b0560ea124d97), [`07eeb54`](https://github.com/assistant-ui/assistant-ui/commit/07eeb54de16fed4b7a1afc7de0b2aa264c51a299), [`12c5447`](https://github.com/assistant-ui/assistant-ui/commit/12c54477a18b0ebd2b9cf397da1a1427704ea0c9), [`9b9d5e9`](https://github.com/assistant-ui/assistant-ui/commit/9b9d5e936395ce878464c9c50a75e8344aaeb067), [`afac9e0`](https://github.com/assistant-ui/assistant-ui/commit/afac9e02911f05684309087b4e2d9e0ee9b2bc1f), [`4cdcabb`](https://github.com/assistant-ui/assistant-ui/commit/4cdcabb1a914b48af214da59896fe3c716465321), [`23d2865`](https://github.com/assistant-ui/assistant-ui/commit/23d286573f68875ade98b2fd01ed3e36c0d629f4), [`b505555`](https://github.com/assistant-ui/assistant-ui/commit/b505555a7a8c98e09bdcb718dd74aaa48eb57bee), [`01fdd4b`](https://github.com/assistant-ui/assistant-ui/commit/01fdd4b204f4c3d2c151f7a0ac356706de5b923b), [`59a8251`](https://github.com/assistant-ui/assistant-ui/commit/59a825190f80f6036984650bc36c5aa260e7e332)]:
+  - assistant-stream@0.3.42
+
+## 0.0.17
+
+### Patch Changes
+
+- [#6695](https://github.com/assistant-ui/assistant-ui/pull/6695) [`d746b30`](https://github.com/assistant-ui/assistant-ui/commit/d746b30d2cf47648eb9b4db2a7776df174da3719) - refactor: cap the Teams carousel through the shared bounded copy ([@okisdev](https://github.com/okisdev))
+
+- [#6691](https://github.com/assistant-ui/assistant-ui/pull/6691) [`56ce8cc`](https://github.com/assistant-ui/assistant-ui/commit/56ce8ccaa2fe5b2b2a7e724b7b99e99d8801c043) - fix: bound a node whose `has` trap hides `children` from the pre-pass ([@okisdev](https://github.com/okisdev))
+  
+  `boundSpec` gated its record branch on `"children" in value`, a `[[HasProperty]]`, while every consumer reads `children` with `[[Get]]`. A record whose `has` trap answered `false` for `"children"` was returned untouched, and `normalizeSpec` then pulled the array through the `get` trap and walked its full reported length, skipping the children cap, the node budget, and the depth ceiling. Every object is now returned as a plain copy whose `children` comes from the same read the bound used.
+
+- [#6639](https://github.com/assistant-ui/assistant-ui/pull/6639) [`05e3e6d`](https://github.com/assistant-ui/assistant-ui/commit/05e3e6d3971dac4ce20fc7e2a87d187d78b0e449) - chore: update dependencies ([@Yonom](https://github.com/Yonom))
+- Updated dependencies [[`46fad14`](https://github.com/assistant-ui/assistant-ui/commit/46fad145974a890cd18f7fc2df54e9d0bf36b0fb), [`f0d0aa2`](https://github.com/assistant-ui/assistant-ui/commit/f0d0aa2f87b9d881f7003bf6132bbb519509b36b), [`5bdd416`](https://github.com/assistant-ui/assistant-ui/commit/5bdd416af4379a2cc86c12292e06a6e3ce5fcdb9), [`e53299b`](https://github.com/assistant-ui/assistant-ui/commit/e53299be07fd69bd5d64a2f50bd3561d85dc47cc)]:
+  - assistant-stream@0.3.41
+
+## 0.0.16
+
+### Patch Changes
+
+- [#6289](https://github.com/assistant-ui/assistant-ui/pull/6289) [`fd42628`](https://github.com/assistant-ui/assistant-ui/commit/fd42628727e34723cc4f627352cc0fed70863ad7) - fix: allow ListViewItem actions to fire from the row trigger ([@rupic-app](https://github.com/apps/rupic-app))
+
+- [#6392](https://github.com/assistant-ui/assistant-ui/pull/6392) [`e3bbc32`](https://github.com/assistant-ui/assistant-ui/commit/e3bbc322286eb251c22bbc1ccf0c24136deb9e6a) - refactor: share one contiguous-run helper and one element predicate across the converters ([@samdickson22](https://github.com/samdickson22))
+
+- [#6436](https://github.com/assistant-ui/assistant-ui/pull/6436) [`ae40ac8`](https://github.com/assistant-ui/assistant-ui/commit/ae40ac88368843034ed9ceb2b1a28451513c99e4) - fix: bound outbound prop arrays by index before conversion ([@rupic-app](https://github.com/apps/rupic-app))
+
+- [#6305](https://github.com/assistant-ui/assistant-ui/pull/6305) [`e96d3de`](https://github.com/assistant-ui/assistant-ui/commit/e96d3dea9370159e04f82bf4eb39d6b1b1c4d21d) - chore: update dependencies ([@okisdev](https://github.com/okisdev))
+
+- [#6397](https://github.com/assistant-ui/assistant-ui/pull/6397) [`563fd25`](https://github.com/assistant-ui/assistant-ui/commit/563fd2518cf64288fe0ccb71394d4ff37d5cf40a) - refactor: share one spec-bounding pre-pass between the Slack and Teams converters ([@samdickson22](https://github.com/samdickson22))
+
+- [#6426](https://github.com/assistant-ui/assistant-ui/pull/6426) [`4b98f3b`](https://github.com/assistant-ui/assistant-ui/commit/4b98f3b59ce55e5563e2025c54105283e5f2cc28) - fix: bound the Slack decoder and the spec pre-pass by index so a replaced slice or Symbol.species cannot defeat their caps ([@rupic-app](https://github.com/apps/rupic-app))
+- Updated dependencies [[`8626c1f`](https://github.com/assistant-ui/assistant-ui/commit/8626c1ffe1c6d56ec75073e795aa9fbf7493c3ed), [`531f61a`](https://github.com/assistant-ui/assistant-ui/commit/531f61a4d2f5fcee16821a6401d9d11394bf8339), [`dfaa94f`](https://github.com/assistant-ui/assistant-ui/commit/dfaa94fca3ecdd8b0b0ab202f08dafd03c1e2ed5), [`a4bc54a`](https://github.com/assistant-ui/assistant-ui/commit/a4bc54afa976423b6310a2d5be350df0f3b41e42), [`fd471e9`](https://github.com/assistant-ui/assistant-ui/commit/fd471e94babf7b6580e06bbea2b7a8cdd4882869), [`ac7ec15`](https://github.com/assistant-ui/assistant-ui/commit/ac7ec15e118a9279dd60521b839ecc38983675c5), [`e96d3de`](https://github.com/assistant-ui/assistant-ui/commit/e96d3dea9370159e04f82bf4eb39d6b1b1c4d21d), [`f96e22f`](https://github.com/assistant-ui/assistant-ui/commit/f96e22ffa8c85cbfc4a878db4f371c510070066d), [`bfc8bef`](https://github.com/assistant-ui/assistant-ui/commit/bfc8bef9f1ee6cb4cb25f83488a0e4ce1a393ff3), [`2cd5cbc`](https://github.com/assistant-ui/assistant-ui/commit/2cd5cbcf78c586b7557421b00e9c996c62bd7f43), [`105af3e`](https://github.com/assistant-ui/assistant-ui/commit/105af3eaea2093df271d9c44642e1c04d5f5cf7c), [`4c3194a`](https://github.com/assistant-ui/assistant-ui/commit/4c3194aca4470753a2a37e244cb5e3fb27cbc76b)]:
+  - assistant-stream@0.3.40
+
+## 0.0.15
+
+### Patch Changes
+
+- [#5934](https://github.com/assistant-ui/assistant-ui/pull/5934) [`f858321`](https://github.com/assistant-ui/assistant-ui/commit/f8583212387716e965dda0f0f6c31b8366527dbc) - fix: default untoned Teams alerts to info ([@rupic-app](https://github.com/apps/rupic-app))
+
+- [#6012](https://github.com/assistant-ui/assistant-ui/pull/6012) [`9ffbd99`](https://github.com/assistant-ui/assistant-ui/commit/9ffbd99ee94e2d24e006decbb40f15aa2d254343) - docs: name the slack, teams, and a2ui converter subpaths in the README ([@okisdev](https://github.com/okisdev))
+- Updated dependencies [[`0e91e27`](https://github.com/assistant-ui/assistant-ui/commit/0e91e277ebe218e891d1c318a18eec230ee4f981), [`c5bc8ed`](https://github.com/assistant-ui/assistant-ui/commit/c5bc8ed0c78e8fb66a6c21c596765caeccef3aec), [`f0d1d48`](https://github.com/assistant-ui/assistant-ui/commit/f0d1d48842b61c8f781771375e3893d189321c2d), [`ab7f49f`](https://github.com/assistant-ui/assistant-ui/commit/ab7f49fcb91b8a9d96408426da3259c99f619649), [`61d29f4`](https://github.com/assistant-ui/assistant-ui/commit/61d29f4157b525d3e36ac721d1fcef7d1baf987e), [`a2ab997`](https://github.com/assistant-ui/assistant-ui/commit/a2ab997dc645923fa8ebbca5e8e050d467a69cf4), [`e8997d9`](https://github.com/assistant-ui/assistant-ui/commit/e8997d922d15d0de0d20558ce0735fa3e844f27f), [`44e574f`](https://github.com/assistant-ui/assistant-ui/commit/44e574f8c17dd5603933ec74821eecd08e94e371), [`14c3b5a`](https://github.com/assistant-ui/assistant-ui/commit/14c3b5a25afe2b2f37760dfe8003818b2e4f72d3)]:
+  - assistant-stream@0.3.38
+
+## 0.0.14
+
+### Patch Changes
+
+- [#5794](https://github.com/assistant-ui/assistant-ui/pull/5794) [`63d6d34`](https://github.com/assistant-ui/assistant-ui/commit/63d6d346b5fa84910fb07b02e5b0ce0c994dc2bd) - fix: report the depth warning against the 32 levels of element nesting the Slack and Teams converters actually allow, instead of the 64 traversal units that ceiling is spent in ([@okisdev](https://github.com/okisdev))
+
+- [#5797](https://github.com/assistant-ui/assistant-ui/pull/5797) [`388a49b`](https://github.com/assistant-ui/assistant-ui/commit/388a49b42fd2c96f1072dfde51b8e1b268f51ccd) - fix: report the content the Slack and Teams converters were discarding silently. A `ListView` or `Carousel` child that would have rendered, a malformed `Select` or `RadioGroup` option, and a table column without a string label all warn `dropped` now, while a child that renders nothing anyway stays silent. A Slack column without a label also keeps its position now, so the header stays aligned with the data, and a discarded child no longer spends the shared markdown and data-table budgets or reserves a Teams input id that renames a control which survives ([@okisdev](https://github.com/okisdev))
+
+- [#5771](https://github.com/assistant-ui/assistant-ui/pull/5771) [`93ccfc2`](https://github.com/assistant-ui/assistant-ui/commit/93ccfc268b63df355da881d6009ce4900d6c8e99) - fix: let a composition read as one answer instead of a stack of boxes ([@okisdev](https://github.com/okisdev))
+
+  `Card` was described to the model as "a bordered container", which made it the only way to express a titled section, so every grouping arrived with a border, background, shadow and padding it never asked for. The frame was also load-bearing: `present` rendered its tree as bare fragments, so blocks landed in the host's message container, which is not ours and sets no gap, and wrapping everything in one outer card was the only way to get any separation.
+
+  **Blocks are spaced by the surface.** The tree now sits in a `[data-aui="root"]` element that carries the vertical rhythm, as a gap between its own blocks and a block margin between consecutive calls. Those margins collapse in a block container, which is what a message body usually is. A host that lays its message parts out with flex or grid does not collapse them, so they add to that host's own `gap`; reduce the gap, or override `[data-aui="root"]`'s `margin-block`, if the result reads too airy. `renderGenerativeUI` is unchanged and still returns exactly what it is given, so embedding a single node in your own layout works as before.
+
+  **A card earns its frame.** It renders as a plain section and takes on a surface only where one is warranted: a tinted `background`, a `confirm`/`cancel` footer whose buttons need a delimited target, or a carousel slot. The renderer stamps `data-aui-surface` for the first two, so the stylesheet needs no `:has()` and degrades cleanly on older browsers. The component description is rewritten to match, which is the part that changes what a model emits. No API change.
+
+- [#5785](https://github.com/assistant-ui/assistant-ui/pull/5785) [`73fdb3a`](https://github.com/assistant-ui/assistant-ui/commit/73fdb3a415b5be71227a0bb1a84c0c6c99fcab07) - fix: raise the Slack `data_table` caps to the current platform ceiling (200 data rows, 20,000 characters) so large tables are no longer clamped below what Slack accepts ([@okisdev](https://github.com/okisdev))
+
+- [#5802](https://github.com/assistant-ui/assistant-ui/pull/5802) [`2016d07`](https://github.com/assistant-ui/assistant-ui/commit/2016d070c10b67e09d3fe155becae6b51ee30604) - fix: report a reshaped Slack carousel card accurately. The reshape is a `fallback` rather than a `clamped`, since a card holding only text loses nothing; the images, tables, charts, and controls a reshape really does lose are reported separately as `dropped`; and the title and body are clamped through the warning path instead of being sliced silently ([@okisdev](https://github.com/okisdev))
+
+- [#5788](https://github.com/assistant-ui/assistant-ui/pull/5788) [`a3ef2f0`](https://github.com/assistant-ui/assistant-ui/commit/a3ef2f06abbbe595260c7f2654383a5758731134) - fix: stop reporting `clamped` for Teams conversions that remove nothing. A renamed input id and buttons moved past the primary cap now report `fallback`, and the row-width recommendation and the payload byte budget report a new `advisory` code ([@okisdev](https://github.com/okisdev))
+
+- [#5787](https://github.com/assistant-ui/assistant-ui/pull/5787) [`1674523`](https://github.com/assistant-ui/assistant-ui/commit/167452334042fae4c5d171a5b6ad120c21fca12b) - fix: report the Teams payload warning against the 80,000-byte soft budget it actually crosses instead of Teams' 100 KB message limit ([@okisdev](https://github.com/okisdev))
+
+## 0.0.13
+
+### Patch Changes
+
+- [#5723](https://github.com/assistant-ui/assistant-ui/pull/5723) [`94dc3e5`](https://github.com/assistant-ui/assistant-ui/commit/94dc3e509fa2b4fae1a14c88ec34b910c8d95af8) - chore: update dependencies ([@okisdev](https://github.com/okisdev))
+
+- Updated dependencies [[`94dc3e5`](https://github.com/assistant-ui/assistant-ui/commit/94dc3e509fa2b4fae1a14c88ec34b910c8d95af8)]:
+  - assistant-stream@0.3.36
+
+## 0.0.12
+
+### Patch Changes
+
+- [#5604](https://github.com/assistant-ui/assistant-ui/pull/5604) [`0578c16`](https://github.com/assistant-ui/assistant-ui/commit/0578c16296fa5fb6b42455195ccf5f9a681693a5) - fix: keep chart strokes crisp under viewBox stretching and stop outlining area baselines ([@okisdev](https://github.com/okisdev))
+
+- Updated dependencies [[`d52928d`](https://github.com/assistant-ui/assistant-ui/commit/d52928db2c83a3ba6f25bf8c6b21934571dd4622)]:
+  - assistant-stream@0.3.34
+
 ## 0.0.11
 
 ### Patch Changes

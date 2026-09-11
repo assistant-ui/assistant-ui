@@ -54,7 +54,7 @@ import {
   useAdkRuntime,
   createAdkStream,
 } from "@assistant-ui/react-google-adk";
-import { Thread } from "@/components/assistant-ui/thread";
+import { Thread } from "@/components/assistant-ui/elements/thread.aui";
 
 export function MyAssistant() {
   const runtime = useAdkRuntime({
@@ -77,7 +77,7 @@ import {
   useAdkRuntime,
   createAdkStream,
 } from "@assistant-ui/react-google-adk";
-import { Thread } from "@/components/assistant-ui/thread";
+import { Thread } from "@/components/assistant-ui/elements/thread.aui";
 
 const API_URL = process.env.EXPO_PUBLIC_API_URL ?? "http://localhost:3000";
 
@@ -182,7 +182,7 @@ export function App() {
 <PlatformTabs>
 <Tab value="React">
 
-Follow the [UI Components guide](/docs/ui/thread) to wire up the Thread, composer, and supporting primitives.
+Follow the [UI Components guide](/elements/thread) to wire up the Thread, composer, and supporting primitives.
 
 </Tab>
 <Tab value="React Native">

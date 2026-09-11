@@ -1,5 +1,7 @@
 import { useCallback, useReducer } from "react";
 
+import stringWidth from "string-width";
+
 export type TextBufferState = {
   text: string;
   cursorOffset: number;
@@ -55,6 +57,16 @@ const snapToGraphemeBoundary = (text: string, offset: number) => {
   return previous;
 };
 
+const snapToNextGraphemeBoundary = (text: string, offset: number) => {
+  if (offset <= 0) return 0;
+  if (offset >= text.length) return text.length;
+  for (const { index, segment } of graphemeSegmenter.segment(text)) {
+    const end = index + segment.length;
+    if (offset <= end) return end;
+  }
+  return text.length;
+};
+
 const stepGraphemeRight = (text: string, offset: number) => {
   if (offset >= text.length) return text.length;
   for (const { index, segment } of graphemeSegmenter.segment(text)) {
@@ -81,13 +93,57 @@ const getLineStart = (text: string, cursorOffset: number) => {
 
 const getLineEnd = (text: string, cursorOffset: number) => {
   const lineBreakIndex = text.indexOf("\n", cursorOffset);
-  return lineBreakIndex === -1 ? text.length : lineBreakIndex;
+  if (lineBreakIndex === -1) return text.length;
+  return lineBreakIndex > cursorOffset && text[lineBreakIndex - 1] === "\r"
+    ? lineBreakIndex - 1
+    : lineBreakIndex;
 };
+
+const getLineBreakEnd = (text: string, lineEnd: number) => {
+  if (text.startsWith("\r\n", lineEnd)) return lineEnd + 2;
+  return lineEnd < text.length ? lineEnd + 1 : lineEnd;
+};
+
+const getLineBreakStart = (text: string, lineBreakIndex: number) =>
+  text[lineBreakIndex - 1] === "\r" ? lineBreakIndex - 1 : lineBreakIndex;
 
 const getLineRange = (text: string, cursorOffset: number) => {
   const start = getLineStart(text, cursorOffset);
   const end = getLineEnd(text, cursorOffset);
   return { start, end };
+};
+
+const getDisplayColumn = (
+  text: string,
+  lineStart: number,
+  cursorOffset: number,
+) => {
+  let column = 0;
+  for (const { segment } of graphemeSegmenter.segment(
+    text.slice(lineStart, cursorOffset),
+  )) {
+    column += stringWidth(segment);
+  }
+  return column;
+};
+
+const getOffsetAtDisplayColumn = (
+  text: string,
+  lineStart: number,
+  lineEnd: number,
+  column: number,
+) => {
+  let offset = lineStart;
+  let currentColumn = 0;
+  for (const { segment } of graphemeSegmenter.segment(
+    text.slice(lineStart, lineEnd),
+  )) {
+    const width = stringWidth(segment);
+    if (currentColumn >= column || currentColumn + width > column) break;
+    offset += segment.length;
+    currentColumn += width;
+  }
+  return offset;
 };
 
 const getPreviousWordOffset = (text: string, cursorOffset: number) => {
@@ -115,7 +171,8 @@ const moveVertical = (
   direction: -1 | 1,
 ) => {
   const { start, end } = getLineRange(text, cursorOffset);
-  const currentColumn = preferredColumn ?? cursorOffset - start;
+  const currentColumn =
+    preferredColumn ?? getDisplayColumn(text, start, cursorOffset);
   const adjacentBreakIndex = direction === -1 ? start - 1 : end;
 
   if (adjacentBreakIndex < 0 || adjacentBreakIndex >= text.length) {
@@ -123,12 +180,15 @@ const moveVertical = (
   }
 
   const adjacentCursorBase =
-    direction === -1 ? adjacentBreakIndex : adjacentBreakIndex + 1;
+    direction === -1
+      ? getLineBreakStart(text, adjacentBreakIndex)
+      : getLineBreakEnd(text, adjacentBreakIndex);
   const adjacentRange = getLineRange(text, adjacentCursorBase);
-  const nextCursorOffset = clamp(
-    adjacentRange.start + currentColumn,
+  const nextCursorOffset = getOffsetAtDisplayColumn(
+    text,
     adjacentRange.start,
     adjacentRange.end,
+    currentColumn,
   );
 
   return {
@@ -146,6 +206,18 @@ const clearPreferredColumn = (
   preferredColumn: undefined,
 });
 
+const clearPreferredColumnAtGraphemeBoundary = (
+  state: TextBufferState,
+  cursorOffset: number,
+  direction: "backward" | "forward",
+) =>
+  clearPreferredColumn(
+    state,
+    direction === "backward"
+      ? snapToGraphemeBoundary(state.text, cursorOffset)
+      : snapToNextGraphemeBoundary(state.text, cursorOffset),
+  );
+
 export const textBufferReducer = (
   state: TextBufferState,
   action: TextBufferAction,
@@ -158,10 +230,10 @@ export const textBufferReducer = (
         state.text.slice(0, state.cursorOffset) +
         action.text +
         state.text.slice(state.cursorOffset);
-      const nextCursorOffset = state.cursorOffset + action.text.length;
-      return clearPreferredColumn(
+      return clearPreferredColumnAtGraphemeBoundary(
         { ...state, text: nextText },
-        nextCursorOffset,
+        state.cursorOffset + action.text.length,
+        "forward",
       );
     }
 
@@ -172,7 +244,11 @@ export const textBufferReducer = (
       const nextText =
         state.text.slice(0, previousOffset) +
         state.text.slice(state.cursorOffset);
-      return clearPreferredColumn({ ...state, text: nextText }, previousOffset);
+      return clearPreferredColumnAtGraphemeBoundary(
+        { ...state, text: nextText },
+        previousOffset,
+        "backward",
+      );
     }
 
     case "delete-forward": {
@@ -181,9 +257,10 @@ export const textBufferReducer = (
       const nextOffset = stepGraphemeRight(state.text, state.cursorOffset);
       const nextText =
         state.text.slice(0, state.cursorOffset) + state.text.slice(nextOffset);
-      return clearPreferredColumn(
+      return clearPreferredColumnAtGraphemeBoundary(
         { ...state, text: nextText },
         state.cursorOffset,
+        "forward",
       );
     }
 
@@ -255,9 +332,10 @@ export const textBufferReducer = (
       const nextText =
         state.text.slice(0, nextCursorOffset) +
         state.text.slice(state.cursorOffset);
-      return clearPreferredColumn(
+      return clearPreferredColumnAtGraphemeBoundary(
         { ...state, text: nextText },
         nextCursorOffset,
+        "backward",
       );
     }
 
@@ -267,9 +345,10 @@ export const textBufferReducer = (
 
       const nextText =
         state.text.slice(0, state.cursorOffset) + state.text.slice(nextOffset);
-      return clearPreferredColumn(
+      return clearPreferredColumnAtGraphemeBoundary(
         { ...state, text: nextText },
         state.cursorOffset,
+        "forward",
       );
     }
 
@@ -293,15 +372,16 @@ export const textBufferReducer = (
         action.multiLine &&
         lineEnd === state.cursorOffset &&
         lineEnd < state.text.length
-          ? lineEnd + 1
+          ? getLineBreakEnd(state.text, lineEnd)
           : lineEnd;
       if (rangeEnd === state.cursorOffset) return state;
 
       const nextText =
         state.text.slice(0, state.cursorOffset) + state.text.slice(rangeEnd);
-      return clearPreferredColumn(
+      return clearPreferredColumnAtGraphemeBoundary(
         { ...state, text: nextText },
         state.cursorOffset,
+        "forward",
       );
     }
 

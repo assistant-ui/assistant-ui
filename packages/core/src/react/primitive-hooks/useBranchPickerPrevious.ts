@@ -1,15 +1,10 @@
 import { useCallback } from "react";
 import { useAui, useAuiState } from "@assistant-ui/store";
+import { branchPickerPreviousDisabled } from "../../store/primitive-predicates";
 
 export const useBranchPickerPrevious = () => {
   const aui = useAui();
-  const disabled = useAuiState((s) => {
-    if (s.message.branchNumber <= 1) return true;
-    if (s.thread.isRunning && !s.thread.capabilities.switchBranchDuringRun) {
-      return true;
-    }
-    return false;
-  });
+  const disabled = useAuiState(branchPickerPreviousDisabled);
 
   const previous = useCallback(() => {
     aui.message.switchToBranch({ position: "previous" });

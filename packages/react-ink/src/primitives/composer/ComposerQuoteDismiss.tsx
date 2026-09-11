@@ -1,10 +1,13 @@
-import { type ReactNode, useCallback } from "react";
+import { useCallback } from "react";
 
 import { useAui } from "@assistant-ui/store";
 import { Pressable, type PressableProps } from "../internal/Pressable";
 
-export type ComposerQuoteDismissProps = Omit<PressableProps, "onPress"> & {
-  children: ReactNode;
+export type ComposerQuoteDismissProps = Omit<
+  PressableProps,
+  "onPress" | "children"
+> & {
+  children: PressableProps["children"];
 };
 
 export const ComposerQuoteDismiss = ({

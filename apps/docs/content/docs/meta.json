@@ -1,10 +1,9 @@
 {
   "pages": [
-    "(docs)",
+    "(getting-started)",
     "guides",
     "tools",
     "primitives",
-    "ui",
     "runtimes",
     "integrations",
     "react-native",

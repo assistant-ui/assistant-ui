@@ -1,5 +1,101 @@
 # assistant-ui
 
+## 0.0.115
+
+### Patch Changes
+
+- [#6870](https://github.com/assistant-ui/assistant-ui/pull/6870) [`238d94a`](https://github.com/assistant-ui/assistant-ui/commit/238d94ab4366d342416ce164d0fc58d1a661a0f8) - fix: keep relative add directories anchored to the caller ([@ephraimduncan](https://github.com/ephraimduncan))
+
+- [#6900](https://github.com/assistant-ui/assistant-ui/pull/6900) [`eedcf16`](https://github.com/assistant-ui/assistant-ui/commit/eedcf16b5e0e36282137d588990e8c9c417ea240) - fix: quote the project directory in the `cd` instructions create prints ([@okisdev](https://github.com/okisdev))
+
+- [#6899](https://github.com/assistant-ui/assistant-ui/pull/6899) [`1cd905f`](https://github.com/assistant-ui/assistant-ui/commit/1cd905fa5da0a9c2b196ead7c3fe8f31822d3722) - fix: keep the directory selected with `--cwd` when init delegates to create ([@okisdev](https://github.com/okisdev))
+
+- [#6993](https://github.com/assistant-ui/assistant-ui/pull/6993) [`91689ab`](https://github.com/assistant-ui/assistant-ui/commit/91689ab92fa8ccaecff463c6fdc3e6a666bf93e5) - chore: update dependencies ([@Yonom](https://github.com/Yonom))
+
+- [#6918](https://github.com/assistant-ui/assistant-ui/pull/6918) [`a08b330`](https://github.com/assistant-ui/assistant-ui/commit/a08b330a4d06921265f8e209e90b887e74386365) - fix: preserve operator precedence when the v0-12 codemod builds AuiIf conditions ([@okisdev](https://github.com/okisdev))
+
+- [#6939](https://github.com/assistant-ui/assistant-ui/pull/6939) [`9af436c`](https://github.com/assistant-ui/assistant-ui/commit/9af436c16792cce10ea4eebd647ee9e88e126dc8) - fix: repair the type drift tsc --noEmit catches in the codemod and proxy sources ([@Kinfe123](https://github.com/Kinfe123))
+- Updated dependencies [[`91689ab`](https://github.com/assistant-ui/assistant-ui/commit/91689ab92fa8ccaecff463c6fdc3e6a666bf93e5), [`f8be839`](https://github.com/assistant-ui/assistant-ui/commit/f8be83931548d673b7bd4c859d98cd0ab952d7bc)]:
+  - @assistant-ui/agent-launcher@0.1.15
+
+## 0.0.114
+
+### Patch Changes
+
+- [#6631](https://github.com/assistant-ui/assistant-ui/pull/6631) [`496e973`](https://github.com/assistant-ui/assistant-ui/commit/496e973f89534306eca0b1c133c721fc6ca7f292) - fix: publish workspace dependencies as caret ranges so they dedupe ([@okisdev](https://github.com/okisdev))
+
+- [#6802](https://github.com/assistant-ui/assistant-ui/pull/6802) [`0a2a599`](https://github.com/assistant-ui/assistant-ui/commit/0a2a599c3b02cce6023321eaca343031720be9fb) - feat: scaffold `lib/utils` from the assistant-ui registry so new projects get `cn` ([@okisdev](https://github.com/okisdev))
+  
+  `create-assistant-ui` used to append shadcn's own `utils` item to the component install, which ships `twMerge(clsx(inputs))` and pulls in `clsx` plus `tailwind-merge`. it now requests `@assistant-ui/utils`, a new registry item that ships the same `lib/utils.ts` the monorepo uses (`export { cn } from "cn"`) and declares `cn` alone. templates and examples declare `cn` to match, so a scaffolded project starts on the merge engine shadcn ships rather than the pair it replaces.
+
+- [#6525](https://github.com/assistant-ui/assistant-ui/pull/6525) [`418f922`](https://github.com/assistant-ui/assistant-ui/commit/418f922d5f4ed2a7a33c8c29715e9fa282a1fa73) - fix: fail the upgrade when a codemod exits nonzero ([@okisdev](https://github.com/okisdev))
+
+- [#6499](https://github.com/assistant-ui/assistant-ui/pull/6499) [`7730e8c`](https://github.com/assistant-ui/assistant-ui/commit/7730e8cac04cc049dcc4bab3bcfa94e7fb89d33f) - feat: map scanned component imports onto the elements registry item names ([@okisdev](https://github.com/okisdev))
+
+- [#6627](https://github.com/assistant-ui/assistant-ui/pull/6627) [`48e12ab`](https://github.com/assistant-ui/assistant-ui/commit/48e12ab0692f5f252c8ae57993fecb3520e2bae3) - fix: reconcile legacy component imports with the elements layout the registry installs, so created examples build ([@Kinfe123](https://github.com/Kinfe123))
+
+- [#6492](https://github.com/assistant-ui/assistant-ui/pull/6492) [`ba0a97f`](https://github.com/assistant-ui/assistant-ui/commit/ba0a97f7d54fe0dfc9ea762355eb94538b619fa8) - feat: point the mcp command at the hosted assistant-ui mcp endpoint ([@okisdev](https://github.com/okisdev))
+
+- [#6641](https://github.com/assistant-ui/assistant-ui/pull/6641) [`f9390cd`](https://github.com/assistant-ui/assistant-ui/commit/f9390cd330cba84b025b3db6a7366718ba0df22b) - fix: restrict component import reconciliation to module declarations ([@Kinfe123](https://github.com/Kinfe123))
+
+- [#6528](https://github.com/assistant-ui/assistant-ui/pull/6528) [`152a35d`](https://github.com/assistant-ui/assistant-ui/commit/152a35daae0e80b5307865e59af683c4ae720794) - chore: update dependencies ([@okisdev](https://github.com/okisdev))
+- Updated dependencies [[`152a35d`](https://github.com/assistant-ui/assistant-ui/commit/152a35daae0e80b5307865e59af683c4ae720794)]:
+  - @assistant-ui/agent-launcher@0.1.14
+
+## 0.0.113
+
+### Patch Changes
+
+- [#6224](https://github.com/assistant-ui/assistant-ui/pull/6224) [`c70c911`](https://github.com/assistant-ui/assistant-ui/commit/c70c911d9537e6f3e87da44768e3363d65e6a19d) - chore: install `@assistant-ui/ai-sdk` instead of `@assistant-ui/react-ai-sdk` ([@okisdev](https://github.com/okisdev))
+  
+  the AI SDK and edge install helpers now add the framework-neutral package. an import of the previous name still installs that package, since the two are separate npm packages and the neutral one would not make the old import resolvable. `assistant-ui info` reports both names while users are split across them.
+
+- [#6425](https://github.com/assistant-ui/assistant-ui/pull/6425) [`34a31cb`](https://github.com/assistant-ui/assistant-ui/commit/34a31cb82257ddd186d048d779b84946ba2ad423) - refactor: consolidate the package manager resolver and project file iteration ([@okisdev](https://github.com/okisdev))
+
+- [#6452](https://github.com/assistant-ui/assistant-ui/pull/6452) [`71f76b1`](https://github.com/assistant-ui/assistant-ui/commit/71f76b17623923a6ac6eefa82b2762027c056ca0) - fix: preserve CLI termination signals and child cleanup ([@rupic-app](https://github.com/apps/rupic-app))
+
+- [#6305](https://github.com/assistant-ui/assistant-ui/pull/6305) [`e96d3de`](https://github.com/assistant-ui/assistant-ui/commit/e96d3dea9370159e04f82bf4eb39d6b1b1c4d21d) - chore: update dependencies ([@okisdev](https://github.com/okisdev))
+
+- [#6219](https://github.com/assistant-ui/assistant-ui/pull/6219) [`b70a714`](https://github.com/assistant-ui/assistant-ui/commit/b70a714a5569710e2ea87c81bc1a652a5161d4f1) - fix: stop the v0-12 codemods from emitting mismatched JSX, dropping dynamic conditions, and renaming unrelated api bindings ([@Kinfe123](https://github.com/Kinfe123))
+- Updated dependencies [[`e96d3de`](https://github.com/assistant-ui/assistant-ui/commit/e96d3dea9370159e04f82bf4eb39d6b1b1c4d21d)]:
+  - @assistant-ui/agent-launcher@0.1.13
+
+## 0.0.112
+
+### Patch Changes
+
+- Updated dependencies [[`2c4b33d`](https://github.com/assistant-ui/assistant-ui/commit/2c4b33d981f850600f5a1d0b39206e5e822f21a3)]:
+  - @assistant-ui/agent-launcher@0.1.12
+
+## 0.0.111
+
+### Patch Changes
+
+- [#5956](https://github.com/assistant-ui/assistant-ui/pull/5956) [`4a1e7b6`](https://github.com/assistant-ui/assistant-ui/commit/4a1e7b60fb9be53b21645ba52def3d240514c5a5) - fix: avoid installing the incompatible legacy React UI package during upgrades ([@Kinfe123](https://github.com/Kinfe123))
+
+- [#5963](https://github.com/assistant-ui/assistant-ui/pull/5963) [`abea286`](https://github.com/assistant-ui/assistant-ui/commit/abea286d275c53588d9acf0f30648a0eef0b3980) - feat: register the with-openui example in `npx assistant-ui create` now that `@openuidev/react-headless` widened its `ai` peer to `^6 || ^7` ([@okisdev](https://github.com/okisdev))
+
+- [#5929](https://github.com/assistant-ui/assistant-ui/pull/5929) [`0f6e9e9`](https://github.com/assistant-ui/assistant-ui/commit/0f6e9e9b56c648249781cef7689f4587209948d0) - chore: replace stale example model ids with gpt-5.6-luna ([@okisdev](https://github.com/okisdev))
+
+- [#5774](https://github.com/assistant-ui/assistant-ui/pull/5774) [`61d29f4`](https://github.com/assistant-ui/assistant-ui/commit/61d29f4157b525d3e36ac721d1fcef7d1baf987e) - chore: update dependencies ([@Yonom](https://github.com/Yonom))
+- Updated dependencies [[`61d29f4`](https://github.com/assistant-ui/assistant-ui/commit/61d29f4157b525d3e36ac721d1fcef7d1baf987e)]:
+  - @assistant-ui/agent-launcher@0.1.11
+
+## 0.0.110
+
+### Patch Changes
+
+- [#5806](https://github.com/assistant-ui/assistant-ui/pull/5806) [`a0e30a3`](https://github.com/assistant-ui/assistant-ui/commit/a0e30a3350d21087a289703871b257a59532bf8f) - fix(cli): clarify malformed package.json errors from the info command ([@Kinfe123](https://github.com/Kinfe123))
+
+## 0.0.109
+
+### Patch Changes
+
+- [#5723](https://github.com/assistant-ui/assistant-ui/pull/5723) [`94dc3e5`](https://github.com/assistant-ui/assistant-ui/commit/94dc3e509fa2b4fae1a14c88ec34b910c8d95af8) - chore: update dependencies ([@okisdev](https://github.com/okisdev))
+
+- Updated dependencies [[`94dc3e5`](https://github.com/assistant-ui/assistant-ui/commit/94dc3e509fa2b4fae1a14c88ec34b910c8d95af8)]:
+  - @assistant-ui/agent-launcher@0.1.10
+
 ## 0.0.108
 
 ### Patch Changes

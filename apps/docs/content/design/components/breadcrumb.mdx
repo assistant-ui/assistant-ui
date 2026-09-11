@@ -1,0 +1,79 @@
+---
+title: "Breadcrumb"
+description: "Where you are, as a path you can walk back up."
+links:
+  - label: Source
+    url: https://github.com/assistant-ui/assistant-ui/blob/main/packages/ui/src/components/ui/base/breadcrumb.tsx
+---
+
+import { PreviewCode } from "@/components/pages/docs/preview-code.server";
+import { KitInstall } from "@/components/pages/design/kit-install";
+import {
+  BreadcrumbSpecimen,
+  BreadcrumbEllipsisSpecimen,
+} from "@/components/pages/design/specimens";
+import * as RadixSpecimens from "@/components/pages/design/specimens.radix";
+import { FlavorSwitcher } from "@/components/pages/docs/contexts/flavor.server";
+
+<FlavorSwitcher />
+
+<PreviewCode file="components/pages/design/specimens" name="BreadcrumbSpecimen" base={<BreadcrumbSpecimen />}>
+  <RadixSpecimens.BreadcrumbSpecimen />
+</PreviewCode>
+
+## Installation
+
+<KitInstall name="breadcrumb" />
+
+## Usage
+
+```tsx
+import {
+  Breadcrumb,
+  BreadcrumbItem,
+  BreadcrumbLink,
+  BreadcrumbList,
+  BreadcrumbPage,
+  BreadcrumbSeparator,
+} from "@/components/ui/breadcrumb";
+
+export function Example() {
+  return (
+    <Breadcrumb>
+      <BreadcrumbList>
+        <BreadcrumbItem>
+          <BreadcrumbLink href="/design">Design</BreadcrumbLink>
+        </BreadcrumbItem>
+        <BreadcrumbSeparator />
+        <BreadcrumbItem>
+          <BreadcrumbPage>Breadcrumb</BreadcrumbPage>
+        </BreadcrumbItem>
+      </BreadcrumbList>
+    </Breadcrumb>
+  );
+}
+```
+
+## Examples
+
+### Collapsed
+
+`BreadcrumbEllipsis` stands in for levels that do not need to be spelled out.
+
+<PreviewCode file="components/pages/design/specimens" name="BreadcrumbEllipsisSpecimen" base={<BreadcrumbEllipsisSpecimen />}>
+  <RadixSpecimens.BreadcrumbEllipsisSpecimen />
+</PreviewCode>
+
+## API Reference
+
+### Parts
+
+| Part | Description |
+|------|-------------|
+| `Breadcrumb` | The `nav` landmark. |
+| `BreadcrumbList` | The ordered list of levels. |
+| `BreadcrumbItem` | One level. |
+| `BreadcrumbLink` | A navigable level; compose with `render` for router links. |
+| `BreadcrumbPage` | The current page, not a link. |
+| `BreadcrumbSeparator` | The divider glyph between levels. |
+| `BreadcrumbEllipsis` | Placeholder for collapsed levels. |

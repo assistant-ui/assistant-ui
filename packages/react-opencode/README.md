@@ -16,7 +16,7 @@ npm install @assistant-ui/react @assistant-ui/react-opencode
 ```tsx
 import { AssistantRuntimeProvider } from "@assistant-ui/react";
 import { useOpenCodeRuntime } from "@assistant-ui/react-opencode";
-import { Thread } from "@/components/assistant-ui/thread";
+import { Thread } from "@/components/assistant-ui/elements/thread.aui";
 
 export function App() {
   const runtime = useOpenCodeRuntime({
@@ -33,7 +33,7 @@ export function App() {
 
 ## See also
 
-- `@assistant-ui/react-ai-sdk` for general-purpose Vercel AI SDK integration.
+- `@assistant-ui/ai-sdk` for general-purpose Vercel AI SDK integration.
 - `@assistant-ui/react-langgraph` for LangGraph agents.
 
 Full reference at [assistant-ui.com/docs/runtimes/opencode](https://www.assistant-ui.com/docs/runtimes/opencode).

@@ -19,10 +19,12 @@ const guessAttachmentType = (
 export class CloudFileAttachmentAdapter implements AttachmentAdapter {
   public accept = "*";
 
-  private cloud: AssistantCloud;
+  private getCloud: () => AssistantCloud;
 
-  constructor(cloud: AssistantCloud) {
-    this.cloud = cloud;
+  constructor(cloud: AssistantCloud);
+  constructor(getCloud: () => AssistantCloud);
+  constructor(cloud: AssistantCloud | (() => AssistantCloud)) {
+    this.getCloud = typeof cloud === "function" ? cloud : () => cloud;
   }
 
   private uploadedUrls = new Map<string, string>();
@@ -46,7 +48,7 @@ export class CloudFileAttachmentAdapter implements AttachmentAdapter {
 
     try {
       const { signedUrl, publicUrl } =
-        await this.cloud.files.generatePresignedUploadUrl({
+        await this.getCloud().files.generatePresignedUploadUrl({
           filename: file.name,
         });
       const res = await fetch(signedUrl, {

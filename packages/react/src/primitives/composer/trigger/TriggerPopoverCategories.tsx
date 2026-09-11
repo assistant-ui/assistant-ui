@@ -8,7 +8,7 @@ import {
   forwardRef,
   useCallback,
 } from "react";
-import { composeEventHandlers } from "@radix-ui/primitive";
+import { composeEventHandlers } from "radix-ui/internal";
 import { useTriggerPopoverScopeContext } from "./TriggerPopover";
 import type { Unstable_TriggerCategory } from "@assistant-ui/core";
 

@@ -4,7 +4,7 @@ description: Add voice dictation to your AI chat composer with the Web Speech AP
 platforms: ["react"]
 ---
 
-import { DictationSample } from "@/components/docs/samples/dictation";
+import { DictationSample } from "@/components/pages/docs/samples/dictation";
 
 assistant-ui supports speech-to-text (dictation) via the `DictationAdapter` interface. Users speak into the microphone and transcribed text lands in the composer, either as interim preview or as committed final text.
 
@@ -283,13 +283,19 @@ This pattern records until the user stops dictation, then commits a single final
 
 ## Custom realtime providers
 
-You can implement `DictationAdapter` against any streaming STT service. [ElevenLabs Scribe](https://elevenlabs.io/docs/capabilities/speech-to-text) is one option for low-latency WebSocket transcription; scaffold a full example with:
+You can implement `DictationAdapter` against any streaming STT service. [ElevenLabs Scribe](https://elevenlabs.io/docs/overview/capabilities/speech-to-text) is one option for low-latency WebSocket transcription; scaffold a full example with:
 
 ```bash
 npx assistant-ui create my-app -e with-elevenlabs-scribe
 ```
 
 Cumulative transcript services should set `disableInputDuringDictation: true` so interim text does not fight the user's keyboard.
+
+The example keeps the ElevenLabs API key server-side, and its token route accepts a request only when `Sec-Fetch-Site` is `same-origin` or `none`, falling back to comparing the `Origin` header against the request URL for clients that omit Fetch Metadata.
+
+<Callout type="warn">
+  A request-context check is not authentication. Before deploying, require your application session in the token route and apply a durable rate limit, so anonymous callers cannot consume transcription capacity.
+</Callout>
 
 ## Related guides
 

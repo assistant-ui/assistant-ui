@@ -4,7 +4,8 @@ import type { Attachment, CreateAttachment } from "../../types/attachment";
 import type { Unsubscribe } from "../../types/unsubscribe";
 import type { RunConfig } from "../../types/message";
 import type { DictationAdapter } from "../../adapters/speech";
-import type { QueueItemState } from "../../store/scopes/queue-item";
+import type { QueueItemState } from "../queue/queue-item";
+import type { QueuePlacement } from "../queue/external-thread-queue-adapter";
 
 export type AttachmentAddErrorReason =
   | "no-adapter"
@@ -20,16 +21,21 @@ export type AttachmentAddErrorEvent = {
 
 export type ComposerRuntimeEventPayload = {
   /**
-   * @deprecated State-derivable. Observe `state.text` clearing via
-   * `subscribe` + `getState` instead. Kept for backward compatibility.
+   * Fired after a send with the size of what went out. The composer state is
+   * already cleared when it fires, so the counts are only available here.
    */
-  send: Record<string, never>;
+  send: {
+    readonly chars: number;
+    readonly attachments: number;
+  };
   /**
    * @deprecated State-derivable. Observe `state.attachments` via `subscribe` +
    * `getState` instead. Kept for backward compatibility.
    */
-  attachmentAdd: Record<string, never>;
-  attachmentAddError: AttachmentAddErrorEvent;
+  attachmentAdd: { readonly contentType?: string | undefined };
+  attachmentAddError: AttachmentAddErrorEvent & {
+    readonly contentType?: string | undefined;
+  };
 };
 
 export type ComposerRuntimeEventType = keyof ComposerRuntimeEventPayload;
@@ -82,7 +88,7 @@ export type ComposerRuntimeCore = Readonly<{
   cancel: () => void;
 
   queue: readonly QueueItemState[];
-  steerQueueItem: (queueItemId: string) => void;
+  moveQueueItem: (queueItemId: string, placement: QueuePlacement) => void;
   removeQueueItem: (queueItemId: string) => void;
 
   dictation: DictationState | undefined;

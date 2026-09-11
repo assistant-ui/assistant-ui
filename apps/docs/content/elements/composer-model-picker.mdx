@@ -1,0 +1,220 @@
+---
+title: "Models"
+description: "The model lives in the composer rail, one tap away with context at a glance."
+---
+
+A small pill in the composer's action row names the active model and opens a short list to switch it, without leaving the message being written. With a runtime the choice is registered into assistant-ui's model context system so it actually reaches the next request; standalone you just hold the selection as state.
+
+## Getting started
+
+<RuntimeMode>
+
+There is no dedicated primitive for a model trigger, because "the active model" is not thread or message state the way branches or attachments are; it is whatever your app registers through the general-purpose model context system. Read the registered name to show it, and register a new one to change it.
+
+<Steps>
+  <Step>
+
+### Read the active model
+
+```tsx
+import { useAuiState } from "@assistant-ui/react";
+
+const modelName = useAuiState((s) => s.modelContext.modelName);
+```
+
+`s.modelContext.modelName` is derived from every provider currently registered via `aui.modelContext.register(...)`, merged by priority; with nothing registered it is `undefined`.
+
+  </Step>
+  <Step>
+
+### Register a change
+
+```tsx title="components/assistant-ui/elements/composer-model-trigger.tsx"
+"use client";
+
+import { useEffect, useState } from "react";
+import { useAui, useAuiState } from "@assistant-ui/react";
+import { ComposerModelTrigger, ComposerMenu, ComposerModelItem } from "@/components/assistant-ui/elements/composer";
+
+const models = [
+  { name: "Fast", meta: "$0.25/M" },
+  { name: "Frontier", meta: "$3/M" },
+];
+
+export function ModelPicker() {
+  const aui = useAui();
+  const [selected, setSelected] = useState(models[0]);
+  const [open, setOpen] = useState(false);
+
+  useEffect(() => {
+    return aui.modelContext.register({
+      getModelContext: () => ({ config: { modelName: selected.name } }),
+    });
+  }, [aui, selected]);
+
+  return (
+    <div className="relative">
+      <ComposerModelTrigger model={selected.name} open={open} onClick={() => setOpen((v) => !v)} />
+      <ComposerMenu open={open}>
+        {models.map((entry) => (
+          <ComposerModelItem
+            key={entry.name}
+            entry={entry}
+            selected={entry.name === selected.name}
+            onClick={() => {
+              setSelected(entry);
+              setOpen(false);
+            }}
+          />
+        ))}
+      </ComposerMenu>
+    </div>
+  );
+}
+```
+
+The effect re-registers on every change to `selected` and cleans up the previous registration automatically, since `register` returns an unsubscribe. This is the same pattern the [Model selector](/elements/model-selector) kit uses internally; install that element instead of building the effect yourself if you also want a searchable, provider-grouped list with reasoning-effort controls. For the full list rather than this compact trigger, see [the model-picker design](/elements/model-selector#the-model-picker-design).
+
+  </Step>
+</Steps>
+
+</RuntimeMode>
+
+<StandaloneMode>
+
+Standalone, the trigger and menu are fully controlled: you hold which model is selected and whether the menu is open, and the two catalog pieces only render that state.
+
+<Steps>
+  <Step>
+
+### Hold the selection
+
+```tsx title="app/chat-box.tsx"
+"use client";
+
+import { useState } from "react";
+import { ComposerModelTrigger, ComposerMenu, ComposerModelItem, type ComposerModel } from "@/components/assistant-ui/elements/composer";
+
+const models: ComposerModel[] = [
+  { name: "Fast", meta: "$0.25/M" },
+  { name: "Frontier", meta: "$3/M" },
+];
+
+export function ModelPicker() {
+  const [selected, setSelected] = useState(models[0]);
+  const [open, setOpen] = useState(false);
+
+  return (
+    <div className="relative">
+      <ComposerModelTrigger model={selected.name} open={open} onClick={() => setOpen((v) => !v)} />
+      <ComposerMenu open={open} align="end">
+        {models.map((entry) => (
+          <ComposerModelItem
+            key={entry.name}
+            entry={entry}
+            selected={entry.name === selected.name}
+            onClick={() => {
+              setSelected(entry);
+              setOpen(false);
+            }}
+          />
+        ))}
+      </ComposerMenu>
+    </div>
+  );
+}
+```
+
+  </Step>
+  <Step>
+
+### Close it yourself
+
+Neither `ComposerMenu` nor `ComposerModelTrigger` listens for an outside click or Escape; `open` only controls the animation and `pointer-events`. Close the menu from wherever you decide it should close, typically a click-outside handler or by closing it on selection, as above.
+
+  </Step>
+</Steps>
+
+</StandaloneMode>
+
+## Anatomy
+
+```tsx
+<div>
+  <button aria-expanded={/* open */}>{/* model name */}<svg /* chevron */ /></button>
+  <div data-slot="composer-menu" data-open={/* open */}>
+    <button data-slot="composer-menu-item" data-active={/* selected */}>
+      <span>{/* name */}</span>
+      <span>{/* meta, tabular-nums */}</span>
+      {/* a check mark fades and zooms in only on the selected row */}
+    </button>
+  </div>
+</div>
+```
+
+The trigger never disables itself and never manages its own open state; both are the caller's, in either lane.
+
+## Examples
+
+### Reading and writing are two different calls
+
+<RuntimeMode>
+
+`s.modelContext.modelName` only reflects what has been registered; setting it is always a `register` call, never a direct assignment. A component that only displays the name (say, in a header) needs just the selector; only the piece that owns the picker UI needs to call `register`.
+
+```tsx
+const modelName = useAuiState((s) => s.modelContext.modelName); // read
+aui.modelContext.register({ getModelContext: () => ({ config: { modelName: "Frontier" } }) }); // write
+```
+
+</RuntimeMode>
+
+### Restyle the trigger and menu
+
+Both lanes share `ComposerMenu` and `ComposerModelItem` with [Slash commands](/elements/composer-slash-commands) and [Mentions](/elements/composer-mentions); a restyle there restyles this menu too. The trigger itself is a standalone pill and takes its own `className`.
+
+```tsx
+<ComposerModelTrigger model={selected.name} open={open} className="text-foreground/80" />
+```
+
+## API reference
+
+<RuntimeMode>
+
+### Model context
+
+| Selector | Type | Description |
+|----------|------|-------------|
+| `s.modelContext.modelName` | `string \| undefined` | The `config.modelName` of the highest-priority registered provider. |
+| `s.modelContext.toolNames` | `readonly string[]` | Names of every tool merged from registered providers. |
+| `aui.modelContext.register(provider)` | `(provider: ModelContextProvider) => Unsubscribe` | Registers `{ getModelContext: () => ({ config: { modelName } }) }`; call the returned function to unregister. |
+
+Registration is additive and priority-ordered: several providers can be registered at once (from different components), and the one with the highest `priority` wins when they disagree on `modelName`.
+
+</RuntimeMode>
+
+<StandaloneMode>
+
+### ComposerModel
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `name` | `string` | Shown as the row's label. |
+| `meta` | `string` | Shown right-aligned, e.g. a price. |
+
+### ComposerModelTrigger
+
+| Prop | Type | Default | Description |
+|------|------|---------|-------------|
+| `model` | `string` | required | The name shown before the chevron. |
+| `open` | `boolean` | required | Sets `aria-expanded`; does not control any menu by itself. |
+| `className` | `string` | | Merged onto the root. |
+
+### ComposerModelItem
+
+| Prop | Type | Default | Description |
+|------|------|---------|-------------|
+| `entry` | `ComposerModel` | required | The row to render. |
+| `selected` | `boolean` | required | Shows the animated check mark. |
+
+</StandaloneMode>

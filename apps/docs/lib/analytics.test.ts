@@ -7,7 +7,6 @@ vi.mock("@vercel/analytics", () => ({
 
 const globalObject = globalThis as {
   window?: {
-    umami?: unknown;
     posthog?: {
       capture?: (
         event: string,
@@ -27,9 +26,9 @@ afterEach(() => {
   }
 });
 
-it("analytics does not throw when umami exists without track", () => {
+it("analytics does not throw when posthog exists without capture", () => {
   globalObject.window = {
-    umami: {},
+    posthog: {},
   };
 
   expect(() => {

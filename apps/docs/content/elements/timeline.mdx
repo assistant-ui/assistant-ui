@@ -1,0 +1,252 @@
+---
+title: "Timeline"
+description: "Events on a time axis, with what already happened and what is still coming."
+---
+
+A sequence of events on a vertical axis, each dated, joined by a connecting line that runs solid through the past and turns hollow once it crosses into the future. With a runtime the events come from a tool result; standalone you hold the event list yourself.
+
+## Getting started
+
+<RuntimeMode>
+
+This element has no assistant-ui primitive of its own, so the runtime wiring is a tool renderer rather than a primitive composition. A timeline is usually a genuine lookup against something you track elsewhere, so the events belong on the tool's `result` rather than on its streamed `args`.
+
+<Steps>
+  <Step>
+
+### Register the render function
+
+```tsx title="app/toolkit.tsx"
+"use client";
+
+import { defineToolkit } from "@assistant-ui/react";
+import { Timeline } from "@/components/assistant-ui/elements/timeline";
+
+export const toolkit = defineToolkit({
+  get_incident_timeline: {
+    type: "backend",
+    render: ({ args, result }) => {
+      if (!result) return <p>Loading the timeline for {args.issueId}…</p>;
+      return (
+        <Timeline
+          events={result.events}
+          visibleCount={result.events.length}
+        />
+      );
+    },
+  },
+});
+```
+
+Because the whole timeline lands as one result rather than as streamed steps, `visibleCount` is simply `result.events.length`; there is no partial state to size it against.
+
+  </Step>
+  <Step>
+
+### Let the message list render it
+
+```tsx title="app/MyRuntimeProvider.tsx"
+import {
+  AssistantRuntimeProvider,
+  AuiConfig,
+  Tools,
+} from "@assistant-ui/react";
+import { useChatRuntime } from "@assistant-ui/ai-sdk";
+import { toolkit } from "./toolkit";
+
+export function MyRuntimeProvider({
+  children,
+}: {
+  children: React.ReactNode;
+}) {
+  const runtime = useChatRuntime();
+  const config = AuiConfig({ tools: Tools({ toolkit }) });
+  return (
+    <AssistantRuntimeProvider runtime={runtime} config={config}>
+      {children}
+    </AssistantRuntimeProvider>
+  );
+}
+```
+
+Once the toolkit is registered, `Thread` and any custom message list built on assistant-ui's message part primitives (`MessagePrimitive.Parts` or `MessagePrimitive.GroupedParts`) render the registered UI automatically wherever the `get_incident_timeline` call appears in the message, so nothing needs to be placed by hand.
+
+  </Step>
+</Steps>
+
+</RuntimeMode>
+
+<StandaloneMode>
+
+Standalone, the element is a plain display component: it owns no state of its own, so the minimal usage is a constant set of events shown all at once.
+
+<Steps>
+  <Step>
+
+### Pass the events straight through
+
+```tsx title="app/issue-timeline.tsx"
+"use client";
+
+import {
+  Timeline,
+  type TimelineEvent,
+} from "@/components/assistant-ui/elements/timeline";
+
+const events: readonly TimelineEvent[] = [
+  { id: "1", when: "past", time: "09:02", title: "Issue filed" },
+  { id: "2", when: "past", time: "09:40", title: "Reproduced" },
+  { id: "3", when: "now", time: "10:15", title: "Fix in review" },
+  { id: "4", when: "future", time: "11:00", title: "Release 0.14.1" },
+];
+
+export function IssueTimeline() {
+  return <Timeline events={events} visibleCount={events.length} />;
+}
+```
+
+  </Step>
+  <Step>
+
+### Reveal events on your own schedule
+
+```tsx
+"use client";
+
+import { useEffect, useState } from "react";
+
+export function IssueTimeline() {
+  const [visibleCount, setVisibleCount] = useState(0);
+
+  useEffect(() => {
+    if (visibleCount >= events.length) return;
+    const id = setTimeout(() => setVisibleCount((n) => n + 1), 600);
+    return () => clearTimeout(id);
+  }, [visibleCount]);
+
+  return <Timeline events={events} visibleCount={visibleCount} />;
+}
+```
+
+  </Step>
+</Steps>
+
+</StandaloneMode>
+
+## Anatomy
+
+```tsx
+<div data-slot="timeline">
+  {/* one row per visible event, in array order */}
+  <span>{/* event.time, right aligned */}</span>
+  <span>
+    {/* dot, styled by event.when */}
+    {/* connector down to the next row, omitted after the last visible row */}
+  </span>
+  <div>
+    <span>{/* event.title */}</span>
+    <span>{/* optional event.detail */}</span>
+  </div>
+</div>
+```
+
+`visibleCount` is floored and clamped into `0…events.length` the same way it is on the other structured output elements: NaN or a negative number maps to 0, and any value past the array length maps to the array length. Rows render in whatever order you pass `events`; the component never sorts by `time` or by `when`. The connecting line after the last visible row is omitted, so a partial reveal never trails a dangling line past the last shown dot. A dot and its connector are colored only by that event's own `when`: `"now"` fills solid blue with a ring around it, `"past"` fills solid gray, and `"future"` is a hollow outline with a dimmer connecting segment; position in the list plays no part.
+
+## Examples
+
+### Past, now, and future
+
+Only one event in a timeline should usually carry `"now"`, since it is the only value that bolds the title and adds the ring around the dot. Nothing in the component enforces that; you decide which event, if any, is current.
+
+```tsx
+const events: readonly TimelineEvent[] = [
+  { id: "1", when: "past", time: "Mon", title: "Kickoff" },
+  { id: "2", when: "now", time: "Wed", title: "In progress" },
+  { id: "3", when: "future", time: "Fri", title: "Due" },
+];
+```
+
+### Where the events come from
+
+<RuntimeMode>
+
+The backend entry declares only the lookup key. The model supplies `issueId`, your server resolves the rest, including which event counts as `"now"`, and the client renderer never sees anything but the finished shape.
+
+```ts title="app/api/chat/route.ts"
+get_incident_timeline: tool({
+  description: "Look up the timeline of a tracked issue.",
+  inputSchema: z.object({ issueId: z.string() }),
+  execute: async ({ issueId }) => getIssueTimeline(issueId),
+}),
+```
+
+</RuntimeMode>
+
+<StandaloneMode>
+
+When the events come from your own request rather than a fixed constant, fetch them once and reset the reveal count so the animation plays from the start.
+
+```tsx
+async function loadTimeline(issueId: string) {
+  const { events: nextEvents } = await fetchIssueTimeline(issueId);
+  setEvents(nextEvents);
+  setVisibleCount(0);
+}
+```
+
+</StandaloneMode>
+
+### Restyle the timeline
+
+Both lanes take `className` on the root. The time column uses the shared `mono` surface from `surfaces.tsx`, so restyling that token restyles every element that uses it.
+
+```tsx
+<Timeline className="max-w-none gap-0" /* ... */ />
+```
+
+## API reference
+
+<RuntimeMode>
+
+### Render props
+
+| Prop | Type | Description |
+|------|------|-------------|
+| `args` | `{ issueId: string }` | The tool's arguments, the lookup key the model supplied. |
+| `result` | `{ events: TimelineEvent[] } \| undefined` | The finished timeline, undefined until the backend executor resolves. |
+
+### get_incident_timeline result
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `events[].id` | `string` | Stable identifier, used as the React key. |
+| `events[].when` | `"past" \| "now" \| "future"` | Decides the dot, connector, and title styling for that row. |
+| `events[].time` | `string` | Shown in the time column, in monospace. |
+| `events[].title` | `string` | The event's headline. |
+| `events[].detail` | `string` | Optional line under the title. |
+
+</RuntimeMode>
+
+<StandaloneMode>
+
+### Timeline
+
+| Prop | Type | Default | Description |
+|------|------|---------|-------------|
+| `events` | `readonly TimelineEvent[]` | required | The full list of events, only the first `visibleCount` render. |
+| `visibleCount` | `number` | required | How many events to show, floored and clamped into `0…events.length`. |
+| `className` | `string` | | Merged onto the root. |
+
+All other `div` props are forwarded to the root.
+
+### TimelineEvent
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `id` | `string` | Stable identifier, used as the React key. |
+| `when` | `"past" \| "now" \| "future"` | Decides the dot, connector, and title styling for that row. |
+| `time` | `string` | Shown in the time column, in monospace. |
+| `title` | `string` | The event's headline. |
+| `detail` | `string` | Optional line under the title. |
+
+</StandaloneMode>

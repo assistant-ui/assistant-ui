@@ -1,19 +1,24 @@
 import {
+  MAX_TRAVERSAL_DEPTH,
+  boundSpec,
+  clampReasonDetail,
+} from "../convert/boundSpec";
+import { copyBounded } from "../convert/copyBounded";
+import { isElement } from "../convert/isElement";
+import { takeRun } from "../convert/takeRun";
+import {
   normalizeSpec,
   type NormalizedUIElement,
   type NormalizedUINode,
 } from "../ir";
-import { boundSpec } from "./boundSpec";
 import {
   CHOICE_OPTION_CAP,
-  MAX_TRAVERSAL_DEPTH,
   PAYLOAD_SOFT_CAP,
   PRIMARY_ACTION_CAP,
   TABLE_COLUMN_CAP,
   TABLE_ROW_CAP,
   buildCard,
   buildSubmitAction,
-  clampReasonDetail,
   utf8ByteLength,
 } from "./constants";
 import type {
@@ -43,9 +48,6 @@ export interface ConversionContext {
 
 const isRecord = (value: unknown): value is Record<string, unknown> =>
   typeof value === "object" && value !== null && !Array.isArray(value);
-
-const isElement = (node: NormalizedUINode): node is NormalizedUIElement =>
-  isRecord(node);
 
 const asString = (value: unknown): string =>
   typeof value === "string" ? value : "";
@@ -108,14 +110,14 @@ function reservedSafeId(
   if (reserved) {
     warn(
       context,
-      "clamped",
+      "fallback",
       component,
       `the input id "${RESERVED_INPUT_ID}" collides with the submit envelope's reserved key and was renamed to "${candidate}".`,
     );
   } else if (candidate !== base) {
     warn(
       context,
-      "clamped",
+      "fallback",
       component,
       `the input id "${base}" was already used on this card and was renamed to "${candidate}".`,
     );
@@ -125,7 +127,7 @@ function reservedSafeId(
 }
 
 /**
- * The shared bounded-iteration primitive: slices `value` to `cap` entries
+ * The shared bounded-iteration primitive: copies `value` to `cap` entries
  * without ever reading past that many indices, so a hostile array (sparse or
  * proxied with a fabricated `length`) cannot stall the event loop.
  */
@@ -134,7 +136,7 @@ const clampArray = (
   cap: number,
 ): { readonly items: unknown[]; readonly truncated: boolean } => {
   if (!Array.isArray(value)) return { items: [], truncated: false };
-  return { items: value.slice(0, cap), truncated: value.length > cap };
+  return copyBounded(value, cap);
 };
 
 const normalizedList = (
@@ -191,6 +193,15 @@ const choicesFrom = (
     const choice = toChoice(item);
     if (choice !== undefined) choices.push(choice);
   }
+  const dropped = items.length - choices.length;
+  if (dropped > 0) {
+    warn(
+      context,
+      "dropped",
+      component,
+      `${dropped} ${dropped === 1 ? "option was" : "options were"} dropped for want of a string value.`,
+    );
+  }
   return choices;
 };
 
@@ -211,7 +222,7 @@ function convertButtons(
   if (buttons.length > PRIMARY_ACTION_CAP) {
     warn(
       context,
-      "clamped",
+      "fallback",
       "Button",
       `actions beyond ${PRIMARY_ACTION_CAP} were set to secondary mode.`,
     );
@@ -302,6 +313,17 @@ function convertTable(
     );
   }
 
+  const unlabeled = rawColumns.filter(
+    (column) => !isRecord(column) || typeof column["label"] !== "string",
+  ).length;
+  if (unlabeled > 0) {
+    warn(
+      context,
+      "dropped",
+      "Table",
+      `${unlabeled} column ${unlabeled === 1 ? "header was" : "headers were"} left blank for want of a string label.`,
+    );
+  }
   const hasColumns = rawColumns.length > 0;
   const columns: TeamsTableColumnDefinition[] = rawColumns.map(() => ({
     width: 1 as const,
@@ -317,12 +339,13 @@ function convertTable(
     : undefined;
   const dataRows: TeamsTableRow[] = rawRows.map((row) => ({
     type: "TableRow",
-    cells: (Array.isArray(row) ? row.slice(0, TABLE_COLUMN_CAP) : []).map(
-      (cell) => ({
-        type: "TableCell" as const,
-        items: [textBlock(stringifyCell(cell))],
-      }),
-    ),
+    cells: (Array.isArray(row)
+      ? copyBounded(row, TABLE_COLUMN_CAP).items
+      : []
+    ).map((cell) => ({
+      type: "TableCell" as const,
+      items: [textBlock(stringifyCell(cell))],
+    })),
   }));
 
   return {
@@ -348,6 +371,29 @@ function convertListViewItem(
     ...(selectAction !== undefined ? { selectAction } : {}),
   };
 }
+
+/**
+ * Converts a child whose output is thrown away, and reports whether anything
+ * was lost with it. A scratch context keeps the ids it claims out of the card,
+ * where they would rename a control that survives; only its `dropped` warnings
+ * are forwarded, because those describe the tree the caller wrote, while a
+ * clamp or a rename would describe content never delivered.
+ */
+export const discardedChild = (
+  child: NormalizedUINode,
+  context: ConversionContext,
+  depth: number,
+): boolean => {
+  const scratch: ConversionContext = {
+    ...context,
+    warnings: [],
+    usedInputIds: new Set(context.usedInputIds),
+  };
+  const produced = convertSequence(child, scratch, depth).length > 0;
+  const lost = scratch.warnings.filter((warning) => warning.code === "dropped");
+  context.warnings.push(...lost);
+  return produced || lost.length > 0;
+};
 
 export function convertElement(
   element: NormalizedUIElement,
@@ -539,7 +585,7 @@ export function convertElement(
     case "Row": {
       const children = normalizedList(element.children);
       if (children.length > 3) {
-        warn(context, "clamped", "Row", "Teams recommends at most 3 columns.");
+        warn(context, "advisory", "Row", "Teams recommends at most 3 columns.");
       }
       const columns: TeamsColumn[] = children.map((child) => ({
         type: "Column",
@@ -550,13 +596,21 @@ export function convertElement(
     }
     case "ListView": {
       const containers: TeamsContainer[] = [];
+      let discarded = 0;
       for (const child of normalizedList(element.children)) {
-        if (!isElement(child)) continue;
-        if (child.type === "ListViewItem") {
+        if (isElement(child) && child.type === "ListViewItem") {
           containers.push(convertListViewItem(child, context, depth + 1));
-        } else {
-          convertElement(child, context, depth + 1);
+          continue;
         }
+        if (discardedChild(child, context, depth + 1)) discarded += 1;
+      }
+      if (discarded > 0) {
+        warn(
+          context,
+          "dropped",
+          "ListView",
+          `${discarded} non-item ${discarded === 1 ? "child was" : "children were"} dropped.`,
+        );
       }
       return containers.map((container, index) =>
         index > 0 ? { ...container, separator: true } : container,
@@ -567,7 +621,7 @@ export function convertElement(
     case "Table":
       return [convertTable(props, context)];
     case "Alert": {
-      const tone = props["tone"];
+      const tone = props["tone"] ?? "info";
       const style =
         typeof tone === "string"
           ? (ALERT_STYLE_MAP[tone] ?? "default")
@@ -586,10 +640,23 @@ export function convertElement(
         "Carousel",
         "A carousel was rendered as sequential cards because it is not at the root.",
       );
-      const cards = normalizedList(element.children).filter(
-        (child): child is NormalizedUIElement =>
-          isElement(child) && child.type === "Card",
-      );
+      const cards: NormalizedUIElement[] = [];
+      let droppedCards = 0;
+      for (const child of normalizedList(element.children)) {
+        if (isElement(child) && child.type === "Card") {
+          cards.push(child);
+          continue;
+        }
+        if (discardedChild(child, context, depth + 1)) droppedCards += 1;
+      }
+      if (droppedCards > 0) {
+        warn(
+          context,
+          "dropped",
+          "Carousel",
+          `${droppedCards} non-card ${droppedCards === 1 ? "child was" : "children were"} dropped.`,
+        );
+      }
       return cards.flatMap((card) => convertElement(card, context, depth + 1));
     }
     case "Chart":
@@ -665,32 +732,22 @@ export function convertSequence(
       continue;
     }
     if (isElement(current) && current.type === "Fact") {
-      const facts: NormalizedUIElement[] = [];
-      while (index < nodes.length) {
-        const candidate = nodes[index];
-        if (!candidate || !isElement(candidate) || candidate.type !== "Fact") {
-          break;
-        }
-        facts.push(candidate);
-        index += 1;
-      }
+      const { run: facts, next } = takeRun(
+        nodes,
+        index,
+        (candidate) => candidate.type === "Fact",
+      );
+      index = next;
       emit([convertFacts(facts)]);
       continue;
     }
     if (isElement(current) && current.type === "Button") {
-      const buttons: NormalizedUIElement[] = [];
-      while (index < nodes.length) {
-        const candidate = nodes[index];
-        if (
-          !candidate ||
-          !isElement(candidate) ||
-          candidate.type !== "Button"
-        ) {
-          break;
-        }
-        buttons.push(candidate);
-        index += 1;
-      }
+      const { run: buttons, next } = takeRun(
+        nodes,
+        index,
+        (candidate) => candidate.type === "Button",
+      );
+      index = next;
       emit([convertButtons(buttons, context)]);
       continue;
     }
@@ -716,9 +773,9 @@ export function convertRootToCard(
   if (size > PAYLOAD_SOFT_CAP) {
     warn(
       context,
-      "clamped",
+      "advisory",
       "Root",
-      `the card is ${size} bytes, exceeding Teams' 100 KB bot message limit.`,
+      `the card is ${size} bytes, over the ${PAYLOAD_SOFT_CAP}-byte soft budget kept below Teams' 100 KB bot message limit.`,
     );
   }
   return card;
@@ -726,7 +783,7 @@ export function convertRootToCard(
 
 /**
  * Converts a generative-ui tree into a Microsoft Teams Adaptive Card and
- * non-fatal downgrade warnings. Sizes, weights, and colors map to Adaptive
+ * non-fatal conversion warnings. Sizes, weights, and colors map to Adaptive
  * Card's semantic enums rather than raw values. An Input/Select/RadioGroup/
  * Checkbox/DatePicker whose id would be the reserved {@link RESERVED_INPUT_ID}
  * is renamed with a warning (see `decodeSubmitData`). Never throws: an

@@ -1,0 +1,286 @@
+---
+title: "Comparison"
+description: "Two options weighed side by side, with the pick named and argued."
+---
+
+Two options set side by side, each with its own traits and one of them marked as the pick, with a sentence underneath arguing the choice. With a runtime the comparison comes from a tool call the model completes in one shot; standalone you supply the options and the reason yourself.
+
+## Getting started
+
+<RuntimeMode>
+
+This element has no assistant-ui primitive of its own, so the runtime wiring is a tool renderer rather than a primitive composition. A comparison has no natural row by row reveal: watching option cards fill in out of order as JSON streams in would read as broken rather than progressive, so this is one of the cases worth waiting for the call to finish before mounting anything at all.
+
+<Steps>
+  <Step>
+
+### Register the render function
+
+```tsx title="app/toolkit.tsx"
+"use client";
+
+import { defineToolkit } from "@assistant-ui/react";
+import { ComparisonCard } from "@/components/assistant-ui/elements/comparison-card";
+
+export const toolkit = defineToolkit({
+  compare_options: {
+    type: "backend",
+    render: ({ args, status }) => {
+      if (status.type !== "complete") return null;
+      return <ComparisonCard {...args} />;
+    },
+  },
+});
+```
+
+Returning `null` until `status.type` is `"complete"` mounts the card once, with its final arguments, rather than re-rendering it through every partial parse. See [deferred rendering](/docs/tools/tool-ui#deferred-rendering) for the general pattern.
+
+  </Step>
+  <Step>
+
+### Let the message list render it
+
+```tsx title="app/MyRuntimeProvider.tsx"
+import {
+  AssistantRuntimeProvider,
+  AuiConfig,
+  Tools,
+} from "@assistant-ui/react";
+import { useChatRuntime } from "@assistant-ui/ai-sdk";
+import { toolkit } from "./toolkit";
+
+export function MyRuntimeProvider({
+  children,
+}: {
+  children: React.ReactNode;
+}) {
+  const runtime = useChatRuntime();
+  const config = AuiConfig({ tools: Tools({ toolkit }) });
+  return (
+    <AssistantRuntimeProvider runtime={runtime} config={config}>
+      {children}
+    </AssistantRuntimeProvider>
+  );
+}
+```
+
+Once the toolkit is registered, `Thread` and any custom message list built on assistant-ui's message part primitives (`MessagePrimitive.Parts` or `MessagePrimitive.GroupedParts`) render the registered UI automatically wherever the `compare_options` call appears in the message, so nothing needs to be placed by hand.
+
+  </Step>
+</Steps>
+
+</RuntimeMode>
+
+<StandaloneMode>
+
+Standalone, the element is a plain display component: it owns no state of its own. Unlike the other structured output elements it has no reveal prop at all; every option and every trait renders as soon as you pass it.
+
+<Steps>
+  <Step>
+
+### Pass the options straight through
+
+```tsx title="app/runtime-choice.tsx"
+"use client";
+
+import {
+  ComparisonCard,
+  type ComparisonOption,
+} from "@/components/assistant-ui/elements/comparison-card";
+
+const traitLabels = ["Streaming", "Multi-thread", "Self-hosted"] as const;
+
+const options: readonly ComparisonOption[] = [
+  {
+    id: "local",
+    name: "Local runtime",
+    headline: "You own the loop",
+    traits: ["Streams", "Multi-thread", "Self-hosted"],
+  },
+  {
+    id: "external",
+    name: "External store",
+    headline: "Your state is the source",
+    traits: ["Streams", "Multi-thread", false],
+  },
+];
+
+export function RuntimeChoice() {
+  return (
+    <ComparisonCard
+      traitLabels={traitLabels}
+      options={options}
+      recommendedId="local"
+      reason="You already hold messages in your own store, but you want the runtime to drive streaming and branching, so the local runtime costs you less wiring."
+    />
+  );
+}
+```
+
+  </Step>
+  <Step>
+
+### Point the pick at a different option
+
+Recompute `recommendedId` and `reason` from whatever decided the comparison, the card itself has no memory of a previous pick.
+
+```tsx
+export function RuntimeChoice({ selfHostedOnly }: { selfHostedOnly: boolean }) {
+  const recommendedId = selfHostedOnly ? "local" : "external";
+  const reason = selfHostedOnly
+    ? "Local keeps everything on your own infrastructure, which is what self-hosted rules out for the other option."
+    : "External store fits well once your own service already owns message state.";
+
+  return (
+    <ComparisonCard
+      traitLabels={traitLabels}
+      options={options}
+      recommendedId={recommendedId}
+      reason={reason}
+    />
+  );
+}
+```
+
+  </Step>
+</Steps>
+
+</StandaloneMode>
+
+## Anatomy
+
+```tsx
+<div data-slot="comparison-card">
+  <div>
+    {/* one card per option, in array order */}
+    <div>
+      <span>{/* option.name */}{/* "pick" label when recommended */}</span>
+      <span>{/* option.headline */}</span>
+      <div>
+        {/* one row per traitLabels[i], paired with option.traits[i] */}
+        <span>{/* check or minus icon */}</span>
+        <span>{/* trait value when present, else the trait label, dimmed */}</span>
+      </div>
+    </div>
+  </div>
+
+  <p>{/* reason */}</p>
+</div>
+```
+
+Unlike the other structured output elements, this one takes no `visibleCount` and no `take()`: every option and every trait row in the arrays you pass renders unconditionally. An option counts as recommended purely by `option.id === recommendedId`, so an id that matches no option leaves every card untinted with no "pick" label anywhere; there is no fallback highlight. A trait counts as present exactly when `option.traits[i]` is truthy: pass `false`, or leave `traits` shorter than `traitLabels`, and that row shows the trait's own label dimmed behind a minus icon instead of the option's value.
+
+## Examples
+
+### Marking a trait as absent
+
+An absent trait is not an empty string, it is `false` or a missing array slot. Either one falls back to the shared `traitLabels` entry, dimmed, so the row still names what the option lacks instead of leaving a blank.
+
+```tsx
+const options: readonly ComparisonOption[] = [
+  { id: "a", name: "Plan A", headline: "Everything included", traits: ["Streams", "Multi-thread", "Self-hosted"] },
+  { id: "b", name: "Plan B", headline: "Lighter footprint", traits: ["Streams", false] },
+];
+```
+
+### Where the comparison comes from
+
+<RuntimeMode>
+
+The model reasons about the options itself, so there is nothing for the backend to look up; `execute` only needs to hand the arguments back for the type system and the wire format.
+
+```ts title="app/api/chat/route.ts"
+compare_options: tool({
+  description: "Compare two options and name the one you would pick.",
+  inputSchema: z.object({
+    traitLabels: z.array(z.string()),
+    options: z.array(
+      z.object({
+        id: z.string(),
+        name: z.string(),
+        headline: z.string(),
+        traits: z.array(z.union([z.string(), z.literal(false)])),
+      }),
+    ),
+    recommendedId: z.string(),
+    reason: z.string(),
+  }),
+  execute: async (args) => args,
+}),
+```
+
+</RuntimeMode>
+
+<StandaloneMode>
+
+When the comparison follows from your own data rather than a fixed constant, derive `options` and `recommendedId` together so they never disagree about which id is being recommended.
+
+```tsx
+const options = plans.map((plan) => ({
+  id: plan.id,
+  name: plan.name,
+  headline: plan.headline,
+  traits: traitLabels.map((label) => plan.traits[label] ?? false),
+}));
+const recommendedId = pickBestPlan(plans).id;
+```
+
+</StandaloneMode>
+
+### Restyle the card
+
+Both lanes take `className` on the root. The "pick" label uses the shared `mono` surface and a non-recommended option's card uses the shared `field` surface, both from `surfaces.tsx`, so restyling those tokens restyles every element that uses them.
+
+```tsx
+<ComparisonCard className="max-w-lg gap-4" /* ... */ />
+```
+
+## API reference
+
+<RuntimeMode>
+
+### Render props
+
+| Prop | Type | Description |
+|------|------|-------------|
+| `args` | `{ traitLabels: string[]; options: ComparisonOption[]; recommendedId: string; reason: string }` | The tool's arguments, a partial parse while `status.type` is `"running"`. |
+| `status` | `ToolCallMessagePartStatus` | `"running"` while the model is still emitting `args`, `"complete"` once the call settles. Gate rendering on `"complete"` to avoid a half built card. |
+
+### compare_options arguments
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `traitLabels` | `string[]` | The trait names shown for every option, in column order. |
+| `options[].id` | `string` | Matched against `recommendedId` to decide which card is highlighted. |
+| `options[].name` | `string` | The option's name. |
+| `options[].headline` | `string` | One line under the name. |
+| `options[].traits` | `(string \| false)[]` | Positional with `traitLabels`, `false` or a missing entry renders the trait as absent. |
+| `recommendedId` | `string` | The `id` of the option to highlight as the pick. |
+| `reason` | `string` | The sentence under the cards arguing the pick. |
+
+</RuntimeMode>
+
+<StandaloneMode>
+
+### ComparisonCard
+
+| Prop | Type | Default | Description |
+|------|------|---------|-------------|
+| `traitLabels` | `readonly string[]` | required | The trait names shown for every option, in column order. |
+| `options` | `readonly ComparisonOption[]` | required | The options to compare, rendered in array order. |
+| `recommendedId` | `string` | required | The `id` of the option to highlight as the pick. |
+| `reason` | `string` | required | The sentence under the cards arguing the pick. |
+| `className` | `string` | | Merged onto the root. |
+
+All other `div` props are forwarded to the root.
+
+### ComparisonOption
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `id` | `string` | Matched against `recommendedId` to decide which card is highlighted. |
+| `name` | `string` | The option's name. |
+| `headline` | `string` | One line under the name. |
+| `traits` | `readonly (string \| false)[]` | Positional with `traitLabels`, `false` or a missing entry renders the trait as absent. |
+
+</StandaloneMode>

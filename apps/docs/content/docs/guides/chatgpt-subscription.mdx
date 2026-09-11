@@ -30,7 +30,7 @@ In your chat route, swap `@ai-sdk/openai` for the OAuth provider. Starting from 
 
 ```ts title="/app/api/chat/route.ts" {10}
 import { createOpenAIOAuth } from "openai-oauth-provider";
-import { frontendTools } from "@assistant-ui/react-ai-sdk";
+import { frontendTools } from "@assistant-ui/ai-sdk";
 import {
   type JSONSchema7,
   streamText,

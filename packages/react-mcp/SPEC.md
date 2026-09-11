@@ -75,7 +75,7 @@ After the v0.1 simplification, the package's runtime surface is:
 | `McpServerByIdProvider` | Scope a subtree to one server (used by iteration primitives; useful standalone) |
 | `useMcpOAuthCallback`, `McpOAuthCallback` | OAuth callback page handlers |
 
-There is no `MCPProvider` (mount the resource directly with `useAui`), no `useMcpManager` (`useAui().mcp()` in callbacks per the [tap skill](/.claude/skills/tap/SKILL.md)), no `useMcpTools` (auto-registered via `modelContext`), no `canAddCustom` (hide the add-UI to disable), no `mcpRuntimeToolsToAiSdkTools` (the runtime sees tools through `modelContext`).
+There is no `MCPProvider` (mount the resource directly with `useAui`), no `useMcpManager` (`useAui().mcp()` in callbacks per the [tap methods guide](../../apps/docs/content/tap-docs/store/methods.mdx)), no `useMcpTools` (auto-registered via `modelContext`), no `canAddCustom` (hide the add-UI to disable), no `mcpRuntimeToolsToAiSdkTools` (the runtime sees tools through `modelContext`).
 
 ## 1. Types
 
@@ -191,6 +191,7 @@ type MCPServerMethods = {
 
 ```ts
 type MCPStorage = {
+  scopeId?: string;
   loadCustomServers: () => Promise<MCPCustomServerRecord[]>;
   saveCustomServers: (records: MCPCustomServerRecord[]) => Promise<void>;
   loadAuthState: (serverId: string) => Promise<MCPPersistedAuthState | null>;
@@ -199,18 +200,27 @@ type MCPStorage = {
 };
 
 type MCPPersistedAuthState = {
+  serverUrl?: string;
   tokens?: OAuthTokens;
+  tokensClientId?: string;
   clientInformation?: OAuthClientInformationFull;
+  clientInformationSource?: "registered";
   codeVerifier?: string;
+  state?: string;
+  discoveryState?: OAuthDiscoveryState;
   token?: string;   // bearer
 };
 
-McpLocalStorage(opts?: { keyPrefix?: string; storage?: Storage }): ResourceElement<MCPStorage>;
+McpLocalStorage(opts?: { keyPrefix?: string; storage?: Storage; scopeId?: string }): ResourceElement<MCPStorage>;
 McpMemoryStorage(): ResourceElement<MCPStorage>;
 McpCustomStorage(impl: MCPStorage): ResourceElement<MCPStorage>;
 ```
 
 `McpLocalStorage` defaults to `globalThis.localStorage` under the `aui-mcp:` prefix. Tokens are plain text — production apps should use `McpCustomStorage` against a server endpoint.
+
+`scopeId` is the storage's stable identity: two storages with the same `scopeId` must read and write the same persisted data. `McpManagerResource` keys the custom server lifecycle on it, so swapping to a differently-scoped storage removes the previous scope's custom servers before loading the replacement. Servers with `bearer` or `oauth` auth also key their connection on it, so the swap reconnects and rebinds the OAuth provider instead of leaving a live connection on the replaced store. A storage without a `scopeId` never keys a custom-server reload or connection change — the legacy behavior. `McpLocalStorage` derives `local-storage:<keyPrefix>` when backed by the shared `globalThis.localStorage` and declares no scope for a custom `storage` backing unless `scopeId` is passed; `McpMemoryStorage` scopes each instance uniquely (`memory:<id>`), since each holds private data.
+
+Persisted authentication is accepted only when `serverUrl` matches the server's URL; both are normalized before they are compared, so any spelling of the same URL matches. Storage implementations must preserve this field. A stored credential that does not match is never sent, and `lastError` reports it instead of the request going out unauthenticated. OAuth records written before endpoint binding was introduced are treated as unbound and require one manual reconnect after upgrading. Bearer records are host-authored, so a host that persists `token` must write the server's configured `url` as `serverUrl` in the same record.
 
 ## 3. Mounting
 
@@ -229,7 +239,6 @@ function App() {
       ],
       // optional:
       // storage: McpCustomStorage({ ... }),
-      // storageScopeKey: workspaceId,
       // autoConnect: false,
       // connectionTimeout: 10_000,
       // oauthRedirectUri: "https://app.example.com/mcp/callback",
@@ -242,7 +251,6 @@ function App() {
 Defaults baked in:
 
 - `storage` → `McpLocalStorage()`
-- `storageScopeKey` → identifies a custom storage account, tenant, or workspace so changing it closes the previous connections and rehydrates the matching servers and auth state. It is required when a `McpCustomStorage` implementation can switch scopes. `McpLocalStorage` uses `keyPrefix` automatically.
 - `oauthRedirectUri` → `${window.location.origin}/mcp/callback`
 - `autoConnect` → `true`
 - `connectionTimeout` → optional timeout in milliseconds; disabled by default. Set it on the manager as a default or on a server entry to bound the MCP readiness flow (`connect()` plus `listTools()`).
@@ -268,14 +276,14 @@ type MCPAuthConfig =
 
 The OAuth strategy implements the MCP SDK's `OAuthClientProvider`. The SDK handles discovery, DCR, PKCE, token exchange, and refresh; this provider only mediates `MCPStorage` reads/writes and the redirect step.
 
-The server id is embedded in the OAuth `state` parameter so a single `/mcp/callback` route routes back to the right server without app-level wiring.
+The server id is embedded in the OAuth `state` parameter so a single `/mcp/callback` route routes back to the right server without app-level wiring. The complete state value is persisted with the PKCE verifier and validated before the callback is processed.
 
 Flow:
 
 1. `aui.mcp().server({ id }).connect()` → SDK starts auth.
 2. `redirectToAuthorization` stores `authorizationUrl` on server state, transitions to `authRequired`. **The package does not auto-navigate** — render `<McpServerPrimitive.OAuthLink>` (an anchor) or open a popup.
 3. User returns to `oauthRedirectUri`. Mount `<McpOAuthCallback />` there.
-4. Callback reads `?state=&code=`, derives the server id, calls `server.completeAuth(window.location.href)`.
+4. Callback reads `?state=` plus either an OAuth `code` or `error`, derives the server id, validates the complete state value, and calls `server.completeAuth(window.location.href)`.
 5. Server transitions to `connecting → connected`. Refresh tokens are rotated automatically; a failed refresh moves to `authRequired`.
 
 ## 5. Primitives
@@ -364,6 +372,8 @@ mount McpManagerResource
   → toolkit memo recomputes; modelContext.register(toolkit) (re-registers on change)
 ```
 
+During auto-connect, a rejected `storage.loadAuthState()` sets `lastError` and transitions the server to `"error"` without creating a transport; failures from cancelled or superseded attempts are ignored.
+
 `McpServerResource.connect()`:
 
 1. `state = "connecting"`.
@@ -371,7 +381,7 @@ mount McpManagerResource
 3. `client.connect(transport)` — on `UnauthorizedError` set `authorizationUrl` and transition to `"authRequired"`; on other errors set `lastError` and transition to `"error"`.
 4. On success: `listTools()`, transition to `"connected"`.
 
-`completeAuth(url)`: parse `code`, call `transport.finishAuth(code)`, retry `client.connect()`.
+`completeAuth(url)`: require an exact match with the persisted `state`, accept either `code` or an OAuth `error`, pass the complete callback `URLSearchParams` (including `iss`) to `transport.finishAuth()`, then retry `client.connect()` after successful authorization. Those pre-transport checks, and a rejected `storage.loadAuthState()` inside `completeAuth`, reject without touching `connectionState` or `lastError`, so a forged callback cannot disturb a connected server; from `finishAuth()` onwards a failure sets `lastError` and transitions to `"error"`.
 
 ## 7. OAuth callback
 
@@ -387,7 +397,7 @@ useMcpOAuthCallback(opts?): { status; serverId; error };
 </McpOAuthCallback>;
 ```
 
-Reads `window.location` (override with `url` prop), extracts `state`/`code`, resolves the server, runs `completeAuth`. Pure client-side — mount under `"use client"`.
+Reads `window.location` (override with `url` prop), extracts `state` to resolve the server, and passes the complete callback URL to `completeAuth` for state, issuer, code, and OAuth error validation. Pure client-side — mount under `"use client"`.
 
 ## 8. Tool integration
 
@@ -446,7 +456,7 @@ In a chat app, pass the same config to `AssistantRuntimeProvider` instead — it
 "use client";
 import type { ReactNode } from "react";
 import { AssistantRuntimeProvider, AuiConfig } from "@assistant-ui/react";
-import { useChatRuntime } from "@assistant-ui/react-ai-sdk";
+import { useChatRuntime } from "@assistant-ui/ai-sdk";
 import { McpManagerResource, defineConnector } from "@assistant-ui/react-mcp";
 
 const connectors = [
@@ -509,7 +519,7 @@ export default function Callback() {
 // app/chat/page.tsx — chat runtime sees MCP tools through modelContext
 // (no useMcpTools / no adapter call — the manager registers them itself)
 "use client";
-import { useChatRuntime } from "@assistant-ui/react-ai-sdk";
+import { useChatRuntime } from "@assistant-ui/ai-sdk";
 
 export function Chat() {
   const runtime = useChatRuntime({ api: "/api/chat" });

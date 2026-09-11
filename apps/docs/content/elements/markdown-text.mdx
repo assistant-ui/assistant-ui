@@ -1,0 +1,142 @@
+---
+title: "Markdown text"
+description: "Assistant markdown with headings, lists, links, tables, and code blocks."
+---
+
+MarkdownText renders an assistant message's text part as formatted markdown: headings, emphasis, links, lists, block quotes, tables, and fenced code with a language label and a copy button. It always renders the active message part; there is no standalone, props-driven form.
+
+## Getting started
+
+<RuntimeMode>
+
+MarkdownText reads the current message part through `MarkdownTextPrimitive`, which pulls the streaming text straight from the part's context. It must render inside a text part, so it is wired in as the renderer for that part type rather than mounted on its own.
+
+<Steps>
+  <Step>
+
+### Wire it into the message
+
+```tsx title="components/assistant-ui/elements/thread.aui.tsx"
+import { MessagePrimitive } from "@assistant-ui/react";
+import { MarkdownText } from "@/components/assistant-ui/elements/markdown-text";
+
+function AssistantMessage() {
+  return (
+    <MessagePrimitive.Root>
+      <MessagePrimitive.Parts components={{ Text: MarkdownText }} />
+    </MessagePrimitive.Root>
+  );
+}
+```
+
+The `Thread` element already ships this composition, so installing `@assistant-ui/thread` gives you formatted assistant messages without wiring MarkdownText yourself.
+
+  </Step>
+  <Step>
+
+### Add syntax highlighting
+
+MarkdownText renders fenced code with a language label and a copy button, but the code itself is plain text until you plug in a highlighter. Pass one through the `components` prop, or install a kit that already wires one: see [Shiki highlighter](/elements/shiki-highlighter) (recommended, runtime-aware) or [Syntax highlighter](/elements/syntax-highlighter) (Prism-based).
+
+  </Step>
+</Steps>
+
+</RuntimeMode>
+
+<StandaloneMode>
+
+Standalone, MarkdownText has no controlled form: its only prop is `components`, and the text it renders always comes from the surrounding message part, never from a value you pass in. To render markdown outside a message part, render `react-markdown` directly instead, the way [Generative UI](/elements/generative-ui)'s `Markdown` override does.
+
+</StandaloneMode>
+
+## Anatomy
+
+```tsx
+<div data-status="running">
+  {/* data-status is "running" | "complete" | "incomplete" */}
+  {/* one element per parsed markdown block: h1-h6, p, a, blockquote, ul, ol, hr, table, li, strong, sup */}
+  <div> {/* aui-code-header-root: language label + copy button, one per fenced code block */}
+    <span>{/* language */}</span>
+    <button aria-label="Copy" />
+  </div>
+  <pre><code>{/* the fenced code's text, unhighlighted until you add a SyntaxHighlighter */}</code></pre>
+</div>
+```
+
+The root's `data-status` mirrors the part's streaming state: `running` while text is still arriving (or, with the primitive's default smooth reveal, still catching up to text that already arrived), `complete` once settled, `incomplete` if the part ended early. Every rendered element carries an `aui-md-*` class (`aui-md-h1`, `aui-md-p`, `aui-md-table`, and so on) so you can target one without replacing the whole set. Inline code gets a background and rounded corners; fenced code does not, since the copy button and code header already frame it. The copy button swaps to a check icon for three seconds after a successful copy, then reverts.
+
+## Examples
+
+### Override one element
+
+`components` merges onto the defaults, so passing one key leaves the rest untouched.
+
+```tsx
+import { MarkdownText } from "@/components/assistant-ui/elements/markdown-text";
+
+<MarkdownText
+  components={{
+    a: ({ className, ...props }) => (
+      <a {...props} className={className} target="_blank" rel="noreferrer" />
+    ),
+  }}
+/>;
+```
+
+### Extend the code block header
+
+`CodeHeader` renders above every fenced block, next to the copy button. Replace it to add, for example, a "run" action:
+
+```tsx
+import type { CodeHeaderProps } from "@assistant-ui/react-markdown";
+
+const CustomCodeHeader = ({ language, code }: CodeHeaderProps) => (
+  <div className="aui-code-header-root ...">
+    <span>{language}</span>
+    <button onClick={() => runSnippet(code)}>Run</button>
+  </div>
+);
+
+<MarkdownText components={{ CodeHeader: CustomCodeHeader }} />;
+```
+
+### GitHub-flavored markdown
+
+Tables, task-list checkboxes, strikethrough, and bare autolinks all render because `remarkGfm` is already passed to `MarkdownTextPrimitive`; no extra setup is needed for a message that contains them.
+
+```md
+| Model | Context |
+| ----- | ------- |
+| gpt-5 | 400k    |
+
+- [x] Ship the renderer
+- [ ] Add highlighting
+
+~~deprecated~~ · https://assistant-ui.com
+```
+
+## API reference
+
+<RuntimeMode>
+
+### MarkdownTextPrimitive
+
+| Part | Renders | Notes |
+|------|---------|-------|
+| `MarkdownTextPrimitive` | `div` | Reads the current message part via `useMessagePartText()`. `data-status` mirrors the part's streaming status. Must render inside a text (or reasoning) part scope. |
+
+### MarkdownText
+
+| Prop | Type | Default | Description |
+|------|------|---------|-------------|
+| `components` | `Parameters<typeof memoizeMarkdownComponents>[0]` | | Merged onto the default element renderers (`h1`-`h6`, `p`, `a`, `blockquote`, `ul`, `ol`, `hr`, `table`, `th`, `td`, `tr`, `li`, `strong`, `sup`, `pre`, `code`, `CodeHeader`). Missing keys fall back to the defaults. `SyntaxHighlighter` defaults to plain, unhighlighted code until you set one. |
+
+There is no `className` prop. `smooth` and `defer` are fixed on: the primitive always animates streamed text and defers re-parsing to a lower priority.
+
+</RuntimeMode>
+
+<StandaloneMode>
+
+MarkdownText has no standalone props beyond `components`, and nothing to feed it outside a message part. See the `MarkdownTextPrimitive` row above for the one thing it reads, and the runtime API reference for `components`.
+
+</StandaloneMode>

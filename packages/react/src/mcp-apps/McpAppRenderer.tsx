@@ -2,13 +2,17 @@
 
 import {
   useEffect,
+  useLayoutEffect,
   useMemo,
   useRef,
   useState,
-  type MutableRefObject,
   type ReactNode,
 } from "react";
-import type { McpAppMetadata } from "@assistant-ui/core";
+import type {
+  McpAppMetadata,
+  TextMessagePart,
+  ToolCallMessagePart,
+} from "@assistant-ui/core";
 import type {
   ToolCallMessagePartComponent,
   ToolCallMessagePartProps,
@@ -29,13 +33,11 @@ import type {
 import { getMcpAppFromToolPart } from "./utils";
 import { isRecord } from "@assistant-ui/core/internal";
 
-export type McpAppRendererOptions = {
-  /**
-   * Provides the data-plane operations the widget can request
-   * (`loadResource`, `callTool`, `readResource`, `listResources`). Use
-   * `McpAppsRemoteHost({ url })` for the default HTTP-route convention.
-   */
-  host: ResourceElement<McpAppsHost>;
+/**
+ * Options that apply to a single MCP app. `McpAppRenderer` takes them as
+ * thread-wide defaults, and its `forPart` resolver overrides them for one part.
+ */
+export type McpAppPartOptions = {
   /** Sandbox + container styling. Passes through to SafeContentFrame. */
   sandbox?: McpAppSandboxConfig;
   /**
@@ -47,12 +49,44 @@ export type McpAppRendererOptions = {
   hostInfo?: McpAppHostInfo;
   /** Delivered to the widget on initialize and pushed via `notifications/host_context/changed` on change. */
   hostContext?: McpAppHostContext;
+  /**
+   * Optional widget interaction and lifecycle handlers. Data-plane handlers
+   * (`callTool`, `readResource`, `listResources`) always use `host`.
+   *
+   * Which handlers a widget may call is captured when its frame mounts, so a
+   * `forPart` resolver returns the same handler keys for a part on every
+   * render even when the implementations change.
+   */
+  handlers?: Omit<
+    McpAppBridgeHandlers,
+    "callTool" | "readResource" | "listResources"
+  >;
   /** Rendered when no MCP app is on the part, or while load is in flight / failed (unless overridden). */
   fallback?: ReactNode;
   /** Rendered while the resource is loading. Defaults to `fallback`. */
   loadingFallback?: ReactNode;
   /** Rendered when the resource load rejects. Defaults to `fallback`. */
   errorFallback?: ReactNode | ((error: Error) => ReactNode);
+};
+
+export type McpAppRendererOptions = McpAppPartOptions & {
+  /**
+   * Provides the data-plane operations the widget can request
+   * (`loadResource`, `callTool`, `readResource`, `listResources`). Use
+   * `McpAppsRemoteHost({ url })` for the default HTTP-route convention.
+   */
+  host: ResourceElement<McpAppsHost>;
+  /**
+   * Resolves the options for one part. Each returned value replaces the
+   * thread-wide option of the same name, so a host can give every MCP app its
+   * own display mode and answer `requestDisplayMode` for the part that asked.
+   *
+   * `handlers` is the exception and merges per key. Its keys are capabilities
+   * negotiated with the widget rather than data, so replacing the whole bag to
+   * add one handler would withdraw the others from that part's widget with
+   * nothing to observe it by.
+   */
+  forPart?: (part: ToolCallMessagePart) => McpAppPartOptions;
 };
 
 type LoadedResourceState = {
@@ -63,7 +97,31 @@ type LoadedResourceState = {
   error?: Error;
 };
 
-type UseHostStore = UseBoundStore<StoreApi<{ host: McpAppsHost }>>;
+type RendererState = {
+  host: McpAppsHost;
+  options: McpAppRendererOptions;
+};
+
+type UseRendererStore = UseBoundStore<StoreApi<RendererState>>;
+
+// Callers pass options as an object literal, so the resource hands this a fresh
+// identity on every run; comparing the values keeps an unchanged run from
+// re-rendering every mounted part. `host` is excluded because it is an element
+// rebuilt on every run, and the store carries the resolved host separately.
+const isSameOptions = (
+  a: McpAppRendererOptions,
+  b: McpAppRendererOptions,
+): boolean => {
+  const aKeys = Object.keys(a).filter((key) => key !== "host");
+  const bKeys = Object.keys(b).filter((key) => key !== "host");
+  if (aKeys.length !== bKeys.length) return false;
+  const aValues = a as Record<string, unknown>;
+  const bValues = b as Record<string, unknown>;
+  return aKeys.every(
+    (key) =>
+      Object.hasOwn(bValues, key) && Object.is(aValues[key], bValues[key]),
+  );
+};
 
 function getInput(part: {
   status: { type: string };
@@ -83,45 +141,80 @@ const defaultOpenLink = ({ url }: { url: string }) => {
   window.open(url, "_blank", "noopener,noreferrer");
 };
 
-function extractSendMessageText(params: unknown): string | undefined {
-  if (typeof params === "string") return params;
+function extractSendMessageTexts(params: unknown): string[] | undefined {
+  if (typeof params === "string") return [params];
   if (!params || typeof params !== "object") return undefined;
   const obj = params as Record<string, unknown>;
-  if (typeof obj["prompt"] === "string") return obj["prompt"];
-  if (typeof obj["text"] === "string") return obj["text"];
-  if (typeof obj["message"] === "string") return obj["message"];
+  if (typeof obj["prompt"] === "string") return [obj["prompt"]];
+  if (typeof obj["text"] === "string") return [obj["text"]];
+  if (typeof obj["message"] === "string") return [obj["message"]];
+  if (Array.isArray(obj["content"])) {
+    return obj["content"]
+      .filter(
+        (block): block is { type: "text"; text: string } =>
+          isRecord(block) &&
+          block["type"] === "text" &&
+          typeof block["text"] === "string",
+      )
+      .map((block) => block.text);
+  }
   return undefined;
+}
+
+function extractSendMessageContent(
+  params: unknown,
+): { content: TextMessagePart[] } | { reason: string } {
+  const texts = extractSendMessageTexts(params);
+  if (!texts) return { reason: "unrecognised params shape" };
+  const content = texts
+    .filter((text) => text !== "")
+    .map((text): TextMessagePart => ({ type: "text", text }));
+  if (content.length === 0) {
+    return { reason: "no text content to append" };
+  }
+  return { content };
+}
+
+function resolvePartOptions(
+  options: McpAppRendererOptions,
+  part: ToolCallMessagePartProps,
+): McpAppRendererOptions {
+  const overrides = options.forPart?.(part);
+  if (!overrides) return options;
+  const handlers =
+    options.handlers && overrides.handlers
+      ? { ...options.handlers, ...overrides.handlers }
+      : (overrides.handlers ?? options.handlers);
+  return {
+    ...options,
+    ...overrides,
+    ...(handlers === undefined ? {} : { handlers }),
+  };
 }
 
 function InlineRenderer({
   part,
-  useHostStore,
-  optionsRef,
+  useRendererStore,
 }: {
   part: ToolCallMessagePartProps;
-  useHostStore: UseHostStore;
-  optionsRef: MutableRefObject<McpAppRendererOptions>;
+  useRendererStore: UseRendererStore;
 }) {
-  const opts = optionsRef.current;
   const aui = useAui();
+  const rendererOptions = useRendererStore((state) => state.options);
+  const opts = resolvePartOptions(rendererOptions, part);
   const app = getMcpAppFromToolPart(part);
   const cachedAppRef = useRef<McpAppMetadata | undefined>(undefined);
-  if (
-    app != null &&
-    (cachedAppRef.current?.resourceUri !== app.resourceUri ||
-      cachedAppRef.current?.serverId !== app.serverId)
-  ) {
-    cachedAppRef.current = app;
-  }
+  useLayoutEffect(() => {
+    if (app != null) cachedAppRef.current = app;
+  }, [app]);
   const appForRender = app ?? cachedAppRef.current;
 
   const [loadedResource, setLoadedResource] = useState<LoadedResourceState>();
 
-  const host = useHostStore((state) => state.host);
+  const host = useRendererStore((state) => state.host);
   const resourceUri = appForRender?.resourceUri;
   const serverId = appForRender?.serverId;
-  const serverIdRef = useRef<string | undefined>(undefined);
-  serverIdRef.current = serverId;
+  const callerHandlers = opts.handlers;
   useEffect(() => {
     if (resourceUri == null) return;
     let cancelled = false;
@@ -129,12 +222,16 @@ function InlineRenderer({
     const targetUri = resourceUri;
     const targetServerId = serverId;
 
-    targetHost
-      .loadResource({
-        uri: targetUri,
-        ...(targetServerId ? { serverId: targetServerId } : {}),
-      })
-      .then((res) => {
+    // Host changes are published later in this passive flush. Defer until that
+    // publication lands, then verify this effect still owns the current host.
+    const loadResource = async () => {
+      await Promise.resolve();
+      if (cancelled || useRendererStore.getState().host !== targetHost) return;
+      try {
+        const res = await targetHost.loadResource({
+          uri: targetUri,
+          ...(targetServerId ? { serverId: targetServerId } : {}),
+        });
         if (!cancelled)
           setLoadedResource({
             host: targetHost,
@@ -144,8 +241,7 @@ function InlineRenderer({
               : {}),
             resource: res,
           });
-      })
-      .catch((error: unknown) => {
+      } catch (error: unknown) {
         if (!cancelled) {
           setLoadedResource({
             host: targetHost,
@@ -156,43 +252,50 @@ function InlineRenderer({
             error: error instanceof Error ? error : new Error(String(error)),
           });
         }
-      });
+      }
+    };
+    void loadResource();
 
     return () => {
       cancelled = true;
     };
-  }, [host, resourceUri, serverId]);
+  }, [host, resourceUri, serverId, useRendererStore]);
 
   const bridgeHandlers = useMemo<McpAppBridgeHandlers>(
     () => ({
-      openLink: defaultOpenLink,
-      sendMessage: (params) => {
-        const text = extractSendMessageText(params);
-        if (!text) return { ok: false, reason: "unrecognised params shape" };
-        aui.thread.append({ content: [{ type: "text", text }] });
-        return { ok: true };
-      },
+      ...callerHandlers,
+      openLink: callerHandlers?.openLink ?? defaultOpenLink,
+      sendMessage:
+        callerHandlers?.sendMessage ??
+        ((params) => {
+          const result = extractSendMessageContent(params);
+          if ("reason" in result) {
+            return { isError: true, ok: false, reason: result.reason };
+          }
+          aui.thread.append({ content: result.content });
+          return { ok: true };
+        }),
       callTool: (params) =>
-        useHostStore.getState().host.callTool({
+        useRendererStore.getState().host.callTool({
           ...params,
-          ...(serverIdRef.current ? { serverId: serverIdRef.current } : {}),
+          ...(serverId ? { serverId } : {}),
         }),
       readResource: (params) =>
-        useHostStore.getState().host.readResource({
+        useRendererStore.getState().host.readResource({
           ...params,
-          ...(serverIdRef.current ? { serverId: serverIdRef.current } : {}),
+          ...(serverId ? { serverId } : {}),
         }),
       listResources: (params) => {
-        if (!serverIdRef.current) {
-          return useHostStore.getState().host.listResources(params);
+        if (!serverId) {
+          return useRendererStore.getState().host.listResources(params);
         }
-        return useHostStore.getState().host.listResources({
+        return useRendererStore.getState().host.listResources({
           ...(isRecord(params) ? params : {}),
-          serverId: serverIdRef.current,
+          serverId,
         });
       },
     }),
-    [aui, useHostStore],
+    [aui, callerHandlers, serverId, useRendererStore],
   );
 
   const loadedResourceForApp =
@@ -246,27 +349,26 @@ const useMcpAppRenderer = (
 ): { readonly render: ToolCallMessagePartComponent } => {
   const host = useResource(options.host);
 
-  const optionsRef = useRef<McpAppRendererOptions>(options);
-  optionsRef.current = options;
-
-  const [useHostStore] = useState(() =>
-    create<{ host: McpAppsHost }>(() => ({ host })),
+  // The rendered component identity has to stay stable, or every part remounts
+  // its frame; options reach the parts through the store instead of props.
+  const [useRendererStore] = useState(() =>
+    create<RendererState>(() => ({ host, options })),
   );
   useEffect(() => {
-    useHostStore.setState({ host });
-  }, [host, useHostStore]);
+    useRendererStore.setState((prev) =>
+      prev.host === host && isSameOptions(prev.options, options)
+        ? prev
+        : { host, options },
+    );
+  }, [host, options, useRendererStore]);
 
   const render = useMemo((): ToolCallMessagePartComponent => {
     const Render: ToolCallMessagePartComponent = (props) => (
-      <InlineRenderer
-        part={props}
-        useHostStore={useHostStore}
-        optionsRef={optionsRef}
-      />
+      <InlineRenderer part={props} useRendererStore={useRendererStore} />
     );
     Render.displayName = "McpAppRenderer";
     return Render;
-  }, [useHostStore]);
+  }, [useRendererStore]);
 
   return { render };
 };

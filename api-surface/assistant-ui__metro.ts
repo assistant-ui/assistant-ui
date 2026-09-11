@@ -1,3 +1,5 @@
+declare const BACKENDLESS_ENV = "AUI_METRO_BACKENDLESS";
+
 type BabelTransformer = {
   transform: (props: {
     filename: string;
@@ -14,6 +16,7 @@ type BabelTransformer = {
 };
 
 type MetroConfigLike = {
+  aui?: WithAuiOptions | undefined;
   transformer?: {
     babelTransformerPath?: string | undefined;
     [key: string]: unknown;
@@ -23,10 +26,14 @@ type MetroConfigLike = {
 
 declare const UPSTREAM_TRANSFORMER_ENV = "AUI_METRO_UPSTREAM_TRANSFORMER";
 
+interface WithAuiOptions {
+  backendless?: boolean;
+}
+
 declare function getCacheKey(): string;
 
 declare namespace entry_root_exports {
-  export { MetroConfigLike, UPSTREAM_TRANSFORMER_ENV, withAui };
+  export { BACKENDLESS_ENV, MetroConfigLike, UPSTREAM_TRANSFORMER_ENV, WithAuiOptions, withAui };
 }
 
 declare function transform(props: Parameters<BabelTransformer["transform"]>[0]): unknown;

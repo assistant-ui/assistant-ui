@@ -4,7 +4,7 @@ description: Build message action buttons with auto-hide, copy state, and intell
 platforms: ["react"]
 ---
 
-import { ActionBarPrimitiveSample } from "@/components/docs/samples/action-bar-primitive";
+import { ActionBarPrimitiveSample } from "@/components/pages/docs/samples/action-bar-primitive";
 import { ActionBarPrimitive as ActionBarPrimitiveDocs } from "@/generated/primitiveDocs";
 
 The ActionBar primitive provides message actions: copy, reload, edit, feedback, speech, and export. It handles intelligent visibility with auto-hide on hover, automatic disabling based on message state, and floating behavior. You compose the buttons; the primitive handles action state and availability.
@@ -340,7 +340,7 @@ See the [ActionBarMorePrimitive API Reference](/docs/api-reference/primitives/ac
 
 ## Relationship to Components
 
-The shadcn [Thread](/docs/ui/thread) component uses `ActionBarPrimitive` inside its `AssistantMessage` (with Copy, Reload, and an export dropdown) and `UserMessage` (with Edit). If those defaults work, use the component. Reach for `ActionBarPrimitive` directly when you need different actions, custom layout, or actions outside the standard thread UI.
+The shadcn [Thread](/elements/thread) component uses `ActionBarPrimitive` inside its `AssistantMessage` (with Copy, Reload, and an export dropdown) and `UserMessage` (with Edit). If those defaults work, use the component. Reach for `ActionBarPrimitive` directly when you need different actions, custom layout, or actions outside the standard thread UI.
 
 ActionBar is commonly paired with [BranchPicker](/docs/primitives/branch-picker) for navigating between alternative responses on assistant messages.
 

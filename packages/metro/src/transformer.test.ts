@@ -1,7 +1,7 @@
-import { describe, it, expect, beforeAll } from "vitest";
+import { describe, it, expect, beforeAll, beforeEach, afterEach } from "vitest";
 import { fileURLToPath } from "node:url";
 import { dirname, join } from "node:path";
-import { withAui, UPSTREAM_TRANSFORMER_ENV } from "./index";
+import { BACKENDLESS_ENV, withAui, UPSTREAM_TRANSFORMER_ENV } from "./index";
 
 const here = dirname(fileURLToPath(import.meta.url));
 const mockUpstream = join(here, "__fixtures__/mock-upstream.cjs");
@@ -21,6 +21,16 @@ export default defineToolkit({
 `;
 
 describe("withAui", () => {
+  beforeEach(() => {
+    delete process.env[BACKENDLESS_ENV];
+    delete process.env[UPSTREAM_TRANSFORMER_ENV];
+  });
+
+  afterEach(() => {
+    delete process.env[BACKENDLESS_ENV];
+    delete process.env[UPSTREAM_TRANSFORMER_ENV];
+  });
+
   it("points babelTransformerPath at our transformer, preserving the rest", () => {
     const config = withAui({
       projectRoot: "/app",
@@ -42,6 +52,7 @@ describe("withAui", () => {
 
   it("is idempotent: a double-wrap keeps the real upstream, not the wrapper", () => {
     const once = withAui({
+      aui: { backendless: true },
       transformer: { babelTransformerPath: "/up/stream.js" },
     });
     const self = once.transformer?.babelTransformerPath;
@@ -50,6 +61,19 @@ describe("withAui", () => {
     // still points at our transformer, and the env still names the real upstream
     expect(twice.transformer?.babelTransformerPath).toBe(self);
     expect(process.env[UPSTREAM_TRANSFORMER_ENV]).toBe("/up/stream.js");
+    expect(process.env[BACKENDLESS_ENV]).toBe("1");
+  });
+
+  it("clears settings left by an independently loaded config", () => {
+    withAui({
+      aui: { backendless: true },
+      transformer: { babelTransformerPath: "/workspace-a/transformer.js" },
+    });
+
+    withAui({});
+
+    expect(process.env[BACKENDLESS_ENV]).toBeUndefined();
+    expect(process.env[UPSTREAM_TRANSFORMER_ENV]).toBeUndefined();
   });
 });
 

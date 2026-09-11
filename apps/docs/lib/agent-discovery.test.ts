@@ -15,11 +15,14 @@ import {
   AGENT_DISCOVERY_ROUTES,
   API_CATALOG_LINK_HEADER,
 } from "./agent-discovery-routes";
+import { DESIGN_DOCUMENT } from "./design-law";
+import { DESIGN_SECTIONS } from "@/components/pages/design/registry-meta";
 import { BASE_URL } from "./constants";
 
 const PUBLIC_DISCOVERY_PATHS = [
   AGENT_DISCOVERY_ROUTES.agents,
   AGENT_DISCOVERY_ROUTES.skill,
+  AGENT_DISCOVERY_ROUTES.design,
   AGENT_DISCOVERY_ROUTES.apiCatalog,
   AGENT_DISCOVERY_ROUTES.skillsIndex,
   AGENT_DISCOVERY_ROUTES.sitemap,
@@ -37,6 +40,10 @@ describe("agent discovery", () => {
       {
         source: "/.well-known/skill.md",
         destination: "/skill.md",
+      },
+      {
+        source: "/.well-known/design.md",
+        destination: "/design.md",
       },
       {
         source: "/.well-known/sitemap.md",
@@ -65,13 +72,48 @@ describe("agent discovery", () => {
     expect(index.$schema).toBe(
       "https://schemas.agentskills.io/discovery/0.2.0/schema.json",
     );
-    expect(index.skills).toHaveLength(1);
+    expect(index.skills).toHaveLength(2);
     expect(index.skills[0]).toMatchObject({
       name: "assistant-ui-docs",
       type: "skill-md",
       url: `${BASE_URL}${AGENT_DISCOVERY_ROUTES.siteSkill}`,
       digest: `sha256:${sha256(SITE_SKILL_DOCUMENT)}`,
     });
+    expect(index.skills[1]).toMatchObject({
+      name: "assistant-ui-design",
+      type: "skill-md",
+      url: `${BASE_URL}${AGENT_DISCOVERY_ROUTES.design}`,
+      digest: `sha256:${sha256(DESIGN_DOCUMENT)}`,
+    });
+  });
+
+  it("serves the design law with its frontmatter, registers, and kit roster", () => {
+    expect(DESIGN_DOCUMENT).toMatch(/^---\nname: assistant-ui-design\n/);
+
+    for (const heading of [
+      "## The governing metaphor",
+      "## Priority order",
+      "## Register: shape",
+      "## Register: color",
+      "## Register: type",
+      "## Register: the line budget",
+      "## How a page is composed",
+      "## Reject these",
+      "## The closed API",
+      "## Traps",
+      "## The kit roster",
+    ]) {
+      expect(DESIGN_DOCUMENT).toContain(heading);
+    }
+
+    for (const section of DESIGN_SECTIONS) {
+      expect(DESIGN_DOCUMENT).toContain(`### ${section.label}`);
+      for (const component of section.components) {
+        expect(DESIGN_DOCUMENT).toContain(
+          `[${component.name}](${BASE_URL}/design/components/${component.slug})`,
+        );
+      }
+    }
   });
 
   it("builds a profiled API catalog around the MCP service", () => {

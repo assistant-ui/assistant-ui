@@ -592,3 +592,373 @@ function MyComponent() {
     expect(output?.trim()).toBe(expected.trim());
   });
 });
+
+describe("api bindings unrelated to useAssistantApi", () => {
+  it("does not rename a destructured api from another source", () => {
+    const input = `
+import { useAssistantApi } from "@assistant-ui/react";
+
+function MyComponent() {
+  const api = useAssistantApi();
+  return api.thread();
+}
+
+function loadData() {
+  const { api } = createClient();
+  return api.fetchStuff();
+}
+`;
+
+    const output = applyTransform(input);
+    expect(output).toContain("const { api } = createClient()");
+    expect(output).toContain("api.fetchStuff()");
+    expect(output).toContain("const aui = useAui()");
+  });
+
+  it("does not rename a function parameter named api", () => {
+    const input = `
+import { useAssistantApi } from "@assistant-ui/react";
+
+function MyComponent() {
+  const api = useAssistantApi();
+  return api.thread();
+}
+
+function callRemote(api: RemoteApi) {
+  return api.send();
+}
+`;
+
+    const output = applyTransform(input);
+    expect(output).toContain("function callRemote(api: RemoteApi)");
+    expect(output).toContain("return api.send()");
+  });
+
+  it("expands shorthand object properties instead of renaming the key", () => {
+    const input = `
+import { useAssistantApi } from "@assistant-ui/react";
+
+function MyComponent() {
+  const api = useAssistantApi();
+  return register({ api });
+}
+`;
+
+    const output = applyTransform(input);
+    expect(output).toContain("register({ api: aui })");
+  });
+});
+
+describe("JSX and export positions", () => {
+  it("does not rename JSX member properties or intrinsic tags", () => {
+    const input = `
+import { useAssistantApi } from "@assistant-ui/react";
+
+function MyComponent() {
+  const api = useAssistantApi();
+  void api.thread();
+  return (
+    <div>
+      <config.api />
+      <api />
+    </div>
+  );
+}
+`;
+
+    const output = applyTransform(input);
+    expect(output).toContain("<config.api />");
+    expect(output).toContain("<api />");
+    expect(output).toContain("void aui.thread()");
+  });
+
+  it("preserves the public name of a re-exported api", () => {
+    const input = `
+import { useAssistantApi } from "@assistant-ui/react";
+
+const api = useAssistantApi();
+
+export { api };
+`;
+
+    const output = applyTransform(input);
+    expect(output).toContain("export { aui as api }");
+    expect(output).toContain("const aui = useAui()");
+  });
+});
+
+describe("aliased and source-bearing exports", () => {
+  it("preserves aliased public names", () => {
+    const input = `
+import { useAssistantApi } from "@assistant-ui/react";
+
+const api = useAssistantApi();
+
+export { api as default };
+export { api as clientApi };
+`;
+
+    const output = applyTransform(input);
+    expect(output).toContain("export { aui as default }");
+    expect(output).toContain("export { aui as clientApi }");
+  });
+
+  it("leaves source-bearing re-exports untouched", () => {
+    const input = `
+import { useAssistantApi } from "@assistant-ui/react";
+
+const api = useAssistantApi();
+void api.thread();
+
+export { api } from "./other-module";
+`;
+
+    const output = applyTransform(input);
+    expect(output).toContain('export { api } from "./other-module"');
+    expect(output).toContain("void aui.thread()");
+  });
+
+  it("leaves type-only api exports untouched", () => {
+    const input = `
+import { useAssistantApi } from "@assistant-ui/react";
+
+const api = useAssistantApi();
+void api.thread();
+
+type api = { x: number };
+export type { api };
+export { type api as ApiType };
+`;
+
+    const output = applyTransform(input);
+    expect(output).toContain("export type { api }");
+    expect(output).toContain("export { type api as ApiType }");
+    expect(output).toContain("void aui.thread()");
+  });
+});
+
+describe("block-scoped shadowing", () => {
+  it("does not rename a block-scoped api inside the same function", () => {
+    const input = `
+import { useAssistantApi } from "@assistant-ui/react";
+
+function MyComponent() {
+  const api = useAssistantApi();
+  void api.thread();
+  {
+    const api = createOther();
+    void api.other();
+  }
+  if (true) {
+    const { api } = createClient();
+    void api.fetchStuff();
+  }
+  return null;
+}
+`;
+
+    const output = applyTransform(input);
+    expect(output).toContain("void aui.thread()");
+    expect(output).toContain("const api = createOther()");
+    expect(output).toContain("void api.other()");
+    expect(output).toContain("const { api } = createClient()");
+    expect(output).toContain("void api.fetchStuff()");
+  });
+});
+
+describe("binding positions beyond plain declarations", () => {
+  it("does not rename method parameters named api", () => {
+    const input = `
+import { useAssistantApi } from "@assistant-ui/react";
+
+function MyComponent() {
+  const api = useAssistantApi();
+  void api.thread();
+  const handlers = {
+    load(api: RemoteApi) {
+      return api.send();
+    },
+  };
+  class Client {
+    call(api: RemoteApi) {
+      return api.send();
+    }
+  }
+  return handlers;
+}
+`;
+
+    const output = applyTransform(input);
+    expect(output).toContain("load(api: RemoteApi)");
+    expect(output).toContain("call(api: RemoteApi)");
+    expect(output?.match(/return api\.send\(\)/g)).toHaveLength(2);
+    expect(output).toContain("void aui.thread()");
+  });
+
+  it("does not rename constructor parameter properties named api", () => {
+    const input = `
+import { useAssistantApi } from "@assistant-ui/react";
+
+function MyComponent() {
+  const api = useAssistantApi();
+  void api.thread();
+  class Client {
+    constructor(public api: RemoteApi) {
+      return api.send();
+    }
+  }
+  return Client;
+}
+`;
+
+    const output = applyTransform(input);
+    expect(output).toContain("constructor(public api: RemoteApi)");
+    expect(output).toContain("return api.send()");
+    expect(output).toContain("void aui.thread()");
+  });
+
+  it("treats function and class declarations named api as shadows", () => {
+    const input = `
+import { useAssistantApi } from "@assistant-ui/react";
+
+const api = useAssistantApi();
+void api.thread();
+
+function outer() {
+  function api() {}
+  return api();
+}
+
+function other() {
+  class api {}
+  return new api();
+}
+`;
+
+    const output = applyTransform(input);
+    expect(output).toContain("void aui.thread()");
+    expect(output).toContain("function api() {}");
+    expect(output).toContain("return api()");
+    expect(output).toContain("class api {}");
+    expect(output).toContain("new api()");
+  });
+
+  it("recognizes for-initializer and switch-case declarations", () => {
+    const input = `
+import { useAssistantApi } from "@assistant-ui/react";
+
+function MyComponent() {
+  const api = useAssistantApi();
+  void api.thread();
+  for (let api = start(); api.more(); api = api.next()) {
+    use(api);
+  }
+  switch (kind) {
+    case "a": {
+      const api = other();
+      return api.load();
+    }
+  }
+}
+`;
+
+    const output = applyTransform(input);
+    expect(output).toContain("void aui.thread()");
+    expect(output).toContain(
+      "for (let api = start(); api.more(); api = api.next())",
+    );
+    expect(output).toContain("use(api)");
+    expect(output).toContain("const api = other()");
+    expect(output).toContain("return api.load()");
+  });
+
+  it("handles export const api declarations", () => {
+    const input = `
+import { useAssistantApi } from "@assistant-ui/react";
+
+export const api = useAssistantApi();
+
+export function helper() {
+  return api.thread();
+}
+`;
+
+    const output = applyTransform(input);
+    expect(output).toContain("export const aui = useAui()");
+    expect(output).toContain("return aui.thread()");
+  });
+});
+
+describe("keys and type-only declarations", () => {
+  it("does not rename method or class-member keys named api", () => {
+    const input = `
+import { useAssistantApi } from "@assistant-ui/react";
+
+function MyComponent() {
+  const api = useAssistantApi();
+  void api.thread();
+  const handlers = {
+    api() {
+      return 1;
+    },
+  };
+  class Client {
+    api = 1;
+    api2() {
+      return this.api;
+    }
+  }
+  return { handlers, Client };
+}
+`;
+
+    const output = applyTransform(input);
+    expect(output).toContain("api() {");
+    expect(output).toContain("api = 1;");
+    expect(output).toContain("return this.api");
+    expect(output).toContain("void aui.thread()");
+  });
+
+  it("does not treat type-only declarations as value shadows", () => {
+    const input = `
+import { useAssistantApi } from "@assistant-ui/react";
+
+function MyComponent() {
+  const api = useAssistantApi();
+  type api2 = string;
+  {
+    type api = { x: number };
+    interface apiShape {}
+    void api.thread();
+  }
+  return null;
+}
+`;
+
+    const output = applyTransform(input);
+    expect(output).toContain("void aui.thread()");
+    expect(output).toContain("type api = { x: number }");
+  });
+});
+
+describe("named expressions", () => {
+  it("does not rename the self-reference of a named function expression", () => {
+    const input = `
+import { useAssistantApi } from "@assistant-ui/react";
+
+function MyComponent() {
+  const api = useAssistantApi();
+  void api.thread();
+  const run = function api() {
+    return api;
+  };
+  return run;
+}
+`;
+
+    const output = applyTransform(input);
+    expect(output).toContain("function api() {");
+    expect(output).toContain("return api;");
+    expect(output).toContain("void aui.thread()");
+  });
+});

@@ -60,4 +60,22 @@ describe("OptimisticState", () => {
 
     expect(state.value.title).toBe("Project Beta");
   });
+
+  it("drops an in-flight transform after reset", async () => {
+    const state = new OptimisticState({ title: "Untitled", extra: 0 });
+    const request = deferred();
+    const update = state.optimisticUpdate({
+      execute: () => request.promise,
+      optimistic: (value) => ({ ...value, title: "Pending" }),
+      then: (value) => ({ ...value, extra: 1 }),
+    });
+
+    expect(state.value.title).toBe("Pending");
+    state.reset({ title: "Fresh", extra: 0 });
+    expect(state.value).toEqual({ title: "Fresh", extra: 0 });
+
+    request.resolve();
+    await update;
+    expect(state.value).toEqual({ title: "Fresh", extra: 0 });
+  });
 });

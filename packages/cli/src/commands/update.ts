@@ -1,18 +1,10 @@
 import { Command } from "commander";
 import fs from "node:fs";
 import path from "node:path";
-import { sync as spawnSync } from "cross-spawn";
 import { logger } from "../lib/utils/logger";
+import { logPackageJsonParseError } from "../lib/utils/package-json";
 import { getInstallCommand } from "../lib/utils/package-manager";
-
-const logPackageJsonParseError = (packageJsonPath: string) => {
-  logger.error("Could not parse package.json.");
-  console.error(`Package path: ${packageJsonPath}`);
-  console.error(
-    "Fix the JSON syntax in that file, then run: assistant-ui update",
-  );
-  console.error("No changes were written.");
-};
+import { runSpawn, SpawnExitError, SpawnSignalError } from "../lib/run-spawn";
 
 export const update = new Command()
   .name("update")
@@ -37,7 +29,8 @@ export const update = new Command()
     try {
       pkg = JSON.parse(packageJsonContent);
     } catch {
-      logPackageJsonParseError(packageJsonPath);
+      logPackageJsonParseError(packageJsonPath, "update");
+      console.error("No changes were written.");
       process.exit(1);
     }
     const sections = ["dependencies", "devDependencies"];
@@ -80,14 +73,12 @@ export const update = new Command()
     }
 
     logger.step("Updating packages...");
-    const result = spawnSync(installCmd.command, installCmd.args, {
-      stdio: "inherit",
-      cwd: opts.cwd,
-    });
-
-    if (result.status !== 0) {
+    try {
+      await runSpawn(installCmd.command, installCmd.args, opts.cwd);
+    } catch (error) {
+      if (error instanceof SpawnSignalError) throw error;
       logger.error("Package manager update failed.");
-      process.exit(result.status || 1);
+      process.exit(error instanceof SpawnExitError ? error.code : 1);
     }
 
     logger.break();

@@ -1,13 +1,17 @@
 import { describe, expect, it } from "vitest";
 import type { CompleteAttachment } from "../../types/attachment";
-import type { ThreadAssistantMessage } from "../../types/message";
+import type {
+  ThreadAssistantMessage,
+  ToolCallMessagePartStatus,
+} from "../../types/message";
 import type { ThreadRuntimeCoreBinding } from "./thread-runtime";
 import {
   MessageRuntimeImpl,
-  toMessagePartStatus,
   type MessageState,
   type MessageStateBinding,
 } from "./message-runtime";
+import { toMessagePartStatus } from "../../utils/normalizePartStatus";
+import { convertExternalMessageChunk } from "../utils/external-message-conversion";
 
 const messagePath = {
   ref: "threads.main.messages[0]",
@@ -173,6 +177,30 @@ describe("toMessagePartStatus", () => {
     });
   });
 
+  it("preserves incomplete tool-call status on unresolved tool calls", () => {
+    const incompleteStatus = {
+      type: "incomplete",
+      reason: "tool-calls",
+      error: { message: "Tool execution did not finish" },
+    } satisfies ToolCallMessagePartStatus;
+    const message = createAssistantMessage(
+      [
+        {
+          type: "tool-call",
+          toolCallId: "call-1",
+          toolName: "weather",
+          args: {},
+          argsText: "{}",
+        },
+      ],
+      incompleteStatus,
+    );
+
+    expect(toMessagePartStatus(message, 0, message.content[0]!)).toEqual(
+      incompleteStatus,
+    );
+  });
+
   it.each([
     ["false", false],
     ["zero", 0],
@@ -229,6 +257,80 @@ describe("toMessagePartStatus", () => {
 });
 
 describe("MessageRuntimeImpl paths", () => {
+  it.each([undefined, ""])(
+    "looks up separate tool calls with ID %s without breaking provider result matching",
+    (toolCallId) => {
+      const id = toolCallId === undefined ? {} : { toolCallId };
+      const converted = convertExternalMessageChunk(
+        {
+          inputs: [{}],
+          outputs: [
+            {
+              role: "assistant",
+              content: [
+                { type: "tool-call", ...id, toolName: "weather", args: {} },
+                { type: "tool-call", ...id, toolName: "search", args: {} },
+                {
+                  type: "tool-call",
+                  toolCallId: "provider-call",
+                  toolName: "calendar",
+                  args: { day: "Monday" },
+                },
+              ],
+            },
+            {
+              role: "assistant",
+              content: [
+                {
+                  type: "tool-call",
+                  toolCallId: "provider-call",
+                  toolName: "calendar",
+                  args: { day: "Tuesday" },
+                },
+              ],
+            },
+            {
+              role: "tool",
+              toolCallId: "provider-call",
+              toolName: "calendar",
+              result: "Meeting at noon",
+            },
+          ],
+        },
+        0,
+        1,
+        false,
+        undefined,
+      );
+      const runtime = new MessageRuntimeImpl(
+        {
+          ...messageBinding,
+          getState: () => ({ ...message, ...converted }),
+        },
+        threadBinding,
+      );
+      const calls = converted.content.filter(
+        (part) => part.type === "tool-call",
+      );
+
+      expect(
+        calls.map((call) =>
+          runtime.getMessagePartByToolCallId(call.toolCallId).getState(),
+        ),
+      ).toMatchObject([
+        { type: "tool-call", toolName: "weather" },
+        { type: "tool-call", toolName: "search" },
+        {
+          type: "tool-call",
+          toolCallId: "provider-call",
+          toolName: "calendar",
+          args: { day: "Tuesday" },
+          result: "Meeting at noon",
+        },
+      ]);
+    },
+  );
+
   it("appends nested selectors to the message path", () => {
     const runtime = new MessageRuntimeImpl(messageBinding, threadBinding);
 

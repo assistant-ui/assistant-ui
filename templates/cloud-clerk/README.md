@@ -64,7 +64,7 @@ Open http://localhost:3000 with your browser to see the result.
 
 ## Development
 
-You can start customizing the UI by modifying components in the `components/assistant-ui/` directory.
+You can start customizing the UI by modifying components in the `components/assistant-ui/elements/` directory.
 
 ### Key Files
 

@@ -1,0 +1,245 @@
+---
+title: "Search in conversation"
+description: "Find inside a long thread, with every hit marked down the scrollbar."
+---
+
+A find bar for the messages already on screen: type a query, step through the matches, and see every hit as a mark on a side track shaped like a scrollbar. With a runtime the query runs against the thread's own messages; standalone you supply the hits yourself.
+
+## Getting started
+
+<RuntimeMode>
+
+There is no search primitive in the runtime; a thread only exposes its messages. Reading `s.thread.messages` and scanning each message's text parts gives you the same `hits` array the standalone element expects, so you can drive it from real conversation data with no server round trip.
+
+<Steps>
+  <Step>
+
+### Collect matches from the thread
+
+```tsx title="components/assistant-ui/elements/thread-search-bar.tsx"
+"use client";
+
+import { useMemo, useState } from "react";
+import { useAuiState } from "@assistant-ui/react";
+import {
+  ConversationSearch,
+  type SearchHit,
+} from "@/components/assistant-ui/elements/conversation-search";
+
+const CONTEXT = 24;
+
+export function ThreadSearchBar() {
+  const messages = useAuiState((s) => s.thread.messages);
+  const [query, setQuery] = useState("");
+  const [activeIndex, setActiveIndex] = useState(0);
+
+  const hits = useMemo<SearchHit[]>(() => {
+    if (query === "") return [];
+    const needle = query.toLowerCase();
+    const found: SearchHit[] = [];
+
+    messages.forEach((message, messageIndex) => {
+      const text = message.parts
+        .filter((part) => part.type === "text")
+        .map((part) => part.text)
+        .join(" ");
+      const haystack = text.toLowerCase();
+
+      let from = 0;
+      let at: number;
+      while ((at = haystack.indexOf(needle, from)) !== -1) {
+        found.push({
+          id: `${message.id}-${at}`,
+          before: text.slice(Math.max(0, at - CONTEXT), at),
+          match: text.slice(at, at + query.length),
+          after: text.slice(at + query.length, at + query.length + CONTEXT),
+          position: (messageIndex / Math.max(1, messages.length - 1)) * 100,
+        });
+        from = at + query.length;
+      }
+    });
+
+    return found;
+  }, [messages, query]);
+
+  return (
+    <ConversationSearch
+      query={query}
+      hits={hits}
+      activeIndex={activeIndex}
+      onQueryChange={(next) => {
+        setQuery(next);
+        setActiveIndex(0);
+      }}
+      onStep={(delta) => {
+        if (hits.length === 0) return;
+        const next = (activeIndex + delta + hits.length) % hits.length;
+        setActiveIndex(next);
+        const [, messageId] = hits[next]!.id.match(/^(.+)-\d+$/) ?? [];
+        document
+          .querySelector(`[data-message-id="${messageId}"]`)
+          ?.scrollIntoView({ block: "center", behavior: "smooth" });
+      }}
+    />
+  );
+}
+```
+
+`data-message-id` is set by `MessagePrimitive.Root` on every rendered message, so a hit's id carries enough to scroll straight to it.
+
+  </Step>
+</Steps>
+
+</RuntimeMode>
+
+<StandaloneMode>
+
+Standalone, the element does no matching of its own: you own the query, compute the `hits`, and track which one is active.
+
+<Steps>
+  <Step>
+
+### Hold the search state
+
+```tsx title="app/transcript.tsx"
+"use client";
+
+import { useMemo, useState } from "react";
+import {
+  ConversationSearch,
+  type SearchHit,
+} from "@/components/assistant-ui/elements/conversation-search";
+
+const lines = [
+  "The migration touches three tables.",
+  "Rollback drops the new columns and restores the index.",
+  "The index rebuild takes about four minutes on staging.",
+];
+
+export function Transcript() {
+  const [query, setQuery] = useState("");
+  const [activeIndex, setActiveIndex] = useState(0);
+
+  const hits = useMemo<SearchHit[]>(() => {
+    if (query === "") return [];
+    const needle = query.toLowerCase();
+    return lines
+      .map((line, i) => ({ line, i, at: line.toLowerCase().indexOf(needle) }))
+      .filter(({ at }) => at !== -1)
+      .map(({ line, i, at }) => ({
+        id: `${i}`,
+        before: line.slice(0, at),
+        match: line.slice(at, at + query.length),
+        after: line.slice(at + query.length),
+        position: (i / (lines.length - 1)) * 100,
+      }));
+  }, [query]);
+
+  return (
+    <ConversationSearch
+      query={query}
+      hits={hits}
+      activeIndex={activeIndex}
+      onQueryChange={(next) => {
+        setQuery(next);
+        setActiveIndex(0);
+      }}
+      onStep={(delta) =>
+        setActiveIndex((i) => (hits.length === 0 ? 0 : (i + delta + hits.length) % hits.length))
+      }
+    />
+  );
+}
+```
+
+  </Step>
+</Steps>
+
+</StandaloneMode>
+
+## Anatomy
+
+```tsx
+<div data-slot="conversation-search">
+  <div>
+    <input aria-label="Find in conversation" placeholder="Find in conversation" />
+    <span>{/* n/hits.length, or "0" */}</span>
+    <button aria-label="Previous match" />
+    <button aria-label="Next match" />
+  </div>
+  {/* the active hit's context, when one exists */}
+  <div>{/* before / match / after */}</div>
+  <div>
+    {/* one mark per hit, positioned on a side track like a scrollbar */}
+  </div>
+</div>
+```
+
+The element owns no index math: `onStep` reports a raw `-1` or `1`, not a computed target, so wraparound (or clamping) is the caller's decision, as in both examples above. `activeIndex` itself is clamped into `0…hits.length - 1` before rendering, and with zero hits it reads as `-1` internally, which shows no active context panel and a counter of `0`. The previous and next buttons render unconditionally; they are never disabled by the element itself, so stepping through an empty hit list is a silent no-op unless the caller guards it. Each hit gets one mark on the side track, positioned with its own `position` percentage; the active hit's mark is solid, the rest are dimmed.
+
+## Examples
+
+### Where hits come from
+
+<RuntimeMode>
+
+Matching against `s.thread.messages` means the search follows the thread: switch threads (or let a run stream in more text) and the same `ThreadSearchBar` re-scans automatically, since `useAuiState` re-renders on every store update. Restrict the scan to text parts only, as in Getting started, so reasoning and tool-call parts are not skipped by returning matches to text that never renders as anything the user typed or read.
+
+</RuntimeMode>
+
+<StandaloneMode>
+
+Standalone, the element never reads the messages it is searching, so nothing stops you from restricting the source: search only the visible page, only the last N turns, or a transcript that was never rendered as chat bubbles at all. Recompute `hits` whenever the source text or the query changes, as in the example above.
+
+</StandaloneMode>
+
+### Restyle the markers
+
+Both lanes take `className` on the root. The panel showing the active hit uses the `field` surface and the highlighted match is a plain `bg-amber-400/35` span, so overriding those two utility classes changes every hit's look at once.
+
+```tsx
+<ConversationSearch className="max-w-md" /* ... */ />
+```
+
+## API reference
+
+<RuntimeMode>
+
+This element has no dedicated primitive: full-text search is not part of the runtime, so `ThreadSearchBar` above is plain application code reading thread state.
+
+### Thread state
+
+| Selector | Type | Description |
+|----------|------|-------------|
+| `s.thread.messages` | `readonly MessageState[]` | Every message in the active branch. Each message's `parts` holds its content; filter for `part.type === "text"` to get searchable text. |
+
+`MessagePrimitive.Root` renders `data-message-id` on every message, which is enough to scroll a hit into view without any other API call.
+
+</RuntimeMode>
+
+<StandaloneMode>
+
+### ConversationSearch
+
+| Prop | Type | Default | Description |
+|------|------|---------|-------------|
+| `query` | `string` | required | The current search text. |
+| `hits` | `readonly SearchHit[]` | required | Matches to show, in document order. |
+| `activeIndex` | `number` | required | Index of the highlighted hit. Clamped into `0…hits.length - 1`; ignored when `hits` is empty. |
+| `onQueryChange` | `(query: string) => void` | | Called with the next value as the user types. |
+| `onStep` | `(delta: number) => void` | | Called with `-1` or `1` when the previous or next button is pressed. |
+| `className` | `string` | | Merged onto the root. |
+
+All other `div` props are forwarded to the root.
+
+### SearchHit
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `id` | `string` | Unique key for the hit. |
+| `before` | `string` | Context text immediately before the match. |
+| `match` | `string` | The matched substring, rendered highlighted. |
+| `after` | `string` | Context text immediately after the match. |
+| `position` | `number` | Placement of this hit's mark on the side track, `0` to `100`. |
+
+</StandaloneMode>

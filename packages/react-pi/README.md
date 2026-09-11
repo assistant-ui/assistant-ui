@@ -212,9 +212,12 @@ degrade rather than crash.
 
 - The supervisor keeps the runtime alive across browser disconnects — only an
   explicit `cancelRun` or process exit stops a run. **A dropped SSE never aborts.**
-- Every (re)connect is **snapshot-first**: the server re-sends an authoritative
-  `snapshot` event, then live events apply on top. There is no event replay in the
-  MVP; the snapshot is authoritative.
+- HTTP reconnects receive an authoritative `snapshot` event, then live events.
+  `includeSnapshot: false` skips only the initial snapshot. Reconnect snapshots
+  recover missed messages and thread status without event replay.
+- Browser subscribers share the long-lived SSE connection. A subscriber joining
+  late receives the current snapshot first; when the cached snapshot is behind,
+  one short-lived snapshot request is shared by all subscribers waiting for it.
 - Cold/historical threads load via a **read-only session-file snapshot** — opening
   a thread to read it does **not** spin up a live `AgentSession`. A live runtime is
   created only when you send, cancel, change model/thinking, answer host UI, or

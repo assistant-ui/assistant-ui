@@ -9,6 +9,7 @@ export type ThreadsState = {
   readonly mainThreadId: string;
   readonly newThreadId: string | null;
   readonly isLoading: boolean;
+  readonly loadError: unknown;
   readonly isLoadingMore: boolean;
   readonly hasMore: boolean;
   readonly threadIds: readonly string[];
@@ -35,6 +36,20 @@ export type ThreadsMethods = {
   __internal_getAssistantRuntime?(): AssistantRuntime;
 };
 
+export type ThreadsEvents = {
+  /**
+   * The main thread selection changed. Fires once per switch with the newly
+   * selected thread and the thread that was selected before. Does not fire
+   * for the initially selected thread on mount. Runtimes that resolve a
+   * deep-linked `threadId`/`initialThreadId` after mount (such as
+   * `useRemoteThreadListRuntime`) start on a placeholder new thread, so the
+   * deep link's resolution fires this event with the placeholder as
+   * `previousThreadId`.
+   */
+  "threads.selectionChanged": { threadId: string; previousThreadId: string };
+};
+
 export type ThreadsClientSchema = {
   methods: ThreadsMethods;
+  events: ThreadsEvents;
 };

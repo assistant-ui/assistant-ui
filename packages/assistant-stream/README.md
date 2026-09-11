@@ -7,7 +7,7 @@
 
 Framework-agnostic streaming primitives for AI assistant backends. Defines a chunked stream of typed events (text, tool calls, tool results, data parts, message metadata), encoders/decoders for several wire formats, and a server-side tool execution pipeline. Runs in any standard JavaScript runtime; no React or DOM dependencies.
 
-Most apps reach `assistant-stream` indirectly through `@assistant-ui/react-ai-sdk` or `@assistant-ui/react-data-stream`, which handle the wire format for you. Install it directly when you are building a custom backend or a new integration package.
+Most apps reach `assistant-stream` indirectly through `@assistant-ui/ai-sdk` or `@assistant-ui/react-data-stream`, which handle the wire format for you. Install it directly when you are building a custom backend or a new integration package.
 
 ## Installation
 

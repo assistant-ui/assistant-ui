@@ -5,11 +5,15 @@ import {
   getCommitsSince,
   getContributors,
   getReleases,
-  getStargazersPage,
+  getStarHistory,
   getUser,
   getUserById,
 } from "./github";
-import { getDownloadsRange } from "./npm";
+import {
+  NPM_REVALIDATE,
+  type NpmDailyDownloads,
+  getDownloadsRange,
+} from "./npm";
 
 export type PackageInfo = {
   name: string;
@@ -108,6 +112,11 @@ export const PACKAGES: PackageInfo[] = [
     category: "tooling",
   },
   {
+    name: "@assistant-ui/xpm",
+    description: "One command for npm, yarn, pnpm, bun, deno, and uv.",
+    category: "tooling",
+  },
+  {
     name: "create-assistant-ui",
     description: "Scaffold an assistant-ui app in one command.",
     category: "tooling",
@@ -143,6 +152,12 @@ export const PACKAGES: PackageInfo[] = [
     category: "cloud",
   },
   {
+    name: "@assistant-ui/gorp",
+    description:
+      "Client/server state replicas with optimistic updates over a tiny wire protocol.",
+    category: "cloud",
+  },
+  {
     name: "assistant-stream",
     description: "Streaming utilities for AI assistants.",
     category: "cloud",
@@ -153,8 +168,13 @@ export const PACKAGES: PackageInfo[] = [
     category: "cloud",
   },
   {
-    name: "@assistant-ui/react-ai-sdk",
+    name: "@assistant-ui/ai-sdk",
     description: "Vercel AI SDK adapter.",
+    category: "frameworks",
+  },
+  {
+    name: "@assistant-ui/react-ai-sdk",
+    description: "Re-export of @assistant-ui/ai-sdk.",
     category: "frameworks",
   },
   {
@@ -218,6 +238,11 @@ export const PACKAGES: PackageInfo[] = [
     category: "ui",
   },
   {
+    name: "@assistant-ui/local-pdf-adapter",
+    description: "Local PDF attachment adapter for @assistant-ui/react.",
+    category: "ui",
+  },
+  {
     name: "@assistant-ui/react-streamdown",
     description: "Streamdown-based markdown rendering.",
     category: "ui",
@@ -251,11 +276,6 @@ export const PACKAGES: PackageInfo[] = [
     name: "@assistant-ui/react-devtools",
     description: "Inspect runtime state in the browser.",
     category: "ui",
-  },
-  {
-    name: "tw-glass",
-    description: "Tailwind v4 plugin for glass refraction effects.",
-    category: "effects",
   },
   {
     name: "tw-shimmer",
@@ -307,6 +327,12 @@ export const PACKAGES: PackageInfo[] = [
   {
     name: "@assistant-ui/react-trieve",
     description: "Trieve search integration.",
+    category: "deprecated",
+    deprecated: true,
+  },
+  {
+    name: "@assistant-ui/react-ui",
+    description: "Pre-styled React components, superseded by the registry.",
     category: "deprecated",
     deprecated: true,
   },
@@ -597,8 +623,7 @@ export async function fetchTimelineSeries(
     const row: { date: string; [key: string]: number | string } = { date };
     for (const { key, points } of fetched) {
       const point = points.find((p) => p.date === date);
-      const value = point?.value ?? 0;
-      if (!isProjected) row[key] = value;
+      if (!isProjected && point) row[key] = point.value;
     }
     return row;
   });
@@ -609,8 +634,8 @@ export async function fetchTimelineSeries(
       const row = data[idx]!;
       const rowDate = row.date as string;
       for (const { key, points } of fetched) {
-        const val = points.find((p) => p.date === rowDate)?.value ?? 0;
-        row[`${key}_proj`] = val;
+        const point = points.find((p) => p.date === rowDate);
+        if (point) row[`${key}_proj`] = point.value;
       }
     }
   }
@@ -629,55 +654,105 @@ export async function fetchTimelineSeries(
   };
 }
 
+const TIMELINE_MONTHS_BACK = 12;
+// npm backfills a day or two behind, so a month is only final once that lag passes.
+const TRAILING_LAG_DAYS = 2;
+type MonthBucket = {
+  month: string;
+  sum: number;
+  dailies: NpmDailyDownloads[];
+};
+
+function monthKeysBack(now: Date, count: number): string[] {
+  return Array.from({ length: count + 1 }, (_, i) =>
+    new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth() - (count - i), 1))
+      .toISOString()
+      .slice(0, 7),
+  );
+}
+
+function monthEnd(month: string): string {
+  const [year, monthOfYear] = month.split("-").map(Number);
+  return new Date(Date.UTC(year!, monthOfYear!, 0)).toISOString().slice(0, 10);
+}
+
+function shiftDays(day: string, by: number): string {
+  const date = new Date(`${day}T00:00:00Z`);
+  date.setUTCDate(date.getUTCDate() + by);
+  return date.toISOString().slice(0, 10);
+}
+
 export async function fetchDownloadsTimeline(
   name: string,
   revalidate?: number,
 ): Promise<TimelinePoint[]> {
-  // npm's last-year endpoint stops at the last complete day, so it omits the
-  // in-flight month entirely; an explicit range through today keeps it.
-  const today = new Date();
-  const end = today.toISOString().slice(0, 10);
-  const start = new Date(
-    Date.UTC(today.getUTCFullYear() - 1, today.getUTCMonth(), 1),
-  )
-    .toISOString()
-    .slice(0, 10);
-  const downloads = await getDownloadsRange(name, start, end, revalidate);
-  if (!downloads.length) return [];
+  const now = new Date();
+  const today = now.toISOString().slice(0, 10);
   const cutoff = currentMonthKey();
-  type MonthBucket = {
-    sum: number;
-    dailies: { day: string; downloads: number }[];
-  };
-  const byMonth = new Map<string, MonthBucket>();
-  for (const point of downloads) {
-    const month = point.day.slice(0, 7);
-    const entry = byMonth.get(month) ?? { sum: 0, dailies: [] };
-    entry.sum += point.downloads;
-    entry.dailies.push({ day: point.day, downloads: point.downloads });
-    byMonth.set(month, entry);
-  }
-  const sorted = Array.from(byMonth.entries()).sort(([a], [b]) =>
-    a.localeCompare(b),
-  );
-  const fullMonths = sorted.filter(([k]) => k !== cutoff);
-  const lastFullMonth = fullMonths[fullMonths.length - 1];
-  const priorFullMonth = fullMonths[fullMonths.length - 2];
+  const months = monthKeysBack(now, TIMELINE_MONTHS_BACK);
+  const start = `${months[0]}-01`;
 
-  return sorted.map(([date, bucket]) => {
-    if (date !== cutoff || bucket.dailies.length === 0) {
-      return { date, value: bucket.sum };
-    }
-    return {
-      date,
-      value: projectInflightMonth(
-        date,
-        bucket,
-        lastFullMonth?.[1].sum,
-        priorFullMonth?.[1].sum,
-      ),
-    };
-  });
+  // Everything up to the last month npm has finished backfilling is final, so it
+  // is read as one window on a long revalidation and only the unsettled tail is
+  // read every render. Asking per month instead would multiply a deploy's
+  // requests by thirteen, and the burst is what npm refuses; asking for the
+  // whole year at once cost the entire series whenever the one request was.
+  const settled = months
+    .filter((month) => shiftDays(monthEnd(month), TRAILING_LAG_DAYS) < today)
+    .at(-1);
+
+  const dailies: NpmDailyDownloads[] = [];
+  if (settled) {
+    dailies.push(
+      ...(await getDownloadsRange(
+        name,
+        start,
+        monthEnd(settled),
+        revalidate ?? NPM_REVALIDATE.COLD,
+      )),
+    );
+  }
+  const tail = settled ? shiftDays(monthEnd(settled), 1) : start;
+  if (tail <= today) {
+    dailies.push(
+      ...(await getDownloadsRange(
+        name,
+        tail,
+        today,
+        revalidate ?? NPM_REVALIDATE.WARM,
+      )),
+    );
+  }
+  if (!dailies.length) return [];
+
+  const byMonth = new Map<string, MonthBucket>();
+  for (const point of dailies) {
+    const month = point.day.slice(0, 7);
+    const bucket = byMonth.get(month) ?? { month, sum: 0, dailies: [] };
+    bucket.sum += point.downloads;
+    bucket.dailies.push(point);
+    byMonth.set(month, bucket);
+  }
+  const buckets = Array.from(byMonth.values()).sort((a, b) =>
+    a.month.localeCompare(b.month),
+  );
+
+  const fullMonths = buckets.filter((bucket) => bucket.month !== cutoff);
+  const lastFullMonth = fullMonths.at(-1);
+  const priorFullMonth = fullMonths.at(-2);
+
+  return buckets.map((bucket) => ({
+    date: bucket.month,
+    value:
+      bucket.month === cutoff
+        ? projectInflightMonth(
+            bucket.month,
+            bucket,
+            lastFullMonth?.sum,
+            priorFullMonth?.sum,
+          )
+        : bucket.sum,
+  }));
 }
 
 function projectInflightMonth(
@@ -686,8 +761,6 @@ function projectInflightMonth(
   lastFullMonthSum: number | undefined,
   priorFullMonthSum: number | undefined,
 ): number {
-  // npm aggregation lags 1-2 days; trailing days under-report and would drag the daily average down.
-  const TRAILING_LAG_DAYS = 2;
   const dailies = [...bucket.dailies].sort((a, b) =>
     a.day.localeCompare(b.day),
   );
@@ -724,106 +797,24 @@ function projectInflightMonth(
 }
 
 export async function fetchStarHistory(
-  totalStars: number,
   revalidate?: number,
 ): Promise<TimelinePoint[]> {
-  try {
-    const first = await getStargazersPage(1, revalidate);
-    if (first.data.length === 0) return [];
+  const weeks = await getStarHistory(revalidate);
+  if (!weeks || weeks.length < 2) return [];
 
-    const lastPage = first.lastPage ?? Math.max(1, Math.ceil(totalStars / 100));
+  const ordered = [...weeks].sort((a, b) => a.week - b.week);
+  const now = Date.now();
+  let cumulative = 0;
 
-    const samples = new Set<number>([1, lastPage]);
-    const target = 12;
-    if (lastPage > 2) {
-      const step = (lastPage - 1) / (target - 1);
-      for (let i = 1; i < target - 1; i++) {
-        samples.add(Math.max(2, Math.round(1 + i * step)));
-      }
-    }
-    const pages = Array.from(samples)
-      .filter((p) => p >= 1 && p <= lastPage)
-      .sort((a, b) => a - b);
-
-    const fetched = await Promise.all(
-      pages.map(async (page) => {
-        if (page === 1) return { page, data: first.data };
-        const result = await getStargazersPage(page, revalidate);
-        return { page, data: result.data };
-      }),
-    );
-
-    const anchors: TimelinePoint[] = fetched
-      .filter(({ data }) => data.length > 0)
-      .map(({ page, data }) => ({
-        date: data[0]!.starred_at,
-        value: (page - 1) * 100 + 1,
-      }))
-      .sort((a, b) => a.date.localeCompare(b.date))
-      .filter((p, i, arr) => i === 0 || p.value > arr[i - 1]!.value);
-
-    // page sampling stops at the first star on the last page; append (now, totalStars) so the chart reaches today.
-    const now = new Date().toISOString();
-    const lastAnchor = anchors[anchors.length - 1];
-    if (
-      !lastAnchor ||
-      (totalStars > lastAnchor.value && now > lastAnchor.date)
-    ) {
-      anchors.push({ date: now, value: totalStars });
-    }
-
-    if (anchors.length < 2) return anchors;
-
-    return resampleMonthly(anchors);
-  } catch {
-    return [];
-  }
-}
-
-// page-based sampling clusters unevenly in time; resample on a monthly grid so the chart shows real acceleration, not straight segments.
-function resampleMonthly(anchors: TimelinePoint[]): TimelinePoint[] {
-  const startMs = new Date(anchors[0]!.date).getTime();
-  const endAnchor = anchors[anchors.length - 1]!;
-  const endMs = new Date(endAnchor.date).getTime();
-
-  const startDate = new Date(startMs);
-  const cursor = new Date(
-    Date.UTC(startDate.getUTCFullYear(), startDate.getUTCMonth() + 1, 1),
-  );
-
-  const out: TimelinePoint[] = [
-    { date: anchors[0]!.date, value: anchors[0]!.value },
-  ];
-
-  let i = 0;
-  while (cursor.getTime() <= endMs) {
-    const t = cursor.getTime();
-    while (
-      i < anchors.length - 1 &&
-      new Date(anchors[i + 1]!.date).getTime() < t
-    ) {
-      i++;
-    }
-    const a = anchors[i]!;
-    const b = anchors[Math.min(i + 1, anchors.length - 1)]!;
-    const aT = new Date(a.date).getTime();
-    const bT = new Date(b.date).getTime();
-    const ratio =
-      bT === aT ? 0 : Math.min(1, Math.max(0, (t - aT) / (bT - aT)));
-    const value = Math.round(a.value + (b.value - a.value) * ratio);
-    out.push({ date: cursor.toISOString(), value });
-    cursor.setUTCMonth(cursor.getUTCMonth() + 1);
-  }
-
-  // tail point so the line reaches today instead of the latest crossed month boundary.
-  const tailExisting = out[out.length - 1]!;
-  if (
-    new Date(endAnchor.date).getTime() > new Date(tailExisting.date).getTime()
-  ) {
-    out.push(endAnchor);
-  }
-
-  return out;
+  return ordered.map((week) => {
+    cumulative += week.total;
+    // Each point closes its own bucket, and the bucket in progress closes now.
+    const end = (week.week + 7 * 86_400) * 1000;
+    return {
+      date: new Date(Math.min(end, now)).toISOString(),
+      value: cumulative,
+    };
+  });
 }
 
 export function daysSince(isoDate: string): number {

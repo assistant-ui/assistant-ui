@@ -28,13 +28,15 @@ export const listVocabulary = {
             data-aui="listview-item-trigger"
             onClick={(event) => {
               const target = event.target as Element;
-              if (target.closest(INTERACTIVE_DESCENDANT_SELECTOR)) return;
+              const hit = target.closest(INTERACTIVE_DESCENDANT_SELECTOR);
+              if (hit !== null && hit !== event.currentTarget) return;
               fire($action, $dispatch);
             }}
             onKeyDown={(event) => {
               if (event.key !== "Enter" && event.key !== " ") return;
               const target = event.target as Element;
-              if (target.closest(INTERACTIVE_DESCENDANT_SELECTOR)) return;
+              const hit = target.closest(INTERACTIVE_DESCENDANT_SELECTOR);
+              if (hit !== null && hit !== event.currentTarget) return;
               if (event.key === " ") event.preventDefault();
               fire($action, $dispatch);
             }}

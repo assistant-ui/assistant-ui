@@ -1,0 +1,180 @@
+"use client";
+
+import { Collapsible } from "@base-ui/react/collapsible";
+import { ChevronDown } from "lucide-react";
+import { type ReactNode, useEffect, useState } from "react";
+import { useHydrated } from "@/hooks/use-hydrated";
+import { cn } from "@/lib/utils";
+
+export type TypeTableRow = {
+  name: string;
+  type: ReactNode;
+  typeFull?: ReactNode | undefined;
+  description?: ReactNode | undefined;
+  default?: ReactNode | undefined;
+  required: boolean;
+  deprecated: boolean;
+  children?: { type?: string | undefined; rows: TypeTableRow[] }[] | undefined;
+};
+
+function PropName({ row }: { row: TypeTableRow }) {
+  return (
+    <code
+      className={cn(
+        "text-primary w-1/4 min-w-0 [scrollbar-width:none] overflow-x-auto bg-transparent! mask-[linear-gradient(to_right,black_calc(100%-12px),transparent)] p-0! pe-2 font-mono font-medium whitespace-nowrap [-ms-overflow-style:none] [&::-webkit-scrollbar]:hidden",
+        row.deprecated && "text-primary/50 line-through",
+      )}
+    >
+      {row.name}
+      {!row.required && "?"}
+    </code>
+  );
+}
+
+function TypeCell({
+  children,
+  className,
+}: {
+  children: ReactNode;
+  className?: string;
+}) {
+  return (
+    <span
+      className={cn(
+        "min-w-0 flex-1 overflow-hidden [&_code]:border-0! [&_code]:bg-transparent! [&_code]:p-0! [&_code]:text-[0.8125rem]! [&_pre]:bg-transparent! [&_pre]:p-0! [&>figure]:my-0!",
+        "[scrollbar-width:none] overflow-x-auto whitespace-nowrap [-ms-overflow-style:none] [&::-webkit-scrollbar]:hidden",
+        className,
+      )}
+    >
+      {children}
+    </span>
+  );
+}
+
+function Item({
+  row,
+  parentId,
+}: {
+  row: TypeTableRow;
+  parentId?: string | undefined;
+}) {
+  const [open, setOpen] = useState(false);
+  const mounted = useHydrated();
+  const id = parentId ? `${parentId}-${row.name}` : undefined;
+
+  const hasContent =
+    row.description || row.default || row.children?.length || row.typeFull;
+
+  useEffect(() => {
+    const expand = () => {
+      if (id && window.location.hash === `#${id}`) {
+        setOpen(true);
+        document.getElementById(id)?.scrollIntoView({ behavior: "smooth" });
+      }
+    };
+
+    expand();
+    window.addEventListener("hashchange", expand);
+    return () => window.removeEventListener("hashchange", expand);
+  }, [id]);
+
+  if (!hasContent) {
+    return (
+      <div
+        id={id}
+        className="not-prose flex w-full flex-row items-center rounded-xl px-3 py-2"
+      >
+        <PropName row={row} />
+        <TypeCell>{row.type}</TypeCell>
+      </div>
+    );
+  }
+
+  return (
+    <Collapsible.Root
+      id={id}
+      open={open}
+      onOpenChange={(v) => {
+        setOpen(v);
+        if (v && id) window.history.replaceState(null, "", `#${id}`);
+      }}
+      className={cn(
+        "group scroll-m-20 overflow-hidden rounded-xl border transition-all",
+        open ? "bg-background not-last:mb-2" : "border-transparent",
+      )}
+    >
+      <Collapsible.Trigger className="not-prose group/trigger hover:bg-accent relative flex w-full flex-row items-center px-3 py-2 text-start">
+        <PropName row={row} />
+        <TypeCell className="me-4 mask-[linear-gradient(to_right,black_calc(100%-1rem),transparent)]">
+          {row.type}
+        </TypeCell>
+        <ChevronDown className="text-muted-foreground absolute inset-e-2 size-4 transition-transform group-data-panel-open/trigger:rotate-180" />
+      </Collapsible.Trigger>
+
+      <Collapsible.Panel
+        className={cn(
+          "overflow-hidden",
+          mounted &&
+            "data-closed:animate-collapsible-up data-open:animate-collapsible-down",
+        )}
+      >
+        <div className="grid grid-cols-[1fr_3fr] gap-y-4 overflow-auto border-t p-3 text-sm">
+          <div className="docs-prose prose prose-no-margin col-span-full text-sm empty:hidden">
+            {row.description}
+          </div>
+          {row.typeFull && (
+            <>
+              <span className="not-prose text-muted-foreground pe-2">Type</span>
+              <TypeCell>
+                <span className="[&_pre]:inline">{row.typeFull}</span>
+              </TypeCell>
+            </>
+          )}
+          {row.default && (
+            <>
+              <span className="not-prose text-muted-foreground pe-2">
+                Default
+              </span>
+              <TypeCell className="my-auto">
+                <span className="[&_pre]:inline">{row.default}</span>
+              </TypeCell>
+            </>
+          )}
+          {row.children?.map((child, i) => (
+            <div key={child.type ?? i} className="col-span-full my-1">
+              <TypeTableClient id={child.type} rows={child.rows} nested />
+            </div>
+          ))}
+        </div>
+      </Collapsible.Panel>
+    </Collapsible.Root>
+  );
+}
+
+export function TypeTableClient({
+  id,
+  rows,
+  nested,
+}: {
+  id?: string | undefined;
+  rows: TypeTableRow[];
+  nested?: boolean | undefined;
+}) {
+  return (
+    <div
+      id={id}
+      className={cn(
+        "border-border/60 text-card-foreground flex flex-col overflow-hidden rounded-2xl border p-1 text-sm",
+        nested ? "bg-secondary/50" : "my-6",
+      )}
+    >
+      <div className="not-prose text-muted-foreground flex items-center px-3 py-1 font-medium">
+        <p className="w-1/4 shrink-0 pe-2">Prop</p>
+        <p className="min-w-0 flex-1 pl-4">Type</p>
+      </div>
+      {rows.map((row) => (
+        <Item key={row.name} row={row} parentId={id} />
+      ))}
+    </div>
+  );
+}

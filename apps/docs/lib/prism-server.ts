@@ -1,8 +1,6 @@
 import { AuixPrism, prismAISDK as prismAISDKBase } from "@aui-x/prism";
 import type { TraceEvent } from "@aui-x/prism";
 
-const apiKey = process.env.AUIX_PRISM_API_KEY;
-
 type PrismTracerOptions = {
   evalRunId?: string | null;
   localTraceUrl?: string | null;
@@ -44,6 +42,13 @@ async function postLocalTraceEvents(
   });
 }
 
+/**
+ * Traces agent-eval runs to the harness's own localhost endpoint.
+ *
+ * Production LLM telemetry goes to Axiom and PostHog through the
+ * OpenTelemetry pipeline in `instrumentation.ts`; this tracer no longer
+ * reaches a hosted backend, so it yields null outside an eval run.
+ */
 export function createPrismTracer(
   options: PrismTracerOptions = {},
 ): AuixPrism | null {
@@ -51,17 +56,13 @@ export function createPrismTracer(
     process.env.XULUX_EVAL_MODE === "1"
       ? getLocalTraceUrl(options.localTraceUrl)
       : null;
-  if (!apiKey && !localTraceUrl) return null;
+  if (!localTraceUrl) return null;
 
   return new AuixPrism({
-    apiKey: apiKey ?? "local-agent-eval",
+    apiKey: "local-agent-eval",
     project: "assistant-ui-docs",
-    ...(localTraceUrl
-      ? {
-          transport: (events: TraceEvent[]) =>
-            postLocalTraceEvents(localTraceUrl, options.evalRunId, events),
-        }
-      : {}),
+    transport: (events: TraceEvent[]) =>
+      postLocalTraceEvents(localTraceUrl, options.evalRunId, events),
   });
 }
 

@@ -24,6 +24,10 @@ AuiConfig({ mcp: McpManagerResource({ connectors }) })
 
 The manager is a single resource. Mount it with `AuiProvider` like any other scope. OAuth (PKCE + RFC 7591 dynamic client registration), bearer, and "no auth" are first-class. Token refresh runs inside the MCP SDK on 401; this package mediates persistence and the redirect step.
 
+<Callout type="info">
+The [2026-07-28 spec revision](https://modelcontextprotocol.io/specification/2026-07-28/changelog) deprecates RFC 7591 dynamic client registration in favor of [Client ID Metadata Documents](https://modelcontextprotocol.io/specification/2026-07-28/basic/authorization/client-registration#client-id-metadata-documents), which clients should prefer over DCR when the authorization server advertises `client_id_metadata_document_supported`. Dynamic client registration remains available for backwards compatibility with authorization servers that do not support CIMD, and the spec's deprecation policy sets a minimum twelve-month window before removal, so the flow described here keeps working. Against a CIMD-only authorization server that exposes no `registration_endpoint`, supply a pre-registered [`clientId`](#auth) instead.
+</Callout>
+
 ## Setup
 
 <Steps>
@@ -99,7 +103,7 @@ You have two options:
 <InstallCommand shadcn={["mcp-config"]} />
 
 ```tsx title="app/page.tsx"
-import { McpConfigDialog } from "@/components/assistant-ui/mcp-config";
+import { McpConfigDialog } from "@/components/assistant-ui/elements/mcp-config.aui";
 
 export default function Page() {
   return (
@@ -210,19 +214,19 @@ export default function Callback() {
 }
 ```
 
-The callback reads `?state=...&code=...` from the URL, derives the target server id (encoded in the OAuth `state` parameter automatically), and calls `completeAuth` on the right server.
+The callback reads `?state=...` plus either `code` or an OAuth `error` from the URL, derives the target server id (encoded in the OAuth `state` parameter automatically), verifies the complete state value against the pending authorization request, and calls `completeAuth` on the right server.
 
 </Step>
 <Step>
 
 ### That's it — the chat sees your tools
 
-`McpManagerResource` registers connected tools as **frontend tools** with the `modelContext` scope. Any chat runtime mounted in the same store (e.g. `@assistant-ui/react-ai-sdk`'s `useChatRuntime`) sees them and exposes them to the model — no `useMcpTools` hook, no adapter call.
+`McpManagerResource` registers connected tools as **frontend tools** with the `modelContext` scope. Any chat runtime mounted in the same store (e.g. `@assistant-ui/ai-sdk`'s `useChatRuntime`) sees them and exposes them to the model — no `useMcpTools` hook, no adapter call.
 
 ```tsx
 "use client";
 import { lastAssistantMessageIsCompleteWithToolCalls } from "ai";
-import { useChatRuntime } from "@assistant-ui/react-ai-sdk";
+import { useChatRuntime } from "@assistant-ui/ai-sdk";
 
 export function Chat() {
   const runtime = useChatRuntime({
@@ -293,61 +297,37 @@ Client-side validation errors keep the elicitation pending so the user can corre
 
 ## Storage
 
-All persisted state — custom server records, OAuth tokens, PKCE verifiers, DCR client info — goes through a single `MCPStorage` resource. Three built-ins:
+All persisted state — custom server records, OAuth tokens, callback state, PKCE verifiers, DCR client info — goes through a single `MCPStorage` resource. Three built-ins:
 
-- `McpLocalStorage()` — default. Stores under the `aui-mcp:` prefix in `window.localStorage`. Changing `keyPrefix` reloads the matching storage scope.
+- `McpLocalStorage()` — default. Stores under the `aui-mcp:` prefix in `window.localStorage`.
 - `McpMemoryStorage()` — in-process Map. Use for SSR/tests where localStorage is absent.
-- `McpCustomStorage({...})` — bring your own load/save. Use for app-controlled backends (e.g. POST to your API). If its account, tenant, or workspace can change, `storageScopeKey` is required because the manager cannot infer scope identity from the implementation.
+- `McpCustomStorage({...})` — bring your own load/save. Use for app-controlled backends (e.g. POST to your API).
+
+A storage can declare a `scopeId` — a stable identity for its backing data (two storages sharing a `scopeId` must read and write the same persisted state). When the scope changes, the manager removes the previous scope's custom servers before loading the replacement. Servers with `bearer` or `oauth` auth also reconnect and rebind the OAuth provider instead of leaving a live connection writing auth state to the replaced store. Without a `scopeId`, a storage swap does not reload custom servers or trigger a reconnect. `McpLocalStorage()` derives one automatically for the shared `window.localStorage` (pass `scopeId` yourself when overriding the backing `storage`); `McpMemoryStorage()` scopes each instance uniquely; `McpCustomStorage` takes whatever identity its backend already has.
+
+Authentication records include the MCP server URL and are used only for that exact endpoint. Custom storage implementations must round-trip the `serverUrl` field passed to `saveAuthState`. Bearer records are written by the host application, so any implementation that persists `token` must write the server's configured `url` as `serverUrl` in the same record; both sides are normalized before they are compared, so any spelling of the same URL matches. A stored credential that does not match is never sent: the server does not connect and `lastError` reports that its saved authentication belongs to a different URL. OAuth records written before this binding existed carry no `serverUrl`, so they surface that message once and the user connects again.
 
 ```tsx
-import { AuiConfig } from "@assistant-ui/react";
-import {
-  McpManagerResource,
-  McpCustomStorage,
-  type MCPConnector,
-} from "@assistant-ui/react-mcp";
+import { McpManagerResource, McpCustomStorage } from "@assistant-ui/react-mcp";
 
-export function createMcpConfig(
-  workspaceId: string,
-  connectors: MCPConnector[],
-) {
-  const apiBase = `/api/workspaces/${encodeURIComponent(workspaceId)}/mcp`;
-
-  return AuiConfig({
-    mcp: McpManagerResource({
-      connectors,
-      storageScopeKey: workspaceId,
-      storage: McpCustomStorage({
-        loadCustomServers: async () => {
-          const response = await fetch(`${apiBase}/servers`);
-          if (!response.ok) {
-            throw new Error(`Failed to load MCP servers: ${response.status}`);
-          }
-          return response.json();
-        },
-        saveCustomServers: async (records) =>
-          fetch(`${apiBase}/servers`, {
-            method: "PUT",
-            body: JSON.stringify(records),
-          }),
-        loadAuthState: async (id) =>
-          fetch(`${apiBase}/auth/${id}`).then((r) =>
-            r.ok ? r.json() : null,
-          ),
-        saveAuthState: async (id, state) =>
-          fetch(`${apiBase}/auth/${id}`, {
-            method: "PUT",
-            body: JSON.stringify(state),
-          }),
-        clearAuthState: async (id) =>
-          fetch(`${apiBase}/auth/${id}`, { method: "DELETE" }),
-      }),
+AuiConfig({
+  mcp: McpManagerResource({
+    connectors,
+    storage: McpCustomStorage({
+      scopeId: "api:/api/mcp",
+      loadCustomServers: async () => fetch("/api/mcp/servers").then((r) => r.json()),
+      saveCustomServers: async (records) =>
+        fetch("/api/mcp/servers", { method: "PUT", body: JSON.stringify(records) }),
+      loadAuthState: async (id) =>
+        fetch(`/api/mcp/auth/${id}`).then((r) => (r.ok ? r.json() : null)),
+      saveAuthState: async (id, state) =>
+        fetch(`/api/mcp/auth/${id}`, { method: "PUT", body: JSON.stringify(state) }),
+      clearAuthState: async (id) =>
+        fetch(`/api/mcp/auth/${id}`, { method: "DELETE" }),
     }),
-  });
-}
+  }),
+});
 ```
-
-Read `workspaceId` from your authenticated session or router and use it for both the API partition and `storageScopeKey`. Changing the key closes the previous scope's connections, clears its servers, and loads the new scope before persistence resumes. `McpLocalStorage` derives this identity from `keyPrefix` automatically.
 
 <Callout type="warn">
 `McpLocalStorage` stores tokens in plain text and is XSS-exposed. For anything beyond local prototyping, use `McpCustomStorage` against an HTTP-only-cookie-backed endpoint, or wrap localStorage with your own encrypted serializer.
@@ -370,7 +350,7 @@ Three modes, declared per-connector or per-custom-record:
 }
 ```
 
-The OAuth provider implements the MCP SDK's `OAuthClientProvider`. The SDK handles discovery (RFC 8414), DCR (RFC 7591), PKCE, token exchange, and refresh; this package mediates `MCPStorage` reads/writes and the redirect step. The server id is embedded in the OAuth `state` parameter so a single `/mcp/callback` route knows which server to complete.
+The OAuth provider implements the MCP SDK's `OAuthClientProvider`. The SDK handles discovery (RFC 8414), DCR (RFC 7591 — [deprecated in favor of CIMD](#how-it-works) but still supported), PKCE, token exchange, and refresh; this package mediates `MCPStorage` reads/writes and the redirect step. The server id is embedded in the OAuth `state` parameter so a single `/mcp/callback` route knows which server to complete.
 
 ## State & methods
 

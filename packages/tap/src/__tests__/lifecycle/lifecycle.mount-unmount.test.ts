@@ -207,4 +207,39 @@ describe("Lifecycle - Mount/Unmount", () => {
     expect(effect).toHaveBeenCalledTimes(1);
     expect(cleanup).toHaveBeenCalledTimes(1);
   });
+
+  it("reconnects effects that bailed in a render committed after an unmount", () => {
+    const events: string[] = [];
+
+    const resource = createTestResource((dep: number) => {
+      useEffect(() => {
+        events.push("stable:setup");
+        return () => events.push("stable:cleanup");
+      }, []);
+      useEffect(() => {
+        events.push(`dep:setup:${dep}`);
+        return () => events.push("dep:cleanup");
+      }, [dep]);
+      return null;
+    });
+
+    renderResourceFiber(resource, [0]);
+    commitResourceFiber(resource);
+    expect(events).toEqual(["stable:setup", "dep:setup:0"]);
+
+    renderResourceFiber(resource, [1]);
+    unmountResourceFiber(resource);
+    expect(events).toEqual([
+      "stable:setup",
+      "dep:setup:0",
+      "stable:cleanup",
+      "dep:cleanup",
+    ]);
+
+    events.length = 0;
+    commitResourceFiber(resource);
+    expect(events).toEqual(["stable:setup", "dep:setup:1"]);
+
+    unmountResourceFiber(resource);
+  });
 });

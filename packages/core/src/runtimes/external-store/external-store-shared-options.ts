@@ -14,5 +14,7 @@ export const pickExternalStoreSharedOptions = (
     unstable_capabilities: options.unstable_capabilities,
     suggestions: options.suggestions,
   }) satisfies {
-    [K in keyof Required<ExternalStoreSharedOptions>]: ExternalStoreSharedOptions[K];
+    [
+      K in keyof Required<ExternalStoreSharedOptions>
+    ]: ExternalStoreSharedOptions[K];
   };

@@ -1,7 +1,13 @@
 // @vitest-environment jsdom
 
 import type { FC, ReactElement, ReactNode } from "react";
-import { createRef, useEffect, useState } from "react";
+import {
+  createRef,
+  startTransition,
+  Suspense,
+  useEffect,
+  useState,
+} from "react";
 import { act, cleanup, render } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { flushTapSync, resource, withKey } from "@assistant-ui/tap";
@@ -566,6 +572,137 @@ describe("AuiProvider config", () => {
     );
 
     expect(aui.thread.getState()).toEqual({ count: 1 });
+  });
+
+  it("keeps controlled inputs in sync within the dispatching event", () => {
+    const Input: FC = () => {
+      const aui = useAui() as AnyClient;
+      const count = useAuiState((s: AnyClient) => s.counter.count);
+      return (
+        <input
+          value={String(count)}
+          onChange={(e) =>
+            flushTapSync(() => aui.counter.setCount(Number(e.target.value)))
+          }
+        />
+      );
+    };
+    const { container } = render(
+      <AuiProvider config={AuiConfig({ counter: Counter() })}>
+        <Input />
+      </AuiProvider>,
+    );
+    const input = container.querySelector("input")!;
+    expect(input.value).toBe("0");
+
+    // React restores controlled inputs to the rendered value at the end of
+    // each discrete event; a store write not visible in that flush would
+    // revert the keystroke, so dispatch a real event outside act to verify
+    const g = globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean | undefined };
+    const prevActEnv = g.IS_REACT_ACT_ENVIRONMENT;
+    g.IS_REACT_ACT_ENVIRONMENT = false;
+    try {
+      Object.getOwnPropertyDescriptor(
+        HTMLInputElement.prototype,
+        "value",
+      )!.set!.call(input, "5");
+      input.dispatchEvent(new Event("input", { bubbles: true }));
+      expect(input.value).toBe("5");
+    } finally {
+      g.IS_REACT_ACT_ENVIRONMENT = prevActEnv;
+    }
+    act(() => {});
+    expect(input.value).toBe("5");
+  });
+
+  it("an interrupted provider render leaks no scope visibility or effects before commit", async () => {
+    const commits: number[] = [];
+    const useTracked = ({ id }: { id: number }) => {
+      useEffect(() => {
+        commits.push(id);
+      }, [id]);
+      return { getState: () => ({ count: id }), setCount: () => {} };
+    };
+    const Tracked = resource(useTracked);
+
+    let resolve!: () => void;
+    let shouldSuspend = false;
+    const ShouldNeverFallback = () => {
+      throw new Error("should never fallback");
+    };
+    const Suspender = () => {
+      if (shouldSuspend)
+        throw new Promise<void>((r) => {
+          resolve = r;
+        });
+      return null;
+    };
+
+    let committed!: AnyClient;
+    let notified = 0;
+    const Capture = () => {
+      const aui = useAui();
+      useEffect(() => {
+        committed = aui;
+      });
+      return null;
+    };
+
+    const Consumer = () => {
+      const count = useAuiState((s: AnyClient) => s.counter.count);
+      return <div data-testid="count">{count}</div>;
+    };
+
+    let setId!: (id: number) => void;
+    const App = () => {
+      const [id, set] = useState(1);
+      setId = set;
+      const config =
+        id === 1
+          ? AuiConfig({ counter: Tracked({ id }) })
+          : AuiConfig({
+              counter: Tracked({ id }),
+              thread: Thread({ ids: ["a"] }),
+            });
+      return (
+        <AuiProvider config={config}>
+          <Capture />
+          <Consumer />
+          <Suspense fallback={<ShouldNeverFallback />}>
+            <Suspender />
+          </Suspense>
+        </AuiProvider>
+      );
+    };
+
+    const { getByTestId } = render(<App />);
+    expect(getByTestId("count").textContent).toBe("1");
+    expect(commits).toEqual([1]);
+    committed.subscribe(() => notified++);
+
+    await act(async () => {
+      shouldSuspend = true;
+      startTransition(() => setId(2));
+    });
+
+    // The attempt rendered the provider with the new entries and suspended
+    // below it; the committed tree must not observe any of it
+    expect(getByTestId("count").textContent).toBe("1");
+    expect(committed.counter.getState()).toEqual({ count: 1 });
+    expect(() => committed.thread.getState()).toThrow(
+      'The current scope does not have a "thread" property.',
+    );
+    expect(commits).toEqual([1]);
+    expect(notified).toBe(0);
+
+    shouldSuspend = false;
+    await act(async () => resolve());
+
+    expect(getByTestId("count").textContent).toBe("2");
+    expect(committed.counter.getState()).toEqual({ count: 2 });
+    expect(committed.thread.getState()).toEqual({ count: 1 });
+    expect(commits).toEqual([1, 2]);
+    expect(notified).toBeGreaterThan(0);
   });
 
   it("AuiConfig returns its input for hoisting", () => {

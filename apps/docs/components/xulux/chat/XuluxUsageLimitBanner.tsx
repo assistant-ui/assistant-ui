@@ -52,7 +52,7 @@ export function parseXuluxLimitBlock(payload: unknown): XuluxLimitBlock | null {
 export function XuluxUsageLimitBanner({
   onNewThread,
 }: {
-  onNewThread: () => void;
+  onNewThread?: () => void;
 }): ReactNode {
   const { limitBlock } = useXuluxUsageBudget();
   if (!limitBlock) return null;
@@ -65,7 +65,7 @@ export function XuluxUsageLimitBanner({
       role="alert"
     >
       <p>{limitBlock.message}</p>
-      {showNewChat ? (
+      {showNewChat && onNewThread ? (
         <Button
           type="button"
           variant="outline"

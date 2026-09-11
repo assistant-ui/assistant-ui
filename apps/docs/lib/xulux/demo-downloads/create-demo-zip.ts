@@ -1,5 +1,9 @@
-import { readFile } from "node:fs/promises";
-import path from "node:path";
+import {
+  createRepoSourceReader,
+  snapshotSourceReader,
+  type RepoSourceReader,
+  type RepoSourceSnapshot,
+} from "@/lib/repo-source";
 import {
   DEMO_DOWNLOAD_MANIFESTS,
   getDemoDownloadManifest,
@@ -9,38 +13,45 @@ import {
 import {
   DEMO_DEPENDENCIES,
   DEMO_DEV_DEPENDENCIES,
+  createPackageJsonReader,
   dependencyVersionsFromPackage,
   dependencyVersions,
+  type PackageJsonReader,
 } from "./package-versions";
 import { createZip, type ZipFileMap } from "./zip";
 
-type SourceSnapshot = Record<string, string>;
-
-export async function loadSourceSnapshot(snapshotPath = defaultSnapshotPath()) {
-  const raw = await readFile(snapshotPath, "utf8");
-  return JSON.parse(raw) as SourceSnapshot;
-}
-
 export async function createDemoZip(slug: string) {
-  const snapshot = await loadSourceSnapshot();
-  return createZip(createDemoFileMap(slug, snapshot));
+  return createZip(await buildDemoFileMap(slug, createRepoSourceReader()));
 }
 
-export function createDemoFileMap(slug: string, snapshot: SourceSnapshot) {
+export function createDemoFileMap(
+  slug: string,
+  snapshot: RepoSourceSnapshot,
+): Promise<ZipFileMap> {
+  return buildDemoFileMap(slug, snapshotSourceReader(snapshot));
+}
+
+async function buildDemoFileMap(
+  slug: string,
+  reader: RepoSourceReader,
+): Promise<ZipFileMap> {
   const manifest = getDemoDownloadManifest(slug);
   if (!manifest) {
     throw new Error(`Unsupported demo slug: ${slug}`);
   }
 
+  const readPackageJson = createPackageJsonReader(reader);
+
   if (manifest.target === "node-cli") {
-    return createNodeCliDemoFileMap(manifest, snapshot);
+    return createNodeCliDemoFileMap(manifest, reader, readPackageJson);
   }
 
-  const demoSource = flattenUiFlavorImports(
-    assertSnapshotFile(snapshot, manifest.entry),
-  );
+  const [demoSource, demoPackageJson] = await Promise.all([
+    readSourceFile(reader, manifest.entry).then(flattenUiFlavorImports),
+    packageJson(manifest, readPackageJson),
+  ]);
   const files: ZipFileMap = {
-    "package.json": packageJson(manifest, snapshot),
+    "package.json": demoPackageJson,
     "next.config.ts": nextConfigTs(),
     "tsconfig.json": tsconfigJson(),
     "postcss.config.mjs": postcssConfigMjs(),
@@ -51,27 +62,31 @@ export function createDemoFileMap(slug: string, snapshot: SourceSnapshot) {
     "app/page.tsx": pageTsx(manifest),
     "app/api/chat/route.ts": chatRouteTs(),
     "components/runtime/demo-runtime-provider.tsx": runtimeProviderTsx(),
-    "components/assistant-ui/markdown-text.tsx": markdownTextShim(),
-    "components/assistant-ui/shiki-highlighter.tsx": shikiHighlighterShim(),
-    "components/assistant-ui/tool-fallback.tsx": toolFallbackShim(),
-    "components/assistant-ui/tooltip-icon-button.tsx": tooltipIconButtonShim(),
+    "components/assistant-ui/elements/markdown-text.tsx": markdownTextShim(),
+    "components/assistant-ui/elements/shiki-highlighter.aui.tsx":
+      shikiHighlighterShim(),
+    "components/assistant-ui/elements/tool-fallback.aui.tsx":
+      toolFallbackShim(),
+    "components/assistant-ui/elements/tooltip-icon-button.tsx":
+      tooltipIconButtonShim(),
     "components/docs/assistant/docs-model-options.ts": docsModelOptionsShim(),
-    "constants/model.ts": 'export const DEFAULT_MODEL_ID = "gpt-5.6-luna";\n',
+    "lib/model.ts": 'export const DEFAULT_MODEL_ID = "gpt-5.6-luna";\n',
     "public/favicon/icon.svg": faviconSvg(),
     [`components/examples/${manifest.slug}.tsx`]: demoSource,
   };
 
-  for (const sourceFile of manifest.extraSourceFiles ?? []) {
+  const extraSourceFiles = manifest.extraSourceFiles ?? [];
+  const extraSources = await readSourceFiles(reader, extraSourceFiles);
+
+  extraSourceFiles.forEach((sourceFile, index) => {
     const target = targetPathForSourceFile(sourceFile);
     if (target in files) {
       throw new Error(
         `Demo zip target collision: ${sourceFile} flattens onto ${target}`,
       );
     }
-    files[target] = flattenUiFlavorImports(
-      assertSnapshotFile(snapshot, sourceFile),
-    );
-  }
+    files[target] = flattenUiFlavorImports(extraSources[index]!);
+  });
 
   return files;
 }
@@ -84,33 +99,45 @@ export function supportedDemoSlugs() {
   return Object.keys(DEMO_DOWNLOAD_MANIFESTS) as DemoDownloadSlug[];
 }
 
-function defaultSnapshotPath() {
-  return path.join(process.cwd(), "generated", "source-snapshot.json");
+async function readSourceFile(reader: RepoSourceReader, snapshotKey: string) {
+  return (await readSourceFiles(reader, [snapshotKey]))[0]!;
 }
 
-function assertSnapshotFile(snapshot: SourceSnapshot, snapshotKey: string) {
-  const contents = snapshot[snapshotKey];
-  if (typeof contents !== "string") {
-    throw new Error(`Missing source snapshot entry: ${snapshotKey}`);
-  }
-  return contents;
+async function readSourceFiles(
+  reader: RepoSourceReader,
+  snapshotKeys: readonly string[],
+) {
+  const contents = await reader.readFiles(snapshotKeys);
+
+  return contents.map((value, index) => {
+    if (typeof value !== "string") {
+      throw new Error(`Missing source snapshot entry: ${snapshotKeys[index]}`);
+    }
+    return value;
+  });
 }
 
 function flattenUiFlavorImports(source: string) {
-  return source.replace(
-    /@\/components\/ui\/(?:radix|base)\//g,
-    "@/components/ui/",
-  );
+  return source
+    .replace(/@\/components\/ui\/(?:radix|base)\//g, "@/components/ui/")
+    .replace(/@\/components\/pages\/docs\//g, "@/components/docs/")
+    .replace(/@\/components\/pages\/examples\//g, "@/components/examples/");
 }
 
 function targetPathForSourceFile(sourceFile: string) {
   if (sourceFile.startsWith("packages/ui/src/")) {
     return sourceFile
       .replace(/^packages\/ui\/src\//, "")
+      .replace(/^components\/react\//, "components/")
       .replace(/^components\/ui\/radix\//, "components/ui/")
-      .replace(/^components\/ui\/base\//, "components/ui/")
-      .replace(/^components\/assistant-ui\//, "components/assistant-ui/")
-      .replace(/^lib\//, "lib/");
+      .replace(/^components\/ui\/base\//, "components/ui/");
+  }
+
+  if (sourceFile.startsWith("apps/docs/components/pages/examples/")) {
+    return sourceFile.replace(
+      /^apps\/docs\/components\/pages\/examples\//,
+      "components/examples/",
+    );
   }
 
   if (sourceFile.startsWith("apps/docs/")) {
@@ -129,47 +156,52 @@ const REACT_INK_SOURCE_FILES = [
   "examples/with-react-ink/src/tools.tsx",
 ] as const;
 
-function createNodeCliDemoFileMap(
+async function createNodeCliDemoFileMap(
   manifest: DemoDownloadManifest,
-  snapshot: SourceSnapshot,
+  reader: RepoSourceReader,
+  readPackageJson: PackageJsonReader,
 ) {
   if (manifest.slug !== "react-ink") {
     throw new Error(`Unsupported node-cli demo slug: ${manifest.slug}`);
   }
 
+  const [demoPackageJson, tsconfig, sources] = await Promise.all([
+    nodeCliPackageJson(manifest, readPackageJson),
+    readSourceFile(reader, "examples/with-react-ink/tsconfig.json"),
+    readSourceFiles(reader, REACT_INK_SOURCE_FILES),
+  ]);
   const files: ZipFileMap = {
-    "package.json": nodeCliPackageJson(manifest, snapshot),
-    "tsconfig.json": assertSnapshotFile(
-      snapshot,
-      "examples/with-react-ink/tsconfig.json",
-    ),
+    "package.json": demoPackageJson,
+    "tsconfig.json": tsconfig,
     "README.md": nodeCliReadme(manifest),
   };
 
-  for (const sourceFile of REACT_INK_SOURCE_FILES) {
+  REACT_INK_SOURCE_FILES.forEach((sourceFile, index) => {
     files[sourceFile.replace(/^examples\/with-react-ink\//, "")] =
-      assertSnapshotFile(snapshot, sourceFile);
-  }
+      sources[index]!;
+  });
 
   return files;
 }
 
-function nodeCliPackageJson(
+async function nodeCliPackageJson(
   manifest: DemoDownloadManifest,
-  snapshot: SourceSnapshot,
+  readPackageJson: PackageJsonReader,
 ) {
   const packagePath = "examples/with-react-ink/package.json";
-  const dependencies = dependencyVersionsFromPackage(snapshot, packagePath, [
-    "@assistant-ui/react-ink",
-    "@assistant-ui/react-ink-markdown",
-    "ink",
-    "react",
-  ]);
-  const devDependencies = dependencyVersionsFromPackage(snapshot, packagePath, [
-    "@types/react",
-    "esbuild",
-    "tsx",
-    "typescript",
+  const [dependencies, devDependencies] = await Promise.all([
+    dependencyVersionsFromPackage(readPackageJson, packagePath, [
+      "@assistant-ui/react-ink",
+      "@assistant-ui/react-ink-markdown",
+      "ink",
+      "react",
+    ]),
+    dependencyVersionsFromPackage(readPackageJson, packagePath, [
+      "@types/react",
+      "esbuild",
+      "tsx",
+      "typescript",
+    ]),
   ]);
 
   return `${JSON.stringify(
@@ -195,7 +227,15 @@ function nodeCliReadme(manifest: DemoDownloadManifest) {
   return `# Xulux ${manifest.name}\n\n${manifest.description}\n\nThis is a Node.js terminal app. It renders a Claude Code or Codex CLI-style assistant UI with React Ink and assistant-ui terminal primitives.\n\n## Run\n\n\`\`\`bash\nnpm install\nnpm run dev\n\`\`\`\n\n## Build\n\n\`\`\`bash\nnpm run build\nnpm start\n\`\`\`\n\nSource demo: \`${manifest.sourcePath ?? "examples/with-react-ink"}\`\n`;
 }
 
-function packageJson(manifest: DemoDownloadManifest, snapshot: SourceSnapshot) {
+async function packageJson(
+  manifest: DemoDownloadManifest,
+  readPackageJson: PackageJsonReader,
+) {
+  const [dependencies, devDependencies] = await Promise.all([
+    dependencyVersions(readPackageJson, DEMO_DEPENDENCIES),
+    dependencyVersions(readPackageJson, DEMO_DEV_DEPENDENCIES),
+  ]);
+
   return `${JSON.stringify(
     {
       name: `xulux-${manifest.slug}-demo`,
@@ -207,8 +247,8 @@ function packageJson(manifest: DemoDownloadManifest, snapshot: SourceSnapshot) {
         build: "next build",
         start: "next start",
       },
-      dependencies: dependencyVersions(snapshot, DEMO_DEPENDENCIES),
-      devDependencies: dependencyVersions(snapshot, DEMO_DEV_DEPENDENCIES),
+      dependencies,
+      devDependencies,
     },
     null,
     2,
@@ -270,7 +310,7 @@ function pageTsx(manifest: DemoDownloadManifest) {
 }
 
 function runtimeProviderTsx() {
-  return `"use client";\n\nimport { AssistantRuntimeProvider } from "@assistant-ui/react";\nimport { AssistantChatTransport, useChatRuntime } from "@assistant-ui/react-ai-sdk";\n\nexport function DemoRuntimeProvider({ children }: { children: React.ReactNode }) {\n  const runtime = useChatRuntime({\n    transport: new AssistantChatTransport({ api: "/api/chat" }),\n  });\n\n  return (\n    <AssistantRuntimeProvider runtime={runtime}>\n      {children}\n    </AssistantRuntimeProvider>\n  );\n}\n`;
+  return `"use client";\n\nimport { AssistantRuntimeProvider } from "@assistant-ui/react";\nimport { AssistantChatTransport, useChatRuntime } from "@assistant-ui/ai-sdk";\n\nexport function DemoRuntimeProvider({ children }: { children: React.ReactNode }) {\n  const runtime = useChatRuntime({\n    transport: new AssistantChatTransport({ api: "/api/chat" }),\n  });\n\n  return (\n    <AssistantRuntimeProvider runtime={runtime}>\n      {children}\n    </AssistantRuntimeProvider>\n  );\n}\n`;
 }
 
 function chatRouteTs() {

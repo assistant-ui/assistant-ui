@@ -12,6 +12,37 @@ export type TestFiber<R, A extends readonly unknown[]> = ResourceFiber<R> & {
   readonly __args?: (args: A) => void;
 };
 
+const pendingRerenders = new Set<ResourceFiber<any>>();
+let isPassOnStack = false;
+
+function runPass<T>(fn: () => T): T {
+  const prev = isPassOnStack;
+  isPassOnStack = true;
+  try {
+    return fn();
+  } finally {
+    isPassOnStack = prev;
+  }
+}
+
+function drainPendingRerenders() {
+  if (isPassOnStack) return;
+  runPass(() => {
+    let passes = 0;
+    for (const fiber of pendingRerenders) {
+      pendingRerenders.delete(fiber);
+      if (++passes > 50) {
+        throw new Error("Too many re-render passes in test harness");
+      }
+      if (!activeResources.has(fiber)) continue;
+      const lastArgs = propsMap.get(fiber);
+      const value = renderResourceFiber(fiber, lastArgs);
+      lastRenderValueMap.set(fiber, value);
+      commitResourceFiber(fiber);
+    }
+  });
+}
+
 /**
  * Creates a test resource fiber for unit testing.
  * This is a low-level utility that creates a ResourceFiber directly.
@@ -24,13 +55,8 @@ export function createTestResource<R, A extends readonly unknown[]>(
     if (!evaluate()) return;
     apply();
 
-    // Re-render when state changes
-    if (activeResources.has(fiber)) {
-      const lastArgs = propsMap.get(fiber);
-      const value = renderResourceFiber(fiber, lastArgs);
-      lastRenderValueMap.set(fiber, value);
-      commitResourceFiber(fiber);
-    }
+    pendingRerenders.add(fiber);
+    drainPendingRerenders();
   };
 
   const fiber = createResourceFiber(
@@ -61,15 +87,14 @@ export function renderTest<R, A extends readonly unknown[]>(
   // Track resource for cleanup
   activeResources.add(fiber);
 
-  // Render with new args. Record the result before committing: the commit can
-  // synchronously trigger a nested re-render whose newer result must not be
-  // clobbered afterwards.
-  const value = renderResourceFiber(fiber, args);
-  lastRenderValueMap.set(fiber, value);
-  commitResourceFiber(fiber);
+  const value = runPass(() => {
+    const rendered = renderResourceFiber(fiber, args);
+    lastRenderValueMap.set(fiber, rendered);
+    commitResourceFiber(fiber);
+    return rendered;
+  });
+  drainPendingRerenders();
 
-  // Return the committed state from the result
-  // This accounts for any re-renders that happened during commit
   return value;
 }
 
@@ -116,9 +141,13 @@ export class TestSubscriber<T> {
   constructor(fiber: ResourceFiber<any>) {
     this.fiber = fiber;
     // Need to render once to get initial state
-    const lastArgs = propsMap.get(fiber) ?? [];
-    const initialValue = renderResourceFiber(fiber, lastArgs as any);
-    commitResourceFiber(fiber);
+    const initialValue = runPass(() => {
+      const lastArgs = propsMap.get(fiber) ?? [];
+      const value = renderResourceFiber(fiber, lastArgs as any);
+      commitResourceFiber(fiber);
+      return value;
+    });
+    drainPendingRerenders();
     this.lastState = initialValue;
     lastRenderValueMap.set(fiber, initialValue);
     activeResources.add(fiber);
@@ -153,9 +182,13 @@ export class TestResourceManager<R, A extends readonly unknown[]> {
     this.isActive = true;
     activeResources.add(this.fiber);
     propsMap.set(this.fiber, args);
-    const value = renderResourceFiber(this.fiber, args);
-    commitResourceFiber(this.fiber);
-    lastRenderValueMap.set(this.fiber, value);
+    const value = runPass(() => {
+      const rendered = renderResourceFiber(this.fiber, args);
+      lastRenderValueMap.set(this.fiber, rendered);
+      commitResourceFiber(this.fiber);
+      return rendered;
+    });
+    drainPendingRerenders();
     return value;
   }
 
@@ -173,7 +206,14 @@ export class TestResourceManager<R, A extends readonly unknown[]> {
  * Useful for testing async state updates.
  */
 export function waitForNextTick(): Promise<void> {
-  return new Promise((resolve) => setTimeout(resolve, 0));
+  return new Promise((resolve) => {
+    const channel = new MessageChannel();
+    channel.port1.onmessage = () => {
+      channel.port1.close();
+      setTimeout(resolve, 0);
+    };
+    channel.port2.postMessage(null);
+  });
 }
 
 /**

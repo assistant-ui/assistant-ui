@@ -94,6 +94,7 @@ beforeEach(() => {
 
 afterEach(() => {
   cleanup();
+  vi.restoreAllMocks();
   vi.clearAllMocks();
 });
 
@@ -479,6 +480,50 @@ describe("useNotification", () => {
       title: "AI task complete",
     });
     w.mockRestore();
+  });
+
+  it.each([
+    [
+      "synchronous",
+      (error: Error) => () => {
+        throw error;
+      },
+    ],
+    [
+      "asynchronous",
+      (error: Error) => async () => {
+        throw error;
+      },
+    ],
+  ])("isolates %s custom handler errors", async (_name, createCustom) => {
+    const callbackError = new Error("notification unavailable");
+    const consoleError = vi
+      .spyOn(console, "error")
+      .mockImplementation(() => {});
+    const custom = createCustom(callbackError);
+    snapshot = {
+      isRunning: true,
+      messages: [makeAssistantMessage("m1", { type: "running" })],
+    };
+    const instance = renderNotifier(
+      <Notifier config={{ onTaskComplete: { custom } }} />,
+    );
+    await flush();
+
+    snapshot = {
+      isRunning: false,
+      messages: [
+        makeAssistantMessage("m1", { type: "complete", reason: "stop" }),
+      ],
+    };
+    instance.rerender(<Notifier config={{ onTaskComplete: { custom } }} />);
+    await flush();
+
+    expect(consoleError).toHaveBeenCalledWith(
+      "[assistant-ui/react-ink] task-complete notification callback threw an error",
+      callbackError,
+    );
+    consoleError.mockRestore();
   });
 
   it("calls onTaskIncomplete.custom with the incomplete reason", async () => {

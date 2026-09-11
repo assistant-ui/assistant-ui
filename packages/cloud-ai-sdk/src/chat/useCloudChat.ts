@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo } from "react";
+import { useCallback, useEffect, useMemo } from "react";
 import { useChat } from "@ai-sdk/react";
 import { AssistantCloud } from "assistant-cloud";
 import type {
@@ -45,17 +45,61 @@ export function useCloudChat(
     transport,
   });
 
+  const createChat = useCallback(
+    (chatKey: string, registry: ChatRegistry) =>
+      core.createChat(chatKey, registry),
+    [core],
+  );
+  const createRenderChat = useCallback(
+    (chatKey: string, registry: ChatRegistry) =>
+      core.createChat(chatKey, registry, chatConfig),
+    [chatConfig, core],
+  );
   const { registry, activeChat } = useChatRegistry({
     scope: threads.cloud,
     threadId: threads.threadId,
-    createChat: (chatKey, reg) => core.createChat(chatKey, reg),
+    createChat,
+    createRenderChat,
   });
 
   useThreadMessageLoader(threads.threadId, registry, core);
 
   const chat = useChat({ chat: activeChat });
+  const stop = useCallback(
+    (...args: Parameters<typeof chat.stop>) => {
+      if (chat.status === "submitted" || chat.status === "streaming") {
+        core.trackRunStopped(threads.threadId);
+      }
+      return chat.stop(...args);
+    },
+    [chat, core, threads.threadId],
+  );
+  const regenerate = useCallback(
+    (...args: Parameters<typeof chat.regenerate>) => {
+      core.trackRegenerated(threads.threadId, chat.messages);
+      return chat.regenerate(...args);
+    },
+    [chat, core, threads.threadId],
+  );
+  const feedback = useCallback(
+    async (messageId: string, type: "positive" | "negative") => {
+      const threadId = threads.threadId;
+      if (!threadId) throw new Error("No active thread");
 
-  return { ...chat, threads };
+      const remoteMessageId = await core.persistence.getRemoteId(
+        threadId,
+        messageId,
+      );
+      if (!remoteMessageId) throw new Error("Message is not persisted yet");
+
+      await cloud.threads.messages.feedback(threadId, remoteMessageId, {
+        type,
+      });
+    },
+    [cloud, core.persistence, threads.threadId],
+  );
+
+  return { ...chat, stop, regenerate, threads, feedback };
 }
 
 function useResolvedCloud(

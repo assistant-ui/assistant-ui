@@ -4,7 +4,7 @@ description: Let users attach images, PDFs, and other files to AI chat messages 
 platforms: ["react"]
 ---
 
-import { AttachmentSample } from "@/components/docs/samples/attachment";
+import { AttachmentSample } from "@/components/pages/docs/samples/attachment";
 
 Enable users to attach files to their messages, enhancing conversations with images, documents, and other content.
 
@@ -29,7 +29,7 @@ First, add the attachment UI components to your project:
 
 <InstallCommand shadcn={["attachment"]} />
 
-This adds `/components/assistant-ui/attachment.tsx` to your project.
+This adds `/components/assistant-ui/elements/attachment.tsx` to your project.
 
 <Callout type="tip">
   **Next steps:** Feel free to adjust these auto-generated components (styling,
@@ -44,7 +44,7 @@ This adds `/components/assistant-ui/attachment.tsx` to your project.
 For `useChatRuntime`, attachments work automatically without additional configuration:
 
 ```tsx title="/app/MyRuntimeProvider.tsx"
-import { useChatRuntime } from "@assistant-ui/react-ai-sdk";
+import { useChatRuntime } from "@assistant-ui/ai-sdk";
 
 const runtime = useChatRuntime();
 ```
@@ -58,7 +58,7 @@ const runtime = useChatRuntime();
 
 ### Add UI Components
 
-Integrate the attachment components into your chat interface. See [Attachment UI components](/docs/ui/attachment) for the full install and usage guide.
+Integrate the attachment components into your chat interface. See [Attachment UI components](/elements/attachment) for the full install and usage guide.
 
   </Step>
 </Steps>
@@ -114,11 +114,11 @@ const compositeAdapter = new CompositeAttachmentAdapter([
 
 ## Creating Custom Attachment Adapters
 
-Build your own adapters for specialized file handling. Below are complete examples for common use cases. For `PendingAttachment` and `CompleteAttachment` type definitions, see [Attachment types](/docs/ui/attachment#attachment-types).
+Build your own adapters for specialized file handling. Below are complete examples for common use cases. For `PendingAttachment` and `CompleteAttachment` type definitions, see [Attachment types](/elements/attachment#attachment-types).
 
 ### Vision-Capable Image Adapter
 
-Send images to vision-capable LLMs like GPT-5.4, Claude Sonnet 4.6, or Gemini Pro Vision:
+Send images to vision-capable LLMs like GPT-5.6, Claude Sonnet 4.6, or Gemini Pro Vision:
 
 ```tsx
 import {
@@ -276,7 +276,7 @@ const MyModelAdapter: ChatModelAdapter = {
         msg.role === "user" &&
         msg.content.some((part) => part.type === "image")
       ) {
-        // Format for GPT-5.4 or similar vision models
+        // Format for GPT-5.6 or similar vision models
         return {
           role: "user",
           content: msg.content.map((part) => {
@@ -601,7 +601,7 @@ class ServerUploadAdapter implements AttachmentAdapter {
 ```
 
 <Callout type="tip">
-  [assistant-ui Cloud](/docs/cloud/ai-sdk-assistant-ui) includes `CloudFileAttachmentAdapter` which handles large file uploads via presigned URLs out of the box.
+  [assistant-ui Cloud](/docs/cloud/ai-sdk-assistant-ui) includes `CloudFileAttachmentAdapter`, which uploads through `cloud.files.generatePresignedUploadUrl` and persists the returned `publicUrl` with the message. For a private bucket, `cloud.files.generatePresignedDownloadUrl({ key })` or `cloud.files.generatePresignedDownloadUrl({ url })` returns a signed read URL together with its expiry.
 </Callout>
 
 ## Best Practices
@@ -615,5 +615,5 @@ class ServerUploadAdapter implements AttachmentAdapter {
 
 ## Resources
 
-- [Attachment UI Components](/docs/ui/attachment) - UI implementation details
+- [Attachment UI Components](/elements/attachment) - UI implementation details
 - [API Reference](/docs/api-reference/overview) - Detailed type definitions

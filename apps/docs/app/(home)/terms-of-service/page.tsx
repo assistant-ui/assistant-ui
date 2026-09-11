@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import type { ReactNode } from "react";
 import { createOgMetadata } from "@/lib/og";
+import { PageCopy, PageFrame } from "@/components/shared/page-frame";
 
 const title = "Terms of Service — assistant-ui";
 const description =
@@ -69,7 +70,7 @@ const sections = [
   {
     title: "8. User Generated Contributions",
     body: [
-      "The Services do not offer users the ability to submit or post content. If we provide you with the opportunity to create, submit, post, display, transmit, perform, publish, distribute, or broadcast content or materials, those contributions may be viewable by other users and through third-party websites.",
+      "Parts of the Services, such as the AI assistant and interactive playground on our website, allow you to submit content in the form of questions, prompts, and related material. Prompts you send to the AI assistant are not published to other users; we handle them as described in our Privacy Policy. Where the Services do give you the opportunity to create, submit, post, display, transmit, perform, publish, distribute, or broadcast content or materials, those contributions may be viewable by other users and through third-party websites.",
       "When you create or make available Contributions, you represent and warrant that they do not infringe third-party rights; that you have the necessary rights and permissions; that they are not false, misleading, unlawful, harassing, abusive, discriminatory, obscene, violent, or otherwise objectionable; and that they do not violate these Legal Terms or applicable law.",
     ],
   },
@@ -223,48 +224,52 @@ const sections = [
 
 export default function TermsOfServicePage() {
   return (
-    <main className="mx-auto w-full max-w-3xl px-4 py-16 md:py-24">
-      <header className="mb-12">
-        <p className="text-muted-foreground mb-3 text-sm">Legal</p>
-        <h1 className="text-3xl font-medium tracking-tight">
-          Terms of Service
-        </h1>
-        <p className="text-muted-foreground mt-3">Last updated July 18, 2024</p>
-        <p className="text-muted-foreground mt-6 leading-relaxed">
-          We are AgentbaseAI Inc. (&quot;Company,&quot; &quot;we,&quot;
-          &quot;us,&quot; or &quot;our&quot;), a company registered in Delaware.
-          We operate the website https://www.assistant-ui.com, as well as any
-          other related products and services that refer or link to these legal
-          terms.
-        </p>
-        <p className="text-muted-foreground mt-4 leading-relaxed">
-          These Legal Terms constitute a legally binding agreement between you
-          and AgentbaseAI Inc. concerning your access to and use of the
-          Services. If you do not agree with all of these Legal Terms, you are
-          prohibited from using the Services and must discontinue use
-          immediately.
-        </p>
-      </header>
+    <PageFrame pad="sub">
+      <PageCopy>
+        <header className="mb-12">
+          <p className="text-muted-foreground mb-3 text-sm">Legal</p>
+          <h1 className="text-3xl font-medium tracking-tight">
+            Terms of Service
+          </h1>
+          <p className="text-muted-foreground mt-3">
+            Last updated August 31, 2026
+          </p>
+          <p className="text-muted-foreground mt-6 leading-relaxed">
+            We are AgentbaseAI Inc. (&quot;Company,&quot; &quot;we,&quot;
+            &quot;us,&quot; or &quot;our&quot;), a company registered in
+            Delaware. We operate the website https://www.assistant-ui.com, as
+            well as any other related products and services that refer or link
+            to these legal terms.
+          </p>
+          <p className="text-muted-foreground mt-4 leading-relaxed">
+            These Legal Terms constitute a legally binding agreement between you
+            and AgentbaseAI Inc. concerning your access to and use of the
+            Services. If you do not agree with all of these Legal Terms, you are
+            prohibited from using the Services and must discontinue use
+            immediately.
+          </p>
+        </header>
 
-      <div className="space-y-10">
-        {sections.map((section) => (
-          <section key={section.title}>
-            <h2 className="text-xl font-medium tracking-tight">
-              {section.title}
-            </h2>
-            <div className="mt-4 space-y-4">
-              {section.body.map((paragraph, index) => (
-                <p
-                  key={index}
-                  className="text-muted-foreground leading-relaxed"
-                >
-                  {paragraph}
-                </p>
-              ))}
-            </div>
-          </section>
-        ))}
-      </div>
-    </main>
+        <div className="space-y-10">
+          {sections.map((section) => (
+            <section key={section.title}>
+              <h2 className="text-xl font-medium tracking-tight">
+                {section.title}
+              </h2>
+              <div className="mt-4 space-y-4">
+                {section.body.map((paragraph, index) => (
+                  <p
+                    key={index}
+                    className="text-muted-foreground leading-relaxed"
+                  >
+                    {paragraph}
+                  </p>
+                ))}
+              </div>
+            </section>
+          ))}
+        </div>
+      </PageCopy>
+    </PageFrame>
   );
 }

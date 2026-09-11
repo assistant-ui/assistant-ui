@@ -1,0 +1,161 @@
+---
+title: "Schedule"
+description: "A run that repeats on its own, with its cadence and how it has been doing."
+---
+
+A schedule card shows a run that repeats on its own: its cadence, when it runs next, and whether recent runs succeeded. It is a plain display; the schedule itself, and what pausing actually does, live in your own backend.
+
+## Getting started
+
+<StandaloneMode>
+
+<Steps>
+  <Step>
+
+### Render a schedule
+
+```tsx title="app/schedule.tsx"
+"use client";
+
+import { ScheduleCard, type ScheduleRun } from "@/components/assistant-ui/elements/schedule-card";
+
+const history: ScheduleRun[] = [
+  { id: "1", at: "Today 06:00", ok: true },
+  { id: "2", at: "Yesterday 06:00", ok: true },
+  { id: "3", at: "Tue 06:00", ok: false },
+];
+
+export function NightlyReport() {
+  return (
+    <ScheduleCard
+      name="Nightly report"
+      cadence="Daily at 06:00"
+      nextRun="Tomorrow 06:00"
+      enabled
+      history={history}
+    />
+  );
+}
+```
+
+  </Step>
+  <Step>
+
+### Wire the toggle
+
+`onToggle` only reports the click; `enabled` keeps driving the switch, so your handler owns flipping it (typically after the pause/resume request succeeds).
+
+```tsx
+"use client";
+
+import { useState } from "react";
+
+export function NightlyReport() {
+  const [enabled, setEnabled] = useState(true);
+
+  return (
+    <ScheduleCard
+      name="Nightly report"
+      cadence="Daily at 06:00"
+      nextRun="Tomorrow 06:00"
+      enabled={enabled}
+      history={history}
+      onToggle={async () => {
+        await setScheduleEnabled("nightly-report", !enabled);
+        setEnabled((prev) => !prev);
+      }}
+    />
+  );
+}
+```
+
+  </Step>
+</Steps>
+
+</StandaloneMode>
+
+## Anatomy
+
+```tsx
+<div data-slot="schedule-card">
+  <div>
+    <span>{/* clock icon avatar */}</span>
+    <div>
+      <span>{name}</span>
+      <span>{cadence}</span>
+    </div>
+    <button role="switch" aria-checked={enabled} />
+  </div>
+  <div>
+    <span>next</span>
+    <span>{/* nextRun, or the literal text "paused" */}</span>
+  </div>
+  <div>
+    <span>recent runs</span>
+    {/* one row per history entry */}
+    <span>{/* check or x */}</span>
+    <span>{run.at}</span>
+    <span>{/* "ok" or "failed" */}</span>
+  </div>
+</div>
+```
+
+The "next" row always renders. While `enabled` is true it shows `nextRun`; while false it shows the literal text "paused" and the whole row dims. The switch is a controlled visual: its track color and thumb position come entirely from `enabled`, and clicking it only fires `onToggle`, so nothing moves until your handler updates the prop. An empty `history` array renders the "recent runs" label with no rows below it.
+
+## Examples
+
+### A paused schedule
+
+```tsx
+<ScheduleCard name="Nightly report" cadence="Daily at 06:00" nextRun="Tomorrow 06:00" enabled={false} history={history} />
+```
+
+### Reading run history
+
+Each entry is independent of the others; a mix of successes and failures renders in the order you pass:
+
+```tsx
+<ScheduleCard
+  {...rest}
+  history={[
+    { id: "1", at: "Today 06:00", ok: true },
+    { id: "2", at: "Yesterday 06:00", ok: false },
+  ]}
+/>
+```
+
+### Restyle the card
+
+The root uses the shared `paper` surface; the cadence, "next", and "recent runs" labels use `mono`, and the "next" row sits in a `field` pill.
+
+```tsx
+<ScheduleCard className="max-w-md rounded-3xl" {...rest} />
+```
+
+## API reference
+
+<StandaloneMode>
+
+### ScheduleCard
+
+| Prop | Type | Default | Description |
+|------|------|---------|-------------|
+| `name` | `string` | required | Truncated title. |
+| `cadence` | `string` | required | Shown under the name. |
+| `nextRun` | `string` | required | Shown in the "next" row while `enabled` is true. |
+| `enabled` | `boolean` | required | Drives the switch and whether `nextRun` or "paused" shows. |
+| `history` | `readonly ScheduleRun[]` | required | Recent runs, in the order you pass. |
+| `onToggle` | `() => void` | | Called when the switch is clicked. Does not itself change `enabled`. |
+| `className` | `string` | | Merged onto the root. |
+
+### ScheduleRun
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `id` | `string` | Row key. |
+| `at` | `string` | Row label; any format you choose. |
+| `ok` | `boolean` | Selects the check/cross icon and the "ok"/"failed" label. |
+
+All other `div` props are forwarded to the root.
+
+</StandaloneMode>

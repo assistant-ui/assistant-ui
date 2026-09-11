@@ -5,7 +5,7 @@ import type { Metadata } from "next";
 export const metadata: Metadata = {
   title: "tw-shimmer by assistant-ui",
   description:
-    "A zero-dependency Tailwind CSS v4 plugin for beautiful shimmer effects. Fully customizable, performant, and easy to use.",
+    "Zero-dependency Tailwind v4 shimmer for text and skeleton loaders. Pure CSS.",
 };
 
 export default function TwShimmerHomeLayout({

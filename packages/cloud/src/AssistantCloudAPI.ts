@@ -3,11 +3,25 @@ import {
   AssistantCloudJWTAuthStrategy,
   AssistantCloudAPIKeyAuthStrategy,
   AssistantCloudAnonymousAuthStrategy,
+  normalizeBaseUrl,
 } from "./AssistantCloudAuthStrategy";
 import type { AssistantCloudRunReport } from "./AssistantCloudRuns";
 
 export type AssistantCloudTelemetryConfig = {
+  /**
+   * Enables Assistant Cloud telemetry. Defaults to `true`. Set to `false` to
+   * disable both run reports and engagement events.
+   */
   enabled?: boolean;
+  /**
+   * Enables Assistant Cloud engagement events. Defaults to `true` when
+   * telemetry is enabled. Set to `false` to keep run reports while disabling
+   * engagement events.
+   */
+  events?: boolean;
+  release?: string;
+  environment?: string;
+  tags?: string[];
   /**
    * Called before each telemetry report is sent.
    * Return a modified report to enrich it (e.g. add `model_id`),
@@ -50,10 +64,19 @@ export type AssistantCloudConfig = (
 
 export class CloudAPIError extends Error {
   public readonly status: number;
+  public readonly code?: string;
+  public readonly details?: Record<string, unknown>;
 
-  constructor(message: string, status: number) {
+  constructor(
+    message: string,
+    status: number,
+    code?: string,
+    details?: Record<string, unknown>,
+  ) {
     super(message);
     this.status = status;
+    if (code !== undefined) this.code = code;
+    if (details !== undefined) this.details = details;
     this.name = "CloudAPIError";
   }
 }
@@ -63,11 +86,7 @@ type MakeRequestOptions = {
   headers?: Record<string, string> | undefined;
   query?: Record<string, string | number | boolean> | undefined;
   body?: object | undefined;
-};
-
-const normalizeBaseUrl = (baseUrl: string) => {
-  if (!baseUrl || !baseUrl.endsWith("/")) return baseUrl;
-  return baseUrl.slice(0, -1);
+  keepalive?: boolean | undefined;
 };
 
 export class AssistantCloudAPI {
@@ -133,22 +152,36 @@ export class AssistantCloudAPI {
       method: options.method ?? "GET",
       headers,
       body: options.body ? JSON.stringify(options.body) : null,
+      ...(options.keepalive ? { keepalive: true } : {}),
     });
 
     this._auth.readAuthHeaders(response.headers);
 
     if (!response.ok) {
       const text = await response.text();
+      let message: string | undefined;
+      let code: string | undefined;
+      let details: Record<string, unknown> | undefined;
       try {
-        const body = JSON.parse(text);
-        throw new CloudAPIError(body.message, response.status);
-      } catch (error) {
-        if (error instanceof CloudAPIError) throw error;
-        throw new CloudAPIError(
-          `Request failed with status ${response.status}, ${text}`,
-          response.status,
-        );
-      }
+        const body = JSON.parse(text) as unknown;
+        if (typeof body === "object" && body !== null && !Array.isArray(body)) {
+          const record = body as Record<string, unknown>;
+          if (typeof record.message === "string" && record.message.length > 0) {
+            message = record.message;
+          }
+          if (typeof record.error === "string") {
+            code = record.error;
+            details = { ...record };
+            delete details.error;
+          }
+        }
+      } catch {}
+      throw new CloudAPIError(
+        message ?? `Request failed with status ${response.status}, ${text}`,
+        response.status,
+        code,
+        details,
+      );
     }
 
     return response;

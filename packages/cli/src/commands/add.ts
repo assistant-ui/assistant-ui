@@ -5,13 +5,12 @@ import {
   getComponentsJsonStyle,
   resolveRegistryItemUrl,
 } from "../lib/utils/registry";
+import { dlxCommand, resolvePackageManager } from "../lib/create-project";
+import { runSpawn, SpawnExitError, SpawnSignalError } from "../lib/run-spawn";
 import {
-  dlxCommand,
-  resolvePackageManager,
-  resolvePackageManagerForCwd,
   type PackageManagerName,
-} from "../lib/create-project";
-import { runSpawn, SpawnExitError } from "../lib/run-spawn";
+  resolvePackageManagerForCwd,
+} from "../lib/utils/package-manager";
 
 export interface AddComponentsPlan {
   command: string;
@@ -23,7 +22,6 @@ export function createAddComponentsPlan(params: {
   packageManager: PackageManagerName;
   yes?: boolean;
   overwrite?: boolean;
-  cwd?: string;
   path?: string;
   style?: string;
 }): AddComponentsPlan {
@@ -41,7 +39,6 @@ export function createAddComponentsPlan(params: {
   // This flag is for shadcn's own confirmation prompt.
   if (params.yes) args.push("--yes");
   if (params.overwrite) args.push("--overwrite");
-  if (params.cwd) args.push("--cwd", params.cwd);
   if (params.path) args.push("--path", params.path);
 
   return { command, args };
@@ -84,7 +81,6 @@ export const add = new Command()
       packageManager,
       yes: opts.yes,
       overwrite: opts.overwrite,
-      cwd: opts.cwd,
       path: opts.path,
       ...(style === undefined ? {} : { style }),
     });
@@ -92,6 +88,7 @@ export const add = new Command()
     try {
       await runSpawn(command, args, opts.cwd);
     } catch (error) {
+      if (error instanceof SpawnSignalError) throw error;
       if (error instanceof SpawnExitError) {
         logger.error(`Process exited with code ${error.code}`);
         process.exit(error.code);

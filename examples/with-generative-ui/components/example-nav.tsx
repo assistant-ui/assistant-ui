@@ -1,9 +1,10 @@
 import Link from "next/link";
 
 const links = [
-  { href: "/", label: "Tool UI demo" },
-  { href: "/primitive", label: "Static primitive" },
-  { href: "/gui-chat", label: "GUI chat" },
+  { href: "/", label: "Generative UI" },
+  { href: "/tool-ui", label: "Tool UI" },
+  { href: "/primitive", label: "Static primitive (legacy)" },
+  { href: "/gui-chat", label: "GUI chat (legacy)" },
 ] as const;
 
 export function ExampleNav() {

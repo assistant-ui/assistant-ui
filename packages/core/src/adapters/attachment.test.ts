@@ -1,5 +1,10 @@
 import { afterEach, describe, expect, it } from "vitest";
-import { getFileDataURL, SimpleImageAttachmentAdapter } from "./attachment";
+import {
+  type AttachmentAdapter,
+  CompositeAttachmentAdapter,
+  getFileDataURL,
+  SimpleImageAttachmentAdapter,
+} from "./attachment";
 
 const originalFileReader = globalThis.FileReader;
 const originalBuffer = globalThis.Buffer;
@@ -104,4 +109,48 @@ describe("SimpleImageAttachmentAdapter", () => {
       `data:image/png;base64,${originalBuffer.from("img").toString("base64")}`,
     );
   });
+});
+
+describe("CompositeAttachmentAdapter", () => {
+  it.each(["pending", "complete"])(
+    "removes a %s attachment through its matching adapter",
+    async (status) => {
+      const removed: string[] = [];
+      const imageAdapter = {
+        accept: "image/*",
+        async add({ file }) {
+          return {
+            id: "image-1",
+            type: "image",
+            name: file.name,
+            file,
+            status: { type: "requires-action", reason: "composer-send" },
+          };
+        },
+        async send(attachment) {
+          return {
+            id: attachment.id,
+            type: attachment.type,
+            name: attachment.name,
+            contentType: attachment.file.type,
+            status: { type: "complete" },
+            content: [],
+          };
+        },
+        async remove(attachment) {
+          removed.push(attachment.id);
+        },
+      } satisfies AttachmentAdapter;
+      const composite = new CompositeAttachmentAdapter([imageAdapter]);
+      const pending = await imageAdapter.add({
+        file: new File(["image bytes"], "photo.png", { type: "image/png" }),
+      });
+      const attachment =
+        status === "pending" ? pending : await composite.send(pending);
+
+      await composite.remove(attachment);
+
+      expect(removed).toEqual(["image-1"]);
+    },
+  );
 });

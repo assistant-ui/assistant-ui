@@ -51,15 +51,11 @@ const API_REF_FILTER: ReadonlySet<InheritedFrom> = new Set([
   "react",
   "csstype",
   "react-textarea-autosize",
-  "tw",
 ]);
 
 function shouldDropForApiRef(prop: PropModel): boolean {
   // Always show asChild even if its declaration site is third-party.
   if (prop.name === "asChild") return false;
-  // Drop the legacy "tw" pseudo-prop by name (used to live on every component
-  // before tailwind-variants was internalized).
-  if (prop.name === "tw") return true;
   return (
     prop.inheritedFrom !== undefined && API_REF_FILTER.has(prop.inheritedFrom)
   );

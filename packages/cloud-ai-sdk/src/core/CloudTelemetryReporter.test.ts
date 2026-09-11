@@ -40,6 +40,9 @@ function event(
 function createCloud(overrides?: {
   enabled?: boolean;
   beforeReport?: (report: any) => any;
+  release?: string;
+  environment?: string;
+  tags?: string[];
 }) {
   const reportMock = vi.fn().mockResolvedValue({ run_id: "run-1" });
   const cloud = {
@@ -48,6 +51,13 @@ function createCloud(overrides?: {
       ...(overrides?.beforeReport
         ? { beforeReport: overrides.beforeReport }
         : undefined),
+      ...(overrides?.release != null
+        ? { release: overrides.release }
+        : undefined),
+      ...(overrides?.environment != null
+        ? { environment: overrides.environment }
+        : undefined),
+      ...(overrides?.tags != null ? { tags: overrides.tags } : undefined),
     },
     runs: { report: reportMock },
   } as unknown as AssistantCloud;
@@ -67,31 +77,52 @@ describe("CloudTelemetryReporter", () => {
   });
 
   it("reports with correct payload when enabled", async () => {
-    const { cloud, reportMock } = createCloud();
+    const { cloud, reportMock } = createCloud({
+      release: "web-2026.09.08",
+      environment: "production",
+      tags: ["region:sg", "tier:paid"],
+    });
     const reporter = new CloudTelemetryReporter(cloud);
 
-    await reporter.reportFromMessages("thread-1", [
-      assistantMsg("m-1", "hello", {
-        modelId: "gpt-5.4-nano",
-        usage: {
-          promptTokens: 100,
-          completionTokens: 50,
-          reasoningTokens: 20,
-          cachedInputTokens: 10,
-        },
-      }),
-    ]);
+    await reporter.reportFromMessages(
+      "thread-1",
+      [
+        assistantMsg("m-1", "hello", {
+          modelId: "gpt-5.6-luna",
+          traceId: "AABBCCDDEEFF00112233445566778899",
+          provider: "gateway",
+          usage: {
+            promptTokens: 100,
+            completionTokens: 50,
+            reasoningTokens: 20,
+            cachedInputTokens: 10,
+          },
+        }),
+      ],
+      undefined,
+      { durationMs: 25.6, firstTokenMs: 7.4 },
+      () => "remote-m-1",
+    );
 
     expect(reportMock).toHaveBeenCalledOnce();
     expect(reportMock).toHaveBeenCalledWith({
       thread_id: "thread-1",
       status: "completed",
-      model_id: "gpt-5.4-nano",
+      model_id: "gpt-5.6-luna",
+      trace_id: "aabbccddeeff00112233445566778899",
+      provider: "gateway",
+      provider_type: "gateway",
+      message_id: "remote-m-1",
       input_tokens: 100,
       output_tokens: 50,
       reasoning_tokens: 20,
       cached_input_tokens: 10,
       output_text: "hello",
+      duration_ms: 26,
+      first_token_ms: 7,
+      release: "web-2026.09.08",
+      environment: "production",
+      tags: ["region:sg", "tier:paid"],
     });
   });
 
@@ -170,6 +201,8 @@ describe("CloudTelemetryReporter", () => {
 
     expect(reportMock).toHaveBeenCalledOnce();
     expect(reportMock.mock.calls[0]![0]!.status).toBe("completed");
+    expect(reportMock.mock.calls[0]![0]).not.toHaveProperty("outcome_type");
+    expect(reportMock.mock.calls[0]![0]).not.toHaveProperty("message_id");
   });
 
   it("maps finishReason='length' / 'content-filter' to incomplete", async () => {
@@ -182,6 +215,7 @@ describe("CloudTelemetryReporter", () => {
       event({ finishReason: "length" }),
     );
     expect(reportMock.mock.calls[0]![0]!.status).toBe("incomplete");
+    expect(reportMock.mock.calls[0]![0]!.outcome_type).toBe("length");
 
     await reporter.reportFromMessages(
       "thread-2",
@@ -191,6 +225,7 @@ describe("CloudTelemetryReporter", () => {
       }),
     );
     expect(reportMock.mock.calls[1]![0]!.status).toBe("incomplete");
+    expect(reportMock.mock.calls[1]![0]!.outcome_type).toBe("content_filter");
   });
 
   it("maps isError to error status", async () => {
@@ -231,6 +266,7 @@ describe("CloudTelemetryReporter", () => {
       event({ isAbort: true }),
     );
     expect(reportMock.mock.calls[0]![0]!.status).toBe("incomplete");
+    expect(reportMock.mock.calls[0]![0]!.outcome_type).toBe("aborted");
 
     await reporter.reportFromMessages(
       "thread-2",
@@ -238,6 +274,7 @@ describe("CloudTelemetryReporter", () => {
       event({ isDisconnect: true }),
     );
     expect(reportMock.mock.calls[1]![0]!.status).toBe("incomplete");
+    expect(reportMock.mock.calls[1]![0]!.outcome_type).toBe("disconnected");
   });
 
   it("skips mid-loop reports when finishReason='tool-calls' and tools are resolved", async () => {
@@ -289,6 +326,10 @@ describe("CloudTelemetryReporter", () => {
     const payload = reportMock.mock.calls[0]![0]!;
     expect(payload.status).toBe("completed");
     expect(payload.output_text).toBe("thanks for the answers");
+    expect(payload.steps).toEqual([
+      { finish_reason: "tool-calls" },
+      { finish_reason: "stop" },
+    ]);
   });
 
   it("reports finishReason='tool-calls' when tools are not all resolved (terminal)", async () => {
@@ -314,6 +355,40 @@ describe("CloudTelemetryReporter", () => {
 
     expect(reportMock).toHaveBeenCalledOnce();
     expect(reportMock.mock.calls[0]![0]!.status).toBe("completed");
+  });
+
+  it("keeps the message-shape status when the event carries no finish reason", async () => {
+    const { cloud, reportMock } = createCloud();
+    const reporter = new CloudTelemetryReporter(cloud);
+
+    await reporter.reportFromMessages(
+      "thread-1",
+      [assistantMsgWithParts("m-1", [{ type: "step-start" }])],
+      event({}),
+    );
+
+    expect(reportMock).toHaveBeenCalledOnce();
+    expect(reportMock.mock.calls[0]![0]!.status).toBe("incomplete");
+  });
+
+  it("reports the failed run's error message and code", async () => {
+    const { cloud, reportMock } = createCloud();
+    const reporter = new CloudTelemetryReporter(cloud);
+    const error = new Error("Rate limited");
+    error.name = "AI_APICallError";
+
+    await reporter.reportFromMessages(
+      "thread-1",
+      [assistantMsg("m-1", "")],
+      event({ isError: true, error }),
+    );
+
+    expect(reportMock).toHaveBeenCalledOnce();
+    expect(reportMock.mock.calls[0]![0]).toMatchObject({
+      status: "error",
+      error: "Rate limited",
+      error_code: "AI_APICallError",
+    });
   });
 
   it("falls back to the message-shape heuristic when no event is provided", async () => {

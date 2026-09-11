@@ -35,7 +35,7 @@ import { normalizeEventSelector } from "./types/events";
  * @example
  * ```tsx
  * // React to thread switches.
- * useAuiEvent("threadListItem.switchedTo", () => {
+ * useAuiEvent("threads.selectionChanged", () => {
  *   resetLocalState();
  * });
  * ```

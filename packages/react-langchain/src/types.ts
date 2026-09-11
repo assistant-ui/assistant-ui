@@ -17,45 +17,7 @@ import type {
   SubgraphDiscoverySnapshot,
 } from "@langchain/react";
 
-/** Known content block types from @langchain/core messages. */
-export type LangChainContentBlock =
-  | { type: "text"; text: string }
-  | { type: "text_delta"; text: string }
-  | { type: "image_url"; image_url: string | { url?: string } }
-  | { type: "thinking"; thinking: string }
-  | {
-      type: "reasoning";
-      summary?: Array<{ type: "summary_text"; text?: string }>;
-      reasoning?: string;
-    }
-  | {
-      type: "file";
-      data: string;
-      mime_type: string;
-      source_type?: "base64";
-      metadata?: { filename?: string };
-    }
-  | {
-      type: "file";
-      url: string;
-      mime_type?: string;
-      source_type: "url";
-      metadata?: { filename?: string };
-    }
-  | {
-      type: "file";
-      id: string;
-      mime_type?: string;
-      source_type: "id";
-      metadata?: { filename?: string };
-    }
-  | {
-      type: "audio";
-      data: string;
-      mime_type: string;
-      source_type: "base64";
-    }
-  | { type: "tool_use" | "input_json_delta" };
+export type { LangChainContentBlock } from "./converter";
 
 export type LangChainToolCall = {
   id: string;

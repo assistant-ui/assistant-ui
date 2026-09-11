@@ -1,0 +1,102 @@
+---
+title: Tool UI
+description: Render AI SDK tool calls with Vue components, text descriptors, and human-in-the-loop actions.
+---
+
+`MessagePrimitiveParts` renders a registered tool UI for matching tool-call parts. A Vue tool UI receives one required `tool` prop of type `ToolUIProps`. Vue does not spread tool-call fields into the component because undeclared props fall through to the DOM. Read all tool state and callbacks from `tool` instead.
+
+## Register tool UIs in config
+
+Use `Tools({ toolkit })` when the toolkit and its renderers belong to the assistant configuration. The tools scope registers the renderers for message rendering and exposes the toolkit to model context.
+
+```ts title="app/components/Assistant.client.vue"
+import { AuiConfig } from "@assistant-ui/vue";
+import { AISDKChat } from "@assistant-ui/ai-sdk";
+import { Tools } from "@assistant-ui/core/react";
+import { toolkit } from "~/toolkit";
+
+const config = AuiConfig({
+  threads: AISDKChat(),
+  tools: Tools({ toolkit }),
+});
+```
+
+For a tool that only has status text, a toolkit entry can use `renderText`. String and number results render in Vue without a component. A descriptor that returns a React element is React-only and renders nothing in Vue.
+
+```ts title="app/toolkit.ts"
+export const toolkit = {
+  weather: {
+    type: "backend",
+    renderText: {
+      running: ({ args }: { args: { city: string } }) => `Checking ${args.city}`,
+      complete: ({ result }: { result: { temperature: number } }) => `${result.temperature}°C`,
+    },
+  },
+};
+```
+
+## Register a Vue component at runtime
+
+Use `aui.tools.setToolUI` when the renderer is local to a Vue subtree or must follow the component lifecycle. It returns an unregister function.
+
+```vue title="app/components/RegisterToolUIs.vue"
+<script setup lang="ts">
+import { onMounted, onUnmounted } from "vue";
+import { useAui } from "@assistant-ui/vue";
+import type { ToolCallMessagePartComponent } from "@assistant-ui/core/react";
+import WeatherToolUI from "./WeatherToolUI.vue";
+
+const aui = useAui();
+let unregister: (() => void) | undefined;
+
+onMounted(() => {
+  unregister = aui.tools.setToolUI(
+    "weather",
+    WeatherToolUI as unknown as ToolCallMessagePartComponent,
+  );
+});
+
+onUnmounted(() => unregister?.());
+</script>
+
+<template><slot /></template>
+```
+
+Declare the single `tool` prop in the Vue component:
+
+```vue title="app/components/WeatherToolUI.vue"
+<script setup lang="ts">
+import { computed, type PropType } from "vue";
+import type { ToolUIProps } from "@assistant-ui/vue";
+
+const props = defineProps({
+  tool: { type: Object as PropType<ToolUIProps>, required: true },
+});
+
+const city = computed(() => (props.tool.part.args as { city?: string }).city);
+const result = computed(
+  () => props.tool.part.result as { temperature: number; condition: string } | undefined,
+);
+</script>
+
+<template>
+  <p v-if="result">{{ city }}: {{ result.temperature }}°C, {{ result.condition }}</p>
+  <p v-else>Checking {{ city }}…</p>
+</template>
+```
+
+## Human-in-the-loop actions
+
+`ToolUIProps` also supplies the callbacks for a pending tool call:
+
+```ts
+tool.addResult(result);
+tool.resume(payload);
+tool.respondToApproval({ approved: true });
+```
+
+Call `addResult` to provide a tool result, `resume` to continue a paused tool call with its payload, and `respondToApproval` with the user's approval response. The runtime forwards these actions to the matching adapter callbacks.
+
+## Chain of thought
+
+`ChainOfThoughtPrimitiveParts` iterates the current chain-of-thought parts through its default slot. It does not hide itself when `s.chainOfThought.collapsed` is true. Gate the containing UI with `AuiIf` when collapsed content should be hidden. Use `MessagePrimitiveParts` for the normal message path that dispatches registered tool UIs.

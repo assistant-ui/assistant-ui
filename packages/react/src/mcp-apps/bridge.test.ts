@@ -37,6 +37,104 @@ async function flush() {
 }
 
 describe("createMcpAppBridge", () => {
+  it("ignores requests and notifications after disposal", async () => {
+    const { frame, captured } = makeFrame();
+    const callTool = vi.fn().mockResolvedValue({ ok: true });
+    const onInitialized = vi.fn();
+    const bridge = createMcpAppBridge({
+      frame,
+      handlers: { callTool, onInitialized },
+    });
+
+    bridge.dispose();
+    expect(() => bridge.dispose()).not.toThrow();
+
+    deliver(bridge, {
+      jsonrpc: "2.0",
+      id: 1,
+      method: "tools/call",
+      params: { name: "search" },
+    });
+    deliver(bridge, {
+      jsonrpc: "2.0",
+      method: "notifications/initialized",
+    });
+    await flush();
+
+    expect(callTool).not.toHaveBeenCalled();
+    expect(onInitialized).not.toHaveBeenCalled();
+    expect(captured).toEqual([]);
+  });
+
+  it("does not send a response after disposal", async () => {
+    const { frame, captured } = makeFrame();
+    let resolveCall!: (value: unknown) => void;
+    const callTool = vi.fn(
+      () =>
+        new Promise((resolve) => {
+          resolveCall = resolve;
+        }),
+    );
+    const bridge = createMcpAppBridge({ frame, handlers: { callTool } });
+
+    deliver(bridge, {
+      jsonrpc: "2.0",
+      id: 1,
+      method: "tools/call",
+      params: { name: "search" },
+    });
+    expect(callTool).toHaveBeenCalledOnce();
+
+    bridge.dispose();
+    resolveCall({ ok: true });
+    await flush();
+
+    expect(captured).toEqual([]);
+  });
+
+  it("does not report an async error after disposal", async () => {
+    const { frame, captured } = makeFrame();
+    let rejectCall!: (reason?: unknown) => void;
+    const callTool = vi.fn(
+      () =>
+        new Promise((_resolve, reject) => {
+          rejectCall = reject;
+        }),
+    );
+    const onError = vi.fn();
+    const bridge = createMcpAppBridge({
+      frame,
+      handlers: { callTool, onError },
+    });
+
+    deliver(bridge, {
+      jsonrpc: "2.0",
+      id: 1,
+      method: "tools/call",
+      params: { name: "search" },
+    });
+    expect(callTool).toHaveBeenCalledOnce();
+
+    bridge.dispose();
+    rejectCall(new Error("tool failed"));
+    await flush();
+
+    expect(onError).not.toHaveBeenCalled();
+    expect(captured).toEqual([]);
+  });
+
+  it("does not send host notifications after disposal", () => {
+    const { frame, captured } = makeFrame();
+    const bridge = createMcpAppBridge({ frame });
+
+    bridge.dispose();
+    bridge.notifyToolInput({ query: "hello" });
+    bridge.notifyToolResult({ answer: "world" });
+    bridge.notifyHostContextChanged({ theme: "dark" });
+
+    expect(captured).toEqual([]);
+  });
+
   it("responds to ui/initialize with host info, version, and capabilities", async () => {
     const { frame, captured } = makeFrame();
     const bridge = createMcpAppBridge({
@@ -123,6 +221,53 @@ describe("createMcpAppBridge", () => {
     });
     bridge.dispose();
   });
+
+  it.each([
+    [
+      "throws",
+      () => {
+        throw new Error("error callback failed");
+      },
+    ],
+    ["rejects", () => Promise.reject(new Error("error callback failed"))],
+  ])(
+    "returns an error response when onError %s",
+    async (_behavior, onErrorCallback) => {
+      const { frame, captured } = makeFrame();
+      const callTool = vi.fn().mockRejectedValue(new Error("tool failed"));
+      const consoleError = vi
+        .spyOn(console, "error")
+        .mockImplementation(() => {});
+      const onError = vi.fn(onErrorCallback);
+      const bridge = createMcpAppBridge({
+        frame,
+        handlers: { callTool, onError },
+      });
+
+      deliver(bridge, {
+        jsonrpc: "2.0",
+        id: 8,
+        method: "tools/call",
+        params: { name: "search" },
+      });
+      await flush();
+
+      expect(onError).toHaveBeenCalledWith(new Error("tool failed"));
+      expect(captured).toEqual([
+        {
+          jsonrpc: "2.0",
+          id: 8,
+          error: { code: -32603, message: "tool failed" },
+        },
+      ]);
+      expect(consoleError).toHaveBeenCalledWith(
+        "[assistant-ui] MCP App onError callback threw an error",
+        new Error("error callback failed"),
+      );
+      consoleError.mockRestore();
+      bridge.dispose();
+    },
+  );
 
   it("rejects tools/call for disallowed tool with -32602", async () => {
     const { frame, captured } = makeFrame();
@@ -241,6 +386,60 @@ describe("createMcpAppBridge", () => {
 
     expect(onSizeChange).toHaveBeenCalledWith({ width: 320, height: 240 });
     expect(onInitialized).toHaveBeenCalled();
+    bridge.dispose();
+  });
+
+  it("isolates throwing notification handlers and reports their errors", () => {
+    const { frame, captured } = makeFrame();
+    const initializedError = new Error("initialized callback failed");
+    const sizeChangeError = new Error("size change callback failed");
+    const teardownError = new Error("teardown callback failed");
+    const onError = vi.fn();
+    const bridge = createMcpAppBridge({
+      frame,
+      handlers: {
+        onInitialized: () => {
+          throw initializedError;
+        },
+        onSizeChange: () => {
+          throw sizeChangeError;
+        },
+        onLog: () => {
+          throw "log callback failed";
+        },
+        onRequestTeardown: () => {
+          throw teardownError;
+        },
+        onError,
+      },
+    });
+
+    expect(() => {
+      deliver(bridge, {
+        jsonrpc: "2.0",
+        method: "notifications/initialized",
+      });
+      deliver(bridge, {
+        jsonrpc: "2.0",
+        method: "notifications/size_changed",
+      });
+      deliver(bridge, {
+        jsonrpc: "2.0",
+        method: "notifications/log",
+      });
+      deliver(bridge, {
+        jsonrpc: "2.0",
+        method: "notifications/request_teardown",
+      });
+    }).not.toThrow();
+
+    expect(onError.mock.calls.map(([error]) => error)).toEqual([
+      initializedError,
+      sizeChangeError,
+      new Error("log callback failed"),
+      teardownError,
+    ]);
+    expect(captured).toEqual([]);
     bridge.dispose();
   });
 
@@ -426,6 +625,58 @@ describe("createMcpAppBridge", () => {
     expect(onLog).toHaveBeenCalledWith({ level: "info", message: "hello" });
     expect(onError).toHaveBeenCalled();
     expect(onRequestTeardown).toHaveBeenCalledWith({ reason: "done" });
+    bridge.dispose();
+  });
+
+  it("isolates a throwing onError from widget error notifications", () => {
+    const { frame } = makeFrame();
+    const callbackError = new Error("error callback failed");
+    const consoleError = vi
+      .spyOn(console, "error")
+      .mockImplementation(() => {});
+    const onError = vi.fn(() => {
+      throw callbackError;
+    });
+    const bridge = createMcpAppBridge({
+      frame,
+      handlers: { callTool: vi.fn(), onError },
+    });
+
+    expect(() =>
+      deliver(bridge, {
+        jsonrpc: "2.0",
+        method: "notifications/error",
+        params: { message: "kaboom" },
+      }),
+    ).not.toThrow();
+
+    expect(onError).toHaveBeenCalledWith(new Error("kaboom"));
+    expect(consoleError).toHaveBeenCalledWith(
+      "[assistant-ui] MCP App onError callback threw an error",
+      callbackError,
+    );
+    consoleError.mockRestore();
+    bridge.dispose();
+  });
+
+  it("preserves the onError receiver", () => {
+    const { frame } = makeFrame();
+    const handlers = {
+      calls: 0,
+      onError() {
+        expect(this).toBe(handlers);
+        this.calls += 1;
+      },
+    };
+    const bridge = createMcpAppBridge({ frame, handlers });
+
+    deliver(bridge, {
+      jsonrpc: "2.0",
+      method: "notifications/error",
+      params: { message: "kaboom" },
+    });
+
+    expect(handlers.calls).toBe(1);
     bridge.dispose();
   });
 });

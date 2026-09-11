@@ -1,5 +1,8 @@
 import type { ReadonlyJSONObject } from "assistant-stream/utils";
 import type { AssistantCloud } from "./AssistantCloud";
+import type { CloudMessage } from "./AssistantCloudThreadMessages";
+
+const CLOUD_MESSAGE_PAGE_SIZE = 200;
 
 /**
  * Shared persistence logic for cloud message storage.
@@ -13,7 +16,7 @@ import type { AssistantCloud } from "./AssistantCloud";
  * to get its remote ID before creating B.
  */
 export class CloudMessagePersistence {
-  private idMapping: Record<string, string | Promise<string>> = {};
+  private idMapping = new Map<string, string | Promise<string>>();
   private getCloud: () => AssistantCloud;
 
   constructor(cloud: AssistantCloud);
@@ -39,32 +42,37 @@ export class CloudMessagePersistence {
     content: ReadonlyJSONObject,
   ): Promise<void> {
     const cloud = this.getCloud();
-    // Resolve parent's remote ID if it exists (may be a promise if concurrent)
-    const resolvedParentId = parentId
-      ? ((await this.idMapping[parentId]) ?? parentId)
-      : null;
+    const existing = this.idMapping.get(messageId);
+    if (existing instanceof Promise) {
+      await existing;
+      return;
+    }
 
-    const task = cloud.threads.messages
-      .create(threadId, {
+    const task = (async () => {
+      const parentEntry = parentId ? this.idMapping.get(parentId) : undefined;
+      const resolvedParentId = parentId
+        ? ((await parentEntry) ?? parentId)
+        : null;
+      const { message_id } = await cloud.threads.messages.create(threadId, {
         parent_id: resolvedParentId,
         format,
         content,
-      })
-      .then(({ message_id }) => {
-        this.idMapping[messageId] = message_id;
-        return message_id;
-      })
-      .catch((err) => {
-        // Only delete if we're still the active task (avoids clobbering a retry)
-        if (this.idMapping[messageId] === task) {
-          delete this.idMapping[messageId];
-        }
-        throw err;
       });
+      return message_id;
+    })();
 
-    // Store the promise immediately so concurrent appends can await it
-    this.idMapping[messageId] = task;
-    return task.then(() => {});
+    this.idMapping.set(messageId, task);
+    try {
+      const remoteId = await task;
+      if (this.idMapping.get(messageId) === task) {
+        this.idMapping.set(messageId, remoteId);
+      }
+    } catch (err) {
+      if (this.idMapping.get(messageId) === task) {
+        this.idMapping.delete(messageId);
+      }
+      throw err;
+    }
   }
 
   /**
@@ -91,7 +99,7 @@ export class CloudMessagePersistence {
    * Check if a message has been persisted (or is currently being persisted).
    */
   isPersisted(messageId: string): boolean {
-    return messageId in this.idMapping;
+    return this.idMapping.has(messageId);
   }
 
   /**
@@ -99,13 +107,21 @@ export class CloudMessagePersistence {
    * Returns undefined if not persisted.
    */
   async getRemoteId(messageId: string): Promise<string | undefined> {
-    const entry = this.idMapping[messageId];
+    const entry = this.idMapping.get(messageId);
     if (!entry) return undefined;
     return entry;
   }
 
+  getResolvedRemoteId(messageId: string): string | undefined {
+    const entry = this.idMapping.get(messageId);
+    return typeof entry === "string" ? entry : undefined;
+  }
+
   /**
    * Load messages from the cloud and populate the ID mapping.
+   *
+   * The list endpoint caps a response at 200 rows, so pages are followed by
+   * message ID cursor until a short page and concatenated in server order.
    *
    * The ID mapping is populated so that `isPersisted()` returns true for
    * loaded messages, preventing re-persistence of already-stored messages.
@@ -116,13 +132,33 @@ export class CloudMessagePersistence {
    */
   async load(threadId: string, format?: string) {
     const cloud = this.getCloud();
-    const { messages } = await cloud.threads.messages.list(
-      threadId,
-      format ? { format } : undefined,
-    );
+    const messages: CloudMessage[] = [];
+    const seen = new Set<string>();
+    let after: string | undefined;
+
+    while (true) {
+      const page = await cloud.threads.messages.list(threadId, {
+        ...(format ? { format } : undefined),
+        limit: CLOUD_MESSAGE_PAGE_SIZE,
+        ...(after ? { after } : undefined),
+      });
+      const last = page.messages.at(-1);
+      if (!last) break;
+
+      // A cursor the server cannot resolve drops the keyset filter and replays
+      // an earlier page, so already-seen rows end the walk instead of repeating.
+      const fresh = page.messages.filter((m) => !seen.has(m.id));
+      if (fresh.length === 0) break;
+      for (const m of fresh) seen.add(m.id);
+
+      messages.push(...fresh);
+      if (page.messages.length < CLOUD_MESSAGE_PAGE_SIZE) break;
+      after = last.id;
+    }
+
     // Populate ID mapping so isPersisted() recognizes loaded messages
     for (const m of messages) {
-      this.idMapping[m.id] = m.id;
+      this.idMapping.set(m.id, m.id);
     }
     return messages;
   }
@@ -131,6 +167,6 @@ export class CloudMessagePersistence {
    * Reset the ID mapping (call when switching threads).
    */
   reset() {
-    this.idMapping = {};
+    this.idMapping.clear();
   }
 }

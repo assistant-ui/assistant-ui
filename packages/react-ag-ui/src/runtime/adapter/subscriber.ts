@@ -22,6 +22,7 @@ type Subscriber = {
   onReasoningMessageStartEvent?: (payload: { event: unknown }) => void;
   onReasoningMessageContentEvent?: (payload: { event: unknown }) => void;
   onReasoningMessageEndEvent?: (payload: { event: unknown }) => void;
+  onReasoningEncryptedValueEvent?: (payload: { event: unknown }) => void;
   onToolCallStartEvent?: (payload: { event: unknown }) => void;
   onToolCallArgsEvent?: (payload: { event: unknown }) => void;
   onToolCallEndEvent?: (payload: { event: unknown }) => void;
@@ -33,7 +34,11 @@ type Subscriber = {
   onMessagesSnapshotEvent?: (payload: { event: unknown }) => void;
   onCustomEvent?: (payload: { event: unknown }) => void;
   onRawEvent?: (payload: { event: unknown }) => void;
+  onSubagentStartedEvent?: (payload: { event: unknown }) => void;
+  onSubagentFinishedEvent?: (payload: { event: unknown }) => void;
+  onSubagentErrorEvent?: (payload: { event: unknown }) => void;
   onRunFinishedEvent?: (payload: { event: unknown }) => void;
+  onRunErrorEvent?: (payload: { event: unknown }) => void;
   onRunFinalized?: () => void;
   onRunFailed?: (payload: { error: Error }) => void;
 };
@@ -95,7 +100,7 @@ export const createAgUiSubscriber = (
         // Typed handlers will receive this via the discriminated callbacks; avoid duplicates.
         return;
       }
-      const parsed = parseAgUiEvent(event);
+      const parsed = parseAgUiEvent(event, logger ? { logger } : undefined);
       if (parsed) dispatch(parsed);
     },
     onTextMessageStartEvent: ({ event }) =>
@@ -124,6 +129,8 @@ export const createAgUiSubscriber = (
       dispatchIfValid(event, "REASONING_MESSAGE_CONTENT"),
     onReasoningMessageEndEvent: ({ event }) =>
       dispatchIfValid(event, "REASONING_MESSAGE_END"),
+    onReasoningEncryptedValueEvent: ({ event }) =>
+      dispatchIfValid(event, "REASONING_ENCRYPTED_VALUE"),
     onToolCallStartEvent: ({ event }) =>
       dispatchIfValid(event, "TOOL_CALL_START"),
     onToolCallArgsEvent: ({ event }) =>
@@ -142,11 +149,30 @@ export const createAgUiSubscriber = (
       dispatchIfValid(event, "MESSAGES_SNAPSHOT"),
     onCustomEvent: ({ event }) => dispatchIfValid(event, "CUSTOM"),
     onRawEvent: ({ event }) => dispatchIfValid(event, "RAW"),
+    onSubagentStartedEvent: ({ event }) =>
+      dispatchIfValid(event, "SUBAGENT_STARTED"),
+    onSubagentFinishedEvent: ({ event }) =>
+      dispatchIfValid(event, "SUBAGENT_FINISHED"),
+    onSubagentErrorEvent: ({ event }) =>
+      dispatchIfValid(event, "SUBAGENT_ERROR"),
     onRunFinishedEvent: ({ event }) => {
+      if (runFinishedDispatched) return;
       const parsed = ensureEvent(event, "RUN_FINISHED", logger);
       if (!parsed) return;
       runFinishedDispatched = true;
       dispatch(parsed);
+    },
+    onRunErrorEvent: ({ event }) => {
+      const parsed = ensureEvent(event, "RUN_ERROR", logger);
+      if (!parsed || parsed.type !== "RUN_ERROR") return;
+      runFinishedDispatched = true;
+      dispatch(parsed);
+
+      const error = Object.assign(
+        new Error(parsed.message ?? "Run failed"),
+        parsed.code === undefined ? {} : { code: parsed.code },
+      );
+      onRunFailed?.(error);
     },
     onRunFinalized: () => {
       if (runFinishedDispatched) return;

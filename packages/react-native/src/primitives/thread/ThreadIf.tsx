@@ -7,17 +7,14 @@ export type ThreadIfProps = {
   running?: boolean | undefined;
 };
 
+/**
+ * @deprecated Use `<AuiIf condition={(s) => s.thread...} />` instead.
+ */
 export const ThreadIf = ({ children, empty, running }: ThreadIfProps) => {
   const thread = useAuiState((s) => s.thread);
 
-  if (empty !== undefined) {
-    const isEmpty = thread.messages.length === 0;
-    if (empty !== isEmpty) return null;
-  }
-
-  if (running !== undefined) {
-    if (running !== thread.isRunning) return null;
-  }
+  if (empty !== undefined && empty !== thread.isEmpty) return null;
+  if (running !== undefined && running !== thread.isRunning) return null;
 
   return <>{children}</>;
 };

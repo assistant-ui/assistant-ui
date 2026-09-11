@@ -2,8 +2,8 @@ import { Command } from "commander";
 import fs from "node:fs";
 import path from "node:path";
 import os from "node:os";
-import { spawn } from "cross-spawn";
 import { logger } from "../lib/utils/logger";
+import { runSpawn, SpawnExitError, SpawnSignalError } from "../lib/run-spawn";
 import * as p from "@clack/prompts";
 
 type MCPTarget =
@@ -14,12 +14,15 @@ type MCPTarget =
   | "claude-code"
   | "claude-desktop";
 
+const HOSTED_MCP_URL = "https://www.assistant-ui.com/mcp";
+
 const MCP_CONFIGS: Record<
   Exclude<MCPTarget, "claude-code">,
   {
     name: string;
     getPath: () => string;
     config: object;
+    replaceServerKey?: string;
     postInstall?: string;
   }
 > = {
@@ -29,11 +32,11 @@ const MCP_CONFIGS: Record<
     config: {
       mcpServers: {
         "assistant-ui": {
-          command: "npx",
-          args: ["-y", "@assistant-ui/mcp-docs-server"],
+          url: HOSTED_MCP_URL,
         },
       },
     },
+    replaceServerKey: "mcpServers",
     postInstall:
       "Open Cursor Settings → MCP → find 'assistant-ui' and click enable.",
   },
@@ -44,11 +47,11 @@ const MCP_CONFIGS: Record<
     config: {
       mcpServers: {
         "assistant-ui": {
-          command: "npx",
-          args: ["-y", "@assistant-ui/mcp-docs-server"],
+          serverUrl: HOSTED_MCP_URL,
         },
       },
     },
+    replaceServerKey: "mcpServers",
     postInstall: "Fully quit and re-open Windsurf to activate.",
   },
   vscode: {
@@ -57,12 +60,12 @@ const MCP_CONFIGS: Record<
     config: {
       servers: {
         "assistant-ui": {
-          command: "npx",
-          args: ["-y", "@assistant-ui/mcp-docs-server"],
-          type: "stdio",
+          type: "http",
+          url: HOSTED_MCP_URL,
         },
       },
     },
+    replaceServerKey: "servers",
     postInstall:
       "Enable MCP in Settings → search 'MCP' → enable 'Chat > MCP'. Use Copilot Chat in Agent mode.",
   },
@@ -152,45 +155,42 @@ async function installForTarget(target: MCPTarget): Promise<void> {
     logger.info("Installing MCP server for Claude Code...");
     logger.break();
 
-    const child = spawn(
-      "claude",
-      [
+    try {
+      await runSpawn("claude", ["mcp", "remove", "assistant-ui"]).catch(
+        (error: unknown) => {
+          if (error instanceof SpawnSignalError) throw error;
+        },
+      );
+      await runSpawn("claude", [
         "mcp",
         "add",
+        "--transport",
+        "http",
         "assistant-ui",
-        "--",
-        "npx",
-        "-y",
-        "@assistant-ui/mcp-docs-server",
-      ],
-      {
-        stdio: "inherit",
-      },
-    );
-
-    return new Promise((resolve, reject) => {
-      child.on("error", (error) => {
+        HOSTED_MCP_URL,
+      ]);
+    } catch (error) {
+      if (error instanceof SpawnSignalError) throw error;
+      if (error instanceof SpawnExitError) {
+        logger.error(`Installation failed with code ${error.code}`);
+      } else if (error instanceof Error) {
         logger.error(`Failed to install: ${error.message}`);
         logger.info(
           "Make sure Claude Code CLI is installed: https://docs.anthropic.com/en/docs/claude-code",
         );
-        reject(error);
-      });
+      }
+      throw error;
+    }
 
-      child.on("close", (code) => {
-        if (code !== 0) {
-          logger.error(`Installation failed with code ${code}`);
-          reject(new Error(`Exit code ${code}`));
-        } else {
-          logger.break();
-          logger.success("MCP server installed for Claude Code!");
-          logger.info(
-            "The server starts automatically. Try asking about assistant-ui!",
-          );
-          resolve();
-        }
-      });
-    });
+    logger.break();
+    logger.success("MCP server installed for Claude Code!");
+    logger.info(
+      `Connects to the hosted assistant-ui MCP server at ${HOSTED_MCP_URL}.`,
+    );
+    logger.info(
+      "The server starts automatically. Try asking about assistant-ui!",
+    );
+    return;
   }
 
   if (target === "claude-desktop" && process.platform === "linux") {
@@ -230,11 +230,26 @@ async function installForTarget(target: MCPTarget): Promise<void> {
 
   const newConfig = deepMerge(existingConfig, targetConfig.config);
 
+  if (targetConfig.replaceServerKey) {
+    const key = targetConfig.replaceServerKey;
+    newConfig[key] = {
+      ...newConfig[key],
+      "assistant-ui": (targetConfig.config as any)[key]["assistant-ui"],
+    };
+  }
+
   fs.writeFileSync(configPath, `${JSON.stringify(newConfig, null, 2)}\n`);
 
   logger.break();
   logger.success(`MCP server installed for ${targetConfig.name}!`);
   logger.info(`Config written to: ${configPath}`);
+
+  if (targetConfig.replaceServerKey) {
+    logger.break();
+    logger.info(
+      `Connects to the hosted assistant-ui MCP server at ${HOSTED_MCP_URL}.`,
+    );
+  }
 
   if (targetConfig.postInstall) {
     logger.break();
@@ -244,7 +259,7 @@ async function installForTarget(target: MCPTarget): Promise<void> {
 
 export const mcp = new Command()
   .name("mcp")
-  .description("install assistant-ui MCP docs server for your IDE")
+  .description("connect your IDE to the assistant-ui MCP server")
   .option("--cursor", "install for Cursor")
   .option("--windsurf", "install for Windsurf")
   .option("--vscode", "install for VSCode")
@@ -288,7 +303,8 @@ export const mcp = new Command()
     for (const target of targets) {
       try {
         await installForTarget(target);
-      } catch {
+      } catch (error) {
+        if (error instanceof SpawnSignalError) throw error;
         process.exit(1);
       }
     }

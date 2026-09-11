@@ -1,6 +1,7 @@
 import { Command } from "commander";
 import { transform } from "../lib/transform";
 import { upgrade } from "../lib/upgrade";
+import { SpawnSignalError } from "../lib/run-spawn";
 import debug from "debug";
 
 export interface TransformOptions {
@@ -30,10 +31,11 @@ export const codemodCommand = addTransformOptions(
     .description("CLI tool for running codemods")
     .argument("<codemod>", "Codemod to run (e.g., rewrite-framework-imports)")
     .argument("<source>", "Path to source files or directory to transform"),
-).action((codemod, source, options: TransformOptions) => {
+).action(async (codemod, source, options: TransformOptions) => {
   try {
-    transform(codemod, source, options);
+    await transform(codemod, source, options);
   } catch (err) {
+    if (err instanceof SpawnSignalError) throw err;
     const errorMessage = err instanceof Error ? err.message : String(err);
     const errorStack = err instanceof Error ? err.stack : undefined;
     error(`Error transforming: ${errorMessage}`);
@@ -52,6 +54,7 @@ export const upgradeCommand = addTransformOptions(
   try {
     await upgrade(options);
   } catch (err) {
+    if (err instanceof SpawnSignalError) throw err;
     const errorMessage = err instanceof Error ? err.message : String(err);
     const errorStack = err instanceof Error ? err.stack : undefined;
     error(`Error upgrading: ${errorMessage}`);

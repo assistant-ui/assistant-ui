@@ -2,7 +2,7 @@
 
 A native chat app built with [assistant-ui](https://www.assistant-ui.com) and [Expo](https://expo.dev). It runs on iOS, Android, and the web from a single codebase, and is styled to match the assistant-ui web kit: a clean, neutral, ChatGPT-grade look with subtle hairline borders.
 
-The chat is powered by `@assistant-ui/react-native` with the AI SDK runtime (`@assistant-ui/react-ai-sdk`). The example leans on native Expo APIs throughout:
+The chat is powered by `@assistant-ui/react-native` with the AI SDK runtime (`@assistant-ui/ai-sdk`). The example leans on native Expo APIs throughout:
 
 - **SF Symbols** (`expo-symbols`) for native iconography on iOS, with a Material Icons fallback on Android and the web.
 - **Haptics** (`expo-haptics`) for tactile feedback on send, stop, and selection.
@@ -10,7 +10,7 @@ The chat is powered by `@assistant-ui/react-native` with the AI SDK runtime (`@a
 - **Clipboard** (`expo-clipboard`) so the copy action works natively.
 - A native **drawer** (`@react-navigation/drawer`) for the thread list, with a swipe gesture to switch conversations.
 
-It follows the assistant-ui component conventions: `MessagePrimitive.Parts` for message rendering, `AuiIf` for declarative state-driven UI, the `ThreadList` / `ThreadListItem` primitives for the drawer, and a `"use generative"` toolkit (`components/assistant-ui/tools.tsx`) that renders weather cards inline.
+It follows the assistant-ui component conventions: `MessagePrimitive.Parts` for message rendering, `AuiIf` for declarative state-driven UI, the `ThreadList` / `ThreadListItem` primitives for the drawer, and a `"use generative"` toolkit (`components/assistant-ui/elements/tools.tsx`) that renders weather cards inline.
 
 ## Get started
 
@@ -26,7 +26,7 @@ It follows the assistant-ui component conventions: `MessagePrimitive.Parts` for 
    cp .env.example .env
    ```
 
-   The bundled API route (`app/api/chat+api.ts`) needs `OPENAI_API_KEY`. To point the app at a separately hosted backend instead, set `EXPO_PUBLIC_CHAT_ENDPOINT_URL`.
+   The bundled API route (`app/api/chat+api.ts`) needs `OPENAI_API_KEY`. To point the app at a separately hosted backend instead, set `EXPO_PUBLIC_CHAT_ENDPOINT_URL`. Browser deployments use `/api/anonymous-session` when the hosted backend supports it and otherwise send the request normally. Native deployments should use a backend intended for their app.
 
 3. Start the app:
 
@@ -40,7 +40,7 @@ It follows the assistant-ui component conventions: `MessagePrimitive.Parts` for 
 
 - `app/_layout.tsx` wires the runtime, the toolkit, and the drawer navigation.
 - `app/index.tsx` renders the `Thread`.
-- `components/assistant-ui/` holds the composer, message, action bar, branch picker, and tool UIs.
+- `components/assistant-ui/elements/` holds the composer, message, action bar, branch picker, and tool UIs.
 - `components/thread-list/` holds the drawer thread list.
 - `constants/theme.ts` and `hooks/use-theme.ts` define the shared design tokens.
 - `components/ui/icon.tsx` is the cross-platform icon (SF Symbols on iOS, Material Icons elsewhere).

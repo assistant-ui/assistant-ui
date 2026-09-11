@@ -1,8 +1,12 @@
-import { resource, withKey } from "@assistant-ui/tap";
+import { resource } from "@assistant-ui/tap";
+import { useMemo } from "react";
 import {
+  OAuthMetadataSchema,
   OAuthClientInformationFullSchema,
+  OAuthProtectedResourceMetadataSchema,
   OAuthTokensSchema,
 } from "@modelcontextprotocol/core";
+import { normalizeMcpServerUrl } from "../../utils/serverUrl";
 import type { MCPAuthConfig, MCPCustomServerRecord } from "../../mcp-scope";
 import type { MCPPersistedAuthState } from "../../auth/types";
 import { assertValidServerId } from "../../utils/serverId";
@@ -13,9 +17,14 @@ export type McpLocalStorageOptions = {
   keyPrefix?: string;
   /** Override the underlying Storage. Defaults to globalThis.localStorage. */
   storage?: Storage;
+  /**
+   * Stable identity for the backing data, used to key server reconnects.
+   * Required to get reconnect-on-swap behavior when `storage` is overridden;
+   * without it a custom backing store declares no scope, since a prefix
+   * alone cannot distinguish two different stores.
+   */
+  scopeId?: string;
 };
-
-const DEFAULT_KEY_PREFIX = "aui-mcp";
 
 function resolveStorage(opts: McpLocalStorageOptions): Storage | null {
   if (opts.storage) return opts.storage;
@@ -135,79 +144,161 @@ const normalizeClientInformation = (
   return result.success ? result.data : undefined;
 };
 
+const isSecureNetworkUrl = (value: unknown): value is string => {
+  if (!isNonEmptyString(value)) return false;
+  try {
+    const url = new URL(value);
+    return (
+      url.protocol === "https:" ||
+      (url.protocol === "http:" &&
+        (url.hostname === "localhost" ||
+          url.hostname.endsWith(".localhost") ||
+          url.hostname.startsWith("127.") ||
+          url.hostname === "[::1]"))
+    );
+  } catch {
+    return false;
+  }
+};
+
+const isMcpServerUrl = (value: unknown): value is string => {
+  if (typeof value !== "string") return false;
+  try {
+    const url = new URL(value);
+    return url.protocol === "https:" || url.protocol === "http:";
+  } catch {
+    return false;
+  }
+};
+
+const normalizeDiscoveryState = (
+  value: unknown,
+): MCPPersistedAuthState["discoveryState"] | undefined => {
+  if (!isRecord(value) || !isSecureNetworkUrl(value.authorizationServerUrl)) {
+    return undefined;
+  }
+
+  // A malformed optional field is dropped alone: keeping the validated
+  // authorization server URL preserves the redirect-time binding, and the SDK
+  // re-discovers whatever metadata is missing.
+  const state: NonNullable<MCPPersistedAuthState["discoveryState"]> = {
+    authorizationServerUrl: value.authorizationServerUrl,
+  };
+
+  if (isSecureNetworkUrl(value.resourceMetadataUrl)) {
+    state.resourceMetadataUrl = value.resourceMetadataUrl;
+  }
+
+  const metadata = OAuthMetadataSchema.safeParse(
+    value.authorizationServerMetadata,
+  );
+  if (metadata.success) state.authorizationServerMetadata = metadata.data;
+
+  const resourceMetadata = OAuthProtectedResourceMetadataSchema.safeParse(
+    value.resourceMetadata,
+  );
+  if (resourceMetadata.success) state.resourceMetadata = resourceMetadata.data;
+
+  return state;
+};
+
 export const normalizePersistedAuthState = (
   value: unknown,
 ): MCPPersistedAuthState | null => {
   if (!isRecord(value)) return null;
+  if ("serverUrl" in value && !isMcpServerUrl(value.serverUrl)) return null;
 
   const state: MCPPersistedAuthState = {};
+  if (isMcpServerUrl(value.serverUrl)) {
+    state.serverUrl = normalizeMcpServerUrl(value.serverUrl);
+  }
   if (isNonEmptyString(value.token)) state.token = value.token;
+  if (isNonEmptyString(value.tokensClientId)) {
+    state.tokensClientId = value.tokensClientId;
+  }
   if (isNonEmptyString(value.codeVerifier)) {
     state.codeVerifier = value.codeVerifier;
   }
+  if (isNonEmptyString(value.state)) state.state = value.state;
 
   const tokens = normalizeOAuthTokens(value.tokens);
   if (tokens) state.tokens = tokens;
 
   const clientInformation = normalizeClientInformation(value.clientInformation);
   if (clientInformation) state.clientInformation = clientInformation;
+  if (value.clientInformationSource === "registered") {
+    state.clientInformationSource = value.clientInformationSource;
+  }
+
+  const discoveryState = normalizeDiscoveryState(value.discoveryState);
+  if (discoveryState) state.discoveryState = discoveryState;
 
   return Object.keys(state).length > 0 ? state : null;
 };
 
 const useMcpLocalStorage = (opts: McpLocalStorageOptions = {}): MCPStorage => {
-  const prefix = opts.keyPrefix ?? DEFAULT_KEY_PREFIX;
-  const customServersKey = `${prefix}:custom-servers`;
-  const authKey = (id: string) => `${prefix}:auth:${id}`;
+  const prefix = opts.keyPrefix ?? "aui-mcp";
   const storage = resolveStorage(opts);
+  // Deriving a scope from the prefix is only honest for the shared
+  // globalThis.localStorage; two custom backing stores under one prefix hold
+  // different data, so an overridden backing declares no scope unless the
+  // caller names one.
+  const scopeId =
+    opts.scopeId ??
+    (opts.storage === undefined ? `local-storage:${prefix}` : undefined);
 
-  const read = <T>(key: string, fallback: T): T => {
-    if (!storage) return fallback;
-    try {
-      const raw = storage.getItem(key);
-      if (raw == null) return fallback;
-      return JSON.parse(raw) as T;
-    } catch {
-      return fallback;
-    }
-  };
+  // Callers key per-server coordination state on this instance, so it has to
+  // stay referentially stable for as long as the underlying store does.
+  return useMemo(() => {
+    const customServersKey = `${prefix}:custom-servers`;
+    const authKey = (id: string) => `${prefix}:auth:${id}`;
 
-  const write = (key: string, value: unknown): void => {
-    if (!storage) return;
-    try {
-      storage.setItem(key, JSON.stringify(value));
-    } catch {
-      // quota or serialization failure — silently drop
-    }
-  };
+    const read = <T>(key: string, fallback: T): T => {
+      if (!storage) return fallback;
+      try {
+        const raw = storage.getItem(key);
+        if (raw == null) return fallback;
+        return JSON.parse(raw) as T;
+      } catch {
+        return fallback;
+      }
+    };
 
-  const remove = (key: string): void => {
-    if (!storage) return;
-    try {
-      storage.removeItem(key);
-    } catch {
-      // ignore
-    }
-  };
+    const write = (key: string, value: unknown): void => {
+      if (!storage) return;
+      try {
+        storage.setItem(key, JSON.stringify(value));
+      } catch {
+        // quota or serialization failure — silently drop
+      }
+    };
 
-  return {
-    loadCustomServers: async () =>
-      normalizeCustomServerRecords(read<unknown>(customServersKey, [])),
-    saveCustomServers: async (records) => {
-      write(customServersKey, records);
-    },
-    loadAuthState: async (id) =>
-      normalizePersistedAuthState(read<unknown>(authKey(id), null)),
-    saveAuthState: async (id, state) => {
-      write(authKey(id), state);
-    },
-    clearAuthState: async (id) => {
-      remove(authKey(id));
-    },
-  };
+    const remove = (key: string): void => {
+      if (!storage) return;
+      try {
+        storage.removeItem(key);
+      } catch {
+        // ignore
+      }
+    };
+
+    return {
+      ...(scopeId !== undefined ? { scopeId } : {}),
+      loadCustomServers: async () =>
+        normalizeCustomServerRecords(read<unknown>(customServersKey, [])),
+      saveCustomServers: async (records) => {
+        write(customServersKey, records);
+      },
+      loadAuthState: async (id) =>
+        normalizePersistedAuthState(read<unknown>(authKey(id), null)),
+      saveAuthState: async (id, state) => {
+        write(authKey(id), state);
+      },
+      clearAuthState: async (id) => {
+        remove(authKey(id));
+      },
+    };
+  }, [prefix, storage, scopeId]);
 };
 
-const McpLocalStorageResource = resource(useMcpLocalStorage);
-
-export const McpLocalStorage = (opts: McpLocalStorageOptions = {}) =>
-  withKey(opts.keyPrefix ?? DEFAULT_KEY_PREFIX, McpLocalStorageResource(opts));
+export const McpLocalStorage = resource(useMcpLocalStorage);

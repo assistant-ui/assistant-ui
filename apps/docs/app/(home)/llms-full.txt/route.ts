@@ -1,5 +1,12 @@
-import { examples, source, getTapDocsPages } from "@/lib/source";
+import {
+  design,
+  elementsDocs,
+  examples,
+  source,
+  getTapDocsPages,
+} from "@/lib/source";
 import { getLLMText } from "@/lib/get-llm-text";
+import { createMarkdownResponse } from "@/lib/markdown-response";
 
 export const revalidate = false;
 
@@ -8,14 +15,13 @@ export async function GET() {
     ...source.getPages(),
     ...getTapDocsPages(),
     ...examples.getPages(),
+    ...design.getPages(),
+    ...elementsDocs.getPages(),
   ].map((page) => getLLMText(page));
   const scanned = await Promise.all(scan);
 
-  return new Response(scanned.join("\n\n"), {
-    headers: {
-      "Cache-Control": "no-cache, must-revalidate",
-      "Content-Type": "text/plain; charset=utf-8",
-      "X-Robots-Tag": "noindex, follow",
-    },
-  });
+  return createMarkdownResponse(
+    scanned.join("\n\n"),
+    "text/plain; charset=utf-8",
+  );
 }

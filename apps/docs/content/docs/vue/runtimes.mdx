@@ -1,0 +1,123 @@
+---
+title: Runtimes
+description: Choose a single AI SDK chat, a multi-thread AI SDK chat, or a custom external store.
+---
+
+A runtime connects Vue primitives to message state and actions. Put the runtime in an `AuiConfig` that is provided by a client-only `AuiProvider`.
+
+## AISDKChat
+
+`AISDKChat` is the smallest setup. It owns one client-side thread and uses `AssistantChatTransport` by default to call `/api/chat`.
+
+```vue title="app/components/Assistant.client.vue"
+<script setup lang="ts">
+import { AuiConfig, AuiProvider } from "@assistant-ui/vue";
+import { AISDKChat } from "@assistant-ui/ai-sdk";
+
+const config = AuiConfig({
+  threads: AISDKChat(),
+});
+</script>
+
+<template>
+  <AuiProvider :config="config">
+    <slot />
+  </AuiProvider>
+</template>
+```
+
+Pass `AISDKChat({ transport })` when the endpoint or transport behavior differs. The chat id is captured when the resource first mounts, so remount the provider when a different id must create a different chat.
+
+## AISDKThreads
+
+`AISDKThreads` creates a thread list and one AI SDK chat per thread. Without a cloud option, threads and their histories stay in memory for the lifetime of the assistant client.
+
+```ts title="app/components/Assistant.client.vue"
+import { AuiConfig } from "@assistant-ui/vue";
+import { AISDKThreads } from "@assistant-ui/ai-sdk";
+
+const config = AuiConfig({
+  threads: AISDKThreads(),
+});
+```
+
+With a cloud-backed list, `AISDKThreads` opts into `backgroundThreads`. Every visited thread stays mounted with its own history, a run continues after a thread switch, each thread list item's `isRunning` state remains live, and a new thread title is generated after its initialize operation settles. This continuity uses memory proportional to the number of visited threads. Deleting a thread stops its run.
+
+Each thread captures its AI SDK options when it first mounts. Changing the `transport`, initial messages, or other per-thread options later does not reconfigure an existing chat. Create a new thread or remount the assistant client when those options need to change.
+
+For an in-memory list, assistant-ui retains each chat and its history across switches, while the currently visible thread is the mounted UI. For server-backed history, configure the cloud-backed path or own persistence in an external store. In both cases, keep this client state behind the [Nuxt client boundary](/docs/vue/ssr).
+
+## External store
+
+Use `RuntimeAdapter` and `ExternalStoreRuntimeCore` when another client store owns messages, streaming status, or thread state. The Vue echo example follows this shape: create an external-store adapter, update it whenever the store changes, then expose its runtime through `AuiConfig`.
+
+The constructors come from `@assistant-ui/core/internal`, the advanced entry for building custom runtimes; it can evolve faster than the public entries, so pin your versions when depending on it.
+
+```ts title="app/runtime/echo.ts"
+import type { AppendMessage, ExternalStoreAdapter } from "@assistant-ui/core";
+import {
+  AssistantRuntimeImpl,
+  ExternalStoreRuntimeCore,
+} from "@assistant-ui/core/internal";
+
+type EchoMessage = {
+  id: string;
+  role: "user" | "assistant";
+  text: string;
+};
+
+export const createEchoRuntime = () => {
+  let messages: EchoMessage[] = [];
+  let isRunning = false;
+  let nextId = 0;
+
+  const makeAdapter = (): ExternalStoreAdapter<EchoMessage> => ({
+    messages,
+    isRunning,
+    convertMessage: (message) => ({
+      id: message.id,
+      role: message.role,
+      content: [{ type: "text", text: message.text }],
+    }),
+    setMessages: (next) => {
+      messages = [...next];
+      sync();
+    },
+    onNew: async (message: AppendMessage) => {
+      const text = message.content
+        .map((part) => (part.type === "text" ? part.text : ""))
+        .join("");
+      messages = [
+        ...messages,
+        { id: `user-${nextId++}`, role: "user", text },
+      ];
+      isRunning = true;
+      sync();
+      messages = [
+        ...messages,
+        { id: `assistant-${nextId++}`, role: "assistant", text: `Echo: ${text}` },
+      ];
+      isRunning = false;
+      sync();
+    },
+  });
+
+  const core = new ExternalStoreRuntimeCore(makeAdapter());
+  const sync = () => core.setAdapter(makeAdapter());
+  return new AssistantRuntimeImpl(core);
+};
+```
+
+Connect the runtime to Vue with `RuntimeAdapter`:
+
+```ts title="app/components/Assistant.client.vue"
+import { AuiConfig } from "@assistant-ui/vue";
+import { RuntimeAdapter } from "@assistant-ui/core/store";
+import { createEchoRuntime } from "~/runtime/echo";
+
+const config = AuiConfig({
+  threads: RuntimeAdapter(createEchoRuntime()),
+});
+```
+
+The adapter owns conversion and mutations. Implement `onEdit`, `onReload`, `onCancel`, and thread-list methods when the external backend supports those actions.

@@ -33,7 +33,7 @@ function createCore() {
     onSyncError: undefined,
   };
 
-  return new CloudChatCore({} as never, refs);
+  return new CloudChatCore({} as never, refs, {} as never);
 }
 
 describe("Contract: Persistence", () => {
@@ -111,7 +111,7 @@ describe("Contract: Persistence", () => {
       onSyncError,
     };
 
-    new CloudChatCore({} as never, refs);
+    new CloudChatCore({} as never, refs, {} as never);
 
     expect(MessagePersistenceMock).toHaveBeenCalledWith(
       expect.anything(),

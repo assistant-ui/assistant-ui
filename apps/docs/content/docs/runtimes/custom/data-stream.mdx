@@ -66,7 +66,7 @@ expose the response marker.
 
 import { useDataStreamRuntime } from "@assistant-ui/react-data-stream";
 import { AssistantRuntimeProvider } from "@assistant-ui/react";
-import { Thread } from "@/components/assistant-ui/thread";
+import { Thread } from "@/components/assistant-ui/elements/thread.aui";
 
 export default function ChatPage() {
   const runtime = useDataStreamRuntime({ api: "/api/chat" });
@@ -85,7 +85,7 @@ export default function ChatPage() {
 import { useDataStreamRuntime } from "@assistant-ui/react-data-stream";
 import { AssistantRuntimeProvider } from "@assistant-ui/react-native";
 import { View } from "react-native";
-import { Thread } from "@/components/assistant-ui/thread";
+import { Thread } from "@/components/assistant-ui/elements/thread.aui";
 
 const API_URL = process.env.EXPO_PUBLIC_API_URL ?? "http://localhost:3000";
 

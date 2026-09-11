@@ -8,13 +8,14 @@ import {
   memo,
   type ReactNode,
 } from "react";
+import { parseLanguageClass } from "@assistant-ui/react-markdown/code-fence";
+import { useCallbackRef } from "../useCallbackRef";
 import type {
   CodeHeaderProps,
   ComponentsByLanguage,
   SyntaxHighlighterProps,
 } from "../types";
-
-const LANGUAGE_REGEX = /language-([^\s]+)/;
+import { DefaultPre, useStreamdownPreProps } from "./PreOverride";
 
 type CodeProps = ComponentPropsWithoutRef<"code"> & {
   node?: Element | undefined;
@@ -24,28 +25,35 @@ type PreProps = ComponentPropsWithoutRef<"pre"> & {
   node?: Element | undefined;
 };
 
-interface CodeAdapterOptions {
+export interface CodeAdapterOptions {
   SyntaxHighlighter?: ComponentType<SyntaxHighlighterProps> | undefined;
   CodeHeader?: ComponentType<CodeHeaderProps> | undefined;
   componentsByLanguage?: ComponentsByLanguage | undefined;
+  Pre?: ComponentType<PreProps> | undefined;
+  Code?: ComponentType<CodeProps> | undefined;
 }
 
-/**
- * Extracts code string from children.
- */
+export type CodeAdapterProps = CodeProps & {
+  "data-block"?: string;
+  adapter: CodeAdapterOptions;
+};
+
+function joinClassNames(...names: (string | undefined)[]): string | undefined {
+  const joined = names.filter(Boolean).join(" ");
+  return joined || undefined;
+}
+
 function extractCode(children: unknown): string {
   if (typeof children === "string") return children;
-  if (!isValidElement(children)) return "";
-
-  const props = children.props as Record<string, unknown> | null;
-  if (props && typeof props.children === "string") {
-    return props.children;
+  if (Array.isArray(children)) {
+    let code = "";
+    for (const child of children) code += extractCode(child);
+    return code;
+  }
+  if (isValidElement<{ children?: unknown }>(children)) {
+    return extractCode(children.props.children);
   }
   return "";
-}
-
-function DefaultPre({ node: _, ...props }: PreProps): ReactNode {
-  return <pre {...props} />;
 }
 
 function DefaultCode({ node: _, ...props }: CodeProps): ReactNode {
@@ -53,94 +61,110 @@ function DefaultCode({ node: _, ...props }: CodeProps): ReactNode {
 }
 
 /**
- * Creates a code component adapter that bridges the assistant-ui
- * SyntaxHighlighter/CodeHeader API to streamdown's code component.
+ * Bridges the assistant-ui SyntaxHighlighter/CodeHeader API to streamdown's
+ * code component, using streamdown's data-block marker for inline/block
+ * detection. The options travel as a prop rather than a closure so the
+ * component type stays the same across renders and a fresh `components` object
+ * updates the code block instead of remounting it.
  */
-export function createCodeAdapter(options: CodeAdapterOptions) {
+function CodeAdapterInner({
+  adapter,
+  node,
+  className,
+  children,
+  "data-block": dataBlock,
+  ...props
+}: CodeAdapterProps) {
   const {
     SyntaxHighlighter: UserSyntaxHighlighter,
     CodeHeader: UserCodeHeader,
     componentsByLanguage = {},
-  } = options;
+    Pre = DefaultPre,
+    Code = DefaultCode,
+  } = adapter;
 
-  /**
-   * Inner component that uses streamdown's data-block marker
-   * for inline/block detection.
-   */
-  function AdaptedCodeInner({
-    node,
-    className,
-    children,
-    "data-block": dataBlock,
-    ...props
-  }: CodeProps & { "data-block"?: string }) {
-    if (!dataBlock) {
-      return (
-        <code
-          className={`aui-streamdown-inline-code ${className ?? ""}`.trim()}
-          {...props}
-        >
-          {children}
-        </code>
-      );
-    }
+  const preProps = useStreamdownPreProps();
+  const WrappedPre = useCallbackRef(
+    ({ className: ownClassName, ...p }: PreProps) => (
+      <Pre
+        {...preProps}
+        {...p}
+        className={joinClassNames(preProps?.className, ownClassName)}
+      />
+    ),
+  );
+  const WrappedCode = useCallbackRef(
+    ({ className: ownClassName, ...p }: CodeProps) => (
+      <Code
+        node={node}
+        {...props}
+        {...p}
+        className={joinClassNames(className, ownClassName)}
+      />
+    ),
+  );
 
-    // Block code - extract language and code content
-    const match = className?.match(LANGUAGE_REGEX);
-    const language = match?.[1] ?? "";
-    const code = extractCode(children);
+  if (!dataBlock) {
+    return (
+      <Code
+        node={node}
+        className={`aui-streamdown-inline-code ${className ?? ""}`.trim()}
+        {...props}
+      >
+        {children}
+      </Code>
+    );
+  }
 
-    // Get language-specific or fallback components
-    const SyntaxHighlighter =
-      componentsByLanguage[language]?.SyntaxHighlighter ??
-      UserSyntaxHighlighter;
+  const language = parseLanguageClass(className);
 
-    const CodeHeader =
-      componentsByLanguage[language]?.CodeHeader ?? UserCodeHeader;
+  const SyntaxHighlighter =
+    componentsByLanguage[language]?.SyntaxHighlighter ?? UserSyntaxHighlighter;
 
-    const headerElement = CodeHeader ? (
-      <CodeHeader node={node} language={language} code={code} />
-    ) : null;
+  const CodeHeader =
+    componentsByLanguage[language]?.CodeHeader ?? UserCodeHeader;
 
-    if (SyntaxHighlighter) {
-      return (
-        <>
-          {headerElement}
-          <SyntaxHighlighter
-            node={node}
-            components={{ Pre: DefaultPre, Code: DefaultCode }}
-            language={language}
-            code={code}
-          />
-        </>
-      );
-    }
+  const headerElement = CodeHeader ? (
+    <CodeHeader node={node} language={language} code={extractCode(children)} />
+  ) : null;
 
+  if (SyntaxHighlighter && (children == null || typeof children === "string")) {
     return (
       <>
         {headerElement}
-        <DefaultPre node={node}>
-          <code className={className} {...props}>
-            {children}
-          </code>
-        </DefaultPre>
+        <SyntaxHighlighter
+          node={node}
+          components={{ Pre: WrappedPre, Code: WrappedCode }}
+          language={language}
+          code={children ?? ""}
+        />
       </>
     );
   }
 
-  const AdaptedCode = memo(AdaptedCodeInner, (prev, next) => {
-    return (
-      prev.className === next.className &&
-      prev["data-block"] === next["data-block"] &&
-      prev.children === next.children &&
-      prev.node?.position?.start.line === next.node?.position?.start.line &&
-      prev.node?.position?.end.line === next.node?.position?.end.line
-    );
-  });
-  AdaptedCode.displayName = "AdaptedCode";
-
-  return AdaptedCode;
+  return (
+    <>
+      {headerElement}
+      <Pre {...preProps}>
+        <Code node={node} className={className} {...props}>
+          {children}
+        </Code>
+      </Pre>
+    </>
+  );
 }
+
+export const CodeAdapter = memo(CodeAdapterInner, (prev, next) => {
+  return (
+    prev.adapter === next.adapter &&
+    prev.className === next.className &&
+    prev["data-block"] === next["data-block"] &&
+    prev.children === next.children &&
+    prev.node?.position?.start.line === next.node?.position?.start.line &&
+    prev.node?.position?.end.line === next.node?.position?.end.line
+  );
+});
+CodeAdapter.displayName = "CodeAdapter";
 
 /**
  * Checks if the code adapter should be used (i.e., user provided custom components).
@@ -150,6 +174,7 @@ export function shouldUseCodeAdapter(options: CodeAdapterOptions): boolean {
     options.SyntaxHighlighter ||
     options.CodeHeader ||
     (options.componentsByLanguage &&
-      Object.keys(options.componentsByLanguage).length > 0)
+      Object.keys(options.componentsByLanguage).length > 0) ||
+    (options.Pre && options.Code)
   );
 }

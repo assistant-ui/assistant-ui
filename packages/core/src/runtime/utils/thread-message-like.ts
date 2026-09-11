@@ -23,8 +23,9 @@ import type {
   MessageTiming,
   PartProviderMetadata,
   TextMessagePart,
-  ToolApprovalOption,
   ToolCallTiming,
+  ToolCallMessagePart,
+  ToolCallMessagePartMcpMetadata,
 } from "../../types/message";
 import type {
   ReadonlyJSONObject,
@@ -63,16 +64,9 @@ export type ThreadMessageLike = {
             readonly messages?: readonly ThreadMessage[] | undefined;
             readonly interrupt?: { type: "human"; payload: unknown };
             readonly timing?: ToolCallTiming;
+            readonly mcp?: ToolCallMessagePartMcpMetadata;
             readonly providerMetadata?: PartProviderMetadata;
-            readonly approval?: {
-              readonly id: string;
-              readonly approved?: boolean;
-              readonly reason?: string;
-              readonly isAutomatic?: boolean;
-              readonly options?: readonly ToolApprovalOption[];
-              readonly optionId?: string;
-              readonly resolution?: "cancelled" | "expired";
-            };
+            readonly approval?: NonNullable<ToolCallMessagePart["approval"]>;
           }
       )[];
   readonly id?: string | undefined;
@@ -160,8 +154,12 @@ export const fromThreadMessageLike = (
             const type = part.type;
             switch (type) {
               case "text":
-              case "reasoning":
                 if (!part.text?.trim()) return null;
+                return part;
+
+              case "reasoning":
+                if (!part.text?.trim() && !part.unstable_summary?.trim())
+                  return null;
                 return part;
 
               case "file":
@@ -181,7 +179,7 @@ export const fromThreadMessageLike = (
                 const { parentId, messages, ...basePart } = part;
                 const commonProps = {
                   ...basePart,
-                  toolCallId: part.toolCallId ?? `tool-${generateId()}`,
+                  toolCallId: part.toolCallId || `tool-${generateId()}`,
                   ...(parentId !== undefined && { parentId }),
                   ...(messages !== undefined && { messages }),
                 };

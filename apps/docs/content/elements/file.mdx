@@ -1,0 +1,167 @@
+---
+title: "File"
+description: "File message parts with type-aware icons, filename, size, and download actions."
+---
+
+File renders one file message part as a row: an icon chosen from the MIME type, the filename, an optional size, and a download link. With a runtime it renders straight from a message's file part; standalone you hand it the part yourself.
+
+## Getting started
+
+<RuntimeMode>
+
+<Steps>
+  <Step>
+
+### Render files from a message
+
+Register `File` as the `File` renderer on `MessagePrimitive.Parts`.
+
+```tsx title="components/assistant-ui/elements/thread.aui.tsx"
+import { File } from "@/components/assistant-ui/elements/file";
+import { MessagePrimitive } from "@assistant-ui/react";
+
+function AssistantMessage() {
+  return (
+    <MessagePrimitive.Root>
+      <MessagePrimitive.Parts components={{ File }} />
+    </MessagePrimitive.Root>
+  );
+}
+```
+
+The `Thread` element already renders both assistant and user file parts through `File`, so installing `@assistant-ui/thread` gives you this without any of the above.
+
+  </Step>
+</Steps>
+
+</RuntimeMode>
+
+<StandaloneMode>
+
+Standalone, `File` is a plain function of one part object: no context, no runtime.
+
+<Steps>
+  <Step>
+
+### Render a file directly
+
+```tsx title="app/answer.tsx"
+import { File } from "@/components/assistant-ui/elements/file";
+
+export function Attachment() {
+  return (
+    <File
+      type="file"
+      filename="report.pdf"
+      mimeType="application/pdf"
+      data="https://example.com/report.pdf"
+      sourceType="url"
+      status={{ type: "complete" }}
+    />
+  );
+}
+```
+
+  </Step>
+</Steps>
+
+</StandaloneMode>
+
+## Anatomy
+
+```tsx
+<div data-slot="file-root" data-variant={variant} data-size={size}>
+  <span data-slot="file-icon" />
+  <div>
+    <span data-slot="file-name">{filename ?? "Unnamed file"}</span>
+    <span data-slot="file-size" /> {/* only for inline (base64 / data URI) data */}
+  </div>
+  <a data-slot="file-download" />{/* omitted when data can't produce a safe href */}
+</div>
+```
+
+The icon depends on `mimeType`: images get an image icon, PDFs and other text get a document icon, JSON gets a braces icon, audio and video get their own icons, and everything else gets a generic file icon. `sourceType` states how `data` is encoded on the wire: `"url"` for a link, `"id"` for an opaque reference the download link can't resolve on its own, or omitted to infer it (an `http(s)://` string is treated as a URL, anything else as base64). The size row only appears for inline data (base64 or a `data:` URI), since a URL or id reference carries no byte count to read. The download link itself only renders for base64 and `data:` URI data, or for a URL that actually starts with `http(s)://` or `blob:`; an `"id"` reference, or a URL that fails that check, renders no link at all.
+
+## Examples
+
+### Variants and sizes
+
+```tsx
+<File variant="muted" size="sm" {...part} />
+```
+
+| Variant | Description |
+|---------|-------------|
+| `outline` | Border, background on hover (default) |
+| `ghost` | No border, background on hover |
+| `muted` | Muted background |
+
+| Size | Description |
+|------|-------------|
+| `sm` | Compact padding, smaller text |
+| `default` | Standard padding |
+| `lg` | Larger padding and text |
+
+### Restyle the row
+
+`File.Root`, `File.Icon`, `File.Name`, `File.Size`, and `File.Download` are exported individually for a custom layout:
+
+```tsx
+import { File } from "@/components/assistant-ui/elements/file";
+
+<File.Root variant="ghost">
+  <File.Icon mimeType={part.mimeType} />
+  <File.Name>{part.filename}</File.Name>
+  <File.Download
+    data={part.data}
+    mimeType={part.mimeType}
+    filename={part.filename}
+    sourceType={part.sourceType}
+  />
+</File.Root>;
+```
+
+## API reference
+
+<RuntimeMode>
+
+### File
+
+| Export | Renders | Notes |
+|--------|---------|-------|
+| `File` | `div` | The `File` message-part renderer. Pass to `MessagePrimitive.Parts` as `components.File`. |
+| `File.Root` | `div` | Row with `variant` and `size`. |
+| `File.Icon` | `span` | Icon chosen from `mimeType`. |
+| `File.Name` | `span` | Filename text; shows "Unnamed file" when empty. |
+| `File.Size` | `span` | Formatted byte size; you supply `bytes`. |
+| `File.Download` | `a` | Download link; `null` when `data` can't produce a safe `href`. |
+
+### File part
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `filename` | `string` | Optional display name. |
+| `data` | `string` | The file payload: base64, a `data:` URI, or a URL/id per `sourceType`. |
+| `mimeType` | `string` | Drives the icon and, for base64/`data:` payloads, the download `href`. |
+| `sourceType` | `"url" \| "id"` | Optional. States how to interpret `data`; omitted infers from its shape. |
+
+</RuntimeMode>
+
+<StandaloneMode>
+
+### File props
+
+| Prop | Type | Default | Description |
+|------|------|---------|-------------|
+| `type` | `"file"` | required | Required by the part type. |
+| `filename` | `string` | | Display name; falls back to "Unnamed file". |
+| `data` | `string` | required | The file payload: base64, a `data:` URI, or a URL/id per `sourceType`. |
+| `mimeType` | `string` | required | Drives the icon and, for base64/`data:` payloads, the download `href`. |
+| `sourceType` | `"url" \| "id"` | | States how to interpret `data`; omitted infers from its shape. |
+| `status` | `MessagePartStatus` | | Required by the type; not read by the renderer. |
+| `variant` | `"outline" \| "ghost" \| "muted"` | `"outline"` | Row style, set on `File.Root`. |
+| `size` | `"sm" \| "default" \| "lg"` | `"default"` | Row size, set on `File.Root`. |
+
+`File.Root`, `File.Icon`, `File.Name`, `File.Size`, and `File.Download` are exported individually for a custom layout, as shown in [Restyle the row](#restyle-the-row).
+
+</StandaloneMode>

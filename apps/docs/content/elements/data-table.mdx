@@ -1,0 +1,201 @@
+---
+title: "Data table"
+description: "A small comparison table the model can answer with directly."
+---
+
+A data table lists a handful of rows the model wants in front of you, each one settling in with a short stagger. With a runtime the rows come from a tool's result; standalone you pass them in directly.
+
+## Getting started
+
+<RuntimeMode>
+
+A data table is the render for a tool call whose result is already row-shaped. Register it once and every matching call gets the same table.
+
+<Steps>
+  <Step>
+
+### Render the tool call
+
+```tsx title="components/assistant-ui/elements/compare-models-tool-ui.tsx"
+"use client";
+
+import { useEffect, useState } from "react";
+import type { ToolCallMessagePartComponent } from "@assistant-ui/react";
+import {
+  DataTable,
+  type ModelUsage,
+} from "@/components/assistant-ui/elements/data-table";
+
+export const CompareModelsToolUI: ToolCallMessagePartComponent<
+  { models: string[] },
+  readonly ModelUsage[]
+> = ({ result, toolCallId }) => {
+  const [cycle, setCycle] = useState(0);
+  useEffect(() => {
+    setCycle((c) => c + 1);
+  }, [toolCallId]);
+
+  if (!result) return null;
+  return <DataTable rows={result} cycle={cycle} />;
+};
+```
+
+  </Step>
+  <Step>
+
+### Register the tool
+
+```tsx title="app/toolkit.ts"
+import { defineToolkit } from "@assistant-ui/react";
+import { z } from "zod";
+import { CompareModelsToolUI } from "@/components/assistant-ui/elements/compare-models-tool-ui";
+
+export const toolkit = defineToolkit({
+  compare_models: {
+    type: "frontend",
+    description: "Compare context window and price across a set of models.",
+    parameters: z.object({ models: z.array(z.string()) }),
+    execute: async ({ models }) => lookupModelUsage(models),
+    render: CompareModelsToolUI,
+  },
+});
+```
+
+```tsx title="app/MyRuntimeProvider.tsx"
+import { AssistantRuntimeProvider, AuiConfig, Tools } from "@assistant-ui/react";
+import { useChatRuntime } from "@assistant-ui/ai-sdk";
+import { toolkit } from "./toolkit";
+
+export function MyRuntimeProvider({ children }: { children: React.ReactNode }) {
+  const runtime = useChatRuntime();
+  const config = AuiConfig({ tools: Tools({ toolkit }) });
+  return (
+    <AssistantRuntimeProvider runtime={runtime} config={config}>
+      {children}
+    </AssistantRuntimeProvider>
+  );
+}
+```
+
+See [Tool UI](/docs/tools/tool-ui) for backend-defined tools and approval gates.
+
+  </Step>
+</Steps>
+
+</RuntimeMode>
+
+<StandaloneMode>
+
+Standalone, the element is fully controlled: you own the row array and the replay key.
+
+<Steps>
+  <Step>
+
+### Hold the rows
+
+```tsx title="app/comparison.tsx"
+"use client";
+
+import { DataTable, type ModelUsage } from "@/components/assistant-ui/elements/data-table";
+
+const MODEL_USAGE = [
+  { name: "Sonnet 4.5", context: "200k", cost: "$3.00" },
+  { name: "GPT-5", context: "400k", cost: "$5.00" },
+  { name: "Haiku 4.5", context: "200k", cost: "$0.80" },
+] as const satisfies readonly ModelUsage[];
+
+export function Comparison() {
+  return <DataTable rows={MODEL_USAGE} cycle={0} />;
+}
+```
+
+  </Step>
+  <Step>
+
+### Replay the stagger when rows change
+
+`cycle` is a remount key, not a count. Bump it whenever the rows change so the new set fades in from the top instead of popping in place.
+
+```tsx
+const [rows, setRows] = useState(MODEL_USAGE);
+const [cycle, setCycle] = useState(0);
+
+async function refresh(models: readonly string[]) {
+  setRows(await fetchModelUsage(models));
+  setCycle((c) => c + 1);
+}
+```
+
+  </Step>
+</Steps>
+
+</StandaloneMode>
+
+## Anatomy
+
+```tsx
+<div data-slot="data-table">
+  <div>{/* header: Model / Context / Cost labels */}</div>
+  <div />{/* hairline divider */}
+  <div key={cycle}>
+    {/* one row per item: initial-letter avatar, name, context, cost */}
+  </div>
+</div>
+```
+
+The row list is keyed on `cycle`, so changing it remounts every row and replays the 80ms-per-row stagger from the top. An empty `rows` array renders only the header, with no placeholder row and no empty-state message.
+
+## Examples
+
+### Restyle the table
+
+Both lanes take `className` on the root. Labels, the row avatar, and the numeric columns read from the shared `mono` and `paper` tokens in `surfaces.tsx`, so retheming those tokens restyles every table at once.
+
+```tsx
+<DataTable className="max-w-none" /* ... */ />
+```
+
+### Comparing fewer models
+
+The header always shows all three columns; `rows` decides how many data rows appear underneath, down to zero.
+
+```tsx
+<DataTable
+  rows={MODEL_USAGE.filter((row) => row.name.startsWith("Sonnet"))}
+  cycle={cycle}
+/>
+```
+
+## API reference
+
+<RuntimeMode>
+
+### Tool-call render props
+
+| Prop | Type | Description |
+|------|------|-------------|
+| `args` | `TArgs` | Parsed arguments. Partial while the model is still streaming them. |
+| `argsText` | `string` | Raw JSON argument text streamed by the model. |
+| `result` | `TResult \| undefined` | The tool's return value once it completes. `undefined` while running. |
+| `status` | `ToolCallMessagePartStatus` | `status.type` is `"running"`, `"requires-action"`, `"complete"`, or `"incomplete"`. |
+| `toolName` | `string` | Name of the tool the model called. |
+| `toolCallId` | `string` | Stable id for this invocation. |
+| `isError` | `boolean \| undefined` | Whether `result` represents a tool execution error. |
+
+Register the renderer on a toolkit entry's `render` field and attach the toolkit with `Tools({ toolkit })`. See [Tool UI](/docs/tools/tool-ui) for the full render-prop surface, including `addResult`, human tools, and approval gates.
+
+</RuntimeMode>
+
+<StandaloneMode>
+
+### DataTable
+
+| Prop | Type | Default | Description |
+|------|------|---------|-------------|
+| `rows` | `readonly ModelUsage[]` | required | The rows to render, in order. |
+| `cycle` | `number` | required | Remount key for the row list; changing it replays the stagger-in animation. |
+| `className` | `string` | | Merged onto the root. |
+
+`ModelUsage` is `{ name: string; context: string; cost: string }`. All other `div` props are forwarded to the root.
+
+</StandaloneMode>

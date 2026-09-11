@@ -4,7 +4,7 @@ description: Build custom message rendering with content parts, attachments, and
 platforms: ["react"]
 ---
 
-import { MessagePrimitiveSample } from "@/components/docs/samples/message-primitive";
+import { MessagePrimitiveSample } from "@/components/pages/docs/samples/message-primitive";
 import { MessagePrimitive as MessagePrimitiveDocs } from "@/generated/primitiveDocs";
 
 The Message primitive handles individual message rendering: content parts, attachments, quotes, hover state, and error display. It's the building block inside each message bubble, resolving text, images, tool calls, and more through a parts pipeline.
@@ -604,7 +604,7 @@ function AssistantMessage() {
 
 ## Relationship to Components
 
-The shadcn [Thread](/docs/ui/thread) component renders user and assistant messages built from these primitives. The pre-built `AssistantMessage` and `UserMessage` components handle text rendering, tool UIs, error display, and action bars, all using `MessagePrimitive` under the hood.
+The shadcn [Thread](/elements/thread) component renders user and assistant messages built from these primitives. The pre-built `AssistantMessage` and `UserMessage` components handle text rendering, tool UIs, error display, and action bars, all using `MessagePrimitive` under the hood.
 
 Messages are commonly paired with [ActionBar](/docs/primitives/action-bar) for copy/reload/edit actions and [BranchPicker](/docs/primitives/branch-picker) for navigating between alternative responses.
 

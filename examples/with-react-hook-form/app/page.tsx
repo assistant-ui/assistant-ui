@@ -1,7 +1,7 @@
 "use client";
 
 import { SignupForm } from "@/components/SignupForm";
-import { Thread } from "@/components/assistant-ui/thread";
+import { Thread } from "@/components/assistant-ui/elements/thread.aui";
 import { Form } from "@/components/ui/form";
 import {
   ResizableHandle,

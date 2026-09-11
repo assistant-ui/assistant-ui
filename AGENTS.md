@@ -1,3 +1,20 @@
+# assistant-ui
+
+assistant-ui provides composable runtime and UI primitives for building AI interfaces across React, React Native, and terminal environments.
+
+## Product contract
+
+Preserve these promises:
+
+- **Composable primitives.** Features should combine through the existing runtime and component model instead of requiring parallel abstractions.
+- **Accessible UI.** Preserve accessibility, keyboard support, and responsive layout when changing the interface.
+
+## Maintainer taste
+
+Prefer the smallest change that fixes the underlying mechanism.
+
+Do not preserve complexity merely because it already exists.
+
 ## Architecture
 
 ```
@@ -15,6 +32,8 @@
 ## Package boundaries & public surface
 
 `@assistant-ui/core` holds the framework-agnostic runtime; its `./react` sub-path holds the React-coupled runtime that `@assistant-ui/react` and `@assistant-ui/react-native` re-export. Customers never install core directly; they use one of the three distribution packages (react, react-native, react-ink). Platform runtimes stay in the distribution packages; framework-agnostic logic goes in core.
+
+A peerDependency on a package this workspace releases is load-bearing, not decorative: `scripts/check-changeset-semver.mjs` reads `dependencies` and `peerDependencies` into one graph to compute the release cascade. Because `.changeset/config.json` sets `onlyUpdatePeerDependentsWhenOutOfRange`, `changeset version` never rewrites a peer range that is still satisfied, so a hand-written floor there is the one published range nothing keeps current. So every peer on a package this workspace releases is `workspace:^`, which publishes as `^<the version released alongside it>`. That is the default and `scripts/check-workspace-ranges.mjs` enforces it: a package reaching a consumer through a distribution rather than a direct install (`@assistant-ui/core`, `@assistant-ui/store`, `@assistant-ui/tap`) is in lock-step whether or not anyone remembered to say so. The exemptions are the peers a consumer installs themselves (`@assistant-ui/react`, `@assistant-ui/react-ink`, `@assistant-ui/react-markdown`, `assistant-cloud`), which keep a wide floor raised only when the code requires a newer API; they are named in the check, so adding one is a deliberate act. A subpath that needs a runtime the host already owns declares it as an optional peer rather than a dependency: `assistant-cloud/telemetry` lists `@opentelemetry/api`, `@opentelemetry/sdk-trace-base` and `@opentelemetry/exporter-trace-otlp-http` that way, so the package's main entry keeps `assistant-stream` as its only dependency.
 
 `@assistant-ui/ui` is a private shadcn-style kit. We use it directly in the monorepo and copy it into user projects through the registry; it is not published as a dependency.
 
@@ -46,7 +65,7 @@ Keep provider-driven choices flexible: core-primitive choice, thin wrapper vs ac
 
 How a package couples to its upstream decides how it bumps; the posture is chosen at design time, and the bump form follows from it.
 
-- Runtime-value coupling (the package imports upstream functions or classes: react-ai-sdk, react-lexical, react-opencode, react-mcp): the upstream lives in `dependencies` on a single caret major, never a `||` union. An upstream major lands as one atomic PR that moves the package and every workspace consumer together; for the AI SDK this includes the docs vN page plus vN-legacy stub, the example rename, and the redirect. Users staying on the old major pin the last release of the previous line; there are no backports.
+- Runtime-value coupling (the package imports upstream functions or classes: ai-sdk, react-lexical, react-opencode, react-mcp): the upstream lives in `dependencies` on a single caret major, never a `||` union. An upstream major lands as one atomic PR that moves the package and every workspace consumer together; for the AI SDK this includes the docs vN page plus vN-legacy stub, the example rename, and the redirect. Users staying on the old major pin the last release of the previous line; there are no backports.
 - The release that swaps a hard upstream major is a major of the package itself (a maintainer-approved exception to the patch default): each release line maps to one upstream major, and the previous line stays installable as the pin target.
 - Union satellites (the host app supplies the SDK runtime through peerDependencies: cloud-ai-sdk): a `||` union in peerDependencies is allowed, but every major named in the union must be exercised in CI, type checks and tests both; a leg nothing tests gets collapsed at the next dependency chore, and collapsing an advertised major is a breaking range narrowing that opens a new line rather than riding a patch.
 - Host-supplied coupling (the consumer owns the upstream SDK: react-langchain, react-langgraph, react-google-adk, react-pi, react-hook-form): a wide peerDependency floor kept below any devDependencies test pin (react-google-adk deliberately carries no dev pin and relies on the floor alone), raised only when the code requires a newer API, and marked optional in peerDependenciesMeta when the package is usable without it.
@@ -59,13 +78,13 @@ How a package couples to its upstream decides how it bumps; the posture is chose
 
 Every publishable package builds with `aui-build` (`@assistant-ui/x-buildutils`). Do not add a per-package build config or use tsup, unbuild, swc, or the tsc CLI. Exports maps are ESM-only and types-first (`"types"` before `"default"`), with `type: module` and `sideEffects: false`.
 
-`packages/ui/src/components/assistant-ui` is the canonical UI source. Templates and examples alias it through tsconfig (`@/components/*`, `@/hooks/*`, `@/lib/utils`) and carry no byte-equal copies of it — except `minimal`, which ships its own (examples may still hold intentional forks). `pnpm sync-templates` keeps minimal's copies byte-equal with the source; declare intentional divergence in the `OVERRIDES` array in `scripts/sync-templates.sh`.
+`packages/ui/src/components/react/assistant-ui/elements` is the canonical UI source. Templates and examples alias it through tsconfig (`@/components/*`, `@/hooks/*`, `@/lib/utils`) and carry no byte-equal copies of it — except `minimal`, which ships its own (examples may still hold intentional forks). `pnpm sync-templates` keeps minimal's copies byte-equal with the source; declare intentional divergence in the `OVERRIDES` array in `scripts/sync-templates.sh`.
 
-`components/ui/` uses parallel `radix/` and `base/` directories because every primitive exists in both flavors; `components/assistant-ui/` (and the direction pair in `ui/radix/`) uses sparse variant suffixes where the unmarked file is the Base UI source and a `.radix.tsx` sibling holds the Radix variant.
+`components/react/ui/` uses parallel `radix/` and `base/` directories because every primitive exists in both flavors; the direction pair in `ui/radix/` keeps the sparse form where the unmarked file is the Base UI source and a `.radix.tsx` sibling holds the Radix variant. `components/react/assistant-ui/elements/` uses a different sparse grid: the unmarked file is the props-only component, an `.aui.tsx` sibling binds it to the runtime, and an `.aui.radix.tsx` sibling holds the Radix variant of that binding.
 
 Run `pnpm check:resource-memo` when bumping `@babel/core`, `babel-plugin-react-compiler`, or `react-compiler`; a green build does not prove the compiler toolchain is intact. A package the published dist imports at runtime belongs in `dependencies`, not `devDependencies`, so the bundler externalizes it (a devDep gets inlined and drags unresolvable transitive imports into consumer builds). A registry item must be self-contained: enumerate every `@/components/*` import and CSS `@import` as `registryDependencies`, so `shadcn add` never lands a file with an unresolvable import.
 
-Every PR that changes a published package needs a changeset. Always use **patch**; minor and major require maintainer approval. Private packages (`private: true` in package.json) are exempt.
+Every PR that changes a published package needs a changeset. Always use **patch**; minor and major require maintainer approval, and an approved one carries `<!-- caret-break: intended -->` in the changeset body so `scripts/check-changeset-semver.mjs` lists the range break as a release decision instead of failing the PR (a 0.x minor leaves every consumer's `^` range, which is the point of declaring it). One changeset may name several packages and describe the whole release; it does not have to be split per package. Private packages (`private: true` in package.json) are exempt, and must never be named in a changeset: `privatePackages.version` is false, so a changeset that mixes a private package with a published one aborts `changeset version` and blocks every release. `pnpm changesets:check` enforces this.
 
 ```md
 ---
@@ -74,6 +93,16 @@ Every PR that changes a published package needs a changeset. Always use **patch*
 
 feat: description of the change
 ```
+
+## Performance measurement
+
+`packages/x-performance` owns performance measurement; its README is the reference. Three tiers, and only the first two can fail a PR:
+
+- **Counter contracts gate.** Exact render, commit, notification, resource-run, and converter-call integers asserted as ordinary vitest tests, in `packages/x-performance/contracts/` against the built dists of the public entries, or colocated in a package that takes `createRenderCounter` from `@assistant-ui/x-performance` as a devDependency when the contract needs that package's internals. They run in the normal test job with zero tolerance; changing a pinned integer is a deliberate change that explains the mechanism in the test. `pnpm check:resource-memo` is the other perf gate.
+- **Size budgets gate.** `pnpm size:check` bundles every published entry with rolldown (all bare imports external, minified, gzip) and compares it with `size-budgets.json`. A move past max(2%, 256 B) in either direction fails; `pnpm size:update` after a full build re-records only the moved entries of the packages the branch changed against `origin/main`, and the diff rides in the PR as the reviewable claim. A move on a package the branch never touched is reported and kept, because a dist the branch never rebuilt is not its claim to make; `pnpm size:update:all` re-records those, which is what a toolchain change or a re-baseline on `main` needs.
+- **Wall-time and rendering lanes inform, never gate.** The Performance workflow benches head against base on one runner and traces headless-Chrome fixtures, then posts one sticky PR comment with a `machine-readable` JSON block; the nightly workflow records main on the `perf-history` branch. A row is a verdict only when its bench exercises a package whose built `dist` changed; benches on unchanged dists are controls that calibrate that run's noise floor. A `SLOWER` row on an untouched package is by construction noise, and a green comparison covers only the paths a bench exercises.
+
+Add a measurement by the question, not the code: something countable becomes a contract, a speed question becomes a `bench/` file importing public entry points only, a paint or compositing question becomes a `fixtures/` page. A package new to the measured set needs the four wirings listed in the README.
 
 ## API reference ownership
 
@@ -101,6 +130,39 @@ Repro tests are temporary: marked "repro", written to prove completion of a task
 
 Contract tests document how complex machinery behaves at its public seams. They stay, and they read as the contract.
 
+## Pull request output
+
+Use a conventional, plain-language title: `<type>(<scope>): <observable outcome>`. The scope may be omitted when no package or surface name improves the title.
+
+Examples:
+
+- `fix(react): preserve message status when switching threads`
+- `feat: expose runtime metadata mutation`
+
+Write the human-authored description before any automated summary. Use this shape, omitting sections that genuinely do not apply:
+
+```md
+## Problem
+
+Describe the user-visible failure or missing capability. Bug fixes include the minimal reproduction and affected version.
+
+## Root cause
+
+Explain the mechanism that produced the behavior.
+
+## Change
+
+Explain the implementation, why it follows the existing architecture, and any intentional runtime or provider differences.
+
+## Verification
+
+List exact focused tests and checks. For a bug, confirm the reproduction fails without the fix and passes with it.
+
+## Public surface
+
+List affected packages, exports, documentation, API-reference output, templates, and changesets, or state `None`.
+```
+
 ## Do's and don'ts
 
 Do:
@@ -121,7 +183,7 @@ Don't:
 - **Don't ship a new example app that duplicates one we already ship.** Scan `examples/` first; if with-cloud, with-langgraph, or with-mcp already covers the integration, your example adds no ground. New examples belong in a separate repo on your own account unless a maintainer asked for it in-repo.
 - **Don't fix a bug by introducing a UX regression.** Disabling a feature, dropping an animation, or widening an API to mask a jitter or rendering bug is not an acceptable fix. Diagnose and fix the root cause; a regression is rejected even when the original report is real.
 - **Don't add defensive checks the toolchain already enforces, or comment on formatting.** The repo runs `@tsconfig/strictest` with `exactOptionalPropertyTypes`, so nullability and optional-property guards are redundant; do not add "ensure x is defined" guards the compiler already catches. Formatting is automated (oxfmt), so do not raise spacing or formatting nits in review.
-- **Don't `--admin` merge a PR until `gh pr checks` shows every row passing or explicitly skipped.** Filter out `pass` and `skipping` and confirm the remainder is empty, because the truncated tail once hid a failing Template Sync. If a repo-specific check (template-sync, api-surface, check:resource-memo, changeset-semver) is failing or pending, resolve it first rather than overriding.
+- **Don't `--admin` merge a PR until `gh pr checks` shows every row passing or explicitly skipped.** Filter out `pass` and `skipping` and confirm the remainder is empty, because the truncated tail once hid a failing Template Sync. If a repo-specific check (template-sync, api-surface, check:resource-memo, changeset-semver, unmanaged-pins) is failing or pending, resolve it first rather than overriding.
 
 ## GitButler
 

@@ -25,7 +25,7 @@ function transformerLineNumbers(): ShikiTransformer {
 // filter content based on the user's selected platform in the header dropdown.
 // Pages / folders with no `platforms` field are universal.
 // fumadocs-mdx forbids non-collection exports here, so this is local-only.
-const platformSchema = z.enum(["react", "rn", "ink"]);
+const platformSchema = z.enum(["react", "rn", "ink", "vue"]);
 
 export const docs = defineDocs({
   docs: {
@@ -40,9 +40,7 @@ export const docs = defineDocs({
         .optional(),
       platforms: z.array(platformSchema).optional(),
     }),
-    postprocess: {
-      includeProcessedMarkdown: true,
-    },
+    async: true,
   },
   meta: {
     schema: metaSchema.extend({
@@ -57,9 +55,7 @@ export const tapDocs = defineDocs({
   dir: "content/tap-docs",
   docs: {
     schema: frontmatterSchema,
-    postprocess: {
-      includeProcessedMarkdown: true,
-    },
+    async: true,
   },
   meta: {
     schema: metaSchema.extend({
@@ -72,9 +68,30 @@ export const examples = defineCollections({
   type: "doc",
   dir: "content/examples",
   schema: frontmatterSchema,
-  postprocess: {
-    includeProcessedMarkdown: true,
-  },
+  async: true,
+});
+
+export const elements = defineCollections({
+  type: "doc",
+  dir: "content/elements",
+  schema: frontmatterSchema,
+  async: true,
+});
+
+export const design = defineCollections({
+  type: "doc",
+  dir: "content/design",
+  schema: frontmatterSchema.extend({
+    links: z
+      .array(
+        z.object({
+          label: z.string(),
+          url: z.string(),
+        }),
+      )
+      .optional(),
+  }),
+  async: true,
 });
 
 export const blog = defineCollections({
@@ -82,7 +99,8 @@ export const blog = defineCollections({
   dir: "content/blog",
   schema: frontmatterSchema.extend({
     author: z.string(),
-    date: z.date().optional(),
+    date: z.coerce.date().optional(),
+    externalUrl: z.string().url().optional(),
   }),
   postprocess: {
     includeProcessedMarkdown: true,

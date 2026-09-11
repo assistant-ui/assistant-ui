@@ -2,6 +2,7 @@ import type {
   MessageStatus,
   SourceProviderMetadata,
   ThreadMessage,
+  ToolApprovalDisplay,
   ToolApprovalOption,
 } from "../../../types/message";
 import type { CompleteAttachment } from "../../../types/attachment";
@@ -16,11 +17,15 @@ import type { ExportedMessageRepositoryItem } from "../../../runtime/utils/messa
 
 type AuiV0ToolApproval = {
   readonly id: string;
+  readonly prompt?: string;
+  readonly display?: ToolApprovalDisplay;
+  readonly allowFreeform?: boolean;
   readonly approved?: boolean;
   readonly reason?: string;
   readonly isAutomatic?: boolean;
   readonly options?: readonly ToolApprovalOption[];
   readonly optionId?: string;
+  readonly text?: string;
   readonly resolution?: "cancelled" | "expired";
 };
 
@@ -32,6 +37,7 @@ type AuiV0MessagePart =
   | {
       readonly type: "reasoning";
       readonly text: string;
+      readonly unstable_summary?: string;
     }
   | {
       readonly type: "source";
@@ -78,6 +84,11 @@ type AuiV0MessagePart =
       readonly mimeType: string;
       readonly filename?: string;
       readonly sourceType?: "url" | "id";
+    }
+  | {
+      readonly type: "data";
+      readonly name: string;
+      readonly data: ReadonlyJSONValue;
     };
 
 type AuiV0AttachmentPart =
@@ -226,7 +237,13 @@ export function auiV0Encode(message: ThreadMessage): AuiV0Message {
           return { type: "text", text: part.text };
 
         case "reasoning":
-          return { type: "reasoning", text: part.text };
+          return {
+            type: "reasoning",
+            text: part.text,
+            ...(part.unstable_summary !== undefined
+              ? { unstable_summary: part.unstable_summary }
+              : undefined),
+          };
 
         case "source":
           if (part.sourceType === "url") {
@@ -289,8 +306,19 @@ export function auiV0Encode(message: ThreadMessage): AuiV0Message {
             ...(part.sourceType ? { sourceType: part.sourceType } : undefined),
           };
 
+        case "data": {
+          if (!isJSONValue(part.data)) {
+            console.warn(`data part is not JSON! ${JSON.stringify(part)}`);
+          }
+          return {
+            type: "data",
+            name: part.name,
+            data: part.data as ReadonlyJSONValue,
+          };
+        }
+
         default: {
-          const unhandledType: "audio" | "data" | "generative-ui" = type;
+          const unhandledType: "audio" | "generative-ui" = type;
           throw new Error(
             `Message part type not supported by aui/v0: ${unhandledType}`,
           );

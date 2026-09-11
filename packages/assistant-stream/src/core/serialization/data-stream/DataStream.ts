@@ -1,5 +1,4 @@
 import type { AssistantStreamChunk } from "../../AssistantStreamChunk";
-import type { ToolCallStreamController } from "../../modules/tool-call";
 import { AssistantTransformStream } from "../../utils/stream/AssistantTransformStream";
 import { PipeableTransformStream } from "../../utils/stream/PipeableTransformStream";
 import { type DataStreamChunk, DataStreamStreamChunkType } from "./chunk-types";
@@ -12,8 +11,8 @@ import {
   type AssistantMetaStreamChunk,
   AssistantMetaTransformStream,
 } from "../../utils/stream/AssistantMetaTransformStream";
-import type { TextStreamController } from "../../modules/text";
 import type { AssistantStreamEncoder } from "../../AssistantStream";
+import { createToolCallPartRegistry } from "../tool-call-part-registry";
 
 type DataStreamOptions = {
   strict?: boolean | undefined;
@@ -30,6 +29,34 @@ export class DataStreamEncoder
 
   constructor() {
     super((readable) => {
+      const openToolCallArgs = new Map<string, boolean>();
+      const finishToolCallArgs = (
+        controller: TransformStreamDefaultController<DataStreamChunk>,
+        toolCallId: string,
+      ) => {
+        const hasArgsText = openToolCallArgs.get(toolCallId);
+        if (hasArgsText === undefined) return;
+        openToolCallArgs.delete(toolCallId);
+        controller.enqueue({
+          type: DataStreamStreamChunkType.ToolCallArgsTextDelta,
+          value: {
+            toolCallId,
+            // A decoder that predates `isFinal` appends this delta and settles
+            // on what it has, and it skips its own empty-object default once
+            // any delta has arrived. The frame therefore has to carry the
+            // default itself rather than leave it to the decoder.
+            argsTextDelta: hasArgsText ? "" : "{}",
+            isFinal: true,
+          },
+        });
+      };
+      const finishOpenToolCallArgs = (
+        controller: TransformStreamDefaultController<DataStreamChunk>,
+      ) => {
+        for (const toolCallId of openToolCallArgs.keys()) {
+          finishToolCallArgs(controller, toolCallId);
+        }
+      };
       const transform = new TransformStream<
         AssistantMetaStreamChunk,
         DataStreamChunk
@@ -45,6 +72,7 @@ export class DataStreamEncoder
                   type: DataStreamStreamChunkType.StartToolCall,
                   value,
                 });
+                openToolCallArgs.set(part.toolCallId, false);
               }
               if (part.type === "source") {
                 const { type, ...value } = part;
@@ -53,11 +81,37 @@ export class DataStreamEncoder
                   value,
                 });
               }
+              if (part.type === "file") {
+                const { type, ...value } = part;
+                controller.enqueue({
+                  type: DataStreamStreamChunkType.File,
+                  value,
+                });
+              }
               if (part.type === "data") {
                 const { type, ...value } = part;
                 controller.enqueue({
                   type: DataStreamStreamChunkType.AuiDataPart,
                   value,
+                });
+              }
+              // Reasoning otherwise reaches the wire only through its text
+              // deltas, which cannot carry a summary and emit nothing at all
+              // for a part that never appends text. The frame is emitted only
+              // when there is a summary to carry, so a stream that does not
+              // use the field is unchanged.
+              if (
+                part.type === "reasoning" &&
+                part.unstable_summary !== undefined
+              ) {
+                controller.enqueue({
+                  type: DataStreamStreamChunkType.AuiReasoningPartStart,
+                  value: {
+                    unstable_summary: part.unstable_summary,
+                    ...(part.parentId !== undefined
+                      ? { parentId: part.parentId }
+                      : {}),
+                  },
                 });
               }
               break;
@@ -100,6 +154,8 @@ export class DataStreamEncoder
                   break;
                 }
                 case "tool-call": {
+                  if (!openToolCallArgs.has(part.toolCallId)) break;
+                  openToolCallArgs.set(part.toolCallId, true);
                   controller.enqueue({
                     type: DataStreamStreamChunkType.ToolCallArgsTextDelta,
                     value: {
@@ -124,6 +180,7 @@ export class DataStreamEncoder
                   `Result chunk on non-tool-call part not supported: ${part.type}`,
                 );
               }
+              openToolCallArgs.delete(part.toolCallId);
               controller.enqueue({
                 type: DataStreamStreamChunkType.ToolCallResult,
                 value: {
@@ -144,6 +201,7 @@ export class DataStreamEncoder
               break;
             }
             case "step-finish": {
+              finishOpenToolCallArgs(controller);
               const { type, ...value } = chunk;
               controller.enqueue({
                 type: DataStreamStreamChunkType.FinishStep,
@@ -152,6 +210,7 @@ export class DataStreamEncoder
               break;
             }
             case "message-finish": {
+              finishOpenToolCallArgs(controller);
               const { type, ...value } = chunk;
               controller.enqueue({
                 type: DataStreamStreamChunkType.FinishMessage,
@@ -160,6 +219,7 @@ export class DataStreamEncoder
               break;
             }
             case "error": {
+              finishOpenToolCallArgs(controller);
               controller.enqueue({
                 type: DataStreamStreamChunkType.Error,
                 value: chunk.error,
@@ -189,17 +249,25 @@ export class DataStreamEncoder
               break;
             }
 
-            // TODO ignore for now
-            // in the future, we should create a handler that waits for text parts to finish before continuing
-            case "tool-call-args-text-finish":
-            case "part-finish":
+            case "tool-call-args-text-finish": {
+              finishToolCallArgs(controller, chunk.meta.toolCallId);
               break;
+            }
+            case "part-finish": {
+              if (chunk.meta.type === "tool-call") {
+                finishToolCallArgs(controller, chunk.meta.toolCallId);
+              }
+              break;
+            }
 
             default: {
               const exhaustiveCheck: never = type;
               throw new Error(`Unsupported chunk type: ${exhaustiveCheck}`);
             }
           }
+        },
+        flush(controller) {
+          finishOpenToolCallArgs(controller);
         },
       });
 
@@ -212,20 +280,6 @@ export class DataStreamEncoder
   }
 }
 
-const TOOL_CALL_ARGS_CLOSING_CHUNKS: DataStreamStreamChunkType[] = [
-  DataStreamStreamChunkType.StartToolCall,
-  DataStreamStreamChunkType.ToolCall,
-  DataStreamStreamChunkType.TextDelta,
-  DataStreamStreamChunkType.ReasoningDelta,
-  DataStreamStreamChunkType.Source,
-  DataStreamStreamChunkType.Error,
-  DataStreamStreamChunkType.FinishStep,
-  DataStreamStreamChunkType.FinishMessage,
-  DataStreamStreamChunkType.AuiTextDelta,
-  DataStreamStreamChunkType.AuiReasoningDelta,
-  DataStreamStreamChunkType.AuiDataPart,
-];
-
 export class DataStreamDecoder extends PipeableTransformStream<
   Uint8Array<ArrayBuffer>,
   AssistantStreamChunk
@@ -233,8 +287,7 @@ export class DataStreamDecoder extends PipeableTransformStream<
   constructor(options: DataStreamOptions = {}) {
     const strict = options.strict ?? true;
     super((readable) => {
-      const toolCallControllers = new Map<string, ToolCallStreamController>();
-      const closedToolCallArgs = new Set<string>();
+      const toolCallPartRegistry = createToolCallPartRegistry();
       const warnedDroppedArgs = new Set<string>();
       const loggedDrops = new Set<string>();
       const logDropped = (key: string, message: string) => {
@@ -242,28 +295,13 @@ export class DataStreamDecoder extends PipeableTransformStream<
         loggedDrops.add(key);
         console.error(message);
       };
-      let activeToolCallArgsText: TextStreamController | undefined;
-      let activeToolCallArgsId: string | undefined;
+      const closeOpenToolCallArgs = () => {
+        toolCallPartRegistry.closeOpenArgsText();
+      };
       const transform = new AssistantTransformStream<DataStreamChunk>({
         strict,
         transform(chunk, controller) {
           const { type, value } = chunk;
-
-          const isDuplicateToolCallStart =
-            chunk.type === DataStreamStreamChunkType.StartToolCall &&
-            toolCallControllers.has(chunk.value.toolCallId);
-
-          if (
-            TOOL_CALL_ARGS_CLOSING_CHUNKS.includes(type) &&
-            !isDuplicateToolCallStart
-          ) {
-            if (activeToolCallArgsText && activeToolCallArgsId !== undefined) {
-              activeToolCallArgsText.close();
-              closedToolCallArgs.add(activeToolCallArgsId);
-            }
-            activeToolCallArgsText = undefined;
-            activeToolCallArgsId = undefined;
-          }
 
           switch (type) {
             case DataStreamStreamChunkType.ReasoningDelta:
@@ -280,6 +318,21 @@ export class DataStreamDecoder extends PipeableTransformStream<
                 .appendText(value.textDelta);
               break;
 
+            case DataStreamStreamChunkType.AuiReasoningPartStart: {
+              const target = value.parentId
+                ? controller.withParentId(value.parentId)
+                : controller;
+              // Opening through appendReasoning registers the part as the
+              // current reasoning append target, so the deltas that follow
+              // extend it instead of opening a second part.
+              target.appendReasoning("", {
+                ...(value.unstable_summary !== undefined
+                  ? { unstable_summary: value.unstable_summary }
+                  : {}),
+              });
+              break;
+            }
+
             case DataStreamStreamChunkType.AuiReasoningDelta:
               controller
                 .withParentId(value.parentId)
@@ -292,7 +345,7 @@ export class DataStreamDecoder extends PipeableTransformStream<
                 ? controller.withParentId(parentId)
                 : controller;
 
-              if (toolCallControllers.has(toolCallId)) {
+              if (toolCallPartRegistry.tryGet(toolCallId)) {
                 if (strict)
                   throw new Error(
                     `Encountered duplicate tool call id: ${toolCallId}`,
@@ -304,29 +357,19 @@ export class DataStreamDecoder extends PipeableTransformStream<
                 break;
               }
 
-              const toolCallController = ctrl.addToolCallPart({
-                toolCallId,
-                toolName,
-              });
-              toolCallControllers.set(toolCallId, toolCallController);
-
-              activeToolCallArgsText = toolCallController.argsText;
-              activeToolCallArgsId = toolCallId;
+              toolCallPartRegistry.start(toolCallId, () =>
+                ctrl.addToolCallPart({
+                  toolCallId,
+                  toolName,
+                }),
+              );
               break;
             }
 
             case DataStreamStreamChunkType.ToolCallArgsTextDelta: {
-              const { toolCallId, argsTextDelta } = value;
-              if (closedToolCallArgs.has(toolCallId)) {
-                if (!warnedDroppedArgs.has(toolCallId)) {
-                  warnedDroppedArgs.add(toolCallId);
-                  console.warn(
-                    `Dropped tool-call args delta for closed args stream: ${toolCallId}`,
-                  );
-                }
-                break;
-              }
-              const toolCallController = toolCallControllers.get(toolCallId);
+              const { toolCallId, argsTextDelta, isFinal } = value;
+              const toolCallController =
+                toolCallPartRegistry.tryGet(toolCallId);
               if (!toolCallController) {
                 if (strict)
                   throw new Error(
@@ -338,13 +381,31 @@ export class DataStreamDecoder extends PipeableTransformStream<
                 );
                 break;
               }
-              toolCallController.argsText.append(argsTextDelta);
+              if (toolCallPartRegistry.isArgsTextClosed(toolCallController)) {
+                if (!warnedDroppedArgs.has(toolCallId)) {
+                  warnedDroppedArgs.add(toolCallId);
+                  console.warn(
+                    `Dropped tool-call args delta for closed args stream: ${toolCallId}`,
+                  );
+                }
+                break;
+              }
+              if (argsTextDelta.length > 0) {
+                toolCallPartRegistry.appendArgsText(
+                  toolCallController,
+                  argsTextDelta,
+                );
+              }
+              if (isFinal === true) {
+                toolCallPartRegistry.closeArgsText(toolCallController);
+              }
               break;
             }
 
             case DataStreamStreamChunkType.ToolCallResult: {
               const { toolCallId, artifact, result, isError } = value;
-              const toolCallController = toolCallControllers.get(toolCallId);
+              const toolCallController =
+                toolCallPartRegistry.tryGet(toolCallId);
               if (!toolCallController) {
                 if (strict)
                   throw new Error(
@@ -356,42 +417,43 @@ export class DataStreamDecoder extends PipeableTransformStream<
                 );
                 break;
               }
-              toolCallController.setResponse({
+              toolCallPartRegistry.setResponse(toolCallController, {
                 artifact,
                 result,
                 isError,
               });
-              closedToolCallArgs.add(toolCallId);
-              if (activeToolCallArgsId === toolCallId) {
-                activeToolCallArgsText = undefined;
-                activeToolCallArgsId = undefined;
-              }
               break;
             }
 
             case DataStreamStreamChunkType.ToolCall: {
               const { toolCallId, toolName, args } = value;
+              const toolCallController =
+                toolCallPartRegistry.tryGet(toolCallId);
 
-              let toolCallController = toolCallControllers.get(toolCallId);
               if (toolCallController) {
-                toolCallController.argsText.close();
+                toolCallPartRegistry.closeArgsText(toolCallController);
               } else {
-                toolCallController = controller.addToolCallPart({
+                const toolCallController = toolCallPartRegistry.start(
                   toolCallId,
-                  toolName,
-                  args,
-                });
-                toolCallControllers.set(toolCallId, toolCallController);
-              }
-              closedToolCallArgs.add(toolCallId);
-              if (activeToolCallArgsId === toolCallId) {
-                activeToolCallArgsText = undefined;
-                activeToolCallArgsId = undefined;
+                  () =>
+                    controller.addToolCallPart({
+                      toolCallId,
+                      toolName,
+                    }),
+                );
+                if (args !== undefined) {
+                  toolCallPartRegistry.appendArgsText(
+                    toolCallController,
+                    JSON.stringify(args),
+                  );
+                }
+                toolCallPartRegistry.closeArgsText(toolCallController);
               }
               break;
             }
 
             case DataStreamStreamChunkType.FinishMessage:
+              closeOpenToolCallArgs();
               controller.enqueue({
                 type: "message-finish",
                 path: [],
@@ -408,6 +470,7 @@ export class DataStreamDecoder extends PipeableTransformStream<
               break;
 
             case DataStreamStreamChunkType.FinishStep:
+              closeOpenToolCallArgs();
               controller.enqueue({
                 type: "step-finish",
                 path: [],
@@ -443,6 +506,7 @@ export class DataStreamDecoder extends PipeableTransformStream<
             }
 
             case DataStreamStreamChunkType.Error:
+              closeOpenToolCallArgs();
               controller.enqueue({
                 type: "error",
                 path: [],
@@ -450,12 +514,17 @@ export class DataStreamDecoder extends PipeableTransformStream<
               });
               break;
 
-            case DataStreamStreamChunkType.File:
-              controller.appendFile({
+            case DataStreamStreamChunkType.File: {
+              const { parentId, ...fileData } = value;
+              const ctrl = parentId
+                ? controller.withParentId(parentId)
+                : controller;
+              ctrl.appendFile({
                 type: "file",
-                ...value,
+                ...fileData,
               });
               break;
+            }
 
             case DataStreamStreamChunkType.AuiDataPart:
               controller.appendData({
@@ -489,11 +558,8 @@ export class DataStreamDecoder extends PipeableTransformStream<
           }
         },
         flush() {
-          activeToolCallArgsText?.close();
-          activeToolCallArgsText = undefined;
-          activeToolCallArgsId = undefined;
-          toolCallControllers.forEach((controller) => controller.close());
-          toolCallControllers.clear();
+          closeOpenToolCallArgs();
+          toolCallPartRegistry.closeAll();
         },
       });
 

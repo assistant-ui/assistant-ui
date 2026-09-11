@@ -5,15 +5,35 @@ import type { ThreadMessage } from "../../types/message";
 import { RemoteThreadListHookInstanceManager } from "./RemoteThreadListHookInstanceManager";
 
 const makeRuntime = (
-  initial: Partial<Pick<ThreadRuntimeCore, "isRunning" | "messages">> = {},
+  initial: Partial<Pick<ThreadRuntimeCore, "isRunning" | "messages">> & {
+    initialized?: boolean;
+  } = {},
 ) => {
   const subscribers = new Set<() => void>();
+  const eventListeners = new Map<string, Set<() => void>>();
   const runtime = {
     isRunning: initial.isRunning,
     messages: initial.messages ?? [],
     subscribe: (callback: () => void) => {
       subscribers.add(callback);
       return () => subscribers.delete(callback);
+    },
+    unstable_on: (event: string, callback: () => void) => {
+      let listeners = eventListeners.get(event);
+      if (!listeners) {
+        listeners = new Set();
+        eventListeners.set(event, listeners);
+      }
+      listeners.add(callback);
+      // mirrors the real core: initialize latches, so a subscriber that
+      // attaches after initialization gets a deferred replay
+      if (event === "initialize" && initial.initialized) {
+        const latched = listeners;
+        queueMicrotask(() => {
+          if (latched.has(callback)) callback();
+        });
+      }
+      return () => listeners.delete(callback);
     },
   } as unknown as ThreadRuntimeCore & {
     isRunning: boolean | undefined;
@@ -23,6 +43,14 @@ const makeRuntime = (
   return {
     runtime,
     subscriberCount: () => subscribers.size,
+    eventListenerCount: () =>
+      [...eventListeners.values()].reduce(
+        (total, listeners) => total + listeners.size,
+        0,
+      ),
+    emit: (event: string) => {
+      for (const callback of eventListeners.get(event) ?? []) callback();
+    },
     setRunning: (isRunning: boolean | undefined) => {
       runtime.isRunning = isRunning;
       for (const callback of subscribers) callback();
@@ -36,7 +64,7 @@ const makeManager = () =>
     {} as ThreadListRuntimeCore,
   );
 
-// mirrors what the React binder does on every publication
+// mirrors what the tap fiber does on every publication
 const publish = (
   manager: RemoteThreadListHookInstanceManager,
   threadId: string,
@@ -127,6 +155,39 @@ describe("RemoteThreadListHookInstanceManager run tracking", () => {
     expect(onChange).toHaveBeenCalledTimes(2);
   });
 
+  it("notifies every running subscriber when one throws", () => {
+    const manager = makeManager();
+    start(manager, "thread-1");
+    const thread = makeRuntime({ isRunning: false });
+    publish(manager, "thread-1", thread.runtime);
+    const error = new Error("listener failed");
+    manager.__internal_subscribeRunningChanged(() => {
+      throw error;
+    });
+    const laterSubscriber = vi.fn();
+    manager.__internal_subscribeRunningChanged(laterSubscriber);
+
+    expect(() => thread.setRunning(true)).toThrow(error);
+    expect(laterSubscriber).toHaveBeenCalledOnce();
+  });
+
+  it("notifies every replacement subscriber when one throws", () => {
+    const manager = makeManager();
+    start(manager, "thread-1");
+    publish(manager, "thread-1", makeRuntime().runtime);
+    const error = new Error("listener failed");
+    manager.__internal_subscribeRuntimeReplaced(() => {
+      throw error;
+    });
+    const laterSubscriber = vi.fn();
+    manager.__internal_subscribeRuntimeReplaced(laterSubscriber);
+
+    expect(() => publish(manager, "thread-1", makeRuntime().runtime)).toThrow(
+      error,
+    );
+    expect(laterSubscriber).toHaveBeenCalledOnce();
+  });
+
   it("moves tracking to the runtime a restart publishes", () => {
     const manager = makeManager();
     start(manager, "thread-1");
@@ -152,6 +213,71 @@ describe("RemoteThreadListHookInstanceManager run tracking", () => {
     manager.stopThreadRuntime("thread-1");
 
     expect(thread.subscriberCount()).toBe(0);
+    expect(thread.eventListenerCount()).toBe(0);
     expect(manager.__internal_isThreadRunning("thread-1")).toBe(false);
+  });
+
+  it("forwards every lifecycle event from every tracked thread with its thread id", () => {
+    const manager = makeManager();
+    const events: unknown[] = [];
+    manager.__internal_subscribeThreadEvents((event) => events.push(event));
+
+    start(manager, "thread-1");
+    start(manager, "thread-2");
+    const first = makeRuntime();
+    const second = makeRuntime();
+    publish(manager, "thread-1", first.runtime);
+    publish(manager, "thread-2", second.runtime);
+
+    second.emit("runStart");
+    first.emit("runEnd");
+    first.emit("initialize");
+    second.emit("modelContextUpdate");
+
+    expect(events).toEqual([
+      { threadId: "thread-2", type: "runStart" },
+      { threadId: "thread-1", type: "runEnd" },
+      { threadId: "thread-1", type: "initialize" },
+      { threadId: "thread-2", type: "modelContextUpdate" },
+    ]);
+  });
+
+  it("replays a latched initialize from the surviving runtime after a restart", async () => {
+    const manager = makeManager();
+    const events: unknown[] = [];
+    manager.__internal_subscribeThreadEvents((event) => events.push(event));
+
+    start(manager, "thread-1");
+    const before = makeRuntime({ initialized: true });
+    publish(manager, "thread-1", before.runtime);
+    const after = makeRuntime({ initialized: true });
+    publish(manager, "thread-1", after.runtime);
+    await new Promise<void>((resolve) => queueMicrotask(resolve));
+
+    expect(before.eventListenerCount()).toBe(0);
+    expect(events).toEqual([{ threadId: "thread-1", type: "initialize" }]);
+  });
+
+  it("stops forwarding lifecycle events from a runtime a restart replaced", () => {
+    const manager = makeManager();
+    const events: unknown[] = [];
+    manager.__internal_subscribeThreadEvents((event) => events.push(event));
+
+    start(manager, "thread-1");
+    const before = makeRuntime();
+    publish(manager, "thread-1", before.runtime);
+    const after = makeRuntime();
+    publish(manager, "thread-1", after.runtime);
+
+    before.emit("runEnd");
+    before.emit("initialize");
+    after.emit("runEnd");
+    after.emit("modelContextUpdate");
+
+    expect(before.eventListenerCount()).toBe(0);
+    expect(events).toEqual([
+      { threadId: "thread-1", type: "runEnd" },
+      { threadId: "thread-1", type: "modelContextUpdate" },
+    ]);
   });
 });

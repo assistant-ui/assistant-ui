@@ -12,7 +12,7 @@ import {
 import { FFmpeg } from "@ffmpeg/ffmpeg";
 import { toBlobURL } from "@ffmpeg/util";
 import { type FC, type ReactNode, useEffect, useRef, useState } from "react";
-import { Thread } from "@/components/assistant-ui/thread";
+import { Thread } from "@/components/assistant-ui/elements/thread.aui";
 import { useFfmpegToolkit } from "./toolkit";
 
 // MVP: upload file, enter command
@@ -70,11 +70,13 @@ const FfmpegToolsProvider: FC<{ file: File; children: ReactNode }> = ({
 export default function Home() {
   const [lastFile, setLastFile] = useState<File | null>(null);
   const attachments = useAuiState((s) => s.thread.composer.attachments);
-  useEffect(() => {
+  const [syncedAttachments, setSyncedAttachments] = useState(attachments);
+
+  if (syncedAttachments !== attachments) {
+    setSyncedAttachments(attachments);
     const lastAttachment = attachments[attachments.length - 1];
-    if (!lastAttachment) return;
-    setLastFile(lastAttachment.file!);
-  }, [attachments]);
+    if (lastAttachment) setLastFile(lastAttachment.file!);
+  }
 
   const aui = useAui();
   const config = AuiConfig({

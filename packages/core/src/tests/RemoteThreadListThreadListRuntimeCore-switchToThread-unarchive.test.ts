@@ -63,6 +63,31 @@ describe("RemoteThreadListThreadListRuntimeCore.switchToThread unarchive option"
     expect(core.mainThreadId).toBe(core.getItemById(THREAD_ID)?.id);
   });
 
+  it("restores an initialized draft's archived thread when unarchive fails", async () => {
+    const THREAD_ID = "archived-initialized-draft";
+    const error = new Error("unarchive failed");
+    const adapter = makeAdapter({
+      list: vi.fn(async () => ({ threads: [archivedThread(THREAD_ID)] })),
+      unarchive: vi.fn(async () => {
+        throw error;
+      }),
+    });
+
+    const core = createCore(adapter);
+    await core.getLoadThreadsPromise();
+    const draftId = core.newThreadId;
+    if (draftId === undefined) throw new Error("Expected seeded draft");
+    await core.initialize(draftId);
+    expect(core.newThreadId).toBeUndefined();
+    await core.switchToThread(THREAD_ID, { unarchive: false });
+
+    await expect(core.unarchive(THREAD_ID)).rejects.toBe(error);
+    expect(core.mainThreadId).not.toBe(THREAD_ID);
+    expect(core.getItemById(THREAD_ID)?.status).toBe("archived");
+    expect(core.archivedThreadIds).toContain(THREAD_ID);
+    expect(core.threadIds).not.toContain(THREAD_ID);
+  });
+
   it("does not call unarchive when the target is already regular, regardless of option", async () => {
     const THREAD_ID = "regular-target";
     const adapter = makeAdapter({

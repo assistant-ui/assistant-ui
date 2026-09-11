@@ -2,7 +2,7 @@
 
 import { useCallback, useState } from "react";
 import type { ImageMessagePart, MessagePartStatus } from "@assistant-ui/react";
-import { Image } from "@/components/assistant-ui/image";
+import { Image } from "@/components/assistant-ui/elements/image";
 
 type ImageView = ImageMessagePart & { status: MessagePartStatus };
 

@@ -9,6 +9,9 @@ export type MessageIfProps = {
   last?: boolean | undefined;
 };
 
+/**
+ * @deprecated Use `<AuiIf condition={(s) => s.message...} />` instead.
+ */
 export const MessageIf = ({
   children,
   user,

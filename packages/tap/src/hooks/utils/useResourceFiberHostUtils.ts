@@ -17,7 +17,7 @@ const useResourceFiberHostUtilsTap = () => {
   const markDirty = useMemo(
     () => () => {
       versionRef.current++;
-      parent?.markDirty?.();
+      parent.markDirty?.();
     },
     [parent],
   );

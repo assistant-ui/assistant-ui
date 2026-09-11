@@ -43,17 +43,25 @@ export class JSONGenerativeUI {
     this.actions = options.actions;
   }
 
+  /**
+   * The surface a `present` call paints into. It owns the vertical rhythm
+   * between top-level blocks, which the host's message container does not
+   * provide, and stays out of the way while it has nothing to show.
+   */
   private readonly render = ({
     args,
     status,
   }: {
     args: unknown;
     status: { type: string };
-  }): ReactNode =>
-    renderGenerativeUI(args, this.library, {
-      status: uiStatus(status),
-      ...(this.actions ? { dispatch: this.actions.dispatch } : {}),
-    });
+  }): ReactNode => (
+    <div data-aui="root">
+      {renderGenerativeUI(args, this.library, {
+        status: uiStatus(status),
+        ...(this.actions ? { dispatch: this.actions.dispatch } : {}),
+      })}
+    </div>
+  );
 
   present(options?: PresentToolOptions): PresentTool {
     return {

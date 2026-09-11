@@ -1,0 +1,211 @@
+---
+title: Tabs
+description: A tabs component for organizing content into switchable panels.
+links:
+  - label: Radix UI Tabs (Radix styles)
+    url: https://www.radix-ui.com/primitives/docs/components/tabs
+  - label: Base UI Tabs (base styles)
+    url: https://base-ui.com/react/components/tabs
+---
+
+import { PreviewCode } from "@/components/pages/docs/preview-code.server";
+import {
+  TabsSample,
+  TabsVariantsSample,
+  TabsWithIconsSample,
+  TabsControlledSample,
+  TabsAsLinkSample,
+} from "@/components/pages/docs/samples/tabs";
+import * as TabsRadixSamples from "@/components/pages/docs/samples/tabs.radix";
+import { Flavored, FlavorSwitcher } from "@/components/pages/docs/contexts/flavor.server";
+
+<FlavorSwitcher />
+
+<Flavored radix={<TabsRadixSamples.TabsSample />} base={<TabsSample />} />
+
+## Installation
+
+<InstallCommand shadcn={["tabs"]} />
+
+## Usage
+
+```tsx
+import {
+  Tabs,
+  TabsContent,
+  TabsList,
+  TabsTrigger,
+} from "@/components/ui/tabs";
+
+export function Example() {
+  return (
+    <Tabs defaultValue="account">
+      <TabsList>
+        <TabsTrigger value="account">Account</TabsTrigger>
+        <TabsTrigger value="password">Password</TabsTrigger>
+      </TabsList>
+      <TabsContent value="account">Account settings here.</TabsContent>
+      <TabsContent value="password">Password settings here.</TabsContent>
+    </Tabs>
+  );
+}
+```
+
+## Examples
+
+### Variants
+
+Use `default` for a contained control or `line` for navigation-style tabs.
+
+<Flavored radix={<TabsRadixSamples.TabsVariantsSample />} base={<TabsVariantsSample />} />
+
+```tsx
+<TabsList variant="default" />
+<TabsList variant="line" />
+```
+
+### With icons
+
+Tabs automatically style SVG icons placed inside triggers.
+
+<PreviewCode file="components/pages/docs/samples/tabs" name="TabsWithIconsSample" base={<TabsWithIconsSample />}>
+  <TabsRadixSamples.TabsWithIconsSample />
+</PreviewCode>
+
+### Controlled
+
+Use `value` and `onValueChange` for controlled tab state.
+
+<PreviewCode file="components/pages/docs/samples/tabs" name="TabsControlledSample" base={<TabsControlledSample />}>
+  <TabsRadixSamples.TabsControlledSample />
+</PreviewCode>
+
+### As link
+
+Compose with `render` in Base UI or `asChild` in Radix to render a trigger as a link.
+
+<PreviewCode file="components/pages/docs/samples/tabs" name="TabsAsLinkSample" base={<TabsAsLinkSample />}>
+  <TabsRadixSamples.TabsAsLinkSample />
+</PreviewCode>
+
+## API Reference
+
+### Composable API
+
+| Component | Description |
+|-----------|-------------|
+| `Tabs` | The root component that manages tab state and orientation. |
+| `TabsList` | The container for tab triggers. |
+| `TabsTrigger` | An individual tab control. |
+| `TabsContent` | The content panel for a tab. |
+
+### Tabs
+
+<ParametersTable
+  type="TabsProps"
+  parameters={[
+    {
+      name: "defaultValue",
+      type: "string",
+      description: "The initial active tab for uncontrolled state.",
+    },
+    {
+      name: "value",
+      type: "string",
+      description: "The controlled active tab.",
+    },
+    {
+      name: "onValueChange",
+      type: "(value: string) => void",
+      description: "Called when the active tab changes.",
+    },
+    {
+      name: "orientation",
+      type: '"horizontal" | "vertical"',
+      default: '"horizontal"',
+      description: "The direction of the tab list and keyboard navigation.",
+    },
+  ]}
+/>
+
+### TabsList
+
+<ParametersTable
+  type="TabsListProps"
+  parameters={[
+    {
+      name: "variant",
+      type: '"default" | "line"',
+      default: '"default"',
+      description: "The visual style of the tab list.",
+    },
+    {
+      name: "className",
+      type: "string",
+      description: "Additional CSS classes.",
+    },
+  ]}
+/>
+
+### TabsTrigger
+
+<ParametersTable
+  type="TabsTriggerProps"
+  parameters={[
+    {
+      name: "value",
+      type: "string",
+      required: true,
+      description: "The unique value for the tab.",
+    },
+    {
+      name: "disabled",
+      type: "boolean",
+      description: "Whether the tab is disabled.",
+    },
+    {
+      name: "render",
+      type: "ReactElement | function",
+      description: "Base UI: compose as a different element.",
+    },
+    {
+      name: "asChild",
+      type: "boolean",
+      default: "false",
+      description: "Radix: merge props with a child element.",
+    },
+  ]}
+/>
+
+### TabsContent
+
+<ParametersTable
+  type="TabsContentProps"
+  parameters={[
+    {
+      name: "value",
+      type: "string",
+      required: true,
+      description: "The value matching the corresponding trigger.",
+    },
+    {
+      name: "className",
+      type: "string",
+      description: "Additional CSS classes.",
+    },
+  ]}
+/>
+
+### Style variants
+
+| Export | Description |
+|--------|-------------|
+| `tabsListVariants` | Styles for the tab list container. |
+
+```tsx
+import { tabsListVariants } from "@/components/ui/tabs";
+
+<div className={tabsListVariants({ variant: "line" })}>
+  Custom tab list
+</div>
+```

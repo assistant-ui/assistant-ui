@@ -1,0 +1,122 @@
+---
+title: "Inline citation"
+description: "Numbered references inside a sentence, each with a hover preview of its source."
+---
+
+Inline citation drops small numbered markers into a sentence; hovering one opens a preview card with the source's domain, title, and snippet. This element has no runtime composition: assistant-ui has no positional link between a citation marker and an offset inside streamed message text, so it ships as a standalone specimen and you adapt the sentence it wraps directly in the installed file.
+
+## Getting started
+
+<Steps>
+  <Step>
+
+### Render the citations
+
+```tsx title="app/answer.tsx"
+"use client";
+
+import { useState } from "react";
+import {
+  InlineCitation,
+  type Source,
+} from "@/components/assistant-ui/elements/inline-citation";
+
+const SOURCES: Source[] = [
+  {
+    domain: "assistant-ui.com",
+    title: "Optimistic updates in the runtime",
+    snippet:
+      "The runtime applies local edits immediately and reconciles them once the server acknowledges the write.",
+  },
+  {
+    domain: "react.dev",
+    title: "useSyncExternalStore reference",
+    snippet:
+      "Subscribes a component to an external store, re-rendering on every store change with a consistent snapshot.",
+  },
+];
+
+export function Answer() {
+  const [openIndex, setOpenIndex] = useState<number | null>(null);
+
+  return (
+    <InlineCitation
+      sources={SOURCES}
+      openIndex={openIndex}
+      onOpenIndexChange={setOpenIndex}
+    />
+  );
+}
+```
+
+This renders the element's own fixed sentence with markers `1` and `2` attached at its two anchor points, previewing `SOURCES[0]` and `SOURCES[1]`.
+
+  </Step>
+  <Step>
+
+### Replace the fixed sentence
+
+The paragraph text is written directly into the source, not passed as a prop. Edit the installed file to wrap your own sentence and place `<Citation index={n} source={...} open={...} onOpenChange={...} />` wherever a claim needs one:
+
+```tsx title="components/assistant-ui/elements/inline-citation.tsx"
+<p data-slot="inline-citation" className={cn("...", className)} {...props}>
+  Revenue grew 12 percent year over year
+  {sources[0] && (
+    <Citation
+      index={0}
+      source={sources[0]}
+      open={openIndex === 0}
+      onOpenChange={(open) => onOpenIndexChange(open ? 0 : null)}
+    />
+  )}
+  , driven mostly by the enterprise tier.
+</p>
+```
+
+  </Step>
+</Steps>
+
+## Anatomy
+
+```tsx
+<p data-slot="inline-citation">
+  {/* fixed sentence text, with a numbered marker after each of two anchor points */}
+</p>
+```
+
+The sentence itself never changes: only which of its two built-in anchor points gets a marker depends on `sources`. Passing zero or one source omits the corresponding marker (`sources[0] &&` and `sources[1] &&` guard each one); passing more than two sources, the rest have nowhere to attach and are simply unused. `openIndex` admits only one open preview at a time: setting it to `0` implies index `1` is closed, since each `Citation`'s `open` reads `openIndex === <its own index>`. Passing `null` closes every marker.
+
+## Examples
+
+### Restyle the markers
+
+The root takes `className`. Each marker and its preview popup read the shared `floating` surface and `mono` tokens from `surfaces.tsx`.
+
+```tsx
+<InlineCitation className="max-w-none" /* ... */ />
+```
+
+### Keeping previews mutually exclusive across citations
+
+Because `openIndex` is a single value, opening one marker already closes any other. A "close on scroll" or "close on send" affordance only needs to reset it once:
+
+```tsx
+useEffect(() => {
+  const onScroll = () => setOpenIndex(null);
+  window.addEventListener("scroll", onScroll, true);
+  return () => window.removeEventListener("scroll", onScroll, true);
+}, []);
+```
+
+## API reference
+
+### InlineCitation
+
+| Prop | Type | Default | Description |
+|------|------|---------|-------------|
+| `sources` | `Source[]` | required | Citation targets. Only indices `0` and `1` are ever attached to a marker. |
+| `openIndex` | `number \| null` | required | Which citation's preview is open. `null` closes every marker. |
+| `onOpenIndexChange` | `(index: number \| null) => void` | required | Called with the marker's index when it opens, or `null` when it closes. |
+| `className` | `string` | | Merged onto the root. |
+
+`Source` is `{ domain: string; title: string; snippet: string }`. All other `p` props are forwarded to the root.

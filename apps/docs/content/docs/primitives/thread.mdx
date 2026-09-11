@@ -4,7 +4,7 @@ description: Build custom scrollable message containers with auto-scroll, empty 
 platforms: ["react"]
 ---
 
-import { ThreadPrimitiveSample } from "@/components/docs/samples/thread-primitive";
+import { ThreadPrimitiveSample } from "@/components/pages/docs/samples/thread-primitive";
 import { ThreadPrimitive as ThreadPrimitiveDocs } from "@/generated/primitiveDocs";
 
 The Thread primitive is the scrollable message container, and the backbone of any chat interface. It handles viewport management, auto-scrolling, empty states, message rendering, and suggestions. You provide the layout and styling.
@@ -124,7 +124,7 @@ By default, new messages appear at the bottom and scroll down. With `turnAnchor=
 </ThreadPrimitive.Viewport>
 ```
 
-When `turnAnchor="top"` is set, `MessagePrimitive.Root` automatically registers the latest assistant message as the top-anchor target and the preceding user message as the anchor — no additional component is required. The viewport itself manages a stable reserve element that provides the missing scroll range while the assistant response grows. This is the behavior used by the [Thread](/docs/ui/thread) component by default.
+When `turnAnchor="top"` is set, `MessagePrimitive.Root` automatically registers the latest assistant message as the top-anchor target and the preceding user message as the anchor — no additional component is required. The viewport itself manages a stable reserve element that provides the missing scroll range while the assistant response grows. This is the behavior used by the [Thread](/elements/thread) component by default.
 
 Use `topAnchorMessageClamp` to control how much of a long user message remains visible when `turnAnchor="top"`. Messages up to `tallerThan` stay fully visible. For messages taller than that, `visibleHeight` controls how much of the message's bottom edge remains visible above the assistant response:
 
@@ -143,7 +143,7 @@ Use `topAnchorMessageClamp` to control how much of a long user message remains v
 
 - `scrollToBottomOnRunStart` (default `true`): scrolls when `thread.runStart` fires
 - `scrollToBottomOnInitialize` (default `true`): scrolls when `thread.initialize` fires
-- `scrollToBottomOnThreadSwitch` (default `true`): scrolls when `threadListItem.switchedTo` fires
+- `scrollToBottomOnThreadSwitch` (default `true`): scrolls when `threads.selectionChanged` fires
 
 These work alongside `autoScroll`. If `autoScroll` is omitted, it defaults to `true` for `turnAnchor="bottom"` and `false` for `turnAnchor="top"`.
 
@@ -497,7 +497,7 @@ The button is automatically disabled when the viewport is already scrolled to th
 
 ## Relationship to Components
 
-The [Thread](/docs/ui/thread) component is a full chat interface built from these primitives with Tailwind styling. Start there for a default implementation. Reach for `ThreadPrimitive` when you need a custom layout, different scroll behavior, or a non-standard thread structure.
+The [Thread](/elements/thread) component is a full chat interface built from these primitives with Tailwind styling. Start there for a default implementation. Reach for `ThreadPrimitive` when you need a custom layout, different scroll behavior, or a non-standard thread structure.
 
 ## API Reference
 

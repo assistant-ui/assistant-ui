@@ -519,34 +519,32 @@ The table below covers the most commonly used actions. For the full catalog, see
 
 ### Events vs State Observation
 
-`useAuiEvent` is the escape hatch for **transient occurrences that are not derivable from state**. State-derivable transitions (attachment list changing, run progress, thread switching) should be observed with `useAuiState`, not subscribed via events.
+Use `useAuiState` to render the current value of something; use `useAuiEvent` to react to the moment something happens. Both are supported: many events mark a transition you could also observe in state, and subscribing to the event is the intended way to run a side effect at that transition.
 
 The rule of thumb:
 
-1. Can you read the new value from state right now? → use `useAuiState`.
+1. Rendering a value? → use `useAuiState`.
 2. Are you the caller and want immediate feedback? → catch the rejection / read the return value.
-3. Did something happen that has no representation in state at all? → use `useAuiEvent`.
+3. Running a side effect when something happens? → use `useAuiEvent`.
 
-Most existing events are kept for backward compatibility but duplicate state. They are marked `@deprecated` in the type definitions; new code should follow the rule above.
-
-#### Currently Recommended (Truly Transient)
+#### Available Events
 
 | Event                         | When It Fires                                                                |
 | ----------------------------- | ---------------------------------------------------------------------------- |
-| `composer.attachmentAddError` | An `addAttachment()` call failed. Payload `reason` discriminates `no-adapter` / `not-accepted` / `adapter-error`. `no-adapter` and `not-accepted` are non-state-derivable. `adapter-error` is partially state-derivable: if the adapter produced any attachment before failing, the errored attachment also appears in `composer.attachments` with `status.reason === "error"`. The event additionally surfaces a human-readable `message` (and the underlying `Error` instance via the low-level `runtime.unstable_on("attachmentAddError")` API; `useAuiEvent` payloads omit it because raw `Error` objects are not store-serializable). |
+| `threads.selectionChanged`    | The main thread selection changed. Payload carries `threadId` (newly selected) and `previousThreadId`. Does not fire for the initially selected thread on mount. |
+| `thread.runStart` / `runEnd`  | A run started / ended on the thread (also visible as `isRunning` flipping)   |
+| `thread.initialize`           | The thread transitioned from new to initialized, before the first message is added |
 | `thread.modelContextUpdate`   | The model context provider notified a change. The model context lives in a provider, not in thread state, so this event has no state-derivable equivalent. |
+| `composer.send`               | The user sent the composer contents; `messageId` is set for edit-composer sends |
+| `composer.attachmentAdd`      | An attachment was added to the composer                                      |
+| `composer.attachmentAddError` | An `addAttachment()` call failed. Payload `reason` discriminates `no-adapter` / `not-accepted` / `adapter-error`. The event additionally surfaces a human-readable `message` (and the underlying `Error` instance via the low-level `runtime.unstable_on("attachmentAddError")` API; `useAuiEvent` payloads omit it because raw `Error` objects are not store-serializable). |
 
-#### Legacy (State-Derivable, Prefer `useAuiState`)
+#### Deprecated Events
 
-These events fire at the same transition you can observe via state. They are kept for backward compatibility but new code should observe state instead.
-
-| Legacy Event                                 | Observe Instead                                                |
-| -------------------------------------------- | -------------------------------------------------------------- |
-| `composer.send`                              | composer `text` clearing                                       |
-| `composer.attachmentAdd`                     | composer `attachments`                                         |
-| `thread.runStart` / `runEnd`                 | thread `isRunning` flipping to `true` / `false`                |
-| `thread.initialize`                          | thread `messages` becoming non-empty (or `isEmpty` flipping)   |
-| `threadListItem.switchedTo` / `switchedAway` | compare `s.threads.mainThreadId` against `s.threadListItem.id` |
+| Deprecated Event              | Use Instead                                                                  |
+| ----------------------------- | ---------------------------------------------------------------------------- |
+| `threadListItem.switchedTo`   | `threads.selectionChanged` — its `threadId` is the newly selected thread     |
+| `threadListItem.switchedAway` | `threads.selectionChanged` — its `previousThreadId` is the thread switched away from |
 
 ## Troubleshooting
 

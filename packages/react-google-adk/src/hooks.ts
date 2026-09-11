@@ -1,7 +1,9 @@
+import { generateId } from "@assistant-ui/core";
 import { useAui } from "@assistant-ui/store";
-import { v4 as uuidv4 } from "uuid";
+import { useShallowSelector } from "@assistant-ui/store/internal";
 import type { ReadonlyJSONValue } from "assistant-stream/utils";
 import { adkExtras } from "./adkExtras";
+import { toAdkConfirmationReply } from "./adkToolApproval";
 import type {
   AdkMessage,
   AdkSendMessageConfig,
@@ -9,6 +11,7 @@ import type {
   AdkAuthCredential,
   AdkAuthRequest,
   AdkMessageMetadata,
+  AdkRuntimeExtras,
 } from "./types";
 
 const EMPTY_STATE_DELTA: Record<string, unknown> = {};
@@ -66,22 +69,9 @@ export const useAdkConfirmTool = () => {
     confirmed: boolean,
     payload?: ReadonlyJSONValue,
   ) =>
-    adkExtras.get(aui).send(
-      [
-        {
-          id: uuidv4(),
-          type: "tool",
-          tool_call_id: toolCallId,
-          name: "adk_request_confirmation",
-          content: JSON.stringify({
-            confirmed,
-            ...(payload != null && { payload }),
-          }),
-          status: "success",
-        },
-      ],
-      {},
-    );
+    adkExtras
+      .get(aui)
+      .send([toAdkConfirmationReply(toolCallId, confirmed, payload)], {});
 };
 
 /** Returns a function to submit auth credentials for a pending auth request. */
@@ -91,7 +81,7 @@ export const useAdkSubmitAuth = () => {
     adkExtras.get(aui).send(
       [
         {
-          id: uuidv4(),
+          id: generateId(),
           type: "tool",
           tool_call_id: toolCallId,
           name: "adk_request_credential",
@@ -110,7 +100,7 @@ export const useAdkSubmitInput = () => {
     adkExtras.get(aui).send(
       [
         {
-          id: uuidv4(),
+          id: generateId(),
           type: "tool",
           tool_call_id: toolCallId,
           name: "adk_request_input",
@@ -131,33 +121,26 @@ const TEMP_PREFIX = "temp:";
 const filterByPrefix = (
   state: Record<string, unknown>,
   prefix: string,
-): Record<string, unknown> => {
-  const result: Record<string, unknown> = {};
-  for (const key of Object.keys(state)) {
-    if (key.startsWith(prefix)) {
-      result[key.slice(prefix.length)] = state[key];
-    }
-  }
-  return result;
-};
+): Record<string, unknown> =>
+  Object.fromEntries(
+    Object.entries(state)
+      .filter(([key]) => key.startsWith(prefix))
+      .map(([key, value]) => [key.slice(prefix.length), value]),
+  );
+
+const useAdkStateByPrefix = (prefix: string) =>
+  adkExtras.use(
+    useShallowSelector((e: AdkRuntimeExtras) =>
+      filterByPrefix(e.stateDelta, prefix),
+    ),
+    EMPTY_STATE_DELTA,
+  );
 
 /** Returns app-level state (keys prefixed with `app:`, prefix stripped). */
-export const useAdkAppState = () =>
-  adkExtras.use(
-    (e) => filterByPrefix(e.stateDelta, APP_PREFIX),
-    EMPTY_STATE_DELTA,
-  );
+export const useAdkAppState = () => useAdkStateByPrefix(APP_PREFIX);
 
 /** Returns user-level state (keys prefixed with `user:`, prefix stripped). */
-export const useAdkUserState = () =>
-  adkExtras.use(
-    (e) => filterByPrefix(e.stateDelta, USER_PREFIX),
-    EMPTY_STATE_DELTA,
-  );
+export const useAdkUserState = () => useAdkStateByPrefix(USER_PREFIX);
 
 /** Returns temp state (keys prefixed with `temp:`, prefix stripped). Not persisted. */
-export const useAdkTempState = () =>
-  adkExtras.use(
-    (e) => filterByPrefix(e.stateDelta, TEMP_PREFIX),
-    EMPTY_STATE_DELTA,
-  );
+export const useAdkTempState = () => useAdkStateByPrefix(TEMP_PREFIX);

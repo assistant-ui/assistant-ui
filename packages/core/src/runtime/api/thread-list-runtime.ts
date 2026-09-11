@@ -7,11 +7,15 @@ import {
   SKIP_UPDATE,
   ShallowMemoizeSubject,
 } from "../../subscribable/subscribable";
-import type { ThreadListRuntimeCore } from "../interfaces/thread-list-runtime-core";
+import type {
+  ThreadListRuntimeCore,
+  ThreadListRuntimeEvent,
+} from "../interfaces/thread-list-runtime-core";
 import {
   type ThreadListItemRuntime,
   ThreadListItemRuntimeImpl,
   type ThreadListItemState,
+  type ThreadListItemStateBinding,
 } from "./thread-list-item-runtime";
 import {
   type ThreadListItemRuntimeBinding,
@@ -21,6 +25,7 @@ import {
 } from "./thread-runtime";
 
 const RESOLVED_PROMISE = Promise.resolve();
+const NOOP_UNSUBSCRIBE = () => {};
 
 export type ThreadListState = {
   readonly mainThreadId: string;
@@ -28,6 +33,8 @@ export type ThreadListState = {
   readonly threadIds: readonly string[];
   readonly archivedThreadIds: readonly string[];
   readonly isLoading: boolean;
+  /** The error thrown by the most recent thread list load that failed, cleared when a later load starts. */
+  readonly loadError: unknown;
   readonly isLoadingMore: boolean;
   readonly hasMore: boolean;
   readonly threadItems: Readonly<
@@ -57,6 +64,16 @@ export type ThreadListRuntime = {
   ): Promise<void>;
   switchToNewThread(): Promise<void>;
 
+  /**
+   * Observes lifecycle events on every thread this list keeps alive, so an
+   * event that fires while its thread is not selected stays observable. Thread
+   * lists that mount only the main thread never emit; their main thread's
+   * runtime is observed directly.
+   */
+  unstable_subscribeThreadEvents(
+    callback: (event: ThreadListRuntimeEvent) => void,
+  ): Unsubscribe;
+
   getLoadThreadsPromise(): Promise<void>;
   reload(): Promise<void>;
   /**
@@ -83,6 +100,7 @@ const getThreadListState = (
     threadIds: threadList.threadIds,
     archivedThreadIds: threadList.archivedThreadIds,
     isLoading: threadList.isLoading,
+    loadError: threadList.loadError,
     isLoadingMore: threadList.isLoadingMore ?? false,
     hasMore: threadList.hasMore ?? false,
     threadItems: threadList.threadItems,
@@ -114,6 +132,7 @@ export type ThreadListRuntimeCoreBinding = ThreadListRuntimeCore;
 
 export class ThreadListRuntimeImpl implements ThreadListRuntime {
   private _getState;
+  private _stateBinding: LazyMemoizeSubject<ThreadListState, object>;
   private _core: ThreadListRuntimeCoreBinding;
   private _runtimeFactory: new (
     binding: ThreadRuntimeCoreBinding,
@@ -136,6 +155,7 @@ export class ThreadListRuntimeImpl implements ThreadListRuntime {
     });
 
     this._getState = stateBinding.getState.bind(stateBinding);
+    this._stateBinding = stateBinding;
 
     this._mainThreadListItemRuntime = new ThreadListItemRuntimeImpl(
       new ShallowMemoizeSubject({
@@ -169,6 +189,8 @@ export class ThreadListRuntimeImpl implements ThreadListRuntime {
   protected __internal_bindMethods() {
     this.switchToThread = this.switchToThread.bind(this);
     this.switchToNewThread = this.switchToNewThread.bind(this);
+    this.unstable_subscribeThreadEvents =
+      this.unstable_subscribeThreadEvents.bind(this);
     this.getLoadThreadsPromise = this.getLoadThreadsPromise.bind(this);
     this.reload = this.reload.bind(this);
     this.reloadMainThread = this.reloadMainThread.bind(this);
@@ -192,6 +214,14 @@ export class ThreadListRuntimeImpl implements ThreadListRuntime {
     return this._core.switchToNewThread();
   }
 
+  public unstable_subscribeThreadEvents(
+    callback: (event: ThreadListRuntimeEvent) => void,
+  ): Unsubscribe {
+    return (
+      this._core.unstable_subscribeThreadEvents?.(callback) ?? NOOP_UNSUBSCRIBE
+    );
+  }
+
   public getLoadThreadsPromise(): Promise<void> {
     return this._core.getLoadThreadsPromise();
   }
@@ -213,7 +243,7 @@ export class ThreadListRuntimeImpl implements ThreadListRuntime {
   }
 
   public subscribe(callback: () => void): Unsubscribe {
-    return this._core.subscribe(callback);
+    return this._stateBinding.subscribe(callback);
   }
 
   private _mainThreadListItemRuntime;
@@ -222,6 +252,21 @@ export class ThreadListRuntimeImpl implements ThreadListRuntime {
 
   public get mainItem() {
     return this._mainThreadListItemRuntime;
+  }
+
+  private _createItemStateBinding(
+    threadId: string,
+  ): ThreadListItemStateBinding {
+    return new ShallowMemoizeSubject({
+      path: {
+        ref: `threadItems[threadId=${threadId}]`,
+        threadSelector: { type: "threadId", threadId },
+      },
+      getState: () => {
+        return getThreadListItemState(this._core, threadId);
+      },
+      subscribe: (callback) => this._core.subscribe(callback),
+    });
   }
 
   public getById(threadId: string) {
@@ -234,7 +279,7 @@ export class ThreadListRuntimeImpl implements ThreadListRuntime {
         getState: () => this._core.getThreadRuntimeCore(threadId),
         subscribe: (callback) => this._core.subscribe(callback),
       }),
-      this.mainItem,
+      this._createItemStateBinding(threadId),
     );
   }
 
@@ -275,16 +320,7 @@ export class ThreadListRuntimeImpl implements ThreadListRuntime {
 
   public getItemById(threadId: string) {
     return new ThreadListItemRuntimeImpl(
-      new ShallowMemoizeSubject({
-        path: {
-          ref: `threadItems[threadId=${threadId}]`,
-          threadSelector: { type: "threadId", threadId },
-        },
-        getState: () => {
-          return getThreadListItemState(this._core, threadId);
-        },
-        subscribe: (callback) => this._core.subscribe(callback),
-      }),
+      this._createItemStateBinding(threadId),
       this._core,
     );
   }

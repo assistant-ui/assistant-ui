@@ -1,0 +1,93 @@
+---
+title: "Switch"
+description: "A binary control in two sizes; the only capsule in the kit."
+links:
+  - label: Source
+    url: https://github.com/assistant-ui/assistant-ui/blob/main/packages/ui/src/components/ui/base/switch.tsx
+  - label: Base UI Switch
+    url: https://base-ui.com/react/components/switch
+---
+
+import { PreviewCode } from "@/components/pages/docs/preview-code.server";
+import { KitInstall } from "@/components/pages/design/kit-install";
+import {
+  SwitchSpecimen,
+  SwitchSizesSpecimen,
+} from "@/components/pages/design/specimens";
+import * as RadixSpecimens from "@/components/pages/design/specimens.radix";
+import { FlavorSwitcher } from "@/components/pages/docs/contexts/flavor.server";
+
+<FlavorSwitcher />
+
+<PreviewCode file="components/pages/design/specimens" name="SwitchSpecimen" base={<SwitchSpecimen />}>
+  <RadixSpecimens.SwitchSpecimen />
+</PreviewCode>
+
+## Installation
+
+<KitInstall name="switch" />
+
+## Usage
+
+```tsx
+import { Switch } from "@/components/ui/switch";
+
+export function Example() {
+  return (
+    <label className="flex items-center gap-2 text-sm">
+      <Switch defaultChecked />
+      Streaming
+    </label>
+  );
+}
+```
+
+## Examples
+
+### Sizes and disabled
+
+`default` measures 32×18 and `sm` 24×14. A disabled switch keeps its state visible at half opacity.
+
+<PreviewCode file="components/pages/design/specimens" name="SwitchSizesSpecimen" base={<SwitchSizesSpecimen />}>
+  <RadixSpecimens.SwitchSizesSpecimen />
+</PreviewCode>
+
+## API Reference
+
+### Switch
+
+Wraps Base UI's Switch and accepts its props.
+
+<ParametersTable
+  type="SwitchProps"
+  parameters={[
+    {
+      name: "size",
+      type: '"sm" | "default"',
+      default: '"default"',
+      description: "The control size.",
+    },
+    {
+      name: "checked",
+      type: "boolean",
+      description: "Controlled checked state.",
+    },
+    {
+      name: "onCheckedChange",
+      type: "(checked: boolean) => void",
+      description: "Called when the state changes.",
+    },
+    {
+      name: "defaultChecked",
+      type: "boolean",
+      default: "false",
+      description: "Uncontrolled initial state.",
+    },
+    {
+      name: "disabled",
+      type: "boolean",
+      default: "false",
+      description: "Prevents interaction.",
+    },
+  ]}
+/>

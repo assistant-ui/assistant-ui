@@ -6,6 +6,7 @@ import {
   useMemo,
 } from "react";
 import { RenderChildrenWithAccessor, useAuiState } from "@assistant-ui/store";
+import { useShallowSelector } from "@assistant-ui/store/internal";
 import type { ThreadListItemState } from "../../../store/scopes/thread-list-item";
 import { ThreadListItemByIndexProvider } from "../../providers/ThreadListItemByIndexProvider";
 
@@ -64,15 +65,17 @@ const ThreadListPrimitiveItemsInner: FC<{
   archived: boolean;
   children: (value: { threadListItem: ThreadListItemState }) => ReactNode;
 }> = ({ archived, children }) => {
-  const contentLength = useAuiState((s) =>
-    archived ? s.threads.archivedThreadIds.length : s.threads.threadIds.length,
+  const threadIds = useAuiState(
+    useShallowSelector((s) =>
+      archived ? s.threads.archivedThreadIds : s.threads.threadIds,
+    ),
   );
 
   return useMemo(
     () =>
-      Array.from({ length: contentLength }, (_, index) => (
+      threadIds.map((threadId, index) => (
         <ThreadListItemByIndexProvider
-          key={index}
+          key={threadId}
           index={index}
           archived={archived}
         >
@@ -91,7 +94,7 @@ const ThreadListPrimitiveItemsInner: FC<{
           </RenderChildrenWithAccessor>
         </ThreadListItemByIndexProvider>
       )),
-    [contentLength, archived, children],
+    [threadIds, archived, children],
   );
 };
 

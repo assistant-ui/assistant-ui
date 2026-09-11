@@ -1,0 +1,238 @@
+---
+title: "Document reference"
+description: "A document the answer leans on, with the quoted passage and the page to jump to."
+---
+
+DocumentReference is a citation card for one source document: a header naming the file, then a list of page anchors you can step between. With a runtime the anchors come from a tool call that read the document; standalone you already hold them.
+
+## Getting started
+
+<RuntimeMode>
+
+assistant-ui's built-in `source` message part covers a single document citation (a title, a filename), but not a list of page anchors with quoted passages. The closest real building block for that shape is a tool call: ask the model to read a document and return its anchors, then render the result.
+
+<Steps>
+  <Step>
+
+### Render the tool call
+
+```tsx title="components/assistant-ui/elements/read-document-tool-ui.tsx"
+"use client";
+
+import { useState } from "react";
+import type { ToolCallMessagePartComponent } from "@assistant-ui/react";
+import {
+  DocumentReference,
+  type DocumentAnchor,
+} from "@/components/assistant-ui/elements/document-reference";
+
+type ReadDocumentResult = {
+  title: string;
+  pages: number;
+  anchors: DocumentAnchor[];
+};
+
+export const ReadDocumentToolUI: ToolCallMessagePartComponent<
+  { query: string },
+  ReadDocumentResult
+> = ({ result }) => {
+  const [activePage, setActivePage] = useState<number>();
+
+  if (!result) return null;
+  const page = activePage ?? result.anchors[0]?.page ?? 1;
+
+  return (
+    <DocumentReference
+      title={result.title}
+      pages={result.pages}
+      anchors={result.anchors}
+      activePage={page}
+      onJump={setActivePage}
+    />
+  );
+};
+```
+
+  </Step>
+  <Step>
+
+### Register the tool
+
+```tsx title="app/toolkit.ts"
+import { defineToolkit } from "@assistant-ui/react";
+import { z } from "zod";
+import { ReadDocumentToolUI } from "@/components/assistant-ui/elements/read-document-tool-ui";
+
+export const toolkit = defineToolkit({
+  read_document: {
+    type: "frontend",
+    description: "Open a document and return the passages that answer the question.",
+    parameters: z.object({ query: z.string() }),
+    execute: async ({ query }) => lookupDocument(query),
+    render: ReadDocumentToolUI,
+  },
+});
+```
+
+```tsx title="app/MyRuntimeProvider.tsx"
+import { AssistantRuntimeProvider, AuiConfig, Tools } from "@assistant-ui/react";
+import { useChatRuntime } from "@assistant-ui/ai-sdk";
+import { toolkit } from "./toolkit";
+
+export function MyRuntimeProvider({ children }: { children: React.ReactNode }) {
+  const runtime = useChatRuntime();
+  const config = AuiConfig({ tools: Tools({ toolkit }) });
+  return (
+    <AssistantRuntimeProvider runtime={runtime} config={config}>
+      {children}
+    </AssistantRuntimeProvider>
+  );
+}
+```
+
+See [Tool UI](/docs/tools/tool-ui) for backend-defined tools and approval gates.
+
+  </Step>
+</Steps>
+
+</RuntimeMode>
+
+<StandaloneMode>
+
+Standalone, the element is fully controlled: you hold the anchor list and the active page, and it reports jumps back to you.
+
+<Steps>
+  <Step>
+
+### Hold the active page
+
+```tsx title="app/citation.tsx"
+"use client";
+
+import { useState } from "react";
+import { DocumentReference } from "@/components/assistant-ui/elements/document-reference";
+
+const ANCHORS = [
+  { page: 4, quote: "Composer state moved off the thread runtime in 0.14." },
+  { page: 9, quote: "Existing drafts migrate on first read; nothing to run by hand." },
+];
+
+export function Citation() {
+  const [activePage, setActivePage] = useState(ANCHORS[0].page);
+  return (
+    <DocumentReference
+      title="migration-0.14.md"
+      pages={12}
+      anchors={ANCHORS}
+      activePage={activePage}
+      onJump={setActivePage}
+    />
+  );
+}
+```
+
+  </Step>
+  <Step>
+
+### Replace the anchor list
+
+Opening a different document swaps the whole set and resets the active page to its first anchor.
+
+```tsx
+async function openDocument(id: string) {
+  const doc = await fetchDocument(id);
+  setTitle(doc.title);
+  setPages(doc.pages);
+  setAnchors(doc.anchors);
+  setActivePage(doc.anchors[0]?.page ?? 1);
+}
+```
+
+  </Step>
+</Steps>
+
+</StandaloneMode>
+
+## Anatomy
+
+```tsx
+<div data-slot="document-reference">
+  <div>
+    <span>{/* file icon in a tinted square */}</span>
+    <div>
+      <span>{title}</span>
+      <span>{/* "N pages · M cited" */}</span>
+    </div>
+  </div>
+  <div>
+    {/* one button per anchor: "p. N" above the quoted passage */}
+  </div>
+</div>
+```
+
+`activePage` decides two independent things. Every anchor whose `page` equals `activePage` gets the active background, which can be more than one button when several anchors cite the same page. Only the first anchor in array order at that page gets `aria-current`, since it is found by `anchors.findIndex`. When `activePage` matches no anchor, no button gets either. Clicking a button calls `onJump` with that anchor's `page`, not its array index, so two same-page anchors are indistinguishable to the caller once clicked. An empty `anchors` array renders only the header, with `0 cited` in the meta line and no placeholder row.
+
+## Examples
+
+### Multiple citations on the same page
+
+Anchors don't have to be unique per page. Two entries citing page 4 both highlight when `activePage` is 4; only the first one in the array is marked current for assistive tech.
+
+```tsx
+const anchors = [
+  { page: 4, quote: "The runtime owns branch state; nothing local to track." },
+  { page: 4, quote: "Reloading a message creates a sibling branch automatically." },
+];
+```
+
+### Restyle the card
+
+Both lanes take `className` on the root, which reads the shared `paper` token. The active anchor's background reads `field`, and the meta line and each anchor's page label read `mono`, both in `surfaces.tsx`.
+
+```tsx
+<DocumentReference className="max-w-none gap-4" /* ... */ />
+```
+
+## API reference
+
+<RuntimeMode>
+
+### Tool-call render props
+
+| Prop | Type | Description |
+|------|------|-------------|
+| `args` | `TArgs` | Parsed arguments. Partial while the model is still streaming them. |
+| `argsText` | `string` | Raw JSON argument text streamed by the model. |
+| `result` | `TResult \| undefined` | The tool's return value once it completes. `undefined` while running. |
+| `status` | `ToolCallMessagePartStatus` | `status.type` is `"running"`, `"requires-action"`, `"complete"`, or `"incomplete"`. |
+| `toolName` | `string` | Name of the tool the model called. |
+| `toolCallId` | `string` | Stable id for this invocation. |
+| `isError` | `boolean \| undefined` | Whether `result` represents a tool execution error. |
+
+Register the renderer on a toolkit entry's `render` field and attach the toolkit with `Tools({ toolkit })`. See [Tool UI](/docs/tools/tool-ui) for the full render-prop surface, including `addResult`, human tools, and approval gates.
+
+</RuntimeMode>
+
+<StandaloneMode>
+
+### DocumentReference
+
+| Prop | Type | Default | Description |
+|------|------|---------|-------------|
+| `title` | `string` | required | Heading text. Shadows the native `title` attribute, which is dropped from the forwarded props. |
+| `pages` | `number` | required | Total page count, shown in the header meta line. Not cross-checked against `anchors`. |
+| `anchors` | `readonly DocumentAnchor[]` | required | The citations to list, in order. |
+| `activePage` | `number` | required | Page number to highlight. May match zero, one, or several anchors. |
+| `onJump` | `(page: number) => void` | | Called with an anchor's `page` when its button is pressed. |
+| `className` | `string` | | Merged onto the root. |
+
+### DocumentAnchor
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `page` | `number` | Page number this anchor cites. |
+| `quote` | `string` | The quoted passage shown under the page number. |
+
+All other `div` props are forwarded to the root, except `title`, which the component's own prop replaces.
+
+</StandaloneMode>

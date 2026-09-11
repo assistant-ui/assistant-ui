@@ -1,19 +1,19 @@
-export type QueueItemState = {
-  readonly id: string;
-  readonly prompt: string;
-};
+import type { QueuePlacement } from "../../runtime/queue/external-thread-queue-adapter";
+import type { QueueItemState } from "../../runtime/queue/queue-item";
 
-export const EMPTY_QUEUE_ITEMS: readonly QueueItemState[] = Object.freeze([]);
+export type { QueueItemState };
 
 export type QueueItemMethods = {
   getState(): QueueItemState;
+  /** @deprecated Use `move({ lane: "steer", insertAfter: null })` instead. Removal after 2026-11-05. */
   steer(): void;
+  move(placement: QueuePlacement): void;
   remove(): void;
 };
 
 export type QueueItemMeta = {
   source: "composer";
-  query: { index: number };
+  query: { type: "index"; index: number } | { type: "id"; id: string };
 };
 
 export type QueueItemClientSchema = {

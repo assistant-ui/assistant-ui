@@ -1,0 +1,131 @@
+---
+title: "Handoff"
+description: "Control passing between agents, with the reason and what came along."
+---
+
+A handoff marks the moment control passes from one agent to another: which agent had it, which one has it now, why, and what context carried over. It is presentational throughout; you decide when a handoff happens and supply every field.
+
+## Getting started
+
+<StandaloneMode>
+
+<Steps>
+  <Step>
+
+### Render a handoff in progress
+
+```tsx title="app/handoff.tsx"
+"use client";
+
+import { AgentHandoff } from "@/components/assistant-ui/elements/agent-handoff";
+
+export function RoutingHandoff() {
+  return (
+    <AgentHandoff
+      from="Router"
+      to="Billing"
+      reason="Question is about a refund, not routing."
+      carried={["order #48213", "customer tier: pro"]}
+      settled={false}
+    />
+  );
+}
+```
+
+  </Step>
+  <Step>
+
+### Settle it once the new agent takes over
+
+`settled` only controls styling; flip it from wherever your app learns the target agent has actually started responding.
+
+```tsx
+"use client";
+
+import { useState } from "react";
+
+export function RoutingHandoff() {
+  const [settled, setSettled] = useState(false);
+
+  return (
+    <AgentHandoff
+      from="Router"
+      to="Billing"
+      reason="Question is about a refund, not routing."
+      carried={["order #48213"]}
+      settled={settled}
+    />
+  );
+}
+```
+
+  </Step>
+</Steps>
+
+</StandaloneMode>
+
+## Anatomy
+
+```tsx
+<div data-slot="agent-handoff">
+  <div>
+    <span>{/* from pill */}</span>
+    <svg>{/* arrow */}</svg>
+    <span>{/* to pill */}</span>
+  </div>
+  <p>{reason}</p>
+  <div>{/* one line per carried item, only when carried.length > 0 */}</div>
+</div>
+```
+
+Before `settled`, the arrow and the `to` pill read in blue to mark the handoff as in transit, while the `from` pill stays at full opacity. Once `settled`, the `from` pill dims, the arrow turns gray, and the `to` pill switches to the neutral pill style at full opacity, since it is now the current speaker. Both transitions animate over 500ms. `carried` is required, not optional: pass an empty array to render no "carried over" section at all rather than an empty one.
+
+## Examples
+
+### Handoff with no carried context
+
+```tsx
+<AgentHandoff from="Planner" to="Executor" reason="Plan is complete." carried={[]} settled />
+```
+
+### Wiring settled to your own event
+
+Nothing about the component listens for anything; `setSettled(true)` belongs wherever your app already knows the handoff finished, such as a websocket message or a state machine transition:
+
+```tsx
+useEffect(() => {
+  const unsubscribe = subscribeToAgentEvents((event) => {
+    if (event.type === "agent_took_over" && event.agent === "Billing") {
+      setSettled(true);
+    }
+  });
+  return unsubscribe;
+}, []);
+```
+
+### Restyle the handoff
+
+The `from` pill always uses the shared `field` surface; the `to` pill switches to `field` once `settled` and reads as a blue tint before that. The "carried over" label uses `mono`.
+
+```tsx
+<AgentHandoff className="max-w-md gap-3" {...rest} />
+```
+
+## API reference
+
+<StandaloneMode>
+
+### AgentHandoff
+
+| Prop | Type | Default | Description |
+|------|------|---------|-------------|
+| `from` | `string` | required | Agent that had control. |
+| `to` | `string` | required | Agent taking control. |
+| `reason` | `string` | required | Shown below the pills. |
+| `carried` | `readonly string[]` | required | Context items listed under "carried over". Pass `[]` to render none. |
+| `settled` | `boolean` | required | Switches between the in-transit and settled styling. |
+| `className` | `string` | | Merged onto the root. |
+
+All other `div` props are forwarded to the root.
+
+</StandaloneMode>

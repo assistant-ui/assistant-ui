@@ -1,10 +1,12 @@
-import type { Unsubscribe } from "../../types/unsubscribe";
 import type { ExternalStoreThreadRuntimeCore } from "./external-store-thread-runtime-core";
 import type {
   ThreadListItemCoreState,
   ThreadListRuntimeCore,
 } from "../../runtime/interfaces/thread-list-runtime-core";
 import type { ExternalStoreThreadListAdapter } from "./external-store-adapter";
+import { invalidateThreadRuntime } from "../../runtime/utils/thread-runtime-lifecycle";
+import { BaseSubscribable } from "../../subscribable/subscribable";
+import { nullProtoRecord } from "../../utils/record";
 
 export type ExternalStoreThreadFactory = () => ExternalStoreThreadRuntimeCore;
 
@@ -18,11 +20,16 @@ const DEFAULT_THREAD = Object.freeze({
   status: "regular",
 });
 const RESOLVED_PROMISE = Promise.resolve();
-const DEFAULT_THREAD_DATA = Object.freeze({
-  [DEFAULT_THREAD_ID]: DEFAULT_THREAD,
-});
+const DEFAULT_THREAD_DATA = Object.freeze(
+  nullProtoRecord<ThreadListItemCoreState>({
+    [DEFAULT_THREAD_ID]: DEFAULT_THREAD,
+  }),
+);
 
-export class ExternalStoreThreadListRuntimeCore implements ThreadListRuntimeCore {
+export class ExternalStoreThreadListRuntimeCore
+  extends BaseSubscribable
+  implements ThreadListRuntimeCore
+{
   private _mainThreadId: string = DEFAULT_THREAD_ID;
   private _threads: readonly string[] = DEFAULT_THREADS;
   private _archivedThreads: readonly string[] = EMPTY_ARRAY;
@@ -66,6 +73,7 @@ export class ExternalStoreThreadListRuntimeCore implements ThreadListRuntimeCore
     adapter: ExternalStoreThreadListAdapter = {},
     threadFactory: ExternalStoreThreadFactory,
   ) {
+    super();
     this.threadFactory = threadFactory;
     this.__internal_setAdapter(adapter, true);
   }
@@ -79,7 +87,9 @@ export class ExternalStoreThreadListRuntimeCore implements ThreadListRuntimeCore
   }
 
   public getItemById(threadId: string) {
-    return this._threadData[threadId];
+    return Object.hasOwn(this._threadData, threadId)
+      ? this._threadData[threadId]
+      : undefined;
   }
 
   public __internal_setAdapter(
@@ -100,6 +110,7 @@ export class ExternalStoreThreadListRuntimeCore implements ThreadListRuntimeCore
 
     if (
       !initialLoad &&
+      (previousAdapter.isLoading ?? false) === (adapter.isLoading ?? false) &&
       previousThreadId === newThreadId &&
       previousThreads === newThreads &&
       previousArchivedThreads === newArchivedThreads
@@ -112,9 +123,9 @@ export class ExternalStoreThreadListRuntimeCore implements ThreadListRuntimeCore
       previousArchivedThreads !== newArchivedThreads ||
       previousThreadId !== newThreadId
     ) {
-      this._threadData = {
-        ...DEFAULT_THREAD_DATA,
-        ...Object.fromEntries(
+      this._threadData = nullProtoRecord(
+        DEFAULT_THREAD_DATA,
+        Object.fromEntries(
           adapter.threads?.map((t) => [
             t.id,
             {
@@ -125,7 +136,7 @@ export class ExternalStoreThreadListRuntimeCore implements ThreadListRuntimeCore
             },
           ]) ?? [],
         ),
-        ...Object.fromEntries(
+        Object.fromEntries(
           adapter.archivedThreads?.map((t) => [
             t.id,
             {
@@ -136,7 +147,7 @@ export class ExternalStoreThreadListRuntimeCore implements ThreadListRuntimeCore
             },
           ]) ?? [],
         ),
-      };
+      );
     }
 
     if (previousThreads !== newThreads) {
@@ -150,20 +161,20 @@ export class ExternalStoreThreadListRuntimeCore implements ThreadListRuntimeCore
 
     // `initialLoad ||`: `_mainThread!` must be assigned on construction.
     if (initialLoad || previousThreadId !== newThreadId) {
+      if (!initialLoad) invalidateThreadRuntime(this._mainThread);
       this._mainThreadId = newThreadId;
       this._mainThread = this.threadFactory();
     }
 
-    if (!this._threadData[this._mainThreadId]) {
-      this._threadData = {
-        ...this._threadData,
+    if (!Object.hasOwn(this._threadData, this._mainThreadId)) {
+      this._threadData = nullProtoRecord(this._threadData, {
         [this._mainThreadId]: {
           id: this._mainThreadId,
           remoteId: undefined,
           externalId: undefined,
           status: "regular",
         },
-      };
+      });
     }
 
     this._notifySubscribers();
@@ -258,16 +269,5 @@ export class ExternalStoreThreadListRuntimeCore implements ThreadListRuntimeCore
 
   public generateTitle(): never {
     throw new Error("Method not implemented.");
-  }
-
-  private _subscriptions = new Set<() => void>();
-
-  public subscribe(callback: () => void): Unsubscribe {
-    this._subscriptions.add(callback);
-    return () => this._subscriptions.delete(callback);
-  }
-
-  private _notifySubscribers() {
-    for (const callback of this._subscriptions) callback();
   }
 }

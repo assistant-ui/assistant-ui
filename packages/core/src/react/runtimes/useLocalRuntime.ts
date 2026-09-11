@@ -84,6 +84,8 @@ export const splitLocalRuntimeOptions = <T extends LocalRuntimeOptions>(
     adapters,
     unstable_humanToolNames,
     unstable_enableMessageQueue,
+    unstable_queueClearOnRewind,
+    unstable_queueClearOnCancel,
     ...rest
   } = options;
 
@@ -95,6 +97,8 @@ export const splitLocalRuntimeOptions = <T extends LocalRuntimeOptions>(
       adapters,
       unstable_humanToolNames,
       unstable_enableMessageQueue,
+      unstable_queueClearOnRewind,
+      unstable_queueClearOnCancel,
     },
     otherOptions: rest,
   };

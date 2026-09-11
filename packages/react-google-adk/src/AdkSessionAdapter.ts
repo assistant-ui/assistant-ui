@@ -6,7 +6,8 @@ import type {
   RemoteThreadMetadata,
 } from "@assistant-ui/core";
 import { AdkEventAccumulator } from "./AdkEventAccumulator";
-import type { AdkEvent, AdkMessage, AdkThreadSnapshot } from "./types";
+import { parseAdkEventValue } from "./parseAdkEvent";
+import type { AdkMessage, AdkThreadSnapshot } from "./types";
 import { trimTrailingSlashes } from "./trimTrailingSlashes";
 
 export type AdkSessionAdapterOptions = {
@@ -323,7 +324,11 @@ export function createAdkSessionAdapter(
       );
     }
 
-    const events = session.events as AdkEvent[] | undefined;
+    // Events carry ordered state and tool transitions, so partial replay can
+    // produce a plausible but incorrect thread.
+    const events = session.events?.map((event, index) =>
+      parseAdkEventValue(event, `Invalid ADK session event at index ${index}`),
+    );
 
     if (!events?.length) {
       return { messages: [] };

@@ -1,0 +1,105 @@
+---
+title: "Button"
+description: "The pressable object: thin, flat, and 8px round, in every weight a surface needs."
+links:
+  - label: Source
+    url: https://github.com/assistant-ui/assistant-ui/blob/main/packages/ui/src/components/ui/base/button.tsx
+  - label: Base UI useRender
+    url: https://base-ui.com/react/utils/use-render
+---
+
+import { PreviewCode } from "@/components/pages/docs/preview-code.server";
+import { KitInstall } from "@/components/pages/design/kit-install";
+import {
+  ButtonSpecimen,
+  ButtonSizesSpecimen,
+  ButtonIconSpecimen,
+} from "@/components/pages/design/specimens";
+import * as RadixSpecimens from "@/components/pages/design/specimens.radix";
+import { FlavorSwitcher } from "@/components/pages/docs/contexts/flavor.server";
+
+<FlavorSwitcher />
+
+<PreviewCode file="components/pages/design/specimens" name="ButtonSpecimen" base={<ButtonSpecimen />}>
+  <RadixSpecimens.ButtonSpecimen />
+</PreviewCode>
+
+## Installation
+
+<KitInstall name="button" />
+
+## Usage
+
+```tsx
+import { Button } from "@/components/ui/button";
+
+export function Example() {
+  return <Button variant="outline">Read the docs</Button>;
+}
+```
+
+## Examples
+
+### Sizes
+
+The default height is 32px; `sm` is the 28px header control. `xs` and `lg` cover dense rails and prominent calls to action.
+
+<PreviewCode file="components/pages/design/specimens" name="ButtonSizesSpecimen" base={<ButtonSizesSpecimen />}>
+  <RadixSpecimens.ButtonSizesSpecimen />
+</PreviewCode>
+
+### Icon buttons
+
+The square `icon` sizes pair with an `aria-label`; an icon placed next to a label gets its spacing automatically.
+
+<PreviewCode file="components/pages/design/specimens" name="ButtonIconSpecimen" base={<ButtonIconSpecimen />}>
+  <RadixSpecimens.ButtonIconSpecimen />
+</PreviewCode>
+
+## API Reference
+
+### Button
+
+Extends the native `button` props through Base UI's `useRender`.
+
+<ParametersTable
+  type="ButtonProps"
+  parameters={[
+    {
+      name: "variant",
+      type: '"default" | "outline" | "secondary" | "ghost" | "destructive"',
+      default: '"default"',
+      description: "The visual weight of the button.",
+    },
+    {
+      name: "size",
+      type: '"xs" | "sm" | "default" | "lg" | "icon" | "icon-sm" | "icon-xs"',
+      default: '"default"',
+      description: "Height and padding; the icon sizes render a square button.",
+    },
+    {
+      name: "render",
+      type: "ReactElement | function",
+      description: "Compose as a different element, like a link.",
+    },
+    {
+      name: "className",
+      type: "string",
+      description: "Additional CSS classes.",
+    },
+  ]}
+/>
+
+### Style Variants (CVA)
+
+| Export | Description |
+|--------|-------------|
+| `buttonVariants` | Styles for the button component. |
+
+```tsx
+import { buttonVariants } from "@/components/ui/button";
+
+<a className={buttonVariants({ variant: "outline", size: "sm" })}>
+  Styled link
+</a>
+```

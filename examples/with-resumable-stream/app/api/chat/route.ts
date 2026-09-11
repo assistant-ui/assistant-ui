@@ -1,4 +1,5 @@
 import { createOpenAI } from "@ai-sdk/openai";
+import { frontendTools } from "@assistant-ui/ai-sdk";
 import {
   type JSONSchema7,
   streamText,
@@ -51,20 +52,6 @@ export async function POST(req: Request) {
   });
 }
 
-function convertFrontendTools(
-  tools: Record<string, { description?: string; parameters: JSONSchema7 }>,
-): Record<string, ReturnType<typeof tool>> {
-  return Object.fromEntries(
-    Object.entries(tools).map(([name, t]) => [
-      name,
-      tool({
-        ...(t.description ? { description: t.description } : {}),
-        inputSchema: t.parameters as never,
-      }),
-    ]),
-  );
-}
-
 async function buildOpenAIBody({
   messages,
   system,
@@ -81,12 +68,12 @@ async function buildOpenAIBody({
     }),
   });
   const result = streamText({
-    model: openai("gpt-5.4-nano"),
+    model: openai("gpt-5.6-luna"),
     messages: await convertToModelMessages(messages),
     ...(system ? { system } : {}),
     stopWhen: stepCountIs(10),
     tools: {
-      ...convertFrontendTools(tools ?? {}),
+      ...frontendTools(tools ?? {}),
       get_current_weather: tool({
         description: "Get the current weather",
         inputSchema: zodSchema(z.object({ city: z.string() })),

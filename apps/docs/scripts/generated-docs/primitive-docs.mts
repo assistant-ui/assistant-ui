@@ -38,11 +38,6 @@ const PRIMITIVE_FILTER: ReadonlySet<InheritedFrom> = new Set([
 
 function shouldDropForPrimitive(prop: PropModel): boolean {
   if (prop.name.startsWith("__")) return true;
-  // `tw` is a polluting global JSX prop from `@vercel/og` types pulled in by
-  // the Next.js tsconfig. Legacy primitive-docs ran with
-  // `skipAddingFilesFromTsConfig: true` so it never saw this prop; we drop
-  // it by name here to preserve that behaviour.
-  if (prop.name === "tw") return true;
   return (
     prop.inheritedFrom !== undefined && PRIMITIVE_FILTER.has(prop.inheritedFrom)
   );

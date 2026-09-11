@@ -1,0 +1,353 @@
+---
+title: "Reasoning"
+description: "A collapsible renderer for assistant reasoning that follows the active message part."
+---
+
+Reasoning gives a model's chain of thought its own track: a shimmering trigger while it streams, a scrollable trace once opened, and a plain collapsed row once the model moves on. With a runtime it follows the active reasoning message part; standalone you drive the same disclosure from props you own. It comes in two designs: the runtime variant renders one continuous markdown trace, and the static variant, `ReasoningPanel`, renders discrete titled steps along a timeline (see [The step-panel design](#the-step-panel-design)).
+
+## Getting started
+
+<RuntimeMode>
+
+A runtime streams `reasoning` message parts alongside the rest of a message. Consecutive ones group into a single `group-reasoning` part, and that group is what the disclosure wraps.
+
+<Steps>
+  <Step>
+
+### Group reasoning parts and compose the disclosure
+
+```tsx title="components/assistant-ui/elements/thread.aui.tsx"
+import { MessagePrimitive, groupPartByType } from "@assistant-ui/react";
+import {
+  ReasoningContent,
+  ReasoningRoot,
+  ReasoningText,
+  ReasoningTrigger,
+} from "@/components/assistant-ui/elements/reasoning.aui";
+
+<MessagePrimitive.GroupedParts
+  groupBy={groupPartByType({ reasoning: ["group-reasoning"] })}
+>
+  {({ part, children }) => {
+    if (part.type !== "group-reasoning") return null;
+    const running = part.status.type === "running";
+    return (
+      <ReasoningRoot streaming={running}>
+        <ReasoningTrigger active={running} />
+        <ReasoningContent aria-busy={running}>
+          <ReasoningText>{children}</ReasoningText>
+        </ReasoningContent>
+      </ReasoningRoot>
+    );
+  }}
+</MessagePrimitive.GroupedParts>
+```
+
+`groupBy` decides which consecutive part types fold into one group; `children` is already the rendered parts for that range, so `ReasoningText` only has to lay them out. The kit's `ReasoningGroup` export targets an older `components.ReasoningGroup` prop on `MessagePrimitive.Parts`; `MessagePrimitive.GroupedParts` above is what `Thread` itself uses, so prefer it. The `Thread` element already ships this composition, so installing `@assistant-ui/thread` gives you the reasoning trace with none of the above (see [Thread](/elements/thread)).
+
+  </Step>
+  <Step>
+
+### Render a lone reasoning part
+
+Most runtimes stream reasoning as consecutive parts, but a single ungrouped `reasoning` part still needs a renderer:
+
+```tsx
+case "reasoning":
+  return <Reasoning {...part} />;
+```
+
+`Reasoning` renders the part's text as markdown with no disclosure chrome. Wrap it in `ReasoningRoot` / `ReasoningTrigger` / `ReasoningContent` yourself if a lone part should still get the collapsible shell.
+
+  </Step>
+</Steps>
+
+</RuntimeMode>
+
+<StandaloneMode>
+
+Standalone, the element is disclosure UI over content you already have: no message parts, no grouping, just text and a streaming flag.
+
+<Steps>
+  <Step>
+
+### Compose the disclosure
+
+```tsx title="app/trace.tsx"
+"use client";
+
+import {
+  ReasoningContent,
+  ReasoningRoot,
+  ReasoningText,
+  ReasoningTrigger,
+} from "@/components/assistant-ui/elements/reasoning";
+
+export function Trace({
+  text,
+  streaming,
+}: {
+  text: string;
+  streaming: boolean;
+}) {
+  return (
+    <ReasoningRoot streaming={streaming}>
+      <ReasoningTrigger active={streaming} />
+      <ReasoningContent aria-busy={streaming}>
+        <ReasoningText>{text}</ReasoningText>
+      </ReasoningContent>
+    </ReasoningRoot>
+  );
+}
+```
+
+  </Step>
+  <Step>
+
+### Control the open state
+
+Left uncontrolled, the root opens on its own while `streaming` is true and closes again once `defaultOpen` is false. Pass `open` and `onOpenChange` to drive it yourself, for example to keep the latest trace expanded:
+
+```tsx
+const [open, setOpen] = useState(false);
+
+<ReasoningRoot open={open} onOpenChange={setOpen} streaming={streaming}>
+  {/* ... */}
+</ReasoningRoot>;
+```
+
+  </Step>
+</Steps>
+
+</StandaloneMode>
+
+## Anatomy
+
+```tsx
+<div data-slot="reasoning-root" data-variant="outline">
+  <button data-slot="reasoning-trigger">
+    <BrainIcon />
+    <span>{/* "Reasoning" or "Reasoning (12s)" */}</span>
+    <ChevronDownIcon />
+  </button>
+  <div data-slot="reasoning-content">
+    <div data-slot="reasoning-fade" /> {/* top edge, always */}
+    <div data-slot="reasoning-text">{/* the trace */}</div>
+    <div data-slot="reasoning-fade" /> {/* bottom edge, streaming only */}
+  </div>
+</div>
+```
+
+While `streaming` is true and the panel is open, the trace is a live, bottom-pinned preview: it autoscrolls to the newest tokens as they arrive and only stops if the reader scrolls up manually, resuming once they scroll back to the bottom. When streaming ends, the open state returns to `defaultOpen`, unless the reader has already toggled the disclosure by hand at least once, at which point their choice sticks and streaming no longer overrides it. `ReasoningTrigger`'s `active` prop drives both the shimmering label and the timing text; the chevron rotates on open regardless. The runtime `ReasoningRoot` additionally locks the surrounding thread viewport's scroll position for the duration of each open or close animation, so expanding a trace never yanks the message list; the standalone root has no viewport to lock, so it skips that.
+
+## Examples
+
+### Variants
+
+`ReasoningRoot` takes a `variant`: `outline` draws a border and padding (the default), `ghost` adds neither, and `muted` fills a soft background instead of a border.
+
+```tsx
+<ReasoningRoot variant="muted" streaming={streaming}>
+  {/* ... */}
+</ReasoningRoot>
+```
+
+### Trigger duration
+
+Pass `duration` (seconds) to append a timing suffix to the trigger label:
+
+```tsx
+<ReasoningTrigger active={streaming} duration={12} />
+// renders: Reasoning (12s)
+```
+
+### Where reasoning parts come from
+
+<RuntimeMode>
+
+The `status.type` on the group (`"running" | "complete" | ...`) is what drives `streaming`; it flips once the model's reasoning stream for that group ends, which is also when a duration becomes worth showing:
+
+```tsx
+const running = part.status.type === "running";
+<ReasoningTrigger active={running} duration={running ? undefined : elapsedSeconds} />
+```
+
+</RuntimeMode>
+
+<StandaloneMode>
+
+Standalone, `text` and `streaming` come from wherever you fetch them, for example an SSE endpoint that appends tokens and flips a flag on its `done` event. Nothing about the element assumes a particular transport.
+
+</StandaloneMode>
+
+## API reference
+
+<RuntimeMode>
+
+### Reasoning
+
+| Export | Type | Notes |
+|--------|------|-------|
+| `Reasoning` | `ReasoningMessagePartComponent` | Renders the reasoning part's `text` as markdown. No disclosure chrome; use it for an ungrouped `reasoning` part. |
+
+### Reasoning message part
+
+| Field | Type | Description |
+|-------|------|--------------|
+| `text` | `string` | The reasoning text so far. |
+| `status` | `MessagePartStreamStatus \| undefined` | Streaming status of this part. |
+| `unstable_summary` | `string \| undefined` | Provider-supplied summary, when present. Not rendered by `Reasoning`; read it yourself if you need it. |
+
+### Sub-components
+
+`ReasoningRoot` wraps the standalone root and additionally locks the thread viewport's scroll during the disclosure animation. `ReasoningTrigger`, `ReasoningContent`, `ReasoningText`, `ReasoningFade`, and `reasoningVariants` are re-exported unchanged from the standalone module below.
+
+</RuntimeMode>
+
+<StandaloneMode>
+
+### ReasoningRoot
+
+| Prop | Type | Default | Description |
+|------|------|---------|-------------|
+| `variant` | `"outline" \| "ghost" \| "muted"` | `"outline"` | Visual treatment of the root. |
+| `streaming` | `boolean` | | Holds the disclosure open with a live preview; see Anatomy for the full open-state contract. |
+| `open` | `boolean` | | Controlled open state. |
+| `onOpenChange` | `(open: boolean) => void` | | Called on every toggle, controlled or not. |
+| `defaultOpen` | `boolean` | `false` | Initial open state when uncontrolled. |
+| `onAnimationStart` | `() => void` | | Called right before the disclosure animates, on manual toggle and on streaming transitions. |
+| `className` | `string` | | Merged onto the root. |
+
+All other `Collapsible` props are forwarded.
+
+### ReasoningTrigger
+
+| Prop | Type | Default | Description |
+|------|------|---------|-------------|
+| `active` | `boolean` | | Shimmers the label while true. |
+| `duration` | `number` | | Seconds; appends `(Ns)` to the label. |
+| `className` | `string` | | Merged onto the trigger. |
+
+All other `CollapsibleTrigger` props are forwarded.
+
+### ReasoningContent, ReasoningText, and ReasoningFade
+
+`ReasoningContent` and `ReasoningText` forward the rest of their props to a `CollapsibleContent` and a `div` respectively; both take `className`. `ReasoningFade` takes `side` (`"top" | "bottom"`, default `"bottom"`) and a `className`; `ReasoningContent` renders one at the top always and, while a live preview is active, a second one at the bottom.
+
+</StandaloneMode>
+
+
+## The step-panel design
+
+The Static variant in the rail is a second design for the same disclosure: `ReasoningPanel` renders an ordered list of titled steps with a shimmering "Thinking" trigger that settles into a resting summary, instead of one continuous markdown trace. It is a single props-driven component with no runtime dependency:
+
+```sh
+npx shadcn@latest add "@assistant-ui/elements-reasoning-panel"
+```
+
+<RuntimeMode>
+
+Wire it by mapping a message's `"reasoning"` parts into steps. `s.message.parts` is the store's own array, so selecting it directly is cheap; deriving steps still needs `useMemo`, since mapping to a fresh array on every call would re-render the panel on every store update.
+
+```tsx title="components/assistant-ui/elements/reasoning-panel.tsx"
+"use client";
+
+import { useMemo, useState } from "react";
+import { useAuiState, useMessageTiming } from "@assistant-ui/react";
+import {
+  ReasoningPanel,
+  type ReasoningStep,
+} from "@/components/assistant-ui/elements/reasoning-panel";
+
+function AssistantReasoning() {
+  const parts = useAuiState((s) => s.message.parts);
+  const steps = useMemo<ReasoningStep[]>(
+    () =>
+      parts.flatMap((part) =>
+        part.type === "reasoning"
+          ? [{ title: part.unstable_summary ?? "Thinking", body: part.text }]
+          : [],
+      ),
+    [parts],
+  );
+  const streaming = useAuiState((s) => {
+    if (s.message.status?.type !== "running") return false;
+    return s.message.parts.some(
+      (part) => part.type === "reasoning" && part.status.type === "running",
+    );
+  });
+  const timing = useMessageTiming();
+  const [userOpen, setUserOpen] = useState<boolean | null>(null);
+
+  if (steps.length === 0) return null;
+
+  return (
+    <ReasoningPanel
+      steps={steps}
+      visibleSteps={steps.length}
+      streaming={streaming}
+      open={userOpen ?? streaming}
+      onOpenChange={setUserOpen}
+      restingLabel={
+        timing?.totalStreamTime
+          ? `Thought for ${Math.round(timing.totalStreamTime / 1000)}s`
+          : "Done thinking"
+      }
+    />
+  );
+}
+```
+
+`visibleSteps` is just `steps.length`: the array itself grows as new reasoning parts stream in. `open` follows `streaming` until the reader toggles it once, after which their choice sticks.
+
+</RuntimeMode>
+
+<StandaloneMode>
+
+Standalone you hold the step list, decide how many are visible, and flip `open` yourself. Replaying a saved trace is `visibleSteps` counting up on a timer with `streaming={visibleSteps < steps.length}`.
+
+```tsx title="app/trace.tsx"
+"use client";
+
+import { useState } from "react";
+import {
+  ReasoningPanel,
+  type ReasoningStep,
+} from "@/components/assistant-ui/elements/reasoning-panel";
+
+const STEPS: ReasoningStep[] = [
+  { title: "Reading the request", body: "Working out what changed and why." },
+  { title: "Locating the seam", body: "Finding where the fix actually belongs." },
+];
+
+export function Trace() {
+  const [open, setOpen] = useState(true);
+  return (
+    <ReasoningPanel
+      steps={STEPS}
+      visibleSteps={STEPS.length}
+      streaming={false}
+      open={open}
+      onOpenChange={setOpen}
+      restingLabel="Thought for 4s"
+    />
+  );
+}
+```
+
+</StandaloneMode>
+
+The trigger swaps between the shimmering live label (plus the `elapsed` badge, when given) and `restingLabel`, animating its own width rather than jumping. `visibleSteps` clamps between 0 and `steps.length`; while `streaming` is true only the last shown step gets the pulsing marker.
+
+### ReasoningPanel
+
+| Prop | Type | Default | Description |
+|------|------|---------|-------------|
+| `steps` | `ReasoningStep[]` | required | `{ title: string; body: string }[]`, in order. |
+| `visibleSteps` | `number` | required | How many leading steps to show; clamps between 0 and `steps.length`. |
+| `streaming` | `boolean` | required | Swaps the trigger between the live label and `restingLabel`, and marks the last shown step as active. |
+| `open` | `boolean` | required | Whether the collapsible is expanded. |
+| `onOpenChange` | `(open: boolean) => void` | required | Called when the trigger is activated. |
+| `restingLabel` | `string` | required | Trigger text once `streaming` is `false`. |
+| `elapsed` | `string \| undefined` | | Shown next to the live label while `streaming` is `true`. |
+| `className` | `string` | | Merged onto the root; starts as `w-full max-w-sm`. |

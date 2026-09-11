@@ -1,5 +1,11 @@
 # @assistant-ui/react-syntax-highlighter
 
+## 0.14.5
+
+### Patch Changes
+
+- [#5723](https://github.com/assistant-ui/assistant-ui/pull/5723) [`94dc3e5`](https://github.com/assistant-ui/assistant-ui/commit/94dc3e509fa2b4fae1a14c88ec34b910c8d95af8) - chore: update dependencies ([@okisdev](https://github.com/okisdev))
+
 ## 0.14.4
 
 ### Patch Changes

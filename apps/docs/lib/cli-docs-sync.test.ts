@@ -23,7 +23,7 @@ const cliEntries = (category: "template" | "example"): Entry[] => {
 };
 
 const docsEntries = (heading: string, until: string): Entry[] => {
-  const doc = read("apps/docs/content/docs/(docs)/cli.mdx");
+  const doc = read("apps/docs/content/docs/(getting-started)/cli.mdx");
   const start = doc.indexOf(heading);
   const end = doc.indexOf(until, start);
   const section = doc.slice(start, end === -1 ? undefined : end);

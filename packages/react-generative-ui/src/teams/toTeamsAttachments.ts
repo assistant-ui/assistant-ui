@@ -1,19 +1,20 @@
+import { boundSpec, clampReasonDetail } from "../convert/boundSpec";
+import { copyBounded } from "../convert/copyBounded";
+import { isElement } from "../convert/isElement";
 import {
   normalizeSpec,
   type NormalizedUIElement,
   type NormalizedUINode,
 } from "../ir";
-import { boundSpec } from "./boundSpec";
 import {
   CAROUSEL_ATTACHMENT_CAP,
   PAYLOAD_SOFT_CAP,
   buildAttachment,
-  clampReasonDetail,
   utf8ByteLength,
 } from "./constants";
 import {
-  convertElement,
   convertRootToCard,
+  discardedChild,
   type ConversionContext,
 } from "./toAdaptiveCard";
 import type {
@@ -23,12 +24,6 @@ import type {
   ToAdaptiveCardOptions,
 } from "./types";
 
-const isRecord = (value: unknown): value is Record<string, unknown> =>
-  typeof value === "object" && value !== null && !Array.isArray(value);
-
-const isElement = (node: NormalizedUINode): node is NormalizedUIElement =>
-  isRecord(node);
-
 const normalizedList = (
   node: NormalizedUINode | undefined,
 ): NormalizedUINode[] => {
@@ -37,20 +32,11 @@ const normalizedList = (
   return node.flatMap((child) => normalizedList(child));
 };
 
-const clampArray = <T>(
-  value: readonly T[],
-  cap: number,
-): { readonly items: T[]; readonly truncated: boolean } => ({
-  items: value.slice(0, cap),
-  truncated: value.length > cap,
-});
-
 /**
  * Recognizes a root that is a single `Carousel` element, returning its `Card`
- * children. Every child is routed through {@link convertElement} first (its
- * result is discarded) so an unknown or unsupported child still produces its
- * usual "dropped" warning instead of being filtered out silently; non-card
- * children are then dropped. `undefined` means the root is not exclusively a
+ * children. A non-card child is routed through {@link discardedChild}, which
+ * reports it and forwards whatever it lost, rather than being filtered out
+ * silently. `undefined` means the root is not exclusively a
  * root-level carousel, so the caller falls back to converting the whole tree
  * as one card.
  */
@@ -61,13 +47,20 @@ function rootCarouselCards(
   const element = Array.isArray(root) && root.length === 1 ? root[0] : root;
   if (!isElement(element) || element.type !== "Carousel") return undefined;
   const cards: NormalizedUIElement[] = [];
+  let discarded = 0;
   for (const child of normalizedList(element.children)) {
-    if (!isElement(child)) continue;
-    if (child.type === "Card") {
+    if (isElement(child) && child.type === "Card") {
       cards.push(child);
-    } else {
-      convertElement(child, context, 1);
+      continue;
     }
+    if (discardedChild(child, context, 1)) discarded += 1;
+  }
+  if (discarded > 0) {
+    context.warnings.push({
+      code: "dropped",
+      component: "Carousel",
+      detail: `${discarded} non-card ${discarded === 1 ? "child was" : "children were"} dropped.`,
+    });
   }
   return cards;
 }
@@ -96,7 +89,7 @@ export function toTeamsAttachments(
     const { root } = normalizeSpec(bounded as never);
     const carouselCards = rootCarouselCards(root, context);
     if (carouselCards !== undefined) {
-      const { items, truncated } = clampArray(
+      const { items, truncated } = copyBounded(
         carouselCards,
         CAROUSEL_ATTACHMENT_CAP,
       );
@@ -113,9 +106,9 @@ export function toTeamsAttachments(
       const size = utf8ByteLength(JSON.stringify(attachments));
       if (size > PAYLOAD_SOFT_CAP) {
         warnings.push({
-          code: "clamped",
+          code: "advisory",
           component: "Carousel",
-          detail: `the carousel attachments total ${size} bytes, exceeding Teams' 100 KB bot message limit.`,
+          detail: `the carousel attachments total ${size} bytes, over the ${PAYLOAD_SOFT_CAP}-byte soft budget kept below Teams' 100 KB bot message limit.`,
         });
       }
       return { attachments, attachmentLayout: "carousel", warnings };

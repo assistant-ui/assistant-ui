@@ -1,6 +1,6 @@
 # AI SDK v7 Example
 
-This example demonstrates how to use `@assistant-ui/react-ai-sdk` with the Vercel AI SDK v7.
+This example demonstrates how to use `@assistant-ui/ai-sdk` with the Vercel AI SDK v7.
 
 ## Quick Start
 
@@ -45,7 +45,7 @@ By default, `useChatRuntime` uses `AssistantChatTransport` which automatically f
 When customizing the API URL, you must explicitly use `AssistantChatTransport` to keep system/tools forwarding:
 
 ```typescript
-import { AssistantChatTransport } from "@assistant-ui/react-ai-sdk";
+import { AssistantChatTransport } from "@assistant-ui/ai-sdk";
 
 const runtime = useChatRuntime({
   transport: new AssistantChatTransport({

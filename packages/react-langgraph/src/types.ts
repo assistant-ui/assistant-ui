@@ -36,6 +36,8 @@ export type LangChainToolCall = {
 export type MessageContentText = {
   type: "text" | "text_delta";
   text: string;
+  index?: number;
+  citations?: readonly unknown[];
 };
 
 export type MessageContentImageUrl = {
@@ -46,17 +48,22 @@ export type MessageContentImageUrl = {
 export type MessageContentThinking = {
   type: "thinking";
   thinking: string;
+  signature?: string;
+  index?: number;
 };
 
 export type MessageContentReasoningSummaryText = {
   type: "summary_text";
   text?: string;
+  index?: number;
 };
 
 export type MessageContentReasoning = {
   type: "reasoning";
   summary?: MessageContentReasoningSummaryText[];
   reasoning?: string;
+  signature?: string;
+  index?: number;
 };
 
 type MessageContentToolUse = {
@@ -135,6 +142,7 @@ type AssistantMessageContentComplex =
   | MessageContentImageUrl
   | MessageContentToolUse
   | MessageContentFile
+  | MessageContentAudio
   | MessageContentReasoning
   | MessageContentThinking
   | MessageContentComputerCall;
@@ -163,6 +171,13 @@ export type LangChainMessage =
       name: string;
       artifact?: any;
       status: "success" | "error";
+    }
+  | {
+      /** RemoveMessage: a deletion instruction targeting `id`, carrying no renderable content. */
+      id: string;
+      type: "remove";
+      content: string | [];
+      additional_kwargs?: Record<string, unknown>;
     }
   | {
       id?: string;

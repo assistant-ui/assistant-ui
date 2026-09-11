@@ -1,8 +1,8 @@
-import "@radix-ui/react-primitive";
-
 import "@standard-schema/spec";
 
 import "radix-ui";
+
+import "radix-ui/internal";
 
 import { ComponentPropsWithoutRef, ComponentType, ReactNode } from "react";
 
@@ -20,9 +20,10 @@ type AllowedTags = Record<string, string[]>;
 
 type AncestorsOf<K extends ClientNames, Seen extends ClientNames = never> = K extends Seen ? never : ParentOf<K> extends never ? never : ParentOf<K> | AncestorsOf<ParentOf<K>, Seen | K>;
 
-type AssistantClient = {
-  [K in ClientNames]: AssistantClientAccessor<K>;
-} & {
+type AssistantClient = ClientScopes & {
+  readonly optional: {
+    readonly [K in keyof ClientScopes]: ClientScopes[K] | undefined;
+  };
   subscribe(listener: () => void): Unsubscribe;
   on<TEvent extends AssistantEventName>(selector: AssistantEventSelector<TEvent>, callback: AssistantEventCallback<TEvent>): Unsubscribe;
 };
@@ -101,6 +102,14 @@ type ClientSchemas = keyof ScopeRegistry extends never ? {
 } : {
   [K in keyof ScopeRegistry]: ValidateClient<K & string, ScopeRegistry[K]>;
 };
+
+type ClientScopes = {
+  [K in ClientNames]: AssistantClientAccessor<K>;
+};
+
+type CodeComponent = ComponentType<ComponentPropsWithoutRef<"code"> & {
+  node?: Element | undefined;
+}>;
 
 type CodeHeaderProps = {
   node?: Element | undefined;
@@ -242,6 +251,10 @@ interface Position {
   start: Point;
   end: Point;
 }
+
+type PreComponent = ComponentType<ComponentPropsWithoutRef<"pre"> & {
+  node?: Element | undefined;
+}>;
 
 type PreOverrideProps = ComponentPropsWithoutRef<"pre"> & {
   node?: Element | undefined;
@@ -904,6 +917,8 @@ type RemendConfig = {
   strikethrough?: boolean;
   katex?: boolean;
   setextHeadings?: boolean;
+  singleTilde?: boolean;
+  comparisonOperators?: boolean;
   handlers?: RemendHandler[];
 };
 
@@ -1023,12 +1038,8 @@ type StreamdownTextPrimitiveProps = Omit<StreamdownProps$2, "BlockComponent" | "
 type SyntaxHighlighterProps = {
   node?: Element | undefined;
   components: {
-    Pre: ComponentType<ComponentPropsWithoutRef<"pre"> & {
-      node?: Element | undefined;
-    }>;
-    Code: ComponentType<ComponentPropsWithoutRef<"code"> & {
-      node?: Element | undefined;
-    }>;
+    Pre: PreComponent;
+    Code: CodeComponent;
   };
   language: string;
   code: string;

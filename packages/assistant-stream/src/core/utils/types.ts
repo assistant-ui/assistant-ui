@@ -32,6 +32,7 @@ export type ReasoningPart = {
   type: "reasoning";
   text: string;
   status: TextStatus;
+  unstable_summary?: string;
   parentId?: string;
 };
 

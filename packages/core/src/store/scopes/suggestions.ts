@@ -15,6 +15,12 @@ export type SuggestionsMethods = {
   suggestion(query: { index: number }): SuggestionMethods;
 };
 
+export type SuggestionsMeta = {
+  source: "thread";
+  query: Record<string, never>;
+};
+
 export type SuggestionsClientSchema = {
   methods: SuggestionsMethods;
+  meta: SuggestionsMeta;
 };

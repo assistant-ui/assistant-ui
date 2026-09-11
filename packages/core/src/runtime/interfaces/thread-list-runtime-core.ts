@@ -1,5 +1,8 @@
 import type { Unsubscribe } from "../../types/unsubscribe";
-import type { ThreadRuntimeCore } from "./thread-runtime-core";
+import type {
+  ThreadRuntimeCore,
+  ThreadRuntimeEventType,
+} from "./thread-runtime-core";
 
 export type ThreadListItemStatus = "archived" | "regular" | "new" | "deleted";
 
@@ -16,8 +19,14 @@ export type ThreadListItemCoreState = {
   readonly runtime?: ThreadRuntimeCore | undefined;
 };
 
+export type ThreadListRuntimeEvent = {
+  readonly threadId: string;
+  readonly type: ThreadRuntimeEventType;
+};
+
 export type ThreadListRuntimeCore = {
   readonly isLoading: boolean;
+  readonly loadError?: unknown;
   readonly isLoadingMore?: boolean;
   readonly hasMore?: boolean;
   mainThreadId: string;
@@ -40,6 +49,17 @@ export type ThreadListRuntimeCore = {
    * running, and the main thread's run state is read from its runtime directly.
    */
   unstable_isThreadRunning?(threadId: string): boolean;
+
+  /**
+   * Lifecycle events from every thread this list keeps alive, including
+   * threads that are not the main one. Implemented by thread lists that keep
+   * runtimes alive for non-main threads. A thread list that mounts only the
+   * main thread leaves this undefined: its other threads have no runtime and so
+   * emit nothing, and the main thread's runtime is observed directly.
+   */
+  unstable_subscribeThreadEvents?(
+    callback: (event: ThreadListRuntimeEvent) => void,
+  ): Unsubscribe;
 
   getItemById(threadId: string): ThreadListItemCoreState | undefined;
 
@@ -67,7 +87,10 @@ export type ThreadListRuntimeCore = {
   initialize(
     threadId: string,
   ): Promise<{ remoteId: string; externalId: string | undefined }>;
-  generateTitle(threadId: string): Promise<void>;
+  generateTitle(
+    threadId: string,
+    options?: { automatic?: boolean },
+  ): Promise<void>;
 
   subscribe(callback: () => void): Unsubscribe;
 };

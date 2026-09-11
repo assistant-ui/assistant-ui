@@ -2,13 +2,11 @@ import debug from "debug";
 import { transform, type TransformErrors, getRelevantFiles } from "./transform";
 import type { TransformOptions } from "./transform-options";
 import { SingleBar, Presets } from "cli-progress";
-import installReactUILib from "./install-ui-lib";
 import installEdgeLib from "./install-edge-lib";
 import installAiSdkLib from "./install-ai-sdk-lib";
 import { logger } from "./utils/logger";
 
 const bundle = [
-  "v0-8/ui-package-split",
   "v0-9/edge-package-split",
   "v0-11/content-part-to-message-part",
   "v0-12/assistant-api-to-aui",
@@ -44,6 +42,7 @@ export async function upgrade(options: TransformOptions) {
     {
       format: "Progress |{bar}| {percentage}% | ETA: {eta}s || {status}",
       hideCursor: true,
+      gracefulExit: true,
     },
     Presets.shades_classic,
   );
@@ -51,28 +50,31 @@ export async function upgrade(options: TransformOptions) {
   bar.start(totalWork, 0, { status: "Starting..." });
   const allErrors: TransformErrors = [];
 
-  for (const codemod of bundle) {
-    bar.update(completedWork, { status: `Running ${codemod}...` });
+  try {
+    for (const codemod of bundle) {
+      bar.update(completedWork, { status: `Running ${codemod}...` });
 
-    // Use a custom progress callback to update the progress bar
-    const errors = transform(codemod, cwd, options, {
-      logStatus: false,
-      onProgress: (processedFiles: number) => {
-        completedWork = bundle.indexOf(codemod) * fileCount + processedFiles;
-        bar.update(Math.min(completedWork, totalWork), {
-          status: `Running ${codemod} (${processedFiles}/${fileCount} files)`,
-        });
-      },
-      relevantFiles, // Pass the pre-computed relevant files
-    });
+      // Use a custom progress callback to update the progress bar
+      const errors = await transform(codemod, cwd, options, {
+        logStatus: false,
+        onProgress: (processedFiles: number) => {
+          completedWork = bundle.indexOf(codemod) * fileCount + processedFiles;
+          bar.update(Math.min(completedWork, totalWork), {
+            status: `Running ${codemod} (${processedFiles}/${fileCount} files)`,
+          });
+        },
+        relevantFiles, // Pass the pre-computed relevant files
+      });
 
-    allErrors.push(...errors);
-    completedWork = (bundle.indexOf(codemod) + 1) * fileCount;
-    bar.update(completedWork, { status: `Completed ${codemod}` });
+      allErrors.push(...errors);
+      completedWork = (bundle.indexOf(codemod) + 1) * fileCount;
+      bar.update(completedWork, { status: `Completed ${codemod}` });
+    }
+
+    bar.update(totalWork, { status: "Checking dependencies..." });
+  } finally {
+    bar.stop();
   }
-
-  bar.update(totalWork, { status: "Checking dependencies..." });
-  bar.stop();
 
   if (allErrors.length > 0) {
     log("Some codemods did not apply successfully to all files. Details:");
@@ -83,7 +85,6 @@ export async function upgrade(options: TransformOptions) {
 
   // After codemods run, check if files import from the new packages and prompt for install.
   logger.info("Checking for package dependencies...");
-  await installReactUILib();
   await installEdgeLib();
   await installAiSdkLib();
 

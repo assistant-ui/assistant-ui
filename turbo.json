@@ -30,7 +30,8 @@
         "SENTRY_*",
         "REDIS_*",
         "ASSISTANT_*",
-        "AUIX_*"
+        "AUIX_*",
+        "WEBMCP_ORIGIN_TRIAL_TOKEN"
       ]
     },
     "lint": {},

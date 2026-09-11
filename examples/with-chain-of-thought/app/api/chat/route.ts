@@ -9,7 +9,7 @@ import {
   JsonToSseTransformStream,
 } from "ai";
 import type { UIMessage, UIMessageStreamWriter } from "ai";
-import { AISDKToolkit } from "@assistant-ui/react-ai-sdk";
+import { AISDKToolkit } from "@assistant-ui/ai-sdk";
 import { z } from "zod";
 import toolkit from "../../toolkit";
 
@@ -114,7 +114,7 @@ async function streamModel(
 
   const result = streamText({
     // Reasoning model so the chain-of-thought group has real content.
-    model: openai("gpt-5.4-mini"),
+    model: openai("gpt-5.6-luna"),
     messages: await convertToModelMessages(messages),
     stopWhen: stepCountIs(10),
     tools: {

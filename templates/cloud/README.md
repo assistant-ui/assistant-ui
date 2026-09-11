@@ -51,11 +51,11 @@ Open [http://localhost:3000](http://localhost:3000) with your browser to see the
 
 ## Development
 
-You can start customizing the UI by modifying components in the `components/assistant-ui/` directory.
+You can start customizing the UI by modifying components in the `components/assistant-ui/elements/` directory.
 
 ### Key Files
 
 - `app/assistant.tsx` - Renders the chat interface and sets up the runtime provider with Assistant Cloud
 - `app/api/chat/route.ts` - Chat API endpoint
-- `components/assistant-ui/thread.tsx` - Chat thread component
-- `components/assistant-ui/threadlist-sidebar.tsx` - Sidebar with thread list
+- `components/assistant-ui/elements/thread.tsx` - Chat thread component
+- `components/assistant-ui/elements/threadlist-sidebar.tsx` - Sidebar with thread list

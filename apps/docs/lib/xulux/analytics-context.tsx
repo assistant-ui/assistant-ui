@@ -67,7 +67,7 @@ export function trackXuluxDownload(
   ctx: XuluxAnalyticsContextValue,
   props: {
     surface: "open_in_card" | "canvas" | "detail_modal";
-    download_type: "template" | "sandbox" | "demo";
+    download_type: "template" | "demo";
     template_id?: string;
   },
 ) {

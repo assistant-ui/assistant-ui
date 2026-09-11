@@ -1,0 +1,219 @@
+---
+title: "Code runner"
+description: "A snippet with a run button, and the output it produced attached below it."
+---
+
+A code block that stays inert until the user presses run, then attaches its output underneath. With a runtime the code comes from a tool call the user completes by running it; standalone you hold the run state and feed the output in yourself.
+
+## Getting started
+
+<RuntimeMode>
+
+A tool the user completes by pressing a button, rather than one that executes the moment the model calls it, is a `"human"` toolkit entry: it has no `execute`, so the call stays open until the renderer calls `addResult`.
+
+<Steps>
+  <Step>
+
+### Register a human toolkit entry
+
+```tsx title="app/run-code-toolkit.tsx"
+"use client";
+
+import { useState } from "react";
+import { defineToolkit, type ToolCallMessagePartComponent } from "@assistant-ui/react";
+import { CodeRunner, type RunState } from "@/components/assistant-ui/elements/code-runner";
+import { z } from "zod";
+
+type RunArgs = { language: string; code: string };
+type RunResult = { output: string[]; durationMs: number };
+
+const RunCodeUI: ToolCallMessagePartComponent<RunArgs, RunResult> = ({ args, result, addResult }) => {
+  const [state, setState] = useState<RunState>("idle");
+  const [output, setOutput] = useState<string[]>([]);
+
+  return (
+    <CodeRunner
+      language={args.language}
+      code={args.code}
+      state={result ? "ok" : state}
+      output={result?.output ?? output}
+      durationMs={result?.durationMs}
+      onRun={async () => {
+        setState("running");
+        const startedAt = Date.now();
+        const lines = await runInSandbox(args.code);
+        setOutput(lines);
+        addResult({ output: lines, durationMs: Date.now() - startedAt });
+      }}
+    />
+  );
+};
+
+const toolkit = defineToolkit({
+  run_code: {
+    type: "human",
+    description: "Run a code snippet after the user presses run.",
+    parameters: z.object({ language: z.string(), code: z.string() }),
+    render: RunCodeUI,
+  },
+});
+```
+
+  </Step>
+  <Step>
+
+### Complete the call from the button
+
+`addResult(result)` is the only way this call finishes; there's no `execute` for the runtime to fall back on. Call it exactly once, from inside `onRun`, once the sandboxed run actually returns.
+
+```tsx title="app/providers.tsx"
+const config = AuiConfig({ tools: Tools({ toolkit }) });
+```
+
+Mount `config` the same way as any other toolkit, with `<AuiProvider extends={aui} config={config}>`.
+
+  </Step>
+</Steps>
+
+</RuntimeMode>
+
+<StandaloneMode>
+
+Standalone, the element is a controlled component: you own the run state and push output into it as the run produces it.
+
+<Steps>
+  <Step>
+
+### Hold the run state
+
+```tsx title="app/snippet.tsx"
+"use client";
+
+import { useState } from "react";
+import { CodeRunner, type RunState } from "@/components/assistant-ui/elements/code-runner";
+
+const code = `console.log("hello")`;
+
+export function Snippet() {
+  const [state, setState] = useState<RunState>("idle");
+  const [output, setOutput] = useState<string[]>([]);
+  return <CodeRunner language="js" code={code} state={state} output={output} onRun={run} />;
+}
+```
+
+  </Step>
+  <Step>
+
+### Wire the run button
+
+```tsx
+async function run() {
+  setState("running");
+  const startedAt = Date.now();
+  try {
+    const lines = await runInSandbox(code);
+    setOutput(lines);
+    setState("ok");
+  } catch (err) {
+    setOutput([err instanceof Error ? err.message : String(err)]);
+    setState("error");
+  }
+}
+```
+
+  </Step>
+</Steps>
+
+</StandaloneMode>
+
+## Anatomy
+
+```tsx
+<div data-slot="code-runner">
+  <div>{/* language, optional duration, run button (spinner while running) */}</div>
+  <pre>{/* code, always visible */}</pre>
+  {/* output block: only once state !== "idle" */}
+</div>
+```
+
+The code block is always visible; the output block only mounts once `state` leaves `"idle"`. Each output line fades in staggered by `80ms` per line, and reads in red when `state` is `"error"`, neutral otherwise. A blinking caret renders only while `state` is `"running"`, after the lines received so far. The duration badge next to the run button only shows once a duration is known and the run isn't currently in progress.
+
+## Examples
+
+### Read the code the model sent
+
+<RuntimeMode>
+
+`args.language` and `args.code` are exactly what `RunCodeUI` reads above; nothing about the code itself is inferred, it's the tool call's own parameters.
+
+```tsx
+const RunCodeUI: ToolCallMessagePartComponent<RunArgs, RunResult> = ({ args }) => (
+  <CodeRunner language={args.language} code={args.code} state="idle" output={[]} />
+);
+```
+
+</RuntimeMode>
+
+### Stream output before completing the call
+
+<RuntimeMode>
+
+`addResult` only needs to be called once the run is fully done; the output shown while it's still going is ordinary local state, updated as lines arrive:
+
+```tsx
+onRun: async () => {
+  setState("running");
+  const lines: string[] = [];
+  for await (const line of runInSandboxStreaming(args.code)) {
+    lines.push(line);
+    setOutput([...lines]);
+  }
+  addResult({ output: lines, durationMs: elapsedMs() });
+};
+```
+
+</RuntimeMode>
+
+### Restyle the runner
+
+Both lanes take `className` on the root. The output block scrolls horizontally through the `codeScroll`/`codeSurface` pair from `surfaces.tsx`, which keeps a long line reachable instead of clipped, so retargeting those tokens restyles this and every other element that scrolls preformatted output the same way.
+
+## API reference
+
+<RuntimeMode>
+
+### run_code toolkit entry
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `type` | `"human"` | No `execute`; the call stays open until `render` calls `addResult`. |
+| `parameters` | Zod schema | Declares the args shape, `{ language, code }` above. |
+| `render` | `ToolCallMessagePartComponent<RunArgs, RunResult>` | The only source of the result for this call. |
+
+### Render props used
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `args` | `RunArgs` | The language and code the model sent. |
+| `result` | `RunResult \| undefined` | Set once `addResult` has been called; `undefined` while still waiting on the button. |
+| `addResult(result)` | `(result: RunResult) => void` | Completes the call. Call it once. |
+
+</RuntimeMode>
+
+<StandaloneMode>
+
+### CodeRunner
+
+| Prop | Type | Default | Description |
+|------|------|---------|-------------|
+| `language` | `string` | required | Shown in the header. |
+| `code` | `string` | required | The snippet, rendered verbatim. |
+| `state` | `RunState` | required | `"idle" \| "running" \| "ok" \| "error"`. |
+| `output` | `readonly string[]` | required | Output lines; ignored while `state` is `"idle"`. |
+| `durationMs` | `number` | | Shown next to the run button once known. |
+| `onRun` | `() => void` | | Called when the run button is pressed. |
+| `className` | `string` | | Merged onto the root. |
+
+All other `div` props are forwarded to the root.
+
+</StandaloneMode>

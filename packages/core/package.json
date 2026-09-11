@@ -1,6 +1,6 @@
 {
   "name": "@assistant-ui/core",
-  "version": "0.3.5",
+  "version": "0.3.18",
   "description": "Framework-agnostic core runtime for assistant-ui",
   "keywords": [
     "assistant",
@@ -65,19 +65,18 @@
     "test:watch": "vitest"
   },
   "dependencies": {
-    "assistant-stream": "^0.3.33",
-    "nanoid": "^6.0.0"
+    "assistant-stream": "^0.3.42",
+    "nanoid": "^6.0.1"
   },
   "optionalDevDependencies": {
     "@assistant-ui/x-generative-compiler": ">=0.0.3"
   },
   "peerDependencies": {
-    "@assistant-ui/store": "^0.3.0",
-    "@assistant-ui/tap": "^0.9.0",
+    "@assistant-ui/store": "workspace:^",
+    "@assistant-ui/tap": "workspace:^",
     "@types/react": "*",
     "react": "^18 || ^19",
-    "assistant-cloud": "^0.1.31",
-    "zustand": "^5.0.11"
+    "assistant-cloud": "^0.2.0"
   },
   "peerDependenciesMeta": {
     "@types/react": {
@@ -88,9 +87,6 @@
     },
     "react": {
       "optional": true
-    },
-    "zustand": {
-      "optional": true
     }
   },
   "devDependencies": {
@@ -98,14 +94,13 @@
     "@assistant-ui/tap": "workspace:*",
     "@assistant-ui/vite": "workspace:*",
     "@assistant-ui/x-buildutils": "workspace:*",
-    "@testing-library/react": "^16.3.2",
-    "@types/react": "^19.2.17",
+    "@testing-library/react": "^16.3.3",
+    "@types/react": "^19.2.18",
     "assistant-cloud": "workspace:*",
-    "jsdom": "^29.1.1",
+    "jsdom": "^30.0.1",
     "react": "^19.2.8",
     "react-dom": "^19.2.8",
-    "vitest": "^4.1.10",
-    "zustand": "^5.0.14"
+    "vitest": "^4.1.11"
   },
   "publishConfig": {
     "access": "public",

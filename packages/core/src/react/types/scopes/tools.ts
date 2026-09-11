@@ -1,5 +1,6 @@
 import type { ToolCallMessagePartComponent } from "../MessagePartComponentTypes";
 import type { Unsubscribe } from "../../..";
+import type { ToolCallText } from "../../../model-context/tool-call-text";
 
 export type McpAppResourceOutput = {
   readonly render: ToolCallMessagePartComponent;
@@ -12,6 +13,7 @@ export type McpAppResourceOutput = {
  */
 type ToolRegistration = {
   readonly render: ToolCallMessagePartComponent;
+  readonly renderText?: ToolCallText<any, any, unknown> | undefined;
   /** Whether this UI renders standalone, outside the chain-of-thought trace. */
   readonly standalone: boolean;
 };

@@ -3,6 +3,7 @@ import { AssistantCloudThreadMessages } from "./AssistantCloudThreadMessages";
 import {
   readCloudArray,
   readCloudBoolean,
+  readCloudInteger,
   readCloudNullableString,
   readCloudRecord,
   readCloudString,
@@ -41,6 +42,14 @@ type AssistantCloudThreadsCreateBody = {
 
 type AssistantCloudThreadsCreateResponse = {
   thread_id: string;
+};
+
+type AssistantCloudThreadsClaimBody = {
+  refresh_token: string;
+};
+
+type AssistantCloudThreadsClaimResponse = {
+  moved: number;
 };
 
 type AssistantCloudThreadsUpdateBody = {
@@ -88,8 +97,12 @@ export class AssistantCloudThreads {
   public async list(
     query?: AssistantCloudThreadsListQuery,
   ): Promise<AssistantCloudThreadsListResponse> {
+    const requestQuery =
+      query?.is_archived === undefined
+        ? query
+        : { ...query, is_archived: String(query.is_archived) };
     const response = readCloudRecord(
-      await this.cloud.makeRequest("/threads", { query }),
+      await this.cloud.makeRequest("/threads", { query: requestQuery }),
       "thread list response",
     );
     const threads = readCloudArray(response.threads, "threads");
@@ -113,7 +126,12 @@ export class AssistantCloudThreads {
   public async create(
     body: AssistantCloudThreadsCreateBody,
   ): Promise<AssistantCloudThreadsCreateResponse> {
-    return this.cloud.makeRequest("/threads", { method: "POST", body });
+    const response = readCloudRecord(
+      await this.cloud.makeRequest("/threads", { method: "POST", body }),
+      "thread create response",
+    );
+
+    return { thread_id: readCloudString(response.thread_id, "thread_id") };
   }
 
   public async update(
@@ -124,6 +142,18 @@ export class AssistantCloudThreads {
       method: "PUT",
       body,
     });
+  }
+
+  /** Moves every thread of the anonymous identity behind `refresh_token` into the caller's workspace. */
+  public async claim(
+    body: AssistantCloudThreadsClaimBody,
+  ): Promise<AssistantCloudThreadsClaimResponse> {
+    const response = readCloudRecord(
+      await this.cloud.makeRequest("/threads/claim", { method: "POST", body }),
+      "thread claim response",
+    );
+
+    return { moved: readCloudInteger(response.moved, "moved") };
   }
 
   public async delete(threadId: string): Promise<void> {

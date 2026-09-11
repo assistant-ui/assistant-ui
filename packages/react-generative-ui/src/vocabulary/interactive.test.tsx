@@ -103,6 +103,26 @@ describe("interactiveVocabulary", () => {
     expect(html).toContain('<option value="b">B</option>');
   });
 
+  it("Select ignores malformed options instead of throwing", () => {
+    expect(render({ $type: "Select" })).toBe(
+      '<select data-aui="select"></select>',
+    );
+    expect(render({ $type: "Select", options: "not-an-array" })).toBe(
+      '<select data-aui="select"></select>',
+    );
+    expect(
+      render({
+        $type: "Select",
+        options: [
+          null,
+          { label: "Missing value" },
+          { value: "Missing label" },
+          { label: "A", value: "a" },
+        ],
+      }),
+    ).toBe('<select data-aui="select"><option value="a">A</option></select>');
+  });
+
   it("Input renders a single-line input by default", () => {
     expect(render({ $type: "Input", placeholder: "type here" })).toBe(
       '<input data-aui="input" placeholder="type here"/>',
@@ -155,6 +175,27 @@ describe("interactiveVocabulary", () => {
     });
     expect(html).toContain('name="agree"');
     expect(html).toContain('checked=""');
+  });
+
+  it.each([
+    [
+      { $type: "Button", label: { unexpected: true } },
+      '<button type="button" data-aui="button"></button>',
+    ],
+    [
+      {
+        $type: "Select",
+        placeholder: { unexpected: true },
+        options: [],
+      },
+      '<select data-aui="select"></select>',
+    ],
+    [
+      { $type: "Checkbox", label: { unexpected: true } },
+      '<label data-aui="checkbox"><input type="checkbox"/><span data-aui="checkbox-label"></span></label>',
+    ],
+  ])("ignores malformed control text properties", (node, expected) => {
+    expect(render(node)).toBe(expected);
   });
 
   it("RadioGroup renders a fieldset with one radio per option", () => {

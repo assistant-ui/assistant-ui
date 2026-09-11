@@ -77,7 +77,7 @@ export function CategoryGrid({ onBrowseAll, onSelectTemplate }: Props) {
     <>
       <section className="w-full">
         <div className="mb-4 flex items-baseline justify-between">
-          <h2 className="text-lg font-semibold tracking-tight">Templates</h2>
+          <h2 className="text-sm font-medium">Templates</h2>
           <button
             type="button"
             onClick={onBrowseAll}

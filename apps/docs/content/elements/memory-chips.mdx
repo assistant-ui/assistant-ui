@@ -1,0 +1,227 @@
+---
+title: "Memory"
+description: "What it now remembers about you, written during the turn and removable."
+---
+
+MemoryChips lists what the assistant now remembers about you: one pill per fact, freshly written ones tinted, each with its own forget button. With a runtime the pills come from `remember` tool calls made in the current turn; standalone you hold the whole list.
+
+## Getting started
+
+<RuntimeMode>
+
+assistant-ui has no built-in memory concept: nothing on a message tracks facts learned about the user. The closest real building block is a tool call, the same way a graded claim or a comparison table would be. Give the model a `remember` tool and collect every call it makes in the current message into the chip list.
+
+<Steps>
+  <Step>
+
+### Read remember calls off the message
+
+```tsx title="components/assistant-ui/elements/thread.aui.tsx"
+"use client";
+
+import { useAuiState } from "@assistant-ui/react";
+import type { ToolCallMessagePart } from "@assistant-ui/react";
+import {
+  MemoryChips,
+  type MemoryChip,
+} from "@/components/assistant-ui/elements/memory-chips";
+
+type RememberCall = ToolCallMessagePart<
+  { text: string; change: "added" | "updated" },
+  void
+>;
+
+function MemoryFromMessage() {
+  const chips = useAuiState((s): MemoryChip[] =>
+    s.message.role === "assistant"
+      ? s.message.content
+          .filter(
+            (part): part is RememberCall =>
+              part.type === "tool-call" && part.toolName === "remember",
+          )
+          .map((part) => ({
+            id: part.toolCallId,
+            text: part.args.text,
+            change: part.args.change,
+          }))
+      : [],
+  );
+
+  if (chips.length === 0) return null;
+  return <MemoryChips chips={chips} onForget={forgetMemory} />;
+}
+```
+
+`remember` and its `{ text, change }` args are your own tool contract; `part.args` is the real, typed plumbing that carries whatever the model wrote back to the client as the call streams.
+
+  </Step>
+  <Step>
+
+### Register the tool
+
+The chip list already renders in the step above, aggregated across every call, so the tool's own `render` has nothing left to show and returns `null`.
+
+```tsx title="app/toolkit.ts"
+import { defineToolkit } from "@assistant-ui/react";
+import { z } from "zod";
+
+export const toolkit = defineToolkit({
+  remember: {
+    type: "frontend",
+    description: "Save a fact about the user for future turns.",
+    parameters: z.object({
+      text: z.string(),
+      change: z.enum(["added", "updated"]),
+    }),
+    execute: async ({ text, change }) => {
+      await saveMemory({ text, change });
+    },
+    render: () => null,
+  },
+});
+```
+
+Wire the toolkit in with `Tools({ toolkit })` on your runtime config, the same as any other toolkit. See [Tool UI](/docs/tools/tool-ui).
+
+  </Step>
+</Steps>
+
+</RuntimeMode>
+
+<StandaloneMode>
+
+Standalone, you hold the whole chip list, including whatever it remembered before this turn.
+
+<Steps>
+  <Step>
+
+### Hold the chip list
+
+```tsx title="app/memory.tsx"
+"use client";
+
+import { useState } from "react";
+import {
+  MemoryChips,
+  type MemoryChip,
+} from "@/components/assistant-ui/elements/memory-chips";
+
+const INITIAL: MemoryChip[] = [
+  { id: "1", text: "Prefers TypeScript", change: "existing" },
+  { id: "2", text: "Works on assistant-ui", change: "existing" },
+];
+
+export function Memory() {
+  const [chips, setChips] = useState(INITIAL);
+  return (
+    <MemoryChips
+      chips={chips}
+      onForget={(id) => setChips((c) => c.filter((chip) => chip.id !== id))}
+    />
+  );
+}
+```
+
+  </Step>
+  <Step>
+
+### Mark a memory fresh
+
+Appending a chip with `change: "added"` or `"updated"` is what turns the header from `memory` into `remembered N`; see Anatomy.
+
+```tsx
+setChips((c) => [
+  ...c,
+  { id: crypto.randomUUID(), text: "Ships on Fridays", change: "added" },
+]);
+```
+
+  </Step>
+</Steps>
+
+</StandaloneMode>
+
+## Anatomy
+
+```tsx
+<div data-slot="memory-chips">
+  <div>
+    <svg aria-hidden />{/* brain icon */}
+    <span>{/* "memory" or "remembered N" */}</span>
+  </div>
+  <div>
+    <span>
+      {/* one pill per chip */}
+      <button aria-label={/* Forget "..." */} />
+    </span>
+  </div>
+</div>
+```
+
+The header reads `memory` until at least one chip's `change` is `"added"` or `"updated"`, then switches to `remembered N`, where N counts only the non `existing` chips. Color marks two states, not three: `existing` chips use the neutral `field` surface, while `added` and `updated` chips share the identical blue tint, so a caller cannot tell the two apart by color alone. Each pill keys on `chip.id` and mounts with a 300ms fade and scale, so appending a new chip animates only that pill in; chips already on screen keep their DOM node and never replay. An empty `chips` array renders the header alone, reading `memory`, with no placeholder pill.
+
+## Examples
+
+### Merge in memories from before this turn
+
+<RuntimeMode>
+
+`s.message.content` only holds what happened in this message; a fact remembered three turns ago has no tool-call part here to read. Merge your own persisted list ahead of the fresh ones from the selector above:
+
+```tsx
+const chips = [...existingMemories, ...freshChipsFromMessage];
+```
+
+`onForget` on an `existing` chip should call your own removal endpoint directly: there is no tool call in this message to update, so trimming local state is the only way the pill disappears right away.
+
+</RuntimeMode>
+
+<StandaloneMode>
+
+The same merge is simpler here: concatenate your persisted list with whatever the last turn added before handing the result to `chips`.
+
+</StandaloneMode>
+
+### Restyle the chips
+
+Both lanes take `className` on the root. The header label reads from the shared `mono` token, the `existing` pill from `field`, and the forget button from `ghostButton`, all in `surfaces.tsx`.
+
+```tsx
+<MemoryChips className="gap-3" /* ... */ />
+```
+
+## API reference
+
+<RuntimeMode>
+
+### Message state
+
+| Selector / field | Type | Description |
+|--------------------|------|-------------|
+| `s.message.content` | `readonly ThreadAssistantMessagePart[]` | Search this for `tool-call` parts whose `toolName` matches your remember tool; assistant-ui has no built-in memory field. |
+| `ToolCallMessagePart.args` | `TArgs` | The model's arguments for that call, typed by the generic you give `ToolCallMessagePart<TArgs, TResult>`. Partial while the call is still streaming. |
+| `ToolCallMessagePart.toolCallId` | `string` | Stable id for the call; a natural `MemoryChip.id`. |
+
+</RuntimeMode>
+
+<StandaloneMode>
+
+### MemoryChips
+
+| Prop | Type | Default | Description |
+|------|------|---------|-------------|
+| `chips` | `readonly MemoryChip[]` | required | The pills to render, in order. |
+| `onForget` | `(id: string) => void` | | Called with a chip's `id` when its forget button is pressed. |
+| `className` | `string` | | Merged onto the root. |
+
+### MemoryChip
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `id` | `string` | |
+| `text` | `string` | |
+| `change` | `"added" \| "updated" \| "existing"` | `existing` renders neutral; `added` and `updated` share the same highlighted look. |
+
+All other `div` props are forwarded to the root.
+
+</StandaloneMode>

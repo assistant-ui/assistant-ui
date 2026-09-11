@@ -4,7 +4,7 @@ import {
   MessagePersistence,
   MESSAGE_FORMAT,
 } from "../../chat/MessagePersistence";
-import { aiSDKV6FormatAdapter } from "../../../../react-ai-sdk/src/ui/adapters/aiSDKFormatAdapter";
+import { aiSDKV6FormatAdapter } from "../../../../ai-sdk/src/adapters/aiSDKFormatAdapter";
 
 // If this fails, update both adapters together or document intentional divergence.
 type CloudMessageStorageEntry = Parameters<
@@ -69,7 +69,7 @@ function createComplexMessage(): UIMessage {
   } as UIMessage;
 }
 
-describe("CONTRACT: cloud-ai-sdk and react-ai-sdk ai-sdk/v6 adapters must stay in lockstep", () => {
+describe("CONTRACT: cloud-ai-sdk and ai-sdk ai-sdk/v6 adapters must stay in lockstep", () => {
   let message: UIMessage;
   let create: ReturnType<typeof createCloudMock>["create"];
   let list: ReturnType<typeof createCloudMock>["list"];

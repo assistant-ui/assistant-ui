@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import type { UIElement } from "../ir";
-import { INBOUND_BLOCK_CAP } from "./constants";
+import { INBOUND_BLOCK_CAP, SELECT_OPTION_CAP } from "./constants";
 import { fromSlackBlocks } from "./fromSlackBlocks";
 import { toSlackBlocks } from "./toSlackBlocks";
 import type { ToSlackBlocksOptions } from "./types";
@@ -1118,14 +1118,112 @@ describe("fromSlackBlocks checkbox and radio caps", () => {
   });
 });
 
-it("bounds hostile initial_options arrays when deriving defaultChecked", () => {
-  const hostile = new Proxy([], {
-    get(target, prop) {
-      if (prop === "length") return 2 ** 31;
-      if (prop === "slice") return Array.prototype.slice.bind(target);
-      return Reflect.get(target, prop);
+it("bounds static-select options when an array replaces its slice", () => {
+  const hostile = new Proxy(
+    Array.from({ length: SELECT_OPTION_CAP + 1 }, (_, index) => ({
+      text: { type: "plain_text", text: `Option ${index}` },
+      value: `value-${index}`,
+    })),
+    {
+      get(target, prop, receiver) {
+        if (prop === "slice") {
+          return () =>
+            Array.from({ length: SELECT_OPTION_CAP * 2 }, () => ({
+              text: { type: "plain_text", text: "Injected" },
+              value: "injected",
+            }));
+        }
+        return Reflect.get(target, prop, receiver);
+      },
     },
+  );
+
+  const { nodes } = fromSlackBlocks([
+    {
+      type: "actions",
+      elements: [
+        { type: "static_select", action_id: "pick", options: hostile },
+      ],
+    },
+  ]);
+  const select = nodes[0] as unknown as { options: unknown[] };
+
+  expect(select.options).toHaveLength(SELECT_OPTION_CAP);
+  expect(select.options[0]).toEqual({ label: "Option 0", value: "value-0" });
+  expect(select.options.at(-1)).toEqual({
+    label: `Option ${SELECT_OPTION_CAP - 1}`,
+    value: `value-${SELECT_OPTION_CAP - 1}`,
   });
+});
+
+it("skips a hole in a section fields array instead of decoding a blank fact", () => {
+  const fields: unknown[] = [];
+  fields[0] = { type: "mrkdwn", text: "*A*\nyes" };
+  fields[2] = { type: "mrkdwn", text: "*C*\nyes" };
+
+  const { nodes, warnings } = fromSlackBlocks([{ type: "section", fields }]);
+
+  expect(warnings).toEqual([]);
+  expect(nodes.filter(Boolean)).toEqual([
+    { $type: "Fact", label: "A", value: "yes" },
+    { $type: "Fact", label: "C", value: "yes" },
+  ]);
+});
+
+it("bounds static-select options when an array redirects Symbol.species", () => {
+  function HostileCtor() {
+    return {
+      map: () =>
+        Array.from({ length: SELECT_OPTION_CAP * 5 }, () => ({
+          label: "Injected",
+          value: "injected",
+        })),
+      length: 0,
+    };
+  }
+  const constructor = { [Symbol.species]: HostileCtor };
+  const hostile = new Proxy(
+    Array.from({ length: SELECT_OPTION_CAP + 1 }, (_, index) => ({
+      text: { type: "plain_text", text: `Option ${index}` },
+      value: `value-${index}`,
+    })),
+    {
+      get: (target, prop, receiver) =>
+        prop === "constructor"
+          ? constructor
+          : Reflect.get(target, prop, receiver),
+    },
+  );
+
+  const { nodes } = fromSlackBlocks([
+    {
+      type: "actions",
+      elements: [
+        { type: "static_select", action_id: "pick", options: hostile },
+      ],
+    },
+  ]);
+  const select = nodes[0] as unknown as { options: unknown[] };
+
+  expect(select.options).toHaveLength(SELECT_OPTION_CAP);
+  expect(select.options[0]).toEqual({ label: "Option 0", value: "value-0" });
+});
+
+it("bounds hostile initial_options arrays when deriving defaultChecked", () => {
+  const hostile = new Proxy(
+    [{ text: { type: "plain_text", text: "Other" }, value: "other" }],
+    {
+      get(target, prop, receiver) {
+        if (prop === "length") return 2 ** 31;
+        if (prop === "slice") {
+          return () => [
+            { text: { type: "plain_text", text: "First" }, value: "first" },
+          ];
+        }
+        return Reflect.get(target, prop, receiver);
+      },
+    },
+  );
   const { nodes } = fromSlackBlocks([
     {
       type: "actions",

@@ -3,6 +3,7 @@
 import { act, render, screen } from "@testing-library/react";
 import { useState, type FC, type PropsWithChildren } from "react";
 import { describe, expect, it } from "vitest";
+import { useAui } from "@assistant-ui/store";
 import {
   AssistantRuntimeProvider,
   useExternalStoreRuntime,
@@ -13,7 +14,11 @@ import * as ThreadPrimitive from "../primitives/thread";
 import * as MessagePrimitive from "../primitives/message";
 import * as MessagePartPrimitive from "../primitives/messagePart";
 
-type Msg = { id: string; role: "user" | "assistant"; text: string };
+type Msg = {
+  id: string;
+  role: "user" | "assistant" | "system";
+  text: string;
+};
 
 const convertMessage = (m: Msg): ThreadMessageLike => ({
   id: m.id,
@@ -39,12 +44,26 @@ const Provider: FC<PropsWithChildren<{ initial: Msg[] }>> = ({
     messages,
     convertMessage,
     onNew: async () => {},
+    onEdit: async () => {},
   });
   return (
     <AssistantRuntimeProvider runtime={runtime}>
       {children}
     </AssistantRuntimeProvider>
   );
+};
+
+let beginEdit: (() => void) | undefined;
+
+const CaptureBeginEdit: FC = () => {
+  const aui = useAui();
+  beginEdit = () => aui.thread.message({ index: 0 }).composer().beginEdit();
+  return null;
+};
+
+const SYSTEM_COMPONENTS = {
+  UserMessage: () => <span>user</span>,
+  AssistantMessage: () => <span>assistant</span>,
 };
 
 let lastIds: readonly string[] | undefined;
@@ -214,4 +233,45 @@ describe("ThreadPrimitive.Unstable_MessageById", () => {
 
     expect(screen.getByTestId("by-id").textContent).toBe("first");
   });
+});
+
+describe("system message editing fallback", () => {
+  it.each([
+    [
+      "Messages",
+      () => <ThreadPrimitive.Messages components={SYSTEM_COMPONENTS} />,
+    ],
+    [
+      "MessageByIndex",
+      () => (
+        <ThreadPrimitive.MessageByIndex
+          index={0}
+          components={SYSTEM_COMPONENTS}
+        />
+      ),
+    ],
+    [
+      "Unstable_MessageById",
+      () => (
+        <ThreadPrimitive.Unstable_MessageById
+          messageId="s1"
+          components={SYSTEM_COMPONENTS}
+        />
+      ),
+    ],
+  ])(
+    "renders nothing for a system message in edit mode through %s",
+    async (_, renderMessage) => {
+      const view = render(
+        <Provider initial={[{ id: "s1", role: "system", text: "sys" }]}>
+          <CaptureBeginEdit />
+          {renderMessage()}
+        </Provider>,
+      );
+
+      await act(async () => beginEdit!());
+
+      expect(view.container.textContent).toBe("");
+    },
+  );
 });

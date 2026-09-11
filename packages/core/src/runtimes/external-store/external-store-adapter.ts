@@ -1,4 +1,8 @@
-import type { AppendMessage, ThreadMessage } from "../../types/message";
+import type {
+  AppendMessage,
+  ThreadMessage,
+  ToolCallMessagePart,
+} from "../../types/message";
 import type { ThreadMessageLike } from "../../runtime/utils/thread-message-like";
 import type { AttachmentAdapter } from "../../adapters/attachment";
 import type {
@@ -14,7 +18,10 @@ import type {
   ResumeRunConfig,
   ThreadSuggestion,
 } from "../../runtime/interfaces/thread-runtime-core";
-import type { ExportedMessageRepository } from "../../runtime/utils/message-repository";
+import type {
+  ExportedMessageRepository,
+  MessageRepository,
+} from "../../runtime/utils/message-repository";
 import type { ReadonlyJSONValue } from "assistant-stream/utils";
 import type { ToolExecutionStatus } from "../tool-invocations/ToolInvocationTracker";
 import type { ExternalThreadQueueAdapter } from "../../runtime/queue/external-thread-queue-adapter";
@@ -105,10 +112,26 @@ type ExternalStoreAdapterBase<T> = {
   isLoading?: boolean | undefined;
   messages?: readonly T[];
   messageRepository?: ExportedMessageRepository;
+  /**
+   * An externally owned message repository instance. When provided, the
+   * thread runtime adopts it as its branch store and swaps to it atomically
+   * whenever a different instance is passed, so hosts that route multiple
+   * conversations through one runtime keep each conversation's history and
+   * branches isolated in its own instance. Omit it to keep the runtime's own
+   * repository.
+   */
+  unstable_messageRepositoryInstance?: MessageRepository | undefined;
   suggestions?: readonly ThreadSuggestion[] | undefined;
   state?: ReadonlyJSONValue | undefined;
   extras?: unknown;
 
+  /**
+   * Applies a message list the runtime rewrote, and is what tells the runtime
+   * a removal it makes will survive the next snapshot. Without it, cancelling a
+   * run leaves a trailing user message in the thread and the composer
+   * untouched; an adapter that removes that message itself owns handing it
+   * back, because the runtime cannot see a removal it did not make.
+   */
   setMessages?: ((messages: readonly T[]) => void) | undefined;
   /**
    * Fires when the user explicitly switches branches via the runtime's
@@ -200,6 +223,26 @@ type ExternalStoreAdapterBase<T> = {
    * `modelContent` populated when present.
    */
   unstable_enableToolInvocations?: boolean | undefined;
+  /**
+   * Decides whether a tool call's result is produced on the client. Only
+   * consulted when `unstable_enableToolInvocations` is `true`.
+   *
+   * A provider that runs tools itself answers its own calls, and its result
+   * arrives one or more snapshots after the call's arguments complete. In
+   * that window the call is complete and result-less, so a registered tool
+   * of the same name would otherwise execute locally and produce a result
+   * the provider never asked for. An adapter that can tell the two apart
+   * supplies this predicate; it is read once per tool call, when the call is
+   * first observed live.
+   *
+   * The predicate is also what licenses running a frontend tool while the
+   * provider's run is still open. Without it, ownership is unknown until the
+   * run ends, so a registered tool executes only once the run's outcome is
+   * known and cannot fire on a call the provider was about to answer or gate.
+   */
+  unstable_isClientToolCall?:
+    | ((toolCall: ToolCallMessagePart) => boolean)
+    | undefined;
   /**
    * Receives the current per-tool-call execution status map whenever it
    * changes. Only invoked when `unstable_enableToolInvocations` is `true`

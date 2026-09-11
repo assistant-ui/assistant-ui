@@ -1,0 +1,183 @@
+---
+title: Select
+description: A dropdown select component with composable sub-components.
+links:
+  - label: Radix UI Select (Radix styles)
+    url: https://www.radix-ui.com/primitives/docs/components/select
+  - label: Base UI Select (base styles)
+    url: https://base-ui.com/react/components/select
+---
+
+import { PreviewCode } from "@/components/pages/docs/preview-code.server";
+import {
+  SelectSample,
+  SelectDisabledItemsSample,
+  SelectPlaceholderSample,
+  SelectDisabledSample,
+  SelectGroupsSample,
+  SelectSizesSample,
+  SelectScrollableSample,
+} from "@/components/pages/docs/samples/select";
+import * as SelectRadixSamples from "@/components/pages/docs/samples/select.radix";
+import { Flavored, FlavorSwitcher } from "@/components/pages/docs/contexts/flavor.server";
+
+<FlavorSwitcher />
+
+<Flavored radix={<SelectRadixSamples.SelectSample />} base={<SelectSample />} />
+
+## Installation
+
+<InstallCommand shadcn={["select"]} />
+
+## Usage
+
+```tsx
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+
+const fruits = [
+  { value: "apple", label: "Apple" },
+  { value: "banana", label: "Banana" },
+  { value: "orange", label: "Orange" },
+];
+
+export function FruitPicker() {
+  return (
+    <Select defaultValue="apple" items={fruits}>
+      <SelectTrigger className="w-44">
+        <SelectValue placeholder="Select a fruit..." />
+      </SelectTrigger>
+      <SelectContent>
+        {fruits.map((fruit) => (
+          <SelectItem key={fruit.value} value={fruit.value}>
+            {fruit.label}
+          </SelectItem>
+        ))}
+      </SelectContent>
+    </Select>
+  );
+}
+```
+
+The Base UI flavor uses the `items` prop to resolve the selected label. Radix reads the label from the selected item, so the prop can be omitted there.
+
+## Examples
+
+### Sizes
+
+Use the `size` prop on `SelectTrigger` to change the trigger height.
+
+<Flavored radix={<SelectRadixSamples.SelectSizesSample />} base={<SelectSizesSample />} />
+
+```tsx
+<SelectTrigger size="default" /> // 36px
+<SelectTrigger size="sm" />      // 32px
+```
+
+### Scrollable
+
+Long lists automatically become scrollable.
+
+<PreviewCode file="components/pages/docs/samples/select" name="SelectScrollableSample" base={<SelectScrollableSample />}>
+  <SelectRadixSamples.SelectScrollableSample />
+</PreviewCode>
+
+### Groups
+
+Group related items with `SelectGroup` and `SelectLabel`.
+
+<PreviewCode file="components/pages/docs/samples/select" name="SelectGroupsSample" base={<SelectGroupsSample />}>
+  <SelectRadixSamples.SelectGroupsSample />
+</PreviewCode>
+
+### Disabled items
+
+<PreviewCode file="components/pages/docs/samples/select" name="SelectDisabledItemsSample" base={<SelectDisabledItemsSample />}>
+  <SelectRadixSamples.SelectDisabledItemsSample />
+</PreviewCode>
+
+### With placeholder
+
+<PreviewCode file="components/pages/docs/samples/select" name="SelectPlaceholderSample" base={<SelectPlaceholderSample />}>
+  <SelectRadixSamples.SelectPlaceholderSample />
+</PreviewCode>
+
+### Disabled select
+
+<PreviewCode file="components/pages/docs/samples/select" name="SelectDisabledSample" base={<SelectDisabledSample />}>
+  <SelectRadixSamples.SelectDisabledSample />
+</PreviewCode>
+
+## API Reference
+
+### Composable API
+
+| Component | Description |
+|-----------|-------------|
+| `Select` | The root component that manages selection state. |
+| `SelectTrigger` | The button that opens the dropdown. |
+| `SelectValue` | The selected value or placeholder. |
+| `SelectContent` | The dropdown content container. |
+| `SelectItem` | An individual selectable item. |
+| `SelectGroup` | A group of related items. |
+| `SelectLabel` | A label for a group. |
+| `SelectSeparator` | A visual separator between items or groups. |
+| `SelectScrollUpButton` | The upward scroll control for long lists. |
+| `SelectScrollDownButton` | The downward scroll control for long lists. |
+
+### Select
+
+<ParametersTable
+  type="SelectProps"
+  parameters={[
+    {
+      name: "defaultValue",
+      type: "string",
+      description: "The initial selected value for an uncontrolled select.",
+    },
+    {
+      name: "value",
+      type: "string | null",
+      description: "The controlled selected value.",
+    },
+    {
+      name: "onValueChange",
+      type: "(value: string | null) => void",
+      description: "Called when the selected value changes.",
+    },
+    {
+      name: "items",
+      type: "Array<{ value: string; label: ReactNode; disabled?: boolean }>",
+      description: "Base UI item metadata used to resolve labels and disabled state.",
+    },
+    {
+      name: "disabled",
+      type: "boolean",
+      description: "Whether the select is disabled.",
+    },
+  ]}
+/>
+
+### SelectTrigger
+
+<ParametersTable
+  type="SelectTriggerProps"
+  parameters={[
+    {
+      name: "size",
+      type: '"sm" | "default"',
+      default: '"default"',
+      description: "The trigger height.",
+    },
+    {
+      name: "className",
+      type: "string",
+      description: "Additional CSS classes.",
+    },
+  ]}
+/>

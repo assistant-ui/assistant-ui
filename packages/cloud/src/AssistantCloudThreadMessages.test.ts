@@ -1,6 +1,7 @@
 import { describe, expect, it, vi } from "vitest";
 import type { AssistantCloudAPI } from "./AssistantCloudAPI";
 import { AssistantCloudThreadMessages } from "./AssistantCloudThreadMessages";
+import { CloudResponseError } from "./cloudResponse";
 
 const createCloudThreadMessages = () => {
   const makeRequest = vi.fn();
@@ -12,6 +13,61 @@ const createCloudThreadMessages = () => {
 };
 
 describe("AssistantCloudThreadMessages responses", () => {
+  it("validates created message IDs", async () => {
+    const { messages, makeRequest } = createCloudThreadMessages();
+    const body = {
+      parent_id: null,
+      format: "aui/v0",
+      content: {},
+    };
+    makeRequest.mockResolvedValueOnce({ message_id: "message-1" });
+
+    await expect(messages.create("thread-1", body)).resolves.toEqual({
+      message_id: "message-1",
+    });
+
+    makeRequest.mockResolvedValueOnce({});
+
+    await expect(messages.create("thread-1", body)).rejects.toThrow(
+      'Invalid Assistant Cloud response for "message_id": expected a string',
+    );
+  });
+
+  it("submits and validates message feedback", async () => {
+    const { messages, makeRequest } = createCloudThreadMessages();
+    const body = { type: "positive" as const };
+    makeRequest.mockResolvedValueOnce({
+      feedback_id: "feedback-1",
+      type: "positive",
+    });
+
+    await expect(
+      messages.feedback("thread/1", "message/1", body),
+    ).resolves.toEqual({
+      feedback_id: "feedback-1",
+      type: "positive",
+    });
+    expect(makeRequest).toHaveBeenCalledWith(
+      "/threads/thread%2F1/messages/message%2F1/feedback",
+      { method: "POST", body },
+    );
+
+    makeRequest.mockResolvedValueOnce({ type: "positive" });
+
+    await expect(
+      messages.feedback("thread-1", "message-1", body),
+    ).rejects.toBeInstanceOf(CloudResponseError);
+
+    makeRequest.mockResolvedValueOnce({
+      feedback_id: "feedback-1",
+      type: "neutral",
+    });
+
+    await expect(
+      messages.feedback("thread-1", "message-1", body),
+    ).rejects.toThrow('expected one of "positive", "negative"');
+  });
+
   it("decodes canonical message responses without changing content", async () => {
     const { messages, makeRequest } = createCloudThreadMessages();
     makeRequest.mockResolvedValue({
@@ -36,6 +92,21 @@ describe("AssistantCloudThreadMessages responses", () => {
     expect(message.updated_at.toISOString()).toBe("2026-07-16T13:05:00.987Z");
     expect(message.content).toEqual({
       created_at: "leave-this-string-untouched",
+    });
+  });
+
+  it("forwards the pagination query to the list endpoint", async () => {
+    const { messages, makeRequest } = createCloudThreadMessages();
+    makeRequest.mockResolvedValueOnce({ messages: [] });
+
+    await messages.list("thread/1", {
+      format: "aui/v0",
+      limit: 200,
+      after: "message-200",
+    });
+
+    expect(makeRequest).toHaveBeenCalledWith("/threads/thread%2F1/messages", {
+      query: { format: "aui/v0", limit: 200, after: "message-200" },
     });
   });
 });

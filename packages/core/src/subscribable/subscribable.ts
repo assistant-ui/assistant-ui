@@ -1,3 +1,4 @@
+import { shallowEqual } from "@assistant-ui/store/client";
 import type { Unsubscribe } from "../types/unsubscribe";
 import { notifyEventListeners } from "../utils/notify-event-listeners";
 
@@ -32,25 +33,35 @@ export type EventSubscribable<TEvent extends string> = {
   >;
 };
 
-function shallowEqual<T extends object>(
-  objA: T | undefined,
-  objB: T | undefined,
-) {
-  if (objA === undefined && objB === undefined) return true;
-  if (objA === undefined) return false;
-  if (objB === undefined) return false;
-
-  const keysA = Object.keys(objA);
-  if (keysA.length !== Object.keys(objB).length) return false;
-
-  for (const key of keysA) {
-    const valueA = objA[key as keyof T];
-    const valueB = objB[key as keyof T];
-    if (!Object.is(valueA, valueB)) return false;
+export const notifySubscribers = <TArgs extends unknown[]>(
+  subscribers: Iterable<(...args: TArgs) => void>,
+  ...args: TArgs
+): void => {
+  const errors: unknown[] = [];
+  for (const callback of subscribers) {
+    try {
+      callback(...args);
+    } catch (error) {
+      errors.push(error);
+    }
   }
 
-  return true;
-}
+  if (errors.length === 1) {
+    throw errors[0];
+  }
+
+  if (errors.length > 1) {
+    for (const error of errors) {
+      console.error(error);
+    }
+    throw new AggregateError(errors);
+  }
+};
+
+const shallowEqualOrUndefined = <T extends object>(
+  a: T | undefined,
+  b: T | undefined,
+) => (a === undefined || b === undefined ? a === b : shallowEqual(a, b));
 
 export class BaseSubscribable {
   private _subscribers = new Set<() => void>();
@@ -70,25 +81,33 @@ export class BaseSubscribable {
   }
 
   protected _notifySubscribers() {
-    const errors = [];
-    for (const callback of this._subscribers) {
-      try {
-        callback();
-      } catch (error) {
-        errors.push(error);
-      }
-    }
+    notifySubscribers(this._subscribers);
+  }
+}
 
-    if (errors.length > 0) {
-      if (errors.length === 1) {
-        throw errors[0];
-      } else {
-        for (const error of errors) {
-          console.error(error);
-        }
-        throw new AggregateError(errors);
-      }
-    }
+export class WritableSubscribable<TState> extends BaseSubscribable {
+  private _state: TState;
+
+  constructor(state: TState) {
+    super();
+    this._state = state;
+    this.subscribe = this.subscribe.bind(this);
+    this.getState = this.getState.bind(this);
+    // Hydration has to agree with what the server rendered, so the server
+    // snapshot stays at the creation-time state rather than following writes.
+    this.getServerSnapshot = () => state;
+  }
+
+  public getState(): TState {
+    return this._state;
+  }
+
+  public getServerSnapshot: () => TState;
+
+  public setState(state: TState): void {
+    if (Object.is(state, this._state)) return;
+    this._state = state;
+    this._notifySubscribers();
   }
 }
 
@@ -109,7 +128,7 @@ export abstract class BaseSubject {
       return;
     }
 
-    for (const callback of this._subscriptions) callback(payload);
+    notifySubscribers(this._subscriptions, payload);
   }
 
   private _updateConnection() {
@@ -161,7 +180,7 @@ export class ShallowMemoizeSubject<TState extends object, TPath>
   private _syncState() {
     const state = this.binding.getState();
     if (state === SKIP_UPDATE) return false;
-    if (shallowEqual(state, this._previousState)) return false;
+    if (shallowEqualOrUndefined(state, this._previousState)) return false;
     this._previousState = state;
     return true;
   }
@@ -173,7 +192,9 @@ export class ShallowMemoizeSubject<TState extends object, TPath>
       }
     };
 
-    return this.binding.subscribe(callback);
+    const unsubscribe = this.binding.subscribe(callback);
+    this._syncState();
+    return unsubscribe;
   }
 }
 
@@ -197,7 +218,11 @@ export class LazyMemoizeSubject<TState extends object, TPath>
   public getState = () => {
     if (!this.isConnected || this._previousStateDirty) {
       const newState = this.binding.getState();
-      if (newState !== SKIP_UPDATE) {
+      if (
+        newState !== SKIP_UPDATE &&
+        (this._previousState === undefined ||
+          !shallowEqualOrUndefined(newState, this._previousState))
+      ) {
         this._previousState = newState;
       }
       this._previousStateDirty = false;
@@ -213,7 +238,9 @@ export class LazyMemoizeSubject<TState extends object, TPath>
       this.notifySubscribers();
     };
 
-    return this.binding.subscribe(callback);
+    const unsubscribe = this.binding.subscribe(callback);
+    this._previousStateDirty = true;
+    return unsubscribe;
   }
 }
 

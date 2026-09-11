@@ -7,6 +7,47 @@ describe("SSEEventDecoder", () => {
     expect(decoder.push("data: x\n\n")).toEqual([{ data: "x" }]);
   });
 
+  it("ignores one initial BOM across chunk boundaries and empty pushes", () => {
+    const text = "\uFEFFdata: hello\n\n";
+    for (let split = 0; split <= text.length; split++) {
+      const decoder = new SSEEventDecoder();
+      const events = [
+        ...decoder.push(""),
+        ...decoder.push(text.slice(0, split)),
+        ...decoder.push(""),
+        ...decoder.push(text.slice(split)),
+      ];
+      expect(events).toEqual([{ data: "hello" }]);
+    }
+  });
+
+  it("preserves a later BOM at the start of a data chunk", () => {
+    const decoder = new SSEEventDecoder();
+    expect(decoder.push("data: ")).toEqual([]);
+    expect(decoder.push("\uFEFFhello\n\n")).toEqual([{ data: "\uFEFFhello" }]);
+  });
+
+  it("does not strip a second BOM or leading whitespace from field names", () => {
+    for (const prefix of ["\uFEFF\uFEFF", " ", "\n\uFEFF"]) {
+      const decoder = new SSEEventDecoder();
+      expect(decoder.push(`${prefix}data: ignored\ndata: kept\n\n`)).toEqual([
+        { data: "kept" },
+      ]);
+    }
+  });
+
+  it("does not strip a BOM from later frames or after flush", () => {
+    const decoder = new SSEEventDecoder();
+    expect(decoder.push("\uFEFFdata: first\n\n")).toEqual([{ data: "first" }]);
+    expect(decoder.push("\uFEFFdata: ignored\ndata: second\n\n")).toEqual([
+      { data: "second" },
+    ]);
+    expect(decoder.flush()).toBeNull();
+    expect(decoder.push("\uFEFFdata: ignored\ndata: third\n\n")).toEqual([
+      { data: "third" },
+    ]);
+  });
+
   it("decodes CRLF terminated events", () => {
     const decoder = new SSEEventDecoder();
     expect(decoder.push("data: x\r\n\r\n")).toEqual([{ data: "x" }]);

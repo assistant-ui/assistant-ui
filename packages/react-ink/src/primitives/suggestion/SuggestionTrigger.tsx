@@ -1,10 +1,12 @@
-import type { ReactNode } from "react";
 import { useAuiState } from "@assistant-ui/store";
 import { useSuggestionTrigger } from "@assistant-ui/core/react";
 import { Pressable, type PressableProps } from "../internal/Pressable";
 
-export type SuggestionTriggerProps = Omit<PressableProps, "onPress"> & {
-  children: ReactNode;
+export type SuggestionTriggerProps = Omit<
+  PressableProps,
+  "onPress" | "children"
+> & {
+  children: PressableProps["children"];
   send?: boolean | undefined;
   clearComposer?: boolean | undefined;
 };

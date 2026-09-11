@@ -2,23 +2,30 @@ import type { Tool } from "assistant-stream";
 import {
   type ModelContext,
   type ModelContextProvider,
-  mergeModelContexts,
   type AssistantToolProps,
   type AssistantInstructionsConfig,
 } from "./types";
+import { notifySubscribers as notifyStateSubscribers } from "../subscribable/subscribable";
+import { CompositeContextProvider } from "../utils/composite-context-provider";
 import type { Unsubscribe } from "../types/unsubscribe";
 import type {
   ModelContextRegistryToolHandle,
   ModelContextRegistryInstructionHandle,
   ModelContextRegistryProviderHandle,
 } from "./registry-handles";
+import { nullProtoRecord } from "../utils/record";
 
 export class ModelContextRegistry implements ModelContextProvider {
   private _tools = new Map<symbol, AssistantToolProps<any, any>>();
   private _instructions = new Map<symbol, string>();
-  private _providers = new Map<symbol, ModelContextProvider>();
+  private _contextProviders = new CompositeContextProvider();
   private _subscribers = new Set<() => void>();
-  private _providerUnsubscribes = new Map<symbol, Unsubscribe | undefined>();
+
+  constructor() {
+    this._contextProviders.subscribe(() => {
+      this.notifySubscribers();
+    });
+  }
 
   getModelContext(): ModelContext {
     const instructions = Array.from(this._instructions.values()).filter(
@@ -28,15 +35,13 @@ export class ModelContextRegistry implements ModelContextProvider {
     const system =
       instructions.length > 0 ? instructions.join("\n\n") : undefined;
 
-    const tools: Record<string, Tool<any, any>> = {};
+    const tools = nullProtoRecord<Tool<any, any>>();
     for (const toolProps of this._tools.values()) {
       const { toolName, render, ...tool } = toolProps;
       tools[toolName] = tool;
     }
 
-    const providerContexts = mergeModelContexts(
-      new Set(this._providers.values()),
-    );
+    const providerContexts = this._contextProviders.getModelContext();
 
     const context: ModelContext = {
       system,
@@ -50,7 +55,7 @@ export class ModelContextRegistry implements ModelContextProvider {
     }
 
     if (providerContexts.tools) {
-      context.tools = { ...(context.tools || {}), ...providerContexts.tools };
+      context.tools = nullProtoRecord(context.tools, providerContexts.tools);
     }
 
     if (providerContexts.callSettings) {
@@ -75,9 +80,7 @@ export class ModelContextRegistry implements ModelContextProvider {
   }
 
   private notifySubscribers(): void {
-    for (const callback of this._subscribers) {
-      callback();
-    }
+    notifyStateSubscribers(this._subscribers);
   }
 
   addTool<TArgs extends Record<string, unknown>, TResult>(
@@ -140,25 +143,11 @@ export class ModelContextRegistry implements ModelContextProvider {
   addProvider(
     provider: ModelContextProvider,
   ): ModelContextRegistryProviderHandle {
-    const id = Symbol();
-
-    this._providers.set(id, provider);
-
-    const unsubscribe = provider.subscribe?.(() => {
-      this.notifySubscribers();
-    });
-    this._providerUnsubscribes.set(id, unsubscribe);
-
-    this.notifySubscribers();
+    const unregister =
+      this._contextProviders.registerModelContextProvider(provider);
 
     return {
-      remove: () => {
-        this._providers.delete(id);
-        const unsubscribe = this._providerUnsubscribes.get(id);
-        unsubscribe?.();
-        this._providerUnsubscribes.delete(id);
-        this.notifySubscribers();
-      },
+      remove: unregister,
     };
   }
 }

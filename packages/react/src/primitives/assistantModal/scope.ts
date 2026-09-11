@@ -1,7 +1,7 @@
 import { Popover as PopoverPrimitive } from "radix-ui";
-import type { Scope } from "@radix-ui/react-context";
+import type { Context } from "radix-ui/internal";
 
 export const usePopoverScope: ReturnType<
   typeof PopoverPrimitive.createPopoverScope
 > = PopoverPrimitive.createPopoverScope();
-export type ScopedProps<P> = P & { __scopeAssistantModal?: Scope };
+export type ScopedProps<P> = P & { __scopeAssistantModal?: Context.Scope };

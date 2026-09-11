@@ -1,5 +1,61 @@
 # @assistant-ui/react-devtools
 
+## 1.2.18
+
+### Patch Changes
+
+- [#6993](https://github.com/assistant-ui/assistant-ui/pull/6993) [`91689ab`](https://github.com/assistant-ui/assistant-ui/commit/91689ab92fa8ccaecff463c6fdc3e6a666bf93e5) - chore: update dependencies ([@Yonom](https://github.com/Yonom))
+
+- [#6931](https://github.com/assistant-ui/assistant-ui/pull/6931) [`5febc06`](https://github.com/assistant-ui/assistant-ui/commit/5febc06a6af98ed4aa48eea8f7737d890bd35015) - refactor: adjust state during render where an effect only mirrored a prop ([@okisdev](https://github.com/okisdev))
+  
+  The composer trigger's keyboard and navigation resources, and the devtools panel and thread tab, reset their state during render instead of scheduling a second pass from an effect, so a prop change settles in one render. Effects that genuinely synchronize with an external system (a clock, a subscription catch-up, an async load, a registry write undone on unmount) keep their `setState`.
+
+## 1.2.17
+
+### Patch Changes
+
+- [#6599](https://github.com/assistant-ui/assistant-ui/pull/6599) [`75b4679`](https://github.com/assistant-ui/assistant-ui/commit/75b4679dfa9cb574dbcbec3a15b6038c32ebf899) - fix: preserve readable model context when individual properties throw ([@Kinfe123](https://github.com/Kinfe123))
+
+- [#6528](https://github.com/assistant-ui/assistant-ui/pull/6528) [`152a35d`](https://github.com/assistant-ui/assistant-ui/commit/152a35daae0e80b5307865e59af683c4ae720794) - chore: update dependencies ([@okisdev](https://github.com/okisdev))
+
+- [#6553](https://github.com/assistant-ui/assistant-ui/pull/6553) [`80a34c4`](https://github.com/assistant-ui/assistant-ui/commit/80a34c4056a9726b8bca26e4d448e675e2d0d40c) - fix: tolerate unreadable runtime properties in DevTools snapshots ([@Kinfe123](https://github.com/Kinfe123))
+
+- [#6639](https://github.com/assistant-ui/assistant-ui/pull/6639) [`05e3e6d`](https://github.com/assistant-ui/assistant-ui/commit/05e3e6d3971dac4ce20fc7e2a87d187d78b0e449) - chore: update dependencies ([@Yonom](https://github.com/Yonom))
+
+- [#6688](https://github.com/assistant-ui/assistant-ui/pull/6688) [`8135d16`](https://github.com/assistant-ui/assistant-ui/commit/8135d16dfb871e807d94a427e958d2b957b19f1e) - fix: peer ranges on the packages this workspace releases now track the release train ([@okisdev](https://github.com/okisdev))
+  
+  changesets rewrites a peer range only when the new version falls outside it, so the hand-written floors had drifted below the code they describe. core declared `@assistant-ui/store: ^0.3.0` while importing `@assistant-ui/store/internal`, a subpath store did not export until 0.3.10, and react-lexical declared `*`. these peers are now `workspace:^`, which publishes as the version released alongside them.
+
+## 1.2.16
+
+### Patch Changes
+
+- [#6305](https://github.com/assistant-ui/assistant-ui/pull/6305) [`e96d3de`](https://github.com/assistant-ui/assistant-ui/commit/e96d3dea9370159e04f82bf4eb39d6b1b1c4d21d) - chore: update dependencies ([@okisdev](https://github.com/okisdev))
+
+## 1.2.15
+
+### Patch Changes
+
+- [#6163](https://github.com/assistant-ui/assistant-ui/pull/6163) [`cef6d73`](https://github.com/assistant-ui/assistant-ui/commit/cef6d731ebebc3c2d4d406f606a22228d650c396) - fix: contain failed DevTools conversation switches ([@okisdev](https://github.com/okisdev))
+  
+  Custom `DevToolsClient.switchToThread` implementations can reject. React does not observe promises returned from click handlers, so a rejection becomes an unhandledRejection. `useDevToolsClient` now consumes both synchronous throws and rejected promises at the client boundary, matching `createInProcessClient`.
+
+## 1.2.14
+
+### Patch Changes
+
+- [#5957](https://github.com/assistant-ui/assistant-ui/pull/5957) [`b2f91b6`](https://github.com/assistant-ui/assistant-ui/commit/b2f91b67c1bfab271f5b1b40c708fa163523f165) - fix: sanitize circular collections and non-JSON primitives ([@Kinfe123](https://github.com/Kinfe123))
+
+- [#6029](https://github.com/assistant-ui/assistant-ui/pull/6029) [`fedc2ce`](https://github.com/assistant-ui/assistant-ui/commit/fedc2ce49efb41eabdf102c6adaffced2715b233) - fix: sanitize invalid dates in inspected runtime values ([@Kinfe123](https://github.com/Kinfe123))
+
+- [#5774](https://github.com/assistant-ui/assistant-ui/pull/5774) [`61d29f4`](https://github.com/assistant-ui/assistant-ui/commit/61d29f4157b525d3e36ac721d1fcef7d1baf987e) - chore: update dependencies ([@Yonom](https://github.com/Yonom))
+
+## 1.2.13
+
+### Patch Changes
+
+- [#5723](https://github.com/assistant-ui/assistant-ui/pull/5723) [`94dc3e5`](https://github.com/assistant-ui/assistant-ui/commit/94dc3e509fa2b4fae1a14c88ec34b910c8d95af8) - chore: update dependencies ([@okisdev](https://github.com/okisdev))
+
 ## 1.2.12
 
 ### Patch Changes

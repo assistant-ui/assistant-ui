@@ -1,0 +1,266 @@
+---
+title: "Web preview"
+description: "Chrome for a sandboxed preview: a URL bar, reload, and open-in-new around a frame you isolate."
+---
+
+Web preview is chrome around a preview: a reload button, a URL bar, and an open-in-new-tab button around a frame you supply, rendered exactly as given with no isolation of its own. With a runtime the frame comes from rendering a tool's result through a sandboxing library; standalone you hand it an already-sandboxed frame directly.
+
+## Getting started
+
+<RuntimeMode>
+
+`WebPreview` never sandboxes its `children` itself, so pairing it with a tool that returns model-written markup means isolating that markup yourself. [`safe-content-frame`](/safe-content-frame) is built for exactly this: it mounts an iframe on a separate, per-render origin so model-generated script cannot reach your page's cookies, storage, or DOM.
+
+<Steps>
+  <Step>
+
+### Render the tool call
+
+```tsx title="components/assistant-ui/elements/render-preview-tool-ui.tsx"
+"use client";
+
+import { useEffect, useRef, useState } from "react";
+import { SafeContentFrame, type RenderedFrame } from "safe-content-frame";
+import type { ToolCallMessagePartComponent } from "@assistant-ui/react";
+import { WebPreview } from "@/components/assistant-ui/elements/web-preview";
+
+const frame = new SafeContentFrame("my-app");
+
+export const RenderPreviewToolUI: ToolCallMessagePartComponent<
+  Record<string, never>,
+  { html: string }
+> = ({ result }) => {
+  const containerRef = useRef<HTMLDivElement>(null);
+  const renderedRef = useRef<RenderedFrame>();
+  const [origin, setOrigin] = useState("");
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    if (!result || !containerRef.current) return;
+    let cancelled = false;
+    frame.renderHtml(result.html, containerRef.current).then((rendered) => {
+      if (cancelled) return;
+      renderedRef.current = rendered;
+      setOrigin(new URL(rendered.origin).host);
+      rendered.fullyLoadedPromiseWithTimeout(5000).then(() => setLoading(false));
+    });
+    return () => {
+      cancelled = true;
+      renderedRef.current?.dispose();
+    };
+  }, [result]);
+
+  if (!result) return null;
+
+  return (
+    <WebPreview
+      origin={origin}
+      loading={loading}
+      onOpenExternal={() => window.open(`https://${origin}`, "_blank", "noopener,noreferrer")}
+    >
+      <div ref={containerRef} className="h-56" />
+    </WebPreview>
+  );
+};
+```
+
+  </Step>
+  <Step>
+
+### Register the tool
+
+```tsx title="app/toolkit.ts"
+import { defineToolkit } from "@assistant-ui/react";
+import { z } from "zod";
+import { RenderPreviewToolUI } from "@/components/assistant-ui/elements/render-preview-tool-ui";
+
+export const toolkit = defineToolkit({
+  render_preview: {
+    type: "frontend",
+    description: "Render a self-contained HTML document as a live preview.",
+    parameters: z.object({ html: z.string() }),
+    execute: async ({ html }) => ({ html }),
+    render: RenderPreviewToolUI,
+  },
+});
+```
+
+```tsx title="app/MyRuntimeProvider.tsx"
+import { AssistantRuntimeProvider, AuiConfig, Tools } from "@assistant-ui/react";
+import { useChatRuntime } from "@assistant-ui/ai-sdk";
+import { toolkit } from "./toolkit";
+
+export function MyRuntimeProvider({ children }: { children: React.ReactNode }) {
+  const runtime = useChatRuntime();
+  const config = AuiConfig({ tools: Tools({ toolkit }) });
+  return (
+    <AssistantRuntimeProvider runtime={runtime} config={config}>
+      {children}
+    </AssistantRuntimeProvider>
+  );
+}
+```
+
+Install `safe-content-frame` separately; it is framework-agnostic and has no React dependency of its own. See [Tool UI](/docs/tools/tool-ui) for backend-defined tools and approval gates.
+
+  </Step>
+</Steps>
+
+</RuntimeMode>
+
+<StandaloneMode>
+
+Standalone, `WebPreview` is chrome only: build or reuse your own sandboxed frame and pass it as `children`.
+
+<Steps>
+  <Step>
+
+### Render an already-sandboxed frame
+
+```tsx title="app/preview.tsx"
+"use client";
+
+import { useState } from "react";
+import { WebPreview } from "@/components/assistant-ui/elements/web-preview";
+
+export function Preview({ url }: { url: string }) {
+  const [loading, setLoading] = useState(true);
+  const [key, setKey] = useState(0);
+
+  return (
+    <WebPreview
+      origin={new URL(url).host}
+      loading={loading}
+      onReload={() => {
+        setLoading(true);
+        setKey((k) => k + 1);
+      }}
+      onOpenExternal={() => window.open(url, "_blank", "noopener,noreferrer")}
+    >
+      <iframe
+        key={key}
+        src={url}
+        sandbox="allow-scripts allow-same-origin"
+        className="h-56 w-full border-0"
+        onLoad={() => setLoading(false)}
+      />
+    </WebPreview>
+  );
+}
+```
+
+  </Step>
+  <Step>
+
+### Swap the frame when the url changes
+
+Remount the iframe on a fresh `key` whenever `url` changes, the same way `onReload` does, so a stale frame is never left showing the previous address.
+
+```tsx
+useEffect(() => {
+  setLoading(true);
+  setKey((k) => k + 1);
+}, [url]);
+```
+
+  </Step>
+</Steps>
+
+</StandaloneMode>
+
+## Anatomy
+
+```tsx
+<div data-slot="web-preview">
+  <div>{/* reload button, origin field, open-in-new-tab button */}</div>
+  <div>{/* children, faded to invisible while loading */}</div>
+  {/* a shimmering "Loading preview" label, centered over the content area, only while loading */}
+</div>
+```
+
+`loading` hides `children` with `invisible` and `opacity-0` rather than unmounting it, so a frame already in flight keeps loading in the background while the shimmer label covers it. The reload button's icon spins for as long as `loading` is true. `onReload` and `onOpenExternal` are both optional: the buttons render regardless and are simply no-ops without a handler.
+
+## Examples
+
+### Restyle the chrome
+
+Both lanes take `className` on the root. The reload and open-in-new buttons read the shared `ghostButton` token, the origin field reads `field`, and the loading label reads `ShimmerLabel`, all from `surfaces.tsx`.
+
+```tsx
+<WebPreview className="max-w-none" /* ... */ />
+```
+
+### Rendering something other than HTML
+
+<RuntimeMode>
+
+`SafeContentFrame` also renders raw bytes at any MIME type or a PDF; swap the render call and everything else in the tool UI stays the same.
+
+```tsx
+await frame.renderRaw(result.svg, "image/svg+xml", containerRef.current);
+// or
+await frame.renderPdf(result.pdfBytes, containerRef.current);
+```
+
+</RuntimeMode>
+
+### Previewing your own trusted content
+
+<StandaloneMode>
+
+`WebPreview` does not require an iframe at all. When the content is already trusted, same-origin, and static, pass it as plain markup instead:
+
+```tsx
+<WebPreview origin="your-app.vercel.app/reports/42" loading={false}>
+  <img src="/reports/42/screenshot.png" alt="Report preview" className="w-full" />
+</WebPreview>
+```
+
+</StandaloneMode>
+
+## API reference
+
+<RuntimeMode>
+
+### Tool-call render props
+
+| Prop | Type | Description |
+|------|------|-------------|
+| `args` | `TArgs` | Parsed arguments. Partial while the model is still streaming them. |
+| `argsText` | `string` | Raw JSON argument text streamed by the model. |
+| `result` | `TResult \| undefined` | The tool's return value once it completes. `undefined` while running. |
+| `status` | `ToolCallMessagePartStatus` | `status.type` is `"running"`, `"requires-action"`, `"complete"`, or `"incomplete"`. |
+| `toolName` | `string` | Name of the tool the model called. |
+| `toolCallId` | `string` | Stable id for this invocation. |
+| `isError` | `boolean \| undefined` | Whether `result` represents a tool execution error. |
+
+Register the renderer on a toolkit entry's `render` field and attach the toolkit with `Tools({ toolkit })`. See [Tool UI](/docs/tools/tool-ui) for the full render-prop surface, including `addResult`, human tools, and approval gates.
+
+### SafeContentFrame
+
+| Member | Signature | Description |
+|--------|-----------|-------------|
+| `renderHtml` | `(html: string, container: HTMLElement) => Promise<RenderedFrame>` | Renders an HTML string into a sandboxed iframe appended to `container`. |
+| `renderRaw` | `(content: Uint8Array \| string, mimeType: string, container: HTMLElement) => Promise<RenderedFrame>` | Renders any MIME type from a string or bytes. |
+| `renderPdf` | `(content: Uint8Array, container: HTMLElement) => Promise<RenderedFrame>` | Renders a PDF document. |
+
+`RenderedFrame.origin` is the hashed, per-render origin the iframe loaded from; pass its host to `WebPreview`'s `origin` prop. `RenderedFrame.dispose()` removes the iframe, and `fullyLoadedPromiseWithTimeout(ms)` resolves once the frame signals it has finished loading.
+
+</RuntimeMode>
+
+<StandaloneMode>
+
+### WebPreview
+
+| Prop | Type | Default | Description |
+|------|------|---------|-------------|
+| `origin` | `string` | required | Shown in the URL bar. |
+| `loading` | `boolean` | required | Spins the reload icon and dims `children` behind a shimmering label. |
+| `children` | `React.ReactNode` | required | The preview content. Rendered exactly as given; not sandboxed by this element. |
+| `onReload` | `() => void` | | Called when the reload button is pressed. |
+| `onOpenExternal` | `() => void` | | Called when the open-in-new-tab button is pressed. |
+| `className` | `string` | | Merged onto the root. |
+
+All other `div` props are forwarded to the root.
+
+</StandaloneMode>

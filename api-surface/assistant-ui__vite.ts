@@ -1,9 +1,13 @@
 import { Plugin } from "vite";
 
-declare function aui(): Plugin[];
+interface AuiOptions {
+  backendless?: boolean;
+}
+
+declare function aui(options?: AuiOptions): Plugin[];
 
 declare namespace entry_root_exports {
-  export { aui };
+  export { AuiOptions, aui };
 }
 
 export { entry_root_exports as entry_root };

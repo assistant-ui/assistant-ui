@@ -59,7 +59,28 @@ function isTextFile(name: string): boolean {
 export function createVirtualArchive(zipBytes: Uint8Array): VirtualArchive {
   const unzipped = unzipSync(zipBytes);
   const decoder = new TextDecoder();
+  return createVirtualArchiveFromBytes(unzipped, decoder);
+}
 
+export function createVirtualArchiveFromTextFiles(
+  files: Record<string, string>,
+): VirtualArchive {
+  const encoder = new TextEncoder();
+  return createVirtualArchiveFromBytes(
+    Object.fromEntries(
+      Object.entries(files).map(([filePath, contents]) => [
+        filePath,
+        encoder.encode(contents),
+      ]),
+    ),
+    new TextDecoder(),
+  );
+}
+
+function createVirtualArchiveFromBytes(
+  unzipped: Record<string, Uint8Array>,
+  decoder: TextDecoder,
+): VirtualArchive {
   const fileMap = new Map<string, Uint8Array>();
   const entries: FileEntry[] = [];
 

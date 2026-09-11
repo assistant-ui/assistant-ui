@@ -1,5 +1,6 @@
-import { describe, it, expect, vi, beforeEach } from "vitest";
+import { beforeEach, describe, expect, it, vi } from "vitest";
 import { createAdkSessionAdapter } from "./AdkSessionAdapter";
+import { projectAdkToolApprovals } from "./adkToolApproval";
 
 // ── Helpers ──
 
@@ -410,6 +411,45 @@ describe("createAdkSessionAdapter - load", () => {
     );
   });
 
+  it("rejects malformed events inside a session history", async () => {
+    mockFetch.mockResolvedValueOnce(
+      new Response(JSON.stringify({ id: "s1", events: [{}] }), {
+        status: 200,
+      }),
+    );
+
+    const { load } = createAdkSessionAdapter(baseOptions);
+
+    await expect(load("s1")).rejects.toThrow(
+      "Invalid ADK session event at index 0: expected a non-empty object.",
+    );
+  });
+
+  it("rejects partial replay when a history event is malformed", async () => {
+    mockFetch.mockResolvedValueOnce(
+      new Response(
+        JSON.stringify({
+          id: "s1",
+          events: [
+            {
+              id: "e1",
+              author: "user",
+              content: { role: "user", parts: [{ text: "Hello" }] },
+            },
+            {},
+          ],
+        }),
+        { status: 200 },
+      ),
+    );
+
+    const { load } = createAdkSessionAdapter(baseOptions);
+
+    await expect(load("s1")).rejects.toThrow(
+      "Invalid ADK session event at index 1: expected a non-empty object.",
+    );
+  });
+
   it("throws when session fetch fails", async () => {
     mockFetch.mockResolvedValueOnce(
       new Response("Server error", { status: 500 }),
@@ -445,6 +485,110 @@ describe("createAdkSessionAdapter - load", () => {
     expect((init.headers as Record<string, string>).Authorization).toBe(
       "Bearer tok",
     );
+  });
+});
+
+describe("createAdkSessionAdapter - load replays tool confirmations", () => {
+  const CONFIRMATION_CALL = "conf-1";
+
+  const confirmationSession = (response: unknown) => ({
+    id: "s1",
+    events: [
+      {
+        id: "e1",
+        author: "agent",
+        longRunningToolIds: [CONFIRMATION_CALL],
+        content: {
+          role: "model",
+          parts: [
+            {
+              functionCall: {
+                id: CONFIRMATION_CALL,
+                name: "adk_request_confirmation",
+                args: {
+                  originalFunctionCall: { id: "tc-1", name: "delete_file" },
+                  toolConfirmation: { hint: "Delete /tmp/a?" },
+                },
+              },
+            },
+          ],
+        },
+      },
+      {
+        id: "e2",
+        author: "user",
+        content: {
+          role: "user",
+          parts: [
+            {
+              functionResponse: {
+                id: CONFIRMATION_CALL,
+                name: "adk_request_confirmation",
+                response,
+              },
+            },
+          ],
+        },
+      },
+    ],
+  });
+
+  const loadApprovals = async (response: unknown) => {
+    mockFetch.mockResolvedValueOnce(
+      new Response(JSON.stringify(confirmationSession(response)), {
+        status: 200,
+      }),
+    );
+    const { load } = createAdkSessionAdapter(baseOptions);
+    const result = await load("s1");
+    return {
+      messages: result.messages,
+      approvals: projectAdkToolApprovals(result.messages).approvals,
+    };
+  };
+
+  it("keeps a user-authored confirmation reply as a tool message", async () => {
+    const { messages } = await loadApprovals({ confirmed: true });
+
+    expect(messages.map((m) => m.type)).toEqual(["ai", "tool"]);
+    expect(messages[1]).toMatchObject({
+      type: "tool",
+      tool_call_id: CONFIRMATION_CALL,
+      name: "adk_request_confirmation",
+    });
+  });
+
+  it.each([
+    ["direct", { confirmed: true }, { approved: true }],
+    ["direct denial", { confirmed: false }, { approved: false }],
+    [
+      "wrapped",
+      { response: JSON.stringify({ confirmed: true }) },
+      { approved: true },
+    ],
+    [
+      "wrapped denial",
+      { response: JSON.stringify({ confirmed: false }) },
+      { approved: false },
+    ],
+  ])(
+    "projects a settled gate from a replayed %s reply",
+    async (_name, response, expected) => {
+      const { approvals } = await loadApprovals(response);
+
+      expect(approvals.get(CONFIRMATION_CALL)).toEqual({
+        id: CONFIRMATION_CALL,
+        ...expected,
+      });
+    },
+  );
+
+  it("leaves the gate pending when the replayed reply is unreadable", async () => {
+    const { approvals } = await loadApprovals({ response: "not json" });
+
+    expect(approvals.get(CONFIRMATION_CALL)).toEqual({
+      id: CONFIRMATION_CALL,
+    });
   });
 });
 

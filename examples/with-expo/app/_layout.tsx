@@ -23,7 +23,7 @@ import { useTheme } from "@/hooks/use-theme";
 import { Icon } from "@/components/ui/icon";
 import { ThreadListDrawer } from "@/components/thread-list/ThreadListDrawer";
 import { haptics } from "@/lib/haptics";
-import toolkit from "@/components/assistant-ui/tools";
+import toolkit from "@/components/assistant-ui/elements/tools";
 
 function NewChatButton() {
   const aui = useAui();
@@ -32,6 +32,7 @@ function NewChatButton() {
   return (
     <Pressable
       accessibilityLabel="New chat"
+      accessibilityRole="button"
       hitSlop={8}
       onPress={() => {
         haptics.selection();

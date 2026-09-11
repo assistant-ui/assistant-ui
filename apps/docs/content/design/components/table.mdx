@@ -1,0 +1,78 @@
+---
+title: "Table"
+description: "A print-register data table with hairline rules and mono headers."
+links:
+  - label: Source
+    url: https://github.com/assistant-ui/assistant-ui/blob/main/packages/ui/src/components/ui/base/table.tsx
+---
+
+import { PreviewCode } from "@/components/pages/docs/preview-code.server";
+import { KitInstall } from "@/components/pages/design/kit-install";
+import { TableSpecimen } from "@/components/pages/design/specimens";
+import * as RadixSpecimens from "@/components/pages/design/specimens.radix";
+import { FlavorSwitcher } from "@/components/pages/docs/contexts/flavor.server";
+
+<FlavorSwitcher />
+
+<PreviewCode file="components/pages/design/specimens" name="TableSpecimen" base={<TableSpecimen />}>
+  <RadixSpecimens.TableSpecimen />
+</PreviewCode>
+
+## Installation
+
+<KitInstall name="table" />
+
+## Usage
+
+```tsx
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table";
+
+export function Example() {
+  return (
+    <Table>
+      <TableHeader>
+        <TableRow>
+          <TableHead>Token</TableHead>
+          <TableHead>Value</TableHead>
+        </TableRow>
+      </TableHeader>
+      <TableBody>
+        <TableRow>
+          <TableCell>--radius-control</TableCell>
+          <TableCell>8px</TableCell>
+        </TableRow>
+      </TableBody>
+    </Table>
+  );
+}
+```
+
+The table opens with a hairline, closes with one under the last row, and draws no vertical rules or fills. The wrapper scrolls horizontally on its own, so a wide table never scrolls the page.
+
+## Examples
+
+### In articles
+
+Markdown tables on this site render through these parts automatically; the API reference below is one.
+
+## API Reference
+
+Every part renders its native element and accepts that element's props.
+
+| Part           | Element    | Role                                            |
+| -------------- | ---------- | ----------------------------------------------- |
+| `Table`        | `table`    | Scroll wrapper plus the table surface.          |
+| `TableHeader`  | `thead`    | Header row group.                               |
+| `TableBody`    | `tbody`    | Data rows.                                      |
+| `TableFooter`  | `tfoot`    | Closing rows, set in medium weight.             |
+| `TableRow`     | `tr`       | One row, closed by a hairline.                  |
+| `TableHead`    | `th`       | Mono column label.                              |
+| `TableCell`    | `td`       | One cell, top-aligned for multi-line content.   |
+| `TableCaption` | `caption`  | Mono caption below the table.                   |

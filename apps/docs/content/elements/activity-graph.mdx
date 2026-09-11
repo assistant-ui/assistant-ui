@@ -1,0 +1,220 @@
+---
+title: "Activity graph"
+description: "A half-year of runs as a calendar of cells, dense where the work was."
+---
+
+Activity graph is a calendar of cells, tinted darker on days with more work, wrapping the `heat-graph` package's grid with a title, a total, and its own five-step tint scale. With a runtime the day counts come from a tool's result; standalone you pass the same data in directly.
+
+## Getting started
+
+<RuntimeMode>
+
+With a runtime, `data` is exactly the shape a tool would return: one count per day over some window. Register a tool that reports it and the graph needs nothing else.
+
+<Steps>
+  <Step>
+
+### Render the tool call
+
+```tsx title="components/assistant-ui/elements/run-activity-tool-ui.tsx"
+"use client";
+
+import type { ToolCallMessagePartComponent } from "@assistant-ui/react";
+import type { DataPoint } from "heat-graph";
+import { ActivityGraph } from "@/components/assistant-ui/elements/activity-graph";
+
+type ActivityArgs = { days: number };
+type ActivityResult = {
+  title: string;
+  total: string;
+  start: string;
+  end: string;
+  data: DataPoint[];
+};
+
+export const RunActivityToolUI: ToolCallMessagePartComponent<
+  ActivityArgs,
+  ActivityResult
+> = ({ result }) => {
+  if (!result) return null;
+  return (
+    <ActivityGraph
+      data={result.data}
+      start={result.start}
+      end={result.end}
+      title={result.title}
+      total={result.total}
+    />
+  );
+};
+```
+
+  </Step>
+  <Step>
+
+### Register the tool
+
+```tsx title="app/toolkit.ts"
+import { defineToolkit } from "@assistant-ui/react";
+import { z } from "zod";
+import { RunActivityToolUI } from "@/components/assistant-ui/elements/run-activity-tool-ui";
+
+export const toolkit = defineToolkit({
+  get_run_activity: {
+    type: "frontend",
+    description: "Get daily run counts for the last N days as a heat map.",
+    parameters: z.object({ days: z.number() }),
+    execute: async ({ days }) => fetchRunActivity(days),
+    render: RunActivityToolUI,
+  },
+});
+```
+
+```tsx title="app/MyRuntimeProvider.tsx"
+import { AssistantRuntimeProvider, AuiConfig, Tools } from "@assistant-ui/react";
+import { useChatRuntime } from "@assistant-ui/ai-sdk";
+import { toolkit } from "./toolkit";
+
+export function MyRuntimeProvider({ children }: { children: React.ReactNode }) {
+  const runtime = useChatRuntime();
+  const config = AuiConfig({ tools: Tools({ toolkit }) });
+  return (
+    <AssistantRuntimeProvider runtime={runtime} config={config}>
+      {children}
+    </AssistantRuntimeProvider>
+  );
+}
+```
+
+See [Tool UI](/docs/tools/tool-ui) for backend-defined tools and approval gates.
+
+  </Step>
+</Steps>
+
+</RuntimeMode>
+
+<StandaloneMode>
+
+Standalone, hold the same `data`, `start`, and `end` yourself; the element does the grid layout, the tinting, and the legend.
+
+<Steps>
+  <Step>
+
+### Hold the data
+
+```tsx title="app/agent-activity.tsx"
+"use client";
+
+import type { DataPoint } from "heat-graph";
+import { ActivityGraph } from "@/components/assistant-ui/elements/activity-graph";
+
+const START = new Date(2026, 1, 2);
+const DAYS = 182;
+const dayAfterStart = (offset: number) =>
+  new Date(START.getFullYear(), START.getMonth(), START.getDate() + offset);
+const END = dayAfterStart(DAYS - 1);
+
+const DATA: readonly DataPoint[] = Array.from({ length: DAYS }, (_, i) => ({
+  date: dayAfterStart(i),
+  count: Math.round(Math.random() * 12),
+}));
+
+const TOTAL = DATA.reduce((sum, point) => sum + point.count, 0);
+
+export function AgentActivity() {
+  return (
+    <ActivityGraph
+      data={DATA}
+      start={START}
+      end={END}
+      title="Agent runs"
+      total={`${TOTAL.toLocaleString("en-US")} in 6 months`}
+    />
+  );
+}
+```
+
+  </Step>
+  <Step>
+
+### Refresh the window
+
+There is no live update inside the element: move `start` and `end` and hand it a freshly computed `data` array whenever the window changes.
+
+```tsx
+const [days, setDays] = useState(182);
+const start = daysAgo(days);
+const end = new Date();
+const data = useRunHistory(start, end);
+```
+
+  </Step>
+</Steps>
+
+</StandaloneMode>
+
+## Anatomy
+
+```tsx
+<div data-slot="activity-graph">
+  <div>{/* title, total */}</div>
+  {/* HeatGraph.Root: day labels down the left, a grid of cells, a less-to-more legend */}
+</div>
+```
+
+Each cell's shade comes from `heat-graph`'s own `level` classification (0 through 4) for that `DataPoint`, mapped here onto a five-step blue tint; a level outside that range falls back to the lightest tint. Day labels only print on odd grid rows, one every other week, so the left edge does not crowd. The week always starts on Monday; that choice is fixed by this element and is not exposed as a prop.
+
+## Examples
+
+### Choosing the date range
+
+`start` and `end` bound the grid; `heat-graph` fills in every day between them from `data`, including days with no matching point, which render at the lowest tint.
+
+```tsx
+<ActivityGraph data={data} start={sixMonthsAgo} end={today} title="Agent runs" total={total} />
+```
+
+### Restyle the graph
+
+Both lanes take `className` on the root. The title reads plain text and the total reads the shared `mono` token from `surfaces.tsx`. The tint scale itself is a fixed array inside `activity-graph.tsx`, so recoloring the cells means editing that file directly.
+
+```tsx
+<ActivityGraph className="max-w-none" /* ... */ />
+```
+
+## API reference
+
+<RuntimeMode>
+
+### Tool-call render props
+
+| Prop | Type | Description |
+|------|------|-------------|
+| `args` | `TArgs` | Parsed arguments. Partial while the model is still streaming them. |
+| `argsText` | `string` | Raw JSON argument text streamed by the model. |
+| `result` | `TResult \| undefined` | The tool's return value once it completes. `undefined` while running. |
+| `status` | `ToolCallMessagePartStatus` | `status.type` is `"running"`, `"requires-action"`, `"complete"`, or `"incomplete"`. |
+| `toolName` | `string` | Name of the tool the model called. |
+| `toolCallId` | `string` | Stable id for this invocation. |
+| `isError` | `boolean \| undefined` | Whether `result` represents a tool execution error. |
+
+Register the renderer on a toolkit entry's `render` field and attach the toolkit with `Tools({ toolkit })`. See [Tool UI](/docs/tools/tool-ui) for the full render-prop surface, including `addResult`, human tools, and approval gates.
+
+</RuntimeMode>
+
+<StandaloneMode>
+
+### ActivityGraph
+
+| Prop | Type | Default | Description |
+|------|------|---------|-------------|
+| `data` | `readonly DataPoint[]` | required | One count per day. |
+| `start` | `string \| Date` | required | Start of the plotted window. |
+| `end` | `string \| Date` | required | End of the plotted window. |
+| `title` | `string` | required | Heading above the grid. |
+| `total` | `string` | required | Summary text, already formatted, shown opposite the title. |
+| `className` | `string` | | Merged onto the root. |
+
+`DataPoint`, from the `heat-graph` package, is `{ date: string | Date; count: number }`. All other `div` props are forwarded to the root.
+
+</StandaloneMode>

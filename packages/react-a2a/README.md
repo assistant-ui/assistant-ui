@@ -13,7 +13,7 @@ npm install @assistant-ui/react @assistant-ui/react-a2a
 ```tsx
 import { AssistantRuntimeProvider } from "@assistant-ui/react";
 import { useA2ARuntime } from "@assistant-ui/react-a2a";
-import { Thread } from "@/components/assistant-ui/thread";
+import { Thread } from "@/components/assistant-ui/elements/thread.aui";
 
 export function App() {
   const runtime = useA2ARuntime({ baseUrl: "http://localhost:9999" });

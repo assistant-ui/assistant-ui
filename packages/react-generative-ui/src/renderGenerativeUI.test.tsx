@@ -114,6 +114,32 @@ describe("renderGenerativeUI", () => {
     expect(html).toBe("");
   });
 
+  it.each(["toString", "constructor"])(
+    "treats inherited %s as an unknown component",
+    (type) => {
+      const html = renderToStaticMarkup(
+        <>{renderGenerativeUI({ $type: type }, library)}</>,
+      );
+      expect(html).toBe("");
+    },
+  );
+
+  it("renders an explicitly registered prototype-named component", () => {
+    const prototypeNamedLibrary: GenerativeUILibrary = {
+      ...library,
+      toString: {
+        description: "An explicitly registered component.",
+        properties: z.object({}),
+        render: () => <span>registered</span>,
+      },
+    };
+
+    const html = renderToStaticMarkup(
+      <>{renderGenerativeUI({ $type: "toString" }, prototypeNamedLibrary)}</>,
+    );
+    expect(html).toBe("<span>registered</span>");
+  });
+
   it("holds back a node whose `$type` is still streaming", () => {
     const error = vi.spyOn(console, "error").mockImplementation(() => {});
     try {
@@ -261,6 +287,37 @@ describe("buildPresentParameters", () => {
     expect(schema.properties.children.$ref).toBe("#/$defs/children");
     expect(schema.properties.label).toBeDefined();
     expect(schema.required).toEqual(["$type"]);
+  });
+
+  it("keeps props whose names are inherited from Object.prototype", () => {
+    const schema = buildPresentParameters({
+      PrototypeProps: {
+        description: "Declares props that shadow Object.prototype members.",
+        properties: z.object({
+          toString: z.string(),
+          valueOf: z.number(),
+          constructor: z.boolean(),
+        }),
+        render: () => null,
+      },
+    }) as any;
+
+    expect(schema.properties.toString.type).toBe("string");
+    expect(schema.properties.valueOf.type).toBe("number");
+    expect(schema.properties.constructor.type).toBe("boolean");
+  });
+
+  it("omits __proto__, which the tool-argument decoder rejects", () => {
+    const schema = buildPresentParameters({
+      PrototypeProps: {
+        description: "Declares an undeliverable prop name.",
+        properties: z.object({ ["__proto__"]: z.number(), label: z.string() }),
+        render: () => null,
+      },
+    }) as any;
+
+    expect(Object.hasOwn(schema.properties, "__proto__")).toBe(false);
+    expect(schema.properties.label.type).toBe("string");
   });
 
   it("names every component that declares the same prop in the dev warning", () => {

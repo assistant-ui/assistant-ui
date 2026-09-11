@@ -6,7 +6,7 @@ import {
   type ComponentPropsWithoutRef,
   forwardRef,
 } from "react";
-import { composeEventHandlers } from "@radix-ui/primitive";
+import { composeEventHandlers } from "radix-ui/internal";
 import { useTriggerPopoverScopeContext } from "./TriggerPopover";
 
 export namespace ComposerPrimitiveTriggerPopoverBack {

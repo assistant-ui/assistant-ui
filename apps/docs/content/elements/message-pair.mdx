@@ -1,0 +1,246 @@
+---
+title: "Message pair"
+description: "A user bubble and a streaming assistant reply, with actions that appear on hover."
+---
+
+A message pair is one turn of a conversation: the message you sent, and the reply landing beneath it with copy and regenerate tucked away until you hover. `bubble` wraps the sent message in a filled pill; `flat` sets it as plain right-aligned text with no container. With a runtime the pair is two composed messages driven by the thread; standalone you hand it the sent text and the words to reveal.
+
+## Getting started
+
+<RuntimeMode>
+
+A thread renders as a list of messages, each one either from the user or the assistant. Compose the pair from `MessagePrimitive.Root` per message and an action row that only shows on hover.
+
+<Steps>
+  <Step>
+
+### Compose the pair
+
+`ThreadPrimitive.Messages` iterates the thread; branch on `s.message.role` to choose which half of the pair to render.
+
+```tsx title="components/assistant-ui/elements/message-pair.tsx"
+"use client";
+
+import { MessagePrimitive, ThreadPrimitive, useAuiState } from "@assistant-ui/react";
+import { cn } from "@/lib/utils";
+import { paper } from "@/components/assistant-ui/elements/surfaces";
+
+export function Turn() {
+  return <ThreadPrimitive.Messages>{() => <TurnMessage />}</ThreadPrimitive.Messages>;
+}
+
+function TurnMessage() {
+  const role = useAuiState((s) => s.message.role);
+  return (
+    <MessagePrimitive.Root className="flex w-full flex-col gap-5">
+      {role === "user" ? (
+        <div className={cn(paper, "max-w-[85%] self-end rounded-2xl px-3.5 py-2 text-sm")}>
+          <MessagePrimitive.Parts />
+        </div>
+      ) : (
+        <AssistantReply />
+      )}
+    </MessagePrimitive.Root>
+  );
+}
+```
+
+  </Step>
+  <Step>
+
+### Reveal actions on hover
+
+Wrap the action row in `ActionBarPrimitive.Root` with `autohide="always"`: it renders nothing until `s.message.isHovering` turns true, which `MessagePrimitive.Root` already tracks from pointer enter and leave.
+
+```tsx
+import { ActionBarPrimitive } from "@assistant-ui/react";
+import { CopyIcon, RefreshCwIcon } from "lucide-react";
+import { ghostButton } from "@/components/assistant-ui/elements/surfaces";
+
+function AssistantReply() {
+  return (
+    <div className="group/message flex flex-col items-start">
+      <div className="min-h-[4.25rem] text-sm leading-relaxed">
+        <MessagePrimitive.Parts />
+      </div>
+      <ActionBarPrimitive.Root autohide="always" className="flex items-center gap-1 pt-1">
+        <ActionBarPrimitive.Copy aria-label="Copy response" className={cn(ghostButton, "size-7")}>
+          <CopyIcon className="size-3.5" />
+        </ActionBarPrimitive.Copy>
+        <ActionBarPrimitive.Reload aria-label="Regenerate response" className={cn(ghostButton, "size-7")}>
+          <RefreshCwIcon className="size-3.5" />
+        </ActionBarPrimitive.Reload>
+      </ActionBarPrimitive.Root>
+    </div>
+  );
+}
+```
+
+The `Thread` element already ships a user and assistant message composed this closely, though its action row uses `autohide="not-last"` (hover-gated on older replies, always visible on the newest one) rather than the strict hover-only behavior modeled here; install `@assistant-ui/thread` for the full, richer version.
+
+  </Step>
+</Steps>
+
+</RuntimeMode>
+
+<StandaloneMode>
+
+Standalone, the pair is a controlled reveal: you hold the full list of words and how many are currently shown, and the element handles the fade-in and the trailing cursor.
+
+<Steps>
+  <Step>
+
+### Drive the reveal
+
+```tsx title="app/turn.tsx"
+"use client";
+
+import { useEffect, useState } from "react";
+import { MessagePair } from "@/components/assistant-ui/elements/message-pair";
+
+const reply = "Paris is the capital of France.".split(" ");
+
+export function Turn() {
+  const [visibleWords, setVisibleWords] = useState(0);
+  const streaming = visibleWords < reply.length;
+
+  useEffect(() => {
+    if (!streaming) return;
+    const id = setInterval(() => setVisibleWords((n) => n + 1), 120);
+    return () => clearInterval(id);
+  }, [streaming]);
+
+  return (
+    <MessagePair
+      userMessage="What's the capital of France?"
+      words={reply}
+      visibleWords={visibleWords}
+      streaming={streaming}
+    />
+  );
+}
+```
+
+  </Step>
+  <Step>
+
+### Handle the hover actions
+
+`MessagePair` renders the copy and regenerate buttons but leaves their behavior to you; wire `onClick` handlers where you render the element, or reach them from outside with `[data-slot="message-pair"] button`.
+
+  </Step>
+</Steps>
+
+</StandaloneMode>
+
+## Anatomy
+
+```tsx
+<div data-slot="message-pair">
+  <p>{/* the sent message */}</p>
+  <div>
+    <p>{/* the reply, word by word */}</p>
+    <div>{/* copy, regenerate, hidden until hover or focus */}</div>
+  </div>
+</div>
+```
+
+Hovering or focusing anywhere in the reply's group reveals the action row through `opacity-0` to `opacity-100`; each word fades in on its own, and the newest two words tint blue while `streaming` is true before settling to ink over 700ms. A trailing cursor blinks after the last word while streaming and disappears once `streaming` is false or nothing has been revealed yet. Standalone this reveal is driven by `visibleWords` catching up to `words.length`, a controlled typewriter useful for demos and replays. A runtime instead just renders the accumulated text as it streams in: there is no separate reveal count to manage, and the default `Text` part renderer shows a trailing "●" (through `MessagePartPrimitive.InProgress`) rather than a colored trailing edge, so the per-word blue tint is specific to this design.
+
+## Examples
+
+### Bubble or flat
+
+<RuntimeMode>
+
+There is no `variant` prop at runtime; flip the same two classes on the bubble you compose in "Compose the pair":
+
+```tsx
+<div
+  className={
+    role === "user"
+      ? "text-foreground/90 self-end text-end text-sm"
+      : cn(paper, "max-w-[85%] self-end rounded-2xl px-3.5 py-2 text-sm")
+  }
+>
+```
+
+</RuntimeMode>
+
+<StandaloneMode>
+
+`variant="flat"` drops the pill and right-aligns the sent message as plain text, for a denser layout.
+
+```tsx
+<MessagePair variant="flat" userMessage="..." words={words} visibleWords={n} streaming={false} />
+```
+
+</StandaloneMode>
+
+### Where the reply comes from
+
+<RuntimeMode>
+
+`s.message.status?.type` is `"running"` while the assistant is still streaming and `"complete"` once it settles; drive any UI that depends on "is this message still arriving" from it directly instead of a local `streaming` flag.
+
+```tsx
+const streaming = useAuiState((s) => s.message.status?.type === "running");
+```
+
+</RuntimeMode>
+
+<StandaloneMode>
+
+Streaming ends the moment `visibleWords` reaches `words.length`; append a new word and bump the counter to keep it going, or set `streaming={false}` once the source finishes.
+
+</StandaloneMode>
+
+### Restyle the pair
+
+Both lanes take `className` on the root, and the shared `paper` and `ghostButton` tokens from `surfaces.tsx` style the bubble and the action buttons everywhere they're used.
+
+```tsx
+<MessagePair className="max-w-none gap-3" /* ... */ />
+```
+
+## API reference
+
+<RuntimeMode>
+
+### Message parts
+
+| Part | Renders | Notes |
+|------|---------|-------|
+| `MessagePrimitive.Root` | `div` | Tracks hover for the action row; wrap each message in one. |
+| `MessagePrimitive.Parts` | fragment | Renders the message's content, including the streaming text. |
+| `ActionBarPrimitive.Root` | `div` | `autohide="always"` hides until `message.isHovering` is true. |
+| `ActionBarPrimitive.Copy` | `button` | Disabled while there's nothing to copy yet. |
+| `ActionBarPrimitive.Reload` | `button` | Disabled while the thread is running or the message isn't from the assistant. |
+
+### Message state
+
+| Selector | Type | Description |
+|----------|------|-------------|
+| `s.message.role` | `"user" \| "assistant" \| "system"` | Which half of the pair this message is. |
+| `s.message.status?.type` | `"running" \| "complete" \| "incomplete" \| "requires-action"` | Present on assistant messages; `"running"` while still streaming. |
+| `s.message.isHovering` | `boolean` | Set by `MessagePrimitive.Root` from pointer enter and leave. |
+| `aui.message.reload()` | `(config?) => void` | Regenerates this assistant message as a new sibling branch. |
+
+</RuntimeMode>
+
+<StandaloneMode>
+
+### MessagePair
+
+| Prop | Type | Default | Description |
+|------|------|---------|-------------|
+| `userMessage` | `string` | required | The sent message, shown as the bubble or the flat line. |
+| `words` | `readonly string[]` | required | The full reply, already split into words. |
+| `visibleWords` | `number` | required | How many words from the start of `words` to show. |
+| `streaming` | `boolean` | required | Tints the newest words and shows the trailing cursor while true. |
+| `variant` | `"bubble" \| "flat"` | `"bubble"` | How the sent message is presented. |
+| `className` | `string` | | Merged onto the root. |
+
+All other `div` props are forwarded to the root.
+
+</StandaloneMode>

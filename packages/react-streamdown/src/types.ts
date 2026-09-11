@@ -1,5 +1,9 @@
 import type { SmoothOptions } from "@assistant-ui/react";
-import type { Element } from "hast";
+import type {
+  CodeHeaderProps,
+  ComponentsByLanguage,
+  SyntaxHighlighterProps,
+} from "@assistant-ui/react-markdown/code-fence";
 import type { ComponentPropsWithoutRef, ComponentType, ReactNode } from "react";
 import type { Options as RemarkRehypeOptions } from "remark-rehype";
 import type {
@@ -89,48 +93,15 @@ export type RemendConfig = {
   katex?: boolean;
   /** Handle incomplete setext headings to prevent misinterpretation */
   setextHeadings?: boolean;
+  /** Escape single ~ between word characters to prevent false strikethrough (e.g., `20~25` → `20\~25`) */
+  singleTilde?: boolean;
+  /** Escape > as comparison operators in list items (e.g., `- > 25` → `- \> 25`) */
+  comparisonOperators?: boolean;
   /** Custom handlers for incomplete markdown completion */
   handlers?: RemendHandler[];
 };
 
-/**
- * Props for the SyntaxHighlighter component.
- * Compatible with @assistant-ui/react-markdown API.
- */
-export type SyntaxHighlighterProps = {
-  node?: Element | undefined;
-  components: {
-    Pre: ComponentType<
-      ComponentPropsWithoutRef<"pre"> & { node?: Element | undefined }
-    >;
-    Code: ComponentType<
-      ComponentPropsWithoutRef<"code"> & { node?: Element | undefined }
-    >;
-  };
-  language: string;
-  code: string;
-};
-
-/**
- * Props for the CodeHeader component.
- * Compatible with @assistant-ui/react-markdown API.
- */
-export type CodeHeaderProps = {
-  node?: Element | undefined;
-  language: string | undefined;
-  code: string;
-};
-
-/**
- * Language-specific component overrides.
- */
-export type ComponentsByLanguage = Record<
-  string,
-  {
-    CodeHeader?: ComponentType<CodeHeaderProps> | undefined;
-    SyntaxHighlighter?: ComponentType<SyntaxHighlighterProps> | undefined;
-  }
->;
+export type { CodeHeaderProps, ComponentsByLanguage, SyntaxHighlighterProps };
 
 /**
  * Extended components prop that includes SyntaxHighlighter and CodeHeader.
@@ -281,6 +252,9 @@ export type StreamdownTextPrimitiveProps = Omit<
    * re-parsing the growing message on every streamed token. Intermediate
    * streaming states may be skipped under load; the final text always renders.
    *
+   * Must stay constant for the lifetime of the component: the deferred path is
+   * a separate component, so toggling this remounts the rendered markdown.
+   *
    * @default false
    */
   defer?: boolean | undefined;
@@ -404,6 +378,8 @@ export type StreamdownTextPrimitiveProps = Omit<
   /**
    * Security configuration for URL/image validation.
    * Overrides streamdown's default (allow-all) policy via rehype-harden.
+   * When `rehypePlugins` is also provided, those plugins run after this
+   * hardening pipeline.
    *
    * @example
    * // Restrict links to trusted domains only

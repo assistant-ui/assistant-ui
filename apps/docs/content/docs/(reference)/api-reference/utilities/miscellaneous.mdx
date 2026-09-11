@@ -3,7 +3,7 @@ title: Utilities
 description: Miscellaneous @assistant-ui/react utilities for custom rendering, composition, and advanced assistant UI behavior.
 ---
 
-import { AssistantCloud, AuiConfig, ChainOfThoughtClient, DevToolsHooks, InMemoryThreadList, SingleThreadList, Suggestions, useSmooth } from "@/generated/typeDocs";
+import { AssistantCloud, AuiConfig, ChainOfThoughtClient, DevToolsHooks, InMemoryThreadList, MessageNotSentError, RemoteThreadList, SingleThreadList, Suggestions, unstable_useWebMcpProvider, useSmooth } from "@/generated/typeDocs";
 
 {/* AUTO-GENERATED PAGE by scripts/generate-api-reference.mts */}
 {/* Do not edit manually. */}
@@ -59,6 +59,45 @@ const createMessageQueue: (driver: MessageQueueDriver) => MessageQueueController
 
 <ParametersTable {...InMemoryThreadList} />
 
+### isMessageNotSentError
+
+```ts
+const isMessageNotSentError: (error: unknown) => error is MessageNotSentError;
+```
+
+### MessageNotSentError
+
+Rejection reason for a send that never reached the backend, so nothing ran
+and nothing is recoverable from the thread. A runtime adapter throws it from
+`onNew` to hand the message back to the thread composer, which restores the
+draft it cleared at dispatch time when nothing has claimed the composer
+since. An edit composer closes at dispatch, so a rejected edit is not
+restored.
+
+<ParametersTable {...MessageNotSentError} />
+
+### readAnonymousRefreshToken
+
+The refresh token of the anonymous identity this browser holds for `baseUrl`, or null when it has none.
+
+```ts
+const readAnonymousRefreshToken: (baseUrl: string) => string | null;
+```
+
+### RemoteThreadList
+
+`AuiConfig` `threads` entry backed by a `RemoteThreadListAdapter`. Thread
+bodies are born from the `thread` factory inside the client tree, so any
+`AssistantClient` host can run a remote or cloud list. Per-thread history
+and attachments come from `unstable_useAdapters`. `useRemoteThreadListRuntime`
+uses the same hook when `unstable_Provider` is omitted. Key the factory
+with `withKey` so history reloads when the visible thread changes.
+With `backgroundThreads`, every visited thread stays mounted: runs continue
+across switches, per-item `isRunning` is live, and freshly initialized
+threads title themselves.
+
+<ParametersTable {...RemoteThreadList} />
+
 ### SingleThreadList
 
 <ParametersTable {...SingleThreadList} />
@@ -77,6 +116,29 @@ When `id` equals `label`, the `{name=…}` attribute is omitted for brevity.
 const unstable_defaultDirectiveFormatter: Unstable_DirectiveFormatter;
 ```
 
+### unstable_defaultWebMcpFilter
+
+The predicate the WebMCP provider uses when no `filter` is passed: an enabled
+frontend tool with a client-side `execute`. A tool authored without a `type`
+is included, because `execute` is what distinguishes the deprecated
+type-less form from a backend or human tool. A `filter` replaces this, so
+pass it through to narrow the default set rather than widen it.
+
+```ts
+const unstable_defaultWebMcpFilter: (_name: string, tool: Tool<any, any>) => boolean;
+```
+
+### unstable_useWebMcpProvider
+
+Publishes the frontend tools in the model context to a WebMCP-capable
+browser, so the user's own browser agent can call them.
+
+Returns `status: "unsupported"` when the page exposes no
+`document.modelContext` (or `navigator.modelContext`), and the sorted names
+of the tools currently registered with the host.
+
+<ParametersTable {...unstable_useWebMcpProvider} />
+
 ### useSmooth
 
 Animates streamed message part text with a typewriter-style reveal.
@@ -85,6 +147,9 @@ Takes the current part state and a `smooth` argument: `false` disables,
 `true` uses the default rate, and a SmoothOptions object tunes
 the reveal. Returns the part state with `text` replaced by the revealed
 prefix and `status` reporting `running` until the reveal catches up.
+If the source settles before any character has been revealed, the text
+is committed immediately so a missed animation frame cannot leave an
+empty bubble.
 
 The reveal auto-disables under `prefers-reduced-motion: reduce`,
 committing the full text immediately; this takes precedence over an

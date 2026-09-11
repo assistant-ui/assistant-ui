@@ -34,6 +34,7 @@ import type {
 import type { ThreadListItemState } from "./bindings";
 import type { AppendMessage, ThreadMessage } from "../../types/message";
 import type { Unsubscribe } from "../../types/unsubscribe";
+import { isMessageNotSentError } from "../../types/error";
 import type { RunConfig } from "../../types/message";
 import { EventSubscriptionSubject } from "../../subscribable/subscribable";
 import { symbolInnerMessage } from "../utils/external-store-message";
@@ -76,6 +77,10 @@ const toStartRunConfig = (message: CreateStartRunConfig): StartRunConfig => {
 export type CreateAppendMessage =
   | string
   | {
+      /**
+       * An omitted value or `undefined` selects the current tail.
+       * `null` selects a root branch.
+       */
       parentId?: string | null | undefined;
       sourceId?: string | null | undefined;
       role?: AppendMessage["role"] | undefined;
@@ -106,7 +111,10 @@ const toAppendMessage = (
 
   return {
     createdAt: message.createdAt ?? new Date(),
-    parentId: message.parentId ?? messages.at(-1)?.id ?? null,
+    parentId:
+      message.parentId === undefined
+        ? (messages.at(-1)?.id ?? null)
+        : message.parentId,
     sourceId: message.sourceId ?? null,
     role: message.role ?? "user",
     content: message.content,
@@ -198,7 +206,7 @@ export type ThreadState = {
  * reports it directly; the rest fall back to the trailing assistant message.
  */
 export const getThreadRuntimeCoreIsRunning = (
-  runtime: ThreadRuntimeCore,
+  runtime: Pick<ThreadRuntimeCore, "isRunning" | "messages">,
 ): boolean => {
   if (runtime.isRunning !== undefined) return runtime.isRunning;
   const lastMessage = runtime.messages.at(-1);
@@ -293,6 +301,13 @@ export type ThreadRuntime = {
 
   subscribe(callback: () => void): Unsubscribe;
   cancelRun(): void;
+  /**
+   * Notifies the runtime that the adapter discarded its backing session.
+   * Clears session-scoped tool-invocation state without run-cancel side
+   * effects such as composer draft restoration. Internal API for
+   * external-store adapter authors.
+   */
+  unstable_notifySessionReset(): void;
   getModelContext(): ModelContext;
 
   export(): ExportedMessageRepository;
@@ -338,6 +353,10 @@ export class ThreadRuntimeImpl implements ThreadRuntime {
   private readonly _threadBinding: ThreadRuntimeCoreBinding & {
     getStateState(): ThreadState;
   };
+  private readonly _stateBinding: ShallowMemoizeSubject<
+    ThreadState,
+    ThreadRuntimePath
+  >;
 
   constructor(
     threadBinding: ThreadRuntimeCoreBinding,
@@ -360,6 +379,7 @@ export class ThreadRuntimeImpl implements ThreadRuntime {
       },
     });
 
+    this._stateBinding = stateBinding;
     this._threadBinding = {
       path: threadBinding.path,
       getState: () => threadBinding.getState(),
@@ -391,6 +411,8 @@ export class ThreadRuntimeImpl implements ThreadRuntime {
     this.exportExternalState = this.exportExternalState.bind(this);
     this.startRun = this.startRun.bind(this);
     this.cancelRun = this.cancelRun.bind(this);
+    this.unstable_notifySessionReset =
+      this.unstable_notifySessionReset.bind(this);
     this.stopSpeaking = this.stopSpeaking.bind(this);
     this.connectVoice = this.connectVoice.bind(this);
     this.disconnectVoice = this.disconnectVoice.bind(this);
@@ -416,11 +438,17 @@ export class ThreadRuntimeImpl implements ThreadRuntime {
   }
 
   public append(message: CreateAppendMessage) {
-    this._threadBinding
+    const task = this._threadBinding
       .getState()
       .append(
         toAppendMessage(this._threadBinding.getState().messages, message),
       );
+    // An undispatched send is reported to the composer, so it is a control
+    // signal rather than a failure to surface; every other rejection keeps
+    // reaching the host untouched.
+    void Promise.resolve(task).catch((error) => {
+      if (!isMessageNotSentError(error)) throw error;
+    });
   }
 
   public deleteMessage(messageId: string) {
@@ -428,7 +456,7 @@ export class ThreadRuntimeImpl implements ThreadRuntime {
   }
 
   public subscribe(callback: () => void) {
-    return this._threadBinding.subscribe(callback);
+    return this._stateBinding.subscribe(callback);
   }
 
   public getModelContext() {
@@ -453,6 +481,10 @@ export class ThreadRuntimeImpl implements ThreadRuntime {
 
   public cancelRun() {
     this._threadBinding.getState().cancelRun();
+  }
+
+  public unstable_notifySessionReset() {
+    this._threadBinding.getState().unstable_notifySessionReset();
   }
 
   public stopSpeaking() {

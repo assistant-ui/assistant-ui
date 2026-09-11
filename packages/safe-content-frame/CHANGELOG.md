@@ -1,5 +1,31 @@
 # safe-content-frame
 
+## 0.0.30
+
+### Patch Changes
+
+- [#7123](https://github.com/assistant-ui/assistant-ui/pull/7123) [`318e4da`](https://github.com/assistant-ui/assistant-ui/commit/318e4da0bc4b54064758744209fca8da857b8e31) - fix: clear load timeout timers after SafeContentFrame settles ([@Kinfe123](https://github.com/Kinfe123))
+
+## 0.0.29
+
+### Patch Changes
+
+- [#6604](https://github.com/assistant-ui/assistant-ui/pull/6604) [`6083062`](https://github.com/assistant-ui/assistant-ui/commit/6083062b425c77278728c5a89ef79e0d4a4e4e8a) - fix: tell a missing shim, a shim that failed to start, and a slow render apart ([@rupic-app](https://github.com/apps/rupic-app))
+
+- [#6615](https://github.com/assistant-ui/assistant-ui/pull/6615) [`e7bcf83`](https://github.com/assistant-ui/assistant-ui/commit/e7bcf83c4c5d176ee3bafa8d9dd04b26b1fde772) - feat: name why a frame failed to load with a `code` on the rejection, narrowed by the new `isShimLoadError` guard ([@okisdev](https://github.com/okisdev))
+
+## 0.0.28
+
+### Patch Changes
+
+- [#6305](https://github.com/assistant-ui/assistant-ui/pull/6305) [`e96d3de`](https://github.com/assistant-ui/assistant-ui/commit/e96d3dea9370159e04f82bf4eb39d6b1b1c4d21d) - chore: update dependencies ([@okisdev](https://github.com/okisdev))
+
+## 0.0.27
+
+### Patch Changes
+
+- [#5723](https://github.com/assistant-ui/assistant-ui/pull/5723) [`94dc3e5`](https://github.com/assistant-ui/assistant-ui/commit/94dc3e509fa2b4fae1a14c88ec34b910c8d95af8) - chore: update dependencies ([@okisdev](https://github.com/okisdev))
+
 ## 0.0.26
 
 ### Patch Changes

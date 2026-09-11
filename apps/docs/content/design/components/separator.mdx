@@ -1,0 +1,66 @@
+---
+title: "Separator"
+description: "A hairline between things, horizontal or vertical."
+links:
+  - label: Source
+    url: https://github.com/assistant-ui/assistant-ui/blob/main/packages/ui/src/components/ui/base/separator.tsx
+  - label: Base UI Separator
+    url: https://base-ui.com/react/components/separator
+---
+
+import { PreviewCode } from "@/components/pages/docs/preview-code.server";
+import { KitInstall } from "@/components/pages/design/kit-install";
+import {
+  SeparatorSpecimen,
+} from "@/components/pages/design/specimens";
+import * as RadixSpecimens from "@/components/pages/design/specimens.radix";
+import { FlavorSwitcher } from "@/components/pages/docs/contexts/flavor.server";
+
+<FlavorSwitcher />
+
+<PreviewCode file="components/pages/design/specimens" name="SeparatorSpecimen" base={<SeparatorSpecimen />}>
+  <RadixSpecimens.SeparatorSpecimen />
+</PreviewCode>
+
+## Installation
+
+<KitInstall name="separator" />
+
+## Usage
+
+```tsx
+import { Separator } from "@/components/ui/separator";
+
+export function Example() {
+  return (
+    <div className="flex h-5 items-center gap-3 text-sm">
+      <span>Docs</span>
+      <Separator orientation="vertical" />
+      <span>Elements</span>
+    </div>
+  );
+}
+```
+
+## API Reference
+
+### Separator
+
+Wraps Base UI's Separator.
+
+<ParametersTable
+  type="SeparatorProps"
+  parameters={[
+    {
+      name: "orientation",
+      type: '"horizontal" | "vertical"',
+      default: '"horizontal"',
+      description: "The axis of the line. A vertical separator needs a bounded height from its row.",
+    },
+    {
+      name: "className",
+      type: "string",
+      description: "Additional CSS classes.",
+    },
+  ]}
+/>

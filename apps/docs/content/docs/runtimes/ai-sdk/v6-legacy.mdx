@@ -120,7 +120,7 @@ export async function POST(req: Request) {
 ```tsx title="@/app/page.tsx"
 "use client";
 
-import { Thread } from "@/components/assistant-ui/thread";
+import { Thread } from "@/components/assistant-ui/elements/thread.aui";
 import { AssistantRuntimeProvider } from "@assistant-ui/react";
 import { useChatRuntime } from "@assistant-ui/react-ai-sdk";
 
@@ -146,7 +146,7 @@ import {
   useChatRuntime,
 } from "@assistant-ui/react-ai-sdk";
 import { View } from "react-native";
-import { Thread } from "@/components/assistant-ui/thread";
+import { Thread } from "@/components/assistant-ui/elements/thread.aui";
 
 const API_URL = process.env.EXPO_PUBLIC_API_URL ?? "http://localhost:3000";
 
@@ -205,7 +205,7 @@ export function App() {
 <PlatformTabs>
 <Tab value="React">
 
-Follow the [UI Components guide](/docs/ui/thread) to wire up the Thread, composer, and supporting primitives.
+Follow the [UI Components guide](/elements/thread) to wire up the Thread, composer, and supporting primitives.
 
 </Tab>
 <Tab value="React Native">
@@ -327,12 +327,10 @@ On the client, configure `useChat` with `sendAutomaticallyWhen: lastAssistantMes
 "use client";
 
 import { useChat } from "@ai-sdk/react";
-import {
-  AssistantRuntimeProvider,
-  useAISDKRuntime,
-} from "@assistant-ui/react-ai-sdk";
+import { AssistantRuntimeProvider } from "@assistant-ui/react";
+import { useAISDKRuntime } from "@assistant-ui/react-ai-sdk";
 import { lastAssistantMessageIsCompleteWithApprovalResponses } from "ai";
-import { Thread } from "@/components/assistant-ui/thread";
+import { Thread } from "@/components/assistant-ui/elements/thread.aui";
 
 export default function Page() {
   const chat = useChat({
@@ -359,25 +357,36 @@ import {
   AuiConfig,
   defineToolkit,
   Tools,
+  type ToolApprovalResponse,
 } from "@assistant-ui/react";
 import { useAISDKRuntime } from "@assistant-ui/react-ai-sdk";
 import { lastAssistantMessageIsCompleteWithApprovalResponses } from "ai";
-import { Thread } from "@/components/assistant-ui/thread";
+import { Thread } from "@/components/assistant-ui/elements/thread.aui";
 
 const toolkit = defineToolkit({
   deploy: {
     type: "backend",
     render: ({ args, approval, respondToApproval, result }) => {
+      // A refused response rejects and a precondition throws, so `try`/`await`
+      // covers both and the controls stay actionable.
+      const answer = async (response: ToolApprovalResponse) => {
+        try {
+          await respondToApproval(response);
+        } catch (failure) {
+          console.error(failure);
+        }
+      };
+
       if (approval?.approved === undefined) {
         return (
           <div>
             <p>Approve deploy to {args.target}?</p>
-            <button onClick={() => respondToApproval({ approved: true })}>
+            <button onClick={() => void answer({ approved: true })}>
               Approve
             </button>
             <button
               onClick={() =>
-                respondToApproval({ approved: false, reason: "user denied" })
+                void answer({ approved: false, reason: "user denied" })
               }
             >
               Deny
@@ -474,6 +483,15 @@ export function TokenCounter() {
 ```
 
 `getThreadMessageTokenUsage(message)` returns per-message usage if you need to show it inline.
+
+Metadata a route returns from `messageMetadata` reaches the client under `metadata.custom`, because a thread message carries a fixed metadata shape and the converter moves everything outside it there. `useThreadTokenUsage` reads `usage` for you; anything else you attach is read from `custom` directly:
+
+```tsx
+// inside a message component, where the message scope resolves
+const modelId = useAuiState(
+  (s) => s.message.metadata.custom?.["modelId"] as string | undefined,
+);
+```
 
 ## Attachments
 

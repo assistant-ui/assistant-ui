@@ -14,6 +14,7 @@ import { MapPin, CloudSun, AlertCircle } from "lucide-react";
 import { z } from "zod";
 import {
   defineToolkit,
+  humanTool,
   unstable_interactableTool,
   useAuiState,
   type ToolCallMessagePartComponent,
@@ -26,7 +27,9 @@ import {
 } from "@assistant-ui/react-generative-ui";
 import { ToolErrorCard, ToolStatusCard, ToolTraceCard } from "@/lib/tool-trace";
 import { Notepad } from "@/components/tool-ui/notepad";
-import { styledGenerativeUILibrary } from "@/components/assistant-ui/generative-ui";
+import { RememberToolUI } from "@/components/shared/memory";
+import { SetThemeToolUI } from "@/components/tool-ui/set-theme-card";
+import { styledGenerativeUILibrary } from "@/components/assistant-ui/elements/generative-ui";
 
 const weatherFormatSchema = z.enum(["fahrenheit", "celsius"]);
 
@@ -207,15 +210,48 @@ export default defineToolkit({
     },
     render: GetWeatherToolUI,
   },
+  remember: {
+    description:
+      "Save a short fact or preference the user explicitly asks you to remember for future conversations. Call it once per fact, rewritten in the third person.",
+    parameters: z.object({
+      text: z
+        .string()
+        .describe(
+          "The short fact or preference to remember in the third person.",
+        ),
+    }),
+    display: "standalone",
+    execute: async ({ text }: { text: string }) => {
+      "use client";
+      const { addMemory } = await import("@/lib/memory-store");
+      const added = addMemory(text);
+      if (!added) throw new Error("A memory needs some text to store.");
+      return { ...added.record, change: added.change };
+    },
+    render: RememberToolUI,
+  },
+  set_theme: {
+    description:
+      "Change the color theme of this page to light, dark, or system. Call it as soon as the user asks to switch the theme; the page asks the user to confirm before the change applies, so never ask for confirmation yourself.",
+    parameters: z.object({
+      theme: z
+        .enum(["light", "dark", "system"])
+        .describe("The color theme to use for this page."),
+    }),
+    execute: humanTool(),
+    render: SetThemeToolUI,
+  },
   present: generative.present({ display: "standalone" }),
   notepad: unstable_interactableTool({
     description:
       "A live notepad whose drafted text the user sees and can edit. Open one " +
-      "whenever you write or draft prose for the user — a note, message, post, " +
-      "release notes, a description — and revise it with `update_notepad` " +
-      "rather than opening a new one. Opening the notepad and every " +
-      "`update_notepad` call display the latest draft to the user directly, so " +
-      "keep the text in the notepad and never repeat it in your reply.",
+      "only when the user asks you to draft prose they will reuse — a note, " +
+      "message, post, release notes, a description — and revise it with " +
+      "`update_notepad` rather than opening a new one. Never open it for code, " +
+      "code blocks, tables, or technical answers; those belong in your reply " +
+      "as markdown. Opening the notepad and every `update_notepad` call " +
+      "display the latest draft to the user directly, so keep the text in the " +
+      "notepad and never repeat it in your reply.",
     stateSchema: notepadSchema,
     render: (props) => <Notepad {...props} />,
   }),
@@ -362,7 +398,7 @@ const ToolCardIcon = ({
 }) => (
   <div
     className={cn(
-      "bg-background text-muted-foreground flex size-8 shrink-0 items-center justify-center rounded-md shadow-sm",
+      "bg-background text-muted-foreground flex size-8 shrink-0 items-center justify-center rounded-md",
       loading && "animate-pulse",
     )}
   >

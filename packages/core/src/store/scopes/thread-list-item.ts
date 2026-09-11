@@ -1,4 +1,7 @@
-import type { ThreadListItemRuntime } from "../../runtime/api/thread-list-item-runtime";
+import type {
+  ThreadListItemGenerateTitleOptions,
+  ThreadListItemRuntime,
+} from "../../runtime/api/thread-list-item-runtime";
 import type { ThreadListItemStatus } from "../../runtime/interfaces/thread-list-runtime-core";
 
 export type ThreadListItemState = {
@@ -26,7 +29,7 @@ export type ThreadListItemMethods = {
   archive(): void;
   unarchive(): void;
   delete(): void;
-  generateTitle(): void;
+  generateTitle(options?: ThreadListItemGenerateTitleOptions): void;
   initialize(): Promise<{ remoteId: string; externalId: string | undefined }>;
   detach(): void;
   __internal_getRuntime?(): ThreadListItemRuntime;
@@ -42,15 +45,16 @@ export type ThreadListItemMeta = {
 
 export type ThreadListItemEvents = {
   /**
-   * @deprecated State-derivable. Compare `s.threads.mainThreadId` against the
-   * item's `s.threadListItem.id` via `useAuiState` instead. Kept for backward
-   * compatibility.
+   * @deprecated Use `threads.selectionChanged` instead; its `threadId` is the
+   * newly selected thread. Inside a per-item `threadListItem` scope, filter by
+   * `threadId === threadListItem.id` to reproduce the per-item delivery. Kept
+   * for backward compatibility.
    */
   "threadListItem.switchedTo": { threadId: string };
   /**
-   * @deprecated State-derivable. Compare `s.threads.mainThreadId` against the
-   * item's `s.threadListItem.id` via `useAuiState` instead. Kept for backward
-   * compatibility.
+   * @deprecated Use `threads.selectionChanged` instead; its
+   * `previousThreadId` is the thread that was switched away from. Kept for
+   * backward compatibility.
    */
   "threadListItem.switchedAway": { threadId: string };
 };

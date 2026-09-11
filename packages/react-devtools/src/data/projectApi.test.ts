@@ -77,6 +77,45 @@ describe("projectApi", () => {
     expect(result.modelContext).toEqual({ system: "be nice" });
   });
 
+  it("keeps readable model-context fields when others are unreadable", () => {
+    const tools = new Proxy(
+      {},
+      {
+        ownKeys: () => {
+          throw new Error("tools unavailable");
+        },
+      },
+    );
+    const modelContext = {
+      tools,
+      config: { model: "test-model" },
+    };
+    Object.defineProperty(modelContext, "system", {
+      get: () => {
+        throw new Error("system unavailable");
+      },
+    });
+    const thread = scope(
+      "root",
+      {},
+      {
+        getState: () => ({ messages: [], isRunning: false }),
+        getModelContext: () => modelContext,
+      },
+    );
+
+    const projected = projectApi(1, {
+      api: { thread },
+      logs: [],
+    } as unknown as Parameters<typeof projectApi>[1]);
+
+    expect(projected.modelContext).toEqual({
+      system: "[Unserializable]",
+      tools: [{ name: "[Unserializable]" }],
+      config: { model: "test-model" },
+    });
+  });
+
   it("keeps event-log timestamps as Date instances", () => {
     expect(result.logs[0]?.time).toBeInstanceOf(Date);
     expect(result.logs[0]?.event).toBe("thread.run-start");

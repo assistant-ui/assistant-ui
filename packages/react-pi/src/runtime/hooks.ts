@@ -19,7 +19,14 @@ export const usePiRuntimeExtras = (): PiRuntimeExtras =>
 export const usePiSession = (): PiThreadMetadata | null =>
   piExtras.use((e) => e.metadata, null);
 
-/** The live Pi thread state, optionally projected through a selector. */
+/**
+ * The live Pi thread state, optionally projected through a selector.
+ *
+ * The selected value is compared with `Object.is`, so the component re-renders
+ * only when that value changes. A selector returning a new object or array
+ * literal re-renders on every controller notification; select primitives or
+ * return a memoized reference.
+ */
 export function usePiThreadState(): PiThreadState;
 export function usePiThreadState<T>(selector: (state: PiThreadState) => T): T;
 export function usePiThreadState<T>(selector?: (state: PiThreadState) => T) {

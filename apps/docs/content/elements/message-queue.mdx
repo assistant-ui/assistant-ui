@@ -1,0 +1,214 @@
+---
+title: "Message queue"
+description: "Turns you typed while a run was in flight, stacked and cancelable until it finishes."
+---
+
+While a reply is streaming, a message you send next doesn't get blocked or dropped: it stacks below a live "running" row and stays cancelable until its turn comes. With a runtime the queue is the composer's own, filled by sending normally while a run is active; standalone you hold the running text and the list yourself.
+
+## Getting started
+
+<RuntimeMode>
+
+A runtime that supports queueing tracks pending sends on `s.composer.queue`; nothing special is required to add to it besides sending while `s.thread.isRunning` is already true.
+
+<Steps>
+  <Step>
+
+### Render the queue
+
+`ComposerPrimitive.Queue` maps over the pending items; `QueueItemPrimitive.Text` and `.Remove` read and act on the one currently in scope.
+
+```tsx title="components/assistant-ui/elements/message-queue.tsx"
+"use client";
+
+import { ComposerPrimitive, QueueItemPrimitive, useAuiState } from "@assistant-ui/react";
+import { ArrowUpIcon, XIcon } from "lucide-react";
+import { cn } from "@/lib/utils";
+import { field, ghostButton, mono } from "@/components/assistant-ui/elements/surfaces";
+
+export function MessageQueue() {
+  const queueLength = useAuiState((s) => s.composer.queue.length);
+
+  return (
+    <div className="flex w-full max-w-sm flex-col gap-2">
+      {queueLength > 0 && (
+        <div className="flex items-baseline justify-between px-1">
+          <span className={cn(mono, "text-foreground/35")}>{queueLength} queued</span>
+          <span className={cn(mono, "text-foreground/35")}>sends when this finishes</span>
+        </div>
+      )}
+      <ul className="flex flex-col gap-1.5">
+        <ComposerPrimitive.Queue>
+          {({ queueItem }) => (
+            <li
+              key={queueItem.id}
+              className={cn(field, "flex items-center gap-2.5 rounded-2xl py-2 pr-2 pl-3")}
+            >
+              <span className="text-foreground/60 min-w-0 flex-1 truncate text-[13.5px]">
+                <QueueItemPrimitive.Text />
+              </span>
+              <ArrowUpIcon className="text-foreground/25 size-3 shrink-0" />
+              <QueueItemPrimitive.Remove aria-label="Remove from queue" className={cn(ghostButton, "size-6 shrink-0")}>
+                <XIcon className="size-3.5" />
+              </QueueItemPrimitive.Remove>
+            </li>
+          )}
+        </ComposerPrimitive.Queue>
+      </ul>
+    </div>
+  );
+}
+```
+
+  </Step>
+  <Step>
+
+### Show what's running
+
+There's no single selector for the running prompt's text the way there is for the queue; while `s.thread.isRunning` is true it's simply the most recently sent user message.
+
+```tsx
+const running = useAuiState((s) =>
+  s.thread.isRunning ? [...s.thread.messages].reverse().find((m) => m.role === "user") : undefined,
+);
+```
+
+Render the same pulsing-dot row the standalone element uses once `running` resolves to a message; a user message's `content` is an array of parts, not a plain string, so join the text parts yourself: `running.content.filter((p) => p.type === "text").map((p) => p.text).join(" ")`.
+
+  </Step>
+</Steps>
+
+</RuntimeMode>
+
+<StandaloneMode>
+
+Standalone, `MessageQueue` renders exactly the two arrays you hand it: the running message's text, and the queued messages behind it.
+
+<Steps>
+  <Step>
+
+### Hold the running text and the queue
+
+```tsx title="app/queue.tsx"
+"use client";
+
+import { useState } from "react";
+import { MessageQueue, type QueuedMessage } from "@/components/assistant-ui/elements/message-queue";
+
+export function Queue() {
+  const [queued, setQueued] = useState<QueuedMessage[]>([
+    { id: "1", text: "Now add tests for the auth flow" },
+  ]);
+
+  return (
+    <MessageQueue
+      running="Refactor the login form to use the new validation hook"
+      queued={queued}
+      onCancel={(id) => setQueued((q) => q.filter((m) => m.id !== id))}
+    />
+  );
+}
+```
+
+  </Step>
+  <Step>
+
+### Send the next one when the run finishes
+
+There's no automatic hand-off: when your run completes, shift the first queued item off the array, start it running, and re-render with the shorter queue.
+
+  </Step>
+</Steps>
+
+</StandaloneMode>
+
+## Anatomy
+
+```tsx
+<div data-slot="message-queue">
+  <div>{/* running: pulsing dot, text, "running" badge */}</div>
+  <div>{/* "n queued · sends when this finishes", only when queued.length > 0 */}</div>
+  <ul>
+    <li>{/* index, text, arrow, remove button */}</li>
+  </ul>
+</div>
+```
+
+Only one message is ever "running"; `onCancel` is offered exclusively on queued items and each one fades and slides in as it's added, keying on the item's id so the ones already visible don't replay the animation. Standalone this is one flat list with no concept of order beyond array position. At runtime, `s.composer.queue` can also be reordered with `aui.composer.queueItem({ id }).move({ insertAfter, insertBefore })` and one item can jump ahead of the rest with `aui.composer.queueItem({ id }).move({ lane: "steer", insertAfter: null })`, neither of which this simple view surfaces. Queueing itself is a capability, not a guarantee: check `s.thread.capabilities.queue` before assuming a mid-run send lands in the queue rather than being rejected.
+
+## Examples
+
+### Move a queued message to the front
+
+<RuntimeMode>
+
+`QueueItemPrimitive.Steer` runs a queued item next instead of waiting its turn:
+
+```tsx
+<QueueItemPrimitive.Steer className={cn(ghostButton, "px-2 text-xs")}>
+  Run now
+</QueueItemPrimitive.Steer>
+```
+
+</RuntimeMode>
+
+<StandaloneMode>
+
+There's no reordering built in; splice the pressed item to the front of your `queued` array and re-render.
+
+```tsx
+setQueued((q) => {
+  const item = q.find((m) => m.id === id)!;
+  return [item, ...q.filter((m) => m.id !== id)];
+});
+```
+
+</StandaloneMode>
+
+### Restyle the queue
+
+Both lanes take `className` on the root, and the `field`, `ghostButton`, and `mono` tokens from `surfaces.tsx` cover the queued row, the remove button, and the small caps labels.
+
+```tsx
+<MessageQueue className="gap-3" /* ... */ />
+```
+
+## API reference
+
+<RuntimeMode>
+
+### ComposerPrimitive and QueueItemPrimitive
+
+| Part | Renders | Notes |
+|------|---------|-------|
+| `ComposerPrimitive.Queue` | fragment | Render-prop over every pending queue item, in order. |
+| `QueueItemPrimitive.Text` | `span` | The item's text parts, joined. |
+| `QueueItemPrimitive.Remove` | `button` | Removes this item from the queue. |
+| `QueueItemPrimitive.Steer` | `button` | Runs this item next instead of waiting its turn. |
+
+### Composer state
+
+| Selector | Type | Description |
+|----------|------|-------------|
+| `s.composer.queue` | `readonly { id: string; parts: ... }[]` | The pending sends, in queue order. |
+| `s.thread.isRunning` | `boolean` | True while a message is actively running. |
+| `s.thread.capabilities.queue` | `boolean` | Whether this runtime queues mid-run sends at all. |
+| `aui.composer.queueItem({ id }).move(placement)` | `(placement: { lane?: "queue" \| "steer"; insertAfter?: string \| null; insertBefore?: string \| null }) => void` | Reorders an item or moves it to run next. |
+| `aui.composer.queueItem({ id }).remove()` | `() => void` | Removes this item from the queue. |
+
+</RuntimeMode>
+
+<StandaloneMode>
+
+### MessageQueue
+
+| Prop | Type | Default | Description |
+|------|------|---------|-------------|
+| `running` | `string` | required | The currently running message's text. |
+| `queued` | `readonly QueuedMessage[]` | required | The pending messages, in order. |
+| `onCancel` | `(id: string) => void` | | Called when a queued item's remove button is pressed. |
+| `className` | `string` | | Merged onto the root. |
+
+`QueuedMessage` is `{ id: string; text: string }`. All other `div` props are forwarded to the root.
+
+</StandaloneMode>

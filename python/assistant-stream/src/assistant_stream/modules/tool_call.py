@@ -1,20 +1,18 @@
 import asyncio
 from typing import Any, AsyncGenerator
+from assistant_stream.identifiers import generate_prefixed_id
+from assistant_stream.queue_stream import enqueue_threadsafe, queue_stream
 from assistant_stream.assistant_stream_chunk import (
     AssistantStreamChunk,
     ToolCallBeginChunk,
+    ToolCallArgsTextFinishChunk,
     ToolCallDeltaChunk,
     ToolResultChunk,
 )
-import string
-import random
 
 
 def generate_openai_style_tool_call_id():
-    prefix = "call_"
-    characters = string.ascii_letters + string.digits
-    random_id = "".join(random.choices(characters, k=24))
-    return prefix + random_id
+    return generate_prefixed_id("call_")
 
 
 class ToolCallController:
@@ -23,6 +21,7 @@ class ToolCallController:
         self.tool_call_id = tool_call_id
         self.queue = queue
         self.loop = asyncio.get_running_loop()
+        self._closed = False
 
         begin_chunk = ToolCallBeginChunk(
             tool_call_id=self.tool_call_id,
@@ -37,7 +36,7 @@ class ToolCallController:
             tool_call_id=self.tool_call_id,
             args_text_delta=args_text_delta,
         )
-        self.loop.call_soon_threadsafe(self.queue.put_nowait, chunk)
+        enqueue_threadsafe(self.loop, self.queue, chunk)
 
     def set_result(self, result: Any) -> None:
         """
@@ -65,12 +64,20 @@ class ToolCallController:
             artifact=artifact,
             is_error=is_error,
         )
-        self.loop.call_soon_threadsafe(self.queue.put_nowait, chunk)
+        enqueue_threadsafe(self.loop, self.queue, chunk)
         self.close()
 
     def close(self) -> None:
         """Close the stream."""
-        self.loop.call_soon_threadsafe(self.queue.put_nowait, None)
+        if self._closed:
+            return
+        self._closed = True
+        enqueue_threadsafe(
+            self.loop,
+            self.queue,
+            ToolCallArgsTextFinishChunk(tool_call_id=self.tool_call_id),
+        )
+        enqueue_threadsafe(self.loop, self.queue, None)
 
 
 async def create_tool_call(
@@ -81,12 +88,4 @@ async def create_tool_call(
     queue = asyncio.Queue()
     controller = ToolCallController(queue, tool_name, tool_call_id, parent_id)
 
-    async def stream():
-        while True:
-            chunk = await controller.queue.get()
-            if chunk is None:
-                break
-            yield chunk
-            controller.queue.task_done()
-
-    return stream(), controller
+    return queue_stream(controller.queue), controller

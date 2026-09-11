@@ -1,0 +1,196 @@
+---
+title: "Combobox"
+description: "Type to filter, then pick: a select with a search field."
+links:
+  - label: Source
+    url: https://github.com/assistant-ui/assistant-ui/blob/main/packages/ui/src/components/ui/base/combobox.tsx
+  - label: Base UI Combobox
+    url: https://base-ui.com/react/components/combobox
+---
+
+import { PreviewCode } from "@/components/pages/docs/preview-code.server";
+import { KitInstall } from "@/components/pages/design/kit-install";
+import {
+  ComboboxSpecimen,
+  ComboboxGroupsSpecimen,
+  ComboboxStatesSpecimen,
+} from "@/components/pages/design/specimens";
+import * as RadixSpecimens from "@/components/pages/design/specimens.radix";
+import { FlavorSwitcher } from "@/components/pages/docs/contexts/flavor.server";
+
+<FlavorSwitcher />
+
+<PreviewCode file="components/pages/design/specimens" name="ComboboxSpecimen" base={<ComboboxSpecimen />}>
+  <RadixSpecimens.ComboboxSpecimen />
+</PreviewCode>
+
+Both flavors wrap Base UI's Combobox; Radix ships no combobox primitive. Typing narrows the list against the `items` you pass to the root, and when nothing matches the popup shows its empty state.
+
+## Installation
+
+<KitInstall name="combobox" />
+
+## Usage
+
+```tsx
+import {
+  Combobox,
+  ComboboxContent,
+  ComboboxEmpty,
+  ComboboxInput,
+  ComboboxItem,
+  ComboboxList,
+} from "@/components/ui/combobox";
+
+const runtimes = ["AI SDK", "LangGraph", "LangChain", "Mastra"];
+
+export function RuntimePicker() {
+  return (
+    <Combobox items={runtimes}>
+      <ComboboxInput placeholder="Search runtimes…" />
+      <ComboboxContent>
+        <ComboboxEmpty>No runtimes found.</ComboboxEmpty>
+        <ComboboxList>
+          {(runtime: string) => (
+            <ComboboxItem key={runtime} value={runtime}>
+              {runtime}
+            </ComboboxItem>
+          )}
+        </ComboboxList>
+      </ComboboxContent>
+    </Combobox>
+  );
+}
+```
+
+## Examples
+
+### Groups
+
+Pass an array of `{ value, items }` groups to the root, then render each group with its own collection. Group labels use the mono eyebrow voice.
+
+<PreviewCode file="components/pages/design/specimens" name="ComboboxGroupsSpecimen" base={<ComboboxGroupsSpecimen />}>
+  <RadixSpecimens.ComboboxGroupsSpecimen />
+</PreviewCode>
+
+### Clear and disabled
+
+`showClear` shows a clear button instead of the chevron while a value is selected. A disabled combobox keeps its value visible at half opacity.
+
+<PreviewCode file="components/pages/design/specimens" name="ComboboxStatesSpecimen" base={<ComboboxStatesSpecimen />}>
+  <RadixSpecimens.ComboboxStatesSpecimen />
+</PreviewCode>
+
+## API Reference
+
+### Combobox
+
+Wraps Base UI's Combobox root and accepts its props.
+
+<ParametersTable
+  type="ComboboxProps"
+  parameters={[
+    {
+      name: "items",
+      type: "readonly T[] | readonly Group<T>[]",
+      description:
+        "The options to filter and list. Either a flat array or an array of { value, items } groups.",
+    },
+    {
+      name: "value",
+      type: "T",
+      description: "Controlled selected value.",
+    },
+    {
+      name: "onValueChange",
+      type: "(value: T, details) => void",
+      description: "Called when the selection changes.",
+    },
+    {
+      name: "defaultValue",
+      type: "T",
+      description: "Uncontrolled initial selection.",
+    },
+    {
+      name: "disabled",
+      type: "boolean",
+      default: "false",
+      description: "Prevents interaction.",
+    },
+  ]}
+/>
+
+### ComboboxInput
+
+The field that anchors the popup and receives the filter text.
+
+<ParametersTable
+  type="ComboboxInputProps"
+  parameters={[
+    {
+      name: "showTrigger",
+      type: "boolean",
+      default: "true",
+      description: "Renders the chevron button at the end of the field.",
+    },
+    {
+      name: "showClear",
+      type: "boolean",
+      default: "false",
+      description: "Adds a clear button that replaces the chevron while a value is selected.",
+    },
+    {
+      name: "placeholder",
+      type: "string",
+      description: "Hint shown while the field is empty.",
+    },
+  ]}
+/>
+
+### ComboboxContent
+
+The positioned popup that holds the list.
+
+<ParametersTable
+  type="ComboboxContentProps"
+  parameters={[
+    {
+      name: "side",
+      type: '"top" | "right" | "bottom" | "left"',
+      default: '"bottom"',
+      description: "Which side of the field the popup opens on.",
+    },
+    {
+      name: "align",
+      type: '"start" | "center" | "end"',
+      default: '"start"',
+      description: "Alignment against the field.",
+    },
+    {
+      name: "sideOffset",
+      type: "number",
+      default: "6",
+      description: "Distance from the field in pixels.",
+    },
+  ]}
+/>
+
+### ComboboxItem
+
+<ParametersTable
+  type="ComboboxItemProps"
+  parameters={[
+    {
+      name: "value",
+      type: "T",
+      required: true,
+      description: "The value this option represents.",
+    },
+    {
+      name: "disabled",
+      type: "boolean",
+      default: "false",
+      description: "Prevents selecting this option.",
+    },
+  ]}
+/>

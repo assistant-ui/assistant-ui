@@ -17,6 +17,7 @@ export type {
   ReasoningMessagePart,
   SourceMessagePart,
   RespondToToolApprovalOptions,
+  ToolApprovalDisplay,
   ToolApprovalOption,
   ToolApprovalOptionKind,
   ToolApprovalResponse,
@@ -57,6 +58,8 @@ export type {
   VoiceSessionControls,
   VoiceSessionHelpers,
   SuggestionAdapter,
+  SuggestionAdapterGenerateOptions,
+  CreateSuggestionAdapterOptions,
   // Other
   Unsubscribe,
 } from "@assistant-ui/core";
@@ -65,10 +68,15 @@ export type {
 export type {
   RemoteThreadListAdapter,
   RemoteThreadListOptions,
+  RemoteThreadListProviderComponent,
 } from "@assistant-ui/core";
 export { InMemoryThreadListAdapter } from "@assistant-ui/core";
-export { createVoiceSession } from "@assistant-ui/core";
+export {
+  createVoiceSession,
+  toolApprovalAcceptsText,
+} from "@assistant-ui/core";
 export { fromThreadMessageLike, generateId } from "@assistant-ui/core";
+export { createSuggestionAdapter } from "@assistant-ui/core";
 
 // Attachment adapter implementations
 export {
@@ -85,6 +93,7 @@ export type {
   ComposerState,
   AttachmentState,
   ThreadListItemState,
+  QueueItemState,
 } from "@assistant-ui/core/store";
 
 // Store hooks and components
@@ -122,6 +131,7 @@ export { useRemoteThreadListRuntime } from "./runtimes/useRemoteThreadListRuntim
 // Primitives
 export * as ThreadPrimitive from "./primitives/thread";
 export * as ComposerPrimitive from "./primitives/composer";
+export * as QueueItemPrimitive from "./primitives/queueItem";
 export * as MessagePrimitive from "./primitives/message";
 export * as ThreadListPrimitive from "./primitives/threadList";
 export * as ActionBarPrimitive from "./primitives/actionBar";

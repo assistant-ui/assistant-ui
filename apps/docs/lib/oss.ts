@@ -147,16 +147,6 @@ const OSS_PROJECT_INPUTS: OssProjectInput[] = [
     license: "MIT",
   },
   {
-    id: "tw-glass",
-    name: "tw-glass",
-    category: "primitives",
-    repo: OSS_MONOREPO,
-    path: "packages/tw-glass",
-    site: "/tw-glass",
-    npm: "tw-glass",
-    license: "MIT",
-  },
-  {
     id: "heat-graph",
     name: "heat-graph",
     category: "primitives",

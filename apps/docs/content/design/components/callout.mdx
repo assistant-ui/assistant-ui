@@ -1,0 +1,74 @@
+---
+title: "Callout"
+description: "A quiet aside on a colored rule, for notes, warnings, and errors in prose."
+links:
+  - label: Source
+    url: https://github.com/assistant-ui/assistant-ui/blob/main/packages/ui/src/components/ui/base/callout.tsx
+---
+
+import { PreviewCode } from "@/components/pages/docs/preview-code.server";
+import { KitInstall } from "@/components/pages/design/kit-install";
+import {
+  CalloutSpecimen,
+  CalloutTitledSpecimen,
+} from "@/components/pages/design/specimens";
+import * as RadixSpecimens from "@/components/pages/design/specimens.radix";
+import { FlavorSwitcher } from "@/components/pages/docs/contexts/flavor.server";
+
+<FlavorSwitcher />
+
+<PreviewCode file="components/pages/design/specimens" name="CalloutSpecimen" base={<CalloutSpecimen />}>
+  <RadixSpecimens.CalloutSpecimen />
+</PreviewCode>
+
+## Installation
+
+<KitInstall name="callout" />
+
+## Usage
+
+```tsx
+import { Callout } from "@/components/ui/callout";
+
+export function Example() {
+  return <Callout type="warning">This adapter needs an API key.</Callout>;
+}
+```
+
+In MDX the callout also renders from a plain blockquote, so prose can stay prose.
+
+## Examples
+
+### With a title and custom content
+
+A title replaces the type word in the eyebrow. Inline code, kbd caps, links, and lists keep the ink register inside the aside.
+
+<PreviewCode file="components/pages/design/specimens" name="CalloutTitledSpecimen" base={<CalloutTitledSpecimen />}>
+  <RadixSpecimens.CalloutTitledSpecimen />
+</PreviewCode>
+
+## API Reference
+
+### Callout
+
+<ParametersTable
+  type="CalloutProps"
+  parameters={[
+    {
+      name: "type",
+      type: '"info" | "warning" | "error" | "success" | "idea" | "tip" | "note" | "warn"',
+      default: '"info"',
+      description: "The rule hue and the eyebrow word. tip and note keep their own labels on the info hue; warn aliases warning.",
+    },
+    {
+      name: "title",
+      type: "ReactNode",
+      description: "Replaces the type word in the eyebrow.",
+    },
+    {
+      name: "className",
+      type: "string",
+      description: "Additional CSS classes.",
+    },
+  ]}
+/>

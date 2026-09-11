@@ -1,6 +1,7 @@
 import { describe, expect, it, onTestFinished, vi } from "vitest";
 import type { AppendMessage } from "@assistant-ui/react";
 import { PiThreadController } from "./ThreadController";
+import type { PiThreadState } from "./threadState";
 import type {
   PiClient,
   PiClientEvent,
@@ -772,5 +773,195 @@ describe("PiThreadController", () => {
     expect(after[0]).toBe(stableUser);
     expect(after[1]).not.toBe(before[1]);
     expect(after[1]!.content).toMatchObject([{ type: "text", text: "ab" }]);
+  });
+});
+
+describe("PiThreadController state snapshot", () => {
+  it("holds the snapshot steady while a coalesced message frame is pending", () => {
+    const client = createFakeClient();
+    const scheduled: Array<() => void> = [];
+    const controller = new PiThreadController(client, THREAD, {
+      scheduleNotify: (flush) => scheduled.push(flush),
+    });
+    const notify = vi.fn();
+    controller.subscribe(notify);
+    controller.connect();
+
+    client.emit(
+      ev({ type: "message_start", message: assistantMessage("", 1) }, 1),
+    );
+    const settled = controller.getStateSnapshot();
+    expect(settled).toBe(controller.getState());
+    notify.mockClear();
+
+    client.emit(
+      ev(
+        {
+          type: "message_update",
+          message: assistantMessage("a", 1),
+          assistantMessageEvent: {
+            type: "text_delta",
+            contentIndex: 0,
+            delta: "a",
+            partial: assistantMessage("a", 1),
+          },
+        },
+        2,
+      ),
+    );
+
+    expect(controller.getState()).not.toBe(settled);
+    expect(controller.getStateSnapshot()).toBe(settled);
+    expect(notify).not.toHaveBeenCalled();
+
+    scheduled.at(-1)!();
+
+    expect(controller.getStateSnapshot()).toBe(controller.getState());
+    expect(notify).toHaveBeenCalledTimes(1);
+  });
+
+  it("advances the snapshot to live state on every notification", () => {
+    const client = createFakeClient();
+    const controller = new PiThreadController(client, THREAD);
+    const seen: PiThreadState[] = [];
+    controller.subscribe(() => seen.push(controller.getStateSnapshot()));
+    controller.connect();
+
+    client.emit(
+      ev({ type: "queue_update", steering: ["now"], followUp: [] }, 1),
+    );
+    client.emit(
+      ev(
+        {
+          type: "message_start",
+          message: { role: "user", content: "hi", timestamp: 1 },
+        },
+        2,
+      ),
+    );
+
+    expect(seen).toHaveLength(2);
+    expect(seen[0]).not.toBe(seen[1]);
+    expect(seen[1]).toBe(controller.getState());
+  });
+
+  it("publishes state when a message event leaves the projection unchanged", () => {
+    const client = createFakeClient();
+    const scheduled: Array<() => void> = [];
+    const controller = new PiThreadController(client, THREAD, {
+      scheduleNotify: (flush) => scheduled.push(flush),
+    });
+    const notify = vi.fn();
+    const notifyMetadata = vi.fn();
+    controller.subscribe(notify);
+    controller.subscribeMetadata(notifyMetadata);
+    controller.connect();
+
+    client.emit(
+      ev({ type: "message_start", message: assistantMessage("", 1) }, 1),
+    );
+    client.emit(
+      ev(
+        {
+          type: "message_update",
+          message: assistantMessage("a", 1),
+          assistantMessageEvent: {
+            type: "text_delta",
+            contentIndex: 0,
+            delta: "a",
+            partial: assistantMessage("a", 1),
+          },
+        },
+        2,
+      ),
+    );
+    scheduled.at(-1)!();
+    const projection = controller.getMessageRepository();
+    notify.mockClear();
+    notifyMetadata.mockClear();
+
+    client.emit(
+      ev({ type: "message_end", message: assistantMessage("a", 1) }, 3),
+    );
+
+    expect(controller.getMessageRepository()).toBe(projection);
+    expect(controller.getState().streamingMessageIndex).toBeUndefined();
+    expect(controller.getStateSnapshot()).toBe(controller.getState());
+    expect(notify).toHaveBeenCalledTimes(1);
+    expect(notifyMetadata).not.toHaveBeenCalled();
+  });
+
+  it("does not notify when neither the projection nor state moved", () => {
+    const client = createFakeClient();
+    const scheduled: Array<() => void> = [];
+    const controller = new PiThreadController(client, THREAD, {
+      scheduleNotify: (flush) => scheduled.push(flush),
+    });
+    const notify = vi.fn();
+    controller.subscribe(notify);
+    controller.connect();
+
+    client.emit(
+      ev({ type: "message_start", message: assistantMessage("", 1) }, 1),
+    );
+    notify.mockClear();
+
+    // A stale-seq event the reducer drops entirely.
+    client.emit(
+      ev({ type: "message_start", message: assistantMessage("", 1) }, 0),
+    );
+
+    expect(notify).not.toHaveBeenCalled();
+    expect(controller.getStateSnapshot()).toBe(controller.getState());
+  });
+
+  it("starts the snapshot at the initial state", () => {
+    const controller = new PiThreadController(createFakeClient(), THREAD);
+    expect(controller.getStateSnapshot()).toBe(controller.getState());
+  });
+
+  // A metadata notification publishes whatever the reducer has already applied,
+  // including a message frame whose projection has not been flushed yet, so
+  // state leads the repository until the frame lands.
+  it("publishes live state on a metadata notification mid-frame", () => {
+    const client = createFakeClient();
+    const scheduled: Array<() => void> = [];
+    const controller = new PiThreadController(client, THREAD, {
+      scheduleNotify: (flush) => scheduled.push(flush),
+    });
+    controller.subscribe(() => {});
+    controller.connect();
+
+    client.emit(
+      ev({ type: "message_start", message: assistantMessage("", 1) }, 1),
+    );
+    const repositoryBeforeFrame = controller.getMessageRepository();
+
+    client.emit(
+      ev(
+        {
+          type: "message_update",
+          message: assistantMessage("a", 1),
+          assistantMessageEvent: {
+            type: "text_delta",
+            contentIndex: 0,
+            delta: "a",
+            partial: assistantMessage("a", 1),
+          },
+        },
+        2,
+      ),
+    );
+    client.emit(
+      ev({ type: "queue_update", steering: ["now"], followUp: [] }, 3),
+    );
+
+    expect(controller.getStateSnapshot()).toBe(controller.getState());
+    expect(controller.getMessageRepository()).toBe(repositoryBeforeFrame);
+
+    scheduled.at(-1)!();
+
+    expect(controller.getMessageRepository()).not.toBe(repositoryBeforeFrame);
+    expect(controller.getStateSnapshot()).toBe(controller.getState());
   });
 });

@@ -11,7 +11,9 @@ type ResourceElement<V> = {
   readonly deps?: readonly unknown[];
 };
 
-declare const createTapRoot: <R>(render: () => R) => useTapRoot.Root<R> & {
+declare const createTapRoot: <R>(render: () => R, options?: {
+  mountOnSubscribe?: boolean;
+}) => useTapRoot.Root<R> & {
   unmount: () => void;
 };
 

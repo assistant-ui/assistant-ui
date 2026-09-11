@@ -1,0 +1,293 @@
+---
+title: "Elicitation form"
+description: "A server pausing mid-tool-call to ask you for the fields it still needs."
+---
+
+An elicitation form is what a connected server shows when it needs structured input before it can finish: a message, one control per requested field, and a Decline/Send pair that settles into a confirmation once answered. With a runtime this comes from an MCP server's live elicitation request; standalone you supply the fields and state directly.
+
+## Getting started
+
+<RuntimeMode>
+
+MCP form elicitation is unstyled primitives, not a toolkit renderer: `@assistant-ui/react-mcp` exposes `McpElicitationPrimitive`, and you build the same look this element has directly from its parts.
+
+<Steps>
+  <Step>
+
+### Compose the form from `McpElicitationPrimitive`
+
+```tsx title="components/assistant-ui/elements/mcp-elicitation-form.tsx"
+"use client";
+
+import { PlugIcon } from "lucide-react";
+import { McpElicitationPrimitive } from "@assistant-ui/react-mcp";
+import { cn } from "@/lib/utils";
+import { field, inkButton, mono, paper } from "@/components/assistant-ui/elements/surfaces";
+
+function fieldKind(schema: unknown): "text" | "toggle" {
+  return (schema as { type?: string } | undefined)?.type === "boolean"
+    ? "toggle"
+    : "text";
+}
+
+export function McpElicitationForm({ serverName }: { serverName: string }) {
+  return (
+    <McpElicitationPrimitive.Items>
+      {() => (
+        <McpElicitationPrimitive.Root
+          className={cn(paper, "flex w-full max-w-sm flex-col gap-3.5 rounded-[20px] p-4")}
+        >
+          <div className="flex items-center gap-2.5">
+            <span className="bg-foreground/[0.05] text-foreground/45 flex size-7 items-center justify-center rounded-lg">
+              <PlugIcon className="size-3.5" />
+            </span>
+            <span className="min-w-0 flex-1 truncate text-[13.5px] font-medium">
+              {serverName}
+            </span>
+          </div>
+
+          <McpElicitationPrimitive.Message className="text-foreground/55 text-xs leading-relaxed" />
+          <McpElicitationPrimitive.Error className="text-xs text-red-600 dark:text-red-400" />
+
+          <div className="flex flex-col gap-2.5">
+            <McpElicitationPrimitive.Fields>
+              {({ name, schema, value, setValue }) => (
+                <div className="flex flex-col gap-1">
+                  <span className={cn(mono, "text-foreground/35")}>{name}</span>
+                  {fieldKind(schema) === "toggle" ? (
+                    <input
+                      type="checkbox"
+                      checked={value === true}
+                      onChange={(e) => setValue(e.target.checked)}
+                    />
+                  ) : (
+                    <input
+                      className={cn(field, "rounded-lg px-2.5 py-1.5 text-xs")}
+                      value={typeof value === "string" ? value : ""}
+                      onChange={(e) => setValue(e.target.value)}
+                    />
+                  )}
+                </div>
+              )}
+            </McpElicitationPrimitive.Fields>
+          </div>
+
+          <div className="flex h-8 items-center justify-end gap-2">
+            <McpElicitationPrimitive.Decline className="text-foreground/55 h-8 rounded-full px-3.5 text-xs font-medium">
+              Decline
+            </McpElicitationPrimitive.Decline>
+            <McpElicitationPrimitive.Accept
+              className={cn(
+                inkButton,
+                "flex h-8 items-center rounded-full px-3.5 text-xs font-medium",
+              )}
+            >
+              Send
+            </McpElicitationPrimitive.Accept>
+          </div>
+        </McpElicitationPrimitive.Root>
+      )}
+    </McpElicitationPrimitive.Items>
+  );
+}
+```
+
+  </Step>
+  <Step>
+
+### Mount it inside a connected server
+
+`MCPElicitation` carries no server id of its own; the request is only ever reached through the `mcpServer` scope you're already inside when you list a connected server. Render the form in that same scope, for example beside each row of a server list:
+
+```tsx
+{servers.map((server) => (
+  <McpElicitationForm key={server.id} serverName={server.name} />
+))}
+```
+
+See [User-managed MCP servers](/docs/tools/user-managed-mcp) for connecting servers and enabling their `elicitation` capability.
+
+  </Step>
+</Steps>
+
+</RuntimeMode>
+
+<StandaloneMode>
+
+Standalone, the element is fully controlled: you own the field list, the values inside it, and which of the two settled states it shows.
+
+<Steps>
+  <Step>
+
+### Hold the fields and state
+
+```tsx title="app/publish-request.tsx"
+"use client";
+
+import { useState } from "react";
+import {
+  ElicitationForm,
+  type ElicitationField,
+  type ElicitationState,
+} from "@/components/assistant-ui/elements/elicitation-form";
+
+const FIELDS: readonly ElicitationField[] = [
+  { name: "repo", label: "Repository", value: "assistant-ui/assistant-ui", kind: "text", required: true },
+  { name: "notify", label: "Notify watchers", value: "true", kind: "toggle" },
+];
+
+export function PublishRequest() {
+  const [state, setState] = useState<ElicitationState>("request");
+
+  return (
+    <ElicitationForm
+      server="github-mcp"
+      message="Confirm where the release notes should be published."
+      fields={FIELDS}
+      state={state}
+      onAccept={() => setState("accepted")}
+      onDecline={() => setState("declined")}
+    />
+  );
+}
+```
+
+  </Step>
+  <Step>
+
+### Map a field's kind from your own schema
+
+If your fields come from a JSON-Schema-shaped source rather than being hand-authored, derive `kind` the same way the runtime lane derives it from `requestedSchema`:
+
+```tsx
+function toElicitationField(
+  name: string,
+  schema: { type?: string; enum?: readonly string[] },
+  value: string,
+): ElicitationField {
+  if (schema.type === "boolean") return { name, label: name, value, kind: "toggle" };
+  if (schema.enum) return { name, label: name, value, kind: "choice", options: schema.enum };
+  return { name, label: name, value, kind: "text" };
+}
+```
+
+  </Step>
+</Steps>
+
+</StandaloneMode>
+
+## Anatomy
+
+```tsx
+<div data-slot="elicitation-form">
+  <div>{/* plug icon, server name, "needs input" tag */}</div>
+  <p>{/* message */}</p>
+  <div>{/* one row per field: label (+ "*" when required), then a pill group, a switch, or a static value chip depending on kind */}</div>
+  <div>{/* Decline / Send while state is "request"; a settled "Sent to {server}" or "Declined" row otherwise */}</div>
+</div>
+```
+
+`state` fully replaces the footer rather than disabling it: once it leaves `"request"`, the Decline and Send controls are gone, not just inactive. A `"choice"` field renders every option in `options` as a pill, highlighting whichever one equals `value`, so the element trusts you to keep `value` one of the listed options. A `"toggle"` field reads truthiness from the literal string `"true"`, not from a boolean.
+
+## Examples
+
+### Restyle the form
+
+Both lanes take `className` on the root. The panel surface, the field labels, and the Send button read from the shared `paper`, `mono`, and `inkButton` tokens in `surfaces.tsx`.
+
+```tsx
+<ElicitationForm className="max-w-none" /* ... */ />
+```
+
+### Marking required fields
+
+<RuntimeMode>
+
+`requestedSchema.required` is a plain JSON Schema array; check membership per field to add the same marker the standalone element uses:
+
+```tsx
+const required = new Set(
+  (elicitation.requestedSchema as { required?: string[] })?.required ?? [],
+);
+// required.has(name) inside the Fields render prop
+```
+
+</RuntimeMode>
+
+<StandaloneMode>
+
+```tsx
+{ name: "repo", label: "Repository", value: "", kind: "text", required: true }
+```
+
+</StandaloneMode>
+
+### Declining vs canceling
+
+<RuntimeMode>
+
+The protocol has three terminal actions, not two: `McpElicitationPrimitive.Cancel` submits `{ action: "cancel" }` alongside Accept's `"accept"` and Decline's `"decline"`. Add it as a third control when your host distinguishes "explicitly declined" from "dismissed without answering":
+
+```tsx
+<McpElicitationPrimitive.Cancel className="text-foreground/45 h-8 rounded-full px-3.5 text-xs">
+  Dismiss
+</McpElicitationPrimitive.Cancel>
+```
+
+</RuntimeMode>
+
+<StandaloneMode>
+
+The standalone element only models two settled states. Route both a decline and a dismissal to `onDecline` if your app doesn't need the distinction:
+
+```tsx
+<ElicitationForm onDecline={() => setState("declined")} /* ... */ />
+```
+
+</StandaloneMode>
+
+## API reference
+
+<RuntimeMode>
+
+### McpElicitationPrimitive
+
+| Part | Renders | Notes |
+|------|---------|-------|
+| `Items` | fragment | Reads `state.mcpServer.pendingElicitations`; renders nothing while the list is empty. One `Root` subtree per pending request. |
+| `Root` | `div` | Carries `data-elicitation-id`. |
+| `Message` | `span` | Renders `elicitation.message` unless you pass children. |
+| `Error` | `div` | Renders the current validation or server error message; renders nothing when there is none. |
+| `Fields` | render prop | Calls its children once per property in `requestedSchema.properties`, each already wrapped in that field's own `{ name, schema, value, setValue }`. |
+| `Accept` | `button` | Disabled while a required field is missing or an entered value is invalid. Submits `{ action: "accept", content }`. |
+| `Decline` | `button` | Submits `{ action: "decline" }`. |
+| `Cancel` | `button` | Submits `{ action: "cancel" }`. Has no equivalent in the standalone element's two-state model. |
+
+### MCP server state
+
+| Selector | Type | Description |
+|----------|------|-------------|
+| `s.mcpServer.pendingElicitations` | `readonly MCPElicitation[]` | Every request currently waiting on this server; read by `Items`. |
+| `aui.mcpServer.answerElicitation(id, response)` | `(id: string, response: MCPElicitationResponse) => readonly { property: string; message: string }[] \| undefined` | What `Accept`, `Decline`, and `Cancel` call; returns validation errors instead of submitting when `response.action === "accept"` and a value is invalid. |
+
+Requires `@assistant-ui/react-mcp` and a connected server whose `elicitation` capability has not been set to `false`. See [User-managed MCP servers](/docs/tools/user-managed-mcp).
+
+</RuntimeMode>
+
+<StandaloneMode>
+
+### ElicitationForm
+
+| Prop | Type | Default | Description |
+|------|------|---------|-------------|
+| `server` | `string` | required | Server name shown in the header. |
+| `message` | `string` | required | The request text. |
+| `fields` | `readonly ElicitationField[]` | required | The requested fields, in order. |
+| `state` | `ElicitationState` | required | `"request"` shows the form; `"accepted"` or `"declined"` replace the footer with a settled message. |
+| `onAccept` | `() => void` | | Called when Send is pressed. |
+| `onDecline` | `() => void` | | Called when Decline is pressed. |
+| `className` | `string` | | Merged onto the root. |
+
+`ElicitationField` is `{ name: string; label: string; value: string; kind: "text" | "choice" | "toggle"; options?: readonly string[]; required?: boolean }`, and `ElicitationState` is `"request" | "accepted" | "declined"`. All other `div` props are forwarded to the root.
+
+</StandaloneMode>

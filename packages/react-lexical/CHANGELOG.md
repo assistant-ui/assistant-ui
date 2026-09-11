@@ -1,5 +1,43 @@
 # @assistant-ui/react-lexical
 
+## 0.2.12
+
+### Patch Changes
+
+- [#6688](https://github.com/assistant-ui/assistant-ui/pull/6688) [`8135d16`](https://github.com/assistant-ui/assistant-ui/commit/8135d16dfb871e807d94a427e958d2b957b19f1e) - fix: peer ranges on the packages this workspace releases now track the release train ([@okisdev](https://github.com/okisdev))
+  
+  changesets rewrites a peer range only when the new version falls outside it, so the hand-written floors had drifted below the code they describe. core declared `@assistant-ui/store: ^0.3.0` while importing `@assistant-ui/store/internal`, a subpath store did not export until 0.3.10, and react-lexical declared `*`. these peers are now `workspace:^`, which publishes as the version released alongside them.
+
+## 0.2.11
+
+### Patch Changes
+
+- [#6226](https://github.com/assistant-ui/assistant-ui/pull/6226) [`fd2fc2b`](https://github.com/assistant-ui/assistant-ui/commit/fd2fc2b1110dee79015a1b0d472d2dbd43cfe9db) - fix: keep leading blank lines when reading composer text back from the editor ([@Kinfe123](https://github.com/Kinfe123))
+
+- [#6305](https://github.com/assistant-ui/assistant-ui/pull/6305) [`e96d3de`](https://github.com/assistant-ui/assistant-ui/commit/e96d3dea9370159e04f82bf4eb39d6b1b1c4d21d) - chore: update dependencies ([@okisdev](https://github.com/okisdev))
+
+- [#6284](https://github.com/assistant-ui/assistant-ui/pull/6284) [`1424afb`](https://github.com/assistant-ui/assistant-ui/commit/1424afb52b1139af5233c1b905d1cee4a951f131) - feat: allow trigger popovers to override query matching ([@dawNotPoi](https://github.com/dawNotPoi))
+
+## 0.2.10
+
+### Patch Changes
+
+- [#6088](https://github.com/assistant-ui/assistant-ui/pull/6088) [`4b4808e`](https://github.com/assistant-ui/assistant-ui/commit/4b4808ef9cd18c7be62e049e9e673f0d3c690376) - fix: reparse an unedited composer draft when directive formatters register ([@okisdev](https://github.com/okisdev))
+
+## 0.2.9
+
+### Patch Changes
+
+- [#5739](https://github.com/assistant-ui/assistant-ui/pull/5739) [`913df42`](https://github.com/assistant-ui/assistant-ui/commit/913df42f58d03e103a4468214111327dcb8c1de9) - fix: clear stale composer text when switching to a thread with an empty draft ([@Kinfe123](https://github.com/Kinfe123))
+
+## 0.2.8
+
+### Patch Changes
+
+- [#5723](https://github.com/assistant-ui/assistant-ui/pull/5723) [`94dc3e5`](https://github.com/assistant-ui/assistant-ui/commit/94dc3e509fa2b4fae1a14c88ec34b910c8d95af8) - chore: update dependencies ([@okisdev](https://github.com/okisdev))
+
+- [#5725](https://github.com/assistant-ui/assistant-ui/pull/5725) [`15f9bd9`](https://github.com/assistant-ui/assistant-ui/commit/15f9bd9faed088edbe8889930de44c2f35cc120d) - feat: support lexical 0.49 ([@okisdev](https://github.com/okisdev))
+
 ## 0.2.7
 
 ### Patch Changes

@@ -1,0 +1,99 @@
+---
+title: "Dialog"
+description: "A modal sheet for decisions that need the page to wait."
+links:
+  - label: Source
+    url: https://github.com/assistant-ui/assistant-ui/blob/main/packages/ui/src/components/ui/base/dialog.tsx
+  - label: Base UI Dialog
+    url: https://base-ui.com/react/components/dialog
+---
+
+import { PreviewCode } from "@/components/pages/docs/preview-code.server";
+import { KitInstall } from "@/components/pages/design/kit-install";
+import {
+  DialogSpecimen,
+} from "@/components/pages/design/specimens";
+import * as RadixSpecimens from "@/components/pages/design/specimens.radix";
+import { FlavorSwitcher } from "@/components/pages/docs/contexts/flavor.server";
+
+<FlavorSwitcher />
+
+<PreviewCode file="components/pages/design/specimens" name="DialogSpecimen" base={<DialogSpecimen />}>
+  <RadixSpecimens.DialogSpecimen />
+</PreviewCode>
+
+## Installation
+
+<KitInstall name="dialog" />
+
+## Usage
+
+```tsx
+import {
+  Dialog,
+  DialogClose,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from "@/components/ui/dialog";
+import { Button } from "@/components/ui/button";
+
+export function Example() {
+  return (
+    <Dialog>
+      <DialogTrigger render={<Button variant="outline">Rename</Button>} />
+      <DialogContent>
+        <DialogHeader>
+          <DialogTitle>Rename thread</DialogTitle>
+          <DialogDescription>Visible to everyone in this workspace.</DialogDescription>
+        </DialogHeader>
+        <DialogFooter>
+          <DialogClose render={<Button variant="ghost">Cancel</Button>} />
+          <DialogClose render={<Button>Save</Button>} />
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+  );
+}
+```
+
+## API Reference
+
+The parts wrap Base UI's Dialog primitives and accept their props.
+
+### Dialog
+
+<ParametersTable
+  type="DialogProps"
+  parameters={[
+    {
+      name: "open",
+      type: "boolean",
+      description: "Controlled open state.",
+    },
+    {
+      name: "onOpenChange",
+      type: "(open: boolean) => void",
+      description: "Called when the open state changes, including Escape and backdrop clicks.",
+    },
+    {
+      name: "defaultOpen",
+      type: "boolean",
+      default: "false",
+      description: "Uncontrolled initial open state.",
+    },
+  ]}
+/>
+
+### Parts
+
+| Part | Description |
+|------|-------------|
+| `DialogTrigger` | Opens the dialog; compose a control with `render`. |
+| `DialogContent` | The centered panel at the dialog radius. |
+| `DialogHeader` | Title and description stack. |
+| `DialogFooter` | Right-aligned action row. |
+| `DialogClose` | Wraps any control that should dismiss. |

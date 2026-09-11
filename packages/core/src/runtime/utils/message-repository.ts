@@ -2,7 +2,7 @@ import type { ThreadMessage } from "../../types/message";
 import type { RunConfig } from "../../types/message";
 import { generateId } from "../../utils/id";
 import type { ThreadMessageLike } from "./thread-message-like";
-import { getAutoStatus } from "./auto-status";
+import { getContentAutoStatus } from "./auto-status";
 import { fromThreadMessageLike } from "./thread-message-like";
 
 export type ExportedMessageRepositoryItem = {
@@ -28,7 +28,7 @@ export const ExportedMessageRepository = {
       fromThreadMessageLike(
         m,
         generateId(),
-        getAutoStatus(false, false, false, false, undefined),
+        getContentAutoStatus(m.content, false, false),
       ),
     );
 
@@ -47,7 +47,6 @@ export const ExportedMessageRepository = {
     }[],
     options?: { headId?: string | null },
   ): ExportedMessageRepository => {
-    const fallbackStatus = getAutoStatus(false, false, false, false, undefined);
     return {
       ...(options?.headId !== undefined
         ? { headId: options.headId }
@@ -60,7 +59,11 @@ export const ExportedMessageRepository = {
         }
         return {
           parentId,
-          message: fromThreadMessageLike(message, message.id, fallbackStatus),
+          message: fromThreadMessageLike(
+            message,
+            message.id,
+            getContentAutoStatus(message.content, false, false),
+          ),
         };
       }),
     };
@@ -81,9 +84,9 @@ type RepositoryMessage = RepositoryParent & {
 const findHead = (
   message: RepositoryMessage | RepositoryParent,
 ): RepositoryMessage | null => {
-  if (message.next) return findHead(message.next);
-  if ("current" in message) return message;
-  return null;
+  let current = message;
+  while (current.next) current = current.next;
+  return "current" in current ? current : null;
 };
 
 class CachedValue<T> {
@@ -116,12 +119,28 @@ export class MessageRepository {
   };
 
   private updateLevels(message: RepositoryMessage, newLevel: number) {
-    message.level = newLevel;
-    for (const childId of message.children) {
-      const childMessage = this.messages.get(childId);
-      if (childMessage) {
-        this.updateLevels(childMessage, newLevel + 1);
+    const pending = [{ message, level: newLevel }];
+
+    while (pending.length > 0) {
+      const current = pending.pop()!;
+      current.message.level = current.level;
+
+      for (const childId of current.message.children) {
+        const childMessage = this.messages.get(childId);
+        if (childMessage) {
+          pending.push({ message: childMessage, level: current.level + 1 });
+        }
       }
+    }
+  }
+
+  private selectPathTo(message: RepositoryMessage) {
+    for (
+      let current: RepositoryMessage | null = message;
+      current;
+      current = current.prev
+    ) {
+      (current.prev ?? this.root).next = current;
     }
   }
 
@@ -135,7 +154,8 @@ export class MessageRepository {
 
     if (operation === "relink" && parentOrRoot === newParentOrRoot) return;
 
-    if (operation !== "cut") {
+    // `link` receives a fresh ID from `addOrUpdateMessage`; only `relink` can introduce a cycle.
+    if (operation === "relink") {
       for (
         let current: RepositoryMessage | null = newParent;
         current;
@@ -143,7 +163,7 @@ export class MessageRepository {
       ) {
         if (current.current.id === child.current.id) {
           throw new Error(
-            "MessageRepository(performOp/link): A message with the same id already exists in the parent tree. This error occurs if the same message id is found multiple times. This is likely an internal bug in assistant-ui.",
+            "MessageRepository(performOp/relink): A message with the same id already exists in the parent tree. This error occurs if the same message id is found multiple times. This is likely an internal bug in assistant-ui.",
           );
         }
       }
@@ -172,11 +192,16 @@ export class MessageRepository {
         child.current.id,
       ];
 
-      if (findHead(child) === this.head || newParentOrRoot.next === null) {
-        newParentOrRoot.next = child;
-      }
-
       child.prev = newParent;
+
+      if (findHead(child) === this.head) {
+        this.selectPathTo(child);
+      } else if (newParentOrRoot.next === null) {
+        newParentOrRoot.next = child;
+        if (this.head === newParentOrRoot) {
+          this.head = findHead(child);
+        }
+      }
 
       const newLevel = newParent ? newParent.level + 1 : 0;
       this.updateLevels(child, newLevel);
@@ -371,8 +396,7 @@ export class MessageRepository {
       );
 
     const previousHead = this.head;
-    const prevOrRoot = message.prev ?? this.root;
-    prevOrRoot.next = message;
+    this.selectPathTo(message);
 
     this.head = findHead(message);
 
@@ -396,33 +420,24 @@ export class MessageRepository {
     const previousHead = this.head;
 
     if (message.children.length > 0) {
-      const deleteDescendants = (msg: RepositoryMessage) => {
-        for (const childId of msg.children) {
-          const childMessage = this.messages.get(childId);
-          if (childMessage) {
-            deleteDescendants(childMessage);
-            this.messages.delete(childId);
+      const pending = [...message.children];
+      while (pending.length > 0) {
+        const childId = pending.pop()!;
+        const childMessage = this.messages.get(childId);
+        if (childMessage) {
+          for (const descendantId of childMessage.children) {
+            pending.push(descendantId);
           }
+          this.messages.delete(childId);
         }
-      };
-      deleteDescendants(message);
+      }
 
       message.children = [];
       message.next = null;
     }
 
     this.head = message;
-    for (
-      let current: RepositoryMessage | null = message;
-      current;
-      current = current.prev
-    ) {
-      if (current.prev) {
-        current.prev.next = current;
-      } else {
-        this.root.next = current;
-      }
-    }
+    this.selectPathTo(message);
 
     this.evictOffBranchOptimisticMessages(previousHead, this.head);
 
@@ -445,7 +460,15 @@ export class MessageRepository {
     // Optimistic messages are ephemeral and never persisted. A persisted child
     // of an optimistic node is re-parented onto its nearest persisted ancestor
     // so the exported tree never references a skipped id.
-    for (const [, message] of this.messages) {
+    // Import and external-state conversion require parents before children, so
+    // the tree is walked in pre-order rather than iterated in insertion order.
+    const pending = [...this.root.children].reverse();
+    while (pending.length > 0) {
+      const message = this.messages.get(pending.pop()!);
+      if (!message) continue;
+      for (let i = message.children.length - 1; i >= 0; i--) {
+        pending.push(message.children[i]!);
+      }
       if (message.current.metadata?.isOptimistic) continue;
       let prev = message.prev;
       while (prev && prev.current.metadata?.isOptimistic) {

@@ -1,7 +1,9 @@
+/// <reference types="node" />
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import {
   AssistantCloudAnonymousAuthStrategy,
   AssistantCloudJWTAuthStrategy,
+  readAnonymousRefreshToken,
 } from "../AssistantCloudAuthStrategy";
 import { CloudResponseError } from "../cloudResponse";
 
@@ -11,6 +13,7 @@ const refreshToken = {
   token: "r1",
   expires_at: "2099-01-01",
 };
+const refreshTokenKey = `aui:refresh_token:${baseUrl}`;
 
 let originalLocalStorageDescriptor: PropertyDescriptor | undefined;
 
@@ -42,6 +45,7 @@ describe("AssistantCloudAnonymousAuthStrategy", () => {
   });
 
   afterEach(() => {
+    vi.useRealTimers();
     vi.unstubAllGlobals();
     if (originalLocalStorageDescriptor) {
       Object.defineProperty(
@@ -53,6 +57,73 @@ describe("AssistantCloudAnonymousAuthStrategy", () => {
       delete (globalThis as { localStorage?: Storage }).localStorage;
     }
   });
+
+  it("reads the stored anonymous refresh token", () => {
+    const values = new Map([[refreshTokenKey, JSON.stringify(refreshToken)]]);
+    installLocalStorage({
+      getItem: (key) => values.get(key) ?? null,
+      setItem: (key, value) => {
+        values.set(key, value);
+      },
+      removeItem: (key) => {
+        values.delete(key);
+      },
+    } as Storage);
+
+    expect(readAnonymousRefreshToken(baseUrl)).toBe(refreshToken.token);
+  });
+
+  it("reads the token stored for a base url given with a trailing slash", () => {
+    // The two-step cast below erases the contextual Storage typing the plain
+    // `as Storage` sites get, so this parameter needs its own annotation.
+    installLocalStorage({
+      getItem: (key: string) =>
+        key === refreshTokenKey ? JSON.stringify(refreshToken) : null,
+      setItem: vi.fn(),
+      removeItem: vi.fn(),
+    } as unknown as Storage);
+
+    expect(readAnonymousRefreshToken(`${baseUrl}/`)).toBe(refreshToken.token);
+  });
+
+  it("returns null when no anonymous refresh token is stored", () => {
+    installLocalStorage({
+      getItem: () => null,
+      setItem: vi.fn(),
+      removeItem: vi.fn(),
+    } as unknown as Storage);
+
+    expect(readAnonymousRefreshToken(baseUrl)).toBeNull();
+  });
+
+  it.each([30_000, 0, -1])(
+    "returns null when the stored anonymous refresh token expires in %i ms",
+    (expiresIn) => {
+      vi.useFakeTimers();
+      const now = Date.UTC(2026, 8, 4, 12, 0, 0);
+      vi.setSystemTime(now);
+      const values = new Map([
+        [
+          refreshTokenKey,
+          JSON.stringify({
+            token: refreshToken.token,
+            expires_at: new Date(now + expiresIn).toISOString(),
+          }),
+        ],
+      ]);
+      installLocalStorage({
+        getItem: (key) => values.get(key) ?? null,
+        setItem: (key, value) => {
+          values.set(key, value);
+        },
+        removeItem: (key) => {
+          values.delete(key);
+        },
+      } as Storage);
+
+      expect(readAnonymousRefreshToken(baseUrl)).toBeNull();
+    },
+  );
 
   it.each([
     "2099-01-01",
@@ -79,12 +150,10 @@ describe("AssistantCloudAnonymousAuthStrategy", () => {
     await expect(strategy.getAuthHeaders()).resolves.toEqual({
       Authorization: `Bearer ${accessToken}`,
     });
-    expect(values.get("aui:refresh_token")).toBe(
-      JSON.stringify(nextRefreshToken),
-    );
+    expect(values.get(refreshTokenKey)).toBe(JSON.stringify(nextRefreshToken));
     expect(fetchMock).toHaveBeenCalledWith(
       `${baseUrl}/v1/auth/tokens/anonymous`,
-      { method: "POST" },
+      { method: "POST", signal: expect.any(AbortSignal) },
     );
   });
 
@@ -105,6 +174,455 @@ describe("AssistantCloudAnonymousAuthStrategy", () => {
       { Authorization: `Bearer ${accessToken}` },
     ]);
     expect(fetchMock).toHaveBeenCalledTimes(1);
+  });
+
+  it("deduplicates anonymous token requests across strategy instances", async () => {
+    const values = new Map<string, string>();
+    installLocalStorage({
+      getItem: (key) => values.get(key) ?? null,
+      setItem: (key, value) => {
+        values.set(key, value);
+      },
+      removeItem: (key) => {
+        values.delete(key);
+      },
+    } as Storage);
+    const fetchMock = mockAnonymousTokenFetch();
+    const first = new AssistantCloudAnonymousAuthStrategy(baseUrl);
+    const second = new AssistantCloudAnonymousAuthStrategy(baseUrl);
+
+    await expect(
+      Promise.all([first.getAuthHeaders(), second.getAuthHeaders()]),
+    ).resolves.toEqual([
+      { Authorization: `Bearer ${accessToken}` },
+      { Authorization: `Bearer ${accessToken}` },
+    ]);
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+    expect(values.get(refreshTokenKey)).toBe(JSON.stringify(refreshToken));
+  });
+
+  it("coordinates anonymous token requests across realms", async () => {
+    const values = new Map<string, string>();
+    installLocalStorage({
+      getItem: (key) => values.get(key) ?? null,
+      setItem: (key, value) => {
+        values.set(key, value);
+      },
+      removeItem: (key) => {
+        values.delete(key);
+      },
+    } as Storage);
+    let lockTail: Promise<unknown> = Promise.resolve();
+    const lockRequest = vi.fn(
+      (_name: string, callback: () => Promise<string | null>) => {
+        const request = lockTail.then(callback);
+        lockTail = request.then(
+          () => undefined,
+          () => undefined,
+        );
+        return request;
+      },
+    );
+    vi.stubGlobal("navigator", { locks: { request: lockRequest } });
+    const rotatedRefreshToken = { token: "r2", expires_at: "2099-01-01" };
+    const response = (refreshTokenValue: typeof refreshToken) => ({
+      ok: true,
+      json: vi.fn().mockResolvedValue({
+        access_token: accessToken,
+        refresh_token: refreshTokenValue,
+      }),
+    });
+    const fetchMock = vi
+      .fn()
+      .mockResolvedValueOnce(response(refreshToken))
+      .mockResolvedValueOnce(response(rotatedRefreshToken));
+    vi.stubGlobal("fetch", fetchMock);
+
+    const first = new AssistantCloudAnonymousAuthStrategy(baseUrl);
+    vi.resetModules();
+    const { AssistantCloudAnonymousAuthStrategy: Second } =
+      await import("../AssistantCloudAuthStrategy");
+
+    await expect(
+      Promise.all([
+        first.getAuthHeaders(),
+        new Second(baseUrl).getAuthHeaders(),
+      ]),
+    ).resolves.toEqual([
+      { Authorization: `Bearer ${accessToken}` },
+      { Authorization: `Bearer ${accessToken}` },
+    ]);
+    expect(fetchMock).toHaveBeenNthCalledWith(
+      1,
+      `${baseUrl}/v1/auth/tokens/anonymous`,
+      { method: "POST", signal: expect.any(AbortSignal) },
+    );
+    expect(fetchMock).toHaveBeenNthCalledWith(
+      2,
+      `${baseUrl}/v1/auth/tokens/refresh`,
+      {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ refresh_token: refreshToken.token }),
+        signal: expect.any(AbortSignal),
+      },
+    );
+    expect(lockRequest).toHaveBeenCalledTimes(2);
+    expect(values.get(refreshTokenKey)).toBe(
+      JSON.stringify(rotatedRefreshToken),
+    );
+  });
+
+  it("retries shared anonymous token requests after a failure", async () => {
+    const values = new Map<string, string>();
+    installLocalStorage({
+      getItem: (key) => values.get(key) ?? null,
+      setItem: (key, value) => {
+        values.set(key, value);
+      },
+      removeItem: (key) => {
+        values.delete(key);
+      },
+    } as Storage);
+    const failure = new Error("authentication unavailable");
+    const fetchMock = vi
+      .fn()
+      .mockRejectedValueOnce(failure)
+      .mockResolvedValueOnce({
+        ok: true,
+        json: vi.fn().mockResolvedValue({
+          access_token: accessToken,
+          refresh_token: refreshToken,
+        }),
+      });
+    vi.stubGlobal("fetch", fetchMock);
+    const first = new AssistantCloudAnonymousAuthStrategy(baseUrl);
+    const second = new AssistantCloudAnonymousAuthStrategy(baseUrl);
+
+    await Promise.all([
+      expect(first.getAuthHeaders()).rejects.toBe(failure),
+      expect(second.getAuthHeaders()).rejects.toBe(failure),
+    ]);
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+
+    await expect(
+      new AssistantCloudAnonymousAuthStrategy(baseUrl).getAuthHeaders(),
+    ).resolves.toEqual({ Authorization: `Bearer ${accessToken}` });
+    expect(fetchMock).toHaveBeenCalledTimes(2);
+  });
+
+  it("aborts timed out shared anonymous token requests before retrying", async () => {
+    vi.useFakeTimers();
+    const values = new Map<string, string>();
+    installLocalStorage({
+      getItem: (key) => values.get(key) ?? null,
+      setItem: (key, value) => {
+        values.set(key, value);
+      },
+      removeItem: (key) => {
+        values.delete(key);
+      },
+    } as Storage);
+    let requestSignal: AbortSignal | null | undefined;
+    const fetchMock = vi
+      .fn()
+      .mockImplementationOnce((_input: RequestInfo | URL, init?: RequestInit) =>
+        Promise.resolve({
+          ok: true,
+          json: () =>
+            new Promise<never>((_resolve, reject) => {
+              requestSignal = init?.signal;
+              requestSignal?.addEventListener(
+                "abort",
+                () => reject(requestSignal?.reason),
+                { once: true },
+              );
+            }),
+        } as unknown as Response),
+      )
+      .mockResolvedValueOnce({
+        ok: true,
+        json: vi.fn().mockResolvedValue({
+          access_token: accessToken,
+          refresh_token: refreshToken,
+        }),
+      });
+    vi.stubGlobal("fetch", fetchMock);
+    const first = new AssistantCloudAnonymousAuthStrategy(baseUrl);
+    const second = new AssistantCloudAnonymousAuthStrategy(baseUrl);
+
+    const firstRequest = expect(first.getAuthHeaders()).rejects.toThrow(
+      "Assistant Cloud anonymous token request timed out after 30000ms",
+    );
+    const secondRequest = expect(second.getAuthHeaders()).rejects.toThrow(
+      "Assistant Cloud anonymous token request timed out after 30000ms",
+    );
+    await vi.advanceTimersByTimeAsync(0);
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+    expect(requestSignal).toBeInstanceOf(AbortSignal);
+
+    await vi.advanceTimersByTimeAsync(30_000);
+    await Promise.all([firstRequest, secondRequest]);
+    expect(requestSignal?.aborted).toBe(true);
+    expect(values.has(refreshTokenKey)).toBe(false);
+
+    await expect(
+      new AssistantCloudAnonymousAuthStrategy(baseUrl).getAuthHeaders(),
+    ).resolves.toEqual({ Authorization: `Bearer ${accessToken}` });
+    expect(fetchMock).toHaveBeenCalledTimes(2);
+  });
+
+  it("aborts timed out refresh requests without replacing the identity", async () => {
+    vi.useFakeTimers();
+    const values = new Map([[refreshTokenKey, JSON.stringify(refreshToken)]]);
+    installLocalStorage({
+      getItem: (key) => values.get(key) ?? null,
+      setItem: (key, value) => {
+        values.set(key, value);
+      },
+      removeItem: (key) => {
+        values.delete(key);
+      },
+    } as Storage);
+    let requestSignal: AbortSignal | null | undefined;
+    const rotatedRefreshToken = { token: "r2", expires_at: "2099-02-01" };
+    const fetchMock = vi
+      .fn()
+      .mockImplementationOnce(
+        (_input: RequestInfo | URL, init?: RequestInit) =>
+          new Promise<Response>((_resolve, reject) => {
+            requestSignal = init?.signal;
+            requestSignal?.addEventListener(
+              "abort",
+              () => reject(requestSignal?.reason),
+              { once: true },
+            );
+          }),
+      )
+      .mockResolvedValueOnce({
+        ok: true,
+        json: vi.fn().mockResolvedValue({
+          access_token: accessToken,
+          refresh_token: rotatedRefreshToken,
+        }),
+      });
+    vi.stubGlobal("fetch", fetchMock);
+    const strategy = new AssistantCloudAnonymousAuthStrategy(baseUrl);
+
+    const request = expect(strategy.getAuthHeaders()).rejects.toThrow(
+      "Assistant Cloud refresh token request timed out after 30000ms",
+    );
+    expect(requestSignal).toBeInstanceOf(AbortSignal);
+
+    await vi.advanceTimersByTimeAsync(30_000);
+    await request;
+    expect(requestSignal?.aborted).toBe(true);
+    expect(values.get(refreshTokenKey)).toBe(JSON.stringify(refreshToken));
+
+    await expect(strategy.getAuthHeaders()).resolves.toEqual({
+      Authorization: `Bearer ${accessToken}`,
+    });
+    expect(fetchMock).toHaveBeenCalledTimes(2);
+    expect(values.get(refreshTokenKey)).toBe(
+      JSON.stringify(rotatedRefreshToken),
+    );
+  });
+
+  it("keeps anonymous token requests independent without localStorage", async () => {
+    delete (globalThis as { localStorage?: Storage }).localStorage;
+    const lockRequest = vi.fn();
+    vi.stubGlobal("navigator", { locks: { request: lockRequest } });
+    const fetchMock = mockAnonymousTokenFetch();
+    const first = new AssistantCloudAnonymousAuthStrategy(baseUrl);
+    const second = new AssistantCloudAnonymousAuthStrategy(baseUrl);
+
+    await expect(
+      Promise.all([first.getAuthHeaders(), second.getAuthHeaders()]),
+    ).resolves.toEqual([
+      { Authorization: `Bearer ${accessToken}` },
+      { Authorization: `Bearer ${accessToken}` },
+    ]);
+    expect(fetchMock).toHaveBeenCalledTimes(2);
+    expect(lockRequest).not.toHaveBeenCalled();
+  });
+
+  it("scopes anonymous refresh tokens by backend", async () => {
+    const secondBaseUrl = "https://other.example.com";
+    const values = new Map<string, string>();
+    installLocalStorage({
+      getItem: (key) => values.get(key) ?? null,
+      setItem: (key, value) => {
+        values.set(key, value);
+      },
+      removeItem: (key) => {
+        values.delete(key);
+      },
+    } as Storage);
+    const secondRefreshToken = {
+      token: "r2",
+      expires_at: "2099-01-01",
+    };
+    const fetchMock = vi
+      .fn()
+      .mockResolvedValueOnce({
+        ok: true,
+        json: vi.fn().mockResolvedValue({
+          access_token: accessToken,
+          refresh_token: refreshToken,
+        }),
+      })
+      .mockResolvedValueOnce({
+        ok: true,
+        json: vi.fn().mockResolvedValue({
+          access_token: accessToken,
+          refresh_token: secondRefreshToken,
+        }),
+      });
+    vi.stubGlobal("fetch", fetchMock);
+
+    await Promise.all([
+      new AssistantCloudAnonymousAuthStrategy(baseUrl).getAuthHeaders(),
+      new AssistantCloudAnonymousAuthStrategy(secondBaseUrl).getAuthHeaders(),
+    ]);
+
+    expect(fetchMock).toHaveBeenNthCalledWith(
+      1,
+      `${baseUrl}/v1/auth/tokens/anonymous`,
+      { method: "POST", signal: expect.any(AbortSignal) },
+    );
+    expect(fetchMock).toHaveBeenNthCalledWith(
+      2,
+      `${secondBaseUrl}/v1/auth/tokens/anonymous`,
+      { method: "POST", signal: expect.any(AbortSignal) },
+    );
+    expect(values.get(refreshTokenKey)).toBe(JSON.stringify(refreshToken));
+    expect(values.get(`aui:refresh_token:${secondBaseUrl}`)).toBe(
+      JSON.stringify(secondRefreshToken),
+    );
+  });
+
+  it("migrates the legacy refresh token to the first backend", async () => {
+    const secondBaseUrl = "https://other.example.com";
+    const secondRefreshToken = {
+      token: "r2",
+      expires_at: "2099-01-01",
+    };
+    const values = new Map([
+      ["aui:refresh_token", JSON.stringify(refreshToken)],
+    ]);
+    installLocalStorage({
+      getItem: (key) => values.get(key) ?? null,
+      setItem: (key, value) => {
+        values.set(key, value);
+      },
+      removeItem: (key) => {
+        values.delete(key);
+      },
+    } as Storage);
+    const fetchMock = vi
+      .fn()
+      .mockResolvedValueOnce({
+        ok: true,
+        json: vi.fn().mockResolvedValue({ access_token: accessToken }),
+      })
+      .mockResolvedValueOnce({
+        ok: true,
+        json: vi.fn().mockResolvedValue({
+          access_token: accessToken,
+          refresh_token: secondRefreshToken,
+        }),
+      });
+    vi.stubGlobal("fetch", fetchMock);
+
+    await new AssistantCloudAnonymousAuthStrategy(baseUrl).getAuthHeaders();
+    await new AssistantCloudAnonymousAuthStrategy(
+      secondBaseUrl,
+    ).getAuthHeaders();
+
+    expect(fetchMock).toHaveBeenNthCalledWith(
+      1,
+      `${baseUrl}/v1/auth/tokens/refresh`,
+      {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ refresh_token: refreshToken.token }),
+        signal: expect.any(AbortSignal),
+      },
+    );
+    expect(fetchMock).toHaveBeenNthCalledWith(
+      2,
+      `${secondBaseUrl}/v1/auth/tokens/anonymous`,
+      { method: "POST", signal: expect.any(AbortSignal) },
+    );
+    expect(values.get(refreshTokenKey)).toBe(JSON.stringify(refreshToken));
+    expect(values.get(`aui:refresh_token:${secondBaseUrl}`)).toBe(
+      JSON.stringify(secondRefreshToken),
+    );
+    expect(values.has("aui:refresh_token")).toBe(false);
+  });
+
+  it("retires the legacy refresh token when a scoped token exists", async () => {
+    const secondBaseUrl = "https://other.example.com";
+    const scopedRefreshToken = {
+      token: "scoped-r1",
+      expires_at: "2099-01-01",
+    };
+    const secondRefreshToken = {
+      token: "r2",
+      expires_at: "2099-01-01",
+    };
+    const values = new Map([
+      ["aui:refresh_token", JSON.stringify(refreshToken)],
+      [refreshTokenKey, JSON.stringify(scopedRefreshToken)],
+    ]);
+    installLocalStorage({
+      getItem: (key) => values.get(key) ?? null,
+      setItem: (key, value) => {
+        values.set(key, value);
+      },
+      removeItem: (key) => {
+        values.delete(key);
+      },
+    } as Storage);
+    const fetchMock = vi
+      .fn()
+      .mockResolvedValueOnce({
+        ok: true,
+        json: vi.fn().mockResolvedValue({ access_token: accessToken }),
+      })
+      .mockResolvedValueOnce({
+        ok: true,
+        json: vi.fn().mockResolvedValue({
+          access_token: accessToken,
+          refresh_token: secondRefreshToken,
+        }),
+      });
+    vi.stubGlobal("fetch", fetchMock);
+
+    await new AssistantCloudAnonymousAuthStrategy(baseUrl).getAuthHeaders();
+    await new AssistantCloudAnonymousAuthStrategy(
+      secondBaseUrl,
+    ).getAuthHeaders();
+
+    expect(fetchMock).toHaveBeenNthCalledWith(
+      1,
+      `${baseUrl}/v1/auth/tokens/refresh`,
+      {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ refresh_token: scopedRefreshToken.token }),
+        signal: expect.any(AbortSignal),
+      },
+    );
+    expect(fetchMock).toHaveBeenNthCalledWith(
+      2,
+      `${secondBaseUrl}/v1/auth/tokens/anonymous`,
+      { method: "POST", signal: expect.any(AbortSignal) },
+    );
+    expect(values.has("aui:refresh_token")).toBe(false);
+    expect(values.get(`aui:refresh_token:${secondBaseUrl}`)).toBe(
+      JSON.stringify(secondRefreshToken),
+    );
   });
 
   it("returns an anonymous access token without localStorage", async () => {
@@ -149,7 +667,7 @@ describe("AssistantCloudAnonymousAuthStrategy", () => {
     const removeItem = vi.fn(() => {
       throw new DOMException("blocked", "SecurityError");
     });
-    installLocalStorage({ getItem, setItem, removeItem } as Storage);
+    installLocalStorage({ getItem, setItem, removeItem } as unknown as Storage);
     mockAnonymousTokenFetch();
 
     await expect(
@@ -160,7 +678,7 @@ describe("AssistantCloudAnonymousAuthStrategy", () => {
     ).resolves.toEqual({ Authorization: `Bearer ${accessToken}` });
     expect(getItem).toHaveBeenCalledTimes(2);
     expect(setItem).toHaveBeenCalledTimes(2);
-    expect(removeItem).toHaveBeenCalledTimes(1);
+    expect(removeItem).toHaveBeenCalledTimes(2);
   });
 
   it("treats corrupted refresh token JSON as absent", async () => {
@@ -181,7 +699,8 @@ describe("AssistantCloudAnonymousAuthStrategy", () => {
     await expect(strategy.getAuthHeaders()).resolves.toEqual({
       Authorization: `Bearer ${accessToken}`,
     });
-    expect(values.get("aui:refresh_token")).toBe(JSON.stringify(refreshToken));
+    expect(values.get(refreshTokenKey)).toBe(JSON.stringify(refreshToken));
+    expect(values.has("aui:refresh_token")).toBe(false);
   });
 
   it("rejects malformed anonymous token responses without persisting them", async () => {
@@ -293,9 +812,106 @@ describe("AssistantCloudAnonymousAuthStrategy", () => {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ refresh_token: refreshToken.token }),
+        signal: expect.any(AbortSignal),
       },
     );
     expect(setItem).not.toHaveBeenCalled();
+  });
+
+  it.each([429, 500, 503])(
+    "preserves the anonymous identity after transient status %i",
+    async (status) => {
+      const values = new Map([[refreshTokenKey, JSON.stringify(refreshToken)]]);
+      installLocalStorage({
+        getItem: (key) => values.get(key) ?? null,
+        setItem: (key, value) => {
+          values.set(key, value);
+        },
+        removeItem: (key) => {
+          values.delete(key);
+        },
+      } as Storage);
+      const fetchMock = vi.fn().mockResolvedValue({ ok: false, status });
+      vi.stubGlobal("fetch", fetchMock);
+
+      const strategy = new AssistantCloudAnonymousAuthStrategy(baseUrl);
+
+      await expect(strategy.getAuthHeaders()).rejects.toThrow(
+        `Assistant Cloud token refresh failed with status ${status}`,
+      );
+      expect(fetchMock).toHaveBeenCalledTimes(1);
+      expect(values.get(refreshTokenKey)).toBe(JSON.stringify(refreshToken));
+    },
+  );
+
+  it.each([401, 403])(
+    "replaces an anonymous identity after refresh is rejected with %i",
+    async (status) => {
+      const replacementRefreshToken = {
+        token: "r2",
+        expires_at: "2099-02-01",
+      };
+      const values = new Map([[refreshTokenKey, JSON.stringify(refreshToken)]]);
+      installLocalStorage({
+        getItem: (key) => values.get(key) ?? null,
+        setItem: (key, value) => {
+          values.set(key, value);
+        },
+        removeItem: (key) => {
+          values.delete(key);
+        },
+      } as Storage);
+      const fetchMock = vi
+        .fn()
+        .mockResolvedValueOnce({ ok: false, status })
+        .mockResolvedValueOnce({
+          ok: true,
+          json: vi.fn().mockResolvedValue({
+            access_token: accessToken,
+            refresh_token: replacementRefreshToken,
+          }),
+        });
+      vi.stubGlobal("fetch", fetchMock);
+
+      const strategy = new AssistantCloudAnonymousAuthStrategy(baseUrl);
+
+      await expect(strategy.getAuthHeaders()).resolves.toEqual({
+        Authorization: `Bearer ${accessToken}`,
+      });
+      expect(fetchMock).toHaveBeenNthCalledWith(
+        2,
+        `${baseUrl}/v1/auth/tokens/anonymous`,
+        { method: "POST", signal: expect.any(AbortSignal) },
+      );
+      expect(values.get(refreshTokenKey)).toBe(
+        JSON.stringify(replacementRefreshToken),
+      );
+    },
+  );
+
+  it("preserves a rejected refresh token until its replacement succeeds", async () => {
+    const values = new Map([[refreshTokenKey, JSON.stringify(refreshToken)]]);
+    installLocalStorage({
+      getItem: (key) => values.get(key) ?? null,
+      setItem: (key, value) => {
+        values.set(key, value);
+      },
+      removeItem: (key) => {
+        values.delete(key);
+      },
+    } as Storage);
+    vi.stubGlobal(
+      "fetch",
+      vi
+        .fn()
+        .mockResolvedValueOnce({ ok: false, status: 403 })
+        .mockResolvedValueOnce({ ok: false, status: 503 }),
+    );
+
+    const strategy = new AssistantCloudAnonymousAuthStrategy(baseUrl);
+
+    await expect(strategy.getAuthHeaders()).resolves.toBe(false);
+    expect(values.get(refreshTokenKey)).toBe(JSON.stringify(refreshToken));
   });
 
   it("contextualizes invalid JSON token responses", async () => {

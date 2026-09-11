@@ -25,3 +25,16 @@ export {
   type ComposerAddAttachmentProps as AddAttachmentProps,
 } from "./composer/ComposerAddAttachment";
 export { ComposerIf as If } from "./composer/ComposerIf";
+export {
+  ComposerQuote as Quote,
+  type ComposerQuoteProps as QuoteProps,
+} from "./composer/ComposerQuote";
+export {
+  ComposerQuoteText as QuoteText,
+  type ComposerQuoteTextProps as QuoteTextProps,
+} from "./composer/ComposerQuoteText";
+export {
+  ComposerQuoteDismiss as QuoteDismiss,
+  type ComposerQuoteDismissProps as QuoteDismissProps,
+} from "./composer/ComposerQuoteDismiss";
+export { ComposerQueue as Queue } from "./composer/ComposerQueue";

@@ -2,25 +2,29 @@ import { act } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { Text } from "react-native";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import type * as Store from "@assistant-ui/store";
 import { ThreadIf } from "./ThreadIf";
 
 const h = vi.hoisted(() => ({
-  thread: { messages: [] as unknown[], isRunning: false },
+  thread: { isEmpty: true, isRunning: false },
 }));
 
-vi.mock("@assistant-ui/store", () => ({
-  useAuiState: <T,>(selector: (s: { thread: typeof h.thread }) => T) =>
-    selector({ thread: h.thread }),
-}));
+vi.mock("@assistant-ui/store", async (importOriginal) => {
+  const actual = await importOriginal<typeof Store>();
+  return {
+    ...actual,
+    useAuiState: <T,>(selector: (s: { thread: typeof h.thread }) => T) =>
+      selector({ thread: h.thread }),
+  };
+});
 
 (globalThis as Record<string, unknown>).IS_REACT_ACT_ENVIRONMENT = true;
 
 describe("ThreadIf", () => {
   let container: HTMLDivElement;
   let root: Root;
-
   beforeEach(() => {
-    h.thread.messages = [];
+    h.thread.isEmpty = true;
     h.thread.isRunning = false;
 
     container = document.createElement("div");
@@ -46,33 +50,29 @@ describe("ThreadIf", () => {
     return container.querySelector('[data-testid="child"]');
   };
 
-  const setMessages = (count: number) => {
-    h.thread.messages = Array.from({ length: count }, (_, i) => i);
-  };
-
   it("renders children when no guard is set", async () => {
-    setMessages(2);
+    h.thread.isEmpty = false;
     expect(await mount()).not.toBeNull();
   });
 
   describe("empty guard", () => {
     it("renders children when empty:true matches an empty thread", async () => {
-      setMessages(0);
+      h.thread.isEmpty = true;
       expect(await mount({ empty: true })).not.toBeNull();
     });
 
-    it("hides children when empty:true but the thread has messages", async () => {
-      setMessages(3);
+    it("hides children when empty:true but the thread is not empty", async () => {
+      h.thread.isEmpty = false;
       expect(await mount({ empty: true })).toBeNull();
     });
 
     it("renders children when empty:false matches a non-empty thread", async () => {
-      setMessages(3);
+      h.thread.isEmpty = false;
       expect(await mount({ empty: false })).not.toBeNull();
     });
 
     it("hides children when empty:false but the thread is empty", async () => {
-      setMessages(0);
+      h.thread.isEmpty = true;
       expect(await mount({ empty: false })).toBeNull();
     });
   });
@@ -101,19 +101,19 @@ describe("ThreadIf", () => {
 
   describe("combined guards", () => {
     it("renders children only when both empty and running match", async () => {
-      setMessages(0);
+      h.thread.isEmpty = true;
       h.thread.isRunning = true;
       expect(await mount({ empty: true, running: true })).not.toBeNull();
     });
 
     it("hides children when empty matches but running does not", async () => {
-      setMessages(0);
+      h.thread.isEmpty = true;
       h.thread.isRunning = false;
       expect(await mount({ empty: true, running: true })).toBeNull();
     });
 
     it("hides children when running matches but empty does not", async () => {
-      setMessages(2);
+      h.thread.isEmpty = false;
       h.thread.isRunning = true;
       expect(await mount({ empty: true, running: true })).toBeNull();
     });

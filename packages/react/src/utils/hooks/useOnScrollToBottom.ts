@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallbackRef } from "@radix-ui/react-use-callback-ref";
+import { useCallbackRef } from "radix-ui/internal";
 import { useEffect } from "react";
 import { useThreadViewport } from "../../context/react/ThreadViewportContext";
 

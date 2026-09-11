@@ -58,4 +58,4 @@ Your backend server should:
 ## Related Documentation
 
 - [assistant-ui Documentation](https://www.assistant-ui.com/docs)
-- [Assistant Transport Runtime API](https://www.assistant-ui.com/docs/runtimes/assistant-transport)
+- [Assistant Transport Runtime API](https://www.assistant-ui.com/docs/runtimes/custom/assistant-transport)

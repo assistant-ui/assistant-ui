@@ -5,18 +5,31 @@ import { ExternalStoreRuntimeCore } from "../../runtimes/internal";
 import type { ExternalStoreAdapter } from "../../runtimes/external-store/external-store-adapter";
 import type { AssistantRuntime } from "../../runtime/api/assistant-runtime";
 import { AssistantRuntimeImpl } from "../../runtime/internal";
+import { invalidateThreadRuntime } from "../../runtime/utils/thread-runtime-lifecycle";
 import { useRuntimeAdapters } from "./RuntimeAdapterProvider";
 
 export const useExternalStoreRuntime = <T>(
   store: ExternalStoreAdapter<T>,
 ): AssistantRuntime => {
-  const [runtime] = useState(() => new ExternalStoreRuntimeCore(store));
+  const { modelContext, feedback } = useRuntimeAdapters() ?? {};
+  const adaptedStore = useMemo(() => {
+    if (!feedback || store.adapters?.feedback) return store;
+    return {
+      ...store,
+      adapters: { ...store.adapters, feedback },
+    };
+  }, [feedback, store]);
+  const [runtime] = useState(() => new ExternalStoreRuntimeCore(adaptedStore));
 
   useEffect(() => {
-    runtime.setAdapter(store);
-  });
+    return () => {
+      invalidateThreadRuntime(runtime.threads.getMainThreadRuntimeCore());
+    };
+  }, [runtime]);
 
-  const { modelContext } = useRuntimeAdapters() ?? {};
+  useEffect(() => {
+    runtime.setAdapter(adaptedStore);
+  });
 
   useEffect(() => {
     if (!modelContext) return undefined;

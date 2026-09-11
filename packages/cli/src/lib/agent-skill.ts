@@ -1,4 +1,5 @@
-import { dlxCommand, type PackageManagerName } from "./create-project";
+import { dlxCommand } from "./create-project";
+import { type PackageManagerName } from "./utils/package-manager";
 
 export const SKILLS_PACKAGE = "assistant-ui/skills";
 

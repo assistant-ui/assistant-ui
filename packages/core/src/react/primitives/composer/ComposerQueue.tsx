@@ -1,5 +1,6 @@
 import { type FC, type ReactNode, memo, useMemo } from "react";
 import { RenderChildrenWithAccessor, useAuiState } from "@assistant-ui/store";
+import { useShallowSelector } from "@assistant-ui/store/internal";
 import type { QueueItemState } from "../../../store/scopes/queue-item";
 import { QueueItemByIndexProvider } from "../../providers/QueueItemByIndexProvider";
 
@@ -13,12 +14,14 @@ export namespace ComposerPrimitiveQueue {
 const ComposerPrimitiveQueueInner: FC<{
   children: (value: { queueItem: QueueItemState }) => ReactNode;
 }> = ({ children }) => {
-  const queue = useAuiState((s) => s.composer.queue.length);
+  const queueItemIds = useAuiState(
+    useShallowSelector((s) => s.composer.queue.map((item) => item.id)),
+  );
 
   return useMemo(
     () =>
-      Array.from({ length: queue }, (_, index) => (
-        <QueueItemByIndexProvider key={index} index={index}>
+      queueItemIds.map((queueItemId, index) => (
+        <QueueItemByIndexProvider key={queueItemId} index={index}>
           <RenderChildrenWithAccessor
             getItemState={(aui) => aui.composer.queueItem({ index }).getState()}
           >
@@ -32,7 +35,7 @@ const ComposerPrimitiveQueueInner: FC<{
           </RenderChildrenWithAccessor>
         </QueueItemByIndexProvider>
       )),
-    [queue, children],
+    [queueItemIds, children],
   );
 };
 

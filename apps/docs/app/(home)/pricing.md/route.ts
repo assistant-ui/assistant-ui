@@ -1,5 +1,11 @@
 import { AGENT_DOCS_DIRECTIVE_MARKDOWN } from "@/lib/agent-docs-directive";
-import { pricingPlans } from "../pricing/pricing-data";
+import { createMarkdownResponse } from "@/lib/markdown-response";
+import {
+  cloudHighlights,
+  faqs,
+  libraryHighlights,
+  pricingPlans,
+} from "../pricing/pricing-data";
 
 export const revalidate = false;
 
@@ -26,19 +32,35 @@ export function GET() {
     "",
     AGENT_DOCS_DIRECTIVE_MARKDOWN,
     "",
-    "assistant-ui is a free, MIT-licensed TypeScript/React library for AI chat. The commercial pricing below is for assistant-cloud, the fully managed backend for AI chat applications.",
+    "assistant-ui is a free, MIT-licensed TypeScript/React library for AI chat. The commercial pricing below is for assistant-cloud, an optional hosted backend for thread persistence, history, and auth.",
+    "",
+    "## The library",
+    "",
+    ...libraryHighlights.flatMap((item) => [
+      `### ${item.title}`,
+      "",
+      item.description,
+      "",
+    ]),
+    "## assistant-cloud",
     "",
     "MAU means Monthly Active Users who send at least one message.",
     "B2C pricing is available by contacting b2c-pricing@assistant.dev.",
     "",
     ...pricingPlans.map(formatPlan),
-  ].join("\n\n");
+    "",
+    "## What Cloud includes",
+    "",
+    ...cloudHighlights.flatMap((item) => [
+      `### ${item.title}`,
+      "",
+      item.description,
+      "",
+    ]),
+    "## Questions",
+    "",
+    ...faqs.flatMap((faq) => [`### ${faq.question}`, "", faq.answer, ""]),
+  ].join("\n");
 
-  return new Response(`${markdown}\n`, {
-    headers: {
-      "Cache-Control": "no-cache, must-revalidate",
-      "Content-Type": "text/markdown; charset=utf-8",
-      "X-Robots-Tag": "noindex, follow",
-    },
-  });
+  return createMarkdownResponse(`${markdown}\n`);
 }

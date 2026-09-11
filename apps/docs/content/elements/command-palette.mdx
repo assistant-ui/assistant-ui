@@ -1,0 +1,189 @@
+---
+title: "Command palette"
+description: "Everything the app can do, one keystroke away and grouped by where it acts."
+---
+
+A searchable, keyboard-driven list of app actions grouped by where each one acts, with the highlighted row auto-scrolled into view as arrow keys move it. With a runtime the palette's own list, search, and keyboard handling stay application state, and only what each command actually does reaches into the runtime; standalone every command and its handler are yours.
+
+## Getting started
+
+<RuntimeMode>
+
+With a runtime, there is no registry of "everything the app can do" to read: assistant-ui exposes actions on the scopes you already work with (a thread, a message, the thread list), not a flat catalog of commands. Build the list yourself, grouped however your app is organized, and give each entry an id you can route in `onRun`.
+
+<Steps>
+  <Step>
+
+### Route commands to real actions
+
+`onRun` receives the id of the chosen command; look it up and call whatever it should do. Actions on the current thread, the thread list, and the active thread's list item are all real, callable runtime methods.
+
+```tsx title="components/assistant-ui/elements/app-command-palette.tsx"
+"use client";
+
+import { useAui } from "@assistant-ui/react";
+import { useState } from "react";
+import {
+  CommandPalette,
+  type PaletteCommand,
+} from "@/components/assistant-ui/elements/command-palette";
+
+const commands: PaletteCommand[] = [
+  { id: "new-thread", label: "New thread", group: "Thread list", keys: ["⌘", "N"] },
+  { id: "stop", label: "Stop generating", group: "Thread", keys: ["Esc"] },
+  { id: "archive", label: "Archive this thread", group: "Thread", keys: ["⌘", "⇧", "A"] },
+];
+
+export function AppCommandPalette() {
+  const aui = useAui();
+  const [query, setQuery] = useState("");
+  const [activeId, setActiveId] = useState(commands[0]!.id);
+
+  const run = (id: string) => {
+    if (id === "new-thread") aui.threads.switchToNewThread();
+    if (id === "stop") aui.thread.cancelRun();
+    if (id === "archive") aui.threadListItem.archive();
+  };
+
+  return (
+    <CommandPalette
+      commands={commands}
+      query={query}
+      activeId={activeId}
+      onQueryChange={setQuery}
+      onActiveChange={setActiveId}
+      onRun={run}
+    />
+  );
+}
+```
+
+  </Step>
+</Steps>
+
+</RuntimeMode>
+
+<StandaloneMode>
+
+Standalone, `CommandPalette` filters, groups, and handles its own arrow-key and Enter navigation; you hold the command list, the query, and the active id, and decide what each id does when `onRun` fires.
+
+<Steps>
+  <Step>
+
+### Hold the list, the query, and the active id
+
+```tsx title="app/command-palette.tsx"
+"use client";
+
+import { useState } from "react";
+import { CommandPalette } from "@/components/assistant-ui/elements/command-palette";
+
+const commands = [
+  { id: "new-doc", label: "New document", group: "File", keys: ["⌘", "N"] },
+  { id: "share", label: "Share", group: "File", keys: ["⌘", "⇧", "S"] },
+];
+
+export function AppCommandPalette({
+  handlers,
+}: {
+  handlers: Record<string, () => void>;
+}) {
+  const [query, setQuery] = useState("");
+  const [activeId, setActiveId] = useState(commands[0].id);
+
+  return (
+    <CommandPalette
+      commands={commands}
+      query={query}
+      activeId={activeId}
+      onQueryChange={setQuery}
+      onActiveChange={setActiveId}
+      onRun={(id) => handlers[id]?.()}
+    />
+  );
+}
+```
+
+  </Step>
+</Steps>
+
+</StandaloneMode>
+
+## Anatomy
+
+```tsx
+<div data-slot="command-palette">
+  <div>
+    <svg /* search icon */ />
+    <input placeholder="Type a command" role="combobox" />
+    <span>esc</span>
+  </div>
+  <div role="listbox" aria-label="Commands">
+    {/* one group per PaletteCommand.group, each with its rows */}
+  </div>
+  {/* "No command matches “query”" when there are no matches */}
+</div>
+```
+
+Matching filters `commands` against `query` by substring on `label`, case-insensitively; groups are then derived from the surviving matches and keep their first-seen order, which can differ from the order matches were filtered in. Arrow keys move `activeId` within that grouped, filtered order, wrapping at both ends; Enter runs whichever command is active. Every time `activeId` changes, the active row is scrolled into view with `{ block: "nearest" }`, since `aria-activedescendant` moves the visual highlight without moving keyboard focus and so does not scroll on its own. `PromptLibrary` shares the filter-and-navigate pattern but does not do this autoscroll.
+
+## Examples
+
+### Grouping and filter order
+
+A command whose group has no other surviving match still gets its own heading; groups never merge or disappear, they just shrink to one row.
+
+```tsx
+{ id: "archive", label: "Archive this thread", group: "Thread", keys: ["⌘", "⇧", "A"] }
+```
+
+### Restyle rows and the esc chip
+
+The esc hint and every shortcut key chip share the `field` and `mono` surfaces from `surfaces.tsx`.
+
+```tsx
+<CommandPalette className="max-w-lg" commands={commands} query={query} activeId={activeId} onQueryChange={setQuery} onActiveChange={setActiveId} onRun={onRun} />
+```
+
+## API reference
+
+<RuntimeMode>
+
+### Example actions
+
+| Call | Type | Description |
+|------|------|-------------|
+| `aui.threads.switchToNewThread()` | `() => Promise<void>` | Starts a new thread. A natural target for a "New thread" command. |
+| `aui.thread.cancelRun()` | `() => void` | Cancels the run in progress on the active thread. |
+| `aui.threadListItem.archive()` | `() => void` | Archives the active thread's list entry. |
+
+These are examples, not the component's own contract: `CommandPalette` never calls into the runtime itself, only whatever `onRun` does with the id it receives. There is no selector for a command catalog.
+
+</RuntimeMode>
+
+<StandaloneMode>
+
+### CommandPalette
+
+| Prop | Type | Default | Description |
+|------|------|---------|-------------|
+| `commands` | `readonly PaletteCommand[]` | required | Everything runnable. Groups are derived from the entries and keep first-seen order. |
+| `query` | `string` | required | Current filter text. |
+| `activeId` | `string` | required | Which row is highlighted. Arrow keys move it and Enter runs it, both handled by the element; it reports the move through `onActiveChange`. |
+| `onQueryChange` | `(query: string) => void` | | Called as the filter is typed. |
+| `onActiveChange` | `(id: string) => void` | | Called as the arrow keys walk the list. The element owns the key handling and reports where it landed, so `activeId` stays yours to hold. |
+| `onRun` | `(id: string) => void` | | Called when a command is chosen. |
+| `className` | `string` | | Merged onto the root. |
+
+### PaletteCommand
+
+| Prop | Type | Default | Description |
+|------|------|---------|-------------|
+| `id` | `string` | required | Stable identity, compared against `activeId` and reported by `onRun`. |
+| `label` | `string` | required | Command text, and the field the query filters on. |
+| `group` | `string` | required | Heading the command sits under. |
+| `keys` | `readonly string[]` | required | Shortcut, one chip per key. |
+
+All other `div` props are forwarded to the root.
+
+</StandaloneMode>

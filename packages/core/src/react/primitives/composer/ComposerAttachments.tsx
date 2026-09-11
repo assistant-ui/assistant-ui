@@ -7,6 +7,7 @@ import {
   useMemo,
 } from "react";
 import { RenderChildrenWithAccessor, useAuiState } from "@assistant-ui/store";
+import { useShallowSelector } from "@assistant-ui/store/internal";
 import { ComposerAttachmentByIndexProvider } from "../../providers/AttachmentByIndexProvider";
 
 type ComposerAttachmentsComponentConfig = {
@@ -91,12 +92,16 @@ ComposerPrimitiveAttachmentByIndex.displayName =
 const ComposerPrimitiveAttachmentsInner: FC<{
   children: (value: { attachment: Attachment }) => ReactNode;
 }> = ({ children }) => {
-  const attachmentsCount = useAuiState((s) => s.composer.attachments.length);
+  const attachmentIds = useAuiState(
+    useShallowSelector((s) =>
+      s.composer.attachments.map((attachment) => attachment.id),
+    ),
+  );
 
   return useMemo(
     () =>
-      Array.from({ length: attachmentsCount }, (_, index) => (
-        <ComposerAttachmentByIndexProvider key={index} index={index}>
+      attachmentIds.map((attachmentId, index) => (
+        <ComposerAttachmentByIndexProvider key={attachmentId} index={index}>
           <RenderChildrenWithAccessor
             getItemState={(aui) =>
               aui.composer.attachment({ index }).getState()
@@ -112,7 +117,7 @@ const ComposerPrimitiveAttachmentsInner: FC<{
           </RenderChildrenWithAccessor>
         </ComposerAttachmentByIndexProvider>
       )),
-    [attachmentsCount, children],
+    [attachmentIds, children],
   );
 };
 

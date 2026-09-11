@@ -42,3 +42,5 @@ export const getExternalStoreMessages = <T>(
   container[symbolInnerMessages] = [value];
   return container[symbolInnerMessages];
 };
+
+export const FALLBACK_ID_PREFIX = "__external_store_fallback_";

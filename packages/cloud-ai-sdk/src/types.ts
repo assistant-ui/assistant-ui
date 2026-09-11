@@ -35,7 +35,13 @@ export type UseThreadsResult = {
   unarchive: (id: string) => Promise<boolean>;
   threadId: string | null;
   selectThread: (id: string | null) => void;
-  generateTitle: (threadId: string) => Promise<string | null>;
+  generateTitle: (
+    threadId: string,
+    options?: {
+      /** Protects a manual rename from this automatic attempt. */
+      automatic?: boolean;
+    },
+  ) => Promise<string | null>;
 };
 
 export type UseCloudChatOptions = ChatInit<UIMessage> & {
@@ -48,6 +54,7 @@ export type UseCloudChatOptions = ChatInit<UIMessage> & {
 
 export type UseCloudChatResult = UseChatHelpers<UIMessage> & {
   threads: UseThreadsResult;
+  feedback: (messageId: string, type: "positive" | "negative") => Promise<void>;
 };
 
 export type ChatMeta = {

@@ -106,6 +106,10 @@ const IMAGE_MEDIA_TYPES: Record<string, string> = {
   heif: "image/heif",
 };
 
+function getDataUrlMediaType(value: string): string | undefined {
+  return value.match(/^data:([^;,]+)(?:[;,])/i)?.[1]?.toLowerCase();
+}
+
 function inferImageMediaType(url: string): string {
   // Handle data URLs: data:[<mediatype>][;base64],<data>
   if (/^data:/i.test(url)) {
@@ -221,11 +225,14 @@ function convertUserMessage(
         mediaType: inferImageMediaType(part.image),
         ...(part.filename && { filename: part.filename }),
       });
-    } else if (part.type === "file" && part.data && part.mimeType) {
+    } else if (part.type === "file" && typeof part.data === "string") {
       content.push({
         type: "file",
         data: toUrlOrString(part.data),
-        mediaType: part.mimeType,
+        mediaType:
+          (typeof part.mimeType === "string" && part.mimeType) ||
+          getDataUrlMediaType(part.data) ||
+          "application/octet-stream",
         ...(part.filename && { filename: part.filename }),
       });
     }

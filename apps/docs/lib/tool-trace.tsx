@@ -75,7 +75,7 @@ export function ToolTraceCard({
           "relative overflow-hidden outline-none",
           "data-closed:animate-collapsible-up data-open:animate-collapsible-down ease-out motion-reduce:animate-none",
           "data-closed:fill-mode-forwards data-closed:pointer-events-none",
-          "data-closed:duration-(--animation-duration) data-open:duration-(--animation-duration)",
+          "[--tw-duration:var(--animation-duration)]",
         )}
       >
         <div className="my-1 ml-6 space-y-2">
@@ -169,7 +169,7 @@ export function ToolErrorCard({
           "relative overflow-hidden outline-none",
           "data-closed:animate-collapsible-up data-open:animate-collapsible-down ease-out motion-reduce:animate-none",
           "data-closed:fill-mode-forwards data-closed:pointer-events-none",
-          "data-closed:duration-(--animation-duration) data-open:duration-(--animation-duration)",
+          "[--tw-duration:var(--animation-duration)]",
         )}
       >
         <div className="my-1 ml-6 space-y-2">

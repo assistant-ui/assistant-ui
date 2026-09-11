@@ -49,7 +49,7 @@ If you prefer to add assistant-ui to an existing Expo project, follow these step
 
 ### Install dependencies
 
-<InstallCommand expo={["@assistant-ui/react-native", "@assistant-ui/react-ai-sdk"]} />
+<InstallCommand expo={["@assistant-ui/react-native", "@assistant-ui/ai-sdk"]} />
 
   </Step>
   <Step>
@@ -120,7 +120,7 @@ export async function POST(req: Request) {
 ### Set up the runtime
 
 ```tsx title="hooks/use-app-runtime.ts"
-import { useChatRuntime, AssistantChatTransport } from "@assistant-ui/react-ai-sdk";
+import { useChatRuntime, AssistantChatTransport } from "@assistant-ui/ai-sdk";
 
 const API_URL = process.env.EXPO_PUBLIC_API_URL ?? "http://localhost:3000";
 

@@ -9,11 +9,31 @@ import type {
 import type { ExportedMessageRepositoryItem } from "../../../runtime/utils/message-repository";
 import {
   type AssistantCloud,
+  type AssistantCloudEvent,
+  type AssistantCloudRunReportToolCall,
   CloudMessagePersistence,
   createFormattedPersistence,
+  createRunReport,
+  createRunTelemetryToolCall,
+  deriveRunOutcome,
+  describeRunError,
+  extractRunTelemetryModelId,
+  normalizeRunTelemetryUsage,
+  type RunReportOutcome,
+  type RunReportStepInit,
+  type RunTelemetryUsage,
+  type RunTelemetryUsageInit,
+  truncateRunTelemetryText,
 } from "assistant-cloud";
 import { auiV0Decode, auiV0Encode } from "./auiV0";
 import { type AssistantClient, getClientId, useAui } from "@assistant-ui/store";
+import type { ThreadListItemMethods } from "../../../store/scopes/thread-list-item";
+import type { FeedbackAdapter } from "../../../adapters/feedback";
+
+type CloudThreadListItem = Pick<
+  ThreadListItemMethods,
+  "getState" | "initialize"
+>;
 
 const globalPersistence = new WeakMap<
   getClientId.ClientId,
@@ -36,8 +56,10 @@ class AssistantCloudThreadHistoryAdapter implements ThreadHistoryAdapter {
     return this.getAui();
   }
 
-  private get _persistence(): CloudMessagePersistence {
-    const key = getClientId(this.aui.threadListItem);
+  private getPersistence(
+    threadListItem: CloudThreadListItem = this.aui.threadListItem,
+  ): CloudMessagePersistence {
+    const key = getClientId(threadListItem);
     if (!globalPersistence.has(key)) {
       globalPersistence.set(
         key,
@@ -47,24 +69,141 @@ class AssistantCloudThreadHistoryAdapter implements ThreadHistoryAdapter {
     return globalPersistence.get(key)!;
   }
 
+  private get _persistence(): CloudMessagePersistence {
+    return this.getPersistence();
+  }
+
+  /**
+   * A send is the moment the runtime creates the remote thread, so that one
+   * event waits for the id; every other event reads the id that already
+   * exists, because initializing a thread nobody has written to would create
+   * an empty remote thread just to attribute an event.
+   */
+  public async resolveEngagementEventIds(
+    threadId: string,
+    messageId?: string,
+    options?: { awaitThread?: boolean },
+  ): Promise<Pick<AssistantCloudEvent, "thread_id" | "message_id">> {
+    const threadListItem = this.getThreadListItem(threadId);
+    if (!threadListItem) return {};
+
+    let remoteThreadId = threadListItem.getState().remoteId;
+    if (!remoteThreadId && options?.awaitThread) {
+      remoteThreadId = await threadListItem
+        .initialize()
+        .then((result) => result.remoteId)
+        .catch(() => undefined);
+    }
+    const remoteMessageId = messageId
+      ? this.getPersistence(threadListItem).getResolvedRemoteId(messageId)
+      : undefined;
+    return {
+      ...(remoteThreadId ? { thread_id: remoteThreadId } : undefined),
+      ...(remoteMessageId ? { message_id: remoteMessageId } : undefined),
+    };
+  }
+
+  public readonly feedback: FeedbackAdapter = {
+    submit: ({ message, type }) => {
+      void (async () => {
+        const threadListItem = this.tryGetKeyedThreadListItem();
+        const remoteThreadId = threadListItem?.getState().remoteId;
+        if (!threadListItem || !remoteThreadId) {
+          console.warn(
+            `[assistant-ui] Skipping feedback for message ${message.id}: the thread has no remote id.`,
+          );
+          return;
+        }
+
+        const cloudMessageId = await this.getPersistence(
+          threadListItem,
+        ).getRemoteId(message.id);
+        if (!cloudMessageId) {
+          console.warn(
+            `[assistant-ui] Skipping feedback for message ${message.id}: no cloud message id is mapped.`,
+          );
+          return;
+        }
+
+        await this.cloudRef.current.threads.messages.feedback(
+          remoteThreadId,
+          cloudMessageId,
+          { type },
+        );
+      })().catch((error: unknown) => {
+        console.error(
+          "[assistant-ui] Cloud feedback submission failed:",
+          error,
+        );
+      });
+    },
+  };
+
+  private tryGetKeyedThreadListItem(): CloudThreadListItem | undefined {
+    const live = this.aui.threadListItem;
+    if (!live.source) return undefined;
+    const id = live.getState().id;
+    if (id === undefined) return undefined;
+    // A body can resolve before the list's committed items include its
+    // thread; the live item is already the per-thread anchor in that window.
+    const listed = this.aui.threads
+      .getState()
+      .threadItems.some((item) => item.id === id || item.remoteId === id);
+    return listed ? this.aui.threads.item({ id }) : live;
+  }
+
+  private getThreadListItem(threadId: string): CloudThreadListItem | undefined {
+    const current = this.aui.threadListItem;
+    const currentState = current.getState();
+    if (currentState.id === threadId || currentState.remoteId === threadId) {
+      return current;
+    }
+
+    const listed = this.aui.threads
+      .getState()
+      .threadItems.find(
+        (item) => item.id === threadId || item.remoteId === threadId,
+      );
+    return listed ? this.aui.threads.item({ id: listed.id }) : undefined;
+  }
+
   withFormat<TMessage, TStorageFormat extends Record<string, unknown>>(
     formatAdapter: MessageFormatAdapter<TMessage, TStorageFormat>,
   ): GenericThreadHistoryAdapter<TMessage> {
     const adapter = this;
-    const formatted = createFormattedPersistence(
-      this._persistence,
-      formatAdapter,
-    );
+    let threadListItem: CloudThreadListItem | undefined;
+    const pinCurrent = () => {
+      const next = adapter.tryGetKeyedThreadListItem();
+      if (next) threadListItem = next;
+      return threadListItem;
+    };
+    const resolvePinned = () => threadListItem ?? pinCurrent();
+    const getTargetFormatted = (item: CloudThreadListItem) =>
+      createFormattedPersistence(adapter.getPersistence(item), formatAdapter);
     return {
-      // Note: callers must also call reportTelemetry() for run tracking
+      pin() {
+        pinCurrent();
+      },
       async append(item: MessageFormatItem<TMessage>) {
-        const { remoteId } = await adapter.aui.threadListItem.initialize();
-        await formatted.append(remoteId, item);
+        const pinned = resolvePinned();
+        if (!pinned) {
+          throw new Error(
+            "Cannot persist cloud history without a thread list item.",
+          );
+        }
+        const remoteId =
+          pinned.getState().remoteId ?? (await pinned.initialize()).remoteId;
+        await getTargetFormatted(pinned).append(remoteId, item);
       },
       async update(item: MessageFormatItem<TMessage>, localMessageId: string) {
-        const remoteId = adapter.aui.threadListItem.getState().remoteId;
-        if (!remoteId) return;
-        await formatted.update?.(remoteId, item, localMessageId);
+        const pinned = resolvePinned();
+        const remoteId = pinned?.getState().remoteId;
+        if (!remoteId || !pinned) return;
+        await getTargetFormatted(pinned).update?.(
+          remoteId,
+          item,
+          localMessageId,
+        );
       },
       async delete() {
         throw new Error(
@@ -85,12 +224,19 @@ class AssistantCloudThreadHistoryAdapter implements ThreadHistoryAdapter {
           formatAdapter.format,
           encodedRunMessages,
           options,
+          resolvePinned(),
+          extractLastRunMessageInfo(items, formatAdapter),
         );
       },
       async load(): Promise<MessageFormatRepository<TMessage>> {
-        const remoteId = adapter.aui.threadListItem.getState().remoteId;
+        // Loads re-pin and resolve through the pinned item, so the id mapping
+        // they populate lives on the same persistence instance later writes
+        // resolve, whichever of the list item or the live graft won the pin.
+        const pinned = pinCurrent();
+        const live = adapter.aui.threadListItem;
+        const remoteId = live.source ? live.getState().remoteId : undefined;
         if (!remoteId) return { messages: [] };
-        return formatted.load(remoteId);
+        return getTargetFormatted(pinned ?? live).load(remoteId);
       },
     };
   }
@@ -107,7 +253,12 @@ class AssistantCloudThreadHistoryAdapter implements ThreadHistoryAdapter {
     );
 
     if (this.cloudRef.current.telemetry.enabled) {
-      this._maybeReportRun(remoteId, "aui/v0", encoded);
+      this._maybeReportRun(
+        remoteId,
+        "aui/v0",
+        encoded,
+        extractRunMessageInfo(message, "aui/v0"),
+      );
     }
   }
 
@@ -122,7 +273,12 @@ class AssistantCloudThreadHistoryAdapter implements ThreadHistoryAdapter {
     await this._persistence.update(remoteId, message.id, "aui/v0", encoded);
 
     if (this.cloudRef.current.telemetry.enabled) {
-      this._maybeReportRun(remoteId, "aui/v0", encoded);
+      this._maybeReportRun(
+        remoteId,
+        "aui/v0",
+        encoded,
+        extractRunMessageInfo(message, "aui/v0"),
+      );
     }
   }
 
@@ -153,10 +309,13 @@ class AssistantCloudThreadHistoryAdapter implements ThreadHistoryAdapter {
       durationMs?: number;
       stepTimestamps?: StepTimestamp[];
     },
+    threadListItem?: CloudThreadListItem,
+    messageInfo?: RunMessageInfo,
   ) {
     if (!this.cloudRef.current.telemetry.enabled) return;
 
-    const remoteId = this.aui.threadListItem.getState().remoteId;
+    const item = threadListItem ?? this.aui.threadListItem;
+    const remoteId = item.getState().remoteId;
     if (!remoteId) return;
 
     const extracted = extractRunTelemetry(format, runMessages);
@@ -167,14 +326,21 @@ class AssistantCloudThreadHistoryAdapter implements ThreadHistoryAdapter {
       extracted,
       options?.durationMs,
       options?.stepTimestamps,
+      messageInfo,
+      this.getPersistence(item),
     );
   }
 
-  private _maybeReportRun<T>(remoteId: string, format: string, content: T) {
+  private _maybeReportRun<T>(
+    remoteId: string,
+    format: string,
+    content: T,
+    messageInfo?: RunMessageInfo,
+  ) {
     const extracted = extractTelemetry(format, content);
     if (!extracted) return;
 
-    this._sendReport(remoteId, extracted);
+    this._sendReport(remoteId, extracted, undefined, undefined, messageInfo);
   }
 
   private _sendReport(
@@ -182,37 +348,38 @@ class AssistantCloudThreadHistoryAdapter implements ThreadHistoryAdapter {
     data: TelemetryData,
     durationMs?: number,
     stepTimestamps?: StepTimestamp[],
+    messageInfo?: RunMessageInfo,
+    persistence = this._persistence,
   ) {
     const mergedSteps = mergeStepTimestamps(data.steps, stepTimestamps);
-    // Keep in sync with assistant-cloud createRunSchema
-    // (apps/aui-cloud-api/src/endpoints/runs/create.ts).
-    const initial: Parameters<typeof this.cloudRef.current.runs.report>[0] = {
-      thread_id: remoteId,
-      status: data.status,
-      ...(data.totalSteps != null
-        ? { total_steps: data.totalSteps }
-        : undefined),
-      ...(data.toolCalls ? { tool_calls: data.toolCalls } : undefined),
-      ...(mergedSteps ? { steps: mergedSteps } : undefined),
-      ...(data.inputTokens != null
-        ? { input_tokens: data.inputTokens }
-        : undefined),
-      ...(data.outputTokens != null
-        ? { output_tokens: data.outputTokens }
-        : undefined),
-      ...(data.reasoningTokens != null
-        ? { reasoning_tokens: data.reasoningTokens }
-        : undefined),
-      ...(data.cachedInputTokens != null
-        ? { cached_input_tokens: data.cachedInputTokens }
-        : undefined),
-      ...(durationMs != null ? { duration_ms: durationMs } : undefined),
-      ...(data.outputText != null
-        ? { output_text: data.outputText }
-        : undefined),
-      ...(data.metadata ? { metadata: data.metadata } : undefined),
-      ...(data.modelId ? { model_id: data.modelId } : undefined),
-    };
+    const messageId = messageInfo?.localMessageId
+      ? persistence.getResolvedRemoteId(messageInfo.localMessageId)
+      : undefined;
+    const initial = createRunReport({
+      threadId: remoteId,
+      status: messageInfo?.status ?? data.status,
+      outcome: messageInfo?.outcomeType,
+      error: messageInfo?.error,
+      errorCode: messageInfo?.errorCode,
+      messageId,
+      traceId: messageInfo?.traceId,
+      modelId: data.modelId,
+      provider: messageInfo?.provider,
+      usage: {
+        inputTokens: data.inputTokens,
+        outputTokens: data.outputTokens,
+        reasoningTokens: data.reasoningTokens,
+        cachedInputTokens: data.cachedInputTokens,
+      },
+      steps: toRunReportSteps(mergedSteps),
+      totalSteps: data.totalSteps,
+      toolCalls: data.toolCalls,
+      durationMs,
+      firstTokenMs: messageInfo?.firstTokenMs,
+      outputText: data.outputText,
+      metadata: data.metadata,
+      telemetry: this.cloudRef.current.telemetry,
+    });
 
     const { beforeReport } = this.cloudRef.current.telemetry;
     const report = beforeReport ? beforeReport(initial) : initial;
@@ -222,90 +389,34 @@ class AssistantCloudThreadHistoryAdapter implements ThreadHistoryAdapter {
   }
 }
 
-const MAX_SPAN_CONTENT = 50_000;
-
-function truncateStr(value: string): string {
-  if (value.length <= MAX_SPAN_CONTENT) return value;
-  return value.slice(0, MAX_SPAN_CONTENT);
-}
-
-function safeStringify(value: unknown): string | undefined {
-  if (value == null) return undefined;
-  try {
-    return truncateStr(JSON.stringify(value));
-  } catch {
-    return undefined;
-  }
-}
-
-type TelemetryToolCall = {
-  tool_name: string;
-  tool_call_id: string;
-  tool_args?: string;
-  tool_result?: string;
-  tool_source?: "mcp" | "frontend" | "backend";
-};
-
-const BASE64_PATTERN = /^[A-Za-z0-9+/]{100,}={0,2}$/;
-
-function summarizeMcpResult(value: unknown): string | undefined {
-  if (value == null) return undefined;
-  try {
-    const parsed = typeof value === "string" ? JSON.parse(value) : value;
-    if (Array.isArray(parsed)) {
-      const summarized = parsed.map((item) => {
-        if (item && typeof item === "object" && item.type) {
-          if (
-            (item.type === "image" || item.type === "audio") &&
-            typeof item.data === "string" &&
-            BASE64_PATTERN.test(item.data.slice(0, 200))
-          ) {
-            const sizeKB = ((item.data.length * 3) / 4 / 1024).toFixed(1);
-            return { ...item, data: `[${item.type}: ${sizeKB}KB]` };
-          }
-        }
-        return item;
-      });
-      return truncateStr(JSON.stringify(summarized));
-    }
-  } catch {
-    // not JSON array, fall through
-  }
-  return safeStringify(value);
-}
-
-function buildToolCall(
-  toolName: string,
-  toolCallId: string,
-  args: unknown,
-  result: unknown,
-  argsText?: string,
-  toolSource?: "mcp" | "frontend" | "backend",
-): TelemetryToolCall {
-  const call: TelemetryToolCall = {
-    tool_name: toolName,
-    tool_call_id: toolCallId,
-  };
-  const toolArgs = argsText ?? safeStringify(args);
-  if (toolArgs !== undefined) call.tool_args = toolArgs;
-  const toolResult =
-    toolSource === "mcp" ? summarizeMcpResult(result) : safeStringify(result);
-  if (toolResult !== undefined) call.tool_result = toolResult;
-  if (toolSource) call.tool_source = toolSource;
-  return call;
-}
-
 type TelemetryStepData = {
   input_tokens?: number;
   output_tokens?: number;
   reasoning_tokens?: number;
   cached_input_tokens?: number;
-  tool_calls?: TelemetryToolCall[];
+  tool_calls?: AssistantCloudRunReportToolCall[];
   start_ms?: number;
   end_ms?: number;
 };
 
 type StepTimestamp = { start_ms: number; end_ms: number };
+
+function toRunReportSteps(
+  steps: TelemetryStepData[] | undefined,
+): RunReportStepInit[] | undefined {
+  if (!steps) return undefined;
+  return steps.map((step) => ({
+    usage: {
+      inputTokens: step.input_tokens,
+      outputTokens: step.output_tokens,
+      reasoningTokens: step.reasoning_tokens,
+      cachedInputTokens: step.cached_input_tokens,
+    },
+    toolCalls: step.tool_calls,
+    startMs: step.start_ms,
+    endMs: step.end_ms,
+  }));
+}
 
 function mergeStepTimestamps(
   steps: TelemetryStepData[] | undefined,
@@ -323,7 +434,7 @@ function mergeStepTimestamps(
 
 type TelemetryData = {
   status: "completed" | "incomplete" | "error";
-  toolCalls?: TelemetryToolCall[];
+  toolCalls?: AssistantCloudRunReportToolCall[];
   totalSteps?: number;
   inputTokens?: number;
   outputTokens?: number;
@@ -334,6 +445,101 @@ type TelemetryData = {
   steps?: TelemetryStepData[];
   modelId?: string;
 };
+
+type RunMessageInfo = {
+  localMessageId?: string;
+  status?: "error";
+  outcomeType?: RunReportOutcome;
+  error?: string;
+  errorCode?: string;
+  firstTokenMs?: number;
+  traceId?: string;
+  provider?: string;
+};
+
+function extractLastRunMessageInfo<
+  TMessage,
+  TStorageFormat extends Record<string, unknown>,
+>(
+  items: MessageFormatItem<TMessage>[],
+  formatAdapter: MessageFormatAdapter<TMessage, TStorageFormat>,
+): RunMessageInfo | undefined {
+  for (let i = items.length - 1; i >= 0; i--) {
+    const item = items[i]!;
+    const info = extractRunMessageInfo(
+      item.message,
+      formatAdapter.format,
+      formatAdapter.getId(item.message),
+    );
+    if (info) return info;
+  }
+  return undefined;
+}
+
+function extractRunMessageInfo(
+  message: unknown,
+  format: string,
+  localMessageId?: string,
+): RunMessageInfo | undefined {
+  if (!isRecord(message) || message.role !== "assistant") return undefined;
+
+  const status = isRecord(message.status) ? message.status : undefined;
+  const metadata = isRecord(message.metadata) ? message.metadata : undefined;
+  const custom = isRecord(metadata?.custom) ? metadata.custom : undefined;
+  const timing = isRecord(metadata?.timing) ? metadata.timing : undefined;
+  const streamStartTime = timing?.streamStartTime;
+  const firstTokenTime = timing?.firstTokenTime;
+  const firstTokenMs =
+    typeof streamStartTime === "number" &&
+    Number.isFinite(streamStartTime) &&
+    typeof firstTokenTime === "number" &&
+    Number.isFinite(firstTokenTime)
+      ? Math.round(firstTokenTime - streamStartTime)
+      : undefined;
+  const finishReason =
+    status?.type === "incomplete"
+      ? status.reason
+      : typeof metadata?.finishReason === "string"
+        ? metadata.finishReason
+        : undefined;
+  const failed = status?.type === "incomplete" && status.reason === "error";
+  const outcome = deriveRunOutcome({
+    finishReason: typeof finishReason === "string" ? finishReason : undefined,
+    isError: failed,
+  });
+  const outcomeType = outcome.outcome;
+  const failure = failed ? describeRunError(status.error) : {};
+  const messageId =
+    localMessageId ?? (typeof message.id === "string" ? message.id : undefined);
+  const traceId =
+    format === "aui/v0"
+      ? custom?.traceId
+      : format === "ai-sdk/v6"
+        ? metadata?.traceId
+        : undefined;
+  const provider =
+    typeof custom?.provider === "string"
+      ? custom.provider
+      : typeof metadata?.provider === "string"
+        ? metadata.provider
+        : undefined;
+
+  return {
+    ...(messageId ? { localMessageId: messageId } : undefined),
+    ...(outcome.status === "error" ? { status: "error" as const } : undefined),
+    ...(outcomeType ? { outcomeType } : undefined),
+    ...failure,
+    ...(firstTokenMs != null && firstTokenMs >= 0
+      ? { firstTokenMs }
+      : undefined),
+    ...(typeof traceId === "string" ? { traceId } : undefined),
+    ...(provider !== undefined ? { provider } : undefined),
+  };
+}
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return value !== null && typeof value === "object";
+}
 
 function extractTelemetry<T>(format: string, content: T): TelemetryData | null {
   switch (format) {
@@ -368,7 +574,7 @@ const AUI_STATUS_MAP: Record<string, TelemetryData["status"]> = {
 export function extractAuiV0<T>(content: T): TelemetryData | null {
   const msg = content as {
     role?: string;
-    status?: { type: string };
+    status?: { type: string; reason?: string };
     content?: readonly {
       type: string;
       text?: string;
@@ -380,14 +586,7 @@ export function extractAuiV0<T>(content: T): TelemetryData | null {
     }[];
     metadata?: {
       modelId?: string;
-      steps?: readonly {
-        usage?: {
-          inputTokens?: number;
-          outputTokens?: number;
-          reasoningTokens?: number;
-          cachedInputTokens?: number;
-        };
-      }[];
+      steps?: readonly { usage?: RunTelemetryUsageInit }[];
       custom?: Record<string, unknown> & { modelId?: string };
     };
   };
@@ -400,13 +599,19 @@ export function extractAuiV0<T>(content: T): TelemetryData | null {
   const toolCalls = msg.content
     ?.filter((p) => p.type === "tool-call" && p.toolName && p.toolCallId)
     .map((p) =>
-      buildToolCall(p.toolName!, p.toolCallId!, p.args, p.result, p.argsText),
+      createRunTelemetryToolCall({
+        toolName: p.toolName!,
+        toolCallId: p.toolCallId!,
+        args: p.args,
+        result: p.result,
+        argsText: p.argsText,
+      }),
     );
 
   const textParts = msg.content?.filter((p) => p.type === "text" && p.text);
   const outputText =
     textParts && textParts.length > 0
-      ? truncateStr(textParts.map((p) => p.text).join(""))
+      ? truncateRunTelemetryText(textParts.map((p) => p.text).join(""))
       : undefined;
 
   const steps = msg.metadata?.steps;
@@ -424,20 +629,23 @@ export function extractAuiV0<T>(content: T): TelemetryData | null {
     let hasReasoning = false;
     let hasCachedInput = false;
     for (const step of steps) {
-      if (step.usage?.inputTokens != null) {
-        totalInput += step.usage.inputTokens;
+      if (!step.usage) continue;
+      const usage = normalizeRunTelemetryUsage(step.usage);
+      if (!usage) continue;
+      if (usage.inputTokens != null) {
+        totalInput += usage.inputTokens;
         hasInput = true;
       }
-      if (step.usage?.outputTokens != null) {
-        totalOutput += step.usage.outputTokens;
+      if (usage.outputTokens != null) {
+        totalOutput += usage.outputTokens;
         hasOutput = true;
       }
-      if (step.usage?.reasoningTokens != null) {
-        totalReasoning += step.usage.reasoningTokens;
+      if (usage.reasoningTokens != null) {
+        totalReasoning += usage.reasoningTokens;
         hasReasoning = true;
       }
-      if (step.usage?.cachedInputTokens != null) {
-        totalCachedInput += step.usage.cachedInputTokens;
+      if (usage.cachedInputTokens != null) {
+        totalCachedInput += usage.cachedInputTokens;
         hasCachedInput = true;
       }
     }
@@ -449,31 +657,36 @@ export function extractAuiV0<T>(content: T): TelemetryData | null {
 
   const statusType = msg.status?.type;
   const status: TelemetryData["status"] =
-    (statusType && AUI_STATUS_MAP[statusType]) || "completed";
+    statusType === "incomplete" && msg.status?.reason === "error"
+      ? "error"
+      : (statusType && AUI_STATUS_MAP[statusType]) || "completed";
 
   const metadata = msg.metadata?.custom as Record<string, unknown> | undefined;
-  const modelId =
-    msg.metadata?.modelId ??
-    (typeof msg.metadata?.custom?.modelId === "string"
-      ? msg.metadata.custom.modelId
-      : undefined);
+  const modelId = extractRunTelemetryModelId(
+    msg.metadata as Record<string, unknown> | undefined,
+  );
 
   const telemetrySteps: TelemetryStepData[] | undefined =
     steps && steps.length > 1
-      ? steps.map((s) => ({
-          ...(s.usage?.inputTokens != null
-            ? { input_tokens: s.usage.inputTokens }
-            : undefined),
-          ...(s.usage?.outputTokens != null
-            ? { output_tokens: s.usage.outputTokens }
-            : undefined),
-          ...(s.usage?.reasoningTokens != null
-            ? { reasoning_tokens: s.usage.reasoningTokens }
-            : undefined),
-          ...(s.usage?.cachedInputTokens != null
-            ? { cached_input_tokens: s.usage.cachedInputTokens }
-            : undefined),
-        }))
+      ? steps.map((s) => {
+          const usage = s.usage
+            ? normalizeRunTelemetryUsage(s.usage)
+            : undefined;
+          return {
+            ...(usage?.inputTokens != null
+              ? { input_tokens: usage.inputTokens }
+              : undefined),
+            ...(usage?.outputTokens != null
+              ? { output_tokens: usage.outputTokens }
+              : undefined),
+            ...(usage?.reasoningTokens != null
+              ? { reasoning_tokens: usage.reasoningTokens }
+              : undefined),
+            ...(usage?.cachedInputTokens != null
+              ? { cached_input_tokens: usage.cachedInputTokens }
+              : undefined),
+          };
+        })
       : undefined;
 
   return {
@@ -518,29 +731,28 @@ function isDynamicToolPart(p: AiSdkV6Part): boolean {
   return p.type === "dynamic-tool" || p.type.startsWith("dynamic-tool-");
 }
 
-function partToToolCall(p: AiSdkV6Part): TelemetryToolCall {
-  const toolSource: "mcp" | undefined = isDynamicToolPart(p)
+function partToToolCall(p: AiSdkV6Part): AssistantCloudRunReportToolCall {
+  const toolSource: "mcp" | "frontend" = isDynamicToolPart(p)
     ? "mcp"
-    : undefined;
-  return buildToolCall(
-    p.toolName ?? p.type.slice(5),
-    p.toolCallId!,
-    p.args ?? p.input,
-    p.result ?? p.output,
-    undefined,
+    : "frontend";
+  return createRunTelemetryToolCall({
+    toolName: p.toolName ?? p.type.slice(5),
+    toolCallId: p.toolCallId!,
+    args: p.args ?? p.input,
+    result: p.result ?? p.output,
     toolSource,
-  );
+  });
 }
 
 function collectAiSdkV6Parts(parts: readonly AiSdkV6Part[]): {
   textParts: string[];
-  toolCalls: TelemetryToolCall[];
-  stepsData: { tool_calls: TelemetryToolCall[] }[];
+  toolCalls: AssistantCloudRunReportToolCall[];
+  stepsData: { tool_calls: AssistantCloudRunReportToolCall[] }[];
 } {
   const textParts: string[] = [];
-  const toolCalls: TelemetryToolCall[] = [];
-  const stepsData: { tool_calls: TelemetryToolCall[] }[] = [];
-  let currentStepToolCalls: TelemetryToolCall[] | null = null;
+  const toolCalls: AssistantCloudRunReportToolCall[] = [];
+  const stepsData: { tool_calls: AssistantCloudRunReportToolCall[] }[] = [];
+  let currentStepToolCalls: AssistantCloudRunReportToolCall[] | null = null;
 
   for (const p of parts) {
     if (p.type === "step-start") {
@@ -566,32 +778,19 @@ function collectAiSdkV6Parts(parts: readonly AiSdkV6Part[]): {
   return { textParts, toolCalls, stepsData };
 }
 
-function extractModelId(
-  metadata?: Record<string, unknown>,
-): string | undefined {
-  if (!metadata) return undefined;
-  if (typeof metadata.modelId === "string") return metadata.modelId;
-  const custom = metadata.custom as Record<string, unknown> | undefined;
-  if (typeof custom?.modelId === "string") return custom.modelId;
-  return undefined;
-}
-
 function buildAiSdkV6Result(
   textParts: string[],
-  toolCalls: TelemetryToolCall[],
+  toolCalls: AssistantCloudRunReportToolCall[],
   totalSteps: number,
   metadata?: Record<string, unknown>,
-  stepsData?: { tool_calls: TelemetryToolCall[] }[],
-  usage?: {
-    inputTokens?: number;
-    outputTokens?: number;
-    reasoningTokens?: number;
-    cachedInputTokens?: number;
-  },
+  stepsData?: { tool_calls: AssistantCloudRunReportToolCall[] }[],
+  usage?: RunTelemetryUsage,
 ): TelemetryData {
   const hasText = textParts.length > 0;
-  const outputText = hasText ? truncateStr(textParts.join("")) : undefined;
-  const modelId = extractModelId(metadata);
+  const outputText = hasText
+    ? truncateRunTelemetryText(textParts.join(""))
+    : undefined;
+  const modelId = extractRunTelemetryModelId(metadata);
 
   const steps: TelemetryStepData[] | undefined =
     stepsData && stepsData.length > 1
@@ -625,64 +824,19 @@ function buildAiSdkV6Result(
   };
 }
 
-type UsageFields = {
-  inputTokens?: number;
-  outputTokens?: number;
-  promptTokens?: number;
-  completionTokens?: number;
-  reasoningTokens?: number;
-  cachedInputTokens?: number;
-};
-
-function normalizeUsage(u: UsageFields):
-  | {
-      inputTokens?: number;
-      outputTokens?: number;
-      reasoningTokens?: number;
-      cachedInputTokens?: number;
-    }
-  | undefined {
-  const input = u.inputTokens ?? u.promptTokens;
-  const output = u.outputTokens ?? u.completionTokens;
-  if (
-    input == null &&
-    output == null &&
-    u.reasoningTokens == null &&
-    u.cachedInputTokens == null
-  ) {
-    return undefined;
-  }
-
-  return {
-    ...(input != null ? { inputTokens: input } : undefined),
-    ...(output != null ? { outputTokens: output } : undefined),
-    ...(u.reasoningTokens != null
-      ? { reasoningTokens: u.reasoningTokens }
-      : undefined),
-    ...(u.cachedInputTokens != null
-      ? { cachedInputTokens: u.cachedInputTokens }
-      : undefined),
-  };
-}
-
-function extractAiSdkV6Usage(metadata?: Record<string, unknown>):
-  | {
-      inputTokens?: number;
-      outputTokens?: number;
-      reasoningTokens?: number;
-      cachedInputTokens?: number;
-    }
-  | undefined {
+function extractAiSdkV6Usage(
+  metadata?: Record<string, unknown>,
+): RunTelemetryUsage | undefined {
   // Try top-level metadata.usage
-  const usage = metadata?.usage as UsageFields | undefined;
+  const usage = metadata?.usage as RunTelemetryUsageInit | undefined;
   if (usage) {
-    const normalized = normalizeUsage(usage);
+    const normalized = normalizeRunTelemetryUsage(usage);
     if (normalized) return normalized;
   }
 
   // Try aggregating from metadata.steps[].usage
   const steps = metadata?.steps as
-    | readonly { usage?: UsageFields }[]
+    | readonly { usage?: RunTelemetryUsageInit }[]
     | undefined;
   if (steps && steps.length > 0) {
     let inputTokens = 0;
@@ -696,7 +850,7 @@ function extractAiSdkV6Usage(metadata?: Record<string, unknown>):
     let hasAny = false;
     for (const s of steps) {
       if (!s.usage) continue;
-      const n = normalizeUsage(s.usage);
+      const n = normalizeRunTelemetryUsage(s.usage);
       if (n) {
         if (n.inputTokens != null) {
           inputTokens += n.inputTokens;
@@ -749,8 +903,8 @@ function extractAiSdkV6<T>(content: T): TelemetryData | null {
 
 function aggregateAiSdkV6RunSteps<T>(stepMessages: T[]): TelemetryData | null {
   const allTextParts: string[] = [];
-  const allToolCalls: TelemetryToolCall[] = [];
-  const allStepsData: { tool_calls: TelemetryToolCall[] }[] = [];
+  const allToolCalls: AssistantCloudRunReportToolCall[] = [];
+  const allStepsData: { tool_calls: AssistantCloudRunReportToolCall[] }[] = [];
   let hasAssistant = false;
   let metadata: Record<string, unknown> | undefined;
   let inputTokens = 0;
@@ -814,7 +968,7 @@ function aggregateAiSdkV6RunSteps<T>(stepMessages: T[]): TelemetryData | null {
 
 export function useAssistantCloudThreadHistoryAdapter(
   cloudRef: RefObject<AssistantCloud>,
-): ThreadHistoryAdapter {
+): ThreadHistoryAdapter & { readonly feedback: FeedbackAdapter } {
   const aui = useAui();
   // Not useEffectEvent: history adapter methods run during render (SSR load).
   const auiRef = useRef(aui);
@@ -825,5 +979,239 @@ export function useAssistantCloudThreadHistoryAdapter(
     () =>
       new AssistantCloudThreadHistoryAdapter(cloudRef, () => auiRef.current),
   );
+  useAssistantCloudEngagementEvents(cloudRef, adapter, aui);
   return adapter;
 }
+
+type RootEngagementTracker = {
+  count: number;
+  adapter: AssistantCloudThreadHistoryAdapter;
+  cloudRef: RefObject<AssistantCloud>;
+  dispose: () => void;
+};
+
+const rootEngagementTrackers = new WeakMap<
+  AssistantClient,
+  RootEngagementTracker
+>();
+
+/**
+ * Thread switches are a thread list event, so one subscription per assistant
+ * client reports them; every thread runtime mounted under it shares the
+ * subscription and the last one to unmount removes it.
+ */
+const useRootEngagementEvents = (
+  cloudRef: RefObject<AssistantCloud>,
+  adapter: AssistantCloudThreadHistoryAdapter,
+  aui: AssistantClient,
+) => {
+  useEffect(() => {
+    let tracker = rootEngagementTrackers.get(aui);
+    if (!tracker) {
+      const created: RootEngagementTracker = {
+        count: 0,
+        adapter,
+        cloudRef,
+        dispose: () => {},
+      };
+      created.dispose = aui.on(
+        { scope: "*", event: "threads.selectionChanged" },
+        (payload) => {
+          void created.adapter
+            .resolveEngagementEventIds(payload.threadId)
+            .then((ids) => {
+              if (!ids.thread_id) return;
+              created.cloudRef.current.events?.track({
+                kind: "thread_switched",
+                ...ids,
+              });
+            })
+            .catch(() => {});
+        },
+      );
+      rootEngagementTrackers.set(aui, created);
+      tracker = created;
+    }
+    const active = tracker;
+    active.adapter = adapter;
+    active.cloudRef = cloudRef;
+    active.count += 1;
+    return () => {
+      active.count -= 1;
+      if (active.count === 0) {
+        active.dispose();
+        rootEngagementTrackers.delete(aui);
+      }
+    };
+  }, [adapter, aui, cloudRef]);
+};
+
+const useAssistantCloudEngagementEvents = (
+  cloudRef: RefObject<AssistantCloud>,
+  adapter: AssistantCloudThreadHistoryAdapter,
+  aui: AssistantClient,
+) => {
+  useRootEngagementEvents(cloudRef, adapter, aui);
+  const runStartedAt = useRef(new Map<string, number>());
+  const runEndedAt = useRef(new Map<string, number>());
+  const shownSuggestions = useRef(new Set<string>());
+
+  useEffect(() => {
+    const track = (
+      event: AssistantCloudEvent,
+      threadId: string,
+      messageId?: string,
+      options?: { awaitThread?: boolean },
+    ) => {
+      void adapter
+        .resolveEngagementEventIds(threadId, messageId, options)
+        .then((ids) => {
+          cloudRef.current.events?.track({ ...event, ...ids });
+        })
+        .catch(() => {});
+    };
+    const trackRunStopped = (threadId: string) => {
+      const startedAt = runStartedAt.current.get(threadId);
+      if (startedAt === undefined) return;
+      runStartedAt.current.delete(threadId);
+      track(
+        { kind: "run_stopped", value: Math.max(0, Date.now() - startedAt) },
+        threadId,
+      );
+    };
+
+    const unsubscribers = [
+      aui.on({ scope: "thread", event: "composer.send" }, (payload) => {
+        const previousRunEndedAt = runEndedAt.current.get(payload.threadId);
+        track(
+          {
+            kind: payload.messageId ? "message_edited" : "message_sent",
+            ...(payload.messageId
+              ? { props: { chars: payload.chars } }
+              : {
+                  props: {
+                    chars: payload.chars,
+                    attachments: payload.attachments,
+                  },
+                }),
+            ...(!payload.messageId && previousRunEndedAt !== undefined
+              ? { value: Math.max(0, Date.now() - previousRunEndedAt) }
+              : undefined),
+          },
+          payload.threadId,
+          payload.messageId,
+          { awaitThread: !payload.messageId },
+        );
+        if (payload.suggestion) {
+          track({ kind: "suggestion_clicked" }, payload.threadId);
+        }
+      }),
+      aui.on(
+        { scope: "thread", event: "composer.attachmentAdd" },
+        (payload) => {
+          track(
+            {
+              kind: "attachment_added",
+              ...(payload.contentType
+                ? { props: { type: payload.contentType } }
+                : undefined),
+            },
+            payload.threadId,
+            payload.messageId,
+          );
+        },
+      ),
+      aui.on(
+        { scope: "thread", event: "composer.attachmentAddError" },
+        (payload) => {
+          track(
+            {
+              kind: "attachment_failed",
+              ...(payload.contentType
+                ? { props: { type: payload.contentType } }
+                : undefined),
+            },
+            payload.threadId,
+            payload.messageId,
+          );
+        },
+      ),
+      aui.on({ scope: "thread", event: "composer.cancel" }, (payload) => {
+        trackRunStopped(payload.threadId);
+      }),
+      aui.on({ scope: "thread", event: "thread.runStart" }, (payload) => {
+        runStartedAt.current.set(payload.threadId, Date.now());
+      }),
+      aui.on({ scope: "thread", event: "thread.runEnd" }, (payload) => {
+        runStartedAt.current.delete(payload.threadId);
+        runEndedAt.current.set(payload.threadId, Date.now());
+      }),
+      aui.on({ scope: "thread", event: "thread.cancelRun" }, (payload) => {
+        trackRunStopped(payload.threadId);
+      }),
+      aui.on({ scope: "thread", event: "thread.voiceStarted" }, (payload) => {
+        track({ kind: "voice_started" }, payload.threadId);
+      }),
+      aui.on({ scope: "thread", event: "message.reload" }, (payload) => {
+        track(
+          { kind: "message_regenerated" },
+          payload.threadId,
+          payload.messageId,
+        );
+      }),
+      aui.on(
+        { scope: "thread", event: "message.branchSwitched" },
+        (payload) => {
+          track(
+            { kind: "branch_switched" },
+            payload.threadId,
+            payload.messageId,
+          );
+        },
+      ),
+      aui.on({ scope: "thread", event: "message.copied" }, (payload) => {
+        track({ kind: "message_copied" }, payload.threadId, payload.messageId);
+      }),
+      aui.on({ scope: "thread", event: "message.speak" }, (payload) => {
+        track({ kind: "speech_started" }, payload.threadId, payload.messageId);
+      }),
+      aui.on({ scope: "thread", event: "message.error" }, (payload) => {
+        track(
+          { kind: "error_shown", props: { reason: payload.reason } },
+          payload.threadId,
+          payload.messageId,
+        );
+      }),
+    ];
+
+    return () => {
+      for (const unsubscribe of unsubscribers) unsubscribe();
+    };
+  }, [adapter, aui, cloudRef]);
+
+  useEffect(() => {
+    const reportSuggestions = () => {
+      const { mainThreadId } = aui.threads.getState();
+      if (aui.threadListItem.getState().id !== mainThreadId) return;
+      const { isEmpty, suggestions } = aui.thread.getState();
+      if (
+        !isEmpty ||
+        suggestions.length === 0 ||
+        shownSuggestions.current.has(mainThreadId)
+      ) {
+        return;
+      }
+      shownSuggestions.current.add(mainThreadId);
+      void adapter.resolveEngagementEventIds(mainThreadId).then((ids) => {
+        cloudRef.current.events?.track({
+          kind: "suggestions_shown",
+          value: suggestions.length,
+          ...ids,
+        });
+      });
+    };
+
+    reportSuggestions();
+    return aui.subscribe(reportSuggestions);
+  }, [adapter, aui, cloudRef]);
+};

@@ -1,7 +1,9 @@
 import { describe, expect, it, vi } from "vitest";
 import { withAui } from "./with-aui";
 
-const rulesFor = (config: Parameters<typeof withAui>[0]) =>
+type AuiNextConfig = NonNullable<Parameters<typeof withAui>[0]>;
+
+const rulesFor = (config: AuiNextConfig) =>
   withAui(config).turbopack?.rules ?? {};
 
 const ourRule = (rule: unknown) =>
@@ -38,7 +40,8 @@ describe("withAui", () => {
   it("honors custom globs", () => {
     expect(
       Object.keys(
-        withAui({}, { rules: ["*.generative.tsx"] }).turbopack?.rules ?? {},
+        withAui<AuiNextConfig>({}, { rules: ["*.generative.tsx"] }).turbopack
+          ?.rules ?? {},
       ),
     ).toEqual(["*.generative.tsx"]);
   });
@@ -81,11 +84,24 @@ describe("withAui", () => {
     );
   });
 
+  it("reads options from the `aui` config key and strips it", () => {
+    const result = withAui<AuiNextConfig>({
+      aui: { rules: ["*.generative.tsx"], backendless: true },
+    });
+
+    expect("aui" in result).toBe(false);
+    const rules = result.turbopack?.rules ?? {};
+    expect(Object.keys(rules)).toEqual(["*.generative.tsx"]);
+    expect(ourRule(rules["*.generative.tsx"]).loaders[0]).toMatchObject({
+      options: { backendless: true },
+    });
+  });
+
   it("delegates to the caller's webpack function", () => {
     const userWebpack = vi.fn((config) => config);
     const config = { module: { rules: [] as unknown[] } };
 
-    withAui({ webpack: userWebpack }).webpack!(config, {});
+    withAui<AuiNextConfig>({ webpack: userWebpack }).webpack!(config, {});
 
     expect(userWebpack).toHaveBeenCalledWith(config, {});
     expect(config.module.rules).toHaveLength(1);

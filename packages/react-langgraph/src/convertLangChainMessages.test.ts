@@ -1,4 +1,4 @@
-import { describe, it, expect } from "vitest";
+import { describe, it, expect, vi } from "vitest";
 import type { AppendMessage } from "@assistant-ui/core";
 import { convertExternalMessages } from "@assistant-ui/core/react";
 import {
@@ -26,6 +26,100 @@ const convertLangChainMessages = (
       metadata: Record<string, unknown>,
     ) => ConvertResult
   )(message, metadata);
+
+describe("convertLangChainMessages tool result names", () => {
+  const assistant: LangChainMessage = {
+    id: "ai-1",
+    type: "ai",
+    content: "",
+    tool_calls: [{ id: "call-1", name: "search", args: {} }],
+  };
+  const tool: LangChainMessage = {
+    id: "tool-1",
+    type: "tool",
+    tool_call_id: "call-1",
+    name: "",
+    content: "found",
+    status: "success",
+  };
+
+  it("joins a result with an empty name to its tool call", () => {
+    const messages = convertExternalMessages(
+      [assistant, tool],
+      convertLangChainMessagesImpl,
+      false,
+      {},
+    );
+
+    expect(messages).toMatchObject([
+      {
+        role: "assistant",
+        content: [
+          {
+            type: "tool-call",
+            toolCallId: "call-1",
+            toolName: "search",
+            result: "found",
+            isError: false,
+          },
+        ],
+      },
+    ]);
+  });
+
+  it("rejects a result with a different nonempty tool name", () => {
+    expect(() =>
+      convertExternalMessages(
+        [assistant, { ...tool, name: "other" }],
+        convertLangChainMessagesImpl,
+        false,
+        {},
+      ),
+    ).toThrow(/does not match existing tool call/);
+  });
+});
+
+describe("convertLangChainMessages content-less messages", () => {
+  it("converts an ai message without content", () => {
+    const result = convertLangChainMessages({
+      type: "ai",
+      id: "ai-1",
+      tool_calls: [{ id: "call-1", name: "search", args: { q: 1 } }],
+    } as unknown as LangChainMessage);
+
+    expect(result.role).toBe("assistant");
+    expect(result.content).toMatchObject([
+      {
+        type: "tool-call",
+        toolCallId: "call-1",
+        toolName: "search",
+        args: { q: 1 },
+        argsText: '{"q":1}',
+      },
+    ]);
+  });
+
+  it("converts a human message without content", () => {
+    const result = convertLangChainMessages({
+      type: "human",
+      id: "h-1",
+    } as unknown as LangChainMessage);
+
+    expect(result.role).toBe("user");
+    expect(result.content).toEqual([]);
+  });
+
+  it("skips null entries inside a content array", () => {
+    const result = convertLangChainMessages({
+      type: "human",
+      id: "h-2",
+      content: [null, { type: "text", text: "kept" }, undefined],
+    } as unknown as LangChainMessage);
+
+    expect(result.role).toBe("user");
+    expect(result.content).toEqual([{ type: "text", text: "kept" }]);
+  });
+});
 
 describe("convertLangChainMessages metadata", () => {
   it("passes additional_kwargs.metadata to system message", () => {
@@ -66,14 +160,14 @@ describe("convertLangChainMessages metadata", () => {
       id: "ai-1",
       content: "Hi there!",
       additional_kwargs: {
-        metadata: { model: "gpt-5.4-nano", speaker_name: "Assistant" },
+        metadata: { model: "gpt-5.6-luna", speaker_name: "Assistant" },
       },
     });
 
     expect(result).toMatchObject({
       role: "assistant",
       metadata: {
-        custom: { model: "gpt-5.4-nano", speaker_name: "Assistant" },
+        custom: { model: "gpt-5.6-luna", speaker_name: "Assistant" },
       },
     });
   });
@@ -890,6 +984,30 @@ describe("convertLangChainMessages reasoning content", () => {
     });
   });
 
+  it("falls back to reasoning text when summary is empty", () => {
+    const result = convertLangChainMessages({
+      type: "ai",
+      id: "ai-reasoning-empty-summary",
+      content: [
+        {
+          type: "reasoning",
+          summary: [],
+          reasoning: "I should compare both options first.",
+        },
+      ],
+    });
+
+    expect(result).toMatchObject({
+      role: "assistant",
+      content: [
+        {
+          type: "reasoning",
+          text: "I should compare both options first.",
+        },
+      ],
+    });
+  });
+
   it("tolerates null entries inside the summary array", () => {
     const result = convertLangChainMessages({
       type: "ai",
@@ -906,16 +1024,6 @@ describe("convertLangChainMessages reasoning content", () => {
       role: "assistant",
       content: [{ type: "reasoning", text: "\n\n\nkept" }],
     });
-  });
-
-  it("does not throw when a reasoning block omits summary and reasoning", () => {
-    expect(() =>
-      convertLangChainMessages({
-        type: "ai",
-        id: "ai-reasoning-empty",
-        content: [{ type: "reasoning" } as any],
-      }),
-    ).not.toThrow();
   });
 });
 
@@ -1164,6 +1272,106 @@ describe("convertLangChainMessages tool call id stability", () => {
     expect(toolCallPart).toMatchObject({
       argsText: '{"url":"https://example.com"}',
     });
+  });
+
+  it("uses the first tool_call_chunk for duplicate ids and indices", () => {
+    const result = convertLangChainMessages({
+      type: "ai",
+      id: "ai-1",
+      content: "",
+      tool_calls: [
+        { id: "tool-1", name: "by_id", args: {} },
+        { id: "", name: "by_index", args: {}, index: 1 },
+      ],
+      tool_call_chunks: [
+        { id: "tool-1", index: 7, name: "by_id", args: '{"match":1}' },
+        { id: "tool-1", index: 8, name: "by_id", args: '{"match":2}' },
+        { id: "", index: 1, name: "by_index", args: '{"match":3}' },
+        { id: "", index: 1, name: "by_index", args: '{"match":4}' },
+      ],
+    });
+
+    expect(result.content.filter((part) => part.type === "tool-call")).toEqual([
+      expect.objectContaining({ argsText: '{"match":1}' }),
+      expect.objectContaining({ argsText: '{"match":3}' }),
+    ]);
+  });
+
+  it("reads each streamed tool-call identity once", () => {
+    const toolCallCount = 100;
+    const readId = vi.fn();
+    const toolCallChunks = Array.from(
+      { length: toolCallCount },
+      (_, index) => ({
+        index,
+        name: "search",
+        args: `{"index":${index}}`,
+        get id() {
+          readId();
+          return `tool-${index}`;
+        },
+      }),
+    );
+
+    convertLangChainMessages({
+      type: "ai",
+      id: "ai-1",
+      content: "",
+      tool_calls: Array.from({ length: toolCallCount }, (_, index) => ({
+        id: `tool-${index}`,
+        name: "search",
+        args: {},
+      })),
+      tool_call_chunks: toolCallChunks,
+    });
+
+    expect(readId).toHaveBeenCalledTimes(toolCallCount);
+  });
+
+  it("does not index chunks when there are no completed tool calls", () => {
+    const readId = vi.fn();
+
+    convertLangChainMessages({
+      type: "ai",
+      id: "ai-1",
+      content: "",
+      tool_call_chunks: [
+        {
+          index: 0,
+          name: "search",
+          args: '{"query":"weather"}',
+          get id() {
+            readId();
+            return "tool-1";
+          },
+        },
+      ],
+    });
+
+    expect(readId).not.toHaveBeenCalled();
+  });
+
+  it("does not match tool-call chunks with NaN indices", () => {
+    const result = convertLangChainMessages({
+      type: "ai",
+      id: "ai-1",
+      content: "",
+      tool_calls: [
+        { id: "", name: "search", args: { source: "tool-call" }, index: NaN },
+      ],
+      tool_call_chunks: [
+        {
+          id: "",
+          index: NaN,
+          name: "search",
+          args: '{"source":"tool-call-chunk"}',
+        },
+      ],
+    });
+
+    expect(result.content.find((part) => part.type === "tool-call")).toEqual(
+      expect.objectContaining({ argsText: '{"source":"tool-call"}' }),
+    );
   });
 });
 
@@ -1441,6 +1649,20 @@ describe("convertLangChainMessages unknown message types", () => {
     expect(call(removeMessage)).toEqual([]);
   });
 
+  it("does not emit the unknown-message dev warning for type:remove", () => {
+    vi.stubEnv("NODE_ENV", "development");
+    const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
+    try {
+      expect(
+        call({ type: "remove", id: "some-message-id", content: "" }),
+      ).toEqual([]);
+      expect(warn).not.toHaveBeenCalled();
+    } finally {
+      warn.mockRestore();
+      vi.unstubAllEnvs();
+    }
+  });
+
   it("returns an empty array for any other unknown message type", () => {
     expect(call({ type: "delete", id: "x" })).toEqual([]);
   });
@@ -1571,5 +1793,201 @@ describe("convertLangChainMessages audio transcripts", () => {
       const result = convertLangChainMessages(audioMessage("", audio));
       expect(result.content).toEqual([{ type: "text", text: "" }]);
     }
+  });
+});
+
+describe("convertLangChainMessages attachment dedupe", () => {
+  const fileAttachment = (data: string, name = "doc.pdf") => ({
+    id: `att-${name}`,
+    type: "file" as const,
+    name,
+    contentType: "application/pdf",
+    status: { type: "complete" as const },
+    content: [{ type: "file" as const, data, mimeType: "application/pdf" }],
+  });
+
+  const withAttachments = (
+    messageId: string,
+    attachments: readonly unknown[],
+  ) => ({
+    attachmentsByMessageId: new Map([[messageId, attachments]]),
+  });
+
+  const fileBlock = (data: string) => ({
+    type: "file" as const,
+    data,
+    mime_type: "application/pdf",
+    source_type: "base64" as const,
+  });
+
+  it("drops the flattened copy of an attachment file from content", () => {
+    const result = convertLangChainMessages(
+      {
+        type: "human",
+        id: "m1",
+        content: [{ type: "text", text: "here is my file" }, fileBlock("QUJD")],
+      },
+      withAttachments("m1", [fileAttachment("QUJD")]),
+    );
+
+    expect(result.content).toEqual([{ type: "text", text: "here is my file" }]);
+  });
+
+  const deriveWire = (attachments: readonly unknown[]) =>
+    getMessageContent({
+      role: "user",
+      content: [],
+      attachments,
+    } as unknown as AppendMessage) as LangChainMessage["content"];
+
+  it("drops the flattened copy of an attachment image from content", () => {
+    const attachment = {
+      id: "att-img",
+      type: "image",
+      name: "img.png",
+      status: { type: "complete" },
+      content: [{ type: "image", image: "data:image/png;base64,aW1n" }],
+    };
+    const result = convertLangChainMessages(
+      { type: "human", id: "m1", content: deriveWire([attachment]) },
+      withAttachments("m1", [attachment]),
+    );
+
+    expect(result.content).toEqual([{ type: "text", text: " " }]);
+  });
+
+  it("matches across the wire's data URL stripping", () => {
+    const attachment = {
+      id: "att-audio",
+      type: "file",
+      name: "voice.mp3",
+      status: { type: "complete" },
+      content: [
+        {
+          type: "file",
+          data: "data:audio/mp3;base64,QUJD",
+          mimeType: "audio/mp3",
+        },
+      ],
+    };
+    const result = convertLangChainMessages(
+      { type: "human", id: "m1", content: deriveWire([attachment]) },
+      withAttachments("m1", [attachment]),
+    );
+
+    expect(result.content).toEqual([{ type: "text", text: " " }]);
+  });
+
+  it("dedupes an attachment carrying a legacy audio part", () => {
+    const attachment = {
+      id: "att-legacy-audio",
+      type: "file",
+      name: "voice.mp3",
+      status: { type: "complete" },
+      content: [{ type: "audio", audio: { data: "QUJD", format: "mp3" } }],
+    };
+    const result = convertLangChainMessages(
+      { type: "human", id: "m1", content: deriveWire([attachment]) },
+      withAttachments("m1", [attachment]),
+    );
+
+    expect(result.content).toEqual([{ type: "text", text: " " }]);
+  });
+
+  it("keeps direct-content media sent alongside an attachment", () => {
+    const result = convertLangChainMessages(
+      {
+        type: "human",
+        id: "m1",
+        content: [fileBlock("QUJD"), fileBlock("REVG")],
+      },
+      withAttachments("m1", [fileAttachment("QUJD")]),
+    );
+
+    expect(result.content).toEqual([
+      expect.objectContaining({ type: "file", data: "REVG" }),
+    ]);
+  });
+
+  it("keeps the direct part when it shares a payload with an attachment", () => {
+    const directBlock = {
+      type: "file" as const,
+      data: "QUJD",
+      mime_type: "application/pdf",
+      source_type: "base64" as const,
+      metadata: { filename: "mine.pdf" },
+    };
+    const flattenedBlock = {
+      ...fileBlock("QUJD"),
+      metadata: { filename: "attached.pdf" },
+    };
+    const result = convertLangChainMessages(
+      {
+        type: "human",
+        id: "m1",
+        content: [directBlock, flattenedBlock],
+      },
+      withAttachments("m1", [fileAttachment("QUJD", "attached.pdf")]),
+    );
+
+    expect(result.content).toEqual([
+      expect.objectContaining({
+        type: "file",
+        data: "QUJD",
+        filename: "mine.pdf",
+      }),
+    ]);
+  });
+
+  it("drops one content part per duplicate attachment payload", () => {
+    const result = convertLangChainMessages(
+      {
+        type: "human",
+        id: "m1",
+        content: [fileBlock("QUJD"), fileBlock("QUJD"), fileBlock("QUJD")],
+      },
+      withAttachments("m1", [
+        fileAttachment("QUJD", "a.pdf"),
+        fileAttachment("QUJD", "b.pdf"),
+      ]),
+    );
+
+    expect(result.content).toEqual([
+      expect.objectContaining({ type: "file", data: "QUJD" }),
+    ]);
+  });
+
+  it("keeps content parts untouched when no attachments are staged", () => {
+    const result = convertLangChainMessages({
+      type: "human",
+      id: "m1",
+      content: [{ type: "text", text: "hello" }, fileBlock("QUJD")],
+    });
+
+    expect(result.content).toEqual([
+      { type: "text", text: "hello" },
+      expect.objectContaining({ type: "file", data: "QUJD" }),
+    ]);
+  });
+
+  it("never drops text parts even when an attachment carries text", () => {
+    const result = convertLangChainMessages(
+      {
+        type: "human",
+        id: "m1",
+        content: [{ type: "text", text: "pasted text" }],
+      },
+      withAttachments("m1", [
+        {
+          id: "att-txt",
+          type: "document",
+          name: "notes.txt",
+          status: { type: "complete" },
+          content: [{ type: "text", text: "pasted text" }],
+        },
+      ]),
+    );
+
+    expect(result.content).toEqual([{ type: "text", text: "pasted text" }]);
   });
 });

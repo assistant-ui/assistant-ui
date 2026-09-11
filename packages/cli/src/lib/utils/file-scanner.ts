@@ -8,6 +8,23 @@ export interface ScanOptions {
   ignore?: string[];
 }
 
+export function* readProjectFiles(
+  pattern: string,
+  options: { cwd: string; ignore?: string[] },
+): Generator<{ file: string; fullPath: string; content: string }> {
+  const files = globSync(pattern, options);
+
+  for (const file of files) {
+    const fullPath = path.join(options.cwd, file);
+    try {
+      const content = fs.readFileSync(fullPath, "utf8");
+      yield { file, fullPath, content };
+    } catch {
+      continue;
+    }
+  }
+}
+
 export function scanForImport(
   importPattern: string | string[],
   options: ScanOptions = {},
@@ -20,20 +37,13 @@ export function scanForImport(
     "**/build/**",
   ];
 
-  const files = globSync(pattern, { cwd, ignore });
   const patterns = Array.isArray(importPattern)
     ? importPattern
     : [importPattern];
 
-  for (const file of files) {
-    const fullPath = path.join(cwd, file);
-    try {
-      const content = fs.readFileSync(fullPath, "utf8");
-      if (patterns.some((p) => content.includes(p))) {
-        return true;
-      }
-    } catch {
-      // Ignore files that cannot be read
+  for (const { content } of readProjectFiles(pattern, { cwd, ignore })) {
+    if (patterns.some((p) => content.includes(p))) {
+      return true;
     }
   }
 
@@ -52,18 +62,14 @@ export function getFilesContaining(
     "**/build/**",
   ];
 
-  const files = globSync(pattern, { cwd, ignore });
   const result: string[] = [];
 
-  for (const file of files) {
-    const fullPath = path.join(cwd, file);
-    try {
-      const content = fs.readFileSync(fullPath, "utf8");
-      if (content.includes(searchString)) {
-        result.push(fullPath);
-      }
-    } catch {
-      // Ignore files that cannot be read
+  for (const { fullPath, content } of readProjectFiles(pattern, {
+    cwd,
+    ignore,
+  })) {
+    if (content.includes(searchString)) {
+      result.push(fullPath);
     }
   }
 

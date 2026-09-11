@@ -156,17 +156,25 @@ function buildFlatList(
   }
 
   const result: SpanItemState[] = [];
-  function dfs(parentId: string | null) {
-    const kids = children.get(parentId);
-    if (!kids) return;
-    for (const span of kids) {
-      result.push({ ...span, isCollapsed: collapsedIds.has(span.id) });
-      if (!collapsedIds.has(span.id)) {
-        dfs(span.id);
+  const stack: SpanItemState[] = [];
+  const roots = children.get(null) ?? [];
+  for (let index = roots.length - 1; index >= 0; index--) {
+    stack.push(roots[index]!);
+  }
+
+  while (stack.length > 0) {
+    const span = stack.pop()!;
+    const isCollapsed = collapsedIds.has(span.id);
+    result.push({ ...span, isCollapsed });
+
+    if (!isCollapsed) {
+      const kids = children.get(span.id) ?? [];
+      for (let index = kids.length - 1; index >= 0; index--) {
+        stack.push(kids[index]!);
       }
     }
   }
-  dfs(null);
+
   return result;
 }
 

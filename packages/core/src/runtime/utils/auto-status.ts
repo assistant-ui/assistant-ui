@@ -1,5 +1,26 @@
 import type { MessageStatus } from "../../types/message";
 import type { ReadonlyJSONValue } from "assistant-stream/utils";
+import type { ThreadMessageLike } from "./thread-message-like";
+
+type ThreadMessageLikeContentItem = Exclude<
+  ThreadMessageLike["content"],
+  string
+>[number];
+
+export const isPendingToolCall = (c: ThreadMessageLikeContentItem): boolean =>
+  c.type === "tool-call" && c.result === undefined;
+
+export const isInterruptedToolCall = (
+  c: ThreadMessageLikeContentItem,
+): boolean => {
+  if (c.type !== "tool-call" || c.result !== undefined) return false;
+  return (
+    c.interrupt != null ||
+    (c.approval != null &&
+      c.approval.approved === undefined &&
+      c.approval.resolution === undefined)
+  );
+};
 
 const symbolAutoStatus = Symbol("autoStatus");
 
@@ -11,6 +32,15 @@ const AUTO_STATUS_COMPLETE = Object.freeze(
     {
       type: "complete" as const,
       reason: "unknown" as const,
+    },
+    { [symbolAutoStatus]: true },
+  ),
+);
+const AUTO_STATUS_CANCELLED = Object.freeze(
+  Object.assign(
+    {
+      type: "incomplete" as const,
+      reason: "cancelled" as const,
     },
     { [symbolAutoStatus]: true },
   ),
@@ -45,6 +75,7 @@ export const getAutoStatus = (
   hasInterruptedToolCalls: boolean,
   hasPendingToolCalls: boolean,
   error?: ReadonlyJSONValue,
+  isCancelled?: boolean,
 ): MessageStatus => {
   if (isLast && error) {
     return Object.assign(
@@ -63,5 +94,19 @@ export const getAutoStatus = (
       ? AUTO_STATUS_INTERRUPT
       : hasPendingToolCalls
         ? AUTO_STATUS_PENDING
-        : AUTO_STATUS_COMPLETE;
+        : isCancelled
+          ? AUTO_STATUS_CANCELLED
+          : AUTO_STATUS_COMPLETE;
 };
+
+export const getContentAutoStatus = (
+  content: ThreadMessageLike["content"],
+  isLast: boolean,
+  isRunning: boolean,
+): MessageStatus =>
+  getAutoStatus(
+    isLast,
+    isRunning,
+    typeof content !== "string" && content.some(isInterruptedToolCall),
+    typeof content !== "string" && content.some(isPendingToolCall),
+  );

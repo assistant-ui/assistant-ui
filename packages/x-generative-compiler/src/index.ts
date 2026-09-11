@@ -1,6 +1,7 @@
 export {
   compileGenerative,
   isGenerativeModule,
+  isGenerativeSource,
   GenerativeCompileError,
   type ToolType,
   type CompileOptions,

@@ -8,7 +8,7 @@ import {
   useCallback,
 } from "react";
 import { useAui, useAuiState } from "@assistant-ui/store";
-import { composeEventHandlers } from "@radix-ui/primitive";
+import { composeEventHandlers } from "radix-ui/internal";
 
 // ---- Root ----
 

@@ -1,10 +1,18 @@
 // @vitest-environment jsdom
 
-import { act, renderHook } from "@testing-library/react";
+import { act, render, renderHook } from "@testing-library/react";
+import {
+  createElement,
+  startTransition,
+  Suspense,
+  useLayoutEffect,
+} from "react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import type { UseThreadsResult } from "../types";
 import { CloudChatCore } from "../core/CloudChatCore";
+import { ChatRegistry } from "./ChatRegistry";
 import { useCloudChat } from "./useCloudChat";
+import { useCloudChatCore } from "./useCloudChatCore";
 
 function createThreads(
   cloud: unknown,
@@ -64,6 +72,166 @@ describe("useCloudChat thread switching", () => {
     rerender({ tid: null });
 
     expect(result.current.messages).toHaveLength(0);
+  });
+
+  it("keeps the committed chat active when a Cloud scope switch suspends", () => {
+    const stopAll = vi
+      .spyOn(ChatRegistry.prototype, "stopAll")
+      .mockResolvedValue(undefined);
+    const cloudA = { threads: {} };
+    const cloudB = { threads: {} };
+    const threadsA = createThreads(cloudA, null);
+    const threadsB = createThreads(cloudB, null);
+    const pending = new Promise<never>(() => {});
+
+    const Probe = ({
+      threads,
+      suspend,
+    }: {
+      threads: UseThreadsResult;
+      suspend: boolean;
+    }) => {
+      useCloudChat({ threads });
+      if (suspend) throw pending;
+      return null;
+    };
+    const renderProbe = (threads: UseThreadsResult, suspend: boolean) =>
+      createElement(
+        Suspense,
+        { fallback: null },
+        createElement(Probe, { threads, suspend }),
+      );
+
+    const view = render(renderProbe(threadsA, false));
+    view.rerender(renderProbe(threadsB, true));
+    view.rerender(renderProbe(threadsA, false));
+
+    expect(stopAll).not.toHaveBeenCalled();
+  });
+
+  it("keeps committed options active when an options update suspends", async () => {
+    const cloud = {
+      threads: {
+        create: vi.fn().mockResolvedValue({ thread_id: "thread-1" }),
+      },
+    };
+    const threadsA = createThreads(cloud, null);
+    const threadsB = createThreads(cloud, null);
+    const transportA = {
+      sendMessages: vi.fn(),
+      reconnectToStream: vi.fn().mockResolvedValue(null),
+    };
+    const transportB = {
+      sendMessages: vi.fn(),
+      reconnectToStream: vi.fn().mockResolvedValue(null),
+    };
+    const pending = new Promise<never>(() => {});
+    let core: CloudChatCore | undefined;
+
+    const Probe = ({
+      label,
+      threads,
+      transport,
+      suspend,
+    }: {
+      label: string;
+      threads: UseThreadsResult;
+      transport: typeof transportA;
+      suspend: boolean;
+    }) => {
+      const currentCore = useCloudChatCore(cloud as never, {
+        threads,
+        chatConfig: {},
+        transport: transport as never,
+      });
+      core ??= currentCore;
+      if (suspend) throw pending;
+      return createElement("span", null, label);
+    };
+    const renderProbe = (
+      label: string,
+      threads: UseThreadsResult,
+      transport: typeof transportA,
+      suspend: boolean,
+    ) =>
+      createElement(
+        Suspense,
+        { fallback: null },
+        createElement(Probe, { label, threads, transport, suspend }),
+      );
+
+    const view = render(renderProbe("account-a", threadsA, transportA, false));
+
+    act(() => {
+      startTransition(() => {
+        view.rerender(renderProbe("account-b", threadsB, transportB, true));
+      });
+    });
+
+    expect(view.container.textContent).toBe("account-a");
+
+    const registry = new ChatRegistry(() => ({}) as never);
+    await core
+      ?.createTransport("transport-chat", registry)
+      .reconnectToStream({} as never);
+    await core?.ensureThreadId("thread-chat", registry);
+
+    expect(transportA.reconnectToStream).toHaveBeenCalledOnce();
+    expect(transportB.reconnectToStream).not.toHaveBeenCalled();
+    expect(threadsA.selectThread).toHaveBeenCalledWith("thread-1");
+    expect(threadsB.selectThread).not.toHaveBeenCalled();
+  });
+
+  it("applies a committed transport before any effect in the same commit", async () => {
+    const cloud = {
+      threads: {
+        create: vi.fn().mockResolvedValue({ thread_id: "thread-1" }),
+      },
+    };
+    const threads = createThreads(cloud, null);
+    const transportA = {
+      sendMessages: vi.fn(),
+      reconnectToStream: vi.fn().mockResolvedValue(null),
+    };
+    const transportB = {
+      sendMessages: vi.fn(),
+      reconnectToStream: vi.fn().mockResolvedValue(null),
+    };
+    const registry = new ChatRegistry(() => ({}) as never);
+
+    const Probe = ({
+      transport,
+      reconnect,
+    }: {
+      transport: typeof transportA;
+      reconnect: boolean;
+    }) => {
+      const core = useCloudChatCore(cloud as never, {
+        threads,
+        chatConfig: {},
+        transport: transport as never,
+      });
+      useLayoutEffect(() => {
+        if (!reconnect) return;
+        void core
+          .createTransport("transport-chat", registry)
+          .reconnectToStream({} as never);
+      });
+      return null;
+    };
+
+    const view = render(
+      createElement(Probe, { transport: transportA, reconnect: false }),
+    );
+
+    await act(async () => {
+      view.rerender(
+        createElement(Probe, { transport: transportB, reconnect: true }),
+      );
+    });
+
+    expect(transportB.reconnectToStream).toHaveBeenCalledOnce();
+    expect(transportA.reconnectToStream).not.toHaveBeenCalled();
   });
 
   it("retries an interrupted history load when switching back to a thread", () => {

@@ -10,7 +10,12 @@ import type { ToolModelContentPart } from "./tool/tool-types";
  */
 export type PartInit =
   | {
-      readonly type: "text" | "reasoning";
+      readonly type: "text";
+      readonly parentId?: string;
+    }
+  | {
+      readonly type: "reasoning";
+      readonly unstable_summary?: string;
       readonly parentId?: string;
     }
   | {

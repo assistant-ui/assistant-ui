@@ -17,7 +17,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel, Field
 from dotenv import load_dotenv
 
-from assistant_stream.serialization import DataStreamResponse
+from assistant_stream.serialization import AssistantTransportResponse
 from assistant_stream import RunController, create_run
 
 # Load environment variables
@@ -144,7 +144,7 @@ async def assistant_endpoint(request: AssistantRequest):
     # Create streaming response using assistant-stream
     stream = create_run(run_callback, state=request.state)
     
-    return DataStreamResponse(stream)
+    return AssistantTransportResponse(stream)
 
 
 def main():

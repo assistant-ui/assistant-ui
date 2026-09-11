@@ -37,25 +37,38 @@ pnpm --filter with-expo start
 
 ### Runtime Setup
 
-The runtime uses `useChatRuntime` from `@assistant-ui/react-ai-sdk` with an `AssistantChatTransport` that connects to a chat API endpoint:
+The runtime uses `useChatRuntime` from `@assistant-ui/ai-sdk` with an `AssistantChatTransport` that connects to a chat API endpoint:
 
 ```tsx title="hooks/use-app-runtime.ts"
 import { useMemo } from "react";
 import {
   useChatRuntime,
   AssistantChatTransport,
-} from "@assistant-ui/react-ai-sdk";
+} from "@assistant-ui/ai-sdk";
+import { Platform } from "react-native";
+import {
+  createAnonymousSessionFetch,
+  shouldUseAnonymousSessionFetch,
+} from "./anonymous-session-fetch";
 
 const CHAT_API = process.env.EXPO_PUBLIC_CHAT_ENDPOINT_URL ?? "/api/chat";
 
 export function useAppRuntime() {
   const transport = useMemo(
-    () => new AssistantChatTransport({ api: CHAT_API }),
+    () =>
+      new AssistantChatTransport({
+        api: CHAT_API,
+        ...(shouldUseAnonymousSessionFetch(CHAT_API, Platform.OS)
+          ? { fetch: createAnonymousSessionFetch(CHAT_API) }
+          : {}),
+      }),
     [],
   );
   return useChatRuntime({ transport });
 }
 ```
+
+The hosted docs endpoint issues signed anonymous sessions to browser demos. Native builds skip that browser-only bootstrap and should use the bundled API route or another backend intended for the app.
 
 ### App Layout
 
@@ -83,7 +96,7 @@ import {
 } from "@assistant-ui/react-native";
 import { useAppRuntime } from "@/hooks/use-app-runtime";
 import { ThreadListDrawer } from "@/components/thread-list/ThreadListDrawer";
-import { expoToolkit } from "@/components/assistant-ui/tools";
+import { expoToolkit } from "@/components/assistant-ui/elements/tools";
 
 function NewChatButton() {
   const aui = useAui();
@@ -144,7 +157,7 @@ export default function RootLayout() {
 ```
 
 ```tsx title="app/index.tsx"
-import { Thread } from "@/components/assistant-ui/thread";
+import { Thread } from "@/components/assistant-ui/elements/thread.aui";
 
 export default function ChatPage() {
   return <Thread />;

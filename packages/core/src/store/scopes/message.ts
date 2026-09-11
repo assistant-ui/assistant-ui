@@ -19,7 +19,7 @@ export type MessageState = ThreadMessage & {
    * @example
    * ```ts
    * import { WebSpeechSynthesisAdapter } from "@assistant-ui/react";
-   * import { useChatRuntime } from "@assistant-ui/react-ai-sdk";
+   * import { useChatRuntime } from "@assistant-ui/ai-sdk";
    *
    * const runtime = useChatRuntime({
    *   adapters: {
@@ -66,7 +66,21 @@ export type MessageMeta = {
   query: { type: "id"; id: string } | { type: "index"; index: number };
 };
 
+export type MessageEvents = {
+  /** The user asked for this assistant message to be generated again. */
+  "message.reload": { threadId: string; messageId: string };
+  /** The user moved to another branch at this message. */
+  "message.branchSwitched": { threadId: string; messageId: string };
+  /** The user copied this message. */
+  "message.copied": { threadId: string; messageId: string };
+  /** Speech synthesis started for this message. */
+  "message.speak": { threadId: string; messageId: string };
+  /** This message entered an error status. */
+  "message.error": { threadId: string; messageId: string; reason: "error" };
+};
+
 export type MessageClientSchema = {
   methods: MessageMethods;
   meta: MessageMeta;
+  events: MessageEvents;
 };

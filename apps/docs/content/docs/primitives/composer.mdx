@@ -4,7 +4,7 @@ description: Build custom message input UIs with full control over layout and be
 platforms: ["react"]
 ---
 
-import { ComposerPrimitiveSample } from "@/components/docs/samples/composer-primitive";
+import { ComposerPrimitiveSample } from "@/components/pages/docs/samples/composer-primitive";
 import { ComposerPrimitive as ComposerPrimitiveDocs } from "@/generated/primitiveDocs";
 
 The Composer primitive is the interface for composing new messages or editing existing ones. It handles submit behavior, keyboard shortcuts, focus management, attachment state, and streaming status. You provide the UI.
@@ -258,7 +258,7 @@ Renders a single attachment at a specific index.
 
 ### AttachmentDropzone
 
-Drag-and-drop zone for file attachments. Sets `data-dragging` when a file is being dragged over it. Renders a `<div>` element unless `asChild` is set.
+Drag-and-drop zone for file attachments. Sets `data-dragging` when a file is being dragged over it and the runtime supports attachments; without the attachments capability the dropzone accepts no files and shows no highlight. Non-file drags (text, links) are ignored. Renders a `<div>` element unless `asChild` is set.
 
 ```tsx
 <ComposerPrimitive.AttachmentDropzone className="rounded-xl border-2 border-dashed data-[dragging]:border-primary data-[dragging]:bg-primary/5">
@@ -507,7 +507,7 @@ Wrap your composer with `AttachmentDropzone` to support dragging files directly 
 </ComposerPrimitive.AttachmentDropzone>
 ```
 
-The dropzone sets `data-dragging` when a file is being dragged over it, so you can style the active state with CSS.
+The dropzone sets `data-dragging` when a file is being dragged over it, so you can style the active state with CSS. It requires the runtime's attachments capability (an attachment adapter); without it the dropzone stays inert.
 
 ### With Voice Input
 
@@ -648,7 +648,7 @@ The primitive handles everything about composing a message. The layout, animatio
 
 ## Relationship to Components
 
-The [Thread](/docs/ui/thread) component includes a full composer built from these primitives. If you need a working chat UI fast, start there. When you need a composer that doesn't fit inside a thread, such as a floating input, a sidebar composer, or a multi-step form, reach for `ComposerPrimitive` directly.
+The [Thread](/elements/thread) component includes a full composer built from these primitives. If you need a working chat UI fast, start there. When you need a composer that doesn't fit inside a thread, such as a floating input, a sidebar composer, or a multi-step form, reach for `ComposerPrimitive` directly.
 
 ## API Reference
 

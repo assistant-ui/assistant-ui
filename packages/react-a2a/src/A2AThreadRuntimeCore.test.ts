@@ -1,7 +1,12 @@
-import { describe, it, expect, vi, beforeEach } from "vitest";
+import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import { A2AThreadRuntimeCore } from "./A2AThreadRuntimeCore";
 import type { A2AClient } from "./A2AClient";
-import type { A2AMessage, A2AStreamEvent, A2ATask } from "./types";
+import type {
+  A2AAgentCard,
+  A2AMessage,
+  A2AStreamEvent,
+  A2ATask,
+} from "./types";
 import type { AppendMessage, ThreadMessage } from "@assistant-ui/core";
 
 // --- Mock client factory ---
@@ -135,6 +140,10 @@ describe("A2AThreadRuntimeCore", () => {
     notifyUpdate = vi.fn();
   });
 
+  afterEach(() => {
+    vi.restoreAllMocks();
+  });
+
   function createCore(
     clientOverrides: Partial<A2AClient> = {},
     coreOverrides: Record<string, unknown> = {},
@@ -145,6 +154,95 @@ describe("A2AThreadRuntimeCore", () => {
       ...coreOverrides,
     });
   }
+
+  describe("late history loading", () => {
+    const flush = () => new Promise((resolve) => setTimeout(resolve, 0));
+
+    function createLateHistory() {
+      const user = createHistoryMessage("user", "user", "Question");
+      return {
+        user,
+        history: {
+          load: vi.fn().mockResolvedValue({
+            headId: user.id,
+            messages: [{ parentId: null, message: user }],
+          }),
+          append: vi.fn().mockResolvedValue(undefined),
+        },
+      };
+    }
+
+    it("loads history when the adapter arrives after the first load", async () => {
+      const client = createMockClient();
+      const core = createCore(client);
+      const { user, history } = createLateHistory();
+
+      await core.__internal_load();
+      expect(history.load).not.toHaveBeenCalled();
+      expect(core.getMessages()).toEqual([]);
+
+      core.updateOptions({ client, history });
+      await flush();
+
+      expect(history.load).toHaveBeenCalledOnce();
+      expect(core.getMessages().map((message) => message.id)).toEqual([
+        user.id,
+      ]);
+      expect(core.isLoading).toBe(false);
+    });
+
+    it("fetches the agent card once across the early load and the late history load", async () => {
+      const agentCard = { name: "Agent", url: "https://agent.example" };
+      const client = createMockClient({
+        getAgentCard: vi.fn().mockResolvedValue(agentCard),
+      });
+      const core = createCore(client);
+      const { history } = createLateHistory();
+
+      await core.__internal_load();
+      expect(core.getAgentCard()).toEqual(agentCard);
+
+      core.updateOptions({ client, history });
+      await flush();
+
+      expect(client.getAgentCard).toHaveBeenCalledOnce();
+      expect(history.load).toHaveBeenCalledOnce();
+    });
+
+    it("does not load late history over a thread that already has messages", async () => {
+      const client = createMockClient();
+      const core = createCore(client);
+      const { history } = createLateHistory();
+
+      await core.__internal_load();
+      await core.append({
+        ...createUserAppendMessage("Typed"),
+        startRun: false,
+      } as AppendMessage);
+      expect(core.getMessages()).toHaveLength(1);
+
+      core.updateOptions({ client, history });
+      await flush();
+
+      expect(history.load).not.toHaveBeenCalled();
+      expect(core.getMessages()).toHaveLength(1);
+    });
+
+    it("does not reload when the adapter is replaced after a completed load", async () => {
+      const client = createMockClient();
+      const { history } = createLateHistory();
+      const core = createCore(client, { history });
+      const replacement = createLateHistory().history;
+
+      await core.__internal_load();
+      expect(history.load).toHaveBeenCalledOnce();
+
+      core.updateOptions({ client, history: replacement });
+      await flush();
+
+      expect(replacement.load).not.toHaveBeenCalled();
+    });
+  });
 
   // --- Basic state ---
 
@@ -367,6 +465,122 @@ describe("A2AThreadRuntimeCore", () => {
     });
   });
 
+  describe("updateOptions", () => {
+    it("keeps the server-assigned contextId across re-renders", async () => {
+      const streamMessage = vi.fn().mockImplementation(async function* () {
+        yield statusUpdateEvent("completed", "Answer");
+      });
+      const client = createMockClient({ streamMessage });
+      const core = new A2AThreadRuntimeCore({
+        client,
+        notifyUpdate: notifyUpdate as unknown as () => void,
+      });
+
+      await core.append(createUserAppendMessage("First"));
+
+      // useA2ARuntime re-applies its options on every render, including the
+      // renders triggered by the stream's own notifyUpdate calls.
+      core.updateOptions({ client, contextId: undefined });
+
+      await core.append(createUserAppendMessage("Second"));
+
+      const secondSend = streamMessage.mock.calls[1]?.[0];
+      expect(secondSend?.contextId).toBe("ctx-1");
+    });
+
+    it("resets the contextId when the thread is switched", async () => {
+      const streamMessage = vi.fn().mockImplementation(async function* () {
+        yield statusUpdateEvent("completed", "Answer");
+      });
+      const client = createMockClient({ streamMessage });
+      const core = new A2AThreadRuntimeCore({
+        client,
+        notifyUpdate: notifyUpdate as unknown as () => void,
+      });
+
+      await core.append(createUserAppendMessage("First"));
+      core.applyExternalMessages([]);
+      core.resetContext();
+      await core.append(createUserAppendMessage("Fresh thread"));
+
+      const secondSend = streamMessage.mock.calls[1]?.[0];
+      expect(secondSend?.contextId).toBeUndefined();
+    });
+
+    it("does not persist a partial message when switching away mid-run", async () => {
+      let releaseStream!: () => void;
+      const gate = new Promise<void>((resolve) => {
+        releaseStream = resolve;
+      });
+      const streamMessage = vi.fn().mockImplementation(async function* () {
+        yield statusUpdateEvent("working");
+        await gate;
+      });
+      const history = {
+        load: vi.fn().mockResolvedValue({ messages: [] }),
+        append: vi.fn().mockResolvedValue(undefined),
+      };
+      const core = createCore({ streamMessage }, { history });
+
+      const run = core.append(createUserAppendMessage("First"));
+      await vi.waitFor(() => {
+        expect(streamMessage).toHaveBeenCalledTimes(1);
+      });
+      history.append.mockClear();
+
+      core.applyExternalMessages([]);
+      core.resetContext();
+      releaseStream();
+      await run.catch(() => {});
+
+      const cancelledAppend = history.append.mock.calls.find((call) => {
+        const entry = call[0] as
+          | { message?: { status?: { reason?: string } } }
+          | undefined;
+        return entry?.message?.status?.reason === "cancelled";
+      });
+      expect(cancelledAppend).toBeUndefined();
+    });
+
+    it("keeps the contextId across a bare external apply", async () => {
+      const streamMessage = vi.fn().mockImplementation(async function* () {
+        yield statusUpdateEvent("completed", "Answer");
+      });
+      const client = createMockClient({ streamMessage });
+      const core = new A2AThreadRuntimeCore({
+        client,
+        notifyUpdate: notifyUpdate as unknown as () => void,
+      });
+
+      await core.append(createUserAppendMessage("First"));
+      // Branch switches, deletes, and cancel resyncs route through
+      // applyExternalMessages without a thread switch.
+      core.applyExternalMessages(core.getMessages());
+      await core.append(createUserAppendMessage("Second"));
+
+      const secondSend = streamMessage.mock.calls[1]?.[0];
+      expect(secondSend?.contextId).toBe("ctx-1");
+    });
+
+    it("applies a changed contextId option", async () => {
+      const streamMessage = vi.fn().mockImplementation(async function* () {
+        yield statusUpdateEvent("completed", "Answer");
+      });
+      const client = createMockClient({ streamMessage });
+      const core = new A2AThreadRuntimeCore({
+        client,
+        notifyUpdate: notifyUpdate as unknown as () => void,
+      });
+
+      await core.append(createUserAppendMessage("First"));
+      core.updateOptions({ client, contextId: "ctx-override" });
+      await core.append(createUserAppendMessage("Second"));
+
+      const secondSend = streamMessage.mock.calls[1]?.[0];
+      expect(secondSend?.contextId).toBe("ctx-override");
+    });
+  });
+
   // --- Edit & Reload ---
 
   describe("edit", () => {
@@ -514,6 +728,25 @@ describe("A2AThreadRuntimeCore", () => {
       });
     });
 
+    it("handles malformed status message parts", async () => {
+      const core = createCore({
+        streamMessage: vi.fn().mockImplementation(async function* () {
+          yield {
+            type: "statusUpdate",
+            event: {
+              taskId: "t1",
+              contextId: "ctx-1",
+              status: { state: "completed", message: {} },
+            },
+          } as unknown as A2AStreamEvent;
+        }),
+      });
+
+      await core.append(createUserAppendMessage("Go"));
+
+      expect(core.getMessages()[1]!.content).toEqual([]);
+    });
+
     it("tracks task state from status updates", async () => {
       const core = createCore({
         streamMessage: vi.fn().mockImplementation(async function* () {
@@ -563,6 +796,53 @@ describe("A2AThreadRuntimeCore", () => {
   // --- Sync (non-streaming) fallback ---
 
   describe("sync fallback", () => {
+    it("waits for agent capabilities before choosing the first send method", async () => {
+      let resolveAgentCard!: (value: A2AAgentCard) => void;
+      const getAgentCard = vi.fn(
+        () =>
+          new Promise<A2AAgentCard>((resolve) => {
+            resolveAgentCard = resolve;
+          }),
+      );
+      const sendMessage = vi.fn().mockResolvedValue({
+        id: "t1",
+        status: { state: "completed" },
+      } satisfies A2ATask);
+      const streamMessage = vi.fn();
+      const core = createCore({ getAgentCard, sendMessage, streamMessage });
+
+      const run = core.append(createUserAppendMessage("Hello"));
+      expect(sendMessage).not.toHaveBeenCalled();
+      expect(streamMessage).not.toHaveBeenCalled();
+
+      resolveAgentCard({
+        name: "Agent",
+        capabilities: { streaming: false },
+      } as A2AAgentCard);
+      await run;
+
+      expect(getAgentCard).toHaveBeenCalledOnce();
+      expect(sendMessage).toHaveBeenCalledOnce();
+      expect(streamMessage).not.toHaveBeenCalled();
+    });
+
+    it("stops waiting for agent capabilities when the run is cancelled", async () => {
+      const getAgentCard = vi.fn(() => new Promise<A2AAgentCard>(() => {}));
+      const sendMessage = vi.fn();
+      const streamMessage = vi.fn();
+      const core = createCore({ getAgentCard, sendMessage, streamMessage });
+
+      const run = core.append(createUserAppendMessage("Hello"));
+      expect(core.isRunning()).toBe(true);
+
+      await core.cancel();
+      await run;
+
+      expect(core.isRunning()).toBe(false);
+      expect(sendMessage).not.toHaveBeenCalled();
+      expect(streamMessage).not.toHaveBeenCalled();
+    });
+
     it("uses sendMessage when streaming is false in agent card", async () => {
       const sendMessage = vi.fn().mockResolvedValue({
         id: "t1",
@@ -624,6 +904,31 @@ describe("A2AThreadRuntimeCore", () => {
   // --- Artifact handling ---
 
   describe("artifacts", () => {
+    it("treats malformed artifact parts as empty", async () => {
+      const core = createCore({
+        streamMessage: vi.fn().mockImplementation(async function* () {
+          yield {
+            type: "artifactUpdate",
+            event: {
+              taskId: "t1",
+              contextId: "ctx-1",
+              artifact: { artifactId: "a1", parts: {} },
+            },
+          } as unknown as A2AStreamEvent;
+          yield artifactUpdateEvent("a1", [{ text: "part" }], {
+            append: true,
+          });
+          yield statusUpdateEvent("completed", "Done");
+        }),
+      });
+
+      await core.append(createUserAppendMessage("Go"));
+
+      expect(core.getArtifacts()).toEqual([
+        { artifactId: "a1", parts: [{ text: "part" }] },
+      ]);
+    });
+
     it("accumulates artifacts from artifact update events", async () => {
       const core = createCore({
         streamMessage: vi.fn().mockImplementation(async function* () {
@@ -700,6 +1005,53 @@ describe("A2AThreadRuntimeCore", () => {
       expect(onArtifactComplete.mock.calls[0]![0].artifactId).toBe("a1");
     });
 
+    it.each(["throws", "rejects"] as const)(
+      "continues streaming when onArtifactComplete %s",
+      async (failureMode) => {
+        const callbackError = new Error("artifact callback failed");
+        const consoleError = vi
+          .spyOn(console, "error")
+          .mockImplementation(() => {});
+        const onError = vi.fn();
+        const core = createCore(
+          {
+            streamMessage: vi.fn().mockImplementation(async function* () {
+              yield artifactUpdateEvent("a1", [{ text: "code" }], {
+                lastChunk: true,
+              });
+              yield statusUpdateEvent("completed", "Done");
+            }),
+          },
+          {
+            onArtifactComplete: () => {
+              if (failureMode === "throws") throw callbackError;
+              return Promise.reject(callbackError);
+            },
+            onError,
+          },
+        );
+
+        await expect(
+          core.append(createUserAppendMessage("Go")),
+        ).resolves.toBeUndefined();
+
+        expect(onError).not.toHaveBeenCalled();
+        expect(core.getMessages()[1]!.content).toEqual([
+          { type: "text", text: "Done" },
+        ]);
+        expect(core.getMessages()[1]!.status).toEqual({
+          type: "complete",
+          reason: "stop",
+        });
+        await vi.waitFor(() => {
+          expect(consoleError).toHaveBeenCalledWith(
+            "[react-a2a] onArtifactComplete callback threw an error",
+            callbackError,
+          );
+        });
+      },
+    );
+
     it("resets artifacts on new run", async () => {
       let runCount = 0;
 
@@ -774,6 +1126,71 @@ describe("A2AThreadRuntimeCore", () => {
   // --- Task snapshot ---
 
   describe("task snapshot", () => {
+    it("treats malformed artifact parts as empty", async () => {
+      const taskSnapshot = {
+        id: "t1",
+        status: { state: "completed" },
+        artifacts: [{ artifactId: "a1", parts: {} }],
+      } as unknown as A2ATask;
+
+      const core = createCore({
+        streamMessage: vi.fn().mockImplementation(async function* () {
+          yield { type: "task", task: taskSnapshot } as A2AStreamEvent;
+        }),
+      });
+
+      await core.append(createUserAppendMessage("Go"));
+
+      expect(core.getArtifacts()).toEqual([{ artifactId: "a1", parts: [] }]);
+      expect(core.getTask()?.artifacts).toEqual([
+        { artifactId: "a1", parts: [] },
+      ]);
+    });
+
+    it.each([undefined, null, {}, "not-an-array"])(
+      "does not consume malformed task artifacts: %j",
+      async (artifacts) => {
+        const taskSnapshot = {
+          id: "t1",
+          status: { state: "completed" },
+          artifacts,
+          history: artifacts,
+        } as unknown as A2ATask;
+        const core = createCore({
+          streamMessage: vi.fn().mockImplementation(async function* () {
+            yield { type: "task", task: taskSnapshot } as A2AStreamEvent;
+          }),
+        });
+
+        await core.append(createUserAppendMessage("Go"));
+
+        expect(core.getArtifacts()).toEqual([]);
+        if (artifacts === undefined) {
+          expect(core.getTask()?.artifacts).toBeUndefined();
+          expect(core.getTask()?.history).toBeUndefined();
+        } else {
+          expect(core.getTask()?.artifacts).toEqual([]);
+          expect(core.getTask()?.history).toEqual([]);
+        }
+      },
+    );
+
+    it("handles malformed status message parts", async () => {
+      const taskSnapshot = {
+        id: "t1",
+        status: { state: "completed", message: {} },
+      } as unknown as A2ATask;
+      const core = createCore({
+        streamMessage: vi.fn().mockImplementation(async function* () {
+          yield { type: "task", task: taskSnapshot } as A2AStreamEvent;
+        }),
+      });
+
+      await core.append(createUserAppendMessage("Go"));
+
+      expect(core.getMessages()[1]!.content).toEqual([]);
+    });
+
     it("handles full task snapshot from stream", async () => {
       const taskSnapshot: A2ATask = {
         id: "t1",
@@ -890,6 +1307,61 @@ describe("A2AThreadRuntimeCore", () => {
 
       expect(cancelTask).not.toHaveBeenCalled();
     });
+
+    it.each(["throws", "rejects"] as const)(
+      "isolates onCancel callbacks that %s",
+      async (failureMode) => {
+        const callbackError = new Error("cancel callback failed");
+        const consoleError = vi
+          .spyOn(console, "error")
+          .mockImplementation(() => {});
+        let signalStreamStarted!: () => void;
+        const streamStarted = new Promise<void>((resolve) => {
+          signalStreamStarted = resolve;
+        });
+        const core = createCore(
+          {
+            streamMessage: vi.fn().mockImplementation(async function* (
+              _message,
+              _configuration,
+              _metadata,
+              signal: AbortSignal,
+            ) {
+              signalStreamStarted();
+              await new Promise<void>((resolve) => {
+                if (signal.aborted) resolve();
+                else
+                  signal.addEventListener("abort", () => resolve(), {
+                    once: true,
+                  });
+              });
+            }),
+          },
+          {
+            onCancel: () => {
+              if (failureMode === "throws") throw callbackError;
+              return Promise.reject(callbackError);
+            },
+          },
+        );
+
+        const appendPromise = core.append(createUserAppendMessage("Go"));
+        await streamStarted;
+        await expect(core.cancel()).resolves.toBeUndefined();
+        await expect(appendPromise).resolves.toBeUndefined();
+
+        expect(core.getMessages()[1]!.status).toEqual({
+          type: "incomplete",
+          reason: "cancelled",
+        });
+        await vi.waitFor(() => {
+          expect(consoleError).toHaveBeenCalledWith(
+            "[react-a2a] onCancel callback threw an error",
+            callbackError,
+          );
+        });
+      },
+    );
   });
 
   // --- Error handling ---
@@ -927,17 +1399,117 @@ describe("A2AThreadRuntimeCore", () => {
       });
     });
 
-    it("marks complete when stream ends without terminal status", async () => {
-      const core = createCore({
-        streamMessage: vi.fn().mockImplementation(async function* () {
-          // Stream ends without any events
+    it.each(["throws", "rejects"] as const)(
+      "preserves the stream error when onError %s",
+      async (failureMode) => {
+        const streamError = new Error("Network error");
+        const callbackError = new Error("error callback failed");
+        const consoleError = vi
+          .spyOn(console, "error")
+          .mockImplementation(() => {});
+        const core = createCore(
+          {
+            streamMessage: vi.fn().mockImplementation(() => ({
+              async next() {
+                throw streamError;
+              },
+              [Symbol.asyncIterator]() {
+                return this;
+              },
+            })),
+          },
+          {
+            onError: () => {
+              if (failureMode === "throws") throw callbackError;
+              return Promise.reject(callbackError);
+            },
+          },
+        );
+
+        await expect(core.append(createUserAppendMessage("Go"))).rejects.toBe(
+          streamError,
+        );
+
+        expect(core.getMessages()[1]!.status).toEqual({
+          type: "incomplete",
+          reason: "error",
+        });
+        await vi.waitFor(() => {
+          expect(consoleError).toHaveBeenCalledWith(
+            "[react-a2a] onError callback threw an error",
+            callbackError,
+          );
+        });
+      },
+    );
+
+    it("rejects a stream that ends without any events", async () => {
+      const onError = vi.fn();
+      const core = createCore(
+        {
+          streamMessage: vi.fn().mockImplementation(async function* () {
+            return;
+          }),
+        },
+        {
+          onError,
+        },
+      );
+
+      await expect(core.append(createUserAppendMessage("Go"))).rejects.toThrow(
+        "A2A message stream ended without any events.",
+      );
+
+      expect(onError).toHaveBeenCalledWith(
+        expect.objectContaining({
+          message: "A2A message stream ended without any events.",
         }),
+      );
+      const assistant = core.getMessages()[1]!;
+      expect(assistant.status).toEqual({
+        type: "incomplete",
+        reason: "error",
       });
+    });
+
+    it("appends the first skipped frame reason to the empty-stream error", async () => {
+      const onError = vi.fn();
+      const core = createCore(
+        {
+          streamMessage: vi.fn().mockImplementation(async function* () {
+            return "unrecognized event shape (frame: {})";
+          }),
+        },
+        { onError },
+      );
+
+      await expect(core.append(createUserAppendMessage("Go"))).rejects.toThrow(
+        "A2A message stream ended without any events. First skipped frame: unrecognized event shape (frame: {})",
+      );
+      expect(onError).toHaveBeenCalledWith(
+        expect.objectContaining({
+          message:
+            "A2A message stream ended without any events. First skipped frame: unrecognized event shape (frame: {})",
+        }),
+      );
+    });
+
+    it("ignores the skipped frame reason when the stream produced events", async () => {
+      const onError = vi.fn();
+      const core = createCore(
+        {
+          streamMessage: vi.fn().mockImplementation(async function* () {
+            yield statusUpdateEvent("completed", "Done");
+            return "unrecognized event shape (frame: {})";
+          }),
+        },
+        { onError },
+      );
 
       await core.append(createUserAppendMessage("Go"));
 
-      const assistant = core.getMessages()[1]!;
-      expect(assistant.status).toEqual({
+      expect(onError).not.toHaveBeenCalled();
+      expect(core.getMessages()[1]!.status).toEqual({
         type: "complete",
         reason: "stop",
       });
@@ -1002,6 +1574,7 @@ describe("A2AThreadRuntimeCore", () => {
           streamMessage.mock.calls.length === 1 ? firstPending : secondPending;
         return (async function* () {
           await pending;
+          yield statusUpdateEvent("completed", "Done");
         })();
       });
       const core = createCore({ streamMessage });
@@ -1050,7 +1623,9 @@ describe("A2AThreadRuntimeCore", () => {
 
 describe("outbound message conversion", () => {
   function createCoreWithStream() {
-    const streamMessage = vi.fn().mockImplementation(async function* () {});
+    const streamMessage = vi.fn().mockImplementation(async function* () {
+      yield statusUpdateEvent("completed", "Done");
+    });
     const core = new A2AThreadRuntimeCore({
       client: createMockClient({ streamMessage }),
       notifyUpdate: vi.fn() as unknown as () => void,

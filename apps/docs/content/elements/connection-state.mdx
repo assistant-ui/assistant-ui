@@ -1,0 +1,167 @@
+---
+title: "Connection state"
+description: "The socket drops, the run keeps going on the server, and the stream is picked back up."
+---
+
+A connection state banner tells the reader when the transport under a run has hiccuped: the socket dropped, the run is still going server side, or the stream just picked back up. With a runtime this maps to catching a transport failure and resuming the run; standalone you drive the phase directly.
+
+## Getting started
+
+<RuntimeMode>
+
+assistant-ui doesn't expose a single connection field on thread state, because a dropped socket is something an adapter observes, not a concept the runtime itself models. What it exposes instead is a resumable run: catch the failure where your adapter reports it, show the banner, then call `resumeRun` to pick the same run back up.
+
+<Steps>
+  <Step>
+
+### Track the phase around the run
+
+```tsx title="components/assistant-ui/elements/thread.aui.tsx"
+"use client";
+
+import { useEffect, useState } from "react";
+import { useAui, useAuiState } from "@assistant-ui/react";
+import { ConnectionState, type ConnectionPhase } from "./connection-state";
+
+function ConnectionBanner({ resumeFromId }: { resumeFromId: string | null }) {
+  const aui = useAui();
+  const isRunning = useAuiState((s) => s.thread.isRunning);
+  const [phase, setPhase] = useState<ConnectionPhase>("online");
+
+  useEffect(() => {
+    if (phase === "reconnecting" && isRunning) setPhase("resumed");
+  }, [phase, isRunning]);
+
+  return (
+    <ConnectionState
+      phase={phase}
+      onRetry={() => {
+        setPhase("reconnecting");
+        aui.thread.resumeRun({ parentId: resumeFromId });
+      }}
+    />
+  );
+}
+```
+
+Where `phase` first flips to `"dropped"` is adapter-specific: wherever your transport surfaces a network failure, which `ConnectionState` itself has no opinion on. `resumeRun` returns no promise to await; watch `isRunning` flip back to `true` to know the reconnect actually landed.
+
+  </Step>
+  <Step>
+
+### Resume instead of restarting
+
+`resumeRun` takes the same config shape as `startRun`, a `parentId` (and optional `sourceId` and `runConfig`), not a raw connection handle. Whether that continues the same generation or starts a fresh one is up to the adapter: assistant-ui's resumable transports retain the run server side and replay it rather than asking the model again:
+
+```tsx
+aui.thread.resumeRun({ parentId: resumeFromId, sourceId: null });
+```
+
+  </Step>
+</Steps>
+
+</RuntimeMode>
+
+<StandaloneMode>
+
+Standalone, `ConnectionState` is a pure display: you own the phase and it renders the matching banner, or nothing at all.
+
+<Steps>
+  <Step>
+
+### Drive the phase
+
+```tsx title="app/banner.tsx"
+"use client";
+
+import { useState } from "react";
+import { ConnectionState, type ConnectionPhase } from "@/components/assistant-ui/elements/connection-state";
+
+export function Banner() {
+  const [phase, setPhase] = useState<ConnectionPhase>("online");
+  return (
+    <ConnectionState
+      phase={phase}
+      attempt={phase === "reconnecting" ? 1 : undefined}
+      onRetry={() => setPhase("reconnecting")}
+    />
+  );
+}
+```
+
+  </Step>
+  <Step>
+
+### Clear it once resumed
+
+`"resumed"` is meant as a brief confirmation, not a resting state; move back to `"online"`, which renders nothing, after a short delay:
+
+```tsx
+useEffect(() => {
+  if (phase !== "resumed") return;
+  const id = setTimeout(() => setPhase("online"), 2000);
+  return () => clearTimeout(id);
+}, [phase]);
+```
+
+  </Step>
+</Steps>
+
+</StandaloneMode>
+
+## Anatomy
+
+```tsx
+<div data-slot="connection-state">
+  {/* dropped: icon, message, Reconnect button */}
+  {/* reconnecting: spinner, message, attempt count */}
+  {/* resumed: check, message, resumed token count */}
+</div>
+```
+
+`ConnectionState` renders nothing at all while `phase` is `"online"`, the only phase without a visible banner. The other three phases are mutually exclusive and each show a different icon and message; `attempt` and `resumedTokens` are optional counters shown only when you pass them.
+
+## Examples
+
+### Every phase
+
+```tsx
+<ConnectionState phase="dropped" onRetry={() => {}} />
+<ConnectionState phase="reconnecting" attempt={2} />
+<ConnectionState phase="resumed" resumedTokens={340} />
+```
+
+### Silence the online case explicitly
+
+Since `phase="online"` already renders `null`, conditionally mounting the banner at all is optional; leaving it mounted lets it animate in and out on its own fade and slide transition each time the phase changes away from `"online"`.
+
+## API reference
+
+<RuntimeMode>
+
+### Thread methods
+
+| Method | Type | Description |
+|--------|------|-------------|
+| `aui.thread.resumeRun(config)` | `(config: CreateResumeRunConfig) => void` | Reconnects to (or restarts, depending on the adapter) the run for `config.parentId`. Same shape as `startRun`. |
+| `aui.thread.cancelRun()` | `() => void` | Cancels the in-flight run outright, rather than resuming it. |
+
+There is no built-in selector for "the socket is dropped": that phase lives in your adapter and the app state around it, not in `AssistantState`.
+
+</RuntimeMode>
+
+<StandaloneMode>
+
+### ConnectionState
+
+| Prop | Type | Default | Description |
+|------|------|---------|-------------|
+| `phase` | `"online" \| "dropped" \| "reconnecting" \| "resumed"` | required | `"online"` renders nothing. |
+| `attempt` | `number` | | Shown next to the `"reconnecting"` message when set. |
+| `resumedTokens` | `number` | | Shown next to the `"resumed"` message when set. |
+| `onRetry` | `() => void` | | Called by the `"dropped"` phase's Reconnect button. |
+| `className` | `string` | | Merged onto the root. |
+
+All other `div` props are forwarded to the root.
+
+</StandaloneMode>

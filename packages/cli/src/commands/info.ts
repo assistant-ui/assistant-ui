@@ -6,6 +6,7 @@ import { spawnSync } from "node:child_process";
 import chalk from "chalk";
 import { detect } from "detect-package-manager";
 import { satisfies } from "semver";
+import { logPackageJsonParseError } from "../lib/utils/package-json";
 import { findWorkspaceRoot, resolveRealPath } from "../lib/utils/workspace";
 
 export { findWorkspaceRoot };
@@ -25,6 +26,7 @@ const ASSISTANT_UI_PACKAGES = [
   "@assistant-ui/cloud-ai-sdk",
   // Adapters
   "@assistant-ui/eve",
+  "@assistant-ui/ai-sdk",
   "@assistant-ui/react-ai-sdk",
   "@assistant-ui/react-langgraph",
   "@assistant-ui/react-ag-ui",
@@ -426,7 +428,15 @@ export const info = new Command()
       process.exit(1);
     }
 
-    const projectPkg = JSON.parse(fs.readFileSync(packageJsonPath, "utf8"));
+    const packageJsonContent = fs.readFileSync(packageJsonPath, "utf8");
+    let projectPkg: Record<string, unknown>;
+    try {
+      projectPkg = JSON.parse(packageJsonContent);
+    } catch {
+      logPackageJsonParseError(packageJsonPath, "info");
+      process.exit(1);
+    }
+
     const data = await collectInfo(cwd, projectPkg);
 
     // Colored output for terminal

@@ -18,31 +18,32 @@ minimumReleaseAge: 1440
 minimumReleaseAgeExclude:
   - '@assistant-ui/*'
   - '@next/*'
+  - '@openuidev/assistant-ui'
   - '@typescript/typescript-*'
   - assistant-cloud
   - assistant-stream
   - assistant-ui
+  - aui-auth
   - create-assistant-ui
   - eve
   - heat-graph
   - next
   - safe-content-frame
-  - tw-glass
   - tw-shimmer
   - typescript
 
 allowBuilds:
   '@clerk/shared': false
   '@google/genai': false
-  '@modelcontextprotocol/ext-apps': false
   '@mongodb-js/zstd': false
+  '@openuidev/lang-core': false
   '@parcel/watcher': false
   '@tailwindcss/oxide': false
   core-js: false
+  esbuild@0.27.0: true
   esbuild@0.28.1: true
-  msgpackr-extract: true
+  esbuild@0.28.2: true
   node-liblzma: false
   protobufjs: false
   react-grab: false
-  sharp@0.34.5: true
-  sqlite3@5.1.7: true
+  vue-demi: false

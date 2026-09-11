@@ -1,9 +1,11 @@
-import type { ReactNode } from "react";
 import { Pressable, type PressableProps } from "react-native";
 import { useComposerAddAttachment } from "@assistant-ui/core/react";
 
-export type ComposerAddAttachmentProps = Omit<PressableProps, "onPress"> & {
-  children: ReactNode;
+export type ComposerAddAttachmentProps = Omit<
+  PressableProps,
+  "onPress" | "children"
+> & {
+  children: PressableProps["children"];
 };
 
 /**
@@ -21,7 +23,11 @@ export const ComposerAddAttachment = ({
   const { disabled } = useComposerAddAttachment();
 
   return (
-    <Pressable disabled={disabledProp ?? disabled} {...pressableProps}>
+    <Pressable
+      disabled={disabledProp ?? disabled}
+      accessibilityRole="button"
+      {...pressableProps}
+    >
       {children}
     </Pressable>
   );

@@ -7,8 +7,18 @@ authors = [
 ]
 readme = "README.md"
 requires-python = ">=3.12"
-dependencies = []
+dependencies = [
+    "assistant-stream",
+    "fastapi>=0.115",
+    "uvicorn>=0.34",
+]
 
 [build-system]
 requires = ["hatchling"]
 build-backend = "hatchling.build"
+
+[tool.uv]
+package = false
+
+[tool.uv.sources]
+assistant-stream = { path = "../assistant-stream", editable = true }

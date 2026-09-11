@@ -3,11 +3,22 @@ import path from "node:path";
 import { codeToHtml } from "shiki";
 
 const SOURCE_ROOTS = [
-  ["..", "..", "packages", "ui", "src", "components", "elements"],
-  ["components", "elements"],
+  [
+    "..",
+    "..",
+    "packages",
+    "ui",
+    "src",
+    "components",
+    "react",
+    "assistant-ui",
+    "elements",
+  ],
+  ["components", "demo", "elements"],
 ] as const;
 
 export async function readElementSource(file: string): Promise<string> {
+  let cause: unknown;
   for (const root of SOURCE_ROOTS) {
     try {
       const source = await fs.readFile(
@@ -15,11 +26,11 @@ export async function readElementSource(file: string): Promise<string> {
         "utf8",
       );
       return source.trimEnd();
-    } catch {
-      continue;
+    } catch (error) {
+      cause = error;
     }
   }
-  throw new Error(`Element source not found: ${file}`);
+  throw new Error(`Element source not found: ${file}`, { cause });
 }
 
 export async function highlightElementSource(

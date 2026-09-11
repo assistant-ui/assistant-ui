@@ -39,10 +39,12 @@ describe("ModelContext", () => {
   it("reflects modelName from a registered provider", async () => {
     const { sub, unmount } = render();
     try {
-      sub.getValue().register(provider({ config: { modelName: "gpt-4" } }));
+      sub
+        .getValue()
+        .register(provider({ config: { modelName: "gpt-5.6-luna" } }));
       await tick();
 
-      expect(sub.getValue().getState().modelName).toBe("gpt-4");
+      expect(sub.getValue().getState().modelName).toBe("gpt-5.6-luna");
     } finally {
       unmount();
     }
@@ -67,11 +69,15 @@ describe("ModelContext", () => {
   it("keeps the same state reference when an extra provider does not change the merged values", async () => {
     const { sub, unmount } = render();
     try {
-      sub.getValue().register(provider({ config: { modelName: "gpt-4" } }));
+      sub
+        .getValue()
+        .register(provider({ config: { modelName: "gpt-5.6-luna" } }));
       await tick();
       const before = sub.getValue().getState();
 
-      sub.getValue().register(provider({ config: { modelName: "gpt-4" } }));
+      sub
+        .getValue()
+        .register(provider({ config: { modelName: "gpt-5.6-luna" } }));
       await tick();
       const after = sub.getValue().getState();
 
@@ -86,9 +92,9 @@ describe("ModelContext", () => {
     try {
       const unsubscribe = sub
         .getValue()
-        .register(provider({ config: { modelName: "gpt-4" } }));
+        .register(provider({ config: { modelName: "gpt-5.6-luna" } }));
       await tick();
-      expect(sub.getValue().getState().modelName).toBe("gpt-4");
+      expect(sub.getValue().getState().modelName).toBe("gpt-5.6-luna");
 
       unsubscribe();
       await tick();
@@ -102,9 +108,11 @@ describe("ModelContext", () => {
   it("reflects modelName synchronously after register without awaiting", () => {
     const { sub, unmount } = render();
     try {
-      sub.getValue().register(provider({ config: { modelName: "gpt-4" } }));
+      sub
+        .getValue()
+        .register(provider({ config: { modelName: "gpt-5.6-luna" } }));
 
-      expect(sub.getValue().getState().modelName).toBe("gpt-4");
+      expect(sub.getValue().getState().modelName).toBe("gpt-5.6-luna");
     } finally {
       unmount();
     }

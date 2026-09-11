@@ -1,4 +1,4 @@
-import { OAuthClientInformationFull, OAuthTokens } from "@modelcontextprotocol/client";
+import { OAuthClientInformationFull, OAuthDiscoveryState, OAuthTokens } from "@modelcontextprotocol/client";
 
 import { Primitive } from "@radix-ui/react-primitive";
 
@@ -142,9 +142,14 @@ type MCPManagerState = {
 };
 
 type MCPPersistedAuthState = {
+  serverUrl?: string;
   tokens?: OAuthTokens;
+  tokensClientId?: string;
   clientInformation?: OAuthClientInformationFull;
+  clientInformationSource?: "registered";
   codeVerifier?: string;
+  state?: string;
+  discoveryState?: OAuthDiscoveryState;
   token?: string;
 };
 
@@ -197,6 +202,7 @@ type MCPServerState = {
 };
 
 type MCPStorage = {
+  scopeId?: string;
   loadCustomServers: () => Promise<MCPCustomServerRecord[]>;
   saveCustomServers: (records: MCPCustomServerRecord[]) => Promise<void>;
   loadAuthState: (serverId: string) => Promise<MCPPersistedAuthState | null>;
@@ -367,11 +373,14 @@ declare const McpElicitationPrimitiveRoot: import("react").ForwardRefExoticCompo
   asChild?: boolean;
 }, "ref"> & import("react").RefAttributes<HTMLDivElement>>;
 
-declare const McpLocalStorage: (opts?: McpLocalStorageOptions) => ResourceElement<MCPStorage>;
+declare const McpLocalStorage: Resource<MCPStorage, [
+  opts?: McpLocalStorageOptions | undefined
+]>;
 
 type McpLocalStorageOptions = {
   keyPrefix?: string;
   storage?: Storage;
+  scopeId?: string;
 };
 
 declare namespace McpManagerPrimitiveAddCustomTrigger {
@@ -422,7 +431,6 @@ type McpManagerResourceProps = {
   oauthRedirectUri?: string | undefined;
   autoConnect?: boolean | undefined;
   connectionTimeout?: number | undefined;
-  storageScopeKey?: string | number | undefined;
 };
 
 declare const McpMemoryStorage: Resource<MCPStorage, [

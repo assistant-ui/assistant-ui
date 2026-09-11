@@ -9,16 +9,16 @@ Server- and client-side SDK for [Assistant Cloud](https://cloud.assistant-ui.com
 ## Installation
 
 ```bash
-npm install @assistant-ui/react @assistant-ui/react-ai-sdk assistant-cloud
+npm install @assistant-ui/react @assistant-ui/ai-sdk assistant-cloud
 ```
 
 ## Usage
 
-Pass an `AssistantCloud` instance to your runtime hook (typically `useChatRuntime` from `@assistant-ui/react-ai-sdk`):
+Pass an `AssistantCloud` instance to your runtime hook (typically `useChatRuntime` from `@assistant-ui/ai-sdk`):
 
 ```tsx
 import { AssistantCloud, AssistantRuntimeProvider } from "@assistant-ui/react";
-import { useChatRuntime } from "@assistant-ui/react-ai-sdk";
+import { useChatRuntime } from "@assistant-ui/ai-sdk";
 
 const cloud = new AssistantCloud({
   baseUrl: process.env.NEXT_PUBLIC_ASSISTANT_BASE_URL!,
@@ -29,6 +29,46 @@ export function Provider({ children }: { children: React.ReactNode }) {
   const runtime = useChatRuntime({ cloud });
   return <AssistantRuntimeProvider runtime={runtime}>{children}</AssistantRuntimeProvider>;
 }
+```
+
+## Server telemetry
+
+Send AI SDK 7 GenAI spans to Assistant Cloud from a Next.js `instrumentation.ts` file. The `assistant-cloud/telemetry` entry needs the OpenTelemetry packages installed next to it:
+
+```sh
+npm i @vercel/otel @opentelemetry/api @opentelemetry/sdk-trace-base @opentelemetry/exporter-trace-otlp-http
+```
+
+```ts
+import { registerOTel } from "@vercel/otel";
+import {
+  createAssistantCloudSpanProcessor,
+  createAssistantCloudTraceExporter,
+} from "assistant-cloud/telemetry";
+
+export function register() {
+  registerOTel({
+    serviceName: "my-app",
+    spanProcessors: [
+      "auto",
+      createAssistantCloudSpanProcessor(
+        createAssistantCloudTraceExporter({
+          apiKey: process.env.ASSISTANT_API_KEY!,
+        }),
+      ),
+    ],
+  });
+}
+```
+
+Pass the active server trace ID to the browser with `messageMetadata` in the route that calls `streamText`:
+
+```ts
+import { withAssistantCloudTraceMetadata } from "assistant-cloud/telemetry";
+
+return result.toUIMessageStreamResponse({
+  messageMetadata: withAssistantCloudTraceMetadata(),
+});
 ```
 
 ## Authentication

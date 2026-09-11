@@ -4,6 +4,7 @@ import type {
   ResourceFiber,
 } from "../core/types";
 import {
+  discardWipRender,
   unmountResourceFiber,
   renderResourceFiber,
   commitResourceFiber,
@@ -124,6 +125,9 @@ export function useResources<E extends ResourceElement<any>>(
           const value = renderResourceFiber(fiber, element.args);
           state.next = { value: value, deps: element.deps, remount: fiber };
         } else if (canReuse(state, element.deps)) {
+          if (typeof state.next === "object") {
+            discardWipRender(state.fiber);
+          }
           if (state.fiber.contextDeps) {
             bubbleContextDeps(state.fiber, state.fiber.contextDeps);
           }
@@ -159,8 +163,7 @@ export function useResources<E extends ResourceElement<any>>(
   useEffect(() => {
     return () => {
       for (const key of fibers.keys()) {
-        const fiber = fibers.get(key)!.fiber;
-        unmountResourceFiber(fiber);
+        unmountResourceFiber(fibers.get(key)!.fiber);
       }
     };
   }, [fibers]);
@@ -171,12 +174,13 @@ export function useResources<E extends ResourceElement<any>>(
     for (const [key, state] of fibers.entries()) {
       const next = state.next;
       if (next === "delete") {
-        if (state.fiber.isMounted) {
-          unmountResourceFiber(state.fiber);
-        }
+        unmountResourceFiber(state.fiber);
         fibers.delete(key);
       } else if (next === "skip") {
         // Bailed this render: nothing to commit, keep committed deps/value.
+        if (!state.fiber.isNeverMounted && !state.fiber.isMounted) {
+          commitResourceFiber(state.fiber);
+        }
       } else {
         if (next.remount) {
           unmountResourceFiber(state.fiber);
@@ -186,6 +190,7 @@ export function useResources<E extends ResourceElement<any>>(
         state.committedDeps = next.deps;
         state.committedValue = next.value;
         state.isDirty = false;
+        state.next = "skip";
       }
     }
   }, [val, fibers]);

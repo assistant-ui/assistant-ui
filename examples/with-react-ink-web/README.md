@@ -28,7 +28,7 @@ The terminal opens on [localhost:8081](http://localhost:8081), and the docs app 
 
 Ink has no official web target, so this app renders the real `@assistant-ui/react-ink` component tree through [ink-web](https://github.com/cjroth/ink-web)'s browser build of Ink, bridged to a [wterm](https://github.com/vercel-labs/wterm) terminal. wterm renders to the DOM, so text selection, copy, find, and screen readers work natively.
 
-Chat requests go to the assistant-ui docs site's `/api/chat`, the same pattern as the React Native demo at [assistant-ui-expo.vercel.app](https://assistant-ui-expo.vercel.app). This app holds no API keys; set `NEXT_PUBLIC_CHAT_ENDPOINT_URL` to point at a different endpoint.
+Chat requests go to the assistant-ui docs site's `/api/chat`, the same pattern as the React Native demo at [assistant-ui-expo.vercel.app](https://assistant-ui-expo.vercel.app). The app obtains a signed anonymous session when the backend supports it and holds no API keys; custom backends without the session route continue to receive normal chat requests.
 
 ## Learn more
 

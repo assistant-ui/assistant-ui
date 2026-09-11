@@ -1,5 +1,51 @@
 # @assistant-ui/mcp-docs-server
 
+## 0.3.1
+
+### Patch Changes
+
+- [#6959](https://github.com/assistant-ui/assistant-ui/pull/6959) [`17116ea`](https://github.com/assistant-ui/assistant-ui/commit/17116ea023e34cfea2025963490b38d7d867aeb8) - fix: close the docs proxy and its HTTP transport once stdin can no longer deliver messages, whether it reaches EOF or is destroyed ([@ephraimduncan](https://github.com/ephraimduncan))
+
+- [#6993](https://github.com/assistant-ui/assistant-ui/pull/6993) [`91689ab`](https://github.com/assistant-ui/assistant-ui/commit/91689ab92fa8ccaecff463c6fdc3e6a666bf93e5) - chore: update dependencies ([@Yonom](https://github.com/Yonom))
+
+- [#6970](https://github.com/assistant-ui/assistant-ui/pull/6970) [`fefab67`](https://github.com/assistant-ui/assistant-ui/commit/fefab677dd290cea49385d52e5da041a042e0f63) - fix: keep clean proxy shutdowns from logging transport errors ([@rupic-app](https://github.com/apps/rupic-app))
+
+- [#6939](https://github.com/assistant-ui/assistant-ui/pull/6939) [`9af436c`](https://github.com/assistant-ui/assistant-ui/commit/9af436c16792cce10ea4eebd647ee9e88e126dc8) - fix: repair the type drift tsc --noEmit catches in the codemod and proxy sources ([@Kinfe123](https://github.com/Kinfe123))
+
+## 0.3.0
+
+### Minor Changes
+
+- [#6492](https://github.com/assistant-ui/assistant-ui/pull/6492) [`ba0a97f`](https://github.com/assistant-ui/assistant-ui/commit/ba0a97f7d54fe0dfc9ea762355eb94538b619fa8) - feat: proxy the hosted assistant-ui mcp endpoint instead of bundling a docs snapshot. the stdio server now forwards to the hosted tool set, and the programmatic `server` export is removed ([@okisdev](https://github.com/okisdev))
+
+### Patch Changes
+
+- [#6528](https://github.com/assistant-ui/assistant-ui/pull/6528) [`152a35d`](https://github.com/assistant-ui/assistant-ui/commit/152a35daae0e80b5307865e59af683c4ae720794) - chore: update dependencies ([@okisdev](https://github.com/okisdev))
+
+- [#6639](https://github.com/assistant-ui/assistant-ui/pull/6639) [`05e3e6d`](https://github.com/assistant-ui/assistant-ui/commit/05e3e6d3971dac4ce20fc7e2a87d187d78b0e449) - chore: update dependencies ([@Yonom](https://github.com/Yonom))
+
+## 0.2.3
+
+### Patch Changes
+
+- [#6381](https://github.com/assistant-ui/assistant-ui/pull/6381) [`c13cce5`](https://github.com/assistant-ui/assistant-ui/commit/c13cce5605919b93150c33ee072a7cc17a9667b4) - fix: validate template catalog entries before using them ([@Kinfe123](https://github.com/Kinfe123))
+
+- [#6305](https://github.com/assistant-ui/assistant-ui/pull/6305) [`e96d3de`](https://github.com/assistant-ui/assistant-ui/commit/e96d3dea9370159e04f82bf4eb39d6b1b1c4d21d) - chore: update dependencies ([@okisdev](https://github.com/okisdev))
+
+## 0.2.2
+
+### Patch Changes
+
+- [#5774](https://github.com/assistant-ui/assistant-ui/pull/5774) [`61d29f4`](https://github.com/assistant-ui/assistant-ui/commit/61d29f4157b525d3e36ac721d1fcef7d1baf987e) - chore: update dependencies ([@Yonom](https://github.com/Yonom))
+
+- [#5774](https://github.com/assistant-ui/assistant-ui/pull/5774) [`61d29f4`](https://github.com/assistant-ui/assistant-ui/commit/61d29f4157b525d3e36ac721d1fcef7d1baf987e) - chore: update dependencies ([@Yonom](https://github.com/Yonom))
+
+## 0.2.1
+
+### Patch Changes
+
+- [#5723](https://github.com/assistant-ui/assistant-ui/pull/5723) [`94dc3e5`](https://github.com/assistant-ui/assistant-ui/commit/94dc3e509fa2b4fae1a14c88ec34b910c8d95af8) - chore: update dependencies ([@okisdev](https://github.com/okisdev))
+
 ## 0.2.0
 
 ### Minor Changes

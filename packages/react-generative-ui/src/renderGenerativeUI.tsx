@@ -61,7 +61,9 @@ function renderElement(
   library: GenerativeUILibrary,
   context: GenerativeUIRenderContext,
 ): ReactNode {
-  const entry = library[element.type];
+  const entry = Object.hasOwn(library, element.type)
+    ? library[element.type]
+    : undefined;
   if (!entry) {
     reportUnknownComponent(element.type, Object.keys(library));
     return null;

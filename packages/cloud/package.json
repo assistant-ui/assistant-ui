@@ -1,6 +1,6 @@
 {
   "name": "assistant-cloud",
-  "version": "0.1.38",
+  "version": "0.2.0",
   "description": "Cloud integration for assistant-ui",
   "keywords": [
     "assistant",
@@ -16,6 +16,10 @@
     ".": {
       "types": "./dist/index.d.ts",
       "default": "./dist/index.js"
+    },
+    "./telemetry": {
+      "types": "./dist/telemetry/index.d.ts",
+      "default": "./dist/telemetry/index.js"
     }
   },
   "main": "./dist/index.js",
@@ -32,12 +36,32 @@
     "test:watch": "vitest"
   },
   "dependencies": {
-    "assistant-stream": "^0.3.33"
+    "assistant-stream": "^0.3.42"
+  },
+  "peerDependencies": {
+    "@opentelemetry/api": "^1.9.0",
+    "@opentelemetry/exporter-trace-otlp-http": ">=0.200.0",
+    "@opentelemetry/sdk-trace-base": "^2.1.0"
+  },
+  "peerDependenciesMeta": {
+    "@opentelemetry/api": {
+      "optional": true
+    },
+    "@opentelemetry/exporter-trace-otlp-http": {
+      "optional": true
+    },
+    "@opentelemetry/sdk-trace-base": {
+      "optional": true
+    }
   },
   "devDependencies": {
     "@assistant-ui/x-buildutils": "workspace:*",
-    "@types/node": "^26.1.1",
-    "vitest": "^4.1.10"
+    "@opentelemetry/api": "^1.9.0",
+    "@opentelemetry/exporter-trace-otlp-http": "^0.205.0",
+    "@opentelemetry/sdk-trace-base": "^2.1.0",
+    "@types/node": "^26.4.1",
+    "jsdom": "^30.0.1",
+    "vitest": "^4.1.11"
   },
   "publishConfig": {
     "access": "public",

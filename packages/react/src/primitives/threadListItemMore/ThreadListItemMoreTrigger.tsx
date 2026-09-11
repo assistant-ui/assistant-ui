@@ -5,8 +5,8 @@ import {
   Direction,
   type DropdownMenu as DropdownMenuPrimitive,
 } from "radix-ui";
-import { useComposedRefs } from "@radix-ui/react-compose-refs";
-import { composeEventHandlers } from "@radix-ui/primitive";
+import { useComposedRefs } from "radix-ui/internal";
+import { composeEventHandlers } from "radix-ui/internal";
 import type { WithRenderPropProps } from "../../utils/Primitive";
 import { DropdownMenuRenderTrigger } from "../dropdownMenuRenderPrimitives";
 import { useThreadListItemFocus } from "../threadListFocusGroup";

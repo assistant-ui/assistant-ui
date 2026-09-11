@@ -6,7 +6,6 @@ import type {
   PreComponent,
   SyntaxHighlighterProps,
 } from "./types";
-import { DefaultCodeBlockContent } from "./defaultComponents";
 import type { Element } from "hast";
 
 export type CodeBlockProps = {
@@ -29,15 +28,13 @@ export const DefaultCodeBlock: FC<CodeBlockProps> = ({
 }) => {
   const components = useMemo(() => ({ Pre, Code }), [Pre, Code]);
 
-  const SH = language ? SyntaxHighlighter : DefaultCodeBlockContent;
-
   return (
     <>
       <CodeHeader node={node} language={language} code={code} />
-      <SH
+      <SyntaxHighlighter
         node={node}
         components={components}
-        language={language ?? "unknown"}
+        language={language}
         code={code}
       />
     </>

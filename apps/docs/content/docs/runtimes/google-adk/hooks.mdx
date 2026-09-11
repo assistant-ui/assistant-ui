@@ -397,7 +397,7 @@ import {
   createAdkStream,
   useAdkRuntime,
 } from "@assistant-ui/react-google-adk";
-import { Thread } from "@/components/assistant-ui/thread";
+import { Thread } from "@/components/assistant-ui/elements/thread.aui";
 
 const toolkit = defineToolkit({
   adk_request_input: {
@@ -434,7 +434,7 @@ import {
   useAdkRuntime,
 } from "@assistant-ui/react-google-adk";
 import { View } from "react-native";
-import { Thread } from "@/components/assistant-ui/thread";
+import { Thread } from "@/components/assistant-ui/elements/thread.aui";
 
 const API_URL = process.env.EXPO_PUBLIC_API_URL ?? "http://localhost:3000";
 
@@ -644,6 +644,8 @@ function PendingToolsIndicator() {
 </PlatformTabs>
 
 This hook reports every tool call ADK marked via `long_running_tool_ids`, including HITL interrupts. To respond to a specific HITL type, see [tool confirmations](#tool-confirmations), [auth requests](#auth-requests), or [input requests](#input-requests).
+
+That same set decides which tool calls the client owns. A registered frontend tool's `execute` runs only for a call ADK marked long-running, because ADK resolves every other call itself and yields the call to the client before its own response. Register a tool the client executes as a `LongRunningFunctionTool` on the agent.
 
 ## Per-message metadata
 

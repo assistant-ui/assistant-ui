@@ -1,6 +1,13 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import {
+  useCallback,
+  useEffect,
+  useInsertionEffect,
+  useMemo,
+  useRef,
+  useState,
+} from "react";
 import {
   useExternalStoreRuntime,
   useExternalStoreSharedOptions,
@@ -42,7 +49,9 @@ export function useA2ARuntime(options: UseA2ARuntimeOptions): AssistantRuntime {
   const threadListAdapter = options.adapters?.threadList;
 
   const headersRef = useRef(options.headers);
-  headersRef.current = options.headers;
+  useInsertionEffect(() => {
+    headersRef.current = options.headers;
+  });
   const resolveHeaders = useCallback(() => {
     const headers = headersRef.current;
     return typeof headers === "function" ? headers() : (headers ?? {});
@@ -72,16 +81,7 @@ export function useA2ARuntime(options: UseA2ARuntimeOptions): AssistantRuntime {
     });
   }, [managedClientOptionsKey, options.client, resolveHeaders]);
 
-  const core = useMemo(
-    () =>
-      new A2AThreadRuntimeCore({
-        client,
-        notifyUpdate,
-      }),
-    [client, notifyUpdate],
-  );
-
-  core.updateOptions({
+  const coreOptions = {
     client,
     contextId: options.contextId,
     configuration: options.configuration,
@@ -91,9 +91,26 @@ export function useA2ARuntime(options: UseA2ARuntimeOptions): AssistantRuntime {
       onArtifactComplete: options.onArtifactComplete,
     }),
     ...(historyAdapter && { history: historyAdapter }),
+  };
+  const coreOptionsRef = useRef(coreOptions);
+  coreOptionsRef.current = coreOptions;
+
+  const core = useMemo(
+    () =>
+      new A2AThreadRuntimeCore({
+        ...coreOptionsRef.current,
+        client,
+        notifyUpdate,
+      }),
+    [client, notifyUpdate],
+  );
+
+  useEffect(() => {
+    core.updateOptions(coreOptions);
   });
 
   // Thread list
+  const threadSwitchGenerationRef = useRef(0);
   const threadList = useMemo(() => {
     if (!threadListAdapter) return undefined;
 
@@ -103,14 +120,23 @@ export function useA2ARuntime(options: UseA2ARuntimeOptions): AssistantRuntime {
       threadId: threadListAdapter.threadId,
       onSwitchToNewThread: onSwitchToNewThread
         ? async () => {
+            const generation = ++threadSwitchGenerationRef.current;
             await onSwitchToNewThread();
+            if (generation !== threadSwitchGenerationRef.current) return;
+            // Apply first so the abort inside resetContext finds an already
+            // cleared repository and cannot persist the old thread's partial
+            // assistant message.
             core.applyExternalMessages([]);
+            core.resetContext();
           }
         : undefined,
       onSwitchToThread: onSwitchToThread
         ? async (threadId: string) => {
+            const generation = ++threadSwitchGenerationRef.current;
             const result = await onSwitchToThread(threadId);
+            if (generation !== threadSwitchGenerationRef.current) return;
             core.applyExternalMessages(result.messages);
+            core.resetContext();
           }
         : undefined,
     };

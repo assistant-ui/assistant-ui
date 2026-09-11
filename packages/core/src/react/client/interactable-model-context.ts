@@ -8,6 +8,7 @@ import {
 } from "../../model-context/interactable-composer-metadata";
 import { generateId } from "../../utils/id";
 import { isRecord } from "../../utils/json/is-json";
+import { nullProtoRecord } from "../../utils/record";
 
 export type PartialJSONSchema = ReturnType<typeof toJSONSchema>;
 
@@ -15,6 +16,11 @@ const ID_PROPERTY = {
   type: "string" as const,
   description:
     "The id of the instance to update, as shown in its state snapshot in the conversation.",
+};
+
+const ITEM_ID_PROPERTY = {
+  type: "string" as const,
+  description: "The id of an item currently in this list.",
 };
 
 const hasIdProperty = (schema: Record<string, unknown>) => {
@@ -52,7 +58,7 @@ const toArrayUpdateSchema = (schema: unknown, field: string) => {
     },
     remove: {
       type: "array",
-      items: idKeyed ? ID_PROPERTY : itemSchema,
+      items: idKeyed ? ITEM_ID_PROPERTY : itemSchema,
     },
     clear: { type: "boolean" },
   };
@@ -238,7 +244,7 @@ export function buildInteractableModelContext(
         }
         const baseline = streamBaselines.get(toolCallId);
         streamBaselines.delete(toolCallId);
-        const addedItemIds: Record<string, string[]> = {};
+        const addedItemIds = nullProtoRecord<string[]>();
         setDefState(target.id, (prev) =>
           shallowMergeInteractableState(prev, partial, {
             arrayBaseline:
@@ -259,7 +265,7 @@ export function buildInteractableModelContext(
           addedItemIds?: Record<string, string[]>;
         } = { success: true, id: target.id };
         if (Object.keys(addedItemIds).length > 0) {
-          result.addedItemIds = addedItemIds;
+          result.addedItemIds = { ...addedItemIds };
         }
         return result;
       },

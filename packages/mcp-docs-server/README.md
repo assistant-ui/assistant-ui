@@ -1,58 +1,10 @@
 # `@assistant-ui/mcp-docs-server`
 
-Model Context Protocol (MCP) server that gives AI assistants direct access to assistant-ui's documentation and example projects. Exposes `assistantUIDocs` (retrieve documentation by path), `assistantUIExamples` (access complete example projects), and `assistantUISearch` (keyword search across the bundled docs), and serves the same docs and examples as readable MCP **resources** (`aui-docs:///{path}`, `aui-example:///{name}`).
+`@assistant-ui/mcp-docs-server` is a stdio proxy for the live hosted assistant-ui documentation MCP endpoint. It forwards JSON-RPC messages to `https://www.assistant-ui.com/mcp`, so stdio clients always use the current documentation without downloading a bundled snapshot.
 
-> [!NOTE]
-> Detailed installation, troubleshooting, and advanced usage at [assistant-ui.com/docs/llm#mcp](https://www.assistant-ui.com/docs/llm#mcp).
+## Zed
 
-## Installation
-
-### Claude Code
-
-```bash
-claude mcp add assistant-ui -- npx -y @assistant-ui/mcp-docs-server
-# or globally for all projects
-claude mcp add --scope user assistant-ui -- npx -y @assistant-ui/mcp-docs-server
-```
-
-### Claude Desktop
-
-Add to `~/Library/Application Support/Claude/claude_desktop_config.json` (macOS) or `%APPDATA%\Claude\claude_desktop_config.json` (Windows):
-
-```json
-{
-  "mcpServers": {
-    "assistant-ui": {
-      "command": "npx",
-      "args": ["-y", "@assistant-ui/mcp-docs-server"]
-    }
-  }
-}
-```
-
-### Cursor / Windsurf
-
-Add to `.cursor/mcp.json` (or `~/.cursor/mcp.json`) for Cursor, or `~/.codeium/windsurf/mcp_config.json` for Windsurf, using the same `mcpServers` block as above.
-
-### VS Code
-
-Add to `.vscode/mcp.json`:
-
-```json
-{
-  "servers": {
-    "assistant-ui": {
-      "command": "npx",
-      "args": ["-y", "@assistant-ui/mcp-docs-server"],
-      "type": "stdio"
-    }
-  }
-}
-```
-
-### Zed
-
-Add to `settings.json`:
+Add the server to your Zed settings:
 
 ```json
 {
@@ -67,4 +19,25 @@ Add to `settings.json`:
 }
 ```
 
-To list, get, or remove the server, use your editor's MCP management commands.
+## Claude Desktop
+
+Add the server to your Claude Desktop configuration:
+
+```json
+{
+  "mcpServers": {
+    "assistant-ui": {
+      "command": "npx",
+      "args": ["-y", "@assistant-ui/mcp-docs-server"]
+    }
+  }
+}
+```
+
+## HTTP clients
+
+Clients that support Streamable HTTP should connect to `https://www.assistant-ui.com/mcp` directly.
+
+## Endpoint override
+
+Set `ASSISTANT_UI_MCP_URL` to override the hosted endpoint, for example when testing against a local MCP server.

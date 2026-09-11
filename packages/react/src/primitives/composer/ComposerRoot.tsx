@@ -1,6 +1,6 @@
 "use client";
 
-import { composeEventHandlers } from "@radix-ui/primitive";
+import { composeEventHandlers } from "radix-ui/internal";
 import { useAuiState } from "@assistant-ui/store";
 import { Primitive } from "../../utils/Primitive";
 import {

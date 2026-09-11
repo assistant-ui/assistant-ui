@@ -24,7 +24,7 @@ Open [http://localhost:3000](http://localhost:3000), send a prompt, then reload 
 
 ## Client integration
 
-The browser side is wired through two helpers from `@assistant-ui/react-ai-sdk`:
+The browser side is wired through two helpers from `@assistant-ui/ai-sdk`:
 
 - `createResumableSessionStorage()` returns a small `sessionStorage`-backed storage object for the pending stream id. Pass `{ key }` to namespace per route. Use `localStorage` instead if you want a stream that survives full browser restarts (and accept the cross-tab race that comes with it).
 - `AssistantChatTransport` accepts a `resumable` option. When set, the transport captures the `x-resumable-stream-id` response header, watches the SSE body for the `finish` event so the stored id is cleared on natural completion (cancellation leaves it intact), and redirects `chat.resumeStream()` reconnects to the configured `resumeApi`.

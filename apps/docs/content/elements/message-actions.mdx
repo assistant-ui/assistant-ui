@@ -1,0 +1,236 @@
+---
+title: "Message actions"
+description: "Copy, rate, and regenerate. Each action confirms itself with a small state change."
+---
+
+The action row under an assistant reply: copy, thumbs up or down, regenerate, and a catch-all more button. Each action confirms its own outcome in place rather than with a toast: copy swaps to a check mark, a rating fills in, regenerate spins while it runs. With a runtime every button calls straight into the thread; standalone you hold the state each button reflects and the callbacks it fires.
+
+## Getting started
+
+<RuntimeMode>
+
+`ActionBarPrimitive` supplies one button per action, each already wired to the message it renders inside and disabled the moment that action stops being available.
+
+<Steps>
+  <Step>
+
+### Compose the row
+
+```tsx title="components/assistant-ui/elements/message-actions.tsx"
+"use client";
+
+import { ActionBarPrimitive, AuiIf } from "@assistant-ui/react";
+import {
+  CheckIcon,
+  CopyIcon,
+  RefreshCwIcon,
+  ThumbsDownIcon,
+  ThumbsUpIcon,
+} from "lucide-react";
+import { cn } from "@/lib/utils";
+import { ghostButton } from "@/components/assistant-ui/elements/surfaces";
+
+export function MessageActions() {
+  const buttonClassName = cn(ghostButton, "size-7");
+
+  return (
+    <ActionBarPrimitive.Root className="flex items-center gap-1">
+      <ActionBarPrimitive.Copy aria-label="Copy response" className={buttonClassName}>
+        <AuiIf condition={(s) => s.message.isCopied}>
+          <CheckIcon className="size-3.5" />
+        </AuiIf>
+        <AuiIf condition={(s) => !s.message.isCopied}>
+          <CopyIcon className="size-3.5" />
+        </AuiIf>
+      </ActionBarPrimitive.Copy>
+      <ActionBarPrimitive.FeedbackPositive aria-label="Mark response helpful" className={buttonClassName}>
+        <ThumbsUpIcon className="size-3.5" />
+      </ActionBarPrimitive.FeedbackPositive>
+      <ActionBarPrimitive.FeedbackNegative aria-label="Mark response unhelpful" className={buttonClassName}>
+        <ThumbsDownIcon className="size-3.5" />
+      </ActionBarPrimitive.FeedbackNegative>
+      <ActionBarPrimitive.Reload aria-label="Regenerate response" className={buttonClassName}>
+        <RefreshCwIcon className="size-3.5" />
+      </ActionBarPrimitive.Reload>
+    </ActionBarPrimitive.Root>
+  );
+}
+```
+
+`ActionBarPrimitive.Copy` sets `data-copied="true"` for three seconds after a successful copy (tune it with `copiedDuration`), and `ActionBarPrimitive.FeedbackPositive`/`FeedbackNegative` set `data-submitted="true"` once `s.message.metadata.submittedFeedback` matches. Style off those attributes instead of holding your own booleans.
+
+  </Step>
+  <Step>
+
+### Add a more menu
+
+`ActionBarMorePrimitive` is a Radix dropdown menu scoped to the same message; `ActionBarPrimitive.ExportMarkdown` is a ready-made item for it.
+
+```tsx
+import { ActionBarMorePrimitive, ActionBarPrimitive } from "@assistant-ui/react";
+import { DownloadIcon, EllipsisIcon } from "lucide-react";
+
+<ActionBarMorePrimitive.Root>
+  <ActionBarMorePrimitive.Trigger aria-label="More response actions" className={buttonClassName}>
+    <EllipsisIcon className="size-3.5" />
+  </ActionBarMorePrimitive.Trigger>
+  <ActionBarMorePrimitive.Content side="bottom" align="start" className="bg-popover rounded-xl border p-1.5">
+    <ActionBarPrimitive.ExportMarkdown asChild>
+      <ActionBarMorePrimitive.Item className="flex items-center gap-2 rounded-lg px-2.5 py-1.5 text-sm">
+        <DownloadIcon className="size-4" />
+        Export as Markdown
+      </ActionBarMorePrimitive.Item>
+    </ActionBarPrimitive.ExportMarkdown>
+  </ActionBarMorePrimitive.Content>
+</ActionBarMorePrimitive.Root>
+```
+
+The `Thread` element ships copy, reload, and this exact more menu on every assistant message; it does not include the feedback buttons above, so add `FeedbackPositive`/`FeedbackNegative` next to `Thread`'s row if you need rating.
+
+  </Step>
+</Steps>
+
+</RuntimeMode>
+
+<StandaloneMode>
+
+Standalone, `MessageActions` is fully controlled: five callbacks and the pieces of state that decide how each button currently looks.
+
+<Steps>
+  <Step>
+
+### Hold the row's state
+
+```tsx title="app/reply.tsx"
+"use client";
+
+import { useState } from "react";
+import { MessageActions, type Reaction } from "@/components/assistant-ui/elements/message-actions";
+
+export function Reply() {
+  const [copied, setCopied] = useState(false);
+  const [reaction, setReaction] = useState<Reaction>(null);
+  const [regenerating, setRegenerating] = useState(false);
+
+  return (
+    <MessageActions
+      copied={copied}
+      reaction={reaction}
+      regenerating={regenerating}
+      onCopy={() => {
+        navigator.clipboard.writeText("...");
+        setCopied(true);
+        setTimeout(() => setCopied(false), 2000);
+      }}
+      onReactionChange={setReaction}
+      onRegenerate={async () => {
+        setRegenerating(true);
+        await regenerate();
+        setRegenerating(false);
+      }}
+      onMore={() => {}}
+    />
+  );
+}
+```
+
+  </Step>
+  <Step>
+
+### Open your own menu from `onMore`
+
+`onMore` fires on click with no built-in menu attached; open a popover or dropdown from your own component tree when it's called.
+
+  </Step>
+</Steps>
+
+</StandaloneMode>
+
+## Anatomy
+
+```tsx
+<div data-slot="message-actions">
+  <button aria-label="Copy response" />
+  <button aria-label="Mark response helpful" aria-pressed={false} />
+  <button aria-label="Mark response unhelpful" aria-pressed={false} />
+  <button aria-label="Regenerate response" />
+  <button aria-label="More response actions" />
+</div>
+```
+
+Standalone, the two rating buttons are `aria-pressed` toggles and mutually exclusive: pressing the active one again calls `onReactionChange(null)` to clear it, and pressing the other switches straight over. The copy button swaps its icon (`iconSwap`/`iconSwapIn`/`iconSwapOut`) and tints emerald while `copied` is true; the regenerate icon spins while `regenerating` is true. At runtime, `ActionBarPrimitive.FeedbackPositive`/`FeedbackNegative` are also mutually exclusive (submitting one replaces the other in `s.message.metadata.submittedFeedback`), but there is no clear: `MessageMethods.submitFeedback` only ever writes a reaction, so once one is submitted a message has no built-in path back to "no reaction" the way the standalone toggle does.
+
+## Examples
+
+### Copy confirmation
+
+<RuntimeMode>
+
+The copied state and its timer live inside `ActionBarPrimitive.Copy`; there's nothing for you to reset. Read `s.message.isCopied` directly if you need the same confirmation elsewhere in the row.
+
+```tsx
+const isCopied = useAuiState((s) => s.message.isCopied);
+```
+
+</RuntimeMode>
+
+<StandaloneMode>
+
+You own the timer. Clear `copied` yourself after showing it, as in the example above, or leave it set until the next explicit action.
+
+</StandaloneMode>
+
+### Restyle the row
+
+Both lanes take `className` on the root, and the icon-swap tokens (`iconSwap`, `iconSwapIn`, `iconSwapOut`) and `ghostButton` from `surfaces.tsx` cover the copy transition and every button's hover state.
+
+```tsx
+<MessageActions className="gap-2" /* ... */ />
+```
+
+## API reference
+
+<RuntimeMode>
+
+### ActionBarPrimitive and ActionBarMorePrimitive
+
+| Part | Renders | Notes |
+|------|---------|-------|
+| `ActionBarPrimitive.Root` | `div` | `hideWhenRunning`, `autohide`, and `autohideFloat` control visibility; unset, the row always renders. |
+| `ActionBarPrimitive.Copy` | `button` | Disabled once there's no text left to copy. `copiedDuration` (default `3000`) controls how long `data-copied` stays set. |
+| `ActionBarPrimitive.FeedbackPositive` | `button` | Calls `aui.message.submitFeedback({ type: "positive" })`. |
+| `ActionBarPrimitive.FeedbackNegative` | `button` | Calls `aui.message.submitFeedback({ type: "negative" })`. |
+| `ActionBarPrimitive.Reload` | `button` | Disabled while the thread is running, disabled, or the message isn't from the assistant. |
+| `ActionBarPrimitive.ExportMarkdown` | `button` | Copies or downloads the message as Markdown; drop it inside `ActionBarMorePrimitive.Item`. |
+| `ActionBarMorePrimitive.Root` | context only | A Radix `DropdownMenu.Root` scoped to the action bar's interaction lock. |
+| `ActionBarMorePrimitive.Trigger` / `.Content` / `.Item` / `.Separator` | button / div / div / div | Standard dropdown menu parts. |
+
+### Message state
+
+| Selector | Type | Description |
+|----------|------|-------------|
+| `s.message.isCopied` | `boolean` | True for `copiedDuration` after `ActionBarPrimitive.Copy` succeeds. |
+| `s.message.metadata.submittedFeedback?.type` | `"positive" \| "negative" \| undefined` | The last feedback submitted for this message, if any. |
+| `aui.message.submitFeedback({ type })` | `(feedback: { type: "positive" \| "negative" }) => void` | Records a reaction. There is no method to clear one. |
+| `aui.message.reload(config?)` | `(config?: { runConfig?: RunConfig }) => void` | Regenerates this assistant message as a new sibling branch. |
+
+</RuntimeMode>
+
+<StandaloneMode>
+
+### MessageActions
+
+| Prop | Type | Default | Description |
+|------|------|---------|-------------|
+| `copied` | `boolean` | required | Shows the check mark and emerald tint on the copy button. |
+| `reaction` | `"up" \| "down" \| null` | required | Which rating button, if any, reads as pressed. |
+| `regenerating` | `boolean` | required | Spins the regenerate icon. |
+| `onCopy` | `() => void` | required | Called when the copy button is pressed. |
+| `onReactionChange` | `(reaction: "up" \| "down" \| null) => void` | required | Called with the next reaction; `null` when the active one is pressed again. |
+| `onRegenerate` | `() => void` | required | Called when the regenerate button is pressed. |
+| `onMore` | `() => void` | required | Called when the more button is pressed. |
+| `className` | `string` | | Merged onto the root. |
+
+All other `div` props are forwarded to the root.
+
+</StandaloneMode>

@@ -8,7 +8,7 @@ If you already have an assistant-ui web app, most of your code transfers directl
 ## What stays the same
 
 - **Runtime setup** — `useChatRuntime`, `useLocalRuntime`, `ChatModelAdapter`, and all runtime options work identically.
-- **AI SDK integration** — `@assistant-ui/react-ai-sdk` works with React Native. Your `useChatRuntime` + `AssistantChatTransport` setup transfers directly.
+- **AI SDK integration** — `@assistant-ui/ai-sdk` works with React Native. Your `useChatRuntime` + `AssistantChatTransport` setup transfers directly.
 - **Tool definitions** — `Tools({ toolkit })` and toolkit renderers use the same API.
 - **State hooks** — `useAuiState`, `useAui`, and selector patterns are the same.
 - **Backend code** — Your API routes, streaming endpoints, and server-side logic need zero changes.
@@ -20,7 +20,7 @@ If you already have an assistant-ui web app, most of your code transfers directl
 | `AssistantRuntimeProvider` | `AssistantRuntimeProvider` (same name) |
 | DOM primitives (`div`, `button`, `input`) | Native primitives (`View`, `Pressable`, `TextInput`) |
 | CSS / Tailwind styling | React Native `StyleSheet` or inline styles |
-| `@assistant-ui/ui` (shadcn components) | Build your own native UI with primitives |
+| Styled registry elements (shadcn components) | Build your own native UI with primitives |
 
 ## Step-by-step
 
@@ -40,7 +40,7 @@ Your `useChatRuntime` setup works as-is — no changes needed:
 
 ```tsx title="hooks/use-app-runtime.ts"
 // This file is identical to your web version
-import { useChatRuntime, AssistantChatTransport } from "@assistant-ui/react-ai-sdk";
+import { useChatRuntime, AssistantChatTransport } from "@assistant-ui/ai-sdk";
 
 export function useAppRuntime() {
   return useChatRuntime({
@@ -82,11 +82,11 @@ export default function App() {
 
 ### Rebuild the UI layer
 
-This is the main migration effort. Web components (`Thread`, `ThreadList` from `@assistant-ui/ui`) don't render in React Native. Replace them with native primitives:
+This is the main migration effort. Web components (the `thread` and `thread-list` elements) don't render in React Native. Replace them with native primitives:
 
 ```tsx
 // Web — DOM-based
-// import { Thread } from "@/components/assistant-ui/thread";
+// import { Thread } from "@/components/assistant-ui/elements/thread.aui";
 
 // React Native — use primitives or build custom
 import {

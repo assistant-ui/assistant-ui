@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useReducedMotion } from "@/hooks/use-reduced-motion";
 
 import { cn } from "@/lib/utils";
 import {
@@ -29,48 +29,7 @@ export function WeatherWidget({
   className,
   effects,
 }: WeatherWidgetRuntimeProps) {
-  const [prefersReducedMotion, setPrefersReducedMotion] = useState(() => {
-    if (typeof window === "undefined") {
-      return false;
-    }
-
-    return (
-      window.matchMedia?.("(prefers-reduced-motion: reduce)")?.matches ?? false
-    );
-  });
-
-  useEffect(() => {
-    if (
-      typeof window === "undefined" ||
-      typeof window.matchMedia !== "function"
-    ) {
-      return;
-    }
-
-    const mediaQueryList = window.matchMedia(
-      "(prefers-reduced-motion: reduce)",
-    );
-    setPrefersReducedMotion(mediaQueryList.matches);
-
-    const handleMotionPreferenceChange = (event: MediaQueryListEvent) => {
-      setPrefersReducedMotion(event.matches);
-    };
-
-    if (typeof mediaQueryList.addEventListener === "function") {
-      mediaQueryList.addEventListener("change", handleMotionPreferenceChange);
-      return () => {
-        mediaQueryList.removeEventListener(
-          "change",
-          handleMotionPreferenceChange,
-        );
-      };
-    }
-
-    mediaQueryList.addListener(handleMotionPreferenceChange);
-    return () => {
-      mediaQueryList.removeListener(handleMotionPreferenceChange);
-    };
-  }, []);
+  const prefersReducedMotion = useReducedMotion();
 
   const reducedMotion = effects?.reducedMotion ?? prefersReducedMotion;
   const effectsEnabled = effects?.enabled !== false && !reducedMotion;

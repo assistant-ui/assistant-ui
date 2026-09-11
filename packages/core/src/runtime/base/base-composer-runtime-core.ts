@@ -1,4 +1,5 @@
 import {
+  isAttachmentComplete,
   isCreateAttachment,
   type Attachment,
   type CompleteAttachment,
@@ -6,6 +7,7 @@ import {
   type PendingAttachment,
 } from "../../types/attachment";
 import type { MessageRole, AppendMessage } from "../../types/message";
+import { isMessageNotSentError } from "../../types/error";
 import type { QuoteInfo } from "../../types/quote";
 import type { Unsubscribe } from "../../types/unsubscribe";
 import type { RunConfig } from "../../types/message";
@@ -24,20 +26,14 @@ import type {
   SendOptions,
 } from "../interfaces/composer-runtime-core";
 import type { DictationAdapter } from "../../adapters/speech";
-import {
-  EMPTY_QUEUE_ITEMS,
-  type QueueItemState,
-} from "../../store/scopes/queue-item";
+import type { QueuePlacement } from "../queue/external-thread-queue-adapter";
+import { EMPTY_QUEUE_ITEMS, type QueueItemState } from "../queue/queue-item";
 import { generateId } from "../../utils/id";
 import { notifyEventListeners } from "../../utils/notify-event-listeners";
-
-const isAttachmentComplete = (a: Attachment): a is CompleteAttachment =>
-  a.status.type === "complete";
-
-type AttachmentAddOperation = {
-  cancelled: boolean;
-  attachmentIds: Set<string>;
-};
+import {
+  AttachmentAddOperations,
+  drainAttachmentAdd,
+} from "../utils/attachment-add-operations";
 
 export abstract class BaseComposerRuntimeCore
   extends BaseSubscribable
@@ -117,13 +113,20 @@ export abstract class BaseComposerRuntimeCore
     if (this._text === value) return;
 
     this._text = value;
-    if (this._dictation) {
-      this._dictationBaseText = value;
-      this._currentInterimText = "";
-      const { status, inputDisabled } = this._dictation;
-      this._dictation = inputDisabled ? { status, inputDisabled } : { status };
-    }
+    this._rebaseDictation(value);
     this._notifySubscribers();
+  }
+
+  // A live dictation session appends to the text it last saw, so any write
+  // that bypasses `setText` has to move that baseline or the next transcript
+  // overwrites what was just written.
+  private _rebaseDictation(value: string) {
+    if (!this._dictation) return;
+
+    this._dictationBaseText = value;
+    this._currentInterimText = "";
+    const { status, inputDisabled } = this._dictation;
+    this._dictation = inputDisabled ? { status, inputDisabled } : { status };
   }
 
   public setRole(role: MessageRole) {
@@ -143,26 +146,20 @@ export abstract class BaseComposerRuntimeCore
   protected _isSending = false;
   private _removedDuringSend = new Set<string>();
   private _sendGeneration = 0;
-  private _attachmentAddOperations = new Set<AttachmentAddOperation>();
+  private _attachmentAddOperations = new AttachmentAddOperations();
 
   private _cancelAttachmentAdd(attachmentId: string) {
-    for (const operation of [...this._attachmentAddOperations]) {
-      if (!operation.attachmentIds.has(attachmentId)) continue;
-      operation.cancelled = true;
-      this._attachmentAddOperations.delete(operation);
-    }
+    this._attachmentAddOperations.cancel(attachmentId);
   }
 
   private _cancelAllAttachmentAdds() {
-    for (const operation of this._attachmentAddOperations) {
-      operation.cancelled = true;
-    }
-    this._attachmentAddOperations.clear();
+    this._attachmentAddOperations.cancelAll();
   }
 
   private _emptyTextAndAttachments() {
     this._attachments = [];
     this._text = "";
+    this._rebaseDictation("");
     this._notifySubscribers();
   }
 
@@ -206,6 +203,10 @@ export abstract class BaseComposerRuntimeCore
 
   public async clearAttachments() {
     this._cancelAllAttachmentAdds();
+    if (this._isSending) {
+      for (const attachment of this._attachments)
+        this._removedDuringSend.add(attachment.id);
+    }
     const task = this._onClearAttachments();
     this.setAttachments([]);
 
@@ -231,6 +232,8 @@ export abstract class BaseComposerRuntimeCore
     const originalAttachments = this.attachments;
     const text = this.text;
     const quote = this._quote;
+    const role = this.role;
+    const runConfig = this.runConfig;
     this._quote = undefined;
     this._text = "";
     this._isSending = true;
@@ -244,6 +247,7 @@ export abstract class BaseComposerRuntimeCore
       if (generation === this._sendGeneration) {
         if (!this.text.trim() && this._quote === undefined) {
           this._text = text;
+          this._rebaseDictation(text);
           this._quote = quote;
           this._notifySubscribers();
         }
@@ -281,16 +285,102 @@ export abstract class BaseComposerRuntimeCore
 
     const message: Omit<AppendMessage, "parentId" | "sourceId"> = {
       createdAt: new Date(),
-      role: this.role,
+      role,
       content: text ? [{ type: "text", text }] : [],
       attachments: finalAttachments,
-      runConfig: this.runConfig,
+      runConfig,
       metadata: { custom: { ...(quote ? { quote } : {}) } },
     };
 
-    const sendTask = this.handleSend(message, options);
-    if (sendTask) void sendTask.catch(() => {});
-    this._notifyEventSubscribers("send", {});
+    const draft = { text, quote, attachments: finalAttachments };
+    let sendTask: void | Promise<void>;
+    try {
+      sendTask = this.handleSend(message, options);
+    } catch (error) {
+      this._restoreUnsentDraft(error, generation, draft);
+      throw error;
+    }
+    if (sendTask)
+      void sendTask.catch((error) => {
+        this._restoreUnsentDraft(error, generation, draft);
+      });
+    this._notifyEventSubscribers("send", {
+      chars: text.length,
+      attachments: finalAttachments.length,
+    });
+  }
+
+  /**
+   * Take a message back into the composer when it has nowhere else to live:
+   * a send the runtime never dispatched, or a message a cancelled run is
+   * removing from the thread. Reports whether the composer accepted it, so a
+   * caller that is also removing the message can keep it instead of dropping
+   * it. Refused, and left untouched, while the composer holds anything of its
+   * own.
+   */
+  public restoreDraft(draft: {
+    text: string;
+    quote?: QuoteInfo | undefined;
+    attachments?: readonly Attachment[] | undefined;
+  }): boolean {
+    if (
+      this._text.trim() ||
+      this._quote !== undefined ||
+      this._attachments.length > 0
+    )
+      return false;
+
+    this._text = draft.text;
+    this._rebaseDictation(draft.text);
+    this._quote = draft.quote;
+    this._attachments = draft.attachments ?? [];
+    this._notifySubscribers();
+    return true;
+  }
+
+  /**
+   * Inverse of `restoreDraft`: clears the composer while it still holds
+   * exactly the given draft. A draft the user has edited since is left
+   * untouched.
+   */
+  public retractDraft(draft: {
+    text: string;
+    quote?: QuoteInfo | undefined;
+    attachments?: readonly Attachment[] | undefined;
+  }): void {
+    const attachmentsUntouched =
+      draft.attachments !== undefined
+        ? this._attachments === draft.attachments
+        : this._attachments.length === 0;
+    if (
+      this._text !== draft.text ||
+      this._quote !== draft.quote ||
+      !attachmentsUntouched
+    )
+      return;
+
+    this._text = "";
+    this._rebaseDictation("");
+    this._quote = undefined;
+    this._attachments = [];
+    this._notifySubscribers();
+  }
+
+  // The generation check is what a reset and a later send use to invalidate a
+  // draft, so of several queued drafts only the most recent one is still
+  // restorable.
+  private _restoreUnsentDraft(
+    error: unknown,
+    generation: number,
+    draft: {
+      text: string;
+      quote: QuoteInfo | undefined;
+      attachments: readonly CompleteAttachment[];
+    },
+  ) {
+    if (!isMessageNotSentError(error)) return;
+    if (generation !== this._sendGeneration) return;
+    this.restoreDraft(draft);
   }
 
   public cancel() {
@@ -301,7 +391,10 @@ export abstract class BaseComposerRuntimeCore
     return EMPTY_QUEUE_ITEMS;
   }
 
-  public steerQueueItem(_queueItemId: string): void {}
+  public moveQueueItem(
+    _queueItemId: string,
+    _placement: QueuePlacement,
+  ): void {}
   public removeQueueItem(_queueItemId: string): void {}
 
   protected abstract handleSend(
@@ -330,6 +423,7 @@ export abstract class BaseComposerRuntimeCore
           message,
           undefined,
           err,
+          fileOrAttachment.contentType,
         );
         throw err;
       }
@@ -344,7 +438,9 @@ export abstract class BaseComposerRuntimeCore
       };
       this._attachments = [...this._attachments, a];
       this._notifySubscribers();
-      this._notifyEventSubscribers("attachmentAdd", {});
+      this._notifyEventSubscribers("attachmentAdd", {
+        ...(a.contentType ? { contentType: a.contentType } : undefined),
+      });
       return;
     }
 
@@ -352,7 +448,13 @@ export abstract class BaseComposerRuntimeCore
     if (!adapter) {
       const message = "Attachments are not supported";
       const err = new Error(message);
-      this._safeEmitAttachmentAddError("no-adapter", message, undefined, err);
+      this._safeEmitAttachmentAddError(
+        "no-adapter",
+        message,
+        undefined,
+        err,
+        fileOrAttachment.type,
+      );
       throw err;
     }
 
@@ -364,20 +466,20 @@ export abstract class BaseComposerRuntimeCore
     ) {
       const message = `File type ${fileOrAttachment.type || "unknown"} is not accepted. Accepted types: ${adapter.accept}`;
       const err = new Error(message);
-      this._safeEmitAttachmentAddError("not-accepted", message, undefined, err);
+      this._safeEmitAttachmentAddError(
+        "not-accepted",
+        message,
+        undefined,
+        err,
+        fileOrAttachment.type,
+      );
       throw err;
     }
 
-    const operation: AttachmentAddOperation = {
-      cancelled: false,
-      attachmentIds: new Set(),
-    };
-    const operations = this._attachmentAddOperations;
-    operations.add(operation);
+    const operation = this._attachmentAddOperations.start();
     const upsertAttachment = (a: PendingAttachment) => {
-      if (operation.cancelled) return false;
+      if (!this._attachmentAddOperations.accept(operation, a.id)) return false;
 
-      operation.attachmentIds.add(a.id);
       const idx = this._attachments.findIndex(
         (attachment) => attachment.id === a.id,
       );
@@ -396,18 +498,15 @@ export abstract class BaseComposerRuntimeCore
     };
     let lastAttachment: PendingAttachment | undefined;
     try {
-      const promiseOrGenerator = adapter.add({ file: fileOrAttachment });
-      if (Symbol.asyncIterator in promiseOrGenerator) {
-        for await (const r of promiseOrGenerator) {
-          lastAttachment = r;
-          if (!upsertAttachment(r)) break;
-        }
-      } else {
-        lastAttachment = await promiseOrGenerator;
-        upsertAttachment(lastAttachment);
-      }
+      await drainAttachmentAdd(
+        adapter.add({ file: fileOrAttachment }),
+        (attachment) => {
+          lastAttachment = attachment;
+          return upsertAttachment(attachment);
+        },
+      );
     } catch (e) {
-      if (operation.cancelled) return;
+      if (this._attachmentAddOperations.isCancelled(operation)) return;
       if (lastAttachment) {
         upsertAttachment({
           ...lastAttachment,
@@ -423,13 +522,14 @@ export abstract class BaseComposerRuntimeCore
         e instanceof Error ? e.message : String(e),
         lastAttachment?.id,
         e instanceof Error ? e : undefined,
+        lastAttachment?.contentType || fileOrAttachment.type,
       );
       throw e;
     } finally {
-      operations.delete(operation);
+      this._attachmentAddOperations.finish(operation);
     }
 
-    if (operation.cancelled) return;
+    if (this._attachmentAddOperations.isCancelled(operation)) return;
     if (
       lastAttachment?.status.type === "incomplete" &&
       lastAttachment.status.reason === "error"
@@ -439,9 +539,17 @@ export abstract class BaseComposerRuntimeCore
         lastAttachment.status.message ??
           "Attachment upload did not complete successfully.",
         lastAttachment.id,
+        undefined,
+        lastAttachment.contentType || fileOrAttachment.type,
       );
     } else {
-      this._notifyEventSubscribers("attachmentAdd", {});
+      this._notifyEventSubscribers("attachmentAdd", {
+        ...(lastAttachment?.contentType
+          ? { contentType: lastAttachment.contentType }
+          : fileOrAttachment.type
+            ? { contentType: fileOrAttachment.type }
+            : undefined),
+      });
     }
   }
 
@@ -450,6 +558,7 @@ export abstract class BaseComposerRuntimeCore
     message: string,
     attachmentId?: string,
     error?: Error,
+    contentType?: string,
   ) {
     try {
       this._notifyEventSubscribers("attachmentAddError", {
@@ -457,6 +566,7 @@ export abstract class BaseComposerRuntimeCore
         message,
         ...(attachmentId !== undefined && { attachmentId }),
         ...(error !== undefined && { error }),
+        ...(contentType ? { contentType } : undefined),
       });
     } catch (subscriberError) {
       console.error(
@@ -622,9 +732,8 @@ export abstract class BaseComposerRuntimeCore
 
     const session = this._dictationSession;
     const sessionId = this._activeDictationSessionId;
-    session.stop().finally(() => {
-      this._cleanupDictation({ sessionId });
-    });
+    const cleanup = () => this._cleanupDictation({ sessionId });
+    void session.stop().then(cleanup, cleanup);
   }
 
   private _cleanupDictation(options?: { sessionId: number | undefined }): void {

@@ -1,0 +1,263 @@
+---
+title: "Attachments"
+description: "Files stage inside the composer with per-file progress before the message sends."
+---
+
+A file added to the composer becomes a chip: an icon for its kind, its name and size, and a trailing slot that carries a spinner while it uploads and a remove button once it is done. With a runtime the chip tracks a real upload through an attachment adapter; standalone you hold the list of files and their state yourself.
+
+## Getting started
+
+<RuntimeMode>
+
+A composer stages files the same way it stages text: `aui.composer.addAttachment(file)` adds one, an `AttachmentAdapter` turns it into a `PendingAttachment` and then a `CompleteAttachment`, and `s.composer.attachments` reflects the list at every step.
+
+<Steps>
+  <Step>
+
+### Configure an attachment adapter
+
+Attachments are opt-in: without an adapter, `s.thread.capabilities.attachments` is `false` and `AddAttachment`, paste, and drop all no-op. assistant-ui ships adapters for the common cases:
+
+```tsx title="app/chat-provider.tsx"
+import { useLocalRuntime, CompositeAttachmentAdapter, SimpleImageAttachmentAdapter, SimpleTextAttachmentAdapter } from "@assistant-ui/react";
+
+const runtime = useLocalRuntime(chatModel, {
+  adapters: {
+    attachments: new CompositeAttachmentAdapter([
+      new SimpleImageAttachmentAdapter(),
+      new SimpleTextAttachmentAdapter(),
+    ]),
+  },
+});
+```
+
+  </Step>
+  <Step>
+
+### Add and list attachments
+
+```tsx title="components/assistant-ui/elements/composer-attachments.tsx"
+"use client";
+
+import { ComposerPrimitive, AttachmentPrimitive } from "@assistant-ui/react";
+import { PlusIcon, XIcon } from "lucide-react";
+import { cn } from "@/lib/utils";
+import { field, ghostButton } from "@/components/assistant-ui/elements/surfaces";
+
+export function ComposerAttachmentsRow() {
+  return (
+    <ComposerPrimitive.Attachments>
+      {({ attachment }) => (
+        <AttachmentPrimitive.Root
+          className={cn(field, "flex items-center gap-2.5 rounded-[14px] py-1.5 ps-1.5 pe-2.5")}
+        >
+          <span className="max-w-36 truncate text-xs font-medium">
+            <AttachmentPrimitive.Name />
+          </span>
+          {attachment.status.type === "complete" && (
+            <AttachmentPrimitive.Remove aria-label={`Remove ${attachment.name}`} className={cn(ghostButton, "size-5")}>
+              <XIcon className="size-3" />
+            </AttachmentPrimitive.Remove>
+          )}
+        </AttachmentPrimitive.Root>
+      )}
+    </ComposerPrimitive.Attachments>
+  );
+}
+
+export function AddAttachmentButton() {
+  return (
+    <ComposerPrimitive.AddAttachment aria-label="Add attachment" className={cn(ghostButton, "size-8")}>
+      <PlusIcon className="size-4" />
+    </ComposerPrimitive.AddAttachment>
+  );
+}
+```
+
+`ComposerPrimitive.Attachments` is a render-prop over every staged file; `AttachmentPrimitive.Root` scopes `.Name`, `.Remove`, and `.unstable_Thumb` to the attachment at that position, so they need no index or id passed in by hand. `AddAttachment` opens a native file picker filtered to `s.composer.attachmentAccept` (the adapter's `accept`, or every file type when none is configured).
+
+  </Step>
+  <Step>
+
+### Accept drag-and-drop
+
+```tsx
+<ComposerPrimitive.AttachmentDropzone className="data-[dragging=true]:border-dashed data-[dragging=true]:bg-blue-500/[0.04]">
+  {/* the rest of the bar */}
+</ComposerPrimitive.AttachmentDropzone>
+```
+
+`AttachmentDropzone` sets `data-dragging="true"` while a file is dragged over it and stages every dropped file the same way `addAttachment` does; it claims the drop even without an adapter configured, so an unprevented drop never navigates the tab away to the file.
+
+  </Step>
+</Steps>
+
+</RuntimeMode>
+
+<StandaloneMode>
+
+Standalone, a chip is a pure function of a `ComposerAttachment` object: nothing here uploads a file or tracks progress on its own. You own the array and mutate it as an upload proceeds.
+
+<Steps>
+  <Step>
+
+### Hold the attachment list
+
+```tsx title="app/chat-box.tsx"
+"use client";
+
+import { useState } from "react";
+import { ComposerAttachments, ComposerAttachmentChip, type ComposerAttachment } from "@/components/assistant-ui/elements/composer";
+
+export function ChatBox() {
+  const [attachments, setAttachments] = useState<ComposerAttachment[]>([]);
+
+  const remove = (name: string) =>
+    setAttachments((prev) => prev.filter((a) => a.name !== name));
+
+  return (
+    <ComposerAttachments>
+      {attachments.map((attachment) => (
+        <ComposerAttachmentChip key={attachment.name} attachment={attachment} onRemove={remove} />
+      ))}
+    </ComposerAttachments>
+  );
+}
+```
+
+  </Step>
+  <Step>
+
+### Drive the upload yourself
+
+```tsx
+async function upload(file: File) {
+  const attachment: ComposerAttachment = { name: file.name, meta: "0%", state: "uploading", progress: 0, kind: "image" };
+  setAttachments((prev) => [...prev, attachment]);
+
+  await uploadWithProgress(file, (progress) =>
+    setAttachments((prev) => prev.map((a) => (a.name === file.name ? { ...a, progress, meta: `${progress}%` } : a))),
+  );
+
+  setAttachments((prev) => prev.map((a) => (a.name === file.name ? { ...a, state: "done", meta: formatSize(file.size) } : a)));
+}
+```
+
+  </Step>
+</Steps>
+
+</StandaloneMode>
+
+## Anatomy
+
+```tsx
+<div data-slot="composer-attachment" data-state={/* "uploading" | "done" | "error" */}>
+  <span>{/* icon: image, text, or archive, by kind */}</span>
+  <span>
+    <span>{/* name */}</span>
+    <span>{/* meta; turns red when state is "error" */}</span>
+  </span>
+  <span>{/* trailing slot */}</span>
+  {/* progress bar along the bottom edge, only while uploading */}
+</div>
+```
+
+The trailing slot has three outcomes, not two: uploading shows a spinner; done with an `onRemove` handler shows a remove button; done with no `onRemove` shows a plain check mark instead, since there is nothing to remove once nothing is watching for it. An `"error"` state shows none of the three (only the red meta text), matching the runtime's own `"incomplete"` status, which carries a `message` but no built-in retry affordance of its own.
+
+## Examples
+
+### Upload progress
+
+<RuntimeMode>
+
+`aui.composer.getState().attachments[i].status` is `{ type: "running", reason: "uploading", progress }` while an adapter streams a `PendingAttachment`; read it to drive your own progress bar, or use `AttachmentPrimitive.unstable_Thumb`, which falls back to the file's extension or MIME type when no thumbnail is supplied.
+
+```tsx
+const status = useAuiState((s) => s.attachment.status);
+// { type: "running", reason: "uploading", progress: 42 } while uploading
+// { type: "complete" } once sent
+```
+
+</RuntimeMode>
+
+<StandaloneMode>
+
+The catalog chip reads `progress` directly and widens a blue bar to match it while `state` is `"uploading"`; once you flip `state` to `"done"`, the bar disappears entirely rather than sitting at full width.
+
+```tsx
+<ComposerAttachmentChip attachment={{ name: "photo.png", meta: "1.2 MB", state: "uploading", progress: 62, kind: "image" }} />
+```
+
+</StandaloneMode>
+
+### Restyle the chip
+
+Both lanes take `className` on the outer element; the icon square, the two-line label, and the trailing slot are laid out with `flex` and don't need to move together.
+
+```tsx
+<AttachmentPrimitive.Root className="rounded-2xl py-2" />
+```
+
+### Once the message is sent
+
+Attachments in the composer are still local and removable; once a message sends, they live inside that message instead, read-only. [Attachment](/elements/attachment) covers the runtime message-side rendering, and its [received-files design](/elements/attachment#the-received-files-design) covers the equivalent standalone piece.
+
+## API reference
+
+<RuntimeMode>
+
+### ComposerPrimitive
+
+| Part | Renders | Notes |
+|------|---------|-------|
+| `Attachments` | render prop | `{({ attachment }) => ReactNode}`, once per staged file. |
+| `AttachmentByIndex` | wrapper | Renders one attachment at a fixed `index`; used internally by `Attachments`. |
+| `AddAttachment` | `button` | Opens a native file picker filtered to `attachmentAccept`; disabled only while the composer is not editable, so a pick made with no adapter configured opens the picker but silently fails to add the file. |
+| `AttachmentDropzone` | `div` (or `asChild`) | `data-dragging="true"` while a file drag is over it; drops call `addAttachment` per file. |
+
+### AttachmentPrimitive
+
+| Part | Renders | Notes |
+|------|---------|-------|
+| `Root` | `div` | Scopes `.Name`, `.Remove`, and `.unstable_Thumb` to the attachment at this position. Must be inside `ComposerPrimitive.Attachments` (or `MessagePrimitive.Attachments`, for an attachment already on a sent message). |
+| `Name` | text | The attachment's `name`. |
+| `Remove` | `button` | Calls `aui.attachment.remove()`. |
+| `unstable_Thumb` | `div` | Renders its `children`, or falls back to the file extension (or MIME type) as text. |
+
+### Composer and attachment state
+
+| Selector | Type | Description |
+|----------|------|-------------|
+| `s.composer.attachments` | `readonly Attachment[]` | Every file staged on this composer. |
+| `s.composer.attachmentAccept` | `string` | The configured adapter's `accept`, or `"*"`. |
+| `s.thread.capabilities.attachments` | `boolean` | Whether an attachment adapter is configured at all. |
+| `s.attachment.name` / `.type` / `.contentType?` | `string` | Identity of the attachment in scope. |
+| `s.attachment.status` | `PendingAttachmentStatus \| CompleteAttachmentStatus` | See below. |
+| `aui.composer.addAttachment(file)` | `(file: File \| CreateAttachment) => Promise<void>` | Stages a file. |
+| `aui.composer.clearAttachments()` | `() => Promise<void>` | Removes every staged attachment. |
+
+`PendingAttachmentStatus` is `{ type: "running", reason: "uploading", progress: number }`, `{ type: "requires-action", reason: "composer-send" }` (uploaded, waiting to be sent), or `{ type: "incomplete", reason: "error" | "upload-paused", message?: string }`. `CompleteAttachmentStatus` is `{ type: "complete" }`.
+
+</RuntimeMode>
+
+<StandaloneMode>
+
+### ComposerAttachment
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `name` | `string` | Shown as the chip's label. |
+| `meta` | `string` | The line under the name (size, percent, or an error hint). |
+| `state` | `"uploading" \| "done" \| "error"` | Drives the icon, the trailing slot, and the meta text color. |
+| `progress` | `number` | Width of the progress bar, out of 100, while `state` is `"uploading"`. |
+| `kind` | `"image" \| "text" \| "archive"` | Selects the leading icon. @default renders the text icon |
+
+### ComposerAttachments / ComposerAttachmentChip
+
+| Prop | Type | Default | Description |
+|------|------|---------|-------------|
+| `attachment` | `ComposerAttachment` | required | The file to render (`ComposerAttachmentChip` only). |
+| `onRemove` | `(name: string) => void` | | Shown as a remove button once `state` is `"done"`; a check mark renders instead when omitted. |
+| `className` | `string` | | Merged onto the root. |
+
+</StandaloneMode>

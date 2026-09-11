@@ -201,6 +201,42 @@ describe("convertSurfaceToUISpec", () => {
     });
   });
 
+  it("preserves prototype-named action context fields", () => {
+    const context = JSON.parse(
+      '{"__proto__":{"admin":true},"literal":"kept"}',
+    ) as Record<string, unknown>;
+    const surface = surfaceFrom([
+      {
+        id: "root",
+        component: "Button",
+        label: "Run",
+        action: { name: "run", context },
+      },
+    ]);
+
+    const result = convertSurfaceToUISpec(surface);
+    const convertedContext = (result.spec as UIElement).$action
+      ?.context as Record<string, unknown>;
+
+    expect(Object.getPrototypeOf(convertedContext)).toBe(Object.prototype);
+    expect(Object.hasOwn(convertedContext, "__proto__")).toBe(true);
+    expect(convertedContext["__proto__"]).toEqual({ admin: true });
+    expect(JSON.stringify(convertedContext)).toBe(
+      '{"__proto__":{"admin":true},"literal":"kept"}',
+    );
+  });
+
+  it("does not read component fields through a prototype-named prop", () => {
+    const component = JSON.parse(
+      '{"id":"root","component":"Text","__proto__":{"text":"injected"}}',
+    ) as Record<string, unknown>;
+
+    expect(convertSurfaceToUISpec(surfaceFrom([component]))).toEqual({
+      spec: { $type: "Markdown" },
+      warnings: [],
+    });
+  });
+
   it("expands template children relative to each bound item", () => {
     const surface = surfaceFrom(
       [

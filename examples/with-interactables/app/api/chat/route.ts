@@ -5,7 +5,7 @@ import {
   frontendTools,
   type FrontendTools,
   unstable_injectInteractableContext,
-} from "@assistant-ui/react-ai-sdk";
+} from "@assistant-ui/ai-sdk";
 
 export const maxDuration = 30;
 
@@ -25,7 +25,7 @@ export async function POST(req: Request) {
   );
 
   const result = streamText({
-    model: openai("gpt-5.4-nano"),
+    model: openai("gpt-5.6-luna"),
     messages: modelMessages,
     stopWhen: stepCountIs(10),
     ...(system ? { system } : {}),

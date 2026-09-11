@@ -1,0 +1,216 @@
+---
+title: "Agent Skills"
+description: Use AI tools to build with assistant-ui faster. AI-accessible documentation, Claude Code skills, and MCP integration.
+---
+
+import { FileText } from "lucide-react";
+
+Build faster with AI assistants that understand assistant-ui. This page covers all the ways to give your AI tools access to assistant-ui documentation and context.
+
+## AI Accessible Documentation
+
+Our docs are designed to be easily accessible to AI assistants:
+
+<Cards>
+  <Card icon={<FileText className="text-blue-300" />} title="/llms.txt" href="/llms.txt" external>
+    Structured index of all documentation pages. Point your AI here for a quick overview.
+  </Card>
+
+  <Card icon={<FileText className="text-green-300" />} title="/llms-full.txt" href="/llms-full.txt" external>
+    Complete documentation in a single file. Use this for full context.
+  </Card>
+
+  <Card icon={<FileText className="text-purple-300" />} title=".mdx suffix">
+    Add `.mdx` to any page's URL to get raw markdown content (e.g., `/docs/installation.mdx`).
+  </Card>
+</Cards>
+
+### Context Files
+
+Add assistant-ui context to your project's `CLAUDE.md` or `.cursorrules`:
+
+```md
+## assistant-ui
+
+This project uses assistant-ui for chat interfaces.
+
+Documentation: https://www.assistant-ui.com/llms-full.txt
+
+Key patterns:
+- Use AssistantRuntimeProvider at the app root
+- Thread component for full chat interface
+- AssistantModal for floating chat widget
+- useChatRuntime hook with AI SDK transport
+```
+
+## Skills
+
+Install assistant-ui skills for AI Tools:
+
+```sh
+npx skills add assistant-ui/skills
+```
+
+| Skill | Purpose |
+|-------|---------|
+| `/assistant-ui` | General architecture and overview guide |
+| `/setup` | Project setup and configuration (AI SDK, LangGraph, custom backends) |
+| `/primitives` | UI component primitives (Thread, Composer, Message, etc.) |
+| `/runtime` | Runtime system and state management |
+| `/tools` | Tool registration and tool UI |
+| `/streaming` | Streaming protocol with assistant-stream |
+| `/cloud` | Cloud persistence and authorization |
+| `/thread-list` | Multi-thread management |
+| `/update` | Update assistant-ui and AI SDK to latest versions |
+
+Use by typing the command in Claude Code, e.g., `/assistant-ui` for the main guide or `/setup` when setting up a project.
+
+## MCP
+
+assistant-ui hosts an MCP server at `https://www.assistant-ui.com/mcp` (Streamable HTTP). It serves the live documentation, examples, design components, and Tap docs, and exposes the hosted app templates. There is nothing to install and it is always current.
+
+Once connected, your AI assistant will understand everything about assistant-ui. Just ask naturally:
+
+- "Add a chat interface with streaming support to my app"
+- "How do I integrate assistant-ui with the Vercel AI SDK?"
+- "My Thread component isn't updating, what could be wrong?"
+
+### Quick Install
+
+For Claude Code:
+
+```bash
+claude mcp add --transport http assistant-ui https://www.assistant-ui.com/mcp
+```
+
+For other IDEs, the assistant-ui CLI configures the right client for you:
+
+```bash
+npx assistant-ui@latest mcp
+```
+
+### Manual Installation
+
+<Tabs items={["Cursor", "Windsurf", "VSCode", "Zed", "Claude Code", "Claude Desktop"]}>
+  <Tab>
+<a href="cursor://anysphere.cursor-deeplink/mcp/install?name=assistant-ui&config=eyJ1cmwiOiJodHRwczovL3d3dy5hc3Npc3RhbnQtdWkuY29tL21jcCJ9">
+  <img src="https://cursor.com/deeplink/mcp-install-dark.svg" alt="Install in Cursor" className="not-prose" />
+</a>
+
+Or add to `.cursor/mcp.json`:
+
+```json
+{
+  "mcpServers": {
+    "assistant-ui": {
+      "url": "https://www.assistant-ui.com/mcp"
+    }
+  }
+}
+```
+
+After adding, open Cursor Settings → MCP → find "assistant-ui" and click enable.
+  </Tab>
+  <Tab>
+Add to `~/.codeium/windsurf/mcp_config.json`:
+
+```json
+{
+  "mcpServers": {
+    "assistant-ui": {
+      "serverUrl": "https://www.assistant-ui.com/mcp"
+    }
+  }
+}
+```
+
+After adding, fully quit and re-open Windsurf.
+  </Tab>
+  <Tab>
+Add to `.vscode/mcp.json` in your project:
+
+```json
+{
+  "servers": {
+    "assistant-ui": {
+      "type": "http",
+      "url": "https://www.assistant-ui.com/mcp"
+    }
+  }
+}
+```
+
+Enable MCP in Settings → search "MCP" → enable "Chat > MCP". Use GitHub Copilot Chat in Agent mode.
+  </Tab>
+  <Tab>
+Zed launches MCP servers as local commands, so use the stdio package. Add to your Zed settings file:
+- macOS: `~/.zed/settings.json`
+- Linux: `~/.config/zed/settings.json`
+- Windows: `%APPDATA%\Zed\settings.json`
+
+```json
+{
+  "context_servers": {
+    "assistant-ui": {
+      "command": {
+        "path": "npx",
+        "args": ["-y", "@assistant-ui/mcp-docs-server"]
+      }
+    }
+  }
+}
+```
+
+The server starts automatically with the Assistant Panel.
+  </Tab>
+  <Tab>
+```bash
+claude mcp add --transport http assistant-ui https://www.assistant-ui.com/mcp
+```
+
+The server is available immediately once added.
+  </Tab>
+  <Tab>
+Claude Desktop's configuration file only supports local commands, so use the stdio package. Add to `~/Library/Application Support/Claude/claude_desktop_config.json` (macOS) or `%APPDATA%\Claude\claude_desktop_config.json` (Windows):
+
+```json
+{
+  "mcpServers": {
+    "assistant-ui": {
+      "command": "npx",
+      "args": ["-y", "@assistant-ui/mcp-docs-server"]
+    }
+  }
+}
+```
+
+Restart Claude Desktop after updating the configuration.
+  </Tab>
+</Tabs>
+
+### Available Tools
+
+| Tool | Description |
+|------|-------------|
+| `list_pages` | List documentation pages, optionally filtered by a path prefix such as `/docs/tools` or `/examples` |
+| `get_navigation` | Return the docs navigation tree |
+| `search_docs` | Search docs, examples, design components, elements, and Tap docs over page content as well as metadata, with an excerpt per result that has body prose |
+| `read_page` | Read one page as markdown by slug, path, or URL |
+| `list_templates` | List the hosted app templates and fixed demos |
+| `read_template` | Get a template's full authoring surface: config schemas, rules, and an example config |
+| `preview_template` | Create a configured preview session and return preview and download URLs |
+
+The server also exposes every page as an MCP resource (`assistant-ui://{path}`) and an `assistant-ui-template-workflow` prompt for template-driven app building.
+
+### Local stdio Server
+
+`@assistant-ui/mcp-docs-server` stays published for clients that only launch local stdio servers. It is a thin proxy to the hosted endpoint, so it serves the same live content:
+
+```bash
+npx add-mcp @assistant-ui/mcp-docs-server
+```
+
+### Troubleshooting
+
+- **Connection failing**: The hosted server requires network access. Check that the URL is exactly `https://www.assistant-ui.com/mcp` and that your client supports Streamable HTTP.
+- **Stdio server not starting**: Ensure `npx` is installed and working, then restart the MCP server and your IDE.

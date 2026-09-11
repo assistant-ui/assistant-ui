@@ -1,0 +1,273 @@
+---
+title: "Reviewable diff"
+description: "The same diff, but each hunk is a decision: keep it, discard it, apply what survived."
+---
+
+A reviewable diff breaks a patch into hunks and asks a decision of each one: keep it or discard it, with a running count and an apply button that stays disabled until every hunk has an answer. With a runtime this is a human tool: the model proposes the hunks and pauses for a decision. Standalone you supply the hunks and own the decisions yourself.
+
+## Getting started
+
+<RuntimeMode>
+
+A patch review has no automatic outcome, so it registers as a human tool: there is no `execute`, and the call only resolves once the renderer calls `addResult`.
+
+<Steps>
+  <Step>
+
+### Render the tool call
+
+```tsx title="components/assistant-ui/elements/review-patch-tool-ui.tsx"
+"use client";
+
+import { useState } from "react";
+import type { ToolCallMessagePartComponent } from "@assistant-ui/react";
+import {
+  ReviewableDiff,
+  type DiffHunk,
+  type HunkDecision,
+} from "@/components/assistant-ui/elements/reviewable-diff";
+
+type ReviewPatchArgs = {
+  filename: string;
+  hunks: readonly Omit<DiffHunk, "decision">[];
+};
+type ReviewPatchResult = { kept: readonly string[] };
+
+export const ReviewPatchToolUI: ToolCallMessagePartComponent<
+  ReviewPatchArgs,
+  ReviewPatchResult
+> = ({ args, result, addResult }) => {
+  const [decisions, setDecisions] = useState<Record<string, HunkDecision>>({});
+
+  if (result) {
+    return (
+      <p>
+        Applied {result.kept.length} of {args.hunks.length} hunks to {args.filename}.
+      </p>
+    );
+  }
+
+  const hunks: DiffHunk[] = args.hunks.map((hunk) => ({
+    ...hunk,
+    decision: decisions[hunk.id] ?? "pending",
+  }));
+
+  return (
+    <ReviewableDiff
+      filename={args.filename}
+      hunks={hunks}
+      onKeep={(id) => setDecisions((d) => ({ ...d, [id]: "kept" }))}
+      onDiscard={(id) => setDecisions((d) => ({ ...d, [id]: "discarded" }))}
+      onApply={() =>
+        addResult({
+          kept: hunks.filter((h) => h.decision === "kept").map((h) => h.id),
+        })
+      }
+    />
+  );
+};
+```
+
+  </Step>
+  <Step>
+
+### Register the tool
+
+```tsx title="app/toolkit.ts"
+import { defineToolkit } from "@assistant-ui/react";
+import { z } from "zod";
+import { ReviewPatchToolUI } from "@/components/assistant-ui/elements/review-patch-tool-ui";
+
+export const toolkit = defineToolkit({
+  review_patch: {
+    type: "human",
+    description: "Ask the user which hunks of a proposed patch to keep.",
+    parameters: z.object({
+      filename: z.string(),
+      hunks: z.array(
+        z.object({
+          id: z.string(),
+          range: z.string(),
+          lines: z.array(
+            z.object({
+              kind: z.enum(["context", "added", "removed"]),
+              text: z.string(),
+            }),
+          ),
+        }),
+      ),
+    }),
+    render: ReviewPatchToolUI,
+  },
+});
+```
+
+```tsx title="app/MyRuntimeProvider.tsx"
+import { AssistantRuntimeProvider, AuiConfig, Tools } from "@assistant-ui/react";
+import { useChatRuntime } from "@assistant-ui/ai-sdk";
+import { toolkit } from "./toolkit";
+
+export function MyRuntimeProvider({ children }: { children: React.ReactNode }) {
+  const runtime = useChatRuntime();
+  const config = AuiConfig({ tools: Tools({ toolkit }) });
+  return (
+    <AssistantRuntimeProvider runtime={runtime} config={config}>
+      {children}
+    </AssistantRuntimeProvider>
+  );
+}
+```
+
+See [User Input Collection](/docs/tools/tool-ui) for more on human tools and `addResult`.
+
+  </Step>
+</Steps>
+
+</RuntimeMode>
+
+<StandaloneMode>
+
+Standalone, the review is entirely local: you hold the hunks and their decisions, and `onApply` is whatever you want to do once every hunk has one.
+
+<Steps>
+  <Step>
+
+### Hold the decisions
+
+```tsx title="app/patch-review.tsx"
+"use client";
+
+import { useState } from "react";
+import {
+  ReviewableDiff,
+  type DiffHunk,
+  type HunkDecision,
+} from "@/components/assistant-ui/elements/reviewable-diff";
+
+const HUNKS: readonly Omit<DiffHunk, "decision">[] = [
+  {
+    id: "h1",
+    range: "@@ -12,6 +12,7",
+    lines: [
+      { kind: "context", text: "  const composer = useComposer();" },
+      { kind: "removed", text: '  const [draft, setDraft] = useState("");' },
+      { kind: "added", text: "  const draft = useDraft(threadId);" },
+    ],
+  },
+];
+
+export function PatchReview() {
+  const [decisions, setDecisions] = useState<Record<string, HunkDecision>>({});
+  const hunks: DiffHunk[] = HUNKS.map((hunk) => ({
+    ...hunk,
+    decision: decisions[hunk.id] ?? "pending",
+  }));
+
+  return (
+    <ReviewableDiff
+      filename="composer.tsx"
+      hunks={hunks}
+      onKeep={(id) => setDecisions((d) => ({ ...d, [id]: "kept" }))}
+      onDiscard={(id) => setDecisions((d) => ({ ...d, [id]: "discarded" }))}
+      onApply={() => applyPatch(hunks.filter((h) => h.decision === "kept"))}
+    />
+  );
+}
+```
+
+  </Step>
+  <Step>
+
+### Apply the kept hunks
+
+`onApply` is called once, with every hunk still available to read its current `decision`. Nothing in the element itself submits or clears state, so the handler owns both:
+
+```tsx
+async function applyPatch(kept: readonly DiffHunk[]) {
+  await fetch("/api/patch", {
+    method: "POST",
+    body: JSON.stringify({ hunkIds: kept.map((h) => h.id) }),
+  });
+  setDecisions({});
+}
+```
+
+  </Step>
+</Steps>
+
+</StandaloneMode>
+
+## Anatomy
+
+```tsx
+<div data-slot="reviewable-diff">
+  <div>{/* filename, "N of M kept" */}</div>
+  <div>
+    {/* one block per hunk: range, then Discard/Keep while pending, else the decision label; the diff lines dim once discarded but stay visible */}
+  </div>
+  <div>{/* "N left to review" or "All reviewed"; an Apply button disabled while any hunk is pending */}</div>
+</div>
+```
+
+`kept` and `pending` are always derived by counting `hunks`, never stored separately, so the header and footer stay in sync with whatever `decision` values you pass in. `onKeep`, `onDiscard`, and `onApply` are all optional: pass only the ones you need, and the matching control still renders but calls nothing when pressed.
+
+## Examples
+
+### Restyle the review
+
+Both lanes take `className` on the root. The card surface comes from `paper`, the Apply button from `inkButton`, both in `surfaces.tsx`.
+
+```tsx
+<ReviewableDiff className="max-w-none" /* ... */ />
+```
+
+### Nothing to review
+
+An empty `hunks` array is valid: the header reads "0 of 0 kept", the footer reads "All reviewed" since there is nothing pending, and Apply reads "Apply 0" and stays enabled.
+
+```tsx
+<ReviewableDiff filename="composer.tsx" hunks={[]} />
+```
+
+### Discard everything at once
+
+Both lanes hold `decisions` as local state, so a reject-all control is the same one line wherever that state lives:
+
+```tsx
+function discardAll() {
+  setDecisions(Object.fromEntries(hunks.map((h) => [h.id, "discarded"])));
+}
+```
+
+## API reference
+
+<RuntimeMode>
+
+### Tool-call render props
+
+| Prop | Type | Description |
+|------|------|-------------|
+| `args` | `{ filename: string; hunks: readonly Omit<DiffHunk, "decision">[] }` | The filename and the unreviewed hunks the model is proposing. |
+| `result` | `{ kept: readonly string[] } \| undefined` | Set once `addResult` is called; the ids of the hunks the user kept. |
+| `addResult` | `(result: ReviewPatchResult) => void` | Call once, after the user has decided every hunk, to resolve the call. |
+
+See [Tool UI](/docs/tools/tool-ui) for the full render-prop surface and human-tool registration.
+
+</RuntimeMode>
+
+<StandaloneMode>
+
+### ReviewableDiff
+
+| Prop | Type | Default | Description |
+|------|------|---------|-------------|
+| `filename` | `string` | required | Shown in the header. |
+| `hunks` | `readonly DiffHunk[]` | required | The hunks, in order, each carrying its own `decision`. |
+| `onKeep` | `(id: string) => void` | | Called when a pending hunk's Keep button is pressed. |
+| `onDiscard` | `(id: string) => void` | | Called when a pending hunk's Discard button is pressed. |
+| `onApply` | `() => void` | | Called when Apply is pressed. Disabled while any hunk is `"pending"`. |
+| `className` | `string` | | Merged onto the root. |
+
+`DiffHunk` is `{ id: string; range: string; decision: HunkDecision; lines: readonly DiffLine[] }`, and `HunkDecision` is `"pending" | "kept" | "discarded"`. All other `div` props are forwarded to the root.
+
+</StandaloneMode>

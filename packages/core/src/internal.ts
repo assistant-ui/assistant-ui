@@ -32,7 +32,8 @@ export {
 
 // Message utilities
 export { getThreadMessageText } from "./utils/text";
-export { toMessagePartStatus } from "./runtime/api/message-runtime";
+export { toMessagePartStatus } from "./utils/normalizePartStatus";
+export { notifyEventListeners } from "./utils/notify-event-listeners";
 export { resolveToolApprovalResponse } from "./runtime/utils/resolveToolApprovalResponse";
 export { consumeSuggestionResult } from "./adapters/suggestion";
 
@@ -59,16 +60,40 @@ export { isJSONValue, isRecord } from "./utils/json/is-json";
 // outbound part conversion lives in one place.
 export {
   dataUrlMediaType,
+  type FilePartSource,
   httpUrlPattern,
   isParsableUrl,
   parseDataUrl,
+  resolveFilePartSource,
 } from "./utils/data-url";
+export { invokeUserCallback } from "./utils/invoke-user-callback";
+export {
+  abortableIterable,
+  openAbortableIterable,
+} from "./utils/abortable-iterable";
 export { detectImageMediaType } from "./utils/image-media-type";
 export {
   resolveFileMediaType,
   resolveImageMediaType,
   toMediaWireUrl,
 } from "./utils/wire-media";
+export {
+  createToolCallCancellationStub,
+  scanPendingToolCalls,
+} from "./runtime/utils/pending-tool-calls";
+// Nested tool-call traversal, reused by framework adapters so the
+// ToolCallMessagePart.messages tree is walked one way.
+export {
+  iterateToolCallParts,
+  mapToolCallPartsDeep,
+  type ToolCallTreeEntry,
+  walkToolCallTree,
+} from "./runtime/utils/tool-call-tree";
+export {
+  createAbortableThreadLoad,
+  type AbortableThreadLoadPurpose,
+} from "./runtime/utils/abortable-thread-load";
+export { createCloudThreadListAdapterCreateFallback } from "./react/runtimes/cloud/createCloudThreadListAdapterCreateFallback";
 
 export * from "./runtime/internal";
 export * from "./runtimes/internal";

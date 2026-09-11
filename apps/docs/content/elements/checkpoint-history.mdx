@@ -1,0 +1,133 @@
+---
+title: "Checkpoints"
+description: "Points you can fall back to, with what each one would give back."
+---
+
+A checkpoint list shows the points you could restore to: a label, when it was taken, and how much it touched. It is a plain list with one entry marked current; restoring is a callback you wire up yourself.
+
+## Getting started
+
+<StandaloneMode>
+
+<Steps>
+  <Step>
+
+### Render the list with a current checkpoint
+
+```tsx title="app/checkpoints.tsx"
+"use client";
+
+import { CheckpointHistory, type Checkpoint } from "@/components/assistant-ui/elements/checkpoint-history";
+
+const checkpoints: Checkpoint[] = [
+  { id: "1", label: "Initial scaffold", at: "10:02", files: 4 },
+  { id: "2", label: "Added auth", at: "10:19", files: 7 },
+  { id: "3", label: "Fixed layout bug", at: "10:41", files: 2 },
+];
+
+export function History() {
+  return <CheckpointHistory checkpoints={checkpoints} currentId="3" />;
+}
+```
+
+  </Step>
+  <Step>
+
+### Restore on click
+
+`onRestore` only reports which checkpoint was picked; moving `currentId` and rolling back whatever state the checkpoint represents both happen in your handler.
+
+```tsx
+"use client";
+
+import { useState } from "react";
+
+export function History() {
+  const [currentId, setCurrentId] = useState("3");
+
+  return (
+    <CheckpointHistory
+      checkpoints={checkpoints}
+      currentId={currentId}
+      onRestore={(id) => {
+        rollBackTo(id);
+        setCurrentId(id);
+      }}
+    />
+  );
+}
+```
+
+  </Step>
+</Steps>
+
+</StandaloneMode>
+
+## Anatomy
+
+```tsx
+<div data-slot="checkpoint-history">
+  <span>Checkpoints</span>
+  <div>
+    {/* one row per checkpoint */}
+    <span>{/* dot: solid blue = current, hollow ring = ahead, solid gray = behind */}</span>
+    <span>{label}</span>
+    <span>{/* at · N files */}</span>
+    <span>{/* "current" label, or a Restore button */}</span>
+  </div>
+</div>
+```
+
+The current row is found by matching `currentId` against `checkpoints`. Rows that come after it in the array are "ahead": they render at reduced opacity with a hollow dot, since they are only reachable by moving forward again. Rows at or before it are "behind": full opacity, solid gray dot. The current row itself gets a highlighted background and shows the word "current" instead of a button; every other row, ahead or behind, shows a Restore button that only appears on hover or focus. If `currentId` matches nothing in `checkpoints`, no row is current: every row reads as behind and every row shows a Restore button. An empty `checkpoints` array renders only the "Checkpoints" label.
+
+## Examples
+
+### Checkpoints ahead of the current one
+
+Passing a `currentId` earlier in the array than the list's end leaves the later entries visible but dimmed, showing what moving forward would give back:
+
+```tsx
+<CheckpointHistory checkpoints={checkpoints} currentId="2" onRestore={onRestore} />
+```
+
+### An unrecognized current id
+
+Useful right after a checkpoint is deleted server-side, before the caller has picked a new current one:
+
+```tsx
+<CheckpointHistory checkpoints={checkpoints} currentId="" onRestore={onRestore} />
+```
+
+### Restyle the list
+
+The root uses the shared `paper` surface; the timestamp and file count use `mono`.
+
+```tsx
+<CheckpointHistory className="max-w-md rounded-3xl" {...rest} />
+```
+
+## API reference
+
+<StandaloneMode>
+
+### CheckpointHistory
+
+| Prop | Type | Default | Description |
+|------|------|---------|-------------|
+| `checkpoints` | `readonly Checkpoint[]` | required | The rows to render, in order. |
+| `currentId` | `string` | required | Id of the active checkpoint. An id with no match leaves every row unmarked. |
+| `onRestore` | `(id: string) => void` | | Called when a row's Restore button is clicked. |
+| `className` | `string` | | Merged onto the root. |
+
+### Checkpoint
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `id` | `string` | Matched against `currentId`. |
+| `label` | `string` | Row title. |
+| `at` | `string` | Shown before the file count; any format you choose. |
+| `files` | `number` | Shown as `"{files} files"`. |
+
+All other `div` props are forwarded to the root.
+
+</StandaloneMode>

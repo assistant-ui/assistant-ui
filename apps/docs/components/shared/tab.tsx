@@ -62,14 +62,14 @@ const tabIndicatorVariants = cva(
 );
 
 const tabItemVariants = cva(
-  "focus-visible:ring-ring/50 relative flex h-[30px] cursor-pointer items-center justify-center gap-2 rounded-md px-3 py-2 text-sm leading-5 whitespace-nowrap transition-all duration-300 outline-none focus-visible:ring-2 focus-visible:ring-inset data-[active=true]:font-medium",
+  "focus-visible:ring-ring/50 relative flex h-[30px] cursor-pointer items-center justify-center gap-2 rounded-md px-3 py-2 text-[13px] leading-5 tracking-tight whitespace-nowrap transition-all duration-300 outline-none focus-visible:ring-1 focus-visible:ring-inset data-[active=true]:font-medium",
   {
     variants: {
       variant: {
         ghost:
           "data-[active=true]:bg-foreground/5 data-[active=true]:text-foreground border-transparent bg-transparent",
         default:
-          "border-border/50 bg-background/50 text-muted-foreground hover:border-border hover:bg-background hover:text-foreground data-[active=true]:border-border data-[active=true]:bg-background data-[active=true]:text-foreground border data-[active=true]:shadow-sm",
+          "border-border/50 bg-background/50 text-muted-foreground hover:border-border hover:bg-background hover:text-foreground data-[active=true]:border-border data-[active=true]:bg-background data-[active=true]:text-foreground border",
         outline:
           "border-border/30 text-muted-foreground hover:border-border hover:bg-accent/50 hover:text-foreground data-[active=true]:border-border data-[active=true]:bg-accent/30 data-[active=true]:text-foreground border bg-transparent",
         secondary:

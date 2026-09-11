@@ -1,0 +1,81 @@
+---
+title: "Heat graph"
+description: "An activity heat map with month labels, weekday labels, legend, and tooltip."
+---
+
+HeatGraph draws a GitHub-style activity calendar: a cell per day, colored by count, with month and weekday labels, a legend, and a hover tooltip. assistant-ui's runtime has no notion of daily activity counts, a thread's own message list isn't bucketed by day anywhere, so this element has just the one, standalone form: you pass the counted days in.
+
+## Getting started
+
+<Steps>
+  <Step>
+
+### Pass counted days in
+
+```tsx title="app/activity.tsx"
+import { HeatGraph } from "@/components/assistant-ui/elements/heat-graph";
+
+const data = [
+  { date: "2026-01-01", count: 3 },
+  { date: "2026-01-02", count: 0 },
+  { date: new Date(2026, 0, 3), count: 7 },
+];
+
+export function Activity() {
+  return <HeatGraph data={data} />;
+}
+```
+
+`date` accepts either an ISO string or a `Date`; `count` is whatever unit you're measuring. The component sorts counts into one of five color levels for you.
+
+  </Step>
+  <Step>
+
+### The visible window is always the trailing year
+
+`HeatGraph` never exposes `start` or `end`, the underlying primitive's own knobs for the date range, so the grid always covers the 365 days ending today, computed fresh at render time, aligned back to the start of its week. A `data` point outside that window, too old or dated in the future, is silently left off the grid rather than shown or reported as an error. If you need a fixed or a different window, compose the primitives yourself; see [Editing the composition directly](#editing-the-composition-directly) below.
+
+  </Step>
+</Steps>
+
+## Anatomy
+
+```tsx
+<div>
+  <div>{/* month abbreviations, positioned over the grid's columns */}</div>
+  <div>
+    <div>{/* weekday abbreviations, every other row */}</div>
+    <div>{/* the cell grid, one column per week */}</div>
+  </div>
+  <div>{/* "Less" ... five legend swatches ... "More" */}</div>
+  <div>{/* hover tooltip: count and date */}</div>
+</div>
+```
+
+`HeatGraph` takes only `data`. There is no `className` prop and no `data-slot` marker on the root, both unlike the rest of the catalog, so a wrapping `<div>` is the only restyle hook you have from outside. Weeks start on Monday and the five-step blue scale is fixed by this file, not configurable through a prop, and that scale is five plain hex values with no separate dark mode variant. Weekday labels show on alternating rows rather than every row, to avoid crowding six line-height labels into a compact grid. The legend always shows exactly five swatches, one per color level, bracketed by "Less" and "More". Hovering or focusing a cell shows a tooltip reading `"{count} contributions on {date}"`, with the date spelled out as month, day, and year.
+
+## Examples
+
+### Editing the composition directly
+
+Since there's no prop for it, changing the color scale, the week start, or the hardcoded gray and white Tailwind classes means editing `heat-graph.tsx` itself rather than passing a class name. The file is a thin composition over the `heat-graph` package's own primitives: `Root`, `MonthLabels`, `DayLabels`, `Grid` with `Cell`, `Legend` with `LegendLevel`, and `Tooltip`. Swap `colorScale` or `weekStart` on `Root`, or drop a sub-part (the legend, say) to change what renders.
+
+```tsx
+<HeatGraphPrimitive.Root data={data} weekStart="sunday" colorScale={["#eee", "#0a5"]}>
+  {/* your own MonthLabels / DayLabels / Grid / Legend, or a subset of them */}
+</HeatGraphPrimitive.Root>
+```
+
+### A second composition, elsewhere in the catalog
+
+`activity-graph` builds its own calendar independently on the same `heat-graph` package primitives, with the shared `paper` and `mono` surface tokens, a `className` prop, and a dark-mode-aware tint scale, rather than wrapping this file's `HeatGraph`. If you need a restylable calendar, start from [Activity graph](/elements/activity-graph) or the raw `heat-graph` primitives directly, rather than forking this fixed one.
+
+## API reference
+
+### HeatGraph
+
+| Prop | Type | Default | Description |
+|------|------|---------|-------------|
+| `data` | `readonly DataPoint[]` | required | One entry per counted day. Days missing from the array render as the lowest color level. |
+
+`DataPoint` is `{ date: string | Date; count: number }`, from the `heat-graph` package this element wraps.

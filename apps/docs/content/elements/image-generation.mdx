@@ -1,0 +1,195 @@
+---
+title: "Image generation"
+description: "A dot grid holds the frame while the image resolves out of a blur."
+---
+
+Image generation holds the frame for an image that has not arrived yet: a pulsing dot grid over a blurred gradient while generating, settling into a sharp gradient once done. With a runtime it tracks a tool call's status; standalone you drive `prompt` and `generating` yourself.
+
+## Getting started
+
+<RuntimeMode>
+
+An image tool renders through that tool's own toolkit entry: the model's prompt arrives as `args`, and the call's lifecycle as `status`.
+
+<Steps>
+  <Step>
+
+### Define the image toolkit
+
+```tsx title="app/toolkit.tsx"
+"use generative";
+
+import { defineToolkit, externalTool } from "@assistant-ui/react";
+import { ImageGeneration } from "@/components/assistant-ui/elements/image-generation";
+
+export default defineToolkit({
+  generate_image: {
+    execute: externalTool(),
+    render: ({ args, status }) => (
+      <ImageGeneration
+        prompt={args.prompt ?? ""}
+        generating={status.type === "running"}
+      />
+    ),
+  },
+});
+```
+
+`execute: externalTool()` marks a tool a backend route or image provider runs, not the browser: the compiler drops it from the client bundle and keeps only `render`.
+
+  </Step>
+  <Step>
+
+### Register the toolkit
+
+```tsx title="app/MyRuntimeProvider.tsx"
+"use client";
+
+import { AssistantRuntimeProvider, AuiConfig, Tools } from "@assistant-ui/react";
+import { useChatRuntime } from "@assistant-ui/ai-sdk";
+import { Thread } from "@/components/assistant-ui/elements/thread.aui";
+import toolkit from "./toolkit";
+
+export function App() {
+  const runtime = useChatRuntime();
+  const config = AuiConfig({ tools: Tools({ toolkit }) });
+
+  return (
+    <AssistantRuntimeProvider runtime={runtime} config={config}>
+      <Thread />
+    </AssistantRuntimeProvider>
+  );
+}
+```
+
+Every `generate_image` tool call in the thread now renders as this element, wherever `MessagePrimitive.Parts` places it in the assistant's reply.
+
+  </Step>
+</Steps>
+
+</RuntimeMode>
+
+<StandaloneMode>
+
+Standalone, `ImageGeneration` is fully controlled: you hold the prompt and whether generation is in flight.
+
+<Steps>
+  <Step>
+
+### Hold the generation state
+
+```tsx title="app/answer.tsx"
+"use client";
+
+import { useState } from "react";
+import { ImageGeneration } from "@/components/assistant-ui/elements/image-generation";
+
+export function Generation() {
+  const [generating, setGenerating] = useState(true);
+
+  return (
+    <ImageGeneration
+      prompt="A calm mountain lake at dawn"
+      generating={generating}
+    />
+  );
+}
+```
+
+  </Step>
+  <Step>
+
+### Flip it off once generation finishes
+
+`ImageGeneration` never receives the resulting URL, so hold it separately and swap in a real image renderer once it arrives:
+
+```tsx
+const [imageUrl, setImageUrl] = useState<string | null>(null);
+
+useEffect(() => {
+  generateImage(prompt).then((url) => {
+    setGenerating(false);
+    setImageUrl(url);
+  });
+}, [prompt]);
+
+return imageUrl ? <img src={imageUrl} alt={prompt} /> : (
+  <ImageGeneration prompt={prompt} generating={generating} />
+);
+```
+
+  </Step>
+</Steps>
+
+</StandaloneMode>
+
+## Anatomy
+
+```tsx
+<div data-slot="image-generation">
+  <div>
+    {/* the frame: an 8x8 pulsing dot grid, over a fixed decorative gradient */}
+    <span>{/* "1024 × 1024" */}</span>
+  </div>
+  <div>
+    <p>{/* prompt, or a shimmering "Generating" label while generating */}</p>
+    <button aria-label="Regenerate image" />
+  </div>
+</div>
+```
+
+The frame never renders an actual generated image: the gradient behind the dot grid is a fixed decorative graphic in the source, present in both states and only changing its blur and opacity as `generating` flips. Nothing in this element accepts an image URL. Once a tool call resolves with a real one, hand it to a renderer that does; see the [Image](/elements/image) element. The dot grid's 64 dots pulse with a staggered delay while `generating` is true and fade to fully transparent once it is false. The regenerate button fades out and stops receiving pointer events while generating, but has no `onClick` in the source: wire one by editing the installed file directly, the way you would any other owned-source element.
+
+## Examples
+
+### Wiring the regenerate button
+
+The button exists in the DOM but the source has no handler for it. Add one where you install the element:
+
+```tsx
+<button
+  type="button"
+  aria-label="Regenerate image"
+  onClick={() => regenerate(prompt)}
+  className={cn(ghostButton, "size-6 shrink-0", generating && "pointer-events-none opacity-0")}
+>
+  <RefreshCwIcon className="size-3" />
+</button>
+```
+
+### Restyle the frame
+
+Both lanes take `className` on the root. The "1024 × 1024" label and the prompt row use `mono` and `ShimmerLabel` from `surfaces.tsx`.
+
+```tsx
+<ImageGeneration className="w-64" /* ... */ />
+```
+
+## API reference
+
+<RuntimeMode>
+
+### Tool render props
+
+| Prop | Type | Description |
+|------|------|-------------|
+| `args` | `{ prompt?: string }` | Model-supplied arguments. Partial while streaming. |
+| `status.type` | `"running" \| "complete" \| "incomplete" \| "requires-action"` | Lifecycle of the call. `"running"` is the only state that should show the generating dots. |
+
+See [Tool UI](/docs/tools/tool-ui) for the full tool-call part shape.
+
+</RuntimeMode>
+
+<StandaloneMode>
+
+### ImageGeneration
+
+| Prop | Type | Default | Description |
+|------|------|---------|-------------|
+| `prompt` | `string` | required | Shown below the frame once generation finishes. |
+| `generating` | `boolean` | required | Shows the pulsing dot grid, the blurred gradient, and the shimmering prompt label while true. |
+| `className` | `string` | | Merged onto the root. |
+
+All other `div` props are forwarded to the root.
+
+</StandaloneMode>

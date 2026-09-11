@@ -1,6 +1,13 @@
 // @vitest-environment jsdom
 
-import { act, cleanup, render, screen, waitFor } from "@testing-library/react";
+import {
+  act,
+  cleanup,
+  fireEvent,
+  render,
+  screen,
+  waitFor,
+} from "@testing-library/react";
 import {
   afterAll,
   afterEach,
@@ -13,9 +20,11 @@ import {
 import { useEffect, useState, type FC, type PropsWithChildren } from "react";
 import { useAuiState } from "@assistant-ui/store";
 import { AssistantRuntimeProvider } from "../../context";
+import { useThreadViewport } from "../../context/react/ThreadViewportContext";
 import * as MessagePrimitive from "../message";
 import { ThreadPrimitiveMessages } from "./ThreadMessages";
 import { ThreadPrimitiveRoot } from "./ThreadRoot";
+import { ThreadPrimitiveScrollToBottom } from "./ThreadScrollToBottom";
 import { ThreadPrimitiveViewport } from "./ThreadViewport";
 import {
   ExportedMessageRepository,
@@ -152,6 +161,11 @@ const Message: FC = () => (
   </MessagePrimitive.Root>
 );
 
+const AtBottom: FC = () => {
+  const isAtBottom = useThreadViewport((s) => s.isAtBottom);
+  return <output data-testid="is-at-bottom">{String(isAtBottom)}</output>;
+};
+
 const Thread = ({
   autoScroll,
   scrollToBottomOnInitialize,
@@ -167,6 +181,7 @@ const Thread = ({
       scrollToBottomOnInitialize={scrollToBottomOnInitialize}
     >
       <ThreadPrimitiveMessages components={{ Message }} />
+      <AtBottom />
     </ThreadPrimitiveViewport>
   </ThreadPrimitiveRoot>
 );
@@ -175,6 +190,7 @@ const BottomAnchorThread = () => (
   <ThreadPrimitiveRoot>
     <ThreadPrimitiveViewport data-testid="viewport">
       <ThreadPrimitiveMessages components={{ Message }} />
+      <AtBottom />
     </ThreadPrimitiveViewport>
   </ThreadPrimitiveRoot>
 );
@@ -234,6 +250,35 @@ const DelayedThread = ({
 };
 
 describe("useThreadViewportAutoScroll", () => {
+  it("preserves smooth scrolling from a control outside the viewport", async () => {
+    render(
+      <SyncRuntimeProvider>
+        <Thread autoScroll={false} scrollToBottomOnInitialize={false} />
+        <ThreadPrimitiveScrollToBottom behavior="smooth">
+          Scroll to bottom
+        </ThreadPrimitiveScrollToBottom>
+      </SyncRuntimeProvider>,
+    );
+
+    const viewport = getViewport();
+    act(() => {
+      viewport.dispatchEvent(new Event("scroll"));
+    });
+    const button = screen.getByRole("button", { name: "Scroll to bottom" });
+    await waitFor(() => expect(button.hasAttribute("disabled")).toBe(false));
+
+    const scrollToSpy = vi.spyOn(viewport, "scrollTo");
+    try {
+      fireEvent.click(button);
+      expect(scrollToSpy).toHaveBeenCalledWith({
+        top: viewport.scrollHeight,
+        behavior: "smooth",
+      });
+    } finally {
+      scrollToSpy.mockRestore();
+    }
+  });
+
   it("scrolls sync initialMessages to the bottom when the viewport mounts after initialization", async () => {
     render(
       <SyncRuntimeProvider>
@@ -310,6 +355,147 @@ describe("useThreadViewportAutoScroll", () => {
     expect(behaviors).not.toContain("instant");
 
     scrollToSpy.mockRestore();
+  });
+
+  it("keeps following after a content-growth burst undershoots the bottom", async () => {
+    render(
+      <SyncRuntimeProvider>
+        <BottomAnchorThread />
+      </SyncRuntimeProvider>,
+    );
+
+    const viewport = getViewport();
+    await waitFor(() => {
+      expect(screen.getAllByTestId("thread-message")).toHaveLength(
+        messages.length,
+      );
+      expect(viewport.scrollTop).toBe(getMaxScrollTop(viewport));
+    });
+
+    const scrollTopBeforeBurst = viewport.scrollTop;
+    viewportMeasurementOffset += 164;
+    act(() => {
+      viewport.scrollTop = scrollTopBeforeBurst + 106;
+      viewport.dispatchEvent(new Event("scroll"));
+      viewport.dispatchEvent(new Event("scroll"));
+    });
+    expect(viewport.scrollTop).toBeLessThan(getMaxScrollTop(viewport));
+
+    viewportMeasurementOffset += 200;
+    act(notifyResizeObservers);
+
+    expect(viewport.scrollTop).toBe(getMaxScrollTop(viewport));
+    expect(screen.getByTestId("is-at-bottom").textContent).toBe("true");
+  });
+
+  it("keeps following after a pointerdown that does not scroll the viewport", async () => {
+    render(
+      <SyncRuntimeProvider>
+        <BottomAnchorThread />
+      </SyncRuntimeProvider>,
+    );
+
+    const viewport = getViewport();
+    await waitFor(() => {
+      expect(viewport.scrollTop).toBe(getMaxScrollTop(viewport));
+    });
+
+    act(() => {
+      viewport.dispatchEvent(new Event("pointerdown"));
+    });
+    viewportMeasurementOffset += 200;
+    act(notifyResizeObservers);
+
+    expect(viewport.scrollTop).toBe(getMaxScrollTop(viewport));
+    expect(screen.getByTestId("is-at-bottom").textContent).toBe("true");
+  });
+
+  it("cancels a queued bottom scroll when the user scrolls up", async () => {
+    let nextFrameId = 0;
+    let pendingFrame: {
+      id: number;
+      callback: FrameRequestCallback;
+    } | null = null;
+    const originalRequestAnimationFrame = globalThis.requestAnimationFrame;
+    const originalCancelAnimationFrame = globalThis.cancelAnimationFrame;
+
+    vi.stubGlobal("requestAnimationFrame", (callback: FrameRequestCallback) => {
+      const id = ++nextFrameId;
+      pendingFrame = { id, callback };
+      return id;
+    });
+    const cancelAnimationFrame = vi.fn((id: number) => {
+      if (pendingFrame?.id === id) pendingFrame = null;
+    });
+    vi.stubGlobal("cancelAnimationFrame", cancelAnimationFrame);
+
+    try {
+      render(
+        <SyncRuntimeProvider>
+          <BottomAnchorThread />
+        </SyncRuntimeProvider>,
+      );
+
+      const viewport = getViewport();
+      await waitFor(() => {
+        expect(screen.getAllByTestId("thread-message")).toHaveLength(
+          messages.length,
+        );
+        expect(pendingFrame).not.toBeNull();
+      });
+
+      let scrollTopAfterLeave = 0;
+      act(() => {
+        viewport.scrollTop = getMaxScrollTop(viewport);
+        viewport.dispatchEvent(new Event("scroll"));
+        viewport.scrollTop -= 80;
+        scrollTopAfterLeave = viewport.scrollTop;
+        viewport.dispatchEvent(new Event("scroll"));
+      });
+
+      const frame = pendingFrame as {
+        id: number;
+        callback: FrameRequestCallback;
+      } | null;
+      if (frame) {
+        act(() => {
+          frame.callback(performance.now());
+        });
+      }
+
+      expect(viewport.scrollTop).toBe(scrollTopAfterLeave);
+      expect(screen.getByTestId("is-at-bottom").textContent).toBe("false");
+      expect(cancelAnimationFrame).toHaveBeenCalledWith(expect.any(Number));
+    } finally {
+      vi.stubGlobal("requestAnimationFrame", originalRequestAnimationFrame);
+      vi.stubGlobal("cancelAnimationFrame", originalCancelAnimationFrame);
+    }
+  });
+
+  it("does not resume bottom follow after a stable-height user scroll-up", async () => {
+    render(
+      <SyncRuntimeProvider>
+        <BottomAnchorThread />
+      </SyncRuntimeProvider>,
+    );
+
+    const viewport = getViewport();
+    await waitFor(() => {
+      expect(viewport.scrollTop).toBe(getMaxScrollTop(viewport));
+    });
+
+    act(() => {
+      viewport.scrollTop = viewport.scrollTop - 80;
+      viewport.dispatchEvent(new Event("scroll"));
+    });
+
+    const scrollTopAfterLeave = viewport.scrollTop;
+    viewportMeasurementOffset += 200;
+    act(notifyResizeObservers);
+
+    expect(viewport.scrollTop).toBe(scrollTopAfterLeave);
+    expect(viewport.scrollTop).toBeLessThan(getMaxScrollTop(viewport));
+    expect(screen.getByTestId("is-at-bottom").textContent).toBe("false");
   });
 
   it("defers auto-scroll to an active top anchor only while the run is active", async () => {
@@ -401,5 +587,8 @@ describe("useThreadViewportAutoScroll", () => {
     });
 
     expect(getViewport().scrollTop).toBe(0);
+    viewportMeasurementOffset += 200;
+    act(notifyResizeObservers);
+    expect(screen.getByTestId("is-at-bottom").textContent).toBe("false");
   });
 });

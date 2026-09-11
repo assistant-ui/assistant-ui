@@ -59,6 +59,16 @@ mounted.
 
 <ParametersTable {...useAssistantDataUI} />
 
+### toolApprovalAcceptsText
+
+Whether the request asks for a free-form answer, on its own or alongside its
+options. Renderers read this to decide whether to offer a text affordance,
+and the runtime reads it to reject a `text` response the host cannot record.
+
+```ts
+const toolApprovalAcceptsText: (approval: { readonly display?: ToolApprovalDisplay; readonly allowFreeform?: boolean; }) => boolean;
+```
+
 ### makeAssistantToolUI
 
 <Callout type="warn">

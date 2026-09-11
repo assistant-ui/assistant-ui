@@ -1,0 +1,207 @@
+---
+title: "Launcher"
+description: "The floating entry point, and the panel it opens into."
+---
+
+A single floating button that opens into a small panel: a greeting, a few starter prompts, and a way to begin. With a runtime the prompts populate the real composer and the button that starts the conversation is the real send; standalone every interaction is a callback you wire yourself.
+
+## Getting started
+
+<RuntimeMode>
+
+Nothing about the panel is runtime state except what happens when you press something in it. Rebuild the panel's two interactive pieces from `ThreadPrimitive.Suggestion` and `ComposerPrimitive.Send`, and the launcher drives the same composer and thread the rest of your app does.
+
+<Steps>
+  <Step>
+
+### Wire the prompts and the start button to the runtime
+
+```tsx title="components/assistant-ui/elements/launcher.tsx"
+"use client";
+
+import { useState } from "react";
+import { ComposerPrimitive, ThreadPrimitive, useAuiEvent } from "@assistant-ui/react";
+import { MessageCircleIcon, XIcon } from "lucide-react";
+import { cn } from "@/lib/utils";
+import { field, floating, inkButton, mono } from "@/components/assistant-ui/elements/surfaces";
+
+const PROMPTS = ["Summarize this page", "Find a teammate", "Report a bug"];
+
+export function Launcher() {
+  const [open, setOpen] = useState(false);
+
+  // Surface the panel the moment a run starts, even if it was triggered elsewhere.
+  useAuiEvent("thread.runStart", () => setOpen(true));
+
+  return (
+    <div className="flex w-full max-w-[19rem] flex-col items-end gap-2.5">
+      {open && (
+        <div className={cn(floating, "flex w-full flex-col gap-3 rounded-[20px] p-4")}>
+          <div className="flex flex-col gap-1">
+            <span className="text-[13.5px] font-medium">How can I help?</span>
+            <span className={cn(mono, "text-foreground/30")}>typically replies in a minute</span>
+          </div>
+
+          <div className="flex flex-col gap-1.5">
+            {PROMPTS.map((prompt) => (
+              <ThreadPrimitive.Suggestion
+                key={prompt}
+                prompt={prompt}
+                className={cn(
+                  field,
+                  "hover:bg-foreground/[0.07] text-foreground/70 rounded-xl px-3 py-2 text-start text-[13px] transition-colors",
+                )}
+              >
+                {prompt}
+              </ThreadPrimitive.Suggestion>
+            ))}
+          </div>
+
+          <ComposerPrimitive.Send
+            className={cn(inkButton, "flex h-8 items-center justify-center rounded-full text-xs font-medium")}
+          >
+            Start a conversation
+          </ComposerPrimitive.Send>
+        </div>
+      )}
+
+      <button
+        type="button"
+        aria-expanded={open}
+        aria-label={open ? "Close the assistant" : "Open the assistant"}
+        onClick={() => setOpen((o) => !o)}
+        className={cn(inkButton, "flex size-12 items-center justify-center rounded-full")}
+      >
+        {open ? <XIcon className="size-5" /> : <MessageCircleIcon className="size-5" />}
+      </button>
+    </div>
+  );
+}
+```
+
+`ThreadPrimitive.Suggestion` defaults to replacing the composer text rather than sending, so picking a prompt loads it for the user to glance at before `ComposerPrimitive.Send` (which disables itself while the composer is empty) actually starts the run.
+
+  </Step>
+</Steps>
+
+</RuntimeMode>
+
+<StandaloneMode>
+
+Standalone, `open`, `unread`, picking a prompt, and starting are four plain callbacks; nothing about the panel's content is computed for you.
+
+<Steps>
+  <Step>
+
+### Hold the open state and the prompt list
+
+```tsx title="app/support-launcher.tsx"
+"use client";
+
+import { useState } from "react";
+import { LauncherBubble } from "@/components/assistant-ui/elements/launcher-bubble";
+
+const prompts = ["Reset my password", "Talk to a person", "Where is my order?"];
+
+export function SupportLauncher() {
+  const [open, setOpen] = useState(false);
+  const [unread, setUnread] = useState(2);
+
+  return (
+    <LauncherBubble
+      open={open}
+      unread={unread}
+      greeting="Hey, need a hand?"
+      prompts={prompts}
+      onToggle={() => {
+        setOpen((o) => !o);
+        setUnread(0);
+      }}
+      onPick={(prompt) => console.log("picked", prompt)}
+      onStart={() => console.log("start")}
+    />
+  );
+}
+```
+
+  </Step>
+</Steps>
+
+</StandaloneMode>
+
+## Anatomy
+
+```tsx
+<div data-slot="launcher-bubble">
+  {/* only in the DOM while open; no closing transition, it just unmounts */}
+  <div>
+    <span>{/* greeting */}</span>
+    <span>{/* "typically replies in a minute" */}</span>
+    <div>{/* one button per prompt */}</div>
+    <button>{/* "Start a conversation" */}</button>
+  </div>
+  <button aria-expanded aria-label="Open the assistant | Close the assistant">
+    {/* message-circle and X layered in the same cell, cross-fading with a 90deg rotation */}
+    <span>{/* unread count, only while closed and unread > 0 */}</span>
+  </button>
+</div>
+```
+
+The toggle button always renders; the panel above it mounts only while `open` is true, with an entrance animation (fade, scale, and slide up) and no matching exit, so closing is instant. The unread badge disappears the moment `open` becomes true regardless of the `unread` value, so a host app should clear its own unread count on open rather than rely on the badge to do it. Nothing here is disabled: standalone, the prompt buttons and the start button are always clickable, since there is no composer state to gate them against.
+
+## Examples
+
+### Restyle the panel and the toggle
+
+Both lanes take `className` on the root, which only affects layout (width, gap, alignment); the panel and toggle button read their surfaces from the shared `floating` and `inkButton` tokens, so retheming those two covers this element everywhere it appears.
+
+```tsx
+<LauncherBubble className="max-w-xs" /* ... */ />
+```
+
+### Badging the closed toggle
+
+<StandaloneMode>
+
+`unread` is a plain number you own. A common pattern is to increment it whenever a message arrives while the panel is closed, and to reset it in `onToggle` as in the example above, so the badge always reflects "since I last opened this."
+
+</StandaloneMode>
+
+<RuntimeMode>
+
+The runtime has no concept of unread messages; nothing distinguishes "a message the user has seen" from "a message they have not." Track it yourself, for example by diffing `s.thread.messages.length` against the count you last saw when the panel was open, and pass the difference through the same `unread` prop the standalone lane uses.
+
+</RuntimeMode>
+
+## API reference
+
+<RuntimeMode>
+
+This element has no dedicated primitive; its two interactive pieces are `ThreadPrimitive.Suggestion` and `ComposerPrimitive.Send`, both part of `@assistant-ui/react`'s primitive set. The rest, opening, closing, and the unread count, is component state you own, as in Getting started.
+
+### Thread events used above
+
+| Event | Payload | Description |
+|-------|---------|-------------|
+| `thread.runStart` | `{ threadId: string }` | Fires when a run begins, from any source. Subscribing with `useAuiEvent` is what lets the panel surface itself even when a message was sent from elsewhere in the app. |
+
+</RuntimeMode>
+
+<StandaloneMode>
+
+### LauncherBubble
+
+| Prop | Type | Default | Description |
+|------|------|---------|-------------|
+| `open` | `boolean` | required | Whether the panel is shown. |
+| `unread` | `number` | required | Count shown on the toggle button while closed. Hidden entirely while `open` is true. |
+| `greeting` | `string` | required | Heading shown at the top of the panel. |
+| `prompts` | `readonly string[]` | required | Starter prompts, one button each. |
+| `onToggle` | `() => void` | | Called when the toggle button is pressed. |
+| `onPick` | `(prompt: string) => void` | | Called with a prompt's text when its button is pressed. |
+| `onStart` | `() => void` | | Called when "Start a conversation" is pressed. |
+| `className` | `string` | | Merged onto the root. |
+
+All other `div` props are forwarded to the root.
+
+</StandaloneMode>

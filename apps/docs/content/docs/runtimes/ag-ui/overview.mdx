@@ -12,6 +12,7 @@ Pick the AG-UI runtime when:
 - Your backend implements the AG-UI protocol (e.g. CopilotKit agents, custom AG-UI servers).
 - You want streaming text, thinking events, reasoning events, tool calls, and state snapshots in one protocol.
 - You need agent-side state synchronization via `STATE_SNAPSHOT` and `STATE_DELTA` events.
+- Your backend runs subagents and you want each run rendered as a nested conversation under the tool call that spawned it.
 
 If your backend is not AG-UI-compliant, see [picking a runtime](/docs/runtimes/pick-a-runtime) for alternatives.
 

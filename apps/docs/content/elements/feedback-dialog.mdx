@@ -1,0 +1,260 @@
+---
+title: "Feedback dialog"
+description: "A thumbs-down that asks why, so the signal arrives with a reason attached."
+---
+
+FeedbackDialog turns a thumbs-down into a short form: pick what went wrong, add an optional note, and send. With a runtime the binary rating reaches the thread through `submitFeedback`; standalone you own the selection, the note, and what submitting does.
+
+## Getting started
+
+<RuntimeMode>
+
+assistant-ui's own feedback signal is binary: positive or negative, recorded on the message. `ActionBarPrimitive.FeedbackNegative` already submits that in one click. FeedbackDialog asks why first, so it sits in front of that signal rather than replacing it: keep the binary rating for the runtime, and carry the reasons and note yourself.
+
+<Steps>
+  <Step>
+
+### Open the panel from a trigger
+
+A separate trigger owns the open state. `FeedbackDialog` itself has no `open` prop; it always renders its form (or its confirmation) once mounted.
+
+```tsx title="components/assistant-ui/elements/message-feedback.tsx"
+"use client";
+
+import { useState } from "react";
+import { useAui } from "@assistant-ui/react";
+import { FeedbackDialog } from "@/components/assistant-ui/elements/feedback-dialog";
+
+const REASONS = [
+  "Not factual",
+  "Didn't follow instructions",
+  "Too long",
+  "Unsafe",
+] as const;
+
+export function MessageFeedback() {
+  const aui = useAui();
+  const [open, setOpen] = useState(false);
+  const [selected, setSelected] = useState<string[]>([]);
+  const [note, setNote] = useState("");
+  const [sent, setSent] = useState(false);
+
+  if (!open) {
+    return (
+      <button type="button" onClick={() => setOpen(true)}>
+        Report an issue
+      </button>
+    );
+  }
+
+  return (
+    <FeedbackDialog
+      reasons={REASONS}
+      selected={selected}
+      note={note}
+      sent={sent}
+      onToggleReason={(reason) =>
+        setSelected((current) =>
+          current.includes(reason)
+            ? current.filter((item) => item !== reason)
+            : [...current, reason],
+        )
+      }
+      onNoteChange={setNote}
+      onSubmit={() => {
+        aui.message.submitFeedback({ type: "negative" });
+        setSent(true);
+      }}
+    />
+  );
+}
+```
+
+  </Step>
+  <Step>
+
+### Register where the binary signal lands
+
+`submitFeedback` reaches a `FeedbackAdapter` you register on the runtime. Its `submit` receives the message and the type only, never the reasons or the note, so those need their own transport if you want to keep them.
+
+```tsx title="app/assistant.tsx"
+import { useLocalRuntime } from "@assistant-ui/react";
+
+const runtime = useLocalRuntime(adapter, {
+  adapters: {
+    feedback: {
+      submit: ({ message, type }) => {
+        fetch("/api/feedback", {
+          method: "POST",
+          body: JSON.stringify({ messageId: message.id, type }),
+        });
+      },
+    },
+  },
+});
+```
+
+Send `selected` and `note` from `onSubmit` in the same request, or a separate one; the adapter contract itself has no slot for them.
+
+  </Step>
+</Steps>
+
+</RuntimeMode>
+
+<StandaloneMode>
+
+Standalone, FeedbackDialog is fully controlled: you hold `selected`, `note`, and `sent`, and `onSubmit` is called with no arguments, so it reads your own state rather than receiving a payload.
+
+<Steps>
+  <Step>
+
+### Hold the form state
+
+```tsx title="app/answer.tsx"
+"use client";
+
+import { useState } from "react";
+import { FeedbackDialog } from "@/components/assistant-ui/elements/feedback-dialog";
+
+const REASONS = ["Not factual", "Didn't follow instructions", "Too long", "Unsafe"];
+
+export function AnswerFeedback() {
+  const [selected, setSelected] = useState<string[]>([]);
+  const [note, setNote] = useState("");
+  const [sent, setSent] = useState(false);
+
+  return (
+    <FeedbackDialog
+      reasons={REASONS}
+      selected={selected}
+      note={note}
+      sent={sent}
+      onToggleReason={(reason) =>
+        setSelected((current) =>
+          current.includes(reason)
+            ? current.filter((item) => item !== reason)
+            : [...current, reason],
+        )
+      }
+      onNoteChange={setNote}
+      onSubmit={() => sendFeedback({ selected, note })}
+    />
+  );
+}
+```
+
+  </Step>
+  <Step>
+
+### Send it and flip `sent`
+
+```tsx
+async function sendFeedback(payload: { selected: string[]; note: string }) {
+  await fetch("/api/feedback", { method: "POST", body: JSON.stringify(payload) });
+  setSent(true);
+}
+```
+
+  </Step>
+</Steps>
+
+</StandaloneMode>
+
+## Anatomy
+
+```tsx
+<div data-slot="feedback-dialog">
+  <div role="status">{/* mounted in both states, so a screen reader catches "sent" the instant it flips */}</div>
+  {/* not sent: a header, wrapped reason toggle pills, a note textarea, a submit button */}
+  {/* sent: the form is gone; only the confirmation line remains */}
+</div>
+```
+
+Reasons toggle independently as a multi-select (`aria-pressed`, any number active at once); there is no minimum. Once `sent` is true the form disappears entirely, so reopening it for a second report means remounting with `sent` back to `false`. The live region is present in the tree before and after the change, not created alongside it, which is what lets assistive tech announce the confirmation reliably.
+
+## Examples
+
+### Auto-reset after sending
+
+Clearing `sent`, `selected`, and `note` a few seconds after a send lets the same trigger open a fresh form next time, matching the confirmation's own short lifetime:
+
+```tsx
+useEffect(() => {
+  if (!sent) return;
+  const id = setTimeout(() => {
+    setSent(false);
+    setSelected([]);
+    setNote("");
+  }, 2600);
+  return () => clearTimeout(id);
+}, [sent]);
+```
+
+### Receiving feedback on the server
+
+<RuntimeMode>
+
+An external-store runtime takes the same `feedback` adapter shape as `useLocalRuntime`:
+
+```tsx
+import { useExternalStoreRuntime } from "@assistant-ui/react";
+
+const runtime = useExternalStoreRuntime({
+  // ...messages, onNew, isRunning, etc.
+  adapters: {
+    feedback: {
+      submit: ({ message, type }) => api.rateMessage(message.id, type),
+    },
+  },
+});
+```
+
+Without a registered adapter, `submitFeedback` still updates `message.metadata.submittedFeedback` locally, so `ActionBarPrimitive.FeedbackNegative`'s pressed state stays correct even if you never wire a server side.
+
+</RuntimeMode>
+
+### Restyle the panel
+
+Both lanes take `className` on the root. Pills, the textarea, and the submit button read the shared `field`, `inkButton`, and `mono` surfaces from `surfaces.tsx`, so retinting those tokens retints every element that uses them.
+
+```tsx
+<FeedbackDialog className="max-w-md" /* ... */ />
+```
+
+## API reference
+
+<RuntimeMode>
+
+### Message state
+
+| Selector | Type | Description |
+|----------|------|-------------|
+| `s.message.metadata.submittedFeedback` | `{ type: "positive" \| "negative" } \| undefined` | The rating already recorded for this message, if any. |
+| `aui.message.submitFeedback(feedback)` | `(feedback: { type: "positive" \| "negative" }) => void` | Records the rating on the message and calls the registered `FeedbackAdapter`. |
+
+### FeedbackAdapter
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `submit` | `(feedback: { message: ThreadMessage; type: "positive" \| "negative" }) => void` | Called once per `submitFeedback`. Register it under `adapters.feedback` on `useLocalRuntime` or an external-store runtime. Carries the message and the binary type only. |
+
+</RuntimeMode>
+
+<StandaloneMode>
+
+### FeedbackDialog
+
+| Prop | Type | Default | Description |
+|------|------|---------|-------------|
+| `reasons` | `readonly string[]` | required | The reason pills offered. |
+| `selected` | `readonly string[]` | required | Reasons currently pressed. |
+| `note` | `string` | required | The textarea's value. |
+| `sent` | `boolean` | required | Swaps the form for the confirmation line when true. |
+| `onToggleReason` | `(reason: string) => void` | | Called with the pressed reason; toggling membership in `selected` is the caller's job. |
+| `onNoteChange` | `(note: string) => void` | | Called with the textarea's next value. |
+| `onSubmit` | `() => void` | | Called with no arguments. Read `selected` and `note` from your own state. |
+| `className` | `string` | | Merged onto the root. |
+
+All other `div` props are forwarded to the root.
+
+</StandaloneMode>

@@ -26,12 +26,21 @@ describe("sidebar demo download file maps", () => {
       const keys = Object.keys(files);
 
       expect(keys).toContain("components/examples/clone-thread-shell.tsx");
-      expect(keys).toContain("components/assistant-ui/thread-list.tsx");
+      expect(keys).toContain(
+        "components/assistant-ui/elements/thread-list.aui.tsx",
+      );
 
       for (const [file, content] of Object.entries(files)) {
         if (!/\.(tsx|ts)$/.test(file) || typeof content !== "string") continue;
-        for (const match of content.matchAll(/from "(@\/[^"]+)"/g)) {
-          const spec = match[1]!.slice(2);
+        for (const match of content.matchAll(
+          /from "((?:@\/|\.\.?\/)[^"]+)"/g,
+        )) {
+          const raw = match[1]!;
+          const spec = raw.startsWith("@/")
+            ? raw.slice(2)
+            : path.posix.normalize(
+                path.posix.join(path.posix.dirname(file), raw),
+              );
           const resolved = keys.some(
             (key) =>
               key === spec ||
@@ -39,9 +48,7 @@ describe("sidebar demo download file maps", () => {
               key === `${spec}.tsx` ||
               key.startsWith(`${spec}/index.`),
           );
-          expect
-            .soft(resolved, `${file} imports unresolved ${match[1]}`)
-            .toBe(true);
+          expect.soft(resolved, `${file} imports unresolved ${raw}`).toBe(true);
         }
         expect
           .soft(

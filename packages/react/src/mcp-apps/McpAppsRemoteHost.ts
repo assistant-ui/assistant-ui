@@ -1,4 +1,4 @@
-import { useMemo, useRef } from "react";
+import { useEffect, useMemo, useRef } from "react";
 import { resource } from "@assistant-ui/tap";
 import type {
   McpAppResource,
@@ -39,6 +39,33 @@ const readErrorBody = async (res: Response): Promise<string | undefined> => {
   }
 };
 
+const invalidMcpAppResource = (options: McpAppsRemoteHostOptions): never => {
+  throw new Error(
+    `Invalid MCP App host response "mcp-apps/read-resource" from "${options.url}": expected a resource with non-empty string "uri" and "html" fields`,
+  );
+};
+
+const parseMcpAppResource = (
+  value: unknown,
+  options: McpAppsRemoteHostOptions,
+): McpAppResource => {
+  if (typeof value !== "object" || value === null || Array.isArray(value)) {
+    return invalidMcpAppResource(options);
+  }
+
+  const resource = value as Record<string, unknown>;
+  if (
+    typeof resource.uri !== "string" ||
+    resource.uri.trim() === "" ||
+    typeof resource.html !== "string" ||
+    resource.html.trim() === ""
+  ) {
+    return invalidMcpAppResource(options);
+  }
+
+  return value as McpAppResource;
+};
+
 async function postToHost(
   options: McpAppsRemoteHostOptions,
   method: string,
@@ -63,7 +90,14 @@ async function postToHost(
       `MCP App host request "${method}" to "${options.url}" failed with ${status}${body ? `: ${body}` : ""}`,
     );
   }
-  return res.json();
+  try {
+    return await res.json();
+  } catch (cause) {
+    throw new Error(
+      `Invalid MCP App host response "${method}" from "${options.url}": expected valid JSON`,
+      { cause },
+    );
+  }
 }
 
 /**
@@ -77,26 +111,24 @@ const useMcpAppsRemoteHost = (
   options: McpAppsRemoteHostOptions,
 ): McpAppsHost => {
   const optionsRef = useRef(options);
-  optionsRef.current = options;
+  useEffect(() => {
+    optionsRef.current = options;
+  });
 
   const url = options.url;
 
-  return useMemo((): McpAppsHost => {
-    const getCurrentOptions = (): McpAppsRemoteHostOptions => {
-      const current = optionsRef.current;
-      return {
-        url,
-        ...(current.fetch !== undefined ? { fetch: current.fetch } : {}),
-        ...(current.headers !== undefined ? { headers: current.headers } : {}),
-      };
-    };
-    return {
-      loadResource: (params) =>
-        postToHost(
-          getCurrentOptions(),
-          "mcp-apps/read-resource",
-          params,
-        ) as Promise<McpAppResource>,
+  const hostState = useMemo(() => {
+    let pendingOptions = options;
+    const getCurrentOptions = () =>
+      optionsRef.current.url === url ? optionsRef.current : pendingOptions;
+    const host: McpAppsHost = {
+      loadResource: async (params) => {
+        const options = getCurrentOptions();
+        return parseMcpAppResource(
+          await postToHost(options, "mcp-apps/read-resource", params),
+          options,
+        );
+      },
       callTool: (params) =>
         postToHost(getCurrentOptions(), "tools/call", params),
       readResource: (params) =>
@@ -104,7 +136,26 @@ const useMcpAppsRemoteHost = (
       listResources: (params) =>
         postToHost(getCurrentOptions(), "resources/list", params),
     };
+    return {
+      host,
+      updatePendingOptions: (next: McpAppsRemoteHostOptions) => {
+        pendingOptions = next;
+      },
+    };
+    // oxlint-disable-next-line react/exhaustive-deps -- URL changes replace the host identity; pending and same-URL options are refreshed outside the memo
   }, [url]);
+
+  // The pending snapshot is read only while the committed ref still lags this
+  // host's URL, and every write to it carries that same render's options, so
+  // no render can pair one URL with another's credentials. A committed host can
+  // be written here (a child layout effect re-rendering synchronously runs
+  // before passive effects publish the ref), which stays coherent for the same
+  // reason.
+  if (optionsRef.current.url !== url) {
+    hostState.updatePendingOptions(options);
+  }
+
+  return hostState.host;
 };
 
 export const McpAppsRemoteHost = resource(useMcpAppsRemoteHost);

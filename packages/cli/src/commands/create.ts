@@ -9,12 +9,17 @@ import {
   downloadProject,
   resolveLatestReleaseRef,
   resolvePackageManager,
-  resolvePackageManagerForCwd,
   scaffoldProject,
   transformProject,
   type TransformResult,
 } from "../lib/create-project";
-import { runSpawn, SpawnExitError } from "../lib/run-spawn";
+import {
+  hasActiveSpawn,
+  runSpawn,
+  SpawnExitError,
+  SpawnSignalError,
+} from "../lib/run-spawn";
+import { resolvePackageManagerForCwd } from "../lib/utils/package-manager";
 import {
   buildSkillsAddCommand,
   resolveSkillsInstall,
@@ -264,6 +269,14 @@ export const PROJECT_METADATA: ProjectMetadata[] = [
     path: "examples/with-resumable-stream",
     hasLocalComponents: false,
   },
+  {
+    name: "with-openui",
+    label: "OpenUI",
+    description: "OpenUI generative UI integration",
+    category: "example",
+    path: "examples/with-openui",
+    hasLocalComponents: false,
+  },
 ];
 
 // Examples that exist in the monorepo but are intentionally excluded from the CLI:
@@ -373,6 +386,42 @@ export function resolveCreateProjectDirectory(params: {
   if (projectDirectory) return projectDirectory;
   if (!stdinIsTTY) return "my-aui-app";
   return undefined;
+}
+
+export function resolveProjectDirectoryGuidance(params: {
+  absoluteProjectDir: string;
+  cwd?: string;
+  platform?: NodeJS.Platform;
+}): { display: string; cdCommand: string } {
+  const {
+    absoluteProjectDir,
+    cwd = process.cwd(),
+    platform = process.platform,
+  } = params;
+  const isWindows = platform === "win32";
+  const pathApi = isWindows ? path.win32 : path.posix;
+
+  const relative = pathApi.relative(cwd, absoluteProjectDir);
+  const escapesCwd =
+    relative === ".." || relative.startsWith(`..${pathApi.sep}`);
+  const display =
+    relative && !escapesCwd && !pathApi.isAbsolute(relative)
+      ? relative
+      : absoluteProjectDir;
+
+  const target = display.startsWith("-")
+    ? `.${pathApi.sep}${display}`
+    : display;
+  // Neither Windows shell has a literal quoting form the other accepts: cmd
+  // reads single quotes as part of the name, and double quotes still expand
+  // %VAR% there and $var in PowerShell.
+  const quoted = (isWindows ? /^[\w@.:/\\+-]+$/ : /^[\w@./+-]+$/).test(target)
+    ? target
+    : isWindows
+      ? `"${target}"`
+      : `'${target.replaceAll("'", "'\\''")}'`;
+
+  return { display, cdCommand: `cd ${quoted}` };
 }
 
 const PLAYGROUND_PRESET_BASE_URL =
@@ -529,11 +578,13 @@ export const create = new Command()
 
     // Check directory
     const absoluteProjectDir = path.resolve(resolvedProjectDirectory);
+    const { display: displayProjectDir, cdCommand } =
+      resolveProjectDirectoryGuidance({ absoluteProjectDir });
     try {
       const files = fs.readdirSync(absoluteProjectDir);
       if (files.length > 0) {
         logger.error(
-          `Directory ${resolvedProjectDirectory} already exists and is not empty`,
+          `Directory ${displayProjectDir} already exists and is not empty`,
         );
         process.exit(1);
       }
@@ -544,12 +595,12 @@ export const create = new Command()
         // Directory doesn't exist — good, proceed
       } else if (code === "ENOTDIR") {
         logger.error(
-          `${resolvedProjectDirectory} already exists and is not a directory`,
+          `${displayProjectDir} already exists and is not a directory`,
         );
         process.exit(1);
       } else {
         const message = err instanceof Error ? err.message : String(err);
-        logger.error(`Cannot access ${resolvedProjectDirectory}: ${message}`);
+        logger.error(`Cannot access ${displayProjectDir}: ${message}`);
         process.exit(1);
       }
     }
@@ -589,10 +640,31 @@ export const create = new Command()
     );
 
     // Clean up partial project directory on unexpected exit (e.g. Ctrl+C)
+    let cleanupArmed = true;
     const cleanupOnExit = () => {
+      if (!cleanupArmed) return;
+      cleanupArmed = false;
       fs.rmSync(absoluteProjectDir, { recursive: true, force: true });
     };
+    const disarmCleanup = () => {
+      cleanupArmed = false;
+      process.removeListener("exit", cleanupOnExit);
+      process.removeListener("SIGINT", cleanupOnSignal);
+      process.removeListener("SIGTERM", cleanupOnSignal);
+    };
+    // Node emits no "exit" when a signal kills the process. An in-flight
+    // runSpawn forwards the signal itself, so the directory is removed on the
+    // error path once the child is reaped rather than while it is still writing.
+    const cleanupOnSignal = (signal: NodeJS.Signals) => {
+      if (hasActiveSpawn()) return;
+      cleanupOnExit();
+      disarmCleanup();
+      process.kill(process.pid, signal);
+    };
+
     process.once("exit", cleanupOnExit);
+    process.on("SIGINT", cleanupOnSignal);
+    process.on("SIGTERM", cleanupOnSignal);
 
     try {
       // 3. Resolve latest release ref (started before prompts)
@@ -647,7 +719,8 @@ export const create = new Command()
           });
           try {
             await runSpawn(skillsCmd, skillsArgs, absoluteProjectDir);
-          } catch {
+          } catch (error) {
+            if (error instanceof SpawnSignalError) throw error;
             logger.warn(
               `Could not add assistant-ui agent skills. You can add them later with:\n  ${skillsCmd} ${skillsArgs.join(" ")}`,
             );
@@ -655,16 +728,17 @@ export const create = new Command()
         }
       } catch (err) {
         // Clean up partially created project directory
-        fs.rmSync(absoluteProjectDir, { recursive: true, force: true });
+        cleanupOnExit();
+        disarmCleanup();
         throw err;
       }
 
       if (transformResult.registryInstallFailure) {
-        process.removeListener("exit", cleanupOnExit);
+        disarmCleanup();
         logger.break();
         logger.error("Project created with missing components.");
         logger.info("Retry the component install with:");
-        logger.info(`  cd ${resolvedProjectDirectory}`);
+        logger.info(`  ${cdCommand}`);
         logger.info(`  ${transformResult.registryInstallFailure.retryCommand}`);
         process.exit(1);
       }
@@ -688,14 +762,15 @@ export const create = new Command()
             ],
             absoluteProjectDir,
           );
-        } catch {
+        } catch (error) {
+          if (error instanceof SpawnSignalError) throw error;
           logger.warn(
             `Preset application failed. You can retry manually with:\n  ${dlxCmd} ${[...dlxArgs, "shadcn@latest", "add", presetUrl].join(" ")}`,
           );
         }
       }
 
-      process.removeListener("exit", cleanupOnExit);
+      disarmCleanup();
 
       logger.break();
       logger.success("Project created successfully!");
@@ -721,13 +796,18 @@ export const create = new Command()
       }
 
       logger.info("Next steps:");
-      logger.info(`  cd ${resolvedProjectDirectory}`);
+      logger.info(`  ${cdCommand}`);
       if (opts.skipInstall) {
         logger.info(`  ${pm} install`);
       }
       logger.info(`  # Set up your environment variables in ${envFile}`);
       logger.info(`  ${runCmd} ${devScript}`);
     } catch (error) {
+      if (error instanceof SpawnSignalError) {
+        cleanupOnExit();
+        disarmCleanup();
+        throw error;
+      }
       if (error instanceof SpawnExitError) {
         logger.error(`Project creation failed with code ${error.code}`);
         process.exit(error.code);

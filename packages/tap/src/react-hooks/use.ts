@@ -1,12 +1,15 @@
-import { isReadableTapContext, useTapContext } from "../core/context";
+import { useContext } from "../core/context";
+import { isThenable, trackThenable } from "../core/helpers/thenable";
 
 /**
- * Reads a context from inside a resource render, the tap equivalent of React's
- * `use(Context)` / `useContext(Context)`. Accepts React contexts.
+ * The tap equivalent of React's `use`. Accepts React contexts and thenables:
+ * a context read returns its current value; a pending promise suspends the
+ * render by throwing the thenable, a settled one returns its value or throws
+ * its rejection reason.
  */
 export const use = (usable: unknown): unknown => {
-  if (!isReadableTapContext(usable))
-    throw new Error("A tap resource's `use()` only accepts a tap context.");
-
-  return useTapContext(usable as never);
+  if (isThenable(usable)) {
+    return trackThenable(usable);
+  }
+  return useContext(usable as never);
 };

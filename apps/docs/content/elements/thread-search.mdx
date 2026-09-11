@@ -1,0 +1,210 @@
+---
+title: "Thread search"
+description: "History you can actually get back into: pinned first, then grouped by when."
+---
+
+A jump list for past conversations: type to filter, pinned threads stay first, and the rest fall into the groups you hand it. With a runtime the list comes from the thread list; standalone you supply the threads and the groups yourself.
+
+## Getting started
+
+<RuntimeMode>
+
+A runtime keeps every thread's title, id, and recency in `s.threads.threadItems`. Mapping that into `SearchableThread[]` and selecting on it is the whole integration; there is no dedicated search primitive to compose.
+
+<Steps>
+  <Step>
+
+### Map thread state into the list
+
+```tsx title="components/assistant-ui/elements/thread-search-panel.tsx"
+"use client";
+
+import { useMemo, useState } from "react";
+import { useAui, useAuiState } from "@assistant-ui/react";
+import {
+  ThreadSearch,
+  type SearchableThread,
+} from "@/components/assistant-ui/elements/thread-search";
+
+const DAY = 86_400_000;
+
+function groupFor(date: Date | undefined, now: number) {
+  if (!date) return "Earlier";
+  if (date.getTime() >= now - DAY) return "Today";
+  if (date.getTime() >= now - 2 * DAY) return "Yesterday";
+  return "Earlier";
+}
+
+export function ThreadSearchPanel() {
+  const aui = useAui();
+  const items = useAuiState((s) => s.threads.threadItems);
+  const activeId = useAuiState((s) => s.threads.mainThreadId);
+  const [query, setQuery] = useState("");
+
+  const threads = useMemo<SearchableThread[]>(() => {
+    const now = Date.now();
+    return items
+      .filter((item) => item.status === "regular")
+      .map((item) => ({
+        id: item.id,
+        title: item.title ?? "New chat",
+        preview: item.isRunning ? "Running…" : "",
+        group: groupFor(item.lastMessageAt, now),
+        pinned: Boolean(item.custom?.["pinned"]),
+      }));
+  }, [items]);
+
+  return (
+    <ThreadSearch
+      threads={threads}
+      query={query}
+      activeId={activeId}
+      onQueryChange={setQuery}
+      onSelect={(id) => aui.threads.item({ id }).switchTo()}
+    />
+  );
+}
+```
+
+`status === "regular"` excludes archived, deleted, and the placeholder `"new"` entry a fresh thread starts as, so the list matches what a user would call their history.
+
+  </Step>
+</Steps>
+
+</RuntimeMode>
+
+<StandaloneMode>
+
+Standalone, filtering, pinning, and grouping are computed for you from whatever `threads` array you pass; only the state (the query and which thread is active) is yours to hold.
+
+<Steps>
+  <Step>
+
+### Hold the search state
+
+```tsx title="app/history.tsx"
+"use client";
+
+import { useState } from "react";
+import { ThreadSearch } from "@/components/assistant-ui/elements/thread-search";
+
+const threads = [
+  { id: "1", title: "Migration plan", group: "Today", preview: "Three tables, one rollback path", pinned: true },
+  { id: "2", title: "Release notes draft", group: "Today", preview: "Bumped the changelog for 4.2" },
+  { id: "3", title: "Onboarding copy", group: "Yesterday", preview: "First run, three moves" },
+];
+
+export function History() {
+  const [query, setQuery] = useState("");
+  const [activeId, setActiveId] = useState(threads[0]!.id);
+
+  return (
+    <ThreadSearch
+      threads={threads}
+      query={query}
+      activeId={activeId}
+      onQueryChange={setQuery}
+      onSelect={setActiveId}
+    />
+  );
+}
+```
+
+  </Step>
+</Steps>
+
+</StandaloneMode>
+
+## Anatomy
+
+```tsx
+<div data-slot="thread-search">
+  <div>
+    <input aria-label="Search threads" placeholder="Search threads" />
+  </div>
+  {/* pinned matches, if any, under a "pinned" label */}
+  <div>{/* pinned rows */}</div>
+  {/* remaining matches, one block per group, in first-seen order */}
+  <div>{/* group label */}</div>
+  <div>{/* group rows */}</div>
+  {/* or, when nothing matches */}
+  <span>{/* No thread matches "{query}" */}</span>
+</div>
+```
+
+Matching runs `${title} ${preview}` against the query, case-insensitively, so an empty query matches every thread. Pinned matches always render first as their own block; the rest are split into groups in the order their first match appears, not alphabetically or by recency. Arrow Down and Arrow Up in the search input move the active selection through pinned-then-grouped order and wrap around at both ends; IME composition is ignored so composing a query never steals the keys. There is no visible "no threads at all" state distinct from "no matches": an empty `threads` array renders the same empty message as a query with zero hits.
+
+## Examples
+
+### Where threads come from
+
+<RuntimeMode>
+
+`group` and `pinned` are not runtime concepts. The date-bucketed grouping above matches what the installed thread list uses internally; build your own buckets (by project, by tag) the same way, from whatever field your app tracks. Pinning has to live somewhere too, and `custom` is exactly the place: it is a free-form bag every thread list item carries, read with `item.custom?.pinned` and written with `aui.threads.item({ id }).updateCustom(...)`. `updateCustom` replaces the whole bag rather than merging, so spread the existing value when flipping one field:
+
+```tsx
+function togglePinned(id: string) {
+  const current = aui.threads.item({ id }).getState().custom;
+  aui.threads.item({ id }).updateCustom({ ...current, pinned: !current?.["pinned"] });
+}
+```
+
+</RuntimeMode>
+
+<StandaloneMode>
+
+Standalone, `group` and `pinned` are just fields on the objects you pass, so pinning is exactly whatever `setThreads` you write when a pin control fires. Nothing about the element inspects how those threads were produced.
+
+</StandaloneMode>
+
+### Restyle the list
+
+Both lanes take `className` on the root. Row and field surfaces come from the same `paper`, `field`, and `mono` tokens used across the catalog, so retheming those tokens covers the search box, the row hover state, and the section labels together.
+
+```tsx
+<ThreadSearch className="max-w-xs" /* ... */ />
+```
+
+## API reference
+
+<RuntimeMode>
+
+This element has no dedicated primitive: it is fed from `useAuiState` selectors, as in Getting started.
+
+### Threads state
+
+| Selector | Type | Description |
+|----------|------|-------------|
+| `s.threads.threadItems` | `readonly ThreadListItemState[]` | Every known thread list item, each with `id`, `title`, `lastMessageAt`, `status`, `custom`, and `isRunning`. |
+| `s.threads.mainThreadId` | `string` | Id of the currently open thread. |
+| `aui.threads.item({ id }).switchTo(options)` | `{ unarchive?: boolean }` | Makes the given thread the open one. |
+| `aui.threads.item({ id }).updateCustom(custom)` | `Record<string, unknown> \| undefined` | Replaces the item's free-form metadata bag, such as a `pinned` flag. |
+
+</RuntimeMode>
+
+<StandaloneMode>
+
+### ThreadSearch
+
+| Prop | Type | Default | Description |
+|------|------|---------|-------------|
+| `threads` | `readonly SearchableThread[]` | required | The full list to search and group. |
+| `query` | `string` | required | The current search text. |
+| `activeId` | `string` | required | Id of the highlighted thread. |
+| `onQueryChange` | `(query: string) => void` | | Called as the user types. |
+| `onSelect` | `(id: string) => void` | | Called with a thread's id when its row is clicked, and immediately on every Arrow Down or Arrow Up press in the search input; there is no separate highlight step, so moving is selecting. |
+| `className` | `string` | | Merged onto the root. |
+
+All other `div` props are forwarded to the root.
+
+### SearchableThread
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `id` | `string` | Unique identifier, also the value passed to `onSelect`. |
+| `title` | `string` | Row title. |
+| `group` | `string` | Section label for unpinned rows. Free text; the element does not interpret it. |
+| `preview` | `string` | Secondary line shown under the title. |
+| `pinned` | `boolean` | Optional. When true, the row renders in the pinned block instead of its group. |
+
+</StandaloneMode>

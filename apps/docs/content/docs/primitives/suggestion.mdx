@@ -4,7 +4,7 @@ description: Suggested prompts that users can click to quickly send or populate 
 platforms: ["react"]
 ---
 
-import { SuggestionPrimitiveSample } from "@/components/docs/samples/suggestion-primitive";
+import { SuggestionPrimitiveSample } from "@/components/pages/docs/samples/suggestion-primitive";
 import { SuggestionPrimitive as SuggestionPrimitiveDocs } from "@/generated/primitiveDocs";
 
 The Suggestion primitive renders suggested prompts as clickable pills that send a message or populate the composer. Use it for welcome screen suggestions, follow-up prompts, or quick actions. You provide the layout and styling.
@@ -130,28 +130,35 @@ When `send={false}`, the `clearComposer` prop controls whether the suggestion re
 
 ### Static configuration vs. runtime suggestions
 
-There are two separate data flows for suggestions:
+There are two data flows for suggestions:
 
 - **Static configuration** flows through the `suggestions` scope. Pass an array to `Suggestions(...)` in your runtime provider; render it with `ThreadPrimitive.Suggestions`. Best for welcome screen prompts.
 - **Runtime / dynamic suggestions** flow through `thread.suggestions`. Populate it via `SuggestionAdapter` (local runtime) or the `suggestions` field on `useExternalStoreRuntime`; render it with the shadcn `ThreadFollowupSuggestions` component or your own component reading `useAuiState((s) => s.thread.suggestions)`. Best for follow up prompts after a turn.
 
+When no static configuration is provided, the `suggestions` scope derives from `thread.suggestions`, so runtime suggestions also render through `ThreadPrimitive.Suggestions`. A static `Suggestions(...)` configuration takes precedence over the derived values.
+
 See [Suggested Prompts](/docs/guides/suggestions) for end to end examples.
 
-### ThreadPrimitive.Suggestion (Legacy)
+### ThreadPrimitive.Suggestion
 
-`ThreadPrimitive.Suggestion` is a self-contained button that takes a `prompt` prop directly. The newer pattern (`ThreadPrimitive.Suggestions` + `SuggestionPrimitive` parts) is preferred for structured suggestions with title and description:
+`ThreadPrimitive.Suggestion` is a self-contained button that takes its `prompt` as a prop instead of reading the `suggestions` scope. Both paths run the same trigger behavior, including the queueing and disabled handling described above, so the choice is about where the prompt comes from:
+
+- Rendering the `suggestions` scope: use `ThreadPrimitive.Suggestions` with the `SuggestionPrimitive` parts, which supply the title and description for you.
+- Rendering prompts from anywhere else: use `ThreadPrimitive.Suggestion` and pass the prompt directly.
 
 ```tsx
-// Legacy: still works, but limited
-<ThreadPrimitive.Suggestion prompt="Write a blog post" />
-
-// Preferred: structured with title/description
+// Prompts from the suggestions scope
 <ThreadPrimitive.Suggestions>
   {() => <MySuggestionItem />}
 </ThreadPrimitive.Suggestions>
+
+// A prompt the caller already holds
+<ThreadPrimitive.Suggestion prompt="Write a blog post" />
 ```
 
-`ThreadPrimitive.Suggestion` also supports deprecated `autoSend` and `method` props for backwards compatibility. Prefer `send` and `clearComposer`.
+The second case is not a fallback. A component that renders `thread.suggestions` cannot read them through the `suggestions` scope once the app also configures static suggestions, because that configuration takes precedence over the derived values. The shadcn `ThreadFollowupSuggestions` component reads `thread.suggestions` and renders each entry with `ThreadPrimitive.Suggestion` for that reason.
+
+The `autoSend` and `method` props are deprecated; prefer `send` and `clearComposer`.
 
 ## Parts
 
@@ -242,7 +249,7 @@ function SuggestionCard() {
 
 ## Relationship to Components
 
-The shadcn [Thread](/docs/ui/thread) component includes suggestions in its welcome screen using `ThreadPrimitive.Suggestions` with `SuggestionPrimitive` parts in a responsive grid. Start there for a prebuilt welcome experience.
+The shadcn [Thread](/elements/thread) component includes suggestions in its welcome screen using `ThreadPrimitive.Suggestions` with `SuggestionPrimitive` parts in a responsive grid. Start there for a prebuilt welcome experience.
 
 ## API Reference
 

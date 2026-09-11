@@ -1,0 +1,219 @@
+---
+title: "Canvas"
+description: "The thread steps aside and the document takes the room, still being written as you read."
+---
+
+A canvas split sets a document beside the thread instead of inside it: the conversation narrows to a rail on one side, the document takes the rest of the room, and it keeps growing while you read. assistant-ui has no dedicated canvas or artifact primitive, so with a runtime this is composed from the same tool-call rendering every structured answer uses; standalone you hand the document's text and state to the pieces directly.
+
+## Getting started
+
+<RuntimeMode>
+
+<Steps>
+  <Step>
+
+### Render the document from a tool call
+
+A tool whose result is the document, its arguments streaming in as the model writes it, is what the still-being-written half of this pattern is built on. Register a renderer for it through `MessagePrimitive.Parts`:
+
+```tsx title="components/assistant-ui/elements/thread.aui.tsx"
+"use client";
+
+import { MessagePrimitive, useToolArgsStatus, type ToolCallMessagePartProps } from "@assistant-ui/react";
+import { CanvasSplitDocument, CanvasSplitHeader, CanvasSplitBody, CanvasSplitLine } from "./canvas-split";
+
+type DocArgs = { title: string; content: string };
+
+function DocumentTool({ args, status }: ToolCallMessagePartProps<DocArgs>) {
+  const { propStatus } = useToolArgsStatus<DocArgs>();
+  return (
+    <CanvasSplitDocument>
+      <CanvasSplitHeader
+        title={args.title ?? "Untitled"}
+        version={1}
+        saved={status.type === "complete"}
+      />
+      <CanvasSplitBody writing={propStatus.content === "streaming"}>
+        <CanvasSplitLine>{args.content}</CanvasSplitLine>
+      </CanvasSplitBody>
+    </CanvasSplitDocument>
+  );
+}
+
+<MessagePrimitive.Parts components={{ tools: { by_name: { write_document: DocumentTool } } }} />
+```
+
+`args` is a partial parse while the model is still streaming its call, fields can be missing or incomplete, so `useToolArgsStatus` is what tells you `content` specifically is still arriving rather than just checking the call's overall `status`.
+
+  </Step>
+  <Step>
+
+### Give the thread its own lane
+
+The conversation half is an ordinary, narrower thread: the same `ThreadPrimitive.Viewport` and `.Messages`, styled with `CanvasSplitThread` and `CanvasSplitMessage` instead of a full-width layout:
+
+```tsx
+<CanvasSplit>
+  <ThreadPrimitive.Viewport asChild>
+    <CanvasSplitThread>
+      <ThreadPrimitive.Messages>
+        {({ message }) => (
+          <CanvasSplitMessage speaker={message.role === "user" ? "user" : "assistant"}>
+            <MessagePrimitive.Parts components={{ tools: { by_name: { write_document: DocumentTool } } }} />
+          </CanvasSplitMessage>
+        )}
+      </ThreadPrimitive.Messages>
+    </CanvasSplitThread>
+  </ThreadPrimitive.Viewport>
+  {/* CanvasSplitDocument renders itself, from inside DocumentTool above */}
+</CanvasSplit>
+```
+
+  </Step>
+</Steps>
+
+</RuntimeMode>
+
+<StandaloneMode>
+
+Standalone, the thread half and the document half are both yours to drive; nothing ties them together beyond sharing one `CanvasSplit` row.
+
+<Steps>
+  <Step>
+
+### Lay out the two halves
+
+```tsx title="app/canvas.tsx"
+"use client";
+
+import {
+  CanvasSplit,
+  CanvasSplitThread,
+  CanvasSplitMessage,
+  CanvasSplitDocument,
+  CanvasSplitHeader,
+  CanvasSplitBody,
+  CanvasSplitLine,
+} from "@/components/assistant-ui/elements/canvas-split";
+
+export function Canvas() {
+  return (
+    <CanvasSplit>
+      <CanvasSplitThread>
+        <CanvasSplitMessage speaker="user">Draft a project outline.</CanvasSplitMessage>
+        <CanvasSplitMessage speaker="assistant">Here's a first pass, on the right.</CanvasSplitMessage>
+      </CanvasSplitThread>
+      <CanvasSplitDocument>
+        <CanvasSplitHeader title="Project outline" version={1} saved onCopy={() => {}} onClose={() => {}} />
+        <CanvasSplitBody>
+          <CanvasSplitLine heading>Goals</CanvasSplitLine>
+          <CanvasSplitLine>Ship the first milestone by Friday.</CanvasSplitLine>
+        </CanvasSplitBody>
+      </CanvasSplitDocument>
+    </CanvasSplit>
+  );
+}
+```
+
+  </Step>
+  <Step>
+
+### Show it still being written
+
+Toggle `writing` while your own generation is in progress; the caret appends after whatever lines you've already rendered:
+
+```tsx
+<CanvasSplitBody writing={isGenerating}>
+  {lines.map((line, i) => (
+    <CanvasSplitLine key={i} heading={line.heading}>{line.text}</CanvasSplitLine>
+  ))}
+</CanvasSplitBody>
+```
+
+  </Step>
+</Steps>
+
+</StandaloneMode>
+
+## Anatomy
+
+```tsx
+<div data-slot="canvas-split">
+  <div data-slot="canvas-split-thread">{/* narrow message rail */}</div>
+  <div data-slot="canvas-split-document">
+    <div data-slot="canvas-split-header">{/* title, version, saved or editing, copy, close */}</div>
+    <div data-slot="canvas-split-body">{/* lines, blinking caret while writing */}</div>
+  </div>
+</div>
+```
+
+Below `md`, the thread and the document stack vertically instead of splitting side by side; at `md` and up the layout becomes a row. `CanvasSplitHeader`'s copy and close buttons both disable themselves the same way `ChatPanelComposer`'s send button does, whenever `onCopy` or `onClose` is left `undefined`. `CanvasSplitBody`'s blinking caret is purely presentational: it renders whenever `writing` is true, appended after whatever `children` you pass, so it always trails the last line.
+
+## Examples
+
+### Copy and close
+
+```tsx
+<CanvasSplitHeader
+  title="Q3 report outline"
+  version={3}
+  saved={true}
+  onCopy={() => navigator.clipboard.writeText(text)}
+  onClose={() => setOpen(false)}
+/>
+```
+
+Leaving `onCopy` or `onClose` out disables that button instead of hiding it, so the header's width stays stable whether or not either action is available.
+
+### A document with no tool call
+
+<StandaloneMode>
+
+The document half never has to come from a tool: any state your app already tracks, a note being edited, a file being generated another way, can feed `CanvasSplitBody` directly, as in the layout above.
+
+</StandaloneMode>
+
+<RuntimeMode>
+
+The same is true with a runtime: `CanvasSplitDocument` and its children are plain components, so a document backed by application state instead of a tool call still composes with them exactly like the tool-call renderer above.
+
+</RuntimeMode>
+
+## API reference
+
+<RuntimeMode>
+
+### Primitive parts
+
+| Part | Renders | Notes |
+|------|---------|-------|
+| `MessagePrimitive.Parts` | children | `components.tools.by_name[toolName]` registers a renderer for that tool's calls. |
+| `ThreadPrimitive.Viewport` / `.Messages` | `div` / children | The thread rail; the same primitives as any other thread, just narrower. |
+
+### Tool call part
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `args` | `TArgs` (partial while streaming) | The model's arguments so far. |
+| `status.type` | `"running" \| "complete" \| "incomplete"` | The call's own lifecycle, not per field. |
+| `useToolArgsStatus().propStatus` | `Partial<Record<keyof TArgs, "streaming" \| "complete">>` | Per-argument streaming state; call from inside the tool renderer. |
+
+</RuntimeMode>
+
+<StandaloneMode>
+
+### CanvasSplit family
+
+| Part | Renders | Props | Description |
+|------|---------|-------|-------------|
+| `CanvasSplit` | `div` | `className` | Root; stacks below `md`, splits row-wise at `md` and up. |
+| `CanvasSplitThread` | `div` | `className` | The narrow message rail. |
+| `CanvasSplitMessage` | `div` | `speaker: "user" \| "assistant"`, `className` | Right-aligned bubble for `"user"`, plain text for `"assistant"`. |
+| `CanvasSplitDocument` | `div` | `className` | The document column. |
+| `CanvasSplitHeader` | `div` | `title: string`, `version: number`, `saved: boolean`, `onCopy?`, `onClose?`, `className` | Copy and close buttons disable without their handler. |
+| `CanvasSplitBody` | `div` | `writing?: boolean`, `className` | Appends a blinking caret after `children` while `writing`. |
+| `CanvasSplitLine` | `p` | `heading?: boolean`, `className` | `heading` renders bolder, full-opacity text. |
+
+All other props for each part forward to its root element.
+
+</StandaloneMode>

@@ -1,17 +1,15 @@
 import type { Unsubscribe } from "../../types/unsubscribe";
-import { useMemo, useEffect } from "react";
+import { useMemo, useEffect, useRef } from "react";
 import { useResource, resource, withKey } from "@assistant-ui/tap";
-import {
-  type ClientOutput,
-  useAssistantEmit,
-  useClientLookup,
-} from "@assistant-ui/store";
+import type { ClientOutput } from "@assistant-ui/store";
+import { useAssistantEmit, useClientLookup } from "@assistant-ui/store/client";
 import type {
   ComposerRuntime,
   EditComposerRuntime,
 } from "../../runtime/api/composer-runtime";
 import type { ComposerState } from "../scopes/composer";
 import type { QueueItemState } from "../scopes/queue-item";
+import type { QueuePlacement } from "../../runtime/queue/external-thread-queue-adapter";
 import { AttachmentRuntimeClient } from "./attachment-runtime-client";
 import { useSubscribable } from "./useSubscribable";
 
@@ -40,16 +38,17 @@ const ComposerAttachmentClientByIndex = resource(
 
 const useQueueItemClient = ({
   item,
-  onSteer,
+  onMove,
   onRemove,
 }: {
   item: QueueItemState;
-  onSteer: () => void;
+  onMove: (placement: QueuePlacement) => void;
   onRemove: () => void;
 }): ClientOutput<"queueItem"> => {
   return {
     getState: () => item,
-    steer: onSteer,
+    steer: () => onMove({ lane: "steer", insertAfter: null }),
+    move: onMove,
     remove: onRemove,
   };
 };
@@ -60,28 +59,48 @@ const useComposerClient = ({
   threadIdRef,
   messageIdRef,
   runtime,
+  isSuggestion,
 }: {
   threadIdRef: { current: string };
   messageIdRef?: { current: string };
   runtime: ComposerRuntime;
+  isSuggestion?: ((text: string) => boolean) | undefined;
 }): ClientOutput<"composer"> => {
   const runtimeState = useSubscribable(runtime);
   const emit = useAssistantEmit();
+  const pendingSuggestion = useRef(false);
 
   // Bind composer events to event manager
   useEffect(() => {
     const unsubscribers: Unsubscribe[] = [];
 
     // Subscribe to composer events
-    for (const event of ["send", "attachmentAdd"] as const) {
-      const unsubscribe = runtime.unstable_on(event, () => {
-        emit(`composer.${event}`, {
+    const sendUnsubscribe = runtime.unstable_on("send", (payload) => {
+      const suggestion = pendingSuggestion.current;
+      pendingSuggestion.current = false;
+      emit("composer.send", {
+        threadId: threadIdRef.current,
+        ...(messageIdRef && { messageId: messageIdRef.current }),
+        chars: payload.chars,
+        attachments: payload.attachments,
+        ...(suggestion ? { suggestion: true } : undefined),
+      });
+    });
+    unsubscribers.push(sendUnsubscribe);
+
+    const attachmentUnsubscribe = runtime.unstable_on(
+      "attachmentAdd",
+      (payload) => {
+        emit("composer.attachmentAdd", {
           threadId: threadIdRef.current,
           ...(messageIdRef && { messageId: messageIdRef.current }),
+          ...(payload.contentType
+            ? { contentType: payload.contentType }
+            : undefined),
         });
-      });
-      unsubscribers.push(unsubscribe);
-    }
+      },
+    );
+    unsubscribers.push(attachmentUnsubscribe);
 
     unsubscribers.push(
       runtime.unstable_on("attachmentAddError", (payload) => {
@@ -92,6 +111,9 @@ const useComposerClient = ({
           ...(payload.attachmentId && { attachmentId: payload.attachmentId }),
           reason: payload.reason,
           message: payload.message,
+          ...(payload.contentType
+            ? { contentType: payload.contentType }
+            : undefined),
         });
       }),
     );
@@ -121,7 +143,7 @@ const useComposerClient = ({
         item.id,
         QueueItemClient({
           item,
-          onSteer: () => runtime.steerQueueItem(item.id),
+          onMove: (placement) => runtime.moveQueueItem(item.id, placement),
           onRemove: () => runtime.removeQueueItem(item.id),
         }),
       ),
@@ -154,8 +176,18 @@ const useComposerClient = ({
     addAttachment: runtime.addAttachment,
     reset: runtime.reset,
     clearAttachments: runtime.clearAttachments,
-    send: runtime.send,
-    cancel: runtime.cancel,
+    send: (options) => {
+      const state = runtime.getState();
+      pendingSuggestion.current =
+        state.canSend && (isSuggestion?.(state.text) ?? false);
+      runtime.send(options);
+    },
+    cancel: () => {
+      if (!messageIdRef && runtime.getState().canCancel) {
+        emit("composer.cancel", { threadId: threadIdRef.current });
+      }
+      runtime.cancel();
+    },
     beginEdit:
       (runtime as EditComposerRuntime).beginEdit ??
       (() => {
@@ -171,7 +203,13 @@ const useComposerClient = ({
         return attachments.get(selector);
       }
     },
-    queueItem: (selector) => queueItems.get(selector),
+    queueItem: (selector) => {
+      if ("id" in selector) {
+        return queueItems.get({ key: selector.id });
+      } else {
+        return queueItems.get(selector);
+      }
+    },
     __internal_getRuntime: () => runtime,
   };
 };

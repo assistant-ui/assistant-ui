@@ -35,6 +35,8 @@ import type { AttachmentAdapter } from "../../adapters/attachment";
 import type { RealtimeVoiceAdapter } from "../../adapters/voice";
 import type { ThreadMessageLike } from "../utils/thread-message-like";
 import { notifyEventListeners } from "../../utils/notify-event-listeners";
+import { gateInteractableComposerMetadata } from "../../model-context/interactable-composer-metadata";
+import { BaseSubscribable } from "../../subscribable/subscribable";
 
 type BaseThreadAdapters = {
   speech?: SpeechSynthesisAdapter | undefined;
@@ -43,11 +45,13 @@ type BaseThreadAdapters = {
   voice?: RealtimeVoiceAdapter | undefined;
 };
 
-export abstract class BaseThreadRuntimeCore implements ThreadRuntimeCore {
-  private _subscriptions = new Set<() => void>();
+export abstract class BaseThreadRuntimeCore
+  extends BaseSubscribable
+  implements ThreadRuntimeCore
+{
   private _isInitialized = false;
 
-  protected readonly repository = new MessageRepository();
+  protected repository = new MessageRepository();
   public abstract get adapters(): BaseThreadAdapters | undefined;
   public abstract get isDisabled(): boolean;
   public abstract get isSendDisabled(): boolean;
@@ -64,10 +68,11 @@ export abstract class BaseThreadRuntimeCore implements ThreadRuntimeCore {
   public abstract resumeToolCall(options: ResumeToolCallOptions): void;
   public abstract respondToToolApproval(
     options: RespondToToolApprovalOptions,
-  ): void;
+  ): Promise<void>;
   public abstract cancelRun(): void;
   public abstract exportExternalState(): any;
   public abstract importExternalState(state: any): void;
+  public abstract unstable_notifySessionReset(): void;
 
   protected _voiceMessages: ThreadMessage[] = [];
   protected _voiceGeneration = 0;
@@ -116,11 +121,47 @@ export abstract class BaseThreadRuntimeCore implements ThreadRuntimeCore {
   private readonly _contextProvider: ModelContextProvider;
 
   constructor(_contextProvider: ModelContextProvider) {
+    super();
     this._contextProvider = _contextProvider;
   }
 
   public getModelContext() {
     return this._contextProvider.getModelContext();
+  }
+
+  /**
+   * Stamps provider-contributed composer metadata onto an outgoing message.
+   * Called at dispatch rather than in the composer, so programmatic sends are
+   * covered too, and exactly once per message: a queued send is stamped when
+   * it leaves the lane, never when it enters.
+   *
+   * Only user messages are stamped, matching the readers: both the version
+   * fold and the model injection skip every other role.
+   *
+   * @param anchorId Message the gated branch prefix ends at. A queued send
+   * passes the current tail, having waited through a run that grew the prefix
+   * past the parent it was created with.
+   */
+  protected enrichAppendMetadata(
+    message: AppendMessage,
+    anchorId: string | null = message.parentId,
+  ): AppendMessage {
+    if (message.role !== "user") return message;
+    const messages = this.messages;
+    const parentIndex =
+      anchorId === null ? -1 : messages.findIndex((m) => m.id === anchorId);
+    const composerMetadata = gateInteractableComposerMetadata(
+      this.getModelContext().unstable_composerMetadata,
+      messages.slice(0, parentIndex + 1),
+    );
+    if (!composerMetadata) return message;
+    return {
+      ...message,
+      metadata: {
+        ...message.metadata,
+        custom: { ...message.metadata?.custom, ...composerMetadata },
+      },
+    };
   }
 
   private _editComposers = new Map<string, DefaultEditComposerRuntimeCore>();
@@ -176,10 +217,6 @@ export abstract class BaseThreadRuntimeCore implements ThreadRuntimeCore {
     this._notifySubscribers();
   }
 
-  protected _notifySubscribers() {
-    for (const callback of this._subscriptions) callback();
-  }
-
   public _notifyEventSubscribers<E extends ThreadRuntimeEventType>(
     event: E,
     payload: ThreadRuntimeEventPayload[E],
@@ -188,11 +225,6 @@ export abstract class BaseThreadRuntimeCore implements ThreadRuntimeCore {
     if (!subscribers) return;
 
     notifyEventListeners(subscribers, payload, `Thread runtime "${event}"`);
-  }
-
-  public subscribe(callback: () => void): Unsubscribe {
-    this._subscriptions.add(callback);
-    return () => this._subscriptions.delete(callback);
   }
 
   public submitFeedback({ messageId, type }: SubmitFeedbackOptions) {
@@ -319,7 +351,11 @@ export abstract class BaseThreadRuntimeCore implements ThreadRuntimeCore {
     unsubs.push(
       session.onVolumeChange((volume) => {
         this._voiceVolume = volume;
-        for (const cb of this._voiceVolumeSubscribers) cb();
+        notifyEventListeners(
+          this._voiceVolumeSubscribers,
+          undefined,
+          "Voice volume",
+        );
       }),
     );
 
@@ -357,6 +393,10 @@ export abstract class BaseThreadRuntimeCore implements ThreadRuntimeCore {
         this._notifySubscribers();
       }
     } else {
+      const status: ThreadAssistantMessage["status"] = transcript.isFinal
+        ? { type: "complete", reason: "stop" }
+        : { type: "running" };
+
       if (!this._currentAssistantMsg) {
         this._currentAssistantMsg = {
           id: generateId(),
@@ -369,7 +409,7 @@ export abstract class BaseThreadRuntimeCore implements ThreadRuntimeCore {
             steps: [],
             custom: {},
           },
-          status: { type: "running" },
+          status,
           createdAt: new Date(),
         };
         this._voiceMessages.push(this._currentAssistantMsg);
@@ -379,9 +419,7 @@ export abstract class BaseThreadRuntimeCore implements ThreadRuntimeCore {
         const updated: ThreadAssistantMessage = {
           ...this._currentAssistantMsg,
           content: [{ type: "text", text: transcript.text }],
-          ...(transcript.isFinal
-            ? { status: { type: "complete", reason: "stop" } }
-            : {}),
+          status,
         };
         this._voiceMessages[idx] = updated;
         this._currentAssistantMsg = updated;
@@ -418,7 +456,11 @@ export abstract class BaseThreadRuntimeCore implements ThreadRuntimeCore {
     this._voiceSession = undefined;
     this.voice = undefined;
     this._voiceVolume = 0;
-    for (const cb of this._voiceVolumeSubscribers) cb();
+    notifyEventListeners(
+      this._voiceVolumeSubscribers,
+      undefined,
+      "Voice volume",
+    );
     this._voiceMessages = [];
     this._markVoiceMessagesDirty();
     this._notifySubscribers();
@@ -478,7 +520,11 @@ export abstract class BaseThreadRuntimeCore implements ThreadRuntimeCore {
     const wrapped = callback as (payload?: unknown) => void;
     if (event === "modelContextUpdate") {
       // provider.subscribe is `() => void`; pump the typed empty payload to the user callback.
-      return this._contextProvider.subscribe?.(() => wrapped({})) ?? (() => {});
+      return (
+        this._contextProvider.subscribe?.(() =>
+          notifyEventListeners([wrapped], {}, `Thread runtime "${event}"`),
+        ) ?? (() => {})
+      );
     }
 
     let subscribers = this._eventSubscribers.get(event);
@@ -492,7 +538,9 @@ export abstract class BaseThreadRuntimeCore implements ThreadRuntimeCore {
     // after the thread already initialized, mirroring a BehaviorSubject.
     if (event === "initialize" && this._isInitialized) {
       queueMicrotask(() => {
-        if (subscribers.has(wrapped)) wrapped({});
+        if (subscribers.has(wrapped)) {
+          notifyEventListeners([wrapped], {}, `Thread runtime "${event}"`);
+        }
       });
     }
 

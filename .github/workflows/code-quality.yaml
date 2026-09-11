@@ -11,11 +11,16 @@ on:
       - "templates/**"
       - "scripts/generate-api-surface.mjs"
       - "scripts/check-api-surface.mjs"
+      - "scripts/check-built-declarations.mjs"
+      - "scripts/check-built-declarations.test.mjs"
+      - "scripts/check-workspace-ranges.mjs"
+      - "scripts/check-workspace-ranges.test.mjs"
       - "scripts/lib/script-options.mjs"
       - "scripts/sync-templates.sh"
       - "turbo.json"
       - "package.json"
       - "pnpm-lock.yaml"
+      - "pnpm-workspace.yaml"
       - ".github/workflows/code-quality.yaml"
   pull_request:
     branches: [main]
@@ -27,11 +32,16 @@ on:
       - "templates/**"
       - "scripts/generate-api-surface.mjs"
       - "scripts/check-api-surface.mjs"
+      - "scripts/check-built-declarations.mjs"
+      - "scripts/check-built-declarations.test.mjs"
+      - "scripts/check-workspace-ranges.mjs"
+      - "scripts/check-workspace-ranges.test.mjs"
       - "scripts/lib/script-options.mjs"
       - "scripts/sync-templates.sh"
       - "turbo.json"
       - "package.json"
       - "pnpm-lock.yaml"
+      - "pnpm-workspace.yaml"
       - ".github/workflows/code-quality.yaml"
 
 permissions:
@@ -48,18 +58,16 @@ jobs:
     timeout-minutes: 5
     steps:
       - name: Checkout code repository
-        uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # ratchet:actions/checkout@v7
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # ratchet:actions/checkout@v7.0.1
         with:
           fetch-depth: 0
 
-      - name: Install pnpm
-        uses: pnpm/action-setup@0ebf47130e4866e96fce0953f49152a61190b271 # ratchet:pnpm/action-setup@v6.0.9
-
-      - name: Setup node.js
-        uses: actions/setup-node@48b55a011bda9f5d6aeb4c2d9c7362e8dae4041e # ratchet:actions/setup-node@v6
+      - name: Setup pnpm and node.js
+        uses: pnpm/setup@703c52620218391530e48b9e8870d5c0082e1b9b # ratchet:pnpm/setup@v2.1.0
         with:
-          node-version: 24
-          cache: "pnpm"
+          runtime: node@24
+          cache: true
+          install: false
 
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
@@ -76,18 +84,16 @@ jobs:
     timeout-minutes: 5
     steps:
       - name: Checkout code repository
-        uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # ratchet:actions/checkout@v7
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # ratchet:actions/checkout@v7.0.1
         with:
           fetch-depth: 1
 
-      - name: Install pnpm
-        uses: pnpm/action-setup@0ebf47130e4866e96fce0953f49152a61190b271 # ratchet:pnpm/action-setup@v6.0.9
-
-      - name: Setup node.js
-        uses: actions/setup-node@48b55a011bda9f5d6aeb4c2d9c7362e8dae4041e # ratchet:actions/setup-node@v6
+      - name: Setup pnpm and node.js
+        uses: pnpm/setup@703c52620218391530e48b9e8870d5c0082e1b9b # ratchet:pnpm/setup@v2.1.0
         with:
-          node-version: 24
-          cache: "pnpm"
+          runtime: node@24
+          cache: true
+          install: false
 
       - name: Install root tooling
         run: pnpm install --frozen-lockfile --filter . --ignore-scripts
@@ -95,27 +101,47 @@ jobs:
       - name: Verify templates match packages/ui source
         run: bash scripts/sync-templates.sh
 
+  workspace-ranges:
+    name: Workspace Ranges
+    runs-on: blacksmith-4vcpu-ubuntu-2404
+    timeout-minutes: 2
+    steps:
+      - name: Checkout code repository
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # ratchet:actions/checkout@v7.0.1
+        with:
+          fetch-depth: 1
+
+      - name: Setup pnpm and node.js
+        uses: pnpm/setup@703c52620218391530e48b9e8870d5c0082e1b9b # ratchet:pnpm/setup@v2.1.0
+        with:
+          runtime: node@24
+          install: false
+
+      - name: Test the workspace range checker
+        run: node --test scripts/check-workspace-ranges.test.mjs
+
+      - name: Verify published packages publish caret workspace ranges
+        run: node scripts/check-workspace-ranges.mjs
+
   build:
     name: Build Changed Packages
     runs-on: blacksmith-8vcpu-ubuntu-2404
     timeout-minutes: 10
     steps:
       - name: Checkout code repository
-        uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # ratchet:actions/checkout@v7
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # ratchet:actions/checkout@v7.0.1
         with:
           fetch-depth: 0
 
-      - name: Install pnpm
-        uses: pnpm/action-setup@0ebf47130e4866e96fce0953f49152a61190b271 # ratchet:pnpm/action-setup@v6.0.9
-
-      - name: Setup node.js
-        uses: actions/setup-node@48b55a011bda9f5d6aeb4c2d9c7362e8dae4041e # ratchet:actions/setup-node@v6
+      - name: Setup pnpm and node.js
+        uses: pnpm/setup@703c52620218391530e48b9e8870d5c0082e1b9b # ratchet:pnpm/setup@v2.1.0
         with:
-          node-version: 24
-          cache: "pnpm"
+          runtime: node@24
+          cache: true
+          install: false
 
       - name: Cache turbo build setup
-        uses: actions/cache@caa296126883cff596d87d8935842f9db880ef25 # ratchet:actions/cache@v5
+        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # ratchet:actions/cache@v6.1.0
         with:
           path: .turbo
           key: ${{ runner.os }}-turbo-build-${{ github.ref }}-${{ github.sha }}
@@ -128,6 +154,9 @@ jobs:
         run: pnpm install --frozen-lockfile
 
       - name: Build packages
+        env:
+          TURBO_TOKEN: ${{ secrets.TURBO_TOKEN }}
+          TURBO_TEAM: ${{ secrets.TURBO_TEAM }}
         run: |
           if [ "${{ github.event_name }}" = "pull_request" ]; then
             # PR: Build packages changed compared to base branch
@@ -147,6 +176,20 @@ jobs:
             pnpm run api-surface:check -- --skip-build --filter="...[HEAD^1]"
           fi
 
+      - name: Check bundle size budgets
+        run: pnpm size:check
+
+      - name: Check built declarations
+        run: |
+          if [ "${{ github.event_name }}" = "pull_request" ]; then
+            pnpm run declarations:check -- --filter="...[origin/${{ github.base_ref }}]"
+          else
+            pnpm run declarations:check -- --filter="...[HEAD^1]"
+          fi
+
+      - name: Test built declaration checker
+        run: pnpm run declarations:test
+
       - name: Test API surface generator
         run: pnpm run api-surface:test
 
@@ -156,21 +199,19 @@ jobs:
     timeout-minutes: 10
     steps:
       - name: Checkout code repository
-        uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # ratchet:actions/checkout@v7
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # ratchet:actions/checkout@v7.0.1
         with:
           fetch-depth: 0
 
-      - name: Install pnpm
-        uses: pnpm/action-setup@0ebf47130e4866e96fce0953f49152a61190b271 # ratchet:pnpm/action-setup@v6.0.9
-
-      - name: Setup node.js
-        uses: actions/setup-node@48b55a011bda9f5d6aeb4c2d9c7362e8dae4041e # ratchet:actions/setup-node@v6
+      - name: Setup pnpm and node.js
+        uses: pnpm/setup@703c52620218391530e48b9e8870d5c0082e1b9b # ratchet:pnpm/setup@v2.1.0
         with:
-          node-version: 24
-          cache: "pnpm"
+          runtime: node@24
+          cache: true
+          install: false
 
       - name: Cache turbo build setup
-        uses: actions/cache@caa296126883cff596d87d8935842f9db880ef25 # ratchet:actions/cache@v5
+        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # ratchet:actions/cache@v6.1.0
         with:
           path: .turbo
           key: ${{ runner.os }}-turbo-build-apps-${{ github.ref }}-${{ github.sha }}
@@ -185,6 +226,9 @@ jobs:
 
       # apps/docs is excluded: the Vercel deployment check already builds it on every pull request.
       - name: Build apps
+        env:
+          TURBO_TOKEN: ${{ secrets.TURBO_TOKEN }}
+          TURBO_TEAM: ${{ secrets.TURBO_TEAM }}
         run: |
           if [ "${{ github.event_name }}" = "pull_request" ]; then
             # PR: Build apps, examples, and templates affected by changes compared to base branch
@@ -200,29 +244,72 @@ jobs:
     timeout-minutes: 10
     steps:
       - name: Checkout code repository
-        uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # ratchet:actions/checkout@v7
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # ratchet:actions/checkout@v7.0.1
         with:
           fetch-depth: 0
 
-      - name: Install pnpm
-        uses: pnpm/action-setup@0ebf47130e4866e96fce0953f49152a61190b271 # ratchet:pnpm/action-setup@v6.0.9
+      - name: Detect API reference inputs
+        id: api_ref
+        run: |
+          set -eu
+          if [ "${{ github.event_name }}" = "pull_request" ]; then
+            BASE="origin/${{ github.base_ref }}"
+          else
+            BASE="HEAD^1"
+          fi
+          if ! git rev-parse --verify "$BASE" >/dev/null; then
+            echo "Unable to resolve API reference diff base: $BASE"
+            exit 1
+          fi
+          changed="$(git diff --name-only "$BASE" -- \
+            "packages/react/" \
+            "packages/core/" \
+            "packages/store/" \
+            "packages/tap/" \
+            "packages/cloud/" \
+            "packages/assistant-stream/" \
+            "packages/react-generative-ui/" \
+            "packages/ai-sdk/" \
+            "packages/react-ai-sdk/" \
+            "packages/react-data-stream/" \
+            "packages/cloud-ai-sdk/" \
+            "packages/eve/" \
+            "packages/safe-content-frame/" \
+            "apps/docs/scripts/" \
+            "apps/docs/content/types-to-generate/" \
+            "apps/docs/content/docs/(reference)/api-reference/" \
+            "apps/docs/package.json" \
+            "apps/docs/tsconfig.json" \
+            ".github/workflows/code-quality.yaml")"
+          if [ -n "$changed" ]; then
+            echo "run=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "run=false" >> "$GITHUB_OUTPUT"
+          fi
 
-      - name: Setup node.js
-        uses: actions/setup-node@48b55a011bda9f5d6aeb4c2d9c7362e8dae4041e # ratchet:actions/setup-node@v6
+      - name: Setup pnpm and node.js
+        if: steps.api_ref.outputs.run == 'true'
+        uses: pnpm/setup@703c52620218391530e48b9e8870d5c0082e1b9b # ratchet:pnpm/setup@v2.1.0
         with:
-          node-version: 24
-          cache: "pnpm"
+          runtime: node@24
+          cache: true
+          install: false
 
       - name: Install dependencies
+        if: steps.api_ref.outputs.run == 'true'
         run: pnpm install --frozen-lockfile
 
       - name: Generate API reference (strict)
+        if: steps.api_ref.outputs.run == 'true'
         run: pnpm -C apps/docs generate:api-reference -- --strict
 
       - name: Fail on API reference drift
+        if: steps.api_ref.outputs.run == 'true'
         run: |
           if git status --porcelain -- 'apps/docs/content/docs/(reference)/api-reference' | grep -q .; then
-            echo "API reference drift detected. Move durable prose into source JSDoc (or api-manual slots), then re-run pnpm -C apps/docs generate:api-reference."
+            echo "API reference pages are stale. JSDoc or export changes are not reflected in apps/docs/content/docs/(reference)/api-reference."
+            echo "Run \`pnpm -C apps/docs generate:api-reference\` and commit the result."
+            echo "Durable hand-written prose belongs in source JSDoc or api-manual slots."
             git status --porcelain -- 'apps/docs/content/docs/(reference)/api-reference'
             git diff -- 'apps/docs/content/docs/(reference)/api-reference'
             exit 1
@@ -232,24 +319,36 @@ jobs:
     name: Test Changed Packages
     runs-on: blacksmith-8vcpu-ubuntu-2404
     timeout-minutes: 5
+    # assistant-stream's resumable store advertises a peer union over ioredis 5
+    # and 6 and node-redis; both legs need a live server or their suites skip.
+    services:
+      redis:
+        image: redis:8-alpine # ratchet:exclude
+        ports:
+          - 6379:6379
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 5s
+          --health-timeout 3s
+          --health-retries 10
+    env:
+      REDIS_URL: redis://127.0.0.1:6379
     # Note: No dependency on 'build' job - Turbo handles test->build dependencies internally via dependsOn
     steps:
       - name: Checkout code repository
-        uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # ratchet:actions/checkout@v7
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # ratchet:actions/checkout@v7.0.1
         with:
           fetch-depth: 0
 
-      - name: Install pnpm
-        uses: pnpm/action-setup@0ebf47130e4866e96fce0953f49152a61190b271 # ratchet:pnpm/action-setup@v6.0.9
-
-      - name: Setup node.js
-        uses: actions/setup-node@48b55a011bda9f5d6aeb4c2d9c7362e8dae4041e # ratchet:actions/setup-node@v6
+      - name: Setup pnpm and node.js
+        uses: pnpm/setup@703c52620218391530e48b9e8870d5c0082e1b9b # ratchet:pnpm/setup@v2.1.0
         with:
-          node-version: 24
-          cache: "pnpm"
+          runtime: node@24
+          cache: true
+          install: false
 
       - name: Cache turbo build setup
-        uses: actions/cache@caa296126883cff596d87d8935842f9db880ef25 # ratchet:actions/cache@v5
+        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # ratchet:actions/cache@v6.1.0
         with:
           path: .turbo
           key: ${{ runner.os }}-turbo-test-${{ github.ref }}-${{ github.sha }}
@@ -262,6 +361,9 @@ jobs:
         run: pnpm install --frozen-lockfile
 
       - name: Run tests
+        env:
+          TURBO_TOKEN: ${{ secrets.TURBO_TOKEN }}
+          TURBO_TEAM: ${{ secrets.TURBO_TEAM }}
         run: |
           if [ "${{ github.event_name }}" = "pull_request" ]; then
             # PR: Test packages changed compared to base branch
@@ -272,4 +374,7 @@ jobs:
           fi
 
       - name: Run React Compiler tests
+        env:
+          TURBO_TOKEN: ${{ secrets.TURBO_TOKEN }}
+          TURBO_TEAM: ${{ secrets.TURBO_TEAM }}
         run: pnpm test:react-compiler

@@ -12,7 +12,7 @@ import {
   useContext,
 } from "react";
 import { useAui } from "@assistant-ui/store";
-import { useComposedRefs } from "@radix-ui/react-compose-refs";
+import { useComposedRefs } from "radix-ui/internal";
 import { tool } from "@assistant-ui/core";
 
 const click = tool({

@@ -13,7 +13,7 @@ export const QueueItemByIndexProvider: FC<QueueItemByIndexProviderProps> = ({
   const config = AuiConfig({
     queueItem: Derived({
       source: "composer",
-      query: { index },
+      query: { type: "index", index },
       get: (aui) => aui.composer.queueItem({ index }),
     }),
   });

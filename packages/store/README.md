@@ -7,6 +7,10 @@ Tap-based state container with React Context integration. Bridges `@assistant-ui
 
 `store` powers the runtime layer of assistant-ui. Most users do not install it directly; reach for `@assistant-ui/react` instead.
 
+## Framework-neutral entry
+
+`@assistant-ui/store/client` exposes `createAssistantClient`, which builds the same client inside a standalone tap root with no React renderer. Non-React bindings consume the store through this entry; react-less consumers additionally alias `react` to `@assistant-ui/tap/standalone-shim` in their bundler. The `react` peer dependency is optional for exactly this configuration.
+
 ## Installation
 
 ```bash

@@ -6,6 +6,8 @@ import {
   docs,
   tapDocs as tapDocsCollection,
   examples as examplePages,
+  design as designPages,
+  elements as elementsMdx,
   blog as blogPosts,
   careers as careersCollection,
 } from "fumadocs-mdx:collections/server";
@@ -75,6 +77,20 @@ export const examples = loader({
 
 export type ExamplePage = InferPageType<typeof examples>;
 
+export const elementsDocs = loader({
+  baseUrl: "/elements",
+  source: toFumadocsSource(elementsMdx, []),
+});
+
+export type ElementsDocsPage = InferPageType<typeof elementsDocs>;
+
+export const design = loader({
+  baseUrl: "/design",
+  source: toFumadocsSource(designPages, []),
+});
+
+export type DesignPage = InferPageType<typeof design>;
+
 export const blog = loader({
   baseUrl: "/blog",
   source: toFumadocsSource(blogPosts, []),
@@ -85,6 +101,7 @@ export type BlogPage = Omit<BaseBlogPage, "data"> & {
   data: BaseBlogPage["data"] & {
     date: Date | undefined;
     author: string;
+    externalUrl: string | undefined;
   };
 };
 

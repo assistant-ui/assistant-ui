@@ -2,7 +2,7 @@
 
 Standalone [Vercel AI SDK](https://sdk.vercel.ai) hooks backed by [Assistant Cloud](https://cloud.assistant-ui.com) persistence. Use this when you want managed thread history, auto-titling, and thread CRUD for an AI SDK chat app without pulling in `@assistant-ui/react`.
 
-If you are already using `@assistant-ui/react`, install `@assistant-ui/react-ai-sdk` and pass an `AssistantCloud` instance instead.
+If you are already using `@assistant-ui/react`, install `@assistant-ui/ai-sdk` and pass an `AssistantCloud` instance instead.
 
 ## Installation
 

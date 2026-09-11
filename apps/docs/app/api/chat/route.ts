@@ -1,39 +1,55 @@
-import { getDistinctId, posthogServer } from "@/lib/posthog-server";
-import { createPrismTracer, prismAISDK } from "@/lib/prism-server";
+import { getDistinctId } from "@/lib/posthog-server";
 import {
   injectQuoteContext,
   unstable_injectInteractableContext as injectInteractableContext,
-} from "@assistant-ui/react-ai-sdk";
-import { checkRateLimit } from "@/lib/rate-limit";
+} from "@assistant-ui/ai-sdk";
+import { withAssistantCloudTraceMetadata } from "assistant-cloud/telemetry";
+import { checkPublicAssistantRateLimit } from "@/lib/rate-limit";
+import {
+  PUBLIC_ASSISTANT_CROSS_ORIGINS,
+  requirePublicAssistantSession,
+} from "@/lib/anonymous-session";
+import { claimConversation, resolveDemoIdentity } from "@/lib/demo-usage";
+import { PUBLIC_ASSISTANT_CONVERSATION_LIMIT_MESSAGE } from "@/lib/public-assistant-errors";
 import { validateGeneralChatInput } from "@/lib/validate-input";
-import { getModel, withTracing } from "@/lib/ai/provider";
-import { AISDKToolkit } from "@assistant-ui/react-ai-sdk";
+import { resolveChatModel } from "@/lib/ai/provider";
+import { createSearchDocsTool } from "@/lib/ai/search-docs";
+import { posthogTelemetry } from "@/lib/ai/telemetry";
+import { AISDKToolkit } from "@assistant-ui/ai-sdk";
 import docsToolkit from "@/lib/docs-toolkit";
 import {
   convertToModelMessages,
+  createUIMessageStream,
+  createUIMessageStreamResponse,
   pruneMessages,
   stepCountIs,
   streamText,
 } from "ai";
 
-export const maxDuration = 30;
+export const maxDuration = 300;
 
 const aiToolkit = new AISDKToolkit({ toolkit: docsToolkit });
 
-const ALLOWED_ORIGINS = [
-  "https://assistant-ui-expo.vercel.app",
-  "https://assistant-ui-ink.vercel.app",
-  "http://localhost:8081",
-];
+const SEARCH_DOCS_SYSTEM_INSTRUCTION =
+  "When the user asks about assistant-ui (its APIs, components, runtimes, setup, or documentation), call search_docs before answering and answer from its results. Cite the pages you used inline as markdown links with their titles. Never cite a page search_docs did not return.";
 
 function corsHeaders(req: Request) {
   const origin = req.headers.get("origin") ?? "";
-  if (!ALLOWED_ORIGINS.includes(origin)) return {};
+  if (!PUBLIC_ASSISTANT_CROSS_ORIGINS.has(origin)) return {};
   return {
     "Access-Control-Allow-Origin": origin,
     "Access-Control-Allow-Methods": "POST, OPTIONS",
-    "Access-Control-Allow-Headers": "Content-Type, User-Agent",
+    "Access-Control-Allow-Headers":
+      "Content-Type, User-Agent, X-Assistant-UI-Anonymous-Session",
+    Vary: "Origin",
   };
+}
+
+function withCors(req: Request, response: Response): Response {
+  for (const [key, value] of Object.entries(corsHeaders(req))) {
+    response.headers.set(key, value);
+  }
+  return response;
 }
 
 export async function OPTIONS(req: Request) {
@@ -42,49 +58,58 @@ export async function OPTIONS(req: Request) {
 
 export async function POST(req: Request) {
   try {
-    const rateLimitResponse = await checkRateLimit(req);
-    if (rateLimitResponse) return rateLimitResponse;
+    const session = requirePublicAssistantSession(req);
+    if (session instanceof Response) return withCors(req, session);
+
+    const rateLimitResponse = await checkPublicAssistantRateLimit(
+      req,
+      session.id,
+    );
+    if (rateLimitResponse) return withCors(req, rateLimitResponse);
 
     const body = await req.json();
-    const { messages, system: rawSystem, tools, config } = body;
+    const {
+      messages,
+      system: rawSystem,
+      tools,
+      config,
+      searchDocs: searchDocsRequested,
+      countConversations,
+      id: threadId,
+    } = body;
 
     // Basic validation: only accept short system prompts to limit abuse surface
     const MAX_SYSTEM_LENGTH = 4000;
-    const system =
+    const groundInDocs =
+      searchDocsRequested === true &&
+      req.headers.get("sec-fetch-site") === "same-origin";
+    const system = [
       typeof rawSystem === "string" && rawSystem.length <= MAX_SYSTEM_LENGTH
         ? rawSystem
-        : undefined;
+        : undefined,
+      groundInDocs ? SEARCH_DOCS_SYSTEM_INSTRUCTION : undefined,
+    ]
+      .filter(Boolean)
+      .join("\n\n");
 
     const inputError = validateGeneralChatInput(messages);
     if (inputError) {
-      const cors = corsHeaders(req);
-      for (const [key, value] of Object.entries(cors)) {
-        inputError.headers.set(key, value);
-      }
-      return inputError;
+      return withCors(req, inputError);
     }
 
-    const baseModel = getModel(config?.modelName);
+    const { model, providerOptions, reasoning } = resolveChatModel(config);
     const distinctId = getDistinctId(req);
-    const prismTracer = createPrismTracer();
+    const origin = new URL(req.url).origin;
 
-    const posthogModel = posthogServer
-      ? withTracing(baseModel, posthogServer, {
-          posthogDistinctId: distinctId,
-          posthogPrivacyMode: false,
-          posthogProperties: {
-            $ai_span_name: "general_chat",
-            source: "general_chat",
-          },
-        })
-      : baseModel;
-
-    const prism = prismTracer
-      ? prismAISDK(prismTracer, posthogModel, {
-          name: "general_chat",
-          endUserId: distinctId,
-        })
-      : null;
+    const frontendTools = await aiToolkit.tools({ frontend: tools });
+    if (groundInDocs && "search_docs" in frontendTools) {
+      return withCors(
+        req,
+        new Response("search_docs is reserved on this endpoint", {
+          status: 400,
+        }),
+      );
+    }
 
     const prunedMessages = pruneMessages({
       messages: await convertToModelMessages(
@@ -93,51 +118,84 @@ export async function POST(req: Request) {
       reasoning: "none",
     });
 
-    const result = streamText({
-      model: prism?.model ?? posthogModel,
-      ...(system ? { system } : {}),
-      messages: prunedMessages,
-      maxOutputTokens: 4096,
-      stopWhen: stepCountIs(10),
-      tools: await aiToolkit.tools({ frontend: tools }),
-      onFinish: async () => {
-        await prism?.end();
-      },
-      onError: async ({ error }) => {
-        console.error(error);
-        await prism?.end({ status: "error" });
-      },
-      onAbort: async () => {
-        await prism?.end();
-      },
-    });
-
-    const cors = corsHeaders(req);
-    const response = result.toUIMessageStreamResponse({
-      // gets usage and modelId for assistant-cloud telemetry reports
-      messageMetadata: ({ part }) => {
-        if (part.type === "finish-step") {
-          return {
-            modelId: part.response.modelId,
-          };
-        }
-        if (part.type === "finish") {
-          return {
-            usage: part.totalUsage,
-          };
-        }
-        return undefined;
-      },
-    });
-
-    // Append CORS headers
-    for (const [key, value] of Object.entries(cors)) {
-      response.headers.set(key, value);
+    // Every docs surface shares this route, so only the one that opts in draws
+    // on the budget, and only after the deterministic rejections, so a request
+    // that was never going to run cannot spend a slot. The transport sends the
+    // thread id, so the day counts conversations rather than turns.
+    if (
+      countConversations === true &&
+      typeof threadId === "string" &&
+      threadId
+    ) {
+      const identity = await resolveDemoIdentity(session.id);
+      const { allowed, usage } = await claimConversation(identity, threadId);
+      if (!allowed) {
+        return withCors(
+          req,
+          new Response(PUBLIC_ASSISTANT_CONVERSATION_LIMIT_MESSAGE, {
+            status: 429,
+            headers: {
+              "Retry-After": String(
+                Math.max(1, Math.ceil((usage.resetAt - Date.now()) / 1_000)),
+              ),
+            },
+          }),
+        );
+      }
     }
 
-    return response;
+    const stream = createUIMessageStream({
+      execute: async ({ writer }) => {
+        const result = streamText({
+          model,
+          ...(providerOptions ? { providerOptions } : {}),
+          ...(system ? { system } : {}),
+          messages: prunedMessages,
+          maxOutputTokens: reasoning ? 16384 : 4096,
+          stopWhen: stepCountIs(10),
+          tools: groundInDocs
+            ? {
+                ...frontendTools,
+                search_docs: createSearchDocsTool({ writer, origin }),
+              }
+            : frontendTools,
+          ...posthogTelemetry({
+            distinctId,
+            spanName: "general_chat",
+            source: "general_chat",
+          }),
+          onError: ({ error }) => {
+            console.error(error);
+          },
+        });
+
+        writer.merge(
+          result.toUIMessageStream({
+            sendReasoning: true,
+            // Sends traceId, usage, and modelId for assistant-cloud telemetry reports.
+            messageMetadata: withAssistantCloudTraceMetadata(({ part }) => {
+              if (part.type === "finish-step") {
+                return {
+                  modelId: part.response.modelId,
+                };
+              }
+              if (part.type === "finish") {
+                return {
+                  usage: part.totalUsage,
+                };
+              }
+              return undefined;
+            }),
+          }),
+        );
+      },
+    });
+
+    const response = createUIMessageStreamResponse({ stream });
+
+    return withCors(req, response);
   } catch (e) {
     console.error("[api/chat]", e);
-    return new Response("Request failed", { status: 500 });
+    return withCors(req, new Response("Request failed", { status: 500 }));
   }
 }

@@ -1,10 +1,11 @@
 import type { Metadata } from "next";
+import { GenerativeUIStyle } from "@/components/generative-ui-style";
 import "./globals.css";
 
 export const metadata: Metadata = {
   title: "assistant-ui Generative UI Example",
   description:
-    "Example showcasing generative UI tool components: charts, date pickers, forms, and maps",
+    "Example showcasing model-composed interfaces with the present tool and a custom component vocabulary",
 };
 
 export default function RootLayout({
@@ -14,6 +15,9 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="en">
+      <head>
+        <GenerativeUIStyle />
+      </head>
       <body className="h-dvh">{children}</body>
     </html>
   );

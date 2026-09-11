@@ -17,6 +17,26 @@ import { GorpStreamAccumulator } from "../gorp/GorpStreamAccumulator";
 import type { ReadonlyJSONValue } from "../../utils";
 import { TimingTracker } from "./TimingTracker";
 
+/**
+ * Object spread materializes the deprecated `content` alias into a data
+ * property, so it is redefined after `parts` to keep tracking the replacement.
+ */
+const withParts = (
+  message: AssistantMessage,
+  parts: AssistantMessage["parts"],
+): AssistantMessage => ({
+  ...message,
+  parts,
+  get content() {
+    return this.parts;
+  },
+});
+
+const appendPart = (
+  message: AssistantMessage,
+  part: AssistantMessagePart,
+): AssistantMessage => withParts(message, [...message.parts, part]);
+
 export const createInitialMessage = ({
   unstable_state = null,
 }: {
@@ -60,17 +80,11 @@ const updatePartForPath = (
   const partIndex = chunk.path[0]!;
   const updatedPart = updater(part);
   if (updatedPart === part) return message;
-  return {
-    ...message,
-    parts: [
-      ...message.parts.slice(0, partIndex),
-      updatedPart,
-      ...message.parts.slice(partIndex + 1),
-    ],
-    get content() {
-      return this.parts;
-    },
-  };
+  return withParts(message, [
+    ...message.parts.slice(0, partIndex),
+    updatedPart,
+    ...message.parts.slice(partIndex + 1),
+  ]);
 };
 
 const handlePartStart = (
@@ -84,15 +98,13 @@ const handlePartStart = (
       type: partInit.type,
       text: "",
       status: { type: "running" },
+      ...(partInit.type === "reasoning" &&
+      partInit.unstable_summary !== undefined
+        ? { unstable_summary: partInit.unstable_summary }
+        : undefined),
       ...(partInit.parentId && { parentId: partInit.parentId }),
     };
-    return {
-      ...message,
-      parts: [...message.parts, newTextPart],
-      get content() {
-        return this.parts;
-      },
-    };
+    return appendPart(message, newTextPart);
   } else if (partInit.type === "tool-call") {
     const newToolCallPart: ToolCallPart = {
       type: "tool-call",
@@ -105,13 +117,7 @@ const handlePartStart = (
       timing: { startedAt: Date.now() },
       ...(partInit.parentId && { parentId: partInit.parentId }),
     };
-    return {
-      ...message,
-      parts: [...message.parts, newToolCallPart],
-      get content() {
-        return this.parts;
-      },
-    };
+    return appendPart(message, newToolCallPart);
   } else if (partInit.type === "source") {
     const newSourcePart: SourcePart = {
       type: "source",
@@ -121,13 +127,7 @@ const handlePartStart = (
       ...(partInit.title ? { title: partInit.title } : undefined),
       ...(partInit.parentId && { parentId: partInit.parentId }),
     };
-    return {
-      ...message,
-      parts: [...message.parts, newSourcePart],
-      get content() {
-        return this.parts;
-      },
-    };
+    return appendPart(message, newSourcePart);
   } else if (partInit.type === "file") {
     const newFilePart: FilePart = {
       type: "file",
@@ -135,13 +135,7 @@ const handlePartStart = (
       data: partInit.data,
       ...(partInit.parentId && { parentId: partInit.parentId }),
     };
-    return {
-      ...message,
-      parts: [...message.parts, newFilePart],
-      get content() {
-        return this.parts;
-      },
-    };
+    return appendPart(message, newFilePart);
   } else if (partInit.type === "data") {
     const newDataPart: DataPart = {
       type: "data",
@@ -149,13 +143,7 @@ const handlePartStart = (
       data: partInit.data,
       ...(partInit.parentId && { parentId: partInit.parentId }),
     };
-    return {
-      ...message,
-      parts: [...message.parts, newDataPart],
-      get content() {
-        return this.parts;
-      },
-    };
+    return appendPart(message, newDataPart);
   } else {
     const unsupportedType = String((partInit as { type?: unknown }).type);
     warnOnce(
@@ -168,13 +156,7 @@ const handlePartStart = (
       text: "",
       status: { type: "running" },
     };
-    return {
-      ...message,
-      parts: [...message.parts, placeholderPart],
-      get content() {
-        return this.parts;
-      },
-    };
+    return appendPart(message, placeholderPart);
   }
 };
 
@@ -441,16 +423,26 @@ const handleUpdateState = (
   };
 };
 
-const computeTiming = (
-  tracker: TimingTracker,
-  message: AssistantMessage,
-): AssistantMessageTiming => {
+const sumFinishedStepOutputTokens = (message: AssistantMessage): number => {
   let outputTokens = 0;
   for (const step of message.metadata.steps) {
     if (step.state === "finished" && step.usage) {
       outputTokens += step.usage.outputTokens;
     }
   }
+  return outputTokens;
+};
+
+const computeTiming = (
+  tracker: TimingTracker,
+  message: AssistantMessage,
+  finalOutputTokens = 0,
+): AssistantMessageTiming => {
+  const outputTokens =
+    finalOutputTokens > 0
+      ? finalOutputTokens
+      : sumFinishedStepOutputTokens(message);
+  if (outputTokens > 0) return tracker.getTiming(outputTokens);
 
   let totalText = "";
   for (const part of message.parts) {
@@ -459,10 +451,7 @@ const computeTiming = (
     }
   }
 
-  return tracker.getTiming(
-    outputTokens > 0 ? outputTokens : undefined,
-    totalText || undefined,
-  );
+  return tracker.getTiming(undefined, totalText || undefined);
 };
 
 const throttleCallback = (callback: () => void) => {
@@ -494,6 +483,7 @@ export class AssistantMessageAccumulator extends TransformStream<
   } = {}) {
     let message = initialMessage ?? createInitialMessage();
     let stateAccumulator: GorpStreamAccumulator | undefined;
+    let finalOutputTokens: number | undefined;
     const tracker = new TimingTracker();
     const warnedKeys = new Set<string>();
     const warnOnce: WarnOnce = (key, warning) => {
@@ -544,6 +534,7 @@ export class AssistantMessageAccumulator extends TransformStream<
             message = handleResult(message, chunk, warnOnce);
             break;
           case "message-finish":
+            finalOutputTokens = chunk.usage?.outputTokens;
             message = handleMessageFinish(message, chunk);
             break;
           case "annotations":
@@ -580,7 +571,7 @@ export class AssistantMessageAccumulator extends TransformStream<
             ...message,
             metadata: {
               ...message.metadata,
-              timing: computeTiming(tracker, message),
+              timing: computeTiming(tracker, message, finalOutputTokens),
             },
           };
         }
@@ -611,7 +602,7 @@ export class AssistantMessageAccumulator extends TransformStream<
             ...message,
             metadata: {
               ...message.metadata,
-              timing: computeTiming(tracker, message),
+              timing: computeTiming(tracker, message, finalOutputTokens),
             },
           };
 

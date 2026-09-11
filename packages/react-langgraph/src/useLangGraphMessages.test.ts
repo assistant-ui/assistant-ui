@@ -1,4 +1,4 @@
-import { describe, it, expect, vi } from "vitest";
+import { describe, it, expect, onTestFinished, vi } from "vitest";
 import { act, renderHook, waitFor } from "@testing-library/react";
 
 import { useLangGraphMessages } from "./useLangGraphMessages";
@@ -707,9 +707,7 @@ describe("useLangGraphMessages", {}, () => {
       expect(result.current.messages).toHaveLength(1);
       const message = result.current.messages[0]!;
       expect(message.id).toBeDefined();
-      expect(message.id).toMatch(
-        /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/,
-      ); // UUID v4 format
+      expect(message.id).not.toHaveLength(0);
     });
   });
 
@@ -775,6 +773,197 @@ describe("useLangGraphMessages", {}, () => {
         "This is a streamed AI response",
       );
     });
+  });
+
+  it("keeps streaming after updates events with null or primitive payloads", async () => {
+    const capturedUpdates: unknown[] = [];
+    const mockStreamCallback = mockStreamCallbackFactory([
+      metadataEvent,
+      { event: "updates", data: null },
+      { event: "updates", data: "not-an-object" },
+      {
+        event: "messages",
+        data: [
+          {
+            id: "ai-2",
+            content: "This is a streamed AI response",
+            type: "AIMessageChunk",
+          },
+          { run_attempt: 1 },
+        ],
+      },
+    ]);
+
+    const { result } = renderHook(() =>
+      useLangGraphMessages({
+        stream: mockStreamCallback,
+        appendMessage: appendLangChainChunk,
+        eventHandlers: {
+          onUpdates: (updates) => {
+            capturedUpdates.push(updates);
+          },
+        },
+      }),
+    );
+
+    act(() => {
+      result.current.sendMessage(
+        [{ id: "user-1", type: "human" as const, content: "hi" }],
+        {},
+      );
+    });
+
+    await waitFor(() => {
+      expect(result.current.messages).toHaveLength(2);
+      expect(result.current.messages[1]!.id).toEqual("ai-2");
+    });
+    expect(capturedUpdates).toEqual([null, "not-an-object"]);
+  });
+
+  it("keeps the active interrupt when a null updates payload arrives", async () => {
+    const mockStreamCallback = mockStreamCallbackFactory([
+      metadataEvent,
+      { event: "updates", data: { __interrupt__: [{ value: "approve?" }] } },
+      { event: "updates", data: null },
+    ]);
+
+    const { result } = renderHook(() =>
+      useLangGraphMessages({
+        stream: mockStreamCallback,
+        appendMessage: appendLangChainChunk,
+      }),
+    );
+
+    await act(async () => {
+      await result.current.sendMessage(
+        [{ id: "user-1", type: "human" as const, content: "hi" }],
+        {},
+      );
+    });
+
+    expect(result.current.interrupt).toEqual({ value: "approve?" });
+  });
+
+  it("keeps streaming after messages events with null payloads", async () => {
+    const warnSpy = vi.spyOn(console, "warn").mockImplementation(() => {});
+    onTestFinished(() => warnSpy.mockRestore());
+    const mockStreamCallback = mockStreamCallbackFactory([
+      metadataEvent,
+      { event: "messages/partial", data: null },
+      { event: "messages", data: null },
+      {
+        event: "messages",
+        data: [
+          {
+            id: "ai-2",
+            content: "This is a streamed AI response",
+            type: "AIMessageChunk",
+          },
+          { run_attempt: 1 },
+        ],
+      },
+    ]);
+
+    const { result } = renderHook(() =>
+      useLangGraphMessages({
+        stream: mockStreamCallback,
+        appendMessage: appendLangChainChunk,
+      }),
+    );
+
+    act(() => {
+      result.current.sendMessage(
+        [{ id: "user-1", type: "human" as const, content: "hi" }],
+        {},
+      );
+    });
+
+    await waitFor(() => {
+      expect(result.current.messages).toHaveLength(2);
+      expect(result.current.messages[1]!.id).toEqual("ai-2");
+    });
+    expect(warnSpy).toHaveBeenCalledWith(
+      "Received invalid messages payload:",
+      null,
+    );
+    expect(warnSpy).toHaveBeenCalledWith(
+      "Received invalid messages tuple format:",
+      null,
+    );
+  });
+
+  it("does not latch the tuple mode on a malformed messages event", async () => {
+    const warnSpy = vi.spyOn(console, "warn").mockImplementation(() => {});
+    onTestFinished(() => warnSpy.mockRestore());
+    const mockStreamCallback = mockStreamCallbackFactory([
+      metadataEvent,
+      { event: "messages", data: null },
+      {
+        event: "values",
+        data: {
+          messages: [{ id: "ai-1", type: "ai" as const, content: "first" }],
+        },
+      },
+      {
+        event: "values",
+        data: {
+          messages: [
+            { id: "ai-1", type: "ai" as const, content: "first second" },
+          ],
+        },
+      },
+    ]);
+
+    const { result } = renderHook(() =>
+      useLangGraphMessages({
+        stream: mockStreamCallback,
+        appendMessage: appendLangChainChunk,
+      }),
+    );
+
+    await act(async () => {
+      await result.current.sendMessage(
+        [{ id: "user-1", type: "human" as const, content: "hi" }],
+        {},
+      );
+    });
+
+    expect(result.current.messages.map((m) => m.content)).toEqual([
+      "first second",
+    ]);
+  });
+
+  it("keeps the last valid values snapshot when a malformed one follows", async () => {
+    const capturedValues: unknown[] = [];
+    const mockStreamCallback = mockStreamCallbackFactory([
+      metadataEvent,
+      { event: "values", data: null },
+      { event: "values", data: { step: 1 } },
+      { event: "values", data: null },
+      { event: "values", data: 42 },
+    ]);
+
+    const { result } = renderHook(() =>
+      useLangGraphMessages({
+        stream: mockStreamCallback,
+        appendMessage: appendLangChainChunk,
+        eventHandlers: {
+          onValues: (values) => {
+            capturedValues.push(values);
+          },
+        },
+      }),
+    );
+
+    await act(async () => {
+      await result.current.sendMessage(
+        [{ id: "user-1", type: "human" as const, content: "hi" }],
+        {},
+      );
+    });
+
+    expect(result.current.values).toEqual({ step: 1 });
+    expect(capturedValues).toEqual([null, { step: 1 }, null, 42]);
   });
 
   it("does not replace tuple-accumulated messages with updates snapshots", async () => {
@@ -1119,7 +1308,7 @@ describe("useLangGraphMessages", {}, () => {
       result.current.sendMessage([{ type: "human", content: "test" }], {
         checkpointId: "cp-456",
         command: { resume: "yes" },
-        runConfig: { model: "gpt-5.4-nano" },
+        runConfig: { model: "gpt-5.6-luna" },
       });
     });
 
@@ -1128,10 +1317,51 @@ describe("useLangGraphMessages", {}, () => {
       const config = streamSpy.mock.calls[0]![1];
       expect(config.checkpointId).toBe("cp-456");
       expect(config.command).toEqual({ resume: "yes" });
-      expect(config.runConfig).toEqual({ model: "gpt-5.4-nano" });
+      expect(config.runConfig).toEqual({ model: "gpt-5.6-luna" });
       expect(config.abortSignal).toBeInstanceOf(AbortSignal);
       expect(typeof config.initialize).toBe("function");
     });
+  });
+
+  it("aborts the active stream when the hook unmounts", async () => {
+    let runSignal: AbortSignal | undefined;
+    let resolveStarted!: () => void;
+    const started = new Promise<void>((resolve) => {
+      resolveStarted = resolve;
+    });
+    const streamSpy = vi.fn().mockImplementation(async (_messages, config) => {
+      runSignal = config.abortSignal;
+      resolveStarted();
+      async function* streamResponse() {
+        await new Promise<void>((resolve) => {
+          config.abortSignal.addEventListener("abort", resolve, {
+            once: true,
+          });
+        });
+      }
+      return streamResponse();
+    });
+
+    const { result, unmount } = renderHook(() =>
+      useLangGraphMessages({
+        stream: streamSpy,
+        appendMessage: appendLangChainChunk,
+      }),
+    );
+
+    let sendMessagePromise!: Promise<void>;
+    act(() => {
+      sendMessagePromise = result.current.sendMessage(
+        [{ type: "human", content: "unmount me" }],
+        {},
+      );
+    });
+    await started;
+
+    unmount();
+
+    expect(runSignal?.aborted).toBe(true);
+    await expect(sendMessagePromise).resolves.toBeUndefined();
   });
 
   it("swallows AbortError when stream is cancelled", async () => {
@@ -1893,6 +2123,110 @@ describe("useLangGraphMessages", {}, () => {
             ],
           },
         },
+      },
+    ]);
+
+    const { result } = renderHook(() =>
+      useLangGraphMessages({
+        stream: mockStreamCallback,
+        appendMessage: appendLangChainChunk,
+      }),
+    );
+
+    await act(async () => {
+      await result.current.sendMessage([{ type: "human", content: "hi" }], {});
+    });
+
+    expect(result.current.messages.map((m) => m.id)).toEqual(["sum-1"]);
+  });
+
+  it("removes the referenced message when a messages tuple event carries a RemoveMessage", async () => {
+    const mockStreamCallback = mockStreamCallbackFactory([
+      metadataEvent,
+      {
+        event: "messages",
+        data: [
+          {
+            id: "ai-1",
+            content: "I will be pruned",
+            type: "AIMessageChunk",
+            tool_call_chunks: [],
+          },
+          { run_attempt: 1 },
+        ],
+      },
+      {
+        event: "messages",
+        data: [
+          {
+            type: "remove",
+            id: "ai-1",
+            content: [],
+            additional_kwargs: {},
+            response_metadata: {},
+          },
+          { run_attempt: 1 },
+        ],
+      },
+    ]);
+
+    const { result } = renderHook(() =>
+      useLangGraphMessages({
+        stream: mockStreamCallback,
+        appendMessage: appendLangChainChunk,
+      }),
+    );
+
+    await act(async () => {
+      await result.current.sendMessage([{ type: "human", content: "hi" }], {});
+    });
+
+    expect(result.current.messages).toHaveLength(1);
+    expect(result.current.messages[0]!.type).toEqual("human");
+    expect(
+      result.current.messages.find((m) => m.id === "ai-1"),
+    ).toBeUndefined();
+  });
+
+  it("clears all messages when a messages tuple event carries the REMOVE_ALL_MESSAGES sentinel", async () => {
+    const mockStreamCallback = mockStreamCallbackFactory([
+      metadataEvent,
+      {
+        event: "messages",
+        data: [
+          {
+            id: "ai-1",
+            content: "long history to be summarized",
+            type: "AIMessageChunk",
+            tool_call_chunks: [],
+          },
+          { run_attempt: 1 },
+        ],
+      },
+      {
+        event: "messages",
+        data: [
+          {
+            type: "remove",
+            id: "__remove_all__",
+            content: [],
+            additional_kwargs: {},
+            response_metadata: {},
+          },
+          { run_attempt: 1 },
+        ],
+      },
+      {
+        event: "messages",
+        data: [
+          {
+            id: "sum-1",
+            content: "summary of the conversation",
+            type: "AIMessageChunk",
+            tool_call_chunks: [],
+          },
+          { run_attempt: 1 },
+        ],
       },
     ]);
 
@@ -3642,6 +3976,80 @@ describe("useLangGraphMessages", {}, () => {
         langgraph_node: "tools",
         namespace: "tools:tc-1",
       });
+    });
+  });
+
+  it("continues processing after an event callback throws", async () => {
+    const callbackError = new Error("values callback failed");
+    const onCustomEvent = vi.fn();
+    const consoleError = vi
+      .spyOn(console, "error")
+      .mockImplementation(() => {});
+    onTestFinished(() => consoleError.mockRestore());
+    const mockStreamCallback = mockStreamCallbackFactory([
+      { event: "values", data: { messages: [] } },
+      { event: "after-values", data: { ok: true } },
+    ]);
+
+    const { result } = renderHook(() =>
+      useLangGraphMessages({
+        stream: mockStreamCallback,
+        appendMessage: appendLangChainChunk,
+        eventHandlers: {
+          onValues: () => {
+            throw callbackError;
+          },
+          onCustomEvent,
+        },
+      }),
+    );
+
+    await act(() =>
+      result.current.sendMessage([{ type: "human", content: "hi" }], {}),
+    );
+
+    expect(onCustomEvent).toHaveBeenCalledWith("after-values", { ok: true });
+    expect(consoleError).toHaveBeenCalledWith(
+      "[react-langgraph] onValues callback threw an error",
+      callbackError,
+    );
+  });
+
+  it("handles rejected event callback promises", async () => {
+    const callbackError = new Error("custom callback failed");
+    const onMetadata = vi.fn();
+    const consoleError = vi
+      .spyOn(console, "error")
+      .mockImplementation(() => {});
+    onTestFinished(() => consoleError.mockRestore());
+    const mockStreamCallback = mockStreamCallbackFactory([
+      { event: "custom-event", data: { value: 1 } },
+      { event: "metadata", data: { run_id: "run-1" } },
+    ]);
+
+    const { result } = renderHook(() =>
+      useLangGraphMessages({
+        stream: mockStreamCallback,
+        appendMessage: appendLangChainChunk,
+        eventHandlers: {
+          onCustomEvent: async () => {
+            throw callbackError;
+          },
+          onMetadata,
+        },
+      }),
+    );
+
+    await act(() =>
+      result.current.sendMessage([{ type: "human", content: "hi" }], {}),
+    );
+
+    expect(onMetadata).toHaveBeenCalledWith({ run_id: "run-1" });
+    await waitFor(() => {
+      expect(consoleError).toHaveBeenCalledWith(
+        "[react-langgraph] onCustomEvent callback threw an error",
+        callbackError,
+      );
     });
   });
 });

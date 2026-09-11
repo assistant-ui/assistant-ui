@@ -1,0 +1,166 @@
+"use client";
+
+import { type FormEvent, useCallback, useState } from "react";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Textarea } from "@/components/ui/textarea";
+
+interface ApplyFormProps {
+  roleTitle: string;
+}
+
+export const ApplyForm = ({ roleTitle }: ApplyFormProps) => {
+  const [fallbackVisible, setFallbackVisible] = useState(false);
+  const [mailtoHref, setMailtoHref] = useState("");
+  const [composedBody, setComposedBody] = useState("");
+  const [copyStatus, setCopyStatus] = useState<"idle" | "success" | "error">(
+    "idle",
+  );
+
+  const handleSubmit = useCallback(
+    (event: FormEvent<HTMLFormElement>) => {
+      event.preventDefault();
+      const form = event.currentTarget;
+      const formData = new FormData(form);
+
+      const fullName = (formData.get("full_name") as string)?.trim() ?? "";
+      const urlsRaw = (formData.get("urls") as string)?.trim() ?? "";
+      const notes = (formData.get("notes") as string)?.trim() ?? "";
+
+      const urlLines = urlsRaw
+        .split(/\r?\n/)
+        .map((line) => line.trim())
+        .filter(Boolean)
+        .map((line) => `- ${line}`);
+
+      const bodyLines = [
+        "Hello,",
+        "",
+        `I am applying for the ${roleTitle} role.`,
+        "",
+        "Here are a few interesting links to showcase my profile:",
+        urlLines.length ? urlLines.join("\n") : "-",
+      ];
+
+      if (notes) {
+        bodyLines.push("", notes);
+      }
+
+      bodyLines.push("", "Best,", fullName || "");
+
+      const body = bodyLines.join("\n");
+
+      const mailto = `mailto:careers@assistant-ui.com?subject=${encodeURIComponent(
+        `Application: ${roleTitle}`,
+      )}&body=${encodeURIComponent(body)}`;
+
+      // Attempt to open the user's default mail client.
+      // If it doesn't open (no handler configured), reveal fallbacks.
+      setComposedBody(body);
+      setMailtoHref(mailto);
+      setFallbackVisible(true);
+      try {
+        window.location.href = mailto;
+      } catch {
+        // No-op: rely on the fallback UI
+      }
+    },
+    [roleTitle],
+  );
+
+  return (
+    <form onSubmit={handleSubmit} className="grid gap-5">
+      <label className="grid gap-2 text-sm">
+        <span className="text-foreground font-medium">Full Name</span>
+        <Input
+          type="text"
+          name="full_name"
+          required
+          autoComplete="name"
+          placeholder="Ada Lovelace"
+        />
+      </label>
+
+      <label className="grid gap-2 text-sm">
+        <span className="text-foreground font-medium">
+          URLs that best describe you
+        </span>
+        <Textarea
+          name="urls"
+          required
+          rows={3}
+          placeholder="Portfolio, GitHub, LinkedIn, blog. One per line."
+        />
+      </label>
+
+      <label className="grid gap-2 text-sm">
+        <span className="text-foreground font-medium">
+          Anything else?{" "}
+          <span className="text-muted-foreground">(optional)</span>
+        </span>
+        <Textarea
+          name="notes"
+          rows={4}
+          placeholder="Tell us about goals, timelines, or anything you'd like us to know."
+        />
+      </label>
+
+      <Button type="submit" variant="outline" className="w-fit">
+        Apply now
+      </Button>
+
+      {fallbackVisible ? (
+        <div className="border-border/70 bg-background/50 mt-2 grid gap-2 rounded-lg border border-dashed p-3">
+          <p className="text-muted-foreground text-xs">
+            If your email client didn&apos;t open, use the options below.
+          </p>
+          <div className="flex flex-wrap items-center gap-2">
+            <Button
+              variant="outline"
+              size="sm"
+              nativeButton={false}
+              render={<a href={mailtoHref} />}
+            >
+              Open email client
+            </Button>
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              onClick={async () => {
+                try {
+                  const text = `To: careers@assistant-ui.com
+Subject: Application: ${roleTitle}
+
+${composedBody}`;
+                  await navigator.clipboard.writeText(text);
+                  setCopyStatus("success");
+                  setTimeout(() => setCopyStatus("idle"), 2000);
+                } catch {
+                  setCopyStatus("error");
+                  setTimeout(() => setCopyStatus("idle"), 2000);
+                }
+              }}
+            >
+              Copy email text
+            </Button>
+            <span className="text-muted-foreground text-xs">
+              {copyStatus === "success"
+                ? "Copied!"
+                : copyStatus === "error"
+                  ? "Copy failed"
+                  : ""}
+            </span>
+          </div>
+          <p className="text-muted-foreground text-[11px]">
+            Or email{" "}
+            <span className="text-foreground font-medium">
+              careers@assistant-ui.com
+            </span>{" "}
+            with the subject &quot;Application: {roleTitle}&quot;.
+          </p>
+        </div>
+      ) : null}
+    </form>
+  );
+};
