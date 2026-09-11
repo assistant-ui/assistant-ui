@@ -537,7 +537,7 @@ describe("messageProjection", () => {
 
     const nextMessage = (): PiAgentMessage => {
       const index = serial++;
-      switch (pick(7)) {
+      switch (pick(9)) {
         case 0:
           return { role: "user", content: `user-${index}`, timestamp: index };
         case 1: {
@@ -582,13 +582,26 @@ describe("messageProjection", () => {
             display: index % 2 === 0,
             timestamp: index,
           };
-        default:
+        case 6:
           return {
             role: "branchSummary",
             summary: `summary-${index}`,
             fromId: `message-${index}`,
             timestamp: index,
           };
+        case 7:
+          return {
+            role: "compactionSummary",
+            summary: `compaction-${index}`,
+            tokensBefore: index,
+            timestamp: index,
+          };
+        default:
+          return {
+            role: "future-role",
+            payload: index,
+            timestamp: index,
+          } as PiAgentMessage;
       }
     };
 
