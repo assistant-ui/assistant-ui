@@ -112,7 +112,7 @@ describe("controller close idempotence", () => {
 });
 
 describe("raw chunk ordering", () => {
-  it("preserves raw ordering around an appended text part", async () => {
+  it("emits synchronous raw chunks before an appended part body", async () => {
     const before: AssistantStreamChunk = {
       type: "annotations",
       path: [],
