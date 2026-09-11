@@ -156,14 +156,7 @@ export function mapToolCallPartsDeep(
   let activeMessageArrays: WeakSet<object> | undefined;
 
   const pushMessagesFrame = (frame: MessagesFrame) => {
-    if (!activeMessageArrays) {
-      activeMessageArrays = new WeakSet<object>();
-      for (const active of frames) {
-        if (active.type === "messages") {
-          activeMessageArrays.add(active.values);
-        }
-      }
-    }
+    activeMessageArrays ??= new WeakSet<object>();
     if (activeMessageArrays.has(frame.values)) {
       throw new TypeError("Cyclic tool-call message tree");
     }
