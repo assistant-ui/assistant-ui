@@ -5452,6 +5452,9 @@ importers:
       '@assistant-ui/react-markdown':
         specifier: workspace:*
         version: link:../react-markdown
+      '@assistant-ui/react-pi':
+        specifier: workspace:*
+        version: link:../react-pi
       '@assistant-ui/react-streamdown':
         specifier: workspace:*
         version: link:../react-streamdown

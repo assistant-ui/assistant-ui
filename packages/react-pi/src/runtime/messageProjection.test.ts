@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import {
+  PiThreadMessageProjector,
   projectPiThreadMessages,
   type PiProjectionInput,
 } from "./messageProjection";
@@ -419,5 +420,103 @@ describe("messageProjection", () => {
     );
     expect(contentParts(out[0]!)[0]!.approval).toBeUndefined();
     expect(out[0]!.status).toEqual({ type: "complete", reason: "stop" });
+  });
+
+  it("keeps incremental projection equivalent across external state changes", () => {
+    const projector = new PiThreadMessageProjector();
+    const user: PiAgentMessage = {
+      role: "user",
+      content: "run it",
+      timestamp: 1,
+    };
+    const call = assistant([toolCall("tc1", "bash", { command: "ls" })]);
+    const messages: PiAgentMessage[] = [user, call];
+    const assertEquivalent = (next: PiProjectionInput) => {
+      expect(projector.project(next)).toEqual(projectPiThreadMessages(next));
+    };
+
+    assertEquivalent(input(messages));
+    assertEquivalent(
+      input(messages, {
+        toolExecutions: {
+          tc1: {
+            toolCallId: "tc1",
+            status: "running",
+            partialResult: {
+              content: [{ type: "text", text: "partial" }],
+            },
+          },
+        },
+        runStatus: "running",
+      }),
+    );
+    assertEquivalent(
+      input(messages, {
+        runStatus: "running",
+        hostUiRequests: [
+          {
+            id: "request-1",
+            kind: "confirm",
+            title: "Run command?",
+            message: "Allow this command",
+            toolCallId: "tc1",
+          },
+        ],
+      }),
+    );
+    assertEquivalent(
+      input([
+        ...messages,
+        {
+          role: "toolResult",
+          toolCallId: "tc1",
+          toolName: "bash",
+          content: [{ type: "text", text: "done" }],
+          isError: false,
+          timestamp: 2,
+        },
+      ]),
+    );
+    assertEquivalent(input([user]));
+  });
+
+  it("restores an earlier tool result when a later duplicate is removed", () => {
+    const projector = new PiThreadMessageProjector();
+    const call = assistant([toolCall("tc1", "bash", {})]);
+    const firstResult: PiAgentMessage = {
+      role: "toolResult",
+      toolCallId: "tc1",
+      toolName: "bash",
+      content: [{ type: "text", text: "first" }],
+      isError: false,
+      timestamp: 2,
+    };
+    const secondResult: PiAgentMessage = {
+      ...firstResult,
+      content: [{ type: "text", text: "second" }],
+      timestamp: 3,
+    };
+
+    projector.project(input([call, firstResult, secondResult]));
+    const next = input([call, firstResult]);
+    const projected = projector.project(next);
+
+    expect(projected).toEqual(projectPiThreadMessages(next));
+    expect(contentParts(projected[0]!)[0]).toMatchObject({ result: "first" });
+  });
+
+  it("updates the trailing assistant status when a user message is appended", () => {
+    const projector = new PiThreadMessageProjector();
+    const reply = assistant([{ type: "text", text: "done" }]);
+
+    projector.project(input([reply], { runStatus: "running" }));
+    const next = input(
+      [reply, { role: "user", content: "continue", timestamp: 2 }],
+      { runStatus: "running" },
+    );
+    const projected = projector.project(next);
+
+    expect(projected).toEqual(projectPiThreadMessages(next));
+    expect(projected[0]!.status).toEqual({ type: "complete", reason: "stop" });
   });
 });

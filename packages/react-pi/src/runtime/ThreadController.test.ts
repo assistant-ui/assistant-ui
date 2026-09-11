@@ -6,6 +6,7 @@ import type {
   PiClient,
   PiClientEvent,
   PiClientEventBody,
+  PiAgentMessage,
   PiAssistantMessage,
   PiHostUiRequest,
   PiSendMessageInput,
@@ -773,6 +774,57 @@ describe("PiThreadController", () => {
     expect(after[0]).toBe(stableUser);
     expect(after[1]).not.toBe(before[1]);
     expect(after[1]!.content).toMatchObject([{ type: "text", text: "ab" }]);
+  });
+
+  it("does not revisit the unchanged transcript prefix for a stream delta", () => {
+    let prefixRoleReads = 0;
+    const stableMessages = Array.from({ length: 500 }, (_, index) => {
+      const message = {
+        content: `message-${index}`,
+        timestamp: index,
+      };
+      Object.defineProperty(message, "role", {
+        enumerable: true,
+        get: () => {
+          prefixRoleReads += 1;
+          return "user";
+        },
+      });
+      return message as PiAgentMessage;
+    });
+    const client = createFakeClient(snapshot({ messages: stableMessages }));
+    const scheduled: Array<() => void> = [];
+    const controller = new PiThreadController(client, THREAD, {
+      scheduleNotify: (flush) => scheduled.push(flush),
+    });
+    controller.connect();
+
+    client.emit(
+      ev({ type: "snapshot", snapshot: client.getThreadSnapshot }, 1),
+    );
+    client.emit(
+      ev({ type: "message_start", message: assistantMessage("a", 501) }, 2),
+    );
+    prefixRoleReads = 0;
+
+    client.emit(
+      ev(
+        {
+          type: "message_update",
+          message: assistantMessage("ab", 501),
+          assistantMessageEvent: {
+            type: "text_delta",
+            contentIndex: 0,
+            delta: "b",
+            partial: assistantMessage("ab", 501),
+          },
+        },
+        3,
+      ),
+    );
+    scheduled.at(-1)!();
+
+    expect(prefixRoleReads).toBe(2);
   });
 });
 

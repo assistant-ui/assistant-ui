@@ -22,7 +22,7 @@ import {
 } from "./threadState";
 import { errorText } from "../utils";
 import { isKnownPiClientEventType } from "../eventTypes";
-import { projectPiThreadMessagesShared } from "./messageProjection";
+import { PiThreadMessageProjector } from "./messageProjection";
 import {
   responseForApproval,
   responseForInterrupt,
@@ -239,6 +239,9 @@ export class PiThreadController implements PiThreadControllerLike {
   private state: PiThreadState;
   private stateSnapshot: PiThreadState;
   private projectedMessages: readonly ThreadMessageLike[] = [];
+  private readonly messageProjector = new PiThreadMessageProjector(
+    this.projectedMessages,
+  );
   private messageRepository = ExportedMessageRepository.fromArray([]);
   private version = 0;
   private readonly allListeners = new Set<() => void>();
@@ -656,15 +659,12 @@ export class PiThreadController implements PiThreadControllerLike {
   }
 
   private projectMessages() {
-    return projectPiThreadMessagesShared(
-      {
-        messages: this.projectedInputMessages(),
-        toolExecutions: this.state.toolExecutions,
-        runStatus: this.state.runStatus,
-        hostUiRequests: this.state.hostUiRequests,
-      },
-      this.projectedMessages,
-    );
+    return this.messageProjector.project({
+      messages: this.projectedInputMessages(),
+      toolExecutions: this.state.toolExecutions,
+      runStatus: this.state.runStatus,
+      hostUiRequests: this.state.hostUiRequests,
+    });
   }
 
   private recomputeProjectedMessagesAndNotify() {
