@@ -281,9 +281,7 @@ describe("ExternalStoreThreadRuntimeCore adapter contract", () => {
               ? [user, createAssistantMessage("a1")]
               : change === "user"
                 ? [user, createUserMessage("u2")]
-                : change === "import"
-                  ? [user]
-                  : [];
+                : [user];
           if (change === "session reset") core.unstable_notifySessionReset();
           if (change === "reset") core.reset();
           if (change === "import") core.import(core.export());
@@ -445,30 +443,33 @@ describe("ExternalStoreThreadRuntimeCore adapter contract", () => {
       expect(adapter.setMessages).toHaveBeenLastCalledWith([]);
     });
 
-    it("sends after the cancelled turn using its user parent without editing", async () => {
-      const { core, adapter, user } = stopBeforeStream();
-      const markerId = expectCancelledTurn(core);
-      await new Promise((resolve) => setTimeout(resolve, 0));
-      core.__internal_setAdapter({
-        ...adapter,
-        isRunning: false,
-        messages: [user],
-      });
-      await core.append({
-        role: "user",
-        createdAt: new Date(),
-        metadata: { custom: {} },
-        parentId: markerId,
-        content: [{ type: "text", text: "next" }],
-        attachments: [],
-        runConfig: {},
-        sourceId: null,
-      });
-      expect(adapter.onNew).toHaveBeenCalledWith(
-        expect.objectContaining({ parentId: "u1" }),
-      );
-      expect(adapter.onEdit).not.toHaveBeenCalled();
-    });
+    it.each(["cancelled turn", "user parent"] as const)(
+      "sends after the cancelled turn as a tail append when the parent is the %s",
+      async (parent) => {
+        const { core, adapter, user } = stopBeforeStream();
+        const markerId = expectCancelledTurn(core);
+        await new Promise((resolve) => setTimeout(resolve, 0));
+        core.__internal_setAdapter({
+          ...adapter,
+          isRunning: false,
+          messages: [user],
+        });
+        await core.append({
+          role: "user",
+          createdAt: new Date(),
+          metadata: { custom: {} },
+          parentId: parent === "cancelled turn" ? markerId : "u1",
+          content: [{ type: "text", text: "next" }],
+          attachments: [],
+          runConfig: {},
+          sourceId: null,
+        });
+        expect(adapter.onNew).toHaveBeenCalledWith(
+          expect.objectContaining({ parentId: "u1" }),
+        );
+        expect(adapter.onEdit).not.toHaveBeenCalled();
+      },
+    );
 
     it("dispatches queued sends from the cancelled turn's user parent", async () => {
       const run = vi.fn();

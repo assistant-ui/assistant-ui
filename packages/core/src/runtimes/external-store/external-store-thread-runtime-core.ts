@@ -656,12 +656,16 @@ export class ExternalStoreThreadRuntimeCore
   public async append(rawMessage: AppendMessage): Promise<void> {
     // sourceId marks an edit send; the parent may coincide with the head
     // after a resync (e.g. cancelRun dropped the edited message).
+    // A host that computes the parent from its own store names the user
+    // message under the cancelled turn; both address the same tail.
+    const cancelledRun = this._cancelledRun;
     const isEdit =
       rawMessage.sourceId != null ||
-      rawMessage.parentId !== (this.messages.at(-1)?.id ?? null);
+      (rawMessage.parentId !== (this.messages.at(-1)?.id ?? null) &&
+        rawMessage.parentId !== cancelledRun?.parentId);
 
-    if (!isEdit && rawMessage.parentId === this._cancelledRun?.id) {
-      rawMessage = { ...rawMessage, parentId: this._cancelledRun.parentId };
+    if (!isEdit && cancelledRun && rawMessage.parentId === cancelledRun.id) {
+      rawMessage = { ...rawMessage, parentId: cancelledRun.parentId };
     }
 
     // A transformed-queue send is stamped at flush; any other queue's
@@ -866,6 +870,7 @@ export class ExternalStoreThreadRuntimeCore
    * without run-cancel semantics (`onCancel`, composer draft restoration).
    */
   public unstable_notifySessionReset(): void {
+    this._dropCancelledRun();
     this._runTrackerUpdate(() => this._toolInvocations?.reset());
     this._store.queue?.__internal_notifyCancelled?.();
   }
@@ -934,7 +939,7 @@ export class ExternalStoreThreadRuntimeCore
       this._addCancelledRunMessage(this._cancelledRun);
     }
     this._messages = this.repository.getMessages();
-    if (!movedLeaf) this._notifySubscribers();
+    this._notifySubscribers();
 
     // The resync commits what the cancel left (a kept optimistic message, the
     // restored branch) back to the store a macrotask later. The store may move
