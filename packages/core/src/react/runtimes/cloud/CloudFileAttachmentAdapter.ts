@@ -30,7 +30,7 @@ export class CloudFileAttachmentAdapter implements AttachmentAdapter {
   private uploadedUrls = new Map<string, string>();
   private activeUploads = new Map<
     string,
-    { cancelled: boolean; controller: AbortController | undefined }
+    { cancelled: boolean; controller: AbortController }
   >();
 
   public async *add({
@@ -48,10 +48,7 @@ export class CloudFileAttachmentAdapter implements AttachmentAdapter {
       file,
       status: { type: "running", reason: "uploading", progress: 0 },
     };
-    const controller =
-      typeof AbortController === "undefined"
-        ? undefined
-        : new AbortController();
+    const controller = new AbortController();
     const upload = { cancelled: false, controller };
     this.activeUploads.set(id, upload);
 
@@ -72,7 +69,7 @@ export class CloudFileAttachmentAdapter implements AttachmentAdapter {
           "Content-Type": file.type,
         },
         mode: "cors",
-        ...(controller ? { signal: controller.signal } : undefined),
+        signal: controller.signal,
       });
       if (upload.cancelled) return;
 
@@ -111,7 +108,7 @@ export class CloudFileAttachmentAdapter implements AttachmentAdapter {
     const upload = this.activeUploads.get(attachment.id);
     if (upload) {
       upload.cancelled = true;
-      upload.controller?.abort();
+      upload.controller.abort();
       this.activeUploads.delete(attachment.id);
     }
     this.uploadedUrls.delete(attachment.id);

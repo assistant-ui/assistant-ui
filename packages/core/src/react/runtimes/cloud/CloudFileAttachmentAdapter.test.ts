@@ -167,8 +167,16 @@ describe("CloudFileAttachmentAdapter", () => {
   });
 
   it("does not finish an upload removed during the file request", async () => {
-    const response = deferred<{ ok: boolean }>();
-    const fetchMock = vi.fn().mockReturnValue(response.promise);
+    const fetchMock = vi.fn((_url: string, init: RequestInit) => {
+      return new Promise((_resolve, reject) => {
+        init.signal!.addEventListener(
+          "abort",
+          () =>
+            reject(new DOMException("The operation was aborted", "AbortError")),
+          { once: true },
+        );
+      });
+    });
     vi.stubGlobal("fetch", fetchMock);
     const errorSpy = vi.spyOn(console, "error").mockImplementation(() => {});
     const adapter = new CloudFileAttachmentAdapter(makeCloud());
@@ -186,7 +194,6 @@ describe("CloudFileAttachmentAdapter", () => {
       expect.objectContaining({ signal: expect.any(AbortSignal) }),
     );
     expect(vi.mocked(fetchMock).mock.calls[0]?.[1]?.signal.aborted).toBe(true);
-    response.resolve({ ok: true });
 
     await expect(completion).resolves.toEqual({ done: true, value: undefined });
     expect(errorSpy).not.toHaveBeenCalled();
