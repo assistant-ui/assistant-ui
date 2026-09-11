@@ -99,6 +99,8 @@ export const createMergeStream = () => {
   });
 
   const enqueueRawChunk = (chunk: AssistantStreamChunk) => {
+    if (list.length > 0) rawChunkBatch = undefined;
+
     if (!rawChunkBatch) {
       const batch: AssistantStreamChunk[] = [];
       rawChunkBatch = batch;

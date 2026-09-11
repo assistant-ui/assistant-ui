@@ -95,6 +95,39 @@ describe("createMergeStream", () => {
     expect(received).toEqual([textDelta("child"), textDelta("raw")]);
   });
 
+  it("preserves child readiness between raw chunks", async () => {
+    let childController!: ReadableStreamDefaultController<AssistantStreamChunk>;
+    const merger = createMergeStream();
+    const received: AssistantStreamChunk[] = [];
+
+    merger.addStream(
+      new ReadableStream({
+        start(controller) {
+          childController = controller;
+        },
+      }),
+    );
+    merger.enqueue(textDelta("before"));
+    childController.enqueue(textDelta("child"));
+    childController.close();
+    merger.enqueue(textDelta("after"));
+    merger.seal();
+
+    await merger.readable.pipeTo(
+      new WritableStream({
+        write(chunk) {
+          received.push(chunk);
+        },
+      }),
+    );
+
+    expect(received).toEqual([
+      textDelta("before"),
+      textDelta("child"),
+      textDelta("after"),
+    ]);
+  });
+
   it("does not block raw chunks on a delayed child", async () => {
     let childController!: ReadableStreamDefaultController<AssistantStreamChunk>;
     const merger = createMergeStream();
