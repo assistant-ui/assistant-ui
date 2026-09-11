@@ -310,21 +310,26 @@ describe("useAssistantForm", () => {
     const container = document.createElement("div");
     shadowRoot.append(container);
     document.body.append(host);
-    render(<FormOwner />, { container });
+    try {
+      render(<FormOwner />, { container });
 
-    const submission = executeSubmitForm();
-    await waitFor(() => expect(validationStarted).toBe(true));
+      const submission = executeSubmitForm();
+      await waitFor(() => expect(validationStarted).toBe(true));
 
-    act(() => hideForm());
+      act(() => hideForm());
 
-    await expect(submission).resolves.toEqual({
-      success: false,
-      message: "The form is no longer available.",
-    });
+      await expect(submission).resolves.toEqual({
+        success: false,
+        message: "The form is no longer available.",
+      });
 
-    await act(() => resolveValidation({ values: { name: "Ada" }, errors: {} }));
-    expect(onValid).toHaveBeenCalledOnce();
-    host.remove();
+      await act(() =>
+        resolveValidation({ values: { name: "Ada" }, errors: {} }),
+      );
+      expect(onValid).toHaveBeenCalledOnce();
+    } finally {
+      host.remove();
+    }
   });
 
   it("invokes a valid callback when validation disconnects the form", async () => {
