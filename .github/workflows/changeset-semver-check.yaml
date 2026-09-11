@@ -4,11 +4,6 @@ on:
   pull_request:
     branches: [main]
     types: [opened, synchronize, reopened]
-    paths:
-      - "scripts/update-deps.sh"
-      - "scripts/update-deps.test.mjs"
-      - "package.json"
-      - ".github/workflows/changeset-semver-check.yaml"
 
 permissions:
   contents: read
