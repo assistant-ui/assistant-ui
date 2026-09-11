@@ -193,7 +193,7 @@ describe("CloudFileAttachmentAdapter", () => {
       "https://storage.example/upload",
       expect.objectContaining({ signal: expect.any(AbortSignal) }),
     );
-    expect(vi.mocked(fetchMock).mock.calls[0]?.[1]?.signal.aborted).toBe(true);
+    expect(vi.mocked(fetchMock).mock.calls[0]?.[1]?.signal?.aborted).toBe(true);
 
     await expect(completion).resolves.toEqual({ done: true, value: undefined });
     expect(errorSpy).not.toHaveBeenCalled();
