@@ -448,22 +448,44 @@ export abstract class BaseThreadRuntimeCore
   }
 
   public disconnectVoice() {
-    this._finishVoiceAssistantMessage();
+    let cleanupFailed = false;
+    let cleanupError: unknown;
+    const runCleanup = (cleanup: () => void) => {
+      try {
+        cleanup();
+      } catch (error) {
+        if (cleanupFailed) {
+          console.error(error);
+        } else {
+          cleanupFailed = true;
+          cleanupError = error;
+        }
+      }
+    };
+
+    runCleanup(() => this._finishVoiceAssistantMessage());
     this._currentAssistantMsg = null;
-    for (const unsub of this._voiceUnsubs) unsub();
+    const unsubs = this._voiceUnsubs;
     this._voiceUnsubs = [];
-    this._voiceSession?.disconnect();
+    const session = this._voiceSession;
     this._voiceSession = undefined;
     this.voice = undefined;
     this._voiceVolume = 0;
-    notifyEventListeners(
-      this._voiceVolumeSubscribers,
-      undefined,
-      "Voice volume",
-    );
     this._voiceMessages = [];
     this._markVoiceMessagesDirty();
-    this._notifySubscribers();
+
+    for (const unsub of unsubs) runCleanup(unsub);
+    if (session) runCleanup(() => session.disconnect());
+    runCleanup(() =>
+      notifyEventListeners(
+        this._voiceVolumeSubscribers,
+        undefined,
+        "Voice volume",
+      ),
+    );
+    runCleanup(() => this._notifySubscribers());
+
+    if (cleanupFailed) throw cleanupError;
   }
 
   public muteVoice() {

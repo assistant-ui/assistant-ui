@@ -231,6 +231,28 @@ describe("BaseThreadRuntimeCore subscriptions", () => {
 });
 
 describe("BaseThreadRuntimeCore voice volume subscriptions", () => {
+  it("finishes disconnecting when a session cleanup throws", () => {
+    const cleanupError = new Error("cleanup failed");
+    const laterCleanup = vi.fn();
+    const voice = createVoiceAdapter();
+    voice.session.onStatusChange = () => () => {
+      throw cleanupError;
+    };
+    voice.session.onModeChange = () => laterCleanup;
+    const runtime = new TestRuntime(voice);
+    runtime.connectVoice();
+
+    expect(() => runtime.disconnectVoice()).toThrow(cleanupError);
+    expect(laterCleanup).toHaveBeenCalledOnce();
+    expect(voice.session.disconnect).toHaveBeenCalledOnce();
+    expect(runtime.voice).toBeUndefined();
+    expect(runtime.getVoiceVolume()).toBe(0);
+
+    expect(() => runtime.disconnectVoice()).not.toThrow();
+    expect(laterCleanup).toHaveBeenCalledOnce();
+    expect(voice.session.disconnect).toHaveBeenCalledOnce();
+  });
+
   it("continues notifying subscribers when one throws", () => {
     const consoleError = vi
       .spyOn(console, "error")
