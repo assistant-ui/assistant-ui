@@ -139,6 +139,83 @@ describe("parseStoredMessageRepository", () => {
     expect(repo.messages.map((item) => item.message.id)).toEqual(["valid"]);
   });
 
+  it("skips messages with malformed nested content", () => {
+    const repo = parseStoredMessageRepository(
+      JSON.stringify({
+        messages: [
+          {
+            message: {
+              ...storedMessage("null-part", "assistant"),
+              content: [null],
+            },
+            parentId: null,
+          },
+          {
+            message: {
+              ...storedMessage("invalid-text"),
+              content: [{ type: "text", text: 42 }],
+            },
+            parentId: null,
+          },
+          {
+            message: {
+              ...storedMessage("invalid-nested-message", "assistant"),
+              content: [
+                {
+                  type: "tool-call",
+                  toolCallId: "tool-1",
+                  toolName: "delegate",
+                  args: {},
+                  argsText: "{}",
+                  messages: [null],
+                },
+              ],
+            },
+            parentId: null,
+          },
+          {
+            message: {
+              ...storedMessage("valid"),
+              content: [{ type: "text", text: "hello" }],
+            },
+            parentId: null,
+          },
+        ],
+      }),
+    );
+
+    expect(repo.messages.map((item) => item.message.id)).toEqual(["valid"]);
+  });
+
+  it("skips messages with malformed attachments or assistant status", () => {
+    const repo = parseStoredMessageRepository(
+      JSON.stringify({
+        messages: [
+          {
+            message: {
+              ...storedMessage("invalid-attachment"),
+              attachments: [null],
+            },
+            parentId: null,
+          },
+          {
+            message: {
+              ...storedMessage("invalid-status", "assistant"),
+              status: { type: "complete", reason: "length" },
+            },
+            parentId: null,
+          },
+          {
+            message: storedMessage("valid", "assistant"),
+            parentId: null,
+          },
+        ],
+      }),
+    );
+
+    expect(repo.messages.map((item) => item.message.id)).toEqual(["valid"]);
+  });
+
   it("skips messages whose parent is missing, skipped, or appears later", () => {
     const repo = parseStoredMessageRepository(
       JSON.stringify({

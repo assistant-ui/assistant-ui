@@ -120,10 +120,110 @@ const parseDate = (value: unknown): Date | null => {
 const isMessageRole = (value: unknown): value is ThreadMessage["role"] =>
   value === "system" || value === "user" || value === "assistant";
 
-const parseStoredThreadMessage = (value: unknown): ThreadMessage | null => {
+const isMessageStatus = (value: unknown): boolean => {
+  if (!isRecord(value)) return false;
+  if (value.type === "running") return true;
+  if (value.type === "requires-action") {
+    return value.reason === "tool-calls" || value.reason === "interrupt";
+  }
+  if (value.type === "complete") {
+    return value.reason === "stop" || value.reason === "unknown";
+  }
+  return (
+    value.type === "incomplete" &&
+    (value.reason === "cancelled" ||
+      value.reason === "tool-calls" ||
+      value.reason === "length" ||
+      value.reason === "content-filter" ||
+      value.reason === "other" ||
+      value.reason === "error")
+  );
+};
+
+const isStoredMessagePart = (
+  value: unknown,
+  role: ThreadMessage["role"],
+): boolean => {
+  if (!isRecord(value)) return false;
+
+  switch (value.type) {
+    case "text":
+      return typeof value.text === "string";
+    case "image":
+      return role !== "system" && typeof value.image === "string";
+    case "file":
+      return (
+        role !== "system" &&
+        typeof value.data === "string" &&
+        typeof value.mimeType === "string"
+      );
+    case "data":
+      return (
+        role !== "system" &&
+        typeof value.name === "string" &&
+        Object.hasOwn(value, "data")
+      );
+    case "audio":
+      return (
+        role === "user" &&
+        isRecord(value.audio) &&
+        typeof value.audio.data === "string" &&
+        (value.audio.format === "mp3" || value.audio.format === "wav")
+      );
+    case "reasoning":
+      return role === "assistant" && typeof value.text === "string";
+    case "source":
+      return (
+        role === "assistant" &&
+        typeof value.id === "string" &&
+        ((value.sourceType === "url" && typeof value.url === "string") ||
+          (value.sourceType === "document" &&
+            typeof value.title === "string" &&
+            typeof value.mediaType === "string"))
+      );
+    case "generative-ui":
+      return role === "assistant" && isRecord(value.spec);
+    case "tool-call":
+      return (
+        role === "assistant" &&
+        typeof value.toolCallId === "string" &&
+        typeof value.toolName === "string" &&
+        isRecord(value.args) &&
+        typeof value.argsText === "string" &&
+        (value.messages === undefined ||
+          (Array.isArray(value.messages) &&
+            value.messages.every(
+              (message) => parseStoredThreadMessage(message) !== null,
+            )))
+      );
+    default:
+      return false;
+  }
+};
+
+const isStoredAttachment = (value: unknown): boolean =>
+  isRecord(value) &&
+  typeof value.id === "string" &&
+  typeof value.type === "string" &&
+  typeof value.name === "string" &&
+  isRecord(value.status) &&
+  value.status.type === "complete" &&
+  Array.isArray(value.content) &&
+  value.content.every((part) => isStoredMessagePart(part, "user"));
+
+const hasValidAssistantMetadata = (
+  metadata: Record<string, unknown>,
+): boolean =>
+  (!Array.isArray(metadata.steps) || metadata.steps.every(isRecord)) &&
+  (metadata.timing === undefined || isRecord(metadata.timing));
+
+function parseStoredThreadMessage(value: unknown): ThreadMessage | null {
   if (!isRecord(value) || typeof value.id !== "string") return null;
   if (!isMessageRole(value.role)) return null;
   if (!Array.isArray(value.content)) return null;
+  if (!value.content.every((part) => isStoredMessagePart(part, value.role))) {
+    return null;
+  }
 
   const createdAt = parseDate(value.createdAt);
   if (!createdAt) return null;
@@ -133,7 +233,9 @@ const parseStoredThreadMessage = (value: unknown): ThreadMessage | null => {
 
   if (value.role === "assistant") {
     const status = value.status;
-    if (!isRecord(status) || typeof status.type !== "string") return null;
+    if (!isMessageStatus(status) || !hasValidAssistantMetadata(metadata)) {
+      return null;
+    }
 
     const submittedFeedback = isRecord(metadata.submittedFeedback)
       ? metadata.submittedFeedback
@@ -182,13 +284,15 @@ const parseStoredThreadMessage = (value: unknown): ThreadMessage | null => {
   }
 
   if (value.role === "user") {
+    const attachments = value.attachments ?? [];
+    if (!Array.isArray(attachments) || !attachments.every(isStoredAttachment)) {
+      return null;
+    }
     return {
       id: value.id,
       role: "user",
       content: value.content as StoredUserMessage["content"],
-      attachments: Array.isArray(value.attachments)
-        ? (value.attachments as StoredUserMessage["attachments"])
-        : [],
+      attachments: attachments as StoredUserMessage["attachments"],
       createdAt,
       metadata: {
         custom: metadata.custom,
@@ -207,7 +311,7 @@ const parseStoredThreadMessage = (value: unknown): ThreadMessage | null => {
       custom: metadata.custom,
     },
   };
-};
+}
 
 export const parseStoredThreadMetadata = (
   raw: string | null,
