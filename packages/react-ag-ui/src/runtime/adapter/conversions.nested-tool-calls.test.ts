@@ -65,12 +65,19 @@ describe("toAgUiMessages nested tool calls", () => {
     expect(converted.toolCalls?.at(-1)?.id).toBe(String(depth - 1));
   });
 
-  it("rejects cyclic nested tool-call messages", () => {
+  it("terminates cyclic nested tool-call messages without throwing", () => {
     const messages: Message[] = [];
     messages.push(assistant("nested", [toolCall("nested-call", messages)]));
 
-    expect(() =>
-      toAgUiMessages([assistant("root", [toolCall("root-call", messages)])]),
-    ).toThrow("Cyclic nested tool-call messages");
+    const [converted] = toAgUiMessages([
+      assistant("root", [toolCall("root-call", messages)]),
+    ]);
+
+    expect(converted).toMatchObject({ role: "assistant" });
+    if (converted?.role !== "assistant") throw new Error("expected assistant");
+    expect(converted.toolCalls?.map(({ id }) => id)).toEqual([
+      "root-call",
+      "nested-call",
+    ]);
   });
 });
