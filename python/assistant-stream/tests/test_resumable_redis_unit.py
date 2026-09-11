@@ -177,7 +177,7 @@ async def test_in_flight_delete_cannot_remove_reacquired_stream() -> None:
     await client.delete([meta_key])
     assert await fresh_store.acquire(stream_id) == "producer"
     resume.set()
-    await deleting
+    await asyncio.wait_for(deleting, timeout=1)
 
     assert await fresh_store.status(stream_id) == "streaming"
     assert stale_data_key not in client.streams
@@ -209,7 +209,7 @@ async def test_delete_does_not_clear_same_store_reacquisition() -> None:
     assert await store.acquire(stream_id) == "producer"
     await store.append(stream_id, b"fresh")
     resume.set()
-    await deleting
+    await asyncio.wait_for(deleting, timeout=1)
     await store.finalize(stream_id, "done")
 
     chunks = [
