@@ -163,7 +163,7 @@ describe("parseStoredMessageRepository", () => {
     expect(repo.messages.map((item) => item.message.id)).toEqual(["valid"]);
   });
 
-  it("drops malformed parts without dropping their messages", () => {
+  it("rejects messages with malformed parts", () => {
     const repo = parseStoredMessageRepository(
       JSON.stringify({
         messages: [
@@ -230,21 +230,7 @@ describe("parseStoredMessageRepository", () => {
       }),
     );
 
-    expect(repo.messages.map((item) => item.message.id)).toEqual([
-      "null-part",
-      "invalid-text",
-      "invalid-nested-message",
-      "invalid-generative-ui",
-      "invalid-optional-fields",
-      "valid",
-    ]);
-    expect(repo.messages[0]?.message.content).toEqual([]);
-    expect(repo.messages[1]?.message.content).toEqual([]);
-    expect(repo.messages[2]?.message.content).toEqual([
-      expect.objectContaining({ messages: [] }),
-    ]);
-    expect(repo.messages[3]?.message.content).toEqual([]);
-    expect(repo.messages[4]?.message.content).toEqual([]);
+    expect(repo.messages.map((item) => item.message.id)).toEqual(["valid"]);
   });
 
   it("drops tool calls with malformed approval or MCP metadata", () => {
@@ -279,10 +265,10 @@ describe("parseStoredMessageRepository", () => {
       }),
     );
 
-    expect(repo.messages[0]?.message.content).toEqual([]);
+    expect(repo.messages).toEqual([]);
   });
 
-  it("normalizes malformed attachments, statuses, and metadata", () => {
+  it("rejects malformed attachments, statuses, and metadata", () => {
     const repo = parseStoredMessageRepository(
       JSON.stringify({
         messages: [
@@ -325,19 +311,7 @@ describe("parseStoredMessageRepository", () => {
       }),
     );
 
-    expect(repo.messages.map((item) => item.message.id)).toEqual([
-      "invalid-attachment",
-      "invalid-status",
-      "null-attachments",
-      "valid",
-    ]);
-    expect(repo.messages[0]?.message.attachments).toEqual([]);
-    expect(repo.messages[1]?.message).toMatchObject({
-      status: { type: "complete", reason: "unknown" },
-      metadata: { steps: [{ messageId: "step-1" }] },
-    });
-    expect(repo.messages[1]?.message.metadata.timing).toBeUndefined();
-    expect(repo.messages[2]?.message.attachments).toEqual([]);
+    expect(repo.messages.map((item) => item.message.id)).toEqual(["valid"]);
   });
 
   it("preserves supported content and attachment fields", () => {
@@ -470,7 +444,7 @@ describe("parseStoredMessageRepository", () => {
     }
   });
 
-  it("preserves descendants of system messages with malformed content", () => {
+  it("filters descendants of system messages with malformed content", () => {
     const repo = parseStoredMessageRepository(
       JSON.stringify({
         messages: [
@@ -495,13 +469,7 @@ describe("parseStoredMessageRepository", () => {
       }),
     );
 
-    expect(repo.messages.map((item) => item.message.id)).toEqual([
-      "system",
-      "user",
-    ]);
-    expect(repo.messages[0]?.message.content).toEqual([
-      { type: "text", text: "instructions" },
-    ]);
+    expect(repo.messages).toEqual([]);
   });
 
   it("skips messages whose parent is missing, skipped, or appears later", () => {

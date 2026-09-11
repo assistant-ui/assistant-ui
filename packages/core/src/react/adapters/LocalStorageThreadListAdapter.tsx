@@ -21,7 +21,7 @@ import type {
   ExportedMessageRepository,
   ExportedMessageRepositoryItem,
 } from "../../internal";
-import { isRecord } from "../../utils/json/is-json";
+import { isJSONValue, isRecord } from "../../utils/json/is-json";
 import {
   RuntimeAdapterProvider,
   type RuntimeAdapters,
@@ -136,7 +136,8 @@ const isMessageStatus = (value: unknown): boolean => {
       value.reason === "length" ||
       value.reason === "content-filter" ||
       value.reason === "other" ||
-      value.reason === "error")
+      value.reason === "error") &&
+    (value.error === undefined || isJSONValue(value.error))
   );
 };
 
@@ -390,11 +391,12 @@ const parseStoredMessagePart = (
     return value as StoredMessagePart;
   }
 
-  const messages = value.messages.flatMap((message) => {
-    const parsed = parseStoredThreadMessage(message, depth + 1);
-    return parsed ? [parsed] : [];
-  });
-  return { ...value, messages };
+  const messages = value.messages.map((message) =>
+    parseStoredThreadMessage(message, depth + 1),
+  );
+  if (messages.some((message) => message === null)) return null;
+
+  return { ...value, messages: messages as ThreadMessage[] };
 };
 
 function parseStoredThreadMessage(
@@ -414,26 +416,62 @@ function parseStoredThreadMessage(
   if (!isRecord(metadata) || !isRecord(metadata.custom)) return null;
 
   if (value.role === "assistant") {
-    const content = value.content.flatMap((part) => {
-      const parsed = parseStoredMessagePart(part, "assistant", depth);
-      return parsed
-        ? [parsed as StoredAssistantMessage["content"][number]]
-        : [];
-    });
-    const status = isMessageStatus(value.status)
-      ? (value.status as StoredAssistantMessage["status"])
-      : ({ type: "complete", reason: "unknown" } as const);
-
-    const submittedFeedback = isRecord(metadata.submittedFeedback)
-      ? metadata.submittedFeedback
-      : undefined;
+    const content = value.content.map((part) =>
+      parseStoredMessagePart(part, "assistant", depth),
+    );
+    if (content.some((part) => part === null)) return null;
+    if (!isMessageStatus(value.status)) return null;
+    if (
+      metadata.unstable_state !== undefined &&
+      !isJSONValue(metadata.unstable_state)
+    ) {
+      return null;
+    }
+    if (
+      metadata.unstable_annotations !== undefined &&
+      (!Array.isArray(metadata.unstable_annotations) ||
+        !metadata.unstable_annotations.every((item) => isJSONValue(item)))
+    ) {
+      return null;
+    }
+    if (
+      metadata.unstable_data !== undefined &&
+      (!Array.isArray(metadata.unstable_data) ||
+        !metadata.unstable_data.every((item) => isJSONValue(item)))
+    ) {
+      return null;
+    }
+    if (
+      metadata.steps !== undefined &&
+      (!Array.isArray(metadata.steps) || !metadata.steps.every(isThreadStep))
+    ) {
+      return null;
+    }
+    if (metadata.timing !== undefined && !isMessageTiming(metadata.timing)) {
+      return null;
+    }
+    if (
+      metadata.isOptimistic !== undefined &&
+      typeof metadata.isOptimistic !== "boolean"
+    ) {
+      return null;
+    }
+    if (
+      metadata.submittedFeedback !== undefined &&
+      (!isRecord(metadata.submittedFeedback) ||
+        (metadata.submittedFeedback.type !== "positive" &&
+          metadata.submittedFeedback.type !== "negative"))
+    ) {
+      return null;
+    }
+    const submittedFeedback = metadata.submittedFeedback;
     const submittedFeedbackType = submittedFeedback?.type;
 
     return {
       id: value.id,
       role: "assistant",
-      content,
-      status,
+      content: content as StoredAssistantMessage["content"],
+      status: value.status as StoredAssistantMessage["status"],
       createdAt,
       metadata: {
         unstable_state: (metadata.unstable_state ??
@@ -444,11 +482,8 @@ function parseStoredThreadMessage(
         unstable_data: Array.isArray(metadata.unstable_data)
           ? (metadata.unstable_data as StoredAssistantMessage["metadata"]["unstable_data"])
           : [],
-        steps: Array.isArray(metadata.steps)
-          ? (metadata.steps.filter(
-              isThreadStep,
-            ) as StoredAssistantMessage["metadata"]["steps"])
-          : [],
+        steps: (metadata.steps ??
+          []) as StoredAssistantMessage["metadata"]["steps"],
         ...(submittedFeedbackType === "positive" ||
         submittedFeedbackType === "negative"
           ? {
@@ -473,33 +508,42 @@ function parseStoredThreadMessage(
   }
 
   if (value.role === "user") {
-    const content = value.content.flatMap((part) => {
-      const parsed = parseStoredMessagePart(part, "user", depth);
-      return parsed ? [parsed as StoredUserMessage["content"][number]] : [];
-    });
-    const attachments = Array.isArray(value.attachments)
-      ? value.attachments.filter(isStoredAttachment)
-      : [];
+    const content = value.content.map((part) =>
+      parseStoredMessagePart(part, "user", depth),
+    );
+    if (content.some((part) => part === null)) return null;
+    if (
+      value.attachments !== undefined &&
+      (!Array.isArray(value.attachments) ||
+        !value.attachments.every(isStoredAttachment))
+    ) {
+      return null;
+    }
+    if (
+      metadata.isOptimistic !== undefined &&
+      typeof metadata.isOptimistic !== "boolean"
+    ) {
+      return null;
+    }
     return {
       id: value.id,
       role: "user",
-      content,
-      attachments: attachments as StoredUserMessage["attachments"],
+      content: content as StoredUserMessage["content"],
+      attachments: (value.attachments ??
+        []) as StoredUserMessage["attachments"],
       createdAt,
       metadata: {
+        ...(metadata.isOptimistic !== undefined
+          ? { isOptimistic: metadata.isOptimistic }
+          : undefined),
         custom: metadata.custom,
       },
     };
   }
 
   if (value.content.length !== 1) return null;
-  const content =
-    parseStoredMessagePart(value.content[0], "system", depth) ??
-    (isRecord(value.content[0]) &&
-    value.content[0].type === "text" &&
-    typeof value.content[0].text === "string"
-      ? { type: "text", text: value.content[0].text }
-      : ({ type: "text", text: "" } as const));
+  const content = parseStoredMessagePart(value.content[0], "system", depth);
+  if (!content) return null;
 
   return {
     id: value.id,
