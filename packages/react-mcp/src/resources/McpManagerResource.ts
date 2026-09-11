@@ -89,6 +89,7 @@ const useMcpCustomServersResource = ({
   const [isHydrated, setIsHydrated] = useState(false);
 
   const hydratedRef = useRef(false);
+  const shouldPersistRef = useRef(false);
   const storageRef = useRef(storage);
 
   useEffect(() => {
@@ -96,6 +97,7 @@ const useMcpCustomServersResource = ({
   }, [storage]);
 
   const hydrate = useEffectEvent(async (signal: { cancelled: boolean }) => {
+    // A revisited scope must not read behind writes still queued against it.
     const pendingPersistence = persistenceQueues.get(scopeKey);
     if (pendingPersistence) await pendingPersistence;
     if (signal.cancelled) return;
@@ -106,20 +108,19 @@ const useMcpCustomServersResource = ({
     } catch (error) {
       if (!signal.cancelled) {
         reportCustomStorageFailure("load", error);
-        hydratedRef.current = true;
         setIsHydrated(true);
       }
       return;
     }
 
     if (signal.cancelled) return;
+    // Merge rather than replace so any addCustomServer calls that
+    // happened before hydration resolved aren't silently overwritten.
+    // Persisted order wins; pre-hydration locals append.
     setCustomServers((prev) => {
       if (prev.length === 0) return records;
-      const persistedIds = new Set(records.map((record) => record.id));
-      return [
-        ...records,
-        ...prev.filter((record) => !persistedIds.has(record.id)),
-      ];
+      const persistedIds = new Set(records.map((r) => r.id));
+      return [...records, ...prev.filter((r) => !persistedIds.has(r.id))];
     });
     hydratedRef.current = true;
     setIsHydrated(true);
@@ -127,6 +128,8 @@ const useMcpCustomServersResource = ({
 
   useEffect(() => {
     const signal = { cancelled: false };
+    // Hydration reads persisted records asynchronously; there is no earlier
+    // point than mount at which to start it.
     // eslint-disable-next-line react-hooks/set-state-in-effect
     void hydrate(signal);
     return () => {
@@ -135,7 +138,8 @@ const useMcpCustomServersResource = ({
   }, []);
 
   useEffect(() => {
-    if (!hydratedRef.current) return;
+    if (!hydratedRef.current || !shouldPersistRef.current) return;
+    shouldPersistRef.current = false;
     const targetStorage = storageRef.current;
     const previous = persistenceQueues.get(scopeKey);
     const next = (previous ?? Promise.resolve()).then(() =>
@@ -150,8 +154,12 @@ const useMcpCustomServersResource = ({
   }, [customServers, persistenceQueues, scopeKey]);
 
   const updateCustomServers = useCallback(
-    (updater: (records: MCPCustomServerRecord[]) => MCPCustomServerRecord[]) =>
-      setCustomServers(updater),
+    (
+      updater: (records: MCPCustomServerRecord[]) => MCPCustomServerRecord[],
+    ) => {
+      shouldPersistRef.current = true;
+      setCustomServers(updater);
+    },
     [],
   );
 

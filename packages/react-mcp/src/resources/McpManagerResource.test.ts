@@ -278,18 +278,19 @@ describe("McpManagerResource server ids", () => {
 });
 
 describe("McpManagerResource storage failures", () => {
-  it("handles custom server load failures", async () => {
+  it("keeps persistence fenced after custom server load failures", async () => {
     const error = new Error("load failed");
     const consoleError = vi
       .spyOn(console, "error")
       .mockImplementation(() => {});
+    const saveCustomServers = vi.fn(async () => {});
     const root = mount(
       [],
       McpCustomStorage({
         loadCustomServers: vi.fn(async () => {
           throw error;
         }),
-        saveCustomServers: vi.fn(async () => {}),
+        saveCustomServers,
         loadAuthState: vi.fn(async () => null),
         saveAuthState: vi.fn(async () => {}),
         clearAuthState: vi.fn(async () => {}),
@@ -305,6 +306,16 @@ describe("McpManagerResource storage failures", () => {
         "[assistant-ui/react-mcp] failed to load custom servers:",
         error,
       );
+
+      await root.getValue().addCustomServer({
+        name: "Docs",
+        url: "https://example.com/docs/mcp",
+        auth: { type: "none" },
+      });
+      await new Promise((resolve) => setTimeout(resolve, 0));
+
+      expect(root.getValue().getState().customServers).toHaveLength(1);
+      expect(saveCustomServers).not.toHaveBeenCalled();
     } finally {
       root.unmount();
       consoleError.mockRestore();
@@ -332,8 +343,7 @@ describe("McpManagerResource storage failures", () => {
       await vi.waitFor(() =>
         expect(root.getValue().getState().isHydrated).toBe(true),
       );
-      await vi.waitFor(() => expect(saveCustomServers).toHaveBeenCalled());
-      saveCustomServers.mockClear();
+      expect(saveCustomServers).not.toHaveBeenCalled();
       saveCustomServers.mockRejectedValue(error);
 
       await root.getValue().addCustomServer({
@@ -389,8 +399,7 @@ describe("McpManagerResource storage ordering", () => {
       await vi.waitFor(() =>
         expect(root.getValue().getState().isHydrated).toBe(true),
       );
-      await vi.waitFor(() => expect(saveCustomServers).toHaveBeenCalled());
-      saveCustomServers.mockClear();
+      expect(saveCustomServers).not.toHaveBeenCalled();
       persistedSnapshots.length = 0;
       blockNextSave = true;
 
@@ -452,8 +461,7 @@ describe("McpManagerResource storage ordering", () => {
       await vi.waitFor(() =>
         expect(root.getValue().getState().isHydrated).toBe(true),
       );
-      await vi.waitFor(() => expect(saveCustomServers).toHaveBeenCalled());
-      saveCustomServers.mockClear();
+      expect(saveCustomServers).not.toHaveBeenCalled();
 
       rerender();
 
@@ -517,6 +525,7 @@ describe("McpManagerResource storage switching", () => {
       await vi.waitFor(() =>
         expect(root.getValue().getState().customServers[0]?.id).toBe("docs"),
       );
+      expect(storageA.saveCustomServers).not.toHaveBeenCalled();
 
       switchStorage();
 
@@ -533,12 +542,7 @@ describe("McpManagerResource storage switching", () => {
         expect(root.getValue().getState().isHydrated).toBe(true);
         expect(root.getValue().getState().customServers).toHaveLength(0);
       });
-      expect(
-        saveStorageB.mock.calls.some(([records]) =>
-          records.some((record) => record.id === "docs"),
-        ),
-      ).toBe(false);
-      saveStorageB.mockClear();
+      expect(saveStorageB).not.toHaveBeenCalled();
 
       await root.getValue().addCustomServer({
         name: "Linear",
@@ -648,10 +652,7 @@ describe("McpManagerResource storage switching", () => {
       await vi.waitFor(() =>
         expect(root.getValue().getState().isHydrated).toBe(true),
       );
-      await vi.waitFor(() =>
-        expect(storageA.saveCustomServers).toHaveBeenCalled(),
-      );
-      storageA.saveCustomServers.mockClear();
+      expect(storageA.saveCustomServers).not.toHaveBeenCalled();
       blockStorageASave = true;
 
       await root.getValue().addCustomServer({
@@ -737,10 +738,7 @@ describe("McpManagerResource storage switching", () => {
       await vi.waitFor(() =>
         expect(root.getValue().getState().isHydrated).toBe(true),
       );
-      await vi.waitFor(() =>
-        expect(storageA.saveCustomServers).toHaveBeenCalled(),
-      );
-      storageA.saveCustomServers.mockClear();
+      expect(storageA.saveCustomServers).not.toHaveBeenCalled();
       blockStorageASave = true;
 
       await root.getValue().addCustomServer({

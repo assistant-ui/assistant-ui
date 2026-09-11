@@ -2,4 +2,4 @@
 "@assistant-ui/react-mcp": patch
 ---
 
-fix: rehydrate custom MCP servers when the storage scope changes
+fix: isolate custom MCP servers across storage scopes and fence writes after load failures
