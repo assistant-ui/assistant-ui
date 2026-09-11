@@ -1,50 +1,33 @@
 import {
+  CloudMessagePersistence,
   generateThreadTitle as generateCloudThreadTitle,
   type AssistantCloud,
 } from "assistant-cloud";
 import { MESSAGE_FORMAT } from "../chat/MessagePersistence";
 
-const TITLE_MESSAGE_PAGE_SIZE = 200;
+const TITLE_MESSAGE_LIMIT = 200;
 
 export async function generateThreadTitle(
   cloud: AssistantCloud,
   threadId: string,
 ): Promise<string | null> {
+  // `load` walks every page of the thread by cursor; the id mapping it fills
+  // on this throwaway instance is unused.
+  const persistence = new CloudMessagePersistence(cloud);
+
   // Recent writes can lag behind thread creation, so retry briefly.
-  const loadFirstPage = async () => {
+  const loadMessages = async () => {
     for (let attempt = 0; attempt < 2; attempt += 1) {
-      const { messages } = await cloud.threads.messages.list(threadId, {
-        limit: TITLE_MESSAGE_PAGE_SIZE,
-      });
+      const messages = await persistence.load(threadId);
       if (messages.length > 0) return messages;
       await new Promise((resolve) => setTimeout(resolve, 300));
     }
-    const { messages } = await cloud.threads.messages.list(threadId, {
-      limit: TITLE_MESSAGE_PAGE_SIZE,
-    });
-    return messages;
+    return persistence.load(threadId);
   };
 
-  let page = await loadFirstPage();
-  const loadedMessages: typeof page = [];
-  const seen = new Set<string>();
-  while (true) {
-    const last = page.at(-1);
-    if (!last) break;
-    const fresh = page.filter((message) => !seen.has(message.id));
-    if (fresh.length === 0) break;
-    for (const message of fresh) seen.add(message.id);
-    loadedMessages.push(...fresh);
-    if (page.length < TITLE_MESSAGE_PAGE_SIZE) break;
-    ({ messages: page } = await cloud.threads.messages.list(threadId, {
-      limit: TITLE_MESSAGE_PAGE_SIZE,
-      after: last.id,
-    }));
-  }
-
-  // Pages arrive newest-first; walk to the opening exchange and reverse only
-  // the oldest 200 messages so the title input is bounded and chronological.
-  const messages = loadedMessages.slice(-TITLE_MESSAGE_PAGE_SIZE).reverse();
+  // Pages arrive newest-first; keep only the opening messages and reverse
+  // them so the title input is bounded and chronological.
+  const messages = (await loadMessages()).slice(-TITLE_MESSAGE_LIMIT).reverse();
   if (messages.length === 0) return null;
 
   const aiSdkMessages = messages.filter(
