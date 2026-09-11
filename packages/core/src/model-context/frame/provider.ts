@@ -47,13 +47,18 @@ export class AssistantFrameProvider {
   private _targetOrigin: string;
   private _strictRegistrations = 0;
   private _wildcardRegistrations = 0;
+  private _startupTimer: ReturnType<typeof setTimeout> | undefined;
+  private _disposed = false;
 
   private constructor(targetOrigin: string = getDefaultTargetOrigin()) {
     this._targetOrigin = targetOrigin;
     this.handleMessage = this.handleMessage.bind(this);
     window.addEventListener("message", this.handleMessage);
 
-    setTimeout(() => this.broadcastUpdate(), 0);
+    this._startupTimer = setTimeout(() => {
+      this._startupTimer = undefined;
+      this.broadcastUpdate();
+    }, 0);
   }
 
   private static getInstance(targetOrigin?: string): AssistantFrameProvider {
@@ -263,6 +268,7 @@ export class AssistantFrameProvider {
   }
 
   private broadcastUpdate() {
+    if (this._disposed) return;
     if (window.parent && window.parent !== window) {
       const updateMessage: FrameMessage = {
         type: "model-context-update",
@@ -394,6 +400,11 @@ export class AssistantFrameProvider {
   static dispose() {
     if (AssistantFrameProvider._instance) {
       const instance = AssistantFrameProvider._instance;
+      instance._disposed = true;
+      if (instance._startupTimer !== undefined) {
+        clearTimeout(instance._startupTimer);
+        instance._startupTimer = undefined;
+      }
       window.removeEventListener("message", instance.handleMessage);
 
       let cleanupFailed = false;

@@ -7,6 +7,19 @@ afterEach(() => {
 });
 
 describe("GorpStreamAccumulator", () => {
+  it("applies deeply nested paths without overflowing the stack", () => {
+    const path = Array.from({ length: 20_000 }, (_, index) => `level-${index}`);
+    const acc = new GorpStreamAccumulator({});
+
+    acc.append([{ type: "set", path, value: true }]);
+
+    let current = acc.state;
+    for (const key of path) {
+      current = (current as Record<string, typeof current>)[key]!;
+    }
+    expect(current).toBe(true);
+  });
+
   it("rejects unsafe path segments", () => {
     for (const path of [
       ["__proto__", "polluted"],

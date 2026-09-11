@@ -197,8 +197,7 @@ export class A2AThreadRuntimeCore {
     return this._isLoading;
   }
 
-  __internal_load(): Promise<void> {
-    this._loadRequested = true;
+  private loadAgentCard(): Promise<void> {
     this._agentCardPromise ??= this.client
       .getAgentCard()
       .then((agentCard) => {
@@ -206,15 +205,39 @@ export class A2AThreadRuntimeCore {
         this.notifyUpdate();
       })
       .catch(() => undefined);
+    return this._agentCardPromise;
+  }
+
+  private async waitForAgentCard(signal: AbortSignal): Promise<boolean> {
+    const load = this.loadAgentCard();
+    if (signal.aborted) return false;
+
+    let onAbort!: () => void;
+    const abort = new Promise<void>((resolve) => {
+      onAbort = resolve;
+      signal.addEventListener("abort", onAbort, { once: true });
+    });
+
+    try {
+      await Promise.race([load, abort]);
+    } finally {
+      signal.removeEventListener("abort", onAbort);
+    }
+    return !signal.aborted;
+  }
+
+  __internal_load(): Promise<void> {
+    this._loadRequested = true;
+    const agentCardPromise = this.loadAgentCard();
 
     if (this._loadPromise) return this._loadPromise;
-    if (!this.history) return this._agentCardPromise;
+    if (!this.history) return agentCardPromise;
 
     this._isLoading = true;
 
     const historyPromise = this.history.load();
 
-    this._loadPromise = Promise.all([historyPromise, this._agentCardPromise])
+    this._loadPromise = Promise.all([historyPromise, agentCardPromise])
       .then(([repo]) => {
         if (repo) {
           this.session.applyExternalMessageRepository(repo);
@@ -407,11 +430,11 @@ export class A2AThreadRuntimeCore {
 
     this.setRunning(true);
 
-    // Check if agent supports streaming; fall back to sync sendMessage if not
-    const supportsStreaming =
-      this.agentCardValue?.capabilities?.streaming !== false;
-
     try {
+      if (!(await this.waitForAgentCard(abortController.signal))) return;
+
+      const supportsStreaming =
+        this.agentCardValue?.capabilities?.streaming !== false;
       if (supportsStreaming) {
         await this.runStreaming(a2aMessage, assistantId, abortController);
       } else {

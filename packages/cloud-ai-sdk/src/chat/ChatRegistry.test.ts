@@ -24,10 +24,16 @@ describe("ChatRegistry", () => {
     registry.getOrCreate("first");
     registry.getOrCreate("second");
 
+    const stopAll = registry.stopAll();
     let stopAllSettled = false;
-    const stopAll = registry.stopAll().then(() => {
+    void stopAll.then(() => {
       stopAllSettled = true;
     });
+
+    expect(registry.isDisposed).toBe(true);
+    expect(registry.get("first")).toBeDefined();
+    expect(registry.get("second")).toBeDefined();
+    expect(registry.stopAll()).toBe(stopAll);
 
     await new Promise((resolve) => setTimeout(resolve, 0));
 

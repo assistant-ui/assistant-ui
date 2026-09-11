@@ -1,4 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { ChatRegistry } from "../chat/ChatRegistry";
 import { CloudChatCore } from "./CloudChatCore";
 
 const {
@@ -194,8 +195,10 @@ describe("CloudChatCore", () => {
     controller!.enqueue({ type: "text-start", id: "part-1" });
     controller!.enqueue({ type: "text-delta", id: "part-1", delta: "hi" });
     controller!.close();
-    await stream.getReader().read();
     await new Promise((resolve) => setTimeout(resolve, 0));
+    clock = 150;
+    await stream.pipeTo(new WritableStream());
+    expect(source.locked).toBe(false);
     clock = 180;
     const onFinish = chatOptionsRef.current?.onFinish as (
       event: unknown,
@@ -216,6 +219,154 @@ describe("CloudChatCore", () => {
       "thread-1",
       "assistant-1",
     );
+  });
+
+  it("cancels the transport stream while waiting for the first token", async () => {
+    const cancel = vi.fn();
+    const source = new ReadableStream({ cancel });
+    const sendMessages = vi.fn().mockResolvedValue(source);
+    const core = createCore({
+      baseTransport: { sendMessages, reconnectToStream: vi.fn() },
+    });
+    vi.spyOn(core, "ensureThreadId").mockResolvedValue("thread-1");
+    vi.spyOn(core, "persist").mockResolvedValue(undefined);
+
+    const stream = await core
+      .createTransport("chat-1", registry)
+      .sendMessages({ messages: [] } as never);
+    const reason = new Error("stopped");
+    const cancellation = stream.cancel(reason);
+
+    await vi.waitFor(() => expect(cancel).toHaveBeenCalledOnce(), {
+      timeout: 250,
+    });
+    await cancellation;
+    expect(cancel).toHaveBeenCalledWith(reason);
+    expect(source.locked).toBe(false);
+  });
+
+  it("cancels the transport stream after observing the first token", async () => {
+    let controller: ReadableStreamDefaultController | undefined;
+    const cancel = vi.fn();
+    const source = new ReadableStream({
+      start(sourceController) {
+        controller = sourceController;
+      },
+      cancel,
+    });
+    const sendMessages = vi.fn().mockResolvedValue(source);
+    const core = createCore({
+      baseTransport: { sendMessages, reconnectToStream: vi.fn() },
+    });
+    vi.spyOn(core, "ensureThreadId").mockResolvedValue("thread-1");
+    vi.spyOn(core, "persist").mockResolvedValue(undefined);
+
+    const stream = await core
+      .createTransport("chat-1", registry)
+      .sendMessages({ messages: [] } as never);
+    controller!.enqueue({ type: "text-delta", id: "part-1", delta: "hi" });
+    await new Promise((resolve) => setTimeout(resolve, 0));
+    const reason = new Error("stopped");
+    await stream.cancel(reason);
+
+    expect(cancel).toHaveBeenCalledWith(reason);
+    expect(source.locked).toBe(false);
+  });
+
+  it("forwards transport stream errors and releases the source reader", async () => {
+    let controller: ReadableStreamDefaultController | undefined;
+    const source = new ReadableStream({
+      start(sourceController) {
+        controller = sourceController;
+      },
+    });
+    const sendMessages = vi.fn().mockResolvedValue(source);
+    const core = createCore({
+      baseTransport: { sendMessages, reconnectToStream: vi.fn() },
+    });
+    vi.spyOn(core, "ensureThreadId").mockResolvedValue("thread-1");
+    vi.spyOn(core, "persist").mockResolvedValue(undefined);
+
+    const stream = await core
+      .createTransport("chat-1", registry)
+      .sendMessages({ messages: [] } as never);
+    const error = new Error("stream failed");
+    controller!.error(error);
+
+    await expect(stream.getReader().read()).rejects.toBe(error);
+    expect(source.locked).toBe(false);
+  });
+
+  it("allows cancellation after a tokenless source has closed", async () => {
+    const source = new ReadableStream({
+      start(controller) {
+        controller.enqueue({ type: "text-start", id: "part-1" });
+        controller.close();
+      },
+    });
+    const sendMessages = vi.fn().mockResolvedValue(source);
+    const core = createCore({
+      baseTransport: { sendMessages, reconnectToStream: vi.fn() },
+    });
+    vi.spyOn(core, "ensureThreadId").mockResolvedValue("thread-1");
+    vi.spyOn(core, "persist").mockResolvedValue(undefined);
+
+    const stream = await core
+      .createTransport("chat-1", registry)
+      .sendMessages({ messages: [] } as never);
+    await vi.waitFor(() => expect(source.locked).toBe(false));
+
+    await expect(stream.cancel(new Error("stopped"))).resolves.toBeUndefined();
+  });
+
+  it("does not continue a new-thread send after registry disposal", async () => {
+    let resolveThread!: (value: { thread_id: string }) => void;
+    const createThread = vi.fn(
+      () =>
+        new Promise<{ thread_id: string }>((resolve) => {
+          resolveThread = resolve;
+        }),
+    );
+    const selectThread = vi.fn();
+    const refresh = vi.fn();
+    const sendMessages = vi.fn();
+    const core = new CloudChatCore(
+      {} as never,
+      {
+        threads: {
+          cloud: { threads: { create: createThread } },
+          selectThread,
+          refresh,
+        } as never,
+        chatConfig: {},
+      },
+      { sendMessages, reconnectToStream: vi.fn() },
+    );
+    const stop = vi.fn().mockResolvedValue(undefined);
+    const chatRegistry = new ChatRegistry(
+      () => ({ messages: [], stop }) as never,
+    );
+    chatRegistry.getOrCreate("chat-1");
+    const persist = vi.spyOn(core, "persist").mockResolvedValue(undefined);
+
+    const send = core.createTransport("chat-1", chatRegistry).sendMessages({
+      trigger: "submit-message",
+      messages: [],
+      abortSignal: new AbortController().signal,
+    } as never);
+    await vi.waitFor(() => expect(createThread).toHaveBeenCalledOnce());
+
+    await chatRegistry.stopAll();
+    resolveThread({ thread_id: "thread-1" });
+
+    await expect(send).rejects.toMatchObject({ name: "AbortError" });
+    expect(stop).toHaveBeenCalledOnce();
+    expect(chatRegistry.getMeta("chat-1")?.threadId).toBeNull();
+    expect(chatRegistry.getChatKeyForThread("thread-1")).toBeUndefined();
+    expect(selectThread).not.toHaveBeenCalled();
+    expect(refresh).not.toHaveBeenCalled();
+    expect(persist).not.toHaveBeenCalled();
+    expect(sendMessages).not.toHaveBeenCalled();
   });
 
   it("reports message_sent for a user submission only", async () => {
@@ -315,6 +466,36 @@ describe("CloudChatCore", () => {
       expect.anything(),
       {},
     );
+  });
+
+  it("persists streamed content without Cloud finish effects after disposal", async () => {
+    const onFinish = vi.fn();
+    const core = createCore({ chatConfig: { onFinish } });
+    const messages = [{ id: "assistant-1", role: "assistant", parts: [] }];
+    const stop = vi.fn().mockResolvedValue(undefined);
+    const chatRegistry = new ChatRegistry(() => ({ messages, stop }) as never);
+    chatRegistry.getOrCreate("chat-1", "thread-1");
+    const persistChatMessages = vi
+      .spyOn(core, "persistChatMessages")
+      .mockResolvedValue(undefined);
+    const persist = vi.spyOn(core, "persist").mockResolvedValue(undefined);
+    const runStopped = vi.spyOn(core.engagementReporter, "runStopped");
+
+    core.createChat("chat-1", chatRegistry);
+    await chatRegistry.stopAll();
+    const wrappedOnFinish = chatOptionsRef.current?.onFinish;
+    expect(wrappedOnFinish).toBeTypeOf("function");
+    (wrappedOnFinish as (event: unknown) => void)({
+      isAbort: true,
+      isDisconnect: false,
+      isError: false,
+    });
+
+    expect(stop).toHaveBeenCalledOnce();
+    expect(onFinish).toHaveBeenCalledOnce();
+    expect(runStopped).not.toHaveBeenCalled();
+    expect(persistChatMessages).not.toHaveBeenCalled();
+    expect(persist).toHaveBeenCalledWith("thread-1", messages);
   });
 
   it("reports finish persistence failures", async () => {

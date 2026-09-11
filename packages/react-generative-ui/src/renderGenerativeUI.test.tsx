@@ -114,6 +114,32 @@ describe("renderGenerativeUI", () => {
     expect(html).toBe("");
   });
 
+  it.each(["toString", "constructor"])(
+    "treats inherited %s as an unknown component",
+    (type) => {
+      const html = renderToStaticMarkup(
+        <>{renderGenerativeUI({ $type: type }, library)}</>,
+      );
+      expect(html).toBe("");
+    },
+  );
+
+  it("renders an explicitly registered prototype-named component", () => {
+    const prototypeNamedLibrary: GenerativeUILibrary = {
+      ...library,
+      toString: {
+        description: "An explicitly registered component.",
+        properties: z.object({}),
+        render: () => <span>registered</span>,
+      },
+    };
+
+    const html = renderToStaticMarkup(
+      <>{renderGenerativeUI({ $type: "toString" }, prototypeNamedLibrary)}</>,
+    );
+    expect(html).toBe("<span>registered</span>");
+  });
+
   it("holds back a node whose `$type` is still streaming", () => {
     const error = vi.spyOn(console, "error").mockImplementation(() => {});
     try {

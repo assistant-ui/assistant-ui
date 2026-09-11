@@ -94,12 +94,18 @@ function applyArrayUpdate(
 
   const patches = update.update;
   if (Array.isArray(patches) && patches.length > 0) {
+    const patchesById = new Map<string | number, Record<string, unknown>>();
+    for (const candidate of patches) {
+      const id = getArrayItemId(candidate);
+      if (id !== undefined && !Number.isNaN(id) && !patchesById.has(id)) {
+        patchesById.set(id, candidate as Record<string, unknown>);
+      }
+    }
+
     next = next.map((item) => {
       const id = getArrayItemId(item);
       if (id === undefined || !isRecord(item)) return item;
-      const patch = patches.find(
-        (candidate) => isRecord(candidate) && candidate.id === id,
-      );
+      const patch = patchesById.get(id);
       return patch ? { ...item, ...patch } : item;
     });
   }
@@ -143,7 +149,7 @@ export function shallowMergeInteractableState(
   const baseline = isRecord(options?.arrayBaseline)
     ? options.arrayBaseline
     : prev;
-  const next = { ...prev };
+  const next = Object.entries(prev);
   for (const [key, value] of Object.entries(partial)) {
     const baseValue = baseline[key];
     if (Array.isArray(baseValue) && isRecord(value)) {
@@ -152,12 +158,12 @@ export function shallowMergeInteractableState(
         (options.idKeyedFields === undefined || options.idKeyedFields.has(key))
           ? () => options.idFactory?.(key)
           : undefined;
-      next[key] = applyArrayUpdate(baseValue, value, mintId);
+      next.push([key, applyArrayUpdate(baseValue, value, mintId)]);
     } else {
-      next[key] = value;
+      next.push([key, value]);
     }
   }
-  return next;
+  return Object.fromEntries(next);
 }
 
 /**
@@ -173,17 +179,17 @@ function shallowDiffInteractableState(
 ): Record<string, unknown> | undefined {
   if (!isRecord(known) || !isRecord(next)) return undefined;
   for (const key of Object.keys(known)) {
-    if (!(key in next)) return undefined;
+    if (!Object.hasOwn(next, key)) return undefined;
   }
-  const diff: Record<string, unknown> = {};
+  const diff: [string, unknown][] = [];
   for (const [key, value] of Object.entries(next)) {
-    if (!(key in known) || !isJSONValueEqual(known[key], value)) {
-      diff[key] = value;
+    if (!Object.hasOwn(known, key) || !isJSONValueEqual(known[key], value)) {
+      diff.push([key, value]);
     }
   }
-  const changed = Object.keys(diff).length;
+  const changed = diff.length;
   if (changed === 0 || changed === Object.keys(next).length) return undefined;
-  return diff;
+  return Object.fromEntries(diff);
 }
 
 type ToolCallLikePart = {

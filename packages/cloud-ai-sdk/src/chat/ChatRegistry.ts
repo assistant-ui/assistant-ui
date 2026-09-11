@@ -6,6 +6,8 @@ export class ChatRegistry {
   private chatByKey = new Map<string, Chat<UIMessage>>();
   private metaByKey = new Map<string, ChatMeta>();
   private keyByThreadId = new Map<string, string>();
+  private disposed = false;
+  private stopAllPromise: Promise<void> | undefined;
 
   private createChatFn: (chatKey: string) => Chat<UIMessage>;
 
@@ -14,6 +16,7 @@ export class ChatRegistry {
   }
 
   getOrCreate(chatKey: string, threadId?: string | null): Chat<UIMessage> {
+    this.throwIfDisposed();
     const existing = this.chatByKey.get(chatKey);
     if (existing) {
       if (threadId) {
@@ -37,6 +40,7 @@ export class ChatRegistry {
     threadId: string | null,
     chat: Chat<UIMessage>,
   ): void {
+    this.throwIfDisposed();
     this.chatByKey.set(chatKey, chat);
     this.getOrCreateMeta(chatKey, threadId);
   }
@@ -46,6 +50,7 @@ export class ChatRegistry {
   }
 
   getOrCreateMeta(chatKey: string, threadId?: string | null): ChatMeta {
+    this.throwIfDisposed();
     const existing = this.metaByKey.get(chatKey);
     if (existing) {
       if (threadId && !existing.threadId) {
@@ -74,14 +79,26 @@ export class ChatRegistry {
     return this.keyByThreadId.get(threadId);
   }
 
-  // The maps stay populated: stopping emits onFinish(isAbort) whose
-  // persistence path resolves this registry's meta, so the aborted partial
-  // run still saves through the scope it belongs to.
-  async stopAll(): Promise<void> {
-    await Promise.allSettled(
-      [...this.chatByKey.values()].map(async (chat) => {
-        await chat.stop();
-      }),
-    );
+  get isDisposed(): boolean {
+    return this.disposed;
+  }
+
+  private throwIfDisposed(): void {
+    if (!this.disposed) return;
+    const error = new Error("Chat registry is disposed");
+    error.name = "AbortError";
+    throw error;
+  }
+
+  stopAll(): Promise<void> {
+    if (this.stopAllPromise) return this.stopAllPromise;
+
+    this.disposed = true;
+    const chats = [...this.chatByKey.values()];
+
+    this.stopAllPromise = Promise.allSettled(
+      chats.map(async (chat) => await chat.stop()),
+    ).then(() => undefined);
+    return this.stopAllPromise;
   }
 }

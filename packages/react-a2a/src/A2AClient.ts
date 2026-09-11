@@ -7,6 +7,7 @@ import type {
   A2AListTasksRequest,
   A2AListTasksResponse,
   A2AMessage,
+  A2APart,
   A2ARole,
   A2ASendMessageConfiguration,
   A2AStreamEvent,
@@ -69,6 +70,26 @@ const JSONRPC_STATE_MAP: Record<string, string> = {
   unknown: "unspecified",
 };
 
+const PART_STRING_FIELDS = [
+  "text",
+  "raw",
+  "url",
+  "filename",
+  "mediaType",
+] as const;
+
+const NULLABLE_PART_FIELDS = [...PART_STRING_FIELDS, "metadata"] as const;
+
+function normalizePartNulls(
+  part: Record<string, unknown>,
+): Record<string, unknown> {
+  const normalized = { ...part };
+  for (const field of NULLABLE_PART_FIELDS) {
+    if (normalized[field] === null) delete normalized[field];
+  }
+  return normalized;
+}
+
 // JSON-RPC file parts nest the payload under `file`; the internal A2APart is
 // flat, so the nested fields map onto url/raw/mediaType/filename.
 function normalizeParts(value: unknown[]): unknown[] {
@@ -76,8 +97,8 @@ function normalizeParts(value: unknown[]): unknown[] {
     const part = normalizeKeys(raw, false);
     if (part === null || typeof part !== "object" || Array.isArray(part))
       return part;
-    const record = part as Record<string, unknown>;
-    if (record.kind === undefined) return part;
+    const record = normalizePartNulls(part as Record<string, unknown>);
+    if (record.kind === undefined) return record;
     const { kind, ...rest } = record;
     const file = rest.file;
     if (kind !== "file" || file === null || typeof file !== "object")
@@ -86,10 +107,10 @@ function normalizeParts(value: unknown[]): unknown[] {
     const nested = file as Record<string, unknown>;
     return {
       ...others,
-      ...(nested.uri !== undefined ? { url: nested.uri } : {}),
-      ...(nested.bytes !== undefined ? { raw: nested.bytes } : {}),
-      ...(nested.mimeType !== undefined ? { mediaType: nested.mimeType } : {}),
-      ...(nested.name !== undefined ? { filename: nested.name } : {}),
+      ...(nested.uri != null ? { url: nested.uri } : {}),
+      ...(nested.bytes != null ? { raw: nested.bytes } : {}),
+      ...(nested.mimeType != null ? { mediaType: nested.mimeType } : {}),
+      ...(nested.name != null ? { filename: nested.name } : {}),
     };
   });
 }
@@ -272,13 +293,35 @@ const hasOptionalStringIds = (
 ): boolean =>
   keys.every((key) => value[key] == null || typeof value[key] === "string");
 
+const hasOptionalStringFields = (
+  value: Record<string, unknown>,
+  keys: readonly string[],
+): boolean =>
+  keys.every(
+    (key) => value[key] === undefined || typeof value[key] === "string",
+  );
+
+const isPart = (value: unknown): value is A2APart =>
+  isRecord(value) &&
+  hasOptionalStringFields(value, PART_STRING_FIELDS) &&
+  (value.metadata === undefined || isRecord(value.metadata));
+
+const hasValidNestedParts = (value: unknown): boolean =>
+  !isRecord(value) || !Array.isArray(value.parts) || value.parts.every(isPart);
+
+const hasValidNestedPartsInCollection = (value: unknown): boolean =>
+  !Array.isArray(value) || value.every(hasValidNestedParts);
+
 const isTask = (value: unknown): value is A2ATask =>
   isRecord(value) &&
   typeof value.id === "string" &&
   value.id.length > 0 &&
   hasOptionalStringIds(value, ["contextId"]) &&
   isRecord(value.status) &&
-  isTaskState(value.status.state);
+  isTaskState(value.status.state) &&
+  hasValidNestedParts(value.status.message) &&
+  hasValidNestedPartsInCollection(value.artifacts) &&
+  hasValidNestedPartsInCollection(value.history);
 
 const isMessage = (value: unknown): value is A2AMessage =>
   isRecord(value) &&
@@ -287,7 +330,7 @@ const isMessage = (value: unknown): value is A2AMessage =>
   hasOptionalStringIds(value, ["contextId", "taskId"]) &&
   isRole(value.role) &&
   Array.isArray(value.parts) &&
-  value.parts.every(isRecord);
+  value.parts.every(isPart);
 
 // Legacy wrappers use ProtoJSON, where omitted and null fields decode to proto
 // defaults. Normalize those defaults before enforcing semantic requirements.
@@ -346,7 +389,8 @@ const isStatusUpdate = (
   (allowEmptyTaskId || value.taskId.length > 0) &&
   hasOptionalStringIds(value, ["contextId"]) &&
   isRecord(value.status) &&
-  isTaskState(value.status.state);
+  isTaskState(value.status.state) &&
+  hasValidNestedParts(value.status.message);
 
 const toWrappedStatusUpdate = (
   value: unknown,
@@ -369,7 +413,7 @@ const isArtifact = (value: unknown): value is Record<string, unknown> =>
   isRecord(value) &&
   typeof value.artifactId === "string" &&
   Array.isArray(value.parts) &&
-  value.parts.every(isRecord);
+  value.parts.every(isPart);
 
 const isArtifactUpdate = (value: unknown): value is Record<string, unknown> =>
   isRecord(value) &&
