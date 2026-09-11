@@ -10,16 +10,8 @@ const useMessagePartClient = ({
   eventContext,
 }: {
   runtime: MessagePartRuntime;
-  /**
-   * Thread and message identity for emitted events; absent in hand-built
-   * clients. `reportedApprovalIds` is owned by the thread client so a reported
-   * approval stays reported when this part client remounts.
-   */
-  eventContext?: {
-    threadId: string;
-    messageIdRef: { current: string };
-    reportedApprovalIds: Set<string>;
-  };
+  /** Thread and message identity for emitted events; absent in hand-built clients. */
+  eventContext?: { threadId: string; messageIdRef: { current: string } };
 }): ClientOutput<"part"> => {
   const state = useSubscribable(runtime);
   const emit = useAssistantEmit();
@@ -31,17 +23,11 @@ const useMessagePartClient = ({
     respondToToolApproval: (response) => {
       const part = runtime.getState();
       return runtime.respondToToolApproval(response).then(() => {
-        if (
-          !eventContext ||
-          part.type !== "tool-call" ||
-          !part.approval ||
-          // A runtime whose state settles asynchronously accepts a repeat
-          // decision before the gate reads as decided, so each approval
-          // reports at most once.
-          eventContext.reportedApprovalIds.has(part.approval.id)
-        )
+        // Emitted as a raw fact like message.copied: the runtime rejects a
+        // response once the gate is decided, and consumers that must count
+        // once per approval dedupe by thread and approval id themselves.
+        if (!eventContext || part.type !== "tool-call" || !part.approval)
           return;
-        eventContext.reportedApprovalIds.add(part.approval.id);
         emit("part.toolApprovalResponded", {
           threadId: eventContext.threadId,
           messageId: eventContext.messageIdRef.current,

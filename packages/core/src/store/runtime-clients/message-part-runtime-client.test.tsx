@@ -84,40 +84,19 @@ describe("MessagePartClient tool approval events", () => {
     },
   );
 
-  it("reports one decision when the runtime accepts a repeat", async () => {
+  it("reports every response the runtime accepts, without deduplication", async () => {
+    // The runtime rejects a response once the gate reads as decided; before
+    // that, each accepted response is a fact and consumers dedupe by thread
+    // and approval id (CloudEngagementReporter does).
     const { part, listener, onRespondToToolApproval } = setup();
     await act(async () => {
       await part.respondToToolApproval({ approved: true });
       await part.respondToToolApproval({ optionId: "no" });
     });
     expect(onRespondToToolApproval).toHaveBeenCalledTimes(2);
-    expect(listener).toHaveBeenCalledExactlyOnceWith(
-      expect.objectContaining({ approved: true }),
-    );
-  });
-
-  it("reports one decision when the part client remounts before the runtime settles", async () => {
-    const { aui, part, listener, rerender, onRespondToToolApproval } = setup();
-    await act(async () => {
-      await part.respondToToolApproval({ approved: true });
-    });
-    // Drop and restore the message so its part client unmounts and remounts
-    // while the host still reports the approval as pending.
-    await act(async () => rerender([]));
-    expect(aui.thread.getState().messages).toHaveLength(0);
-    await act(async () => rerender(messages));
-    const remounted = aui.thread
-      .message({ id: "message-1" })
-      .part({ toolCallId: "tc-1" });
-    const remountedRuntime = remounted.__internal_getRuntime?.();
-    expect(remountedRuntime).toBeDefined();
-    expect(remountedRuntime).not.toBe(part.__internal_getRuntime?.());
-    await act(async () => {
-      await remounted.respondToToolApproval({ optionId: "no" });
-    });
-    expect(onRespondToToolApproval).toHaveBeenCalledTimes(2);
-    expect(listener).toHaveBeenCalledExactlyOnceWith(
-      expect.objectContaining({ approved: true }),
+    expect(listener).toHaveBeenCalledTimes(2);
+    expect(listener).toHaveBeenLastCalledWith(
+      expect.objectContaining({ toolCallId: "tc-1", approved: false }),
     );
   });
 
