@@ -896,6 +896,74 @@ describe("McpManagerResource storage switching", () => {
     }
   });
 
+  it("persists a pre-hydration mutation after its load resolves post-switch", async () => {
+    let resolveStorageA:
+      | ((records: MCPCustomServerRecord[]) => void)
+      | undefined;
+    const storageALoad = new Promise<MCPCustomServerRecord[]>((resolve) => {
+      resolveStorageA = resolve;
+    });
+    const storageA = {
+      scopeId: "account:a",
+      loadCustomServers: vi.fn(() => storageALoad),
+      saveCustomServers: vi.fn(async () => {}),
+      loadAuthState: vi.fn(async () => null),
+      saveAuthState: vi.fn(async () => {}),
+      clearAuthState: vi.fn(async () => {}),
+    };
+    const storageB = {
+      scopeId: "account:b",
+      loadCustomServers: vi.fn(async () => []),
+      saveCustomServers: vi.fn(async () => {}),
+      loadAuthState: vi.fn(async () => null),
+      saveAuthState: vi.fn(async () => {}),
+      clearAuthState: vi.fn(async () => {}),
+    };
+    let switchStorage = () => {};
+    const DynamicManager = resource(function useDynamicManager() {
+      const [storageKey, setStorageKey] = useState<"a" | "b">("a");
+      switchStorage = () => setStorageKey("b");
+      return useResource(
+        McpManagerResource({
+          storage: McpCustomStorage(storageKey === "a" ? storageA : storageB),
+          autoConnect: false,
+        }),
+      );
+    });
+    const root = createTapRoot(function Root() {
+      return useResource(DynamicManager());
+    });
+
+    try {
+      await vi.waitFor(() =>
+        expect(storageA.loadCustomServers).toHaveBeenCalled(),
+      );
+      expect(root.getValue().getState().isHydrated).toBe(false);
+
+      await root.getValue().addCustomServer({
+        name: "Docs",
+        url: "https://example.com/docs/mcp",
+        auth: { type: "none" },
+      });
+      switchStorage();
+
+      await vi.waitFor(() =>
+        expect(storageB.loadCustomServers).toHaveBeenCalled(),
+      );
+      resolveStorageA?.([]);
+
+      await vi.waitFor(() =>
+        expect(storageA.saveCustomServers).toHaveBeenCalledWith([
+          expect.objectContaining({ name: "Docs" }),
+        ]),
+      );
+      expect(storageB.saveCustomServers).not.toHaveBeenCalled();
+    } finally {
+      resolveStorageA?.([]);
+      root.unmount();
+    }
+  });
+
   it("does not let a delayed removal affect the replacement scope", async () => {
     const workspaceBDocsServer = {
       ...docsServer,
@@ -942,7 +1010,7 @@ describe("McpManagerResource storage switching", () => {
       await vi.waitFor(() =>
         expect(root.getValue().getState().customServers[0]?.id).toBe("docs"),
       );
-      const removal = root.getValue().removeServer("docs");
+      const removal = root.getValue().server({ id: "docs" }).remove();
       await vi.waitFor(() =>
         expect(storageA.clearAuthState).toHaveBeenCalledWith("docs"),
       );
@@ -963,6 +1031,83 @@ describe("McpManagerResource storage switching", () => {
           name: "Workspace B Docs",
         }),
       ]);
+    } finally {
+      resolveStorageAClear?.();
+      root.unmount();
+    }
+  });
+
+  it("waits for an in-flight removal before rehydrating a revisited scope", async () => {
+    let persistedStorageARecords: MCPCustomServerRecord[] = [docsServer];
+    let resolveStorageAClear: (() => void) | undefined;
+    const storageAClear = new Promise<void>((resolve) => {
+      resolveStorageAClear = resolve;
+    });
+    const storageA = {
+      scopeId: "account:a",
+      loadCustomServers: vi.fn(async () => [...persistedStorageARecords]),
+      saveCustomServers: vi.fn(async (records: MCPCustomServerRecord[]) => {
+        persistedStorageARecords = records;
+      }),
+      loadAuthState: vi.fn(async () => null),
+      saveAuthState: vi.fn(async () => {}),
+      clearAuthState: vi.fn(() => storageAClear),
+    };
+    const storageB = {
+      scopeId: "account:b",
+      loadCustomServers: vi.fn(async () => []),
+      saveCustomServers: vi.fn(async () => {}),
+      loadAuthState: vi.fn(async () => null),
+      saveAuthState: vi.fn(async () => {}),
+      clearAuthState: vi.fn(async () => {}),
+    };
+    let setStorage = (_storageKey: "a" | "b") => {};
+    const DynamicManager = resource(function useDynamicManager() {
+      const [storageKey, setStorageKey] = useState<"a" | "b">("a");
+      setStorage = setStorageKey;
+      return useResource(
+        McpManagerResource({
+          storage: McpCustomStorage(storageKey === "a" ? storageA : storageB),
+          autoConnect: false,
+        }),
+      );
+    });
+    const root = createTapRoot(function Root() {
+      return useResource(DynamicManager());
+    });
+
+    try {
+      await vi.waitFor(() =>
+        expect(root.getValue().getState().customServers[0]?.id).toBe("docs"),
+      );
+      const removal = root.getValue().server({ id: "docs" }).remove();
+      await vi.waitFor(() =>
+        expect(storageA.clearAuthState).toHaveBeenCalledWith("docs"),
+      );
+
+      setStorage("b");
+      await vi.waitFor(() =>
+        expect(storageB.loadCustomServers).toHaveBeenCalled(),
+      );
+      const storageALoadCount = storageA.loadCustomServers.mock.calls.length;
+
+      setStorage("a");
+      await new Promise((resolve) => setTimeout(resolve, 0));
+      expect(storageA.loadCustomServers).toHaveBeenCalledTimes(
+        storageALoadCount,
+      );
+
+      resolveStorageAClear?.();
+      await removal;
+      await vi.waitFor(() =>
+        expect(storageA.loadCustomServers.mock.calls.length).toBeGreaterThan(
+          storageALoadCount,
+        ),
+      );
+      await vi.waitFor(() =>
+        expect(root.getValue().getState().customServers).toHaveLength(0),
+      );
+      expect(persistedStorageARecords).toEqual([]);
     } finally {
       resolveStorageAClear?.();
       root.unmount();

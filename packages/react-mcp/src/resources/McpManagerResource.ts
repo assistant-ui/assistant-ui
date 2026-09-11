@@ -19,6 +19,7 @@ import { createMcpId } from "../utils/createMcpId";
 import { clearOAuthProviderAuthState } from "../auth/createOAuthProvider";
 import type { Tool } from "assistant-stream";
 import { McpServerResource } from "./McpServerResource";
+import { withMcpServerRemovalFence } from "./McpServerRemovalFence";
 import { McpLocalStorage } from "./storage/McpLocalStorage";
 import type { MCPStorage, MCPStorageElement } from "./storage/types";
 import { assertUniqueServerIds } from "../utils/serverId";
@@ -78,22 +79,41 @@ const persistCustomServers = async (
 
 type CustomServerPersistenceQueues = Map<string, Promise<void>>;
 
-const enqueueCustomServerPersistence = (
+const enqueueCustomServerTask = (
   persistenceQueues: CustomServerPersistenceQueues,
   scopeKey: string,
-  storage: MCPStorage,
-  records: MCPCustomServerRecord[],
+  task: () => Promise<void>,
 ) => {
   const previous = persistenceQueues.get(scopeKey);
-  const next = (previous ?? Promise.resolve()).then(() =>
-    persistCustomServers(storage, records),
-  );
+  const next = (previous ?? Promise.resolve()).then(task);
   persistenceQueues.set(scopeKey, next);
   void next.then(() => {
     if (persistenceQueues.get(scopeKey) === next) {
       persistenceQueues.delete(scopeKey);
     }
   });
+};
+
+const enqueueCustomServerPersistence = (
+  persistenceQueues: CustomServerPersistenceQueues,
+  scopeKey: string,
+  storage: MCPStorage,
+  records: MCPCustomServerRecord[],
+) =>
+  enqueueCustomServerTask(persistenceQueues, scopeKey, () =>
+    persistCustomServers(storage, records),
+  );
+
+const holdCustomServerPersistence = (
+  persistenceQueues: CustomServerPersistenceQueues,
+  scopeKey: string,
+) => {
+  let release = () => {};
+  const gate = new Promise<void>((resolve) => {
+    release = resolve;
+  });
+  enqueueCustomServerTask(persistenceQueues, scopeKey, () => gate);
+  return release;
 };
 
 type McpCustomServersResourceProps = {
@@ -121,9 +141,13 @@ const useMcpCustomServersResource = ({
 
   const hydrate = useEffectEvent(async (signal: { cancelled: boolean }) => {
     // A revisited scope must not read behind writes still queued against it.
-    const pendingPersistence = persistenceQueues.get(scopeKey);
-    if (pendingPersistence) await pendingPersistence;
-    if (signal.cancelled) return;
+    while (true) {
+      const pendingPersistence = persistenceQueues.get(scopeKey);
+      if (!pendingPersistence) break;
+      await pendingPersistence;
+      if (signal.cancelled) return;
+      if (persistenceQueues.get(scopeKey) === pendingPersistence) break;
+    }
 
     let records: Awaited<ReturnType<typeof storage.loadCustomServers>>;
     try {
@@ -141,7 +165,6 @@ const useMcpCustomServersResource = ({
       return;
     }
 
-    if (signal.cancelled) return;
     // Merge rather than replace so any addCustomServer calls that
     // happened before hydration resolved aren't silently overwritten.
     // Persisted order wins; pre-hydration locals append.
@@ -155,8 +178,6 @@ const useMcpCustomServersResource = ({
     customServersRef.current = mergedRecords;
     hydrationStateRef.current = "succeeded";
     hasPendingMutationRef.current = false;
-    setCustomServers(mergedRecords);
-    setIsHydrated(true);
     if (hadPendingMutation) {
       enqueueCustomServerPersistence(
         persistenceQueues,
@@ -165,6 +186,9 @@ const useMcpCustomServersResource = ({
         mergedRecords,
       );
     }
+    if (signal.cancelled) return;
+    setCustomServers(mergedRecords);
+    setIsHydrated(true);
   });
 
   useEffect(() => {
@@ -272,26 +296,32 @@ const useMcpManagerResource = (
     const customElements = customServers.map((s) =>
       withKey(
         s.id,
-        McpServerResource({
-          id: s.id,
-          kind: "custom",
-          name: s.name,
-          url: s.url,
-          auth: s.auth,
-          storage,
-          redirectUri,
-          autoConnect,
-          connectionTimeout: s.connectionTimeout ?? connectionTimeout,
-          ...(s.cache !== undefined ? { cache: s.cache } : {}),
-          ...(s.elicitation !== undefined
-            ? { elicitation: s.elicitation }
-            : {}),
-          onRemove: async () => {
-            updateCustomServers((prev) =>
-              prev.filter((record) => record.id !== s.id),
-            );
-          },
-        }),
+        McpServerResource(
+          withMcpServerRemovalFence(
+            {
+              id: s.id,
+              kind: "custom",
+              name: s.name,
+              url: s.url,
+              auth: s.auth,
+              storage,
+              redirectUri,
+              autoConnect,
+              connectionTimeout: s.connectionTimeout ?? connectionTimeout,
+              ...(s.cache !== undefined ? { cache: s.cache } : {}),
+              ...(s.elicitation !== undefined
+                ? { elicitation: s.elicitation }
+                : {}),
+              onRemove: async () => {
+                updateCustomServers((prev) =>
+                  prev.filter((record) => record.id !== s.id),
+                );
+              },
+            },
+            () =>
+              holdCustomServerPersistence(persistenceQueues, storageScopeKey),
+          ),
+        ),
       ),
     );
     return [...connectorElements, ...customElements];
@@ -303,6 +333,8 @@ const useMcpManagerResource = (
     autoConnect,
     connectionTimeout,
     updateCustomServers,
+    persistenceQueues,
+    storageScopeKey,
   ]);
 
   const lookup = useClientLookup(serverElements);
@@ -412,10 +444,20 @@ const useMcpManagerResource = (
       try {
         await lookup.get({ key: id }).remove();
       } catch {
-        await clearOAuthProviderAuthState(storage, id);
-        updateCustomServers((prev) =>
-          prev.filter((record) => record.id !== id),
+        const releasePersistence = holdCustomServerPersistence(
+          persistenceQueues,
+          storageScopeKey,
         );
+        try {
+          await clearOAuthProviderAuthState(storage, id);
+          updateCustomServers((prev) =>
+            prev.filter((record) => record.id !== id),
+          );
+        } catch (error) {
+          releasePersistence();
+          throw error;
+        }
+        releasePersistence();
       }
     },
   };
