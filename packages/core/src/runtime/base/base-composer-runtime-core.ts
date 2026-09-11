@@ -642,16 +642,8 @@ export abstract class BaseComposerRuntimeCore
 
     if (this._dictationSession) {
       const oldSession = this._dictationSession;
-      let cleanupFailed = false;
-      let cleanupError: unknown;
-      try {
-        this._cleanupDictation();
-      } catch (error) {
-        cleanupFailed = true;
-        cleanupError = error;
-      }
+      this._cleanupDictation({ notify: false });
       oldSession.stop().catch(() => {});
-      if (cleanupFailed) throw cleanupError;
     }
 
     const inputDisabled = adapter.disableInputDuringDictation ?? false;
@@ -737,31 +729,27 @@ export abstract class BaseComposerRuntimeCore
     const session = this._dictationSession;
     const sessionId = this._activeDictationSessionId;
     const cleanup = () => this._cleanupDictation({ sessionId });
-    void session
-      .stop()
-      .then(cleanup, cleanup)
-      .catch((error) => console.error(error));
+    void session.stop().then(cleanup, (error) => {
+      console.error("[assistant-ui] Dictation session stop rejected", error);
+      cleanup();
+    });
   }
 
-  private _cleanupDictation(options?: { sessionId: number | undefined }): void {
+  private _cleanupDictation(options?: {
+    sessionId?: number | undefined;
+    notify?: boolean | undefined;
+  }): void {
     const isStaleSession =
       options?.sessionId !== undefined &&
       options.sessionId !== this._activeDictationSessionId;
     if (isStaleSession || this._isCleaningDictation) return;
 
     this._isCleaningDictation = true;
-    let cleanupFailed = false;
-    let cleanupError: unknown;
     const runCleanup = (cleanup: () => void) => {
       try {
         cleanup();
       } catch (error) {
-        if (cleanupFailed) {
-          console.error(error);
-        } else {
-          cleanupFailed = true;
-          cleanupError = error;
-        }
+        console.error("[assistant-ui] Dictation cleanup threw", error);
       }
     };
 
@@ -775,12 +763,12 @@ export abstract class BaseComposerRuntimeCore
       this._currentInterimText = "";
 
       for (const unsubscribe of unsubscribes) runCleanup(unsubscribe);
-      runCleanup(() => this._notifySubscribers());
+      if (options?.notify !== false) {
+        runCleanup(() => this._notifySubscribers());
+      }
     } finally {
       this._isCleaningDictation = false;
     }
-
-    if (cleanupFailed) throw cleanupError;
   }
 
   private _eventSubscribers = new Map<
