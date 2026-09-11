@@ -187,7 +187,7 @@ export const makeThreadViewportStore = (
     scrollToBottom: ({ behavior = "auto" } = {}) => {
       notifyEventListeners(
         scrollToBottomListeners,
-        { behavior },
+        () => ({ behavior }),
         "Thread viewport",
       );
     },

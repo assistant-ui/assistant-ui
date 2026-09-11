@@ -13,6 +13,9 @@ describe("makeThreadViewportStore", () => {
     store.getState().onScrollToBottom(() => {
       throw listenerError;
     });
+    store.getState().onScrollToBottom((config) => {
+      config.behavior = "smooth";
+    });
     store.getState().onScrollToBottom(laterListener);
 
     expect(() => store.getState().scrollToBottom()).not.toThrow();
