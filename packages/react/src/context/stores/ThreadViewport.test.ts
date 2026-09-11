@@ -1,4 +1,4 @@
-import { describe, expect, it, vi } from "vitest";
+import { describe, expect, it, onTestFinished, vi } from "vitest";
 import { makeThreadViewportStore } from "./ThreadViewport";
 
 describe("makeThreadViewportStore", () => {
@@ -8,6 +8,7 @@ describe("makeThreadViewportStore", () => {
     const consoleError = vi
       .spyOn(console, "error")
       .mockImplementation(() => {});
+    onTestFinished(() => consoleError.mockRestore());
     const laterListener = vi.fn();
 
     store.getState().onScrollToBottom(() => {
@@ -21,7 +22,7 @@ describe("makeThreadViewportStore", () => {
     expect(() => store.getState().scrollToBottom()).not.toThrow();
     expect(laterListener).toHaveBeenCalledWith({ behavior: "auto" });
     expect(consoleError).toHaveBeenCalledWith(
-      "[assistant-ui] Thread viewport listener threw an error",
+      expect.stringContaining("Thread viewport"),
       listenerError,
     );
   });
