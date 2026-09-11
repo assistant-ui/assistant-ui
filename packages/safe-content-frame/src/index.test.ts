@@ -120,6 +120,48 @@ describe("SafeContentFrame", () => {
     expect(MockMessageChannel.instances[0]!.port2.close).toHaveBeenCalledOnce();
   });
 
+  it("cancels a pending render before the iframe loads", async () => {
+    const container = document.createElement("div");
+    document.body.appendChild(container);
+    const renderer = new SafeContentFrame("test", { salt: "fixed" });
+    const controller = new AbortController();
+    const removeMessageListener = vi.spyOn(window, "removeEventListener");
+
+    const framePromise = renderer.renderHtml("<p>Hello</p>", container, {
+      signal: controller.signal,
+    });
+    await vi.waitFor(() => {
+      expect(container.querySelector("iframe")).toBeTruthy();
+    });
+
+    controller.abort();
+
+    await expect(framePromise).rejects.toMatchObject({ name: "AbortError" });
+    expect(container.childElementCount).toBe(0);
+    expect(MockMessageChannel.instances[0]!.port1.close).toHaveBeenCalledOnce();
+    expect(MockMessageChannel.instances[0]!.port2.close).toHaveBeenCalledOnce();
+    expect(removeMessageListener).toHaveBeenCalledWith(
+      "message",
+      expect.any(Function),
+    );
+  });
+
+  it("does not mount a frame when the render is already aborted", async () => {
+    const container = document.createElement("div");
+    document.body.appendChild(container);
+    const renderer = new SafeContentFrame("test", { salt: "fixed" });
+    const controller = new AbortController();
+    controller.abort();
+
+    await expect(
+      renderer.renderHtml("<p>Hello</p>", container, {
+        signal: controller.signal,
+      }),
+    ).rejects.toMatchObject({ name: "AbortError" });
+    expect(container.childElementCount).toBe(0);
+    expect(MockMessageChannel.instances).toHaveLength(0);
+  });
+
   it("surfaces shim errors reported after the iframe loads", async () => {
     const container = document.createElement("div");
     document.body.appendChild(container);

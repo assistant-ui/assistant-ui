@@ -14,6 +14,14 @@ export interface SafeContentFrameOptions {
   salt?: string;
 }
 
+export interface SafeContentFrameRenderOptions {
+  signal?: AbortSignal;
+}
+
+export interface SafeContentFrameHtmlRenderOptions extends SafeContentFrameRenderOptions {
+  unsafeDocumentWrite?: boolean;
+}
+
 /**
  * Why a frame never signalled a completed render. `shim-unavailable` means the
  * shim never acknowledged that it started, so the document at the shim URL is
@@ -107,6 +115,21 @@ function randomSalt(): ArrayBuffer {
   return arr.buffer as ArrayBuffer;
 }
 
+function getAbortError(signal: AbortSignal): Error {
+  if (signal.reason instanceof Error) return signal.reason;
+  const error = new Error(
+    signal.reason === undefined
+      ? "The operation was aborted"
+      : String(signal.reason),
+  );
+  error.name = "AbortError";
+  return error;
+}
+
+function throwIfAborted(signal?: AbortSignal): void {
+  if (signal?.aborted) throw getAbortError(signal);
+}
+
 async function contentSalt(
   content: Uint8Array,
   pathname: string,
@@ -134,7 +157,7 @@ export class SafeContentFrame {
   async renderHtml(
     html: string,
     container: HTMLElement,
-    opts?: { unsafeDocumentWrite?: boolean },
+    opts?: SafeContentFrameHtmlRenderOptions,
   ): Promise<RenderedFrame> {
     return this.render(
       new TextEncoder().encode(html),
@@ -148,25 +171,29 @@ export class SafeContentFrame {
     content: Uint8Array | string,
     mimeType: string,
     container: HTMLElement,
+    opts?: SafeContentFrameRenderOptions,
   ): Promise<RenderedFrame> {
     const data =
       typeof content === "string" ? new TextEncoder().encode(content) : content;
-    return this.render(data, mimeType, container);
+    return this.render(data, mimeType, container, opts);
   }
 
   async renderPdf(
     content: Uint8Array,
     container: HTMLElement,
+    opts?: SafeContentFrameRenderOptions,
   ): Promise<RenderedFrame> {
-    return this.render(content, "application/pdf", container);
+    return this.render(content, "application/pdf", container, opts);
   }
 
   private async render(
     content: Uint8Array,
     mimeType: string,
     container: HTMLElement,
-    opts?: { unsafeDocumentWrite?: boolean },
+    opts?: SafeContentFrameHtmlRenderOptions,
   ): Promise<RenderedFrame> {
+    const signal = opts?.signal;
+    throwIfAborted(signal);
     const origin = window.location.origin;
     const salt = this.options.salt
       ? (new TextEncoder().encode(this.options.salt).buffer as ArrayBuffer)
@@ -174,7 +201,9 @@ export class SafeContentFrame {
         ? await contentSalt(content, location.pathname)
         : randomSalt();
 
+    throwIfAborted(signal);
     const hash = await computeOriginHash(this.product, salt, origin);
+    throwIfAborted(signal);
     const shimUrl = `https://${hash}-${PRODUCT_HASH}.${SCF_HOST}/${this.product}/shim.html?origin=${encodeURIComponent(origin)}${this.options.enableBrowserCaching ? "&cache=1" : ""}`;
     const iframeOrigin = new URL(shimUrl).origin;
 
@@ -217,9 +246,10 @@ export class SafeContentFrame {
       };
       window.addEventListener("message", onWindowMessage);
 
-      const cleanup = () => {
+      function cleanup() {
         if (cleanedUp) return;
         cleanedUp = true;
+        signal?.removeEventListener("abort", onAbort);
         iframe.onload = null;
         iframe.onerror = null;
         window.removeEventListener("message", onWindowMessage);
@@ -227,7 +257,20 @@ export class SafeContentFrame {
         channel.port1.close();
         if (!channelTransferred) channel.port2.close();
         mountElement.remove();
-      };
+      }
+
+      function onAbort() {
+        if (!signal) return;
+        const error = getAbortError(signal);
+        onLoadError(error);
+        cleanup();
+        reject(error);
+      }
+      signal?.addEventListener("abort", onAbort, { once: true });
+      if (signal?.aborted) {
+        onAbort();
+        return;
+      }
 
       channel.port1.onmessage = (e) => {
         if (e.data?.type === "msg") onLoaded();
