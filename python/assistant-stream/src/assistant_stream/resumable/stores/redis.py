@@ -344,21 +344,14 @@ class RedisResumableStreamStore:
         existing_raw = await self._client.get(meta_key)
         legacy_data_key = self._data_key(stream_id)
         if existing_raw is None:
-            self._acquired_generations.pop(stream_id, None)
-            await self._client.delete([legacy_data_key])
+            acquired_generation = self._acquired_generations.pop(stream_id, None)
+            keys = [legacy_data_key]
+            if acquired_generation is not None:
+                keys.insert(0, self._data_key(stream_id, acquired_generation))
+            await self._client.delete(keys)
             return
 
         existing = _parse_meta(existing_raw)
-        if existing is not None and self._is_superseded_generation(
-            stream_id, existing
-        ):
-            acquired_generation = self._acquired_generations.get(stream_id)
-            if acquired_generation is not None:
-                await self._client.delete(
-                    [self._data_key(stream_id, acquired_generation)]
-                )
-            return
-
         generation = _meta_generation(existing)
         delete_if_unchanged = getattr(self._client, "delete_if_unchanged", None)
         if delete_if_unchanged is None:
@@ -398,6 +391,7 @@ class RedisResumableStreamStore:
                 current_raw is None
                 or _meta_generation(_parse_meta(current_raw)) != generation
             ):
+                self._acquired_generations.pop(stream_id, None)
                 if generation is not None:
                     await self._client.delete(
                         [self._data_key(stream_id, generation)]

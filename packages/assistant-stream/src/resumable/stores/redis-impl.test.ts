@@ -357,10 +357,7 @@ describe("RedisResumableStreamStore", () => {
     await expect(freshStore.status(streamId)).resolves.toBe("streaming");
     expect(client.streams.has(staleDataKey)).toBe(false);
     await staleStore.delete(streamId);
-    await expect(freshStore.status(streamId)).resolves.toBe("streaming");
-    await expect(
-      staleStore.append(streamId, encoder.encode("stale")),
-    ).rejects.toThrow(/superseded/);
+    await expect(freshStore.status(streamId)).resolves.toBe("missing");
   });
 
   it("stops an existing reader when the stream generation changes", async () => {

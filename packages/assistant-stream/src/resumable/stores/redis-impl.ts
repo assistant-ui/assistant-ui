@@ -142,12 +142,14 @@ export interface RedisLikeClient {
   >;
   /** Executes the commands as a single pipeline batch (one round trip). */
   pipeline(commands: readonly PipelineCommand[]): Promise<void>;
+  /** Omitting this capability keeps the legacy unfenced append behavior. */
   appendIfUnchanged?(options: RedisAppendOptions): Promise<boolean>;
   /**
    * Atomically finalizes a stream only while its metadata is unchanged, so a
    * producer superseded by a newer acquisition cannot finalize the replacement.
    */
   finalizeIfUnchanged(options: RedisFinalizeOptions): Promise<boolean>;
+  /** Omitting this capability keeps the legacy unfenced delete behavior. */
   deleteIfUnchanged?(options: RedisDeleteOptions): Promise<boolean>;
 }
 
@@ -393,19 +395,18 @@ export class RedisResumableStreamStore implements ResumableStreamStore {
     let existingRaw = await this.client.get(metaKey);
     const legacyDataKey = this.dataKey(streamId);
     if (existingRaw === null) {
+      const acquiredGeneration = this.acquiredGenerations.get(streamId);
       this.acquiredGenerations.delete(streamId);
-      await this.client.del([legacyDataKey]);
+      await this.client.del([
+        ...(acquiredGeneration === undefined
+          ? []
+          : [this.dataKey(streamId, acquiredGeneration)]),
+        legacyDataKey,
+      ]);
       return;
     }
 
     const existing = parseMeta(existingRaw);
-    if (existing && this.isSupersededGeneration(streamId, existing)) {
-      const acquiredGeneration = this.acquiredGenerations.get(streamId);
-      if (acquiredGeneration !== undefined) {
-        await this.client.del([this.dataKey(streamId, acquiredGeneration)]);
-      }
-      return;
-    }
     const generation = existing?.generation;
     if (!this.client.deleteIfUnchanged) {
       this.acquiredGenerations.delete(streamId);
@@ -434,6 +435,7 @@ export class RedisResumableStreamStore implements ResumableStreamStore {
         currentRaw === null ||
         parseMeta(currentRaw)?.generation !== generation
       ) {
+        this.acquiredGenerations.delete(streamId);
         if (generation !== undefined) {
           await this.client.del([this.dataKey(streamId, generation)]);
         }

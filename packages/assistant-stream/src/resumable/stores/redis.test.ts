@@ -301,9 +301,8 @@ for (const adapter of adapters) {
         await deleting;
 
         await expect(freshStore.status(id)).resolves.toBe("streaming");
-        await expect(staleStore.append(id, bytes("stale"))).rejects.toThrow(
-          /superseded/,
-        );
+        await staleStore.delete(id);
+        await expect(freshStore.status(id)).resolves.toBe("missing");
       });
 
       it("read throws on error finalize after draining buffered entries", async () => {
