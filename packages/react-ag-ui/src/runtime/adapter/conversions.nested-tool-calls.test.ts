@@ -52,6 +52,28 @@ describe("toAgUiMessages nested tool calls", () => {
     ]);
   });
 
+  it("prunes nested tool calls below filtered a2ui parts", () => {
+    const [converted] = toAgUiMessages([
+      assistant("root", [
+        toolCall("root-call", [
+          assistant("nested", [
+            toolCall("a2ui:surface", [
+              assistant("hidden", [toolCall("hidden")]),
+            ]),
+            toolCall("visible"),
+          ]),
+        ]),
+      ]),
+    ]);
+
+    expect(converted).toMatchObject({ role: "assistant" });
+    if (converted?.role !== "assistant") throw new Error("expected assistant");
+    expect(converted.toolCalls?.map(({ id }) => id)).toEqual([
+      "root-call",
+      "visible",
+    ]);
+  });
+
   it("converts deeply nested tool calls without overflowing the stack", () => {
     const depth = 10_000;
 

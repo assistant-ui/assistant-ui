@@ -212,6 +212,9 @@ function normalizeToolCall(part: ToolCallPart): {
   };
 }
 
+const isExportableNestedToolCall = (part: { readonly toolCallId?: unknown }) =>
+  typeof part.toolCallId === "string" && !part.toolCallId.startsWith("a2ui:");
+
 function extractText(content: unknown): string {
   if (typeof content === "string") return content;
   if (!Array.isArray(content)) return "";
@@ -1075,28 +1078,15 @@ function convertAssistantMessage(
     part: ToolCallPart;
   }[] = [];
   for (const { part } of toolCalls) {
-    try {
-      for (const { part: nestedToolCall } of walkToolCallTree(
-        part.messages ?? [],
-      )) {
-        if (
-          typeof nestedToolCall.toolCallId !== "string" ||
-          nestedToolCall.toolCallId.startsWith("a2ui:")
-        ) {
-          continue;
-        }
-        nestedToolCalls.push({
-          ...normalizeToolCall(nestedToolCall),
-          part: nestedToolCall,
-        });
-      }
-    } catch (error) {
-      if (
-        !(error instanceof TypeError) ||
-        error.message !== "Cyclic tool-call message tree"
-      ) {
-        throw error;
-      }
+    for (const { part: nestedToolCall } of walkToolCallTree(
+      part.messages ?? [],
+      { shouldDescend: isExportableNestedToolCall },
+    )) {
+      if (!isExportableNestedToolCall(nestedToolCall)) continue;
+      nestedToolCalls.push({
+        ...normalizeToolCall(nestedToolCall),
+        part: nestedToolCall,
+      });
     }
   }
 
