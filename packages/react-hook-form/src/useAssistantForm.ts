@@ -21,6 +21,7 @@ import { formTools } from "./formTools";
 type PendingAssistantSubmit = {
   dispatching: boolean;
   event: unknown;
+  formUnavailable: boolean;
   handlerInvoked: boolean;
   outcome: boolean | undefined;
   resolve: (outcome: boolean) => void;
@@ -106,6 +107,16 @@ export const useAssistantForm = <
     pendingAssistantSubmitRef.current = null;
     pending.reject(error);
   }, []);
+  useEffect(
+    () => () => {
+      const pending = pendingAssistantSubmitRef.current;
+      if (!pending) return;
+
+      pending.formUnavailable = true;
+      settleAssistantSubmit(false);
+    },
+    [settleAssistantSubmit],
+  );
 
   const handleSubmit = useCallback<
     UseFormReturn<TFieldValues, TContext, TTransformedValues>["handleSubmit"]
@@ -235,6 +246,7 @@ export const useAssistantForm = <
               const assistantSubmit: PendingAssistantSubmit = {
                 dispatching: true,
                 event: undefined,
+                formUnavailable: false,
                 handlerInvoked: false,
                 outcome: undefined,
                 resolve: resolveSubmission,
@@ -274,7 +286,14 @@ export const useAssistantForm = <
                 settleAssistantSubmit(false);
               }
 
-              if (await submissionResult) return { success: true };
+              const submitted = await submissionResult;
+              if (assistantSubmit.formUnavailable) {
+                return {
+                  success: false,
+                  message: "The form is no longer available.",
+                };
+              }
+              if (submitted) return { success: true };
               return {
                 success: false,
                 message: dispatched
