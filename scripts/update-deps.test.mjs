@@ -20,7 +20,8 @@ function writeExecutable(file, source) {
   chmodSync(file, 0o755);
 }
 
-test("failed Expo repin restores React Native dependencies without reverting unrelated taze updates", () => {
+for (const failureStage of ["install", "expo-repin"]) {
+  test(`${failureStage} failure restores React Native dependencies without reverting unrelated taze updates`, () => {
   const root = mkdtempSync(path.join(tmpdir(), "aui-update-deps-"));
   const bin = path.join(root, "bin");
   const manifestPath = path.join(root, "examples", "with-expo", "package.json");
@@ -57,8 +58,12 @@ test("failed Expo repin restores React Native dependencies without reverting unr
 
     writeExecutable(
       path.join(bin, "npx"),
-      `#!/bin/bash
-set -euo pipefail
+      `#!/bin/sh
+set -eu
+if [ "$1" = "expo" ]; then
+  [ "$FAILURE_STAGE" != "expo-repin" ]
+  exit
+fi
 node -e '
   const fs = require("node:fs");
   const file = "examples/with-expo/package.json";
@@ -72,22 +77,22 @@ node -e '
     );
     writeExecutable(
       path.join(bin, "pnpm"),
-      `#!/usr/bin/env bash
-set -euo pipefail
-if [[ " $* " == *" --no-frozen-lockfile "* ]]; then
+      `#!/bin/sh
+set -eu
+if [ "$FAILURE_STAGE" = "install" ]; then
   exit 1
 fi
 `,
     );
     writeExecutable(
       path.join(bin, "git"),
-      `#!/usr/bin/env bash
+      `#!/bin/sh
 printf 'package.json\\0examples/with-expo/package.json\\0'
 `,
     );
     writeExecutable(
       path.join(root, "scripts", "generate-deps-changeset.sh"),
-      "#!/usr/bin/env bash\nexit 0\n",
+      "#!/bin/sh\nexit 0\n",
     );
     const result = spawnSync(
       "/bin/bash",
@@ -95,7 +100,11 @@ printf 'package.json\\0examples/with-expo/package.json\\0'
       {
         cwd: root,
         encoding: "utf8",
-        env: { ...process.env, PATH: `${bin}:${process.env.PATH}` },
+        env: {
+          ...process.env,
+          FAILURE_STAGE: failureStage,
+          PATH: `${bin}:${process.env.PATH}`,
+        },
       },
     );
 
@@ -107,7 +116,8 @@ printf 'package.json\\0examples/with-expo/package.json\\0'
       "react-native": "0.81.5",
       "unrelated-package": "2.0.0",
     });
-  } finally {
-    rmSync(root, { recursive: true, force: true });
-  }
-});
+    } finally {
+      rmSync(root, { recursive: true, force: true });
+    }
+  });
+}
