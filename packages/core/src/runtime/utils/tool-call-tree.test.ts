@@ -139,23 +139,25 @@ describe("walkToolCallTree", () => {
     expect(entries.at(-1)?.part.toolCallId).toBe(String(depth - 1));
   });
 
-  it("rejects cyclic tool-call trees", () => {
+  it("does not revisit cyclic tool-call trees", () => {
     const messages: ThreadMessage[] = [];
     messages.push(assistant("m1", [toolCall("a", messages)]));
 
-    expect(() => [...walkToolCallTree(messages)]).toThrow(
-      "Cyclic tool-call message tree",
-    );
+    expect(
+      [...walkToolCallTree(messages)].map((entry) => entry.part.toolCallId),
+    ).toEqual(["a"]);
   });
 
-  it("rejects cycles that repeat content before messages", () => {
+  it("does not revisit cycles that repeat content before messages", () => {
     const content: ThreadAssistantMessagePart[] = [];
     const nestedMessages = [assistant("nested", content)];
     content.push(toolCall("a", nestedMessages));
 
-    expect(() => [...walkToolCallTree([assistant("root", content)])]).toThrow(
-      "Cyclic tool-call message tree",
-    );
+    expect(
+      [...walkToolCallTree([assistant("root", content)])].map(
+        (entry) => entry.part.toolCallId,
+      ),
+    ).toEqual(["a", "a"]);
   });
 
   it("allows sibling tool calls to share an acyclic message subtree", () => {
@@ -167,6 +169,23 @@ describe("walkToolCallTree", () => {
     expect(
       [...walkToolCallTree(messages)].map((entry) => entry.part.toolCallId),
     ).toEqual(["a", "nested", "b", "nested"]);
+  });
+
+  it("prunes descendants when requested", () => {
+    const messages = [
+      assistant("root", [
+        toolCall("skip", [assistant("nested", [toolCall("hidden")])]),
+        toolCall("visible"),
+      ]),
+    ];
+
+    expect(
+      [
+        ...walkToolCallTree(messages, {
+          shouldDescend: (part) => part.toolCallId !== "skip",
+        }),
+      ].map((entry) => entry.part.toolCallId),
+    ).toEqual(["skip", "visible"]);
   });
 });
 
@@ -268,24 +287,26 @@ describe("mapToolCallPartsDeep", () => {
     );
   });
 
-  it("rejects cyclic tool-call trees", () => {
+  it("does not revisit cyclic tool-call trees", () => {
     const messages: ThreadMessage[] = [];
     const part = toolCall("a", messages);
     messages.push(assistant("m1", [part]));
 
-    expect(() => mapToolCallPartsDeep([part], (current) => current)).toThrow(
-      "Cyclic tool-call message tree",
-    );
+    const result = mapToolCallPartsDeep([part], (current) => current);
+
+    expect(result.changed).toBe(false);
+    expect(result.content[0]).toBe(part);
   });
 
-  it("rejects cycles that repeat content before messages", () => {
+  it("does not revisit cycles that repeat content before messages", () => {
     const content: ThreadAssistantMessagePart[] = [];
     const nestedMessages = [assistant("nested", content)];
     content.push(toolCall("a", nestedMessages));
 
-    expect(() => mapToolCallPartsDeep(content, (part) => part)).toThrow(
-      "Cyclic tool-call message tree",
-    );
+    const result = mapToolCallPartsDeep(content, (part) => part);
+
+    expect(result.changed).toBe(false);
+    expect(result.content).toBe(content);
   });
 
   it("allows sibling tool calls to share an acyclic message subtree", () => {

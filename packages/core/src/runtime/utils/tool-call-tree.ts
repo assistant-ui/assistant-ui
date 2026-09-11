@@ -11,6 +11,10 @@ export type ToolCallTreeEntry = {
   readonly messageId: string;
 };
 
+export type WalkToolCallTreeOptions = {
+  readonly shouldDescend?: (part: ToolCallMessagePart) => boolean;
+};
+
 /**
  * Walk every tool-call part reachable from `messages`. A tool call projects a
  * child run as nested messages on `ToolCallMessagePart.messages`, so a
@@ -22,10 +26,12 @@ export type ToolCallTreeEntry = {
  * nested call is the child run's message rather than the top-level message the
  * tree hangs from. Only assistant messages are descended, the same rule
  * {@link mapToolCallPartsDeep} rewrites under, so a part this reports is always
- * a part that can be written back.
+ * a part that can be written back. Returning false from `shouldDescend` prunes
+ * a part's nested messages. Cyclic branches are yielded once and not revisited.
  */
 export function* walkToolCallTree(
   messages: readonly ThreadMessage[],
+  options?: WalkToolCallTreeOptions,
 ): Generator<ToolCallTreeEntry> {
   type Frame =
     | {
@@ -45,7 +51,7 @@ export function* walkToolCallTree(
 
   const pushMessagesFrame = (
     frame: Extract<Frame, { readonly type: "messages" }>,
-  ) => {
+  ): boolean => {
     if (!activeMessageArrays) {
       activeMessageArrays = new WeakSet<object>();
       for (const active of frames) {
@@ -55,10 +61,11 @@ export function* walkToolCallTree(
       }
     }
     if (activeMessageArrays.has(frame.values)) {
-      throw new TypeError("Cyclic tool-call message tree");
+      return false;
     }
     activeMessageArrays.add(frame.values);
     frames.push(frame);
+    return true;
   };
 
   while (frames.length > 0) {
@@ -88,7 +95,7 @@ export function* walkToolCallTree(
     const part = frame.values[frame.index++];
     if (!part || part.type !== "tool-call") continue;
     yield { part, messageId: frame.messageId };
-    if (part.messages?.length) {
+    if (part.messages?.length && options?.shouldDescend?.(part) !== false) {
       pushMessagesFrame({ type: "messages", values: part.messages, index: 0 });
     }
   }
@@ -100,12 +107,13 @@ export function* walkToolCallTree(
  */
 export function* iterateToolCallParts(
   content: readonly ThreadAssistantMessagePart[],
+  options?: WalkToolCallTreeOptions,
 ): Generator<ToolCallMessagePart> {
   for (const part of content) {
     if (!part || part.type !== "tool-call") continue;
     yield part;
-    if (part.messages?.length) {
-      for (const entry of walkToolCallTree(part.messages)) {
+    if (part.messages?.length && options?.shouldDescend?.(part) !== false) {
+      for (const entry of walkToolCallTree(part.messages, options)) {
         yield entry.part;
       }
     }
@@ -155,13 +163,14 @@ export function mapToolCallPartsDeep(
   const frames: Array<ContentFrame | MessagesFrame> = [root];
   let activeMessageArrays: WeakSet<object> | undefined;
 
-  const pushMessagesFrame = (frame: MessagesFrame) => {
+  const pushMessagesFrame = (frame: MessagesFrame): boolean => {
     activeMessageArrays ??= new WeakSet<object>();
     if (activeMessageArrays.has(frame.values)) {
-      throw new TypeError("Cyclic tool-call message tree");
+      return false;
     }
     activeMessageArrays.add(frame.values);
     frames.push(frame);
+    return true;
   };
 
   while (frames.length > 0) {
@@ -198,7 +207,7 @@ export function mapToolCallPartsDeep(
         continue;
       }
 
-      pushMessagesFrame({
+      const descended = pushMessagesFrame({
         type: "messages",
         values: mapped.messages,
         originalPart: part,
@@ -208,6 +217,10 @@ export function mapToolCallPartsDeep(
         index: 0,
         changed: false,
       });
+      if (!descended) {
+        frame.next.push(mapped);
+        if (mapped !== part) frame.changed = true;
+      }
       continue;
     }
 
