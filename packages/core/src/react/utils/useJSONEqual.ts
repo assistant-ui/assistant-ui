@@ -1,7 +1,8 @@
 import { useRef } from "react";
+import type { ReadonlyJSONValue } from "assistant-stream/utils";
 import { isJSONValueEqual } from "../../utils/json/is-json-equal";
 
-export function useJSONEqualValue<T>(value: T): T {
+export function useJSONEqualValue<T extends ReadonlyJSONValue>(value: T): T {
   const prev = useRef(value);
   if (prev.current !== value && !isJSONValueEqual(prev.current, value)) {
     prev.current = value;

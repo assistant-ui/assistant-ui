@@ -40,7 +40,7 @@ afterEach(() => {
 });
 
 describe("unstable_useInteractable", () => {
-  it("refreshes the registration when its schema changes", async () => {
+  it("refreshes the registration when its JSON schema changes", async () => {
     const schemaA = {
       type: "object" as const,
       properties: { first: { type: "string" } },
@@ -77,8 +77,45 @@ describe("unstable_useInteractable", () => {
         type: "object",
         properties: { second: { type: "number" } },
       },
-      initialState: { second: 2 },
+      initialState: { second: 3 },
     });
     expect(mocks.register).toHaveBeenCalledTimes(2);
+  });
+
+  it("stabilizes equivalent rebuilt standard schemas", async () => {
+    const createSchema = (property: string) => ({
+      "~standard": {
+        version: 1 as const,
+        vendor: "test",
+        validate: (value: unknown) => ({ value }),
+        toJSONSchema: () => ({
+          type: "object" as const,
+          properties: { [property]: { type: "string" as const } },
+        }),
+      },
+    });
+    const firstSchema = createSchema("value");
+
+    const hook = renderHook(
+      ({ stateSchema }) =>
+        unstable_useInteractable("panel", {
+          id: "panel-1",
+          description: "A panel",
+          stateSchema,
+          initialState: {},
+        }),
+      { initialProps: { stateSchema: firstSchema } },
+    );
+    await waitFor(() => expect(mocks.register).toHaveBeenCalledTimes(1));
+
+    hook.rerender({ stateSchema: createSchema("value") });
+    expect(mocks.register).toHaveBeenCalledTimes(1);
+
+    const changedSchema = createSchema("other");
+    hook.rerender({ stateSchema: changedSchema });
+    await waitFor(() => expect(mocks.register).toHaveBeenCalledTimes(2));
+    expect(mocks.register).toHaveBeenLastCalledWith(
+      expect.objectContaining({ stateSchema: changedSchema }),
+    );
   });
 });

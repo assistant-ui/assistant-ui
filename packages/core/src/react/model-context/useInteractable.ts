@@ -1,7 +1,8 @@
 "use client";
 
-import { useEffect, useId, useMemo } from "react";
+import { useEffect, useId, useMemo, useRef } from "react";
 import { useAui, useAuiState } from "@assistant-ui/store";
+import { toJSONSchema } from "assistant-stream";
 import type { Unstable_InteractableStateSchema } from "../types/scopes/interactables";
 import type { ToolCallMessagePartComponent } from "../types/MessagePartComponentTypes";
 import {
@@ -114,8 +115,13 @@ const useInteractable = <TSchema extends Unstable_InteractableStateSchema>(
       ? "thread"
       : undefined;
 
-  const stateSchema = useJSONEqualValue(config.stateSchema);
-  const initialState = useJSONEqualValue(config.initialState);
+  const stateSchemaRef = useRef(config.stateSchema);
+  stateSchemaRef.current = config.stateSchema;
+  const normalizedStateSchema = useJSONEqualValue(
+    toJSONSchema(config.stateSchema),
+  );
+  const initialStateRef = useRef(config.initialState);
+  initialStateRef.current = config.initialState;
 
   const interactables = useAuiState(() => aui.unstable_interactables);
 
@@ -124,8 +130,8 @@ const useInteractable = <TSchema extends Unstable_InteractableStateSchema>(
       id,
       name,
       description: config.description,
-      stateSchema,
-      initialState,
+      stateSchema: stateSchemaRef.current,
+      initialState: initialStateRef.current,
       updateRender: config.updateRender,
       ...(internalScope ? { scope: internalScope } : {}),
     } as Parameters<typeof interactables.register>[0] & {
@@ -136,8 +142,7 @@ const useInteractable = <TSchema extends Unstable_InteractableStateSchema>(
     id,
     name,
     config.description,
-    stateSchema,
-    initialState,
+    normalizedStateSchema,
     internalScope,
     config.updateRender,
   ]);
