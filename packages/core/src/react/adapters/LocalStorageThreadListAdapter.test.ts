@@ -154,7 +154,13 @@ describe("parseStoredMessageRepository", () => {
           {
             message: {
               ...storedMessage("invalid-text"),
-              content: [{ type: "text", text: 42 }],
+              content: [
+                { type: "text", text: 42 },
+                { type: "image", image: 42 },
+                { type: "file", data: 42, mimeType: "text/plain" },
+                { type: "audio", audio: { data: "bytes", format: "ogg" } },
+                { type: "data", name: 42, data: {} },
+              ],
             },
             parentId: null,
           },
@@ -182,9 +188,7 @@ describe("parseStoredMessageRepository", () => {
       "tool-call",
     ]);
     expect(repo.messages[0]?.message.content).toEqual([]);
-    expect(repo.messages[1]?.message.content).toEqual([
-      { type: "text", text: 42 },
-    ]);
+    expect(repo.messages[1]?.message.content).toEqual([]);
     expect(repo.messages[2]?.message.content).toEqual([
       {
         type: "tool-call",
@@ -193,6 +197,42 @@ describe("parseStoredMessageRepository", () => {
         args: {},
         argsText: "{}",
       },
+    ]);
+  });
+
+  it("preserves supported user content loaded from storage", () => {
+    const repo = parseStoredMessageRepository(
+      JSON.stringify({
+        messages: [
+          {
+            message: {
+              ...storedMessage("user-content"),
+              content: [
+                { type: "text", text: "hello" },
+                { type: "image", image: "https://example.com/image.png" },
+                {
+                  type: "file",
+                  data: "SGVsbG8=",
+                  mimeType: "text/plain",
+                },
+                { type: "audio", audio: { data: "bytes", format: "mp3" } },
+                { type: "data", name: "weather", data: { sunny: true } },
+                { type: "data-legacy", data: { value: 1 } },
+              ],
+            },
+            parentId: null,
+          },
+        ],
+      }),
+    );
+
+    expect(repo.messages[0]?.message.content).toEqual([
+      { type: "text", text: "hello" },
+      { type: "image", image: "https://example.com/image.png" },
+      { type: "file", data: "SGVsbG8=", mimeType: "text/plain" },
+      { type: "audio", audio: { data: "bytes", format: "mp3" } },
+      { type: "data", name: "weather", data: { sunny: true } },
+      { type: "data", name: "legacy", data: { value: 1 } },
     ]);
   });
 
