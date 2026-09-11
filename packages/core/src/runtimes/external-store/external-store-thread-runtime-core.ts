@@ -894,9 +894,10 @@ export class ExternalStoreThreadRuntimeCore
 
     observeAdapterCallback("onCancel", this._store.onCancel());
 
-    // A second stop re-evaluates the rollback from scratch, so a composer
-    // freed since the first one takes the prompt back.
-    this._dropCancelledRun();
+    // A second stop while the run is still reported re-evaluates the rollback
+    // from scratch, so a composer freed since the first one takes the prompt
+    // back; a stop after the host settled leaves the cancelled turn alone.
+    if (wasRunning) this._dropCancelledRun();
     this.dropEmptyOptimisticHead();
 
     const messages = this.repository.getMessages();
@@ -938,7 +939,10 @@ export class ExternalStoreThreadRuntimeCore
       this._cancelledRun = { id: generateId(), parentId: previousMessage.id };
       this._addCancelledRunMessage(this._cancelledRun);
     }
-    this._messages = this.repository.getMessages();
+    // Publish the placeholder drop now; a moved leaf stays visible until the
+    // resync commits its removal, so a host render in between does not flash
+    // it out and back in.
+    this._messages = movedLeaf ? messages : this.repository.getMessages();
     this._notifySubscribers();
 
     // The resync commits what the cancel left (a kept optimistic message, the

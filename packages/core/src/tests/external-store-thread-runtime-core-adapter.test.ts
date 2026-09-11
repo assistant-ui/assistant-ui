@@ -325,6 +325,42 @@ describe("ExternalStoreThreadRuntimeCore adapter contract", () => {
       expect(core.messages).toEqual([user]);
     });
 
+    it("keeps the cancelled turn across an explicit switch onto its branch", async () => {
+      const { core, adapter, user } = stopBeforeStream();
+      const markerId = expectCancelledTurn(core);
+      await new Promise((resolve) => setTimeout(resolve, 0));
+      core.__internal_setAdapter({
+        ...adapter,
+        isRunning: false,
+        messages: [user],
+      });
+      for (const target of ["u1", markerId]) {
+        core.switchToBranch(target);
+        expect(adapter.setMessages).toHaveBeenLastCalledWith([user]);
+        core.__internal_setAdapter({
+          ...adapter,
+          isRunning: false,
+          messages: [user],
+        });
+        expect(expectCancelledTurn(core)).toBe(markerId);
+      }
+    });
+
+    it("keeps the cancelled turn when stopped again after the host settled", async () => {
+      const { core, adapter, user } = stopBeforeStream();
+      const markerId = expectCancelledTurn(core);
+      await new Promise((resolve) => setTimeout(resolve, 0));
+      core.__internal_setAdapter({
+        ...adapter,
+        isRunning: false,
+        messages: [user],
+      });
+      core.cancelRun();
+      await new Promise((resolve) => setTimeout(resolve, 0));
+      expect(expectCancelledTurn(core)).toBe(markerId);
+      expect(core.composer.text).toBe("draft");
+    });
+
     it("does not leave a cancelled turn when stopped while idle", async () => {
       const { core, user } = stopBeforeStream({ isRunning: false });
       await new Promise((resolve) => setTimeout(resolve, 0));
@@ -437,10 +473,16 @@ describe("ExternalStoreThreadRuntimeCore adapter contract", () => {
       await new Promise((resolve) => setTimeout(resolve, 0));
       core.composer.setText("");
       core.cancelRun();
+      expect(core.messages).toEqual([user]);
       await new Promise((resolve) => setTimeout(resolve, 0));
-      expect(core.messages).toEqual([]);
       expect(core.composer.text).toBe(getThreadMessageText(user));
       expect(adapter.setMessages).toHaveBeenLastCalledWith([]);
+      core.__internal_setAdapter({
+        ...adapter,
+        isRunning: false,
+        messages: [],
+      });
+      expect(core.messages).toEqual([]);
     });
 
     it.each(["cancelled turn", "user parent"] as const)(
@@ -923,7 +965,10 @@ describe("ExternalStoreThreadRuntimeCore adapter contract", () => {
       const core = new ExternalStoreThreadRuntimeCore(contextProvider, adapter);
 
       core.cancelRun();
-      expect(core.messages).toEqual([]);
+      // the placeholder is gone at once; the prompt stays until the resync
+      expect(core.messages).toEqual([userMessage]);
+      core.__internal_setAdapter({ ...adapter, isRunning: false });
+      expect(core.messages).toEqual([userMessage]);
 
       await new Promise((resolve) => setTimeout(resolve, 0));
       expect(adapter.setMessages).toHaveBeenLastCalledWith([]);
