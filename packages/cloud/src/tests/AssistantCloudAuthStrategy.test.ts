@@ -950,4 +950,26 @@ describe("AssistantCloudJWTAuthStrategy", () => {
     });
     expect(authToken).toHaveBeenCalledTimes(2);
   });
+
+  it("does not cache a malformed rotated token", async () => {
+    const authToken = vi
+      .fn<() => Promise<string | null>>()
+      .mockResolvedValue(accessToken);
+    const strategy = new AssistantCloudJWTAuthStrategy(authToken);
+
+    await expect(strategy.getAuthHeaders()).resolves.toEqual({
+      Authorization: `Bearer ${accessToken}`,
+    });
+
+    expect(() =>
+      strategy.readAuthHeaders(
+        new Headers({ Authorization: "Bearer malformed" }),
+      ),
+    ).toThrow("Unable to determine the token expiry");
+
+    await expect(strategy.getAuthHeaders()).resolves.toEqual({
+      Authorization: `Bearer ${accessToken}`,
+    });
+    expect(authToken).toHaveBeenCalledTimes(1);
+  });
 });
