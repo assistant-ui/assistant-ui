@@ -433,6 +433,7 @@ export const createPiHttpClient = (
             ...(reconnectDelay ? { reconnectDelay } : {}),
             ...(onStreamError ? { onError: onStreamError } : {}),
             onConnect: () => {
+              createdStream.reconnectOnReturnAvailable = true;
               createdStream.awaitingLiveSnapshot = true;
               const snapshotLoad = createdStream.snapshotLoad;
               if (snapshotLoad) {
