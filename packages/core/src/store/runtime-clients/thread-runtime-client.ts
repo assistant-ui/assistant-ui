@@ -4,7 +4,13 @@ import type {
   CreateAppendMessage,
   ThreadRuntime,
 } from "../../runtime/api/thread-runtime";
-import { useMemo, useEffect, useCallback, type RefObject } from "react";
+import {
+  useMemo,
+  useEffect,
+  useCallback,
+  useState,
+  type RefObject,
+} from "react";
 import { useResource, resource, withKey } from "@assistant-ui/tap";
 import { liveRef } from "./liveRef";
 import type { ClientOutput } from "@assistant-ui/store";
@@ -24,11 +30,13 @@ const useMessageClientById = ({
   id,
   threadIdRef,
   threadId,
+  reportedApprovalIds,
 }: {
   runtime: ThreadRuntime;
   id: string;
   threadIdRef: RefObject<string>;
   threadId: string;
+  reportedApprovalIds: Set<string>;
 }) => {
   const messageRuntime = useMemo(
     () => runtime.getMessageById(id),
@@ -36,7 +44,12 @@ const useMessageClientById = ({
   );
 
   return useResource(
-    MessageClient({ runtime: messageRuntime, threadIdRef, threadId }),
+    MessageClient({
+      runtime: messageRuntime,
+      threadIdRef,
+      threadId,
+      reportedApprovalIds,
+    }),
   );
 };
 
@@ -79,6 +92,10 @@ const useThreadClient = ({
     () => liveRef(() => runtime.getState()!.threadId),
     [runtime],
   );
+  // Approval ids whose decision was already reported, kept here so a part
+  // client that remounts (the message leaves and re-enters the list) does not
+  // report the same approval again.
+  const [reportedApprovalIds] = useState(() => new Set<string>());
   const emitThreadEvent = (
     event: "thread.cancelRun" | "thread.voiceStarted",
   ) => {
@@ -111,8 +128,15 @@ const useThreadClient = ({
           id: m.id,
           threadIdRef,
           threadId: runtimeState.threadId,
+          reportedApprovalIds,
         }),
-        [runtime, m.id, threadIdRef, runtimeState.threadId],
+        [
+          runtime,
+          m.id,
+          threadIdRef,
+          runtimeState.threadId,
+          reportedApprovalIds,
+        ],
       ),
     ),
   );

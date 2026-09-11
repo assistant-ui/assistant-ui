@@ -2706,6 +2706,7 @@ declare const MessageClient: Resource<ClientOutput<"message">, [
       current: string;
     };
     threadId: string;
+    reportedApprovalIds: Set<string>;
   }
 ]>;
 
@@ -2817,6 +2818,7 @@ declare const MessagePartClient: Resource<ClientOutput<"part">, [
       messageIdRef: {
         current: string;
       };
+      reportedApprovalIds: Set<string>;
     };
   }
 ]>;

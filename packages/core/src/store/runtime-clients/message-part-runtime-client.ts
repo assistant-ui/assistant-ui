@@ -1,4 +1,3 @@
-import { useRef } from "react";
 import { resource } from "@assistant-ui/tap";
 import { useAssistantEmit } from "@assistant-ui/store/client";
 import { resolveToolApprovalResponse } from "../../runtime/utils/resolveToolApprovalResponse";
@@ -11,14 +10,19 @@ const useMessagePartClient = ({
   eventContext,
 }: {
   runtime: MessagePartRuntime;
-  /** Thread and message identity for emitted events; absent in hand-built clients. */
-  eventContext?: { threadId: string; messageIdRef: { current: string } };
+  /**
+   * Thread and message identity for emitted events; absent in hand-built
+   * clients. `reportedApprovalIds` is owned by the thread client so a reported
+   * approval stays reported when this part client remounts.
+   */
+  eventContext?: {
+    threadId: string;
+    messageIdRef: { current: string };
+    reportedApprovalIds: Set<string>;
+  };
 }): ClientOutput<"part"> => {
   const state = useSubscribable(runtime);
   const emit = useAssistantEmit();
-  // A runtime whose state settles asynchronously accepts a repeat decision
-  // before the gate reads as decided, so each approval reports at most once.
-  const reportedApprovalId = useRef<string | undefined>(undefined);
 
   return {
     getState: () => state,
@@ -31,10 +35,13 @@ const useMessagePartClient = ({
           !eventContext ||
           part.type !== "tool-call" ||
           !part.approval ||
-          reportedApprovalId.current === part.approval.id
+          // A runtime whose state settles asynchronously accepts a repeat
+          // decision before the gate reads as decided, so each approval
+          // reports at most once.
+          eventContext.reportedApprovalIds.has(part.approval.id)
         )
           return;
-        reportedApprovalId.current = part.approval.id;
+        eventContext.reportedApprovalIds.add(part.approval.id);
         emit("part.toolApprovalResponded", {
           threadId: eventContext.threadId,
           messageId: eventContext.messageIdRef.current,

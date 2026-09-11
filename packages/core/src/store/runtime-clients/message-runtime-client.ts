@@ -37,11 +37,13 @@ const useMessagePartByIndex = ({
   index,
   threadId,
   messageIdRef,
+  reportedApprovalIds,
 }: {
   runtime: MessageRuntime;
   index: number;
   threadId: string;
   messageIdRef: { current: string };
+  reportedApprovalIds: Set<string>;
 }) => {
   const partRuntime = useMemo(
     () => runtime.getMessagePartByIndex(index),
@@ -50,7 +52,7 @@ const useMessagePartByIndex = ({
   return useResource(
     MessagePartClient({
       runtime: partRuntime,
-      eventContext: { threadId, messageIdRef },
+      eventContext: { threadId, messageIdRef, reportedApprovalIds },
     }),
   );
 };
@@ -61,10 +63,13 @@ const useMessageClient = ({
   runtime,
   threadIdRef,
   threadId,
+  reportedApprovalIds,
 }: {
   runtime: MessageRuntime;
   threadIdRef: { current: string };
   threadId: string;
+  /** Approval ids already reported on this thread; owned by the thread client. */
+  reportedApprovalIds: Set<string>;
 }): ClientOutput<"message"> => {
   const runtimeState = useSubscribable(runtime);
   const emit = useAssistantEmit();
@@ -117,7 +122,13 @@ const useMessageClient = ({
         "toolCallId" in part && part.toolCallId != null
           ? `toolCallId-${part.toolCallId}`
           : `index-${idx}`,
-        MessagePartByIndex({ runtime, index: idx, threadId, messageIdRef }),
+        MessagePartByIndex({
+          runtime,
+          index: idx,
+          threadId,
+          messageIdRef,
+          reportedApprovalIds,
+        }),
         [runtime, idx],
       ),
     ),
