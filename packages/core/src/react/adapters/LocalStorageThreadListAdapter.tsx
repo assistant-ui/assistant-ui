@@ -18,6 +18,7 @@ import type {
   RunConfig,
   CompleteAttachment,
   MessageStatus,
+  ToolModelContentPart,
 } from "../../index";
 import type {
   ExportedMessageRepository,
@@ -165,11 +166,61 @@ const parseStoredMessageStatus = (value: unknown): MessageStatus => {
   return DEFAULT_STORED_MESSAGE_STATUS;
 };
 
+const parseStoredToolModelContent = (
+  value: unknown,
+): ToolModelContentPart[] | undefined => {
+  if (!Array.isArray(value)) return undefined;
+
+  return value.flatMap((entry) => {
+    if (!isRecord(entry)) return [];
+    if (entry.type === "text" && typeof entry.text === "string") {
+      return [{ type: "text", text: entry.text }];
+    }
+    if (
+      entry.type === "file" &&
+      typeof entry.data === "string" &&
+      typeof entry.mediaType === "string" &&
+      (entry.filename === undefined || typeof entry.filename === "string")
+    ) {
+      return [
+        {
+          type: "file",
+          data: entry.data,
+          mediaType: entry.mediaType,
+          ...(typeof entry.filename === "string"
+            ? { filename: entry.filename }
+            : undefined),
+        },
+      ];
+    }
+    return [];
+  });
+};
+
 const parseStoredAssistantContent = (
   content: unknown[],
 ): StoredAssistantMessage["content"] =>
-  content.flatMap((part) => {
+  content.flatMap((rawPart) => {
     try {
+      let part = rawPart;
+      if (isRecord(part) && part.type === "tool-call") {
+        const { modelContent, messages, ...rest } = part;
+        const parsedModelContent = parseStoredToolModelContent(modelContent);
+        part = {
+          ...rest,
+          ...(parsedModelContent !== undefined
+            ? { modelContent: parsedModelContent }
+            : undefined),
+          ...(Array.isArray(messages)
+            ? {
+                messages: messages.flatMap((message) => {
+                  const parsed = parseStoredThreadMessage(message);
+                  return parsed ? [parsed] : [];
+                }),
+              }
+            : undefined),
+        };
+      }
       const message = fromThreadMessageLike(
         { role: "assistant", content: [part] } as unknown as ThreadMessageLike,
         "stored-part",
@@ -222,7 +273,7 @@ const parseStoredAttachment = (value: unknown): CompleteAttachment | null => {
   };
 };
 
-const parseStoredThreadMessage = (value: unknown): ThreadMessage | null => {
+function parseStoredThreadMessage(value: unknown): ThreadMessage | null {
   if (!isRecord(value) || typeof value.id !== "string") return null;
   if (!isMessageRole(value.role)) return null;
   if (!Array.isArray(value.content)) return null;
@@ -313,7 +364,7 @@ const parseStoredThreadMessage = (value: unknown): ThreadMessage | null => {
   } catch {
     return null;
   }
-};
+}
 
 export const parseStoredThreadMetadata = (
   raw: string | null,

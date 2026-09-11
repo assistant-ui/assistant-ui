@@ -5,6 +5,7 @@ import {
   parseStoredMessageRepository,
   parseStoredThreadMetadata,
 } from "./LocalStorageThreadListAdapter";
+import { mapToolCallPartsDeep } from "../../runtime/utils/tool-call-tree";
 
 const storedMessage = (
   id: string,
@@ -193,6 +194,83 @@ describe("parseStoredMessageRepository", () => {
         argsText: "{}",
       },
     ]);
+  });
+
+  it("normalizes nested tool-call data loaded from storage", () => {
+    const repo = parseStoredMessageRepository(
+      JSON.stringify({
+        messages: [
+          {
+            message: {
+              ...storedMessage("tool-call", "assistant"),
+              content: [
+                {
+                  type: "tool-call",
+                  toolCallId: "call-1",
+                  toolName: "search",
+                  args: {},
+                  modelContent: [
+                    null,
+                    { type: "text", text: "result" },
+                    { type: "text", text: 42 },
+                    {
+                      type: "file",
+                      data: "SGVsbG8=",
+                      mediaType: "text/plain",
+                    },
+                    {
+                      type: "file",
+                      data: 42,
+                      mediaType: "text/plain",
+                    },
+                  ],
+                  messages: [
+                    null,
+                    {
+                      ...storedMessage("nested", "assistant"),
+                      content: [null],
+                    },
+                  ],
+                },
+              ],
+            },
+            parentId: null,
+          },
+        ],
+      }),
+    );
+
+    const message = repo.messages[0]?.message;
+    expect(message?.role).toBe("assistant");
+    if (message?.role !== "assistant") throw new Error("expected assistant");
+    const part = message.content[0];
+    expect(part?.type).toBe("tool-call");
+    if (part?.type !== "tool-call") throw new Error("expected tool call");
+    expect(part.modelContent).toEqual([
+      { type: "text", text: "result" },
+      {
+        type: "file",
+        data: "SGVsbG8=",
+        mediaType: "text/plain",
+      },
+    ]);
+    expect(part.messages).toEqual([
+      {
+        ...storedMessage("nested", "assistant"),
+        content: [],
+        createdAt: new Date("2026-01-01T00:00:00.000Z"),
+        metadata: {
+          ...storedMessage("nested", "assistant").metadata,
+          unstable_state: null,
+          unstable_annotations: [],
+          unstable_data: [],
+          steps: [],
+        },
+      },
+    ]);
+    expect(() =>
+      mapToolCallPartsDeep(message.content, (tool) => tool),
+    ).not.toThrow();
   });
 
   it("drops malformed attachments and defaults an invalid assistant status", () => {
