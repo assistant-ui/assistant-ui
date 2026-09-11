@@ -139,6 +139,109 @@ describe("parseStoredMessageRepository", () => {
     expect(repo.messages.map((item) => item.message.id)).toEqual(["valid"]);
   });
 
+  it("skips messages with malformed nested content", () => {
+    const repo = parseStoredMessageRepository(
+      JSON.stringify({
+        messages: [
+          {
+            message: {
+              ...storedMessage("null-part", "assistant"),
+              content: [null],
+            },
+            parentId: null,
+          },
+          {
+            message: {
+              ...storedMessage("invalid-text"),
+              content: [{ type: "text", text: 42 }],
+            },
+            parentId: null,
+          },
+          {
+            message: {
+              ...storedMessage("invalid-tool", "assistant"),
+              content: [
+                {
+                  type: "tool-call",
+                  toolCallId: "call-1",
+                  toolName: "search",
+                  args: {},
+                },
+              ],
+            },
+            parentId: null,
+          },
+          {
+            message: {
+              ...storedMessage("valid"),
+              content: [{ type: "text", text: "hello" }],
+            },
+            parentId: null,
+          },
+        ],
+      }),
+    );
+
+    expect(repo.messages.map((item) => item.message.id)).toEqual(["valid"]);
+  });
+
+  it("skips messages with malformed attachments or assistant status", () => {
+    const repo = parseStoredMessageRepository(
+      JSON.stringify({
+        messages: [
+          {
+            message: {
+              ...storedMessage("invalid-attachment"),
+              attachments: [null],
+            },
+            parentId: null,
+          },
+          {
+            message: {
+              ...storedMessage("invalid-status", "assistant"),
+              status: { type: "complete", reason: "length" },
+            },
+            parentId: null,
+          },
+          {
+            message: storedMessage("valid", "assistant"),
+            parentId: null,
+          },
+        ],
+      }),
+    );
+
+    expect(repo.messages.map((item) => item.message.id)).toEqual(["valid"]);
+  });
+
+  it("drops descendants of messages rejected by nested validation", () => {
+    const repo = parseStoredMessageRepository(
+      JSON.stringify({
+        headId: "child",
+        messages: [
+          {
+            message: {
+              ...storedMessage("invalid-parent", "assistant"),
+              content: [null],
+            },
+            parentId: null,
+          },
+          {
+            message: storedMessage("child"),
+            parentId: "invalid-parent",
+          },
+          {
+            message: storedMessage("root"),
+            parentId: null,
+          },
+        ],
+      }),
+    );
+
+    expect(repo.messages.map((item) => item.message.id)).toEqual(["root"]);
+    expect(repo.headId).toBeUndefined();
+  });
+
   it("skips messages whose parent is missing, skipped, or appears later", () => {
     const repo = parseStoredMessageRepository(
       JSON.stringify({
