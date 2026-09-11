@@ -139,7 +139,7 @@ describe("parseStoredMessageRepository", () => {
     expect(repo.messages.map((item) => item.message.id)).toEqual(["valid"]);
   });
 
-  it("skips messages with malformed nested content", () => {
+  it("drops malformed parts without dropping their messages", () => {
     const repo = parseStoredMessageRepository(
       JSON.stringify({
         messages: [
@@ -184,10 +184,20 @@ describe("parseStoredMessageRepository", () => {
       }),
     );
 
-    expect(repo.messages.map((item) => item.message.id)).toEqual(["valid"]);
+    expect(repo.messages.map((item) => item.message.id)).toEqual([
+      "null-part",
+      "invalid-text",
+      "invalid-nested-message",
+      "valid",
+    ]);
+    expect(repo.messages[0]?.message.content).toEqual([]);
+    expect(repo.messages[1]?.message.content).toEqual([]);
+    expect(repo.messages[2]?.message.content).toEqual([
+      expect.objectContaining({ messages: [] }),
+    ]);
   });
 
-  it("skips messages with malformed attachments or assistant status", () => {
+  it("normalizes malformed attachments, statuses, and metadata", () => {
     const repo = parseStoredMessageRepository(
       JSON.stringify({
         messages: [
@@ -202,6 +212,18 @@ describe("parseStoredMessageRepository", () => {
             message: {
               ...storedMessage("invalid-status", "assistant"),
               status: { type: "complete", reason: "length" },
+              metadata: {
+                custom: {},
+                steps: [null, { messageId: "step-1" }],
+                timing: null,
+              },
+            },
+            parentId: null,
+          },
+          {
+            message: {
+              ...storedMessage("null-attachments"),
+              attachments: null,
             },
             parentId: null,
           },
@@ -213,7 +235,101 @@ describe("parseStoredMessageRepository", () => {
       }),
     );
 
-    expect(repo.messages.map((item) => item.message.id)).toEqual(["valid"]);
+    expect(repo.messages.map((item) => item.message.id)).toEqual([
+      "invalid-attachment",
+      "invalid-status",
+      "null-attachments",
+      "valid",
+    ]);
+    expect(repo.messages[0]?.message.attachments).toEqual([]);
+    expect(repo.messages[1]?.message).toMatchObject({
+      status: { type: "complete", reason: "unknown" },
+      metadata: { steps: [{ messageId: "step-1" }] },
+    });
+    expect(repo.messages[2]?.message.attachments).toEqual([]);
+  });
+
+  it("preserves supported content and attachment fields", () => {
+    const nestedMessage = storedMessage("nested");
+    const content = [
+      {
+        type: "source",
+        sourceType: "document",
+        id: "source-1",
+        title: "Reference",
+        mediaType: "text/plain",
+        filename: "reference.txt",
+      },
+      { type: "generative-ui", spec: { root: "Hello" }, id: "ui-1" },
+      {
+        type: "file",
+        data: "aGVsbG8=",
+        mimeType: "text/plain",
+        filename: "hello.txt",
+      },
+      { type: "data", name: "empty" },
+      {
+        type: "tool-call",
+        toolCallId: "tool-1",
+        toolName: "delegate",
+        args: { task: "review" },
+        argsText: '{"task":"review"}',
+        result: false,
+        approval: { id: "approval-1", approved: true },
+        mcp: { app: { resourceUri: "ui://result" } },
+        providerMetadata: { provider: { traceId: "trace-1" } },
+        messages: [nestedMessage],
+      },
+    ];
+    const attachment = {
+      id: "attachment-1",
+      type: "file",
+      name: "notes.txt",
+      contentType: "text/plain",
+      status: { type: "complete" },
+      content: [{ type: "text", text: "notes" }],
+    };
+    const repo = parseStoredMessageRepository(
+      JSON.stringify({
+        messages: [
+          {
+            message: { ...storedMessage("assistant", "assistant"), content },
+            parentId: null,
+          },
+          {
+            message: {
+              ...storedMessage("user"),
+              attachments: [attachment],
+            },
+            parentId: "assistant",
+          },
+        ],
+      }),
+    );
+
+    expect(repo.messages).toHaveLength(2);
+    expect(repo.messages[0]?.message.content).toMatchObject([
+      ...content.slice(0, 4),
+      {
+        ...content[4],
+        messages: [
+          {
+            ...nestedMessage,
+            createdAt: new Date(nestedMessage.createdAt),
+          },
+        ],
+      },
+    ]);
+    expect(repo.messages[1]?.message.attachments).toEqual([attachment]);
+    const toolCall = repo.messages[0]?.message.content[4];
+    expect(toolCall).toMatchObject({
+      type: "tool-call",
+      result: false,
+      messages: [expect.objectContaining({ id: "nested" })],
+    });
+    if (toolCall?.type === "tool-call") {
+      expect(toolCall.messages?.[0]?.createdAt).toBeInstanceOf(Date);
+    }
   });
 
   it("skips messages whose parent is missing, skipped, or appears later", () => {

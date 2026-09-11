@@ -158,11 +158,7 @@ const isStoredMessagePart = (
         typeof value.mimeType === "string"
       );
     case "data":
-      return (
-        role !== "system" &&
-        typeof value.name === "string" &&
-        Object.hasOwn(value, "data")
-      );
+      return role !== "system" && typeof value.name === "string";
     case "audio":
       return (
         role === "user" &&
@@ -190,11 +186,7 @@ const isStoredMessagePart = (
         typeof value.toolName === "string" &&
         isRecord(value.args) &&
         typeof value.argsText === "string" &&
-        (value.messages === undefined ||
-          (Array.isArray(value.messages) &&
-            value.messages.every(
-              (message) => parseStoredThreadMessage(message) !== null,
-            )))
+        (value.messages === undefined || Array.isArray(value.messages))
       );
     default:
       return false;
@@ -211,19 +203,37 @@ const isStoredAttachment = (value: unknown): boolean =>
   Array.isArray(value.content) &&
   value.content.every((part) => isStoredMessagePart(part, "user"));
 
-const hasValidAssistantMetadata = (
-  metadata: Record<string, unknown>,
-): boolean =>
-  (!Array.isArray(metadata.steps) || metadata.steps.every(isRecord)) &&
-  (metadata.timing === undefined || isRecord(metadata.timing));
+type StoredMessagePart =
+  | StoredSystemMessage["content"][number]
+  | StoredUserMessage["content"][number]
+  | StoredAssistantMessage["content"][number];
 
-function parseStoredThreadMessage(value: unknown): ThreadMessage | null {
-  if (!isRecord(value) || typeof value.id !== "string") return null;
-  if (!isMessageRole(value.role)) return null;
-  if (!Array.isArray(value.content)) return null;
-  if (!value.content.every((part) => isStoredMessagePart(part, value.role))) {
+const parseStoredMessagePart = (
+  value: unknown,
+  role: ThreadMessage["role"],
+  depth: number,
+): StoredMessagePart | null => {
+  if (!isStoredMessagePart(value, role) || !isRecord(value)) return null;
+  if (value.type !== "tool-call" || !Array.isArray(value.messages)) {
+    return value as StoredMessagePart;
+  }
+
+  const messages = value.messages.flatMap((message) => {
+    const parsed = parseStoredThreadMessage(message, depth + 1);
+    return parsed ? [parsed] : [];
+  });
+  return { ...value, messages } as StoredMessagePart;
+};
+
+function parseStoredThreadMessage(
+  value: unknown,
+  depth = 0,
+): ThreadMessage | null {
+  if (depth > 100 || !isRecord(value) || typeof value.id !== "string") {
     return null;
   }
+  if (!isMessageRole(value.role)) return null;
+  if (!Array.isArray(value.content)) return null;
 
   const createdAt = parseDate(value.createdAt);
   if (!createdAt) return null;
@@ -232,10 +242,15 @@ function parseStoredThreadMessage(value: unknown): ThreadMessage | null {
   if (!isRecord(metadata) || !isRecord(metadata.custom)) return null;
 
   if (value.role === "assistant") {
-    const status = value.status;
-    if (!isMessageStatus(status) || !hasValidAssistantMetadata(metadata)) {
-      return null;
-    }
+    const content = value.content.flatMap((part) => {
+      const parsed = parseStoredMessagePart(part, "assistant", depth);
+      return parsed
+        ? [parsed as StoredAssistantMessage["content"][number]]
+        : [];
+    });
+    const status = isMessageStatus(value.status)
+      ? (value.status as StoredAssistantMessage["status"])
+      : ({ type: "complete", reason: "unknown" } as const);
 
     const submittedFeedback = isRecord(metadata.submittedFeedback)
       ? metadata.submittedFeedback
@@ -245,8 +260,8 @@ function parseStoredThreadMessage(value: unknown): ThreadMessage | null {
     return {
       id: value.id,
       role: "assistant",
-      content: value.content as StoredAssistantMessage["content"],
-      status: status as StoredAssistantMessage["status"],
+      content,
+      status,
       createdAt,
       metadata: {
         unstable_state: (metadata.unstable_state ??
@@ -258,7 +273,9 @@ function parseStoredThreadMessage(value: unknown): ThreadMessage | null {
           ? (metadata.unstable_data as StoredAssistantMessage["metadata"]["unstable_data"])
           : [],
         steps: Array.isArray(metadata.steps)
-          ? (metadata.steps as StoredAssistantMessage["metadata"]["steps"])
+          ? (metadata.steps.filter(
+              isRecord,
+            ) as StoredAssistantMessage["metadata"]["steps"])
           : [],
         ...(submittedFeedbackType === "positive" ||
         submittedFeedbackType === "negative"
@@ -268,11 +285,10 @@ function parseStoredThreadMessage(value: unknown): ThreadMessage | null {
               },
             }
           : undefined),
-        ...(metadata.timing !== undefined
+        ...(isRecord(metadata.timing)
           ? {
-              timing: metadata.timing as NonNullable<
-                StoredAssistantMessage["metadata"]["timing"]
-              >,
+              timing:
+                metadata.timing as StoredAssistantMessage["metadata"]["timing"],
             }
           : undefined),
         ...(metadata.isOptimistic === true
@@ -284,14 +300,17 @@ function parseStoredThreadMessage(value: unknown): ThreadMessage | null {
   }
 
   if (value.role === "user") {
-    const attachments = value.attachments ?? [];
-    if (!Array.isArray(attachments) || !attachments.every(isStoredAttachment)) {
-      return null;
-    }
+    const content = value.content.flatMap((part) => {
+      const parsed = parseStoredMessagePart(part, "user", depth);
+      return parsed ? [parsed as StoredUserMessage["content"][number]] : [];
+    });
+    const attachments = Array.isArray(value.attachments)
+      ? value.attachments.filter(isStoredAttachment)
+      : [];
     return {
       id: value.id,
       role: "user",
-      content: value.content as StoredUserMessage["content"],
+      content,
       attachments: attachments as StoredUserMessage["attachments"],
       createdAt,
       metadata: {
@@ -301,11 +320,13 @@ function parseStoredThreadMessage(value: unknown): ThreadMessage | null {
   }
 
   if (value.content.length !== 1) return null;
+  const content = parseStoredMessagePart(value.content[0], "system", depth);
+  if (!content) return null;
 
   return {
     id: value.id,
     role: "system",
-    content: [value.content[0] as StoredSystemMessage["content"][0]],
+    content: [content as StoredSystemMessage["content"][0]],
     createdAt,
     metadata: {
       custom: metadata.custom,
