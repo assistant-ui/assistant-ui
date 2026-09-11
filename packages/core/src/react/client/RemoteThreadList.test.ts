@@ -1951,18 +1951,22 @@ describe("RemoteThreadList", () => {
       onThreadIdChange,
     );
     const threads = handle.getClient().threads;
-    await threads.getLoadThreadsPromise();
+    try {
+      await threads.getLoadThreadsPromise();
 
-    flushTapSync(() => threads.switchToThread("t1"));
+      flushTapSync(() => threads.switchToThread("t1"));
 
-    await vi.waitFor(() => {
-      expect(handle.getClient().threads.getState().mainThreadId).toBe("t1");
-      expect(onThreadIdChange).toHaveBeenCalledExactlyOnceWith("t1");
-      expect(errorSpy).toHaveBeenCalledWith(
-        "[assistant-ui] onThreadIdChange callback threw an error",
-        callbackError,
-      );
-    });
-    handle.destroy();
+      await vi.waitFor(() => {
+        expect(handle.getClient().threads.getState().mainThreadId).toBe("t1");
+        expect(onThreadIdChange).toHaveBeenCalledExactlyOnceWith("t1");
+        expect(errorSpy).toHaveBeenCalledWith(
+          "[assistant-ui] onThreadIdChange callback threw an error",
+          callbackError,
+        );
+      });
+    } finally {
+      handle.destroy();
+      errorSpy.mockRestore();
+    }
   });
 });
