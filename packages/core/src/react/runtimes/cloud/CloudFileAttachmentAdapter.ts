@@ -28,6 +28,10 @@ export class CloudFileAttachmentAdapter implements AttachmentAdapter {
   }
 
   private uploadedUrls = new Map<string, string>();
+  private activeUploads = new Map<
+    string,
+    { cancelled: boolean; controller: AbortController | undefined }
+  >();
 
   public async *add({
     file,
@@ -44,13 +48,23 @@ export class CloudFileAttachmentAdapter implements AttachmentAdapter {
       file,
       status: { type: "running", reason: "uploading", progress: 0 },
     };
-    yield attachment;
+    const controller =
+      typeof AbortController === "undefined"
+        ? undefined
+        : new AbortController();
+    const upload = { cancelled: false, controller };
+    this.activeUploads.set(id, upload);
 
     try {
+      yield attachment;
+      if (upload.cancelled) return;
+
       const { signedUrl, publicUrl } =
         await this.getCloud().files.generatePresignedUploadUrl({
           filename: file.name,
         });
+      if (upload.cancelled) return;
+
       const res = await fetch(signedUrl, {
         method: "PUT",
         body: file,
@@ -58,7 +72,10 @@ export class CloudFileAttachmentAdapter implements AttachmentAdapter {
           "Content-Type": file.type,
         },
         mode: "cors",
+        ...(controller ? { signal: controller.signal } : undefined),
       });
+      if (upload.cancelled) return;
+
       if (!res.ok) {
         throw new Error(
           `Failed to upload file: ${res.status} ${res.statusText}`,
@@ -71,6 +88,8 @@ export class CloudFileAttachmentAdapter implements AttachmentAdapter {
       };
       yield attachment;
     } catch (error) {
+      if (upload.cancelled) return;
+
       console.error("[assistant-ui] Failed to upload attachment:", error);
       attachment = {
         ...attachment,
@@ -81,10 +100,20 @@ export class CloudFileAttachmentAdapter implements AttachmentAdapter {
         },
       };
       yield attachment;
+    } finally {
+      if (this.activeUploads.get(id) === upload) {
+        this.activeUploads.delete(id);
+      }
     }
   }
 
   public async remove(attachment: Attachment): Promise<void> {
+    const upload = this.activeUploads.get(attachment.id);
+    if (upload) {
+      upload.cancelled = true;
+      upload.controller?.abort();
+      this.activeUploads.delete(attachment.id);
+    }
     this.uploadedUrls.delete(attachment.id);
   }
 
