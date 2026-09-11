@@ -139,7 +139,7 @@ describe("parseStoredMessageRepository", () => {
     expect(repo.messages.map((item) => item.message.id)).toEqual(["valid"]);
   });
 
-  it("skips messages with malformed nested content", () => {
+  it("drops unreadable parts without deleting their messages", () => {
     const repo = parseStoredMessageRepository(
       JSON.stringify({
         messages: [
@@ -159,7 +159,7 @@ describe("parseStoredMessageRepository", () => {
           },
           {
             message: {
-              ...storedMessage("invalid-tool", "assistant"),
+              ...storedMessage("tool-call", "assistant"),
               content: [
                 {
                   type: "tool-call",
@@ -171,75 +171,109 @@ describe("parseStoredMessageRepository", () => {
             },
             parentId: null,
           },
-          {
-            message: {
-              ...storedMessage("valid"),
-              content: [{ type: "text", text: "hello" }],
-            },
-            parentId: null,
-          },
         ],
       }),
     );
 
-    expect(repo.messages.map((item) => item.message.id)).toEqual(["valid"]);
+    expect(repo.messages.map((item) => item.message.id)).toEqual([
+      "null-part",
+      "invalid-text",
+      "tool-call",
+    ]);
+    expect(repo.messages[0]?.message.content).toEqual([]);
+    expect(repo.messages[1]?.message.content).toEqual([
+      { type: "text", text: 42 },
+    ]);
+    expect(repo.messages[2]?.message.content).toEqual([
+      {
+        type: "tool-call",
+        toolCallId: "call-1",
+        toolName: "search",
+        args: {},
+        argsText: "{}",
+      },
+    ]);
   });
 
-  it("skips messages with malformed attachments or assistant status", () => {
+  it("drops malformed attachments and defaults an invalid assistant status", () => {
     const repo = parseStoredMessageRepository(
       JSON.stringify({
         messages: [
           {
             message: {
-              ...storedMessage("invalid-attachment"),
-              attachments: [null],
+              ...storedMessage("attachments"),
+              attachments: [
+                null,
+                {
+                  id: "attachment-1",
+                  type: "file",
+                  name: "notes.txt",
+                  status: { type: "complete" },
+                  content: [null, { type: "text", text: "notes" }],
+                },
+              ],
             },
             parentId: null,
           },
           {
             message: {
-              ...storedMessage("invalid-status", "assistant"),
+              ...storedMessage("status", "assistant"),
               status: { type: "complete", reason: "length" },
             },
-            parentId: null,
-          },
-          {
-            message: storedMessage("valid", "assistant"),
             parentId: null,
           },
         ],
       }),
     );
 
-    expect(repo.messages.map((item) => item.message.id)).toEqual(["valid"]);
+    const attachmentMessage = repo.messages[0]?.message;
+    expect(attachmentMessage?.role).toBe("user");
+    if (attachmentMessage?.role !== "user") throw new Error("expected user");
+    expect(attachmentMessage.attachments).toEqual([
+      {
+        id: "attachment-1",
+        type: "file",
+        name: "notes.txt",
+        status: { type: "complete" },
+        content: [{ type: "text", text: "notes" }],
+      },
+    ]);
+
+    const assistantMessage = repo.messages[1]?.message;
+    expect(assistantMessage?.role).toBe("assistant");
+    if (assistantMessage?.role !== "assistant")
+      throw new Error("expected assistant");
+    expect(assistantMessage.status).toEqual({
+      type: "complete",
+      reason: "unknown",
+    });
   });
 
-  it("drops descendants of messages rejected by nested validation", () => {
+  it("preserves descendants when only a parent part is malformed", () => {
     const repo = parseStoredMessageRepository(
       JSON.stringify({
         headId: "child",
         messages: [
           {
             message: {
-              ...storedMessage("invalid-parent", "assistant"),
+              ...storedMessage("parent", "assistant"),
               content: [null],
             },
             parentId: null,
           },
           {
             message: storedMessage("child"),
-            parentId: "invalid-parent",
-          },
-          {
-            message: storedMessage("root"),
-            parentId: null,
+            parentId: "parent",
           },
         ],
       }),
     );
 
-    expect(repo.messages.map((item) => item.message.id)).toEqual(["root"]);
-    expect(repo.headId).toBeUndefined();
+    expect(repo.messages.map((item) => item.message.id)).toEqual([
+      "parent",
+      "child",
+    ]);
+    expect(repo.headId).toBe("child");
   });
 
   it("skips messages whose parent is missing, skipped, or appears later", () => {

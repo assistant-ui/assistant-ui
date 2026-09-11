@@ -2,4 +2,4 @@
 "@assistant-ui/core": patch
 ---
 
-fix: reject malformed nested message data from local storage
+fix: safely normalize nested message data loaded from local storage
