@@ -29,6 +29,13 @@ const waitForSettle = async (settleDelayMs: number) => {
   await new Promise<void>((resolve) => setTimeout(resolve, delay));
 };
 
+const readActionSettleDelay = (element: HTMLElement) => {
+  const value = element.dataset.actionSettleDelay;
+  return value === undefined || value.trim() === ""
+    ? DEFAULT_ACTION_SETTLE_DELAY_MS
+    : Number(value);
+};
+
 const click = tool({
   parameters: {
     type: "object",
@@ -44,9 +51,7 @@ const click = tool({
     const el = document.querySelector(`[data-click-id='${escapedClickId}']`);
     if (el instanceof HTMLElement) {
       el.click();
-      await waitForSettle(
-        Number(el.dataset.actionSettleDelay ?? DEFAULT_ACTION_SETTLE_DELAY_MS),
-      );
+      await waitForSettle(readActionSettleDelay(el));
       return {};
     } else {
       return "Element not found";
@@ -91,9 +96,7 @@ const edit = tool({
       setNativeValue(el, value);
       el.dispatchEvent(new Event("input", { bubbles: true }));
       el.dispatchEvent(new Event("change", { bubbles: true }));
-      await waitForSettle(
-        Number(el.dataset.actionSettleDelay ?? DEFAULT_ACTION_SETTLE_DELAY_MS),
-      );
+      await waitForSettle(readActionSettleDelay(el));
       return {};
     } else {
       return "Element not found";

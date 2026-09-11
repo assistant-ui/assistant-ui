@@ -211,6 +211,43 @@ describe("makeAssistantVisible", () => {
     setTimeoutSpy.mockRestore();
   });
 
+  it.each(["", "   "])(
+    "uses the default for a blank rendered settle delay of %j",
+    async (renderedDelay) => {
+      const VisibleInput = makeAssistantVisible(ControlledInput, {
+        clickable: true,
+        editable: true,
+        settleDelayMs: 25,
+      });
+      const input = render(<VisibleInput />).getByRole("textbox");
+      const clickId = (input as HTMLInputElement).dataset.clickId!;
+      const editId = (input as HTMLInputElement).dataset.editId!;
+      const setTimeoutSpy = vi.spyOn(globalThis, "setTimeout");
+      input.dataset.actionSettleDelay = renderedDelay;
+
+      const clickTask = getRegisteredTools().click!.execute({ clickId });
+      expect(setTimeoutSpy).toHaveBeenLastCalledWith(
+        expect.any(Function),
+        2000,
+      );
+      await vi.runAllTimersAsync();
+      await clickTask;
+
+      setTimeoutSpy.mockClear();
+      const editTask = getRegisteredTools().edit!.execute({
+        editId,
+        value: "updated",
+      });
+      expect(setTimeoutSpy).toHaveBeenLastCalledWith(
+        expect.any(Function),
+        2000,
+      );
+      await vi.runAllTimersAsync();
+      await editTask;
+      setTimeoutSpy.mockRestore();
+    },
+  );
+
   it("uses the configured settle delay for click actions", async () => {
     const ClickableButton = makeAssistantVisible(Button, {
       clickable: true,
