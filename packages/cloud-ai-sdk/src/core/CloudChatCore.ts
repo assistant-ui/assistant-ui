@@ -292,17 +292,23 @@ export class CloudChatCore {
                 );
               }
             }
-            const finishEvent =
-              activeTiming?.error === undefined
-                ? event
-                : { ...event, error: activeTiming.error };
-            const persist = timing
+          }
+          const threadId = registry.getMeta(chatKey)?.threadId;
+          const chatInstance = registry.get(chatKey);
+          const finishEvent =
+            activeTiming?.error === undefined
+              ? event
+              : { ...event, error: activeTiming.error };
+          const persist = registry.isDisposed
+            ? threadId && chatInstance
+              ? this.persist(threadId, chatInstance.messages)
+              : Promise.resolve()
+            : timing
               ? this.persistChatMessages(chatKey, registry, finishEvent, timing)
               : this.persistChatMessages(chatKey, registry, finishEvent);
-            void persist.catch((error) => {
-              this.handleSyncError(error);
-            });
-          }
+          void persist.catch((error) => {
+            this.handleSyncError(error);
+          });
         }
       },
       onError: (error) => {

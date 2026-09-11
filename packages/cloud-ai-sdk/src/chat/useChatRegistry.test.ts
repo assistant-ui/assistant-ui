@@ -129,7 +129,7 @@ describe("useChatRegistry", () => {
     expect(createChat).toHaveBeenCalledTimes(2);
     expect(stop).toHaveBeenCalledOnce();
     expect(registryA.isDisposed).toBe(true);
-    expect(registryA.get("thread-1")).toBeUndefined();
+    expect(registryA.get("thread-1")).toBe(chatA);
   });
 
   it("does not stop chats during ordinary rerenders", () => {

@@ -7,6 +7,7 @@ export class ChatRegistry {
   private metaByKey = new Map<string, ChatMeta>();
   private keyByThreadId = new Map<string, string>();
   private disposed = false;
+  private stopAllPromise: Promise<void> | undefined;
 
   private createChatFn: (chatKey: string) => Chat<UIMessage>;
 
@@ -89,17 +90,15 @@ export class ChatRegistry {
     throw error;
   }
 
-  async stopAll(): Promise<void> {
+  stopAll(): Promise<void> {
+    if (this.stopAllPromise) return this.stopAllPromise;
+
     this.disposed = true;
     const chats = [...this.chatByKey.values()];
-    this.chatByKey.clear();
-    this.metaByKey.clear();
-    this.keyByThreadId.clear();
 
-    await Promise.allSettled(
-      chats.map(async (chat) => {
-        await chat.stop();
-      }),
-    );
+    this.stopAllPromise = Promise.allSettled(
+      chats.map(async (chat) => await chat.stop()),
+    ).then(() => undefined);
+    return this.stopAllPromise;
   }
 }
