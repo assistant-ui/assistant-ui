@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from "react";
 import Link from "next/link";
+import { usePathname } from "next/navigation";
 import { Menu, X, ArrowUpRight, Search } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { SearchDialog } from "./search-dialog";
@@ -57,10 +58,12 @@ function SearchButton({ onToggle }: { onToggle: () => void }) {
 }
 
 export function Header() {
+  const pathname = usePathname();
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [searchOpen, setSearchOpen] = useState(false);
   const { toggle } = useAssistantPanel();
   const scrolled = useScrolled();
+  const isOssPage = pathname === "/oss";
 
   return (
     <header className="rounded-page sticky top-0 z-50 w-full">
@@ -71,7 +74,22 @@ export function Header() {
             "mx-auto flex h-12 w-full max-w-7xl items-center justify-between px-4 md:grid md:grid-cols-[1fr_auto_1fr]",
           )}
         >
-          <HeaderBrandLink className="justify-self-start" />
+          <div className="flex min-w-0 items-center justify-self-start">
+            <HeaderBrandLink
+              {...(isOssPage ? { labelClassName: "hidden sm:inline" } : {})}
+            />
+            {isOssPage ? (
+              <>
+                <span className="text-muted-foreground/40 mx-3">/</span>
+                <Link
+                  href="/oss"
+                  className="text-foreground hover:text-foreground/80 truncate text-sm font-medium transition-colors"
+                >
+                  Open source
+                </Link>
+              </>
+            ) : null}
+          </div>
 
           <NavItems
             items={NAV_ITEMS}

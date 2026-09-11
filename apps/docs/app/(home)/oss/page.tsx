@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import type { ReactNode } from "react";
 import Link from "next/link";
 import { ArrowUpRight } from "lucide-react";
 import {
@@ -74,30 +75,7 @@ export default async function OssPage() {
                   {flagship.description}
                 </p>
                 <p className="mt-6 flex flex-wrap items-baseline gap-x-7 gap-y-2 font-mono text-[13px]">
-                  <Link
-                    href="/docs"
-                    className="text-muted-foreground hover:text-foreground transition-colors"
-                  >
-                    docs
-                  </Link>
-                  <a
-                    href={ossRepoUrl(flagship)}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="text-muted-foreground hover:text-foreground transition-colors"
-                  >
-                    github
-                  </a>
-                  {flagship.npm ? (
-                    <a
-                      href={ossNpmUrl(flagship.npm)}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="text-muted-foreground hover:text-foreground transition-colors"
-                    >
-                      npm
-                    </a>
-                  ) : null}
+                  <ProjectLinks project={flagship} />
                 </p>
               </div>
               {stars || weekly ? (
@@ -185,42 +163,93 @@ function ProjectRow({
   const license = project.license ?? "—";
   const href = ossPrimaryUrl(project);
   const external = href.startsWith("http");
-  const className =
-    "group hover:bg-foreground/[0.025] -mx-2 flex flex-col gap-1 px-2 py-2.5 transition-colors md:grid md:grid-cols-[minmax(0,16rem)_minmax(0,1fr)_3.5rem_5.5rem] md:items-baseline md:gap-6";
-  const content = (
+  const titleClassName =
+    "hover:text-foreground/70 inline-flex items-center text-sm font-medium transition-colors";
+  const title = (
     <>
-      <span className="text-sm font-medium">
-        {project.name}
-        <ArrowUpRight className="ms-1.5 mb-0.5 inline size-3.5 opacity-0 transition-opacity group-hover:opacity-50" />
-      </span>
-      <span className="text-muted-foreground text-sm leading-relaxed">
-        {project.description}
-      </span>
-      <span className="text-muted-foreground/70 hidden font-mono text-[11px] tracking-wide md:block">
-        {license}
-      </span>
-      <span className="text-muted-foreground/70 hidden text-right font-mono text-[11px] tracking-wide tabular-nums md:block">
-        {stat ?? "—"}
-      </span>
-      <span className="text-muted-foreground/60 mt-0.5 font-mono text-[10px] tracking-wide md:hidden">
-        {license}
-        {stat ? ` · ${stat}` : ""}
-      </span>
+      {project.name}
+      {external ? (
+        <ArrowUpRight className="ms-1.5 size-3.5 opacity-40" />
+      ) : null}
     </>
   );
 
-  return external ? (
+  return (
+    <div className="hover:bg-foreground/[0.025] -mx-2 flex flex-col gap-3 px-2 py-3 transition-colors md:grid md:grid-cols-[minmax(0,15rem)_minmax(0,1fr)_auto] md:items-start md:gap-6">
+      <div className="min-w-0">
+        {external ? (
+          <a
+            href={href}
+            target="_blank"
+            rel="noopener noreferrer"
+            className={titleClassName}
+          >
+            {title}
+          </a>
+        ) : (
+          <Link href={href} className={titleClassName}>
+            {title}
+          </Link>
+        )}
+        <p className="text-muted-foreground/60 mt-1 font-mono text-[10px] tracking-wide">
+          {license}
+          {stat ? ` · ${stat}` : ""}
+        </p>
+      </div>
+      <p className="text-muted-foreground text-sm leading-relaxed">
+        {project.description}
+      </p>
+      <div className="flex flex-wrap items-baseline gap-x-4 gap-y-2 md:justify-end">
+        <ProjectLinks project={project} />
+      </div>
+    </div>
+  );
+}
+
+function ProjectLinks({ project }: { project: OssProject }) {
+  return (
+    <>
+      {project.docs ? (
+        <ProjectLink href={project.docs}>docs</ProjectLink>
+      ) : null}
+      {project.site ? (
+        <ProjectLink href={project.site}>website</ProjectLink>
+      ) : null}
+      <ProjectLink href={ossRepoUrl(project)}>github</ProjectLink>
+      {project.npm ? (
+        <ProjectLink href={ossNpmUrl(project.npm)}>npm</ProjectLink>
+      ) : null}
+      {project.pypi ? (
+        <ProjectLink href={`https://pypi.org/project/${project.pypi}/`}>
+          pypi
+        </ProjectLink>
+      ) : null}
+    </>
+  );
+}
+
+function ProjectLink({
+  href,
+  children,
+}: {
+  href: string;
+  children: ReactNode;
+}) {
+  const className =
+    "text-muted-foreground hover:text-foreground text-xs transition-colors";
+
+  return href.startsWith("http") ? (
     <a
       href={href}
       target="_blank"
       rel="noopener noreferrer"
       className={className}
     >
-      {content}
+      {children}
     </a>
   ) : (
     <Link href={href} className={className}>
-      {content}
+      {children}
     </Link>
   );
 }

@@ -13,6 +13,15 @@ import {
 import { DocsRuntimeProvider } from "@/runtimes/docs";
 import { CurrentPageProvider } from "@/components/pages/docs/contexts/current-page";
 import { PlatformProvider } from "@/components/pages/docs/platform/context";
+import { OSS_PROJECTS, ossPrimaryUrl } from "@/lib/oss";
+
+const DOCS_PROJECTS = OSS_PROJECTS.filter(
+  (project) => project.category === "sdk",
+).map((project) => ({
+  id: project.id,
+  name: project.name,
+  href: ossPrimaryUrl(project),
+}));
 
 type DocsRootLayoutProps = {
   tree: PageTree.Root;
@@ -41,6 +50,7 @@ export function DocsRootLayout({
               <DocsHeader
                 section={section}
                 sectionHref={sectionHref}
+                projects={DOCS_PROJECTS}
                 mobileSectionTree={
                   showMobileSectionBreadcrumb ? tree : undefined
                 }
