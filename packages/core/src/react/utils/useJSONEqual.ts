@@ -1,6 +1,14 @@
 import { useRef } from "react";
 import { isJSONValueEqual } from "../../utils/json/is-json-equal";
 
+export function useJSONEqualValue<T>(value: T): T {
+  const prev = useRef(value);
+  if (prev.current !== value && !isJSONValueEqual(prev.current, value)) {
+    prev.current = value;
+  }
+  return prev.current;
+}
+
 /**
  * Like `useShallow`, but with JSON deep-equality. Use when a selector derives an
  * equal-but-fresh value on every store update — e.g. folding over

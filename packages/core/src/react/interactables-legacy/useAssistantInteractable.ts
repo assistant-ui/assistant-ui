@@ -1,5 +1,6 @@
-import { useEffect, useId, useRef } from "react";
+import { useEffect, useId } from "react";
 import { useAui } from "@assistant-ui/store";
+import { useJSONEqualValue } from "../utils/useJSONEqual";
 import type { InteractableStateSchema } from "./scopes";
 
 /**
@@ -36,21 +37,27 @@ export const useAssistantInteractable = (
   const autoId = useId().replace(/[^a-zA-Z0-9]/g, "");
   const id = config.id ?? autoId;
 
-  const stateSchemaRef = useRef(config.stateSchema);
-  stateSchemaRef.current = config.stateSchema;
-  const initialStateRef = useRef(config.initialState);
-  initialStateRef.current = config.initialState;
+  const stateSchema = useJSONEqualValue(config.stateSchema);
+  const initialState = useJSONEqualValue(config.initialState);
 
   useEffect(() => {
     return aui.interactables.register({
       id,
       name,
       description: config.description,
-      stateSchema: stateSchemaRef.current,
-      initialState: initialStateRef.current,
+      stateSchema,
+      initialState,
       selected: config.selected,
     });
-  }, [aui, id, name, config.description, config.selected]);
+  }, [
+    aui,
+    id,
+    name,
+    config.description,
+    stateSchema,
+    initialState,
+    config.selected,
+  ]);
 
   return id;
 };
