@@ -99,6 +99,7 @@ export const createMergeStream = () => {
   });
 
   const enqueueRawChunk = (chunk: AssistantStreamChunk) => {
+    // Active child reads split raw batches to preserve microtask ordering.
     if (list.length > 0) rawChunkBatch = undefined;
 
     if (!rawChunkBatch) {
@@ -163,7 +164,6 @@ export const createMergeStream = () => {
     seal() {
       if (sealed || cancelled || errored) return;
       sealed = true;
-      rawChunkBatch = undefined;
       if (list.length === 0 && pendingRawBatches === 0) controller.close();
     },
     addStream,
