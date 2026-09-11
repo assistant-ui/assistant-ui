@@ -13,7 +13,6 @@ export type ResumableStreamAcquireOptions = {
 
 /** Producer identity returned by `acquireLease`; opaque to callers. */
 export type ResumableStreamLease = {
-  readonly streamId: string;
   readonly token: string;
 };
 

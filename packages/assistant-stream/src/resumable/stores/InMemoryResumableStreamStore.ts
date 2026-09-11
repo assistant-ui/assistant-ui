@@ -164,7 +164,7 @@ export function createInMemoryResumableStreamStore(
       final: undefined,
       waiters: [],
     });
-    return { role: "producer", lease: { streamId, token } };
+    return { role: "producer", lease: { token } };
   };
 
   return {

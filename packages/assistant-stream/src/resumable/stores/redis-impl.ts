@@ -153,7 +153,7 @@ export class RedisResumableStreamStore implements ResumableStreamStore {
     );
     if (!acquired) return { role: "consumer" };
     this.acquiredGenerations.set(streamId, generation);
-    return { role: "producer", lease: { streamId, token: generation } };
+    return { role: "producer", lease: { token: generation } };
   }
 
   private isSupersededGeneration(

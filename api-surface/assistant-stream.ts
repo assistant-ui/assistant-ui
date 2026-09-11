@@ -24262,7 +24262,6 @@ declare class ResumableStreamError extends Error {
 type ResumableStreamErrorCode = "exists" | "finalized" | "invalid-id" | "missing";
 
 type ResumableStreamLease = {
-  readonly streamId: string;
   readonly token: string;
 };
 

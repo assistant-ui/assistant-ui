@@ -4,7 +4,7 @@ description: Implement the ResumableStreamStore interface to back resumable stre
 platforms: ["react"]
 ---
 
-The built-in InMemory and Redis adapters cover most deployments. Write your own `ResumableStreamStore` when you need a backend you already operate (Postgres, MySQL), an edge-native primitive (Cloudflare Durable Objects, Workers KV), an HTTP-only key-value service (Upstash REST), or a realtime database (InstantDB). The contract is six async methods over an opaque `streamId` and a monotonic byte log.
+The built-in InMemory and Redis adapters cover most deployments. Write your own `ResumableStreamStore` when you need a backend you already operate (Postgres, MySQL), an edge-native primitive (Cloudflare Durable Objects, Workers KV), an HTTP-only key-value service (Upstash REST), or a realtime database (InstantDB). The contract is six required async methods, plus one optional method, over an opaque `streamId` and a monotonic byte log.
 
 ## Interface walkthrough
 
@@ -16,11 +16,20 @@ export interface ResumableStreamStore {
     streamId: string,
     options?: ResumableStreamAcquireOptions,
   ): Promise<ResumableStreamRole>;
-  append(streamId: string, chunk: Uint8Array): Promise<void>;
+  acquireLease?(
+    streamId: string,
+    options?: ResumableStreamAcquireOptions,
+  ): Promise<ResumableStreamAcquisition>;
+  append(
+    streamId: string,
+    chunk: Uint8Array,
+    lease?: ResumableStreamLease,
+  ): Promise<void>;
   finalize(
     streamId: string,
     status: "done" | "error",
     error?: string,
+    lease?: ResumableStreamLease,
   ): Promise<void>;
   read(
     streamId: string,
@@ -28,7 +37,7 @@ export interface ResumableStreamStore {
     signal: AbortSignal,
   ): AsyncIterable<ResumableStreamEntry>;
   status(streamId: string): Promise<ResumableStreamStatus>;
-  delete(streamId: string): Promise<void>;
+  delete(streamId: string, lease?: ResumableStreamLease): Promise<void>;
 }
 ```
 
@@ -58,6 +67,8 @@ Changes to a yielded chunk must not affect other reads. In-memory stores must co
 - Upstash REST: `set` with `nx=true`.
 
 If your backend cannot offer atomicity, do not paper over it with read-then-write; you will silently produce two writers for the same stream under contention, and consumers will observe interleaved bytes.
+
+`acquireLease(streamId, options?)` is optional. It elects exactly like `acquire`, but a `"producer"` result also carries a lease (`{ role: "producer", lease: { token } }`; consumers get `{ role: "consumer" }`). The context prefers it when present and passes the lease to every `append`, `finalize`, and `delete` call from that producer task. Store a per-acquisition token with the stream and, when a lease is given, compare it before mutating: reject `append` with `ResumableStreamError("missing")` and make `finalize` and `delete` no-ops when the token no longer matches. This is what stops a producer whose stream expired from writing into the stream a later `acquire` created under the same `streamId`. A store without `acquireLease` still works through `acquire`, but forfeits that fence: an expired producer that keeps running can append to or finalize its successor's stream.
 
 ## The cursor contract
 
@@ -159,4 +170,4 @@ export const resumableContext = createResumableStreamContext({
 });
 ```
 
-From this point the route handlers in [Resumable Streams](/docs/guides/resumable-streams) work unchanged: `resumableContext.run(streamId, makeStream)` calls your `acquire`, `append`, and `finalize`, and `resumableContext.resume(streamId)` calls your `read`.
+From this point the route handlers in [Resumable Streams](/docs/guides/resumable-streams) work unchanged: `resumableContext.run(streamId, makeStream)` calls your `acquireLease` (or `acquire`), `append`, and `finalize`, and `resumableContext.resume(streamId)` calls your `read`.
