@@ -247,7 +247,6 @@ export class SafeContentFrame {
 
       function onAbort() {
         if (!signal) return;
-        onLoadError(signal.reason);
         cleanup();
         reject(signal.reason);
       }
