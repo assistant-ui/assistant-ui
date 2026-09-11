@@ -253,6 +253,33 @@ describe("BaseComposerRuntimeCore", () => {
     }
   });
 
+  it("finishes dictation cleanup when an unsubscribe throws", async () => {
+    const cleanupError = new Error("cleanup failed");
+    const laterCleanup = vi.fn();
+    const consoleError = vi
+      .spyOn(console, "error")
+      .mockImplementation(() => {});
+    const session: DictationAdapter.Session = {
+      status: { type: "running" },
+      stop: vi.fn().mockResolvedValue(undefined),
+      cancel: vi.fn(),
+      onSpeech: vi.fn(() => () => {
+        throw cleanupError;
+      }),
+      onSpeechStart: vi.fn(() => laterCleanup),
+      onSpeechEnd: vi.fn(() => () => {}),
+    };
+    composer.setDictationAdapter({ listen: () => session });
+
+    composer.startDictation();
+    composer.stopDictation();
+    await new Promise((resolve) => setTimeout(resolve, 0));
+
+    expect(laterCleanup).toHaveBeenCalledOnce();
+    expect(composer.dictation).toBeUndefined();
+    expect(consoleError).toHaveBeenCalledWith(cleanupError);
+  });
+
   describe("CreateAttachment (external source)", () => {
     const makeCreateAttachment = (
       overrides?: Partial<CreateAttachment>,

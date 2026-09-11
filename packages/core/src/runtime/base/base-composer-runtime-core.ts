@@ -641,13 +641,17 @@ export abstract class BaseComposerRuntimeCore
     }
 
     if (this._dictationSession) {
-      for (const unsub of this._dictationUnsubscribes) {
-        unsub();
-      }
-      this._dictationUnsubscribes = [];
       const oldSession = this._dictationSession;
+      let cleanupFailed = false;
+      let cleanupError: unknown;
+      try {
+        this._cleanupDictation();
+      } catch (error) {
+        cleanupFailed = true;
+        cleanupError = error;
+      }
       oldSession.stop().catch(() => {});
-      this._dictationSession = undefined;
+      if (cleanupFailed) throw cleanupError;
     }
 
     const inputDisabled = adapter.disableInputDuringDictation ?? false;
@@ -733,7 +737,10 @@ export abstract class BaseComposerRuntimeCore
     const session = this._dictationSession;
     const sessionId = this._activeDictationSessionId;
     const cleanup = () => this._cleanupDictation({ sessionId });
-    void session.stop().then(cleanup, cleanup);
+    void session
+      .stop()
+      .then(cleanup, cleanup)
+      .catch((error) => console.error(error));
   }
 
   private _cleanupDictation(options?: { sessionId: number | undefined }): void {
@@ -743,20 +750,37 @@ export abstract class BaseComposerRuntimeCore
     if (isStaleSession || this._isCleaningDictation) return;
 
     this._isCleaningDictation = true;
-    try {
-      for (const unsub of this._dictationUnsubscribes) {
-        unsub();
+    let cleanupFailed = false;
+    let cleanupError: unknown;
+    const runCleanup = (cleanup: () => void) => {
+      try {
+        cleanup();
+      } catch (error) {
+        if (cleanupFailed) {
+          console.error(error);
+        } else {
+          cleanupFailed = true;
+          cleanupError = error;
+        }
       }
+    };
+
+    try {
+      const unsubscribes = this._dictationUnsubscribes;
       this._dictationUnsubscribes = [];
       this._dictationSession = undefined;
       this._activeDictationSessionId = undefined;
       this._dictation = undefined;
       this._dictationBaseText = "";
       this._currentInterimText = "";
-      this._notifySubscribers();
+
+      for (const unsubscribe of unsubscribes) runCleanup(unsubscribe);
+      runCleanup(() => this._notifySubscribers());
     } finally {
       this._isCleaningDictation = false;
     }
+
+    if (cleanupFailed) throw cleanupError;
   }
 
   private _eventSubscribers = new Map<
