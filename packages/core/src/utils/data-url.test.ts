@@ -31,6 +31,22 @@ describe("parseDataUrl", () => {
     });
   });
 
+  it("parses a base64 data URL without an explicit media type", () => {
+    expect(parseDataUrl("data:;base64,SGVsbG8=")).toEqual({
+      mimeType: "text/plain;charset=US-ASCII",
+      data: "SGVsbG8=",
+    });
+  });
+
+  it("uses a contextual media type when the URL omits one", () => {
+    expect(
+      parseDataUrl("data:;charset=utf-8;base64,SGVsbG8=", "text/markdown"),
+    ).toEqual({
+      mimeType: "text/markdown",
+      data: "SGVsbG8=",
+    });
+  });
+
   it("parses an uppercase scheme", () => {
     expect(parseDataUrl("DATA:image/png;base64,aGVsbG8=")).toEqual({
       mimeType: "image/png",
@@ -107,6 +123,32 @@ describe("resolveFilePartSource", () => {
       kind: "data",
       data: "aGVsbG8=",
       mimeType: "image/png",
+    });
+  });
+
+  it("decodes data URLs without a media type using the part media type", () => {
+    expect(
+      resolveFilePartSource({
+        data: "data:;base64,SGVsbG8=",
+        mimeType: "application/pdf",
+      }),
+    ).toEqual({
+      kind: "data",
+      data: "SGVsbG8=",
+      mimeType: "application/pdf",
+    });
+  });
+
+  it("uses the data URL default when neither source declares a media type", () => {
+    expect(
+      resolveFilePartSource({
+        data: "data:;base64,SGVsbG8=",
+        mimeType: "",
+      }),
+    ).toEqual({
+      kind: "data",
+      data: "SGVsbG8=",
+      mimeType: "text/plain;charset=US-ASCII",
     });
   });
 
