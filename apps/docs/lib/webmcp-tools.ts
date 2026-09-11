@@ -152,12 +152,15 @@ const withErrorResults =
 type WebMcpTracker = typeof analytics.webmcp;
 
 function trackSafely(label: string, track: () => void) {
-  try {
-    track();
-  } catch (error) {
+  const warn = (error: unknown) => {
     if (process.env.NODE_ENV !== "production") {
       console.warn(`WebMCP: failed to track ${label}`, error);
     }
+  };
+  try {
+    Promise.resolve(track()).catch(warn);
+  } catch (error) {
+    warn(error);
   }
 }
 

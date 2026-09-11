@@ -354,6 +354,7 @@ describe("registerWebMcpTools lifecycle", () => {
     const cleanup = registerWebMcpTools(
       modelContext,
       fetchReturning({ result: okResult }),
+      spyTracker(),
     );
     expect(modelContext.registerTool).toHaveBeenCalledTimes(3);
     expect(signals).toHaveLength(3);
@@ -369,7 +370,11 @@ describe("registerWebMcpTools lifecycle", () => {
       const modelContext: WebMcpModelContext = {
         registerTool: vi.fn(() => Promise.reject(new Error("duplicate"))),
       };
-      registerWebMcpTools(modelContext, fetchReturning({ result: okResult }));
+      registerWebMcpTools(
+        modelContext,
+        fetchReturning({ result: okResult }),
+        spyTracker(),
+      );
       await vi.waitFor(() => {
         expect(modelContext.registerTool).toHaveBeenCalledTimes(3);
         expect(warn).toHaveBeenCalledTimes(3);
@@ -468,11 +473,13 @@ describe("WebMCP call counter", () => {
     });
   });
 
-  it.each(["throwing", "pending"])(
+  it.each(["throwing", "rejecting", "pending"])(
     "isolates a %s tracker from the tool result",
     async (failure) => {
       const track = vi.fn(() => {
-        if (failure === "throwing") throw new Error("tracking failed");
+        const error = new Error("tracking failed");
+        if (failure === "throwing") throw error;
+        if (failure === "rejecting") return Promise.reject(error);
         return new Promise<void>(() => {});
       });
       const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
@@ -483,7 +490,9 @@ describe("WebMCP call counter", () => {
             toolCalled: track,
           }).execute({ query: "tools" }),
         ).resolves.toEqual(okResult);
-        expect(warn).toHaveBeenCalledTimes(failure === "throwing" ? 2 : 0);
+        await vi.waitFor(() =>
+          expect(warn).toHaveBeenCalledTimes(failure === "pending" ? 0 : 2),
+        );
       } finally {
         warn.mockRestore();
       }
