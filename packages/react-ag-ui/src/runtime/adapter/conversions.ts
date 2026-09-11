@@ -13,6 +13,7 @@ import {
   getAutoStatus,
   parseDataUrl,
   resolveFilePartSource,
+  walkToolCallTree,
 } from "@assistant-ui/core/internal";
 import { type Tool, toToolsJSONSchema } from "assistant-stream";
 import type { ReadonlyJSONObject } from "assistant-stream/utils";
@@ -210,6 +211,9 @@ function normalizeToolCall(part: ToolCallPart): {
     },
   };
 }
+
+const isExportableNestedToolCall = (part: { readonly toolCallId?: unknown }) =>
+  typeof part.toolCallId === "string" && !part.toolCallId.startsWith("a2ui:");
 
 function extractText(content: unknown): string {
   if (typeof content === "string") return content;
@@ -1074,7 +1078,16 @@ function convertAssistantMessage(
     part: ToolCallPart;
   }[] = [];
   for (const { part } of toolCalls) {
-    collectNestedToolCalls(part, nestedToolCalls);
+    for (const { part: nestedToolCall } of walkToolCallTree(
+      part.messages ?? [],
+      { shouldDescend: isExportableNestedToolCall },
+    )) {
+      if (!isExportableNestedToolCall(nestedToolCall)) continue;
+      nestedToolCalls.push({
+        ...normalizeToolCall(nestedToolCall),
+        part: nestedToolCall,
+      });
+    }
   }
 
   converted.push({
@@ -1103,28 +1116,6 @@ function convertAssistantMessage(
       part.approval.resolution === undefined;
     if (gateOpen) continue;
     emitToolResult(toolCallId, part, converted);
-  }
-}
-
-function collectNestedToolCalls(
-  part: ToolCallPart,
-  out: { id: string; call: AgUiToolCall; part: ToolCallPart }[],
-): void {
-  for (const nested of part.messages ?? []) {
-    if (!isObject(nested) || nested.role !== "assistant") continue;
-    const nestedContent = Array.isArray(nested.content) ? nested.content : [];
-    for (const nestedPart of nestedContent) {
-      if (!isObject(nestedPart) || nestedPart.type !== "tool-call") continue;
-      const nestedToolCall = nestedPart as ToolCallPart;
-      if (
-        typeof nestedToolCall.toolCallId !== "string" ||
-        nestedToolCall.toolCallId.startsWith("a2ui:")
-      ) {
-        continue;
-      }
-      out.push({ ...normalizeToolCall(nestedToolCall), part: nestedToolCall });
-      collectNestedToolCalls(nestedToolCall, out);
-    }
   }
 }
 
