@@ -102,6 +102,22 @@ const notifyListeners = (listeners: Iterable<() => void>) => {
   }
 };
 
+const updateMessageRepository = (
+  previous: ReturnType<typeof ExportedMessageRepository.fromArray>,
+  messages: readonly ThreadMessageLike[],
+  changedIndex: number,
+) => {
+  const prefix = previous.messages.slice(0, changedIndex);
+  const suffix = ExportedMessageRepository.fromArray(
+    messages.slice(changedIndex),
+  ).messages;
+  const first = suffix[0];
+  if (first) {
+    first.parentId = prefix.at(-1)?.message.id ?? null;
+  }
+  return { messages: [...prefix, ...suffix] };
+};
+
 /** Event types the reducer acts on. Anything else triggers a snapshot refresh
  * (forward-compat for Pi's open, module-augmented event union). */
 const MESSAGE_DIRTY_EVENT_TYPES: ReadonlySet<string> = new Set([
@@ -674,9 +690,11 @@ export class PiThreadController implements PiThreadControllerLike {
       return;
     }
     this.projectedMessages = next;
-    // `fromArray` chains messages linearly and keeps their stable `pi-msg:N`
-    // ids (its generated id is only a fallback for id-less messages).
-    this.messageRepository = ExportedMessageRepository.fromArray(next);
+    this.messageRepository = updateMessageRepository(
+      this.messageRepository,
+      next,
+      this.messageProjector.getChangedProjectedIndex() ?? 0,
+    );
     this.notifyMessageListeners();
   }
 

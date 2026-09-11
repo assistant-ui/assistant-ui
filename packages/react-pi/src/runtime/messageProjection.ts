@@ -666,23 +666,31 @@ const projectedSourceIndex = (message: ThreadMessageLike) => {
     return undefined;
   }
   const index = Number(message.id.slice("pi-msg:".length));
-  return Number.isInteger(index) ? index : undefined;
+  return Number.isSafeInteger(index) && index >= 0 ? index : undefined;
 };
 
 const firstProjectedIndexAtOrAfter = (
   messages: readonly ThreadMessageLike[],
   sourceIndex: number,
 ) => {
-  const index = messages.findIndex((message) => {
-    const projectedIndex = projectedSourceIndex(message);
-    return projectedIndex !== undefined && projectedIndex >= sourceIndex;
-  });
-  return index === -1 ? messages.length : index;
+  let low = 0;
+  let high = messages.length;
+  while (low < high) {
+    const middle = (low + high) >>> 1;
+    const projectedIndex = projectedSourceIndex(messages[middle]!);
+    if (projectedIndex === undefined || projectedIndex >= sourceIndex) {
+      high = middle;
+    } else {
+      low = middle + 1;
+    }
+  }
+  return low;
 };
 
 export class PiThreadMessageProjector {
   private previousInput: PiProjectionInput | undefined;
   private projectedMessages: readonly ThreadMessageLike[] = [];
+  private changedProjectedIndex: number | undefined;
   private toolResults = new Map<string, ProjectedToolResult>();
   private toolCallIndices = new Map<string, number>();
 
@@ -690,15 +698,22 @@ export class PiThreadMessageProjector {
     this.projectedMessages = projectedMessages;
   }
 
+  public getChangedProjectedIndex() {
+    return this.changedProjectedIndex;
+  }
+
   public project(input: PiProjectionInput): readonly ThreadMessageLike[] {
     const previousInput = this.previousInput;
     if (!previousInput) {
+      const previousProjectedMessages = this.projectedMessages;
       this.toolResults = buildToolResultMap(input.messages);
       this.toolCallIndices = buildToolCallIndices(input.messages);
       this.projectedMessages = shareProjectedThreadMessages(
         projectPiThreadMessagesFrom(input, 0, this.toolResults),
         this.projectedMessages,
       );
+      this.changedProjectedIndex =
+        this.projectedMessages === previousProjectedMessages ? undefined : 0;
       this.previousInput = input;
       return this.projectedMessages;
     }
@@ -779,6 +794,7 @@ export class PiThreadMessageProjector {
     }
 
     if (dirtyIndex === undefined) {
+      this.changedProjectedIndex = undefined;
       this.previousInput = input;
       return this.projectedMessages;
     }
@@ -804,6 +820,7 @@ export class PiThreadMessageProjector {
           message === this.projectedMessages[projectedStartIndex + index],
       )
     ) {
+      this.changedProjectedIndex = undefined;
       this.previousInput = input;
       return this.projectedMessages;
     }
@@ -812,6 +829,7 @@ export class PiThreadMessageProjector {
       ...this.projectedMessages.slice(0, projectedStartIndex),
       ...nextSuffix,
     ];
+    this.changedProjectedIndex = projectedStartIndex;
     this.previousInput = input;
     return this.projectedMessages;
   }

@@ -752,6 +752,7 @@ describe("PiThreadController", () => {
 
     const before = controller.getProjectedMessages();
     const stableUser = before[0]!;
+    const stableRepositoryItem = controller.getMessageRepository().messages[0];
 
     client.emit(
       ev(
@@ -774,6 +775,12 @@ describe("PiThreadController", () => {
     expect(after[0]).toBe(stableUser);
     expect(after[1]).not.toBe(before[1]);
     expect(after[1]!.content).toMatchObject([{ type: "text", text: "ab" }]);
+    expect(controller.getMessageRepository().messages[0]).toBe(
+      stableRepositoryItem,
+    );
+    expect(controller.getMessageRepository().messages[1]!.parentId).toBe(
+      stableRepositoryItem!.message.id,
+    );
   });
 
   it("does not revisit the unchanged transcript prefix for a stream delta", () => {
