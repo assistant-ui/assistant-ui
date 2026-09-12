@@ -15,6 +15,8 @@
 import { ExportedMessageRepository } from "@assistant-ui/react";
 import type { AppendMessage, ThreadMessageLike } from "@assistant-ui/react";
 import {
+  bytesToBase64,
+  detectImageMediaType,
   parseDataUrl,
   resolveImageMediaType,
 } from "@assistant-ui/core/internal";
@@ -143,23 +145,6 @@ const METADATA_DIRTY_EVENT_TYPES: ReadonlySet<string> = new Set([
   "error",
 ]);
 
-const bytesToBase64 = (bytes: Uint8Array): string => {
-  const nodeBuffer = (
-    globalThis as {
-      Buffer?: {
-        from(bytes: Uint8Array): { toString(encoding: string): string };
-      };
-    }
-  ).Buffer;
-  if (nodeBuffer) return nodeBuffer.from(bytes).toString("base64");
-
-  let binary = "";
-  for (let offset = 0; offset < bytes.length; offset += 0x8000) {
-    binary += String.fromCharCode(...bytes.subarray(offset, offset + 0x8000));
-  }
-  return btoa(binary);
-};
-
 const loadImageContent = async (image: string): Promise<PiImageContent> => {
   const response = await fetch(image);
   if (!response.ok) {
@@ -185,6 +170,9 @@ const loadImageContent = async (image: string): Promise<PiImageContent> => {
   }
 
   const data = bytesToBase64(new Uint8Array(await response.arrayBuffer()));
+  if (!contentType && !detectImageMediaType(data)) {
+    throw new Error("Pi image attachment response is missing a content type");
+  }
   return {
     type: "image",
     mimeType: resolveImageMediaType(data, contentType),

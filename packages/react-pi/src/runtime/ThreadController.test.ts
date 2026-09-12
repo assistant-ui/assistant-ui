@@ -755,15 +755,21 @@ describe("PiThreadController", () => {
     });
   });
 
-  it("rejects URL image responses with a non-image content type", async () => {
-    vi.stubGlobal(
-      "fetch",
-      vi.fn().mockResolvedValue(
-        new Response("not an image", {
-          headers: { "content-type": "text/plain" },
-        }),
-      ),
-    );
+  it.each([
+    [
+      "a non-image content type",
+      new Response("not an image", {
+        headers: { "content-type": "text/plain" },
+      }),
+      "unsupported content type: text/plain",
+    ],
+    [
+      "no content type or recognized image bytes",
+      new Response(new Uint8Array([0, 1, 2])),
+      "response is missing a content type",
+    ],
+  ])("rejects URL image responses with %s", async (_, response, error) => {
+    vi.stubGlobal("fetch", vi.fn().mockResolvedValue(response));
     onTestFinished(() => vi.unstubAllGlobals());
     const client = createFakeClient();
     const controller = new PiThreadController(client, THREAD);
@@ -772,12 +778,10 @@ describe("PiThreadController", () => {
       controller.sendMessage(
         userMessageWithImage("look", "https://cdn.example.com/not-an-image"),
       ),
-    ).rejects.toThrow("unsupported content type: text/plain");
+    ).rejects.toThrow(error);
 
     expect(client.sent).toHaveLength(0);
-    expect(controller.getState().lastError).toContain(
-      "unsupported content type: text/plain",
-    );
+    expect(controller.getState().lastError).toContain(error);
   });
 
   it("rolls back the optimistic running mark when a send rejects", async () => {
