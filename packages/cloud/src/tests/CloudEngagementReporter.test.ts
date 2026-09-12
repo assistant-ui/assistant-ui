@@ -137,4 +137,18 @@ describe("CloudEngagementReporter", () => {
 
     expect(track).toHaveBeenCalledTimes(301);
   });
+
+  it("keeps a started run until it stops, however many threads ran since", async () => {
+    const { cloud, track } = createCloud();
+    const reporter = new CloudEngagementReporter(cloud);
+    for (let index = 0; index < 300; index++) {
+      reporter.runStarted(`t${index}`);
+    }
+    reporter.runStopped("t0");
+    await flush();
+
+    expect(track).toHaveBeenCalledWith(
+      expect.objectContaining({ kind: "run_stopped", thread_id: "t0" }),
+    );
+  });
 });

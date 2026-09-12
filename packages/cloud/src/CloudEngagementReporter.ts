@@ -50,10 +50,10 @@ const passThroughIds: EngagementIdResolver = (threadId, messageId) => ({
  * Derives engagement events from what a chat integration observes and keeps
  * the per thread state the events need: a run's start for the stop duration,
  * a run's end for the time to the next message, one error and one suggestion
- * list per run or thread. The state of the 256 most recently touched threads
- * is kept, so a long session does not grow it without bound. Delivery goes
- * through the cloud's event buffer, so a disabled telemetry setting drops
- * everything here as well.
+ * list per run or thread. A started run is kept until it ends or stops; the
+ * rest is kept for the 256 most recently touched threads, so a long session
+ * does not grow it without bound. Delivery goes through the cloud's event
+ * buffer, so a disabled telemetry setting drops everything here as well.
  */
 export class CloudEngagementReporter {
   private readonly runStartedAt = new Map<string, number>();
@@ -73,7 +73,7 @@ export class CloudEngagementReporter {
   }
 
   public runStarted(threadId: string): void {
-    remember(this.runStartedAt, threadId, Date.now());
+    this.runStartedAt.set(threadId, Date.now());
     this.shownErrors.delete(threadId);
   }
 

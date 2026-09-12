@@ -30,12 +30,13 @@ export const aiSDKV6FormatAdapter: MessageFormatAdapter<
 
 /**
  * A message as an AI SDK integration holds it, or as the cloud stored it under
- * the ai-sdk/v6 format, which drops the id.
+ * the ai-sdk/v6 format, which drops the id. Parts are typed by their `type`
+ * alone, so this shape and the telemetry read from it need nothing from `ai`.
  */
 export type AISDKMessageLike = {
   id?: string | undefined;
   role: string;
-  parts: readonly UIMessage["parts"][number][];
+  parts: readonly { type: string; [key: string]: unknown }[];
   metadata?: unknown;
 };
 
@@ -51,35 +52,50 @@ export type AISDKRunTelemetry = {
   metadata?: Record<string, unknown>;
 };
 
-type Part = UIMessage["parts"][number];
+type Part = Record<string, unknown> & { type: string };
 
 function isRecord(value: unknown): value is Record<string, unknown> {
   return value !== null && typeof value === "object";
 }
 
+function isPart(value: unknown): value is Part {
+  return isRecord(value) && typeof value.type === "string";
+}
+
 /**
  * The AI SDK's own tool part rules, kept here so the entry loads without the
  * `ai` runtime: a static tool part is `tool-<name>`, a dynamic one is
- * `dynamic-tool` with its name in `toolName`.
+ * `dynamic-tool` with its name in `toolName`. A call is answered once the part
+ * holds its output or its error.
  */
-function toolCallOf(part: Part): AssistantCloudRunReportToolCall | undefined {
-  const raw = part as unknown as Record<string, unknown>;
-  if (typeof raw.toolCallId !== "string") return undefined;
+function toolCallOf(
+  part: Part,
+):
+  | { toolCall: AssistantCloudRunReportToolCall; answered: boolean }
+  | undefined {
+  if (typeof part.toolCallId !== "string") return undefined;
   const isStatic = part.type.startsWith("tool-");
   if (!isStatic && part.type !== "dynamic-tool") return undefined;
   const toolName = isStatic
     ? part.type.slice("tool-".length)
-    : typeof raw.toolName === "string"
-      ? raw.toolName
+    : typeof part.toolName === "string"
+      ? part.toolName
       : undefined;
   if (!toolName) return undefined;
-  return createRunTelemetryToolCall({
-    toolName,
-    toolCallId: raw.toolCallId,
-    args: raw.input ?? raw.args,
-    result: raw.output ?? raw.result,
-    toolSource: isStatic ? "frontend" : "mcp",
-  });
+  const result = part.output ?? part.result;
+  return {
+    toolCall: createRunTelemetryToolCall({
+      toolName,
+      toolCallId: part.toolCallId,
+      args: part.input ?? part.args,
+      result,
+      toolSource: isStatic ? "frontend" : "mcp",
+    }),
+    answered:
+      part.state === "output-available" ||
+      part.state === "output-error" ||
+      result !== undefined,
+  };
 }
 
 function attachSamplingCalls(
@@ -153,8 +169,9 @@ function messageUsage(
  * Reads the run report fields out of the assistant messages of one run. A run
  * the AI SDK streamed as one message is one element; a run the cloud stored as
  * several assistant rows is aggregated, step by step, in order. Returns null
- * when no assistant message is present. Status falls back to the presence of
- * text; an integration that observed the finish event overrides it.
+ * when no assistant message is present. Status reads completed when the run
+ * produced text or every tool call it made was answered; an integration that
+ * observed the finish event overrides it.
  */
 export function extractAISDKRunTelemetry(
   messages: readonly AISDKMessageLike[],
@@ -163,6 +180,7 @@ export function extractAISDKRunTelemetry(
   const toolCalls: AssistantCloudRunReportToolCall[] = [];
   const steps: RunReportStepInit[] = [];
   const usages: RunTelemetryUsage[] = [];
+  let pendingToolCalls = 0;
   let assistant: AISDKMessageLike | undefined;
 
   for (const message of messages) {
@@ -175,6 +193,7 @@ export function extractAISDKRunTelemetry(
     let stepIndex = -1;
 
     for (const part of message.parts) {
+      if (!isPart(part)) continue;
       if (part.type === "step-start") {
         stepIndex += 1;
         const usage = usagePerStep[stepIndex];
@@ -182,16 +201,17 @@ export function extractAISDKRunTelemetry(
         steps.push(step);
         continue;
       }
-      if (part.type === "text" && part.text) {
+      if (part.type === "text" && typeof part.text === "string" && part.text) {
         textParts.push(part.text);
         continue;
       }
-      const toolCall = toolCallOf(part);
-      if (!toolCall) continue;
-      toolCalls.push(toolCall);
-      messageToolCalls.push(toolCall);
+      const tool = toolCallOf(part);
+      if (!tool) continue;
+      if (!tool.answered) pendingToolCalls += 1;
+      toolCalls.push(tool.toolCall);
+      messageToolCalls.push(tool.toolCall);
       if (step) {
-        step.toolCalls = [...(step.toolCalls ?? []), toolCall];
+        step.toolCalls = [...(step.toolCalls ?? []), tool.toolCall];
         step.finishReason = "tool-calls";
       }
     }
@@ -209,11 +229,13 @@ export function extractAISDKRunTelemetry(
 
   const usage = usages.length > 0 ? sumUsage(usages) : undefined;
   const modelId = extractRunTelemetryModelId(metadata);
+  const completed =
+    textParts.length > 0 || (toolCalls.length > 0 && pendingToolCalls === 0);
   return {
     ...(assistant.id !== undefined
       ? { assistantMessageId: assistant.id }
       : undefined),
-    status: textParts.length > 0 ? "completed" : "incomplete",
+    status: completed ? "completed" : "incomplete",
     ...(toolCalls.length > 0 ? { toolCalls } : undefined),
     ...(steps.length > 0 ? { steps, totalSteps: steps.length } : undefined),
     ...(textParts.length > 0

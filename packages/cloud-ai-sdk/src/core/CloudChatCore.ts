@@ -9,6 +9,7 @@ import { ThreadSessionManager } from "./ThreadSessionManager";
 import { TitlePolicy } from "./TitlePolicy";
 import {
   CloudTelemetryReporter,
+  isMidLoopFinish,
   type TelemetryFinishEvent,
   type TelemetryRunTiming,
 } from "./CloudTelemetryReporter";
@@ -333,7 +334,9 @@ export class CloudChatCore {
                   reason: "error",
                 });
               }
-              this.engagementReporter.runEnded(threadId);
+              if (!isMidLoopFinish(event, chatInstance.messages)) {
+                this.engagementReporter.runEnded(threadId);
+              }
             }
           }
           const threadId = registry.getMeta(chatKey)?.threadId;

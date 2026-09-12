@@ -24,6 +24,20 @@ export type TelemetryRunTiming = {
   firstTokenMs?: number;
 };
 
+/**
+ * A finish the AI SDK follows with a `sendAutomaticallyWhen` resubmit: the run
+ * goes on and a later finish carries its final state.
+ */
+export function isMidLoopFinish(
+  event: TelemetryFinishEvent | undefined,
+  messages: UIMessage[],
+): boolean {
+  return (
+    event?.finishReason === "tool-calls" &&
+    lastAssistantMessageIsCompleteWithToolCalls({ messages })
+  );
+}
+
 export class CloudTelemetryReporter {
   private readonly reporter: CloudRunReporter;
 
@@ -38,14 +52,7 @@ export class CloudTelemetryReporter {
     timing?: TelemetryRunTiming,
     getResolvedRemoteId?: (messageId: string) => string | undefined,
   ): Promise<void> {
-    // mid-loop checkpoint: ai sdk's sendAutomaticallyWhen will resubmit and a
-    // later onFinish will fire on the same assistantMessageId with the final state.
-    if (
-      event?.finishReason === "tool-calls" &&
-      lastAssistantMessageIsCompleteWithToolCalls({ messages })
-    ) {
-      return;
-    }
+    if (isMidLoopFinish(event, messages)) return;
 
     const lastAssistantMessage = getLastAssistantMessage(messages);
     if (!lastAssistantMessage) return;

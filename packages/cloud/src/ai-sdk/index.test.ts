@@ -215,4 +215,49 @@ describe("extractAISDKRunTelemetry", () => {
     expect(result?.totalSteps).toBeUndefined();
     expect(result?.outputText).toBeUndefined();
   });
+
+  it("reads completed for a tool only run once every call is answered", () => {
+    const call = (
+      toolCallId: string,
+      state: string,
+      rest: Record<string, unknown> = {},
+    ) =>
+      ({
+        type: "tool-search",
+        toolCallId,
+        state,
+        input: {},
+        ...rest,
+      }) as UIMessage["parts"][number];
+    const statusOf = (parts: UIMessage["parts"]) =>
+      extractAISDKRunTelemetry([assistant(parts)])?.status;
+
+    expect(statusOf([call("a", "output-available", { output: [] })])).toBe(
+      "completed",
+    );
+    expect(statusOf([call("a", "output-error", { errorText: "boom" })])).toBe(
+      "completed",
+    );
+    expect(
+      statusOf([
+        call("a", "output-available", { output: [] }),
+        call("b", "input-available"),
+      ]),
+    ).toBe("incomplete");
+  });
+
+  it("skips a stored part without a type", () => {
+    const result = extractAISDKRunTelemetry([
+      {
+        role: "assistant",
+        parts: [
+          null,
+          { toolCallId: "a" },
+          { type: "text", text: "hi" },
+        ] as never,
+      },
+    ]);
+    expect(result?.outputText).toBe("hi");
+    expect(result?.toolCalls).toBeUndefined();
+  });
 });
