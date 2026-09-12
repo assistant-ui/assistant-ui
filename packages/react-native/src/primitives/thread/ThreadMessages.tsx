@@ -229,6 +229,7 @@ const useThreadMessagesFlatListAutoScroll = ({
   const lastScrollEventOffsetRef = useRef(0);
   const initializeScrollRequestedRef = useRef(false);
   const pendingScrollToBottomRef = useRef<false | { animated: boolean }>(false);
+  const contentMeasuredRef = useRef(false);
 
   const updateIsAtBottom = useCallback(() => {
     const { contentHeight, scrollY, viewportHeight } = metricsRef.current;
@@ -261,11 +262,7 @@ const useThreadMessagesFlatListAutoScroll = ({
       metricsRef.current.viewportHeight = viewportHeight;
       updateIsAtBottom();
       const pending = pendingScrollToBottomRef.current;
-      if (
-        pending &&
-        metricsRef.current.contentHeight > 0 &&
-        viewportHeight > 0
-      ) {
+      if (pending && contentMeasuredRef.current && viewportHeight > 0) {
         pendingScrollToBottomRef.current = false;
         scrollToBottom(pending.animated);
         return;
@@ -325,6 +322,7 @@ const useThreadMessagesFlatListAutoScroll = ({
       const contentHeight = horizontal ? width : height;
       const previousContentHeight = metrics.contentHeight;
       const wasAtBottom = isAtBottomRef.current;
+      contentMeasuredRef.current = true;
       metrics.contentHeight = contentHeight;
       updateIsAtBottom();
 
@@ -370,8 +368,7 @@ const useThreadMessagesFlatListAutoScroll = ({
     if (!scrollToBottomOnThreadSwitch) return;
     initializeScrollRequestedRef.current = false;
     lastScrollEventOffsetRef.current = 0;
-    metricsRef.current.contentHeight = 0;
-    metricsRef.current.scrollY = 0;
+    contentMeasuredRef.current = false;
     pendingScrollToBottomRef.current = { animated: false };
     scrollToBottom(false);
   });
