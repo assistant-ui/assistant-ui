@@ -139,10 +139,51 @@ const METADATA_DIRTY_EVENT_TYPES: ReadonlySet<string> = new Set([
   "error",
 ]);
 
-/** Parse a `data:<mime>;base64,<data>` URL into Pi `ImageContent`. Non-data-URL
- * strings pass through as opaque base64 with a generic image mime. */
-const toImageContent = (image: string): PiImageContent => {
-  const match = /^data:([^;,]+)(?:;base64)?,(.*)$/is.exec(image);
+const bytesToBase64 = (bytes: Uint8Array): string => {
+  const nodeBuffer = (
+    globalThis as {
+      Buffer?: {
+        from(bytes: Uint8Array): { toString(encoding: string): string };
+      };
+    }
+  ).Buffer;
+  if (nodeBuffer) return nodeBuffer.from(bytes).toString("base64");
+
+  let binary = "";
+  for (let offset = 0; offset < bytes.length; offset += 0x8000) {
+    binary += String.fromCharCode(...bytes.subarray(offset, offset + 0x8000));
+  }
+  return btoa(binary);
+};
+
+const loadImageContent = async (image: string): Promise<PiImageContent> => {
+  const response = await fetch(image, { credentials: "omit" });
+  if (!response.ok) {
+    throw new Error(
+      `Failed to load Pi image attachment: ${response.status} ${response.statusText}`,
+    );
+  }
+
+  const mimeType =
+    response.headers.get("content-type")?.split(";", 1)[0]?.trim() ||
+    "image/png";
+  if (!mimeType.toLowerCase().startsWith("image/")) {
+    throw new Error(
+      `Pi image attachment returned unsupported content type: ${mimeType}`,
+    );
+  }
+
+  return {
+    type: "image",
+    mimeType: mimeType.toLowerCase(),
+    data: bytesToBase64(new Uint8Array(await response.arrayBuffer())),
+  };
+};
+
+const toImageContent = (
+  image: string,
+): PiImageContent | Promise<PiImageContent> => {
+  const match = /^data:([^;,]+);base64,(.*)$/is.exec(image);
   if (match) {
     return {
       type: "image",
@@ -150,6 +191,21 @@ const toImageContent = (image: string): PiImageContent => {
       data: match[2]!,
     };
   }
+
+  const scheme = /^([a-z][a-z\d+.-]*):/i.exec(image)?.[1]?.toLowerCase();
+  if (
+    scheme === "data" ||
+    scheme === "http" ||
+    scheme === "https" ||
+    scheme === "blob"
+  ) {
+    return loadImageContent(image);
+  }
+
+  if (scheme) {
+    throw new Error(`Unsupported Pi image attachment URL scheme: ${scheme}`);
+  }
+
   return { type: "image", mimeType: "image/png", data: image };
 };
 
@@ -162,11 +218,11 @@ export const appendMessageParts = (message: AppendMessage) => [
 export const buildPiSendInput = (
   message: AppendMessage,
   streamingBehavior: "followUp" | "steer" | undefined,
-): PiSendMessageInput => {
+): PiSendMessageInput | Promise<PiSendMessageInput> => {
   const parts = appendMessageParts(message);
 
   const textChunks: string[] = [];
-  const attachments: PiImageContent[] = [];
+  const attachments: Array<PiImageContent | Promise<PiImageContent>> = [];
   for (const part of parts) {
     if (part.type === "text") {
       textChunks.push(part.text);
@@ -176,11 +232,17 @@ export const buildPiSendInput = (
     // `file`/other parts are not part of Pi's user-content surface.
   }
 
-  return {
+  const createInput = (resolvedAttachments: PiImageContent[]) => ({
     content: textChunks.join("\n\n"),
-    ...(attachments.length > 0 ? { attachments } : {}),
+    ...(resolvedAttachments.length > 0
+      ? { attachments: resolvedAttachments }
+      : {}),
     ...(streamingBehavior ? { streamingBehavior } : {}),
-  };
+  });
+
+  return attachments.some((attachment) => attachment instanceof Promise)
+    ? Promise.all(attachments).then(createInput)
+    : createInput(attachments as PiImageContent[]);
 };
 
 const readSteeringIntent = (
@@ -429,6 +491,17 @@ export class PiThreadController implements PiThreadControllerLike {
       (isQueuedSend ? "followUp" : undefined);
 
     const input = buildPiSendInput(message, behavior);
+    if (input instanceof Promise) {
+      return this.sendPreparedMessage(await input, isQueuedSend, behavior);
+    }
+    return this.sendPreparedMessage(input, isQueuedSend, behavior);
+  }
+
+  private async sendPreparedMessage(
+    input: PiSendMessageInput,
+    isQueuedSend: boolean,
+    behavior: "followUp" | "steer" | undefined,
+  ) {
     this.ensureEventSubscription({ includeSnapshot: false });
 
     if (isQueuedSend) return this.sendQueued(input, behavior ?? "followUp");

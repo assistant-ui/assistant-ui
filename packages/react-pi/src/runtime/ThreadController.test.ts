@@ -302,6 +302,38 @@ describe("PiThreadController", () => {
     ]);
   });
 
+  it.each([
+    "https://cdn.example.com/image.png",
+    "data:image/svg+xml,%3Csvg%3E%3C%2Fsvg%3E",
+  ])(
+    "encodes URL image attachments before sending them to Pi: %s",
+    async (image) => {
+      const fetchMock = vi.fn().mockResolvedValue(
+        new Response(new Uint8Array([0, 1, 2]), {
+          headers: { "content-type": "image/png" },
+        }),
+      );
+      vi.stubGlobal("fetch", fetchMock);
+      onTestFinished(() => vi.unstubAllGlobals());
+      const client = createFakeClient();
+      const controller = new PiThreadController(client, THREAD);
+
+      await controller.sendMessage(
+        userMessage("look", {
+          content: [
+            { type: "text", text: "look" },
+            { type: "image", image },
+          ],
+        } as Partial<AppendMessage>),
+      );
+
+      expect(fetchMock).toHaveBeenCalledWith(image, { credentials: "omit" });
+      expect(client.sent[0]!.input.attachments).toEqual([
+        { type: "image", mimeType: "image/png", data: "AAEC" },
+      ]);
+    },
+  );
+
   it("cancels the run via the client", async () => {
     const client = createFakeClient();
     const controller = new PiThreadController(client, THREAD);
