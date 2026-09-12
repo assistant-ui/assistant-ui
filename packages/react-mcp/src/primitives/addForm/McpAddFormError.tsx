@@ -17,16 +17,19 @@ export const McpAddFormPrimitiveError = forwardRef<
 >((props, ref) => {
   const { state, ids } = useAddForm();
   if (!state.error) return null;
-  return (
+  const needsDescriptionWrapper =
+    props.asChild || (props.id !== undefined && props.id !== ids.error);
+  const error = (
     <Primitive.div
       {...props}
-      id={props.id ?? ids.error}
+      id={needsDescriptionWrapper ? props.id : ids.error}
       role={props.role ?? "alert"}
       ref={ref}
     >
       {props.children ?? state.error}
     </Primitive.div>
   );
+  return needsDescriptionWrapper ? <div id={ids.error}>{error}</div> : error;
 });
 
 McpAddFormPrimitiveError.displayName = "McpAddFormPrimitive.Error";

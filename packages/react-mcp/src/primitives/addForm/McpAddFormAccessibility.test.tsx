@@ -9,6 +9,7 @@ import {
   within,
 } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { createRef } from "react";
 
 const mocks = vi.hoisted(() => ({ addCustomServer: vi.fn() }));
 vi.mock("@assistant-ui/store", async (importOriginal) => ({
@@ -48,6 +49,44 @@ beforeEach(() => {
 afterEach(cleanup);
 
 describe("MCP add form accessibility", () => {
+  it.each(["element", "slot", "child"] as const)(
+    "keeps a custom error ID on the %s associated with fields",
+    (target) => {
+      const ref = createRef<HTMLDivElement>();
+      render(
+        <Root aria-label="Add server">
+          <NameField aria-label="Name" />
+          <ErrorMessage
+            {...(target !== "child" && { id: "custom-error" })}
+            asChild={target !== "element"}
+            ref={ref}
+          >
+            {target !== "element" ? (
+              <div {...(target === "child" && { id: "custom-error" })}>
+                Enter the server name.
+              </div>
+            ) : (
+              "Enter the server name."
+            )}
+          </ErrorMessage>
+        </Root>,
+      );
+      fireEvent.submit(screen.getByRole("form"));
+      const error = screen.getByRole("alert");
+      expect(error.id).toBe("custom-error");
+      expect(ref.current).toBe(error);
+      const descriptionId = screen
+        .getByRole("textbox", { name: "Name" })
+        .getAttribute("aria-describedby")!;
+      expect(document.getElementById(descriptionId)?.textContent).toBe(
+        "Enter the server name.",
+      );
+      expect(document.querySelectorAll(`[id="${descriptionId}"]`)).toHaveLength(
+        1,
+      );
+    },
+  );
+
   it("keeps enclosing labels as the accessible names", () => {
     render(
       <Root>

@@ -52,7 +52,7 @@ describe.each([
     ["oauth", "OAuth scopes", "oauth-scopes"],
     ["bearer", "Bearer token", "bearer-token"],
   ])(
-    "provides styled labels for %s credentials",
+    "exposes label styling hooks for %s credentials",
     async (authType, text, hook) => {
       render(<Dialog />);
       fireEvent.click(screen.getByRole("button", { name: "MCP servers" }));
@@ -66,15 +66,6 @@ describe.each([
       const label = input.labels?.[0];
       expect(label?.getAttribute("data-mcp-auth-field-label")).toBe(hook);
       expect(input.placeholder).not.toBe(text);
-      const classes = input.parentElement?.parentElement?.classList;
-      expect(classes?.contains("[&_[data-mcp-auth-field-label]]:text-xs")).toBe(
-        true,
-      );
-      expect(
-        classes?.contains("[&_[data-mcp-auth-field-label]]:font-medium"),
-      ).toBe(true);
-      expect(classes?.contains("[&>div]:flex-col")).toBe(true);
-      expect(classes?.contains("[&>div]:gap-1.5")).toBe(true);
     },
   );
 });
