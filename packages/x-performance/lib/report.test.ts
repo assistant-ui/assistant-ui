@@ -48,6 +48,8 @@ describe("baseLabel", () => {
       baseLabel("2b58f6a0bed6ce7fe5bf4d1c31bb22f0ea44a646", "2b58f6a0b"),
     ).toBe("base (2b58f6a0b)");
     expect(baseLabel("2b58f6a0b", "2b58f6a0b")).toBe("base (2b58f6a0b)");
+    expect(baseLabel("2b58f6a", "2b58f6a0b")).toBe("base (2b58f6a0b)");
+    expect(baseLabel("2B58F6A0B", "2b58f6a0b")).toBe("base (2b58f6a0b)");
     expect(baseLabel("main", "2b58f6a0b")).toBe("main (2b58f6a0b)");
     expect(baseLabel("HEAD", "abc1234")).toBe("HEAD (abc1234)");
   });
@@ -173,7 +175,7 @@ describe("renderCompareMarkdown", () => {
     );
     const fold = md.slice(md.indexOf("<details>"));
     expect(fold).toContain(
-      "<summary>1 measured rows within noise, closest to the floor first</summary>\n\n| bench | base | head | Δ | floor |",
+      "<summary>1 measured row within noise, closest to the floor first</summary>\n\n| bench | base | head | Δ | floor |",
     );
     expect(fold).toContain("| a › g › y | 1.000ms | 1.000ms | +0.0% | 3.0% |");
     expect(md).not.toContain("control rows");
@@ -241,7 +243,7 @@ describe("renderCompareMarkdown", () => {
     );
     const details = md.slice(md.indexOf("<details>"));
     expect(details).toContain(
-      "<summary>1 measured rows within noise, closest to the floor first</summary>\n\n| bench | base | head | Δ | floor ×2.0 |",
+      "<summary>1 measured row within noise, closest to the floor first</summary>\n\n| bench | base | head | Δ | floor ×2.0 |",
     );
     expect(details).toContain(
       "| m › g › still | 1.000ms | 1.010ms | +1.0% | 6.0% |",
@@ -443,6 +445,38 @@ describe("assembleReport", () => {
       md.lastIndexOf("\n```"),
     );
     expect(JSON.parse(block).bench.rows).toHaveLength(1);
+  });
+
+  it("caps the moved rows too when the comment would still exceed the limit", () => {
+    const dir = mkdtempSync(join(tmpdir(), "aui-perf-report-"));
+    dirs.push(dir);
+    const bench = join(dir, "bench.json");
+    const out = join(dir, "comment.md");
+    const rows: CompareRow[] = [];
+    for (let i = 0; i < 900; i++) {
+      rows.push(
+        row(
+          `bench/m.bench.ts > group ${"x".repeat(60)} > moved ${i}`,
+          50 + i / 1000,
+          3,
+          true,
+        ),
+      );
+    }
+    writeFileSync(
+      bench,
+      JSON.stringify(
+        buildCompareDoc(rows, meta({ changed: ["@assistant-ui/tap"] })),
+      ),
+    );
+    const md = assembleReport({ out, bench });
+    expect(md.length).toBeLessThan(65536);
+    expect(md).toContain("_860 smaller moves omitted from this table._");
+    expect(md).toContain("moved 899");
+    expect(md).not.toContain("moved 0 |");
+    expect(md).toContain(
+      "<summary>machine-readable (rows omitted to stay under the comment size limit)</summary>",
+    );
   });
 
   it("still writes a marked comment when no lane ran", () => {

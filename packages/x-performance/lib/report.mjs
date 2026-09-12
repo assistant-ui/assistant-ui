@@ -12,10 +12,15 @@ export const shortId = (id) =>
     .split(" > ")
     .join(" › ");
 
-export const baseLabel = (ref, sha) =>
-  /^[0-9a-f]{7,40}$/i.test(ref) && ref.startsWith(sha)
+export const baseLabel = (ref, sha) => {
+  const a = ref.toLowerCase();
+  const b = sha.toLowerCase();
+  return /^[0-9a-f]{7,40}$/.test(a) && (a.startsWith(b) || b.startsWith(a))
     ? `base (${sha})`
     : `${ref} (${sha})`;
+};
+
+const rowsWord = (count) => (count === 1 ? "row" : "rows");
 
 const pct = (value) =>
   `${value >= 0 ? "+" : "-"}${Math.abs(value).toFixed(1)}%`;
@@ -177,9 +182,15 @@ const floorHeader = (scale) =>
 
 export const renderCompareMarkdown = (
   doc,
-  { controlLimit = Infinity, sameLimit = Infinity } = {},
+  { controlLimit = Infinity, sameLimit = Infinity, movedLimit = Infinity } = {},
 ) => {
-  const { moved, same: allSame, controls: allControls } = splitRows(doc);
+  const {
+    moved: allMoved,
+    same: allSame,
+    controls: allControls,
+  } = splitRows(doc);
+  const moved = allMoved.slice(0, movedLimit);
+  const movedOmitted = allMoved.length - moved.length;
   const same = allSame.slice(0, sameLimit);
   const sameOmitted = allSame.length - same.length;
   const controls = [...allControls]
@@ -197,6 +208,8 @@ export const renderCompareMarkdown = (
   for (const warning of doc.warnings) out.push(`> ⚠️ ${warning}`, "");
   out.push(...compareHeadline(doc));
   if (moved.length) {
+    if (movedOmitted)
+      out.push("", `_${movedOmitted} smaller moves omitted from this table._`);
     out.push(
       "",
       mdTable(
@@ -217,7 +230,7 @@ export const renderCompareMarkdown = (
     out.push(
       "",
       "<details>",
-      `<summary>${allSame.length} measured rows within noise, closest to the floor first${sameOmitted ? `, the ${same.length} closest shown` : ""}</summary>`,
+      `<summary>${allSame.length} measured ${rowsWord(allSame.length)} within noise, closest to the floor first${sameOmitted ? `, the ${same.length} closest shown` : ""}</summary>`,
       "",
       mdTable(
         ["bench", "base", "head", "Δ", floorHeader(scale)],
@@ -238,7 +251,7 @@ export const renderCompareMarkdown = (
     out.push(
       "",
       "<details>",
-      `<summary>${allControls.length} control rows (unchanged dists, so every delta here is runner noise)${omitted ? `, the ${controls.length} largest moves shown` : ""}</summary>`,
+      `<summary>${allControls.length} control ${rowsWord(allControls.length)} (unchanged dists, so every delta here is runner noise)${omitted ? `, the ${controls.length} largest moves shown` : ""}</summary>`,
       "",
       mdTable(
         ["bench", "base", "head", "Δ", "floor"],
@@ -417,6 +430,7 @@ export const assembleReport = ({ out, bench, trace }) => {
       sections[0] = renderCompareMarkdown(docs.bench, {
         controlLimit: 20,
         sameLimit: 40,
+        movedLimit: 40,
       });
     if (docs.trace)
       sections[sections.length - 1] = renderTraceMarkdown({
