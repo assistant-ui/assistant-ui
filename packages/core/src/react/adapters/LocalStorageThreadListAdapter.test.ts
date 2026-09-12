@@ -373,7 +373,7 @@ describe("parseStoredMessageRepository", () => {
                     attachments: [null],
                   },
                   {
-                    ...storedMessage("nested", "assistant"),
+                    ...storedMessage("", "assistant"),
                     content: [null],
                   },
                 ],
@@ -432,7 +432,7 @@ describe("parseStoredMessageRepository", () => {
         metadata: { custom: {} },
       },
       {
-        ...storedMessage("nested", "assistant"),
+        ...storedMessage("tool-call/part-0/message-4", "assistant"),
         content: [],
         createdAt: new Date("2026-01-01T00:00:00.000Z"),
         metadata: {
