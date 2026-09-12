@@ -3,7 +3,7 @@ name: Performance
 on:
   pull_request:
     branches: [main]
-    types: [opened, reopened, ready_for_review, labeled, synchronize]
+    types: [opened, reopened, ready_for_review, synchronize]
     paths:
       - "packages/x-performance/**"
       - "packages/tap/**"
@@ -23,11 +23,10 @@ jobs:
   measure:
     name: Measure vs base (informational)
     if: >-
-      !github.event.pull_request.draft &&
-      github.event.pull_request.head.repo.full_name == github.repository &&
-      github.head_ref != 'changeset-release/main' &&
-      (github.event.action != 'synchronize' || contains(github.event.pull_request.labels.*.name, 'type/perf')) &&
-      (github.event.action != 'labeled' || github.event.label.name == 'type/perf')
+      github.event.pull_request.draft == false
+      && github.event.pull_request.head.repo.full_name == github.repository
+      && github.head_ref != 'changeset-release/main'
+      && (github.event.action != 'synchronize' || contains(github.event.pull_request.labels.*.name, 'type/perf'))
     concurrency:
       group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
       cancel-in-progress: true

@@ -30,7 +30,7 @@ A bench sees only the work its own flush reaches. `flushSync` flushes discrete w
 
 ## Reading the PR comment
 
-The comment leads with two lines per lane and hides everything else behind a fold. A `machine-readable` fold at the end carries the same data as JSON (`aui-perf/compare@1`, `aui-perf/trace@1`) for review agents. The workflow measures a PR once, when it opens or leaves draft; later pushes re-measure only while the PR carries the `type/perf` label, and the footer names the head it measured, so a comment older than the head reads as stale rather than wrong.
+The comment leads with two lines per lane and hides everything else behind a fold. A `machine-readable` fold at the end carries the same data as JSON (`aui-perf/compare@1`, `aui-perf/trace@1`) for review agents. The workflow measures a PR once, when it opens or leaves draft; later pushes re-measure only while the PR carries the `type/perf` label, reopening the PR measures its current head once more, and the footer names the head it measured, so a comment older than the head reads as stale rather than wrong.
 
 - **Measured** rows are benches that exercise at least one package whose built `dist` differs between base and head. Attribution is automatic: each bench file's imports are scanned, closed over the measured packages' workspace dependencies, and intersected with the dists whose content hash changed. Only these rows carry a verdict.
 - **Control** rows are benches whose measured dists are byte-identical on both sides. They cannot have moved for a real reason, so each one is a free test of its own analytic floor. The header reports how many crossed theirs and by how much the worst one overshot, which is the run reporting its own false-positive rate.
