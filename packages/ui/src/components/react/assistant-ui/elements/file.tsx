@@ -80,17 +80,30 @@ function getBase64Size(base64: string): number {
 }
 
 function getDataUrlSize(data: string): number {
-  const withoutFragment = data.split("#", 1)[0]!;
-  const comma = withoutFragment.indexOf(",");
-  if (comma < 0) {
-    return getBase64Size(data);
+  const fragment = data.indexOf("#");
+  const end = fragment < 0 ? data.length : fragment;
+  const comma = data.indexOf(",");
+  if (comma < 0 || comma >= end) {
+    return 0;
   }
-  const payload = withoutFragment.slice(comma + 1);
-  if (/;base64$/i.test(withoutFragment.slice(0, comma))) {
-    const decoded = payload.replace(/%([\da-f]{2})/gi, (_match, hex: string) =>
-      String.fromCharCode(Number.parseInt(hex, 16)),
-    );
-    return getBase64Size(decoded.replace(/[\t\n\f\r ]/g, ""));
+  let payload = data.slice(comma + 1, end);
+  if (/;base64$/i.test(data.slice(0, comma))) {
+    if (/[%\t\n\f\r ]/.test(payload)) {
+      payload = payload
+        .replace(/%([\da-f]{2})/gi, (_match, hex: string) =>
+          String.fromCharCode(Number.parseInt(hex, 16)),
+        )
+        .replace(/[\t\n\f\r ]/g, "");
+    }
+    const padding = payload.endsWith("==") ? 2 : payload.endsWith("=") ? 1 : 0;
+    if (
+      /[^A-Za-z\d+/]/.test(payload.slice(0, payload.length - padding)) ||
+      payload.length % 4 === 1 ||
+      (padding > 0 && payload.length % 4 !== 0)
+    ) {
+      return 0;
+    }
+    return Math.floor((payload.length * 3) / 4) - padding;
   }
 
   // Each percent escape is one byte, including octets that are not valid UTF-8.
