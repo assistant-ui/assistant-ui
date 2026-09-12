@@ -339,6 +339,109 @@ describe("mcp command", () => {
     });
   });
 
+  it.each(["\n", "\r\n"])(
+    "preserves commented Zed settings with %j line endings",
+    async (eol) => {
+      setPlatform("linux");
+      const configPath = path.join(tempDir, ".config", "zed", "settings.json");
+      fs.mkdirSync(path.dirname(configPath), { recursive: true });
+      const content = [
+        "{",
+        "  // Editor preferences",
+        '  "theme": "One Dark",',
+        '  "languages": { "TypeScript": { "tab_size": 4 } },',
+        '  "context_servers": {',
+        '    "assistant-ui": { "command": { "path": "old", "env": { "CUSTOM": "value" } }, "settings": { "enabled": true } },',
+        "    // Keep this custom server",
+        '    "other": { "command": { "path": "custom", "args": [] } },',
+        "  },",
+        "}",
+        "",
+      ].join(eol);
+      fs.writeFileSync(configPath, content);
+
+      await mcp.parseAsync(["node", "mcp", "--zed"], { from: "node" });
+
+      const updated = fs.readFileSync(configPath, "utf-8");
+      expect(updated).toContain(
+        content.slice(0, content.indexOf('    "assistant-ui"')),
+      );
+      expect(updated).toContain(
+        content.slice(content.indexOf("    // Keep this custom server")),
+      );
+      expect(updated.replaceAll(eol, "")).not.toMatch(/[\r\n]/);
+      expect(parseJsonc(updated, [], { allowTrailingComma: true })).toEqual({
+        theme: "One Dark",
+        languages: { TypeScript: { tab_size: 4 } },
+        context_servers: {
+          "assistant-ui": {
+            command: {
+              path: "npx",
+              args: ["-y", "@assistant-ui/mcp-docs-server"],
+              env: { CUSTOM: "value" },
+            },
+            settings: { enabled: true },
+          },
+          other: { command: { path: "custom", args: [] } },
+        },
+      });
+
+      await mcp.parseAsync(["node", "mcp", "--zed"], { from: "node" });
+      expect(fs.readFileSync(configPath, "utf-8")).toBe(updated);
+    },
+  );
+
+  it.each([
+    '{\n  "languages": { "TypeScript": { "tab_size": 4 } },\n  "theme": "One Dark"\n}\n',
+    '// Editor preferences\n{ "context_servers": null }\n',
+    '// Editor preferences\n{ "context_servers": {}, "context_servers": { "assistant-ui": { "command": { "path": "old" } } } }\n',
+    '// Editor preferences\n{ "context_servers": { "assistant-ui": {}, "assistant-ui": { "command": { "path": "old" } } } }\n',
+  ])(
+    "updates the effective Zed server without a whole-file rewrite in %j",
+    async (content) => {
+      setPlatform("linux");
+      const configPath = path.join(tempDir, ".config", "zed", "settings.json");
+      fs.mkdirSync(path.dirname(configPath), { recursive: true });
+      fs.writeFileSync(configPath, content);
+
+      await mcp.parseAsync(["node", "mcp", "--zed"], { from: "node" });
+
+      const updated = fs.readFileSync(configPath, "utf-8");
+      expect(
+        parseJsonc(updated).context_servers["assistant-ui"].command,
+      ).toEqual({
+        path: "npx",
+        args: ["-y", "@assistant-ui/mcp-docs-server"],
+      });
+      if (content.includes('"languages"')) {
+        expect(updated).toContain(
+          '"languages": { "TypeScript": { "tab_size": 4 } }',
+        );
+      } else {
+        expect(updated).toContain("// Editor preferences");
+      }
+    },
+  );
+
+  it.each(['{"context_servers": {', "null", "[]"])(
+    "leaves malformed Zed settings %j unchanged with a diagnostic",
+    async (content) => {
+      setPlatform("linux");
+      const configPath = path.join(tempDir, ".config", "zed", "settings.json");
+      fs.mkdirSync(path.dirname(configPath), { recursive: true });
+      fs.writeFileSync(configPath, content);
+
+      await expect(
+        mcp.parseAsync(["node", "mcp", "--zed"], { from: "node" }),
+      ).rejects.toThrow("process.exit");
+
+      expect(fs.readFileSync(configPath, "utf-8")).toBe(content);
+      expect(consoleErrorSpy.mock.calls.flat().join("\n")).toContain(
+        "Could not parse Zed MCP config.",
+      );
+    },
+  );
+
   it("keeps the stdio npx config for claude-desktop", async () => {
     setPlatform("darwin");
 

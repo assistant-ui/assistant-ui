@@ -32,6 +32,7 @@ const MCP_CONFIGS: Record<
     getPath: () => string;
     config: object;
     replaceServerKey?: string;
+    jsoncServerKey?: string;
     postInstall?: string;
   }
 > = {
@@ -75,11 +76,13 @@ const MCP_CONFIGS: Record<
       },
     },
     replaceServerKey: "servers",
+    jsoncServerKey: "servers",
     postInstall:
       "Enable MCP in Settings → search 'MCP' → enable 'Chat > MCP'. Use Copilot Chat in Agent mode.",
   },
   zed: {
     name: "Zed",
+    jsoncServerKey: "context_servers",
     getPath: () => {
       if (process.platform === "win32") {
         return path.join(process.env.APPDATA || "", "Zed", "settings.json");
@@ -163,7 +166,11 @@ const lastPropertyValue = (node: Node, key: string) =>
   node.children?.findLast((property) => property.children?.[0]?.value === key)
     ?.children?.[1];
 
-function updateVscodeConfig(content: string, server: object): string {
+function updateJsoncConfig(
+  content: string,
+  serverKey: string,
+  server: object,
+): string {
   const formattingOptions = {
     insertSpaces: true,
     tabSize: 2,
@@ -172,13 +179,13 @@ function updateVscodeConfig(content: string, server: object): string {
   };
   const root = parseTree(content);
   // JSONC parsing uses the last duplicate key, but modify() targets the first.
-  const servers = root && lastPropertyValue(root, "servers");
+  const servers = root && lastPropertyValue(root, serverKey);
   if (!servers) {
     return applyEdits(
       content,
       modify(
         content,
-        ["servers"],
+        [serverKey],
         { "assistant-ui": server },
         { formattingOptions },
       ),
@@ -280,7 +287,7 @@ async function installForTarget(target: MCPTarget): Promise<void> {
   if (fs.existsSync(configPath)) {
     content = fs.readFileSync(configPath, "utf-8");
     try {
-      if (target === "vscode") {
+      if (targetConfig.jsoncServerKey) {
         const errors: ParseError[] = [];
         existingConfig = parseJsonc(content, errors, {
           allowTrailingComma: true,
@@ -320,10 +327,13 @@ async function installForTarget(target: MCPTarget): Promise<void> {
     };
   }
 
-  const updatedContent =
-    target === "vscode"
-      ? updateVscodeConfig(content, newConfig.servers["assistant-ui"])
-      : `${JSON.stringify(newConfig, null, 2)}\n`;
+  const updatedContent = targetConfig.jsoncServerKey
+    ? updateJsoncConfig(
+        content,
+        targetConfig.jsoncServerKey,
+        newConfig[targetConfig.jsoncServerKey]["assistant-ui"],
+      )
+    : `${JSON.stringify(newConfig, null, 2)}\n`;
   fs.writeFileSync(configPath, updatedContent);
 
   logger.break();
