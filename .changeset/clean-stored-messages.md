@@ -21,3 +21,5 @@ stored thread looks like after the next message is sent:
 - parts whose `type` this version does not recognize are preserved so a newer
   version's storage is not erased
 - tool-call `modelContent` is rebuilt from its valid text and file entries
+- non-record assistant step entries are removed while legacy record-shaped
+  steps and partial timing metadata remain compatible

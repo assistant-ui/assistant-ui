@@ -558,6 +558,11 @@ describe("parseStoredMessageRepository", () => {
                   { length: 102 },
                   (_, index) => ({ index }),
                 ),
+                steps: [
+                  null,
+                  { usage: { promptTokens: 1, completionTokens: 2 } },
+                ],
+                timing: { streamStartTime: 2 },
               },
             },
             parentId: null,
@@ -624,6 +629,12 @@ describe("parseStoredMessageRepository", () => {
     expect(reparsedMetadataMessage?.metadata.unstable_annotations).toHaveLength(
       102,
     );
+    expect(reparsedMetadataMessage?.metadata.steps).toEqual([
+      { usage: { promptTokens: 1, completionTokens: 2 } },
+    ]);
+    expect(reparsedMetadataMessage?.metadata.timing).toEqual({
+      streamStartTime: 2,
+    });
   });
 
   it("preserves descendants when only a parent part is malformed", () => {

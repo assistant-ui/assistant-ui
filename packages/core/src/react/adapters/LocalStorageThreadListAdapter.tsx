@@ -183,7 +183,9 @@ const parseStoredAssistantMetadata = (
       ? metadata.unstable_data.filter((entry) => isJSONValue(entry))
       : [],
     steps: Array.isArray(metadata.steps)
-      ? (metadata.steps as StoredAssistantMessage["metadata"]["steps"])
+      ? (metadata.steps.filter((step) =>
+          isRecord(step),
+        ) as StoredAssistantMessage["metadata"]["steps"])
       : [],
     ...(submittedFeedbackType === "positive" ||
     submittedFeedbackType === "negative"
