@@ -466,9 +466,14 @@ function parseStoredNestedThreadMessage(
   if (!isMessageRole(value.role) || !Array.isArray(value.content)) return null;
 
   if (value.role === "assistant") {
-    const metadata = isRecord(value.metadata) ? value.metadata : {};
+    const {
+      attachments: _attachments,
+      metadata: rawMetadata,
+      ...message
+    } = value;
+    const metadata = isRecord(rawMetadata) ? rawMetadata : {};
     return {
-      ...value,
+      ...message,
       content: parseStoredAssistantContent(value.content, depth),
       status: parseStoredMessageStatus(value.status),
       metadata: {
@@ -506,12 +511,17 @@ function parseStoredNestedThreadMessage(
     } as unknown as ThreadMessage;
   }
 
-  const metadata = isRecord(value.metadata) ? value.metadata : {};
+  const {
+    attachments: _attachments,
+    metadata: rawMetadata,
+    ...message
+  } = value;
+  const metadata = isRecord(rawMetadata) ? rawMetadata : {};
   const textParts = parseStoredUserContent(value.content).filter(
     (part) => part.type === "text",
   );
   return {
-    ...value,
+    ...message,
     content:
       textParts.length === 1
         ? textParts

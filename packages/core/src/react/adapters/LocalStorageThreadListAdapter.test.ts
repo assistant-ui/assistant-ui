@@ -359,11 +359,17 @@ describe("parseStoredMessageRepository", () => {
                     {
                       role: "assistant",
                       content: [{ type: "text", text: "partial" }, null],
+                      attachments: [null],
                     },
                     {
                       role: "user",
                       content: [{ type: "text", text: "partial user" }],
                       attachments: "invalid",
+                    },
+                    {
+                      role: "system",
+                      content: [{ type: "text", text: "partial system" }],
+                      attachments: [null],
                     },
                     {
                       ...storedMessage("nested", "assistant"),
@@ -409,6 +415,11 @@ describe("parseStoredMessageRepository", () => {
       {
         role: "user",
         content: [{ type: "text", text: "partial user" }],
+        metadata: { custom: {} },
+      },
+      {
+        role: "system",
+        content: [{ type: "text", text: "partial system" }],
         metadata: { custom: {} },
       },
       {
