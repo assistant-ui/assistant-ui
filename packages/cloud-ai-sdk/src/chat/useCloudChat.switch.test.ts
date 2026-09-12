@@ -43,6 +43,7 @@ describe("useCloudChat thread switching", () => {
 
   it("resets visible chat messages immediately when switching to new chat (threadId -> null)", () => {
     const mockCloud = {
+      registerSdk: vi.fn(),
       threads: {
         create: vi.fn(),
         list: vi.fn(),
@@ -78,8 +79,8 @@ describe("useCloudChat thread switching", () => {
     const stopAll = vi
       .spyOn(ChatRegistry.prototype, "stopAll")
       .mockResolvedValue(undefined);
-    const cloudA = { threads: {} };
-    const cloudB = { threads: {} };
+    const cloudA = { registerSdk: vi.fn(), threads: {} };
+    const cloudB = { registerSdk: vi.fn(), threads: {} };
     const threadsA = createThreads(cloudA, null);
     const threadsB = createThreads(cloudB, null);
     const pending = new Promise<never>(() => {});
@@ -111,6 +112,7 @@ describe("useCloudChat thread switching", () => {
 
   it("keeps committed options active when an options update suspends", async () => {
     const cloud = {
+      registerSdk: vi.fn(),
       threads: {
         create: vi.fn().mockResolvedValue({ thread_id: "thread-1" }),
       },
@@ -184,6 +186,7 @@ describe("useCloudChat thread switching", () => {
 
   it("applies a committed transport before any effect in the same commit", async () => {
     const cloud = {
+      registerSdk: vi.fn(),
       threads: {
         create: vi.fn().mockResolvedValue({ thread_id: "thread-1" }),
       },
@@ -248,6 +251,7 @@ describe("useCloudChat thread switching", () => {
       });
 
     const mockCloud = {
+      registerSdk: vi.fn(),
       threads: {
         create: vi.fn(),
         list: vi.fn(),

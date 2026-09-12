@@ -8,6 +8,7 @@ const { mockUseChat, mockCloud, mockResolvedRemoteId } = vi.hoisted(() => {
   const resolvedRemoteId = vi.fn();
 
   const cloud = {
+    registerSdk: vi.fn(),
     threads: {
       create: mockThreadsCreate,
       list: vi.fn().mockResolvedValue({ threads: [] }),
@@ -98,6 +99,7 @@ vi.mock("ai", () => ({
   ),
 }));
 
+import { CLOUD_AI_SDK_SDK } from "../sdkIdentity";
 import { useCloudChat } from "./useCloudChat";
 
 const createThreads = (cloud: typeof mockCloud, threadId: string | null) => ({
@@ -158,6 +160,12 @@ describe("useCloudChat", () => {
 
     const chatB = mockUseChat.mock.calls.at(-1)?.[0].chat;
     expect(chatB).not.toBe(chatA);
+  });
+
+  it("registers the cloud AI SDK on an explicit cloud", () => {
+    renderHook(() => useCloudChat({ cloud: mockCloud as never }));
+
+    expect(mockCloud.registerSdk).toHaveBeenCalledWith(CLOUD_AI_SDK_SDK);
   });
 
   it("sends feedback for the persisted cloud message in the active thread", async () => {

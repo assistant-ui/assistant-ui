@@ -6,6 +6,12 @@ import {
   normalizeBaseUrl,
 } from "./AssistantCloudAuthStrategy";
 import type { AssistantCloudRunReport } from "./AssistantCloudRuns";
+import { ASSISTANT_CLOUD_VERSION } from "./version";
+
+export type SdkIdentity = {
+  name: string;
+  version: string;
+};
 
 export type AssistantCloudTelemetryConfig = {
   /**
@@ -92,6 +98,7 @@ type MakeRequestOptions = {
 export class AssistantCloudAPI {
   public _auth: AssistantCloudAuthStrategy;
   public _baseUrl;
+  private readonly sdks = new Map<string, SdkIdentity>();
 
   constructor(config: AssistantCloudConfig) {
     if ("authToken" in config) {
@@ -120,6 +127,25 @@ export class AssistantCloudAPI {
     return !!(await this._auth.getAuthHeaders());
   }
 
+  /** Registers an integration identity for request headers. */
+  public registerSdk(sdk: SdkIdentity): void {
+    const name = sdk.name.trim();
+    const version = sdk.version.trim();
+    if (!name || !version) return;
+
+    this.sdks.set(`${name}/${version}`, { name, version });
+  }
+
+  public sdkHeader(): string {
+    return [
+      `assistant-cloud/${ASSISTANT_CLOUD_VERSION}`,
+      ...Array.from(
+        this.sdks.values(),
+        ({ name, version }) => `${name}/${version}`,
+      ),
+    ].join(" ");
+  }
+
   public async makeRawRequest(
     endpoint: string,
     options: MakeRequestOptions = {},
@@ -131,6 +157,7 @@ export class AssistantCloudAPI {
       ...authHeaders,
       ...options.headers,
       "Content-Type": "application/json",
+      "Aui-Sdk": this.sdkHeader(),
     };
 
     const queryParams = new URLSearchParams();

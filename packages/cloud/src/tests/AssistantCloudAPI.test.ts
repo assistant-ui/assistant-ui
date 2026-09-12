@@ -45,12 +45,46 @@ describe("AssistantCloudAPI", () => {
       Authorization: "Bearer test-key",
       "Aui-User-Id": "u-1",
       "Aui-Workspace-Id": "w-1",
+      "Aui-Sdk": expect.stringMatching(/^assistant-cloud\//),
       "Content-Type": "application/json",
       "X-Test": "1",
     });
 
     expect(init.method).toBe("POST");
     expect(init.body).toBe(JSON.stringify({ hello: "world" }));
+  });
+
+  it("sends each registered SDK identity once in registration order", async () => {
+    const fetchMock = vi.fn().mockResolvedValue({
+      ok: true,
+      headers: new Headers(),
+      json: vi.fn().mockResolvedValue({}),
+    });
+    vi.stubGlobal("fetch", fetchMock);
+
+    const api = new AssistantCloudAPI({
+      apiKey: "test-key",
+      userId: "u-1",
+      workspaceId: "w-1",
+    });
+
+    api.registerSdk({ name: " @assistant-ui/core ", version: " 0.3.18 " });
+    api.registerSdk({ name: "@assistant-ui/core", version: "0.3.18" });
+    api.registerSdk({ name: "@assistant-ui/ai-sdk", version: "0.0.5" });
+    api.registerSdk({ name: " ", version: "0.0.5" });
+    api.registerSdk({ name: "@assistant-ui/cloud-ai-sdk", version: " " });
+
+    await api.makeRawRequest("/threads", {
+      headers: { "Aui-Sdk": "overridden" },
+    });
+
+    const [, init] = fetchMock.mock.calls[0]!;
+    expect(init.headers).toMatchObject({ "Aui-Sdk": api.sdkHeader() });
+    expect(api.sdkHeader().split(" ")).toEqual([
+      expect.stringMatching(/^assistant-cloud\//),
+      "@assistant-ui/core/0.3.18",
+      "@assistant-ui/ai-sdk/0.0.5",
+    ]);
   });
 
   it("uses custom baseUrl when provided with apiKey config", async () => {

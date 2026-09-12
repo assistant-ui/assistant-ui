@@ -110,6 +110,7 @@ type AssistantClientAccessor<K extends ClientNames> = ClientSchemas[K]["methods"
 };
 
 declare class AssistantCloud {
+  #private;
   readonly threads: AssistantCloudThreads;
   readonly projects: AssistantCloudProjects;
   readonly auth: {
@@ -121,13 +122,17 @@ declare class AssistantCloud {
   readonly scores: AssistantCloudScores;
   readonly telemetry: AssistantCloudTelemetryConfig;
   constructor(config: AssistantCloudConfig);
+  registerSdk(sdk: SdkIdentity): void;
 }
 
 declare class AssistantCloudAPI {
+  #private;
   _auth: AssistantCloudAuthStrategy;
   _baseUrl: string;
   constructor(config: AssistantCloudConfig);
   initializeAuth(): Promise<boolean>;
+  registerSdk(sdk: SdkIdentity): void;
+  sdkHeader(): string;
   makeRawRequest(endpoint: string, options?: MakeRequestOptions): Promise<Response>;
   makeRequest(endpoint: string, options?: MakeRequestOptions): Promise<any>;
 }
@@ -289,6 +294,7 @@ declare class AssistantCloudRuns {
     api: string;
     headers: () => Promise<{
       Accept: string;
+      "Aui-Sdk": string;
     }>;
     body: {
       assistant_id: string;
@@ -1219,6 +1225,7 @@ type CloudThreadListAdapter = {
 
 type CloudThreadListAdapterOptions = {
   cloud?: AssistantCloud | undefined;
+  sdk?: SdkIdentity | undefined;
   create?: (() => Promise<ThreadData$1>) | undefined;
   delete?: ((threadId: string) => Promise<void>) | undefined;
 };
@@ -4213,6 +4220,11 @@ type ScopeStates = {
 
 type ScopesConfig = {
   [K in ClientNames]?: ClientElement<K> | DerivedElement<K>;
+};
+
+type SdkIdentity = {
+  name: string;
+  version: string;
 };
 
 type SendCommandsRequestBody = {

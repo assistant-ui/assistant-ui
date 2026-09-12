@@ -23,6 +23,7 @@ type AppendMessage = Omit<ThreadMessage, "id"> & {
 type AsNumber<K> = K extends `${infer N extends number}` ? N | K : never;
 
 declare class AssistantCloud {
+  #private;
   readonly threads: AssistantCloudThreads;
   readonly projects: AssistantCloudProjects;
   readonly auth: {
@@ -34,13 +35,17 @@ declare class AssistantCloud {
   readonly scores: AssistantCloudScores;
   readonly telemetry: AssistantCloudTelemetryConfig;
   constructor(config: AssistantCloudConfig);
+  registerSdk(sdk: SdkIdentity): void;
 }
 
 declare class AssistantCloudAPI {
+  #private;
   _auth: AssistantCloudAuthStrategy;
   _baseUrl: string;
   constructor(config: AssistantCloudConfig);
   initializeAuth(): Promise<boolean>;
+  registerSdk(sdk: SdkIdentity): void;
+  sdkHeader(): string;
   makeRawRequest(endpoint: string, options?: MakeRequestOptions): Promise<Response>;
   makeRequest(endpoint: string, options?: MakeRequestOptions): Promise<any>;
 }
@@ -202,6 +207,7 @@ declare class AssistantCloudRuns {
     api: string;
     headers: () => Promise<{
       Accept: string;
+      "Aui-Sdk": string;
     }>;
     body: {
       assistant_id: string;
@@ -1643,6 +1649,11 @@ type SamplingCallData = {
   reasoning_tokens?: number;
   cached_input_tokens?: number;
   duration_ms?: number;
+};
+
+type SdkIdentity = {
+  name: string;
+  version: string;
 };
 
 type SendOptions = {
