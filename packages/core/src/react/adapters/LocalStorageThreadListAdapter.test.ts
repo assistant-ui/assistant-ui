@@ -113,6 +113,18 @@ describe("parseStoredMessageRepository", () => {
     expect(repo.messages.map((item) => item.message.id)).toEqual(["message-1"]);
   });
 
+  it("preserves blank top-level message ids", () => {
+    const repo = parseStoredMessageRepository(
+      JSON.stringify({
+        headId: "",
+        messages: [{ message: storedMessage(""), parentId: null }],
+      }),
+    );
+
+    expect(repo.messages[0]?.message.id).toBe("");
+    expect(repo.headId).toBe("");
+  });
+
   it("skips messages missing the required thread message shell", () => {
     const repo = parseStoredMessageRepository(
       JSON.stringify({

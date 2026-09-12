@@ -376,13 +376,7 @@ function parseStoredThreadMessage(
   depth = 0,
 ): ThreadMessage | null {
   if (depth > MAX_STORED_MESSAGE_DEPTH) return null;
-  if (
-    !isRecord(value) ||
-    typeof value.id !== "string" ||
-    value.id.length === 0
-  ) {
-    return null;
-  }
+  if (!isRecord(value) || typeof value.id !== "string") return null;
   if (!isMessageRole(value.role)) return null;
   if (!Array.isArray(value.content)) return null;
 
@@ -446,7 +440,10 @@ function parseStoredNestedThreadMessage(
   fallbackId: string,
   fallbackCreatedAt: Date,
 ): ThreadMessage | null {
-  const parsed = parseStoredThreadMessage(value, depth);
+  const parsed =
+    isRecord(value) && value.id === ""
+      ? null
+      : parseStoredThreadMessage(value, depth);
   if (parsed || depth > MAX_STORED_MESSAGE_DEPTH || !isRecord(value)) {
     return parsed;
   }
