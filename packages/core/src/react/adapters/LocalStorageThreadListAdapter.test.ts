@@ -312,6 +312,35 @@ describe("parseStoredMessageRepository", () => {
     ]);
   });
 
+  it("preserves readable assistant parts hidden by display normalization", () => {
+    const stored = JSON.stringify({
+      messages: [
+        {
+          message: {
+            ...storedMessage("assistant-content", "assistant"),
+            content: [
+              { type: "text", text: "" },
+              { type: "reasoning", text: "  " },
+              { type: "image", image: "http://example.com/image.png" },
+            ],
+          },
+          parentId: null,
+        },
+      ],
+    });
+
+    const repo = parseStoredMessageRepository(stored);
+    expect(repo.messages[0]?.message.content).toEqual([
+      { type: "text", text: "" },
+      { type: "reasoning", text: "  " },
+      { type: "image", image: "http://example.com/image.png" },
+    ]);
+    expect(
+      parseStoredMessageRepository(JSON.stringify(repo)).messages[0]?.message
+        .content,
+    ).toEqual(repo.messages[0]?.message.content);
+  });
+
   it("normalizes nested tool-call data loaded from storage", () => {
     const repo = parseStoredMessageRepository(
       JSON.stringify({
