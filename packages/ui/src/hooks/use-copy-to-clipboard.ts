@@ -13,6 +13,8 @@ export const useCopyToClipboard = ({
   const copiedTimer = useRef<ReturnType<typeof setTimeout> | undefined>(
     undefined,
   );
+  const copyGeneration = useRef(0);
+  const latestSuccessfulCopy = useRef(0);
   const isMounted = useRef(true);
 
   useEffect(() => {
@@ -28,8 +30,11 @@ export const useCopyToClipboard = ({
       return;
     }
 
+    const generation = ++copyGeneration.current;
     navigator.clipboard.writeText(value).then(
       () => {
+        if (generation < latestSuccessfulCopy.current) return;
+        latestSuccessfulCopy.current = generation;
         if (!isMounted.current) return;
 
         clearTimeout(copiedTimer.current);

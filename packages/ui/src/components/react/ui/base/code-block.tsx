@@ -39,6 +39,8 @@ function CopyButton({
   const copyTimer = useRef<ReturnType<typeof setTimeout> | undefined>(
     undefined,
   );
+  const copyGeneration = useRef(0);
+  const latestSuccessfulCopy = useRef(0);
   const isMounted = useRef(true);
 
   useEffect(() => {
@@ -54,11 +56,14 @@ function CopyButton({
       type="button"
       aria-label="Copy code"
       onClick={async () => {
+        const generation = ++copyGeneration.current;
         try {
           await navigator.clipboard.writeText(getText());
         } catch {
           return;
         }
+        if (generation < latestSuccessfulCopy.current) return;
+        latestSuccessfulCopy.current = generation;
         onCopied?.();
         if (!isMounted.current) return;
         setCopied(true);

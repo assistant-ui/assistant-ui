@@ -5,7 +5,17 @@ import { CommandTabs as BaseCommandTabs } from "./base/command-tabs";
 import { CodeBlock as RadixCodeBlock } from "./radix/code-block";
 import { CommandTabs as RadixCommandTabs } from "./radix/command-tabs";
 
-vi.mock("react-shiki", () => ({ useShikiHighlighter: () => null }));
+const mocks = vi.hoisted(() => ({
+  useShikiHighlighter: vi.fn(() => null),
+}));
+
+vi.mock("react-shiki", async (importOriginal) => {
+  const original = await importOriginal<typeof import("react-shiki")>();
+  return {
+    ...original,
+    useShikiHighlighter: mocks.useShikiHighlighter,
+  };
+});
 
 const mockClipboard = (writeText: (value: string) => Promise<void>) => {
   const descriptor = Object.getOwnPropertyDescriptor(navigator, "clipboard");
@@ -31,6 +41,7 @@ describe.each([
   ["Radix", RadixCodeBlock],
 ] as const)("%s CodeBlock copy feedback", (_name, CodeBlock) => {
   it("preserves an earlier successful write after a newer rejection", async () => {
+    vi.useFakeTimers();
     let resolveFirst!: () => void;
     const firstWrite = new Promise<void>((resolve) => {
       resolveFirst = resolve;
@@ -55,6 +66,37 @@ describe.each([
     await act(async () => firstWrite);
 
     expect(onCopied).toHaveBeenCalledOnce();
+    view.unmount();
+  });
+
+  it("ignores an older write that succeeds after a newer success", async () => {
+    vi.useFakeTimers();
+    let resolveFirst!: () => void;
+    const firstWrite = new Promise<void>((resolve) => {
+      resolveFirst = resolve;
+    });
+    mockClipboard(
+      vi.fn().mockReturnValueOnce(firstWrite).mockResolvedValueOnce(undefined),
+    );
+    const onCopied = vi.fn();
+    const view = render(
+      <CodeBlock title="Example" onCopied={onCopied}>
+        <pre>value</pre>
+      </CodeBlock>,
+    );
+
+    fireEvent.click(screen.getByRole("button", { name: "Copy code" }));
+    fireEvent.click(screen.getByRole("button", { name: "Copy code" }));
+    await act(async () => Promise.resolve());
+    expect(onCopied).toHaveBeenCalledOnce();
+    act(() => vi.advanceTimersByTime(1_500));
+
+    await act(async () => {
+      resolveFirst();
+      await firstWrite;
+    });
+    expect(onCopied).toHaveBeenCalledOnce();
+    expect(vi.getTimerCount()).toBe(0);
     view.unmount();
   });
 
@@ -106,6 +148,30 @@ describe.each([
   ["Base", BaseCommandTabs],
   ["Radix", RadixCommandTabs],
 ] as const)("%s CommandTabs copy feedback", (_name, CommandTabs) => {
+  it("ignores an older write that succeeds after a newer success", async () => {
+    vi.useFakeTimers();
+    let resolveFirst!: () => void;
+    const firstWrite = new Promise<void>((resolve) => {
+      resolveFirst = resolve;
+    });
+    mockClipboard(
+      vi.fn().mockReturnValueOnce(firstWrite).mockResolvedValueOnce(undefined),
+    );
+    const view = render(<CommandTabs commands={{ npm: "npm install" }} />);
+
+    fireEvent.click(screen.getByRole("button", { name: "Copy command" }));
+    fireEvent.click(screen.getByRole("button", { name: "Copy command" }));
+    await act(async () => Promise.resolve());
+    act(() => vi.advanceTimersByTime(1_500));
+
+    await act(async () => {
+      resolveFirst();
+      await firstWrite;
+    });
+    expect(vi.getTimerCount()).toBe(0);
+    view.unmount();
+  });
+
   it("clears an active feedback timer when unmounted", async () => {
     vi.useFakeTimers();
     mockClipboard(() => Promise.resolve());
