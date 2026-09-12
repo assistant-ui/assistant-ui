@@ -22,6 +22,7 @@ Sign in at [cloud.assistant-ui.com](https://cloud.assistant-ui.com), create a pr
 
 ```bash title=".env.local"
 NEXT_PUBLIC_ASSISTANT_BASE_URL=https://proj-<id>.assistant-api.com
+OPENAI_API_KEY=sk-…
 ```
 
 </Tab>
@@ -29,6 +30,7 @@ NEXT_PUBLIC_ASSISTANT_BASE_URL=https://proj-<id>.assistant-api.com
 
 ```bash title=".env"
 EXPO_PUBLIC_ASSISTANT_BASE_URL=https://proj-<id>.assistant-api.com
+EXPO_PUBLIC_API_URL=https://your-app.example.com
 ```
 
 </Tab>
@@ -36,12 +38,13 @@ EXPO_PUBLIC_ASSISTANT_BASE_URL=https://proj-<id>.assistant-api.com
 
 ```bash title=".env"
 ASSISTANT_BASE_URL=https://proj-<id>.assistant-api.com
+API_URL=https://your-app.example.com
 ```
 
 </Tab>
 </PlatformTabs>
 
-With `NEXT_PUBLIC_ASSISTANT_BASE_URL` set, the React runtimes create an anonymous cloud client on their own when you pass no `cloud`. The other platforms construct the client explicitly, as the next step shows.
+With `NEXT_PUBLIC_ASSISTANT_BASE_URL` set, the React runtimes create an anonymous cloud client on their own when you pass no `cloud`. The other platforms construct the client explicitly, as the next step shows, and name the server that hosts the chat route, because it is not on the app's own origin.
 
 </Step>
 <Step>
@@ -58,7 +61,7 @@ Anonymous sessions are off until you turn them on in **Settings › Access**. Wh
 <PlatformTabs>
 <Tab value="React">
 
-<InstallCommand npm={["@assistant-ui/react", "@assistant-ui/ai-sdk"]} />
+<InstallCommand npm={["@assistant-ui/react", "@assistant-ui/ai-sdk", "ai", "@ai-sdk/openai"]} />
 
 ```tsx title="app/chat/page.tsx"
 "use client";
@@ -94,7 +97,7 @@ import { useMemo } from "react";
 import { View } from "react-native";
 import { AssistantRuntimeProvider } from "@assistant-ui/react-native";
 import { AssistantCloud } from "assistant-cloud";
-import { useChatRuntime } from "@assistant-ui/ai-sdk";
+import { AssistantChatTransport, useChatRuntime } from "@assistant-ui/ai-sdk";
 import { Thread } from "@/components/assistant-ui/elements/thread.aui";
 
 export default function ChatScreen() {
@@ -106,7 +109,12 @@ export default function ChatScreen() {
       }),
     [],
   );
-  const runtime = useChatRuntime({ cloud });
+  const runtime = useChatRuntime({
+    cloud,
+    transport: new AssistantChatTransport({
+      api: `${process.env.EXPO_PUBLIC_API_URL}/api/chat`,
+    }),
+  });
 
   return (
     <AssistantRuntimeProvider runtime={runtime}>
@@ -128,7 +136,7 @@ import { useMemo } from "react";
 import { Box } from "ink";
 import { AssistantRuntimeProvider } from "@assistant-ui/react-ink";
 import { AssistantCloud } from "assistant-cloud";
-import { useChatRuntime } from "@assistant-ui/ai-sdk";
+import { AssistantChatTransport, useChatRuntime } from "@assistant-ui/ai-sdk";
 import { Thread } from "./components/thread.js";
 
 export function Chat() {
@@ -140,7 +148,12 @@ export function Chat() {
       }),
     [],
   );
-  const runtime = useChatRuntime({ cloud });
+  const runtime = useChatRuntime({
+    cloud,
+    transport: new AssistantChatTransport({
+      api: `${process.env.API_URL}/api/chat`,
+    }),
+  });
 
   return (
     <AssistantRuntimeProvider runtime={runtime}>
@@ -163,13 +176,16 @@ export function Chat() {
 The browser cannot see which model answered or how many tokens it used. Add a `messageMetadata` callback to your route so the run report carries them:
 
 ```ts title="app/api/chat/route.ts"
-import { streamText } from "ai";
+import { convertToModelMessages, streamText } from "ai";
 import { openai } from "@ai-sdk/openai";
 
 export async function POST(req: Request) {
   const { messages } = await req.json();
   const model = openai("gpt-5.6-luna");
-  const result = streamText({ model, messages });
+  const result = streamText({
+    model,
+    messages: await convertToModelMessages(messages),
+  });
 
   return result.toUIMessageStreamResponse({
     messageMetadata: ({ part }) => {

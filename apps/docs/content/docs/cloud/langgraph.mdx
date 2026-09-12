@@ -5,7 +5,7 @@ description: Add the cloud thread list, automatic titles and message feedback to
 
 The LangGraph, LangChain and Google ADK runtimes keep the conversation on their own backend: LangGraph threads, a LangChain server, an ADK session. With a `cloud`, they add the project's thread list on top: threads listed per user, created on first message, titled automatically, renamed, archived and deleted, with each cloud thread's `external_id` holding your backend's id. Message feedback goes to the cloud as well.
 
-What the cloud does **not** do here: it does not store the transcript, and it sends no run reports or engagement events, because these runtimes never hand their messages to the cloud history adapter. Runs, Models and Engagement stay empty for such an app unless your server exports [traces](/docs/cloud/traces). For the full integration, use the [AI SDK runtime](/docs/cloud/ai-sdk-assistant-ui) or the [local runtime](/docs/cloud/local-runtime).
+What the cloud does **not** do here: it does not store the transcript and it sends no run reports, because these runtimes never hand their messages to the cloud history adapter; engagement events are still recorded from the assistant-ui store, so Engagement fills like any other app. Runs and Models stay empty for such an app unless your server exports [traces](/docs/cloud/traces). For the full integration, use the [AI SDK runtime](/docs/cloud/ai-sdk-assistant-ui) or the [local runtime](/docs/cloud/local-runtime).
 
 ## The `cloud` option
 
@@ -23,7 +23,7 @@ const cloud = useMemo(
 
 const runtime = useLangGraphRuntime({
   cloud,
-  stream: async function* (messages, { initialize }) {
+  stream: async (messages, { initialize }) => {
     const { externalId } = await initialize();
     if (!externalId) throw new Error("Thread not found");
     return sendMessage({ threadId: externalId, messages });
@@ -42,7 +42,7 @@ The rest of the setup, the environment variable per platform, the client for Rea
 
 ## Filling Runs and Models
 
-Because these runtimes report nothing from the browser, export your server's spans instead: a LangGraph or LangChain deployment instrumented with OpenTelemetry sends its GenAI spans to `POST /v1/traces`, and each trace becomes a run with its steps, tool calls, tokens and model. Setting `gen_ai.conversation.id` to the cloud thread id on those spans attaches each run to its thread. See [Traces](/docs/cloud/traces).
+Because these runtimes report no runs from the browser, export your server's spans instead: a LangGraph or LangChain deployment instrumented with OpenTelemetry sends its GenAI spans to `POST /v1/traces`, and each trace becomes a run with its steps, tool calls, tokens and model. Setting `gen_ai.conversation.id` to the cloud thread id on those spans attaches each run to its thread. See [Traces](/docs/cloud/traces).
 
 ## Next
 

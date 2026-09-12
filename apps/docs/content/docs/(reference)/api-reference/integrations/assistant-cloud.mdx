@@ -13,7 +13,7 @@ import { assistantCloud_AssistantCloud, assistantCloud_AssistantCloudEvents, ass
 
 ## The client
 
-`new AssistantCloud(config)` takes one of the three [authentication modes](/docs/cloud/authorization), `{ baseUrl, anonymous: true }`, `{ baseUrl, authToken }` or `{ apiKey, userId, workspaceId }`, and an optional `telemetry` configuration: `enabled`, `events`, `environment`, `release`, `tags` and `beforeReport`, with `telemetry: false` as shorthand for off. Its members are one sub client per resource:
+`new AssistantCloud(config)` takes one of the three [authentication modes](/docs/cloud/authorization), `{ baseUrl, anonymous: true }`, `{ baseUrl, authToken }` or, on a server only, `{ apiKey, userId, workspaceId }`, and an optional `telemetry` configuration: `enabled`, `events`, `environment`, `release`, `tags` and `beforeReport`, with `telemetry: false` as shorthand for off. Its members are one sub client per resource:
 
 | Member | Calls |
 |---|---|

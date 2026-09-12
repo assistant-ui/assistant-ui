@@ -65,14 +65,14 @@ Enable the AI SDK's OpenTelemetry integration and attach the trace id to the str
 ```ts title="app/api/chat/route.ts"
 import { OpenTelemetry } from "@ai-sdk/otel";
 import { openai } from "@ai-sdk/openai";
-import { streamText } from "ai";
+import { convertToModelMessages, streamText } from "ai";
 import { withAssistantCloudTraceMetadata } from "assistant-cloud/telemetry";
 
 export async function POST(request: Request) {
   const { messages } = await request.json();
   const result = streamText({
     model: openai("gpt-5.6-luna"),
-    messages,
+    messages: await convertToModelMessages(messages),
     telemetry: { integrations: [new OpenTelemetry()] },
   });
 
@@ -132,7 +132,7 @@ Tools sometimes call another model, for instance a tool that delegates to a smal
 With trace correlation on, a chat span under a tool span is picked up automatically. Without it, collect the calls on the server and attach them to the message metadata:
 
 ```ts title="app/api/chat/route.ts"
-import { streamText, tool } from "ai";
+import { convertToModelMessages, streamText, tool } from "ai";
 import { openai } from "@ai-sdk/openai";
 import { z } from "zod";
 import {
@@ -146,10 +146,10 @@ export async function POST(req: Request) {
 
   const result = streamText({
     model: openai("gpt-5.6-luna"),
-    messages,
+    messages: await convertToModelMessages(messages),
     tools: {
       delegate: tool({
-        parameters: z.object({ task: z.string() }),
+        inputSchema: z.object({ task: z.string() }),
         execute: async ({ task }, { toolCallId }) => {
           const collector = createSamplingCollector();
           const answer = await runSubAgent(task, {

@@ -1,6 +1,6 @@
 ---
 title: Engagement, feedback and scores
-description: The sixteen user interactions the SDK records without message text, the message feedback and custom scores stored next to a conversation, and the evaluators the cloud runs for you.
+description: The sixteen engagement event kinds, fourteen of them recorded by the SDK today without message text, the message feedback and custom scores stored next to a conversation, and the evaluators the cloud runs for you.
 ---
 
 Run reports say what the model did. Engagement events say what the user did: sent, edited, stopped, regenerated, copied, switched threads, clicked a suggestion, added an attachment, hit an error. They feed the Engagement page and the satisfaction reading on Threads, and they never carry message text. [Feedback](#message-feedback) and [scores](#scores) are the explicit judgements next to them: the thumbs a user gives a message, and the values your own code or the cloud's [evaluators](#evaluators) assign to a run, a thread or a message.
@@ -40,7 +40,7 @@ The assistant-ui runtime reads them from its store, so any composer, message or 
 
 ## Delivery
 
-Events are buffered in the browser and posted to `POST /v1/events` in batches of up to 50: after 2 seconds of quiet, when 20 events are waiting, and when the page is hidden or unloaded, using `keepalive` so the last batch survives navigation. A failed batch is dropped silently; events never block the UI and never surface errors.
+Events are buffered in the browser and posted to `POST /v1/events` in batches of up to 50: after 2 seconds of quiet, when 20 events are waiting, and when the page is hidden or unloaded, using `keepalive` so the last batch can still be delivered after navigation; that delivery is best effort. A failed batch is dropped silently; events never block the UI and never surface errors.
 
 The endpoint answers `202` with the number of events it stored. An event naming a thread the caller cannot see is dropped rather than rejected, and the endpoint allows 600 events per minute per user. Each event becomes a row on the thread it names and a count in the day's rollup, and the thread's own record notes whether it was ever stopped, regenerated, copied or edited.
 

@@ -3,7 +3,7 @@ title: Run reports
 description: What the SDK reports about every assistant run, which fields each integration fills, and how to configure and enrich the reports.
 ---
 
-Every assistant response is a **run**. When a run finishes, the SDK sends one run report to the project: what happened, how long it took, which model and tools were involved, and how it ended. Reports carry no message content beyond the assistant's own output text, and they are the source of the Runs, Models, Users and Overview pages in the dashboard.
+Every assistant response is a **run**. When a run finishes, the SDK sends one run report to the project: what happened, how long it took, which model and tools were involved, and how it ended. Reports never carry the user's messages, but they do carry the assistant's output text, tool arguments and results, error messages and whatever metadata your route adds, each cut at 50,000 characters, so they can contain sensitive content; `beforeReport` can redact or drop a report and `telemetry: false` turns reporting off, see [Enriching or filtering reports](#enriching-or-filtering-reports). Reports are the source of the Runs, Models, Users and Overview pages in the dashboard.
 
 Reporting is on by default for every integration that persists messages. This page describes the report, the fields each integration can fill, and the `telemetry` configuration on `AssistantCloud`.
 
@@ -43,7 +43,7 @@ The integrations observe runs differently, so they do not all fill every field.
 | `first_token_ms`, `duration_ms` | yes | yes | yes |
 | `steps` with `start_ms` and `end_ms` | yes | yes | yes |
 | Per step `finish_reason` | no | `"tool-calls"` on a step that called a tool | the finish event's reason |
-| `tool_calls` with `tool_source` | yes | yes | yes |
+| `tool_calls` with `tool_source` | without `tool_source` | yes | yes |
 | Usage | from message metadata | from message metadata | from message metadata |
 | `model_id`, `provider` | from message metadata | from message metadata | from message metadata |
 | `trace_id` | from message metadata | from message metadata | from message metadata |
@@ -55,14 +55,17 @@ The assistant-ui runtime rows apply to `useLocalRuntime` and `useChatRuntime`, w
 Usage, model and provider only exist on the server, so the route has to put them into the message metadata the SDK reads. With the AI SDK, add a `messageMetadata` callback to the stream response:
 
 ```ts title="app/api/chat/route.ts"
-import { streamText } from "ai";
+import { convertToModelMessages, streamText } from "ai";
 import { openai } from "@ai-sdk/openai";
 
 export async function POST(req: Request) {
   const { messages } = await req.json();
 
   const model = openai("gpt-5.6-luna");
-  const result = streamText({ model, messages });
+  const result = streamText({
+    model,
+    messages: await convertToModelMessages(messages),
+  });
 
   return result.toUIMessageStreamResponse({
     messageMetadata: ({ part }) => {

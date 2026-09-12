@@ -35,6 +35,7 @@ NEXT_PUBLIC_ASSISTANT_BASE_URL=https://proj-<id>.assistant-api.com
 
 ```bash title=".env"
 EXPO_PUBLIC_ASSISTANT_BASE_URL=https://proj-<id>.assistant-api.com
+EXPO_PUBLIC_API_URL=https://your-app.example.com
 ```
 
 </Tab>
@@ -42,12 +43,13 @@ EXPO_PUBLIC_ASSISTANT_BASE_URL=https://proj-<id>.assistant-api.com
 
 ```bash title=".env"
 ASSISTANT_BASE_URL=https://proj-<id>.assistant-api.com
+API_URL=https://your-app.example.com
 ```
 
 </Tab>
 </PlatformTabs>
 
-The frontend API URL is on **Settings › Telemetry** of your project. An API key is only needed on the server, for [traces](/docs/cloud/traces) or a [token endpoint](/docs/cloud/authorization#a-token-endpoint).
+The frontend API URL is on **Settings › Telemetry** of your project. On React Native and Ink the chat route is not on the app's origin, so the second variable names the server that hosts it. An API key is only needed on the server, for [traces](/docs/cloud/traces) or a [token endpoint](/docs/cloud/authorization#a-token-endpoint).
 
 </Step>
 <Step>
@@ -57,9 +59,9 @@ The frontend API URL is on **Settings › Telemetry** of your project. An API ke
 <PlatformTabs>
 <Tab value="React">
 
-<InstallCommand npm={["@assistant-ui/react", "@assistant-ui/ai-sdk"]} />
+<InstallCommand npm={["@assistant-ui/react", "@assistant-ui/ai-sdk", "ai", "@ai-sdk/openai"]} />
 
-`@assistant-ui/react` re-exports `AssistantCloud`; no separate install.
+`@assistant-ui/react` re-exports `AssistantCloud`; no separate install. The example below signs in with Clerk, so add `@clerk/nextjs` as well, or swap the token callback for your provider's.
 
 </Tab>
 <Tab value="React Native">
@@ -130,7 +132,7 @@ import {
   ThreadListPrimitive,
 } from "@assistant-ui/react-native";
 import { AssistantCloud } from "assistant-cloud";
-import { useChatRuntime } from "@assistant-ui/ai-sdk";
+import { AssistantChatTransport, useChatRuntime } from "@assistant-ui/ai-sdk";
 import { Thread } from "@/components/assistant-ui/elements/thread.aui";
 
 async function getAssistantToken() {
@@ -166,7 +168,12 @@ export default function ChatScreen() {
       }),
     [],
   );
-  const runtime = useChatRuntime({ cloud });
+  const runtime = useChatRuntime({
+    cloud,
+    transport: new AssistantChatTransport({
+      api: `${process.env.EXPO_PUBLIC_API_URL}/api/chat`,
+    }),
+  });
 
   return (
     <AssistantRuntimeProvider runtime={runtime}>
@@ -191,7 +198,7 @@ import {
   ThreadListPrimitive,
 } from "@assistant-ui/react-ink";
 import { AssistantCloud } from "assistant-cloud";
-import { useChatRuntime } from "@assistant-ui/ai-sdk";
+import { AssistantChatTransport, useChatRuntime } from "@assistant-ui/ai-sdk";
 import { Thread } from "./components/thread.js";
 
 async function getAssistantToken() {
@@ -227,7 +234,12 @@ export function Chat() {
       }),
     [],
   );
-  const runtime = useChatRuntime({ cloud });
+  const runtime = useChatRuntime({
+    cloud,
+    transport: new AssistantChatTransport({
+      api: `${process.env.API_URL}/api/chat`,
+    }),
+  });
 
   return (
     <AssistantRuntimeProvider runtime={runtime}>
@@ -253,13 +265,16 @@ Keep the client in a `useMemo`: it holds the cached token or the anonymous ident
 The browser sees the stream, not the model behind it. A `messageMetadata` callback on the AI SDK route puts model, provider, usage and finish reason into the message metadata the runtime persists and reports:
 
 ```ts title="app/api/chat/route.ts"
-import { streamText } from "ai";
+import { convertToModelMessages, streamText } from "ai";
 import { openai } from "@ai-sdk/openai";
 
 export async function POST(req: Request) {
   const { messages } = await req.json();
   const model = openai("gpt-5.6-luna");
-  const result = streamText({ model, messages });
+  const result = streamText({
+    model,
+    messages: await convertToModelMessages(messages),
+  });
 
   return result.toUIMessageStreamResponse({
     messageMetadata: ({ part }) => {
@@ -292,7 +307,7 @@ export async function POST(req: Request) {
     },
     {
       name: "onThreadIdChange",
-      type: "(threadId: string | null) => void",
+      type: "(threadId: string | undefined) => void",
       description:
         "Called with the settled cloud thread id when the list changes thread, for routing or analytics.",
     },
@@ -379,7 +394,7 @@ The `"disconnected"` outcome and a real per step finish reason are the two thing
 With `cloud` set, two adapters default to the cloud and need no setup:
 
 - **Feedback.** The feedback buttons of the assistant-ui message components submit a positive or negative rating on the stored message. It appears on the thread's page, counts into the satisfaction reading and can filter Threads; see [Message feedback](/docs/cloud/engagement#message-feedback).
-- **Attachments.** `CloudFileAttachmentAdapter` accepts any file type. Adding a file to the composer asks the project for a presigned upload URL, uploads the file with its content type, cancellable while pending, and attaches an `image` part for images or a `file` part with the object URL and MIME type for anything else. Images, PDF, plain text, CSV, RTF and the Office and OpenDocument formats are accepted up to 25 MB; a private bucket serves them back through 15 minute signed reads, which message lists apply for you when a thread is reloaded. The `attachment_added` and `attachment_failed` events are recorded for each file.
+- **Attachments.** `CloudFileAttachmentAdapter` takes any file the composer offers and leaves the type check to the project. Adding a file to the composer asks the project for a presigned upload URL, uploads the file with its content type, cancellable while pending, and attaches an `image` part for images or a `file` part with the object URL and MIME type for anything else. Images, PDF, plain text, CSV, RTF and the Office and OpenDocument formats are accepted up to 25 MB; a private bucket serves them back through 15 minute signed reads, which message lists apply for you when a thread is reloaded. The `attachment_added` and `attachment_failed` events are recorded for each file.
 
 Pass `adapters: { feedback }` or `adapters: { attachments }` to replace either; the cloud adapters are defaults, not requirements. Uploading outside the composer goes through `cloud.files`; see [Files](/docs/cloud/api#files).
 

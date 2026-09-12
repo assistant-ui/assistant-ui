@@ -134,13 +134,18 @@ function useCloud() {
 Create the rule with your Auth0 domain as issuer, its `/.well-known/jwks.json` endpoint, and your API audience.
 
 ```tsx
+import { useMemo } from "react";
 import { useAuth0 } from "@auth0/auth0-react";
 
 const { getAccessTokenSilently } = useAuth0();
-const cloud = new AssistantCloud({
-  baseUrl: process.env.NEXT_PUBLIC_ASSISTANT_BASE_URL!,
-  authToken: () => getAccessTokenSilently(),
-});
+const cloud = useMemo(
+  () =>
+    new AssistantCloud({
+      baseUrl: process.env.NEXT_PUBLIC_ASSISTANT_BASE_URL!,
+      authToken: () => getAccessTokenSilently(),
+    }),
+  [getAccessTokenSilently],
+);
 ```
 
 </Step>
@@ -148,7 +153,7 @@ const cloud = new AssistantCloud({
 
 ### Supabase and Firebase
 
-Both sign RS256 tokens whose keys are published at a JWKS endpoint; create the rule with the project's issuer and that endpoint, then return the session's access token or the Firebase id token from `authToken`.
+Firebase signs RS256 id tokens whose keys are published at a JWKS endpoint. Supabase does so only for a project on asymmetric JWT signing keys; a project still on the legacy HS256 secret cannot be verified by a JWKS rule, so switch it to an RS256 key in the Supabase dashboard first. Create the rule with the project's issuer and JWKS endpoint, then return the session's access token or the Firebase id token from `authToken`.
 
 ```tsx
 const cloud = new AssistantCloud({
@@ -189,7 +194,7 @@ A key acts as the user and workspace you name, sent as the `Aui-User-Id` and `Au
 
 ### A server as the client
 
-The same client writes as well as reads, so an app with no browser, a Slack or Teams bot, a backend agent, a batch job, is persisted and measured the same way: create the thread, store each message, report the run. Every route the browser SDK uses accepts the key; only traces, the project read API and MCP are key only.
+The same client writes as well as reads, so an app with no browser, a Slack or Teams bot, a backend agent, a batch job, is persisted and measured the same way: create the thread, store each message, report the run. Every route the browser SDK uses accepts the key; only token minting, traces, the project read API and MCP are key only.
 
 ```ts title="bot.ts"
 import { AssistantCloud } from "assistant-cloud";

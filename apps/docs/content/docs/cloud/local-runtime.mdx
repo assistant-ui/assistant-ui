@@ -39,6 +39,11 @@ const adapter: ChatModelAdapter = {
   },
 };
 
+async function getToken() {
+  // Return a user token from your auth provider.
+  return "...";
+}
+
 export default function ChatPage() {
   const cloud = useMemo(
     () =>
@@ -106,12 +111,16 @@ const runtime = useCloudThreadListRuntime({
 | `create` | Called when a new thread is created; return your backend's id and it is stored as the cloud thread's `external_id`. |
 | `delete` | Called with the thread before the cloud thread is deleted. |
 
-This is also the way to a runtime that has no `cloud` option of its own. `useAgUiRuntime` from `@assistant-ui/react-ag-ui` and `useA2ARuntime` from `@assistant-ui/react-a2a` read the history, attachments and feedback adapters from the context this hook provides, so passing either as the `runtimeHook` gives an AG-UI or A2A app the cloud thread list and titles, persistence of every message, feedback, attachments, and run reports read from the stored assistant messages:
+This is also the way to a runtime that has no `cloud` option of its own. `useAgUiRuntime` from `@assistant-ui/react-ag-ui` and `useA2ARuntime` from `@assistant-ui/react-a2a` read the history and attachments adapters from the context this hook provides, so passing either as the `runtimeHook` gives an AG-UI or A2A app the cloud thread list and titles, persistence of every message, attachments, engagement events, and run reports read from the stored assistant messages. Feedback is the one adapter these two take only from their own `adapters` option, so hand it over from the context yourself:
 
 ```tsx
 const runtime = useCloudThreadListRuntime({
   cloud,
-  runtimeHook: () => useAgUiRuntime({ agent }),
+  runtimeHook: () =>
+    useAgUiRuntime({
+      agent,
+      adapters: { feedback: useRuntimeAdapters()?.feedback },
+    }),
 });
 ```
 
@@ -119,4 +128,4 @@ The lower level `useCloudThreadListAdapter({ cloud, create, delete, sdk })` retu
 
 ## Custom history adapters
 
-A runtime that wants to store messages in another shape implements `ThreadHistoryAdapter.withFormat(adapter)` with a `MessageFormatAdapter`, the same seam the AI SDK runtime uses for `ai-sdk/v6`. `createFormattedPersistence` in `assistant-cloud` handles the id mapping and parent chaining, and `reportTelemetry(items, { durationMs, stepTimestamps, message })` sends the run report; the `message` is the thread message the items came from, whose status and timing complete the report. See the [package reference](/docs/api-reference/integrations/assistant-cloud).
+A runtime that wants to store messages in another shape implements `ThreadHistoryAdapter.withFormat(adapter)` with a `MessageFormatAdapter`, the same seam the AI SDK runtime uses for `ai-sdk/v6`. `createFormattedPersistence` in `assistant-cloud` handles the id mapping and parent chaining, and the adapter that `withFormat` returns exposes `reportTelemetry(items, { durationMs, stepTimestamps, message })`, which sends the run report; the `message` is the thread message the items came from, whose status and timing complete the report. See the [package reference](/docs/api-reference/integrations/assistant-cloud).

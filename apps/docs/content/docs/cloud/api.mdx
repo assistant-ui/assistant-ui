@@ -12,7 +12,7 @@ The SDK covers every endpoint here, so most apps never call the API directly. Th
 | `https://proj-<id>.assistant-api.com` | the browser | `Authorization: Bearer <token>`, an anonymous access token or a JWT your auth provider signed; only from an [allowed origin](/docs/cloud/authorization#allowed-origins) |
 | `https://backend.assistant-api.com` | your server | `Authorization: Bearer sk_aui_proj_…`, an API key, with `Aui-User-Id` and `Aui-Workspace-Id` naming the user and workspace the request acts as |
 
-A credential is only accepted on its own host. Every request may carry `Aui-Sdk`, space separated `name/version` tokens naming the client software; the SDK sets it for you. Requests and responses are JSON. Thread, project, MCP and trace responses are never cached.
+A credential is only accepted on its own host. Every request may carry `Aui-Sdk`, space separated `name/version` tokens naming the client software; the SDK sets it for you. Requests and responses are JSON, except the trace receiver, which also takes protobuf, and the run stream, which answers plain text or an AI SDK stream. Thread, project, MCP and trace responses are never cached.
 
 On a valid provider JWT the response carries an `Authorization` header with a short lived token of the project's own; clients may use it for following requests until it expires.
 
