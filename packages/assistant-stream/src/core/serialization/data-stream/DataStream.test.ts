@@ -718,6 +718,13 @@ describe("DataStreamDecoder malformed frame values", () => {
     "k:{}",
     "aui-data:{}",
     'aui-data:{"name":"n"}',
+    'h:{"sourceType":"url","id":"s1"}',
+    'h:{"sourceType":"other","id":"s1","url":"https://x"}',
+    'h:{"sourceType":"document","id":"d1"}',
+    "d:{}",
+    "e:{}",
+    "f:{}",
+    'd:{"finishReason":"stop"}',
   ];
 
   it.each([...crashFrames, ...coercionFrames, ...partShapeFrames])(
@@ -845,6 +852,31 @@ describe("DataStreamDecoder malformed frame values", () => {
       expect(parts.map((c) => c.part.type)).toEqual([type]);
     },
   );
+
+  it("rejects a tool call result frame without a result", async () => {
+    await expect(
+      decodeLines([
+        'b:{"toolCallId":"t1","toolName":"search"}',
+        'a:{"toolCallId":"t1"}',
+      ]),
+    ).rejects.toThrow('Invalid value for data-stream chunk type "a"');
+  });
+
+  it("treats null in an optional field as absent by default", async () => {
+    const chunks = await decodeLines([
+      'b:{"toolCallId":"t1","toolName":"search","parentId":null}',
+      'c:{"toolCallId":"t1","argsTextDelta":"{}","isFinal":null}',
+      'a:{"toolCallId":"t1","result":null,"isError":null}',
+      'h:{"sourceType":"url","id":"s1","url":"https://x","title":null}',
+      'e:{"finishReason":"stop","usage":{},"isContinued":null}',
+    ]);
+
+    expect(chunks.map((c) => c.type)).toContain("result");
+    expect(chunks.map((c) => c.type)).toContain("step-finish");
+    expect(
+      chunks.filter((c) => c.type === "part-start").map((c) => c.part.type),
+    ).toEqual(["tool-call", "source"]);
+  });
 
   it.each([true, false])(
     "accepts a document source without a url with strict: %s",

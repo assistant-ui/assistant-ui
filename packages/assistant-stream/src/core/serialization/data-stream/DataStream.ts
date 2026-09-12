@@ -26,7 +26,7 @@ const isArray = (value: unknown) => Array.isArray(value);
 const isObject = (value: unknown): value is ValueFields =>
   typeof value === "object" && value !== null && !Array.isArray(value);
 const optional = (check: (value: unknown) => boolean) => (value: unknown) =>
-  value === undefined || check(value);
+  value === undefined || value === null || check(value);
 const isBoolean = (value: unknown) => typeof value === "boolean";
 const present = (value: unknown) => value !== undefined;
 const objectWith = (
@@ -50,6 +50,7 @@ const VALUE_RULES: Record<DataStreamStreamChunkType, ValueRule> = {
   }),
   [DataStreamStreamChunkType.ToolCallResult]: objectWith({
     toolCallId: isString,
+    result: present,
     isError: optional(isBoolean),
   }),
   [DataStreamStreamChunkType.StartToolCall]: objectWith({
@@ -62,17 +63,26 @@ const VALUE_RULES: Record<DataStreamStreamChunkType, ValueRule> = {
     argsTextDelta: isString,
     isFinal: optional(isBoolean),
   }),
-  [DataStreamStreamChunkType.FinishMessage]: isObject,
-  [DataStreamStreamChunkType.FinishStep]: isObject,
-  [DataStreamStreamChunkType.StartStep]: isObject,
-  [DataStreamStreamChunkType.ReasoningDelta]: isString,
-  [DataStreamStreamChunkType.Source]: objectWith({
-    sourceType: isString,
-    id: isString,
-    url: optional(isString),
-    title: optional(isString),
-    parentId: optional(isString),
+  [DataStreamStreamChunkType.FinishMessage]: objectWith({
+    finishReason: isString,
+    usage: isObject,
   }),
+  [DataStreamStreamChunkType.FinishStep]: objectWith({
+    finishReason: isString,
+    usage: isObject,
+    isContinued: optional(isBoolean),
+  }),
+  [DataStreamStreamChunkType.StartStep]: objectWith({
+    messageId: isString,
+  }),
+  [DataStreamStreamChunkType.ReasoningDelta]: isString,
+  [DataStreamStreamChunkType.Source]: (value) =>
+    isObject(value) &&
+    isString(value.id) &&
+    optional(isString)(value.parentId) &&
+    (value.sourceType === "url"
+      ? isString(value.url) && optional(isString)(value.title)
+      : value.sourceType === "document" && isString(value.title)),
   [DataStreamStreamChunkType.RedactedReasoning]: unchecked,
   [DataStreamStreamChunkType.ReasoningSignature]: unchecked,
   [DataStreamStreamChunkType.File]: objectWith({
