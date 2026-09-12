@@ -752,7 +752,7 @@ describe("PiThreadController", () => {
     expect(client.sent[1]!.input.streamingBehavior).toBe("followUp");
   });
 
-  it("aborts pending URL image loads when the run is cancelled", async () => {
+  it("aborts the current URL image load without dropping later sends", async () => {
     let fetchSignal: AbortSignal | undefined;
     const fetchMock = vi.fn(
       (_input: RequestInfo | URL, init?: RequestInit) =>
@@ -780,11 +780,17 @@ describe("PiThreadController", () => {
     await Promise.all([first, second]);
 
     expect(fetchSignal?.aborted).toBe(true);
-    expect(client.sent).toHaveLength(0);
-    expect(controller.getProjectedMessages()).toHaveLength(0);
+    expect(client.sent).toHaveLength(1);
+    expect(client.sent[0]!.input).toEqual({
+      content: "second",
+      streamingBehavior: "followUp",
+    });
+    expect(controller.getProjectedMessages()).toMatchObject([
+      { role: "user", content: [{ type: "text", text: "second" }] },
+    ]);
     expect(controller.getState()).toMatchObject({
-      runStatus: "idle",
-      metadata: { status: "idle" },
+      runStatus: "running",
+      metadata: { status: "running" },
       queue: { steering: [], followUp: [] },
       lastError: undefined,
     });

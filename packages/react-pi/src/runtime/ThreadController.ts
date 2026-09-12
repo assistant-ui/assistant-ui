@@ -782,13 +782,17 @@ export class PiThreadController implements PiThreadControllerLike {
   }
 
   public async cancel() {
-    this.abortPendingSends();
+    this.abortCurrentSend();
     try {
       await this.client.cancelRun(this.threadId);
     } catch (error) {
       this.setState({ ...this.state, lastError: errorText(error) });
       throw error;
     }
+  }
+
+  private abortCurrentSend() {
+    this.pendingSendControllers.values().next().value?.abort();
   }
 
   private abortPendingSends() {
