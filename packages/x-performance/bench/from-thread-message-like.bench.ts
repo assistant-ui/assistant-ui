@@ -1,4 +1,4 @@
-import { bench, describe } from "vitest";
+import { describe, test } from "vitest";
 import {
   fromThreadMessageLike,
   type ThreadMessageLike,
@@ -28,8 +28,10 @@ const toolMessage = (calls: number): ThreadMessageLike => ({
 describe("core: fromThreadMessageLike text parts", () => {
   for (const n of [1, 10, 100]) {
     const like = textMessage(n);
-    bench(`${n} text parts`, () => {
-      fromThreadMessageLike(like, "fallback-id", status);
+    test(`${n} text parts`, async ({ bench }) => {
+      await bench(`${n} text parts`, () => {
+        fromThreadMessageLike(like, "fallback-id", status);
+      }).run();
     });
   }
 });
@@ -37,8 +39,10 @@ describe("core: fromThreadMessageLike text parts", () => {
 describe("core: fromThreadMessageLike tool calls", () => {
   for (const n of [1, 10, 100]) {
     const like = toolMessage(n);
-    bench(`${n} tool calls`, () => {
-      fromThreadMessageLike(like, "fallback-id", status);
+    test(`${n} tool calls`, async ({ bench }) => {
+      await bench(`${n} tool calls`, () => {
+        fromThreadMessageLike(like, "fallback-id", status);
+      }).run();
     });
   }
 });
