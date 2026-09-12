@@ -38,9 +38,13 @@ export class SSEEventDecoder {
     const remainder = lines.pop()!;
 
     for (const line of lines) {
-      this.lineChunks.push(line);
-      const event = this.processLine(this.lineChunks.join(""));
-      this.lineChunks = [];
+      let completeLine = line;
+      if (this.lineChunks.length > 0) {
+        this.lineChunks.push(line);
+        completeLine = this.lineChunks.join("");
+        this.lineChunks = [];
+      }
+      const event = this.processLine(completeLine);
       if (event) events.push(event);
     }
     if (remainder !== "") this.lineChunks.push(remainder);

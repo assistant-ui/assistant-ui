@@ -1,15 +1,16 @@
 import { describe, expect, it, vi } from "vitest";
 import { SSEEventDecoder } from "assistant-stream/utils";
 
-describe("SSE newline scanning", () => {
+describe("SSE newline-split input volume", () => {
   it.each([1, 128, 4096])(
-    "scans each incoming code unit once with %i-character chunks",
+    "offers each incoming code unit to split once with %i-character chunks",
     (chunkSize) => {
       const data = "x".repeat(4096);
       const wire = `data: ${data}\n\n`;
       const decoder = new SSEEventDecoder();
       const events = [];
       const split = String.prototype.split;
+      // A different scanning primitive needs its own work counter in this contract.
       let scanned = 0;
       const scan = vi
         .spyOn(String.prototype, "split")

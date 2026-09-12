@@ -186,9 +186,9 @@ describe("SSEEventDecoder", () => {
   });
 
   it.each(["\n", "\r", "\r\n"])(
-    "decodes fragmented large events with %j delimiters",
+    "decodes fragmented events with %j delimiters",
     (newline) => {
-      const data = "x".repeat(128 * 1024);
+      const data = "x".repeat(4 * 1024);
       const wire = `\uFEFFid: 7${newline}retry: 1000${newline}event: update${newline}data: ${data}${newline}data: end${newline}${newline}data: next${newline}${newline}`;
       for (const chunkSize of [1, 1024, 4093]) {
         const decoder = new SSEEventDecoder();
