@@ -199,7 +199,10 @@ export function createInMemoryResumableStreamStore(
       validateStreamId(streamId);
       evictExpired();
       const state = streams.get(streamId);
-      if (!state) throw new Error(`Stream not found: ${streamId}`);
+      if (!state) {
+        if (lease) return;
+        throw new Error(`Stream not found: ${streamId}`);
+      }
       if (lease && state.token !== lease.token) return;
       if (state.final) return;
       state.final =

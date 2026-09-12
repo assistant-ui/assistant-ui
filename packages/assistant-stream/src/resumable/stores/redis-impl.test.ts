@@ -355,5 +355,10 @@ describe("RedisResumableStreamStore", () => {
     if (b.role !== "producer") throw new Error("Expected producer");
     await store.delete("s", b.lease);
     await expect(store.status("s")).resolves.toBe("missing");
+    await expect(
+      store.finalize("s", "done", undefined, b.lease),
+    ).resolves.toBeUndefined();
+    await expect(store.delete("s", b.lease)).resolves.toBeUndefined();
+    await expect(store.finalize("s", "done")).rejects.toThrow(/not found/);
   });
 });

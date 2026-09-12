@@ -223,11 +223,11 @@ export class RedisResumableStreamStore implements ResumableStreamStore {
     validateStreamId(streamId);
     const metaKey = this.metaKey(streamId);
     const existingRaw = await this.client.get(metaKey);
-    if (existingRaw === null) {
-      throw new Error(`Stream not found: ${streamId}`);
-    }
-    const existing = parseMeta(existingRaw);
-    if (!existing) {
+    const existing = existingRaw === null ? undefined : parseMeta(existingRaw);
+    if (existingRaw === null || !existing) {
+      // a lease cannot own a stream that no longer exists; its finalize is a
+      // no-op like every other superseded mutation.
+      if (lease) return;
       throw new Error(`Stream not found: ${streamId}`);
     }
     // a second finalize must not append a duplicate FIN entry, and a producer
