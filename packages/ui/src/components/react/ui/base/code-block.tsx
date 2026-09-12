@@ -59,8 +59,6 @@ function CopyButton({
         } catch {
           return;
         }
-        if (!isMounted.current) return;
-
         onCopied?.();
         if (!isMounted.current) return;
         setCopied(true);

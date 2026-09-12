@@ -75,6 +75,31 @@ describe.each([
     expect(onCopied).toHaveBeenCalledOnce();
     expect(vi.getTimerCount()).toBe(0);
   });
+
+  it("calls onCopied when a pending write finishes after unmount", async () => {
+    vi.useFakeTimers();
+    let resolveWrite!: () => void;
+    const write = new Promise<void>((resolve) => {
+      resolveWrite = resolve;
+    });
+    mockClipboard(() => write);
+    const onCopied = vi.fn();
+    const view = render(
+      <CodeBlock title="Example" onCopied={onCopied}>
+        <pre>value</pre>
+      </CodeBlock>,
+    );
+
+    fireEvent.click(screen.getByRole("button", { name: "Copy code" }));
+    view.unmount();
+    await act(async () => {
+      resolveWrite();
+      await write;
+    });
+
+    expect(onCopied).toHaveBeenCalledOnce();
+    expect(vi.getTimerCount()).toBe(0);
+  });
 });
 
 describe.each([
