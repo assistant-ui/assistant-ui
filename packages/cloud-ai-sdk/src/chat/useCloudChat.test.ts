@@ -193,12 +193,9 @@ describe("useCloudChat", () => {
       return { result, liveChat };
     };
 
-    it.each([
-      [true, "tool_approved"],
-      [false, "tool_rejected"],
-    ])(
+    it.each([true, false])(
       "reports the decision the SDK recorded (approved=%s), once",
-      async (approved, kind) => {
+      async (approved) => {
         let liveChat: { messages: unknown[] } | undefined;
         const addToolApprovalResponse = vi.fn(
           async ({ approved }: { approved: boolean }) => {
@@ -226,7 +223,6 @@ describe("useCloudChat", () => {
           "thread-1",
           { messageId: "local-message-1", approvalId: "approval-1", approved },
         );
-        expect(kind).toBe(approved ? "tool_approved" : "tool_rejected");
       },
     );
 
