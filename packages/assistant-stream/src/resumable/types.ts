@@ -38,10 +38,9 @@ export interface ResumableStreamStore {
    * mutate the replacement stream. Optional for backwards compatibility;
    * `createResumableStreamContext` uses it when present.
    *
-   * Implementations should compare the lease atomically with the write. The
-   * bundled Redis store does so for `finalize`; its `append` and `delete`
-   * validate the lease before writing until #7198 moves them behind
-   * conditional scripts, so a lease-bearing `delete` there is not yet fenced.
+   * Implementations should compare the lease in the same round trip that
+   * writes. Which of the bundled Redis store's mutations do so is documented
+   * in the custom-store guide.
    */
   acquireLease?(
     streamId: string,
@@ -52,8 +51,10 @@ export interface ResumableStreamStore {
    * Implementations should refresh the TTL on each call.
    * After the promise resolves, caller mutations must not change stored bytes.
    * @param lease When given, the mutation applies only while `lease` still owns
-   * the stream; a superseded producer's append throws `ResumableStreamError("missing")`,
-   * its finalize/delete are no-ops. Without a lease, behavior is unchanged
+   * the stream. While the stream exists under a newer acquisition, a superseded
+   * producer's append throws `ResumableStreamError("missing")` and its
+   * finalize/delete are no-ops; a stream with no state at all still reports
+   * not found from finalize. Without a lease, behavior is unchanged
    * (Redis: instance-scoped fencing by the most recent acquisition on this
    * instance; in-memory: no fencing).
    */
