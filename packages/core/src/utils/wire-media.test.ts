@@ -36,6 +36,10 @@ describe("resolveImageMediaType", () => {
     expect(resolveImageMediaType(JPEG)).toBe("image/jpeg");
   });
 
+  it("sniffs image bytes when a data URL omits its media type", () => {
+    expect(resolveImageMediaType(`data:;base64,${JPEG}`)).toBe("image/jpeg");
+  });
+
   it("floors to image/png when there are no bytes to read", () => {
     expect(resolveImageMediaType("https://cdn.example.com/photo")).toBe(
       "image/png",
@@ -63,9 +67,16 @@ describe("resolveFileMediaType", () => {
     );
   });
 
-  it("uses the data URL default when its media type is omitted", () => {
-    expect(resolveFileMediaType("data:;base64,QUJD", "")).toBe(
-      "text/plain;charset=US-ASCII",
+  it.each(["data:;base64,QUJD", "data:;charset=utf-8,hello"])(
+    "uses a bare default media type for %s",
+    (data) => {
+      expect(resolveFileMediaType(data, "")).toBe("text/plain");
+    },
+  );
+
+  it("prefers the supplied type over the data URL default", () => {
+    expect(resolveFileMediaType("data:;base64,QUJD", "application/pdf")).toBe(
+      "application/pdf",
     );
   });
 
@@ -84,6 +95,19 @@ describe("toMediaWireUrl", () => {
     expect(
       toMediaWireUrl("data:application/octet-stream;base64,QUJD", "image/jpeg"),
     ).toBe("data:image/jpeg;base64,QUJD");
+  });
+
+  it.each(["data:;base64,QUJD", "data:;charset=utf-8;base64,", "data:,hello"])(
+    "preserves %s when the wire type agrees with the default",
+    (payload) => {
+      expect(toMediaWireUrl(payload, "text/plain")).toBe(payload);
+    },
+  );
+
+  it("uses the supplied wire type when a base64 envelope omits one", () => {
+    expect(toMediaWireUrl("data:;base64,QUJD", "application/pdf")).toBe(
+      "data:application/pdf;base64,QUJD",
+    );
   });
 
   it("wraps a bare base64 payload", () => {

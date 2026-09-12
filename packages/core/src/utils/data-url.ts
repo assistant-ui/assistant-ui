@@ -4,8 +4,12 @@ export type FilePartSource =
   | { kind: "url"; url: string }
   | { kind: "data"; data: string; mimeType: string };
 
-const DEFAULT_DATA_URL_MEDIA_TYPE = "text/plain;charset=US-ASCII";
+const DEFAULT_DATA_URL_MEDIA_TYPE = "text/plain";
 
+/**
+ * Extracts a base64 payload and the URL's media type without parameters.
+ * An omitted type uses `fallbackMimeType`, which defaults to `text/plain`.
+ */
 export function parseDataUrl(
   value: string,
   fallbackMimeType = DEFAULT_DATA_URL_MEDIA_TYPE,
@@ -51,9 +55,9 @@ export function isParsableUrl(value: string): boolean {
 }
 
 /**
- * The media type a data URL declares, whether or not its payload is base64.
- * `parseDataUrl` only matches base64 payloads because it also returns the
- * bytes; this reads the declaration alone.
+ * A data URL's media type without parameters, or `text/plain` when omitted.
+ * Unlike `parseDataUrl`, this also accepts non-base64 data URLs.
+ * Returns `undefined` for values without a data URL header.
  */
 export function dataUrlMediaType(value: string): string | undefined {
   const match = /^data:([^;,]*)(?:[;,])/i.exec(value);

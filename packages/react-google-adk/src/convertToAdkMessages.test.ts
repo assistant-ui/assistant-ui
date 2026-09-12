@@ -223,7 +223,7 @@ describe("getMessageContent", () => {
     expect(result).toEqual([
       {
         type: "file",
-        mimeType: "text/plain;charset=US-ASCII",
+        mimeType: "text/plain",
         data: "SGVsbG8=",
       },
     ]);
