@@ -32,7 +32,12 @@ const useDataRenderers = (): ClientOutput<"dataRenderers"> => {
       return () => {
         setState((prev) => {
           const renderers = nullProtoRecord(prev.renderers);
-          renderers[name] = renderers[name]?.filter((r) => r !== render) ?? [];
+          const remaining = renderers[name]?.filter((r) => r !== render) ?? [];
+          if (remaining.length > 0) {
+            renderers[name] = remaining;
+          } else {
+            delete renderers[name];
+          }
           return {
             ...prev,
             renderers,

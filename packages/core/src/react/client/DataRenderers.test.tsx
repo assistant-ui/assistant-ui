@@ -35,9 +35,9 @@ describe("DataRenderers", () => {
       await act(async () => {
         remove();
         await vi.waitFor(() =>
-          expect(aui.dataRenderers().getState().renderers[name]).toHaveLength(
-            0,
-          ),
+          expect(
+            Object.hasOwn(aui.dataRenderers().getState().renderers, name),
+          ).toBe(false),
         );
       });
     },
