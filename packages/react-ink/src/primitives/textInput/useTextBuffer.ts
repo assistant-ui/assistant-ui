@@ -37,12 +37,11 @@ const wordSegmenter = new Intl.Segmenter(undefined, { granularity: "word" });
 
 const stepGraphemeLeft = (text: string, offset: number) => {
   if (offset <= 0) return 0;
-  let previous = 0;
-  for (const { index } of graphemeSegmenter.segment(text)) {
-    if (index >= offset) break;
-    previous = index;
-  }
-  return previous;
+  return (
+    graphemeSegmenter
+      .segment(text)
+      .containing(Math.min(offset, text.length) - 1)?.index ?? 0
+  );
 };
 
 const snapToGraphemeBoundary = (text: string, offset: number) => {
@@ -77,12 +76,9 @@ const stepGraphemeRight = (text: string, offset: number) => {
 };
 
 export const getGraphemeAt = (text: string, offset: number) => {
-  if (offset >= text.length) return "";
-  for (const { index, segment } of graphemeSegmenter.segment(text)) {
-    if (index === offset) return segment;
-    if (index > offset) return "";
-  }
-  return "";
+  if (offset < 0 || offset >= text.length) return "";
+  const segment = graphemeSegmenter.segment(text).containing(offset);
+  return segment?.index === offset ? segment.segment : "";
 };
 
 const getLineStart = (text: string, cursorOffset: number) => {
