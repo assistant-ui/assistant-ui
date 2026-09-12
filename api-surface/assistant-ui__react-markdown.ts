@@ -2,6 +2,8 @@ import { Primitive } from "@radix-ui/react-primitive";
 
 import "@standard-schema/spec";
 
+import "ai";
+
 import "radix-ui";
 
 import "radix-ui/internal";

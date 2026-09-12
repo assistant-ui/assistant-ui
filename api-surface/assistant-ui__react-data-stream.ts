@@ -2,6 +2,8 @@ import { LanguageModelV2Message } from "@ai-sdk/provider";
 
 import { StandardSchemaV1 } from "@standard-schema/spec";
 
+import "ai";
+
 type AppendMessage = Omit<ThreadMessage, "id"> & {
   parentId: string | null;
   sourceId: string | null;

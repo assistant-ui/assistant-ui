@@ -1,5 +1,7 @@
 import { StandardSchemaV1 } from "@standard-schema/spec";
 
+import "ai";
+
 import { Box, Text } from "ink";
 
 import Spinner from "ink-spinner";

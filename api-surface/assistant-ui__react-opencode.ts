@@ -2,6 +2,8 @@ import { AssistantMessage, Event, FilePart, GlobalSession, Message, Message as M
 
 import { StandardSchemaV1 } from "@standard-schema/spec";
 
+import "ai";
+
 import "radix-ui";
 
 import "radix-ui/internal";

@@ -1,5 +1,7 @@
 import "@standard-schema/spec";
 
+import "ai";
+
 import { ComponentType } from "react";
 
 import { FieldValues, UseFormProps, UseFormReturn } from "react-hook-form";
