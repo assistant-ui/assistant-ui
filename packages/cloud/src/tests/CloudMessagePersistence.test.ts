@@ -475,6 +475,30 @@ describe("CloudMessagePersistence", () => {
     expect(persistence.isPersisted("local-1")).toBe(false);
   });
 
+  it("does not restore an append mapping after reset", async () => {
+    let resolveAppend!: (value: { message_id: string }) => void;
+    vi.mocked(cloud.threads.messages.create).mockImplementationOnce(
+      () =>
+        new Promise((resolve) => {
+          resolveAppend = resolve;
+        }),
+    );
+
+    const append = persistence.append(
+      "thread-1",
+      "local-1",
+      null,
+      "aui/v0",
+      {},
+    );
+    persistence.reset();
+    resolveAppend({ message_id: "remote-1" });
+
+    await expect(append).resolves.toBeUndefined();
+    expect(persistence.isPersisted("local-1")).toBe(false);
+    expect(await persistence.getRemoteId("local-1")).toBeUndefined();
+  });
+
   it("reset clears all ID mappings", async () => {
     vi.mocked(cloud.threads.messages.create).mockResolvedValue({
       message_id: "remote-1",

@@ -162,8 +162,8 @@ export class CloudMessagePersistence {
   /**
    * Reset the ID mapping (call when switching threads).
    *
-   * Pending `load()` calls are not cancelled and still settle normally,
-   * but their results no longer populate the ID mapping.
+   * Pending `load()` and `append()` calls are not cancelled and still settle
+   * normally, but their results no longer populate the ID mapping.
    */
   reset() {
     this.idMapping = new Map();
