@@ -1,4 +1,5 @@
 import { act, cleanup, fireEvent, render } from "@testing-library/react";
+import { StrictMode } from "react";
 import { afterEach, beforeAll, describe, expect, it, vi } from "vitest";
 
 import { ConversationMapAui } from "./conversation-map.aui";
@@ -106,6 +107,31 @@ afterEach(() => {
 });
 
 describe("ConversationMapAui", () => {
+  it("keeps the current projection correct across StrictMode rerenders", () => {
+    const first = user("u1", "First");
+    mocks.state.thread.messages = [first];
+    const { rerender } = render(
+      <StrictMode>
+        <ConversationMapAui />
+      </StrictMode>,
+    );
+    expect(labels()).toEqual(["First"]);
+    mocks.state.thread.messages = [first, user("u2", "Second")];
+    rerender(
+      <StrictMode>
+        <ConversationMapAui />
+      </StrictMode>,
+    );
+    expect(labels()).toEqual(["First", "Second"]);
+    mocks.state.thread.messages = [first];
+    rerender(
+      <StrictMode>
+        <ConversationMapAui />
+      </StrictMode>,
+    );
+    expect(labels()).toEqual(["First"]);
+  });
+
   it("puts one tick on each turn rather than each message", async () => {
     mocks.state.thread.messages = [
       user("u1", "Can you check the extension build?"),

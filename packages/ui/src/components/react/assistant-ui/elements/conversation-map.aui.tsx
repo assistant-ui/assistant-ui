@@ -2,12 +2,9 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useAuiState, useThreadViewport } from "@assistant-ui/react";
-import type { ThreadMessage } from "@assistant-ui/react";
 import { cn } from "@/lib/utils";
-import { ConversationMap, type ConversationMapEntry } from "./conversation-map";
-
-const TITLE_LENGTH = 72;
-const PREVIEW_LENGTH = 240;
+import { ConversationMap } from "./conversation-map";
+import { projectConversationMap } from "./conversation-map-projection";
 
 /**
  * A message scrolled to the top of the viewport lands a fraction of a pixel
@@ -40,92 +37,6 @@ const readingLine = (viewport: HTMLElement) => {
   return rect.top + rect.height * descent + TOP_TOLERANCE;
 };
 
-const partsOf = (message: ThreadMessage) => [...message.content];
-
-const textOf = (message: ThreadMessage) =>
-  partsOf(message)
-    .map((part) => (part.type === "text" ? part.text : ""))
-    .join("\n")
-    .trim();
-
-const labelOf = (message: ThreadMessage) => {
-  const parts = partsOf(message);
-  const tools = parts.flatMap((part) =>
-    part.type === "tool-call" ? [part.toolName] : [],
-  );
-  if (tools.length === 1) return tools[0]!;
-  if (tools.length > 1) return `${tools.length} tool calls`;
-  if (parts.some((part) => part.type === "reasoning")) return "Reasoning";
-
-  // A composer submission carries its files in `attachments` and leaves
-  // `content` empty, so both places decide an attachment-only turn's label.
-  const carriers = [...parts, ...(message.attachments ?? [])];
-  if (carriers.some((carrier) => carrier.type === "image")) return "Image";
-  if (carriers.some((carrier) => carrier.type === "file")) return "File";
-  if (carriers.length > 0) return "Attachment";
-  return message.role === "user" ? "Message" : "Response";
-};
-
-/** Cuts on a word boundary so a title never splits a word. */
-const cutAtWord = (text: string, limit: number) => {
-  if (text.length <= limit) return text;
-  const head = text.slice(0, limit);
-  const boundary = head.lastIndexOf(" ");
-  return boundary > limit / 2 ? head.slice(0, boundary) : head;
-};
-
-const linesOf = (message: ThreadMessage) =>
-  textOf(message)
-    .split("\n")
-    .map((line) => line.replace(/^[\s#>*`-]+/, "").trim())
-    .filter(Boolean);
-
-/** A user message and the assistant messages answering it. */
-type Turn = {
-  head: ThreadMessage;
-  members: ThreadMessage[];
-};
-
-const groupIntoTurns = (messages: readonly ThreadMessage[]) => {
-  const turns: Turn[] = [];
-
-  for (const message of messages) {
-    if (message.role !== "user" && message.role !== "assistant") continue;
-
-    const current = turns.at(-1);
-    if (message.role === "user" || !current) {
-      turns.push({ head: message, members: [message] });
-      continue;
-    }
-    current.members.push(message);
-  }
-
-  return turns;
-};
-
-const describe = ({ head, members }: Turn): ConversationMapEntry => {
-  const lines = linesOf(head);
-  const first = lines[0] ?? "";
-  const title = cutAtWord(first, TITLE_LENGTH);
-
-  // What the turn asked names it; what it answered is the useful preview, and
-  // a turn still being answered falls back to the rest of its own text.
-  const answer = members.find((member) => member !== head && textOf(member));
-  const preview = (
-    answer
-      ? linesOf(answer).join(" ")
-      : [first.slice(title.length), ...lines.slice(1)].join(" ")
-  )
-    .trim()
-    .slice(0, PREVIEW_LENGTH);
-
-  return {
-    id: head.id,
-    title: title || labelOf(head),
-    ...(preview ? { preview } : {}),
-  };
-};
-
 export function ConversationMapAui({
   side = "left",
   className,
@@ -139,21 +50,12 @@ export function ConversationMapAui({
   const [activeId, setActiveId] = useState<string | undefined>(undefined);
   const [visibleIds, setVisibleIds] = useState<readonly string[]>([]);
   const scheduleRef = useRef<(() => void) | undefined>(undefined);
-
-  const turns = useMemo(() => groupIntoTurns(messages), [messages]);
-  const entries = useMemo(() => turns.map(describe), [turns]);
-
-  /** Which turn each message belongs to, so a message in view marks its turn. */
-  const turnOf = useMemo(() => {
-    const owners = new Map<string, string>();
-    for (const turn of turns) {
-      for (const member of turn.members) owners.set(member.id, turn.head.id);
-    }
-    return owners;
-  }, [turns]);
+  const { entries, turnOf, turnKey } = useMemo(
+    () => projectConversationMap(messages),
+    [messages],
+  );
 
   const turnOfRef = useRef(turnOf);
-  const turnKey = turns.map((turn) => turn.head.id).join(" ");
 
   useEffect(() => {
     turnOfRef.current = turnOf;
