@@ -127,12 +127,15 @@ const visibleThreadGroups = computed(
     </div>
     <div data-slot="aui_thread-list-items" class="flex flex-col gap-0.5">
       <AuiIf :condition="(s) => s.threads.isLoading">
-        <div class="flex flex-col gap-0.5">
+        <div
+          role="status"
+          aria-label="Loading threads"
+          class="flex flex-col gap-0.5"
+        >
           <div
             v-for="index in 5"
             :key="index"
-            role="status"
-            aria-label="Loading threads"
+            aria-hidden="true"
             data-slot="aui_thread-list-skeleton-wrapper"
             class="flex h-8 items-center px-2.5"
           >

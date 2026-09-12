@@ -258,12 +258,15 @@ ThreadListNew.displayName = "ThreadListNew";
 
 const ThreadListSkeleton: FC = () => {
   return (
-    <div className="flex flex-col gap-0.5">
+    <div
+      role="status"
+      aria-label="Loading threads"
+      className="flex flex-col gap-0.5"
+    >
       {Array.from({ length: 5 }, (_, i) => (
         <div
           key={i}
-          role="status"
-          aria-label="Loading threads"
+          aria-hidden="true"
           data-slot="aui_thread-list-skeleton-wrapper"
           className="flex h-8 items-center px-2.5"
         >

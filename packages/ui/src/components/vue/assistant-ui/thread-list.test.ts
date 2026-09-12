@@ -212,10 +212,14 @@ describe("vue thread list", () => {
 
     await settle(() => expect(slots(el, "skeleton-wrapper")).toHaveLength(5));
     expect(
+      el.querySelectorAll('[role="status"][aria-label="Loading threads"]'),
+    ).toHaveLength(1);
+    expect(
       slots(el, "skeleton-wrapper").every(
         (row) =>
-          row.getAttribute("role") === "status" &&
-          row.getAttribute("aria-label") === "Loading threads",
+          row.getAttribute("aria-hidden") === "true" &&
+          !row.hasAttribute("role") &&
+          !row.hasAttribute("aria-label"),
       ),
     ).toBe(true);
     expect(slots(el, "item")).toHaveLength(0);
@@ -228,6 +232,9 @@ describe("vue thread list", () => {
       expect(texts(el, "item-title")).toEqual(["Loaded thread"]),
     );
     expect(slots(el, "skeleton-wrapper")).toHaveLength(0);
+    expect(
+      el.querySelectorAll('[role="status"][aria-label="Loading threads"]'),
+    ).toHaveLength(0);
 
     unmount();
   });
