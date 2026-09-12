@@ -84,9 +84,11 @@ node -e '
         path.join(bin, "pnpm"),
         `#!/bin/sh
 set -eu
-if [ "$FAILURE_STAGE" = "install" ]; then
-  exit 1
-fi
+case " $* " in
+  *" --no-frozen-lockfile "*)
+    [ "$FAILURE_STAGE" != "install" ]
+    ;;
+esac
 `,
       );
       writeExecutable(
