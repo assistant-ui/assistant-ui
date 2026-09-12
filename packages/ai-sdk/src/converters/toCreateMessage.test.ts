@@ -11,6 +11,21 @@ const baseMessage = {
 } as const;
 
 describe("toCreateMessage", () => {
+  it.each([
+    "data:;base64,SGVsbG8=",
+    "data:;charset=utf-8,hello",
+    "data:;base64,",
+  ])("uses a bare media type without changing the file URL %s", (data) => {
+    const message = {
+      ...baseMessage,
+      content: [{ type: "file", data, mimeType: "" }],
+    } as unknown as AppendMessage;
+
+    expect(toCreateMessage(message).parts).toEqual([
+      { type: "file", url: data, mediaType: "text/plain" },
+    ]);
+  });
+
   it("converts a direct file part in message content", () => {
     const message = {
       ...baseMessage,

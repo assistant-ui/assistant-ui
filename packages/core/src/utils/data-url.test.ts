@@ -1,5 +1,6 @@
 import { describe, it, expect } from "vitest";
 import {
+  dataUrlMediaType,
   httpUrlPattern,
   parseDataUrl,
   resolveFilePartSource,
@@ -31,11 +32,12 @@ describe("parseDataUrl", () => {
     });
   });
 
-  it("parses a base64 data URL without an explicit media type", () => {
-    expect(parseDataUrl("data:;base64,SGVsbG8=")).toEqual({
-      mimeType: "text/plain;charset=US-ASCII",
-      data: "SGVsbG8=",
-    });
+  it.each([
+    ["data:;base64,SGVsbG8=", "SGVsbG8="],
+    ["data:;charset=utf-8;base64,SGVsbG8=", "SGVsbG8="],
+    ["DATA:;BASE64,", ""],
+  ])("defaults %s to a bare text media type", (value, data) => {
+    expect(parseDataUrl(value)).toEqual({ mimeType: "text/plain", data });
   });
 
   it("uses a contextual media type when the URL omits one", () => {
@@ -75,6 +77,32 @@ describe("parseDataUrl", () => {
   it("returns null for http URLs", () => {
     expect(parseDataUrl("https://example.com/a.png")).toBeNull();
   });
+});
+
+describe("dataUrlMediaType", () => {
+  it.each([
+    "data:;base64,SGVsbG8=",
+    "data:;charset=utf-8;base64,SGVsbG8=",
+    "data:,hello",
+    "data:;charset=utf-8,hello",
+    "DATA:,",
+    "data:TEXT/PLAIN;charset=US-ASCII;base64,SGVsbG8=",
+  ])("returns the same bare type for %s", (value) => {
+    expect(dataUrlMediaType(value)).toBe("text/plain");
+  });
+
+  it("preserves an explicit non-text media type without its parameters", () => {
+    expect(
+      dataUrlMediaType("data:IMAGE/SVG+XML;charset=utf-8,%3Csvg/%3E"),
+    ).toBe("image/svg+xml");
+  });
+
+  it.each(["SGVsbG8=", "https://example.com/file", "data:"])(
+    "does not infer a data URL default for %s",
+    (value) => {
+      expect(dataUrlMediaType(value)).toBeUndefined();
+    },
+  );
 });
 
 describe("httpUrlPattern", () => {
@@ -148,7 +176,7 @@ describe("resolveFilePartSource", () => {
     ).toEqual({
       kind: "data",
       data: "SGVsbG8=",
-      mimeType: "text/plain;charset=US-ASCII",
+      mimeType: "text/plain",
     });
   });
 

@@ -40,6 +40,30 @@ const appendMessage = (): AppendMessage => ({
   metadata: { custom: {} },
 });
 
+describe("toAgUiMessages data URLs", () => {
+  it.each(["application/pdf", ""])(
+    "unwraps a media-less data URL while retaining the adapter's %j MIME fallback",
+    (mimeType) => {
+      expect(
+        contentOf(
+          userMessage([
+            { type: "file", data: "data:;base64,SGVsbG8=", mimeType },
+          ]),
+        ),
+      ).toEqual([
+        {
+          type: "document",
+          source: {
+            type: "data",
+            value: "SGVsbG8=",
+            mimeType: mimeType || "application/octet-stream",
+          },
+        },
+      ]);
+    },
+  );
+});
+
 describe("toAgUiMessages content metadata", () => {
   it("emits AgUiMessage values assignable to AG-UI Message", () => {
     expectTypeOf<AgUiMessage>().toExtend<AgUiWireMessage>();
