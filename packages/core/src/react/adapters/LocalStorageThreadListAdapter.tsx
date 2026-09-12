@@ -28,6 +28,7 @@ import {
   fromThreadMessageLike,
   type ThreadMessageLike,
 } from "../../runtime/utils/thread-message-like";
+import { generateId } from "../../utils/id";
 import { isRecord } from "../../utils/json/is-json";
 import {
   RuntimeAdapterProvider,
@@ -431,6 +432,7 @@ function parseStoredNestedThreadMessage(
     return parsed;
   }
   if (!isMessageRole(value.role) || !Array.isArray(value.content)) return null;
+  const id = typeof value.id === "string" ? value.id : generateId();
 
   if (value.role === "assistant") {
     const {
@@ -441,6 +443,7 @@ function parseStoredNestedThreadMessage(
     const metadata = isRecord(rawMetadata) ? rawMetadata : {};
     return {
       ...message,
+      id,
       content: parseStoredAssistantContent(value.content, depth),
       status: parseStoredMessageStatus(value.status),
       metadata: {
@@ -462,6 +465,7 @@ function parseStoredNestedThreadMessage(
     const metadata = isRecord(rawMetadata) ? rawMetadata : {};
     return {
       ...message,
+      id,
       content: parseStoredUserContent(value.content),
       ...(Array.isArray(attachments)
         ? {
@@ -489,6 +493,7 @@ function parseStoredNestedThreadMessage(
   );
   return {
     ...message,
+    id,
     content:
       textParts.length === 1
         ? textParts

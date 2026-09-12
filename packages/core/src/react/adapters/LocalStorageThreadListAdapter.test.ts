@@ -404,6 +404,7 @@ describe("parseStoredMessageRepository", () => {
     ]);
     expect(part.messages).toEqual([
       {
+        id: expect.any(String),
         role: "assistant",
         content: [{ type: "text", text: "partial" }],
         status: { type: "complete", reason: "unknown" },
@@ -416,11 +417,13 @@ describe("parseStoredMessageRepository", () => {
         },
       },
       {
+        id: expect.any(String),
         role: "user",
         content: [{ type: "text", text: "partial user" }],
         metadata: { custom: {} },
       },
       {
+        id: expect.any(String),
         role: "system",
         content: [{ type: "text", text: "partial system" }],
         metadata: { custom: {} },
@@ -438,6 +441,9 @@ describe("parseStoredMessageRepository", () => {
         },
       },
     ]);
+    expect(
+      new Set(part.messages?.slice(0, 3).map((nested) => nested.id)).size,
+    ).toBe(3);
     expect(part.messages?.[0]?.role).toBe("assistant");
     if (part.messages?.[0]?.role !== "assistant") {
       throw new Error("expected nested assistant");
