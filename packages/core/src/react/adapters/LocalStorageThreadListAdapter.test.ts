@@ -481,6 +481,13 @@ describe("parseStoredMessageRepository", () => {
             },
             parentId: null,
           },
+          {
+            message: {
+              ...storedMessage("future-status", "assistant"),
+              status: { type: "paused", reason: "user-request" },
+            },
+            parentId: null,
+          },
         ],
       }),
     );
@@ -505,6 +512,14 @@ describe("parseStoredMessageRepository", () => {
     expect(assistantMessage.status).toEqual({
       type: "complete",
       reason: "unknown",
+    });
+    const futureStatusMessage = repo.messages[2]?.message;
+    expect(futureStatusMessage?.role).toBe("assistant");
+    if (futureStatusMessage?.role !== "assistant")
+      throw new Error("expected assistant");
+    expect(futureStatusMessage.status).toEqual({
+      type: "paused",
+      reason: "user-request",
     });
   });
 
