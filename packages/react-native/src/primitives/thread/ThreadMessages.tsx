@@ -228,8 +228,14 @@ const useThreadMessagesFlatListAutoScroll = ({
   const isAtBottomRef = useRef(true);
   const lastScrollEventOffsetRef = useRef(0);
   const initializeScrollRequestedRef = useRef(false);
-  const pendingScrollToBottomRef = useRef<false | { animated: boolean }>(false);
-  const contentMeasuredRef = useRef(false);
+  const contentSizeVersionRef = useRef(0);
+  const pendingScrollToBottomRef = useRef<
+    | false
+    | {
+        animated: boolean;
+        minimumContentSizeVersion: number;
+      }
+  >(false);
 
   const updateIsAtBottom = useCallback(() => {
     const { contentHeight, scrollY, viewportHeight } = metricsRef.current;
@@ -262,7 +268,11 @@ const useThreadMessagesFlatListAutoScroll = ({
       metricsRef.current.viewportHeight = viewportHeight;
       updateIsAtBottom();
       const pending = pendingScrollToBottomRef.current;
-      if (pending && contentMeasuredRef.current && viewportHeight > 0) {
+      if (
+        pending &&
+        contentSizeVersionRef.current >= pending.minimumContentSizeVersion &&
+        viewportHeight > 0
+      ) {
         pendingScrollToBottomRef.current = false;
         scrollToBottom(pending.animated);
         return;
@@ -322,14 +332,19 @@ const useThreadMessagesFlatListAutoScroll = ({
       const contentHeight = horizontal ? width : height;
       const previousContentHeight = metrics.contentHeight;
       const wasAtBottom = isAtBottomRef.current;
-      contentMeasuredRef.current = true;
+      if (contentHeight > 0) contentSizeVersionRef.current += 1;
       metrics.contentHeight = contentHeight;
       updateIsAtBottom();
 
       // Initialize and thread-switch requests are repeated after the list has
       // measured so the explicit bottom offset uses real content metrics.
       const pendingScroll = pendingScrollToBottomRef.current;
-      if (pendingScroll && metrics.viewportHeight > 0) {
+      if (
+        pendingScroll &&
+        contentSizeVersionRef.current >=
+          pendingScroll.minimumContentSizeVersion &&
+        metrics.viewportHeight > 0
+      ) {
         pendingScrollToBottomRef.current = false;
         scrollToBottom(pendingScroll.animated);
         return;
@@ -354,13 +369,19 @@ const useThreadMessagesFlatListAutoScroll = ({
     if (initializeScrollRequestedRef.current) return;
 
     initializeScrollRequestedRef.current = true;
-    pendingScrollToBottomRef.current = { animated: false };
+    pendingScrollToBottomRef.current = {
+      animated: false,
+      minimumContentSizeVersion: Math.max(1, contentSizeVersionRef.current),
+    };
     scrollToBottom(false);
   }, [hasMessages, scrollToBottom, scrollToBottomOnInitialize]);
 
   useAuiEvent("thread.runStart", () => {
     if (!scrollToBottomOnRunStart) return;
-    pendingScrollToBottomRef.current = { animated: true };
+    pendingScrollToBottomRef.current = {
+      animated: true,
+      minimumContentSizeVersion: contentSizeVersionRef.current + 1,
+    };
     scrollToBottom(true);
   });
 
@@ -368,8 +389,10 @@ const useThreadMessagesFlatListAutoScroll = ({
     if (!scrollToBottomOnThreadSwitch) return;
     initializeScrollRequestedRef.current = false;
     lastScrollEventOffsetRef.current = 0;
-    contentMeasuredRef.current = false;
-    pendingScrollToBottomRef.current = { animated: false };
+    pendingScrollToBottomRef.current = {
+      animated: false,
+      minimumContentSizeVersion: contentSizeVersionRef.current + 1,
+    };
     scrollToBottom(false);
   });
 

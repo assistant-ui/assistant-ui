@@ -489,6 +489,30 @@ describe("ThreadMessages", () => {
       });
     });
 
+    it("keeps the initialize scroll pending through a zero content measurement", async () => {
+      h.state.thread.messages = [{ id: "1", role: "user" }];
+      await mountFlatList({ components: messageComponents });
+      const props = getFlatListProps();
+
+      await act(async () => {
+        props.onLayout?.({
+          nativeEvent: { layout: { height: 100 } },
+        });
+        props.onContentSizeChange?.(0, 0);
+      });
+      expect(h.scrollToOffset).toHaveBeenCalledTimes(1);
+
+      await act(async () => {
+        props.onContentSizeChange?.(0, 300);
+      });
+
+      expect(h.scrollToOffset).toHaveBeenCalledTimes(2);
+      expect(h.scrollToOffset).toHaveBeenLastCalledWith({
+        animated: false,
+        offset: 200,
+      });
+    });
+
     it("uses horizontal measurements for horizontal lists", async () => {
       h.state.thread.messages = [{ id: "1", role: "user" }];
       await mountFlatList({ components: messageComponents, horizontal: true });
@@ -684,7 +708,7 @@ describe("ThreadMessages", () => {
         });
         props.onScroll?.({
           nativeEvent: {
-            contentOffset: { y: 200 },
+            contentOffset: { y: 120 },
             contentSize: { height: 300, width: 0 },
             layoutMeasurement: { height: 100, width: 0 },
           },
@@ -824,12 +848,13 @@ describe("ThreadMessages", () => {
         props.onLayout?.({
           nativeEvent: { layout: { height: 60 } },
         });
+        props.onContentSizeChange?.(0, 360);
       });
 
-      expect(h.scrollToOffset).toHaveBeenCalledTimes(1);
-      expect(h.scrollToOffset).toHaveBeenCalledWith({
+      expect(h.scrollToOffset).toHaveBeenCalledTimes(2);
+      expect(h.scrollToOffset).toHaveBeenLastCalledWith({
         animated: true,
-        offset: 240,
+        offset: 300,
       });
     });
 
