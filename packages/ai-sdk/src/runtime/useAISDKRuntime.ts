@@ -219,6 +219,15 @@ const useGeneratedSuggestions = (
 
 const NO_CANCELLED_MESSAGE_IDS: ReadonlySet<string> = new Set();
 
+const describeChatError = (error: Error): ReadonlyJSONObject => {
+  const code = (error as { code?: unknown }).code;
+  return {
+    message: error.message,
+    ...(error.name !== "Error" ? { name: error.name } : undefined),
+    ...(typeof code === "string" ? { code } : undefined),
+  };
+};
+
 export const useAISDKRuntime = <UI_MESSAGE extends UIMessage = UIMessage>(
   chatHelpers: ReturnType<typeof useChat<UI_MESSAGE>>,
   adapter: AISDKRuntimeAdapter<UI_MESSAGE> = {},
@@ -315,7 +324,9 @@ export const useAISDKRuntime = <UI_MESSAGE extends UIMessage = UIMessage>(
         toolLastInputCache: toolLastInputCacheRef.current,
         mcpAppMetadataCache: mcpAppMetadataCacheRef.current,
         ...(optimisticMessageId && { optimisticMessageId }),
-        ...(chatHelpers.error && { error: chatHelpers.error.message }),
+        ...(chatHelpers.error && {
+          error: describeChatError(chatHelpers.error),
+        }),
         ...(cancelledMessageIds.size > 0 && { cancelledMessageIds }),
       }),
       [
