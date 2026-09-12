@@ -1,6 +1,7 @@
 import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
+import { parse as parseJsonc } from "jsonc-parser";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { mcp } from "../../src/commands/mcp";
 import { SpawnExitError } from "../../src/lib/run-spawn";
@@ -125,6 +126,128 @@ describe("mcp command", () => {
         "assistant-ui": { type: "http", url: HOSTED_MCP_URL },
       },
     });
+  });
+
+  it.each(["\n", "\r\n"])(
+    "preserves VS Code comments and other settings with %j line endings",
+    async (eol) => {
+      const configPath = path.join(tempDir, ".vscode", "mcp.json");
+      fs.mkdirSync(path.dirname(configPath), { recursive: true });
+      const content = [
+        "{",
+        "  // Keep these server notes",
+        '  "servers": {',
+        '    "other": { "type": "http", "url": "https://example.com/mcp" },',
+        "  },",
+        "  /* Keep input settings too */",
+        '  "inputs": [],',
+        "}",
+        "",
+      ].join(eol);
+      fs.writeFileSync(configPath, content);
+
+      await mcp.parseAsync(["node", "mcp", "--vscode"], { from: "node" });
+
+      const updated = fs.readFileSync(configPath, "utf-8");
+      expect(updated).toContain("// Keep these server notes");
+      expect(updated).toContain("/* Keep input settings too */");
+      expect(updated.split(eol).join("")).not.toMatch(/[\r\n]/);
+      expect(parseJsonc(updated, [], { allowTrailingComma: true })).toEqual({
+        servers: {
+          other: { type: "http", url: "https://example.com/mcp" },
+          "assistant-ui": { type: "http", url: HOSTED_MCP_URL },
+        },
+        inputs: [],
+      });
+
+      await mcp.parseAsync(["node", "mcp", "--vscode"], { from: "node" });
+      expect(fs.readFileSync(configPath, "utf-8")).toBe(updated);
+    },
+  );
+
+  it("replaces the VS Code assistant-ui entry without rewriting unrelated settings", async () => {
+    const configPath = path.join(tempDir, ".vscode", "mcp.json");
+    fs.mkdirSync(path.dirname(configPath), { recursive: true });
+    fs.writeFileSync(
+      configPath,
+      `{
+  "servers": {
+    "assistant-ui": { "command": "npx", "args": ["old-server"] },
+    // Keep this custom server
+    "other": { "command": "custom", "args": [] }
+  },
+  "inputs": [ ]
+}\n`,
+    );
+
+    await mcp.parseAsync(["node", "mcp", "--vscode"], { from: "node" });
+
+    const updated = fs.readFileSync(configPath, "utf-8");
+    expect(updated).toContain(
+      '// Keep this custom server\n    "other": { "command": "custom", "args": [] }',
+    );
+    expect(updated).toContain('"inputs": [ ]');
+    expect(parseJsonc(updated).servers["assistant-ui"]).toEqual({
+      type: "http",
+      url: HOSTED_MCP_URL,
+    });
+  });
+
+  it.each([
+    "",
+    "  \n",
+    "// Server configuration\n",
+    '{"inputs": [], /* no servers yet */}',
+  ])("initializes VS Code server settings from %j", async (content) => {
+    const configPath = path.join(tempDir, ".vscode", "mcp.json");
+    fs.mkdirSync(path.dirname(configPath), { recursive: true });
+    fs.writeFileSync(configPath, content);
+
+    await mcp.parseAsync(["node", "mcp", "--vscode"], { from: "node" });
+
+    const updated = fs.readFileSync(configPath, "utf-8");
+    expect(
+      parseJsonc(updated, [], { allowTrailingComma: true }).servers,
+    ).toEqual({
+      "assistant-ui": { type: "http", url: HOSTED_MCP_URL },
+    });
+    if (content.includes("//"))
+      expect(updated).toContain("// Server configuration");
+    if (content.includes("/*"))
+      expect(updated).toContain("/* no servers yet */");
+  });
+
+  it.each([
+    '{"servers": {',
+    '{"servers": {},,}',
+    "{/* unfinished",
+    "null",
+    "[]",
+    '"settings"',
+  ])("does not overwrite invalid VS Code configuration %j", async (content) => {
+    const configPath = path.join(tempDir, ".vscode", "mcp.json");
+    fs.mkdirSync(path.dirname(configPath), { recursive: true });
+    fs.writeFileSync(configPath, content);
+
+    await expect(
+      mcp.parseAsync(["node", "mcp", "--vscode"], { from: "node" }),
+    ).rejects.toThrow("process.exit");
+
+    expect(exitSpy).toHaveBeenCalledWith(1);
+    expect(fs.readFileSync(configPath, "utf-8")).toBe(content);
+  });
+
+  it("keeps strict JSON parsing for other targets", async () => {
+    const configPath = path.join(tempDir, ".cursor", "mcp.json");
+    fs.mkdirSync(path.dirname(configPath), { recursive: true });
+    const content = '{\n// A comment\n"mcpServers": {}\n}';
+    fs.writeFileSync(configPath, content);
+
+    await expect(
+      mcp.parseAsync(["node", "mcp", "--cursor"], { from: "node" }),
+    ).rejects.toThrow("process.exit");
+
+    expect(fs.readFileSync(configPath, "utf-8")).toBe(content);
   });
 
   it("replaces an existing stdio assistant-ui entry wholesale for an http client", async () => {

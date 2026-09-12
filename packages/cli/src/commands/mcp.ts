@@ -2,6 +2,12 @@ import { Command } from "commander";
 import fs from "node:fs";
 import path from "node:path";
 import os from "node:os";
+import {
+  applyEdits,
+  modify,
+  parse as parseJsonc,
+  type ParseError,
+} from "jsonc-parser";
 import { logger } from "../lib/utils/logger";
 import { runSpawn, SpawnExitError, SpawnSignalError } from "../lib/run-spawn";
 import * as p from "@clack/prompts";
@@ -212,10 +218,28 @@ async function installForTarget(target: MCPTarget): Promise<void> {
   }
 
   let existingConfig: any = {};
+  let content = "{}\n";
   if (fs.existsSync(configPath)) {
-    const content = fs.readFileSync(configPath, "utf-8");
+    content = fs.readFileSync(configPath, "utf-8");
     try {
-      existingConfig = JSON.parse(content);
+      if (target === "vscode") {
+        const errors: ParseError[] = [];
+        existingConfig = parseJsonc(content, errors, {
+          allowTrailingComma: true,
+          allowEmptyContent: true,
+        });
+        if (existingConfig === undefined) existingConfig = {};
+        if (
+          errors.length > 0 ||
+          existingConfig === null ||
+          typeof existingConfig !== "object" ||
+          Array.isArray(existingConfig)
+        ) {
+          throw new SyntaxError("Invalid MCP configuration");
+        }
+      } else {
+        existingConfig = JSON.parse(content);
+      }
     } catch {
       const flag = getTargetFlag(target);
       logger.error(`Could not parse ${targetConfig.name} MCP config.`);
@@ -238,7 +262,25 @@ async function installForTarget(target: MCPTarget): Promise<void> {
     };
   }
 
-  fs.writeFileSync(configPath, `${JSON.stringify(newConfig, null, 2)}\n`);
+  const updatedContent =
+    target === "vscode"
+      ? applyEdits(
+          content,
+          modify(
+            content,
+            ["servers", "assistant-ui"],
+            newConfig.servers["assistant-ui"],
+            {
+              formattingOptions: {
+                insertSpaces: true,
+                tabSize: 2,
+                eol: content.includes("\r\n") ? "\r\n" : "\n",
+              },
+            },
+          ),
+        )
+      : `${JSON.stringify(newConfig, null, 2)}\n`;
+  fs.writeFileSync(configPath, updatedContent);
 
   logger.break();
   logger.success(`MCP server installed for ${targetConfig.name}!`);
