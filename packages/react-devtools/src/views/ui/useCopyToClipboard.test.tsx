@@ -88,7 +88,22 @@ describe("useCopyToClipboard", () => {
     await hook.unmount();
   });
 
-  it("clears timers and ignores pending writes after unmount", async () => {
+  it("clears an active feedback timer when unmounted", async () => {
+    vi.useFakeTimers();
+    mockClipboard(() => Promise.resolve());
+    const hook = await renderCopyHook();
+
+    await act(async () => {
+      hook.result.copy("value");
+      await Promise.resolve();
+    });
+    expect(vi.getTimerCount()).toBe(1);
+
+    await hook.unmount();
+    expect(vi.getTimerCount()).toBe(0);
+  });
+
+  it("ignores pending writes after unmount", async () => {
     vi.useFakeTimers();
     let resolveWrite!: () => void;
     const write = new Promise<void>((resolve) => {
