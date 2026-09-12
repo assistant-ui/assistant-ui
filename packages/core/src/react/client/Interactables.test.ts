@@ -343,7 +343,9 @@ describe("Interactables registration", () => {
     await flushMicrotasks();
 
     first();
-    root.getValue().register(reg("n1", { stateSchema: schemaB }));
+    const replacement = root
+      .getValue()
+      .register(reg("n1", { stateSchema: schemaB }));
 
     const parameters =
       registeredModelContextProvider?.getModelContext?.().tools?.update_note
@@ -359,6 +361,7 @@ describe("Interactables registration", () => {
     });
 
     second();
+    replacement();
   });
 
   it("installs the update tool UI once per name and removes it with the last anchor", () => {
