@@ -23,8 +23,11 @@ export type CloudThreadListAdapterOptions = {
   cloud?: AssistantCloud | undefined;
   /**
    * Stable identity for the account or workspace owning Cloud runtime state.
-   * Change it when that scope changes. When omitted, replacing the Cloud client
-   * preserves cached runtime state for backward compatibility.
+   * Change it when that scope changes. `useCloudThreadListRuntime` reloads the
+   * list after the hook returns a replacement adapter; lower-level
+   * `RemoteThreadList` compositions must call their thread-list `reload()`
+   * method after publishing that replacement. When omitted, replacing the
+   * Cloud client preserves cached runtime state for backward compatibility.
    */
   scopeId?: string | undefined;
   sdk?: SdkIdentity | undefined;
@@ -134,8 +137,9 @@ const parseListCursor = (after: string | undefined): CloudListCursor => {
  * a module-level config) can construct it. Options are read through the
  * getter on every call, so a stable adapter can follow changing `create` and
  * `delete` callbacks. Swapping to a different `cloud` instance or `scopeId`
- * requires a new adapter so the remote list and its scoped runtime adapters
- * reset together. Without a `cloud` instance (and without
+ * requires a new adapter. The consumer must then reload its remote list as
+ * required by the `RemoteThreadList` adapter replacement contract. Without a
+ * `cloud` instance (and without
  * `NEXT_PUBLIC_ASSISTANT_BASE_URL`), the adapter falls back to an in-memory
  * list. `useCloudThreadListAdapter` wraps this for the React hook signature.
  */
