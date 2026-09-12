@@ -79,6 +79,17 @@ function getBase64Size(base64: string): number {
   return Math.floor((base64Data.length * 3) / 4) - padding;
 }
 
+function getDataUrlSize(data: string): number {
+  const comma = data.indexOf(",");
+  if (comma < 0 || /;base64$/i.test(data.slice(0, comma))) {
+    return getBase64Size(data);
+  }
+
+  // Each percent escape is one byte, including octets that are not valid UTF-8.
+  const payload = data.slice(comma + 1).replace(/%[\da-f]{2}/gi, "_");
+  return new TextEncoder().encode(payload).byteLength;
+}
+
 function formatFileSize(bytes: number): string {
   if (bytes < 1024) {
     return `${bytes} B`;
@@ -223,7 +234,12 @@ const FileImpl: FileMessagePartComponent = ({
       <div className="flex min-w-0 flex-1 flex-col gap-0.5">
         <FileName>{filename}</FileName>
         {showSize && (
-          <FileSize bytes={getBase64Size(data)} className="text-xs" />
+          <FileSize
+            bytes={
+              kind === "data-uri" ? getDataUrlSize(data) : getBase64Size(data)
+            }
+            className="text-xs"
+          />
         )}
       </div>
       <FileDownload
