@@ -45,6 +45,7 @@ vi.mock("@assistant-ui/react-markdown", async (importOriginal) => {
 });
 
 import { MarkdownText } from "./markdown-text";
+// Minimal's Markdown override bypasses template sync, so its inline copy hook is covered here.
 import { MarkdownText as MinimalMarkdownText } from "../../../../../../../templates/minimal/components/assistant-ui/elements/markdown-text";
 
 afterEach(() => {
