@@ -153,7 +153,9 @@ export class CloudMessagePersistence {
 
     if (this.idMapping === idMapping) {
       for (const m of messages) {
-        idMapping.set(m.id, m.id);
+        if (!idMapping.has(m.id)) {
+          idMapping.set(m.id, m.id);
+        }
       }
     }
     return messages;

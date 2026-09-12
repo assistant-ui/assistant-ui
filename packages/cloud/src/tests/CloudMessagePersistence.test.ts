@@ -252,6 +252,63 @@ describe("CloudMessagePersistence", () => {
     await persistence.load("thread-1");
 
     expect(persistence.isPersisted("msg-1")).toBe(true);
+    expect(await persistence.getRemoteId("msg-1")).toBe("msg-1");
+  });
+
+  it("preserves a pending append mapping when load returns the same ID", async () => {
+    const messages = createCloudMessages(1);
+    let resolveLoad!: (value: { messages: typeof messages }) => void;
+    let resolveAppend!: (value: { message_id: string }) => void;
+    vi.mocked(cloud.threads.messages.list).mockImplementationOnce(
+      () =>
+        new Promise((resolve) => {
+          resolveLoad = resolve;
+        }),
+    );
+    vi.mocked(cloud.threads.messages.create).mockImplementationOnce(
+      () =>
+        new Promise((resolve) => {
+          resolveAppend = resolve;
+        }),
+    );
+
+    const load = persistence.load("thread-1");
+    const append = persistence.append(
+      "thread-1",
+      "message-1",
+      null,
+      "aui/v0",
+      {},
+    );
+    resolveLoad({ messages });
+    await load;
+    resolveAppend({ message_id: "remote-2" });
+    await append;
+
+    expect(await persistence.getRemoteId("message-1")).toBe("remote-2");
+    await persistence.update("thread-1", "message-1", "aui/v0", {
+      text: "updated",
+    });
+    expect(cloud.threads.messages.update).toHaveBeenCalledWith(
+      "thread-1",
+      "remote-2",
+      { content: { text: "updated" } },
+    );
+  });
+
+  it("preserves a resolved append mapping when load returns the same ID", async () => {
+    const messages = createCloudMessages(1);
+    vi.mocked(cloud.threads.messages.create).mockResolvedValue({
+      message_id: "remote-1",
+    });
+    vi.mocked(cloud.threads.messages.list).mockResolvedValue({
+      messages,
+    });
+
+    await persistence.append("thread-1", "message-1", null, "aui/v0", {});
+    await persistence.load("thread-1");
+
+    expect(await persistence.getRemoteId("message-1")).toBe("remote-1");
   });
 
   it("does not restore IDs from a load that finishes after reset", async () => {
