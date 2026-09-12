@@ -47,32 +47,20 @@ const stepGraphemeLeft = (text: string, offset: number) => {
 const snapToGraphemeBoundary = (text: string, offset: number) => {
   if (offset <= 0) return 0;
   if (offset >= text.length) return text.length;
-  let previous = 0;
-  for (const { index } of graphemeSegmenter.segment(text)) {
-    if (index === offset) return offset;
-    if (index > offset) break;
-    previous = index;
-  }
-  return previous;
+  return graphemeSegmenter.segment(text).containing(offset)!.index;
 };
 
 const snapToNextGraphemeBoundary = (text: string, offset: number) => {
   if (offset <= 0) return 0;
   if (offset >= text.length) return text.length;
-  for (const { index, segment } of graphemeSegmenter.segment(text)) {
-    const end = index + segment.length;
-    if (offset <= end) return end;
-  }
-  return text.length;
+  const entry = graphemeSegmenter.segment(text).containing(offset)!;
+  return entry.index === offset ? offset : entry.index + entry.segment.length;
 };
 
 const stepGraphemeRight = (text: string, offset: number) => {
   if (offset >= text.length) return text.length;
-  for (const { index, segment } of graphemeSegmenter.segment(text)) {
-    const end = index + segment.length;
-    if (end > offset) return end;
-  }
-  return text.length;
+  const entry = graphemeSegmenter.segment(text).containing(Math.max(offset, 0));
+  return entry ? entry.index + entry.segment.length : text.length;
 };
 
 export const getGraphemeAt = (text: string, offset: number) => {

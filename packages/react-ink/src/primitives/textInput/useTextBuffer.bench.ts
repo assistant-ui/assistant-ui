@@ -11,5 +11,14 @@ describe("terminal cursor near the end of a long prompt", () => {
         getGraphemeAt(text, moved.cursorOffset);
       }).run();
     });
+    const nearEnd = { ...state, cursorOffset: size - 1 };
+    test(`${size} characters, editing before the end`, async ({ bench }) => {
+      await bench(`${size} characters, editing before the end`, () => {
+        textBufferReducer(nearEnd, { type: "move-right" });
+        textBufferReducer(nearEnd, { type: "insert", text: "!" });
+        textBufferReducer(nearEnd, { type: "delete-backward" });
+        getGraphemeAt(text, nearEnd.cursorOffset);
+      }).run();
+    });
   }
 });
