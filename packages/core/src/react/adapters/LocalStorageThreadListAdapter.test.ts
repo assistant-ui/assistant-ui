@@ -294,6 +294,38 @@ describe("parseStoredMessageRepository", () => {
     ).toEqual(repo.messages[0]?.message.content);
   });
 
+  it("preserves unknown message parts for forward compatibility", () => {
+    const stored = JSON.stringify({
+      messages: [
+        {
+          message: {
+            ...storedMessage("user-content"),
+            content: [{ type: "future-user-part", value: "user" }],
+          },
+          parentId: null,
+        },
+        {
+          message: {
+            ...storedMessage("assistant-content", "assistant"),
+            content: [{ type: "future-assistant-part", value: "assistant" }],
+          },
+          parentId: "user-content",
+        },
+      ],
+    });
+
+    const repo = parseStoredMessageRepository(stored);
+    expect(repo.messages.map((item) => item.message.content)).toEqual([
+      [{ type: "future-user-part", value: "user" }],
+      [{ type: "future-assistant-part", value: "assistant" }],
+    ]);
+    expect(
+      parseStoredMessageRepository(JSON.stringify(repo)).messages.map(
+        (item) => item.message.content,
+      ),
+    ).toEqual(repo.messages.map((item) => item.message.content));
+  });
+
   it("normalizes nested tool-call data loaded from storage", () => {
     const repo = parseStoredMessageRepository(
       JSON.stringify({

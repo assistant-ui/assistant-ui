@@ -242,6 +242,15 @@ const parseStoredAssistantContent = (
       );
       return message.role === "assistant" ? message.content : [];
     } catch {
+      if (
+        isRecord(rawPart) &&
+        typeof rawPart.type === "string" &&
+        !rawPart.type.startsWith("data-")
+      ) {
+        return [
+          rawPart as unknown as StoredAssistantMessage["content"][number],
+        ];
+      }
       return [];
     }
   });
@@ -267,7 +276,7 @@ const isStoredUserContentPart = (value: unknown): boolean => {
     case "data":
       return typeof value.name === "string" && "data" in value;
     default:
-      return value.type.startsWith("data-") && "data" in value;
+      return !value.type.startsWith("data-") || "data" in value;
   }
 };
 
@@ -284,7 +293,7 @@ const parseStoredUserContent = (
       );
       return message.role === "user" ? message.content : [];
     } catch {
-      return [];
+      return [part as unknown as StoredUserMessage["content"][number]];
     }
   });
 
