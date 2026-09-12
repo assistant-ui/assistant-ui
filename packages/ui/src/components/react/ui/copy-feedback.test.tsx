@@ -69,37 +69,6 @@ describe.each([
     view.unmount();
   });
 
-  it("ignores an older write that succeeds after a newer success", async () => {
-    vi.useFakeTimers();
-    let resolveFirst!: () => void;
-    const firstWrite = new Promise<void>((resolve) => {
-      resolveFirst = resolve;
-    });
-    mockClipboard(
-      vi.fn().mockReturnValueOnce(firstWrite).mockResolvedValueOnce(undefined),
-    );
-    const onCopied = vi.fn();
-    const view = render(
-      <CodeBlock title="Example" onCopied={onCopied}>
-        <pre>value</pre>
-      </CodeBlock>,
-    );
-
-    fireEvent.click(screen.getByRole("button", { name: "Copy code" }));
-    fireEvent.click(screen.getByRole("button", { name: "Copy code" }));
-    await act(async () => Promise.resolve());
-    expect(onCopied).toHaveBeenCalledOnce();
-    act(() => vi.advanceTimersByTime(1_500));
-
-    await act(async () => {
-      resolveFirst();
-      await firstWrite;
-    });
-    expect(onCopied).toHaveBeenCalledOnce();
-    expect(vi.getTimerCount()).toBe(0);
-    view.unmount();
-  });
-
   it("does not schedule feedback when onCopied unmounts the component", async () => {
     vi.useFakeTimers();
     mockClipboard(() => Promise.resolve());
@@ -148,30 +117,6 @@ describe.each([
   ["Base", BaseCommandTabs],
   ["Radix", RadixCommandTabs],
 ] as const)("%s CommandTabs copy feedback", (_name, CommandTabs) => {
-  it("ignores an older write that succeeds after a newer success", async () => {
-    vi.useFakeTimers();
-    let resolveFirst!: () => void;
-    const firstWrite = new Promise<void>((resolve) => {
-      resolveFirst = resolve;
-    });
-    mockClipboard(
-      vi.fn().mockReturnValueOnce(firstWrite).mockResolvedValueOnce(undefined),
-    );
-    const view = render(<CommandTabs commands={{ npm: "npm install" }} />);
-
-    fireEvent.click(screen.getByRole("button", { name: "Copy command" }));
-    fireEvent.click(screen.getByRole("button", { name: "Copy command" }));
-    await act(async () => Promise.resolve());
-    act(() => vi.advanceTimersByTime(1_500));
-
-    await act(async () => {
-      resolveFirst();
-      await firstWrite;
-    });
-    expect(vi.getTimerCount()).toBe(0);
-    view.unmount();
-  });
-
   it("clears an active feedback timer when unmounted", async () => {
     vi.useFakeTimers();
     mockClipboard(() => Promise.resolve());

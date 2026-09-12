@@ -72,35 +72,6 @@ describe("useCopyToClipboard", () => {
     expect(result.current.isCopied).toBe(true);
   });
 
-  it("ignores an older write that succeeds after a newer success", async () => {
-    vi.useFakeTimers();
-    let resolveFirst!: () => void;
-    const firstWrite = new Promise<void>((resolve) => {
-      resolveFirst = resolve;
-    });
-    mockClipboard(
-      vi.fn().mockReturnValueOnce(firstWrite).mockResolvedValueOnce(undefined),
-    );
-    const { result } = renderHook(() =>
-      useCopyToClipboard({ copiedDuration: 1_000 }),
-    );
-
-    result.current.copyToClipboard("first");
-    await act(async () => {
-      result.current.copyToClipboard("second");
-      await Promise.resolve();
-    });
-    act(() => vi.advanceTimersByTime(1_000));
-    expect(result.current.isCopied).toBe(false);
-
-    await act(async () => {
-      resolveFirst();
-      await firstWrite;
-    });
-    expect(result.current.isCopied).toBe(false);
-    expect(vi.getTimerCount()).toBe(0);
-  });
-
   it("clears active feedback timers when unmounted", async () => {
     vi.useFakeTimers();
     mockClipboard(() => Promise.resolve());

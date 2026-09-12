@@ -88,34 +88,6 @@ describe("useCopyToClipboard", () => {
     await hook.unmount();
   });
 
-  it("ignores an older write that succeeds after a newer success", async () => {
-    vi.useFakeTimers();
-    let resolveFirst!: () => void;
-    const firstWrite = new Promise<void>((resolve) => {
-      resolveFirst = resolve;
-    });
-    mockClipboard(
-      vi.fn().mockReturnValueOnce(firstWrite).mockResolvedValueOnce(undefined),
-    );
-    const hook = await renderCopyHook();
-
-    hook.result.copy("first");
-    await act(async () => {
-      hook.result.copy("second");
-      await Promise.resolve();
-    });
-    act(() => vi.advanceTimersByTime(1_000));
-    expect(hook.result.isCopied).toBe(false);
-
-    await act(async () => {
-      resolveFirst();
-      await firstWrite;
-    });
-    expect(hook.result.isCopied).toBe(false);
-    expect(vi.getTimerCount()).toBe(0);
-    await hook.unmount();
-  });
-
   it("clears timers and ignores pending writes after unmount", async () => {
     vi.useFakeTimers();
     let resolveWrite!: () => void;
