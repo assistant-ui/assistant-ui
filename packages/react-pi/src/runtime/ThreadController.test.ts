@@ -796,6 +796,43 @@ describe("PiThreadController", () => {
     });
   });
 
+  it("keeps newer Pi state when an image send is cancelled", async () => {
+    let fetchSignal: AbortSignal | undefined;
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(
+        (_input: RequestInfo | URL, init?: RequestInit) =>
+          new Promise<Response>((_resolve, reject) => {
+            fetchSignal = init?.signal ?? undefined;
+            fetchSignal?.addEventListener(
+              "abort",
+              () => reject(fetchSignal?.reason),
+              { once: true },
+            );
+          }),
+      ),
+    );
+    onTestFinished(() => vi.unstubAllGlobals());
+    const client = createFakeClient();
+    const controller = new PiThreadController(client, THREAD);
+
+    const send = controller.sendMessage(
+      userMessageWithImage("look", "https://cdn.example.com/image.png"),
+    );
+    const rejected = expect(send).rejects.toMatchObject({ name: "AbortError" });
+    await vi.waitFor(() => expect(fetchSignal).toBeDefined());
+
+    client.emit(ev({ type: "agent_start" }, 1));
+    await controller.cancel();
+    await rejected;
+
+    expect(controller.getState()).toMatchObject({
+      runStatus: "running",
+      metadata: { status: "running" },
+      lastError: undefined,
+    });
+  });
+
   it("sends queued messages after failed image preparation", async () => {
     vi.stubGlobal(
       "fetch",
@@ -821,7 +858,10 @@ describe("PiThreadController", () => {
     await second;
 
     expect(client.sent).toHaveLength(1);
-    expect(client.sent[0]!.input).toEqual({ content: "second" });
+    expect(client.sent[0]!.input).toEqual({
+      content: "second",
+      streamingBehavior: "followUp",
+    });
     expect(controller.getState().queue).toEqual({
       steering: [],
       followUp: [],

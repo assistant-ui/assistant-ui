@@ -350,6 +350,7 @@ type OptimisticUserMessage = {
 
 type OptimisticSend = {
   message: PiAgentMessage;
+  eventRevision: number;
   previousRunStatus: PiThreadState["runStatus"];
   previousMetadataStatus: PiThreadState["metadata"]["status"];
   previousLastError: string | undefined;
@@ -386,6 +387,7 @@ export class PiThreadController implements PiThreadControllerLike {
   private loadPromise: Promise<void> | null = null;
   private sendDispatchTail: Promise<void> = Promise.resolve();
   private readonly pendingSendControllers = new Set<AbortController>();
+  private eventRevision = 0;
   private messageFlushScheduled = false;
   /** Synthetic seq for snapshots produced locally (via `getThread`), kept below
    * the supervisor's live seqs so they never suppress real events. */
@@ -577,6 +579,7 @@ export class PiThreadController implements PiThreadControllerLike {
   private beginOptimisticSend(input: PiSendMessageInput): OptimisticSend {
     const send = {
       message: optimisticUserMessageFromInput(input),
+      eventRevision: this.eventRevision,
       previousRunStatus: this.state.runStatus,
       previousMetadataStatus: this.state.metadata.status,
       previousLastError: this.state.lastError,
@@ -596,6 +599,8 @@ export class PiThreadController implements PiThreadControllerLike {
     );
     if (index !== -1) this.optimisticUserMessages.splice(index, 1);
     this.recomputeProjectedMessagesAndNotify();
+
+    if (this.eventRevision !== send.eventRevision) return;
 
     if (isAbortError(error)) {
       this.setState({
@@ -667,8 +672,8 @@ export class PiThreadController implements PiThreadControllerLike {
 
     try {
       await this.dispatchMessage(message, behavior, {
-        onBehaviorResolved: (resolvedBehavior) => {
-          if (resolvedBehavior !== undefined) return;
+        onRunStateResolved: (runIsActive) => {
+          if (runIsActive) return;
 
           const entries = this.state.queue[mode];
           const index = entries.lastIndexOf(content);
@@ -716,7 +721,7 @@ export class PiThreadController implements PiThreadControllerLike {
     message: AppendMessage,
     behavior: "followUp" | "steer" | undefined,
     options?: {
-      onBehaviorResolved: (behavior: "followUp" | "steer" | undefined) => void;
+      onRunStateResolved: (runIsActive: boolean) => void;
     },
   ) {
     const abortController = new AbortController();
@@ -726,17 +731,13 @@ export class PiThreadController implements PiThreadControllerLike {
       try {
         await previousRequest.catch(() => {});
         abortController.signal.throwIfAborted();
-        // A queued send can outlive the run it targeted. Pi treats it as a
-        // normal prompt once that run is gone, so mirror that transition.
-        const resolvedBehavior =
-          options && this.state.runStatus !== "running" ? undefined : behavior;
-        options?.onBehaviorResolved(resolvedBehavior);
         const input = await buildPiSendInput(
           message,
-          resolvedBehavior,
+          behavior,
           abortController.signal,
         );
         abortController.signal.throwIfAborted();
+        options?.onRunStateResolved(this.state.runStatus === "running");
         await this.client.sendMessage(this.threadId, input);
       } finally {
         this.pendingSendControllers.delete(abortController);
@@ -858,7 +859,10 @@ export class PiThreadController implements PiThreadControllerLike {
   private dispatch(event: PiClientEvent) {
     const next = reducePiThreadState(this.state, event);
     const changed = next !== this.state;
-    if (changed) this.state = next;
+    if (changed) {
+      this.state = next;
+      this.eventRevision += 1;
+    }
 
     this.reconcileOptimisticUserMessages();
 
