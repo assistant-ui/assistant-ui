@@ -2,8 +2,6 @@ import { createAgentSession } from "@earendil-works/pi-coding-agent";
 
 import { StandardSchemaV1 } from "@standard-schema/spec";
 
-import "ai";
-
 import "radix-ui";
 
 import "radix-ui/internal";

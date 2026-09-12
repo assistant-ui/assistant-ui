@@ -14,18 +14,6 @@ type AISDKMessageLike = {
   metadata?: unknown;
 };
 
-type AISDKRunTelemetry = {
-  assistantMessageId?: string;
-  status: "completed" | "incomplete";
-  toolCalls?: AssistantCloudRunReportToolCall[];
-  steps?: RunReportStepInit[];
-  totalSteps?: number;
-  outputText?: string;
-  usage?: RunTelemetryUsage;
-  modelId?: string;
-  metadata?: Record<string, unknown>;
-};
-
 type AISDKStorageFormat = Omit<UIMessage, "id">;
 
 declare class AssistantCloud {
@@ -707,6 +695,18 @@ interface Resource {
   getRawAttributes(): RawResourceAttribute[];
 }
 
+type RunMessageTelemetry = {
+  assistantMessageId?: string;
+  status: "completed" | "incomplete";
+  toolCalls?: AssistantCloudRunReportToolCall[];
+  steps?: RunReportStepInit[];
+  totalSteps?: number;
+  outputText?: string;
+  usage?: RunTelemetryUsage;
+  modelId?: string;
+  metadata?: Record<string, unknown>;
+};
+
 type RunReportInit = {
   threadId: string;
   status: AssistantCloudRunReport["status"];
@@ -874,7 +874,7 @@ declare function describeRunError(error: unknown): {
   errorCode?: string;
 };
 
-declare function extractAISDKRunTelemetry(messages: readonly AISDKMessageLike[]): AISDKRunTelemetry | null;
+declare function extractAISDKRunTelemetry(messages: readonly AISDKMessageLike[]): RunMessageTelemetry | null;
 
 declare function extractRunTelemetryModelId(metadata: Record<string, unknown> | undefined): string | undefined;
 
@@ -890,11 +890,11 @@ declare function generateThreadTitle(cloud: AssistantCloud, options: {
 }): Promise<string | null>;
 
 declare namespace entry_ai_sdk_exports {
-  export { AISDKMessageLike, AISDKRunTelemetry, AISDKStorageFormat, aiSDKV6FormatAdapter, extractAISDKRunTelemetry };
+  export { AISDKMessageLike, AISDKStorageFormat, aiSDKV6FormatAdapter, extractAISDKRunTelemetry };
 }
 
 declare namespace entry_root_exports {
-  export { AssistantCloud, AssistantCloudEvent, AssistantCloudEventKind, AssistantCloudEvents, AssistantCloudRunReport, AssistantCloudRunReportToolCall, AssistantCloudScoreBody, AssistantCloudScoreResponse, AssistantCloudScores, AssistantCloudTelemetryConfig, AssistantCloudThreadMessageFeedbackBody, AssistantCloudThreadMessageFeedbackResponse, CloudAPIError, CloudEngagementReporter, CloudMessage, CloudMessagePersistence, CloudResponseError, CloudRunReportInit, CloudRunReporter, EngagementEventIds, EngagementIdResolver, GeneratePresignedDownloadUrlResponse, McpSamplingHandler, MessageFormatAdapter, RunReportInit, RunReportOutcome, RunReportStepInit, RunTelemetryToolCallInit, RunTelemetryUsage, RunTelemetryUsageInit, SamplingCallData, createFormattedPersistence, createRunReport, createRunTelemetryToolCall, createSamplingCollector, deriveRunOutcome, describeRunError, extractRunTelemetryModelId, generateThreadTitle, normalizeRunTelemetryUsage, readAnonymousRefreshToken, truncateRunTelemetryText, wrapSamplingHandler };
+  export { AssistantCloud, AssistantCloudEvent, AssistantCloudEventKind, AssistantCloudEvents, AssistantCloudRunReport, AssistantCloudRunReportToolCall, AssistantCloudScoreBody, AssistantCloudScoreResponse, AssistantCloudScores, AssistantCloudTelemetryConfig, AssistantCloudThreadMessageFeedbackBody, AssistantCloudThreadMessageFeedbackResponse, CloudAPIError, CloudEngagementReporter, CloudMessage, CloudMessagePersistence, CloudResponseError, CloudRunReportInit, CloudRunReporter, EngagementEventIds, EngagementIdResolver, GeneratePresignedDownloadUrlResponse, McpSamplingHandler, MessageFormatAdapter, RunMessageTelemetry, RunReportInit, RunReportOutcome, RunReportStepInit, RunTelemetryToolCallInit, RunTelemetryUsage, RunTelemetryUsageInit, SamplingCallData, createFormattedPersistence, createRunReport, createRunTelemetryToolCall, createSamplingCollector, deriveRunOutcome, describeRunError, extractRunTelemetryModelId, generateThreadTitle, normalizeRunTelemetryUsage, readAnonymousRefreshToken, truncateRunTelemetryText, wrapSamplingHandler };
 }
 
 declare namespace entry_telemetry_exports {

@@ -28,6 +28,7 @@ export {
   normalizeRunTelemetryUsage,
   truncateRunTelemetryText,
   type AssistantCloudRunReportToolCall,
+  type RunMessageTelemetry,
   type RunReportInit,
   type RunReportOutcome,
   type RunReportStepInit,

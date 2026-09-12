@@ -199,51 +199,46 @@ describe("extractAISDKRunTelemetry", () => {
     ]);
   });
 
-  it("reads incomplete without text and no steps without step markers", () => {
-    const result = extractAISDKRunTelemetry([
-      assistant([
-        {
-          type: "tool-search",
-          toolCallId: "c",
-          state: "input-available",
-          input: {},
-        } as UIMessage["parts"][number],
-      ]),
-    ]);
-    expect(result?.status).toBe("incomplete");
-    expect(result?.steps).toBeUndefined();
-    expect(result?.totalSteps).toBeUndefined();
-    expect(result?.outputText).toBeUndefined();
-  });
-
-  it("reads completed for a tool only run once every call is answered", () => {
-    const call = (
-      toolCallId: string,
-      state: string,
-      rest: Record<string, unknown> = {},
-    ) =>
+  it("reads a tool only run as completed with its step closed by the calls", () => {
+    const call = (toolCallId: string, state: string, output?: unknown) =>
       ({
         type: "tool-search",
         toolCallId,
         state,
         input: {},
-        ...rest,
+        ...(output !== undefined ? { output } : {}),
       }) as UIMessage["parts"][number];
-    const statusOf = (parts: UIMessage["parts"]) =>
-      extractAISDKRunTelemetry([assistant(parts)])?.status;
 
-    expect(statusOf([call("a", "output-available", { output: [] })])).toBe(
-      "completed",
-    );
-    expect(statusOf([call("a", "output-error", { errorText: "boom" })])).toBe(
-      "completed",
-    );
-    expect(
-      statusOf([
-        call("a", "output-available", { output: [] }),
-        call("b", "input-available"),
-      ]),
-    ).toBe("incomplete");
+    const answered = extractAISDKRunTelemetry([
+      assistant([{ type: "step-start" }, call("a", "output-available", [])]),
+    ]);
+    expect(answered?.status).toBe("completed");
+    expect(answered?.steps?.[0]?.finishReason).toBe("tool-calls");
+    expect(answered?.outputText).toBeUndefined();
+
+    const pending = extractAISDKRunTelemetry([
+      assistant([{ type: "step-start" }, call("b", "input-available")]),
+    ]);
+    expect(pending?.status).toBe("completed");
+    expect(pending?.steps?.[0]?.finishReason).toBe("tool-calls");
+  });
+
+  it("reads incomplete for a run that produced nothing", () => {
+    const empty = extractAISDKRunTelemetry([
+      assistant([{ type: "step-start" }]),
+    ]);
+    expect(empty?.status).toBe("incomplete");
+    expect(empty?.totalSteps).toBe(1);
+    expect(empty?.steps?.[0]?.finishReason).toBeUndefined();
+    expect(empty?.outputText).toBeUndefined();
+  });
+
+  it("reads no steps without step markers", () => {
+    const result = extractAISDKRunTelemetry([
+      assistant([{ type: "text", text: "hi" }]),
+    ]);
+    expect(result?.steps).toBeUndefined();
+    expect(result?.totalSteps).toBeUndefined();
   });
 
   it("skips a stored part without a type", () => {

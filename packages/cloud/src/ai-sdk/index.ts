@@ -6,6 +6,7 @@ import {
   createRunTelemetryToolCall,
   extractRunTelemetryModelId,
   normalizeRunTelemetryUsage,
+  type RunMessageTelemetry,
   type RunReportStepInit,
   type RunTelemetryUsage,
   type RunTelemetryUsageInit,
@@ -40,18 +41,6 @@ export type AISDKMessageLike = {
   metadata?: unknown;
 };
 
-export type AISDKRunTelemetry = {
-  assistantMessageId?: string;
-  status: "completed" | "incomplete";
-  toolCalls?: AssistantCloudRunReportToolCall[];
-  steps?: RunReportStepInit[];
-  totalSteps?: number;
-  outputText?: string;
-  usage?: RunTelemetryUsage;
-  modelId?: string;
-  metadata?: Record<string, unknown>;
-};
-
 type Part = Record<string, unknown> & { type: string };
 
 function isRecord(value: unknown): value is Record<string, unknown> {
@@ -65,14 +54,9 @@ function isPart(value: unknown): value is Part {
 /**
  * The AI SDK's own tool part rules, kept here so the entry loads without the
  * `ai` runtime: a static tool part is `tool-<name>`, a dynamic one is
- * `dynamic-tool` with its name in `toolName`. A call is answered once the part
- * holds its output or its error.
+ * `dynamic-tool` with its name in `toolName`.
  */
-function toolCallOf(
-  part: Part,
-):
-  | { toolCall: AssistantCloudRunReportToolCall; answered: boolean }
-  | undefined {
+function toolCallOf(part: Part): AssistantCloudRunReportToolCall | undefined {
   if (typeof part.toolCallId !== "string") return undefined;
   const isStatic = part.type.startsWith("tool-");
   if (!isStatic && part.type !== "dynamic-tool") return undefined;
@@ -82,20 +66,13 @@ function toolCallOf(
       ? part.toolName
       : undefined;
   if (!toolName) return undefined;
-  const result = part.output ?? part.result;
-  return {
-    toolCall: createRunTelemetryToolCall({
-      toolName,
-      toolCallId: part.toolCallId,
-      args: part.input ?? part.args,
-      result,
-      toolSource: isStatic ? "frontend" : "mcp",
-    }),
-    answered:
-      part.state === "output-available" ||
-      part.state === "output-error" ||
-      result !== undefined,
-  };
+  return createRunTelemetryToolCall({
+    toolName,
+    toolCallId: part.toolCallId,
+    args: part.input ?? part.args,
+    result: part.output ?? part.result,
+    toolSource: isStatic ? "frontend" : "mcp",
+  });
 }
 
 function attachSamplingCalls(
@@ -170,17 +147,16 @@ function messageUsage(
  * the AI SDK streamed as one message is one element; a run the cloud stored as
  * several assistant rows is aggregated, step by step, in order. Returns null
  * when no assistant message is present. Status reads completed when the run
- * produced text or every tool call it made was answered; an integration that
- * observed the finish event overrides it.
+ * produced text or tool calls, as a live finish with reason `tool-calls` does;
+ * an integration that observed the finish event overrides it.
  */
 export function extractAISDKRunTelemetry(
   messages: readonly AISDKMessageLike[],
-): AISDKRunTelemetry | null {
+): RunMessageTelemetry | null {
   const textParts: string[] = [];
   const toolCalls: AssistantCloudRunReportToolCall[] = [];
   const steps: RunReportStepInit[] = [];
   const usages: RunTelemetryUsage[] = [];
-  let pendingToolCalls = 0;
   let assistant: AISDKMessageLike | undefined;
 
   for (const message of messages) {
@@ -205,13 +181,12 @@ export function extractAISDKRunTelemetry(
         textParts.push(part.text);
         continue;
       }
-      const tool = toolCallOf(part);
-      if (!tool) continue;
-      if (!tool.answered) pendingToolCalls += 1;
-      toolCalls.push(tool.toolCall);
-      messageToolCalls.push(tool.toolCall);
+      const toolCall = toolCallOf(part);
+      if (!toolCall) continue;
+      toolCalls.push(toolCall);
+      messageToolCalls.push(toolCall);
       if (step) {
-        step.toolCalls = [...(step.toolCalls ?? []), tool.toolCall];
+        step.toolCalls = [...(step.toolCalls ?? []), toolCall];
         step.finishReason = "tool-calls";
       }
     }
@@ -229,8 +204,7 @@ export function extractAISDKRunTelemetry(
 
   const usage = usages.length > 0 ? sumUsage(usages) : undefined;
   const modelId = extractRunTelemetryModelId(metadata);
-  const completed =
-    textParts.length > 0 || (toolCalls.length > 0 && pendingToolCalls === 0);
+  const completed = textParts.length > 0 || toolCalls.length > 0;
   return {
     ...(assistant.id !== undefined
       ? { assistantMessageId: assistant.id }

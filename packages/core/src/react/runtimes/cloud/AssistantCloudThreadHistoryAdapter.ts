@@ -19,6 +19,7 @@ import {
   describeRunError,
   extractRunTelemetryModelId,
   normalizeRunTelemetryUsage,
+  type RunMessageTelemetry,
   type RunReportOutcome,
   type RunReportStepInit,
   type RunTelemetryUsageInit,
@@ -27,7 +28,6 @@ import {
 import {
   extractAISDKRunTelemetry,
   type AISDKMessageLike,
-  type AISDKRunTelemetry,
 } from "assistant-cloud/ai-sdk";
 import { auiV0Decode, auiV0Encode } from "./auiV0";
 import { type AssistantClient, getClientId, useAui } from "@assistant-ui/store";
@@ -355,7 +355,7 @@ class AssistantCloudThreadHistoryAdapter implements ThreadHistoryAdapter {
 
   private _sendReport(
     remoteId: string,
-    data: TelemetryData,
+    data: RunMessageTelemetry,
     durationMs?: number,
     stepTimestamps?: StepTimestamp[],
     messageInfo?: RunMessageInfo,
@@ -412,8 +412,6 @@ function mergeStepTimestamps(
       : undefined),
   }));
 }
-
-type TelemetryData = AISDKRunTelemetry;
 
 type RunMessageInfo = {
   localMessageId?: string;
@@ -510,7 +508,10 @@ function isRecord(value: unknown): value is Record<string, unknown> {
   return value !== null && typeof value === "object";
 }
 
-function extractTelemetry<T>(format: string, content: T): TelemetryData | null {
+function extractTelemetry<T>(
+  format: string,
+  content: T,
+): RunMessageTelemetry | null {
   switch (format) {
     case "aui/v0":
       return extractAuiV0(content);
@@ -524,7 +525,7 @@ function extractTelemetry<T>(format: string, content: T): TelemetryData | null {
 function extractRunTelemetry<T>(
   format: string,
   runMessages: T[],
-): TelemetryData | null {
+): RunMessageTelemetry | null {
   if (format === "ai-sdk/v6") {
     return extractAISDKRunTelemetry(runMessages as AISDKMessageLike[]);
   }
@@ -535,7 +536,7 @@ function extractRunTelemetry<T>(
   return null;
 }
 
-export function extractAuiV0<T>(content: T): TelemetryData | null {
+export function extractAuiV0<T>(content: T): RunMessageTelemetry | null {
   const msg = content as {
     role?: string;
     status?: { type: string; reason?: string };

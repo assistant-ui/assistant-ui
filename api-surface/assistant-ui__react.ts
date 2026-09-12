@@ -1,7 +1,5 @@
 import { StandardSchemaV1 } from "@standard-schema/spec";
 
-import "ai";
-
 import { DropdownMenu, Popover, Slot } from "radix-ui";
 
 import { Primitive } from "radix-ui/internal";

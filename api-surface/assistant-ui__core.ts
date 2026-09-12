@@ -1,7 +1,5 @@
 import { StandardSchemaV1 } from "@standard-schema/spec";
 
-import "ai";
-
 import { ComponentType, FC, PropsWithChildren, ReactNode, RefObject } from "react";
 
 interface ScopeRegistry {

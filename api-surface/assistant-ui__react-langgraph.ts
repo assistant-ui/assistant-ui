@@ -2,8 +2,6 @@ import { Client, StreamMode } from "@langchain/langgraph-sdk";
 
 import { StandardSchemaV1 } from "@standard-schema/spec";
 
-import "ai";
-
 import { ComponentType } from "react";
 
 type AddToolResultOptions = {

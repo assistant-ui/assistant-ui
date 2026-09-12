@@ -1,7 +1,5 @@
 import { StandardSchemaV1 } from "@standard-schema/spec";
 
-import "ai";
-
 import React, { ComponentType, FC, PropsWithChildren, ReactElement, ReactNode } from "react";
 
 import { FlatList, FlatListProps, PressableProps, PressableStateCallbackType, TextInputProps, TextProps, ViewProps } from "react-native";

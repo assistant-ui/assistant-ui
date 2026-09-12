@@ -225,6 +225,23 @@ export type RunReportStepInit = {
   finishReason?: string | undefined;
 };
 
+/**
+ * The run report fields read from the messages of one run, in whichever
+ * format they were stored: the status the messages imply, the tool calls, the
+ * steps, the text, the usage and the model.
+ */
+export type RunMessageTelemetry = {
+  assistantMessageId?: string;
+  status: "completed" | "incomplete";
+  toolCalls?: AssistantCloudRunReportToolCall[];
+  steps?: RunReportStepInit[];
+  totalSteps?: number;
+  outputText?: string;
+  usage?: RunTelemetryUsage;
+  modelId?: string;
+  metadata?: Record<string, unknown>;
+};
+
 export type RunReportInit = {
   threadId: string;
   status: AssistantCloudRunReport["status"];

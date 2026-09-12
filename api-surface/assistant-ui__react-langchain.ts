@@ -2,8 +2,6 @@ import { AssembledToolCall, SubagentDiscoverySnapshot, SubagentDiscoverySnapshot
 
 import { StandardSchemaV1 } from "@standard-schema/spec";
 
-import "ai";
-
 type AddToolResultOptions = {
   messageId: string;
   toolName: string;
