@@ -43,6 +43,7 @@ const VALUE_RULES: Record<DataStreamStreamChunkType, ValueRule> = {
   [DataStreamStreamChunkType.ToolCall]: objectWith({
     toolCallId: isString,
     toolName: isString,
+    args: optional(isObject),
   }),
   [DataStreamStreamChunkType.ToolCallResult]: objectWith({
     toolCallId: isString,
@@ -539,26 +540,26 @@ export class DataStreamDecoder extends PipeableTransformStream<
             case DataStreamStreamChunkType.FinishMessage:
               closeOpenToolCallArgs();
               controller.enqueue({
+                ...value,
                 type: "message-finish",
                 path: [],
-                ...value,
               });
               break;
 
             case DataStreamStreamChunkType.StartStep:
               controller.enqueue({
+                ...value,
                 type: "step-start",
                 path: [],
-                ...value,
               });
               break;
 
             case DataStreamStreamChunkType.FinishStep:
               closeOpenToolCallArgs();
               controller.enqueue({
+                ...value,
                 type: "step-finish",
                 path: [],
-                ...value,
               });
               break;
             case DataStreamStreamChunkType.Data:
@@ -583,8 +584,8 @@ export class DataStreamDecoder extends PipeableTransformStream<
                 ? controller.withParentId(parentId)
                 : controller;
               ctrl.appendSource({
-                type: "source",
                 ...sourceData,
+                type: "source",
               });
               break;
             }
@@ -604,16 +605,16 @@ export class DataStreamDecoder extends PipeableTransformStream<
                 ? controller.withParentId(parentId)
                 : controller;
               ctrl.appendFile({
-                type: "file",
                 ...fileData,
+                type: "file",
               });
               break;
             }
 
             case DataStreamStreamChunkType.AuiDataPart:
               controller.appendData({
-                type: "data",
                 ...value,
+                type: "data",
               });
               break;
 

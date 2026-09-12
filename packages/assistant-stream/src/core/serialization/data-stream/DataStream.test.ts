@@ -787,6 +787,51 @@ describe("DataStreamDecoder malformed frame values", () => {
     ]);
   });
 
+  it("rejects a complete tool call frame whose args are not an object", async () => {
+    await expect(
+      decodeLines(['9:{"toolCallId":"t1","toolName":"search","args":"oops"}']),
+    ).rejects.toThrow('Invalid value for data-stream chunk type "9"');
+  });
+
+  it.each([
+    ['d:{"type":"data","finishReason":"stop"}', "message-finish"],
+    ['e:{"type":"data","finishReason":"stop"}', "step-finish"],
+    ['f:{"type":"data","messageId":"m1"}', "step-start"],
+  ])(
+    "keeps the chunk type of %s despite a type key in the value",
+    async (frame, type) => {
+      const chunks = await decodeLines([frame]);
+
+      expect(chunks.map((c) => c.type)).toEqual([type]);
+      expect(chunks.some((c) => c.type === "data")).toBe(false);
+    },
+  );
+
+  it("keeps the addressed path despite a path key in the value", async () => {
+    const chunks = await decodeLines(['d:{"path":[3],"finishReason":"stop"}']);
+
+    expect(chunks).toEqual([
+      expect.objectContaining({ type: "message-finish", path: [] }),
+    ]);
+  });
+
+  it.each([
+    [
+      'h:{"type":"file","sourceType":"url","id":"s1","url":"https://x"}',
+      "source",
+    ],
+    ['k:{"type":"data","data":"aGk=","mimeType":"text/plain"}', "file"],
+    ['aui-data:{"type":"file","name":"n","data":1}', "data"],
+  ])(
+    "keeps the part type of %s despite a type key in the value",
+    async (frame, type) => {
+      const chunks = await decodeLines([frame]);
+
+      const parts = chunks.filter((c) => c.type === "part-start");
+      expect(parts.map((c) => c.part.type)).toEqual([type]);
+    },
+  );
+
   it("leaves unknown chunk types to the existing unsupported-type arm", async () => {
     await expect(decodeLines(["zz:null"])).rejects.toThrow(
       "unsupported chunk type: zz",
