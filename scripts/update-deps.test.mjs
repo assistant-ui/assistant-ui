@@ -45,9 +45,11 @@ for (const failureStage of ["install", "expo-repin"]) {
         JSON.stringify(
           {
             dependencies: {
-              "@react-native/metro-config": "0.81.5",
               "react-native": "0.81.5",
               "unrelated-package": "1.0.0",
+            },
+            devDependencies: {
+              "@react-native/metro-config": "0.81.5",
             },
           },
           null,
@@ -73,7 +75,7 @@ node -e '
   const fs = require("node:fs");
   const file = "examples/with-expo/package.json";
   const manifest = JSON.parse(fs.readFileSync(file, "utf8"));
-  manifest.dependencies["@react-native/metro-config"] = "0.82.0";
+  manifest.devDependencies["@react-native/metro-config"] = "0.82.0";
   manifest.dependencies["react-native"] = "0.82.0";
   manifest.dependencies["unrelated-package"] = "2.0.0";
   fs.writeFileSync(file, JSON.stringify(manifest, null, 2) + "\\n");
@@ -119,9 +121,11 @@ printf 'package.json\\0examples/with-expo/package.json\\0'
       assert.match(result.stderr, /The Expo repin did not run/);
       const manifest = JSON.parse(readFileSync(manifestPath, "utf8"));
       assert.deepEqual(manifest.dependencies, {
-        "@react-native/metro-config": "0.81.5",
         "react-native": "0.81.5",
         "unrelated-package": "2.0.0",
+      });
+      assert.deepEqual(manifest.devDependencies, {
+        "@react-native/metro-config": "0.81.5",
       });
     } finally {
       rmSync(root, { recursive: true, force: true });
