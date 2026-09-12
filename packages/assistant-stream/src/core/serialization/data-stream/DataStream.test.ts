@@ -813,13 +813,10 @@ describe("DataStreamDecoder malformed frame values", () => {
     ).toBe(true);
   });
 
-  it.each([
-    '9:{"toolCallId":"t1","toolName":"search"}',
-    '9:{"toolCallId":"t1","toolName":"search","args":"oops"}',
-  ])("rejects a complete tool call frame %s by default", async (frame) => {
-    await expect(decodeLines([frame])).rejects.toThrow(
-      'Invalid value for data-stream chunk type "9"',
-    );
+  it("rejects a complete tool call frame whose args are not an object", async () => {
+    await expect(
+      decodeLines(['9:{"toolCallId":"t1","toolName":"search","args":"oops"}']),
+    ).rejects.toThrow('Invalid value for data-stream chunk type "9"');
   });
 
   it("treats null args on a complete tool call frame as absent", async () => {

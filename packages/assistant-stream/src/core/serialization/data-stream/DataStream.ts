@@ -47,7 +47,7 @@ const VALUE_RULES: Record<DataStreamStreamChunkType, ValueRule> = {
   [DataStreamStreamChunkType.ToolCall]: objectWith({
     toolCallId: isString,
     toolName: isString,
-    args: isObjectOrNull,
+    args: optional(isObjectOrNull),
   }),
   [DataStreamStreamChunkType.ToolCallResult]: objectWith({
     toolCallId: isString,
