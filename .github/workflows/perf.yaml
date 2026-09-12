@@ -3,6 +3,7 @@ name: Performance
 on:
   pull_request:
     branches: [main]
+    types: [opened, reopened, ready_for_review, labeled, synchronize]
     paths:
       - "packages/x-performance/**"
       - "packages/tap/**"
@@ -18,14 +19,19 @@ permissions:
   contents: read
   pull-requests: write
 
-concurrency:
-  group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
-  cancel-in-progress: true
-
 jobs:
   measure:
     name: Measure vs base (informational)
-    runs-on: blacksmith-8vcpu-ubuntu-2404
+    if: >-
+      !github.event.pull_request.draft &&
+      github.event.pull_request.head.repo.full_name == github.repository &&
+      github.head_ref != 'changeset-release/main' &&
+      (github.event.action != 'synchronize' || contains(github.event.pull_request.labels.*.name, 'type/perf')) &&
+      (github.event.action != 'labeled' || github.event.label.name == 'type/perf')
+    concurrency:
+      group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
+      cancel-in-progress: true
+    runs-on: blacksmith-4vcpu-ubuntu-2404
     timeout-minutes: 40
     steps:
       - name: Checkout code repository
@@ -116,7 +122,6 @@ jobs:
           cat "$RUNNER_TEMP/comment.md" >> "$GITHUB_STEP_SUMMARY"
 
       - name: Post the report as a sticky PR comment
-        if: github.event.pull_request.head.repo.full_name == github.repository
         env:
           GH_TOKEN: ${{ github.token }}
           REPO: ${{ github.repository }}
