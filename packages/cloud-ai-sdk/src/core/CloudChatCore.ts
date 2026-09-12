@@ -205,8 +205,11 @@ export class CloudChatCore {
   }
 
   /**
-   * Reports the decision the SDK recorded: it only answers gates on the last
-   * message, keeps the first answer, and ignores repeats.
+   * Reports the decision the SDK recorded, wherever that message now sits:
+   * the SDK answers a gate on what was the last message, keeps the first
+   * answer and ignores repeats, and may already have appended the automatic
+   * follow-up message by the time the caller reads the chat. The shared
+   * reporter dedupes by thread and approval id.
    */
   trackToolApprovalResponded(
     threadId: string | null,
@@ -214,18 +217,15 @@ export class CloudChatCore {
     decision: { id: string; approved: boolean },
   ): void {
     if (!threadId) return;
-    const message = messages.at(-1);
-    if (
-      !message ||
-      !message.parts.some(
+    const message = messages.find((candidate) =>
+      candidate.parts.some(
         (part) =>
           "approval" in part &&
           part.approval?.id === decision.id &&
           part.approval.approved === decision.approved,
-      )
-    ) {
-      return;
-    }
+      ),
+    );
+    if (!message) return;
     this.engagementReporter.toolApprovalResponded(threadId, {
       messageId: message.id,
       approvalId: decision.id,

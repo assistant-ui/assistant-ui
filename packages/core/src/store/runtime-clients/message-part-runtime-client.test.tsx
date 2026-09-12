@@ -2,7 +2,9 @@
 
 import { act, cleanup, render } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { useAui } from "@assistant-ui/store";
+import { useAui, useAuiEvent } from "@assistant-ui/store";
+import { MessagePrimitiveParts } from "../../react/primitives/message/MessageParts";
+import { ThreadPrimitiveMessages } from "../../react/primitives/thread/ThreadMessages";
 import { AssistantRuntimeProvider } from "../../react/AssistantRuntimeProvider";
 import { useExternalStoreRuntime } from "../../react/runtimes/useExternalStoreRuntime";
 import type { ThreadMessageLike } from "../../runtime/utils/thread-message-like";
@@ -120,6 +122,65 @@ describe("MessagePartClient tool approval events", () => {
     expect(listener).toHaveBeenLastCalledWith(
       expect.objectContaining({ approvalId: "approval-2", approved: false }),
     );
+  });
+
+  it("delivers the event to a listener subscribed at part scope", async () => {
+    // The bare-string form subscribes at the part's own scope, which only
+    // matches when the emission carries this part's client stack.
+    const seen: string[] = [];
+    const ToolCall = ({ toolCallId }: { toolCallId: string }) => {
+      useAuiEvent("part.toolApprovalResponded", (payload) => {
+        seen.push(`${toolCallId}<-${payload.toolCallId}`);
+      });
+      return null;
+    };
+    const Message = () => (
+      <MessagePrimitiveParts components={{ tools: { Fallback: ToolCall } }} />
+    );
+    let aui!: ReturnType<typeof useAui>;
+    const Consumer = () => {
+      aui = useAui();
+      return null;
+    };
+    const twoGates: ThreadMessageLike[] = [
+      messages[0]!,
+      {
+        id: "message-2",
+        role: "assistant",
+        content: [
+          {
+            type: "tool-call",
+            toolCallId: "tc-2",
+            toolName: "delete_file",
+            args: {},
+            approval: { id: "approval-2" },
+          },
+        ],
+      },
+    ];
+    const Harness = () => {
+      const runtime = useExternalStoreRuntime({
+        messages: twoGates,
+        convertMessage: (message) => message,
+        onNew: async () => {},
+        onRespondToToolApproval: async () => {},
+      });
+      return (
+        <AssistantRuntimeProvider runtime={runtime}>
+          <Consumer />
+          <ThreadPrimitiveMessages components={{ Message }} />
+        </AssistantRuntimeProvider>
+      );
+    };
+    render(<Harness />);
+    await act(async () => {
+      await aui.thread
+        .message({ id: "message-1" })
+        .part({ toolCallId: "tc-1" })
+        .respondToToolApproval({ approved: true });
+    });
+    // Only the listener inside the answered part fires.
+    expect(seen).toEqual(["tc-1<-tc-1"]);
   });
 
   it("propagates a rejected response without emitting", async () => {

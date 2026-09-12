@@ -435,18 +435,33 @@ describe("CloudChatCore", () => {
       // Still pending, or answered the other way.
       core.trackToolApprovalResponded("thread-1", [pending()], decision);
       core.trackToolApprovalResponded("thread-1", [answered(true)], decision);
-      // Only the last message can be answered.
-      core.trackToolApprovalResponded(
-        "thread-1",
-        [
-          answered(false),
-          message("user-2", "user", [{ type: "text", text: "next" }]),
-        ],
-        decision,
-      );
 
       await new Promise((resolve) => setTimeout(resolve, 0));
       expect(track).not.toHaveBeenCalled();
+    });
+
+    it("reports a decision the SDK already followed up on", async () => {
+      // With sendAutomaticallyWhen the SDK schedules a follow-up submit right
+      // after recording the answer, so the answered message may no longer be
+      // last when the wrapper reads the chat.
+      const track = vi.fn();
+      const core = createCore({ cloud: { events: { track } } });
+      getResolvedRemoteIdMock.mockReturnValue("remote-assistant-1");
+      core.trackToolApprovalResponded(
+        "thread-1",
+        [
+          answered(true),
+          message("assistant-2", "assistant", [{ type: "text", text: "ok" }]),
+        ],
+        { id: "approval-1", approved: true },
+      );
+
+      await vi.waitFor(() => expect(track).toHaveBeenCalledOnce());
+      expect(track).toHaveBeenCalledWith({
+        kind: "tool_approved",
+        thread_id: "thread-1",
+        message_id: "remote-assistant-1",
+      });
     });
 
     it("reports each approval once", async () => {

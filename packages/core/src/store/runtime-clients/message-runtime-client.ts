@@ -10,10 +10,7 @@ import type { MessageRuntime } from "../../runtime/api/message-runtime";
 import { useSubscribable } from "./useSubscribable";
 import { liveRef } from "./liveRef";
 import { ComposerClient } from "./composer-runtime-client";
-import {
-  MessagePartClient,
-  type PartEventEmitter,
-} from "./message-part-runtime-client";
+import { MessagePartClient } from "./message-part-runtime-client";
 import type { MessageState } from "../scopes/message";
 import { AttachmentRuntimeClient } from "./attachment-runtime-client";
 
@@ -40,13 +37,11 @@ const useMessagePartByIndex = ({
   index,
   threadIdRef,
   messageIdRef,
-  emit,
 }: {
   runtime: MessageRuntime;
   index: number;
   threadIdRef: { current: string };
   messageIdRef: { current: string };
-  emit: PartEventEmitter;
 }) => {
   const partRuntime = useMemo(
     () => runtime.getMessagePartByIndex(index),
@@ -55,7 +50,7 @@ const useMessagePartByIndex = ({
   return useResource(
     MessagePartClient({
       runtime: partRuntime,
-      eventContext: { threadIdRef, messageIdRef, emit },
+      eventContext: { threadIdRef, messageIdRef },
     }),
   );
 };
@@ -122,13 +117,7 @@ const useMessageClient = ({
         "toolCallId" in part && part.toolCallId != null
           ? `toolCallId-${part.toolCallId}`
           : `index-${idx}`,
-        MessagePartByIndex({
-          runtime,
-          index: idx,
-          threadIdRef,
-          messageIdRef,
-          emit,
-        }),
+        MessagePartByIndex({ runtime, index: idx, threadIdRef, messageIdRef }),
         [runtime, idx],
       ),
     ),
