@@ -1,5 +1,5 @@
 import { fireEvent, render, screen } from "@testing-library/react";
-import { vi } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 import { useTooltipState } from "../context";
 import { Cell } from "./Cell";
 import { Grid } from "./Grid";
@@ -45,5 +45,57 @@ describe("Cell", () => {
 
     expect(onMouseLeave).toHaveBeenCalledOnce();
     expect(screen.getByRole("status").textContent).toBe("none");
+  });
+
+  it("keeps the tooltip closed when custom enter handling prevents default", () => {
+    render(
+      <Root
+        data={[{ date: "2025-01-13", count: 5 }]}
+        start="2025-01-13"
+        end="2025-01-13"
+        weekStart="monday"
+      >
+        <Grid>
+          {() => (
+            <Cell
+              data-testid="cell"
+              onMouseEnter={(event) => event.preventDefault()}
+            />
+          )}
+        </Grid>
+        <TooltipStateProbe />
+      </Root>,
+    );
+
+    fireEvent.mouseEnter(screen.getByTestId("cell"));
+
+    expect(screen.getByRole("status").textContent).toBe("none");
+  });
+
+  it("keeps the tooltip open when custom leave handling prevents default", () => {
+    render(
+      <Root
+        data={[{ date: "2025-01-13", count: 5 }]}
+        start="2025-01-13"
+        end="2025-01-13"
+        weekStart="monday"
+      >
+        <Grid>
+          {() => (
+            <Cell
+              data-testid="cell"
+              onMouseLeave={(event) => event.preventDefault()}
+            />
+          )}
+        </Grid>
+        <TooltipStateProbe />
+      </Root>,
+    );
+
+    const cell = screen.getByTestId("cell");
+    fireEvent.mouseEnter(cell);
+    fireEvent.mouseLeave(cell);
+
+    expect(screen.getByRole("status").textContent).toBe("5");
   });
 });
