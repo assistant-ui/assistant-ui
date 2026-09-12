@@ -59,7 +59,10 @@ export type AssistantCloudConfig = (
    *
    * When enabled, the SDK automatically reports run metadata (status, step
    * count, tool calls, and token usage) to Assistant Cloud after each
-   * assistant message is saved. No message content is sent.
+   * assistant message is saved. Reports can also include assistant output,
+   * tool arguments and results, errors, and metadata, which may contain
+   * sensitive content. Use `beforeReport` to redact or drop reports, or
+   * `telemetry: false` to disable reporting.
    *
    * - `true` / `undefined` — enabled with defaults
    * - `false` — disabled
