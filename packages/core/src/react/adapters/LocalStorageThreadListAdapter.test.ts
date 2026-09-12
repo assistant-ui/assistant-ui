@@ -245,6 +245,8 @@ describe("parseStoredMessageRepository", () => {
                 { type: "audio", audio: { data: "bytes", format: "mp3" } },
                 { type: "data", name: "weather", data: { sunny: true } },
                 { type: "data-legacy", data: { value: 1 } },
+                { type: "reasoning", text: "wrong role" },
+                { type: "generative-ui", spec: {} },
               ],
             },
             parentId: null,
@@ -355,6 +357,7 @@ describe("parseStoredMessageRepository", () => {
                 messages: [
                   null,
                   {
+                    id: "",
                     role: "assistant",
                     content: [{ type: "text", text: "partial" }, null],
                     attachments: [null],
@@ -543,20 +546,6 @@ describe("parseStoredMessageRepository", () => {
                   { length: 102 },
                   (_, index) => ({ index }),
                 ),
-                steps: [
-                  null,
-                  { messageId: 42 },
-                  {
-                    messageId: "step-message",
-                    usage: { inputTokens: 1, outputTokens: 2 },
-                  },
-                  { usage: { inputTokens: "1", outputTokens: 2 } },
-                ],
-                timing: {
-                  streamStartTime: 1,
-                  totalChunks: "2",
-                  toolCallCount: 0,
-                },
               },
             },
             parentId: null,
@@ -617,13 +606,6 @@ describe("parseStoredMessageRepository", () => {
     if (metadataMessage?.role !== "assistant") {
       throw new Error("expected assistant");
     }
-    expect(metadataMessage.metadata.steps).toEqual([
-      {
-        messageId: "step-message",
-        usage: { inputTokens: 1, outputTokens: 2 },
-      },
-    ]);
-    expect(metadataMessage.metadata.timing).toBeUndefined();
     const reparsedMetadataMessage = parseStoredMessageRepository(
       JSON.stringify(repo),
     ).messages[5]?.message;

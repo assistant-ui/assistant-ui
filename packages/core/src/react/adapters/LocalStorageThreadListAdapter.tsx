@@ -18,8 +18,6 @@ import type {
   RunConfig,
   CompleteAttachment,
   MessageStatus,
-  MessageTiming,
-  ThreadStep,
   ToolModelContentPart,
 } from "../../index";
 import type {
@@ -165,55 +163,6 @@ const parseStoredMessageStatus = (value: unknown): MessageStatus => {
   return value as unknown as MessageStatus;
 };
 
-const isFiniteNumber = (value: unknown): value is number =>
-  typeof value === "number" && Number.isFinite(value);
-
-const parseStoredThreadStep = (value: unknown): ThreadStep | null => {
-  if (!isRecord(value)) return null;
-  if (value.messageId !== undefined && typeof value.messageId !== "string") {
-    return null;
-  }
-
-  if (value.usage !== undefined) {
-    if (
-      !isRecord(value.usage) ||
-      !isFiniteNumber(value.usage.inputTokens) ||
-      !isFiniteNumber(value.usage.outputTokens)
-    ) {
-      return null;
-    }
-  }
-
-  return value as unknown as ThreadStep;
-};
-
-const parseStoredMessageTiming = (
-  value: unknown,
-): MessageTiming | undefined => {
-  if (!isRecord(value)) return undefined;
-  const requiredValues = [
-    value.streamStartTime,
-    value.totalChunks,
-    value.toolCallCount,
-  ];
-  const optionalValues = [
-    value.firstTokenTime,
-    value.totalStreamTime,
-    value.tokenCount,
-    value.tokensPerSecond,
-  ];
-  if (
-    !requiredValues.every(isFiniteNumber) ||
-    optionalValues.some(
-      (entry) => entry !== undefined && !isFiniteNumber(entry),
-    )
-  ) {
-    return undefined;
-  }
-
-  return value as unknown as MessageTiming;
-};
-
 const parseStoredAssistantMetadata = (
   value: unknown,
 ): StoredAssistantMessage["metadata"] => {
@@ -222,7 +171,6 @@ const parseStoredAssistantMetadata = (
     ? metadata.submittedFeedback
     : undefined;
   const submittedFeedbackType = submittedFeedback?.type;
-  const timing = parseStoredMessageTiming(metadata.timing);
 
   return {
     unstable_state: isJSONValue(metadata.unstable_state)
@@ -235,16 +183,19 @@ const parseStoredAssistantMetadata = (
       ? metadata.unstable_data.filter((entry) => isJSONValue(entry))
       : [],
     steps: Array.isArray(metadata.steps)
-      ? metadata.steps.flatMap((step) => {
-          const parsed = parseStoredThreadStep(step);
-          return parsed ? [parsed] : [];
-        })
+      ? (metadata.steps as StoredAssistantMessage["metadata"]["steps"])
       : [],
     ...(submittedFeedbackType === "positive" ||
     submittedFeedbackType === "negative"
       ? { submittedFeedback: { type: submittedFeedbackType } }
       : undefined),
-    ...(timing !== undefined ? { timing } : undefined),
+    ...(metadata.timing !== undefined
+      ? {
+          timing: metadata.timing as NonNullable<
+            StoredAssistantMessage["metadata"]["timing"]
+          >,
+        }
+      : undefined),
     ...(metadata.isOptimistic === true ? { isOptimistic: true } : undefined),
     custom: isRecord(metadata.custom) ? metadata.custom : {},
   };
@@ -371,7 +322,10 @@ const isStoredUserContentPart = (value: unknown): boolean => {
     case "data":
       return typeof value.name === "string" && "data" in value;
     default:
-      return !value.type.startsWith("data-") || "data" in value;
+      return (
+        !Object.hasOwn(KNOWN_STORED_MESSAGE_PART_TYPES, value.type) &&
+        (!value.type.startsWith("data-") || "data" in value)
+      );
   }
 };
 
@@ -491,7 +445,8 @@ function parseStoredNestedThreadMessage(
     return parsed;
   }
   if (!isMessageRole(value.role) || !Array.isArray(value.content)) return null;
-  const id = typeof value.id === "string" ? value.id : fallbackId;
+  const id =
+    typeof value.id === "string" && value.id.length > 0 ? value.id : fallbackId;
   const createdAt = parseDate(value.createdAt) ?? fallbackCreatedAt;
 
   if (value.role === "assistant") {
