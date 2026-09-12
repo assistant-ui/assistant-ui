@@ -77,7 +77,6 @@ const textOf = (message: any): string =>
 
 describe("useAISDKRuntime", () => {
   beforeEach(() => {
-    vi.clearAllMocks();
     vi.mocked(useExternalHistory).mockReturnValue({
       isLoading: false,
       deleteMessage: vi.fn().mockResolvedValue(undefined),

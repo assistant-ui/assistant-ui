@@ -47,7 +47,6 @@ function mockRegistry(threadId: string, messages: unknown[]) {
 
 describe("Contract: Title policy", () => {
   beforeEach(() => {
-    vi.clearAllMocks();
     persistMock.mockResolvedValue(undefined);
   });
 

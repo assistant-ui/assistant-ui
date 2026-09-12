@@ -1,4 +1,4 @@
-import { afterEach, describe, expect, it, vi } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 
 const mocks = vi.hoisted(() => ({
   fetchPreviewSession: vi.fn(),
@@ -173,10 +173,6 @@ function inputSchemaShape(schema: Record<string, unknown>) {
     additionalProperties: schema["additionalProperties"],
   };
 }
-
-afterEach(() => {
-  vi.clearAllMocks();
-});
 
 async function requestDescriptor(accept?: string) {
   const request = new Request(`${ORIGIN}/api/mcp`, {

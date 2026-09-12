@@ -1,4 +1,4 @@
-import { afterEach, describe, expect, it, vi } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 import { DEFAULT_MODEL_ID } from "@/lib/model";
 
 const mocks = vi.hoisted(() => ({
@@ -42,10 +42,6 @@ const request = (prompt: unknown) =>
     headers: { "content-type": "application/json" },
     body: JSON.stringify({ prompt }),
   });
-
-afterEach(() => {
-  vi.clearAllMocks();
-});
 
 describe("POST /api/suggestions", () => {
   it("returns the session guard response unchanged", async () => {

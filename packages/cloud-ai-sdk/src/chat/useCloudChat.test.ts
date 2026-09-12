@@ -121,7 +121,6 @@ const createThreads = (cloud: typeof mockCloud, threadId: string | null) => ({
 
 describe("useCloudChat", () => {
   beforeEach(() => {
-    vi.clearAllMocks();
     mockResolvedRemoteId.mockReturnValue(undefined);
     mockCloud.threads.messages.feedback.mockResolvedValue({
       feedback_id: "feedback-1",

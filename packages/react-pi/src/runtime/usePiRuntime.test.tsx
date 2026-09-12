@@ -111,7 +111,6 @@ afterEach(() => {
   mocks.liveState = undefined;
   mocks.allListeners.clear();
   mocks.messageListeners.clear();
-  vi.clearAllMocks();
   vi.restoreAllMocks();
 });
 

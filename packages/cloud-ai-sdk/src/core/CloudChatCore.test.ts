@@ -79,7 +79,6 @@ function createCore(overrides?: {
 
 describe("CloudChatCore", () => {
   beforeEach(() => {
-    vi.clearAllMocks();
     persistMock.mockResolvedValue(undefined);
     loadMessagesMock.mockResolvedValue([]);
     getResolvedRemoteIdMock.mockReset();

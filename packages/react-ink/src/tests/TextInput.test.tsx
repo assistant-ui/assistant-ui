@@ -49,7 +49,6 @@ const settle = async () => {
 
 afterEach(() => {
   cleanup();
-  vi.clearAllMocks();
   inputHandler = undefined;
 });
 
