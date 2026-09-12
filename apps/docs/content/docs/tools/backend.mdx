@@ -96,7 +96,9 @@ export async function POST(req: Request) {
 ```
 
 `AISDKToolkit.tools()` calls `frontendTools` for you under the hood; reach for
-`frontendTools` directly when you're not on the generative build.
+`frontendTools` directly when you're not on the generative build. A backend
+that only converts tool schemas can import it from `assistant-stream/ai-sdk`
+instead, which needs just `assistant-stream` and `ai` installed.
 
 <Callout type="tip">
   `toToolsJSONSchema` emits the uploaded tools in alphabetical order, so two

@@ -23,6 +23,14 @@
       "types": "./dist/utils.d.ts",
       "default": "./dist/utils.js"
     },
+    "./ai-sdk": {
+      "types": "./dist/ai-sdk/index.d.ts",
+      "default": "./dist/ai-sdk/index.js"
+    },
+    "./internal": {
+      "types": "./dist/internal.d.ts",
+      "default": "./dist/internal.js"
+    },
     "./resumable": {
       "types": "./dist/resumable/index.d.ts",
       "default": "./dist/resumable/index.js"
@@ -59,10 +67,14 @@
     "secure-json-parse": "^4.1.0"
   },
   "peerDependencies": {
+    "ai": "^7.0.0",
     "ioredis": "^5.10.1 || ^6.0.0",
     "redis": "^5.12.1"
   },
   "peerDependenciesMeta": {
+    "ai": {
+      "optional": true
+    },
     "ioredis": {
       "optional": true
     },
@@ -73,6 +85,7 @@
   "devDependencies": {
     "@assistant-ui/x-buildutils": "workspace:*",
     "@types/json-schema": "^7.0.15",
+    "ai": "^7.0.93",
     "ioredis": "^6.0.0",
     "ioredis-v5": "npm:ioredis@^5.11.1",
     "redis": "^6.2.1",
