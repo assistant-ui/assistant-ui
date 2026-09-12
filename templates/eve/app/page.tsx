@@ -1,17 +1,20 @@
 "use client";
 
 import { Thread } from "@/components/assistant-ui/elements/thread.aui";
+import { eveAskQuestionToolkit } from "@/components/eve-ask-question";
 import { EveAuthorization } from "@/components/eve-authorization";
 import {
   AssistantRuntimeProvider,
   AuiConfig,
   Suggestions,
+  Tools,
 } from "@assistant-ui/react";
 import { useEveAgentRuntime } from "@assistant-ui/eve";
 
 export default function Home() {
   const runtime = useEveAgentRuntime();
   const config = AuiConfig({
+    tools: Tools({ toolkit: eveAskQuestionToolkit }),
     suggestions: Suggestions([
       {
         title: "Explain Eve",

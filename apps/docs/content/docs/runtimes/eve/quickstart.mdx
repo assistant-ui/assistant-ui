@@ -54,7 +54,7 @@ eve registry add @assistant-ui=https://r.assistant-ui.com/{name}.json
 eve add @assistant-ui/eve-chat --overwrite
 ```
 
-`eve registry add` records the namespace in your `package.json`. `eve add` then installs `@assistant-ui/react` and `@assistant-ui/eve`, writes `app/page.tsx`, and writes the thread component together with everything it imports into `components/assistant-ui` and `components/ui`. It expects an Eve app that carries the Next.js Web Chat scaffold, because the installed files import `@/lib/utils` through the `@/*` alias that `eve init --channel-web-nextjs` sets up.
+`eve registry add` records the namespace in your `package.json`. `eve add` then installs `@assistant-ui/react` and `@assistant-ui/eve`, writes `app/page.tsx`, writes the thread component together with everything it imports into `components/assistant-ui` and `components/ui`, and writes `components/eve-ask-question.tsx`, the renderer for Eve's built-in `ask_question` tool. It expects an Eve app that carries the Next.js Web Chat scaffold, because the installed files import `@/lib/utils` through the `@/*` alias that `eve init --channel-web-nextjs` sets up.
 
 `--overwrite` is global rather than per file. It is what lets the item replace the scaffold's own `app/page.tsx`, and it also replaces any `components/assistant-ui` or `components/ui` file already in the project, including `avatar`, `button`, `collapsible`, `dialog`, and `tooltip`, so install on a clean tree and read the diff before keeping it. A plain `eve add` skips every pre-existing file instead, which leaves `app/page.tsx` untouched. Inspect an item before installing it with `eve registry view @assistant-ui/eve-chat`, and browse the rest of the registry with `eve registry list --registry @assistant-ui`.
 
@@ -157,6 +157,32 @@ export default function Home() {
   );
 }
 ```
+
+</Step>
+<Step>
+
+### Render questions
+
+Eve's built-in `ask_question` tool needs a renderer, or the question lands inside the collapsed tool group. Install it from the registry:
+
+```sh
+npx shadcn@latest add https://r.assistant-ui.com/eve-ask-question.json
+```
+
+Then register its toolkit on the provider:
+
+```tsx title="app/page.tsx"
+import { eveAskQuestionToolkit } from "@/components/eve-ask-question";
+import { AuiConfig, Tools } from "@assistant-ui/react";
+
+const config = AuiConfig({ tools: Tools({ toolkit: eveAskQuestionToolkit }) });
+
+<AssistantRuntimeProvider runtime={runtime} config={config}>
+  <Thread />
+</AssistantRuntimeProvider>;
+```
+
+See [Questions](/docs/runtimes/eve/overview#questions) for how the answer flows back to Eve.
 
 </Step>
 </Steps>
