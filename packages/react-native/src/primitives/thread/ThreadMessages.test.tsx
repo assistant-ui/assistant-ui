@@ -534,6 +534,39 @@ describe("ThreadMessages", () => {
       });
     });
 
+    it("does not consume a thread-switch scroll with the previous thread metrics", async () => {
+      h.state.thread.messages = [{ id: "1", role: "user" }];
+      await mountFlatList({ components: messageComponents });
+      const props = getFlatListProps();
+
+      await act(async () => {
+        props.onLayout?.({
+          nativeEvent: { layout: { height: 100 } },
+        });
+        props.onScroll?.({
+          nativeEvent: {
+            contentOffset: { y: 200 },
+            contentSize: { height: 300, width: 0 },
+            layoutMeasurement: { height: 100, width: 0 },
+          },
+        });
+      });
+      h.scrollToOffset.mockClear();
+
+      await emit("threads.selectionChanged");
+      await act(async () => {
+        props.onLayout?.({
+          nativeEvent: { layout: { height: 80 } },
+        });
+        props.onContentSizeChange?.(0, 60);
+      });
+
+      expect(h.scrollToOffset).toHaveBeenLastCalledWith({
+        animated: false,
+        offset: 0,
+      });
+    });
+
     it("keeps following through consecutive growth events without scroll echoes", async () => {
       h.state.thread.messages = [{ id: "1", role: "user" }];
       await mountFlatList({ components: messageComponents });

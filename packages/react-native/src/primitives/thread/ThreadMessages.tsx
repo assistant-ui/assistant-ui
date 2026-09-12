@@ -370,6 +370,8 @@ const useThreadMessagesFlatListAutoScroll = ({
     if (!scrollToBottomOnThreadSwitch) return;
     initializeScrollRequestedRef.current = false;
     lastScrollEventOffsetRef.current = 0;
+    metricsRef.current.contentHeight = 0;
+    metricsRef.current.scrollY = 0;
     pendingScrollToBottomRef.current = { animated: false };
     scrollToBottom(false);
   });
