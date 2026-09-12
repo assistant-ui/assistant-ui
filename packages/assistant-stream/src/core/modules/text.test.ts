@@ -11,7 +11,7 @@ describe("TextStreamController", () => {
     const [stream, controller] = createTextStreamController();
     void stream;
     controller.close();
-    expect(() => controller.append("late")).toThrow();
+    expect(() => controller.append("late")).toThrow(TypeError);
   });
 
   it("drops appends after close with strict: false", () => {
@@ -26,6 +26,27 @@ describe("TextStreamController", () => {
 });
 
 describe("TextStreamController after consumer cancel", () => {
+  it("drops appends without throwing", async () => {
+    const error = vi.spyOn(console, "error").mockImplementation(() => {});
+    const [stream, controller] = createTextStreamController();
+    await stream.cancel();
+    expect(() => controller.append("late")).not.toThrow();
+    expect(() => controller.append("later")).not.toThrow();
+    expect(error).toHaveBeenCalledOnce();
+  });
+
+  it("drops appends on a text part after the reader cancels", async () => {
+    let part!: TextStreamController;
+    const stream = createAssistantStream((controller) => {
+      part = controller.addTextPart();
+      part.append("hello");
+    });
+    const reader = stream.getReader();
+    await reader.read();
+    await reader.cancel("consumer stopped");
+    expect(() => part.append("late")).not.toThrow();
+  });
+
   it("closes without throwing", async () => {
     const [stream, controller] = createTextStreamController();
     await stream.cancel();
