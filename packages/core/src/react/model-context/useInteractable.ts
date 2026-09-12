@@ -3,6 +3,7 @@
 import { useEffect, useId, useMemo, useRef } from "react";
 import { useAui, useAuiState } from "@assistant-ui/store";
 import { toJSONSchema } from "assistant-stream";
+import type { ReadonlyJSONValue } from "assistant-stream/utils";
 import type { Unstable_InteractableStateSchema } from "../types/scopes/interactables";
 import type { ToolCallMessagePartComponent } from "../types/MessagePartComponentTypes";
 import {
@@ -118,7 +119,7 @@ const useInteractable = <TSchema extends Unstable_InteractableStateSchema>(
   const stateSchemaRef = useRef(config.stateSchema);
   stateSchemaRef.current = config.stateSchema;
   const normalizedStateSchema = useJSONEqualValue(
-    toJSONSchema(config.stateSchema),
+    toJSONSchema(config.stateSchema) as ReadonlyJSONValue,
   );
   const initialStateRef = useRef(config.initialState);
   initialStateRef.current = config.initialState;

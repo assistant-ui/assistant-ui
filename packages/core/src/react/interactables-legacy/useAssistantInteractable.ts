@@ -1,6 +1,7 @@
 import { useEffect, useId, useRef } from "react";
 import { useAui } from "@assistant-ui/store";
 import { toJSONSchema } from "assistant-stream";
+import type { ReadonlyJSONValue } from "assistant-stream/utils";
 import { useJSONEqualValue } from "../utils/useJSONEqual";
 import type { InteractableStateSchema } from "./scopes";
 
@@ -41,7 +42,7 @@ export const useAssistantInteractable = (
   const stateSchemaRef = useRef(config.stateSchema);
   stateSchemaRef.current = config.stateSchema;
   const normalizedStateSchema = useJSONEqualValue(
-    toJSONSchema(config.stateSchema),
+    toJSONSchema(config.stateSchema) as ReadonlyJSONValue,
   );
   const initialStateRef = useRef(config.initialState);
   initialStateRef.current = config.initialState;
