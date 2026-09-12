@@ -1,0 +1,147 @@
+---
+title: REST API
+description: The project API the SDK talks to, endpoint by endpoint, with the headers, request shapes, responses and limits.
+---
+
+The SDK covers every endpoint here, so most apps never call the API directly. This page is for the cases that do: a server in another language, an exporter, an evaluation job, or a look at what the SDK sends.
+
+## Hosts and authentication
+
+| Host | Who | Credential |
+|---|---|---|
+| `https://proj-<id>.assistant-api.com` | the browser | `Authorization: Bearer <token>`, an anonymous access token or a JWT your auth provider signed; only from an [allowed origin](/docs/cloud/authorization#allowed-origins) |
+| `https://backend.assistant-api.com` | your server | `Authorization: Bearer sk_aui_proj_…`, an API key, with `Aui-User-Id` and `Aui-Workspace-Id` naming the user and workspace the request acts as |
+
+A credential is only accepted on its own host. Every request may carry `Aui-Sdk`, space separated `name/version` tokens naming the client software; the SDK sets it for you. Requests and responses are JSON. Thread, project, MCP and trace responses are never cached.
+
+On a valid provider JWT the response carries an `Authorization` header with a short lived token of the project's own; clients may use it for following requests until it expires.
+
+## Errors
+
+| Status | Body | When |
+|---|---|---|
+| `400` | `{ "error": "Schema validation error", "details": [...] }` or a message | the body or query did not validate |
+| `401` | `{ "error": "..." }` | no or malformed `Authorization`, or an expired token |
+| `402` | `{ "error": "plan_limit_reached", "plan", "cap", "period_end" }` | a new end user past the plan's active user cap |
+| `403` | `{ "error": "..." }` | a credential on the wrong host, an unknown or expired key, an invalid token, or a route the credential may not use |
+| `404` | `{ "error": "Thread not found" }` and the like | the object is not visible from this workspace |
+| `409` | `{ "error": "Message has children and cannot be updated" }` | an update the tree forbids |
+| `413`, `415` | `{ "error": "..." }` | a trace export too large or in an unsupported encoding |
+| `429` | `{ "error": "rate_limited" }` with `Retry-After` | anonymous session creation (30 a minute per address), refresh (120), events (600 a minute per user) |
+
+## Threads
+
+| Method and path | Body or query | Response |
+|---|---|---|
+| `POST /v1/threads` | `{ last_message_at, title?, metadata?, external_id? }` | `201 { thread_id }` |
+| `GET /v1/threads` | `?is_archived=true&limit=20&after=<thread id>` | `{ threads: [...] }` |
+| `GET /v1/threads/:id` | | `{ thread }` |
+| `PUT /v1/threads/:id` | `{ title?, last_message_at?, metadata?, is_archived? }` | `{}` |
+| `DELETE /v1/threads/:id` | | `{}` |
+| `POST /v1/threads/claim` | `{ refresh_token }` | `{ moved }` |
+
+A thread is `{ id, project_id, workspace_id, created_at, updated_at, title, last_message_at, is_archived, external_id, metadata }`. `last_message_at` is required on create as an ISO timestamp; `title` is up to 255 characters; `metadata` holds up to 16 string keys of 64 characters with values up to 512, and `null` on update clears it; `external_id` links your own id and is up to 255 characters. Lists are ordered by `last_message_at` and then id, newest first, 20 per page and at most 100, with `after` naming the last thread of the previous page; archived threads only appear with `is_archived=true`. Archiving is `PUT` with `is_archived: true`. Deleting a thread deletes its messages.
+
+`claim` moves every thread of the anonymous identity behind `refresh_token` into the caller's workspace; it refuses an anonymous caller and an expired token.
+
+## Messages
+
+| Method and path | Body or query | Response |
+|---|---|---|
+| `POST /v1/threads/:id/messages` | `{ parent_id, format, content }` | `201 { message_id }` |
+| `GET /v1/threads/:id/messages` | `?format=ai-sdk/v6&limit=200&after=<message id>` | `{ messages: [...] }` |
+| `PUT /v1/threads/:id/messages/:messageId` | `{ content }` | `{}` |
+| `DELETE /v1/threads/:id/messages` | `{ message_ids: [...] }` | `{}` |
+| `POST /v1/threads/:id/messages/:messageId/feedback` | `{ type: "positive" \| "negative" }` | `{ feedback_id, type }` |
+
+A message is `{ id, parent_id, created_at, updated_at, format, content, height }`. `parent_id` is the message this one follows, or `null` for the first; `format` names the shape of `content`, which is JSON up to 64 KB. Creating a user message bumps the thread's `last_message_at`, counts the user as active for the month and is where a `402` can occur; creating an assistant message may trigger the thread title. A message with children cannot be updated. Lists return up to 200 per page, newest first, and `format` asks for a conversion: `aui/v0` rows convert to `ai-sdk/v5` or `ai-sdk/v6`, `ai-sdk/v5` rows to `ai-sdk/v6`, everything else is returned as stored. Attachment URLs are signed in the response when the project's storage is private. Feedback stores a boolean score named `feedback` by the calling user; one per user and message.
+
+## Runs
+
+| Method and path | Body | Response |
+|---|---|---|
+| `POST /v1/runs` | the run report | `201 { run_id }` |
+| `POST /v1/runs/stream` | `{ thread_id, assistant_id, messages, response_format?, tools?, system?, trace_id? }` | a stream |
+
+The run report fields are listed on [Run reports](/docs/cloud/telemetry#the-run-report). `thread_id` and `status` are required. A `message_id` must belong to the thread. A `trace_id` of 32 lowercase hex characters merges the report into the run that spans with that trace created, returning that run's id. Unknown top level keys are kept as attributes rather than rejected, `metadata` is accepted as the older name of `attributes`, and `provider_type` as the older name of `provider`; `attributes` may not exceed 16 KB. Token counts are non negative integers; `steps` and `tool_calls` hold at most 1,000 entries; `output_text`, `tool_args`, `tool_result` and a step's `input` at most 50,000 characters.
+
+`POST /v1/runs/stream` runs an assistant of the project: with `Accept: text/plain` and `assistant_id: "system/thread_title"` it streams a title for the thread as plain text, empty when the thread already has one; with `response_format: "vercel-ai-data-stream/v1"` it streams an assistant's response as an AI SDK UI message stream and records the run with the server side outcomes.
+
+## Events
+
+`POST /v1/events` with `{ events: [{ kind, thread_id?, message_id?, run_id?, value?, props? }] }`, up to 50 per request, answers `202 { accepted }`. `kind` is one of the sixteen on [Engagement events](/docs/cloud/engagement); ids are up to 48 characters; `value` a non negative integer; `props` up to 1 KB of string, number and boolean values with keys up to 64 characters. Events naming a thread the caller cannot see are dropped and not counted in `accepted`.
+
+## Scores
+
+`POST /v1/scores` with `{ name, data_type, value?, string_value?, comment?, thread_id?, message_id?, run_id? }` answers `201 { score_id, name, data_type, value, string_value }`. The rules are on [Engagement, feedback and scores](/docs/cloud/engagement#scores): a numeric score needs a number, a boolean `true` or `false`, a categorical a `string_value`; exactly one target, a run, a thread, or a message with its thread. The source is recorded as `api` for an API key and `end_user` for a token, and a repeated name on the same target replaces the value.
+
+## Files
+
+| Method and path | Body | Response |
+|---|---|---|
+| `POST /v1/files/attachments/generate-presigned-upload-url` | `{ filename, content_type?, content_length? }` | `201 { success, signedUrl, expiresAt, publicUrl, key }` |
+| `POST /v1/files/attachments/generate-presigned-download-url` | `{ key }` or `{ url }` | `{ signedUrl, expiresAt, key }` |
+
+Uploads are `PUT` to `signedUrl` within 15 minutes, up to 25 MB, in one of the accepted image, document and text types; the type is derived from the extension when `content_type` is absent. Keys live under `attachments/<project id>/`, and a download URL is only signed for a key under the caller's project. The composer side is on [Feedback and attachments](/docs/cloud/ai-sdk-assistant-ui#feedback-and-attachments).
+
+## Traces
+
+`POST /v1/traces` is an OTLP/HTTP receiver for traces, API key only, `application/json` or `application/x-protobuf`, optionally `gzip` or `deflate` encoded, up to 4 MB. It answers `{}` when every span was accepted, or `{ partialSuccess: { rejectedSpans, errorMessage } }`. Which spans become runs, steps, tool calls and sampling calls, and how they merge with browser reports, is on [Traces](/docs/cloud/traces#how-spans-become-runs).
+
+## Auth tokens
+
+| Method and path | Credential | Body | Response |
+|---|---|---|---|
+| `POST /v1/auth/tokens` | API key | | `{ token }`, a five minute token for the user and workspace the key named |
+| `POST /v1/auth/tokens/anonymous` | none, on a project that allows anonymous sessions | | `{ refresh_token: { token, expires_at }, access_token }` |
+| `POST /v1/auth/tokens/refresh` | none | `{ refresh_token }` | the same shape; the refresh token's life is extended by 30 days |
+
+## Project read API
+
+API key only, on the backend host; the workspace header is not needed. System runs, the cloud's own thread title runs, are never returned.
+
+| Method and path | Query | Response |
+|---|---|---|
+| `GET /v1/projects/runs` | `status`, `outcome_type`, `model_id`, `provider`, `created_by`, `thread_id`, `environment`, `release`, `tag`, `from`, `to`, `limit` (50, at most 100), `cursor` | `{ runs: [...], next_cursor }` |
+| `GET /v1/projects/runs/:id` | | the run with `spans: [...]` |
+| `GET /v1/projects/usage/daily` | `from`, `to` (`YYYY-MM-DD`, at most 366 days, the last 30 by default), `group_by=model` | `{ days: [{ day, provider?, model_id?, runs, errors, input_tokens, output_tokens, total_tokens, cost_usd }] }` |
+| `GET /v1/projects/usage/period` | | `{ plan, period_start, period_end, active_users, included, cap, capped_at }` |
+| `GET /v1/projects/threads` | as `GET /v1/threads` | `{ threads: [...] }` across every workspace |
+| `GET /v1/projects/threads/:id/messages` | as the thread list | `{ messages: [...] }` |
+| `GET /v1/projects/scores` | `name`, `thread_id`, `run_id`, `since`, `limit` (50, at most 200), `after` | `{ scores: [...] }` including evaluator verdicts |
+| `DELETE /v1/projects/users/:userId` | | `{ threads, runs }` |
+
+A run carries its `id`, `thread_id`, `message_id`, `created_by`, `status`, `outcome_type`, `error_code`, `provider`, `model_id`, `environment`, `release`, `tags`, `attributes`, `root_span_id`, `service_name`, `agent_name`, tokens, `cost_usd`, `duration_ms`, `first_token_ms`, `total_steps`, `assistant_id` and `created_at`; its spans, ordered by start, carry their type (a model `generation`, a `tool_call`, or a `sampling` call a tool made on its own), `start_ms` and `end_ms` relative to the run, tokens, model, `finish_reason`, `tool_name`, `tool_source`, and, when exported from your server, the W3C `trace_id` and `span_id`, input, output and attributes. Cursors are opaque; a bad one answers `400`.
+
+Deleting a user erases their threads, messages, runs' authorship, workspaces, tokens, scores and events, redacts their messages in other users' threads, and writes an audit log entry.
+
+The read API is how a run's trace gets into your own product: `@assistant-ui/react-o11y` renders spans as waterfalls, timelines and run inspectors from headless primitives, so a support tool or an admin page can show a run the way the dashboard does, from the fields above.
+
+## Exports
+
+Runs, threads and users can be exported as CSV or JSON from their dashboard list pages, for the current filters and range; exports are a plan feature. A programmatic feed uses the project read API above.
+
+## MCP
+
+`POST /v1/mcp` on the backend host is a stateless Model Context Protocol endpoint over the same reads, API key only, for agents and assistants that should answer questions about a project. Its tools are read only: `list_runs`, `get_run`, `usage_daily`, `usage_period`, `list_threads`, `get_thread`, `list_scores` and `list_topics`, with the arguments of the matching routes above, each returning JSON as text.
+
+It speaks streamable HTTP, so any MCP client connects with the URL and the key as a header. In Claude Code:
+
+```sh
+claude mcp add --transport http assistant-cloud https://backend.assistant-api.com/v1/mcp --header "Authorization: Bearer sk_aui_proj_…"
+```
+
+Clients configured through an `mcpServers` file, such as Cursor, take the same two values:
+
+```json title="mcp.json"
+{
+  "mcpServers": {
+    "assistant-cloud": {
+      "url": "https://backend.assistant-api.com/v1/mcp",
+      "headers": { "Authorization": "Bearer sk_aui_proj_…" }
+    }
+  }
+}
+```
+
+The key grants read access to the whole project, so use a key created for this purpose with an expiry, and revoke it from Settings › API keys when the tool is no longer needed.

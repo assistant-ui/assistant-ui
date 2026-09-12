@@ -1,0 +1,110 @@
+---
+title: Engagement, feedback and scores
+description: The sixteen user interactions the SDK records without message text, the message feedback and custom scores stored next to a conversation, and the evaluators the cloud runs for you.
+---
+
+Run reports say what the model did. Engagement events say what the user did: sent, edited, stopped, regenerated, copied, switched threads, clicked a suggestion, added an attachment, hit an error. They feed the Engagement page and the satisfaction reading on Threads, and they never carry message text. [Feedback](#message-feedback) and [scores](#scores) are the explicit judgements next to them: the thumbs a user gives a message, and the values your own code or the cloud's [evaluators](#evaluators) assign to a run, a thread or a message.
+
+Events are on by default with telemetry. `telemetry: { events: false }` keeps run reports and stops events; `telemetry: false` stops both.
+
+## Event kinds
+
+| Kind | When | Carries |
+|---|---|---|
+| `message_sent` | The user sends a message. | Character count and attachment count in `props`; the time since the thread's previous run ended in `value`. |
+| `message_edited` | The user edits an earlier message and resends. | Character count. |
+| `run_stopped` | The user stops a running response. | How long the run had been going, in `value`. Once per run. |
+| `message_regenerated` | The user regenerates a response. | The message id. |
+| `message_copied` | The user copies a message. | The message id. |
+| `branch_switched` | The user moves between edits or regenerations of a message. | The message id. |
+| `suggestions_shown` | Follow up suggestions are shown on an empty thread. | The number of suggestions. Once per thread. |
+| `suggestion_clicked` | The user sends a suggestion. | |
+| `attachment_added` | An attachment is added to the composer. | The content type. |
+| `attachment_failed` | An attachment failed to upload. | The content type. |
+| `thread_switched` | The user opens another thread. | Only for a thread the cloud already knows. |
+| `error_shown` | An error is shown for a run. | The reason. Once per run. |
+| `speech_started` | The user plays a message aloud. | The message id. |
+| `voice_started` | The user starts voice input. | |
+| `tool_approved`, `tool_rejected` | Reserved for tool approval. No integration emits them yet. | |
+
+Every event carries the thread id, the message id when there is one, and the run id when known. `value` is a non negative integer; `props` holds up to 1 KB of short strings, numbers and booleans.
+
+## Which integration emits what
+
+| Kind | assistant-ui runtime | `useCloudChat` (retired) |
+|---|---|---|
+| `message_sent`, `run_stopped`, `message_regenerated`, `thread_switched`, `error_shown` | yes | yes |
+| `message_edited`, `message_copied`, `branch_switched`, `suggestions_shown`, `suggestion_clicked`, `attachment_added`, `attachment_failed`, `speech_started`, `voice_started` | yes | no |
+
+The assistant-ui runtime reads them from its store, so any composer, message or thread action taken through assistant-ui components or primitives is counted, including on React Native and Ink. `useCloudChat` only observes the chat it wraps.
+
+## Delivery
+
+Events are buffered in the browser and posted to `POST /v1/events` in batches of up to 50: after 2 seconds of quiet, when 20 events are waiting, and when the page is hidden or unloaded, using `keepalive` so the last batch survives navigation. A failed batch is dropped silently; events never block the UI and never surface errors.
+
+The endpoint answers `202` with the number of events it stored. An event naming a thread the caller cannot see is dropped rather than rejected, and the endpoint allows 600 events per minute per user. Each event becomes a row on the thread it names and a count in the day's rollup, and the thread's own record notes whether it was ever stopped, regenerated, copied or edited.
+
+## Reading them
+
+- **Engagement** shows each kind over time, the stop and regenerate rates, the time between a response and the next message, and the implicit satisfaction reading that combines stops, regenerations, copies and feedback.
+- **Threads** carries the same reading per thread and lets you filter to threads that were stopped, regenerated, copied or edited.
+- A thread's page lists the events of the thread in order, next to its runs.
+
+The satisfaction reading is a heuristic over these events and message feedback; it is not a model judgement. Model judged sentiment and resolution live on the [Intelligence](/docs/cloud/intelligence) page.
+
+## Emitting your own
+
+Every event goes through `cloud.events.track`, which you can call from your own UI when you run an integration the SDK does not instrument:
+
+```ts
+cloud.events.track({
+  kind: "suggestion_clicked",
+  thread_id: threadId,
+  props: { source: "sidebar" },
+});
+```
+
+The call returns at once and joins the next batch. Ids over 48 characters, negative or fractional values, and oversized `props` are dropped before sending.
+
+## Message feedback
+
+Feedback is a positive or negative rating on a stored assistant message. With the assistant-ui runtime it is wired automatically: when `cloud` is set, the runtime's `feedback` adapter defaults to the cloud, so the feedback buttons of the assistant-ui message components submit to the project without further setup.
+
+Direct use:
+
+```ts
+await cloud.threads.messages.feedback(threadId, messageId, {
+  type: "positive",
+});
+```
+
+The message must already be persisted; the runtime resolves its cloud id for you. Feedback is stored as a boolean score named `feedback`, one per user and message. It appears on the thread's page, counts into the satisfaction reading on Engagement and Threads, and can be used as a Threads filter.
+
+## Scores
+
+A score is a named value with a data type, attached to any of a run, a thread or a message.
+
+```ts
+await cloud.scores.create({
+  name: "answer_relevance",
+  data_type: "numeric",
+  value: 0.82,
+  comment: "graded by the nightly evaluator",
+  run_id: runId,
+});
+```
+
+| Field | Values |
+|---|---|
+| `name` | Up to 64 characters of letters, digits, `_`, `.` and `-`. Scores with the same name are compared on the dashboard. |
+| `data_type` | `"numeric"`, `"categorical"` or `"boolean"`. |
+| `value` | A number for numeric, `true` or `false` for boolean. Not allowed for categorical. |
+| `string_value` | The category for categorical scores, up to 255 characters. Only for categorical. |
+| `comment` | Free text up to 2,000 characters, shown with the score. |
+| `run_id`, `thread_id`, `message_id` | The target, exactly one of: a run (`run_id`), a thread (`thread_id`), or a message (`message_id` together with its `thread_id`). |
+
+The response carries the `score_id`, the name, the data type and the stored value. Writing the same name for the same target again replaces the earlier value. Scores can be created from the browser with a user token, which records the source as `end_user`, or from a server with an API key, recorded as `api`, so an offline evaluation job can score runs after the fact. `GET /v1/projects/scores` lists them back for a project, filtered by name, thread, run or time; see the [REST API](/docs/cloud/api#scores).
+
+## Evaluators
+
+Evaluators are model judges the cloud runs for you. Each rule has a prompt, a data type with optional categories, a sampling rate and the provider and model to judge with; the intelligence worker applies it to new threads once an hour and writes each verdict as a score with source `evaluator`. Rules are managed in Settings › Evaluators, summarised on the Intelligence page, and the verdicts sit next to your own scores on a run's page. Evaluators are a plan feature; see [Settings](/docs/cloud/settings#evaluators).

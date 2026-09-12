@@ -1,0 +1,203 @@
+---
+title: Quickstart
+description: From an empty project to a persisted, reported conversation in the dashboard.
+---
+
+This walks through the shortest path: an anonymous session, the AI SDK runtime, and the assistant-ui components. The other guides swap the runtime; the cloud side stays the same.
+
+<Steps>
+<Step>
+
+### Create a project
+
+Sign in at [cloud.assistant-ui.com](https://cloud.assistant-ui.com), create a project, and open **Settings › Telemetry**. Copy the **Frontend API URL**, `https://proj-<id>.assistant-api.com`. Create an **API key** under Settings › API keys only when your server needs one: for user tokens, trace exports, scores or the project read API. Nothing in this quickstart does.
+
+</Step>
+<Step>
+
+### Configure the environment
+
+<PlatformTabs>
+<Tab value="React">
+
+```bash title=".env.local"
+NEXT_PUBLIC_ASSISTANT_BASE_URL=https://proj-<id>.assistant-api.com
+```
+
+</Tab>
+<Tab value="React Native">
+
+```bash title=".env"
+EXPO_PUBLIC_ASSISTANT_BASE_URL=https://proj-<id>.assistant-api.com
+```
+
+</Tab>
+<Tab value="React Ink">
+
+```bash title=".env"
+ASSISTANT_BASE_URL=https://proj-<id>.assistant-api.com
+```
+
+</Tab>
+</PlatformTabs>
+
+With `NEXT_PUBLIC_ASSISTANT_BASE_URL` set, the React runtimes create an anonymous cloud client on their own when you pass no `cloud`. The other platforms construct the client explicitly, as the next step shows.
+
+</Step>
+<Step>
+
+### Allow anonymous sessions and your origin
+
+Anonymous sessions are off until you turn them on in **Settings › Access**. While you are there, add your development origin, for example `http://localhost:3000`, to the allowed origins; an empty list allows every origin, which is fine for a first run.
+
+</Step>
+<Step>
+
+### Install and wire the runtime
+
+<PlatformTabs>
+<Tab value="React">
+
+<InstallCommand npm={["@assistant-ui/react", "@assistant-ui/ai-sdk"]} />
+
+```tsx title="app/chat/page.tsx"
+"use client";
+
+import { AssistantRuntimeProvider } from "@assistant-ui/react";
+import { useChatRuntime } from "@assistant-ui/ai-sdk";
+import { ThreadList } from "@/components/assistant-ui/elements/thread-list.aui";
+import { Thread } from "@/components/assistant-ui/elements/thread.aui";
+
+export default function ChatPage() {
+  const runtime = useChatRuntime();
+
+  return (
+    <AssistantRuntimeProvider runtime={runtime}>
+      <div className="grid h-dvh grid-cols-[240px_1fr]">
+        <ThreadList />
+        <Thread />
+      </div>
+    </AssistantRuntimeProvider>
+  );
+}
+```
+
+`useChatRuntime()` reads the base URL from the environment and sends chat requests to `/api/chat`, the AI SDK route you already have.
+
+</Tab>
+<Tab value="React Native">
+
+<InstallCommand expo={["@assistant-ui/react-native", "@assistant-ui/ai-sdk", "assistant-cloud"]} />
+
+```tsx title="app/chat.tsx"
+import { useMemo } from "react";
+import { View } from "react-native";
+import { AssistantRuntimeProvider } from "@assistant-ui/react-native";
+import { AssistantCloud } from "assistant-cloud";
+import { useChatRuntime } from "@assistant-ui/ai-sdk";
+import { Thread } from "@/components/assistant-ui/elements/thread.aui";
+
+export default function ChatScreen() {
+  const cloud = useMemo(
+    () =>
+      new AssistantCloud({
+        baseUrl: process.env.EXPO_PUBLIC_ASSISTANT_BASE_URL!,
+        anonymous: true,
+      }),
+    [],
+  );
+  const runtime = useChatRuntime({ cloud });
+
+  return (
+    <AssistantRuntimeProvider runtime={runtime}>
+      <View style={{ flex: 1 }}>
+        <Thread />
+      </View>
+    </AssistantRuntimeProvider>
+  );
+}
+```
+
+</Tab>
+<Tab value="React Ink">
+
+<InstallCommand npm={["@assistant-ui/react-ink", "@assistant-ui/ai-sdk", "assistant-cloud", "ink", "react"]} />
+
+```tsx title="chat.tsx"
+import { useMemo } from "react";
+import { Box } from "ink";
+import { AssistantRuntimeProvider } from "@assistant-ui/react-ink";
+import { AssistantCloud } from "assistant-cloud";
+import { useChatRuntime } from "@assistant-ui/ai-sdk";
+import { Thread } from "./components/thread.js";
+
+export function Chat() {
+  const cloud = useMemo(
+    () =>
+      new AssistantCloud({
+        baseUrl: process.env.ASSISTANT_BASE_URL!,
+        anonymous: true,
+      }),
+    [],
+  );
+  const runtime = useChatRuntime({ cloud });
+
+  return (
+    <AssistantRuntimeProvider runtime={runtime}>
+      <Box flexDirection="column">
+        <Thread />
+      </Box>
+    </AssistantRuntimeProvider>
+  );
+}
+```
+
+</Tab>
+</PlatformTabs>
+
+</Step>
+<Step>
+
+### Report model and usage
+
+The browser cannot see which model answered or how many tokens it used. Add a `messageMetadata` callback to your route so the run report carries them:
+
+```ts title="app/api/chat/route.ts"
+import { streamText } from "ai";
+import { openai } from "@ai-sdk/openai";
+
+export async function POST(req: Request) {
+  const { messages } = await req.json();
+  const model = openai("gpt-5.6-luna");
+  const result = streamText({ model, messages });
+
+  return result.toUIMessageStreamResponse({
+    messageMetadata: ({ part }) => {
+      if (part.type === "finish") {
+        return { usage: part.totalUsage, finishReason: part.finishReason };
+      }
+      if (part.type === "finish-step") {
+        return { modelId: part.response.modelId, provider: model.provider };
+      }
+      return undefined;
+    },
+  });
+}
+```
+
+</Step>
+<Step>
+
+### Send a message and look
+
+Send a message. Within a moment the thread appears under **Threads** with an automatic title, the response under **Runs** with its duration, tokens, model and cost, and the send under **Engagement**. The Overview updates with the day's figures.
+
+</Step>
+</Steps>
+
+## Next
+
+- Replace the anonymous session with your users' identities: [Authentication](/docs/cloud/authorization).
+- Join your server's spans to the browser's report: [Traces](/docs/cloud/traces).
+- Read what every field means: [Run reports](/docs/cloud/telemetry) and the [concepts](/docs/cloud#concepts).
+- The working example: [with-cloud](https://github.com/assistant-ui/assistant-ui/tree/main/examples/with-cloud) on GitHub.
