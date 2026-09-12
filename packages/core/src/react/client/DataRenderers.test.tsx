@@ -12,31 +12,34 @@ afterEach(() => {
 });
 
 describe("DataRenderers", () => {
-  it("registers and removes a renderer named __proto__", async () => {
-    let aui!: AnyClient;
-    const Harness = () => {
-      aui = useAui({ dataRenderers: DataRenderers() } as never);
-      return null;
-    };
-    render(<Harness />);
+  it.each(["__proto__", "constructor"])(
+    "registers and removes a renderer named %s",
+    async (name) => {
+      let aui!: AnyClient;
+      const Harness = () => {
+        aui = useAui({ dataRenderers: DataRenderers() } as never);
+        return null;
+      };
+      render(<Harness />);
 
-    let remove!: () => void;
-    await act(async () => {
-      remove = aui.dataRenderers().setDataUI("__proto__", () => null);
-      await vi.waitFor(() => {
-        const renderers = aui.dataRenderers().getState().renderers;
-        expect(Object.hasOwn(renderers, "__proto__")).toBe(true);
-        expect(renderers.__proto__).toHaveLength(1);
+      let remove!: () => void;
+      await act(async () => {
+        remove = aui.dataRenderers().setDataUI(name, () => null);
+        await vi.waitFor(() => {
+          const renderers = aui.dataRenderers().getState().renderers;
+          expect(Object.hasOwn(renderers, name)).toBe(true);
+          expect(renderers[name]).toHaveLength(1);
+        });
       });
-    });
 
-    await act(async () => {
-      remove();
-      await vi.waitFor(() =>
-        expect(aui.dataRenderers().getState().renderers.__proto__).toHaveLength(
-          0,
-        ),
-      );
-    });
-  });
+      await act(async () => {
+        remove();
+        await vi.waitFor(() =>
+          expect(aui.dataRenderers().getState().renderers[name]).toHaveLength(
+            0,
+          ),
+        );
+      });
+    },
+  );
 });
