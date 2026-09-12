@@ -218,6 +218,46 @@ describe("mcp command", () => {
   });
 
   it.each([
+    '"servers": null',
+    '"servers": { "assistant-ui": { "command": "first" }, "assistant-ui": { "command": "last" } }',
+    '"servers": { "assistant-ui": { "command": "shadowed" } }, "servers": { "other": { "command": "custom" } }',
+    '"servers": { "assistant-ui": { "command": "shadowed" } }, "servers": null',
+    '"servers": {}, "servers": { "assistant-ui": { "command": "last" } }',
+  ])(
+    "updates the effective VS Code server configuration in %s",
+    async (servers) => {
+      const configPath = path.join(tempDir, ".vscode", "mcp.json");
+      fs.mkdirSync(path.dirname(configPath), { recursive: true });
+      fs.writeFileSync(
+        configPath,
+        `{\r\n  ${servers},\r\n  // Keep inputs\r\n  "inputs": [ ]\r\n}\r\n`,
+      );
+
+      await mcp.parseAsync(["node", "mcp", "--vscode"], { from: "node" });
+
+      const updated = fs.readFileSync(configPath, "utf-8");
+      const config = parseJsonc(updated);
+      expect(config.servers["assistant-ui"]).toEqual({
+        type: "http",
+        url: HOSTED_MCP_URL,
+      });
+      if (servers.includes('"other"')) {
+        expect(config.servers.other).toEqual({ command: "custom" });
+      }
+      if (servers.includes('"shadowed"')) {
+        expect(updated).toContain(
+          '"servers": { "assistant-ui": { "command": "shadowed" } }',
+        );
+      }
+      expect(updated).toContain('// Keep inputs\r\n  "inputs": [ ]');
+      expect(updated.replaceAll("\r\n", "")).not.toMatch(/[\r\n]/);
+
+      await mcp.parseAsync(["node", "mcp", "--vscode"], { from: "node" });
+      expect(fs.readFileSync(configPath, "utf-8")).toBe(updated);
+    },
+  );
+
+  it.each([
     '{"servers": {',
     '{"servers": {},,}',
     "{/* unfinished",

@@ -4,8 +4,11 @@ import path from "node:path";
 import os from "node:os";
 import {
   applyEdits,
+  format,
   modify,
   parse as parseJsonc,
+  parseTree,
+  type Node,
   type ParseError,
 } from "jsonc-parser";
 import { logger } from "../lib/utils/logger";
@@ -156,6 +159,61 @@ class McpConfigParseError extends Error {
 const getTargetFlag = (target: Exclude<MCPTarget, "claude-code">) =>
   `--${target}`;
 
+const lastPropertyValue = (node: Node, key: string) =>
+  node.children?.findLast((property) => property.children?.[0]?.value === key)
+    ?.children?.[1];
+
+function updateVscodeConfig(content: string, server: object): string {
+  const formattingOptions = {
+    insertSpaces: true,
+    tabSize: 2,
+    eol: content.includes("\r\n") ? "\r\n" : "\n",
+    keepLines: false,
+  };
+  const root = parseTree(content);
+  // JSONC parsing uses the last duplicate key, but modify() targets the first.
+  const servers = root && lastPropertyValue(root, "servers");
+  if (!servers) {
+    return applyEdits(
+      content,
+      modify(
+        content,
+        ["servers"],
+        { "assistant-ui": server },
+        { formattingOptions },
+      ),
+    );
+  }
+
+  const existing =
+    servers.type === "object"
+      ? lastPropertyValue(servers, "assistant-ui")
+      : servers;
+  const edit = existing
+    ? {
+        offset: existing.offset,
+        length: existing.length,
+        content: JSON.stringify(
+          servers.type === "object" ? server : { "assistant-ui": server },
+        ),
+      }
+    : modify(
+        content.slice(servers.offset, servers.offset + servers.length),
+        ["assistant-ui"],
+        server,
+        {},
+      ).map((edit) => ({ ...edit, offset: edit.offset + servers.offset }))[0]!;
+  const updated = applyEdits(content, [edit]);
+  return applyEdits(
+    updated,
+    format(
+      updated,
+      { offset: edit.offset, length: edit.content.length },
+      formattingOptions,
+    ),
+  );
+}
+
 async function installForTarget(target: MCPTarget): Promise<void> {
   if (target === "claude-code") {
     logger.info("Installing MCP server for Claude Code...");
@@ -264,21 +322,7 @@ async function installForTarget(target: MCPTarget): Promise<void> {
 
   const updatedContent =
     target === "vscode"
-      ? applyEdits(
-          content,
-          modify(
-            content,
-            ["servers", "assistant-ui"],
-            newConfig.servers["assistant-ui"],
-            {
-              formattingOptions: {
-                insertSpaces: true,
-                tabSize: 2,
-                eol: content.includes("\r\n") ? "\r\n" : "\n",
-              },
-            },
-          ),
-        )
+      ? updateVscodeConfig(content, newConfig.servers["assistant-ui"])
       : `${JSON.stringify(newConfig, null, 2)}\n`;
   fs.writeFileSync(configPath, updatedContent);
 
