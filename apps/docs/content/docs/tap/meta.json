@@ -1,0 +1,20 @@
+{
+  "title": "Tap",
+  "description": "Hooks for reactive resources: @assistant-ui/tap runs React hooks as headless resources.",
+  "icon": "Droplet",
+  "root": true,
+  "platforms": ["tap"],
+  "pages": [
+    "index",
+    "motivation",
+    "quickstart",
+    "resources",
+    "composition",
+    "trees-and-rerenders",
+    "lifecycle",
+    "context",
+    "differences-from-react",
+    "outside-react",
+    "api-reference"
+  ]
+}

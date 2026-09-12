@@ -1,10 +1,4 @@
-import {
-  design,
-  elementsDocs,
-  examples,
-  getTapDocsPages,
-  source,
-} from "@/lib/source";
+import { design, elementsDocs, examples, source } from "@/lib/source";
 
 export type StructuredData = {
   headings?: { id?: string; content?: string }[];
@@ -29,7 +23,6 @@ export type SearchablePage = {
 export function searchablePages(): SearchablePage[] {
   return [
     ...source.getPages(),
-    ...getTapDocsPages(),
     ...design.getPages(),
     ...elementsDocs.getPages(),
     ...examples.getPages(),

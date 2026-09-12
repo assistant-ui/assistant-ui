@@ -1,0 +1,40 @@
+---
+title: Motivation
+description: Composable configuration and state built on React's lifecycle.
+---
+
+tap exists to bring two strengths of React to application state: composable
+configuration and a native lifecycle.
+
+## Composable configuration
+
+A resource element carries an implementation together with its configuration.
+Because it is a value, it can be passed, swapped, and nested before it runs.
+
+```ts
+AuiConfig({
+  cloud: AssistantCloud({ apiKey: "..." }),
+  threads: CloudThreadList({
+    thread: () => AISDKThread({ transport: /* ... */ }),
+  }),
+});
+```
+
+Each call returns a
+[`ResourceElement`](/docs/tap/api-reference#resourceelement). Together, those
+elements form a typed, declarative configuration tree. Applications can replace
+one part without changing how the rest is assembled.
+
+## State management with React's lifecycle
+
+Resources manage state with React Hooks and the same two-stage lifecycle as React
+components:
+
+- During **render**, Hooks derive the resource's current state and compose child
+  resources.
+- On **mount**, effects connect that state to the outside world. They rerun when
+  dependencies change and clean up when the resource unmounts.
+
+This makes lifecycle part of the state model itself. State and effects stay
+together, while resources remain independent of the component tree that presents
+them.

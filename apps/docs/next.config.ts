@@ -6,6 +6,7 @@ import {
   API_CATALOG_LINK_HEADER,
 } from "./lib/agent-discovery-routes";
 import { isWebMcpEnabled } from "./lib/feature-flags";
+import { LEGACY_TAP_DOCS_REDIRECTS } from "./lib/legacy-tap-docs";
 import {
   docsMarkdownAcceptRewrites,
   docsMarkdownFileRewrites,
@@ -136,6 +137,7 @@ const config: NextConfig = {
     })),
   ],
   redirects: async () => [
+    ...LEGACY_TAP_DOCS_REDIRECTS,
     {
       source: "/elements/reasoning-panel",
       destination: "/elements/reasoning",
@@ -442,22 +444,6 @@ const config: NextConfig = {
         destination: "/llms.mdx/elements/:path*",
       },
       {
-        source: "/tap/docs.md",
-        destination: "/tap-llms.mdx",
-      },
-      {
-        source: "/tap/docs.mdx",
-        destination: "/tap-llms.mdx",
-      },
-      {
-        source: "/tap/docs/:path*.md",
-        destination: "/tap-llms.mdx/:path*",
-      },
-      {
-        source: "/tap/docs/:path*.mdx",
-        destination: "/tap-llms.mdx/:path*",
-      },
-      {
         source: "/",
         has: [
           { type: "header", key: "accept", value: "(?:.*text/markdown.*)" },
@@ -504,13 +490,6 @@ const config: NextConfig = {
           { type: "header", key: "accept", value: "(?:.*text/markdown.*)" },
         ],
         destination: "/llms.mdx/elements/:path*",
-      },
-      {
-        source: "/tap/docs/:path*",
-        has: [
-          { type: "header", key: "accept", value: "(?:.*text/markdown.*)" },
-        ],
-        destination: "/tap-llms.mdx/:path*",
       },
       {
         source: "/umami/:path*",

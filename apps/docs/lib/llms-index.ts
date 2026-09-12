@@ -26,7 +26,6 @@ function addPageToSection(
 
 export function buildLLMSIndex(
   docsPages: LLMIndexPage[],
-  tapPages: LLMIndexPage[],
   examplesPages: LLMIndexPage[],
   designPages: LLMIndexPage[] = [],
   elementsPages: LLMIndexPage[] = [],
@@ -45,7 +44,7 @@ export function buildLLMSIndex(
     "- Per-page markdown: append `.md` to any docs page URL. `.mdx` is kept as a backwards-compatible alias for agents that request source-style URLs. For example, `/docs/installation.md` and `/docs/installation.mdx` both return markdown for `/docs/installation`.",
   );
   lines.push(
-    "- Markdown by Accept header: requesting a docs, examples, design or tap docs page with `Accept: text/markdown` also returns that page's markdown.",
+    "- Markdown by Accept header: requesting a docs, examples, design or elements page with `Accept: text/markdown` also returns that page's markdown.",
   );
   lines.push(
     "- Use the index below to choose a specific page. Remove the `.md` or `.mdx` suffix to open the human-readable docs page.",
@@ -68,10 +67,6 @@ export function buildLLMSIndex(
 
   for (const page of docsPages) {
     addPageToSection(map, page.slugs[0] || "root", page);
-  }
-
-  for (const page of tapPages) {
-    addPageToSection(map, "tap", page);
   }
 
   for (const page of examplesPages) {

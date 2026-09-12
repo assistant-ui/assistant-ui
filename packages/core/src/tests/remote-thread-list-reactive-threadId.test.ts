@@ -88,4 +88,55 @@ describe("onThreadIdChange", () => {
       expect(emitted).not.toBe(localId);
     }
   });
+
+  it("does not reject a completed switch when the callback throws", async () => {
+    const callbackError = new Error("host callback failed");
+    const errorSpy = vi.spyOn(console, "error").mockImplementation(() => {});
+    try {
+      const cb = vi.fn(() => {
+        throw callbackError;
+      });
+      const { core } = createCoreWithCallback(cb);
+      await flush();
+
+      await expect(core.switchToThread("existing-1")).resolves.toBeUndefined();
+
+      expect(core.mainThreadId).toBe("existing-1");
+      expect(cb).toHaveBeenCalledExactlyOnceWith("existing-1");
+      expect(errorSpy).toHaveBeenCalledWith(
+        "[assistant-ui] onThreadIdChange callback threw an error",
+        callbackError,
+      );
+
+      await expect(core.switchToThread("existing-2")).resolves.toBeUndefined();
+      expect(core.mainThreadId).toBe("existing-2");
+      expect(cb).toHaveBeenLastCalledWith("existing-2");
+    } finally {
+      errorSpy.mockRestore();
+    }
+  });
+
+  it("contains a rejected callback promise", async () => {
+    const callbackError = new Error("async host callback failed");
+    const errorSpy = vi.spyOn(console, "error").mockImplementation(() => {});
+    try {
+      const cb = vi.fn(async () => {
+        throw callbackError;
+      });
+      const { core } = createCoreWithCallback(cb);
+      await flush();
+
+      await expect(core.switchToThread("existing-1")).resolves.toBeUndefined();
+      await vi.waitFor(() => {
+        expect(errorSpy).toHaveBeenCalledWith(
+          "[assistant-ui] onThreadIdChange callback threw an error",
+          callbackError,
+        );
+      });
+
+      expect(core.mainThreadId).toBe("existing-1");
+    } finally {
+      errorSpy.mockRestore();
+    }
+  });
 });

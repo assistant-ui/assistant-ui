@@ -76,7 +76,7 @@
     "@assistant-ui/tap": "workspace:^",
     "@types/react": "*",
     "react": "^18 || ^19",
-    "assistant-cloud": "^0.2.0"
+    "assistant-cloud": "^0.2.1"
   },
   "peerDependenciesMeta": {
     "@types/react": {

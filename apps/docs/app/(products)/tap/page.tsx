@@ -6,7 +6,7 @@ export default function TapLandingPage() {
       <div className="text-left">
         <h1 className="font-bold">tap</h1>
         <p className="text-muted-foreground">Hooks for Reactive Resources</p>
-        <Link href="/tap/docs" className="text-muted-foreground underline">
+        <Link href="/docs/tap" className="text-muted-foreground underline">
           Docs &gt;
         </Link>
       </div>

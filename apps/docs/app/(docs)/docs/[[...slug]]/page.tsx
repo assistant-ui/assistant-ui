@@ -7,6 +7,8 @@ import { notFound, redirect } from "next/navigation";
 import { createOgMetadata } from "@/lib/og";
 import { getMDXComponents } from "@/mdx-components";
 import { source } from "@/lib/source";
+import { DEFAULT_PLATFORM, PLATFORM_LABELS } from "@/lib/constants";
+import { getPagePlatform } from "@/components/pages/docs/platform/tree";
 import { getPageTreePeers } from "fumadocs-core/page-tree";
 import { getDocsNeighbours } from "@/lib/docs-neighbours";
 import { Card, Cards } from "@/components/pages/docs/fumadocs/card";
@@ -124,9 +126,15 @@ export async function generateMetadata(
   const page = source.getPage(slug);
   if (!page) return { title: "Not Found" };
 
+  const platform = getPagePlatform(source.pageTree, page.url);
+  const title =
+    platform === DEFAULT_PLATFORM
+      ? page.data.title
+      : `${page.data.title} · ${PLATFORM_LABELS[platform]}`;
+
   return {
-    title: page.data.title,
+    title,
     description: page.data.description,
-    ...createOgMetadata(page.data.title, page.data.description),
+    ...createOgMetadata(title, page.data.description),
   };
 }

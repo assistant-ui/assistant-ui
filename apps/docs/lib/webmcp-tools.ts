@@ -200,14 +200,14 @@ function webMcpTools(fetchImpl: FetchLike): WebMcpToolDescriptor[] {
     {
       name: "getDoc",
       description:
-        "Read one assistant-ui docs or Tap docs page as markdown. Accepts a path such as /docs/installation or tap/docs/store/state.",
+        "Read one assistant-ui docs page as markdown. Accepts a path such as /docs/installation or docs/store/state.",
       inputSchema: {
         type: "object",
         properties: {
           path: {
             type: "string",
             description:
-              "Docs or Tap page path such as /docs/installation or tap/docs/store/state, or a same-origin URL for one of those pages.",
+              "Docs page path such as /docs/installation or docs/store/state, or a same-origin URL for one of those pages.",
           },
         },
         required: ["path"],

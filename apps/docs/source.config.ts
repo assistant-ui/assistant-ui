@@ -25,7 +25,7 @@ function transformerLineNumbers(): ShikiTransformer {
 // filter content based on the user's selected platform in the header dropdown.
 // Pages / folders with no `platforms` field are universal.
 // fumadocs-mdx forbids non-collection exports here, so this is local-only.
-const platformSchema = z.enum(["react", "rn", "ink", "vue"]);
+const platformSchema = z.enum(["react", "rn", "ink", "vue", "tap", "cloud"]);
 
 export const docs = defineDocs({
   docs: {
@@ -47,19 +47,6 @@ export const docs = defineDocs({
       description: z.string().optional(),
       overview: z.string().optional(),
       platforms: z.array(platformSchema).optional(),
-    }),
-  },
-});
-
-export const tapDocs = defineDocs({
-  dir: "content/tap-docs",
-  docs: {
-    schema: frontmatterSchema,
-    async: true,
-  },
-  meta: {
-    schema: metaSchema.extend({
-      description: z.string().optional(),
     }),
   },
 });

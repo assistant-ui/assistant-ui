@@ -3734,7 +3734,7 @@ importers:
         specifier: ^7.0.93
         version: 7.0.93(zod@4.5.4)
       assistant-cloud:
-        specifier: '*'
+        specifier: workspace:^
         version: link:../cloud
       assistant-stream:
         specifier: ^0.3.42
@@ -3887,6 +3887,12 @@ importers:
       '@types/node':
         specifier: ^26.4.1
         version: 26.4.1
+      ai:
+        specifier: ^7.0.93
+        version: 7.0.93(zod@4.5.4)
+      ai-v6:
+        specifier: npm:ai@^6.0.277
+        version: ai@6.0.277(zod@4.5.4)
       jsdom:
         specifier: ^30.0.1
         version: 30.0.1

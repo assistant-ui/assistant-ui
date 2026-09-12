@@ -28,6 +28,7 @@ export {
   normalizeRunTelemetryUsage,
   truncateRunTelemetryText,
   type AssistantCloudRunReportToolCall,
+  type RunMessageTelemetry,
   type RunReportInit,
   type RunReportOutcome,
   type RunReportStepInit,
@@ -36,6 +37,12 @@ export {
   type RunTelemetryUsageInit,
 } from "./runTelemetry";
 export { AssistantCloud } from "./AssistantCloud";
+export { CloudRunReporter, type CloudRunReportInit } from "./CloudRunReporter";
+export {
+  CloudEngagementReporter,
+  type EngagementEventIds,
+  type EngagementIdResolver,
+} from "./CloudEngagementReporter";
 export { readAnonymousRefreshToken } from "./AssistantCloudAuthStrategy";
 export { CloudMessagePersistence } from "./CloudMessagePersistence";
 export {

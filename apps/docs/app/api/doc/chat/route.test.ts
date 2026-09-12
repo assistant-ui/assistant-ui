@@ -35,8 +35,6 @@ vi.mock("@/lib/source", () => {
   return {
     source: emptySource,
     examples: emptySource,
-    tapDocs: emptySource,
-    getTapDocsPage: vi.fn(),
   };
 });
 

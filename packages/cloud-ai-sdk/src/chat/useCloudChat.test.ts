@@ -3,9 +3,15 @@
 import { renderHook } from "@testing-library/react";
 import { describe, expect, it, vi, beforeEach } from "vitest";
 
-const { mockUseChat, mockCloud, mockResolvedRemoteId } = vi.hoisted(() => {
+const {
+  mockUseChat,
+  mockCloud,
+  mockResolvedRemoteId,
+  mockToolApprovalResponded,
+} = vi.hoisted(() => {
   const mockThreadsCreate = vi.fn().mockResolvedValue({ thread_id: "new-t-1" });
   const resolvedRemoteId = vi.fn();
+  const mockToolApprovalResponded = vi.fn();
 
   const cloud = {
     events: { track: vi.fn() },
@@ -49,11 +55,23 @@ const { mockUseChat, mockCloud, mockResolvedRemoteId } = vi.hoisted(() => {
     mockUseChat: useChat,
     mockCloud: cloud,
     mockResolvedRemoteId: resolvedRemoteId,
+    mockToolApprovalResponded,
   };
 });
 
 vi.mock("assistant-cloud", () => ({
   AssistantCloud: vi.fn(() => mockCloud),
+  CloudRunReporter: class {
+    report = vi.fn().mockResolvedValue(undefined);
+  },
+  CloudEngagementReporter: class {
+    runStarted = vi.fn();
+    runStopped = vi.fn();
+    messageSent = vi.fn();
+    messageRegenerated = vi.fn();
+    errorShown = vi.fn();
+    toolApprovalResponded = mockToolApprovalResponded;
+  },
   CloudMessagePersistence: vi.fn(
     class {
       load = vi.fn().mockResolvedValue({ messages: [] });
@@ -202,11 +220,13 @@ describe("useCloudChat", () => {
         });
         expect(addToolApprovalResponse).toHaveBeenCalledTimes(2);
         expect(addToolApprovalResponse).toHaveBeenNthCalledWith(1, decision);
-        expect(mockCloud.events.track).toHaveBeenCalledExactlyOnceWith({
-          kind,
-          thread_id: "thread-1",
-          message_id: "remote-message-1",
-        });
+        // The shared reporter dedupes and resolves ids; the wrapper hands it
+        // the decision the SDK recorded on the live last message.
+        expect(mockToolApprovalResponded).toHaveBeenCalledExactlyOnceWith(
+          "thread-1",
+          { messageId: "local-message-1", approvalId: "approval-1", approved },
+        );
+        expect(kind).toBe(approved ? "tool_approved" : "tool_rejected");
       },
     );
 
@@ -216,7 +236,7 @@ describe("useCloudChat", () => {
       await expect(result.current.addToolApprovalResponse(args)).rejects.toBe(
         error,
       );
-      expect(mockCloud.events.track).not.toHaveBeenCalled();
+      expect(mockToolApprovalResponded).not.toHaveBeenCalled();
     });
   });
 
