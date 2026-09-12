@@ -119,6 +119,81 @@ describe("convertLangChainMessages content-less messages", () => {
     expect(result.role).toBe("user");
     expect(result.content).toEqual([{ type: "text", text: "kept" }]);
   });
+
+  it("ignores non-array human message content", () => {
+    const result = convertLangChainMessages({
+      type: "human",
+      id: "h-3",
+      content: 42,
+    } as unknown as LangChainMessage);
+
+    expect(result.role).toBe("user");
+    expect(result.content).toEqual([]);
+  });
+
+  it("ignores non-array ai message content", () => {
+    const result = convertLangChainMessages({
+      type: "ai",
+      id: "ai-2",
+      content: { text: "invalid" },
+      tool_calls: [{ id: "call-2", name: "search", args: { q: 1 } }],
+    } as unknown as LangChainMessage);
+
+    expect(result.role).toBe("assistant");
+    expect(result.content).toMatchObject([
+      {
+        type: "tool-call",
+        toolCallId: "call-2",
+        toolName: "search",
+      },
+    ]);
+  });
+
+  it("warns once per malformed content type in development", () => {
+    vi.stubEnv("NODE_ENV", "development");
+    const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
+    try {
+      const message = {
+        type: "human",
+        id: "h-4",
+        content: 42,
+      } as unknown as LangChainMessage;
+      convertLangChainMessages(message);
+      convertLangChainMessages(message);
+
+      const aiMessage = {
+        type: "ai",
+        id: "ai-3",
+        content: { text: "invalid" },
+      } as unknown as LangChainMessage;
+      convertLangChainMessages(aiMessage);
+      convertLangChainMessages(aiMessage);
+
+      expect(warn).toHaveBeenCalledTimes(2);
+      expect(warn).toHaveBeenCalledWith(
+        "Ignoring message content that is neither a string nor an array: number",
+      );
+      expect(warn).toHaveBeenCalledWith(
+        "Ignoring message content that is neither a string nor an array: object",
+      );
+    } finally {
+      warn.mockRestore();
+      vi.unstubAllEnvs();
+    }
+  });
+
+  it("joins text blocks in system message content", () => {
+    const result = convertLangChainMessages({
+      type: "system",
+      id: "system-1",
+      content: [
+        { type: "text", text: "first" },
+        { type: "text_delta", text: " second" },
+      ],
+    } as unknown as LangChainMessage);
+
+    expect(result.content).toEqual([{ type: "text", text: "first second" }]);
+  });
 });
 
 describe("convertLangChainMessages metadata", () => {

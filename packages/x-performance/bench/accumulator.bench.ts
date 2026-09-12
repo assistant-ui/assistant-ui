@@ -1,6 +1,7 @@
 import { bench, describe } from "vitest";
 import {
   AssistantMessageStream,
+  createAssistantStream,
   type AssistantStreamChunk,
 } from "assistant-stream";
 
@@ -38,6 +39,14 @@ const drainRaw = async (chunks: AssistantStreamChunk[]) => {
   while (!(await reader.read()).done);
 };
 
+const drainRawEnqueue = async (chunks: AssistantStreamChunk[]) => {
+  const source = createAssistantStream((controller) => {
+    for (const chunk of chunks) controller.enqueue(chunk);
+  });
+  const reader = source.getReader();
+  while (!(await reader.read()).done);
+};
+
 describe("assistant-stream: stream + accumulator per-delta cost (16-char deltas)", () => {
   for (const n of [100, 1000, 4000]) {
     const chunks = makeChunks(n, 16);
@@ -54,6 +63,18 @@ describe("assistant-stream: stream round trip baseline, no accumulator", () => {
       await drainRaw(chunks);
     });
   }
+});
+
+describe("assistant-stream: raw controller enqueue overhead", () => {
+  const chunks = makeChunks(9_998, 1);
+
+  bench("10,000 controller.enqueue calls", async () => {
+    await drainRawEnqueue(chunks);
+  });
+
+  bench("10,000 chunks from one source stream", async () => {
+    await drainRaw(chunks);
+  });
 });
 
 describe("assistant-stream: same 4000-char text, chunk size A/B", () => {

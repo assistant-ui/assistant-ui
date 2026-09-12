@@ -7,8 +7,8 @@
   },
   "@assistant-ui/cloud-ai-sdk": {
     ".": {
-      "min": 21635,
-      "gzip": 7146
+      "min": 22244,
+      "gzip": 7446
     }
   },
   "@assistant-ui/core": {
@@ -163,8 +163,8 @@
   },
   "@assistant-ui/react-mcp": {
     ".": {
-      "min": 45554,
-      "gzip": 14594
+      "min": 46574,
+      "gzip": 15002
     }
   },
   "@assistant-ui/react-native": {
@@ -191,8 +191,8 @@
   },
   "@assistant-ui/react-pi": {
     ".": {
-      "min": 41590,
-      "gzip": 12017
+      "min": 42783,
+      "gzip": 12372
     },
     "./node": {
       "min": 17413,
@@ -271,8 +271,8 @@
   },
   "assistant-stream": {
     ".": {
-      "min": 58274,
-      "gzip": 16448
+      "min": 58576,
+      "gzip": 16546
     },
     "./resumable": {
       "min": 16391,

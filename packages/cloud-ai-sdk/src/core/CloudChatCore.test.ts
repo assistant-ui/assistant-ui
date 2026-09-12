@@ -1,4 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { ChatRegistry } from "../chat/ChatRegistry";
 import { CloudChatCore } from "./CloudChatCore";
 
 const {
@@ -318,6 +319,56 @@ describe("CloudChatCore", () => {
     await expect(stream.cancel(new Error("stopped"))).resolves.toBeUndefined();
   });
 
+  it("does not continue a new-thread send after registry disposal", async () => {
+    let resolveThread!: (value: { thread_id: string }) => void;
+    const createThread = vi.fn(
+      () =>
+        new Promise<{ thread_id: string }>((resolve) => {
+          resolveThread = resolve;
+        }),
+    );
+    const selectThread = vi.fn();
+    const refresh = vi.fn();
+    const sendMessages = vi.fn();
+    const core = new CloudChatCore(
+      {} as never,
+      {
+        threads: {
+          cloud: { threads: { create: createThread } },
+          selectThread,
+          refresh,
+        } as never,
+        chatConfig: {},
+      },
+      { sendMessages, reconnectToStream: vi.fn() },
+    );
+    const stop = vi.fn().mockResolvedValue(undefined);
+    const chatRegistry = new ChatRegistry(
+      () => ({ messages: [], stop }) as never,
+    );
+    chatRegistry.getOrCreate("chat-1");
+    const persist = vi.spyOn(core, "persist").mockResolvedValue(undefined);
+
+    const send = core.createTransport("chat-1", chatRegistry).sendMessages({
+      trigger: "submit-message",
+      messages: [],
+      abortSignal: new AbortController().signal,
+    } as never);
+    await vi.waitFor(() => expect(createThread).toHaveBeenCalledOnce());
+
+    await chatRegistry.stopAll();
+    resolveThread({ thread_id: "thread-1" });
+
+    await expect(send).rejects.toMatchObject({ name: "AbortError" });
+    expect(stop).toHaveBeenCalledOnce();
+    expect(chatRegistry.getMeta("chat-1")?.threadId).toBeNull();
+    expect(chatRegistry.getChatKeyForThread("thread-1")).toBeUndefined();
+    expect(selectThread).not.toHaveBeenCalled();
+    expect(refresh).not.toHaveBeenCalled();
+    expect(persist).not.toHaveBeenCalled();
+    expect(sendMessages).not.toHaveBeenCalled();
+  });
+
   it("reports message_sent for a user submission only", async () => {
     const sendMessages = vi.fn(() => Promise.resolve(new ReadableStream()));
     const core = createCore({
@@ -415,6 +466,36 @@ describe("CloudChatCore", () => {
       expect.anything(),
       {},
     );
+  });
+
+  it("persists streamed content without Cloud finish effects after disposal", async () => {
+    const onFinish = vi.fn();
+    const core = createCore({ chatConfig: { onFinish } });
+    const messages = [{ id: "assistant-1", role: "assistant", parts: [] }];
+    const stop = vi.fn().mockResolvedValue(undefined);
+    const chatRegistry = new ChatRegistry(() => ({ messages, stop }) as never);
+    chatRegistry.getOrCreate("chat-1", "thread-1");
+    const persistChatMessages = vi
+      .spyOn(core, "persistChatMessages")
+      .mockResolvedValue(undefined);
+    const persist = vi.spyOn(core, "persist").mockResolvedValue(undefined);
+    const runStopped = vi.spyOn(core.engagementReporter, "runStopped");
+
+    core.createChat("chat-1", chatRegistry);
+    await chatRegistry.stopAll();
+    const wrappedOnFinish = chatOptionsRef.current?.onFinish;
+    expect(wrappedOnFinish).toBeTypeOf("function");
+    (wrappedOnFinish as (event: unknown) => void)({
+      isAbort: true,
+      isDisconnect: false,
+      isError: false,
+    });
+
+    expect(stop).toHaveBeenCalledOnce();
+    expect(onFinish).toHaveBeenCalledOnce();
+    expect(runStopped).not.toHaveBeenCalled();
+    expect(persistChatMessages).not.toHaveBeenCalled();
+    expect(persist).toHaveBeenCalledWith("thread-1", messages);
   });
 
   it("reports finish persistence failures", async () => {

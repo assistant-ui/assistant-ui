@@ -31,6 +31,13 @@ type ActiveTelemetryTiming = {
   error?: unknown;
 };
 
+const throwIfRegistryDisposed = (registry: ChatRegistry): void => {
+  if (!registry.isDisposed) return;
+  const error = new Error("Chat registry is disposed");
+  error.name = "AbortError";
+  throw error;
+};
+
 export class CloudChatCore {
   readonly cloud: AssistantCloud;
   readonly persistence: MessagePersistence;
@@ -199,7 +206,9 @@ export class CloudChatCore {
   ): ChatTransport<UIMessage> {
     return {
       sendMessages: async (opts) => {
+        throwIfRegistryDisposed(registry);
         const currentThreadId = await this.ensureThreadId(chatKey, registry);
+        throwIfRegistryDisposed(registry);
 
         if (!currentThreadId) {
           throw new Error("useCloudChat: Failed to resolve thread id");
@@ -212,6 +221,7 @@ export class CloudChatCore {
           roles: ["user"],
           strict: true,
         });
+        throwIfRegistryDisposed(registry);
         if (
           opts.trigger === "submit-message" &&
           opts.messages.at(-1)?.role === "user"
@@ -270,24 +280,32 @@ export class CloudChatCore {
               }
             : undefined;
           this.telemetryTimings.delete(chatKey);
-          const threadId = registry.getMeta(chatKey)?.threadId;
-          const chatInstance = registry.get(chatKey);
-          if (threadId && chatInstance) {
-            if (event.isAbort) this.engagementReporter.runStopped(threadId);
-            if (event.isError || event.finishReason === "error") {
-              this.engagementReporter.errorShown(
-                threadId,
-                chatInstance.messages,
-              );
+          if (!registry.isDisposed) {
+            const threadId = registry.getMeta(chatKey)?.threadId;
+            const chatInstance = registry.get(chatKey);
+            if (threadId && chatInstance) {
+              if (event.isAbort) this.engagementReporter.runStopped(threadId);
+              if (event.isError || event.finishReason === "error") {
+                this.engagementReporter.errorShown(
+                  threadId,
+                  chatInstance.messages,
+                );
+              }
             }
           }
+          const threadId = registry.getMeta(chatKey)?.threadId;
+          const chatInstance = registry.get(chatKey);
           const finishEvent =
             activeTiming?.error === undefined
               ? event
               : { ...event, error: activeTiming.error };
-          const persist = timing
-            ? this.persistChatMessages(chatKey, registry, finishEvent, timing)
-            : this.persistChatMessages(chatKey, registry, finishEvent);
+          const persist = registry.isDisposed
+            ? threadId && chatInstance
+              ? this.persist(threadId, chatInstance.messages)
+              : Promise.resolve()
+            : timing
+              ? this.persistChatMessages(chatKey, registry, finishEvent, timing)
+              : this.persistChatMessages(chatKey, registry, finishEvent);
           void persist.catch((error) => {
             this.handleSyncError(error);
           });
