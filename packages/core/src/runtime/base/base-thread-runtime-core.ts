@@ -502,6 +502,7 @@ export abstract class BaseThreadRuntimeCore
 
   public disconnectVoice() {
     this._currentAssistantMsg = null;
+    // Drain the shared list in place so reentrant setup cannot release the same handles again.
     const unsubs = this._voiceUnsubs.splice(0);
     this._voiceUnsubs = [];
     const session = this._voiceSession;
