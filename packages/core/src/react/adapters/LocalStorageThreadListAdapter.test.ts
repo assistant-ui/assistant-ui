@@ -307,7 +307,10 @@ describe("parseStoredMessageRepository", () => {
         {
           message: {
             ...storedMessage("assistant-content", "assistant"),
-            content: [{ type: "future-assistant-part", value: "assistant" }],
+            content: [
+              { type: "future-assistant-part", value: "assistant" },
+              { type: "audio", audio: null },
+            ],
           },
           parentId: "user-content",
         },
@@ -479,7 +482,7 @@ describe("parseStoredMessageRepository", () => {
     expect(parsedDepth).toBe(100);
   });
 
-  it("drops malformed attachments and defaults an invalid assistant status", () => {
+  it("drops malformed attachments and preserves record-shaped statuses", () => {
     const repo = parseStoredMessageRepository(
       JSON.stringify({
         messages: [
@@ -513,6 +516,13 @@ describe("parseStoredMessageRepository", () => {
             },
             parentId: null,
           },
+          {
+            message: {
+              ...storedMessage("future-reason", "assistant"),
+              status: { type: "incomplete", reason: "quota" },
+            },
+            parentId: null,
+          },
         ],
       }),
     );
@@ -536,7 +546,7 @@ describe("parseStoredMessageRepository", () => {
       throw new Error("expected assistant");
     expect(assistantMessage.status).toEqual({
       type: "complete",
-      reason: "unknown",
+      reason: "length",
     });
     const futureStatusMessage = repo.messages[2]?.message;
     expect(futureStatusMessage?.role).toBe("assistant");
@@ -545,6 +555,15 @@ describe("parseStoredMessageRepository", () => {
     expect(futureStatusMessage.status).toEqual({
       type: "paused",
       reason: "user-request",
+    });
+    const futureReasonMessage = repo.messages[3]?.message;
+    expect(futureReasonMessage?.role).toBe("assistant");
+    if (futureReasonMessage?.role !== "assistant") {
+      throw new Error("expected assistant");
+    }
+    expect(futureReasonMessage.status).toEqual({
+      type: "incomplete",
+      reason: "quota",
     });
   });
 
