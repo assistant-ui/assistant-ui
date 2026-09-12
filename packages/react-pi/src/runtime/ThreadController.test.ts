@@ -385,6 +385,28 @@ describe("PiThreadController", () => {
     expect(client.sent[0]!.input.attachments?.[0]?.mimeType).toBe("image/png");
   });
 
+  it("rejects non-image bytes returned with a generic content type", async () => {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn().mockResolvedValue(
+        new Response(new Uint8Array([0, 1, 2]), {
+          headers: { "content-type": "application/octet-stream" },
+        }),
+      ),
+    );
+    onTestFinished(() => vi.unstubAllGlobals());
+    const client = createFakeClient();
+    const controller = new PiThreadController(client, THREAD);
+
+    await expect(
+      controller.sendMessage(
+        userMessageWithImage("look", "https://cdn.example.com/not-an-image"),
+      ),
+    ).rejects.toThrow("response does not contain image bytes");
+
+    expect(client.sent).toHaveLength(0);
+  });
+
   it.each([
     ["data:text/plain;base64,SGVsbG8=", "unsupported content type: text/plain"],
     ["file:///tmp/image.png", "Unsupported Pi image attachment URL scheme"],
@@ -765,6 +787,50 @@ describe("PiThreadController", () => {
 
     expect(fetchSignal?.aborted).toBe(true);
     expect(client.sent).toHaveLength(0);
+    expect(controller.getProjectedMessages()).toHaveLength(0);
+    expect(controller.getState()).toMatchObject({
+      runStatus: "idle",
+      metadata: { status: "idle" },
+      queue: { steering: [], followUp: [] },
+      lastError: undefined,
+    });
+  });
+
+  it("rejects messages queued behind failed image preparation", async () => {
+    vi.stubGlobal(
+      "fetch",
+      vi
+        .fn()
+        .mockResolvedValue(
+          new Response("missing", { status: 404, statusText: "Not Found" }),
+        ),
+    );
+    onTestFinished(() => vi.unstubAllGlobals());
+    const client = createFakeClient();
+    const controller = new PiThreadController(client, THREAD);
+
+    const first = controller.sendMessage(
+      userMessageWithImage("first", "https://cdn.example.com/missing.png"),
+    );
+    const second = controller.sendMessage(userMessage("second"));
+    const firstRejection = expect(first).rejects.toThrow(
+      "Failed to load Pi image attachment: 404 Not Found",
+    );
+    const secondRejection = expect(second).rejects.toThrow(
+      "Failed to load Pi image attachment: 404 Not Found",
+    );
+
+    await Promise.all([firstRejection, secondRejection]);
+
+    expect(client.sent).toHaveLength(0);
+    expect(controller.getState().queue).toEqual({
+      steering: [],
+      followUp: [],
+    });
+
+    await controller.sendMessage(userMessage("third"));
+    expect(client.sent).toHaveLength(1);
+    expect(client.sent[0]!.input).toEqual({ content: "third" });
   });
 
   it("contains late image failures when another source is invalid", async () => {
@@ -846,7 +912,7 @@ describe("PiThreadController", () => {
     [
       "no content type or recognized image bytes",
       new Response(new Uint8Array([0, 1, 2])),
-      "response is missing a content type",
+      "response does not contain image bytes",
     ],
   ])("rejects URL image responses with %s", async (_, response, error) => {
     vi.stubGlobal("fetch", vi.fn().mockResolvedValue(response));

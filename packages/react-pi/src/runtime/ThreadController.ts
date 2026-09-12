@@ -173,8 +173,15 @@ const loadImageContent = async (
   }
 
   const data = bytesToBase64(new Uint8Array(await response.arrayBuffer()));
-  if (!contentType && !detectImageMediaType(data)) {
-    throw new Error("Pi image attachment response is missing a content type");
+  if (
+    (!contentType ||
+      contentType === "application/octet-stream" ||
+      contentType === "binary/octet-stream") &&
+    !detectImageMediaType(data)
+  ) {
+    throw new Error(
+      "Pi image attachment response does not contain image bytes",
+    );
   }
   return {
     type: "image",
@@ -191,6 +198,12 @@ const isBase64Payload = (value: string) => {
     /^[a-z\d+/]*={0,2}$/i.test(compact)
   );
 };
+
+const isAbortError = (error: unknown): boolean =>
+  typeof error === "object" &&
+  error !== null &&
+  "name" in error &&
+  error.name === "AbortError";
 
 const toImageContent = (
   image: string,
@@ -571,6 +584,8 @@ export class PiThreadController implements PiThreadControllerLike {
     }
 
     const optimistic = optimisticUserMessageFromInput(optimisticInput);
+    const previousRunStatus = this.state.runStatus;
+    const previousMetadataStatus = this.state.metadata.status;
     this.optimisticUserMessages.push({
       message: optimistic,
       baseMessageCount: this.state.messages.length,
@@ -586,6 +601,17 @@ export class PiThreadController implements PiThreadControllerLike {
       );
       if (index !== -1) this.optimisticUserMessages.splice(index, 1);
       this.recomputeProjectedMessagesAndNotify();
+      if (isAbortError(error)) {
+        this.setState({
+          ...this.state,
+          runStatus: previousRunStatus,
+          metadata: {
+            ...this.state.metadata,
+            status: previousMetadataStatus,
+          },
+        });
+        throw error;
+      }
       // The optimistic `running` mark must not outlive the failed send; any
       // events from a run that did start will self-heal the status.
       this.setState({
@@ -624,7 +650,7 @@ export class PiThreadController implements PiThreadControllerLike {
       const index = entries.lastIndexOf(content);
       this.setState({
         ...this.state,
-        lastError: errorText(error),
+        ...(!isAbortError(error) ? { lastError: errorText(error) } : undefined),
         ...(index !== -1
           ? {
               queue: {
@@ -644,8 +670,10 @@ export class PiThreadController implements PiThreadControllerLike {
   ) {
     const abortController = new AbortController();
     this.pendingSendControllers.add(abortController);
-    const request = this.sendDispatchTail.then(async () => {
+    const previousRequest = this.sendDispatchTail;
+    const request = (async () => {
       try {
+        await previousRequest;
         const input = await buildPiSendInput(
           message,
           behavior,
@@ -656,8 +684,13 @@ export class PiThreadController implements PiThreadControllerLike {
       } finally {
         this.pendingSendControllers.delete(abortController);
       }
+    })();
+    this.sendDispatchTail = request;
+    void request.catch(() => {
+      if (this.sendDispatchTail === request) {
+        this.sendDispatchTail = Promise.resolve();
+      }
     });
-    this.sendDispatchTail = request.catch(() => undefined);
     return request;
   }
 
