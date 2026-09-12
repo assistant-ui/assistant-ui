@@ -83,9 +83,18 @@ describe("McpAddFormPrimitiveRoot", () => {
   it("provides accessible names and connects validation errors", () => {
     render(
       <McpAddFormPrimitiveRoot>
-        <McpAddFormPrimitiveNameField />
-        <McpAddFormPrimitiveUrlField />
-        <McpAddFormPrimitiveAuthSelect />
+        <label>
+          Name
+          <McpAddFormPrimitiveNameField />
+        </label>
+        <label>
+          URL
+          <McpAddFormPrimitiveUrlField />
+        </label>
+        <label>
+          Auth
+          <McpAddFormPrimitiveAuthSelect />
+        </label>
         <McpAddFormPrimitiveAuthFields />
         <McpAddFormPrimitiveError />
         <McpAddFormPrimitiveSubmit>Submit</McpAddFormPrimitiveSubmit>

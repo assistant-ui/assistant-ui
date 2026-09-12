@@ -25,10 +25,6 @@ export const McpAddFormPrimitiveNameField = forwardRef<
       placeholder="Name"
       {...props}
       id={props.id ?? ids.name}
-      aria-label={
-        props["aria-label"] ??
-        (props.id || props["aria-labelledby"] ? undefined : "Name")
-      }
       aria-invalid={
         props["aria-invalid"] ??
         (state.errorField === "name" ? true : undefined)

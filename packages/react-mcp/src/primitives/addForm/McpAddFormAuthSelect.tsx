@@ -35,10 +35,6 @@ export const McpAddFormPrimitiveAuthSelect = forwardRef<
     <Primitive.select
       {...props}
       id={props.id ?? ids.auth}
-      aria-label={
-        props["aria-label"] ??
-        (props.id || props["aria-labelledby"] ? undefined : "Auth")
-      }
       ref={ref}
       value={state.authType}
       onChange={(e) => {

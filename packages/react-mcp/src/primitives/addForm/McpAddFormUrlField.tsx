@@ -26,10 +26,6 @@ export const McpAddFormPrimitiveUrlField = forwardRef<
       placeholder="https://example.com/mcp"
       {...props}
       id={props.id ?? ids.url}
-      aria-label={
-        props["aria-label"] ??
-        (props.id || props["aria-labelledby"] ? undefined : "URL")
-      }
       aria-invalid={
         props["aria-invalid"] ?? (state.errorField === "url" ? true : undefined)
       }
