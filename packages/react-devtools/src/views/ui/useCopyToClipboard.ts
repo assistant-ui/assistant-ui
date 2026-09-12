@@ -6,9 +6,7 @@ export const useCopyToClipboard = ({
   copiedDuration?: number;
 } = {}) => {
   const [isCopied, setIsCopied] = useState(false);
-  const copiedTimer = useRef<ReturnType<typeof setTimeout> | undefined>(
-    undefined,
-  );
+  const copiedTimer = useRef<number | undefined>(undefined);
   const copyGeneration = useRef(0);
   const latestSuccessfulCopy = useRef(0);
   const isMounted = useRef(true);
@@ -17,7 +15,7 @@ export const useCopyToClipboard = ({
     isMounted.current = true;
     return () => {
       isMounted.current = false;
-      clearTimeout(copiedTimer.current);
+      window.clearTimeout(copiedTimer.current);
     };
   }, []);
 
@@ -33,7 +31,7 @@ export const useCopyToClipboard = ({
           latestSuccessfulCopy.current = generation;
           if (!isMounted.current) return;
 
-          clearTimeout(copiedTimer.current);
+          window.clearTimeout(copiedTimer.current);
           setIsCopied(true);
           copiedTimer.current = window.setTimeout(() => {
             copiedTimer.current = undefined;
