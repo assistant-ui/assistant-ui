@@ -18,6 +18,14 @@ describe("cursor grapheme lookup", () => {
           textBufferReducer(state, { type: "move-left" }).cursorOffset,
         ).toBe(1);
       }
+      const fractional = {
+        text,
+        cursorOffset: 1.5,
+        preferredColumn: undefined,
+      };
+      expect(
+        textBufferReducer(fractional, { type: "move-left" }).cursorOffset,
+      ).toBe(1);
       for (let cursorOffset = 1; cursorOffset < end; cursorOffset++) {
         const state = { text, cursorOffset, preferredColumn: undefined };
         expect(

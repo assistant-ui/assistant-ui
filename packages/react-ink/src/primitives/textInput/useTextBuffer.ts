@@ -40,7 +40,7 @@ const stepGraphemeLeft = (text: string, offset: number) => {
   return (
     graphemeSegmenter
       .segment(text)
-      .containing(Math.min(offset, text.length) - 1)?.index ?? 0
+      .containing(Math.ceil(Math.min(offset, text.length)) - 1)?.index ?? 0
   );
 };
 

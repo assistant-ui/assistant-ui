@@ -35,6 +35,7 @@
     "build": "aui-build",
     "test": "vitest run",
     "test:watch": "vitest",
+    "bench": "vitest bench --run",
     "benchmark": "tsx benchmarks/run.ts"
   },
   "dependencies": {
