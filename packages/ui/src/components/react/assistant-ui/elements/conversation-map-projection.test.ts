@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import type { ThreadMessage } from "@assistant-ui/react";
 
-import { ConversationMapProjectionCache } from "./conversation-map-projection";
+import { projectConversationMap } from "./conversation-map-projection";
 
 const message = (
   id: string,
@@ -14,16 +14,31 @@ const message = (
     content: text ? [{ type: "text", text }] : [],
   }) as unknown as ThreadMessage;
 
-describe("ConversationMapProjectionCache", () => {
+describe("projectConversationMap", () => {
+  it("keeps cleaned titles and previews when a question gains an answer", () => {
+    const user = message("u1", "user", "# Question\n\n- More details");
+    expect(projectConversationMap([user]).entries).toEqual([
+      { id: "u1", title: "Question", preview: "More details" },
+    ]);
+    expect(
+      projectConversationMap([
+        user,
+        message("a1", "assistant", "# Answer\n\n- Next step"),
+      ]).entries,
+    ).toEqual([{ id: "u1", title: "Question", preview: "Answer Next step" }]);
+    expect(projectConversationMap([user]).entries).toEqual([
+      { id: "u1", title: "Question", preview: "More details" },
+    ]);
+  });
+
   it("does not skip a changed answer after a changed system message", () => {
-    const cache = new ConversationMapProjectionCache();
     const user = message("u1", "user", "Question");
-    cache.project([
+    projectConversationMap([
       message("s1", "system"),
       user,
       message("a1", "assistant", "Old"),
     ]);
-    const updated = cache.project([
+    const updated = projectConversationMap([
       message("s2", "system"),
       user,
       message("a1", "assistant", "New"),
@@ -32,11 +47,10 @@ describe("ConversationMapProjectionCache", () => {
   });
 
   it("does not mutate an earlier render's ownership map", () => {
-    const cache = new ConversationMapProjectionCache();
     const user = message("u1", "user", "First");
     const firstMessages = [user, message("a1", "assistant", "Answer")];
-    const first = cache.project(firstMessages);
-    const updated = cache.project([
+    const first = projectConversationMap(firstMessages);
+    const updated = projectConversationMap([
       user,
       message("u2", "user", "Second"),
       message("a2", "assistant", "New answer"),
@@ -46,7 +60,7 @@ describe("ConversationMapProjectionCache", () => {
       ["a1", "u1"],
     ]);
     expect(updated.turnOf.get("a2")).toBe("u2");
-    cache.project([...firstMessages]);
+    projectConversationMap([...firstMessages]);
     expect(first.messages).toBe(firstMessages);
   });
 
@@ -62,41 +76,34 @@ describe("ConversationMapProjectionCache", () => {
     const messages = Array.from({ length: 1000 }, (_, i) =>
       counted(i, `Message ${i}`),
     );
-    const cache = new ConversationMapProjectionCache();
-    const before = cache.project(messages);
+    const before = projectConversationMap(messages);
     expect(reads).toBe(1000);
-    const after = cache.project([
+    const after = projectConversationMap([
       ...messages.slice(0, -1),
       counted(999, "New token"),
     ]);
     expect(reads).toBe(1001);
-    expect(after.entries[0]).toBe(before.entries[0]);
+    expect(after.entries[0]).toEqual(before.entries[0]);
     expect(after.entries.at(-1)?.preview).toBe("New token");
-    expect(after.turnOf).toBe(before.turnOf);
+    expect(after.turnOf).toEqual(before.turnOf);
   });
 
   it("keeps projections correct when a newer render is abandoned", () => {
-    const cache = new ConversationMapProjectionCache();
     const messages = [
       message("u1", "user", "First"),
       message("a1", "assistant", "Answer"),
     ];
-    const original = cache.project(messages);
+    const original = projectConversationMap(messages);
     const alternateMessages = [messages[0]!, message("u2", "user", "Second")];
-    const alternate = cache.project(alternateMessages);
-    const restored = cache.project(messages);
+    const alternate = projectConversationMap(alternateMessages);
+    const restored = projectConversationMap(messages);
     expect(restored).toEqual(original);
-    expect(cache.project(messages)).toBe(restored);
-    expect(alternate).toEqual(
-      new ConversationMapProjectionCache().project(alternateMessages),
-    );
-    expect(original).toEqual(
-      new ConversationMapProjectionCache().project(messages),
-    );
+    expect(projectConversationMap(messages)).toEqual(restored);
+    expect(alternate).toEqual(projectConversationMap(alternateMessages));
+    expect(original).toEqual(projectConversationMap(messages));
   });
 
   it("matches a fresh projection across insertions, deletions, and branch switches", () => {
-    const cache = new ConversationMapProjectionCache();
     const user = message("u1", "user", "Question");
     const answer = message("a1", "assistant", "Answer");
     const system = message("s1", "system");
@@ -125,9 +132,11 @@ describe("ConversationMapProjectionCache", () => {
     ];
     for (const from of variants) {
       for (const to of variants) {
-        cache.project(from);
-        const actual = cache.project(to);
-        const expected = new ConversationMapProjectionCache().project(to);
+        projectConversationMap(from);
+        const actual = projectConversationMap(to);
+        const expected = projectConversationMap(
+          to.map((item) => ({ ...item })),
+        );
         expect(actual.entries).toEqual(expected.entries);
         expect([...actual.turnOf]).toEqual([...expected.turnOf]);
         expect(actual.turnKey).toBe(expected.turnKey);
@@ -152,8 +161,7 @@ describe("ConversationMapProjectionCache", () => {
     const firstAssistant = counted("a1", "assistant", "Done");
     const secondUser = counted("u2", "user", "Second");
     const secondAssistant = counted("a2", "assistant", "Old answer");
-    const cache = new ConversationMapProjectionCache();
-    const initial = cache.project([
+    const initial = projectConversationMap([
       firstUser,
       firstAssistant,
       secondUser,
@@ -163,7 +171,7 @@ describe("ConversationMapProjectionCache", () => {
     expect(reads.count).toBe(4);
 
     const replacement = counted("a2", "assistant", "New answer");
-    const updated = cache.project([
+    const updated = projectConversationMap([
       firstUser,
       firstAssistant,
       secondUser,
@@ -171,8 +179,7 @@ describe("ConversationMapProjectionCache", () => {
     ]);
 
     expect(reads.count).toBe(5);
-    expect(updated.entries[0]).toBe(initial.entries[0]);
-    expect(updated.entries[1]).not.toBe(initial.entries[1]);
+    expect(updated.entries[0]).toEqual(initial.entries[0]);
     expect(updated.entries[1]).toMatchObject({
       id: "u2",
       title: "Second",
@@ -184,10 +191,9 @@ describe("ConversationMapProjectionCache", () => {
   });
 
   it("rebuilds ownership and turn boundaries for structural tail edits", () => {
-    const cache = new ConversationMapProjectionCache();
-    const first = cache.project([message("u1", "user", "First")]);
+    const first = projectConversationMap([message("u1", "user", "First")]);
 
-    const appended = cache.project([
+    const appended = projectConversationMap([
       message("u1", "user", "First"),
       message("u2", "user", "Second"),
     ]);
@@ -197,32 +203,30 @@ describe("ConversationMapProjectionCache", () => {
     ]);
     expect(appended.turnOf.get("u2")).toBe("u2");
 
-    const removed = cache.project([message("u1", "user", "First")]);
+    const removed = projectConversationMap([message("u1", "user", "First")]);
     expect(removed.entries).toHaveLength(1);
     expect(removed.turnOf.get("u2")).toBeUndefined();
-    expect(removed.entries[0]).not.toBe(first.entries[0]);
+    expect(removed.entries[0]).toEqual(first.entries[0]);
   });
 
   it("keeps ignored-message changes out of the projection", () => {
-    const cache = new ConversationMapProjectionCache();
     const user = message("u1", "user", "Hello");
-    const initial = cache.project([message("s1", "system"), user]);
-    const updated = cache.project([message("s2", "system"), user]);
+    const initial = projectConversationMap([message("s1", "system"), user]);
+    const updated = projectConversationMap([message("s2", "system"), user]);
 
-    expect(updated.entries).toBe(initial.entries);
-    expect(updated.turnOf).toBe(initial.turnOf);
+    expect(updated.entries).toEqual(initial.entries);
+    expect(updated.turnOf).toEqual(initial.turnOf);
     expect(updated.turnKey).toBe(initial.turnKey);
   });
 
   it("keeps turn boundaries correct after ignored-message insertion", () => {
-    const cache = new ConversationMapProjectionCache();
     const first = message("u1", "user", "First");
     const second = message("u2", "user", "Second");
-    cache.project([first, second]);
-    cache.project([first, message("s1", "system"), second]);
+    projectConversationMap([first, second]);
+    projectConversationMap([first, message("s1", "system"), second]);
 
     const assistant = message("a1", "assistant", "Answer");
-    const updated = cache.project([
+    const updated = projectConversationMap([
       first,
       message("s1", "system"),
       assistant,

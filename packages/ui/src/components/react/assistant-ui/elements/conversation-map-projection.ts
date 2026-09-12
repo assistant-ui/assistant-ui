@@ -9,15 +9,11 @@ export type ConversationMapTurn = {
   members: ThreadMessage[];
 };
 
-type ProjectedTurn = ConversationMapTurn & {
-  rawStart: number;
-  rawEnd: number;
-};
-
 type MessageSummary = {
-  text: string;
-  lines: string[];
-  label: string;
+  hasText: boolean;
+  title: string;
+  answerPreview: string;
+  questionPreview: string;
 };
 
 export type ConversationMapProjection = {
@@ -26,11 +22,6 @@ export type ConversationMapProjection = {
   entries: readonly ConversationMapEntry[];
   turnOf: ReadonlyMap<string, string>;
   turnKey: string;
-};
-
-type CachedProjection = Omit<ConversationMapProjection, "turns" | "turnOf"> & {
-  turns: readonly ProjectedTurn[];
-  turnOf: Map<string, string>;
 };
 
 const cutAtWord = (text: string, limit: number) => {
@@ -89,198 +80,83 @@ const summarizeMessage = (message: ThreadMessage): MessageSummary => {
   else if (content.length + attachments.length > 0) label = "Attachment";
   else label = message.role === "user" ? "Message" : "Response";
 
-  return { text, lines, label };
+  const first = lines[0] ?? "";
+  const title = cutAtWord(first, TITLE_LENGTH);
+  return {
+    hasText: text.length > 0,
+    title: title || label,
+    answerPreview: lines.join(" ").trim().slice(0, PREVIEW_LENGTH),
+    questionPreview: [first.slice(title.length), ...lines.slice(1)]
+      .join(" ")
+      .trim()
+      .slice(0, PREVIEW_LENGTH),
+  };
+};
+
+const summaries = new WeakMap<ThreadMessage, MessageSummary>();
+
+const summaryOf = (message: ThreadMessage) => {
+  let summary = summaries.get(message);
+  if (!summary) {
+    summary = summarizeMessage(message);
+    summaries.set(message, summary);
+  }
+  return summary;
 };
 
 const groupIntoTurns = (
   messages: readonly ThreadMessage[],
-  start = 0,
-): ProjectedTurn[] => {
-  const turns: ProjectedTurn[] = [];
-
-  for (let index = start; index < messages.length; index++) {
-    const message = messages[index]!;
-    if (message.role !== "user" && message.role !== "assistant") {
-      const current = turns.at(-1);
-      if (current) current.rawEnd = index + 1;
-      continue;
-    }
-
+): ConversationMapTurn[] => {
+  const turns: ConversationMapTurn[] = [];
+  for (const message of messages) {
+    if (message.role !== "user" && message.role !== "assistant") continue;
     const current = turns.at(-1);
     if (message.role === "user" || !current) {
-      turns.push({
-        head: message,
-        members: [message],
-        rawStart: index,
-        rawEnd: index + 1,
-      });
-      continue;
+      turns.push({ head: message, members: [message] });
+    } else {
+      current.members.push(message);
     }
-    current.members.push(message);
-    current.rawEnd = index + 1;
   }
-
   return turns;
 };
 
-export class ConversationMapProjectionCache {
-  private readonly summaries = new WeakMap<ThreadMessage, MessageSummary>();
-  private previous: CachedProjection | undefined;
-
-  private summaryOf(message: ThreadMessage) {
-    let summary = this.summaries.get(message);
-    if (!summary) {
-      summary = summarizeMessage(message);
-      this.summaries.set(message, summary);
+const describe = ({
+  head,
+  members,
+}: ConversationMapTurn): ConversationMapEntry => {
+  const headSummary = summaryOf(head);
+  let answerSummary: MessageSummary | undefined;
+  for (const member of members) {
+    if (member === head) continue;
+    const summary = summaryOf(member);
+    if (summary.hasText) {
+      answerSummary = summary;
+      break;
     }
-    return summary;
   }
+  const preview = answerSummary
+    ? answerSummary.answerPreview
+    : headSummary.questionPreview;
+  return {
+    id: head.id,
+    title: headSummary.title,
+    ...(preview ? { preview } : {}),
+  };
+};
 
-  private describe({ head, members }: ConversationMapTurn) {
-    const headSummary = this.summaryOf(head);
-    const first = headSummary.lines[0] ?? "";
-    const title = cutAtWord(first, TITLE_LENGTH);
-
-    let answerSummary: MessageSummary | undefined;
-    for (const member of members) {
-      if (member === head) continue;
-      const summary = this.summaryOf(member);
-      if (summary.text) {
-        answerSummary = summary;
-        break;
-      }
-    }
-
-    const preview = (
-      answerSummary
-        ? answerSummary.lines.join(" ")
-        : [first.slice(title.length), ...headSummary.lines.slice(1)].join(" ")
-    )
-      .trim()
-      .slice(0, PREVIEW_LENGTH);
-
-    return {
-      id: head.id,
-      title: title || headSummary.label,
-      ...(preview ? { preview } : {}),
-    };
+export const projectConversationMap = (
+  messages: readonly ThreadMessage[],
+): ConversationMapProjection => {
+  const turns = groupIntoTurns(messages);
+  const turnOf = new Map<string, string>();
+  for (const turn of turns) {
+    for (const member of turn.members) turnOf.set(member.id, turn.head.id);
   }
-
-  private initial(messages: readonly ThreadMessage[]): CachedProjection {
-    const turns = groupIntoTurns(messages);
-    const entries = turns.map((turn) => this.describe(turn));
-    const turnOf = new Map<string, string>();
-    for (const turn of turns) {
-      for (const member of turn.members) turnOf.set(member.id, turn.head.id);
-    }
-
-    return {
-      messages,
-      turns,
-      entries,
-      turnOf,
-      turnKey: turns.map((turn) => turn.head.id).join(" "),
-    };
-  }
-
-  project(messages: readonly ThreadMessage[]): ConversationMapProjection {
-    const previous = this.previous;
-    if (!previous) {
-      const initial = this.initial(messages);
-      this.previous = initial;
-      return initial;
-    }
-    if (messages === previous.messages) return previous;
-
-    let changedAt = 0;
-    while (
-      changedAt < previous.messages.length &&
-      changedAt < messages.length &&
-      previous.messages[changedAt] === messages[changedAt]
-    ) {
-      changedAt++;
-    }
-    if (
-      changedAt === previous.messages.length &&
-      changedAt === messages.length
-    ) {
-      return (this.previous = { ...previous, messages });
-    }
-
-    let affectedTurnIndex: number;
-    let rebuildStart: number;
-    if (changedAt >= previous.messages.length) {
-      affectedTurnIndex = Math.max(0, previous.turns.length - 1);
-      rebuildStart = previous.turns.at(-1)?.rawStart ?? changedAt;
-    } else {
-      affectedTurnIndex = previous.turns.findIndex(
-        (turn) => changedAt >= turn.rawStart && changedAt < turn.rawEnd,
-      );
-      if (affectedTurnIndex === -1) {
-        if (
-          previous.messages.length === messages.length &&
-          previous.messages.every((message, index) => {
-            const next = messages[index]!;
-            return (
-              message === next ||
-              (message.role !== "user" &&
-                message.role !== "assistant" &&
-                next.role !== "user" &&
-                next.role !== "assistant")
-            );
-          })
-        ) {
-          return (this.previous = { ...previous, messages });
-        }
-        affectedTurnIndex = 0;
-        rebuildStart = 0;
-      } else {
-        rebuildStart = previous.turns[affectedTurnIndex]!.rawStart;
-      }
-    }
-
-    if (
-      affectedTurnIndex > 0 &&
-      changedAt === previous.turns[affectedTurnIndex]!.rawStart
-    ) {
-      affectedTurnIndex--;
-      rebuildStart = previous.turns[affectedTurnIndex]!.rawStart;
-    }
-
-    const oldSuffix = previous.turns.slice(affectedTurnIndex);
-    const suffix = groupIntoTurns(messages, rebuildStart);
-    const turns = [...previous.turns.slice(0, affectedTurnIndex), ...suffix];
-    const entries = [
-      ...previous.entries.slice(0, affectedTurnIndex),
-      ...suffix.map((turn) => this.describe(turn)),
-    ];
-    const sameOwnership =
-      oldSuffix.length === suffix.length &&
-      suffix.every((turn, index) => {
-        const old = oldSuffix[index]!;
-        return (
-          turn.head.id === old.head.id &&
-          turn.members.length === old.members.length &&
-          turn.members.every(
-            (member, index) => member.id === old.members[index]!.id,
-          )
-        );
-      });
-    const turnOf = sameOwnership ? previous.turnOf : new Map<string, string>();
-    if (!sameOwnership) {
-      for (const turn of turns) {
-        for (const member of turn.members) turnOf.set(member.id, turn.head.id);
-      }
-    }
-
-    const projection: CachedProjection = {
-      messages,
-      turns,
-      entries,
-      turnOf,
-      turnKey: turns.map((turn) => turn.head.id).join(" "),
-    };
-    this.previous = projection;
-    return projection;
-  }
-}
+  return {
+    messages,
+    turns,
+    entries: turns.map(describe),
+    turnOf,
+    turnKey: turns.map((turn) => turn.head.id).join(" "),
+  };
+};

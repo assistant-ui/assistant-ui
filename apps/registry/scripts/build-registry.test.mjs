@@ -91,7 +91,7 @@ test("conversation map bundles its projection helper in both flavors", async () 
         (file) =>
           file.path ===
             "components/assistant-ui/elements/conversation-map-projection.ts" &&
-          file.content.includes("export class ConversationMapProjectionCache"),
+          file.content.includes("export const projectConversationMap"),
       ),
     );
   }

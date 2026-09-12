@@ -1,10 +1,10 @@
 "use client";
 
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useAuiState, useThreadViewport } from "@assistant-ui/react";
 import { cn } from "@/lib/utils";
 import { ConversationMap } from "./conversation-map";
-import { ConversationMapProjectionCache } from "./conversation-map-projection";
+import { projectConversationMap } from "./conversation-map-projection";
 
 /**
  * A message scrolled to the top of the viewport lands a fraction of a pixel
@@ -50,11 +50,10 @@ export function ConversationMapAui({
   const [activeId, setActiveId] = useState<string | undefined>(undefined);
   const [visibleIds, setVisibleIds] = useState<readonly string[]>([]);
   const scheduleRef = useRef<(() => void) | undefined>(undefined);
-  const [projectionCache] = useState(
-    () => new ConversationMapProjectionCache(),
+  const { entries, turnOf, turnKey } = useMemo(
+    () => projectConversationMap(messages),
+    [messages],
   );
-
-  const { entries, turnOf, turnKey } = projectionCache.project(messages);
 
   const turnOfRef = useRef(turnOf);
 
