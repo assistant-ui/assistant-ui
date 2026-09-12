@@ -357,6 +357,10 @@ describe("parseStoredMessageRepository", () => {
                   messages: [
                     null,
                     {
+                      role: "assistant",
+                      content: [{ type: "text", text: "partial" }, null],
+                    },
+                    {
                       ...storedMessage("nested", "assistant"),
                       content: [null],
                     },
@@ -385,6 +389,10 @@ describe("parseStoredMessageRepository", () => {
       },
     ]);
     expect(part.messages).toEqual([
+      {
+        role: "assistant",
+        content: [{ type: "text", text: "partial" }],
+      },
       {
         ...storedMessage("nested", "assistant"),
         content: [],

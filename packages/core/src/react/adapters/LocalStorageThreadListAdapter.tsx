@@ -228,7 +228,10 @@ const parseStoredAssistantContent = (
           ...(Array.isArray(messages)
             ? {
                 messages: messages.flatMap((message) => {
-                  const parsed = parseStoredThreadMessage(message, depth + 1);
+                  const parsed = parseStoredNestedThreadMessage(
+                    message,
+                    depth + 1,
+                  );
                   return parsed ? [parsed] : [];
                 }),
               }
@@ -429,6 +432,54 @@ function parseStoredThreadMessage(
   } catch {
     return null;
   }
+}
+
+function parseStoredNestedThreadMessage(
+  value: unknown,
+  depth: number,
+): ThreadMessage | null {
+  const parsed = parseStoredThreadMessage(value, depth);
+  if (parsed || depth > MAX_STORED_MESSAGE_DEPTH || !isRecord(value)) {
+    return parsed;
+  }
+  if (!isMessageRole(value.role) || !Array.isArray(value.content)) return null;
+
+  if (value.role === "assistant") {
+    return {
+      ...value,
+      content: parseStoredAssistantContent(value.content, depth),
+    } as unknown as ThreadMessage;
+  }
+  if (value.role === "user") {
+    return {
+      ...value,
+      content: parseStoredUserContent(value.content),
+      ...(Array.isArray(value.attachments)
+        ? {
+            attachments: value.attachments.flatMap((attachment) => {
+              const parsedAttachment = parseStoredAttachment(attachment);
+              return parsedAttachment ? [parsedAttachment] : [];
+            }),
+          }
+        : undefined),
+    } as unknown as ThreadMessage;
+  }
+
+  const textParts = parseStoredUserContent(value.content).filter(
+    (part) => part.type === "text",
+  );
+  return {
+    ...value,
+    content:
+      textParts.length === 1
+        ? textParts
+        : [
+            {
+              type: "text",
+              text: textParts.map((part) => part.text).join("\n"),
+            },
+          ],
+  } as unknown as ThreadMessage;
 }
 
 export const parseStoredThreadMetadata = (
