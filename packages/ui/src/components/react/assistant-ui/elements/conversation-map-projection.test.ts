@@ -56,7 +56,7 @@ describe("ConversationMapProjectionCache", () => {
       ...message(String(index), index % 2 ? "assistant" : "user"),
       get content() {
         reads++;
-        return [{ type: "text", text }];
+        return [{ type: "text", text }] as const;
       },
     });
     const messages = Array.from({ length: 1000 }, (_, i) =>
