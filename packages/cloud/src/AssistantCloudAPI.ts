@@ -95,12 +95,31 @@ type MakeRequestOptions = {
   keepalive?: boolean | undefined;
 };
 
+const HEADER_TOKEN = /^[\x21-\x7e]+$/;
+
 export class AssistantCloudAPI {
   public _auth: AssistantCloudAuthStrategy;
   public _baseUrl;
-  private readonly sdks = new Map<string, SdkIdentity>();
+  public readonly registerSdk: (sdk: SdkIdentity) => void;
+  public readonly sdkHeader: () => string;
 
   constructor(config: AssistantCloudConfig) {
+    const sdks = new Map<string, SdkIdentity>();
+    this.registerSdk = (sdk) => {
+      const name = sdk.name.trim();
+      const version = sdk.version.trim();
+      if (!HEADER_TOKEN.test(name) || !HEADER_TOKEN.test(version)) return;
+      sdks.set(`${name}/${version}`, { name, version });
+    };
+    this.sdkHeader = () =>
+      [
+        `assistant-cloud/${ASSISTANT_CLOUD_VERSION}`,
+        ...Array.from(
+          sdks.values(),
+          ({ name, version }) => `${name}/${version}`,
+        ),
+      ].join(" ");
+
     if ("authToken" in config) {
       this._baseUrl = normalizeBaseUrl(config.baseUrl);
       this._auth = new AssistantCloudJWTAuthStrategy(config.authToken);
@@ -125,25 +144,6 @@ export class AssistantCloudAPI {
 
   public async initializeAuth() {
     return !!(await this._auth.getAuthHeaders());
-  }
-
-  /** Registers an integration identity for request headers. */
-  public registerSdk(sdk: SdkIdentity): void {
-    const name = sdk.name.trim();
-    const version = sdk.version.trim();
-    if (!name || !version) return;
-
-    this.sdks.set(`${name}/${version}`, { name, version });
-  }
-
-  public sdkHeader(): string {
-    return [
-      `assistant-cloud/${ASSISTANT_CLOUD_VERSION}`,
-      ...Array.from(
-        this.sdks.values(),
-        ({ name, version }) => `${name}/${version}`,
-      ),
-    ].join(" ");
   }
 
   public async makeRawRequest(

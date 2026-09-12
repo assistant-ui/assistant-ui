@@ -117,7 +117,7 @@ function useResolvedCloud(
           "3. Pass threads from useThreads: useCloudChat({ threads })",
       );
     }
-    cloud.registerSdk(CLOUD_AI_SDK_SDK);
+    cloud.registerSdk?.(CLOUD_AI_SDK_SDK);
     return cloud;
   }, [externalThreads, explicitCloud]);
 }

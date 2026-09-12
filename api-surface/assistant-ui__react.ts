@@ -246,7 +246,6 @@ type AssistantClientAccessor<K extends ClientNames> = ClientSchemas[K]["methods"
 };
 
 declare class AssistantCloud {
-  #private;
   readonly threads: AssistantCloudThreads;
   readonly projects: AssistantCloudProjects;
   readonly auth: {
@@ -257,18 +256,17 @@ declare class AssistantCloud {
   readonly events: AssistantCloudEvents;
   readonly scores: AssistantCloudScores;
   readonly telemetry: AssistantCloudTelemetryConfig;
+  readonly registerSdk: (sdk: SdkIdentity) => void;
   constructor(config: AssistantCloudConfig);
-  registerSdk(sdk: SdkIdentity): void;
 }
 
 declare class AssistantCloudAPI {
-  #private;
   _auth: AssistantCloudAuthStrategy;
   _baseUrl: string;
+  readonly registerSdk: (sdk: SdkIdentity) => void;
+  readonly sdkHeader: () => string;
   constructor(config: AssistantCloudConfig);
   initializeAuth(): Promise<boolean>;
-  registerSdk(sdk: SdkIdentity): void;
-  sdkHeader(): string;
   makeRawRequest(endpoint: string, options?: MakeRequestOptions): Promise<Response>;
   makeRequest(endpoint: string, options?: MakeRequestOptions): Promise<any>;
 }

@@ -54,6 +54,23 @@ describe("AssistantCloudAPI", () => {
     expect(init.body).toBe(JSON.stringify({ hello: "world" }));
   });
 
+  it("ignores identities that cannot travel in a header", () => {
+    const api = new AssistantCloudAPI({
+      apiKey: "test-key",
+      userId: "u-1",
+      workspaceId: "w-1",
+    });
+    api.registerSdk({ name: "bad name", version: "1.0.0" });
+    api.registerSdk({ name: "@scope/pkg", version: "1.0.0 ok" });
+    api.registerSdk({ name: "@scope/pkg\ttab", version: "1.0.0" });
+    api.registerSdk({ name: "@scope/ok", version: " 1.0.0 " });
+
+    expect(api.sdkHeader().split(" ")).toEqual([
+      expect.stringMatching(/^assistant-cloud\//),
+      "@scope/ok/1.0.0",
+    ]);
+  });
+
   it("sends each registered SDK identity once in registration order", async () => {
     const fetchMock = vi.fn().mockResolvedValue({
       ok: true,
