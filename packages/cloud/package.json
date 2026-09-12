@@ -20,6 +20,10 @@
     "./telemetry": {
       "types": "./dist/telemetry/index.d.ts",
       "default": "./dist/telemetry/index.js"
+    },
+    "./ai-sdk": {
+      "types": "./dist/ai-sdk/index.d.ts",
+      "default": "./dist/ai-sdk/index.js"
     }
   },
   "main": "./dist/index.js",
@@ -41,7 +45,8 @@
   "peerDependencies": {
     "@opentelemetry/api": "^1.9.0",
     "@opentelemetry/exporter-trace-otlp-http": ">=0.200.0",
-    "@opentelemetry/sdk-trace-base": "^2.1.0"
+    "@opentelemetry/sdk-trace-base": "^2.1.0",
+    "ai": "^6.0.0 || ^7.0.0"
   },
   "peerDependenciesMeta": {
     "@opentelemetry/api": {
@@ -52,6 +57,9 @@
     },
     "@opentelemetry/sdk-trace-base": {
       "optional": true
+    },
+    "ai": {
+      "optional": true
     }
   },
   "devDependencies": {
@@ -60,6 +68,7 @@
     "@opentelemetry/exporter-trace-otlp-http": "^0.205.0",
     "@opentelemetry/sdk-trace-base": "^2.1.0",
     "@types/node": "^26.4.1",
+    "ai": "^7.0.93",
     "jsdom": "^30.0.1",
     "vitest": "^4.1.11"
   },
