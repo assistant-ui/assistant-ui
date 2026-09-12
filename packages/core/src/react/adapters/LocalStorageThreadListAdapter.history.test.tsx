@@ -17,7 +17,7 @@ vi.mock("@assistant-ui/store", async (importOriginal) => ({
 }));
 
 describe("local storage history recovery", () => {
-  it.each(["assistant", "user", "system"] as const)(
+  it.each(["assistant", "user"] as const)(
     "keeps the conversation after a damaged %s part is saved and reloaded",
     async (role) => {
       const message = (
@@ -41,9 +41,7 @@ describe("local storage history recovery", () => {
               { type: "generative-ui", spec: {} },
               { type: "file", data: "bytes" },
             ]
-          : role === "user"
-            ? [{ type: "text", text: "keep this" }]
-            : [];
+          : [{ type: "text", text: "keep this" }];
       const key = "@assistant-ui:messages:thread-1";
       const original = JSON.stringify({
         headId: "later",
@@ -81,9 +79,7 @@ describe("local storage history recovery", () => {
         "damaged",
         "later",
       ]);
-      expect(loaded.messages[0]?.message.content).toEqual(
-        role === "system" ? [{ type: "text", text: "" }] : content,
-      );
+      expect(loaded.messages[0]?.message.content).toEqual(content);
 
       await history.append({
         parentId: "later",

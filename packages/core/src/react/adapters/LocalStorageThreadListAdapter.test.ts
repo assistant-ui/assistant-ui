@@ -200,7 +200,7 @@ describe("parseStoredMessageRepository", () => {
     ]);
   });
 
-  it("preserves system message shells with malformed text content", () => {
+  it("rejects system messages without valid text content", () => {
     const repo = parseStoredMessageRepository(
       JSON.stringify({
         messages: [
@@ -223,11 +223,7 @@ describe("parseStoredMessageRepository", () => {
     );
 
     expect(repo.messages.map((item) => item.message.id)).toEqual([
-      "invalid-system",
       "valid-system",
-    ]);
-    expect(repo.messages[0]?.message.content).toEqual([
-      { type: "text", text: "" },
     ]);
   });
 
@@ -407,6 +403,7 @@ describe("parseStoredMessageRepository", () => {
         role: "assistant",
         content: [{ type: "text", text: "partial" }],
         status: { type: "complete", reason: "unknown" },
+        createdAt: new Date("2026-01-01T00:00:00.000Z"),
         metadata: {
           unstable_state: null,
           unstable_annotations: [],
@@ -419,12 +416,15 @@ describe("parseStoredMessageRepository", () => {
         id: "tool-call/part-0/message-2",
         role: "user",
         content: [{ type: "text", text: "partial user" }],
+        attachments: [],
+        createdAt: new Date("2026-01-01T00:00:00.000Z"),
         metadata: { custom: {} },
       },
       {
         id: "tool-call/part-0/message-3",
         role: "system",
         content: [{ type: "text", text: "partial system" }],
+        createdAt: new Date("2026-01-01T00:00:00.000Z"),
         metadata: { custom: {} },
       },
       {
