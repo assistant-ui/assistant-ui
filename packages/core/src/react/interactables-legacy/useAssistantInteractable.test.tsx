@@ -104,4 +104,29 @@ describe("useAssistantInteractable", () => {
       expect.objectContaining({ stateSchema: changedSchema }),
     );
   });
+
+  it("keeps unsupported standard schemas from failing during render", async () => {
+    const createSchema = () => ({
+      "~standard": {
+        version: 1 as const,
+        vendor: "test",
+        validate: (value: unknown) => ({ value }),
+      },
+    });
+
+    const hook = renderHook(
+      ({ stateSchema }) =>
+        useAssistantInteractable("panel", {
+          id: "panel-1",
+          description: "A panel",
+          stateSchema,
+          initialState: {},
+        }),
+      { initialProps: { stateSchema: createSchema() } },
+    );
+    await waitFor(() => expect(mocks.register).toHaveBeenCalledTimes(1));
+
+    hook.rerender({ stateSchema: createSchema() });
+    expect(mocks.register).toHaveBeenCalledTimes(1);
+  });
 });

@@ -118,4 +118,60 @@ describe("unstable_useInteractable", () => {
       expect.objectContaining({ stateSchema: changedSchema }),
     );
   });
+
+  it("keeps unsupported standard schemas from failing during render", async () => {
+    const createSchema = () => ({
+      "~standard": {
+        version: 1 as const,
+        vendor: "test",
+        validate: (value: unknown) => ({ value }),
+      },
+    });
+
+    const hook = renderHook(
+      ({ stateSchema }) =>
+        unstable_useInteractable("panel", {
+          id: "panel-1",
+          description: "A panel",
+          stateSchema,
+          initialState: {},
+        }),
+      { initialProps: { stateSchema: createSchema() } },
+    );
+    await waitFor(() => expect(mocks.register).toHaveBeenCalledTimes(1));
+
+    hook.rerender({ stateSchema: createSchema() });
+    expect(mocks.register).toHaveBeenCalledTimes(1);
+  });
+
+  it("converts a referentially stable schema only once", async () => {
+    const toJSONSchema = vi.fn(() => ({
+      type: "object" as const,
+      properties: { value: { type: "string" as const } },
+    }));
+    const stateSchema = {
+      "~standard": {
+        version: 1 as const,
+        vendor: "test",
+        validate: (value: unknown) => ({ value }),
+        toJSONSchema,
+      },
+    };
+
+    const hook = renderHook(
+      ({ initialState }) =>
+        unstable_useInteractable("panel", {
+          id: "panel-1",
+          description: "A panel",
+          stateSchema,
+          initialState,
+        }),
+      { initialProps: { initialState: { value: "first" } } },
+    );
+    await waitFor(() => expect(mocks.register).toHaveBeenCalledTimes(1));
+
+    hook.rerender({ initialState: { value: "second" } });
+    expect(toJSONSchema).toHaveBeenCalledTimes(1);
+    expect(mocks.register).toHaveBeenCalledTimes(1);
+  });
 });
