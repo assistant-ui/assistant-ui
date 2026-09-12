@@ -2,6 +2,7 @@ import {
   type ComponentPropsWithoutRef,
   type ComponentRef,
   forwardRef,
+  isValidElement,
 } from "react";
 import { Primitive } from "@radix-ui/react-primitive";
 import { useAddForm } from "./context";
@@ -17,8 +18,13 @@ export const McpAddFormPrimitiveError = forwardRef<
 >((props, ref) => {
   const { state, ids } = useAddForm();
   if (!state.error) return null;
+  const childId =
+    props.asChild && isValidElement<{ id?: string }>(props.children)
+      ? props.children.props.id
+      : undefined;
+  const customId = childId ?? props.id;
   const needsDescriptionWrapper =
-    props.asChild || (props.id !== undefined && props.id !== ids.error);
+    customId !== undefined && customId !== ids.error;
   const error = (
     <Primitive.div
       {...props}

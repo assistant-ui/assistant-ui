@@ -49,6 +49,26 @@ beforeEach(() => {
 afterEach(cleanup);
 
 describe("MCP add form accessibility", () => {
+  it("does not add a wrapper around an asChild error without a custom ID", () => {
+    render(
+      <Root aria-label="Add server">
+        <NameField aria-label="Name" />
+        <ErrorMessage asChild>
+          <div>Enter the server name.</div>
+        </ErrorMessage>
+      </Root>,
+    );
+    fireEvent.submit(screen.getByRole("form"));
+    const error = screen.getByRole("alert");
+    expect(error.parentElement).toBe(screen.getByRole("form"));
+    expect(error.id).not.toBe("");
+    expect(
+      screen
+        .getByRole("textbox", { name: "Name" })
+        .getAttribute("aria-describedby"),
+    ).toBe(error.id);
+  });
+
   it.each(["element", "slot", "child"] as const)(
     "keeps a custom error ID on the %s associated with fields",
     (target) => {
