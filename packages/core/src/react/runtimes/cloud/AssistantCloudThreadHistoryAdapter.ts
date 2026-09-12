@@ -7,6 +7,7 @@ import type {
   MessageFormatRepository,
 } from "../../../adapters/thread-history";
 import type { ExportedMessageRepositoryItem } from "../../../runtime/utils/message-repository";
+import type { ThreadMessage } from "../../../types";
 import {
   type AssistantCloud,
   type AssistantCloudEvent,
@@ -227,6 +228,7 @@ class AssistantCloudThreadHistoryAdapter implements ThreadHistoryAdapter {
         options?: {
           durationMs?: number;
           stepTimestamps?: StepTimestamp[];
+          message?: ThreadMessage;
         },
       ) {
         const encodedRunMessages = items.map((item) =>
@@ -237,7 +239,12 @@ class AssistantCloudThreadHistoryAdapter implements ThreadHistoryAdapter {
           encodedRunMessages,
           options,
           resolvePinned(),
-          extractLastRunMessageInfo(items, formatAdapter),
+          mergeRunMessageInfo(
+            extractLastRunMessageInfo(items, formatAdapter),
+            options?.message
+              ? extractRunMessageInfo(options.message, "aui/v0")
+              : undefined,
+          ),
         );
       },
       async load(): Promise<MessageFormatRepository<TMessage>> {
@@ -441,6 +448,15 @@ function extractLastRunMessageInfo<
     if (info) return info;
   }
   return undefined;
+}
+
+function mergeRunMessageInfo(
+  stored: RunMessageInfo | undefined,
+  observed: RunMessageInfo | undefined,
+): RunMessageInfo | undefined {
+  if (!observed) return stored;
+  const { localMessageId: _observedId, ...outcome } = observed;
+  return { ...stored, ...outcome };
 }
 
 function extractRunMessageInfo(

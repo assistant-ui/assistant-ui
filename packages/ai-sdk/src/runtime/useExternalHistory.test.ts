@@ -780,6 +780,12 @@ describe("useExternalHistory persistence", () => {
       ],
       expect.any(Object),
     );
+    expect(reportTelemetry.mock.calls[0]![1]).toMatchObject({
+      message: expect.objectContaining({
+        id: "assistant-a",
+        status: { type: "complete", reason: "stop" },
+      }),
+    });
   });
 
   it("restores deferred telemetry for reloaded paused messages", async () => {
