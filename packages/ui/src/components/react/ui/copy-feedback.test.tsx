@@ -40,6 +40,30 @@ describe.each([
   ["Base", BaseCodeBlock],
   ["Radix", RadixCodeBlock],
 ] as const)("%s CodeBlock copy feedback", (_name, CodeBlock) => {
+  it("keeps feedback visible for a full interval after a second success", async () => {
+    vi.useFakeTimers();
+    mockClipboard(() => Promise.resolve());
+    const view = render(
+      <CodeBlock title="Example">
+        <pre>value</pre>
+      </CodeBlock>,
+    );
+    const button = screen.getByRole("button", { name: "Copy code" });
+
+    fireEvent.click(button);
+    await act(async () => Promise.resolve());
+    act(() => vi.advanceTimersByTime(1000));
+    fireEvent.click(button);
+    await act(async () => Promise.resolve());
+    expect(vi.getTimerCount()).toBe(1);
+
+    act(() => vi.advanceTimersByTime(500));
+    expect(button.querySelector(".lucide-check")).not.toBeNull();
+    act(() => vi.advanceTimersByTime(1000));
+    expect(button.querySelector(".lucide-check")).toBeNull();
+    view.unmount();
+  });
+
   it("preserves an earlier successful write after a newer rejection", async () => {
     vi.useFakeTimers();
     let resolveFirst!: () => void;
@@ -117,6 +141,26 @@ describe.each([
   ["Base", BaseCommandTabs],
   ["Radix", RadixCommandTabs],
 ] as const)("%s CommandTabs copy feedback", (_name, CommandTabs) => {
+  it("keeps feedback visible for a full interval after a second success", async () => {
+    vi.useFakeTimers();
+    mockClipboard(() => Promise.resolve());
+    const view = render(<CommandTabs commands={{ npm: "npm install" }} />);
+    const button = screen.getByRole("button", { name: "Copy command" });
+
+    fireEvent.click(button);
+    await act(async () => Promise.resolve());
+    act(() => vi.advanceTimersByTime(1000));
+    fireEvent.click(button);
+    await act(async () => Promise.resolve());
+    expect(vi.getTimerCount()).toBe(1);
+
+    act(() => vi.advanceTimersByTime(500));
+    expect(button.querySelector(".lucide-check")).not.toBeNull();
+    act(() => vi.advanceTimersByTime(1000));
+    expect(button.querySelector(".lucide-check")).toBeNull();
+    view.unmount();
+  });
+
   it("clears an active feedback timer when unmounted", async () => {
     vi.useFakeTimers();
     mockClipboard(() => Promise.resolve());
