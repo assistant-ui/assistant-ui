@@ -18,6 +18,74 @@ type DataStreamOptions = {
   strict?: boolean | undefined;
 };
 
+type ValueRule = (value: unknown) => boolean;
+type ValueFields = Record<string, unknown>;
+
+const isString = (value: unknown) => typeof value === "string";
+const isArray = (value: unknown) => Array.isArray(value);
+const isObject = (value: unknown): value is ValueFields =>
+  typeof value === "object" && value !== null && !Array.isArray(value);
+const optional = (check: (value: unknown) => boolean) => (value: unknown) =>
+  value === undefined || check(value);
+const isBoolean = (value: unknown) => typeof value === "boolean";
+const objectWith =
+  (fields: Record<string, (value: unknown) => boolean>): ValueRule =>
+  (value) =>
+    isObject(value) &&
+    Object.entries(fields).every(([key, check]) => check(value[key]));
+const unchecked = () => true;
+
+const VALUE_RULES: Record<DataStreamStreamChunkType, ValueRule> = {
+  [DataStreamStreamChunkType.TextDelta]: isString,
+  [DataStreamStreamChunkType.Data]: isArray,
+  [DataStreamStreamChunkType.Error]: isString,
+  [DataStreamStreamChunkType.Annotation]: isArray,
+  [DataStreamStreamChunkType.ToolCall]: objectWith({
+    toolCallId: isString,
+    toolName: isString,
+  }),
+  [DataStreamStreamChunkType.ToolCallResult]: objectWith({
+    toolCallId: isString,
+    isError: optional(isBoolean),
+  }),
+  [DataStreamStreamChunkType.StartToolCall]: objectWith({
+    toolCallId: isString,
+    toolName: isString,
+    parentId: optional(isString),
+  }),
+  [DataStreamStreamChunkType.ToolCallArgsTextDelta]: objectWith({
+    toolCallId: isString,
+    argsTextDelta: isString,
+    isFinal: optional(isBoolean),
+  }),
+  [DataStreamStreamChunkType.FinishMessage]: isObject,
+  [DataStreamStreamChunkType.FinishStep]: isObject,
+  [DataStreamStreamChunkType.StartStep]: isObject,
+  [DataStreamStreamChunkType.ReasoningDelta]: isString,
+  [DataStreamStreamChunkType.Source]: objectWith({
+    parentId: optional(isString),
+  }),
+  [DataStreamStreamChunkType.RedactedReasoning]: unchecked,
+  [DataStreamStreamChunkType.ReasoningSignature]: unchecked,
+  [DataStreamStreamChunkType.File]: objectWith({
+    parentId: optional(isString),
+  }),
+  [DataStreamStreamChunkType.AuiUpdateStateOperations]: isArray,
+  [DataStreamStreamChunkType.AuiTextDelta]: objectWith({
+    textDelta: isString,
+    parentId: isString,
+  }),
+  [DataStreamStreamChunkType.AuiReasoningDelta]: objectWith({
+    reasoningDelta: isString,
+    parentId: isString,
+  }),
+  [DataStreamStreamChunkType.AuiDataPart]: isObject,
+  [DataStreamStreamChunkType.AuiReasoningPartStart]: objectWith({
+    unstable_summary: optional(isString),
+    parentId: optional(isString),
+  }),
+};
+
 export class DataStreamEncoder
   extends PipeableTransformStream<AssistantStreamChunk, Uint8Array<ArrayBuffer>>
   implements AssistantStreamEncoder
@@ -302,6 +370,22 @@ export class DataStreamDecoder extends PipeableTransformStream<
         strict,
         transform(chunk, controller) {
           const { type, value } = chunk;
+
+          const rule = Object.prototype.hasOwnProperty.call(VALUE_RULES, type)
+            ? VALUE_RULES[type]
+            : undefined;
+          if (rule && !rule(value)) {
+            const preview = JSON.stringify(value)?.slice(0, 200);
+            if (strict)
+              throw new Error(
+                `Invalid value for data-stream chunk type "${type}": ${preview}`,
+              );
+            logDropped(
+              `value:${type}`,
+              `Dropped data-stream chunk with invalid value for type "${type}": ${preview}`,
+            );
+            return;
+          }
 
           switch (type) {
             case DataStreamStreamChunkType.ReasoningDelta:

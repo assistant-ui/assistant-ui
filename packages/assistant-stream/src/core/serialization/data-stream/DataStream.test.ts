@@ -693,3 +693,103 @@ describe("DataStreamDecoder strict: false", () => {
     expect(error).toHaveBeenCalledTimes(1);
   });
 });
+
+describe("DataStreamDecoder malformed frame values", () => {
+  afterEach(() => {
+    vi.restoreAllMocks();
+  });
+
+  const crashFrames = [
+    "b:null",
+    "9:null",
+    "a:null",
+    "h:null",
+    "k:null",
+    "aui-text-delta:null",
+    "aui-reasoning-delta:null",
+    "aui-reasoning-part-start:null",
+    '2:{"a":1}',
+    "8:null",
+    'aui-state:"x"',
+  ];
+  const coercionFrames = ["0:null", "0:123", "g:{}", "3:null"];
+
+  it.each([...crashFrames, ...coercionFrames])(
+    "rejects %s with a descriptive error by default",
+    async (frame) => {
+      const type = frame.slice(0, frame.indexOf(":"));
+      await expect(decodeLines([frame, '0:"ok"'])).rejects.toThrow(
+        `Invalid value for data-stream chunk type "${type}"`,
+      );
+    },
+  );
+
+  it.each([...crashFrames, ...coercionFrames])(
+    "drops %s and keeps decoding with strict: false",
+    async (frame) => {
+      const error = vi.spyOn(console, "error").mockImplementation(() => {});
+      const chunks = await decodeLines([frame, '0:"ok"'], { strict: false });
+
+      const textDeltas = chunks
+        .filter((c) => c.type === "text-delta")
+        .map((c) => c.textDelta);
+      expect(textDeltas).toEqual(["ok"]);
+      expect(
+        chunks.some((c) => c.type === "part-start" && c.part.type !== "text"),
+      ).toBe(false);
+      expect(chunks.some((c) => c.type === "data")).toBe(false);
+      expect(chunks.some((c) => c.type === "annotations")).toBe(false);
+      expect(chunks.some((c) => c.type === "update-state")).toBe(false);
+      expect(chunks.some((c) => c.type === "error")).toBe(false);
+      expect(error).toHaveBeenCalledTimes(1);
+    },
+  );
+
+  it("rejects an args delta frame without argsTextDelta", async () => {
+    await expect(
+      decodeLines([
+        'b:{"toolCallId":"t1","toolName":"search"}',
+        'c:{"toolCallId":"t1"}',
+      ]),
+    ).rejects.toThrow('Invalid value for data-stream chunk type "c"');
+  });
+
+  it("keeps the tool call open across a dropped args delta with strict: false", async () => {
+    vi.spyOn(console, "error").mockImplementation(() => {});
+    const chunks = await decodeLines(
+      [
+        'b:{"toolCallId":"t1","toolName":"search"}',
+        'c:{"toolCallId":"t1"}',
+        'c:{"toolCallId":"t1","argsTextDelta":"{\\"a\\":1}"}',
+      ],
+      { strict: false },
+    );
+
+    const argsText = chunks
+      .filter((c) => c.type === "text-delta")
+      .map((c) => c.textDelta)
+      .join("");
+    expect(argsText).toBe('{"a":1}');
+    expect(chunks.some((c) => c.type === "tool-call-args-text-finish")).toBe(
+      true,
+    );
+  });
+
+  it("logs each rejected type once with a preview of the value", async () => {
+    const error = vi.spyOn(console, "error").mockImplementation(() => {});
+    await decodeLines(["b:null", 'b:{"toolCallId":1}', "0:null"], {
+      strict: false,
+    });
+
+    expect(error.mock.calls.map(([message]) => message)).toEqual([
+      'Dropped data-stream chunk with invalid value for type "b": null',
+      'Dropped data-stream chunk with invalid value for type "0": null',
+    ]);
+  });
+
+  it("leaves unknown chunk types to the existing unsupported-type arm", async () => {
+    await expect(decodeLines(["zz:null"])).rejects.toThrow(
+      "unsupported chunk type: zz",
+    );
+  });
+});
