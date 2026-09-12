@@ -305,6 +305,48 @@ describe("BaseThreadRuntimeCore voice volume subscriptions", () => {
     expect(runtime.voice).toBeUndefined();
   });
 
+  it("stops setup when a subscriber disconnects the new session", () => {
+    const voice = createVoiceAdapter();
+    const statusRegistration = vi.spyOn(voice.session, "onStatusChange");
+    const runtime = new TestRuntime(voice);
+    runtime.subscribe(() => {
+      if (runtime.voice) runtime.disconnectVoice();
+    });
+
+    expect(() => runtime.connectVoice()).not.toThrow();
+
+    expect(voice.session.disconnect).toHaveBeenCalledOnce();
+    expect(statusRegistration).not.toHaveBeenCalled();
+    expect(runtime.voice).toBeUndefined();
+  });
+
+  it("releases a handler returned after reentrant disconnect", () => {
+    const statusCleanup = vi.fn();
+    const voice = createVoiceAdapter();
+    let registeringStatus = false;
+    voice.session.onStatusChange = (callback) => {
+      registeringStatus = true;
+      callback({ type: "running" });
+      registeringStatus = false;
+      return statusCleanup;
+    };
+    const modeRegistration = vi.spyOn(voice.session, "onModeChange");
+    const runtime = new TestRuntime(voice);
+    runtime.subscribe(() => {
+      if (registeringStatus) {
+        registeringStatus = false;
+        runtime.disconnectVoice();
+      }
+    });
+
+    expect(() => runtime.connectVoice()).not.toThrow();
+
+    expect(statusCleanup).toHaveBeenCalledOnce();
+    expect(modeRegistration).not.toHaveBeenCalled();
+    expect(voice.session.disconnect).toHaveBeenCalledOnce();
+    expect(runtime.voice).toBeUndefined();
+  });
+
   it("rethrows one subscriber error once while disconnecting", () => {
     const voice = createVoiceAdapter();
     const runtime = new TestRuntime(voice);

@@ -323,6 +323,22 @@ export abstract class BaseThreadRuntimeCore
     this._voiceUnsubs = unsubs;
 
     try {
+      const finishDetachedSetup = () => {
+        if (this._voiceSession === session && this._voiceUnsubs === unsubs) {
+          return false;
+        }
+
+        try {
+          notifySubscribers(unsubs.splice(0));
+        } catch (error) {
+          console.error(
+            "[assistant-ui] Detached voice setup cleanup threw",
+            error,
+          );
+        }
+        return true;
+      };
+
       let currentMode: RealtimeVoiceAdapter.Mode = "listening";
 
       this.voice = {
@@ -332,6 +348,7 @@ export abstract class BaseThreadRuntimeCore
       };
       this._voiceVolume = 0;
       this._notifySubscribers();
+      if (finishDetachedSetup()) return;
 
       unsubs.push(
         session.onStatusChange((status) => {
@@ -349,6 +366,7 @@ export abstract class BaseThreadRuntimeCore
           this._notifySubscribers();
         }),
       );
+      if (finishDetachedSetup()) return;
 
       unsubs.push(
         session.onModeChange((mode) => {
@@ -359,6 +377,7 @@ export abstract class BaseThreadRuntimeCore
           }
         }),
       );
+      if (finishDetachedSetup()) return;
 
       unsubs.push(
         session.onVolumeChange((volume) => {
@@ -370,12 +389,14 @@ export abstract class BaseThreadRuntimeCore
           );
         }),
       );
+      if (finishDetachedSetup()) return;
 
       unsubs.push(
         session.onTranscript((transcript) => {
           this._handleVoiceTranscript(transcript);
         }),
       );
+      finishDetachedSetup();
     } catch (error) {
       try {
         this.disconnectVoice();
