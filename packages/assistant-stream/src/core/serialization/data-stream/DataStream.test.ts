@@ -713,8 +713,9 @@ describe("DataStreamDecoder malformed frame values", () => {
     'aui-state:"x"',
   ];
   const coercionFrames = ["0:null", "0:123", "g:{}", "3:null"];
+  const partShapeFrames = ["h:{}", "k:{}", "aui-data:{}"];
 
-  it.each([...crashFrames, ...coercionFrames])(
+  it.each([...crashFrames, ...coercionFrames, ...partShapeFrames])(
     "rejects %s with a descriptive error by default",
     async (frame) => {
       const type = frame.slice(0, frame.indexOf(":"));
@@ -724,7 +725,7 @@ describe("DataStreamDecoder malformed frame values", () => {
     },
   );
 
-  it.each([...crashFrames, ...coercionFrames])(
+  it.each([...crashFrames, ...coercionFrames, ...partShapeFrames])(
     "drops %s and keeps decoding with strict: false",
     async (frame) => {
       const error = vi.spyOn(console, "error").mockImplementation(() => {});
@@ -794,8 +795,14 @@ describe("DataStreamDecoder malformed frame values", () => {
   });
 
   it.each([
-    ['d:{"type":"data","finishReason":"stop"}', "message-finish"],
-    ['e:{"type":"data","finishReason":"stop"}', "step-finish"],
+    [
+      'd:{"type":"data","finishReason":"stop","usage":{"inputTokens":1,"outputTokens":1}}',
+      "message-finish",
+    ],
+    [
+      'e:{"type":"data","finishReason":"stop","usage":{"inputTokens":1,"outputTokens":1},"isContinued":false}',
+      "step-finish",
+    ],
     ['f:{"type":"data","messageId":"m1"}', "step-start"],
   ])(
     "keeps the chunk type of %s despite a type key in the value",
@@ -808,7 +815,9 @@ describe("DataStreamDecoder malformed frame values", () => {
   );
 
   it("keeps the addressed path despite a path key in the value", async () => {
-    const chunks = await decodeLines(['d:{"path":[3],"finishReason":"stop"}']);
+    const chunks = await decodeLines([
+      'd:{"path":[3],"finishReason":"stop","usage":{"inputTokens":1,"outputTokens":1}}',
+    ]);
 
     expect(chunks).toEqual([
       expect.objectContaining({ type: "message-finish", path: [] }),

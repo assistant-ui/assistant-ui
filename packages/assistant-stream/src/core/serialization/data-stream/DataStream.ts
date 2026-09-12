@@ -64,11 +64,17 @@ const VALUE_RULES: Record<DataStreamStreamChunkType, ValueRule> = {
   [DataStreamStreamChunkType.StartStep]: isObject,
   [DataStreamStreamChunkType.ReasoningDelta]: isString,
   [DataStreamStreamChunkType.Source]: objectWith({
+    sourceType: isString,
+    id: isString,
+    url: isString,
+    title: optional(isString),
     parentId: optional(isString),
   }),
   [DataStreamStreamChunkType.RedactedReasoning]: unchecked,
   [DataStreamStreamChunkType.ReasoningSignature]: unchecked,
   [DataStreamStreamChunkType.File]: objectWith({
+    data: isString,
+    mimeType: isString,
     parentId: optional(isString),
   }),
   [DataStreamStreamChunkType.AuiUpdateStateOperations]: isArray,
@@ -80,7 +86,10 @@ const VALUE_RULES: Record<DataStreamStreamChunkType, ValueRule> = {
     reasoningDelta: isString,
     parentId: isString,
   }),
-  [DataStreamStreamChunkType.AuiDataPart]: isObject,
+  [DataStreamStreamChunkType.AuiDataPart]: objectWith({
+    name: isString,
+    parentId: optional(isString),
+  }),
   [DataStreamStreamChunkType.AuiReasoningPartStart]: objectWith({
     unstable_summary: optional(isString),
     parentId: optional(isString),
