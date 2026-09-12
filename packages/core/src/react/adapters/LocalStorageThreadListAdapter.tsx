@@ -154,6 +154,43 @@ const parseStoredMessageStatus = (value: unknown): MessageStatus => {
   return DEFAULT_STORED_MESSAGE_STATUS;
 };
 
+const parseStoredAssistantMetadata = (
+  value: unknown,
+): StoredAssistantMessage["metadata"] => {
+  const metadata = isRecord(value) ? value : {};
+  const submittedFeedback = isRecord(metadata.submittedFeedback)
+    ? metadata.submittedFeedback
+    : undefined;
+  const submittedFeedbackType = submittedFeedback?.type;
+
+  return {
+    unstable_state: (metadata.unstable_state ??
+      null) as StoredAssistantMessage["metadata"]["unstable_state"],
+    unstable_annotations: Array.isArray(metadata.unstable_annotations)
+      ? (metadata.unstable_annotations as StoredAssistantMessage["metadata"]["unstable_annotations"])
+      : [],
+    unstable_data: Array.isArray(metadata.unstable_data)
+      ? (metadata.unstable_data as StoredAssistantMessage["metadata"]["unstable_data"])
+      : [],
+    steps: Array.isArray(metadata.steps)
+      ? (metadata.steps as StoredAssistantMessage["metadata"]["steps"])
+      : [],
+    ...(submittedFeedbackType === "positive" ||
+    submittedFeedbackType === "negative"
+      ? { submittedFeedback: { type: submittedFeedbackType } }
+      : undefined),
+    ...(metadata.timing !== undefined
+      ? {
+          timing: metadata.timing as NonNullable<
+            StoredAssistantMessage["metadata"]["timing"]
+          >,
+        }
+      : undefined),
+    ...(metadata.isOptimistic === true ? { isOptimistic: true } : undefined),
+    custom: isRecord(metadata.custom) ? metadata.custom : {},
+  };
+};
+
 const parseStoredToolModelContent = (
   value: unknown,
 ): ToolModelContentPart[] | undefined => {
@@ -189,6 +226,7 @@ const parseStoredAssistantContent = (
   content: unknown[],
   depth: number,
   parentMessageId: string,
+  parentCreatedAt: Date,
 ): StoredAssistantMessage["content"] =>
   content.flatMap((rawPart, partIndex) => {
     try {
@@ -220,6 +258,7 @@ const parseStoredAssistantContent = (
                     message,
                     depth + 1,
                     `${parentMessageId}/part-${partIndex}/message-${messageIndex}`,
+                    parentCreatedAt,
                   );
                   return parsed ? [parsed] : [];
                 }),
@@ -331,49 +370,18 @@ function parseStoredThreadMessage(
   if (!isRecord(metadata) || !isRecord(metadata.custom)) return null;
 
   if (value.role === "assistant") {
-    const submittedFeedback = isRecord(metadata.submittedFeedback)
-      ? metadata.submittedFeedback
-      : undefined;
-    const submittedFeedbackType = submittedFeedback?.type;
-
     return {
       id: value.id,
       role: "assistant",
-      content: parseStoredAssistantContent(value.content, depth, value.id),
+      content: parseStoredAssistantContent(
+        value.content,
+        depth,
+        value.id,
+        createdAt,
+      ),
       status: parseStoredMessageStatus(value.status),
       createdAt,
-      metadata: {
-        unstable_state: (metadata.unstable_state ??
-          null) as StoredAssistantMessage["metadata"]["unstable_state"],
-        unstable_annotations: Array.isArray(metadata.unstable_annotations)
-          ? (metadata.unstable_annotations as StoredAssistantMessage["metadata"]["unstable_annotations"])
-          : [],
-        unstable_data: Array.isArray(metadata.unstable_data)
-          ? (metadata.unstable_data as StoredAssistantMessage["metadata"]["unstable_data"])
-          : [],
-        steps: Array.isArray(metadata.steps)
-          ? (metadata.steps as StoredAssistantMessage["metadata"]["steps"])
-          : [],
-        ...(submittedFeedbackType === "positive" ||
-        submittedFeedbackType === "negative"
-          ? {
-              submittedFeedback: {
-                type: submittedFeedbackType,
-              },
-            }
-          : undefined),
-        ...(metadata.timing !== undefined
-          ? {
-              timing: metadata.timing as NonNullable<
-                StoredAssistantMessage["metadata"]["timing"]
-              >,
-            }
-          : undefined),
-        ...(metadata.isOptimistic === true
-          ? { isOptimistic: true }
-          : undefined),
-        custom: metadata.custom,
-      },
+      metadata: parseStoredAssistantMetadata(metadata),
     };
   }
 
@@ -395,39 +403,25 @@ function parseStoredThreadMessage(
     };
   }
 
-  const textParts = parseStoredUserContent(value.content).filter(
+  const textPart = parseStoredUserContent(value.content).find(
     (part) => part.type === "text",
   );
+  if (!textPart) return null;
 
-  try {
-    return fromThreadMessageLike(
-      {
-        id: value.id,
-        role: "system",
-        content:
-          textParts.length === 1
-            ? textParts
-            : [
-                {
-                  type: "text",
-                  text: textParts.map((part) => part.text).join("\n"),
-                },
-              ],
-        createdAt,
-        metadata: { custom: metadata.custom },
-      },
-      value.id,
-      DEFAULT_STORED_MESSAGE_STATUS,
-    );
-  } catch {
-    return null;
-  }
+  return {
+    id: value.id,
+    role: "system",
+    content: [textPart],
+    createdAt,
+    metadata: { custom: metadata.custom },
+  };
 }
 
 function parseStoredNestedThreadMessage(
   value: unknown,
   depth: number,
   fallbackId: string,
+  fallbackCreatedAt: Date,
 ): ThreadMessage | null {
   const parsed = parseStoredThreadMessage(value, depth);
   if (parsed || depth > MAX_STORED_MESSAGE_DEPTH || !isRecord(value)) {
@@ -435,81 +429,56 @@ function parseStoredNestedThreadMessage(
   }
   if (!isMessageRole(value.role) || !Array.isArray(value.content)) return null;
   const id = typeof value.id === "string" ? value.id : fallbackId;
+  const createdAt = parseDate(value.createdAt) ?? fallbackCreatedAt;
 
   if (value.role === "assistant") {
-    const {
-      attachments: _attachments,
-      metadata: rawMetadata,
-      ...message
-    } = value;
-    const metadata = isRecord(rawMetadata) ? rawMetadata : {};
     return {
-      ...message,
       id,
-      content: parseStoredAssistantContent(value.content, depth, id),
+      role: "assistant",
+      content: parseStoredAssistantContent(value.content, depth, id, createdAt),
       status: parseStoredMessageStatus(value.status),
-      metadata: {
-        ...metadata,
-        unstable_state: metadata.unstable_state ?? null,
-        unstable_annotations: Array.isArray(metadata.unstable_annotations)
-          ? metadata.unstable_annotations
-          : [],
-        unstable_data: Array.isArray(metadata.unstable_data)
-          ? metadata.unstable_data
-          : [],
-        steps: Array.isArray(metadata.steps) ? metadata.steps : [],
-        custom: isRecord(metadata.custom) ? metadata.custom : {},
-      },
-    } as unknown as ThreadMessage;
+      createdAt,
+      metadata: parseStoredAssistantMetadata(value.metadata),
+    };
   }
   if (value.role === "user") {
-    const { attachments, metadata: rawMetadata, ...message } = value;
-    const metadata = isRecord(rawMetadata) ? rawMetadata : {};
     return {
-      ...message,
       id,
+      role: "user",
       content: parseStoredUserContent(value.content),
-      ...(Array.isArray(attachments)
-        ? {
-            attachments: attachments.flatMap((attachment) => {
-              const parsedAttachment = parseStoredAttachment(attachment);
-              return parsedAttachment ? [parsedAttachment] : [];
-            }),
-          }
-        : undefined),
+      attachments: Array.isArray(value.attachments)
+        ? value.attachments.flatMap((attachment) => {
+            const parsedAttachment = parseStoredAttachment(attachment);
+            return parsedAttachment ? [parsedAttachment] : [];
+          })
+        : [],
+      createdAt,
       metadata: {
-        ...metadata,
-        custom: isRecord(metadata.custom) ? metadata.custom : {},
+        custom:
+          isRecord(value.metadata) && isRecord(value.metadata.custom)
+            ? value.metadata.custom
+            : {},
       },
-    } as unknown as ThreadMessage;
+    };
   }
 
-  const {
-    attachments: _attachments,
-    metadata: rawMetadata,
-    ...message
-  } = value;
-  const metadata = isRecord(rawMetadata) ? rawMetadata : {};
-  const textParts = parseStoredUserContent(value.content).filter(
+  const textPart = parseStoredUserContent(value.content).find(
     (part) => part.type === "text",
   );
+  if (!textPart) return null;
+
   return {
-    ...message,
     id,
-    content:
-      textParts.length === 1
-        ? textParts
-        : [
-            {
-              type: "text",
-              text: textParts.map((part) => part.text).join("\n"),
-            },
-          ],
+    role: "system",
+    content: [textPart],
+    createdAt,
     metadata: {
-      ...metadata,
-      custom: isRecord(metadata.custom) ? metadata.custom : {},
+      custom:
+        isRecord(value.metadata) && isRecord(value.metadata.custom)
+          ? value.metadata.custom
+          : {},
     },
-  } as unknown as ThreadMessage;
+  };
 }
 
 export const parseStoredThreadMetadata = (
