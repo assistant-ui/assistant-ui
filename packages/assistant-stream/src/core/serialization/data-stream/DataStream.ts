@@ -46,11 +46,9 @@ const VALUE_RULES: Record<DataStreamStreamChunkType, ValueRule> = {
   [DataStreamStreamChunkType.ToolCall]: objectWith({
     toolCallId: isString,
     toolName: isString,
-    args: optional(isObject),
   }),
   [DataStreamStreamChunkType.ToolCallResult]: objectWith({
     toolCallId: isString,
-    result: present,
     isError: optional(isBoolean),
   }),
   [DataStreamStreamChunkType.StartToolCall]: objectWith({
@@ -533,7 +531,8 @@ export class DataStreamDecoder extends PipeableTransformStream<
             }
 
             case DataStreamStreamChunkType.ToolCall: {
-              const { toolCallId, toolName, args } = value;
+              const { toolCallId, toolName } = value;
+              const args = value.args ?? undefined;
               const toolCallController =
                 toolCallPartRegistry.tryGet(toolCallId);
 
@@ -580,6 +579,7 @@ export class DataStreamDecoder extends PipeableTransformStream<
               closeOpenToolCallArgs();
               controller.enqueue({
                 ...value,
+                isContinued: value.isContinued ?? false,
                 type: "step-finish",
                 path: [],
               });

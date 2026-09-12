@@ -3,6 +3,7 @@ import { DataStreamDecoder, DataStreamEncoder } from "./DataStream";
 import type { AssistantStreamChunk } from "../../AssistantStreamChunk";
 import { createAssistantStreamController } from "../../modules/assistant-stream";
 import { toolResultStream } from "../../tool/toolResultStream";
+import { NO_RESULT } from "../../tool/ToolResponse";
 
 const decodeLines = async (lines: string[], options?: { strict?: boolean }) => {
   const bytes = new ReadableStream<Uint8Array>({
@@ -798,10 +799,38 @@ describe("DataStreamDecoder malformed frame values", () => {
     ]);
   });
 
-  it("rejects a complete tool call frame whose args are not an object", async () => {
-    await expect(
-      decodeLines(['9:{"toolCallId":"t1","toolName":"search","args":"oops"}']),
-    ).rejects.toThrow('Invalid value for data-stream chunk type "9"');
+  it("settles a tool call result frame without a result as NO_RESULT", async () => {
+    const chunks = await decodeLines([
+      'b:{"toolCallId":"t1","toolName":"search"}',
+      'a:{"toolCallId":"t1"}',
+      '0:"ok"',
+    ]);
+
+    const result = chunks.find((c) => c.type === "result");
+    expect(result?.result).toBe(NO_RESULT);
+    expect(
+      chunks.some((c) => c.type === "text-delta" && c.textDelta === "ok"),
+    ).toBe(true);
+  });
+
+  it("treats null args on a complete tool call frame as absent", async () => {
+    const chunks = await decodeLines([
+      '9:{"toolCallId":"t1","toolName":"search","args":null}',
+    ]);
+
+    const argsText = chunks
+      .filter((c) => c.type === "text-delta")
+      .map((c) => c.textDelta)
+      .join("");
+    expect(argsText).toBe("{}");
+  });
+
+  it("defaults isContinued on a step finish frame that omits it", async () => {
+    const chunks = await decodeLines(['e:{"finishReason":"stop"}']);
+
+    expect(chunks).toEqual([
+      expect.objectContaining({ type: "step-finish", isContinued: false }),
+    ]);
   });
 
   it.each([
@@ -850,15 +879,6 @@ describe("DataStreamDecoder malformed frame values", () => {
       expect(parts.map((c) => c.part.type)).toEqual([type]);
     },
   );
-
-  it("rejects a tool call result frame without a result", async () => {
-    await expect(
-      decodeLines([
-        'b:{"toolCallId":"t1","toolName":"search"}',
-        'a:{"toolCallId":"t1"}',
-      ]),
-    ).rejects.toThrow('Invalid value for data-stream chunk type "a"');
-  });
 
   it("treats null in an optional field as absent by default", async () => {
     const chunks = await decodeLines([
