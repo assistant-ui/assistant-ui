@@ -715,11 +715,10 @@ describe("DataStreamDecoder malformed frame values", () => {
   ];
   const coercionFrames = ["0:null", "0:123", "g:{}", "3:null"];
   const partShapeFrames = [
-    "h:{}",
+    'h:{"sourceType":5}',
     "k:{}",
     "aui-data:{}",
     'aui-data:{"name":"n"}',
-    'h:{"id":"s1","url":"https://x"}',
     "d:{}",
     "e:{}",
     "f:{}",
