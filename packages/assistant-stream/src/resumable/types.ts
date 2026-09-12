@@ -37,6 +37,11 @@ export interface ResumableStreamStore {
    * superseded by a later acquisition (even on the same store instance) cannot
    * mutate the replacement stream. Optional for backwards compatibility;
    * `createResumableStreamContext` uses it when present.
+   *
+   * Implementations should compare the lease atomically with the write. The
+   * bundled Redis store does so for `finalize`; its `append` and `delete`
+   * validate the lease before writing until #7198 moves them behind
+   * conditional scripts, so a lease-bearing `delete` there is not yet fenced.
    */
   acquireLease?(
     streamId: string,
