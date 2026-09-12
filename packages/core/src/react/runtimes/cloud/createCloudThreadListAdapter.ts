@@ -131,11 +131,11 @@ const parseListCursor = (after: string | undefined): CloudListCursor => {
  * requiring a hook call site, so plain code (a Vue or Svelte setup function,
  * a module-level config) can construct it. Options are read through the
  * getter on every call, so a stable adapter can follow changing `create` and
- * `delete` callbacks; swapping to a different `cloud` instance requires a new
- * adapter (and `reload()` on the list). Without a `cloud` instance (and
- * without `NEXT_PUBLIC_ASSISTANT_BASE_URL`), the adapter falls back to an
- * in-memory list. `useCloudThreadListAdapter` wraps this for the React
- * hook signature.
+ * `delete` callbacks. Swapping to a different `cloud` instance or `scopeId`
+ * requires a new adapter so the remote list and its scoped runtime adapters
+ * reset together. Without a `cloud` instance (and without
+ * `NEXT_PUBLIC_ASSISTANT_BASE_URL`), the adapter falls back to an in-memory
+ * list. `useCloudThreadListAdapter` wraps this for the React hook signature.
  */
 export const createCloudThreadListAdapter = (
   options:
@@ -143,22 +143,10 @@ export const createCloudThreadListAdapter = (
     | (() => CloudThreadListAdapterOptions),
 ): RemoteThreadListAdapter => {
   const getOptions = typeof options === "function" ? options : () => options;
+  const initialOptions = getOptions();
+  const cloud = initialOptions.cloud ?? autoCloud;
+  const scopeId = initialOptions.scopeId;
 
-  const unstable_useAdapters = function useCloudAdapters(): RuntimeAdapters {
-    const cloudRef = {
-      get current() {
-        return getOptions().cloud ?? autoCloud!;
-      },
-    };
-    const scopeRef = {
-      get current() {
-        return getOptions().scopeId;
-      },
-    };
-    return useCloudRuntimeAdapters(cloudRef, scopeRef);
-  };
-
-  const cloud = getOptions().cloud ?? autoCloud;
   if (!cloud) {
     const inMemory = new InMemoryThreadListAdapter();
     inMemory.initialize = async (threadId: string) => {
@@ -167,6 +155,12 @@ export const createCloudThreadListAdapter = (
     };
     return inMemory;
   }
+
+  const unstable_useAdapters = function useCloudAdapters(): RuntimeAdapters {
+    const cloudRef = { current: cloud };
+    const scopeRef = { current: scopeId };
+    return useCloudRuntimeAdapters(cloudRef, scopeRef);
+  };
 
   cloud.registerSdk?.(CORE_SDK);
   const sdk = getOptions().sdk;
