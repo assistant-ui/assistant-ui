@@ -439,7 +439,7 @@ describe("useAssistantCloudThreadHistoryAdapter", () => {
     );
   });
 
-  it("preserves message mappings only within the same Cloud scope", async () => {
+  it("waits for the replacement scope to claim a remote thread", async () => {
     mocks.aui = mocks.makeClient("thread-1");
     const firstCloud = makeCloud();
     const secondCloud = makeCloud();
@@ -451,8 +451,13 @@ describe("useAssistantCloudThreadHistoryAdapter", () => {
     });
     const cloudRef = { current: firstCloud };
     const scopeRef = { current: "workspace-a" };
+    const ownershipRef = { current: new Set(["thread-1"]) };
     const { result } = renderHook(() =>
-      useScopedAssistantCloudThreadHistoryAdapter(cloudRef, scopeRef),
+      useScopedAssistantCloudThreadHistoryAdapter(
+        cloudRef,
+        scopeRef,
+        ownershipRef,
+      ),
     );
     const message = makeAssistantMessage("local-message-1");
 
@@ -467,6 +472,16 @@ describe("useAssistantCloudThreadHistoryAdapter", () => {
     );
 
     scopeRef.current = "workspace-b";
+    ownershipRef.current = new Set();
+    await expect(
+      result.current.update({ parentId: null, message }),
+    ).rejects.toThrow(
+      "Cloud thread does not belong to the current account or workspace scope",
+    );
+
+    expect(secondCloud.threads.messages.create).not.toHaveBeenCalled();
+
+    ownershipRef.current.add("thread-1");
     await result.current.update({ parentId: null, message });
 
     expect(secondCloud.threads.messages.create).toHaveBeenCalledWith(

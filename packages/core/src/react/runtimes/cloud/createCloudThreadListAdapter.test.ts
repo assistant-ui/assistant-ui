@@ -4,7 +4,10 @@ import { describe, expect, it, onTestFinished, vi } from "vitest";
 import { renderHook } from "@testing-library/react";
 import type { AssistantCloud } from "assistant-cloud";
 import type { PendingAttachment } from "../../../types/attachment";
-import { createCloudThreadListAdapter } from "./createCloudThreadListAdapter";
+import {
+  createCloudThreadListAdapter,
+  getCloudThreadOwnership,
+} from "./createCloudThreadListAdapter";
 import { CORE_SDK } from "./sdkIdentity";
 
 vi.mock("@assistant-ui/store", async (importOriginal) => ({
@@ -40,6 +43,19 @@ const makeCloud = () =>
     },
     registerSdk: vi.fn(),
   }) as unknown as AssistantCloud;
+
+const makeThread = (id: string) => ({
+  id,
+  title: id,
+  is_archived: false,
+  external_id: null,
+  metadata: null,
+  last_message_at: new Date(0),
+  created_at: new Date(0),
+  updated_at: new Date(0),
+  project_id: "project-1",
+  workspace_id: "workspace-1",
+});
 
 describe("createCloudThreadListAdapter", () => {
   it("falls back to an in-memory list without a cloud instance", async () => {
@@ -90,6 +106,22 @@ describe("createCloudThreadListAdapter", () => {
 
     expect(adapter.unstable_useAdapters).toBeTypeOf("function");
     expect(adapter.unstable_Provider).toBeUndefined();
+  });
+
+  it("records remote ids listed by a scoped adapter", async () => {
+    const cloud = makeCloud();
+    vi.mocked(cloud.threads.list)
+      .mockResolvedValueOnce({ threads: [makeThread("remote-1")] })
+      .mockResolvedValueOnce({ threads: [] });
+    const adapter = createCloudThreadListAdapter({
+      cloud,
+      scopeId: "workspace-a",
+    });
+    const ownership = getCloudThreadOwnership(adapter)!;
+
+    expect(ownership.has("remote-1")).toBe(false);
+    await adapter.list();
+    expect(ownership.has("remote-1")).toBe(true);
   });
 
   it("registers core and the calling integration identities", () => {

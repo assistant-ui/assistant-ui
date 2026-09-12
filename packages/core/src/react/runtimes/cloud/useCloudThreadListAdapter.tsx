@@ -3,6 +3,7 @@ import type { RemoteThreadListAdapter } from "../../../runtimes/remote-thread-li
 import {
   autoCloud,
   createCloudThreadListAdapter,
+  getCloudThreadOwnership,
   type CloudThreadListAdapterOptions,
   useCloudRuntimeAdapters,
 } from "./createCloudThreadListAdapter";
@@ -36,12 +37,13 @@ export const useCloudThreadListAdapter = (
     [],
   );
   const scopeRef = useMemo(() => ({ current: scope }), [scope]);
+  const ownership = getCloudThreadOwnership(base);
 
   const unstable_useAdapters = useCallback(
     function useCloudAdapters() {
-      return useCloudRuntimeAdapters(cloudRef, scopeRef);
+      return useCloudRuntimeAdapters(cloudRef, scopeRef, ownership);
     },
-    [cloudRef, scopeRef],
+    [cloudRef, ownership, scopeRef],
   );
 
   return useMemo<RemoteThreadListAdapter>(() => {

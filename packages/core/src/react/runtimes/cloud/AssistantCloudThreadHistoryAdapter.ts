@@ -49,6 +49,7 @@ type ScopedPersistence = {
 type CloudScopeSnapshot = {
   cloud: AssistantCloud;
   scope: unknown;
+  ownership: Pick<ReadonlySet<string>, "has"> | undefined;
 };
 
 type CloudScopeContext = CloudScopeSnapshot & {
@@ -65,6 +66,9 @@ export const DEFAULT_CLOUD_SCOPE = Symbol("assistant-ui:cloud-default-scope");
 class AssistantCloudThreadHistoryAdapter implements ThreadHistoryAdapter {
   private cloudRef: RefObject<AssistantCloud>;
   private scopeRef: RefObject<unknown>;
+  private ownershipRef:
+    | RefObject<Pick<ReadonlySet<string>, "has"> | undefined>
+    | undefined;
   private getAui: () => AssistantClient;
   private engagementContext:
     | { scope: unknown; reporter: CloudEngagementReporter }
@@ -74,9 +78,11 @@ class AssistantCloudThreadHistoryAdapter implements ThreadHistoryAdapter {
     cloudRef: RefObject<AssistantCloud>,
     getAui: () => AssistantClient,
     scopeRef: RefObject<unknown>,
+    ownershipRef?: RefObject<Pick<ReadonlySet<string>, "has"> | undefined>,
   ) {
     this.cloudRef = cloudRef;
     this.scopeRef = scopeRef;
+    this.ownershipRef = ownershipRef;
     this.getAui = getAui;
   }
 
@@ -88,6 +94,7 @@ class AssistantCloudThreadHistoryAdapter implements ThreadHistoryAdapter {
     return {
       cloud: this.cloudRef.current,
       scope: this.scopeRef.current,
+      ownership: this.ownershipRef?.current,
     };
   }
 
@@ -101,13 +108,26 @@ class AssistantCloudThreadHistoryAdapter implements ThreadHistoryAdapter {
     }
   }
 
+  private assertRemoteThreadOwned(
+    snapshot: CloudScopeSnapshot,
+    remoteId: string,
+  ): void {
+    if (snapshot.ownership && !snapshot.ownership.has(remoteId)) {
+      throw new Error(
+        "Cloud thread does not belong to the current account or workspace scope",
+      );
+    }
+  }
+
   private captureScope(
     threadListItem: CloudThreadListItem = this.aui.threadListItem,
   ): CloudScopeContext {
     const snapshot = this.captureScopeSnapshot();
+    const remoteId = threadListItem.getState().remoteId;
+    if (remoteId) this.assertRemoteThreadOwned(snapshot, remoteId);
     return {
       ...snapshot,
-      persistence: this.getPersistence(threadListItem, snapshot.scope),
+      persistence: this.getPersistence(threadListItem, snapshot),
     };
   }
 
@@ -137,15 +157,17 @@ class AssistantCloudThreadHistoryAdapter implements ThreadHistoryAdapter {
 
   private getPersistence(
     threadListItem: CloudThreadListItem = this.aui.threadListItem,
-    scope = this.scopeRef.current,
+    snapshot = this.captureScopeSnapshot(),
   ): CloudMessagePersistence {
+    const remoteId = threadListItem.getState().remoteId;
+    if (remoteId) this.assertRemoteThreadOwned(snapshot, remoteId);
     const key = getClientId(threadListItem);
     let entry = globalPersistence.get(key);
-    if (!entry || !Object.is(entry.scope, scope)) {
+    if (!entry || !Object.is(entry.scope, snapshot.scope)) {
       const cloudRef = { current: this.cloudRef };
       entry = {
         cloudRef,
-        scope,
+        scope: snapshot.scope,
         persistence: new CloudMessagePersistence(
           () => cloudRef.current.current,
         ),
@@ -187,7 +209,7 @@ class AssistantCloudThreadHistoryAdapter implements ThreadHistoryAdapter {
     this.assertCurrentScope(snapshot);
     const threadListItem = this.getThreadListItem(threadId);
     if (!threadListItem) return {};
-    const persistence = this.getPersistence(threadListItem, snapshot.scope);
+    const persistence = this.getPersistence(threadListItem, snapshot);
 
     let remoteThreadId = threadListItem.getState().remoteId;
     if (!remoteThreadId && options?.awaitThread) {
@@ -197,6 +219,7 @@ class AssistantCloudThreadHistoryAdapter implements ThreadHistoryAdapter {
         .catch(() => undefined);
     }
     this.assertCurrentScope(snapshot);
+    if (remoteThreadId) this.assertRemoteThreadOwned(snapshot, remoteThreadId);
     const remoteMessageId = messageId
       ? persistence.getResolvedRemoteId(messageId)
       : undefined;
@@ -219,7 +242,7 @@ class AssistantCloudThreadHistoryAdapter implements ThreadHistoryAdapter {
           return;
         }
 
-        const persistence = this.getPersistence(threadListItem, snapshot.scope);
+        const persistence = this.getPersistence(threadListItem, snapshot);
         const cloudMessageId = await persistence.getRemoteId(message.id);
         this.assertCurrentScope(snapshot);
         if (!cloudMessageId) {
@@ -299,6 +322,7 @@ class AssistantCloudThreadHistoryAdapter implements ThreadHistoryAdapter {
         const remoteId =
           pinned.getState().remoteId ?? (await pinned.initialize()).remoteId;
         adapter.assertCurrentScope(context);
+        adapter.assertRemoteThreadOwned(context, remoteId);
         await getTargetFormatted(context).append(remoteId, item);
       },
       async update(item: MessageFormatItem<TMessage>, localMessageId: string) {
@@ -362,6 +386,7 @@ class AssistantCloudThreadHistoryAdapter implements ThreadHistoryAdapter {
     const context = this.captureScope(threadListItem);
     const { remoteId } = await threadListItem.initialize();
     this.assertCurrentScope(context);
+    this.assertRemoteThreadOwned(context, remoteId);
     const encoded = auiV0Encode(message);
     await context.persistence.append(
       remoteId,
@@ -799,6 +824,7 @@ export function extractAuiV0<T>(content: T): RunMessageTelemetry | null {
 export function useScopedAssistantCloudThreadHistoryAdapter(
   cloudRef: RefObject<AssistantCloud>,
   scopeRef: RefObject<unknown>,
+  ownershipRef?: RefObject<Pick<ReadonlySet<string>, "has"> | undefined>,
 ): ThreadHistoryAdapter & { readonly feedback: FeedbackAdapter } {
   const aui = useAui();
   // Not useEffectEvent: history adapter methods run during render (SSR load).
@@ -812,6 +838,7 @@ export function useScopedAssistantCloudThreadHistoryAdapter(
         cloudRef,
         () => auiRef.current,
         scopeRef,
+        ownershipRef,
       ),
   );
   useAssistantCloudEngagementEvents(adapter, aui);
