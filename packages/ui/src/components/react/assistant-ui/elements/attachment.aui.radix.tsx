@@ -62,9 +62,9 @@ const AttachmentPreview: FC<AttachmentPreviewProps> = ({ src }) => {
   );
 };
 
-const AttachmentPreviewDialog: FC<PropsWithChildren> = ({ children }) => {
-  const src = useAttachmentSrc();
-
+const AttachmentPreviewDialog: FC<
+  PropsWithChildren<{ src: string | undefined; name: string }>
+> = ({ children, src, name }) => {
   if (!src) return children;
 
   return (
@@ -81,7 +81,7 @@ const AttachmentPreviewDialog: FC<PropsWithChildren> = ({ children }) => {
       </DialogTrigger>
       <DialogContent className="aui-attachment-preview-dialog-content [&>button]:bg-foreground/60 [&>button]:hover:bg-foreground/80 [&_svg]:text-background p-2 sm:max-w-3xl [&>button]:rounded-full [&>button]:p-1 [&>button]:opacity-100 [&>button]:ring-0!">
         <DialogTitle className="aui-sr-only sr-only">
-          Image Attachment Preview
+          {name} preview
         </DialogTitle>
         <div className="aui-attachment-preview bg-background relative mx-auto flex max-h-[80dvh] w-full items-center justify-center overflow-hidden rounded-sm">
           <AttachmentPreview src={src} />
@@ -91,9 +91,7 @@ const AttachmentPreviewDialog: FC<PropsWithChildren> = ({ children }) => {
   );
 };
 
-const AttachmentThumb: FC = () => {
-  const src = useAttachmentSrc();
-
+const AttachmentThumb: FC<{ src: string | undefined }> = ({ src }) => {
   return (
     <Avatar className="aui-attachment-tile-avatar h-full w-full rounded-none">
       <AvatarImage
@@ -112,7 +110,9 @@ const AttachmentUI: FC = () => {
   const aui = useAui();
   const isComposer = aui.attachment.source !== "message";
 
+  const src = useAttachmentSrc();
   const isImage = useAuiState((s) => s.attachment.type === "image");
+  const attachmentName = useAuiState((s) => s.attachment.name);
   const typeLabel = useAuiState((s) => {
     const type = s.attachment.type;
     switch (type) {
@@ -158,32 +158,50 @@ const AttachmentUI: FC = () => {
               "aui-attachment-root-message only:*:first:size-24",
           )}
         >
-          <AttachmentPreviewDialog>
+          <AttachmentPreviewDialog src={src} name={attachmentName}>
             <TooltipTrigger asChild>
               <div
                 className={cn(
-                  "aui-attachment-tile bg-muted hover:after:bg-foreground/10 focus-visible:ring-ring/50 relative size-14 cursor-pointer overflow-hidden rounded-[calc(var(--composer-radius,1.5rem)-var(--composer-padding,8px))] transition-transform outline-none after:pointer-events-none after:absolute after:inset-0 after:rounded-[inherit] after:ring-1 after:ring-black/10 after:transition-colors after:ring-inset focus-visible:ring-1 active:scale-[0.96] motion-reduce:transition-none dark:after:ring-white/10",
+                  "aui-attachment-tile bg-muted relative size-14 overflow-hidden rounded-[calc(var(--composer-radius,1.5rem)-var(--composer-padding,8px))] after:pointer-events-none after:absolute after:inset-0 after:rounded-[inherit] after:ring-1 after:ring-black/10 after:ring-inset dark:after:ring-white/10",
+                  src &&
+                    "hover:after:bg-foreground/10 focus-visible:ring-ring/50 cursor-pointer transition-transform outline-none after:transition-colors focus-visible:ring-1 active:scale-[0.96] motion-reduce:transition-none",
                   isError &&
                     "after:ring-destructive/60 dark:after:ring-destructive/60",
                 )}
-                role="button"
-                tabIndex={0}
-                onKeyDown={(e) => {
-                  if (e.key === "Enter") {
-                    e.preventDefault();
-                    e.currentTarget.click();
-                  } else if (e.key === " ") {
-                    e.preventDefault();
-                  }
-                }}
-                onKeyUp={(e) => {
-                  if (e.key === " ") e.currentTarget.click();
-                }}
-                aria-label={`${typeLabel} attachment${
-                  isError ? ", upload failed" : isUploading ? ", uploading" : ""
-                }`}
+                role={src ? "button" : undefined}
+                tabIndex={src ? 0 : undefined}
+                onKeyDown={
+                  src
+                    ? (e) => {
+                        if (e.key === "Enter") {
+                          e.preventDefault();
+                          e.currentTarget.click();
+                        } else if (e.key === " ") {
+                          e.preventDefault();
+                        }
+                      }
+                    : undefined
+                }
+                onKeyUp={
+                  src
+                    ? (e) => {
+                        if (e.key === " ") e.currentTarget.click();
+                      }
+                    : undefined
+                }
+                aria-label={
+                  src
+                    ? `${attachmentName}, ${typeLabel} attachment${
+                        isError
+                          ? ", upload failed"
+                          : isUploading
+                            ? ", uploading"
+                            : ""
+                      }`
+                    : undefined
+                }
               >
-                <AttachmentThumb />
+                <AttachmentThumb src={src} />
                 {isUploading && (
                   <div
                     aria-hidden="true"
@@ -203,7 +221,7 @@ const AttachmentUI: FC = () => {
               </div>
             </TooltipTrigger>
           </AttachmentPreviewDialog>
-          {isComposer && <AttachmentRemove />}
+          {isComposer && <AttachmentRemove name={attachmentName} />}
         </AttachmentPrimitive.Root>
         <TooltipContent side="top">
           <AttachmentPrimitive.Name />
@@ -216,11 +234,11 @@ const AttachmentUI: FC = () => {
   );
 };
 
-const AttachmentRemove: FC = () => {
+const AttachmentRemove: FC<{ name: string }> = ({ name }) => {
   return (
     <AttachmentPrimitive.Remove asChild>
       <TooltipIconButton
-        tooltip="Remove file"
+        tooltip={`Remove ${name}`}
         className="aui-attachment-tile-remove absolute end-1 top-1 size-5 rounded-full bg-black/50! text-white after:absolute after:-inset-1.5 hover:bg-black/70! hover:text-white! active:scale-[0.96] motion-reduce:transition-none"
         side="top"
       >
