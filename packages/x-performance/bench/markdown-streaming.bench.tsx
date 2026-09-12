@@ -43,11 +43,12 @@ const paragraphs = (n: number) =>
       `Paragraph ${i} of the streamed answer keeps **emphasis**, a [link](https://example.com), and \`inline code\` in every line so the parse stays realistic.`,
   ).join("\n\n");
 
+const fencedCode = (size: number) => `\`\`\`ts\n${"x".repeat(size)}\n\`\`\``;
+
 type Host = { tick: () => void | Promise<void>; unmount: () => void };
 
-const mount = (n: number, defer = false): Host => {
+const mount = (body: string, defer = false): Host => {
   let setMessages!: (updater: (prev: Msg[]) => Msg[]) => void;
-  const body = paragraphs(n);
   let flip = false;
   const threadComponents = makeComponents(defer);
   const App = () => {
@@ -105,7 +106,7 @@ describe("react-markdown: one token changed in the last paragraph, by message le
     let host: Host;
     bench(`${n} paragraphs`, () => host.tick(), {
       setup: () => {
-        host = mount(n);
+        host = mount(paragraphs(n));
       },
       teardown: () => host.unmount(),
     });
@@ -123,9 +124,37 @@ describe("react-markdown: the same token with defer on", () => {
     let host: Host;
     bench(`${n} paragraphs deferred`, async () => await host.tick(), {
       setup: () => {
-        host = mount(n, true);
+        host = mount(paragraphs(n), true);
       },
       teardown: () => host.unmount(),
     });
+  }
+});
+
+describe("react-markdown: one token changed after a fenced code block, by code size", () => {
+  for (const size of [10_000, 100_000]) {
+    let host: Host;
+    bench(`${size / 1000} KB fenced code`, () => host.tick(), {
+      setup: () => {
+        host = mount(fencedCode(size));
+      },
+      teardown: () => host.unmount(),
+    });
+  }
+});
+
+describe("react-markdown: the same token after fenced code with defer on", () => {
+  for (const size of [10_000, 100_000]) {
+    let host: Host;
+    bench(
+      `${size / 1000} KB fenced code deferred`,
+      async () => await host.tick(),
+      {
+        setup: () => {
+          host = mount(fencedCode(size), true);
+        },
+        teardown: () => host.unmount(),
+      },
+    );
   }
 });
