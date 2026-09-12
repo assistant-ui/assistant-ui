@@ -136,16 +136,19 @@ Create the rule with your Auth0 domain as issuer, its `/.well-known/jwks.json` e
 ```tsx
 import { useMemo } from "react";
 import { useAuth0 } from "@auth0/auth0-react";
+import { AssistantCloud } from "@assistant-ui/react";
 
-const { getAccessTokenSilently } = useAuth0();
-const cloud = useMemo(
-  () =>
-    new AssistantCloud({
-      baseUrl: process.env.NEXT_PUBLIC_ASSISTANT_BASE_URL!,
-      authToken: () => getAccessTokenSilently(),
-    }),
-  [getAccessTokenSilently],
-);
+function useCloud() {
+  const { getAccessTokenSilently } = useAuth0();
+  return useMemo(
+    () =>
+      new AssistantCloud({
+        baseUrl: process.env.NEXT_PUBLIC_ASSISTANT_BASE_URL!,
+        authToken: () => getAccessTokenSilently(),
+      }),
+    [getAccessTokenSilently],
+  );
+}
 ```
 
 </Step>

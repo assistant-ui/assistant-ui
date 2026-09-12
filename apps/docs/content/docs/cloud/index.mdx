@@ -56,7 +56,7 @@ Ids are a prefix and 24 characters (`thread_0…`, `msg_0…`, `run_0…`); trac
 | A custom backend through `useLocalRuntime` or `useDataStreamRuntime` | the same, over any chat model adapter or assistant-stream route | [Local runtime](/docs/cloud/local-runtime) |
 | LangGraph, LangChain or Google ADK runtimes | thread list, titles, feedback and engagement events; transcripts stay with the backend and runs come from traces | [LangGraph, LangChain and Google ADK](/docs/cloud/langgraph) |
 | AG-UI or A2A runtimes | thread list, persistence, feedback, attachments and run reports, by composing the cloud thread list around the runtime | [Composing the thread list yourself](/docs/cloud/local-runtime#composing-the-thread-list-yourself) |
-| The AI SDK's `useChat` with your own UI | the retired `useCloudChat` hook, and what to use instead | [AI SDK](/docs/cloud/ai-sdk) |
+| The AI SDK's `useChat` with your own UI | the `useCloudChat` hook, no longer recommended, and what to use instead | [AI SDK](/docs/cloud/ai-sdk) |
 | A server with no browser: a Slack or Teams bot, a backend agent, a batch job | threads, persistence, titles and run reports through the client with an API key | [A server as the client](/docs/cloud/authorization#a-server-as-the-client) |
 | A backend in another language, or an agent framework with OpenTelemetry | runs, steps, tool calls and models from exported spans, no SDK | [Other producers](/docs/cloud/traces#other-producers) |
 | Vue, Svelte, plain JavaScript, or a framework of your own | the `assistant-cloud` client alone: threads, messages, run reports, events, scores and files | [Package reference](/docs/api-reference/integrations/assistant-cloud) |

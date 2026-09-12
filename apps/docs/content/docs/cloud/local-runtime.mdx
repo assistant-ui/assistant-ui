@@ -111,16 +111,15 @@ const runtime = useCloudThreadListRuntime({
 | `create` | Called when a new thread is created; return your backend's id and it is stored as the cloud thread's `external_id`. |
 | `delete` | Called with the thread before the cloud thread is deleted. |
 
-This is also the way to a runtime that has no `cloud` option of its own. `useAgUiRuntime` from `@assistant-ui/react-ag-ui` and `useA2ARuntime` from `@assistant-ui/react-a2a` read the history and attachments adapters from the context this hook provides, so passing either as the `runtimeHook` gives an AG-UI or A2A app the cloud thread list and titles, persistence of every message, attachments, engagement events, and run reports read from the stored assistant messages. Feedback is the one adapter these two take only from their own `adapters` option, so hand it over from the context yourself:
+This is also the way to a runtime that has no `cloud` option of its own. `useAgUiRuntime` from `@assistant-ui/react-ag-ui` and `useA2ARuntime` from `@assistant-ui/react-a2a` read the history and attachments adapters from the context this hook provides, and `useExternalStoreRuntime` underneath them merges the feedback adapter from the same context, so passing either as the `runtimeHook` gives an AG-UI or A2A app the cloud thread list and titles, persistence of every message, feedback, attachments, engagement events, and run reports read from the stored assistant messages:
 
 ```tsx
+import { useCloudThreadListRuntime } from "@assistant-ui/react";
+import { useAgUiRuntime } from "@assistant-ui/react-ag-ui";
+
 const runtime = useCloudThreadListRuntime({
   cloud,
-  runtimeHook: () =>
-    useAgUiRuntime({
-      agent,
-      adapters: { feedback: useRuntimeAdapters()?.feedback },
-    }),
+  runtimeHook: () => useAgUiRuntime({ agent }),
 });
 ```
 

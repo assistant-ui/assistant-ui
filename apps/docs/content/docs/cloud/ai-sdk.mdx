@@ -1,11 +1,11 @@
 ---
 title: AI SDK
-description: The useCloudChat hook is retired. Persist an AI SDK app through the assistant-ui runtime, or build on the assistant-cloud client directly.
+description: The useCloudChat hook is no longer the recommended path. Persist an AI SDK app through the assistant-ui runtime, or build on the assistant-cloud client directly.
 ---
 
 ## What changed
 
-`@assistant-ui/cloud-ai-sdk` and its `useCloudChat` hook are retired: the package receives no new features and leaves this repository with a coming release. Everything the hook did on the wire lives in the `assistant-cloud` package, which every integration now shares: thread and message storage, the `ai-sdk/v6` message format, run and engagement reporting, and thread titles. Existing installs keep working against Assistant Cloud; the hook's options are on its [API reference](/docs/api-reference/integrations/cloud-ai-sdk) and its source stays in [`packages/cloud-ai-sdk`](https://github.com/assistant-ui/assistant-ui/tree/main/packages/cloud-ai-sdk) until the removal.
+`@assistant-ui/cloud-ai-sdk` and its `useCloudChat` hook are no longer the recommended way to put an AI SDK app on the cloud. Everything the hook did on the wire lives in the `assistant-cloud` package, which every integration now shares: thread and message storage, the `ai-sdk/v6` message format, run and engagement reporting, and thread titles. The package stays published and existing installs keep working against Assistant Cloud; the hook's options are on its [API reference](/docs/api-reference/integrations/cloud-ai-sdk) and its source is in [`packages/cloud-ai-sdk`](https://github.com/assistant-ui/assistant-ui/tree/main/packages/cloud-ai-sdk).
 
 New work should take one of the two paths below.
 
