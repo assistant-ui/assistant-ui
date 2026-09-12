@@ -335,7 +335,11 @@ class AssistantCloudThreadHistoryAdapter implements ThreadHistoryAdapter {
     const remoteId = item.getState().remoteId;
     if (!remoteId) return;
 
-    const extracted = extractRunTelemetry(format, runMessages);
+    const extracted =
+      extractRunTelemetry(format, runMessages) ??
+      (messageInfo?.status !== undefined
+        ? { status: "incomplete" as const }
+        : undefined);
     if (!extracted) return;
 
     this._sendReport(

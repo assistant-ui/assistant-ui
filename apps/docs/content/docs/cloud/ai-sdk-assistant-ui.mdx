@@ -374,6 +374,7 @@ The `useChatRuntime` hook captures full run telemetry including timing data. Thi
 
 **Automatically captured:**
 - `status`: `"completed"`, `"incomplete"` or `"error"`
+- `outcome_type`: `"aborted"` for a run the user cancelled; `"length"` and `"content_filter"` need the route configuration below
 - `message_id`: the persisted assistant message the run produced
 - `duration_ms`: total run duration
 - `steps`: per-step timing, usage, and tool calls; the per-step `finish_reason` is reported by `useCloudChat` only, because the assistant-ui step metadata carries no finish reason
@@ -387,7 +388,7 @@ No message content is sent apart from `output_text`, which is the assistant outp
 **Requires route configuration:**
 - `model_id`: the model used
 - `provider`: the provider that served the model (`model.provider` below); server spans carry it as well
-- `outcome_type` (`"length"`, `"content_filter"`): read from `finishReason` in the message metadata (`finishReason: part.finishReason` below); `"aborted"` and `"disconnected"` are reported by `useCloudChat` only
+- `outcome_type` (`"length"`, `"content_filter"`): read from `finishReason` in the message metadata (`finishReason: part.finishReason` below); `"disconnected"` is reported by `useCloudChat` only
 - `input_tokens` / `output_tokens`: token usage statistics
 
 **Reported by the runtime itself:** the `"error"` status with `error` and `error_code`, and `first_token_ms`. The runtime hands the history adapter the thread message it persisted, and that message's error and first token time complete the report, so neither needs route configuration.

@@ -864,6 +864,43 @@ describe("useAssistantCloudThreadHistoryAdapter", () => {
     );
   });
 
+  it("reports a run that failed before any assistant message was stored", () => {
+    mocks.aui = mocks.makeClient("thread-1");
+    const cloud = makeCloud();
+    const { result } = renderHook(() =>
+      useAssistantCloudThreadHistoryAdapter({ current: cloud }),
+    );
+    const formatted = result.current.withFormat({
+      format: "ai-sdk/v6",
+      encode: ({ message }) => message,
+      decode: ({ parent_id, content }) => ({
+        parentId: parent_id,
+        message: content as { id: string },
+      }),
+      getId: (message: { id: string }) => message.id,
+    });
+    const message: ThreadAssistantMessage = {
+      ...makeAssistantMessage("assistant-1"),
+      content: [],
+      status: {
+        type: "incomplete",
+        reason: "error",
+        error: { code: "AI_APICallError", message: "upstream failed" },
+      },
+    };
+
+    formatted.reportTelemetry([], { message, durationMs: 120 });
+
+    expect(cloud.runs.report).toHaveBeenCalledWith(
+      expect.objectContaining({
+        status: "error",
+        error: "upstream failed",
+        error_code: "AI_APICallError",
+        duration_ms: 120,
+      }),
+    );
+  });
+
   it("reports the model ID carried by aui/v0 step metadata", () => {
     mocks.aui = mocks.makeClient("thread-1");
     const cloud = makeCloud();
