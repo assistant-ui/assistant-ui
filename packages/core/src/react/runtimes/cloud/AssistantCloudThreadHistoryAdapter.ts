@@ -470,14 +470,10 @@ function extractRunMessageInfo(
   const metadata = isRecord(message.metadata) ? message.metadata : undefined;
   const custom = isRecord(metadata?.custom) ? metadata.custom : undefined;
   const timing = isRecord(metadata?.timing) ? metadata.timing : undefined;
-  const streamStartTime = timing?.streamStartTime;
   const firstTokenTime = timing?.firstTokenTime;
   const firstTokenMs =
-    typeof streamStartTime === "number" &&
-    Number.isFinite(streamStartTime) &&
-    typeof firstTokenTime === "number" &&
-    Number.isFinite(firstTokenTime)
-      ? Math.round(firstTokenTime - streamStartTime)
+    typeof firstTokenTime === "number" && Number.isFinite(firstTokenTime)
+      ? Math.round(firstTokenTime)
       : undefined;
   const finishReason =
     status?.type === "incomplete"

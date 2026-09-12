@@ -512,7 +512,7 @@ describe("useAssistantCloudThreadHistoryAdapter", () => {
         },
         timing: {
           streamStartTime: 100,
-          firstTokenTime: 155.6,
+          firstTokenTime: 55.6,
           totalChunks: 1,
           toolCallCount: 0,
         },
@@ -833,7 +833,7 @@ describe("useAssistantCloudThreadHistoryAdapter", () => {
         ...base.metadata,
         timing: {
           streamStartTime: 100,
-          firstTokenTime: 340,
+          firstTokenTime: 240,
           totalChunks: 3,
           toolCallCount: 0,
         },

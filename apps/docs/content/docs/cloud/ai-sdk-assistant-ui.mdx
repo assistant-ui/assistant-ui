@@ -373,7 +373,7 @@ export function Chat() {
 The `useChatRuntime` hook captures full run telemetry including timing data. This integrates with the assistant-ui runtime to provide:
 
 **Automatically captured:**
-- `status`: `"completed"` or `"incomplete"`
+- `status`: `"completed"`, `"incomplete"` or `"error"`
 - `message_id`: the persisted assistant message the run produced
 - `duration_ms`: total run duration
 - `steps`: per-step timing, usage, and tool calls; the per-step `finish_reason` is reported by `useCloudChat` only, because the assistant-ui step metadata carries no finish reason

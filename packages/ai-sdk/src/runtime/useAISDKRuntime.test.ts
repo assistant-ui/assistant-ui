@@ -1505,11 +1505,25 @@ describe("useAISDKRuntime", () => {
     ).toMatchObject({
       type: "incomplete",
       reason: "error",
-      error: {
-        message: "rate limited",
-        name: "AI_APICallError",
-        code: "rate_limited",
-      },
+      error: { code: "rate_limited", message: "rate limited" },
+    });
+  });
+
+  it("uses the error name as the code when the error carries none", () => {
+    const chat = createChatHelpers([
+      { id: "u1", role: "user", parts: [{ type: "text", text: "hi" }] },
+      { id: "a1", role: "assistant", parts: [{ type: "text", text: "" }] },
+    ]);
+    chat.error = Object.assign(new Error("upstream failed"), {
+      name: "AI_APICallError",
+    });
+
+    const { result } = renderHook(() => useAISDKRuntime(chat));
+
+    expect(
+      result.current.thread.getState().messages.at(-1)?.status,
+    ).toMatchObject({
+      error: { code: "AI_APICallError", message: "upstream failed" },
     });
   });
 });
