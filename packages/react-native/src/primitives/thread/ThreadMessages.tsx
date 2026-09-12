@@ -8,6 +8,7 @@ import {
   memo,
   useCallback,
   useEffect,
+  useLayoutEffect,
   useRef,
 } from "react";
 import {
@@ -205,6 +206,7 @@ const useComposedFlatListRef = (
 
 const useThreadMessagesFlatListAutoScroll = ({
   flatListRef,
+  threadId,
   hasMessages,
   horizontal = false,
   autoScroll = true,
@@ -213,6 +215,7 @@ const useThreadMessagesFlatListAutoScroll = ({
   scrollToBottomOnThreadSwitch = true,
 }: {
   flatListRef: RefObject<FlatList<ThreadMessage> | null>;
+  threadId: string;
   hasMessages: boolean;
   horizontal?: boolean | null | undefined;
   autoScroll?: boolean | undefined;
@@ -226,6 +229,7 @@ const useThreadMessagesFlatListAutoScroll = ({
     scrollY: 0,
   });
   const isAtBottomRef = useRef(true);
+  const activeThreadIdRef = useRef(threadId);
   const lastScrollEventOffsetRef = useRef(0);
   const initializeScrollRequestedRef = useRef(false);
   const contentSizeVersionRef = useRef(0);
@@ -236,6 +240,10 @@ const useThreadMessagesFlatListAutoScroll = ({
         minimumContentSizeVersion: number;
       }
   >(false);
+
+  useLayoutEffect(() => {
+    activeThreadIdRef.current = threadId;
+  }, [threadId]);
 
   const updateIsAtBottom = useCallback(() => {
     const { contentHeight, scrollY, viewportHeight } = metricsRef.current;
@@ -260,6 +268,8 @@ const useThreadMessagesFlatListAutoScroll = ({
 
   const handleLayout = useCallback(
     (event: LayoutChangeEvent) => {
+      if (activeThreadIdRef.current !== threadId) return;
+
       const wasAtBottom = isAtBottomRef.current;
       const previousViewportHeight = metricsRef.current.viewportHeight;
       const viewportHeight = horizontal
@@ -292,11 +302,13 @@ const useThreadMessagesFlatListAutoScroll = ({
         isAtBottomRef.current = true;
       }
     },
-    [autoScroll, horizontal, scrollToBottom, updateIsAtBottom],
+    [autoScroll, horizontal, scrollToBottom, threadId, updateIsAtBottom],
   );
 
   const handleScroll = useCallback(
     (event: NativeSyntheticEvent<NativeScrollEvent>) => {
+      if (activeThreadIdRef.current !== threadId) return;
+
       const { contentOffset, contentSize, layoutMeasurement } =
         event.nativeEvent;
       const scrollOffset = horizontal ? contentOffset.x : contentOffset.y;
@@ -323,11 +335,13 @@ const useThreadMessagesFlatListAutoScroll = ({
         pendingScrollToBottomRef.current = false;
       }
     },
-    [horizontal, updateIsAtBottom],
+    [horizontal, threadId, updateIsAtBottom],
   );
 
   const handleContentSizeChange = useCallback(
     (width: number, height: number) => {
+      if (activeThreadIdRef.current !== threadId) return;
+
       const metrics = metricsRef.current;
       const contentHeight = horizontal ? width : height;
       const previousContentHeight = metrics.contentHeight;
@@ -357,7 +371,7 @@ const useThreadMessagesFlatListAutoScroll = ({
 
       scrollToBottom(false);
     },
-    [autoScroll, horizontal, scrollToBottom, updateIsAtBottom],
+    [autoScroll, horizontal, scrollToBottom, threadId, updateIsAtBottom],
   );
 
   useEffect(() => {
@@ -424,6 +438,7 @@ export const ThreadMessagesFlatList = forwardRef<
     forwardedRef,
   ) => {
     const messages = useAuiState((s) => s.thread.messages);
+    const threadId = useAuiState((s) => s.threads.mainThreadId);
     const [flatListRef, setFlatListRef] = useComposedFlatListRef(forwardedRef);
     const {
       handleContentSizeChange: handleAutoScrollContentSizeChange,
@@ -431,6 +446,7 @@ export const ThreadMessagesFlatList = forwardRef<
       handleScroll: handleAutoScrollScroll,
     } = useThreadMessagesFlatListAutoScroll({
       flatListRef,
+      threadId,
       hasMessages: messages.length > 0,
       horizontal: flatListProps.horizontal,
       autoScroll,
@@ -487,6 +503,7 @@ export const ThreadMessagesFlatList = forwardRef<
 
     return (
       <FlatList
+        key={threadId}
         ref={setFlatListRef}
         data={messages as unknown as ThreadMessage[]}
         renderItem={renderItem}
