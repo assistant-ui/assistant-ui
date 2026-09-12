@@ -1,16 +1,8 @@
 {
   "title": "Getting Started",
-  "description": "Core assistant-ui docs for getting started, installation, CLI usage, architecture, DevTools, and foundational app-building concepts.",
-  "icon": "BookOpen",
+  "description": "Install assistant-ui in a React app, then the CLI, RTL, component flavors, and DevTools.",
+  "icon": "Rocket",
   "root": true,
-  "pages": [
-    "index",
-    "installation",
-    "llm",
-    "cli",
-    "architecture",
-    "rtl",
-    "base-ui",
-    "devtools"
-  ]
+  "platforms": ["react"],
+  "pages": ["installation", "cli", "rtl", "base-ui", "devtools"]
 }
