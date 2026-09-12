@@ -219,15 +219,17 @@ describe("CloudFileAttachmentAdapter", () => {
     await expect(adapter.send(ready)).rejects.toThrow(
       "Attachment was uploaded for a different Cloud scope",
     );
+
+    scope = "workspace-a";
+    await expect(adapter.send(ready)).resolves.toEqual(
+      expect.objectContaining({ status: { type: "complete" } }),
+    );
   });
 
-  it("preserves uploaded URLs across same-scope client replacement", async () => {
+  it("preserves uploaded URLs across default-scope client replacement", async () => {
     vi.stubGlobal("fetch", vi.fn().mockResolvedValue({ ok: true }));
     let cloud = makeCloud();
-    const adapter = createScopedCloudFileAttachmentAdapter(
-      () => cloud,
-      () => "workspace-a",
-    );
+    const adapter = new CloudFileAttachmentAdapter(() => cloud);
     const ready = (await drain(adapter)).at(-1)!;
 
     cloud = makeCloud();
@@ -235,6 +237,26 @@ describe("CloudFileAttachmentAdapter", () => {
     await expect(adapter.send(ready)).resolves.toEqual(
       expect.objectContaining({ status: { type: "complete" } }),
     );
+  });
+
+  it("unsubscribes a removed upload even when its generator is abandoned", async () => {
+    const listeners = new Set<(scope: unknown) => void>();
+    const adapter = createScopedCloudFileAttachmentAdapter(
+      () => makeCloud(),
+      () => "workspace-a",
+      (listener) => {
+        listeners.add(listener);
+        return () => listeners.delete(listener);
+      },
+    );
+    const generator = adapter.add({ file: makeFile() });
+
+    const running = await generator.next();
+    expect(listeners).toHaveLength(1);
+
+    await adapter.remove(running.value!);
+
+    expect(listeners).toHaveLength(0);
   });
 
   it("does not finish an upload after the Cloud scope changes", async () => {

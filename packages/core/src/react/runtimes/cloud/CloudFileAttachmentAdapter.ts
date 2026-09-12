@@ -37,6 +37,7 @@ export class CloudFileAttachmentAdapter implements AttachmentAdapter {
   public accept = "*";
 
   private getCloud: () => AssistantCloud;
+  private readonly defaultScope = {};
 
   constructor(cloud: AssistantCloud);
   constructor(getCloud: () => AssistantCloud);
@@ -45,12 +46,16 @@ export class CloudFileAttachmentAdapter implements AttachmentAdapter {
   }
 
   private getScope = () =>
-    scopeBindings.get(this)?.getScope() ?? this.getCloud();
+    scopeBindings.get(this)?.getScope() ?? this.defaultScope;
 
   private uploadedUrls = new Map<string, { url: string; scope: unknown }>();
   private activeUploads = new Map<
     string,
-    { cancelled: boolean; controller: AbortController }
+    {
+      cancelled: boolean;
+      controller: AbortController;
+      unsubscribe: () => void;
+    }
   >();
 
   public async *add({
@@ -69,20 +74,25 @@ export class CloudFileAttachmentAdapter implements AttachmentAdapter {
       status: { type: "running", reason: "uploading", progress: 0 },
     };
     const controller = new AbortController();
-    const upload = { cancelled: false, controller };
+    const upload = { cancelled: false, controller, unsubscribe: () => {} };
     const cloud = this.getCloud();
     const scope = this.getScope();
     let scopeChanged = false;
-    const unsubscribe = scopeBindings.get(this)?.subscribe?.((nextScope) => {
-      if (Object.is(scope, nextScope)) return;
-      scopeChanged = true;
-      controller.abort();
-    });
+    upload.unsubscribe =
+      scopeBindings.get(this)?.subscribe?.((nextScope) => {
+        if (Object.is(scope, nextScope)) return;
+        scopeChanged = true;
+        upload.unsubscribe();
+        controller.abort();
+      }) ?? upload.unsubscribe;
     this.activeUploads.set(id, upload);
 
     try {
       yield attachment;
       if (upload.cancelled) return;
+      if (scopeChanged) {
+        throw new Error("Cloud scope changed while uploading the attachment");
+      }
 
       const { signedUrl, publicUrl } =
         await cloud.files.generatePresignedUploadUrl({
@@ -135,7 +145,7 @@ export class CloudFileAttachmentAdapter implements AttachmentAdapter {
       };
       yield attachment;
     } finally {
-      unsubscribe?.();
+      upload.unsubscribe();
       if (this.activeUploads.get(id) === upload) {
         this.activeUploads.delete(id);
       }
@@ -146,6 +156,7 @@ export class CloudFileAttachmentAdapter implements AttachmentAdapter {
     const upload = this.activeUploads.get(attachment.id);
     if (upload) {
       upload.cancelled = true;
+      upload.unsubscribe();
       upload.controller.abort();
       this.activeUploads.delete(attachment.id);
     }
@@ -157,10 +168,10 @@ export class CloudFileAttachmentAdapter implements AttachmentAdapter {
   ): Promise<CompleteAttachment> {
     const uploaded = this.uploadedUrls.get(attachment.id);
     if (!uploaded) throw new Error("Attachment not uploaded");
-    this.uploadedUrls.delete(attachment.id);
     if (!Object.is(uploaded.scope, this.getScope())) {
       throw new Error("Attachment was uploaded for a different Cloud scope");
     }
+    this.uploadedUrls.delete(attachment.id);
     const { url } = uploaded;
 
     let content: ThreadUserMessagePart[];

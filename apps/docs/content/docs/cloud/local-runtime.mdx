@@ -108,7 +108,7 @@ const runtime = useCloudThreadListRuntime({
 | Option | Meaning |
 |---|---|
 | `cloud` | The client the list is backed by. |
-| `scopeId` | Stable account or workspace identity for cached attachments and message mappings. Change it when the owning scope changes. If omitted, replacing `cloud` starts a new scope. |
+| `scopeId` | Stable account or workspace identity for cached attachments and message mappings. Change it when the owning scope changes. If omitted, replacing `cloud` preserves cached state. |
 | `runtimeHook` | A hook returning the per thread runtime; it is called once per mounted thread. |
 | `create` | Called when a new thread is created; return your backend's id and it is stored as the cloud thread's `external_id`. |
 | `delete` | Called with the thread before the cloud thread is deleted. |

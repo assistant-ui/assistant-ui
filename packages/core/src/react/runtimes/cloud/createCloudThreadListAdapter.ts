@@ -20,8 +20,8 @@ export type CloudThreadListAdapterOptions = {
   cloud?: AssistantCloud | undefined;
   /**
    * Stable identity for the account or workspace owning Cloud runtime state.
-   * Change it when that scope changes. When omitted, the Cloud client instance
-   * is used as the scope identity.
+   * Change it when that scope changes. When omitted, replacing the Cloud client
+   * preserves cached runtime state for backward compatibility.
    */
   scopeId?: string | undefined;
   sdk?: SdkIdentity | undefined;
@@ -66,9 +66,10 @@ const createCommittedScopeRef = (initialScope: unknown): CommittedScopeRef => {
 
 export const useCloudRuntimeAdapters = (
   cloudRef: RefObject<AssistantCloud>,
-  scopeRef: RefObject<unknown> = cloudRef,
+  scopeRef?: RefObject<unknown>,
 ): RuntimeAdapters => {
-  const scope = scopeRef.current;
+  const [defaultScope] = useState(() => ({}));
+  const scope = scopeRef?.current ?? defaultScope;
   const [committedScopeRef] = useState(() => createCommittedScopeRef(scope));
   useInsertionEffect(() => {
     committedScopeRef.update(scope);
@@ -151,8 +152,7 @@ export const createCloudThreadListAdapter = (
     };
     const scopeRef = {
       get current() {
-        const current = getOptions();
-        return current.scopeId ?? current.cloud ?? autoCloud!;
+        return getOptions().scopeId;
       },
     };
     return useCloudRuntimeAdapters(cloudRef, scopeRef);

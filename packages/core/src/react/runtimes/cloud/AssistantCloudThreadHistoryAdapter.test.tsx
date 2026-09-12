@@ -314,6 +314,42 @@ describe("useAssistantCloudThreadHistoryAdapter", () => {
     expect(secondCloud.events.track).not.toHaveBeenCalled();
   });
 
+  it("keeps engagement state across same-scope Cloud client changes", async () => {
+    const now = vi.spyOn(Date, "now").mockReturnValue(100);
+    const listeners = new Map<string, (payload: any) => void>();
+    const client = mocks.makeClient("thread-1");
+    client.on = vi.fn((selector, callback) => {
+      listeners.set(selector.event, callback);
+      return () => listeners.delete(selector.event);
+    });
+    mocks.aui = client;
+    const firstCloud = makeCloud();
+    const secondCloud = makeCloud();
+    const cloudRef = { current: firstCloud };
+    const scopeRef = { current: "workspace-a" };
+    const { rerender } = renderHook(() =>
+      useScopedAssistantCloudThreadHistoryAdapter(cloudRef, scopeRef),
+    );
+    await waitFor(() => expect(listeners.has("thread.runStart")).toBe(true));
+
+    listeners.get("thread.runStart")!({ threadId: "thread-1" });
+    now.mockReturnValue(125);
+    cloudRef.current = secondCloud;
+    rerender();
+    listeners.get("thread.cancelRun")!({ threadId: "thread-1" });
+
+    await waitFor(() =>
+      expect(secondCloud.events.track).toHaveBeenCalledWith(
+        expect.objectContaining({
+          kind: "run_stopped",
+          thread_id: "thread-1",
+          value: 25,
+        }),
+      ),
+    );
+    expect(firstCloud.events.track).not.toHaveBeenCalled();
+  });
+
   it("refreshes formatted persistence when the Cloud client changes", async () => {
     mocks.aui = mocks.makeClient("thread-1");
     const firstCloud = makeCloud();
@@ -351,7 +387,7 @@ describe("useAssistantCloudThreadHistoryAdapter", () => {
     });
   });
 
-  it("resets default message mappings when the Cloud client changes", async () => {
+  it("preserves default message mappings when the Cloud client changes", async () => {
     mocks.aui = mocks.makeClient("thread-1");
     const firstCloud = makeCloud();
     const secondCloud = makeCloud();
@@ -371,11 +407,12 @@ describe("useAssistantCloudThreadHistoryAdapter", () => {
     cloudRef.current = secondCloud;
     await result.current.update({ parentId: null, message });
 
-    expect(secondCloud.threads.messages.create).toHaveBeenCalledWith(
+    expect(secondCloud.threads.messages.update).toHaveBeenCalledWith(
       "thread-1",
-      expect.objectContaining({ parent_id: null }),
+      "remote-a",
+      expect.anything(),
     );
-    expect(secondCloud.threads.messages.update).not.toHaveBeenCalled();
+    expect(secondCloud.threads.messages.create).not.toHaveBeenCalled();
   });
 
   it("preserves message mappings only within the same Cloud scope", async () => {

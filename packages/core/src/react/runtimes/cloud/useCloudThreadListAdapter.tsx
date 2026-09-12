@@ -16,7 +16,7 @@ export const useCloudThreadListAdapter = (
   }, [adapter]);
 
   const cloud = adapter.cloud ?? autoCloud;
-  const scope = adapter.scopeId ?? cloud;
+  const scope = adapter.scopeId;
   const base = useMemo(
     () =>
       createCloudThreadListAdapter(() => ({

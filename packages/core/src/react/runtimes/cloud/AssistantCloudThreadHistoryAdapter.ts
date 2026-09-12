@@ -1,4 +1,4 @@
-import { type RefObject, useEffect, useMemo, useRef, useState } from "react";
+import { type RefObject, useEffect, useRef, useState } from "react";
 import type {
   GenericThreadHistoryAdapter,
   ThreadHistoryAdapter,
@@ -65,7 +65,7 @@ class AssistantCloudThreadHistoryAdapter implements ThreadHistoryAdapter {
   private scopeRef: RefObject<unknown>;
   private getAui: () => AssistantClient;
   private engagementContext:
-    | (CloudScopeSnapshot & { reporter: CloudEngagementReporter })
+    | { scope: unknown; reporter: CloudEngagementReporter }
     | undefined;
 
   constructor(
@@ -112,18 +112,14 @@ class AssistantCloudThreadHistoryAdapter implements ThreadHistoryAdapter {
   public get engagementReporter(): CloudEngagementReporter {
     const snapshot = this.captureScopeSnapshot();
     const current = this.engagementContext;
-    if (
-      current &&
-      Object.is(current.scope, snapshot.scope) &&
-      Object.is(current.cloud, snapshot.cloud)
-    ) {
+    if (current && Object.is(current.scope, snapshot.scope)) {
       return current.reporter;
     }
 
     const reporter = new CloudEngagementReporter(
       () => {
         this.assertCurrentScope(snapshot);
-        return snapshot.cloud;
+        return this.cloudRef.current;
       },
       (threadId, messageId, options) =>
         this.resolveEngagementEventIdsForScope(
@@ -133,7 +129,7 @@ class AssistantCloudThreadHistoryAdapter implements ThreadHistoryAdapter {
           options,
         ),
     );
-    this.engagementContext = { ...snapshot, reporter };
+    this.engagementContext = { scope: snapshot.scope, reporter };
     return reporter;
   }
 
@@ -154,6 +150,8 @@ class AssistantCloudThreadHistoryAdapter implements ThreadHistoryAdapter {
       };
       globalPersistence.set(key, entry);
     } else {
+      // Thread items can outlive the hook that created their persistence, so a
+      // later adapter must reconnect the retained mapping to its live client ref.
       entry.cloudRef.current = this.cloudRef;
     }
     return entry.persistence;
@@ -821,14 +819,7 @@ export function useScopedAssistantCloudThreadHistoryAdapter(
 export function useAssistantCloudThreadHistoryAdapter(
   cloudRef: RefObject<AssistantCloud>,
 ): ThreadHistoryAdapter & { readonly feedback: FeedbackAdapter } {
-  const scopeRef = useMemo(
-    () => ({
-      get current() {
-        return cloudRef.current;
-      },
-    }),
-    [cloudRef],
-  );
+  const [scopeRef] = useState<RefObject<unknown>>(() => ({ current: {} }));
   return useScopedAssistantCloudThreadHistoryAdapter(cloudRef, scopeRef);
 }
 
