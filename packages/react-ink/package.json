@@ -35,7 +35,7 @@
     "build": "aui-build",
     "test": "vitest run",
     "test:watch": "vitest",
-    "bench": "vitest bench --run",
+    "bench": "vitest bench --run src/primitives/textInput/useTextBuffer.bench.ts",
     "benchmark": "tsx benchmarks/run.ts"
   },
   "dependencies": {
