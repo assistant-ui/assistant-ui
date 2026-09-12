@@ -16,14 +16,20 @@ const guessAttachmentType = (
   return "file";
 };
 
-const scopeGetters = new WeakMap<CloudFileAttachmentAdapter, () => unknown>();
+type ScopeBinding = {
+  getScope: () => unknown;
+  subscribe?: ((listener: (scope: unknown) => void) => () => void) | undefined;
+};
+
+const scopeBindings = new WeakMap<CloudFileAttachmentAdapter, ScopeBinding>();
 
 export const createScopedCloudFileAttachmentAdapter = (
   getCloud: () => AssistantCloud,
   getScope: () => unknown,
+  subscribe?: (listener: (scope: unknown) => void) => () => void,
 ) => {
   const adapter = new CloudFileAttachmentAdapter(getCloud);
-  scopeGetters.set(adapter, getScope);
+  scopeBindings.set(adapter, { getScope, subscribe });
   return adapter;
 };
 
@@ -38,7 +44,8 @@ export class CloudFileAttachmentAdapter implements AttachmentAdapter {
     this.getCloud = typeof cloud === "function" ? cloud : () => cloud;
   }
 
-  private getScope = () => scopeGetters.get(this)?.() ?? this.getCloud();
+  private getScope = () =>
+    scopeBindings.get(this)?.getScope() ?? this.getCloud();
 
   private uploadedUrls = new Map<string, { url: string; scope: unknown }>();
   private activeUploads = new Map<
@@ -65,6 +72,12 @@ export class CloudFileAttachmentAdapter implements AttachmentAdapter {
     const upload = { cancelled: false, controller };
     const cloud = this.getCloud();
     const scope = this.getScope();
+    let scopeChanged = false;
+    const unsubscribe = scopeBindings.get(this)?.subscribe?.((nextScope) => {
+      if (Object.is(scope, nextScope)) return;
+      scopeChanged = true;
+      controller.abort();
+    });
     this.activeUploads.set(id, upload);
 
     try {
@@ -108,17 +121,21 @@ export class CloudFileAttachmentAdapter implements AttachmentAdapter {
     } catch (error) {
       if (upload.cancelled) return;
 
-      console.error("[assistant-ui] Failed to upload attachment:", error);
+      const failure = scopeChanged
+        ? new Error("Cloud scope changed while uploading the attachment")
+        : error;
+      console.error("[assistant-ui] Failed to upload attachment:", failure);
       attachment = {
         ...attachment,
         status: {
           type: "incomplete",
           reason: "error",
-          message: error instanceof Error ? error.message : String(error),
+          message: failure instanceof Error ? failure.message : String(failure),
         },
       };
       yield attachment;
     } finally {
+      unsubscribe?.();
       if (this.activeUploads.get(id) === upload) {
         this.activeUploads.delete(id);
       }

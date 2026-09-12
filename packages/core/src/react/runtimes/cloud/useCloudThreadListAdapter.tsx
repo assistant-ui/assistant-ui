@@ -16,6 +16,7 @@ export const useCloudThreadListAdapter = (
   }, [adapter]);
 
   const cloud = adapter.cloud ?? autoCloud;
+  const scope = adapter.scopeId ?? cloud;
   const base = useMemo(
     () =>
       createCloudThreadListAdapter(() => ({
@@ -23,7 +24,7 @@ export const useCloudThreadListAdapter = (
         cloud,
       })),
     // oxlint-disable-next-line react-hooks/exhaustive-deps -- the factory pins the cloud instance; changing callbacks are read from the committed ref
-    [cloud],
+    [cloud, scope],
   );
 
   const cloudRef = useMemo(
@@ -34,16 +35,7 @@ export const useCloudThreadListAdapter = (
     }),
     [],
   );
-  const scopeRef = useMemo(
-    () => ({
-      get current() {
-        return (
-          adapterRef.current.scopeId ?? adapterRef.current.cloud ?? autoCloud!
-        );
-      },
-    }),
-    [],
-  );
+  const scopeRef = useMemo(() => ({ current: scope }), [scope]);
 
   const unstable_useAdapters = useCallback(
     function useCloudAdapters() {

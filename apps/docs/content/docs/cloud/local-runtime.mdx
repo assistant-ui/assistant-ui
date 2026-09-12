@@ -98,7 +98,7 @@ import { useCloudThreadListRuntime } from "@assistant-ui/react";
 
 const runtime = useCloudThreadListRuntime({
   cloud,
-  scopeId: workspace.id,
+  scopeId: workspace.id, // your app's stable account or workspace ID
   runtimeHook: useMyThreadRuntime,
   create: async () => ({ externalId: await backend.createThread() }),
   delete: async (threadId) => backend.deleteThread(threadId),

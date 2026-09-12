@@ -283,4 +283,60 @@ describe("CloudFileAttachmentAdapter", () => {
       "Attachment not uploaded",
     );
   });
+
+  it("aborts an in-flight upload when the Cloud scope changes", async () => {
+    const errorSpy = vi.spyOn(console, "error").mockImplementation(() => {});
+    const listeners = new Set<(scope: unknown) => void>();
+    const fetchMock = vi.fn((_url: string, init: RequestInit) => {
+      return new Promise((_resolve, reject) => {
+        init.signal!.addEventListener(
+          "abort",
+          () =>
+            reject(new DOMException("The operation was aborted", "AbortError")),
+          { once: true },
+        );
+      });
+    });
+    vi.stubGlobal("fetch", fetchMock);
+    let scope = "workspace-a";
+    const adapter = createScopedCloudFileAttachmentAdapter(
+      () => makeCloud(),
+      () => scope,
+      (listener) => {
+        listeners.add(listener);
+        return () => listeners.delete(listener);
+      },
+    );
+    const generator = adapter.add({ file: makeFile() });
+
+    await generator.next();
+    const completion = generator.next();
+    await vi.waitFor(() => expect(fetchMock).toHaveBeenCalledOnce());
+
+    scope = "workspace-b";
+    for (const listener of listeners) listener(scope);
+
+    expect(vi.mocked(fetchMock).mock.calls[0]?.[1]?.signal?.aborted).toBe(true);
+    await expect(completion).resolves.toEqual({
+      done: false,
+      value: expect.objectContaining({
+        status: {
+          type: "incomplete",
+          reason: "error",
+          message: "Cloud scope changed while uploading the attachment",
+        },
+      }),
+    });
+    expect(errorSpy).toHaveBeenCalledWith(
+      "[assistant-ui] Failed to upload attachment:",
+      expect.objectContaining({
+        message: "Cloud scope changed while uploading the attachment",
+      }),
+    );
+    await expect(generator.next()).resolves.toEqual({
+      done: true,
+      value: undefined,
+    });
+    expect(listeners).toHaveLength(0);
+  });
 });

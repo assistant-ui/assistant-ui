@@ -1,6 +1,6 @@
 declare const process: { env: Record<string, string | undefined> };
 
-import { type RefObject, useMemo, useState } from "react";
+import { type RefObject, useInsertionEffect, useMemo, useState } from "react";
 import { AssistantCloud, type SdkIdentity } from "assistant-cloud";
 import type {
   RemoteThreadListAdapter,
@@ -40,18 +40,48 @@ export const autoCloud = baseUrl
   ? new AssistantCloud({ baseUrl, anonymous: true })
   : undefined;
 
+type CommittedScopeRef = RefObject<unknown> & {
+  update(scope: unknown): void;
+  subscribe(listener: (scope: unknown) => void): () => void;
+};
+
+const createCommittedScopeRef = (initialScope: unknown): CommittedScopeRef => {
+  let current = initialScope;
+  const listeners = new Set<(scope: unknown) => void>();
+  return {
+    get current() {
+      return current;
+    },
+    update(scope) {
+      if (Object.is(current, scope)) return;
+      current = scope;
+      for (const listener of listeners) listener(scope);
+    },
+    subscribe(listener) {
+      listeners.add(listener);
+      return () => listeners.delete(listener);
+    },
+  };
+};
+
 export const useCloudRuntimeAdapters = (
   cloudRef: RefObject<AssistantCloud>,
   scopeRef: RefObject<unknown> = cloudRef,
 ): RuntimeAdapters => {
+  const scope = scopeRef.current;
+  const [committedScopeRef] = useState(() => createCommittedScopeRef(scope));
+  useInsertionEffect(() => {
+    committedScopeRef.update(scope);
+  }, [committedScopeRef, scope]);
   const history = useScopedAssistantCloudThreadHistoryAdapter(
     cloudRef,
-    scopeRef,
+    committedScopeRef,
   );
   const [attachments] = useState(() =>
     createScopedCloudFileAttachmentAdapter(
       () => cloudRef.current,
-      () => scopeRef.current,
+      () => committedScopeRef.current,
+      (listener) => committedScopeRef.subscribe(listener),
     ),
   );
   return useMemo(
