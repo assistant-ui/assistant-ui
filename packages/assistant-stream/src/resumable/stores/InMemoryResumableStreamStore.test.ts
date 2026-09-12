@@ -343,8 +343,6 @@ describe("InMemoryResumableStreamStore", () => {
       store.finalize("s", "done", undefined, a.lease),
     ).resolves.toBeUndefined();
     await expect(store.status("s")).resolves.toBe("streaming");
-    await expect(store.delete("s", a.lease)).resolves.toBeUndefined();
-    await expect(store.status("s")).resolves.toBe("streaming");
     await store.finalize("s", "done", undefined, b.lease);
     await expect(
       store.append("s", bytes("late"), a.lease),
@@ -360,23 +358,5 @@ describe("InMemoryResumableStreamStore", () => {
       chunks.push(decode(entry.chunk));
     }
     expect(chunks).toEqual(["fresh"]);
-  });
-
-  it("lets the current lease delete its own stream", async () => {
-    let now = 0;
-    const store = createInMemoryResumableStreamStore({
-      now: () => now,
-      defaultTtlMs: 10,
-    });
-    await store.acquireLease!("s");
-    now = 11;
-    const b = await store.acquireLease!("s");
-    if (b.role !== "producer") throw new Error("Expected producer");
-    await store.delete("s", b.lease);
-    await expect(store.status("s")).resolves.toBe("missing");
-    await expect(store.delete("s", b.lease)).resolves.toBeUndefined();
-    await expect(
-      store.finalize("s", "done", undefined, b.lease),
-    ).rejects.toThrow(/not found/);
   });
 });

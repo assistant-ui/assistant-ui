@@ -223,8 +223,11 @@ export class RedisResumableStreamStore implements ResumableStreamStore {
     validateStreamId(streamId);
     const metaKey = this.metaKey(streamId);
     const existingRaw = await this.client.get(metaKey);
-    const existing = existingRaw === null ? undefined : parseMeta(existingRaw);
-    if (existingRaw === null || !existing) {
+    if (existingRaw === null) {
+      throw new Error(`Stream not found: ${streamId}`);
+    }
+    const existing = parseMeta(existingRaw);
+    if (!existing) {
       throw new Error(`Stream not found: ${streamId}`);
     }
     // a second finalize must not append a duplicate FIN entry, and a producer
@@ -324,13 +327,10 @@ export class RedisResumableStreamStore implements ResumableStreamStore {
     return "missing";
   }
 
-  async delete(streamId: string, lease?: ResumableStreamLease): Promise<void> {
+  async delete(streamId: string): Promise<void> {
     validateStreamId(streamId);
+    this.acquiredGenerations.delete(streamId);
     const meta = await this.readMeta(streamId);
-    if (lease && meta?.generation !== lease.token) return;
-    if (!lease || this.acquiredGenerations.get(streamId) === lease.token) {
-      this.acquiredGenerations.delete(streamId);
-    }
     await this.client.del([
       this.metaKey(streamId),
       ...new Set([

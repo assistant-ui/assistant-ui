@@ -33,7 +33,7 @@ export interface ResumableStreamStore {
 
   /**
    * Like `acquire`, but a producer also receives a lease identifying this
-   * acquisition. Pass it to `append`, `finalize`, and `delete` so a producer
+   * acquisition. Pass it to `append` and `finalize` so a producer
    * superseded by a later acquisition (even on the same store instance) cannot
    * mutate the replacement stream. Optional for backwards compatibility;
    * `createResumableStreamContext` uses it when present.
@@ -53,7 +53,7 @@ export interface ResumableStreamStore {
    * @param lease When given, the mutation applies only while `lease` still owns
    * the stream. While the stream exists under a newer acquisition, a superseded
    * producer's append throws `ResumableStreamError("missing")` and its
-   * finalize/delete are no-ops; a stream with no state at all still reports
+   * finalize is a no-op; a stream with no state at all still reports
    * not found from finalize. Without a lease, behavior is unchanged
    * (Redis: instance-scoped fencing by the most recent acquisition on this
    * instance; in-memory: no fencing).
@@ -86,9 +86,6 @@ export interface ResumableStreamStore {
 
   status(streamId: string): Promise<ResumableStreamStatus>;
 
-  /**
-   * Active readers terminate. No-op when the stream does not exist.
-   * @param lease See {@link ResumableStreamStore.append}.
-   */
-  delete(streamId: string, lease?: ResumableStreamLease): Promise<void>;
+  /** Active readers terminate. No-op when the stream does not exist. */
+  delete(streamId: string): Promise<void>;
 }

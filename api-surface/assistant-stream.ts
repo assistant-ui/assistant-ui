@@ -24276,7 +24276,7 @@ interface ResumableStreamStore {
   finalize(streamId: string, status: "done" | "error", error?: string, lease?: ResumableStreamLease): Promise<void>;
   read(streamId: string, cursor: string, signal: AbortSignal): AsyncIterable<ResumableStreamEntry>;
   status(streamId: string): Promise<ResumableStreamStatus>;
-  delete(streamId: string, lease?: ResumableStreamLease): Promise<void>;
+  delete(streamId: string): Promise<void>;
 }
 
 type RetryStrategy = ((times: number) => number | void | null) | null | undefined;

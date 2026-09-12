@@ -327,8 +327,6 @@ describe("RedisResumableStreamStore", () => {
       store.finalize("s", "done", undefined, a.lease),
     ).resolves.toBeUndefined();
     await expect(store.status("s")).resolves.toBe("streaming");
-    await expect(store.delete("s", a.lease)).resolves.toBeUndefined();
-    await expect(store.status("s")).resolves.toBe("streaming");
     await store.finalize("s", "done", undefined, b.lease);
     await expect(
       store.append("s", encoder.encode("late"), a.lease),
@@ -344,20 +342,5 @@ describe("RedisResumableStreamStore", () => {
       chunks.push(decoder.decode(entry.chunk));
     }
     expect(chunks).toEqual(["fresh"]);
-  });
-
-  it("lets the current lease delete its own stream", async () => {
-    const client = new FakeRedisClient();
-    const store = new RedisResumableStreamStore(client, { keyPrefix: "test" });
-    await store.acquireLease("s");
-    client.strings.delete("test:{s}:meta");
-    const b = await store.acquireLease("s");
-    if (b.role !== "producer") throw new Error("Expected producer");
-    await store.delete("s", b.lease);
-    await expect(store.status("s")).resolves.toBe("missing");
-    await expect(store.delete("s", b.lease)).resolves.toBeUndefined();
-    await expect(
-      store.finalize("s", "done", undefined, b.lease),
-    ).rejects.toThrow(/not found/);
   });
 });

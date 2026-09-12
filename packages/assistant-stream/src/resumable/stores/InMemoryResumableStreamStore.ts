@@ -252,11 +252,10 @@ export function createInMemoryResumableStreamStore(
       return state.final.kind === "error" ? "error" : "done";
     },
 
-    async delete(streamId, lease) {
+    async delete(streamId) {
       validateStreamId(streamId);
       const state = streams.get(streamId);
       if (!state) return;
-      if (lease && state.token !== lease.token) return;
       streams.delete(streamId);
       state.final ??= { kind: "done" };
       notify(state);
