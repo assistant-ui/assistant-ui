@@ -125,6 +125,7 @@ export class CloudMessagePersistence {
    * @returns Array of cloud messages
    */
   async load(threadId: string, format?: string) {
+    const idMapping = this.idMapping;
     const cloud = this.getCloud();
     const messages: CloudMessage[] = [];
     const seen = new Set<string>();
@@ -150,9 +151,10 @@ export class CloudMessagePersistence {
       after = last.id;
     }
 
-    // Populate ID mapping so isPersisted() recognizes loaded messages
-    for (const m of messages) {
-      this.idMapping.set(m.id, m.id);
+    if (this.idMapping === idMapping) {
+      for (const m of messages) {
+        idMapping.set(m.id, m.id);
+      }
     }
     return messages;
   }
@@ -161,6 +163,6 @@ export class CloudMessagePersistence {
    * Reset the ID mapping (call when switching threads).
    */
   reset() {
-    this.idMapping.clear();
+    this.idMapping = new Map();
   }
 }
