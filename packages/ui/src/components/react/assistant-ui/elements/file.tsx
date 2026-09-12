@@ -96,8 +96,9 @@ function getDataUrlSize(data: string): number {
         .replace(/[\t\n\f\r ]/g, "");
     }
     const padding = payload.endsWith("==") ? 2 : payload.endsWith("=") ? 1 : 0;
+    const firstNonBase64 = payload.search(/[^A-Za-z\d+/]/);
     if (
-      /[^A-Za-z\d+/]/.test(payload.slice(0, payload.length - padding)) ||
+      (firstNonBase64 !== -1 && firstNonBase64 !== payload.length - padding) ||
       payload.length % 4 === 1 ||
       (padding > 0 && payload.length % 4 !== 0)
     ) {

@@ -57,6 +57,7 @@ describe("File inline size", () => {
     "data:text/plain;base64,Y=Q=",
     "data:text/plain;base64,YQ%ZZ",
     "data:text/plain;base64,YQ\u2028",
+    "data:application/octet-stream;base64,-_8=",
   ])("uses a zero-byte fallback for malformed data URL %s", (data) => {
     render(
       <File
