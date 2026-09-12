@@ -145,8 +145,11 @@ const METADATA_DIRTY_EVENT_TYPES: ReadonlySet<string> = new Set([
   "error",
 ]);
 
-const loadImageContent = async (image: string): Promise<PiImageContent> => {
-  const response = await fetch(image);
+const loadImageContent = async (
+  image: string,
+  signal?: AbortSignal,
+): Promise<PiImageContent> => {
+  const response = await fetch(image, signal ? { signal } : undefined);
   if (!response.ok) {
     throw new Error(
       `Failed to load Pi image attachment: ${response.status} ${response.statusText}`,
@@ -191,6 +194,7 @@ const isBase64Payload = (value: string) => {
 
 const toImageContent = (
   image: string,
+  signal?: AbortSignal,
 ): PiImageContent | Promise<PiImageContent> => {
   const parsed = parseDataUrl(image);
   if (parsed) {
@@ -213,7 +217,7 @@ const toImageContent = (
     scheme === "https" ||
     scheme === "blob"
   ) {
-    return loadImageContent(image);
+    return loadImageContent(image, signal);
   }
 
   if (scheme) {
@@ -250,9 +254,9 @@ const readPiSendParts = (message: AppendMessage) => {
 export const buildPiSendInput = (
   message: AppendMessage,
   streamingBehavior: "followUp" | "steer" | undefined,
+  signal?: AbortSignal,
 ): PiSendMessageInput | Promise<PiSendMessageInput> => {
   const { content, images } = readPiSendParts(message);
-  const attachments = images.map(toImageContent);
 
   const createInput = (resolvedAttachments: PiImageContent[]) => ({
     content,
@@ -262,9 +266,13 @@ export const buildPiSendInput = (
     ...(streamingBehavior ? { streamingBehavior } : {}),
   });
 
-  return attachments.some((attachment) => attachment instanceof Promise)
-    ? Promise.all(attachments).then(createInput)
-    : createInput(attachments as PiImageContent[]);
+  if (images.length === 0) return createInput([]);
+
+  return Promise.all(
+    images.map((image) =>
+      Promise.resolve().then(() => toImageContent(image, signal)),
+    ),
+  ).then(createInput);
 };
 
 const buildOptimisticPiSendInput = (
@@ -357,6 +365,7 @@ export class PiThreadController implements PiThreadControllerLike {
   private disconnectTimer: ReturnType<typeof setTimeout> | null = null;
   private loadPromise: Promise<void> | null = null;
   private sendDispatchTail: Promise<void> = Promise.resolve();
+  private readonly pendingSendControllers = new Set<AbortController>();
   private messageFlushScheduled = false;
   /** Synthetic seq for snapshots produced locally (via `getThread`), kept below
    * the supervisor's live seqs so they never suppress real events. */
@@ -445,6 +454,7 @@ export class PiThreadController implements PiThreadControllerLike {
     this.allListeners.clear();
     this.metadataListeners.clear();
     this.messageListeners.clear();
+    this.abortPendingSends();
   }
 
   private ensureEventSubscription(options?: { includeSnapshot?: boolean }) {
@@ -632,9 +642,20 @@ export class PiThreadController implements PiThreadControllerLike {
     message: AppendMessage,
     behavior: "followUp" | "steer" | undefined,
   ) {
+    const abortController = new AbortController();
+    this.pendingSendControllers.add(abortController);
     const request = this.sendDispatchTail.then(async () => {
-      const input = await buildPiSendInput(message, behavior);
-      await this.client.sendMessage(this.threadId, input);
+      try {
+        const input = await buildPiSendInput(
+          message,
+          behavior,
+          abortController.signal,
+        );
+        abortController.signal.throwIfAborted();
+        await this.client.sendMessage(this.threadId, input);
+      } finally {
+        this.pendingSendControllers.delete(abortController);
+      }
     });
     this.sendDispatchTail = request.catch(() => undefined);
     return request;
@@ -657,12 +678,18 @@ export class PiThreadController implements PiThreadControllerLike {
   }
 
   public async cancel() {
+    this.abortPendingSends();
     try {
       await this.client.cancelRun(this.threadId);
     } catch (error) {
       this.setState({ ...this.state, lastError: errorText(error) });
       throw error;
     }
+  }
+
+  private abortPendingSends() {
+    for (const controller of this.pendingSendControllers) controller.abort();
+    this.pendingSendControllers.clear();
   }
 
   public async setModel(input: { provider: string; modelId: string }) {
