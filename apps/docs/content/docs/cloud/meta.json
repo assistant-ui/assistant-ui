@@ -1,13 +1,15 @@
 {
-  "title": "Cloud",
-  "description": "AssistantCloud services",
+  "title": "assistant-cloud",
+  "description": "Hosted thread persistence, thread lists, and user authorization for AI chat apps.",
   "icon": "Cloud",
   "root": true,
+  "platforms": ["cloud"],
   "pages": [
     "index",
+    "authorization",
+    "---Integrations---",
     "ai-sdk",
     "ai-sdk-assistant-ui",
-    "langgraph",
-    "authorization"
+    "langgraph"
   ]
 }
