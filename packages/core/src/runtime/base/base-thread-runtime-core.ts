@@ -491,7 +491,7 @@ export abstract class BaseThreadRuntimeCore
 
   public disconnectVoice() {
     this._currentAssistantMsg = null;
-    const unsubs = this._voiceUnsubs;
+    const unsubs = this._voiceUnsubs.splice(0);
     this._voiceUnsubs = [];
     const session = this._voiceSession;
     this._voiceSession = undefined;

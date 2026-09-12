@@ -347,6 +347,36 @@ describe("BaseThreadRuntimeCore voice volume subscriptions", () => {
     expect(runtime.voice).toBeUndefined();
   });
 
+  it("does not release earlier handlers twice after reentrant disconnect", () => {
+    const statusCleanup = vi.fn();
+    const modeCleanup = vi.fn();
+    const voice = createVoiceAdapter();
+    voice.session.onStatusChange = () => statusCleanup;
+    let registeringMode = false;
+    voice.session.onModeChange = (callback) => {
+      registeringMode = true;
+      callback("speaking");
+      registeringMode = false;
+      return modeCleanup;
+    };
+    const volumeRegistration = vi.spyOn(voice.session, "onVolumeChange");
+    const runtime = new TestRuntime(voice);
+    runtime.subscribe(() => {
+      if (registeringMode) {
+        registeringMode = false;
+        runtime.disconnectVoice();
+      }
+    });
+
+    expect(() => runtime.connectVoice()).not.toThrow();
+
+    expect(statusCleanup).toHaveBeenCalledOnce();
+    expect(modeCleanup).toHaveBeenCalledOnce();
+    expect(volumeRegistration).not.toHaveBeenCalled();
+    expect(voice.session.disconnect).toHaveBeenCalledOnce();
+    expect(runtime.voice).toBeUndefined();
+  });
+
   it("rethrows one subscriber error once while disconnecting", () => {
     const voice = createVoiceAdapter();
     const runtime = new TestRuntime(voice);
