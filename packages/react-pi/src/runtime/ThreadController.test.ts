@@ -796,7 +796,7 @@ describe("PiThreadController", () => {
     });
   });
 
-  it("rejects messages queued behind failed image preparation", async () => {
+  it("sends queued messages after failed image preparation", async () => {
     vi.stubGlobal(
       "fetch",
       vi
@@ -816,21 +816,68 @@ describe("PiThreadController", () => {
     const firstRejection = expect(first).rejects.toThrow(
       "Failed to load Pi image attachment: 404 Not Found",
     );
-    const secondRejection = expect(second).rejects.toThrow(
-      "Failed to load Pi image attachment: 404 Not Found",
-    );
 
-    await Promise.all([firstRejection, secondRejection]);
+    await firstRejection;
+    await second;
 
-    expect(client.sent).toHaveLength(0);
+    expect(client.sent).toHaveLength(1);
+    expect(client.sent[0]!.input).toEqual({ content: "second" });
     expect(controller.getState().queue).toEqual({
       steering: [],
       followUp: [],
     });
+    expect(controller.getState()).toMatchObject({
+      runStatus: "running",
+      lastError: undefined,
+      metadata: { status: "running" },
+    });
+    expect(controller.getProjectedMessages()).toMatchObject([
+      { role: "user", content: [{ type: "text", text: "second" }] },
+    ]);
+  });
 
-    await controller.sendMessage(userMessage("third"));
-    expect(client.sent).toHaveLength(1);
-    expect(client.sent[0]!.input).toEqual({ content: "third" });
+  it("restores a previous failure when image preparation is cancelled", async () => {
+    const client = createFakeClient();
+    client.sendMessage = vi
+      .fn()
+      .mockRejectedValueOnce(new Error("previous send failed"));
+    const controller = new PiThreadController(client, THREAD);
+
+    await expect(controller.sendMessage(userMessage("first"))).rejects.toThrow(
+      "previous send failed",
+    );
+
+    let fetchSignal: AbortSignal | undefined;
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(
+        (_input: RequestInfo | URL, init?: RequestInit) =>
+          new Promise<Response>((_resolve, reject) => {
+            fetchSignal = init?.signal ?? undefined;
+            fetchSignal?.addEventListener(
+              "abort",
+              () => reject(fetchSignal?.reason),
+              { once: true },
+            );
+          }),
+      ),
+    );
+    onTestFinished(() => vi.unstubAllGlobals());
+
+    const send = controller.sendMessage(
+      userMessageWithImage("second", "https://cdn.example.com/image.png"),
+    );
+    const rejected = expect(send).rejects.toMatchObject({ name: "AbortError" });
+    await vi.waitFor(() => expect(fetchSignal).toBeDefined());
+
+    await controller.cancel();
+    await rejected;
+
+    expect(controller.getState()).toMatchObject({
+      runStatus: "failed",
+      lastError: "previous send failed",
+      metadata: { status: "failed" },
+    });
   });
 
   it("contains late image failures when another source is invalid", async () => {

@@ -348,6 +348,13 @@ type OptimisticUserMessage = {
   baseMessageCount: number;
 };
 
+type OptimisticSend = {
+  message: PiAgentMessage;
+  previousRunStatus: PiThreadState["runStatus"];
+  previousMetadataStatus: PiThreadState["metadata"]["status"];
+  previousLastError: string | undefined;
+};
+
 const markStateRunning = (state: PiThreadState): PiThreadState => {
   if (state.runStatus === "running" && state.metadata.status === "running") {
     return state;
@@ -567,6 +574,52 @@ export class PiThreadController implements PiThreadControllerLike {
     );
   }
 
+  private beginOptimisticSend(input: PiSendMessageInput): OptimisticSend {
+    const send = {
+      message: optimisticUserMessageFromInput(input),
+      previousRunStatus: this.state.runStatus,
+      previousMetadataStatus: this.state.metadata.status,
+      previousLastError: this.state.lastError,
+    };
+    this.optimisticUserMessages.push({
+      message: send.message,
+      baseMessageCount: this.state.messages.length,
+    });
+    this.setState(markStateRunning(this.state));
+    this.recomputeProjectedMessagesAndNotify();
+    return send;
+  }
+
+  private rollbackOptimisticSend(send: OptimisticSend, error: unknown) {
+    const index = this.optimisticUserMessages.findIndex(
+      (entry) => entry.message === send.message,
+    );
+    if (index !== -1) this.optimisticUserMessages.splice(index, 1);
+    this.recomputeProjectedMessagesAndNotify();
+
+    if (isAbortError(error)) {
+      this.setState({
+        ...this.state,
+        lastError: send.previousLastError,
+        runStatus: send.previousRunStatus,
+        metadata: {
+          ...this.state.metadata,
+          status: send.previousMetadataStatus,
+        },
+      });
+      return;
+    }
+
+    // The optimistic `running` mark must not outlive the failed send; any
+    // events from a run that did start will self-heal the status.
+    this.setState({
+      ...this.state,
+      lastError: errorText(error),
+      runStatus: "failed",
+      metadata: { ...this.state.metadata, status: "failed" },
+    });
+  }
+
   private async sendPreparedMessage(
     message: AppendMessage,
     optimisticInput: PiSendMessageInput,
@@ -583,43 +636,12 @@ export class PiThreadController implements PiThreadControllerLike {
       );
     }
 
-    const optimistic = optimisticUserMessageFromInput(optimisticInput);
-    const previousRunStatus = this.state.runStatus;
-    const previousMetadataStatus = this.state.metadata.status;
-    this.optimisticUserMessages.push({
-      message: optimistic,
-      baseMessageCount: this.state.messages.length,
-    });
-    this.setState(markStateRunning(this.state));
-    this.recomputeProjectedMessagesAndNotify();
+    const optimisticSend = this.beginOptimisticSend(optimisticInput);
 
     try {
       await this.dispatchMessage(message, behavior);
     } catch (error) {
-      const index = this.optimisticUserMessages.findIndex(
-        (entry) => entry.message === optimistic,
-      );
-      if (index !== -1) this.optimisticUserMessages.splice(index, 1);
-      this.recomputeProjectedMessagesAndNotify();
-      if (isAbortError(error)) {
-        this.setState({
-          ...this.state,
-          runStatus: previousRunStatus,
-          metadata: {
-            ...this.state.metadata,
-            status: previousMetadataStatus,
-          },
-        });
-        throw error;
-      }
-      // The optimistic `running` mark must not outlive the failed send; any
-      // events from a run that did start will self-heal the status.
-      this.setState({
-        ...this.state,
-        lastError: errorText(error),
-        runStatus: "failed",
-        metadata: { ...this.state.metadata, status: "failed" },
-      });
+      this.rollbackOptimisticSend(optimisticSend, error);
       throw error;
     }
   }
@@ -634,6 +656,7 @@ export class PiThreadController implements PiThreadControllerLike {
     behavior: "followUp" | "steer",
   ) {
     const mode = behavior === "steer" ? "steering" : "followUp";
+    let promoted: OptimisticSend | undefined;
     this.setState({
       ...this.state,
       queue: {
@@ -643,8 +666,33 @@ export class PiThreadController implements PiThreadControllerLike {
     });
 
     try {
-      await this.dispatchMessage(message, behavior);
+      await this.dispatchMessage(message, behavior, {
+        onBehaviorResolved: (resolvedBehavior) => {
+          if (resolvedBehavior !== undefined) return;
+
+          const entries = this.state.queue[mode];
+          const index = entries.lastIndexOf(content);
+          if (index !== -1) {
+            this.setState({
+              ...this.state,
+              queue: {
+                ...this.state.queue,
+                [mode]: entries.filter((_, i) => i !== index),
+              },
+            });
+          }
+          promoted = this.beginOptimisticSend(
+            buildOptimisticPiSendInput(message, undefined),
+          );
+        },
+      });
     } catch (error) {
+      const promotedSend = promoted;
+      if (promotedSend) {
+        this.rollbackOptimisticSend(promotedSend, error);
+        throw error;
+      }
+
       // Roll back only our optimistic entry; the run itself is unaffected.
       const entries = this.state.queue[mode];
       const index = entries.lastIndexOf(content);
@@ -667,16 +715,25 @@ export class PiThreadController implements PiThreadControllerLike {
   private dispatchMessage(
     message: AppendMessage,
     behavior: "followUp" | "steer" | undefined,
+    options?: {
+      onBehaviorResolved: (behavior: "followUp" | "steer" | undefined) => void;
+    },
   ) {
     const abortController = new AbortController();
     this.pendingSendControllers.add(abortController);
     const previousRequest = this.sendDispatchTail;
     const request = (async () => {
       try {
-        await previousRequest;
+        await previousRequest.catch(() => {});
+        abortController.signal.throwIfAborted();
+        // A queued send can outlive the run it targeted. Pi treats it as a
+        // normal prompt once that run is gone, so mirror that transition.
+        const resolvedBehavior =
+          options && this.state.runStatus !== "running" ? undefined : behavior;
+        options?.onBehaviorResolved(resolvedBehavior);
         const input = await buildPiSendInput(
           message,
-          behavior,
+          resolvedBehavior,
           abortController.signal,
         );
         abortController.signal.throwIfAborted();
