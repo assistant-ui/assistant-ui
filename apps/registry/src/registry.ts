@@ -1178,6 +1178,12 @@ export const registry: RegistryItem[] = [
         sourcePath:
           "../../packages/ui/src/components/react/assistant-ui/elements/conversation-map.aui.tsx",
       },
+      {
+        type: "registry:component",
+        path: "components/assistant-ui/elements/conversation-map-projection.ts",
+        sourcePath:
+          "../../packages/ui/src/components/react/assistant-ui/elements/conversation-map-projection.ts",
+      },
     ],
     registryDependencies: [
       "https://r.assistant-ui.com/elements-conversation-map.json",

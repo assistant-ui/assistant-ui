@@ -80,6 +80,23 @@ test("packaged file routes are served as text", async () => {
   }
 });
 
+test("conversation map bundles its projection helper in both flavors", async () => {
+  const { registry } = await import("../src/registry.ts");
+  const item = registry.find((item) => item.name === "conversation-map");
+  assert.ok(item);
+  for (const radix of [false, true]) {
+    const { payload } = createRegistryPayload(item, radix);
+    assert.ok(
+      payload.files.some(
+        (file) =>
+          file.path ===
+            "components/assistant-ui/elements/conversation-map-projection.ts" &&
+          file.content.includes("export class ConversationMapProjectionCache"),
+      ),
+    );
+  }
+});
+
 test("vue registry build emits self-contained staged items", async () => {
   const { registry, stagedVueRegistry } = await import("../src/registry.ts");
   await buildRegistry(registry, stagedVueRegistry);

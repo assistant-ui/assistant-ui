@@ -15,6 +15,102 @@ const message = (
   }) as unknown as ThreadMessage;
 
 describe("ConversationMapProjectionCache", () => {
+  it("does not skip a changed answer after a changed system message", () => {
+    const cache = new ConversationMapProjectionCache();
+    const user = message("u1", "user", "Question");
+    cache.project([
+      message("s1", "system"),
+      user,
+      message("a1", "assistant", "Old"),
+    ]);
+    const updated = cache.project([
+      message("s2", "system"),
+      user,
+      message("a1", "assistant", "New"),
+    ]);
+    expect(updated.entries[0]?.preview).toBe("New");
+  });
+
+  it("does not mutate an earlier render's ownership map", () => {
+    const cache = new ConversationMapProjectionCache();
+    const user = message("u1", "user", "First");
+    const firstMessages = [user, message("a1", "assistant", "Answer")];
+    const first = cache.project(firstMessages);
+    const updated = cache.project([
+      user,
+      message("u2", "user", "Second"),
+      message("a2", "assistant", "New answer"),
+    ]);
+    expect([...first.turnOf]).toEqual([
+      ["u1", "u1"],
+      ["a1", "u1"],
+    ]);
+    expect(updated.turnOf.get("a2")).toBe("u2");
+    cache.project([...firstMessages]);
+    expect(first.messages).toBe(firstMessages);
+  });
+
+  it("reads only the replacement message in a 1000-message transcript", () => {
+    let reads = 0;
+    const counted = (index: number, text: string): ThreadMessage => ({
+      ...message(String(index), index % 2 ? "assistant" : "user"),
+      get content() {
+        reads++;
+        return [{ type: "text", text }];
+      },
+    });
+    const messages = Array.from({ length: 1000 }, (_, i) =>
+      counted(i, `Message ${i}`),
+    );
+    const cache = new ConversationMapProjectionCache();
+    const before = cache.project(messages);
+    expect(reads).toBe(1000);
+    const after = cache.project([
+      ...messages.slice(0, -1),
+      counted(999, "New token"),
+    ]);
+    expect(reads).toBe(1001);
+    expect(after.entries[0]).toBe(before.entries[0]);
+    expect(after.entries.at(-1)?.preview).toBe("New token");
+    expect(after.turnOf).toBe(before.turnOf);
+  });
+
+  it("matches a fresh projection across insertions, deletions, and branch switches", () => {
+    const cache = new ConversationMapProjectionCache();
+    const user = message("u1", "user", "Question");
+    const answer = message("a1", "assistant", "Answer");
+    const system = message("s1", "system");
+    const variants = [
+      [],
+      [system],
+      [user],
+      [answer],
+      [system, user, answer],
+      [user, system, answer],
+      [user, answer, system],
+      [user, message("u2", "user", "Next"), answer],
+      [
+        system,
+        message("u1", "user", "Edited"),
+        message("a1", "assistant", "Other branch"),
+      ],
+      [
+        message("s2", "system"),
+        user,
+        message("a1", "assistant", "Replacement"),
+      ],
+    ];
+    for (const from of variants) {
+      for (const to of variants) {
+        cache.project(from);
+        const actual = cache.project(to);
+        const expected = new ConversationMapProjectionCache().project(to);
+        expect(actual.entries).toEqual(expected.entries);
+        expect([...actual.turnOf]).toEqual([...expected.turnOf]);
+        expect(actual.turnKey).toBe(expected.turnKey);
+      }
+    }
+  });
   it("reuses unchanged summaries during a tail update", () => {
     const reads = { count: 0 };
     const counted = (id: string, role: "user" | "assistant", text: string) => {

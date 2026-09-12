@@ -197,6 +197,7 @@ export class ConversationMapProjectionCache {
       this.previous = initial;
       return initial;
     }
+    if (messages === previous.messages) return previous;
 
     let changedAt = 0;
     while (
@@ -210,8 +211,7 @@ export class ConversationMapProjectionCache {
       changedAt === previous.messages.length &&
       changedAt === messages.length
     ) {
-      previous.messages = messages;
-      return previous;
+      return (this.previous = { ...previous, messages });
     }
 
     let affectedTurnIndex: number;
@@ -226,11 +226,18 @@ export class ConversationMapProjectionCache {
       if (affectedTurnIndex === -1) {
         if (
           previous.messages.length === messages.length &&
-          messages[changedAt]!.role !== "user" &&
-          messages[changedAt]!.role !== "assistant"
+          previous.messages.every((message, index) => {
+            const next = messages[index]!;
+            return (
+              message === next ||
+              (message.role !== "user" &&
+                message.role !== "assistant" &&
+                next.role !== "user" &&
+                next.role !== "assistant")
+            );
+          })
         ) {
-          previous.messages = messages;
-          return previous;
+          return (this.previous = { ...previous, messages });
         }
         affectedTurnIndex = 0;
         rebuildStart = 0;
@@ -248,19 +255,29 @@ export class ConversationMapProjectionCache {
     }
 
     const oldSuffix = previous.turns.slice(affectedTurnIndex);
-    for (const turn of oldSuffix) {
-      for (const member of turn.members) previous.turnOf.delete(member.id);
-    }
-
     const suffix = groupIntoTurns(messages, rebuildStart);
     const turns = [...previous.turns.slice(0, affectedTurnIndex), ...suffix];
     const entries = [
       ...previous.entries.slice(0, affectedTurnIndex),
       ...suffix.map((turn) => this.describe(turn)),
     ];
-    for (const turn of suffix) {
-      for (const member of turn.members)
-        previous.turnOf.set(member.id, turn.head.id);
+    const sameOwnership =
+      oldSuffix.length === suffix.length &&
+      suffix.every((turn, index) => {
+        const old = oldSuffix[index]!;
+        return (
+          turn.head.id === old.head.id &&
+          turn.members.length === old.members.length &&
+          turn.members.every(
+            (member, index) => member.id === old.members[index]!.id,
+          )
+        );
+      });
+    const turnOf = sameOwnership ? previous.turnOf : new Map<string, string>();
+    if (!sameOwnership) {
+      for (const turn of turns) {
+        for (const member of turn.members) turnOf.set(member.id, turn.head.id);
+      }
     }
 
     const suffixKey = suffix.map((turn) => turn.head.id).join(" ");
@@ -282,7 +299,7 @@ export class ConversationMapProjectionCache {
       messages,
       turns,
       entries,
-      turnOf: previous.turnOf,
+      turnOf,
       turnKey,
       turnKeyEnds,
     };
