@@ -354,25 +354,28 @@ function parseNameStatus(output) {
   return entries;
 }
 
+function releasablePackages(packages, rules) {
+  const ignored = expandPackageGlobs(packages.keys(), rules.ignored);
+  return new Map(
+    [...packages].filter(
+      ([name, pkg]) =>
+        !ignored.has(name) &&
+        !(pkg.isPrivate && rules.skipsPrivate) &&
+        pkg.hasVersion,
+    ),
+  );
+}
+
 export function findMissingPackageChangesets(
   packages,
   bumps,
   changedFiles,
   rules,
 ) {
-  const ignored = expandPackageGlobs(packages.keys(), rules.ignored);
   const bumped = new Set(bumps.map(({ name }) => name));
   const missing = [];
 
-  for (const [name, pkg] of packages) {
-    if (
-      ignored.has(name) ||
-      (pkg.isPrivate && rules.skipsPrivate) ||
-      !pkg.hasVersion
-    ) {
-      continue;
-    }
-
+  for (const [name, pkg] of releasablePackages(packages, rules)) {
     const packageRoot = path.posix.dirname(pkg.manifest);
     const files = [...changedFiles].filter((file) =>
       file.startsWith(`${packageRoot}/`),
@@ -462,13 +465,13 @@ function diffChangedFiles(root, baseSha, headSha, packages) {
 }
 
 export function runChangedPackageCheck(root, baseSha, headSha) {
-  const packages = readWorkspacePackages(root);
-  const changedFiles = diffChangedFiles(root, baseSha, headSha, packages);
-  if (!Array.isArray(changedFiles)) return changedFiles;
-
   const rules = readSkipRules(
     readJson(path.join(root, ".changeset", "config.json")),
   );
+  const packages = releasablePackages(readWorkspacePackages(root), rules);
+  const changedFiles = diffChangedFiles(root, baseSha, headSha, packages);
+  if (!Array.isArray(changedFiles)) return changedFiles;
+
   const changesetFiles = new Set(
     changedFiles
       .filter((file) => file.startsWith(".changeset/"))

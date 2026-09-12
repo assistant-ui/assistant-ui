@@ -522,6 +522,83 @@ test("changed package validation ignores formatting and ordinary block comments"
   }
 });
 
+for (const directory of ["internal", "held", "unversioned"]) {
+  test(`changed package validation does not read skipped ${directory} source`, () => {
+    const root = createWorkspace("---\n---\n", {
+      ignore: [
+        "@fixture/*",
+        "!@fixture/published",
+        "!@fixture/internal",
+        "!@fixture/unversioned",
+      ],
+    });
+    try {
+      writeFileSync(
+        path.join(root, "packages", "internal", "package.json"),
+        JSON.stringify({
+          name: "@fixture/internal",
+          version: "1.0.0",
+          private: true,
+        }),
+      );
+      git(root, "init", "-q", "-b", "main");
+      const base = commitAll(root, "base");
+      const sourceDir = path.join(root, "packages", directory, "src");
+      mkdirSync(sourceDir);
+      // Exceeds execFileSync's default buffer so reading a skipped blob fails the check.
+      writeFileSync(
+        path.join(sourceDir, "index.ts"),
+        "// skipped source\n".repeat(70_000),
+      );
+      const head = commitAll(root, "change skipped package");
+
+      assert.deepEqual(runChangedPackageCheck(root, base, head), {
+        changedSourceCount: 0,
+        missingChangesets: [],
+      });
+    } finally {
+      rmSync(root, { recursive: true, force: true });
+    }
+  });
+}
+
+test("changed package validation includes private packages opted into versioning", () => {
+  const root = createWorkspace("---\n---\n", {
+    privatePackages: { version: true },
+  });
+  try {
+    writeFileSync(
+      path.join(root, "packages", "internal", "package.json"),
+      JSON.stringify({
+        name: "@fixture/internal",
+        version: "1.0.0",
+        private: true,
+      }),
+    );
+    git(root, "init", "-q", "-b", "main");
+    const base = commitAll(root, "base");
+    const sourceDir = path.join(root, "packages", "internal", "src");
+    mkdirSync(sourceDir);
+    writeFileSync(
+      path.join(sourceDir, "index.ts"),
+      "export const value = 1;\n",
+    );
+    const head = commitAll(root, "change versioned private package");
+
+    assert.deepEqual(runChangedPackageCheck(root, base, head), {
+      changedSourceCount: 1,
+      missingChangesets: [
+        {
+          name: "@fixture/internal",
+          files: ["packages/internal/src/index.ts"],
+        },
+      ],
+    });
+  } finally {
+    rmSync(root, { recursive: true, force: true });
+  }
+});
+
 test("changed package validation keeps semantic whitespace", () => {
   const root = createWorkspace(
     '---\n"@fixture/held": patch\n---\n\nfix: unrelated package\n',
