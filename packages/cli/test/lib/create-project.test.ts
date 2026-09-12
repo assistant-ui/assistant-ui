@@ -79,7 +79,6 @@ afterEach(() => {
     if (value === undefined) delete process.env[key];
     else process.env[key] = value;
   }
-  vi.clearAllMocks();
   vi.unstubAllGlobals();
 });
 

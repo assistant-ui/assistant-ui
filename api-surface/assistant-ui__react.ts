@@ -256,12 +256,15 @@ declare class AssistantCloud {
   readonly events: AssistantCloudEvents;
   readonly scores: AssistantCloudScores;
   readonly telemetry: AssistantCloudTelemetryConfig;
+  readonly registerSdk: (sdk: SdkIdentity) => void;
   constructor(config: AssistantCloudConfig);
 }
 
 declare class AssistantCloudAPI {
   _auth: AssistantCloudAuthStrategy;
   _baseUrl: string;
+  readonly registerSdk: (sdk: SdkIdentity) => void;
+  readonly sdkHeader: () => string;
   constructor(config: AssistantCloudConfig);
   initializeAuth(): Promise<boolean>;
   makeRawRequest(endpoint: string, options?: MakeRequestOptions): Promise<Response>;
@@ -425,6 +428,7 @@ declare class AssistantCloudRuns {
     api: string;
     headers: () => Promise<{
       Accept: string;
+      "Aui-Sdk": string;
     }>;
     body: {
       assistant_id: string;
@@ -1407,6 +1411,7 @@ type CloudThreadListAdapter = {
 
 type CloudThreadListAdapterOptions = {
   cloud?: AssistantCloud | undefined;
+  sdk?: SdkIdentity | undefined;
   create?: (() => Promise<ThreadData$1>) | undefined;
   delete?: ((threadId: string) => Promise<void>) | undefined;
 };
@@ -2478,6 +2483,7 @@ type GenericThreadHistoryAdapter<TMessage> = {
       start_ms: number;
       end_ms: number;
     }[];
+    message?: ThreadMessage;
   }): void;
 };
 
@@ -3996,6 +4002,11 @@ type ScopeStates = {
   [K in ClientNames]: ClientSchemas[K]["methods"] extends {
     getState: () => infer S;
   } ? S : never;
+};
+
+type SdkIdentity = {
+  name: string;
+  version: string;
 };
 
 type SelectItemOverride = (item: Unstable_TriggerItem) => boolean;

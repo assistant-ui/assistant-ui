@@ -1,6 +1,6 @@
 {
   "name": "assistant-cloud",
-  "version": "0.1.43",
+  "version": "0.2.0",
   "description": "Cloud integration for assistant-ui",
   "keywords": [
     "assistant",
@@ -20,6 +20,10 @@
     "./telemetry": {
       "types": "./dist/telemetry/index.d.ts",
       "default": "./dist/telemetry/index.js"
+    },
+    "./ai-sdk": {
+      "types": "./dist/ai-sdk/index.d.ts",
+      "default": "./dist/ai-sdk/index.js"
     }
   },
   "main": "./dist/index.js",
@@ -32,16 +36,20 @@
   "sideEffects": false,
   "scripts": {
     "build": "aui-build",
-    "test": "vitest run",
+    "test": "pnpm run test:v7 && pnpm run test:peer-v6 && pnpm run test:types:peer-v6",
+    "test:v7": "vitest run",
+    "test:peer-v6": "vitest run --config vitest.peer-v6.config.ts",
+    "test:types:peer-v6": "tsc --noEmit --project tsconfig.peer-v6.json",
     "test:watch": "vitest"
   },
   "dependencies": {
-    "assistant-stream": "^0.3.41"
+    "assistant-stream": "^0.3.42"
   },
   "peerDependencies": {
     "@opentelemetry/api": "^1.9.0",
     "@opentelemetry/exporter-trace-otlp-http": ">=0.200.0",
-    "@opentelemetry/sdk-trace-base": "^2.1.0"
+    "@opentelemetry/sdk-trace-base": "^2.1.0",
+    "ai": "^6.0.0 || ^7.0.0"
   },
   "peerDependenciesMeta": {
     "@opentelemetry/api": {
@@ -52,6 +60,9 @@
     },
     "@opentelemetry/sdk-trace-base": {
       "optional": true
+    },
+    "ai": {
+      "optional": true
     }
   },
   "devDependencies": {
@@ -60,8 +71,10 @@
     "@opentelemetry/exporter-trace-otlp-http": "^0.205.0",
     "@opentelemetry/sdk-trace-base": "^2.1.0",
     "@types/node": "^26.4.1",
+    "ai": "^7.0.93",
+    "ai-v6": "npm:ai@^6.0.277",
     "jsdom": "^30.0.1",
-    "vitest": "^4.1.11"
+    "vitest": "^5.0.0"
   },
   "publishConfig": {
     "access": "public",

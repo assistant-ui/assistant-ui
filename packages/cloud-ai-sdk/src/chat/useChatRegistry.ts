@@ -1,4 +1,4 @@
-import { useEffect, useInsertionEffect, useMemo, useRef } from "react";
+import { useInsertionEffect, useMemo } from "react";
 import type { Chat } from "@ai-sdk/react";
 import type { UIMessage } from "@ai-sdk/react";
 import { ChatRegistry } from "./ChatRegistry";
@@ -57,14 +57,14 @@ export function useChatRegistry({
     registry.register(activeChatKey, threadId, activeChat);
   }, [activeChat, activeChatKey, registry, threadId]);
 
-  const committedRegistryRef = useRef(registry);
-  useEffect(() => {
-    const previousRegistry = committedRegistryRef.current;
-    committedRegistryRef.current = registry;
-    if (previousRegistry !== registry) {
-      void previousRegistry.stopAll();
-    }
-  }, [registry]);
+  // This cleanup is not run when React merely hides or re-suspends the fiber,
+  // so chats survive those transitions. It runs for deletion and registry
+  // replacement; the stop is deferred because React forbids scheduling its
+  // subscriber updates from an insertion effect.
+  useInsertionEffect(
+    () => () => queueMicrotask(() => void registry.stopAll()),
+    [registry],
+  );
 
   return { registry, activeChat };
 }

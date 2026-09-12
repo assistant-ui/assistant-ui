@@ -86,6 +86,7 @@ if (cjsEntries.length > 0) {
     entry: cjsEntries.map(({ key }) =>
       key === "." ? "src/index.ts" : `src/${key.slice(2)}.ts`,
     ),
+    define: { __AUI_PACKAGE_VERSION__: JSON.stringify(pkg.version) },
     format: "cjs",
     platform: "node",
     dts: isDev ? false : { sourcemap: true },
@@ -105,6 +106,7 @@ if (cjsEntries.length > 0) {
       "!src/**/__tests__/**",
       "!src/**/*.test.{ts,tsx}",
     ],
+    define: { __AUI_PACKAGE_VERSION__: JSON.stringify(pkg.version) },
     ...(remapReactToShim
       ? {
           outputOptions: (options) => ({

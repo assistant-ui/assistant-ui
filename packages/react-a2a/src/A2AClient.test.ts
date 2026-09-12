@@ -480,6 +480,83 @@ describe("A2AClient", () => {
     });
 
     it.each([
+      ["text", { invalid: true }],
+      ["raw", 42],
+      ["url", false],
+      ["filename", []],
+      ["mediaType", {}],
+      ["metadata", []],
+    ])("rejects a message part with malformed %s", async (field, value) => {
+      fetchMock.mockResolvedValue(
+        mockFetchResponse({
+          message: {
+            messageId: "m2",
+            role: "agent",
+            parts: [{ [field]: value }],
+          },
+        }),
+      );
+
+      await expect(client.sendMessage(userMessage)).rejects.toThrow(
+        "Invalid A2A message:send response: expected a valid task or message payload.",
+      );
+    });
+
+    it("normalizes null optional message-part fields", async () => {
+      fetchMock.mockResolvedValue(
+        mockFetchResponse({
+          message: {
+            messageId: "m2",
+            role: "agent",
+            parts: [
+              {
+                text: null,
+                raw: null,
+                url: null,
+                data: null,
+                metadata: null,
+                filename: null,
+                mediaType: null,
+              },
+            ],
+          },
+        }),
+      );
+
+      const result = await client.sendMessage(userMessage);
+
+      expect((result as A2AMessage).parts).toEqual([{ data: null }]);
+    });
+
+    it.each([
+      [
+        "status message",
+        {
+          status: {
+            state: "completed",
+            message: { parts: [{ text: { invalid: true } }] },
+          },
+        },
+      ],
+      ["history message", { history: [{ parts: [{ raw: 42 }] }] }],
+      ["artifact", { artifacts: [{ parts: [{ metadata: [] }] }] }],
+    ])("rejects a task with malformed %s parts", async (_name, nested) => {
+      fetchMock.mockResolvedValue(
+        mockFetchResponse({
+          task: {
+            id: "t1",
+            status: { state: "completed" },
+            ...nested,
+          },
+        }),
+      );
+
+      await expect(client.sendMessage(userMessage)).rejects.toThrow(
+        "Invalid A2A message:send response: expected a valid task or message payload.",
+      );
+    });
+
+    it.each([
       ["task", { id: "t1", status: { state: "completed" } }],
       [
         "message",
@@ -1054,6 +1131,60 @@ describe("A2AClient", () => {
             task_id: { nested: "object" },
             role: "ROLE_AGENT",
             parts: [{ text: "hi" }],
+          },
+        },
+      ];
+
+      for (const frame of frames) {
+        fetchMock.mockResolvedValue(
+          mockSSEResponse([`data: ${JSON.stringify(frame)}`, "", ""]),
+        );
+
+        const events: A2AStreamEvent[] = [];
+        for await (const event of client.streamMessage(userMessage)) {
+          events.push(event);
+        }
+
+        expect(events).toEqual([]);
+      }
+    });
+
+    it("drops wrapped messages and artifact updates with malformed parts", async () => {
+      const frames = [
+        {
+          message: {
+            message_id: "m1",
+            role: "ROLE_AGENT",
+            parts: [{ text: { invalid: true } }],
+          },
+        },
+        {
+          artifact_update: {
+            task_id: "t1",
+            context_id: "c1",
+            artifact: {
+              artifact_id: "a1",
+              parts: [{ url: 42 }],
+            },
+          },
+        },
+        {
+          status_update: {
+            task_id: "t1",
+            context_id: "c1",
+            status: {
+              state: "TASK_STATE_WORKING",
+              message: { parts: [{ text: { invalid: true } }] },
+            },
+          },
+        },
+        {
+          task: {
+            id: "t1",
+            status: {
+              state: "TASK_STATE_WORKING",
+              message: { parts: [{ text: { invalid: true } }] },
+            },
           },
         },
       ];

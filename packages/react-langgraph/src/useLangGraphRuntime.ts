@@ -62,6 +62,7 @@ import {
   hasToolResult,
   truncateLangChainMessages,
 } from "./messageHelpers";
+import { LANGGRAPH_SDK } from "./sdkIdentity";
 
 const EMPTY_QUEUE_ITEMS: readonly QueueItemState[] = Object.freeze([]);
 const subscribeNoop = () => () => {};
@@ -886,6 +887,7 @@ export const useLangGraphRuntime = ({
 }: UseLangGraphRuntimeOptions) => {
   const aui = useAui();
   const cloudAdapter = useCloudThreadListAdapter({
+    sdk: LANGGRAPH_SDK,
     cloud,
     create: createCloudThreadListAdapterCreateFallback(
       create,

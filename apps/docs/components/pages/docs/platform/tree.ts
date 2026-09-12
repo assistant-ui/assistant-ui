@@ -1,18 +1,11 @@
-import type { ReactNode } from "react";
 import type * as PageTree from "fumadocs-core/page-tree";
-import { isVisibleForPlatform, PLATFORMS, type Platform } from "./context";
-
-export interface PlatformTreeConfig {
-  mainDocsFolder: string;
-  platformFolders: Partial<Record<Platform, string>>;
-  sharedPageUrls: ReadonlySet<string>;
-}
-
-export const PLATFORM_TREE_CONFIG: PlatformTreeConfig = {
-  mainDocsFolder: "Getting Started",
-  platformFolders: { rn: "React Native", ink: "React Ink" },
-  sharedPageUrls: new Set(["/docs/llm", "/docs/architecture"]),
-};
+import {
+  DEFAULT_PLATFORM,
+  PLATFORMS,
+  SURFACES,
+  type Platform,
+} from "@/lib/constants";
+import { isPlatform, isVisibleForPlatform } from "@/lib/docs-platform";
 
 export function nodePlatforms(
   node: PageTree.Node,
@@ -56,11 +49,9 @@ export function getVisibleUrlsByPlatform(
   const folders = (tree?.children ?? []).filter(
     (node): node is PageTree.Folder => node.type === "folder",
   );
-  const result: Record<Platform, Set<string>> = {
-    react: new Set(),
-    rn: new Set(),
-    ink: new Set(),
-  };
+  const result = Object.fromEntries(
+    PLATFORMS.map((platform) => [platform, new Set<string>()]),
+  ) as Record<Platform, Set<string>>;
 
   PLATFORMS.forEach((platform) => {
     buildPlatformSections(folders, platform).forEach((section) => {
@@ -69,6 +60,35 @@ export function getVisibleUrlsByPlatform(
   });
 
   return result;
+}
+
+// The platforms a url is restricted to, read from the nearest tagged node on
+// its path; undefined for a page every platform shares.
+export function getPagePlatforms(
+  tree: PageTree.Root | undefined,
+  url: string,
+): readonly string[] | undefined {
+  for (const folder of tree?.children ?? []) {
+    if (folder.type !== "folder") continue;
+    const path = findPathToNode(folder, url);
+    if (!path) continue;
+    for (let i = path.length - 1; i >= 0; i--) {
+      const platforms = nodePlatforms(path[i]!);
+      if (platforms && platforms.length > 0) return platforms;
+    }
+    return undefined;
+  }
+  return undefined;
+}
+
+// The one platform a url belongs to, or the default when it is shared.
+export function getPagePlatform(
+  tree: PageTree.Root | undefined,
+  url: string,
+): Platform {
+  const platforms = getPagePlatforms(tree, url);
+  const only = platforms?.length === 1 ? platforms[0] : undefined;
+  return isPlatform(only) ? only : DEFAULT_PLATFORM;
 }
 
 export function findPathToNode(
@@ -87,12 +107,6 @@ export function findPathToNode(
   return null;
 }
 
-function withoutPlatformFilter<T extends PageTree.Node>(node: T): T {
-  const clone = { ...node } as T & { platforms?: readonly string[] };
-  delete clone.platforms;
-  return clone;
-}
-
 function hasVisibleContent(node: PageTree.Node, platform: Platform): boolean {
   if (!isNodeVisible(node, platform)) return false;
   if (node.type === "page") return true;
@@ -101,7 +115,7 @@ function hasVisibleContent(node: PageTree.Node, platform: Platform): boolean {
   return node.children.some((c) => hasVisibleContent(c, platform));
 }
 
-export function pruneEmptySeparators(
+function pruneEmptySeparators(
   items: readonly PageTree.Node[],
   platform: Platform,
 ): PageTree.Node[] {
@@ -132,92 +146,40 @@ function filterChildren(
   };
 }
 
-function separator(name: ReactNode, id: string): PageTree.Separator {
-  return { type: "separator", name, $id: id };
-}
-
-function mergePlatformDocs(
-  docsFolder: PageTree.Folder,
-  platformFolder: PageTree.Folder,
-  platform: Platform,
-  sharedPageUrls: ReadonlySet<string>,
-): PageTree.Folder {
-  const sharedPages = docsFolder.children
-    .filter((c) => c.type === "page" && sharedPageUrls.has(c.url))
-    .map(withoutPlatformFilter);
-
-  return {
-    ...docsFolder,
-    children: [
-      separator("Getting Started", `platform-${platform}-getting-started`),
-      ...sharedPages,
-      separator(platformFolder.name, `platform-${platform}-label`),
-      ...pruneEmptySeparators(platformFolder.children, platform),
-    ],
-  };
-}
-
+// An untagged top-level section belongs to every surface; a library such as
+// Tap only receives the sections tagged with its id.
 export function buildPlatformSections(
   folders: PageTree.Folder[],
   platform: Platform,
-  config: PlatformTreeConfig = PLATFORM_TREE_CONFIG,
 ): PageTree.Folder[] {
-  if (folders.length === 0) return [];
-
-  const allPlatformFolderNames = new Set(
-    Object.values(config.platformFolders).filter(
-      (v): v is string => v !== null,
-    ),
-  );
-
-  const platformFolderName = config.platformFolders[platform];
-
-  if (platformFolderName) {
-    const platformFolder = folders.find((f) => f.name === platformFolderName);
-    const docsFolder = folders.find((f) => f.name === config.mainDocsFolder);
-    if (!platformFolder || !docsFolder) {
-      const missingFolder = !docsFolder
-        ? config.mainDocsFolder
-        : platformFolderName;
-      if (process.env.NODE_ENV !== "production") {
-        throw new Error(`[platform-tree] Missing folder: ${missingFolder}`);
-      }
-
-      return folders
-        .filter(
-          (f) =>
-            !allPlatformFolderNames.has(String(f.name)) &&
-            isNodeVisible(f, platform),
-        )
-        .map((f) => filterChildren(f, platform))
-        .filter((f) => hasVisibleContent(f, platform));
-    }
-
-    const merged = mergePlatformDocs(
-      docsFolder,
-      platformFolder,
-      platform,
-      config.sharedPageUrls,
-    );
-
-    const shared = folders
-      .filter(
-        (f) =>
-          f.name !== config.mainDocsFolder &&
-          !allPlatformFolderNames.has(String(f.name)) &&
-          isNodeVisible(f, platform),
-      )
-      .map((f) => filterChildren(f, platform));
-
-    return [merged, ...shared].filter((f) => hasVisibleContent(f, platform));
-  }
-
   return folders
-    .filter(
-      (f) =>
-        !allPlatformFolderNames.has(String(f.name)) &&
-        isNodeVisible(f, platform),
-    )
+    .filter((f) => (nodePlatforms(f) ?? SURFACES).includes(platform))
     .map((f) => filterChildren(f, platform))
     .filter((f) => hasVisibleContent(f, platform));
+}
+
+function firstVisibleUrl(
+  nodes: readonly PageTree.Node[],
+  platform: Platform,
+): string | undefined {
+  for (const node of nodes) {
+    if (!isNodeVisible(node, platform)) continue;
+    if (node.type === "page") return node.url;
+    if (node.type === "separator") continue;
+    if (node.index && isNodeVisible(node.index, platform))
+      return node.index.url;
+    const nested = firstVisibleUrl(node.children, platform);
+    if (nested) return nested;
+  }
+  return undefined;
+}
+
+export function getPlatformHomeUrl(
+  tree: PageTree.Root | undefined,
+  platform: Platform,
+): string | undefined {
+  const folders = (tree?.children ?? []).filter(
+    (node): node is PageTree.Folder => node.type === "folder",
+  );
+  return firstVisibleUrl(buildPlatformSections(folders, platform), platform);
 }

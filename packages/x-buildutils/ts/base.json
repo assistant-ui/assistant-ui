@@ -13,7 +13,7 @@
       "${configDir}/../../../node_modules/@assistant-ui/x-buildutils/types",
       "${configDir}/types"
     ],
-    "types": ["browser-process"],
+    "types": ["browser-process", "aui-build"],
     "moduleResolution": "bundler",
     "verbatimModuleSyntax": true,
     "erasableSyntaxOnly": true,

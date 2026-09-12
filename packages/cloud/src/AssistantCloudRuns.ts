@@ -68,6 +68,7 @@ export class AssistantCloudRuns {
         return {
           ...headers,
           Accept: "text/plain",
+          "Aui-Sdk": this.cloud.sdkHeader(),
         };
       },
       body: {

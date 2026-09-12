@@ -194,8 +194,9 @@ export class AdkEventAccumulator {
   private finalTextReplacedThisEvent = false;
   private finalReasoningReplacedThisEvent = false;
   private partialReasoningBuffer = "";
-  private accumulatedStateDelta: Record<string, unknown> = {};
-  private accumulatedArtifactDelta: Record<string, number> = {};
+  private accumulatedStateDelta: Record<string, unknown> = Object.create(null);
+  private accumulatedArtifactDelta: Record<string, number> =
+    Object.create(null);
   private lastAgentInfo: {
     name?: string | undefined;
     branch?: string | undefined;

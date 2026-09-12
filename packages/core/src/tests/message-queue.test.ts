@@ -435,6 +435,259 @@ describe("createMessageQueue", () => {
     });
   });
 
+  describe("synchronous dispatch failures", () => {
+    it("restores a message when the driver throws", () => {
+      const error = new Error("dispatch failed");
+      const run = vi.fn(() => {
+        throw error;
+      });
+      const { adapter } = createMessageQueue({ run });
+
+      expect(() => adapter.enqueue(msg("first"))).toThrow(error);
+      expect(prompts(adapter.items)).toEqual(["first"]);
+
+      run.mockImplementation(() => undefined);
+      adapter.enqueue(msg("second"));
+
+      expect(run).toHaveBeenCalledTimes(2);
+      expect(run).toHaveBeenLastCalledWith(
+        expect.objectContaining({ content: [{ type: "text", text: "first" }] }),
+        { steer: false },
+      );
+      expect(prompts(adapter.items)).toEqual(["second"]);
+    });
+
+    it("does not restore work after the driver starts its run", () => {
+      const error = new Error("dispatch failed");
+      let fail = true;
+      let controller!: ReturnType<typeof createMessageQueue>;
+      const run = vi.fn(() => {
+        if (!fail) return;
+        controller.notifyBusy();
+        throw error;
+      });
+      controller = createMessageQueue({ run });
+
+      expect(() => controller.adapter.enqueue(msg("first"))).toThrow(error);
+      expect(prompts(controller.adapter.items)).toEqual([]);
+
+      fail = false;
+      controller.adapter.enqueue(msg("second"));
+      expect(run).toHaveBeenCalledOnce();
+
+      controller.notifyIdle();
+      expect(run).toHaveBeenCalledTimes(2);
+      expect(run).toHaveBeenLastCalledWith(
+        expect.objectContaining({
+          content: [{ type: "text", text: "second" }],
+        }),
+        { steer: false },
+      );
+      expect(prompts(controller.adapter.items)).toEqual([]);
+    });
+
+    it("restores a message when its dispatch transform throws", () => {
+      const error = new Error("transform failed");
+      const run = vi.fn();
+      const { adapter } = createMessageQueue({ run });
+      adapter.__internal_setDispatchTransform(() => {
+        throw error;
+      });
+
+      expect(() => adapter.enqueue(msg("first"))).toThrow(error);
+      expect(run).not.toHaveBeenCalled();
+      expect(prompts(adapter.items)).toEqual(["first"]);
+
+      adapter.__internal_setDispatchTransform((message) => message);
+      adapter.enqueue(msg("second"));
+
+      expect(run).toHaveBeenCalledWith(
+        expect.objectContaining({ content: [{ type: "text", text: "first" }] }),
+        { steer: false },
+      );
+      expect(prompts(adapter.items)).toEqual(["second"]);
+    });
+
+    it("restores a steer when cancellation throws", () => {
+      const error = new Error("cancel failed");
+      const run = vi.fn();
+      const cancel = vi.fn(() => {
+        throw error;
+      });
+      const { adapter, notifyIdle } = createMessageQueue({ run, cancel });
+
+      adapter.enqueue(msg("active"));
+      expect(() => adapter.steer(msg("urgent"))).toThrow(error);
+      expect(prompts(adapter.steerItems)).toEqual(["urgent"]);
+
+      notifyIdle();
+      expect(run).toHaveBeenCalledOnce();
+
+      cancel.mockImplementation(() => undefined);
+      adapter.enqueue(msg("later"));
+      expect(run).toHaveBeenLastCalledWith(
+        expect.objectContaining({
+          content: [{ type: "text", text: "urgent" }],
+        }),
+        { steer: false },
+      );
+      expect(prompts(adapter.items)).toEqual(["later"]);
+    });
+
+    it("restores a steer when its dispatch transform throws", () => {
+      const error = new Error("transform failed");
+      const run = vi.fn();
+      const cancel = vi.fn();
+      const { adapter, notifyIdle } = createMessageQueue({ run, cancel });
+
+      adapter.enqueue(msg("active"));
+      adapter.__internal_setDispatchTransform(() => {
+        throw error;
+      });
+
+      expect(() => adapter.steer(msg("urgent"))).toThrow(error);
+      expect(cancel).toHaveBeenCalledOnce();
+      expect(prompts(adapter.steerItems)).toEqual(["urgent"]);
+
+      notifyIdle();
+      adapter.__internal_setDispatchTransform((message) => message);
+      adapter.enqueue(msg("later"));
+
+      expect(run).toHaveBeenLastCalledWith(
+        expect.objectContaining({
+          content: [{ type: "text", text: "urgent" }],
+        }),
+        { steer: false },
+      );
+      expect(prompts(adapter.items)).toEqual(["later"]);
+    });
+
+    it("restores a steer when its replacement run throws", () => {
+      const error = new Error("steer failed");
+      let failSteer = true;
+      const run = vi.fn(
+        (_message: AppendMessage, options: { steer: boolean }) => {
+          if (options.steer && failSteer) throw error;
+        },
+      );
+      const { adapter, notifyIdle } = createMessageQueue({
+        run,
+        cancel: vi.fn(),
+      });
+
+      adapter.enqueue(msg("active"));
+      expect(() => adapter.steer(msg("urgent"))).toThrow(error);
+      expect(prompts(adapter.steerItems)).toEqual(["urgent"]);
+
+      failSteer = false;
+      notifyIdle();
+      expect(run).toHaveBeenCalledTimes(2);
+
+      adapter.enqueue(msg("later"));
+      expect(run).toHaveBeenLastCalledWith(
+        expect.objectContaining({
+          content: [{ type: "text", text: "urgent" }],
+        }),
+        { steer: false },
+      );
+      expect(prompts(adapter.items)).toEqual(["later"]);
+    });
+
+    it("recovers when cancellation settles before the replacement throws", () => {
+      const error = new Error("steer failed");
+      let failSteer = true;
+      let controller!: ReturnType<typeof createMessageQueue>;
+      controller = createMessageQueue({
+        run: (_message, options) => {
+          if (options.steer && failSteer) throw error;
+        },
+        cancel: () => controller.notifyIdle(),
+      });
+
+      controller.adapter.enqueue(msg("active"));
+      expect(() => controller.adapter.steer(msg("urgent"))).toThrow(error);
+      expect(prompts(controller.adapter.steerItems)).toEqual(["urgent"]);
+
+      failSteer = false;
+      controller.adapter.enqueue(msg("later"));
+
+      expect(prompts(controller.adapter.steerItems)).toEqual([]);
+      expect(prompts(controller.adapter.items)).toEqual(["later"]);
+    });
+
+    it("does not restore a steer after its replacement run starts", () => {
+      const error = new Error("steer failed");
+      let failSteer = true;
+      let controller!: ReturnType<typeof createMessageQueue>;
+      const run = vi.fn(
+        (_message: AppendMessage, options: { steer: boolean }) => {
+          if (!options.steer || !failSteer) return;
+          controller.notifyBusy();
+          throw error;
+        },
+      );
+      controller = createMessageQueue({
+        run,
+        cancel: () => controller.notifyIdle(),
+      });
+
+      controller.adapter.enqueue(msg("active"));
+      expect(() => controller.adapter.steer(msg("urgent"))).toThrow(error);
+      expect(prompts(controller.adapter.steerItems)).toEqual([]);
+
+      failSteer = false;
+      controller.adapter.enqueue(msg("later"));
+      expect(run).toHaveBeenCalledTimes(2);
+
+      controller.notifyIdle();
+      expect(run).toHaveBeenCalledTimes(3);
+      expect(run).toHaveBeenLastCalledWith(
+        expect.objectContaining({
+          content: [{ type: "text", text: "later" }],
+        }),
+        { steer: false },
+      );
+      expect(prompts(controller.adapter.items)).toEqual([]);
+    });
+
+    it("restores an unanchored move when its replacement run throws", () => {
+      const error = new Error("steer failed");
+      let failSteer = true;
+      const run = vi.fn(
+        (_message: AppendMessage, options: { steer: boolean }) => {
+          if (options.steer && failSteer) throw error;
+        },
+      );
+      const { adapter, notifyIdle } = createMessageQueue({
+        run,
+        cancel: vi.fn(),
+      });
+
+      adapter.enqueue(msg("active"));
+      adapter.enqueue(msg("first"));
+      adapter.enqueue(msg("second"));
+      adapter.enqueue(msg("moved"));
+      const movedId = adapter.items[2]!.id;
+
+      expect(() => adapter.move(movedId, { lane: "steer" })).toThrow(error);
+      expect(adapter.steerItems).toHaveLength(0);
+      expect(prompts(adapter.items)).toEqual(["first", "second", "moved"]);
+      expect(adapter.items[2]?.id).toBe(movedId);
+
+      failSteer = false;
+      notifyIdle();
+      adapter.enqueue(msg("later"));
+
+      expect(run).toHaveBeenLastCalledWith(
+        expect.objectContaining({
+          content: [{ type: "text", text: "first" }],
+        }),
+        { steer: false },
+      );
+      expect(prompts(adapter.items)).toEqual(["second", "moved", "later"]);
+    });
+  });
+
   it("notifyCancelled keeps items and pauses advance until the next send", () => {
     const run = vi.fn();
     const { adapter, notifyIdle, notifyCancelled } = createMessageQueue({

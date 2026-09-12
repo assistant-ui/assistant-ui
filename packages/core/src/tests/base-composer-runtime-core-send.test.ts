@@ -5,6 +5,7 @@ import type { ThreadRuntimeCore } from "../runtime/interfaces/thread-runtime-cor
 import type { PendingAttachment } from "../types/attachment";
 import { MessageNotSentError } from "../types/error";
 import { BaseComposerRuntimeCore } from "../runtime/base/base-composer-runtime-core";
+import { LocalRuntimeCore } from "../runtimes/local/local-runtime-core";
 
 const makeAdapter = (
   overrides: Partial<AttachmentAdapter> = {},
@@ -377,6 +378,56 @@ describe("BaseComposerRuntimeCore.send restore-on-failure", () => {
 
     resolveRemove();
     await removePromise;
+  });
+
+  it("excludes cleared attachments when the upload finishes before adapter removal", async () => {
+    const upload = Promise.withResolvers<void>();
+    const removal = Promise.withResolvers<void>();
+    const adapter = makeAdapter({
+      send: async (attachment) => {
+        await upload.promise;
+        return { ...attachment, status: { type: "complete" }, content: [] };
+      },
+      remove: () => removal.promise,
+    });
+    const core = new LocalRuntimeCore(
+      {
+        adapters: {
+          chatModel: { run: async () => ({ content: [] }) },
+          attachments: adapter,
+        },
+      },
+      undefined,
+    );
+    const thread = core.threads.getMainThreadRuntimeCore();
+    const composer = thread.composer;
+    composer.setText("hello");
+    await composer.addAttachment(textFile());
+    await composer.addAttachment({
+      id: "ready",
+      name: "ready.txt",
+      content: [],
+    });
+
+    const sendPromise = composer.send({ startRun: false });
+    const clearPromise = composer.clearAttachments();
+    expect(composer.attachments).toEqual([]);
+    await composer.addAttachment({
+      id: "later",
+      name: "later.txt",
+      content: [],
+    });
+    upload.resolve();
+    await sendPromise;
+
+    expect(thread.messages).toMatchObject([
+      { content: [{ type: "text", text: "hello" }], attachments: [] },
+    ]);
+    expect(composer.attachments.map((attachment) => attachment.id)).toEqual([
+      "later",
+    ]);
+    removal.resolve();
+    await clearPromise;
   });
 
   it("releases the in-flight lock on reset so a stalled send cannot brick the composer", async () => {

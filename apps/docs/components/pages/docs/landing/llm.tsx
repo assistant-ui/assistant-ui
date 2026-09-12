@@ -1,6 +1,13 @@
 import { GROUPS } from "@/components/pages/docs/landing/quick-links";
 import { RUNTIMES } from "@/components/pages/docs/landing/runtime-grid";
 import { SURFACES } from "@/components/pages/docs/landing/surface-grid";
+import { DEFAULT_PLATFORM } from "@/lib/constants";
+import {
+  isSurface,
+  PLATFORM_ENTRY_PATHS,
+  PLATFORM_QUICKSTART_COMMANDS,
+} from "@/lib/docs-platform";
+import type { LLMRenderContext } from "@/lib/get-llm-text";
 
 /**
  * Text equivalents for the landing components. The interactive versions render
@@ -8,18 +15,25 @@ import { SURFACES } from "@/components/pages/docs/landing/surface-grid";
  * markdown for `.md`, `llms.txt` and the MCP docs server.
  */
 
-export const QuickstartLLM = () => (
-  <>
-    <pre>npx assistant-ui@latest create</pre>
-    <p>
-      Already have an app? See{" "}
-      <a href="/docs/installation">
-        adding assistant-ui to an existing project
-      </a>
-      .
-    </p>
-  </>
-);
+export const QuickstartLLM = (
+  _props: Record<string, never>,
+  ctx?: LLMRenderContext,
+) => {
+  const platform =
+    ctx?.platform && isSurface(ctx.platform) ? ctx.platform : DEFAULT_PLATFORM;
+  return (
+    <>
+      <pre>{PLATFORM_QUICKSTART_COMMANDS[platform]}</pre>
+      <p>
+        Already have an app? See{" "}
+        <a href={PLATFORM_ENTRY_PATHS[platform]}>
+          adding assistant-ui to an existing project
+        </a>
+        .
+      </p>
+    </>
+  );
+};
 
 export const SurfaceGridLLM = () => (
   <ul>

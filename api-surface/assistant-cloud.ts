@@ -2,6 +2,20 @@ import { AttributeValue, Attributes, Context, HrTime, Link, Span, SpanContext, S
 
 import "@standard-schema/spec";
 
+import { UIMessage } from "ai";
+
+type AISDKMessageLike = {
+  id?: string | undefined;
+  role: string;
+  parts: readonly {
+    type: string;
+    [key: string]: unknown;
+  }[];
+  metadata?: unknown;
+};
+
+type AISDKStorageFormat = Omit<UIMessage, "id">;
+
 declare class AssistantCloud {
   readonly threads: AssistantCloudThreads;
   readonly projects: AssistantCloudProjects;
@@ -13,12 +27,15 @@ declare class AssistantCloud {
   readonly events: AssistantCloudEvents;
   readonly scores: AssistantCloudScores;
   readonly telemetry: AssistantCloudTelemetryConfig;
+  readonly registerSdk: (sdk: SdkIdentity) => void;
   constructor(config: AssistantCloudConfig);
 }
 
 declare class AssistantCloudAPI {
   _auth: AssistantCloudAuthStrategy;
   _baseUrl: string;
+  readonly registerSdk: (sdk: SdkIdentity) => void;
+  readonly sdkHeader: () => string;
   constructor(config: AssistantCloudConfig);
   initializeAuth(): Promise<boolean>;
   makeRawRequest(endpoint: string, options?: MakeRequestOptions): Promise<Response>;
@@ -182,6 +199,7 @@ declare class AssistantCloudRuns {
     api: string;
     headers: () => Promise<{
       Accept: string;
+      "Aui-Sdk": string;
     }>;
     body: {
       assistant_id: string;
@@ -414,6 +432,43 @@ declare class CloudAPIError extends Error {
   constructor(message: string, status: number, code?: string, details?: Record<string, unknown>);
 }
 
+declare class CloudEngagementReporter {
+  #private;
+  constructor(cloud: AssistantCloud | (() => AssistantCloud), resolveIds?: EngagementIdResolver);
+  runStarted(threadId: string): void;
+  runEnded(threadId: string): void;
+  runStopped(threadId: string): void;
+  messageSent(threadId: string, init: {
+    messageId?: string | undefined;
+    chars: number;
+    attachments: number;
+  }): void;
+  messageEdited(threadId: string, init: {
+    messageId: string;
+    chars: number;
+  }): void;
+  messageRegenerated(threadId: string, messageId?: string): void;
+  errorShown(threadId: string, init: {
+    messageId?: string | undefined;
+    reason: string;
+  }): void;
+  suggestionsShown(threadId: string, count: number): void;
+  suggestionClicked(threadId: string): void;
+  attachmentAdded(threadId: string, init: {
+    messageId?: string | undefined;
+    contentType?: string | undefined;
+  }): void;
+  attachmentFailed(threadId: string, init: {
+    messageId?: string | undefined;
+    contentType?: string | undefined;
+  }): void;
+  voiceStarted(threadId: string): void;
+  speechStarted(threadId: string, messageId?: string): void;
+  branchSwitched(threadId: string, messageId?: string): void;
+  messageCopied(threadId: string, messageId?: string): void;
+  threadSwitched(threadId: string): void;
+}
+
 type CloudMessage = {
   id: string;
   parent_id: string | null;
@@ -441,6 +496,14 @@ declare class CloudResponseError extends Error {
   constructor(message: string);
 }
 
+type CloudRunReportInit = Omit<RunReportInit, "telemetry">;
+
+declare class CloudRunReporter {
+  #private;
+  constructor(cloud: AssistantCloud | (() => AssistantCloud));
+  report(init: CloudRunReportInit, key?: string): Promise<void>;
+}
+
 type CloudThread = {
   title: string;
   last_message_at: Date;
@@ -453,6 +516,12 @@ type CloudThread = {
   workspace_id: string;
   is_archived: boolean;
 };
+
+type EngagementEventIds = Pick<AssistantCloudEvent, "message_id" | "run_id" | "thread_id">;
+
+type EngagementIdResolver = (threadId: string, messageId: string | undefined, options: {
+  awaitThread: boolean;
+}) => EngagementEventIds | Promise<EngagementEventIds>;
 
 interface ExportResult {
   code: ExportResultCode;
@@ -630,6 +699,18 @@ interface Resource {
   getRawAttributes(): RawResourceAttribute[];
 }
 
+type RunMessageTelemetry = {
+  assistantMessageId?: string;
+  status: "completed" | "incomplete";
+  toolCalls?: AssistantCloudRunReportToolCall[];
+  steps?: RunReportStepInit[];
+  totalSteps?: number;
+  outputText?: string;
+  usage?: RunTelemetryUsage;
+  modelId?: string;
+  metadata?: Record<string, unknown>;
+};
+
 type RunReportInit = {
   threadId: string;
   status: AssistantCloudRunReport["status"];
@@ -701,6 +782,11 @@ type SamplingCallData = {
   duration_ms?: number;
 };
 
+type SdkIdentity = {
+  name: string;
+  version: string;
+};
+
 type Span$1 = Span & ReadableSpan;
 
 interface SpanExporter {
@@ -733,6 +819,8 @@ type ToolModelContentPart = {
   readonly mediaType: string;
   readonly filename?: string;
 };
+
+declare const aiSDKV6FormatAdapter: MessageFormatAdapter<UIMessage, AISDKStorageFormat>;
 
 declare function assistantCloudTraceExportOptions(_param0: AssistantCloudTraceExportOptions): {
   url: string;
@@ -795,6 +883,8 @@ declare function describeRunError(error: unknown): {
   errorCode?: string;
 };
 
+declare function extractAISDKRunTelemetry(messages: readonly AISDKMessageLike[]): RunMessageTelemetry | null;
+
 declare function extractRunTelemetryModelId(metadata: Record<string, unknown> | undefined): string | undefined;
 
 declare function generateThreadTitle(cloud: AssistantCloud, options: {
@@ -808,8 +898,12 @@ declare function generateThreadTitle(cloud: AssistantCloud, options: {
   }[];
 }): Promise<string | null>;
 
+declare namespace entry_ai_sdk_exports {
+  export { AISDKMessageLike, AISDKStorageFormat, aiSDKV6FormatAdapter, extractAISDKRunTelemetry };
+}
+
 declare namespace entry_root_exports {
-  export { AssistantCloud, AssistantCloudEvent, AssistantCloudEventKind, AssistantCloudEvents, AssistantCloudRunReport, AssistantCloudRunReportToolCall, AssistantCloudScoreBody, AssistantCloudScoreResponse, AssistantCloudScores, AssistantCloudTelemetryConfig, AssistantCloudThreadMessageFeedbackBody, AssistantCloudThreadMessageFeedbackResponse, CloudAPIError, CloudMessage, CloudMessagePersistence, CloudResponseError, GeneratePresignedDownloadUrlResponse, McpSamplingHandler, MessageFormatAdapter, RunReportInit, RunReportOutcome, RunReportStepInit, RunTelemetryToolCallInit, RunTelemetryUsage, RunTelemetryUsageInit, SamplingCallData, createFormattedPersistence, createRunReport, createRunTelemetryToolCall, createSamplingCollector, deriveRunOutcome, describeRunError, extractRunTelemetryModelId, generateThreadTitle, normalizeRunTelemetryUsage, readAnonymousRefreshToken, truncateRunTelemetryText, wrapSamplingHandler };
+  export { AssistantCloud, AssistantCloudEvent, AssistantCloudEventKind, AssistantCloudEvents, AssistantCloudRunReport, AssistantCloudRunReportToolCall, AssistantCloudScoreBody, AssistantCloudScoreResponse, AssistantCloudScores, AssistantCloudTelemetryConfig, AssistantCloudThreadMessageFeedbackBody, AssistantCloudThreadMessageFeedbackResponse, CloudAPIError, CloudEngagementReporter, CloudMessage, CloudMessagePersistence, CloudResponseError, CloudRunReportInit, CloudRunReporter, EngagementEventIds, EngagementIdResolver, GeneratePresignedDownloadUrlResponse, McpSamplingHandler, MessageFormatAdapter, RunMessageTelemetry, RunReportInit, RunReportOutcome, RunReportStepInit, RunTelemetryToolCallInit, RunTelemetryUsage, RunTelemetryUsageInit, SamplingCallData, SdkIdentity, createFormattedPersistence, createRunReport, createRunTelemetryToolCall, createSamplingCollector, deriveRunOutcome, describeRunError, extractRunTelemetryModelId, generateThreadTitle, normalizeRunTelemetryUsage, readAnonymousRefreshToken, truncateRunTelemetryText, wrapSamplingHandler };
 }
 
 declare namespace entry_telemetry_exports {
@@ -836,4 +930,4 @@ declare function withAssistantCloudTraceMetadata<Part extends {
 
 declare function wrapSamplingHandler(handler: McpSamplingHandler, onSamplingCall: (data: SamplingCallData) => void): McpSamplingHandler;
 
-export { entry_root_exports as entry_root, entry_telemetry_exports as entry_telemetry };
+export { entry_ai_sdk_exports as entry_ai_sdk, entry_root_exports as entry_root, entry_telemetry_exports as entry_telemetry };

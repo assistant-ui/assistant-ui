@@ -1,4 +1,4 @@
-import { describe, it, expect, beforeEach, vi, afterEach } from "vitest";
+import { describe, it, expect, beforeEach, vi } from "vitest";
 import {
   MessageRepository,
   ExportedMessageRepository,
@@ -57,10 +57,6 @@ describe("MessageRepository", () => {
     // Reset mocks with predictable counter-based values
     nextMockId = 1;
     mockGenerateId.mockImplementation(() => `mock-id-${nextMockId++}`);
-  });
-
-  afterEach(() => {
-    vi.clearAllMocks();
   });
 
   // Core functionality tests - these test the public contract

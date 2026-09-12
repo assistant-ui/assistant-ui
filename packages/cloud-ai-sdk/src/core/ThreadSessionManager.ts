@@ -16,10 +16,9 @@ export class ThreadSessionManager {
       meta.creatingThread = (async () => {
         try {
           const threadId = await createThread();
-          meta.threadId = threadId;
+          registry.setThreadId(chatKey, threadId);
           meta.loaded = true;
           meta.loading = null;
-          registry.setThreadId(chatKey, threadId);
           onCreated(threadId);
           return threadId;
         } finally {

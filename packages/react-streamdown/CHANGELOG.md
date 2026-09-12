@@ -1,5 +1,41 @@
 # @assistant-ui/react-streamdown
 
+## 0.3.14
+
+### Patch Changes
+
+- [#6987](https://github.com/assistant-ui/assistant-ui/pull/6987) [`b8c5e68`](https://github.com/assistant-ui/assistant-ui/commit/b8c5e68298a81ff6c9c99b504bc57479c5dd4f05) - fix: compare arrays with indexed loops so sparse-array holes cannot read as equal; a sparse suggestions list now compacts to a dense one before it reaches the per-suggestion lookup ([@Kinfe123](https://github.com/Kinfe123))
+
+- [#6873](https://github.com/assistant-ui/assistant-ui/pull/6873) [`2590b3f`](https://github.com/assistant-ui/assistant-ui/commit/2590b3f7691656f8044c765b0c9eb286d27a755c) - fix: read tilde fences in the currency walker, and end an unclosed fence with its blockquote instead of the rest of the input ([@ephraimduncan](https://github.com/ephraimduncan))
+
+- [#6807](https://github.com/assistant-ui/assistant-ui/pull/6807) [`9d218b3`](https://github.com/assistant-ui/assistant-ui/commit/9d218b33513eb0b71f9854604bda72a833bc071e) - fix: keep a fenced display body inside the list item or blockquote it was written in ([@okisdev](https://github.com/okisdev))
+  
+  giving the `$$` markers their own lines put them at the root column, which ends the container the math was written inside: an equation in a list item rendered as a sibling of the list. the markers now carry the prefix of the line the match opened on and the body is aligned to it, and that line is read from the original text so a code span earlier on it cannot truncate it.
+
+- [#6807](https://github.com/assistant-ui/assistant-ui/pull/6807) [`9d218b3`](https://github.com/assistant-ui/assistant-ui/commit/9d218b33513eb0b71f9854604bda72a833bc071e) - perf: parse once per token with `defer` on ([@okisdev](https://github.com/okisdev))
+  
+  the deferred path rendered the previous text at normal priority and the new text in the deferred pass, and react-markdown parses the whole accumulated text on every render, so a token cost two full parses. the renderer is memoized, which turns the urgent pass into a bail-out because that text was parsed on the previous commit. a caller's inline `remarkPlugins` array no longer defeats the memo.
+
+- [#6941](https://github.com/assistant-ui/assistant-ui/pull/6941) [`05c7904`](https://github.com/assistant-ui/assistant-ui/commit/05c7904e733ed183a4a810c7cdbce01f15c14a7e) - perf: bound the streaming remend window scan to each line, so the boundary pass stays linear in the message instead of scanning the remaining text once per line ([@rupic-app](https://github.com/apps/rupic-app))
+
+- [#6810](https://github.com/assistant-ui/assistant-ui/pull/6810) [`910bab3`](https://github.com/assistant-ui/assistant-ui/commit/910bab3c33f9052e69868626f239fa7e8f721498) - fix: read a backtick run as a fence only when it starts a line, so an info string no longer closes a fenced block ([@rupic-app](https://github.com/apps/rupic-app))
+
+- [#7069](https://github.com/assistant-ui/assistant-ui/pull/7069) [`95cdda5`](https://github.com/assistant-ui/assistant-ui/commit/95cdda53e7ddfe63066a69da20bb4af89e150c82) - fix: update memoized children when their text or props change ([@ephraimduncan](https://github.com/ephraimduncan))
+
+- [#6885](https://github.com/assistant-ui/assistant-ui/pull/6885) [`f38aea4`](https://github.com/assistant-ui/assistant-ui/commit/f38aea4f7361254490d5b00e23eb4043c91fd8e2) - fix: preserve text escapes and custom handler changes in earlier paragraphs without completing or deleting their unfinished Markdown. ([@ephraimduncan](https://github.com/ephraimduncan))
+  
+  Incomplete Markdown repair stays in the final block. Earlier blocks receive numeric-range escapes, comparison-operator escapes, and custom handlers. Custom handlers receive the earlier text and final block as separate strings.
+  
+  `RemendConfig` gains `singleTilde` and `comparisonOperators`, so the two escapes that now reach settled text can be turned off without disabling incomplete-Markdown repair.
+
+- [#6897](https://github.com/assistant-ui/assistant-ui/pull/6897) [`11678cb`](https://github.com/assistant-ui/assistant-ui/commit/11678cbfc809078ca0c3e86f76e185f57df320e1) - fix: preserve rehype plugin markup in code blocks and pass the complete code text to code headers in both Markdown renderers. ([@ephraimduncan](https://github.com/ephraimduncan))
+
+- [#7082](https://github.com/assistant-ui/assistant-ui/pull/7082) [`3a45a01`](https://github.com/assistant-ui/assistant-ui/commit/3a45a01c0d6141102638ecd4f32d1af4d01fb510) - fix: render user `pre` and `code` components through the code adapter without remounting the code block on every render, and keep the element of a raw `<pre>` that has no `code` child ([@ShobhitPatra](https://github.com/ShobhitPatra))
+
+- [#6919](https://github.com/assistant-ui/assistant-ui/pull/6919) [`caa643f`](https://github.com/assistant-ui/assistant-ui/commit/caa643f88ab34c860abc76bff863c638664f08f1) - fix: preserve currency and math inside indented tilde fences ([@rupic-app](https://github.com/apps/rupic-app))
+- Updated dependencies [[`b8c5e68`](https://github.com/assistant-ui/assistant-ui/commit/b8c5e68298a81ff6c9c99b504bc57479c5dd4f05), [`2590b3f`](https://github.com/assistant-ui/assistant-ui/commit/2590b3f7691656f8044c765b0c9eb286d27a755c), [`9d218b3`](https://github.com/assistant-ui/assistant-ui/commit/9d218b33513eb0b71f9854604bda72a833bc071e), [`9d218b3`](https://github.com/assistant-ui/assistant-ui/commit/9d218b33513eb0b71f9854604bda72a833bc071e), [`910bab3`](https://github.com/assistant-ui/assistant-ui/commit/910bab3c33f9052e69868626f239fa7e8f721498), [`11678cb`](https://github.com/assistant-ui/assistant-ui/commit/11678cbfc809078ca0c3e86f76e185f57df320e1), [`caa643f`](https://github.com/assistant-ui/assistant-ui/commit/caa643f88ab34c860abc76bff863c638664f08f1)]:
+  - @assistant-ui/react-markdown@0.14.15
+
 ## 0.3.13
 
 ### Patch Changes

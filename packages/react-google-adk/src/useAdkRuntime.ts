@@ -57,6 +57,7 @@ import {
   toAdkToolConfirmationReply,
 } from "./adkToolApproval";
 import { adkExtras } from "./adkExtras";
+import { ADK_SDK } from "./sdkIdentity";
 
 export type UseAdkRuntimeOptions = ExternalStoreSharedOptions & {
   stream: AdkStreamCallback;
@@ -504,6 +505,7 @@ export const useAdkRuntime = ({
 }: UseAdkRuntimeOptions) => {
   const aui = useAui();
   const cloudAdapter = useCloudThreadListAdapter({
+    sdk: ADK_SDK,
     cloud,
     create: createCloudThreadListAdapterCreateFallback(
       create,

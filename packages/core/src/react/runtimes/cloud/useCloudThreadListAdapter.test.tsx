@@ -36,9 +36,11 @@ describe("useCloudThreadListAdapter", () => {
     const cloudDeleteA = vi.fn(async () => {});
     const cloudDeleteB = vi.fn(async () => {});
     const cloudA = {
+      registerSdk: vi.fn(),
       threads: { delete: cloudDeleteA },
     } as unknown as AssistantCloud;
     const cloudB = {
+      registerSdk: vi.fn(),
       threads: { delete: cloudDeleteB },
     } as unknown as AssistantCloud;
     const committed: { current: RemoteThreadListAdapter | null } = {
@@ -117,7 +119,10 @@ describe("useCloudThreadListAdapter", () => {
       .fn()
       .mockResolvedValueOnce({ threads: activeThreads })
       .mockResolvedValueOnce({ threads: archivedThreads });
-    const cloud = { threads: { list } } as unknown as AssistantCloud;
+    const cloud = {
+      registerSdk: vi.fn(),
+      threads: { list },
+    } as unknown as AssistantCloud;
     const { result } = renderHook(() => useCloudThreadListAdapter({ cloud }));
 
     const page = await result.current.list();
@@ -149,7 +154,10 @@ describe("useCloudThreadListAdapter", () => {
       .mockResolvedValueOnce({ threads: firstPage })
       .mockResolvedValueOnce({ threads: [] })
       .mockResolvedValueOnce({ threads: secondPage });
-    const cloud = { threads: { list } } as unknown as AssistantCloud;
+    const cloud = {
+      registerSdk: vi.fn(),
+      threads: { list },
+    } as unknown as AssistantCloud;
     const { result } = renderHook(() => useCloudThreadListAdapter({ cloud }));
 
     const first = await result.current.list();
@@ -186,7 +194,10 @@ describe("useCloudThreadListAdapter", () => {
       .mockResolvedValueOnce({ threads: archivedPage1 })
       .mockResolvedValueOnce({ threads: activePage2 })
       .mockResolvedValueOnce({ threads: archivedPage2 });
-    const cloud = { threads: { list } } as unknown as AssistantCloud;
+    const cloud = {
+      registerSdk: vi.fn(),
+      threads: { list },
+    } as unknown as AssistantCloud;
     const { result } = renderHook(() => useCloudThreadListAdapter({ cloud }));
 
     const page1 = await result.current.list();
@@ -213,7 +224,10 @@ describe("useCloudThreadListAdapter", () => {
       .fn()
       .mockResolvedValueOnce({ threads: activeThreads })
       .mockResolvedValueOnce({ threads: [] });
-    const cloud = { threads: { list } } as unknown as AssistantCloud;
+    const cloud = {
+      registerSdk: vi.fn(),
+      threads: { list },
+    } as unknown as AssistantCloud;
     const { result } = renderHook(() => useCloudThreadListAdapter({ cloud }));
 
     const page = await result.current.list({ after: "thread-20" });

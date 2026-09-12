@@ -9,7 +9,6 @@ import { AnimatePresence, motion } from "motion/react";
 import { cn } from "@/lib/utils";
 import { useDocsSidebar } from "@/components/pages/docs/contexts/sidebar";
 import {
-  isPlatform,
   usePlatform,
   type Platform,
 } from "@/components/pages/docs/platform/context";
@@ -20,7 +19,6 @@ import {
   buildPlatformSections,
   findPathToNode,
   isNodeVisible,
-  nodePlatforms,
 } from "@/components/pages/docs/platform/tree";
 
 function SectionItem({
@@ -176,20 +174,11 @@ function SidebarSection({
   );
 }
 
-export function SidebarContent({
-  tree,
-  platformAware = true,
-}: {
-  tree?: PageTree.Root;
-  platformAware?: boolean;
-}) {
+export function SidebarContent({ tree }: { tree?: PageTree.Root }) {
   const { setOpen: setSidebarOpen } = useDocsSidebar();
   const pathname = usePathname();
-  const { platform, setPlatform } = usePlatform();
+  const { platform } = usePlatform();
   const navRef = useRef<HTMLElement>(null);
-
-  const platformRef = useRef(platform);
-  platformRef.current = platform;
 
   const allFolders = useMemo(
     () =>
@@ -200,9 +189,8 @@ export function SidebarContent({
   );
 
   const sections = useMemo(
-    () =>
-      platformAware ? buildPlatformSections(allFolders, platform) : allFolders,
-    [allFolders, platform, platformAware],
+    () => buildPlatformSections(allFolders, platform),
+    [allFolders, platform],
   );
 
   const activePath = useMemo(() => {
@@ -212,25 +200,6 @@ export function SidebarContent({
     }
     return null;
   }, [allFolders, pathname]);
-
-  const activeNodePlatforms = useMemo(() => {
-    if (!activePath) return undefined;
-
-    for (let i = activePath.length - 1; i >= 0; i--) {
-      const platforms = nodePlatforms(activePath[i]!);
-      if (platforms !== undefined && platforms.length > 0) return platforms;
-    }
-
-    return undefined;
-  }, [activePath]);
-
-  useEffect(() => {
-    if (!activeNodePlatforms || activeNodePlatforms.length === 0) return;
-    if (activeNodePlatforms.includes(platformRef.current)) return;
-
-    const next = activeNodePlatforms.find(isPlatform);
-    if (next) setPlatform(next);
-  }, [activeNodePlatforms, setPlatform]);
 
   const activeSectionId = useMemo(() => {
     const activeIds = new Set(activePath?.map((node) => node.$id));
@@ -275,16 +244,17 @@ export function SidebarContent({
 
   return (
     <div className="flex h-full flex-col">
-      {platformAware && (
-        <div className="shrink-0 px-3 pt-4">
-          <PlatformSwitcher tree={tree} />
-        </div>
-      )}
+      <div className="shrink-0 px-3 pt-4 lg:hidden">
+        <PlatformSwitcher
+          tree={tree}
+          className="mb-3 h-8 w-full rounded-lg px-2.5 text-[13px] tracking-tight"
+        />
+      </div>
       <nav
         ref={navRef}
+        data-docs-platform={platform}
         className={cn(
-          "sidebar-tree-content flex min-h-0 flex-1 flex-col gap-0.5 overflow-x-hidden overflow-y-auto px-3 pb-4",
-          platformAware ? "pt-2" : "pt-4",
+          "sidebar-tree-content flex min-h-0 flex-1 flex-col gap-0.5 overflow-x-hidden overflow-y-auto px-3 pt-2 pb-4 lg:pt-4",
         )}
       >
         {sections.map((section) => (

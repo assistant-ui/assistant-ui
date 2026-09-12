@@ -47,7 +47,6 @@ import { useSuggestionTrigger } from "./useSuggestionTrigger";
 
 afterEach(() => {
   cleanup();
-  vi.clearAllMocks();
   mocks.state.thread.isDisabled = false;
   mocks.state.thread.isRunning = false;
   mocks.state.thread.capabilities = { queue: false };

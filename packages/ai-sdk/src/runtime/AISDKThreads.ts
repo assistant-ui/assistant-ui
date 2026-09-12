@@ -26,6 +26,7 @@ import {
 } from "./useChatThread";
 import { MessageRepository } from "@assistant-ui/core/internal";
 import { useResourceCleanup } from "./useResourceCleanup";
+import { AI_SDK_SDK } from "./sdkIdentity";
 
 export type AISDKThreadsOptions<UI_MESSAGE extends UIMessage = UIMessage> =
   Omit<ChatThreadOptions<UI_MESSAGE>, "id" | "transport" | "messages"> & {
@@ -179,7 +180,7 @@ const useAISDKThreads = <UI_MESSAGE extends UIMessage = UIMessage>(
     }
   });
 
-  const cloudAdapter = useCloudThreadListAdapter({ cloud });
+  const cloudAdapter = useCloudThreadListAdapter({ cloud, sdk: AI_SDK_SDK });
   const thread = (id: string) => {
     const element = AISDKChatThread({
       threadId: id,

@@ -177,6 +177,27 @@ describe("interactiveVocabulary", () => {
     expect(html).toContain('checked=""');
   });
 
+  it.each([
+    [
+      { $type: "Button", label: { unexpected: true } },
+      '<button type="button" data-aui="button"></button>',
+    ],
+    [
+      {
+        $type: "Select",
+        placeholder: { unexpected: true },
+        options: [],
+      },
+      '<select data-aui="select"></select>',
+    ],
+    [
+      { $type: "Checkbox", label: { unexpected: true } },
+      '<label data-aui="checkbox"><input type="checkbox"/><span data-aui="checkbox-label"></span></label>',
+    ],
+  ])("ignores malformed control text properties", (node, expected) => {
+    expect(render(node)).toBe(expected);
+  });
+
   it("RadioGroup renders a fieldset with one radio per option", () => {
     const html = render({
       $type: "RadioGroup",

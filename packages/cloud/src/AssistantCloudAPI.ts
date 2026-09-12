@@ -6,6 +6,12 @@ import {
   normalizeBaseUrl,
 } from "./AssistantCloudAuthStrategy";
 import type { AssistantCloudRunReport } from "./AssistantCloudRuns";
+import { ASSISTANT_CLOUD_VERSION } from "./version";
+
+export type SdkIdentity = {
+  name: string;
+  version: string;
+};
 
 export type AssistantCloudTelemetryConfig = {
   /**
@@ -89,11 +95,31 @@ type MakeRequestOptions = {
   keepalive?: boolean | undefined;
 };
 
+const HEADER_TOKEN = /^[\x21-\x7e]+$/;
+
 export class AssistantCloudAPI {
   public _auth: AssistantCloudAuthStrategy;
   public _baseUrl;
+  public readonly registerSdk: (sdk: SdkIdentity) => void;
+  public readonly sdkHeader: () => string;
 
   constructor(config: AssistantCloudConfig) {
+    const sdks = new Map<string, SdkIdentity>();
+    this.registerSdk = (sdk) => {
+      const name = sdk.name.trim();
+      const version = sdk.version.trim();
+      if (!HEADER_TOKEN.test(name) || !HEADER_TOKEN.test(version)) return;
+      sdks.set(`${name}/${version}`, { name, version });
+    };
+    this.sdkHeader = () =>
+      [
+        `assistant-cloud/${ASSISTANT_CLOUD_VERSION}`,
+        ...Array.from(
+          sdks.values(),
+          ({ name, version }) => `${name}/${version}`,
+        ),
+      ].join(" ");
+
     if ("authToken" in config) {
       this._baseUrl = normalizeBaseUrl(config.baseUrl);
       this._auth = new AssistantCloudJWTAuthStrategy(config.authToken);
@@ -131,6 +157,7 @@ export class AssistantCloudAPI {
       ...authHeaders,
       ...options.headers,
       "Content-Type": "application/json",
+      "Aui-Sdk": this.sdkHeader(),
     };
 
     const queryParams = new URLSearchParams();

@@ -1,5 +1,6 @@
 import { z } from "zod";
 import type { GenerativeUILibrary } from "../types";
+import { toTextContent } from "./toTextContent";
 
 const columnSchema = z.object({
   label: z.string().describe("Column header label."),
@@ -339,7 +340,7 @@ export const dataVocabulary = {
     streamProperties: true,
     render: ({ value, children }) => (
       <div data-aui="markdown">
-        {value}
+        {toTextContent(value)}
         {children}
       </div>
     ),

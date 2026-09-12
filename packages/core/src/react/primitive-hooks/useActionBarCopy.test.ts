@@ -45,7 +45,6 @@ import { useActionBarCopy } from "./useActionBarCopy";
 
 afterEach(() => {
   cleanup();
-  vi.clearAllMocks();
   vi.useRealTimers();
   mocks.currentAui = mocks.aui;
 });
