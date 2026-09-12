@@ -90,6 +90,11 @@ describe.each([
     await act(async () => firstWrite);
 
     expect(onCopied).toHaveBeenCalledOnce();
+    expect(
+      screen
+        .getByRole("button", { name: "Copy code" })
+        .querySelector(".lucide-check"),
+    ).not.toBeNull();
     view.unmount();
   });
 
