@@ -27,7 +27,6 @@ describe("flattenBenchmarks", () => {
                         p99: 0.9,
                         samplesCount: 2000,
                       },
-                      throughput: { mean: 2000 },
                     },
                   ],
                 },

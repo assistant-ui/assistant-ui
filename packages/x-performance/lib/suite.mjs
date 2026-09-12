@@ -38,7 +38,7 @@ export const flattenBenchmarks = (raw) => {
             id: `${relative(pkgRoot, file.name)} > ${benchmark.name}`,
             name: task.name,
             mean: task.latency.mean,
-            hz: task.throughput.mean,
+            hz: 1000 / task.latency.mean,
             rme: task.latency.rme,
             p99: task.latency.p99,
             samples: task.latency.samplesCount,
