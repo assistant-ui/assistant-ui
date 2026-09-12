@@ -7,7 +7,10 @@ import { UIMessage } from "ai";
 type AISDKMessageLike = {
   id?: string | undefined;
   role: string;
-  parts: readonly UIMessage["parts"][number][];
+  parts: readonly {
+    type: string;
+    [key: string]: unknown;
+  }[];
   metadata?: unknown;
 };
 
