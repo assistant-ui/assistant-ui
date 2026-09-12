@@ -328,8 +328,6 @@ export abstract class BaseThreadRuntimeCore
         return false;
       }
 
-      if (this._voiceUnsubs === unsubs) this._voiceUnsubs = [];
-
       try {
         notifySubscribers(unsubs.splice(0));
       } catch (error) {
