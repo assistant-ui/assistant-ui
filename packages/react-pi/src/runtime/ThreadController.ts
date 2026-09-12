@@ -145,6 +145,13 @@ const METADATA_DIRTY_EVENT_TYPES: ReadonlySet<string> = new Set([
   "error",
 ]);
 
+const RUN_STATE_EVENT_TYPES: ReadonlySet<string> = new Set([
+  "snapshot",
+  "agent_start",
+  "agent_end",
+  "error",
+]);
+
 const loadImageContent = async (
   image: string,
   signal?: AbortSignal,
@@ -350,7 +357,7 @@ type OptimisticUserMessage = {
 
 type OptimisticSend = {
   message: PiAgentMessage;
-  eventRevision: number;
+  runStateRevision: number;
   previousRunStatus: PiThreadState["runStatus"];
   previousMetadataStatus: PiThreadState["metadata"]["status"];
   previousLastError: string | undefined;
@@ -387,7 +394,7 @@ export class PiThreadController implements PiThreadControllerLike {
   private loadPromise: Promise<void> | null = null;
   private sendDispatchTail: Promise<void> = Promise.resolve();
   private readonly pendingSendControllers = new Set<AbortController>();
-  private eventRevision = 0;
+  private runStateRevision = 0;
   private messageFlushScheduled = false;
   /** Synthetic seq for snapshots produced locally (via `getThread`), kept below
    * the supervisor's live seqs so they never suppress real events. */
@@ -579,7 +586,7 @@ export class PiThreadController implements PiThreadControllerLike {
   private beginOptimisticSend(input: PiSendMessageInput): OptimisticSend {
     const send = {
       message: optimisticUserMessageFromInput(input),
-      eventRevision: this.eventRevision,
+      runStateRevision: this.runStateRevision,
       previousRunStatus: this.state.runStatus,
       previousMetadataStatus: this.state.metadata.status,
       previousLastError: this.state.lastError,
@@ -600,9 +607,10 @@ export class PiThreadController implements PiThreadControllerLike {
     if (index !== -1) this.optimisticUserMessages.splice(index, 1);
     this.recomputeProjectedMessagesAndNotify();
 
-    if (this.eventRevision !== send.eventRevision) return;
+    const runStateChanged = this.runStateRevision !== send.runStateRevision;
 
     if (isAbortError(error)) {
+      if (runStateChanged) return;
       this.setState({
         ...this.state,
         lastError: send.previousLastError,
@@ -615,13 +623,15 @@ export class PiThreadController implements PiThreadControllerLike {
       return;
     }
 
-    // The optimistic `running` mark must not outlive the failed send; any
-    // events from a run that did start will self-heal the status.
     this.setState({
       ...this.state,
       lastError: errorText(error),
-      runStatus: "failed",
-      metadata: { ...this.state.metadata, status: "failed" },
+      ...(runStateChanged
+        ? {}
+        : {
+            runStatus: "failed",
+            metadata: { ...this.state.metadata, status: "failed" },
+          }),
     });
   }
 
@@ -647,6 +657,7 @@ export class PiThreadController implements PiThreadControllerLike {
       await this.dispatchMessage(message, behavior);
     } catch (error) {
       this.rollbackOptimisticSend(optimisticSend, error);
+      if (isAbortError(error)) return;
       throw error;
     }
   }
@@ -695,6 +706,7 @@ export class PiThreadController implements PiThreadControllerLike {
       const promotedSend = promoted;
       if (promotedSend) {
         this.rollbackOptimisticSend(promotedSend, error);
+        if (isAbortError(error)) return;
         throw error;
       }
 
@@ -713,6 +725,7 @@ export class PiThreadController implements PiThreadControllerLike {
             }
           : {}),
       });
+      if (isAbortError(error)) return;
       throw error;
     }
   }
@@ -861,7 +874,9 @@ export class PiThreadController implements PiThreadControllerLike {
     const changed = next !== this.state;
     if (changed) {
       this.state = next;
-      this.eventRevision += 1;
+      if (RUN_STATE_EVENT_TYPES.has(event.type)) {
+        this.runStateRevision += 1;
+      }
     }
 
     this.reconcileOptimisticUserMessages();

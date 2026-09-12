@@ -774,16 +774,10 @@ describe("PiThreadController", () => {
       userMessageWithImage("first", "https://cdn.example.com/image.png"),
     );
     const second = controller.sendMessage(userMessage("second"));
-    const firstRejection = expect(first).rejects.toMatchObject({
-      name: "AbortError",
-    });
-    const secondRejection = expect(second).rejects.toMatchObject({
-      name: "AbortError",
-    });
 
     await vi.waitFor(() => expect(fetchMock).toHaveBeenCalledOnce());
     await controller.cancel();
-    await Promise.all([firstRejection, secondRejection]);
+    await Promise.all([first, second]);
 
     expect(fetchSignal?.aborted).toBe(true);
     expect(client.sent).toHaveLength(0);
@@ -819,12 +813,11 @@ describe("PiThreadController", () => {
     const send = controller.sendMessage(
       userMessageWithImage("look", "https://cdn.example.com/image.png"),
     );
-    const rejected = expect(send).rejects.toMatchObject({ name: "AbortError" });
     await vi.waitFor(() => expect(fetchSignal).toBeDefined());
 
     client.emit(ev({ type: "agent_start" }, 1));
     await controller.cancel();
-    await rejected;
+    await send;
 
     expect(controller.getState()).toMatchObject({
       runStatus: "running",
@@ -907,11 +900,10 @@ describe("PiThreadController", () => {
     const send = controller.sendMessage(
       userMessageWithImage("second", "https://cdn.example.com/image.png"),
     );
-    const rejected = expect(send).rejects.toMatchObject({ name: "AbortError" });
     await vi.waitFor(() => expect(fetchSignal).toBeDefined());
 
     await controller.cancel();
-    await rejected;
+    await send;
 
     expect(controller.getState()).toMatchObject({
       runStatus: "failed",
@@ -984,6 +976,76 @@ describe("PiThreadController", () => {
     expect(controller.getProjectedMessages()).toHaveLength(0);
     expect(controller.getState()).toMatchObject({
       runStatus: "failed",
+      lastError: "Failed to load Pi image attachment: 404 Not Found",
+    });
+  });
+
+  it("reports image failures after unrelated Pi events", async () => {
+    let resolveResponse!: (response: Response) => void;
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(
+        () =>
+          new Promise<Response>((resolve) => {
+            resolveResponse = resolve;
+          }),
+      ),
+    );
+    onTestFinished(() => vi.unstubAllGlobals());
+    const client = createFakeClient();
+    const controller = new PiThreadController(client, THREAD);
+
+    const send = controller.sendMessage(
+      userMessageWithImage("look", "https://cdn.example.com/missing.png"),
+    );
+    const rejected = expect(send).rejects.toThrow(
+      "Failed to load Pi image attachment: 404 Not Found",
+    );
+    await vi.waitFor(() => expect(resolveResponse).toBeDefined());
+    client.emit(ev({ type: "queue_update", steering: [], followUp: [] }, 1));
+    resolveResponse(
+      new Response("missing", { status: 404, statusText: "Not Found" }),
+    );
+    await rejected;
+
+    expect(controller.getState()).toMatchObject({
+      runStatus: "failed",
+      metadata: { status: "failed" },
+      lastError: "Failed to load Pi image attachment: 404 Not Found",
+    });
+  });
+
+  it("preserves authoritative run status while reporting image failures", async () => {
+    let resolveResponse!: (response: Response) => void;
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(
+        () =>
+          new Promise<Response>((resolve) => {
+            resolveResponse = resolve;
+          }),
+      ),
+    );
+    onTestFinished(() => vi.unstubAllGlobals());
+    const client = createFakeClient();
+    const controller = new PiThreadController(client, THREAD);
+
+    const send = controller.sendMessage(
+      userMessageWithImage("look", "https://cdn.example.com/missing.png"),
+    );
+    const rejected = expect(send).rejects.toThrow(
+      "Failed to load Pi image attachment: 404 Not Found",
+    );
+    await vi.waitFor(() => expect(resolveResponse).toBeDefined());
+    client.emit(ev({ type: "agent_start" }, 1));
+    resolveResponse(
+      new Response("missing", { status: 404, statusText: "Not Found" }),
+    );
+    await rejected;
+
+    expect(controller.getState()).toMatchObject({
+      runStatus: "running",
+      metadata: { status: "running" },
       lastError: "Failed to load Pi image attachment: 404 Not Found",
     });
   });
