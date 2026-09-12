@@ -455,7 +455,7 @@ export abstract class BaseThreadRuntimeCore
     }
   }
 
-  private _finishVoiceAssistantMessage(notify = true) {
+  private _finishVoiceAssistantMessage() {
     const last = this._voiceMessages.at(-1);
     if (last?.role === "assistant" && last.status.type === "running") {
       const idx = this._voiceMessages.length - 1;
@@ -464,12 +464,11 @@ export abstract class BaseThreadRuntimeCore
         status: { type: "complete", reason: "stop" },
       };
       this._markVoiceMessagesDirty();
-      if (notify) this._notifySubscribers();
+      this._notifySubscribers();
     }
   }
 
   public disconnectVoice() {
-    this._finishVoiceAssistantMessage(false);
     this._currentAssistantMsg = null;
     const unsubs = this._voiceUnsubs;
     this._voiceUnsubs = [];

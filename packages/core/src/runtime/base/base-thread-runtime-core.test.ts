@@ -289,6 +289,22 @@ describe("BaseThreadRuntimeCore voice volume subscriptions", () => {
     expect(runtime.getVoiceVolume()).toBe(0);
   });
 
+  it("releases handlers registered before voice setup throws", () => {
+    const setupError = new Error("registration failed");
+    const statusCleanup = vi.fn();
+    const voice = createVoiceAdapter();
+    voice.session.onStatusChange = () => statusCleanup;
+    voice.session.onModeChange = () => {
+      throw setupError;
+    };
+    const runtime = new TestRuntime(voice);
+
+    expect(() => runtime.connectVoice()).toThrow(setupError);
+    expect(statusCleanup).toHaveBeenCalledOnce();
+    expect(voice.session.disconnect).toHaveBeenCalledOnce();
+    expect(runtime.voice).toBeUndefined();
+  });
+
   it("rethrows one subscriber error once while disconnecting", () => {
     const voice = createVoiceAdapter();
     const runtime = new TestRuntime(voice);
