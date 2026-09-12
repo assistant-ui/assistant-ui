@@ -231,51 +231,6 @@ describe("parseStoredMessageRepository", () => {
     ]);
   });
 
-  it("preserves nested message-like inputs without a stored message shell", () => {
-    const raw = JSON.stringify({
-      messages: [
-        {
-          parentId: null,
-          message: {
-            ...storedMessage("parent", "assistant"),
-            content: [
-              {
-                type: "tool-call",
-                toolName: "delegate",
-                args: {},
-                messages: [
-                  {
-                    role: "assistant",
-                    content: [null, { type: "text", text: "nested answer" }],
-                  },
-                  { role: "user", content: "nested question" },
-                ],
-              },
-            ],
-          },
-        },
-      ],
-    });
-    const loaded = parseStoredMessageRepository(raw);
-    const tool = loaded.messages[0]?.message.content[0];
-    if (tool?.type !== "tool-call") throw new Error("expected tool call");
-    expect(tool.messages).toHaveLength(2);
-    expect(tool.messages?.map((message) => message.content)).toEqual([
-      [{ type: "text", text: "nested answer" }],
-      [{ type: "text", text: "nested question" }],
-    ]);
-    expect(tool.messages?.map((message) => message.id)).toEqual([
-      "parent/part-0/message-0",
-      "parent/part-0/message-1",
-    ]);
-    expect(tool.messages?.[0]?.createdAt).toEqual(
-      new Date("2026-01-01T00:00:00.000Z"),
-    );
-    expect(parseStoredMessageRepository(JSON.stringify(loaded))).toEqual(
-      loaded,
-    );
-  });
-
   it("preserves supported user content loaded from storage", () => {
     const repo = parseStoredMessageRepository(
       JSON.stringify({
@@ -312,7 +267,7 @@ describe("parseStoredMessageRepository", () => {
     ]);
   });
 
-  it("preserves readable assistant parts hidden by display normalization", () => {
+  it("preserves empty assistant text through storage normalization", () => {
     const stored = JSON.stringify({
       messages: [
         {
@@ -321,7 +276,6 @@ describe("parseStoredMessageRepository", () => {
             content: [
               { type: "text", text: "" },
               { type: "reasoning", text: "  " },
-              { type: "image", image: "http://example.com/image.png" },
             ],
           },
           parentId: null,
@@ -333,7 +287,6 @@ describe("parseStoredMessageRepository", () => {
     expect(repo.messages[0]?.message.content).toEqual([
       { type: "text", text: "" },
       { type: "reasoning", text: "  " },
-      { type: "image", image: "http://example.com/image.png" },
     ]);
     expect(
       parseStoredMessageRepository(JSON.stringify(repo)).messages[0]?.message

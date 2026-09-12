@@ -37,7 +37,7 @@ describe("local storage history recovery", () => {
               { type: "text", text: "" },
               { type: "text", text: " \n" },
               { type: "reasoning", text: "", unstable_summary: "" },
-              { type: "image", image: "http://localhost/image.png" },
+              { type: "image", image: "https://localhost/image.png" },
               { type: "generative-ui", spec: {} },
               { type: "file", data: "bytes" },
             ]

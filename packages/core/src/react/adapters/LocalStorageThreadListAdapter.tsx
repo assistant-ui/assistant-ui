@@ -201,9 +201,8 @@ const parseStoredToolModelContent = (
 const parseStoredAssistantContent = (
   content: unknown[],
   depth: number,
-  parent: Pick<ThreadMessage, "id" | "createdAt">,
 ): StoredAssistantMessage["content"] =>
-  content.flatMap((rawPart, partIndex) => {
+  content.flatMap((rawPart) => {
     try {
       let part = rawPart;
       if (!isRecord(part) || typeof part.type !== "string") return [];
@@ -218,11 +217,6 @@ const parseStoredAssistantContent = (
           return [];
         return [part as unknown as StoredAssistantMessage["content"][number]];
       }
-      if (part.type === "image") {
-        return typeof part.image === "string"
-          ? [part as unknown as StoredAssistantMessage["content"][number]]
-          : [];
-      }
       if (isRecord(part) && part.type === "tool-call") {
         const { modelContent, messages, ...rest } = part;
         const parsedModelContent = parseStoredToolModelContent(modelContent);
@@ -233,11 +227,8 @@ const parseStoredAssistantContent = (
             : undefined),
           ...(Array.isArray(messages)
             ? {
-                messages: messages.flatMap((message, messageIndex) => {
-                  const parsed = parseStoredThreadMessage(message, depth + 1, {
-                    id: `${parent.id}/part-${partIndex}/message-${messageIndex}`,
-                    createdAt: parent.createdAt,
-                  });
+                messages: messages.flatMap((message) => {
+                  const parsed = parseStoredThreadMessage(message, depth + 1);
                   return parsed ? [parsed] : [];
                 }),
               }
@@ -325,29 +316,17 @@ const parseStoredAttachment = (value: unknown): CompleteAttachment | null => {
 function parseStoredThreadMessage(
   value: unknown,
   depth = 0,
-  fallback?: Pick<ThreadMessage, "id" | "createdAt">,
 ): ThreadMessage | null {
   if (depth > MAX_STORED_MESSAGE_DEPTH) return null;
-  if (!isRecord(value)) return null;
-  const id = value.id === undefined ? fallback?.id : value.id;
-  if (typeof id !== "string") return null;
+  if (!isRecord(value) || typeof value.id !== "string") return null;
   if (!isMessageRole(value.role)) return null;
-  const content =
-    fallback && typeof value.content === "string"
-      ? [{ type: "text", text: value.content }]
-      : value.content;
-  if (!Array.isArray(content)) return null;
+  if (!Array.isArray(value.content)) return null;
 
-  const createdAt =
-    value.createdAt === undefined
-      ? fallback?.createdAt
-      : parseDate(value.createdAt);
+  const createdAt = parseDate(value.createdAt);
   if (!createdAt) return null;
 
-  const metadata = value.metadata ?? (fallback ? {} : undefined);
-  if (!isRecord(metadata)) return null;
-  const custom = metadata.custom ?? (fallback ? {} : undefined);
-  if (!isRecord(custom)) return null;
+  const metadata = value.metadata;
+  if (!isRecord(metadata) || !isRecord(metadata.custom)) return null;
 
   if (value.role === "assistant") {
     const submittedFeedback = isRecord(metadata.submittedFeedback)
@@ -356,9 +335,9 @@ function parseStoredThreadMessage(
     const submittedFeedbackType = submittedFeedback?.type;
 
     return {
-      id,
+      id: value.id,
       role: "assistant",
-      content: parseStoredAssistantContent(content, depth, { id, createdAt }),
+      content: parseStoredAssistantContent(value.content, depth),
       status: parseStoredMessageStatus(value.status),
       createdAt,
       metadata: {
@@ -391,16 +370,16 @@ function parseStoredThreadMessage(
         ...(metadata.isOptimistic === true
           ? { isOptimistic: true }
           : undefined),
-        custom,
+        custom: metadata.custom,
       },
     };
   }
 
   if (value.role === "user") {
     return {
-      id,
+      id: value.id,
       role: "user",
-      content: parseStoredUserContent(content),
+      content: parseStoredUserContent(value.content),
       attachments: Array.isArray(value.attachments)
         ? value.attachments.flatMap((attachment) => {
             const parsed = parseStoredAttachment(attachment);
@@ -409,19 +388,19 @@ function parseStoredThreadMessage(
         : [],
       createdAt,
       metadata: {
-        custom,
+        custom: metadata.custom,
       },
     };
   }
 
-  const textParts = parseStoredUserContent(content).filter(
+  const textParts = parseStoredUserContent(value.content).filter(
     (part) => part.type === "text",
   );
 
   try {
     return fromThreadMessageLike(
       {
-        id,
+        id: value.id,
         role: "system",
         content:
           textParts.length === 1
@@ -433,9 +412,9 @@ function parseStoredThreadMessage(
                 },
               ],
         createdAt,
-        metadata: { custom },
+        metadata: { custom: metadata.custom },
       },
-      id,
+      value.id,
       DEFAULT_STORED_MESSAGE_STATUS,
     );
   } catch {
