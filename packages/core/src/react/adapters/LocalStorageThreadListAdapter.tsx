@@ -28,7 +28,7 @@ import {
   fromThreadMessageLike,
   type ThreadMessageLike,
 } from "../../runtime/utils/thread-message-like";
-import { isJSONValue, isRecord } from "../../utils/json/is-json";
+import { isRecord } from "../../utils/json/is-json";
 import {
   RuntimeAdapterProvider,
   type RuntimeAdapters,
@@ -131,56 +131,23 @@ const DEFAULT_STORED_MESSAGE_STATUS = {
   reason: "unknown",
 } as const satisfies MessageStatus;
 const MAX_STORED_MESSAGE_DEPTH = 100;
-const KNOWN_ASSISTANT_PART_TYPES = new Set([
-  "text",
-  "reasoning",
-  "tool-call",
-  "source",
-  "file",
-  "image",
-  "data",
-  "generative-ui",
-]);
+type KnownStoredMessagePartType =
+  | StoredAssistantMessage["content"][number]["type"]
+  | StoredUserMessage["content"][number]["type"];
+const KNOWN_STORED_MESSAGE_PART_TYPES = {
+  text: true,
+  reasoning: true,
+  "tool-call": true,
+  source: true,
+  file: true,
+  image: true,
+  data: true,
+  "generative-ui": true,
+  audio: true,
+} satisfies Record<KnownStoredMessagePartType, true>;
 
 const parseStoredMessageStatus = (value: unknown): MessageStatus => {
-  if (!isRecord(value)) return DEFAULT_STORED_MESSAGE_STATUS;
-
-  if (value.type === "running") return { type: "running" };
-  if (
-    value.type === "requires-action" &&
-    (value.reason === "tool-calls" || value.reason === "interrupt")
-  ) {
-    return { type: "requires-action", reason: value.reason };
-  }
-  if (
-    value.type === "complete" &&
-    (value.reason === "stop" || value.reason === "unknown")
-  ) {
-    return { type: "complete", reason: value.reason };
-  }
-  if (
-    value.type === "incomplete" &&
-    (value.reason === "cancelled" ||
-      value.reason === "tool-calls" ||
-      value.reason === "length" ||
-      value.reason === "content-filter" ||
-      value.reason === "other" ||
-      value.reason === "error")
-  ) {
-    return {
-      type: "incomplete",
-      reason: value.reason,
-      ...(isJSONValue(value.error) ? { error: value.error } : undefined),
-    };
-  }
-
-  if (
-    typeof value.type === "string" &&
-    value.type !== "running" &&
-    value.type !== "requires-action" &&
-    value.type !== "complete" &&
-    value.type !== "incomplete"
-  ) {
+  if (isRecord(value) && typeof value.type === "string") {
     return value as unknown as MessageStatus;
   }
 
@@ -269,7 +236,7 @@ const parseStoredAssistantContent = (
         isRecord(rawPart) &&
         typeof rawPart.type === "string" &&
         !rawPart.type.startsWith("data-") &&
-        !KNOWN_ASSISTANT_PART_TYPES.has(rawPart.type)
+        !Object.hasOwn(KNOWN_STORED_MESSAGE_PART_TYPES, rawPart.type)
       ) {
         return [
           rawPart as unknown as StoredAssistantMessage["content"][number],
