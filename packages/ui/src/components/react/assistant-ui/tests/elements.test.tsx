@@ -15,6 +15,7 @@ import { ContextBreakdown } from "../elements/context-breakdown";
 import { CostMeter } from "../elements/cost-meter";
 import { DocumentReference } from "../elements/document-reference";
 import { FeedbackDialog } from "../elements/feedback-dialog";
+import { File } from "../elements/file";
 import { FileTree } from "../elements/file-tree";
 import { FlowGraph } from "../elements/flow-graph";
 import { JobProgress } from "../elements/job-progress";
@@ -559,6 +560,71 @@ beforeAll(() => {
 });
 
 afterEach(cleanup);
+
+describe("file download", () => {
+  it("names the default download action with the filename", () => {
+    const { getByRole } = render(
+      <File
+        type="file"
+        status={{ type: "complete" }}
+        data="https://example.com/report.pdf"
+        mimeType="application/pdf"
+        filename="report.pdf"
+      />,
+    );
+
+    expect(
+      getByRole("link", { name: "Download report.pdf" }).getAttribute(
+        "aria-label",
+      ),
+    ).toBe("Download report.pdf");
+  });
+
+  it("falls back to a generic name without a filename", () => {
+    const { getByRole } = render(
+      <File
+        type="file"
+        status={{ type: "complete" }}
+        data="https://example.com/file"
+        mimeType="application/octet-stream"
+      />,
+    );
+
+    expect(
+      getByRole("link", { name: "Download file" }).getAttribute("aria-label"),
+    ).toBe("Download file");
+  });
+
+  it("preserves custom children as the accessible name", () => {
+    const { getByRole } = render(
+      <File.Download
+        data="https://example.com/report.pdf"
+        mimeType="application/pdf"
+        filename="report.pdf"
+      >
+        Download manually
+      </File.Download>,
+    );
+
+    const link = getByRole("link", { name: "Download manually" });
+    expect(link.getAttribute("aria-label")).toBeNull();
+  });
+
+  it("preserves a caller-provided aria-label", () => {
+    const { getByRole } = render(
+      <File.Download
+        data="https://example.com/report.pdf"
+        mimeType="application/pdf"
+        filename="report.pdf"
+        aria-label="Save report"
+      />,
+    );
+
+    expect(
+      getByRole("link", { name: "Save report" }).getAttribute("aria-label"),
+    ).toBe("Save report");
+  });
+});
 
 describe("todo-list", () => {
   it("renders a failed item with its reason and keeps it out of the numerator", () => {
