@@ -411,6 +411,65 @@ describe("BaseThreadRuntimeCore voice volume subscriptions", () => {
     });
   });
 
+  it("disconnects a session that ends during status registration", () => {
+    const voice = createVoiceAdapter();
+    const statusCleanup = vi.fn();
+    voice.session.onStatusChange = (callback) => {
+      callback({ type: "ended", reason: "finished" });
+      return statusCleanup;
+    };
+    const modeRegistration = vi.spyOn(voice.session, "onModeChange");
+    const runtime = new TestRuntime(voice);
+
+    runtime.connectVoice();
+
+    expect(statusCleanup).toHaveBeenCalledOnce();
+    expect(voice.session.disconnect).toHaveBeenCalledOnce();
+    expect(modeRegistration).not.toHaveBeenCalled();
+    expect(runtime.voice).toBeUndefined();
+
+    runtime.disconnectVoice();
+    expect(statusCleanup).toHaveBeenCalledOnce();
+    expect(voice.session.disconnect).toHaveBeenCalledOnce();
+  });
+
+  it("disconnects an ended session when setup notification throws", () => {
+    const listenerError = new Error("ended notification failed");
+    const cleanupError = new Error("status cleanup failed");
+    const consoleError = vi
+      .spyOn(console, "error")
+      .mockImplementation(() => {});
+    const voice = createVoiceAdapter();
+    const statusCleanup = vi.fn(() => {
+      throw cleanupError;
+    });
+    let endSession!: () => void;
+    voice.session.onStatusChange = (callback) => {
+      endSession = () => callback({ type: "ended", reason: "finished" });
+      return statusCleanup;
+    };
+    voice.session.onModeChange = () => {
+      endSession();
+      return () => {};
+    };
+    const runtime = new TestRuntime(voice);
+    let wasConnected = false;
+    runtime.subscribe(() => {
+      if (runtime.voice) wasConnected = true;
+      else if (wasConnected) throw listenerError;
+    });
+
+    expect(() => runtime.connectVoice()).toThrow(listenerError);
+
+    expect(statusCleanup).toHaveBeenCalledOnce();
+    expect(voice.session.disconnect).toHaveBeenCalledOnce();
+    expect(runtime.voice).toBeUndefined();
+    expect(consoleError).toHaveBeenCalledWith(
+      "[assistant-ui] Detached voice setup cleanup threw",
+      cleanupError,
+    );
+  });
+
   it("rethrows one subscriber error once while disconnecting", () => {
     const voice = createVoiceAdapter();
     const runtime = new TestRuntime(voice);

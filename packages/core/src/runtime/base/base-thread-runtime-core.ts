@@ -322,13 +322,20 @@ export abstract class BaseThreadRuntimeCore
     const unsubs: Array<() => void> = [];
     this._voiceUnsubs = unsubs;
 
+    // The cleanup-list identity preserves ownership after an ended status clears the session.
     const finishDetachedSetup = () => {
       if (this._voiceSession === session && this._voiceUnsubs === unsubs) {
         return false;
       }
 
+      const shouldDisconnect = this._voiceUnsubs === unsubs;
+      if (shouldDisconnect) this._voiceUnsubs = [];
+
       try {
-        notifySubscribers(unsubs.splice(0));
+        notifySubscribers([
+          ...unsubs.splice(0),
+          ...(shouldDisconnect ? [() => session.disconnect()] : []),
+        ]);
       } catch (error) {
         console.error(
           "[assistant-ui] Detached voice setup cleanup threw",
