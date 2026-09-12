@@ -7,7 +7,10 @@ import type {
   RuntimeAdapters,
 } from "../../../runtimes/remote-thread-list/types";
 import { InMemoryThreadListAdapter } from "../../../runtimes/remote-thread-list/adapter/in-memory";
-import { useScopedAssistantCloudThreadHistoryAdapter } from "./AssistantCloudThreadHistoryAdapter";
+import {
+  DEFAULT_CLOUD_SCOPE,
+  useScopedAssistantCloudThreadHistoryAdapter,
+} from "./AssistantCloudThreadHistoryAdapter";
 import { createScopedCloudFileAttachmentAdapter } from "./CloudFileAttachmentAdapter";
 import { isRecord } from "../../../utils/json/is-json";
 import { CORE_SDK } from "./sdkIdentity";
@@ -68,8 +71,7 @@ export const useCloudRuntimeAdapters = (
   cloudRef: RefObject<AssistantCloud>,
   scopeRef?: RefObject<unknown>,
 ): RuntimeAdapters => {
-  const [defaultScope] = useState(() => ({}));
-  const scope = scopeRef?.current ?? defaultScope;
+  const scope = scopeRef?.current ?? DEFAULT_CLOUD_SCOPE;
   const [committedScopeRef] = useState(() => createCommittedScopeRef(scope));
   useInsertionEffect(() => {
     committedScopeRef.update(scope);

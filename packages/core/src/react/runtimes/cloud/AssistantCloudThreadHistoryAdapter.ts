@@ -60,6 +60,8 @@ const globalPersistence = new WeakMap<
   ScopedPersistence
 >();
 
+export const DEFAULT_CLOUD_SCOPE = Symbol("assistant-ui:cloud-default-scope");
+
 class AssistantCloudThreadHistoryAdapter implements ThreadHistoryAdapter {
   private cloudRef: RefObject<AssistantCloud>;
   private scopeRef: RefObject<unknown>;
@@ -819,7 +821,7 @@ export function useScopedAssistantCloudThreadHistoryAdapter(
 export function useAssistantCloudThreadHistoryAdapter(
   cloudRef: RefObject<AssistantCloud>,
 ): ThreadHistoryAdapter & { readonly feedback: FeedbackAdapter } {
-  const [scopeRef] = useState<RefObject<unknown>>(() => ({ current: {} }));
+  const scopeRef = useRef<unknown>(DEFAULT_CLOUD_SCOPE);
   return useScopedAssistantCloudThreadHistoryAdapter(cloudRef, scopeRef);
 }
 

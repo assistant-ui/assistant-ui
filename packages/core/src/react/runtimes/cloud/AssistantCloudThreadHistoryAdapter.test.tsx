@@ -415,6 +415,30 @@ describe("useAssistantCloudThreadHistoryAdapter", () => {
     expect(secondCloud.threads.messages.create).not.toHaveBeenCalled();
   });
 
+  it("preserves default message mappings across adapter mounts", async () => {
+    mocks.aui = mocks.makeClient("thread-1");
+    const cloud = makeCloud();
+    const cloudRef = { current: cloud };
+    const message = makeAssistantMessage("local-message-1");
+    const first = renderHook(() =>
+      useAssistantCloudThreadHistoryAdapter(cloudRef),
+    );
+
+    await first.result.current.append({ parentId: null, message });
+
+    const second = renderHook(() =>
+      useAssistantCloudThreadHistoryAdapter(cloudRef),
+    );
+    await second.result.current.update({ parentId: null, message });
+
+    expect(cloud.threads.messages.create).toHaveBeenCalledOnce();
+    expect(cloud.threads.messages.update).toHaveBeenCalledWith(
+      "thread-1",
+      "remote-message-1",
+      expect.anything(),
+    );
+  });
+
   it("preserves message mappings only within the same Cloud scope", async () => {
     mocks.aui = mocks.makeClient("thread-1");
     const firstCloud = makeCloud();
