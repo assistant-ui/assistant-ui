@@ -65,24 +65,24 @@ const VALUE_RULES: Record<DataStreamStreamChunkType, ValueRule> = {
   }),
   [DataStreamStreamChunkType.FinishMessage]: objectWith({
     finishReason: isString,
-    usage: isObject,
+    usage: optional(isObject),
   }),
   [DataStreamStreamChunkType.FinishStep]: objectWith({
     finishReason: isString,
-    usage: isObject,
+    usage: optional(isObject),
     isContinued: optional(isBoolean),
   }),
   [DataStreamStreamChunkType.StartStep]: objectWith({
     messageId: isString,
   }),
   [DataStreamStreamChunkType.ReasoningDelta]: isString,
-  [DataStreamStreamChunkType.Source]: (value) =>
-    isObject(value) &&
-    isString(value.id) &&
-    optional(isString)(value.parentId) &&
-    (value.sourceType === "url"
-      ? isString(value.url) && optional(isString)(value.title)
-      : value.sourceType === "document" && isString(value.title)),
+  [DataStreamStreamChunkType.Source]: objectWith({
+    sourceType: isString,
+    id: isString,
+    url: optional(isString),
+    title: optional(isString),
+    parentId: optional(isString),
+  }),
   [DataStreamStreamChunkType.RedactedReasoning]: unchecked,
   [DataStreamStreamChunkType.ReasoningSignature]: unchecked,
   [DataStreamStreamChunkType.File]: objectWith({
@@ -433,10 +433,9 @@ export class DataStreamDecoder extends PipeableTransformStream<
               // Opening through appendReasoning registers the part as the
               // current reasoning append target, so the deltas that follow
               // extend it instead of opening a second part.
+              const unstable_summary = value.unstable_summary ?? undefined;
               target.appendReasoning("", {
-                ...(value.unstable_summary !== undefined
-                  ? { unstable_summary: value.unstable_summary }
-                  : {}),
+                ...(unstable_summary !== undefined ? { unstable_summary } : {}),
               });
               break;
             }

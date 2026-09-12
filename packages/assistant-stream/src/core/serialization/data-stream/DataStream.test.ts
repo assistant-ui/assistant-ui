@@ -718,13 +718,11 @@ describe("DataStreamDecoder malformed frame values", () => {
     "k:{}",
     "aui-data:{}",
     'aui-data:{"name":"n"}',
-    'h:{"sourceType":"url","id":"s1"}',
-    'h:{"sourceType":"other","id":"s1","url":"https://x"}',
-    'h:{"sourceType":"document","id":"d1"}',
+    'h:{"id":"s1","url":"https://x"}',
     "d:{}",
     "e:{}",
     "f:{}",
-    'd:{"finishReason":"stop"}',
+    'd:{"finishReason":5}',
   ];
 
   it.each([...crashFrames, ...coercionFrames, ...partShapeFrames])(
@@ -869,14 +867,40 @@ describe("DataStreamDecoder malformed frame values", () => {
       'a:{"toolCallId":"t1","result":null,"isError":null}',
       'h:{"sourceType":"url","id":"s1","url":"https://x","title":null}',
       'e:{"finishReason":"stop","usage":{},"isContinued":null}',
+      'aui-reasoning-part-start:{"unstable_summary":null}',
     ]);
 
     expect(chunks.map((c) => c.type)).toContain("result");
     expect(chunks.map((c) => c.type)).toContain("step-finish");
-    expect(
-      chunks.filter((c) => c.type === "part-start").map((c) => c.part.type),
-    ).toEqual(["tool-call", "source"]);
+    const parts = chunks.filter((c) => c.type === "part-start");
+    expect(parts.map((c) => c.part.type)).toEqual([
+      "tool-call",
+      "source",
+      "reasoning",
+    ]);
+    expect(parts[2]?.part).not.toHaveProperty("unstable_summary");
   });
+
+  it.each([true, false])(
+    "accepts finish frames without usage and sources of any type with strict: %s",
+    async (strict) => {
+      const chunks = await decodeLines(
+        [
+          'h:{"sourceType":"other","id":"s1","url":"https://x"}',
+          'e:{"finishReason":"stop"}',
+          'd:{"finishReason":"stop"}',
+        ],
+        { strict },
+      );
+
+      expect(chunks.map((c) => c.type)).toEqual([
+        "part-start",
+        "part-finish",
+        "step-finish",
+        "message-finish",
+      ]);
+    },
+  );
 
   it.each([true, false])(
     "accepts a document source without a url with strict: %s",
