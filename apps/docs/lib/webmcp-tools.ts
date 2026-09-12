@@ -318,13 +318,26 @@ export function registerWebMcpTools(
         },
         { signal: controller.signal },
       ),
-    ).catch((error) => {
-      // Registration failures (permissions policy, duplicate names, spec
-      // drift) must not break the page, but should be visible in development.
-      if (process.env.NODE_ENV !== "production") {
-        console.warn(`WebMCP: failed to register ${tool.name}`, error);
-      }
-    });
+    ).then(
+      () =>
+        trackSafely(`${tool.name} registration`, () =>
+          tracker.toolRegistered({ tool: tool.name, status: "ok" }),
+        ),
+      (error) => {
+        trackSafely(`${tool.name} registration`, () =>
+          tracker.toolRegistered({
+            tool: tool.name,
+            status: "failed",
+            error_name: error instanceof Error ? error.name : typeof error,
+          }),
+        );
+        // Registration failures (permissions policy, duplicate names, spec
+        // drift) must not break the page, but should be visible in development.
+        if (process.env.NODE_ENV !== "production") {
+          console.warn(`WebMCP: failed to register ${tool.name}`, error);
+        }
+      },
+    );
   }
   return () => {
     controller.abort();

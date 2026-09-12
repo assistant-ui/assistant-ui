@@ -26,7 +26,11 @@ function fetchReturning(payload: unknown, ok = true, status = 200) {
 type Tracker = Parameters<typeof registerWebMcpTools>[2];
 
 function spyTracker() {
-  return { hostDetected: vi.fn(), toolCalled: vi.fn() };
+  return {
+    hostDetected: vi.fn(),
+    toolRegistered: vi.fn(),
+    toolCalled: vi.fn(),
+  };
 }
 
 function registeredTools(
@@ -396,6 +400,40 @@ describe("WebMCP call counter", () => {
     expect(tracker.toolCalled).not.toHaveBeenCalled();
   });
 
+  it("reports each tool's registration outcome without the error message", async () => {
+    const tracker = spyTracker();
+    const modelContext: WebMcpModelContext = {
+      registerTool: vi.fn((tool) =>
+        tool.name === "getDoc"
+          ? Promise.reject(
+              new DOMException("blocked by /docs policy", "NotAllowedError"),
+            )
+          : Promise.resolve(),
+      ),
+    };
+    const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
+    try {
+      registerWebMcpTools(
+        modelContext,
+        fetchReturning({ result: okResult }),
+        tracker,
+      );
+      await vi.waitFor(() =>
+        expect(tracker.toolRegistered).toHaveBeenCalledTimes(3),
+      );
+      expect(tracker.toolRegistered.mock.calls.map(([props]) => props)).toEqual(
+        [
+          { tool: "searchDocs", status: "ok" },
+          { tool: "getDoc", status: "failed", error_name: "NotAllowedError" },
+          { tool: "getExample", status: "ok" },
+        ],
+      );
+      expect(warn).toHaveBeenCalledTimes(1);
+    } finally {
+      warn.mockRestore();
+    }
+  });
+
   it("reports successful searches with rounded latency", async () => {
     const tracker = spyTracker();
     const now = vi
@@ -487,11 +525,12 @@ describe("WebMCP call counter", () => {
         await expect(
           toolByName(fetchReturning({ result: okResult }), "searchDocs", {
             hostDetected: track,
+            toolRegistered: track,
             toolCalled: track,
           }).execute({ query: "tools" }),
         ).resolves.toEqual(okResult);
         await vi.waitFor(() =>
-          expect(warn).toHaveBeenCalledTimes(failure === "pending" ? 0 : 2),
+          expect(warn).toHaveBeenCalledTimes(failure === "pending" ? 0 : 5),
         );
       } finally {
         warn.mockRestore();
