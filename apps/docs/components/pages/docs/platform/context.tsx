@@ -62,12 +62,11 @@ const platformPreference = createPersistedPreference<Surface>({
   },
 });
 
-const hintScript = (forced: Platform | null) => {
-  const value = forced
-    ? JSON.stringify(forced)
-    : `new URLSearchParams(location.search).get(${JSON.stringify(URL_PARAM)})||localStorage.getItem(${JSON.stringify(STORAGE_KEY)})`;
-  return `(()=>{try{var p=${value};if(p&&${JSON.stringify([...PLATFORMS])}.indexOf(p)>=0)document.documentElement.dataset.docsPlatformHint=p}catch(e){}})()`;
-};
+// Runs while the document is still parsing, before the sidebar; it reads its
+// inputs from the script element's own data attributes so no code is built
+// from values.
+const HINT_SCRIPT =
+  "(()=>{try{var d=document.currentScript.dataset;var p=d.forced||new URLSearchParams(location.search).get(d.param)||localStorage.getItem(d.key);if(p)document.documentElement.dataset.docsPlatformHint=p}catch(e){}})()";
 
 // Avoid useSearchParams so the docs layout stays statically renderable.
 function readPlatformParam(): Surface | null {
@@ -202,9 +201,10 @@ export function PlatformProvider({
   return (
     <PlatformContext.Provider value={{ platform, setPlatform }}>
       <script
-        dangerouslySetInnerHTML={{
-          __html: hintScript(pagePlatforms ? platform : null),
-        }}
+        data-key={STORAGE_KEY}
+        data-param={URL_PARAM}
+        data-forced={pagePlatforms ? platform : undefined}
+        dangerouslySetInnerHTML={{ __html: HINT_SCRIPT }}
       />
       {children}
     </PlatformContext.Provider>
