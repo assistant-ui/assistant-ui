@@ -98,6 +98,7 @@ import { useCloudThreadListRuntime } from "@assistant-ui/react";
 
 const runtime = useCloudThreadListRuntime({
   cloud,
+  scopeId: workspace.id,
   runtimeHook: useMyThreadRuntime,
   create: async () => ({ externalId: await backend.createThread() }),
   delete: async (threadId) => backend.deleteThread(threadId),
@@ -107,6 +108,7 @@ const runtime = useCloudThreadListRuntime({
 | Option | Meaning |
 |---|---|
 | `cloud` | The client the list is backed by. |
+| `scopeId` | Stable account or workspace identity for cached attachments and message mappings. Change it when the owning scope changes. If omitted, replacing `cloud` starts a new scope. |
 | `runtimeHook` | A hook returning the per thread runtime; it is called once per mounted thread. |
 | `create` | Called when a new thread is created; return your backend's id and it is stored as the cloud thread's `external_id`. |
 | `delete` | Called with the thread before the cloud thread is deleted. |
@@ -123,7 +125,7 @@ const runtime = useCloudThreadListRuntime({
 });
 ```
 
-The lower level `useCloudThreadListAdapter({ cloud, create, delete, sdk })` returns the adapter alone, and `createCloudThreadListAdapter` builds it outside React. Both register the calling package's identity on the client through `sdk`, so the project's Settings › Telemetry lists your integration next to the SDK version.
+The lower level `useCloudThreadListAdapter({ cloud, scopeId, create, delete, sdk })` returns the adapter alone, and `createCloudThreadListAdapter` builds it outside React. Both register the calling package's identity on the client through `sdk`, so the project's Settings › Telemetry lists your integration next to the SDK version.
 
 ## Custom history adapters
 

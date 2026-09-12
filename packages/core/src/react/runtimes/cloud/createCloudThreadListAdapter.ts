@@ -7,8 +7,8 @@ import type {
   RuntimeAdapters,
 } from "../../../runtimes/remote-thread-list/types";
 import { InMemoryThreadListAdapter } from "../../../runtimes/remote-thread-list/adapter/in-memory";
-import { useAssistantCloudThreadHistoryAdapter } from "./AssistantCloudThreadHistoryAdapter";
-import { CloudFileAttachmentAdapter } from "./CloudFileAttachmentAdapter";
+import { useScopedAssistantCloudThreadHistoryAdapter } from "./AssistantCloudThreadHistoryAdapter";
+import { createScopedCloudFileAttachmentAdapter } from "./CloudFileAttachmentAdapter";
 import { isRecord } from "../../../utils/json/is-json";
 import { CORE_SDK } from "./sdkIdentity";
 
@@ -18,6 +18,12 @@ type ThreadData = {
 
 export type CloudThreadListAdapterOptions = {
   cloud?: AssistantCloud | undefined;
+  /**
+   * Stable identity for the account or workspace owning Cloud runtime state.
+   * Change it when that scope changes. When omitted, the Cloud client instance
+   * is used as the scope identity.
+   */
+  scopeId?: string | undefined;
   sdk?: SdkIdentity | undefined;
 
   create?: (() => Promise<ThreadData>) | undefined;
@@ -36,10 +42,17 @@ export const autoCloud = baseUrl
 
 export const useCloudRuntimeAdapters = (
   cloudRef: RefObject<AssistantCloud>,
+  scopeRef: RefObject<unknown> = cloudRef,
 ): RuntimeAdapters => {
-  const history = useAssistantCloudThreadHistoryAdapter(cloudRef);
-  const [attachments] = useState(
-    () => new CloudFileAttachmentAdapter(() => cloudRef.current),
+  const history = useScopedAssistantCloudThreadHistoryAdapter(
+    cloudRef,
+    scopeRef,
+  );
+  const [attachments] = useState(() =>
+    createScopedCloudFileAttachmentAdapter(
+      () => cloudRef.current,
+      () => scopeRef.current,
+    ),
   );
   return useMemo(
     () => ({
@@ -101,11 +114,18 @@ export const createCloudThreadListAdapter = (
   const getOptions = typeof options === "function" ? options : () => options;
 
   const unstable_useAdapters = function useCloudAdapters(): RuntimeAdapters {
-    return useCloudRuntimeAdapters({
+    const cloudRef = {
       get current() {
         return getOptions().cloud ?? autoCloud!;
       },
-    });
+    };
+    const scopeRef = {
+      get current() {
+        const current = getOptions();
+        return current.scopeId ?? current.cloud ?? autoCloud!;
+      },
+    };
+    return useCloudRuntimeAdapters(cloudRef, scopeRef);
   };
 
   const cloud = getOptions().cloud ?? autoCloud;

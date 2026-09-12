@@ -40,13 +40,20 @@ type CloudThreadListItem = Pick<
   "getState" | "initialize"
 >;
 
+type ScopedPersistence = {
+  cloudRef: { current: RefObject<AssistantCloud> };
+  persistence: CloudMessagePersistence;
+  scope: unknown;
+};
+
 const globalPersistence = new WeakMap<
   getClientId.ClientId,
-  CloudMessagePersistence
+  ScopedPersistence
 >();
 
 class AssistantCloudThreadHistoryAdapter implements ThreadHistoryAdapter {
   private cloudRef: RefObject<AssistantCloud>;
+  private scopeRef: RefObject<unknown>;
   private getAui: () => AssistantClient;
   private runReporter: CloudRunReporter;
   public readonly engagementReporter: CloudEngagementReporter;
@@ -54,8 +61,10 @@ class AssistantCloudThreadHistoryAdapter implements ThreadHistoryAdapter {
   constructor(
     cloudRef: RefObject<AssistantCloud>,
     getAui: () => AssistantClient,
+    scopeRef: RefObject<unknown>,
   ) {
     this.cloudRef = cloudRef;
+    this.scopeRef = scopeRef;
     this.getAui = getAui;
     this.runReporter = new CloudRunReporter(() => this.cloudRef.current);
     this.engagementReporter = new CloudEngagementReporter(
@@ -73,13 +82,22 @@ class AssistantCloudThreadHistoryAdapter implements ThreadHistoryAdapter {
     threadListItem: CloudThreadListItem = this.aui.threadListItem,
   ): CloudMessagePersistence {
     const key = getClientId(threadListItem);
-    if (!globalPersistence.has(key)) {
-      globalPersistence.set(
-        key,
-        new CloudMessagePersistence(() => this.cloudRef.current),
-      );
+    const scope = this.scopeRef.current;
+    let entry = globalPersistence.get(key);
+    if (!entry || !Object.is(entry.scope, scope)) {
+      const cloudRef = { current: this.cloudRef };
+      entry = {
+        cloudRef,
+        scope,
+        persistence: new CloudMessagePersistence(
+          () => cloudRef.current.current,
+        ),
+      };
+      globalPersistence.set(key, entry);
+    } else {
+      entry.cloudRef.current = this.cloudRef;
     }
-    return globalPersistence.get(key)!;
+    return entry.persistence;
   }
 
   private get _persistence(): CloudMessagePersistence {
@@ -679,8 +697,9 @@ export function extractAuiV0<T>(content: T): RunMessageTelemetry | null {
   };
 }
 
-export function useAssistantCloudThreadHistoryAdapter(
+export function useScopedAssistantCloudThreadHistoryAdapter(
   cloudRef: RefObject<AssistantCloud>,
+  scopeRef: RefObject<unknown>,
 ): ThreadHistoryAdapter & { readonly feedback: FeedbackAdapter } {
   const aui = useAui();
   // Not useEffectEvent: history adapter methods run during render (SSR load).
@@ -690,10 +709,20 @@ export function useAssistantCloudThreadHistoryAdapter(
   });
   const [adapter] = useState(
     () =>
-      new AssistantCloudThreadHistoryAdapter(cloudRef, () => auiRef.current),
+      new AssistantCloudThreadHistoryAdapter(
+        cloudRef,
+        () => auiRef.current,
+        scopeRef,
+      ),
   );
   useAssistantCloudEngagementEvents(adapter, aui);
   return adapter;
+}
+
+export function useAssistantCloudThreadHistoryAdapter(
+  cloudRef: RefObject<AssistantCloud>,
+): ThreadHistoryAdapter & { readonly feedback: FeedbackAdapter } {
+  return useScopedAssistantCloudThreadHistoryAdapter(cloudRef, cloudRef);
 }
 
 type RootEngagementTracker = {

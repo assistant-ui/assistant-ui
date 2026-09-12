@@ -34,12 +34,22 @@ export const useCloudThreadListAdapter = (
     }),
     [],
   );
+  const scopeRef = useMemo(
+    () => ({
+      get current() {
+        return (
+          adapterRef.current.scopeId ?? adapterRef.current.cloud ?? autoCloud!
+        );
+      },
+    }),
+    [],
+  );
 
   const unstable_useAdapters = useCallback(
     function useCloudAdapters() {
-      return useCloudRuntimeAdapters(cloudRef);
+      return useCloudRuntimeAdapters(cloudRef, scopeRef);
     },
-    [cloudRef],
+    [cloudRef, scopeRef],
   );
 
   return useMemo<RemoteThreadListAdapter>(() => {

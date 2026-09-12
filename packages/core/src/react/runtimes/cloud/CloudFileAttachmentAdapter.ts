@@ -16,6 +16,17 @@ const guessAttachmentType = (
   return "file";
 };
 
+const scopeGetters = new WeakMap<CloudFileAttachmentAdapter, () => unknown>();
+
+export const createScopedCloudFileAttachmentAdapter = (
+  getCloud: () => AssistantCloud,
+  getScope: () => unknown,
+) => {
+  const adapter = new CloudFileAttachmentAdapter(getCloud);
+  scopeGetters.set(adapter, getScope);
+  return adapter;
+};
+
 export class CloudFileAttachmentAdapter implements AttachmentAdapter {
   public accept = "*";
 
@@ -27,7 +38,9 @@ export class CloudFileAttachmentAdapter implements AttachmentAdapter {
     this.getCloud = typeof cloud === "function" ? cloud : () => cloud;
   }
 
-  private uploadedUrls = new Map<string, string>();
+  private getScope = () => scopeGetters.get(this)?.() ?? this.getCloud();
+
+  private uploadedUrls = new Map<string, { url: string; scope: unknown }>();
   private activeUploads = new Map<
     string,
     { cancelled: boolean; controller: AbortController }
@@ -50,6 +63,8 @@ export class CloudFileAttachmentAdapter implements AttachmentAdapter {
     };
     const controller = new AbortController();
     const upload = { cancelled: false, controller };
+    const cloud = this.getCloud();
+    const scope = this.getScope();
     this.activeUploads.set(id, upload);
 
     try {
@@ -57,10 +72,13 @@ export class CloudFileAttachmentAdapter implements AttachmentAdapter {
       if (upload.cancelled) return;
 
       const { signedUrl, publicUrl } =
-        await this.getCloud().files.generatePresignedUploadUrl({
+        await cloud.files.generatePresignedUploadUrl({
           filename: file.name,
         });
       if (upload.cancelled) return;
+      if (!Object.is(scope, this.getScope())) {
+        throw new Error("Cloud scope changed while uploading the attachment");
+      }
 
       const res = await fetch(signedUrl, {
         method: "PUT",
@@ -72,13 +90,16 @@ export class CloudFileAttachmentAdapter implements AttachmentAdapter {
         signal: controller.signal,
       });
       if (upload.cancelled) return;
+      if (!Object.is(scope, this.getScope())) {
+        throw new Error("Cloud scope changed while uploading the attachment");
+      }
 
       if (!res.ok) {
         throw new Error(
           `Failed to upload file: ${res.status} ${res.statusText}`,
         );
       }
-      this.uploadedUrls.set(id, publicUrl);
+      this.uploadedUrls.set(id, { url: publicUrl, scope });
       attachment = {
         ...attachment,
         status: { type: "requires-action", reason: "composer-send" },
@@ -117,9 +138,13 @@ export class CloudFileAttachmentAdapter implements AttachmentAdapter {
   public async send(
     attachment: PendingAttachment,
   ): Promise<CompleteAttachment> {
-    const url = this.uploadedUrls.get(attachment.id);
-    if (!url) throw new Error("Attachment not uploaded");
+    const uploaded = this.uploadedUrls.get(attachment.id);
+    if (!uploaded) throw new Error("Attachment not uploaded");
     this.uploadedUrls.delete(attachment.id);
+    if (!Object.is(uploaded.scope, this.getScope())) {
+      throw new Error("Attachment was uploaded for a different Cloud scope");
+    }
+    const { url } = uploaded;
 
     let content: ThreadUserMessagePart[];
     if (attachment.type === "image") {

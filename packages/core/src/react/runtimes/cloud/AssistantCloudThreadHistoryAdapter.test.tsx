@@ -4,7 +4,10 @@ import { renderHook, waitFor } from "@testing-library/react";
 import type { AssistantCloud } from "assistant-cloud";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import type { ThreadAssistantMessage } from "../../../types/message";
-import { useAssistantCloudThreadHistoryAdapter } from "./AssistantCloudThreadHistoryAdapter";
+import {
+  useAssistantCloudThreadHistoryAdapter,
+  useScopedAssistantCloudThreadHistoryAdapter,
+} from "./AssistantCloudThreadHistoryAdapter";
 
 const mocks = vi.hoisted(() => {
   const makeClient = (
@@ -298,6 +301,82 @@ describe("useAssistantCloudThreadHistoryAdapter", () => {
       format: "test",
       limit: 200,
     });
+  });
+
+  it("preserves message mappings only within the same Cloud scope", async () => {
+    mocks.aui = mocks.makeClient("thread-1");
+    const firstCloud = makeCloud();
+    const secondCloud = makeCloud();
+    vi.mocked(firstCloud.threads.messages.create).mockResolvedValue({
+      message_id: "remote-a",
+    });
+    vi.mocked(secondCloud.threads.messages.create).mockResolvedValue({
+      message_id: "remote-b",
+    });
+    const cloudRef = { current: firstCloud };
+    const scopeRef = { current: "workspace-a" };
+    const { result } = renderHook(() =>
+      useScopedAssistantCloudThreadHistoryAdapter(cloudRef, scopeRef),
+    );
+    const message = makeAssistantMessage("local-message-1");
+
+    await result.current.append({ parentId: null, message });
+    cloudRef.current = secondCloud;
+    await result.current.update({ parentId: null, message });
+
+    expect(secondCloud.threads.messages.update).toHaveBeenCalledWith(
+      "thread-1",
+      "remote-a",
+      expect.anything(),
+    );
+
+    scopeRef.current = "workspace-b";
+    await result.current.update({ parentId: null, message });
+
+    expect(secondCloud.threads.messages.create).toHaveBeenCalledWith(
+      "thread-1",
+      expect.objectContaining({ parent_id: null }),
+    );
+    expect(secondCloud.threads.messages.update).toHaveBeenCalledOnce();
+  });
+
+  it("keeps a stale append from populating the replacement Cloud scope", async () => {
+    mocks.aui = mocks.makeClient("thread-1");
+    let resolveFirst!: (value: { message_id: string }) => void;
+    const firstCloud = makeCloud();
+    vi.mocked(firstCloud.threads.messages.create).mockReturnValue(
+      new Promise((resolve) => {
+        resolveFirst = resolve;
+      }),
+    );
+    const secondCloud = makeCloud();
+    vi.mocked(secondCloud.threads.messages.create).mockResolvedValue({
+      message_id: "remote-b",
+    });
+    const cloudRef = { current: firstCloud };
+    const scopeRef = { current: "workspace-a" };
+    const { result } = renderHook(() =>
+      useScopedAssistantCloudThreadHistoryAdapter(cloudRef, scopeRef),
+    );
+    const message = makeAssistantMessage("local-message-1");
+
+    const staleAppend = result.current.append({ parentId: null, message });
+    await vi.waitFor(() => {
+      expect(firstCloud.threads.messages.create).toHaveBeenCalledOnce();
+    });
+
+    cloudRef.current = secondCloud;
+    scopeRef.current = "workspace-b";
+    await result.current.append({ parentId: null, message });
+    resolveFirst({ message_id: "remote-a" });
+    await staleAppend;
+    await result.current.update({ parentId: null, message });
+
+    expect(secondCloud.threads.messages.update).toHaveBeenCalledWith(
+      "thread-1",
+      "remote-b",
+      expect.anything(),
+    );
   });
 
   it("resolves formatted persistence against the current threadListItem", async () => {

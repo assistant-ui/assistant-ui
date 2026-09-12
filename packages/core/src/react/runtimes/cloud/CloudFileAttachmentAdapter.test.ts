@@ -1,7 +1,10 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 import type { AssistantCloud } from "assistant-cloud";
 import type { PendingAttachment } from "../../../types/attachment";
-import { CloudFileAttachmentAdapter } from "./CloudFileAttachmentAdapter";
+import {
+  CloudFileAttachmentAdapter,
+  createScopedCloudFileAttachmentAdapter,
+} from "./CloudFileAttachmentAdapter";
 
 const deferred = <T>() => {
   let resolve!: (value: T) => void;
@@ -197,6 +200,85 @@ describe("CloudFileAttachmentAdapter", () => {
 
     await expect(completion).resolves.toEqual({ done: true, value: undefined });
     expect(errorSpy).not.toHaveBeenCalled();
+    await expect(adapter.send(running.value!)).rejects.toThrow(
+      "Attachment not uploaded",
+    );
+  });
+
+  it("does not send an uploaded URL after the Cloud scope changes", async () => {
+    vi.stubGlobal("fetch", vi.fn().mockResolvedValue({ ok: true }));
+    let scope = "workspace-a";
+    const adapter = createScopedCloudFileAttachmentAdapter(
+      () => makeCloud(),
+      () => scope,
+    );
+    const ready = (await drain(adapter)).at(-1)!;
+
+    scope = "workspace-b";
+
+    await expect(adapter.send(ready)).rejects.toThrow(
+      "Attachment was uploaded for a different Cloud scope",
+    );
+  });
+
+  it("preserves uploaded URLs across same-scope client replacement", async () => {
+    vi.stubGlobal("fetch", vi.fn().mockResolvedValue({ ok: true }));
+    let cloud = makeCloud();
+    const adapter = createScopedCloudFileAttachmentAdapter(
+      () => cloud,
+      () => "workspace-a",
+    );
+    const ready = (await drain(adapter)).at(-1)!;
+
+    cloud = makeCloud();
+
+    await expect(adapter.send(ready)).resolves.toEqual(
+      expect.objectContaining({ status: { type: "complete" } }),
+    );
+  });
+
+  it("does not finish an upload after the Cloud scope changes", async () => {
+    const presigned = deferred<{
+      signedUrl: string;
+      publicUrl: string;
+    }>();
+    const cloud = makeCloud();
+    vi.mocked(cloud.files.generatePresignedUploadUrl).mockReturnValue(
+      presigned.promise,
+    );
+    const fetchMock = vi.fn().mockResolvedValue({ ok: true });
+    vi.stubGlobal("fetch", fetchMock);
+    vi.spyOn(console, "error").mockImplementation(() => {});
+    let scope = "workspace-a";
+    const adapter = createScopedCloudFileAttachmentAdapter(
+      () => cloud,
+      () => scope,
+    );
+    const generator = adapter.add({ file: makeFile() });
+
+    const running = await generator.next();
+    const completion = generator.next();
+    await vi.waitFor(() => {
+      expect(cloud.files.generatePresignedUploadUrl).toHaveBeenCalledOnce();
+    });
+
+    scope = "workspace-b";
+    presigned.resolve({
+      signedUrl: "https://storage.example/upload",
+      publicUrl: "https://cdn.example/file.png",
+    });
+
+    await expect(completion).resolves.toEqual({
+      done: false,
+      value: expect.objectContaining({
+        status: {
+          type: "incomplete",
+          reason: "error",
+          message: "Cloud scope changed while uploading the attachment",
+        },
+      }),
+    });
+    expect(fetchMock).not.toHaveBeenCalled();
     await expect(adapter.send(running.value!)).rejects.toThrow(
       "Attachment not uploaded",
     );
