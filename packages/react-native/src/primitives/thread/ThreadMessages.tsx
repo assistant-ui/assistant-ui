@@ -503,7 +503,6 @@ export const ThreadMessagesFlatList = forwardRef<
 
     return (
       <FlatList
-        key={threadId}
         ref={setFlatListRef}
         data={messages as unknown as ThreadMessage[]}
         renderItem={renderItem}
