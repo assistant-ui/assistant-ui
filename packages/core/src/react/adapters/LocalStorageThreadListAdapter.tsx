@@ -18,6 +18,8 @@ import type {
   RunConfig,
   CompleteAttachment,
   MessageStatus,
+  MessageTiming,
+  ThreadStep,
   ToolModelContentPart,
 } from "../../index";
 import type {
@@ -28,7 +30,7 @@ import {
   fromThreadMessageLike,
   type ThreadMessageLike,
 } from "../../runtime/utils/thread-message-like";
-import { isRecord } from "../../utils/json/is-json";
+import { isJSONValue, isRecord } from "../../utils/json/is-json";
 import {
   RuntimeAdapterProvider,
   type RuntimeAdapters,
@@ -147,11 +149,69 @@ const KNOWN_STORED_MESSAGE_PART_TYPES = {
 } satisfies Record<KnownStoredMessagePartType, true>;
 
 const parseStoredMessageStatus = (value: unknown): MessageStatus => {
-  if (isRecord(value) && typeof value.type === "string") {
-    return value as unknown as MessageStatus;
+  if (!isRecord(value) || typeof value.type !== "string") {
+    return DEFAULT_STORED_MESSAGE_STATUS;
+  }
+  if (value.type === "running") return value as MessageStatus;
+  if (
+    (value.type === "requires-action" ||
+      value.type === "complete" ||
+      value.type === "incomplete") &&
+    (typeof value.reason !== "string" || value.reason.length === 0)
+  ) {
+    return DEFAULT_STORED_MESSAGE_STATUS;
   }
 
-  return DEFAULT_STORED_MESSAGE_STATUS;
+  return value as unknown as MessageStatus;
+};
+
+const isFiniteNumber = (value: unknown): value is number =>
+  typeof value === "number" && Number.isFinite(value);
+
+const parseStoredThreadStep = (value: unknown): ThreadStep | null => {
+  if (!isRecord(value)) return null;
+  if (value.messageId !== undefined && typeof value.messageId !== "string") {
+    return null;
+  }
+
+  if (value.usage !== undefined) {
+    if (
+      !isRecord(value.usage) ||
+      !isFiniteNumber(value.usage.inputTokens) ||
+      !isFiniteNumber(value.usage.outputTokens)
+    ) {
+      return null;
+    }
+  }
+
+  return value as unknown as ThreadStep;
+};
+
+const parseStoredMessageTiming = (
+  value: unknown,
+): MessageTiming | undefined => {
+  if (!isRecord(value)) return undefined;
+  const requiredValues = [
+    value.streamStartTime,
+    value.totalChunks,
+    value.toolCallCount,
+  ];
+  const optionalValues = [
+    value.firstTokenTime,
+    value.totalStreamTime,
+    value.tokenCount,
+    value.tokensPerSecond,
+  ];
+  if (
+    !requiredValues.every(isFiniteNumber) ||
+    optionalValues.some(
+      (entry) => entry !== undefined && !isFiniteNumber(entry),
+    )
+  ) {
+    return undefined;
+  }
+
+  return value as unknown as MessageTiming;
 };
 
 const parseStoredAssistantMetadata = (
@@ -162,30 +222,29 @@ const parseStoredAssistantMetadata = (
     ? metadata.submittedFeedback
     : undefined;
   const submittedFeedbackType = submittedFeedback?.type;
+  const timing = parseStoredMessageTiming(metadata.timing);
 
   return {
-    unstable_state: (metadata.unstable_state ??
-      null) as StoredAssistantMessage["metadata"]["unstable_state"],
+    unstable_state: isJSONValue(metadata.unstable_state)
+      ? metadata.unstable_state
+      : null,
     unstable_annotations: Array.isArray(metadata.unstable_annotations)
-      ? (metadata.unstable_annotations as StoredAssistantMessage["metadata"]["unstable_annotations"])
+      ? metadata.unstable_annotations.filter(isJSONValue)
       : [],
     unstable_data: Array.isArray(metadata.unstable_data)
-      ? (metadata.unstable_data as StoredAssistantMessage["metadata"]["unstable_data"])
+      ? metadata.unstable_data.filter(isJSONValue)
       : [],
     steps: Array.isArray(metadata.steps)
-      ? (metadata.steps as StoredAssistantMessage["metadata"]["steps"])
+      ? metadata.steps.flatMap((step) => {
+          const parsed = parseStoredThreadStep(step);
+          return parsed ? [parsed] : [];
+        })
       : [],
     ...(submittedFeedbackType === "positive" ||
     submittedFeedbackType === "negative"
       ? { submittedFeedback: { type: submittedFeedbackType } }
       : undefined),
-    ...(metadata.timing !== undefined
-      ? {
-          timing: metadata.timing as NonNullable<
-            StoredAssistantMessage["metadata"]["timing"]
-          >,
-        }
-      : undefined),
+    ...(timing !== undefined ? { timing } : undefined),
     ...(metadata.isOptimistic === true ? { isOptimistic: true } : undefined),
     custom: isRecord(metadata.custom) ? metadata.custom : {},
   };

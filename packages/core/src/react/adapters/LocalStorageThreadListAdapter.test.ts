@@ -485,7 +485,7 @@ describe("parseStoredMessageRepository", () => {
     expect(parsedDepth).toBe(100);
   });
 
-  it("drops malformed attachments and preserves record-shaped statuses", () => {
+  it("normalizes malformed attachments, statuses, and metadata", () => {
     const repo = parseStoredMessageRepository(
       JSON.stringify({
         messages: [
@@ -523,6 +523,36 @@ describe("parseStoredMessageRepository", () => {
             message: {
               ...storedMessage("future-reason", "assistant"),
               status: { type: "incomplete", reason: "quota" },
+            },
+            parentId: null,
+          },
+          {
+            message: {
+              ...storedMessage("missing-status-reason", "assistant"),
+              status: { type: "requires-action" },
+            },
+            parentId: null,
+          },
+          {
+            message: {
+              ...storedMessage("metadata", "assistant"),
+              metadata: {
+                custom: {},
+                steps: [
+                  null,
+                  { messageId: 42 },
+                  {
+                    messageId: "step-message",
+                    usage: { inputTokens: 1, outputTokens: 2 },
+                  },
+                  { usage: { inputTokens: "1", outputTokens: 2 } },
+                ],
+                timing: {
+                  streamStartTime: 1,
+                  totalChunks: "2",
+                  toolCallCount: 0,
+                },
+              },
             },
             parentId: null,
           },
@@ -568,6 +598,27 @@ describe("parseStoredMessageRepository", () => {
       type: "incomplete",
       reason: "quota",
     });
+    const missingReasonMessage = repo.messages[4]?.message;
+    expect(missingReasonMessage?.role).toBe("assistant");
+    if (missingReasonMessage?.role !== "assistant") {
+      throw new Error("expected assistant");
+    }
+    expect(missingReasonMessage.status).toEqual({
+      type: "complete",
+      reason: "unknown",
+    });
+    const metadataMessage = repo.messages[5]?.message;
+    expect(metadataMessage?.role).toBe("assistant");
+    if (metadataMessage?.role !== "assistant") {
+      throw new Error("expected assistant");
+    }
+    expect(metadataMessage.metadata.steps).toEqual([
+      {
+        messageId: "step-message",
+        usage: { inputTokens: 1, outputTokens: 2 },
+      },
+    ]);
+    expect(metadataMessage.metadata.timing).toBeUndefined();
   });
 
   it("preserves descendants when only a parent part is malformed", () => {

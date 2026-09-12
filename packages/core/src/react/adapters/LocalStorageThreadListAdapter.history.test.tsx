@@ -17,7 +17,7 @@ vi.mock("@assistant-ui/store", async (importOriginal) => ({
 }));
 
 describe("local storage history recovery", () => {
-  it.each(["assistant", "user"] as const)(
+  it.each(["assistant", "user", "system"] as const)(
     "keeps the conversation after a damaged %s part is saved and reloaded",
     async (role) => {
       const message = (
