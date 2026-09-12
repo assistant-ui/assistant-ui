@@ -33,7 +33,8 @@ import {
   taskStateToMessageStatus,
 } from "./conversions";
 
-const AGENT_CARD_RETRY_DELAY_MS = 5_000;
+const INITIAL_AGENT_CARD_RETRY_DELAY_MS = 5_000;
+const MAX_AGENT_CARD_RETRY_DELAY_MS = 5 * 60_000;
 
 export type A2AThreadRuntimeCoreOptions = {
   client: A2AClient;
@@ -97,6 +98,8 @@ export class A2AThreadRuntimeCore {
   private _loadRequested = false;
   private _agentCardPromise: Promise<void> | undefined;
   private _agentCardRetryAfter = 0;
+  private _agentCardRetryDelay = INITIAL_AGENT_CARD_RETRY_DELAY_MS;
+  private _agentCardDiscoveryFailed = false;
 
   private lastOptionsContextId: string | undefined;
 
@@ -208,10 +211,17 @@ export class A2AThreadRuntimeCore {
       (agentCard) => {
         this.agentCardValue = agentCard;
         this._agentCardRetryAfter = 0;
+        this._agentCardRetryDelay = INITIAL_AGENT_CARD_RETRY_DELAY_MS;
+        this._agentCardDiscoveryFailed = false;
         this.notifyUpdate();
       },
       () => {
-        this._agentCardRetryAfter = Date.now() + AGENT_CARD_RETRY_DELAY_MS;
+        this._agentCardDiscoveryFailed = true;
+        this._agentCardRetryAfter = Date.now() + this._agentCardRetryDelay;
+        this._agentCardRetryDelay = Math.min(
+          this._agentCardRetryDelay * 2,
+          MAX_AGENT_CARD_RETRY_DELAY_MS,
+        );
         this._agentCardPromise = undefined;
       },
     );
@@ -219,8 +229,10 @@ export class A2AThreadRuntimeCore {
   }
 
   private async waitForAgentCard(signal: AbortSignal): Promise<boolean> {
+    const shouldWait = !this._agentCardDiscoveryFailed;
     const load = this.loadAgentCard();
     if (signal.aborted) return false;
+    if (!shouldWait) return true;
 
     let onAbort!: () => void;
     const abort = new Promise<void>((resolve) => {

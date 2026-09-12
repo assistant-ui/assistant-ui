@@ -799,14 +799,17 @@ describe("A2AThreadRuntimeCore", () => {
     it("retries agent card discovery after a transient failure", async () => {
       let now = 1_000;
       vi.spyOn(Date, "now").mockImplementation(() => now);
+      let resolveRecovery!: (card: A2AAgentCard) => void;
       const transportOrder: string[] = [];
       const getAgentCard = vi
         .fn()
         .mockRejectedValueOnce(new Error("temporary failure"))
-        .mockResolvedValue({
-          name: "Agent",
-          capabilities: { streaming: false },
-        } as A2AAgentCard);
+        .mockImplementationOnce(
+          () =>
+            new Promise<A2AAgentCard>((resolve) => {
+              resolveRecovery = resolve;
+            }),
+        );
       const sendMessage = vi.fn().mockImplementation(async () => {
         transportOrder.push("sync");
         return {
@@ -823,11 +826,17 @@ describe("A2AThreadRuntimeCore", () => {
       await core.append(createUserAppendMessage("First"));
       now += 5_000;
       await core.append(createUserAppendMessage("Second"));
+      resolveRecovery({
+        name: "Agent",
+        capabilities: { streaming: false },
+      } as A2AAgentCard);
+      await vi.waitFor(() => expect(core.getAgentCard()).toBeDefined());
+      await core.append(createUserAppendMessage("Third"));
 
       expect(getAgentCard).toHaveBeenCalledTimes(2);
-      expect(streamMessage).toHaveBeenCalledOnce();
+      expect(streamMessage).toHaveBeenCalledTimes(2);
       expect(sendMessage).toHaveBeenCalledOnce();
-      expect(transportOrder).toEqual(["stream", "sync"]);
+      expect(transportOrder).toEqual(["stream", "stream", "sync"]);
     });
 
     it("does not repeat failed discovery during the retry delay", async () => {
@@ -843,6 +852,42 @@ describe("A2AThreadRuntimeCore", () => {
 
       expect(getAgentCard).toHaveBeenCalledOnce();
       expect(streamMessage).toHaveBeenCalledTimes(2);
+    });
+
+    it("backs off persistent failures without blocking later sends", async () => {
+      let now = 1_000;
+      vi.spyOn(Date, "now").mockImplementation(() => now);
+      let rejectSecond!: (error: Error) => void;
+      const getAgentCard = vi
+        .fn()
+        .mockRejectedValueOnce(new Error("first failure"))
+        .mockImplementationOnce(
+          () =>
+            new Promise<A2AAgentCard>((_resolve, reject) => {
+              rejectSecond = reject;
+            }),
+        )
+        .mockRejectedValue(new Error("still unavailable"));
+      const streamMessage = vi.fn().mockImplementation(async function* () {
+        yield statusUpdateEvent("completed");
+      });
+      const core = createCore({ getAgentCard, streamMessage });
+
+      await core.append(createUserAppendMessage("First"));
+      now = 6_000;
+      await core.append(createUserAppendMessage("Second"));
+      expect(streamMessage).toHaveBeenCalledTimes(2);
+      rejectSecond(new Error("second failure"));
+      await vi.waitFor(() => expect(getAgentCard).toHaveBeenCalledTimes(2));
+
+      now = 15_999;
+      await core.append(createUserAppendMessage("Third"));
+      expect(getAgentCard).toHaveBeenCalledTimes(2);
+
+      now = 16_000;
+      await core.append(createUserAppendMessage("Fourth"));
+      expect(getAgentCard).toHaveBeenCalledTimes(3);
+      expect(streamMessage).toHaveBeenCalledTimes(4);
     });
 
     it("waits for agent capabilities before choosing the first send method", async () => {
