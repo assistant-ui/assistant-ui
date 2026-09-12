@@ -46,7 +46,7 @@
     "@types/babel__traverse": "^7.28.0",
     "@types/node": "^26.4.1",
     "@types/semver": "^7.8.0",
-    "vitest": "^4.1.11"
+    "vitest": "^5.0.0"
   },
   "publishConfig": {
     "access": "public",

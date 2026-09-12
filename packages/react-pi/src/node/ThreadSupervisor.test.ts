@@ -121,7 +121,6 @@ const subscribeToErrors = async (
 
 describe("PiThreadSupervisor", () => {
   beforeEach(() => {
-    vi.clearAllMocks();
     sdk.list.mockResolvedValue([SESSION]);
     sdk.listAll.mockResolvedValue([]);
     sdk.open.mockReturnValue(createReadonlySessionManager());

@@ -545,7 +545,7 @@ describe("useAssistantCloudThreadHistoryAdapter", () => {
         },
         timing: {
           streamStartTime: 100,
-          firstTokenTime: 155.6,
+          firstTokenTime: 55.6,
           totalChunks: 1,
           toolCallCount: 0,
         },
@@ -834,6 +834,103 @@ describe("useAssistantCloudThreadHistoryAdapter", () => {
 
     expect(cloud.runs.report).toHaveBeenCalledWith(
       expect.objectContaining({ status: "incomplete", outcome_type: "length" }),
+    );
+  });
+
+  it("reads the error and timing of an ai-sdk/v6 run from the thread message", () => {
+    mocks.aui = mocks.makeClient("thread-1");
+    const cloud = makeCloud();
+    const { result } = renderHook(() =>
+      useAssistantCloudThreadHistoryAdapter({ current: cloud }),
+    );
+    const formatted = result.current.withFormat({
+      format: "ai-sdk/v6",
+      encode: ({ message }) => message,
+      decode: ({ parent_id, content }) => ({
+        parentId: parent_id,
+        message: content as { id: string },
+      }),
+      getId: (message: { id: string }) => message.id,
+    });
+    const base = makeAssistantMessage("assistant-1");
+    const message: ThreadAssistantMessage = {
+      ...base,
+      status: {
+        type: "incomplete",
+        reason: "error",
+        error: Object.assign(new Error("model unavailable"), {
+          code: "model_unavailable",
+        }),
+      },
+      metadata: {
+        ...base.metadata,
+        timing: {
+          streamStartTime: 100,
+          firstTokenTime: 240,
+          totalChunks: 3,
+          toolCallCount: 0,
+        },
+      },
+    };
+
+    formatted.reportTelemetry(
+      [
+        {
+          parentId: null,
+          message: {
+            id: "message-1",
+            role: "assistant",
+            parts: [{ type: "text", text: "partial" }],
+          },
+        },
+      ],
+      { message },
+    );
+
+    expect(cloud.runs.report).toHaveBeenCalledWith(
+      expect.objectContaining({
+        status: "error",
+        error: "model unavailable",
+        error_code: "model_unavailable",
+        first_token_ms: 240,
+      }),
+    );
+  });
+
+  it("reports a run that failed before any assistant message was stored", () => {
+    mocks.aui = mocks.makeClient("thread-1");
+    const cloud = makeCloud();
+    const { result } = renderHook(() =>
+      useAssistantCloudThreadHistoryAdapter({ current: cloud }),
+    );
+    const formatted = result.current.withFormat({
+      format: "ai-sdk/v6",
+      encode: ({ message }) => message,
+      decode: ({ parent_id, content }) => ({
+        parentId: parent_id,
+        message: content as { id: string },
+      }),
+      getId: (message: { id: string }) => message.id,
+    });
+    const message: ThreadAssistantMessage = {
+      ...makeAssistantMessage("assistant-1"),
+      content: [],
+      status: {
+        type: "incomplete",
+        reason: "error",
+        error: { code: "AI_APICallError", message: "upstream failed" },
+      },
+    };
+
+    formatted.reportTelemetry([], { message, durationMs: 120 });
+
+    expect(cloud.runs.report).toHaveBeenCalledWith(
+      expect.objectContaining({
+        status: "error",
+        error: "upstream failed",
+        error_code: "AI_APICallError",
+        duration_ms: 120,
+      }),
     );
   });
 

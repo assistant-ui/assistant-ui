@@ -7,6 +7,7 @@ import type {
   MessageFormatRepository,
 } from "../../../adapters/thread-history";
 import type { ExportedMessageRepositoryItem } from "../../../runtime/utils/message-repository";
+import type { ThreadMessage } from "../../../types";
 import {
   type AssistantCloud,
   type AssistantCloudEvent,
@@ -227,6 +228,7 @@ class AssistantCloudThreadHistoryAdapter implements ThreadHistoryAdapter {
         options?: {
           durationMs?: number;
           stepTimestamps?: StepTimestamp[];
+          message?: ThreadMessage;
         },
       ) {
         const encodedRunMessages = items.map((item) =>
@@ -237,7 +239,12 @@ class AssistantCloudThreadHistoryAdapter implements ThreadHistoryAdapter {
           encodedRunMessages,
           options,
           resolvePinned(),
-          extractLastRunMessageInfo(items, formatAdapter),
+          mergeRunMessageInfo(
+            extractLastRunMessageInfo(items, formatAdapter),
+            options?.message
+              ? extractRunMessageInfo(options.message, "aui/v0")
+              : undefined,
+          ),
         );
       },
       async load(): Promise<MessageFormatRepository<TMessage>> {
@@ -328,7 +335,11 @@ class AssistantCloudThreadHistoryAdapter implements ThreadHistoryAdapter {
     const remoteId = item.getState().remoteId;
     if (!remoteId) return;
 
-    const extracted = extractRunTelemetry(format, runMessages);
+    const extracted =
+      extractRunTelemetry(format, runMessages) ??
+      (messageInfo?.status !== undefined
+        ? { status: "incomplete" as const }
+        : undefined);
     if (!extracted) return;
 
     this._sendReport(
@@ -443,6 +454,15 @@ function extractLastRunMessageInfo<
   return undefined;
 }
 
+function mergeRunMessageInfo(
+  stored: RunMessageInfo | undefined,
+  observed: RunMessageInfo | undefined,
+): RunMessageInfo | undefined {
+  if (!observed) return stored;
+  const { localMessageId: _observedId, ...outcome } = observed;
+  return { ...stored, ...outcome };
+}
+
 function extractRunMessageInfo(
   message: unknown,
   format: string,
@@ -454,14 +474,10 @@ function extractRunMessageInfo(
   const metadata = isRecord(message.metadata) ? message.metadata : undefined;
   const custom = isRecord(metadata?.custom) ? metadata.custom : undefined;
   const timing = isRecord(metadata?.timing) ? metadata.timing : undefined;
-  const streamStartTime = timing?.streamStartTime;
   const firstTokenTime = timing?.firstTokenTime;
   const firstTokenMs =
-    typeof streamStartTime === "number" &&
-    Number.isFinite(streamStartTime) &&
-    typeof firstTokenTime === "number" &&
-    Number.isFinite(firstTokenTime)
-      ? Math.round(firstTokenTime - streamStartTime)
+    typeof firstTokenTime === "number" && Number.isFinite(firstTokenTime)
+      ? Math.round(firstTokenTime)
       : undefined;
   const finishReason =
     status?.type === "incomplete"

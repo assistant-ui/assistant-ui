@@ -59,7 +59,6 @@ const boot = () => import("./instrumentation-client");
 
 beforeEach(() => {
   vi.resetModules();
-  vi.clearAllMocks();
   mocks.has_opted_out_capturing.mockReturnValue(false);
 });
 

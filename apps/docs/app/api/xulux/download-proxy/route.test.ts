@@ -44,7 +44,6 @@ const request = () =>
 
 afterEach(() => {
   vi.useRealTimers();
-  vi.clearAllMocks();
 });
 
 describe("GET /api/xulux/download-proxy access boundary", () => {

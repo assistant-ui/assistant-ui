@@ -121,7 +121,6 @@ afterEach(() => {
   mocks.controller.sendMessage.mockReset().mockResolvedValue(undefined);
   mocks.controller.replyToPermission.mockReset().mockResolvedValue(undefined);
   vi.restoreAllMocks();
-  vi.clearAllMocks();
 });
 
 describe("useOpenCodeRuntime", () => {

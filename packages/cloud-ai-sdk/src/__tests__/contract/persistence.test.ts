@@ -38,7 +38,6 @@ function createCore() {
 
 describe("Contract: Persistence", () => {
   beforeEach(() => {
-    vi.clearAllMocks();
     persistMock.mockResolvedValue(undefined);
     loadMessagesMock.mockResolvedValue([]);
   });

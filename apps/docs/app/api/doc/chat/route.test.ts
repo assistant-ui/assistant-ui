@@ -1,4 +1,4 @@
-import { afterEach, describe, expect, it, vi } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 
 const mocks = vi.hoisted(() => ({
   requireSession: vi.fn(),
@@ -40,10 +40,6 @@ vi.mock("@/lib/source", () => {
 
 import type { UIMessageChunk } from "ai";
 import { POST, withReadDocSources } from "./route";
-
-afterEach(() => {
-  vi.clearAllMocks();
-});
 
 describe("POST /api/doc/chat access boundary", () => {
   it("rejects a direct request before rate limiting or model selection", async () => {

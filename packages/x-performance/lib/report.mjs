@@ -12,6 +12,16 @@ export const shortId = (id) =>
     .split(" > ")
     .join(" › ");
 
+export const baseLabel = (ref, sha) => {
+  const a = ref.toLowerCase();
+  const b = sha.toLowerCase();
+  return /^[0-9a-f]{7,40}$/.test(a) && (a.startsWith(b) || b.startsWith(a))
+    ? `base (${sha})`
+    : `${ref} (${sha})`;
+};
+
+const rowsWord = (count) => (count === 1 ? "row" : "rows");
+
 const pct = (value) =>
   `${value >= 0 ? "+" : "-"}${Math.abs(value).toFixed(1)}%`;
 const floor = (value) => `${value.toFixed(1)}%`;
@@ -124,9 +134,14 @@ const controlsText = (s) =>
 
 const compareHeadline = (doc) => {
   const s = doc.summary;
-  const tally = `${s.slower} slower · ${s.faster} faster · ${s.same} ~same`;
+  const moved = s.slower + s.faster;
+  const tally = `${s.slower} slower · ${s.faster} faster`;
   if (doc.changed === null)
-    return [`- **${doc.rows.length} benches** · ${tally}`];
+    return [
+      moved
+        ? `- **${tally}** among ${doc.rows.length} benches · ${s.same} within noise`
+        : `- **No bench moved.** ${doc.rows.length} benches, all within noise`,
+    ];
   if (!s.measured) {
     return [
       doc.changed.length
@@ -134,8 +149,11 @@ const compareHeadline = (doc) => {
         : `- **Nothing to measure.** Every measured package dist is byte-identical between ${doc.base.label} and ${doc.head.label}, so all ${doc.rows.length} rows ran as controls · ${controlsText(s)}`,
     ];
   }
+  const changed = doc.changed.map(code).join(", ");
   return [
-    `- **Measured:** ${s.measured} benches exercise a changed dist (${doc.changed.map(code).join(", ")}) · ${tally}`,
+    moved
+      ? `- **${tally}** among ${s.measured} benches that exercise a changed dist (${changed}) · ${s.same} within noise`
+      : `- **No measured bench moved.** ${s.measured} benches exercise a changed dist (${changed}), all within noise`,
     s.controls
       ? `- **Controls:** ${s.controls} benches on unchanged dists · ${controlsText(s)}`
       : "- **Controls:** none, every bench exercises a changed dist, so verdicts rest on the analytic floors alone",
@@ -147,22 +165,40 @@ const ruleText = (s) =>
     ? `verdicts this run need |Δ| > ${s.scale.toFixed(1)}× floor, the worst control overshoot`
     : "verdicts need |Δ| > floor";
 
-const splitRows = (doc) => ({
-  measured: doc.rows.filter((row) => row.verdict !== null),
-  controls: doc.rows.filter((row) => row.verdict === null),
-});
+const splitRows = (doc) => {
+  const measured = doc.rows.filter((row) => row.verdict !== null);
+  const closeness = (row) => Math.abs(row.delta) / row.floor;
+  return {
+    moved: measured.filter((row) => row.verdict !== "~same"),
+    same: measured
+      .filter((row) => row.verdict === "~same")
+      .sort((x, y) => closeness(y) - closeness(x)),
+    controls: doc.rows.filter((row) => row.verdict === null),
+  };
+};
+
+const floorHeader = (scale) =>
+  scale > 1 ? `floor ×${scale.toFixed(1)}` : "floor";
 
 export const renderCompareMarkdown = (
   doc,
-  { controlLimit = Infinity, measuredLimit = Infinity } = {},
+  { controlLimit = Infinity, sameLimit = Infinity, movedLimit = Infinity } = {},
 ) => {
-  const { measured: allMeasured, controls: allControls } = splitRows(doc);
-  const measured = allMeasured.slice(0, measuredLimit);
-  const measuredOmitted = allMeasured.length - measured.length;
+  const {
+    moved: allMoved,
+    same: allSame,
+    controls: allControls,
+  } = splitRows(doc);
+  const moved = allMoved.slice(0, movedLimit);
+  const movedOmitted = allMoved.length - moved.length;
+  const same = allSame.slice(0, sameLimit);
+  const sameOmitted = allSame.length - same.length;
   const controls = [...allControls]
     .sort((x, y) => Math.abs(y.delta) - Math.abs(x.delta))
     .slice(0, controlLimit);
   const omitted = allControls.length - controls.length;
+  const scale = doc.summary.scale;
+  const threshold = (row) => floor(row.floor * scale);
   const out = [
     `### aui-perf: ${doc.head.label} vs ${doc.base.label}`,
     "",
@@ -171,36 +207,54 @@ export const renderCompareMarkdown = (
   ];
   for (const warning of doc.warnings) out.push(`> ⚠️ ${warning}`, "");
   out.push(...compareHeadline(doc));
-  if (measured.length) {
-    if (measuredOmitted)
-      out.push(
-        "",
-        `_${measuredOmitted} smaller measured moves omitted from this table._`,
-      );
+  if (moved.length) {
+    if (movedOmitted)
+      out.push("", `_${movedOmitted} smaller moves omitted from this table._`);
     out.push(
       "",
       mdTable(
-        ["bench", doc.base.label, doc.head.label, "Δ", "floor", "verdict"],
+        ["bench", "base", "head", "Δ", floorHeader(scale), "verdict"],
         ["---", "---:", "---:", "---:", "---:", "---"],
-        measured.map((row) => [
+        moved.map((row) => [
           row.bench,
           fmt(row.base),
           fmt(row.head),
-          row.verdict === "~same" ? pct(row.delta) : `**${pct(row.delta)}**`,
-          floor(row.floor),
-          row.verdict === "~same" ? row.verdict : `**${row.verdict}**`,
+          `**${pct(row.delta)}**`,
+          threshold(row),
+          `**${row.verdict}**`,
         ]),
       ),
+    );
+  }
+  if (same.length) {
+    out.push(
+      "",
+      "<details>",
+      `<summary>${allSame.length} measured ${rowsWord(allSame.length)} within noise, closest to the floor first${sameOmitted ? `, the ${same.length} closest shown` : ""}</summary>`,
+      "",
+      mdTable(
+        ["bench", "base", "head", "Δ", floorHeader(scale)],
+        ["---", "---:", "---:", "---:", "---:"],
+        same.map((row) => [
+          row.bench,
+          fmt(row.base),
+          fmt(row.head),
+          pct(row.delta),
+          threshold(row),
+        ]),
+      ),
+      "",
+      "</details>",
     );
   }
   if (controls.length) {
     out.push(
       "",
       "<details>",
-      `<summary>${allControls.length} control rows (unchanged dists, so every delta here is runner noise)${omitted ? `, the ${controls.length} largest moves shown` : ""}</summary>`,
+      `<summary>${allControls.length} control ${rowsWord(allControls.length)} (unchanged dists, so every delta here is runner noise)${omitted ? `, the ${controls.length} largest moves shown` : ""}</summary>`,
       "",
       mdTable(
-        ["bench", doc.base.label, doc.head.label, "Δ", "floor"],
+        ["bench", "base", "head", "Δ", "floor"],
         ["---", "---:", "---:", "---:", "---:"],
         controls.map((row) => [
           row.bench,
@@ -221,22 +275,31 @@ export const renderCompareMarkdown = (
 };
 
 export const renderCompareTerminal = (doc) => {
-  const { measured, controls } = splitRows(doc);
+  const { moved, same, controls } = splitRows(doc);
+  const scale = doc.summary.scale;
   for (const warning of doc.warnings) console.warn(`warning: ${warning}\n`);
   const table = (list, withVerdict) =>
     console.table(
       list.map((row) => ({
         bench: row.bench,
-        [doc.base.label]: fmt(row.base),
-        [doc.head.label]: fmt(row.head),
+        base: fmt(row.base),
+        head: fmt(row.head),
         delta: pct(row.delta),
-        floor: floor(row.floor),
+        [withVerdict ? floorHeader(scale) : "floor"]: floor(
+          withVerdict ? row.floor * scale : row.floor,
+        ),
         ...(withVerdict
           ? { verdict: row.verdict }
           : { noise: Math.abs(row.delta) > row.floor ? "past floor" : "" }),
       })),
     );
-  if (measured.length) table(measured, true);
+  if (moved.length) table(moved, true);
+  if (same.length) {
+    console.log(
+      `within noise (${same.length} measured rows, closest to the floor first):`,
+    );
+    table(same, true);
+  }
   if (controls.length) {
     console.log(
       `controls (${controls.length} benches on unchanged dists; deltas are runner noise):`,
@@ -366,7 +429,8 @@ export const assembleReport = ({ out, bench, trace }) => {
     if (docs.bench)
       sections[0] = renderCompareMarkdown(docs.bench, {
         controlLimit: 20,
-        measuredLimit: 40,
+        sameLimit: 40,
+        movedLimit: 40,
       });
     if (docs.trace)
       sections[sections.length - 1] = renderTraceMarkdown({

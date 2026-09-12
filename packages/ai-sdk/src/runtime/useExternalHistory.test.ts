@@ -780,6 +780,35 @@ describe("useExternalHistory persistence", () => {
       ],
       expect.any(Object),
     );
+    expect(reportTelemetry.mock.calls[0]![1]).toMatchObject({
+      message: expect.objectContaining({
+        id: "assistant-a",
+        status: { type: "complete", reason: "stop" },
+      }),
+    });
+  });
+
+  it("reports a run that failed before any assistant message", async () => {
+    const { append, reportTelemetry, runCycle, flush } =
+      createPersistenceHarness(true);
+    const failed = createAssistantMessage(
+      {
+        type: "incomplete",
+        reason: "error",
+        error: { code: "AI_APICallError", message: "upstream failed" },
+      },
+      [],
+    );
+
+    await runCycle([failed]);
+    await flush();
+
+    expect(append).not.toHaveBeenCalled();
+    expect(reportTelemetry).toHaveBeenCalledTimes(1);
+    expect(reportTelemetry).toHaveBeenCalledWith(
+      [],
+      expect.objectContaining({ message: failed }),
+    );
   });
 
   it("restores deferred telemetry for reloaded paused messages", async () => {

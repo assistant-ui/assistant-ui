@@ -18,14 +18,9 @@ export type MessageFormatAdapter<TMessage, TStorageFormat> = {
 };
 
 /**
- * Wraps a CloudMessagePersistence instance with format-aware encode/decode.
- *
- * This centralizes the pattern used by both:
- * - useCloudChat (standalone AI SDK hook)
- * - AssistantCloudThreadHistoryAdapter.withFormat() (assistant-ui runtime)
- *
- * The persistence parameter is typed structurally (not by class) so callers
- * don't need to import CloudMessagePersistence directly.
+ * Wraps a CloudMessagePersistence with a MessageFormatAdapter's encode and
+ * decode. The persistence parameter is typed structurally, so a caller does
+ * not need to import the class.
  */
 export const createFormattedPersistence = <TMessage, TStorageFormat>(
   persistence: {
