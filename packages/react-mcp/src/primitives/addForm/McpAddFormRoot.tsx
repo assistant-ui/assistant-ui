@@ -4,12 +4,17 @@ import {
   type FormEventHandler,
   forwardRef,
   useCallback,
+  useId,
   useMemo,
   useState,
 } from "react";
 import { Primitive } from "@radix-ui/react-primitive";
 import { useAui } from "@assistant-ui/store";
-import { AddFormContext, type AddFormState } from "./context";
+import {
+  AddFormContext,
+  type AddFormFieldIds,
+  type AddFormState,
+} from "./context";
 import type { MCPAuthConfig } from "../../mcp-scope";
 import { invokeMcpCallback } from "../../utils/invokeMcpCallback";
 
@@ -21,6 +26,7 @@ const INITIAL: AddFormState = {
   scopes: "",
   submitting: false,
   error: null,
+  errorField: null,
 };
 
 function validateUrl(raw: string): { url: string } | { error: string } {
@@ -54,11 +60,33 @@ export const McpAddFormPrimitiveRoot = forwardRef<
   McpAddFormPrimitiveRoot.Props
 >(({ onSubmitted, onCancel, ...props }, ref) => {
   const aui = useAui();
+  const formId = useId();
   const [state, setState] = useState<AddFormState>(INITIAL);
+  const ids = useMemo<AddFormFieldIds>(
+    () => ({
+      name: `${formId}-name`,
+      url: `${formId}-url`,
+      auth: `${formId}-auth`,
+      bearerToken: `${formId}-bearer-token`,
+      scopes: `${formId}-oauth-scopes`,
+      error: `${formId}-error`,
+    }),
+    [formId],
+  );
 
   const setField = useCallback(
     <K extends keyof AddFormState>(key: K, value: AddFormState[K]) => {
-      setState((prev) => ({ ...prev, [key]: value }));
+      setState((prev) => {
+        const clearsError =
+          prev.errorField === "form" ||
+          prev.errorField === key ||
+          (key === "authType" && prev.errorField === "bearerToken");
+        return {
+          ...prev,
+          [key]: value,
+          ...(clearsError ? { error: null, errorField: null } : {}),
+        };
+      });
     },
     [],
   );
@@ -87,19 +115,36 @@ export const McpAddFormPrimitiveRoot = forwardRef<
   const submit = useCallback(async () => {
     if (state.submitting) return;
     if (!state.name.trim()) {
-      setState((p) => ({ ...p, error: "Name is required" }));
+      setState((p) => ({
+        ...p,
+        error: "Name is required",
+        errorField: "name",
+      }));
       return;
     }
     if (state.authType === "bearer" && !state.bearerToken.trim()) {
-      setState((p) => ({ ...p, error: "Bearer token is required" }));
+      setState((p) => ({
+        ...p,
+        error: "Bearer token is required",
+        errorField: "bearerToken",
+      }));
       return;
     }
     const urlResult = validateUrl(state.url);
     if ("error" in urlResult) {
-      setState((p) => ({ ...p, error: urlResult.error }));
+      setState((p) => ({
+        ...p,
+        error: urlResult.error,
+        errorField: "url",
+      }));
       return;
     }
-    setState((p) => ({ ...p, submitting: true, error: null }));
+    setState((p) => ({
+      ...p,
+      submitting: true,
+      error: null,
+      errorField: null,
+    }));
     try {
       const id = await aui.mcp.addCustomServer({
         name: state.name.trim(),
@@ -113,6 +158,7 @@ export const McpAddFormPrimitiveRoot = forwardRef<
         ...p,
         submitting: false,
         error: err instanceof Error ? err.message : String(err),
+        errorField: "form",
       }));
     }
   }, [aui, buildAuth, onSubmitted, state]);
@@ -123,8 +169,8 @@ export const McpAddFormPrimitiveRoot = forwardRef<
   }, [onCancel]);
 
   const value = useMemo(
-    () => ({ state, setField, reset, submit, cancel }),
-    [state, setField, reset, submit, cancel],
+    () => ({ state, ids, setField, reset, submit, cancel }),
+    [state, ids, setField, reset, submit, cancel],
   );
 
   const onFormSubmit: FormEventHandler<HTMLFormElement> = (e) => {

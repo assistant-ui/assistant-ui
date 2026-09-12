@@ -178,9 +178,9 @@ The iteration primitives wrap each item in an `McpServerByIdProvider`, so the ne
 
 ```tsx
 <McpAddFormPrimitive.Root onSubmitted={() => closeDialog()}>
-  <McpAddFormPrimitive.NameField />
-  <McpAddFormPrimitive.UrlField />
-  <McpAddFormPrimitive.AuthSelect /> {/* none | bearer | oauth */}
+  <label>Name <McpAddFormPrimitive.NameField /></label>
+  <label>URL <McpAddFormPrimitive.UrlField /></label>
+  <label>Auth <McpAddFormPrimitive.AuthSelect /></label> {/* none | bearer | oauth */}
   <McpAddFormPrimitive.AuthFields /> {/* token or scope input depending on selection */}
   <McpAddFormPrimitive.Error />
   <McpAddFormPrimitive.Submit>Add</McpAddFormPrimitive.Submit>

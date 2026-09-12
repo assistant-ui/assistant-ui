@@ -21,6 +21,8 @@ vi.mock("@assistant-ui/store", async (importOriginal) => ({
 }));
 
 import { McpAddFormPrimitiveError } from "./McpAddFormError";
+import { McpAddFormPrimitiveAuthFields } from "./McpAddFormAuthFields";
+import { McpAddFormPrimitiveAuthSelect } from "./McpAddFormAuthSelect";
 import { McpAddFormPrimitiveNameField } from "./McpAddFormNameField";
 import { McpAddFormPrimitiveRoot } from "./McpAddFormRoot";
 import { McpAddFormPrimitiveSubmit } from "./McpAddFormSubmit";
@@ -77,4 +79,58 @@ describe("McpAddFormPrimitiveRoot", () => {
       });
     },
   );
+
+  it("provides accessible names and connects validation errors", () => {
+    render(
+      <McpAddFormPrimitiveRoot>
+        <label>
+          Name
+          <McpAddFormPrimitiveNameField />
+        </label>
+        <label>
+          URL
+          <McpAddFormPrimitiveUrlField />
+        </label>
+        <label>
+          Auth
+          <McpAddFormPrimitiveAuthSelect />
+        </label>
+        <McpAddFormPrimitiveAuthFields />
+        <McpAddFormPrimitiveError />
+        <McpAddFormPrimitiveSubmit>Submit</McpAddFormPrimitiveSubmit>
+      </McpAddFormPrimitiveRoot>,
+    );
+
+    const name = screen.getByRole("textbox", { name: "Name" });
+    const url = screen.getByRole("textbox", { name: "URL" });
+    const auth = screen.getByRole("combobox", { name: "Auth" });
+    expect(screen.getByRole("textbox", { name: "OAuth scopes" })).toBeTruthy();
+
+    fireEvent.click(screen.getByRole("button", { name: "Submit" }));
+
+    const nameError = screen.getByRole("alert");
+    expect(nameError.textContent).toBe("Name is required");
+    expect(name.getAttribute("aria-invalid")).toBe("true");
+    expect(name.getAttribute("aria-describedby")).toBe(nameError.id);
+
+    fireEvent.change(name, { target: { value: "Docs" } });
+    fireEvent.change(auth, { target: { value: "bearer" } });
+    const bearerToken = screen.getByLabelText("Bearer token");
+    expect(url.getAttribute("aria-invalid")).toBeNull();
+
+    fireEvent.click(screen.getByRole("button", { name: "Submit" }));
+
+    const bearerError = screen.getByRole("alert");
+    expect(bearerError.textContent).toBe("Bearer token is required");
+    expect(bearerToken.getAttribute("aria-invalid")).toBe("true");
+    expect(bearerToken.getAttribute("aria-describedby")).toBe(bearerError.id);
+
+    fireEvent.change(auth, { target: { value: "none" } });
+    fireEvent.click(screen.getByRole("button", { name: "Submit" }));
+
+    const urlError = screen.getByRole("alert");
+    expect(urlError.textContent).toBe("URL is required");
+    expect(url.getAttribute("aria-invalid")).toBe("true");
+    expect(url.getAttribute("aria-describedby")).toBe(urlError.id);
+  });
 });

@@ -3,6 +3,17 @@ import type { MCPAuthConfig } from "../../mcp-scope";
 
 export type AddFormAuthType = MCPAuthConfig["type"];
 
+export type AddFormErrorField = "name" | "url" | "bearerToken" | "form" | null;
+
+export type AddFormFieldIds = {
+  name: string;
+  url: string;
+  auth: string;
+  bearerToken: string;
+  scopes: string;
+  error: string;
+};
+
 export type AddFormState = {
   name: string;
   url: string;
@@ -11,10 +22,12 @@ export type AddFormState = {
   scopes: string;
   submitting: boolean;
   error: string | null;
+  errorField: AddFormErrorField;
 };
 
 export type AddFormContextValue = {
   state: AddFormState;
+  ids: AddFormFieldIds;
   setField: <K extends keyof AddFormState>(
     key: K,
     value: AddFormState[K],

@@ -18,13 +18,25 @@ export const McpAddFormPrimitiveUrlField = forwardRef<
   McpAddFormPrimitiveUrlField.Element,
   McpAddFormPrimitiveUrlField.Props
 >((props, ref) => {
-  const { state, setField } = useAddForm();
+  const { state, ids, setField } = useAddForm();
   return (
     <Primitive.input
       type="url"
       inputMode="url"
       placeholder="https://example.com/mcp"
       {...props}
+      id={props.id ?? ids.url}
+      aria-invalid={
+        props["aria-invalid"] ?? (state.errorField === "url" ? true : undefined)
+      }
+      aria-describedby={
+        [
+          props["aria-describedby"],
+          state.errorField === "url" ? ids.error : null,
+        ]
+          .filter(Boolean)
+          .join(" ") || undefined
+      }
       ref={ref}
       value={state.url}
       onChange={(e) => setField("url", e.target.value)}
