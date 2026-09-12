@@ -75,9 +75,6 @@ const MCP_CONFIGS: Record<
       if (process.platform === "win32") {
         return path.join(process.env.APPDATA || "", "Zed", "settings.json");
       }
-      if (process.platform === "darwin") {
-        return path.join(os.homedir(), ".zed", "settings.json");
-      }
       return path.join(os.homedir(), ".config", "zed", "settings.json");
     },
     config: {
