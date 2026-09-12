@@ -415,7 +415,7 @@ function mergeStepTimestamps(
 
 type RunMessageInfo = {
   localMessageId?: string;
-  status?: "error";
+  status?: "completed" | "incomplete" | "error";
   outcomeType?: RunReportOutcome;
   error?: string;
   errorCode?: string;
@@ -465,16 +465,23 @@ function extractRunMessageInfo(
       : undefined;
   const finishReason =
     status?.type === "incomplete"
-      ? status.reason
+      ? typeof status.reason === "string"
+        ? status.reason
+        : undefined
       : typeof metadata?.finishReason === "string"
         ? metadata.finishReason
         : undefined;
   const failed = status?.type === "incomplete" && status.reason === "error";
-  const outcome = deriveRunOutcome({
-    finishReason: typeof finishReason === "string" ? finishReason : undefined,
-    isError: failed,
-  });
+  const outcome = deriveRunOutcome({ finishReason, isError: failed });
   const outcomeType = outcome.outcome;
+  const runStatus =
+    outcome.status === "error"
+      ? "error"
+      : status?.type === "incomplete"
+        ? "incomplete"
+        : finishReason !== undefined
+          ? outcome.status
+          : undefined;
   const failure = failed ? describeRunError(status.error) : {};
   const messageId =
     localMessageId ?? (typeof message.id === "string" ? message.id : undefined);
@@ -493,7 +500,7 @@ function extractRunMessageInfo(
 
   return {
     ...(messageId ? { localMessageId: messageId } : undefined),
-    ...(outcome.status === "error" ? { status: "error" as const } : undefined),
+    ...(runStatus !== undefined ? { status: runStatus } : undefined),
     ...(outcomeType ? { outcomeType } : undefined),
     ...failure,
     ...(firstTokenMs != null && firstTokenMs >= 0

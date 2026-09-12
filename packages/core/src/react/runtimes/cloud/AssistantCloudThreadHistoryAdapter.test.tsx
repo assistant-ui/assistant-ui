@@ -771,6 +771,39 @@ describe("useAssistantCloudThreadHistoryAdapter", () => {
     );
   });
 
+  it("reads the status of an ai-sdk/v6 run from its finish reason", () => {
+    mocks.aui = mocks.makeClient("thread-1");
+    const cloud = makeCloud();
+    const { result } = renderHook(() =>
+      useAssistantCloudThreadHistoryAdapter({ current: cloud }),
+    );
+    const formatted = result.current.withFormat({
+      format: "ai-sdk/v6",
+      encode: ({ message }) => message,
+      decode: ({ parent_id, content }) => ({
+        parentId: parent_id,
+        message: content as { id: string },
+      }),
+      getId: (message: { id: string }) => message.id,
+    });
+
+    formatted.reportTelemetry([
+      {
+        parentId: null,
+        message: {
+          id: "message-1",
+          role: "assistant",
+          parts: [{ type: "text", text: "cut" }],
+          metadata: { finishReason: "length" },
+        },
+      },
+    ]);
+
+    expect(cloud.runs.report).toHaveBeenCalledWith(
+      expect.objectContaining({ status: "incomplete", outcome_type: "length" }),
+    );
+  });
+
   it("reports the model ID carried by aui/v0 step metadata", () => {
     mocks.aui = mocks.makeClient("thread-1");
     const cloud = makeCloud();
