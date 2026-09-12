@@ -6204,6 +6204,7 @@ declare const makeAssistantToolUI: <TArgs, TResult>(tool: AssistantToolUIProps<T
 declare const makeAssistantVisible: <T extends ComponentType<any>>(Component: T, config?: {
   clickable?: boolean | undefined;
   editable?: boolean | undefined;
+  settleDelayMs?: number | undefined;
 }) => T;
 
 declare const mergeModelContexts: (configSet: Set<ModelContextProvider>) => ModelContext$1;
