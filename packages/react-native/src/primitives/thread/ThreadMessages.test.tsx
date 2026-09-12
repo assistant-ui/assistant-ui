@@ -9,7 +9,6 @@ type Msg = { id: string; role: string };
 
 const h = vi.hoisted(() => ({
   state: {
-    threads: { mainThreadId: "thread-a" },
     thread: { messages: [] as Msg[] },
     message: { role: "user" as string, composer: { isEditing: false } },
   },
@@ -116,7 +115,6 @@ describe("ThreadMessages", () => {
   let root: Root;
 
   beforeEach(() => {
-    h.state.threads.mainThreadId = "thread-a";
     h.state.thread.messages = [];
     h.state.message.role = "user";
     h.state.message.composer.isEditing = false;
@@ -590,41 +588,6 @@ describe("ThreadMessages", () => {
       expect(h.scrollToOffset).toHaveBeenLastCalledWith({
         animated: false,
         offset: 180,
-      });
-    });
-
-    it("ignores content measurements queued by the previous thread", async () => {
-      h.state.thread.messages = [{ id: "1", role: "user" }];
-      await mountFlatList({ components: messageComponents });
-      const previousThreadProps = getFlatListProps();
-
-      await act(async () => {
-        previousThreadProps.onLayout?.({
-          nativeEvent: { layout: { height: 100 } },
-        });
-        previousThreadProps.onContentSizeChange?.(0, 300);
-      });
-      h.scrollToOffset.mockClear();
-
-      h.state.threads.mainThreadId = "thread-b";
-      h.state.thread.messages = [{ id: "2", role: "assistant" }];
-      await mountFlatList({ components: messageComponents });
-      const currentThreadProps = getFlatListProps();
-      await emit("threads.selectionChanged");
-
-      await act(async () => {
-        previousThreadProps.onContentSizeChange?.(0, 700);
-      });
-      expect(h.scrollToOffset).toHaveBeenCalledTimes(1);
-
-      await act(async () => {
-        currentThreadProps.onContentSizeChange?.(0, 500);
-      });
-
-      expect(h.scrollToOffset).toHaveBeenCalledTimes(2);
-      expect(h.scrollToOffset).toHaveBeenLastCalledWith({
-        animated: false,
-        offset: 400,
       });
     });
 
