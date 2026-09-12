@@ -30,8 +30,12 @@ export const McpAddFormPrimitiveNameField = forwardRef<
         (state.errorField === "name" ? true : undefined)
       }
       aria-describedby={
-        props["aria-describedby"] ??
-        (state.errorField === "name" ? ids.error : undefined)
+        [
+          props["aria-describedby"],
+          state.errorField === "name" ? ids.error : null,
+        ]
+          .filter(Boolean)
+          .join(" ") || undefined
       }
       ref={ref}
       value={state.name}

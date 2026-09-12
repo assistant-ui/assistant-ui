@@ -24,11 +24,15 @@ export const McpAddFormPrimitiveAuthFields: FC<
   if (state.authType === "bearer") {
     return (
       <div>
-        <label htmlFor={ids.bearerToken}>Bearer token</label>
+        <label
+          htmlFor={ids.bearerToken}
+          data-mcp-auth-field-label="bearer-token"
+        >
+          Bearer token
+        </label>
         <input
           id={ids.bearerToken}
           type="password"
-          placeholder="Bearer token"
           value={state.bearerToken}
           onChange={(e) => setField("bearerToken", e.target.value)}
           aria-invalid={state.errorField === "bearerToken" ? true : undefined}
@@ -44,7 +48,9 @@ export const McpAddFormPrimitiveAuthFields: FC<
   if (state.authType === "oauth") {
     return (
       <div>
-        <label htmlFor={ids.scopes}>OAuth scopes</label>
+        <label htmlFor={ids.scopes} data-mcp-auth-field-label="oauth-scopes">
+          OAuth scopes
+        </label>
         <input
           id={ids.scopes}
           type="text"

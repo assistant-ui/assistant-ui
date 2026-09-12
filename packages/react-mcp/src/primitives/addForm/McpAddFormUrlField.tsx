@@ -30,8 +30,12 @@ export const McpAddFormPrimitiveUrlField = forwardRef<
         props["aria-invalid"] ?? (state.errorField === "url" ? true : undefined)
       }
       aria-describedby={
-        props["aria-describedby"] ??
-        (state.errorField === "url" ? ids.error : undefined)
+        [
+          props["aria-describedby"],
+          state.errorField === "url" ? ids.error : null,
+        ]
+          .filter(Boolean)
+          .join(" ") || undefined
       }
       ref={ref}
       value={state.url}

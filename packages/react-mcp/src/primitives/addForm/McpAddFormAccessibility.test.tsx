@@ -149,19 +149,54 @@ describe("MCP add form accessibility", () => {
     ).toBe(secondError.id);
   });
 
-  it("preserves caller IDs and ARIA overrides", () => {
+  it("preserves caller IDs and ARIA overrides while associating errors", () => {
     render(
-      <Root>
+      <Root aria-label="Add server">
         <NameField
           id="server-name"
           aria-label="Server name"
           aria-describedby="hint"
+          aria-invalid={false}
         />
+        <p id="hint">Use a recognizable name.</p>
         <ErrorMessage />
       </Root>,
     );
     const field = screen.getByRole("textbox", { name: "Server name" });
     expect(field.id).toBe("server-name");
     expect(field.getAttribute("aria-describedby")).toBe("hint");
+    fireEvent.submit(screen.getByRole("form"));
+    expect(field.getAttribute("aria-invalid")).toBe("false");
+    expect(field.getAttribute("aria-describedby")).toBe(
+      `hint ${screen.getByRole("alert").id}`,
+    );
+    fireEvent.change(field, { target: { value: "Docs" } });
+    expect(screen.queryByRole("alert")).toBeNull();
+    expect(field.getAttribute("aria-describedby")).toBe("hint");
+  });
+
+  it("keeps URL help text associated when validation errors appear and clear", () => {
+    render(
+      <Root aria-label="Add server">
+        <NameField aria-label="Name" />
+        <UrlField aria-label="URL" aria-describedby="url-hint url-format" />
+        <p id="url-hint">Use the server endpoint.</p>
+        <p id="url-format">An HTTP or HTTPS URL is required.</p>
+        <ErrorMessage />
+      </Root>,
+    );
+    fireEvent.change(screen.getByRole("textbox", { name: "Name" }), {
+      target: { value: "Docs" },
+    });
+    const field = screen.getByRole("textbox", { name: "URL" });
+    fireEvent.submit(screen.getByRole("form"));
+    expect(field.getAttribute("aria-invalid")).toBe("true");
+    expect(field.getAttribute("aria-describedby")).toBe(
+      `url-hint url-format ${screen.getByRole("alert").id}`,
+    );
+    fireEvent.change(field, { target: { value: "https://example.com/mcp" } });
+    expect(screen.queryByRole("alert")).toBeNull();
+    expect(field.hasAttribute("aria-invalid")).toBe(false);
+    expect(field.getAttribute("aria-describedby")).toBe("url-hint url-format");
   });
 });
