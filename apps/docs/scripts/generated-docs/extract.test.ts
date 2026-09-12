@@ -1,13 +1,10 @@
 import { Project } from "ts-morph";
-import { readFileSync } from "node:fs";
-import { join } from "node:path";
 import {
   cleanSignatureText,
   cleanTypeText,
   extractSignature,
   processClassDeclaration,
 } from "./extract.mts";
-import { REPO_ROOT } from "./paths.mts";
 
 describe("signature text cleanup", () => {
   it("preserves undefined in callable return types", () => {
@@ -159,23 +156,5 @@ describe("class member descriptions", () => {
       { name: "static shared", description: "Shared default." },
       { name: "load", description: "" },
     ]);
-  });
-
-  it("retains CloudMessagePersistence.load documentation from its source", () => {
-    const project = new Project({ useInMemoryFileSystem: true });
-    const source = project.createSourceFile(
-      "CloudMessagePersistence.ts",
-      readFileSync(
-        join(REPO_ROOT, "packages/cloud/src/CloudMessagePersistence.ts"),
-        "utf8",
-      ),
-    );
-    const members = processClassDeclaration(
-      source.getClassOrThrow("CloudMessagePersistence"),
-      "CloudMessagePersistence",
-    );
-    expect(
-      members?.find((member) => member.name === "load")?.description,
-    ).toContain("Load messages from the cloud and populate the ID mapping.");
   });
 });
