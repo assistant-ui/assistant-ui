@@ -204,7 +204,7 @@ describe("useAssistantCloudThreadHistoryAdapter", () => {
     });
     listeners.get("message.error")!({
       threadId: "thread-1",
-      messageId: "local-message-1",
+      messageId: "local-message-2",
       reason: "error",
     });
     threadState.isEmpty = true;

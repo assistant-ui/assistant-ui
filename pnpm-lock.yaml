@@ -3890,6 +3890,9 @@ importers:
       ai:
         specifier: ^7.0.93
         version: 7.0.93(zod@4.5.4)
+      ai-v6:
+        specifier: npm:ai@^6.0.277
+        version: ai@6.0.277(zod@4.5.4)
       jsdom:
         specifier: ^30.0.1
         version: 30.0.1

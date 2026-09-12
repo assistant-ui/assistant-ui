@@ -124,4 +124,17 @@ describe("CloudEngagementReporter", () => {
       thread_id: "remote",
     });
   });
+
+  it("keeps the state of the most recently touched threads only", async () => {
+    const { cloud, track } = createCloud();
+    const reporter = new CloudEngagementReporter(cloud);
+    for (let index = 0; index < 300; index++) {
+      reporter.suggestionsShown(`t${index}`, 1);
+    }
+    reporter.suggestionsShown("t0", 1);
+    reporter.suggestionsShown("t299", 1);
+    await flush();
+
+    expect(track).toHaveBeenCalledTimes(301);
+  });
 });

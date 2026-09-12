@@ -35,9 +35,9 @@ export function Provider({ children }: { children: React.ReactNode }) {
 
 The pieces every client integration needs live in the package, so a runtime binding only maps its own events onto them.
 
-- `CloudRunReporter` sends run reports: nothing while telemetry is off, the cloud's environment, release and tags on every report, the `beforeReport` hook applied last, and a failed send that never surfaces. A report given a key is sent once per key.
+- `CloudRunReporter` sends run reports: nothing while telemetry is off, the cloud's environment, release and tags on every report, the `beforeReport` hook applied last, and a failed send that never surfaces. A report given a key is sent once per key, so the key has to name one run; without a key every call reports.
 - `CloudEngagementReporter` derives engagement events (`message_sent`, `run_stopped`, `error_shown`, `suggestions_shown` and the rest) from what a chat integration observes and keeps the per thread state they need, such as a run's start for the stop duration. An id resolver turns the integration's own thread and message ids into the ids the cloud stores.
-- `assistant-cloud/ai-sdk` holds the AI SDK specifics: `aiSDKV6FormatAdapter`, the stored form of a `UIMessage`, and `extractAISDKRunTelemetry`, which reads the run report fields out of one run's assistant messages. The entry needs `ai` installed next to it.
+- `assistant-cloud/ai-sdk` holds the AI SDK specifics: `aiSDKV6FormatAdapter`, the stored form of a `UIMessage`, and `extractAISDKRunTelemetry`, which reads the run report fields out of one run's assistant messages. The entry types its messages with `ai` and needs no runtime from it.
 
 ```ts
 import { AssistantCloud, CloudRunReporter } from "assistant-cloud";
@@ -50,7 +50,7 @@ const run = extractAISDKRunTelemetry(messages);
 if (run) {
   await reporter.report(
     { threadId, ...run },
-    `${threadId}:${run.assistantMessageId}`,
+    run.assistantMessageId && `${threadId}:${run.assistantMessageId}`,
   );
 }
 ```

@@ -19,16 +19,20 @@ export class CloudRunReporter {
   }
 
   public async report(init: CloudRunReportInit, key?: string): Promise<void> {
-    const cloud = this.getCloud();
-    if (!cloud.telemetry.enabled) return;
-    if (key !== undefined && this.reported.has(key)) return;
+    try {
+      const cloud = this.getCloud();
+      if (!cloud.telemetry.enabled) return;
+      if (key !== undefined && this.reported.has(key)) return;
 
-    const initial = createRunReport({ ...init, telemetry: cloud.telemetry });
-    const { beforeReport } = cloud.telemetry;
-    const report = beforeReport ? beforeReport(initial) : initial;
-    if (!report) return;
+      const initial = createRunReport({ ...init, telemetry: cloud.telemetry });
+      const { beforeReport } = cloud.telemetry;
+      const report = beforeReport ? beforeReport(initial) : initial;
+      if (!report) return;
 
-    if (key !== undefined) this.reported.add(key);
-    await cloud.runs.report(report).catch(() => {});
+      if (key !== undefined) this.reported.add(key);
+      await cloud.runs.report(report);
+    } catch {
+      return;
+    }
   }
 }

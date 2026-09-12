@@ -168,6 +168,37 @@ describe("extractAISDKRunTelemetry", () => {
     ]);
   });
 
+  it("attaches sampling calls from the row that made the tool call", () => {
+    const rows: AISDKMessageLike[] = [
+      {
+        role: "assistant",
+        parts: [
+          {
+            type: "dynamic-tool",
+            toolName: "search",
+            toolCallId: "call_1",
+            state: "output-available",
+            input: {},
+            output: "x",
+          } as UIMessage["parts"][number],
+        ],
+        metadata: { samplingCalls: { call_1: [{ duration_ms: 5 }] } },
+      },
+      {
+        role: "assistant",
+        parts: [{ type: "text", text: "done" }],
+        metadata: { samplingCalls: {} },
+      },
+    ];
+    expect(extractAISDKRunTelemetry(rows)?.toolCalls).toEqual([
+      expect.objectContaining({
+        tool_call_id: "call_1",
+        tool_source: "mcp",
+        sampling_calls: [{ duration_ms: 5 }],
+      }),
+    ]);
+  });
+
   it("reads incomplete without text and no steps without step markers", () => {
     const result = extractAISDKRunTelemetry([
       assistant([

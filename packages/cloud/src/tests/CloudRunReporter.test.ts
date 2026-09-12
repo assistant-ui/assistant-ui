@@ -81,4 +81,20 @@ describe("CloudRunReporter", () => {
       }),
     ).resolves.toBeUndefined();
   });
+
+  it("resolves when the hook throws and reports nothing", async () => {
+    const { cloud, report } = createCloud({
+      enabled: true,
+      beforeReport: () => {
+        throw new Error("hook");
+      },
+    });
+    await expect(
+      new CloudRunReporter(cloud).report({
+        threadId: "t",
+        status: "completed",
+      }),
+    ).resolves.toBeUndefined();
+    expect(report).not.toHaveBeenCalled();
+  });
 });

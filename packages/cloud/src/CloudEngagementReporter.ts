@@ -23,6 +23,24 @@ export type EngagementIdResolver = (
 
 type EngagementEventInit = Pick<AssistantCloudEvent, "value" | "props">;
 
+const MAX_REMEMBERED_THREADS = 256;
+
+function remember<T>(map: Map<string, T>, threadId: string, value: T): void {
+  map.delete(threadId);
+  map.set(threadId, value);
+  if (map.size > MAX_REMEMBERED_THREADS) {
+    map.delete(map.keys().next().value!);
+  }
+}
+
+function mark(set: Set<string>, threadId: string): void {
+  set.delete(threadId);
+  set.add(threadId);
+  if (set.size > MAX_REMEMBERED_THREADS) {
+    set.delete(set.values().next().value!);
+  }
+}
+
 const passThroughIds: EngagementIdResolver = (threadId, messageId) => ({
   thread_id: threadId,
   ...(messageId !== undefined ? { message_id: messageId } : undefined),
@@ -32,8 +50,10 @@ const passThroughIds: EngagementIdResolver = (threadId, messageId) => ({
  * Derives engagement events from what a chat integration observes and keeps
  * the per thread state the events need: a run's start for the stop duration,
  * a run's end for the time to the next message, one error and one suggestion
- * list per run or thread. Delivery goes through the cloud's event buffer, so a
- * disabled telemetry setting drops everything here as well.
+ * list per run or thread. The state of the 256 most recently touched threads
+ * is kept, so a long session does not grow it without bound. Delivery goes
+ * through the cloud's event buffer, so a disabled telemetry setting drops
+ * everything here as well.
  */
 export class CloudEngagementReporter {
   private readonly runStartedAt = new Map<string, number>();
@@ -53,13 +73,13 @@ export class CloudEngagementReporter {
   }
 
   public runStarted(threadId: string): void {
-    this.runStartedAt.set(threadId, Date.now());
+    remember(this.runStartedAt, threadId, Date.now());
     this.shownErrors.delete(threadId);
   }
 
   public runEnded(threadId: string): void {
     this.runStartedAt.delete(threadId);
-    this.runEndedAt.set(threadId, Date.now());
+    remember(this.runEndedAt, threadId, Date.now());
   }
 
   /** Reported once per started run, with the time the run had been going. */
@@ -115,7 +135,7 @@ export class CloudEngagementReporter {
     init: { messageId?: string | undefined; reason: string },
   ): void {
     if (this.shownErrors.has(threadId)) return;
-    this.shownErrors.add(threadId);
+    mark(this.shownErrors, threadId);
     this.track("error_shown", threadId, init.messageId, {
       props: { reason: init.reason },
     });
@@ -124,7 +144,7 @@ export class CloudEngagementReporter {
   /** Reported once per thread, with the number of suggestions on offer. */
   public suggestionsShown(threadId: string, count: number): void {
     if (this.shownSuggestions.has(threadId)) return;
-    this.shownSuggestions.add(threadId);
+    mark(this.shownSuggestions, threadId);
     this.track("suggestions_shown", threadId, undefined, { value: count });
   }
 

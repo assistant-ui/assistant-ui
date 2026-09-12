@@ -1,5 +1,4 @@
 import type { UIMessage } from "ai";
-import { getToolName, isStaticToolUIPart, isToolUIPart } from "ai";
 import type { MessageFormatAdapter } from "../FormattedCloudPersistence";
 import type { SamplingCallData } from "../instrumentMcpSampling";
 import {
@@ -58,16 +57,45 @@ function isRecord(value: unknown): value is Record<string, unknown> {
   return value !== null && typeof value === "object";
 }
 
+/**
+ * The AI SDK's own tool part rules, kept here so the entry loads without the
+ * `ai` runtime: a static tool part is `tool-<name>`, a dynamic one is
+ * `dynamic-tool` with its name in `toolName`.
+ */
 function toolCallOf(part: Part): AssistantCloudRunReportToolCall | undefined {
-  if (!isToolUIPart(part)) return undefined;
   const raw = part as unknown as Record<string, unknown>;
+  if (typeof raw.toolCallId !== "string") return undefined;
+  const isStatic = part.type.startsWith("tool-");
+  if (!isStatic && part.type !== "dynamic-tool") return undefined;
+  const toolName = isStatic
+    ? part.type.slice("tool-".length)
+    : typeof raw.toolName === "string"
+      ? raw.toolName
+      : undefined;
+  if (!toolName) return undefined;
   return createRunTelemetryToolCall({
-    toolName: getToolName(part),
-    toolCallId: part.toolCallId,
+    toolName,
+    toolCallId: raw.toolCallId,
     args: raw.input ?? raw.args,
     result: raw.output ?? raw.result,
-    toolSource: isStaticToolUIPart(part) ? "frontend" : "mcp",
+    toolSource: isStatic ? "frontend" : "mcp",
   });
+}
+
+function attachSamplingCalls(
+  toolCalls: readonly AssistantCloudRunReportToolCall[],
+  metadata: Record<string, unknown> | undefined,
+): void {
+  const samplingCalls = isRecord(metadata?.samplingCalls)
+    ? (metadata.samplingCalls as Record<string, SamplingCallData[]>)
+    : undefined;
+  if (!samplingCalls) return;
+  for (const toolCall of toolCalls) {
+    const calls = samplingCalls[toolCall.tool_call_id];
+    if (Array.isArray(calls) && calls.length > 0) {
+      toolCall.sampling_calls = calls;
+    }
+  }
 }
 
 function stepUsages(
@@ -142,6 +170,7 @@ export function extractAISDKRunTelemetry(
     assistant = message;
     const metadata = isRecord(message.metadata) ? message.metadata : undefined;
     const usagePerStep = stepUsages(metadata);
+    const messageToolCalls: AssistantCloudRunReportToolCall[] = [];
     let step: RunReportStepInit | undefined;
     let stepIndex = -1;
 
@@ -160,12 +189,14 @@ export function extractAISDKRunTelemetry(
       const toolCall = toolCallOf(part);
       if (!toolCall) continue;
       toolCalls.push(toolCall);
+      messageToolCalls.push(toolCall);
       if (step) {
         step.toolCalls = [...(step.toolCalls ?? []), toolCall];
         step.finishReason = "tool-calls";
       }
     }
 
+    attachSamplingCalls(messageToolCalls, metadata);
     const usage = messageUsage(metadata);
     if (usage) usages.push(usage);
   }
@@ -175,17 +206,6 @@ export function extractAISDKRunTelemetry(
   const metadata = isRecord(assistant.metadata)
     ? assistant.metadata
     : undefined;
-  const samplingCalls = isRecord(metadata?.samplingCalls)
-    ? (metadata.samplingCalls as Record<string, SamplingCallData[]>)
-    : undefined;
-  if (samplingCalls) {
-    for (const toolCall of toolCalls) {
-      const calls = samplingCalls[toolCall.tool_call_id];
-      if (Array.isArray(calls) && calls.length > 0) {
-        toolCall.sampling_calls = calls;
-      }
-    }
-  }
 
   const usage = usages.length > 0 ? sumUsage(usages) : undefined;
   const modelId = extractRunTelemetryModelId(metadata);

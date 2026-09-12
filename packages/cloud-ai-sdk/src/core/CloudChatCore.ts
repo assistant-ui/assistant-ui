@@ -333,6 +333,7 @@ export class CloudChatCore {
                   reason: "error",
                 });
               }
+              this.engagementReporter.runEnded(threadId);
             }
           }
           const threadId = registry.getMeta(chatKey)?.threadId;
