@@ -15,6 +15,10 @@
 import { ExportedMessageRepository } from "@assistant-ui/react";
 import type { AppendMessage, ThreadMessageLike } from "@assistant-ui/react";
 import {
+  parseDataUrl,
+  resolveImageMediaType,
+} from "@assistant-ui/core/internal";
+import {
   createPiThreadState,
   reducePiThreadState,
   removeHostUiRequest,
@@ -157,38 +161,60 @@ const bytesToBase64 = (bytes: Uint8Array): string => {
 };
 
 const loadImageContent = async (image: string): Promise<PiImageContent> => {
-  const response = await fetch(image, { credentials: "omit" });
+  const response = await fetch(image);
   if (!response.ok) {
     throw new Error(
       `Failed to load Pi image attachment: ${response.status} ${response.statusText}`,
     );
   }
 
-  const mimeType =
-    response.headers.get("content-type")?.split(";", 1)[0]?.trim() ||
-    "image/png";
-  if (!mimeType.toLowerCase().startsWith("image/")) {
+  const contentType = response.headers
+    .get("content-type")
+    ?.split(";", 1)[0]
+    ?.trim()
+    .toLowerCase();
+  if (
+    contentType &&
+    !contentType.startsWith("image/") &&
+    contentType !== "application/octet-stream" &&
+    contentType !== "binary/octet-stream"
+  ) {
     throw new Error(
-      `Pi image attachment returned unsupported content type: ${mimeType}`,
+      `Pi image attachment returned unsupported content type: ${contentType}`,
     );
   }
 
+  const data = bytesToBase64(new Uint8Array(await response.arrayBuffer()));
   return {
     type: "image",
-    mimeType: mimeType.toLowerCase(),
-    data: bytesToBase64(new Uint8Array(await response.arrayBuffer())),
+    mimeType: resolveImageMediaType(data, contentType),
+    data,
   };
+};
+
+const isBase64Payload = (value: string) => {
+  const compact = value.replaceAll(/\s/g, "");
+  return (
+    compact.length > 0 &&
+    compact.length % 4 !== 1 &&
+    /^[a-z\d+/]*={0,2}$/i.test(compact)
+  );
 };
 
 const toImageContent = (
   image: string,
 ): PiImageContent | Promise<PiImageContent> => {
-  const match = /^data:([^;,]+);base64,(.*)$/is.exec(image);
-  if (match) {
+  const parsed = parseDataUrl(image);
+  if (parsed) {
+    if (!parsed.mimeType.startsWith("image/")) {
+      throw new Error(
+        `Pi image attachment returned unsupported content type: ${parsed.mimeType}`,
+      );
+    }
     return {
       type: "image",
-      mimeType: match[1]!.toLowerCase(),
-      data: match[2]!,
+      mimeType: parsed.mimeType,
+      data: parsed.data,
     };
   }
 
@@ -206,7 +232,15 @@ const toImageContent = (
     throw new Error(`Unsupported Pi image attachment URL scheme: ${scheme}`);
   }
 
-  return { type: "image", mimeType: "image/png", data: image };
+  if (!isBase64Payload(image)) {
+    throw new Error("Invalid Pi image attachment source");
+  }
+
+  return {
+    type: "image",
+    mimeType: resolveImageMediaType(image),
+    data: image,
+  };
 };
 
 /** All content parts of an append message, with attachment parts flattened in. */
@@ -215,25 +249,25 @@ export const appendMessageParts = (message: AppendMessage) => [
   ...(message.attachments?.flatMap((a) => a.content ?? []) ?? []),
 ];
 
+const readPiSendParts = (message: AppendMessage) => {
+  const textChunks: string[] = [];
+  const images: string[] = [];
+  for (const part of appendMessageParts(message)) {
+    if (part.type === "text") textChunks.push(part.text);
+    else if (part.type === "image") images.push(part.image);
+  }
+  return { content: textChunks.join("\n\n"), images };
+};
+
 export const buildPiSendInput = (
   message: AppendMessage,
   streamingBehavior: "followUp" | "steer" | undefined,
 ): PiSendMessageInput | Promise<PiSendMessageInput> => {
-  const parts = appendMessageParts(message);
-
-  const textChunks: string[] = [];
-  const attachments: Array<PiImageContent | Promise<PiImageContent>> = [];
-  for (const part of parts) {
-    if (part.type === "text") {
-      textChunks.push(part.text);
-    } else if (part.type === "image") {
-      attachments.push(toImageContent(part.image));
-    }
-    // `file`/other parts are not part of Pi's user-content surface.
-  }
+  const { content, images } = readPiSendParts(message);
+  const attachments = images.map(toImageContent);
 
   const createInput = (resolvedAttachments: PiImageContent[]) => ({
-    content: textChunks.join("\n\n"),
+    content,
     ...(resolvedAttachments.length > 0
       ? { attachments: resolvedAttachments }
       : {}),
@@ -243,6 +277,29 @@ export const buildPiSendInput = (
   return attachments.some((attachment) => attachment instanceof Promise)
     ? Promise.all(attachments).then(createInput)
     : createInput(attachments as PiImageContent[]);
+};
+
+const buildOptimisticPiSendInput = (
+  message: AppendMessage,
+  streamingBehavior: "followUp" | "steer" | undefined,
+): PiSendMessageInput => {
+  const { content, images } = readPiSendParts(message);
+  return {
+    content,
+    ...(images.length > 0
+      ? {
+          attachments: images.map((image) => {
+            const parsed = parseDataUrl(image);
+            return {
+              type: "image" as const,
+              mimeType: resolveImageMediaType(image),
+              data: parsed?.data ?? image,
+            };
+          }),
+        }
+      : {}),
+    ...(streamingBehavior ? { streamingBehavior } : {}),
+  };
 };
 
 const readSteeringIntent = (
@@ -311,6 +368,7 @@ export class PiThreadController implements PiThreadControllerLike {
   private unsubscribeFromEvents: (() => void) | null = null;
   private disconnectTimer: ReturnType<typeof setTimeout> | null = null;
   private loadPromise: Promise<void> | null = null;
+  private sendDispatchTail: Promise<void> = Promise.resolve();
   private messageFlushScheduled = false;
   /** Synthetic seq for snapshots produced locally (via `getThread`), kept below
    * the supervisor's live seqs so they never suppress real events. */
@@ -490,23 +548,31 @@ export class PiThreadController implements PiThreadControllerLike {
       readSteeringIntent(message) ??
       (isQueuedSend ? "followUp" : undefined);
 
-    const input = buildPiSendInput(message, behavior);
-    if (input instanceof Promise) {
-      return this.sendPreparedMessage(await input, isQueuedSend, behavior);
-    }
-    return this.sendPreparedMessage(input, isQueuedSend, behavior);
+    return this.sendPreparedMessage(
+      message,
+      buildOptimisticPiSendInput(message, behavior),
+      isQueuedSend,
+      behavior,
+    );
   }
 
   private async sendPreparedMessage(
-    input: PiSendMessageInput,
+    message: AppendMessage,
+    optimisticInput: PiSendMessageInput,
     isQueuedSend: boolean,
     behavior: "followUp" | "steer" | undefined,
   ) {
     this.ensureEventSubscription({ includeSnapshot: false });
 
-    if (isQueuedSend) return this.sendQueued(input, behavior ?? "followUp");
+    if (isQueuedSend) {
+      return this.sendQueued(
+        message,
+        optimisticInput.content,
+        behavior ?? "followUp",
+      );
+    }
 
-    const optimistic = optimisticUserMessageFromInput(input);
+    const optimistic = optimisticUserMessageFromInput(optimisticInput);
     this.optimisticUserMessages.push({
       message: optimistic,
       baseMessageCount: this.state.messages.length,
@@ -515,7 +581,7 @@ export class PiThreadController implements PiThreadControllerLike {
     this.recomputeProjectedMessagesAndNotify();
 
     try {
-      await this.client.sendMessage(this.threadId, input);
+      await this.dispatchMessage(message, behavior);
     } catch (error) {
       const index = this.optimisticUserMessages.findIndex(
         (entry) => entry.message === optimistic,
@@ -539,7 +605,8 @@ export class PiThreadController implements PiThreadControllerLike {
    * `state.queue` — the thread stays clean and the queue UI shows it instantly.
    * The next real `queue_update` replaces the arrays wholesale and self-heals. */
   private async sendQueued(
-    input: PiSendMessageInput,
+    message: AppendMessage,
+    content: string,
     behavior: "followUp" | "steer",
   ) {
     const mode = behavior === "steer" ? "steering" : "followUp";
@@ -547,16 +614,16 @@ export class PiThreadController implements PiThreadControllerLike {
       ...this.state,
       queue: {
         ...this.state.queue,
-        [mode]: [...this.state.queue[mode], input.content],
+        [mode]: [...this.state.queue[mode], content],
       },
     });
 
     try {
-      await this.client.sendMessage(this.threadId, input);
+      await this.dispatchMessage(message, behavior);
     } catch (error) {
       // Roll back only our optimistic entry; the run itself is unaffected.
       const entries = this.state.queue[mode];
-      const index = entries.lastIndexOf(input.content);
+      const index = entries.lastIndexOf(content);
       this.setState({
         ...this.state,
         lastError: errorText(error),
@@ -571,6 +638,18 @@ export class PiThreadController implements PiThreadControllerLike {
       });
       throw error;
     }
+  }
+
+  private dispatchMessage(
+    message: AppendMessage,
+    behavior: "followUp" | "steer" | undefined,
+  ) {
+    const request = this.sendDispatchTail.then(async () => {
+      const input = await buildPiSendInput(message, behavior);
+      await this.client.sendMessage(this.threadId, input);
+    });
+    this.sendDispatchTail = request.catch(() => undefined);
+    return request;
   }
 
   public async clearQueue() {
