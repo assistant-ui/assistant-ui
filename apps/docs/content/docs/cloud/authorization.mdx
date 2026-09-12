@@ -1,111 +1,19 @@
 ---
-title: User Authorization
-description: Configure workspace auth tokens and integrate with auth providers.
+title: Authentication
+description: How the browser and your server authenticate to a project, with anonymous sessions, your auth provider's tokens, or API keys, and the access rules a project enforces.
 ---
 
-The Assistant Cloud API is accessed directly from your frontend. This eliminates the need for a backend server for most operations—except for authorizing your users.
+The browser talks to the project API directly, so a backend is only involved to say who the user is. Three modes cover that, and every `AssistantCloud` client is created in one of them.
 
-This guide explains how to set up user authentication and authorization for Assistant Cloud.
+| Mode | Where | Configuration | Identity |
+|---|---|---|---|
+| Anonymous | browser | `{ baseUrl, anonymous: true }` | a generated visitor, kept in the browser for 30 days |
+| Auth provider token | browser | `{ baseUrl, authToken }` | your user, from a JWT your provider signs |
+| API key | server | `{ apiKey, userId, workspaceId }` | any user and workspace your server names |
 
-## Workspaces
+`baseUrl` is the project's frontend API URL for the two browser modes. The API key mode defaults to `https://backend.assistant-api.com` and must use that host; a key sent to a frontend host is refused.
 
-Authorization is granted to a **workspace**. A workspace is a scope that contains threads and messages. Most commonly:
-
-- Use a `userId` as the workspace for personal chats
-- Use `orgId + userId` for organization-scoped conversations
-- Use `projectId + userId` for project-based apps
-
-## Authentication Approaches
-
-Choose the approach that fits your app:
-
-| Approach | Best For | Complexity |
-|----------|----------|------------|
-| **Direct auth provider integration** | Supported providers (Clerk, Auth0, Supabase, etc.) | Low |
-| **Backend server** | Custom auth, multi-user workspaces, or self-hosted solutions | Medium |
-| **Anonymous mode** | Demos, prototypes, or testing | None |
-
-### Direct Integration with Auth Provider
-
-In the Assistant Cloud dashboard, go to **Auth Integrations** and add your provider. This sets up automatic workspace assignment based on the user's ID from your auth provider.
-
-Then pass an `authToken` function that returns your provider's ID token:
-
-```ts
-import { AssistantCloud } from "@assistant-ui/react";
-
-const cloud = new AssistantCloud({
-  baseUrl: process.env.NEXT_PUBLIC_ASSISTANT_BASE_URL!,
-  authToken: () => getTokenFromYourProvider(), // Returns JWT
-});
-```
-
-### Backend Server Approach
-
-Use this when you need custom workspace logic or unsupported auth providers.
-
-<Steps>
-<Step>
-
-#### Create an API Key
-
-In the Assistant Cloud dashboard, go to **API Keys** and create a key. Add it to your environment:
-
-```bash
-ASSISTANT_API_KEY=your_key_here
-```
-
-</Step>
-<Step>
-
-#### Create the Token Endpoint
-
-```ts title="/app/api/assistant-ui-token/route.ts"
-import { AssistantCloud } from "assistant-cloud";
-import { auth } from "@clerk/nextjs/server"; // Or your auth provider
-
-export const POST = async (req: Request) => {
-  const { userId, orgId } = await auth();
-
-  if (!userId) return new Response("Unauthorized", { status: 401 });
-
-  // Define your workspace ID based on your app's structure
-  const workspaceId = orgId ? `${orgId}_${userId}` : userId;
-
-  const assistantCloud = new AssistantCloud({
-    apiKey: process.env.ASSISTANT_API_KEY!,
-    userId,
-    workspaceId,
-  });
-
-  const { token } = await assistantCloud.auth.tokens.create();
-  return new Response(token);
-};
-```
-
-</Step>
-<Step>
-
-#### Use the Token on the Frontend
-
-```tsx title="app/chat/page.tsx"
-const cloud = new AssistantCloud({
-  baseUrl: process.env.NEXT_PUBLIC_ASSISTANT_BASE_URL!,
-  authToken: () =>
-    fetch("/api/assistant-ui-token", { method: "POST" }).then((r) => r.text()),
-});
-
-const runtime = useChatRuntime({
-  cloud,
-});
-```
-
-</Step>
-</Steps>
-
-### Anonymous Mode (No Auth)
-
-For demos or testing, use anonymous mode to create browser-session-based users:
+## Anonymous sessions
 
 ```tsx
 import { AssistantCloud } from "@assistant-ui/react";
@@ -116,13 +24,13 @@ const cloud = new AssistantCloud({
 });
 ```
 
-<Callout type="warning">
-  Anonymous mode creates a new user for each browser session. Threads won't persist across sessions or devices. Use this only for prototyping.
-</Callout>
+The project must allow anonymous access in **Settings › Access**. On first use the client asks the project for an anonymous identity: a generated `usr_anon_…` user that is also its own workspace, an access token, and a refresh token valid for 30 days. The refresh token is kept in `localStorage` under the base URL, so the same browser resumes the same threads on its next visit and a refresh extends the identity by another 30 days. Another browser, a private window or cleared storage is a new visitor.
 
-#### Claim Anonymous Threads After Sign-In
+On React, setting `NEXT_PUBLIC_ASSISTANT_BASE_URL` is enough: the assistant-ui runtimes create this client when you pass no `cloud`.
 
-When an anonymous visitor signs in, read the browser's refresh token with `readAnonymousRefreshToken(baseUrl)` and send it to your server. The server can claim those threads with an API-key client scoped to the signed-in user's workspace. The response reports how many threads moved.
+### Claiming anonymous threads after sign in
+
+When a visitor signs in, move what they wrote as a visitor into their account. Read the browser's refresh token with `readAnonymousRefreshToken(baseUrl)`, send it to your server, and claim from there with an API key client scoped to the signed in user:
 
 <Tabs items={["Browser", "Server"]}>
 <Tab value="Browser">
@@ -155,9 +63,7 @@ export async function POST(request: Request) {
   const { userId } = await auth();
   if (!userId) return new Response("Unauthorized", { status: 401 });
 
-  const { refresh_token } = (await request.json()) as {
-    refresh_token: string;
-  };
+  const { refresh_token } = (await request.json()) as { refresh_token: string };
   const cloud = new AssistantCloud({
     apiKey: process.env.ASSISTANT_API_KEY!,
     userId,
@@ -171,54 +77,45 @@ export async function POST(request: Request) {
 </Tab>
 </Tabs>
 
-## Auth Provider Examples
+The response reports how many threads moved. A claim from an anonymous identity, or with an expired token, is refused.
 
-### Clerk
+## Your auth provider's tokens
+
+```tsx
+import { AssistantCloud } from "@assistant-ui/react";
+
+const cloud = new AssistantCloud({
+  baseUrl: process.env.NEXT_PUBLIC_ASSISTANT_BASE_URL!,
+  authToken: () => getTokenFromYourProvider(),
+});
+```
+
+`authToken` returns a JWT your identity provider signed. The project verifies it against an **auth rule** you create in **Settings › Access**:
+
+| Field | Meaning |
+|---|---|
+| Issuer | The token's `iss`. The rule matches on it. |
+| JWKS endpoint | Where the project fetches the provider's public keys. Must be a public `https://` URL. |
+| Audience | The `aud` the token must carry, or none. |
+| Workspace field | The claim that names the workspace; `sub` by default, so each user gets their own workspace. |
+
+Tokens must use RS256. On a valid token the project answers with a short lived token of its own in the `Authorization` response header, and the client uses it for the following requests until it expires, so your provider's endpoint is not hit on every call. The client asks `authToken` again when it needs a fresh one; return `null` to signal that no user is signed in.
 
 <Steps>
 <Step>
 
-#### Configure the JWT Template
+### Clerk
 
-In the Clerk dashboard, go to **Configure → JWT Templates**. Create a new blank template named "assistant-ui":
-
-```json
-{
-  "aud": "assistant-ui"
-}
-```
-
-<Callout type="info">
-  The `aud` claim ensures the JWT is only valid for Assistant Cloud.
-</Callout>
-
-Note the **Issuer** and **JWKS Endpoint** values.
-
-</Step>
-<Step>
-
-#### Add Auth Integration in Assistant Cloud
-
-In the Assistant Cloud dashboard, go to **Auth Rules** and create a new rule:
-
-- **Provider**: Clerk
-- **Issuer**: Paste from Clerk JWT Template
-- **JWKS Endpoint**: Paste from Clerk JWT Template
-- **Audience**: `assistant-ui`
-
-</Step>
-<Step>
-
-#### Use in Your App
+Create a JWT template named `assistant-ui` in Clerk with `{ "aud": "assistant-ui" }`, note its issuer and JWKS endpoint, and create an auth rule with them and the audience `assistant-ui`.
 
 ```tsx
+import { useMemo } from "react";
 import { useAuth } from "@clerk/nextjs";
 import { AssistantCloud } from "@assistant-ui/react";
 
-function Chat() {
+function useCloud() {
   const { getToken } = useAuth();
-
-  const cloud = useMemo(
+  return useMemo(
     () =>
       new AssistantCloud({
         baseUrl: process.env.NEXT_PUBLIC_ASSISTANT_BASE_URL!,
@@ -226,24 +123,24 @@ function Chat() {
       }),
     [getToken],
   );
-
-  // Use with your runtime...
 }
 ```
 
 </Step>
-</Steps>
+<Step>
 
 ### Auth0
 
+Create the rule with your Auth0 domain as issuer, its `/.well-known/jwks.json` endpoint, and your API audience.
+
 ```tsx
+import { useMemo } from "react";
 import { useAuth0 } from "@auth0/auth0-react";
 import { AssistantCloud } from "@assistant-ui/react";
 
-function Chat() {
+function useCloud() {
   const { getAccessTokenSilently } = useAuth0();
-
-  const cloud = useMemo(
+  return useMemo(
     () =>
       new AssistantCloud({
         baseUrl: process.env.NEXT_PUBLIC_ASSISTANT_BASE_URL!,
@@ -251,53 +148,168 @@ function Chat() {
       }),
     [getAccessTokenSilently],
   );
-
-  // Use with your runtime...
 }
 ```
 
-Configure the Auth0 integration in the Assistant Cloud dashboard with your Auth0 domain and audience.
+</Step>
+<Step>
 
-### Supabase Auth
+### Supabase and Firebase
+
+Firebase signs RS256 id tokens whose keys are published at a JWKS endpoint. Supabase does so only for a project on asymmetric JWT signing keys; a project still on the legacy HS256 secret cannot be verified by a JWKS rule, so switch it to an RS256 key in the Supabase dashboard first. Create the rule with the project's issuer and JWKS endpoint, then return the session's access token or the Firebase id token from `authToken`.
 
 ```tsx
-import { useSupabaseClient } from "@supabase/auth-helpers-react";
-import { AssistantCloud } from "@assistant-ui/react";
-
-function Chat() {
-  const supabase = useSupabaseClient();
-
-  const cloud = useMemo(
-    () =>
-      new AssistantCloud({
-        baseUrl: process.env.NEXT_PUBLIC_ASSISTANT_BASE_URL!,
-        authToken: async () => {
-          const { data } = await supabase.auth.getSession();
-          return data.session?.access_token ?? "";
-        },
-      }),
-    [supabase],
-  );
-
-  // Use with your runtime...
-}
+const cloud = new AssistantCloud({
+  baseUrl: process.env.NEXT_PUBLIC_ASSISTANT_BASE_URL!,
+  authToken: async () => {
+    const { data } = await supabase.auth.getSession();
+    return data.session?.access_token ?? null;
+  },
+});
 ```
 
-### Firebase Auth
+</Step>
+</Steps>
 
-```tsx
-import { getAuth, getIdToken } from "firebase/auth";
-import { AssistantCloud } from "@assistant-ui/react";
+Keep the client in a `useMemo` keyed on the token getter, so the anonymous identity or the cached token is not recreated on every render.
 
-function Chat() {
-  const cloud = useMemo(() => {
-    const auth = getAuth();
-    return new AssistantCloud({
-      baseUrl: process.env.NEXT_PUBLIC_ASSISTANT_BASE_URL!,
-      authToken: () => getIdToken(auth.currentUser!, true),
-    });
-  }, []);
+## API keys
 
-  // Use with your runtime...
-}
+An API key, `sk_aui_proj_…`, is created in **Settings › API keys** with a name and an optional expiry of 7, 30, 90 or 365 days. It authenticates your server to the backend API for everything the browser must not do:
+
+- minting user tokens, when you would rather not expose your provider's tokens to the project,
+- exporting [traces](/docs/cloud/traces),
+- writing [scores](/docs/cloud/engagement#scores) and claiming anonymous threads,
+- the [project read API](/docs/cloud/api#project-read-api) and the MCP endpoint,
+- erasing a user's data.
+
+```ts title="server only"
+import { AssistantCloud } from "assistant-cloud";
+
+const cloud = new AssistantCloud({
+  apiKey: process.env.ASSISTANT_API_KEY!,
+  userId,
+  workspaceId,
+});
 ```
+
+A key acts as the user and workspace you name, sent as the `Aui-User-Id` and `Aui-Workspace-Id` headers; requests that touch threads see only that workspace. The dashboard shows when each key was last used, and an expired or deleted key is refused with `403`.
+
+### A server as the client
+
+The same client writes as well as reads, so an app with no browser, a Slack or Teams bot, a backend agent, a batch job, is persisted and measured the same way: create the thread, store each message, report the run. Every route the browser SDK uses accepts the key; only token minting, traces, the project read API and MCP are key only.
+
+```ts title="bot.ts"
+import { AssistantCloud } from "assistant-cloud";
+
+const cloud = new AssistantCloud({
+  apiKey: process.env.ASSISTANT_API_KEY!,
+  userId: slackUserId,
+  workspaceId: slackTeamId,
+});
+
+const { thread_id } = await cloud.threads.create({
+  last_message_at: new Date(),
+  external_id: slackThreadTs,
+});
+
+const { message_id: userMessageId } = await cloud.threads.messages.create(
+  thread_id,
+  {
+    parent_id: null,
+    format: "ai-sdk/v6",
+    content: { role: "user", parts: [{ type: "text", text: question }] },
+  },
+);
+
+const started = Date.now();
+const answer = await generate(question);
+
+const { message_id } = await cloud.threads.messages.create(thread_id, {
+  parent_id: userMessageId,
+  format: "ai-sdk/v6",
+  content: { role: "assistant", parts: [{ type: "text", text: answer.text }] },
+});
+
+await cloud.runs.report({
+  thread_id,
+  message_id,
+  status: "completed",
+  model_id: answer.modelId,
+  provider: "openai",
+  input_tokens: answer.usage.inputTokens,
+  output_tokens: answer.usage.outputTokens,
+  duration_ms: Date.now() - started,
+});
+```
+
+The thread is titled after the run like any browser thread, the user counts as active for the month, and the Threads page shows the conversation from the stored messages. Set `environment` and `release` on the report to filter by deployment, and when the server also exports [traces](/docs/cloud/traces), put the same `trace_id` on the report so the two halves merge into one run.
+
+### A token endpoint
+
+When your provider's tokens cannot be verified by a JWKS rule, mint the project's own tokens from your server:
+
+```ts title="app/api/assistant-ui-token/route.ts"
+import { AssistantCloud } from "assistant-cloud";
+import { auth } from "@clerk/nextjs/server";
+
+export const POST = async () => {
+  const { userId, orgId } = await auth();
+  if (!userId) return new Response("Unauthorized", { status: 401 });
+
+  const cloud = new AssistantCloud({
+    apiKey: process.env.ASSISTANT_API_KEY!,
+    userId,
+    workspaceId: orgId ? `${orgId}_${userId}` : userId,
+  });
+  const { token } = await cloud.auth.tokens.create();
+  return new Response(token);
+};
+```
+
+```tsx title="app/chat/page.tsx"
+const cloud = new AssistantCloud({
+  baseUrl: process.env.NEXT_PUBLIC_ASSISTANT_BASE_URL!,
+  authToken: () =>
+    fetch("/api/assistant-ui-token", { method: "POST" }).then((r) => r.text()),
+});
+```
+
+Minted tokens last five minutes; the client asks `authToken` again before one expires.
+
+## Allowed origins
+
+**Settings › Access** lists the browser origins the frontend API answers, one per line:
+
+```text
+https://app.example.com
+https://*.preview.example.com
+http://localhost:3000
+```
+
+An empty list allows every origin. Otherwise an origin outside the list gets no CORS headers and the browser reports a failed fetch. Entries are origins only, `https://` or `http://localhost`, up to 32 of them; a leading `*.` matches subdomains at any depth. Changes reach the API within a minute.
+
+Independently of the list, a browser token is only accepted on the frontend host of the project that issued it, and an API key only on the backend host.
+
+## Active user limits
+
+Plans include a number of active end users per UTC calendar month and cap them. A user counts as active on their first user message of the month. When a new user would exceed the cap, that message is refused:
+
+```json
+402 { "error": "plan_limit_reached", "plan": "free", "cap": 200, "period_end": "2026-10-01T00:00:00.000Z" }
+```
+
+The SDK surfaces it as a `CloudAPIError` with `code === "plan_limit_reached"` and those fields in `details`, so your app can show an upgrade or a retry state. Users already active this month keep working; nothing else is refused. Billing and Usage in the dashboard show the count, the included number and the cap.
+
+| Plan | Included active users | Cap |
+|---|---|---|
+| Free | 200 | 200 |
+| Pro | 500 | 5,000, then $0.10 per user |
+| Startup | 10,000 | 100,000 |
+| Enterprise | unlimited | none |
+
+Intelligence, evaluators and exports are available from Pro. The Billing page is authoritative for your project.
+
+## Rate limits
+
+Anonymous session creation is limited to 30 per minute per address and refreshes to 120; engagement events to 600 per minute per user. A limited request answers `429` with `Retry-After`. Nothing else is rate limited.

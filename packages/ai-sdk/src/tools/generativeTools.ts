@@ -227,11 +227,8 @@ export class AISDKToolkit {
         )
         .map(async ([name, tool]) => {
           const startedAt = Date.now();
-          const client = await this.#mcpClient(
-            name,
-            tool.server,
-            startedAt,
-          ).catch((error: unknown) => {
+          const clientPromise = this.#mcpClient(name, tool.server, startedAt);
+          const client = await clientPromise.catch((error: unknown) => {
             if (error instanceof MCPConnectionTimeoutError) throw error;
             throw toMcpToolkitError(name, "connect", error);
           });
@@ -245,8 +242,10 @@ export class AISDKToolkit {
             return [name, tool, tools] as const;
           } catch (error) {
             if (error instanceof MCPConnectionTimeoutError) {
-              this.#mcpClients.delete(name);
-              void client.close().catch(() => {});
+              if (this.#mcpClients.get(name) === clientPromise) {
+                this.#mcpClients.delete(name);
+                void client.close().catch(() => {});
+              }
               throw error;
             }
             throw toMcpToolkitError(name, "list tools", error);

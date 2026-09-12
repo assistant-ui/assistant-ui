@@ -20,7 +20,6 @@ const createChild = () =>
 describe("runSpawn", () => {
   afterEach(() => {
     vi.restoreAllMocks();
-    vi.clearAllMocks();
   });
 
   it("forwards termination signals to the child", async () => {
@@ -99,7 +98,6 @@ describe("runSpawn", () => {
 describe("main", () => {
   afterEach(() => {
     vi.restoreAllMocks();
-    vi.clearAllMocks();
   });
 
   it("re-raises a signal forwarded to the child", async () => {

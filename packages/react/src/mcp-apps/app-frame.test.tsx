@@ -29,7 +29,6 @@ import { McpAppFrame } from "./app-frame";
 describe("McpAppFrame", () => {
   afterEach(() => {
     cleanup();
-    vi.clearAllMocks();
   });
 
   it("keeps bridge options scoped to committed renders", async () => {

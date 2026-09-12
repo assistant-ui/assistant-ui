@@ -1,4 +1,4 @@
-import { afterEach, expect, it, vi } from "vitest";
+import { expect, it, vi } from "vitest";
 import { renderToString } from "react-dom/server";
 import {
   CloudFileAttachmentAdapter,
@@ -48,10 +48,6 @@ const runtimeOptions = () =>
     sendAutomatically?: boolean;
     adapters?: Record<string, unknown>;
   };
-
-afterEach(() => {
-  vi.clearAllMocks();
-});
 
 it("wires the docs surface with a cloud, dictation and cloud attachments", () => {
   renderToString(<DocsRuntimeProvider>{null}</DocsRuntimeProvider>);

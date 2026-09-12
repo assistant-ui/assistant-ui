@@ -43,7 +43,6 @@ vi.mock("@assistant-ui/core/react", async (importOriginal) => {
 
 afterEach(() => {
   cleanup();
-  vi.clearAllMocks();
   resetPartContext();
 });
 

@@ -203,6 +203,10 @@ export abstract class BaseComposerRuntimeCore
 
   public async clearAttachments() {
     this._cancelAllAttachmentAdds();
+    if (this._isSending) {
+      for (const attachment of this._attachments)
+        this._removedDuringSend.add(attachment.id);
+    }
     const task = this._onClearAttachments();
     this.setAttachments([]);
 
@@ -213,8 +217,13 @@ export abstract class BaseComposerRuntimeCore
     if (!this.canSend || this._isSending) return;
 
     if (this._dictationSession) {
-      this._dictationSession.cancel();
-      this._cleanupDictation();
+      try {
+        this._dictationSession.cancel();
+      } catch (error) {
+        console.error("[assistant-ui] Dictation session cancel threw", error);
+      } finally {
+        this._cleanupDictation();
+      }
     }
 
     const adapter = this.getAttachmentAdapter();
@@ -300,7 +309,10 @@ export abstract class BaseComposerRuntimeCore
       void sendTask.catch((error) => {
         this._restoreUnsentDraft(error, generation, draft);
       });
-    this._notifyEventSubscribers("send", {});
+    this._notifyEventSubscribers("send", {
+      chars: text.length,
+      attachments: finalAttachments.length,
+    });
   }
 
   /**
@@ -416,6 +428,7 @@ export abstract class BaseComposerRuntimeCore
           message,
           undefined,
           err,
+          fileOrAttachment.contentType,
         );
         throw err;
       }
@@ -430,7 +443,9 @@ export abstract class BaseComposerRuntimeCore
       };
       this._attachments = [...this._attachments, a];
       this._notifySubscribers();
-      this._notifyEventSubscribers("attachmentAdd", {});
+      this._notifyEventSubscribers("attachmentAdd", {
+        ...(a.contentType ? { contentType: a.contentType } : undefined),
+      });
       return;
     }
 
@@ -438,7 +453,13 @@ export abstract class BaseComposerRuntimeCore
     if (!adapter) {
       const message = "Attachments are not supported";
       const err = new Error(message);
-      this._safeEmitAttachmentAddError("no-adapter", message, undefined, err);
+      this._safeEmitAttachmentAddError(
+        "no-adapter",
+        message,
+        undefined,
+        err,
+        fileOrAttachment.type,
+      );
       throw err;
     }
 
@@ -450,7 +471,13 @@ export abstract class BaseComposerRuntimeCore
     ) {
       const message = `File type ${fileOrAttachment.type || "unknown"} is not accepted. Accepted types: ${adapter.accept}`;
       const err = new Error(message);
-      this._safeEmitAttachmentAddError("not-accepted", message, undefined, err);
+      this._safeEmitAttachmentAddError(
+        "not-accepted",
+        message,
+        undefined,
+        err,
+        fileOrAttachment.type,
+      );
       throw err;
     }
 
@@ -500,6 +527,7 @@ export abstract class BaseComposerRuntimeCore
         e instanceof Error ? e.message : String(e),
         lastAttachment?.id,
         e instanceof Error ? e : undefined,
+        lastAttachment?.contentType || fileOrAttachment.type,
       );
       throw e;
     } finally {
@@ -516,9 +544,17 @@ export abstract class BaseComposerRuntimeCore
         lastAttachment.status.message ??
           "Attachment upload did not complete successfully.",
         lastAttachment.id,
+        undefined,
+        lastAttachment.contentType || fileOrAttachment.type,
       );
     } else {
-      this._notifyEventSubscribers("attachmentAdd", {});
+      this._notifyEventSubscribers("attachmentAdd", {
+        ...(lastAttachment?.contentType
+          ? { contentType: lastAttachment.contentType }
+          : fileOrAttachment.type
+            ? { contentType: fileOrAttachment.type }
+            : undefined),
+      });
     }
   }
 
@@ -527,6 +563,7 @@ export abstract class BaseComposerRuntimeCore
     message: string,
     attachmentId?: string,
     error?: Error,
+    contentType?: string,
   ) {
     try {
       this._notifyEventSubscribers("attachmentAddError", {
@@ -534,6 +571,7 @@ export abstract class BaseComposerRuntimeCore
         message,
         ...(attachmentId !== undefined && { attachmentId }),
         ...(error !== undefined && { error }),
+        ...(contentType ? { contentType } : undefined),
       });
     } catch (subscriberError) {
       console.error(
@@ -607,14 +645,11 @@ export abstract class BaseComposerRuntimeCore
       throw new Error("Dictation adapter not configured");
     }
 
+    const isReplacing = this._dictationSession !== undefined;
     if (this._dictationSession) {
-      for (const unsub of this._dictationUnsubscribes) {
-        unsub();
-      }
-      this._dictationUnsubscribes = [];
       const oldSession = this._dictationSession;
-      oldSession.stop().catch(() => {});
-      this._dictationSession = undefined;
+      this._cleanupDictation({ notify: false });
+      this._stopDictationSession(oldSession);
     }
 
     const inputDisabled = adapter.disableInputDuringDictation ?? false;
@@ -622,7 +657,22 @@ export abstract class BaseComposerRuntimeCore
     this._dictationBaseText = this._text;
     this._currentInterimText = "";
 
-    const session = adapter.listen();
+    let session: DictationAdapter.Session;
+    try {
+      session = adapter.listen();
+    } catch (error) {
+      if (isReplacing) {
+        try {
+          this._notifySubscribers();
+        } catch (notifyError) {
+          console.error(
+            "[assistant-ui] Dictation replacement rollback notification threw",
+            notifyError,
+          );
+        }
+      }
+      throw error;
+    }
     this._dictationSession = session;
     const sessionId = ++this._dictationSessionIdCounter;
     this._activeDictationSessionId = sessionId;
@@ -700,27 +750,59 @@ export abstract class BaseComposerRuntimeCore
     const session = this._dictationSession;
     const sessionId = this._activeDictationSessionId;
     const cleanup = () => this._cleanupDictation({ sessionId });
-    void session.stop().then(cleanup, cleanup);
+    this._stopDictationSession(session, cleanup);
   }
 
-  private _cleanupDictation(options?: { sessionId: number | undefined }): void {
+  private _stopDictationSession(
+    session: DictationAdapter.Session,
+    onSettled: () => void = () => {},
+  ): void {
+    let task: Promise<void>;
+    try {
+      task = session.stop();
+    } catch (error) {
+      console.error("[assistant-ui] Dictation session stop threw", error);
+      onSettled();
+      return;
+    }
+
+    void task.then(onSettled, (error) => {
+      console.error("[assistant-ui] Dictation session stop rejected", error);
+      onSettled();
+    });
+  }
+
+  private _cleanupDictation(options?: {
+    sessionId?: number | undefined;
+    notify?: boolean | undefined;
+  }): void {
     const isStaleSession =
       options?.sessionId !== undefined &&
       options.sessionId !== this._activeDictationSessionId;
     if (isStaleSession || this._isCleaningDictation) return;
 
     this._isCleaningDictation = true;
-    try {
-      for (const unsub of this._dictationUnsubscribes) {
-        unsub();
+    const runCleanup = (cleanup: () => void) => {
+      try {
+        cleanup();
+      } catch (error) {
+        console.error("[assistant-ui] Dictation cleanup threw", error);
       }
+    };
+
+    try {
+      const unsubscribes = this._dictationUnsubscribes;
       this._dictationUnsubscribes = [];
       this._dictationSession = undefined;
       this._activeDictationSessionId = undefined;
       this._dictation = undefined;
       this._dictationBaseText = "";
       this._currentInterimText = "";
-      this._notifySubscribers();
+
+      for (const unsubscribe of unsubscribes) runCleanup(unsubscribe);
+      if (options?.notify !== false) {
+        runCleanup(() => this._notifySubscribers());
+      }
     } finally {
       this._isCleaningDictation = false;
     }

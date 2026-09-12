@@ -25,12 +25,16 @@ import type {
   A2ATaskArtifactUpdateEvent,
   A2ATaskStatusUpdateEvent,
 } from "./types";
+
 import {
   a2aMessageToContent,
   isTerminalTaskState,
   threadMessageToA2AMessage,
   taskStateToMessageStatus,
 } from "./conversions";
+
+const INITIAL_AGENT_CARD_RETRY_DELAY_MS = 5_000;
+const MAX_AGENT_CARD_RETRY_DELAY_MS = 5 * 60_000;
 
 export type A2AThreadRuntimeCoreOptions = {
   client: A2AClient;
@@ -93,6 +97,9 @@ export class A2AThreadRuntimeCore {
   private _loadPromise: Promise<void> | undefined;
   private _loadRequested = false;
   private _agentCardPromise: Promise<void> | undefined;
+  private _agentCardRetryAfter = 0;
+  private _agentCardRetryDelay = INITIAL_AGENT_CARD_RETRY_DELAY_MS;
+  private _agentCardDiscoveryFailed = false;
 
   private lastOptionsContextId: string | undefined;
 
@@ -197,24 +204,62 @@ export class A2AThreadRuntimeCore {
     return this._isLoading;
   }
 
+  private loadAgentCard(): Promise<void> {
+    if (Date.now() < this._agentCardRetryAfter) return Promise.resolve();
+
+    this._agentCardPromise ??= this.client.getAgentCard().then(
+      (agentCard) => {
+        this.agentCardValue = agentCard;
+        this._agentCardRetryAfter = 0;
+        this._agentCardRetryDelay = INITIAL_AGENT_CARD_RETRY_DELAY_MS;
+        this._agentCardDiscoveryFailed = false;
+        this.notifyUpdate();
+      },
+      () => {
+        this._agentCardDiscoveryFailed = true;
+        this._agentCardRetryAfter = Date.now() + this._agentCardRetryDelay;
+        this._agentCardRetryDelay = Math.min(
+          this._agentCardRetryDelay * 2,
+          MAX_AGENT_CARD_RETRY_DELAY_MS,
+        );
+        this._agentCardPromise = undefined;
+      },
+    );
+    return this._agentCardPromise;
+  }
+
+  private async waitForAgentCard(signal: AbortSignal): Promise<boolean> {
+    const shouldWait = !this._agentCardDiscoveryFailed;
+    const load = this.loadAgentCard();
+    if (signal.aborted) return false;
+    if (!shouldWait) return true;
+
+    let onAbort!: () => void;
+    const abort = new Promise<void>((resolve) => {
+      onAbort = resolve;
+      signal.addEventListener("abort", onAbort, { once: true });
+    });
+
+    try {
+      await Promise.race([load, abort]);
+    } finally {
+      signal.removeEventListener("abort", onAbort);
+    }
+    return !signal.aborted;
+  }
+
   __internal_load(): Promise<void> {
     this._loadRequested = true;
-    this._agentCardPromise ??= this.client
-      .getAgentCard()
-      .then((agentCard) => {
-        this.agentCardValue = agentCard;
-        this.notifyUpdate();
-      })
-      .catch(() => undefined);
+    const agentCardPromise = this.loadAgentCard();
 
     if (this._loadPromise) return this._loadPromise;
-    if (!this.history) return this._agentCardPromise;
+    if (!this.history) return agentCardPromise;
 
     this._isLoading = true;
 
     const historyPromise = this.history.load();
 
-    this._loadPromise = Promise.all([historyPromise, this._agentCardPromise])
+    this._loadPromise = Promise.all([historyPromise, agentCardPromise])
       .then(([repo]) => {
         if (repo) {
           this.session.applyExternalMessageRepository(repo);
@@ -407,11 +452,11 @@ export class A2AThreadRuntimeCore {
 
     this.setRunning(true);
 
-    // Check if agent supports streaming; fall back to sync sendMessage if not
-    const supportsStreaming =
-      this.agentCardValue?.capabilities?.streaming !== false;
-
     try {
+      if (!(await this.waitForAgentCard(abortController.signal))) return;
+
+      const supportsStreaming =
+        this.agentCardValue?.capabilities?.streaming !== false;
       if (supportsStreaming) {
         await this.runStreaming(a2aMessage, assistantId, abortController);
       } else {

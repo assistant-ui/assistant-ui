@@ -1,6 +1,6 @@
 {
   "name": "@assistant-ui/tap",
-  "version": "0.9.16",
+  "version": "0.9.17",
   "description": "Reactive state management inspired by React hooks",
   "keywords": [
     "state-management",
@@ -82,11 +82,11 @@
     "@types/node": "^26.4.1",
     "@types/react": "^19.2.18",
     "@types/react-dom": "^19.2.7",
-    "@vitest/ui": "^4.1.11",
+    "@vitest/ui": "^5.0.0",
     "jsdom": "^30.0.1",
     "react": "^19.2.8",
     "react-dom": "^19.2.8",
-    "vitest": "^4.1.11"
+    "vitest": "^5.0.0"
   },
   "publishConfig": {
     "access": "public",

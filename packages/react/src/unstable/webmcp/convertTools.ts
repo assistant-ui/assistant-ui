@@ -118,6 +118,33 @@ const isStandardSchema = (schema: unknown): schema is StandardSchemaLike =>
   "~standard" in schema &&
   (schema as StandardSchemaLike)["~standard"].version === 1;
 
+const TOOL_ABORTED = Symbol("assistant-ui.webmcp-tool-aborted");
+
+const isThenable = <T>(value: T | PromiseLike<T>): value is PromiseLike<T> =>
+  typeof (value as PromiseLike<T> | null | undefined)?.then === "function";
+
+const raceWithAbort = async <T>(
+  value: PromiseLike<T>,
+  abortSignal: AbortSignal,
+): Promise<T | typeof TOOL_ABORTED> => {
+  let onAbort!: () => void;
+  const abortPromise = new Promise<typeof TOOL_ABORTED>((resolve) => {
+    onAbort = () => resolve(TOOL_ABORTED);
+    if (abortSignal.aborted) {
+      onAbort();
+    } else {
+      abortSignal.addEventListener("abort", onAbort, { once: true });
+    }
+  });
+
+  try {
+    // Unlike assistant-stream's helper, cancellation wins when validation aborts and rejects synchronously.
+    return await Promise.race([abortPromise, value]);
+  } finally {
+    abortSignal.removeEventListener("abort", onAbort);
+  }
+};
+
 // AbortSignal.any sits above the browserslist floor and rejects any input that
 // is not a native AbortSignal, which a navigator.modelContext polyfill's signal
 // is not. The merged signal tracks its inputs only until cleanup runs, where
@@ -179,10 +206,22 @@ export const toWebMcpTool = (
       } else {
         abortSignal = callerSignal ?? lifecycleSignal;
       }
+
+      if (abortSignal?.aborted) {
+        return errorResult("Tool execution was cancelled.");
+      }
+
       let executeFn = tool.execute;
       if (isStandardSchema(tool.parameters)) {
-        let validation = tool.parameters["~standard"].validate(args);
-        validation = await validation;
+        const result = tool.parameters["~standard"].validate(args);
+        const validation = isThenable(result)
+          ? abortSignal
+            ? await raceWithAbort(result, abortSignal)
+            : await result
+          : result;
+        if (validation === TOOL_ABORTED) {
+          return errorResult("Tool execution was cancelled.");
+        }
         if (validation.issues) {
           const issues = validation.issues;
           executeFn =

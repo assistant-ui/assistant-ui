@@ -9,7 +9,7 @@
  *   pnpm exec vitest bench --run bench/useResources.bench.tsx
  */
 /* oxlint-disable react/rules-of-hooks -- fixed-count hook loops, benchmark only */
-import { bench, describe } from "vitest";
+import { describe, test } from "vitest";
 import { createElement, useState } from "react";
 import { createRoot } from "react-dom/client";
 import { flushSync } from "react-dom";
@@ -73,18 +73,26 @@ const VARIANTS = { "no-deps": false, deps: true } as const;
 
 describe(`useResources mount+unmount, ${N} children x ${K} hooks`, () => {
   for (const [name, deps] of Object.entries(VARIANTS)) {
-    bench(name, () => make(deps).unmount());
+    test(name, async ({ bench }) => {
+      await bench(name, () => make(deps).unmount()).run();
+    });
   }
 });
 
 describe(`useResources: one child dispatch, ${N} children x ${K} hooks`, () => {
   for (const [name, deps] of Object.entries(VARIANTS)) {
     let host: Host;
-    bench(name, () => host.flush(() => childSetters[N >> 1]!((v) => v + 1)), {
-      setup: () => {
-        host = make(deps);
-      },
-      teardown: () => host.unmount(),
+    test(name, async ({ bench }) => {
+      await bench(
+        name,
+        {
+          beforeAll: () => {
+            host = make(deps);
+          },
+          afterAll: () => host.unmount(),
+        },
+        () => host.flush(() => childSetters[N >> 1]!((v) => v + 1)),
+      ).run();
     });
   }
 });
@@ -92,11 +100,17 @@ describe(`useResources: one child dispatch, ${N} children x ${K} hooks`, () => {
 describe(`useResources: rebuild elements array, ${N} children x ${K} hooks`, () => {
   for (const [name, deps] of Object.entries(VARIANTS)) {
     let host: Host;
-    bench(name, () => host.bumpParent(), {
-      setup: () => {
-        host = make(deps);
-      },
-      teardown: () => host.unmount(),
+    test(name, async ({ bench }) => {
+      await bench(
+        name,
+        {
+          beforeAll: () => {
+            host = make(deps);
+          },
+          afterAll: () => host.unmount(),
+        },
+        () => host.bumpParent(),
+      ).run();
     });
   }
 });

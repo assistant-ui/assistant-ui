@@ -1,6 +1,7 @@
 /** @vitest-environment jsdom */
 import {
   act,
+  cleanup,
   fireEvent,
   render,
   renderHook,
@@ -9,7 +10,7 @@ import {
 import type { ModelContext } from "@assistant-ui/core";
 import type { FormEvent, ReactNode } from "react";
 import type { Resolver, ResolverResult } from "react-hook-form";
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 const mocks = vi.hoisted(() => {
   const register = vi.fn();
@@ -33,6 +34,8 @@ vi.mock("@assistant-ui/store", async (importOriginal) => ({
 import { useAssistantForm } from "./useAssistantForm";
 
 let provider: { getModelContext: () => ModelContext };
+
+afterEach(cleanup);
 
 beforeEach(() => {
   mocks.register.mockReset();
@@ -97,6 +100,115 @@ describe("useAssistantForm", () => {
       const form = useAssistantForm<{ name: string }>();
       return <input {...form.register("name")} />;
     });
+  });
+
+  describe.each(["input", "textarea", "select", "radio"])(
+    "%s form ownership",
+    (control) => {
+      it.each([false, true])(
+        "submits the explicit owner with an ancestor form: %s",
+        async (nested) => {
+          const submitted = vi.fn((event: FormEvent<HTMLFormElement>) =>
+            event.preventDefault(),
+          );
+          const wrongSubmitted = vi.fn((event: FormEvent<HTMLFormElement>) =>
+            event.preventDefault(),
+          );
+          const Fields = () => {
+            const form = useAssistantForm<{ name: string }>();
+            if (control === "textarea")
+              return <textarea form="owner" {...form.register("name")} />;
+            if (control === "select")
+              return (
+                <select form="owner" {...form.register("name")}>
+                  <option value="a">A</option>
+                </select>
+              );
+            if (control === "radio")
+              return (
+                <>
+                  <input
+                    type="radio"
+                    value="a"
+                    form="owner"
+                    {...form.register("name")}
+                  />
+                  <input
+                    type="radio"
+                    value="b"
+                    form="owner"
+                    {...form.register("name")}
+                  />
+                </>
+              );
+            return <input form="owner" {...form.register("name")} />;
+          };
+          render(
+            <>
+              {nested ? (
+                <form onSubmit={wrongSubmitted}>
+                  <Fields />
+                </form>
+              ) : (
+                <Fields />
+              )}
+              <form id="owner" onSubmit={submitted} />
+            </>,
+          );
+
+          await expect(executeSubmitForm()).resolves.toEqual({ success: true });
+          expect(submitted).toHaveBeenCalledOnce();
+          expect(wrongSubmitted).not.toHaveBeenCalled();
+        },
+      );
+    },
+  );
+
+  it("does not fall back to an ancestor when the explicit owner does not exist", async () => {
+    const submitted = vi.fn((event: FormEvent<HTMLFormElement>) =>
+      event.preventDefault(),
+    );
+    const Fields = () => {
+      const form = useAssistantForm<{ name: string }>();
+      return <input form="missing-owner" {...form.register("name")} />;
+    };
+    render(
+      <form onSubmit={submitted}>
+        <Fields />
+      </form>,
+    );
+
+    await expect(executeSubmitForm()).resolves.toEqual({
+      success: false,
+      message: "Unable retrieve the form element. This is a coding error.",
+    });
+    expect(submitted).not.toHaveBeenCalled();
+  });
+
+  it("keeps the ancestor fallback for custom refs without a form owner property", async () => {
+    await expectRegisteredFieldsToSubmit(() => {
+      const form = useAssistantForm<{ name: string }>();
+      return <div ref={form.register("name").ref} />;
+    });
+  });
+
+  it("validates external controls before submitting their owner", async () => {
+    const submitted = vi.fn((event: FormEvent<HTMLFormElement>) =>
+      event.preventDefault(),
+    );
+    const Fields = () => {
+      const form = useAssistantForm<{ name: string }>();
+      return <input required form="owner" {...form.register("name")} />;
+    };
+    render(
+      <>
+        <Fields />
+        <form id="owner" onSubmit={submitted} />
+      </>,
+    );
+
+    await expectSubmitBlocked();
+    expect(submitted).not.toHaveBeenCalled();
   });
 
   it("submits forms registered with nested inputs", async () => {

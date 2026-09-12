@@ -1,7 +1,7 @@
 import { Chat } from "@ai-sdk/react";
 import type { UIMessage } from "@ai-sdk/react";
-import type { ChatTransport } from "ai";
-import type { AssistantCloud } from "assistant-cloud";
+import type { ChatTransport, UIMessageChunk } from "ai";
+import { CloudEngagementReporter, type AssistantCloud } from "assistant-cloud";
 import type { UseCloudChatOptions, UseThreadsResult } from "../types";
 import type { ChatRegistry } from "../chat/ChatRegistry";
 import { MessagePersistence } from "../chat/MessagePersistence";
@@ -9,7 +9,9 @@ import { ThreadSessionManager } from "./ThreadSessionManager";
 import { TitlePolicy } from "./TitlePolicy";
 import {
   CloudTelemetryReporter,
+  isMidLoopFinish,
   type TelemetryFinishEvent,
+  type TelemetryRunTiming,
 } from "./CloudTelemetryReporter";
 
 export type CloudChatConfig = Omit<
@@ -23,17 +25,56 @@ export type CloudChatCoreOptions = {
   onSyncError?: ((error: Error) => void) | undefined;
 };
 
+type ActiveTelemetryTiming = {
+  startedAt: number;
+  firstTokenMs?: number;
+  error?: unknown;
+};
+
+function getLastMessage(
+  messages: UIMessage[],
+  role: UIMessage["role"],
+): UIMessage | undefined {
+  for (let index = messages.length - 1; index >= 0; index--) {
+    const message = messages[index]!;
+    if (message.role === role) return message;
+  }
+  return undefined;
+}
+
+function getMessageCounts(message: UIMessage): {
+  chars: number;
+  attachments: number;
+} {
+  let chars = 0;
+  let attachments = 0;
+  for (const part of message.parts) {
+    if (part.type === "text") chars += part.text.length;
+    if (part.type === "file") attachments += 1;
+  }
+  return { chars, attachments };
+}
+
+const throwIfRegistryDisposed = (registry: ChatRegistry): void => {
+  if (!registry.isDisposed) return;
+  const error = new Error("Chat registry is disposed");
+  error.name = "AbortError";
+  throw error;
+};
+
 export class CloudChatCore {
   readonly cloud: AssistantCloud;
   readonly persistence: MessagePersistence;
   readonly sessionManager: ThreadSessionManager;
   readonly titlePolicy: TitlePolicy;
   readonly telemetryReporter: CloudTelemetryReporter;
+  readonly engagementReporter: CloudEngagementReporter;
 
   options: CloudChatCoreOptions;
   /** Set by the React wrapper. */
   mountedRef: { current: boolean } = { current: true };
   private baseTransport: ChatTransport<UIMessage>;
+  private telemetryTimings = new Map<string, ActiveTelemetryTiming>();
 
   constructor(
     cloud: AssistantCloud,
@@ -50,6 +91,21 @@ export class CloudChatCore {
     this.sessionManager = new ThreadSessionManager();
     this.titlePolicy = new TitlePolicy();
     this.telemetryReporter = new CloudTelemetryReporter(cloud);
+    this.engagementReporter = new CloudEngagementReporter(
+      cloud,
+      (threadId, messageId) => {
+        const remoteMessageId =
+          messageId === undefined
+            ? undefined
+            : this.persistence.getResolvedRemoteId(threadId, messageId);
+        return {
+          thread_id: threadId,
+          ...(remoteMessageId !== undefined
+            ? { message_id: remoteMessageId }
+            : undefined),
+        };
+      },
+    );
   }
 
   updateOptions(
@@ -102,6 +158,7 @@ export class CloudChatCore {
     chatKey: string,
     registry: ChatRegistry,
     finishEvent?: TelemetryFinishEvent,
+    timing?: TelemetryRunTiming,
   ): Promise<void> {
     const meta = registry.getMeta(chatKey);
     const threadId = meta?.threadId;
@@ -114,7 +171,14 @@ export class CloudChatCore {
     await this.persist(threadId, messages);
 
     this.telemetryReporter
-      .reportFromMessages(threadId, messages, finishEvent)
+      .reportFromMessages(
+        threadId,
+        messages,
+        finishEvent,
+        timing,
+        (messageId) =>
+          this.persistence.getResolvedRemoteId(threadId, messageId),
+      )
       .catch(() => {});
 
     if (this.titlePolicy.shouldGenerateTitle(threadId, messages)) {
@@ -133,6 +197,20 @@ export class CloudChatCore {
             this.titlePolicy.markTitleGenerationFailed(threadId);
           },
         );
+    }
+  }
+
+  trackRunStopped(threadId: string | null): void {
+    if (threadId) this.engagementReporter.runStopped(threadId);
+  }
+
+  trackRegenerated(threadId: string | null, messages: UIMessage[]): void {
+    if (threadId) {
+      this.engagementReporter.runStarted(threadId);
+      this.engagementReporter.messageRegenerated(
+        threadId,
+        getLastMessage(messages, "assistant")?.id,
+      );
     }
   }
 
@@ -166,7 +244,9 @@ export class CloudChatCore {
   ): ChatTransport<UIMessage> {
     return {
       sendMessages: async (opts) => {
+        throwIfRegistryDisposed(registry);
         const currentThreadId = await this.ensureThreadId(chatKey, registry);
+        throwIfRegistryDisposed(registry);
 
         if (!currentThreadId) {
           throw new Error("useCloudChat: Failed to resolve thread id");
@@ -179,14 +259,31 @@ export class CloudChatCore {
           roles: ["user"],
           strict: true,
         });
+        throwIfRegistryDisposed(registry);
+        if (
+          opts.trigger === "submit-message" &&
+          opts.messages.at(-1)?.role === "user"
+        ) {
+          const lastUserMessage = getLastMessage(opts.messages, "user");
+          if (lastUserMessage) {
+            this.engagementReporter.runStarted(currentThreadId);
+            this.engagementReporter.messageSent(currentThreadId, {
+              messageId: lastUserMessage.id,
+              ...getMessageCounts(lastUserMessage),
+            });
+          }
+        }
 
-        return await this.baseTransport.sendMessages({
+        const timing: ActiveTelemetryTiming = { startedAt: Date.now() };
+        this.telemetryTimings.set(chatKey, timing);
+        const stream = await this.baseTransport.sendMessages({
           ...opts,
           body: {
             ...opts.body,
             id: currentThreadId,
           },
         });
+        return this.observeTelemetryStream(stream, timing);
       },
       reconnectToStream: (opts) => this.baseTransport.reconnectToStream(opts),
     };
@@ -215,14 +312,62 @@ export class CloudChatCore {
         try {
           this.options.chatConfig.onFinish?.(event);
         } finally {
-          void this.persistChatMessages(chatKey, registry, event).catch(
-            (error) => {
-              this.handleSyncError(error);
-            },
-          );
+          const activeTiming = this.telemetryTimings.get(chatKey);
+          const timing = activeTiming
+            ? {
+                durationMs: Date.now() - activeTiming.startedAt,
+                ...(activeTiming.firstTokenMs !== undefined
+                  ? { firstTokenMs: activeTiming.firstTokenMs }
+                  : undefined),
+              }
+            : undefined;
+          this.telemetryTimings.delete(chatKey);
+          if (!registry.isDisposed) {
+            const threadId = registry.getMeta(chatKey)?.threadId;
+            const chatInstance = registry.get(chatKey);
+            if (threadId && chatInstance) {
+              if (event.isAbort) this.engagementReporter.runStopped(threadId);
+              if (event.isError || event.finishReason === "error") {
+                this.engagementReporter.errorShown(threadId, {
+                  messageId: getLastMessage(chatInstance.messages, "assistant")
+                    ?.id,
+                  reason: "error",
+                });
+              }
+              if (!isMidLoopFinish(event, chatInstance.messages)) {
+                this.engagementReporter.runEnded(threadId);
+              }
+            }
+          }
+          const threadId = registry.getMeta(chatKey)?.threadId;
+          const chatInstance = registry.get(chatKey);
+          const finishEvent =
+            activeTiming?.error === undefined
+              ? event
+              : { ...event, error: activeTiming.error };
+          const persist = registry.isDisposed
+            ? threadId && chatInstance
+              ? this.persist(threadId, chatInstance.messages)
+              : Promise.resolve()
+            : timing
+              ? this.persistChatMessages(chatKey, registry, finishEvent, timing)
+              : this.persistChatMessages(chatKey, registry, finishEvent);
+          void persist.catch((error) => {
+            this.handleSyncError(error);
+          });
         }
       },
       onError: (error) => {
+        const activeTiming = this.telemetryTimings.get(chatKey);
+        if (activeTiming) activeTiming.error = error;
+        const threadId = registry.getMeta(chatKey)?.threadId;
+        const chatInstance = registry.get(chatKey);
+        if (threadId && chatInstance) {
+          this.engagementReporter.errorShown(threadId, {
+            messageId: getLastMessage(chatInstance.messages, "assistant")?.id,
+            reason: "error",
+          });
+        }
         this.options.chatConfig.onError?.(error);
       },
       onData: (data) => {
@@ -233,6 +378,79 @@ export class CloudChatCore {
       },
       sendAutomaticallyWhen: (arg) =>
         this.options.chatConfig.sendAutomaticallyWhen?.(arg) ?? false,
+    });
+  }
+
+  private observeTelemetryStream(
+    stream: ReadableStream<UIMessageChunk>,
+    timing: ActiveTelemetryTiming,
+  ): ReadableStream<UIMessageChunk> {
+    // Read eagerly until the first token so its timing reflects arrival rather than downstream consumption.
+    const reader = stream.getReader();
+    let observeFirstToken = timing.firstTokenMs === undefined;
+    let cancelled = false;
+    let readerReleased = false;
+    let eagerRead: Promise<void> | undefined;
+
+    const releaseReader = () => {
+      if (readerReleased) return;
+      readerReleased = true;
+      reader.releaseLock();
+    };
+    const forwardNext = async (
+      controller: ReadableStreamDefaultController<UIMessageChunk>,
+    ) => {
+      try {
+        const { done, value } = await reader.read();
+        if (cancelled) return false;
+        if (done) {
+          releaseReader();
+          controller.close();
+          return false;
+        }
+        if (
+          observeFirstToken &&
+          (value.type === "text-delta" || value.type === "reasoning-delta")
+        ) {
+          timing.firstTokenMs = Date.now() - timing.startedAt;
+          observeFirstToken = false;
+        }
+        controller.enqueue(value);
+        return true;
+      } catch (error) {
+        releaseReader();
+        if (!cancelled) controller.error(error);
+        return false;
+      }
+    };
+    const readUntilFirstToken = async (
+      controller: ReadableStreamDefaultController<UIMessageChunk>,
+    ) => {
+      while (observeFirstToken && (await forwardNext(controller))) {}
+    };
+
+    return new ReadableStream<UIMessageChunk>({
+      start(controller) {
+        eagerRead = readUntilFirstToken(controller);
+      },
+      async pull(controller) {
+        if (eagerRead) {
+          await eagerRead;
+          eagerRead = undefined;
+        } else {
+          await forwardNext(controller);
+        }
+      },
+      async cancel(reason) {
+        cancelled = true;
+        try {
+          if (!readerReleased) {
+            await reader.cancel(reason);
+          }
+        } finally {
+          releaseReader();
+        }
+      },
     });
   }
 

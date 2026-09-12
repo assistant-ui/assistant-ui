@@ -92,13 +92,18 @@ declare class AssistantCloud {
   };
   readonly runs: AssistantCloudRuns;
   readonly files: AssistantCloudFiles;
+  readonly events: AssistantCloudEvents;
+  readonly scores: AssistantCloudScores;
   readonly telemetry: AssistantCloudTelemetryConfig;
+  readonly registerSdk: (sdk: SdkIdentity) => void;
   constructor(config: AssistantCloudConfig);
 }
 
 declare class AssistantCloudAPI {
   _auth: AssistantCloudAuthStrategy;
   _baseUrl: string;
+  readonly registerSdk: (sdk: SdkIdentity) => void;
+  readonly sdkHeader: () => string;
   constructor(config: AssistantCloudConfig);
   initializeAuth(): Promise<boolean>;
   makeRawRequest(endpoint: string, options?: MakeRequestOptions): Promise<Response>;
@@ -136,11 +141,34 @@ type AssistantCloudConfig = ({
   telemetry?: boolean | AssistantCloudTelemetryConfig;
 };
 
+type AssistantCloudEvent = {
+  kind: AssistantCloudEventKind;
+  thread_id?: string | undefined;
+  message_id?: string | undefined;
+  run_id?: string | undefined;
+  value?: number | undefined;
+  props?: Readonly<Record<string, string | number | boolean>> | undefined;
+};
+
+type AssistantCloudEventKind = "attachment_added" | "attachment_failed" | "branch_switched" | "error_shown" | "message_copied" | "message_edited" | "message_regenerated" | "message_sent" | "run_stopped" | "speech_started" | "suggestion_clicked" | "suggestions_shown" | "thread_switched" | "tool_approved" | "tool_rejected" | "voice_started";
+
+declare class AssistantCloudEvents {
+  #private;
+  constructor(cloud: AssistantCloudAPI, isEnabled: () => boolean);
+  track(event: AssistantCloudEvent): void;
+  dispose(): void;
+}
+
 declare class AssistantCloudFiles {
   #private;
   constructor(cloud: AssistantCloudAPI);
   pdfToImages(body: PdfToImagesRequestBody): Promise<PdfToImagesResponse>;
   generatePresignedUploadUrl(body: GeneratePresignedUploadUrlRequestBody): Promise<GeneratePresignedUploadUrlResponse>;
+  generatePresignedDownloadUrl(body: {
+    key: string;
+  } | {
+    url: string;
+  }): Promise<GeneratePresignedDownloadUrlResponse>;
 }
 
 type AssistantCloudMessageCreateResponse = {
@@ -188,6 +216,16 @@ declare class AssistantCloudProjects {
 type AssistantCloudRunReport = {
   thread_id: string;
   status: "completed" | "error" | "incomplete";
+  outcome_type?: "aborted" | "content_filter" | "disconnected" | "length";
+  message_id?: string;
+  first_token_ms?: number;
+  release?: string;
+  environment?: string;
+  tags?: string[];
+  provider?: string;
+  trace_id?: string;
+  error_code?: string;
+  error?: string;
   total_steps?: number;
   tool_calls?: AssistantCloudRunReportToolCall[];
   steps?: {
@@ -198,6 +236,7 @@ type AssistantCloudRunReport = {
     tool_calls?: AssistantCloudRunReportToolCall[];
     start_ms?: number;
     end_ms?: number;
+    finish_reason?: string;
   }[];
   input_tokens?: number;
   output_tokens?: number;
@@ -228,6 +267,7 @@ declare class AssistantCloudRuns {
     api: string;
     headers: () => Promise<{
       Accept: string;
+      "Aui-Sdk": string;
     }>;
     body: {
       assistant_id: string;
@@ -247,8 +287,37 @@ type AssistantCloudRunsStreamBody = {
   messages: readonly unknown[];
 };
 
+type AssistantCloudScoreBody = {
+  name: string;
+  data_type: "boolean" | "categorical" | "numeric";
+  value?: number | boolean;
+  string_value?: string;
+  comment?: string;
+  thread_id?: string;
+  message_id?: string;
+  run_id?: string;
+};
+
+type AssistantCloudScoreResponse = {
+  score_id: string;
+  name: string;
+  data_type: "boolean" | "categorical" | "numeric";
+  value: number | null;
+  string_value: string | null;
+};
+
+declare class AssistantCloudScores {
+  #private;
+  constructor(cloud: AssistantCloudAPI);
+  create(body: AssistantCloudScoreBody): Promise<AssistantCloudScoreResponse>;
+}
+
 type AssistantCloudTelemetryConfig = {
   enabled?: boolean;
+  events?: boolean;
+  release?: string;
+  environment?: string;
+  tags?: string[];
   beforeReport?: (report: AssistantCloudRunReport) => AssistantCloudRunReport | null;
 };
 
@@ -1198,9 +1267,16 @@ type ComposerRuntimeCoreBinding = SubscribableWithState<ComposerRuntimeCore | un
 type ComposerRuntimeEventCallback<E extends ComposerRuntimeEventType> = (payload: ComposerRuntimeEventPayload[E]) => void;
 
 type ComposerRuntimeEventPayload = {
-  send: Record<string, never>;
-  attachmentAdd: Record<string, never>;
-  attachmentAddError: AttachmentAddErrorEvent;
+  send: {
+    readonly chars: number;
+    readonly attachments: number;
+  };
+  attachmentAdd: {
+    readonly contentType?: string | undefined;
+  };
+  attachmentAddError: AttachmentAddErrorEvent & {
+    readonly contentType?: string | undefined;
+  };
 };
 
 type ComposerRuntimeEventType = keyof ComposerRuntimeEventPayload;
@@ -1641,6 +1717,12 @@ type FrontendTool<TArgs extends Record<string, unknown> = Record<string, unknown
   providerOptions?: ProviderOptions;
 };
 
+type GeneratePresignedDownloadUrlResponse = {
+  signedUrl: string;
+  expiresAt: string;
+  key: string;
+};
+
 type GeneratePresignedUploadUrlRequestBody = {
   filename: string;
 };
@@ -1650,6 +1732,7 @@ type GeneratePresignedUploadUrlResponse = {
   signedUrl: string;
   expiresAt: string;
   publicUrl: string;
+  key?: string;
 };
 
 type GenerativeUIComponentRegistry = Record<string, ComponentType<any>>;
@@ -1684,6 +1767,7 @@ type GenericThreadHistoryAdapter<TMessage> = {
       start_ms: number;
       end_ms: number;
     }[];
+    message?: ThreadMessage;
   }): void;
 };
 
@@ -1938,6 +2022,7 @@ type MakeRequestOptions = {
   headers?: Record<string, string> | undefined;
   query?: Record<string, string | number | boolean> | undefined;
   body?: object | undefined;
+  keepalive?: boolean | undefined;
 };
 
 type McpAppMetadata = {
@@ -3015,6 +3100,11 @@ type ScopeStates = {
   [K in ClientNames]: ClientSchemas[K]["methods"] extends {
     getState: () => infer S;
   } ? S : never;
+};
+
+type SdkIdentity = {
+  name: string;
+  version: string;
 };
 
 type SendOptions = {

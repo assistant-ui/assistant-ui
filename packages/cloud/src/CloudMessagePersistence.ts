@@ -5,15 +5,9 @@ import type { CloudMessage } from "./AssistantCloudThreadMessages";
 const CLOUD_MESSAGE_PAGE_SIZE = 200;
 
 /**
- * Shared persistence logic for cloud message storage.
- *
- * Handles ID mapping (local → remote) and parent_id chaining for both:
- * - AssistantCloudThreadHistoryAdapter (assistant-ui runtime)
- * - useCloudChat (standalone AI SDK hook)
- *
- * The promise-based ID resolution handles concurrent appends — if message B's
- * parent is message A, and A is still being created, we await A's promise
- * to get its remote ID before creating B.
+ * Appends, updates and loads cloud messages while mapping local ids to cloud
+ * ids and chaining parent_id. A parent that is still being created is awaited,
+ * so concurrent appends land under the right parent.
  */
 export class CloudMessagePersistence {
   private idMapping = new Map<string, string | Promise<string>>();
@@ -110,6 +104,11 @@ export class CloudMessagePersistence {
     const entry = this.idMapping.get(messageId);
     if (!entry) return undefined;
     return entry;
+  }
+
+  getResolvedRemoteId(messageId: string): string | undefined {
+    const entry = this.idMapping.get(messageId);
+    return typeof entry === "string" ? entry : undefined;
   }
 
   /**

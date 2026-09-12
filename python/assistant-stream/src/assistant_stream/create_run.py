@@ -27,6 +27,23 @@ from assistant_stream.state_manager import StateManager
 logger = logging.getLogger(__name__)
 
 
+def _log_detached_task_error(task: asyncio.Task[None]) -> None:
+    try:
+        task.result()
+    except asyncio.CancelledError:
+        return
+    except Exception:
+        logger.warning(
+            "Suppressed callback exception after interrupted early-close cleanup",
+            exc_info=True,
+        )
+
+
+def _cancel_detached_task(task: asyncio.Task[None]) -> None:
+    task.add_done_callback(_log_detached_task_error)
+    task.cancel()
+
+
 class ReadOnlyCancellationSignal:
     """Read-only view over an asyncio.Event used for cancellation."""
 
@@ -46,6 +63,7 @@ class RunController:
         self._loop = asyncio.get_running_loop()
         self._dispose_callbacks = []
         self._stream_tasks = []
+        self._stream_tasks_to_drain = []
         self._state_manager = StateManager(self._put_chunk_nowait, state_data)
         self._parent_id = parent_id
         self._cancelled_event = asyncio.Event()
@@ -63,6 +81,7 @@ class RunController:
         controller._loop = self._loop
         controller._dispose_callbacks = self._dispose_callbacks
         controller._stream_tasks = self._stream_tasks
+        controller._stream_tasks_to_drain = self._stream_tasks_to_drain
         controller._state_manager = self._state_manager
         controller._parent_id = parent_id
         controller._cancelled_event = self._cancelled_event
@@ -110,7 +129,8 @@ class RunController:
         stream, controller = await create_tool_call(tool_name, tool_call_id, self._parent_id)
         self._dispose_callbacks.append(controller.close)
 
-        self.add_stream(stream)
+        task = self._add_stream_task(stream)
+        self._stream_tasks_to_drain.append(task)
         return controller
 
     def add_tool_result(self, tool_call_id: str, result: Any) -> None:
@@ -123,6 +143,11 @@ class RunController:
 
     def add_stream(self, stream: AsyncGenerator[AssistantStreamChunk, None]) -> None:
         """Append a substream to the main stream."""
+        self._add_stream_task(stream)
+
+    def _add_stream_task(
+        self, stream: AsyncGenerator[AssistantStreamChunk, None]
+    ) -> asyncio.Task[None]:
 
         async def reader():
             async for chunk in stream:
@@ -130,6 +155,7 @@ class RunController:
 
         task = asyncio.create_task(reader())
         self._stream_tasks.append(task)
+        return task
 
     def add_data(self, data: Any) -> None:
         """Emit an event to the main stream."""
@@ -261,20 +287,77 @@ async def create_run(
     controller = RunController(queue, state_data=state)
 
     async def background_task():
+        callback_failed = False
         try:
             await callback(controller)
-        except Exception as e:
-            controller.add_error(str(e))
+        except BaseException as e:
+            callback_failed = True
+            if isinstance(e, Exception):
+                controller.add_error(str(e))
             raise
         finally:
             # Flush any pending state updates before disposing
             controller._state_manager.flush()
 
-            for dispose in controller._dispose_callbacks:
-                dispose()
+            dispose_index = 0
+
+            def drain_dispose_callbacks():
+                nonlocal dispose_index
+                while dispose_index < len(controller._dispose_callbacks):
+                    dispose = controller._dispose_callbacks[dispose_index]
+                    dispose_index += 1
+                    dispose()
+
+            async def cancel_stream_tasks():
+                task_index = 0
+                drain_index = 0
+                while True:
+                    drain_dispose_callbacks()
+
+                    tasks_to_drain = controller._stream_tasks_to_drain[drain_index:]
+                    if tasks_to_drain:
+                        await asyncio.gather(*tasks_to_drain, return_exceptions=True)
+                        drain_index += len(tasks_to_drain)
+                        continue
+
+                    if task_index >= len(controller._stream_tasks):
+                        break
+
+                    tasks = controller._stream_tasks[task_index:]
+                    for task in tasks:
+                        if not task.done():
+                            task.cancel()
+                    await asyncio.gather(*tasks, return_exceptions=True)
+                    task_index += len(tasks)
+                drain_dispose_callbacks()
+
+            async def finish_stream_task_cancellation():
+                cleanup_task = asyncio.create_task(cancel_stream_tasks())
+                while True:
+                    try:
+                        await asyncio.shield(cleanup_task)
+                        return
+                    except asyncio.CancelledError:
+                        # Cleanup remains uncancellable so nested readers cannot be orphaned.
+                        if cleanup_task.done():
+                            cleanup_task.result()
+                            return
+
+            drain_dispose_callbacks()
             try:
-                for task in controller._stream_tasks:
-                    await task
+                if callback_failed:
+                    await finish_stream_task_cancellation()
+                else:
+                    try:
+                        task_index = 0
+                        while task_index < len(controller._stream_tasks):
+                            tasks = controller._stream_tasks[task_index:]
+                            await asyncio.gather(*tasks)
+                            task_index += len(tasks)
+                            drain_dispose_callbacks()
+                    except BaseException:
+                        await finish_stream_task_cancellation()
+                        raise
             finally:
                 enqueue_threadsafe(asyncio.get_running_loop(), queue, None)
 
@@ -294,7 +377,11 @@ async def create_run(
         else:
             controller._mark_cancelled()
             # Yield to the event loop to allow the cancel signal to propagate.
-            await asyncio.sleep(0)
+            try:
+                await asyncio.sleep(0)
+            except asyncio.CancelledError:
+                _cancel_detached_task(task)
+                raise
             if not task.done():
                 # Give callbacks a brief chance to observe `is_cancelled`
                 # and exit cooperatively before forcing cancellation.
@@ -305,6 +392,9 @@ async def create_run(
                 except asyncio.TimeoutError:
                     # Timeout means cooperative shutdown did not finish in time.
                     pass
+                except asyncio.CancelledError:
+                    _cancel_detached_task(task)
+                    raise
                 except Exception:
                     # The stream consumer already disconnected, so suppress callback errors
                     # but keep a log signal for postmortem debugging.
@@ -324,6 +414,7 @@ async def create_run(
                     pass
                 else:
                     # Preserve caller-initiated cancellation (e.g. wait_for timeout).
+                    _cancel_detached_task(task)
                     raise
             except Exception:
                 # The stream consumer already disconnected, so suppress callback errors

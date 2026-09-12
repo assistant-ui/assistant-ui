@@ -1,5 +1,5 @@
 import type { MetadataRoute } from "next";
-import { source, getTapDocsPages, blog, examples, careers } from "@/lib/source";
+import { source, blog, examples, careers } from "@/lib/source";
 import { ELEMENTS } from "@/components/pages/elements/registry";
 import { DEMOS } from "@/lib/demos";
 import { DESIGN_COMPONENTS } from "@/components/pages/design/registry-meta";
@@ -62,15 +62,6 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     })),
   );
 
-  const tapDocsPages: MetadataRoute.Sitemap = await Promise.all(
-    getTapDocsPages().map(async (page) => ({
-      url: `${BASE_URL}${page.url}`,
-      lastModified: (await page.data.load()).lastModified,
-      changeFrequency: "weekly" as const,
-      priority: 0.7,
-    })),
-  );
-
   const blogPages: MetadataRoute.Sitemap = blog.getPages().map((page) => ({
     url: `${BASE_URL}${page.url}`,
     lastModified: page.data.lastModified,
@@ -116,7 +107,6 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     ...staticPages,
     ...productPages,
     ...docsPages,
-    ...tapDocsPages,
     ...blogPages,
     ...examplePages,
     ...elementPages,

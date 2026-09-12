@@ -47,13 +47,18 @@ export class AssistantFrameProvider {
   private _targetOrigin: string;
   private _strictRegistrations = 0;
   private _wildcardRegistrations = 0;
+  private _startupTimer: ReturnType<typeof setTimeout> | undefined;
+  private _disposed = false;
 
   private constructor(targetOrigin: string = getDefaultTargetOrigin()) {
     this._targetOrigin = targetOrigin;
     this.handleMessage = this.handleMessage.bind(this);
     window.addEventListener("message", this.handleMessage);
 
-    setTimeout(() => this.broadcastUpdate(), 0);
+    this._startupTimer = setTimeout(() => {
+      this._startupTimer = undefined;
+      this.broadcastUpdate();
+    }, 0);
   }
 
   private static getInstance(targetOrigin?: string): AssistantFrameProvider {
@@ -106,7 +111,12 @@ export class AssistantFrameProvider {
         break;
 
       case "tool-call":
-        this.handleToolCall(message, event);
+        void this.handleToolCall(message, event).catch((error: unknown) => {
+          console.error(
+            "[assistant-ui] AssistantFrame tool call failed.",
+            error,
+          );
+        });
         break;
 
       case "tool-cancel":
@@ -156,11 +166,25 @@ export class AssistantFrameProvider {
     if (this._activeToolCalls.get(message.id) !== activeCall) return;
     this._activeToolCalls.delete(message.id);
 
-    this.sendMessage(event, {
-      type: "tool-result",
-      id: message.id,
-      ...(error !== undefined ? { error } : { result }),
-    });
+    try {
+      this.sendMessage(event, {
+        type: "tool-result",
+        id: message.id,
+        ...(error !== undefined ? { error } : { result }),
+      });
+    } catch (sendError) {
+      if (error !== undefined) throw sendError;
+
+      console.error(
+        "[assistant-ui] AssistantFrame tool result could not be sent.",
+        sendError,
+      );
+      this.sendMessage(event, {
+        type: "tool-result",
+        id: message.id,
+        error: "Tool result could not be sent across the frame boundary",
+      });
+    }
   }
 
   private cancelToolCall(id: string) {
@@ -244,6 +268,7 @@ export class AssistantFrameProvider {
   }
 
   private broadcastUpdate() {
+    if (this._disposed) return;
     if (window.parent && window.parent !== window) {
       const updateMessage: FrameMessage = {
         type: "model-context-update",
@@ -375,6 +400,11 @@ export class AssistantFrameProvider {
   static dispose() {
     if (AssistantFrameProvider._instance) {
       const instance = AssistantFrameProvider._instance;
+      instance._disposed = true;
+      if (instance._startupTimer !== undefined) {
+        clearTimeout(instance._startupTimer);
+        instance._startupTimer = undefined;
+      }
       window.removeEventListener("message", instance.handleMessage);
 
       let cleanupFailed = false;

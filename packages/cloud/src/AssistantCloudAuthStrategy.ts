@@ -160,8 +160,9 @@ export class AssistantCloudJWTAuthStrategy implements AssistantCloudAuthStrategy
     const token = await this.#authTokenCallback();
     if (!token) return false;
 
+    const tokenExpiry = getJwtExpiry(token);
     this.cachedToken = token;
-    this.tokenExpiry = getJwtExpiry(token);
+    this.tokenExpiry = tokenExpiry;
 
     return { Authorization: `Bearer ${token}` };
   }
@@ -175,8 +176,9 @@ export class AssistantCloudJWTAuthStrategy implements AssistantCloudAuthStrategy
       throw new Error("Invalid auth header received");
     }
 
+    const tokenExpiry = getJwtExpiry(token);
     this.cachedToken = token;
-    this.tokenExpiry = getJwtExpiry(token);
+    this.tokenExpiry = tokenExpiry;
   }
 }
 

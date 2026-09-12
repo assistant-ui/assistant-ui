@@ -36,7 +36,10 @@ import type { RealtimeVoiceAdapter } from "../../adapters/voice";
 import type { ThreadMessageLike } from "../utils/thread-message-like";
 import { notifyEventListeners } from "../../utils/notify-event-listeners";
 import { gateInteractableComposerMetadata } from "../../model-context/interactable-composer-metadata";
-import { BaseSubscribable } from "../../subscribable/subscribable";
+import {
+  BaseSubscribable,
+  notifySubscribers,
+} from "../../subscribable/subscribable";
 
 type BaseThreadAdapters = {
   speech?: SpeechSynthesisAdapter | undefined;
@@ -305,67 +308,111 @@ export abstract class BaseThreadRuntimeCore
     const adapter = this.adapters?.voice;
     if (!adapter) throw new Error("Voice adapter not configured");
 
-    this.disconnectVoice();
+    try {
+      this.disconnectVoice();
+    } catch (error) {
+      console.error(
+        "[assistant-ui] Voice cleanup threw before reconnect",
+        error,
+      );
+    }
 
     const session = adapter.connect({});
     this._voiceSession = session;
     const unsubs: Array<() => void> = [];
-
-    let currentMode: RealtimeVoiceAdapter.Mode = "listening";
-
-    this.voice = {
-      status: session.status,
-      isMuted: session.isMuted,
-      mode: currentMode,
-    };
-    this._voiceVolume = 0;
-    this._notifySubscribers();
-
-    unsubs.push(
-      session.onStatusChange((status) => {
-        if (status.type === "ended") {
-          this._finishVoiceAssistantMessage();
-          this._voiceSession = undefined;
-          this.voice = undefined;
-        } else {
-          this.voice = {
-            status,
-            isMuted: session.isMuted,
-            mode: currentMode,
-          };
-        }
-        this._notifySubscribers();
-      }),
-    );
-
-    unsubs.push(
-      session.onModeChange((mode) => {
-        currentMode = mode;
-        if (this.voice) {
-          this.voice = { ...this.voice, mode };
-          this._notifySubscribers();
-        }
-      }),
-    );
-
-    unsubs.push(
-      session.onVolumeChange((volume) => {
-        this._voiceVolume = volume;
-        notifyEventListeners(
-          this._voiceVolumeSubscribers,
-          undefined,
-          "Voice volume",
-        );
-      }),
-    );
-
-    unsubs.push(
-      session.onTranscript((transcript) => {
-        this._handleVoiceTranscript(transcript);
-      }),
-    );
-
     this._voiceUnsubs = unsubs;
+
+    // The cleanup-list identity preserves ownership after an ended status clears the session.
+    const finishDetachedSetup = () => {
+      if (this._voiceSession === session && this._voiceUnsubs === unsubs) {
+        return false;
+      }
+
+      try {
+        notifySubscribers(unsubs.splice(0));
+      } catch (error) {
+        console.error(
+          "[assistant-ui] Detached voice setup cleanup threw",
+          error,
+        );
+      }
+      return true;
+    };
+
+    try {
+      let currentMode: RealtimeVoiceAdapter.Mode = "listening";
+
+      this.voice = {
+        status: session.status,
+        isMuted: session.isMuted,
+        mode: currentMode,
+      };
+      this._voiceVolume = 0;
+      this._notifySubscribers();
+      if (finishDetachedSetup()) return;
+
+      unsubs.push(
+        session.onStatusChange((status) => {
+          if (status.type === "ended") {
+            this._finishVoiceAssistantMessage();
+            this._voiceSession = undefined;
+            this.voice = undefined;
+          } else {
+            this.voice = {
+              status,
+              isMuted: session.isMuted,
+              mode: currentMode,
+            };
+          }
+          this._notifySubscribers();
+        }),
+      );
+      if (finishDetachedSetup()) return;
+
+      unsubs.push(
+        session.onModeChange((mode) => {
+          currentMode = mode;
+          if (this.voice) {
+            this.voice = { ...this.voice, mode };
+            this._notifySubscribers();
+          }
+        }),
+      );
+      if (finishDetachedSetup()) return;
+
+      unsubs.push(
+        session.onVolumeChange((volume) => {
+          this._voiceVolume = volume;
+          notifyEventListeners(
+            this._voiceVolumeSubscribers,
+            undefined,
+            "Voice volume",
+          );
+        }),
+      );
+      if (finishDetachedSetup()) return;
+
+      unsubs.push(
+        session.onTranscript((transcript) => {
+          this._handleVoiceTranscript(transcript);
+        }),
+      );
+      finishDetachedSetup();
+    } catch (error) {
+      if (this._voiceSession === session && this._voiceUnsubs === unsubs) {
+        try {
+          this.disconnectVoice();
+        } catch (cleanupError) {
+          console.error(
+            "[assistant-ui] Voice rollback cleanup threw",
+            cleanupError,
+          );
+        }
+      } else {
+        finishDetachedSetup();
+      }
+      throw error;
+    }
   }
 
   private _currentAssistantMsg: ThreadAssistantMessage | null = null;
@@ -393,6 +440,10 @@ export abstract class BaseThreadRuntimeCore
         this._notifySubscribers();
       }
     } else {
+      const status: ThreadAssistantMessage["status"] = transcript.isFinal
+        ? { type: "complete", reason: "stop" }
+        : { type: "running" };
+
       if (!this._currentAssistantMsg) {
         this._currentAssistantMsg = {
           id: generateId(),
@@ -405,7 +456,7 @@ export abstract class BaseThreadRuntimeCore
             steps: [],
             custom: {},
           },
-          status: { type: "running" },
+          status,
           createdAt: new Date(),
         };
         this._voiceMessages.push(this._currentAssistantMsg);
@@ -415,9 +466,7 @@ export abstract class BaseThreadRuntimeCore
         const updated: ThreadAssistantMessage = {
           ...this._currentAssistantMsg,
           content: [{ type: "text", text: transcript.text }],
-          ...(transcript.isFinal
-            ? { status: { type: "complete", reason: "stop" } }
-            : {}),
+          status,
         };
         this._voiceMessages[idx] = updated;
         this._currentAssistantMsg = updated;
@@ -446,22 +495,28 @@ export abstract class BaseThreadRuntimeCore
   }
 
   public disconnectVoice() {
-    this._finishVoiceAssistantMessage();
     this._currentAssistantMsg = null;
-    for (const unsub of this._voiceUnsubs) unsub();
+    // Drain the shared list in place so reentrant setup cannot release the same handles again.
+    const unsubs = this._voiceUnsubs.splice(0);
     this._voiceUnsubs = [];
-    this._voiceSession?.disconnect();
+    const session = this._voiceSession;
     this._voiceSession = undefined;
     this.voice = undefined;
     this._voiceVolume = 0;
-    notifyEventListeners(
-      this._voiceVolumeSubscribers,
-      undefined,
-      "Voice volume",
-    );
     this._voiceMessages = [];
     this._markVoiceMessagesDirty();
-    this._notifySubscribers();
+
+    notifySubscribers([
+      ...unsubs,
+      ...(session ? [() => session.disconnect()] : []),
+      () =>
+        notifyEventListeners(
+          this._voiceVolumeSubscribers,
+          undefined,
+          "Voice volume",
+        ),
+      () => this._notifySubscribers(),
+    ]);
   }
 
   public muteVoice() {

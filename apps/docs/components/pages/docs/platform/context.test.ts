@@ -1,4 +1,4 @@
-import { afterEach, expect, it, vi } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 
 const STORAGE_KEY = "assistant-ui::docs:platform";
 
@@ -88,4 +88,60 @@ it("clears the stored key when the url names the default platform", async () => 
 
   expect(store.has(STORAGE_KEY)).toBe(false);
   expect(getSearch()).toBe("");
+});
+
+describe("getPlatformSwitchHref", () => {
+  const load = async () => (await import("./context")).getPlatformSwitchHref;
+
+  it("maps the three installation pages onto each other", async () => {
+    const getPlatformSwitchHref = await load();
+    expect(getPlatformSwitchHref("/docs/installation", "rn")).toBe(
+      "/docs/react-native",
+    );
+    expect(getPlatformSwitchHref("/docs/react-native", "ink")).toBe(
+      "/docs/ink",
+    );
+    expect(getPlatformSwitchHref("/docs/ink", "react")).toBe(
+      "/docs/installation",
+    );
+  });
+
+  it("enters Assistant Cloud through its own root", async () => {
+    const getPlatformSwitchHref = await load();
+    expect(getPlatformSwitchHref("/docs/ink", "cloud")).toBe("/docs/cloud");
+    expect(getPlatformSwitchHref("/docs/cloud", "react")).toBe(
+      "/docs/installation",
+    );
+    expect(getPlatformSwitchHref("/docs/cloud/ai-sdk", "rn")).toBeNull();
+  });
+
+  it("treats a library like Tap as a peer of the installation pages", async () => {
+    const getPlatformSwitchHref = await load();
+    expect(getPlatformSwitchHref("/docs/installation", "tap")).toBe(
+      "/docs/tap",
+    );
+    expect(getPlatformSwitchHref("/docs/tap", "rn")).toBe("/docs/react-native");
+    expect(getPlatformSwitchHref("/docs/store/scopes", "react")).toBeNull();
+    expect(getPlatformSwitchHref("/docs/react-native/hooks", "tap")).toBeNull();
+  });
+
+  it("keeps the suffix between the two platform folders", async () => {
+    const getPlatformSwitchHref = await load();
+    expect(getPlatformSwitchHref("/docs/react-native/hooks", "ink")).toBe(
+      "/docs/ink/hooks",
+    );
+    expect(getPlatformSwitchHref("/docs/ink/adapters", "rn")).toBe(
+      "/docs/react-native/adapters",
+    );
+  });
+
+  it("has no equivalent for shared or react-only pages, so the caller keeps or falls back", async () => {
+    const getPlatformSwitchHref = await load();
+    expect(getPlatformSwitchHref("/docs", "rn")).toBeNull();
+    expect(getPlatformSwitchHref("/docs/architecture", "ink")).toBeNull();
+    expect(getPlatformSwitchHref("/docs/guides/attachments", "rn")).toBeNull();
+    expect(
+      getPlatformSwitchHref("/docs/react-native/hooks", "react"),
+    ).toBeNull();
+  });
 });

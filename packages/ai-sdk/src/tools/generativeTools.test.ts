@@ -478,6 +478,61 @@ describe("AISDKToolkit", () => {
     }
   });
 
+  it("does not evict a replacement client after an older listing timeout", async () => {
+    vi.useFakeTimers();
+    const oldClient = {
+      tools: vi.fn(() => never()),
+      close: vi.fn().mockResolvedValue(undefined),
+    };
+    const replacementClient = {
+      tools: vi.fn().mockResolvedValue({ echo: { inputSchema: {} } }),
+      close: vi.fn().mockResolvedValue(undefined),
+    };
+    mocks.createMCPClient
+      .mockResolvedValueOnce(oldClient)
+      .mockResolvedValue(replacementClient);
+
+    const toolkit = new AISDKToolkit({
+      toolkit: {
+        docs: {
+          type: "mcp",
+          server: {
+            type: "http",
+            url: "http://localhost:3001/mcp",
+            connectionTimeout: 100,
+          },
+        },
+      },
+    });
+
+    try {
+      const first = toolkit.tools();
+      const firstRejection = expect(first).rejects.toThrow(
+        /timed out while listing tools/,
+      );
+      await vi.advanceTimersByTimeAsync(50);
+
+      const second = toolkit.tools();
+      const secondRejection = expect(second).rejects.toThrow(
+        /timed out while listing tools/,
+      );
+      await vi.advanceTimersByTimeAsync(50);
+      await firstRejection;
+
+      await expect(toolkit.tools()).resolves.toHaveProperty("echo");
+      expect(mocks.createMCPClient).toHaveBeenCalledTimes(2);
+
+      await vi.advanceTimersByTimeAsync(50);
+      await secondRejection;
+
+      await expect(toolkit.tools()).resolves.toHaveProperty("echo");
+      expect(mocks.createMCPClient).toHaveBeenCalledTimes(2);
+      expect(oldClient.close).toHaveBeenCalledTimes(1);
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
   it("includes the MCP toolkit entry name when listing tools fails", async () => {
     const error = new Error("list failed");
     mocks.tools.mockRejectedValue(error);

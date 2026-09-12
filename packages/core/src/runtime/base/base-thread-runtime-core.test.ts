@@ -16,6 +16,9 @@ import { BaseThreadRuntimeCore } from "./base-thread-runtime-core";
 
 const createVoiceAdapter = () => {
   let volumeCallback: ((volume: number) => void) | undefined;
+  let transcriptCallback:
+    | ((transcript: RealtimeVoiceAdapter.TranscriptItem) => void)
+    | undefined;
   const session: RealtimeVoiceAdapter.Session = {
     status: { type: "running" },
     isMuted: false,
@@ -23,7 +26,12 @@ const createVoiceAdapter = () => {
     mute: vi.fn(),
     unmute: vi.fn(),
     onStatusChange: () => () => {},
-    onTranscript: () => () => {},
+    onTranscript: (callback) => {
+      transcriptCallback = callback;
+      return () => {
+        transcriptCallback = undefined;
+      };
+    },
     onModeChange: () => () => {},
     onVolumeChange: (callback) => {
       volumeCallback = callback;
@@ -36,10 +44,13 @@ const createVoiceAdapter = () => {
   return {
     adapter: { connect: () => session },
     emitVolume: (volume: number) => volumeCallback?.(volume),
+    emitTranscript: (transcript: RealtimeVoiceAdapter.TranscriptItem) =>
+      transcriptCallback?.(transcript),
     session,
   } satisfies {
     adapter: RealtimeVoiceAdapter;
     emitVolume: (volume: number) => void;
+    emitTranscript: (transcript: RealtimeVoiceAdapter.TranscriptItem) => void;
     session: RealtimeVoiceAdapter.Session;
   };
 };
@@ -220,6 +231,292 @@ describe("BaseThreadRuntimeCore subscriptions", () => {
 });
 
 describe("BaseThreadRuntimeCore voice volume subscriptions", () => {
+  it("finishes disconnecting when a session cleanup throws", () => {
+    const cleanupError = new Error("cleanup failed");
+    const laterCleanup = vi.fn();
+    const voice = createVoiceAdapter();
+    voice.session.onStatusChange = () => () => {
+      throw cleanupError;
+    };
+    voice.session.onModeChange = () => laterCleanup;
+    const runtime = new TestRuntime(voice);
+    runtime.connectVoice();
+
+    expect(() => runtime.disconnectVoice()).toThrow(cleanupError);
+    expect(laterCleanup).toHaveBeenCalledOnce();
+    expect(voice.session.disconnect).toHaveBeenCalledOnce();
+    expect(runtime.voice).toBeUndefined();
+    expect(runtime.getVoiceVolume()).toBe(0);
+
+    expect(() => runtime.disconnectVoice()).not.toThrow();
+    expect(laterCleanup).toHaveBeenCalledOnce();
+    expect(voice.session.disconnect).toHaveBeenCalledOnce();
+  });
+
+  it("reconnects after cleanup from the previous session throws", () => {
+    const consoleError = vi
+      .spyOn(console, "error")
+      .mockImplementation(() => {});
+    const cleanupError = new Error("cleanup failed");
+    const voice = createVoiceAdapter();
+    voice.adapter.connect = vi.fn(voice.adapter.connect);
+    voice.session.onStatusChange = () => () => {
+      throw cleanupError;
+    };
+    const runtime = new TestRuntime(voice);
+    runtime.connectVoice();
+
+    expect(() => runtime.connectVoice()).not.toThrow();
+    expect(voice.adapter.connect).toHaveBeenCalledTimes(2);
+    expect(consoleError).toHaveBeenCalledWith(
+      "[assistant-ui] Voice cleanup threw before reconnect",
+      cleanupError,
+    );
+  });
+
+  it("rolls back a new session when initialization throws", () => {
+    vi.spyOn(console, "error").mockImplementation(() => {});
+    const voice = createVoiceAdapter();
+    const runtime = new TestRuntime(voice);
+    const listenerError = new Error("subscriber failed");
+    runtime.subscribe(() => {
+      throw listenerError;
+    });
+
+    expect(() => runtime.connectVoice()).toThrow(listenerError);
+    expect(voice.session.disconnect).toHaveBeenCalledOnce();
+    expect(runtime.voice).toBeUndefined();
+    expect(runtime.getVoiceVolume()).toBe(0);
+  });
+
+  it("releases handlers registered before voice setup throws", () => {
+    const setupError = new Error("registration failed");
+    const statusCleanup = vi.fn();
+    const voice = createVoiceAdapter();
+    voice.session.onStatusChange = () => statusCleanup;
+    voice.session.onModeChange = () => {
+      throw setupError;
+    };
+    const runtime = new TestRuntime(voice);
+
+    expect(() => runtime.connectVoice()).toThrow(setupError);
+    expect(statusCleanup).toHaveBeenCalledOnce();
+    expect(voice.session.disconnect).toHaveBeenCalledOnce();
+    expect(runtime.voice).toBeUndefined();
+  });
+
+  it("stops setup when a subscriber disconnects the new session", () => {
+    const voice = createVoiceAdapter();
+    const statusRegistration = vi.spyOn(voice.session, "onStatusChange");
+    const runtime = new TestRuntime(voice);
+    runtime.subscribe(() => {
+      if (runtime.voice) runtime.disconnectVoice();
+    });
+
+    expect(() => runtime.connectVoice()).not.toThrow();
+
+    expect(voice.session.disconnect).toHaveBeenCalledOnce();
+    expect(statusRegistration).not.toHaveBeenCalled();
+    expect(runtime.voice).toBeUndefined();
+  });
+
+  it("releases a handler returned after reentrant disconnect", () => {
+    const statusCleanup = vi.fn();
+    const voice = createVoiceAdapter();
+    let registeringStatus = false;
+    voice.session.onStatusChange = (callback) => {
+      registeringStatus = true;
+      callback({ type: "running" });
+      registeringStatus = false;
+      return statusCleanup;
+    };
+    const modeRegistration = vi.spyOn(voice.session, "onModeChange");
+    const runtime = new TestRuntime(voice);
+    runtime.subscribe(() => {
+      if (registeringStatus) {
+        registeringStatus = false;
+        runtime.disconnectVoice();
+      }
+    });
+
+    expect(() => runtime.connectVoice()).not.toThrow();
+
+    expect(statusCleanup).toHaveBeenCalledOnce();
+    expect(modeRegistration).not.toHaveBeenCalled();
+    expect(voice.session.disconnect).toHaveBeenCalledOnce();
+    expect(runtime.voice).toBeUndefined();
+  });
+
+  it("does not release earlier handlers twice after reentrant disconnect", () => {
+    const statusCleanup = vi.fn();
+    const modeCleanup = vi.fn();
+    const voice = createVoiceAdapter();
+    voice.session.onStatusChange = () => statusCleanup;
+    let registeringMode = false;
+    voice.session.onModeChange = (callback) => {
+      registeringMode = true;
+      callback("speaking");
+      registeringMode = false;
+      return modeCleanup;
+    };
+    const volumeRegistration = vi.spyOn(voice.session, "onVolumeChange");
+    const runtime = new TestRuntime(voice);
+    runtime.subscribe(() => {
+      if (registeringMode) {
+        registeringMode = false;
+        runtime.disconnectVoice();
+      }
+    });
+
+    expect(() => runtime.connectVoice()).not.toThrow();
+
+    expect(statusCleanup).toHaveBeenCalledOnce();
+    expect(modeCleanup).toHaveBeenCalledOnce();
+    expect(volumeRegistration).not.toHaveBeenCalled();
+    expect(voice.session.disconnect).toHaveBeenCalledOnce();
+    expect(runtime.voice).toBeUndefined();
+  });
+
+  it("does not disconnect a replacement session after setup throws", () => {
+    const setupError = new Error("registration failed");
+    const firstVoice = createVoiceAdapter();
+    const replacementVoice = createVoiceAdapter();
+    firstVoice.adapter.connect = vi
+      .fn()
+      .mockReturnValueOnce(firstVoice.session)
+      .mockReturnValueOnce(replacementVoice.session);
+    let replacing = false;
+    firstVoice.session.onModeChange = (callback) => {
+      replacing = true;
+      callback("listening");
+      throw setupError;
+    };
+    const runtime = new TestRuntime(firstVoice);
+    runtime.subscribe(() => {
+      if (replacing) {
+        replacing = false;
+        runtime.disconnectVoice();
+        runtime.connectVoice();
+      }
+    });
+
+    expect(() => runtime.connectVoice()).toThrow(setupError);
+
+    expect(firstVoice.session.disconnect).toHaveBeenCalledOnce();
+    expect(replacementVoice.session.disconnect).not.toHaveBeenCalled();
+    expect(runtime.voice).toMatchObject({
+      status: replacementVoice.session.status,
+      isMuted: replacementVoice.session.isMuted,
+      mode: "listening",
+    });
+  });
+
+  it("releases setup handlers without disconnecting a self-ended session", () => {
+    const voice = createVoiceAdapter();
+    const statusCleanup = vi.fn();
+    voice.session.onStatusChange = (callback) => {
+      voice.session.status = { type: "ended", reason: "finished" };
+      callback(voice.session.status);
+      return statusCleanup;
+    };
+    const modeRegistration = vi.spyOn(voice.session, "onModeChange");
+    const runtime = new TestRuntime(voice);
+
+    runtime.connectVoice();
+
+    expect(statusCleanup).toHaveBeenCalledOnce();
+    expect(voice.session.disconnect).not.toHaveBeenCalled();
+    expect(modeRegistration).not.toHaveBeenCalled();
+    expect(runtime.voice).toBeUndefined();
+
+    runtime.disconnectVoice();
+    expect(statusCleanup).toHaveBeenCalledOnce();
+    expect(voice.session.disconnect).not.toHaveBeenCalled();
+  });
+
+  it("releases ended-session handlers when setup notification throws", () => {
+    const listenerError = new Error("ended notification failed");
+    const cleanupError = new Error("status cleanup failed");
+    const consoleError = vi
+      .spyOn(console, "error")
+      .mockImplementation(() => {});
+    const voice = createVoiceAdapter();
+    const statusCleanup = vi.fn(() => {
+      throw cleanupError;
+    });
+    let endSession!: () => void;
+    voice.session.onStatusChange = (callback) => {
+      endSession = () => {
+        voice.session.status = { type: "ended", reason: "finished" };
+        callback(voice.session.status);
+      };
+      return statusCleanup;
+    };
+    voice.session.onModeChange = () => {
+      endSession();
+      return () => {};
+    };
+    const runtime = new TestRuntime(voice);
+    let wasConnected = false;
+    runtime.subscribe(() => {
+      if (runtime.voice) wasConnected = true;
+      else if (wasConnected) throw listenerError;
+    });
+
+    expect(() => runtime.connectVoice()).toThrow(listenerError);
+
+    expect(statusCleanup).toHaveBeenCalledOnce();
+    expect(voice.session.disconnect).not.toHaveBeenCalled();
+    expect(runtime.voice).toBeUndefined();
+    expect(consoleError).toHaveBeenCalledWith(
+      "[assistant-ui] Detached voice setup cleanup threw",
+      cleanupError,
+    );
+  });
+
+  it("does not disconnect a session that ends after setup", () => {
+    const voice = createVoiceAdapter();
+    const statusCleanup = vi.fn();
+    let endSession!: () => void;
+    voice.session.onStatusChange = (callback) => {
+      endSession = () => {
+        voice.session.status = { type: "ended", reason: "finished" };
+        callback(voice.session.status);
+      };
+      return statusCleanup;
+    };
+    const runtime = new TestRuntime(voice);
+    runtime.connectVoice();
+    endSession();
+    expect(runtime.voice).toBeUndefined();
+
+    runtime.disconnectVoice();
+
+    expect(statusCleanup).toHaveBeenCalledOnce();
+    expect(voice.session.disconnect).not.toHaveBeenCalled();
+  });
+
+  it("rethrows one subscriber error once while disconnecting", () => {
+    const voice = createVoiceAdapter();
+    const runtime = new TestRuntime(voice);
+    runtime.connectVoice();
+    voice.emitTranscript({ role: "assistant", text: "Partial" });
+    const listenerError = new Error("subscriber failed");
+    runtime.subscribe(() => {
+      throw listenerError;
+    });
+
+    let thrown: unknown;
+    try {
+      runtime.disconnectVoice();
+    } catch (error) {
+      thrown = error;
+    }
+
+    expect(thrown).toBe(listenerError);
+    expect(voice.session.disconnect).toHaveBeenCalledOnce();
+  });
+
   it("continues notifying subscribers when one throws", () => {
     const consoleError = vi
       .spyOn(console, "error")
@@ -294,5 +591,48 @@ describe("BaseThreadRuntimeCore voice volume subscriptions", () => {
         listenerError,
       );
     });
+  });
+});
+
+describe("BaseThreadRuntimeCore voice transcripts", () => {
+  it("completes a final-only reply before the next streamed reply", () => {
+    const voiceAdapter = createVoiceAdapter();
+    const runtime = new TestRuntime(voiceAdapter);
+    runtime.connectVoice();
+
+    try {
+      voiceAdapter.emitTranscript({
+        role: "assistant",
+        text: "Finished reply",
+        isFinal: true,
+      });
+      expect(runtime.messages).toMatchObject([
+        {
+          content: [{ type: "text", text: "Finished reply" }],
+          status: { type: "complete", reason: "stop" },
+        },
+      ]);
+
+      voiceAdapter.emitTranscript({ role: "assistant", text: "Next" });
+      expect(runtime.messages.at(-1)?.status).toEqual({ type: "running" });
+
+      voiceAdapter.emitTranscript({
+        role: "assistant",
+        text: "Next reply",
+        isFinal: true,
+      });
+      expect(runtime.messages).toMatchObject([
+        {
+          content: [{ type: "text", text: "Finished reply" }],
+          status: { type: "complete", reason: "stop" },
+        },
+        {
+          content: [{ type: "text", text: "Next reply" }],
+          status: { type: "complete", reason: "stop" },
+        },
+      ]);
+    } finally {
+      runtime.disconnectVoice();
+    }
   });
 });

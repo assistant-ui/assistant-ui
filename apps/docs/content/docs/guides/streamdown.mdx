@@ -109,6 +109,8 @@ const StreamdownText = () => (
 );
 ```
 
+Your `pre` and `code` components are honored the same way as in react-markdown once the code adapter is active: with `SyntaxHighlighter`, `CodeHeader`, `componentsByLanguage`, or `pre` and `code` supplied together, `code` renders inline code and `pre`/`code` wrap fenced blocks and are the `Pre`/`Code` your `SyntaxHighlighter` receives. `code` alone is passed straight to Streamdown and owns the whole block, as shown below. `pre` alone only affects raw `<pre>` HTML without a `code` child, since fenced blocks then render through Streamdown's own code block.
+
 Both renderers preserve code markup from rehype plugins, such as `rehype-highlight` or `rehype-pretty-code`. In this case, `CodeHeader` receives the complete code text, but `SyntaxHighlighter` is skipped to preserve the plugin's markup. Plain string children still use `SyntaxHighlighter`.
 
 ## Props
@@ -118,7 +120,7 @@ Both renderers preserve code markup from rehype plugins, such as `rehype-highlig
 | `mode` | `"streaming" \| "static"` | `"streaming"` | Rendering mode |
 | `plugins` | `PluginConfig` | - | Streamdown plugins (code, math, mermaid, cjk) |
 | `shikiTheme` | `[string, string]` | `["github-light", "github-dark"]` | Light and dark theme for Shiki |
-| `components` | `object` | - | Custom components including `SyntaxHighlighter` and `CodeHeader` |
+| `components` | `object` | - | Custom components including `SyntaxHighlighter`, `CodeHeader`, and the `pre`/`code` they render through |
 | `componentsByLanguage` | `object` | - | Language-specific component overrides |
 | `preprocess` | `(text: string) => string` | - | Text preprocessing function |
 | `defer` | `boolean` | `false` | Defer markdown parsing to a lower priority via `useDeferredValue` so typing and scrolling stay responsive during streaming |

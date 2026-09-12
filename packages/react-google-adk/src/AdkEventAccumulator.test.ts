@@ -838,6 +838,27 @@ describe("AdkEventAccumulator - actions tracking", () => {
     expect(acc.getArtifactDelta()).toEqual({ "file.txt": 1 });
   });
 
+  it("preserves prototype-named state and artifact keys", () => {
+    const acc = new AdkEventAccumulator();
+    acc.processEvent(
+      makeEvent({
+        actions: {
+          stateDelta: JSON.parse('{"__proto__":"session"}'),
+          artifactDelta: JSON.parse('{"__proto__":1}'),
+        },
+        author: "agent",
+        content: { parts: [{ text: "x" }] },
+      }),
+    );
+
+    const stateDelta = acc.getStateDelta();
+    const artifactDelta = acc.getArtifactDelta();
+    expect(Object.hasOwn(stateDelta, "__proto__")).toBe(true);
+    expect(stateDelta["__proto__"]).toBe("session");
+    expect(Object.hasOwn(artifactDelta, "__proto__")).toBe(true);
+    expect(artifactDelta["__proto__"]).toBe(1);
+  });
+
   it("tracks escalation flag", () => {
     const acc = new AdkEventAccumulator();
     expect(acc.isEscalated()).toBe(false);

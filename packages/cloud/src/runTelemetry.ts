@@ -1,4 +1,5 @@
 import type { SamplingCallData } from "./instrumentMcpSampling";
+import type { AssistantCloudRunReport } from "./AssistantCloudRuns";
 
 const MAX_TELEMETRY_TEXT_LENGTH = 50_000;
 
@@ -14,6 +15,86 @@ export type AssistantCloudRunReportToolCall = {
   end_ms?: number;
   sampling_calls?: SamplingCallData[];
 };
+
+export type RunReportOutcome =
+  | "aborted"
+  | "disconnected"
+  | "length"
+  | "content_filter";
+
+/**
+ * Maps a finish event to the report status and outcome. `fallbackStatus`
+ * applies when the event carries neither a finish reason nor a failure flag.
+ */
+export function deriveRunOutcome(
+  input: {
+    finishReason?: string | undefined;
+    isAbort?: boolean | undefined;
+    isDisconnect?: boolean | undefined;
+    isError?: boolean | undefined;
+  },
+  fallbackStatus: "completed" | "incomplete" = "completed",
+): {
+  status: "completed" | "incomplete" | "error";
+  outcome?: RunReportOutcome;
+} {
+  if (input.isError) return { status: "error" };
+  if (input.isAbort) return { status: "incomplete", outcome: "aborted" };
+  if (input.isDisconnect) {
+    return { status: "incomplete", outcome: "disconnected" };
+  }
+  switch (input.finishReason) {
+    case "length":
+      return { status: "incomplete", outcome: "length" };
+    case "content-filter":
+    case "content_filter":
+      return { status: "incomplete", outcome: "content_filter" };
+    case "cancelled":
+      return { status: "incomplete", outcome: "aborted" };
+    case "error":
+      return { status: "error" };
+    default:
+      return {
+        status: input.finishReason === undefined ? fallbackStatus : "completed",
+      };
+  }
+}
+
+const MAX_RUN_ERROR_CODE_LENGTH = 64;
+const MAX_RUN_ERROR_LENGTH = 2048;
+
+/**
+ * Reads the message and code the runs endpoint stores for a failed run. The
+ * code is the error's `code` when it has one, else its class name.
+ */
+export function describeRunError(error: unknown): {
+  error?: string;
+  errorCode?: string;
+} {
+  if (error == null) return {};
+  const record =
+    typeof error === "object" ? (error as Record<string, unknown>) : undefined;
+  const message =
+    typeof error === "string"
+      ? error
+      : typeof record?.message === "string"
+        ? record.message
+        : undefined;
+  const code =
+    typeof record?.code === "string"
+      ? record.code
+      : typeof record?.name === "string" && record.name !== "Error"
+        ? record.name
+        : undefined;
+  return {
+    ...(message
+      ? { error: message.slice(0, MAX_RUN_ERROR_LENGTH) }
+      : undefined),
+    ...(code
+      ? { errorCode: code.slice(0, MAX_RUN_ERROR_CODE_LENGTH) }
+      : undefined),
+  };
+}
 
 /**
  * Clamps a string to the size the runs endpoint accepts for a single span
@@ -123,18 +204,178 @@ export function extractRunTelemetryModelId(
 }
 
 export type RunTelemetryUsage = {
-  inputTokens?: number;
-  outputTokens?: number;
-  reasoningTokens?: number;
-  cachedInputTokens?: number;
+  inputTokens?: number | undefined;
+  outputTokens?: number | undefined;
+  reasoningTokens?: number | undefined;
+  cachedInputTokens?: number | undefined;
 };
 
 export type RunTelemetryUsageInit = RunTelemetryUsage & {
-  promptTokens?: number;
-  completionTokens?: number;
+  promptTokens?: number | undefined;
+  completionTokens?: number | undefined;
   inputTokenDetails?: { cacheReadTokens?: number };
   outputTokenDetails?: { reasoningTokens?: number };
 };
+
+export type RunReportStepInit = {
+  usage?: RunTelemetryUsageInit | undefined;
+  toolCalls?: AssistantCloudRunReportToolCall[] | undefined;
+  startMs?: number | undefined;
+  endMs?: number | undefined;
+  finishReason?: string | undefined;
+};
+
+/**
+ * The run report fields read from the messages of one run, in whichever
+ * format they were stored: the status the messages imply, the tool calls, the
+ * steps, the text, the usage and the model.
+ */
+export type RunMessageTelemetry = {
+  assistantMessageId?: string;
+  status: "completed" | "incomplete";
+  toolCalls?: AssistantCloudRunReportToolCall[];
+  steps?: RunReportStepInit[];
+  totalSteps?: number;
+  outputText?: string;
+  usage?: RunTelemetryUsage;
+  modelId?: string;
+  metadata?: Record<string, unknown>;
+};
+
+export type RunReportInit = {
+  threadId: string;
+  status: AssistantCloudRunReport["status"];
+  outcome?: RunReportOutcome | undefined;
+  errorCode?: string | undefined;
+  error?: string | undefined;
+  messageId?: string | undefined;
+  traceId?: string | undefined;
+  modelId?: string | undefined;
+  provider?: string | undefined;
+  usage?: RunTelemetryUsageInit | undefined;
+  steps?: RunReportStepInit[] | undefined;
+  totalSteps?: number | undefined;
+  toolCalls?: AssistantCloudRunReportToolCall[] | undefined;
+  durationMs?: number | undefined;
+  firstTokenMs?: number | undefined;
+  outputText?: string | undefined;
+  metadata?: Record<string, unknown> | undefined;
+  telemetry?: {
+    environment?: string | undefined;
+    release?: string | undefined;
+    tags?: readonly string[] | undefined;
+  };
+};
+
+function assignUsage(
+  report: AssistantCloudRunReport,
+  usage: RunTelemetryUsageInit | undefined,
+): void {
+  if (!usage) return;
+  const normalized = normalizeRunTelemetryUsage(usage);
+  if (!normalized) return;
+  if (normalized.inputTokens !== undefined) {
+    report.input_tokens = normalized.inputTokens;
+  }
+  if (normalized.outputTokens !== undefined) {
+    report.output_tokens = normalized.outputTokens;
+  }
+  if (normalized.reasoningTokens !== undefined) {
+    report.reasoning_tokens = normalized.reasoningTokens;
+  }
+  if (normalized.cachedInputTokens !== undefined) {
+    report.cached_input_tokens = normalized.cachedInputTokens;
+  }
+}
+
+function createRunReportStep(
+  init: RunReportStepInit,
+): NonNullable<AssistantCloudRunReport["steps"]>[number] {
+  const step: NonNullable<AssistantCloudRunReport["steps"]>[number] = {};
+  const usage = init.usage ? normalizeRunTelemetryUsage(init.usage) : undefined;
+  if (usage?.inputTokens !== undefined) step.input_tokens = usage.inputTokens;
+  if (usage?.outputTokens !== undefined)
+    step.output_tokens = usage.outputTokens;
+  if (usage?.reasoningTokens !== undefined) {
+    step.reasoning_tokens = usage.reasoningTokens;
+  }
+  if (usage?.cachedInputTokens !== undefined) {
+    step.cached_input_tokens = usage.cachedInputTokens;
+  }
+  if (init.toolCalls !== undefined) step.tool_calls = init.toolCalls;
+  if (init.startMs !== undefined) step.start_ms = init.startMs;
+  if (init.endMs !== undefined) step.end_ms = init.endMs;
+  if (init.finishReason !== undefined) {
+    step.finish_reason = init.finishReason.slice(0, 32);
+  }
+  return step;
+}
+
+function normalizeRunReportTags(
+  tags: readonly string[] | undefined,
+): string[] | undefined {
+  if (!tags) return undefined;
+  const result: string[] = [];
+  const seen = new Set<string>();
+  for (const tag of tags) {
+    const normalized = tag.trim().slice(0, 64).trim();
+    if (!normalized || seen.has(normalized)) continue;
+    seen.add(normalized);
+    result.push(normalized);
+    if (result.length === 20) break;
+  }
+  return result.length > 0 ? result : undefined;
+}
+
+function normalizeRunReportMilliseconds(
+  value: number | undefined,
+): number | undefined {
+  if (value === undefined || !Number.isFinite(value)) return undefined;
+  return Math.max(0, Math.round(value));
+}
+
+export function createRunReport(init: RunReportInit): AssistantCloudRunReport {
+  const report: AssistantCloudRunReport = {
+    thread_id: init.threadId,
+    status: init.status,
+  };
+  const traceId = init.traceId?.toLowerCase();
+  if (traceId && /^[0-9a-f]{32}$/.test(traceId)) report.trace_id = traceId;
+  if (init.outcome !== undefined) report.outcome_type = init.outcome;
+  if (init.errorCode !== undefined) report.error_code = init.errorCode;
+  if (init.error !== undefined) report.error = init.error;
+  if (init.messageId !== undefined) report.message_id = init.messageId;
+  if (init.modelId !== undefined) report.model_id = init.modelId;
+  if (init.provider !== undefined) {
+    report.provider = init.provider;
+    report.provider_type = init.provider;
+  }
+  assignUsage(report, init.usage);
+  if (init.steps !== undefined) {
+    report.steps = init.steps.map(createRunReportStep);
+    report.total_steps = init.steps.length;
+  } else if (init.totalSteps !== undefined) {
+    report.total_steps = init.totalSteps;
+  }
+  if (init.toolCalls !== undefined) report.tool_calls = init.toolCalls;
+  const durationMs = normalizeRunReportMilliseconds(init.durationMs);
+  if (durationMs !== undefined) report.duration_ms = durationMs;
+  const firstTokenMs = normalizeRunReportMilliseconds(init.firstTokenMs);
+  if (firstTokenMs !== undefined) report.first_token_ms = firstTokenMs;
+  if (init.outputText !== undefined) {
+    report.output_text = truncateRunTelemetryText(init.outputText);
+  }
+  if (init.metadata !== undefined) report.metadata = init.metadata;
+  if (init.telemetry?.environment !== undefined) {
+    report.environment = init.telemetry.environment;
+  }
+  if (init.telemetry?.release !== undefined) {
+    report.release = init.telemetry.release;
+  }
+  const tags = normalizeRunReportTags(init.telemetry?.tags);
+  if (tags !== undefined) report.tags = tags;
+  return report;
+}
 
 /**
  * Resolves the token counts a provider reports under any of the names the AI

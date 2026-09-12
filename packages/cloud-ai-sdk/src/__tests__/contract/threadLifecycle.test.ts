@@ -53,7 +53,6 @@ function createCore() {
 
 describe("Contract: Thread lifecycle", () => {
   beforeEach(() => {
-    vi.clearAllMocks();
     persistMock.mockResolvedValue(undefined);
     loadMessagesMock.mockResolvedValue([]);
   });

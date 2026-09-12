@@ -6,6 +6,11 @@ import {
   API_CATALOG_LINK_HEADER,
 } from "./lib/agent-discovery-routes";
 import { isWebMcpEnabled } from "./lib/feature-flags";
+import { LEGACY_TAP_DOCS_REDIRECTS } from "./lib/legacy-tap-docs";
+import {
+  docsMarkdownAcceptRewrites,
+  docsMarkdownFileRewrites,
+} from "./lib/markdown-rewrites";
 
 const isDev = process.env.NODE_ENV === "development";
 
@@ -132,6 +137,7 @@ const config: NextConfig = {
     })),
   ],
   redirects: async () => [
+    ...LEGACY_TAP_DOCS_REDIRECTS,
     {
       source: "/elements/reasoning-panel",
       destination: "/elements/reasoning",
@@ -394,22 +400,7 @@ const config: NextConfig = {
         source: "/docs/.well-known/mcp",
         destination: "/api/mcp",
       },
-      {
-        source: "/docs.md",
-        destination: "/llms.mdx",
-      },
-      {
-        source: "/docs.mdx",
-        destination: "/llms.mdx",
-      },
-      {
-        source: "/docs/:path*.md",
-        destination: "/llms.mdx/:path*",
-      },
-      {
-        source: "/docs/:path*.mdx",
-        destination: "/llms.mdx/:path*",
-      },
+      ...docsMarkdownFileRewrites(),
       {
         source: "/examples.md",
         destination: "/llms.mdx/examples",
@@ -428,7 +419,17 @@ const config: NextConfig = {
       },
       {
         source: "/design/:path+.md",
+        has: [{ type: "query", key: "view", value: "radix-ui" }],
+        destination: "/radix-llms.mdx/design/:path*",
+      },
+      {
+        source: "/design/:path+.md",
         destination: "/llms.mdx/design/:path*",
+      },
+      {
+        source: "/design/:path+.mdx",
+        has: [{ type: "query", key: "view", value: "radix-ui" }],
+        destination: "/radix-llms.mdx/design/:path*",
       },
       {
         source: "/design/:path+.mdx",
@@ -441,22 +442,6 @@ const config: NextConfig = {
       {
         source: "/elements/:path+.mdx",
         destination: "/llms.mdx/elements/:path*",
-      },
-      {
-        source: "/tap/docs.md",
-        destination: "/tap-llms.mdx",
-      },
-      {
-        source: "/tap/docs.mdx",
-        destination: "/tap-llms.mdx",
-      },
-      {
-        source: "/tap/docs/:path*.md",
-        destination: "/tap-llms.mdx/:path*",
-      },
-      {
-        source: "/tap/docs/:path*.mdx",
-        destination: "/tap-llms.mdx/:path*",
       },
       {
         source: "/",
@@ -476,19 +461,21 @@ const config: NextConfig = {
         source: "/pricing.mdx",
         destination: "/pricing.md",
       },
-      {
-        source: "/docs/:path*",
-        has: [
-          { type: "header", key: "accept", value: "(?:.*text/markdown.*)" },
-        ],
-        destination: "/llms.mdx/:path*",
-      },
+      ...docsMarkdownAcceptRewrites(),
       {
         source: "/examples/:path*",
         has: [
           { type: "header", key: "accept", value: "(?:.*text/markdown.*)" },
         ],
         destination: "/llms.mdx/examples/:path*",
+      },
+      {
+        source: "/design/:path*",
+        has: [
+          { type: "header", key: "accept", value: "(?:.*text/markdown.*)" },
+          { type: "query", key: "view", value: "radix-ui" },
+        ],
+        destination: "/radix-llms.mdx/design/:path*",
       },
       {
         source: "/design/:path*",
@@ -503,13 +490,6 @@ const config: NextConfig = {
           { type: "header", key: "accept", value: "(?:.*text/markdown.*)" },
         ],
         destination: "/llms.mdx/elements/:path*",
-      },
-      {
-        source: "/tap/docs/:path*",
-        has: [
-          { type: "header", key: "accept", value: "(?:.*text/markdown.*)" },
-        ],
-        destination: "/tap-llms.mdx/:path*",
       },
       {
         source: "/umami/:path*",

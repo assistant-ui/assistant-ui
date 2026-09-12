@@ -1,6 +1,6 @@
 {
   "name": "assistant-stream",
-  "version": "0.3.41",
+  "version": "0.3.42",
   "description": "Streaming utilities for AI assistants",
   "keywords": [
     "ai",
@@ -76,7 +76,7 @@
     "ioredis": "^6.0.0",
     "ioredis-v5": "npm:ioredis@^5.11.1",
     "redis": "^6.2.1",
-    "vitest": "^4.1.11"
+    "vitest": "^5.0.0"
   },
   "publishConfig": {
     "access": "public",

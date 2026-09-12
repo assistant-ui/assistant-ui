@@ -74,7 +74,21 @@ const createFetchMock = () =>
           : input.url;
     if (url.endsWith("/.well-known/agent-card.json")) {
       return new Response(
-        JSON.stringify({ capabilities: { streaming: true } }),
+        JSON.stringify({
+          name: "Test Agent",
+          version: "1.0",
+          supported_interfaces: [
+            {
+              url: "https://agent.test",
+              protocol_binding: "HTTP+JSON",
+              protocol_version: "1.0",
+            },
+          ],
+          capabilities: { streaming: true },
+          default_input_modes: ["text"],
+          default_output_modes: ["text"],
+          skills: [],
+        }),
         {
           status: 200,
           headers: { "Content-Type": "application/json" },

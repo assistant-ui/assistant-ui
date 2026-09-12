@@ -6,9 +6,28 @@ import {
   normalizeBaseUrl,
 } from "./AssistantCloudAuthStrategy";
 import type { AssistantCloudRunReport } from "./AssistantCloudRuns";
+import { ASSISTANT_CLOUD_VERSION } from "./version";
+
+export type SdkIdentity = {
+  name: string;
+  version: string;
+};
 
 export type AssistantCloudTelemetryConfig = {
+  /**
+   * Enables Assistant Cloud telemetry. Defaults to `true`. Set to `false` to
+   * disable both run reports and engagement events.
+   */
   enabled?: boolean;
+  /**
+   * Enables Assistant Cloud engagement events. Defaults to `true` when
+   * telemetry is enabled. Set to `false` to keep run reports while disabling
+   * engagement events.
+   */
+  events?: boolean;
+  release?: string;
+  environment?: string;
+  tags?: string[];
   /**
    * Called before each telemetry report is sent.
    * Return a modified report to enrich it (e.g. add `model_id`),
@@ -51,10 +70,19 @@ export type AssistantCloudConfig = (
 
 export class CloudAPIError extends Error {
   public readonly status: number;
+  public readonly code?: string;
+  public readonly details?: Record<string, unknown>;
 
-  constructor(message: string, status: number) {
+  constructor(
+    message: string,
+    status: number,
+    code?: string,
+    details?: Record<string, unknown>,
+  ) {
     super(message);
     this.status = status;
+    if (code !== undefined) this.code = code;
+    if (details !== undefined) this.details = details;
     this.name = "CloudAPIError";
   }
 }
@@ -64,13 +92,34 @@ type MakeRequestOptions = {
   headers?: Record<string, string> | undefined;
   query?: Record<string, string | number | boolean> | undefined;
   body?: object | undefined;
+  keepalive?: boolean | undefined;
 };
+
+const HEADER_TOKEN = /^[\x21-\x7e]+$/;
 
 export class AssistantCloudAPI {
   public _auth: AssistantCloudAuthStrategy;
   public _baseUrl;
+  public readonly registerSdk: (sdk: SdkIdentity) => void;
+  public readonly sdkHeader: () => string;
 
   constructor(config: AssistantCloudConfig) {
+    const sdks = new Map<string, SdkIdentity>();
+    this.registerSdk = (sdk) => {
+      const name = sdk.name.trim();
+      const version = sdk.version.trim();
+      if (!HEADER_TOKEN.test(name) || !HEADER_TOKEN.test(version)) return;
+      sdks.set(`${name}/${version}`, { name, version });
+    };
+    this.sdkHeader = () =>
+      [
+        `assistant-cloud/${ASSISTANT_CLOUD_VERSION}`,
+        ...Array.from(
+          sdks.values(),
+          ({ name, version }) => `${name}/${version}`,
+        ),
+      ].join(" ");
+
     if ("authToken" in config) {
       this._baseUrl = normalizeBaseUrl(config.baseUrl);
       this._auth = new AssistantCloudJWTAuthStrategy(config.authToken);
@@ -108,6 +157,7 @@ export class AssistantCloudAPI {
       ...authHeaders,
       ...options.headers,
       "Content-Type": "application/json",
+      "Aui-Sdk": this.sdkHeader(),
     };
 
     const queryParams = new URLSearchParams();
@@ -129,6 +179,7 @@ export class AssistantCloudAPI {
       method: options.method ?? "GET",
       headers,
       body: options.body ? JSON.stringify(options.body) : null,
+      ...(options.keepalive ? { keepalive: true } : {}),
     });
 
     this._auth.readAuthHeaders(response.headers);
@@ -136,15 +187,27 @@ export class AssistantCloudAPI {
     if (!response.ok) {
       const text = await response.text();
       let message: string | undefined;
+      let code: string | undefined;
+      let details: Record<string, unknown> | undefined;
       try {
-        const body = JSON.parse(text);
-        if (typeof body?.message === "string" && body.message.length > 0) {
-          message = body.message;
+        const body = JSON.parse(text) as unknown;
+        if (typeof body === "object" && body !== null && !Array.isArray(body)) {
+          const record = body as Record<string, unknown>;
+          if (typeof record.message === "string" && record.message.length > 0) {
+            message = record.message;
+          }
+          if (typeof record.error === "string") {
+            code = record.error;
+            details = { ...record };
+            delete details.error;
+          }
         }
       } catch {}
       throw new CloudAPIError(
         message ?? `Request failed with status ${response.status}, ${text}`,
         response.status,
+        code,
+        details,
       );
     }
 

@@ -1,7 +1,7 @@
 import { execFileSync, spawnSync } from "node:child_process";
 import { readFileSync, rmSync } from "node:fs";
 import { arch, cpus, platform } from "node:os";
-import { dirname, join, resolve } from "node:path";
+import { dirname, join, relative, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 
 export const pkgRoot = resolve(dirname(fileURLToPath(import.meta.url)), "..");
@@ -30,21 +30,20 @@ export const envStamp = (root = pkgRoot) => ({
 
 export const flattenBenchmarks = (raw) => {
   const rows = [];
-  for (const file of raw.files ?? []) {
-    for (const group of file.groups ?? []) {
-      for (const b of group.benchmarks ?? []) {
-        rows.push({
-          id: `${group.fullName ?? file.filepath} > ${b.name}`.replace(
-            pkgRoot + "/",
-            "",
-          ),
-          name: b.name,
-          mean: b.mean,
-          hz: b.hz,
-          rme: b.rme,
-          p99: b.p99,
-          samples: b.sampleCount,
-        });
+  for (const file of raw.testResults ?? []) {
+    for (const result of file.assertionResults ?? []) {
+      for (const benchmark of result.benchmarks ?? []) {
+        for (const task of benchmark.tasks ?? []) {
+          rows.push({
+            id: `${relative(pkgRoot, file.name)} > ${benchmark.name}`,
+            name: task.name,
+            mean: task.latency.mean,
+            hz: 1000 / task.latency.mean,
+            rme: task.latency.rme,
+            p99: task.latency.p99,
+            samples: task.latency.samplesCount,
+          });
+        }
       }
     }
   }
@@ -57,7 +56,15 @@ export const runSuite = (extraEnv = {}) => {
   if (!("AUI_PERF_REF_ROOT" in extraEnv)) delete env.AUI_PERF_REF_ROOT;
   const res = spawnSync(
     "pnpm",
-    ["exec", "vitest", "bench", "--run", "--outputJson", tmp],
+    [
+      "exec",
+      "vitest",
+      "bench",
+      "--run",
+      "--reporter=json",
+      "--outputFile",
+      tmp,
+    ],
     {
       cwd: pkgRoot,
       stdio: ["ignore", "ignore", "inherit"],

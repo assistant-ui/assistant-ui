@@ -57,6 +57,7 @@ import {
   startThreadTitleRename,
   type ThreadTitleState,
 } from "../../runtimes/remote-thread-list/title-generation";
+import { invokeUserCallback } from "../../utils/invoke-user-callback";
 
 const RESOLVED_PROMISE = Promise.resolve();
 
@@ -550,7 +551,14 @@ const useRemoteThreadList = (
     (remoteId: string | undefined, emit: boolean) => {
       if (session.lastNotifiedRemoteId === remoteId) return;
       session.lastNotifiedRemoteId = remoteId;
-      if (emit) session.onThreadIdChange?.(remoteId);
+      if (emit) {
+        invokeUserCallback(
+          "assistant-ui",
+          "onThreadIdChange",
+          session.onThreadIdChange,
+          remoteId,
+        );
+      }
     },
     [session],
   );
@@ -1255,7 +1263,12 @@ const useRemoteThreadList = (
   useEffect(() => {
     if (session.lastNotifiedRemoteId === mainRemoteId) return;
     session.lastNotifiedRemoteId = mainRemoteId;
-    onThreadIdChange?.(mainRemoteId);
+    invokeUserCallback(
+      "assistant-ui",
+      "onThreadIdChange",
+      onThreadIdChange,
+      mainRemoteId,
+    );
   }, [mainRemoteId, onThreadIdChange, session]);
 
   useEffect(() => {

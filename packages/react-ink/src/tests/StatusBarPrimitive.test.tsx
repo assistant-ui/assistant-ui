@@ -31,7 +31,6 @@ const setThreadState = (thread: unknown) => {
 
 afterEach(() => {
   cleanup();
-  vi.clearAllMocks();
 });
 
 describe("StatusBarPrimitive.Root", () => {

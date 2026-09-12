@@ -45,12 +45,63 @@ describe("AssistantCloudAPI", () => {
       Authorization: "Bearer test-key",
       "Aui-User-Id": "u-1",
       "Aui-Workspace-Id": "w-1",
+      "Aui-Sdk": expect.stringMatching(/^assistant-cloud\//),
       "Content-Type": "application/json",
       "X-Test": "1",
     });
 
     expect(init.method).toBe("POST");
     expect(init.body).toBe(JSON.stringify({ hello: "world" }));
+  });
+
+  it("ignores identities that cannot travel in a header", () => {
+    const api = new AssistantCloudAPI({
+      apiKey: "test-key",
+      userId: "u-1",
+      workspaceId: "w-1",
+    });
+    api.registerSdk({ name: "bad name", version: "1.0.0" });
+    api.registerSdk({ name: "@scope/pkg", version: "1.0.0 ok" });
+    api.registerSdk({ name: "@scope/pkg\ttab", version: "1.0.0" });
+    api.registerSdk({ name: "@scope/ok", version: " 1.0.0 " });
+
+    expect(api.sdkHeader().split(" ")).toEqual([
+      expect.stringMatching(/^assistant-cloud\//),
+      "@scope/ok/1.0.0",
+    ]);
+  });
+
+  it("sends each registered SDK identity once in registration order", async () => {
+    const fetchMock = vi.fn().mockResolvedValue({
+      ok: true,
+      headers: new Headers(),
+      json: vi.fn().mockResolvedValue({}),
+    });
+    vi.stubGlobal("fetch", fetchMock);
+
+    const api = new AssistantCloudAPI({
+      apiKey: "test-key",
+      userId: "u-1",
+      workspaceId: "w-1",
+    });
+
+    api.registerSdk({ name: " @assistant-ui/core ", version: " 0.3.18 " });
+    api.registerSdk({ name: "@assistant-ui/core", version: "0.3.18" });
+    api.registerSdk({ name: "@assistant-ui/ai-sdk", version: "0.0.5" });
+    api.registerSdk({ name: " ", version: "0.0.5" });
+    api.registerSdk({ name: "@assistant-ui/cloud-ai-sdk", version: " " });
+
+    await api.makeRawRequest("/threads", {
+      headers: { "Aui-Sdk": "overridden" },
+    });
+
+    const [, init] = fetchMock.mock.calls[0]!;
+    expect(init.headers).toMatchObject({ "Aui-Sdk": api.sdkHeader() });
+    expect(api.sdkHeader().split(" ")).toEqual([
+      expect.stringMatching(/^assistant-cloud\//),
+      "@assistant-ui/core/0.3.18",
+      "@assistant-ui/ai-sdk/0.0.5",
+    ]);
   });
 
   it("uses custom baseUrl when provided with apiKey config", async () => {
@@ -143,7 +194,7 @@ describe("AssistantCloudAPI", () => {
     );
   });
 
-  it("throws APIError with parsed message for JSON error responses", async () => {
+  it("preserves the current error shape for JSON error responses without a code", async () => {
     const fetchMock = vi.fn().mockResolvedValue({
       ok: false,
       status: 400,
@@ -167,16 +218,23 @@ describe("AssistantCloudAPI", () => {
     expect(error.name).toBe("CloudAPIError");
     expect(error.message).toBe("invalid request payload");
     expect(error.status).toBe(400);
+    expect(error.code).toBeUndefined();
+    expect(error.details).toBeUndefined();
   });
 
-  it("falls back to the response text when the JSON error body has no message", async () => {
+  it("exposes the plan-limit error code and details", async () => {
     const fetchMock = vi.fn().mockResolvedValue({
       ok: false,
-      status: 429,
+      status: 402,
       headers: new Headers(),
-      text: vi
-        .fn()
-        .mockResolvedValue(JSON.stringify({ error: "rate limited" })),
+      text: vi.fn().mockResolvedValue(
+        JSON.stringify({
+          error: "plan_limit_reached",
+          plan: "free",
+          period_end: "2026-10-01T00:00:00.000Z",
+          cap: 100,
+        }),
+      ),
     });
     vi.stubGlobal("fetch", fetchMock);
 
@@ -189,9 +247,42 @@ describe("AssistantCloudAPI", () => {
     const error = await api.makeRawRequest("/threads").catch((e) => e);
     expect(error).toBeInstanceOf(CloudAPIError);
     expect(error.message).toBe(
-      'Request failed with status 429, {"error":"rate limited"}',
+      'Request failed with status 402, {"error":"plan_limit_reached","plan":"free","period_end":"2026-10-01T00:00:00.000Z","cap":100}',
+    );
+    expect(error.status).toBe(402);
+    expect(error.code).toBe("plan_limit_reached");
+    expect(error.details).toEqual({
+      plan: "free",
+      period_end: "2026-10-01T00:00:00.000Z",
+      cap: 100,
+    });
+  });
+
+  it("exposes rate-limit error codes with empty details", async () => {
+    const fetchMock = vi.fn().mockResolvedValue({
+      ok: false,
+      status: 429,
+      headers: new Headers(),
+      text: vi
+        .fn()
+        .mockResolvedValue(JSON.stringify({ error: "rate_limited" })),
+    });
+    vi.stubGlobal("fetch", fetchMock);
+
+    const api = new AssistantCloudAPI({
+      apiKey: "test-key",
+      userId: "u-1",
+      workspaceId: "w-1",
+    });
+
+    const error = await api.makeRawRequest("/threads").catch((e) => e);
+    expect(error).toBeInstanceOf(CloudAPIError);
+    expect(error.message).toBe(
+      'Request failed with status 429, {"error":"rate_limited"}',
     );
     expect(error.status).toBe(429);
+    expect(error.code).toBe("rate_limited");
+    expect(error.details).toEqual({});
   });
 
   it("throws generic error with status for non-JSON error responses", async () => {

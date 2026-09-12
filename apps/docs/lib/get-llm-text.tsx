@@ -12,13 +12,8 @@ import remarkStringify from "remark-stringify";
 import { unified } from "unified";
 import { AGENT_DOCS_DIRECTIVE_MARKDOWN } from "@/lib/agent-docs-directive";
 import { LLM_COMPONENTS } from "@/lib/llm-components";
-import type {
-  design,
-  elementsDocs,
-  examples,
-  source,
-  tapDocs,
-} from "@/lib/source";
+import { DEFAULT_PLATFORM, type Platform } from "@/lib/constants";
+import type { design, elementsDocs, examples, source } from "@/lib/source";
 import type { InferPageType } from "fumadocs-core/source";
 
 const processor = unified()
@@ -52,9 +47,15 @@ const OMITTED_STATIC_PROP_NAMES = new Set([
   "priority",
 ]);
 
-export type LLMRenderContext = { flavor: "radix" | "base" };
+export type LLMRenderContext = {
+  flavor: "radix" | "base";
+  platform: Platform;
+};
 
-const DEFAULT_LLM_CONTEXT: LLMRenderContext = { flavor: "base" };
+const DEFAULT_LLM_CONTEXT: LLMRenderContext = {
+  flavor: "base",
+  platform: DEFAULT_PLATFORM,
+};
 
 type StaticFunctionComponent = (
   props: Record<string, unknown>,
@@ -343,18 +344,15 @@ type LLMPage =
   | InferPageType<typeof source>
   | InferPageType<typeof examples>
   | InferPageType<typeof design>
-  | InferPageType<typeof elementsDocs>
-  | InferPageType<typeof tapDocs>;
+  | InferPageType<typeof elementsDocs>;
 
 export async function getLLMText(
   page: LLMPage,
-  ctx: LLMRenderContext = DEFAULT_LLM_CONTEXT,
+  options: Partial<LLMRenderContext> = {},
 ) {
   const { body: Body } = await page.data.load();
+  const ctx: LLMRenderContext = { ...DEFAULT_LLM_CONTEXT, ...options };
 
-  // TODO: Platform-scoped MDX currently renders with the server default
-  // platform ("react"). If llms output should include React Native or Ink
-  // variants, render once per platform or provide an explicit platform scope.
   const staticBody = await resolveStaticReactNode(
     <Body components={LLM_COMPONENTS} />,
     ctx,

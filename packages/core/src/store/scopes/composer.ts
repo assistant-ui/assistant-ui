@@ -109,22 +109,34 @@ export type ComposerMeta = {
 
 export type ComposerEvents = {
   /**
-   * The user sent the composer contents. `messageId` is set when the send
-   * came from an edit composer.
+   * The user sent a message, from the composer or through `thread.append`.
+   * `messageId` is set when the send came from an edit composer.
    */
-  "composer.send": { threadId: string; messageId?: string };
+  "composer.send": {
+    threadId: string;
+    messageId?: string;
+    chars: number;
+    attachments: number;
+    suggestion?: boolean;
+  };
   /**
    * An attachment was added to the composer. `messageId` is set when the
    * attachment was added to an edit composer.
    */
-  "composer.attachmentAdd": { threadId: string; messageId?: string };
+  "composer.attachmentAdd": {
+    threadId: string;
+    messageId?: string;
+    contentType?: string;
+  };
   "composer.attachmentAddError": {
     threadId: string;
     messageId?: string;
     attachmentId?: string;
     reason: AttachmentAddErrorReason;
     message: string;
+    contentType?: string;
   };
+  "composer.cancel": { threadId: string };
 };
 
 export type ComposerClientSchema = {

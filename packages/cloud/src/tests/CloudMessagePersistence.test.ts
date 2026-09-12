@@ -47,6 +47,7 @@ describe("CloudMessagePersistence", () => {
 
     expect(persistence.isPersisted("local-1")).toBe(true);
     expect(await persistence.getRemoteId("local-1")).toBe("remote-1");
+    expect(persistence.getResolvedRemoteId("local-1")).toBe("remote-1");
   });
 
   it.each(["__proto__", "constructor", "toString"])(

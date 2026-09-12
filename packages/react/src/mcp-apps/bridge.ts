@@ -90,8 +90,10 @@ export function createMcpAppBridge(
     hostInfo = DEFAULT_HOST_INFO,
     hostContext = {},
   } = opts;
+  let disposed = false;
 
   const post = (msg: McpAppJsonRpcMessage) => {
+    if (disposed) return;
     frame.sendMessage(msg);
   };
 
@@ -125,6 +127,7 @@ export function createMcpAppBridge(
   };
 
   const reportError = (error: Error) => {
+    if (disposed) return;
     invokeUserCallback(
       "assistant-ui",
       "MCP App onError",
@@ -435,6 +438,7 @@ export function createMcpAppBridge(
   // The host applies the cross-origin guard before delegating; this only
   // validates the JSON-RPC envelope.
   const onMessage = (event: MessageEvent) => {
+    if (disposed) return;
     if (!isJsonRpcMessage(event.data)) return;
 
     const msg = event.data;
@@ -447,7 +451,9 @@ export function createMcpAppBridge(
 
   return {
     onMessage,
-    dispose: () => {},
+    dispose: () => {
+      disposed = true;
+    },
     notifyToolInput: (input: unknown) => {
       post({
         jsonrpc: "2.0",

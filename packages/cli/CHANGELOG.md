@@ -1,5 +1,23 @@
 # assistant-ui
 
+## 0.0.115
+
+### Patch Changes
+
+- [#6870](https://github.com/assistant-ui/assistant-ui/pull/6870) [`238d94a`](https://github.com/assistant-ui/assistant-ui/commit/238d94ab4366d342416ce164d0fc58d1a661a0f8) - fix: keep relative add directories anchored to the caller ([@ephraimduncan](https://github.com/ephraimduncan))
+
+- [#6900](https://github.com/assistant-ui/assistant-ui/pull/6900) [`eedcf16`](https://github.com/assistant-ui/assistant-ui/commit/eedcf16b5e0e36282137d588990e8c9c417ea240) - fix: quote the project directory in the `cd` instructions create prints ([@okisdev](https://github.com/okisdev))
+
+- [#6899](https://github.com/assistant-ui/assistant-ui/pull/6899) [`1cd905f`](https://github.com/assistant-ui/assistant-ui/commit/1cd905fa5da0a9c2b196ead7c3fe8f31822d3722) - fix: keep the directory selected with `--cwd` when init delegates to create ([@okisdev](https://github.com/okisdev))
+
+- [#6993](https://github.com/assistant-ui/assistant-ui/pull/6993) [`91689ab`](https://github.com/assistant-ui/assistant-ui/commit/91689ab92fa8ccaecff463c6fdc3e6a666bf93e5) - chore: update dependencies ([@Yonom](https://github.com/Yonom))
+
+- [#6918](https://github.com/assistant-ui/assistant-ui/pull/6918) [`a08b330`](https://github.com/assistant-ui/assistant-ui/commit/a08b330a4d06921265f8e209e90b887e74386365) - fix: preserve operator precedence when the v0-12 codemod builds AuiIf conditions ([@okisdev](https://github.com/okisdev))
+
+- [#6939](https://github.com/assistant-ui/assistant-ui/pull/6939) [`9af436c`](https://github.com/assistant-ui/assistant-ui/commit/9af436c16792cce10ea4eebd647ee9e88e126dc8) - fix: repair the type drift tsc --noEmit catches in the codemod and proxy sources ([@Kinfe123](https://github.com/Kinfe123))
+- Updated dependencies [[`91689ab`](https://github.com/assistant-ui/assistant-ui/commit/91689ab92fa8ccaecff463c6fdc3e6a666bf93e5), [`f8be839`](https://github.com/assistant-ui/assistant-ui/commit/f8be83931548d673b7bd4c859d98cd0ab952d7bc)]:
+  - @assistant-ui/agent-launcher@0.1.15
+
 ## 0.0.114
 
 ### Patch Changes

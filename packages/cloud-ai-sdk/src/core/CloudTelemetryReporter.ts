@@ -1,107 +1,107 @@
 import type { UIMessage } from "@ai-sdk/react";
-import type { AssistantCloud, AssistantCloudRunReport } from "assistant-cloud";
+import {
+  type AssistantCloud,
+  CloudRunReporter,
+  deriveRunOutcome,
+  describeRunError,
+} from "assistant-cloud";
+import { extractAISDKRunTelemetry } from "assistant-cloud/ai-sdk";
 import {
   type FinishReason,
   lastAssistantMessageIsCompleteWithToolCalls,
 } from "ai";
-import {
-  extractRunTelemetry,
-  type RunTelemetryData,
-} from "./extractRunTelemetry";
 
 export type TelemetryFinishEvent = {
   finishReason?: FinishReason;
   isAbort: boolean;
   isDisconnect: boolean;
   isError: boolean;
+  error?: unknown;
 };
 
-export class CloudTelemetryReporter {
-  private reported = new Set<string>();
+export type TelemetryRunTiming = {
+  durationMs?: number;
+  firstTokenMs?: number;
+};
 
-  private cloud: AssistantCloud;
+/**
+ * A finish the AI SDK follows with a `sendAutomaticallyWhen` resubmit: the run
+ * goes on and a later finish carries its final state.
+ */
+export function isMidLoopFinish(
+  event: TelemetryFinishEvent | undefined,
+  messages: UIMessage[],
+): boolean {
+  return (
+    event?.finishReason === "tool-calls" &&
+    lastAssistantMessageIsCompleteWithToolCalls({ messages })
+  );
+}
+
+export class CloudTelemetryReporter {
+  private readonly reporter: CloudRunReporter;
 
   constructor(cloud: AssistantCloud) {
-    this.cloud = cloud;
+    this.reporter = new CloudRunReporter(cloud);
   }
 
   async reportFromMessages(
     threadId: string,
     messages: UIMessage[],
     event?: TelemetryFinishEvent,
+    timing?: TelemetryRunTiming,
+    getResolvedRemoteId?: (messageId: string) => string | undefined,
   ): Promise<void> {
-    if (!this.cloud.telemetry.enabled) return;
+    if (isMidLoopFinish(event, messages)) return;
 
-    // mid-loop checkpoint: ai sdk's sendAutomaticallyWhen will resubmit and a
-    // later onFinish will fire on the same assistantMessageId with the final state.
-    if (
-      event?.finishReason === "tool-calls" &&
-      lastAssistantMessageIsCompleteWithToolCalls({ messages })
-    ) {
-      return;
-    }
+    const lastAssistantMessage = getLastAssistantMessage(messages);
+    if (!lastAssistantMessage) return;
 
-    const extracted = extractRunTelemetry(messages);
+    const extracted = extractAISDKRunTelemetry([lastAssistantMessage]);
     if (!extracted) return;
 
-    const dedupeKey = `${threadId}:${extracted.assistantMessageId}`;
-    if (this.reported.has(dedupeKey)) return;
+    const assistantMessageId = extracted.assistantMessageId;
+    if (!assistantMessageId) return;
 
-    const status = event ? deriveStatus(event, extracted) : extracted.status;
+    const lastStep = extracted.steps?.at(-1);
+    if (lastStep && event?.finishReason !== undefined) {
+      lastStep.finishReason = event.finishReason;
+    }
 
-    // keep in sync with assistant-cloud createRunSchema (apps/aui-cloud-api/src/endpoints/runs/create.ts).
-    const initial: AssistantCloudRunReport = {
-      thread_id: threadId,
-      status,
-      ...(extracted.totalSteps != null
-        ? { total_steps: extracted.totalSteps }
-        : undefined),
-      ...(extracted.toolCalls
-        ? { tool_calls: extracted.toolCalls }
-        : undefined),
-      ...(extracted.inputTokens != null
-        ? { input_tokens: extracted.inputTokens }
-        : undefined),
-      ...(extracted.outputTokens != null
-        ? { output_tokens: extracted.outputTokens }
-        : undefined),
-      ...(extracted.reasoningTokens != null
-        ? { reasoning_tokens: extracted.reasoningTokens }
-        : undefined),
-      ...(extracted.cachedInputTokens != null
-        ? { cached_input_tokens: extracted.cachedInputTokens }
-        : undefined),
-      ...(extracted.modelId ? { model_id: extracted.modelId } : undefined),
-      ...(extracted.outputText != null
-        ? { output_text: extracted.outputText }
-        : undefined),
-    };
-
-    const { beforeReport } = this.cloud.telemetry;
-    const report = beforeReport ? beforeReport(initial) : initial;
-    if (!report) return;
-
-    this.reported.add(dedupeKey);
-    await this.cloud.runs.report(report).catch(() => {});
+    const outcome = event
+      ? deriveRunOutcome(event, extracted.status)
+      : undefined;
+    const metadata = extracted.metadata;
+    await this.reporter.report(
+      {
+        threadId,
+        status: outcome?.status ?? extracted.status,
+        outcome: outcome?.outcome,
+        ...describeRunError(event?.error),
+        messageId: getResolvedRemoteId?.(assistantMessageId),
+        traceId:
+          typeof metadata?.traceId === "string" ? metadata.traceId : undefined,
+        modelId: extracted.modelId,
+        provider:
+          typeof metadata?.provider === "string"
+            ? metadata.provider
+            : undefined,
+        usage: extracted.usage,
+        steps: extracted.steps,
+        toolCalls: extracted.toolCalls,
+        durationMs: timing?.durationMs,
+        firstTokenMs: timing?.firstTokenMs,
+        outputText: extracted.outputText,
+      },
+      `${threadId}:${assistantMessageId}`,
+    );
   }
 }
 
-function deriveStatus(
-  event: TelemetryFinishEvent,
-  extracted: RunTelemetryData,
-): AssistantCloudRunReport["status"] {
-  if (event.isError) return "error";
-  if (event.isAbort || event.isDisconnect) return "incomplete";
-  switch (event.finishReason) {
-    case "stop":
-    case "tool-calls":
-      return "completed";
-    case "length":
-    case "content-filter":
-      return "incomplete";
-    case "error":
-      return "error";
-    default:
-      return extracted.status;
+function getLastAssistantMessage(messages: UIMessage[]): UIMessage | undefined {
+  for (let i = messages.length - 1; i >= 0; i--) {
+    const message = messages[i]!;
+    if (message.role === "assistant") return message;
   }
+  return undefined;
 }

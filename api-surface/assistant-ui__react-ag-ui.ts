@@ -270,9 +270,16 @@ type ComposerRuntime = {
 type ComposerRuntimeEventCallback<E extends ComposerRuntimeEventType> = (payload: ComposerRuntimeEventPayload[E]) => void;
 
 type ComposerRuntimeEventPayload = {
-  send: Record<string, never>;
-  attachmentAdd: Record<string, never>;
-  attachmentAddError: AttachmentAddErrorEvent;
+  send: {
+    readonly chars: number;
+    readonly attachments: number;
+  };
+  attachmentAdd: {
+    readonly contentType?: string | undefined;
+  };
+  attachmentAddError: AttachmentAddErrorEvent & {
+    readonly contentType?: string | undefined;
+  };
 };
 
 type ComposerRuntimeEventType = keyof ComposerRuntimeEventPayload;
@@ -572,6 +579,7 @@ type GenericThreadHistoryAdapter<TMessage> = {
       start_ms: number;
       end_ms: number;
     }[];
+    message?: ThreadMessage;
   }): void;
 };
 

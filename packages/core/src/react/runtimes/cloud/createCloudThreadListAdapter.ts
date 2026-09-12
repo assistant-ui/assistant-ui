@@ -1,7 +1,7 @@
 declare const process: { env: Record<string, string | undefined> };
 
 import { type RefObject, useMemo, useState } from "react";
-import { AssistantCloud } from "assistant-cloud";
+import { AssistantCloud, type SdkIdentity } from "assistant-cloud";
 import type {
   RemoteThreadListAdapter,
   RuntimeAdapters,
@@ -10,6 +10,7 @@ import { InMemoryThreadListAdapter } from "../../../runtimes/remote-thread-list/
 import { useAssistantCloudThreadHistoryAdapter } from "./AssistantCloudThreadHistoryAdapter";
 import { CloudFileAttachmentAdapter } from "./CloudFileAttachmentAdapter";
 import { isRecord } from "../../../utils/json/is-json";
+import { CORE_SDK } from "./sdkIdentity";
 
 type ThreadData = {
   externalId: string | undefined;
@@ -17,6 +18,7 @@ type ThreadData = {
 
 export type CloudThreadListAdapterOptions = {
   cloud?: AssistantCloud | undefined;
+  sdk?: SdkIdentity | undefined;
 
   create?: (() => Promise<ThreadData>) | undefined;
   delete?: ((threadId: string) => Promise<void>) | undefined;
@@ -115,6 +117,10 @@ export const createCloudThreadListAdapter = (
     };
     return inMemory;
   }
+
+  cloud.registerSdk?.(CORE_SDK);
+  const sdk = getOptions().sdk;
+  if (sdk) cloud.registerSdk?.(sdk);
 
   return {
     list: async ({ after } = {}) => {

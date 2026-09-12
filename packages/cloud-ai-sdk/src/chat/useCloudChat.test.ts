@@ -3,10 +3,12 @@
 import { renderHook } from "@testing-library/react";
 import { describe, expect, it, vi, beforeEach } from "vitest";
 
-const { mockUseChat, mockCloud } = vi.hoisted(() => {
+const { mockUseChat, mockCloud, mockResolvedRemoteId } = vi.hoisted(() => {
   const mockThreadsCreate = vi.fn().mockResolvedValue({ thread_id: "new-t-1" });
+  const resolvedRemoteId = vi.fn();
 
   const cloud = {
+    registerSdk: vi.fn(),
     threads: {
       create: mockThreadsCreate,
       list: vi.fn().mockResolvedValue({ threads: [] }),
@@ -15,6 +17,9 @@ const { mockUseChat, mockCloud } = vi.hoisted(() => {
       update: vi.fn(),
       archive: vi.fn(),
       unarchive: vi.fn(),
+      messages: {
+        feedback: vi.fn(),
+      },
     },
     threadMessages: {
       list: vi.fn().mockResolvedValue([]),
@@ -40,15 +45,33 @@ const { mockUseChat, mockCloud } = vi.hoisted(() => {
     status: "ready",
   });
 
-  return { mockUseChat: useChat, mockCloud: cloud };
+  return {
+    mockUseChat: useChat,
+    mockCloud: cloud,
+    mockResolvedRemoteId: resolvedRemoteId,
+  };
 });
 
 vi.mock("assistant-cloud", () => ({
   AssistantCloud: vi.fn(() => mockCloud),
+  CloudRunReporter: class {
+    report = vi.fn().mockResolvedValue(undefined);
+  },
+  CloudEngagementReporter: class {
+    runStarted = vi.fn();
+    runStopped = vi.fn();
+    messageSent = vi.fn();
+    messageRegenerated = vi.fn();
+    errorShown = vi.fn();
+  },
   CloudMessagePersistence: vi.fn(
     class {
       load = vi.fn().mockResolvedValue({ messages: [] });
       append = vi.fn().mockResolvedValue(undefined);
+      getResolvedRemoteId = mockResolvedRemoteId;
+      getRemoteId = vi.fn((messageId: string) =>
+        Promise.resolve(mockResolvedRemoteId(messageId)),
+      );
     },
   ),
   createFormattedPersistence: vi.fn(() => ({
@@ -76,11 +99,33 @@ vi.mock("ai", () => ({
   ),
 }));
 
+import { CLOUD_AI_SDK_SDK } from "../sdkIdentity";
 import { useCloudChat } from "./useCloudChat";
+
+const createThreads = (cloud: typeof mockCloud, threadId: string | null) => ({
+  cloud,
+  threads: [],
+  isLoading: false,
+  error: null,
+  refresh: vi.fn().mockResolvedValue(true),
+  get: vi.fn(),
+  create: vi.fn(),
+  delete: vi.fn(),
+  rename: vi.fn(),
+  archive: vi.fn(),
+  unarchive: vi.fn(),
+  threadId,
+  selectThread: vi.fn(),
+  generateTitle: vi.fn().mockResolvedValue(null),
+});
 
 describe("useCloudChat", () => {
   beforeEach(() => {
-    vi.clearAllMocks();
+    mockResolvedRemoteId.mockReturnValue(undefined);
+    mockCloud.threads.messages.feedback.mockResolvedValue({
+      feedback_id: "feedback-1",
+      type: "positive",
+    });
     mockUseChat.mockReturnValue({
       messages: [],
       input: "",
@@ -101,24 +146,8 @@ describe("useCloudChat", () => {
   });
 
   it("replaces cached chats when the cloud changes", () => {
-    const createThreads = (cloud: typeof mockCloud) => ({
-      cloud,
-      threads: [],
-      isLoading: false,
-      error: null,
-      refresh: vi.fn().mockResolvedValue(true),
-      get: vi.fn(),
-      create: vi.fn(),
-      delete: vi.fn(),
-      rename: vi.fn(),
-      archive: vi.fn(),
-      unarchive: vi.fn(),
-      threadId: "thread-1",
-      selectThread: vi.fn(),
-      generateTitle: vi.fn().mockResolvedValue(null),
-    });
-    const threadsA = createThreads({ ...mockCloud });
-    const threadsB = createThreads({ ...mockCloud });
+    const threadsA = createThreads({ ...mockCloud }, "thread-1");
+    const threadsB = createThreads({ ...mockCloud }, "thread-1");
 
     const { rerender } = renderHook(
       ({ threads }) => useCloudChat({ threads: threads as never }),
@@ -130,5 +159,55 @@ describe("useCloudChat", () => {
 
     const chatB = mockUseChat.mock.calls.at(-1)?.[0].chat;
     expect(chatB).not.toBe(chatA);
+  });
+
+  it("registers the cloud AI SDK on an explicit cloud", () => {
+    renderHook(() => useCloudChat({ cloud: mockCloud as never }));
+
+    expect(mockCloud.registerSdk).toHaveBeenCalledWith(CLOUD_AI_SDK_SDK);
+  });
+
+  it("sends feedback for the persisted cloud message in the active thread", async () => {
+    mockResolvedRemoteId.mockReturnValue("remote-message-1");
+    const threads = createThreads(mockCloud, "thread-1");
+    const { result } = renderHook(() =>
+      useCloudChat({ threads: threads as never }),
+    );
+
+    await expect(
+      result.current.feedback("local-message-1", "positive"),
+    ).resolves.toBeUndefined();
+
+    expect(mockResolvedRemoteId).toHaveBeenCalledWith("local-message-1");
+    expect(mockCloud.threads.messages.feedback).toHaveBeenCalledWith(
+      "thread-1",
+      "remote-message-1",
+      { type: "positive" },
+    );
+  });
+
+  it("rejects feedback for a message that has not persisted", async () => {
+    const threads = createThreads(mockCloud, "thread-1");
+    const { result } = renderHook(() =>
+      useCloudChat({ threads: threads as never }),
+    );
+
+    await expect(
+      result.current.feedback("local-message-1", "negative"),
+    ).rejects.toThrow("Message is not persisted yet");
+    expect(mockCloud.threads.messages.feedback).not.toHaveBeenCalled();
+  });
+
+  it("rejects feedback when there is no active thread", async () => {
+    const threads = createThreads(mockCloud, null);
+    const { result } = renderHook(() =>
+      useCloudChat({ threads: threads as never }),
+    );
+
+    await expect(
+      result.current.feedback("local-message-1", "positive"),
+    ).rejects.toThrow("No active thread");
+    expect(mockResolvedRemoteId).not.toHaveBeenCalled();
+    expect(mockCloud.threads.messages.feedback).not.toHaveBeenCalled();
   });
 });

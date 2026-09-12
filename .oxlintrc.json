@@ -73,6 +73,42 @@
   ],
   "overrides": [
     {
+      "files": ["packages/**/src/**"],
+      "excludeFiles": [
+        "packages/agent-launcher/**",
+        "packages/cli/**",
+        "packages/create-assistant-ui/**",
+        "packages/mcp-docs-server/**",
+        "packages/metro/**",
+        "packages/next/**",
+        "packages/react-ink/**",
+        "packages/react-ink-markdown/**",
+        "packages/vite/**",
+        "packages/x-*/**",
+        "packages/*/src/node.ts",
+        "packages/*/src/server.ts",
+        "packages/*/src/node/**",
+        "packages/*/src/server/**",
+        "packages/**/*.node.*",
+        "packages/**/*.server.*",
+        "packages/**/src/**/__tests__/**",
+        "packages/**/src/**/*.test.*",
+        "packages/assistant-stream/src/resumable/stores/redis-impl.ts",
+        "packages/assistant-stream/src/resumable/stores/redis.ts",
+        "packages/assistant-stream/src/resumable/stores/ioredis.ts"
+      ],
+      "rules": {
+        "no-restricted-properties": [
+          "error",
+          {
+            "object": "AbortSignal",
+            "property": "any",
+            "message": "AbortSignal.any needs chrome/edge 116, firefox 124, safari 17.4, above the browserslist floor (chrome/edge/firefox 111, safari 16.4). Use the combineAbortSignals pattern or another compatibility-safe signal combiner instead."
+          }
+        ]
+      }
+    },
+    {
       "files": [
         "packages/ui/src/components/react/ui/**",
         "packages/ui/src/components/react/assistant-ui/**",

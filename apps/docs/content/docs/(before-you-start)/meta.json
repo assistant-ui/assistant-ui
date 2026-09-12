@@ -1,0 +1,7 @@
+{
+  "title": "Before You Start",
+  "description": "What assistant-ui is, how its pieces fit together, and how to build with it using AI tools. Read this first, whichever surface you build for.",
+  "icon": "BookOpen",
+  "root": true,
+  "pages": ["index", "architecture", "llm"]
+}

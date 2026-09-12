@@ -1,0 +1,96 @@
+---
+title: Outside React
+description: Run resources standalone, with no React tree.
+---
+
+Resources don't need React. `createTapRoot` hosts a resource tree
+imperatively, which is how libraries and tests drive resources, and how
+`@assistant-ui/store` bridges them into React.
+
+## createTapRoot
+
+```ts
+import { createTapRoot, useResource } from "@assistant-ui/tap";
+
+const root = createTapRoot(function CounterRoot() {
+  return useResource(Counter({ initialValue: 0 }));
+});
+
+// read the current value
+root.getValue().count; // 0
+
+// subscribe to changes
+const unsubscribe = root.subscribe(() => {
+  console.log(root.getValue().count);
+});
+
+// call methods
+root.getValue().increment();
+
+// clean up
+root.unmount();
+```
+
+`createTapRoot(callback)` runs the callback as the root's render body, in which you
+call `useResource` to host a resource. It returns a stable
+`{ getValue, subscribe, unmount }` object: `getValue()` reads the resource's
+current return value, `subscribe(callback)` fires whenever it changes, and
+`unmount()` tears the tree down.
+
+With `createTapRoot(callback, { mountOnSubscribe: true })` the lifecycle is
+derived from subscribers instead of owned by the caller: the first subscriber
+mounts the tree, the last unsubscriber soft-unmounts it (state is preserved for
+the next subscriber), and `unmount()` throws. See the
+[API reference](/docs/tap/api-reference#createtaproot) for the full
+contract.
+
+## Scheduling and flushing
+
+How updates are delivered depends on what hosts the tree:
+
+| Host | Scheduler | Updates delivered via |
+| --- | --- | --- |
+| `useResource` | React | React re-render |
+| `useTapRoot` | tap | `.subscribe()` |
+| `createTapRoot` | tap | `root.subscribe()` |
+
+The tap scheduler batches state changes: multiple setters in the same synchronous
+block produce a single re-render. If updates keep triggering more updates (for
+example, an effect that sets state), tap flushes up to 50 times before throwing a
+maximum-update-depth error.
+
+### flushTapSync
+
+`flushTapSync` flushes pending tap-scheduled updates synchronously, so the
+new state is readable immediately after.
+
+```ts
+import { flushTapSync } from "@assistant-ui/tap";
+
+flushTapSync(() => root.getValue().increment());
+console.log(root.getValue().count); // already updated
+```
+
+This applies to tap-scheduled trees (`createTapRoot` / `useTapRoot`). For
+`useResource` trees, use `flushSync` from `react-dom` instead. It is useful when a
+library expects a synchronous result, such as a controlled input that needs its
+store updated inside the `onChange` handler.
+
+## React interop
+
+When a resource is hosted via `useResource` inside React, tap integrates with
+React's scheduler:
+
+- **Concurrent features** (`startTransition`, `useDeferredValue`, `<Suspense>`)
+  work without tearing.
+- **`<Activity>`**: updates that arrive while a resource is
+  hidden are tracked and replayed when it becomes visible again.
+- **Strict mode** is inherited from the surrounding `<StrictMode>`.
+
+No special configuration is needed.
+
+<Callout type="warn">
+`@assistant-ui/store` bridges resources into React with `useSyncExternalStore`, so
+those reads trigger synchronous re-renders and opt out of concurrent scheduling.
+This may change in a future release.
+</Callout>

@@ -1,7 +1,13 @@
 import { describe, expect, it, vi } from "vitest";
 import { LocalRuntimeCore } from "../../runtimes/local/local-runtime-core";
 import { ExternalStoreRuntimeCore } from "../../runtimes/external-store/external-store-runtime-core";
+import { ReadonlyThreadRuntimeCore } from "../../runtimes/readonly/ReadonlyThreadRuntimeCore";
 import { AssistantRuntimeImpl } from "./assistant-runtime";
+import {
+  ThreadRuntimeImpl,
+  type ThreadListItemRuntimeBinding,
+  type ThreadRuntimeCoreBinding,
+} from "./thread-runtime";
 
 describe("ThreadRuntime.append", () => {
   it.each([
@@ -74,5 +80,57 @@ describe("ThreadRuntime.append with an external store", () => {
       ),
     );
     expect(onNew).not.toHaveBeenCalled();
+  });
+});
+
+describe("ThreadRuntime state subscriptions", () => {
+  it("tears down every source before reconnecting after an error", () => {
+    const core = new ReadonlyThreadRuntimeCore();
+    const cleanupError = new Error("thread cleanup failed");
+    const threadCleanup = vi.fn(() => {
+      throw cleanupError;
+    });
+    const itemCleanup = vi.fn();
+    let threadSubscriptions = 0;
+    let itemSubscriptions = 0;
+    const path = {
+      ref: "test.thread",
+      threadSelector: { type: "main" as const },
+    };
+    const runtime = new ThreadRuntimeImpl(
+      {
+        path,
+        getState: () => core,
+        subscribe: () => {
+          threadSubscriptions += 1;
+          return threadCleanup;
+        },
+        outerSubscribe: () => () => {},
+      } satisfies ThreadRuntimeCoreBinding,
+      {
+        path,
+        getState: () => ({
+          id: "test",
+          remoteId: undefined,
+          externalId: undefined,
+          isMain: true,
+          isRunning: false,
+          status: "regular",
+          title: undefined,
+        }),
+        subscribe: () => {
+          itemSubscriptions += 1;
+          return itemCleanup;
+        },
+      } satisfies ThreadListItemRuntimeBinding,
+    );
+
+    const unsubscribe = runtime.subscribe(() => {});
+    expect(() => unsubscribe()).toThrow(cleanupError);
+    expect(itemCleanup).toHaveBeenCalledOnce();
+
+    runtime.subscribe(() => {});
+    expect(threadSubscriptions).toBe(2);
+    expect(itemSubscriptions).toBe(2);
   });
 });

@@ -4,6 +4,22 @@ import { describe, expect, it, vi } from "vitest";
 import { renderHook } from "@testing-library/react";
 import type { AssistantCloud } from "assistant-cloud";
 import { createCloudThreadListAdapter } from "./createCloudThreadListAdapter";
+import { CORE_SDK } from "./sdkIdentity";
+
+vi.mock("@assistant-ui/store", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("@assistant-ui/store")>()),
+  useAui: () => ({
+    threads: {
+      getState: () => ({ mainThreadId: "local-1", threadItems: [] }),
+    },
+    thread: { getState: () => ({ isEmpty: true, suggestions: [] }) },
+    threadListItem: {
+      getState: () => ({ id: "local-1", remoteId: "remote-1" }),
+    },
+    on: () => () => {},
+    subscribe: () => () => {},
+  }),
+}));
 
 const makeCloud = () =>
   ({
@@ -15,6 +31,7 @@ const makeCloud = () =>
       get: vi.fn(),
     },
     runs: { stream: vi.fn(async () => new ReadableStream()) },
+    registerSdk: vi.fn(),
   }) as unknown as AssistantCloud;
 
 describe("createCloudThreadListAdapter", () => {
@@ -66,6 +83,25 @@ describe("createCloudThreadListAdapter", () => {
 
     expect(adapter.unstable_useAdapters).toBeTypeOf("function");
     expect(adapter.unstable_Provider).toBeUndefined();
+  });
+
+  it("registers core and the calling integration identities", () => {
+    const cloud = makeCloud();
+    const sdk = { name: "@assistant-ui/ai-sdk", version: "0.0.5" };
+
+    createCloudThreadListAdapter({ cloud, sdk });
+
+    expect(cloud.registerSdk).toHaveBeenNthCalledWith(1, CORE_SDK);
+    expect(cloud.registerSdk).toHaveBeenNthCalledWith(2, sdk);
+  });
+
+  it("registers only core without a calling integration identity", () => {
+    const cloud = makeCloud();
+
+    createCloudThreadListAdapter({ cloud });
+
+    expect(cloud.registerSdk).toHaveBeenCalledOnce();
+    expect(cloud.registerSdk).toHaveBeenCalledWith(CORE_SDK);
   });
 
   it("constructs stable history and attachment adapters when the hook runs", () => {

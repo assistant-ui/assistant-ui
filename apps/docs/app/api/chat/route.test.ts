@@ -1,4 +1,4 @@
-import { afterEach, describe, expect, it, vi } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 
 const mocks = vi.hoisted(() => ({
   requireSession: vi.fn(),
@@ -37,10 +37,6 @@ vi.mock("@/lib/demo-usage", () => ({
 }));
 
 import { POST } from "./route";
-
-afterEach(() => {
-  vi.clearAllMocks();
-});
 
 describe("POST /api/chat access boundary", () => {
   it("rejects a direct request before model selection", async () => {
