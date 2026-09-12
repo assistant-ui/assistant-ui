@@ -80,14 +80,22 @@ function getBase64Size(base64: string): number {
 }
 
 function getDataUrlSize(data: string): number {
-  const comma = data.indexOf(",");
-  if (comma < 0 || /;base64$/i.test(data.slice(0, comma))) {
+  const withoutFragment = data.split("#", 1)[0]!;
+  const comma = withoutFragment.indexOf(",");
+  if (comma < 0) {
     return getBase64Size(data);
+  }
+  const payload = withoutFragment.slice(comma + 1);
+  if (/;base64$/i.test(withoutFragment.slice(0, comma))) {
+    const decoded = payload.replace(/%([\da-f]{2})/gi, (_match, hex: string) =>
+      String.fromCharCode(Number.parseInt(hex, 16)),
+    );
+    return getBase64Size(decoded.replace(/[\t\n\f\r ]/g, ""));
   }
 
   // Each percent escape is one byte, including octets that are not valid UTF-8.
-  const payload = data.slice(comma + 1).replace(/%[\da-f]{2}/gi, "_");
-  return new TextEncoder().encode(payload).byteLength;
+  return new TextEncoder().encode(payload.replace(/%[\da-f]{2}/gi, "_"))
+    .byteLength;
 }
 
 function formatFileSize(bytes: number): string {

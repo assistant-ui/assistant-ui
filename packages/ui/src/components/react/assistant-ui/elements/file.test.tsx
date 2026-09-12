@@ -8,6 +8,8 @@ afterEach(cleanup);
 describe("File inline size", () => {
   it.each([
     ["data:text/plain,hello%20world", "11 B"],
+    ["data:text/plain,hello%20world#section", "11 B"],
+    ["data:text/plain,hello%23world#section", "11 B"],
     ["data:text/plain,hello", "5 B"],
     ["data:,", "0 B"],
     ["data:text/plain,caf%C3%A9", "5 B"],
@@ -17,6 +19,9 @@ describe("File inline size", () => {
     ["data:text/plain,100%", "4 B"],
     ["data:text/plain,a,b=c", "5 B"],
     ["data:text/plain;base64,aGVsbG8=", "5 B"],
+    ["data:text/plain;base64,aGVsbG8%3D", "5 B"],
+    ["data:text/plain;base64,aGVsbG8%3D#section", "5 B"],
+    ["data:text/plain;base64,aGVs%20bG8%3D", "5 B"],
     ["data:text/plain;BASE64,aGVsbG8=", "5 B"],
     ["aGVsbG8=", "5 B"],
   ])("counts decoded bytes for %s", (data, size) => {
