@@ -3,6 +3,13 @@ import os from "node:os";
 import path from "node:path";
 import { spawnSync } from "node:child_process";
 import { describe, expect, it, vi, beforeEach, afterEach } from "vitest";
+const mocks = vi.hoisted(() => ({
+  scaffoldProject: vi.fn(),
+}));
+vi.mock("../../src/lib/create-project", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("../../src/lib/create-project")>()),
+  scaffoldProject: mocks.scaffoldProject,
+}));
 import {
   create,
   resolveCreateProjectDirectory,
@@ -12,6 +19,31 @@ import {
   resolveProjectDirectoryGuidance,
   PROJECT_METADATA,
 } from "../../src/commands/create";
+
+async function runCreateWithScaffoldFailure(target: string): Promise<void> {
+  const exitSpy = vi.spyOn(process, "exit").mockImplementation((code) => {
+    throw new Error(`process.exit:${code}`);
+  });
+
+  try {
+    await expect(
+      create.parseAsync(
+        [
+          target,
+          "--template",
+          "minimal",
+          "--skip-install",
+          "--no-skills",
+          "--debug-source-root",
+          path.join(path.dirname(target), "missing-source"),
+        ],
+        { from: "user" },
+      ),
+    ).rejects.toThrow("process.exit:1");
+  } finally {
+    exitSpy.mockRestore();
+  }
+}
 
 describe("create command", () => {
   it("exposes --preset option", () => {
@@ -42,6 +74,44 @@ describe("create command", () => {
     expect(debugSourceRootOption).toBeDefined();
     expect(debugSourceRootOption?.hidden).toBe(true);
     expect(create.helpInformation()).not.toContain("--debug-source-root");
+  });
+});
+
+describe("create cleanup ownership", () => {
+  beforeEach(() => {
+    mocks.scaffoldProject.mockReset();
+  });
+
+  it("preserves an existing empty target when scaffolding fails", async () => {
+    const root = fs.mkdtempSync(path.join(os.tmpdir(), "cli-create-cleanup-"));
+    const target = path.join(root, "existing-empty");
+    fs.mkdirSync(target);
+    mocks.scaffoldProject.mockRejectedValue(new Error("scaffold failed"));
+
+    try {
+      await runCreateWithScaffoldFailure(target);
+      expect(fs.existsSync(target)).toBe(true);
+      expect(fs.readdirSync(target)).toEqual([]);
+    } finally {
+      fs.rmSync(root, { recursive: true, force: true });
+    }
+  });
+
+  it("removes a partial target created by the run when scaffolding fails", async () => {
+    const root = fs.mkdtempSync(path.join(os.tmpdir(), "cli-create-cleanup-"));
+    const target = path.join(root, "new-project");
+    mocks.scaffoldProject.mockImplementation(async (_repoPath, destDir) => {
+      fs.mkdirSync(destDir);
+      fs.writeFileSync(path.join(destDir, "partial.txt"), "partial");
+      throw new Error("scaffold failed");
+    });
+
+    try {
+      await runCreateWithScaffoldFailure(target);
+      expect(fs.existsSync(target)).toBe(false);
+    } finally {
+      fs.rmSync(root, { recursive: true, force: true });
+    }
   });
 });
 
