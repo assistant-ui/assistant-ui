@@ -28,7 +28,6 @@ import {
   fromThreadMessageLike,
   type ThreadMessageLike,
 } from "../../runtime/utils/thread-message-like";
-import { generateId } from "../../utils/id";
 import { isRecord } from "../../utils/json/is-json";
 import {
   RuntimeAdapterProvider,
@@ -189,8 +188,9 @@ const parseStoredToolModelContent = (
 const parseStoredAssistantContent = (
   content: unknown[],
   depth: number,
+  parentMessageId: string,
 ): StoredAssistantMessage["content"] =>
-  content.flatMap((rawPart) => {
+  content.flatMap((rawPart, partIndex) => {
     try {
       let part = rawPart;
       if (!isRecord(part) || typeof part.type !== "string") return [];
@@ -215,10 +215,11 @@ const parseStoredAssistantContent = (
             : undefined),
           ...(Array.isArray(messages)
             ? {
-                messages: messages.flatMap((message) => {
+                messages: messages.flatMap((message, messageIndex) => {
                   const parsed = parseStoredNestedThreadMessage(
                     message,
                     depth + 1,
+                    `${parentMessageId}/part-${partIndex}/message-${messageIndex}`,
                   );
                   return parsed ? [parsed] : [];
                 }),
@@ -338,7 +339,7 @@ function parseStoredThreadMessage(
     return {
       id: value.id,
       role: "assistant",
-      content: parseStoredAssistantContent(value.content, depth),
+      content: parseStoredAssistantContent(value.content, depth, value.id),
       status: parseStoredMessageStatus(value.status),
       createdAt,
       metadata: {
@@ -426,13 +427,14 @@ function parseStoredThreadMessage(
 function parseStoredNestedThreadMessage(
   value: unknown,
   depth: number,
+  fallbackId: string,
 ): ThreadMessage | null {
   const parsed = parseStoredThreadMessage(value, depth);
   if (parsed || depth > MAX_STORED_MESSAGE_DEPTH || !isRecord(value)) {
     return parsed;
   }
   if (!isMessageRole(value.role) || !Array.isArray(value.content)) return null;
-  const id = typeof value.id === "string" ? value.id : generateId();
+  const id = typeof value.id === "string" ? value.id : fallbackId;
 
   if (value.role === "assistant") {
     const {
@@ -444,7 +446,7 @@ function parseStoredNestedThreadMessage(
     return {
       ...message,
       id,
-      content: parseStoredAssistantContent(value.content, depth),
+      content: parseStoredAssistantContent(value.content, depth, id),
       status: parseStoredMessageStatus(value.status),
       metadata: {
         ...metadata,

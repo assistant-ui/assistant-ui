@@ -330,63 +330,62 @@ describe("parseStoredMessageRepository", () => {
   });
 
   it("normalizes nested tool-call data loaded from storage", () => {
-    const repo = parseStoredMessageRepository(
-      JSON.stringify({
-        messages: [
-          {
-            message: {
-              ...storedMessage("tool-call", "assistant"),
-              content: [
-                {
-                  type: "tool-call",
-                  toolCallId: "call-1",
-                  toolName: "search",
-                  args: {},
-                  modelContent: [
-                    null,
-                    { type: "text", text: "result" },
-                    { type: "text", text: 42 },
-                    {
-                      type: "file",
-                      data: "SGVsbG8=",
-                      mediaType: "text/plain",
-                    },
-                    {
-                      type: "file",
-                      data: 42,
-                      mediaType: "text/plain",
-                    },
-                  ],
-                  messages: [
-                    null,
-                    {
-                      role: "assistant",
-                      content: [{ type: "text", text: "partial" }, null],
-                      attachments: [null],
-                    },
-                    {
-                      role: "user",
-                      content: [{ type: "text", text: "partial user" }],
-                      attachments: "invalid",
-                    },
-                    {
-                      role: "system",
-                      content: [{ type: "text", text: "partial system" }],
-                      attachments: [null],
-                    },
-                    {
-                      ...storedMessage("nested", "assistant"),
-                      content: [null],
-                    },
-                  ],
-                },
-              ],
-            },
-            parentId: null,
+    const stored = JSON.stringify({
+      messages: [
+        {
+          message: {
+            ...storedMessage("tool-call", "assistant"),
+            content: [
+              {
+                type: "tool-call",
+                toolCallId: "call-1",
+                toolName: "search",
+                args: {},
+                modelContent: [
+                  null,
+                  { type: "text", text: "result" },
+                  { type: "text", text: 42 },
+                  {
+                    type: "file",
+                    data: "SGVsbG8=",
+                    mediaType: "text/plain",
+                  },
+                  {
+                    type: "file",
+                    data: 42,
+                    mediaType: "text/plain",
+                  },
+                ],
+                messages: [
+                  null,
+                  {
+                    role: "assistant",
+                    content: [{ type: "text", text: "partial" }, null],
+                    attachments: [null],
+                  },
+                  {
+                    role: "user",
+                    content: [{ type: "text", text: "partial user" }],
+                    attachments: "invalid",
+                  },
+                  {
+                    role: "system",
+                    content: [{ type: "text", text: "partial system" }],
+                    attachments: [null],
+                  },
+                  {
+                    ...storedMessage("nested", "assistant"),
+                    content: [null],
+                  },
+                ],
+              },
+            ],
           },
-        ],
-      }),
-    );
+          parentId: null,
+        },
+      ],
+    });
+    const repo = parseStoredMessageRepository(stored);
 
     const message = repo.messages[0]?.message;
     expect(message?.role).toBe("assistant");
@@ -404,7 +403,7 @@ describe("parseStoredMessageRepository", () => {
     ]);
     expect(part.messages).toEqual([
       {
-        id: expect.any(String),
+        id: "tool-call/part-0/message-1",
         role: "assistant",
         content: [{ type: "text", text: "partial" }],
         status: { type: "complete", reason: "unknown" },
@@ -417,13 +416,13 @@ describe("parseStoredMessageRepository", () => {
         },
       },
       {
-        id: expect.any(String),
+        id: "tool-call/part-0/message-2",
         role: "user",
         content: [{ type: "text", text: "partial user" }],
         metadata: { custom: {} },
       },
       {
-        id: expect.any(String),
+        id: "tool-call/part-0/message-3",
         role: "system",
         content: [{ type: "text", text: "partial system" }],
         metadata: { custom: {} },
@@ -441,9 +440,7 @@ describe("parseStoredMessageRepository", () => {
         },
       },
     ]);
-    expect(
-      new Set(part.messages?.slice(0, 3).map((nested) => nested.id)).size,
-    ).toBe(3);
+    expect(parseStoredMessageRepository(stored)).toEqual(repo);
     expect(part.messages?.[0]?.role).toBe("assistant");
     if (part.messages?.[0]?.role !== "assistant") {
       throw new Error("expected nested assistant");
