@@ -131,6 +131,16 @@ const DEFAULT_STORED_MESSAGE_STATUS = {
   reason: "unknown",
 } as const satisfies MessageStatus;
 const MAX_STORED_MESSAGE_DEPTH = 100;
+const KNOWN_ASSISTANT_PART_TYPES = new Set([
+  "text",
+  "reasoning",
+  "tool-call",
+  "source",
+  "file",
+  "image",
+  "data",
+  "generative-ui",
+]);
 
 const parseStoredMessageStatus = (value: unknown): MessageStatus => {
   if (!isRecord(value)) return DEFAULT_STORED_MESSAGE_STATUS;
@@ -248,7 +258,8 @@ const parseStoredAssistantContent = (
       if (
         isRecord(rawPart) &&
         typeof rawPart.type === "string" &&
-        !rawPart.type.startsWith("data-")
+        !rawPart.type.startsWith("data-") &&
+        !KNOWN_ASSISTANT_PART_TYPES.has(rawPart.type)
       ) {
         return [
           rawPart as unknown as StoredAssistantMessage["content"][number],
@@ -451,12 +462,13 @@ function parseStoredNestedThreadMessage(
     } as unknown as ThreadMessage;
   }
   if (value.role === "user") {
+    const { attachments, ...message } = value;
     return {
-      ...value,
+      ...message,
       content: parseStoredUserContent(value.content),
-      ...(Array.isArray(value.attachments)
+      ...(Array.isArray(attachments)
         ? {
-            attachments: value.attachments.flatMap((attachment) => {
+            attachments: attachments.flatMap((attachment) => {
               const parsedAttachment = parseStoredAttachment(attachment);
               return parsedAttachment ? [parsedAttachment] : [];
             }),
