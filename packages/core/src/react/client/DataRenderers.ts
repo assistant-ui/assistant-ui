@@ -3,6 +3,7 @@ import { resource } from "@assistant-ui/tap";
 import type { ClientOutput } from "@assistant-ui/store";
 import type { DataRenderersState } from "../types/scopes/dataRenderers";
 import type { DataMessagePartComponent } from "../types/MessagePartComponentTypes";
+import { nullProtoRecord } from "../../utils/record";
 
 /**
  * Registers renderers for `data` message parts.
@@ -13,30 +14,28 @@ import type { DataMessagePartComponent } from "../types/MessagePartComponentType
  */
 const useDataRenderers = (): ClientOutput<"dataRenderers"> => {
   const [state, setState] = useState<DataRenderersState>(() => ({
-    renderers: {},
+    renderers: nullProtoRecord(),
     fallbacks: [],
   }));
 
   const setDataUI = useCallback(
     (name: string, render: DataMessagePartComponent) => {
       setState((prev) => {
+        const renderers = nullProtoRecord(prev.renderers);
+        renderers[name] = [...(renderers[name] ?? []), render];
         return {
           ...prev,
-          renderers: {
-            ...prev.renderers,
-            [name]: [...(prev.renderers[name] ?? []), render],
-          },
+          renderers,
         };
       });
 
       return () => {
         setState((prev) => {
+          const renderers = nullProtoRecord(prev.renderers);
+          renderers[name] = renderers[name]?.filter((r) => r !== render) ?? [];
           return {
             ...prev,
-            renderers: {
-              ...prev.renderers,
-              [name]: prev.renderers[name]?.filter((r) => r !== render) ?? [],
-            },
+            renderers,
           };
         });
       };
