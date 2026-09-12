@@ -100,6 +100,7 @@ export type LaneOutputs = { json?: string; report?: string };
 export declare const MARKER: string;
 export declare const fmt: (ms: number) => string;
 export declare const shortId: (id: string) => string;
+export declare const baseLabel: (ref: string, sha: string) => string;
 export declare const summarize: (rows: CompareRow[]) => Summary;
 export declare const buildCompareDoc: (
   rows: CompareRow[],
@@ -107,7 +108,7 @@ export declare const buildCompareDoc: (
 ) => CompareDoc;
 export declare const renderCompareMarkdown: (
   doc: CompareDoc,
-  options?: { controlLimit?: number; measuredLimit?: number },
+  options?: { controlLimit?: number; sameLimit?: number },
 ) => string;
 export declare const renderCompareTerminal: (doc: CompareDoc) => void;
 export declare const renderTraceMarkdown: (doc: TraceDoc) => string;
