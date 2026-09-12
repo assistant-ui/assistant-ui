@@ -13,6 +13,7 @@ export function useJSONSchemaDependency(
       const jsonSchema = toJSONSchema(schema);
       return isJSONValue(jsonSchema) ? jsonSchema : null;
     } catch {
+      // Opaque schemas share one fallback so rebuilt instances do not churn registration.
       return null;
     }
   }, [schema]);
