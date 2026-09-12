@@ -1,6 +1,7 @@
 import {
   AssistantCloudAPI,
   type AssistantCloudConfig,
+  type SdkIdentity,
   type AssistantCloudTelemetryConfig,
 } from "./AssistantCloudAPI";
 import { AssistantCloudAuthTokens } from "./AssistantCloudAuthTokens";
@@ -20,9 +21,11 @@ export class AssistantCloud {
   public readonly events;
   public readonly scores;
   public readonly telemetry: AssistantCloudTelemetryConfig;
+  public readonly registerSdk: (sdk: SdkIdentity) => void;
 
   constructor(config: AssistantCloudConfig) {
     const api = new AssistantCloudAPI(config);
+    this.registerSdk = api.registerSdk;
     const t = config.telemetry;
     this.telemetry =
       t === false

@@ -3,7 +3,10 @@ export type {
   AssistantCloudThreadMessageFeedbackBody,
   AssistantCloudThreadMessageFeedbackResponse,
 } from "./AssistantCloudThreadMessages";
-export type { AssistantCloudTelemetryConfig } from "./AssistantCloudAPI";
+export type {
+  AssistantCloudTelemetryConfig,
+  SdkIdentity,
+} from "./AssistantCloudAPI";
 export {
   AssistantCloudEvents,
   type AssistantCloudEvent,

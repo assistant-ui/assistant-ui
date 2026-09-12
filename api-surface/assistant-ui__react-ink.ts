@@ -95,12 +95,15 @@ declare class AssistantCloud {
   readonly events: AssistantCloudEvents;
   readonly scores: AssistantCloudScores;
   readonly telemetry: AssistantCloudTelemetryConfig;
+  readonly registerSdk: (sdk: SdkIdentity) => void;
   constructor(config: AssistantCloudConfig);
 }
 
 declare class AssistantCloudAPI {
   _auth: AssistantCloudAuthStrategy;
   _baseUrl: string;
+  readonly registerSdk: (sdk: SdkIdentity) => void;
+  readonly sdkHeader: () => string;
   constructor(config: AssistantCloudConfig);
   initializeAuth(): Promise<boolean>;
   makeRawRequest(endpoint: string, options?: MakeRequestOptions): Promise<Response>;
@@ -264,6 +267,7 @@ declare class AssistantCloudRuns {
     api: string;
     headers: () => Promise<{
       Accept: string;
+      "Aui-Sdk": string;
     }>;
     body: {
       assistant_id: string;
@@ -3095,6 +3099,11 @@ type ScopeStates = {
   [K in ClientNames]: ClientSchemas[K]["methods"] extends {
     getState: () => infer S;
   } ? S : never;
+};
+
+type SdkIdentity = {
+  name: string;
+  version: string;
 };
 
 type SendOptions = {

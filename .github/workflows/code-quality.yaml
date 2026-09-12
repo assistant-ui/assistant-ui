@@ -54,7 +54,7 @@ concurrency:
 jobs:
   lint:
     name: Oxlint + Oxfmt
-    runs-on: blacksmith-8vcpu-ubuntu-2404
+    runs-on: blacksmith-4vcpu-ubuntu-2404
     timeout-minutes: 5
     steps:
       - name: Checkout code repository
