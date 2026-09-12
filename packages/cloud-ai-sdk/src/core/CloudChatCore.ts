@@ -1,7 +1,7 @@
 import { Chat } from "@ai-sdk/react";
 import type { UIMessage } from "@ai-sdk/react";
 import type { ChatTransport, UIMessageChunk } from "ai";
-import type { AssistantCloud } from "assistant-cloud";
+import { CloudEngagementReporter, type AssistantCloud } from "assistant-cloud";
 import type { UseCloudChatOptions, UseThreadsResult } from "../types";
 import type { ChatRegistry } from "../chat/ChatRegistry";
 import { MessagePersistence } from "../chat/MessagePersistence";
@@ -12,7 +12,6 @@ import {
   type TelemetryFinishEvent,
   type TelemetryRunTiming,
 } from "./CloudTelemetryReporter";
-import { CloudEngagementReporter } from "./CloudEngagementReporter";
 
 export type CloudChatConfig = Omit<
   UseCloudChatOptions,
@@ -30,6 +29,30 @@ type ActiveTelemetryTiming = {
   firstTokenMs?: number;
   error?: unknown;
 };
+
+function getLastMessage(
+  messages: UIMessage[],
+  role: UIMessage["role"],
+): UIMessage | undefined {
+  for (let index = messages.length - 1; index >= 0; index--) {
+    const message = messages[index]!;
+    if (message.role === role) return message;
+  }
+  return undefined;
+}
+
+function getMessageCounts(message: UIMessage): {
+  chars: number;
+  attachments: number;
+} {
+  let chars = 0;
+  let attachments = 0;
+  for (const part of message.parts) {
+    if (part.type === "text") chars += part.text.length;
+    if (part.type === "file") attachments += 1;
+  }
+  return { chars, attachments };
+}
 
 const throwIfRegistryDisposed = (registry: ChatRegistry): void => {
   if (!registry.isDisposed) return;
@@ -69,8 +92,18 @@ export class CloudChatCore {
     this.telemetryReporter = new CloudTelemetryReporter(cloud);
     this.engagementReporter = new CloudEngagementReporter(
       cloud,
-      (threadId, messageId) =>
-        this.persistence.getResolvedRemoteId(threadId, messageId),
+      (threadId, messageId) => {
+        const remoteMessageId =
+          messageId === undefined
+            ? undefined
+            : this.persistence.getResolvedRemoteId(threadId, messageId);
+        return {
+          thread_id: threadId,
+          ...(remoteMessageId !== undefined
+            ? { message_id: remoteMessageId }
+            : undefined),
+        };
+      },
     );
   }
 
@@ -172,7 +205,11 @@ export class CloudChatCore {
 
   trackRegenerated(threadId: string | null, messages: UIMessage[]): void {
     if (threadId) {
-      this.engagementReporter.messageRegenerated(threadId, messages);
+      this.engagementReporter.runStarted(threadId);
+      this.engagementReporter.messageRegenerated(
+        threadId,
+        getLastMessage(messages, "assistant")?.id,
+      );
     }
   }
 
@@ -226,10 +263,14 @@ export class CloudChatCore {
           opts.trigger === "submit-message" &&
           opts.messages.at(-1)?.role === "user"
         ) {
-          this.engagementReporter.messageSent(
-            currentThreadId,
-            messagesForDurableUserPersist,
-          );
+          const lastUserMessage = getLastMessage(opts.messages, "user");
+          if (lastUserMessage) {
+            this.engagementReporter.runStarted(currentThreadId);
+            this.engagementReporter.messageSent(currentThreadId, {
+              messageId: lastUserMessage.id,
+              ...getMessageCounts(lastUserMessage),
+            });
+          }
         }
 
         const timing: ActiveTelemetryTiming = { startedAt: Date.now() };
@@ -286,10 +327,11 @@ export class CloudChatCore {
             if (threadId && chatInstance) {
               if (event.isAbort) this.engagementReporter.runStopped(threadId);
               if (event.isError || event.finishReason === "error") {
-                this.engagementReporter.errorShown(
-                  threadId,
-                  chatInstance.messages,
-                );
+                this.engagementReporter.errorShown(threadId, {
+                  messageId: getLastMessage(chatInstance.messages, "assistant")
+                    ?.id,
+                  reason: "error",
+                });
               }
             }
           }
@@ -317,7 +359,10 @@ export class CloudChatCore {
         const threadId = registry.getMeta(chatKey)?.threadId;
         const chatInstance = registry.get(chatKey);
         if (threadId && chatInstance) {
-          this.engagementReporter.errorShown(threadId, chatInstance.messages);
+          this.engagementReporter.errorShown(threadId, {
+            messageId: getLastMessage(chatInstance.messages, "assistant")?.id,
+            reason: "error",
+          });
         }
         this.options.chatConfig.onError?.(error);
       },

@@ -53,6 +53,16 @@ const { mockUseChat, mockCloud, mockResolvedRemoteId } = vi.hoisted(() => {
 
 vi.mock("assistant-cloud", () => ({
   AssistantCloud: vi.fn(() => mockCloud),
+  CloudRunReporter: class {
+    report = vi.fn().mockResolvedValue(undefined);
+  },
+  CloudEngagementReporter: class {
+    runStarted = vi.fn();
+    runStopped = vi.fn();
+    messageSent = vi.fn();
+    messageRegenerated = vi.fn();
+    errorShown = vi.fn();
+  },
   CloudMessagePersistence: vi.fn(
     class {
       load = vi.fn().mockResolvedValue({ messages: [] });

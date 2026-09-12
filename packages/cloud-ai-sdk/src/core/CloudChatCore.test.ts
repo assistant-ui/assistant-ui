@@ -49,6 +49,7 @@ vi.mock("../chat/MessagePersistence", () => ({
 const registry = { getMeta: () => undefined, get: () => undefined } as never;
 
 function createCore(overrides?: {
+  cloud?: Record<string, unknown>;
   onSyncError?: (...args: unknown[]) => void;
   generateTitle?: (...args: unknown[]) => Promise<string | null>;
   chatConfig?: Record<string, unknown>;
@@ -69,7 +70,7 @@ function createCore(overrides?: {
   };
 
   const core = new CloudChatCore(
-    {} as never,
+    (overrides?.cloud ?? {}) as never,
     refs,
     (overrides?.baseTransport ?? {}) as never,
   );
@@ -369,12 +370,46 @@ describe("CloudChatCore", () => {
     expect(sendMessages).not.toHaveBeenCalled();
   });
 
-  it("reports message_sent for a user submission only", async () => {
+  it("resolves engagement message IDs through persistence", async () => {
+    const track = vi.fn();
+    const core = createCore({ cloud: { events: { track } } });
+    getResolvedRemoteIdMock.mockReturnValue("remote-user-1");
+
+    core.engagementReporter.messageSent("thread-1", {
+      messageId: "user-1",
+      chars: 4,
+      attachments: 0,
+    });
+
+    await vi.waitFor(() => expect(track).toHaveBeenCalledOnce());
+    expect(getResolvedRemoteIdMock).toHaveBeenCalledWith("thread-1", "user-1");
+    expect(track).toHaveBeenCalledWith({
+      kind: "message_sent",
+      thread_id: "thread-1",
+      message_id: "remote-user-1",
+      props: { chars: 4, attachments: 0 },
+    });
+  });
+
+  it("reports the last submitted user message's counts", async () => {
     const sendMessages = vi.fn(() => Promise.resolve(new ReadableStream()));
     const core = createCore({
       baseTransport: { sendMessages, reconnectToStream: vi.fn() },
     });
-    const user = { id: "user-1", role: "user", parts: [] };
+    const user = {
+      id: "user-1",
+      role: "user",
+      parts: [
+        { type: "text", text: "hello" },
+        {
+          type: "file",
+          mediaType: "image/png",
+          filename: "image.png",
+          url: "https://example.com/image.png",
+        },
+        { type: "text", text: " world" },
+      ],
+    };
     const assistant = { id: "assistant-1", role: "assistant", parts: [] };
     const chatRegistry = {
       getMeta: () => ({ threadId: "thread-1" }),
@@ -382,6 +417,9 @@ describe("CloudChatCore", () => {
     } as never;
     vi.spyOn(core, "ensureThreadId").mockResolvedValue("thread-1");
     vi.spyOn(core, "persist").mockResolvedValue(undefined);
+    const runStarted = vi
+      .spyOn(core.engagementReporter, "runStarted")
+      .mockImplementation(() => undefined);
     const messageSent = vi
       .spyOn(core.engagementReporter, "messageSent")
       .mockImplementation(() => undefined);
@@ -392,6 +430,12 @@ describe("CloudChatCore", () => {
       messages: [user],
     } as never);
     expect(messageSent).toHaveBeenCalledTimes(1);
+    expect(runStarted).toHaveBeenCalledWith("thread-1");
+    expect(messageSent).toHaveBeenCalledWith("thread-1", {
+      messageId: "user-1",
+      chars: 11,
+      attachments: 1,
+    });
 
     await transport.sendMessages({
       trigger: "submit-message",
@@ -403,6 +447,7 @@ describe("CloudChatCore", () => {
       messages: [user, assistant],
     } as never);
     expect(messageSent).toHaveBeenCalledTimes(1);
+    expect(runStarted).toHaveBeenCalledTimes(1);
   });
 
   it("hands the stream error to the run report", async () => {
@@ -427,8 +472,9 @@ describe("CloudChatCore", () => {
       .createTransport("chat-1", chatRegistry)
       .sendMessages({ trigger: "submit-message", messages } as never);
     const error = new Error("boom");
-    (chatOptionsRef.current?.onError as (error: Error) => void)(error);
-    (chatOptionsRef.current?.onFinish as (event: unknown) => void)({
+    const chatOptions = chatOptionsRef.current!;
+    (chatOptions.onError as (error: Error) => void)(error);
+    (chatOptions.onFinish as (event: unknown) => void)({
       isAbort: false,
       isDisconnect: false,
       isError: true,

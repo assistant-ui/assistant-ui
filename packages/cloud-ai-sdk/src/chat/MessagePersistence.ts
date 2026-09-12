@@ -1,34 +1,18 @@
 import type { UIMessage } from "@ai-sdk/react";
-import type { ReadonlyJSONObject } from "assistant-stream/utils";
 import {
   CloudMessagePersistence,
   createFormattedPersistence,
-  type MessageFormatAdapter,
 } from "assistant-cloud";
 import type { AssistantCloud } from "assistant-cloud";
+import {
+  aiSDKV6FormatAdapter,
+  type AISDKStorageFormat,
+} from "assistant-cloud/ai-sdk";
 
-export const MESSAGE_FORMAT = "ai-sdk/v6";
-
-function encode({ id, ...rest }: UIMessage): ReadonlyJSONObject {
-  return rest as ReadonlyJSONObject;
-}
-
-// Intentionally duplicated in cloud-ai-sdk and ai-sdk.
-// We keep this local to avoid introducing cross-package coupling for a small adapter.
-// If behavior changes, update both adapters and their contract tests together.
-const aiSdkFormatAdapter: MessageFormatAdapter<UIMessage, ReadonlyJSONObject> =
-  {
-    format: MESSAGE_FORMAT,
-    encode: ({ message }) => encode(message),
-    decode: (stored) => ({
-      parentId: stored.parent_id,
-      message: { id: stored.id, ...stored.content } as UIMessage,
-    }),
-    getId: (message) => message.id,
-  };
+export const MESSAGE_FORMAT = aiSDKV6FormatAdapter.format;
 
 type FormattedPersistence = ReturnType<
-  typeof createFormattedPersistence<UIMessage, ReadonlyJSONObject>
+  typeof createFormattedPersistence<UIMessage, AISDKStorageFormat>
 >;
 
 export class MessagePersistence {
@@ -58,7 +42,7 @@ export class MessagePersistence {
 
     const created = createFormattedPersistence(
       this.getPersistence(threadId),
-      aiSdkFormatAdapter,
+      aiSDKV6FormatAdapter,
     );
     this.formattedByThread.set(threadId, created);
     return created;
