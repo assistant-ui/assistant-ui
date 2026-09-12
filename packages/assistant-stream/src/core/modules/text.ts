@@ -36,17 +36,22 @@ class TextStreamControllerImpl implements TextStreamController {
       path: [],
       textDelta,
     };
-    if (this._strict && this._isClosed) {
-      throw new TypeError("Cannot append to a closed TextStreamController");
-    }
-    enqueueIfOpen(this._controller, chunk, (error) => {
-      if (!this._warnedDropped) {
-        this._warnedDropped = true;
-        console.error(`Dropped text delta for closed stream: ${String(error)}`);
+    if (this._isClosed) {
+      if (this._strict) {
+        throw new TypeError("Cannot append to a closed TextStreamController");
       }
-    });
+      enqueueIfOpen(this._controller, chunk, this._warnDroppedAfterClose);
+      return this;
+    }
+    enqueueIfOpen(this._controller, chunk);
     return this;
   }
+
+  private _warnDroppedAfterClose = (error: TypeError) => {
+    if (this._warnedDropped) return;
+    this._warnedDropped = true;
+    console.error(`Dropped text delta for closed stream: ${String(error)}`);
+  };
 
   close() {
     if (this._isClosed) return;

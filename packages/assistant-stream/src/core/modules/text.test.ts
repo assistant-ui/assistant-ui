@@ -26,16 +26,24 @@ describe("TextStreamController", () => {
 });
 
 describe("TextStreamController after consumer cancel", () => {
-  it("drops appends without throwing", async () => {
+  it("drops appends silently", async () => {
     const error = vi.spyOn(console, "error").mockImplementation(() => {});
     const [stream, controller] = createTextStreamController();
     await stream.cancel();
     expect(() => controller.append("late")).not.toThrow();
-    expect(() => controller.append("later")).not.toThrow();
-    expect(error).toHaveBeenCalledOnce();
+    expect(error).not.toHaveBeenCalled();
   });
 
-  it("drops appends on a text part after the reader cancels", async () => {
+  it("drops appends silently with strict: false", async () => {
+    const error = vi.spyOn(console, "error").mockImplementation(() => {});
+    const [stream, controller] = createTextStreamController({ strict: false });
+    await stream.cancel();
+    expect(() => controller.append("late")).not.toThrow();
+    expect(error).not.toHaveBeenCalled();
+  });
+
+  it("drops appends on a text part silently after the reader cancels", async () => {
+    const error = vi.spyOn(console, "error").mockImplementation(() => {});
     let part!: TextStreamController;
     const stream = createAssistantStream((controller) => {
       part = controller.addTextPart();
@@ -45,6 +53,7 @@ describe("TextStreamController after consumer cancel", () => {
     await reader.read();
     await reader.cancel("consumer stopped");
     expect(() => part.append("late")).not.toThrow();
+    expect(error).not.toHaveBeenCalled();
   });
 
   it("closes without throwing", async () => {
