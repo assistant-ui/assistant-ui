@@ -342,5 +342,7 @@ describe("RedisResumableStreamStore", () => {
       chunks.push(decoder.decode(entry.chunk));
     }
     expect(chunks).toEqual(["fresh"]);
+    await store.delete("s");
+    await expect(store.finalize("s", "done")).rejects.toThrow(/not found/);
   });
 });
