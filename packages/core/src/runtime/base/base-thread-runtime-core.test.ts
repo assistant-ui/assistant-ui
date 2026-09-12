@@ -377,6 +377,40 @@ describe("BaseThreadRuntimeCore voice volume subscriptions", () => {
     expect(runtime.voice).toBeUndefined();
   });
 
+  it("does not disconnect a replacement session after setup throws", () => {
+    const setupError = new Error("registration failed");
+    const firstVoice = createVoiceAdapter();
+    const replacementVoice = createVoiceAdapter();
+    firstVoice.adapter.connect = vi
+      .fn()
+      .mockReturnValueOnce(firstVoice.session)
+      .mockReturnValueOnce(replacementVoice.session);
+    let replacing = false;
+    firstVoice.session.onModeChange = (callback) => {
+      replacing = true;
+      callback("listening");
+      throw setupError;
+    };
+    const runtime = new TestRuntime(firstVoice);
+    runtime.subscribe(() => {
+      if (replacing) {
+        replacing = false;
+        runtime.disconnectVoice();
+        runtime.connectVoice();
+      }
+    });
+
+    expect(() => runtime.connectVoice()).toThrow(setupError);
+
+    expect(firstVoice.session.disconnect).toHaveBeenCalledOnce();
+    expect(replacementVoice.session.disconnect).not.toHaveBeenCalled();
+    expect(runtime.voice).toMatchObject({
+      status: replacementVoice.session.status,
+      isMuted: replacementVoice.session.isMuted,
+      mode: "listening",
+    });
+  });
+
   it("rethrows one subscriber error once while disconnecting", () => {
     const voice = createVoiceAdapter();
     const runtime = new TestRuntime(voice);

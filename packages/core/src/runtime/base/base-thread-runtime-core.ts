@@ -322,23 +322,23 @@ export abstract class BaseThreadRuntimeCore
     const unsubs: Array<() => void> = [];
     this._voiceUnsubs = unsubs;
 
+    const finishDetachedSetup = () => {
+      if (this._voiceSession === session && this._voiceUnsubs === unsubs) {
+        return false;
+      }
+
+      try {
+        notifySubscribers(unsubs.splice(0));
+      } catch (error) {
+        console.error(
+          "[assistant-ui] Detached voice setup cleanup threw",
+          error,
+        );
+      }
+      return true;
+    };
+
     try {
-      const finishDetachedSetup = () => {
-        if (this._voiceSession === session && this._voiceUnsubs === unsubs) {
-          return false;
-        }
-
-        try {
-          notifySubscribers(unsubs.splice(0));
-        } catch (error) {
-          console.error(
-            "[assistant-ui] Detached voice setup cleanup threw",
-            error,
-          );
-        }
-        return true;
-      };
-
       let currentMode: RealtimeVoiceAdapter.Mode = "listening";
 
       this.voice = {
@@ -398,13 +398,17 @@ export abstract class BaseThreadRuntimeCore
       );
       finishDetachedSetup();
     } catch (error) {
-      try {
-        this.disconnectVoice();
-      } catch (cleanupError) {
-        console.error(
-          "[assistant-ui] Voice rollback cleanup threw",
-          cleanupError,
-        );
+      if (this._voiceSession === session && this._voiceUnsubs === unsubs) {
+        try {
+          this.disconnectVoice();
+        } catch (cleanupError) {
+          console.error(
+            "[assistant-ui] Voice rollback cleanup threw",
+            cleanupError,
+          );
+        }
+      } else {
+        finishDetachedSetup();
       }
       throw error;
     }
