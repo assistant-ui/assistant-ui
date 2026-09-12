@@ -174,6 +174,16 @@ const parseStoredMessageStatus = (value: unknown): MessageStatus => {
     };
   }
 
+  if (
+    typeof value.type === "string" &&
+    value.type !== "running" &&
+    value.type !== "requires-action" &&
+    value.type !== "complete" &&
+    value.type !== "incomplete"
+  ) {
+    return value as unknown as MessageStatus;
+  }
+
   return DEFAULT_STORED_MESSAGE_STATUS;
 };
 
