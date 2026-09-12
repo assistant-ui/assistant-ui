@@ -7,6 +7,8 @@ const __dirname = dirname(fileURLToPath(import.meta.url));
 export default {
   test: {
     environment: "node",
+    pool: "threads",
+    fsModuleCache: true,
     globals: true,
     // The generated repo source tree is a verbatim copy of the monorepo, and
     // vitest discovers dotted directories, so its tests would be collected here.

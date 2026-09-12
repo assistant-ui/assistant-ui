@@ -8,6 +8,8 @@ export default defineConfig({
   },
   test: {
     environment: "jsdom",
+    pool: "threads",
+    fsModuleCache: true,
     globals: true,
     passWithNoTests: true,
     include: ["src/**/*.test.{ts,tsx}"],
