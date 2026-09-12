@@ -75,9 +75,6 @@ vi.mock("@/lib/source", () => {
     design: makeSource(),
     elementsDocs: makeSource(),
     standalone: makeSource(),
-    tapDocs: makeSource(),
-    getTapDocsPage: vi.fn(),
-    getTapDocsPages: vi.fn(() => []),
   };
 });
 

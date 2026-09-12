@@ -1,6 +1,0 @@
-{
-  "title": "Overview",
-  "icon": "BookOpen",
-  "root": true,
-  "pages": ["introduction", "motivation"]
-}

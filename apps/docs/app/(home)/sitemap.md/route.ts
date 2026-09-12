@@ -1,6 +1,6 @@
 import type { SitemapPage } from "@/lib/agent-discovery";
 import { buildMarkdownSitemap, createDiscoveryResponse } from "@/lib/agent-discovery";
-import { design, elementsDocs, examples, getTapDocsPages, source } from "@/lib/source";
+import { design, elementsDocs, examples, source } from "@/lib/source";
 
 export const revalidate = false;
 
@@ -29,7 +29,6 @@ function loadPages(pages: LazyPage[]): Promise<SitemapPage[]> {
 async function sitemapDocument() {
   return buildMarkdownSitemap([
     { title: "Documentation", pages: await loadPages(source.getPages()) },
-    { title: "Tap documentation", pages: await loadPages(getTapDocsPages()) },
     { title: "Examples", pages: await loadPages(examples.getPages()) },
     { title: "Design", pages: await loadPages(design.getPages()) },
     { title: "Elements", pages: await loadPages(elementsDocs.getPages()) },

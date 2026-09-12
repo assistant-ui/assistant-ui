@@ -120,10 +120,10 @@ CounterList
 
 Children mount and unmount with their parent. Effects run in the order Resources
 are rendered. See
-[Effect ordering](/tap/docs/tap/differences-from-react#effects-run-in-call-order)
+[Effect ordering](/docs/tap/differences-from-react#effects-run-in-call-order)
 for details.
 
 Composition does not create a new scheduler. `useResource` and `useResources`
 remain part of the current Resource tree, so an update can propagate to its
 root. To introduce a separate scheduling boundary, use
-[`useTapRoot`](/tap/docs/tap/trees-and-rerenders#separate-scheduling-with-usetaproot).
+[`useTapRoot`](/docs/tap/trees-and-rerenders#separate-scheduling-with-usetaproot).
