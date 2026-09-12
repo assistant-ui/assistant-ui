@@ -328,14 +328,10 @@ export abstract class BaseThreadRuntimeCore
         return false;
       }
 
-      const shouldDisconnect = this._voiceUnsubs === unsubs;
-      if (shouldDisconnect) this._voiceUnsubs = [];
+      if (this._voiceUnsubs === unsubs) this._voiceUnsubs = [];
 
       try {
-        notifySubscribers([
-          ...unsubs.splice(0),
-          ...(shouldDisconnect ? [() => session.disconnect()] : []),
-        ]);
+        notifySubscribers(unsubs.splice(0));
       } catch (error) {
         console.error(
           "[assistant-ui] Detached voice setup cleanup threw",

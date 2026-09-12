@@ -411,11 +411,12 @@ describe("BaseThreadRuntimeCore voice volume subscriptions", () => {
     });
   });
 
-  it("disconnects a session that ends during status registration", () => {
+  it("releases setup handlers without disconnecting a self-ended session", () => {
     const voice = createVoiceAdapter();
     const statusCleanup = vi.fn();
     voice.session.onStatusChange = (callback) => {
-      callback({ type: "ended", reason: "finished" });
+      voice.session.status = { type: "ended", reason: "finished" };
+      callback(voice.session.status);
       return statusCleanup;
     };
     const modeRegistration = vi.spyOn(voice.session, "onModeChange");
@@ -424,16 +425,16 @@ describe("BaseThreadRuntimeCore voice volume subscriptions", () => {
     runtime.connectVoice();
 
     expect(statusCleanup).toHaveBeenCalledOnce();
-    expect(voice.session.disconnect).toHaveBeenCalledOnce();
+    expect(voice.session.disconnect).not.toHaveBeenCalled();
     expect(modeRegistration).not.toHaveBeenCalled();
     expect(runtime.voice).toBeUndefined();
 
     runtime.disconnectVoice();
     expect(statusCleanup).toHaveBeenCalledOnce();
-    expect(voice.session.disconnect).toHaveBeenCalledOnce();
+    expect(voice.session.disconnect).not.toHaveBeenCalled();
   });
 
-  it("disconnects an ended session when setup notification throws", () => {
+  it("releases ended-session handlers when setup notification throws", () => {
     const listenerError = new Error("ended notification failed");
     const cleanupError = new Error("status cleanup failed");
     const consoleError = vi
@@ -445,7 +446,10 @@ describe("BaseThreadRuntimeCore voice volume subscriptions", () => {
     });
     let endSession!: () => void;
     voice.session.onStatusChange = (callback) => {
-      endSession = () => callback({ type: "ended", reason: "finished" });
+      endSession = () => {
+        voice.session.status = { type: "ended", reason: "finished" };
+        callback(voice.session.status);
+      };
       return statusCleanup;
     };
     voice.session.onModeChange = () => {
@@ -462,12 +466,34 @@ describe("BaseThreadRuntimeCore voice volume subscriptions", () => {
     expect(() => runtime.connectVoice()).toThrow(listenerError);
 
     expect(statusCleanup).toHaveBeenCalledOnce();
-    expect(voice.session.disconnect).toHaveBeenCalledOnce();
+    expect(voice.session.disconnect).not.toHaveBeenCalled();
     expect(runtime.voice).toBeUndefined();
     expect(consoleError).toHaveBeenCalledWith(
       "[assistant-ui] Detached voice setup cleanup threw",
       cleanupError,
     );
+  });
+
+  it("does not disconnect a session that ends after setup", () => {
+    const voice = createVoiceAdapter();
+    const statusCleanup = vi.fn();
+    let endSession!: () => void;
+    voice.session.onStatusChange = (callback) => {
+      endSession = () => {
+        voice.session.status = { type: "ended", reason: "finished" };
+        callback(voice.session.status);
+      };
+      return statusCleanup;
+    };
+    const runtime = new TestRuntime(voice);
+    runtime.connectVoice();
+    endSession();
+    expect(runtime.voice).toBeUndefined();
+
+    runtime.disconnectVoice();
+
+    expect(statusCleanup).toHaveBeenCalledOnce();
+    expect(voice.session.disconnect).not.toHaveBeenCalled();
   });
 
   it("rethrows one subscriber error once while disconnecting", () => {
