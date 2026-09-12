@@ -713,7 +713,12 @@ describe("DataStreamDecoder malformed frame values", () => {
     'aui-state:"x"',
   ];
   const coercionFrames = ["0:null", "0:123", "g:{}", "3:null"];
-  const partShapeFrames = ["h:{}", "k:{}", "aui-data:{}"];
+  const partShapeFrames = [
+    "h:{}",
+    "k:{}",
+    "aui-data:{}",
+    'aui-data:{"name":"n"}',
+  ];
 
   it.each([...crashFrames, ...coercionFrames, ...partShapeFrames])(
     "rejects %s with a descriptive error by default",
@@ -838,6 +843,27 @@ describe("DataStreamDecoder malformed frame values", () => {
 
       const parts = chunks.filter((c) => c.type === "part-start");
       expect(parts.map((c) => c.part.type)).toEqual([type]);
+    },
+  );
+
+  it.each([true, false])(
+    "accepts a document source without a url with strict: %s",
+    async (strict) => {
+      const chunks = await decodeLines(
+        ['h:{"sourceType":"document","id":"d1","title":"Q3 report"}'],
+        { strict },
+      );
+
+      expect(chunks.filter((c) => c.type === "part-start")).toEqual([
+        expect.objectContaining({
+          part: expect.objectContaining({
+            type: "source",
+            sourceType: "document",
+            id: "d1",
+            title: "Q3 report",
+          }),
+        }),
+      ]);
     },
   );
 

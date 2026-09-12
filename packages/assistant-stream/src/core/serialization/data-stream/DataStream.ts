@@ -28,11 +28,14 @@ const isObject = (value: unknown): value is ValueFields =>
 const optional = (check: (value: unknown) => boolean) => (value: unknown) =>
   value === undefined || check(value);
 const isBoolean = (value: unknown) => typeof value === "boolean";
-const objectWith =
-  (fields: Record<string, (value: unknown) => boolean>): ValueRule =>
-  (value) =>
-    isObject(value) &&
-    Object.entries(fields).every(([key, check]) => check(value[key]));
+const present = (value: unknown) => value !== undefined;
+const objectWith = (
+  fields: Record<string, (value: unknown) => boolean>,
+): ValueRule => {
+  const entries = Object.entries(fields);
+  return (value) =>
+    isObject(value) && entries.every(([key, check]) => check(value[key]));
+};
 const unchecked = () => true;
 
 const VALUE_RULES: Record<DataStreamStreamChunkType, ValueRule> = {
@@ -66,7 +69,7 @@ const VALUE_RULES: Record<DataStreamStreamChunkType, ValueRule> = {
   [DataStreamStreamChunkType.Source]: objectWith({
     sourceType: isString,
     id: isString,
-    url: isString,
+    url: optional(isString),
     title: optional(isString),
     parentId: optional(isString),
   }),
@@ -88,6 +91,7 @@ const VALUE_RULES: Record<DataStreamStreamChunkType, ValueRule> = {
   }),
   [DataStreamStreamChunkType.AuiDataPart]: objectWith({
     name: isString,
+    data: present,
     parentId: optional(isString),
   }),
   [DataStreamStreamChunkType.AuiReasoningPartStart]: objectWith({
