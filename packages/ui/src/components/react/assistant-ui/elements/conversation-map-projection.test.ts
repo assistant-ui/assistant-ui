@@ -75,11 +75,32 @@ describe("ConversationMapProjectionCache", () => {
     expect(after.turnOf).toBe(before.turnOf);
   });
 
+  it("keeps projections correct when a newer render is abandoned", () => {
+    const cache = new ConversationMapProjectionCache();
+    const messages = [
+      message("u1", "user", "First"),
+      message("a1", "assistant", "Answer"),
+    ];
+    const original = cache.project(messages);
+    const alternateMessages = [messages[0]!, message("u2", "user", "Second")];
+    const alternate = cache.project(alternateMessages);
+    const restored = cache.project(messages);
+    expect(restored).toEqual(original);
+    expect(cache.project(messages)).toBe(restored);
+    expect(alternate).toEqual(
+      new ConversationMapProjectionCache().project(alternateMessages),
+    );
+    expect(original).toEqual(
+      new ConversationMapProjectionCache().project(messages),
+    );
+  });
+
   it("matches a fresh projection across insertions, deletions, and branch switches", () => {
     const cache = new ConversationMapProjectionCache();
     const user = message("u1", "user", "Question");
     const answer = message("a1", "assistant", "Answer");
     const system = message("s1", "system");
+    const unnamed = message("", "user", "Unnamed");
     const variants = [
       [],
       [system],
@@ -89,6 +110,8 @@ describe("ConversationMapProjectionCache", () => {
       [user, system, answer],
       [user, answer, system],
       [user, message("u2", "user", "Next"), answer],
+      [unnamed, user, answer],
+      [unnamed, user, message("a1", "assistant", "Updated")],
       [
         system,
         message("u1", "user", "Edited"),

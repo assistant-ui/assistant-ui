@@ -31,7 +31,6 @@ export type ConversationMapProjection = {
 type CachedProjection = Omit<ConversationMapProjection, "turns" | "turnOf"> & {
   turns: readonly ProjectedTurn[];
   turnOf: Map<string, string>;
-  turnKeyEnds: readonly number[];
 };
 
 const cutAtWord = (text: string, limit: number) => {
@@ -175,18 +174,12 @@ export class ConversationMapProjectionCache {
       for (const member of turn.members) turnOf.set(member.id, turn.head.id);
     }
 
-    const turnKeyParts = turns.map((turn) => turn.head.id);
     return {
       messages,
       turns,
       entries,
       turnOf,
-      turnKey: turnKeyParts.join(" "),
-      turnKeyEnds: turnKeyParts.reduce<number[]>((ends, id, index) => {
-        const previousEnd = ends[index - 1] ?? 0;
-        ends.push(previousEnd + (index === 0 ? 0 : 1) + id.length);
-        return ends;
-      }, []),
+      turnKey: turns.map((turn) => turn.head.id).join(" "),
     };
   }
 
@@ -280,28 +273,12 @@ export class ConversationMapProjectionCache {
       }
     }
 
-    const suffixKey = suffix.map((turn) => turn.head.id).join(" ");
-    const prefixEnd = previous.turnKeyEnds[affectedTurnIndex - 1] ?? 0;
-    const prefixKey = previous.turnKey.slice(0, prefixEnd);
-    const turnKey = prefixKey
-      ? suffixKey
-        ? `${prefixKey} ${suffixKey}`
-        : prefixKey
-      : suffixKey;
-    const turnKeyEnds = previous.turnKeyEnds.slice(0, affectedTurnIndex);
-    let keyEnd = prefixKey.length;
-    for (const turn of suffix) {
-      keyEnd += (keyEnd === 0 ? 0 : 1) + turn.head.id.length;
-      turnKeyEnds.push(keyEnd);
-    }
-
     const projection: CachedProjection = {
       messages,
       turns,
       entries,
       turnOf,
-      turnKey,
-      turnKeyEnds,
+      turnKey: turns.map((turn) => turn.head.id).join(" "),
     };
     this.previous = projection;
     return projection;
