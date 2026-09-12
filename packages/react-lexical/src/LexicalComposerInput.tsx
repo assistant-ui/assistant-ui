@@ -192,27 +192,31 @@ function CursorPlugin() {
       }
     };
 
-    return editor.registerUpdateListener(({ editorState }) => {
+    return editor.registerUpdateListener((update) => {
+      const { editorState, dirtyElements, dirtyLeaves } = update;
+      if (dirtyElements.size > 0 || dirtyLeaves.size > 0) lastAnchorKey = null;
       editorState.read(() => {
         const selection = $getSelection();
         if (!$isRangeSelection(selection) || !selection.isCollapsed()) {
+          lastAnchorKey = null;
           broadcastCursor(0);
           return;
         }
 
         const anchor = selection.anchor;
         if (anchor.type !== "text") {
+          lastAnchorKey = null;
           broadcastCursor(0);
           return;
         }
 
         const anchorNode = anchor.getNode();
         if (!$isTextNode(anchorNode)) {
+          lastAnchorKey = null;
           broadcastCursor(0);
           return;
         }
 
-        // Skip expensive tree walk if selection hasn't moved
         if (anchor.key === lastAnchorKey && anchor.offset === lastAnchorOffset)
           return;
         lastAnchorKey = anchor.key;
