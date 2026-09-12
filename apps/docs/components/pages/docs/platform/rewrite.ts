@@ -1,10 +1,11 @@
 import { Children, cloneElement, isValidElement, type ReactNode } from "react";
-import type { Platform } from "@/lib/constants";
+import type { Platform, Surface } from "@/lib/constants";
+import { isSurface } from "@/lib/docs-platform";
 
 // Negative lookahead avoids matching siblings like `@assistant-ui/react-langgraph`.
 const PACKAGE_PATTERN = /@assistant-ui\/react(?![-\w])/g;
 
-const PLATFORM_PACKAGE: Record<Platform, string> = {
+const PLATFORM_PACKAGE: Record<Surface, string> = {
   react: "@assistant-ui/react",
   rn: "@assistant-ui/react-native",
   ink: "@assistant-ui/react-ink",
@@ -14,7 +15,7 @@ export function rewritePlatformPackages(
   node: ReactNode,
   platform: Platform,
 ): ReactNode {
-  if (platform === "react") return node;
+  if (!isSurface(platform) || platform === "react") return node;
 
   if (typeof node === "string") {
     return node.replace(PACKAGE_PATTERN, PLATFORM_PACKAGE[platform]);
