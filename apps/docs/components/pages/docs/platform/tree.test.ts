@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import type * as PageTree from "fumadocs-core/page-tree";
 import {
   buildPlatformSections,
+  getPagePlatform,
   getPagePlatforms,
   getPlatformHomeUrl,
   getVisibleUrlsByPlatform,
@@ -140,6 +141,14 @@ describe("getPagePlatforms", () => {
     expect(getPagePlatforms(tree, "/docs")).toBeUndefined();
     expect(getPagePlatforms(tree, "/docs/architecture")).toBeUndefined();
     expect(getPagePlatforms(tree, "/nowhere")).toBeUndefined();
+  });
+
+  it("resolves a single owning platform for titles and defaults otherwise", () => {
+    expect(getPagePlatform(tree, "/docs/react-native/hooks")).toBe("rn");
+    expect(getPagePlatform(tree, "/docs/guides/keyboard")).toBe("ink");
+    expect(getPagePlatform(tree, "/docs/tap")).toBe("tap");
+    expect(getPagePlatform(tree, "/docs/architecture")).toBe("react");
+    expect(getPagePlatform(tree, "/docs/guides")).toBe("react");
   });
 });
 

@@ -8,7 +8,7 @@ import { createOgMetadata } from "@/lib/og";
 import { getMDXComponents } from "@/mdx-components";
 import { source } from "@/lib/source";
 import { DEFAULT_PLATFORM, PLATFORM_LABELS } from "@/lib/constants";
-import { getPagePlatform } from "@/lib/docs-platform";
+import { getPagePlatform } from "@/components/pages/docs/platform/tree";
 import { getPageTreePeers } from "fumadocs-core/page-tree";
 import { getDocsNeighbours } from "@/lib/docs-neighbours";
 import { Card, Cards } from "@/components/pages/docs/fumadocs/card";

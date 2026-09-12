@@ -66,7 +66,7 @@ const platformPreference = createPersistedPreference<Surface>({
 // inputs from the script element's own data attributes so no code is built
 // from values.
 const HINT_SCRIPT =
-  "(()=>{try{var d=document.currentScript.dataset;var p=d.forced||new URLSearchParams(location.search).get(d.param)||localStorage.getItem(d.key);if(p)document.documentElement.dataset.docsPlatformHint=p}catch(e){}})()";
+  "(()=>{try{var d=document.currentScript.dataset;var s=d.allowed.split(',');var q=new URLSearchParams(location.search).get(d.param);var v=localStorage.getItem(d.key);var p=d.forced||(s.indexOf(q)>=0?q:s.indexOf(v)>=0?v:null);if(p)document.documentElement.dataset.docsPlatformHint=p}catch(e){}})()";
 
 // Avoid useSearchParams so the docs layout stays statically renderable.
 function readPlatformParam(): Surface | null {
@@ -203,6 +203,7 @@ export function PlatformProvider({
       <script
         data-key={STORAGE_KEY}
         data-param={URL_PARAM}
+        data-allowed={SURFACES.join(",")}
         data-forced={pagePlatforms ? platform : undefined}
         dangerouslySetInnerHTML={{ __html: HINT_SCRIPT }}
       />

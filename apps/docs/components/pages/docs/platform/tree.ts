@@ -1,6 +1,11 @@
 import type * as PageTree from "fumadocs-core/page-tree";
-import { PLATFORMS, SURFACES, type Platform } from "@/lib/constants";
-import { isVisibleForPlatform } from "@/lib/docs-platform";
+import {
+  DEFAULT_PLATFORM,
+  PLATFORMS,
+  SURFACES,
+  type Platform,
+} from "@/lib/constants";
+import { isPlatform, isVisibleForPlatform } from "@/lib/docs-platform";
 
 export function nodePlatforms(
   node: PageTree.Node,
@@ -74,6 +79,16 @@ export function getPagePlatforms(
     return undefined;
   }
   return undefined;
+}
+
+// The one platform a url belongs to, or the default when it is shared.
+export function getPagePlatform(
+  tree: PageTree.Root | undefined,
+  url: string,
+): Platform {
+  const platforms = getPagePlatforms(tree, url);
+  const only = platforms?.length === 1 ? platforms[0] : undefined;
+  return isPlatform(only) ? only : DEFAULT_PLATFORM;
 }
 
 export function findPathToNode(

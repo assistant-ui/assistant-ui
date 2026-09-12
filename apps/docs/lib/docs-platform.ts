@@ -1,4 +1,3 @@
-import type * as PageTree from "fumadocs-core/page-tree";
 import {
   BASE_URL,
   DEFAULT_PLATFORM,
@@ -55,25 +54,6 @@ export const MIRRORED_SURFACE_ROOTS: Partial<Record<Surface, string>> = {
   rn: PLATFORM_ENTRY_PATHS.rn,
   ink: PLATFORM_ENTRY_PATHS.ink,
 };
-
-function containsUrl(node: PageTree.Node, url: string): boolean {
-  if (node.type === "page") return node.url === url;
-  if (node.type === "separator") return false;
-  return (
-    node.index?.url === url ||
-    node.children.some((child) => containsUrl(child, url))
-  );
-}
-
-export function getPagePlatform(tree: PageTree.Root, url: string): Platform {
-  for (const section of tree.children) {
-    if (section.type !== "folder" || !containsUrl(section, url)) continue;
-    const platforms = (section as { platforms?: readonly string[] }).platforms;
-    const only = platforms?.length === 1 ? platforms[0] : undefined;
-    return isPlatform(only) ? only : DEFAULT_PLATFORM;
-  }
-  return DEFAULT_PLATFORM;
-}
 
 export function getPlatformMarkdownUrl(
   markdownUrl: string,

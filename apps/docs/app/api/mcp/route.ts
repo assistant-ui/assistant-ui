@@ -161,7 +161,7 @@ function normalizePathname(rawPath: string, requestUrl?: string) {
 
 function normalizePageUrlPrefix(rawPath: string) {
   const pathname = normalizePathname(rawPath);
-  return pathname ? `/${pathname}` : "";
+  return rewriteLegacyTapDocsPath(pathname) ?? (pathname ? `/${pathname}` : "");
 }
 
 function normalizePath(rawPath: string, requestUrl: string) {
