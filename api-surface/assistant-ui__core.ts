@@ -2818,10 +2818,13 @@ declare const MessagePartClient: Resource<ClientOutput<"part">, [
   {
     runtime: MessagePartRuntime;
     eventContext?: {
-      threadId: string;
+      threadIdRef: {
+        current: string;
+      };
       messageIdRef: {
         current: string;
       };
+      emit: PartEventEmitter;
     };
   }
 ]>;
@@ -3345,6 +3348,8 @@ type PartClientSchema = {
   meta: PartMeta;
   events: PartEvents;
 };
+
+type PartEventEmitter = <TEvent extends keyof PartEvents>(event: TEvent, payload: PartEvents[TEvent]) => void;
 
 type PartEvents = {
   "part.toolApprovalResponded": {
