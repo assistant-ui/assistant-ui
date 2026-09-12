@@ -399,6 +399,34 @@ describe("BaseComposerRuntimeCore", () => {
     composer.stopDictation();
   });
 
+  it("publishes cleared state when replacement session creation throws", () => {
+    const listenError = new Error("listen failed");
+    const firstSession: DictationAdapter.Session = {
+      status: { type: "running" },
+      stop: vi.fn().mockResolvedValue(undefined),
+      cancel: vi.fn(),
+      onSpeech: () => () => {},
+      onSpeechStart: () => () => {},
+      onSpeechEnd: () => () => {},
+    };
+    const listen = vi
+      .fn()
+      .mockReturnValueOnce(firstSession)
+      .mockImplementationOnce(() => {
+        throw listenError;
+      });
+    composer.setDictationAdapter({ listen });
+    const states: Array<string | undefined> = [];
+    composer.subscribe(() => states.push(composer.dictation?.status.type));
+    composer.startDictation();
+    states.length = 0;
+
+    expect(() => composer.startDictation()).toThrow(listenError);
+
+    expect(composer.dictation).toBeUndefined();
+    expect(states).toEqual([undefined]);
+  });
+
   it("replaces dictation without publishing an intermediate cleared state", async () => {
     const session = (): DictationAdapter.Session => ({
       status: { type: "running" },

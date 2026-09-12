@@ -645,6 +645,7 @@ export abstract class BaseComposerRuntimeCore
       throw new Error("Dictation adapter not configured");
     }
 
+    const isReplacing = this._dictationSession !== undefined;
     if (this._dictationSession) {
       const oldSession = this._dictationSession;
       this._cleanupDictation({ notify: false });
@@ -656,7 +657,22 @@ export abstract class BaseComposerRuntimeCore
     this._dictationBaseText = this._text;
     this._currentInterimText = "";
 
-    const session = adapter.listen();
+    let session: DictationAdapter.Session;
+    try {
+      session = adapter.listen();
+    } catch (error) {
+      if (isReplacing) {
+        try {
+          this._notifySubscribers();
+        } catch (notifyError) {
+          console.error(
+            "[assistant-ui] Dictation replacement rollback notification threw",
+            notifyError,
+          );
+        }
+      }
+      throw error;
+    }
     this._dictationSession = session;
     const sessionId = ++this._dictationSessionIdCounter;
     this._activeDictationSessionId = sessionId;
