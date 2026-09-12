@@ -206,6 +206,7 @@ const useComposedFlatListRef = (
 const useThreadMessagesFlatListAutoScroll = ({
   flatListRef,
   hasMessages,
+  horizontal = false,
   autoScroll = true,
   scrollToBottomOnRunStart = true,
   scrollToBottomOnInitialize = true,
@@ -213,6 +214,7 @@ const useThreadMessagesFlatListAutoScroll = ({
 }: {
   flatListRef: RefObject<FlatList<ThreadMessage> | null>;
   hasMessages: boolean;
+  horizontal?: boolean | null | undefined;
   autoScroll?: boolean | undefined;
   scrollToBottomOnRunStart?: boolean | undefined;
   scrollToBottomOnInitialize?: boolean | undefined;
@@ -224,7 +226,7 @@ const useThreadMessagesFlatListAutoScroll = ({
     scrollY: 0,
   });
   const isAtBottomRef = useRef(true);
-  const lastScrollEventYRef = useRef(0);
+  const lastScrollEventOffsetRef = useRef(0);
   const initializeScrollRequestedRef = useRef(false);
   const pendingScrollToBottomRef = useRef<false | { animated: boolean }>(false);
 
@@ -253,9 +255,21 @@ const useThreadMessagesFlatListAutoScroll = ({
     (event: LayoutChangeEvent) => {
       const wasAtBottom = isAtBottomRef.current;
       const previousViewportHeight = metricsRef.current.viewportHeight;
-      const viewportHeight = event.nativeEvent.layout.height;
+      const viewportHeight = horizontal
+        ? event.nativeEvent.layout.width
+        : event.nativeEvent.layout.height;
       metricsRef.current.viewportHeight = viewportHeight;
       updateIsAtBottom();
+      const pending = pendingScrollToBottomRef.current;
+      if (
+        pending &&
+        metricsRef.current.contentHeight > 0 &&
+        viewportHeight > 0
+      ) {
+        pendingScrollToBottomRef.current = false;
+        scrollToBottom(pending.animated);
+        return;
+      }
       if (!wasAtBottom) return;
       // Layout changes are never user gestures, so they must not unpin. Past
       // the first measurement, a viewport change while pinned re-commands the
@@ -266,29 +280,31 @@ const useThreadMessagesFlatListAutoScroll = ({
         previousViewportHeight !== 0 &&
         viewportHeight !== previousViewportHeight
       ) {
-        const pending = pendingScrollToBottomRef.current;
         scrollToBottom(pending ? pending.animated : false);
       } else {
         isAtBottomRef.current = true;
       }
     },
-    [autoScroll, scrollToBottom, updateIsAtBottom],
+    [autoScroll, horizontal, scrollToBottom, updateIsAtBottom],
   );
 
   const handleScroll = useCallback(
     (event: NativeSyntheticEvent<NativeScrollEvent>) => {
       const { contentOffset, contentSize, layoutMeasurement } =
         event.nativeEvent;
-      const previousEventY = lastScrollEventYRef.current;
+      const scrollOffset = horizontal ? contentOffset.x : contentOffset.y;
+      const previousEventOffset = lastScrollEventOffsetRef.current;
       const wasPinnedToBottom = isAtBottomRef.current;
-      lastScrollEventYRef.current = contentOffset.y;
+      lastScrollEventOffsetRef.current = scrollOffset;
       metricsRef.current = {
-        contentHeight: contentSize.height,
-        viewportHeight: layoutMeasurement.height,
-        scrollY: contentOffset.y,
+        contentHeight: horizontal ? contentSize.width : contentSize.height,
+        viewportHeight: horizontal
+          ? layoutMeasurement.width
+          : layoutMeasurement.height,
+        scrollY: scrollOffset,
       };
       updateIsAtBottom();
-      const upwardMove = contentOffset.y < previousEventY;
+      const upwardMove = scrollOffset < previousEventOffset;
       // Only a deliberate upward move unpins or cancels a pending scroll.
       // Gestures are detected echo-to-echo because a commanded scroll
       // optimistically moves the tracked position ahead of its ascending
@@ -300,21 +316,22 @@ const useThreadMessagesFlatListAutoScroll = ({
         pendingScrollToBottomRef.current = false;
       }
     },
-    [updateIsAtBottom],
+    [horizontal, updateIsAtBottom],
   );
 
   const handleContentSizeChange = useCallback(
-    (_width: number, height: number) => {
+    (width: number, height: number) => {
       const metrics = metricsRef.current;
+      const contentHeight = horizontal ? width : height;
       const previousContentHeight = metrics.contentHeight;
       const wasAtBottom = isAtBottomRef.current;
-      metrics.contentHeight = height;
+      metrics.contentHeight = contentHeight;
       updateIsAtBottom();
 
       // Initialize and thread-switch requests are repeated after the list has
       // measured so the explicit bottom offset uses real content metrics.
       const pendingScroll = pendingScrollToBottomRef.current;
-      if (pendingScroll) {
+      if (pendingScroll && metrics.viewportHeight > 0) {
         pendingScrollToBottomRef.current = false;
         scrollToBottom(pendingScroll.animated);
         return;
@@ -323,11 +340,11 @@ const useThreadMessagesFlatListAutoScroll = ({
       if (!autoScroll) return;
       if (!wasAtBottom) return;
       if (previousContentHeight === 0) return;
-      if (height <= previousContentHeight) return;
+      if (contentHeight <= previousContentHeight) return;
 
       scrollToBottom(false);
     },
-    [autoScroll, scrollToBottom, updateIsAtBottom],
+    [autoScroll, horizontal, scrollToBottom, updateIsAtBottom],
   );
 
   useEffect(() => {
@@ -352,7 +369,7 @@ const useThreadMessagesFlatListAutoScroll = ({
   useAuiEvent("threads.selectionChanged", () => {
     if (!scrollToBottomOnThreadSwitch) return;
     initializeScrollRequestedRef.current = false;
-    lastScrollEventYRef.current = 0;
+    lastScrollEventOffsetRef.current = 0;
     pendingScrollToBottomRef.current = { animated: false };
     scrollToBottom(false);
   });
@@ -393,6 +410,7 @@ export const ThreadMessagesFlatList = forwardRef<
     } = useThreadMessagesFlatListAutoScroll({
       flatListRef,
       hasMessages: messages.length > 0,
+      horizontal: flatListProps.horizontal,
       autoScroll,
       scrollToBottomOnInitialize,
       scrollToBottomOnRunStart,

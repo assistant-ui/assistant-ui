@@ -392,9 +392,10 @@ describe("ThreadMessages", () => {
 
       await emit("thread.runStart");
 
-      expect(h.scrollToOffset).toHaveBeenCalledWith(
-        expect.objectContaining({ animated: true }),
-      );
+      expect(h.scrollToOffset).toHaveBeenCalledWith({
+        animated: true,
+        offset: 0,
+      });
     });
 
     it("scrolls when content grows while already at the bottom", async () => {
@@ -465,6 +466,47 @@ describe("ThreadMessages", () => {
       expect(h.scrollToOffset).toHaveBeenCalledTimes(2);
     });
 
+    it("waits for the first layout before consuming a measured initialize scroll", async () => {
+      h.state.thread.messages = [{ id: "1", role: "user" }];
+      await mountFlatList({ components: messageComponents });
+      const props = getFlatListProps();
+
+      await act(async () => {
+        props.onContentSizeChange?.(0, 140);
+      });
+      expect(h.scrollToOffset).toHaveBeenCalledTimes(1);
+
+      await act(async () => {
+        props.onLayout?.({
+          nativeEvent: { layout: { height: 100 } },
+        });
+      });
+
+      expect(h.scrollToOffset).toHaveBeenCalledTimes(2);
+      expect(h.scrollToOffset).toHaveBeenLastCalledWith({
+        animated: false,
+        offset: 40,
+      });
+    });
+
+    it("uses horizontal measurements for horizontal lists", async () => {
+      h.state.thread.messages = [{ id: "1", role: "user" }];
+      await mountFlatList({ components: messageComponents, horizontal: true });
+      const props = getFlatListProps();
+
+      await act(async () => {
+        props.onLayout?.({
+          nativeEvent: { layout: { width: 100 } },
+        });
+        props.onContentSizeChange?.(140, 0);
+      });
+
+      expect(h.scrollToOffset).toHaveBeenLastCalledWith({
+        animated: false,
+        offset: 40,
+      });
+    });
+
     it("lands the thread-switch scroll on the next content-size event", async () => {
       h.state.thread.messages = [{ id: "1", role: "user" }];
       await mountFlatList({ components: messageComponents });
@@ -477,8 +519,19 @@ describe("ThreadMessages", () => {
       await act(async () => {
         props.onContentSizeChange?.(0, 80);
       });
+      expect(h.scrollToOffset).toHaveBeenCalledTimes(1);
+
+      await act(async () => {
+        props.onLayout?.({
+          nativeEvent: { layout: { height: 100 } },
+        });
+      });
 
       expect(h.scrollToOffset).toHaveBeenCalledTimes(2);
+      expect(h.scrollToOffset).toHaveBeenLastCalledWith({
+        animated: false,
+        offset: 0,
+      });
     });
 
     it("keeps following through consecutive growth events without scroll echoes", async () => {
@@ -581,9 +634,10 @@ describe("ThreadMessages", () => {
       });
 
       expect(h.scrollToOffset).toHaveBeenCalledTimes(2);
-      expect(h.scrollToOffset).toHaveBeenLastCalledWith(
-        expect.objectContaining({ animated: true }),
-      );
+      expect(h.scrollToOffset).toHaveBeenLastCalledWith({
+        animated: true,
+        offset: 260,
+      });
     });
 
     it("scrolls to the bottom when switching threads", async () => {
@@ -593,9 +647,10 @@ describe("ThreadMessages", () => {
 
       await emit("threads.selectionChanged");
 
-      expect(h.scrollToOffset).toHaveBeenCalledWith(
-        expect.objectContaining({ animated: false }),
-      );
+      expect(h.scrollToOffset).toHaveBeenCalledWith({
+        animated: false,
+        offset: 0,
+      });
     });
 
     it("does not rearm initialize scroll when thread-switch scroll is disabled", async () => {
@@ -691,9 +746,10 @@ describe("ThreadMessages", () => {
         props.onContentSizeChange?.(0, 340);
       });
 
-      expect(h.scrollToOffset).toHaveBeenCalledWith(
-        expect.objectContaining({ animated: false }),
-      );
+      expect(h.scrollToOffset).toHaveBeenCalledWith({
+        animated: false,
+        offset: 280,
+      });
     });
 
     it("commands a bottom scroll when the viewport shrinks while pinned", async () => {
@@ -705,9 +761,10 @@ describe("ThreadMessages", () => {
         });
       });
 
-      expect(h.scrollToOffset).toHaveBeenCalledWith(
-        expect.objectContaining({ animated: false }),
-      );
+      expect(h.scrollToOffset).toHaveBeenCalledWith({
+        animated: false,
+        offset: 240,
+      });
     });
 
     it("preserves a pending animated scroll on a pinned viewport change", async () => {
@@ -722,9 +779,10 @@ describe("ThreadMessages", () => {
       });
 
       expect(h.scrollToOffset).toHaveBeenCalledTimes(1);
-      expect(h.scrollToOffset).toHaveBeenCalledWith(
-        expect.objectContaining({ animated: true }),
-      );
+      expect(h.scrollToOffset).toHaveBeenCalledWith({
+        animated: true,
+        offset: 240,
+      });
     });
 
     it("ignores a layout event with an unchanged viewport height", async () => {
@@ -834,9 +892,10 @@ describe("ThreadMessages", () => {
         props.onContentSizeChange?.(0, 360);
       });
 
-      expect(h.scrollToOffset).toHaveBeenCalledWith(
-        expect.objectContaining({ animated: false }),
-      );
+      expect(h.scrollToOffset).toHaveBeenCalledWith({
+        animated: false,
+        offset: 260,
+      });
     });
 
     it("unpins and cancels a pending scroll on an upward gesture echo", async () => {
@@ -867,9 +926,10 @@ describe("ThreadMessages", () => {
       await act(async () => {
         props.onContentSizeChange?.(0, 340);
       });
-      expect(h.scrollToOffset).toHaveBeenCalledWith(
-        expect.objectContaining({ animated: false }),
-      );
+      expect(h.scrollToOffset).toHaveBeenCalledWith({
+        animated: false,
+        offset: 240,
+      });
 
       await act(async () => {
         props.onScroll?.({
