@@ -202,6 +202,11 @@ describe("useAssistantCloudThreadHistoryAdapter", () => {
       messageId: "local-message-1",
       reason: "error",
     });
+    listeners.get("message.error")!({
+      threadId: "thread-1",
+      messageId: "local-message-1",
+      reason: "error",
+    });
     threadState.isEmpty = true;
     threadState.suggestions = [{ prompt: "one" }, { prompt: "two" }];
     notify!();
@@ -250,6 +255,12 @@ describe("useAssistantCloudThreadHistoryAdapter", () => {
         expect.objectContaining({ kind: "suggestions_shown", value: 2 }),
       ]),
     );
+    expect(
+      vi
+        .mocked(cloud.events.track)
+        .mock.calls.map(([event]) => event)
+        .filter((event) => event.kind === "error_shown"),
+    ).toHaveLength(1);
   });
 
   it("refreshes formatted persistence when the Cloud client changes", async () => {
@@ -688,6 +699,7 @@ describe("useAssistantCloudThreadHistoryAdapter", () => {
                 tool_source: "mcp",
               }),
             ],
+            finish_reason: "tool-calls",
           },
           {
             tool_calls: [
@@ -696,11 +708,65 @@ describe("useAssistantCloudThreadHistoryAdapter", () => {
                 tool_source: "frontend",
               }),
             ],
+            finish_reason: "tool-calls",
           },
         ],
         trace_id: "00112233445566778899aabbccddeeff",
         provider: "anthropic",
         provider_type: "anthropic",
+      }),
+    );
+  });
+
+  it("reports a single ai-sdk/v6 step with its tool calls", () => {
+    mocks.aui = mocks.makeClient("thread-1");
+    const cloud = makeCloud();
+    const { result } = renderHook(() =>
+      useAssistantCloudThreadHistoryAdapter({ current: cloud }),
+    );
+    const formatted = result.current.withFormat({
+      format: "ai-sdk/v6",
+      encode: ({ message }) => message,
+      decode: ({ parent_id, content }) => ({
+        parentId: parent_id,
+        message: content as { id: string },
+      }),
+      getId: (message: { id: string }) => message.id,
+    });
+
+    formatted.reportTelemetry([
+      {
+        parentId: null,
+        message: {
+          id: "message-1",
+          role: "assistant",
+          parts: [
+            { type: "step-start" },
+            {
+              type: "tool-search",
+              toolCallId: "search-1",
+              input: { query: "test" },
+              output: { result: "ok" },
+            },
+          ],
+        },
+      },
+    ]);
+
+    expect(cloud.runs.report).toHaveBeenCalledWith(
+      expect.objectContaining({
+        total_steps: 1,
+        steps: [
+          {
+            tool_calls: [
+              expect.objectContaining({
+                tool_call_id: "search-1",
+                tool_source: "frontend",
+              }),
+            ],
+            finish_reason: "tool-calls",
+          },
+        ],
       }),
     );
   });
