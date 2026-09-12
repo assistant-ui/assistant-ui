@@ -18,12 +18,25 @@ export const McpAddFormPrimitiveNameField = forwardRef<
   McpAddFormPrimitiveNameField.Element,
   McpAddFormPrimitiveNameField.Props
 >((props, ref) => {
-  const { state, setField } = useAddForm();
+  const { state, ids, setField } = useAddForm();
   return (
     <Primitive.input
       type="text"
       placeholder="Name"
       {...props}
+      id={props.id ?? ids.name}
+      aria-label={
+        props["aria-label"] ??
+        (props.id || props["aria-labelledby"] ? undefined : "Name")
+      }
+      aria-invalid={
+        props["aria-invalid"] ??
+        (state.errorField === "name" ? true : undefined)
+      }
+      aria-describedby={
+        props["aria-describedby"] ??
+        (state.errorField === "name" ? ids.error : undefined)
+      }
       ref={ref}
       value={state.name}
       onChange={(e) => setField("name", e.target.value)}

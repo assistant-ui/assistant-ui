@@ -1,6 +1,6 @@
 "use client";
 
-import { type FC, type ReactNode, useState } from "react";
+import { type FC, type ReactNode, useId, useState } from "react";
 import { useAuiState } from "@assistant-ui/store";
 import {
   McpAddFormPrimitive,
@@ -263,6 +263,13 @@ const ServerActions: FC = () => (
 );
 
 const AddServerForm: FC<{ onClose: () => void }> = ({ onClose }) => {
+  const formId = useId();
+  const fieldIds = {
+    name: `${formId}-name`,
+    url: `${formId}-url`,
+    auth: `${formId}-auth`,
+  };
+
   return (
     <McpAddFormPrimitive.Root onSubmitted={onClose} onCancel={onClose}>
       <div className="aui-mcp-add-form flex flex-col gap-3 rounded-lg border p-3">
@@ -280,18 +287,21 @@ const AddServerForm: FC<{ onClose: () => void }> = ({ onClose }) => {
             </Button>
           </McpAddFormPrimitive.Cancel>
         </div>
-        <FormRow label="Name">
-          <McpAddFormPrimitive.NameField asChild>
-            <Input placeholder="My MCP server" />
+        <FormRow label="Name" htmlFor={fieldIds.name}>
+          <McpAddFormPrimitive.NameField id={fieldIds.name} asChild>
+            <Input id={fieldIds.name} placeholder="My MCP server" />
           </McpAddFormPrimitive.NameField>
         </FormRow>
-        <FormRow label="URL">
-          <McpAddFormPrimitive.UrlField asChild>
-            <Input placeholder="https://example.com/mcp" />
+        <FormRow label="URL" htmlFor={fieldIds.url}>
+          <McpAddFormPrimitive.UrlField id={fieldIds.url} asChild>
+            <Input id={fieldIds.url} placeholder="https://example.com/mcp" />
           </McpAddFormPrimitive.UrlField>
         </FormRow>
-        <FormRow label="Auth">
-          <McpAddFormPrimitive.AuthSelect className="aui-mcp-auth-select bg-background h-9 w-full rounded-md border px-2 text-sm" />
+        <FormRow label="Auth" htmlFor={fieldIds.auth}>
+          <McpAddFormPrimitive.AuthSelect
+            id={fieldIds.auth}
+            className="aui-mcp-auth-select bg-background h-9 w-full rounded-md border px-2 text-sm"
+          />
           <div
             className={cn(
               // Style the default `<input>` inside AuthFields without
@@ -323,12 +333,15 @@ const AddServerForm: FC<{ onClose: () => void }> = ({ onClose }) => {
   );
 };
 
-const FormRow: FC<{ label: string; children: ReactNode }> = ({
+const FormRow: FC<{ label: string; htmlFor: string; children: ReactNode }> = ({
   label,
+  htmlFor,
   children,
 }) => (
   <div className="flex flex-col gap-1.5">
-    <Label className="text-xs">{label}</Label>
+    <Label className="text-xs" htmlFor={htmlFor}>
+      {label}
+    </Label>
     <div className="flex flex-col gap-2">{children}</div>
   </div>
 );

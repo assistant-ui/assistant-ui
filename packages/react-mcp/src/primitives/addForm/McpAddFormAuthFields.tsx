@@ -14,7 +14,7 @@ export namespace McpAddFormPrimitiveAuthFields {
 export const McpAddFormPrimitiveAuthFields: FC<
   McpAddFormPrimitiveAuthFields.Props
 > = ({ children }) => {
-  const { state, setField } = useAddForm();
+  const { state, ids, setField } = useAddForm();
 
   if (children) {
     const Render = children;
@@ -23,25 +23,37 @@ export const McpAddFormPrimitiveAuthFields: FC<
 
   if (state.authType === "bearer") {
     return (
-      <input
-        type="password"
-        placeholder="Bearer token"
-        value={state.bearerToken}
-        onChange={(e) => setField("bearerToken", e.target.value)}
-        data-mcp-auth-field="bearer-token"
-      />
+      <div>
+        <label htmlFor={ids.bearerToken}>Bearer token</label>
+        <input
+          id={ids.bearerToken}
+          type="password"
+          placeholder="Bearer token"
+          value={state.bearerToken}
+          onChange={(e) => setField("bearerToken", e.target.value)}
+          aria-invalid={state.errorField === "bearerToken" ? true : undefined}
+          aria-describedby={
+            state.errorField === "bearerToken" ? ids.error : undefined
+          }
+          data-mcp-auth-field="bearer-token"
+        />
+      </div>
     );
   }
 
   if (state.authType === "oauth") {
     return (
-      <input
-        type="text"
-        placeholder="Scopes (space-separated, optional)"
-        value={state.scopes}
-        onChange={(e) => setField("scopes", e.target.value)}
-        data-mcp-auth-field="oauth-scopes"
-      />
+      <div>
+        <label htmlFor={ids.scopes}>OAuth scopes</label>
+        <input
+          id={ids.scopes}
+          type="text"
+          placeholder="Scopes (space-separated, optional)"
+          value={state.scopes}
+          onChange={(e) => setField("scopes", e.target.value)}
+          data-mcp-auth-field="oauth-scopes"
+        />
+      </div>
     );
   }
 
