@@ -29,6 +29,7 @@ const optional = (check: (value: unknown) => boolean) => (value: unknown) =>
   value === undefined || value === null || check(value);
 const isBoolean = (value: unknown) => typeof value === "boolean";
 const present = (value: unknown) => value !== undefined;
+const isObjectOrNull = (value: unknown) => typeof value === "object";
 const objectWith = (
   fields: Record<string, (value: unknown) => boolean>,
 ): ValueRule => {
@@ -46,6 +47,7 @@ const VALUE_RULES: Record<DataStreamStreamChunkType, ValueRule> = {
   [DataStreamStreamChunkType.ToolCall]: objectWith({
     toolCallId: isString,
     toolName: isString,
+    args: isObjectOrNull,
   }),
   [DataStreamStreamChunkType.ToolCallResult]: objectWith({
     toolCallId: isString,
