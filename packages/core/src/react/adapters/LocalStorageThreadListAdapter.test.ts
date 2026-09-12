@@ -334,7 +334,7 @@ describe("parseStoredMessageRepository", () => {
             content: [
               {
                 type: "tool-call",
-                toolCallId: "call-1",
+                toolCallId: "",
                 toolName: "search",
                 args: {},
                 modelContent: [
@@ -389,6 +389,7 @@ describe("parseStoredMessageRepository", () => {
     const part = message.content[0];
     expect(part?.type).toBe("tool-call");
     if (part?.type !== "tool-call") throw new Error("expected tool call");
+    expect(part.toolCallId).toBe("tool-call/part-0");
     expect(part.modelContent).toEqual([
       { type: "text", text: "result" },
       {
@@ -538,6 +539,10 @@ describe("parseStoredMessageRepository", () => {
               ...storedMessage("metadata", "assistant"),
               metadata: {
                 custom: {},
+                unstable_annotations: Array.from(
+                  { length: 102 },
+                  (_, index) => ({ index }),
+                ),
                 steps: [
                   null,
                   { messageId: 42 },
@@ -619,6 +624,12 @@ describe("parseStoredMessageRepository", () => {
       },
     ]);
     expect(metadataMessage.metadata.timing).toBeUndefined();
+    const reparsedMetadataMessage = parseStoredMessageRepository(
+      JSON.stringify(repo),
+    ).messages[5]?.message;
+    expect(reparsedMetadataMessage?.metadata.unstable_annotations).toHaveLength(
+      102,
+    );
   });
 
   it("preserves descendants when only a parent part is malformed", () => {

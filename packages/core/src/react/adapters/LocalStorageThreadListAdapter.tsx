@@ -229,10 +229,10 @@ const parseStoredAssistantMetadata = (
       ? metadata.unstable_state
       : null,
     unstable_annotations: Array.isArray(metadata.unstable_annotations)
-      ? metadata.unstable_annotations.filter(isJSONValue)
+      ? metadata.unstable_annotations.filter((entry) => isJSONValue(entry))
       : [],
     unstable_data: Array.isArray(metadata.unstable_data)
-      ? metadata.unstable_data.filter(isJSONValue)
+      ? metadata.unstable_data.filter((entry) => isJSONValue(entry))
       : [],
     steps: Array.isArray(metadata.steps)
       ? metadata.steps.flatMap((step) => {
@@ -303,10 +303,14 @@ const parseStoredAssistantContent = (
         return [part as unknown as StoredAssistantMessage["content"][number]];
       }
       if (isRecord(part) && part.type === "tool-call") {
-        const { modelContent, messages, ...rest } = part;
+        const { modelContent, messages, toolCallId, ...rest } = part;
         const parsedModelContent = parseStoredToolModelContent(modelContent);
         part = {
           ...rest,
+          toolCallId:
+            typeof toolCallId === "string" && toolCallId.length > 0
+              ? toolCallId
+              : `${parentMessageId}/part-${partIndex}`,
           ...(parsedModelContent !== undefined
             ? { modelContent: parsedModelContent }
             : undefined),
