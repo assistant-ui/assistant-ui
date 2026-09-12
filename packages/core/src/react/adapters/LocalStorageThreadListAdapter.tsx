@@ -466,13 +466,28 @@ function parseStoredNestedThreadMessage(
   if (!isMessageRole(value.role) || !Array.isArray(value.content)) return null;
 
   if (value.role === "assistant") {
+    const metadata = isRecord(value.metadata) ? value.metadata : {};
     return {
       ...value,
       content: parseStoredAssistantContent(value.content, depth),
+      status: parseStoredMessageStatus(value.status),
+      metadata: {
+        ...metadata,
+        unstable_state: metadata.unstable_state ?? null,
+        unstable_annotations: Array.isArray(metadata.unstable_annotations)
+          ? metadata.unstable_annotations
+          : [],
+        unstable_data: Array.isArray(metadata.unstable_data)
+          ? metadata.unstable_data
+          : [],
+        steps: Array.isArray(metadata.steps) ? metadata.steps : [],
+        custom: isRecord(metadata.custom) ? metadata.custom : {},
+      },
     } as unknown as ThreadMessage;
   }
   if (value.role === "user") {
-    const { attachments, ...message } = value;
+    const { attachments, metadata: rawMetadata, ...message } = value;
+    const metadata = isRecord(rawMetadata) ? rawMetadata : {};
     return {
       ...message,
       content: parseStoredUserContent(value.content),
@@ -484,9 +499,14 @@ function parseStoredNestedThreadMessage(
             }),
           }
         : undefined),
+      metadata: {
+        ...metadata,
+        custom: isRecord(metadata.custom) ? metadata.custom : {},
+      },
     } as unknown as ThreadMessage;
   }
 
+  const metadata = isRecord(value.metadata) ? value.metadata : {};
   const textParts = parseStoredUserContent(value.content).filter(
     (part) => part.type === "text",
   );
@@ -501,6 +521,10 @@ function parseStoredNestedThreadMessage(
               text: textParts.map((part) => part.text).join("\n"),
             },
           ],
+    metadata: {
+      ...metadata,
+      custom: isRecord(metadata.custom) ? metadata.custom : {},
+    },
   } as unknown as ThreadMessage;
 }
 

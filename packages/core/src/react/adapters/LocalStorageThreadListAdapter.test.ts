@@ -397,10 +397,19 @@ describe("parseStoredMessageRepository", () => {
       {
         role: "assistant",
         content: [{ type: "text", text: "partial" }],
+        status: { type: "complete", reason: "unknown" },
+        metadata: {
+          unstable_state: null,
+          unstable_annotations: [],
+          unstable_data: [],
+          steps: [],
+          custom: {},
+        },
       },
       {
         role: "user",
         content: [{ type: "text", text: "partial user" }],
+        metadata: { custom: {} },
       },
       {
         ...storedMessage("nested", "assistant"),
@@ -415,6 +424,11 @@ describe("parseStoredMessageRepository", () => {
         },
       },
     ]);
+    expect(part.messages?.[0]?.role).toBe("assistant");
+    if (part.messages?.[0]?.role !== "assistant") {
+      throw new Error("expected nested assistant");
+    }
+    expect(part.messages[0].status.type).toBe("complete");
     expect(() =>
       mapToolCallPartsDeep(message.content, (tool) => tool),
     ).not.toThrow();
