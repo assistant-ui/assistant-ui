@@ -241,9 +241,10 @@ const useThreadMessagesFlatListAutoScroll = ({
   const scrollToBottom = useCallback(
     (animated: boolean) => {
       const { contentHeight, viewportHeight } = metricsRef.current;
-      metricsRef.current.scrollY = Math.max(0, contentHeight - viewportHeight);
+      const offset = Math.max(0, contentHeight - viewportHeight);
+      metricsRef.current.scrollY = offset;
       isAtBottomRef.current = true;
-      flatListRef.current?.scrollToEnd({ animated });
+      flatListRef.current?.scrollToOffset({ offset, animated });
     },
     [flatListRef],
   );
@@ -310,9 +311,8 @@ const useThreadMessagesFlatListAutoScroll = ({
       metrics.contentHeight = height;
       updateIsAtBottom();
 
-      // FlatList.scrollToEnd is a no-op before the list has measured, so the
-      // initialize and thread-switch scrolls land on the next content-size
-      // event, once real metrics exist.
+      // Initialize and thread-switch requests are repeated after the list has
+      // measured so the explicit bottom offset uses real content metrics.
       const pendingScroll = pendingScrollToBottomRef.current;
       if (pendingScroll) {
         pendingScrollToBottomRef.current = false;
