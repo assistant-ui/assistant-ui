@@ -43,10 +43,10 @@ export const metadata: Metadata = {
 export default async function TractionPage() {
   const repo = await getRepo();
 
+  const downloadsTimeline = await fetchTimelineSeries(TIMELINE_PACKAGES);
   const [
     npm,
     starHistory,
-    downloadsTimeline,
     contributors,
     botCoAuthors,
     dependents,
@@ -56,7 +56,6 @@ export default async function TractionPage() {
   ] = await Promise.all([
     fetchNpmDownloads(),
     fetchStarHistory(),
-    fetchTimelineSeries(TIMELINE_PACKAGES),
     fetchContributors(),
     fetchBotCoAuthors(),
     getDependents(),
