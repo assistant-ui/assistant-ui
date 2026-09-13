@@ -32,14 +32,14 @@ The SDK cuts text fields at 50,000 characters and the error at 2,048 before send
 
 ## What each integration fills
 
-| Field | Local runtime, `aui/v0` | AI SDK runtime, `ai-sdk/v6` | `useCloudChat` |
-|---|---|---|---|
-| `status`, `error`, `error_code` | yes | yes | yes |
-| `outcome_type` | `length`, `content_filter` and `aborted` from the message status | the same, plus a `finishReason` from the route | all four, from the AI SDK finish event |
-| `first_token_ms`, `duration_ms`, step timing | yes | yes | yes |
-| Per step `finish_reason` | no | `tool-calls` on a step that called a tool | the finish event's reason |
-| `tool_calls` | without `tool_source` | yes | yes |
-| Usage, `model_id`, `provider`, `trace_id` | from message metadata | from message metadata | from message metadata |
+| Field | Local runtime, `aui/v0` | AI SDK runtime, `ai-sdk/v6` |
+|---|---|---|
+| `status`, `error`, `error_code` | yes | yes |
+| `outcome_type` | `length`, `content_filter` and `aborted` from the message status | the same, plus a `finishReason` from the route |
+| `first_token_ms`, `duration_ms`, step timing | yes | yes |
+| Per step `finish_reason` | no | `tool-calls` on a step that called a tool |
+| `tool_calls` | without `tool_source` | yes |
+| Usage, `model_id`, `provider`, `trace_id` | from message metadata | from message metadata |
 
 The LangGraph, LangChain and Google ADK runtimes keep their own transcripts and send no reports; their runs come from [traces](/docs/cloud/traces).
 
@@ -63,7 +63,7 @@ On the local runtime the same values ride under `metadata.custom` of the message
 | `outcome_type` | `status` | Meaning | Reported by |
 |---|---|---|---|
 | `aborted` | `incomplete` | The user stopped the run. | the SDK |
-| `disconnected` | `incomplete` | The stream dropped before completion. | `useCloudChat` |
+| `disconnected` | `incomplete` | The stream dropped before completion. | no integration today; the runtimes observe the stored message, not the stream |
 | `length` | `incomplete` | The model reached its output limit. | the SDK, and server spans |
 | `content_filter` | `incomplete` | The provider filtered the response. | the SDK, and server spans |
 | `timeout`, `rate_limited`, `provider_error`, `server_error` | `error` | The run failed inside the cloud. | runs the cloud executes for an [assistant](/docs/cloud/settings#llm-providers-and-assistants) |

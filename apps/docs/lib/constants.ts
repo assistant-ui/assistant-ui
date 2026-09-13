@@ -59,13 +59,6 @@ export const PRODUCTS: Product[] = [
     external: false,
   },
   {
-    slug: "cloud-ai-sdk",
-    label: "Cloud AI SDK",
-    href: "/cloud-ai-sdk",
-    description: "Cloud persistence for AI SDK apps",
-    external: false,
-  },
-  {
     slug: "heat-graph",
     label: "Heat Graph",
     href: "/heat-graph",
@@ -111,7 +104,6 @@ export type NavGlyphKind =
   | "native"
   | "ink"
   | "cloud"
-  | "cloud-ai-sdk"
   | "playground"
   | "shimmer"
   | "heat"
@@ -214,13 +206,6 @@ export const NAV_ITEMS: NavItem[] = [
             description: "Hosted threads and persistence",
             external: true,
             glyph: "cloud",
-          },
-          {
-            label: "Cloud AI SDK",
-            href: "/cloud-ai-sdk",
-            description: "Drop-in persistence for useChat",
-            external: false,
-            glyph: "cloud-ai-sdk",
           },
           {
             label: "Playground",

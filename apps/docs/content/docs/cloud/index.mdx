@@ -53,6 +53,7 @@ Ids are a prefix and 24 characters (`thread_0…`, `msg_0…`, `run_0…`). Time
 | A server without a browser: a bot, an agent, a batch job | threads, messages, titles and run reports through the client with an API key | [Servers and bots](/docs/cloud/servers) |
 | A backend in another language, or a framework with OpenTelemetry | runs, steps, tool calls and models from exported spans | [Traces](/docs/cloud/traces#other-producers) |
 | Vue, Svelte, or plain JavaScript | the `assistant-cloud` client alone | [Package reference](/docs/api-reference/integrations/assistant-cloud) |
+| The Cloud AI SDK, `useCloudChat` | nothing new: the package is deprecated and the runtime replaces it | [Migrate from Cloud AI SDK](/docs/cloud/ai-sdk) |
 
 The runtime guides work on React, React Native and Ink. The packages are the same; only the environment differs.
 
@@ -89,3 +90,4 @@ The [demo project](https://cloud.assistant-ui.com/demo) is open without an accou
 - Pass `telemetry: { environment, release }` to `AssistantCloud` so runs can be filtered by deployment. Engagement events are on by default; see [Turning telemetry off](/docs/cloud/telemetry#turning-telemetry-off).
 - If your server emits OpenTelemetry spans, add the span processor from [Traces](/docs/cloud/traces).
 - Review **Settings › Access**: anonymous sessions and allowed origins are new settings, and both default to open.
+- If you use `@assistant-ui/cloud-ai-sdk`, plan the move: the package is deprecated; see [Migrate from Cloud AI SDK](/docs/cloud/ai-sdk).

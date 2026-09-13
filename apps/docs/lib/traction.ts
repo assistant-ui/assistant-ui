@@ -163,11 +163,6 @@ export const PACKAGES: PackageInfo[] = [
     category: "cloud",
   },
   {
-    name: "@assistant-ui/cloud-ai-sdk",
-    description: "AI SDK hooks with assistant-cloud persistence.",
-    category: "cloud",
-  },
-  {
     name: "@assistant-ui/ai-sdk",
     description: "Vercel AI SDK adapter.",
     category: "frameworks",
@@ -321,6 +316,13 @@ export const PACKAGES: PackageInfo[] = [
   {
     name: "@assistant-ui/styles",
     description: "Prebuilt styles for non-Tailwind users.",
+    category: "deprecated",
+    deprecated: true,
+  },
+  {
+    name: "@assistant-ui/cloud-ai-sdk",
+    description:
+      "AI SDK hooks with assistant-cloud persistence; replaced by the cloud option of useChatRuntime.",
     category: "deprecated",
     deprecated: true,
   },

@@ -605,7 +605,7 @@ importers:
         version: 5.1.0
       vitest:
         specifier: ^5.0.0
-        version: 5.0.0(@edge-runtime/vm@3.2.0)(@opentelemetry/api@1.9.1)(@types/node@26.4.1)(@vitest/coverage-v8@5.0.0)(jsdom@30.0.1)(vite@8.2.2(@types/node@26.4.1))
+        version: 5.0.0(@edge-runtime/vm@3.2.0)(@opentelemetry/api@1.9.1)(@types/node@26.4.1)(@vitest/coverage-v8@5.0.0)(@vitest/ui@5.0.0)(jsdom@30.0.1)(vite@8.2.2(@types/node@26.4.1)(esbuild@0.28.2)(jiti@2.7.0)(terser@5.51.2)(tsx@4.23.13)(yaml@2.9.0))
 
   apps/registry:
     dependencies:
@@ -1254,7 +1254,7 @@ importers:
         version: 7.0.2
       vitest:
         specifier: ^5.0.0
-        version: 5.0.0(@edge-runtime/vm@3.2.0)(@opentelemetry/api@1.9.1)(@types/node@26.4.1)(@vitest/ui@5.0.0)(jsdom@30.0.1)(vite@8.2.2(@types/node@26.4.1))
+        version: 5.0.0(@edge-runtime/vm@3.2.0)(@opentelemetry/api@1.9.1)(@types/node@26.4.1)(@vitest/coverage-v8@5.0.0)(@vitest/ui@5.0.0)(jsdom@30.0.1)(vite@8.2.2(@types/node@26.4.1))
 
   examples/with-cloud:
     dependencies:
@@ -1273,67 +1273,6 @@ importers:
       '@assistant-ui/ui':
         specifier: workspace:*
         version: link:../../packages/ui
-      ai:
-        specifier: ^7.0.93
-        version: 7.0.93(zod@4.5.4)
-      class-variance-authority:
-        specifier: ^0.7.1
-        version: 0.7.1
-      cn:
-        specifier: ^0.2.6
-        version: 0.2.6
-      lucide-react:
-        specifier: ^1.41.0
-        version: 1.41.0(react@19.2.8)
-      next:
-        specifier: ^16.3.4
-        version: 16.3.4(@babel/core@8.0.1)(@opentelemetry/api@1.9.1)(@types/node@26.4.1)(babel-plugin-react-compiler@1.0.0)(react-dom@19.2.8(react@19.2.8))(react@19.2.8)
-      react:
-        specifier: ^19.2.8
-        version: 19.2.8
-      react-dom:
-        specifier: ^19.2.8
-        version: 19.2.8(react@19.2.8)
-    devDependencies:
-      '@assistant-ui/next':
-        specifier: workspace:*
-        version: link:../../packages/next
-      '@assistant-ui/x-buildutils':
-        specifier: workspace:*
-        version: link:../../packages/x-buildutils
-      '@tailwindcss/postcss':
-        specifier: ^4.3.3
-        version: 4.3.3
-      '@types/node':
-        specifier: ^26.4.1
-        version: 26.4.1
-      '@types/react':
-        specifier: ^19.2.18
-        version: 19.2.18
-      '@types/react-dom':
-        specifier: ^19.2.7
-        version: 19.2.7(@types/react@19.2.18)
-      postcss:
-        specifier: ^8.5.28
-        version: 8.5.28
-      tailwindcss:
-        specifier: ^4.3.3
-        version: 4.3.3
-      tw-animate-css:
-        specifier: ^1.4.0
-        version: 1.4.0
-      typescript:
-        specifier: ^7.0.2
-        version: 7.0.2
-
-  examples/with-cloud-standalone:
-    dependencies:
-      '@ai-sdk/openai':
-        specifier: ^4.0.60
-        version: 4.0.60(zod@4.5.4)
-      '@assistant-ui/cloud-ai-sdk':
-        specifier: workspace:*
-        version: link:../../packages/cloud-ai-sdk
       ai:
         specifier: ^7.0.93
         version: 7.0.93(zod@4.5.4)
@@ -1628,7 +1567,7 @@ importers:
         version: 7.0.2
       vitest:
         specifier: ^5.0.0
-        version: 5.0.0(@edge-runtime/vm@3.2.0)(@opentelemetry/api@1.9.1)(@types/node@26.4.1)(@vitest/ui@5.0.0)(jsdom@30.0.1)(vite@8.2.2(@types/node@26.4.1))
+        version: 5.0.0(@edge-runtime/vm@3.2.0)(@opentelemetry/api@1.9.1)(@types/node@26.4.1)(@vitest/coverage-v8@5.0.0)(@vitest/ui@5.0.0)(jsdom@30.0.1)(vite@8.2.2(@types/node@26.4.1))
 
   examples/with-eve:
     dependencies:
@@ -1819,7 +1758,7 @@ importers:
         version: 59.5.0(@emnapi/core@1.11.3)(@emnapi/runtime@1.11.3)(rollup@4.63.1)(supports-color@10.2.2)
       vitest:
         specifier: ^5.0.0
-        version: 5.0.0(@edge-runtime/vm@3.2.0)(@opentelemetry/api@1.9.1)(@types/node@26.4.1)(@vitest/ui@5.0.0)(jsdom@30.0.1)(vite@8.2.2(@types/node@26.4.1))
+        version: 5.0.0(@edge-runtime/vm@3.2.0)(@opentelemetry/api@1.9.1)(@types/node@26.4.1)(@vitest/coverage-v8@5.0.0)(@vitest/ui@5.0.0)(jsdom@30.0.1)(vite@8.2.2(@types/node@26.4.1))
 
   examples/with-external-store:
     dependencies:
@@ -2038,7 +1977,7 @@ importers:
         version: 7.0.2
       vitest:
         specifier: ^5.0.0
-        version: 5.0.0(@edge-runtime/vm@3.2.0)(@opentelemetry/api@1.9.1)(@types/node@26.4.1)(@vitest/ui@5.0.0)(jsdom@30.0.1)(vite@8.2.2(@types/node@26.4.1))
+        version: 5.0.0(@edge-runtime/vm@3.2.0)(@opentelemetry/api@1.9.1)(@types/node@26.4.1)(@vitest/coverage-v8@5.0.0)(@vitest/ui@5.0.0)(jsdom@30.0.1)(vite@8.2.2(@types/node@26.4.1))
 
   examples/with-google-adk:
     dependencies:
@@ -2425,7 +2364,7 @@ importers:
         version: 7.0.2
       vitest:
         specifier: ^5.0.0
-        version: 5.0.0(@edge-runtime/vm@3.2.0)(@opentelemetry/api@1.9.1)(@types/node@26.4.1)(@vitest/ui@5.0.0)(jsdom@30.0.1)(vite@8.2.2(@types/node@26.4.1))
+        version: 5.0.0(@edge-runtime/vm@3.2.0)(@opentelemetry/api@1.9.1)(@types/node@26.4.1)(@vitest/coverage-v8@5.0.0)(@vitest/ui@5.0.0)(jsdom@30.0.1)(vite@8.2.2(@types/node@26.4.1))
 
   examples/with-livekit:
     dependencies:
@@ -2513,7 +2452,7 @@ importers:
         version: 7.0.2
       vitest:
         specifier: ^5.0.0
-        version: 5.0.0(@edge-runtime/vm@3.2.0)(@opentelemetry/api@1.9.1)(@types/node@26.4.1)(@vitest/ui@5.0.0)(jsdom@30.0.1)(vite@8.2.2(@types/node@26.4.1))
+        version: 5.0.0(@edge-runtime/vm@3.2.0)(@opentelemetry/api@1.9.1)(@types/node@26.4.1)(@vitest/coverage-v8@5.0.0)(@vitest/ui@5.0.0)(jsdom@30.0.1)(vite@8.2.2(@types/node@26.4.1))
 
   examples/with-mcp:
     dependencies:
@@ -3711,7 +3650,7 @@ importers:
         version: 26.4.1
       vitest:
         specifier: ^5.0.0
-        version: 5.0.0(@edge-runtime/vm@3.2.0)(@opentelemetry/api@1.9.1)(@types/node@26.4.1)(@vitest/ui@5.0.0)(jsdom@30.0.1)(vite@8.2.2(@types/node@26.4.1))
+        version: 5.0.0(@edge-runtime/vm@3.2.0)(@opentelemetry/api@1.9.1)(@types/node@26.4.1)(@vitest/coverage-v8@5.0.0)(@vitest/ui@5.0.0)(jsdom@30.0.1)(vite@8.2.2(@types/node@26.4.1))
 
   packages/ai-sdk:
     dependencies:
@@ -3763,7 +3702,7 @@ importers:
         version: 19.2.8
       vitest:
         specifier: ^5.0.0
-        version: 5.0.0(@edge-runtime/vm@3.2.0)(@opentelemetry/api@1.9.1)(@types/node@26.4.1)(@vitest/ui@5.0.0)(jsdom@30.0.1)(vite@8.2.2(@types/node@26.4.1))
+        version: 5.0.0(@edge-runtime/vm@3.2.0)(@opentelemetry/api@1.9.1)(@types/node@26.4.1)(@vitest/coverage-v8@5.0.0)(@vitest/ui@5.0.0)(jsdom@30.0.1)(vite@8.2.2(@types/node@26.4.1))
 
   packages/assistant-stream:
     dependencies:
@@ -3794,7 +3733,7 @@ importers:
         version: 6.2.1(@opentelemetry/api@1.9.1)
       vitest:
         specifier: ^5.0.0
-        version: 5.0.0(@edge-runtime/vm@3.2.0)(@opentelemetry/api@1.9.1)(@types/node@26.4.1)(@vitest/ui@5.0.0)(jsdom@30.0.1)(vite@8.2.2(@types/node@26.4.1))
+        version: 5.0.0(@edge-runtime/vm@3.2.0)(@opentelemetry/api@1.9.1)(@types/node@26.4.1)(@vitest/coverage-v8@5.0.0)(@vitest/ui@5.0.0)(jsdom@30.0.1)(vite@8.2.2(@types/node@26.4.1))
 
   packages/cli:
     dependencies:
@@ -3864,7 +3803,7 @@ importers:
         version: 5.0.0(vitest@5.0.0)
       vitest:
         specifier: ^5.0.0
-        version: 5.0.0(@edge-runtime/vm@3.2.0)(@opentelemetry/api@1.9.1)(@types/node@26.4.1)(@vitest/coverage-v8@5.0.0)(jsdom@30.0.1)(vite@8.2.2(@types/node@26.4.1))
+        version: 5.0.0(@edge-runtime/vm@3.2.0)(@opentelemetry/api@1.9.1)(@types/node@26.4.1)(@vitest/coverage-v8@5.0.0)(@vitest/ui@5.0.0)(jsdom@30.0.1)(vite@8.2.2(@types/node@26.4.1))
 
   packages/cloud:
     dependencies:
@@ -3898,56 +3837,7 @@ importers:
         version: 30.0.1
       vitest:
         specifier: ^5.0.0
-        version: 5.0.0(@edge-runtime/vm@3.2.0)(@opentelemetry/api@1.9.1)(@types/node@26.4.1)(@vitest/ui@5.0.0)(jsdom@30.0.1)(vite@8.2.2(@types/node@26.4.1))
-
-  packages/cloud-ai-sdk:
-    dependencies:
-      assistant-cloud:
-        specifier: workspace:^
-        version: link:../cloud
-    devDependencies:
-      '@ai-sdk/react':
-        specifier: ^4.0.96
-        version: 4.0.96(react@19.2.8)(zod@4.5.4)
-      '@ai-sdk/react-v3':
-        specifier: npm:@ai-sdk/react@^3.0.280
-        version: '@ai-sdk/react@3.0.280(react@19.2.8)(zod@4.5.4)'
-      '@assistant-ui/ai-sdk':
-        specifier: workspace:*
-        version: link:../ai-sdk
-      '@assistant-ui/x-buildutils':
-        specifier: workspace:*
-        version: link:../x-buildutils
-      '@testing-library/dom':
-        specifier: ^10.4.1
-        version: 10.4.1
-      '@testing-library/react':
-        specifier: ^16.3.3
-        version: 16.3.3(@testing-library/dom@10.4.1)(@types/react-dom@19.2.7(@types/react@19.2.18))(@types/react@19.2.18)(react-dom@19.2.8(react@19.2.8))(react@19.2.8)
-      '@types/node':
-        specifier: ^26.4.1
-        version: 26.4.1
-      '@types/react':
-        specifier: ^19.2.18
-        version: 19.2.18
-      ai:
-        specifier: ^7.0.93
-        version: 7.0.93(zod@4.5.4)
-      ai-v6:
-        specifier: npm:ai@^6.0.277
-        version: ai@6.0.277(zod@4.5.4)
-      assistant-stream:
-        specifier: ^0.3.42
-        version: link:../assistant-stream
-      jsdom:
-        specifier: ^30.0.1
-        version: 30.0.1
-      react:
-        specifier: ^19.2.8
-        version: 19.2.8
-      vitest:
-        specifier: ^5.0.0
-        version: 5.0.0(@edge-runtime/vm@3.2.0)(@opentelemetry/api@1.9.1)(@types/node@26.4.1)(@vitest/ui@5.0.0)(jsdom@30.0.1)(vite@8.2.2(@types/node@26.4.1))
+        version: 5.0.0(@edge-runtime/vm@3.2.0)(@opentelemetry/api@1.9.1)(@types/node@26.4.1)(@vitest/coverage-v8@5.0.0)(@vitest/ui@5.0.0)(jsdom@30.0.1)(vite@8.2.2(@types/node@26.4.1))
 
   packages/core:
     dependencies:
@@ -3990,7 +3880,7 @@ importers:
         version: 19.2.8(react@19.2.8)
       vitest:
         specifier: ^5.0.0
-        version: 5.0.0(@edge-runtime/vm@3.2.0)(@opentelemetry/api@1.9.1)(@types/node@26.4.1)(@vitest/ui@5.0.0)(jsdom@30.0.1)(vite@8.2.2(@types/node@26.4.1))
+        version: 5.0.0(@edge-runtime/vm@3.2.0)(@opentelemetry/api@1.9.1)(@types/node@26.4.1)(@vitest/coverage-v8@5.0.0)(@vitest/ui@5.0.0)(jsdom@30.0.1)(vite@8.2.2(@types/node@26.4.1))
 
   packages/create-assistant-ui:
     dependencies:
@@ -4009,7 +3899,7 @@ importers:
         version: 6.0.6
       vitest:
         specifier: ^5.0.0
-        version: 5.0.0(@edge-runtime/vm@3.2.0)(@opentelemetry/api@1.9.1)(@types/node@26.4.1)(@vitest/ui@5.0.0)(jsdom@30.0.1)(vite@8.2.2(@types/node@26.4.1))
+        version: 5.0.0(@edge-runtime/vm@3.2.0)(@opentelemetry/api@1.9.1)(@types/node@26.4.1)(@vitest/coverage-v8@5.0.0)(@vitest/ui@5.0.0)(jsdom@30.0.1)(vite@8.2.2(@types/node@26.4.1))
 
   packages/eve:
     dependencies:
@@ -4046,7 +3936,7 @@ importers:
         version: 19.2.8(react@19.2.8)
       vitest:
         specifier: ^5.0.0
-        version: 5.0.0(@edge-runtime/vm@3.2.0)(@opentelemetry/api@1.9.1)(@types/node@26.4.1)(@vitest/ui@5.0.0)(jsdom@30.0.1)(vite@8.2.2(@types/node@26.4.1))
+        version: 5.0.0(@edge-runtime/vm@3.2.0)(@opentelemetry/api@1.9.1)(@types/node@26.4.1)(@vitest/coverage-v8@5.0.0)(@vitest/ui@5.0.0)(jsdom@30.0.1)(vite@8.2.2(@types/node@26.4.1))
 
   packages/heat-graph:
     dependencies:
@@ -4077,7 +3967,7 @@ importers:
         version: 19.2.8
       vitest:
         specifier: ^5.0.0
-        version: 5.0.0(@edge-runtime/vm@3.2.0)(@opentelemetry/api@1.9.1)(@types/node@26.4.1)(@vitest/ui@5.0.0)(jsdom@30.0.1)(vite@8.2.2(@types/node@26.4.1))
+        version: 5.0.0(@edge-runtime/vm@3.2.0)(@opentelemetry/api@1.9.1)(@types/node@26.4.1)(@vitest/coverage-v8@5.0.0)(@vitest/ui@5.0.0)(jsdom@30.0.1)(vite@8.2.2(@types/node@26.4.1))
 
   packages/mcp-docs-server:
     dependencies:
@@ -4102,7 +3992,7 @@ importers:
         version: 4.23.13
       vitest:
         specifier: ^5.0.0
-        version: 5.0.0(@edge-runtime/vm@3.2.0)(@opentelemetry/api@1.9.1)(@types/node@26.4.1)(@vitest/coverage-v8@5.0.0)(jsdom@30.0.1)(vite@8.2.2(@types/node@26.4.1))
+        version: 5.0.0(@edge-runtime/vm@3.2.0)(@opentelemetry/api@1.9.1)(@types/node@26.4.1)(@vitest/coverage-v8@5.0.0)(@vitest/ui@5.0.0)(jsdom@30.0.1)(vite@8.2.2(@types/node@26.4.1)(esbuild@0.28.2)(jiti@2.7.0)(terser@5.51.2)(tsx@4.23.13)(yaml@2.9.0))
 
   packages/metro:
     dependencies:
@@ -4136,7 +4026,7 @@ importers:
         version: typescript@7.0.2
       vitest:
         specifier: ^5.0.0
-        version: 5.0.0(@edge-runtime/vm@3.2.0)(@opentelemetry/api@1.9.1)(@types/node@26.4.1)(@vitest/ui@5.0.0)(jsdom@30.0.1)(vite@8.2.2(@types/node@26.4.1))
+        version: 5.0.0(@edge-runtime/vm@3.2.0)(@opentelemetry/api@1.9.1)(@types/node@26.4.1)(@vitest/coverage-v8@5.0.0)(@vitest/ui@5.0.0)(jsdom@30.0.1)(vite@8.2.2(@types/node@26.4.1))
 
   packages/next:
     dependencies:
@@ -4152,7 +4042,7 @@ importers:
         version: 26.4.1
       vitest:
         specifier: ^5.0.0
-        version: 5.0.0(@edge-runtime/vm@3.2.0)(@opentelemetry/api@1.9.1)(@types/node@26.4.1)(@vitest/ui@5.0.0)(jsdom@30.0.1)(vite@8.2.2(@types/node@26.4.1))
+        version: 5.0.0(@edge-runtime/vm@3.2.0)(@opentelemetry/api@1.9.1)(@types/node@26.4.1)(@vitest/coverage-v8@5.0.0)(@vitest/ui@5.0.0)(jsdom@30.0.1)(vite@8.2.2(@types/node@26.4.1))
 
   packages/react:
     dependencies:
@@ -4219,7 +4109,7 @@ importers:
         version: 19.2.8(react@19.2.8)
       vitest:
         specifier: ^5.0.0
-        version: 5.0.0(@edge-runtime/vm@3.2.0)(@opentelemetry/api@1.9.1)(@types/node@26.4.1)(@vitest/ui@5.0.0)(jsdom@30.0.1)(vite@8.2.2(@types/node@26.4.1))
+        version: 5.0.0(@edge-runtime/vm@3.2.0)(@opentelemetry/api@1.9.1)(@types/node@26.4.1)(@vitest/coverage-v8@5.0.0)(@vitest/ui@5.0.0)(jsdom@30.0.1)(vite@8.2.2(@types/node@26.4.1))
 
   packages/react-a2a:
     dependencies:
@@ -4256,7 +4146,7 @@ importers:
         version: 19.2.8(react@19.2.8)
       vitest:
         specifier: ^5.0.0
-        version: 5.0.0(@edge-runtime/vm@3.2.0)(@opentelemetry/api@1.9.1)(@types/node@26.4.1)(@vitest/ui@5.0.0)(jsdom@30.0.1)(vite@8.2.2(@types/node@26.4.1))
+        version: 5.0.0(@edge-runtime/vm@3.2.0)(@opentelemetry/api@1.9.1)(@types/node@26.4.1)(@vitest/coverage-v8@5.0.0)(@vitest/ui@5.0.0)(jsdom@30.0.1)(vite@8.2.2(@types/node@26.4.1))
 
   packages/react-ag-ui:
     dependencies:
@@ -4299,7 +4189,7 @@ importers:
         version: 19.2.8
       vitest:
         specifier: ^5.0.0
-        version: 5.0.0(@edge-runtime/vm@3.2.0)(@opentelemetry/api@1.9.1)(@types/node@26.4.1)(@vitest/ui@5.0.0)(jsdom@30.0.1)(vite@8.2.2(@types/node@26.4.1))
+        version: 5.0.0(@edge-runtime/vm@3.2.0)(@opentelemetry/api@1.9.1)(@types/node@26.4.1)(@vitest/coverage-v8@5.0.0)(@vitest/ui@5.0.0)(jsdom@30.0.1)(vite@8.2.2(@types/node@26.4.1))
       zod:
         specifier: ^4.5.4
         version: 4.5.4
@@ -4349,7 +4239,7 @@ importers:
         version: 19.2.8
       vitest:
         specifier: ^5.0.0
-        version: 5.0.0(@edge-runtime/vm@3.2.0)(@opentelemetry/api@1.9.1)(@types/node@26.4.1)(@vitest/ui@5.0.0)(jsdom@30.0.1)(vite@8.2.2(@types/node@26.4.1))
+        version: 5.0.0(@edge-runtime/vm@3.2.0)(@opentelemetry/api@1.9.1)(@types/node@26.4.1)(@vitest/coverage-v8@5.0.0)(@vitest/ui@5.0.0)(jsdom@30.0.1)(vite@8.2.2(@types/node@26.4.1))
 
   packages/react-devtools:
     dependencies:
@@ -4392,7 +4282,7 @@ importers:
         version: 4.3.3
       vitest:
         specifier: ^5.0.0
-        version: 5.0.0(@edge-runtime/vm@3.2.0)(@opentelemetry/api@1.9.1)(@types/node@26.4.1)(@vitest/ui@5.0.0)(jsdom@30.0.1)(vite@8.2.2(@types/node@26.4.1))
+        version: 5.0.0(@edge-runtime/vm@3.2.0)(@opentelemetry/api@1.9.1)(@types/node@26.4.1)(@vitest/coverage-v8@5.0.0)(@vitest/ui@5.0.0)(jsdom@30.0.1)(vite@8.2.2(@types/node@26.4.1))
 
   packages/react-generative-ui:
     dependencies:
@@ -4420,7 +4310,7 @@ importers:
         version: 19.2.8(react@19.2.8)
       vitest:
         specifier: ^5.0.0
-        version: 5.0.0(@edge-runtime/vm@3.2.0)(@opentelemetry/api@1.9.1)(@types/node@26.4.1)(@vitest/ui@5.0.0)(jsdom@30.0.1)(vite@8.2.2(@types/node@26.4.1))
+        version: 5.0.0(@edge-runtime/vm@3.2.0)(@opentelemetry/api@1.9.1)(@types/node@26.4.1)(@vitest/coverage-v8@5.0.0)(@vitest/ui@5.0.0)(jsdom@30.0.1)(vite@8.2.2(@types/node@26.4.1))
       zod:
         specifier: ^4.5.4
         version: 4.5.4
@@ -4463,7 +4353,7 @@ importers:
         version: 19.2.8
       vitest:
         specifier: ^5.0.0
-        version: 5.0.0(@edge-runtime/vm@3.2.0)(@opentelemetry/api@1.9.1)(@types/node@26.4.1)(@vitest/ui@5.0.0)(jsdom@30.0.1)(vite@8.2.2(@types/node@26.4.1))
+        version: 5.0.0(@edge-runtime/vm@3.2.0)(@opentelemetry/api@1.9.1)(@types/node@26.4.1)(@vitest/coverage-v8@5.0.0)(@vitest/ui@5.0.0)(jsdom@30.0.1)(vite@8.2.2(@types/node@26.4.1))
 
   packages/react-hook-form:
     dependencies:
@@ -4500,7 +4390,7 @@ importers:
         version: 7.87.0(react@19.2.8)
       vitest:
         specifier: ^5.0.0
-        version: 5.0.0(@edge-runtime/vm@3.2.0)(@opentelemetry/api@1.9.1)(@types/node@26.4.1)(@vitest/ui@5.0.0)(jsdom@30.0.1)(vite@8.2.2(@types/node@26.4.1))
+        version: 5.0.0(@edge-runtime/vm@3.2.0)(@opentelemetry/api@1.9.1)(@types/node@26.4.1)(@vitest/coverage-v8@5.0.0)(@vitest/ui@5.0.0)(jsdom@30.0.1)(vite@8.2.2(@types/node@26.4.1))
 
   packages/react-ink:
     dependencies:
@@ -4555,7 +4445,7 @@ importers:
         version: 4.23.13
       vitest:
         specifier: ^5.0.0
-        version: 5.0.0(@edge-runtime/vm@3.2.0)(@opentelemetry/api@1.9.1)(@types/node@26.4.1)(@vitest/coverage-v8@5.0.0)(jsdom@30.0.1)(vite@8.2.2(@types/node@26.4.1))
+        version: 5.0.0(@edge-runtime/vm@3.2.0)(@opentelemetry/api@1.9.1)(@types/node@26.4.1)(@vitest/coverage-v8@5.0.0)(@vitest/ui@5.0.0)(jsdom@30.0.1)(vite@8.2.2(@types/node@26.4.1)(esbuild@0.28.2)(jiti@2.7.0)(terser@5.51.2)(tsx@4.23.13)(yaml@2.9.0))
 
   packages/react-ink-markdown:
     dependencies:
@@ -4592,7 +4482,7 @@ importers:
         version: 4.4.3
       vitest:
         specifier: ^5.0.0
-        version: 5.0.0(@edge-runtime/vm@3.2.0)(@opentelemetry/api@1.9.1)(@types/node@26.4.1)(@vitest/ui@5.0.0)(jsdom@30.0.1)(vite@8.2.2(@types/node@26.4.1))
+        version: 5.0.0(@edge-runtime/vm@3.2.0)(@opentelemetry/api@1.9.1)(@types/node@26.4.1)(@vitest/coverage-v8@5.0.0)(@vitest/ui@5.0.0)(jsdom@30.0.1)(vite@8.2.2(@types/node@26.4.1))
 
   packages/react-langchain:
     dependencies:
@@ -4635,7 +4525,7 @@ importers:
         version: 19.2.8
       vitest:
         specifier: ^5.0.0
-        version: 5.0.0(@edge-runtime/vm@3.2.0)(@opentelemetry/api@1.9.1)(@types/node@26.4.1)(@vitest/ui@5.0.0)(jsdom@30.0.1)(vite@8.2.2(@types/node@26.4.1))
+        version: 5.0.0(@edge-runtime/vm@3.2.0)(@opentelemetry/api@1.9.1)(@types/node@26.4.1)(@vitest/coverage-v8@5.0.0)(@vitest/ui@5.0.0)(jsdom@30.0.1)(vite@8.2.2(@types/node@26.4.1))
 
   packages/react-langgraph:
     dependencies:
@@ -4681,7 +4571,7 @@ importers:
         version: 19.2.8
       vitest:
         specifier: ^5.0.0
-        version: 5.0.0(@edge-runtime/vm@3.2.0)(@opentelemetry/api@1.9.1)(@types/node@26.4.1)(@vitest/ui@5.0.0)(jsdom@30.0.1)(vite@8.2.2(@types/node@26.4.1))
+        version: 5.0.0(@edge-runtime/vm@3.2.0)(@opentelemetry/api@1.9.1)(@types/node@26.4.1)(@vitest/coverage-v8@5.0.0)(@vitest/ui@5.0.0)(jsdom@30.0.1)(vite@8.2.2(@types/node@26.4.1))
 
   packages/react-lexical:
     dependencies:
@@ -4721,7 +4611,7 @@ importers:
         version: 19.2.8(react@19.2.8)
       vitest:
         specifier: ^5.0.0
-        version: 5.0.0(@edge-runtime/vm@3.2.0)(@opentelemetry/api@1.9.1)(@types/node@26.4.1)(@vitest/ui@5.0.0)(jsdom@30.0.1)(vite@8.2.2(@types/node@26.4.1))
+        version: 5.0.0(@edge-runtime/vm@3.2.0)(@opentelemetry/api@1.9.1)(@types/node@26.4.1)(@vitest/coverage-v8@5.0.0)(@vitest/ui@5.0.0)(jsdom@30.0.1)(vite@8.2.2(@types/node@26.4.1))
 
   packages/react-markdown:
     dependencies:
@@ -4758,7 +4648,7 @@ importers:
         version: 19.2.8(react@19.2.8)
       vitest:
         specifier: ^5.0.0
-        version: 5.0.0(@edge-runtime/vm@3.2.0)(@opentelemetry/api@1.9.1)(@types/node@26.4.1)(@vitest/ui@5.0.0)(jsdom@30.0.1)(vite@8.2.2(@types/node@26.4.1))
+        version: 5.0.0(@edge-runtime/vm@3.2.0)(@opentelemetry/api@1.9.1)(@types/node@26.4.1)(@vitest/coverage-v8@5.0.0)(@vitest/ui@5.0.0)(jsdom@30.0.1)(vite@8.2.2(@types/node@26.4.1))
 
   packages/react-mcp:
     dependencies:
@@ -4804,7 +4694,7 @@ importers:
         version: 19.2.8
       vitest:
         specifier: ^5.0.0
-        version: 5.0.0(@edge-runtime/vm@3.2.0)(@opentelemetry/api@1.9.1)(@types/node@26.4.1)(@vitest/ui@5.0.0)(jsdom@30.0.1)(vite@8.2.2(@types/node@26.4.1))
+        version: 5.0.0(@edge-runtime/vm@3.2.0)(@opentelemetry/api@1.9.1)(@types/node@26.4.1)(@vitest/coverage-v8@5.0.0)(@vitest/ui@5.0.0)(jsdom@30.0.1)(vite@8.2.2(@types/node@26.4.1))
 
   packages/react-native:
     dependencies:
@@ -4850,7 +4740,7 @@ importers:
         version: 0.21.2(react-dom@19.2.8(react@19.2.8))(react@19.2.8)
       vitest:
         specifier: ^5.0.0
-        version: 5.0.0(@edge-runtime/vm@3.2.0)(@opentelemetry/api@1.9.1)(@types/node@26.4.1)(@vitest/ui@5.0.0)(jsdom@30.0.1)(vite@8.2.2(@types/node@26.4.1))
+        version: 5.0.0(@edge-runtime/vm@3.2.0)(@opentelemetry/api@1.9.1)(@types/node@26.4.1)(@vitest/coverage-v8@5.0.0)(@vitest/ui@5.0.0)(jsdom@30.0.1)(vite@8.2.2(@types/node@26.4.1))
 
   packages/react-o11y:
     dependencies:
@@ -4881,7 +4771,7 @@ importers:
         version: 19.2.8(react@19.2.8)
       vitest:
         specifier: ^5.0.0
-        version: 5.0.0(@edge-runtime/vm@3.2.0)(@opentelemetry/api@1.9.1)(@types/node@26.4.1)(@vitest/ui@5.0.0)(jsdom@30.0.1)(vite@8.2.2(@types/node@26.4.1))
+        version: 5.0.0(@edge-runtime/vm@3.2.0)(@opentelemetry/api@1.9.1)(@types/node@26.4.1)(@vitest/coverage-v8@5.0.0)(@vitest/ui@5.0.0)(jsdom@30.0.1)(vite@8.2.2(@types/node@26.4.1))
 
   packages/react-opencode:
     dependencies:
@@ -4921,7 +4811,7 @@ importers:
         version: 19.2.8(react@19.2.8)
       vitest:
         specifier: ^5.0.0
-        version: 5.0.0(@edge-runtime/vm@3.2.0)(@opentelemetry/api@1.9.1)(@types/node@26.4.1)(@vitest/ui@5.0.0)(jsdom@30.0.1)(vite@8.2.2(@types/node@26.4.1))
+        version: 5.0.0(@edge-runtime/vm@3.2.0)(@opentelemetry/api@1.9.1)(@types/node@26.4.1)(@vitest/coverage-v8@5.0.0)(@vitest/ui@5.0.0)(jsdom@30.0.1)(vite@8.2.2(@types/node@26.4.1))
 
   packages/react-pi:
     dependencies:
@@ -4967,7 +4857,7 @@ importers:
         version: 19.2.8(react@19.2.8)
       vitest:
         specifier: ^5.0.0
-        version: 5.0.0(@edge-runtime/vm@3.2.0)(@opentelemetry/api@1.9.1)(@types/node@26.4.1)(@vitest/ui@5.0.0)(jsdom@30.0.1)(vite@8.2.2(@types/node@26.4.1))
+        version: 5.0.0(@edge-runtime/vm@3.2.0)(@opentelemetry/api@1.9.1)(@types/node@26.4.1)(@vitest/coverage-v8@5.0.0)(@vitest/ui@5.0.0)(jsdom@30.0.1)(vite@8.2.2(@types/node@26.4.1))
 
   packages/react-streamdown:
     dependencies:
@@ -5028,7 +4918,7 @@ importers:
         version: 11.1.2
       vitest:
         specifier: ^5.0.0
-        version: 5.0.0(@edge-runtime/vm@3.2.0)(@opentelemetry/api@1.9.1)(@types/node@26.4.1)(@vitest/ui@5.0.0)(jsdom@30.0.1)(vite@8.2.2(@types/node@26.4.1))
+        version: 5.0.0(@edge-runtime/vm@3.2.0)(@opentelemetry/api@1.9.1)(@types/node@26.4.1)(@vitest/coverage-v8@5.0.0)(@vitest/ui@5.0.0)(jsdom@30.0.1)(vite@8.2.2(@types/node@26.4.1))
 
   packages/react-syntax-highlighter:
     devDependencies:
@@ -5067,7 +4957,7 @@ importers:
         version: 8.2.2(@types/node@26.4.1)(esbuild@0.28.2)(jiti@2.7.0)(terser@5.51.2)(tsx@4.23.13)(yaml@2.9.0)
       vitest:
         specifier: ^5.0.0
-        version: 5.0.0(@edge-runtime/vm@3.2.0)(@opentelemetry/api@1.9.1)(@types/node@26.4.1)(@vitest/coverage-v8@5.0.0)(jsdom@30.0.1)(vite@8.2.2(@types/node@26.4.1))
+        version: 5.0.0(@edge-runtime/vm@3.2.0)(@opentelemetry/api@1.9.1)(@types/node@26.4.1)(@vitest/coverage-v8@5.0.0)(@vitest/ui@5.0.0)(jsdom@30.0.1)(vite@8.2.2(@types/node@26.4.1)(esbuild@0.28.2)(jiti@2.7.0)(terser@5.51.2)(tsx@4.23.13)(yaml@2.9.0))
 
   packages/store:
     devDependencies:
@@ -5094,7 +4984,7 @@ importers:
         version: 19.2.8
       vitest:
         specifier: ^5.0.0
-        version: 5.0.0(@edge-runtime/vm@3.2.0)(@opentelemetry/api@1.9.1)(@types/node@26.4.1)(@vitest/ui@5.0.0)(jsdom@30.0.1)(vite@8.2.2(@types/node@26.4.1))
+        version: 5.0.0(@edge-runtime/vm@3.2.0)(@opentelemetry/api@1.9.1)(@types/node@26.4.1)(@vitest/coverage-v8@5.0.0)(@vitest/ui@5.0.0)(jsdom@30.0.1)(vite@8.2.2(@types/node@26.4.1))
 
   packages/svelte:
     dependencies:
@@ -5128,7 +5018,7 @@ importers:
         version: 5.57.0
       vitest:
         specifier: ^5.0.0
-        version: 5.0.0(@edge-runtime/vm@3.2.0)(@opentelemetry/api@1.9.1)(@types/node@26.4.1)(@vitest/ui@5.0.0)(jsdom@30.0.1)(vite@8.2.2(@types/node@26.4.1))
+        version: 5.0.0(@edge-runtime/vm@3.2.0)(@opentelemetry/api@1.9.1)(@types/node@26.4.1)(@vitest/coverage-v8@5.0.0)(@vitest/ui@5.0.0)(jsdom@30.0.1)(vite@8.2.2(@types/node@26.4.1))
 
   packages/tap:
     devDependencies:
@@ -5164,7 +5054,7 @@ importers:
         version: 19.2.8(react@19.2.8)
       vitest:
         specifier: ^5.0.0
-        version: 5.0.0(@edge-runtime/vm@3.2.0)(@opentelemetry/api@1.9.1)(@types/node@26.4.1)(@vitest/ui@5.0.0)(jsdom@30.0.1)(vite@8.2.2(@types/node@26.4.1))
+        version: 5.0.0(@edge-runtime/vm@3.2.0)(@opentelemetry/api@1.9.1)(@types/node@26.4.1)(@vitest/coverage-v8@5.0.0)(@vitest/ui@5.0.0)(jsdom@30.0.1)(vite@8.2.2(@types/node@26.4.1))
 
   packages/tw-shimmer:
     dependencies:
@@ -5318,7 +5208,7 @@ importers:
         version: 2.10.4(vue@3.5.42(typescript@7.0.2))
       vitest:
         specifier: ^5.0.0
-        version: 5.0.0(@edge-runtime/vm@3.2.0)(@opentelemetry/api@1.9.1)(@types/node@26.4.1)(@vitest/ui@5.0.0)(jsdom@30.0.1)(vite@8.2.2(@types/node@26.4.1))
+        version: 5.0.0(@edge-runtime/vm@3.2.0)(@opentelemetry/api@1.9.1)(@types/node@26.4.1)(@vitest/coverage-v8@5.0.0)(@vitest/ui@5.0.0)(jsdom@30.0.1)(vite@8.2.2(@types/node@26.4.1))
       vue:
         specifier: ^3.5.42
         version: 3.5.42(typescript@7.0.2)
@@ -5340,7 +5230,7 @@ importers:
         version: 8.2.2(@types/node@26.4.1)(esbuild@0.28.2)(jiti@2.7.0)(terser@5.51.2)(tsx@4.23.13)(yaml@2.9.0)
       vitest:
         specifier: ^5.0.0
-        version: 5.0.0(@edge-runtime/vm@3.2.0)(@opentelemetry/api@1.9.1)(@types/node@26.4.1)(@vitest/coverage-v8@5.0.0)(jsdom@30.0.1)(vite@8.2.2(@types/node@26.4.1))
+        version: 5.0.0(@edge-runtime/vm@3.2.0)(@opentelemetry/api@1.9.1)(@types/node@26.4.1)(@vitest/coverage-v8@5.0.0)(@vitest/ui@5.0.0)(jsdom@30.0.1)(vite@8.2.2(@types/node@26.4.1)(esbuild@0.28.2)(jiti@2.7.0)(terser@5.51.2)(tsx@4.23.13)(yaml@2.9.0))
 
   packages/vue:
     dependencies:
@@ -5368,7 +5258,7 @@ importers:
         version: 30.0.1
       vitest:
         specifier: ^5.0.0
-        version: 5.0.0(@edge-runtime/vm@3.2.0)(@opentelemetry/api@1.9.1)(@types/node@26.4.1)(@vitest/ui@5.0.0)(jsdom@30.0.1)(vite@8.2.2(@types/node@26.4.1))
+        version: 5.0.0(@edge-runtime/vm@3.2.0)(@opentelemetry/api@1.9.1)(@types/node@26.4.1)(@vitest/coverage-v8@5.0.0)(@vitest/ui@5.0.0)(jsdom@30.0.1)(vite@8.2.2(@types/node@26.4.1))
       vue:
         specifier: ^3.5.42
         version: 3.5.42(typescript@7.0.2)
@@ -5445,7 +5335,7 @@ importers:
         version: 7.8.0
       vitest:
         specifier: ^5.0.0
-        version: 5.0.0(@edge-runtime/vm@3.2.0)(@opentelemetry/api@1.9.1)(@types/node@26.4.1)(@vitest/ui@5.0.0)(jsdom@30.0.1)(vite@8.2.2(@types/node@26.4.1))
+        version: 5.0.0(@edge-runtime/vm@3.2.0)(@opentelemetry/api@1.9.1)(@types/node@26.4.1)(@vitest/coverage-v8@5.0.0)(@vitest/ui@5.0.0)(jsdom@30.0.1)(vite@8.2.2(@types/node@26.4.1))
 
   packages/x-performance:
     devDependencies:
@@ -5499,7 +5389,7 @@ importers:
         version: 1.2.7
       vitest:
         specifier: ^5.0.0
-        version: 5.0.0(@edge-runtime/vm@3.2.0)(@opentelemetry/api@1.9.1)(@types/node@26.4.1)(@vitest/ui@5.0.0)(jsdom@30.0.1)(vite@8.2.2(@types/node@26.4.1))
+        version: 5.0.0(@edge-runtime/vm@3.2.0)(@opentelemetry/api@1.9.1)(@types/node@26.4.1)(@vitest/coverage-v8@5.0.0)(@vitest/ui@5.0.0)(jsdom@30.0.1)(vite@8.2.2(@types/node@26.4.1))
 
   templates/cloud:
     dependencies:
@@ -6203,12 +6093,6 @@ packages:
   '@ai-sdk/provider@4.0.10':
     resolution: {integrity: sha512-fX2ENAc7iDpZ+Wp4+Rk06Usn/Ys7dI9uAkGv0jlF6XVrW13NkRWx5Ou+U6lIM2E1fTLkCs16GGrUAaVvroag7A==}
     engines: {node: '>=22'}
-
-  '@ai-sdk/react@3.0.280':
-    resolution: {integrity: sha512-A00dgsOo3Xq4b8je0DM8dBFHZX/8iTIKupOhWcvXcYdKo9nxOKwC+fh9SFGbFbvQhDn8awEPiTm5a25GD8aCsA==}
-    engines: {node: '>=18'}
-    peerDependencies:
-      react: ^18 || ~19.0.1 || ~19.1.2 || ^19.2.1
 
   '@ai-sdk/react@4.0.96':
     resolution: {integrity: sha512-m4823/q+obDgJot9+UOtVFij3DJIEYdv7x/AC4rc6KCMfRP4GR030DJyKjhtzC9xfDmTGttv3tMpqbknh6uUXA==}
@@ -20952,16 +20836,6 @@ snapshots:
     dependencies:
       json-schema: 0.4.0
 
-  '@ai-sdk/react@3.0.280(react@19.2.8)(zod@4.5.4)':
-    dependencies:
-      '@ai-sdk/provider-utils': 4.0.50(zod@4.5.4)
-      ai: 6.0.277(zod@4.5.4)
-      react: 19.2.8
-      swr: 2.5.1(react@19.2.8)
-      throttleit: 2.1.0
-    transitivePeerDependencies:
-      - zod
-
   '@ai-sdk/react@4.0.96(react@19.2.3)(zod@4.5.4)':
     dependencies:
       '@ai-sdk/mcp': 2.0.45(zod@4.5.4)
@@ -28669,7 +28543,7 @@ snapshots:
       obug: 2.1.4
       std-env: 4.2.0
       tinyrainbow: 3.1.1
-      vitest: 5.0.0(@edge-runtime/vm@3.2.0)(@opentelemetry/api@1.9.1)(@types/node@26.4.1)(@vitest/coverage-v8@5.0.0)(jsdom@30.0.1)(vite@8.2.2(@types/node@26.4.1))
+      vitest: 5.0.0(@edge-runtime/vm@3.2.0)(@opentelemetry/api@1.9.1)(@types/node@26.4.1)(@vitest/coverage-v8@5.0.0)(@vitest/ui@5.0.0)(jsdom@30.0.1)(vite@8.2.2(@types/node@26.4.1)(esbuild@0.28.2)(jiti@2.7.0)(terser@5.51.2)(tsx@4.23.13)(yaml@2.9.0))
 
   '@vitest/istanbul-lib-coverage@1.0.1': {}
 
@@ -28700,7 +28574,7 @@ snapshots:
       pathe: 2.0.3
       sirv: 3.0.2
       tinyrainbow: 3.1.1
-      vitest: 5.0.0(@edge-runtime/vm@3.2.0)(@opentelemetry/api@1.9.1)(@types/node@26.4.1)(@vitest/ui@5.0.0)(jsdom@30.0.1)(vite@8.2.2(@types/node@26.4.1))
+      vitest: 5.0.0(@edge-runtime/vm@3.2.0)(@opentelemetry/api@1.9.1)(@types/node@26.4.1)(@vitest/coverage-v8@5.0.0)(@vitest/ui@5.0.0)(jsdom@30.0.1)(vite@8.2.2(@types/node@26.4.1))
 
   '@vitest/utils@5.0.0':
     dependencies:
@@ -38305,7 +38179,7 @@ snapshots:
     optionalDependencies:
       vite: 8.2.2(@types/node@26.4.1)(esbuild@0.28.2)(jiti@2.7.0)(terser@5.51.2)(tsx@4.23.13)(yaml@2.9.0)
 
-  vitest@5.0.0(@edge-runtime/vm@3.2.0)(@opentelemetry/api@1.9.1)(@types/node@26.4.1)(@vitest/coverage-v8@5.0.0)(jsdom@30.0.1)(vite@8.2.2(@types/node@26.4.1)):
+  vitest@5.0.0(@edge-runtime/vm@3.2.0)(@opentelemetry/api@1.9.1)(@types/node@26.4.1)(@vitest/coverage-v8@5.0.0)(@vitest/ui@5.0.0)(jsdom@30.0.1)(vite@8.2.2(@types/node@26.4.1)(esbuild@0.28.2)(jiti@2.7.0)(terser@5.51.2)(tsx@4.23.13)(yaml@2.9.0)):
     dependencies:
       '@types/chai': 5.2.3
       '@vitest/mocker': 5.0.0(vite@8.2.2(@types/node@26.4.1))
@@ -38326,11 +38200,12 @@ snapshots:
       '@opentelemetry/api': 1.9.1
       '@types/node': 26.4.1
       '@vitest/coverage-v8': 5.0.0(vitest@5.0.0)
+      '@vitest/ui': 5.0.0(vitest@5.0.0)
       jsdom: 30.0.1
     transitivePeerDependencies:
       - msw
 
-  vitest@5.0.0(@edge-runtime/vm@3.2.0)(@opentelemetry/api@1.9.1)(@types/node@26.4.1)(@vitest/ui@5.0.0)(jsdom@30.0.1)(vite@8.2.2(@types/node@26.4.1)):
+  vitest@5.0.0(@edge-runtime/vm@3.2.0)(@opentelemetry/api@1.9.1)(@types/node@26.4.1)(@vitest/coverage-v8@5.0.0)(@vitest/ui@5.0.0)(jsdom@30.0.1)(vite@8.2.2(@types/node@26.4.1)):
     dependencies:
       '@types/chai': 5.2.3
       '@vitest/mocker': 5.0.0(vite@8.2.2(@types/node@26.4.1))
@@ -38350,6 +38225,7 @@ snapshots:
       '@edge-runtime/vm': 3.2.0
       '@opentelemetry/api': 1.9.1
       '@types/node': 26.4.1
+      '@vitest/coverage-v8': 5.0.0(vitest@5.0.0)
       '@vitest/ui': 5.0.0(vitest@5.0.0)
       jsdom: 30.0.1
     transitivePeerDependencies:
