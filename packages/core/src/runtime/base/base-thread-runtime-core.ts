@@ -274,9 +274,24 @@ export abstract class BaseThreadRuntimeCore
 
     const { message } = this.repository.getMessage(messageId);
 
-    this._stopSpeaking?.();
-
-    const utterance = adapter.speak(getThreadMessageText(message));
+    const previousStop = this._stopSpeaking;
+    let utterance: SpeechSynthesisAdapter.Utterance;
+    try {
+      previousStop?.();
+      utterance = adapter.speak(getThreadMessageText(message));
+    } catch (error) {
+      if (previousStop && !this._stopSpeaking) {
+        try {
+          this._notifySubscribers();
+        } catch (notificationError) {
+          console.error(
+            "[assistant-ui] Speech rollback notification threw",
+            notificationError,
+          );
+        }
+      }
+      throw error;
+    }
     let unsub: Unsubscribe | undefined;
     const clear = () => {
       this._stopSpeaking = undefined;
