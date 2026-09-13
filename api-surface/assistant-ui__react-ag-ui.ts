@@ -1386,6 +1386,7 @@ type ThreadRuntimeEventPayload = {
   toolApprovalAnswered: {
     messageId: string;
     toolCallId: string;
+    toolName: string;
     approved: boolean;
   };
   runStart: Record<string, never>;
