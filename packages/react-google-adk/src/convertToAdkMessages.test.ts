@@ -204,6 +204,27 @@ describe("getMessageContent", () => {
     ]);
   });
 
+  it("resolves wildcard attachment MIME types to a concrete image type", () => {
+    const message = makeAppendMessage([]);
+    const content = getMessageContent({
+      ...message,
+      attachments: [
+        {
+          id: "attachment-1",
+          type: "image",
+          name: "photo.jpg",
+          contentType: "image/*",
+          status: { type: "complete" },
+          content: [{ type: "image", image: "data:image/jpeg;base64,AAAA" }],
+        },
+      ],
+    });
+
+    expect(contentToParts(content)).toEqual([
+      { inlineData: { mimeType: "image/jpeg", data: "AAAA" } },
+    ]);
+  });
+
   it("preserves file part data and mimeType end-to-end", () => {
     const result = getMessageContent(
       makeAppendMessage([
