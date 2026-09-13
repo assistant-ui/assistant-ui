@@ -5092,6 +5092,11 @@ type ThreadRuntimeCoreBinding = SubscribableWithState<ThreadRuntimeCore, ThreadR
 type ThreadRuntimeEventCallback<E extends ThreadRuntimeEventType> = (payload: ThreadRuntimeEventPayload[E]) => void;
 
 type ThreadRuntimeEventPayload = {
+  toolApprovalAnswered: {
+    messageId: string;
+    toolCallId: string;
+    approved: boolean;
+  };
   runStart: Record<string, never>;
   runEnd: Record<string, never>;
   initialize: Record<string, never>;
