@@ -76,6 +76,7 @@ export class WebSpeechSynthesisAdapter implements SpeechSynthesisAdapter {
     const res: SpeechSynthesisAdapter.Utterance = {
       status: { type: "running" },
       cancel: () => {
+        if (res.status.type === "ended") return;
         window.speechSynthesis.cancel();
         handleEnd("cancelled");
       },
