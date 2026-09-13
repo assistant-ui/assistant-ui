@@ -855,6 +855,26 @@ describe("PiThreadController", () => {
     expect(fetchSignal?.aborted).toBe(true);
   });
 
+  it("preserves failures from sends accepted before disposal", async () => {
+    const accepted = Promise.withResolvers<void>();
+    const sendError = new Error("send failed");
+    const client = createFakeClient();
+    client.sendMessage = vi.fn(async (threadId, input) => {
+      client.sent.push({ threadId, input });
+      await accepted.promise;
+      throw sendError;
+    });
+    const controller = new PiThreadController(client, THREAD);
+    const send = controller.sendMessage(userMessage("hello"));
+    const sendResult = send.catch((error: unknown) => error);
+    await vi.waitFor(() => expect(client.sent).toHaveLength(1));
+
+    controller.dispose();
+    accepted.resolve();
+
+    expect(await sendResult).toBe(sendError);
+  });
+
   it("keeps newer Pi state when an image send is cancelled", async () => {
     let fetchSignal: AbortSignal | undefined;
     vi.stubGlobal(

@@ -776,6 +776,9 @@ export class PiThreadController implements PiThreadControllerLike {
           abortController.signal,
         );
         abortController.signal.throwIfAborted();
+        // pi-coding-agent >=0.80.8 reads streamingBehavior only while the
+        // session is streaming. Keeping it covers a server still streaming
+        // after the local mirror has settled; an idle session ignores it.
         options?.onRunStateResolved(this.state.runStatus === "running");
         pending.accepted = true;
         await this.client.sendMessage(this.threadId, input);
@@ -832,9 +835,9 @@ export class PiThreadController implements PiThreadControllerLike {
 
   private abortPendingSends() {
     for (const pending of this.pendingSends) {
+      if (pending.accepted) continue;
       pending.controller.abort(sendAbandonedError);
     }
-    this.pendingSends.clear();
   }
 
   public async setModel(input: { provider: string; modelId: string }) {
