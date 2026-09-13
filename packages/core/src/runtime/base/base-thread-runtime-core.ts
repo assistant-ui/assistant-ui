@@ -311,11 +311,11 @@ export abstract class BaseThreadRuntimeCore
     const update = () => {
       if (this._stopSpeaking !== stop) return;
       if (utterance.status.type === "ended") {
-        clear();
+        notifySubscribers([clear, () => this._notifySubscribers()]);
       } else {
         this.speech = { messageId, status: utterance.status };
+        this._notifySubscribers();
       }
-      this._notifySubscribers();
     };
 
     this._stopSpeaking = stop;
@@ -343,8 +343,7 @@ export abstract class BaseThreadRuntimeCore
 
   public stopSpeaking() {
     if (!this._stopSpeaking) throw new Error("No message is being spoken");
-    this._stopSpeaking();
-    this._notifySubscribers();
+    notifySubscribers([this._stopSpeaking, () => this._notifySubscribers()]);
   }
 
   private _voiceSession: RealtimeVoiceAdapter.Session | undefined;

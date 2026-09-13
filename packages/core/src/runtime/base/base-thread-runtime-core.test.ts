@@ -271,6 +271,108 @@ describe("BaseThreadRuntimeCore speech lifecycle", () => {
     expect(subscriber).toHaveBeenCalledOnce();
   });
 
+  it.each(["cancellation", "unsubscribe"] as const)(
+    "notifies stopped state when %s throws",
+    (failure) => {
+      const { utterance, unsubscribe } = createUtterance();
+      const error = new Error("cleanup failed");
+      const thread = createThread({ speak: () => utterance });
+      thread.speak("first");
+      let observedSpeech = thread.speech;
+      const subscriber = vi.fn(() => {
+        observedSpeech = thread.speech;
+      });
+      thread.subscribe(subscriber);
+      if (failure === "cancellation") {
+        utterance.cancel = vi.fn(() => {
+          throw error;
+        });
+      } else {
+        unsubscribe.mockImplementation(() => {
+          throw error;
+        });
+      }
+
+      expect(() => thread.stopSpeaking()).toThrow(error);
+
+      expect(observedSpeech).toBeUndefined();
+      expect(thread.speech).toBeUndefined();
+      expect(subscriber).toHaveBeenCalledOnce();
+      expect(unsubscribe).toHaveBeenCalledOnce();
+      expect(utterance.cancel).toHaveBeenCalledOnce();
+      expect(() => thread.stopSpeaking()).toThrow("No message is being spoken");
+      expect(subscriber).toHaveBeenCalledOnce();
+    },
+  );
+
+  it("reports stop and notification failures after notifying later subscribers", () => {
+    vi.spyOn(console, "error").mockImplementation(() => {});
+    const { utterance } = createUtterance();
+    const cleanupError = new Error("cleanup failed");
+    const notificationError = new Error("notification failed");
+    utterance.cancel = vi.fn(() => {
+      throw cleanupError;
+    });
+    const thread = createThread({ speak: () => utterance });
+    thread.speak("first");
+    thread.subscribe(() => {
+      throw notificationError;
+    });
+    const laterSubscriber = vi.fn();
+    thread.subscribe(laterSubscriber);
+
+    expect(() => thread.stopSpeaking()).toThrow(
+      expect.objectContaining({
+        errors: [cleanupError, notificationError],
+      }),
+    );
+
+    expect(thread.speech).toBeUndefined();
+    expect(laterSubscriber).toHaveBeenCalledOnce();
+  });
+
+  it("notifies completed state even when terminal unsubscribe throws", () => {
+    const { utterance, unsubscribe, notify } = createUtterance();
+    const error = new Error("unsubscribe failed");
+    unsubscribe.mockImplementation(() => {
+      throw error;
+    });
+    const thread = createThread({ speak: () => utterance });
+    thread.speak("first");
+    let observedSpeech = thread.speech;
+    const subscriber = vi.fn(() => {
+      observedSpeech = thread.speech;
+    });
+    thread.subscribe(subscriber);
+    utterance.status = { type: "ended", reason: "finished" };
+
+    expect(notify).toThrow(error);
+
+    expect(observedSpeech).toBeUndefined();
+    expect(subscriber).toHaveBeenCalledOnce();
+    expect(unsubscribe).toHaveBeenCalledOnce();
+    expect(utterance.cancel).not.toHaveBeenCalled();
+    expect(notify).not.toThrow();
+    expect(subscriber).toHaveBeenCalledOnce();
+  });
+
+  it("cancels playback if a subscriber throws during initial state publication", () => {
+    vi.spyOn(console, "error").mockImplementation(() => {});
+    const { utterance, unsubscribe } = createUtterance();
+    const error = new Error("subscriber failed");
+    const thread = createThread({ speak: () => utterance });
+    thread.subscribe(() => {
+      throw error;
+    });
+
+    expect(() => thread.speak("first")).toThrow(error);
+
+    expect(thread.speech).toBeUndefined();
+    expect(unsubscribe).toHaveBeenCalledOnce();
+    expect(utterance.cancel).toHaveBeenCalledOnce();
+    expect(() => thread.stopSpeaking()).toThrow("No message is being spoken");
+  });
+
   it("cancels a session when subscribing throws", () => {
     const { utterance } = createUtterance();
     const error = new Error("subscription failed");
