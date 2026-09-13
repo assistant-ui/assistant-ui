@@ -4864,15 +4864,6 @@ importers:
       '@assistant-ui/react-markdown':
         specifier: ^0.14.15
         version: link:../react-markdown
-      '@streamdown/cjk':
-        specifier: ^1.0.0
-        version: 1.0.3(@types/mdast@4.0.4)(micromark-util-types@2.0.2)(micromark@4.0.2(supports-color@10.2.2))(react@19.2.8)(supports-color@10.2.2)(unified@11.0.5)
-      '@streamdown/math':
-        specifier: ^1.0.0
-        version: 1.0.2(react@19.2.8)(supports-color@10.2.2)
-      '@streamdown/mermaid':
-        specifier: ^1.0.0
-        version: 1.0.2(react@19.2.8)
       '@types/hast':
         specifier: ^3.0.5
         version: 3.0.5
@@ -4898,9 +4889,18 @@ importers:
       '@assistant-ui/x-buildutils':
         specifier: workspace:*
         version: link:../x-buildutils
+      '@streamdown/cjk':
+        specifier: ^1.0.3
+        version: 1.0.3(@types/mdast@4.0.4)(micromark-util-types@2.0.2)(micromark@4.0.2(supports-color@10.2.2))(react@19.2.8)(supports-color@10.2.2)(unified@11.0.5)
       '@streamdown/code':
         specifier: ^1.1.1
         version: 1.1.1(react@19.2.8)
+      '@streamdown/math':
+        specifier: ^1.0.2
+        version: 1.0.2(react@19.2.8)(supports-color@10.2.2)
+      '@streamdown/mermaid':
+        specifier: ^1.0.2
+        version: 1.0.2(react@19.2.8)
       '@testing-library/react':
         specifier: ^16.3.3
         version: 16.3.3(@testing-library/dom@10.4.1)(@types/react-dom@19.2.7(@types/react@19.2.18))(@types/react@19.2.18)(react-dom@19.2.8(react@19.2.8))(react@19.2.8)
