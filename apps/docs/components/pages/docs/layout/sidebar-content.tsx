@@ -17,6 +17,7 @@ import { DiscordIcon } from "@/components/icons/discord";
 import { PlatformSwitcher } from "@/components/pages/docs/platform/switcher";
 import {
   buildPlatformSections,
+  findActiveSectionId,
   findPathToNode,
   isNodeVisible,
 } from "@/components/pages/docs/platform/tree";
@@ -201,15 +202,10 @@ export function SidebarContent({ tree }: { tree?: PageTree.Root }) {
     return null;
   }, [allFolders, pathname]);
 
-  const activeSectionId = useMemo(() => {
-    const sectionIds = new Set(sections.map((section) => section.$id));
-    const path = activePath ?? [];
-    for (let i = path.length - 1; i >= 0; i--) {
-      const id = path[i]!.$id;
-      if (id !== undefined && sectionIds.has(id)) return id;
-    }
-    return sections[0]?.$id ?? null;
-  }, [sections, activePath]);
+  const activeSectionId = useMemo(
+    () => findActiveSectionId(sections, activePath),
+    [sections, activePath],
+  );
 
   const [openSectionId, setOpenSectionId] = useState<string | null>(
     activeSectionId,

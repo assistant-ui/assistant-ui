@@ -192,6 +192,20 @@ function firstVisibleUrl(
   return undefined;
 }
 
+// The section to open for a page: the deepest section on the page's path, so
+// a hoisted root folder wins over the parent it was hoisted from.
+export function findActiveSectionId(
+  sections: readonly PageTree.Folder[],
+  path: readonly PageTree.Node[] | null,
+): string | null {
+  const sectionIds = new Set(sections.map((section) => section.$id));
+  for (let i = (path?.length ?? 0) - 1; i >= 0; i--) {
+    const id = path![i]!.$id;
+    if (id !== undefined && sectionIds.has(id)) return id;
+  }
+  return sections[0]?.$id ?? null;
+}
+
 export function getPlatformHomeUrl(
   tree: PageTree.Root | undefined,
   platform: Platform,

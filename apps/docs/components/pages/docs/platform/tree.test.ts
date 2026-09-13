@@ -2,6 +2,8 @@ import { describe, expect, it } from "vitest";
 import type * as PageTree from "fumadocs-core/page-tree";
 import {
   buildPlatformSections,
+  findActiveSectionId,
+  findPathToNode,
   getPagePlatform,
   getPagePlatforms,
   getPlatformHomeUrl,
@@ -154,6 +156,31 @@ describe("root folders inside a section", () => {
     expect(urls.cloud.has("/docs/cloud/ai-sdk")).toBe(true);
     expect(urls.cloud.has("/docs/cloud/langgraph")).toBe(true);
     expect(urls.react.has("/docs/cloud/ai-sdk")).toBe(false);
+  });
+
+  it("open the hoisted section for a page under it and the parent for its own pages", () => {
+    const cloud = tree.children.find(
+      (node): node is PageTree.Folder => node.name === "Cloud",
+    )!;
+    const sections = buildPlatformSections(
+      tree.children as PageTree.Folder[],
+      "cloud",
+    );
+    const pathTo = (url: string) => findPathToNode(cloud, url);
+
+    expect(findActiveSectionId(sections, pathTo("/docs/cloud/ai-sdk"))).toBe(
+      "Integrations",
+    );
+    expect(findActiveSectionId(sections, pathTo("/docs/cloud/api"))).toBe(
+      "Reference",
+    );
+    expect(
+      findActiveSectionId(sections, pathTo("/docs/cloud/quickstart")),
+    ).toBe("Cloud");
+    expect(findActiveSectionId(sections, pathTo("/docs/cloud/langgraph"))).toBe(
+      "Cloud",
+    );
+    expect(findActiveSectionId(sections, null)).toBe("Cloud");
   });
 });
 
