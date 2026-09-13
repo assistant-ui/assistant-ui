@@ -1,5 +1,4 @@
 import type {
-  GenerativeUISpec,
   MessageStatus,
   SourceProviderMetadata,
   ThreadMessage,
@@ -47,7 +46,9 @@ type AuiV0MessagePart =
       readonly type: "reasoning";
       readonly text: string;
       readonly unstable_summary?: string;
-      readonly providerMetadata?: ReasoningMessagePart["providerMetadata"];
+      readonly providerMetadata?: NonNullable<
+        ReasoningMessagePart["providerMetadata"]
+      >;
       readonly parentId?: string;
     }
   | {
@@ -90,7 +91,7 @@ type AuiV0MessagePart =
     }
   | {
       readonly type: "generative-ui";
-      readonly spec: GenerativeUISpec;
+      readonly spec: ReadonlyJSONObject;
       readonly id?: string;
       readonly parentId?: string;
     };
@@ -101,7 +102,10 @@ type AuiV0ToolCallPart = {
   readonly toolName: string;
   readonly result?: ReadonlyJSONValue;
   readonly isError?: true;
-  readonly interrupt?: { readonly type: "human"; readonly payload: unknown };
+  readonly interrupt?: {
+    readonly type: "human";
+    readonly payload: ReadonlyJSONValue;
+  };
   readonly timing?: ToolCallTiming;
   readonly mcp?: ToolCallMessagePartMcpMetadata;
   readonly approval?: AuiV0ToolApproval;
@@ -339,7 +343,12 @@ export function auiV0Encode(message: ThreadMessage): AuiV0Message {
               : undefined),
             ...(part.isError ? { isError: true } : undefined),
             ...(part.interrupt !== undefined
-              ? { interrupt: part.interrupt }
+              ? {
+                  interrupt: {
+                    type: part.interrupt.type,
+                    payload: part.interrupt.payload as ReadonlyJSONValue,
+                  },
+                }
               : undefined),
             ...(part.timing !== undefined
               ? { timing: part.timing }
@@ -391,7 +400,7 @@ export function auiV0Encode(message: ThreadMessage): AuiV0Message {
         case "generative-ui":
           return {
             type: "generative-ui",
-            spec: part.spec,
+            spec: part.spec as unknown as ReadonlyJSONObject,
             ...(part.id !== undefined ? { id: part.id } : undefined),
             ...(part.parentId !== undefined
               ? { parentId: part.parentId }

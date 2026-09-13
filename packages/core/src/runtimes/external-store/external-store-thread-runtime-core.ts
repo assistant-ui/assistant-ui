@@ -977,7 +977,7 @@ export class ExternalStoreThreadRuntimeCore
     try {
       return Promise.resolve(this._store.onRespondToToolApproval(options)).then(
         () => {
-          if (toolCall?.type === "tool-call") {
+          if (message && toolCall?.type === "tool-call") {
             this._notifyToolApprovalAnswered(
               message.id,
               toolCall.toolCallId,
