@@ -88,7 +88,7 @@ yield {
 - **Everything else** is the same as the [AI SDK runtime](/docs/cloud/ai-sdk-assistant-ui): titles after the first response, engagement events from the store, feedback and attachments through the default adapters.
 
 <Callout type="note">
-A thread reads back in the format it was written in. Rows stored as `aui/v0` are not shown to an `ai-sdk/v6` runtime and the other way round, so keep one runtime per project, or ask the [messages endpoint](/docs/cloud/api#messages) for a conversion when you read threads yourself.
+A thread written by this runtime reads back in the AI SDK runtime as well, because the messages endpoint converts `aui/v0` rows to `ai-sdk/v6` on read. The reverse is not converted: a thread written as `ai-sdk/v6` reads back empty under `useLocalRuntime`, so move a project from the AI SDK runtime to this one only with new threads, or read the stored rows yourself through the [messages endpoint](/docs/cloud/api#messages).
 </Callout>
 
 ## Composing the thread list yourself

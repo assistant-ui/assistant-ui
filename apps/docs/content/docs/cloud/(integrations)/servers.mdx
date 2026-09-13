@@ -34,20 +34,21 @@ type SlackMessage = {
   text: string;
 };
 
-const threadIds = new Map<string, string>(); // Slack thread to cloud thread id; use your database in production.
+const threadIds = new Map<string, Promise<string>>(); // Slack thread to cloud thread id; use your database in production.
 
 export async function answer(event: SlackMessage) {
   const cloud = createCloud(event.user, event.team);
   const slackThread = event.thread_ts ?? event.ts;
 
-  let thread_id = threadIds.get(slackThread);
-  if (!thread_id) {
-    ({ thread_id } = await cloud.threads.create({
-      last_message_at: new Date(),
-      external_id: slackThread,
-    }));
-    threadIds.set(slackThread, thread_id);
+  let pending = threadIds.get(slackThread);
+  if (!pending) {
+    pending = cloud.threads
+      .create({ last_message_at: new Date(), external_id: slackThread })
+      .then(({ thread_id }) => thread_id);
+    pending.catch(() => threadIds.delete(slackThread));
+    threadIds.set(slackThread, pending);
   }
+  const thread_id = await pending;
 
   const { messages } = await cloud.threads.messages.list(thread_id, { limit: 1 });
   const { message_id: userMessageId } = await cloud.threads.messages.create(
@@ -83,7 +84,7 @@ export async function answer(event: SlackMessage) {
 }
 ```
 
-One thread per Slack thread, then three calls per turn: store the user message under the thread's last message, store the answer, report the run. Keep your own map from the Slack thread to the cloud thread id, because the API creates threads but does not look them up by `external_id`; the id is still stored on the thread for the dashboard. The cloud does the rest as it does for a browser: the thread is titled after its first completed run, the user counts as active for the month, and the Threads page renders the conversation from the stored messages.
+One thread per Slack thread, then four calls per turn: list the thread's last message, store the user message under it, store the answer, report the run. Keep your own map from the Slack thread to the cloud thread id, because the API creates threads but does not look them up by `external_id`; the id is still stored on the thread for the dashboard. The map holds the pending creation, so two events of a new thread that arrive together share one cloud thread; it is per process, which is why a real bot keeps the id in its database. The cloud does the rest as it does for a browser: the thread is titled after its first completed run, the user counts as active for the month, and the Threads page renders the conversation from the stored messages.
 
 Set `environment` and `release` on the report to filter by deployment, and when the server also exports [traces](/docs/cloud/traces), put the same `trace_id` on the report so the two halves merge into one run. Every field of the report is on [Run reports](/docs/cloud/telemetry#the-report).
 
