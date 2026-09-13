@@ -4,6 +4,7 @@ import { act, render, waitFor } from "@testing-library/react";
 import type { FC } from "react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { AuiProvider, useAui } from "@assistant-ui/store";
+import type { AttachmentAdapter } from "../adapters/attachment";
 import { CompositeAttachmentAdapter } from "../adapters/attachment";
 import type {
   ExternalThreadMessage,
@@ -74,6 +75,28 @@ const renderThread = () => {
   render(<App />);
   return () => captured.aui!;
 };
+
+const makePendingAttachment = (file: File): PendingAttachment => ({
+  id: file.name,
+  type: "file",
+  name: file.name,
+  contentType: file.type,
+  file,
+  status: { type: "requires-action", reason: "composer-send" },
+});
+
+const makePendingAdapter = (
+  remove: AttachmentAdapter["remove"],
+): AttachmentAdapter => ({
+  accept: "*",
+  add: async ({ file }) => makePendingAttachment(file),
+  send: async (attachment) => ({
+    ...attachment,
+    status: { type: "complete" },
+    content: [],
+  }),
+  remove,
+});
 
 describe("ExternalThread attachments", () => {
   it("uses generated IDs unless a prepared attachment supplies one", async () => {
@@ -402,6 +425,109 @@ describe("ExternalThread attachments", () => {
         expect.objectContaining({ id: "att-1" }),
       );
       expect(aui().thread.composer().getState().attachments).toHaveLength(0);
+    },
+  );
+
+  it.each([
+    ["clearAttachments", "one"],
+    ["clearAttachments", "two"],
+    ["reset", "one"],
+    ["reset", "two"],
+  ] as const)(
+    "%s attempts every pending cleanup after a synchronous failure from %s",
+    async (method, failedId) => {
+      const error = new Error("cleanup failed");
+      const removed: string[] = [];
+      const adapter = makePendingAdapter((attachment) => {
+        removed.push(attachment.id);
+        if (attachment.id === failedId) throw error;
+        return Promise.resolve();
+      });
+      const aui = renderThreadWithProps({ attachmentAdapter: adapter });
+      const composer = () => aui().thread().composer();
+
+      await act(async () => {
+        await composer().addAttachment(new File([""], "one"));
+        await composer().addAttachment(new File([""], "two"));
+        await composer().addAttachment(new File([""], "three"));
+      });
+      await waitFor(() =>
+        expect(composer().getState().attachments).toHaveLength(3),
+      );
+
+      await expect(
+        act(async () => {
+          await composer()[method]();
+        }),
+      ).rejects.toBe(error);
+      await waitFor(() =>
+        expect(composer().getState().attachments).toHaveLength(0),
+      );
+      expect(removed).toEqual(["one", "two", "three"]);
+    },
+  );
+
+  it.each(["clearAttachments", "reset"] as const)(
+    "%s reports multiple rejected cleanups after starting every pending removal",
+    async (method) => {
+      const firstError = new Error("first cleanup failed");
+      const secondError = new Error("second cleanup failed");
+      const removed: string[] = [];
+      const adapter = makePendingAdapter(async (attachment) => {
+        removed.push(attachment.id);
+        if (attachment.id === "one") throw firstError;
+        if (attachment.id === "two") throw secondError;
+      });
+      const aui = renderThreadWithProps({ attachmentAdapter: adapter });
+      const composer = () => aui().thread().composer();
+
+      await act(async () => {
+        await composer().addAttachment(new File([""], "one"));
+        await composer().addAttachment(new File([""], "two"));
+        await composer().addAttachment(new File([""], "three"));
+      });
+      await waitFor(() =>
+        expect(composer().getState().attachments).toHaveLength(3),
+      );
+
+      await expect(
+        act(async () => {
+          await composer()[method]();
+        }),
+      ).rejects.toBe(firstError);
+      await waitFor(() =>
+        expect(composer().getState().attachments).toHaveLength(0),
+      );
+      expect(removed).toEqual(["one", "two", "three"]);
+    },
+  );
+
+  it.each(["clearAttachments", "reset"] as const)(
+    "%s skips complete attachments during cleanup",
+    async (method) => {
+      const removed: string[] = [];
+      const adapter = makePendingAdapter((attachment) => {
+        removed.push(attachment.id);
+        return Promise.resolve();
+      });
+      const aui = renderThreadWithProps({ attachmentAdapter: adapter });
+      const composer = () => aui().thread().composer();
+
+      await act(async () => {
+        await composer().addAttachment(new File([""], "pending"));
+        await composer().addAttachment({
+          id: "complete",
+          name: "complete.txt",
+          content: [],
+        });
+      });
+      await waitFor(() =>
+        expect(composer().getState().attachments).toHaveLength(2),
+      );
+
+      await act(() => composer()[method]());
+      expect(composer().getState().attachments).toHaveLength(0);
+      expect(removed).toEqual(["pending"]);
     },
   );
 

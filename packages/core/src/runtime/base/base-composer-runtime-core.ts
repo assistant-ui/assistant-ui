@@ -167,7 +167,7 @@ export abstract class BaseComposerRuntimeCore
     const adapter = this.getAttachmentAdapter();
     if (adapter) {
       const pending = this._attachments.filter((a) => !isAttachmentComplete(a));
-      await Promise.all(pending.map((a) => adapter.remove(a)));
+      await Promise.all(pending.map(async (a) => adapter.remove(a)));
     }
   }
 

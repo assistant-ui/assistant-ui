@@ -187,6 +187,94 @@ describe("BaseComposerRuntimeCore", () => {
     expect(adapter.remove).toHaveBeenCalledWith(pending);
   });
 
+  it.each([
+    ["clearAttachments", "one"],
+    ["clearAttachments", "two"],
+    ["reset", "one"],
+    ["reset", "two"],
+  ] as const)(
+    "%s attempts every pending cleanup after a synchronous failure from %s",
+    async (method, failedId) => {
+      const error = new Error("cleanup failed");
+      const removed: string[] = [];
+      const adapter: AttachmentAdapter = {
+        accept: "*",
+        add: async ({ file }) => makePendingAttachment(file.name, file.name),
+        remove: (attachment) => {
+          removed.push(attachment.id);
+          if (attachment.id === failedId) throw error;
+          return Promise.resolve();
+        },
+        send: vi.fn(),
+      };
+      composer.setAttachmentAdapter(adapter);
+
+      await composer.addAttachment(new File([""], "one"));
+      await composer.addAttachment(new File([""], "two"));
+      await composer.addAttachment(new File([""], "three"));
+
+      await expect(composer[method]()).rejects.toBe(error);
+      expect(composer.attachments).toHaveLength(0);
+      expect(removed).toEqual(["one", "two", "three"]);
+    },
+  );
+
+  it.each(["clearAttachments", "reset"] as const)(
+    "%s reports multiple rejected cleanups after starting every pending removal",
+    async (method) => {
+      const firstError = new Error("first cleanup failed");
+      const secondError = new Error("second cleanup failed");
+      const removed: string[] = [];
+      const adapter: AttachmentAdapter = {
+        accept: "*",
+        add: async ({ file }) => makePendingAttachment(file.name, file.name),
+        remove: async (attachment) => {
+          removed.push(attachment.id);
+          if (attachment.id === "one") throw firstError;
+          if (attachment.id === "two") throw secondError;
+        },
+        send: vi.fn(),
+      };
+      composer.setAttachmentAdapter(adapter);
+
+      await composer.addAttachment(new File([""], "one"));
+      await composer.addAttachment(new File([""], "two"));
+      await composer.addAttachment(new File([""], "three"));
+
+      await expect(composer[method]()).rejects.toBe(firstError);
+      expect(composer.attachments).toHaveLength(0);
+      expect(removed).toEqual(["one", "two", "three"]);
+    },
+  );
+
+  it.each(["clearAttachments", "reset"] as const)(
+    "%s skips complete attachments during cleanup",
+    async (method) => {
+      const removed: string[] = [];
+      const adapter: AttachmentAdapter = {
+        accept: "*",
+        add: async ({ file }) => makePendingAttachment(file.name, file.name),
+        remove: (attachment) => {
+          removed.push(attachment.id);
+          return Promise.resolve();
+        },
+        send: vi.fn(),
+      };
+      composer.setAttachmentAdapter(adapter);
+
+      await composer.addAttachment(new File([""], "pending"));
+      await composer.addAttachment({
+        id: "complete",
+        name: "complete.txt",
+        content: [],
+      });
+
+      await composer[method]();
+      expect(composer.attachments).toHaveLength(0);
+      expect(removed).toEqual(["pending"]);
+    },
+  );
+
   it("removeAttachment throws for unknown id", async () => {
     const adapter: AttachmentAdapter = {
       accept: "*",
