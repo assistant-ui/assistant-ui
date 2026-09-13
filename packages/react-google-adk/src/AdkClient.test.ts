@@ -407,14 +407,14 @@ describe("createAdkStream - direct mode", () => {
   });
 
   it.each([
-    ["false", false],
-    ["0", 0],
-    ["null", null],
-    ['"done"', "done"],
-    ["[1,2]", [1, 2]],
+    ["false", { result: false }],
+    ["0", { result: 0 }],
+    ["null", { result: null }],
+    ['"done"', { result: "done" }],
+    ["[1,2]", { results: [1, 2] }],
   ])(
     "wraps scalar or array tool result %s in direct mode",
-    async (content, result) => {
+    async (content, response) => {
       mockFetch.mockResolvedValueOnce(sseResponse(sseBody("")));
 
       const stream = createAdkStream({
@@ -439,9 +439,9 @@ describe("createAdkStream - direct mode", () => {
       }
 
       const body = JSON.parse(mockFetch.mock.calls[0]![1]?.body as string);
-      expect(body.newMessage.parts[0].functionResponse.response).toEqual({
-        result,
-      });
+      expect(body.newMessage.parts[0].functionResponse.response).toEqual(
+        response,
+      );
     },
   );
 

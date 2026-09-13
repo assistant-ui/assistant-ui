@@ -15,6 +15,7 @@ import {
 } from "@assistant-ui/core/internal";
 import { AdkEventAccumulator } from "./AdkEventAccumulator";
 import { contentToParts } from "./contentToParts";
+import { toAdkFunctionResponse } from "./toAdkFunctionResponse";
 import type {
   AdkEvent,
   AdkMessage,
@@ -363,7 +364,7 @@ export const messageToEvent = (msg: AdkMessage): AdkEvent => {
             functionResponse: {
               name: msg.name,
               id: msg.tool_call_id,
-              response,
+              response: toAdkFunctionResponse(response),
             },
           },
         ],
