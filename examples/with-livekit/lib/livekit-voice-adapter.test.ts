@@ -48,11 +48,19 @@ const start = (token: string | (() => Promise<string>) = "test") => {
   return { controller, session };
 };
 
+const deferred = () => {
+  let resolve!: () => void;
+  const promise = new Promise<void>((done) => {
+    resolve = done;
+  });
+  return { promise, resolve };
+};
+
 describe("LiveKitVoiceAdapter cleanup", () => {
   it.each(["token", "connect", "microphone"] as const)(
     "releases the room after cancellation during %s setup",
     async (stage) => {
-      const pending = Promise.withResolvers<void>();
+      const pending = deferred();
       if (stage === "connect") mock.connect.mockReturnValue(pending.promise);
       if (stage === "microphone")
         mock.microphone.mockReturnValue(pending.promise);
@@ -135,7 +143,7 @@ describe("LiveKitVoiceAdapter cleanup", () => {
   });
 
   it("ignores late tracks while cancelled setup is still pending", async () => {
-    const pending = Promise.withResolvers<void>();
+    const pending = deferred();
     mock.connect.mockReturnValue(pending.promise);
     vi.stubGlobal("document", { body: { appendChild: vi.fn() } });
     const track = {
