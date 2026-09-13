@@ -814,6 +814,16 @@ const useAssistantCloudEngagementEvents = (
           reporter.branchSwitched(payload.threadId, payload.messageId);
         },
       ),
+      aui.on(
+        { scope: "thread", event: "part.toolApprovalResponded" },
+        (payload) => {
+          reporter.toolApprovalResponded(payload.threadId, {
+            messageId: payload.messageId,
+            approvalId: payload.approvalId,
+            approved: payload.approved,
+          });
+        },
+      ),
       aui.on({ scope: "thread", event: "message.copied" }, (payload) => {
         reporter.messageCopied(payload.threadId, payload.messageId);
       }),

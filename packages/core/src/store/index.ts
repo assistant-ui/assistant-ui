@@ -32,6 +32,7 @@ export type {
   PartState,
   PartMethods,
   PartMeta,
+  PartEvents,
   PartClientSchema,
 } from "./scopes/part";
 export type {

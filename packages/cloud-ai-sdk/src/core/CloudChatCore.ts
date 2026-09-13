@@ -204,6 +204,35 @@ export class CloudChatCore {
     if (threadId) this.engagementReporter.runStopped(threadId);
   }
 
+  /**
+   * Reports the decision the SDK recorded, wherever that message now sits:
+   * the SDK answers a gate on what was the last message, keeps the first
+   * answer and ignores repeats, and may already have appended the automatic
+   * follow-up message by the time the caller reads the chat. The shared
+   * reporter dedupes by thread and approval id.
+   */
+  trackToolApprovalResponded(
+    threadId: string | null,
+    messages: UIMessage[],
+    decision: { id: string; approved: boolean },
+  ): void {
+    if (!threadId) return;
+    const message = messages.find((candidate) =>
+      candidate.parts.some(
+        (part) =>
+          "approval" in part &&
+          part.approval?.id === decision.id &&
+          part.approval.approved === decision.approved,
+      ),
+    );
+    if (!message) return;
+    this.engagementReporter.toolApprovalResponded(threadId, {
+      messageId: message.id,
+      approvalId: decision.id,
+      approved: decision.approved,
+    });
+  }
+
   trackRegenerated(threadId: string | null, messages: UIMessage[]): void {
     if (threadId) {
       this.engagementReporter.runStarted(threadId);

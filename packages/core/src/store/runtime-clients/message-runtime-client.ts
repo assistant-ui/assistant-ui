@@ -35,15 +35,24 @@ const MessageAttachmentClientByIndex = resource(
 const useMessagePartByIndex = ({
   runtime,
   index,
+  threadIdRef,
+  messageIdRef,
 }: {
   runtime: MessageRuntime;
   index: number;
+  threadIdRef: { current: string };
+  messageIdRef: { current: string };
 }) => {
   const partRuntime = useMemo(
     () => runtime.getMessagePartByIndex(index),
     [runtime, index],
   );
-  return useResource(MessagePartClient({ runtime: partRuntime }));
+  return useResource(
+    MessagePartClient({
+      runtime: partRuntime,
+      eventContext: { threadIdRef, messageIdRef },
+    }),
+  );
 };
 
 const MessagePartByIndex = resource(useMessagePartByIndex);
@@ -108,7 +117,7 @@ const useMessageClient = ({
         "toolCallId" in part && part.toolCallId != null
           ? `toolCallId-${part.toolCallId}`
           : `index-${idx}`,
-        MessagePartByIndex({ runtime, index: idx }),
+        MessagePartByIndex({ runtime, index: idx, threadIdRef, messageIdRef }),
         [runtime, idx],
       ),
     ),

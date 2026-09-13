@@ -24,11 +24,11 @@ Events are on whenever telemetry is on. `telemetry: { events: false }` keeps run
 | `error_shown` | An error is shown for a run. | The reason. Once per run. |
 | `speech_started` | The user plays a message aloud. | The message id. |
 | `voice_started` | The user starts voice input. | |
-| `tool_approved`, `tool_rejected` | Reserved for tool approval. No integration emits them yet. | |
+| `tool_approved`, `tool_rejected` | The user approves or rejects a tool approval gate. | The message id. Once per gate. |
 
 Every event carries the thread id, the message id when there is one, and the run id when known. `value` is a non negative integer in milliseconds or a count; `props` holds up to 1 KB of short strings, numbers and booleans.
 
-The assistant-ui runtimes read every event from their store, so any composer, message or thread action taken through the components or the primitives is counted, on React, React Native and Ink alike. `useCloudChat` records only `message_sent`, `run_stopped`, `message_regenerated`, `thread_switched` and `error_shown`.
+The assistant-ui runtimes read every event from their store, so any composer, message or thread action taken through the components or the primitives is counted, on React, React Native and Ink alike. `useCloudChat` records only `message_sent`, `run_stopped`, `message_regenerated`, `thread_switched`, `tool_approved`, `tool_rejected` and `error_shown`.
 
 ## Delivery
 

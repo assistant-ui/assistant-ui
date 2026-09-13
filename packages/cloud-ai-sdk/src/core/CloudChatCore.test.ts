@@ -369,6 +369,111 @@ describe("CloudChatCore", () => {
     expect(sendMessages).not.toHaveBeenCalled();
   });
 
+  describe("trackToolApprovalResponded", () => {
+    const message = (
+      id: string,
+      role: "user" | "assistant",
+      parts: unknown[],
+    ) => ({ id, role, parts }) as never;
+    const pending = () =>
+      message("assistant-1", "assistant", [
+        {
+          type: "tool-delete",
+          toolCallId: "tc-1",
+          state: "approval-requested",
+          input: {},
+          approval: { id: "approval-1" },
+        },
+      ]);
+    const answered = (approved: boolean) =>
+      message("assistant-1", "assistant", [
+        {
+          type: "tool-delete",
+          toolCallId: "tc-1",
+          state: "approval-responded",
+          input: {},
+          approval: { id: "approval-1", approved },
+        },
+      ]);
+
+    it.each([
+      [true, "tool_approved"],
+      [false, "tool_rejected"],
+    ] as const)(
+      "reports the decision the SDK recorded (approved=%s) without message text",
+      async (approved, kind) => {
+        const track = vi.fn();
+        const core = createCore({ cloud: { events: { track } } });
+        getResolvedRemoteIdMock.mockReturnValue("remote-assistant-1");
+
+        core.trackToolApprovalResponded("thread-1", [answered(approved)], {
+          id: "approval-1",
+          approved,
+        });
+
+        await vi.waitFor(() => expect(track).toHaveBeenCalledOnce());
+        expect(track).toHaveBeenCalledWith({
+          kind,
+          thread_id: "thread-1",
+          message_id: "remote-assistant-1",
+        });
+      },
+    );
+
+    it("ignores decisions the SDK did not record", async () => {
+      const track = vi.fn();
+      const core = createCore({ cloud: { events: { track } } });
+      const decision = { id: "approval-1", approved: false };
+      // No thread yet.
+      core.trackToolApprovalResponded(null, [answered(false)], decision);
+      // Unknown approval id.
+      core.trackToolApprovalResponded("thread-1", [answered(false)], {
+        ...decision,
+        id: "unknown",
+      });
+      // Still pending, or answered the other way.
+      core.trackToolApprovalResponded("thread-1", [pending()], decision);
+      core.trackToolApprovalResponded("thread-1", [answered(true)], decision);
+
+      await new Promise((resolve) => setTimeout(resolve, 0));
+      expect(track).not.toHaveBeenCalled();
+    });
+
+    it("reports a decision the SDK already followed up on", async () => {
+      // With sendAutomaticallyWhen the SDK schedules a follow-up submit right
+      // after recording the answer, so the answered message may no longer be
+      // last when the wrapper reads the chat.
+      const track = vi.fn();
+      const core = createCore({ cloud: { events: { track } } });
+      getResolvedRemoteIdMock.mockReturnValue("remote-assistant-1");
+      core.trackToolApprovalResponded(
+        "thread-1",
+        [
+          answered(true),
+          message("assistant-2", "assistant", [{ type: "text", text: "ok" }]),
+        ],
+        { id: "approval-1", approved: true },
+      );
+
+      await vi.waitFor(() => expect(track).toHaveBeenCalledOnce());
+      expect(track).toHaveBeenCalledWith({
+        kind: "tool_approved",
+        thread_id: "thread-1",
+        message_id: "remote-assistant-1",
+      });
+    });
+
+    it("reports each approval once", async () => {
+      const track = vi.fn();
+      const core = createCore({ cloud: { events: { track } } });
+      const decision = { id: "approval-1", approved: true };
+      core.trackToolApprovalResponded("thread-1", [answered(true)], decision);
+      core.trackToolApprovalResponded("thread-1", [answered(true)], decision);
+
+      await vi.waitFor(() => expect(track).toHaveBeenCalledOnce());
+    });
+  });
+
   it("resolves engagement message IDs through persistence", async () => {
     const track = vi.fn();
     const core = createCore({ cloud: { events: { track } } });

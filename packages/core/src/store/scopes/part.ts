@@ -51,7 +51,25 @@ export type PartMeta =
       query: { type: "index"; index: number };
     };
 
+export type PartEvents = {
+  /**
+   * The runtime accepted a response to a tool approval gate on this part.
+   * Fires for every accepted response, not once per gate: a runtime that
+   * records the decision asynchronously can accept a repeat before the gate
+   * reads as decided. Consumers that must count once per gate dedupe by
+   * `threadId` and `approvalId`.
+   */
+  "part.toolApprovalResponded": {
+    threadId: string;
+    messageId: string;
+    toolCallId: string;
+    approvalId: string;
+    approved: boolean;
+  };
+};
+
 export type PartClientSchema = {
   methods: PartMethods;
   meta: PartMeta;
+  events: PartEvents;
 };

@@ -296,8 +296,15 @@ export const useAuiRoot = ({
   const fields = useClientFields({ notifications, clientRef });
   const building = createClientObject(parent, fields);
 
+  // Stable across root renders: a fresh object here would mark the context
+  // changed on every render and cost every resource that reads it (any
+  // client calling useAssistantEmit) its useResources bailout.
+  const tapContext = useMemo(
+    () => ({ clientRef, emit: notifications.emit }),
+    [clientRef, notifications],
+  );
   const accessors = useAssistantTapContextProvider(
-    { clientRef, emit: notifications.emit },
+    tapContext,
     function WithTapContext() {
       return useAssistantContextProvider(
         building,

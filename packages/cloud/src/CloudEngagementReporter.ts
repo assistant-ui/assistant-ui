@@ -60,6 +60,7 @@ export class CloudEngagementReporter {
   private readonly runEndedAt = new Map<string, number>();
   private readonly shownErrors = new Set<string>();
   private readonly shownSuggestions = new Set<string>();
+  private readonly reportedApprovals = new Set<string>();
 
   private readonly getCloud: () => AssistantCloud;
   private readonly resolveIds: EngagementIdResolver;
@@ -184,6 +185,30 @@ export class CloudEngagementReporter {
 
   public messageCopied(threadId: string, messageId?: string): void {
     this.track("message_copied", threadId, messageId);
+  }
+
+  /**
+   * Reported once per approval gate. An integration may observe the same
+   * accepted decision more than once (a runtime that records it
+   * asynchronously accepts a repeat before its state settles), so the first
+   * report of a thread's approval id wins.
+   */
+  public toolApprovalResponded(
+    threadId: string,
+    init: {
+      messageId?: string | undefined;
+      approvalId: string;
+      approved: boolean;
+    },
+  ): void {
+    const approvalKey = `${threadId}:${init.approvalId}`;
+    if (this.reportedApprovals.has(approvalKey)) return;
+    mark(this.reportedApprovals, approvalKey);
+    this.track(
+      init.approved ? "tool_approved" : "tool_rejected",
+      threadId,
+      init.messageId,
+    );
   }
 
   /** Reported only for a thread the cloud already knows. */

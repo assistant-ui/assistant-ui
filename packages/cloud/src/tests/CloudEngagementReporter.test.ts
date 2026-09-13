@@ -125,6 +125,29 @@ describe("CloudEngagementReporter", () => {
     });
   });
 
+  it("reports each approval gate once per thread, keyed by thread and approval id", async () => {
+    const { cloud, track } = createCloud();
+    const reporter = new CloudEngagementReporter(cloud);
+
+    reporter.toolApprovalResponded("t1", {
+      messageId: "m1",
+      approvalId: "a1",
+      approved: true,
+    });
+    // A repeat of the same gate, even with the opposite decision, is dropped.
+    reporter.toolApprovalResponded("t1", { approvalId: "a1", approved: false });
+    // A second gate on the thread and the same id on another thread report.
+    reporter.toolApprovalResponded("t1", { approvalId: "a2", approved: false });
+    reporter.toolApprovalResponded("t2", { approvalId: "a1", approved: true });
+    await flush();
+
+    expect(track.mock.calls.map(([event]) => event)).toEqual([
+      { kind: "tool_approved", thread_id: "t1", message_id: "m1" },
+      { kind: "tool_rejected", thread_id: "t1" },
+      { kind: "tool_approved", thread_id: "t2" },
+    ]);
+  });
+
   it("keeps the state of the most recently touched threads only", async () => {
     const { cloud, track } = createCloud();
     const reporter = new CloudEngagementReporter(cloud);

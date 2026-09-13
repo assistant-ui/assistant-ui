@@ -11,7 +11,7 @@ description: Connect the AI SDK runtime to the cloud for persisted threads, titl
 2. **Persistence.** Every message is stored as it finishes streaming, in the `ai-sdk/v6` format, and reloaded when the thread is opened again. Edits and regenerations keep their branches.
 3. **Titles.** After the first response, the project's thread title feature names the thread.
 4. **Run reports.** Each response is reported with its status, outcome, error, duration, time to first token, steps and tool calls, plus whatever model, usage and trace id the route puts in the message metadata.
-5. **Engagement events.** Sends, edits, stops, regenerations, copies, branch switches, suggestions, attachments, thread switches, speech, voice and shown errors, recorded from the runtime's store.
+5. **Engagement events.** Sends, edits, stops, regenerations, copies, branch switches, suggestions, attachments, thread switches, tool approvals, speech, voice and shown errors, recorded from the runtime's store.
 6. **Feedback and attachments.** The feedback adapter defaults to cloud message feedback and the attachment adapter to cloud uploads.
 
 A visited thread stays mounted, so a run in progress continues after the user switches threads and is still stored and reported when it finishes.

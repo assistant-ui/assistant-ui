@@ -19,6 +19,7 @@ import {
 } from "@assistant-ui/core/react";
 import type { HttpAgent } from "@ag-ui/client";
 import { z } from "zod";
+import { useAui } from "@assistant-ui/store";
 import { useAgUiRuntime } from "./useAgUiRuntime";
 import {
   useAgUiInterrupts,
@@ -152,6 +153,32 @@ const resumeOf = (runAgent: ReturnType<typeof vi.fn>) =>
 afterEach(() => cleanup());
 
 describe("useAgUiRuntime tool approvals", () => {
+  it("emits the approval decision through the store", async () => {
+    let aui!: ReturnType<typeof useAui>;
+    const Consumer = () => {
+      aui = useAui();
+      return null;
+    };
+    const { runtime } = await gatedThread([GATE], { children: <Consumer /> });
+    const listener = vi.fn();
+    aui.on({ scope: "thread", event: "part.toolApprovalResponded" }, listener);
+    const messageId = runtime.current.thread.getState().messages.at(-1)!.id;
+    const threadId = aui.threadListItem().getState().id;
+    await act(async () => {
+      await aui.thread
+        .message({ id: messageId })
+        .part({ toolCallId: "tc-1" })
+        .respondToToolApproval({ approved: true });
+    });
+    expect(listener).toHaveBeenCalledExactlyOnceWith({
+      threadId,
+      messageId,
+      approved: true,
+      toolCallId: "tc-1",
+      approvalId: "int-1",
+    });
+  });
+
   it("gates the tool call a tool_call interrupt names", async () => {
     const { runtime } = await gatedThread();
 

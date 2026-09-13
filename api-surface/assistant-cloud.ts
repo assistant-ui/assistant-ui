@@ -466,6 +466,11 @@ declare class CloudEngagementReporter {
   speechStarted(threadId: string, messageId?: string): void;
   branchSwitched(threadId: string, messageId?: string): void;
   messageCopied(threadId: string, messageId?: string): void;
+  toolApprovalResponded(threadId: string, init: {
+    messageId?: string | undefined;
+    approvalId: string;
+    approved: boolean;
+  }): void;
   threadSwitched(threadId: string): void;
 }
 

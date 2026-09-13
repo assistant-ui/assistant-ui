@@ -82,6 +82,18 @@ export function useCloudChat(
     },
     [chat, core, threads.threadId],
   );
+  const addToolApprovalResponse = useCallback(
+    async (args: Parameters<typeof chat.addToolApprovalResponse>[0]) => {
+      await chat.addToolApprovalResponse(args);
+      // Reported from the live chat once the SDK has recorded the decision,
+      // not from this render's snapshot.
+      core.trackToolApprovalResponded(threads.threadId, activeChat.messages, {
+        id: args.id,
+        approved: args.approved,
+      });
+    },
+    [activeChat, chat, core, threads.threadId],
+  );
   const feedback = useCallback(
     async (messageId: string, type: "positive" | "negative") => {
       const threadId = threads.threadId;
@@ -100,7 +112,14 @@ export function useCloudChat(
     [cloud, core.persistence, threads.threadId],
   );
 
-  return { ...chat, stop, regenerate, threads, feedback };
+  return {
+    ...chat,
+    stop,
+    regenerate,
+    addToolApprovalResponse,
+    threads,
+    feedback,
+  };
 }
 
 function useResolvedCloud(
