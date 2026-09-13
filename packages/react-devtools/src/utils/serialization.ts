@@ -8,12 +8,16 @@ const setOwnProperty = (
   key: string,
   value: unknown,
 ): void => {
-  Object.defineProperty(target, key, {
-    value,
-    enumerable: true,
-    configurable: true,
-    writable: true,
-  });
+  if (key === "__proto__") {
+    Object.defineProperty(target, key, {
+      value,
+      enumerable: true,
+      configurable: true,
+      writable: true,
+    });
+  } else {
+    target[key] = value;
+  }
 };
 
 export const sanitizeForMessage = (
