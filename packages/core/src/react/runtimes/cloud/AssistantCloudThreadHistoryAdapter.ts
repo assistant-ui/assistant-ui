@@ -825,12 +825,14 @@ const useAssistantCloudEngagementEvents = (
               payload.threadId,
               payload.messageId,
               payload.toolCallId,
+              payload.toolName,
             );
           } else {
             reporter.toolRejected(
               payload.threadId,
               payload.messageId,
               payload.toolCallId,
+              payload.toolName,
             );
           }
         },

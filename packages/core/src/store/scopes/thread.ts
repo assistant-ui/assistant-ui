@@ -148,6 +148,7 @@ export type ThreadEvents = {
     threadId: string;
     messageId: string;
     toolCallId: string;
+    toolName: string;
     approved: boolean;
   };
   /**

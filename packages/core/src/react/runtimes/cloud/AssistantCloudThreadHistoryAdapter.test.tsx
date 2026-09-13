@@ -182,12 +182,14 @@ describe("useAssistantCloudThreadHistoryAdapter", () => {
       threadId: "thread-1",
       messageId: "local-message-1",
       toolCallId: "tool-approved",
+      toolName: "send_email",
       approved: true,
     });
     listeners.get("thread.toolApprovalAnswered")!({
       threadId: "thread-1",
       messageId: "local-message-1",
       toolCallId: "tool-rejected",
+      toolName: "delete_account",
       approved: false,
     });
     listeners.get("composer.attachmentAdd")!({
@@ -252,12 +254,12 @@ describe("useAssistantCloudThreadHistoryAdapter", () => {
         expect.objectContaining({
           kind: "tool_approved",
           message_id: "remote-message-1",
-          props: { toolCallId: "tool-approved" },
+          props: { toolCallId: "tool-approved", toolName: "send_email" },
         }),
         expect.objectContaining({
           kind: "tool_rejected",
           message_id: "remote-message-1",
-          props: { toolCallId: "tool-rejected" },
+          props: { toolCallId: "tool-rejected", toolName: "delete_account" },
         }),
         expect.objectContaining({
           kind: "attachment_added",

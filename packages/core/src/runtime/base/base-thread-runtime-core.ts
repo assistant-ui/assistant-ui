@@ -233,11 +233,13 @@ export abstract class BaseThreadRuntimeCore
   protected _notifyToolApprovalAnswered(
     messageId: string,
     toolCallId: string,
+    toolName: string,
     approved: boolean,
   ) {
     this._notifyEventSubscribers("toolApprovalAnswered", {
       messageId,
       toolCallId,
+      toolName,
       approved,
     });
   }

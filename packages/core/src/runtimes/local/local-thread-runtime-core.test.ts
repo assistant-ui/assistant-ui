@@ -443,6 +443,7 @@ describe("LocalThreadRuntimeCore tool approvals", () => {
     expect(answered).toHaveBeenCalledWith({
       messageId,
       toolCallId: "call-send_email",
+      toolName: "send_email",
       approved: false,
     });
   });

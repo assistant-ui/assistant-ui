@@ -981,6 +981,7 @@ export class ExternalStoreThreadRuntimeCore
             this._notifyToolApprovalAnswered(
               message.id,
               toolCall.toolCallId,
+              toolCall.toolName,
               options.approved,
             );
           }

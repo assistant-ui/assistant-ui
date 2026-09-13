@@ -15,7 +15,6 @@ import {
 } from "../../../runtime/utils/thread-message-like";
 import type { CloudMessage } from "assistant-cloud";
 import { isJSONValue } from "../../../utils/json/is-json";
-import { parseDataUrl } from "../../../utils/data-url";
 import type {
   ReadonlyJSONObject,
   ReadonlyJSONValue,
@@ -90,6 +89,13 @@ type AuiV0MessagePart =
       readonly data: ReadonlyJSONValue;
     }
   | {
+      readonly type: "audio";
+      readonly audio: {
+        readonly data: string;
+        readonly format: "mp3" | "wav";
+      };
+    }
+  | {
       readonly type: "generative-ui";
       readonly spec: ReadonlyJSONObject;
       readonly id?: string;
@@ -155,6 +161,8 @@ type AuiV0Attachment = {
 };
 
 type AuiV0Message = {
+  readonly id?: string;
+  readonly createdAt?: string;
   readonly role: "assistant" | "user" | "system";
   readonly status?: MessageStatus;
   readonly content: readonly AuiV0MessagePart[];
@@ -210,9 +218,8 @@ const encodeAttachmentPart = (
 
     case "audio":
       return {
-        type: "file",
-        data: toAudioDataUrl(part.audio.data, part.audio.format),
-        mimeType: `audio/${part.audio.format}`,
+        type: "audio",
+        audio: { data: part.audio.data, format: part.audio.format },
       };
 
     case "data": {
@@ -359,7 +366,7 @@ export function auiV0Encode(message: ThreadMessage): AuiV0Message {
               ? { parentId: part.parentId }
               : undefined),
             ...(part.messages !== undefined
-              ? { messages: part.messages.map(auiV0Encode) }
+              ? { messages: part.messages.map(encodeNestedMessage) }
               : undefined),
           };
         }
@@ -392,9 +399,8 @@ export function auiV0Encode(message: ThreadMessage): AuiV0Message {
 
         case "audio":
           return {
-            type: "file",
-            data: toAudioDataUrl(part.audio.data, part.audio.format),
-            mimeType: `audio/${part.audio.format}`,
+            type: "audio",
+            audio: { data: part.audio.data, format: part.audio.format },
           };
 
         case "generative-ui":
@@ -427,9 +433,9 @@ export function auiV0Decode(
   const payload = cloudMessage.content as unknown as AuiV0Message;
   const message = decodeAuiV0Message(
     {
+      ...payload,
       id: cloudMessage.id,
       createdAt: cloudMessage.created_at,
-      ...payload,
     },
     cloudMessage.id,
   );
@@ -440,22 +446,15 @@ export function auiV0Decode(
   };
 }
 
-const toAudioDataUrl = (data: string, format: "mp3" | "wav"): string =>
-  `data:audio/${format};base64,${parseDataUrl(data)?.data ?? data}`;
-
-const decodeAttachmentPart = (part: AuiV0AttachmentPart) => {
-  if (part.type !== "audio") return part;
-  return {
-    type: "file" as const,
-    data: toAudioDataUrl(part.audio.data, part.audio.format),
-    mimeType: `audio/${part.audio.format}`,
-  };
-};
+const encodeNestedMessage = (message: ThreadMessage): AuiV0Message => ({
+  ...auiV0Encode(message),
+  id: message.id,
+  createdAt: message.createdAt.toISOString(),
+});
 
 const decodeAuiV0Message = (
-  payload: AuiV0Message & {
-    readonly id?: string;
-    readonly createdAt?: Date;
+  payload: Omit<AuiV0Message, "createdAt"> & {
+    readonly createdAt?: Date | undefined;
   },
   fallbackId: string,
 ): ThreadMessage =>
@@ -469,20 +468,19 @@ const decodeAuiV0Message = (
           ...part,
           messages: part.messages.map((message, nestedIndex) =>
             decodeAuiV0Message(
-              message,
-              `${fallbackId}-${part.toolCallId}-${index}-${nestedIndex}`,
+              {
+                ...message,
+                createdAt:
+                  message.createdAt !== undefined
+                    ? new Date(message.createdAt)
+                    : payload.createdAt,
+              },
+              message.id ??
+                `${fallbackId}-${part.toolCallId}-${index}-${nestedIndex}`,
             ),
           ),
         };
       }),
-      ...(payload.attachments !== undefined
-        ? {
-            attachments: payload.attachments.map((attachment) => ({
-              ...attachment,
-              content: attachment.content.map(decodeAttachmentPart),
-            })),
-          }
-        : undefined),
     } as ThreadMessageLike,
     fallbackId,
     { type: "complete", reason: "unknown" },

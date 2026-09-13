@@ -1150,6 +1150,7 @@ describe("ExternalStoreThreadRuntimeCore adapter contract", () => {
       expect(answered).toHaveBeenCalledWith({
         messageId: "assistant-1",
         toolCallId: "tool-1",
+        toolName: "review",
         approved: true,
       });
     });

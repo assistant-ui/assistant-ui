@@ -354,9 +354,8 @@ describe("auiV0Encode", () => {
         filename: "shot.png",
       },
       {
-        type: "file",
-        data: "data:audio/mp3;base64,SUQzAw==",
-        mimeType: "audio/mp3",
+        type: "audio",
+        audio: { data: "data:audio/mp3;base64,SUQzAw==", format: "mp3" },
       },
       { type: "data", name: "telemetry", data: { runs: 3 } },
     ]);
@@ -793,6 +792,8 @@ describe("auiV0Decode", () => {
         },
         messages: [
           {
+            id: "nested",
+            createdAt: "2026-03-15T00:00:00.000Z",
             role: "assistant",
             status: { type: "complete", reason: "stop" },
             metadata: {
@@ -868,6 +869,8 @@ describe("auiV0Decode", () => {
         },
         messages: [
           expect.objectContaining({
+            id: "nested",
+            createdAt: new Date("2026-03-15T00:00:00.000Z"),
             role: "assistant",
             content: [
               { type: "text", text: "nested", parentId: "nested-parent" },
@@ -884,7 +887,7 @@ describe("auiV0Decode", () => {
     ]);
   });
 
-  it("converts audio message and attachment parts to files", () => {
+  it("keeps audio message and attachment parts as audio", () => {
     const content = auiV0Encode({
       id: "local",
       createdAt: new Date("2026-03-15T00:00:00.000Z"),
@@ -913,17 +916,12 @@ describe("auiV0Decode", () => {
     });
 
     expect(content.content).toEqual([
-      {
-        type: "file",
-        data: "data:audio/mp3;base64,SUQzAw==",
-        mimeType: "audio/mp3",
-      },
+      { type: "audio", audio: { data: "SUQzAw==", format: "mp3" } },
     ]);
     expect(content.attachments?.[0]?.content).toEqual([
       {
-        type: "file",
-        data: "data:audio/wav;base64,UklGRg==",
-        mimeType: "audio/wav",
+        type: "audio",
+        audio: { data: "data:audio/wav;base64,UklGRg==", format: "wav" },
       },
     ]);
 

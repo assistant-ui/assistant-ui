@@ -59,21 +59,21 @@ describe("CloudEngagementReporter", () => {
       }),
     );
 
-    reporter.toolApproved("t1", "m1", "tool-1");
-    reporter.toolRejected("t1", "m2", "tool-2");
+    reporter.toolApproved("t1", "m1", "tool-1", "send_email");
+    reporter.toolRejected("t1", "m2", "tool-2", "delete_account");
     await flush();
 
     expect(track).toHaveBeenNthCalledWith(1, {
       kind: "tool_approved",
       thread_id: "remote-t1",
       message_id: "remote-m1",
-      props: { toolCallId: "tool-1" },
+      props: { toolCallId: "tool-1", toolName: "send_email" },
     });
     expect(track).toHaveBeenNthCalledWith(2, {
       kind: "tool_rejected",
       thread_id: "remote-t1",
       message_id: "remote-m2",
-      props: { toolCallId: "tool-2" },
+      props: { toolCallId: "tool-2", toolName: "delete_account" },
     });
   });
 

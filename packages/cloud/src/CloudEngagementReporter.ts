@@ -190,9 +190,10 @@ export class CloudEngagementReporter {
     threadId: string,
     messageId: string,
     toolCallId: string,
+    toolName: string,
   ): void {
     this.track("tool_approved", threadId, messageId, {
-      props: { toolCallId },
+      props: { toolCallId, toolName },
     });
   }
 
@@ -200,9 +201,10 @@ export class CloudEngagementReporter {
     threadId: string,
     messageId: string,
     toolCallId: string,
+    toolName: string,
   ): void {
     this.track("tool_rejected", threadId, messageId, {
-      props: { toolCallId },
+      props: { toolCallId, toolName },
     });
   }
 
