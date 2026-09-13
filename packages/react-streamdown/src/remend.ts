@@ -7,6 +7,7 @@ const TAB = 9;
 const CR = 13;
 const BACKSLASH = 92;
 const DOLLAR = 36;
+const GT = 62;
 
 const isSpace = (c: number) => c === SPACE || c === TAB || c === CR;
 
@@ -37,8 +38,13 @@ function closeCodeSpan(
   return -1;
 }
 
-const isEscaped = (text: string, at: number) =>
-  at > 0 && text.charCodeAt(at - 1) === BACKSLASH;
+function isEscaped(text: string, at: number): boolean {
+  let backslashes = 0;
+  for (let i = at - 1; i >= 0 && text.charCodeAt(i) === BACKSLASH; i -= 1) {
+    backslashes += 1;
+  }
+  return backslashes % 2 === 1;
+}
 
 function onlyWhitespace(text: string, from: number, to: number): boolean {
   for (let i = from; i < to; i += 1) {
@@ -58,7 +64,9 @@ type BlockScan = {
  * fences and closed `$$` blocks as flat start/end pairs. A range always starts
  * at a line start because remend drops a single trailing space from its input,
  * so a cut inside a line would lose the space before the range; that rule also
- * keeps a `$$` inside a backtick span at a line start out of the set. Backtick
+ * keeps a `$$` inside a backtick span at a line start out of the set. A line
+ * start may carry blockquote markers, the one container prefix
+ * `normalizeMathDelimiters` emits around display math. Backtick
  * spans are skipped while scanning for `$$`; an unclosed span carries into the
  * following lines of its paragraph, and a blank line, a fence marker, or a
  * line-start `$$` ends it the way they end a paragraph. An escaped backtick
@@ -83,7 +91,11 @@ function scanBlocks(text: string): BlockScan {
     if (lineEnd === -1) lineEnd = n;
 
     let i = lineStart;
-    while (i < lineEnd && isSpace(text.charCodeAt(i))) i += 1;
+    while (i < lineEnd) {
+      const c = text.charCodeAt(i);
+      if (!isSpace(c) && c !== GT) break;
+      i += 1;
+    }
 
     const first = i < lineEnd ? text.charCodeAt(i) : -1;
     let marker = false;
@@ -219,7 +231,7 @@ export function tailBoundedRemend(
   options?: RemendOptions,
 ): string {
   const { boundary: start, protectedRanges } = scanBlocks(text);
-  if (start <= 0) return remend(text, options);
+  if (start <= 0 && protectedRanges[0] !== 0) return remend(text, options);
 
   const prefixOptions = { ...options, ...COMPLETION_OFF };
   let out = "";

@@ -177,6 +177,28 @@ describe("tailBoundedRemend", () => {
     expect(tailBoundedRemend(text)).toContain("x\\~y");
   });
 
+  it("opens a code span at a backtick after an escaped backslash", () => {
+    const text = "x \\\\` $$ ` y\n\n$$\nc~d\n$$\n\nTail";
+    expect(findRemendWindowStart(text)).toBe(text.indexOf("Tail"));
+    expect(tailBoundedRemend(text)).toBe(text);
+  });
+
+  it.each([
+    ["tilde fence", "~~~r\nlm(y~x)\n~~~"],
+    ["display math", "$$\na~b\n$$"],
+    ["blockquoted display math", "> $$\n> a~b\n> $$"],
+    ["blockquoted tilde fence", "> ~~~r\n> lm(y~x)\n> ~~~"],
+  ])("leaves a %s untouched when it is the whole message", (_, text) => {
+    expect(tailBoundedRemend(text)).toBe(text);
+    expect(tailBoundedRemend(`${text}\n\nTail`)).toBe(`${text}\n\nTail`);
+  });
+
+  it("repairs text that follows a whole-message fence without a blank line", () => {
+    expect(tailBoundedRemend("~~~r\nlm(y~x)\n~~~\nafter **bold")).toBe(
+      "~~~r\nlm(y~x)\n~~~\nafter **bold**",
+    );
+  });
+
   it("reads a backtick run with a backtick in its info string as inline code", () => {
     const text = "```code```\n\n20~25\n\nTail";
     expect(findRemendWindowStart(text)).toBe(text.indexOf("Tail"));
