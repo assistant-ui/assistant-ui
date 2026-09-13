@@ -1,14 +1,22 @@
 import type {
+  GenerativeUISpec,
   MessageStatus,
   SourceProviderMetadata,
   ThreadMessage,
+  ToolCallMessagePartMcpMetadata,
+  ToolCallTiming,
   ToolApprovalDisplay,
   ToolApprovalOption,
+  ReasoningMessagePart,
 } from "../../../types/message";
 import type { CompleteAttachment } from "../../../types/attachment";
-import { fromThreadMessageLike } from "../../../runtime/utils/thread-message-like";
+import {
+  fromThreadMessageLike,
+  type ThreadMessageLike,
+} from "../../../runtime/utils/thread-message-like";
 import type { CloudMessage } from "assistant-cloud";
 import { isJSONValue } from "../../../utils/json/is-json";
+import { parseDataUrl } from "../../../utils/data-url";
 import type {
   ReadonlyJSONObject,
   ReadonlyJSONValue,
@@ -33,11 +41,14 @@ type AuiV0MessagePart =
   | {
       readonly type: "text";
       readonly text: string;
+      readonly parentId?: string;
     }
   | {
       readonly type: "reasoning";
       readonly text: string;
       readonly unstable_summary?: string;
+      readonly providerMetadata?: ReasoningMessagePart["providerMetadata"];
+      readonly parentId?: string;
     }
   | {
       readonly type: "source";
@@ -46,6 +57,7 @@ type AuiV0MessagePart =
       readonly url: string;
       readonly title?: string;
       readonly providerMetadata?: SourceProviderMetadata;
+      readonly parentId?: string;
     }
   | {
       readonly type: "source";
@@ -55,25 +67,10 @@ type AuiV0MessagePart =
       readonly mediaType: string;
       readonly filename?: string;
       readonly providerMetadata?: SourceProviderMetadata;
+      readonly parentId?: string;
     }
-  | {
-      readonly type: "tool-call";
-      readonly toolCallId: string;
-      readonly toolName: string;
-      readonly args: ReadonlyJSONObject;
-      readonly result?: ReadonlyJSONValue;
-      readonly isError?: true;
-      readonly approval?: AuiV0ToolApproval;
-    }
-  | {
-      readonly type: "tool-call";
-      readonly toolCallId: string;
-      readonly toolName: string;
-      readonly argsText: string;
-      readonly result?: ReadonlyJSONValue;
-      readonly isError?: true;
-      readonly approval?: AuiV0ToolApproval;
-    }
+  | (AuiV0ToolCallPart &
+      ({ readonly args: ReadonlyJSONObject } | { readonly argsText: string }))
   | {
       readonly type: "image";
       readonly image: string;
@@ -84,17 +81,39 @@ type AuiV0MessagePart =
       readonly mimeType: string;
       readonly filename?: string;
       readonly sourceType?: "url" | "id";
+      readonly parentId?: string;
     }
   | {
       readonly type: "data";
       readonly name: string;
       readonly data: ReadonlyJSONValue;
+    }
+  | {
+      readonly type: "generative-ui";
+      readonly spec: GenerativeUISpec;
+      readonly id?: string;
+      readonly parentId?: string;
     };
+
+type AuiV0ToolCallPart = {
+  readonly type: "tool-call";
+  readonly toolCallId: string;
+  readonly toolName: string;
+  readonly result?: ReadonlyJSONValue;
+  readonly isError?: true;
+  readonly interrupt?: { readonly type: "human"; readonly payload: unknown };
+  readonly timing?: ToolCallTiming;
+  readonly mcp?: ToolCallMessagePartMcpMetadata;
+  readonly approval?: AuiV0ToolApproval;
+  readonly parentId?: string;
+  readonly messages?: readonly AuiV0Message[];
+};
 
 type AuiV0AttachmentPart =
   | {
       readonly type: "text";
       readonly text: string;
+      readonly parentId?: string;
     }
   | {
       readonly type: "image";
@@ -107,6 +126,7 @@ type AuiV0AttachmentPart =
       readonly mimeType: string;
       readonly filename?: string;
       readonly sourceType?: "url" | "id";
+      readonly parentId?: string;
     }
   | {
       readonly type: "audio";
@@ -155,7 +175,13 @@ const encodeAttachmentPart = (
   const type = part.type;
   switch (type) {
     case "text":
-      return { type: "text", text: part.text };
+      return {
+        type: "text",
+        text: part.text,
+        ...(part.parentId !== undefined
+          ? { parentId: part.parentId }
+          : undefined),
+      };
 
     case "image":
       return {
@@ -173,12 +199,16 @@ const encodeAttachmentPart = (
         ...(part.sourceType != null
           ? { sourceType: part.sourceType }
           : undefined),
+        ...(part.parentId !== undefined
+          ? { parentId: part.parentId }
+          : undefined),
       };
 
     case "audio":
       return {
-        type: "audio",
-        audio: { data: part.audio.data, format: part.audio.format },
+        type: "file",
+        data: toAudioDataUrl(part.audio.data, part.audio.format),
+        mimeType: `audio/${part.audio.format}`,
       };
 
     case "data": {
@@ -234,7 +264,13 @@ export function auiV0Encode(message: ThreadMessage): AuiV0Message {
       const type = part.type;
       switch (type) {
         case "text":
-          return { type: "text", text: part.text };
+          return {
+            type: "text",
+            text: part.text,
+            ...(part.parentId !== undefined
+              ? { parentId: part.parentId }
+              : undefined),
+          };
 
         case "reasoning":
           return {
@@ -242,6 +278,12 @@ export function auiV0Encode(message: ThreadMessage): AuiV0Message {
             text: part.text,
             ...(part.unstable_summary !== undefined
               ? { unstable_summary: part.unstable_summary }
+              : undefined),
+            ...(part.providerMetadata !== undefined
+              ? { providerMetadata: part.providerMetadata }
+              : undefined),
+            ...(part.parentId !== undefined
+              ? { parentId: part.parentId }
               : undefined),
           };
 
@@ -255,6 +297,9 @@ export function auiV0Encode(message: ThreadMessage): AuiV0Message {
               ...(part.title != null ? { title: part.title } : undefined),
               ...(part.providerMetadata != null
                 ? { providerMetadata: part.providerMetadata }
+                : undefined),
+              ...(part.parentId !== undefined
+                ? { parentId: part.parentId }
                 : undefined),
             };
           }
@@ -270,6 +315,9 @@ export function auiV0Encode(message: ThreadMessage): AuiV0Message {
               : undefined),
             ...(part.providerMetadata != null
               ? { providerMetadata: part.providerMetadata }
+              : undefined),
+            ...(part.parentId !== undefined
+              ? { parentId: part.parentId }
               : undefined),
           };
 
@@ -290,7 +338,20 @@ export function auiV0Encode(message: ThreadMessage): AuiV0Message {
               ? { result: part.result as ReadonlyJSONValue }
               : undefined),
             ...(part.isError ? { isError: true } : undefined),
+            ...(part.interrupt !== undefined
+              ? { interrupt: part.interrupt }
+              : undefined),
+            ...(part.timing !== undefined
+              ? { timing: part.timing }
+              : undefined),
+            ...(part.mcp !== undefined ? { mcp: part.mcp } : undefined),
             ...(part.approval ? { approval: part.approval } : undefined),
+            ...(part.parentId !== undefined
+              ? { parentId: part.parentId }
+              : undefined),
+            ...(part.messages !== undefined
+              ? { messages: part.messages.map(auiV0Encode) }
+              : undefined),
           };
         }
 
@@ -304,6 +365,9 @@ export function auiV0Encode(message: ThreadMessage): AuiV0Message {
             mimeType: part.mimeType,
             ...(part.filename ? { filename: part.filename } : undefined),
             ...(part.sourceType ? { sourceType: part.sourceType } : undefined),
+            ...(part.parentId !== undefined
+              ? { parentId: part.parentId }
+              : undefined),
           };
 
         case "data": {
@@ -317,8 +381,25 @@ export function auiV0Encode(message: ThreadMessage): AuiV0Message {
           };
         }
 
+        case "audio":
+          return {
+            type: "file",
+            data: toAudioDataUrl(part.audio.data, part.audio.format),
+            mimeType: `audio/${part.audio.format}`,
+          };
+
+        case "generative-ui":
+          return {
+            type: "generative-ui",
+            spec: part.spec,
+            ...(part.id !== undefined ? { id: part.id } : undefined),
+            ...(part.parentId !== undefined
+              ? { parentId: part.parentId }
+              : undefined),
+          };
+
         default: {
-          const unhandledType: "audio" | "generative-ui" = type;
+          const unhandledType: never = type;
           throw new Error(
             `Message part type not supported by aui/v0: ${unhandledType}`,
           );
@@ -335,14 +416,13 @@ export function auiV0Decode(
   cloudMessage: CloudMessage & { format: "aui/v0" },
 ): ExportedMessageRepositoryItem {
   const payload = cloudMessage.content as unknown as AuiV0Message;
-  const message = fromThreadMessageLike(
+  const message = decodeAuiV0Message(
     {
       id: cloudMessage.id,
       createdAt: cloudMessage.created_at,
       ...payload,
     },
     cloudMessage.id,
-    { type: "complete", reason: "unknown" },
   );
 
   return {
@@ -350,3 +430,51 @@ export function auiV0Decode(
     message,
   };
 }
+
+const toAudioDataUrl = (data: string, format: "mp3" | "wav"): string =>
+  `data:audio/${format};base64,${parseDataUrl(data)?.data ?? data}`;
+
+const decodeAttachmentPart = (part: AuiV0AttachmentPart) => {
+  if (part.type !== "audio") return part;
+  return {
+    type: "file" as const,
+    data: toAudioDataUrl(part.audio.data, part.audio.format),
+    mimeType: `audio/${part.audio.format}`,
+  };
+};
+
+const decodeAuiV0Message = (
+  payload: AuiV0Message & {
+    readonly id?: string;
+    readonly createdAt?: Date;
+  },
+  fallbackId: string,
+): ThreadMessage =>
+  fromThreadMessageLike(
+    {
+      ...payload,
+      content: payload.content.map((part, index) => {
+        if (part.type !== "tool-call" || part.messages === undefined)
+          return part;
+        return {
+          ...part,
+          messages: part.messages.map((message, nestedIndex) =>
+            decodeAuiV0Message(
+              message,
+              `${fallbackId}-${part.toolCallId}-${index}-${nestedIndex}`,
+            ),
+          ),
+        };
+      }),
+      ...(payload.attachments !== undefined
+        ? {
+            attachments: payload.attachments.map((attachment) => ({
+              ...attachment,
+              content: attachment.content.map(decodeAttachmentPart),
+            })),
+          }
+        : undefined),
+    } as ThreadMessageLike,
+    fallbackId,
+    { type: "complete", reason: "unknown" },
+  );
