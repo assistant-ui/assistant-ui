@@ -20,7 +20,7 @@ export const composerInputDisabled = (s: AssistantState): boolean =>
   s.thread.isDisabled || s.composer.dictation?.inputDisabled === true;
 
 export const actionBarEditDisabled = (s: AssistantState): boolean =>
-  s.composer.isEditing || !s.thread.capabilities.edit;
+  s.composer.isEditing || s.optional.thread?.capabilities.edit === false;
 
 export const actionBarReloadDisabled = (s: AssistantState): boolean =>
   s.thread.isRunning ||

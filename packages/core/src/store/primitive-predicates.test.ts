@@ -196,24 +196,32 @@ describe("primitive predicates", () => {
       ),
     ).toBe(true);
 
-    const editable = { capabilities: { edit: true } };
+    const editable = { optional: { thread: { capabilities: { edit: true } } } };
     expect(
       actionBarEditDisabled(
-        state({ thread: editable, composer: { isEditing: false } }),
+        state({ ...editable, composer: { isEditing: false } }),
       ),
     ).toBe(false);
     expect(
       actionBarEditDisabled(
-        state({ thread: editable, composer: { isEditing: true } }),
+        state({ ...editable, composer: { isEditing: true } }),
       ),
     ).toBe(true);
     expect(
       actionBarEditDisabled(
         state({
-          thread: { capabilities: { edit: false } },
+          optional: { thread: { capabilities: { edit: false } } },
           composer: { isEditing: false },
         }),
       ),
     ).toBe(true);
+    expect(
+      actionBarEditDisabled(
+        state({
+          optional: { thread: undefined },
+          composer: { isEditing: false },
+        }),
+      ),
+    ).toBe(false);
   });
 });
