@@ -578,6 +578,7 @@ export const create = new Command()
     const absoluteProjectDir = path.resolve(resolvedProjectDirectory);
     const { display: displayProjectDir, cdCommand } =
       resolveProjectDirectoryGuidance({ absoluteProjectDir });
+    let projectDirExisted = true;
     try {
       const files = fs.readdirSync(absoluteProjectDir);
       if (files.length > 0) {
@@ -591,6 +592,7 @@ export const create = new Command()
         err instanceof Error ? (err as NodeJS.ErrnoException).code : undefined;
       if (code === "ENOENT") {
         // Directory doesn't exist — good, proceed
+        projectDirExisted = false;
       } else if (code === "ENOTDIR") {
         logger.error(
           `${displayProjectDir} already exists and is not a directory`,
@@ -602,6 +604,7 @@ export const create = new Command()
         process.exit(1);
       }
     }
+    const ownsProjectDir = !projectDirExisted;
 
     // 2. Resolve scaffold target
     const project = await resolveProject(scaffoldSelector);
@@ -640,7 +643,7 @@ export const create = new Command()
     // Clean up partial project directory on unexpected exit (e.g. Ctrl+C)
     let cleanupArmed = true;
     const cleanupOnExit = () => {
-      if (!cleanupArmed) return;
+      if (!cleanupArmed || !ownsProjectDir) return;
       cleanupArmed = false;
       fs.rmSync(absoluteProjectDir, { recursive: true, force: true });
     };
@@ -696,7 +699,9 @@ export const create = new Command()
           ref &&
           !fs.existsSync(path.join(absoluteProjectDir, "package.json"))
         ) {
-          fs.rmSync(absoluteProjectDir, { recursive: true, force: true });
+          if (ownsProjectDir) {
+            fs.rmSync(absoluteProjectDir, { recursive: true, force: true });
+          }
           logger.warn(
             "Template not found at release tag, downloading from HEAD",
           );
