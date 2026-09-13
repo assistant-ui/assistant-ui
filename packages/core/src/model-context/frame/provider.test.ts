@@ -72,6 +72,36 @@ describe("AssistantFrameProvider", () => {
   afterEach(() => {
     AssistantFrameProvider.dispose();
     vi.restoreAllMocks();
+    vi.useRealTimers();
+  });
+
+  it("does not broadcast from a disposed instance after recreation", () => {
+    vi.useFakeTimers();
+    AssistantFrameProvider.addModelContextProvider({
+      getModelContext: () => ({ system: "first" }),
+    });
+
+    vi.mocked(parentWindow.postMessage).mockClear();
+    AssistantFrameProvider.dispose();
+
+    AssistantFrameProvider.addModelContextProvider({
+      getModelContext: () => ({ system: "second" }),
+    });
+    vi.mocked(parentWindow.postMessage).mockClear();
+
+    vi.runAllTimers();
+
+    expect(parentWindow.postMessage).toHaveBeenCalledOnce();
+    expect(parentWindow.postMessage).toHaveBeenCalledWith(
+      {
+        channel: FRAME_MESSAGE_CHANNEL,
+        message: {
+          type: "model-context-update",
+          context: { system: "second", tools: {} },
+        },
+      },
+      window.location.origin,
+    );
   });
 
   it("only accepts tool calls from the parent window", async () => {
