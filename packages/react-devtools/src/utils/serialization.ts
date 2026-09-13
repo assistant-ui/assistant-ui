@@ -3,6 +3,19 @@ import type { SerializedModelContext } from "../types";
 import { normalizeToolList, type NormalizedTool } from "./toolNormalization";
 import { readProperty, UNSERIALIZABLE } from "./unserializable";
 
+const setOwnProperty = (
+  target: Record<string, unknown>,
+  key: string,
+  value: unknown,
+): void => {
+  Object.defineProperty(target, key, {
+    value,
+    enumerable: true,
+    configurable: true,
+    writable: true,
+  });
+};
+
 export const sanitizeForMessage = (
   value: unknown,
   seen = new WeakSet<object>(),
@@ -54,7 +67,11 @@ export const sanitizeForMessage = (
             nextSuffixByKey.set(serializedKey, 2);
           }
 
-          result[serializedKey] = sanitizeForMessage(entry, seen);
+          setOwnProperty(
+            result,
+            serializedKey,
+            sanitizeForMessage(entry, seen),
+          );
         }
         return result;
       }
@@ -81,12 +98,13 @@ export const sanitizeForMessage = (
       const result: Record<string, unknown> = {};
       for (const key of Object.keys(value)) {
         try {
-          result[key] = sanitizeForMessage(
-            (value as Record<string, unknown>)[key],
-            seen,
+          setOwnProperty(
+            result,
+            key,
+            sanitizeForMessage((value as Record<string, unknown>)[key], seen),
           );
         } catch {
-          result[key] = UNSERIALIZABLE;
+          setOwnProperty(result, key, UNSERIALIZABLE);
         }
       }
       return result;
@@ -149,10 +167,13 @@ export const redactSensitive = (value: unknown, maskAll = false): unknown => {
       value as Record<string, unknown>,
     )) {
       const normalized = normalizeKey(key);
-      result[key] =
+      setOwnProperty(
+        result,
+        key,
         maskAll || SENSITIVE_KEYS.has(normalized)
           ? REDACTED
-          : redactSensitive(entry, MASK_ALL_KEYS.has(normalized));
+          : redactSensitive(entry, MASK_ALL_KEYS.has(normalized)),
+      );
     }
     return result;
   }
