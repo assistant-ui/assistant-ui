@@ -1,9 +1,13 @@
 ---
-title: Migrating from useCloudChat
-description: The useCloudChat hook of @assistant-ui/cloud-ai-sdk is no longer the recommended path. Move to the assistant-ui runtime, or build on the assistant-cloud client directly.
+title: Migrate from Cloud AI SDK
+description: "@assistant-ui/cloud-ai-sdk, the Cloud AI SDK, is deprecated. The last published version keeps working; new work moves to the assistant-ui runtime or builds on the assistant-cloud client directly."
 ---
 
-`@assistant-ui/cloud-ai-sdk` wrapped the AI SDK's `useChat` with cloud threads, persistence and telemetry for apps that did not use assistant-ui. Everything it did on the wire now lives in `assistant-cloud`, which every integration shares. The package stays published and existing installs keep working; new work takes one of the two paths below.
+<Callout type="warning" title="Deprecated">
+`@assistant-ui/cloud-ai-sdk` is deprecated and receives no further releases. The last version on npm keeps working against Assistant Cloud, so nothing breaks on upgrade day, but every fix and feature now lands in the paths below.
+</Callout>
+
+The Cloud AI SDK wrapped the AI SDK's `useChat` with cloud threads, persistence and telemetry for apps that did not use assistant-ui. Everything it did on the wire lives in `assistant-cloud`, which every integration shares, so the package became a second copy of the runtime's cloud glue. Pick one of two paths.
 
 ## The assistant-ui runtime
 
@@ -23,4 +27,4 @@ To keep your own `useChat` wiring, the pieces `useCloudChat` was made of are pub
 | `CloudEngagementReporter` | Records engagement events from your own UI. |
 | `generateThreadTitle` | Asks the project for a title and writes it to the thread. |
 
-The [package reference](/docs/api-reference/integrations/assistant-cloud) lists them, and the hook's [source](https://github.com/assistant-ui/assistant-ui/tree/main/packages/cloud-ai-sdk) is a complete worked example of how they fit together. The hook's own options are on its [reference page](/docs/api-reference/integrations/cloud-ai-sdk).
+The [package reference](/docs/api-reference/integrations/assistant-cloud) lists them, and the hook's last [source](https://github.com/assistant-ui/assistant-ui/tree/ef288b94e/packages/cloud-ai-sdk) is a complete worked example of how they fit together.

@@ -90,18 +90,6 @@ function GlyphCloud() {
   );
 }
 
-function GlyphCloudAiSdk() {
-  return (
-    <span className="flex w-7 flex-col gap-[3px]">
-      <span className="bg-foreground/25 h-[3px] w-full" />
-      <span className="bg-foreground/25 h-[3px] w-4/5" />
-      <span className="border-foreground/25 mt-[2px] flex h-[8px] items-center justify-center border">
-        <span className={cn("bg-foreground/40 h-[3px] w-3.5", ACCENT)} />
-      </span>
-    </span>
-  );
-}
-
 function GlyphShimmer() {
   return (
     <span className="flex w-7 flex-col gap-[3px]">
@@ -330,7 +318,6 @@ const GLYPHS: Record<NavGlyphKind, () => React.ReactNode> = {
   native: GlyphNative,
   ink: GlyphInk,
   cloud: GlyphCloud,
-  "cloud-ai-sdk": GlyphCloudAiSdk,
   playground: GlyphPlayground,
   shimmer: GlyphShimmer,
   heat: GlyphHeat,
