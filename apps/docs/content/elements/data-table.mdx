@@ -135,15 +135,19 @@ async function refresh(models: readonly string[]) {
 
 ```tsx
 <div data-slot="data-table">
-  <div>{/* header: Model / Context / Cost labels */}</div>
-  <div />{/* hairline divider */}
-  <div key={cycle}>
-    {/* one row per item: initial-letter avatar, name, context, cost */}
-  </div>
+  <table>
+    <caption className="sr-only">Model usage</caption>
+    <thead>
+      <tr>{/* column headers: Model / Context / Cost */}</tr>
+    </thead>
+    <tbody key={cycle}>
+      {/* one row per item: initial-letter avatar, name, context, cost */}
+    </tbody>
+  </table>
 </div>
 ```
 
-The row list is keyed on `cycle`, so changing it remounts every row and replays the 80ms-per-row stagger from the top. An empty `rows` array renders only the header, with no placeholder row and no empty-state message.
+The native table exposes a `Model usage` accessible name, column headers, rows, and cells. The row list is keyed on `cycle`, so changing it remounts every row and replays the 80ms-per-row stagger from the top. An empty `rows` array renders only the header, with no placeholder row and no empty-state message.
 
 ## Examples
 
@@ -196,6 +200,6 @@ Register the renderer on a toolkit entry's `render` field and attach the toolkit
 | `cycle` | `number` | required | Remount key for the row list; changing it replays the stagger-in animation. |
 | `className` | `string` | | Merged onto the root. |
 
-`ModelUsage` is `{ name: string; context: string; cost: string }`. All other `div` props are forwarded to the root.
+`ModelUsage` is `{ name: string; context: string; cost: string }`. All other `div` props are forwarded to the root. The rendered table has a default `Model usage` caption and native column, row, and cell semantics.
 
 </StandaloneMode>
