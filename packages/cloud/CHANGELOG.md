@@ -1,5 +1,25 @@
 # assistant-cloud
 
+## 0.2.1
+
+### Patch Changes
+
+- [#7199](https://github.com/assistant-ui/assistant-ui/pull/7199) [`79c2219`](https://github.com/assistant-ui/assistant-ui/commit/79c221977f9c2fe9da4374bd45132ed28d02cae4) - fix: avoid caching malformed rotated JWTs ([@Kinfe123](https://github.com/Kinfe123))
+
+- [#7264](https://github.com/assistant-ui/assistant-ui/pull/7264) [`4619335`](https://github.com/assistant-ui/assistant-ui/commit/46193357fb581d8440c40b6e2fbf3e79560d6870) - docs: clarify that run telemetry can include assistant output and tool data ([@Kinfe123](https://github.com/Kinfe123))
+
+- [#7234](https://github.com/assistant-ui/assistant-ui/pull/7234) [`e54bf9a`](https://github.com/assistant-ui/assistant-ui/commit/e54bf9aacd73a2431e3194aaced86dfdff67ed2d) - feat: add `CloudRunReporter`, `CloudEngagementReporter`, `RunMessageTelemetry` and the `assistant-cloud/ai-sdk` entry (`aiSDKV6FormatAdapter`, `extractAISDKRunTelemetry`), which lists `ai` as an optional peer and needs no runtime from it ([@okisdev](https://github.com/okisdev))
+
+- [#7256](https://github.com/assistant-ui/assistant-ui/pull/7256) [`c083236`](https://github.com/assistant-ui/assistant-ui/commit/c083236df07705cae1109e4342c08f6c8bcd7c3b) - fix: prevent pending history loads from restoring message mappings after reset. ([@Kinfe123](https://github.com/Kinfe123))
+
+- [#7244](https://github.com/assistant-ui/assistant-ui/pull/7244) [`617bbf9`](https://github.com/assistant-ui/assistant-ui/commit/617bbf9277dac2bda46e3cf526c54dd64cbccc79) - docs: rewrite the jsdoc of CloudMessagePersistence and createFormattedPersistence so the generated package reference reads without the retired hook ([@okisdev](https://github.com/okisdev))
+
+- [#7269](https://github.com/assistant-ui/assistant-ui/pull/7269) [`de6d6b7`](https://github.com/assistant-ui/assistant-ui/commit/de6d6b7667ca5c778409fc9a81b8d2b6ca07ca48) - fix: stop sending queued engagement events after telemetry is disabled ([@Kinfe123](https://github.com/Kinfe123))
+
+- [#7236](https://github.com/assistant-ui/assistant-ui/pull/7236) [`063b9ec`](https://github.com/assistant-ui/assistant-ui/commit/063b9ec8c92098c51b6924d49b1a6c3cc80eec45) - feat: send the `Aui-Sdk` header on every request, naming the client version and the integrations registered through `registerSdk` ([@okisdev](https://github.com/okisdev))
+- Updated dependencies [[`ed77e95`](https://github.com/assistant-ui/assistant-ui/commit/ed77e956811a161243e6c9faf13320846db30a8a), [`790217b`](https://github.com/assistant-ui/assistant-ui/commit/790217b85d9130116ac1a06c46a7902a2552ed07), [`c0d6150`](https://github.com/assistant-ui/assistant-ui/commit/c0d615046cbbbdfee1a183428f51e9c547564a8c), [`275eeb9`](https://github.com/assistant-ui/assistant-ui/commit/275eeb91d0be1d43e98b7b48a53a9609e87419c4)]:
+  - assistant-stream@0.3.43
+
 ## 0.2.0
 
 ### Minor Changes

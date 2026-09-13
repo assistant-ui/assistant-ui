@@ -1,5 +1,11 @@
 # @assistant-ui/react-devtools
 
+## 1.2.19
+
+### Patch Changes
+
+- [#7239](https://github.com/assistant-ui/assistant-ui/pull/7239) [`4e5fde6`](https://github.com/assistant-ui/assistant-ui/commit/4e5fde6c2d09909c5b286fee098c9950615a26d3) - fix: read the first token time as the duration the runtime records instead of subtracting the stream start, which always clamped it to zero ([@okisdev](https://github.com/okisdev))
+
 ## 1.2.18
 
 ### Patch Changes

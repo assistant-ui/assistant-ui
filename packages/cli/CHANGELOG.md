@@ -1,5 +1,13 @@
 # assistant-ui
 
+## 0.0.116
+
+### Patch Changes
+
+- [#7308](https://github.com/assistant-ui/assistant-ui/pull/7308) [`b8e5cf4`](https://github.com/assistant-ui/assistant-ui/commit/b8e5cf4a5ffd864b14e03b425cef4361889651f0) - chore: drop `@assistant-ui/cloud-ai-sdk` from the managed package list now that the package is deprecated ([@okisdev](https://github.com/okisdev))
+
+- [#7254](https://github.com/assistant-ui/assistant-ui/pull/7254) [`9594178`](https://github.com/assistant-ui/assistant-ui/commit/959417838ec64de719eeb4de40776da0fdd092fe) - fix(cli): install the Zed MCP server in the macOS user settings file. ([@Kinfe123](https://github.com/Kinfe123))
+
 ## 0.0.115
 
 ### Patch Changes

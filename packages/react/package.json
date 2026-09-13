@@ -1,6 +1,6 @@
 {
   "name": "@assistant-ui/react",
-  "version": "0.15.19",
+  "version": "0.15.20",
   "description": "Open-source TypeScript/React library for building production-grade AI chat experiences",
   "keywords": [
     "ai",
@@ -62,11 +62,11 @@
     "test:watch": "vitest"
   },
   "dependencies": {
-    "@assistant-ui/core": "^0.3.18",
+    "@assistant-ui/core": "^0.3.19",
     "@assistant-ui/store": "^0.3.13",
     "@assistant-ui/tap": "^0.9.17",
-    "assistant-cloud": "^0.2.0",
-    "assistant-stream": "^0.3.42",
+    "assistant-cloud": "^0.2.1",
+    "assistant-stream": "^0.3.43",
     "radix-ui": "^1.6.7",
     "react-textarea-autosize": "^8.5.9",
     "safe-content-frame": "^0.0.30",

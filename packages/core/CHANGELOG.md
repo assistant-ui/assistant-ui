@@ -1,5 +1,49 @@
 # @assistant-ui/core
 
+## 0.3.19
+
+### Patch Changes
+
+- [#7222](https://github.com/assistant-ui/assistant-ui/pull/7222) [`b821506`](https://github.com/assistant-ui/assistant-ui/commit/b82150660dcf2ca6902b3b987c34440a2ff0af46) - fix: isolate thread ID change callback errors from completed switches ([@Kinfe123](https://github.com/Kinfe123))
+
+- [#7227](https://github.com/assistant-ui/assistant-ui/pull/7227) [`c41d93a`](https://github.com/assistant-ui/assistant-ui/commit/c41d93a84231a54256e0e1fe6f64951603a039d7) - fix: reconnect subjects after an upstream cleanup error ([@Kinfe123](https://github.com/Kinfe123))
+
+- [#7067](https://github.com/assistant-ui/assistant-ui/pull/7067) [`4cc817d`](https://github.com/assistant-ui/assistant-ui/commit/4cc817d4cb0d49c1704352845731b82f8591b623) - fix: exclude cleared attachments from a message when its upload finishes ([@ephraimduncan](https://github.com/ephraimduncan))
+
+- [#7239](https://github.com/assistant-ui/assistant-ui/pull/7239) [`4e5fde6`](https://github.com/assistant-ui/assistant-ui/commit/4e5fde6c2d09909c5b286fee098c9950615a26d3) - fix: report the error, error code and first token time of a run persisted in the `ai-sdk/v6` format; the runtime hands the cloud history adapter the thread message it persisted, whose status and timing complete a report the stored message cannot carry. the failed message's status error is now the `AssistantError` shape (`{ code, message }`, the code being the AI SDK error's `code` or its name) instead of the message string, and `first_token_ms` reads `firstTokenTime` as the duration the runtime records instead of subtracting the stream start, which also repairs the `aui/v0` path ([@okisdev](https://github.com/okisdev))
+
+- [#7234](https://github.com/assistant-ui/assistant-ui/pull/7234) [`e54bf9a`](https://github.com/assistant-ui/assistant-ui/commit/e54bf9aacd73a2431e3194aaced86dfdff67ed2d) - refactor: the cloud history adapter reports runs and engagement events through `assistant-cloud`'s reporters and reads AI SDK runs through `assistant-cloud/ai-sdk`; steps are now reported for a run with a single step as well, an error is reported once per run, a stored `ai-sdk/v6` run that produced tool calls without text reads completed instead of incomplete, and a run whose message carries a cancelled, length or content filter finish reports incomplete instead of completed ([@okisdev](https://github.com/okisdev))
+
+- [#7305](https://github.com/assistant-ui/assistant-ui/pull/7305) [`83ede73`](https://github.com/assistant-ui/assistant-ui/commit/83ede73e8d3f0eadcb3969fae62d41fb7f253f1b) - fix: preserve the complete interim dictation transcript and clear retracted browser results without duplicating finalized words. ([@Kinfe123](https://github.com/Kinfe123))
+
+- [#7195](https://github.com/assistant-ui/assistant-ui/pull/7195) [`050d915`](https://github.com/assistant-ui/assistant-ui/commit/050d915daa2caf4d791f7254a8e42d31fc59e6da) - fix: preserve prototype-named fields in interactable updates and snapshots ([@Kinfe123](https://github.com/Kinfe123))
+
+- [#7232](https://github.com/assistant-ui/assistant-ui/pull/7232) [`d49ff90`](https://github.com/assistant-ui/assistant-ui/commit/d49ff906869981c4d2f3f2443089bf0b2f4a3c42) - fix: refresh interactable schemas after configuration changes ([@Kinfe123](https://github.com/Kinfe123))
+
+- [#7219](https://github.com/assistant-ui/assistant-ui/pull/7219) [`e7bdef5`](https://github.com/assistant-ui/assistant-ui/commit/e7bdef5df7201663f2d5c269d035ab3643cacde7) - fix: cancel cloud attachment uploads when the attachment is removed ([@Kinfe123](https://github.com/Kinfe123))
+
+- [#7154](https://github.com/assistant-ui/assistant-ui/pull/7154) [`b4b0081`](https://github.com/assistant-ui/assistant-ui/commit/b4b00813ef30a37c36df3fd8acf3be0a5cbd498c) - fix: avoid repeated scans while joining external message parts ([@Kinfe123](https://github.com/Kinfe123))
+
+- [#7233](https://github.com/assistant-ui/assistant-ui/pull/7233) [`6b29e7d`](https://github.com/assistant-ui/assistant-ui/commit/6b29e7de829bef7e51297d3d66cd9e97175f3fc5) - fix: preserve data renderers whose names match object prototype properties ([@Kinfe123](https://github.com/Kinfe123))
+
+- [#7188](https://github.com/assistant-ui/assistant-ui/pull/7188) [`ab97a41`](https://github.com/assistant-ui/assistant-ui/commit/ab97a410a4f67e097ddcb186e12fd4a637790876) - fix: restore and pause queued messages after synchronous dispatch failures ([@Kinfe123](https://github.com/Kinfe123))
+  
+  Failed work is retried before later sends. The next explicit send resumes draining; editing or removing an item does not resume a paused queue. Work already accepted by a driver is not restored, and a failed move returns its item to the original position.
+
+- [#7184](https://github.com/assistant-ui/assistant-ui/pull/7184) [`8530b17`](https://github.com/assistant-ui/assistant-ui/commit/8530b17b8aee50413c5cbbe628832ad039a6d584) - fix: avoid leaking a frame host message listener when initialization fails ([@Kinfe123](https://github.com/Kinfe123))
+
+- [#7236](https://github.com/assistant-ui/assistant-ui/pull/7236) [`063b9ec`](https://github.com/assistant-ui/assistant-ui/commit/063b9ec8c92098c51b6924d49b1a6c3cc80eec45) - feat: register the package as an integration on the `assistant-cloud` client so the cloud can tell which packages talk to a project ([@okisdev](https://github.com/okisdev))
+
+- [#7185](https://github.com/assistant-ui/assistant-ui/pull/7185) [`2c22f5d`](https://github.com/assistant-ui/assistant-ui/commit/2c22f5d7fdeb45f10891a0ab2457d046ace668fa) - fix: settle pending frame tool calls when cancellation fails ([@Kinfe123](https://github.com/Kinfe123))
+
+- [#7163](https://github.com/assistant-ui/assistant-ui/pull/7163) [`97bd4b3`](https://github.com/assistant-ui/assistant-ui/commit/97bd4b39fce83163354c9ec8d9d4fb2c9bd1aac7) - fix: preserve component state when stable message IDs move ([@Kinfe123](https://github.com/Kinfe123))
+
+- [#7228](https://github.com/assistant-ui/assistant-ui/pull/7228) [`e63d2e4`](https://github.com/assistant-ui/assistant-ui/commit/e63d2e440239a8b9add59c74cfa2044567f0b362) - fix: finish realtime voice cleanup after adapter errors ([@Kinfe123](https://github.com/Kinfe123))
+
+- [#7229](https://github.com/assistant-ui/assistant-ui/pull/7229) [`06bdf1f`](https://github.com/assistant-ui/assistant-ui/commit/06bdf1f9e4d8796ff12b91379a4175625f3a75e8) - fix: finish dictation cleanup after adapter errors ([@Kinfe123](https://github.com/Kinfe123))
+- Updated dependencies [[`ed77e95`](https://github.com/assistant-ui/assistant-ui/commit/ed77e956811a161243e6c9faf13320846db30a8a), [`790217b`](https://github.com/assistant-ui/assistant-ui/commit/790217b85d9130116ac1a06c46a7902a2552ed07), [`c0d6150`](https://github.com/assistant-ui/assistant-ui/commit/c0d615046cbbbdfee1a183428f51e9c547564a8c), [`275eeb9`](https://github.com/assistant-ui/assistant-ui/commit/275eeb91d0be1d43e98b7b48a53a9609e87419c4)]:
+  - assistant-stream@0.3.43
+
 ## 0.3.18
 
 ### Patch Changes

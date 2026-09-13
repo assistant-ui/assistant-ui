@@ -35,10 +35,10 @@
   },
   "dependencies": {
     "@ag-ui/client": "^0.0.59",
-    "@assistant-ui/core": "^0.3.18",
+    "@assistant-ui/core": "^0.3.19",
     "@assistant-ui/react-generative-ui": "^0.0.18",
     "@assistant-ui/store": "^0.3.13",
-    "assistant-stream": "^0.3.42",
+    "assistant-stream": "^0.3.43",
     "fast-json-patch": "^3.1.1"
   },
   "peerDependencies": {
