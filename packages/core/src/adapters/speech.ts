@@ -279,7 +279,6 @@ export class WebSpeechDictationAdapter implements DictationAdapter {
 
         if (result.isFinal) {
           firstInterimIndex = i + 1;
-          if (i < speechEvent.resultIndex) continue;
           finalTranscript += transcript;
           hasInterimTranscript = false;
           notifyEventListeners(

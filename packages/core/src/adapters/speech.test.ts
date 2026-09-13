@@ -236,6 +236,33 @@ describe("WebSpeechDictationAdapter", () => {
     });
   });
 
+  it("does not drop an unconsumed final when resultIndex skips it", () => {
+    const listeners = stubSpeechRecognition();
+    const session = new WebSpeechDictationAdapter().listen();
+    const onSpeech = vi.fn();
+    const onEnd = vi.fn();
+    session.onSpeech(onSpeech);
+    session.onSpeechEnd(onEnd);
+
+    emitResults(listeners, [["hello ", false]]);
+    emitResults(
+      listeners,
+      [
+        ["hello ", true],
+        ["world", false],
+      ],
+      1,
+    );
+    listeners.get("end")!(new Event("end"));
+
+    expect(onSpeech.mock.calls).toEqual([
+      [{ transcript: "hello ", isFinal: false }],
+      [{ transcript: "hello ", isFinal: true }],
+      [{ transcript: "world", isFinal: false }],
+    ]);
+    expect(onEnd).toHaveBeenCalledExactlyOnceWith({ transcript: "hello " });
+  });
+
   it("does not reread historical finalized results during interim updates", () => {
     const listeners = stubSpeechRecognition();
     new WebSpeechDictationAdapter().listen();
