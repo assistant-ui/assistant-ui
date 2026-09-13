@@ -207,6 +207,61 @@ describe("convertEveMessages", () => {
     });
   });
 
+  it("keeps streaming dynamic tool args incomplete until input is available", () => {
+    const streamingData = {
+      messages: [
+        {
+          id: "a1",
+          role: "assistant",
+          parts: [
+            {
+              type: "dynamic-tool",
+              state: "input-streaming",
+              toolCallId: "call_1",
+              toolName: "search",
+              input: undefined,
+              inputText: "",
+            },
+          ],
+        },
+      ],
+    } satisfies EveMessageData;
+
+    const [streamingMessage] = convertEveMessages(streamingData);
+
+    expect(streamingMessage?.content[0]).toMatchObject({
+      type: "tool-call",
+      args: {},
+      argsText: "",
+    });
+
+    const availableData = {
+      messages: [
+        {
+          id: "a1",
+          role: "assistant",
+          parts: [
+            {
+              type: "dynamic-tool",
+              state: "input-available",
+              toolCallId: "call_1",
+              toolName: "search",
+              input: { query: "badge" },
+            },
+          ],
+        },
+      ],
+    } satisfies EveMessageData;
+
+    const [availableMessage] = convertEveMessages(availableData);
+
+    expect(availableMessage?.content[0]).toMatchObject({
+      type: "tool-call",
+      args: { query: "badge" },
+      argsText: '{"query":"badge"}',
+    });
+  });
+
   it.each([
     [
       "a confirmation request",

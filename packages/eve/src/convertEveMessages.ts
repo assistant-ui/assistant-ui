@@ -274,7 +274,7 @@ const convertDynamicToolPart = (
     toolCallId: part.toolCallId,
     toolName: part.toolName,
     args: toJsonObject(part.input),
-    argsText: stringifyArgs(part.input),
+    argsText: part.state === "input-streaming" ? "" : stringifyArgs(part.input),
     ...(approval && { approval }),
     ...(providerMetadata && { providerMetadata }),
   };
