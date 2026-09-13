@@ -36,7 +36,7 @@ const runtime = useLangGraphRuntime({
 });
 ```
 
-`useStreamRuntime` from `@assistant-ui/react-langchain` and `useAdkRuntime` from `@assistant-ui/react-google-adk` take the same `cloud`, `create` and `delete` options and behave the same way; when `create` is omitted, the thread's own initialization supplies the external id. `unstable_threadListAdapter` replaces the cloud list with your own adapter, and `cloud`, `create` and `delete` are then ignored.
+`useStreamRuntime` from `@assistant-ui/react-langchain` and `useAdkRuntime` from `@assistant-ui/react-google-adk` take the same `cloud`, `create` and `delete` options and behave the same way; when `create` is omitted, the thread's own initialization supplies the external id. All three runtimes accept `scopeId`: provide the stable account or workspace ID from the first render and change it with the owning scope. `unstable_threadListAdapter` replaces the cloud list with your own adapter, and `cloud`, `create` and `delete` are then ignored.
 
 The rest of the setup, the environment variable per platform, the client for React Native and Ink, and the thread list UI, is the same as on the [AI SDK + assistant-ui](/docs/cloud/ai-sdk-assistant-ui#setup) page; the LangGraph runtime itself, its `stream` function and the thread list component are on [LangGraph threads](/docs/runtimes/langgraph/threads).
 

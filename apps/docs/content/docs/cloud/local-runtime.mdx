@@ -66,9 +66,9 @@ export default function ChatPage() {
 }
 ```
 
-On React, `useLocalRuntime(adapter)` with `NEXT_PUBLIC_ASSISTANT_BASE_URL` set and no `cloud` uses an anonymous client, the same as the AI SDK runtime. On React Native and Ink construct the client from `assistant-cloud` and pass it.
+On React, `useLocalRuntime(adapter)` with `NEXT_PUBLIC_ASSISTANT_BASE_URL` set and no `cloud` uses an anonymous client, the same as the AI SDK runtime. On React Native and Ink construct the client from `assistant-cloud` and pass it. If the mounted runtime can switch accounts or workspaces, pass their stable ID as `scopeId` from the first render; defer mounting the runtime until that ID is available.
 
-`useDataStreamRuntime` from `@assistant-ui/react-data-stream`, the runtime for a route that returns an assistant-stream response, accepts every local runtime option including `cloud`, and gets the same integration.
+`useDataStreamRuntime` from `@assistant-ui/react-data-stream`, the runtime for a route that returns an assistant-stream response, accepts every local runtime option including `cloud` and `scopeId`, and gets the same integration.
 
 ## What the runtime does with the cloud
 
@@ -98,6 +98,7 @@ import { useCloudThreadListRuntime } from "@assistant-ui/react";
 
 const runtime = useCloudThreadListRuntime({
   cloud,
+  scopeId: workspace.id, // your app's stable account or workspace ID
   runtimeHook: useMyThreadRuntime,
   create: async () => ({ externalId: await backend.createThread() }),
   delete: async (threadId) => backend.deleteThread(threadId),
@@ -107,6 +108,7 @@ const runtime = useCloudThreadListRuntime({
 | Option | Meaning |
 |---|---|
 | `cloud` | The client the list is backed by. |
+| `scopeId` | Stable account or workspace identity for cached attachments and message mappings. Provide it from the runtime's first render; changing from `undefined` to an ID is a scope switch, so defer mounting this runtime until the ID is available. Change it when the owning scope changes; this runtime resets and reloads its thread list. If omitted, replacing `cloud` preserves attachment URLs and message mappings, but still reloads the thread list; history operations attempted before that reload settles are skipped. |
 | `runtimeHook` | A hook returning the per thread runtime; it is called once per mounted thread. |
 | `create` | Called when a new thread is created; return your backend's id and it is stored as the cloud thread's `external_id`. |
 | `delete` | Called with the thread before the cloud thread is deleted. |
@@ -123,7 +125,7 @@ const runtime = useCloudThreadListRuntime({
 });
 ```
 
-The lower level `useCloudThreadListAdapter({ cloud, create, delete, sdk })` returns the adapter alone, and `createCloudThreadListAdapter` builds it outside React. Both register the calling package's identity on the client through `sdk`, so the project's Settings › Telemetry lists your integration next to the SDK version.
+The lower level `useCloudThreadListAdapter({ cloud, scopeId, create, delete, sdk })` returns the adapter alone, and `createCloudThreadListAdapter` builds it outside React. When either `cloud` or `scopeId` changes, publish the replacement adapter and call the thread-list `reload()` method, as required by the `RemoteThreadList` adapter replacement contract. Both register the calling package's identity on the client through `sdk`, so the project's Settings › Telemetry lists your integration next to the SDK version.
 
 ## Custom history adapters
 

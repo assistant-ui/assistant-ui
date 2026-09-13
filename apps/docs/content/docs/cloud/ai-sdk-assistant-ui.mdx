@@ -306,6 +306,12 @@ export async function POST(req: Request) {
         "The cloud client. Omit it on React to use an anonymous client built from NEXT_PUBLIC_ASSISTANT_BASE_URL; without either, the thread list stays in memory.",
     },
     {
+      name: "scopeId",
+      type: "string",
+      description:
+        "Stable account or workspace identity for Cloud runtime state. Provide it from the first render and change it when the owning scope changes; defer mounting the runtime until an asynchronously resolved ID is available.",
+    },
+    {
       name: "onThreadIdChange",
       type: "(threadId: string | undefined) => void",
       description:
@@ -376,7 +382,7 @@ The remaining AI SDK chat options are accepted as on `useChat`.
 
 ### Store hosts
 
-Apps built on `AuiConfig` or `createAssistantClient` use `AISDKThreads({ cloud, threadId, onThreadIdChange })` as their thread list resource. With `cloud` set it is a remote thread list with the same behaviour as above; `threadId` controls the selected thread and is ignored without `cloud`.
+Apps built on `AuiConfig` or `createAssistantClient` use `AISDKThreads({ cloud, scopeId, threadId, onThreadIdChange })` as their thread list resource. With `cloud` set it is a remote thread list with the same behaviour as above; `scopeId` follows the same account and workspace rules as on `useChatRuntime`, and `threadId` controls the selected thread and is ignored without `cloud`.
 
 ## What is reported
 

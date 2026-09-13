@@ -72,10 +72,12 @@ import { AI_SDK_SDK } from "./sdkIdentity";
 describe("AISDKThreads cloud", () => {
   it("reloads history when switching a keyed cloud thread", async () => {
     const cloud = {} as AssistantCloud;
+    const scopeId = "workspace-1";
     const handle = createAssistantClient(
       AuiConfig({
         threads: AISDKThreads({
           cloud,
+          scopeId,
           threadId: "t1",
         }),
       }),
@@ -91,6 +93,7 @@ describe("AISDKThreads cloud", () => {
     });
     expect(mocks.useCloudThreadListAdapter).toHaveBeenCalledWith({
       cloud,
+      scopeId,
       sdk: AI_SDK_SDK,
     });
     const afterFirst = load.mock.calls.length;

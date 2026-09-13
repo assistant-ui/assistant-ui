@@ -14,6 +14,11 @@ import { AI_SDK_SDK } from "./sdkIdentity";
 export type UseChatRuntimeOptions<UI_MESSAGE extends UIMessage = UIMessage> =
   ChatThreadOptions<UI_MESSAGE> & {
     cloud?: AssistantCloud | undefined;
+    /**
+     * Stable identity for the account or workspace owning Cloud runtime state.
+     * Provide it from the first render and change it when that scope changes.
+     */
+    scopeId?: string | undefined;
     onThreadIdChange?: ((threadId: string | undefined) => void) | undefined;
   };
 
@@ -36,10 +41,15 @@ const useChatThreadRuntime = <UI_MESSAGE extends UIMessage = UIMessage>(
 
 export const useChatRuntime = <UI_MESSAGE extends UIMessage = UIMessage>({
   cloud,
+  scopeId,
   onThreadIdChange,
   ...options
 }: UseChatRuntimeOptions<UI_MESSAGE> = {}): AssistantRuntime => {
-  const cloudAdapter = useCloudThreadListAdapter({ cloud, sdk: AI_SDK_SDK });
+  const cloudAdapter = useCloudThreadListAdapter({
+    cloud,
+    scopeId,
+    sdk: AI_SDK_SDK,
+  });
   return useRemoteThreadListRuntime({
     runtimeHook: function RuntimeHook() {
       return useChatThreadRuntime(options);

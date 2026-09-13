@@ -1,8 +1,9 @@
 // @vitest-environment jsdom
 
-import { describe, expect, it, vi } from "vitest";
+import { describe, expect, it, onTestFinished, vi } from "vitest";
 import { renderHook } from "@testing-library/react";
 import type { AssistantCloud } from "assistant-cloud";
+import type { PendingAttachment } from "../../../types/attachment";
 import { createCloudThreadListAdapter } from "./createCloudThreadListAdapter";
 import { CORE_SDK } from "./sdkIdentity";
 
@@ -31,6 +32,12 @@ const makeCloud = () =>
       get: vi.fn(),
     },
     runs: { stream: vi.fn(async () => new ReadableStream()) },
+    files: {
+      generatePresignedUploadUrl: vi.fn(async () => ({
+        signedUrl: "https://storage.example/upload",
+        publicUrl: "https://cdn.example/file.png",
+      })),
+    },
     registerSdk: vi.fn(),
   }) as unknown as AssistantCloud;
 
@@ -120,5 +127,35 @@ describe("createCloudThreadListAdapter", () => {
     rerender();
     expect(result.current!.history).toBe(first.history);
     expect(result.current!.attachments).toBe(first.attachments);
+  });
+
+  it("captures Cloud and scope with the standalone adapter", async () => {
+    vi.stubGlobal("fetch", vi.fn().mockResolvedValue({ ok: true }));
+    onTestFinished(() => vi.unstubAllGlobals());
+    const firstCloud = makeCloud();
+    const secondCloud = makeCloud();
+    const options = { cloud: firstCloud, scopeId: "workspace-a" };
+    const adapter = createCloudThreadListAdapter(() => options);
+    const { result, rerender } = renderHook(() =>
+      adapter.unstable_useAdapters!(),
+    );
+    const attachments = result.current!.attachments!;
+    const file = new File([new Uint8Array([1, 2, 3])], "pixel.png", {
+      type: "image/png",
+    });
+    let ready: PendingAttachment | undefined;
+    for await (const attachment of attachments.add({ file })) {
+      ready = attachment;
+    }
+
+    options.cloud = secondCloud;
+    options.scopeId = "workspace-b";
+    rerender();
+
+    await expect(attachments.send(ready!)).resolves.toMatchObject({
+      status: { type: "complete" },
+    });
+    expect(firstCloud.files.generatePresignedUploadUrl).toHaveBeenCalledOnce();
+    expect(secondCloud.files.generatePresignedUploadUrl).not.toHaveBeenCalled();
   });
 });
