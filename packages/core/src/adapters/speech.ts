@@ -206,6 +206,7 @@ export class WebSpeechDictationAdapter implements DictationAdapter {
 
     let finalTranscript = "";
     let hasInterimTranscript = false;
+    let firstInterimIndex = 0;
 
     const session: DictationAdapter.Session = {
       status: { type: "starting" },
@@ -270,13 +271,14 @@ export class WebSpeechDictationAdapter implements DictationAdapter {
       const speechEvent = event as unknown as SpeechRecognitionEvent;
       let interimTranscript = "";
 
-      for (let i = 0; i < speechEvent.results.length; i++) {
+      for (let i = firstInterimIndex; i < speechEvent.results.length; i++) {
         const result = speechEvent.results[i];
         if (!result) continue;
 
         const transcript = result[0]?.transcript ?? "";
 
         if (result.isFinal) {
+          firstInterimIndex = i + 1;
           if (i < speechEvent.resultIndex) continue;
           finalTranscript += transcript;
           hasInterimTranscript = false;

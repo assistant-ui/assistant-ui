@@ -236,6 +236,32 @@ describe("WebSpeechDictationAdapter", () => {
     });
   });
 
+  it("does not reread historical finalized results during interim updates", () => {
+    const listeners = stubSpeechRecognition();
+    new WebSpeechDictationAdapter().listen();
+    const readFinal = vi.fn(() => ({ transcript: "word " }));
+    const finals = Array.from({ length: 1_000 }, () => ({
+      get 0() {
+        return readFinal();
+      },
+      isFinal: true,
+    }));
+    listeners.get("result")!({
+      resultIndex: 0,
+      results: finals,
+    } as unknown as Event);
+    expect(readFinal).toHaveBeenCalledTimes(1_000);
+
+    for (const transcript of ["hel", "hello", "hello world"]) {
+      listeners.get("result")!({
+        resultIndex: finals.length,
+        results: [...finals, { 0: { transcript }, isFinal: false }],
+      } as unknown as Event);
+    }
+
+    expect(readFinal).toHaveBeenCalledTimes(1_000);
+  });
+
   it("continues notifying dictation listeners when one throws", () => {
     const listeners = stubSpeechRecognition();
     const listenerError = new Error("listener failed");
