@@ -385,6 +385,13 @@ Renders a single composer attachment at the specified index. Useful for building
 There are no separate edit primitives. Inside a message, the composer primitives bind to that message's edit composer, so the same `ComposerPrimitive.Root`, `Input`, `Send`, and `Cancel` build the edit UI. `ActionBarPrimitive.Edit` starts editing, and `message.composer.isEditing` tells you when to render it.
 
 ```tsx
+import { Text, View } from "react-native";
+import {
+  ComposerPrimitive,
+  MessagePrimitive,
+  useAuiState,
+} from "@assistant-ui/react-native";
+
 function MessageRow() {
   const isEditing = useAuiState((s) => s.message.composer.isEditing);
   if (isEditing) return <EditComposer />;
