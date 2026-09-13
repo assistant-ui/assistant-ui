@@ -213,7 +213,7 @@ class ForEachHandle<T> implements Handle {
   private controller: ReadableStreamDefaultController<unknown>;
   private disposed = false;
   private fieldPath: (string | number)[];
-  private processedIndexes = new Set<number>();
+  private nextIndex = 0;
 
   get isDisposed() {
     return this.disposed;
@@ -237,20 +237,16 @@ class ForEachHandle<T> implements Handle {
         return;
       }
 
-      // Check each array element and emit completed ones that haven't been processed
-      for (let i = 0; i < array.length; i++) {
-        if (!this.processedIndexes.has(i)) {
-          const elementPath = [...this.fieldPath, i];
-          if (
-            getPartialJsonObjectFieldState(
-              args as Record<string, unknown>,
-              elementPath,
-            ) === "complete"
-          ) {
-            this.controller.enqueue(array[i]);
-            this.processedIndexes.add(i);
-          }
-        }
+      for (; this.nextIndex < array.length; this.nextIndex++) {
+        const elementPath = [...this.fieldPath, this.nextIndex];
+        if (
+          getPartialJsonObjectFieldState(
+            args as Record<string, unknown>,
+            elementPath,
+          ) !== "complete"
+        )
+          break;
+        this.controller.enqueue(array[this.nextIndex]);
       }
 
       // Check if the entire array is complete
