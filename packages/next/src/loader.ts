@@ -22,10 +22,17 @@ interface GenerativeLoaderContext {
 }
 
 /** Whether this resolution is one of the package's indirection modules. */
-function indirectionVariant(resourcePath: string): Target | null {
-  const extension = nodePath.extname(resourcePath);
+function indirectionVariant(
+  resourcePath: string,
+  sourcePath: string | undefined,
+): Target | null {
+  if (!sourcePath) return null;
+  const queryIndex = resourcePath.indexOf("?");
+  const path =
+    queryIndex === -1 ? resourcePath : resourcePath.slice(0, queryIndex);
+  const extension = nodePath.extname(path);
   if (extension !== ".js") return null;
-  const base = nodePath.basename(resourcePath, extension);
+  const base = nodePath.basename(path, extension);
   if (base === SERVER_INDIRECTION) return "server";
   if (base === CLIENT_INDIRECTION) return "client";
   return null;
@@ -92,21 +99,13 @@ export default function generativeLoader(
 ): void {
   const callback = this.async();
   const resourcePath = this.resourcePath ?? "";
+  const options = this.getOptions?.();
 
   // 1) Package indirection (resolved via the `react-server` condition).
-  const variant = indirectionVariant(resourcePath);
-  if (variant) {
-    const path = this.getOptions?.()?.path;
-    if (!path) {
-      callback(
-        new Error(
-          "[assistant-ui/next] indirection module loaded without a `path` " +
-            "option; it must be imported via the generated facade.",
-        ),
-      );
-      return;
-    }
-    callback(null, buildIndirection(variant, resourcePath, path));
+  const sourcePath = options?.path;
+  const variant = indirectionVariant(resourcePath, sourcePath);
+  if (variant && sourcePath) {
+    callback(null, buildIndirection(variant, resourcePath, sourcePath));
     return;
   }
 
@@ -122,7 +121,7 @@ export default function generativeLoader(
         target,
         filename: resourcePath,
         sourceMaps: this.sourceMap ?? false,
-        backendless: this.getOptions?.()?.backendless ?? false,
+        backendless: options?.backendless ?? false,
       });
       callback(null, code, map);
     } catch (error) {

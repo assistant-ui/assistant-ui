@@ -26,6 +26,8 @@ describe("generativeLoader", () => {
     "bundler-redirect.client-view.tsx",
     "bundler-redirect.server.ts",
     "bundler-redirect.client.tsx",
+    "bundler-redirect.server.js",
+    "bundler-redirect.client.js",
   ])("treats %s as an ordinary user module", async (filename) => {
     const result = await runLoader(
       `/app/${filename}`,
@@ -43,5 +45,15 @@ describe("generativeLoader", () => {
     );
 
     expect(result).toContain("/app/tool.ts?generative-env=server");
+  });
+
+  it("recognizes an indirection resource when a host keeps its query", async () => {
+    const result = await runLoader(
+      "/node_modules/@assistant-ui/next/dist/bundler-redirect.client.js?aui=token",
+      "",
+      { path: "/app/tool.ts" },
+    );
+
+    expect(result).toContain("/app/tool.ts?generative-env=client");
   });
 });
