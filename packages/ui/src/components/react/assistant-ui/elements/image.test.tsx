@@ -223,6 +223,13 @@ describe("ImageActions data URI handling", () => {
     expect(blob.type).toBe("image/png");
   });
 
+  it("decodes percent-encoded base64 payloads", async () => {
+    renderActions("data:image/png;base64,aGVsbG8%3D");
+
+    const blob = await downloadedBlob();
+    expect(await blob.text()).toBe("hello");
+  });
+
   it("ignores malformed base64 downloads", () => {
     renderActions("data:image/png;base64,%%%invalid%%%");
 
@@ -230,6 +237,15 @@ describe("ImageActions data URI handling", () => {
       fireEvent.click(screen.getByLabelText("Download image")),
     ).not.toThrow();
     expect(URL.createObjectURL).not.toHaveBeenCalled();
+  });
+
+  it("ignores malformed base64 copies", async () => {
+    renderActions("data:image/png;base64,%%%invalid%%%");
+
+    fireEvent.click(screen.getByLabelText("Copy image"));
+    await new Promise((resolve) => setTimeout(resolve, 0));
+
+    expect(clipboardWrite).not.toHaveBeenCalled();
   });
 });
 
