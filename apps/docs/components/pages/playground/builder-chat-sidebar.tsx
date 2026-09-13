@@ -27,7 +27,7 @@ import {
   createPlaygroundChatToolkit,
   type PartialBuilderConfig,
 } from "@/lib/playground-chat-toolkit";
-import { useAui, AuiProvider } from "@assistant-ui/store";
+import { AuiConfig, useAui, AuiProvider } from "@assistant-ui/store";
 import type { BuilderConfig } from "./types";
 import { applyDiff } from "@/lib/playground-url-state";
 
@@ -53,7 +53,7 @@ const PLAYGROUND_SUGGESTIONS = [
 
 type PlaygroundChatContextValue = {
   runtime: ReturnType<typeof useChatRuntime>;
-  aui: ReturnType<typeof useAui>;
+  config: ReturnType<typeof AuiConfig>;
 };
 
 const PlaygroundChatContext = createContext<PlaygroundChatContextValue | null>(
@@ -142,12 +142,18 @@ function PlaygroundChatProviderInner({
     sendAutomaticallyWhen: lastAssistantMessageIsCompleteWithToolCalls,
   });
 
-  const aui = useAui({
-    tools: Tools({ toolkit }),
-    suggestions: Suggestions(PLAYGROUND_SUGGESTIONS),
-  });
-
-  const value = useMemo(() => ({ runtime, aui }), [runtime, aui]);
+  // A config is plain data and the provider never relies on its identity,
+  // so it is built inside the memo that keeps the context value stable.
+  const value = useMemo(
+    () => ({
+      runtime,
+      config: AuiConfig({
+        tools: Tools({ toolkit }),
+        suggestions: Suggestions(PLAYGROUND_SUGGESTIONS),
+      }),
+    }),
+    [runtime, toolkit],
+  );
 
   return (
     <PlaygroundChatContext.Provider value={value}>
@@ -163,10 +169,10 @@ export function PlaygroundChatThread({
 }: {
   onRunningChange?: (isRunning: boolean) => void;
 }) {
-  const { runtime, aui } = usePlaygroundChat();
+  const { runtime, config } = usePlaygroundChat();
 
   return (
-    <AssistantRuntimeProvider aui={aui} runtime={runtime}>
+    <AssistantRuntimeProvider config={config} runtime={runtime}>
       {onRunningChange && <RunningObserver onRunningChange={onRunningChange} />}
       <ThreadPrimitive.Root className="flex flex-1 flex-col overflow-hidden">
         <ThreadPrimitive.Viewport className="flex flex-1 scrollbar-none flex-col gap-3 overflow-y-auto px-3 pt-3">

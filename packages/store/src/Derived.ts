@@ -27,13 +27,16 @@ export const useDerived = <K extends ClientNames>({
  *
  * @example
  * ```typescript
- * const aui = useAui({
+ * const aui = useAui();
+ * const config = AuiConfig({
  *   message: Derived({
  *     source: "thread",
  *     query: { index: 0 },
  *     get: (aui) => aui.thread.message({ index: 0 }),
  *   }),
  * });
+ *
+ * <AuiProvider extends={aui} config={config}>{children}</AuiProvider>;
  * ```
  */
 export const Derived = resource(useDerived) as <K extends ClientNames>(

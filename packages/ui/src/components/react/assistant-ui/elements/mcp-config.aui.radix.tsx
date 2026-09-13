@@ -47,7 +47,9 @@ export namespace McpConfigDialog {
  *
  * Mount the manager once at the root of your app:
  * ```tsx
- * useAui({ mcp: McpManagerResource({ connectors }) });
+ * const config = AuiConfig({ mcp: McpManagerResource({ connectors }) });
+ *
+ * <AuiProvider config={config}>{children}</AuiProvider>;
  * ```
  * then render `<McpConfigDialog />` anywhere inside the provider.
  */
