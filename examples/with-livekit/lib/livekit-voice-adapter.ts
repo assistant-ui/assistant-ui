@@ -29,13 +29,52 @@ export class LiveKitVoiceAdapter implements RealtimeVoiceAdapter {
     abortSignal?: AbortSignal;
   }): RealtimeVoiceAdapter.Session {
     const room = new Room(this._roomOptions);
+    let volumeInterval: ReturnType<typeof setInterval> | null = null;
+    const attachedAudioElements = new Set<HTMLMediaElement>();
+    let isCleanedUp = false;
+    let abortHandler: (() => void) | undefined;
 
-    return createVoiceSession(options, async (session) => {
-      let volumeInterval: ReturnType<typeof setInterval> | null = null;
-      const attachedAudioElements = new Set<HTMLMediaElement>();
+    const cleanupAudioElements = () => {
+      for (const element of attachedAudioElements) element.remove();
+      attachedAudioElements.clear();
+    };
 
+    const cleanup = () => {
+      if (isCleanedUp) return;
+      isCleanedUp = true;
+      if (abortHandler) {
+        options.abortSignal?.removeEventListener("abort", abortHandler);
+        abortHandler = undefined;
+      }
+      if (volumeInterval) {
+        clearInterval(volumeInterval);
+        volumeInterval = null;
+      }
+      try {
+        cleanupAudioElements();
+      } finally {
+        room.disconnect();
+      }
+    };
+
+    const controls = {
+      disconnect: cleanup,
+      mute: () => {
+        room.localParticipant.setMicrophoneEnabled(false).catch(() => {});
+      },
+      unmute: () => {
+        room.localParticipant.setMicrophoneEnabled(true).catch(() => {});
+      },
+    };
+
+    const session = createVoiceSession(options, async (session) => {
       const attachRemoteAudio = (track: RemoteTrack) => {
-        if (track.kind !== Track.Kind.Audio) return;
+        if (
+          isCleanedUp ||
+          session.isDisposed() ||
+          track.kind !== Track.Kind.Audio
+        )
+          return;
         const element = track.attach();
         element.style.display = "none";
         document.body.appendChild(element);
@@ -43,26 +82,22 @@ export class LiveKitVoiceAdapter implements RealtimeVoiceAdapter {
       };
 
       const detachRemoteAudio = (track: RemoteTrack) => {
-        if (track.kind !== Track.Kind.Audio) return;
+        if (isCleanedUp || track.kind !== Track.Kind.Audio) return;
         for (const element of track.detach()) {
           element.remove();
           attachedAudioElements.delete(element);
         }
       };
 
-      const cleanupAudioElements = () => {
-        for (const element of attachedAudioElements) element.remove();
-        attachedAudioElements.clear();
-      };
-
       room.on(RoomEvent.TrackSubscribed, attachRemoteAudio);
       room.on(RoomEvent.TrackUnsubscribed, detachRemoteAudio);
 
       room.on(RoomEvent.Connected, () => {
+        if (isCleanedUp || session.isDisposed()) return;
         session.setStatus({ type: "running" });
         if (volumeInterval) clearInterval(volumeInterval);
         volumeInterval = setInterval(() => {
-          if (session.isDisposed()) return;
+          if (isCleanedUp || session.isDisposed()) return;
           const localLevel = room.localParticipant.audioLevel ?? 0;
           let remoteLevel = 0;
           for (const p of room.remoteParticipants.values()) {
@@ -73,16 +108,22 @@ export class LiveKitVoiceAdapter implements RealtimeVoiceAdapter {
       });
 
       room.on(RoomEvent.Disconnected, () => {
-        if (volumeInterval) clearInterval(volumeInterval);
-        session.end("finished");
+        const wasCleanedUp = isCleanedUp;
+        cleanup();
+        if (!wasCleanedUp && !session.isDisposed()) {
+          session.end("finished");
+        }
       });
       room.on(RoomEvent.MediaDevicesError, (error) => {
-        if (volumeInterval) clearInterval(volumeInterval);
-        session.end("error", error);
+        const wasCleanedUp = isCleanedUp;
+        cleanup();
+        if (!wasCleanedUp && !session.isDisposed()) {
+          session.end("error", error);
+        }
       });
 
       room.on(RoomEvent.ActiveSpeakersChanged, (speakers) => {
-        if (session.isDisposed()) return;
+        if (isCleanedUp || session.isDisposed()) return;
         const remoteIsSpeaking = speakers.some(
           (s) => s !== room.localParticipant,
         );
@@ -92,7 +133,7 @@ export class LiveKitVoiceAdapter implements RealtimeVoiceAdapter {
       room.on(
         RoomEvent.TranscriptionReceived,
         (segments, participant, _publication) => {
-          if (session.isDisposed()) return;
+          if (isCleanedUp || session.isDisposed()) return;
           const role =
             participant === room.localParticipant ? "user" : "assistant";
           for (const segment of segments) {
@@ -105,34 +146,37 @@ export class LiveKitVoiceAdapter implements RealtimeVoiceAdapter {
         },
       );
 
-      const token =
-        typeof this._token === "function" ? await this._token() : this._token;
-      if (session.isDisposed()) {
-        cleanupAudioElements();
-        return { disconnect: () => {}, mute: () => {}, unmute: () => {} };
+      try {
+        const token =
+          typeof this._token === "function" ? await this._token() : this._token;
+        if (session.isDisposed()) {
+          cleanup();
+          return controls;
+        }
+
+        await room.connect(this._url, token);
+        if (session.isDisposed()) {
+          cleanup();
+          return controls;
+        }
+
+        await room.localParticipant.setMicrophoneEnabled(true);
+
+        return controls;
+      } catch (error) {
+        cleanup();
+        throw error;
       }
-
-      await room.connect(this._url, token);
-      if (session.isDisposed()) {
-        cleanupAudioElements();
-        return { disconnect: () => {}, mute: () => {}, unmute: () => {} };
-      }
-
-      await room.localParticipant.setMicrophoneEnabled(true);
-
-      return {
-        disconnect: () => {
-          if (volumeInterval) clearInterval(volumeInterval);
-          cleanupAudioElements();
-          room.disconnect();
-        },
-        mute: () => {
-          room.localParticipant.setMicrophoneEnabled(false).catch(() => {});
-        },
-        unmute: () => {
-          room.localParticipant.setMicrophoneEnabled(true).catch(() => {});
-        },
-      };
     });
+
+    if (options.abortSignal) {
+      abortHandler = () => cleanup();
+      options.abortSignal.addEventListener("abort", abortHandler, {
+        once: true,
+      });
+      if (options.abortSignal.aborted) cleanup();
+    }
+
+    return session;
   }
 }
