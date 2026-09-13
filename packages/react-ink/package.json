@@ -60,6 +60,7 @@
   },
   "devDependencies": {
     "@assistant-ui/x-buildutils": "workspace:*",
+    "@assistant-ui/x-performance": "workspace:*",
     "@types/node": "^26.4.1",
     "@types/react": "^19.2.18",
     "ink": "^7.1.1",
