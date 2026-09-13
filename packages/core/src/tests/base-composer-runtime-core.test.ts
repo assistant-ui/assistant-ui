@@ -2,6 +2,7 @@ import { beforeEach, describe, expect, it, onTestFinished, vi } from "vitest";
 import { BaseComposerRuntimeCore } from "../runtime/base/base-composer-runtime-core";
 import type { AttachmentAdapter } from "../adapters/attachment";
 import type { DictationAdapter } from "../adapters/speech";
+import { WebSpeechDictationAdapter } from "../adapters/speech";
 import type { CreateAttachment, PendingAttachment } from "../types/attachment";
 import type { AppendMessage } from "../types/message";
 import type { SendOptions } from "../runtime/interfaces/composer-runtime-core";
@@ -74,6 +75,71 @@ describe("BaseComposerRuntimeCore", () => {
     composer.setText("same");
     expect(listener).not.toHaveBeenCalled();
   });
+
+  it.each(["", "Existing text"])(
+    "replaces the complete browser dictation preview after %j",
+    async (baseText) => {
+      vi.useFakeTimers();
+      onTestFinished(() => {
+        vi.unstubAllGlobals();
+        vi.useRealTimers();
+      });
+      const listeners = new Map<string, EventListener>();
+      class Recognition {
+        addEventListener(type: string, listener: EventListener) {
+          listeners.set(type, listener);
+        }
+        start() {}
+        stop() {
+          listeners.get("end")!(new Event("end"));
+        }
+        abort() {
+          this.stop();
+        }
+      }
+      vi.stubGlobal("window", { SpeechRecognition: Recognition });
+      composer.setDictationAdapter(new WebSpeechDictationAdapter());
+      composer.setText(baseText);
+      composer.startDictation();
+      onTestFinished(() => composer.stopDictation());
+      const emit = (results: [string, boolean][], resultIndex = 0) => {
+        listeners.get("result")!({
+          resultIndex,
+          results: results.map(([transcript, isFinal]) => ({
+            0: { transcript },
+            isFinal,
+          })),
+        } as unknown as Event);
+      };
+      const prefix = baseText ? `${baseText} ` : "";
+
+      emit([
+        ["hello ", false],
+        ["world", false],
+      ]);
+      expect(composer.text).toBe(`${prefix}hello world`);
+      emit([["hello ", false]], 1);
+      expect(composer.text).toBe(`${prefix}hello `);
+      emit([]);
+      expect(composer.text).toBe(baseText);
+      emit([
+        ["hello ", true],
+        ["world", false],
+      ]);
+      expect(composer.text).toBe(`${prefix}hello world`);
+      emit(
+        [
+          ["hello ", true],
+          ["world", true],
+        ],
+        1,
+      );
+      expect(composer.text).toBe(`${prefix}hello world`);
+      expect(composer.dictation?.transcript).toBeUndefined();
+      composer.stopDictation();
+      await Promise.resolve();
+    },
+  );
 
   it("isEmpty returns true for whitespace-only text", () => {
     composer.setText("   ");
