@@ -5,12 +5,6 @@
       "gzip": 13336
     }
   },
-  "@assistant-ui/cloud-ai-sdk": {
-    ".": {
-      "min": 19465,
-      "gzip": 6614
-    }
-  },
   "@assistant-ui/core": {
     ".": {
       "min": 33252,

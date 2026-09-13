@@ -272,7 +272,6 @@ jobs:
             "packages/ai-sdk/" \
             "packages/react-ai-sdk/" \
             "packages/react-data-stream/" \
-            "packages/cloud-ai-sdk/" \
             "packages/eve/" \
             "packages/safe-content-frame/" \
             "apps/docs/scripts/" \

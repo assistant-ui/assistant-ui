@@ -1,7 +1,6 @@
 ---
 "@assistant-ui/core": patch
 "@assistant-ui/ai-sdk": patch
-"@assistant-ui/cloud-ai-sdk": patch
 "@assistant-ui/react-langchain": patch
 "@assistant-ui/react-langgraph": patch
 "@assistant-ui/react-google-adk": patch
