@@ -402,7 +402,7 @@ describe("createAdkStream - direct mode", () => {
 
     const body = JSON.parse(mockFetch.mock.calls[0]![1]?.body as string);
     expect(body.newMessage.parts[0].functionResponse.response).toEqual({
-      output: "not-json",
+      result: "not-json",
     });
   });
 
@@ -411,35 +411,39 @@ describe("createAdkStream - direct mode", () => {
     ["0", 0],
     ["null", null],
     ['"done"', "done"],
-  ])("wraps scalar tool result %s in direct mode", async (content, output) => {
-    mockFetch.mockResolvedValueOnce(sseResponse(sseBody("")));
+    ["[1,2]", [1, 2]],
+  ])(
+    "wraps scalar or array tool result %s in direct mode",
+    async (content, result) => {
+      mockFetch.mockResolvedValueOnce(sseResponse(sseBody("")));
 
-    const stream = createAdkStream({
-      api: "http://localhost:8000",
-      appName: "app",
-      userId: "u",
-    });
-    const gen = await stream(
-      [
-        {
-          id: "t1",
-          type: "tool",
-          content,
-          tool_call_id: "tc-1",
-          name: "search",
-        },
-      ],
-      makeConfig(),
-    );
-    for await (const _ of gen) {
-      /* noop */
-    }
+      const stream = createAdkStream({
+        api: "http://localhost:8000",
+        appName: "app",
+        userId: "u",
+      });
+      const gen = await stream(
+        [
+          {
+            id: "t1",
+            type: "tool",
+            content,
+            tool_call_id: "tc-1",
+            name: "search",
+          },
+        ],
+        makeConfig(),
+      );
+      for await (const _ of gen) {
+        /* noop */
+      }
 
-    const body = JSON.parse(mockFetch.mock.calls[0]![1]?.body as string);
-    expect(body.newMessage.parts[0].functionResponse.response).toEqual({
-      output,
-    });
-  });
+      const body = JSON.parse(mockFetch.mock.calls[0]![1]?.body as string);
+      expect(body.newMessage.parts[0].functionResponse.response).toEqual({
+        result,
+      });
+    },
+  );
 
   it("sends empty text part when no messages provided", async () => {
     mockFetch.mockResolvedValueOnce(sseResponse(sseBody("")));

@@ -293,8 +293,8 @@ describe("toAdkContent", () => {
     });
   });
 
-  it.each([false, 0, null, "done"])(
-    "wraps scalar tool result %j in a function response object",
+  it.each([false, 0, null, "done", [1, 2]])(
+    "wraps scalar or array tool result %j in a function response object",
     (result) => {
       const content = toAdkContent({
         type: "tool-result",
@@ -309,7 +309,7 @@ describe("toAdkContent", () => {
         functionResponse: {
           name: "search",
           id: "tc-1",
-          response: { output: result },
+          response: { result },
         },
       });
     },
