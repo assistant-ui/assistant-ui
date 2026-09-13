@@ -10,53 +10,63 @@ description: Use the client from a server with an API key, so an app without a b
 ```ts title="cloud.ts"
 import { AssistantCloud } from "assistant-cloud";
 
-export const cloud = new AssistantCloud({
-  apiKey: process.env.ASSISTANT_API_KEY!,
-  userId: slackUserId,
-  workspaceId: slackTeamId,
-});
+export function createCloud(userId: string, workspaceId: string) {
+  return new AssistantCloud({
+    apiKey: process.env.ASSISTANT_API_KEY!,
+    userId,
+    workspaceId,
+  });
+}
 ```
 
-The key is created in **Settings › API keys** and must never reach a browser. The client talks to `https://backend.assistant-api.com` and acts as the user and workspace you name: the user is who the conversation belongs to and counts as active for the plan, the workspace is who may see the thread. Create one client per user, or set the headers per request through your own wrapper.
+The key is created in **Settings › API keys** and must never reach a browser. The client talks to `https://backend.assistant-api.com` and acts as the user and workspace you name: the user is who the conversation belongs to and counts as active for the plan, the workspace is who may see the thread. Create the client per user, inside the handler that receives the event.
 
 ## A conversation, end to end
 
 ```ts title="bot.ts"
-import { cloud } from "./cloud";
+import { createCloud } from "./cloud";
 
-const { thread_id } = await cloud.threads.create({
-  last_message_at: new Date(),
-  external_id: slackThreadTs,
-});
+type SlackMessage = { user: string; team: string; thread_ts: string; text: string };
 
-const { message_id: userMessageId } = await cloud.threads.messages.create(
-  thread_id,
-  {
-    parent_id: null,
+export async function answer(event: SlackMessage) {
+  const cloud = createCloud(event.user, event.team);
+
+  const { thread_id } = await cloud.threads.create({
+    last_message_at: new Date(),
+    external_id: event.thread_ts,
+  });
+
+  const { message_id: userMessageId } = await cloud.threads.messages.create(
+    thread_id,
+    {
+      parent_id: null,
+      format: "ai-sdk/v6",
+      content: { role: "user", parts: [{ type: "text", text: event.text }] },
+    },
+  );
+
+  const started = Date.now();
+  const reply = await generate(event.text); // Your model call.
+
+  const { message_id } = await cloud.threads.messages.create(thread_id, {
+    parent_id: userMessageId,
     format: "ai-sdk/v6",
-    content: { role: "user", parts: [{ type: "text", text: question }] },
-  },
-);
+    content: { role: "assistant", parts: [{ type: "text", text: reply.text }] },
+  });
 
-const started = Date.now();
-const answer = await generate(question);
+  await cloud.runs.report({
+    thread_id,
+    message_id,
+    status: "completed",
+    model_id: reply.modelId,
+    provider: "openai",
+    input_tokens: reply.usage.inputTokens,
+    output_tokens: reply.usage.outputTokens,
+    duration_ms: Date.now() - started,
+  });
 
-const { message_id } = await cloud.threads.messages.create(thread_id, {
-  parent_id: userMessageId,
-  format: "ai-sdk/v6",
-  content: { role: "assistant", parts: [{ type: "text", text: answer.text }] },
-});
-
-await cloud.runs.report({
-  thread_id,
-  message_id,
-  status: "completed",
-  model_id: answer.modelId,
-  provider: "openai",
-  input_tokens: answer.usage.inputTokens,
-  output_tokens: answer.usage.outputTokens,
-  duration_ms: Date.now() - started,
-});
+  return reply.text;
+}
 ```
 
 Three calls per turn: store the user message, store the answer, report the run. `parent_id` chains the messages; `external_id` keeps your own id on the thread so the next event in Slack finds it. The cloud does the rest as it does for a browser: the thread is titled after its first completed run, the user counts as active for the month, and the Threads page renders the conversation from the stored messages.

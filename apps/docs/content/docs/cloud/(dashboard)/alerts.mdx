@@ -45,15 +45,26 @@ The signing secret is shown once when the rule is created and again when you rot
 }
 ```
 
-The request is a `POST` with `content-type: application/json` and an `x-aui-signature` header of the form `t=<unix seconds>,v1=<hex>`, where the hex is an HMAC SHA-256 of `<t>.<body>` with the rule's secret. Verify it with the raw body before parsing, and reject a `t` far from now to close replays. A response in the 2xx range within 10 seconds counts as delivered; redirects are not followed.
+The request is a `POST` with `content-type: application/json` and an `x-aui-signature` header of the form `t=<unix seconds>,v1=<hex>`, where the hex is an HMAC SHA-256 of `<t>.<body>` with the rule's secret. Verify it against the raw body before parsing. The sample below rejects a timestamp more than five minutes from now, which closes replays, and a malformed digest, before the constant time comparison. A response in the 2xx range within 10 seconds counts as delivered; redirects are not followed.
 
 ```ts title="verify.ts"
 import { createHmac, timingSafeEqual } from "node:crypto";
 
+const TOLERANCE_SECONDS = 300;
+
 export function verify(secret: string, signature: string, body: string) {
-  const parts = Object.fromEntries(signature.split(",").map((p) => p.split("=")));
-  const expected = createHmac("sha256", secret).update(`${parts.t}.${body}`).digest("hex");
-  return timingSafeEqual(Buffer.from(expected), Buffer.from(parts.v1 ?? ""));
+  const parts = Object.fromEntries(
+    signature.split(",").map((part) => part.split("=")),
+  );
+  const timestamp = Number(parts.t);
+  const digest = parts.v1 ?? "";
+  if (!Number.isInteger(timestamp)) return false;
+  if (Math.abs(Date.now() / 1000 - timestamp) > TOLERANCE_SECONDS) return false;
+  if (!/^[0-9a-f]{64}$/.test(digest)) return false;
+  const expected = createHmac("sha256", secret)
+    .update(`${parts.t}.${body}`)
+    .digest("hex");
+  return timingSafeEqual(Buffer.from(expected), Buffer.from(digest));
 }
 ```
 

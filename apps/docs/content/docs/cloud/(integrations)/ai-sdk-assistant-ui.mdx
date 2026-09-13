@@ -335,9 +335,31 @@ export async function POST(req: Request) {
               description:
                 "Defaults to the cloud history adapter, which stores messages as ai-sdk/v6 and reports runs. A replacement must implement withFormat.",
             },
+            {
+              name: "speech",
+              type: "SpeechSynthesisAdapter",
+              description: "Text to speech.",
+            },
+            {
+              name: "dictation",
+              type: "DictationAdapter",
+              description: "Speech to text input.",
+            },
           ],
         },
       ],
+    },
+    {
+      name: "toCreateMessage",
+      type: "(message: AppendMessage) => CreateUIMessage",
+      description:
+        "Converts an assistant-ui message into the AI SDK message the transport sends, for custom metadata or content transforms.",
+    },
+    {
+      name: "onResumeError",
+      type: "(error: unknown) => void",
+      description:
+        "Called when a pending resumable stream cannot be reconnected. The stale stream id is still cleared.",
     },
     {
       name: "transport",

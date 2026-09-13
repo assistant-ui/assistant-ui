@@ -41,10 +41,10 @@ Thread titles written by the cloud's own model count per calendar month, and pas
 
 ## At the cap
 
-When a new user would exceed the plan's cap, their first message is refused:
+When a new user would exceed the plan's cap, their first message is refused with `402` and this body:
 
 ```json
-402 { "error": "plan_limit_reached", "plan": "free", "cap": 200, "period_end": "2026-10-01T00:00:00.000Z" }
+{ "error": "plan_limit_reached", "plan": "free", "cap": 200, "period_end": "2026-10-01T00:00:00.000Z" }
 ```
 
 Users who were already active this month keep working, and nothing else is refused. The SDK surfaces the refusal as a `CloudAPIError` with `code === "plan_limit_reached"`, so your app can show an upgrade or a retry state. On Pro, users between the included number and the cap are billed as overage instead.

@@ -65,7 +65,7 @@ Every change made through the dashboard or the API that changes configuration or
 
 Both live under **Build**.
 
-**LLM providers** stores a provider's credentials, encrypted, and lists its models. OpenAI, Anthropic, Google, xAI, Mistral, Groq, Azure and Amazon Bedrock have dedicated support, and any OpenAI compatible endpoint works with a base URL and a key. Providers are spent by the features the cloud runs for you: thread titles, intelligence, evaluators and assistants. Without one, thread titles fall back to the cloud's default model and the model judged features stay off.
+**LLM providers** stores a provider's credentials, encrypted, and lists its models. OpenAI, Anthropic, Google, xAI, Mistral, Groq, Azure and Amazon Bedrock have dedicated support, and any OpenAI compatible endpoint works with a base URL and a key. Providers are spent by the features the cloud runs for you: thread titles, intelligence, evaluators and assistants. Without one, thread titles fall back to the cloud's default model, and intelligence and evaluators stay off.
 
 **Assistants** are runs the cloud executes on your behalf: a provider and model, a system prompt, sampling settings, the tool call rounds before a run stops (`max_steps`, 1 to 50) and a timeout (30 to 600 seconds). They are streamed through `POST /v1/runs/stream` and reported with the server side outcomes, `timeout`, `rate_limited`, `provider_error` and `server_error`; a task on Intelligence can be turned into one as a skill.
 

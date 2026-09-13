@@ -113,7 +113,7 @@ const runtime = useCloudThreadListRuntime({
 | `create` | Called when a new thread is created; the id you return is stored as the cloud thread's `external_id`. |
 | `delete` | Called with the thread before the cloud thread is deleted. |
 
-This is also the way in for a runtime that has no `cloud` option. `useAgUiRuntime` from `@assistant-ui/react-ag-ui` and `useA2ARuntime` from `@assistant-ui/react-a2a` read the history and attachment adapters from the context this hook provides, so passing either as the `runtimeHook` gives an AG-UI or A2A app the cloud thread list and titles, persistence of every message as `aui/v0`, attachments, engagement events, and run reports read from the stored assistant messages. Feedback is not read from context there; pass `adapters: { feedback }` to the runtime yourself.
+This is also the way in for a runtime that has no `cloud` option. `useAgUiRuntime` from `@assistant-ui/react-ag-ui` and `useA2ARuntime` from `@assistant-ui/react-a2a` read the history and attachment adapters from the context this hook provides, so passing either as the `runtimeHook` gives an AG-UI or A2A app the cloud thread list and titles, persistence of every message as `aui/v0`, feedback, attachments, engagement events, and run reports read from the stored assistant messages.
 
 ```tsx
 import { useCloudThreadListRuntime } from "@assistant-ui/react";
