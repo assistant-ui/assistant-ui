@@ -63,11 +63,9 @@ const dataUriToBlob = (dataUri: string): Blob | null => {
   }
   let bytes: string;
   try {
-    const base64 = data
-      .replace(/%([\da-f]{2})/gi, (_match, hex: string) =>
-        String.fromCharCode(Number.parseInt(hex, 16)),
-      )
-      .replace(/[\t\n\f\r ]/g, "");
+    const base64 = data.replace(/%([\da-f]{2})/gi, (_match, hex: string) =>
+      String.fromCharCode(Number.parseInt(hex, 16)),
+    );
     bytes = atob(base64);
   } catch {
     return null;
