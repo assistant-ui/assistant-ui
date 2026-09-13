@@ -202,9 +202,13 @@ export function SidebarContent({ tree }: { tree?: PageTree.Root }) {
   }, [allFolders, pathname]);
 
   const activeSectionId = useMemo(() => {
-    const activeIds = new Set(activePath?.map((node) => node.$id));
-    const match = sections.find((section) => activeIds.has(section.$id));
-    return match?.$id ?? sections[0]?.$id ?? null;
+    const sectionIds = new Set(sections.map((section) => section.$id));
+    const path = activePath ?? [];
+    for (let i = path.length - 1; i >= 0; i--) {
+      const id = path[i]!.$id;
+      if (id !== undefined && sectionIds.has(id)) return id;
+    }
+    return sections[0]?.$id ?? null;
   }, [sections, activePath]);
 
   const [openSectionId, setOpenSectionId] = useState<string | null>(

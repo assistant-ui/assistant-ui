@@ -146,6 +146,23 @@ function filterChildren(
   };
 }
 
+// A folder marked `root` inside a section is a section of its own: the parent
+// keeps its remaining children and the root folders follow it in order, so a
+// book with one url prefix can still show several sidebar sections.
+function hoistRootFolders(folder: PageTree.Folder): PageTree.Folder[] {
+  const roots = folder.children.filter(
+    (child): child is PageTree.Folder =>
+      child.type === "folder" && Boolean(child.root),
+  );
+  if (roots.length === 0) return [folder];
+  const hoisted = new Set<PageTree.Node>(roots);
+  const own = {
+    ...folder,
+    children: folder.children.filter((child) => !hoisted.has(child)),
+  };
+  return [own, ...roots.flatMap(hoistRootFolders)];
+}
+
 // An untagged top-level section belongs to every surface; a library such as
 // Tap only receives the sections tagged with its id.
 export function buildPlatformSections(
@@ -154,6 +171,7 @@ export function buildPlatformSections(
 ): PageTree.Folder[] {
   return folders
     .filter((f) => (nodePlatforms(f) ?? SURFACES).includes(platform))
+    .flatMap(hoistRootFolders)
     .map((f) => filterChildren(f, platform))
     .filter((f) => hasVisibleContent(f, platform));
 }
