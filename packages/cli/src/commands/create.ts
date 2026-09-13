@@ -386,6 +386,13 @@ export function resolveCreateProjectDirectory(params: {
   return undefined;
 }
 
+export function resolveAbsoluteProjectDirectory(params: {
+  projectDirectory: string;
+  cwd?: string | undefined;
+}): string {
+  return path.resolve(params.cwd ?? process.cwd(), params.projectDirectory);
+}
+
 export function resolveProjectDirectoryGuidance(params: {
   absoluteProjectDir: string;
   cwd?: string;
@@ -522,6 +529,12 @@ export const create = new Command()
   .option("--no-skills", "skip adding assistant-ui agent skills")
   .addOption(
     new Option(
+      "--cwd <cwd>",
+      "directory used to resolve the project path",
+    ).hideHelp(),
+  )
+  .addOption(
+    new Option(
       "--debug-source-root <path>",
       "copy templates/examples from a local assistant-ui repo root",
     ).hideHelp(),
@@ -575,7 +588,10 @@ export const create = new Command()
     }
 
     // Check directory
-    const absoluteProjectDir = path.resolve(resolvedProjectDirectory);
+    const absoluteProjectDir = resolveAbsoluteProjectDirectory({
+      projectDirectory: resolvedProjectDirectory,
+      cwd: opts.cwd,
+    });
     const { display: displayProjectDir, cdCommand } =
       resolveProjectDirectoryGuidance({ absoluteProjectDir });
     try {
