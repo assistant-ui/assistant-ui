@@ -162,6 +162,59 @@ describe("LexicalComposerInput", () => {
     expect(container.querySelector(".aui-lexical-input")).not.toBeNull();
   });
 
+  it("forwards accessible naming props to the editable and updates them", async () => {
+    const wrapperRef = { current: null as HTMLDivElement | null };
+    const captureRef = (element: HTMLDivElement | null) => {
+      wrapperRef.current = element;
+    };
+    const render = (props: {
+      "aria-label"?: string;
+      "aria-labelledby"?: string;
+    }) =>
+      root.render(
+        <LexicalComposerInput
+          {...props}
+          className="custom-editor"
+          data-testid="editor-wrapper"
+          ref={captureRef}
+          style={{ maxHeight: "100px" }}
+        />,
+      );
+
+    await act(async () => {
+      render({ "aria-label": "Message" });
+    });
+
+    const input = () => container.querySelector(".aui-lexical-input");
+    const wrapper = container.querySelector("[data-testid=editor-wrapper]");
+    expect(input()?.getAttribute("aria-label")).toBe("Message");
+    expect(input()?.getAttribute("aria-labelledby")).toBeNull();
+    expect(wrapper?.getAttribute("aria-label")).toBeNull();
+    expect(wrapper?.getAttribute("aria-labelledby")).toBeNull();
+    expect(wrapper).toBe(wrapperRef.current);
+    expect(wrapper?.className).toContain("custom-editor");
+    expect((wrapper as HTMLElement | null)?.style.maxHeight).toBe("100px");
+
+    await act(async () => {
+      render({
+        "aria-label": "Updated message",
+        "aria-labelledby": "message-label",
+      });
+    });
+
+    expect(input()?.getAttribute("aria-label")).toBe("Updated message");
+    expect(input()?.getAttribute("aria-labelledby")).toBe("message-label");
+
+    await act(async () => {
+      render({ "aria-labelledby": "updated-message-label" });
+    });
+
+    expect(input()?.getAttribute("aria-label")).toBeNull();
+    expect(input()?.getAttribute("aria-labelledby")).toBe(
+      "updated-message-label",
+    );
+  });
+
   it("delegates Tab to composer input plugins", async () => {
     await act(async () => {
       root.render(<LexicalComposerInput />);
