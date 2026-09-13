@@ -109,6 +109,186 @@ describe("WebSpeechDictationAdapter", () => {
     return listeners;
   };
 
+  const emitResults = (
+    listeners: Map<string, EventListener>,
+    results: [transcript: string, isFinal: boolean][],
+    resultIndex = 0,
+  ) => {
+    listeners.get("result")!({
+      resultIndex,
+      results: results.map(([transcript, isFinal]) => ({
+        0: { transcript },
+        isFinal,
+      })),
+    } as unknown as Event);
+  };
+
+  it("publishes the entire interim suffix when only its last result changes", () => {
+    const listeners = stubSpeechRecognition();
+    const session = new WebSpeechDictationAdapter().listen();
+    const onSpeech = vi.fn();
+    session.onSpeech(onSpeech);
+
+    emitResults(listeners, [
+      ["hello ", false],
+      ["world", false],
+    ]);
+    emitResults(
+      listeners,
+      [
+        ["hello ", false],
+        ["there", false],
+      ],
+      1,
+    );
+
+    expect(onSpeech.mock.calls).toEqual([
+      [{ transcript: "hello world", isFinal: false }],
+      [{ transcript: "hello there", isFinal: false }],
+    ]);
+  });
+
+  it("publishes partial and complete retractions with no changed results", () => {
+    const listeners = stubSpeechRecognition();
+    const session = new WebSpeechDictationAdapter().listen();
+    const onSpeech = vi.fn();
+    session.onSpeech(onSpeech);
+
+    emitResults(listeners, [
+      ["hello ", false],
+      ["world", false],
+    ]);
+    emitResults(listeners, [["hello ", false]], 1);
+    emitResults(listeners, []);
+    emitResults(listeners, []);
+
+    expect(onSpeech.mock.calls).toEqual([
+      [{ transcript: "hello world", isFinal: false }],
+      [{ transcript: "hello ", isFinal: false }],
+      [{ transcript: "", isFinal: false }],
+    ]);
+  });
+
+  it("delivers changed final results once before the remaining interim suffix", () => {
+    const listeners = stubSpeechRecognition();
+    const session = new WebSpeechDictationAdapter().listen();
+    const onSpeech = vi.fn();
+    const onEnd = vi.fn();
+    session.onSpeech(onSpeech);
+    session.onSpeechEnd(onEnd);
+
+    emitResults(listeners, [
+      ["hello ", true],
+      ["wor", false],
+      ["ld", false],
+    ]);
+    emitResults(
+      listeners,
+      [
+        ["hello ", true],
+        ["world", true],
+      ],
+      1,
+    );
+    listeners.get("end")!(new Event("end"));
+
+    expect(onSpeech.mock.calls).toEqual([
+      [{ transcript: "hello ", isFinal: true }],
+      [{ transcript: "world", isFinal: false }],
+      [{ transcript: "world", isFinal: true }],
+    ]);
+    expect(onEnd).toHaveBeenCalledExactlyOnceWith({
+      transcript: "hello world",
+    });
+  });
+
+  it("clears an interim suffix while retaining earlier final results", () => {
+    const listeners = stubSpeechRecognition();
+    const session = new WebSpeechDictationAdapter().listen();
+    const onSpeech = vi.fn();
+    session.onSpeech(onSpeech);
+
+    emitResults(listeners, [
+      ["hello ", true],
+      ["world", false],
+    ]);
+    emitResults(listeners, [["hello ", true]], 1);
+
+    expect(onSpeech.mock.calls).toEqual([
+      [{ transcript: "hello ", isFinal: true }],
+      [{ transcript: "world", isFinal: false }],
+      [{ transcript: "", isFinal: false }],
+    ]);
+  });
+
+  it("keeps final-only delivery free of empty interim updates", () => {
+    const listeners = stubSpeechRecognition();
+    const session = new WebSpeechDictationAdapter().listen();
+    const onSpeech = vi.fn();
+    session.onSpeech(onSpeech);
+
+    emitResults(listeners, [["hello", true]]);
+    emitResults(listeners, [["hello", true]], 1);
+
+    expect(onSpeech).toHaveBeenCalledExactlyOnceWith({
+      transcript: "hello",
+      isFinal: true,
+    });
+  });
+
+  it("does not drop an unconsumed final when resultIndex skips it", () => {
+    const listeners = stubSpeechRecognition();
+    const session = new WebSpeechDictationAdapter().listen();
+    const onSpeech = vi.fn();
+    const onEnd = vi.fn();
+    session.onSpeech(onSpeech);
+    session.onSpeechEnd(onEnd);
+
+    emitResults(listeners, [["hello ", false]]);
+    emitResults(
+      listeners,
+      [
+        ["hello ", true],
+        ["world", false],
+      ],
+      1,
+    );
+    listeners.get("end")!(new Event("end"));
+
+    expect(onSpeech.mock.calls).toEqual([
+      [{ transcript: "hello ", isFinal: false }],
+      [{ transcript: "hello ", isFinal: true }],
+      [{ transcript: "world", isFinal: false }],
+    ]);
+    expect(onEnd).toHaveBeenCalledExactlyOnceWith({ transcript: "hello " });
+  });
+
+  it("does not reread historical finalized results during interim updates", () => {
+    const listeners = stubSpeechRecognition();
+    new WebSpeechDictationAdapter().listen();
+    const readFinal = vi.fn(() => ({ transcript: "word " }));
+    const finals = Array.from({ length: 1_000 }, () => ({
+      get 0() {
+        return readFinal();
+      },
+      isFinal: true,
+    }));
+    listeners.get("result")!({
+      resultIndex: 0,
+      results: finals,
+    } as unknown as Event);
+    expect(readFinal).toHaveBeenCalledTimes(1_000);
+
+    for (const transcript of ["hel", "hello", "hello world"]) {
+      listeners.get("result")!({
+        resultIndex: finals.length,
+        results: [...finals, { 0: { transcript }, isFinal: false }],
+      } as unknown as Event);
+    }
+
+    expect(readFinal).toHaveBeenCalledTimes(1_000);
+  });
+
   it("continues notifying dictation listeners when one throws", () => {
     const listeners = stubSpeechRecognition();
     const listenerError = new Error("listener failed");
