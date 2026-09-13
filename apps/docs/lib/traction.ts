@@ -525,6 +525,8 @@ const EMPTY_DOWNLOADS: PackageDownloads = {
 };
 
 const sum = (arr: number[]) => arr.reduce((acc, n) => acc + n, 0);
+// npm aggregation lags 1-2 days; trailing days under-report and would distort rolling metrics.
+const TRAILING_LAG_DAYS = 2;
 
 async function fetchPackageDownloadRange(
   name: string,
@@ -533,11 +535,14 @@ async function fetchPackageDownloadRange(
   const today = new Date();
   const end = today.toISOString().slice(0, 10);
   const start = new Date(today);
-  start.setUTCDate(today.getUTCDate() - 60);
+  start.setUTCDate(today.getUTCDate() - 60 - TRAILING_LAG_DAYS);
   const startStr = start.toISOString().slice(0, 10);
 
   const downloads = await getDownloadsRange(name, startStr, end, revalidate);
-  const all = downloads.map((d) => d.downloads);
+  const stableDownloads = [...downloads]
+    .sort((a, b) => a.day.localeCompare(b.day))
+    .slice(0, Math.max(1, downloads.length - TRAILING_LAG_DAYS));
+  const all = stableDownloads.map((d) => d.downloads);
   if (all.length === 0) return EMPTY_DOWNLOADS;
 
   const last60 = all.slice(-60);
