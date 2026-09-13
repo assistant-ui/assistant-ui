@@ -153,6 +153,30 @@ describe("tailBoundedRemend", () => {
     expect(tailBoundedRemend(text)).toBe(text);
   });
 
+  it("does not open a code span at an escaped backtick", () => {
+    const text = "x \\` $$ a ` $$ b\n\n$$\nc~d\n$$\n\nTail";
+    expect(findRemendWindowStart(text)).toBe(text.indexOf("Tail"));
+    expect(tailBoundedRemend(text)).toBe(text);
+  });
+
+  it("carries an open code span across lines of its paragraph", () => {
+    const text = "a `x\n1 $$ 2` b\n\n$$\na~b\n$$\n\nTail";
+    expect(findRemendWindowStart(text)).toBe(text.indexOf("Tail"));
+    expect(tailBoundedRemend(text)).toBe(text);
+  });
+
+  it("ends an open code span at a blank line", () => {
+    const text = "a `x\n\n$$\n1~2\n$$\n\nTail";
+    expect(findRemendWindowStart(text)).toBe(text.indexOf("Tail"));
+    expect(tailBoundedRemend(text)).toBe(text);
+  });
+
+  it("lets a line-start $$ interrupt an open code span", () => {
+    const text = "a `code\n$$` b\n\n$$\nx~y\n$$\n\nTail";
+    expect(tailBoundedRemend(text)).toBe(remend(text));
+    expect(tailBoundedRemend(text)).toContain("x\\~y");
+  });
+
   it("reads a backtick run with a backtick in its info string as inline code", () => {
     const text = "```code```\n\n20~25\n\nTail";
     expect(findRemendWindowStart(text)).toBe(text.indexOf("Tail"));

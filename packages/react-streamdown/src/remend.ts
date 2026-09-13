@@ -21,18 +21,24 @@ function backtickRun(text: string, from: number, to: number): number {
   return end;
 }
 
-function skipCodeSpan(text: string, from: number, lineEnd: number): number {
-  const open = backtickRun(text, from, lineEnd);
-  const length = open - from;
-  for (let s = open; s < lineEnd;) {
+function closeCodeSpan(
+  text: string,
+  from: number,
+  lineEnd: number,
+  length: number,
+): number {
+  for (let s = from; s < lineEnd;) {
     const next = text.indexOf("`", s);
-    if (next === -1 || next >= lineEnd) break;
+    if (next === -1 || next >= lineEnd) return -1;
     const end = backtickRun(text, next, lineEnd);
     if (end - next === length) return end;
     s = end;
   }
-  return open;
+  return -1;
 }
+
+const isEscaped = (text: string, at: number) =>
+  at > 0 && text.charCodeAt(at - 1) === BACKSLASH;
 
 function onlyWhitespace(text: string, from: number, to: number): boolean {
   for (let i = from; i < to; i += 1) {
@@ -53,8 +59,11 @@ type BlockScan = {
  * at a line start because remend drops a single trailing space from its input,
  * so a cut inside a line would lose the space before the range; that rule also
  * keeps a `$$` inside a backtick span at a line start out of the set. Backtick
- * spans are skipped while scanning a line for `$$`, and a backtick run whose
- * info string holds another backtick is a code span, not a fence opener.
+ * spans are skipped while scanning for `$$`; an unclosed span carries into the
+ * following lines of its paragraph, and a blank line, a fence marker, or a
+ * line-start `$$` ends it the way they end a paragraph. An escaped backtick
+ * opens no span, and a backtick run whose info string holds another backtick
+ * is a code span, not a fence opener.
  */
 function scanBlocks(text: string): BlockScan {
   const n = text.length;
@@ -64,6 +73,7 @@ function scanBlocks(text: string): BlockScan {
   let fenceStart = 0;
   let inMath = false;
   let mathStart = -1;
+  let spanRun = 0;
   let boundary = 0;
   let pending = -1;
   const protectedRanges: number[] = [];
@@ -86,6 +96,7 @@ function scanBlocks(text: string): BlockScan {
         (inFence || first === TILDE || !hasBacktick(text, run, lineEnd))
       ) {
         marker = true;
+        spanRun = 0;
         if (!inFence) {
           inFence = true;
           fenceChar = first;
@@ -104,14 +115,35 @@ function scanBlocks(text: string): BlockScan {
 
     if (!inFence && !marker) {
       let s = lineStart;
-      while (s < lineEnd - 1) {
-        if (text.charCodeAt(s) === BACKTICK) {
-          s = skipCodeSpan(text, s, lineEnd);
-        } else if (
-          text.charCodeAt(s) === DOLLAR &&
-          text.charCodeAt(s + 1) === DOLLAR
+      if (spanRun !== 0) {
+        if (
+          first === -1 ||
+          (first === DOLLAR && text.charCodeAt(i + 1) === DOLLAR)
         ) {
-          if (s === 0 || text.charCodeAt(s - 1) !== BACKSLASH) {
+          spanRun = 0;
+        } else {
+          const end = closeCodeSpan(text, lineStart, lineEnd, spanRun);
+          if (end === -1) {
+            s = lineEnd;
+          } else {
+            s = end;
+            spanRun = 0;
+          }
+        }
+      }
+      while (s < lineEnd - 1) {
+        const c = text.charCodeAt(s);
+        if (c === BACKTICK && !inMath && !isEscaped(text, s)) {
+          const open = backtickRun(text, s, lineEnd);
+          const end = closeCodeSpan(text, open, lineEnd, open - s);
+          if (end === -1) {
+            spanRun = open - s;
+            s = lineEnd;
+          } else {
+            s = end;
+          }
+        } else if (c === DOLLAR && text.charCodeAt(s + 1) === DOLLAR) {
+          if (!isEscaped(text, s)) {
             if (inMath) {
               if (mathStart !== -1) protectedRanges.push(mathStart, s + 2);
             } else {
