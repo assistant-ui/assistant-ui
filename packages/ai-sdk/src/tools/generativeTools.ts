@@ -76,8 +76,29 @@ const withMcpConnectionTimeout = async <T>(
   }
 };
 
-const parametersToInputSchema = (parameters: Tool["parameters"] | undefined) =>
-  jsonSchema(parameters ? toJSONSchema(parameters) : EMPTY_SCHEMA);
+// Converted schemas are shared by parameter identity and treated as immutable.
+const convertedParameterSchemas = new WeakMap<
+  object,
+  ReturnType<typeof toJSONSchema>
+>();
+
+const getOrConvertParameterSchema = (
+  parameters: NonNullable<Tool["parameters"]>,
+) => {
+  const cached = convertedParameterSchemas.get(parameters);
+  if (cached) return cached;
+
+  const converted = toJSONSchema(parameters);
+  convertedParameterSchemas.set(parameters, converted);
+  return converted;
+};
+
+const parametersToInputSchema = (
+  parameters: Tool["parameters"] | undefined,
+) => {
+  if (!parameters) return jsonSchema(EMPTY_SCHEMA);
+  return jsonSchema(getOrConvertParameterSchema(parameters));
+};
 
 /**
  * @deprecated Options for the deprecated {@link generativeTools}. Use
