@@ -26,35 +26,6 @@ const cloudThreadOwnership = new WeakMap<
   RemoteThreadListAdapter,
   MutableCloudThreadOwnership
 >();
-const pendingCloudThreadReads = new WeakMap<
-  MutableCloudThreadOwnership,
-  Set<Set<string>>
->();
-
-const beginCloudThreadRead = (
-  ownership: MutableCloudThreadOwnership,
-): { blockedIds: Set<string>; finish(): void } => {
-  let pending = pendingCloudThreadReads.get(ownership);
-  if (!pending) {
-    pending = new Set();
-    pendingCloudThreadReads.set(ownership, pending);
-  }
-  const blockedIds = new Set<string>();
-  pending.add(blockedIds);
-  return {
-    blockedIds,
-    finish: () => pending.delete(blockedIds),
-  };
-};
-
-const blockPendingCloudThreadReads = (
-  ownership: MutableCloudThreadOwnership,
-  threadId: string,
-): void => {
-  for (const blockedIds of pendingCloudThreadReads.get(ownership) ?? []) {
-    blockedIds.add(threadId);
-  }
-};
 
 export const getCloudThreadOwnership = (
   adapter: RemoteThreadListAdapter,
@@ -71,8 +42,9 @@ export type CloudThreadListAdapterOptions = {
   cloud?: AssistantCloud | undefined;
   /**
    * Stable identity for the account or workspace owning Cloud runtime state.
-   * Change it when that scope changes. `useCloudThreadListRuntime` reloads the
-   * list after the hook returns a replacement adapter; lower-level
+   * Provide it from the runtime's first render and change it when that scope
+   * changes. `useCloudThreadListRuntime` reloads the list after the hook
+   * returns a replacement adapter; lower-level
    * `RemoteThreadList` compositions must call their thread-list `reload()`
    * method after publishing that replacement. When omitted, replacing the
    * Cloud client preserves cached runtime state for backward compatibility.
@@ -249,70 +221,60 @@ export const createCloudThreadListAdapter = (
 
   adapter = {
     list: async ({ after } = {}) => {
-      const ownership = getOwnership();
-      const read = beginCloudThreadRead(ownership);
       const {
         activeCursor,
         archivedCursor,
         activeExhausted,
         archivedExhausted,
       } = parseListCursor(after);
-      try {
-        const [{ threads: activeThreads }, { threads: archivedThreads }] =
-          await Promise.all([
-            activeExhausted
-              ? Promise.resolve({ threads: [] })
-              : cloud.threads.list({
-                  limit: CLOUD_THREAD_PAGE_SIZE,
-                  ...(activeCursor ? { after: activeCursor } : {}),
-                }),
-            archivedExhausted
-              ? Promise.resolve({ threads: [] })
-              : cloud.threads.list({
-                  is_archived: true,
-                  limit: CLOUD_THREAD_PAGE_SIZE,
-                  ...(archivedCursor ? { after: archivedCursor } : {}),
-                }),
-          ]);
-        const activeNext =
-          !activeExhausted && activeThreads.length === CLOUD_THREAD_PAGE_SIZE
-            ? activeThreads.at(-1)?.id
-            : undefined;
-        const archivedNext =
-          !archivedExhausted &&
-          archivedThreads.length === CLOUD_THREAD_PAGE_SIZE
-            ? archivedThreads.at(-1)?.id
-            : undefined;
-        const threads = [...activeThreads, ...archivedThreads];
-        for (const thread of threads) {
-          if (!read.blockedIds.has(thread.id)) ownership.add(thread.id);
-        }
-        return {
-          threads: threads.map((t) => ({
-            status: t.is_archived
-              ? ("archived" as const)
-              : ("regular" as const),
-            remoteId: t.id,
-            title: t.title,
-            lastMessageAt: t.last_message_at
-              ? new Date(t.last_message_at)
-              : undefined,
-            externalId: t.external_id ?? undefined,
-            custom: toCustom(t.metadata),
-          })),
-          nextCursor:
-            activeNext || archivedNext
-              ? JSON.stringify({
-                  a: activeNext,
-                  r: archivedNext,
-                  ...(activeNext === undefined ? { ae: true } : {}),
-                  ...(archivedNext === undefined ? { re: true } : {}),
-                })
-              : undefined,
-        };
-      } finally {
-        read.finish();
-      }
+      const [{ threads: activeThreads }, { threads: archivedThreads }] =
+        await Promise.all([
+          activeExhausted
+            ? Promise.resolve({ threads: [] })
+            : cloud.threads.list({
+                limit: CLOUD_THREAD_PAGE_SIZE,
+                ...(activeCursor ? { after: activeCursor } : {}),
+              }),
+          archivedExhausted
+            ? Promise.resolve({ threads: [] })
+            : cloud.threads.list({
+                is_archived: true,
+                limit: CLOUD_THREAD_PAGE_SIZE,
+                ...(archivedCursor ? { after: archivedCursor } : {}),
+              }),
+        ]);
+      const activeNext =
+        !activeExhausted && activeThreads.length === CLOUD_THREAD_PAGE_SIZE
+          ? activeThreads.at(-1)?.id
+          : undefined;
+      const archivedNext =
+        !archivedExhausted && archivedThreads.length === CLOUD_THREAD_PAGE_SIZE
+          ? archivedThreads.at(-1)?.id
+          : undefined;
+      const threads = [...activeThreads, ...archivedThreads];
+      const ownership = getOwnership();
+      for (const thread of threads) ownership.add(thread.id);
+      return {
+        threads: threads.map((t) => ({
+          status: t.is_archived ? ("archived" as const) : ("regular" as const),
+          remoteId: t.id,
+          title: t.title,
+          lastMessageAt: t.last_message_at
+            ? new Date(t.last_message_at)
+            : undefined,
+          externalId: t.external_id ?? undefined,
+          custom: toCustom(t.metadata),
+        })),
+        nextCursor:
+          activeNext || archivedNext
+            ? JSON.stringify({
+                a: activeNext,
+                r: archivedNext,
+                ...(activeNext === undefined ? { ae: true } : {}),
+                ...(archivedNext === undefined ? { re: true } : {}),
+              })
+            : undefined,
+      };
     },
 
     initialize: async () => {
@@ -346,7 +308,6 @@ export const createCloudThreadListAdapter = (
       const result = await cloud.threads.delete(threadId);
       const ownership = getOwnership();
       ownership.delete(threadId);
-      blockPendingCloudThreadReads(ownership, threadId);
       return result;
     },
 
@@ -366,26 +327,21 @@ export const createCloudThreadListAdapter = (
     },
 
     fetch: async (threadId: string) => {
+      const thread = await cloud.threads.get(threadId);
       const ownership = getOwnership();
-      const read = beginCloudThreadRead(ownership);
-      try {
-        const thread = await cloud.threads.get(threadId);
-        if (!read.blockedIds.has(thread.id)) ownership.add(thread.id);
-        return {
-          status: thread.is_archived
-            ? ("archived" as const)
-            : ("regular" as const),
-          remoteId: thread.id,
-          title: thread.title,
-          lastMessageAt: thread.last_message_at
-            ? new Date(thread.last_message_at)
-            : undefined,
-          externalId: thread.external_id ?? undefined,
-          custom: toCustom(thread.metadata),
-        };
-      } finally {
-        read.finish();
-      }
+      ownership.add(thread.id);
+      return {
+        status: thread.is_archived
+          ? ("archived" as const)
+          : ("regular" as const),
+        remoteId: thread.id,
+        title: thread.title,
+        lastMessageAt: thread.last_message_at
+          ? new Date(thread.last_message_at)
+          : undefined,
+        externalId: thread.external_id ?? undefined,
+        custom: toCustom(thread.metadata),
+      };
     },
 
     unstable_useAdapters,

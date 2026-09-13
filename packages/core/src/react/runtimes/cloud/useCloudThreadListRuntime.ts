@@ -11,7 +11,7 @@ type ThreadData = {
 
 type CloudThreadListAdapter = {
   cloud: AssistantCloud;
-  scopeId?: string;
+  scopeId?: string | undefined;
 
   runtimeHook: () => AssistantRuntime;
 
