@@ -20,11 +20,27 @@ type ThreadData = {
 };
 
 type CloudThreadOwnership = Pick<ReadonlySet<string>, "has">;
+type MutableCloudThreadOwnership = Set<string>;
 
 const cloudThreadOwnership = new WeakMap<
   RemoteThreadListAdapter,
-  CloudThreadOwnership
+  MutableCloudThreadOwnership
 >();
+const deletedCloudThreads = new WeakMap<
+  MutableCloudThreadOwnership,
+  Set<string>
+>();
+
+const getDeletedCloudThreads = (
+  ownership: MutableCloudThreadOwnership,
+): Set<string> => {
+  let deleted = deletedCloudThreads.get(ownership);
+  if (!deleted) {
+    deleted = new Set();
+    deletedCloudThreads.set(ownership, deleted);
+  }
+  return deleted;
+};
 
 export const getCloudThreadOwnership = (
   adapter: RemoteThreadListAdapter,
@@ -32,7 +48,7 @@ export const getCloudThreadOwnership = (
 
 export const setCloudThreadOwnership = (
   adapter: RemoteThreadListAdapter,
-  ownership: CloudThreadOwnership,
+  ownership: MutableCloudThreadOwnership,
 ): void => {
   cloudThreadOwnership.set(adapter, ownership);
 };
@@ -203,18 +219,21 @@ export const createCloudThreadListAdapter = (
   }
 
   const ownedRemoteIds = new Set<string>();
+  let adapter: RemoteThreadListAdapter;
+
+  const getOwnership = () => cloudThreadOwnership.get(adapter)!;
 
   const unstable_useAdapters = function useCloudAdapters(): RuntimeAdapters {
     const cloudRef = { current: cloud };
     const scopeRef = { current: scopeId };
-    return useCloudRuntimeAdapters(cloudRef, scopeRef, ownedRemoteIds);
+    return useCloudRuntimeAdapters(cloudRef, scopeRef, getOwnership());
   };
 
   cloud.registerSdk?.(CORE_SDK);
   const sdk = getOptions().sdk;
   if (sdk) cloud.registerSdk?.(sdk);
 
-  const adapter: RemoteThreadListAdapter = {
+  adapter = {
     list: async ({ after } = {}) => {
       const {
         activeCursor,
@@ -247,7 +266,11 @@ export const createCloudThreadListAdapter = (
           ? archivedThreads.at(-1)?.id
           : undefined;
       const threads = [...activeThreads, ...archivedThreads];
-      for (const thread of threads) ownedRemoteIds.add(thread.id);
+      const ownership = getOwnership();
+      const deleted = getDeletedCloudThreads(ownership);
+      for (const thread of threads) {
+        if (!deleted.has(thread.id)) ownership.add(thread.id);
+      }
       return {
         threads: threads.map((t) => ({
           status: t.is_archived ? ("archived" as const) : ("regular" as const),
@@ -279,7 +302,9 @@ export const createCloudThreadListAdapter = (
         last_message_at: new Date(),
         external_id,
       });
-      ownedRemoteIds.add(remoteId);
+      const ownership = getOwnership();
+      getDeletedCloudThreads(ownership).delete(remoteId);
+      ownership.add(remoteId);
 
       return { externalId: external_id, remoteId: remoteId };
     },
@@ -299,7 +324,9 @@ export const createCloudThreadListAdapter = (
     delete: async (threadId) => {
       await getOptions().delete?.(threadId);
       const result = await cloud.threads.delete(threadId);
-      ownedRemoteIds.delete(threadId);
+      const ownership = getOwnership();
+      ownership.delete(threadId);
+      getDeletedCloudThreads(ownership).add(threadId);
       return result;
     },
 
@@ -320,7 +347,10 @@ export const createCloudThreadListAdapter = (
 
     fetch: async (threadId: string) => {
       const thread = await cloud.threads.get(threadId);
-      ownedRemoteIds.add(thread.id);
+      const ownership = getOwnership();
+      if (!getDeletedCloudThreads(ownership).has(thread.id)) {
+        ownership.add(thread.id);
+      }
       return {
         status: thread.is_archived
           ? ("archived" as const)

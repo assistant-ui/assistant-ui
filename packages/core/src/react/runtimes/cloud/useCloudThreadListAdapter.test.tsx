@@ -49,6 +49,32 @@ describe("useCloudThreadListAdapter", () => {
     expect(result.current).not.toBe(first);
   });
 
+  it("preserves thread ownership when the Cloud client changes within a scope", async () => {
+    const cloudA = {
+      registerSdk: vi.fn(),
+      threads: {
+        list: vi
+          .fn()
+          .mockResolvedValueOnce({ threads: [makeThread("thread-a")] })
+          .mockResolvedValueOnce({ threads: [] }),
+      },
+    } as unknown as AssistantCloud;
+    const cloudB = {
+      registerSdk: vi.fn(),
+      threads: {},
+    } as unknown as AssistantCloud;
+    const { result, rerender } = renderHook(
+      ({ cloud }) =>
+        useCloudThreadListAdapter({ cloud, scopeId: "workspace-a" }),
+      { initialProps: { cloud: cloudA } },
+    );
+    await result.current.list();
+
+    rerender({ cloud: cloudB });
+
+    expect(getCloudThreadOwnership(result.current)!.has("thread-a")).toBe(true);
+  });
+
   it.each([
     ["default to explicit", undefined, "workspace-a"],
     ["explicit to default", "workspace-a", undefined],

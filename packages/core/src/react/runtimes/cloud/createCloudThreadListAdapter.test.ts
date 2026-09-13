@@ -158,6 +158,47 @@ describe("createCloudThreadListAdapter", () => {
     expect(ownership.has("remote-1")).toBe(false);
   });
 
+  it("does not restore deleted ownership from an older list response", async () => {
+    const cloud = makeCloud();
+    const active = Promise.withResolvers<{
+      threads: ReturnType<typeof makeThread>[];
+    }>();
+    vi.mocked(cloud.threads.list)
+      .mockImplementationOnce(() => active.promise)
+      .mockResolvedValueOnce({ threads: [] });
+    const adapter = createCloudThreadListAdapter({
+      cloud,
+      scopeId: "workspace-a",
+    });
+    const ownership = getCloudThreadOwnership(adapter)!;
+    const listing = adapter.list();
+    await vi.waitFor(() => expect(cloud.threads.list).toHaveBeenCalledTimes(2));
+
+    await adapter.delete!("remote-1");
+    active.resolve({ threads: [makeThread("remote-1")] });
+    await listing;
+
+    expect(ownership.has("remote-1")).toBe(false);
+  });
+
+  it("does not restore deleted ownership from an older fetch response", async () => {
+    const cloud = makeCloud();
+    const fetched = Promise.withResolvers<ReturnType<typeof makeThread>>();
+    vi.mocked(cloud.threads.get).mockImplementationOnce(() => fetched.promise);
+    const adapter = createCloudThreadListAdapter({
+      cloud,
+      scopeId: "workspace-a",
+    });
+    const ownership = getCloudThreadOwnership(adapter)!;
+    const fetching = adapter.fetch!("remote-1");
+
+    await adapter.delete!("remote-1");
+    fetched.resolve(makeThread("remote-1"));
+    await fetching;
+
+    expect(ownership.has("remote-1")).toBe(false);
+  });
+
   it("registers core and the calling integration identities", () => {
     const cloud = makeCloud();
     const sdk = { name: "@assistant-ui/ai-sdk", version: "0.0.5" };

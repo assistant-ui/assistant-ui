@@ -3,7 +3,6 @@ import type { RemoteThreadListAdapter } from "../../../runtimes/remote-thread-li
 import {
   autoCloud,
   createCloudThreadListAdapter,
-  getCloudThreadOwnership,
   setCloudThreadOwnership,
   type CloudThreadListAdapterOptions,
   useCloudRuntimeAdapters,
@@ -19,15 +18,22 @@ export const useCloudThreadListAdapter = (
 
   const cloud = adapter.cloud ?? autoCloud;
   const scope = adapter.scopeId;
+  const ownership = useMemo(
+    () => ({ scope, ids: new Set<string>() }),
+    [scope],
+  ).ids;
   const base = useMemo(
-    () =>
-      createCloudThreadListAdapter(() => ({
+    () => {
+      const created = createCloudThreadListAdapter(() => ({
         ...adapterRef.current,
         cloud,
         scopeId: scope,
-      })),
+      }));
+      setCloudThreadOwnership(created, ownership);
+      return created;
+    },
     // oxlint-disable-next-line react-hooks/exhaustive-deps -- the factory pins the cloud instance; changing callbacks are read from the committed ref
-    [cloud, scope],
+    [cloud, ownership],
   );
 
   const cloudRef = useMemo(
@@ -39,7 +45,6 @@ export const useCloudThreadListAdapter = (
     [],
   );
   const scopeRef = useMemo(() => ({ current: scope }), [scope]);
-  const ownership = getCloudThreadOwnership(base);
 
   const unstable_useAdapters = useCallback(
     function useCloudAdapters() {
@@ -54,7 +59,7 @@ export const useCloudThreadListAdapter = (
       ...base,
       unstable_useAdapters,
     };
-    if (ownership) setCloudThreadOwnership(adapter, ownership);
+    setCloudThreadOwnership(adapter, ownership);
     return adapter;
   }, [base, ownership, unstable_useAdapters]);
 };
