@@ -46,7 +46,7 @@ const VALUE_RULES: Record<DataStreamStreamChunkType, ValueRule> = {
   [DataStreamStreamChunkType.ToolCall]: objectWith({
     toolCallId: isString,
     toolName: isString,
-    args: optional(isObject),
+    args: optional((value) => typeof value === "object"),
   }),
   [DataStreamStreamChunkType.ToolCallResult]: objectWith({
     toolCallId: isString,
@@ -75,13 +75,7 @@ const VALUE_RULES: Record<DataStreamStreamChunkType, ValueRule> = {
     messageId: isString,
   }),
   [DataStreamStreamChunkType.ReasoningDelta]: isString,
-  [DataStreamStreamChunkType.Source]: objectWith({
-    sourceType: optional(isString),
-    id: optional(isString),
-    url: optional(isString),
-    title: optional(isString),
-    parentId: optional(isString),
-  }),
+  [DataStreamStreamChunkType.Source]: isObject,
   [DataStreamStreamChunkType.RedactedReasoning]: unchecked,
   [DataStreamStreamChunkType.ReasoningSignature]: unchecked,
   [DataStreamStreamChunkType.File]: objectWith({

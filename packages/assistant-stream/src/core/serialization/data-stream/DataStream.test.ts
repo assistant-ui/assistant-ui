@@ -715,7 +715,6 @@ describe("DataStreamDecoder malformed frame values", () => {
   ];
   const coercionFrames = ["0:null", "0:123", "g:{}", "3:null"];
   const partShapeFrames = [
-    'h:{"sourceType":5}',
     "k:{}",
     "aui-data:{}",
     'aui-data:{"name":"n"}',
@@ -816,6 +815,18 @@ describe("DataStreamDecoder malformed frame values", () => {
     await expect(
       decodeLines(['9:{"toolCallId":"t1","toolName":"search","args":"oops"}']),
     ).rejects.toThrow('Invalid value for data-stream chunk type "9"');
+  });
+
+  it("accepts array args on a complete tool call frame as the v4 parser does", async () => {
+    const chunks = await decodeLines([
+      '9:{"toolCallId":"t1","toolName":"search","args":[1]}',
+    ]);
+
+    const argsText = chunks
+      .filter((c) => c.type === "text-delta")
+      .map((c) => c.textDelta)
+      .join("");
+    expect(argsText).toBe("[1]");
   });
 
   it("treats null args on a complete tool call frame as absent", async () => {
