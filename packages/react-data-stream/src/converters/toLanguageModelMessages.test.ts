@@ -23,7 +23,7 @@ const convertFileData = (data: string) => {
 
 describe("toLanguageModelMessages", () => {
   it("preserves IDs when an earlier message produces no model message", () => {
-    const messages = [
+    const messages: ThreadMessage[] = [
       {
         id: "empty-user",
         role: "user",
@@ -40,7 +40,7 @@ describe("toLanguageModelMessages", () => {
         attachments: [],
         metadata: { custom: {} },
       },
-    ] as ThreadMessage[];
+    ];
 
     expect(
       toLanguageModelMessages(messages, { unstable_includeId: true }),
