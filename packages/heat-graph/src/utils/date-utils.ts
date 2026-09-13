@@ -1,6 +1,8 @@
 import type { WeekStart } from "../types";
 
 export const normalizeDate = (d: string | Date): Date => {
+  // Date-only strings are local calendar days; timestamps are instants
+  // projected onto their local calendar day.
   if (typeof d === "string" && /^\d{4}-\d{2}-\d{2}$/.test(d)) {
     const [y, m, day] = d.split("-").map(Number);
     return new Date(y!, m! - 1, day);
