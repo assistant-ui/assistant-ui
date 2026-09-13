@@ -1,5 +1,5 @@
 import type { ReactElement } from "react";
-import { afterEach, describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 import { cleanup, render } from "ink-testing-library";
 import { parsePatch, computeDiff, foldContext } from "./diff-utils";
 import { DiffContent } from "./DiffContent";
@@ -8,6 +8,19 @@ import { buildIntraLineSegments, buildLinePairMap } from "./intra-line-utils";
 import { DiffRoot } from "./DiffRoot";
 import { DiffView } from "./DiffView";
 import type { ParsedLine } from "./types";
+
+const intraLineCallCounter = vi.hoisted(() => ({ count: 0 }));
+
+vi.mock("./intra-line-utils", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("./intra-line-utils")>();
+  return {
+    ...actual,
+    buildIntraLineSegments: (delText: string, addText: string) => {
+      intraLineCallCounter.count++;
+      return actual.buildIntraLineSegments(delText, addText);
+    },
+  };
+});
 
 const renderFrame = async (node: ReactElement) => {
   const instance = render(node);
@@ -417,6 +430,19 @@ describe("foldContext", () => {
 });
 
 describe("DiffView", () => {
+  const makeReplacementPatch = (length: number, suffix = "") =>
+    [
+      "diff --git a/demo.txt b/demo.txt",
+      "--- a/demo.txt",
+      "+++ b/demo.txt",
+      "@@ -1,2000 +1,2000 @@",
+      ...Array.from(
+        { length },
+        (_, i) => `-old ${i}${suffix}\n+new ${i}${suffix}\n context ${i}`,
+      ),
+      "",
+    ].join("\n");
+
   it("supports composing primitives from prepared files", async () => {
     const frame = await renderFrame(
       <DiffRoot
@@ -526,6 +552,46 @@ ${manyLines}
 `;
     const frame = await renderFrame(<DiffView patch={patch} maxLines={5} />);
     expect(frame).toContain("more lines");
+  });
+
+  it("calculates intra-line segments only for visible replacement pairs", async () => {
+    intraLineCallCounter.count = 0;
+    const patch = makeReplacementPatch(1000);
+
+    const frame = await renderFrame(<DiffView patch={patch} maxLines={2} />);
+
+    expect(frame).toContain("... (2998 more lines)");
+    expect(intraLineCallCounter.count).toBe(1);
+  });
+
+  it("reuses visible segments when a preview expands or rerenders", async () => {
+    intraLineCallCounter.count = 0;
+    const patch = makeReplacementPatch(3);
+    const instance = render(<DiffView patch={patch} maxLines={2} />);
+    await new Promise((resolve) => setTimeout(resolve, 0));
+    expect(intraLineCallCounter.count).toBe(1);
+
+    instance.rerender(<DiffView patch={patch} maxLines={5} />);
+    await new Promise((resolve) => setTimeout(resolve, 0));
+    expect(intraLineCallCounter.count).toBe(2);
+
+    instance.rerender(<DiffView patch={patch} maxLines={5} />);
+    await new Promise((resolve) => setTimeout(resolve, 0));
+    expect(intraLineCallCounter.count).toBe(2);
+  });
+
+  it("restarts segment calculation when the diff input changes", async () => {
+    intraLineCallCounter.count = 0;
+    const patch = makeReplacementPatch(2);
+    const instance = render(<DiffView patch={patch} maxLines={2} />);
+    await new Promise((resolve) => setTimeout(resolve, 0));
+    expect(intraLineCallCounter.count).toBe(1);
+
+    instance.rerender(
+      <DiffView patch={makeReplacementPatch(2, " changed")} maxLines={2} />,
+    );
+    await new Promise((resolve) => setTimeout(resolve, 0));
+    expect(intraLineCallCounter.count).toBe(2);
   });
 
   it("folds context lines", async () => {
