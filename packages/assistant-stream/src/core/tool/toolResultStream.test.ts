@@ -294,6 +294,61 @@ describe("unstable_runPendingTools", () => {
     );
   });
 
+  it.each(["sync", "async"] as const)(
+    "uses %s schema output for execution and model content",
+    async (mode) => {
+      const message = createPendingToolMessage("trim");
+      message.parts = [
+        {
+          type: "tool-call",
+          toolCallId: "trim",
+          toolName: "tool",
+          args: { name: " Ada ", extra: true },
+          argsText: '{"name":" Ada ","extra":true}',
+          state: "call",
+          status: { type: "requires-action", reason: "tool-call-result" },
+        },
+      ];
+      const tool: Tool = {
+        parameters: {
+          "~standard": {
+            version: 1,
+            vendor: "test",
+            validate: (input) => {
+              if (
+                typeof input !== "object" ||
+                input === null ||
+                !("name" in input) ||
+                typeof input.name !== "string"
+              ) {
+                return { issues: [{ message: "Expected a name" }] };
+              }
+              const result = { value: { name: input.name.trim() } };
+              return mode === "async" ? Promise.resolve(result) : result;
+            },
+          },
+        },
+        execute: (args) => `Hello, ${args.name}!`,
+        toModelOutput: ({ input, output }) => [
+          { type: "text", text: `${JSON.stringify(input)}: ${output}` },
+        ],
+      };
+
+      const settled = await unstable_runPendingTools(
+        message,
+        { tool },
+        new AbortController().signal,
+        async () => {},
+      );
+
+      expect(settled.parts[0]).toMatchObject({
+        args: { name: " Ada ", extra: true },
+        result: "Hello, Ada!",
+        modelContent: [{ type: "text", text: '{"name":"Ada"}: Hello, Ada!' }],
+      });
+    },
+  );
+
   it.each([
     [
       "thenable",
@@ -315,7 +370,9 @@ describe("unstable_runPendingTools", () => {
     "awaits a %s schema validation result",
     async (kind, createValidationResult) => {
       const execute = vi.fn(async () => "executed");
-      const onSchemaValidationError = vi.fn(async () => "recovered");
+      const onSchemaValidationError = vi.fn(
+        async (_args: unknown) => "recovered",
+      );
       const message = createPendingToolMessage(kind);
       const parameters = {
         "~standard": {
@@ -339,6 +396,7 @@ describe("unstable_runPendingTools", () => {
 
       expect(execute).not.toHaveBeenCalled();
       expect(onSchemaValidationError).toHaveBeenCalledOnce();
+      expect(onSchemaValidationError.mock.calls[0]?.[0]).toEqual({});
       expect(settled.parts[0]).toMatchObject({
         result: "recovered",
         isError: false,
@@ -353,7 +411,7 @@ describe("unstable_runPendingTools", () => {
     const parameters = {
       "~standard": {
         version: 1,
-        validate: () => ({ issues: undefined }),
+        validate: () => ({ value: {} }),
       },
     } as NonNullable<Tool["parameters"]>;
 

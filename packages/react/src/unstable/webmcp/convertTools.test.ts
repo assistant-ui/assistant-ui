@@ -178,6 +178,25 @@ describe("toWebMcpTool schema validation", () => {
     expect(result).toEqual({ content: [text("ok")] });
   });
 
+  it("uses schema output for execution and model content", async () => {
+    const args = { city: " Paris ", extra: true };
+    const result = await descriptorFor({
+      parameters: z.object({
+        city: z.string().trim(),
+        unit: z.enum(["c", "f"]).default("c"),
+      }),
+      execute: ({ city, unit }) => `Weather in ${city} (${unit})`,
+      toModelOutput: ({ input, output }) => [
+        { type: "text", text: `${JSON.stringify(input)}: ${output}` },
+      ],
+    }).execute(args);
+
+    expect(result).toEqual({
+      content: [text('{"city":"Paris","unit":"c"}: Weather in Paris (c)')],
+    });
+    expect(args).toEqual({ city: " Paris ", extra: true });
+  });
+
   it("returns a validation error when the arguments do not validate", async () => {
     const execute = vi.fn(async () => "ok");
     const result = await zodTool({ execute }).execute({ city: 42 });
@@ -192,10 +211,11 @@ describe("toWebMcpTool schema validation", () => {
     const execute = vi.fn(async () => "ok");
     const result = await zodTool({
       execute,
-      experimental_onSchemaValidationError: async () => "recovered",
+      experimental_onSchemaValidationError: async (args) =>
+        `Invalid: ${JSON.stringify(args)}`,
     }).execute({ city: 42 });
     expect(execute).not.toHaveBeenCalled();
-    expect(result).toEqual({ content: [text("recovered")] });
+    expect(result).toEqual({ content: [text('Invalid: {"city":42}')] });
   });
 
   it("awaits a validator that returns a non-Promise thenable", async () => {
