@@ -7,6 +7,7 @@ import {
 import { convertAdkMessage } from "./convertAdkMessages";
 import type { AppendMessage } from "@assistant-ui/core";
 import type { AdkMessage } from "./types";
+import { contentToParts } from "./contentToParts";
 
 const makeAppendMessage = (content: AppendMessage["content"]): AppendMessage =>
   ({
@@ -155,6 +156,18 @@ describe("getPendingCancellations", () => {
 });
 
 describe("getMessageContent", () => {
+  it("serializes data URL images as inline data", () => {
+    const content = getMessageContent(
+      makeAppendMessage([
+        { type: "image", image: "data:image/png;base64,AAAA" },
+      ]),
+    );
+
+    expect(contentToParts(content)).toEqual([
+      { inlineData: { mimeType: "image/png", data: "AAAA" } },
+    ]);
+  });
+
   it("preserves file part data and mimeType end-to-end", () => {
     const result = getMessageContent(
       makeAppendMessage([

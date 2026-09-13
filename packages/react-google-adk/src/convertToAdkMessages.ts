@@ -23,8 +23,17 @@ export const getMessageContent = (msg: AppendMessage) => {
     switch (type) {
       case "text":
         return { type: "text" as const, text: part.text };
-      case "image":
+      case "image": {
+        const parsed = parseDataUrl(part.image);
+        if (parsed) {
+          return {
+            type: "image" as const,
+            mimeType: parsed.mimeType,
+            data: parsed.data,
+          };
+        }
         return { type: "image_url" as const, url: part.image };
+      }
       case "file": {
         const source = resolveFilePartSource(part);
         if (source.kind === "url") {
