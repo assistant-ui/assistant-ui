@@ -4532,6 +4532,9 @@ importers:
       '@assistant-ui/x-buildutils':
         specifier: workspace:*
         version: link:../x-buildutils
+      '@assistant-ui/x-performance':
+        specifier: workspace:*
+        version: link:../x-performance
       '@types/node':
         specifier: ^26.4.1
         version: 26.4.1

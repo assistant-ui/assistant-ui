@@ -12,7 +12,10 @@ export type CellProps = ComponentPropsWithoutRef<"div"> & {
 };
 
 export const Cell = forwardRef<HTMLDivElement, CellProps>(
-  ({ colorScale: colorScaleProp, style, ...props }, ref) => {
+  (
+    { colorScale: colorScaleProp, style, onMouseEnter, onMouseLeave, ...props },
+    ref,
+  ) => {
     const cell = useCellContext();
     const { colorScale: colorScaleCtx } = useHeatGraphContext();
     const dispatch = useTooltipDispatch();
@@ -32,12 +35,16 @@ export const Cell = forwardRef<HTMLDivElement, CellProps>(
       <div
         ref={ref}
         style={mergedStyle}
-        onMouseEnter={
-          dispatch
-            ? (e) => dispatch.onCellEnter(cell, e.currentTarget)
-            : undefined
-        }
-        onMouseLeave={dispatch?.onCellLeave}
+        onMouseEnter={(event) => {
+          onMouseEnter?.(event);
+          if (event.defaultPrevented) return;
+          dispatch?.onCellEnter(cell, event.currentTarget);
+        }}
+        onMouseLeave={(event) => {
+          onMouseLeave?.(event);
+          if (event.defaultPrevented) return;
+          dispatch?.onCellLeave();
+        }}
         {...props}
       />
     );

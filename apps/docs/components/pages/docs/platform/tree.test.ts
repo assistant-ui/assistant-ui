@@ -2,6 +2,8 @@ import { describe, expect, it } from "vitest";
 import type * as PageTree from "fumadocs-core/page-tree";
 import {
   buildPlatformSections,
+  findActiveSectionId,
+  findPathToNode,
   getPagePlatform,
   getPagePlatforms,
   getPlatformHomeUrl,
@@ -27,7 +29,11 @@ const separator = (name: string): PageTree.Separator => ({
 const folder = (
   name: string,
   children: PageTree.Node[],
-  options: { index?: PageTree.Item; platforms?: readonly string[] } = {},
+  options: {
+    index?: PageTree.Item;
+    platforms?: readonly string[];
+    root?: boolean;
+  } = {},
 ): PageTree.Folder =>
   ({
     type: "folder",
@@ -36,6 +42,7 @@ const folder = (
     children,
     ...(options.index && { index: options.index }),
     ...(options.platforms && { platforms: options.platforms }),
+    ...(options.root && { root: options.root }),
   }) as PageTree.Folder & Platforms;
 
 const tree: PageTree.Root = {
@@ -75,6 +82,16 @@ const tree: PageTree.Root = {
       index: page("/docs/tap"),
       platforms: ["tap"],
     }),
+    folder(
+      "Cloud",
+      [
+        page("/docs/cloud/quickstart"),
+        folder("Integrations", [page("/docs/cloud/ai-sdk")], { root: true }),
+        folder("Reference", [page("/docs/cloud/api")], { root: true }),
+        folder("Runtimes", [page("/docs/cloud/langgraph")]),
+      ],
+      { index: page("/docs/cloud"), platforms: ["cloud"] },
+    ),
   ],
 };
 
@@ -118,6 +135,52 @@ describe("buildPlatformSections", () => {
       "--Terminal",
       "/docs/guides/keyboard",
     ]);
+  });
+});
+
+describe("root folders inside a section", () => {
+  it("become sections of their own after the parent, keeping the parent's tag", () => {
+    const folders = tree.children as PageTree.Folder[];
+    const sections = buildPlatformSections(folders, "cloud");
+    expect(names(sections)).toEqual(["Cloud", "Integrations", "Reference"]);
+    expect(childNames(sections[0]!)).toEqual([
+      "/docs/cloud/quickstart",
+      "Runtimes",
+    ]);
+    expect(names(buildPlatformSections(folders, "react"))).not.toContain(
+      "Integrations",
+    );
+    expect(getPagePlatforms(tree, "/docs/cloud/ai-sdk")).toEqual(["cloud"]);
+    expect(getPlatformHomeUrl(tree, "cloud")).toBe("/docs/cloud");
+    const urls = getVisibleUrlsByPlatform(tree);
+    expect(urls.cloud.has("/docs/cloud/ai-sdk")).toBe(true);
+    expect(urls.cloud.has("/docs/cloud/langgraph")).toBe(true);
+    expect(urls.react.has("/docs/cloud/ai-sdk")).toBe(false);
+  });
+
+  it("open the hoisted section for a page under it and the parent for its own pages", () => {
+    const cloud = tree.children.find(
+      (node): node is PageTree.Folder => node.name === "Cloud",
+    )!;
+    const sections = buildPlatformSections(
+      tree.children as PageTree.Folder[],
+      "cloud",
+    );
+    const pathTo = (url: string) => findPathToNode(cloud, url);
+
+    expect(findActiveSectionId(sections, pathTo("/docs/cloud/ai-sdk"))).toBe(
+      "Integrations",
+    );
+    expect(findActiveSectionId(sections, pathTo("/docs/cloud/api"))).toBe(
+      "Reference",
+    );
+    expect(
+      findActiveSectionId(sections, pathTo("/docs/cloud/quickstart")),
+    ).toBe("Cloud");
+    expect(findActiveSectionId(sections, pathTo("/docs/cloud/langgraph"))).toBe(
+      "Cloud",
+    );
+    expect(findActiveSectionId(sections, null)).toBe("Cloud");
   });
 });
 

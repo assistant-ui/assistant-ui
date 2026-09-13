@@ -1,0 +1,26 @@
+---
+title: Migrating from useCloudChat
+description: The useCloudChat hook of @assistant-ui/cloud-ai-sdk is no longer the recommended path. Move to the assistant-ui runtime, or build on the assistant-cloud client directly.
+---
+
+`@assistant-ui/cloud-ai-sdk` wrapped the AI SDK's `useChat` with cloud threads, persistence and telemetry for apps that did not use assistant-ui. Everything it did on the wire now lives in `assistant-cloud`, which every integration shares. The package stays published and existing installs keep working; new work takes one of the two paths below.
+
+## The assistant-ui runtime
+
+`useChatRuntime` from `@assistant-ui/ai-sdk` wraps the same AI SDK transport and adds threads, persistence, titles and telemetry through the `cloud` option. You can use it headless, with the primitives, or with the assistant-ui components; it stores messages in the same `ai-sdk/v6` format, so threads written by `useCloudChat` read back as they are.
+
+Follow the [AI SDK guide](/docs/cloud/ai-sdk-assistant-ui). Two things differ: the runtime observes the stored message rather than the AI SDK finish event, so it reports no per step `finish_reason` and cannot tell a dropped connection from a stop, and it records nine engagement events the hook never did.
+
+## The client on its own
+
+To keep your own `useChat` wiring, the pieces `useCloudChat` was made of are public in `assistant-cloud`:
+
+| Piece | Purpose |
+|---|---|
+| `AssistantCloud` | Threads, messages, runs, events, scores and files, with anonymous, JWT and API key authentication. |
+| `createFormattedPersistence` with `aiSDKV6FormatAdapter` from `assistant-cloud/ai-sdk` | Stores AI SDK messages as the cloud expects them and loads them back. |
+| `CloudRunReporter` with `extractAISDKRunTelemetry` | Turns a finished run's messages into a run report. |
+| `CloudEngagementReporter` | Records engagement events from your own UI. |
+| `generateThreadTitle` | Asks the project for a title and writes it to the thread. |
+
+The [package reference](/docs/api-reference/integrations/assistant-cloud) lists them, and the hook's [source](https://github.com/assistant-ui/assistant-ui/tree/main/packages/cloud-ai-sdk) is a complete worked example of how they fit together. The hook's own options are on its [reference page](/docs/api-reference/integrations/cloud-ai-sdk).

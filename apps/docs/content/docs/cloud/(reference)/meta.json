@@ -1,0 +1,7 @@
+{
+  "title": "Reference",
+  "description": "The REST API and every limit a project enforces.",
+  "icon": "BookOpen",
+  "root": true,
+  "pages": ["api", "limits"]
+}

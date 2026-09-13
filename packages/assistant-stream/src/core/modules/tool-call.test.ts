@@ -1,4 +1,4 @@
-import { describe, expect, it, vi } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 import { createAssistantStreamController } from "./assistant-stream";
 import { createToolCallStreamController } from "./tool-call";
 import { ToolResponse } from "../tool/ToolResponse";
@@ -22,6 +22,41 @@ const collectChunks = async (
   );
   return chunks;
 };
+
+describe("ToolCallStreamController argsText strict flag", () => {
+  afterEach(() => {
+    vi.restoreAllMocks();
+  });
+
+  it("throws when appending args after close by default", () => {
+    const [stream, controller] = createToolCallStreamController();
+    void stream;
+    controller.argsText.close();
+    expect(() => controller.argsText.append("late")).toThrow(TypeError);
+  });
+
+  it("drops args appended after close with strict: false", () => {
+    const error = vi.spyOn(console, "error").mockImplementation(() => {});
+    const [stream, controller] = createToolCallStreamController({
+      strict: false,
+    });
+    void stream;
+    controller.argsText.close();
+    expect(() => controller.argsText.append("late")).not.toThrow();
+    expect(error).toHaveBeenCalledOnce();
+  });
+
+  it("inherits strict: false from the assistant stream controller", () => {
+    vi.spyOn(console, "error").mockImplementation(() => {});
+    const [stream, controller] = createAssistantStreamController({
+      strict: false,
+    });
+    void stream;
+    const toolCall = controller.addToolCallPart("lookup");
+    toolCall.argsText.close();
+    expect(() => toolCall.argsText.append("late")).not.toThrow();
+  });
+});
 
 describe("ToolCallStreamController", () => {
   it("delivers a backend response before an args parse failure", async () => {

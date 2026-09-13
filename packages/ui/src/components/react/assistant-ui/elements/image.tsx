@@ -308,7 +308,17 @@ function ImageZoom({ src, alt = "Image preview", children }: ImageZoomProps) {
       <div
         ref={triggerRef}
         onClick={handleOpen}
-        onKeyDown={(e) => e.key === "Enter" && handleOpen()}
+        onKeyDown={(e) => {
+          if (e.key === "Enter") {
+            e.preventDefault();
+            e.currentTarget.click();
+          } else if (e.key === " ") {
+            e.preventDefault();
+          }
+        }}
+        onKeyUp={(e) => {
+          if (e.key === " ") e.currentTarget.click();
+        }}
         role="button"
         tabIndex={0}
         className="aui-image-zoom-trigger cursor-zoom-in"

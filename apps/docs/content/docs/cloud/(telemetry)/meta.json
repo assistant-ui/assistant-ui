@@ -1,0 +1,7 @@
+{
+  "title": "Telemetry",
+  "description": "Run reports, server traces, engagement events, feedback and scores.",
+  "icon": "Activity",
+  "root": true,
+  "pages": ["telemetry", "traces", "engagement"]
+}

@@ -217,8 +217,13 @@ export abstract class BaseComposerRuntimeCore
     if (!this.canSend || this._isSending) return;
 
     if (this._dictationSession) {
-      this._dictationSession.cancel();
-      this._cleanupDictation();
+      try {
+        this._dictationSession.cancel();
+      } catch (error) {
+        console.error("[assistant-ui] Dictation session cancel threw", error);
+      } finally {
+        this._cleanupDictation();
+      }
     }
 
     const adapter = this.getAttachmentAdapter();
@@ -640,14 +645,11 @@ export abstract class BaseComposerRuntimeCore
       throw new Error("Dictation adapter not configured");
     }
 
+    const isReplacing = this._dictationSession !== undefined;
     if (this._dictationSession) {
-      for (const unsub of this._dictationUnsubscribes) {
-        unsub();
-      }
-      this._dictationUnsubscribes = [];
       const oldSession = this._dictationSession;
-      oldSession.stop().catch(() => {});
-      this._dictationSession = undefined;
+      this._cleanupDictation({ notify: false });
+      this._stopDictationSession(oldSession);
     }
 
     const inputDisabled = adapter.disableInputDuringDictation ?? false;
@@ -655,7 +657,22 @@ export abstract class BaseComposerRuntimeCore
     this._dictationBaseText = this._text;
     this._currentInterimText = "";
 
-    const session = adapter.listen();
+    let session: DictationAdapter.Session;
+    try {
+      session = adapter.listen();
+    } catch (error) {
+      if (isReplacing) {
+        try {
+          this._notifySubscribers();
+        } catch (notifyError) {
+          console.error(
+            "[assistant-ui] Dictation replacement rollback notification threw",
+            notifyError,
+          );
+        }
+      }
+      throw error;
+    }
     this._dictationSession = session;
     const sessionId = ++this._dictationSessionIdCounter;
     this._activeDictationSessionId = sessionId;
@@ -733,27 +750,59 @@ export abstract class BaseComposerRuntimeCore
     const session = this._dictationSession;
     const sessionId = this._activeDictationSessionId;
     const cleanup = () => this._cleanupDictation({ sessionId });
-    void session.stop().then(cleanup, cleanup);
+    this._stopDictationSession(session, cleanup);
   }
 
-  private _cleanupDictation(options?: { sessionId: number | undefined }): void {
+  private _stopDictationSession(
+    session: DictationAdapter.Session,
+    onSettled: () => void = () => {},
+  ): void {
+    let task: Promise<void>;
+    try {
+      task = session.stop();
+    } catch (error) {
+      console.error("[assistant-ui] Dictation session stop threw", error);
+      onSettled();
+      return;
+    }
+
+    void task.then(onSettled, (error) => {
+      console.error("[assistant-ui] Dictation session stop rejected", error);
+      onSettled();
+    });
+  }
+
+  private _cleanupDictation(options?: {
+    sessionId?: number | undefined;
+    notify?: boolean | undefined;
+  }): void {
     const isStaleSession =
       options?.sessionId !== undefined &&
       options.sessionId !== this._activeDictationSessionId;
     if (isStaleSession || this._isCleaningDictation) return;
 
     this._isCleaningDictation = true;
-    try {
-      for (const unsub of this._dictationUnsubscribes) {
-        unsub();
+    const runCleanup = (cleanup: () => void) => {
+      try {
+        cleanup();
+      } catch (error) {
+        console.error("[assistant-ui] Dictation cleanup threw", error);
       }
+    };
+
+    try {
+      const unsubscribes = this._dictationUnsubscribes;
       this._dictationUnsubscribes = [];
       this._dictationSession = undefined;
       this._activeDictationSessionId = undefined;
       this._dictation = undefined;
       this._dictationBaseText = "";
       this._currentInterimText = "";
-      this._notifySubscribers();
+
+      for (const unsubscribe of unsubscribes) runCleanup(unsubscribe);
+      if (options?.notify !== false) {
+        runCleanup(() => this._notifySubscribers());
+      }
     } finally {
       this._isCleaningDictation = false;
     }

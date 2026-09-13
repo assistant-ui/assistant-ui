@@ -1,4 +1,4 @@
-import { describe, it, expect, vi, beforeEach } from "vitest";
+import { beforeEach, describe, expect, it, onTestFinished, vi } from "vitest";
 import { BaseComposerRuntimeCore } from "../runtime/base/base-composer-runtime-core";
 import type { AttachmentAdapter } from "../adapters/attachment";
 import type { DictationAdapter } from "../adapters/speech";
@@ -226,9 +226,14 @@ describe("BaseComposerRuntimeCore", () => {
   });
 
   it("handles rejected dictation shutdowns", async () => {
+    const consoleError = vi
+      .spyOn(console, "error")
+      .mockImplementation(() => {});
+    onTestFinished(() => consoleError.mockRestore());
+    const stopError = new Error("shutdown failed");
     const session: DictationAdapter.Session = {
       status: { type: "running" },
-      stop: vi.fn().mockRejectedValue(new Error("shutdown failed")),
+      stop: vi.fn().mockRejectedValue(stopError),
       cancel: vi.fn(),
       onSpeechStart: vi.fn(() => () => {}),
       onSpeechEnd: vi.fn(() => () => {}),
@@ -248,9 +253,200 @@ describe("BaseComposerRuntimeCore", () => {
       expect(session.stop).toHaveBeenCalledOnce();
       expect(composer.dictation).toBeUndefined();
       expect(unhandledRejection).not.toHaveBeenCalled();
+      expect(consoleError).toHaveBeenCalledWith(
+        "[assistant-ui] Dictation session stop rejected",
+        stopError,
+      );
     } finally {
       process.off("unhandledRejection", unhandledRejection);
     }
+  });
+
+  it("handles synchronously throwing dictation shutdowns", () => {
+    const consoleError = vi
+      .spyOn(console, "error")
+      .mockImplementation(() => {});
+    onTestFinished(() => consoleError.mockRestore());
+    const stopError = new Error("shutdown failed");
+    const session: DictationAdapter.Session = {
+      status: { type: "running" },
+      stop: vi.fn(() => {
+        throw stopError;
+      }),
+      cancel: vi.fn(),
+      onSpeechStart: vi.fn(() => () => {}),
+      onSpeechEnd: vi.fn(() => () => {}),
+      onSpeech: vi.fn(() => () => {}),
+    };
+    composer.setDictationAdapter({ listen: () => session });
+    composer.startDictation();
+
+    expect(() => composer.stopDictation()).not.toThrow();
+
+    expect(composer.dictation).toBeUndefined();
+    expect(consoleError).toHaveBeenCalledWith(
+      "[assistant-ui] Dictation session stop threw",
+      stopError,
+    );
+  });
+
+  it("finishes dictation cleanup when an unsubscribe throws", async () => {
+    const cleanupError = new Error("cleanup failed");
+    const laterCleanup = vi.fn();
+    const consoleError = vi
+      .spyOn(console, "error")
+      .mockImplementation(() => {});
+    onTestFinished(() => consoleError.mockRestore());
+    const session: DictationAdapter.Session = {
+      status: { type: "running" },
+      stop: vi.fn().mockResolvedValue(undefined),
+      cancel: vi.fn(),
+      onSpeech: vi.fn(() => () => {
+        throw cleanupError;
+      }),
+      onSpeechStart: vi.fn(() => laterCleanup),
+      onSpeechEnd: vi.fn(() => () => {}),
+    };
+    composer.setDictationAdapter({ listen: () => session });
+
+    composer.startDictation();
+    composer.stopDictation();
+    await new Promise((resolve) => setTimeout(resolve, 0));
+
+    expect(laterCleanup).toHaveBeenCalledOnce();
+    expect(composer.dictation).toBeUndefined();
+    expect(consoleError).toHaveBeenCalledWith(
+      "[assistant-ui] Dictation cleanup threw",
+      cleanupError,
+    );
+  });
+
+  it("sends after a dictation unsubscribe throws", async () => {
+    const cleanupError = new Error("cleanup failed");
+    const cancelError = new Error("cancel failed");
+    const consoleError = vi
+      .spyOn(console, "error")
+      .mockImplementation(() => {});
+    onTestFinished(() => consoleError.mockRestore());
+    composer.setDictationAdapter({
+      listen: () => ({
+        status: { type: "running" },
+        stop: vi.fn().mockResolvedValue(undefined),
+        cancel: vi.fn(() => {
+          throw cancelError;
+        }),
+        onSpeech: () => () => {
+          throw cleanupError;
+        },
+        onSpeechStart: () => () => {},
+        onSpeechEnd: () => () => {},
+      }),
+    });
+    composer.setText("send me");
+    composer.startDictation();
+
+    await composer.send();
+
+    expect(composer.sentMessages).toHaveLength(1);
+    expect(composer.sentMessages[0]?.content).toEqual([
+      { type: "text", text: "send me" },
+    ]);
+    expect(consoleError).toHaveBeenCalledWith(
+      "[assistant-ui] Dictation session cancel threw",
+      cancelError,
+    );
+    expect(consoleError).toHaveBeenCalledWith(
+      "[assistant-ui] Dictation cleanup threw",
+      cleanupError,
+    );
+  });
+
+  it("starts replacement dictation when the old session stop throws", () => {
+    const consoleError = vi
+      .spyOn(console, "error")
+      .mockImplementation(() => {});
+    onTestFinished(() => consoleError.mockRestore());
+    const stopError = new Error("shutdown failed");
+    const firstSession: DictationAdapter.Session = {
+      status: { type: "running" },
+      stop: vi.fn(() => {
+        throw stopError;
+      }),
+      cancel: vi.fn(),
+      onSpeech: () => () => {},
+      onSpeechStart: () => () => {},
+      onSpeechEnd: () => () => {},
+    };
+    const secondSession: DictationAdapter.Session = {
+      ...firstSession,
+      stop: vi.fn().mockResolvedValue(undefined),
+    };
+    const listen = vi
+      .fn()
+      .mockReturnValueOnce(firstSession)
+      .mockReturnValueOnce(secondSession);
+    composer.setDictationAdapter({ listen });
+    composer.startDictation();
+
+    expect(() => composer.startDictation()).not.toThrow();
+
+    expect(listen).toHaveBeenCalledTimes(2);
+    expect(composer.dictation).toBeDefined();
+    expect(consoleError).toHaveBeenCalledWith(
+      "[assistant-ui] Dictation session stop threw",
+      stopError,
+    );
+    composer.stopDictation();
+  });
+
+  it("publishes cleared state when replacement session creation throws", () => {
+    const listenError = new Error("listen failed");
+    const firstSession: DictationAdapter.Session = {
+      status: { type: "running" },
+      stop: vi.fn().mockResolvedValue(undefined),
+      cancel: vi.fn(),
+      onSpeech: () => () => {},
+      onSpeechStart: () => () => {},
+      onSpeechEnd: () => () => {},
+    };
+    const listen = vi
+      .fn()
+      .mockReturnValueOnce(firstSession)
+      .mockImplementationOnce(() => {
+        throw listenError;
+      });
+    composer.setDictationAdapter({ listen });
+    const states: Array<string | undefined> = [];
+    composer.subscribe(() => states.push(composer.dictation?.status.type));
+    composer.startDictation();
+    states.length = 0;
+
+    expect(() => composer.startDictation()).toThrow(listenError);
+
+    expect(composer.dictation).toBeUndefined();
+    expect(states).toEqual([undefined]);
+  });
+
+  it("replaces dictation without publishing an intermediate cleared state", async () => {
+    const session = (): DictationAdapter.Session => ({
+      status: { type: "running" },
+      stop: vi.fn().mockResolvedValue(undefined),
+      cancel: vi.fn(),
+      onSpeech: () => () => {},
+      onSpeechStart: () => () => {},
+      onSpeechEnd: () => () => {},
+    });
+    composer.setDictationAdapter({ listen: session });
+    const states: Array<string | undefined> = [];
+    composer.subscribe(() => states.push(composer.dictation?.status.type));
+    composer.startDictation();
+    states.length = 0;
+
+    composer.startDictation();
+
+    expect(states).toEqual(["running"]);
+    composer.stopDictation();
+    await Promise.resolve();
   });
 
   describe("CreateAttachment (external source)", () => {

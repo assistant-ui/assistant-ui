@@ -58,6 +58,10 @@ export const notifySubscribers = <TArgs extends unknown[]>(
   }
 };
 
+export const runCleanups = (cleanups: Iterable<Unsubscribe>): void => {
+  notifySubscribers(cleanups);
+};
+
 const shallowEqualOrUndefined = <T extends object>(
   a: T | undefined,
   b: T | undefined,
@@ -136,8 +140,9 @@ export abstract class BaseSubject {
       if (this._connection) return;
       this._connection = this._connect();
     } else {
-      this._connection?.();
+      const connection = this._connection;
       this._connection = undefined;
+      connection?.();
     }
   }
 
@@ -284,17 +289,19 @@ export class NestedSubscriptionSubject<
       if (newState === lastState) return;
       lastState = newState;
 
-      innerUnsubscribe?.();
-      innerUnsubscribe = newState?.subscribe(callback);
-
-      callback();
+      const previousInner = innerUnsubscribe;
+      innerUnsubscribe = undefined;
+      try {
+        previousInner?.();
+      } finally {
+        innerUnsubscribe = newState?.subscribe(callback);
+        callback();
+      }
     };
 
     const outerUnsubscribe = this.outerSubscribe(onRuntimeUpdate);
-    return () => {
-      outerUnsubscribe?.();
-      innerUnsubscribe?.();
-    };
+    return () =>
+      runCleanups([() => outerUnsubscribe?.(), () => innerUnsubscribe?.()]);
   }
 }
 
@@ -329,14 +336,17 @@ export class EventSubscriptionSubject<
       if (newState === lastState) return;
       lastState = newState;
 
-      innerUnsubscribe?.();
-      innerUnsubscribe = newState?.unstable_on(this.config.event, callback);
+      const previousInner = innerUnsubscribe;
+      innerUnsubscribe = undefined;
+      try {
+        previousInner?.();
+      } finally {
+        innerUnsubscribe = newState?.unstable_on(this.config.event, callback);
+      }
     };
 
     const outerUnsubscribe = this.outerSubscribe(onRuntimeUpdate);
-    return () => {
-      outerUnsubscribe?.();
-      innerUnsubscribe?.();
-    };
+    return () =>
+      runCleanups([() => outerUnsubscribe?.(), () => innerUnsubscribe?.()]);
   }
 }

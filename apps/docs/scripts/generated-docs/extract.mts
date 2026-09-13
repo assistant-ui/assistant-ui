@@ -1085,14 +1085,13 @@ export function processComponentDeclaration(
   );
 }
 
-function classExtractedShape(
+export function processClassDeclaration(
   declaration: TsNode,
   typeName: string,
+  options?: JsDocRenderOptions,
 ): PropModel[] | undefined {
   if (!Node.isClassDeclaration(declaration)) return undefined;
   const parameters: PropModel[] = [];
-  // Class members carry no per-member required-ness or JSDoc here. Match
-  // legacy api-surface output exactly: empty description, required omitted.
   for (const ctor of declaration.getConstructors()) {
     if (!isPublicClassMember(ctor)) continue;
     const t = `(${ctor.getParameters().map(parameterSignature).join(", ")}) => ${typeName}`;
@@ -1100,7 +1099,7 @@ function classExtractedShape(
       name: "constructor",
       rawType: t,
       declaredType: t,
-      description: "",
+      description: propertyJsDocMeta(ctor, options).description ?? "",
     });
   }
   for (const property of declaration.getProperties()) {
@@ -1110,7 +1109,7 @@ function classExtractedShape(
       name: `${classMemberPrefix(property)}${property.getName()}`,
       rawType: t,
       declaredType: t,
-      description: "",
+      description: propertyJsDocMeta(property, options).description ?? "",
     });
   }
   for (const method of declaration.getMethods()) {
@@ -1120,7 +1119,7 @@ function classExtractedShape(
       name: `${classMemberPrefix(method)}${method.getName()}`,
       rawType: t,
       declaredType: t,
-      description: "",
+      description: propertyJsDocMeta(method, options).description ?? "",
     });
   }
   if (parameters.length === 0) return undefined;
@@ -1172,7 +1171,7 @@ function shapeForDeclaration(
   }
   // Match legacy: only attempt class extraction here, no callable fallback for
   // "value" kind exports (those render their signature in MDX, not a table).
-  const params = classExtractedShape(declaration, name);
+  const params = processClassDeclaration(declaration, name, options);
   return params ? { kind: "class", name, parameters: params } : undefined;
 }
 

@@ -118,6 +118,11 @@ export class AssistantCloudEvents {
 
   private async flushPending(): Promise<void> {
     while (this.buffer.length > 0) {
+      if (!this.isEnabled()) {
+        this.buffer = [];
+        return;
+      }
+
       const events = this.buffer.splice(0, MAX_BATCH_SIZE);
       try {
         await this.cloud.makeRequest("/events", {
