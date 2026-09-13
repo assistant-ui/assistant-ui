@@ -210,6 +210,25 @@ describe("getMessageContent", () => {
     ]);
   });
 
+  it("uses the data URL default for a media-less file", () => {
+    const result = getMessageContent(
+      makeAppendMessage([
+        {
+          type: "file",
+          mimeType: "",
+          data: "data:;base64,SGVsbG8=",
+        },
+      ]),
+    );
+    expect(result).toEqual([
+      {
+        type: "file",
+        mimeType: "text/plain",
+        data: "SGVsbG8=",
+      },
+    ]);
+  });
+
   it("emits a file_url part for file parts with sourceType url", () => {
     const result = getMessageContent(
       makeAppendMessage([

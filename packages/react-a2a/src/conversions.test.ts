@@ -364,6 +364,19 @@ describe("isInterruptedTaskState", () => {
 });
 
 describe("contentPartsToA2AParts", () => {
+  it.each(["application/pdf", ""])(
+    "unwraps a media-less data URL while retaining the adapter's %j MIME fallback",
+    (mimeType) => {
+      expect(
+        contentPartsToA2AParts([
+          { type: "file", data: "data:;base64,SGVsbG8=", mimeType },
+        ]),
+      ).toEqual([
+        { raw: "SGVsbG8=", mediaType: mimeType || "application/octet-stream" },
+      ]);
+    },
+  );
+
   it("converts text parts", () => {
     const result = contentPartsToA2AParts([{ type: "text", text: "hi" }]);
     expect(result).toEqual([{ text: "hi" }]);
