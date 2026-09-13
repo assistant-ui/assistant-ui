@@ -1404,7 +1404,7 @@ type CloudThread = {
 
 type CloudThreadListAdapter = {
   cloud: AssistantCloud;
-  scopeId?: string;
+  scopeId?: string | undefined;
   runtimeHook: () => AssistantRuntime;
   create?(): Promise<ThreadData>;
   delete?(threadId: string): Promise<void>;
