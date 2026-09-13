@@ -22,10 +22,14 @@ import type {
 function getField<T>(obj: T, fieldPath: (string | number)[]): unknown {
   let current: unknown = obj;
   for (const key of fieldPath) {
-    if (current === undefined || current === null) {
+    if (
+      typeof current !== "object" ||
+      current === null ||
+      !Object.hasOwn(current, key)
+    ) {
       return undefined;
     }
-    current = current[key as keyof typeof current];
+    current = (current as Record<string | number, unknown>)[key];
   }
   return current;
 }

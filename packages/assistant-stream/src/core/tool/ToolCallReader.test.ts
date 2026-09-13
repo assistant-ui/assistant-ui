@@ -28,6 +28,15 @@ type Args = {
   items?: string[];
 };
 
+type PrototypeNamedArgs = {
+  constructor?: string;
+  toString?: string;
+  nested?: {
+    constructor?: string;
+    toString?: string;
+  };
+};
+
 const createReader = () => new ToolCallReaderImpl<Args, string>();
 
 describe("ToolCallArgsReader parsing", () => {
@@ -158,6 +167,35 @@ describe("ToolCallArgsReader.get", () => {
     expect(await reader.args.get("required")).toBe("hello");
   });
 
+  it("does not resolve inherited properties for missing root and nested fields", async () => {
+    const reader = new ToolCallReaderImpl<PrototypeNamedArgs, string>();
+    const root = reader.args.get("constructor");
+    const nested = reader.args.get("nested", "toString");
+
+    await reader.appendArgsTextDelta('{"nested":{');
+    await reader.appendArgsTextDelta("}}");
+    await reader.finishArgsText();
+
+    expect(await root).toBeUndefined();
+    expect(await nested).toBeUndefined();
+  });
+
+  it("reads explicitly supplied prototype-named fields at every path level", async () => {
+    const reader = new ToolCallReaderImpl<PrototypeNamedArgs, string>();
+
+    await reader.appendArgsTextDelta(
+      '{"constructor":"root constructor","toString":"root toString","nested":{"constructor":"nested constructor","toString":"nested toString"}}',
+    );
+    await reader.finishArgsText();
+
+    expect(await reader.args.get("constructor")).toBe("root constructor");
+    expect(await reader.args.get("toString")).toBe("root toString");
+    expect(await reader.args.get("nested", "constructor")).toBe(
+      "nested constructor",
+    );
+    expect(await reader.args.get("nested", "toString")).toBe("nested toString");
+  });
+
   it("does not deadlock awaiting an optional arg inside a side effect", async () => {
     const reader = createReader();
 
@@ -186,6 +224,24 @@ describe("ToolCallArgsReader streams", () => {
     }
 
     expect(seen).toEqual([]);
+  });
+
+  it("does not stream inherited properties for missing root and nested fields", async () => {
+    const reader = new ToolCallReaderImpl<PrototypeNamedArgs, string>();
+    const root = reader.args.streamValues("toString");
+    const nested = reader.args.streamValues("nested", "constructor");
+
+    await reader.appendArgsTextDelta('{"nested":{');
+    await reader.appendArgsTextDelta("}}");
+    await reader.finishArgsText();
+
+    const rootValues: unknown[] = [];
+    for await (const value of root) rootValues.push(value);
+    const nestedValues: unknown[] = [];
+    for await (const value of nested) nestedValues.push(value);
+
+    expect(rootValues).toEqual([]);
+    expect(nestedValues).toEqual([]);
   });
 
   it("emits completed array items and closes via forEach", async () => {
