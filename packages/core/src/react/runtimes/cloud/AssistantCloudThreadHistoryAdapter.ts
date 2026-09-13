@@ -205,10 +205,7 @@ class AssistantCloudThreadHistoryAdapter implements ThreadHistoryAdapter {
 
     let remoteThreadId: string | undefined;
     if (threadListItem.getState().remoteId || options?.awaitThread) {
-      remoteThreadId = await threadListItem
-        .initialize()
-        .then((result) => result.remoteId)
-        .catch(() => undefined);
+      remoteThreadId = (await threadListItem.initialize()).remoteId;
     }
     this.assertCurrentScope(snapshot);
     const remoteMessageId = messageId

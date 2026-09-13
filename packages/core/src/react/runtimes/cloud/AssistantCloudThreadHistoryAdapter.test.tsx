@@ -314,6 +314,31 @@ describe("useAssistantCloudThreadHistoryAdapter", () => {
     expect(secondCloud.events.track).not.toHaveBeenCalled();
   });
 
+  it("drops engagement events while the thread-list adapter is changing", async () => {
+    const listeners = new Map<string, (payload: any) => void>();
+    const client = mocks.makeClient("thread-1");
+    client.threadListItem.initialize = vi
+      .fn()
+      .mockRejectedValue(new Error("thread-list adapter changed"));
+    client.on = vi.fn((selector, callback) => {
+      listeners.set(selector.event, callback);
+      return () => listeners.delete(selector.event);
+    });
+    mocks.aui = client;
+    const cloud = makeCloud();
+    renderHook(() => useAssistantCloudThreadHistoryAdapter({ current: cloud }));
+    await waitFor(() => expect(listeners.has("message.copied")).toBe(true));
+
+    listeners.get("message.copied")!({
+      threadId: "thread-1",
+      messageId: "message-1",
+    });
+    await new Promise((resolve) => setTimeout(resolve, 0));
+
+    expect(client.threadListItem.initialize).toHaveBeenCalledOnce();
+    expect(cloud.events.track).not.toHaveBeenCalled();
+  });
+
   it("keeps engagement state across same-scope Cloud client changes", async () => {
     const now = vi.spyOn(Date, "now").mockReturnValue(100);
     const listeners = new Map<string, (payload: any) => void>();
