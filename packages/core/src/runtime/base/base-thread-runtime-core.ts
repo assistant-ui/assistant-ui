@@ -277,25 +277,44 @@ export abstract class BaseThreadRuntimeCore
     this._stopSpeaking?.();
 
     const utterance = adapter.speak(getThreadMessageText(message));
-    const unsub = utterance.subscribe(() => {
+    let unsub: Unsubscribe | undefined;
+    const clear = () => {
+      this._stopSpeaking = undefined;
+      this.speech = undefined;
+      const cleanup = unsub;
+      unsub = undefined;
+      cleanup?.();
+    };
+    const stop = () => {
+      if (this._stopSpeaking !== stop) return;
+      try {
+        clear();
+      } finally {
+        utterance.cancel();
+      }
+    };
+    const update = () => {
+      if (this._stopSpeaking !== stop) return;
       if (utterance.status.type === "ended") {
-        this._stopSpeaking = undefined;
-        this.speech = undefined;
+        clear();
       } else {
         this.speech = { messageId, status: utterance.status };
       }
       this._notifySubscribers();
-    });
-
-    this.speech = { messageId, status: utterance.status };
-    this._notifySubscribers();
-
-    this._stopSpeaking = () => {
-      utterance.cancel();
-      unsub();
-      this.speech = undefined;
-      this._stopSpeaking = undefined;
     };
+
+    this._stopSpeaking = stop;
+    try {
+      unsub = utterance.subscribe(update);
+      if (this._stopSpeaking !== stop) {
+        unsub();
+        return;
+      }
+      update();
+    } catch (error) {
+      stop();
+      throw error;
+    }
   }
 
   public stopSpeaking() {

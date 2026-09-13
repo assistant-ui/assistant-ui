@@ -13,6 +13,8 @@ import type {
   ThreadSuggestion,
 } from "../interfaces/thread-runtime-core";
 import { BaseThreadRuntimeCore } from "./base-thread-runtime-core";
+import type { SpeechSynthesisAdapter } from "../../adapters/speech";
+import { LocalRuntimeCore } from "../../runtimes/local/local-runtime-core";
 
 const createVoiceAdapter = () => {
   let volumeCallback: ((volume: number) => void) | undefined;
@@ -126,6 +128,162 @@ class TestRuntime extends BaseThreadRuntimeCore {
 
 afterEach(() => {
   vi.restoreAllMocks();
+});
+
+describe("BaseThreadRuntimeCore speech lifecycle", () => {
+  const createUtterance = () => {
+    let notify = () => {};
+    const unsubscribe = vi.fn();
+    const utterance: SpeechSynthesisAdapter.Utterance = {
+      status: { type: "running" },
+      cancel: vi.fn(),
+      subscribe: (callback) => {
+        notify = callback;
+        return unsubscribe;
+      },
+    };
+    return { utterance, unsubscribe, notify: () => notify() };
+  };
+
+  const createThread = (speech: SpeechSynthesisAdapter) => {
+    const runtime = new LocalRuntimeCore(
+      {
+        adapters: {
+          chatModel: {
+            async run() {
+              return {};
+            },
+          },
+          speech,
+        },
+      },
+      undefined,
+    );
+    const thread = runtime.threads.getMainThreadRuntimeCore();
+    thread.reset([
+      {
+        id: "first",
+        role: "assistant",
+        content: [{ type: "text", text: "Hello" }],
+      },
+      {
+        id: "second",
+        role: "assistant",
+        content: [{ type: "text", text: "Again" }],
+      },
+    ]);
+    return thread;
+  };
+
+  it("releases a session that completes during subscription", () => {
+    const { utterance, unsubscribe } = createUtterance();
+    utterance.subscribe = (callback) => {
+      utterance.status = { type: "ended", reason: "finished" };
+      callback();
+      return unsubscribe;
+    };
+    const thread = createThread({ speak: () => utterance });
+
+    thread.speak("first");
+
+    expect(thread.speech).toBeUndefined();
+    expect(unsubscribe).toHaveBeenCalledOnce();
+    expect(utterance.cancel).not.toHaveBeenCalled();
+    expect(() => thread.stopSpeaking()).toThrow("No message is being spoken");
+  });
+
+  it("does not install an already-ended utterance", () => {
+    const { utterance, unsubscribe } = createUtterance();
+    utterance.status = { type: "ended", reason: "finished" };
+    const thread = createThread({ speak: () => utterance });
+
+    thread.speak("first");
+
+    expect(thread.speech).toBeUndefined();
+    expect(unsubscribe).toHaveBeenCalledOnce();
+  });
+
+  it.each(["finished", "error", "cancelled"] as const)(
+    "releases the listener after %s completion",
+    (reason) => {
+      const { utterance, unsubscribe, notify } = createUtterance();
+      const thread = createThread({ speak: () => utterance });
+      thread.speak("first");
+      const subscriber = vi.fn();
+      thread.subscribe(subscriber);
+
+      utterance.status = { type: "ended", reason };
+      notify();
+      notify();
+
+      expect(thread.speech).toBeUndefined();
+      expect(unsubscribe).toHaveBeenCalledOnce();
+      expect(subscriber).toHaveBeenCalledOnce();
+      expect(utterance.cancel).not.toHaveBeenCalled();
+    },
+  );
+
+  it("ignores old running and ended callbacks after replacement", () => {
+    const first = createUtterance();
+    const second = createUtterance();
+    const speak = vi
+      .fn()
+      .mockReturnValueOnce(first.utterance)
+      .mockReturnValueOnce(second.utterance);
+    const thread = createThread({ speak });
+    thread.speak("first");
+    thread.speak("second");
+    const subscriber = vi.fn();
+    thread.subscribe(subscriber);
+
+    first.notify();
+    first.utterance.status = { type: "ended", reason: "cancelled" };
+    first.notify();
+
+    expect(thread.speech).toEqual({
+      messageId: "second",
+      status: { type: "running" },
+    });
+    expect(subscriber).not.toHaveBeenCalled();
+    expect(first.utterance.cancel).toHaveBeenCalledOnce();
+    expect(first.unsubscribe).toHaveBeenCalledOnce();
+    thread.stopSpeaking();
+    expect(second.utterance.cancel).toHaveBeenCalledOnce();
+    expect(second.unsubscribe).toHaveBeenCalledOnce();
+  });
+
+  it("clears state before synchronous cancellation callbacks", () => {
+    const { utterance, unsubscribe, notify } = createUtterance();
+    utterance.cancel = vi.fn(() => {
+      utterance.status = { type: "ended", reason: "cancelled" };
+      notify();
+    });
+    const thread = createThread({ speak: () => utterance });
+    thread.speak("first");
+    const subscriber = vi.fn();
+    thread.subscribe(subscriber);
+
+    thread.stopSpeaking();
+
+    expect(thread.speech).toBeUndefined();
+    expect(utterance.cancel).toHaveBeenCalledOnce();
+    expect(unsubscribe).toHaveBeenCalledOnce();
+    expect(subscriber).toHaveBeenCalledOnce();
+  });
+
+  it("cancels a session when subscribing throws", () => {
+    const { utterance } = createUtterance();
+    const error = new Error("subscription failed");
+    utterance.subscribe = () => {
+      throw error;
+    };
+    const thread = createThread({ speak: () => utterance });
+
+    expect(() => thread.speak("first")).toThrow(error);
+    expect(thread.speech).toBeUndefined();
+    expect(utterance.cancel).toHaveBeenCalledOnce();
+    expect(() => thread.stopSpeaking()).toThrow("No message is being spoken");
+  });
 });
 
 describe("BaseThreadRuntimeCore subscriptions", () => {
