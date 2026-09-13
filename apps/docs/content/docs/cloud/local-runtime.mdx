@@ -66,9 +66,9 @@ export default function ChatPage() {
 }
 ```
 
-On React, `useLocalRuntime(adapter)` with `NEXT_PUBLIC_ASSISTANT_BASE_URL` set and no `cloud` uses an anonymous client, the same as the AI SDK runtime. On React Native and Ink construct the client from `assistant-cloud` and pass it.
+On React, `useLocalRuntime(adapter)` with `NEXT_PUBLIC_ASSISTANT_BASE_URL` set and no `cloud` uses an anonymous client, the same as the AI SDK runtime. On React Native and Ink construct the client from `assistant-cloud` and pass it. If the mounted runtime can switch accounts or workspaces, pass their stable ID as `scopeId` from the first render; defer mounting the runtime until that ID is available.
 
-`useDataStreamRuntime` from `@assistant-ui/react-data-stream`, the runtime for a route that returns an assistant-stream response, accepts every local runtime option including `cloud`, and gets the same integration.
+`useDataStreamRuntime` from `@assistant-ui/react-data-stream`, the runtime for a route that returns an assistant-stream response, accepts every local runtime option including `cloud` and `scopeId`, and gets the same integration.
 
 ## What the runtime does with the cloud
 

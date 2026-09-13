@@ -30,6 +30,7 @@ declare const AISDKThreads: <UI_MESSAGE extends UIMessage$1 = UIMessage$1<unknow
 type AISDKThreadsOptions<UI_MESSAGE extends UIMessage$1 = UIMessage$1> = Omit<ChatThreadOptions<UI_MESSAGE>, "id" | "messages" | "transport"> & {
   transport?: ChatTransport<UI_MESSAGE> | (() => ChatTransport<UI_MESSAGE>) | undefined;
   cloud?: AssistantCloud | undefined;
+  scopeId?: string | undefined;
   threadId?: string | undefined;
   onThreadIdChange?: ((threadId: string | undefined) => void) | undefined;
 };
@@ -2288,6 +2289,7 @@ type Unsubscribe = () => void;
 
 type UseChatRuntimeOptions<UI_MESSAGE extends UIMessage$1 = UIMessage$1> = ChatThreadOptions<UI_MESSAGE> & {
   cloud?: AssistantCloud | undefined;
+  scopeId?: string | undefined;
   onThreadIdChange?: ((threadId: string | undefined) => void) | undefined;
 };
 
