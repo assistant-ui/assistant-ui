@@ -51,6 +51,10 @@ If you prefer to add assistant-ui to an existing Expo project, follow these step
 
 <InstallCommand expo={["@assistant-ui/react-native", "@assistant-ui/ai-sdk"]} />
 
+<Callout type="warn" title="One assistant-ui package per app">
+  Install only `@assistant-ui/react-native` in a React Native app. Do not add `@assistant-ui/react` next to it: both packages bundle the same store and reactive core, and a second copy silently breaks `useAui` and the primitives. Everything the runtime needs, including the tool, model context, and external store helpers, is exported from `@assistant-ui/react-native`.
+</Callout>
+
   </Step>
   <Step>
 

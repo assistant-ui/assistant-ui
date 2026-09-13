@@ -127,6 +127,12 @@ export {
   type LocalRuntimeOptions,
 } from "./runtimes/useLocalRuntime";
 export { useRemoteThreadListRuntime } from "./runtimes/useRemoteThreadListRuntime";
+export {
+  useExternalStoreRuntime,
+  useExternalMessageConverter,
+  convertExternalMessages as unstable_convertExternalMessages,
+  createMessageConverter as unstable_createMessageConverter,
+} from "@assistant-ui/core/react";
 
 // Primitives
 export * as ThreadPrimitive from "./primitives/thread";
