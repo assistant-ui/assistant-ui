@@ -317,4 +317,48 @@ describe("InMemoryResumableStreamStore", () => {
     const store = createInMemoryResumableStreamStore();
     expect(() => store.dispose()).not.toThrow();
   });
+  it("keeps a superseded producer out of a stream reacquired on the same instance", async () => {
+    let now = 0;
+    const store = createInMemoryResumableStreamStore({
+      now: () => now,
+      defaultTtlMs: 10,
+    });
+    const a = await store.acquireLease!("s");
+    if (a.role !== "producer") throw new Error("Expected producer");
+    await store.append("s", bytes("before"), a.lease);
+    now = 11;
+    const b = await store.acquireLease!("s");
+    if (b.role !== "producer") throw new Error("Expected producer");
+    await expect(store.acquireLease!("s")).resolves.toEqual({
+      role: "consumer",
+    });
+    await store.append("s", bytes("fresh"), b.lease);
+    await expect(
+      store.append("s", bytes("stale"), a.lease),
+    ).rejects.toMatchObject({
+      code: "missing",
+      message: "Stream superseded by a new acquisition: s",
+    });
+    await expect(
+      store.finalize("s", "done", undefined, a.lease),
+    ).resolves.toBeUndefined();
+    await expect(store.status("s")).resolves.toBe("streaming");
+    await store.finalize("s", "done", undefined, b.lease);
+    await expect(
+      store.append("s", bytes("late"), a.lease),
+    ).rejects.toMatchObject({
+      code: "missing",
+    });
+    const chunks: string[] = [];
+    for await (const entry of store.read(
+      "s",
+      "",
+      new AbortController().signal,
+    )) {
+      chunks.push(decode(entry.chunk));
+    }
+    expect(chunks).toEqual(["fresh"]);
+    await store.delete("s");
+    await expect(store.finalize("s", "done")).rejects.toThrow(/not found/);
+  });
 });

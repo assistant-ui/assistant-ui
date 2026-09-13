@@ -11,6 +11,15 @@ export type ResumableStreamAcquireOptions = {
   readonly ttlMs?: number;
 };
 
+/** Producer identity returned by `acquireLease`; opaque to callers. */
+export type ResumableStreamLease = {
+  readonly token: string;
+};
+
+export type ResumableStreamAcquisition =
+  | { readonly role: "producer"; readonly lease: ResumableStreamLease }
+  | { readonly role: "consumer" };
+
 export interface ResumableStreamStore {
   /**
    * Atomic election. The first caller for a given `streamId` observes
@@ -23,15 +32,44 @@ export interface ResumableStreamStore {
   ): Promise<ResumableStreamRole>;
 
   /**
+   * Like `acquire`, but a producer also receives a lease identifying this
+   * acquisition. Pass it to `append` and `finalize` so a producer
+   * superseded by a later acquisition (even on the same store instance) cannot
+   * mutate the replacement stream. Optional for backwards compatibility;
+   * `createResumableStreamContext` uses it when present.
+   *
+   * Implementations should compare the lease in the same round trip that
+   * writes. Which of the bundled Redis store's mutations do so is documented
+   * in the custom-store guide.
+   */
+  acquireLease?(
+    streamId: string,
+    options?: ResumableStreamAcquireOptions,
+  ): Promise<ResumableStreamAcquisition>;
+
+  /**
    * Implementations should refresh the TTL on each call.
    * After the promise resolves, caller mutations must not change stored bytes.
+   * @param lease When given, the mutation applies only while `lease` still owns
+   * the stream. While the stream exists under a newer acquisition, a superseded
+   * producer's append throws `ResumableStreamError("missing")` and its
+   * finalize is a no-op; a stream with no state at all still reports
+   * not found from finalize. Without a lease, behavior is unchanged
+   * (Redis: instance-scoped fencing by the most recent acquisition on this
+   * instance; in-memory: no fencing).
    */
-  append(streamId: string, chunk: Uint8Array): Promise<void>;
+  append(
+    streamId: string,
+    chunk: Uint8Array,
+    lease?: ResumableStreamLease,
+  ): Promise<void>;
 
+  /** @param lease See {@link ResumableStreamStore.append}. */
   finalize(
     streamId: string,
     status: "done" | "error",
     error?: string,
+    lease?: ResumableStreamLease,
   ): Promise<void>;
 
   /**

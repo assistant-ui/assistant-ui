@@ -4,7 +4,7 @@ description: Implement the ResumableStreamStore interface to back resumable stre
 platforms: ["react"]
 ---
 
-The built-in InMemory and Redis adapters cover most deployments. Write your own `ResumableStreamStore` when you need a backend you already operate (Postgres, MySQL), an edge-native primitive (Cloudflare Durable Objects, Workers KV), an HTTP-only key-value service (Upstash REST), or a realtime database (InstantDB). The contract is six async methods over an opaque `streamId` and a monotonic byte log.
+The built-in InMemory and Redis adapters cover most deployments. Write your own `ResumableStreamStore` when you need a backend you already operate (Postgres, MySQL), an edge-native primitive (Cloudflare Durable Objects, Workers KV), an HTTP-only key-value service (Upstash REST), or a realtime database (InstantDB). The contract is six required async methods, plus one optional method, over an opaque `streamId` and a monotonic byte log.
 
 ## Interface walkthrough
 
@@ -16,11 +16,20 @@ export interface ResumableStreamStore {
     streamId: string,
     options?: ResumableStreamAcquireOptions,
   ): Promise<ResumableStreamRole>;
-  append(streamId: string, chunk: Uint8Array): Promise<void>;
+  acquireLease?(
+    streamId: string,
+    options?: ResumableStreamAcquireOptions,
+  ): Promise<ResumableStreamAcquisition>;
+  append(
+    streamId: string,
+    chunk: Uint8Array,
+    lease?: ResumableStreamLease,
+  ): Promise<void>;
   finalize(
     streamId: string,
     status: "done" | "error",
     error?: string,
+    lease?: ResumableStreamLease,
   ): Promise<void>;
   read(
     streamId: string,
@@ -50,7 +59,7 @@ Changes to a yielded chunk must not affect other reads. In-memory stores must co
 
 ## Acquire semantics
 
-`acquire` is the only method that requires linearizability across processes. Two route handlers that race to start the same `streamId` must see exactly one `"producer"` result; the loser becomes a `"consumer"` and replays the winner's bytes. A single-process store can guard a `Map` with a synchronous `if (!map.has(id)) map.set(id, ...)`. Networked stores need a primitive that does the check and the insert in one round trip:
+`acquire` requires linearizability across processes, and so does every lease-checked mutation (see `acquireLease` below). Two route handlers that race to start the same `streamId` must see exactly one `"producer"` result; the loser becomes a `"consumer"` and replays the winner's bytes. A single-process store can guard a `Map` with a synchronous `if (!map.has(id)) map.set(id, ...)`. Networked stores need a primitive that does the check and the insert in one round trip:
 
 - Redis: `SET key value NX EX ttl`, or `INCR` against a per-stream counter.
 - Postgres: `INSERT ... ON CONFLICT (stream_id) DO NOTHING RETURNING ...`.
@@ -58,6 +67,10 @@ Changes to a yielded chunk must not affect other reads. In-memory stores must co
 - Upstash REST: `set` with `nx=true`.
 
 If your backend cannot offer atomicity, do not paper over it with read-then-write; you will silently produce two writers for the same stream under contention, and consumers will observe interleaved bytes.
+
+`acquireLease(streamId, options?)` is optional. It elects exactly like `acquire`, but a `"producer"` result also carries a lease (`{ role: "producer", lease: { token } }`; consumers get `{ role: "consumer" }`). The context prefers it when present and passes the lease to every `append` and `finalize` call from that producer task; `delete` takes no lease and stays administrative. Store a per-acquisition token with the stream and, when a lease is given, reject `append` with `ResumableStreamError("missing")` and make `finalize` a no-op when the stream exists and the token no longer matches (a stream with no state at all still reports not found from `finalize`, since there is no successor to defer to). This is what stops a producer whose stream expired from writing into the stream a later `acquire` created under the same `streamId`. A store without `acquireLease` still works through `acquire`, but forfeits that fence: an expired producer that keeps running can append to or finalize its successor's stream.
+
+The target for that check is the same atomicity `acquire` has: compare the token in the same round trip that writes, with a Lua script or `MULTI`/`WATCH` block in Redis, `UPDATE ... WHERE stream_id = ? AND lease_token = ?` in SQL, or the single-threaded object body in Durable Objects. A read-then-write check leaves a window where a reacquisition lands between the compare and the write. The bundled Redis store compares in one step for `finalize` (a compare-and-set script) and validates the lease before the write for `append`, whose window is contained because data keys are scoped per generation, so a stale write lands in the old producer's orphaned key.
 
 ## The cursor contract
 
@@ -159,4 +172,4 @@ export const resumableContext = createResumableStreamContext({
 });
 ```
 
-From this point the route handlers in [Resumable Streams](/docs/guides/resumable-streams) work unchanged: `resumableContext.run(streamId, makeStream)` calls your `acquire`, `append`, and `finalize`, and `resumableContext.resume(streamId)` calls your `read`.
+From this point the route handlers in [Resumable Streams](/docs/guides/resumable-streams) work unchanged: `resumableContext.run(streamId, makeStream)` calls your `acquireLease` (or `acquire`), `append`, and `finalize`, and `resumableContext.resume(streamId)` calls your `read`.
