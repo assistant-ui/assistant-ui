@@ -47,6 +47,36 @@ describe("CloudEngagementReporter", () => {
     });
   });
 
+  it("reports tool approval decisions with their resolved message IDs", async () => {
+    const { cloud, track } = createCloud();
+    const reporter = new CloudEngagementReporter(
+      cloud,
+      (threadId, messageId) => ({
+        thread_id: `remote-${threadId}`,
+        ...(messageId !== undefined
+          ? { message_id: `remote-${messageId}` }
+          : {}),
+      }),
+    );
+
+    reporter.toolApproved("t1", "m1", "tool-1");
+    reporter.toolRejected("t1", "m2", "tool-2");
+    await flush();
+
+    expect(track).toHaveBeenNthCalledWith(1, {
+      kind: "tool_approved",
+      thread_id: "remote-t1",
+      message_id: "remote-m1",
+      props: { toolCallId: "tool-1" },
+    });
+    expect(track).toHaveBeenNthCalledWith(2, {
+      kind: "tool_rejected",
+      thread_id: "remote-t1",
+      message_id: "remote-m2",
+      props: { toolCallId: "tool-2" },
+    });
+  });
+
   it("measures a stop against the run start and reports it once per run", async () => {
     const { cloud, track } = createCloud();
     const reporter = new CloudEngagementReporter(cloud);

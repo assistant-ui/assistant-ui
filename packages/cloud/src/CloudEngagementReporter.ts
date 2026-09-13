@@ -186,6 +186,26 @@ export class CloudEngagementReporter {
     this.track("message_copied", threadId, messageId);
   }
 
+  public toolApproved(
+    threadId: string,
+    messageId: string,
+    toolCallId: string,
+  ): void {
+    this.track("tool_approved", threadId, messageId, {
+      props: { toolCallId },
+    });
+  }
+
+  public toolRejected(
+    threadId: string,
+    messageId: string,
+    toolCallId: string,
+  ): void {
+    this.track("tool_rejected", threadId, messageId, {
+      props: { toolCallId },
+    });
+  }
+
   /** Reported only for a thread the cloud already knows. */
   public threadSwitched(threadId: string): void {
     this.track("thread_switched", threadId);
