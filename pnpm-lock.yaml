@@ -4259,6 +4259,9 @@ importers:
       '@assistant-ui/x-buildutils':
         specifier: workspace:*
         version: link:../x-buildutils
+      '@assistant-ui/x-performance':
+        specifier: workspace:*
+        version: link:../x-performance
       '@tailwindcss/cli':
         specifier: ^4.3.3
         version: 4.3.3
@@ -4271,6 +4274,9 @@ importers:
       '@types/react-dom':
         specifier: ^19.2.7
         version: 19.2.7(@types/react@19.2.18)
+      jsdom:
+        specifier: ^30.0.1
+        version: 30.0.1
       react:
         specifier: ^19.2.8
         version: 19.2.8
