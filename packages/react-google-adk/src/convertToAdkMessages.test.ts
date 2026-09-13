@@ -168,21 +168,6 @@ describe("getMessageContent", () => {
     ]);
   });
 
-  it("normalizes escaped and whitespace-separated base64 image data", () => {
-    const content = getMessageContent(
-      makeAppendMessage([
-        {
-          type: "image",
-          image: "data:image/png;base64,aGVs%0A bG8%3D",
-        },
-      ]),
-    );
-
-    expect(contentToParts(content)).toEqual([
-      { inlineData: { mimeType: "image/png", data: "aGVsbG8=" } },
-    ]);
-  });
-
   it("infers an image MIME type when the data URL declares a generic type", () => {
     const content = getMessageContent(
       makeAppendMessage([
@@ -198,14 +183,25 @@ describe("getMessageContent", () => {
     ]);
   });
 
-  it("rejects malformed percent encoding in base64 image data", () => {
-    expect(() =>
-      getMessageContent(
-        makeAppendMessage([
-          { type: "image", image: "data:image/png;base64,AAAA%" },
-        ]),
-      ),
-    ).toThrow("Invalid image data URL: malformed percent encoding.");
+  it("prefers an attachment's declared image MIME type", () => {
+    const message = makeAppendMessage([]);
+    const content = getMessageContent({
+      ...message,
+      attachments: [
+        {
+          id: "attachment-1",
+          type: "image",
+          name: "photo.webp",
+          contentType: "image/webp",
+          status: { type: "complete" },
+          content: [{ type: "image", image: "data:image/png;base64,AAAA" }],
+        },
+      ],
+    });
+
+    expect(contentToParts(content)).toEqual([
+      { inlineData: { mimeType: "image/webp", data: "AAAA" } },
+    ]);
   });
 
   it("preserves file part data and mimeType end-to-end", () => {

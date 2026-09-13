@@ -13,21 +13,18 @@ import {
 } from "@assistant-ui/core/internal";
 import type { AdkMessage } from "./types";
 
-const normalizeBase64DataUrlPayload = (payload: string): string => {
-  try {
-    return decodeURIComponent(payload).replace(/[\t\n\f\r ]/g, "");
-  } catch {
-    throw new Error("Invalid image data URL: malformed percent encoding.");
-  }
-};
-
 /** Exported for unit tests. */
 export const getMessageContent = (msg: AppendMessage) => {
   const allContent = [
-    ...msg.content,
-    ...(msg.attachments?.flatMap((a) => a.content) ?? []),
+    ...msg.content.map((part) => ({ part, contentType: undefined })),
+    ...(msg.attachments?.flatMap((attachment) =>
+      attachment.content.map((part) => ({
+        part,
+        contentType: attachment.contentType,
+      })),
+    ) ?? []),
   ];
-  const content = allContent.flatMap((part) => {
+  const content = allContent.flatMap(({ part, contentType }) => {
     const type = part.type;
     switch (type) {
       case "text":
@@ -37,8 +34,8 @@ export const getMessageContent = (msg: AppendMessage) => {
         if (parsed) {
           return {
             type: "image" as const,
-            mimeType: resolveImageMediaType(part.image),
-            data: normalizeBase64DataUrlPayload(parsed.data),
+            mimeType: resolveImageMediaType(part.image, contentType),
+            data: parsed.data,
           };
         }
         return { type: "image_url" as const, url: part.image };
