@@ -417,6 +417,36 @@ describe("toGenericMessages", () => {
       ]);
     });
 
+    it("converts generated file parts", () => {
+      const result = toGenericMessages([
+        {
+          role: "assistant",
+          content: [
+            {
+              type: "file",
+              data: "iVBORw0KGgo=",
+              mimeType: "image/png",
+              filename: "generated.png",
+            },
+          ],
+        },
+      ]);
+
+      expect(result).toEqual([
+        {
+          role: "assistant",
+          content: [
+            {
+              type: "file",
+              data: "iVBORw0KGgo=",
+              mediaType: "image/png",
+              filename: "generated.png",
+            },
+          ],
+        },
+      ]);
+    });
+
     it("closes out tool calls without results", () => {
       const result = toGenericMessages([
         {

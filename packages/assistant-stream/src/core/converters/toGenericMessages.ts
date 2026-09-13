@@ -45,7 +45,7 @@ export type GenericUserMessage = {
 
 export type GenericAssistantMessage = {
   role: "assistant";
-  content: (GenericTextPart | GenericToolCallPart)[];
+  content: (GenericTextPart | GenericFilePart | GenericToolCallPart)[];
 };
 
 export type GenericToolMessage = {
@@ -132,7 +132,7 @@ function toUrlOrString(value: string): string | URL {
 }
 
 type ToolCallAccumulator = {
-  textParts: (GenericTextPart | GenericToolCallPart)[];
+  textParts: (GenericTextPart | GenericFilePart | GenericToolCallPart)[];
   toolResults: GenericToolResultPart[];
 };
 
@@ -265,6 +265,31 @@ function convertAssistantMessage(
       if (processToolCall(part, accumulator)) {
         hasPendingToolResults = true;
       }
+    } else if (part.type === "image" && part.image) {
+      if (hasPendingToolResults) {
+        flushAccumulator(accumulator, result);
+        hasPendingToolResults = false;
+      }
+      accumulator.textParts.push({
+        type: "file",
+        data: toUrlOrString(part.image),
+        mediaType: inferImageMediaType(part.image),
+        ...(part.filename && { filename: part.filename }),
+      });
+    } else if (part.type === "file" && typeof part.data === "string") {
+      if (hasPendingToolResults) {
+        flushAccumulator(accumulator, result);
+        hasPendingToolResults = false;
+      }
+      accumulator.textParts.push({
+        type: "file",
+        data: toUrlOrString(part.data),
+        mediaType:
+          (typeof part.mimeType === "string" && part.mimeType) ||
+          getDataUrlMediaType(part.data) ||
+          "application/octet-stream",
+        ...(part.filename && { filename: part.filename }),
+      });
     }
   }
 
