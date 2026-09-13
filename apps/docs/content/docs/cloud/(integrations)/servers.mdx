@@ -103,7 +103,7 @@ The [package reference](/docs/api-reference/integrations/assistant-cloud) lists 
 
 ## Other languages
 
-The client is a thin layer over the [REST API](/docs/cloud/api), so a backend in Python, Go or Java does the same three calls over HTTP with the key in the `Authorization` header and the user and workspace in the `Aui-User-Id` and `Aui-Workspace-Id` headers. A backend that already emits OpenTelemetry spans can skip the run report: exported spans become runs on their own, and `gen_ai.conversation.id` on the spans attaches them to the thread. See [Other producers](/docs/cloud/traces#other-producers).
+The client is a thin layer over the [REST API](/docs/cloud/api), so a backend in Python, Go or Java does the same calls over HTTP with the key in the `Authorization` header and the user and workspace in the `Aui-User-Id` and `Aui-Workspace-Id` headers. A backend that already emits OpenTelemetry spans can skip the run report: exported spans become runs on their own, and `gen_ai.conversation.id` on the spans attaches them to the thread. See [Other producers](/docs/cloud/traces#other-producers).
 
 ## Reading a project
 
