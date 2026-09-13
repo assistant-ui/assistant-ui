@@ -222,6 +222,15 @@ describe("ImageActions data URI handling", () => {
     expect(await blob.text()).toBe("hello");
     expect(blob.type).toBe("image/png");
   });
+
+  it("ignores malformed base64 downloads", () => {
+    renderActions("data:image/png;base64,%%%invalid%%%");
+
+    expect(() =>
+      fireEvent.click(screen.getByLabelText("Download image")),
+    ).not.toThrow();
+    expect(URL.createObjectURL).not.toHaveBeenCalled();
+  });
 });
 
 describe("ImageActions regeneration", () => {

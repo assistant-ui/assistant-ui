@@ -44,7 +44,7 @@ const extensionForMimeType = (mimeType?: string): string => {
   }
 };
 
-const dataUriToBlob = (dataUri: string): Blob => {
+const dataUriToBlob = (dataUri: string): Blob | null => {
   const commaIndex = dataUri.indexOf(",");
   const meta = commaIndex >= 0 ? dataUri.slice(0, commaIndex) : dataUri;
   const data = commaIndex >= 0 ? dataUri.slice(commaIndex + 1) : "";
@@ -61,7 +61,12 @@ const dataUriToBlob = (dataUri: string): Blob => {
     });
     return new Blob([text], { type: mime });
   }
-  const bytes = atob(data);
+  let bytes: string;
+  try {
+    bytes = atob(data);
+  } catch {
+    return null;
+  }
   const arr = new Uint8Array(bytes.length);
   for (let i = 0; i < bytes.length; i++) arr[i] = bytes.charCodeAt(i);
   return new Blob([arr], { type: mime });
@@ -77,9 +82,9 @@ const downloadImagePart = (
   const ext = extensionForMimeType(mimeFromImage(part.image));
   const filename = part.filename ?? `image.${ext}`;
   const isDataUri = /^data:/i.test(part.image);
-  const objectUrl = isDataUri
-    ? URL.createObjectURL(dataUriToBlob(part.image))
-    : null;
+  const blob = isDataUri ? dataUriToBlob(part.image) : null;
+  if (isDataUri && !blob) return;
+  const objectUrl = blob ? URL.createObjectURL(blob) : null;
   const href = objectUrl ?? part.image;
   const a = document.createElement("a");
   a.href = href;
@@ -104,6 +109,7 @@ const copyImagePart = async (
   const blob = /^data:/i.test(part.image)
     ? dataUriToBlob(part.image)
     : await fetch(part.image).then((r) => r.blob());
+  if (!blob) return;
   const mime = mimeFromImage(part.image) ?? blob.type ?? "image/png";
   await navigator.clipboard.write([new ClipboardItem({ [mime]: blob })]);
 };
