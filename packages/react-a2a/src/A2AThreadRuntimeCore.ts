@@ -328,14 +328,16 @@ export class A2AThreadRuntimeCore {
   async cancel(): Promise<void> {
     if (!this.abortController) return;
 
+    const task = this.currentTask;
+
     // Abort locally first so the stream stops immediately
     this.abortController.abort();
 
     // Then try to cancel the task on the server
-    if (this.currentTask?.id) {
+    if (task?.id) {
       try {
-        const updated = await this.client.cancelTask(this.currentTask.id);
-        this.currentTask = updated;
+        const updated = await this.client.cancelTask(task.id);
+        if (this.currentTask === task) this.currentTask = updated;
       } catch {
         // Server cancel failed; local abort already handled
       }
