@@ -427,6 +427,26 @@ describe("LocalThreadRuntimeCore state", () => {
 });
 
 describe("LocalThreadRuntimeCore tool approvals", () => {
+  it("emits a decision with its message and tool call IDs", async () => {
+    const { thread } = createApprovalThread(
+      toolCallResult("send_email", { id: "a1" }),
+    );
+    const answered = vi.fn();
+    thread.unstable_on("toolApprovalAnswered", answered);
+
+    await thread.append(userMessage("send an email"));
+    await flush();
+    const messageId = thread.messages.at(-1)?.id;
+
+    await thread.respondToToolApproval({ approvalId: "a1", approved: false });
+
+    expect(answered).toHaveBeenCalledWith({
+      messageId,
+      toolCallId: "call-send_email",
+      approved: false,
+    });
+  });
+
   it("pauses the run while an approval is pending, even for unlisted tools", async () => {
     const { thread, runs } = createApprovalThread(
       toolCallResult("deploy", { id: "a1" }),

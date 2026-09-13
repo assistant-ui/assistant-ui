@@ -1117,6 +1117,43 @@ describe("ExternalStoreThreadRuntimeCore adapter contract", () => {
       ).resolves.toBeUndefined();
     });
 
+    it("emits a decision after an approval callback accepts", async () => {
+      const message: ThreadMessage = {
+        ...createAssistantMessage("assistant-1"),
+        status: { type: "requires-action", reason: "tool-calls" },
+        content: [
+          {
+            type: "tool-call",
+            toolCallId: "tool-1",
+            toolName: "review",
+            args: {},
+            argsText: "{}",
+            approval: { id: "approval-1" },
+          },
+        ],
+      } as ThreadMessage;
+      const core = new ExternalStoreThreadRuntimeCore(
+        contextProvider,
+        createBaseAdapter({
+          messages: [message],
+          onRespondToToolApproval: () => {},
+        }),
+      );
+      const answered = vi.fn();
+      core.unstable_on("toolApprovalAnswered", answered);
+
+      await core.respondToToolApproval({
+        approvalId: "approval-1",
+        approved: true,
+      });
+
+      expect(answered).toHaveBeenCalledWith({
+        messageId: "assistant-1",
+        toolCallId: "tool-1",
+        approved: true,
+      });
+    });
+
     it("handles rejected onCancel callbacks", async () => {
       const error = new Error("cancel failed");
       const consoleError = vi
