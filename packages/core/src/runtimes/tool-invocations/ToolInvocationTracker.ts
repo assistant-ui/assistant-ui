@@ -634,7 +634,8 @@ export class ToolInvocationTracker {
     hasResult: boolean;
     clientOwned: boolean;
   }): boolean {
-    if (hasResult) return true;
+    // setResponse must enqueue the backend result before closing the args stream.
+    if (hasResult) return false;
     if (!isArgsTextComplete(argsText)) return false;
     return clientOwned || !this._isRunning;
   }
@@ -851,7 +852,8 @@ export class ToolInvocationTracker {
         );
       }
 
-      if (content.approval !== undefined) entry.skipExecute = true;
+      if (content.result !== undefined || content.approval !== undefined)
+        entry.skipExecute = true;
 
       this._processArgsText(entry, content);
 

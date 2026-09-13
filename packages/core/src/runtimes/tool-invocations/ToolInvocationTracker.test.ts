@@ -44,6 +44,8 @@ const createAssistantMessage = (
   options?: {
     result?: ReadonlyJSONValue;
     isError?: boolean;
+    artifact?: ReadonlyJSONValue;
+    modelContent?: { type: "text"; text: string }[];
     toolCallId?: string;
     toolName?: string;
     nestedMessages?: ThreadAssistantMessage[];
@@ -70,6 +72,10 @@ const createAssistantMessage = (
       argsText,
       ...(options?.result !== undefined && { result: options.result }),
       ...(options?.isError !== undefined && { isError: options.isError }),
+      ...(options?.artifact !== undefined && { artifact: options.artifact }),
+      ...(options?.modelContent !== undefined && {
+        modelContent: options.modelContent,
+      }),
       ...(options?.nestedMessages && { messages: options.nestedMessages }),
       ...(options?.approval && { approval: options.approval }),
     },
@@ -1318,6 +1324,176 @@ describe("ToolInvocationTracker", () => {
     }
   });
 
+  it.each([
+    [true, { source: "backend" }],
+    [false, { source: "backend" }],
+    [true, null],
+    [true, false],
+    [true, 0],
+    [true, ""],
+  ] as const)(
+    "does not execute a pending call answered by the backend (running=%s, result=%j)",
+    async (isRunning, result) => {
+      const execute = vi.fn(async () => ({ source: "client" }));
+      const streamCall = vi.fn(
+        async (reader: Parameters<NonNullable<Tool["streamCall"]>>[0]) => {
+          for await (const value of reader.args.streamValues()) {
+            void value;
+          }
+          return reader.response.get();
+        },
+      );
+      const onResult = vi.fn();
+      const tracker = new ToolInvocationTracker(
+        () => ({
+          weatherSearch: {
+            parameters: { type: "object", properties: {} },
+            execute,
+            streamCall,
+          },
+        }),
+        {
+          onResult,
+          onStatusesChange: () => {},
+        },
+      );
+      tracker.setState(createState([]));
+      tracker.setState(
+        createState([createAssistantMessage('{"a":1}', { a: 1 })]),
+      );
+      await waitFor(() => expect(streamCall).toHaveBeenCalledTimes(1));
+      await streamCall.mock.calls[0]![0].args.get("a");
+      expect(execute).not.toHaveBeenCalled();
+
+      tracker.setState(
+        createState(
+          [createAssistantMessage('{"a":1}', { a: 1 }, { result })],
+          isRunning,
+        ),
+      );
+
+      const response = await streamCall.mock.results[0]!.value;
+      expect(response.result).toEqual(result);
+      await new Promise<void>((resolve) => setImmediate(resolve));
+      expect(execute).not.toHaveBeenCalled();
+      expect(streamCall).toHaveBeenCalledTimes(1);
+      expect(onResult).not.toHaveBeenCalled();
+      expect(tracker.getStatuses().size).toBe(0);
+    },
+  );
+
+  it("suppresses queued execution when a backend result arrives before execute starts", async () => {
+    const execute = vi.fn(async () => ({ source: "client" }));
+    const streamCall = vi.fn(
+      async (reader: Parameters<NonNullable<Tool["streamCall"]>>[0]) =>
+        reader.response.get(),
+    );
+    const onResult = vi.fn();
+    const tracker = new ToolInvocationTracker(
+      () => ({
+        weatherSearch: {
+          parameters: { type: "object", properties: {} },
+          execute,
+          streamCall,
+        },
+      }),
+      {
+        onResult,
+        onStatusesChange: () => {},
+      },
+    );
+    tracker.setState(createState([]));
+    tracker.setState(
+      createState([createAssistantMessage('{"a":1}', { a: 1 })]),
+    );
+    await waitFor(() => expect(streamCall).toHaveBeenCalledTimes(1));
+    await streamCall.mock.calls[0]![0].args.get("a");
+    expect(execute).not.toHaveBeenCalled();
+
+    tracker.setState(
+      createState([createAssistantMessage('{"a":1}', { a: 1 })], false),
+    );
+    tracker.setState(
+      createState(
+        [
+          createAssistantMessage(
+            '{"a":1}',
+            { a: 1 },
+            { result: { source: "backend" } },
+          ),
+        ],
+        false,
+      ),
+    );
+
+    expect(await streamCall.mock.results[0]!.value).toMatchObject({
+      result: { source: "backend" },
+    });
+    await new Promise<void>((resolve) => setImmediate(resolve));
+    expect(execute).not.toHaveBeenCalled();
+    expect(onResult).not.toHaveBeenCalled();
+    expect(tracker.getStatuses().size).toBe(0);
+  });
+
+  it.each([
+    ['{"a":', '{"a":1,"b":2}'],
+    ['{"a":1,"b":2}', '{"b":2,"a":1}'],
+    ['{"a":', '{"divergent":true}'],
+  ])(
+    "preserves backend response metadata while closing args %s -> %s",
+    async (initialArgsText, finalArgsText) => {
+      const execute = vi.fn(async () => ({ source: "client" }));
+      const streamCall = vi.fn(
+        async (reader: Parameters<NonNullable<Tool["streamCall"]>>[0]) => {
+          for await (const value of reader.args.streamValues()) {
+            void value;
+          }
+          return reader.response.get();
+        },
+      );
+      const onResult = vi.fn();
+      const tracker = new ToolInvocationTracker(
+        () => ({
+          weatherSearch: {
+            parameters: { type: "object", properties: {} },
+            execute,
+            streamCall,
+          },
+        }),
+        {
+          onResult,
+          onStatusesChange: () => {},
+        },
+      );
+      const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
+      try {
+        tracker.setState(createState([]));
+        tracker.setState(
+          createState([createAssistantMessage(initialArgsText, {})]),
+        );
+        await waitFor(() => expect(streamCall).toHaveBeenCalledTimes(1));
+        const expected = {
+          result: { source: "backend" },
+          isError: true,
+          artifact: { reference: "artifact-1" },
+          modelContent: [{ type: "text" as const, text: "Backend result" }],
+        };
+        tracker.setState(
+          createState([createAssistantMessage(finalArgsText, {}, expected)]),
+        );
+        const response = await streamCall.mock.results[0]!.value;
+        expect(response).toMatchObject(expected);
+        await new Promise<void>((resolve) => setImmediate(resolve));
+        expect(execute).not.toHaveBeenCalled();
+        expect(streamCall).toHaveBeenCalledTimes(1);
+        expect(onResult).not.toHaveBeenCalled();
+        expect(tracker.getStatuses().size).toBe(0);
+      } finally {
+        warn.mockRestore();
+      }
+    },
+  );
+
   it("handles backend result when equivalent complete argsText reorders keys", async () => {
     let resolveExecute: ((value: unknown) => void) | undefined;
     const execute = vi.fn(
@@ -1893,15 +2069,7 @@ describe("ToolInvocationTracker", () => {
 
       // The hard contract.
       expect(streamCall).toHaveBeenCalledTimes(1);
-      // execute is suppressed because the tool call resolved via a backend
-      // result on the resolution snapshot (pre-resolved path activates
-      // skipExecute at startActiveEntry time — but here we created the
-      // entry pre-resolution and transitioned in. The non-skipExecute
-      // execute path won't fire either, because by the time args close,
-      // the reader's response has already resolved, and ToolExecutionStream
-      // routes the result chunk back without invoking execute again).
-      // We don't pin the exact path; just that it's at most one.
-      expect(execute.mock.calls.length).toBeLessThanOrEqual(1);
+      expect(execute).not.toHaveBeenCalled();
       // No second onResult either (entry.hasResult short-circuits both
       // the parse-failure error chunk and the redundant backend result).
       expect(onResult).not.toHaveBeenCalled();
