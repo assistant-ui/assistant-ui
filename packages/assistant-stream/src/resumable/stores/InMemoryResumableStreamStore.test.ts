@@ -1,4 +1,5 @@
 import { describe, expect, it, vi } from "vitest";
+import { createRenderCounter } from "@assistant-ui/x-performance";
 import { createInMemoryResumableStreamStore } from "./InMemoryResumableStreamStore";
 import type { ResumableStreamEntry } from "../types";
 
@@ -15,6 +16,95 @@ async function drain(
 }
 
 describe("InMemoryResumableStreamStore", () => {
+  it.each([10, 1000])(
+    "does not sweep %i retained streams before an expiry is due",
+    async (count) => {
+      let time = 1000;
+      const store = createInMemoryResumableStreamStore({
+        now: () => time,
+        defaultTtlMs: 100,
+      });
+      for (let i = 0; i < count; i++) await store.acquire(`stream-${i}`);
+      const counter = createRenderCounter();
+      const iterate = Map.prototype[Symbol.iterator];
+      const spy = vi
+        .spyOn(Map.prototype, Symbol.iterator)
+        .mockImplementation(function* (this: Map<unknown, unknown>) {
+          for (const entry of iterate.call(this)) {
+            if (this.has("stream-0")) counter.useRender("expiry-entry");
+            yield entry;
+          }
+          return undefined;
+        });
+      try {
+        time = 1050;
+        await store.append("stream-0", bytes("one"));
+        expect(await store.status("stream-0")).toBe("streaming");
+        expect(counter.renders("expiry-entry")).toBe(0);
+        time = 1100;
+        expect(await store.status("stream-1")).toBe("missing");
+        expect(counter.renders("expiry-entry")).toBe(count);
+        counter.reset();
+        await store.append("stream-0", bytes("two"));
+        expect(counter.renders("expiry-entry")).toBe(0);
+      } finally {
+        spy.mockRestore();
+        store.dispose();
+      }
+    },
+  );
+
+  it("honors a shorter per-stream TTL and reclaims capacity at the deadline", async () => {
+    let time = 1000;
+    const store = createInMemoryResumableStreamStore({
+      now: () => time,
+      defaultTtlMs: 1000,
+      maxStreams: 2,
+    });
+    await store.acquire("long");
+    await store.acquire("short", { ttlMs: 10 });
+    time = 1010;
+    expect(await store.acquire("replacement")).toBe("producer");
+    expect(await store.status("short")).toBe("missing");
+    expect(await store.status("long")).toBe("streaming");
+  });
+
+  it("keeps refreshed and finalized streams until their new deadlines", async () => {
+    let time = 1000;
+    const store = createInMemoryResumableStreamStore({
+      now: () => time,
+      defaultTtlMs: 100,
+    });
+    await store.acquire("active");
+    await store.acquire("finished");
+    time = 1080;
+    await store.append("active", bytes("x"));
+    await store.finalize("finished", "done");
+    time = 1100;
+    expect(await store.status("active")).toBe("streaming");
+    expect(await store.status("finished")).toBe("done");
+    time = 1180;
+    expect(await store.status("active")).toBe("missing");
+    expect(await store.status("finished")).toBe("missing");
+  });
+
+  it("wakes a waiting reader when its stream expires", async () => {
+    vi.useFakeTimers();
+    const store = createInMemoryResumableStreamStore({ defaultTtlMs: 100 });
+    try {
+      await store.acquire("waiting");
+      const iterator = store
+        .read("waiting", "", new AbortController().signal)
+        [Symbol.asyncIterator]();
+      const pending = expect(iterator.next()).rejects.toThrow("Stream expired");
+      await vi.advanceTimersByTimeAsync(100);
+      await pending;
+    } finally {
+      store.dispose();
+      vi.useRealTimers();
+    }
+  });
+
   it("keeps replay bytes independent of producer and consumer buffers", async () => {
     const store = createInMemoryResumableStreamStore();
     const chunk = Buffer.from("a");
