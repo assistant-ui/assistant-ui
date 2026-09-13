@@ -2410,6 +2410,7 @@ declare namespace useExternalMessageConverter {
   type Message = ExternalMessageConverterMessage;
   type Metadata = ExternalMessageConverterMetadata;
   type Callback<T> = ExternalMessageConverterCallback<T>;
+  type GetMetadataKey<T> = (message: T, metadata: ExternalMessageConverterMetadata) => unknown;
 }
 
 declare const useExternalMessageConverter: <T extends WeakKey>(_param3: {
@@ -2418,6 +2419,7 @@ declare const useExternalMessageConverter: <T extends WeakKey>(_param3: {
   isRunning: boolean;
   joinStrategy?: JoinStrategy | undefined;
   metadata?: useExternalMessageConverter.Metadata | undefined;
+  getMetadataKey?: useExternalMessageConverter.GetMetadataKey<T> | undefined;
 }) => ThreadMessage[];
 
 declare const useLangChainError: () => unknown;

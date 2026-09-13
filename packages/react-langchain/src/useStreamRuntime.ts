@@ -39,9 +39,11 @@ import type {
 import { groupUIMessagesByParent } from "./converter";
 export { groupUIMessagesByParent } from "./converter";
 import {
+  createLangChainMetadataKey,
   convertLangChainBaseMessage,
   getMessageContent,
   getMessageType,
+  type LangChainMessageConverterMetadata,
 } from "./convertMessages";
 import { foldUIUpdates, mergeUIMessages } from "./uiMessages";
 import { langChainExtras } from "./runtimeExtras";
@@ -180,23 +182,21 @@ const useStreamThreadRuntime = (
     effectiveIsRunning,
   );
 
-  const convertWithUI = useMemo<
-    useExternalMessageConverter.Callback<LangChainBaseMessage>
-  >(() => {
-    const uiMessagesByParent =
-      groupUIMessagesByParent<UIMessage>(mergedUiMessages);
-    return (message, metadata) =>
-      convertLangChainBaseMessage(message, {
-        ...metadata,
-        uiMessagesByParent,
-        messageTiming,
-      });
-  }, [mergedUiMessages, messageTiming]);
+  const [getConverterMetadataKey] = useState(createLangChainMetadataKey);
+  const converterMetadata = useMemo<LangChainMessageConverterMetadata>(
+    () => ({
+      uiMessagesByParent: groupUIMessagesByParent<UIMessage>(mergedUiMessages),
+      messageTiming,
+    }),
+    [mergedUiMessages, messageTiming],
+  );
 
   const threadMessages = useExternalMessageConverter({
-    callback: convertWithUI,
+    callback: convertLangChainBaseMessage,
     messages: visibleMessages,
     isRunning: effectiveIsRunning,
+    metadata: converterMetadata,
+    getMetadataKey: getConverterMetadataKey,
   });
 
   const streamRef = useRef(stream);

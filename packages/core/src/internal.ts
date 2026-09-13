@@ -34,6 +34,11 @@ export {
 export { getThreadMessageText } from "./utils/text";
 export { toMessagePartStatus } from "./utils/normalizePartStatus";
 export { notifyEventListeners } from "./utils/notify-event-listeners";
+export {
+  createExternalMessageMetadataKey,
+  shallowArrayEqual,
+  type ExternalMessageMetadataKeySelector,
+} from "./runtime/utils/external-message-conversion";
 export { resolveToolApprovalResponse } from "./runtime/utils/resolveToolApprovalResponse";
 export { consumeSuggestionResult } from "./adapters/suggestion";
 

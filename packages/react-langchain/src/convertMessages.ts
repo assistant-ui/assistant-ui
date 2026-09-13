@@ -2,6 +2,10 @@
 
 import type { MessageTiming } from "@assistant-ui/core";
 import type { useExternalMessageConverter } from "@assistant-ui/core/react";
+import {
+  createExternalMessageMetadataKey,
+  shallowArrayEqual,
+} from "@assistant-ui/core/internal";
 import type { ReadonlyJSONObject } from "assistant-stream/utils";
 import {
   convertLangChainContentBlock,
@@ -15,11 +19,40 @@ import type {
   UIMessage,
 } from "./types";
 
-type LangChainMessageConverterMetadata =
+export type LangChainMessageConverterMetadata =
   useExternalMessageConverter.Metadata & {
     uiMessagesByParent?: Map<string, UIMessage[]>;
     messageTiming?: Record<string, MessageTiming>;
   };
+
+export const createLangChainMetadataKey =
+  (): useExternalMessageConverter.GetMetadataKey<LangChainBaseMessage> =>
+    createExternalMessageMetadataKey<LangChainBaseMessage>([
+      {
+        select: (message, metadata) =>
+          message.id && getMessageType(message) === "ai"
+            ? (
+                metadata as LangChainMessageConverterMetadata
+              ).uiMessagesByParent?.get(message.id)
+            : undefined,
+        isEqual: (previous, current) =>
+          previous === current ||
+          (previous !== undefined &&
+            current !== undefined &&
+            shallowArrayEqual(
+              previous as readonly UIMessage[],
+              current as readonly UIMessage[],
+            )),
+      },
+      {
+        select: (message, metadata) =>
+          message.id && getMessageType(message) === "ai"
+            ? (metadata as LangChainMessageConverterMetadata).messageTiming?.[
+                message.id
+              ]
+            : undefined,
+      },
+    ]);
 
 const warnedMalformedMessages = new Set<string>();
 const warnOnceInDevelopment = (message: string) => {

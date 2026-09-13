@@ -10,7 +10,9 @@ import type {
 } from "@assistant-ui/core";
 import type { useExternalMessageConverter } from "@assistant-ui/core/react";
 import {
+  createExternalMessageMetadataKey,
   parseDataUrl,
+  shallowArrayEqual,
   stableStringifyToolArgs,
   trackToolArgsKeyOrder,
 } from "@assistant-ui/core/internal";
@@ -31,13 +33,50 @@ import {
   type ReadonlyJSONObject,
 } from "assistant-stream/utils";
 
-type LangGraphMessageConverterMetadata =
+export type LangGraphMessageConverterMetadata =
   useExternalMessageConverter.Metadata & {
     toolArgsKeyOrderCache?: Map<string, Map<string, string[]>>;
     uiMessagesByParent?: Map<string, UIMessage[]>;
     messageTiming?: Record<string, MessageTiming>;
     attachmentsByMessageId?: Map<string, readonly CompleteAttachment[]>;
   };
+
+export const createLangGraphMetadataKey =
+  (): useExternalMessageConverter.GetMetadataKey<LangChainMessage> =>
+    createExternalMessageMetadataKey<LangChainMessage>([
+      {
+        select: (message, metadata) =>
+          message.id && message.type === "ai"
+            ? (
+                metadata as LangGraphMessageConverterMetadata
+              ).uiMessagesByParent?.get(message.id)
+            : undefined,
+        isEqual: (previous, current) =>
+          previous === current ||
+          (previous !== undefined &&
+            current !== undefined &&
+            shallowArrayEqual(
+              previous as readonly UIMessage[],
+              current as readonly UIMessage[],
+            )),
+      },
+      {
+        select: (message, metadata) =>
+          message.id && message.type === "ai"
+            ? (metadata as LangGraphMessageConverterMetadata).messageTiming?.[
+                message.id
+              ]
+            : undefined,
+      },
+      {
+        select: (message, metadata) =>
+          message.id && message.type === "human"
+            ? (
+                metadata as LangGraphMessageConverterMetadata
+              ).attachmentsByMessageId?.get(message.id)
+            : undefined,
+      },
+    ]);
 
 type LangChainMessageContentBlock = Exclude<
   LangChainMessage["content"],
