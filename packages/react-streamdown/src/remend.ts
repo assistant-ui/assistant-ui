@@ -66,7 +66,9 @@ type BlockScan = {
  * so a cut inside a line would lose the space before the range; that rule also
  * keeps a `$$` inside a backtick span at a line start out of the set. A line
  * start may carry blockquote markers, the one container prefix
- * `normalizeMathDelimiters` emits around display math. Backtick
+ * `normalizeMathDelimiters` emits around display math; a fence closes only on
+ * a marker in its own container and a quoted fence ends with its blockquote,
+ * as `fenceEnd` in preprocess reads them. Backtick
  * spans are skipped while scanning for `$$`; an unclosed span carries into the
  * following lines of its paragraph, and a blank line, a fence marker, or a
  * line-start `$$` ends it the way they end a paragraph. An escaped backtick
@@ -79,6 +81,7 @@ function scanBlocks(text: string): BlockScan {
   let fenceChar = 0;
   let fenceRun = 0;
   let fenceStart = 0;
+  let fenceQuoted = false;
   let inMath = false;
   let mathStart = -1;
   let spanRun = 0;
@@ -91,14 +94,21 @@ function scanBlocks(text: string): BlockScan {
     if (lineEnd === -1) lineEnd = n;
 
     let i = lineStart;
+    let quoted = false;
     while (i < lineEnd) {
       const c = text.charCodeAt(i);
-      if (!isSpace(c) && c !== GT) break;
+      if (c === GT) quoted = true;
+      else if (!isSpace(c)) break;
       i += 1;
     }
 
     const first = i < lineEnd ? text.charCodeAt(i) : -1;
     let marker = false;
+
+    if (inFence && fenceQuoted && !quoted && first !== -1) {
+      inFence = false;
+      if (!inMath) protectedRanges.push(fenceStart, lineStart - 1);
+    }
 
     if ((first === BACKTICK || first === TILDE) && i - lineStart <= 3) {
       let run = i;
@@ -114,8 +124,10 @@ function scanBlocks(text: string): BlockScan {
           fenceChar = first;
           fenceRun = run - i;
           fenceStart = lineStart;
+          fenceQuoted = quoted;
         } else if (
           first === fenceChar &&
+          quoted === fenceQuoted &&
           run - i >= fenceRun &&
           onlyWhitespace(text, run, lineEnd)
         ) {

@@ -199,6 +199,24 @@ describe("tailBoundedRemend", () => {
     );
   });
 
+  it("does not close a root fence on a quoted marker", () => {
+    const text = "```md\n> ```\n\n> x~y\n> ```\n```\n\nTail";
+    expect(findRemendWindowStart(text)).toBe(text.indexOf("Tail"));
+    expect(tailBoundedRemend(text)).toBe(text);
+  });
+
+  it("ends a quoted fence with its blockquote", () => {
+    expect(
+      tailBoundedRemend("> ```js\n> foo() 1~2\n\nBack x~y and **bold"),
+    ).toBe("> ```js\n> foo() 1~2\n\nBack x\\~y and **bold**");
+  });
+
+  it("closes a quoted fence on a quoted marker", () => {
+    expect(tailBoundedRemend("> ```js\n> foo() 1~2\n> ```\n\nx~y **bold")).toBe(
+      "> ```js\n> foo() 1~2\n> ```\n\nx\\~y **bold**",
+    );
+  });
+
   it("reads a backtick run with a backtick in its info string as inline code", () => {
     const text = "```code```\n\n20~25\n\nTail";
     expect(findRemendWindowStart(text)).toBe(text.indexOf("Tail"));
