@@ -11,6 +11,7 @@ import {
 } from "lucide-react";
 import {
   AssistantRuntimeProvider,
+  AuiConfig,
   AuiIf,
   AuiProvider,
   ComposerPrimitive,
@@ -180,12 +181,14 @@ const useDevToolsDemo = () => {
   const [adapter] = useState(createAdapter);
   const [apiId, setApiId] = useState<number | null>(null);
   const client = useMemo(() => createScopedClient(apiId), [apiId]);
-  const aui = useAui({ tools: Tools({ toolkit }) });
+  const aui = useAui();
+  const config = AuiConfig({ tools: Tools({ toolkit }) });
   const { resolvedTheme } = useTheme();
   const mounted = useHydrated();
   return {
     adapter,
     aui,
+    config,
     client,
     setApiId,
     theme: mounted && resolvedTheme === "dark" ? "dark" : "light",
@@ -298,20 +301,21 @@ function Composer() {
 }
 
 export function DevToolsSample() {
+  const config = AuiConfig({});
   return (
-    <AuiProvider value={null}>
+    <AuiProvider extends={null} config={config}>
       <DevToolsSampleInner />
     </AuiProvider>
   );
 }
 
 function DevToolsSampleInner() {
-  const { adapter, aui, client, setApiId, theme } = useDevToolsDemo();
+  const { adapter, aui, config, client, setApiId, theme } = useDevToolsDemo();
   const runtime = useLocalRuntime(adapter, { initialMessages: panelSeed });
 
   return (
     <SampleFrame className="bg-muted/40 flex h-auto flex-col overflow-hidden">
-      <AssistantRuntimeProvider aui={aui} runtime={runtime}>
+      <AssistantRuntimeProvider aui={aui} config={config} runtime={runtime}>
         <DevToolsWiring onApiId={setApiId} />
         <ThreadPrimitive.Root className="flex h-72 flex-col">
           <ThreadPrimitive.Viewport className="flex flex-1 scrollbar-none flex-col gap-1 overflow-y-auto px-4 pt-4">
@@ -354,15 +358,16 @@ function DemoTurnSuggestion() {
  * whole page. The panel inside the window is the real DevToolsPanel.
  */
 export function DevToolsModalSample() {
+  const config = AuiConfig({});
   return (
-    <AuiProvider value={null}>
+    <AuiProvider extends={null} config={config}>
       <DevToolsModalSampleInner />
     </AuiProvider>
   );
 }
 
 function DevToolsModalSampleInner() {
-  const { adapter, aui, client, setApiId, theme } = useDevToolsDemo();
+  const { adapter, aui, config, client, setApiId, theme } = useDevToolsDemo();
   const runtime = useLocalRuntime(adapter, { initialMessages: modalSeed });
   const [open, setOpen] = useState(false);
 
@@ -377,7 +382,7 @@ function DevToolsModalSampleInner() {
 
   return (
     <SampleFrame className="bg-muted/40 relative h-120 overflow-hidden">
-      <AssistantRuntimeProvider aui={aui} runtime={runtime}>
+      <AssistantRuntimeProvider aui={aui} config={config} runtime={runtime}>
         <DevToolsWiring onApiId={setApiId} />
         <div className="flex h-full flex-col">
           <div className="border-border/50 bg-background flex items-center justify-between gap-2 rounded-t-xl border-b px-4 py-2.5">

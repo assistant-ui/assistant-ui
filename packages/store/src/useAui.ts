@@ -644,7 +644,8 @@ export function useAui(): AssistantClient;
  *
  * @example
  * ```tsx
- * const aui = useAui({
+ * const aui = useAui();
+ * const config = AuiConfig({
  *   message: Derived({
  *     source: "thread",
  *     query: { index: 0 },
@@ -652,7 +653,11 @@ export function useAui(): AssistantClient;
  *   }),
  * });
  *
- * const role = useAuiState((s) => s.message.role);
+ * return (
+ *   <AuiProvider extends={aui} config={config}>
+ *     {children}
+ *   </AuiProvider>
+ * );
  * ```
  *
  * @deprecated Build a config in the component body (`const aui = useAui();

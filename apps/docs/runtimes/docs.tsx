@@ -3,6 +3,7 @@
 import { useEffect, useMemo, type ReactNode } from "react";
 import {
   AssistantRuntimeProvider,
+  AuiConfig,
   CloudFileAttachmentAdapter,
   Suggestions,
   Tools,
@@ -79,7 +80,8 @@ export function DocsRuntimeProvider({
     [countConversations],
   );
 
-  const aui = useAui({
+  const aui = useAui();
+  const config = AuiConfig({
     tools: Tools({ toolkit }),
     unstable_interactables: unstable_Interactables(),
     suggestions: Suggestions(DOCS_SUGGESTIONS),
@@ -91,7 +93,7 @@ export function DocsRuntimeProvider({
   }, [claims, runtime]);
 
   return (
-    <AssistantRuntimeProvider aui={aui} runtime={runtime}>
+    <AssistantRuntimeProvider aui={aui} config={config} runtime={runtime}>
       <MemoryInstructions />
       {children}
 

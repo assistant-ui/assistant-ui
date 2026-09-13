@@ -2,6 +2,7 @@
 
 import {
   AssistantRuntimeProvider,
+  AuiConfig,
   unstable_Interactables,
   useAui,
 } from "@assistant-ui/react";
@@ -14,10 +15,13 @@ export function RuntimeProvider({
   const runtime = useChatRuntime({
     transport: new AssistantChatTransport({ api }),
   });
-  const aui = useAui({ unstable_interactables: unstable_Interactables() });
+  const aui = useAui();
+  const config = AuiConfig({
+    unstable_interactables: unstable_Interactables(),
+  });
 
   return (
-    <AssistantRuntimeProvider aui={aui} runtime={runtime}>
+    <AssistantRuntimeProvider aui={aui} config={config} runtime={runtime}>
       {children}
     </AssistantRuntimeProvider>
   );

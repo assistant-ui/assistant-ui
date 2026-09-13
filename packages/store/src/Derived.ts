@@ -21,19 +21,26 @@ export const useDerived = <K extends ClientNames>({
 
 /**
  * Creates a derived client field whose resolved instance is bound into the
- * client returned by `useAui`; a structural swap produces a new client through
+ * client supplied by `AuiProvider`; a structural swap produces a new client through
  * a React re-render. `get` must return a client created via
  * `useClientResource` (or `useClientLookup`/`useClientList`).
  *
  * @example
- * ```typescript
- * const aui = useAui({
+ * ```tsx
+ * const aui = useAui();
+ * const config = AuiConfig({
  *   message: Derived({
  *     source: "thread",
  *     query: { index: 0 },
  *     get: (aui) => aui.thread.message({ index: 0 }),
  *   }),
  * });
+ *
+ * return (
+ *   <AuiProvider extends={aui} config={config}>
+ *     {children}
+ *   </AuiProvider>
+ * );
  * ```
  */
 export const Derived = resource(useDerived) as <K extends ClientNames>(

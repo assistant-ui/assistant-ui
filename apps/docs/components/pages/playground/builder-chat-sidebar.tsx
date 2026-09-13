@@ -27,7 +27,7 @@ import {
   createPlaygroundChatToolkit,
   type PartialBuilderConfig,
 } from "@/lib/playground-chat-toolkit";
-import { useAui, AuiProvider } from "@assistant-ui/store";
+import { AuiConfig, useAui, AuiProvider } from "@assistant-ui/store";
 import type { BuilderConfig } from "./types";
 import { applyDiff } from "@/lib/playground-url-state";
 
@@ -83,9 +83,10 @@ interface PlaygroundChatProviderInnerProps extends PlaygroundChatProviderProps {
 
 export function PlaygroundChatProvider(props: PlaygroundChatProviderProps) {
   const parentAui = useAui();
+  const config = AuiConfig({});
 
   return (
-    <AuiProvider value={null}>
+    <AuiProvider extends={null} config={config}>
       <PlaygroundChatProviderInner {...props} parentAui={parentAui} />
     </AuiProvider>
   );
@@ -142,16 +143,38 @@ function PlaygroundChatProviderInner({
     sendAutomaticallyWhen: lastAssistantMessageIsCompleteWithToolCalls,
   });
 
-  const aui = useAui({
+  const chatConfig = AuiConfig({
     tools: Tools({ toolkit }),
     suggestions: Suggestions(PLAYGROUND_SUGGESTIONS),
   });
 
+  return (
+    <AuiProvider extends={null} config={chatConfig}>
+      <PlaygroundChatBridge runtime={runtime} parentAui={parentAui}>
+        {children}
+      </PlaygroundChatBridge>
+    </AuiProvider>
+  );
+}
+
+function PlaygroundChatBridge({
+  runtime,
+  parentAui,
+  children,
+}: {
+  runtime: PlaygroundChatContextValue["runtime"];
+  parentAui: ReturnType<typeof useAui>;
+  children: ReactNode;
+}) {
+  const aui = useAui();
+  const config = AuiConfig({});
   const value = useMemo(() => ({ runtime, aui }), [runtime, aui]);
 
   return (
     <PlaygroundChatContext.Provider value={value}>
-      <AuiProvider value={parentAui}>{children}</AuiProvider>
+      <AuiProvider extends={parentAui} config={config}>
+        {children}
+      </AuiProvider>
     </PlaygroundChatContext.Provider>
   );
 }

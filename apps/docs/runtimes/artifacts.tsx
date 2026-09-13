@@ -3,6 +3,7 @@
 import { useEffect, type ReactNode } from "react";
 import {
   AssistantRuntimeProvider,
+  AuiConfig,
   ModelContextClient as ModelContext,
   Tools,
   useAui,
@@ -51,7 +52,8 @@ export function ArtifactsRuntimeProvider({
     sendAutomatically: true,
   });
 
-  const aui = useAui({
+  const aui = useAui();
+  const config = AuiConfig({
     tools: Tools({ toolkit: artifactsToolkit }),
     modelContext: ModelContext(),
   });
@@ -62,7 +64,7 @@ export function ArtifactsRuntimeProvider({
   }, [claims, runtime]);
 
   return (
-    <AssistantRuntimeProvider runtime={runtime} aui={aui}>
+    <AssistantRuntimeProvider runtime={runtime} aui={aui} config={config}>
       {children}
 
       <DevToolsModal />
