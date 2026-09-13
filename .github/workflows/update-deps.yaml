@@ -1,0 +1,44 @@
+name: Dependency Updater
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "scripts/update-deps.sh"
+      - "scripts/update-deps.test.mjs"
+      - "package.json"
+      - ".github/workflows/update-deps.yaml"
+  pull_request:
+    branches: [main]
+    paths:
+      - "scripts/update-deps.sh"
+      - "scripts/update-deps.test.mjs"
+      - "package.json"
+      - ".github/workflows/update-deps.yaml"
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  update-deps:
+    name: Dependency Updater
+    runs-on: blacksmith-4vcpu-ubuntu-2404
+    timeout-minutes: 2
+    steps:
+      - name: Checkout code repository
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # ratchet:actions/checkout@v7.0.1
+        with:
+          fetch-depth: 1
+
+      - name: Setup pnpm and node.js
+        uses: pnpm/setup@703c52620218391530e48b9e8870d5c0082e1b9b # ratchet:pnpm/setup@v2.1.0
+        with:
+          runtime: node@24
+          install: false
+
+      - name: Test the dependency updater
+        run: pnpm update-deps:test
