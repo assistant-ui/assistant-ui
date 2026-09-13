@@ -284,6 +284,106 @@ describe("BaseThreadRuntimeCore speech lifecycle", () => {
     expect(utterance.cancel).toHaveBeenCalledOnce();
     expect(() => thread.stopSpeaking()).toThrow("No message is being spoken");
   });
+
+  it("notifies observers when replacement subscription fails", () => {
+    const first = createUtterance();
+    const second = createUtterance();
+    const error = new Error("subscription failed");
+    second.utterance.subscribe = () => {
+      throw error;
+    };
+    const thread = createThread({
+      speak: vi
+        .fn()
+        .mockReturnValueOnce(first.utterance)
+        .mockReturnValueOnce(second.utterance),
+    });
+    thread.speak("first");
+    let observedSpeech = thread.speech;
+    const subscriber = vi.fn(() => {
+      observedSpeech = thread.speech;
+    });
+    thread.subscribe(subscriber);
+
+    expect(() => thread.speak("second")).toThrow(error);
+
+    expect(observedSpeech).toBeUndefined();
+    expect(subscriber).toHaveBeenCalledOnce();
+    expect(second.utterance.cancel).toHaveBeenCalledOnce();
+  });
+
+  it("preserves the setup error when rollback cancellation throws", () => {
+    const consoleError = vi
+      .spyOn(console, "error")
+      .mockImplementation(() => {});
+    const { utterance } = createUtterance();
+    const setupError = new Error("subscription failed");
+    const cleanupError = new Error("cancellation failed");
+    utterance.subscribe = () => {
+      throw setupError;
+    };
+    utterance.cancel = vi.fn(() => {
+      throw cleanupError;
+    });
+    const thread = createThread({ speak: () => utterance });
+    const subscriber = vi.fn();
+    thread.subscribe(subscriber);
+
+    expect(() => thread.speak("first")).toThrow(setupError);
+
+    expect(thread.speech).toBeUndefined();
+    expect(subscriber).toHaveBeenCalledOnce();
+    expect(consoleError).toHaveBeenCalledWith(
+      "[assistant-ui] Speech rollback cleanup threw",
+      cleanupError,
+    );
+  });
+
+  it("does not notify twice when subscription completes before throwing", () => {
+    const { utterance } = createUtterance();
+    const error = new Error("subscription failed");
+    utterance.subscribe = (callback) => {
+      utterance.status = { type: "ended", reason: "finished" };
+      callback();
+      throw error;
+    };
+    const thread = createThread({ speak: () => utterance });
+    const subscriber = vi.fn();
+    thread.subscribe(subscriber);
+
+    expect(() => thread.speak("first")).toThrow(error);
+
+    expect(thread.speech).toBeUndefined();
+    expect(subscriber).toHaveBeenCalledOnce();
+    expect(utterance.cancel).not.toHaveBeenCalled();
+  });
+
+  it("leaves a reentrant replacement active when the old subscription throws", () => {
+    const first = createUtterance();
+    const second = createUtterance();
+    const thread = createThread({
+      speak: vi
+        .fn()
+        .mockReturnValueOnce(first.utterance)
+        .mockReturnValueOnce(second.utterance),
+    });
+    const error = new Error("old subscription failed");
+    first.utterance.subscribe = () => {
+      thread.speak("second");
+      throw error;
+    };
+    const subscriber = vi.fn();
+    thread.subscribe(subscriber);
+
+    expect(() => thread.speak("first")).toThrow(error);
+
+    expect(thread.speech?.messageId).toBe("second");
+    expect(subscriber).toHaveBeenCalledOnce();
+    expect(first.utterance.cancel).toHaveBeenCalledOnce();
+    expect(second.utterance.cancel).not.toHaveBeenCalled();
+    thread.stopSpeaking();
+    expect(second.unsubscribe).toHaveBeenCalledOnce();
+  });
 });
 
 describe("BaseThreadRuntimeCore subscriptions", () => {

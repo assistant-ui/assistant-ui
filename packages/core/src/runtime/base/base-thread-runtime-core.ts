@@ -312,7 +312,16 @@ export abstract class BaseThreadRuntimeCore
       }
       update();
     } catch (error) {
-      stop();
+      if (this._stopSpeaking === stop) {
+        try {
+          notifySubscribers([stop, () => this._notifySubscribers()]);
+        } catch (cleanupError) {
+          console.error(
+            "[assistant-ui] Speech rollback cleanup threw",
+            cleanupError,
+          );
+        }
+      }
       throw error;
     }
   }
