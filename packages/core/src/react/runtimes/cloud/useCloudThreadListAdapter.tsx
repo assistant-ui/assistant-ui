@@ -1,4 +1,10 @@
-import { useCallback, useInsertionEffect, useMemo, useRef } from "react";
+import {
+  useCallback,
+  useInsertionEffect,
+  useMemo,
+  useRef,
+  useState,
+} from "react";
 import type { RemoteThreadListAdapter } from "../../../runtimes/remote-thread-list/types";
 import {
   autoCloud,
@@ -18,10 +24,21 @@ export const useCloudThreadListAdapter = (
 
   const cloud = adapter.cloud ?? autoCloud;
   const scope = adapter.scopeId;
+  const [ownershipState] = useState(() => ({
+    scope,
+    ids: new Set<string>(),
+  }));
   const ownership = useMemo(
-    () => ({ scope, ids: new Set<string>() }),
-    [scope],
-  ).ids;
+    () =>
+      Object.is(ownershipState.scope, scope)
+        ? ownershipState.ids
+        : new Set<string>(),
+    [ownershipState, scope],
+  );
+  useInsertionEffect(() => {
+    ownershipState.scope = scope;
+    ownershipState.ids = ownership;
+  }, [ownership, ownershipState, scope]);
   const base = useMemo(
     () => {
       const created = createCloudThreadListAdapter(() => ({

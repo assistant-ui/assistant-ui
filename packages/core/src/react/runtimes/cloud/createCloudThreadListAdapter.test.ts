@@ -158,7 +158,7 @@ describe("createCloudThreadListAdapter", () => {
     expect(ownership.has("remote-1")).toBe(false);
   });
 
-  it("does not restore deleted ownership from an older list response", async () => {
+  it("does not reauthorize a deleted thread from an older list response", async () => {
     const cloud = makeCloud();
     const active = Promise.withResolvers<{
       threads: ReturnType<typeof makeThread>[];
@@ -179,9 +179,15 @@ describe("createCloudThreadListAdapter", () => {
     await listing;
 
     expect(ownership.has("remote-1")).toBe(false);
+
+    vi.mocked(cloud.threads.list)
+      .mockResolvedValueOnce({ threads: [makeThread("remote-1")] })
+      .mockResolvedValueOnce({ threads: [] });
+    await adapter.list();
+    expect(ownership.has("remote-1")).toBe(true);
   });
 
-  it("does not restore deleted ownership from an older fetch response", async () => {
+  it("does not reauthorize a deleted thread from an older fetch response", async () => {
     const cloud = makeCloud();
     const fetched = Promise.withResolvers<ReturnType<typeof makeThread>>();
     vi.mocked(cloud.threads.get).mockImplementationOnce(() => fetched.promise);

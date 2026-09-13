@@ -26,20 +26,34 @@ const cloudThreadOwnership = new WeakMap<
   RemoteThreadListAdapter,
   MutableCloudThreadOwnership
 >();
-const deletedCloudThreads = new WeakMap<
+const pendingCloudThreadReads = new WeakMap<
   MutableCloudThreadOwnership,
-  Set<string>
+  Set<Set<string>>
 >();
 
-const getDeletedCloudThreads = (
+const beginCloudThreadRead = (
   ownership: MutableCloudThreadOwnership,
-): Set<string> => {
-  let deleted = deletedCloudThreads.get(ownership);
-  if (!deleted) {
-    deleted = new Set();
-    deletedCloudThreads.set(ownership, deleted);
+): { blockedIds: Set<string>; finish(): void } => {
+  let pending = pendingCloudThreadReads.get(ownership);
+  if (!pending) {
+    pending = new Set();
+    pendingCloudThreadReads.set(ownership, pending);
   }
-  return deleted;
+  const blockedIds = new Set<string>();
+  pending.add(blockedIds);
+  return {
+    blockedIds,
+    finish: () => pending.delete(blockedIds),
+  };
+};
+
+const blockPendingCloudThreadReads = (
+  ownership: MutableCloudThreadOwnership,
+  threadId: string,
+): void => {
+  for (const blockedIds of pendingCloudThreadReads.get(ownership) ?? []) {
+    blockedIds.add(threadId);
+  }
 };
 
 export const getCloudThreadOwnership = (
@@ -235,63 +249,70 @@ export const createCloudThreadListAdapter = (
 
   adapter = {
     list: async ({ after } = {}) => {
+      const ownership = getOwnership();
+      const read = beginCloudThreadRead(ownership);
       const {
         activeCursor,
         archivedCursor,
         activeExhausted,
         archivedExhausted,
       } = parseListCursor(after);
-      const [{ threads: activeThreads }, { threads: archivedThreads }] =
-        await Promise.all([
-          activeExhausted
-            ? Promise.resolve({ threads: [] })
-            : cloud.threads.list({
-                limit: CLOUD_THREAD_PAGE_SIZE,
-                ...(activeCursor ? { after: activeCursor } : {}),
-              }),
-          archivedExhausted
-            ? Promise.resolve({ threads: [] })
-            : cloud.threads.list({
-                is_archived: true,
-                limit: CLOUD_THREAD_PAGE_SIZE,
-                ...(archivedCursor ? { after: archivedCursor } : {}),
-              }),
-        ]);
-      const activeNext =
-        !activeExhausted && activeThreads.length === CLOUD_THREAD_PAGE_SIZE
-          ? activeThreads.at(-1)?.id
-          : undefined;
-      const archivedNext =
-        !archivedExhausted && archivedThreads.length === CLOUD_THREAD_PAGE_SIZE
-          ? archivedThreads.at(-1)?.id
-          : undefined;
-      const threads = [...activeThreads, ...archivedThreads];
-      const ownership = getOwnership();
-      const deleted = getDeletedCloudThreads(ownership);
-      for (const thread of threads) {
-        if (!deleted.has(thread.id)) ownership.add(thread.id);
+      try {
+        const [{ threads: activeThreads }, { threads: archivedThreads }] =
+          await Promise.all([
+            activeExhausted
+              ? Promise.resolve({ threads: [] })
+              : cloud.threads.list({
+                  limit: CLOUD_THREAD_PAGE_SIZE,
+                  ...(activeCursor ? { after: activeCursor } : {}),
+                }),
+            archivedExhausted
+              ? Promise.resolve({ threads: [] })
+              : cloud.threads.list({
+                  is_archived: true,
+                  limit: CLOUD_THREAD_PAGE_SIZE,
+                  ...(archivedCursor ? { after: archivedCursor } : {}),
+                }),
+          ]);
+        const activeNext =
+          !activeExhausted && activeThreads.length === CLOUD_THREAD_PAGE_SIZE
+            ? activeThreads.at(-1)?.id
+            : undefined;
+        const archivedNext =
+          !archivedExhausted &&
+          archivedThreads.length === CLOUD_THREAD_PAGE_SIZE
+            ? archivedThreads.at(-1)?.id
+            : undefined;
+        const threads = [...activeThreads, ...archivedThreads];
+        for (const thread of threads) {
+          if (!read.blockedIds.has(thread.id)) ownership.add(thread.id);
+        }
+        return {
+          threads: threads.map((t) => ({
+            status: t.is_archived
+              ? ("archived" as const)
+              : ("regular" as const),
+            remoteId: t.id,
+            title: t.title,
+            lastMessageAt: t.last_message_at
+              ? new Date(t.last_message_at)
+              : undefined,
+            externalId: t.external_id ?? undefined,
+            custom: toCustom(t.metadata),
+          })),
+          nextCursor:
+            activeNext || archivedNext
+              ? JSON.stringify({
+                  a: activeNext,
+                  r: archivedNext,
+                  ...(activeNext === undefined ? { ae: true } : {}),
+                  ...(archivedNext === undefined ? { re: true } : {}),
+                })
+              : undefined,
+        };
+      } finally {
+        read.finish();
       }
-      return {
-        threads: threads.map((t) => ({
-          status: t.is_archived ? ("archived" as const) : ("regular" as const),
-          remoteId: t.id,
-          title: t.title,
-          lastMessageAt: t.last_message_at
-            ? new Date(t.last_message_at)
-            : undefined,
-          externalId: t.external_id ?? undefined,
-          custom: toCustom(t.metadata),
-        })),
-        nextCursor:
-          activeNext || archivedNext
-            ? JSON.stringify({
-                a: activeNext,
-                r: archivedNext,
-                ...(activeNext === undefined ? { ae: true } : {}),
-                ...(archivedNext === undefined ? { re: true } : {}),
-              })
-            : undefined,
-      };
     },
 
     initialize: async () => {
@@ -303,7 +324,6 @@ export const createCloudThreadListAdapter = (
         external_id,
       });
       const ownership = getOwnership();
-      getDeletedCloudThreads(ownership).delete(remoteId);
       ownership.add(remoteId);
 
       return { externalId: external_id, remoteId: remoteId };
@@ -326,7 +346,7 @@ export const createCloudThreadListAdapter = (
       const result = await cloud.threads.delete(threadId);
       const ownership = getOwnership();
       ownership.delete(threadId);
-      getDeletedCloudThreads(ownership).add(threadId);
+      blockPendingCloudThreadReads(ownership, threadId);
       return result;
     },
 
@@ -346,23 +366,26 @@ export const createCloudThreadListAdapter = (
     },
 
     fetch: async (threadId: string) => {
-      const thread = await cloud.threads.get(threadId);
       const ownership = getOwnership();
-      if (!getDeletedCloudThreads(ownership).has(thread.id)) {
-        ownership.add(thread.id);
+      const read = beginCloudThreadRead(ownership);
+      try {
+        const thread = await cloud.threads.get(threadId);
+        if (!read.blockedIds.has(thread.id)) ownership.add(thread.id);
+        return {
+          status: thread.is_archived
+            ? ("archived" as const)
+            : ("regular" as const),
+          remoteId: thread.id,
+          title: thread.title,
+          lastMessageAt: thread.last_message_at
+            ? new Date(thread.last_message_at)
+            : undefined,
+          externalId: thread.external_id ?? undefined,
+          custom: toCustom(thread.metadata),
+        };
+      } finally {
+        read.finish();
       }
-      return {
-        status: thread.is_archived
-          ? ("archived" as const)
-          : ("regular" as const),
-        remoteId: thread.id,
-        title: thread.title,
-        lastMessageAt: thread.last_message_at
-          ? new Date(thread.last_message_at)
-          : undefined,
-        externalId: thread.external_id ?? undefined,
-        custom: toCustom(thread.metadata),
-      };
     },
 
     unstable_useAdapters,
