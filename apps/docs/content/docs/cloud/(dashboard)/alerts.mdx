@@ -1,0 +1,64 @@
+---
+title: Alerts
+description: Watch one metric of a project once an hour and get a signed webhook when it crosses a threshold.
+---
+
+An alert rule watches one metric of the project. Once an hour the cloud evaluates the day's totals in UTC, and when a metric is above its threshold it posts a signed JSON payload to the rule's webhook, then stays quiet for the rule's cooldown. Rules live in **Settings › Alerts** and are managed by owners and admins.
+
+## Metrics
+
+| Metric | Compares | Unit |
+|---|---|---|
+| `daily_runs` | Today's runs | runs |
+| `daily_cost_usd` | Today's cost, sampling calls included | USD |
+| `daily_error_rate` | Today's share of failed runs | % |
+| `daily_incomplete_rate` | Today's share of runs that did not complete | % |
+| `period_active_users` | Active users of the UTC calendar month, for the plan cap | users |
+| `daily_runs_change` | Today's runs against the mean of the previous seven days | % rise |
+| `daily_cost_usd_change` | Today's cost against the mean of the previous seven days | % rise |
+| `daily_incomplete_rate_change` | Today's incomplete rate against the previous seven days | % rise |
+
+A rule fires when the value is strictly above the threshold. A rate is silent while the day has no runs, and a change metric is silent until three days of history exist.
+
+## A rule
+
+| Field | Meaning |
+|---|---|
+| Name | Unique in the project, for instance `Daily spend`. |
+| Metric and threshold | One of the metrics above and the value to stay under. |
+| Cooldown | How long to wait before delivering the same rule again, from 5 minutes to 7 days; one day by default. The cooldown starts when a delivery succeeds. |
+| Webhook URL | A public `https://` URL. |
+| Enabled | A disabled rule keeps its history and its secret. |
+
+The signing secret is shown once when the rule is created and again when you rotate it. **Send test** delivers a payload of type `alert.test` right away, so the receiver can be checked before the first real alert.
+
+## The webhook
+
+```json title="alert.triggered"
+{
+  "type": "alert.triggered",
+  "project_id": "proj_…",
+  "rule": { "id": "alert_…", "name": "Daily spend", "metric": "daily_cost_usd", "threshold": "25.000000" },
+  "value": 31.2,
+  "day": "2026-09-13",
+  "occurred_at": "2026-09-13T17:00:00.000Z"
+}
+```
+
+The request is a `POST` with `content-type: application/json` and an `x-aui-signature` header of the form `t=<unix seconds>,v1=<hex>`, where the hex is an HMAC SHA-256 of `<t>.<body>` with the rule's secret. Verify it with the raw body before parsing, and reject a `t` far from now to close replays. A response in the 2xx range within 10 seconds counts as delivered; redirects are not followed.
+
+```ts title="verify.ts"
+import { createHmac, timingSafeEqual } from "node:crypto";
+
+export function verify(secret: string, signature: string, body: string) {
+  const parts = Object.fromEntries(signature.split(",").map((p) => p.split("=")));
+  const expected = createHmac("sha256", secret).update(`${parts.t}.${body}`).digest("hex");
+  return timingSafeEqual(Buffer.from(expected), Buffer.from(parts.v1 ?? ""));
+}
+```
+
+**Recent deliveries** on the same page lists every evaluation that fired, with its status and the response code, and a failed delivery is kept on the rule as its last error.
+
+## Limits
+
+The number of rules is a plan limit: 1 on Free, 20 on Pro and Startup, 100 on Enterprise; see [Plans and pricing](/docs/cloud/pricing).

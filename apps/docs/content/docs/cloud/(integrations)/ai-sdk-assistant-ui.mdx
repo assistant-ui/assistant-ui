@@ -1,20 +1,20 @@
 ---
-title: AI SDK + assistant-ui
-description: Connect the AI SDK runtime to Assistant Cloud for persisted threads, automatic titles, run reports, engagement events, feedback and attachments, with the assistant-ui components or headless.
+title: AI SDK
+description: Connect the AI SDK runtime to the cloud for persisted threads, titles, run reports, engagement, feedback and attachments.
 ---
 
-`useChatRuntime` from `@assistant-ui/ai-sdk` wraps the AI SDK's chat transport and, given a `cloud`, adds everything the cloud offers a runtime. This is the integration most apps want: it works with the assistant-ui components, with the primitives, or headless, on React, React Native and Ink.
+`useChatRuntime` from `@assistant-ui/ai-sdk` wraps the AI SDK's chat transport. Given a `cloud`, it adds everything the cloud offers a runtime. It is the path to start from: it works with the assistant-ui components, with the primitives, or headless, on React, React Native and Ink.
 
-## What the runtime does with the cloud
+## What you get
 
-1. **Threads.** The thread list is backed by the project: it lists, creates, renames, archives and deletes threads, and creates the cloud thread on the first user message.
-2. **Persistence.** Every message is stored as it completes streaming, in the `ai-sdk/v6` format, and reloaded when the user opens the thread again. Edits and regenerations keep their branches.
-3. **Titles.** After the first assistant response the project's thread title feature names the thread.
-4. **Run reports.** Each response is reported with its status, outcome, error, duration, time to first token, steps and tool calls, and whatever model, usage and trace metadata the route provides. See [Run reports](/docs/cloud/telemetry).
-5. **Engagement events.** Sends, edits, stops, regenerations, copies, branch switches, suggestions, attachments, thread switches, speech, voice and shown errors are recorded from the runtime's store. See [Engagement events](/docs/cloud/engagement).
-6. **Feedback and attachments.** The `feedback` adapter defaults to cloud message feedback and the `attachments` adapter to cloud uploads; pass your own to replace either.
+1. **Threads.** The thread list is backed by the project: listed, created on the first message, renamed, archived and deleted.
+2. **Persistence.** Every message is stored as it finishes streaming, in the `ai-sdk/v6` format, and reloaded when the thread is opened again. Edits and regenerations keep their branches.
+3. **Titles.** After the first response, the project's thread title feature names the thread.
+4. **Run reports.** Each response is reported with its status, outcome, error, duration, time to first token, steps and tool calls, plus whatever model, usage and trace id the route puts in the message metadata.
+5. **Engagement events.** Sends, edits, stops, regenerations, copies, branch switches, suggestions, attachments, thread switches, speech, voice and shown errors, recorded from the runtime's store.
+6. **Feedback and attachments.** The feedback adapter defaults to cloud message feedback and the attachment adapter to cloud uploads.
 
-Every visited thread stays mounted, so a run in progress continues after the user switches threads and is still persisted and reported when it finishes.
+A visited thread stays mounted, so a run in progress continues after the user switches threads and is still stored and reported when it finishes.
 
 ## Setup
 
@@ -49,7 +49,7 @@ API_URL=https://your-app.example.com
 </Tab>
 </PlatformTabs>
 
-The frontend API URL is on **Settings › Telemetry** of your project. On React Native and Ink the chat route is not on the app's origin, so the second variable names the server that hosts it. An API key is only needed on the server, for [traces](/docs/cloud/traces) or a [token endpoint](/docs/cloud/authorization#a-token-endpoint).
+The frontend API URL is on **Settings › General**. On React Native and Ink the chat route is not on the app's origin, so the second variable names the server that hosts it. An API key is only needed on the server, for [traces](/docs/cloud/traces) or a [token endpoint](/docs/cloud/authorization#a-token-endpoint).
 
 </Step>
 <Step>
@@ -61,7 +61,7 @@ The frontend API URL is on **Settings › Telemetry** of your project. On React 
 
 <InstallCommand npm={["@assistant-ui/react", "@assistant-ui/ai-sdk", "ai", "@ai-sdk/openai"]} />
 
-`@assistant-ui/react` re-exports `AssistantCloud`; no separate install. The example below signs in with Clerk, so add `@clerk/nextjs` as well, or swap the token callback for your provider's.
+`@assistant-ui/react` re-exports `AssistantCloud`, so there is nothing else to install. The example signs in with Clerk; add `@clerk/nextjs`, or swap the token callback for your provider's.
 
 </Tab>
 <Tab value="React Native">
@@ -118,7 +118,7 @@ export default function ChatPage() {
 }
 ```
 
-For a prototype, omit `cloud` altogether: with `NEXT_PUBLIC_ASSISTANT_BASE_URL` set, the runtime creates an anonymous client itself.
+For a prototype, omit `cloud`: with `NEXT_PUBLIC_ASSISTANT_BASE_URL` set, the runtime creates an anonymous client itself.
 
 </Tab>
 <Tab value="React Native">
@@ -255,14 +255,14 @@ export function Chat() {
 </Tab>
 </PlatformTabs>
 
-Keep the client in a `useMemo`: it holds the cached token or the anonymous identity, and the runtime keys its thread list on the instance.
+Keep the client in a `useMemo`: it holds the cached token, and the runtime keys its thread list on the instance.
 
 </Step>
 <Step>
 
 ### Fill in model and usage on the route
 
-The browser sees the stream, not the model behind it. A `messageMetadata` callback on the AI SDK route puts model, provider, usage and finish reason into the message metadata the runtime persists and reports:
+The browser sees the stream, not the model behind it. A `messageMetadata` callback on the AI SDK route puts model, provider, usage and finish reason into the message metadata the runtime stores and reports:
 
 ```ts title="app/api/chat/route.ts"
 import { convertToModelMessages, streamText } from "ai";
@@ -290,12 +290,12 @@ export async function POST(req: Request) {
 }
 ```
 
-[Run reports](/docs/cloud/telemetry#route-configuration) lists every key the runtime reads, and [Traces](/docs/cloud/traces) adds the trace id that joins the report to your server spans.
+[Run reports](/docs/cloud/telemetry#model-and-usage-from-the-route) lists every key the runtime reads, and [Traces](/docs/cloud/traces) adds the trace id that joins the report to your server's spans.
 
 </Step>
 </Steps>
 
-## `useChatRuntime` options
+## Options
 
 <ParametersTable
   parameters={[
@@ -322,30 +322,18 @@ export async function POST(req: Request) {
             {
               name: "attachments",
               type: "AttachmentAdapter",
-              description:
-                "Defaults to the cloud upload adapter when cloud is set.",
+              description: "Defaults to cloud uploads when cloud is set.",
             },
             {
               name: "feedback",
               type: "FeedbackAdapter",
-              description:
-                "Defaults to cloud message feedback when cloud is set.",
+              description: "Defaults to cloud message feedback when cloud is set.",
             },
             {
               name: "history",
               type: "ThreadHistoryAdapter",
               description:
-                "Defaults to the cloud history adapter, which persists in the ai-sdk/v6 format and reports runs. A replacement must implement withFormat.",
-            },
-            {
-              name: "speech",
-              type: "SpeechSynthesisAdapter",
-              description: "Text to speech.",
-            },
-            {
-              name: "dictation",
-              type: "DictationAdapter",
-              description: "Speech to text input.",
+                "Defaults to the cloud history adapter, which stores messages as ai-sdk/v6 and reports runs. A replacement must implement withFormat.",
             },
           ],
         },
@@ -355,57 +343,38 @@ export async function POST(req: Request) {
       name: "transport",
       type: "ChatTransport",
       description:
-        "The AI SDK transport. Defaults to AssistantChatTransport, which posts to /api/chat.",
-    },
-    {
-      name: "toCreateMessage",
-      type: "(message: AppendMessage) => CreateUIMessage",
-      description:
-        "Converts an assistant-ui message into the AI SDK message the transport sends, for custom metadata or content transforms.",
-    },
-    {
-      name: "onResumeError",
-      type: "(error: unknown) => void",
-      description:
-        "Called when a pending resumable stream cannot be reconnected. The stale stream id is still cleared.",
+        "The AI SDK transport. Defaults to AssistantChatTransport, which posts to /api/chat and sends the cloud thread id as the chat id.",
     },
   ]}
 />
 
-The remaining AI SDK chat options are accepted as on `useChat`.
-
-### Store hosts
-
-Apps built on `AuiConfig` or `createAssistantClient` use `AISDKThreads({ cloud, threadId, onThreadIdChange })` as their thread list resource. With `cloud` set it is a remote thread list with the same behaviour as above; `threadId` controls the selected thread and is ignored without `cloud`.
+The remaining options are the AI SDK's own chat options. Apps built on `AuiConfig` or `createAssistantClient` pass the same `cloud`, `threadId` and `onThreadIdChange` to `AISDKThreads`.
 
 ## What is reported
 
-| Report field | Source on this runtime |
+| Field | Source on this runtime |
 |---|---|
-| `status`, `outcome_type`, `error`, `error_code` | the run's finish, the user's stop, and the route's `finishReason` |
+| `status`, `outcome_type`, `error`, `error_code` | the run's finish, the user's stop, and the `finishReason` the route puts in the metadata |
 | `first_token_ms`, `duration_ms`, per step `start_ms` and `end_ms` | measured by the runtime |
 | `steps`, `tool_calls`, `tool_source` | the message parts; a step that called a tool gets `finish_reason: "tool-calls"` |
 | `model_id`, `provider`, usage, `trace_id`, sampling calls | the route's `messageMetadata` |
 
-The `"disconnected"` outcome and a real per step finish reason are the two things this runtime cannot see, because it observes the persisted message rather than the AI SDK finish event. Everything else on [Run reports](/docs/cloud/telemetry) applies.
+The runtime observes the stored message rather than the AI SDK's finish event, so it cannot tell a dropped connection from a stop; everything else on [Run reports](/docs/cloud/telemetry) applies.
 
 ## Feedback and attachments
 
-With `cloud` set, two adapters default to the cloud and need no setup:
+With `cloud` set, two adapters need no setup:
 
-- **Feedback.** The feedback buttons of the assistant-ui message components submit a positive or negative rating on the stored message. It appears on the thread's page, counts into the satisfaction reading and can filter Threads; see [Message feedback](/docs/cloud/engagement#message-feedback).
-- **Attachments.** `CloudFileAttachmentAdapter` takes any file the composer offers and leaves the type check to the project. Adding a file to the composer asks the project for a presigned upload URL, uploads the file with its content type, cancellable while pending, and attaches an `image` part for images or a `file` part with the object URL and MIME type for anything else. Images, PDF, plain text, CSV, RTF and the Office and OpenDocument formats are accepted up to 25 MB; a private bucket serves them back through 15 minute signed reads, which message lists apply for you when a thread is reloaded. The `attachment_added` and `attachment_failed` events are recorded for each file.
+- **Feedback.** The feedback buttons of the assistant-ui message components submit a positive or negative rating on the stored message. It appears on the run's page and the thread's turns; see [Message feedback](/docs/cloud/engagement#message-feedback).
+- **Attachments.** Adding a file to the composer asks the project for a presigned upload URL, uploads the file with its content type, and attaches an `image` part for images or a `file` part with the object URL for anything else. Images, PDF, plain text, CSV, RTF and the Office and OpenDocument formats are accepted up to 25 MB. The bucket is private: when a thread is reloaded, the message list replaces each attachment URL with a read URL signed for 15 minutes.
 
-Pass `adapters: { feedback }` or `adapters: { attachments }` to replace either; the cloud adapters are defaults, not requirements. Uploading outside the composer goes through `cloud.files`; see [Files](/docs/cloud/api#files).
+Pass `adapters: { feedback }` or `adapters: { attachments }` to replace either. Uploading outside the composer goes through `cloud.files`; see [Files](/docs/cloud/api#files).
 
-## Authentication
+## Other backends on this runtime
 
-The examples above use a Clerk token on React and a token callback elsewhere; anonymous mode is the zero configuration option for a prototype. [Authentication](/docs/cloud/authorization) covers every provider, the token endpoint pattern, claiming anonymous threads after sign in, and allowed origins.
+Anything that answers with an AI SDK UI message stream works with this page as written. A [Mastra](/docs/integrations/frameworks/mastra/overview) agent takes `cloud` on the same `useChatRuntime` call, and so does any server that returns `toUIMessageStreamResponse`. [Cloudflare Agents](/docs/integrations/frameworks/cloudflare-agents) is the exception: its guide wraps `useAgentChat` in `useAISDKRuntime`, which has no `cloud` option, and the conversation lives in the Durable Object.
 
-## Frameworks on this runtime
+## Examples
 
-Anything that answers with an AI SDK UI message stream works with this page as written. A [Mastra](/docs/integrations/frameworks/mastra/overview) agent, behind a route or on its own server, takes `cloud` on the same `useChatRuntime` call, and so does any backend that returns `toUIMessageStreamResponse`. [Cloudflare Agents](/docs/integrations/frameworks/cloudflare-agents) is the exception: its guide wraps `useAgentChat` in `useAISDKRuntime`, which has no `cloud` option, and the conversation lives in the Durable Object.
-
-## Example
-
-[with-cloud](https://github.com/assistant-ui/assistant-ui/tree/main/examples/with-cloud) on GitHub is this guide as a runnable app.
+- [with-cloud](https://github.com/assistant-ui/assistant-ui/tree/main/examples/with-cloud) is this guide with an anonymous session.
+- The [cloud](https://github.com/assistant-ui/assistant-ui/tree/main/templates/cloud) and [cloud-clerk](https://github.com/assistant-ui/assistant-ui/tree/main/templates/cloud-clerk) templates are starting points with and without sign in.

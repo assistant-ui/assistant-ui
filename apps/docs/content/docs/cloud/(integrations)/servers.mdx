@@ -1,0 +1,85 @@
+---
+title: Servers and bots
+description: Use the client from a server with an API key, so an app without a browser is persisted and measured like any other.
+---
+
+`assistant-cloud` has no React dependency and runs wherever JavaScript runs. With an API key, a server is a client in its own right: a Slack or Teams bot, a backend agent, a batch job or a support tool creates threads, stores messages and reports runs, and the dashboard shows them next to your browser traffic.
+
+## The client
+
+```ts title="cloud.ts"
+import { AssistantCloud } from "assistant-cloud";
+
+export const cloud = new AssistantCloud({
+  apiKey: process.env.ASSISTANT_API_KEY!,
+  userId: slackUserId,
+  workspaceId: slackTeamId,
+});
+```
+
+The key is created in **Settings › API keys** and must never reach a browser. The client talks to `https://backend.assistant-api.com` and acts as the user and workspace you name: the user is who the conversation belongs to and counts as active for the plan, the workspace is who may see the thread. Create one client per user, or set the headers per request through your own wrapper.
+
+## A conversation, end to end
+
+```ts title="bot.ts"
+import { cloud } from "./cloud";
+
+const { thread_id } = await cloud.threads.create({
+  last_message_at: new Date(),
+  external_id: slackThreadTs,
+});
+
+const { message_id: userMessageId } = await cloud.threads.messages.create(
+  thread_id,
+  {
+    parent_id: null,
+    format: "ai-sdk/v6",
+    content: { role: "user", parts: [{ type: "text", text: question }] },
+  },
+);
+
+const started = Date.now();
+const answer = await generate(question);
+
+const { message_id } = await cloud.threads.messages.create(thread_id, {
+  parent_id: userMessageId,
+  format: "ai-sdk/v6",
+  content: { role: "assistant", parts: [{ type: "text", text: answer.text }] },
+});
+
+await cloud.runs.report({
+  thread_id,
+  message_id,
+  status: "completed",
+  model_id: answer.modelId,
+  provider: "openai",
+  input_tokens: answer.usage.inputTokens,
+  output_tokens: answer.usage.outputTokens,
+  duration_ms: Date.now() - started,
+});
+```
+
+Three calls per turn: store the user message, store the answer, report the run. `parent_id` chains the messages; `external_id` keeps your own id on the thread so the next event in Slack finds it. The cloud does the rest as it does for a browser: the thread is titled after its first completed run, the user counts as active for the month, and the Threads page renders the conversation from the stored messages.
+
+Set `environment` and `release` on the report to filter by deployment, and when the server also exports [traces](/docs/cloud/traces), put the same `trace_id` on the report so the two halves merge into one run. Every field of the report is on [Run reports](/docs/cloud/telemetry#the-report).
+
+## What else the client can do
+
+| Call | Purpose |
+|---|---|
+| `cloud.threads.list()`, `get`, `update`, `delete` | The workspace's threads: rename, set metadata, archive, delete. |
+| `cloud.threads.messages.list(threadId, { format })` | Read a thread back in the format you want. |
+| `cloud.events.track({ kind, thread_id })` | Record what the user did; see [Engagement](/docs/cloud/engagement#emitting-your-own). |
+| `cloud.scores.create({ name, data_type, value, run_id })` | Score a run, a thread or a message; see [Scores](/docs/cloud/engagement#scores). |
+| `cloud.files.generatePresignedUploadUrl({ filename })` | Upload an attachment to the project's storage. |
+| `cloud.projects.threads.list()` | Every thread of the project, across workspaces. API key only. |
+
+The [package reference](/docs/api-reference/integrations/assistant-cloud) lists every method with its types.
+
+## Other languages
+
+The client is a thin layer over the [REST API](/docs/cloud/api), so a backend in Python, Go or Java does the same three calls over HTTP with the key in the `Authorization` header and the user and workspace in the `Aui-User-Id` and `Aui-Workspace-Id` headers. A backend that already emits OpenTelemetry spans can skip the run report: exported spans become runs on their own, and `gen_ai.conversation.id` on the spans attaches them to the thread. See [Other producers](/docs/cloud/traces#other-producers).
+
+## Reading a project
+
+For reads across the whole project rather than one workspace, the [project read API](/docs/cloud/api#project-read-api) lists runs, usage, threads and scores with the key alone, and the [MCP endpoint](/docs/cloud/api#mcp) answers the same questions to an agent.

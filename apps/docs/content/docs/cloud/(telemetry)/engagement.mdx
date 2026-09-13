@@ -1,0 +1,94 @@
+---
+title: Engagement and feedback
+description: What users do around the answers, recorded without message text, plus the thumbs and scores stored next to a conversation.
+---
+
+Run reports say what the model did. Engagement events say what the user did: sent, edited, stopped, regenerated, copied, switched threads, clicked a suggestion, added an attachment, hit an error. They feed the Engagement page and the satisfaction reading on Threads, and they never carry message text. [Feedback](#message-feedback) and [scores](#scores) are the explicit judgements next to them: the thumbs a user gives a message, and the values your own code or the cloud's evaluators assign to a run, a thread or a message.
+
+Events are on whenever telemetry is on. `telemetry: { events: false }` keeps run reports and stops events; `telemetry: false` stops both.
+
+## Event kinds
+
+| Kind | When | Carries |
+|---|---|---|
+| `message_sent` | The user sends a message. | Character and attachment counts in `props`; the time since the thread's previous response ended in `value`. |
+| `message_edited` | The user edits an earlier message and resends. | The character count. |
+| `run_stopped` | The user stops a running response. | How long the run had been going. Once per run. |
+| `message_regenerated` | The user regenerates a response. | The message id. |
+| `message_copied` | The user copies a message. | The message id. |
+| `branch_switched` | The user moves between edits or regenerations. | The message id. |
+| `suggestions_shown` | Suggestions are shown on an empty thread. | The number of suggestions. Once per thread. |
+| `suggestion_clicked` | The user sends a suggestion. | |
+| `attachment_added`, `attachment_failed` | An attachment is added to the composer, or fails to upload. | The content type. |
+| `thread_switched` | The user opens another thread the cloud already knows. | |
+| `error_shown` | An error is shown for a run. | The reason. Once per run. |
+| `speech_started` | The user plays a message aloud. | The message id. |
+| `voice_started` | The user starts voice input. | |
+| `tool_approved`, `tool_rejected` | Reserved for tool approval. No integration emits them yet. | |
+
+Every event carries the thread id, the message id when there is one, and the run id when known. `value` is a non negative integer in milliseconds or a count; `props` holds up to 1 KB of short strings, numbers and booleans.
+
+The assistant-ui runtimes read every event from their store, so any composer, message or thread action taken through the components or the primitives is counted, on React, React Native and Ink alike. `useCloudChat` records only `message_sent`, `run_stopped`, `message_regenerated`, `thread_switched` and `error_shown`.
+
+## Delivery
+
+Events are buffered in the browser and posted to `POST /v1/events` in batches of up to 50: after two seconds of quiet, when twenty are waiting, and when the page is hidden or unloaded, with `keepalive` so the last batch can still leave after a navigation. A failed batch is dropped; events never block the UI and never surface errors. The endpoint answers `202` with the number of events it stored, and drops an event naming a thread the caller cannot see rather than rejecting the batch.
+
+## Reading them
+
+**Engagement** shows six tiles for the range: answered threads, threads with a second turn, stops, regenerations and copies as a share of sends, and users who came back on another day. Under them: the conversation funnel, the interaction mix over time, the figures by model and by topic, and when people use the assistant by weekday and hour.
+
+The **satisfaction** reading on Engagement and on each thread is a rule over these events, not a model judgement: a copy or a second turn counts as positive, a stop, a regeneration or an edit counts as negative, and a thread is *satisfied*, *mixed*, *dissatisfied* or *no signal* accordingly. **Threads** filters by that reading and by the signals themselves, and a thread's page lists its interactions in order next to its runs. Model judged sentiment and resolution live on [Intelligence](/docs/cloud/intelligence).
+
+## Emitting your own
+
+Every event goes through `cloud.events.track`, which you can call from your own UI when you run an integration the SDK does not instrument:
+
+```ts
+cloud.events.track({
+  kind: "suggestion_clicked",
+  thread_id: threadId,
+  props: { source: "sidebar" },
+});
+```
+
+The call returns at once and joins the next batch. Ids over 48 characters, negative or fractional values, and oversized `props` are dropped before sending. Outside a browser, `cloud.events.dispose()` flushes what is buffered.
+
+## Message feedback
+
+Feedback is a positive or negative rating on a stored assistant message. With an assistant-ui runtime and `cloud` set, the feedback buttons of the message components submit it without further setup. Direct use:
+
+```ts
+await cloud.threads.messages.feedback(threadId, messageId, { type: "positive" });
+```
+
+The message must already be stored; the runtime resolves its cloud id for you. Feedback is stored as a boolean score named `feedback`, one per user and message, and appears with the run's scores on its page and on the thread's turns.
+
+## Scores
+
+A score is a named value with a data type, attached to a run, a thread or a message.
+
+```ts
+await cloud.scores.create({
+  name: "answer_relevance",
+  data_type: "numeric",
+  value: 0.82,
+  comment: "graded by the nightly evaluator",
+  run_id: runId,
+});
+```
+
+| Field | Values |
+|---|---|
+| `name` | Up to 64 characters of letters, digits, `_`, `.` and `-`. Scores with the same name are compared on the dashboard. |
+| `data_type` | `numeric`, `categorical` or `boolean`. |
+| `value` | A number for numeric, `true` or `false` for boolean. Not allowed for categorical. |
+| `string_value` | The category for categorical scores, up to 255 characters. Only for categorical. |
+| `comment` | Free text up to 2,000 characters, shown with the score. |
+| `run_id`, `thread_id`, `message_id` | Exactly one target: a run, a thread, or a message together with its thread. |
+
+Writing the same name for the same target again replaces the earlier value. A score from the browser is recorded with the source `end_user`; one from a server with an API key as `api`, so an offline evaluation job can grade runs after the fact. `GET /v1/projects/scores` lists them back; see the [REST API](/docs/cloud/api#scores).
+
+## Evaluators
+
+Evaluators are scores the cloud writes for you: model judges with your own prompt, applied to a sample of new conversations once an hour, with their verdicts stored as scores from the source `evaluator`. They are configured in **Settings › Evaluators** and explained on [Intelligence](/docs/cloud/intelligence#evaluators).

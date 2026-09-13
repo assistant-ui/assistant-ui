@@ -1,0 +1,58 @@
+---
+title: Plans and pricing
+description: What each plan includes, how active users are counted, and what happens at the cap.
+---
+
+Assistant Cloud is priced by **active users**: end users who send at least one message in a calendar month. Every plan stores the same data and ships the same SDK; plans differ in how many active users they include, which analysis features are on, and how many alert rules a project may have.
+
+## Plans
+
+| Plan | Price | Active users a month | Beyond the included |
+|---|---|---|---|
+| Free | $0 | 200 | Hard stop |
+| Pro | $50 a month | 500 included | $0.10 per additional user, up to 5,000 |
+| Startup | Contact us | 10,000 included | Included up to 100,000 |
+| Enterprise | Custom | Custom | No cap |
+
+The **Billing** page of a project is authoritative: it shows the plan, the active users of the month against the included number and the cap, the pace of the last seven days projected to month end, and the day the cap would run out.
+
+## What counts as an active user
+
+A user becomes active on their first user message of a UTC calendar month and is counted once, however many threads and messages follow. Anonymous visitors count like signed in users. The count resets on the first of the month, whatever day the billing period starts.
+
+The **Overview** and **Users** pages count distinct users in the selected date range; only **Billing** counts against the plan.
+
+## What every plan includes
+
+- Persisted threads and messages, automatic thread titles, run reports, engagement events, server traces, scores and attachments.
+- The dashboard: Overview, Threads, Runs, Models, Users and Engagement, with any date range.
+- Retention from 7 days to a year, or forever, set per project; see [Settings](/docs/cloud/settings#general).
+- Anonymous sessions, your own auth provider's tokens, and API keys.
+
+| Feature | Free | Pro | Startup | Enterprise |
+|---|---|---|---|---|
+| [Intelligence](/docs/cloud/intelligence) | | yes | yes | yes |
+| Evaluators | | yes | yes | yes |
+| Exports (CSV and JSONL) | | yes | yes | yes |
+| [Alert rules](/docs/cloud/alerts) | 1 | 20 | 20 | 100 |
+| Thread titles on the cloud's model, a month | 500 | 5,000 included, up to 50,000 | unlimited | unlimited |
+
+Thread titles written by the cloud's own model count per calendar month, and past the cap threads stay untitled until the next month. A project that titles on its own LLM provider is never limited; see [Thread titles](/docs/cloud/settings#thread-titles).
+
+## At the cap
+
+When a new user would exceed the plan's cap, their first message is refused:
+
+```json
+402 { "error": "plan_limit_reached", "plan": "free", "cap": 200, "period_end": "2026-10-01T00:00:00.000Z" }
+```
+
+Users who were already active this month keep working, and nothing else is refused. The SDK surfaces the refusal as a `CloudAPIError` with `code === "plan_limit_reached"`, so your app can show an upgrade or a retry state. On Pro, users between the included number and the cap are billed as overage instead.
+
+## Changing plans
+
+An owner or admin of the organization upgrades from the **Billing** page. Pro checks out through Stripe and is managed in the Stripe portal from the same page; Startup and Enterprise start with a [conversation](https://cal.com/simon-farshid/assistant-ui). Billing questions go to [support@assistant-ui.com](mailto:support@assistant-ui.com).
+
+## Enterprise
+
+Enterprise agreements cover custom limits, dedicated support and custom terms. They are also the way to run Assistant Cloud on your own infrastructure: a single tenant deployment of the API, dashboard and analysis worker on your own PostgreSQL and object storage, with the SDK pointed at your own hosts. The deployment guide and images are provided as part of the agreement. [Talk to us](https://cal.com/simon-farshid/assistant-ui) to start.

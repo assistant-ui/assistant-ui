@@ -1,0 +1,7 @@
+{
+  "title": "Dashboard",
+  "description": "What the dashboard shows and what a project can be configured to do.",
+  "icon": "LayoutDashboard",
+  "root": true,
+  "pages": ["overview", "intelligence", "alerts", "settings"]
+}
