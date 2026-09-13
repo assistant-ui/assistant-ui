@@ -26,34 +26,41 @@ describe("generativeLoader", () => {
     "bundler-redirect.client-view.tsx",
     "bundler-redirect.server.ts",
     "bundler-redirect.client.tsx",
-    "bundler-redirect.server.js",
-    "bundler-redirect.client.js",
-  ])("treats %s as an ordinary user module", async (filename) => {
+  ])("does not treat %s as a package indirection", async (filename) => {
     const result = await runLoader(
       `/app/${filename}`,
       '"use generative"; export default {};',
+      { path: "/app/tool.ts" },
     );
 
     expect(result).toContain("@assistant-ui/next/bundler-redirect/");
   });
 
-  it("recognizes the package indirection module", async () => {
-    const result = await runLoader(
-      "/node_modules/@assistant-ui/next/dist/bundler-redirect.server.js",
-      "",
-      { path: "/app/tool.ts" },
-    );
+  it.each(["bundler-redirect.server.js", "bundler-redirect.client.js"])(
+    "treats user module %s as ordinary without the generated path option",
+    async (filename) => {
+      const result = await runLoader(
+        `/app/${filename}`,
+        '"use generative"; export default {};',
+      );
 
-    expect(result).toContain("/app/tool.ts?generative-env=server");
-  });
+      expect(result).toContain("@assistant-ui/next/bundler-redirect/");
+    },
+  );
 
-  it("recognizes an indirection resource when a host keeps its query", async () => {
-    const result = await runLoader(
-      "/node_modules/@assistant-ui/next/dist/bundler-redirect.client.js?aui=token",
-      "",
-      { path: "/app/tool.ts" },
-    );
+  it.each([
+    ["server", "server"],
+    ["client", "client"],
+  ] as const)(
+    "recognizes the package %s indirection module",
+    async (name, target) => {
+      const result = await runLoader(
+        `/node_modules/@assistant-ui/next/dist/bundler-redirect.${name}.js`,
+        "",
+        { path: "/app/tool.ts" },
+      );
 
-    expect(result).toContain("/app/tool.ts?generative-env=client");
-  });
+      expect(result).toContain(`/app/tool.ts?generative-env=${target}`);
+    },
+  );
 });
