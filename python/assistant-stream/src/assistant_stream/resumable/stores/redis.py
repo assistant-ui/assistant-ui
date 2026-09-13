@@ -51,6 +51,31 @@ return 1
 
 FINALIZE_IF_UNCHANGED_KEY_COUNT = 2
 
+APPEND_IF_UNCHANGED_SCRIPT = """
+redis.replicate_commands()
+if redis.call("GET", KEYS[1]) ~= ARGV[1] then
+  return 0
+end
+local xadd = { "XADD", KEYS[2], "*" }
+for i = 3, #ARGV do
+  table.insert(xadd, ARGV[i])
+end
+redis.call(unpack(xadd))
+redis.call("EXPIRE", KEYS[2], ARGV[2])
+redis.call("EXPIRE", KEYS[1], ARGV[2])
+return 1
+"""
+
+APPEND_IF_UNCHANGED_KEY_COUNT = 2
+
+DELETE_IF_UNCHANGED_SCRIPT = """
+if redis.call("GET", KEYS[1]) ~= ARGV[1] then
+  return 0
+end
+redis.call("DEL", unpack(KEYS))
+return 1
+"""
+
 
 class RedisLikeClient(Protocol):
     async def set_nx(self, key: str, value: str, ttl_sec: int) -> bool: ...
@@ -136,7 +161,10 @@ class RedisResumableStreamStore:
                 f"Chunk exceeds maxChunkBytes ({len(chunk)} > {self._max_chunk_bytes})"
             )
         meta_key = self._meta_key(stream_id)
-        meta = await self._read_meta(stream_id)
+        existing_raw = await self._client.get(meta_key)
+        if existing_raw is None:
+            raise RuntimeError(f"Stream not found: {stream_id}")
+        meta = _parse_meta(existing_raw)
         if meta is None:
             raise RuntimeError(f"Stream not found: {stream_id}")
         self._assert_owned_generation(stream_id, meta)
@@ -149,12 +177,43 @@ class RedisResumableStreamStore:
         if not isinstance(ttl_sec, int):
             ttl_sec = _ms_to_sec(self._default_ttl_ms)
         data_key = self._data_key(stream_id, _meta_generation(meta))
-        await self._client.pipeline(
-            [
-                {"type": "xAdd", "key": data_key, "fields": {FIELD_CHUNK: chunk}},
-                {"type": "expire", "key": data_key, "ttlSec": ttl_sec},
-                {"type": "expire", "key": meta_key, "ttlSec": ttl_sec},
-            ]
+        append_if_unchanged = getattr(self._client, "append_if_unchanged", None)
+        if append_if_unchanged is None:
+            await self._client.pipeline(
+                [
+                    {
+                        "type": "xAdd",
+                        "key": data_key,
+                        "fields": {FIELD_CHUNK: chunk},
+                    },
+                    {"type": "expire", "key": data_key, "ttlSec": ttl_sec},
+                    {"type": "expire", "key": meta_key, "ttlSec": ttl_sec},
+                ]
+            )
+            return
+
+        appended = await append_if_unchanged(
+            {
+                "meta_key": meta_key,
+                "expected_meta": existing_raw,
+                "data_key": data_key,
+                "fields": {FIELD_CHUNK: chunk},
+                "ttl_sec": ttl_sec,
+            }
+        )
+        if appended:
+            return
+
+        current = await self._read_meta(stream_id)
+        if current is None:
+            raise RuntimeError(f"Stream not found: {stream_id}")
+        self._assert_owned_generation(stream_id, current)
+        if current.get("status") != "streaming":
+            raise ResumableStreamError(
+                "finalized", f"Stream already finalized: {stream_id}"
+            )
+        raise ResumableStreamError(
+            "missing", f"Stream changed while appending: {stream_id}"
         )
 
     async def finalize(
@@ -281,15 +340,71 @@ class RedisResumableStreamStore:
 
     async def delete(self, stream_id: str) -> None:
         validate_stream_id(stream_id)
-        self._acquired_generations.pop(stream_id, None)
-        meta = await self._read_meta(stream_id)
-        generation = _meta_generation(meta)
-        keys = [
-            self._meta_key(stream_id),
-            self._data_key(stream_id, generation),
-            self._data_key(stream_id),
-        ]
-        await self._client.delete(list(dict.fromkeys(keys)))
+        meta_key = self._meta_key(stream_id)
+        acquired_generation = self._acquired_generations.get(stream_id)
+        existing_raw = await self._client.get(meta_key)
+        legacy_data_key = self._data_key(stream_id)
+        if existing_raw is None:
+            self._clear_acquired_generation(stream_id, acquired_generation)
+            keys = [legacy_data_key]
+            if acquired_generation is not None:
+                keys.insert(0, self._data_key(stream_id, acquired_generation))
+            await self._client.delete(keys)
+            return
+
+        existing = _parse_meta(existing_raw)
+        generation = _meta_generation(existing)
+        delete_if_unchanged = getattr(self._client, "delete_if_unchanged", None)
+        if delete_if_unchanged is None:
+            self._clear_acquired_generation(stream_id, acquired_generation)
+            await self._client.delete(
+                list(
+                    dict.fromkeys(
+                        [
+                            meta_key,
+                            self._data_key(stream_id, generation),
+                            legacy_data_key,
+                        ]
+                    )
+                )
+            )
+            return
+
+        while True:
+            data_keys = list(
+                dict.fromkeys(
+                    [self._data_key(stream_id, generation), legacy_data_key]
+                )
+            )
+            deleted = await delete_if_unchanged(
+                {
+                    "meta_key": meta_key,
+                    "expected_meta": existing_raw,
+                    "data_keys": data_keys,
+                }
+            )
+            if deleted:
+                self._clear_acquired_generation(stream_id, acquired_generation)
+                return
+
+            current_raw = await self._client.get(meta_key)
+            if (
+                current_raw is None
+                or _meta_generation(_parse_meta(current_raw)) != generation
+            ):
+                self._clear_acquired_generation(stream_id, acquired_generation)
+                if generation is not None:
+                    await self._client.delete(
+                        [self._data_key(stream_id, generation)]
+                    )
+                return
+            existing_raw = current_raw
+
+    def _clear_acquired_generation(
+        self, stream_id: str, generation: str | None
+    ) -> None:
+        if self._acquired_generations.get(stream_id) == generation:
+            self._acquired_generations.pop(stream_id, None)
 
 
 def _ms_to_sec(ms: int) -> int:
@@ -337,6 +452,15 @@ def _to_bytes(value: str | bytes) -> bytes:
 class _RedisAsyncioAdapter:
     def __init__(self, client: Any) -> None:
         self._client = client
+        self._append_if_unchanged = client.register_script(
+            APPEND_IF_UNCHANGED_SCRIPT
+        )
+        self._finalize_if_unchanged = client.register_script(
+            FINALIZE_IF_UNCHANGED_SCRIPT
+        )
+        self._delete_if_unchanged = client.register_script(
+            DELETE_IF_UNCHANGED_SCRIPT
+        )
 
     async def set_nx(self, key: str, value: str, ttl_sec: int) -> bool:
         result = await self._client.set(key, value, nx=True, ex=ttl_sec)
@@ -383,21 +507,40 @@ class _RedisAsyncioAdapter:
                 pipe.expire(cmd["key"], cmd["ttlSec"])
         await pipe.execute()
 
+    async def append_if_unchanged(self, options: dict[str, Any]) -> bool:
+        field_args = [
+            value
+            for field, field_value in options["fields"].items()
+            for value in (field, field_value)
+        ]
+        result = await self._append_if_unchanged(
+            keys=[options["meta_key"], options["data_key"]],
+            args=[options["expected_meta"], str(options["ttl_sec"]), *field_args],
+        )
+        return result == 1 or result == b"1" or result == "1"
+
     async def finalize_if_unchanged(self, options: dict[str, Any]) -> bool:
         field_args = [
             value
             for field, field_value in options["fields"].items()
             for value in (field, field_value)
         ]
-        result = await self._client.eval(
-            FINALIZE_IF_UNCHANGED_SCRIPT,
-            FINALIZE_IF_UNCHANGED_KEY_COUNT,
-            options["meta_key"],
-            options["data_key"],
-            options["expected_meta"],
-            options["next_meta"],
-            str(options["ttl_sec"]),
-            *field_args,
+        result = await self._finalize_if_unchanged(
+            keys=[options["meta_key"], options["data_key"]],
+            args=[
+                options["expected_meta"],
+                options["next_meta"],
+                str(options["ttl_sec"]),
+                *field_args,
+            ],
+        )
+        return result == 1 or result == b"1" or result == "1"
+
+    async def delete_if_unchanged(self, options: dict[str, Any]) -> bool:
+        keys = [options["meta_key"], *options["data_keys"]]
+        result = await self._delete_if_unchanged(
+            keys=keys,
+            args=[options["expected_meta"]],
         )
         return result == 1 or result == b"1" or result == "1"
 

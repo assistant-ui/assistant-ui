@@ -283,12 +283,12 @@
       "gzip": 5490
     },
     "./resumable/ioredis": {
-      "min": 5830,
-      "gzip": 2316
+      "min": 7216,
+      "gzip": 2610
     },
     "./resumable/redis": {
-      "min": 6126,
-      "gzip": 2422
+      "min": 7555,
+      "gzip": 2719
     },
     "./utils": {
       "min": 14549,
