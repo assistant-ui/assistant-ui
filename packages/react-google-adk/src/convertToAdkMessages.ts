@@ -34,12 +34,7 @@ export const getMessageContent = (msg: AppendMessage) => {
         if (parsed) {
           return {
             type: "image" as const,
-            mimeType: resolveImageMediaType(
-              part.image,
-              contentType?.trim().toLowerCase() === "image/*"
-                ? undefined
-                : contentType,
-            ),
+            mimeType: resolveImageMediaType(part.image, contentType),
             data: parsed.data,
           };
         }

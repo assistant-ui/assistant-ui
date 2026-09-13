@@ -14,7 +14,9 @@ export function resolveImageMediaType(
   image: string,
   contentType?: string | undefined,
 ): string {
-  if (contentType?.startsWith("image/")) return contentType;
+  if (contentType?.startsWith("image/") && !contentType.includes("*")) {
+    return contentType;
+  }
 
   const declared = dataUrlMediaType(image);
   if (declared?.startsWith("image/")) return declared;
