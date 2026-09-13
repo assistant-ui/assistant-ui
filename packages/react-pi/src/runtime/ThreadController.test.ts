@@ -1,5 +1,5 @@
 import { describe, expect, it, onTestFinished, vi } from "vitest";
-import type { AppendMessage } from "@assistant-ui/react";
+import { isMessageNotSentError, type AppendMessage } from "@assistant-ui/react";
 import { PiThreadController } from "./ThreadController";
 import type { PiThreadState } from "./threadState";
 import type {
@@ -773,12 +773,14 @@ describe("PiThreadController", () => {
     const first = controller.sendMessage(
       userMessageWithImage("first", "https://cdn.example.com/image.png"),
     );
+    const firstResult = first.catch((error: unknown) => error);
     const second = controller.sendMessage(userMessage("second"));
 
     await vi.waitFor(() => expect(fetchMock).toHaveBeenCalledOnce());
     await controller.cancel();
-    await Promise.all([first, second]);
+    const [firstError] = await Promise.all([firstResult, second]);
 
+    expect(isMessageNotSentError(firstError)).toBe(true);
     expect(fetchSignal?.aborted).toBe(true);
     expect(client.sent).toHaveLength(1);
     expect(client.sent[0]!.input).toEqual({
@@ -794,6 +796,64 @@ describe("PiThreadController", () => {
       queue: { steering: [], followUp: [] },
       lastError: undefined,
     });
+  });
+
+  it("cancels the first send that has not reached Pi", async () => {
+    const accepted = Promise.withResolvers<void>();
+    const fetchMock = vi.fn();
+    vi.stubGlobal("fetch", fetchMock);
+    onTestFinished(() => vi.unstubAllGlobals());
+    const client = createFakeClient();
+    client.sendMessage = vi.fn(async (threadId, input) => {
+      client.sent.push({ threadId, input });
+      if (input.content === "first") await accepted.promise;
+    });
+    const controller = new PiThreadController(client, THREAD);
+
+    const first = controller.sendMessage(userMessage("first"));
+    await vi.waitFor(() => expect(client.sent).toHaveLength(1));
+    const second = controller.sendMessage(
+      userMessageWithImage("second", "https://cdn.example.com/image.png"),
+    );
+    const secondResult = second.catch((error: unknown) => error);
+
+    await controller.cancel();
+    accepted.resolve();
+    await first;
+    const secondError = await secondResult;
+
+    expect(isMessageNotSentError(secondError)).toBe(true);
+    expect(fetchMock).not.toHaveBeenCalled();
+    expect(client.sent.map(({ input }) => input.content)).toEqual(["first"]);
+  });
+
+  it("contains image preparation abandoned by disposal", async () => {
+    let fetchSignal: AbortSignal | undefined;
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(
+        (_input: RequestInfo | URL, init?: RequestInit) =>
+          new Promise<Response>((_resolve, reject) => {
+            fetchSignal = init?.signal ?? undefined;
+            fetchSignal?.addEventListener(
+              "abort",
+              () => reject(fetchSignal?.reason),
+              { once: true },
+            );
+          }),
+      ),
+    );
+    onTestFinished(() => vi.unstubAllGlobals());
+    const controller = new PiThreadController(createFakeClient(), THREAD);
+
+    const send = controller.sendMessage(
+      userMessageWithImage("look", "https://cdn.example.com/image.png"),
+    );
+    await vi.waitFor(() => expect(fetchSignal).toBeDefined());
+    controller.dispose();
+
+    await expect(send).resolves.toBeUndefined();
+    expect(fetchSignal?.aborted).toBe(true);
   });
 
   it("keeps newer Pi state when an image send is cancelled", async () => {
@@ -819,11 +879,12 @@ describe("PiThreadController", () => {
     const send = controller.sendMessage(
       userMessageWithImage("look", "https://cdn.example.com/image.png"),
     );
+    const sendResult = send.catch((error: unknown) => error);
     await vi.waitFor(() => expect(fetchSignal).toBeDefined());
 
     client.emit(ev({ type: "agent_start" }, 1));
     await controller.cancel();
-    await send;
+    expect(isMessageNotSentError(await sendResult)).toBe(true);
 
     expect(controller.getState()).toMatchObject({
       runStatus: "running",
@@ -906,10 +967,11 @@ describe("PiThreadController", () => {
     const send = controller.sendMessage(
       userMessageWithImage("second", "https://cdn.example.com/image.png"),
     );
+    const sendResult = send.catch((error: unknown) => error);
     await vi.waitFor(() => expect(fetchSignal).toBeDefined());
 
     await controller.cancel();
-    await send;
+    expect(isMessageNotSentError(await sendResult)).toBe(true);
 
     expect(controller.getState()).toMatchObject({
       runStatus: "failed",

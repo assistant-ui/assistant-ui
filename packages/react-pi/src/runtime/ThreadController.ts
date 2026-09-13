@@ -12,7 +12,10 @@
  * Browser-safe; imports no `@earendil-works/pi-*` packages.
  */
 
-import { ExportedMessageRepository } from "@assistant-ui/react";
+import {
+  ExportedMessageRepository,
+  MessageNotSentError,
+} from "@assistant-ui/react";
 import type { AppendMessage, ThreadMessageLike } from "@assistant-ui/react";
 import {
   bytesToBase64,
@@ -212,6 +215,18 @@ const isAbortError = (error: unknown): boolean =>
   "name" in error &&
   error.name === "AbortError";
 
+const sendCancelledError = new MessageNotSentError(
+  "Pi send was dropped because the run was cancelled.",
+);
+const sendAbandonedError = new Error(
+  "Pi send was dropped because the runtime was disposed.",
+);
+
+const isSendInterruption = (error: unknown) =>
+  error === sendCancelledError ||
+  error === sendAbandonedError ||
+  isAbortError(error);
+
 const toImageContent = (
   image: string,
   signal?: AbortSignal,
@@ -363,6 +378,11 @@ type OptimisticSend = {
   previousLastError: string | undefined;
 };
 
+type PendingSend = {
+  controller: AbortController;
+  accepted: boolean;
+};
+
 const markStateRunning = (state: PiThreadState): PiThreadState => {
   if (state.runStatus === "running" && state.metadata.status === "running") {
     return state;
@@ -393,7 +413,7 @@ export class PiThreadController implements PiThreadControllerLike {
   private disconnectTimer: ReturnType<typeof setTimeout> | null = null;
   private loadPromise: Promise<void> | null = null;
   private sendDispatchTail: Promise<void> = Promise.resolve();
-  private readonly pendingSendControllers = new Set<AbortController>();
+  private readonly pendingSends = new Set<PendingSend>();
   private runStateRevision = 0;
   private messageFlushScheduled = false;
   /** Synthetic seq for snapshots produced locally (via `getThread`), kept below
@@ -609,7 +629,7 @@ export class PiThreadController implements PiThreadControllerLike {
 
     const runStateChanged = this.runStateRevision !== send.runStateRevision;
 
-    if (isAbortError(error)) {
+    if (isSendInterruption(error)) {
       if (runStateChanged) return;
       this.setState({
         ...this.state,
@@ -657,7 +677,7 @@ export class PiThreadController implements PiThreadControllerLike {
       await this.dispatchMessage(message, behavior);
     } catch (error) {
       this.rollbackOptimisticSend(optimisticSend, error);
-      if (isAbortError(error)) return;
+      if (error === sendAbandonedError || isAbortError(error)) return;
       throw error;
     }
   }
@@ -706,7 +726,7 @@ export class PiThreadController implements PiThreadControllerLike {
       const promotedSend = promoted;
       if (promotedSend) {
         this.rollbackOptimisticSend(promotedSend, error);
-        if (isAbortError(error)) return;
+        if (error === sendAbandonedError || isAbortError(error)) return;
         throw error;
       }
 
@@ -715,7 +735,9 @@ export class PiThreadController implements PiThreadControllerLike {
       const index = entries.lastIndexOf(content);
       this.setState({
         ...this.state,
-        ...(!isAbortError(error) ? { lastError: errorText(error) } : undefined),
+        ...(!isSendInterruption(error)
+          ? { lastError: errorText(error) }
+          : undefined),
         ...(index !== -1
           ? {
               queue: {
@@ -725,7 +747,7 @@ export class PiThreadController implements PiThreadControllerLike {
             }
           : {}),
       });
-      if (isAbortError(error)) return;
+      if (error === sendAbandonedError || isAbortError(error)) return;
       throw error;
     }
   }
@@ -738,7 +760,11 @@ export class PiThreadController implements PiThreadControllerLike {
     },
   ) {
     const abortController = new AbortController();
-    this.pendingSendControllers.add(abortController);
+    const pending: PendingSend = {
+      controller: abortController,
+      accepted: false,
+    };
+    this.pendingSends.add(pending);
     const previousRequest = this.sendDispatchTail;
     const request = (async () => {
       try {
@@ -751,9 +777,15 @@ export class PiThreadController implements PiThreadControllerLike {
         );
         abortController.signal.throwIfAborted();
         options?.onRunStateResolved(this.state.runStatus === "running");
+        pending.accepted = true;
         await this.client.sendMessage(this.threadId, input);
+      } catch (error) {
+        if (abortController.signal.aborted) {
+          throw abortController.signal.reason;
+        }
+        throw error;
       } finally {
-        this.pendingSendControllers.delete(abortController);
+        this.pendingSends.delete(pending);
       }
     })();
     this.sendDispatchTail = request;
@@ -792,12 +824,18 @@ export class PiThreadController implements PiThreadControllerLike {
   }
 
   private abortCurrentSend() {
-    this.pendingSendControllers.values().next().value?.abort();
+    for (const pending of this.pendingSends) {
+      if (pending.accepted) continue;
+      pending.controller.abort(sendCancelledError);
+      return;
+    }
   }
 
   private abortPendingSends() {
-    for (const controller of this.pendingSendControllers) controller.abort();
-    this.pendingSendControllers.clear();
+    for (const pending of this.pendingSends) {
+      pending.controller.abort(sendAbandonedError);
+    }
+    this.pendingSends.clear();
   }
 
   public async setModel(input: { provider: string; modelId: string }) {

@@ -82,7 +82,10 @@ vi.mock("./ThreadController", async (importOriginal) => {
   return { ...original, PiThreadController };
 });
 
-import { ExportedMessageRepository } from "@assistant-ui/react";
+import {
+  ExportedMessageRepository,
+  MessageNotSentError,
+} from "@assistant-ui/react";
 import { createPiThreadState, type PiThreadState } from "./threadState";
 import type { PiThreadControllerLike } from "./ThreadController";
 import {
@@ -115,6 +118,35 @@ afterEach(() => {
 });
 
 describe("usePiRuntime error callbacks", () => {
+  it("does not report sends that never reached Pi", async () => {
+    mocks.state = createPiThreadState("t1");
+    mocks.repository = ExportedMessageRepository.fromArray([]);
+    const notSent = new MessageNotSentError();
+    mocks.controller.sendMessage.mockRejectedValueOnce(notSent);
+    const onError = vi.fn();
+
+    const App = () => {
+      usePiRuntime({
+        client: {} as PiClient,
+        onError,
+        initialThreadId: "t1",
+      });
+      return null;
+    };
+
+    root = createRoot(document.createElement("div"));
+    await act(async () => root!.render(createElement(App)));
+
+    const adapter = mocks.adapters.at(-1)!;
+    await expect(
+      adapter.onNew({
+        role: "user",
+        content: [{ type: "text", text: "hello" }],
+      }),
+    ).rejects.toBe(notSent);
+    expect(onError).not.toHaveBeenCalled();
+  });
+
   it.each(["throws", "rejects"] as const)(
     "preserves the controller error when onError %s",
     async (failureMode) => {

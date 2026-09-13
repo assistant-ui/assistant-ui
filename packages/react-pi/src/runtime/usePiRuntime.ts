@@ -2,6 +2,7 @@
 
 import {
   ExportedMessageRepository,
+  isMessageNotSentError,
   useAui,
   useAuiState,
   useExternalStoreRuntime,
@@ -320,7 +321,9 @@ const usePiThreadStore = (
         try {
           await controller.sendMessage(message);
         } catch (error) {
-          invokePiErrorCallback(onError, error);
+          if (!isMessageNotSentError(error)) {
+            invokePiErrorCallback(onError, error);
+          }
           throw error;
         }
       },
@@ -441,7 +444,9 @@ const useNewPiThreadStore = (
           removeOptimisticMessage();
         } catch (error) {
           removeOptimisticMessage();
-          invokePiErrorCallback(onError, error);
+          if (!isMessageNotSentError(error)) {
+            invokePiErrorCallback(onError, error);
+          }
           throw error;
         }
       },
