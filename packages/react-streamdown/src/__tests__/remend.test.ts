@@ -217,6 +217,12 @@ describe("tailBoundedRemend", () => {
     );
   });
 
+  it("opens a new root fence at a root marker inside a quoted fence", () => {
+    const text = "> ```js\n> foo() 1~2\n```\nx~y\n\nTail **bold";
+    expect(findRemendWindowStart(text)).toBe(0);
+    expect(tailBoundedRemend(text)).toBe(text);
+  });
+
   it("reads a backtick run with a backtick in its info string as inline code", () => {
     const text = "```code```\n\n20~25\n\nTail";
     expect(findRemendWindowStart(text)).toBe(text.indexOf("Tail"));
@@ -250,6 +256,22 @@ describe("tailBoundedRemend", () => {
         ],
       }),
     ).toBe("Final\n\n~~~\nDraft\n~~~\n\nFinal\n\nTail");
+  });
+
+  it("hands custom handlers each prose segment and the final block in order", () => {
+    const calls: string[] = [];
+    tailBoundedRemend("Draft\n\n~~~\nDraft\n~~~\n\nDraft\n\nTail", {
+      handlers: [
+        {
+          name: "record",
+          handle: (text) => {
+            calls.push(text);
+            return text;
+          },
+        },
+      ],
+    });
+    expect(calls).toEqual(["Draft\n\n", "\n\nDraft\n\n", "Tail"]);
   });
 
   it("keeps an unclosed fence inside the window", () => {
