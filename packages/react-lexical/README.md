@@ -17,12 +17,14 @@ import { LexicalComposerInput } from "@assistant-ui/react-lexical";
 export function Composer() {
   return (
     <ComposerPrimitive.Root>
-      <LexicalComposerInput placeholder="Ask anything..." />
+      <LexicalComposerInput aria-label="Message" placeholder="Ask anything..." />
       <ComposerPrimitive.Send />
     </ComposerPrimitive.Root>
   );
 }
 ```
+
+Use `aria-label` or `aria-labelledby` to name the editable textbox. Other HTML props and the forwarded ref apply to the outer wrapper.
 
 For custom chip rendering, pass a `directiveChip` render prop. Directives (e.g. `@user`, `/command`) survive cursor navigation, selection, and copy/paste as a single unit.
 

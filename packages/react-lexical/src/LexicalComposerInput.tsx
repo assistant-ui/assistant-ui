@@ -281,6 +281,8 @@ export const LexicalComposerInput = forwardRef<
       directivePluginProps,
       directiveChip,
       formatter: formatterProp,
+      "aria-label": ariaLabel,
+      "aria-labelledby": ariaLabelledBy,
       className,
       children,
       ...rest
@@ -319,7 +321,11 @@ export const LexicalComposerInput = forwardRef<
           >
             <PlainTextPlugin
               contentEditable={
-                <ContentEditable className="aui-lexical-input" />
+                <ContentEditable
+                  className="aui-lexical-input"
+                  aria-label={ariaLabel}
+                  aria-labelledby={ariaLabelledBy}
+                />
               }
               placeholder={
                 placeholder ? (
