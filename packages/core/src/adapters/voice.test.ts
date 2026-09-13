@@ -73,6 +73,88 @@ describe("createVoiceSession", () => {
     expect(controls.mute).not.toHaveBeenCalled();
   });
 
+  it("disconnects late controls only once after the session ends", async () => {
+    const abortController = new AbortController();
+    const controls = {
+      disconnect: vi.fn(),
+      mute: vi.fn(),
+      unmute: vi.fn(),
+    };
+    let helpers!: VoiceSessionHelpers;
+    let resolveControls!: (controls: VoiceSessionControls) => void;
+    const controlsPromise = new Promise<VoiceSessionControls>((resolve) => {
+      resolveControls = resolve;
+    });
+    const session = createVoiceSession(
+      { abortSignal: abortController.signal },
+      (sessionHelpers) => {
+        helpers = sessionHelpers;
+        return controlsPromise;
+      },
+    );
+    const error = new Error("connection failed");
+
+    helpers.end("error", error);
+    resolveControls(controls);
+    await controlsPromise;
+    abortController.abort();
+
+    expect(session.status).toEqual({
+      type: "ended",
+      reason: "error",
+      error,
+    });
+    expect(controls.disconnect).toHaveBeenCalledOnce();
+  });
+
+  it("disconnects controls that resolve after explicit cancellation", async () => {
+    const { controls, controlsPromise, resolveControls, session } =
+      createPendingTestSession();
+
+    session.disconnect();
+    resolveControls();
+    await controlsPromise;
+
+    expect(controls.disconnect).toHaveBeenCalledOnce();
+  });
+
+  it("does not retry late cleanup when disconnect throws", async () => {
+    const disconnectError = new Error("disconnect failed");
+    const abortController = new AbortController();
+    const controls = {
+      disconnect: vi.fn(() => {
+        throw disconnectError;
+      }),
+      mute: vi.fn(),
+      unmute: vi.fn(),
+    };
+    let helpers!: VoiceSessionHelpers;
+    let resolveControls!: (controls: VoiceSessionControls) => void;
+    const controlsPromise = new Promise<VoiceSessionControls>((resolve) => {
+      resolveControls = resolve;
+    });
+    const session = createVoiceSession(
+      { abortSignal: abortController.signal },
+      (sessionHelpers) => {
+        helpers = sessionHelpers;
+        return controlsPromise;
+      },
+    );
+    const error = new Error("connection failed");
+
+    helpers.end("error", error);
+    resolveControls(controls);
+    await controlsPromise;
+    abortController.abort();
+
+    expect(session.status).toEqual({
+      type: "ended",
+      reason: "error",
+      error,
+    });
+    expect(controls.disconnect).toHaveBeenCalledOnce();
+  });
+
   it("disconnects immediately when created with an already-aborted signal", async () => {
     const abortController = new AbortController();
     abortController.abort();
