@@ -107,6 +107,7 @@ export function SandboxHost({
     let frame: RenderedFrame | null = null;
     let bridge: SandboxBridge | null = null;
     let onMessage: ((event: MessageEvent) => void) | null = null;
+    const renderController = new AbortController();
 
     const { content: liveContent, sandbox: sb } = liveRef.current;
 
@@ -129,10 +130,12 @@ export function SandboxHost({
       ...(sb?.salt !== undefined && { salt: sb.salt }),
     });
 
-    const renderOpts =
-      sb?.unsafeDocumentWrite !== undefined
-        ? { unsafeDocumentWrite: sb.unsafeDocumentWrite }
-        : undefined;
+    const renderOpts = {
+      signal: renderController.signal,
+      ...(sb?.unsafeDocumentWrite !== undefined && {
+        unsafeDocumentWrite: sb.unsafeDocumentWrite,
+      }),
+    };
 
     scf
       .renderHtml(liveContent.html, container, renderOpts)
@@ -216,6 +219,7 @@ export function SandboxHost({
       const bridgeToDispose = bridge;
       bridge = null;
       if (bridgeToDispose) runCleanup(() => bridgeToDispose.dispose());
+      runCleanup(() => renderController.abort());
       const frameToDispose = frame;
       frame = null;
       if (frameToDispose) runCleanup(() => frameToDispose.dispose());
