@@ -5277,6 +5277,9 @@ importers:
       '@assistant-ui/x-buildutils':
         specifier: workspace:*
         version: link:../x-buildutils
+      '@assistant-ui/x-performance':
+        specifier: workspace:*
+        version: link:../x-performance
       '@lucide/vue':
         specifier: ^1.41.0
         version: 1.41.0(vue@3.5.42(typescript@7.0.2))

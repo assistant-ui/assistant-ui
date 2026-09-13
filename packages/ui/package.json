@@ -47,6 +47,7 @@
     "@assistant-ui/tap": "workspace:*",
     "@assistant-ui/vue": "workspace:*",
     "@assistant-ui/x-buildutils": "workspace:*",
+    "@assistant-ui/x-performance": "workspace:*",
     "@lucide/vue": "^1.41.0",
     "@testing-library/react": "^16.3.3",
     "@types/markdown-it": "^14.2.0",
