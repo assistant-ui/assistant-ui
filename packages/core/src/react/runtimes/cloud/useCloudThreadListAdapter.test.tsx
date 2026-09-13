@@ -10,6 +10,7 @@ import {
 } from "react";
 import { describe, expect, it, vi } from "vitest";
 import type { RemoteThreadListAdapter } from "../../../runtimes/remote-thread-list/types";
+import { getCloudThreadOwnership } from "./createCloudThreadListAdapter";
 import { useCloudThreadListAdapter } from "./useCloudThreadListAdapter";
 
 const makeThread = (id: string) => ({
@@ -47,6 +48,38 @@ describe("useCloudThreadListAdapter", () => {
     rerender({ scopeId: "workspace-b" });
     expect(result.current).not.toBe(first);
   });
+
+  it.each([
+    ["default to explicit", undefined, "workspace-a"],
+    ["explicit to default", "workspace-a", undefined],
+  ] as const)(
+    "does not transfer thread ownership from %s scope",
+    async (_label, initialScope, nextScope) => {
+      const list = vi
+        .fn()
+        .mockResolvedValueOnce({ threads: [makeThread("thread-a")] })
+        .mockResolvedValueOnce({ threads: [] });
+      const cloud = {
+        registerSdk: vi.fn(),
+        threads: { list },
+      } as unknown as AssistantCloud;
+      const { result, rerender } = renderHook(
+        ({ scopeId }: { scopeId: string | undefined }) =>
+          useCloudThreadListAdapter({ cloud, scopeId }),
+        { initialProps: { scopeId: initialScope } },
+      );
+      await result.current.list();
+      expect(getCloudThreadOwnership(result.current)!.has("thread-a")).toBe(
+        true,
+      );
+
+      rerender({ scopeId: nextScope });
+
+      expect(getCloudThreadOwnership(result.current)!.has("thread-a")).toBe(
+        false,
+      );
+    },
+  );
 
   it("keeps operations scoped to the committed Cloud options", async () => {
     const deleteA = vi.fn(async () => {});

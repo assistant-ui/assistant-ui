@@ -23,13 +23,19 @@ type CloudThreadOwnership = Pick<ReadonlySet<string>, "has">;
 
 const cloudThreadOwnership = new WeakMap<
   RemoteThreadListAdapter,
-  Set<string>
+  CloudThreadOwnership
 >();
-const defaultCloudThreadOwnership = new Set<string>();
 
 export const getCloudThreadOwnership = (
   adapter: RemoteThreadListAdapter,
 ): CloudThreadOwnership | undefined => cloudThreadOwnership.get(adapter);
+
+export const setCloudThreadOwnership = (
+  adapter: RemoteThreadListAdapter,
+  ownership: CloudThreadOwnership,
+): void => {
+  cloudThreadOwnership.set(adapter, ownership);
+};
 
 export type CloudThreadListAdapterOptions = {
   cloud?: AssistantCloud | undefined;
@@ -89,13 +95,29 @@ export const useCloudRuntimeAdapters = (
 ): RuntimeAdapters => {
   const scope = scopeRef?.current ?? DEFAULT_CLOUD_SCOPE;
   const [committedScopeRef] = useState(() => createCommittedScopeRef(scope));
+  const [ownershipState] = useState(() => ({
+    required: scope !== DEFAULT_CLOUD_SCOPE,
+  }));
   const [committedOwnershipRef] = useState<{
     current: CloudThreadOwnership | undefined;
-  }>(() => ({ current: ownership }));
+  }>(() => ({
+    current: ownershipState.required ? ownership : undefined,
+  }));
   useInsertionEffect(() => {
-    committedOwnershipRef.current = ownership;
+    if (!Object.is(committedScopeRef.current, scope)) {
+      ownershipState.required = true;
+    }
+    committedOwnershipRef.current = ownershipState.required
+      ? ownership
+      : undefined;
     committedScopeRef.update(scope);
-  }, [committedOwnershipRef, committedScopeRef, ownership, scope]);
+  }, [
+    committedOwnershipRef,
+    committedScopeRef,
+    ownership,
+    ownershipState,
+    scope,
+  ]);
   const history = useScopedAssistantCloudThreadHistoryAdapter(
     cloudRef,
     committedScopeRef,
@@ -180,8 +202,7 @@ export const createCloudThreadListAdapter = (
     return inMemory;
   }
 
-  const ownedRemoteIds =
-    scopeId === undefined ? defaultCloudThreadOwnership : new Set<string>();
+  const ownedRemoteIds = new Set<string>();
 
   const unstable_useAdapters = function useCloudAdapters(): RuntimeAdapters {
     const cloudRef = { current: cloud };
@@ -277,7 +298,9 @@ export const createCloudThreadListAdapter = (
     },
     delete: async (threadId) => {
       await getOptions().delete?.(threadId);
-      return cloud.threads.delete(threadId);
+      const result = await cloud.threads.delete(threadId);
+      ownedRemoteIds.delete(threadId);
+      return result;
     },
 
     generateTitle: async (threadId, messages) => {

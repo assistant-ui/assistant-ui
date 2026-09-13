@@ -4,6 +4,7 @@ import {
   autoCloud,
   createCloudThreadListAdapter,
   getCloudThreadOwnership,
+  setCloudThreadOwnership,
   type CloudThreadListAdapterOptions,
   useCloudRuntimeAdapters,
 } from "./createCloudThreadListAdapter";
@@ -23,6 +24,7 @@ export const useCloudThreadListAdapter = (
       createCloudThreadListAdapter(() => ({
         ...adapterRef.current,
         cloud,
+        scopeId: scope,
       })),
     // oxlint-disable-next-line react-hooks/exhaustive-deps -- the factory pins the cloud instance; changing callbacks are read from the committed ref
     [cloud, scope],
@@ -48,9 +50,11 @@ export const useCloudThreadListAdapter = (
 
   return useMemo<RemoteThreadListAdapter>(() => {
     if (base.unstable_useAdapters === undefined) return base;
-    return {
+    const adapter = {
       ...base,
       unstable_useAdapters,
     };
-  }, [base, unstable_useAdapters]);
+    if (ownership) setCloudThreadOwnership(adapter, ownership);
+    return adapter;
+  }, [base, ownership, unstable_useAdapters]);
 };
