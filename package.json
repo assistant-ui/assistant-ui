@@ -35,7 +35,8 @@
     "sync-templates": "bash scripts/sync-templates.sh",
     "test": "turbo test && pnpm test:react-compiler && pnpm test:types",
     "test:react-compiler": "turbo test:react-compiler --filter=@assistant-ui/ai-sdk --filter=@assistant-ui/core --filter=@assistant-ui/store",
-    "test:types": "pnpm -r --workspace-concurrency=4 --no-bail exec sh -c '! test -f tsconfig.json || tsc --noEmit'",
+    "test:types": "node scripts/test-types.mjs",
+    "test:types:script": "node --test scripts/test-types.test.mjs",
     "prepare": "husky && pnpm --filter @assistant-ui/react-devtools run build:css",
     "deps:check": "npx taze major -f -r",
     "deps:update": "bash scripts/update-deps.sh"

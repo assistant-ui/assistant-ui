@@ -38,17 +38,19 @@ afterEach(() => {
 describe("optional client view", () => {
   it("returns the same bound accessor for available scopes", () => {
     const aui = setup();
+    const optional = aui.optional as AnyClient;
 
-    expect(aui.optional.thread).toBe(aui.thread);
-    expect(aui.optional.thread?.getState().title).toBe("hello");
+    expect(optional.thread).toBe(aui.thread);
+    expect(optional.thread?.getState().title).toBe("hello");
   });
 
   it("resolves unavailable scopes to undefined while the base client throws", () => {
     const aui = setup();
+    const optional = aui.optional as AnyClient;
 
-    expect(aui.optional.threadListItem).toBeUndefined();
-    expect(aui.optional.threadListItem?.remoteId).toBeUndefined();
-    expect(aui.optional.notARegisteredScope).toBeUndefined();
+    expect(optional.threadListItem).toBeUndefined();
+    expect(optional.threadListItem?.remoteId).toBeUndefined();
+    expect(optional.notARegisteredScope).toBeUndefined();
     expect(() => aui.threadListItem.remoteId).toThrow(
       'The current scope does not have a "threadListItem" property.',
     );
