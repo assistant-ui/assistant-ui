@@ -961,8 +961,31 @@ export class ExternalStoreThreadRuntimeCore
   ): Promise<void> {
     if (!this._store.onRespondToToolApproval)
       throw new Error("Runtime does not support tool approvals.");
+    const message = this.messages.findLast(
+      (candidate) =>
+        candidate.role === "assistant" &&
+        candidate.content.some(
+          (part) =>
+            part.type === "tool-call" &&
+            part.approval?.id === options.approvalId,
+        ),
+    );
+    const toolCall = message?.content.find(
+      (part) =>
+        part.type === "tool-call" && part.approval?.id === options.approvalId,
+    );
     try {
-      return Promise.resolve(this._store.onRespondToToolApproval(options));
+      return Promise.resolve(this._store.onRespondToToolApproval(options)).then(
+        () => {
+          if (message && toolCall?.type === "tool-call") {
+            this._notifyToolApprovalAnswered(
+              message.id,
+              toolCall.toolCallId,
+              options.approved,
+            );
+          }
+        },
+      );
     } catch (error) {
       return Promise.reject(error);
     }

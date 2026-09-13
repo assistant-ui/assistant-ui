@@ -1012,6 +1012,7 @@ declare abstract class BaseThreadRuntimeCore extends BaseSubscribable implements
   getBranches(messageId: string): string[];
   switchToBranch(branchId: string): void;
   _notifyEventSubscribers<E extends ThreadRuntimeEventType>(event: E, payload: ThreadRuntimeEventPayload[E]): void;
+  protected _notifyToolApprovalAnswered(messageId: string, toolCallId: string, approved: boolean): void;
   submitFeedback(_param1: SubmitFeedbackOptions): void;
   speech: SpeechState | undefined;
   speak(messageId: string): void;
@@ -4610,6 +4611,12 @@ type ThreadData$2 = {
 };
 
 type ThreadEvents = {
+  "thread.toolApprovalAnswered": {
+    threadId: string;
+    messageId: string;
+    toolCallId: string;
+    approved: boolean;
+  };
   "thread.runStart": {
     threadId: string;
   };
@@ -5221,6 +5228,11 @@ type ThreadRuntimeCoreBinding = SubscribableWithState<ThreadRuntimeCore, ThreadR
 type ThreadRuntimeEventCallback<E extends ThreadRuntimeEventType> = (payload: ThreadRuntimeEventPayload[E]) => void;
 
 type ThreadRuntimeEventPayload = {
+  toolApprovalAnswered: {
+    messageId: string;
+    toolCallId: string;
+    approved: boolean;
+  };
   runStart: Record<string, never>;
   runEnd: Record<string, never>;
   initialize: Record<string, never>;

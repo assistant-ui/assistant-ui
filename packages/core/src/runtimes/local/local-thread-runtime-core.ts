@@ -961,6 +961,7 @@ export class LocalThreadRuntimeCore
     const { parentId } = this.repository.getMessage(message.id);
     this.repository.addOrUpdateMessage(parentId, message);
     this._notifySubscribers();
+    this._notifyToolApprovalAnswered(message.id, target.toolCallId, approved);
 
     if (
       this.repository.headId === message.id &&

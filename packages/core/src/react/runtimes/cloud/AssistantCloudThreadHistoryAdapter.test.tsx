@@ -178,6 +178,18 @@ describe("useAssistantCloudThreadHistoryAdapter", () => {
       threadId: "thread-1",
       messageId: "local-message-1",
     });
+    listeners.get("thread.toolApprovalAnswered")!({
+      threadId: "thread-1",
+      messageId: "local-message-1",
+      toolCallId: "tool-approved",
+      approved: true,
+    });
+    listeners.get("thread.toolApprovalAnswered")!({
+      threadId: "thread-1",
+      messageId: "local-message-1",
+      toolCallId: "tool-rejected",
+      approved: false,
+    });
     listeners.get("composer.attachmentAdd")!({
       threadId: "thread-1",
       contentType: "image/png",
@@ -237,6 +249,16 @@ describe("useAssistantCloudThreadHistoryAdapter", () => {
         expect.objectContaining({ kind: "message_regenerated" }),
         expect.objectContaining({ kind: "branch_switched" }),
         expect.objectContaining({ kind: "message_copied" }),
+        expect.objectContaining({
+          kind: "tool_approved",
+          message_id: "remote-message-1",
+          props: { toolCallId: "tool-approved" },
+        }),
+        expect.objectContaining({
+          kind: "tool_rejected",
+          message_id: "remote-message-1",
+          props: { toolCallId: "tool-rejected" },
+        }),
         expect.objectContaining({
           kind: "attachment_added",
           props: { type: "image/png" },

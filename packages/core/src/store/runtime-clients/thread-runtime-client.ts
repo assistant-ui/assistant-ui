@@ -70,6 +70,13 @@ const useThreadClient = ({
       unsubscribers.push(unsubscribe);
     }
 
+    unsubscribers.push(
+      runtime.unstable_on("toolApprovalAnswered", (payload) => {
+        const threadId = runtime.getState()?.threadId || "unknown";
+        emit("thread.toolApprovalAnswered", { threadId, ...payload });
+      }),
+    );
+
     return () => {
       for (const unsub of unsubscribers) unsub();
     };

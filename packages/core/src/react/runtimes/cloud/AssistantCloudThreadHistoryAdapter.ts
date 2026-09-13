@@ -817,6 +817,24 @@ const useAssistantCloudEngagementEvents = (
       aui.on({ scope: "thread", event: "message.copied" }, (payload) => {
         reporter.messageCopied(payload.threadId, payload.messageId);
       }),
+      aui.on(
+        { scope: "thread", event: "thread.toolApprovalAnswered" },
+        (payload) => {
+          if (payload.approved) {
+            reporter.toolApproved(
+              payload.threadId,
+              payload.messageId,
+              payload.toolCallId,
+            );
+          } else {
+            reporter.toolRejected(
+              payload.threadId,
+              payload.messageId,
+              payload.toolCallId,
+            );
+          }
+        },
+      ),
       aui.on({ scope: "thread", event: "message.speak" }, (payload) => {
         reporter.speechStarted(payload.threadId, payload.messageId);
       }),
