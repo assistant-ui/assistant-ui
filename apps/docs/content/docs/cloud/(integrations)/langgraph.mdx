@@ -1,0 +1,51 @@
+---
+title: LangGraph, LangChain and ADK
+description: Add the cloud thread list, automatic titles and message feedback to runtimes whose backend keeps the transcript.
+---
+
+The LangGraph, LangChain and Google ADK runtimes keep the conversation on their own backend: a LangGraph thread, a LangChain server, an ADK session. With a `cloud`, they add the project's thread list on top: threads listed per user, created on the first message, titled by the cloud from the messages the runtime sends it, renamed, archived and deleted, each cloud thread's `external_id` holding your backend's id. Message feedback and engagement events go to the cloud as well.
+
+What the cloud does **not** do here: it stores no transcript and sends no run reports, because these runtimes never hand their messages to the cloud history adapter. Runs and Models stay empty for such an app unless your server exports [traces](/docs/cloud/traces). For the full integration, use the [AI SDK runtime](/docs/cloud/ai-sdk-assistant-ui) or the [local runtime](/docs/cloud/local-runtime).
+
+## The `cloud` option
+
+`useLangGraphRuntime` takes `cloud` next to `create`, `load` and `delete`. `create` returns your LangGraph thread id, which is stored as the cloud thread's `external_id`; `load` receives it back when the user opens the thread; `delete` receives it before the cloud thread is deleted.
+
+```tsx title="app/chat/runtime-provider.tsx"
+const cloud = useMemo(
+  () =>
+    new AssistantCloud({
+      baseUrl: process.env.NEXT_PUBLIC_ASSISTANT_BASE_URL!,
+      authToken: () => getToken({ template: "assistant-ui" }),
+    }),
+  [getToken],
+);
+
+const runtime = useLangGraphRuntime({
+  cloud,
+  stream: async (messages, { initialize }) => {
+    const { externalId } = await initialize();
+    if (!externalId) throw new Error("Thread not found");
+    return sendMessage({ threadId: externalId, messages });
+  },
+  create: async () => ({ externalId: (await createThread()).thread_id }),
+  load: async (externalId) => ({
+    messages: (await getThreadState(externalId)).values.messages ?? [],
+  }),
+  delete: async (externalId) => deleteThread(externalId),
+});
+```
+
+`useStreamRuntime` from `@assistant-ui/react-langchain` and `useAdkRuntime` from `@assistant-ui/react-google-adk` take the same `cloud`, `create` and `delete` options and behave the same way; when `create` is omitted, the thread's own initialization supplies the external id. `onThreadIdChange` reports the settled cloud thread id on all three. Passing `unstable_threadListAdapter` replaces the cloud list with your own adapter, and `cloud`, `create` and `delete` are then ignored.
+
+The environment variable, the client on React Native and Ink, and the thread list UI are the same as on the [AI SDK page](/docs/cloud/ai-sdk-assistant-ui#setup); the LangGraph runtime itself, its `stream` function and the thread list component are on [LangGraph threads](/docs/runtimes/langgraph/threads).
+
+## Filling Runs and Models
+
+These runtimes report no runs from the browser, so export your server's spans instead. A LangGraph or LangChain deployment instrumented with OpenTelemetry sends its GenAI spans to `POST /v1/traces`, and each trace becomes a run with its steps, tool calls, tokens and model. Set `gen_ai.conversation.id` on the spans to the cloud thread id and each run lands on its thread. See [Traces](/docs/cloud/traces).
+
+## Next
+
+- [LangGraph runtime](/docs/runtimes/langgraph/overview) for the runtime itself.
+- [Authentication](/docs/cloud/authorization) for the token providers.
+- The [with-langgraph](https://github.com/assistant-ui/assistant-ui/tree/main/examples/with-langgraph) example on GitHub.

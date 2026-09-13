@@ -1,0 +1,116 @@
+---
+title: Run reports
+description: What the SDK reports about every assistant response, which fields each integration fills, and how to enrich or silence the reports.
+---
+
+Every assistant response is a **run**. When it finishes, the SDK sends one report to the project: how it ended, how long it took, which model and tools were involved, and what it cost. Reports feed the Runs, Models, Users and Overview pages, and they are on by default for every integration that persists messages.
+
+A report never carries the user's messages. It does carry the assistant's output text, tool arguments and results, and the error message, so it can contain sensitive content; [`beforeReport`](#enriching-or-dropping-reports) can redact or drop a report, and `telemetry: false` turns reporting off.
+
+## The report
+
+One report is one `POST /v1/runs`. The SDK builds it with `createRunReport`, so every integration sends the same shape.
+
+| Field | Meaning |
+|---|---|
+| `thread_id` | The cloud thread the run belongs to. |
+| `status` | `completed`, `incomplete` or `error`. |
+| `outcome_type` | Why an incomplete or failed run ended; see [Outcomes](#outcomes). |
+| `error`, `error_code` | The failed run's message and code. The code is the error's `code` when it has one, else its class name, for instance `AI_APICallError`. |
+| `message_id` | The stored assistant message the run produced, so the dashboard can open it. |
+| `duration_ms`, `first_token_ms` | Wall clock time from the request to the last chunk, and to the first streamed token. |
+| `steps` | One entry per model step: tokens, `tool_calls`, `start_ms`, `end_ms`, `finish_reason`. |
+| `tool_calls` | Every tool invocation with `tool_name`, `tool_call_id`, `tool_args`, `tool_result`, `tool_source` (`frontend`, `mcp` or `backend`) and any nested `sampling_calls`. |
+| `input_tokens`, `output_tokens`, `reasoning_tokens`, `cached_input_tokens` | Usage for the whole run. |
+| `model_id`, `provider` | The model that served the run and the provider that served the model. Cost is priced from them. |
+| `output_text` | The assistant's output. |
+| `trace_id` | The W3C trace id of the server's spans. A report with a trace id merges into the run those spans created; see [Traces](/docs/cloud/traces). |
+| `environment`, `release`, `tags` | The deployment dimensions from the `telemetry` configuration; facets on the Runs page. |
+| `metadata` | Attributes attached through `beforeReport`, shown on the run's page. |
+
+The SDK cuts text fields at 50,000 characters and the error at 2,048 before sending. The endpoint is append only: a report may carry `cost_usd` or `cost_details` to override the catalog price, and any key the project does not know is kept in the run's attributes rather than refused, so an older project accepts a newer SDK. The size caps are on [Limits](/docs/cloud/limits).
+
+## What each integration fills
+
+| Field | Local runtime, `aui/v0` | AI SDK runtime, `ai-sdk/v6` | `useCloudChat` |
+|---|---|---|---|
+| `status`, `error`, `error_code` | yes | yes | yes |
+| `outcome_type` | `length`, `content_filter` and `aborted` from the message status | the same, plus a `finishReason` from the route | all four, from the AI SDK finish event |
+| `first_token_ms`, `duration_ms`, step timing | yes | yes | yes |
+| Per step `finish_reason` | no | `tool-calls` on a step that called a tool | the finish event's reason |
+| `tool_calls` | without `tool_source` | yes | yes |
+| Usage, `model_id`, `provider`, `trace_id` | from message metadata | from message metadata | from message metadata |
+
+The LangGraph, LangChain and Google ADK runtimes keep their own transcripts and send no reports; their runs come from [traces](/docs/cloud/traces).
+
+## Model and usage from the route
+
+Usage, model and provider exist only on the server, so the route has to put them into the message metadata the SDK reads. With the AI SDK that is a `messageMetadata` callback on the stream response, shown in the [AI SDK guide](/docs/cloud/ai-sdk-assistant-ui#fill-in-model-and-usage-on-the-route); the SDK reads these keys from it:
+
+| Key | Becomes |
+|---|---|
+| `usage` | The run's token counts: `inputTokens`, `outputTokens`, `reasoningTokens` and `cachedInputTokens`, or the older `promptTokens` and `completionTokens`. Without it, per step `steps[].usage` entries are summed. |
+| `modelId` | `model_id`. A per step `response.modelId` is read when the run level id is absent. |
+| `provider` | `provider`. |
+| `finishReason` | `outcome_type` for `length` and `content-filter`, and the `error` status for `error`. |
+| `traceId` | `trace_id`. `withAssistantCloudTraceMetadata` sets it for you. |
+| `samplingCalls` | Nested model calls made by tools, keyed by tool call id; see [Sub agent model tracking](/docs/cloud/traces#sub-agent-model-tracking). |
+
+On the local runtime the same values ride under `metadata.custom` of the message your adapter yields. Without them the report still arrives, without model, provider and usage: the dashboard lists such runs under "No model reported" and cannot price them.
+
+## Outcomes
+
+| `outcome_type` | `status` | Meaning | Reported by |
+|---|---|---|---|
+| `aborted` | `incomplete` | The user stopped the run. | the SDK |
+| `disconnected` | `incomplete` | The stream dropped before completion. | `useCloudChat` |
+| `length` | `incomplete` | The model reached its output limit. | the SDK, and server spans |
+| `content_filter` | `incomplete` | The provider filtered the response. | the SDK, and server spans |
+| `timeout`, `rate_limited`, `provider_error`, `server_error` | `error` | The run failed inside the cloud. | runs the cloud executes for an [assistant](/docs/cloud/settings#llm-providers-and-assistants) |
+
+A failed run has `status: "error"` and, when the cause is known, an outcome from the second group. The Overview and the Runs page turn these into the completion rate and the outcome facets. Three further values, `validation_failed`, `budget_denied` and `persistence_error`, are reserved in the vocabulary and appear in the Runs filter, but nothing produces them yet.
+
+## Deployment dimensions
+
+`environment`, `release` and `tags` on the `telemetry` configuration are stamped onto every report the client sends, and become facets on the Runs page, so a regression can be narrowed to one release or one environment.
+
+```tsx
+const cloud = new AssistantCloud({
+  baseUrl: process.env.NEXT_PUBLIC_ASSISTANT_BASE_URL!,
+  anonymous: true,
+  telemetry: {
+    environment: "production",
+    release: "2026.09.1",
+    tags: ["web", "eu"],
+  },
+});
+```
+
+`release` is your application's version, not the SDK's. The SDK identifies itself separately: every request carries an `Aui-Sdk` header naming `assistant-cloud` and the integration packages on it, and **Settings › Telemetry** lists the versions a project has seen.
+
+## Enriching or dropping reports
+
+`beforeReport` runs last, with the assembled report. Return a modified report to add attributes, or `null` to drop it.
+
+```tsx
+const cloud = new AssistantCloud({
+  baseUrl: process.env.NEXT_PUBLIC_ASSISTANT_BASE_URL!,
+  authToken: getToken,
+  telemetry: {
+    beforeReport: (report) => {
+      if (report.thread_id === internalTestThread) return null;
+      return { ...report, metadata: { ...report.metadata, plan: "pro" } };
+    },
+  },
+});
+```
+
+`metadata` is stored as the run's attributes and shown on the run's page; keep it to a few short keys.
+
+## Turning telemetry off
+
+| Setting | Effect |
+|---|---|
+| `telemetry: false` | No run reports and no [engagement events](/docs/cloud/engagement). Threads and messages are still stored. |
+| `telemetry: { events: false }` | Run reports stay on, engagement events stop. |
+| `telemetry: true` or omitted | Everything on. |
