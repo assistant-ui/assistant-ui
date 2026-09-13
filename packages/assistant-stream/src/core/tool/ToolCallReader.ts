@@ -237,6 +237,7 @@ class ForEachHandle<T> implements Handle {
         return;
       }
 
+      // The parser's single partial path can only leave the trailing array element incomplete.
       for (; this.nextIndex < array.length; this.nextIndex++) {
         const elementPath = [...this.fieldPath, this.nextIndex];
         if (
