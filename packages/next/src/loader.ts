@@ -27,6 +27,7 @@ function indirectionVariant(resourcePath: string): Target | null {
   const path =
     queryIndex === -1 ? resourcePath : resourcePath.slice(0, queryIndex);
   const extension = nodePath.extname(path);
+  if (extension !== ".js") return null;
   const base = nodePath.basename(path, extension);
   if (base === SERVER_INDIRECTION) return "server";
   if (base === CLIENT_INDIRECTION) return "client";

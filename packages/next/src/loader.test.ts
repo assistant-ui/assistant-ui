@@ -24,6 +24,8 @@ describe("generativeLoader", () => {
   it.each([
     "bundler-redirect.server-tools.ts",
     "bundler-redirect.client-view.tsx",
+    "bundler-redirect.server.ts",
+    "bundler-redirect.client.tsx",
   ])("treats %s as an ordinary user module", async (filename) => {
     const result = await runLoader(
       `/app/${filename}`,
