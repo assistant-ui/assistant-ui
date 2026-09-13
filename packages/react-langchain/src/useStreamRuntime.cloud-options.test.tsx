@@ -4,6 +4,7 @@ import { renderHook } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
 import type { AssistantCloud } from "assistant-cloud";
 import type { AssistantRuntime } from "@assistant-ui/core";
+import type { UseStreamRuntimeOptions } from "./types";
 
 const mocks = vi.hoisted(() => ({
   cloudAdapter: {},
@@ -40,13 +41,13 @@ describe("useStreamRuntime Cloud options", () => {
       mocks.runtime as AssistantRuntime,
     );
 
-    renderHook(() =>
-      useStreamRuntime({
-        apiUrl: "/api",
-        cloud,
-        scopeId: "workspace-1",
-      } as never),
-    );
+    const options = {
+      apiUrl: "/api",
+      cloud,
+      scopeId: "workspace-1",
+    } satisfies UseStreamRuntimeOptions;
+
+    renderHook(() => useStreamRuntime(options));
 
     expect(mocks.useCloudThreadListAdapter).toHaveBeenCalledWith(
       expect.objectContaining({
