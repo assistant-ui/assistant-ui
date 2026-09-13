@@ -7,8 +7,44 @@ const TAB = 9;
 const CR = 13;
 const BACKSLASH = 92;
 const DOLLAR = 36;
+const GT = 62;
 
 const isSpace = (c: number) => c === SPACE || c === TAB || c === CR;
+
+function hasBacktick(text: string, from: number, to: number): boolean {
+  const i = text.indexOf("`", from);
+  return i !== -1 && i < to;
+}
+
+function backtickRun(text: string, from: number, to: number): number {
+  let end = from;
+  while (end < to && text.charCodeAt(end) === BACKTICK) end += 1;
+  return end;
+}
+
+function closeCodeSpan(
+  text: string,
+  from: number,
+  lineEnd: number,
+  length: number,
+): number {
+  for (let s = from; s < lineEnd;) {
+    const next = text.indexOf("`", s);
+    if (next === -1 || next >= lineEnd) return -1;
+    const end = backtickRun(text, next, lineEnd);
+    if (end - next === length) return end;
+    s = end;
+  }
+  return -1;
+}
+
+function isEscaped(text: string, at: number): boolean {
+  let backslashes = 0;
+  for (let i = at - 1; i >= 0 && text.charCodeAt(i) === BACKSLASH; i -= 1) {
+    backslashes += 1;
+  }
+  return backslashes % 2 === 1;
+}
 
 function onlyWhitespace(text: string, from: number, to: number): boolean {
   for (let i = from; i < to; i += 1) {
@@ -17,56 +53,130 @@ function onlyWhitespace(text: string, from: number, to: number): boolean {
   return true;
 }
 
+type BlockScan = {
+  boundary: number;
+  protectedRanges: number[];
+};
+
 /**
- * Returns the start of the last block outside open code fences and `$$` math.
- * Completion can use this boundary, but escapes must also reach earlier text.
+ * Single pass over the message. `boundary` is the start of the last block
+ * outside open code fences and `$$` math. `protectedRanges` holds closed
+ * fences and closed `$$` blocks as flat start/end pairs. A range always starts
+ * at a line start because remend drops a single trailing space from its input,
+ * so a cut inside a line would lose the space before the range; that rule also
+ * keeps a `$$` inside a backtick span at a line start out of the set. A line
+ * start may carry blockquote markers, the one container prefix
+ * `normalizeMathDelimiters` emits around display math; a fence closes only on
+ * a marker in its own container and a quoted fence ends with its blockquote,
+ * as `fenceEnd` in preprocess reads them. Backtick
+ * spans are skipped while scanning for `$$`; an unclosed span carries into the
+ * following lines of its paragraph, and a blank line, a fence marker, or a
+ * line-start `$$` ends it the way they end a paragraph. An escaped backtick
+ * opens no span, and a backtick run whose info string holds another backtick
+ * is a code span, not a fence opener.
  */
-export function findRemendWindowStart(text: string): number {
+function scanBlocks(text: string): BlockScan {
   const n = text.length;
   let inFence = false;
   let fenceChar = 0;
   let fenceRun = 0;
+  let fenceStart = 0;
+  let fenceQuoted = false;
   let inMath = false;
+  let mathStart = -1;
+  let spanRun = 0;
   let boundary = 0;
   let pending = -1;
+  const protectedRanges: number[] = [];
 
   for (let lineStart = 0; lineStart <= n;) {
     let lineEnd = text.indexOf("\n", lineStart);
     if (lineEnd === -1) lineEnd = n;
 
     let i = lineStart;
-    while (i < lineEnd && isSpace(text.charCodeAt(i))) i += 1;
+    let quoted = false;
+    while (i < lineEnd) {
+      const c = text.charCodeAt(i);
+      if (c === GT) quoted = true;
+      else if (!isSpace(c)) break;
+      i += 1;
+    }
 
     const first = i < lineEnd ? text.charCodeAt(i) : -1;
     let marker = false;
 
+    if (inFence && fenceQuoted && !quoted && first !== -1) {
+      inFence = false;
+      if (!inMath) {
+        protectedRanges.push(fenceStart, lineStart - 1);
+        boundary = lineStart;
+        pending = -1;
+      }
+    }
+
     if ((first === BACKTICK || first === TILDE) && i - lineStart <= 3) {
       let run = i;
       while (run < lineEnd && text.charCodeAt(run) === first) run += 1;
-      if (run - i >= 3) {
+      if (
+        run - i >= 3 &&
+        (inFence || first === TILDE || !hasBacktick(text, run, lineEnd))
+      ) {
         marker = true;
+        spanRun = 0;
         if (!inFence) {
           inFence = true;
           fenceChar = first;
           fenceRun = run - i;
+          fenceStart = lineStart;
+          fenceQuoted = quoted;
         } else if (
           first === fenceChar &&
+          quoted === fenceQuoted &&
           run - i >= fenceRun &&
           onlyWhitespace(text, run, lineEnd)
         ) {
           inFence = false;
+          if (!inMath) protectedRanges.push(fenceStart, lineEnd);
         }
       }
     }
 
     if (!inFence && !marker) {
       let s = lineStart;
-      while (s < lineEnd - 1) {
+      if (spanRun !== 0) {
         if (
-          text.charCodeAt(s) === DOLLAR &&
-          text.charCodeAt(s + 1) === DOLLAR
+          first === -1 ||
+          (first === DOLLAR && text.charCodeAt(i + 1) === DOLLAR)
         ) {
-          if (s === 0 || text.charCodeAt(s - 1) !== BACKSLASH) {
+          spanRun = 0;
+        } else {
+          const end = closeCodeSpan(text, lineStart, lineEnd, spanRun);
+          if (end === -1) {
+            s = lineEnd;
+          } else {
+            s = end;
+            spanRun = 0;
+          }
+        }
+      }
+      while (s < lineEnd - 1) {
+        const c = text.charCodeAt(s);
+        if (c === BACKTICK && !inMath && !isEscaped(text, s)) {
+          const open = backtickRun(text, s, lineEnd);
+          const end = closeCodeSpan(text, open, lineEnd, open - s);
+          if (end === -1) {
+            spanRun = open - s;
+            s = lineEnd;
+          } else {
+            s = end;
+          }
+        } else if (c === DOLLAR && text.charCodeAt(s + 1) === DOLLAR) {
+          if (!isEscaped(text, s)) {
+            if (inMath) {
+              if (mathStart !== -1) protectedRanges.push(mathStart, s + 2);
+            } else {
+              mathStart = s === i ? lineStart : -1;
+            }
             inMath = !inMath;
           }
           s += 2;
@@ -86,7 +196,15 @@ export function findRemendWindowStart(text: string): number {
     lineStart = lineEnd + 1;
   }
 
-  return boundary;
+  return { boundary, protectedRanges };
+}
+
+/**
+ * Returns the start of the last block outside open code fences and `$$` math.
+ * Completion can use this boundary, but escapes must also reach earlier text.
+ */
+export function findRemendWindowStart(text: string): number {
+  return scanBlocks(text).boundary;
 }
 
 /**
@@ -95,7 +213,8 @@ export function findRemendWindowStart(text: string): number {
  * disabled `links` handler. Every other option completes a dangling opener,
  * which mutates or deletes a block that has already settled, so the prefix pass
  * disables all of them. The two escapes skip backtick fences and inline spans
- * but not `~~~` fences, indented code, or math.
+ * but not `~~~` fences or math, so the prefix pass hands remend only the text
+ * between the closed fences and `$$` blocks the scan found.
  */
 type PrefixSafeOption =
   | "singleTilde"
@@ -119,17 +238,36 @@ const COMPLETION_OFF = {
 
 /**
  * Repairs incomplete Markdown in the final block and applies text escapes to
- * earlier blocks. Custom handlers receive the prefix and final block separately.
+ * earlier blocks. A closed fence or `$$` block that opens the final block is
+ * copied raw and only the text after it is repaired. Custom handlers receive the final block and each run of
+ * earlier prose between protected blocks as separate calls.
  */
 export function tailBoundedRemend(
   text: string,
   options?: RemendOptions,
 ): string {
-  const start = findRemendWindowStart(text);
-  if (start <= 0) return remend(text, options);
+  const { boundary: start, protectedRanges } = scanBlocks(text);
+  if (start <= 0 && protectedRanges[0] !== 0) return remend(text, options);
 
-  return (
-    remend(text.slice(0, start), { ...options, ...COMPLETION_OFF }) +
-    remend(text.slice(start), options)
-  );
+  const prefixOptions = { ...options, ...COMPLETION_OFF };
+  let out = "";
+  let cursor = 0;
+  let k = 0;
+  for (; k + 1 < protectedRanges.length; k += 2) {
+    const from = protectedRanges[k]!;
+    const to = protectedRanges[k + 1]!;
+    if (to > start) break;
+    out +=
+      remend(text.slice(cursor, from), prefixOptions) + text.slice(from, to);
+    cursor = to;
+  }
+
+  out += remend(text.slice(cursor, start), prefixOptions);
+
+  if (protectedRanges[k] === start) {
+    const to = protectedRanges[k + 1]!;
+    return out + text.slice(start, to) + remend(text.slice(to), options);
+  }
+
+  return out + remend(text.slice(start), options);
 }
