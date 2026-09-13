@@ -219,6 +219,15 @@ describe("tailBoundedRemend", () => {
     expect(tailBoundedRemend(tilde)).toBe(tilde);
   });
 
+  it("keeps the boundary out of math when a quoted fence ends inside it", () => {
+    const closed = "$$\n> ```js\n> a~b\nmore\n$$\n\nTail";
+    expect(findRemendWindowStart(closed)).toBe(closed.indexOf("Tail"));
+    expect(tailBoundedRemend(closed)).toBe(closed);
+    const open = "$$\n> ```js\n> a~b\nmore";
+    expect(findRemendWindowStart(open)).toBe(0);
+    expect(blocksOf(tailBoundedRemend(open))).toEqual(blocksOf(remend(open)));
+  });
+
   it("closes a quoted fence on a quoted marker", () => {
     expect(tailBoundedRemend("> ```js\n> foo() 1~2\n> ```\n\nx~y **bold")).toBe(
       "> ```js\n> foo() 1~2\n> ```\n\nx\\~y **bold**",

@@ -107,9 +107,11 @@ function scanBlocks(text: string): BlockScan {
 
     if (inFence && fenceQuoted && !quoted && first !== -1) {
       inFence = false;
-      if (!inMath) protectedRanges.push(fenceStart, lineStart - 1);
-      boundary = lineStart;
-      pending = -1;
+      if (!inMath) {
+        protectedRanges.push(fenceStart, lineStart - 1);
+        boundary = lineStart;
+        pending = -1;
+      }
     }
 
     if ((first === BACKTICK || first === TILDE) && i - lineStart <= 3) {
