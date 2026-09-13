@@ -483,45 +483,49 @@ export function SyncPlugin({
   const applyPendingParserRef = useRef(() => {});
 
   useEffect(() => {
-    return editor.registerUpdateListener(({ editorState, tags }) => {
-      if (isSyncingFromRuntimeRef.current) return;
-      if (tags.has(SYNC_TAG)) return;
+    return editor.registerUpdateListener(
+      ({ editorState, tags, dirtyElements, dirtyLeaves }) => {
+        if (isSyncingFromRuntimeRef.current) return;
+        if (tags.has(SYNC_TAG)) return;
 
-      editorState.read(() => {
-        isSyncingFromLexicalRef.current = true;
+        if (dirtyElements.size > 0 || dirtyLeaves.size > 0) {
+          editorState.read(() => {
+            isSyncingFromLexicalRef.current = true;
 
-        try {
-          const rootNode = $getRoot();
-          let fullText = "";
+            try {
+              const rootNode = $getRoot();
+              let fullText = "";
 
-          // One newline per paragraph boundary; empty paragraphs are lines
-          // too.
-          let lineIndex = 0;
-          for (const paragraph of rootNode.getChildren()) {
-            if (!$isElementNode(paragraph)) continue;
-            if (lineIndex > 0) {
-              fullText += "\n";
+              // One newline per paragraph boundary; empty paragraphs are lines
+              // too.
+              let lineIndex = 0;
+              for (const paragraph of rootNode.getChildren()) {
+                if (!$isElementNode(paragraph)) continue;
+                if (lineIndex > 0) {
+                  fullText += "\n";
+                }
+                lineIndex++;
+                for (const child of paragraph.getChildren()) {
+                  fullText += child.getTextContent();
+                }
+              }
+
+              const composer = aui.composer;
+
+              if (fullText !== lastSyncedTextRef.current) {
+                textDirtySinceSyncRef.current = true;
+                lastSyncedTextRef.current = fullText;
+                composer.setText(fullText);
+              }
+            } finally {
+              isSyncingFromLexicalRef.current = false;
             }
-            lineIndex++;
-            for (const child of paragraph.getChildren()) {
-              fullText += child.getTextContent();
-            }
-          }
-
-          const composer = aui.composer;
-
-          if (fullText !== lastSyncedTextRef.current) {
-            textDirtySinceSyncRef.current = true;
-            lastSyncedTextRef.current = fullText;
-            composer.setText(fullText);
-          }
-        } finally {
-          isSyncingFromLexicalRef.current = false;
+          });
         }
-      });
 
-      if (!editor.isComposing()) applyPendingParserRef.current();
-    });
+        if (!editor.isComposing()) applyPendingParserRef.current();
+      },
+    );
   }, [editor, aui]);
 
   useEffect(() => {

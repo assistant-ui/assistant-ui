@@ -4,8 +4,10 @@
 import { act, useEffect } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { LexicalComposer } from "@lexical/react/LexicalComposer";
+import { HistoryPlugin } from "@lexical/react/LexicalHistoryPlugin";
 import { useLexicalComposerContext } from "@lexical/react/LexicalComposerContext";
 import {
+  $createParagraphNode,
   $createTextNode,
   $getRoot,
   $getSelection,
@@ -13,9 +15,15 @@ import {
   $isRangeSelection,
   $isTextNode,
   $setCompositionKey,
+  HISTORY_PUSH_TAG,
+  REDO_COMMAND,
+  SKIP_DOM_SELECTION_TAG,
+  TextNode,
+  UNDO_COMMAND,
   type LexicalEditor,
 } from "lexical";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { createRenderCounter } from "@assistant-ui/x-performance";
 import type { Unstable_DirectiveFormatter } from "@assistant-ui/core";
 import {
   $createDirectiveNode,
@@ -25,7 +33,7 @@ import {
 import { SyncPlugin } from "./SyncPlugin";
 
 const mocks = vi.hoisted(() => ({
-  aui: undefined as unknown,
+  aui: undefined as unknown as ReturnType<typeof createAui>,
 }));
 
 vi.mock("@assistant-ui/store", async (importOriginal) => {
@@ -60,7 +68,7 @@ const readEditorText = (editor: LexicalEditor) =>
 
 const $getParagraph = () => {
   const paragraph = $getRoot().getFirstChild();
-  if (paragraph === null) throw new Error("Expected a paragraph");
+  if (!$isElementNode(paragraph)) throw new Error("Expected a paragraph");
   return paragraph;
 };
 
@@ -159,6 +167,189 @@ describe("SyncPlugin", () => {
     });
 
     expect(readEditorText(editor)).toBe("");
+  });
+
+  it("adds no text-node reads for selection-only updates in a 1,000-paragraph draft", async () => {
+    const counter = createRenderCounter();
+    for (const withSync of [false, true]) {
+      const aui = createAui("");
+      mocks.aui = aui;
+      await act(async () => {
+        root.render(
+          <LexicalComposer
+            key={String(withSync)}
+            initialConfig={{
+              namespace: "selection-work",
+              onError: (error) => {
+                throw error;
+              },
+            }}
+          >
+            <EditorProbe
+              capture={(value) => {
+                editor = value;
+              }}
+            />
+            {withSync && <SyncPlugin />}
+          </LexicalComposer>,
+        );
+      });
+      let last!: TextNode;
+      await act(async () => {
+        editor.update(
+          () => {
+            $getRoot().clear();
+            for (let i = 0; i < 1_000; i++) {
+              last = $createTextNode("paragraph text");
+              $getRoot().append($createParagraphNode().append(last));
+            }
+            last.select(1, 1);
+          },
+          { discrete: true, tag: SKIP_DOM_SELECTION_TAG },
+        );
+      });
+      aui.composer.setText.mockClear();
+      const getText = TextNode.prototype.getTextContent;
+      const reads = vi
+        .spyOn(TextNode.prototype, "getTextContent")
+        .mockImplementation(function (this: TextNode) {
+          counter.useRender(withSync ? "sync" : "control");
+          return getText.call(this);
+        });
+      try {
+        await act(async () => {
+          editor.update(() => last.select(2, 2), {
+            discrete: true,
+            tag: SKIP_DOM_SELECTION_TAG,
+          });
+        });
+        expect(aui.composer.setText).not.toHaveBeenCalled();
+      } finally {
+        reads.mockRestore();
+      }
+    }
+    // The control accounts for Lexical's own development-mode text reads.
+    expect(counter.renders("sync") - counter.renders("control")).toBe(0);
+  });
+
+  it("synchronizes content edits, saved states, undo and redo", async () => {
+    const aui = createAui("hello");
+    mocks.aui = aui;
+    await act(async () => {
+      root.render(
+        <LexicalComposer
+          initialConfig={{
+            namespace: "sync-history",
+            onError: (error) => {
+              throw error;
+            },
+          }}
+        >
+          <HistoryPlugin />
+          <SyncPlugin />
+          <EditorProbe
+            capture={(value) => {
+              editor = value;
+            }}
+          />
+        </LexicalComposer>,
+      );
+    });
+    const before = editor.getEditorState();
+    await act(async () => {
+      editor.update(
+        () => {
+          const paragraph = $getParagraph();
+          const text = paragraph.getFirstChild();
+          if (!$isTextNode(text)) throw new Error("Expected text");
+          text.setTextContent("hello!");
+          $getRoot().append($createParagraphNode());
+          text.selectEnd();
+        },
+        { discrete: true, tag: [HISTORY_PUSH_TAG, SKIP_DOM_SELECTION_TAG] },
+      );
+    });
+    expect(aui.composer.setText).toHaveBeenLastCalledWith("hello!\n");
+    const after = editor.getEditorState();
+    await act(async () => {
+      editor.dispatchCommand(UNDO_COMMAND, undefined);
+    });
+    expect(aui.composer.setText).toHaveBeenLastCalledWith("hello");
+    await act(async () => {
+      editor.dispatchCommand(REDO_COMMAND, undefined);
+    });
+    expect(aui.composer.setText).toHaveBeenLastCalledWith("hello!\n");
+    await act(async () => {
+      editor.setEditorState(before, { tag: SKIP_DOM_SELECTION_TAG });
+    });
+    expect(aui.composer.setText).toHaveBeenLastCalledWith("hello");
+    await act(async () => {
+      editor.setEditorState(after, { tag: SKIP_DOM_SELECTION_TAG });
+    });
+    expect(aui.composer.setText).toHaveBeenLastCalledWith("hello!\n");
+  });
+
+  it("retries a deferred parser on a clean selection update after composition", async () => {
+    mocks.aui = createAui("[[alice]]");
+    const formatter = createBracketFormatter();
+    const render = (registered: boolean) =>
+      root.render(
+        <LexicalComposer
+          initialConfig={{
+            namespace: "parser-clean-update",
+            nodes: [DirectiveNode],
+            onError: (error) => {
+              throw error;
+            },
+          }}
+        >
+          <SyncPlugin formatter={registered ? formatter : undefined} />
+          <EditorProbe
+            capture={(value) => {
+              editor = value;
+            }}
+          />
+        </LexicalComposer>,
+      );
+    await act(async () => {
+      render(false);
+    });
+    const composing = vi.spyOn(editor, "isComposing").mockReturnValue(true);
+    await act(async () => {
+      render(true);
+    });
+    expect(
+      editor
+        .getEditorState()
+        .read(() => $isTextNode($getParagraph().getFirstChild())),
+    ).toBe(true);
+    composing.mockReturnValue(false);
+    const cleanUpdates: boolean[] = [];
+    const unregister = editor.registerUpdateListener(
+      ({ dirtyElements, dirtyLeaves }) => {
+        cleanUpdates.push(dirtyElements.size === 0 && dirtyLeaves.size === 0);
+      },
+    );
+    try {
+      await act(async () => {
+        editor.update(
+          () => {
+            const text = $getParagraph().getFirstChild();
+            if (!$isTextNode(text)) throw new Error("Expected text");
+            text.select(1, 1);
+          },
+          { discrete: true, tag: SKIP_DOM_SELECTION_TAG },
+        );
+      });
+      expect(cleanUpdates).toContain(true);
+      expect(
+        editor
+          .getEditorState()
+          .read(() => $isDirectiveNode($getParagraph().getFirstChild())),
+      ).toBe(true);
+    } finally {
+      unregister();
+    }
   });
 
   it("reparses a restored draft when a formatter registers", async () => {
