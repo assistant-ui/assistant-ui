@@ -1,5 +1,11 @@
 # heat-graph
 
+## 0.0.19
+
+### Patch Changes
+
+- [#7247](https://github.com/assistant-ui/assistant-ui/pull/7247) [`b23c505`](https://github.com/assistant-ui/assistant-ui/commit/b23c50501cb03a40d6b72201ee04b9ce08bd9663) - fix: preserve tooltip behavior when cells define hover handlers ([@Kinfe123](https://github.com/Kinfe123))
+
 ## 0.0.18
 
 ### Patch Changes

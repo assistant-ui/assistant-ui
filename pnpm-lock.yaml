@@ -605,7 +605,7 @@ importers:
         version: 5.1.0
       vitest:
         specifier: ^5.0.0
-        version: 5.0.0(@edge-runtime/vm@3.2.0)(@opentelemetry/api@1.9.1)(@types/node@26.4.1)(@vitest/coverage-v8@5.0.0)(@vitest/ui@5.0.0)(jsdom@30.0.1)(vite@8.2.2(@types/node@26.4.1)(esbuild@0.28.2)(jiti@2.7.0)(terser@5.51.2)(tsx@4.23.13)(yaml@2.9.0))
+        version: 5.0.0(@edge-runtime/vm@3.2.0)(@opentelemetry/api@1.9.1)(@types/node@26.4.1)(@vitest/coverage-v8@5.0.0)(@vitest/ui@5.0.0)(jsdom@30.0.1)(vite@8.2.2(@types/node@26.4.1))
 
   apps/registry:
     dependencies:
@@ -3661,7 +3661,7 @@ importers:
         specifier: ^4.0.96
         version: 4.0.96(react@19.2.8)(zod@4.5.4)
       '@assistant-ui/core':
-        specifier: ^0.3.18
+        specifier: ^0.3.19
         version: link:../core
       '@assistant-ui/store':
         specifier: ^0.3.13
@@ -3676,7 +3676,7 @@ importers:
         specifier: workspace:^
         version: link:../cloud
       assistant-stream:
-        specifier: ^0.3.42
+        specifier: ^0.3.43
         version: link:../assistant-stream
     devDependencies:
       '@assistant-ui/x-buildutils':
@@ -3808,7 +3808,7 @@ importers:
   packages/cloud:
     dependencies:
       assistant-stream:
-        specifier: ^0.3.42
+        specifier: ^0.3.43
         version: link:../assistant-stream
     devDependencies:
       '@assistant-ui/x-buildutils':
@@ -3842,7 +3842,7 @@ importers:
   packages/core:
     dependencies:
       assistant-stream:
-        specifier: ^0.3.42
+        specifier: ^0.3.43
         version: link:../assistant-stream
       nanoid:
         specifier: ^6.0.1
@@ -3904,7 +3904,7 @@ importers:
   packages/eve:
     dependencies:
       '@assistant-ui/core':
-        specifier: ^0.3.18
+        specifier: ^0.3.19
         version: link:../core
       '@assistant-ui/store':
         specifier: ^0.3.13
@@ -3992,7 +3992,7 @@ importers:
         version: 4.23.13
       vitest:
         specifier: ^5.0.0
-        version: 5.0.0(@edge-runtime/vm@3.2.0)(@opentelemetry/api@1.9.1)(@types/node@26.4.1)(@vitest/coverage-v8@5.0.0)(@vitest/ui@5.0.0)(jsdom@30.0.1)(vite@8.2.2(@types/node@26.4.1)(esbuild@0.28.2)(jiti@2.7.0)(terser@5.51.2)(tsx@4.23.13)(yaml@2.9.0))
+        version: 5.0.0(@edge-runtime/vm@3.2.0)(@opentelemetry/api@1.9.1)(@types/node@26.4.1)(@vitest/coverage-v8@5.0.0)(@vitest/ui@5.0.0)(jsdom@30.0.1)(vite@8.2.2(@types/node@26.4.1))
 
   packages/metro:
     dependencies:
@@ -4047,7 +4047,7 @@ importers:
   packages/react:
     dependencies:
       '@assistant-ui/core':
-        specifier: ^0.3.18
+        specifier: ^0.3.19
         version: link:../core
       '@assistant-ui/store':
         specifier: ^0.3.13
@@ -4056,10 +4056,10 @@ importers:
         specifier: ^0.9.17
         version: link:../tap
       assistant-cloud:
-        specifier: ^0.2.0
+        specifier: ^0.2.1
         version: link:../cloud
       assistant-stream:
-        specifier: ^0.3.42
+        specifier: ^0.3.43
         version: link:../assistant-stream
       radix-ui:
         specifier: ^1.6.7
@@ -4114,13 +4114,13 @@ importers:
   packages/react-a2a:
     dependencies:
       '@assistant-ui/core':
-        specifier: ^0.3.18
+        specifier: ^0.3.19
         version: link:../core
       '@assistant-ui/store':
         specifier: ^0.3.13
         version: link:../store
       assistant-stream:
-        specifier: ^0.3.42
+        specifier: ^0.3.43
         version: link:../assistant-stream
     devDependencies:
       '@assistant-ui/x-buildutils':
@@ -4154,7 +4154,7 @@ importers:
         specifier: ^0.0.59
         version: 0.0.59
       '@assistant-ui/core':
-        specifier: ^0.3.18
+        specifier: ^0.3.19
         version: link:../core
       '@assistant-ui/react-generative-ui':
         specifier: ^0.0.18
@@ -4163,7 +4163,7 @@ importers:
         specifier: ^0.3.13
         version: link:../store
       assistant-stream:
-        specifier: ^0.3.42
+        specifier: ^0.3.43
         version: link:../assistant-stream
       fast-json-patch:
         specifier: ^3.1.1
@@ -4197,7 +4197,7 @@ importers:
   packages/react-ai-sdk:
     dependencies:
       '@assistant-ui/ai-sdk':
-        specifier: ^0.0.5
+        specifier: ^0.0.6
         version: link:../ai-sdk
       '@types/react':
         specifier: '*'
@@ -4216,13 +4216,13 @@ importers:
         specifier: ^4.0.10
         version: 4.0.10
       '@assistant-ui/core':
-        specifier: ^0.3.18
+        specifier: ^0.3.19
         version: link:../core
       assistant-cloud:
         specifier: '*'
         version: link:../cloud
       assistant-stream:
-        specifier: ^0.3.42
+        specifier: ^0.3.43
         version: link:../assistant-stream
     devDependencies:
       '@assistant-ui/x-buildutils':
@@ -4287,7 +4287,7 @@ importers:
   packages/react-generative-ui:
     dependencies:
       assistant-stream:
-        specifier: ^0.3.42
+        specifier: ^0.3.43
         version: link:../assistant-stream
     devDependencies:
       '@assistant-ui/react':
@@ -4318,7 +4318,7 @@ importers:
   packages/react-google-adk:
     dependencies:
       '@assistant-ui/core':
-        specifier: ^0.3.18
+        specifier: ^0.3.19
         version: link:../core
       '@assistant-ui/store':
         specifier: ^0.3.13
@@ -4330,7 +4330,7 @@ importers:
         specifier: '*'
         version: link:../cloud
       assistant-stream:
-        specifier: ^0.3.42
+        specifier: ^0.3.43
         version: link:../assistant-stream
     devDependencies:
       '@assistant-ui/x-buildutils':
@@ -4358,7 +4358,7 @@ importers:
   packages/react-hook-form:
     dependencies:
       '@assistant-ui/core':
-        specifier: ^0.3.18
+        specifier: ^0.3.19
         version: link:../core
       '@assistant-ui/store':
         specifier: ^0.3.13
@@ -4395,7 +4395,7 @@ importers:
   packages/react-ink:
     dependencies:
       '@assistant-ui/core':
-        specifier: ^0.3.18
+        specifier: ^0.3.19
         version: link:../core
       '@assistant-ui/store':
         specifier: ^0.3.13
@@ -4404,7 +4404,7 @@ importers:
         specifier: ^0.9.17
         version: link:../tap
       assistant-stream:
-        specifier: ^0.3.42
+        specifier: ^0.3.43
         version: link:../assistant-stream
       diff:
         specifier: ^9.0.0
@@ -4445,12 +4445,12 @@ importers:
         version: 4.23.13
       vitest:
         specifier: ^5.0.0
-        version: 5.0.0(@edge-runtime/vm@3.2.0)(@opentelemetry/api@1.9.1)(@types/node@26.4.1)(@vitest/coverage-v8@5.0.0)(@vitest/ui@5.0.0)(jsdom@30.0.1)(vite@8.2.2(@types/node@26.4.1)(esbuild@0.28.2)(jiti@2.7.0)(terser@5.51.2)(tsx@4.23.13)(yaml@2.9.0))
+        version: 5.0.0(@edge-runtime/vm@3.2.0)(@opentelemetry/api@1.9.1)(@types/node@26.4.1)(@vitest/coverage-v8@5.0.0)(@vitest/ui@5.0.0)(jsdom@30.0.1)(vite@8.2.2(@types/node@26.4.1))
 
   packages/react-ink-markdown:
     dependencies:
       '@assistant-ui/core':
-        specifier: ^0.3.18
+        specifier: ^0.3.19
         version: link:../core
       '@assistant-ui/store':
         specifier: ^0.3.13
@@ -4487,7 +4487,7 @@ importers:
   packages/react-langchain:
     dependencies:
       '@assistant-ui/core':
-        specifier: ^0.3.18
+        specifier: ^0.3.19
         version: link:../core
       '@assistant-ui/store':
         specifier: ^0.3.13
@@ -4496,7 +4496,7 @@ importers:
         specifier: '*'
         version: link:../cloud
       assistant-stream:
-        specifier: ^0.3.42
+        specifier: ^0.3.43
         version: link:../assistant-stream
     devDependencies:
       '@assistant-ui/x-buildutils':
@@ -4530,10 +4530,10 @@ importers:
   packages/react-langgraph:
     dependencies:
       '@assistant-ui/core':
-        specifier: ^0.3.18
+        specifier: ^0.3.19
         version: link:../core
       '@assistant-ui/react-langchain':
-        specifier: ^0.0.30
+        specifier: ^0.0.31
         version: link:../react-langchain
       '@assistant-ui/store':
         specifier: ^0.3.13
@@ -4542,7 +4542,7 @@ importers:
         specifier: '*'
         version: link:../cloud
       assistant-stream:
-        specifier: ^0.3.42
+        specifier: ^0.3.43
         version: link:../assistant-stream
     devDependencies:
       '@assistant-ui/x-buildutils':
@@ -4699,7 +4699,7 @@ importers:
   packages/react-native:
     dependencies:
       '@assistant-ui/core':
-        specifier: ^0.3.18
+        specifier: ^0.3.19
         version: link:../core
       '@assistant-ui/store':
         specifier: ^0.3.13
@@ -4708,7 +4708,7 @@ importers:
         specifier: ^0.9.17
         version: link:../tap
       assistant-stream:
-        specifier: ^0.3.42
+        specifier: ^0.3.43
         version: link:../assistant-stream
     devDependencies:
       '@assistant-ui/x-buildutils':
@@ -4776,7 +4776,7 @@ importers:
   packages/react-opencode:
     dependencies:
       '@assistant-ui/core':
-        specifier: ^0.3.18
+        specifier: ^0.3.19
         version: link:../core
       '@assistant-ui/store':
         specifier: ^0.3.13
@@ -4816,7 +4816,7 @@ importers:
   packages/react-pi:
     dependencies:
       '@assistant-ui/core':
-        specifier: ^0.3.18
+        specifier: ^0.3.19
         version: link:../core
       '@assistant-ui/store':
         specifier: ^0.3.13
@@ -4825,7 +4825,7 @@ importers:
         specifier: ^1.1.0
         version: 1.1.0
       assistant-stream:
-        specifier: ^0.3.42
+        specifier: ^0.3.43
         version: link:../assistant-stream
     devDependencies:
       '@assistant-ui/react':
@@ -4957,7 +4957,7 @@ importers:
         version: 8.2.2(@types/node@26.4.1)(esbuild@0.28.2)(jiti@2.7.0)(terser@5.51.2)(tsx@4.23.13)(yaml@2.9.0)
       vitest:
         specifier: ^5.0.0
-        version: 5.0.0(@edge-runtime/vm@3.2.0)(@opentelemetry/api@1.9.1)(@types/node@26.4.1)(@vitest/coverage-v8@5.0.0)(@vitest/ui@5.0.0)(jsdom@30.0.1)(vite@8.2.2(@types/node@26.4.1)(esbuild@0.28.2)(jiti@2.7.0)(terser@5.51.2)(tsx@4.23.13)(yaml@2.9.0))
+        version: 5.0.0(@edge-runtime/vm@3.2.0)(@opentelemetry/api@1.9.1)(@types/node@26.4.1)(@vitest/coverage-v8@5.0.0)(@vitest/ui@5.0.0)(jsdom@30.0.1)(vite@8.2.2(@types/node@26.4.1))
 
   packages/store:
     devDependencies:
@@ -4989,7 +4989,7 @@ importers:
   packages/svelte:
     dependencies:
       '@assistant-ui/core':
-        specifier: ^0.3.18
+        specifier: ^0.3.19
         version: link:../core
       '@assistant-ui/store':
         specifier: ^0.3.13
@@ -5230,12 +5230,12 @@ importers:
         version: 8.2.2(@types/node@26.4.1)(esbuild@0.28.2)(jiti@2.7.0)(terser@5.51.2)(tsx@4.23.13)(yaml@2.9.0)
       vitest:
         specifier: ^5.0.0
-        version: 5.0.0(@edge-runtime/vm@3.2.0)(@opentelemetry/api@1.9.1)(@types/node@26.4.1)(@vitest/coverage-v8@5.0.0)(@vitest/ui@5.0.0)(jsdom@30.0.1)(vite@8.2.2(@types/node@26.4.1)(esbuild@0.28.2)(jiti@2.7.0)(terser@5.51.2)(tsx@4.23.13)(yaml@2.9.0))
+        version: 5.0.0(@edge-runtime/vm@3.2.0)(@opentelemetry/api@1.9.1)(@types/node@26.4.1)(@vitest/coverage-v8@5.0.0)(@vitest/ui@5.0.0)(jsdom@30.0.1)(vite@8.2.2(@types/node@26.4.1))
 
   packages/vue:
     dependencies:
       '@assistant-ui/core':
-        specifier: ^0.3.18
+        specifier: ^0.3.19
         version: link:../core
       '@assistant-ui/store':
         specifier: ^0.3.13
@@ -28543,7 +28543,7 @@ snapshots:
       obug: 2.1.4
       std-env: 4.2.0
       tinyrainbow: 3.1.1
-      vitest: 5.0.0(@edge-runtime/vm@3.2.0)(@opentelemetry/api@1.9.1)(@types/node@26.4.1)(@vitest/coverage-v8@5.0.0)(@vitest/ui@5.0.0)(jsdom@30.0.1)(vite@8.2.2(@types/node@26.4.1)(esbuild@0.28.2)(jiti@2.7.0)(terser@5.51.2)(tsx@4.23.13)(yaml@2.9.0))
+      vitest: 5.0.0(@edge-runtime/vm@3.2.0)(@opentelemetry/api@1.9.1)(@types/node@26.4.1)(@vitest/coverage-v8@5.0.0)(@vitest/ui@5.0.0)(jsdom@30.0.1)(vite@8.2.2(@types/node@26.4.1))
 
   '@vitest/istanbul-lib-coverage@1.0.1': {}
 
@@ -38178,32 +38178,6 @@ snapshots:
   vitefu@1.1.3(vite@8.2.2(@types/node@26.4.1)):
     optionalDependencies:
       vite: 8.2.2(@types/node@26.4.1)(esbuild@0.28.2)(jiti@2.7.0)(terser@5.51.2)(tsx@4.23.13)(yaml@2.9.0)
-
-  vitest@5.0.0(@edge-runtime/vm@3.2.0)(@opentelemetry/api@1.9.1)(@types/node@26.4.1)(@vitest/coverage-v8@5.0.0)(@vitest/ui@5.0.0)(jsdom@30.0.1)(vite@8.2.2(@types/node@26.4.1)(esbuild@0.28.2)(jiti@2.7.0)(terser@5.51.2)(tsx@4.23.13)(yaml@2.9.0)):
-    dependencies:
-      '@types/chai': 5.2.3
-      '@vitest/mocker': 5.0.0(vite@8.2.2(@types/node@26.4.1))
-      chai: 6.2.2
-      es-module-lexer: 2.3.2
-      expect-type: 1.4.0
-      magic-string: 1.2.3
-      obug: 2.1.4
-      picomatch: 4.0.7
-      std-env: 4.2.0
-      tinybench: 6.1.4
-      tinyexec: 1.3.0
-      tinyglobby: 0.2.17
-      vite: 8.2.2(@types/node@26.4.1)(esbuild@0.28.2)(jiti@2.7.0)(terser@5.51.2)(tsx@4.23.13)(yaml@2.9.0)
-      why-is-node-running: 2.3.0
-    optionalDependencies:
-      '@edge-runtime/vm': 3.2.0
-      '@opentelemetry/api': 1.9.1
-      '@types/node': 26.4.1
-      '@vitest/coverage-v8': 5.0.0(vitest@5.0.0)
-      '@vitest/ui': 5.0.0(vitest@5.0.0)
-      jsdom: 30.0.1
-    transitivePeerDependencies:
-      - msw
 
   vitest@5.0.0(@edge-runtime/vm@3.2.0)(@opentelemetry/api@1.9.1)(@types/node@26.4.1)(@vitest/coverage-v8@5.0.0)(@vitest/ui@5.0.0)(jsdom@30.0.1)(vite@8.2.2(@types/node@26.4.1)):
     dependencies:

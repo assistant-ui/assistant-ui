@@ -1,5 +1,16 @@
 # @assistant-ui/react-mcp
 
+## 0.1.18
+
+### Patch Changes
+
+- [#5616](https://github.com/assistant-ui/assistant-ui/pull/5616) [`0034211`](https://github.com/assistant-ui/assistant-ui/commit/0034211a143c809cc11d57752196131d5844aeee) - fix: isolate custom MCP servers across storage scopes and fence writes after load failures ([@Kinfe123](https://github.com/Kinfe123))
+
+- [#7270](https://github.com/assistant-ui/assistant-ui/pull/7270) [`a32a023`](https://github.com/assistant-ui/assistant-ui/commit/a32a023f9300ec55fa9cb6d2251a33688e51328c) - fix: reject OAuth discovery hosts that only resemble loopback addresses ([@Kinfe123](https://github.com/Kinfe123))
+- Updated dependencies [[`ed77e95`](https://github.com/assistant-ui/assistant-ui/commit/ed77e956811a161243e6c9faf13320846db30a8a), [`b821506`](https://github.com/assistant-ui/assistant-ui/commit/b82150660dcf2ca6902b3b987c34440a2ff0af46), [`c41d93a`](https://github.com/assistant-ui/assistant-ui/commit/c41d93a84231a54256e0e1fe6f64951603a039d7), [`4cc817d`](https://github.com/assistant-ui/assistant-ui/commit/4cc817d4cb0d49c1704352845731b82f8591b623), [`4e5fde6`](https://github.com/assistant-ui/assistant-ui/commit/4e5fde6c2d09909c5b286fee098c9950615a26d3), [`e54bf9a`](https://github.com/assistant-ui/assistant-ui/commit/e54bf9aacd73a2431e3194aaced86dfdff67ed2d), [`83ede73`](https://github.com/assistant-ui/assistant-ui/commit/83ede73e8d3f0eadcb3969fae62d41fb7f253f1b), [`050d915`](https://github.com/assistant-ui/assistant-ui/commit/050d915daa2caf4d791f7254a8e42d31fc59e6da), [`d49ff90`](https://github.com/assistant-ui/assistant-ui/commit/d49ff906869981c4d2f3f2443089bf0b2f4a3c42), [`e7bdef5`](https://github.com/assistant-ui/assistant-ui/commit/e7bdef5df7201663f2d5c269d035ab3643cacde7), [`b4b0081`](https://github.com/assistant-ui/assistant-ui/commit/b4b00813ef30a37c36df3fd8acf3be0a5cbd498c), [`6b29e7d`](https://github.com/assistant-ui/assistant-ui/commit/6b29e7de829bef7e51297d3d66cd9e97175f3fc5), [`ab97a41`](https://github.com/assistant-ui/assistant-ui/commit/ab97a410a4f67e097ddcb186e12fd4a637790876), [`790217b`](https://github.com/assistant-ui/assistant-ui/commit/790217b85d9130116ac1a06c46a7902a2552ed07), [`8530b17`](https://github.com/assistant-ui/assistant-ui/commit/8530b17b8aee50413c5cbbe628832ad039a6d584), [`063b9ec`](https://github.com/assistant-ui/assistant-ui/commit/063b9ec8c92098c51b6924d49b1a6c3cc80eec45), [`2c22f5d`](https://github.com/assistant-ui/assistant-ui/commit/2c22f5d7fdeb45f10891a0ab2457d046ace668fa), [`97bd4b3`](https://github.com/assistant-ui/assistant-ui/commit/97bd4b39fce83163354c9ec8d9d4fb2c9bd1aac7), [`c0d6150`](https://github.com/assistant-ui/assistant-ui/commit/c0d615046cbbbdfee1a183428f51e9c547564a8c), [`275eeb9`](https://github.com/assistant-ui/assistant-ui/commit/275eeb91d0be1d43e98b7b48a53a9609e87419c4), [`e63d2e4`](https://github.com/assistant-ui/assistant-ui/commit/e63d2e440239a8b9add59c74cfa2044567f0b362), [`06bdf1f`](https://github.com/assistant-ui/assistant-ui/commit/06bdf1f9e4d8796ff12b91379a4175625f3a75e8)]:
+  - assistant-stream@0.3.43
+  - @assistant-ui/core@0.3.19
+
 ## 0.1.17
 
 ### Patch Changes

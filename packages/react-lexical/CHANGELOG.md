@@ -1,5 +1,13 @@
 # @assistant-ui/react-lexical
 
+## 0.2.13
+
+### Patch Changes
+
+- [#7295](https://github.com/assistant-ui/assistant-ui/pull/7295) [`66ec382`](https://github.com/assistant-ui/assistant-ui/commit/66ec3829b4d7b52b5e89363eda6890ac064b42c0) - fix: keep composer plugin cursor positions in sync after selection changes and edits before the caret. ([@Kinfe123](https://github.com/Kinfe123))
+
+- [#7296](https://github.com/assistant-ui/assistant-ui/pull/7296) [`ef288b9`](https://github.com/assistant-ui/assistant-ui/commit/ef288b94e517484b11924b47ca0d95ba73814ae6) - fix: forward accessibility labels and description references to the Lexical composer textbox instead of its wrapper. ([@Kinfe123](https://github.com/Kinfe123))
+
 ## 0.2.12
 
 ### Patch Changes

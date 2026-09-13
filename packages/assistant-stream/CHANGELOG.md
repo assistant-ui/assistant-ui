@@ -1,5 +1,17 @@
 # assistant-stream
 
+## 0.3.43
+
+### Patch Changes
+
+- [#7262](https://github.com/assistant-ui/assistant-ui/pull/7262) [`ed77e95`](https://github.com/assistant-ui/assistant-ui/commit/ed77e956811a161243e6c9faf13320846db30a8a) - fix: avoid repeatedly scanning unfinished SSE lines when events arrive in small chunks ([@Kinfe123](https://github.com/Kinfe123))
+
+- [#7143](https://github.com/assistant-ui/assistant-ui/pull/7143) [`790217b`](https://github.com/assistant-ui/assistant-ui/commit/790217b85d9130116ac1a06c46a7902a2552ed07) - fix: batch raw AssistantStream enqueue calls ([@Kinfe123](https://github.com/Kinfe123))
+
+- [#7241](https://github.com/assistant-ui/assistant-ui/pull/7241) [`c0d6150`](https://github.com/assistant-ui/assistant-ui/commit/c0d615046cbbbdfee1a183428f51e9c547564a8c) - fix: strict `TextStreamController.append()` drops deltas instead of throwing after the consumer cancels the stream ([@ShobhitPatra](https://github.com/ShobhitPatra))
+
+- [#7242](https://github.com/assistant-ui/assistant-ui/pull/7242) [`275eeb9`](https://github.com/assistant-ui/assistant-ui/commit/275eeb91d0be1d43e98b7b48a53a9609e87419c4) - fix: the tool-call `argsText` controller honors the `strict` flag passed to `createAssistantStreamController` ([@ShobhitPatra](https://github.com/ShobhitPatra))
+
 ## 0.3.42
 
 ### Patch Changes
