@@ -19,7 +19,9 @@ export function resolveImageMediaType(
   }
 
   const declared = dataUrlMediaType(image);
-  if (declared?.startsWith("image/")) return declared;
+  if (declared?.startsWith("image/") && !declared.includes("*")) {
+    return declared;
+  }
 
   // Read through a data URL envelope too, so a generic one such as
   // `application/octet-stream` does not mask the format. A url of any other
