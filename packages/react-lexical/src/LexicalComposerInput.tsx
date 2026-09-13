@@ -283,6 +283,7 @@ export const LexicalComposerInput = forwardRef<
       formatter: formatterProp,
       "aria-label": ariaLabel,
       "aria-labelledby": ariaLabelledBy,
+      "aria-describedby": ariaDescribedBy,
       className,
       children,
       ...rest
@@ -325,6 +326,7 @@ export const LexicalComposerInput = forwardRef<
                   className="aui-lexical-input"
                   aria-label={ariaLabel}
                   aria-labelledby={ariaLabelledBy}
+                  aria-describedby={ariaDescribedBy}
                 />
               }
               placeholder={

@@ -24,7 +24,7 @@ export function Composer() {
 }
 ```
 
-Use `aria-label` or `aria-labelledby` to name the editable textbox. Other HTML props and the forwarded ref apply to the outer wrapper.
+Use `aria-label` or `aria-labelledby` to name the editable textbox, and `aria-describedby` to reference hint or error text. Other HTML props and the forwarded ref apply to the outer wrapper.
 
 For custom chip rendering, pass a `directiveChip` render prop. Directives (e.g. `@user`, `/command`) survive cursor navigation, selection, and copy/paste as a single unit.
 

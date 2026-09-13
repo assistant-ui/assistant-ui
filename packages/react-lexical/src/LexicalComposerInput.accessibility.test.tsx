@@ -116,4 +116,32 @@ describe("LexicalComposerInput accessibility", () => {
     });
     expect(onClick).toHaveBeenCalledOnce();
   });
+
+  it("connects hint text to the textbox and updates the description reference", async () => {
+    const renderDescription = async (id?: string) => {
+      await act(async () => {
+        root.render(
+          <>
+            <span id="composer-hint">Press Enter to send</span>
+            <span id="composer-error">Message is required</span>
+            <LexicalComposerInput aria-describedby={id} />
+          </>,
+        );
+      });
+    };
+    await renderDescription("composer-hint");
+    const original = textbox();
+    expect(textbox().getAttribute("aria-describedby")).toBe("composer-hint");
+    expect(
+      container
+        .querySelector(".aui-lexical-editor")!
+        .hasAttribute("aria-describedby"),
+    ).toBe(false);
+    await renderDescription("composer-error");
+    expect(textbox()).toBe(original);
+    expect(textbox().getAttribute("aria-describedby")).toBe("composer-error");
+    await renderDescription();
+    expect(textbox()).toBe(original);
+    expect(textbox().hasAttribute("aria-describedby")).toBe(false);
+  });
 });
