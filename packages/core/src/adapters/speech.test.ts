@@ -7,6 +7,65 @@ afterEach(() => {
 });
 
 describe("WebSpeechSynthesisAdapter", () => {
+  const stubSpeechSynthesis = () => {
+    const utterances: EventTarget[] = [];
+    class MockSpeechSynthesisUtterance extends EventTarget {
+      constructor() {
+        super();
+        utterances.push(this);
+      }
+    }
+    const cancel = vi.fn();
+    vi.stubGlobal("SpeechSynthesisUtterance", MockSpeechSynthesisUtterance);
+    vi.stubGlobal("window", {
+      speechSynthesis: {
+        speak: vi.fn(),
+        cancel,
+      },
+    });
+    return { utterances, cancel };
+  };
+
+  it("does not cancel newer playback after natural completion", () => {
+    const { utterances, cancel } = stubSpeechSynthesis();
+    const adapter = new WebSpeechSynthesisAdapter();
+    const old = adapter.speak("old");
+    utterances[0]!.dispatchEvent(new Event("end"));
+    adapter.speak("new");
+
+    old.cancel();
+
+    expect(cancel).not.toHaveBeenCalled();
+  });
+
+  it("does not cancel newer playback after error completion", () => {
+    const { utterances, cancel } = stubSpeechSynthesis();
+    const adapter = new WebSpeechSynthesisAdapter();
+    const old = adapter.speak("old");
+    const error = new Error("speech failed");
+    utterances[0]!.dispatchEvent(Object.assign(new Event("error"), { error }));
+    adapter.speak("new");
+
+    old.cancel();
+
+    expect(cancel).not.toHaveBeenCalled();
+  });
+
+  it("cancels active playback once", () => {
+    const { cancel } = stubSpeechSynthesis();
+    const result = new WebSpeechSynthesisAdapter().speak("Hello");
+
+    result.cancel();
+    result.cancel();
+
+    expect(cancel).toHaveBeenCalledOnce();
+    expect(result.status).toEqual({
+      type: "ended",
+      reason: "cancelled",
+      error: undefined,
+    });
+  });
+
   it("isolates a late subscriber that throws after the utterance ended", async () => {
     const listeners = new Map<string, EventListener>();
     class MockSpeechSynthesisUtterance {
