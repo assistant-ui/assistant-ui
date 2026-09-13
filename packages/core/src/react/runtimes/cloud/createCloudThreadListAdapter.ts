@@ -28,7 +28,9 @@ export type CloudThreadListAdapterOptions = {
    * returns a replacement adapter; lower-level
    * `RemoteThreadList` compositions must call their thread-list `reload()`
    * method after publishing that replacement. When omitted, replacing the
-   * Cloud client preserves cached runtime state for backward compatibility.
+   * Cloud client preserves attachment URLs and message mappings for backward
+   * compatibility, but still replaces and reloads the thread-list adapter.
+   * History operations attempted before that reload settles are skipped.
    */
   scopeId?: string | undefined;
   sdk?: SdkIdentity | undefined;

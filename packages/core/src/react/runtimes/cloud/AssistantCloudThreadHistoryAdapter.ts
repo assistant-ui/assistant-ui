@@ -69,6 +69,13 @@ class AssistantCloudThreadHistoryAdapter implements ThreadHistoryAdapter {
   private engagementContext:
     | { scope: unknown; reporter: CloudEngagementReporter }
     | undefined;
+  private runReporterContext:
+    | {
+        cloud: AssistantCloud;
+        scope: unknown;
+        reporter: CloudRunReporter;
+      }
+    | undefined;
 
   constructor(
     cloudRef: RefObject<AssistantCloud>,
@@ -510,11 +517,23 @@ class AssistantCloudThreadHistoryAdapter implements ThreadHistoryAdapter {
     context = this.captureScope(),
   ) {
     if (!this.isCurrentScope(context)) return;
+    const current = this.runReporterContext;
+    const reporter =
+      current &&
+      current.cloud === context.cloud &&
+      Object.is(current.scope, context.scope)
+        ? current.reporter
+        : new CloudRunReporter(context.cloud);
+    this.runReporterContext = {
+      cloud: context.cloud,
+      scope: context.scope,
+      reporter,
+    };
     const mergedSteps = mergeStepTimestamps(data.steps, stepTimestamps);
     const messageId = messageInfo?.localMessageId
       ? context.persistence.getResolvedRemoteId(messageInfo.localMessageId)
       : undefined;
-    void new CloudRunReporter(context.cloud).report({
+    void reporter.report({
       threadId: remoteId,
       status: messageInfo?.status ?? data.status,
       outcome: messageInfo?.outcomeType,
