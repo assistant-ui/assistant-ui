@@ -211,6 +211,14 @@ describe("tailBoundedRemend", () => {
     ).toBe("> ```js\n> foo() 1~2\n\nBack x\\~y and **bold**");
   });
 
+  it("moves the boundary past a quoted fence that ends with its blockquote", () => {
+    const text = "para\n\n> intro **bold\n> ```js\n> foo()\n\nTail";
+    expect(findRemendWindowStart(text)).toBe(text.indexOf("Tail"));
+    expect(tailBoundedRemend(text)).toBe(text);
+    const tilde = "para\n\n> intro\n> ~~~r\n> lm(y~x)\n\nTail";
+    expect(tailBoundedRemend(tilde)).toBe(tilde);
+  });
+
   it("closes a quoted fence on a quoted marker", () => {
     expect(tailBoundedRemend("> ```js\n> foo() 1~2\n> ```\n\nx~y **bold")).toBe(
       "> ```js\n> foo() 1~2\n> ```\n\nx\\~y **bold**",
@@ -219,7 +227,7 @@ describe("tailBoundedRemend", () => {
 
   it("opens a new root fence at a root marker inside a quoted fence", () => {
     const text = "> ```js\n> foo() 1~2\n```\nx~y\n\nTail **bold";
-    expect(findRemendWindowStart(text)).toBe(0);
+    expect(findRemendWindowStart(text)).toBe(text.indexOf("```\nx"));
     expect(tailBoundedRemend(text)).toBe(text);
   });
 
