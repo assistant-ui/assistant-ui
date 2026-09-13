@@ -50,8 +50,12 @@ describe("primitive predicates", () => {
     ).toBe(true);
   });
 
-  it("actionBarReloadDisabled rejects user messages and busy threads", () => {
-    const thread = { isRunning: false, isDisabled: false };
+  it("actionBarReloadDisabled rejects user messages, busy threads, and runtimes without reload", () => {
+    const thread = {
+      isRunning: false,
+      isDisabled: false,
+      capabilities: { reload: true },
+    };
     expect(
       actionBarReloadDisabled(
         state({ thread, message: { role: "assistant" } }),
@@ -64,6 +68,14 @@ describe("primitive predicates", () => {
       actionBarReloadDisabled(
         state({
           thread: { ...thread, isRunning: true },
+          message: { role: "assistant" },
+        }),
+      ),
+    ).toBe(true);
+    expect(
+      actionBarReloadDisabled(
+        state({
+          thread: { ...thread, capabilities: { reload: false } },
           message: { role: "assistant" },
         }),
       ),
@@ -109,7 +121,7 @@ describe("primitive predicates", () => {
   it("branch picker predicates respect bounds and run capabilities", () => {
     const thread = {
       isRunning: false,
-      capabilities: { switchBranchDuringRun: false },
+      capabilities: { switchToBranch: true, switchBranchDuringRun: false },
     };
     const message = { branchNumber: 2, branchCount: 3 };
     expect(branchPickerPreviousDisabled(state({ thread, message }))).toBe(
@@ -130,6 +142,16 @@ describe("primitive predicates", () => {
       branchPickerNextDisabled(
         state({ thread: { ...thread, isRunning: true }, message }),
       ),
+    ).toBe(true);
+    const noSwitching = {
+      ...thread,
+      capabilities: { ...thread.capabilities, switchToBranch: false },
+    };
+    expect(
+      branchPickerPreviousDisabled(state({ thread: noSwitching, message })),
+    ).toBe(true);
+    expect(
+      branchPickerNextDisabled(state({ thread: noSwitching, message })),
     ).toBe(true);
   });
 
@@ -174,11 +196,24 @@ describe("primitive predicates", () => {
       ),
     ).toBe(true);
 
+    const editable = { capabilities: { edit: true } };
     expect(
-      actionBarEditDisabled(state({ composer: { isEditing: false } })),
+      actionBarEditDisabled(
+        state({ thread: editable, composer: { isEditing: false } }),
+      ),
     ).toBe(false);
     expect(
-      actionBarEditDisabled(state({ composer: { isEditing: true } })),
+      actionBarEditDisabled(
+        state({ thread: editable, composer: { isEditing: true } }),
+      ),
+    ).toBe(true);
+    expect(
+      actionBarEditDisabled(
+        state({
+          thread: { capabilities: { edit: false } },
+          composer: { isEditing: false },
+        }),
+      ),
     ).toBe(true);
   });
 });
