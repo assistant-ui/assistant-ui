@@ -35,10 +35,9 @@ describe("generativeLoader", () => {
     expect(result).toContain("@assistant-ui/next/bundler-redirect/");
   });
 
-  it("recognizes the indirection module resolved through the wildcard export", async () => {
-    const token = Buffer.from("/app/tool.ts", "utf8").toString("base64url");
+  it("recognizes the package indirection module", async () => {
     const result = await runLoader(
-      `/node_modules/@assistant-ui/next/dist/bundler-redirect.server.js?aui=${token}`,
+      "/node_modules/@assistant-ui/next/dist/bundler-redirect.server.js",
       "",
       { path: "/app/tool.ts" },
     );

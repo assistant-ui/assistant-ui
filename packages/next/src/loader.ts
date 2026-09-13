@@ -23,12 +23,9 @@ interface GenerativeLoaderContext {
 
 /** Whether this resolution is one of the package's indirection modules. */
 function indirectionVariant(resourcePath: string): Target | null {
-  const queryIndex = resourcePath.indexOf("?");
-  const path =
-    queryIndex === -1 ? resourcePath : resourcePath.slice(0, queryIndex);
-  const extension = nodePath.extname(path);
+  const extension = nodePath.extname(resourcePath);
   if (extension !== ".js") return null;
-  const base = nodePath.basename(path, extension);
+  const base = nodePath.basename(resourcePath, extension);
   if (base === SERVER_INDIRECTION) return "server";
   if (base === CLIENT_INDIRECTION) return "client";
   return null;
