@@ -440,6 +440,11 @@ export type UseLangGraphRuntimeOptions = ExternalStoreSharedOptions & {
     | undefined;
   cloud?: AssistantCloud | undefined;
   /**
+   * Stable identity for the account or workspace owning Cloud runtime state.
+   * Provide it from the first render and change it when that scope changes.
+   */
+  scopeId?: string | undefined;
+  /**
    * A `RemoteThreadListAdapter` to use instead of the cloud adapter. Provide
    * this to back the thread list with a custom store (e.g. LangGraph
    * `client.threads.search()`) so pre-existing LangGraph thread ids appear in

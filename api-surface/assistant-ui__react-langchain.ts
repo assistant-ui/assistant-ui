@@ -1138,6 +1138,7 @@ type LangChainMessageConverterMetadata = useExternalMessageConverter.Metadata & 
 type LangChainRuntimeExtraOptions = ExternalStoreSharedOptions & {
   onThreadIdChange?: ((threadId: string | undefined) => void) | undefined;
   cloud?: AssistantCloud | undefined;
+  scopeId?: string | undefined;
   adapters?: {
     attachments?: AttachmentAdapter | undefined;
     speech?: SpeechSynthesisAdapter | undefined;

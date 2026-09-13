@@ -118,6 +118,11 @@ export type LangChainRuntimeExtraOptions = ExternalStoreSharedOptions & {
    */
   onThreadIdChange?: ((threadId: string | undefined) => void) | undefined;
   cloud?: AssistantCloud | undefined;
+  /**
+   * Stable identity for the account or workspace owning Cloud runtime state.
+   * Provide it from the first render and change it when that scope changes.
+   */
+  scopeId?: string | undefined;
   adapters?:
     | {
         attachments?: AttachmentAdapter | undefined;
