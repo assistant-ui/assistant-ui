@@ -5,6 +5,7 @@ import type { AssistantCloud } from "assistant-cloud";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import type { ThreadAssistantMessage } from "../../../types/message";
 import {
+  DEFAULT_CLOUD_SCOPE,
   useAssistantCloudThreadHistoryAdapter,
   useScopedAssistantCloudThreadHistoryAdapter,
 } from "./AssistantCloudThreadHistoryAdapter";
@@ -471,7 +472,7 @@ describe("useAssistantCloudThreadHistoryAdapter", () => {
       expect.anything(),
     );
 
-    scopeRef.current = "workspace-b";
+    scopeRef.current = DEFAULT_CLOUD_SCOPE;
     ownershipRef.current = new Set();
     await expect(
       result.current.update({ parentId: null, message }),

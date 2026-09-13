@@ -124,6 +124,23 @@ describe("createCloudThreadListAdapter", () => {
     expect(ownership.has("remote-1")).toBe(true);
   });
 
+  it("does not transfer explicit ownership into the default scope", async () => {
+    const cloud = makeCloud();
+    vi.mocked(cloud.threads.list)
+      .mockResolvedValueOnce({ threads: [makeThread("explicit-only")] })
+      .mockResolvedValueOnce({ threads: [] });
+    const scoped = createCloudThreadListAdapter({
+      cloud,
+      scopeId: "workspace-a",
+    });
+    await scoped.list();
+
+    const unscoped = createCloudThreadListAdapter({ cloud });
+
+    expect(getCloudThreadOwnership(scoped)!.has("explicit-only")).toBe(true);
+    expect(getCloudThreadOwnership(unscoped)!.has("explicit-only")).toBe(false);
+  });
+
   it("registers core and the calling integration identities", () => {
     const cloud = makeCloud();
     const sdk = { name: "@assistant-ui/ai-sdk", version: "0.0.5" };

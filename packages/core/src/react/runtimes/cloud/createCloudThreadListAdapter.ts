@@ -25,6 +25,7 @@ const cloudThreadOwnership = new WeakMap<
   RemoteThreadListAdapter,
   Set<string>
 >();
+const defaultCloudThreadOwnership = new Set<string>();
 
 export const getCloudThreadOwnership = (
   adapter: RemoteThreadListAdapter,
@@ -179,7 +180,8 @@ export const createCloudThreadListAdapter = (
     return inMemory;
   }
 
-  const ownedRemoteIds = scopeId === undefined ? undefined : new Set<string>();
+  const ownedRemoteIds =
+    scopeId === undefined ? defaultCloudThreadOwnership : new Set<string>();
 
   const unstable_useAdapters = function useCloudAdapters(): RuntimeAdapters {
     const cloudRef = { current: cloud };
@@ -224,7 +226,7 @@ export const createCloudThreadListAdapter = (
           ? archivedThreads.at(-1)?.id
           : undefined;
       const threads = [...activeThreads, ...archivedThreads];
-      for (const thread of threads) ownedRemoteIds?.add(thread.id);
+      for (const thread of threads) ownedRemoteIds.add(thread.id);
       return {
         threads: threads.map((t) => ({
           status: t.is_archived ? ("archived" as const) : ("regular" as const),
@@ -256,7 +258,7 @@ export const createCloudThreadListAdapter = (
         last_message_at: new Date(),
         external_id,
       });
-      ownedRemoteIds?.add(remoteId);
+      ownedRemoteIds.add(remoteId);
 
       return { externalId: external_id, remoteId: remoteId };
     },
@@ -295,7 +297,7 @@ export const createCloudThreadListAdapter = (
 
     fetch: async (threadId: string) => {
       const thread = await cloud.threads.get(threadId);
-      ownedRemoteIds?.add(thread.id);
+      ownedRemoteIds.add(thread.id);
       return {
         status: thread.is_archived
           ? ("archived" as const)
@@ -312,6 +314,6 @@ export const createCloudThreadListAdapter = (
 
     unstable_useAdapters,
   };
-  if (ownedRemoteIds) cloudThreadOwnership.set(adapter, ownedRemoteIds);
+  cloudThreadOwnership.set(adapter, ownedRemoteIds);
   return adapter;
 };
