@@ -286,14 +286,20 @@ const usePiThreadStore = (
         parts: [{ type: "text" as const, text: content }],
       })),
       enqueue: (message) => {
-        void controller
-          .sendMessage(message)
-          .catch((error: unknown) => invokePiErrorCallback(onError, error));
+        void controller.sendMessage(message).catch((error: unknown) => {
+          if (!isMessageNotSentError(error)) {
+            invokePiErrorCallback(onError, error);
+          }
+        });
       },
       steer: (message) => {
         void controller
           .sendMessage(message, { streamingBehavior: "steer" })
-          .catch((error: unknown) => invokePiErrorCallback(onError, error));
+          .catch((error: unknown) => {
+            if (!isMessageNotSentError(error)) {
+              invokePiErrorCallback(onError, error);
+            }
+          });
       },
       // the server-side queue exposes no per-item operations; shared queue
       // UI cannot feature-detect these, so they deliberately no-op rather

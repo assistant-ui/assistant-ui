@@ -147,6 +147,41 @@ describe("usePiRuntime error callbacks", () => {
     expect(onError).not.toHaveBeenCalled();
   });
 
+  it("does not report cancelled queue sends", async () => {
+    mocks.state = createPiThreadState("t1");
+    mocks.repository = ExportedMessageRepository.fromArray([]);
+    mocks.controller.sendMessage
+      .mockRejectedValueOnce(new MessageNotSentError())
+      .mockRejectedValueOnce(new MessageNotSentError());
+    const onError = vi.fn();
+
+    const App = () => {
+      usePiRuntime({
+        client: {} as PiClient,
+        onError,
+        initialThreadId: "t1",
+      });
+      return null;
+    };
+
+    root = createRoot(document.createElement("div"));
+    await act(async () => root!.render(createElement(App)));
+
+    const queue = mocks.adapters.at(-1)!.queue!;
+    const message: AppendMessage = {
+      role: "user",
+      content: [{ type: "text", text: "hello" }],
+    };
+    queue.enqueue(message);
+    queue.steer(message);
+    await vi.waitFor(() =>
+      expect(mocks.controller.sendMessage).toHaveBeenCalledTimes(2),
+    );
+    await act(async () => Promise.resolve());
+
+    expect(onError).not.toHaveBeenCalled();
+  });
+
   it.each(["throws", "rejects"] as const)(
     "preserves the controller error when onError %s",
     async (failureMode) => {

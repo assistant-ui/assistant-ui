@@ -814,7 +814,7 @@ export class PiThreadController implements PiThreadControllerLike {
   }
 
   public async cancel() {
-    this.abortCurrentSend();
+    this.abortPendingSendsBeforeDispatch();
     try {
       await this.client.cancelRun(this.threadId);
     } catch (error) {
@@ -823,11 +823,10 @@ export class PiThreadController implements PiThreadControllerLike {
     }
   }
 
-  private abortCurrentSend() {
+  private abortPendingSendsBeforeDispatch() {
     for (const pending of this.pendingSends) {
       if (pending.accepted) continue;
       pending.controller.abort(sendCancelledError);
-      return;
     }
   }
 

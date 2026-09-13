@@ -752,7 +752,7 @@ describe("PiThreadController", () => {
     expect(client.sent[1]!.input.streamingBehavior).toBe("followUp");
   });
 
-  it("aborts the current URL image load without dropping later sends", async () => {
+  it("aborts every send that has not reached Pi", async () => {
     let fetchSignal: AbortSignal | undefined;
     const fetchMock = vi.fn(
       (_input: RequestInfo | URL, init?: RequestInit) =>
@@ -775,24 +775,23 @@ describe("PiThreadController", () => {
     );
     const firstResult = first.catch((error: unknown) => error);
     const second = controller.sendMessage(userMessage("second"));
+    const secondResult = second.catch((error: unknown) => error);
 
     await vi.waitFor(() => expect(fetchMock).toHaveBeenCalledOnce());
     await controller.cancel();
-    const [firstError] = await Promise.all([firstResult, second]);
+    const [firstError, secondError] = await Promise.all([
+      firstResult,
+      secondResult,
+    ]);
 
     expect(isMessageNotSentError(firstError)).toBe(true);
+    expect(isMessageNotSentError(secondError)).toBe(true);
     expect(fetchSignal?.aborted).toBe(true);
-    expect(client.sent).toHaveLength(1);
-    expect(client.sent[0]!.input).toEqual({
-      content: "second",
-      streamingBehavior: "followUp",
-    });
-    expect(controller.getProjectedMessages()).toMatchObject([
-      { role: "user", content: [{ type: "text", text: "second" }] },
-    ]);
+    expect(client.sent).toHaveLength(0);
+    expect(controller.getProjectedMessages()).toEqual([]);
     expect(controller.getState()).toMatchObject({
-      runStatus: "running",
-      metadata: { status: "running" },
+      runStatus: "idle",
+      metadata: { status: "idle" },
       queue: { steering: [], followUp: [] },
       lastError: undefined,
     });
