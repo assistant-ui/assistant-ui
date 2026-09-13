@@ -569,7 +569,7 @@ const useComposerClientResource = ({
     await Promise.all(
       removed
         .filter((a) => a.status.type !== "complete")
-        .map((a) => attachmentAdapter.remove(a)),
+        .map(async (a) => attachmentAdapter.remove(a)),
     );
   };
 
