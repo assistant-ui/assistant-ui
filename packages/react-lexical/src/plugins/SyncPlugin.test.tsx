@@ -325,10 +325,13 @@ describe("SyncPlugin", () => {
         .read(() => $isTextNode($getParagraph().getFirstChild())),
     ).toBe(true);
     composing.mockReturnValue(false);
+    const selectionTag = "selection-only-parser-retry";
     const cleanUpdates: boolean[] = [];
     const unregister = editor.registerUpdateListener(
-      ({ dirtyElements, dirtyLeaves }) => {
-        cleanUpdates.push(dirtyElements.size === 0 && dirtyLeaves.size === 0);
+      ({ dirtyElements, dirtyLeaves, tags }) => {
+        if (tags.has(selectionTag)) {
+          cleanUpdates.push(dirtyElements.size === 0 && dirtyLeaves.size === 0);
+        }
       },
     );
     try {
@@ -339,10 +342,10 @@ describe("SyncPlugin", () => {
             if (!$isTextNode(text)) throw new Error("Expected text");
             text.select(1, 1);
           },
-          { discrete: true, tag: SKIP_DOM_SELECTION_TAG },
+          { discrete: true, tag: [SKIP_DOM_SELECTION_TAG, selectionTag] },
         );
       });
-      expect(cleanUpdates).toContain(true);
+      expect(cleanUpdates).toEqual([true]);
       expect(
         editor
           .getEditorState()
