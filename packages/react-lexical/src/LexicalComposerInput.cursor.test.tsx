@@ -10,7 +10,11 @@ import {
   $getSelection,
   $isRangeSelection,
   $setSelection,
+  HISTORY_PUSH_TAG,
+  HISTORIC_TAG,
+  REDO_COMMAND,
   SKIP_DOM_SELECTION_TAG,
+  UNDO_COMMAND,
   type LexicalEditor,
   type TextNode,
 } from "lexical";
@@ -154,5 +158,73 @@ describe("LexicalComposerInput cursor tracking", () => {
       }
     });
     expect(setCursorPosition.mock.calls.length).toBe(calls);
+  });
+
+  it("resynchronizes the cursor when saved editor states replace each other", async () => {
+    let earlier: TextNode;
+    await update(() => {
+      earlier = $createTextNode("a");
+      $getRoot()
+        .getFirstChildOrThrow()
+        .insertBefore($createParagraphNode().append(earlier));
+      textNode.select(3, 3);
+    });
+    const before = editor.getEditorState();
+    await update(() => {
+      earlier.setTextContent("abcdef");
+      textNode.select(3, 3);
+    });
+    const after = editor.getEditorState();
+    expect(setCursorPosition).toHaveBeenLastCalledWith(10);
+    await act(async () =>
+      editor.setEditorState(before, { tag: SKIP_DOM_SELECTION_TAG }),
+    );
+    expect(setCursorPosition).toHaveBeenLastCalledWith(5);
+    await act(async () =>
+      editor.setEditorState(after, { tag: SKIP_DOM_SELECTION_TAG }),
+    );
+    expect(setCursorPosition).toHaveBeenLastCalledWith(10);
+  });
+
+  it("resynchronizes the absolute cursor on undo and redo", async () => {
+    let earlier: TextNode;
+    await update(() => {
+      earlier = $createTextNode("a");
+      $getRoot()
+        .getFirstChildOrThrow()
+        .insertBefore($createParagraphNode().append(earlier));
+      textNode.select(3, 3);
+    });
+    await act(async () => {
+      editor.update(
+        () => {
+          earlier.setTextContent("abcdef");
+          textNode.select(3, 3);
+        },
+        { discrete: true, tag: [HISTORY_PUSH_TAG, SKIP_DOM_SELECTION_TAG] },
+      );
+    });
+    expect(setCursorPosition).toHaveBeenLastCalledWith(10);
+    let historyText = editor
+      .getEditorState()
+      .read(() => $getRoot().getTextContent());
+    const restoredPositions: number[] = [];
+    const unsubscribe = editor.registerUpdateListener(
+      ({ editorState, tags }) => {
+        if (!tags.has(HISTORIC_TAG)) return;
+        const text = editorState.read(() => $getRoot().getTextContent());
+        if (text === historyText) return;
+        historyText = text;
+        restoredPositions.push(setCursorPosition.mock.lastCall![0]);
+      },
+    );
+    await update(() => {
+      editor.dispatchCommand(UNDO_COMMAND, undefined);
+    });
+    await update(() => {
+      editor.dispatchCommand(REDO_COMMAND, undefined);
+    });
+    unsubscribe();
+    expect(restoredPositions).toEqual([5, 10]);
   });
 });
