@@ -28,14 +28,19 @@ export class LiveKitVoiceAdapter implements RealtimeVoiceAdapter {
   connect(options: {
     abortSignal?: AbortSignal;
   }): RealtimeVoiceAdapter.Session {
-    const room = new Room(this._roomOptions);
-
     return createVoiceSession(options, async (session) => {
+      const room = new Room(this._roomOptions);
       let volumeInterval: ReturnType<typeof setInterval> | null = null;
       const attachedAudioElements = new Set<HTMLMediaElement>();
+      let disconnected = false;
 
       const attachRemoteAudio = (track: RemoteTrack) => {
-        if (track.kind !== Track.Kind.Audio) return;
+        if (
+          session.isDisposed() ||
+          disconnected ||
+          track.kind !== Track.Kind.Audio
+        )
+          return;
         const element = track.attach();
         element.style.display = "none";
         document.body.appendChild(element);
@@ -55,10 +60,34 @@ export class LiveKitVoiceAdapter implements RealtimeVoiceAdapter {
         attachedAudioElements.clear();
       };
 
+      const disconnect = () => {
+        if (disconnected) return;
+        disconnected = true;
+        if (volumeInterval) clearInterval(volumeInterval);
+        try {
+          cleanupAudioElements();
+        } finally {
+          room.disconnect().catch((error) => {
+            console.error("Failed to disconnect LiveKit room:", error);
+          });
+        }
+      };
+
+      const controls = {
+        disconnect,
+        mute: () => {
+          room.localParticipant.setMicrophoneEnabled(false).catch(() => {});
+        },
+        unmute: () => {
+          room.localParticipant.setMicrophoneEnabled(true).catch(() => {});
+        },
+      };
+
       room.on(RoomEvent.TrackSubscribed, attachRemoteAudio);
       room.on(RoomEvent.TrackUnsubscribed, detachRemoteAudio);
 
       room.on(RoomEvent.Connected, () => {
+        if (session.isDisposed() || disconnected) return;
         session.setStatus({ type: "running" });
         if (volumeInterval) clearInterval(volumeInterval);
         volumeInterval = setInterval(() => {
@@ -73,12 +102,12 @@ export class LiveKitVoiceAdapter implements RealtimeVoiceAdapter {
       });
 
       room.on(RoomEvent.Disconnected, () => {
-        if (volumeInterval) clearInterval(volumeInterval);
         session.end("finished");
+        disconnect();
       });
       room.on(RoomEvent.MediaDevicesError, (error) => {
-        if (volumeInterval) clearInterval(volumeInterval);
         session.end("error", error);
+        disconnect();
       });
 
       room.on(RoomEvent.ActiveSpeakersChanged, (speakers) => {
@@ -105,34 +134,21 @@ export class LiveKitVoiceAdapter implements RealtimeVoiceAdapter {
         },
       );
 
-      const token =
-        typeof this._token === "function" ? await this._token() : this._token;
-      if (session.isDisposed()) {
-        cleanupAudioElements();
-        return { disconnect: () => {}, mute: () => {}, unmute: () => {} };
+      try {
+        const token =
+          typeof this._token === "function" ? await this._token() : this._token;
+        if (session.isDisposed()) return controls;
+
+        await room.connect(this._url, token);
+        if (session.isDisposed()) return controls;
+
+        await room.localParticipant.setMicrophoneEnabled(true);
+        return controls;
+      } catch (error) {
+        session.end("error", error);
+        disconnect();
+        throw error;
       }
-
-      await room.connect(this._url, token);
-      if (session.isDisposed()) {
-        cleanupAudioElements();
-        return { disconnect: () => {}, mute: () => {}, unmute: () => {} };
-      }
-
-      await room.localParticipant.setMicrophoneEnabled(true);
-
-      return {
-        disconnect: () => {
-          if (volumeInterval) clearInterval(volumeInterval);
-          cleanupAudioElements();
-          room.disconnect();
-        },
-        mute: () => {
-          room.localParticipant.setMicrophoneEnabled(false).catch(() => {});
-        },
-        unmute: () => {
-          room.localParticipant.setMicrophoneEnabled(true).catch(() => {});
-        },
-      };
     });
   }
 }
