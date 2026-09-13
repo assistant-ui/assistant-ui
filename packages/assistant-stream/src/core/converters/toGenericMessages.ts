@@ -131,6 +131,29 @@ function toUrlOrString(value: string): string | URL {
   }
 }
 
+function toGenericFilePart(part: MessagePartLike): GenericFilePart | undefined {
+  if (part.type === "image" && part.image) {
+    return {
+      type: "file",
+      data: toUrlOrString(part.image),
+      mediaType: inferImageMediaType(part.image),
+      ...(part.filename && { filename: part.filename }),
+    };
+  }
+  if (part.type === "file" && typeof part.data === "string") {
+    return {
+      type: "file",
+      data: toUrlOrString(part.data),
+      mediaType:
+        (typeof part.mimeType === "string" && part.mimeType) ||
+        getDataUrlMediaType(part.data) ||
+        "application/octet-stream",
+      ...(part.filename && { filename: part.filename }),
+    };
+  }
+  return undefined;
+}
+
 type ToolCallAccumulator = {
   textParts: (GenericTextPart | GenericFilePart | GenericToolCallPart)[];
   toolResults: GenericToolResultPart[];
@@ -218,23 +241,9 @@ function convertUserMessage(
   for (const part of allContent) {
     if (part.type === "text" && part.text) {
       content.push({ type: "text", text: part.text });
-    } else if (part.type === "image" && part.image) {
-      content.push({
-        type: "file",
-        data: toUrlOrString(part.image),
-        mediaType: inferImageMediaType(part.image),
-        ...(part.filename && { filename: part.filename }),
-      });
-    } else if (part.type === "file" && typeof part.data === "string") {
-      content.push({
-        type: "file",
-        data: toUrlOrString(part.data),
-        mediaType:
-          (typeof part.mimeType === "string" && part.mimeType) ||
-          getDataUrlMediaType(part.data) ||
-          "application/octet-stream",
-        ...(part.filename && { filename: part.filename }),
-      });
+    } else {
+      const filePart = toGenericFilePart(part);
+      if (filePart) content.push(filePart);
     }
   }
 
@@ -265,31 +274,15 @@ function convertAssistantMessage(
       if (processToolCall(part, accumulator)) {
         hasPendingToolResults = true;
       }
-    } else if (part.type === "image" && part.image) {
-      if (hasPendingToolResults) {
-        flushAccumulator(accumulator, result);
-        hasPendingToolResults = false;
+    } else {
+      const filePart = toGenericFilePart(part);
+      if (filePart) {
+        if (hasPendingToolResults) {
+          flushAccumulator(accumulator, result);
+          hasPendingToolResults = false;
+        }
+        accumulator.textParts.push(filePart);
       }
-      accumulator.textParts.push({
-        type: "file",
-        data: toUrlOrString(part.image),
-        mediaType: inferImageMediaType(part.image),
-        ...(part.filename && { filename: part.filename }),
-      });
-    } else if (part.type === "file" && typeof part.data === "string") {
-      if (hasPendingToolResults) {
-        flushAccumulator(accumulator, result);
-        hasPendingToolResults = false;
-      }
-      accumulator.textParts.push({
-        type: "file",
-        data: toUrlOrString(part.data),
-        mediaType:
-          (typeof part.mimeType === "string" && part.mimeType) ||
-          getDataUrlMediaType(part.data) ||
-          "application/octet-stream",
-        ...(part.filename && { filename: part.filename }),
-      });
     }
   }
 

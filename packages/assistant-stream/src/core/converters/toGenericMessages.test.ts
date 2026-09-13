@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { toGenericMessages } from "./toGenericMessages";
+import { toGenericMessages, type GenericFilePart } from "./toGenericMessages";
 
 describe("toGenericMessages", () => {
   describe("system messages", () => {
@@ -445,6 +445,73 @@ describe("toGenericMessages", () => {
           ],
         },
       ]);
+    });
+
+    it("converts generated image parts", () => {
+      const dataUrl = "data:image/webp;base64,UklGRg==";
+      const result = toGenericMessages([
+        {
+          role: "assistant",
+          content: [
+            { type: "image", image: dataUrl, filename: "generated.webp" },
+          ],
+        },
+      ]);
+
+      expect(result).toHaveLength(1);
+      expect(result[0]).toMatchObject({
+        role: "assistant",
+        content: [
+          {
+            type: "file",
+            mediaType: "image/webp",
+            filename: "generated.webp",
+          },
+        ],
+      });
+      const content = (result[0] as { content: GenericFilePart[] }).content;
+      expect(content[0]?.data).toBeInstanceOf(URL);
+      expect(String(content[0]?.data)).toBe(dataUrl);
+    });
+
+    it("places generated files after settled tool results", () => {
+      const result = toGenericMessages([
+        {
+          role: "assistant",
+          content: [
+            {
+              type: "tool-call",
+              toolCallId: "call_123",
+              toolName: "create_image",
+              args: {},
+              result: { created: true },
+            },
+            {
+              type: "file",
+              data: "iVBORw0KGgo=",
+              mimeType: "image/png",
+              filename: "generated.png",
+            },
+          ],
+        },
+      ]);
+
+      expect(result.map((message) => message.role)).toEqual([
+        "assistant",
+        "tool",
+        "assistant",
+      ]);
+      expect(result[2]).toEqual({
+        role: "assistant",
+        content: [
+          {
+            type: "file",
+            data: "iVBORw0KGgo=",
+            mediaType: "image/png",
+            filename: "generated.png",
+          },
+        ],
+      });
     });
 
     it("closes out tool calls without results", () => {
