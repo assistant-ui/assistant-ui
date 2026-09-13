@@ -4471,6 +4471,9 @@ importers:
       '@assistant-ui/x-buildutils':
         specifier: workspace:*
         version: link:../x-buildutils
+      '@assistant-ui/x-performance':
+        specifier: workspace:*
+        version: link:../x-performance
       '@types/react':
         specifier: ^19.2.18
         version: 19.2.18

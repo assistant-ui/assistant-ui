@@ -1,8 +1,92 @@
 import { describe, it, expect, vi } from "vitest";
+import { act } from "react";
+import { createRenderCounter } from "@assistant-ui/x-performance";
 import { render } from "ink-testing-library";
 import { MarkdownText } from "../MarkdownText";
 
 describe("MarkdownText", () => {
+  it.each([{ width: 40 }, { wrap: false }])(
+    "does not reformat unchanged messages on resize with %j",
+    async (options) => {
+      vi.stubGlobal("IS_REACT_ACT_ENVIRONMENT", true);
+      const counter = createRenderCounter();
+      const highlighter = (code: string) => {
+        counter.useRender("highlight");
+        return code;
+      };
+      let view!: ReturnType<typeof render>;
+      await act(async () => {
+        view = render(
+          <>
+            {Array.from({ length: 10 }, (_, i) => (
+              <MarkdownText
+                key={i}
+                text={"```js\nconst x = 1;\n```"}
+                highlighter={highlighter}
+                {...options}
+              />
+            ))}
+          </>,
+        );
+      });
+      try {
+        expect(counter.renders("highlight")).toBe(10);
+        counter.reset();
+        await act(async () => {
+          Object.defineProperty(view.stdout, "columns", {
+            configurable: true,
+            value: 200,
+          });
+          view.stdout.emit("resize");
+        });
+        expect(counter.renders("highlight")).toBe(0);
+        expect(view.lastFrame()).toContain("const x = 1;");
+      } finally {
+        await act(async () => {
+          view.unmount();
+        });
+        vi.unstubAllGlobals();
+      }
+    },
+  );
+
+  it.each([{ width: 40 }, { wrap: false }])(
+    "resumes live width updates after removing %j",
+    async (options) => {
+      vi.stubGlobal("IS_REACT_ACT_ENVIRONMENT", true);
+      const counter = createRenderCounter();
+      const highlighter = (code: string) => {
+        counter.useRender("highlight");
+        return code;
+      };
+      const text = "```js\nconst x = 1;\n```";
+      let view!: ReturnType<typeof render>;
+      await act(async () => {
+        view = render(
+          <MarkdownText text={text} {...options} highlighter={highlighter} />,
+        );
+      });
+      try {
+        await act(async () => {
+          view.rerender(<MarkdownText text={text} highlighter={highlighter} />);
+        });
+        counter.reset();
+        await act(async () => {
+          Object.defineProperty(view.stdout, "columns", {
+            configurable: true,
+            value: 200,
+          });
+          view.stdout.emit("resize");
+        });
+        expect(counter.renders("highlight")).toBe(1);
+      } finally {
+        await act(async () => {
+          view.unmount();
+        });
+        vi.unstubAllGlobals();
+      }
+    },
+  );
   it("renders plain text", () => {
     const { lastFrame } = render(<MarkdownText text="Hello world" />);
     expect(lastFrame()).toContain("Hello world");
