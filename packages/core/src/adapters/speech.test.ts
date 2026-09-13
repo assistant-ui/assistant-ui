@@ -109,6 +109,20 @@ describe("WebSpeechDictationAdapter", () => {
     return listeners;
   };
 
+  const emitResult = (
+    listeners: Map<string, EventListener>,
+    resultIndex: number,
+    results: Array<{ transcript: string; isFinal: boolean }>,
+  ) => {
+    listeners.get("result")?.({
+      resultIndex,
+      results: results.map(({ transcript, isFinal }) => ({
+        0: { transcript },
+        isFinal,
+      })),
+    } as unknown as Event);
+  };
+
   it("continues notifying dictation listeners when one throws", () => {
     const listeners = stubSpeechRecognition();
     const listenerError = new Error("listener failed");
@@ -200,6 +214,76 @@ describe("WebSpeechDictationAdapter", () => {
         "[assistant-ui] Dictation listener threw an error",
         listenerError,
       );
+    });
+  });
+
+  it("publishes the complete current interim suffix and clears retractions", () => {
+    const listeners = stubSpeechRecognition();
+    const session = new WebSpeechDictationAdapter().listen();
+    const speechListener = vi.fn();
+    session.onSpeech(speechListener);
+
+    emitResult(listeners, 0, [
+      { transcript: "hello ", isFinal: false },
+      { transcript: "world", isFinal: false },
+    ]);
+    expect(speechListener).toHaveBeenLastCalledWith({
+      transcript: "hello world",
+      isFinal: false,
+    });
+
+    emitResult(listeners, 1, [
+      { transcript: "hello ", isFinal: false },
+      { transcript: "there", isFinal: false },
+    ]);
+    expect(speechListener).toHaveBeenLastCalledWith({
+      transcript: "hello there",
+      isFinal: false,
+    });
+
+    emitResult(listeners, 1, [{ transcript: "hello ", isFinal: false }]);
+    expect(speechListener).toHaveBeenLastCalledWith({
+      transcript: "hello ",
+      isFinal: false,
+    });
+
+    emitResult(listeners, 1, []);
+    expect(speechListener).toHaveBeenLastCalledWith({
+      transcript: "",
+      isFinal: false,
+    });
+  });
+
+  it("keeps final delivery incremental around an interim suffix", () => {
+    const listeners = stubSpeechRecognition();
+    const session = new WebSpeechDictationAdapter().listen();
+    const speechListener = vi.fn();
+    const speechEndListener = vi.fn();
+    session.onSpeech(speechListener);
+    session.onSpeechEnd(speechEndListener);
+
+    emitResult(listeners, 0, [
+      { transcript: "hello ", isFinal: true },
+      { transcript: "world", isFinal: false },
+    ]);
+    expect(speechListener.mock.calls).toEqual([
+      [{ transcript: "hello ", isFinal: true }],
+      [{ transcript: "world", isFinal: false }],
+    ]);
+
+    emitResult(listeners, 1, [
+      { transcript: "hello ", isFinal: true },
+      { transcript: "world", isFinal: true },
+    ]);
+    expect(speechListener.mock.calls).toEqual([
+      [{ transcript: "hello ", isFinal: true }],
+      [{ transcript: "world", isFinal: false }],
+      [{ transcript: "world", isFinal: true }],
+    ]);
+
+    listeners.get("end")?.(new Event("end"));
+    expect(speechEndListener).toHaveBeenCalledWith({
+      transcript: "hello world",
     });
   });
 });

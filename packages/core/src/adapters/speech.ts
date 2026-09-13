@@ -205,6 +205,7 @@ export class WebSpeechDictationAdapter implements DictationAdapter {
     >();
 
     let finalTranscript = "";
+    let hadInterimResults = false;
 
     const session: DictationAdapter.Session = {
       status: { type: "starting" },
@@ -267,6 +268,7 @@ export class WebSpeechDictationAdapter implements DictationAdapter {
 
     recognition.addEventListener("result", (event) => {
       const speechEvent = event as unknown as SpeechRecognitionEvent;
+      let hasFinalResult = false;
 
       for (
         let i = speechEvent.resultIndex;
@@ -279,20 +281,34 @@ export class WebSpeechDictationAdapter implements DictationAdapter {
         const transcript = result[0]?.transcript ?? "";
 
         if (result.isFinal) {
+          hasFinalResult = true;
           finalTranscript += transcript;
           notifyEventListeners(
             speechCallbacks,
             () => ({ transcript, isFinal: true }),
             "Dictation",
           );
-        } else {
-          notifyEventListeners(
-            speechCallbacks,
-            () => ({ transcript, isFinal: false }),
-            "Dictation",
-          );
         }
       }
+
+      let interimTranscript = "";
+      let hasInterimResults = false;
+      for (let i = 0; i < speechEvent.results.length; i++) {
+        const result = speechEvent.results[i];
+        if (!result || result.isFinal) continue;
+
+        hasInterimResults = true;
+        interimTranscript += result[0]?.transcript ?? "";
+      }
+
+      if (hasInterimResults || (hadInterimResults && !hasFinalResult)) {
+        notifyEventListeners(
+          speechCallbacks,
+          () => ({ transcript: interimTranscript, isFinal: false }),
+          "Dictation",
+        );
+      }
+      hadInterimResults = hasInterimResults;
     });
 
     recognition.addEventListener("speechend", () => {
