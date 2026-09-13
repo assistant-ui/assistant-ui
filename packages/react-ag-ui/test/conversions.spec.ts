@@ -593,23 +593,111 @@ describe("adapter conversions", () => {
     });
   });
 
-  it("preserves cross-message order around reasoning messages", () => {
+  it("folds a reasoning message into the assistant record that follows it", () => {
     const result = fromAgUiMessages([
       { id: "u-1", role: "user", content: "hi" },
       { id: "r-1", role: "reasoning", content: "thinking" },
       { id: "a-1", role: "assistant", content: "done" },
     ] as any);
 
-    expect(result.map((m) => m.role)).toEqual([
-      "user",
-      "assistant",
-      "assistant",
-    ]);
+    expect(result.map((m) => m.role)).toEqual(["user", "assistant"]);
+    expect(result[1]).toMatchObject({ id: "a-1" });
     expect((result[1] as any).content).toEqual([
-      { type: "reasoning", text: "thinking" },
-    ]);
-    expect((result[2] as any).content).toEqual([
+      {
+        type: "reasoning",
+        text: "thinking",
+        providerMetadata: { agui: { reasoningId: "r-1" } },
+      },
       { type: "text", text: "done" },
+    ]);
+  });
+
+  it("releases a reasoning message no assistant record follows", () => {
+    const result = fromAgUiMessages([
+      { id: "u-1", role: "user", content: "hi" },
+      { id: "r-1", role: "reasoning", content: "thinking" },
+      { id: "u-2", role: "user", content: "still there?" },
+    ] as any);
+
+    expect(result.map((m) => m.role)).toEqual(["user", "assistant", "user"]);
+    expect(result[1]).toMatchObject({ id: "r-1" });
+  });
+
+  it("folds several reasoning messages onto one assistant record in order", () => {
+    const result = fromAgUiMessages([
+      { id: "r-1", role: "reasoning", content: "first" },
+      { id: "r-2", role: "reasoning", content: "second" },
+      { id: "a-1", role: "assistant", content: "done" },
+    ] as any);
+
+    expect(result).toHaveLength(1);
+    expect((result[0] as any).content.map((p: any) => p.text)).toEqual([
+      "first",
+      "second",
+      "done",
+    ]);
+    expect(toAgUiMessages(result).map((m: any) => m.id)).toEqual([
+      "r-1",
+      "r-2",
+      "a-1",
+    ]);
+  });
+
+  it("keeps a folded turn stable across a snapshot round trip", () => {
+    const snapshot = [
+      { id: "u-1", role: "user", content: "weather?" },
+      { id: "r-1", role: "reasoning", content: "check the tool" },
+      {
+        id: "a-1",
+        role: "assistant",
+        content: "",
+        toolCalls: [
+          {
+            id: "c-1",
+            type: "function",
+            function: { name: "lookup", arguments: "{}" },
+          },
+        ],
+      },
+      { id: "t-1", role: "tool", content: "ok", toolCallId: "c-1" },
+    ];
+
+    const imported = fromAgUiMessages(snapshot as any);
+
+    expect(imported.map((m) => m.role)).toEqual(["user", "assistant"]);
+    expect((imported[1] as any).content.map((p: any) => p.type)).toEqual([
+      "reasoning",
+      "tool-call",
+    ]);
+    expect(toAgUiMessages(imported)).toEqual(snapshot);
+  });
+
+  it("restores reasoning ahead of prose it followed in the run", () => {
+    // A run can emit prose and then reason about it, and the export hoists
+    // every reasoning part ahead of its assistant record, so that order is
+    // already gone on the wire and no import rule can recover it.
+    const live = [
+      {
+        id: "m-1",
+        role: "assistant",
+        content: [
+          { type: "text", text: "prose first" },
+          { type: "reasoning", text: "afterthought" },
+        ],
+      },
+    ];
+
+    const exported = toAgUiMessages(live as any);
+    expect(exported).toEqual([
+      { id: "m-1:reasoning-0", role: "reasoning", content: "afterthought" },
+      { id: "m-1", role: "assistant", content: "prose first" },
+    ]);
+
+    const imported = fromAgUiMessages(exported as any);
+    expect(imported).toHaveLength(1);
+    expect((imported[0] as any).content.map((p: any) => p.type)).toEqual([
+      "reasoning",
+      "text",
     ]);
   });
 
@@ -720,9 +808,9 @@ describe("adapter conversions", () => {
       { id: "r-1", role: "reasoning", content: "thinking" },
     ] as any);
 
-    expect((imported[0] as any).content[0]).not.toHaveProperty(
-      "providerMetadata",
-    );
+    expect(
+      (imported[0] as any).content[0].providerMetadata.agui,
+    ).not.toHaveProperty("encryptedValue");
     expect(toAgUiMessages(imported)[0]).not.toHaveProperty("encryptedValue");
   });
 
