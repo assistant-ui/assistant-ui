@@ -19,25 +19,6 @@ type ThreadData = {
   externalId: string | undefined;
 };
 
-type CloudThreadOwnership = Pick<ReadonlySet<string>, "has">;
-type MutableCloudThreadOwnership = Set<string>;
-
-const cloudThreadOwnership = new WeakMap<
-  RemoteThreadListAdapter,
-  MutableCloudThreadOwnership
->();
-
-export const getCloudThreadOwnership = (
-  adapter: RemoteThreadListAdapter,
-): CloudThreadOwnership | undefined => cloudThreadOwnership.get(adapter);
-
-export const setCloudThreadOwnership = (
-  adapter: RemoteThreadListAdapter,
-  ownership: MutableCloudThreadOwnership,
-): void => {
-  cloudThreadOwnership.set(adapter, ownership);
-};
-
 export type CloudThreadListAdapterOptions = {
   cloud?: AssistantCloud | undefined;
   /**
@@ -93,37 +74,15 @@ const createCommittedScopeRef = (initialScope: unknown): CommittedScopeRef => {
 export const useCloudRuntimeAdapters = (
   cloudRef: RefObject<AssistantCloud>,
   scopeRef?: RefObject<unknown>,
-  ownership?: CloudThreadOwnership,
 ): RuntimeAdapters => {
   const scope = scopeRef?.current ?? DEFAULT_CLOUD_SCOPE;
   const [committedScopeRef] = useState(() => createCommittedScopeRef(scope));
-  const [ownershipState] = useState(() => ({
-    required: scope !== DEFAULT_CLOUD_SCOPE,
-  }));
-  const [committedOwnershipRef] = useState<{
-    current: CloudThreadOwnership | undefined;
-  }>(() => ({
-    current: ownershipState.required ? ownership : undefined,
-  }));
   useInsertionEffect(() => {
-    if (!Object.is(committedScopeRef.current, scope)) {
-      ownershipState.required = true;
-    }
-    committedOwnershipRef.current = ownershipState.required
-      ? ownership
-      : undefined;
     committedScopeRef.update(scope);
-  }, [
-    committedOwnershipRef,
-    committedScopeRef,
-    ownership,
-    ownershipState,
-    scope,
-  ]);
+  }, [committedScopeRef, scope]);
   const history = useScopedAssistantCloudThreadHistoryAdapter(
     cloudRef,
     committedScopeRef,
-    committedOwnershipRef,
   );
   const [attachments] = useState(() =>
     createScopedCloudFileAttachmentAdapter(
@@ -204,22 +163,17 @@ export const createCloudThreadListAdapter = (
     return inMemory;
   }
 
-  const ownedRemoteIds = new Set<string>();
-  let adapter: RemoteThreadListAdapter;
-
-  const getOwnership = () => cloudThreadOwnership.get(adapter)!;
-
   const unstable_useAdapters = function useCloudAdapters(): RuntimeAdapters {
     const cloudRef = { current: cloud };
     const scopeRef = { current: scopeId };
-    return useCloudRuntimeAdapters(cloudRef, scopeRef, getOwnership());
+    return useCloudRuntimeAdapters(cloudRef, scopeRef);
   };
 
   cloud.registerSdk?.(CORE_SDK);
   const sdk = getOptions().sdk;
   if (sdk) cloud.registerSdk?.(sdk);
 
-  adapter = {
+  return {
     list: async ({ after } = {}) => {
       const {
         activeCursor,
@@ -252,8 +206,6 @@ export const createCloudThreadListAdapter = (
           ? archivedThreads.at(-1)?.id
           : undefined;
       const threads = [...activeThreads, ...archivedThreads];
-      const ownership = getOwnership();
-      for (const thread of threads) ownership.add(thread.id);
       return {
         threads: threads.map((t) => ({
           status: t.is_archived ? ("archived" as const) : ("regular" as const),
@@ -285,8 +237,6 @@ export const createCloudThreadListAdapter = (
         last_message_at: new Date(),
         external_id,
       });
-      const ownership = getOwnership();
-      ownership.add(remoteId);
 
       return { externalId: external_id, remoteId: remoteId };
     },
@@ -305,10 +255,7 @@ export const createCloudThreadListAdapter = (
     },
     delete: async (threadId) => {
       await getOptions().delete?.(threadId);
-      const result = await cloud.threads.delete(threadId);
-      const ownership = getOwnership();
-      ownership.delete(threadId);
-      return result;
+      return cloud.threads.delete(threadId);
     },
 
     generateTitle: async (threadId, messages) => {
@@ -328,8 +275,6 @@ export const createCloudThreadListAdapter = (
 
     fetch: async (threadId: string) => {
       const thread = await cloud.threads.get(threadId);
-      const ownership = getOwnership();
-      ownership.add(thread.id);
       return {
         status: thread.is_archived
           ? ("archived" as const)
@@ -346,6 +291,4 @@ export const createCloudThreadListAdapter = (
 
     unstable_useAdapters,
   };
-  cloudThreadOwnership.set(adapter, ownedRemoteIds);
-  return adapter;
 };

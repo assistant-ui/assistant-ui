@@ -1,15 +1,8 @@
-import {
-  useCallback,
-  useInsertionEffect,
-  useMemo,
-  useRef,
-  useState,
-} from "react";
+import { useCallback, useInsertionEffect, useMemo, useRef } from "react";
 import type { RemoteThreadListAdapter } from "../../../runtimes/remote-thread-list/types";
 import {
   autoCloud,
   createCloudThreadListAdapter,
-  setCloudThreadOwnership,
   type CloudThreadListAdapterOptions,
   useCloudRuntimeAdapters,
 } from "./createCloudThreadListAdapter";
@@ -24,33 +17,15 @@ export const useCloudThreadListAdapter = (
 
   const cloud = adapter.cloud ?? autoCloud;
   const scope = adapter.scopeId;
-  const [ownershipState] = useState(() => ({
-    scope,
-    ids: new Set<string>(),
-  }));
-  const ownership = useMemo(
-    () =>
-      Object.is(ownershipState.scope, scope)
-        ? ownershipState.ids
-        : new Set<string>(),
-    [ownershipState, scope],
-  );
-  useInsertionEffect(() => {
-    ownershipState.scope = scope;
-    ownershipState.ids = ownership;
-  }, [ownership, ownershipState, scope]);
   const base = useMemo(
-    () => {
-      const created = createCloudThreadListAdapter(() => ({
+    () =>
+      createCloudThreadListAdapter(() => ({
         ...adapterRef.current,
         cloud,
         scopeId: scope,
-      }));
-      setCloudThreadOwnership(created, ownership);
-      return created;
-    },
+      })),
     // oxlint-disable-next-line react-hooks/exhaustive-deps -- the factory pins the cloud instance; changing callbacks are read from the committed ref
-    [cloud, ownership],
+    [cloud, scope],
   );
 
   const cloudRef = useMemo(
@@ -65,18 +40,16 @@ export const useCloudThreadListAdapter = (
 
   const unstable_useAdapters = useCallback(
     function useCloudAdapters() {
-      return useCloudRuntimeAdapters(cloudRef, scopeRef, ownership);
+      return useCloudRuntimeAdapters(cloudRef, scopeRef);
     },
-    [cloudRef, ownership, scopeRef],
+    [cloudRef, scopeRef],
   );
 
   return useMemo<RemoteThreadListAdapter>(() => {
     if (base.unstable_useAdapters === undefined) return base;
-    const adapter = {
+    return {
       ...base,
       unstable_useAdapters,
     };
-    setCloudThreadOwnership(adapter, ownership);
-    return adapter;
-  }, [base, ownership, unstable_useAdapters]);
+  }, [base, unstable_useAdapters]);
 };

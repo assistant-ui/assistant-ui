@@ -49,7 +49,6 @@ type ScopedPersistence = {
 type CloudScopeSnapshot = {
   cloud: AssistantCloud;
   scope: unknown;
-  ownership: Pick<ReadonlySet<string>, "has"> | undefined;
 };
 
 type CloudScopeContext = CloudScopeSnapshot & {
@@ -66,9 +65,6 @@ export const DEFAULT_CLOUD_SCOPE = Symbol("assistant-ui:cloud-default-scope");
 class AssistantCloudThreadHistoryAdapter implements ThreadHistoryAdapter {
   private cloudRef: RefObject<AssistantCloud>;
   private scopeRef: RefObject<unknown>;
-  private ownershipRef:
-    | RefObject<Pick<ReadonlySet<string>, "has"> | undefined>
-    | undefined;
   private getAui: () => AssistantClient;
   private engagementContext:
     | { scope: unknown; reporter: CloudEngagementReporter }
@@ -78,11 +74,9 @@ class AssistantCloudThreadHistoryAdapter implements ThreadHistoryAdapter {
     cloudRef: RefObject<AssistantCloud>,
     getAui: () => AssistantClient,
     scopeRef: RefObject<unknown>,
-    ownershipRef?: RefObject<Pick<ReadonlySet<string>, "has"> | undefined>,
   ) {
     this.cloudRef = cloudRef;
     this.scopeRef = scopeRef;
-    this.ownershipRef = ownershipRef;
     this.getAui = getAui;
   }
 
@@ -94,7 +88,6 @@ class AssistantCloudThreadHistoryAdapter implements ThreadHistoryAdapter {
     return {
       cloud: this.cloudRef.current,
       scope: this.scopeRef.current,
-      ownership: this.ownershipRef?.current,
     };
   }
 
@@ -108,23 +101,10 @@ class AssistantCloudThreadHistoryAdapter implements ThreadHistoryAdapter {
     }
   }
 
-  private assertRemoteThreadOwned(
-    snapshot: CloudScopeSnapshot,
-    remoteId: string,
-  ): void {
-    if (snapshot.ownership && !snapshot.ownership.has(remoteId)) {
-      throw new Error(
-        "Cloud thread does not belong to the current account or workspace scope",
-      );
-    }
-  }
-
   private captureScope(
     threadListItem: CloudThreadListItem = this.aui.threadListItem,
   ): CloudScopeContext {
     const snapshot = this.captureScopeSnapshot();
-    const remoteId = threadListItem.getState().remoteId;
-    if (remoteId) this.assertRemoteThreadOwned(snapshot, remoteId);
     return {
       ...snapshot,
       persistence: this.getPersistence(threadListItem, snapshot),
@@ -159,8 +139,6 @@ class AssistantCloudThreadHistoryAdapter implements ThreadHistoryAdapter {
     threadListItem: CloudThreadListItem = this.aui.threadListItem,
     snapshot = this.captureScopeSnapshot(),
   ): CloudMessagePersistence {
-    const remoteId = threadListItem.getState().remoteId;
-    if (remoteId) this.assertRemoteThreadOwned(snapshot, remoteId);
     const key = getClientId(threadListItem);
     let entry = globalPersistence.get(key);
     if (!entry || !Object.is(entry.scope, snapshot.scope)) {
@@ -179,6 +157,13 @@ class AssistantCloudThreadHistoryAdapter implements ThreadHistoryAdapter {
       entry.cloudRef.current = this.cloudRef;
     }
     return entry.persistence;
+  }
+
+  private async resolveExistingRemoteId(
+    threadListItem: CloudThreadListItem,
+  ): Promise<string | undefined> {
+    if (!threadListItem.getState().remoteId) return undefined;
+    return (await threadListItem.initialize()).remoteId;
   }
 
   /**
@@ -211,15 +196,14 @@ class AssistantCloudThreadHistoryAdapter implements ThreadHistoryAdapter {
     if (!threadListItem) return {};
     const persistence = this.getPersistence(threadListItem, snapshot);
 
-    let remoteThreadId = threadListItem.getState().remoteId;
-    if (!remoteThreadId && options?.awaitThread) {
+    let remoteThreadId: string | undefined;
+    if (threadListItem.getState().remoteId || options?.awaitThread) {
       remoteThreadId = await threadListItem
         .initialize()
         .then((result) => result.remoteId)
         .catch(() => undefined);
     }
     this.assertCurrentScope(snapshot);
-    if (remoteThreadId) this.assertRemoteThreadOwned(snapshot, remoteThreadId);
     const remoteMessageId = messageId
       ? persistence.getResolvedRemoteId(messageId)
       : undefined;
@@ -232,19 +216,22 @@ class AssistantCloudThreadHistoryAdapter implements ThreadHistoryAdapter {
   public readonly feedback: FeedbackAdapter = {
     submit: ({ message, type }) => {
       void (async () => {
-        const snapshot = this.captureScopeSnapshot();
         const threadListItem = this.tryGetKeyedThreadListItem();
-        const remoteThreadId = threadListItem?.getState().remoteId;
-        if (!threadListItem || !remoteThreadId) {
+        if (!threadListItem || !threadListItem.getState().remoteId) {
           console.warn(
             `[assistant-ui] Skipping feedback for message ${message.id}: the thread has no remote id.`,
           );
           return;
         }
 
-        const persistence = this.getPersistence(threadListItem, snapshot);
+        const context = this.captureScope(threadListItem);
+        const remoteThreadId =
+          await this.resolveExistingRemoteId(threadListItem);
+        this.assertCurrentScope(context);
+        if (!remoteThreadId) return;
+        const persistence = context.persistence;
         const cloudMessageId = await persistence.getRemoteId(message.id);
-        this.assertCurrentScope(snapshot);
+        this.assertCurrentScope(context);
         if (!cloudMessageId) {
           console.warn(
             `[assistant-ui] Skipping feedback for message ${message.id}: no cloud message id is mapped.`,
@@ -252,7 +239,7 @@ class AssistantCloudThreadHistoryAdapter implements ThreadHistoryAdapter {
           return;
         }
 
-        await snapshot.cloud.threads.messages.feedback(
+        await context.cloud.threads.messages.feedback(
           remoteThreadId,
           cloudMessageId,
           { type },
@@ -319,17 +306,17 @@ class AssistantCloudThreadHistoryAdapter implements ThreadHistoryAdapter {
           );
         }
         const context = adapter.captureScope(pinned);
-        const remoteId =
-          pinned.getState().remoteId ?? (await pinned.initialize()).remoteId;
+        const { remoteId } = await pinned.initialize();
         adapter.assertCurrentScope(context);
-        adapter.assertRemoteThreadOwned(context, remoteId);
         await getTargetFormatted(context).append(remoteId, item);
       },
       async update(item: MessageFormatItem<TMessage>, localMessageId: string) {
         const pinned = resolvePinned();
-        const remoteId = pinned?.getState().remoteId;
-        if (!remoteId || !pinned) return;
+        if (!pinned || !pinned.getState().remoteId) return;
         const context = adapter.captureScope(pinned);
+        const remoteId = await adapter.resolveExistingRemoteId(pinned);
+        adapter.assertCurrentScope(context);
+        if (!remoteId) return;
         await getTargetFormatted(context).update?.(
           remoteId,
           item,
@@ -371,9 +358,12 @@ class AssistantCloudThreadHistoryAdapter implements ThreadHistoryAdapter {
         // resolve, whichever of the list item or the live graft won the pin.
         const pinned = pinCurrent();
         const live = adapter.aui.threadListItem;
-        const remoteId = live.source ? live.getState().remoteId : undefined;
+        if (!live.source || !live.getState().remoteId) return { messages: [] };
+        const target = pinned ?? live;
+        const context = adapter.captureScope(target);
+        const remoteId = await adapter.resolveExistingRemoteId(target);
+        adapter.assertCurrentScope(context);
         if (!remoteId) return { messages: [] };
-        const context = adapter.captureScope(pinned ?? live);
         const repository = await getTargetFormatted(context).load(remoteId);
         adapter.assertCurrentScope(context);
         return repository;
@@ -386,7 +376,6 @@ class AssistantCloudThreadHistoryAdapter implements ThreadHistoryAdapter {
     const context = this.captureScope(threadListItem);
     const { remoteId } = await threadListItem.initialize();
     this.assertCurrentScope(context);
-    this.assertRemoteThreadOwned(context, remoteId);
     const encoded = auiV0Encode(message);
     await context.persistence.append(
       remoteId,
@@ -414,7 +403,8 @@ class AssistantCloudThreadHistoryAdapter implements ThreadHistoryAdapter {
       return this.append(item);
     }
     const { message } = item;
-    const remoteId = threadListItem.getState().remoteId;
+    const remoteId = await this.resolveExistingRemoteId(threadListItem);
+    this.assertCurrentScope(context);
     if (!remoteId) return;
     const encoded = auiV0Encode(message);
     await context.persistence.update(remoteId, message.id, "aui/v0", encoded);
@@ -439,7 +429,8 @@ class AssistantCloudThreadHistoryAdapter implements ThreadHistoryAdapter {
   async load() {
     const threadListItem = this.aui.threadListItem;
     const context = this.captureScope(threadListItem);
-    const remoteId = threadListItem.getState().remoteId;
+    const remoteId = await this.resolveExistingRemoteId(threadListItem);
+    this.assertCurrentScope(context);
     if (!remoteId) return { messages: [] };
     const messages = await context.persistence.load(remoteId, "aui/v0");
     this.assertCurrentScope(context);
@@ -465,8 +456,7 @@ class AssistantCloudThreadHistoryAdapter implements ThreadHistoryAdapter {
   ) {
     const item = threadListItem ?? this.aui.threadListItem;
     const context = this.captureScope(item);
-    const remoteId = item.getState().remoteId;
-    if (!remoteId) return;
+    if (!item.getState().remoteId) return;
 
     const extracted =
       extractRunTelemetry(format, runMessages) ??
@@ -475,14 +465,20 @@ class AssistantCloudThreadHistoryAdapter implements ThreadHistoryAdapter {
         : undefined);
     if (!extracted) return;
 
-    this._sendReport(
-      remoteId,
-      extracted,
-      options?.durationMs,
-      options?.stepTimestamps,
-      messageInfo,
-      context,
-    );
+    void this.resolveExistingRemoteId(item)
+      .then((remoteId) => {
+        if (!remoteId) return;
+        this.assertCurrentScope(context);
+        this._sendReport(
+          remoteId,
+          extracted,
+          options?.durationMs,
+          options?.stepTimestamps,
+          messageInfo,
+          context,
+        );
+      })
+      .catch(() => {});
   }
 
   private _maybeReportRun<T>(
@@ -824,7 +820,6 @@ export function extractAuiV0<T>(content: T): RunMessageTelemetry | null {
 export function useScopedAssistantCloudThreadHistoryAdapter(
   cloudRef: RefObject<AssistantCloud>,
   scopeRef: RefObject<unknown>,
-  ownershipRef?: RefObject<Pick<ReadonlySet<string>, "has"> | undefined>,
 ): ThreadHistoryAdapter & { readonly feedback: FeedbackAdapter } {
   const aui = useAui();
   // Not useEffectEvent: history adapter methods run during render (SSR load).
@@ -838,7 +833,6 @@ export function useScopedAssistantCloudThreadHistoryAdapter(
         cloudRef,
         () => auiRef.current,
         scopeRef,
-        ownershipRef,
       ),
   );
   useAssistantCloudEngagementEvents(adapter, aui);

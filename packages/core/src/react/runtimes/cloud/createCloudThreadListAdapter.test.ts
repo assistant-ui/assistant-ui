@@ -4,10 +4,7 @@ import { describe, expect, it, onTestFinished, vi } from "vitest";
 import { renderHook } from "@testing-library/react";
 import type { AssistantCloud } from "assistant-cloud";
 import type { PendingAttachment } from "../../../types/attachment";
-import {
-  createCloudThreadListAdapter,
-  getCloudThreadOwnership,
-} from "./createCloudThreadListAdapter";
+import { createCloudThreadListAdapter } from "./createCloudThreadListAdapter";
 import { CORE_SDK } from "./sdkIdentity";
 
 vi.mock("@assistant-ui/store", async (importOriginal) => ({
@@ -43,19 +40,6 @@ const makeCloud = () =>
     },
     registerSdk: vi.fn(),
   }) as unknown as AssistantCloud;
-
-const makeThread = (id: string) => ({
-  id,
-  title: id,
-  is_archived: false,
-  external_id: null,
-  metadata: null,
-  last_message_at: new Date(0),
-  created_at: new Date(0),
-  updated_at: new Date(0),
-  project_id: "project-1",
-  workspace_id: "workspace-1",
-});
 
 describe("createCloudThreadListAdapter", () => {
   it("falls back to an in-memory list without a cloud instance", async () => {
@@ -106,56 +90,6 @@ describe("createCloudThreadListAdapter", () => {
 
     expect(adapter.unstable_useAdapters).toBeTypeOf("function");
     expect(adapter.unstable_Provider).toBeUndefined();
-  });
-
-  it("records remote ids listed by a scoped adapter", async () => {
-    const cloud = makeCloud();
-    vi.mocked(cloud.threads.list)
-      .mockResolvedValueOnce({ threads: [makeThread("remote-1")] })
-      .mockResolvedValueOnce({ threads: [] });
-    const adapter = createCloudThreadListAdapter({
-      cloud,
-      scopeId: "workspace-a",
-    });
-    const ownership = getCloudThreadOwnership(adapter)!;
-
-    expect(ownership.has("remote-1")).toBe(false);
-    await adapter.list();
-    expect(ownership.has("remote-1")).toBe(true);
-  });
-
-  it("does not transfer explicit ownership into the default scope", async () => {
-    const cloud = makeCloud();
-    vi.mocked(cloud.threads.list)
-      .mockResolvedValueOnce({ threads: [makeThread("explicit-only")] })
-      .mockResolvedValueOnce({ threads: [] });
-    const scoped = createCloudThreadListAdapter({
-      cloud,
-      scopeId: "workspace-a",
-    });
-    await scoped.list();
-
-    const unscoped = createCloudThreadListAdapter({ cloud });
-
-    expect(getCloudThreadOwnership(scoped)!.has("explicit-only")).toBe(true);
-    expect(getCloudThreadOwnership(unscoped)!.has("explicit-only")).toBe(false);
-  });
-
-  it("releases ownership after deleting a thread", async () => {
-    const cloud = makeCloud();
-    vi.mocked(cloud.threads.create).mockResolvedValueOnce({
-      thread_id: "remote-1",
-    });
-    const adapter = createCloudThreadListAdapter({
-      cloud,
-      scopeId: "workspace-a",
-    });
-    const ownership = getCloudThreadOwnership(adapter)!;
-    await adapter.initialize();
-
-    expect(ownership.has("remote-1")).toBe(true);
-    await adapter.delete!("remote-1");
-    expect(ownership.has("remote-1")).toBe(false);
   });
 
   it("registers core and the calling integration identities", () => {
