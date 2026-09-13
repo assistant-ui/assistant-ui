@@ -168,6 +168,46 @@ describe("getMessageContent", () => {
     ]);
   });
 
+  it("normalizes escaped and whitespace-separated base64 image data", () => {
+    const content = getMessageContent(
+      makeAppendMessage([
+        {
+          type: "image",
+          image: "data:image/png;base64,aGVs%0A bG8%3D",
+        },
+      ]),
+    );
+
+    expect(contentToParts(content)).toEqual([
+      { inlineData: { mimeType: "image/png", data: "aGVsbG8=" } },
+    ]);
+  });
+
+  it("infers an image MIME type when the data URL declares a generic type", () => {
+    const content = getMessageContent(
+      makeAppendMessage([
+        {
+          type: "image",
+          image: "data:application/octet-stream;base64,iVBORw0KGgo=",
+        },
+      ]),
+    );
+
+    expect(contentToParts(content)).toEqual([
+      { inlineData: { mimeType: "image/png", data: "iVBORw0KGgo=" } },
+    ]);
+  });
+
+  it("rejects malformed percent encoding in base64 image data", () => {
+    expect(() =>
+      getMessageContent(
+        makeAppendMessage([
+          { type: "image", image: "data:image/png;base64,AAAA%" },
+        ]),
+      ),
+    ).toThrow("Invalid image data URL: malformed percent encoding.");
+  });
+
   it("preserves file part data and mimeType end-to-end", () => {
     const result = getMessageContent(
       makeAppendMessage([

@@ -8,9 +8,18 @@ import {
   createToolCallCancellationStub,
   parseDataUrl,
   resolveFilePartSource,
+  resolveImageMediaType,
   scanPendingToolCalls,
 } from "@assistant-ui/core/internal";
 import type { AdkMessage } from "./types";
+
+const normalizeBase64DataUrlPayload = (payload: string): string => {
+  try {
+    return decodeURIComponent(payload).replace(/[\t\n\f\r ]/g, "");
+  } catch {
+    throw new Error("Invalid image data URL: malformed percent encoding.");
+  }
+};
 
 /** Exported for unit tests. */
 export const getMessageContent = (msg: AppendMessage) => {
@@ -28,8 +37,8 @@ export const getMessageContent = (msg: AppendMessage) => {
         if (parsed) {
           return {
             type: "image" as const,
-            mimeType: parsed.mimeType,
-            data: parsed.data,
+            mimeType: resolveImageMediaType(part.image),
+            data: normalizeBase64DataUrlPayload(parsed.data),
           };
         }
         return { type: "image_url" as const, url: part.image };
