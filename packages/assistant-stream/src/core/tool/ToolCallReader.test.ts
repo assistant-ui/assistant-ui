@@ -30,6 +30,12 @@ type Args = {
 
 const createReader = () => new ToolCallReaderImpl<Args, string>();
 
+const collect = async <T>(stream: AsyncIterable<T>) => {
+  const values: T[] = [];
+  for await (const value of stream) values.push(value);
+  return values;
+};
+
 describe("ToolCallArgsReader parsing", () => {
   it("does not parse streamed arguments without an active reader", async () => {
     parsePartialJsonObjectCalls.mockClear();
@@ -117,6 +123,56 @@ describe("ToolCallArgsReader parsing", () => {
 });
 
 describe("ToolCallArgsReader.get", () => {
+  it.each(["constructor", "toString"] as const)(
+    "does not inherit a missing %s field before or after completion",
+    async (key) => {
+      const reader = new ToolCallReaderImpl<
+        { constructor?: string; toString?: string },
+        string
+      >();
+      const pending = reader.args.get(key);
+      await reader.appendArgsTextDelta("{}");
+      await reader.finishArgsText();
+
+      expect(await pending).toBeUndefined();
+      expect(await reader.args.get(key)).toBeUndefined();
+    },
+  );
+
+  it("checks own properties at every nested path segment", async () => {
+    const reader = new ToolCallReaderImpl<
+      {
+        nested: { toString?: string; constructor?: { name: string } };
+      },
+      string
+    >();
+    await reader.appendArgsTextDelta('{"nested":{}}');
+    await reader.finishArgsText();
+
+    expect(await reader.args.get("nested", "toString")).toBeUndefined();
+    expect(
+      await reader.args.get("nested", "constructor", "name"),
+    ).toBeUndefined();
+  });
+
+  it.each(["constructor", "toString"] as const)(
+    "preserves an explicitly supplied own %s field",
+    async (key) => {
+      const reader = new ToolCallReaderImpl<
+        { constructor?: string; toString?: string },
+        string
+      >();
+      const pending = reader.args.get(key);
+      await reader.appendArgsTextDelta(
+        JSON.stringify({ [key]: "actual value" }),
+      );
+      await reader.finishArgsText();
+
+      expect(await pending).toBe("actual value");
+      expect(await reader.args.get(key)).toBe("actual value");
+    },
+  );
+
   it("waits for all digits of a positive exponent", async () => {
     const reader = new ToolCallReaderImpl<{ amount: number }, string>();
     const amount = reader.args.get("amount");
@@ -174,6 +230,35 @@ describe("ToolCallArgsReader.get", () => {
 });
 
 describe("ToolCallArgsReader streams", () => {
+  it("does not stream inherited values while arguments are partial or complete", async () => {
+    const reader = new ToolCallReaderImpl<
+      { toString?: string; nested: { toString?: string } },
+      string
+    >();
+    const values = reader.args.streamValues("toString");
+    const nestedValues = reader.args.streamValues("nested", "toString");
+    await reader.appendArgsTextDelta('{"nested":{');
+    await reader.appendArgsTextDelta("}}");
+    await reader.finishArgsText();
+
+    expect(await collect(values)).toEqual([]);
+    expect(await collect(nestedValues)).toEqual([]);
+    expect(await collect(reader.args.streamValues("toString"))).toEqual([]);
+  });
+
+  it("streams an explicitly supplied nested prototype-named field", async () => {
+    const reader = new ToolCallReaderImpl<
+      { nested: { toString: string } },
+      string
+    >();
+    const values = reader.args.streamValues("nested", "toString");
+    await reader.appendArgsTextDelta('{"nested":{"toString":"hel');
+    await reader.appendArgsTextDelta('lo"}}');
+    await reader.finishArgsText();
+
+    expect(await collect(values)).toEqual(["hel", "hello"]);
+  });
+
   it("closes streamValues when args close without the field", async () => {
     const reader = createReader();
 
