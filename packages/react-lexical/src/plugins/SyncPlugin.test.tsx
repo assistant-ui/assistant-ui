@@ -229,6 +229,7 @@ describe("SyncPlugin", () => {
       }
     }
     // The control accounts for Lexical's own development-mode text reads.
+    expect(counter.renders("control")).toBeGreaterThan(0);
     expect(counter.renders("sync") - counter.renders("control")).toBe(0);
   });
 
