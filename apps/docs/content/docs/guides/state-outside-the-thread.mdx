@@ -83,6 +83,7 @@ Render from state and use events for side effects such as a toast, a sound, or a
 
 ```tsx title="/components/run-toasts.tsx"
 import { useAuiEvent } from "@assistant-ui/react";
+import { toast } from "sonner";
 
 export function RunToasts() {
   useAuiEvent({ scope: "*", event: "thread.runEnd" }, ({ threadId }) => {
@@ -96,7 +97,7 @@ export function RunToasts() {
 
 ## Another React root or plain code
 
-A devtools overlay, a browser extension panel, or an analytics module cannot call `useAui`. Publish the client from a null-rendering child of the provider, and let outside code subscribe to it. `aui.subscribe` fires on every state change and `aui.thread.getState()` reads the current snapshot. Compute the projection inside the subscription callback and cache it: scope accessors throw when read during a render, and a cached snapshot is what `useSyncExternalStore` expects from `getSnapshot`.
+A devtools overlay, a browser extension panel, or an analytics module cannot call `useAui`. Publish the client from a null-rendering child of the provider, and let outside code subscribe to it. `aui.subscribe` fires on every state change and `aui.thread.getState()` reads the current snapshot. Compute the projection inside the subscription callback and cache it: `useSyncExternalStore` requires `getSnapshot` to return a referentially stable value, so building a fresh object on each call would loop.
 
 ```ts title="/lib/assistant-client-store.ts"
 import type { AssistantClient } from "@assistant-ui/react";
