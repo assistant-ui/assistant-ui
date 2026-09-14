@@ -23,6 +23,7 @@ import type {
   MessageStatus,
   MessageTiming,
   PartProviderMetadata,
+  GenerativeUIMessagePart,
   ToolApprovalOption,
   ToolCallMessagePart,
   ToolModelContentPart,
@@ -96,6 +97,10 @@ type StoredThreadMetadata = {
 type StoredSystemMessage = Extract<ThreadMessage, { role: "system" }>;
 type StoredUserMessage = Extract<ThreadMessage, { role: "user" }>;
 type StoredAssistantMessage = Extract<ThreadMessage, { role: "assistant" }>;
+type StoredMessageLikePart = Exclude<
+  ThreadMessageLike["content"],
+  string
+>[number];
 
 const parseJSON = (raw: string | null): unknown => {
   if (!raw) return undefined;
@@ -216,7 +221,9 @@ const parseStoredPartStatus = (
   value: unknown,
 ): MessagePartStreamStatus | undefined => {
   if (!isRecord(value)) return undefined;
-  if (value.type === "running" || value.type === "complete") return value;
+  if (value.type === "running" || value.type === "complete") {
+    return { type: value.type };
+  }
   if (
     value.type === "incomplete" &&
     (value.reason === "cancelled" ||
@@ -239,7 +246,7 @@ const parseStoredProviderMetadata = (
   ) {
     return undefined;
   }
-  return value;
+  return value as PartProviderMetadata;
 };
 
 const parseStoredThreadStep = (value: unknown): ThreadStep | null => {
@@ -435,9 +442,7 @@ const parseStoredToolCall = (
   parentMessageId: string,
   partIndex: number,
   parentCreatedAt: Date,
-): ThreadMessageLike["content"] extends readonly (infer Part)[]
-  ? Part | undefined
-  : never => {
+): StoredMessageLikePart | undefined => {
   if (typeof value.toolName !== "string") return undefined;
 
   const parsedModelContent = parseStoredToolModelContent(value.modelContent);
@@ -515,9 +520,7 @@ const parseStoredToolCall = (
       ? { parentId: value.parentId }
       : undefined),
     ...(messages !== undefined ? { messages } : undefined),
-  } as ThreadMessageLike["content"] extends readonly (infer Part)[]
-    ? Part
-    : never;
+  };
 };
 
 const isStoredGenerativeUINode = (value: unknown, depth = 0): boolean => {
@@ -541,9 +544,7 @@ const parseStoredAssistantPart = (
   parentMessageId: string,
   partIndex: number,
   parentCreatedAt: Date,
-): ThreadMessageLike["content"] extends readonly (infer Part)[]
-  ? Part | undefined
-  : never => {
+): StoredMessageLikePart | undefined => {
   const providerMetadata = parseStoredProviderMetadata(value.providerMetadata);
   const parentId =
     typeof value.parentId === "string" ? { parentId: value.parentId } : {};
@@ -670,7 +671,7 @@ const parseStoredAssistantPart = (
       }
       return {
         type: "generative-ui",
-        spec: value.spec as { root: unknown },
+        spec: value.spec as GenerativeUIMessagePart["spec"],
         ...parentId,
         ...(typeof value.id === "string" ? { id: value.id } : undefined),
       };
