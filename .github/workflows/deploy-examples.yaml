@@ -1,5 +1,7 @@
 name: Deploy Examples
 
+# The trigger list is the union of the per example inputs in the changes job;
+# keep both in step.
 on:
   push:
     branches:
@@ -9,9 +11,9 @@ on:
       - examples/with-react-ink-web/**
       - packages/react-native/**
       - packages/ui/**
+      - packages/metro/**
       - packages/react-ink/**
       - packages/react-ink-markdown/**
-      - packages/react-ai-sdk/**
       - packages/ai-sdk/**
       - packages/core/**
       - .github/workflows/deploy-examples.yaml
@@ -27,16 +29,64 @@ env:
   VERCEL_ORG_ID: ${{ secrets.VERCEL_ORG_ID }}
 
 jobs:
+  changes:
+    name: Changed examples
+    runs-on: blacksmith-4vcpu-ubuntu-2404
+    outputs:
+      matrix: ${{ steps.filter.outputs.matrix }}
+      any: ${{ steps.filter.outputs.any }}
+    steps:
+      - name: Checkout code repository
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # ratchet:actions/checkout@v7.0.1
+        with:
+          fetch-depth: 1
+
+      - name: Pick the examples whose inputs changed
+        id: filter
+        env:
+          BEFORE: ${{ github.event.before }}
+          AFTER: ${{ github.sha }}
+        run: |
+          set -euo pipefail
+
+          if [[ "$BEFORE" =~ ^0+$ ]]; then
+            changed=$'examples/with-expo/\nexamples/with-react-ink-web/'
+          else
+            git fetch --no-tags --depth=1 origin "$BEFORE"
+            changed=$(git diff --name-only "$BEFORE" "$AFTER")
+          fi
+
+          matches() {
+            local example=$1 file
+            while IFS= read -r file; do
+              case $example:$file in
+                with-expo:examples/with-expo/*|with-expo:packages/react-native/*|with-expo:packages/ui/*|with-expo:packages/metro/*|with-expo:packages/ai-sdk/*|with-expo:packages/core/*|with-expo:.github/workflows/deploy-examples.yaml) return 0 ;;
+                with-react-ink-web:examples/with-react-ink-web/*|with-react-ink-web:packages/react-ink/*|with-react-ink-web:packages/react-ink-markdown/*|with-react-ink-web:packages/ai-sdk/*|with-react-ink-web:packages/core/*|with-react-ink-web:.github/workflows/deploy-examples.yaml) return 0 ;;
+              esac
+            done <<< "$changed"
+            return 1
+          }
+
+          include='[]'
+          if matches with-expo; then
+            include=$(jq -c '. + [{"example":"with-expo","chat-endpoint-url":"https://www.assistant-ui.com/api/chat"}]' <<< "$include")
+          fi
+          if matches with-react-ink-web; then
+            include=$(jq -c '. + [{"example":"with-react-ink-web"}]' <<< "$include")
+          fi
+
+          echo "matrix=$(jq -c '{include: .}' <<< "$include")" >> "$GITHUB_OUTPUT"
+          echo "any=$(jq -r 'length > 0' <<< "$include")" >> "$GITHUB_OUTPUT"
+          echo "deploying: $(jq -r 'map(.example) | join(", ") | if . == "" then "nothing" else . end' <<< "$include")"
+
   deploy-production:
     name: Deploy Production (${{ matrix.example }})
+    needs: changes
+    if: needs.changes.outputs.any == 'true'
     runs-on: blacksmith-4vcpu-ubuntu-2404
     strategy:
       fail-fast: false
-      matrix:
-        include:
-          - example: with-expo
-            chat-endpoint-url: https://www.assistant-ui.com/api/chat
-          - example: with-react-ink-web
+      matrix: ${{ fromJSON(needs.changes.outputs.matrix) }}
     env:
       VERCEL_PROJECT_ID: ${{ matrix.example == 'with-expo' && secrets.VERCEL_EXPO_PROJECT_ID || matrix.example == 'with-react-ink-web' && secrets.VERCEL_INK_PROJECT_ID || '' }}
       EXPO_PUBLIC_CHAT_ENDPOINT_URL: ${{ matrix.chat-endpoint-url }}
