@@ -2,7 +2,6 @@ import { describe, expect, it } from "vitest";
 import { frontendTools } from "./frontendTools";
 import { wrapModelContentEnvelope } from "./modelContentEnvelope";
 
-// ai@7 accepts the tagged `file` part; ai@6 only the base64 `file-data` part.
 const expectedFilePart = (
   data: string,
   mediaType: string,

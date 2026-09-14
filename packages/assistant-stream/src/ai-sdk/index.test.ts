@@ -4,7 +4,12 @@ const loaded = vi.hoisted(() => ({ ai: false }));
 
 vi.mock("ai", async (importOriginal) => {
   loaded.ai = true;
-  return { ...(await importOriginal<typeof import("ai")>()) };
+  const actual = await importOriginal<typeof import("ai")>();
+  // vitest throws on reading an export the mock lacks; ai@6 has no uploadFile.
+  return {
+    ...actual,
+    uploadFile: (actual as { uploadFile?: unknown }).uploadFile,
+  };
 });
 
 describe("ai-sdk entry", () => {

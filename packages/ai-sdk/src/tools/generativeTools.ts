@@ -392,7 +392,7 @@ const toAISDKToModelOutput =
     const { result, modelContent } = unwrapModelContentEnvelope(options.output);
 
     if (modelContent !== undefined) {
-      return toAISDKContent(modelContent);
+      return toAISDKContent(modelContent, { taggedFileData: true });
     }
 
     if (!toModelOutput) {
@@ -403,7 +403,7 @@ const toAISDKToModelOutput =
       ...options,
       output: result,
     });
-    return toAISDKContent(parts);
+    return toAISDKContent(parts, { taggedFileData: true });
   };
 
 const toServerToolSet = (toolkit: ToolkitDefinition): ToolSet =>

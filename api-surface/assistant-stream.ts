@@ -1,6 +1,8 @@
 import { StandardSchemaV1 } from "@standard-schema/spec";
 
-import { JSONValue, Tool, ToolSet } from "ai";
+import * as ai from "ai";
+
+import { JSONValue } from "ai";
 
 import Deque from "denque";
 
@@ -13,6 +15,11 @@ import { IpcNetConnectOpts, Socket, TcpNetConnectOpts } from "net";
 import { Readable, ReadableOptions } from "stream";
 
 import { ConnectionOptions, TLSSocket } from "tls";
+
+type AISDKTextPart = {
+  type: "text";
+  text: string;
+};
 
 declare abstract class AbstractConnector {
   #private;
@@ -858,6 +865,18 @@ type JSONSchema7Type = string | number | boolean | JSONSchema7Object | JSONSchem
 type JSONSchema7TypeName = "array" | "boolean" | "integer" | "null" | "number" | "object" | "string";
 
 type JSONSchema7Version = string;
+
+type LegacyAISDKContent = {
+  type: "content";
+  value: (AISDKTextPart | LegacyFilePart)[];
+};
+
+type LegacyFilePart = {
+  type: "file-data";
+  data: string;
+  mediaType: string;
+  filename?: string;
+};
 
 type McpServerConfig = {
   type: "http" | "sse";
@@ -24365,6 +24384,21 @@ declare class SubscriptionSet {
 
 declare const TOOL_RESPONSE_SYMBOL: unique symbol;
 
+type TaggedAISDKContent = {
+  type: "content";
+  value: (AISDKTextPart | TaggedFilePart)[];
+};
+
+type TaggedFilePart = {
+  type: "file";
+  data: {
+    type: "data";
+    data: string;
+  };
+  mediaType: string;
+  filename?: string;
+};
+
 type TcpOptions = Pick<TcpNetConnectOpts, "family" | "host" | "port">;
 
 type TextPart = {
@@ -24396,14 +24430,14 @@ type ThreadMessageLike = {
 };
 
 type ToAISDKContentOptions = {
-  taggedFileData?: boolean;
+  taggedFileData: boolean;
 };
 
 type ToToolsJSONSchemaOptions = {
-  filter?: (name: string, tool: Tool$1) => boolean;
+  filter?: (name: string, tool: Tool) => boolean;
 };
 
-type Tool$1<TArgs extends Record<string, unknown> = Record<string, unknown>, TResult = unknown> = FrontendTool<TArgs, TResult> | BackendTool<TArgs, TResult> | HumanTool<TArgs, TResult> | ProviderTool<TArgs, TResult> | McpTool | ToolWithoutType<TArgs, TResult>;
+type Tool<TArgs extends Record<string, unknown> = Record<string, unknown>, TResult = unknown> = FrontendTool<TArgs, TResult> | BackendTool<TArgs, TResult> | HumanTool<TArgs, TResult> | ProviderTool<TArgs, TResult> | McpTool | ToolWithoutType<TArgs, TResult>;
 
 type ToolBase<TArgs extends Record<string, unknown> = Record<string, unknown>, TResult = unknown> = {
   streamCall?: ToolStreamCallFunction<TArgs, TResult>;
@@ -24564,10 +24598,6 @@ type ToolResponseLike<TResult> = {
   modelContent?: readonly ToolModelContentPart[] | undefined;
   messages?: ReadonlyJSONValue | undefined;
 };
-
-type ToolResultContentPart = Extract<Awaited<ReturnType<NonNullable<Tool["toModelOutput"]>>>, {
-  type: "content";
-}>["value"][number];
 
 type ToolResultStreamOptions = {
   onExecutionStart?: (toolCallId: string, toolName: string) => void;
@@ -24759,7 +24789,7 @@ declare function createResumeAssistantStreamResponse(options: CreateResumeAssist
 
 declare const fromObjectStreamResponse: (response: Response) => ReadableStream<GorpStreamChunk>;
 
-declare const frontendTools: (tools: FrontendTools) => ToolSet;
+declare const frontendTools: (tools: FrontendTools) => ai.ToolSet;
 
 declare const getPartialJsonObjectFieldState: (obj: Record<string, unknown>, fieldPath: (string | number)[]) => FieldState;
 
@@ -24776,7 +24806,7 @@ declare namespace entry_resumable_exports {
 }
 
 declare namespace entry_root_exports {
-  export { AssistantMessage, AssistantMessageAccumulator, AssistantMessageStream, AssistantMessageTiming, AssistantStream, AssistantStreamChunk, AssistantStreamController, AssistantTransportDecoder, GorpStreamDeltaTracker as AssistantTransportDeltaTracker, AssistantTransportEncoder, AssistantTransportStateOperation, DataPart, DataStreamDecoder, DataStreamEncoder, GenericAssistantMessage, GenericFilePart, GenericMessage, GenericSystemMessage, GenericTextPart, GenericToolCallPart, GenericToolMessage, GenericToolResultPart, GenericUserMessage, McpServerConfig, ObjectStreamChunk, ObjectStreamResponse, PlainTextDecoder, PlainTextEncoder, ProviderOptions, TextStreamController, ToToolsJSONSchemaOptions, Tool$1 as Tool, ToolCallReader, ToolCallStreamController, ToolCallTiming, ToolDeclaration, ToolExecutionStream, ToolJSONSchema, ToolModelContentPart, ToolModelOutputFunction, ToolResponse, ToolResponseLike, ToolResultStreamOptions, UIMessageStreamChunk, UIMessageStreamDataChunk, UIMessageStreamDecoder, UIMessageStreamDecoderOptions, createAssistantStream, createAssistantStreamController, createAssistantStreamResponse, createObjectStream, fromObjectStreamResponse, toGenericMessages, toJSONSchema, toPartialJSONSchema, toToolsJSONSchema, createInitialMessage as unstable_createInitialMessage, unstable_runPendingTools, toolResultStream as unstable_toolResultStream };
+  export { AssistantMessage, AssistantMessageAccumulator, AssistantMessageStream, AssistantMessageTiming, AssistantStream, AssistantStreamChunk, AssistantStreamController, AssistantTransportDecoder, GorpStreamDeltaTracker as AssistantTransportDeltaTracker, AssistantTransportEncoder, AssistantTransportStateOperation, DataPart, DataStreamDecoder, DataStreamEncoder, GenericAssistantMessage, GenericFilePart, GenericMessage, GenericSystemMessage, GenericTextPart, GenericToolCallPart, GenericToolMessage, GenericToolResultPart, GenericUserMessage, McpServerConfig, ObjectStreamChunk, ObjectStreamResponse, PlainTextDecoder, PlainTextEncoder, ProviderOptions, TextStreamController, ToToolsJSONSchemaOptions, Tool, ToolCallReader, ToolCallStreamController, ToolCallTiming, ToolDeclaration, ToolExecutionStream, ToolJSONSchema, ToolModelContentPart, ToolModelOutputFunction, ToolResponse, ToolResponseLike, ToolResultStreamOptions, UIMessageStreamChunk, UIMessageStreamDataChunk, UIMessageStreamDecoder, UIMessageStreamDecoderOptions, createAssistantStream, createAssistantStreamController, createAssistantStreamResponse, createObjectStream, fromObjectStreamResponse, toGenericMessages, toJSONSchema, toPartialJSONSchema, toToolsJSONSchema, createInitialMessage as unstable_createInitialMessage, unstable_runPendingTools, toolResultStream as unstable_toolResultStream };
 }
 
 declare namespace entry_internal_exports {
@@ -24795,10 +24825,15 @@ declare namespace entry_resumable_redis_exports {
   export { NodeRedisLike, createRedisResumableStreamStore };
 }
 
-declare const toAISDKContent: (parts: readonly ToolModelContentPart[], _param3?: ToAISDKContentOptions) => {
-  type: "content";
-  value: ToolResultContentPart[];
-};
+declare function toAISDKContent(parts: readonly ToolModelContentPart[], options: {
+  taggedFileData: true;
+}): TaggedAISDKContent;
+
+declare function toAISDKContent(parts: readonly ToolModelContentPart[], options: {
+  taggedFileData: false;
+}): LegacyAISDKContent;
+
+declare function toAISDKContent(parts: readonly ToolModelContentPart[], options: ToAISDKContentOptions): TaggedAISDKContent | LegacyAISDKContent;
 
 declare const toAISDKDefaultOutput: (output: unknown) => {
   type: "text";
@@ -24814,11 +24849,11 @@ declare function toJSONSchema(schema: StandardSchemaV1 | JSONSchema7): JSONSchem
 
 declare function toPartialJSONSchema(schema: JSONSchema7): JSONSchema7;
 
-declare function toToolsJSONSchema(tools: Record<string, Tool$1> | undefined, options?: ToToolsJSONSchemaOptions): Record<string, ToolJSONSchema>;
+declare function toToolsJSONSchema(tools: Record<string, Tool> | undefined, options?: ToToolsJSONSchemaOptions): Record<string, ToolJSONSchema>;
 
-declare function toolResultStream(tools: Record<string, Tool$1> | (() => Record<string, Tool$1> | undefined) | undefined, abortSignal: AbortSignal | (() => AbortSignal), human: (toolCallId: string, payload: unknown) => Promise<unknown>, options?: ToolResultStreamOptions): ToolExecutionStream;
+declare function toolResultStream(tools: Record<string, Tool> | (() => Record<string, Tool> | undefined) | undefined, abortSignal: AbortSignal | (() => AbortSignal), human: (toolCallId: string, payload: unknown) => Promise<unknown>, options?: ToolResultStreamOptions): ToolExecutionStream;
 
-declare function unstable_runPendingTools(message: AssistantMessage, tools: Record<string, Tool$1> | undefined, abortSignal: AbortSignal, human: (toolCallId: string, payload: unknown) => Promise<unknown>): Promise<AssistantMessage>;
+declare function unstable_runPendingTools(message: AssistantMessage, tools: Record<string, Tool> | undefined, abortSignal: AbortSignal, human: (toolCallId: string, payload: unknown) => Promise<unknown>): Promise<AssistantMessage>;
 
 declare function unwrapModelContentEnvelope<TResult>(output: TResult | ModelContentEnvelope<TResult>): {
   result: TResult;
