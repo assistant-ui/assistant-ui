@@ -199,6 +199,7 @@ const parseStoredAssistantMetadata = (
         }
       : undefined),
     ...(metadata.isOptimistic === true ? { isOptimistic: true } : undefined),
+    ...(metadata.modality === "voice" ? { modality: "voice" } : undefined),
     custom: isRecord(metadata.custom) ? metadata.custom : {},
   };
 };
@@ -417,6 +418,7 @@ function parseStoredThreadMessage(
         : [],
       createdAt,
       metadata: {
+        ...(metadata.modality === "voice" ? { modality: "voice" } : undefined),
         custom: metadata.custom,
       },
     };
@@ -477,6 +479,9 @@ function parseStoredNestedThreadMessage(
         : [],
       createdAt,
       metadata: {
+        ...(isRecord(value.metadata) && value.metadata.modality === "voice"
+          ? { modality: "voice" }
+          : undefined),
         custom:
           isRecord(value.metadata) && isRecord(value.metadata.custom)
             ? value.metadata.custom

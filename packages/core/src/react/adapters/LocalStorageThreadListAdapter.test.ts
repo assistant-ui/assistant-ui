@@ -304,6 +304,51 @@ describe("parseStoredMessageRepository", () => {
     ).toEqual(repo.messages[0]?.message.content);
   });
 
+  it.each(["user", "assistant"] as const)(
+    "preserves voice modality on stored %s messages",
+    (role) => {
+      const repo = parseStoredMessageRepository(
+        JSON.stringify({
+          messages: [
+            {
+              message: {
+                ...storedMessage("voice", role),
+                metadata: { custom: {}, modality: "voice" },
+              },
+              parentId: null,
+            },
+          ],
+        }),
+      );
+
+      expect(repo.messages[0]?.message.metadata.modality).toBe("voice");
+    },
+  );
+
+  it("normalizes unsupported assistant image URLs and legacy data parts", () => {
+    const repo = parseStoredMessageRepository(
+      JSON.stringify({
+        messages: [
+          {
+            message: {
+              ...storedMessage("assistant-content", "assistant"),
+              content: [
+                { type: "image", image: "http://example.com/image.png" },
+                { type: "data-weather", data: { temperature: 72 } },
+              ],
+            },
+            parentId: null,
+          },
+        ],
+      }),
+    );
+
+    expect(repo.messages[0]?.message.content).toEqual([
+      { type: "data", name: "weather", data: { temperature: 72 } },
+    ]);
+    expect(parseStoredMessageRepository(JSON.stringify(repo))).toEqual(repo);
+  });
+
   it("preserves unknown message parts for forward compatibility", () => {
     const stored = JSON.stringify({
       messages: [
@@ -378,6 +423,7 @@ describe("parseStoredMessageRepository", () => {
                     role: "user",
                     content: [{ type: "text", text: "partial user" }],
                     attachments: "invalid",
+                    metadata: { custom: {}, modality: "voice" },
                   },
                   {
                     role: "system",
@@ -434,7 +480,7 @@ describe("parseStoredMessageRepository", () => {
         content: [{ type: "text", text: "partial user" }],
         attachments: [],
         createdAt: new Date("2026-01-01T00:00:00.000Z"),
-        metadata: { custom: {} },
+        metadata: { custom: {}, modality: "voice" },
       },
       {
         id: "tool-call/part-0/message-3",

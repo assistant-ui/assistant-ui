@@ -18,8 +18,12 @@ stored thread looks like after the next message is sent:
   instead of being discarded
 - malformed attachments and known assistant-only parts found on a user
   message are removed while the message itself is kept
+- assistant images outside the supported `data:image/*`, `https:`, and `blob:`
+  schemes are removed, and legacy `data-*` parts are normalized to `data`
+  parts
 - parts whose `type` this version does not recognize are preserved so a newer
   version's storage is not erased
 - tool-call `modelContent` is rebuilt from its valid text and file entries
 - non-record assistant step entries are removed while legacy record-shaped
   steps and partial timing metadata remain compatible
+- valid voice modality metadata remains intact
