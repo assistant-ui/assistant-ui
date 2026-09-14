@@ -374,6 +374,7 @@ export type {
   MessagePartStreamStatus,
   ToolCallMessagePartStatus,
   MessageTiming,
+  MessageModality,
   ThreadUserMessagePart,
   ThreadAssistantMessagePart,
   ThreadSystemMessage,

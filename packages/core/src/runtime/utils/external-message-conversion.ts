@@ -244,6 +244,10 @@ export const joinExternalMessages = (
               assistantMessage.metadata.timing = output.metadata.timing;
             }
 
+            if (output.metadata.modality) {
+              assistantMessage.metadata.modality = output.metadata.modality;
+            }
+
             if (output.metadata.submittedFeedback) {
               assistantMessage.metadata.submittedFeedback =
                 output.metadata.submittedFeedback;

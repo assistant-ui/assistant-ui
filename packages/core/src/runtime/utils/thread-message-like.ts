@@ -20,6 +20,7 @@ import type {
 } from "../../types/message";
 import type { CompleteAttachment } from "../../types/attachment";
 import type {
+  MessageModality,
   MessageTiming,
   PartProviderMetadata,
   TextMessagePart,
@@ -88,6 +89,7 @@ export type ThreadMessageLike = {
         readonly timing?: MessageTiming | undefined;
         readonly submittedFeedback?: { readonly type: "positive" | "negative" };
         readonly isOptimistic?: boolean | undefined;
+        readonly modality?: MessageModality | undefined;
         readonly custom?: Record<string, unknown> | undefined;
       }
     | undefined;
@@ -143,6 +145,11 @@ export const fromThreadMessageLike = (
 
   if (role !== "assistant" && metadata?.steps)
     throw new Error("metadata.steps is only supported for assistant messages");
+
+  if (role === "system" && metadata?.modality)
+    throw new Error(
+      "metadata.modality is only supported for user and assistant messages",
+    );
 
   switch (role) {
     case "assistant":
@@ -223,6 +230,7 @@ export const fromThreadMessageLike = (
             submittedFeedback: metadata.submittedFeedback,
           }),
           ...(metadata?.isOptimistic && { isOptimistic: true }),
+          ...(metadata?.modality && { modality: metadata.modality }),
         },
       } satisfies ThreadAssistantMessage;
 
@@ -263,6 +271,7 @@ export const fromThreadMessageLike = (
         metadata: {
           custom: metadata?.custom ?? {},
           ...(metadata?.isOptimistic && { isOptimistic: true }),
+          ...(metadata?.modality && { modality: metadata.modality }),
         },
       } satisfies ThreadUserMessage;
 

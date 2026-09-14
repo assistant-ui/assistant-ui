@@ -154,6 +154,27 @@ describe("chunkExternalMessages", () => {
 });
 
 describe("convertExternalMessageChunk", () => {
+  it("preserves assistant message modality", () => {
+    const result = convertExternalMessageChunk(
+      {
+        inputs: [{}],
+        outputs: [
+          {
+            role: "assistant",
+            content: "Spoken reply",
+            metadata: { modality: "voice" },
+          },
+        ],
+      },
+      0,
+      1,
+      false,
+      undefined,
+    );
+
+    expect(result.metadata.modality).toBe("voice");
+  });
+
   it("keeps separate tool calls without IDs", () => {
     const result = convertExternalMessageChunk(
       {
