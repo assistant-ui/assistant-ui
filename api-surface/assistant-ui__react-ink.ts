@@ -4791,7 +4791,7 @@ declare const fromThreadMessageLike: (like: ThreadMessageLike, fallbackId: strin
 
 declare const generateId: (size?: number) => string;
 
-declare const getAutoStatus: (isLast: boolean, isRunning: boolean, hasInterruptedToolCalls: boolean, hasPendingToolCalls: boolean, error?: ReadonlyJSONValue, isCancelled?: boolean) => MessageStatus;
+declare const getAutoStatus: (isLast: boolean, isRunning: boolean, hasInterruptedToolCalls: boolean, hasPendingToolCalls: boolean, error?: ReadonlyJSONValue, isCancelled?: boolean, hasBackgroundToolCalls?: boolean) => MessageStatus;
 
 declare global {
   interface Window {
