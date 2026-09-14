@@ -29,7 +29,7 @@ import {
   useExternalMessageConverter,
   useExternalStoreRuntime,
 } from "@assistant-ui/core/react";
-import { useAui, useAuiState } from "@assistant-ui/store";
+import { useAui } from "@assistant-ui/store";
 import type { AssistantCloud } from "assistant-cloud";
 import type { RemoteThreadListAdapter } from "@assistant-ui/core";
 import type {
@@ -157,10 +157,6 @@ const useAdkRuntimeImpl = (options: UseAdkRuntimeOptions) => {
       }
     }
     runConfigByToolCallIdRef.current = nextOwnership;
-  }, []);
-
-  const clearMessageOwnership = useCallback(() => {
-    runConfigByToolCallIdRef.current.clear();
   }, []);
 
   const pruneMessageOwnership = useCallback((history: AdkMessage[]) => {
@@ -360,17 +356,11 @@ const useAdkRuntimeImpl = (options: UseAdkRuntimeOptions) => {
   // instance, so depending on it would re-run the load on every render.
   const threadListItem =
     aui.threadListItem.source !== null ? aui.threadListItem : undefined;
-  const threadId = useAuiState((state) => state.optional.threadListItem?.id);
-
-  useInsertionEffect(() => {
-    clearMessageOwnership();
-  }, [threadId, clearMessageOwnership]);
 
   const runLoad = useCallback(
     (purpose: "initial" | "reload" = "initial") => {
       const loadFn = loadRef.current;
-      if (!loadFn || !threadListItem || threadId === undefined)
-        return Promise.resolve();
+      if (!loadFn || !threadListItem) return Promise.resolve();
 
       const externalId = threadListItem.getState().externalId;
       if (externalId == null) return Promise.resolve();
@@ -410,7 +400,7 @@ const useAdkRuntimeImpl = (options: UseAdkRuntimeOptions) => {
         },
       });
     },
-    [threadListItem, threadId, loadController, applySnapshot],
+    [threadListItem, loadController, applySnapshot],
   );
 
   useEffect(() => {

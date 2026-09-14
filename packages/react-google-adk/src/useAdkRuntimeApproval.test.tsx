@@ -1,4 +1,4 @@
-import { act, renderHook, waitFor } from "@testing-library/react";
+import { act, renderHook } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import type {
   AddToolResultOptions,
@@ -12,10 +12,8 @@ import type { AdkMessage, AdkSendMessageConfig } from "./types";
 const mocks = vi.hoisted(() => {
   const threadListItem = {
     source: null as object | null,
-    id: "thread-a",
     externalId: undefined as string | undefined,
     getState: () => ({
-      id: threadListItem.id,
       externalId: threadListItem.externalId,
     }),
     initialize: vi.fn(),
@@ -46,15 +44,6 @@ vi.mock("@assistant-ui/store", async (importOriginal) => ({
   useAui: () => ({
     threadListItem: mocks.threadListItem,
   }),
-  useAuiState: (selector: (state: unknown) => unknown) =>
-    selector({
-      optional: {
-        threadListItem:
-          mocks.threadListItem.source === null
-            ? undefined
-            : mocks.threadListItem.getState(),
-      },
-    }),
 }));
 
 vi.mock("./useAdkMessages", async (importOriginal) => {
@@ -90,7 +79,7 @@ vi.mock("./useAdkMessages", async (importOriginal) => {
 });
 
 import { AdkEventAccumulator } from "./AdkEventAccumulator";
-import { useAdkRuntime, type UseAdkRuntimeOptions } from "./useAdkRuntime";
+import { useAdkRuntime } from "./useAdkRuntime";
 
 type RuntimeAdapter = {
   messages: readonly ThreadMessage[];
@@ -156,7 +145,6 @@ afterEach(() => {
   mocks.messageRunConfig = undefined;
   mocks.applySnapshot.mockReset();
   mocks.threadListItem.source = null;
-  mocks.threadListItem.id = "thread-a";
   mocks.threadListItem.externalId = undefined;
 });
 
@@ -202,101 +190,6 @@ describe("useAdkRuntime tool approvals", () => {
     expect(
       mocks.sendMessage.mock.calls.map((call) => call[1].runConfig),
     ).toEqual([runConfigA, runConfigB, runConfigA]);
-  });
-
-  it("does not inherit run config for tool calls loaded from another thread", async () => {
-    const runConfig = { custom: { model: "model-a" } };
-    let resolveLoad!: (snapshot: { messages: AdkMessage[] }) => void;
-    const load = vi.fn(
-      () =>
-        new Promise<{ messages: AdkMessage[] }>((resolve) => {
-          resolveLoad = resolve;
-        }),
-    );
-    const loadedSnapshot = {
-      messages: [
-        {
-          id: "ai-loaded",
-          type: "ai" as const,
-          content: [],
-          tool_calls: [{ id: "tool-loaded", name: "lookup", args: {} }],
-        },
-      ],
-    };
-    mocks.threadListItem.source = {};
-    mocks.threadListItem.externalId = "thread-a";
-    const { rerender } = renderHook(
-      ({ load }: { load?: UseAdkRuntimeOptions["load"] }) =>
-        useAdkRuntime({
-          stream: vi.fn(),
-          ...(load !== undefined && { load }),
-        }),
-      { initialProps: {} },
-    );
-
-    await act(async () => {
-      await latestAdapter().onNew!(makeUserMessage("first", runConfig));
-    });
-
-    mocks.messages = [
-      {
-        id: "ai-loaded",
-        type: "ai",
-        content: [],
-        tool_calls: [{ id: "tool-loaded", name: "lookup", args: {} }],
-      },
-    ];
-    mocks.messageRunConfig = runConfig;
-    rerender({});
-
-    await act(async () => {
-      await latestAdapter().onAddToolResult!({
-        messageId: "ai-loaded",
-        toolCallId: "tool-loaded",
-        toolName: "lookup",
-        result: { value: "before-switch" },
-        isError: false,
-      });
-    });
-    expect(mocks.sendMessage.mock.calls.at(-1)![1]).toEqual({ runConfig });
-
-    mocks.messages = [];
-    mocks.messageRunConfig = undefined;
-
-    mocks.threadListItem.id = "thread-b";
-    mocks.threadListItem.externalId = "thread-b";
-    rerender({ load });
-    await waitFor(() => expect(load).toHaveBeenCalledOnce());
-
-    await act(async () => {
-      await latestAdapter().onAddToolResult!({
-        messageId: "ai-loaded",
-        toolCallId: "tool-loaded",
-        toolName: "lookup",
-        result: { value: "during-switch" },
-        isError: false,
-      });
-    });
-    expect(mocks.sendMessage.mock.calls.at(-1)![1]).toEqual({
-      runConfig: undefined,
-    });
-
-    resolveLoad(loadedSnapshot);
-    await waitFor(() => expect(mocks.applySnapshot).toHaveBeenCalledOnce());
-
-    await act(async () => {
-      await latestAdapter().onAddToolResult!({
-        messageId: "ai-loaded",
-        toolCallId: "tool-loaded",
-        toolName: "lookup",
-        result: { value: "done" },
-        isError: false,
-      });
-    });
-
-    expect(mocks.sendMessage.mock.calls.at(-1)![1]).toEqual({
-      runConfig: undefined,
-    });
   });
 
   it("preserves pending tool ownership across a thread refetch", async () => {
