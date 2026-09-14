@@ -513,14 +513,17 @@ describe("Thread", () => {
     expect(container.querySelector('[aria-label="Next"]')).not.toBeNull();
   });
 
-  it("shows the indicator and announces it while the assistant is working", async () => {
+  it("shows the indicator and announces once per run while the assistant is working", async () => {
+    h.state.thread.isRunning = true;
     addMessages(h.makeMessage({ status: { type: "running" } }));
 
+    await render();
     await render();
 
     expect(
       container.querySelector('[aria-label="Assistant is working"]'),
     ).not.toBeNull();
+    expect(h.announceForAccessibility).toHaveBeenCalledTimes(1);
     expect(h.announceForAccessibility).toHaveBeenCalledWith(
       "Assistant is working",
     );

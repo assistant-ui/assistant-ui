@@ -61,7 +61,14 @@ const copyToClipboard = async (text: string) => {
 
 export const Thread: FC = () => {
   const isEmpty = useAuiState(isNewChatView);
+  const isRunning = useAuiState((s) => s.thread.isRunning);
   const insets = useSafeAreaInsets();
+
+  useEffect(() => {
+    if (isRunning) {
+      AccessibilityInfo.announceForAccessibility("Assistant is working");
+    }
+  }, [isRunning]);
 
   return (
     <ThreadPrimitive.Root className="aui-root aui-thread-root bg-background flex-1">
@@ -268,13 +275,6 @@ const TypingDot: FC<{ delay: number }> = ({ delay }) => {
 
 const AssistantIndicator: FC = () => {
   const isRunning = useAuiState((s) => s.message.status?.type === "running");
-
-  useEffect(() => {
-    if (isRunning) {
-      AccessibilityInfo.announceForAccessibility("Assistant is working");
-    }
-  }, [isRunning]);
-
   if (!isRunning) return null;
 
   return (
