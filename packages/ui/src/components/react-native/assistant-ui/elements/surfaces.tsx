@@ -28,6 +28,7 @@ export const monoStyle: TextStyle = {
 };
 
 let reduceMotion: boolean | undefined;
+let reduceMotionQuery = 0;
 let reduceMotionSubscription: { remove(): void } | undefined;
 const motionListeners = new Set<() => void>();
 
@@ -38,7 +39,10 @@ const setReduceMotion = (reduced: boolean) => {
 
 const subscribeMotion = (listener: () => void) => {
   if (motionListeners.size === 0) {
-    void AccessibilityInfo.isReduceMotionEnabled().then(setReduceMotion);
+    const query = ++reduceMotionQuery;
+    void AccessibilityInfo.isReduceMotionEnabled().then((reduced) => {
+      if (query === reduceMotionQuery) setReduceMotion(reduced);
+    });
     reduceMotionSubscription = AccessibilityInfo.addEventListener(
       "reduceMotionChanged",
       setReduceMotion,
@@ -48,6 +52,7 @@ const subscribeMotion = (listener: () => void) => {
   return () => {
     motionListeners.delete(listener);
     if (motionListeners.size === 0) {
+      reduceMotionQuery++;
       // react-native-web returns nothing when the environment has no matchMedia.
       reduceMotionSubscription?.remove();
       reduceMotionSubscription = undefined;
