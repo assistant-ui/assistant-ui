@@ -15,6 +15,9 @@ on:
       - "scripts/check-built-declarations.test.mjs"
       - "scripts/check-workspace-ranges.mjs"
       - "scripts/check-workspace-ranges.test.mjs"
+      - "scripts/deploy-examples-changes.mjs"
+      - "scripts/deploy-examples-changes.test.mjs"
+      - ".github/workflows/deploy-examples.yaml"
       - "scripts/lib/script-options.mjs"
       - "scripts/sync-templates.sh"
       - "turbo.json"
@@ -36,6 +39,9 @@ on:
       - "scripts/check-built-declarations.test.mjs"
       - "scripts/check-workspace-ranges.mjs"
       - "scripts/check-workspace-ranges.test.mjs"
+      - "scripts/deploy-examples-changes.mjs"
+      - "scripts/deploy-examples-changes.test.mjs"
+      - ".github/workflows/deploy-examples.yaml"
       - "scripts/lib/script-options.mjs"
       - "scripts/sync-templates.sh"
       - "turbo.json"
@@ -54,7 +60,7 @@ concurrency:
 jobs:
   lint:
     name: Oxlint + Oxfmt
-    runs-on: blacksmith-8vcpu-ubuntu-2404
+    runs-on: blacksmith-4vcpu-ubuntu-2404
     timeout-minutes: 5
     steps:
       - name: Checkout code repository
@@ -190,6 +196,9 @@ jobs:
       - name: Test built declaration checker
         run: pnpm run declarations:test
 
+      - name: Test the deploy examples planner
+        run: pnpm run deploy-examples:test
+
       - name: Test API surface generator
         run: pnpm run api-surface:test
 
@@ -272,7 +281,6 @@ jobs:
             "packages/ai-sdk/" \
             "packages/react-ai-sdk/" \
             "packages/react-data-stream/" \
-            "packages/cloud-ai-sdk/" \
             "packages/eve/" \
             "packages/safe-content-frame/" \
             "apps/docs/scripts/" \

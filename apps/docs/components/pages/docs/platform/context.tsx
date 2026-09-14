@@ -5,16 +5,29 @@ import {
   useCallback,
   useContext,
   useEffect,
+  useMemo,
   type ReactNode,
 } from "react";
 import { usePathname } from "next/navigation";
+import type * as PageTree from "fumadocs-core/page-tree";
 import {
   DEFAULT_PLATFORM,
   PLATFORM_LABELS,
   PLATFORMS,
+  SURFACES,
   type Platform,
+  type Surface,
 } from "@/lib/constants";
-import { isPlatform } from "@/lib/docs-platform";
+import {
+  DOCS_PLATFORM_STORAGE_KEY,
+  DOCS_PLATFORM_URL_PARAM,
+  isPlatform,
+  isSurface,
+  isVisibleForPlatform,
+  MIRRORED_SURFACE_ROOTS,
+  PLATFORM_ENTRY_PATHS,
+} from "@/lib/docs-platform";
+import { getPagePlatforms } from "./tree";
 import {
   createPersistedPreference,
   usePersistedPreference,
@@ -23,37 +36,44 @@ import {
 export {
   DEFAULT_PLATFORM,
   isPlatform,
+  isSurface,
+  isVisibleForPlatform,
+  PLATFORM_ENTRY_PATHS,
   PLATFORM_LABELS,
   PLATFORMS,
+  SURFACES,
   type Platform,
+  type Surface,
 };
 
-export const PLATFORM_DOC_BASE_PATHS: Record<Platform, string> = {
-  react: "/docs",
-  rn: "/docs/react-native",
-  ink: "/docs/ink",
-};
+const STORAGE_KEY = DOCS_PLATFORM_STORAGE_KEY;
+const URL_PARAM = DOCS_PLATFORM_URL_PARAM;
 
-const STORAGE_KEY = "assistant-ui::docs:platform";
-const URL_PARAM = "platform";
-
-const platformPreference = createPersistedPreference<Platform>({
+// Only a surface is remembered: a library such as Tap is entered through its
+// own pages, and the reader's surface must survive the visit.
+const platformPreference = createPersistedPreference<Surface>({
   key: STORAGE_KEY,
   fallback: DEFAULT_PLATFORM,
-  read: (raw) => (isPlatform(raw) ? raw : null),
+  read: (raw) => (isSurface(raw) ? raw : null),
   url: {
     param: URL_PARAM,
-    read: (raw) => (isPlatform(raw) ? raw : null),
+    read: (raw) => (isSurface(raw) ? raw : null),
     write: (value) => (value === DEFAULT_PLATFORM ? null : value),
   },
 });
 
+// Runs while the document is still parsing, before the sidebar; it reads its
+// inputs from the script element's own data attributes so no code is built
+// from values.
+const HINT_SCRIPT =
+  "(()=>{try{var d=document.currentScript.dataset;var s=d.allowed.split(',');var q=new URLSearchParams(location.search).get(d.param);var v=localStorage.getItem(d.key);var p=d.forced||(s.indexOf(q)>=0?q:s.indexOf(v)>=0?v:null);if(p)document.documentElement.dataset.docsPlatformHint=p}catch(e){}})()";
+
 // Avoid useSearchParams so the docs layout stays statically renderable.
-function readPlatformParam(): Platform | null {
+function readPlatformParam(): Surface | null {
   if (typeof window === "undefined") return null;
   try {
     const value = new URLSearchParams(window.location.search).get(URL_PARAM);
-    return isPlatform(value) ? value : null;
+    return value !== null && isSurface(value) ? value : null;
   } catch {
     return null;
   }
@@ -90,6 +110,11 @@ export function usePlatformOrDefault(): Platform {
   return scopedPlatform ?? globalPlatform ?? DEFAULT_PLATFORM;
 }
 
+export function useSurfaceOrDefault(): Surface {
+  const platform = usePlatformOrDefault();
+  return isSurface(platform) ? platform : DEFAULT_PLATFORM;
+}
+
 export function PlatformScope({
   children,
   platform,
@@ -104,47 +129,63 @@ export function PlatformScope({
   );
 }
 
-function platformDocPathSuffix(
-  pathname: string,
-  platform: Extract<Platform, "rn" | "ink">,
-): string | null {
-  const basePath = PLATFORM_DOC_BASE_PATHS[platform];
-  if (pathname === basePath) return "";
-  if (!pathname.startsWith(`${basePath}/`)) return null;
-
-  return pathname.slice(basePath.length);
-}
-
 export function getPlatformSwitchHref(
   pathname: string,
   nextPlatform: Platform,
 ): string | null {
-  const currentPlatformSuffix =
-    platformDocPathSuffix(pathname, "rn") ??
-    platformDocPathSuffix(pathname, "ink");
-
-  if (currentPlatformSuffix === null) {
-    if (
-      pathname === PLATFORM_DOC_BASE_PATHS.react &&
-      nextPlatform !== "react"
-    ) {
-      return PLATFORM_DOC_BASE_PATHS[nextPlatform];
-    }
-    return null;
+  if (PLATFORMS.some((p) => PLATFORM_ENTRY_PATHS[p] === pathname)) {
+    return PLATFORM_ENTRY_PATHS[nextPlatform];
   }
 
-  if (nextPlatform === "react") return PLATFORM_DOC_BASE_PATHS.react;
+  const nextRoot = isSurface(nextPlatform)
+    ? MIRRORED_SURFACE_ROOTS[nextPlatform]
+    : undefined;
+  if (!nextRoot) return null;
 
-  return `${PLATFORM_DOC_BASE_PATHS[nextPlatform]}${currentPlatformSuffix}`;
+  for (const root of Object.values(MIRRORED_SURFACE_ROOTS)) {
+    if (pathname.startsWith(`${root}/`)) {
+      return `${nextRoot}${pathname.slice(root.length)}`;
+    }
+  }
+  return null;
 }
 
-export function PlatformProvider({ children }: { children: ReactNode }) {
+// A page that belongs to one platform selects it, on the server as well as
+// the client, so the first paint already shows that platform's tree; the
+// stored surface only decides pages every surface shares. The inline script
+// stamps the platform this browser will hydrate to before the sidebar is
+// parsed, so a mismatched tree is hidden rather than painted.
+export function PlatformProvider({
+  tree,
+  children,
+}: {
+  tree: PageTree.Root;
+  children: ReactNode;
+}) {
   const pathname = usePathname();
-  const platform = usePersistedPreference(platformPreference);
+  const stored = usePersistedPreference(platformPreference);
+  const pagePlatforms = useMemo(
+    () => getPagePlatforms(tree, pathname),
+    [tree, pathname],
+  );
+  const platform = useMemo(() => {
+    if (!pagePlatforms || pagePlatforms.includes(stored)) return stored;
+    return pagePlatforms.find(isPlatform) ?? stored;
+  }, [pagePlatforms, stored]);
 
   useEffect(() => {
     syncPlatformFromUrl();
   }, [pathname]);
+
+  useEffect(() => {
+    if (platform !== stored && isSurface(platform)) {
+      platformPreference.set(platform);
+    }
+  }, [platform, stored]);
+
+  useEffect(() => {
+    document.documentElement.dataset.docsPlatformHint = platform;
+  }, [platform]);
 
   useEffect(() => {
     window.addEventListener("popstate", syncPlatformFromUrl);
@@ -154,20 +195,19 @@ export function PlatformProvider({ children }: { children: ReactNode }) {
   }, []);
 
   const setPlatform = useCallback((next: Platform) => {
-    platformPreference.set(next);
+    if (isSurface(next)) platformPreference.set(next);
   }, []);
 
   return (
     <PlatformContext.Provider value={{ platform, setPlatform }}>
+      <script
+        data-key={STORAGE_KEY}
+        data-param={URL_PARAM}
+        data-allowed={SURFACES.join(",")}
+        data-forced={pagePlatforms ? platform : undefined}
+        dangerouslySetInnerHTML={{ __html: HINT_SCRIPT }}
+      />
       {children}
     </PlatformContext.Provider>
   );
-}
-
-export function isVisibleForPlatform(
-  platforms: readonly string[] | undefined,
-  active: Platform,
-): boolean {
-  if (!platforms || platforms.length === 0) return true;
-  return platforms.includes(active);
 }

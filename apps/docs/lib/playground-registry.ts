@@ -1,5 +1,5 @@
 import type { BuilderConfig } from "@/components/pages/playground/types";
-import { COMPOSER_RADIUS } from "./builder-utils";
+import { COMPOSER_RADIUS, FONT_SIZE_CLASS } from "./builder-utils";
 
 const REGISTRY_BASE_URL = "https://r.assistant-ui.com";
 
@@ -174,7 +174,7 @@ ${externalImports}
 
 ${internalImports}`;
 
-  const fontSizeClass = getFontSizeClass(styles.fontSize);
+  const fontSizeClass = FONT_SIZE_CLASS[styles.fontSize] ?? "text-base";
   const messageSpacingClass = getMessageSpacingClass(styles.messageSpacing);
   const accentColor = styles.colors.accent.light;
   const accentForeground = isLightColor(accentColor) ? "#000000" : "#ffffff";
@@ -281,16 +281,6 @@ function generateIconImports(config: BuilderConfig): string {
   if (components.reasoning) icons.push("ChevronDownIcon");
 
   return `import {\n  ${[...new Set(icons)].sort().join(",\n  ")},\n} from "lucide-react";`;
-}
-
-function getFontSizeClass(fontSize: string): string {
-  return (
-    {
-      sm: "text-sm",
-      base: "text-base",
-      lg: "text-lg",
-    }[fontSize] || "text-base"
-  );
 }
 
 function getMessageSpacingClass(spacing: string): string {

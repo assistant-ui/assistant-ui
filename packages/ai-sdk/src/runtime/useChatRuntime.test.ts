@@ -88,7 +88,6 @@ const sendMessagesOptions = {
 
 describe("useChatRuntime", () => {
   beforeEach(() => {
-    vi.clearAllMocks();
     mocks.state.isLoadingHistory = false;
     mocks.state.threadId = "thread-id";
     mocks.state.mainThreadId = "thread-id";

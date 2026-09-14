@@ -1,4 +1,4 @@
-import { bench, describe } from "vitest";
+import { describe, test } from "vitest";
 import {
   AssistantMessageStream,
   createAssistantStream,
@@ -50,8 +50,10 @@ const drainRawEnqueue = async (chunks: AssistantStreamChunk[]) => {
 describe("assistant-stream: stream + accumulator per-delta cost (16-char deltas)", () => {
   for (const n of [100, 1000, 4000]) {
     const chunks = makeChunks(n, 16);
-    bench(`${n} deltas`, async () => {
-      await drain(chunks);
+    test(`${n} deltas`, async ({ bench }) => {
+      await bench(`${n} deltas`, async () => {
+        await drain(chunks);
+      }).run();
     });
   }
 });
@@ -59,8 +61,10 @@ describe("assistant-stream: stream + accumulator per-delta cost (16-char deltas)
 describe("assistant-stream: stream round trip baseline, no accumulator", () => {
   for (const n of [100, 1000, 4000]) {
     const chunks = makeChunks(n, 16);
-    bench(`${n} deltas`, async () => {
-      await drainRaw(chunks);
+    test(`${n} deltas`, async ({ bench }) => {
+      await bench(`${n} deltas`, async () => {
+        await drainRaw(chunks);
+      }).run();
     });
   }
 });
@@ -68,12 +72,16 @@ describe("assistant-stream: stream round trip baseline, no accumulator", () => {
 describe("assistant-stream: raw controller enqueue overhead", () => {
   const chunks = makeChunks(9_998, 1);
 
-  bench("10,000 controller.enqueue calls", async () => {
-    await drainRawEnqueue(chunks);
+  test("10,000 controller.enqueue calls", async ({ bench }) => {
+    await bench("10,000 controller.enqueue calls", async () => {
+      await drainRawEnqueue(chunks);
+    }).run();
   });
 
-  bench("10,000 chunks from one source stream", async () => {
-    await drainRaw(chunks);
+  test("10,000 chunks from one source stream", async ({ bench }) => {
+    await bench("10,000 chunks from one source stream", async () => {
+      await drainRaw(chunks);
+    }).run();
   });
 });
 
@@ -84,8 +92,10 @@ describe("assistant-stream: same 4000-char text, chunk size A/B", () => {
     ["16 deltas × 250 chars", makeChunks(16, 250)],
   ] as const;
   for (const [name, chunks] of cases) {
-    bench(name, async () => {
-      await drain(chunks);
+    test(name, async ({ bench }) => {
+      await bench(name, async () => {
+        await drain(chunks);
+      }).run();
     });
   }
 });

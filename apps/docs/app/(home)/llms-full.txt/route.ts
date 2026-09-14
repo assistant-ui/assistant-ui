@@ -1,10 +1,4 @@
-import {
-  design,
-  elementsDocs,
-  examples,
-  source,
-  getTapDocsPages,
-} from "@/lib/source";
+import { design, elementsDocs, examples, source } from "@/lib/source";
 import { getLLMText } from "@/lib/get-llm-text";
 import { createMarkdownResponse } from "@/lib/markdown-response";
 
@@ -13,7 +7,6 @@ export const revalidate = false;
 export async function GET() {
   const scan = [
     ...source.getPages(),
-    ...getTapDocsPages(),
     ...examples.getPages(),
     ...design.getPages(),
     ...elementsDocs.getPages(),

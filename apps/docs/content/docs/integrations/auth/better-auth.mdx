@@ -165,7 +165,7 @@ Sign in. Check:
 - **Cookie-based, same-origin.** Browser fetches automatically include the session cookie. If you split the API onto a different host, set `credentials: "include"` and configure CORS on the API.
 - **Database alignment.** If you use Drizzle and put both better-auth's user schema and your threads schema in the same database, foreign keys keep deletes consistent. better-auth's CLI generates the user schema; add your `threads` table referencing `user.id`.
 - **Edge runtime.** `auth.api.getSession` works in both Node and Edge runtimes when better-auth is configured for an edge-compatible adapter.
-- **Cloud users.** [AssistantCloud's auth-provider integrations](/docs/cloud/authorization) cover Clerk, Auth0, Supabase, and Firebase via JWT exchange. To pair Cloud with better-auth, use the [backend-server token approach](/docs/cloud/authorization#backend-server-approach): resolve `session.user.id` server-side, mint an Assistant Cloud token with that id as the `userId`, and return it from a token endpoint.
+- **Cloud users.** [AssistantCloud's auth-provider integrations](/docs/cloud/authorization) cover Clerk, Auth0, Supabase, and Firebase via JWT exchange. To pair Cloud with better-auth, use the [backend-server token approach](/docs/cloud/authorization#a-token-endpoint): resolve `session.user.id` server-side, mint an Assistant Cloud token with that id as the `userId`, and return it from a token endpoint.
 
 ## Related
 

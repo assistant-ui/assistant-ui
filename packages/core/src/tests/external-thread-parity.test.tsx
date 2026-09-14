@@ -203,6 +203,40 @@ describe("ExternalThread part status", () => {
   });
 });
 
+describe("ExternalThread tasks", () => {
+  it("derives nested conversations and resolves their task scope", () => {
+    const { aui } = renderThread({
+      messages: [
+        assistantMessageWithContent({ type: "running" }, [
+          {
+            type: "tool-call",
+            toolCallId: "delegate-1",
+            toolName: "delegate",
+            args: {},
+            argsText: "{}",
+            messages: [
+              assistantMessageWithContent(
+                { type: "running" },
+                [],
+                "nested-message-1",
+              ),
+            ],
+          },
+        ]),
+      ],
+      isRunning: true,
+    });
+
+    const [task] = aui().thread.getState().tasks;
+    expect(task).toMatchObject({
+      id: "delegate-1",
+      toolName: "delegate",
+      messageId: "a1",
+    });
+    expect(aui().thread.task({ id: "delegate-1" }).getState()).toBe(task);
+  });
+});
+
 describe("ExternalThread unset optional callbacks", () => {
   it("throws a capability error when the callback prop is not set", () => {
     const { aui } = renderThread({

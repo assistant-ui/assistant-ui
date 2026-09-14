@@ -49,6 +49,12 @@ export type {
   QueueItemClientSchema,
 } from "./scopes/queue-item";
 export type {
+  TaskState,
+  TaskMethods,
+  TaskMeta,
+  TaskClientSchema,
+} from "./scopes/task";
+export type {
   AttachmentState,
   AttachmentMethods,
   AttachmentMeta,

@@ -278,6 +278,8 @@ export { tool } from "@assistant-ui/core";
 export { Suggestions, type SuggestionConfig } from "@assistant-ui/core/store";
 export type {
   QueueItemState,
+  TaskState,
+  TaskMethods,
   QueueItemMethods,
 } from "@assistant-ui/core/store";
 export type { ComposerSendOptions } from "@assistant-ui/core/store";
@@ -374,6 +376,7 @@ export type {
   MessagePartStreamStatus,
   ToolCallMessagePartStatus,
   MessageTiming,
+  MessageModality,
   ThreadUserMessagePart,
   ThreadAssistantMessagePart,
   ThreadSystemMessage,

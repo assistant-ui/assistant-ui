@@ -1,4 +1,4 @@
-import { bench, describe } from "vitest";
+import { describe, test } from "vitest";
 import remend from "remend";
 import { findRemendWindowStart, tailBoundedRemend } from "../remend";
 
@@ -10,14 +10,20 @@ const CORPORA = PARAGRAPH_COUNTS.map(
 describe("remend window scan on paragraph-dense messages", () => {
   for (const [index, text] of CORPORA.entries()) {
     const paragraphs = PARAGRAPH_COUNTS[index];
-    bench(`${paragraphs} paragraphs: window scan`, () => {
-      findRemendWindowStart(text);
+    test(`${paragraphs} paragraphs: window scan`, async ({ bench }) => {
+      await bench(`${paragraphs} paragraphs: window scan`, () => {
+        findRemendWindowStart(text);
+      }).run();
     });
-    bench(`${paragraphs} paragraphs: tail-bounded remend`, () => {
-      tailBoundedRemend(text);
+    test(`${paragraphs} paragraphs: tail-bounded remend`, async ({ bench }) => {
+      await bench(`${paragraphs} paragraphs: tail-bounded remend`, () => {
+        tailBoundedRemend(text);
+      }).run();
     });
-    bench(`${paragraphs} paragraphs: full remend`, () => {
-      remend(text);
+    test(`${paragraphs} paragraphs: full remend`, async ({ bench }) => {
+      await bench(`${paragraphs} paragraphs: full remend`, () => {
+        remend(text);
+      }).run();
     });
   }
 });

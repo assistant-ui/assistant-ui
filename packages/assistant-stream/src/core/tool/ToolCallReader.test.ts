@@ -30,6 +30,12 @@ type Args = {
 
 const createReader = () => new ToolCallReaderImpl<Args, string>();
 
+const collect = async <T>(stream: AsyncIterable<T>) => {
+  const values: T[] = [];
+  for await (const value of stream) values.push(value);
+  return values;
+};
+
 describe("ToolCallArgsReader parsing", () => {
   it("does not parse streamed arguments without an active reader", async () => {
     parsePartialJsonObjectCalls.mockClear();
@@ -117,6 +123,56 @@ describe("ToolCallArgsReader parsing", () => {
 });
 
 describe("ToolCallArgsReader.get", () => {
+  it.each(["constructor", "toString"] as const)(
+    "does not inherit a missing %s field before or after completion",
+    async (key) => {
+      const reader = new ToolCallReaderImpl<
+        { constructor?: string; toString?: string },
+        string
+      >();
+      const pending = reader.args.get(key);
+      await reader.appendArgsTextDelta("{}");
+      await reader.finishArgsText();
+
+      expect(await pending).toBeUndefined();
+      expect(await reader.args.get(key)).toBeUndefined();
+    },
+  );
+
+  it("checks own properties at every nested path segment", async () => {
+    const reader = new ToolCallReaderImpl<
+      {
+        nested: { toString?: string; constructor?: { name: string } };
+      },
+      string
+    >();
+    await reader.appendArgsTextDelta('{"nested":{}}');
+    await reader.finishArgsText();
+
+    expect(await reader.args.get("nested", "toString")).toBeUndefined();
+    expect(
+      await reader.args.get("nested", "constructor", "name"),
+    ).toBeUndefined();
+  });
+
+  it.each(["constructor", "toString"] as const)(
+    "preserves an explicitly supplied own %s field",
+    async (key) => {
+      const reader = new ToolCallReaderImpl<
+        { constructor?: string; toString?: string },
+        string
+      >();
+      const pending = reader.args.get(key);
+      await reader.appendArgsTextDelta(
+        JSON.stringify({ [key]: "actual value" }),
+      );
+      await reader.finishArgsText();
+
+      expect(await pending).toBe("actual value");
+      expect(await reader.args.get(key)).toBe("actual value");
+    },
+  );
+
   it("waits for all digits of a positive exponent", async () => {
     const reader = new ToolCallReaderImpl<{ amount: number }, string>();
     const amount = reader.args.get("amount");
@@ -174,6 +230,35 @@ describe("ToolCallArgsReader.get", () => {
 });
 
 describe("ToolCallArgsReader streams", () => {
+  it("does not stream inherited values while arguments are partial or complete", async () => {
+    const reader = new ToolCallReaderImpl<
+      { toString?: string; nested: { toString?: string } },
+      string
+    >();
+    const values = reader.args.streamValues("toString");
+    const nestedValues = reader.args.streamValues("nested", "toString");
+    await reader.appendArgsTextDelta('{"nested":{');
+    await reader.appendArgsTextDelta("}}");
+    await reader.finishArgsText();
+
+    expect(await collect(values)).toEqual([]);
+    expect(await collect(nestedValues)).toEqual([]);
+    expect(await collect(reader.args.streamValues("toString"))).toEqual([]);
+  });
+
+  it("streams an explicitly supplied nested prototype-named field", async () => {
+    const reader = new ToolCallReaderImpl<
+      { nested: { toString: string } },
+      string
+    >();
+    const values = reader.args.streamValues("nested", "toString");
+    await reader.appendArgsTextDelta('{"nested":{"toString":"hel');
+    await reader.appendArgsTextDelta('lo"}}');
+    await reader.finishArgsText();
+
+    expect(await collect(values)).toEqual(["hel", "hello"]);
+  });
+
   it("closes streamValues when args close without the field", async () => {
     const reader = createReader();
 
@@ -200,5 +285,88 @@ describe("ToolCallArgsReader streams", () => {
     }
 
     expect(seen).toEqual(["a", "b"]);
+  });
+});
+
+describe("ToolCallArgsReader.forEach lifecycle", () => {
+  it("waits for nested partial elements and emits them once in order", async () => {
+    const reader = new ToolCallReaderImpl<
+      { items: { label: string; tags: string[] }[] },
+      string
+    >();
+    const values = reader.args.forEach("items").getReader();
+    const first = values.read();
+    let settled = false;
+    void first.then(() => {
+      settled = true;
+    });
+
+    await reader.appendArgsTextDelta('{"items":[{"label":"hel');
+    await reader.appendArgsTextDelta('lo","tags":["a');
+    await reader.appendArgsTextDelta('b"]');
+    expect(settled).toBe(false);
+
+    await reader.appendArgsTextDelta('},{"label":"second","tags":[');
+    expect(await first).toEqual({
+      done: false,
+      value: { label: "hello", tags: ["ab"] },
+    });
+    await reader.appendArgsTextDelta("]}]}");
+    await reader.finishArgsText();
+
+    expect(await values.read()).toEqual({
+      done: false,
+      value: { label: "second", tags: [] },
+    });
+    expect(await values.read()).toEqual({ done: true, value: undefined });
+  });
+
+  it("starts late with completed entries and retains the partial tail", async () => {
+    const reader = new ToolCallReaderImpl<{ items: string[] }, string>();
+    await reader.appendArgsTextDelta('{"items":["first","sec');
+    const values = reader.args.forEach("items");
+    await reader.appendArgsTextDelta('ond"]}');
+    await reader.finishArgsText();
+
+    expect(await collect(values)).toEqual(["first", "second"]);
+    expect(await collect(reader.args.forEach("items"))).toEqual([
+      "first",
+      "second",
+    ]);
+  });
+
+  it.each(['{"items":[]}', "{}"])(
+    "closes without items for %s",
+    async (json) => {
+      const reader = new ToolCallReaderImpl<{ items?: string[] }, string>();
+      const values = reader.args.forEach("items");
+      await reader.appendArgsTextDelta(json);
+      await reader.finishArgsText();
+
+      expect(await collect(values)).toEqual([]);
+    },
+  );
+
+  it("cancels one subscriber without dropping another subscriber's items", async () => {
+    const reader = new ToolCallReaderImpl<{ items: string[] }, string>();
+    const cancelled = reader.args.forEach("items").getReader();
+    const active = reader.args.forEach("items");
+    await reader.appendArgsTextDelta('{"items":["first",');
+    expect(await cancelled.read()).toEqual({ done: false, value: "first" });
+    await cancelled.cancel();
+    await reader.appendArgsTextDelta('"second"]}');
+    await reader.finishArgsText();
+
+    expect(await cancelled.read()).toEqual({ done: true, value: undefined });
+    expect(await collect(active)).toEqual(["first", "second"]);
+  });
+
+  it("does not emit a partial trailing element when the stream ends", async () => {
+    const reader = new ToolCallReaderImpl<{ items: string[] }, string>();
+    const values = reader.args.forEach("items");
+    await reader.appendArgsTextDelta('{"items":["first","unfinished');
+    await reader.finishArgsText();
+
+    expect(await collect(values)).toEqual(["first"]);
   });
 });

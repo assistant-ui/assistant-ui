@@ -87,7 +87,7 @@ export function Picture() {
 </div>
 ```
 
-The three top-level states are exclusive and resolve from `status`: `running` shows only the generating placeholder, `incomplete` with reason `content-filter` shows only the blocked-image message, and everything else (including no `status`) shows the real preview. Clicking the preview, or pressing Enter while it has focus, opens the image in a fullscreen dialog: a portal overlay with a focus trap, Escape-to-close, click-outside-to-close, and the page scroll locked while it is open. `ImageActions` (download, copy, regenerate) is not part of the default render tree; add it yourself, as shown below.
+The three top-level states are exclusive and resolve from `status`: `running` shows only the generating placeholder, `incomplete` with reason `content-filter` shows only the blocked-image message, and everything else (including no `status`) shows the real preview. Clicking the preview, or pressing Enter or Space while it has focus, opens the image in a fullscreen dialog: a portal overlay with a focus trap, Escape-to-close, click-outside-to-close, and the page scroll locked while it is open. Space activation prevents page scrolling. `ImageActions` (download, copy, regenerate) is not part of the default render tree; add it yourself, as shown below.
 
 ## Examples
 

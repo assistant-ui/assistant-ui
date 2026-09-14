@@ -1,10 +1,13 @@
 import { describe, expect, it, vi } from "vitest";
+import type { ThreadMessage } from "../../types/message";
 import {
   chunkExternalMessages,
   convertExternalMessageCallback,
   convertExternalMessageChunk,
+  joinExternalMessages,
   type ExternalMessageConverterCallback,
   type ExternalMessageConverterCallbackResult,
+  type ExternalMessageConverterMessage,
 } from "./external-message-conversion";
 
 describe("convertExternalMessageCallback", () => {
@@ -27,6 +30,75 @@ describe("convertExternalMessageCallback", () => {
     } finally {
       warn.mockRestore();
     }
+  });
+});
+
+describe("joinExternalMessages", () => {
+  it("preserves strict equality for malformed numeric tool-call IDs", () => {
+    const messages = [
+      {
+        role: "assistant",
+        content: [
+          {
+            type: "tool-call",
+            toolCallId: 1,
+            toolName: "search",
+            args: { query: "old" },
+          },
+        ],
+      },
+      {
+        role: "assistant",
+        content: [
+          {
+            type: "tool-call",
+            toolCallId: 1,
+            toolName: "search",
+            args: { query: "new" },
+          },
+        ],
+      },
+    ] as unknown as ExternalMessageConverterMessage[];
+
+    expect(joinExternalMessages(messages).content).toMatchObject([
+      {
+        type: "tool-call",
+        toolCallId: 1,
+        args: { query: "new" },
+      },
+    ]);
+  });
+
+  it("does not merge malformed NaN tool-call IDs", () => {
+    const messages = [
+      {
+        role: "assistant",
+        content: [
+          {
+            type: "tool-call",
+            toolCallId: Number.NaN,
+            toolName: "search",
+            args: { query: "first" },
+          },
+          {
+            type: "tool-call",
+            toolCallId: Number.NaN,
+            toolName: "search",
+            args: { query: "second" },
+          },
+        ],
+      },
+      { role: "tool", toolCallId: Number.NaN, result: "found" },
+    ] as unknown as ExternalMessageConverterMessage[];
+
+    const result = joinExternalMessages(messages);
+
+    expect(result.content).toMatchObject([
+      { type: "tool-call", args: { query: "first" } },
+      { type: "tool-call", args: { query: "second" } },
+    ]);
+    expect(result.content[0]).not.toHaveProperty("result");
+    expect(result.content[1]).not.toHaveProperty("result");
   });
 });
 
@@ -83,6 +155,68 @@ describe("chunkExternalMessages", () => {
 });
 
 describe("convertExternalMessageChunk", () => {
+  it("keeps an ended outer run running for a background tool call", () => {
+    const nestedAssistant: ThreadMessage = {
+      id: "nested-assistant",
+      createdAt: new Date(0),
+      role: "assistant",
+      content: [],
+      status: { type: "running" },
+      metadata: {
+        unstable_state: {},
+        unstable_annotations: [],
+        unstable_data: [],
+        steps: [],
+        custom: {},
+      },
+    };
+    const result = convertExternalMessageChunk(
+      {
+        inputs: [{}],
+        outputs: [
+          {
+            role: "assistant",
+            content: [
+              {
+                type: "tool-call",
+                toolName: "delegate",
+                args: {},
+                messages: [nestedAssistant],
+              },
+            ],
+          },
+        ],
+      },
+      0,
+      1,
+      false,
+      undefined,
+    );
+
+    expect(result.status).toMatchObject({ type: "running" });
+  });
+
+  it("preserves assistant message modality", () => {
+    const result = convertExternalMessageChunk(
+      {
+        inputs: [{}],
+        outputs: [
+          {
+            role: "assistant",
+            content: "Spoken reply",
+            metadata: { modality: "voice" },
+          },
+        ],
+      },
+      0,
+      1,
+      false,
+      undefined,
+    );
+
+    expect(result.metadata.modality).toBe("voice");
+  });
+
   it("keeps separate tool calls without IDs", () => {
     const result = convertExternalMessageChunk(
       {

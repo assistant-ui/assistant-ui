@@ -269,6 +269,49 @@ describe("useRemoteThreadListRuntime controlled threadId", () => {
     expect(onThreadIdChange).toHaveBeenLastCalledWith(undefined);
   });
 
+  it("contains rejected callback promises on runtime-initiated switches", async () => {
+    const callbackError = new Error("async host callback failed");
+    const errorSpy = vi.spyOn(console, "error").mockImplementation(() => {});
+    const adapter = makeAdapter();
+    const onThreadIdChange = vi.fn(async () => {
+      throw callbackError;
+    });
+    const runtimeRef: RuntimeRef = { current: null };
+
+    const { unmount } = render(
+      <ControlledRuntime
+        adapter={adapter}
+        threadId="thread-a"
+        onThreadIdChange={onThreadIdChange}
+        runtimeRef={runtimeRef}
+      />,
+    );
+
+    try {
+      await waitForRemoteThread(runtimeRef, "thread-a");
+
+      await act(async () => {
+        await expect(
+          runtimeRef.current!.threads.switchToThread("thread-b"),
+        ).resolves.toBeUndefined();
+      });
+
+      await waitFor(() => {
+        expect(errorSpy).toHaveBeenCalledWith(
+          "[assistant-ui] onThreadIdChange callback threw an error",
+          callbackError,
+        );
+      });
+      expect(onThreadIdChange).toHaveBeenCalledExactlyOnceWith("thread-b");
+      expect(runtimeRef.current!.threads.mainItem.getState().remoteId).toBe(
+        "thread-b",
+      );
+    } finally {
+      unmount();
+      errorSpy.mockRestore();
+    }
+  });
+
   it("does not retain suppression after an initial switch fails", async () => {
     let threadAFetchCount = 0;
     const adapter = makeAdapter({

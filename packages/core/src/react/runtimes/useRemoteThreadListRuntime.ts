@@ -109,7 +109,7 @@ export const useRemoteThreadListRuntime = (
   );
 
   const onThreadIdChange = useEffectEvent((threadId: string | undefined) => {
-    options.onThreadIdChange?.(threadId);
+    return options.onThreadIdChange?.(threadId);
   });
 
   const stableOptions = useMemo<RemoteThreadListOptions>(

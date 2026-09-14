@@ -1,6 +1,7 @@
 import { SSEEventDecoder } from "assistant-stream/utils";
 import { contentToParts } from "./contentToParts";
 import { parseAdkEventValue } from "./parseAdkEvent";
+import { toAdkFunctionResponse } from "./toAdkFunctionResponse";
 import { trimTrailingSlashes } from "./trimTrailingSlashes";
 import type {
   AdkEvent,
@@ -180,7 +181,7 @@ function messagesToContent(messages: AdkMessage[]): {
         functionResponse: {
           name: msg.name,
           id: msg.tool_call_id,
-          response,
+          response: toAdkFunctionResponse(response),
         },
       });
     }

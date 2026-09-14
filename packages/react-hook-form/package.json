@@ -56,7 +56,7 @@
     "jsdom": "^30.0.1",
     "react": "^19.2.8",
     "react-hook-form": "^7.87.0",
-    "vitest": "^4.1.11"
+    "vitest": "^5.0.0"
   },
   "publishConfig": {
     "access": "public",

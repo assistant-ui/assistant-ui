@@ -205,6 +205,56 @@ describe("convertExternalMessages", () => {
       expect((toolCallParts[0] as any).argsText).toBe('{"query":"new"}');
     });
 
+    it("keeps a merged tool call in its original content position", () => {
+      const messages = [
+        {
+          role: "assistant" as const,
+          content: [
+            {
+              type: "tool-call" as const,
+              toolCallId: "tc1",
+              toolName: "search",
+              args: { query: "old" },
+            },
+            { type: "text" as const, text: "after tool" },
+          ],
+        },
+        {
+          role: "assistant" as const,
+          content: [
+            {
+              type: "tool-call" as const,
+              toolCallId: "tc1",
+              toolName: "search",
+              args: { query: "new" },
+            },
+          ],
+        },
+        {
+          role: "tool" as const,
+          toolCallId: "tc1",
+          result: "found",
+        },
+      ];
+
+      const result = convertExternalMessages(
+        messages,
+        (message) => message,
+        false,
+        {},
+      );
+
+      expect(result[0]!.content).toMatchObject([
+        {
+          type: "tool-call",
+          toolCallId: "tc1",
+          args: { query: "new" },
+          result: "found",
+        },
+        { type: "text", text: "after tool" },
+      ]);
+    });
+
     it("should ignore orphaned tool results without throwing", () => {
       const messages = [
         {

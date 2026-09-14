@@ -7,6 +7,7 @@ import type {
   ExportedMessageRepositoryItem,
 } from "../runtime/utils/message-repository";
 import type { ReadonlyJSONValue } from "assistant-stream/utils";
+import type { ThreadMessage } from "../types";
 
 export interface MessageStorageEntry<TPayload> {
   id: string;
@@ -52,6 +53,8 @@ export type GenericThreadHistoryAdapter<TMessage> = {
     options?: {
       durationMs?: number;
       stepTimestamps?: { start_ms: number; end_ms: number }[];
+      /** The thread message the items were persisted from; its status and timing complete a report the stored format cannot carry. */
+      message?: ThreadMessage;
     },
   ): void;
 };
