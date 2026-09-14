@@ -160,6 +160,31 @@ describe("messageProjection", () => {
     });
   });
 
+  it("preserves image tool result content", () => {
+    const content = [
+      { type: "image" as const, data: "AAAA", mimeType: "image/png" },
+    ];
+    const out = projectPiThreadMessages(
+      input([
+        assistant([toolCall("tc1", "screenshot", {})]),
+        {
+          role: "toolResult",
+          toolCallId: "tc1",
+          toolName: "screenshot",
+          content,
+          isError: false,
+          timestamp: 2,
+        },
+      ]),
+    );
+
+    expect(contentParts(out[0]!)[0]).toMatchObject({
+      type: "tool-call",
+      toolCallId: "tc1",
+      result: content,
+    });
+  });
+
   it("pairs out-of-order parallel tool results by id", () => {
     const out = projectPiThreadMessages(
       input([

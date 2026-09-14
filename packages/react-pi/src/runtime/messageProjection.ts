@@ -62,22 +62,19 @@ const toDataUrl = (data: string, mimeType: string) =>
 const createdAtOf = (message: { timestamp?: number }): Date =>
   new Date(typeof message.timestamp === "number" ? message.timestamp : 0);
 
-/** Join the renderable text of a tool result / partial result content array. */
-const extractResultText = (value: unknown): string | undefined => {
+/** Preserve non-text tool output while keeping text-only results as strings. */
+const extractToolResult = (value: unknown): unknown => {
   if (value == null) return undefined;
   const content = (value as { content?: unknown }).content;
   if (!Array.isArray(content)) return undefined;
-  const text = content
-    .filter(
-      (p): p is { type: "text"; text: string } =>
-        typeof p === "object" &&
-        p !== null &&
-        (p as { type?: unknown }).type === "text" &&
-        typeof (p as { text?: unknown }).text === "string",
-    )
-    .map((p) => p.text)
-    .join("");
-  return text;
+  const textOnly = content.every(
+    (part): part is { type: "text"; text: string } =>
+      typeof part === "object" &&
+      part !== null &&
+      (part as { type?: unknown }).type === "text" &&
+      typeof (part as { text?: unknown }).text === "string",
+  );
+  return textOnly ? content.map((part) => part.text).join("") : content;
 };
 
 const projectUserContent = (
@@ -108,13 +105,13 @@ const dataPart = (
 const buildToolResultMap = (messages: readonly PiAgentMessage[]) => {
   const map = new Map<
     string,
-    { result: string | undefined; isError: boolean; details: unknown }
+    { result: unknown; isError: boolean; details: unknown }
   >();
   for (const message of messages) {
     if (message.role !== "toolResult") continue;
     const m = message as PiToolResultMessage;
     map.set(m.toolCallId, {
-      result: extractResultText({ content: m.content }),
+      result: extractToolResult({ content: m.content }),
       isError: m.isError,
       details: m.details,
     });
@@ -161,7 +158,7 @@ const projectAssistantInto = (
       const live = input.toolExecutions[part.id];
       const result =
         paired?.result ??
-        (live ? extractResultText(live.partialResult) : undefined);
+        (live ? extractToolResult(live.partialResult) : undefined);
       const isError = paired?.isError ?? live?.status === "error";
 
       const hostUi = input.hostUiRequests.find((r) => r.toolCallId === part.id);
