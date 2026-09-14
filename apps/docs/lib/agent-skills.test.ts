@@ -46,6 +46,6 @@ describe("agent skills loader", () => {
       ),
     );
     expect(targets.length).toBeGreaterThan(0);
-    expect(targets.filter((t) => t.startsWith("."))).toEqual([]);
+    expect(targets.filter((t) => !/^(https?:\/\/|#)/.test(t))).toEqual([]);
   });
 });
