@@ -59,6 +59,7 @@ const h = vi.hoisted(() => {
   const addAttachment = vi.fn();
   const removeAttachment = vi.fn();
   const setClipboardString = vi.fn();
+  const announceForAccessibility = vi.fn();
   const switchToNewThread = vi.fn();
   const switchToThreadItem = vi.fn();
   const makeComposer = (getState: () => any) => ({
@@ -181,6 +182,7 @@ const h = vi.hoisted(() => {
     addAttachment,
     removeAttachment,
     setClipboardString,
+    announceForAccessibility,
     switchToNewThread,
     switchToThreadItem,
   };
@@ -287,7 +289,15 @@ vi.mock("react-native", async (importOriginal) => {
     );
   });
 
-  return { ...actual, FlatList, View };
+  return {
+    ...actual,
+    AccessibilityInfo: {
+      ...actual.AccessibilityInfo,
+      announceForAccessibility: h.announceForAccessibility,
+    },
+    FlatList,
+    View,
+  };
 });
 
 vi.mock("uniwind", () => ({
@@ -362,6 +372,7 @@ describe("Thread", () => {
     h.addAttachment.mockReset();
     h.removeAttachment.mockReset();
     h.setClipboardString.mockReset();
+    h.announceForAccessibility.mockReset();
     h.switchToNewThread.mockReset();
     h.switchToThreadItem.mockReset();
 
@@ -500,6 +511,19 @@ describe("Thread", () => {
     expect(container.textContent).toContain("1 / 2");
     expect(container.querySelector('[aria-label="Previous"]')).not.toBeNull();
     expect(container.querySelector('[aria-label="Next"]')).not.toBeNull();
+  });
+
+  it("shows the indicator and announces it while the assistant is working", async () => {
+    addMessages(h.makeMessage({ status: { type: "running" } }));
+
+    await render();
+
+    expect(
+      container.querySelector('[aria-label="Assistant is working"]'),
+    ).not.toBeNull();
+    expect(h.announceForAccessibility).toHaveBeenCalledWith(
+      "Assistant is working",
+    );
   });
 
   it("renders the error text for an errored message", async () => {

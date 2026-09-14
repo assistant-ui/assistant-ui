@@ -32,6 +32,7 @@ import {
 } from "lucide-react-native";
 import { useEffect, useRef, type FC } from "react";
 import {
+  AccessibilityInfo,
   Animated,
   KeyboardAvoidingView,
   Platform,
@@ -267,6 +268,13 @@ const TypingDot: FC<{ delay: number }> = ({ delay }) => {
 
 const AssistantIndicator: FC = () => {
   const isRunning = useAuiState((s) => s.message.status?.type === "running");
+
+  useEffect(() => {
+    if (isRunning) {
+      AccessibilityInfo.announceForAccessibility("Assistant is working");
+    }
+  }, [isRunning]);
+
   if (!isRunning) return null;
 
   return (
@@ -274,7 +282,6 @@ const AssistantIndicator: FC = () => {
       className="aui-assistant-message-indicator flex-row items-center gap-[5px] py-2"
       accessible
       accessibilityLabel="Assistant is working"
-      accessibilityLiveRegion="polite"
     >
       <TypingDot delay={0} />
       <TypingDot delay={160} />
