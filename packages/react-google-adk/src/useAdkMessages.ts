@@ -193,9 +193,13 @@ const useAdkMessagesInternal = ({
             break;
           }
           const updatedMessages = accumulator.processEvent(event);
-          const updatedMessage = updatedMessages.at(-1);
-          if (updatedMessage) {
-            onMessages?.([updatedMessage], config.runConfig);
+          const affectedMessageCount = Math.max(
+            event.content?.parts?.length ?? 0,
+            1,
+          );
+          const affectedMessages = updatedMessages.slice(-affectedMessageCount);
+          if (affectedMessages.length > 0) {
+            onMessages?.(affectedMessages, config.runConfig);
           }
           setMessagesImmediate(updatedMessages);
           setStateDelta({
