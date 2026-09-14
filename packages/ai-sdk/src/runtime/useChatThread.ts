@@ -214,6 +214,7 @@ export const useChatThread = <UI_MESSAGE extends UIMessage = UIMessage>(
   });
   const [internalChat] = useState(
     () =>
+      externalChat ??
       new Chat<UI_MESSAGE>({
         ...chatOptions,
         id,
