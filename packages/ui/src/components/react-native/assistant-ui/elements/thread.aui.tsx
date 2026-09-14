@@ -3,6 +3,7 @@ import {
   ComposerAttachments,
   UserMessageAttachments,
 } from "@/components/assistant-ui/elements/attachment.aui";
+import { MarkdownText } from "@/components/assistant-ui/elements/markdown-text";
 import { Icon } from "@/components/ui/icon";
 import { cn } from "@/lib/utils";
 import {
@@ -30,7 +31,7 @@ import {
   RefreshCwIcon,
   WrenchIcon,
 } from "lucide-react-native";
-import { useEffect, useRef, type FC } from "react";
+import { useEffect, useRef, useState, type FC } from "react";
 import {
   AccessibilityInfo,
   Animated,
@@ -63,6 +64,8 @@ export const Thread: FC = () => {
   const isEmpty = useAuiState(isNewChatView);
   const isRunning = useAuiState((s) => s.thread.isRunning);
   const insets = useSafeAreaInsets();
+  const viewportRef = useRef<View>(null);
+  const [viewportTop, setViewportTop] = useState(0);
 
   useEffect(() => {
     if (isRunning) {
@@ -70,13 +73,24 @@ export const Thread: FC = () => {
     }
   }, [isRunning]);
 
+  // KeyboardAvoidingView measures its frame against its parent, so a navigation
+  // header above the thread would leave the composer covered by the header's
+  // height; the viewport's window position supplies that offset, minus the
+  // bottom inset the footer already pads.
+  const measureViewport = () => {
+    viewportRef.current?.measureInWindow((_x, y) => setViewportTop(y));
+  };
+
   return (
     <ThreadPrimitive.Root className="aui-root aui-thread-root bg-background flex-1">
       <KeyboardAvoidingView
         className="flex-1"
         behavior={Platform.OS === "ios" ? "padding" : undefined}
+        keyboardVerticalOffset={Math.max(0, viewportTop - insets.bottom)}
       >
         <View
+          ref={viewportRef}
+          onLayout={measureViewport}
           className={cn(
             "aui-thread-viewport mx-auto w-full max-w-[44rem] flex-1",
             isEmpty && "justify-center",
@@ -233,15 +247,6 @@ const UserText: TextMessagePartComponent = ({ text }) => (
   </Text>
 );
 
-const AssistantText: TextMessagePartComponent = ({ text }) => (
-  <Text
-    className="aui-assistant-message-text text-foreground text-base leading-[26px]"
-    selectable
-  >
-    {text}
-  </Text>
-);
-
 const TypingDot: FC<{ delay: number }> = ({ delay }) => {
   const opacity = useRef(new Animated.Value(0.3)).current;
 
@@ -305,7 +310,7 @@ const AssistantMessage: FC = () => (
     <View className="aui-assistant-message-content px-2">
       <MessagePrimitive.Parts
         components={{
-          Text: AssistantText,
+          Text: MarkdownText,
           Empty: AssistantIndicator,
           tools: { Fallback: ToolFallback },
         }}

@@ -1959,8 +1959,33 @@ export const nativeRegistry: RegistryItem[] = [
     registryDependencies: [
       "https://r.assistant-ui.com/native/attachment.json",
       "https://r.assistant-ui.com/native/icon.json",
+      "https://r.assistant-ui.com/native/markdown-text.json",
       "https://r.assistant-ui.com/utils.json",
     ],
+  },
+  {
+    name: "markdown-text",
+    type: "registry:component",
+    title: "Markdown Text",
+    description:
+      "Streams assistant markdown with throttled block-level rendering and styled code blocks with copy.",
+    files: [
+      {
+        type: "registry:component",
+        path: "components/assistant-ui/elements/markdown-text.tsx",
+        sourcePath:
+          "../../packages/ui/src/components/react-native/assistant-ui/elements/markdown-text.tsx",
+      },
+    ],
+    dependencies: [
+      "@assistant-ui/react-native",
+      "expo-clipboard",
+      "lucide-react-native",
+      "react-native-marked",
+      "react-native-svg",
+      "uniwind",
+    ],
+    registryDependencies: ["https://r.assistant-ui.com/native/icon.json"],
   },
   {
     name: "attachment",

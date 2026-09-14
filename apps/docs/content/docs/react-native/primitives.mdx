@@ -75,6 +75,7 @@ Canonical React Native message viewport backed by `FlatList`. It scopes each row
 | `scrollToBottomOnRunStart` | `boolean` | Scrolls to the bottom when a run starts. Defaults to `true` |
 | `scrollToBottomOnInitialize` | `boolean` | Scrolls to the bottom when messages first appear. Defaults to `true` |
 | `scrollToBottomOnThreadSwitch` | `boolean` | Scrolls to the bottom when switching threads. Defaults to `true` |
+| `maintainVisibleContentPosition` | `FlatListProps["maintainVisibleContentPosition"]` | Keeps the first visible message anchored while content is inserted above it, such as older history loading in. Defaults to `{ minIndexForVisible: 0 }` |
 | `...rest` | `FlatListProps` | Standard FlatList props, except `data`, `renderItem`, and `children` |
 
 The built-in auto-scroll behavior assumes the default, non-inverted `FlatList` direction.

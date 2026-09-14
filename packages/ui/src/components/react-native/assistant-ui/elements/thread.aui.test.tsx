@@ -60,6 +60,10 @@ const h = vi.hoisted(() => {
   const removeAttachment = vi.fn();
   const setClipboardString = vi.fn();
   const announceForAccessibility = vi.fn();
+  const layout = {
+    insets: { top: 0, bottom: 0, left: 0, right: 0 },
+    windowTop: 0,
+  };
   const switchToNewThread = vi.fn();
   const switchToThreadItem = vi.fn();
   const makeComposer = (getState: () => any) => ({
@@ -183,6 +187,7 @@ const h = vi.hoisted(() => {
     removeAttachment,
     setClipboardString,
     announceForAccessibility,
+    layout,
     switchToNewThread,
     switchToThreadItem,
   };
@@ -251,18 +256,36 @@ vi.mock("react-native", async (importOriginal) => {
     accessibilityLiveRegion,
     accessibilityRole,
     style: _style,
+    onLayout,
+    ref,
     ...props
   }: any) =>
     React.createElement(
       "div",
       {
         ...props,
+        ref: (node: any) => {
+          if (node) {
+            node.measureInWindow = (callback: any) =>
+              callback(0, h.layout.windowTop, 0, 0);
+          }
+          if (typeof ref === "function") ref(node);
+          else if (ref) ref.current = node;
+          if (node) onLayout?.({ nativeEvent: { layout: {} } });
+        },
         className,
         "data-testid": testID,
         "aria-label": accessibilityLabel,
         "aria-live": accessibilityLiveRegion,
         role: accessibilityRole,
       },
+      children,
+    );
+
+  const KeyboardAvoidingView = ({ children, keyboardVerticalOffset }: any) =>
+    React.createElement(
+      "div",
+      { "data-testid": "kav", "data-offset": String(keyboardVerticalOffset) },
       children,
     );
 
@@ -296,13 +319,45 @@ vi.mock("react-native", async (importOriginal) => {
       announceForAccessibility: h.announceForAccessibility,
     },
     FlatList,
+    KeyboardAvoidingView,
     View,
   };
 });
 
+vi.mock("react-native-marked", async () => {
+  const React = await import("react");
+  const { Text } = await import("react-native");
+  let keys = 0;
+  class Renderer {
+    getKey() {
+      keys += 1;
+      return `marked-${keys}`;
+    }
+    code(_text: string, _language?: string): unknown {
+      return null;
+    }
+  }
+  const MarkedLexer = (text: string) =>
+    text
+      .split(/\n{2,}/)
+      .filter((raw) => raw.trim().length > 0)
+      .map((raw) => ({
+        type: raw.startsWith("```") ? "code" : "paragraph",
+        raw,
+      }));
+  const useMarkdown = (raw: string, options: { renderer: Renderer }) => {
+    const fence = /^```([^\n]*)\n([\s\S]*?)\n?```\s*$/.exec(raw);
+    if (fence)
+      return [options.renderer.code(fence[2] ?? "", fence[1] || undefined)];
+    return [React.createElement(Text, { key: "text" }, raw)];
+  };
+  return { MarkedLexer, Renderer, useMarkdown };
+});
+
 vi.mock("uniwind", () => ({
   withUniwind: (Component: unknown) => Component,
-  useCSSVariable: () => undefined,
+  useCSSVariable: (names: string | string[]) =>
+    Array.isArray(names) ? names.map(() => undefined) : undefined,
   useUniwind: () => ({ theme: "light" }),
 }));
 
@@ -337,7 +392,7 @@ vi.mock("expo-image-manipulator", () => ({
 }));
 vi.mock("expo-image-picker", () => ({ launchImageLibraryAsync: vi.fn() }));
 vi.mock("react-native-safe-area-context", () => ({
-  useSafeAreaInsets: () => ({ top: 0, bottom: 0, left: 0, right: 0 }),
+  useSafeAreaInsets: () => h.layout.insets,
 }));
 
 (globalThis as Record<string, unknown>).IS_REACT_ACT_ENVIRONMENT = true;
@@ -366,6 +421,8 @@ describe("Thread", () => {
     h.state.composer.canCancel = false;
     h.state.composer.attachments = [];
     h.state.suggestions.suggestions = [];
+    h.layout.insets = { top: 0, bottom: 0, left: 0, right: 0 };
+    h.layout.windowTop = 0;
     h.composerSend.mockReset();
     h.composerCancel.mockReset();
     h.composerSetText.mockReset();
@@ -408,6 +465,20 @@ describe("Thread", () => {
     });
     h.state.thread.messages = h.messages;
   };
+
+  it("offsets the keyboard by the viewport's window position minus the bottom inset", async () => {
+    h.layout.windowTop = 100;
+    h.layout.insets = { top: 0, bottom: 34, left: 0, right: 0 };
+
+    await render();
+    await render();
+
+    expect(
+      container
+        .querySelector('[data-testid="kav"]')
+        ?.getAttribute("data-offset"),
+    ).toBe("66");
+  });
 
   it("renders the welcome text and suggestion chips when the thread is empty", async () => {
     h.state.suggestions.suggestions = [

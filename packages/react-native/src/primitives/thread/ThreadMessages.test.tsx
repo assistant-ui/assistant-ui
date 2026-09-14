@@ -338,6 +338,25 @@ describe("ThreadMessages", () => {
     expect(ref.current).not.toBeNull();
   });
 
+  it("anchors the visible message while content is inserted above it", async () => {
+    await mountFlatList({ children: () => null });
+
+    expect(h.flatListProps?.maintainVisibleContentPosition).toEqual({
+      minIndexForVisible: 0,
+    });
+  });
+
+  it("lets the app override the visible content anchor", async () => {
+    await mountFlatList({
+      children: () => null,
+      maintainVisibleContentPosition: { minIndexForVisible: 2 },
+    });
+
+    expect(h.flatListProps?.maintainVisibleContentPosition).toEqual({
+      minIndexForVisible: 2,
+    });
+  });
+
   it("keeps deprecated Messages off the scroll-tracking path", async () => {
     h.state.thread.messages = [{ id: "1", role: "user" }];
     await mount({ components: messageComponents });
