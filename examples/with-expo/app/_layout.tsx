@@ -99,6 +99,10 @@ function DrawerLayout() {
         }}
       >
         <Drawer.Screen name="index" options={{ title: "Chat" }} />
+        <Drawer.Screen
+          name="showcase"
+          options={{ headerShown: false, swipeEnabled: false }}
+        />
       </Drawer>
       <StatusBar style="auto" />
     </ThemeProvider>

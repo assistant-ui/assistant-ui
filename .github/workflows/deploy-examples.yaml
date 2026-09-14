@@ -8,6 +8,7 @@ on:
       - examples/with-expo/**
       - examples/with-react-ink-web/**
       - packages/react-native/**
+      - packages/ui/**
       - packages/react-ink/**
       - packages/react-ink-markdown/**
       - packages/react-ai-sdk/**
