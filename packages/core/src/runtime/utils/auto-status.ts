@@ -111,6 +111,17 @@ export const getAutoStatus = (
             : AUTO_STATUS_COMPLETE;
 };
 
+/** Status for a persisted message: a nested conversation saved mid-run cannot resume, so it never keeps the message running. */
+export const getImportedContentAutoStatus = (
+  content: ThreadMessageLike["content"],
+): MessageStatus =>
+  getAutoStatus(
+    false,
+    false,
+    typeof content !== "string" && content.some(isInterruptedToolCall),
+    typeof content !== "string" && content.some(isPendingToolCall),
+  );
+
 export const getContentAutoStatus = (
   content: ThreadMessageLike["content"],
   isLast: boolean,
