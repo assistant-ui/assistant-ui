@@ -1,6 +1,8 @@
 import { act, renderHook } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import type {
+  AddToolResultOptions,
+  AppendMessage,
   RespondToToolApprovalOptions,
   ThreadMessage,
   ToolCallMessagePart,
@@ -60,8 +62,10 @@ vi.mock("./useAdkMessages", async (importOriginal) => ({
 import { AdkEventAccumulator } from "./AdkEventAccumulator";
 import { useAdkRuntime } from "./useAdkRuntime";
 
-type ApprovalAdapter = {
+type RuntimeAdapter = {
   messages: readonly ThreadMessage[];
+  onNew?: (message: AppendMessage) => Promise<void> | void;
+  onAddToolResult?: (options: AddToolResultOptions) => Promise<void> | void;
   onRespondToToolApproval?: (
     options: RespondToToolApprovalOptions,
   ) => Promise<void> | void;
@@ -69,7 +73,21 @@ type ApprovalAdapter = {
 
 const CONFIRMATION_CALL = "adk-confirmation-1";
 
-const latestAdapter = () => mocks.adapters.at(-1) as ApprovalAdapter;
+const latestAdapter = () => mocks.adapters.at(-1) as RuntimeAdapter;
+
+const makeUserMessage = (
+  text: string,
+  runConfig: AppendMessage["runConfig"],
+): AppendMessage =>
+  ({
+    role: "user",
+    content: [{ type: "text", text }],
+    attachments: [],
+    parentId: null,
+    sourceId: null,
+    runConfig,
+    metadata: { custom: {} },
+  }) as unknown as AppendMessage;
 
 const makeConfirmationRequest = (): AdkMessage => ({
   id: "ai-1",
@@ -100,16 +118,66 @@ afterEach(() => {
 });
 
 describe("useAdkRuntime tool approvals", () => {
+  it("resumes a delayed tool result with its originating run config", async () => {
+    const runConfigA = { custom: { model: "model-a" } };
+    const runConfigB = { custom: { model: "model-b" } };
+    const { rerender } = renderHook(() => useAdkRuntime({ stream: vi.fn() }));
+
+    await act(async () => {
+      await latestAdapter().onNew!(makeUserMessage("first", runConfigA));
+    });
+
+    mocks.messages = [
+      { id: "u-1", type: "human", content: "first" },
+      {
+        id: "ai-1",
+        type: "ai",
+        content: [],
+        tool_calls: [
+          {
+            id: "tool-a",
+            name: "lookup",
+            args: {},
+          },
+        ],
+      },
+    ];
+    rerender();
+
+    await act(async () => {
+      await latestAdapter().onNew!(makeUserMessage("second", runConfigB));
+      await latestAdapter().onAddToolResult!({
+        messageId: "ai-1",
+        toolCallId: "tool-a",
+        toolName: "lookup",
+        result: { value: "done" },
+        isError: false,
+      });
+    });
+
+    expect(
+      mocks.sendMessage.mock.calls.map((call) => call[1].runConfig),
+    ).toEqual([runConfigA, runConfigB, runConfigA]);
+  });
+
   it("exposes, answers, and settles the default approval seam across a rerender", async () => {
+    const runConfig = { custom: { model: "model-a" } };
     // Retained across the rerender: core caches converted messages by input
     // object, so only a rebuilt converter can surface the settled decision.
     const confirmationRequest = makeConfirmationRequest();
+    const { rerender } = renderHook(() => useAdkRuntime({ stream: vi.fn() }));
+
+    await act(async () => {
+      await latestAdapter().onNew!(
+        makeUserMessage("delete the file", runConfig),
+      );
+    });
+
     mocks.messages = [
       { id: "u-1", type: "human", content: "delete the file" },
       confirmationRequest,
     ];
-
-    const { rerender } = renderHook(() => useAdkRuntime({ stream: vi.fn() }));
+    rerender();
 
     expect(latestAdapter().messages.at(-1)!.status).toMatchObject({
       type: "requires-action",
@@ -135,6 +203,7 @@ describe("useAdkRuntime tool approvals", () => {
         content: JSON.stringify({ confirmed: false }),
       }),
     ]);
+    expect(mocks.sendMessage.mock.calls.at(-1)![1]).toEqual({ runConfig });
 
     mocks.messages = [
       ...mocks.messages,

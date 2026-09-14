@@ -170,15 +170,63 @@ const useAdkRuntimeImpl = (options: UseAdkRuntimeOptions) => {
     isRunningRef.current = effectiveIsRunning;
   }, [effectiveIsRunning]);
   const runGenerationRef = useRef(0);
+  const activeRunConfigRef = useRef<AppendMessage["runConfig"]>();
+  const runConfigByToolCallIdRef = useRef(
+    new Map<string, AppendMessage["runConfig"]>(),
+  );
+
+  useInsertionEffect(() => {
+    const currentToolCallIds = new Set<string>();
+
+    for (const message of messages) {
+      if (message.type !== "ai") continue;
+
+      for (const toolCall of message.tool_calls ?? []) {
+        currentToolCallIds.add(toolCall.id);
+        if (!runConfigByToolCallIdRef.current.has(toolCall.id)) {
+          runConfigByToolCallIdRef.current.set(
+            toolCall.id,
+            activeRunConfigRef.current,
+          );
+        }
+      }
+    }
+
+    for (const toolCallId of runConfigByToolCallIdRef.current.keys()) {
+      if (!currentToolCallIds.has(toolCallId)) {
+        runConfigByToolCallIdRef.current.delete(toolCallId);
+      }
+    }
+  }, [messages]);
+
+  const getContinuationConfig = (toolCallId: string): AdkSendMessageConfig => ({
+    runConfig: runConfigByToolCallIdRef.current.has(toolCallId)
+      ? runConfigByToolCallIdRef.current.get(toolCallId)
+      : activeRunConfigRef.current,
+  });
 
   const handleSendMessage = async (
     msgs: AdkMessage[],
     config: AdkSendMessageConfig,
   ) => {
+    const isToolContinuation =
+      msgs.length > 0 && msgs.every((msg) => msg.type === "tool");
+    const continuationConfig =
+      isToolContinuation && config.runConfig === undefined
+        ? {
+            ...config,
+            ...getContinuationConfig(msgs[0]!.tool_call_id),
+          }
+        : config;
+
+    if (!isToolContinuation) {
+      activeRunConfigRef.current = continuationConfig.runConfig;
+    }
+
     const generation = ++runGenerationRef.current;
     try {
       setIsRunning(true);
-      await sendMessage(msgs, config);
+      await sendMessage(msgs, continuationConfig);
     } finally {
       if (runGenerationRef.current === generation) setIsRunning(false);
     }
@@ -468,7 +516,7 @@ const useAdkRuntimeImpl = (options: UseAdkRuntimeOptions) => {
             status: isError ? "error" : "success",
           },
         ],
-        {},
+        getContinuationConfig(toolCallId),
       );
     },
     onRespondToToolApproval: async (options) => {
@@ -479,7 +527,7 @@ const useAdkRuntimeImpl = (options: UseAdkRuntimeOptions) => {
             projectAdkToolApprovals(adkMessagesRef.current).approvals,
           ),
         ],
-        {},
+        getContinuationConfig(options.approvalId),
       );
     },
     onCancel: unstable_allowCancellation
