@@ -103,8 +103,16 @@ const CodeBlock: FC<{ code: string; language: string | undefined }> = ({
 };
 
 class MarkdownRenderer extends Renderer {
+  codeIndex = 0;
+
   override code(text: string, language?: string): ReactNode {
-    return <CodeBlock key="code" code={text} language={language} />;
+    return (
+      <CodeBlock
+        key={`code-${this.codeIndex++}`}
+        code={text}
+        language={language}
+      />
+    );
   }
 }
 
@@ -113,7 +121,6 @@ const asColor = (value: string | number | undefined) =>
 
 const useMarkdownOptions = (): useMarkdownHookOptions => {
   const { theme } = useUniwind();
-  const renderer = useMemo(() => new MarkdownRenderer(), []);
   const [foreground, primary, muted, border] = useCSSVariable([
     "--color-foreground",
     "--color-primary",
@@ -175,13 +182,12 @@ const useMarkdownOptions = (): useMarkdownHookOptions => {
       tableCell: { paddingHorizontal: 8, paddingVertical: 6 },
     };
     const options: useMarkdownHookOptions = {
-      renderer,
       colorScheme: theme === "dark" ? "dark" : "light",
       styles,
     };
     if (colors) options.theme = { colors };
     return options;
-  }, [renderer, theme, foreground, primary, muted, border]);
+  }, [theme, foreground, primary, muted, border]);
 };
 
 // Each top-level block is re-lexed on its own, so a streaming update re-renders
@@ -189,7 +195,14 @@ const useMarkdownOptions = (): useMarkdownHookOptions => {
 // resolve across blocks.
 const MarkdownBlock = memo(
   ({ raw, options }: { raw: string; options: useMarkdownHookOptions }) => {
-    const elements = useMarkdown(raw, options);
+    const renderer = useMemo(() => new MarkdownRenderer(), []);
+    const blockOptions = useMemo(
+      () => ({ ...options, renderer }),
+      [options, renderer],
+    );
+    // Code block keys count up per parse, so they stay unique among siblings and identical across the re-parses of a streaming block.
+    renderer.codeIndex = 0;
+    const elements = useMarkdown(raw, blockOptions);
     return <>{elements}</>;
   },
 );

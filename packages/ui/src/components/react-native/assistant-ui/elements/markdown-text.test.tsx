@@ -29,9 +29,11 @@ vi.mock("react-native-marked", async () => {
         raw,
       }));
   const useMarkdown = (raw: string, options: { renderer: Renderer }) => {
-    const fence = /^```([^\n]*)\n([\s\S]*?)\n?```\s*$/.exec(raw);
-    if (fence)
-      return [options.renderer.code(fence[2] ?? "", fence[1] || undefined)];
+    const fences = [...raw.matchAll(/```([^\n]*)\n([\s\S]*?)\n\s*```/g)];
+    if (fences.length > 0)
+      return fences.map((fence) =>
+        options.renderer.code(fence[2] ?? "", fence[1]?.trim() || undefined),
+      );
     return [React.createElement(Text, { key: "text" }, raw)];
   };
   return { MarkedLexer, Renderer, useMarkdown };
@@ -117,6 +119,25 @@ describe("MarkdownText", () => {
 
     expect(h.setClipboardString).toHaveBeenCalledWith("console.log(1);");
     expect(container.querySelector('[data-testid="CheckIcon"]')).not.toBeNull();
+  });
+
+  it("keys sibling code blocks apart and keeps them stable across re-parses", async () => {
+    const errors = vi.spyOn(console, "error").mockImplementation(() => {});
+    const block =
+      "1. build it:\n   ```sh\n   pnpm build\n   ```\n   then run it:\n   ```sh\n   pnpm start\n   ```";
+
+    await render(block);
+    await render(`${block}\n   done`);
+
+    expect(container.querySelectorAll('[aria-label="Copy code"]')).toHaveLength(
+      2,
+    );
+    expect(container.textContent).toContain("pnpm build");
+    expect(container.textContent).toContain("pnpm start");
+    expect(
+      errors.mock.calls.some((call) => String(call[0]).includes("same key")),
+    ).toBe(false);
+    errors.mockRestore();
   });
 
   it("throttles streamed text and renders the completed blocks", async () => {
