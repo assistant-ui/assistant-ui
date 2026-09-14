@@ -1,5 +1,6 @@
-import { act } from "react";
+import { act, type ComponentProps } from "react";
 import { createRoot, type Root } from "react-dom/client";
+import { Text, View } from "react-native";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { Thread } from "./thread.aui";
 
@@ -462,9 +463,9 @@ describe("Thread", () => {
     container.remove();
   });
 
-  const render = async () => {
+  const render = async (props: ComponentProps<typeof Thread> = {}) => {
     await act(async () => {
-      root.render(<Thread />);
+      root.render(<Thread {...props} />);
     });
   };
 
@@ -519,6 +520,54 @@ describe("Thread", () => {
     expect(container.textContent).toContain("How can I help you today?");
     expect(container.textContent).toContain("Explain hooks");
     expect(container.textContent).toContain("in one paragraph");
+  });
+
+  it("renders a custom welcome in place of the default greeting", async () => {
+    const Welcome = () => <Text>Ask me about the codebase</Text>;
+
+    await render({ components: { Welcome } });
+
+    expect(container.textContent).toContain("Ask me about the codebase");
+    expect(container.textContent).not.toContain("How can I help you today?");
+  });
+
+  it("swaps the composer input for a custom editor while keeping send", async () => {
+    const ComposerInput = () => (
+      <View accessibilityLabel="Rich editor" testID="rich-editor" />
+    );
+    h.state.composer.canSend = true;
+
+    await render({ components: { ComposerInput } });
+
+    expect(
+      container.querySelector('[data-testid="rich-editor"]'),
+    ).not.toBeNull();
+    expect(container.querySelector('[aria-label="Message input"]')).toBeNull();
+    labeled("Send message");
+  });
+
+  it("routes tool calls to a custom fallback", async () => {
+    const ToolFallback = ({ toolName }: { toolName: string }) => (
+      <Text>custom tool: {toolName}</Text>
+    );
+    addMessages(
+      h.makeMessage({
+        parts: [
+          {
+            type: "tool-call",
+            toolCallId: "call-1",
+            toolName: "search",
+            args: {},
+            argsText: "{}",
+            status: { type: "complete" },
+          },
+        ],
+      }),
+    );
+
+    await render({ components: { ToolFallback } });
+
+    expect(container.textContent).toContain("custom tool: search");
   });
 
   it("keeps the docked layout and announces the skeleton while a thread loads its history", async () => {
