@@ -3,7 +3,7 @@ title: Elements
 description: The React Native elements, what each one installs, and what changes when the same design runs on a phone.
 ---
 
-The React Native elements are the [elements](/elements) catalog rebuilt for Expo and React Native: the same names, the same props, the same visual language, written against `@assistant-ui/react-native` and styled with [Uniwind](https://uniwind.dev) classes instead of DOM markup. They install the way shadcn components do, as source files in your project, so you can edit them once they land.
+The React Native elements are the [elements](/elements) catalog rebuilt for Expo and React Native: the same names and visual language, and for the agent elements the same props, written against `@assistant-ui/react-native` and styled with [Uniwind](https://uniwind.dev) classes instead of DOM markup. They install the way shadcn components do, as source files in your project, so you can edit them once they land.
 
 ## What ships
 
@@ -47,13 +47,21 @@ The web catalog pages carry a React Native tab for every element that ships nati
 The thread element exposes the parts a host most often replaces through a `components` prop. `Welcome`, `AssistantMessage` and `ToolFallback` mirror the web thread. `ComposerInput` is the React Native addition: it swaps the text input of both the new message composer and the edit composer, which is how a host with its own rich text editor keeps the attachments row and the send button.
 
 ```tsx title="app/index.tsx"
-import { ComposerPrimitive, useAuiState } from "@assistant-ui/react-native";
+import { useAui, useAuiState } from "@assistant-ui/react-native";
 import { Thread } from "@/components/assistant-ui/elements/thread.aui";
 import { RichEditor } from "@/components/rich-editor";
 
 function ComposerInput() {
-  const isEditing = useAuiState((s) => s.composer.type === "edit");
-  return isEditing ? <ComposerPrimitive.Input multiline /> : <RichEditor />;
+  const aui = useAui();
+  const text = useAuiState((s) => s.composer.text);
+
+  return (
+    <RichEditor
+      value={text}
+      onChangeText={(next) => aui.composer.setText(next)}
+      onSubmit={() => aui.composer.send()}
+    />
+  );
 }
 
 export default function ChatScreen() {

@@ -149,17 +149,21 @@ function ApprovalCardDemo() {
 
 function AgentStatusDemo() {
   const phase = usePhases(AGENT_STATUS_PHASES);
-  const [elapsedSeconds, setElapsedSeconds] = useState(0);
+  const [now, setNow] = useState(() => Date.now());
+  const [startedAt, setStartedAt] = useState(now);
+  const [previousPhase, setPreviousPhase] = useState(phase);
+  if (phase !== previousPhase) {
+    setPreviousPhase(phase);
+    if (phase === 0) setStartedAt(now);
+  }
   const status = AGENT_STATUSES[phase];
+  const elapsedSeconds = Math.max(0, Math.floor((now - startedAt) / 1000));
   const minutes = Math.floor(elapsedSeconds / 60);
   const seconds = elapsedSeconds % 60;
   const elapsed = `${minutes}:${seconds.toString().padStart(2, "0")}`;
 
   useEffect(() => {
-    const startedAt = Date.now();
-    const interval = setInterval(() => {
-      setElapsedSeconds(Math.floor((Date.now() - startedAt) / 1000));
-    }, 1000);
+    const interval = setInterval(() => setNow(Date.now()), 1000);
 
     return () => clearInterval(interval);
   }, []);

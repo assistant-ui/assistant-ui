@@ -4,6 +4,7 @@ import { useTheme } from "next-themes";
 import {
   createContext,
   useContext,
+  useEffect,
   useState,
   useSyncExternalStore,
   type ReactNode,
@@ -37,6 +38,14 @@ const readStoredPlatform = (): ElementPlatform | null => {
 
 const noStoredPlatform = () => null;
 
+// Runs while the document is still parsing; it reads its inputs from the
+// script element's own data attributes so no code is built from values.
+const HINT_SCRIPT =
+  '(()=>{try{var d=document.currentScript.dataset;var q=new URLSearchParams(location.search).get("platform");var v=localStorage.getItem(d.key)||localStorage.getItem(d.docsKey);var p=q==="rn"||q==="react"?q:v==="rn"||v==="react"?v:null;if(p)document.documentElement.dataset.elementPlatformHint=p}catch(e){}})()';
+
+const HINT_STYLE =
+  'html[data-element-platform-hint="rn"] [data-slot="react-lane"],html[data-element-platform-hint="rn"] [data-slot="runtime-mode"]{display:none}html[data-element-platform-hint="rn"] [data-slot="native-lane"],html[data-element-platform-hint="rn"] [data-slot="standalone-mode"]{display:block}';
+
 const ElementPlatformContext = createContext<{
   platform: ElementPlatform;
   setPlatform: (platform: ElementPlatform) => void;
@@ -61,6 +70,10 @@ export function ElementPlatformProvider({
     ? (chosenPlatform ?? storedPlatform ?? "react")
     : "react";
 
+  useEffect(() => {
+    delete document.documentElement.dataset.elementPlatformHint;
+  }, []);
+
   const setPlatform = (next: ElementPlatform) => {
     setChosenPlatform(next);
     try {
@@ -72,6 +85,16 @@ export function ElementPlatformProvider({
 
   return (
     <ElementPlatformContext.Provider value={{ platform, setPlatform }}>
+      {native && (
+        <>
+          <script
+            data-key={STORAGE_KEY}
+            data-docs-key={DOCS_PLATFORM_STORAGE_KEY}
+            dangerouslySetInnerHTML={{ __html: HINT_SCRIPT }}
+          />
+          <style>{HINT_STYLE}</style>
+        </>
+      )}
       <div data-element-platform={platform} className="group/element-platform">
         {children}
       </div>
