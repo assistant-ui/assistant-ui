@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import {
   AGENTS_DOCUMENT,
+  agentSkillDocument,
   API_CATALOG_CONTENT_TYPE,
   buildAgentSkillsIndex,
   buildApiCatalog,
@@ -13,9 +14,11 @@ import {
 import {
   AGENT_DISCOVERY_REWRITES,
   AGENT_DISCOVERY_ROUTES,
+  agentSkillPath,
   API_CATALOG_LINK_HEADER,
 } from "./agent-discovery-routes";
 import { DESIGN_DOCUMENT } from "./design-law";
+import { getSkills } from "./agent-skills";
 import { DESIGN_SECTIONS } from "@/components/pages/design/registry-meta";
 import { BASE_URL } from "./constants";
 
@@ -72,7 +75,7 @@ describe("agent discovery", () => {
     expect(index.$schema).toBe(
       "https://schemas.agentskills.io/discovery/0.2.0/schema.json",
     );
-    expect(index.skills).toHaveLength(2);
+    expect(index.skills).toHaveLength(2 + getSkills().length);
     expect(index.skills[0]).toMatchObject({
       name: "assistant-ui-docs",
       type: "skill-md",
@@ -85,6 +88,47 @@ describe("agent discovery", () => {
       url: `${BASE_URL}${AGENT_DISCOVERY_ROUTES.design}`,
       digest: `sha256:${sha256(DESIGN_DOCUMENT)}`,
     });
+  });
+
+  it("indexes every repo skill after the site skills, digesting the served document", () => {
+    const skills = getSkills();
+    const entries = buildAgentSkillsIndex().skills.slice(2);
+
+    expect(skills.length).toBeGreaterThanOrEqual(17);
+    expect(entries).toEqual(
+      skills.map((skill) => ({
+        name: skill.name,
+        type: "skill-md",
+        description: skill.description,
+        url: `${BASE_URL}${AGENT_DISCOVERY_ROUTES.skillsRoot}/${skill.name}/SKILL.md`,
+        digest: `sha256:${sha256(agentSkillDocument(skill))}`,
+      })),
+    );
+    expect(new Set(entries.map((entry) => entry.name)).size).toBe(
+      entries.length,
+    );
+    expect(agentSkillPath("tools")).toBe(
+      "/.well-known/agent-skills/tools/SKILL.md",
+    );
+  });
+
+  it("wraps a repo skill in agentskills frontmatter", () => {
+    const document = agentSkillDocument({
+      name: "tools",
+      description: 'Defines "model" tools.',
+      content: "# Tools",
+    });
+    expect(document).toBe(
+      '---\nname: tools\ndescription: "Defines \\"model\\" tools."\n---\n\n# Tools\n',
+    );
+  });
+
+  it("points agents at the repo skills from the site documents", () => {
+    for (const document of [SITE_SKILL_DOCUMENT, AGENTS_DOCUMENT]) {
+      expect(document).toContain(
+        `task-shaped skill for the area at hand (setup, tools, runtime, streaming, ...) from the Agent Skills index at ${BASE_URL}${AGENT_DISCOVERY_ROUTES.skillsIndex}`,
+      );
+    }
   });
 
   it("serves the design law with its frontmatter, registers, and kit roster", () => {

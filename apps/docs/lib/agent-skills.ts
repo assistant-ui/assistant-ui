@@ -15,6 +15,10 @@ const { source, skills } = generated as {
 
 export const AGENT_SKILLS_SOURCE = source;
 
+export function getSkills(): AgentSkill[] {
+  return skills;
+}
+
 export function listSkills(): AgentSkillSummary[] {
   return skills.map(({ name, description }) => ({ name, description }));
 }
