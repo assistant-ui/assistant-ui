@@ -42,12 +42,10 @@ import {
   createContext,
   type FC,
   useContext,
-  useEffect,
   useRef,
   useState,
 } from "react";
 import {
-  AccessibilityInfo,
   KeyboardAvoidingView,
   Platform,
   Text,
@@ -89,16 +87,9 @@ const copyToClipboard = async (text: string) => {
 
 export const Thread: FC<ThreadProps> = ({ components = EMPTY_COMPONENTS }) => {
   const isEmpty = useAuiState(isNewChatView);
-  const isRunning = useAuiState((s) => s.thread.isRunning);
   const insets = useSafeAreaInsets();
   const viewportRef = useRef<View>(null);
   const [viewportTop, setViewportTop] = useState(0);
-
-  useEffect(() => {
-    if (isRunning) {
-      AccessibilityInfo.announceForAccessibility("Assistant is working");
-    }
-  }, [isRunning]);
 
   // KeyboardAvoidingView measures its frame against its parent, so a navigation
   // header above the thread would leave the composer covered by the header's
@@ -306,7 +297,6 @@ const AssistantIndicator: FC = () => {
       variant="bare"
       className="aui-assistant-message-indicator py-2"
       accessibilityLabel="Assistant is working"
-      accessibilityLiveRegion={Platform.OS === "web" ? "polite" : undefined}
     />
   );
 };

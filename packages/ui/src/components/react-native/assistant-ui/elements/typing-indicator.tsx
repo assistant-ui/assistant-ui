@@ -1,7 +1,7 @@
 import { cn } from "@/lib/utils";
 import { type FC, useEffect, useState } from "react";
 import { Animated, Platform, View, type ViewProps } from "react-native";
-import { paper, useMotion } from "./surfaces";
+import { paper, useAnnounce, useMotion, webLiveRegion } from "./surfaces";
 
 const DOT_DELAYS = [0, 160, 320];
 
@@ -60,47 +60,34 @@ export type TypingIndicatorProps = Omit<ViewProps, "children"> & {
 export const TypingIndicator: FC<TypingIndicatorProps> = ({
   variant = "bubble",
   className,
+  accessibilityLabel = "Assistant is typing",
   ...props
 }) => {
   const motion = useMotion();
+  useAnnounce(accessibilityLabel);
   const dots = DOT_DELAYS.map((delay) => (
     <TypingDot key={delay} delay={delay} animated={motion} />
   ));
 
-  if (variant === "bare") {
-    return (
-      <View
-        className={cn(
-          "aui-typing-indicator flex-row items-center gap-1",
-          className,
-        )}
-        accessible
-        accessibilityLabel="Assistant is typing"
-        accessibilityLiveRegion="polite"
-        {...props}
-      >
-        {dots}
-      </View>
-    );
-  }
-
   return (
     <View
       className={cn(
-        "aui-typing-indicator self-start rounded-full px-4 py-3.5",
-        paper,
+        "aui-typing-indicator",
+        variant === "bare"
+          ? "flex-row items-center gap-1"
+          : cn("self-start rounded-full px-4 py-3.5", paper),
         className,
       )}
+      accessible
+      accessibilityLabel={accessibilityLabel}
+      accessibilityLiveRegion={webLiveRegion}
       {...props}
     >
-      <View
-        className="flex-row items-center gap-1"
-        accessible
-        accessibilityLabel="Assistant is typing"
-        accessibilityLiveRegion="polite"
-      >
-        {dots}
-      </View>
+      {variant === "bare" ? (
+        dots
+      ) : (
+        <View className="flex-row items-center gap-1">{dots}</View>
+      )}
     </View>
   );
 };

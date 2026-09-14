@@ -50,10 +50,19 @@ describe("TypingIndicator", () => {
 
     const bubble = container.querySelector('[data-testid="bubble"]');
     expect(bubble).not.toBeNull();
-    expect(bubble?.getAttribute("aria-label")).toBeNull();
-    const status = bubble?.querySelector('[aria-label="Assistant is typing"]');
-    expect(status).not.toBeNull();
-    expect(status?.getAttribute("aria-live")).toBe("polite");
+    expect(bubble?.getAttribute("aria-label")).toBe("Assistant is typing");
+    expect(bubble?.getAttribute("aria-live")).toBe("polite");
+  });
+
+  it("lets the bubble be relabeled like the bare variant", async () => {
+    await act(async () => {
+      root.render(<TypingIndicator accessibilityLabel="Thinking" />);
+    });
+
+    expect(container.querySelector('[aria-label="Thinking"]')).not.toBeNull();
+    expect(
+      container.querySelector('[aria-label="Assistant is typing"]'),
+    ).toBeNull();
   });
 
   it("animates the dots once the motion setting is known", async () => {

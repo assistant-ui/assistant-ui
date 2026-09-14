@@ -3,7 +3,14 @@ import { cn } from "@/lib/utils";
 import { CheckIcon, PauseIcon, RotateCcwIcon } from "lucide-react-native";
 import type { FC } from "react";
 import { Animated, Text, View, type ViewProps } from "react-native";
-import { mono, monoStyle, paper, usePulse } from "./surfaces";
+import {
+  mono,
+  monoStyle,
+  paper,
+  useAnnounce,
+  usePulse,
+  webLiveRegion,
+} from "./surfaces";
 
 export type AgentState = "working" | "waiting" | "done";
 
@@ -40,35 +47,40 @@ export const AgentStatus: FC<AgentStatusProps> = ({
   elapsed,
   className,
   ...props
-}) => (
-  <View
-    className={cn(
-      "aui-agent-status flex-row items-center gap-2.5 self-start rounded-full py-1.5 ps-3.5 pe-1.5",
-      paper,
-      className,
-    )}
-    accessible
-    accessibilityLabel={`${label}, ${state}`}
-    accessibilityLiveRegion="polite"
-    {...props}
-  >
-    <StateDot state={state} />
-    <Text className="text-foreground max-w-44 text-xs" numberOfLines={1}>
-      {label}
-    </Text>
-    {elapsed !== undefined && state !== "done" && (
-      <Text
-        className={cn(mono, "text-foreground/30 tabular-nums")}
-        style={monoStyle}
-      >
-        {elapsed}
+}) => {
+  const announcement = `${label}, ${state}`;
+  useAnnounce(announcement);
+
+  return (
+    <View
+      className={cn(
+        "aui-agent-status flex-row items-center gap-2.5 self-start rounded-full py-1.5 ps-3.5 pe-1.5",
+        paper,
+        className,
+      )}
+      accessible
+      accessibilityLabel={announcement}
+      accessibilityLiveRegion={webLiveRegion}
+      {...props}
+    >
+      <StateDot state={state} />
+      <Text className="text-foreground max-w-44 text-xs" numberOfLines={1}>
+        {label}
       </Text>
-    )}
-    <View className="size-6 items-center justify-center rounded-full">
-      <Icon
-        as={state === "done" ? RotateCcwIcon : PauseIcon}
-        className="text-foreground/45 size-3"
-      />
+      {elapsed !== undefined && state !== "done" && (
+        <Text
+          className={cn(mono, "text-foreground/30 tabular-nums")}
+          style={monoStyle}
+        >
+          {elapsed}
+        </Text>
+      )}
+      <View className="size-6 items-center justify-center rounded-full">
+        <Icon
+          as={state === "done" ? RotateCcwIcon : PauseIcon}
+          className="text-foreground/45 size-3"
+        />
+      </View>
     </View>
-  </View>
-);
+  );
+};

@@ -9,7 +9,12 @@ import {
   View,
   type ViewProps,
 } from "react-native";
-import { ShimmerLabel, textButtonHitSlop } from "./surfaces";
+import {
+  ShimmerLabel,
+  textButtonHitSlop,
+  useAnnounce,
+  webLiveRegion,
+} from "./surfaces";
 
 export interface ErrorStateProps extends Omit<ViewProps, "children"> {
   title: string;
@@ -26,6 +31,8 @@ export const ErrorState: FC<ErrorStateProps> = ({
   className,
   ...props
 }) => {
+  useAnnounce(retrying ? "Retrying" : `${title}. ${detail}`);
+
   if (retrying) {
     return (
       <View
@@ -35,7 +42,7 @@ export const ErrorState: FC<ErrorStateProps> = ({
         )}
         accessible
         accessibilityLabel="Retrying"
-        accessibilityLiveRegion="polite"
+        accessibilityLiveRegion={webLiveRegion}
         {...props}
       >
         <ActivityIndicator size="small" />
@@ -53,7 +60,7 @@ export const ErrorState: FC<ErrorStateProps> = ({
         className,
       )}
       accessibilityRole="alert"
-      accessibilityLiveRegion="polite"
+      accessibilityLiveRegion={webLiveRegion}
       {...props}
     >
       <Icon as={CircleAlertIcon} className="mt-0.5 size-4 text-red-500/80" />
