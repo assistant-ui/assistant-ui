@@ -79,7 +79,7 @@ export function ThreadActivity() {
 
 ## React to events from anywhere
 
-Render from state and use events for side effects such as a toast, a sound, or an analytics call. `useAuiEvent` resolves the scope in the subscriber's own context and throws when it is absent there, so a component that is not under a `thread` scope listens at the root with `{ scope: "*", event }`.
+Render from state and use events for side effects such as a toast, a sound, or an analytics call. A plain `useAuiEvent("thread.runEnd", ...)` resolves the `thread` scope in the subscriber's own context, which under the provider is the selected thread, so it stays silent for a run that finishes on a thread the user switched away from. `{ scope: "*", event }` listens at the root client and receives the event from any thread; the payload's `threadId` says which one.
 
 ```tsx title="/components/run-toasts.tsx"
 import { useAuiEvent } from "@assistant-ui/react";
