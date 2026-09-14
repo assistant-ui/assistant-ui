@@ -356,11 +356,15 @@ vi.mock("react-native-marked", async () => {
         ...fences.map((fence) =>
           options.renderer.code(fence[2] ?? "", fence[1]?.trim() || undefined),
         ),
-        React.createElement(
-          Text,
-          { key: options.renderer.getKey() },
-          raw.replace(/```[^\n]*\n[\s\S]*?\n\s*```/g, "").trim(),
-        ),
+        ...(raw.replace(/```[^\n]*\n[\s\S]*?\n\s*```/g, "").trim()
+          ? [
+              React.createElement(
+                Text,
+                { key: options.renderer.getKey() },
+                raw.replace(/```[^\n]*\n[\s\S]*?\n\s*```/g, "").trim(),
+              ),
+            ]
+          : []),
       ];
     return [React.createElement(Text, { key: options.renderer.getKey() }, raw)];
   };
