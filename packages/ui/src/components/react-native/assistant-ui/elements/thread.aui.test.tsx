@@ -259,8 +259,12 @@ vi.mock("react-native", async (importOriginal) => {
     onLayout,
     ref,
     ...props
-  }: any) =>
-    React.createElement(
+  }: any) => {
+    React.useEffect(() => {
+      onLayout?.({ nativeEvent: { layout: {} } });
+    }, [onLayout]);
+
+    return React.createElement(
       "div",
       {
         ...props,
@@ -271,7 +275,6 @@ vi.mock("react-native", async (importOriginal) => {
           }
           if (typeof ref === "function") ref(node);
           else if (ref) ref.current = node;
-          if (node) onLayout?.({ nativeEvent: { layout: {} } });
         },
         className,
         "data-testid": testID,
@@ -281,6 +284,7 @@ vi.mock("react-native", async (importOriginal) => {
       },
       children,
     );
+  };
 
   const KeyboardAvoidingView = ({ children, keyboardVerticalOffset }: any) =>
     React.createElement(
@@ -471,13 +475,25 @@ describe("Thread", () => {
     h.layout.insets = { top: 0, bottom: 34, left: 0, right: 0 };
 
     await render();
-    await render();
 
     expect(
       container
         .querySelector('[data-testid="kav"]')
         ?.getAttribute("data-offset"),
     ).toBe("66");
+  });
+
+  it("lets the footer's bottom inset cancel out when nothing sits above the thread", async () => {
+    h.layout.windowTop = 0;
+    h.layout.insets = { top: 0, bottom: 34, left: 0, right: 0 };
+
+    await render();
+
+    expect(
+      container
+        .querySelector('[data-testid="kav"]')
+        ?.getAttribute("data-offset"),
+    ).toBe("-34");
   });
 
   it("renders the welcome text and suggestion chips when the thread is empty", async () => {

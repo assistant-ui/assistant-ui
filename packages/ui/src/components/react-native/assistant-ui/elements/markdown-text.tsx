@@ -57,7 +57,11 @@ const CodeBlock: FC<{ code: string; language: string | undefined }> = ({
   useEffect(() => () => clearTimeout(resetTimerRef.current), []);
 
   const copy = async () => {
-    await Clipboard.setStringAsync(code);
+    try {
+      await Clipboard.setStringAsync(code);
+    } catch {
+      return;
+    }
     setIsCopied(true);
     clearTimeout(resetTimerRef.current);
     resetTimerRef.current = setTimeout(() => setIsCopied(false), 2000);
@@ -100,17 +104,16 @@ const CodeBlock: FC<{ code: string; language: string | undefined }> = ({
 
 class MarkdownRenderer extends Renderer {
   override code(text: string, language?: string): ReactNode {
-    return <CodeBlock key={this.getKey()} code={text} language={language} />;
+    return <CodeBlock key="code" code={text} language={language} />;
   }
 }
-
-const renderer = new MarkdownRenderer();
 
 const asColor = (value: string | number | undefined) =>
   typeof value === "string" ? value : undefined;
 
 const useMarkdownOptions = (): useMarkdownHookOptions => {
   const { theme } = useUniwind();
+  const renderer = useMemo(() => new MarkdownRenderer(), []);
   const [foreground, primary, muted, border] = useCSSVariable([
     "--color-foreground",
     "--color-primary",
@@ -178,7 +181,7 @@ const useMarkdownOptions = (): useMarkdownHookOptions => {
     };
     if (colors) options.theme = { colors };
     return options;
-  }, [theme, foreground, primary, muted, border]);
+  }, [renderer, theme, foreground, primary, muted, border]);
 };
 
 // Each top-level block is re-lexed on its own, so a streaming update re-renders

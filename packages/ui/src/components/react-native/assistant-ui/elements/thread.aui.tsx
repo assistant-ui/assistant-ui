@@ -86,7 +86,7 @@ export const Thread: FC = () => {
       <KeyboardAvoidingView
         className="flex-1"
         behavior={Platform.OS === "ios" ? "padding" : undefined}
-        keyboardVerticalOffset={Math.max(0, viewportTop - insets.bottom)}
+        keyboardVerticalOffset={viewportTop - insets.bottom}
       >
         <View
           ref={viewportRef}

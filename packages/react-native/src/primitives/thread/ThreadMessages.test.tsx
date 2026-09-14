@@ -824,6 +824,28 @@ describe("ThreadMessages", () => {
       return props;
     };
 
+    it("stays pinned when an anchor adjustment moves the offset with the content above it", async () => {
+      const props = await mountPinned();
+
+      await act(async () => {
+        props.onScroll?.({
+          nativeEvent: {
+            contentOffset: { y: 180 },
+            contentSize: { height: 280, width: 0 },
+            layoutMeasurement: { height: 100, width: 0 },
+          },
+        });
+      });
+      await act(async () => {
+        props.onContentSizeChange?.(0, 320);
+      });
+
+      expect(h.scrollToOffset).toHaveBeenCalledWith({
+        animated: false,
+        offset: 220,
+      });
+    });
+
     it("stays pinned when the viewport shrinks while at the bottom", async () => {
       const props = await mountPinned();
 
