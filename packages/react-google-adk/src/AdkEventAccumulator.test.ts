@@ -18,6 +18,41 @@ const makeTextEvent = (
     content: { role: "model", parts: [{ text }] },
   });
 
+describe.each(["user", "agent"])("%s function response status", (author) => {
+  it.each([
+    [{ error: "denied" }, "error"],
+    [{ error: { message: "denied" }, output: "partial" }, "error"],
+    [{ error: null }, "error"],
+    [{ error: false }, "error"],
+    [{ error: "" }, "error"],
+    [{ output: { error: "application data" } }, "success"],
+    [{ result: "done" }, "success"],
+    [{}, "success"],
+  ] as const)("classifies response %j as %s", (response, status) => {
+    const acc = new AdkEventAccumulator();
+    const messages = acc.processEvent(
+      makeEvent({
+        author,
+        content: {
+          parts: [
+            {
+              functionResponse: { id: "tc-1", name: "search", response },
+            },
+          ],
+        },
+      }),
+    );
+    expect(messages).toMatchObject([
+      {
+        type: "tool",
+        tool_call_id: "tc-1",
+        status,
+        content: JSON.stringify(response),
+      },
+    ]);
+  });
+});
+
 describe("AdkEventAccumulator - text handling", () => {
   it("accumulates a single non-partial text event into an AI message", () => {
     const acc = new AdkEventAccumulator();
