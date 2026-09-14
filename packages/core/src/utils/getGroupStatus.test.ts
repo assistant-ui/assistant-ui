@@ -18,7 +18,6 @@ describe("getGroupStatus", () => {
     const status = getGroupStatus(parts);
 
     expect(status).toEqual({ type: "running" });
-    expect(getGroupStatus(parts, [0, 1])).toBe(status);
     expect(status).toBe(getGroupStatus([{ status: { type: "running" } }]));
     expect(Object.isFrozen(status)).toBe(true);
   });
@@ -35,10 +34,10 @@ describe("getGroupStatus", () => {
 
   it("matches the positional outcome for statusless adapters", () => {
     expect(
-      getGroupStatus(
+      getGroupSummary(
         [{ status: { type: "complete" } }, { status: { type: "running" } }],
         [0, 1],
-      ),
+      ).status,
     ).toEqual({ type: "running" });
   });
 });
