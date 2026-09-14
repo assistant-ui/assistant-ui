@@ -102,8 +102,15 @@ const CodeBlock: FC<{ code: string; language: string | undefined }> = ({
   );
 };
 
+// One renderer per parse: the constructor takes the text it renders so the
+// memo that creates it stays keyed on that text under React Compiler, and the
+// key ordinal restarts with each instance.
 class MarkdownRenderer extends Renderer {
   keyIndex = 0;
+
+  constructor(readonly source: string) {
+    super();
+  }
 
   override getKey(): string {
     return `md-${this.keyIndex++}`;
@@ -193,8 +200,9 @@ const useMarkdownOptions = (): useMarkdownHookOptions => {
 // resolve across blocks.
 const MarkdownBlock = memo(
   ({ raw, options }: { raw: string; options: useMarkdownHookOptions }) => {
-    // oxlint-disable-next-line react/exhaustive-deps -- a fresh renderer per parse restarts the key ordinal, so keys stay unique among siblings and identical across the re-parses of a streaming block instead of remounting it
-    const renderer = useMemo(() => new MarkdownRenderer(), [raw]);
+    // A fresh renderer per parse keeps keys unique among siblings and identical
+    // across the re-parses of a streaming block instead of remounting it.
+    const renderer = useMemo(() => new MarkdownRenderer(raw), [raw]);
     const blockOptions = useMemo(
       () => ({ ...options, renderer }),
       [options, renderer],
