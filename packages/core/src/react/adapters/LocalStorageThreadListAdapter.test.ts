@@ -329,6 +329,9 @@ describe("parseStoredMessageRepository", () => {
     expect(repo.messages[0]?.message.content).toEqual([
       { type: "text", text: "" },
     ]);
+    expect(repo.messages[1]?.message.content).toEqual([
+      { type: "text", text: "Follow the instructions" },
+    ]);
   });
 
   it("preserves supported user content loaded from storage", () => {
@@ -698,7 +701,8 @@ describe("parseStoredMessageRepository", () => {
                 ),
                 steps: [
                   null,
-                  { usage: { promptTokens: 1, completionTokens: 2 } },
+                  { usage: { inputTokens: 1, outputTokens: 2 } },
+                  { usage: { inputTokens: "bad", outputTokens: 2 } },
                 ],
                 timing: { streamStartTime: 2 },
               },
@@ -768,7 +772,7 @@ describe("parseStoredMessageRepository", () => {
       102,
     );
     expect(reparsedMetadataMessage?.metadata.steps).toEqual([
-      { usage: { promptTokens: 1, completionTokens: 2 } },
+      { usage: { inputTokens: 1, outputTokens: 2 } },
     ]);
     expect(reparsedMetadataMessage?.metadata.timing).toEqual({
       streamStartTime: 2,

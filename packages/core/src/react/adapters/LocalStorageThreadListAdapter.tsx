@@ -15,6 +15,7 @@ import type {
   RemoteThreadMetadata,
   ThreadHistoryAdapter,
   ThreadMessage,
+  ThreadStep,
   RunConfig,
   CompleteAttachment,
   MessageModality,
@@ -241,6 +242,34 @@ const parseStoredProviderMetadata = (
   return value;
 };
 
+const parseStoredThreadStep = (value: unknown): ThreadStep | null => {
+  if (!isRecord(value)) return null;
+
+  const usage =
+    isRecord(value.usage) &&
+    isFiniteNumber(value.usage.inputTokens) &&
+    isFiniteNumber(value.usage.outputTokens)
+      ? {
+          inputTokens: value.usage.inputTokens,
+          outputTokens: value.usage.outputTokens,
+        }
+      : undefined;
+  const messageId =
+    typeof value.messageId === "string" ? value.messageId : undefined;
+
+  if (
+    messageId === undefined &&
+    usage === undefined &&
+    Object.keys(value).length
+  )
+    return null;
+
+  return {
+    ...(messageId !== undefined ? { messageId } : undefined),
+    ...(usage !== undefined ? { usage } : undefined),
+  };
+};
+
 const parseStoredAssistantMetadata = (
   value: unknown,
 ): StoredAssistantMessage["metadata"] => {
@@ -262,9 +291,10 @@ const parseStoredAssistantMetadata = (
       ? metadata.unstable_data.filter((entry) => isJSONValue(entry))
       : [],
     steps: Array.isArray(metadata.steps)
-      ? (metadata.steps.filter((step) =>
-          isRecord(step),
-        ) as StoredAssistantMessage["metadata"]["steps"])
+      ? metadata.steps.flatMap((step) => {
+          const parsed = parseStoredThreadStep(step);
+          return parsed ? [parsed] : [];
+        })
       : [],
     ...(submittedFeedbackType === "positive" ||
     submittedFeedbackType === "negative"

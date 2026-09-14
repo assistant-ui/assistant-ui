@@ -26,8 +26,8 @@ loaded:
 - tool-call `modelContent` is rebuilt from its valid text and file entries
 - known assistant parts and tool-call fields are rebuilt from valid stored
   values, while unknown part types remain available for forward compatibility
-- non-record assistant step entries are removed while legacy record-shaped
-  steps and valid partial timing metadata remain compatible
+- malformed assistant step entries are removed while valid structured steps
+  and valid partial timing metadata remain compatible
 - valid voice modality metadata remains intact
 
 Saving a later message preserves existing raw records and only writes the new
