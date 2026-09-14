@@ -6,7 +6,11 @@ import {
   API_CATALOG_PROFILE,
   agentSkillPath,
 } from "./agent-discovery-routes";
-import { getSkills, type AgentSkill } from "./agent-skills";
+import {
+  agentSkillDescription,
+  getSkills,
+  type AgentSkill,
+} from "./agent-skills";
 import {
   DESIGN_DOCUMENT,
   DESIGN_SKILL_DESCRIPTION,
@@ -101,17 +105,7 @@ Use these instructions when reading assistant-ui documentation or implementing a
 - MCP: ${absoluteUrl("/mcp")}
 `;
 
-const SKILL_DESCRIPTION_LIMIT = 1024;
-
-// The upstream skills describe themselves at length; the Agent Skills spec
-// caps a description at 1024 characters, so both the served frontmatter and
-// the index entry carry the leading words that fit.
-export function agentSkillDescription({ description }: AgentSkill) {
-  if (description.length <= SKILL_DESCRIPTION_LIMIT) return description;
-  const head = description.slice(0, SKILL_DESCRIPTION_LIMIT);
-  const cut = head.lastIndexOf(" ");
-  return cut === -1 ? head : head.slice(0, cut);
-}
+export { agentSkillDescription } from "./agent-skills";
 
 export function agentSkillDocument(skill: AgentSkill) {
   return `---
