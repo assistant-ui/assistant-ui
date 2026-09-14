@@ -187,6 +187,33 @@ describe("messageProjection", () => {
     });
   });
 
+  it("normalizes data URL image tool result content", () => {
+    const out = projectPiThreadMessages(
+      input([
+        assistant([toolCall("tc1", "screenshot", {})]),
+        {
+          role: "toolResult",
+          toolCallId: "tc1",
+          toolName: "screenshot",
+          content: [
+            {
+              type: "image",
+              data: "data:image/png;base64,AAAA",
+              mimeType: "image/png",
+            },
+          ],
+          isError: false,
+          timestamp: 2,
+        },
+      ]),
+    );
+
+    expect(contentParts(out[0]!)[0]).toMatchObject({
+      result: "",
+      modelContent: [{ type: "file", data: "AAAA", mediaType: "image/png" }],
+    });
+  });
+
   it("pairs out-of-order parallel tool results by id", () => {
     const out = projectPiThreadMessages(
       input([

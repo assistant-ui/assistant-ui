@@ -24,6 +24,7 @@
  */
 
 import { ExportedMessageRepository } from "@assistant-ui/react";
+import { parseDataUrl } from "@assistant-ui/core/internal";
 import type {
   ThreadMessageLike,
   ToolCallMessagePart,
@@ -79,19 +80,19 @@ const projectToolResult = (
     .join("");
   if (content.every((part) => part.type === "text")) return { result };
 
-  const modelContent = content.flatMap((part) =>
-    part.type === "text"
-      ? [{ type: "text" as const, text: part.text }]
-      : part.type === "image"
-        ? [
-            {
-              type: "file" as const,
-              data: part.data,
-              mediaType: part.mimeType,
-            },
-          ]
-        : [],
-  );
+  const modelContent = content.flatMap((part) => {
+    if (part.type === "text") {
+      return [{ type: "text" as const, text: part.text }];
+    }
+    const parsed = parseDataUrl(part.data);
+    return [
+      {
+        type: "file" as const,
+        data: parsed?.data ?? part.data,
+        mediaType: parsed?.mimeType ?? part.mimeType,
+      },
+    ];
+  });
 
   return { result, modelContent };
 };
