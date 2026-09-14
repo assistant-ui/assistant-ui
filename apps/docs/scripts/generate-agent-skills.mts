@@ -2,7 +2,10 @@ import { promises as fs } from "node:fs";
 import path from "node:path";
 
 const REPO = "assistant-ui/skills";
-const BRANCH = "main";
+// The published skills are reviewed content, so the source is a commit this
+// repo chose rather than whatever the upstream branch holds at build time.
+// Bump it by PR and regenerate the snapshot in the same change.
+const COMMIT = "9bd7535202aa446138ee2b42ca259b72dcac5df3";
 const SKILLS_DIR = "assistant-ui/skills";
 const API_BASE = `https://api.github.com/repos/${REPO}`;
 const rawSkillUrl = (commit: string, name: string) =>
@@ -39,15 +42,10 @@ async function fetchText(url: string, headers?: Record<string, string>) {
   return response.text();
 }
 
-// Everything is read at one commit so the skills, their reference links, and
-// the recorded source cannot straddle a push to the branch.
 async function listSkillDirectories() {
-  const { sha: commit } = JSON.parse(
-    await fetchText(`${API_BASE}/commits/${BRANCH}`, githubHeaders()),
-  ) as { sha: string };
   const tree = JSON.parse(
     await fetchText(
-      `${API_BASE}/git/trees/${commit}?recursive=1`,
+      `${API_BASE}/git/trees/${COMMIT}?recursive=1`,
       githubHeaders(),
     ),
   ) as { tree: { path: string }[] };
@@ -59,7 +57,7 @@ async function listSkillDirectories() {
   if (names.length === 0) {
     throw new Error(`no ${SKILLS_DIR}/*/SKILL.md entries in ${REPO}`);
   }
-  return { commit, names };
+  return names;
 }
 
 function parseFrontmatter(markdown: string) {
@@ -107,26 +105,38 @@ async function fetchSkill(
 }
 
 async function main() {
-  const { commit, names } = await listSkillDirectories();
+  const names = await listSkillDirectories();
   const skills = await Promise.all(
-    names.map((name) => fetchSkill(name, commit)),
+    names.map((name) => fetchSkill(name, COMMIT)),
   );
   await fs.writeFile(
     OUTPUT_PATH,
-    `${JSON.stringify({ source: `${REPO}@${commit}`, skills }, null, 2)}\n`,
+    `${JSON.stringify({ source: `${REPO}@${COMMIT}`, skills }, null, 2)}\n`,
   );
   console.log(
-    `Wrote ${skills.length} agent skills from ${REPO}@${commit.slice(0, 7)} to ${path.relative(process.cwd(), OUTPUT_PATH)}`,
+    `Wrote ${skills.length} agent skills from ${REPO}@${COMMIT.slice(0, 7)} to ${path.relative(process.cwd(), OUTPUT_PATH)}`,
   );
 }
 
+async function committedSource() {
+  try {
+    const { source } = JSON.parse(await fs.readFile(OUTPUT_PATH, "utf8")) as {
+      source?: string;
+    };
+    return source;
+  } catch {
+    return undefined;
+  }
+}
+
 main().catch(async (error) => {
-  const existing = await fs.stat(OUTPUT_PATH).catch(() => undefined);
-  // A build must not go down with GitHub; the committed copy stays in place
-  // and only goes stale.
+  const existing = await committedSource();
+  // A build must not go down with GitHub; the committed copy stays in place.
+  // Nothing is written unless every skill fetched and parsed, so the file is
+  // always one complete snapshot.
   if (existing) {
     console.warn(
-      `Keeping the committed agent skills: refresh failed (${error instanceof Error ? error.message : String(error)})`,
+      `Keeping the committed agent skills (${existing}): refresh failed (${error instanceof Error ? error.message : String(error)})`,
     );
     return;
   }

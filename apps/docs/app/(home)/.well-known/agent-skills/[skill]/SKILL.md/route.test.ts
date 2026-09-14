@@ -2,7 +2,6 @@ import { describe, expect, it } from "vitest";
 import type { NextRequest } from "next/server";
 import { buildAgentSkillsIndex } from "@/lib/agent-discovery";
 import { API_CATALOG_LINK_HEADER } from "@/lib/agent-discovery-routes";
-import { listSkills } from "@/lib/agent-skills";
 import { GET, HEAD, generateStaticParams } from "./route";
 
 const request = {} as NextRequest;
@@ -34,16 +33,20 @@ describe("repo skill route", () => {
       HEAD(request, context("setup")),
     ]);
     expect(await head.text()).toBe("");
-    expect(head.headers.get("ETag")).toBe(get.headers.get("ETag"));
+    expect(Object.fromEntries(head.headers)).toEqual(
+      Object.fromEntries(get.headers),
+    );
   });
 
   it("returns not found for an unknown skill", async () => {
     await expect(GET(request, context("nope"))).rejects.toThrow();
   });
 
-  it("prerenders every skill", () => {
-    expect(generateStaticParams()).toEqual(
-      listSkills().map((skill) => ({ skill: skill.name })),
+  it("prerenders every indexed repo skill", () => {
+    expect(generateStaticParams().map((params) => params.skill)).toEqual(
+      buildAgentSkillsIndex()
+        .skills.slice(2)
+        .map((skill) => skill.name),
     );
   });
 });
