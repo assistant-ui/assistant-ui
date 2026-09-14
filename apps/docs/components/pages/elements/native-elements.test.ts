@@ -7,8 +7,10 @@ const registrySource = readFileSync(
   join(process.cwd(), "../registry/src/registry.ts"),
   "utf8",
 );
+const nativeStart = registrySource.indexOf("export const nativeRegistry");
 const nativeSection = registrySource.slice(
-  registrySource.indexOf("export const nativeRegistry"),
+  nativeStart,
+  registrySource.indexOf("\n];", nativeStart),
 );
 const nativeItems = new Set([
   ...[...nativeSection.matchAll(/^\s+name: "([^"]+)"/gm)].map((m) => m[1]),
