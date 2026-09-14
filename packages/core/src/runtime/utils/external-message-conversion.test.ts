@@ -1,4 +1,5 @@
 import { describe, expect, it, vi } from "vitest";
+import type { ThreadMessage } from "../../types/message";
 import {
   chunkExternalMessages,
   convertExternalMessageCallback,
@@ -154,6 +155,68 @@ describe("chunkExternalMessages", () => {
 });
 
 describe("convertExternalMessageChunk", () => {
+  it("keeps an ended outer run running for a background tool call", () => {
+    const nestedAssistant: ThreadMessage = {
+      id: "nested-assistant",
+      createdAt: new Date(0),
+      role: "assistant",
+      content: [],
+      status: { type: "running" },
+      metadata: {
+        unstable_state: {},
+        unstable_annotations: [],
+        unstable_data: [],
+        steps: [],
+        custom: {},
+      },
+    };
+    const result = convertExternalMessageChunk(
+      {
+        inputs: [{}],
+        outputs: [
+          {
+            role: "assistant",
+            content: [
+              {
+                type: "tool-call",
+                toolName: "delegate",
+                args: {},
+                messages: [nestedAssistant],
+              },
+            ],
+          },
+        ],
+      },
+      0,
+      1,
+      false,
+      undefined,
+    );
+
+    expect(result.status).toMatchObject({ type: "running" });
+  });
+
+  it("preserves assistant message modality", () => {
+    const result = convertExternalMessageChunk(
+      {
+        inputs: [{}],
+        outputs: [
+          {
+            role: "assistant",
+            content: "Spoken reply",
+            metadata: { modality: "voice" },
+          },
+        ],
+      },
+      0,
+      1,
+      false,
+      undefined,
+    );
+
+    expect(result.metadata.modality).toBe("voice");
+  });
+
   it("keeps separate tool calls without IDs", () => {
     const result = convertExternalMessageChunk(
       {

@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import {
   REDACTED,
   redactSensitive,
+  sanitizeAndRedact,
   sanitizeForMessage,
   serializeModelContext,
 } from "./serialization";
@@ -137,6 +138,24 @@ describe("sanitizeForMessage", () => {
       "[Unserializable] (2)": "second broken key value",
       readable: "readable value",
     });
+  });
+
+  it("preserves prototype-named object and map entries as own properties", () => {
+    const objectResult = sanitizeAndRedact(
+      JSON.parse('{"__proto__":{"visible":true}}'),
+    ) as Record<string, unknown>;
+    const mapResult = sanitizeForMessage(
+      new Map([["__proto__", "map value"]]),
+    ) as Record<string, unknown>;
+
+    expect(Object.hasOwn(objectResult, "__proto__")).toBe(true);
+    expect(objectResult["__proto__"]).toEqual({ visible: true });
+    expect(Object.getPrototypeOf(objectResult)).toBe(Object.prototype);
+    expect(JSON.stringify(objectResult)).toBe('{"__proto__":{"visible":true}}');
+
+    expect(Object.hasOwn(mapResult, "__proto__")).toBe(true);
+    expect(mapResult["__proto__"]).toBe("map value");
+    expect(Object.getPrototypeOf(mapResult)).toBe(Object.prototype);
   });
 });
 

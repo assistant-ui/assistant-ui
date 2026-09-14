@@ -338,6 +338,25 @@ describe("ThreadMessages", () => {
     expect(ref.current).not.toBeNull();
   });
 
+  it("anchors the visible message while content is inserted above it", async () => {
+    await mountFlatList({ children: () => null });
+
+    expect(h.flatListProps?.maintainVisibleContentPosition).toEqual({
+      minIndexForVisible: 0,
+    });
+  });
+
+  it("lets the app override the visible content anchor", async () => {
+    await mountFlatList({
+      children: () => null,
+      maintainVisibleContentPosition: { minIndexForVisible: 2 },
+    });
+
+    expect(h.flatListProps?.maintainVisibleContentPosition).toEqual({
+      minIndexForVisible: 2,
+    });
+  });
+
   it("keeps deprecated Messages off the scroll-tracking path", async () => {
     h.state.thread.messages = [{ id: "1", role: "user" }];
     await mount({ components: messageComponents });
@@ -804,6 +823,28 @@ describe("ThreadMessages", () => {
       h.scrollToOffset.mockClear();
       return props;
     };
+
+    it("stays pinned when an anchor adjustment moves the offset with the content above it", async () => {
+      const props = await mountPinned();
+
+      await act(async () => {
+        props.onScroll?.({
+          nativeEvent: {
+            contentOffset: { y: 180 },
+            contentSize: { height: 280, width: 0 },
+            layoutMeasurement: { height: 100, width: 0 },
+          },
+        });
+      });
+      await act(async () => {
+        props.onContentSizeChange?.(0, 320);
+      });
+
+      expect(h.scrollToOffset).toHaveBeenCalledWith({
+        animated: false,
+        offset: 220,
+      });
+    });
 
     it("stays pinned when the viewport shrinks while at the bottom", async () => {
       const props = await mountPinned();

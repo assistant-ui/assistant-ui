@@ -15,6 +15,9 @@ on:
       - "scripts/check-built-declarations.test.mjs"
       - "scripts/check-workspace-ranges.mjs"
       - "scripts/check-workspace-ranges.test.mjs"
+      - "scripts/deploy-examples-changes.mjs"
+      - "scripts/deploy-examples-changes.test.mjs"
+      - ".github/workflows/deploy-examples.yaml"
       - "scripts/lib/script-options.mjs"
       - "scripts/sync-templates.sh"
       - "turbo.json"
@@ -36,6 +39,9 @@ on:
       - "scripts/check-built-declarations.test.mjs"
       - "scripts/check-workspace-ranges.mjs"
       - "scripts/check-workspace-ranges.test.mjs"
+      - "scripts/deploy-examples-changes.mjs"
+      - "scripts/deploy-examples-changes.test.mjs"
+      - ".github/workflows/deploy-examples.yaml"
       - "scripts/lib/script-options.mjs"
       - "scripts/sync-templates.sh"
       - "turbo.json"
@@ -189,6 +195,9 @@ jobs:
 
       - name: Test built declaration checker
         run: pnpm run declarations:test
+
+      - name: Test the deploy examples planner
+        run: pnpm run deploy-examples:test
 
       - name: Test API surface generator
         run: pnpm run api-surface:test

@@ -169,6 +169,56 @@ describe("BaseComposerRuntimeCore", () => {
     expect(listener).not.toHaveBeenCalled();
   });
 
+  describe.each(["clearAttachments", "reset"] as const)(
+    "%s cleanup",
+    (method) => {
+      it.each(["first throw", "later throw", "rejection", "multiple failures"])(
+        "attempts all pending removals after %s and still rejects",
+        async (failure) => {
+          const error = new Error("removal failed");
+          const remove = vi.fn((attachment: PendingAttachment) => {
+            const fails =
+              attachment.id === (failure === "later throw" ? "two" : "one");
+            if (fails) {
+              if (failure === "rejection") return Promise.reject(error);
+              throw error;
+            }
+            if (failure === "multiple failures" && attachment.id === "two") {
+              return Promise.reject(new Error("another failure"));
+            }
+            return Promise.resolve();
+          });
+          composer.setAttachmentAdapter({
+            accept: "*",
+            add: vi.fn(),
+            send: vi.fn(),
+            remove,
+          });
+          composer.setAttachments([
+            makePendingAttachment("one"),
+            {
+              id: "complete",
+              type: "file",
+              name: "saved.txt",
+              contentType: "text/plain",
+              content: [],
+              status: { type: "complete" },
+            },
+            makePendingAttachment("two"),
+            makePendingAttachment("three"),
+          ]);
+
+          await expect(composer[method]()).rejects.toBe(error);
+
+          expect(
+            remove.mock.calls.map(([attachment]) => attachment.id),
+          ).toEqual(["one", "two", "three"]);
+          expect(composer.attachments).toEqual([]);
+        },
+      );
+    },
+  );
+
   it("reset keeps discarded text out of later dictation results", async () => {
     let emitSpeech!: (result: DictationAdapter.Result) => void;
     composer.setDictationAdapter({

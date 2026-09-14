@@ -274,34 +274,76 @@ export abstract class BaseThreadRuntimeCore
 
     const { message } = this.repository.getMessage(messageId);
 
-    this._stopSpeaking?.();
-
-    const utterance = adapter.speak(getThreadMessageText(message));
-    const unsub = utterance.subscribe(() => {
+    const previousStop = this._stopSpeaking;
+    let utterance: SpeechSynthesisAdapter.Utterance;
+    try {
+      previousStop?.();
+      utterance = adapter.speak(getThreadMessageText(message));
+    } catch (error) {
+      if (previousStop && !this._stopSpeaking) {
+        try {
+          this._notifySubscribers();
+        } catch (notificationError) {
+          console.error(
+            "[assistant-ui] Speech rollback notification threw",
+            notificationError,
+          );
+        }
+      }
+      throw error;
+    }
+    let unsub: Unsubscribe | undefined;
+    const clear = () => {
+      this._stopSpeaking = undefined;
+      this.speech = undefined;
+      const cleanup = unsub;
+      unsub = undefined;
+      cleanup?.();
+    };
+    const stop = () => {
+      if (this._stopSpeaking !== stop) return;
+      try {
+        clear();
+      } finally {
+        utterance.cancel();
+      }
+    };
+    const update = () => {
+      if (this._stopSpeaking !== stop) return;
       if (utterance.status.type === "ended") {
-        this._stopSpeaking = undefined;
-        this.speech = undefined;
+        notifySubscribers([clear, () => this._notifySubscribers()]);
       } else {
         this.speech = { messageId, status: utterance.status };
+        this._notifySubscribers();
       }
-      this._notifySubscribers();
-    });
-
-    this.speech = { messageId, status: utterance.status };
-    this._notifySubscribers();
-
-    this._stopSpeaking = () => {
-      utterance.cancel();
-      unsub();
-      this.speech = undefined;
-      this._stopSpeaking = undefined;
     };
+
+    this._stopSpeaking = stop;
+    try {
+      unsub = utterance.subscribe(update);
+      if (this._stopSpeaking !== stop) {
+        unsub();
+        return;
+      }
+      update();
+    } catch (error) {
+      if (this._stopSpeaking === stop) {
+        try {
+          notifySubscribers([stop, () => this._notifySubscribers()]);
+        } catch (cleanupError) {
+          console.error(
+            "[assistant-ui] Speech rollback cleanup threw",
+            cleanupError,
+          );
+        }
+      }
+      throw error;
+    }
   }
 
   public stopSpeaking() {
     if (!this._stopSpeaking) throw new Error("No message is being spoken");
-    this._stopSpeaking();
-    this._notifySubscribers();
+    notifySubscribers([this._stopSpeaking, () => this._notifySubscribers()]);
   }
 
   private _voiceSession: RealtimeVoiceAdapter.Session | undefined;
@@ -445,7 +487,7 @@ export abstract class BaseThreadRuntimeCore
           id: generateId(),
           role: "user",
           content: [{ type: "text", text: transcript.text }],
-          metadata: { custom: {} },
+          metadata: { modality: "voice", custom: {} },
           createdAt: new Date(),
           status: { type: "complete", reason: "unknown" },
           attachments: [],
@@ -468,6 +510,7 @@ export abstract class BaseThreadRuntimeCore
             unstable_annotations: [],
             unstable_data: [],
             steps: [],
+            modality: "voice",
             custom: {},
           },
           status,

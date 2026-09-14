@@ -7,6 +7,62 @@ afterEach(() => {
 });
 
 describe("WebSpeechSynthesisAdapter", () => {
+  const stubSpeechSynthesis = () => {
+    const utterances: EventTarget[] = [];
+    class MockSpeechSynthesisUtterance extends EventTarget {
+      constructor() {
+        super();
+        utterances.push(this);
+      }
+    }
+    const cancel = vi.fn();
+    vi.stubGlobal("SpeechSynthesisUtterance", MockSpeechSynthesisUtterance);
+    vi.stubGlobal("window", { speechSynthesis: { speak: vi.fn(), cancel } });
+    return { utterances, cancel };
+  };
+
+  it.each(["end", "error"])(
+    "does not cancel newer playback through a handle that received %s",
+    (event) => {
+      const { utterances, cancel } = stubSpeechSynthesis();
+      const adapter = new WebSpeechSynthesisAdapter();
+      const old = adapter.speak("old");
+      utterances[0]!.dispatchEvent(new Event(event));
+      const endedStatus = old.status;
+      const current = adapter.speak("current");
+
+      old.cancel();
+      old.cancel();
+
+      expect(cancel).not.toHaveBeenCalled();
+      expect(old.status).toBe(endedStatus);
+      expect(current.status).toEqual({ type: "running" });
+    },
+  );
+
+  it("cancels active playback once and leaves later playback alone", () => {
+    const { cancel } = stubSpeechSynthesis();
+    const adapter = new WebSpeechSynthesisAdapter();
+    const old = adapter.speak("old");
+    const onChange = vi.fn();
+    old.subscribe(onChange);
+
+    old.cancel();
+
+    expect(cancel).toHaveBeenCalledOnce();
+    expect(old.status).toMatchObject({ type: "ended", reason: "cancelled" });
+    expect(onChange).toHaveBeenCalledOnce();
+
+    const current = adapter.speak("current");
+    old.cancel();
+
+    expect(cancel).toHaveBeenCalledOnce();
+    expect(onChange).toHaveBeenCalledOnce();
+    expect(current.status).toEqual({ type: "running" });
+    current.cancel();
+    expect(cancel).toHaveBeenCalledTimes(2);
+  });
+
   it("isolates a late subscriber that throws after the utterance ended", async () => {
     const listeners = new Map<string, EventListener>();
     class MockSpeechSynthesisUtterance {

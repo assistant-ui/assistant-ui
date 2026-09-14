@@ -54,6 +54,21 @@ function getExpoInstallCommand(pm: PackageManager, packages: string[]): string {
   }
 }
 
+function getAssistantUiAddCommand(pm: PackageManager, items: string[]): string {
+  const itemList = items.join(" ");
+  switch (pm) {
+    case "npm":
+    case "yarn":
+      return `npx assistant-ui@latest add ${itemList}`;
+    case "pnpm":
+      return `pnpm dlx assistant-ui@latest add ${itemList}`;
+    case "bun":
+      return `bunx --bun assistant-ui@latest add ${itemList}`;
+    case "xpm":
+      return `xpx assistant-ui@latest add ${itemList}`;
+  }
+}
+
 function CommandTabs({
   getCommand,
   packageManagers = PACKAGE_MANAGERS,
@@ -95,6 +110,16 @@ export function ExpoInstallTabs({
 }): React.ReactElement {
   return (
     <CommandTabs getCommand={(pm) => getExpoInstallCommand(pm, packages)} />
+  );
+}
+
+export function AssistantUiAddTabs({
+  items,
+}: {
+  items: string[];
+}): React.ReactElement {
+  return (
+    <CommandTabs getCommand={(pm) => getAssistantUiAddCommand(pm, items)} />
   );
 }
 

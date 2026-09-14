@@ -15,11 +15,8 @@ import { LexicalErrorBoundary } from "@lexical/react/LexicalErrorBoundary";
 import { HistoryPlugin } from "@lexical/react/LexicalHistoryPlugin";
 import { useLexicalComposerContext } from "@lexical/react/LexicalComposerContext";
 import {
-  $getRoot,
   $getSelection,
-  $isElementNode,
   $isRangeSelection,
-  $isTextNode,
   COMMAND_PRIORITY_HIGH,
   KEY_ARROW_DOWN_COMMAND,
   KEY_ARROW_UP_COMMAND,
@@ -41,6 +38,7 @@ import {
 import { SyncPlugin } from "./plugins/SyncPlugin";
 import { DirectivePlugin } from "./plugins/DirectivePlugin";
 import type { DirectivePluginProps } from "./plugins/DirectivePlugin";
+import { $getCollapsedRuntimeOffset } from "./runtimeOffset";
 
 export type LexicalComposerInputProps = Omit<
   ComponentPropsWithoutRef<"div">,
@@ -204,49 +202,12 @@ function CursorPlugin() {
         }
 
         const anchor = selection.anchor;
-        if (anchor.type !== "text") {
-          lastAnchorKey = null;
-          broadcastCursor(0);
-          return;
-        }
-
-        const anchorNode = anchor.getNode();
-        if (!$isTextNode(anchorNode)) {
-          lastAnchorKey = null;
-          broadcastCursor(0);
-          return;
-        }
-
         if (anchor.key === lastAnchorKey && anchor.offset === lastAnchorOffset)
           return;
         lastAnchorKey = anchor.key;
         lastAnchorOffset = anchor.offset;
 
-        let offset = 0;
-        const paragraph = anchorNode.getParent();
-        if (paragraph && $isElementNode(paragraph)) {
-          const root = $getRoot();
-          for (const child of root.getChildren()) {
-            if (child === paragraph) break;
-            if ($isElementNode(child)) {
-              for (const c of child.getChildren()) {
-                offset += c.getTextContent().length;
-              }
-            }
-            offset += 1; // newline between paragraphs
-          }
-          for (const child of paragraph.getChildren()) {
-            if (child === anchorNode) {
-              offset += anchor.offset;
-              break;
-            }
-            offset += child.getTextContent().length;
-          }
-        } else {
-          offset = anchor.offset;
-        }
-
-        broadcastCursor(offset);
+        broadcastCursor($getCollapsedRuntimeOffset() ?? 0);
       });
     });
   }, [editor, pluginRegistry]);

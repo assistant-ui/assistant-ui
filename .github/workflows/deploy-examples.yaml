@@ -1,19 +1,34 @@
 name: Deploy Examples
 
+# The trigger list is the union of the inputs scripts/deploy-examples-changes.mjs
+# derives per example; its test keeps the two in step.
 on:
   push:
     branches:
       - main
     paths:
+      - .github/workflows/deploy-examples.yaml
       - examples/with-expo/**
       - examples/with-react-ink-web/**
-      - packages/react-native/**
+      - package.json
+      - packages/ai-sdk/**
+      - packages/assistant-stream/**
+      - packages/cloud/**
+      - packages/core/**
+      - packages/metro/**
       - packages/react-ink/**
       - packages/react-ink-markdown/**
-      - packages/react-ai-sdk/**
-      - packages/ai-sdk/**
-      - packages/core/**
-      - .github/workflows/deploy-examples.yaml
+      - packages/react-native/**
+      - packages/store/**
+      - packages/tap/**
+      - packages/ui/**
+      - packages/x-buildutils/**
+      - packages/x-generative-compiler/**
+      - pnpm-lock.yaml
+      - pnpm-workspace.yaml
+      - scripts/deploy-examples-changes.mjs
+      - scripts/vercel-ignore-changeset-release.sh
+      - turbo.json
 
 permissions:
   contents: read
@@ -26,16 +41,50 @@ env:
   VERCEL_ORG_ID: ${{ secrets.VERCEL_ORG_ID }}
 
 jobs:
+  changes:
+    name: Changed examples
+    runs-on: blacksmith-4vcpu-ubuntu-2404
+    outputs:
+      matrix: ${{ steps.filter.outputs.matrix }}
+      any: ${{ steps.filter.outputs.any }}
+    steps:
+      - name: Checkout code repository
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # ratchet:actions/checkout@v7.0.1
+        with:
+          fetch-depth: 1
+
+      - name: Setup pnpm and node.js
+        uses: pnpm/setup@703c52620218391530e48b9e8870d5c0082e1b9b # ratchet:pnpm/setup@v2.1.0
+        with:
+          runtime: node@24
+          install: false
+
+      - name: Pick the examples whose inputs changed
+        id: filter
+        env:
+          BEFORE: ${{ github.event.before }}
+          AFTER: ${{ github.sha }}
+        run: |
+          set -euo pipefail
+
+          if [[ "$BEFORE" =~ ^0+$ ]] || ! git fetch --no-tags --depth=1 origin "$BEFORE"; then
+            plan=$(node scripts/deploy-examples-changes.mjs --all)
+          else
+            plan=$(git diff --name-only --no-renames -z "$BEFORE" "$AFTER" | node scripts/deploy-examples-changes.mjs)
+          fi
+
+          echo "matrix=$(jq -c .matrix <<< "$plan")" >> "$GITHUB_OUTPUT"
+          echo "any=$(jq -r .any <<< "$plan")" >> "$GITHUB_OUTPUT"
+          jq -r '"deploying: " + (.matrix.include | map(.example) | join(", ") | if . == "" then "nothing" else . end)' <<< "$plan"
+
   deploy-production:
     name: Deploy Production (${{ matrix.example }})
+    needs: changes
+    if: needs.changes.outputs.any == 'true'
     runs-on: blacksmith-4vcpu-ubuntu-2404
     strategy:
       fail-fast: false
-      matrix:
-        include:
-          - example: with-expo
-            chat-endpoint-url: https://www.assistant-ui.com/api/chat
-          - example: with-react-ink-web
+      matrix: ${{ fromJSON(needs.changes.outputs.matrix) }}
     env:
       VERCEL_PROJECT_ID: ${{ matrix.example == 'with-expo' && secrets.VERCEL_EXPO_PROJECT_ID || matrix.example == 'with-react-ink-web' && secrets.VERCEL_INK_PROJECT_ID || '' }}
       EXPO_PUBLIC_CHAT_ENDPOINT_URL: ${{ matrix.chat-endpoint-url }}

@@ -35,7 +35,7 @@ export const CopyButton = ({
   iconOnly = false,
   size = "default",
 }: {
-  value: string;
+  value: string | (() => string);
   label?: string;
   copiedLabel?: string;
   className?: string | undefined;
@@ -43,7 +43,7 @@ export const CopyButton = ({
   size?: "default" | "sm";
 }) => {
   const { isCopied, copy } = useCopyToClipboard();
-  const empty = !value.trim();
+  const empty = typeof value === "string" && !value.trim();
   const iconPx = size === "sm" ? 10 : 12;
 
   return (
@@ -54,7 +54,7 @@ export const CopyButton = ({
       title={isCopied ? copiedLabel : label}
       onClick={(event) => {
         event.stopPropagation();
-        copy(value);
+        copy(typeof value === "function" ? value() : value);
       }}
       className={clsx(
         "text-muted-foreground hover:text-foreground inline-flex shrink-0 items-center justify-center rounded transition-colors disabled:pointer-events-none disabled:opacity-40",
