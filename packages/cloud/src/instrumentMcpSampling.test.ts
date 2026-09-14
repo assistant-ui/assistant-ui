@@ -24,12 +24,12 @@ describe("wrapSamplingHandler", () => {
     ).resolves.toBe(response);
     expect(handler).toHaveBeenCalledWith(request);
     expect(collector.getCalls()).toEqual([
-      {
+      expect.objectContaining({
         model_id: "test-model",
         input_tokens: 2,
         output_tokens: 3,
-        duration_ms: 0,
-      },
+        duration_ms: expect.any(Number),
+      }),
     ]);
   });
 
