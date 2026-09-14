@@ -5,6 +5,7 @@ export type FilePartSource =
   | { kind: "data"; data: string; mimeType: string };
 
 const DEFAULT_DATA_URL_MEDIA_TYPE = "text/plain";
+const DEFAULT_BINARY_DATA_URL_MEDIA_TYPE = "application/octet-stream";
 
 /**
  * Extracts a base64 payload and the URL's media type without parameters.
@@ -55,12 +56,16 @@ export function isParsableUrl(value: string): boolean {
 }
 
 /**
- * A data URL's media type without parameters, or `text/plain` when omitted.
+ * A data URL's media type without parameters. Media-less text data URLs use
+ * `text/plain`, while media-less base64 data URLs use `application/octet-stream`.
  * Unlike `parseDataUrl`, this also accepts non-base64 data URLs.
  * Returns `undefined` for values without a data URL header.
  */
 export function dataUrlMediaType(value: string): string | undefined {
-  const match = /^data:([^;,]*)(?:[;,])/i.exec(value);
+  const match = /^data:([^;,]*)([^,]*),/i.exec(value);
   if (!match) return undefined;
-  return match[1]?.toLowerCase() || DEFAULT_DATA_URL_MEDIA_TYPE;
+  if (match[1]) return match[1].toLowerCase();
+  return /(?:^|;)base64(?:;|$)/i.test(match[2]!)
+    ? DEFAULT_BINARY_DATA_URL_MEDIA_TYPE
+    : DEFAULT_DATA_URL_MEDIA_TYPE;
 }
