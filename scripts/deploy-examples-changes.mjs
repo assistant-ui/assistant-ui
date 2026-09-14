@@ -19,16 +19,32 @@ export const EXAMPLES = {
   },
 };
 
-// aui-build compiles every workspace dist, so a change there rebuilds all of them.
-const SHARED_INPUTS = ["packages/x-buildutils", WORKFLOW_FILE];
+// The root install and build configuration and aui-build shape every dist, and
+// this planner shapes the matrix.
+const SHARED_INPUTS = [
+  "package.json",
+  "pnpm-lock.yaml",
+  "pnpm-workspace.yaml",
+  "turbo.json",
+  "scripts/vercel-ignore-changeset-release.sh",
+  "scripts/deploy-examples-changes.mjs",
+  "packages/x-buildutils",
+  WORKFLOW_FILE,
+];
 
 const readJson = (file) => JSON.parse(readFileSync(file, "utf8"));
 
-const runtimeDependencies = (pkg) =>
+// aui-build inlines workspace devDependencies into a CommonJS dist, so for a
+// package whose exports target .cjs they are inputs like its runtime ones.
+const bundlesDevDependencies = (pkg) =>
+  JSON.stringify(pkg.exports ?? {}).includes(".cjs");
+
+const linkedDependencies = (pkg, { withDev }) =>
   Object.keys({
     ...pkg.dependencies,
     ...pkg.peerDependencies,
     ...pkg.optionalDependencies,
+    ...(withDev ? pkg.devDependencies : {}),
   });
 
 export function workspacePackages(repoRoot) {
@@ -59,18 +75,16 @@ export function exampleInputs(repoRoot, example) {
     ...EXAMPLES[example].extraInputs,
     ...SHARED_INPUTS,
   ]);
-  const queue = [
-    ...runtimeDependencies(pkg),
-    ...Object.keys(pkg.devDependencies ?? {}),
-  ];
+  const queue = linkedDependencies(pkg, { withDev: true });
   while (queue.length > 0) {
     const dir = packages.get(queue.shift());
     if (dir === undefined || inputs.has(dir)) continue;
     inputs.add(dir);
+    const dependency = readJson(path.join(repoRoot, dir, "package.json"));
     queue.push(
-      ...runtimeDependencies(
-        readJson(path.join(repoRoot, dir, "package.json")),
-      ),
+      ...linkedDependencies(dependency, {
+        withDev: bundlesDevDependencies(dependency),
+      }),
     );
   }
   return [...inputs].sort();

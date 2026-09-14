@@ -31,7 +31,10 @@ test("each example's inputs follow its workspace dependency graph", () => {
     "packages/store",
     "packages/tap",
     "packages/assistant-stream",
+    "packages/x-generative-compiler",
     "packages/x-buildutils",
+    "pnpm-lock.yaml",
+    "scripts/deploy-examples-changes.mjs",
     WORKFLOW_FILE,
   ]) {
     assert.ok(expo.includes(input), `with-expo should watch ${input}`);
@@ -74,6 +77,16 @@ test("a change selects only the examples it feeds", () => {
   assert.deepEqual(
     examplesOf(planDeploys(repoRoot, ["packages/tap/src/index.ts"])),
     ["with-expo", "with-react-ink-web"],
+  );
+  assert.deepEqual(examplesOf(planDeploys(repoRoot, ["pnpm-lock.yaml"])), [
+    "with-expo",
+    "with-react-ink-web",
+  ]);
+  assert.deepEqual(
+    examplesOf(
+      planDeploys(repoRoot, ["packages/x-generative-compiler/src/x.ts"]),
+    ),
+    ["with-expo"],
   );
   assert.deepEqual(
     examplesOf(planDeploys(repoRoot, ["packages/uiwidgets/index.ts"])),

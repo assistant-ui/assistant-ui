@@ -10,6 +10,7 @@ on:
       - .github/workflows/deploy-examples.yaml
       - examples/with-expo/**
       - examples/with-react-ink-web/**
+      - package.json
       - packages/ai-sdk/**
       - packages/assistant-stream/**
       - packages/cloud/**
@@ -22,6 +23,12 @@ on:
       - packages/tap/**
       - packages/ui/**
       - packages/x-buildutils/**
+      - packages/x-generative-compiler/**
+      - pnpm-lock.yaml
+      - pnpm-workspace.yaml
+      - scripts/deploy-examples-changes.mjs
+      - scripts/vercel-ignore-changeset-release.sh
+      - turbo.json
 
 permissions:
   contents: read
