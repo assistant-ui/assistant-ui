@@ -358,6 +358,40 @@ describe("useA2ARuntime", () => {
     ]);
   });
 
+  it("keeps pending history when a run is cancelled in the same thread", async () => {
+    const { client, streamMessage } = createMockClient(true);
+    let resolve!: (repo: ExportedMessageRepository) => void;
+    const pending = new Promise<ExportedMessageRepository>((res) => {
+      resolve = res;
+    });
+    const { result } = renderHook(() =>
+      useA2ARuntime({
+        client,
+        adapters: { history: { load: () => pending, append: async () => {} } },
+      }),
+    );
+    act(() => {
+      result.current.thread.append("Hello");
+    });
+    await waitFor(() => expect(streamMessage).toHaveBeenCalledOnce());
+    await act(async () => {
+      result.current.thread.cancelRun();
+      await new Promise((done) => setTimeout(done, 0));
+    });
+    const wasLoading = result.current.thread.getState().isLoading;
+    const restored = createThreadMessage("restored");
+    await act(async () => {
+      resolve({
+        headId: restored.id,
+        messages: [{ parentId: null, message: restored }],
+      });
+      await pending;
+    });
+    expect(wasLoading).toBe(true);
+    expect(result.current.thread.getState().messages).toEqual([restored]);
+    expect(result.current.thread.getState().isLoading).toBe(false);
+  });
+
   it.each(["existing", "new"])(
     "keeps the selected %s thread when initial history finishes later",
     async (target) => {

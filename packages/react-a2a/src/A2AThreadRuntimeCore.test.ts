@@ -273,8 +273,35 @@ describe("A2AThreadRuntimeCore", () => {
   });
 
   describe("history loading", () => {
+    it("keeps initial history loading across same-thread message resyncs", async () => {
+      let resolve!: (repo: ExportedMessageRepository) => void;
+      const pending = new Promise<ExportedMessageRepository>((res) => {
+        resolve = res;
+      });
+      const core = createCore(
+        {},
+        { history: { load: () => pending, append: async () => {} } },
+      );
+      const loading = core.__internal_load();
+      core.applyExternalMessages([]);
+      const wasLoading = core.isLoading;
+      const restored = createHistoryMessage(
+        "restored",
+        "user",
+        "Saved history",
+      );
+      resolve({
+        headId: restored.id,
+        messages: [{ parentId: null, message: restored }],
+      });
+      await loading;
+      expect(wasLoading).toBe(true);
+      expect(core.getMessages()).toEqual([restored]);
+      expect(core.isLoading).toBe(false);
+    });
+
     it.each(["resolve", "reject"])(
-      "ignores an initial history load that later %s after replacement",
+      "ignores an initial history load that later %s after a thread switch",
       async (outcome) => {
         let resolve!: (repo: ExportedMessageRepository) => void;
         let reject!: (error: Error) => void;
@@ -295,6 +322,7 @@ describe("A2AThreadRuntimeCore", () => {
           "Selected thread",
         );
         core.applyExternalMessages([replacement]);
+        core.resetContext();
 
         if (outcome === "resolve") {
           const previous = createHistoryMessage(
@@ -319,7 +347,7 @@ describe("A2AThreadRuntimeCore", () => {
       },
     );
 
-    it("ends initial loading immediately when messages are explicitly replaced", async () => {
+    it("ends initial loading immediately when switching threads", async () => {
       let resolve!: (repo: ExportedMessageRepository) => void;
       const pending = new Promise<ExportedMessageRepository>((res) => {
         resolve = res;
@@ -331,6 +359,7 @@ describe("A2AThreadRuntimeCore", () => {
       const loading = core.__internal_load();
       expect(core.isLoading).toBe(true);
       core.applyExternalMessages([]);
+      core.resetContext();
       const updatesAfterReplacement = notifyUpdate.mock.calls.length;
       expect(core.isLoading).toBe(false);
       resolve({ messages: [] });
@@ -338,7 +367,7 @@ describe("A2AThreadRuntimeCore", () => {
       expect(notifyUpdate).toHaveBeenCalledTimes(updatesAfterReplacement);
     });
 
-    it("does not import old history when agent-card discovery settles after replacement", async () => {
+    it("does not import old history when agent-card discovery settles after a thread switch", async () => {
       let resolveCard!: (card: A2AAgentCard) => void;
       const card = new Promise<A2AAgentCard>((resolve) => {
         resolveCard = resolve;
@@ -348,6 +377,7 @@ describe("A2AThreadRuntimeCore", () => {
       const loading = core.__internal_load();
       await Promise.resolve();
       core.applyExternalMessages([]);
+      core.resetContext();
       resolveCard({ name: "Agent" } as A2AAgentCard);
       await loading;
       expect(core.getMessages()).toEqual([]);

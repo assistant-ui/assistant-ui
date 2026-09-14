@@ -147,6 +147,8 @@ export class A2AThreadRuntimeCore {
   /** Thread-boundary reset: applyExternalMessages alone also serves branch
    * switches, deletes, and cancel resyncs, which must keep the live context. */
   resetContext(): void {
+    this._historyLoadGeneration++;
+    this._isLoading = false;
     // Restore the seed before aborting: an onCancel callback that starts a
     // new run must not pick up the old thread's context, and its controller
     // must not be discarded.
@@ -375,8 +377,6 @@ export class A2AThreadRuntimeCore {
   }
 
   applyExternalMessages(messages: readonly ThreadMessage[]): void {
-    this._historyLoadGeneration++;
-    this._isLoading = false;
     if (messages.length === 0) {
       this.session.clear();
     } else {
