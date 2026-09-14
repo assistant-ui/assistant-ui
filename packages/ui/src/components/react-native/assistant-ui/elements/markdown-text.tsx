@@ -108,7 +108,7 @@ const CodeBlock: FC<{ code: string; language: string | undefined }> = ({
 class MarkdownRenderer extends Renderer {
   keyIndex = 0;
 
-  constructor(readonly source: string) {
+  constructor(_source: string) {
     super();
   }
 
