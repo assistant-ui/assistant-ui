@@ -1,22 +1,27 @@
 name: Deploy Examples
 
-# The trigger list is the union of the per example inputs in the changes job;
-# keep both in step.
+# The trigger list is the union of the inputs scripts/deploy-examples-changes.mjs
+# derives per example; its test keeps the two in step.
 on:
   push:
     branches:
       - main
     paths:
+      - .github/workflows/deploy-examples.yaml
       - examples/with-expo/**
       - examples/with-react-ink-web/**
-      - packages/react-native/**
-      - packages/ui/**
+      - packages/ai-sdk/**
+      - packages/assistant-stream/**
+      - packages/cloud/**
+      - packages/core/**
       - packages/metro/**
       - packages/react-ink/**
       - packages/react-ink-markdown/**
-      - packages/ai-sdk/**
-      - packages/core/**
-      - .github/workflows/deploy-examples.yaml
+      - packages/react-native/**
+      - packages/store/**
+      - packages/tap/**
+      - packages/ui/**
+      - packages/x-buildutils/**
 
 permissions:
   contents: read
@@ -49,35 +54,15 @@ jobs:
         run: |
           set -euo pipefail
 
-          if [[ "$BEFORE" =~ ^0+$ ]]; then
-            changed=$'examples/with-expo/\nexamples/with-react-ink-web/'
+          if [[ "$BEFORE" =~ ^0+$ ]] || ! git fetch --no-tags --depth=1 origin "$BEFORE"; then
+            plan=$(node scripts/deploy-examples-changes.mjs --all)
           else
-            git fetch --no-tags --depth=1 origin "$BEFORE"
-            changed=$(git diff --name-only "$BEFORE" "$AFTER")
+            plan=$(git diff --name-only -z "$BEFORE" "$AFTER" | node scripts/deploy-examples-changes.mjs)
           fi
 
-          matches() {
-            local example=$1 file
-            while IFS= read -r file; do
-              case $example:$file in
-                with-expo:examples/with-expo/*|with-expo:packages/react-native/*|with-expo:packages/ui/*|with-expo:packages/metro/*|with-expo:packages/ai-sdk/*|with-expo:packages/core/*|with-expo:.github/workflows/deploy-examples.yaml) return 0 ;;
-                with-react-ink-web:examples/with-react-ink-web/*|with-react-ink-web:packages/react-ink/*|with-react-ink-web:packages/react-ink-markdown/*|with-react-ink-web:packages/ai-sdk/*|with-react-ink-web:packages/core/*|with-react-ink-web:.github/workflows/deploy-examples.yaml) return 0 ;;
-              esac
-            done <<< "$changed"
-            return 1
-          }
-
-          include='[]'
-          if matches with-expo; then
-            include=$(jq -c '. + [{"example":"with-expo","chat-endpoint-url":"https://www.assistant-ui.com/api/chat"}]' <<< "$include")
-          fi
-          if matches with-react-ink-web; then
-            include=$(jq -c '. + [{"example":"with-react-ink-web"}]' <<< "$include")
-          fi
-
-          echo "matrix=$(jq -c '{include: .}' <<< "$include")" >> "$GITHUB_OUTPUT"
-          echo "any=$(jq -r 'length > 0' <<< "$include")" >> "$GITHUB_OUTPUT"
-          echo "deploying: $(jq -r 'map(.example) | join(", ") | if . == "" then "nothing" else . end' <<< "$include")"
+          echo "matrix=$(jq -c .matrix <<< "$plan")" >> "$GITHUB_OUTPUT"
+          echo "any=$(jq -r .any <<< "$plan")" >> "$GITHUB_OUTPUT"
+          jq -r '"deploying: " + (.matrix.include | map(.example) | join(", ") | if . == "" then "nothing" else . end)' <<< "$plan"
 
   deploy-production:
     name: Deploy Production (${{ matrix.example }})

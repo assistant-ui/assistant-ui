@@ -190,6 +190,9 @@ jobs:
       - name: Test built declaration checker
         run: pnpm run declarations:test
 
+      - name: Test the deploy examples planner
+        run: pnpm run deploy-examples:test
+
       - name: Test API surface generator
         run: pnpm run api-surface:test
 
