@@ -71,14 +71,9 @@ describe("CloudRunReporter", () => {
     expect(report).toHaveBeenCalledTimes(3);
   });
 
-  it.each([
-    ["a transport failure", new Error("offline")],
-    ["a request timeout", new CloudAPIError("timeout", 408)],
-    ["rate limiting", new CloudAPIError("rate limited", 429)],
-    ["a server error", new CloudAPIError("unavailable", 503)],
-  ])("allows a keyed run to retry after %s", async (_name, error) => {
+  it("allows a keyed run to retry after rate limiting", async () => {
     const { cloud, report } = createCloud({ enabled: true });
-    report.mockRejectedValueOnce(error);
+    report.mockRejectedValueOnce(new CloudAPIError("rate limited", 429));
     const reporter = new CloudRunReporter(cloud);
 
     await reporter.report({ threadId: "t", status: "completed" }, "t:m");
@@ -89,10 +84,14 @@ describe("CloudRunReporter", () => {
   });
 
   it.each([
+    ["a transport failure", new Error("offline")],
+    ["a request timeout", new CloudAPIError("timeout", 408)],
+    ["a server error", new CloudAPIError("unavailable", 503)],
     [
       "a successful response with an invalid body",
       new CloudResponseError("invalid response"),
     ],
+    ["a successful response with invalid JSON", new SyntaxError("invalid")],
     ["a permanent client error", new CloudAPIError("invalid report", 400)],
   ])("does not retry after %s", async (_name, error) => {
     const { cloud, report } = createCloud({ enabled: true });
