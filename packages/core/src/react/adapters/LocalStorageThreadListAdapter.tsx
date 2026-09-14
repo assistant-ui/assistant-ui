@@ -17,6 +17,7 @@ import type {
   ThreadMessage,
   RunConfig,
   CompleteAttachment,
+  MessageModality,
   MessageStatus,
   ToolModelContentPart,
 } from "../../index";
@@ -146,6 +147,12 @@ const KNOWN_STORED_MESSAGE_PART_TYPES = {
   "generative-ui": true,
   audio: true,
 } satisfies Record<KnownStoredMessagePartType, true>;
+const STORED_MESSAGE_MODALITIES = {
+  voice: true,
+} satisfies Record<MessageModality, true>;
+
+const isStoredMessageModality = (value: unknown): value is MessageModality =>
+  typeof value === "string" && Object.hasOwn(STORED_MESSAGE_MODALITIES, value);
 
 const parseStoredMessageStatus = (value: unknown): MessageStatus => {
   if (!isRecord(value) || typeof value.type !== "string") {
@@ -200,7 +207,9 @@ const parseStoredAssistantMetadata = (
         }
       : undefined),
     ...(metadata.isOptimistic === true ? { isOptimistic: true } : undefined),
-    ...(metadata.modality === "voice" ? { modality: "voice" } : undefined),
+    ...(isStoredMessageModality(metadata.modality)
+      ? { modality: metadata.modality }
+      : undefined),
     custom: isRecord(metadata.custom) ? metadata.custom : {},
   };
 };
@@ -352,12 +361,10 @@ const parseStoredUserContent = (
 
 const parseStoredSystemContent = (
   content: unknown[],
-): StoredSystemMessage["content"][number] | null => {
+): StoredSystemMessage["content"][number] => {
   const parts = parseStoredUserContent(content);
-  const part = parts.find((part) => part.type === "text") ?? parts[0];
-  return part
-    ? (part as unknown as StoredSystemMessage["content"][number])
-    : null;
+  const textPart = parts.find((part) => part.type === "text");
+  return textPart ?? { type: "text", text: "" };
 };
 
 const parseStoredAttachment = (value: unknown): CompleteAttachment | null => {
@@ -429,14 +436,15 @@ function parseStoredThreadMessage(
         : [],
       createdAt,
       metadata: {
-        ...(metadata.modality === "voice" ? { modality: "voice" } : undefined),
+        ...(isStoredMessageModality(metadata.modality)
+          ? { modality: metadata.modality }
+          : undefined),
         custom: metadata.custom,
       },
     };
   }
 
   const content = parseStoredSystemContent(value.content);
-  if (!content) return null;
 
   return {
     id: value.id,
@@ -488,8 +496,9 @@ function parseStoredNestedThreadMessage(
         : [],
       createdAt,
       metadata: {
-        ...(isRecord(value.metadata) && value.metadata.modality === "voice"
-          ? { modality: "voice" }
+        ...(isRecord(value.metadata) &&
+        isStoredMessageModality(value.metadata.modality)
+          ? { modality: value.metadata.modality }
           : undefined),
         custom:
           isRecord(value.metadata) && isRecord(value.metadata.custom)
@@ -500,7 +509,6 @@ function parseStoredNestedThreadMessage(
   }
 
   const content = parseStoredSystemContent(value.content);
-  if (!content) return null;
 
   return {
     id,
