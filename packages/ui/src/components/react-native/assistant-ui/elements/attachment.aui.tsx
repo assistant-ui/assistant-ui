@@ -25,12 +25,17 @@ const encodeJpeg = async (asset: ImagePicker.ImagePickerAsset) => {
     );
   }
   const image = await context.renderAsync();
-  const { base64 } = await image.saveAsync({
-    format: SaveFormat.JPEG,
-    compress: 0.8,
-    base64: true,
-  });
-  return base64;
+  try {
+    const { base64 } = await image.saveAsync({
+      format: SaveFormat.JPEG,
+      compress: 0.8,
+      base64: true,
+    });
+    return base64;
+  } finally {
+    context.release();
+    image.release();
+  }
 };
 
 const useAttachmentImageUri = () =>
@@ -93,14 +98,20 @@ export const ComposerAddAttachment: FC = () => {
     if (result.canceled) return;
 
     for (const asset of result.assets) {
-      const base64 = await encodeJpeg(asset);
-      if (!base64) continue;
-      await aui.composer.addAttachment({
-        name: `${(asset.fileName ?? "image").replace(/\.[^.]+$/, "")}.jpg`,
-        contentType: "image/jpeg",
-        type: "image",
-        content: [{ type: "image", image: `data:image/jpeg;base64,${base64}` }],
-      });
+      try {
+        const base64 = await encodeJpeg(asset);
+        if (!base64) continue;
+        await aui.composer.addAttachment({
+          name: `${(asset.fileName ?? "image").replace(/\.[^.]+$/, "")}.jpg`,
+          contentType: "image/jpeg",
+          type: "image",
+          content: [
+            { type: "image", image: `data:image/jpeg;base64,${base64}` },
+          ],
+        });
+      } catch {
+        // A failed encode skips the asset; the composer runtime emits composer.attachmentAddError before rejecting.
+      }
     }
   };
 

@@ -14,6 +14,7 @@ const h = vi.hoisted(() => {
   const launchImageLibraryAsync = vi.fn();
   const resize = vi.fn();
   const saveAsync = vi.fn();
+  const release = vi.fn();
   const manipulate = vi.fn((uri: string) => {
     const context = {
       resize: (size: unknown) => {
@@ -22,7 +23,9 @@ const h = vi.hoisted(() => {
       },
       renderAsync: async () => ({
         saveAsync: (options: unknown) => saveAsync(uri, options),
+        release: () => release("image", uri),
       }),
+      release: () => release("context", uri),
     };
     return context;
   });
@@ -48,6 +51,7 @@ const h = vi.hoisted(() => {
     removeAttachment,
     launchImageLibraryAsync,
     manipulate,
+    release,
     resize,
     saveAsync,
     setClipboardString,
@@ -155,6 +159,7 @@ describe("attachments", () => {
     h.addAttachment.mockReset();
     h.removeAttachment.mockReset();
     h.launchImageLibraryAsync.mockReset();
+    h.release.mockReset();
     h.resize.mockReset();
     h.saveAsync.mockReset();
     h.setClipboardString.mockReset();
@@ -238,11 +243,19 @@ describe("attachments", () => {
           width: 100,
           height: 100,
         },
+        {
+          uri: "file:///fourth",
+          fileName: "fourth.jpg",
+          width: 100,
+          height: 100,
+        },
       ],
     });
-    h.saveAsync.mockImplementation(async (uri: string) =>
-      uri === "file:///third" ? {} : { base64: `${uri}-data` },
-    );
+    h.saveAsync.mockImplementation(async (uri: string) => {
+      if (uri === "file:///third") return {};
+      if (uri === "file:///fourth") throw new Error("decode failed");
+      return { base64: `${uri}-data` };
+    });
 
     await render();
 
@@ -253,12 +266,22 @@ describe("attachments", () => {
 
     expect(h.resize).toHaveBeenCalledTimes(1);
     expect(h.resize).toHaveBeenCalledWith("file:///first", { width: 2048 });
-    expect(h.saveAsync).toHaveBeenCalledTimes(3);
+    expect(h.saveAsync).toHaveBeenCalledTimes(4);
     expect(h.saveAsync).toHaveBeenCalledWith("file:///second", {
       format: "jpeg",
       compress: 0.8,
       base64: true,
     });
+    expect(h.release.mock.calls).toEqual([
+      ["context", "file:///first"],
+      ["image", "file:///first"],
+      ["context", "file:///second"],
+      ["image", "file:///second"],
+      ["context", "file:///third"],
+      ["image", "file:///third"],
+      ["context", "file:///fourth"],
+      ["image", "file:///fourth"],
+    ]);
     expect(h.addAttachment).toHaveBeenCalledTimes(2);
     expect(h.addAttachment).toHaveBeenNthCalledWith(1, {
       name: "first.jpg",

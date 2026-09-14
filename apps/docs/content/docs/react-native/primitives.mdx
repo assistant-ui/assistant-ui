@@ -280,9 +280,12 @@ Renders composer attachments using the provided component configuration.
 
 ### ComposerPrimitive.AddAttachment
 
-`Pressable` for adding attachments. It is disabled while the composer cannot accept attachments. React Native has no file input, so `onPress` receives the platform picker (for example `expo-document-picker` or `expo-image-picker`) and hands the selection to `aui.composer.addAttachment`.
+`Pressable` for adding attachments. It is disabled while the composer cannot accept attachments. React Native has no file input, so the caller opens the platform picker (for example `expo-document-picker` or `expo-image-picker`) in `onPress` and passes the selection to `aui.composer.addAttachment`.
 
 ```tsx
+import { useAui } from "@assistant-ui/react-native";
+import * as ImagePicker from "expo-image-picker";
+
 const aui = useAui();
 
 <ComposerPrimitive.AddAttachment

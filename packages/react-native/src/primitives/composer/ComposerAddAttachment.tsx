@@ -8,7 +8,7 @@ export type ComposerAddAttachmentProps = Omit<PressableProps, "children"> & {
 /**
  * A button for adding attachments. It is disabled while the composer cannot accept attachments.
  *
- * React Native has no file input, so `onPress` receives the platform picker (for example `expo-image-picker`) and hands the selection to `aui.composer.addAttachment`.
+ * React Native has no file input, so the caller opens the platform picker (for example `expo-image-picker`) in `onPress` and passes the selection to `aui.composer.addAttachment`.
  */
 export const ComposerAddAttachment = ({
   children,

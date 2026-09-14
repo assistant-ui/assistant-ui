@@ -257,11 +257,11 @@ export function validateNativeFlavorContent(
   for (const { payload } of nativeBuilt) {
     for (const dependency of payload.registryDependencies ?? []) {
       const name = getAssistantRegistryDependencyName(dependency);
-      if (
-        name &&
-        !NATIVE_SHARED_REGISTRY_ITEMS.has(name) &&
-        dependency !== `https://r.assistant-ui.com/native/${name}.json`
-      ) {
+      const expected =
+        name && NATIVE_SHARED_REGISTRY_ITEMS.has(name)
+          ? `https://r.assistant-ui.com/${name}.json`
+          : `https://r.assistant-ui.com/native/${name}.json`;
+      if (dependency !== expected) {
         findings.add(
           `${payload.name}: registry dependency "${dependency}" is not a native item`,
         );
