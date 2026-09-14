@@ -662,6 +662,20 @@ const runtime = useChatRuntime({
 
 When omitted, `resumeRun` throws `"Runtime does not support resuming runs."`. For streams that should survive a page reload without a custom channel, use the built-in transport-level path instead: see [Resumable streams](/docs/guides/resumable-streams), which reconnects automatically on mount and reports failures via `onResumeError`.
 
+### onRespondToToolApproval
+
+Provide this when your backend owns the paused tool call and needs to resume it through its own endpoint:
+
+```tsx
+const runtime = useChatRuntime({
+  onRespondToToolApproval: async (response) => {
+    await resumeToolApproval(response);
+  },
+});
+```
+
+The callback receives the full normalized response, including `approvalId`, `approved`, and optional `optionId`, `text`, and `reason` fields. When omitted, allow or deny responses use the AI SDK `addToolApprovalResponse` helper. Select and text approval controls are exposed only when a custom handler is present because the built-in channel cannot preserve those answers.
+
 ### messageRepository
 
 Import a branch-aware AI SDK message tree once, and only when `useChat` is empty. After that seed, live updates come only from `useChat`. Clearing the chat or passing a new object identity does not reload the tree. Persisted threads that already go through `adapters.history` do not need this.
@@ -691,7 +705,7 @@ const runtime = useAISDKRuntime(chat);
 
 `useAISDKRuntime` does not provide `cloud` or the higher-level adapter slots; those are part of `useChatRuntime`. If you need both your own `useChat` access AND cloud thread support, you generally want `useChatRuntime` and to read the chat state through assistant-ui hooks instead.
 
-`useAISDKRuntime` accepts `joinStrategy`, `onResume`, `messageRepository`, and `unstable_onBranchChange` (see [Runtime options](#runtime-options)) plus one option of its own, `cancelPendingToolCallsOnSend`:
+`useAISDKRuntime` accepts `joinStrategy`, `onResume`, `onRespondToToolApproval`, `messageRepository`, and `unstable_onBranchChange` (see [Runtime options](#runtime-options)) plus one option of its own, `cancelPendingToolCallsOnSend`:
 
 ```tsx
 const runtime = useAISDKRuntime(chat, {

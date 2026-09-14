@@ -66,4 +66,96 @@ describe("useAISDKRuntime tool approvals", () => {
       options: { metadata: undefined },
     });
   });
+
+  it("prefers a custom approval handler and forwards the complete response", () => {
+    const approvalPromise = Promise.resolve();
+    const onRespondToToolApproval = vi.fn(() => approvalPromise);
+    const addToolApprovalResponse = vi.fn();
+    const chat = {
+      id: "chat-1",
+      status: "ready",
+      error: undefined,
+      messages: [],
+      setMessages: vi.fn(),
+      sendMessage: vi.fn(),
+      regenerate: vi.fn(),
+      addToolOutput: vi.fn(),
+      addToolApprovalResponse,
+      stop: vi.fn(),
+    };
+
+    renderHook(() =>
+      useAISDKRuntime(chat as never, { onRespondToToolApproval }),
+    );
+
+    const response = {
+      approvalId: "approval-1",
+      approved: true,
+      optionId: "allow-session",
+      text: "Only for this environment",
+      reason: "Approved by operator",
+    };
+    const result = mocks.adapter?.onRespondToToolApproval?.(response);
+
+    expect(result).toBe(approvalPromise);
+    expect(onRespondToToolApproval).toHaveBeenCalledWith(response);
+    expect(addToolApprovalResponse).not.toHaveBeenCalled();
+  });
+
+  it("updates the rendered approval shape with the response channel", () => {
+    const onRespondToToolApproval = vi.fn();
+    const chat = {
+      id: "chat-1",
+      status: "ready",
+      error: undefined,
+      messages: [
+        {
+          id: "message-1",
+          role: "assistant",
+          parts: [
+            {
+              type: "tool-deploy",
+              toolCallId: "tool-1",
+              state: "approval-requested",
+              input: {},
+              approval: {
+                id: "approval-1",
+                display: "select",
+                options: [{ id: "allow-session", kind: "allow-once" }],
+              },
+            },
+          ],
+        },
+      ],
+      setMessages: vi.fn(),
+      sendMessage: vi.fn(),
+      regenerate: vi.fn(),
+      addToolOutput: vi.fn(),
+      addToolApprovalResponse: vi.fn(),
+      stop: vi.fn(),
+    };
+
+    const { rerender } = renderHook(
+      ({ useCustomHandler }: { useCustomHandler: boolean }) =>
+        useAISDKRuntime(chat as never, {
+          ...(useCustomHandler && { onRespondToToolApproval }),
+        }),
+      { initialProps: { useCustomHandler: false } },
+    );
+
+    const getApproval = () =>
+      mocks.adapter?.messages?.[0]?.content.find(
+        (part) => part.type === "tool-call",
+      )?.approval;
+
+    expect(getApproval()).toEqual({ id: "approval-1" });
+
+    rerender({ useCustomHandler: true });
+
+    expect(getApproval()).toEqual({
+      id: "approval-1",
+      display: "select",
+      options: [{ id: "allow-session", kind: "allow-once" }],
+    });
+  });
 });
