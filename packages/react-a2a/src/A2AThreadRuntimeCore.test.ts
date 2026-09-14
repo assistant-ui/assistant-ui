@@ -7,7 +7,11 @@ import type {
   A2AStreamEvent,
   A2ATask,
 } from "./types";
-import type { AppendMessage, ThreadMessage } from "@assistant-ui/core";
+import type {
+  AppendMessage,
+  ExportedMessageRepository,
+  ThreadMessage,
+} from "@assistant-ui/core";
 
 // --- Mock client factory ---
 
@@ -269,6 +273,88 @@ describe("A2AThreadRuntimeCore", () => {
   });
 
   describe("history loading", () => {
+    it.each(["resolve", "reject"])(
+      "ignores an initial history load that later %s after replacement",
+      async (outcome) => {
+        let resolve!: (repo: ExportedMessageRepository) => void;
+        let reject!: (error: Error) => void;
+        const pending = new Promise<ExportedMessageRepository>((res, rej) => {
+          resolve = res;
+          reject = rej;
+        });
+        const onError = vi.fn();
+        const history = {
+          load: vi.fn(() => pending),
+          append: vi.fn().mockResolvedValue(undefined),
+        };
+        const core = createCore({}, { history, onError });
+        const loading = core.__internal_load();
+        const replacement = createHistoryMessage(
+          "selected",
+          "user",
+          "Selected thread",
+        );
+        core.applyExternalMessages([replacement]);
+
+        if (outcome === "resolve") {
+          const previous = createHistoryMessage(
+            "previous",
+            "user",
+            "Previous thread",
+          );
+          resolve({
+            headId: previous.id,
+            messages: [{ parentId: null, message: previous }],
+          });
+        } else {
+          reject(new Error("Old history failed"));
+        }
+        await loading;
+
+        expect(core.getMessages()).toEqual([replacement]);
+        expect(core.isLoading).toBe(false);
+        expect(onError).not.toHaveBeenCalled();
+        await core.__internal_load();
+        expect(history.load).toHaveBeenCalledTimes(1);
+      },
+    );
+
+    it("ends initial loading immediately when messages are explicitly replaced", async () => {
+      let resolve!: (repo: ExportedMessageRepository) => void;
+      const pending = new Promise<ExportedMessageRepository>((res) => {
+        resolve = res;
+      });
+      const core = createCore(
+        {},
+        { history: { load: () => pending, append: async () => {} } },
+      );
+      const loading = core.__internal_load();
+      expect(core.isLoading).toBe(true);
+      core.applyExternalMessages([]);
+      const updatesAfterReplacement = notifyUpdate.mock.calls.length;
+      expect(core.isLoading).toBe(false);
+      resolve({ messages: [] });
+      await loading;
+      expect(notifyUpdate).toHaveBeenCalledTimes(updatesAfterReplacement);
+    });
+
+    it("does not import old history when agent-card discovery settles after replacement", async () => {
+      let resolveCard!: (card: A2AAgentCard) => void;
+      const card = new Promise<A2AAgentCard>((resolve) => {
+        resolveCard = resolve;
+      });
+      const { history } = createBranchedHistory();
+      const core = createCore({ getAgentCard: () => card }, { history });
+      const loading = core.__internal_load();
+      await Promise.resolve();
+      core.applyExternalMessages([]);
+      resolveCard({ name: "Agent" } as A2AAgentCard);
+      await loading;
+      expect(core.getMessages()).toEqual([]);
+      expect(core.getAgentCard()?.name).toBe("Agent");
+      expect(core.isLoading).toBe(false);
+    });
+
     it("preserves sibling branches and selects the persisted head", async () => {
       const { user, firstAssistant, secondAssistant, history } =
         createBranchedHistory();

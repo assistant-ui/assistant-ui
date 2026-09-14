@@ -8,7 +8,10 @@ import {
   type PropsWithChildren,
 } from "react";
 import { afterEach, describe, expect, it, vi } from "vitest";
-import type { ThreadMessage } from "@assistant-ui/core";
+import type {
+  ExportedMessageRepository,
+  ThreadMessage,
+} from "@assistant-ui/core";
 import type { A2AClient } from "./A2AClient";
 import type { A2AStreamEvent } from "./types";
 import { useA2ARuntime } from "./useA2ARuntime";
@@ -354,6 +357,59 @@ describe("useA2ARuntime", () => {
       "thread-b",
     ]);
   });
+
+  it.each(["existing", "new"])(
+    "keeps the selected %s thread when initial history finishes later",
+    async (target) => {
+      const { client } = createMockClient();
+      let resolveHistory!: (repo: ExportedMessageRepository) => void;
+      const pending = new Promise<ExportedMessageRepository>((resolve) => {
+        resolveHistory = resolve;
+      });
+      const history = { load: () => pending, append: async () => {} };
+      const { result } = renderHook(() => {
+        const [threadId, setThreadId] = useState("thread-a");
+        return useA2ARuntime({
+          client,
+          adapters: {
+            history,
+            threadList: {
+              threadId,
+              onSwitchToThread: async (id) => {
+                setThreadId(id);
+                return { messages: [createThreadMessage("message-b")] };
+              },
+              onSwitchToNewThread: async () => {
+                setThreadId("thread-new");
+              },
+            },
+          },
+        });
+      });
+
+      await act(async () => {
+        if (target === "existing")
+          await result.current.threads.switchToThread("thread-b");
+        else await result.current.threads.switchToNewThread();
+      });
+      const selectedId = result.current.threads.getState().mainThreadId;
+      const selectedMessages = result.current.thread.getState().messages;
+      await act(async () => {
+        resolveHistory({
+          headId: "message-a",
+          messages: [
+            { parentId: null, message: createThreadMessage("message-a") },
+          ],
+        });
+        await pending;
+      });
+      expect(result.current.threads.getState().mainThreadId).toBe(selectedId);
+      expect(result.current.thread.getState().messages).toEqual(
+        selectedMessages,
+      );
+      expect(result.current.thread.getState().isLoading).toBe(false);
+    },
+  );
 
   it("ignores a thread load superseded by a new thread", async () => {
     const { client } = createMockClient();

@@ -95,6 +95,7 @@ export class A2AThreadRuntimeCore {
   private readonly recordedHistoryIds = new Set<string>();
   private _isLoading = false;
   private _loadPromise: Promise<void> | undefined;
+  private _historyLoadGeneration = 0;
   private _loadRequested = false;
   private _agentCardPromise: Promise<void> | undefined;
   private _agentCardRetryAfter = 0;
@@ -257,16 +258,19 @@ export class A2AThreadRuntimeCore {
 
     this._isLoading = true;
 
+    const generation = this._historyLoadGeneration;
     const historyPromise = this.history.load();
 
     this._loadPromise = Promise.all([historyPromise, agentCardPromise])
       .then(([repo]) => {
+        if (generation !== this._historyLoadGeneration) return;
         if (repo) {
           this.session.applyExternalMessageRepository(repo);
           this.finalizeExternalApply();
         }
       })
       .catch((error) => {
+        if (generation !== this._historyLoadGeneration) return;
         invokeRuntimeCallback(
           "onError",
           this.onError,
@@ -274,6 +278,7 @@ export class A2AThreadRuntimeCore {
         );
       })
       .finally(() => {
+        if (generation !== this._historyLoadGeneration) return;
         this._isLoading = false;
         this.notifyUpdate();
       });
@@ -370,6 +375,8 @@ export class A2AThreadRuntimeCore {
   }
 
   applyExternalMessages(messages: readonly ThreadMessage[]): void {
+    this._historyLoadGeneration++;
+    this._isLoading = false;
     if (messages.length === 0) {
       this.session.clear();
     } else {
