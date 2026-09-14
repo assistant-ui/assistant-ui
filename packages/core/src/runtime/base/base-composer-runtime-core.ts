@@ -260,8 +260,21 @@ export abstract class BaseComposerRuntimeCore
         // this batch keep running; the send rejects immediately while the
         // retry lock is held until they settle, or a retry could re-send
         // attachments that are still in flight.
-        void Promise.allSettled(attachmentTasks).then(() => {
+        void Promise.allSettled(attachmentTasks).then((results) => {
           if (generation !== this._sendGeneration) return;
+          const completed = new Map<Attachment, CompleteAttachment>();
+          results.forEach((result, index) => {
+            const original = originalAttachments[index]!;
+            if (
+              result.status === "fulfilled" &&
+              !this._removedDuringSend.has(original.id)
+            ) {
+              completed.set(original, result.value);
+            }
+          });
+          this._attachments = this._attachments.map(
+            (attachment) => completed.get(attachment) ?? attachment,
+          );
           this._removedDuringSend.clear();
           this._isSending = false;
           this._notifySubscribers();
