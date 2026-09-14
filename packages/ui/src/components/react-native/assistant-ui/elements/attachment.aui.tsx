@@ -12,6 +12,7 @@ import * as ImagePicker from "expo-image-picker";
 import { PlusIcon, XIcon } from "lucide-react-native";
 import type { FC } from "react";
 import { Image, View } from "react-native";
+import { iconButtonHitSlop } from "./icon-button";
 
 const MAX_IMAGE_EDGE = 2048;
 
@@ -72,6 +73,7 @@ const ComposerAttachment: FC = () => {
       )}
       <AttachmentPrimitive.Remove
         className="aui-composer-attachment-remove bg-foreground absolute -top-1.5 -right-1.5 size-5 items-center justify-center rounded-full"
+        hitSlop={{ top: 14, right: 14 }}
         accessibilityLabel="Remove attachment"
       >
         <Icon as={XIcon} className="text-background size-3" />
@@ -122,6 +124,7 @@ export const ComposerAddAttachment: FC = () => {
     <ComposerPrimitive.AddAttachment
       onPress={pickImages}
       className="aui-composer-add-attachment active:bg-muted size-7 items-center justify-center rounded-full"
+      hitSlop={iconButtonHitSlop}
       accessibilityLabel="Add image"
     >
       <Icon as={PlusIcon} className="text-muted-foreground size-4" />
