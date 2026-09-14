@@ -538,6 +538,26 @@ describe("optimistic multi-message sends", () => {
 });
 
 describe("messageToEvent (contentToParts)", () => {
+  it.each([
+    ["scalar", "false", { result: false }],
+    ["array", "[1,2]", { results: [1, 2] }],
+  ])(
+    "normalizes an optimistic %s tool response",
+    (_label, content, response) => {
+      const event = messageToEvent({
+        id: "tool-1",
+        type: "tool",
+        content,
+        tool_call_id: "call-1",
+        name: "search",
+      });
+
+      expect(event.content?.parts[0]?.functionResponse?.response).toEqual(
+        response,
+      );
+    },
+  );
+
   it("serializes a file content part as inlineData", () => {
     const msg: AdkMessage = {
       id: "m1",

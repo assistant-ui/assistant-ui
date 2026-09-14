@@ -8,6 +8,10 @@ import {
   type ReactNode,
 } from "react";
 import { cn } from "@/lib/utils";
+import {
+  ElementPlatformProvider,
+  useElementPlatformOrDefault,
+} from "./element-platform";
 
 export type ElementMode = "runtime" | "standalone";
 
@@ -33,10 +37,26 @@ const ElementModeContext = createContext<{
 } | null>(null);
 
 export function ElementModeProvider({
+  native = false,
   className,
   children,
 }: {
+  native?: boolean;
   className?: string;
+  children: ReactNode;
+}) {
+  return (
+    <ElementPlatformProvider native={native}>
+      <ElementModeScope className={className}>{children}</ElementModeScope>
+    </ElementPlatformProvider>
+  );
+}
+
+function ElementModeScope({
+  className,
+  children,
+}: {
+  className: string | undefined;
   children: ReactNode;
 }) {
   const storedMode = useSyncExternalStore(
@@ -45,7 +65,9 @@ export function ElementModeProvider({
     noStoredMode,
   );
   const [chosenMode, setChosenMode] = useState<ElementMode | null>(null);
-  const mode = chosenMode ?? storedMode ?? "runtime";
+  const platform = useElementPlatformOrDefault();
+  const mode =
+    platform === "rn" ? "standalone" : (chosenMode ?? storedMode ?? "runtime");
 
   const setMode = (next: ElementMode) => {
     setChosenMode(next);

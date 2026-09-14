@@ -12,11 +12,11 @@ const event = (index: number): AssistantCloudEvent => ({
   thread_id: `thread-${index}`,
 });
 
-const createEvents = (enabled = true) => {
+const createEvents = (enabled: boolean | (() => boolean) = true) => {
   const makeRequest = vi.fn().mockResolvedValue({ accepted: 1 });
   const events = new AssistantCloudEvents(
     { makeRequest } as unknown as AssistantCloudAPI,
-    () => enabled,
+    typeof enabled === "function" ? enabled : () => enabled,
   );
   return { events, makeRequest };
 };
@@ -104,6 +104,31 @@ describe("AssistantCloudEvents", () => {
 
     await vi.advanceTimersByTimeAsync(2_000);
     expect(makeRequest).not.toHaveBeenCalled();
+  });
+
+  it("does not send queued batches after telemetry is disabled", async () => {
+    let enabled = true;
+    let resolveFirstRequest!: (value: { accepted: number }) => void;
+    const { events, makeRequest } = createEvents(() => enabled);
+    makeRequest.mockImplementationOnce(
+      () =>
+        new Promise((resolve) => {
+          resolveFirstRequest = resolve;
+        }),
+    );
+
+    for (let index = 0; index < 51; index++) events.track(event(index));
+    await vi.waitFor(() => expect(makeRequest).toHaveBeenCalledOnce());
+
+    enabled = false;
+    resolveFirstRequest({ accepted: 50 });
+
+    await vi.waitFor(() =>
+      expect(makeRequest.mock.results[0]?.value).resolves.toEqual({
+        accepted: 50,
+      }),
+    );
+    expect(makeRequest).toHaveBeenCalledOnce();
   });
 
   it("keeps every request below the server batch limit", async () => {

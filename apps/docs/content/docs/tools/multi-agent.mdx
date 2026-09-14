@@ -205,6 +205,38 @@ const toolkit = defineToolkit({
 });
 ```
 
+## Status
+
+While a nested conversation has a running assistant message, the tool call and the message that holds it stay `running` even after the outer run has ended. This is how delegated work that outlives the run shows up. Once the nested conversation settles without a tool result, the message reads `requires-action` with reason `tool-calls`, the same as any other pending tool call.
+
+The nested thread rendered by `MessagePartPrimitive.Messages` or `ReadonlyThreadProvider` reports `isRunning` from its trailing assistant message, and the background rule reads the same trailing message. A runtime that fills `messages` owns settling the nested status: a trailing nested assistant message left `running` keeps the outer message `running` until it is settled. On the `useExternalMessageConverter` path a cancelled run clears it; on the plain `useExternalStoreRuntime` path the store settles the nested transcript on cancel as well. A transcript imported from persistence starts idle: a nested message that was saved while running does not keep the outer message running.
+
+## Tasks
+
+`s.thread.tasks` derives child work from every tool call that carries a `messages` array, including an empty array. Tasks follow document order, with nested tasks directly after their parent. Each task includes `parentTaskId` and `depth` for reconstructing the hierarchy.
+
+The array keeps its identity while no task changes, so a component that subscribes to it does not rerender for unrelated streamed tokens. The walk stops past 32 levels of nesting; deeper tasks are not listed.
+
+```tsx
+import { useMemo } from "react";
+import { useAuiState } from "@assistant-ui/react";
+
+function TasksChip() {
+  const tasks = useAuiState((s) => s.thread.tasks);
+  const { running, total } = useMemo(
+    () => ({
+      running: tasks.filter((task) => task.status.type === "running").length,
+      total: tasks.length,
+    }),
+    [tasks],
+  );
+
+  return <span>{`${running}/${total} tasks running`}</span>;
+}
+```
+
+For imperative lookup, `aui.thread.task({ id })` resolves the first task with that toolCallId in document order (nested conversations may repeat ids), or use an index selector.
+
 ## ReadonlyThreadProvider
 
 For advanced use cases where you have a `ThreadMessage[]` array and want to render it as a thread outside of a tool call context, use `ReadonlyThreadProvider` directly:
@@ -241,7 +273,7 @@ function SubConversation({
 - [Generative UI](/docs/tools/tool-ui) — Creating tool call UIs
 - [react-o11y](/docs/utilities/react-o11y) — Visualize sub-agent execution as collapsible span trees, waterfalls, and call timelines
 - [MessagePartPrimitive](/docs/api-reference/primitives/message-part) — API reference for message part primitives
-- [Sub-Agent Model Tracking](/docs/cloud/ai-sdk#sub-agent-model-tracking) — Track delegated model usage and costs in the Cloud dashboard
+- [Sub-Agent Model Tracking](/docs/cloud/traces#sub-agent-model-tracking) — Track delegated model usage and costs in the Cloud dashboard
 - [AG-UI Subagents](/docs/runtimes/ag-ui/runtime-options#subagents) — Nested subagent messages attributed from the AG-UI event stream
 - [LangGraph Streaming](/docs/runtimes/langgraph/streaming) — Event handlers, subgraph events, and message metadata
 - [LangGraph Generative UI](/docs/runtimes/langgraph/generative-ui) — Structured UI components emitted by your graph

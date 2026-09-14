@@ -241,6 +241,50 @@ describe("buildInteractableModelContext", () => {
       expect(mockGenerateId).toHaveBeenCalledOnce();
     });
 
+    it.each(["__proto__", "toString"])(
+      "mints ids for items in a prototype-named array field %s",
+      async (field) => {
+        const itemSchema = {
+          type: "object" as const,
+          properties: {
+            id: { type: "string" as const },
+            title: { type: "string" as const },
+          },
+          required: ["id", "title"],
+        };
+        const schema = {
+          type: "object" as const,
+          properties: Object.fromEntries([
+            [field, { type: "array" as const, items: itemSchema }],
+          ]),
+        };
+        const state = Object.fromEntries([[field, []]]);
+        const defs = { b1: def("b1", "taskBoard", state) };
+        const { ctx } = build(defs, new Map([["b1", schema]]));
+        const args = Object.fromEntries([
+          ["id", "b1"],
+          [field, { add: [{ title: "Write tests" }] }],
+        ]);
+
+        const result = (await ctx!.tools["update_taskBoard"]!.execute!(
+          args,
+          {} as never,
+        )) as {
+          addedItemIds: Record<string, string[]>;
+        };
+
+        expect(Object.getPrototypeOf(result.addedItemIds)).toBe(
+          Object.prototype,
+        );
+        expect(Object.hasOwn(result.addedItemIds, field)).toBe(true);
+        expect(result.addedItemIds[field]).toEqual(["generated-id"]);
+        expect(Object.hasOwn(defs.b1.state as object, field)).toBe(true);
+        expect((defs.b1.state as Record<string, unknown>)[field]).toEqual([
+          { title: "Write tests", id: "generated-id" },
+        ]);
+      },
+    );
+
     it("rejects an unknown id and lists valid ids", async () => {
       const defs = { n1: def("n1", "note"), n2: def("n2", "note") };
       const { ctx, setDefState } = build(defs);

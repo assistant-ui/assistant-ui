@@ -1,12 +1,15 @@
 import type { WeekStart } from "../types";
 
 export const normalizeDate = (d: string | Date): Date => {
-  if (typeof d === "string") {
-    // Parse YYYY-MM-DD as local date (not UTC)
+  // Date-only strings are local calendar days; timestamps are instants
+  // projected onto their local calendar day.
+  if (typeof d === "string" && /^\d{4}-\d{2}-\d{2}$/.test(d)) {
     const [y, m, day] = d.split("-").map(Number);
     return new Date(y!, m! - 1, day);
   }
-  return new Date(d.getFullYear(), d.getMonth(), d.getDate());
+
+  const date = typeof d === "string" ? new Date(d) : d;
+  return new Date(date.getFullYear(), date.getMonth(), date.getDate());
 };
 
 export const dateToKey = (d: Date): string => {

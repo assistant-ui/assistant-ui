@@ -1,4 +1,4 @@
-import { afterEach, describe, expect, it, vi } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 
 const mocks = vi.hoisted(() => ({
   checkRateLimit: vi.fn(),
@@ -54,10 +54,6 @@ const request = () =>
       builderConfig: {},
     }),
   });
-
-afterEach(() => {
-  vi.clearAllMocks();
-});
 
 describe("POST /api/playground-chat telemetry", () => {
   it("reports under its own capability so it separates from the other chat routes", async () => {

@@ -54,23 +54,28 @@ const mocks = vi.hoisted(() => {
       return { history };
     },
   };
-  return { adapter };
+  return {
+    adapter,
+    useCloudThreadListAdapter: vi.fn(() => adapter),
+  };
 });
 
 vi.mock("@assistant-ui/core/react", async (importOriginal) => ({
   ...(await importOriginal<typeof import("@assistant-ui/core/react")>()),
-  useCloudThreadListAdapter: () => mocks.adapter,
+  useCloudThreadListAdapter: mocks.useCloudThreadListAdapter,
 }));
 
 import { AISDKThreads } from "./AISDKThreads";
 import { createCancellableTransport } from "./__tests__/controlled-transport";
+import { AI_SDK_SDK } from "./sdkIdentity";
 
 describe("AISDKThreads cloud", () => {
   it("reloads history when switching a keyed cloud thread", async () => {
+    const cloud = {} as AssistantCloud;
     const handle = createAssistantClient(
       AuiConfig({
         threads: AISDKThreads({
-          cloud: {} as AssistantCloud,
+          cloud,
           threadId: "t1",
         }),
       }),
@@ -83,6 +88,10 @@ describe("AISDKThreads cloud", () => {
     });
     await vi.waitFor(() => {
       expect(load).toHaveBeenCalled();
+    });
+    expect(mocks.useCloudThreadListAdapter).toHaveBeenCalledWith({
+      cloud,
+      sdk: AI_SDK_SDK,
     });
     const afterFirst = load.mock.calls.length;
     flushTapSync(() => aui.threads.switchToThread("t2"));

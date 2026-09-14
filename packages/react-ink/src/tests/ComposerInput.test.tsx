@@ -69,7 +69,6 @@ const flush = async () => {
 
 afterEach(() => {
   cleanup();
-  vi.clearAllMocks();
   inputHandler = undefined;
 });
 

@@ -32,12 +32,33 @@ export class CompositeContextProvider implements ModelContextProvider {
     }
     this._providerUnsubscribes.set(id, unsubscribe);
     this.notifySubscribers();
+    let released = false;
     return () => {
+      if (released) return;
+      released = true;
       this._providers.delete(id);
       const unsubscribe = this._providerUnsubscribes.get(id);
-      unsubscribe?.();
       this._providerUnsubscribes.delete(id);
-      this.notifySubscribers();
+
+      let cleanupFailed = false;
+      let cleanupError: unknown;
+      const runCleanup = (cleanup: () => void) => {
+        try {
+          cleanup();
+        } catch (error) {
+          if (cleanupFailed) {
+            console.error(error);
+          } else {
+            cleanupFailed = true;
+            cleanupError = error;
+          }
+        }
+      };
+
+      if (unsubscribe) runCleanup(unsubscribe);
+      runCleanup(() => this.notifySubscribers());
+
+      if (cleanupFailed) throw cleanupError;
     };
   }
 

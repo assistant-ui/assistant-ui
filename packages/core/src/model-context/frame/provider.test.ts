@@ -120,6 +120,42 @@ describe("AssistantFrameProvider", () => {
     await vi.waitFor(() => expect(execute).toHaveBeenCalledOnce());
   });
 
+  it("does not broadcast from a disposed provider", async () => {
+    vi.useFakeTimers();
+
+    try {
+      AssistantFrameProvider.addModelContextProvider({
+        getModelContext: () => ({ system: "disposed context" }),
+      });
+      AssistantFrameProvider.dispose();
+
+      AssistantFrameProvider.addModelContextProvider({
+        getModelContext: () => ({ system: "current context" }),
+      });
+      vi.mocked(parentWindow.postMessage).mockClear();
+
+      await vi.runAllTimersAsync();
+
+      expect(parentWindow.postMessage).toHaveBeenCalledOnce();
+      expect(parentWindow.postMessage).toHaveBeenCalledWith(
+        {
+          channel: FRAME_MESSAGE_CHANNEL,
+          message: {
+            type: "model-context-update",
+            context: {
+              system: "current context",
+              tools: {},
+            },
+          },
+        },
+        window.location.origin,
+      );
+    } finally {
+      AssistantFrameProvider.dispose();
+      vi.useRealTimers();
+    }
+  });
+
   it("reports a failure even when the thrown error has an empty message", async () => {
     const execute = vi.fn(async () => {
       throw new Error();

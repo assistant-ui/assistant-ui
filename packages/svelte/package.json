@@ -33,9 +33,9 @@
     "test:watch": "vitest"
   },
   "dependencies": {
-    "@assistant-ui/core": "^0.3.17",
-    "@assistant-ui/store": "^0.3.12",
-    "@assistant-ui/tap": "^0.9.16"
+    "@assistant-ui/core": "^0.3.18",
+    "@assistant-ui/store": "^0.3.13",
+    "@assistant-ui/tap": "^0.9.17"
   },
   "peerDependencies": {
     "svelte": "^5.29.0"
@@ -47,7 +47,7 @@
     "@types/react": "^19.2.18",
     "jsdom": "^30.0.1",
     "svelte": "^5.57.0",
-    "vitest": "^4.1.11"
+    "vitest": "^5.0.0"
   },
   "homepage": "https://www.assistant-ui.com/",
   "repository": {

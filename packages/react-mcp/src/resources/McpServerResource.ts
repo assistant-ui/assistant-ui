@@ -34,6 +34,7 @@ import type {
   MCPToolInfo,
 } from "../mcp-scope";
 import { createMcpId } from "../utils/createMcpId";
+import { beginMcpServerRemovalFence } from "./McpServerRemovalFence";
 
 export type McpServerResourceProps = {
   id: string;
@@ -666,16 +667,19 @@ const useMcpServerResourceInstance = (
     connect: doConnect,
     disconnect: doDisconnect,
     remove: async () => {
-      await doDisconnect();
+      const releaseRemovalFence = beginMcpServerRemovalFence(props);
       try {
+        await doDisconnect();
         await clearOAuthProviderAuthState(props.storage, props.id);
         await props.onRemove();
       } catch (err) {
+        releaseRemovalFence?.();
         setLastError({
           message: err instanceof Error ? err.message : String(err),
         });
         throw err;
       }
+      releaseRemovalFence?.();
     },
     callTool: async (name, args) => {
       const client = clientRef.current;

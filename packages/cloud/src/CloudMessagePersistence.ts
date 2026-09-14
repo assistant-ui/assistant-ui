@@ -5,15 +5,9 @@ import type { CloudMessage } from "./AssistantCloudThreadMessages";
 const CLOUD_MESSAGE_PAGE_SIZE = 200;
 
 /**
- * Shared persistence logic for cloud message storage.
- *
- * Handles ID mapping (local → remote) and parent_id chaining for both:
- * - AssistantCloudThreadHistoryAdapter (assistant-ui runtime)
- * - useCloudChat (standalone AI SDK hook)
- *
- * The promise-based ID resolution handles concurrent appends — if message B's
- * parent is message A, and A is still being created, we await A's promise
- * to get its remote ID before creating B.
+ * Appends, updates and loads cloud messages while mapping local ids to cloud
+ * ids and chaining parent_id. A parent that is still being created is awaited,
+ * so concurrent appends land under the right parent.
  */
 export class CloudMessagePersistence {
   private idMapping = new Map<string, string | Promise<string>>();
@@ -131,6 +125,7 @@ export class CloudMessagePersistence {
    * @returns Array of cloud messages
    */
   async load(threadId: string, format?: string) {
+    const idMapping = this.idMapping;
     const cloud = this.getCloud();
     const messages: CloudMessage[] = [];
     const seen = new Set<string>();
@@ -156,17 +151,21 @@ export class CloudMessagePersistence {
       after = last.id;
     }
 
-    // Populate ID mapping so isPersisted() recognizes loaded messages
-    for (const m of messages) {
-      this.idMapping.set(m.id, m.id);
+    if (this.idMapping === idMapping) {
+      for (const m of messages) {
+        idMapping.set(m.id, m.id);
+      }
     }
     return messages;
   }
 
   /**
    * Reset the ID mapping (call when switching threads).
+   *
+   * Pending `load()` and `append()` calls are not cancelled and still settle
+   * normally, but their results no longer populate the ID mapping.
    */
   reset() {
-    this.idMapping.clear();
+    this.idMapping = new Map();
   }
 }

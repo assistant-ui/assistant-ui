@@ -1,0 +1,20 @@
+{
+  "title": "Store",
+  "description": "@assistant-ui/store bridges tap resources to React components.",
+  "icon": "Database",
+  "root": true,
+  "platforms": ["tap"],
+  "pages": [
+    "why-store",
+    "quickstart",
+    "scopes",
+    "methods",
+    "state",
+    "events",
+    "meta",
+    "child-scopes",
+    "rendering-lists",
+    "sibling-scopes",
+    "api-reference"
+  ]
+}
