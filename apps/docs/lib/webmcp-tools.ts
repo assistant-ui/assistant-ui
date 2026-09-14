@@ -14,8 +14,15 @@ type WebMcpToolResult = {
   isError?: boolean;
 };
 
+export type WebMcpToolName =
+  | "searchDocs"
+  | "getDoc"
+  | "getExample"
+  | "listSkills"
+  | "getSkill";
+
 type WebMcpToolDescriptor = {
-  name: "searchDocs" | "getDoc" | "getExample";
+  name: WebMcpToolName;
   description: string;
   inputSchema: Record<string, unknown>;
   annotations?: { readOnlyHint?: boolean };
@@ -221,6 +228,14 @@ function examplePath(path: string) {
     : `examples/${normalized}`;
 }
 
+function jsonResult(value: unknown): WebMcpToolResult {
+  return { content: [{ type: "text", text: JSON.stringify(value) }] };
+}
+
+// The vendored skills weigh ~200 KB, so they load on the first call rather
+// than with every docs page.
+const loadAgentSkills = () => import("./agent-skills");
+
 function webMcpTools(fetchImpl: FetchLike): WebMcpToolDescriptor[] {
   return [
     {
@@ -293,6 +308,52 @@ function webMcpTools(fetchImpl: FetchLike): WebMcpToolDescriptor[] {
           { path: examplePath(path) },
           context?.signal,
         );
+      },
+    },
+    {
+      name: "listSkills",
+      description:
+        "List the assistant-ui agent skills: task-shaped guides (setup, tools, runtime, streaming, ...) for building with assistant-ui. Returns every skill's name and description; read one with getSkill.",
+      inputSchema: {
+        type: "object",
+        properties: {},
+        additionalProperties: false,
+      },
+      annotations: { readOnlyHint: true },
+      execute: async () => {
+        const { listSkills } = await loadAgentSkills();
+        return jsonResult(listSkills());
+      },
+    },
+    {
+      name: "getSkill",
+      description:
+        "Read one assistant-ui agent skill by name, such as tools or setup. Returns its name, description, and full markdown content.",
+      inputSchema: {
+        type: "object",
+        properties: {
+          name: {
+            type: "string",
+            description: "Skill name as returned by listSkills, such as tools.",
+          },
+        },
+        required: ["name"],
+        additionalProperties: false,
+      },
+      annotations: { readOnlyHint: true },
+      execute: async (args) => {
+        const name = stringArg(args, "name");
+        if (!name) throw new Error("name is required");
+        const { getSkill, listSkills } = await loadAgentSkills();
+        const skill = getSkill(name);
+        if (!skill) {
+          throw new Error(
+            `Unknown skill: ${name}. Valid names: ${listSkills()
+              .map((s) => s.name)
+              .join(", ")}`,
+          );
+        }
+        return jsonResult(skill);
       },
     },
   ];
