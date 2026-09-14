@@ -994,8 +994,6 @@ declare abstract class BaseThreadRuntimeCore extends BaseSubscribable implements
   abstract importExternalState(state: any): void;
   abstract unstable_notifySessionReset(): void;
   protected _voiceMessages: ThreadMessage[];
-  protected _voiceGeneration: number;
-  protected _markVoiceMessagesDirty(): void;
   protected _getBaseMessages(): readonly ThreadMessage[];
   get messages(): readonly ThreadMessage[];
   get state(): string | number | boolean | ReadonlyJSONObject | ReadonlyJSONArray | null;
