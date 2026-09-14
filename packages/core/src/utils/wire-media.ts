@@ -64,11 +64,9 @@ export function resolveFileMediaType(
  * and is authoritative for the bytes it carries anyway.
  */
 export function toMediaWireUrl(payload: string, mediaType: string): string {
-  const parsed = parseDataUrl(payload);
+  const parsed = parseDataUrl(payload, "");
   if (parsed) {
-    const header = payload.slice(5, payload.indexOf(","));
-    const declaredMediaType = header.slice(0, header.indexOf(";"));
-    return parsed.mimeType === mediaType && declaredMediaType
+    return parsed.mimeType === mediaType
       ? payload
       : `data:${mediaType};base64,${parsed.data}`;
   }

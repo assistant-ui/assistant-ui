@@ -62,6 +62,23 @@ describe("toAgUiMessages data URLs", () => {
       ]);
     },
   );
+
+  it("sniffs a media-less image data URL", () => {
+    expect(
+      contentOf(
+        userMessage([{ type: "image", image: "data:;base64,iVBORw0KGgo=" }]),
+      ),
+    ).toEqual([
+      {
+        type: "image",
+        source: {
+          type: "data",
+          value: "iVBORw0KGgo=",
+          mimeType: "image/png",
+        },
+      },
+    ]);
+  });
 });
 
 describe("toAgUiMessages content metadata", () => {

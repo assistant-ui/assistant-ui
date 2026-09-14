@@ -13,6 +13,7 @@ import {
   getAutoStatus,
   parseDataUrl,
   resolveFilePartSource,
+  resolveImageMediaType,
 } from "@assistant-ui/core/internal";
 import { type Tool, toToolsJSONSchema } from "assistant-stream";
 import type { ReadonlyJSONObject } from "assistant-stream/utils";
@@ -280,9 +281,16 @@ function toInputContent(
     const image = getString(part, "image");
     if (image === undefined) return null;
     const metadata = buildInputMetadata(part, getString(part, "filename"));
+    const source = buildInputSource(image, fallbackMimeType);
     return {
       type: "image",
-      source: buildInputSource(image, fallbackMimeType),
+      source:
+        source.type === "data"
+          ? {
+              ...source,
+              mimeType: resolveImageMediaType(image, fallbackMimeType),
+            }
+          : source,
       ...(metadata && { metadata }),
     };
   }
