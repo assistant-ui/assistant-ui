@@ -17,7 +17,11 @@ describe("toCreateMessage", () => {
       "data:application/octet-stream;base64,SGVsbG8=",
       "application/octet-stream",
     ],
-    ["data:;charset=utf-8,hello", "data:;charset=utf-8,hello", "text/plain"],
+    [
+      "data:;charset=utf-8,hello",
+      "data:text/plain;charset=utf-8,hello",
+      "text/plain",
+    ],
     [
       "data:;base64,",
       "data:application/octet-stream;base64,",

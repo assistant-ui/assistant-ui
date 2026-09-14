@@ -122,9 +122,11 @@ describe("toMediaWireUrl", () => {
     },
   );
 
-  it("preserves media-less text when the wire type agrees with the text default", () => {
-    const payload = "data:,hello";
-    expect(toMediaWireUrl(payload, "text/plain")).toBe(payload);
+  it.each([
+    ["data:,hello", "data:text/plain,hello"],
+    ["data:;charset=utf-8,hello", "data:text/plain;charset=utf-8,hello"],
+  ])("stamps a media-less percent-encoded URL %s", (payload, expected) => {
+    expect(toMediaWireUrl(payload, "text/plain")).toBe(expected);
   });
 
   it.each(["data:;base64,QUJD", "data:;charset=utf-8;base64,"])(
