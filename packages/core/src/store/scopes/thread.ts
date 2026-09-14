@@ -82,7 +82,7 @@ export type ThreadMethods = {
    */
   suggestions(): SuggestionsMethods;
   /**
-   * Access a task by index or toolCallId.
+   * Access a task by index or toolCallId; an id resolves the first task with that toolCallId in document order.
    */
   task(selector: { index: number } | { id: string }): TaskMethods;
   /**

@@ -105,5 +105,105 @@ describe("thread tasks", () => {
     await waitFor(() =>
       expect(captured.tasks?.[0]?.status).toEqual({ type: "complete" }),
     );
+    expect(captured.tasks?.[0]).toMatchObject({
+      toolName: "delegate",
+      messageId: "message-1",
+      result: "done",
+    });
+    expect(captured.tasks?.[0]?.messages).toHaveLength(1);
+  });
+
+  it("resolves a repeated toolCallId to the first task in document order", async () => {
+    const nested = (id: string, toolCallId: string) =>
+      ({
+        id,
+        role: "assistant",
+        createdAt: new Date(0),
+        content: [
+          {
+            type: "tool-call",
+            toolCallId,
+            toolName: "search",
+            args: {},
+            argsText: "{}",
+            result: "ok",
+            messages: [],
+          },
+        ],
+        status: { type: "complete", reason: "stop" },
+        metadata: {
+          unstable_state: {},
+          unstable_annotations: [],
+          unstable_data: [],
+          steps: [],
+          custom: {},
+        },
+      }) as ThreadMessage;
+    const message = {
+      id: "message-1",
+      role: "assistant",
+      createdAt: new Date(0),
+      content: [
+        {
+          type: "tool-call",
+          toolCallId: "delegate-a",
+          toolName: "delegate",
+          args: {},
+          argsText: "{}",
+          result: "ok",
+          messages: [nested("nested-a", "call_1")],
+        },
+        {
+          type: "tool-call",
+          toolCallId: "delegate-b",
+          toolName: "delegate",
+          args: {},
+          argsText: "{}",
+          result: "ok",
+          messages: [nested("nested-b", "call_1")],
+        },
+      ],
+      status: { type: "complete", reason: "stop" },
+      metadata: {
+        unstable_state: {},
+        unstable_annotations: [],
+        unstable_data: [],
+        steps: [],
+        custom: {},
+      },
+    } as ThreadMessage;
+    const captured: { ids?: readonly string[]; first?: TaskState } = {};
+    const Probe = () => {
+      const tasks = useAuiState((s) => s.thread.tasks);
+      const aui = useAui();
+      captured.ids = tasks.map((task) => task.id);
+      if (tasks.length === 4) {
+        captured.first = aui.thread.task({ id: "call_1" }).getState();
+      }
+      return null;
+    };
+    const App = () => {
+      const runtime = useExternalStoreRuntime({
+        messages: [message],
+        convertMessage: (m) => m,
+        onNew: async () => {},
+      });
+      return (
+        <AssistantRuntimeProvider runtime={runtime}>
+          <Probe />
+        </AssistantRuntimeProvider>
+      );
+    };
+
+    render(<App />);
+
+    await waitFor(() => expect(captured.ids).toHaveLength(4));
+    expect(captured.ids).toEqual([
+      "delegate-a",
+      "call_1",
+      "delegate-b",
+      "call_1",
+    ]);
+    expect(captured.first).toMatchObject({ messageId: "nested-a" });
   });
 });

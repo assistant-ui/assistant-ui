@@ -16,7 +16,11 @@ import {
 import { ComposerClient } from "./composer-runtime-client";
 import { MessageClient } from "./message-runtime-client";
 import { ThreadSuggestions } from "../clients/suggestions";
-import { createTaskDeriver, TaskClient } from "../clients/thread-tasks";
+import {
+  createTaskDeriver,
+  getTaskKey,
+  TaskClient,
+} from "../clients/thread-tasks";
 import { useSubscribable } from "./useSubscribable";
 import type { ThreadState } from "../scopes/thread";
 
@@ -116,7 +120,9 @@ const useThreadClient = ({
     [taskDeriver, runtimeState.messages],
   );
   const taskClients = useClientLookup(
-    tasks.map((task) => withKey(task.id, TaskClient({ task }), [task])),
+    tasks.map((task) =>
+      withKey(getTaskKey(task), TaskClient({ task }), [task]),
+    ),
   );
   const messages = useClientLookup(
     runtimeState.messages.map((m) =>
@@ -158,7 +164,9 @@ const useThreadClient = ({
     suggestions: () => suggestions.methods,
     task: (selector) => {
       if ("id" in selector) {
-        return taskClients.get({ key: selector.id });
+        return taskClients.get({
+          index: tasks.findIndex((task) => task.id === selector.id),
+        });
       }
       return taskClients.get(selector);
     },

@@ -55,7 +55,7 @@ import { toMessagePartStatus } from "../../utils/normalizePartStatus";
 import { generateId } from "../../utils/id";
 import { ModelContext } from "./model-context-client";
 import { ThreadSuggestions } from "./suggestions";
-import { createTaskDeriver, TaskClient } from "./thread-tasks";
+import { createTaskDeriver, getTaskKey, TaskClient } from "./thread-tasks";
 import { Tools } from "../../react/client/Tools";
 import { DataRenderers } from "../../react/client/DataRenderers";
 import { SingleThreadList } from "./single-thread-list";
@@ -1029,7 +1029,9 @@ const useExternalThread = ({
   const taskDeriver = useMemo(() => createTaskDeriver(), []);
   const tasks = useMemo(() => taskDeriver(messages), [taskDeriver, messages]);
   const taskClients = useClientLookup(
-    tasks.map((task) => withKey(task.id, TaskClient({ task }), [task])),
+    tasks.map((task) =>
+      withKey(getTaskKey(task), TaskClient({ task }), [task]),
+    ),
   );
 
   const handleCancelRun = () => {
@@ -1151,7 +1153,9 @@ const useExternalThread = ({
     suggestions: () => suggestionsClient.methods,
     task: (selector) => {
       if ("id" in selector) {
-        return taskClients.get({ key: selector.id });
+        return taskClients.get({
+          index: tasks.findIndex((task) => task.id === selector.id),
+        });
       }
       return taskClients.get(selector);
     },

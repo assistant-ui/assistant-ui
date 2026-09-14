@@ -166,6 +166,36 @@ describe("createTaskDeriver", () => {
     });
   });
 
+  it("rebuilds an entry when an unchanged part moves to another message", () => {
+    const part = toolCall("moving", []);
+    const derive = createTaskDeriver();
+    const initial = derive([
+      assistantMessage("first-message", { type: "running" }, [part]),
+    ]);
+    const moved = derive([
+      assistantMessage("second-message", { type: "running" }, [part]),
+    ]);
+
+    expect(moved[0]).not.toBe(initial[0]);
+    expect(moved[0]?.messageId).toBe("second-message");
+  });
+
+  it("stops descending past the depth cap", () => {
+    let content: readonly ToolCallMessagePart[] = [toolCall("leaf", [])];
+    for (let level = 40; level > 0; level -= 1) {
+      content = [
+        toolCall(`level-${level}`, [
+          assistantMessage(`message-${level}`, { type: "running" }, content),
+        ]),
+      ];
+    }
+    const tasks = createTaskDeriver()([
+      assistantMessage("root", { type: "running" }, content),
+    ]);
+
+    expect(Math.max(...tasks.map((task) => task.depth))).toBe(32);
+  });
+
   it("preserves unchanged entries when a task is appended", () => {
     const first = toolCall("first", []);
     const derive = createTaskDeriver();

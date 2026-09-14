@@ -235,7 +235,7 @@ function TasksChip() {
 }
 ```
 
-For imperative lookup, `aui.thread.task({ id })` resolves one task by its toolCallId (or use an index selector).
+For imperative lookup, `aui.thread.task({ id })` resolves the first task with that toolCallId in document order (nested conversations may repeat ids), or use an index selector.
 
 ## ReadonlyThreadProvider
 

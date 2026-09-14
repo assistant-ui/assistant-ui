@@ -23,6 +23,11 @@ const getStatusReason = (status: ToolCallMessagePartStatus) =>
 const getStatusError = (status: ToolCallMessagePartStatus) =>
   "error" in status ? status.error : undefined;
 
+const MAX_TASK_DEPTH = 32;
+
+/** Lookup key for a task client; toolCallIds repeat across nested conversations, message ids do not. */
+export const getTaskKey = (task: TaskState) => `${task.messageId}:${task.id}`;
+
 export const createTaskDeriver = () => {
   let previous: readonly TaskState[] = [];
   let previousEntries = new Map<string, TaskEntry>();
@@ -37,6 +42,7 @@ export const createTaskDeriver = () => {
       parentTaskId: string | null,
       depth: number,
     ) => {
+      if (depth > MAX_TASK_DEPTH) return;
       for (const message of threadMessages) {
         for (const [partIndex, part] of message.content.entries()) {
           if (part.type !== "tool-call" || part.messages === undefined)
@@ -52,7 +58,10 @@ export const createTaskDeriver = () => {
             previousEntry.statusType === status.type &&
             previousEntry.statusReason === statusReason &&
             Object.is(previousEntry.statusError, statusError) &&
-            previousEntry.messages === nestedMessages
+            previousEntry.messages === nestedMessages &&
+            previousEntry.task.messageId === message.id &&
+            previousEntry.task.parentTaskId === parentTaskId &&
+            previousEntry.task.depth === depth
               ? previousEntry.task
               : {
                   id: part.toolCallId,
