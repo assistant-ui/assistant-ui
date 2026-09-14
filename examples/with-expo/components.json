@@ -1,9 +1,6 @@
 {
   "$schema": "https://ui.shadcn.com/schema.json",
   "style": "new-york",
-  "registries": {
-    "@assistant-ui": "https://r.assistant-ui.com/native/{name}.json"
-  },
   "rsc": false,
   "tsx": true,
   "tailwind": {

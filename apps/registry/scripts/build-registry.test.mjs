@@ -1,6 +1,7 @@
 import assert from "node:assert/strict";
 import { access, readFile, writeFile, mkdir } from "node:fs/promises";
 import test from "node:test";
+import { fileURLToPath } from "node:url";
 import "tsx/esm";
 
 const {
@@ -106,7 +107,7 @@ test("the native registry serves every component the Expo example imports", asyn
     ...SHARED_REGISTRY_ITEMS,
   ]);
   const { assistantUI, shadcnUI } = scanRequiredComponents(
-    new URL("../../../examples/with-expo", import.meta.url).pathname,
+    fileURLToPath(new URL("../../../examples/with-expo", import.meta.url)),
   );
   assert.ok(assistantUI.length > 0);
   for (const name of [...assistantUI, ...shadcnUI]) {

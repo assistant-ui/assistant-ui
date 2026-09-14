@@ -5,7 +5,7 @@ A native chat app built with [assistant-ui](https://www.assistant-ui.com) and [E
 The chat is powered by `@assistant-ui/react-native` with the AI SDK runtime (`@assistant-ui/ai-sdk`). The UI comes from the assistant-ui React Native kit (`packages/ui/src/components/react-native`), styled with Tailwind classes through [Uniwind](https://uniwind.dev) and the same design tokens as the web kit, so the thread, composer, attachments, and thread list read the same on every platform. The example adds:
 
 - **Image picker** (`expo-image-picker`) for attachments and **clipboard** (`expo-clipboard`) for the copy action.
-- A native **drawer** (`@react-navigation/drawer`) for the thread list, with a swipe gesture to switch conversations.
+- A native **drawer** (`expo-router/drawer`) for the thread list, with a swipe gesture to switch conversations.
 - A `"use generative"` toolkit (`components/tools.tsx`) that renders weather cards inline.
 
 ## Get started

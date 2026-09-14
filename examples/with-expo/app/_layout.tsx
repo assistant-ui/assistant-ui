@@ -66,15 +66,20 @@ function DrawerLayout() {
   ]);
 
   const base = theme === "dark" ? DarkTheme : DefaultTheme;
+  const colors = {
+    background: String(background ?? base.colors.background),
+    text: String(foreground ?? base.colors.text),
+    border: String(border ?? base.colors.border),
+  };
   const navTheme: Theme = {
     ...base,
     colors: {
       ...base.colors,
-      background: String(background ?? base.colors.background),
-      card: String(background ?? base.colors.card),
-      text: String(foreground ?? base.colors.text),
-      border: String(border ?? base.colors.border),
-      primary: String(foreground ?? base.colors.primary),
+      background: colors.background,
+      card: colors.background,
+      text: colors.text,
+      border: colors.border,
+      primary: colors.text,
     },
   };
 
@@ -85,12 +90,12 @@ function DrawerLayout() {
         screenOptions={{
           headerRight: () => <NewChatButton />,
           headerShadowVisible: false,
-          headerTintColor: String(foreground),
-          headerStyle: { backgroundColor: String(background) },
+          headerTintColor: colors.text,
+          headerStyle: { backgroundColor: colors.background },
           headerTitleStyle: { fontWeight: "600" },
           drawerType: "front",
           swipeEnabled: true,
-          drawerStyle: { backgroundColor: String(background) },
+          drawerStyle: { backgroundColor: colors.background },
         }}
       >
         <Drawer.Screen name="index" options={{ title: "Chat" }} />
