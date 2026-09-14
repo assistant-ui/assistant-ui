@@ -10,6 +10,17 @@ type ThreadMessageLikeContentItem = Exclude<
 export const isPendingToolCall = (c: ThreadMessageLikeContentItem): boolean =>
   c.type === "tool-call" && c.result === undefined;
 
+/** A pending tool call whose nested conversation is still streaming; the outer message stays running until the nested run settles. */
+export const isBackgroundToolCall = (
+  c: ThreadMessageLikeContentItem,
+): boolean =>
+  c.type === "tool-call" &&
+  c.result === undefined &&
+  c.messages?.some(
+    (message) =>
+      message.role === "assistant" && message.status.type === "running",
+  ) === true;
+
 export const isInterruptedToolCall = (
   c: ThreadMessageLikeContentItem,
 ): boolean => {
@@ -76,6 +87,7 @@ export const getAutoStatus = (
   hasPendingToolCalls: boolean,
   error?: ReadonlyJSONValue,
   isCancelled?: boolean,
+  hasBackgroundToolCalls?: boolean,
 ): MessageStatus => {
   if (isLast && error) {
     return Object.assign(
@@ -92,11 +104,13 @@ export const getAutoStatus = (
     ? AUTO_STATUS_RUNNING
     : hasInterruptedToolCalls
       ? AUTO_STATUS_INTERRUPT
-      : hasPendingToolCalls
-        ? AUTO_STATUS_PENDING
-        : isCancelled
-          ? AUTO_STATUS_CANCELLED
-          : AUTO_STATUS_COMPLETE;
+      : hasBackgroundToolCalls
+        ? AUTO_STATUS_RUNNING
+        : hasPendingToolCalls
+          ? AUTO_STATUS_PENDING
+          : isCancelled
+            ? AUTO_STATUS_CANCELLED
+            : AUTO_STATUS_COMPLETE;
 };
 
 export const getContentAutoStatus = (
@@ -109,4 +123,7 @@ export const getContentAutoStatus = (
     isRunning,
     typeof content !== "string" && content.some(isInterruptedToolCall),
     typeof content !== "string" && content.some(isPendingToolCall),
+    undefined,
+    undefined,
+    typeof content !== "string" && content.some(isBackgroundToolCall),
   );
