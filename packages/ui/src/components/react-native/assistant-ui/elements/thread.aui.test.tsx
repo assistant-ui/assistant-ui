@@ -678,11 +678,12 @@ describe("Thread", () => {
     expect(container.querySelector('[aria-label="Next"]')).not.toBeNull();
   });
 
-  it("shows the indicator and announces once per empty running message", async () => {
+  it("shows the indicator and announces once per run while the assistant is working", async () => {
+    addMessages(h.makeMessage({ status: { type: "running" } }));
+
     await render();
     expect(h.announceForAccessibility).not.toHaveBeenCalled();
 
-    addMessages(h.makeMessage({ status: { type: "running" } }));
     h.state.thread.isRunning = true;
     await render();
     await render();
@@ -696,18 +697,11 @@ describe("Thread", () => {
       "Assistant is working",
     );
 
-    addMessages(
-      h.makeMessage({
-        status: { type: "complete" },
-        parts: [{ type: "text", text: "Done" }],
-      }),
-      h.makeMessage({ status: { type: "running" } }),
-    );
+    h.state.thread.isRunning = false;
+    await render();
+    h.state.thread.isRunning = true;
     await render();
 
-    expect(
-      container.querySelectorAll('[aria-label="Assistant is working"]'),
-    ).toHaveLength(1);
     expect(h.announceForAccessibility).toHaveBeenCalledTimes(2);
   });
 

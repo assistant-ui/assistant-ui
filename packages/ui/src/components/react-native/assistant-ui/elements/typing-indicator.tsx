@@ -55,16 +55,19 @@ const TypingDot: FC<{ delay: number; animated: boolean }> = ({
 
 export type TypingIndicatorProps = Omit<ViewProps, "children"> & {
   variant?: "bubble" | "bare";
+  /** Announces the label when the indicator appears; pass false when the screen already announces the state. */
+  announce?: boolean;
 };
 
 export const TypingIndicator: FC<TypingIndicatorProps> = ({
   variant = "bubble",
+  announce = true,
   className,
   accessibilityLabel = "Assistant is typing",
   ...props
 }) => {
   const motion = useMotion();
-  useAnnounce(accessibilityLabel);
+  useAnnounce(announce ? accessibilityLabel : undefined);
   const dots = DOT_DELAYS.map((delay) => (
     <TypingDot key={delay} delay={delay} animated={motion} />
   ));

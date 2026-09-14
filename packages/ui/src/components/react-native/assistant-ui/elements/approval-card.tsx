@@ -51,7 +51,9 @@ export const ApprovalCard: FC<ApprovalCardProps> = ({
   className,
   ...props
 }) => {
-  useAnnounce(state === "request" ? undefined : statusText[state]);
+  useAnnounce(state === "request" ? undefined : statusText[state], {
+    onMount: false,
+  });
 
   return (
     <View

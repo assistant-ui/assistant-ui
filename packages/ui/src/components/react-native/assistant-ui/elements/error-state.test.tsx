@@ -3,6 +3,20 @@ import { createRoot, type Root } from "react-dom/client";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { ErrorState } from "./error-state";
 
+const h = vi.hoisted(() => ({ announce: vi.fn() }));
+
+vi.mock("react-native", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("react-native")>();
+
+  return {
+    ...actual,
+    AccessibilityInfo: {
+      ...actual.AccessibilityInfo,
+      announceForAccessibility: h.announce,
+    },
+  };
+});
+
 vi.mock("uniwind", () => ({
   withUniwind: (Component: unknown) => Component,
   useCSSVariable: (names: string | string[]) =>
@@ -76,6 +90,36 @@ describe("ErrorState", () => {
     });
 
     expect(onRetry).toHaveBeenCalledTimes(1);
+  });
+
+  it("announces the failure when it appears and the retry when it starts", async () => {
+    const onRetry = vi.fn();
+    await act(async () => {
+      root.render(
+        <ErrorState
+          title="Connection lost"
+          detail="The stream ended."
+          retrying={false}
+          onRetry={onRetry}
+        />,
+      );
+    });
+    expect(h.announce).toHaveBeenCalledWith(
+      "Connection lost. The stream ended.",
+    );
+
+    await act(async () => {
+      root.render(
+        <ErrorState
+          title="Connection lost"
+          detail="The stream ended."
+          retrying
+          onRetry={onRetry}
+        />,
+      );
+    });
+    expect(h.announce).toHaveBeenLastCalledWith("Retrying");
+    expect(h.announce).toHaveBeenCalledTimes(2);
   });
 
   it("shows the retrying state without a retry button", async () => {

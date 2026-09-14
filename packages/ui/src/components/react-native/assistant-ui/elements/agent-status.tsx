@@ -46,10 +46,11 @@ export const AgentStatus: FC<AgentStatusProps> = ({
   label,
   elapsed,
   className,
+  accessibilityLabel: customLabel,
   ...props
 }) => {
-  const announcement = `${label}, ${state}`;
-  useAnnounce(announcement);
+  const accessibilityLabel = customLabel ?? `${label}, ${state}`;
+  useAnnounce(accessibilityLabel, { onMount: false });
 
   return (
     <View
@@ -59,7 +60,7 @@ export const AgentStatus: FC<AgentStatusProps> = ({
         className,
       )}
       accessible
-      accessibilityLabel={announcement}
+      accessibilityLabel={accessibilityLabel}
       accessibilityLiveRegion={webLiveRegion}
       {...props}
     >

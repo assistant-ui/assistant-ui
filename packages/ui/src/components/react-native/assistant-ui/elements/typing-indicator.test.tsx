@@ -6,6 +6,7 @@ import { TypingIndicator } from "./typing-indicator";
 const h = vi.hoisted(() => ({
   reduceMotion: false,
   loop: vi.fn(),
+  announce: vi.fn(),
 }));
 
 vi.mock("react-native", async (importOriginal) => {
@@ -16,6 +17,7 @@ vi.mock("react-native", async (importOriginal) => {
     ...actual,
     AccessibilityInfo: {
       ...actual.AccessibilityInfo,
+      announceForAccessibility: h.announce,
       isReduceMotionEnabled: () => Promise.resolve(h.reduceMotion),
       addEventListener: () => ({ remove: () => {} }),
     },
@@ -63,6 +65,15 @@ describe("TypingIndicator", () => {
     expect(
       container.querySelector('[aria-label="Assistant is typing"]'),
     ).toBeNull();
+    expect(h.announce).toHaveBeenCalledWith("Thinking");
+  });
+
+  it("stays silent when the screen announces the state itself", async () => {
+    await act(async () => {
+      root.render(<TypingIndicator announce={false} />);
+    });
+
+    expect(h.announce).not.toHaveBeenCalled();
   });
 
   it("animates the dots once the motion setting is known", async () => {

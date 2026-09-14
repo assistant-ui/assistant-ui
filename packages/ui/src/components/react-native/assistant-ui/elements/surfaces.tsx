@@ -1,5 +1,11 @@
 import { cn } from "@/lib/utils";
-import { type FC, useEffect, useState, useSyncExternalStore } from "react";
+import {
+  type FC,
+  useEffect,
+  useRef,
+  useState,
+  useSyncExternalStore,
+} from "react";
 import {
   AccessibilityInfo,
   Animated,
@@ -23,10 +29,17 @@ export const textButtonHitSlop = { top: 12, bottom: 12 };
 export const webLiveRegion =
   Platform.OS === "web" ? ("polite" as const) : undefined;
 
-export const useAnnounce = (message: string | undefined) => {
+export const useAnnounce = (
+  message: string | undefined,
+  { onMount = true }: { onMount?: boolean } = {},
+) => {
+  const announced = useRef(onMount ? undefined : message);
+
   useEffect(() => {
-    if (message !== undefined)
+    if (message !== undefined && message !== announced.current) {
       AccessibilityInfo.announceForAccessibility(message);
+    }
+    announced.current = message;
   }, [message]);
 };
 

@@ -3,6 +3,20 @@ import { createRoot, type Root } from "react-dom/client";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { ApprovalCard, type ApprovalState } from "./approval-card";
 
+const h = vi.hoisted(() => ({ announce: vi.fn() }));
+
+vi.mock("react-native", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("react-native")>();
+
+  return {
+    ...actual,
+    AccessibilityInfo: {
+      ...actual.AccessibilityInfo,
+      announceForAccessibility: h.announce,
+    },
+  };
+});
+
 vi.mock("uniwind", () => ({
   withUniwind: (Component: unknown) => Component,
   useCSSVariable: (names: string | string[]) =>
@@ -89,6 +103,25 @@ describe("ApprovalCard", () => {
       });
       expect(handler).toHaveBeenCalledTimes(1);
     }
+  });
+
+  it("announces decisions as they happen, not a card that mounts resolved", async () => {
+    await render("request");
+    expect(h.announce).not.toHaveBeenCalled();
+
+    await render("running");
+    expect(h.announce).toHaveBeenCalledWith("Approved, running");
+
+    await render("done");
+    expect(h.announce).toHaveBeenLastCalledWith("Finished with exit 0");
+    expect(h.announce).toHaveBeenCalledTimes(2);
+
+    await act(async () => {
+      root.unmount();
+    });
+    root = createRoot(container);
+    await render("done");
+    expect(h.announce).toHaveBeenCalledTimes(2);
   });
 
   it.each([

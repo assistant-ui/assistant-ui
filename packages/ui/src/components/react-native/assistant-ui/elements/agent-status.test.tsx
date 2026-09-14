@@ -3,6 +3,20 @@ import { createRoot, type Root } from "react-dom/client";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { AgentStatus } from "./agent-status";
 
+const h = vi.hoisted(() => ({ announce: vi.fn() }));
+
+vi.mock("react-native", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("react-native")>();
+
+  return {
+    ...actual,
+    AccessibilityInfo: {
+      ...actual.AccessibilityInfo,
+      announceForAccessibility: h.announce,
+    },
+  };
+});
+
 vi.mock("uniwind", () => ({
   withUniwind: (Component: unknown) => Component,
   useCSSVariable: (names: string | string[]) =>
@@ -57,6 +71,32 @@ describe("AgentStatus", () => {
     expect(pill?.textContent).toContain("0:42");
     expect(pill?.querySelector('[data-testid="PauseIcon"]')).not.toBeNull();
     expect(pill?.querySelector('[data-testid="CheckIcon"]')).toBeNull();
+  });
+
+  it("announces changes with the label it exposes", async () => {
+    await act(async () => {
+      root.render(<AgentStatus state="working" label="Reading files" />);
+    });
+    expect(h.announce).not.toHaveBeenCalled();
+
+    await act(async () => {
+      root.render(<AgentStatus state="done" label="Reading files" />);
+    });
+    expect(h.announce).toHaveBeenCalledWith("Reading files, done");
+
+    await act(async () => {
+      root.render(
+        <AgentStatus
+          state="waiting"
+          label="Reading files"
+          accessibilityLabel="Agent paused"
+        />,
+      );
+    });
+    expect(h.announce).toHaveBeenLastCalledWith("Agent paused");
+    expect(
+      container.querySelector('[aria-label="Agent paused"]'),
+    ).not.toBeNull();
   });
 
   it("drops the timer and swaps to the done affordances", async () => {
