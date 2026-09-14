@@ -214,6 +214,31 @@ describe("useAdkRuntime tool approvals", () => {
       await latestAdapter().onNew!(makeUserMessage("first", runConfig));
     });
 
+    mocks.messages = [
+      {
+        id: "ai-loaded",
+        type: "ai",
+        content: [],
+        tool_calls: [{ id: "tool-loaded", name: "lookup", args: {} }],
+      },
+    ];
+    mocks.messageRunConfig = runConfig;
+    rerender({});
+
+    await act(async () => {
+      await latestAdapter().onAddToolResult!({
+        messageId: "ai-loaded",
+        toolCallId: "tool-loaded",
+        toolName: "lookup",
+        result: { value: "before-switch" },
+        isError: false,
+      });
+    });
+    expect(mocks.sendMessage.mock.calls.at(-1)![1]).toEqual({ runConfig });
+
+    mocks.messages = [];
+    mocks.messageRunConfig = undefined;
+
     mocks.threadListItem.source = {};
     mocks.threadListItem.externalId = "thread-b";
     rerender({ load });

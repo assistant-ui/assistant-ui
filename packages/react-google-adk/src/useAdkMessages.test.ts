@@ -141,7 +141,10 @@ describe("ADK stream lifecycle", () => {
         author: "agent",
         content: {
           role: "model",
-          parts: [{ functionCall: { id: "tool-1", name: "lookup", args: {} } }],
+          parts: [
+            { functionCall: { id: "tool-1", name: "lookup", args: {} } },
+            { functionCall: { id: "tool-2", name: "search", args: {} } },
+          ],
         },
       };
     };
@@ -157,12 +160,15 @@ describe("ADK stream lifecycle", () => {
     });
 
     expect(onMessages).toHaveBeenLastCalledWith(
-      [
+      expect.arrayContaining([
         expect.objectContaining({
           type: "ai",
-          tool_calls: [expect.objectContaining({ id: "tool-1" })],
+          tool_calls: [
+            expect.objectContaining({ id: "tool-1" }),
+            expect.objectContaining({ id: "tool-2" }),
+          ],
         }),
-      ],
+      ]),
       runConfig,
     );
   });

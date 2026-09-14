@@ -161,7 +161,6 @@ const useAdkMessagesInternal = ({
         accumulator.processEvent(event);
       }
       const optimisticMessages = accumulator.getMessages();
-      onMessages?.(newMessagesWithId, config.runConfig);
       setMessagesImmediate(optimisticMessages);
 
       // Google ADK replaces active runs, while React LangGraph queues sends.
@@ -193,6 +192,9 @@ const useAdkMessagesInternal = ({
             break;
           }
           const updatedMessages = accumulator.processEvent(event);
+          // Each event part can append at most one message, and a function call
+          // stays on the current assistant message until a later part finalizes
+          // it, so every message touched by this event is within this tail.
           const affectedMessageCount = Math.max(
             event.content?.parts?.length ?? 0,
             1,
