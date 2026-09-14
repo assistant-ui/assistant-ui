@@ -560,6 +560,8 @@ const role = useAuiState((s) => s.message.role);
 const role = useAuiState((s) => s.optional.message?.role ?? "none");
 ```
 
+A component that renders outside `AssistantRuntimeProvider` has no scopes at all. Move it under the provider or publish the client to it; see [Reading State Outside the Thread](/docs/guides/state-outside-the-thread).
+
 **"Maximum update depth exceeded" / Infinite re-renders**
 
 ```tsx
