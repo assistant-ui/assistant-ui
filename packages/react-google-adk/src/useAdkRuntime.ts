@@ -41,7 +41,7 @@ import type {
   OnAdkCustomEventCallback,
   OnAdkAgentTransferCallback,
 } from "./types";
-import { useAdkMessages } from "./useAdkMessages";
+import { useAdkMessagesInternal } from "./useAdkMessages";
 import {
   convertAdkMessage,
   createAdkMessageConverter,
@@ -123,6 +123,59 @@ const useAdkRuntimeImpl = (options: UseAdkRuntimeOptions) => {
     eventHandlers,
   } = options;
   const aui = useAui();
+  const runConfigByToolCallIdRef = useRef(new Map<string, unknown>());
+
+  const rememberMessageOwnership = useCallback(
+    (newMessages: AdkMessage[], runConfig: unknown) => {
+      const toolOwnership = runConfigByToolCallIdRef.current;
+      for (const message of newMessages) {
+        if (message.type !== "ai") continue;
+        for (const toolCall of message.tool_calls ?? []) {
+          if (!toolOwnership.has(toolCall.id)) {
+            toolOwnership.set(toolCall.id, runConfig);
+          }
+        }
+      }
+    },
+    [],
+  );
+
+  const seedMessageOwnership = useCallback((history: AdkMessage[]) => {
+    const currentOwnership = runConfigByToolCallIdRef.current;
+    const nextOwnership = new Map<string, unknown>();
+    for (const message of history) {
+      if (message.type !== "ai") continue;
+      for (const toolCall of message.tool_calls ?? []) {
+        // Loaded ids must remain present even without a local owner because
+        // streamed event windows use has() to avoid attributing them later.
+        nextOwnership.set(
+          toolCall.id,
+          currentOwnership.has(toolCall.id)
+            ? currentOwnership.get(toolCall.id)
+            : undefined,
+        );
+      }
+    }
+    runConfigByToolCallIdRef.current = nextOwnership;
+  }, []);
+
+  const pruneMessageOwnership = useCallback((history: AdkMessage[]) => {
+    const toolCallIds = new Set<string>();
+    for (const message of history) {
+      if (message.type !== "ai") continue;
+      for (const toolCall of message.tool_calls ?? []) {
+        toolCallIds.add(toolCall.id);
+      }
+    }
+    for (const id of runConfigByToolCallIdRef.current.keys()) {
+      if (!toolCallIds.has(id)) runConfigByToolCallIdRef.current.delete(id);
+    }
+  }, []);
+
+  const getToolRunConfig = useCallback((toolCallId: string) => {
+    return runConfigByToolCallIdRef.current.get(toolCallId);
+  }, []);
+
   const {
     messages,
     stateDelta,
@@ -136,11 +189,12 @@ const useAdkRuntimeImpl = (options: UseAdkRuntimeOptions) => {
     sendMessage,
     cancel,
     setMessages,
-    replaceMessages,
-    applySnapshot,
-  } = useAdkMessages({
+    replaceMessages: replaceAdkMessages,
+    applySnapshot: applyAdkSnapshot,
+  } = useAdkMessagesInternal({
     stream,
     ...(eventHandlers && { eventHandlers }),
+    onMessages: rememberMessageOwnership,
   });
 
   const loadRef = useRef(load);
@@ -152,6 +206,20 @@ const useAdkRuntimeImpl = (options: UseAdkRuntimeOptions) => {
   useInsertionEffect(() => {
     messagesRef.current = messages;
   }, [messages]);
+  const applySnapshot = useCallback(
+    (snapshot: AdkThreadSnapshot) => {
+      seedMessageOwnership(snapshot.messages);
+      applyAdkSnapshot(snapshot);
+    },
+    [applyAdkSnapshot, seedMessageOwnership],
+  );
+  const replaceMessages = useCallback(
+    (nextMessages: AdkMessage[]) => {
+      pruneMessageOwnership(nextMessages);
+      replaceAdkMessages(nextMessages);
+    },
+    [pruneMessageOwnership, replaceAdkMessages],
+  );
   const [isLoadingThread, setIsLoadingThread] = useState(
     () =>
       load !== undefined && aui.threadListItem.getState().externalId != null,
@@ -175,10 +243,20 @@ const useAdkRuntimeImpl = (options: UseAdkRuntimeOptions) => {
     msgs: AdkMessage[],
     config: AdkSendMessageConfig,
   ) => {
+    const isToolContinuation =
+      msgs.length > 0 && msgs.every((msg) => msg.type === "tool");
+    const continuationConfig =
+      isToolContinuation && config.runConfig === undefined
+        ? {
+            ...config,
+            runConfig: getToolRunConfig(msgs[0]!.tool_call_id),
+          }
+        : config;
+
     const generation = ++runGenerationRef.current;
     try {
       setIsRunning(true);
-      await sendMessage(msgs, config);
+      await sendMessage(msgs, continuationConfig);
     } finally {
       if (runGenerationRef.current === generation) setIsRunning(false);
     }
