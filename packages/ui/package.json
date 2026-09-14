@@ -44,6 +44,7 @@
   },
   "devDependencies": {
     "@assistant-ui/core": "workspace:*",
+    "@assistant-ui/react-native": "workspace:*",
     "@assistant-ui/tap": "workspace:*",
     "@assistant-ui/vue": "workspace:*",
     "@assistant-ui/x-buildutils": "workspace:*",
@@ -55,11 +56,21 @@
     "@types/react-dom": "^19.2.7",
     "@types/react-syntax-highlighter": "^15.5.13",
     "@vitejs/plugin-vue": "^6.0.8",
+    "expo-clipboard": "^57.0.1",
+    "expo-image-manipulator": "^57.0.16",
+    "expo-image-picker": "^57.0.16",
     "jsdom": "^30.0.1",
+    "lucide-react-native": "^1.45.0",
     "markdown-it": "^15.0.1",
     "react": "^19.2.8",
     "react-dom": "^19.2.8",
+    "react-native": "^0.86.3",
+    "react-native-marked": "^8.3.0",
+    "react-native-safe-area-context": "^5.7.0",
+    "react-native-svg": "^15.15.4",
+    "react-native-web": "^0.21.2",
     "reka-ui": "^2.10.4",
+    "uniwind": "^1.12.0",
     "vitest": "^5.0.0",
     "vue": "^3.5.42"
   },
@@ -68,6 +79,6 @@
     "react-dom": "^18 || ^19"
   },
   "scripts": {
-    "test": "vitest run"
+    "test": "vitest run && tsc --noEmit -p src/components/react-native/tsconfig.json && tsc --noEmit -p src/components/react-native/tsconfig.test.json"
   }
 }

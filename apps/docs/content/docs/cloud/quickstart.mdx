@@ -3,14 +3,14 @@ title: Quickstart
 description: From an empty project to a persisted, reported conversation in the dashboard.
 ---
 
-This walks through the shortest path: an anonymous session, the AI SDK runtime, and the assistant-ui components. The other guides swap the runtime; the cloud side stays the same.
+The shortest path: an anonymous session, the AI SDK runtime and the assistant-ui components. The other guides swap the runtime; the cloud side stays the same.
 
 <Steps>
 <Step>
 
 ### Create a project
 
-Sign in at [cloud.assistant-ui.com](https://cloud.assistant-ui.com), create a project, and open **Settings › Telemetry**. Copy the **Frontend API URL**, `https://proj-<id>.assistant-api.com`. Create an **API key** under Settings › API keys only when your server needs one: for user tokens, trace exports, scores or the project read API. Nothing in this quickstart does.
+Sign in at [cloud.assistant-ui.com](https://cloud.assistant-ui.com) and create a project. Copy its **Frontend API URL** from **Settings › General**; it looks like `https://proj-<id>.assistant-api.com`. A new project accepts anonymous sessions from any origin, so nothing else needs to be configured for a first run.
 
 </Step>
 <Step>
@@ -25,6 +25,8 @@ NEXT_PUBLIC_ASSISTANT_BASE_URL=https://proj-<id>.assistant-api.com
 OPENAI_API_KEY=sk-…
 ```
 
+With this variable set, the React runtimes create an anonymous cloud client on their own when you pass no `cloud`.
+
 </Tab>
 <Tab value="React Native">
 
@@ -32,6 +34,8 @@ OPENAI_API_KEY=sk-…
 EXPO_PUBLIC_ASSISTANT_BASE_URL=https://proj-<id>.assistant-api.com
 EXPO_PUBLIC_API_URL=https://your-app.example.com
 ```
+
+The second variable names the server that hosts your chat route, since it is not on the app's own origin.
 
 </Tab>
 <Tab value="React Ink">
@@ -41,17 +45,10 @@ ASSISTANT_BASE_URL=https://proj-<id>.assistant-api.com
 API_URL=https://your-app.example.com
 ```
 
+The second variable names the server that hosts your chat route.
+
 </Tab>
 </PlatformTabs>
-
-With `NEXT_PUBLIC_ASSISTANT_BASE_URL` set, the React runtimes create an anonymous cloud client on their own when you pass no `cloud`. The other platforms construct the client explicitly, as the next step shows, and name the server that hosts the chat route, because it is not on the app's own origin.
-
-</Step>
-<Step>
-
-### Allow anonymous sessions and your origin
-
-Anonymous sessions are off until you turn them on in **Settings › Access**. While you are there, add your development origin, for example `http://localhost:3000`, to the allowed origins; an empty list allows every origin, which is fine for a first run.
 
 </Step>
 <Step>
@@ -85,7 +82,7 @@ export default function ChatPage() {
 }
 ```
 
-`useChatRuntime()` reads the base URL from the environment and sends chat requests to `/api/chat`, the AI SDK route you already have.
+`useChatRuntime()` reads the base URL from the environment and posts chat requests to `/api/chat`, the AI SDK route you already have.
 
 </Tab>
 <Tab value="React Native">
@@ -126,6 +123,8 @@ export default function ChatScreen() {
 }
 ```
 
+There is no `localStorage` on this platform, so an anonymous identity lasts one launch. Give users a lasting identity with an [auth provider token](/docs/cloud/authorization#your-auth-providers-tokens) before shipping.
+
 </Tab>
 <Tab value="React Ink">
 
@@ -164,6 +163,8 @@ export function Chat() {
   );
 }
 ```
+
+There is no `localStorage` in a terminal, so an anonymous identity lasts one process. Give users a lasting identity with an [auth provider token](/docs/cloud/authorization#your-auth-providers-tokens) before shipping.
 
 </Tab>
 </PlatformTabs>
@@ -206,14 +207,14 @@ export async function POST(req: Request) {
 
 ### Send a message and look
 
-Send a message. Within a moment the thread appears under **Threads** with an automatic title, the response under **Runs** with its duration, tokens, model and cost, and the send under **Engagement**. The Overview updates with the day's figures.
+Send a message. Within a moment the thread appears under **Threads** with a generated title, the response under **Runs** with its duration, tokens, model and cost, and the send under **Engagement**.
 
 </Step>
 </Steps>
 
 ## Next
 
-- Replace the anonymous session with your users' identities: [Authentication](/docs/cloud/authorization).
+- Give users an identity of their own and lock down origins: [Authentication](/docs/cloud/authorization).
 - Join your server's spans to the browser's report: [Traces](/docs/cloud/traces).
-- Read what every field means: [Run reports](/docs/cloud/telemetry) and the [concepts](/docs/cloud#concepts).
-- The working example: [with-cloud](https://github.com/assistant-ui/assistant-ui/tree/main/examples/with-cloud) on GitHub.
+- Read what every field of a report means: [Run reports](/docs/cloud/telemetry).
+- Start from a template instead: [cloud](https://github.com/assistant-ui/assistant-ui/tree/main/templates/cloud) with anonymous sessions, or [cloud-clerk](https://github.com/assistant-ui/assistant-ui/tree/main/templates/cloud-clerk) with Clerk sign in.

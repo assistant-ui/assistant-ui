@@ -26,7 +26,6 @@ const FOOTER_LINKS: Record<string, FooterLinkItem[]> = {
   Extend: [
     { label: "Elements", href: "/elements" },
     { label: "Design", href: "/design" },
-    { label: "Cloud AI SDK", href: "/cloud-ai-sdk" },
   ],
   Primitives: [
     { label: "tw-shimmer", href: "/tw-shimmer" },

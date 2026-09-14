@@ -8,19 +8,10 @@
     "index",
     "quickstart",
     "authorization",
-    "---Integrations---",
-    "ai-sdk-assistant-ui",
-    "local-runtime",
-    "langgraph",
-    "ai-sdk",
-    "---Telemetry---",
-    "telemetry",
-    "engagement",
-    "traces",
-    "---Dashboard---",
-    "settings",
-    "intelligence",
-    "---Reference---",
-    "api"
+    "pricing",
+    "(integrations)",
+    "(telemetry)",
+    "(dashboard)",
+    "(reference)"
   ]
 }

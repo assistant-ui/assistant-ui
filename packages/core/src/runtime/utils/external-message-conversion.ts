@@ -11,6 +11,7 @@ import { isJSONValueEqual } from "../../utils/json/is-json-equal";
 import {
   getAutoStatus,
   isAutoStatus,
+  isBackgroundToolCall,
   isInterruptedToolCall,
   isPendingToolCall,
 } from "./auto-status";
@@ -244,6 +245,10 @@ export const joinExternalMessages = (
               assistantMessage.metadata.timing = output.metadata.timing;
             }
 
+            if (output.metadata.modality) {
+              assistantMessage.metadata.modality = output.metadata.modality;
+            }
+
             if (output.metadata.submittedFeedback) {
               assistantMessage.metadata.submittedFeedback =
                 output.metadata.submittedFeedback;
@@ -411,6 +416,9 @@ export const convertExternalMessageChunk = <T>(
   const hasPendingToolCalls =
     typeof joined.content === "object" &&
     joined.content.some(isPendingToolCall);
+  const hasBackgroundToolCalls =
+    typeof joined.content === "object" &&
+    joined.content.some(isBackgroundToolCall);
   const autoStatus = getAutoStatus(
     isLast,
     isRunning,
@@ -418,6 +426,7 @@ export const convertExternalMessageChunk = <T>(
     hasPendingToolCalls,
     isLast ? error : undefined,
     isCancelled,
+    hasBackgroundToolCalls,
   );
   const fallbackId = `${FALLBACK_ID_PREFIX}${idx}`;
 

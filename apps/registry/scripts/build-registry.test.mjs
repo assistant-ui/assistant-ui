@@ -1,6 +1,7 @@
 import assert from "node:assert/strict";
 import { access, readFile, writeFile, mkdir } from "node:fs/promises";
 import test from "node:test";
+import { fileURLToPath } from "node:url";
 import "tsx/esm";
 
 const {
@@ -19,6 +20,7 @@ const {
   validateBaseTreeRadixImports,
   validateBaseVariantContent,
   validateEmittedSpecifierHygiene,
+  validateNativeFlavorContent,
   validateStyleScopedDependencies,
   validateUniversalItems,
   validateVueFlavorContent,
@@ -71,7 +73,11 @@ test("packaged file routes are served as text", async () => {
     await readFile(new URL("../vercel.json", import.meta.url), "utf8"),
   );
 
-  for (const source of ["/files/(.*)", "/base/files/(.*)"]) {
+  for (const source of [
+    "/files/(.*)",
+    "/base/files/(.*)",
+    "/native/files/(.*)",
+  ]) {
     const rule = config.headers?.find((entry) => entry.source === source);
     assert.ok(rule, `missing header rule for ${source}`);
     assert.deepEqual(rule.headers, [
@@ -95,6 +101,122 @@ test("conversation map bundles its projection helper in both flavors", async () 
       ),
     );
   }
+});
+
+test("the CLI and the registry agree on the shared native items", async () => {
+  const { NATIVE_SHARED_REGISTRY_ITEMS } = await import("./build-registry.ts");
+  const { SHARED_REGISTRY_ITEMS } =
+    await import("../../../packages/cli/src/lib/utils/registry.ts");
+  assert.deepEqual(
+    [...SHARED_REGISTRY_ITEMS].sort(),
+    [...NATIVE_SHARED_REGISTRY_ITEMS].sort(),
+  );
+});
+
+test("the native registry serves every component the Expo example imports", async () => {
+  const { scanRequiredComponents } =
+    await import("../../../packages/cli/src/lib/create-project.ts");
+  const { SHARED_REGISTRY_ITEMS } =
+    await import("../../../packages/cli/src/lib/utils/registry.ts");
+  const { nativeRegistry } = await import("../src/registry.ts");
+  const served = new Set([
+    ...nativeRegistry.map((item) => item.name),
+    ...SHARED_REGISTRY_ITEMS,
+  ]);
+  const { assistantUI, shadcnUI } = scanRequiredComponents(
+    fileURLToPath(new URL("../../../examples/with-expo", import.meta.url)),
+  );
+  assert.ok(assistantUI.length > 0);
+  for (const name of [...assistantUI, ...shadcnUI]) {
+    assert.ok(served.has(name), `${name} is not a native registry item`);
+  }
+});
+
+test("native flavor content validation rejects web packages and accepts the kit", async () => {
+  assert.throws(
+    () =>
+      validateNativeFlavorContent([
+        createBuilt("thread", [
+          [
+            "components/assistant-ui/elements/thread.aui.tsx",
+            'import { createRoot } from "react-dom/client";\n',
+          ],
+        ]),
+      ]),
+    /thread: native tree file components\/assistant-ui\/elements\/thread\.aui\.tsx imports forbidden "react-dom\/client"/,
+  );
+
+  for (const dependency of [
+    "https://r.assistant-ui.com/attachment.json",
+    "https://r.assistant-ui.com/native/utils.json",
+    "button",
+  ]) {
+    const built = createBuilt("thread", []);
+    built.payload.registryDependencies = [dependency];
+    assert.throws(
+      () => validateNativeFlavorContent([built]),
+      (error) =>
+        error instanceof Error &&
+        error.message.includes(
+          `thread: registry dependency "${dependency}" is not a native item`,
+        ),
+    );
+  }
+
+  const { nativeRegistry } = await import("../src/registry.ts");
+  assert.doesNotThrow(() =>
+    validateNativeFlavorContent(
+      nativeRegistry.map((item) => createRegistryPayload(item)),
+    ),
+  );
+});
+
+test("native registry build emits the React Native kit", async () => {
+  const { nativeRegistry, registry, stagedVueRegistry } =
+    await import("../src/registry.ts");
+  await buildRegistry(registry, stagedVueRegistry, nativeRegistry);
+
+  const [registryContent, threadContent] = await Promise.all([
+    readFile("dist/native/registry.json", "utf8"),
+    readFile("dist/native/thread.json", "utf8"),
+  ]);
+  const nativeIndex = JSON.parse(registryContent);
+  const thread = JSON.parse(threadContent);
+
+  assert.equal(
+    thread.files[0].path,
+    "components/assistant-ui/elements/thread.aui.tsx",
+  );
+  assert.ok(thread.dependencies.includes("@assistant-ui/react-native"));
+  assert.ok(
+    thread.registryDependencies.includes(
+      "https://r.assistant-ui.com/native/attachment.json",
+    ),
+  );
+  assert.ok(
+    thread.registryDependencies.includes(
+      "https://r.assistant-ui.com/native/icon.json",
+    ),
+  );
+  assert.deepEqual(
+    nativeIndex.items.map((item) => item.name),
+    [
+      "thread",
+      "markdown-text",
+      "attachment",
+      "thread-list",
+      "icon",
+      "elements-surfaces",
+      "elements-range",
+      "elements-icon-button",
+      "elements-typing-indicator",
+      "elements-error-state",
+      "elements-stopped-run",
+      "elements-approval-card",
+      "elements-agent-status",
+      "elements-tool-timeline",
+    ],
+  );
 });
 
 test("vue registry build emits self-contained staged items", async () => {
@@ -2502,15 +2624,16 @@ test("the built dist serves every packaged file at the docs' URL convention", as
     await import("../../docs/components/pages/docs/fumadocs/install/packaged-file-url.ts");
 
   // Item names may contain slashes, so the walk is recursive. files/ holds the
-  // packaged bytes themselves, base/ is walked as its own root, and vue/ is a
-  // staged flavor the docs' packaged-file URLs do not serve.
+  // packaged bytes themselves, base/ is walked as its own root, and vue/ and
+  // native/ are flavors the docs' packaged-file URLs do not serve yet.
   const collectItemJsons = async (dir, out) => {
     for (const entry of await readdir(dir, { withFileTypes: true })) {
       if (entry.isDirectory()) {
         if (
           entry.name === "files" ||
           entry.name === "base" ||
-          entry.name === "vue"
+          entry.name === "vue" ||
+          entry.name === "native"
         ) {
           continue;
         }

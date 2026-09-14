@@ -56,6 +56,7 @@
     "@assistant-ui/react": "workspace:*",
     "@assistant-ui/store": "workspace:*",
     "@assistant-ui/x-buildutils": "workspace:*",
+    "@assistant-ui/x-performance": "workspace:*",
     "@types/react": "^19.2.18",
     "jsdom": "^30.0.1",
     "react": "^19.2.8",
