@@ -86,6 +86,7 @@ type StoredThreadMetadata = {
   custom?: Record<string, unknown> | undefined;
 };
 
+type StoredSystemMessage = Extract<ThreadMessage, { role: "system" }>;
 type StoredUserMessage = Extract<ThreadMessage, { role: "user" }>;
 type StoredAssistantMessage = Extract<ThreadMessage, { role: "assistant" }>;
 
@@ -349,6 +350,16 @@ const parseStoredUserContent = (
     }
   });
 
+const parseStoredSystemContent = (
+  content: unknown[],
+): StoredSystemMessage["content"][number] | null => {
+  const parts = parseStoredUserContent(content);
+  const part = parts.find((part) => part.type === "text") ?? parts[0];
+  return part
+    ? (part as unknown as StoredSystemMessage["content"][number])
+    : null;
+};
+
 const parseStoredAttachment = (value: unknown): CompleteAttachment | null => {
   if (
     !isRecord(value) ||
@@ -424,15 +435,13 @@ function parseStoredThreadMessage(
     };
   }
 
-  const textPart = parseStoredUserContent(value.content).find(
-    (part) => part.type === "text",
-  );
-  if (!textPart) return null;
+  const content = parseStoredSystemContent(value.content);
+  if (!content) return null;
 
   return {
     id: value.id,
     role: "system",
-    content: [textPart],
+    content: [content],
     createdAt,
     metadata: { custom: metadata.custom },
   };
@@ -490,15 +499,13 @@ function parseStoredNestedThreadMessage(
     };
   }
 
-  const textPart = parseStoredUserContent(value.content).find(
-    (part) => part.type === "text",
-  );
-  if (!textPart) return null;
+  const content = parseStoredSystemContent(value.content);
+  if (!content) return null;
 
   return {
     id,
     role: "system",
-    content: [textPart],
+    content: [content],
     createdAt,
     metadata: {
       custom:

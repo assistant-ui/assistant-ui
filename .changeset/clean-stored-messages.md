@@ -14,8 +14,8 @@ loaded:
 
 - an assistant message with a missing or unusable `status` loads as
   `complete/unknown` instead of being discarded
-- a system message with more than one content part keeps its first text part
-  instead of being discarded
+- a system message keeps its first valid text part, or a valid non-text part
+  when no text can be recovered, so descendants remain available
 - malformed attachments and known assistant-only parts found on a user
   message are removed while the message itself is kept
 - assistant images outside the supported `data:image/*`, `https:`, and `blob:`
@@ -30,3 +30,5 @@ loaded:
 
 Saving a later message preserves existing raw records and only writes the new
 or replaced item, so recovery does not silently rewrite earlier history.
+Malformed, orphaned, and duplicate records are retained rather than silently
+pruned on append.

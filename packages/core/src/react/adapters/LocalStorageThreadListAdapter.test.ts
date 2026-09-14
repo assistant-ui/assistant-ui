@@ -212,7 +212,7 @@ describe("parseStoredMessageRepository", () => {
     ]);
   });
 
-  it("rejects system messages without valid text content", () => {
+  it("keeps valid system content and rejects unreadable system content", () => {
     const repo = parseStoredMessageRepository(
       JSON.stringify({
         messages: [
@@ -230,12 +230,28 @@ describe("parseStoredMessageRepository", () => {
             },
             parentId: null,
           },
+          {
+            message: {
+              ...storedMessage("legacy-system", "system"),
+              content: [{ type: "image", image: "https://example.com/a.png" }],
+            },
+            parentId: null,
+          },
+          {
+            message: storedMessage("legacy-system-child"),
+            parentId: "legacy-system",
+          },
         ],
       }),
     );
 
     expect(repo.messages.map((item) => item.message.id)).toEqual([
       "valid-system",
+      "legacy-system",
+      "legacy-system-child",
+    ]);
+    expect(repo.messages[1]?.message.content).toEqual([
+      { type: "image", image: "https://example.com/a.png" },
     ]);
   });
 
