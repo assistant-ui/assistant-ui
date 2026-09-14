@@ -9,42 +9,45 @@ describe("MarkdownText", () => {
     "does not reformat unchanged messages on resize with %j",
     async (options) => {
       vi.stubGlobal("IS_REACT_ACT_ENVIRONMENT", true);
-      const counter = createRenderCounter();
-      const highlighter = (code: string) => {
-        counter.useRender("highlight");
-        return code;
-      };
-      let view!: ReturnType<typeof render>;
-      await act(async () => {
-        view = render(
-          <>
-            {Array.from({ length: 10 }, (_, i) => (
-              <MarkdownText
-                key={i}
-                text={"```js\nconst x = 1;\n```"}
-                highlighter={highlighter}
-                {...options}
-              />
-            ))}
-          </>,
-        );
-      });
       try {
-        expect(counter.renders("highlight")).toBe(10);
-        counter.reset();
+        const counter = createRenderCounter();
+        const highlighter = (code: string) => {
+          counter.useRender("highlight");
+          return code;
+        };
+        let view!: ReturnType<typeof render>;
         await act(async () => {
-          Object.defineProperty(view.stdout, "columns", {
-            configurable: true,
-            value: 200,
+          view = render(
+            <>
+              {Array.from({ length: 10 }, (_, i) => (
+                <MarkdownText
+                  key={i}
+                  text={"```js\nconst x = 1;\n```"}
+                  highlighter={highlighter}
+                  {...options}
+                />
+              ))}
+            </>,
+          );
+        });
+        try {
+          expect(counter.renders("highlight")).toBe(10);
+          counter.reset();
+          await act(async () => {
+            Object.defineProperty(view.stdout, "columns", {
+              configurable: true,
+              value: 200,
+            });
+            view.stdout.emit("resize");
           });
-          view.stdout.emit("resize");
-        });
-        expect(counter.renders("highlight")).toBe(0);
-        expect(view.lastFrame()).toContain("const x = 1;");
+          expect(counter.renders("highlight")).toBe(0);
+          expect(view.lastFrame()).toContain("const x = 1;");
+        } finally {
+          await act(async () => {
+            view.unmount();
+          });
+        }
       } finally {
-        await act(async () => {
-          view.unmount();
-        });
         vi.unstubAllGlobals();
       }
     },
@@ -54,35 +57,40 @@ describe("MarkdownText", () => {
     "resumes live width updates after removing %j",
     async (options) => {
       vi.stubGlobal("IS_REACT_ACT_ENVIRONMENT", true);
-      const counter = createRenderCounter();
-      const highlighter = (code: string) => {
-        counter.useRender("highlight");
-        return code;
-      };
-      const text = "```js\nconst x = 1;\n```";
-      let view!: ReturnType<typeof render>;
-      await act(async () => {
-        view = render(
-          <MarkdownText text={text} {...options} highlighter={highlighter} />,
-        );
-      });
       try {
+        const counter = createRenderCounter();
+        const highlighter = (code: string) => {
+          counter.useRender("highlight");
+          return code;
+        };
+        const text = "```js\nconst x = 1;\n```";
+        let view!: ReturnType<typeof render>;
         await act(async () => {
-          view.rerender(<MarkdownText text={text} highlighter={highlighter} />);
+          view = render(
+            <MarkdownText text={text} {...options} highlighter={highlighter} />,
+          );
         });
-        counter.reset();
-        await act(async () => {
-          Object.defineProperty(view.stdout, "columns", {
-            configurable: true,
-            value: 200,
+        try {
+          await act(async () => {
+            view.rerender(
+              <MarkdownText text={text} highlighter={highlighter} />,
+            );
           });
-          view.stdout.emit("resize");
-        });
-        expect(counter.renders("highlight")).toBe(1);
+          counter.reset();
+          await act(async () => {
+            Object.defineProperty(view.stdout, "columns", {
+              configurable: true,
+              value: 200,
+            });
+            view.stdout.emit("resize");
+          });
+          expect(counter.renders("highlight")).toBe(1);
+        } finally {
+          await act(async () => {
+            view.unmount();
+          });
+        }
       } finally {
-        await act(async () => {
-          view.unmount();
-        });
         vi.unstubAllGlobals();
       }
     },
