@@ -69,7 +69,6 @@ export const abortableIterable = <T>(
           // Registered per chunk and released as soon as the chunk settles, so
           // a long stream does not accumulate one reaction per chunk.
           const onAbort = () => {
-            release();
             finalize();
             resolve(done<T>());
           };
