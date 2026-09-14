@@ -1,5 +1,5 @@
 import { cn } from "@/lib/utils";
-import { type FC, useEffect, useState } from "react";
+import { type FC, useEffect, useState, useSyncExternalStore } from "react";
 import {
   AccessibilityInfo,
   Animated,
@@ -27,27 +27,39 @@ export const monoStyle: TextStyle = {
   }),
 };
 
-export const useMotion = () => {
-  const [motion, setMotion] = useState(false);
+let reduceMotion: boolean | undefined;
+let reduceMotionSubscription: { remove(): void } | undefined;
+const motionListeners = new Set<() => void>();
 
-  useEffect(() => {
-    let mounted = true;
-    void AccessibilityInfo.isReduceMotionEnabled().then((reduced) => {
-      if (mounted) setMotion(!reduced);
-    });
-    const subscription = AccessibilityInfo.addEventListener(
-      "reduceMotionChanged",
-      (reduced) => setMotion(!reduced),
-    );
-    return () => {
-      mounted = false;
-      // react-native-web returns nothing when the environment has no matchMedia.
-      subscription?.remove();
-    };
-  }, []);
-
-  return motion;
+const setReduceMotion = (reduced: boolean) => {
+  reduceMotion = reduced;
+  for (const listener of motionListeners) listener();
 };
+
+const subscribeMotion = (listener: () => void) => {
+  if (motionListeners.size === 0) {
+    void AccessibilityInfo.isReduceMotionEnabled().then(setReduceMotion);
+    reduceMotionSubscription = AccessibilityInfo.addEventListener(
+      "reduceMotionChanged",
+      setReduceMotion,
+    );
+  }
+  motionListeners.add(listener);
+  return () => {
+    motionListeners.delete(listener);
+    if (motionListeners.size === 0) {
+      // react-native-web returns nothing when the environment has no matchMedia.
+      reduceMotionSubscription?.remove();
+      reduceMotionSubscription = undefined;
+      reduceMotion = undefined;
+    }
+  };
+};
+
+const getMotion = () => reduceMotion === false;
+
+export const useMotion = () =>
+  useSyncExternalStore(subscribeMotion, getMotion, getMotion);
 
 export const usePulse = (active: boolean, low = 0.45) => {
   const [opacity] = useState(() => new Animated.Value(1));
