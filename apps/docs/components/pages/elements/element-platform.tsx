@@ -41,7 +41,7 @@ const noStoredPlatform = () => null;
 // Runs while the document is still parsing; it reads its inputs from the
 // script element's own data attributes so no code is built from values.
 const HINT_SCRIPT =
-  '(()=>{try{var d=document.currentScript.dataset;var q=new URLSearchParams(location.search).get("platform");var v=localStorage.getItem(d.key)||localStorage.getItem(d.docsKey);var p=q==="rn"||q==="react"?q:v==="rn"||v==="react"?v:null;if(p)document.documentElement.dataset.elementPlatformHint=p}catch(e){}})()';
+  '(()=>{try{var d=document.currentScript.dataset;var q=new URLSearchParams(location.search).get("platform");var v=localStorage.getItem(d.key);var w=localStorage.getItem(d.docsKey);var p=q==="rn"||q==="react"?q:v==="rn"||v==="react"?v:w==="rn"||w==="react"?w:null;if(p)document.documentElement.dataset.elementPlatformHint=p}catch(e){}})()';
 
 const HINT_STYLE =
   'html[data-element-platform-hint="rn"] [data-slot="react-lane"],html[data-element-platform-hint="rn"] [data-slot="runtime-mode"]{display:none}html[data-element-platform-hint="rn"] [data-slot="native-lane"],html[data-element-platform-hint="rn"] [data-slot="standalone-mode"]{display:block}';

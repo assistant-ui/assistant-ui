@@ -154,7 +154,7 @@ function AgentStatusDemo() {
   const [previousPhase, setPreviousPhase] = useState(phase);
   if (phase !== previousPhase) {
     setPreviousPhase(phase);
-    if (phase === 0) setStartedAt(now);
+    if (phase === 0) setStartedAt(Date.now());
   }
   const status = AGENT_STATUSES[phase];
   const elapsedSeconds = Math.max(0, Math.floor((now - startedAt) / 1000));
