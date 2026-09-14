@@ -452,7 +452,18 @@ export class AgUiThreadRuntimeCore {
   private findRequiresActionAssistant(
     reason: "interrupt" | "tool-calls",
   ): ThreadAssistantMessage | null {
-    const assistant = this.getMessages().findLast(
+    const messages = this.getMessages();
+    if (reason === "tool-calls") {
+      // A multi-message run leaves its tool calls on an earlier assistant
+      // message, so this search cannot stop at the last assistant.
+      const match = messages.findLast((message) => {
+        if (message.role !== "assistant") return false;
+        const { status } = message as ThreadAssistantMessage;
+        return status?.type === "requires-action" && status.reason === reason;
+      });
+      return (match as ThreadAssistantMessage | undefined) ?? null;
+    }
+    const assistant = messages.findLast(
       (message) => message.role === "assistant",
     ) as ThreadAssistantMessage | undefined;
     if (
@@ -926,7 +937,19 @@ export class AgUiThreadRuntimeCore {
       this.pendingResume = { owner, messageId };
       return;
     }
-    this.startResumeRun(messageId);
+    this.startResumeRun(this.resumeAnchorFor(messageId));
+  }
+
+  // A run that streams several assistant messages leaves its tool calls on an
+  // earlier message; resuming from a non-head parent would fork a new branch
+  // and evict the messages streamed after the call.
+  private resumeAnchorFor(messageId: string): string {
+    const headId = this.session.headId;
+    if (headId === null || headId === messageId) return messageId;
+    const onHeadBranch = this.session
+      .getMessages()
+      .some((message) => message.id === messageId);
+    return onHeadBranch ? headId : messageId;
   }
 
   private maybeCompleteAfterToolResults(messageId: string): boolean {
@@ -1139,7 +1162,25 @@ export class AgUiThreadRuntimeCore {
       startNewMessage: boolean,
     ) => {
       if (startNewMessage && assistantMessageId !== undefined) {
-        applyUpdate({ status: { type: "complete", reason: "unknown" } });
+        // The previous message may still own tool calls awaiting a frontend
+        // result; finalizing it as complete would sever the resume
+        // continuation that maybeCompleteAfterToolResults gates on.
+        const previous = this.session.tryGetMessage(assistantMessageId)
+          ?.message as ThreadAssistantMessage | undefined;
+        let hasUnresolvedToolCalls = false;
+        if (previous?.role === "assistant") {
+          for (const part of iterateToolCallParts(previous.content)) {
+            if (!isResolvedToolCall(part)) {
+              hasUnresolvedToolCalls = true;
+              break;
+            }
+          }
+        }
+        applyUpdate({
+          status: hasUnresolvedToolCalls
+            ? { type: "requires-action", reason: "tool-calls" }
+            : { type: "complete", reason: "unknown" },
+        });
         const previousId = assistantMessageId;
         assistantMessageId = undefined;
         if (this.session.tryGetMessage(previousId)) {
@@ -1272,7 +1313,7 @@ export class AgUiThreadRuntimeCore {
       const { messageId } = this.pendingResume;
       this.pendingResume = null;
       if (!abortSignal.aborted) {
-        this.startResumeRun(messageId);
+        this.startResumeRun(this.resumeAnchorFor(messageId));
       }
     }
 
