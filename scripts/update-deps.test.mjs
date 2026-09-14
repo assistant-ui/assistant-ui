@@ -21,7 +21,7 @@ function writeExecutable(file, source) {
 }
 
 for (const failureStage of ["install", "expo-repin"]) {
-  test(`${failureStage} failure restores React Native dependencies without reverting unrelated taze updates`, () => {
+  test(`${failureStage} failure restores Expo-managed dependencies without reverting unrelated taze updates`, () => {
     const root = mkdtempSync(path.join(tmpdir(), "aui-update-deps-"));
     const bin = path.join(root, "bin");
     const manifestPath = path.join(
@@ -48,9 +48,7 @@ for (const failureStage of ["install", "expo-repin"]) {
               "react-native": "0.81.5",
               "unrelated-package": "1.0.0",
             },
-            devDependencies: {
-              "@react-native/metro-config": "0.81.5",
-            },
+            devDependencies: {},
           },
           null,
           2,
@@ -75,7 +73,6 @@ node -e '
   const fs = require("node:fs");
   const file = "examples/with-expo/package.json";
   const manifest = JSON.parse(fs.readFileSync(file, "utf8"));
-  manifest.devDependencies["@react-native/metro-config"] = "0.82.0";
   manifest.dependencies["react-native"] = "0.82.0";
   manifest.dependencies["unrelated-package"] = "2.0.0";
   fs.writeFileSync(file, JSON.stringify(manifest, null, 2) + "\\n");
@@ -124,9 +121,7 @@ printf 'package.json\\0examples/with-expo/package.json\\0'
         "react-native": "0.81.5",
         "unrelated-package": "2.0.0",
       });
-      assert.deepEqual(manifest.devDependencies, {
-        "@react-native/metro-config": "0.81.5",
-      });
+      assert.deepEqual(manifest.devDependencies, {});
     } finally {
       rmSync(root, { recursive: true, force: true });
     }
