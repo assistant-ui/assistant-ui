@@ -101,8 +101,6 @@ const streamInto = (n: number) => {
 };
 
 describe("thread length", () => {
-  // Synchronous React/jsdom work with no waits of its own; the 20s timeout
-  // below is headroom against CI contention, not part of the contract.
   it("mounts every message once, converts every message once, and commits once", () => {
     const { mounted, conversions } = streamInto(200);
     expect(mounted).toEqual({
@@ -112,7 +110,7 @@ describe("thread length", () => {
       "commits:thread": 1,
     });
     expect(conversions).toBe(200);
-  }, 20000);
+  });
 
   // The external-store core walks every message on every update (conversion
   // cache lookups, dedupe, repository relink), so wall time per token still
