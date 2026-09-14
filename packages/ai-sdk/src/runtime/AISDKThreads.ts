@@ -63,16 +63,22 @@ type AISDKThreadChatOptions<UI_MESSAGE extends UIMessage = UIMessage> = Omit<
   "cloud" | "threadId" | "onThreadIdChange"
 >;
 
+type ChatOptionsRef<UI_MESSAGE extends UIMessage> = {
+  current: AISDKThreadChatOptions<UI_MESSAGE> | undefined;
+};
+
 type ChatEntry<UI_MESSAGE extends UIMessage> = {
   chat: Chat<UI_MESSAGE>;
   transport: ChatTransport<UI_MESSAGE>;
   repository: MessageRepository;
+  optionsRef: ChatOptionsRef<UI_MESSAGE>;
 };
 
 const createChatEntry = <UI_MESSAGE extends UIMessage>(
   threadId: string,
   options: AISDKThreadChatOptions<UI_MESSAGE> | undefined,
 ): ChatEntry<UI_MESSAGE> => {
+  const optionsRef: ChatOptionsRef<UI_MESSAGE> = { current: options };
   const { chatInit } = splitChatThreadOptions(
     options as ChatThreadOptions<UI_MESSAGE> | undefined,
   );
@@ -84,10 +90,24 @@ const createChatEntry = <UI_MESSAGE extends UIMessage>(
         : options.transport instanceof AssistantChatTransport
           ? options.transport.__internal_clone()
           : options.transport;
+  // `useChat` only forwards callbacks through a ref for a chat it constructs
+  // itself, so an externally owned chat reads them through this ref to keep a
+  // callback swapped on a later render live.
   return {
-    chat: new Chat<UI_MESSAGE>({ ...chatInit, id: threadId, transport }),
+    chat: new Chat<UI_MESSAGE>({
+      ...chatInit,
+      id: threadId,
+      transport,
+      onToolCall: (arg) => optionsRef.current?.onToolCall?.(arg),
+      onData: (arg) => optionsRef.current?.onData?.(arg),
+      onFinish: (arg) => optionsRef.current?.onFinish?.(arg),
+      onError: (arg) => optionsRef.current?.onError?.(arg),
+      sendAutomaticallyWhen: (arg) =>
+        optionsRef.current?.sendAutomaticallyWhen?.(arg) ?? false,
+    }),
     transport,
     repository: new MessageRepository(),
+    optionsRef,
   };
 };
 
@@ -117,8 +137,12 @@ const useAISDKChatThread = <UI_MESSAGE extends UIMessage = UIMessage>({
   const [owned] = useState(() =>
     cloud ? createChatEntry(threadId, options) : undefined,
   );
-  const { chat, transport, repository } =
+  const { chat, transport, repository, optionsRef } =
     owned ?? getOrCreateChatEntry(threadId, options, chats);
+
+  useEffect(() => {
+    optionsRef.current = options;
+  });
 
   useEffect(() => {
     if (!cloud) return undefined;

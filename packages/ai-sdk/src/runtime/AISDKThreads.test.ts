@@ -276,6 +276,43 @@ describe("AISDKThreads", () => {
     handle.destroy();
   });
 
+  it("fires the callback from the latest render rather than the one the chat was constructed with", async () => {
+    const { transport, emit, close } = createControlledTransport();
+    const onFinishA = vi.fn();
+    const onFinishB = vi.fn();
+    let onFinish = onFinishA;
+    const listeners = new Set<() => void>();
+    const handle = createAssistantClient({
+      getConfig: () =>
+        AuiConfig({
+          threads: AISDKThreads({ transport: () => transport, onFinish }),
+        }),
+      subscribe: (listener) => {
+        listeners.add(listener);
+        return () => listeners.delete(listener);
+      },
+    });
+    handle.subscribe(() => {});
+    const aui = handle.getClient();
+
+    onFinish = onFinishB;
+    flushTapSync(() => listeners.forEach((listener) => listener()));
+
+    flushTapSync(() => aui.composer.setText("hi"));
+    flushTapSync(() => aui.composer.send());
+    await vi.waitFor(() => {
+      expect(
+        handle.getClient().thread.getState().messages.length,
+      ).toBeGreaterThan(0);
+    });
+    emit(...textReply("done"));
+    close();
+    await vi.waitFor(() => expect(onFinishB).toHaveBeenCalledTimes(1));
+    expect(onFinishA).not.toHaveBeenCalled();
+
+    handle.destroy();
+  });
+
   it("posts each thread's own id as the chat id", async () => {
     const bodies: unknown[] = [];
     const fetchStub = vi.fn(async (_url: unknown, init?: RequestInit) => {
