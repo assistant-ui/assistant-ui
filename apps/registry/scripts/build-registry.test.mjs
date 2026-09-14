@@ -85,6 +85,35 @@ test("packaged file routes are served as text", async () => {
   }
 });
 
+test("the CLI and the registry agree on the shared native items", async () => {
+  const { NATIVE_SHARED_REGISTRY_ITEMS } = await import("./build-registry.ts");
+  const { SHARED_REGISTRY_ITEMS } =
+    await import("../../../packages/cli/src/lib/utils/registry.ts");
+  assert.deepEqual(
+    [...SHARED_REGISTRY_ITEMS].sort(),
+    [...NATIVE_SHARED_REGISTRY_ITEMS].sort(),
+  );
+});
+
+test("the native registry serves every component the Expo example imports", async () => {
+  const { scanRequiredComponents } =
+    await import("../../../packages/cli/src/lib/create-project.ts");
+  const { SHARED_REGISTRY_ITEMS } =
+    await import("../../../packages/cli/src/lib/utils/registry.ts");
+  const { nativeRegistry } = await import("../src/registry.ts");
+  const served = new Set([
+    ...nativeRegistry.map((item) => item.name),
+    ...SHARED_REGISTRY_ITEMS,
+  ]);
+  const { assistantUI, shadcnUI } = scanRequiredComponents(
+    new URL("../../../examples/with-expo", import.meta.url).pathname,
+  );
+  assert.ok(assistantUI.length > 0);
+  for (const name of [...assistantUI, ...shadcnUI]) {
+    assert.ok(served.has(name), `${name} is not a native registry item`);
+  }
+});
+
 test("native flavor content validation rejects web packages and accepts the kit", async () => {
   assert.throws(
     () =>

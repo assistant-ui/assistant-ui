@@ -70,11 +70,11 @@ function DrawerLayout() {
     ...base,
     colors: {
       ...base.colors,
-      background: String(background),
-      card: String(background),
-      text: String(foreground),
-      border: String(border),
-      primary: String(foreground),
+      background: String(background ?? base.colors.background),
+      card: String(background ?? base.colors.card),
+      text: String(foreground ?? base.colors.text),
+      border: String(border ?? base.colors.border),
+      primary: String(foreground ?? base.colors.primary),
     },
   };
 

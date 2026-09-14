@@ -574,6 +574,38 @@ describe("transformProject — hasLocalComponents: false", () => {
       expect(args).toContain("https://r.assistant-ui.com/native/icon.json");
     });
 
+    it("returns the deferred registry command for a React Native scaffold when skipInstall is true", async () => {
+      writeJSON("package.json", {
+        name: "test",
+        dependencies: { "react-native": "0.86.3" },
+      });
+      writeFile(
+        "app/page.tsx",
+        'import { Thread } from "@/components/assistant-ui/elements/thread.aui.tsx";\nimport { Icon } from "@/components/ui/icon";\n',
+      );
+
+      const result = await transformProject(testDir, {
+        ...defaultOpts,
+        hasLocalComponents: false,
+      });
+
+      expect(result.registryInstallCommand).toContain("shadcn@latest add");
+      expect(result.registryInstallCommand).toContain(
+        "https://r.assistant-ui.com/utils.json",
+      );
+      expect(result.registryInstallCommand).toContain(
+        "https://r.assistant-ui.com/native/thread.json",
+      );
+      expect(result.registryInstallCommand).toContain(
+        "https://r.assistant-ui.com/native/icon.json",
+      );
+      const shadcnCalls = (spawn as Mock).mock.calls.filter(
+        ([cmd, args]: [string, string[]]) =>
+          cmd === TEST_DLX_CMD && args.includes("shadcn@latest"),
+      );
+      expect(shadcnCalls).toHaveLength(0);
+    });
+
     it("skips shadcn when skipInstall is true even without local components", async () => {
       writeFile(
         "app/page.tsx",

@@ -5,7 +5,7 @@ description: Get assistant-ui running in an Expo or React Native app with your f
 
 ## Quick Start
 
-The fastest way to get started with assistant-ui for React Native. The scaffold is an Expo Router app with the assistant-ui elements installed from the registry (thread, composer, attachments, thread list) and the AI SDK runtime wired up.
+The fastest way to get started with assistant-ui for React Native. The scaffold is an Expo Router app with the assistant-ui elements installed from the registry (thread and thread list, including the composer and attachment subcomponents) and the AI SDK runtime wired up.
 
 <Steps>
   <Step>
@@ -148,14 +148,13 @@ The elements are styled with Tailwind classes through [Uniwind](https://uniwind.
 npx expo install uniwind tailwindcss
 ```
 
-Wrap your Metro config. `withAui` from `@assistant-ui/metro` is only needed when you ship `"use generative"` toolkits; leave it out otherwise.
+Wrap your Metro config. If you ship `"use generative"` toolkits, install `@assistant-ui/metro` and wrap the config in its `withAui` inside `withUniwindConfig`, which has to stay outermost.
 
 ```js title="metro.config.js"
 const { getDefaultConfig } = require("expo/metro-config");
-const { withAui } = require("@assistant-ui/metro");
 const { withUniwindConfig } = require("uniwind/metro");
 
-module.exports = withUniwindConfig(withAui(getDefaultConfig(__dirname)), {
+module.exports = withUniwindConfig(getDefaultConfig(__dirname), {
   cssEntryFile: "./global.css",
   dtsFile: "./uniwind-types.d.ts",
 });

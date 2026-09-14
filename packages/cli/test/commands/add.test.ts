@@ -189,21 +189,27 @@ describe("add directory selection", () => {
   });
 
   it("uses the native registry tree for React Native projects", async () => {
+    const packageJsonPath = path.join(projectDir, "package.json");
+    const original = fs.readFileSync(packageJsonPath, "utf8");
     fs.writeFileSync(
-      path.join(projectDir, "package.json"),
+      packageJsonPath,
       JSON.stringify({ dependencies: { "react-native": "0.86.3" } }),
     );
 
-    await add.parseAsync(["thread", "--cwd", "app", "--use-npm"], {
-      from: "user",
-    });
+    try {
+      await add.parseAsync(["thread", "--cwd", "app", "--use-npm"], {
+        from: "user",
+      });
 
-    const record = JSON.parse(fs.readFileSync(recordPath, "utf8"));
-    expect(record.argv).toContain(
-      "https://r.assistant-ui.com/native/thread.json",
-    );
-    expect(record.argv).not.toContain(
-      "https://r.assistant-ui.com/styles/new-york/thread.json",
-    );
+      const record = JSON.parse(fs.readFileSync(recordPath, "utf8"));
+      expect(record.argv).toContain(
+        "https://r.assistant-ui.com/native/thread.json",
+      );
+      expect(record.argv).not.toContain(
+        "https://r.assistant-ui.com/thread.json",
+      );
+    } finally {
+      fs.writeFileSync(packageJsonPath, original);
+    }
   });
 });

@@ -797,6 +797,9 @@ export const create = new Command()
       logger.info(`  ${cdCommand}`);
       if (opts.skipInstall) {
         logger.info(`  ${pm} install`);
+        if (transformResult.registryInstallCommand) {
+          logger.info(`  ${transformResult.registryInstallCommand}`);
+        }
       }
       logger.info(`  # Set up your environment variables in ${envFile}`);
       logger.info(`  ${runCmd} ${devScript}`);

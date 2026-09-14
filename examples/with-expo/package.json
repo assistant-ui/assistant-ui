@@ -16,6 +16,7 @@
     "@assistant-ui/ai-sdk": "workspace:*",
     "@assistant-ui/react-native": "workspace:*",
     "ai": "^7.0.93",
+    "cn": "^0.2.6",
     "expo": "~57.0.22",
     "expo-clipboard": "~57.0.2",
     "expo-constants": "~57.0.18",

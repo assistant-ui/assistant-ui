@@ -232,7 +232,7 @@ const NATIVE_FORBIDDEN_PACKAGES = new Set([
   "lucide-react",
   "@assistant-ui/react",
 ]);
-const NATIVE_SHARED_REGISTRY_ITEMS = new Set(["utils"]);
+export const NATIVE_SHARED_REGISTRY_ITEMS = new Set(["utils"]);
 
 function isNativeForbiddenPackage(specifier: string) {
   const packageName = getPackageName(specifier);

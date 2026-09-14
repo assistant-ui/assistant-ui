@@ -2,7 +2,7 @@ import * as fs from "node:fs";
 import * as path from "node:path";
 
 const REGISTRY_BASE_URL = "https://r.assistant-ui.com";
-const SHARED_REGISTRY_ITEMS = new Set(["utils"]);
+export const SHARED_REGISTRY_ITEMS = new Set(["utils"]);
 
 export function detectRegistryPlatform(cwd: string): "web" | "native" {
   try {
