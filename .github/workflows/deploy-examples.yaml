@@ -53,6 +53,12 @@ jobs:
         with:
           fetch-depth: 1
 
+      - name: Setup pnpm and node.js
+        uses: pnpm/setup@703c52620218391530e48b9e8870d5c0082e1b9b # ratchet:pnpm/setup@v2.1.0
+        with:
+          runtime: node@24
+          install: false
+
       - name: Pick the examples whose inputs changed
         id: filter
         env:
@@ -64,7 +70,7 @@ jobs:
           if [[ "$BEFORE" =~ ^0+$ ]] || ! git fetch --no-tags --depth=1 origin "$BEFORE"; then
             plan=$(node scripts/deploy-examples-changes.mjs --all)
           else
-            plan=$(git diff --name-only -z "$BEFORE" "$AFTER" | node scripts/deploy-examples-changes.mjs)
+            plan=$(git diff --name-only --no-renames -z "$BEFORE" "$AFTER" | node scripts/deploy-examples-changes.mjs)
           fi
 
           echo "matrix=$(jq -c .matrix <<< "$plan")" >> "$GITHUB_OUTPUT"
