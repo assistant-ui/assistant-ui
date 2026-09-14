@@ -8,6 +8,7 @@ import {
 import { useAui, AuiConfig, AuiProvider, Derived } from "@assistant-ui/store";
 import type { ThreadMessage } from "../../types/message";
 import { ReadonlyThreadRuntimeCore } from "../../runtimes/readonly/ReadonlyThreadRuntimeCore";
+import { getThreadRuntimeCoreIsRunning } from "../../runtime/api/thread-runtime";
 import {
   ThreadRuntimeImpl,
   type ThreadRuntimeCoreBinding,
@@ -30,13 +31,6 @@ const READONLY_THREAD_LIST_ITEM: ThreadListItemState = Object.freeze({
   status: "regular" as const,
   title: undefined,
 });
-
-const READONLY_THREAD_LIST_ITEM_BINDING: ThreadListItemRuntimeBinding =
-  Object.freeze({
-    path: READONLY_THREAD_PATH,
-    getState: () => READONLY_THREAD_LIST_ITEM,
-    subscribe: () => () => {},
-  });
 
 export namespace ReadonlyThreadProvider {
   export type Props = PropsWithChildren<{
@@ -65,11 +59,15 @@ export const ReadonlyThreadProvider: FC<ReadonlyThreadProvider.Props> = ({
       subscribe: (callback) => core.subscribe(callback),
       outerSubscribe: (callback) => core.subscribe(callback),
     };
-
-    return new ThreadRuntimeImpl(
-      threadBinding,
-      READONLY_THREAD_LIST_ITEM_BINDING,
-    );
+    const threadListItemBinding: ThreadListItemRuntimeBinding = {
+      path: READONLY_THREAD_PATH,
+      getState: () => ({
+        ...READONLY_THREAD_LIST_ITEM,
+        isRunning: getThreadRuntimeCoreIsRunning(core),
+      }),
+      subscribe: (callback) => core.subscribe(callback),
+    };
+    return new ThreadRuntimeImpl(threadBinding, threadListItemBinding);
   }, [core]);
 
   const aui = useAui();
