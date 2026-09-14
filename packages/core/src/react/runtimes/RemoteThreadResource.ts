@@ -3,6 +3,7 @@ import { resource } from "@assistant-ui/tap";
 import {
   useAssistantContextProvider,
   useConfiguredAui,
+  useDestroySignalProvider,
 } from "@assistant-ui/store/client";
 import { ThreadListItemClient } from "../../store/internal";
 import type { AssistantRuntime } from "../../runtime/api/assistant-runtime";
@@ -38,6 +39,7 @@ export type RemoteThreadResourceProps = {
     runtime: ThreadRuntimeCore,
     generation: number,
   ) => void;
+  destroySignal: AbortSignal;
 };
 
 export const subscribeToTitleGeneration = (
@@ -180,6 +182,7 @@ const useRemoteThreadResource = ({
   parentClient,
   adapters,
   publish,
+  destroySignal,
 }: RemoteThreadResourceProps) => {
   const itemRuntime = useMemo(
     () =>
@@ -216,14 +219,16 @@ const useRemoteThreadResource = ({
     threadListItem: ThreadListItemClient({ runtime: itemRuntime }),
   });
 
-  return useAssistantContextProvider(client, function useThreadClient() {
-    return useRuntimeAdaptersProvider(adapters, function useBoundRuntime() {
-      return useRemoteThreadBinder({
-        threadId,
-        generation,
-        runtimeHook,
-        publish,
-        itemRuntime,
+  return useDestroySignalProvider(destroySignal, function useOwnedThread() {
+    return useAssistantContextProvider(client, function useThreadClient() {
+      return useRuntimeAdaptersProvider(adapters, function useBoundRuntime() {
+        return useRemoteThreadBinder({
+          threadId,
+          generation,
+          runtimeHook,
+          publish,
+          itemRuntime,
+        });
       });
     });
   });

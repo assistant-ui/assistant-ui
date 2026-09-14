@@ -160,26 +160,35 @@ describe("ExternalStoreThreadRuntimeCore adapter contract", () => {
       expect(onNew).not.toHaveBeenCalled();
     });
 
-    it("throws when adapter has no onEdit and parentId differs from head", async () => {
-      const messages = [createUserMessage("u1"), createAssistantMessage("a1")];
-      const adapter = createBaseAdapter({ messages });
-      const core = new ExternalStoreThreadRuntimeCore(contextProvider, adapter);
+    it.each(["u1", null])(
+      "rejects parent %s without onEdit",
+      async (parentId) => {
+        const messages = [
+          createUserMessage("u1"),
+          createAssistantMessage("a1"),
+        ];
+        const adapter = createBaseAdapter({ messages });
+        const core = new ExternalStoreThreadRuntimeCore(
+          contextProvider,
+          adapter,
+        );
 
-      const appendMessage: AppendMessage = {
-        role: "user",
-        content: [{ type: "text", text: "Edit" }],
-        attachments: [],
-        createdAt: new Date(),
-        parentId: "u1",
-        sourceId: null,
-        runConfig: undefined,
-        metadata: { custom: {} },
-      } as AppendMessage;
+        const appendMessage: AppendMessage = {
+          role: "user",
+          content: [{ type: "text", text: "Edit" }],
+          attachments: [],
+          createdAt: new Date(),
+          parentId,
+          sourceId: null,
+          runConfig: undefined,
+          metadata: { custom: {} },
+        } as AppendMessage;
 
-      await expect(core.append(appendMessage)).rejects.toThrow(
-        "Runtime does not support editing messages.",
-      );
-    });
+        await expect(core.append(appendMessage)).rejects.toThrow(
+          "Runtime does not support editing messages.",
+        );
+      },
+    );
   });
 
   describe("startRun", () => {
@@ -1106,6 +1115,44 @@ describe("ExternalStoreThreadRuntimeCore adapter contract", () => {
           approved: true,
         }),
       ).resolves.toBeUndefined();
+    });
+
+    it("emits a decision after an approval callback accepts", async () => {
+      const message: ThreadMessage = {
+        ...createAssistantMessage("assistant-1"),
+        status: { type: "requires-action", reason: "tool-calls" },
+        content: [
+          {
+            type: "tool-call",
+            toolCallId: "tool-1",
+            toolName: "review",
+            args: {},
+            argsText: "{}",
+            approval: { id: "approval-1" },
+          },
+        ],
+      } as ThreadMessage;
+      const core = new ExternalStoreThreadRuntimeCore(
+        contextProvider,
+        createBaseAdapter({
+          messages: [message],
+          onRespondToToolApproval: () => {},
+        }),
+      );
+      const answered = vi.fn();
+      core.unstable_on("toolApprovalAnswered", answered);
+
+      await core.respondToToolApproval({
+        approvalId: "approval-1",
+        approved: true,
+      });
+
+      expect(answered).toHaveBeenCalledWith({
+        messageId: "assistant-1",
+        toolCallId: "tool-1",
+        toolName: "review",
+        approved: true,
+      });
     });
 
     it("handles rejected onCancel callbacks", async () => {

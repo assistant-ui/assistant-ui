@@ -378,7 +378,7 @@ describe("createAdkStream - direct mode", () => {
     });
   });
 
-  it("falls back to raw string when tool content is not valid JSON", async () => {
+  it("wraps non-JSON tool content in a function response object", async () => {
     mockFetch.mockResolvedValueOnce(sseResponse(sseBody("")));
 
     const stream = createAdkStream({
@@ -401,8 +401,49 @@ describe("createAdkStream - direct mode", () => {
     }
 
     const body = JSON.parse(mockFetch.mock.calls[0]![1]?.body as string);
-    expect(body.newMessage.parts[0].functionResponse.response).toBe("not-json");
+    expect(body.newMessage.parts[0].functionResponse.response).toEqual({
+      result: "not-json",
+    });
   });
+
+  it.each([
+    ["false", { result: false }],
+    ["0", { result: 0 }],
+    ["null", { result: null }],
+    ['"done"', { result: "done" }],
+    ["[1,2]", { results: [1, 2] }],
+  ])(
+    "wraps scalar or array tool result %s in direct mode",
+    async (content, response) => {
+      mockFetch.mockResolvedValueOnce(sseResponse(sseBody("")));
+
+      const stream = createAdkStream({
+        api: "http://localhost:8000",
+        appName: "app",
+        userId: "u",
+      });
+      const gen = await stream(
+        [
+          {
+            id: "t1",
+            type: "tool",
+            content,
+            tool_call_id: "tc-1",
+            name: "search",
+          },
+        ],
+        makeConfig(),
+      );
+      for await (const _ of gen) {
+        /* noop */
+      }
+
+      const body = JSON.parse(mockFetch.mock.calls[0]![1]?.body as string);
+      expect(body.newMessage.parts[0].functionResponse.response).toEqual(
+        response,
+      );
+    },
+  );
 
   it("sends empty text part when no messages provided", async () => {
     mockFetch.mockResolvedValueOnce(sseResponse(sseBody("")));
@@ -469,6 +510,59 @@ describe("createAdkStream - SSE parsing", () => {
       await expect(consume()).rejects.toThrow(
         "Invalid ADK stream event: expected a non-empty object.",
       );
+    },
+  );
+
+  it.each([
+    [{ content: [] }, "content", "an object"],
+    [{ content: { parts: 42 } }, "content.parts", "an array of objects"],
+    [{ content: { parts: [null] } }, "content.parts", "an array of objects"],
+  ])(
+    "rejects malformed nested stream event content: %#",
+    async (event, field, expectation) => {
+      mockFetch.mockResolvedValueOnce(
+        sseResponse(sseBody(`data: ${JSON.stringify(event)}\n\n`)),
+      );
+
+      const stream = createAdkStream({ api: "/api/adk" });
+      const consume = async () => {
+        const gen = await stream(
+          [{ id: "m1", type: "human", content: "Hi" }],
+          makeConfig(),
+        );
+        for await (const _event of gen) {
+          void _event;
+        }
+      };
+
+      await expect(consume()).rejects.toThrow(
+        `Invalid ADK stream event: expected "${field}" to be ${expectation} when present.`,
+      );
+    },
+  );
+
+  it.each([
+    [{ id: "e1", content: null }, undefined],
+    [{ id: "e1", content: { role: "model", parts: null } }, { role: "model" }],
+  ])(
+    "accepts null optional nested stream event content: %#",
+    async (event, expectedContent) => {
+      mockFetch.mockResolvedValueOnce(
+        sseResponse(sseBody(`data: ${JSON.stringify(event)}\n\n`)),
+      );
+
+      const stream = createAdkStream({ api: "/api/adk" });
+      const gen = await stream(
+        [{ id: "m1", type: "human", content: "Hi" }],
+        makeConfig(),
+      );
+      const collected: AdkEvent[] = [];
+      for await (const parsedEvent of gen) {
+        collected.push(parsedEvent);
+      }
+
+      expect(collected).toHaveLength(1);
+      expect(collected[0]!.content).toEqual(expectedContent);
     },
   );
 

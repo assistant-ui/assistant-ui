@@ -15,6 +15,7 @@ import {
   type ThreadListItemRuntime,
   ThreadListItemRuntimeImpl,
   type ThreadListItemState,
+  type ThreadListItemStateBinding,
 } from "./thread-list-item-runtime";
 import {
   type ThreadListItemRuntimeBinding,
@@ -253,6 +254,21 @@ export class ThreadListRuntimeImpl implements ThreadListRuntime {
     return this._mainThreadListItemRuntime;
   }
 
+  private _createItemStateBinding(
+    threadId: string,
+  ): ThreadListItemStateBinding {
+    return new ShallowMemoizeSubject({
+      path: {
+        ref: `threadItems[threadId=${threadId}]`,
+        threadSelector: { type: "threadId", threadId },
+      },
+      getState: () => {
+        return getThreadListItemState(this._core, threadId);
+      },
+      subscribe: (callback) => this._core.subscribe(callback),
+    });
+  }
+
   public getById(threadId: string) {
     return new this._runtimeFactory(
       new NestedSubscriptionSubject({
@@ -263,7 +279,7 @@ export class ThreadListRuntimeImpl implements ThreadListRuntime {
         getState: () => this._core.getThreadRuntimeCore(threadId),
         subscribe: (callback) => this._core.subscribe(callback),
       }),
-      this.mainItem,
+      this._createItemStateBinding(threadId),
     );
   }
 
@@ -304,16 +320,7 @@ export class ThreadListRuntimeImpl implements ThreadListRuntime {
 
   public getItemById(threadId: string) {
     return new ThreadListItemRuntimeImpl(
-      new ShallowMemoizeSubject({
-        path: {
-          ref: `threadItems[threadId=${threadId}]`,
-          threadSelector: { type: "threadId", threadId },
-        },
-        getState: () => {
-          return getThreadListItemState(this._core, threadId);
-        },
-        subscribe: (callback) => this._core.subscribe(callback),
-      }),
+      this._createItemStateBinding(threadId),
       this._core,
     );
   }

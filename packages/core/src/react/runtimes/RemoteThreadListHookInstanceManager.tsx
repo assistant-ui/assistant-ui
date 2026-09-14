@@ -24,6 +24,7 @@ import type {
 import type { Unsubscribe } from "../../types/unsubscribe";
 import {
   BaseSubscribable,
+  notifySubscribers,
   WritableSubscribable,
 } from "../../subscribable/subscribable";
 import { useSubscribable } from "../../store/runtime-clients/useSubscribable";
@@ -53,6 +54,9 @@ type RemoteThreadListHookInstance = {
   generation: number;
   isRunning: boolean;
   unsubscribeRunning?: Unsubscribe | undefined;
+  // Permanent teardown of the thread's runtime, aborted when the thread is
+  // stopped or its runtime restarted. A soft unmount leaves it armed.
+  destroy: AbortController;
 };
 
 type AdapterSnapshot = {
@@ -61,7 +65,11 @@ type AdapterSnapshot = {
 };
 
 type HostSnapshot = {
-  threads: readonly { id: string; generation: number }[];
+  threads: readonly {
+    id: string;
+    generation: number;
+    destroySignal: AbortSignal;
+  }[];
   hookEpoch: number;
 };
 
@@ -129,6 +137,7 @@ export class RemoteThreadListHookInstanceManager extends BaseSubscribable {
       this.instances.set(threadId, {
         generation,
         isRunning: false,
+        destroy: new AbortController(),
       });
       this._syncHostThreads();
     }
@@ -141,6 +150,14 @@ export class RemoteThreadListHookInstanceManager extends BaseSubscribable {
     if (!instance) return this.startThreadRuntime(threadId);
 
     if (instance.runtime) invalidateThreadRuntime(instance.runtime);
+    // Detach before aborting, as stopThreadRuntime does: the abort runs the
+    // destroy listeners synchronously, and a listener that stops the outgoing
+    // runtime would otherwise emit that generation's terminal events through
+    // the subscription the next generation is about to reuse.
+    instance.unsubscribeRunning?.();
+    instance.unsubscribeRunning = undefined;
+    instance.destroy.abort();
+    instance.destroy = new AbortController();
     instance.generation = this.nextGeneration++;
     this._syncHostThreads();
     this._notifySubscribers();
@@ -202,7 +219,7 @@ export class RemoteThreadListHookInstanceManager extends BaseSubscribable {
     }
     this._notifySubscribers();
     if (previousRuntime !== undefined && previousRuntime !== runtime) {
-      for (const callback of this.replacedSubscribers) callback();
+      notifySubscribers(this.replacedSubscribers);
     }
   }
 
@@ -254,13 +271,14 @@ export class RemoteThreadListHookInstanceManager extends BaseSubscribable {
   ) {
     if (instance.isRunning === isRunning) return;
     instance.isRunning = isRunning;
-    for (const callback of this.runningSubscribers) callback();
+    notifySubscribers(this.runningSubscribers);
   }
 
   public stopThreadRuntime(threadId: string) {
     const instance = this.instances.get(threadId);
     if (instance?.runtime) invalidateThreadRuntime(instance.runtime);
     instance?.unsubscribeRunning?.();
+    instance?.destroy.abort();
     this.instances.delete(threadId);
     this.pendingThreadAdapters.delete(threadId);
     this._syncHostThreads();
@@ -302,7 +320,11 @@ export class RemoteThreadListHookInstanceManager extends BaseSubscribable {
     this.hostStore.setState({
       ...host,
       threads: Array.from(this.instances.entries()).map(
-        ([id, { generation }]) => ({ id, generation }),
+        ([id, { generation, destroy }]) => ({
+          id,
+          generation,
+          destroySignal: destroy.signal,
+        }),
       ),
     });
   }
@@ -312,7 +334,7 @@ export class RemoteThreadListHookInstanceManager extends BaseSubscribable {
     const adapters = useSubscribable(this.adapterStore);
     const runtimeHook = this.runtimeHook;
     return useResources(
-      threads.map(({ id, generation }) => {
+      threads.map(({ id, generation, destroySignal }) => {
         const threadAdapters = this.pendingThreadAdapters.has(id)
           ? this.pendingThreadAdapters.get(id)!
           : (adapters.threadAdapters.get(id) ?? adapters.defaultAdapters);
@@ -326,6 +348,7 @@ export class RemoteThreadListHookInstanceManager extends BaseSubscribable {
             parentClient,
             adapters: threadAdapters,
             publish: this._publish,
+            destroySignal,
           }),
         );
       }),

@@ -22,7 +22,6 @@ import { useVirtualArchive } from "./useVirtualArchive";
 
 afterEach(() => {
   vi.restoreAllMocks();
-  vi.clearAllMocks();
 });
 
 describe("useVirtualArchive", () => {

@@ -30,6 +30,20 @@ describe("computeGrid", () => {
     expect(nonZero!.date.getDate()).toBe(15);
   });
 
+  it("accepts full ISO timestamps", () => {
+    const result = computeGrid({
+      data: [{ date: new Date(2025, 0, 15, 12).toISOString(), count: 5 }],
+      start: new Date(2025, 0, 13, 12).toISOString(),
+      end: new Date(2025, 0, 19, 12).toISOString(),
+      weekStart: "monday",
+    });
+
+    expect(result.cells).toHaveLength(7);
+    expect(result.cells.find((cell) => cell.date.getDate() === 15)?.count).toBe(
+      5,
+    );
+  });
+
   it("computes correct column and row for monday start", () => {
     const result = computeGrid({
       data: [],

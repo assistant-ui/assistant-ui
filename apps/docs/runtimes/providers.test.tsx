@@ -1,9 +1,14 @@
-import { afterEach, expect, it, vi } from "vitest";
+import { expect, it, vi } from "vitest";
 import { renderToString } from "react-dom/server";
 import {
   CloudFileAttachmentAdapter,
   SimpleImageAttachmentAdapter,
 } from "@assistant-ui/react";
+import { DocsRuntimeProvider } from "./docs";
+import { ArtifactsRuntimeProvider } from "./artifacts";
+import { InteractableRuntimeProvider } from "./interactable";
+import { DocsAssistantRuntimeProvider } from "./docs-assistant";
+import { PlaygroundRuntimeProvider } from "./playground";
 
 const useDocsChatRuntime = vi.hoisted(() => vi.fn(() => ({}) as never));
 const useSpeechAdapters = vi.hoisted(() => vi.fn(() => ({ speech: "speech" })));
@@ -44,13 +49,7 @@ const runtimeOptions = () =>
     adapters?: Record<string, unknown>;
   };
 
-afterEach(() => {
-  vi.clearAllMocks();
-});
-
-it("wires the docs surface with a cloud, dictation and cloud attachments", async () => {
-  const { DocsRuntimeProvider } = await import("./docs");
-
+it("wires the docs surface with a cloud, dictation and cloud attachments", () => {
   renderToString(<DocsRuntimeProvider>{null}</DocsRuntimeProvider>);
 
   expect(useSpeechAdapters).toHaveBeenCalledWith({ dictation: true });
@@ -63,9 +62,7 @@ it("wires the docs surface with a cloud, dictation and cloud attachments", async
   expect(runtimeOptions().adapters?.feedback).toBeDefined();
 });
 
-it("wires the artifacts surface with a cloud and dictation but no feedback", async () => {
-  const { ArtifactsRuntimeProvider } = await import("./artifacts");
-
+it("wires the artifacts surface with a cloud and dictation but no feedback", () => {
   renderToString(<ArtifactsRuntimeProvider>{null}</ArtifactsRuntimeProvider>);
 
   expect(useSpeechAdapters).toHaveBeenCalledWith({ dictation: true });
@@ -74,9 +71,7 @@ it("wires the artifacts surface with a cloud and dictation but no feedback", asy
   expect(runtimeOptions().adapters?.feedback).toBeUndefined();
 });
 
-it("wires the interactable sample with a cloud and image attachments", async () => {
-  const { InteractableRuntimeProvider } = await import("./interactable");
-
+it("wires the interactable sample with a cloud and image attachments", () => {
   renderToString(
     <InteractableRuntimeProvider>{null}</InteractableRuntimeProvider>,
   );
@@ -91,9 +86,7 @@ it("wires the interactable sample with a cloud and image attachments", async () 
   expect(useSpeechAdapters).not.toHaveBeenCalled();
 });
 
-it("wires the docs assistant onto its own endpoint with no cloud", async () => {
-  const { DocsAssistantRuntimeProvider } = await import("./docs-assistant");
-
+it("wires the docs assistant onto its own endpoint with no cloud", () => {
   renderToString(
     <DocsAssistantRuntimeProvider>{null}</DocsAssistantRuntimeProvider>,
   );
@@ -107,9 +100,7 @@ it("wires the docs assistant onto its own endpoint with no cloud", async () => {
   expect(useSpeechAdapters).not.toHaveBeenCalled();
 });
 
-it("leaves the playground without a cloud or automatic sending", async () => {
-  const { PlaygroundRuntimeProvider } = await import("./playground");
-
+it("leaves the playground without a cloud or automatic sending", () => {
   renderToString(<PlaygroundRuntimeProvider>{null}</PlaygroundRuntimeProvider>);
 
   expect(useSpeechAdapters).toHaveBeenCalledWith();

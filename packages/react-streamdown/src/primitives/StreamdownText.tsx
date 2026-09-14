@@ -64,10 +64,11 @@ const isShallowEqual = (a: unknown, b: unknown, depth = 1): boolean => {
   if (depth <= 0) return false;
 
   if (Array.isArray(a) && Array.isArray(b)) {
-    return (
-      a.length === b.length &&
-      a.every((item, i) => isShallowEqual(item, b[i], depth - 1))
-    );
+    if (a.length !== b.length) return false;
+    for (let i = 0; i < a.length; i++) {
+      if (!isShallowEqual(a[i], b[i], depth - 1)) return false;
+    }
+    return true;
   }
 
   const plain = (value: unknown): value is Record<string, unknown> =>
@@ -293,19 +294,12 @@ export const StreamdownTextPrimitive = forwardRef<
       [shikiTheme, resolvedPlugins?.code],
     );
 
-    const adaptedComponents = useAdaptedComponents({
-      components,
-      componentsByLanguage,
-    });
-
-    const mergedComponents = useMemo(() => {
-      const {
-        SyntaxHighlighter: _,
-        CodeHeader: __,
-        ...userHtmlComponents
-      } = components ?? {};
-      return { ...userHtmlComponents, ...adaptedComponents };
-    }, [components, adaptedComponents]);
+    // The documented usage of `components` is an inline object literal, so the
+    // map is stabilized here; without it the memoized body sees a new prop
+    // identity every render and never bails out.
+    const mergedComponents = useStableProps(
+      useAdaptedComponents({ components, componentsByLanguage }),
+    );
 
     const containerClass = useMemo(() => {
       const classes = [containerClassName, containerProps?.className]

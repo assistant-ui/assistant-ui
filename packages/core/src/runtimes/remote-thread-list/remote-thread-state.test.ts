@@ -3,6 +3,8 @@ import {
   classifyThreads,
   createEmptyRemoteThreadState,
   createThreadMappingId,
+  getThreadData,
+  promoteNewThreadReducer,
   reconcileInitializedThread,
   seedNewThread,
   updateStatusReducer,
@@ -14,12 +16,16 @@ import type {
 
 const initializedDraft = () => {
   const seeded = seedNewThread(createEmptyRemoteThreadState());
-  const regular = updateStatusReducer(seeded.state, seeded.id, "regular");
-  const mappingId = regular.threadIdMap[seeded.id]!;
   const initializeTask = Promise.resolve({
     remoteId: "remote-1",
     externalId: "remote-1",
   });
+  const regular = promoteNewThreadReducer(
+    seeded.state,
+    seeded.id,
+    initializeTask,
+  );
+  const mappingId = regular.threadIdMap[seeded.id]!;
   return {
     id: seeded.id,
     mappingId,
@@ -82,6 +88,39 @@ describe("remote thread state", () => {
     expect(Object.keys(second.state.threadData)).toEqual([first.id, second.id]);
   });
 
+  it("carries the initialization task onto the promoted slot", () => {
+    const seeded = seedNewThread(createEmptyRemoteThreadState());
+    const initializeTask = Promise.resolve({
+      remoteId: "remote-1",
+      externalId: "external-1",
+    });
+
+    const promoted = promoteNewThreadReducer(
+      seeded.state,
+      seeded.id,
+      initializeTask,
+    );
+    const data = getThreadData(promoted, seeded.id);
+
+    expect(data?.status).toBe("regular");
+    expect(data?.status === "new" ? undefined : data?.initializeTask).toBe(
+      initializeTask,
+    );
+    expect(promoted.newThreadId).toBeUndefined();
+    expect(promoted.threadIds).toEqual([seeded.id]);
+  });
+
+  it.each(["regular", "archived"] as const)(
+    "leaves a new thread untouched when moved to %s without an initialization task",
+    (newStatus) => {
+      const seeded = seedNewThread(createEmptyRemoteThreadState());
+
+      expect(updateStatusReducer(seeded.state, seeded.id, newStatus)).toBe(
+        seeded.state,
+      );
+    },
+  );
+
   it("refreshes the local slot when a listed thread already has a mapping", () => {
     const draft = initializedDraft();
 
@@ -135,7 +174,11 @@ describe("remote thread state", () => {
 
   it("retains a listed external id when that slot survives reconciliation", async () => {
     const seeded = seedNewThread(createEmptyRemoteThreadState());
-    const regular = updateStatusReducer(seeded.state, seeded.id, "regular");
+    const regular = promoteNewThreadReducer(
+      seeded.state,
+      seeded.id,
+      Promise.resolve({ remoteId: "remote-1", externalId: "external-1" }),
+    );
     const classified = classifyThreads(
       [
         {

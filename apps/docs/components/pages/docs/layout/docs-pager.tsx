@@ -28,6 +28,7 @@ import {
 import { copyTextToClipboard } from "@/lib/copy-to-clipboard";
 import { analytics } from "@/lib/analytics";
 import { toast } from "sonner";
+import { usePlatformMarkdownUrl } from "@/hooks/use-platform-markdown-url";
 
 type PagerItem = {
   url: string;
@@ -38,6 +39,7 @@ type DocsPagerProps = {
   next?: PagerItem;
   markdownUrl?: string;
   title: string;
+  platformAwareMarkdown?: boolean;
 };
 
 function PageAction({
@@ -70,8 +72,13 @@ export function DocsPager({
   next,
   markdownUrl,
   title,
+  platformAwareMarkdown = false,
 }: DocsPagerProps) {
-  const { copy, prefetch, isLoading } = useMarkdownCopy(markdownUrl);
+  const resolvedMarkdownUrl = usePlatformMarkdownUrl(
+    markdownUrl,
+    platformAwareMarkdown,
+  );
+  const { copy, prefetch, isLoading } = useMarkdownCopy(resolvedMarkdownUrl);
 
   const handleCopy = () => {
     analytics.pageActions.actionClicked("copy");
@@ -103,7 +110,7 @@ export function DocsPager({
           <ChevronRight className="size-4" />
         </div>
       )}
-      {markdownUrl && (
+      {resolvedMarkdownUrl && (
         <DropdownMenu onOpenChange={(open) => open && prefetch()}>
           <DropdownMenuTrigger
             aria-label="More page actions"
@@ -128,7 +135,7 @@ export function DocsPager({
               onClick={() => analytics.pageActions.actionClicked("markdown")}
               render={
                 <a
-                  href={`${BASE_URL}${markdownUrl}`}
+                  href={`${BASE_URL}${resolvedMarkdownUrl}`}
                   target="_blank"
                   rel="noreferrer noopener"
                 />
@@ -145,7 +152,7 @@ export function DocsPager({
               onClick={() => analytics.pageActions.actionClicked("claude")}
               render={
                 <a
-                  href={getClaudePageUrl(markdownUrl, title)}
+                  href={getClaudePageUrl(resolvedMarkdownUrl, title)}
                   target="_blank"
                   rel="noreferrer noopener"
                 />

@@ -9,15 +9,18 @@ type ThreadTitleGeneration = {
   readonly automatic: boolean;
   readonly order: number;
   claim: ThreadTitleClaim | null;
-  beforeGenerationClaim: ThreadTitleClaim | null;
+  beforeGenerationClaims: readonly ThreadTitleClaim[];
   superseded: boolean;
+  readonly persisted: Promise<string | undefined>;
+  readonly settlePersisted: (title: string | undefined) => void;
 };
 
 export type ThreadTitleState = {
   generations: Set<ThreadTitleGeneration>;
   pendingClaim: ThreadTitleClaim | null;
+  inFlightClaims: Set<ThreadTitleClaim>;
   manualTitle: string | undefined;
-  latestExplicitOrder: number;
+  latestExplicit: ThreadTitleGeneration | null;
   nextOrder: number;
 };
 
@@ -41,8 +44,9 @@ function getThreadTitleState(
     state = {
       generations: new Set(),
       pendingClaim: null,
+      inFlightClaims: new Set(),
       manualTitle: undefined,
-      latestExplicitOrder: 0,
+      latestExplicit: null,
       nextOrder: 0,
     };
     states.set(threadId, state);
@@ -58,6 +62,7 @@ function pruneThreadTitleState(
   if (
     state.generations.size === 0 &&
     state.pendingClaim === null &&
+    state.inFlightClaims.size === 0 &&
     state.manualTitle === undefined &&
     states.get(threadId) === state
   ) {
@@ -70,8 +75,16 @@ function isCurrentGeneration(
   generation: ThreadTitleGeneration,
 ): boolean {
   return (
-    !generation.superseded && state.latestExplicitOrder <= generation.order
+    !generation.superseded &&
+    (state.latestExplicit?.order ?? 0) <= generation.order
   );
+}
+
+function isCurrentClaim(
+  state: ThreadTitleState,
+  claim: ThreadTitleClaim,
+): boolean {
+  return (state.latestExplicit?.order ?? 0) < claim.order;
 }
 
 export function startThreadTitleRename(
@@ -91,6 +104,7 @@ export function startThreadTitleRename(
     settle,
   };
   state.pendingClaim = claim;
+  state.inFlightClaims.add(claim);
   for (const generation of state.generations) {
     if (generation.order < claim.order) generation.claim = claim;
   }
@@ -106,6 +120,7 @@ export function finishThreadTitleRename(
   claim.settle(renamed);
   const state = states.get(threadId);
   if (state === undefined) return;
+  state.inFlightClaims.delete(claim);
   if (state.pendingClaim === claim) {
     state.pendingClaim = null;
     if (renamed) {
@@ -148,17 +163,23 @@ function startThreadTitleGeneration(
     return null;
   }
 
+  let settlePersisted!: (title: string | undefined) => void;
+  const persisted = new Promise<string | undefined>((resolve) => {
+    settlePersisted = resolve;
+  });
   const generation: ThreadTitleGeneration = {
     automatic,
     order: ++state.nextOrder,
     claim: automatic ? state.pendingClaim : null,
-    beforeGenerationClaim: automatic ? null : state.pendingClaim,
+    beforeGenerationClaims: automatic ? [] : [...state.inFlightClaims],
     superseded: false,
+    persisted,
+    settlePersisted,
   };
   if (!automatic) {
     state.pendingClaim = null;
     state.manualTitle = undefined;
-    state.latestExplicitOrder = generation.order;
+    state.latestExplicit = generation;
     for (const active of state.generations) {
       if (active.automatic) active.superseded = true;
     }
@@ -168,13 +189,14 @@ function startThreadTitleGeneration(
 }
 
 /**
- * Runs one title generation under the per-thread rename claims, so a rename
- * that lands while the generation is in flight stays the persisted title.
+ * Runs one title generation under the per-thread rename claims and generation
+ * ordering, so the title that wins locally is also the title left on the
+ * server.
  *
  * A generated run persists the title itself, and the adapter exposes no
- * compare-and-set, so a winning claim is reasserted through `rename` only after
- * `generate` has resolved. Reasserting mid-stream would race the run's own
- * write and lose the manual title on the server.
+ * compare-and-set, so the run that loses reasserts the winner through `rename`
+ * only after `generate` has resolved. Reasserting mid-stream would race the
+ * run's own write and lose the winning title on the server.
  */
 export async function runThreadTitleGeneration({
   states,
@@ -187,6 +209,9 @@ export async function runThreadTitleGeneration({
   const state = getThreadTitleState(states, threadId);
   const generation = startThreadTitleGeneration(states, threadId, automatic);
   if (generation === null) return;
+
+  let persistedTitle: string | undefined;
+  let persistedOrder = generation.order;
 
   const settleClaim = async (claim: ThreadTitleClaim) => {
     const renamed = await claim.settled;
@@ -201,9 +226,45 @@ export async function runThreadTitleGeneration({
   const retainManualTitle = () =>
     automatic && takeManualTitle(states, threadId, state) !== undefined;
 
-  try {
-    if (generation.beforeGenerationClaim !== null) {
-      await generation.beforeGenerationClaim.settled;
+  // `generate` resolves only once the run has persisted its title, so a run
+  // that lost the ordering race while it streamed has already overwritten the
+  // winner. It waits for the winning generation to persist its own title and
+  // writes that title back.
+  const repairLostRace = async () => {
+    if (persistedTitle === undefined) return;
+    while (true) {
+      const claim = generation.claim;
+      if (
+        claim !== null &&
+        claim.order > persistedOrder &&
+        isCurrentClaim(state, claim)
+      ) {
+        const renamed = await settleClaim(claim);
+        if (renamed === true) {
+          persistedTitle = claim.title;
+          persistedOrder = claim.order;
+          await rename(claim.title);
+        }
+        continue;
+      }
+      const winner = state.latestExplicit;
+      if (winner === null || winner.order <= persistedOrder) return;
+      const title = await winner.persisted;
+      if (state.latestExplicit !== winner) continue;
+      persistedOrder = winner.order;
+      if (title === undefined || title === persistedTitle) return;
+      persistedTitle = title;
+      await rename(title);
+    }
+  };
+
+  const runGeneration = async () => {
+    // An explicit generation waits for every earlier rename because any of
+    // those server writes may settle last.
+    if (generation.beforeGenerationClaims.length > 0) {
+      await Promise.all(
+        generation.beforeGenerationClaims.map((claim) => claim.settled),
+      );
     }
     if (generation.claim !== null) {
       const renamed = await settleClaim(generation.claim);
@@ -220,6 +281,7 @@ export async function runThreadTitleGeneration({
     await generate(async (title) => {
       sawTitle = true;
       lastTitle = title;
+      if (title !== undefined) persistedTitle = title;
       const claim = generation.claim;
       if (claim !== null) {
         const renamed = await settleClaim(claim);
@@ -244,15 +306,23 @@ export async function runThreadTitleGeneration({
         }
         return;
       }
-      if (!isCurrentGeneration(state, generation)) return;
+      if (!isCurrentClaim(state, claim)) return;
       await rename(claim.title);
+      persistedTitle = claim.title;
+      persistedOrder = claim.order;
       if (generation.claim !== claim) continue;
       if (!isCurrentGeneration(state, generation)) return;
       await applyTitle(claim.title);
       generation.superseded = true;
       return;
     }
+  };
+
+  try {
+    await runGeneration();
+    await repairLostRace();
   } finally {
+    generation.settlePersisted(persistedTitle);
     state.generations.delete(generation);
     pruneThreadTitleState(states, threadId, state);
   }

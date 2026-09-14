@@ -1,6 +1,7 @@
 import { describe, it, expect } from "vitest";
 import { appendLangChainChunk } from "./appendLangChainChunk";
 import { convertLangChainMessages } from "./convertLangChainMessages";
+import { normalizeLangGraphTupleMessage } from "./normalizeLangGraphTupleMessage";
 import type { LangChainMessage, LangChainMessageChunk } from "./types";
 
 type AiMessage = Extract<LangChainMessage, { type: "ai" }>;
@@ -63,6 +64,23 @@ describe("appendLangChainChunk content-less chunks", () => {
     expect(merged.tool_calls).toEqual([
       expect.objectContaining({ id: "call-1", name: "search" }),
     ]);
+  });
+
+  it("ignores malformed content before a valid continuation", () => {
+    const first = append(undefined, {
+      type: "AIMessageChunk",
+      id: "ai-1",
+      content: { text: "not an array" },
+    } as unknown as LangChainMessageChunk);
+
+    const merged = append(first, {
+      type: "AIMessageChunk",
+      id: "ai-1",
+      content: "hello",
+    });
+
+    expect(first.content).toEqual([]);
+    expect(merged.content).toEqual([{ type: "text", text: "hello" }]);
   });
 });
 
@@ -672,6 +690,52 @@ describe("appendLangChainChunk continuation content", () => {
       { type: "text", text: "Answer." },
       { type: "reasoning", text: "Two steps." },
     ]);
+  });
+});
+
+describe("appendLangChainChunk tool_call name merging", () => {
+  it("accepts a late tool name and keeps it through unnamed chunks", () => {
+    const first = normalizeLangGraphTupleMessage({
+      id: "ai-1",
+      type: "ai",
+      content: "",
+      tool_call_chunks: [{ index: 0 }],
+    });
+    const next = normalizeLangGraphTupleMessage({
+      id: "ai-1",
+      type: "ai",
+      content: "",
+      tool_call_chunks: [
+        { index: 0, id: "call-1", name: "search", args: "{}" },
+      ],
+    });
+    if (!first || !next) throw new Error("Expected normalized chunks");
+
+    const merged = appendLangChainChunk(
+      appendLangChainChunk(undefined, first.message),
+      next.message,
+    );
+    const expected = expect.arrayContaining([
+      expect.objectContaining({
+        type: "tool-call",
+        toolCallId: "call-1",
+        toolName: "search",
+        argsText: "{}",
+      }),
+    ]);
+    expect(convertLangChainMessages(merged, {})).toHaveProperty(
+      "content",
+      expected,
+    );
+
+    const continued = appendLangChainChunk(
+      merged,
+      aiChunk([{ index: 0, id: "call-1", name: "", args: "" }]),
+    );
+    expect(convertLangChainMessages(continued, {})).toHaveProperty(
+      "content",
+      expected,
+    );
   });
 });
 

@@ -1,5 +1,5 @@
-import { createHash } from "node:crypto";
 import { BASE_URL } from "./constants";
+import { sha256 } from "./sha256";
 import {
   AGENT_DISCOVERY_ROUTES,
   API_CATALOG_LINK_HEADER,
@@ -10,6 +10,8 @@ import {
   DESIGN_SKILL_DESCRIPTION,
   DESIGN_SKILL_NAME,
 } from "./design-law";
+
+export { sha256 } from "./sha256";
 
 const CACHE_CONTROL = "no-cache, must-revalidate";
 const AGENT_SKILLS_SCHEMA =
@@ -94,10 +96,6 @@ Use these instructions when reading assistant-ui documentation or implementing a
 - LLM index: ${absoluteUrl("/llms.txt")}
 - MCP: ${absoluteUrl("/mcp")}
 `;
-
-export function sha256(content: string) {
-  return createHash("sha256").update(content).digest("hex");
-}
 
 export function buildAgentSkillsIndex() {
   return {

@@ -14,6 +14,7 @@ import {
   buildDependencyGraph,
   bumpVersion,
   computeCascade,
+  findIntendedRangeBreaks,
   findRangeBreakingBumps,
   isOutsideCaretRange,
   renderSummary,
@@ -549,7 +550,56 @@ test("a PR range that touches no changeset ends the run before any summary", () 
   }
 });
 
-test("an unusable base falls back to every changeset and says so", () => {
+test("the PR range is measured from the fork point, not the base tip", () => {
+  const root = createWorkspace([{ name: "@fixture/dep", version: "0.12.15" }], {
+    "already-on-base.md": '"@fixture/dep": patch',
+  });
+  try {
+    git(root, "init", "-q", "-b", "main");
+    commitAll(root, "base");
+
+    git(root, "checkout", "-q", "-b", "pr");
+    writeFileSync(
+      path.join(root, ".changeset", "added-by-the-pr.md"),
+      '---\n"@fixture/dep": patch\n---\n\nfix: fixture\n',
+    );
+    const head = commitAll(root, "head");
+
+    git(root, "checkout", "-q", "main");
+    writeFileSync(
+      path.join(root, ".changeset", "already-on-base.md"),
+      '---\n"@fixture/dep": minor\n---\n\nfeat: fixture\n',
+    );
+    const base = commitAll(root, "base moves on");
+    git(
+      root,
+      "-c",
+      "user.name=fixture",
+      "-c",
+      "user.email=fixture@example.com",
+      "merge",
+      "-q",
+      "--no-ff",
+      "-m",
+      "merge",
+      "pr",
+    );
+
+    const result = runExecutable(root, { BASE_SHA: base, HEAD_SHA: head });
+
+    assert.equal(result.status, 0, result.stdout + result.stderr);
+    assert.match(result.stdout, /`added-by-the-pr\.md`/);
+    assert.doesNotMatch(
+      result.stdout,
+      /already-on-base/,
+      "a changeset only the base branch changed was graded against the PR",
+    );
+  } finally {
+    rmSync(root, { recursive: true, force: true });
+  }
+});
+
+test("a range git cannot resolve fails closed instead of grading the tree", () => {
   const root = createWorkspace([{ name: "@fixture/dep", version: "0.12.15" }], {
     "shy-pots-shave.md": '"@fixture/dep": minor',
   });
@@ -560,8 +610,35 @@ test("an unusable base falls back to every changeset and says so", () => {
     });
 
     assert.equal(result.status, 1);
-    assert.match(result.stdout, /Could not diff against base/);
-    assert.match(result.stdout, /shy-pots-shave\.md/);
+    assert.match(result.stdout, /Could not diff 0{40}\.{3}1{40}/);
+    assert.ok(
+      /Could not diff [^:]+: (.+)\. Failing instead of grading/.exec(
+        result.stdout,
+      )?.[1],
+      "the annotation dropped git's own error",
+    );
+    assert.doesNotMatch(result.stdout, /shy-pots-shave\.md/);
+    assert.doesNotMatch(result.stdout, /Semver-breaking/);
+  } finally {
+    rmSync(root, { recursive: true, force: true });
+  }
+});
+
+test("the annotation escapes what a workflow command cannot carry raw", () => {
+  const root = createWorkspace([{ name: "@fixture/dep", version: "0.12.15" }], {
+    "shy-pots-shave.md": '"@fixture/dep": minor',
+  });
+  try {
+    const result = runExecutable(root, {
+      GITHUB_ACTIONS: "true",
+      BASE_SHA: "100%",
+      HEAD_SHA: "1111111111111111111111111111111111111111",
+    });
+
+    assert.equal(result.status, 1);
+    assert.match(result.stdout, /^::error::/m);
+    assert.match(result.stdout, /100%25/);
+    assert.doesNotMatch(result.stdout, /100%[^2]/);
   } finally {
     rmSync(root, { recursive: true, force: true });
   }
@@ -576,6 +653,134 @@ test("a changeset with no releasable bump ends the run before any summary", () =
     assert.equal(result.status, 0, result.stderr);
     assert.match(result.stdout, /No package bumps found in changesets\./);
     assert.doesNotMatch(result.stdout, /Changeset Impact Summary/);
+  } finally {
+    rmSync(root, { recursive: true, force: true });
+  }
+});
+
+test("a range break declared intended is listed instead of reported", () => {
+  const bumps = [
+    {
+      file: "cloud-0-2.md",
+      name: "@fixture/dep",
+      version: "0.12.15",
+      bumpType: "minor",
+      intended: true,
+    },
+    {
+      file: "shy-pots-shave.md",
+      name: "@fixture/other",
+      version: "0.3.1",
+      bumpType: "minor",
+    },
+  ];
+  assert.deepEqual(
+    findRangeBreakingBumps(bumps).map(({ name }) => name),
+    ["@fixture/other"],
+  );
+  assert.deepEqual(
+    findIntendedRangeBreaks(bumps).map(({ name, reason }) => ({
+      name,
+      reason,
+    })),
+    [
+      {
+        name: "@fixture/dep",
+        reason: "0.x package — minor bump breaks `^` caret range",
+      },
+    ],
+  );
+});
+
+test("an intended range break renders its own table in the safe summary", () => {
+  assert.equal(
+    renderSummary({
+      bumps: [
+        {
+          file: "cloud-0-2.md",
+          name: "@fixture/dep",
+          version: "0.12.15",
+          bumpType: "minor",
+          intended: true,
+        },
+      ],
+      violations: [],
+      intended: [
+        {
+          file: "cloud-0-2.md",
+          name: "@fixture/dep",
+          version: "0.12.15",
+          bumpType: "minor",
+          intended: true,
+          reason: "0.x package — minor bump breaks `^` caret range",
+        },
+      ],
+      cascade: [],
+    }),
+    `## Changeset Impact Summary
+
+| File | Package | Version | Bump |
+| --- | --- | --- | --- |
+| \`cloud-0-2.md\` | \`@fixture/dep\` | 0.12.15 | minor |
+
+### Intended range breaks (1)
+
+| File | Package | Version | Bump | Why |
+| --- | --- | --- | --- | --- |
+| \`cloud-0-2.md\` | \`@fixture/dep\` | 0.12.15 | **minor** | 0.x package — minor bump breaks \`^\` caret range |
+
+Declared with \`caret-break: intended\` in the changeset body: consumers on the previous \`^\` range must move to the new line.
+
+`,
+  );
+});
+
+test("an intended range break stays listed next to an unaccepted violation", () => {
+  const summary = renderSummary({
+    bumps: [],
+    violations: [
+      {
+        file: "wild-cats-run.md",
+        name: "@fixture/other",
+        version: "0.3.1",
+        bumpType: "minor",
+        reason: "0.x package — minor bump breaks `^` caret range",
+      },
+    ],
+    intended: [
+      {
+        file: "cloud-0-2.md",
+        name: "@fixture/dep",
+        version: "0.12.15",
+        bumpType: "minor",
+        intended: true,
+        reason: "0.x package — minor bump breaks `^` caret range",
+      },
+    ],
+    cascade: [],
+  });
+  assert.match(summary, /## ⚠️ Semver-Breaking Changeset Detected/);
+  assert.match(summary, /\| `wild-cats-run.md` \| `@fixture\/other` \|/);
+  assert.match(summary, /### Intended range breaks \(1\)/);
+  assert.match(summary, /\| `cloud-0-2.md` \| `@fixture\/dep` \|/);
+});
+
+test("runCheck reads the intended marker from the changeset body", () => {
+  const root = createWorkspace([{ name: "@fixture/dep", version: "0.12.15" }], {
+    "cloud-0-2.md": '"@fixture/dep": minor',
+  });
+  writeFileSync(
+    path.join(root, ".changeset", "cloud-0-2.md"),
+    '---\n"@fixture/dep": minor\n---\n\nfeat: fixture\n\n<!-- caret-break: intended -->\n',
+  );
+  try {
+    const { bumps, violations, intended } = runCheck(root);
+    assert.equal(bumps[0].intended, true);
+    assert.deepEqual(violations, []);
+    assert.deepEqual(
+      intended.map(({ name, bumpType }) => ({ name, bumpType })),
+      [{ name: "@fixture/dep", bumpType: "minor" }],
+    );
   } finally {
     rmSync(root, { recursive: true, force: true });
   }

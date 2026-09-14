@@ -21,12 +21,31 @@ This is a test project for the `assistant-stream` state management functionality
 2. Run the server:
 
    ```
-   python server.py
+   uv run python server.py
    ```
 
-3. Open your browser to [http://localhost:8000](http://localhost:8000)
+3. Exercise the endpoints. The server has no page of its own; it exposes five `POST` routes. Either open the interactive API docs FastAPI serves at [http://localhost:8000/docs](http://localhost:8000/docs) and run a route from there, or call one directly:
 
-4. Click on the different test buttons to see state updates in action
+   ```
+   curl -N -X POST http://localhost:8000/simple-test
+   curl -N -X POST http://localhost:8000/complex-test
+   curl -N -X POST http://localhost:8000/string-test
+   curl -N -X POST http://localhost:8000/list-test
+   curl -N -X POST http://localhost:8000/dict-test
+   ```
+
+   `-N` keeps curl from buffering, so the state operations appear as the server emits them. `string-test`, `list-test`, and `dict-test` sleep between steps and take several seconds to finish.
+
+Each response streams the state operations as `aui-state:` lines, one batch per flush:
+
+```
+aui-state:[{"type": "set", "path": ["message"], "value": "Hello"}]
+aui-state:[{"type": "append-text", "path": ["message"], "value": " world"}]
+aui-state:[{"type": "append-text", "path": ["message"], "value": "!"}]
+aui-state:[{"type": "set", "path": ["uppercase"], "value": "HELLO WORLD!"}]
+```
+
+Applying them in order reconstructs the state the run built up.
 
 ## Implementation Details
 

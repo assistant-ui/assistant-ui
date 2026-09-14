@@ -118,6 +118,68 @@ const isStandardSchema = (schema: unknown): schema is StandardSchemaLike =>
   "~standard" in schema &&
   (schema as StandardSchemaLike)["~standard"].version === 1;
 
+const TOOL_ABORTED = Symbol("assistant-ui.webmcp-tool-aborted");
+
+const isThenable = <T>(value: T | PromiseLike<T>): value is PromiseLike<T> =>
+  typeof (value as PromiseLike<T> | null | undefined)?.then === "function";
+
+const raceWithAbort = async <T>(
+  value: PromiseLike<T>,
+  abortSignal: AbortSignal,
+): Promise<T | typeof TOOL_ABORTED> => {
+  let onAbort!: () => void;
+  const abortPromise = new Promise<typeof TOOL_ABORTED>((resolve) => {
+    onAbort = () => resolve(TOOL_ABORTED);
+    if (abortSignal.aborted) {
+      onAbort();
+    } else {
+      abortSignal.addEventListener("abort", onAbort, { once: true });
+    }
+  });
+
+  try {
+    // Unlike assistant-stream's helper, cancellation wins when validation aborts and rejects synchronously.
+    return await Promise.race([abortPromise, value]);
+  } finally {
+    abortSignal.removeEventListener("abort", onAbort);
+  }
+};
+
+// AbortSignal.any sits above the browserslist floor and rejects any input that
+// is not a native AbortSignal, which a navigator.modelContext polyfill's signal
+// is not. The merged signal tracks its inputs only until cleanup runs, where
+// the single-signal path hands the caller the lifecycle signal itself.
+const combineAbortSignals = (
+  callerSignal: AbortSignal,
+  lifecycleSignal: AbortSignal,
+): { signal: AbortSignal; cleanup: () => void } => {
+  const controller = new AbortController();
+  const teardown: (() => void)[] = [];
+  const cleanup = () => {
+    while (teardown.length) teardown.pop()!();
+  };
+  const abort = (reason: unknown) => {
+    cleanup();
+    controller.abort(reason);
+  };
+  const listen = (signal: AbortSignal) => {
+    const onAbort = () => abort(signal.reason);
+    signal.addEventListener("abort", onAbort, { once: true });
+    teardown.push(() => signal.removeEventListener("abort", onAbort));
+  };
+
+  if (callerSignal.aborted) {
+    abort(callerSignal.reason);
+  } else if (lifecycleSignal.aborted) {
+    abort(lifecycleSignal.reason);
+  } else {
+    listen(callerSignal);
+    listen(lifecycleSignal);
+  }
+
+  return { signal: controller.signal, cleanup };
+};
+
 export const toWebMcpTool = (
   name: string,
   getTool: () => Tool<any, any>,
@@ -133,17 +195,33 @@ export const toWebMcpTool = (
     const tool = getTool();
     const args = (rawArgs ?? {}) as Record<string, unknown>;
     const toolCallId = generateId();
+    let cleanup: (() => void) | undefined;
     try {
       const callerSignal = context?.signal;
-      const abortSignal = !callerSignal
-        ? lifecycleSignal
-        : !lifecycleSignal
-          ? callerSignal
-          : AbortSignal.any([callerSignal, lifecycleSignal]);
+      let abortSignal: AbortSignal | undefined;
+      if (callerSignal && lifecycleSignal) {
+        const combined = combineAbortSignals(callerSignal, lifecycleSignal);
+        abortSignal = combined.signal;
+        cleanup = combined.cleanup;
+      } else {
+        abortSignal = callerSignal ?? lifecycleSignal;
+      }
+
+      if (abortSignal?.aborted) {
+        return errorResult("Tool execution was cancelled.");
+      }
+
       let executeFn = tool.execute;
       if (isStandardSchema(tool.parameters)) {
-        let validation = tool.parameters["~standard"].validate(args);
-        validation = await validation;
+        const result = tool.parameters["~standard"].validate(args);
+        const validation = isThenable(result)
+          ? abortSignal
+            ? await raceWithAbort(result, abortSignal)
+            : await result
+          : result;
+        if (validation === TOOL_ABORTED) {
+          return errorResult("Tool execution was cancelled.");
+        }
         if (validation.issues) {
           const issues = validation.issues;
           executeFn =
@@ -175,6 +253,8 @@ export const toWebMcpTool = (
       return await toMcpContent(result, { tool, toolCallId, args });
     } catch (e) {
       return errorResult(e instanceof Error ? e.message : String(e));
+    } finally {
+      cleanup?.();
     }
   },
 });

@@ -9,6 +9,8 @@ export default defineConfig({
   plugins: [vue()],
   test: {
     environment: "jsdom",
+    pool: "threads",
+    fsModuleCache: true,
     include: ["src/**/*.test.{ts,tsx}"],
     globals: true,
   },

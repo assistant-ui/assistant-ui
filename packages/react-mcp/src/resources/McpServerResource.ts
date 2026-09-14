@@ -1,6 +1,7 @@
 import { useState, useRef, useEffect, useMemo, useEffectEvent } from "react";
 import { resource, useResource, withKey } from "@assistant-ui/tap";
 import type { ClientOutput } from "@assistant-ui/store";
+import { shallowEqual } from "@assistant-ui/store/internal";
 import {
   Client,
   StreamableHTTPClientTransport,
@@ -33,6 +34,7 @@ import type {
   MCPToolInfo,
 } from "../mcp-scope";
 import { createMcpId } from "../utils/createMcpId";
+import { beginMcpServerRemovalFence } from "./McpServerRemovalFence";
 
 export type McpServerResourceProps = {
   id: string;
@@ -84,13 +86,6 @@ export const getConnectionDependencies = (
     props.elicitation !== false,
   ];
 };
-
-const areConnectionDependenciesEqual = (
-  left: readonly unknown[],
-  right: readonly unknown[],
-) =>
-  left.length === right.length &&
-  left.every((value, index) => Object.is(value, right[index]));
 
 const useMcpServerResourceInstance = (
   props: McpServerResourceInstanceProps,
@@ -672,16 +667,19 @@ const useMcpServerResourceInstance = (
     connect: doConnect,
     disconnect: doDisconnect,
     remove: async () => {
-      await doDisconnect();
+      const releaseRemovalFence = beginMcpServerRemovalFence(props);
       try {
+        await doDisconnect();
         await clearOAuthProviderAuthState(props.storage, props.id);
         await props.onRemove();
       } catch (err) {
+        releaseRemovalFence?.();
         setLastError({
           message: err instanceof Error ? err.message : String(err),
         });
         throw err;
       }
+      releaseRemovalFence?.();
     },
     callTool: async (name, args) => {
       const client = clientRef.current;
@@ -771,7 +769,7 @@ export const McpServerResource = resource(function useMcpServerResource(
   const dependencies = getConnectionDependencies(props);
   const [connection, setConnection] = useState({ dependencies, generation: 0 });
   let currentConnection = connection;
-  if (!areConnectionDependenciesEqual(connection.dependencies, dependencies)) {
+  if (!shallowEqual(connection.dependencies, dependencies)) {
     currentConnection = {
       dependencies,
       generation: connection.generation + 1,

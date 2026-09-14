@@ -352,6 +352,84 @@ const switchTo = async (runtime: AssistantRuntime, remoteId: string) => {
   });
 };
 
+describe("ThreadListRuntime.getById", () => {
+  it("keeps background messages and metadata bound to the requested thread", async () => {
+    const harness = renderRemoteList(listAdapter(), async () => ({
+      content: [],
+    }));
+    const runtime = harness.getRuntime();
+    await waitFor(() => {
+      expect(runtime.threads.mainItem.getState().remoteId).toBe("thread-a");
+    });
+    await act(async () => {
+      runtime.thread.reset([
+        {
+          id: "message-a",
+          role: "user",
+          content: [{ type: "text", text: "A" }],
+        },
+      ]);
+    });
+    await switchTo(runtime, "thread-b");
+    await act(async () => {
+      runtime.thread.reset([
+        {
+          id: "message-b",
+          role: "user",
+          content: [{ type: "text", text: "B" }],
+        },
+      ]);
+    });
+    const threadBId = runtime.threads.mainItem.getState().id;
+    await switchTo(runtime, "thread-a");
+
+    const threadB = runtime.threads.getById(threadBId);
+    expect(threadB.getState()).toMatchObject({
+      threadId: threadBId,
+      messages: [{ id: "message-b" }],
+      metadata: {
+        id: threadBId,
+        remoteId: "thread-b",
+        title: "B",
+        isMain: false,
+      },
+    });
+    expect(runtime.thread.getState()).toMatchObject({
+      messages: [{ id: "message-a" }],
+      metadata: { remoteId: "thread-a", isMain: true },
+    });
+
+    let observed = threadB.getState();
+    const unsubscribe = threadB.subscribe(() => {
+      observed = threadB.getState();
+    });
+    try {
+      await act(async () => {
+        await runtime.threads.getItemById(threadBId).rename("Renamed B");
+      });
+      expect(observed).toMatchObject({
+        threadId: threadBId,
+        messages: [{ id: "message-b" }],
+        metadata: { title: "Renamed B", isMain: false },
+      });
+
+      await switchTo(runtime, "thread-b");
+      expect(observed.metadata).toMatchObject({
+        title: "Renamed B",
+        isMain: true,
+      });
+      await switchTo(runtime, "thread-a");
+      expect(observed).toMatchObject({
+        threadId: threadBId,
+        messages: [{ id: "message-b" }],
+        metadata: { title: "Renamed B", isMain: false },
+      });
+    } finally {
+      unsubscribe();
+    }
+  });
+});
+
 describe("background thread run events", () => {
   it("delivers runEnd globally after the running thread is switched away", async () => {
     const runA = deferred<{ content: [] }>();

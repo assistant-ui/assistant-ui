@@ -3,6 +3,7 @@ import {
   injectQuoteContext,
   unstable_injectInteractableContext as injectInteractableContext,
 } from "@assistant-ui/ai-sdk";
+import { withAssistantCloudTraceMetadata } from "assistant-cloud/telemetry";
 import { checkPublicAssistantRateLimit } from "@/lib/rate-limit";
 import {
   PUBLIC_ASSISTANT_CROSS_ORIGINS,
@@ -171,8 +172,8 @@ export async function POST(req: Request) {
         writer.merge(
           result.toUIMessageStream({
             sendReasoning: true,
-            // gets usage and modelId for assistant-cloud telemetry reports
-            messageMetadata: ({ part }) => {
+            // Sends traceId, usage, and modelId for assistant-cloud telemetry reports.
+            messageMetadata: withAssistantCloudTraceMetadata(({ part }) => {
               if (part.type === "finish-step") {
                 return {
                   modelId: part.response.modelId,
@@ -184,7 +185,7 @@ export async function POST(req: Request) {
                 };
               }
               return undefined;
-            },
+            }),
           }),
         );
       },

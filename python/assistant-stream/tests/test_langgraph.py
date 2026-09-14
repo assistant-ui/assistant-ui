@@ -284,3 +284,44 @@ async def test_existing_tool_artifact_survives_default_state(
     )
 
     assert state == expected
+
+
+@pytest.mark.anyio
+@pytest.mark.parametrize(
+    ("artifact_field_name", "path"),
+    [
+        (None, ["messages", "1", "artifact", "answer"]),
+        ("subgraph_state", ["messages", "1", "artifact", "subgraph_state", "answer"]),
+    ],
+)
+async def test_new_tool_subgraph_emits_updates_after_initial_flush(
+    artifact_field_name, path
+) -> None:
+    queue = asyncio.Queue()
+    controller = RunController(
+        queue,
+        {
+            "messages": [
+                AIMessage(
+                    content="",
+                    tool_calls=[{"id": "c1", "name": "task_tool", "args": {}}],
+                ).model_dump()
+            ]
+        },
+    )
+    state = get_tool_call_subgraph_state(
+        controller,
+        ("tools:task1",),
+        "tools",
+        {},
+        artifact_field_name=artifact_field_name,
+    )
+    controller.flush()
+    await asyncio.sleep(0)
+    queue.get_nowait()
+
+    append_langgraph_event(state, (), "updates", {"worker": {"answer": "ready"}})
+    controller.flush()
+    await asyncio.sleep(0)
+
+    assert {"type": "set", "path": path, "value": "ready"} in queue.get_nowait().operations

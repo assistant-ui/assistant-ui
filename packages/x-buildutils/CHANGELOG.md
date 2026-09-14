@@ -1,5 +1,11 @@
 # @assistant-ui/x-buildutils
 
+## 0.0.26
+
+### Patch Changes
+
+- [#6993](https://github.com/assistant-ui/assistant-ui/pull/6993) [`91689ab`](https://github.com/assistant-ui/assistant-ui/commit/91689ab92fa8ccaecff463c6fdc3e6a666bf93e5) - chore: update dependencies ([@Yonom](https://github.com/Yonom))
+
 ## 0.0.25
 
 ### Patch Changes

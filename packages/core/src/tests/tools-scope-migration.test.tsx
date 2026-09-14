@@ -23,6 +23,34 @@ afterEach(() => {
 });
 
 describe("Tools model-context registration", () => {
+  it("registers and removes a tool UI named __proto__", async () => {
+    let aui!: AnyClient;
+    const Harness = () => {
+      aui = useAui({ tools: Tools({}) } as never);
+      return null;
+    };
+    render(<Harness />);
+
+    let remove!: () => void;
+    await act(async () => {
+      remove = aui.tools().setToolUI("__proto__", () => null);
+      await vi.waitFor(() => {
+        const toolUIs = aui.tools().getState().toolUIs;
+        expect(Object.hasOwn(toolUIs, "__proto__")).toBe(true);
+        expect(toolUIs.__proto__).toHaveLength(1);
+      });
+    });
+
+    await act(async () => {
+      remove();
+      await vi.waitFor(() =>
+        expect(Object.hasOwn(aui.tools().getState().toolUIs, "__proto__")).toBe(
+          false,
+        ),
+      );
+    });
+  });
+
   it("migrates to a structurally replaced modelContext scope", async () => {
     let aui!: AnyClient;
     const Harness = ({ generation }: { generation: number }) => {

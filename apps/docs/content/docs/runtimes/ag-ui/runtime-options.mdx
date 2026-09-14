@@ -15,6 +15,7 @@ Reference for the runtime's API surface. Start with [quickstart](/docs/runtimes/
 | `logger` | `Partial<Logger>` | Optional logger overrides. The runtime logs event-parser warnings and run lifecycle events. |
 | `showThinking` | `boolean` | Whether to render `THINKING_*` and `REASONING_*` events as visible reasoning. Defaults to `true`. |
 | `autoCancelPendingToolCalls` | `boolean` | Cancel unresolved client-side tool calls automatically when the user sends, edits, or reloads a message. Defaults to `true`. See [below](#auto-cancelling-pending-tool-calls). |
+| `resumeTranscript` | `"full" \| "appended"` | What `messages` carries on a run that also carries `resume`. Defaults to `"full"`. See [below](#the-transcript-on-a-resume-run). |
 | `onError` | `(e: Error) => void` | Error callback fired on `RUN_ERROR` events and protocol errors. |
 | `onCancel` | `() => void` | Cancellation callback fired when a run is cancelled, including user cancel and runtime teardown. |
 | `adapters` | `UseAgUiRuntimeAdapters` | Standard adapter slots (see below). |
@@ -187,6 +188,20 @@ await steerAway("continue without the file", [
   { interruptId: "tool-1", status: "resolved", payload: { approved: true } },
 ]);
 ```
+
+### The transcript on a resume run
+
+The AG-UI interrupt spec constrains the thread id, interrupt coverage, idempotency, and expiry on a resume run, but it never says what `messages` carries, so hosts read it differently and both readings are conformant.
+
+By default the runtime sends the whole thread, which is what `@ag-ui/client` itself does. A host that resumes from a checkpoint ignores the transcript, and a host that rebuilds the interrupted run from it needs every message.
+
+Set `resumeTranscript: "appended"` for a host that owns the thread and seeds a resume request from its own stored snapshot. Such a host appends the request body to that snapshot, so a re-sent transcript duplicates the interrupted turn in its stored history; on reload the duplicated assistant message carries no tool result and the approval UI opens again for a call that was already answered. Under `"appended"` the runtime sends only what was appended locally after the interrupted assistant message, which is nothing for an approval or a denial and the new user turn for [steering away](#steering-away-from-an-interrupt). Microsoft Agent Framework is a host in this category.
+
+```tsx
+const runtime = useAgUiRuntime({ agent, resumeTranscript: "appended" });
+```
+
+Do not set it for a host that rebuilds the run from `messages`, which then has nothing to resume from, or for one that derives its outgoing `MESSAGES_SNAPSHOT` from the request body, which then emits a truncated one. Runs without `resume` are unaffected either way.
 
 ### Auto-cancelling pending tool calls
 

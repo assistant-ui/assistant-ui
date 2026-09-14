@@ -380,40 +380,41 @@ Renders a single composer attachment at the specified index. Useful for building
 | `index` | `number` | Zero-based index of the attachment to render |
 | `components` | `{ Image?, Document?, File?, Attachment? }` | Component renderers by attachment type |
 
-### ComposerPrimitive.EditInput
+### Editing a message
 
-`TextInput` wired to the edit composer runtime. Used inside an edit composer to allow editing an existing message. Value and `onChangeText` are managed automatically.
-
-```tsx
-<ComposerPrimitive.EditInput
-  placeholder="Edit message..."
-  multiline
-  style={styles.input}
-/>
-```
-
-| Prop | Type | Description |
-|------|------|-------------|
-| `...rest` | `TextInputProps` | Standard TextInput props (except `value`, `onChangeText`) |
-
-### ComposerPrimitive.EditSend
-
-`Pressable` that confirms and submits a message edit. Automatically disabled when the composer is empty.
+There are no separate edit primitives. Inside a message, the composer primitives bind to that message's edit composer, so the same `ComposerPrimitive.Root`, `Input`, `Send`, and `Cancel` build the edit UI. `ActionBarPrimitive.Edit` starts editing, and `message.composer.isEditing` tells you when to render it.
 
 ```tsx
-<ComposerPrimitive.EditSend style={styles.sendButton}>
-  <Text>Save</Text>
-</ComposerPrimitive.EditSend>
-```
+import { Text, View } from "react-native";
+import {
+  ComposerPrimitive,
+  MessagePrimitive,
+  useAuiState,
+} from "@assistant-ui/react-native";
 
-### ComposerPrimitive.EditCancel
+function MessageRow() {
+  const isEditing = useAuiState((s) => s.message.composer.isEditing);
+  if (isEditing) return <EditComposer />;
+  return <MessageBubble />;
+}
 
-`Pressable` that cancels an in-progress message edit and returns to the original message.
-
-```tsx
-<ComposerPrimitive.EditCancel style={styles.cancelButton}>
-  <Text>Cancel</Text>
-</ComposerPrimitive.EditCancel>
+function EditComposer() {
+  return (
+    <MessagePrimitive.Root>
+      <ComposerPrimitive.Root style={styles.editComposer}>
+        <ComposerPrimitive.Input multiline autoFocus style={styles.input} />
+        <View style={styles.editActions}>
+          <ComposerPrimitive.Cancel style={styles.cancelButton}>
+            <Text>Cancel</Text>
+          </ComposerPrimitive.Cancel>
+          <ComposerPrimitive.Send style={styles.sendButton}>
+            <Text>Update</Text>
+          </ComposerPrimitive.Send>
+        </View>
+      </ComposerPrimitive.Root>
+    </MessagePrimitive.Root>
+  );
+}
 ```
 
 ### Conditional Rendering (Composer)

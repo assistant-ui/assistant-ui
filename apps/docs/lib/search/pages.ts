@@ -1,4 +1,4 @@
-import { design, elementsDocs, getTapDocsPages, source } from "@/lib/source";
+import { searchablePages } from "./corpus";
 import type { SearchHeading, SearchRecord } from "./types";
 
 type StructuredHeading = {
@@ -25,12 +25,7 @@ export function headingsFrom(structuredData: {
 
 export function buildSearchIndex(): Promise<SearchRecord[]> {
   return Promise.all(
-    [
-      ...source.getPages(),
-      ...getTapDocsPages(),
-      ...design.getPages(),
-      ...elementsDocs.getPages(),
-    ].map(async (page) => ({
+    searchablePages().map(async (page) => ({
       url: page.url,
       title: page.data.title,
       description: page.data.description ?? "",

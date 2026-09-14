@@ -170,7 +170,10 @@ export function attachmentsEqual(
   b: readonly CompleteAttachment[],
 ): boolean {
   if (a.length !== b.length) return false;
-  return a.every((att, i) => att.id === b[i]!.id);
+  for (let i = 0; i < a.length; i++) {
+    if (a[i]?.id !== b[i]?.id) return false;
+  }
+  return true;
 }
 
 export function partToCompleteAttachment(

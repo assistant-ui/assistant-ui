@@ -1,5 +1,6 @@
 import { useEffect, useId, useRef } from "react";
 import { useAui } from "@assistant-ui/store";
+import { useJSONSchemaDependency } from "../utils/useJSONSchemaDependency";
 import type { InteractableStateSchema } from "./scopes";
 
 /**
@@ -38,6 +39,7 @@ export const useAssistantInteractable = (
 
   const stateSchemaRef = useRef(config.stateSchema);
   stateSchemaRef.current = config.stateSchema;
+  const normalizedStateSchema = useJSONSchemaDependency(config.stateSchema);
   const initialStateRef = useRef(config.initialState);
   initialStateRef.current = config.initialState;
 
@@ -50,7 +52,14 @@ export const useAssistantInteractable = (
       initialState: initialStateRef.current,
       selected: config.selected,
     });
-  }, [aui, id, name, config.description, config.selected]);
+  }, [
+    aui,
+    id,
+    name,
+    config.description,
+    normalizedStateSchema,
+    config.selected,
+  ]);
 
   return id;
 };

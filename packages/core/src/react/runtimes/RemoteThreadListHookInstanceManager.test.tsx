@@ -37,13 +37,19 @@ describe("RemoteThreadListHookInstanceManager", () => {
     const internals = manager as unknown as {
       instances: Map<
         string,
-        { runtime: typeof runtime; generation: number; isRunning: boolean }
+        {
+          runtime: typeof runtime;
+          generation: number;
+          isRunning: boolean;
+          destroy: AbortController;
+        }
       >;
     };
     internals.instances.set("thread-1", {
       runtime,
       generation: 0,
       isRunning: false,
+      destroy: new AbortController(),
     });
 
     const appendPromise = runtime.append({

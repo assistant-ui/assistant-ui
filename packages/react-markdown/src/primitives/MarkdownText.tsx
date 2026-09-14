@@ -87,10 +87,11 @@ const isShallowEqual = (a: unknown, b: unknown, depth = 1): boolean => {
   if (depth <= 0) return false;
 
   if (Array.isArray(a) && Array.isArray(b)) {
-    return (
-      a.length === b.length &&
-      a.every((item, i) => isShallowEqual(item, b[i], depth - 1))
-    );
+    if (a.length !== b.length) return false;
+    for (let i = 0; i < a.length; i++) {
+      if (!isShallowEqual(a[i], b[i], depth - 1)) return false;
+    }
+    return true;
   }
 
   if (isPlainObject(a) && isPlainObject(b)) {

@@ -267,10 +267,186 @@ describe("toWebMcpTool cancellation", () => {
     });
   });
 
-  it("merges the caller signal with the lifecycle signal", async () => {
+  it.for(["caller", "lifecycle"] as const)(
+    "settles while async validation is pending when the %s signal aborts",
+    async (abortedSignal) => {
+      const lifecycle = new AbortController();
+      const caller = new AbortController();
+      let finishValidation!: (result: { issues?: readonly unknown[] }) => void;
+      const schema = z.object({ city: z.string() });
+      (schema as any)["~standard"] = {
+        ...schema["~standard"],
+        validate: () =>
+          new Promise<{ issues?: readonly unknown[] }>((resolve) => {
+            finishValidation = resolve;
+          }),
+      };
+      const execute = vi.fn(async () => "never");
+      const pending = descriptorFor(
+        { execute, parameters: schema },
+        lifecycle.signal,
+      ).execute({ city: "Paris" }, { signal: caller.signal });
+
+      (abortedSignal === "caller" ? caller : lifecycle).abort();
+
+      await expect(pending).resolves.toEqual({
+        isError: true,
+        content: [text("Tool execution was cancelled.")],
+      });
+      expect(execute).not.toHaveBeenCalled();
+      finishValidation({});
+    },
+  );
+
+  it("consumes a validator rejection after cancellation", async () => {
+    const caller = new AbortController();
+    let failValidation!: (error: unknown) => void;
+    const schema = z.object({ city: z.string() });
+    (schema as any)["~standard"] = {
+      ...schema["~standard"],
+      validate: () =>
+        new Promise((_resolve, reject) => {
+          failValidation = reject;
+        }),
+    };
+    const execute = vi.fn(async () => "never");
+    const pending = descriptorFor({ execute, parameters: schema }).execute(
+      { city: "Paris" },
+      { signal: caller.signal },
+    );
+
+    caller.abort();
+
+    await expect(pending).resolves.toEqual({
+      isError: true,
+      content: [text("Tool execution was cancelled.")],
+    });
+    failValidation(new Error("late validation failure"));
+    await new Promise((resolve) => setTimeout(resolve, 0));
+    expect(execute).not.toHaveBeenCalled();
+  });
+
+  it("prefers cancellation when validation aborts before rejecting", async () => {
+    const caller = new AbortController();
+    const schema = z.object({ city: z.string() });
+    (schema as any)["~standard"] = {
+      ...schema["~standard"],
+      validate: () => {
+        caller.abort();
+        return Promise.reject(new Error("validation failed"));
+      },
+    };
+    const execute = vi.fn(async () => "never");
+
+    const result = await descriptorFor({ execute, parameters: schema }).execute(
+      { city: "Paris" },
+      { signal: caller.signal },
+    );
+
+    expect(result).toEqual({
+      isError: true,
+      content: [text("Tool execution was cancelled.")],
+    });
+    expect(execute).not.toHaveBeenCalled();
+  });
+
+  it("does not execute when cancellation follows validation", async () => {
+    const caller = new AbortController();
+    const schema = z.object({ city: z.string() });
+    (schema as any)["~standard"] = {
+      ...schema["~standard"],
+      validate: () => ({
+        then: (resolve: (value: { issues?: readonly unknown[] }) => void) => {
+          resolve({});
+          caller.abort();
+        },
+      }),
+    };
+    const execute = vi.fn(async () => "never");
+
+    const result = await descriptorFor({ execute, parameters: schema }).execute(
+      { city: "Paris" },
+      { signal: caller.signal },
+    );
+
+    expect(result).toEqual({
+      isError: true,
+      content: [text("Tool execution was cancelled.")],
+    });
+    expect(execute).not.toHaveBeenCalled();
+  });
+
+  it.for(["caller", "lifecycle"] as const)(
+    "merges signals without AbortSignal.any when the %s signal aborts",
+    async (abortedSignal) => {
+      const lifecycle = new AbortController();
+      const caller = new AbortController();
+      const abortSignalConstructor = AbortSignal as typeof AbortSignal & {
+        any?: (signals: Iterable<AbortSignal>) => AbortSignal;
+      };
+      const originalAbortSignalAny = abortSignalConstructor.any;
+      Object.defineProperty(abortSignalConstructor, "any", {
+        configurable: true,
+        value: () => {
+          throw new Error("AbortSignal.any is not available");
+        },
+      });
+      try {
+        const descriptor = descriptorFor(
+          {
+            execute: async (_args: unknown, context: any) =>
+              new Promise((_resolve, reject) => {
+                context.abortSignal.addEventListener("abort", () =>
+                  reject(new Error("aborted")),
+                );
+              }),
+          },
+          lifecycle.signal,
+        );
+
+        const pending = descriptor.execute({}, { signal: caller.signal });
+        (abortedSignal === "caller" ? caller : lifecycle).abort();
+        await expect(pending).resolves.toEqual({
+          isError: true,
+          content: [text("aborted")],
+        });
+      } finally {
+        Object.defineProperty(abortSignalConstructor, "any", {
+          configurable: true,
+          value: originalAbortSignalAny,
+        });
+      }
+    },
+  );
+
+  it("removes merged signal listeners after execution", async () => {
     const lifecycle = new AbortController();
     const caller = new AbortController();
-    const descriptor = descriptorFor(
+    const callerRemove = vi.spyOn(caller.signal, "removeEventListener");
+    const lifecycleRemove = vi.spyOn(lifecycle.signal, "removeEventListener");
+
+    const result = await descriptorFor(
+      { execute: async () => "ok" },
+      lifecycle.signal,
+    ).execute({}, { signal: caller.signal });
+
+    expect(result).toEqual({ content: [text("ok")] });
+    expect(callerRemove).toHaveBeenCalledTimes(1);
+    expect(lifecycleRemove).toHaveBeenCalledTimes(1);
+  });
+
+  it("merges a caller signal that is not a native AbortSignal", async () => {
+    const listeners: (() => void)[] = [];
+    const foreignSignal = {
+      aborted: false,
+      reason: new Error("host cancelled"),
+      addEventListener: (_type: string, listener: () => void) => {
+        listeners.push(listener);
+      },
+      removeEventListener: () => {},
+    } as unknown as AbortSignal;
+
+    const pending = descriptorFor(
       {
         execute: async (_args: unknown, context: any) =>
           new Promise((_resolve, reject) => {
@@ -279,31 +455,15 @@ describe("toWebMcpTool cancellation", () => {
             );
           }),
       },
-      lifecycle.signal,
-    );
+      new AbortController().signal,
+    ).execute({}, { signal: foreignSignal });
 
-    const pending = descriptor.execute({}, { signal: caller.signal });
-    lifecycle.abort();
+    for (const listener of listeners) listener();
+
     await expect(pending).resolves.toEqual({
       isError: true,
       content: [text("aborted")],
     });
-  });
-
-  it("returns an error result when the caller signal cannot be merged", async () => {
-    const execute = vi.fn(async () => "never");
-    const foreignSignal = {
-      aborted: false,
-      addEventListener: () => {},
-      removeEventListener: () => {},
-    } as unknown as AbortSignal;
-
-    const result = await descriptorFor(
-      { execute },
-      new AbortController().signal,
-    ).execute({}, { signal: foreignSignal });
-    expect(result.isError).toBe(true);
-    expect(execute).not.toHaveBeenCalled();
   });
 });
 

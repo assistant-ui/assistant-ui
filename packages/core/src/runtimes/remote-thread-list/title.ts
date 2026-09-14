@@ -10,6 +10,7 @@ export const applyTitleStream = async (
 ) => {
   const messageStream = AssistantMessageStream.fromAssistantStream(stream);
   for await (const result of messageStream) {
-    await onTitle(result.parts.filter((part) => part.type === "text")[0]?.text);
+    const title = result.parts.filter((part) => part.type === "text")[0]?.text;
+    if (title?.trim()) await onTitle(title);
   }
 };

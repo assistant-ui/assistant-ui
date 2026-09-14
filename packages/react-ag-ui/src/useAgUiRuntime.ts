@@ -3,6 +3,7 @@
 import {
   useCallback,
   useEffect,
+  useLayoutEffect,
   useMemo,
   useRef,
   useState,
@@ -73,6 +74,7 @@ export function useAgUiRuntime(
       agent: options.agent,
       logger,
       showThinking: options.showThinking ?? true,
+      resumeTranscript: options.resumeTranscript,
       autoCancelPendingToolCalls: options.autoCancelPendingToolCalls,
       ...(options.onError && { onError: options.onError }),
       ...(options.onCancel && { onCancel: options.onCancel }),
@@ -87,6 +89,7 @@ export function useAgUiRuntime(
       agent: options.agent,
       logger,
       showThinking: options.showThinking ?? true,
+      resumeTranscript: options.resumeTranscript,
       autoCancelPendingToolCalls: options.autoCancelPendingToolCalls,
       ...(options.onError && { onError: options.onError }),
       ...(options.onCancel && { onCancel: options.onCancel }),
@@ -137,13 +140,16 @@ export function useAgUiRuntime(
         });
       },
     });
-  } else if (!options.unstable_enableMessageQueue && queueRef.current) {
-    queueRef.current.clear();
-    queueRef.current = null;
   }
   const queueController = options.unstable_enableMessageQueue
     ? queueRef.current
     : null;
+  useLayoutEffect(() => {
+    if (options.unstable_enableMessageQueue || !queueRef.current) return;
+    const controller = queueRef.current;
+    queueRef.current = null;
+    controller.clear();
+  }, [options.unstable_enableMessageQueue]);
 
   // Feeds the store memo below: the runtime core skips an adapter whose
   // identity is unchanged, so queue items have to move the store reference or

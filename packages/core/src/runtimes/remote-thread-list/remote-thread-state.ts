@@ -378,16 +378,29 @@ export const reconcileInitializedThread = (
   };
 };
 
-export const updateStatusReducer = (
+const transitionReducer = (
   state: RemoteThreadState,
   threadIdOrRemoteId: string,
   newStatus: "regular" | "archived" | "deleted",
+  initializeTask: Promise<RemoteThreadInitializeResponse> | undefined,
 ) => {
   const data = getThreadData(state, threadIdOrRemoteId);
   if (!data) return state;
 
   const { id, status: lastStatus } = data;
   if (lastStatus === newStatus) return state;
+
+  let nextData: RemoteThreadData | undefined;
+  if (newStatus !== "deleted") {
+    if (data.status === "new") {
+      // The new variant holds no initialization promise, so the destination
+      // union member cannot be built unless the caller supplies one.
+      if (initializeTask === undefined) return state;
+      nextData = { ...data, initializeTask, status: newStatus };
+    } else {
+      nextData = { ...data, status: newStatus };
+    }
+  }
 
   const newState = { ...state };
 
@@ -440,15 +453,31 @@ export const updateStatusReducer = (
     }
   }
 
-  if (newStatus !== "deleted") {
-    newState.threadData = {
-      ...newState.threadData,
-      [id]: {
-        ...data,
-        status: newStatus,
-      },
-    };
+  if (nextData !== undefined) {
+    newState.threadData = { ...newState.threadData, [id]: nextData };
   }
 
   return newState;
 };
+
+/**
+ * Transitions a thread that already exists remotely. Promoting the local draft
+ * off `new` needs the initialization promise its destination variant requires,
+ * so that goes through `promoteNewThreadReducer`; asking for it here leaves the
+ * state unchanged.
+ */
+export const updateStatusReducer = (
+  state: RemoteThreadState,
+  threadIdOrRemoteId: string,
+  newStatus: "regular" | "archived" | "deleted",
+) => transitionReducer(state, threadIdOrRemoteId, newStatus, undefined);
+
+/**
+ * Promotes the local draft to `regular`, carrying the initialization promise
+ * onto the slot.
+ */
+export const promoteNewThreadReducer = (
+  state: RemoteThreadState,
+  threadIdOrRemoteId: string,
+  initializeTask: Promise<RemoteThreadInitializeResponse>,
+) => transitionReducer(state, threadIdOrRemoteId, "regular", initializeTask);

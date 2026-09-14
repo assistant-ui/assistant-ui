@@ -569,7 +569,7 @@ const useComposerClientResource = ({
     await Promise.all(
       removed
         .filter((a) => a.status.type !== "complete")
-        .map((a) => attachmentAdapter.remove(a)),
+        .map(async (a) => attachmentAdapter.remove(a)),
     );
   };
 
@@ -1155,7 +1155,10 @@ const useExternalThread = ({
             }
           : {
               createdAt: message.createdAt ?? new Date(),
-              parentId: message.parentId ?? messages.at(-1)?.id ?? null,
+              parentId:
+                message.parentId === undefined
+                  ? (messages.at(-1)?.id ?? null)
+                  : message.parentId,
               sourceId: message.sourceId ?? null,
               role: message.role ?? "user",
               content: message.content,

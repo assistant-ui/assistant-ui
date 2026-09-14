@@ -3,8 +3,7 @@ import { Text } from "react-native";
 import type {
   ThreadUserMessagePart,
   ThreadAssistantMessagePart,
-  ToolCallMessagePart,
-  DataMessagePart,
+  MessagePartState,
 } from "@assistant-ui/core";
 import { useAui, useAuiState } from "@assistant-ui/store";
 import type {
@@ -13,6 +12,7 @@ import type {
 } from "@assistant-ui/core/react";
 
 type MessageContentPart = ThreadUserMessagePart | ThreadAssistantMessagePart;
+type MessageContentStatePart = MessagePartState;
 
 export type MessageContentProps = {
   renderText?: (props: {
@@ -59,9 +59,12 @@ const ToolUIDisplay = ({
   index,
 }: {
   Fallback:
-    | ((props: { part: ToolCallMessagePart; index: number }) => ReactElement)
+    | ((props: {
+        part: Extract<MessageContentPart, { type: "tool-call" }>;
+        index: number;
+      }) => ReactElement)
     | undefined;
-  part: ToolCallMessagePart;
+  part: Extract<MessageContentStatePart, { type: "tool-call" }>;
   index: number;
 }) => {
   const aui = useAui();
@@ -91,9 +94,12 @@ const DataUIDisplay = ({
   index,
 }: {
   Fallback:
-    | ((props: { part: DataMessagePart; index: number }) => ReactElement)
+    | ((props: {
+        part: Extract<MessageContentPart, { type: "data" }>;
+        index: number;
+      }) => ReactElement)
     | undefined;
-  part: DataMessagePart;
+  part: Extract<MessageContentStatePart, { type: "data" }>;
   index: number;
 }) => {
   const Render = useAuiState((s) => {
@@ -115,7 +121,7 @@ export const MessageContent = ({
   renderFile,
   renderData,
 }: MessageContentProps) => {
-  const content = useAuiState((s) => s.message.content);
+  const content = useAuiState((s) => s.message.parts);
 
   return (
     <>

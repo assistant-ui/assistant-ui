@@ -8,13 +8,13 @@
     "start": "next start"
   },
   "dependencies": {
-    "@ai-sdk/openai": "4.0.52",
+    "@ai-sdk/openai": "4.0.60",
     "@assistant-ui/ai-sdk": "0.0.2",
     "@assistant-ui/next": "0.0.17",
     "@assistant-ui/react": "0.15.16",
-    "ai": "7.0.85",
+    "ai": "7.0.93",
     "assistant-stream": "0.3.39",
-    "lucide-react": "1.38.0",
+    "lucide-react": "1.41.0",
     "next": "16.3.4",
     "react": "19.2.8",
     "react-dom": "19.2.8",
@@ -22,9 +22,9 @@
   },
   "devDependencies": {
     "@tailwindcss/postcss": "4.3.3",
-    "@types/node": "26.4.0",
+    "@types/node": "26.4.1",
     "@types/react": "19.2.18",
-    "@types/react-dom": "19.2.5",
+    "@types/react-dom": "19.2.7",
     "tailwindcss": "4.3.3",
     "typescript": "7.0.2"
   }

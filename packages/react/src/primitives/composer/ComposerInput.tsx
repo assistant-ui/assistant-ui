@@ -12,7 +12,6 @@ import {
   useCallback,
   useEffect,
   useRef,
-  cloneElement,
   isValidElement,
 } from "react";
 import TextareaAutosize, {
@@ -22,6 +21,7 @@ import TextareaAutosize, {
 import { useEscapeKeydown } from "radix-ui/internal";
 import { useOnScrollToBottom } from "../../utils/hooks/useOnScrollToBottom";
 import { useMediaQuery } from "../../utils/hooks/useMediaQuery";
+import { renderSlot } from "../../utils/Primitive";
 import { useAui } from "@assistant-ui/store";
 import { flushTapSync } from "@assistant-ui/tap";
 import { useComposerInputPluginRegistryOptional } from "./ComposerInputPluginContext";
@@ -434,14 +434,10 @@ export const ComposerPrimitiveInput = forwardRef<
     };
 
     if (render && isValidElement(render)) {
-      const renderChildren =
-        (rest as any).children !== undefined
-          ? ((rest as any).children as ReactNode)
-          : ((render.props as Record<string, unknown>).children as ReactNode);
-      return (
-        <Slot.Root {...inputProps}>
-          {cloneElement(render, undefined, renderChildren)}
-        </Slot.Root>
+      return renderSlot(
+        render,
+        (rest as { children?: ReactNode }).children,
+        inputProps,
       );
     }
 

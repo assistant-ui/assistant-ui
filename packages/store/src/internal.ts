@@ -1,4 +1,4 @@
-export { useAssistantClientDestroySignal } from "./utils/tap-assistant-context";
+export { useAssistantClientDestroySignal } from "./utils/destroy-signal-context";
 export {
   shallowEqual,
   useShallowSelector,

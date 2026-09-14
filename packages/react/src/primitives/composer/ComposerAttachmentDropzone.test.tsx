@@ -74,6 +74,49 @@ describe("ComposerPrimitiveAttachmentDropzone", () => {
     vi.restoreAllMocks();
   });
 
+  it("composes a render element and keeps the drag props attached", async () => {
+    await act(async () => {
+      root.render(
+        <ComposerPrimitiveAttachmentDropzone
+          data-testid="dropzone"
+          render={<section className="child" />}
+          className="parent"
+        >
+          <div>outer</div>
+        </ComposerPrimitiveAttachmentDropzone>,
+      );
+    });
+
+    const dropzone = container.querySelector(
+      "section[data-testid='dropzone']",
+    ) as HTMLElement;
+    expect(dropzone).not.toBeNull();
+    expect(dropzone.textContent).toBe("outer");
+    expect(dropzone.className).toContain("parent");
+    expect(dropzone.className).toContain("child");
+
+    await act(async () => {
+      dropzone.dispatchEvent(createDragEvent("dragenter", ["Files"]));
+    });
+
+    expect(dropzone.getAttribute("data-dragging")).toBe("true");
+  });
+
+  it("falls back to the render element's own children", async () => {
+    await act(async () => {
+      root.render(
+        <ComposerPrimitiveAttachmentDropzone
+          data-testid="dropzone"
+          render={<section>fallback</section>}
+        />,
+      );
+    });
+
+    expect(
+      container.querySelector("section[data-testid='dropzone']")?.textContent,
+    ).toBe("fallback");
+  });
+
   it("starts all dropped attachments before awaiting completion", async () => {
     const resolvers: Array<() => void> = [];
     addAttachment.mockImplementation(

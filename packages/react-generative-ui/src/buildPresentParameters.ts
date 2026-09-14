@@ -29,7 +29,7 @@ export function buildPresentParameters(
   // `children` are framework-reserved (see ir.ts), so drop any author-declared
   // copies. On a name clash the first component's schema wins — props are an
   // advisory hint here, not a strict per-component contract.
-  const props: Record<string, JSONSchema7Definition> = {};
+  const props = new Map<string, JSONSchema7Definition>();
   const propOwners = new Map<string, string[]>();
   for (const name of names) {
     const propsSchema = toJSONSchema(library[name]!.properties);
@@ -41,8 +41,11 @@ export function buildPresentParameters(
     }
     for (const [key, schema] of Object.entries(propsSchema.properties ?? {})) {
       if (key.startsWith("$") || key === "children") continue;
-      if (!(key in props)) {
-        props[key] = schema;
+      // secure-json-parse rejects the whole tool-argument payload on this key,
+      // so advertising it would cost the model the node rather than one prop.
+      if (key === "__proto__") continue;
+      if (!props.has(key)) {
+        props.set(key, schema);
       }
       propOwners.set(key, [...(propOwners.get(key) ?? []), name]);
     }
@@ -78,7 +81,7 @@ export function buildPresentParameters(
           "Stable identity for this UI node. Use it for list items that may reorder.",
         anyOf: [{ type: "string" }, { type: "number" }],
       },
-      ...props,
+      ...Object.fromEntries(props),
       children: { $ref: "#/$defs/children" },
     },
     required: [TYPE_KEY],

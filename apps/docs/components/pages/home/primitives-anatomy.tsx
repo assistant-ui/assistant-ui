@@ -56,9 +56,20 @@ const LINES: { text: string; part: PartId; indent: number }[] = [
   { text: "</ThreadPrimitive.Root>", part: "root", indent: 0 },
 ];
 
-function PartChip({ label }: { label: string }) {
+function PartChip({
+  label,
+  className,
+}: {
+  label: string;
+  className?: string | undefined;
+}) {
   return (
-    <span className="absolute -top-2.5 right-2 z-10 bg-blue-500 px-1.5 py-px font-mono text-[10px] font-medium tracking-wide text-white uppercase">
+    <span
+      className={cn(
+        "absolute -top-2.5 right-2 z-10 bg-blue-500 px-1.5 py-px font-mono text-[10px] font-medium tracking-wide text-white uppercase",
+        className,
+      )}
+    >
       {label}
     </span>
   );
@@ -68,11 +79,13 @@ function Region({
   part,
   active,
   className,
+  chipClassName,
   children,
 }: {
   part: PartId;
   active: PartId;
   className?: string;
+  chipClassName?: string | undefined;
   children?: React.ReactNode;
 }) {
   const current = active === part;
@@ -85,7 +98,7 @@ function Region({
         className,
       )}
     >
-      {current ? <PartChip label={label} /> : null}
+      {current ? <PartChip label={label} className={chipClassName} /> : null}
       {children}
     </div>
   );
@@ -189,6 +202,7 @@ export function PrimitivesAnatomy() {
               part="scroll"
               active={active}
               className="border-foreground/20 bg-background rounded-capsule mt-auto ml-auto grid size-6 place-items-center border"
+              chipClassName="top-1/2 right-full mr-1.5 -translate-y-1/2 whitespace-nowrap"
             >
               <ArrowDownIcon className="text-foreground/60 size-3" />
             </Region>

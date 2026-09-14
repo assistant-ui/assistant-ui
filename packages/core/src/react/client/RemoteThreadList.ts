@@ -26,6 +26,7 @@ import {
   getThreadData,
   normalizeCursor,
   reconcileInitializedThread,
+  promoteNewThreadReducer,
   updateStatusReducer,
   type RemoteThreadData,
   type RemoteThreadState,
@@ -56,6 +57,7 @@ import {
   startThreadTitleRename,
   type ThreadTitleState,
 } from "../../runtimes/remote-thread-list/title-generation";
+import { invokeUserCallback } from "../../utils/invoke-user-callback";
 
 const RESOLVED_PROMISE = Promise.resolve();
 
@@ -549,7 +551,14 @@ const useRemoteThreadList = (
     (remoteId: string | undefined, emit: boolean) => {
       if (session.lastNotifiedRemoteId === remoteId) return;
       session.lastNotifiedRemoteId = remoteId;
-      if (emit) session.onThreadIdChange?.(remoteId);
+      if (emit) {
+        invokeUserCallback(
+          "assistant-ui",
+          "onThreadIdChange",
+          session.onThreadIdChange,
+          remoteId,
+        );
+      }
     },
     [session],
   );
@@ -908,29 +917,14 @@ const useRemoteThreadList = (
         requireAdapterGeneration(adapterGeneration);
         return result;
       }
+      requireAdapterGeneration(adapterGeneration);
+      const initializeTask = currentAdapter.initialize(threadId);
       let removedMappingId: string | undefined;
       let replacementMainThreadId: string | undefined;
       const result = await store.optimisticUpdate({
-        execute: () => {
-          requireAdapterGeneration(adapterGeneration);
-          return currentAdapter.initialize(threadId);
-        },
-        optimistic: (state) => updateStatusReducer(state, threadId, "regular"),
-        loading: (state, task) => {
-          const mappingId = createThreadMappingId(threadId);
-          return {
-            ...state,
-            threadData: {
-              ...state.threadData,
-              [mappingId]: {
-                ...(Object.hasOwn(state.threadData, mappingId)
-                  ? state.threadData[mappingId]
-                  : undefined),
-                initializeTask: task,
-              },
-            },
-          };
-        },
+        execute: () => initializeTask,
+        optimistic: (state) =>
+          promoteNewThreadReducer(state, threadId, initializeTask),
         then: (state, { remoteId, externalId }) => {
           if (adapterGeneration !== session.adapterGeneration) return state;
           // Background mode still owns the initializing body. Single-body mode
@@ -1269,7 +1263,12 @@ const useRemoteThreadList = (
   useEffect(() => {
     if (session.lastNotifiedRemoteId === mainRemoteId) return;
     session.lastNotifiedRemoteId = mainRemoteId;
-    onThreadIdChange?.(mainRemoteId);
+    invokeUserCallback(
+      "assistant-ui",
+      "onThreadIdChange",
+      onThreadIdChange,
+      mainRemoteId,
+    );
   }, [mainRemoteId, onThreadIdChange, session]);
 
   useEffect(() => {

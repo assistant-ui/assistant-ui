@@ -44,7 +44,7 @@ const groupMessagePartsByParentId: GroupingFunction = (
   parts: readonly any[],
 ): MessagePartGroup[] => {
   // Map maintains insertion order, so groups appear in order of first occurrence
-  const groupMap = new Map<string, number[]>();
+  const groupMap = new Map<string | number, number[]>();
 
   // Process each part in order
   for (let i = 0; i < parts.length; i++) {
@@ -52,7 +52,7 @@ const groupMessagePartsByParentId: GroupingFunction = (
     const parentId = part?.parentId as string | undefined;
 
     // For parts without parentId, assign a unique group ID to maintain their position
-    const groupId = parentId ?? `__ungrouped_${i}`;
+    const groupId = parentId ?? i;
 
     // Get or create the indices array for this group
     const indices = groupMap.get(groupId) ?? [];
@@ -64,7 +64,7 @@ const groupMessagePartsByParentId: GroupingFunction = (
   const groups: MessagePartGroup[] = [];
   for (const [groupId, indices] of groupMap) {
     // Extract parentId (undefined for ungrouped parts)
-    const groupKey = groupId.startsWith("__ungrouped_") ? undefined : groupId;
+    const groupKey = typeof groupId === "string" ? groupId : undefined;
     groups.push({ groupKey, indices });
   }
 
@@ -94,15 +94,15 @@ export namespace MessagePrimitiveUnstable_PartsGrouped {
      * ```tsx
      * // Group by parent ID (default behavior)
      * groupingFunction={(parts) => {
-     *   const groups = new Map<string, number[]>();
+     *   const groups = new Map<string | number, number[]>();
      *   parts.forEach((part, i) => {
-     *     const key = part.parentId ?? `__ungrouped_${i}`;
+     *     const key = part.parentId ?? i;
      *     const indices = groups.get(key) ?? [];
      *     indices.push(i);
      *     groups.set(key, indices);
      *   });
      *   return Array.from(groups.entries()).map(([key, indices]) => ({
-     *     key: key.startsWith("__ungrouped_") ? undefined : key,
+     *     groupKey: typeof key === "string" ? key : undefined,
      *     indices
      *   }));
      * }}

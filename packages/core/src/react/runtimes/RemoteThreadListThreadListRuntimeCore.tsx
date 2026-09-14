@@ -22,6 +22,7 @@ import {
   getThreadData,
   normalizeCursor,
   reconcileInitializedThread,
+  promoteNewThreadReducer,
   updateStatusReducer,
   preserveMidLoadTransitions,
   seedNewThread,
@@ -57,6 +58,7 @@ import { useAui } from "@assistant-ui/store";
 import type { ModelContextProvider } from "../../model-context/types";
 import { RuntimeAdapterProvider } from "./RuntimeAdapterProvider";
 import { useStableRuntimeAdapters } from "./useRuntimeAdapters";
+import { invokeUserCallback } from "../../utils/invoke-user-callback";
 
 const threadNotFoundError = (threadIdOrRemoteId: string, action: string) =>
   new Error(`Thread "${threadIdOrRemoteId}" not found while ${action}.`);
@@ -572,7 +574,12 @@ export class RemoteThreadListThreadListRuntimeCore
     if (this._lastNotifiedThreadId === threadId) return;
     this._lastNotifiedThreadId = threadId;
     if (emit) {
-      this._options.onThreadIdChange?.(threadId);
+      invokeUserCallback(
+        "assistant-ui",
+        "onThreadIdChange",
+        this._options.onThreadIdChange,
+        threadId,
+      );
     }
   }
 
@@ -811,30 +818,13 @@ export class RemoteThreadListThreadListRuntimeCore
       return { remoteId, externalId };
     }
 
+    this._requireAdapterGeneration(adapterGeneration);
+    const initializeTask = adapter.initialize(threadId);
     let removedMappingId: string | undefined;
     const { remoteId, externalId } = await this._state.optimisticUpdate({
-      execute: () => {
-        this._requireAdapterGeneration(adapterGeneration);
-        return adapter.initialize(threadId);
-      },
-      optimistic: (state) => {
-        return updateStatusReducer(state, threadId, "regular");
-      },
-      loading: (state, task) => {
-        const mappingId = createThreadMappingId(threadId);
-        return {
-          ...state,
-          threadData: {
-            ...state.threadData,
-            [mappingId]: {
-              ...(Object.hasOwn(state.threadData, mappingId)
-                ? state.threadData[mappingId]
-                : undefined),
-              initializeTask: task,
-            },
-          },
-        };
-      },
+      execute: () => initializeTask,
+      optimistic: (state) =>
+        promoteNewThreadReducer(state, threadId, initializeTask),
       then: (state, { remoteId, externalId }) => {
         if (adapterGeneration !== this._adapterGeneration) return state;
         const reconciliation = reconcileInitializedThread(
