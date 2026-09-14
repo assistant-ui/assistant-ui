@@ -35,9 +35,9 @@
     "test:watch": "vitest"
   },
   "dependencies": {
-    "@lexical/react": "^0.49.0",
-    "@lexical/utils": "^0.49.0",
-    "lexical": "^0.49.0"
+    "@lexical/react": "^0.50.0",
+    "@lexical/utils": "^0.50.0",
+    "lexical": "^0.50.0"
   },
   "peerDependencies": {
     "@assistant-ui/react": "^0.15.0",
@@ -58,10 +58,10 @@
     "@assistant-ui/store": "workspace:*",
     "@assistant-ui/x-buildutils": "workspace:*",
     "@assistant-ui/x-performance": "workspace:*",
-    "@types/react": "^19.2.18",
+    "@types/react": "^19.3.0",
     "jsdom": "^30.0.1",
-    "react": "^19.2.8",
-    "react-dom": "^19.2.8",
+    "react": "^19.3.0",
+    "react-dom": "^19.3.0",
     "vitest": "^5.0.0"
   },
   "publishConfig": {

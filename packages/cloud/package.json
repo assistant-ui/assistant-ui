@@ -68,12 +68,12 @@
   },
   "devDependencies": {
     "@assistant-ui/x-buildutils": "workspace:*",
-    "@opentelemetry/api": "^1.9.0",
-    "@opentelemetry/exporter-trace-otlp-http": "^0.205.0",
-    "@opentelemetry/sdk-trace-base": "^2.1.0",
-    "@types/node": "^26.4.1",
-    "ai": "^7.0.93",
-    "ai-v6": "npm:ai@^6.0.277",
+    "@opentelemetry/api": "^1.9.1",
+    "@opentelemetry/exporter-trace-otlp-http": "^0.222.0",
+    "@opentelemetry/sdk-trace-base": "^2.11.0",
+    "@types/node": "^26.5.1",
+    "ai": "^7.0.99",
+    "ai-v6": "npm:ai@^7.0.99",
     "jsdom": "^30.0.1",
     "vitest": "^5.0.0"
   },

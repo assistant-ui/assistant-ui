@@ -11,22 +11,22 @@
     "typecheck": "nuxi typecheck"
   },
   "dependencies": {
-    "@ai-sdk/openai": "^4.0.60",
+    "@ai-sdk/openai": "^4.0.66",
     "@assistant-ui/ai-sdk": "workspace:*",
     "@assistant-ui/core": "workspace:*",
     "@assistant-ui/store": "workspace:*",
     "@assistant-ui/tap": "workspace:*",
     "@assistant-ui/vue": "workspace:*",
-    "@lucide/vue": "^1.41.0",
-    "ai": "^7.0.93",
-    "markdown-it": "^15.0.1",
+    "@lucide/vue": "^1.45.0",
+    "ai": "^7.0.99",
+    "markdown-it": "^15.0.2",
     "nuxt": "^4.5.2",
-    "react": "^19.2.8",
+    "react": "^19.3.0",
     "vue": "^3.5.42"
   },
   "devDependencies": {
     "@tailwindcss/vite": "^4.3.3",
-    "@types/react": "^19.2.18",
+    "@types/react": "^19.3.0",
     "tailwindcss": "^4.3.3",
     "typescript": "npm:@typescript/typescript6@^6.0.2",
     "vue-tsc": "^3.3.11"

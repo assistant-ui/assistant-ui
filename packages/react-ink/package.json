@@ -63,11 +63,11 @@
   "devDependencies": {
     "@assistant-ui/x-buildutils": "workspace:*",
     "@assistant-ui/x-performance": "workspace:*",
-    "@types/node": "^26.4.1",
-    "@types/react": "^19.2.18",
+    "@types/node": "^26.5.1",
+    "@types/react": "^19.3.0",
     "ink": "^7.1.1",
     "ink-testing-library": "^4.0.0",
-    "react": "^19.2.8",
+    "react": "^19.3.0",
     "tsx": "^4.23.13",
     "vitest": "^5.0.0"
   },

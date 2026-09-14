@@ -1,6 +1,6 @@
 "use client";
 
-import { useChat, type Chat, type UIMessage } from "@ai-sdk/react";
+import { Chat, useChat, type UIMessage } from "@ai-sdk/react";
 import type { MessageRepository } from "@assistant-ui/core/internal";
 import {
   pickExternalStoreSharedOptions,
@@ -197,12 +197,25 @@ export const useChatThread = <UI_MESSAGE extends UIMessage = UIMessage>(
   const sourceTransport = transportOptions ?? defaultTransport;
   const transport = useDynamicChatTransport(sourceTransport);
 
+  // `useChat` only forwards this hook's own lifecycle for a chat it constructs
+  // itself; owning the instance keeps it alive across a tap resource's soft
+  // unmount (`@ai-sdk/react` otherwise stops an internally-created chat on
+  // any unmount), leaving `useResourceCleanup` below as the sole place that
+  // decides when the chat actually stops. Memoized on `externalChat` so a
+  // caller that swaps in a different externally-owned chat (thread
+  // switching) is still picked up; when there is no `externalChat` this key
+  // never changes, so the owned instance is constructed once, matching the
+  // "id captured at mount" contract already documented on `AISDKChat`.
+  const ownedChat = useMemo(
+    () =>
+      externalChat ?? new Chat<UI_MESSAGE>({ ...chatOptions, id, transport }),
+    // oxlint-disable-next-line react-hooks/exhaustive-deps -- constructed once per `externalChat` identity, see comment above
+    [externalChat],
+  );
+
   const chat = useChat({
-    ...chatOptions,
-    id,
-    transport,
+    chat: ownedChat,
     ...(throttle !== undefined && { throttle }),
-    ...(externalChat !== undefined && { chat: externalChat }),
   });
 
   useResourceCleanup(stopOnClientDestroy, () => {
