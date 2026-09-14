@@ -12,8 +12,17 @@
  * Browser-safe; imports no `@earendil-works/pi-*` packages.
  */
 
-import { ExportedMessageRepository } from "@assistant-ui/react";
+import {
+  ExportedMessageRepository,
+  MessageNotSentError,
+} from "@assistant-ui/react";
 import type { AppendMessage, ThreadMessageLike } from "@assistant-ui/react";
+import {
+  bytesToBase64,
+  detectImageMediaType,
+  parseDataUrl,
+  resolveImageMediaType,
+} from "@assistant-ui/core/internal";
 import {
   createPiThreadState,
   reducePiThreadState,
@@ -139,18 +148,126 @@ const METADATA_DIRTY_EVENT_TYPES: ReadonlySet<string> = new Set([
   "error",
 ]);
 
-/** Parse a `data:<mime>;base64,<data>` URL into Pi `ImageContent`. Non-data-URL
- * strings pass through as opaque base64 with a generic image mime. */
-const toImageContent = (image: string): PiImageContent => {
-  const match = /^data:([^;,]+)(?:;base64)?,(.*)$/is.exec(image);
-  if (match) {
+const RUN_STATE_EVENT_TYPES: ReadonlySet<string> = new Set([
+  "snapshot",
+  "agent_start",
+  "agent_end",
+  "error",
+]);
+
+const loadImageContent = async (
+  image: string,
+  signal?: AbortSignal,
+): Promise<PiImageContent> => {
+  const response = await fetch(image, signal ? { signal } : undefined);
+  if (!response.ok) {
+    throw new Error(
+      `Failed to load Pi image attachment: ${response.status} ${response.statusText}`,
+    );
+  }
+
+  const contentType = response.headers
+    .get("content-type")
+    ?.split(";", 1)[0]
+    ?.trim()
+    .toLowerCase();
+  if (
+    contentType &&
+    !contentType.startsWith("image/") &&
+    contentType !== "application/octet-stream" &&
+    contentType !== "binary/octet-stream"
+  ) {
+    throw new Error(
+      `Pi image attachment returned unsupported content type: ${contentType}`,
+    );
+  }
+
+  const data = bytesToBase64(new Uint8Array(await response.arrayBuffer()));
+  if (
+    (!contentType ||
+      contentType === "application/octet-stream" ||
+      contentType === "binary/octet-stream") &&
+    !detectImageMediaType(data)
+  ) {
+    throw new Error(
+      "Pi image attachment response does not contain image bytes",
+    );
+  }
+  return {
+    type: "image",
+    mimeType: resolveImageMediaType(data, contentType),
+    data,
+  };
+};
+
+const isBase64Payload = (value: string) => {
+  const compact = value.replaceAll(/\s/g, "");
+  return (
+    compact.length > 0 &&
+    compact.length % 4 !== 1 &&
+    /^[a-z\d+/]*={0,2}$/i.test(compact)
+  );
+};
+
+const isAbortError = (error: unknown): boolean =>
+  typeof error === "object" &&
+  error !== null &&
+  "name" in error &&
+  error.name === "AbortError";
+
+const sendCancelledError = new MessageNotSentError(
+  "Pi send was dropped because the run was cancelled.",
+);
+const sendAbandonedError = new Error(
+  "Pi send was dropped because the runtime was disposed.",
+);
+
+const isSendInterruption = (error: unknown) =>
+  error === sendCancelledError ||
+  error === sendAbandonedError ||
+  isAbortError(error);
+
+const toImageContent = (
+  image: string,
+  signal?: AbortSignal,
+): PiImageContent | Promise<PiImageContent> => {
+  const parsed = parseDataUrl(image);
+  if (parsed) {
+    if (!parsed.mimeType.startsWith("image/")) {
+      throw new Error(
+        `Pi image attachment returned unsupported content type: ${parsed.mimeType}`,
+      );
+    }
     return {
       type: "image",
-      mimeType: match[1]!.toLowerCase(),
-      data: match[2]!,
+      mimeType: parsed.mimeType,
+      data: parsed.data,
     };
   }
-  return { type: "image", mimeType: "image/png", data: image };
+
+  const scheme = /^([a-z][a-z\d+.-]*):/i.exec(image)?.[1]?.toLowerCase();
+  if (
+    scheme === "data" ||
+    scheme === "http" ||
+    scheme === "https" ||
+    scheme === "blob"
+  ) {
+    return loadImageContent(image, signal);
+  }
+
+  if (scheme) {
+    throw new Error(`Unsupported Pi image attachment URL scheme: ${scheme}`);
+  }
+
+  if (!isBase64Payload(image)) {
+    throw new Error("Invalid Pi image attachment source");
+  }
+
+  return {
+    type: "image",
+    mimeType: resolveImageMediaType(image),
+    data: image,
+  };
 };
 
 /** All content parts of an append message, with attachment parts flattened in. */
@@ -159,26 +276,59 @@ export const appendMessageParts = (message: AppendMessage) => [
   ...(message.attachments?.flatMap((a) => a.content ?? []) ?? []),
 ];
 
+const readPiSendParts = (message: AppendMessage) => {
+  const textChunks: string[] = [];
+  const images: string[] = [];
+  for (const part of appendMessageParts(message)) {
+    if (part.type === "text") textChunks.push(part.text);
+    else if (part.type === "image") images.push(part.image);
+  }
+  return { content: textChunks.join("\n\n"), images };
+};
+
 export const buildPiSendInput = (
   message: AppendMessage,
   streamingBehavior: "followUp" | "steer" | undefined,
+  signal?: AbortSignal,
+): PiSendMessageInput | Promise<PiSendMessageInput> => {
+  const { content, images } = readPiSendParts(message);
+
+  const createInput = (resolvedAttachments: PiImageContent[]) => ({
+    content,
+    ...(resolvedAttachments.length > 0
+      ? { attachments: resolvedAttachments }
+      : {}),
+    ...(streamingBehavior ? { streamingBehavior } : {}),
+  });
+
+  if (images.length === 0) return createInput([]);
+
+  return Promise.all(
+    images.map((image) =>
+      Promise.resolve().then(() => toImageContent(image, signal)),
+    ),
+  ).then(createInput);
+};
+
+const buildOptimisticPiSendInput = (
+  message: AppendMessage,
+  streamingBehavior: "followUp" | "steer" | undefined,
 ): PiSendMessageInput => {
-  const parts = appendMessageParts(message);
-
-  const textChunks: string[] = [];
-  const attachments: PiImageContent[] = [];
-  for (const part of parts) {
-    if (part.type === "text") {
-      textChunks.push(part.text);
-    } else if (part.type === "image") {
-      attachments.push(toImageContent(part.image));
-    }
-    // `file`/other parts are not part of Pi's user-content surface.
-  }
-
+  const { content, images } = readPiSendParts(message);
   return {
-    content: textChunks.join("\n\n"),
-    ...(attachments.length > 0 ? { attachments } : {}),
+    content,
+    ...(images.length > 0
+      ? {
+          attachments: images.map((image) => {
+            const parsed = parseDataUrl(image);
+            return {
+              type: "image" as const,
+              mimeType: resolveImageMediaType(image),
+              data: parsed?.data ?? image,
+            };
+          }),
+        }
+      : {}),
     ...(streamingBehavior ? { streamingBehavior } : {}),
   };
 };
@@ -220,6 +370,19 @@ type OptimisticUserMessage = {
   baseMessageCount: number;
 };
 
+type OptimisticSend = {
+  message: PiAgentMessage;
+  runStateRevision: number;
+  previousRunStatus: PiThreadState["runStatus"];
+  previousMetadataStatus: PiThreadState["metadata"]["status"];
+  previousLastError: string | undefined;
+};
+
+type PendingSend = {
+  controller: AbortController;
+  accepted: boolean;
+};
+
 const markStateRunning = (state: PiThreadState): PiThreadState => {
   if (state.runStatus === "running" && state.metadata.status === "running") {
     return state;
@@ -249,6 +412,9 @@ export class PiThreadController implements PiThreadControllerLike {
   private unsubscribeFromEvents: (() => void) | null = null;
   private disconnectTimer: ReturnType<typeof setTimeout> | null = null;
   private loadPromise: Promise<void> | null = null;
+  private sendDispatchTail: Promise<void> = Promise.resolve();
+  private readonly pendingSends = new Set<PendingSend>();
+  private runStateRevision = 0;
   private messageFlushScheduled = false;
   /** Synthetic seq for snapshots produced locally (via `getThread`), kept below
    * the supervisor's live seqs so they never suppress real events. */
@@ -337,6 +503,7 @@ export class PiThreadController implements PiThreadControllerLike {
     this.allListeners.clear();
     this.metadataListeners.clear();
     this.messageListeners.clear();
+    this.abortPendingSends();
   }
 
   private ensureEventSubscription(options?: { includeSnapshot?: boolean }) {
@@ -428,35 +595,89 @@ export class PiThreadController implements PiThreadControllerLike {
       readSteeringIntent(message) ??
       (isQueuedSend ? "followUp" : undefined);
 
-    const input = buildPiSendInput(message, behavior);
-    this.ensureEventSubscription({ includeSnapshot: false });
+    return this.sendPreparedMessage(
+      message,
+      buildOptimisticPiSendInput(message, behavior),
+      isQueuedSend,
+      behavior,
+    );
+  }
 
-    if (isQueuedSend) return this.sendQueued(input, behavior ?? "followUp");
-
-    const optimistic = optimisticUserMessageFromInput(input);
+  private beginOptimisticSend(input: PiSendMessageInput): OptimisticSend {
+    const send = {
+      message: optimisticUserMessageFromInput(input),
+      runStateRevision: this.runStateRevision,
+      previousRunStatus: this.state.runStatus,
+      previousMetadataStatus: this.state.metadata.status,
+      previousLastError: this.state.lastError,
+    };
     this.optimisticUserMessages.push({
-      message: optimistic,
+      message: send.message,
       baseMessageCount: this.state.messages.length,
     });
     this.setState(markStateRunning(this.state));
     this.recomputeProjectedMessagesAndNotify();
+    return send;
+  }
 
-    try {
-      await this.client.sendMessage(this.threadId, input);
-    } catch (error) {
-      const index = this.optimisticUserMessages.findIndex(
-        (entry) => entry.message === optimistic,
-      );
-      if (index !== -1) this.optimisticUserMessages.splice(index, 1);
-      this.recomputeProjectedMessagesAndNotify();
-      // The optimistic `running` mark must not outlive the failed send; any
-      // events from a run that did start will self-heal the status.
+  private rollbackOptimisticSend(send: OptimisticSend, error: unknown) {
+    const index = this.optimisticUserMessages.findIndex(
+      (entry) => entry.message === send.message,
+    );
+    if (index !== -1) this.optimisticUserMessages.splice(index, 1);
+    this.recomputeProjectedMessagesAndNotify();
+
+    const runStateChanged = this.runStateRevision !== send.runStateRevision;
+
+    if (isSendInterruption(error)) {
+      if (runStateChanged) return;
       this.setState({
         ...this.state,
-        lastError: errorText(error),
-        runStatus: "failed",
-        metadata: { ...this.state.metadata, status: "failed" },
+        lastError: send.previousLastError,
+        runStatus: send.previousRunStatus,
+        metadata: {
+          ...this.state.metadata,
+          status: send.previousMetadataStatus,
+        },
       });
+      return;
+    }
+
+    this.setState({
+      ...this.state,
+      lastError: errorText(error),
+      ...(runStateChanged
+        ? {}
+        : {
+            runStatus: "failed",
+            metadata: { ...this.state.metadata, status: "failed" },
+          }),
+    });
+  }
+
+  private async sendPreparedMessage(
+    message: AppendMessage,
+    optimisticInput: PiSendMessageInput,
+    isQueuedSend: boolean,
+    behavior: "followUp" | "steer" | undefined,
+  ) {
+    this.ensureEventSubscription({ includeSnapshot: false });
+
+    if (isQueuedSend) {
+      return this.sendQueued(
+        message,
+        optimisticInput.content,
+        behavior ?? "followUp",
+      );
+    }
+
+    const optimisticSend = this.beginOptimisticSend(optimisticInput);
+
+    try {
+      await this.dispatchMessage(message, behavior);
+    } catch (error) {
+      this.rollbackOptimisticSend(optimisticSend, error);
+      if (error === sendAbandonedError || isAbortError(error)) return;
       throw error;
     }
   }
@@ -466,27 +687,57 @@ export class PiThreadController implements PiThreadControllerLike {
    * `state.queue` — the thread stays clean and the queue UI shows it instantly.
    * The next real `queue_update` replaces the arrays wholesale and self-heals. */
   private async sendQueued(
-    input: PiSendMessageInput,
+    message: AppendMessage,
+    content: string,
     behavior: "followUp" | "steer",
   ) {
     const mode = behavior === "steer" ? "steering" : "followUp";
+    let promoted: OptimisticSend | undefined;
     this.setState({
       ...this.state,
       queue: {
         ...this.state.queue,
-        [mode]: [...this.state.queue[mode], input.content],
+        [mode]: [...this.state.queue[mode], content],
       },
     });
 
     try {
-      await this.client.sendMessage(this.threadId, input);
+      await this.dispatchMessage(message, behavior, {
+        onRunStateResolved: (runIsActive) => {
+          if (runIsActive) return;
+
+          const entries = this.state.queue[mode];
+          const index = entries.lastIndexOf(content);
+          if (index !== -1) {
+            this.setState({
+              ...this.state,
+              queue: {
+                ...this.state.queue,
+                [mode]: entries.filter((_, i) => i !== index),
+              },
+            });
+          }
+          promoted = this.beginOptimisticSend(
+            buildOptimisticPiSendInput(message, undefined),
+          );
+        },
+      });
     } catch (error) {
+      const promotedSend = promoted;
+      if (promotedSend) {
+        this.rollbackOptimisticSend(promotedSend, error);
+        if (error === sendAbandonedError || isAbortError(error)) return;
+        throw error;
+      }
+
       // Roll back only our optimistic entry; the run itself is unaffected.
       const entries = this.state.queue[mode];
-      const index = entries.lastIndexOf(input.content);
+      const index = entries.lastIndexOf(content);
       this.setState({
         ...this.state,
-        lastError: errorText(error),
+        ...(!isSendInterruption(error)
+          ? { lastError: errorText(error) }
+          : undefined),
         ...(index !== -1
           ? {
               queue: {
@@ -496,8 +747,57 @@ export class PiThreadController implements PiThreadControllerLike {
             }
           : {}),
       });
+      if (error === sendAbandonedError || isAbortError(error)) return;
       throw error;
     }
+  }
+
+  private dispatchMessage(
+    message: AppendMessage,
+    behavior: "followUp" | "steer" | undefined,
+    options?: {
+      onRunStateResolved: (runIsActive: boolean) => void;
+    },
+  ) {
+    const abortController = new AbortController();
+    const pending: PendingSend = {
+      controller: abortController,
+      accepted: false,
+    };
+    this.pendingSends.add(pending);
+    const previousRequest = this.sendDispatchTail;
+    const request = (async () => {
+      try {
+        await previousRequest.catch(() => {});
+        abortController.signal.throwIfAborted();
+        const input = await buildPiSendInput(
+          message,
+          behavior,
+          abortController.signal,
+        );
+        abortController.signal.throwIfAborted();
+        // pi-coding-agent >=0.80.8 reads streamingBehavior only while the
+        // session is streaming. Keeping it covers a server still streaming
+        // after the local mirror has settled; an idle session ignores it.
+        options?.onRunStateResolved(this.state.runStatus === "running");
+        pending.accepted = true;
+        await this.client.sendMessage(this.threadId, input);
+      } catch (error) {
+        if (abortController.signal.aborted) {
+          throw abortController.signal.reason;
+        }
+        throw error;
+      } finally {
+        this.pendingSends.delete(pending);
+      }
+    })();
+    this.sendDispatchTail = request;
+    void request.catch(() => {
+      if (this.sendDispatchTail === request) {
+        this.sendDispatchTail = Promise.resolve();
+      }
+    });
+    return request;
   }
 
   public async clearQueue() {
@@ -517,11 +817,26 @@ export class PiThreadController implements PiThreadControllerLike {
   }
 
   public async cancel() {
+    this.abortPendingSendsBeforeDispatch();
     try {
       await this.client.cancelRun(this.threadId);
     } catch (error) {
       this.setState({ ...this.state, lastError: errorText(error) });
       throw error;
+    }
+  }
+
+  private abortPendingSendsBeforeDispatch() {
+    for (const pending of this.pendingSends) {
+      if (pending.accepted) continue;
+      pending.controller.abort(sendCancelledError);
+    }
+  }
+
+  private abortPendingSends() {
+    for (const pending of this.pendingSends) {
+      if (pending.accepted) continue;
+      pending.controller.abort(sendAbandonedError);
     }
   }
 
@@ -601,7 +916,12 @@ export class PiThreadController implements PiThreadControllerLike {
   private dispatch(event: PiClientEvent) {
     const next = reducePiThreadState(this.state, event);
     const changed = next !== this.state;
-    if (changed) this.state = next;
+    if (changed) {
+      this.state = next;
+      if (RUN_STATE_EVENT_TYPES.has(event.type)) {
+        this.runStateRevision += 1;
+      }
+    }
 
     this.reconcileOptimisticUserMessages();
 

@@ -49,7 +49,7 @@ export class SimpleImageAttachmentAdapter implements AttachmentAdapter {
   }
 }
 
-const bytesToBase64 = (bytes: Uint8Array): string => {
+export const bytesToBase64 = (bytes: Uint8Array): string => {
   const nodeBuffer = (
     globalThis as {
       Buffer?: {

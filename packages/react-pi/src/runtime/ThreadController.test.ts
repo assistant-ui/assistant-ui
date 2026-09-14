@@ -1,5 +1,5 @@
 import { describe, expect, it, onTestFinished, vi } from "vitest";
-import type { AppendMessage } from "@assistant-ui/react";
+import { isMessageNotSentError, type AppendMessage } from "@assistant-ui/react";
 import { PiThreadController } from "./ThreadController";
 import type { PiThreadState } from "./threadState";
 import type {
@@ -135,6 +135,14 @@ const userMessage = (
     runConfig: {},
     ...over,
   }) as AppendMessage;
+
+const userMessageWithImage = (text: string, image: string) =>
+  userMessage(text, {
+    content: [
+      { type: "text", text },
+      { type: "image", image },
+    ],
+  } as Partial<AppendMessage>);
 
 const ev = (body: PiClientEventBody, seq: number): PiClientEvent =>
   ({ ...body, threadId: THREAD, seq }) as PiClientEvent;
@@ -274,12 +282,7 @@ describe("PiThreadController", () => {
     const client = createFakeClient();
     const controller = new PiThreadController(client, THREAD);
     await controller.sendMessage(
-      userMessage("look", {
-        content: [
-          { type: "text", text: "look" },
-          { type: "image", image: "data:image/png;base64,AAAA" },
-        ],
-      } as Partial<AppendMessage>),
+      userMessageWithImage("look", "data:image/png;base64,AAAA"),
     );
     expect(client.sent[0]!.input.attachments).toEqual([
       { type: "image", mimeType: "image/png", data: "AAAA" },
@@ -290,16 +293,138 @@ describe("PiThreadController", () => {
     const client = createFakeClient();
     const controller = new PiThreadController(client, THREAD);
     await controller.sendMessage(
-      userMessage("look", {
-        content: [
-          { type: "text", text: "look" },
-          { type: "image", image: "DATA:IMAGE/PNG;base64,AAAA" },
-        ],
-      } as Partial<AppendMessage>),
+      userMessageWithImage("look", "DATA:IMAGE/PNG;base64,AAAA"),
     );
     expect(client.sent[0]!.input.attachments).toEqual([
       { type: "image", mimeType: "image/png", data: "AAAA" },
     ]);
+  });
+
+  it("maps parameterized base64 data URLs without fetching", async () => {
+    const fetchMock = vi.fn();
+    vi.stubGlobal("fetch", fetchMock);
+    onTestFinished(() => vi.unstubAllGlobals());
+    const client = createFakeClient();
+    const controller = new PiThreadController(client, THREAD);
+
+    await controller.sendMessage(
+      userMessageWithImage(
+        "look",
+        "data:image/png;charset=utf-8;base64,iVBORw==",
+      ),
+    );
+
+    expect(fetchMock).not.toHaveBeenCalled();
+    expect(client.sent[0]!.input.attachments).toEqual([
+      { type: "image", mimeType: "image/png", data: "iVBORw==" },
+    ]);
+  });
+
+  it("encodes URL image attachments before sending them to Pi", async () => {
+    const image = "https://cdn.example.com/image.png";
+    const fetchMock = vi.fn().mockResolvedValue(
+      new Response(new Uint8Array([0, 1, 2]), {
+        headers: { "content-type": "image/png" },
+      }),
+    );
+    vi.stubGlobal("fetch", fetchMock);
+    onTestFinished(() => vi.unstubAllGlobals());
+    const client = createFakeClient();
+    const controller = new PiThreadController(client, THREAD);
+
+    await controller.sendMessage(userMessageWithImage("look", image));
+
+    expect(fetchMock).toHaveBeenCalledWith(image, {
+      signal: expect.any(AbortSignal),
+    });
+    expect(client.sent[0]!.input.attachments).toEqual([
+      { type: "image", mimeType: "image/png", data: "AAEC" },
+    ]);
+  });
+
+  it("preserves the declared type of percent-encoded data URLs", async () => {
+    const image = "data:image/svg+xml,%3Csvg%3E%3C%2Fsvg%3E";
+    const fetchMock = vi.fn().mockResolvedValue(
+      new Response(new TextEncoder().encode("<svg></svg>"), {
+        headers: { "content-type": "image/svg+xml" },
+      }),
+    );
+    vi.stubGlobal("fetch", fetchMock);
+    onTestFinished(() => vi.unstubAllGlobals());
+    const client = createFakeClient();
+    const controller = new PiThreadController(client, THREAD);
+
+    await controller.sendMessage(userMessageWithImage("look", image));
+
+    expect(client.sent[0]!.input.attachments).toEqual([
+      {
+        type: "image",
+        mimeType: "image/svg+xml",
+        data: "PHN2Zz48L3N2Zz4=",
+      },
+    ]);
+  });
+
+  it("detects image bytes returned with a generic content type", async () => {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn().mockResolvedValue(
+        new Response(new Uint8Array([0x89, 0x50, 0x4e, 0x47]), {
+          headers: { "content-type": "application/octet-stream" },
+        }),
+      ),
+    );
+    onTestFinished(() => vi.unstubAllGlobals());
+    const client = createFakeClient();
+    const controller = new PiThreadController(client, THREAD);
+
+    await controller.sendMessage(
+      userMessageWithImage("look", "https://cdn.example.com/image"),
+    );
+
+    expect(client.sent[0]!.input.attachments?.[0]?.mimeType).toBe("image/png");
+  });
+
+  it("rejects non-image bytes returned with a generic content type", async () => {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn().mockResolvedValue(
+        new Response(new Uint8Array([0, 1, 2]), {
+          headers: { "content-type": "application/octet-stream" },
+        }),
+      ),
+    );
+    onTestFinished(() => vi.unstubAllGlobals());
+    const client = createFakeClient();
+    const controller = new PiThreadController(client, THREAD);
+
+    await expect(
+      controller.sendMessage(
+        userMessageWithImage("look", "https://cdn.example.com/not-an-image"),
+      ),
+    ).rejects.toThrow("response does not contain image bytes");
+
+    expect(client.sent).toHaveLength(0);
+  });
+
+  it.each([
+    ["data:text/plain;base64,SGVsbG8=", "unsupported content type: text/plain"],
+    ["file:///tmp/image.png", "Unsupported Pi image attachment URL scheme"],
+    ["/uploads/image.png", "Invalid Pi image attachment source"],
+  ])("rejects invalid image sources: %s", async (image, error) => {
+    const client = createFakeClient();
+    const controller = new PiThreadController(client, THREAD);
+
+    await expect(
+      controller.sendMessage(userMessageWithImage("look", image)),
+    ).rejects.toThrow(error);
+
+    expect(client.sent).toHaveLength(0);
+    expect(controller.getState()).toMatchObject({
+      runStatus: "failed",
+      lastError: expect.stringContaining(error),
+    });
+    expect(controller.getProjectedMessages()).toHaveLength(0);
   });
 
   it("cancels the run via the client", async () => {
@@ -550,8 +675,495 @@ describe("PiThreadController", () => {
     expect(client.subscribed).toBe(1);
     expect(client.subscribeOptions[0]).toEqual({ includeSnapshot: false });
 
+    await vi.waitFor(() => expect(client.sent).toHaveLength(1));
     resolveSend();
     await send;
+  });
+
+  it("shows URL image messages while their bytes are loading", async () => {
+    let resolveResponse!: (response: Response) => void;
+    const fetchMock = vi.fn(
+      () =>
+        new Promise<Response>((resolve) => {
+          resolveResponse = resolve;
+        }),
+    );
+    vi.stubGlobal("fetch", fetchMock);
+    onTestFinished(() => vi.unstubAllGlobals());
+    const client = createFakeClient();
+    const controller = new PiThreadController(client, THREAD);
+    const image = "https://cdn.example.com/image.png";
+
+    const send = controller.sendMessage(userMessageWithImage("look", image));
+
+    expect(controller.getState().runStatus).toBe("running");
+    expect(controller.getProjectedMessages()[0]).toMatchObject({
+      role: "user",
+      content: [
+        { type: "text", text: "look" },
+        { type: "image", image },
+      ],
+    });
+    expect(client.sent).toHaveLength(0);
+
+    await vi.waitFor(() => expect(fetchMock).toHaveBeenCalledOnce());
+    resolveResponse(
+      new Response(new Uint8Array([0, 1, 2]), {
+        headers: { "content-type": "image/png" },
+      }),
+    );
+    await send;
+  });
+
+  it("preserves send order while URL image bytes are loading", async () => {
+    let resolveResponse!: (response: Response) => void;
+    const fetchMock = vi.fn(
+      () =>
+        new Promise<Response>((resolve) => {
+          resolveResponse = resolve;
+        }),
+    );
+    vi.stubGlobal("fetch", fetchMock);
+    onTestFinished(() => vi.unstubAllGlobals());
+    const client = createFakeClient();
+    const controller = new PiThreadController(client, THREAD);
+
+    const first = controller.sendMessage(
+      userMessageWithImage("first", "https://cdn.example.com/image.png"),
+    );
+    const second = controller.sendMessage(userMessage("second"));
+
+    expect(controller.getState().queue.followUp).toEqual(["second"]);
+    await vi.waitFor(() => expect(fetchMock).toHaveBeenCalledOnce());
+    expect(client.sent).toHaveLength(0);
+
+    resolveResponse(
+      new Response(new Uint8Array([0, 1, 2]), {
+        headers: { "content-type": "image/png" },
+      }),
+    );
+    await Promise.all([first, second]);
+
+    expect(client.sent.map(({ input }) => input.content)).toEqual([
+      "first",
+      "second",
+    ]);
+    expect(client.sent[0]!.input.streamingBehavior).toBeUndefined();
+    expect(client.sent[1]!.input.streamingBehavior).toBe("followUp");
+  });
+
+  it("aborts every send that has not reached Pi", async () => {
+    let fetchSignal: AbortSignal | undefined;
+    const fetchMock = vi.fn(
+      (_input: RequestInfo | URL, init?: RequestInit) =>
+        new Promise<Response>((_resolve, reject) => {
+          fetchSignal = init?.signal ?? undefined;
+          fetchSignal?.addEventListener(
+            "abort",
+            () => reject(fetchSignal?.reason),
+            { once: true },
+          );
+        }),
+    );
+    vi.stubGlobal("fetch", fetchMock);
+    onTestFinished(() => vi.unstubAllGlobals());
+    const client = createFakeClient();
+    const controller = new PiThreadController(client, THREAD);
+
+    const first = controller.sendMessage(
+      userMessageWithImage("first", "https://cdn.example.com/image.png"),
+    );
+    const firstResult = first.catch((error: unknown) => error);
+    const second = controller.sendMessage(userMessage("second"));
+    const secondResult = second.catch((error: unknown) => error);
+
+    await vi.waitFor(() => expect(fetchMock).toHaveBeenCalledOnce());
+    await controller.cancel();
+    const [firstError, secondError] = await Promise.all([
+      firstResult,
+      secondResult,
+    ]);
+
+    expect(isMessageNotSentError(firstError)).toBe(true);
+    expect(isMessageNotSentError(secondError)).toBe(true);
+    expect(fetchSignal?.aborted).toBe(true);
+    expect(client.sent).toHaveLength(0);
+    expect(controller.getProjectedMessages()).toEqual([]);
+    expect(controller.getState()).toMatchObject({
+      runStatus: "idle",
+      metadata: { status: "idle" },
+      queue: { steering: [], followUp: [] },
+      lastError: undefined,
+    });
+  });
+
+  it("cancels the first send that has not reached Pi", async () => {
+    const accepted = Promise.withResolvers<void>();
+    const fetchMock = vi.fn();
+    vi.stubGlobal("fetch", fetchMock);
+    onTestFinished(() => vi.unstubAllGlobals());
+    const client = createFakeClient();
+    client.sendMessage = vi.fn(async (threadId, input) => {
+      client.sent.push({ threadId, input });
+      if (input.content === "first") await accepted.promise;
+    });
+    const controller = new PiThreadController(client, THREAD);
+
+    const first = controller.sendMessage(userMessage("first"));
+    await vi.waitFor(() => expect(client.sent).toHaveLength(1));
+    const second = controller.sendMessage(
+      userMessageWithImage("second", "https://cdn.example.com/image.png"),
+    );
+    const secondResult = second.catch((error: unknown) => error);
+
+    await controller.cancel();
+    accepted.resolve();
+    await first;
+    const secondError = await secondResult;
+
+    expect(isMessageNotSentError(secondError)).toBe(true);
+    expect(fetchMock).not.toHaveBeenCalled();
+    expect(client.sent.map(({ input }) => input.content)).toEqual(["first"]);
+  });
+
+  it("contains image preparation abandoned by disposal", async () => {
+    let fetchSignal: AbortSignal | undefined;
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(
+        (_input: RequestInfo | URL, init?: RequestInit) =>
+          new Promise<Response>((_resolve, reject) => {
+            fetchSignal = init?.signal ?? undefined;
+            fetchSignal?.addEventListener(
+              "abort",
+              () => reject(fetchSignal?.reason),
+              { once: true },
+            );
+          }),
+      ),
+    );
+    onTestFinished(() => vi.unstubAllGlobals());
+    const controller = new PiThreadController(createFakeClient(), THREAD);
+
+    const send = controller.sendMessage(
+      userMessageWithImage("look", "https://cdn.example.com/image.png"),
+    );
+    await vi.waitFor(() => expect(fetchSignal).toBeDefined());
+    controller.dispose();
+
+    await expect(send).resolves.toBeUndefined();
+    expect(fetchSignal?.aborted).toBe(true);
+  });
+
+  it("preserves failures from sends accepted before disposal", async () => {
+    const accepted = Promise.withResolvers<void>();
+    const sendError = new Error("send failed");
+    const client = createFakeClient();
+    client.sendMessage = vi.fn(async (threadId, input) => {
+      client.sent.push({ threadId, input });
+      await accepted.promise;
+      throw sendError;
+    });
+    const controller = new PiThreadController(client, THREAD);
+    const send = controller.sendMessage(userMessage("hello"));
+    const sendResult = send.catch((error: unknown) => error);
+    await vi.waitFor(() => expect(client.sent).toHaveLength(1));
+
+    controller.dispose();
+    accepted.resolve();
+
+    expect(await sendResult).toBe(sendError);
+  });
+
+  it("keeps newer Pi state when an image send is cancelled", async () => {
+    let fetchSignal: AbortSignal | undefined;
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(
+        (_input: RequestInfo | URL, init?: RequestInit) =>
+          new Promise<Response>((_resolve, reject) => {
+            fetchSignal = init?.signal ?? undefined;
+            fetchSignal?.addEventListener(
+              "abort",
+              () => reject(fetchSignal?.reason),
+              { once: true },
+            );
+          }),
+      ),
+    );
+    onTestFinished(() => vi.unstubAllGlobals());
+    const client = createFakeClient();
+    const controller = new PiThreadController(client, THREAD);
+
+    const send = controller.sendMessage(
+      userMessageWithImage("look", "https://cdn.example.com/image.png"),
+    );
+    const sendResult = send.catch((error: unknown) => error);
+    await vi.waitFor(() => expect(fetchSignal).toBeDefined());
+
+    client.emit(ev({ type: "agent_start" }, 1));
+    await controller.cancel();
+    expect(isMessageNotSentError(await sendResult)).toBe(true);
+
+    expect(controller.getState()).toMatchObject({
+      runStatus: "running",
+      metadata: { status: "running" },
+      lastError: undefined,
+    });
+  });
+
+  it("sends queued messages after failed image preparation", async () => {
+    vi.stubGlobal(
+      "fetch",
+      vi
+        .fn()
+        .mockResolvedValue(
+          new Response("missing", { status: 404, statusText: "Not Found" }),
+        ),
+    );
+    onTestFinished(() => vi.unstubAllGlobals());
+    const client = createFakeClient();
+    const controller = new PiThreadController(client, THREAD);
+
+    const first = controller.sendMessage(
+      userMessageWithImage("first", "https://cdn.example.com/missing.png"),
+    );
+    const second = controller.sendMessage(userMessage("second"));
+    const firstRejection = expect(first).rejects.toThrow(
+      "Failed to load Pi image attachment: 404 Not Found",
+    );
+
+    await firstRejection;
+    await second;
+
+    expect(client.sent).toHaveLength(1);
+    expect(client.sent[0]!.input).toEqual({
+      content: "second",
+      streamingBehavior: "followUp",
+    });
+    expect(controller.getState().queue).toEqual({
+      steering: [],
+      followUp: [],
+    });
+    expect(controller.getState()).toMatchObject({
+      runStatus: "running",
+      lastError: undefined,
+      metadata: { status: "running" },
+    });
+    expect(controller.getProjectedMessages()).toMatchObject([
+      { role: "user", content: [{ type: "text", text: "second" }] },
+    ]);
+  });
+
+  it("restores a previous failure when image preparation is cancelled", async () => {
+    const client = createFakeClient();
+    client.sendMessage = vi
+      .fn()
+      .mockRejectedValueOnce(new Error("previous send failed"));
+    const controller = new PiThreadController(client, THREAD);
+
+    await expect(controller.sendMessage(userMessage("first"))).rejects.toThrow(
+      "previous send failed",
+    );
+
+    let fetchSignal: AbortSignal | undefined;
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(
+        (_input: RequestInfo | URL, init?: RequestInit) =>
+          new Promise<Response>((_resolve, reject) => {
+            fetchSignal = init?.signal ?? undefined;
+            fetchSignal?.addEventListener(
+              "abort",
+              () => reject(fetchSignal?.reason),
+              { once: true },
+            );
+          }),
+      ),
+    );
+    onTestFinished(() => vi.unstubAllGlobals());
+
+    const send = controller.sendMessage(
+      userMessageWithImage("second", "https://cdn.example.com/image.png"),
+    );
+    const sendResult = send.catch((error: unknown) => error);
+    await vi.waitFor(() => expect(fetchSignal).toBeDefined());
+
+    await controller.cancel();
+    expect(isMessageNotSentError(await sendResult)).toBe(true);
+
+    expect(controller.getState()).toMatchObject({
+      runStatus: "failed",
+      lastError: "previous send failed",
+      metadata: { status: "failed" },
+    });
+  });
+
+  it("contains late image failures when another source is invalid", async () => {
+    let rejectFetch!: (error: Error) => void;
+    const fetchMock = vi.fn(
+      () =>
+        new Promise<Response>((_resolve, reject) => {
+          rejectFetch = reject;
+        }),
+    );
+    vi.stubGlobal("fetch", fetchMock);
+    onTestFinished(() => vi.unstubAllGlobals());
+    const unhandledRejections: unknown[] = [];
+    const onUnhandledRejection = (reason: unknown) => {
+      unhandledRejections.push(reason);
+    };
+    process.on("unhandledRejection", onUnhandledRejection);
+    onTestFinished(() => {
+      process.off("unhandledRejection", onUnhandledRejection);
+    });
+    const client = createFakeClient();
+    const controller = new PiThreadController(client, THREAD);
+    const message = userMessage("look", {
+      content: [
+        { type: "text", text: "look" },
+        { type: "image", image: "https://cdn.example.com/image.png" },
+        { type: "image", image: "file:///tmp/image.png" },
+      ],
+    } as Partial<AppendMessage>);
+
+    const send = controller.sendMessage(message);
+    const sendRejection = expect(send).rejects.toThrow(
+      "Unsupported Pi image attachment URL scheme: file",
+    );
+    await vi.waitFor(() => expect(fetchMock).toHaveBeenCalledOnce());
+    await sendRejection;
+
+    rejectFetch(new Error("late fetch failure"));
+    await new Promise((resolve) => setTimeout(resolve, 0));
+
+    expect(unhandledRejections).toEqual([]);
+  });
+
+  it("rolls back URL image messages when loading fails", async () => {
+    vi.stubGlobal(
+      "fetch",
+      vi
+        .fn()
+        .mockResolvedValue(
+          new Response("missing", { status: 404, statusText: "Not Found" }),
+        ),
+    );
+    onTestFinished(() => vi.unstubAllGlobals());
+    const client = createFakeClient();
+    const controller = new PiThreadController(client, THREAD);
+
+    await expect(
+      controller.sendMessage(
+        userMessageWithImage("look", "https://cdn.example.com/missing.png"),
+      ),
+    ).rejects.toThrow("Failed to load Pi image attachment: 404 Not Found");
+
+    expect(client.sent).toHaveLength(0);
+    expect(controller.getProjectedMessages()).toHaveLength(0);
+    expect(controller.getState()).toMatchObject({
+      runStatus: "failed",
+      lastError: "Failed to load Pi image attachment: 404 Not Found",
+    });
+  });
+
+  it("reports image failures after unrelated Pi events", async () => {
+    let resolveResponse!: (response: Response) => void;
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(
+        () =>
+          new Promise<Response>((resolve) => {
+            resolveResponse = resolve;
+          }),
+      ),
+    );
+    onTestFinished(() => vi.unstubAllGlobals());
+    const client = createFakeClient();
+    const controller = new PiThreadController(client, THREAD);
+
+    const send = controller.sendMessage(
+      userMessageWithImage("look", "https://cdn.example.com/missing.png"),
+    );
+    const rejected = expect(send).rejects.toThrow(
+      "Failed to load Pi image attachment: 404 Not Found",
+    );
+    await vi.waitFor(() => expect(resolveResponse).toBeDefined());
+    client.emit(ev({ type: "queue_update", steering: [], followUp: [] }, 1));
+    resolveResponse(
+      new Response("missing", { status: 404, statusText: "Not Found" }),
+    );
+    await rejected;
+
+    expect(controller.getState()).toMatchObject({
+      runStatus: "failed",
+      metadata: { status: "failed" },
+      lastError: "Failed to load Pi image attachment: 404 Not Found",
+    });
+  });
+
+  it("preserves authoritative run status while reporting image failures", async () => {
+    let resolveResponse!: (response: Response) => void;
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(
+        () =>
+          new Promise<Response>((resolve) => {
+            resolveResponse = resolve;
+          }),
+      ),
+    );
+    onTestFinished(() => vi.unstubAllGlobals());
+    const client = createFakeClient();
+    const controller = new PiThreadController(client, THREAD);
+
+    const send = controller.sendMessage(
+      userMessageWithImage("look", "https://cdn.example.com/missing.png"),
+    );
+    const rejected = expect(send).rejects.toThrow(
+      "Failed to load Pi image attachment: 404 Not Found",
+    );
+    await vi.waitFor(() => expect(resolveResponse).toBeDefined());
+    client.emit(ev({ type: "agent_start" }, 1));
+    resolveResponse(
+      new Response("missing", { status: 404, statusText: "Not Found" }),
+    );
+    await rejected;
+
+    expect(controller.getState()).toMatchObject({
+      runStatus: "running",
+      metadata: { status: "running" },
+      lastError: "Failed to load Pi image attachment: 404 Not Found",
+    });
+  });
+
+  it.each([
+    [
+      "a non-image content type",
+      new Response("not an image", {
+        headers: { "content-type": "text/plain" },
+      }),
+      "unsupported content type: text/plain",
+    ],
+    [
+      "no content type or recognized image bytes",
+      new Response(new Uint8Array([0, 1, 2])),
+      "response does not contain image bytes",
+    ],
+  ])("rejects URL image responses with %s", async (_, response, error) => {
+    vi.stubGlobal("fetch", vi.fn().mockResolvedValue(response));
+    onTestFinished(() => vi.unstubAllGlobals());
+    const client = createFakeClient();
+    const controller = new PiThreadController(client, THREAD);
+
+    await expect(
+      controller.sendMessage(
+        userMessageWithImage("look", "https://cdn.example.com/not-an-image"),
+      ),
+    ).rejects.toThrow(error);
+
+    expect(client.sent).toHaveLength(0);
+    expect(controller.getState().lastError).toContain(error);
   });
 
   it("rolls back the optimistic running mark when a send rejects", async () => {
