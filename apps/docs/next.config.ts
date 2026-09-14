@@ -60,7 +60,7 @@ const cspHeader = `
     default-src 'self';
     connect-src *;
     frame-src * blob:;
-    script-src 'self' 'unsafe-inline' 'wasm-unsafe-eval'${isDev ? " 'unsafe-eval'" : ""};
+    script-src 'self' 'unsafe-inline' 'wasm-unsafe-eval'${isDev ? " 'unsafe-eval'" : ""} https://static.cloudflareinsights.com;
     style-src 'self' 'unsafe-inline' https://fonts.googleapis.com;
     img-src * blob: data:;
     font-src 'self' https://fonts.gstatic.com data:;
