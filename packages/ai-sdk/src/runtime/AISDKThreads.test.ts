@@ -251,32 +251,7 @@ describe("AISDKThreads", () => {
     }
   });
 
-  it("forwards ChatInit callbacks to each thread's chat", async () => {
-    const { transport, emit, close } = createControlledTransport();
-    const onFinish = vi.fn();
-    const handle = createAssistantClient(
-      AuiConfig({
-        threads: AISDKThreads({ transport: () => transport, onFinish }),
-      }),
-    );
-    handle.subscribe(() => {});
-    const aui = handle.getClient();
-
-    flushTapSync(() => aui.composer.setText("hi"));
-    flushTapSync(() => aui.composer.send());
-    await vi.waitFor(() => {
-      expect(
-        handle.getClient().thread.getState().messages.length,
-      ).toBeGreaterThan(0);
-    });
-    emit(...textReply("done"));
-    close();
-    await vi.waitFor(() => expect(onFinish).toHaveBeenCalledTimes(1));
-
-    handle.destroy();
-  });
-
-  it("fires the callback from the latest render rather than the one the chat was constructed with", async () => {
+  it("forwards ChatInit callbacks to each thread's chat from the latest render", async () => {
     const { transport, emit, close } = createControlledTransport();
     const onFinishA = vi.fn();
     const onFinishB = vi.fn();
