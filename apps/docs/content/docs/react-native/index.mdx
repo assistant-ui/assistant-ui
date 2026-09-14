@@ -1,6 +1,6 @@
 ---
-title: React Native AI Chat
-description: Build AI chat for iOS and Android with @assistant-ui/react-native — streaming, tools, attachments, and platform-native components from the same primitives as the web SDK.
+title: Installation
+description: Get assistant-ui running in an Expo or React Native app with your first chat screen.
 ---
 
 ## Quick Start
@@ -50,6 +50,10 @@ If you prefer to add assistant-ui to an existing Expo project, follow these step
 ### Install dependencies
 
 <InstallCommand expo={["@assistant-ui/react-native", "@assistant-ui/ai-sdk"]} />
+
+<Callout type="warn" title="One assistant-ui package per app">
+  Install only `@assistant-ui/react-native` in a React Native app. `@assistant-ui/react` is the web distribution: it pulls Radix and the DOM-coupled primitives into a native bundle, and if the two packages ever resolve different versions of the shared core, the second copy of the store breaks `useAui`. The runtime, tools, model context and external store APIs are all exported from `@assistant-ui/react-native`.
+</Callout>
 
   </Step>
   <Step>

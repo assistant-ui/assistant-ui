@@ -28,6 +28,14 @@ describe("shouldUseCodeAdapter", () => {
     ).toBe(true);
   });
 
+  it("returns true only when both Pre and Code are provided", () => {
+    const Pre = () => null;
+    const Code = () => null;
+    expect(shouldUseCodeAdapter({ Pre })).toBe(false);
+    expect(shouldUseCodeAdapter({ Code })).toBe(false);
+    expect(shouldUseCodeAdapter({ Pre, Code })).toBe(true);
+  });
+
   it("returns false when componentsByLanguage is empty", () => {
     expect(shouldUseCodeAdapter({ componentsByLanguage: {} })).toBe(false);
   });

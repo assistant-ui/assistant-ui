@@ -47,6 +47,7 @@ import { foldUIUpdates, mergeUIMessages } from "./uiMessages";
 import { langChainExtras } from "./runtimeExtras";
 import { resolveForkCheckpoint } from "./resolveForkCheckpoint";
 import { useLangChainStreamingTiming } from "./streamingTiming";
+import { LANGCHAIN_SDK } from "./sdkIdentity";
 
 const UI_CUSTOM_CHANNELS: readonly Channel[] = ["custom"];
 
@@ -631,6 +632,7 @@ export const useStreamRuntime = (rawOptions: UseStreamRuntimeOptions) => {
 
   const aui = useAui();
   const cloudAdapter = useCloudThreadListAdapter({
+    sdk: LANGCHAIN_SDK,
     cloud,
     create: createCloudThreadListAdapterCreateFallback(
       create,

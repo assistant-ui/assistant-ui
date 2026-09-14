@@ -270,24 +270,30 @@ export class SafeContentFrame {
           origin: iframeOrigin,
           sendMessage: (data, transfer) =>
             iframe.contentWindow?.postMessage(data, iframeOrigin, transfer),
-          fullyLoadedPromiseWithTimeout: (ms) =>
-            Promise.race([
-              loaded,
-              new Promise<void>((_, rej) =>
-                setTimeout(
-                  () =>
-                    rej(
-                      shimReady
-                        ? shimLoadError("render-timeout", "Timeout")
-                        : shimLoadError(
-                            "shim-unavailable",
-                            `Failed to load shim: ${shimUrl}`,
-                          ),
-                    ),
-                  ms,
-                ),
-              ),
-            ]),
+          fullyLoadedPromiseWithTimeout: async (ms) => {
+            let timeout: ReturnType<typeof setTimeout> | undefined;
+            try {
+              await Promise.race([
+                loaded,
+                new Promise<void>((_, reject) => {
+                  timeout = setTimeout(
+                    () =>
+                      reject(
+                        shimReady
+                          ? shimLoadError("render-timeout", "Timeout")
+                          : shimLoadError(
+                              "shim-unavailable",
+                              `Failed to load shim: ${shimUrl}`,
+                            ),
+                      ),
+                    ms,
+                  );
+                }),
+              ]);
+            } finally {
+              if (timeout !== undefined) clearTimeout(timeout);
+            }
+          },
           dispose: cleanup,
         });
       };

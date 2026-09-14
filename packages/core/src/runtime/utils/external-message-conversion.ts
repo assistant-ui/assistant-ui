@@ -132,6 +132,9 @@ const mergeInnerMessages = (existing: object, incoming: object) => ({
   ],
 });
 
+const isNaNToolCallId = (toolCallId: unknown) =>
+  typeof toolCallId === "number" && Number.isNaN(toolCallId);
+
 export const joinExternalMessages = (
   messages: readonly ExternalMessageConverterMessage[],
 ): ThreadMessageLike => {
@@ -142,11 +145,13 @@ export const joinExternalMessages = (
     role: "assistant",
     content: [],
   };
+  const toolCallIndices = new Map<unknown, number>();
+  const reasoningIndices = new Map<string, number>();
   for (const output of messages) {
     if (output.role === "tool") {
-      const toolCallIdx = assistantMessage.content.findIndex(
-        (c) => c.type === "tool-call" && c.toolCallId === output.toolCallId,
-      );
+      const toolCallIdx = !isNaNToolCallId(output.toolCallId)
+        ? (toolCallIndices.get(output.toolCallId) ?? -1)
+        : -1;
       // Ignore orphaned tool results so one bad tool message does not
       // prevent rendering the rest of the conversation.
       if (toolCallIdx !== -1) {
@@ -253,11 +258,8 @@ export const joinExternalMessages = (
           // Add content parts, merging reasoning parts with same parentId
           for (const part of content) {
             if (part.type === "tool-call" && part.toolCallId) {
-              const existingIdx = assistantMessage.content.findIndex(
-                (c) =>
-                  c.type === "tool-call" && c.toolCallId === part.toolCallId,
-              );
-              if (existingIdx !== -1) {
+              const existingIdx = toolCallIndices.get(part.toolCallId);
+              if (existingIdx !== undefined) {
                 const existing = assistantMessage.content[
                   existingIdx
                 ] as typeof part;
@@ -275,13 +277,8 @@ export const joinExternalMessages = (
               "parentId" in part &&
               part.parentId
             ) {
-              const existingIdx = assistantMessage.content.findIndex(
-                (c) =>
-                  c.type === "reasoning" &&
-                  "parentId" in c &&
-                  c.parentId === part.parentId,
-              );
-              if (existingIdx !== -1) {
+              const existingIdx = reasoningIndices.get(part.parentId);
+              if (existingIdx !== undefined) {
                 const existing = assistantMessage.content[
                   existingIdx
                 ] as typeof part;
@@ -293,7 +290,21 @@ export const joinExternalMessages = (
                 continue;
               }
             }
+            const partIdx = assistantMessage.content.length;
             assistantMessage.content.push(part);
+            if (
+              part.type === "tool-call" &&
+              !isNaNToolCallId(part.toolCallId) &&
+              !toolCallIndices.has(part.toolCallId)
+            ) {
+              toolCallIndices.set(part.toolCallId, partIdx);
+            } else if (
+              part.type === "reasoning" &&
+              "parentId" in part &&
+              part.parentId
+            ) {
+              reasoningIndices.set(part.parentId, partIdx);
+            }
           }
           break;
         default: {

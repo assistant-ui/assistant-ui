@@ -155,6 +155,33 @@ describe("applyA2uiOperations", () => {
     expect(resultModel.items[10_002]).toBe("appended");
   });
 
+  it("stores prototype-named JSON Pointer segments as own properties", () => {
+    const state: A2uiState = new Map([
+      ["main", { components: new Map(), dataModel: {} }],
+    ]);
+
+    const result = applyA2uiOperations(state, [
+      {
+        version: "v1.0",
+        updateDataModel: {
+          surfaceId: "main",
+          path: "/__proto__/admin",
+          value: true,
+        },
+      },
+    ]);
+
+    const resultModel = result.state.get("main")?.dataModel as Record<
+      string,
+      unknown
+    >;
+    expect(result.warnings).toEqual([]);
+    expect(Object.getPrototypeOf(resultModel)).toBe(Object.prototype);
+    expect(Object.hasOwn(resultModel, "__proto__")).toBe(true);
+    expect(resultModel["__proto__"]).toEqual({ admin: true });
+    expect(JSON.stringify(resultModel)).toBe('{"__proto__":{"admin":true}}');
+  });
+
   it("deletes object properties updated to null", () => {
     const dataModel = {
       profile: { name: "Ada", role: "admin" },

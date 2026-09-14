@@ -394,7 +394,7 @@ describe("AISDKMessageConverter", () => {
     });
   });
 
-  it("preserves AI SDK and producer-defined approval fields", () => {
+  it("preserves producer-defined approval fields and gives prompt precedence", () => {
     const descriptor = { scope: "account:deploy" };
     const converted = AISDKMessageConverter.toThreadMessages([
       {
@@ -436,7 +436,7 @@ describe("AISDKMessageConverter", () => {
     });
   });
 
-  it("drops the approval fields the AI SDK response cannot answer", () => {
+  it("drops fields the AI SDK cannot answer and uses requestReason as the prompt", () => {
     const converted = AISDKMessageConverter.toThreadMessages([
       {
         id: "a1",
@@ -467,6 +467,7 @@ describe("AISDKMessageConverter", () => {
     );
     expect(toolCall?.approval).toEqual({
       id: "approval-1",
+      prompt: "kept",
       resolution: "cancelled",
       requestReason: "kept",
     });

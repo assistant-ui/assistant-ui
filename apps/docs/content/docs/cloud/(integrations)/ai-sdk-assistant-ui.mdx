@@ -1,0 +1,402 @@
+---
+title: AI SDK
+description: Connect the AI SDK runtime to the cloud for persisted threads, titles, run reports, engagement, feedback and attachments.
+---
+
+`useChatRuntime` from `@assistant-ui/ai-sdk` wraps the AI SDK's chat transport. Given a `cloud`, it adds everything the cloud offers a runtime. It is the path to start from: it works with the assistant-ui components, with the primitives, or headless, on React, React Native and Ink.
+
+## What you get
+
+1. **Threads.** The thread list is backed by the project: listed, created on the first message, renamed, archived and deleted.
+2. **Persistence.** Every message is stored as it finishes streaming, in the `ai-sdk/v6` format, and reloaded when the thread is opened again. Edits and regenerations keep their branches.
+3. **Titles.** After the first response, the project's thread title feature names the thread.
+4. **Run reports.** Each response is reported with its status, outcome, error, duration, time to first token, steps and tool calls, plus whatever model, usage and trace id the route puts in the message metadata.
+5. **Engagement events.** Sends, edits, stops, regenerations, copies, branch switches, suggestions, attachments, thread switches, speech, voice and shown errors, recorded from the runtime's store.
+6. **Feedback and attachments.** The feedback adapter defaults to cloud message feedback and the attachment adapter to cloud uploads.
+
+A visited thread stays mounted, so a run in progress continues after the user switches threads and is still stored and reported when it finishes.
+
+## Setup
+
+<Steps>
+<Step>
+
+### Environment
+
+<PlatformTabs>
+<Tab value="React">
+
+```bash title=".env.local"
+NEXT_PUBLIC_ASSISTANT_BASE_URL=https://proj-<id>.assistant-api.com
+```
+
+</Tab>
+<Tab value="React Native">
+
+```bash title=".env"
+EXPO_PUBLIC_ASSISTANT_BASE_URL=https://proj-<id>.assistant-api.com
+EXPO_PUBLIC_API_URL=https://your-app.example.com
+```
+
+</Tab>
+<Tab value="React Ink">
+
+```bash title=".env"
+ASSISTANT_BASE_URL=https://proj-<id>.assistant-api.com
+API_URL=https://your-app.example.com
+```
+
+</Tab>
+</PlatformTabs>
+
+The frontend API URL is on **Settings › General**. On React Native and Ink the chat route is not on the app's origin, so the second variable names the server that hosts it. An API key is only needed on the server, for [traces](/docs/cloud/traces) or a [token endpoint](/docs/cloud/authorization#a-token-endpoint).
+
+</Step>
+<Step>
+
+### Install
+
+<PlatformTabs>
+<Tab value="React">
+
+<InstallCommand npm={["@assistant-ui/react", "@assistant-ui/ai-sdk", "ai", "@ai-sdk/openai"]} />
+
+`@assistant-ui/react` re-exports `AssistantCloud`, so there is nothing else to install. The example signs in with Clerk; add `@clerk/nextjs`, or swap the token callback for your provider's.
+
+</Tab>
+<Tab value="React Native">
+
+<InstallCommand expo={["@assistant-ui/react-native", "@assistant-ui/ai-sdk", "assistant-cloud"]} />
+
+</Tab>
+<Tab value="React Ink">
+
+<InstallCommand npm={["@assistant-ui/react-ink", "@assistant-ui/ai-sdk", "assistant-cloud", "ink", "react"]} />
+
+</Tab>
+</PlatformTabs>
+
+</Step>
+<Step>
+
+### Create the client and the runtime
+
+<PlatformTabs>
+<Tab value="React">
+
+```tsx title="app/chat/page.tsx"
+"use client";
+
+import { useMemo } from "react";
+import { useAuth } from "@clerk/nextjs";
+import { AssistantCloud, AssistantRuntimeProvider } from "@assistant-ui/react";
+import { useChatRuntime } from "@assistant-ui/ai-sdk";
+import { ThreadList } from "@/components/assistant-ui/elements/thread-list.aui";
+import { Thread } from "@/components/assistant-ui/elements/thread.aui";
+
+export default function ChatPage() {
+  const { getToken } = useAuth();
+  const cloud = useMemo(
+    () =>
+      new AssistantCloud({
+        baseUrl: process.env.NEXT_PUBLIC_ASSISTANT_BASE_URL!,
+        authToken: () => getToken({ template: "assistant-ui" }),
+      }),
+    [getToken],
+  );
+
+  const runtime = useChatRuntime({ cloud });
+
+  return (
+    <AssistantRuntimeProvider runtime={runtime}>
+      <div className="grid h-dvh grid-cols-[240px_1fr]">
+        <ThreadList />
+        <Thread />
+      </div>
+    </AssistantRuntimeProvider>
+  );
+}
+```
+
+For a prototype, omit `cloud`: with `NEXT_PUBLIC_ASSISTANT_BASE_URL` set, the runtime creates an anonymous client itself.
+
+</Tab>
+<Tab value="React Native">
+
+```tsx title="app/chat.tsx"
+import { useMemo } from "react";
+import { Text, View } from "react-native";
+import {
+  AssistantRuntimeProvider,
+  ThreadListItemPrimitive,
+  ThreadListPrimitive,
+} from "@assistant-ui/react-native";
+import { AssistantCloud } from "assistant-cloud";
+import { AssistantChatTransport, useChatRuntime } from "@assistant-ui/ai-sdk";
+import { Thread } from "@/components/assistant-ui/elements/thread.aui";
+
+async function getAssistantToken() {
+  // Return a user token from your auth provider.
+  return "...";
+}
+
+function ThreadList() {
+  return (
+    <ThreadListPrimitive.Root>
+      <ThreadListPrimitive.New>
+        <Text>New chat</Text>
+      </ThreadListPrimitive.New>
+      <ThreadListPrimitive.Items
+        renderItem={({ threadId }) => (
+          <ThreadListItemPrimitive.Root key={threadId}>
+            <ThreadListItemPrimitive.Trigger>
+              <ThreadListItemPrimitive.Title fallback="New conversation" />
+            </ThreadListItemPrimitive.Trigger>
+          </ThreadListItemPrimitive.Root>
+        )}
+      />
+    </ThreadListPrimitive.Root>
+  );
+}
+
+export default function ChatScreen() {
+  const cloud = useMemo(
+    () =>
+      new AssistantCloud({
+        baseUrl: process.env.EXPO_PUBLIC_ASSISTANT_BASE_URL!,
+        authToken: getAssistantToken,
+      }),
+    [],
+  );
+  const runtime = useChatRuntime({
+    cloud,
+    transport: new AssistantChatTransport({
+      api: `${process.env.EXPO_PUBLIC_API_URL}/api/chat`,
+    }),
+  });
+
+  return (
+    <AssistantRuntimeProvider runtime={runtime}>
+      <View style={{ flex: 1 }}>
+        <ThreadList />
+        <Thread />
+      </View>
+    </AssistantRuntimeProvider>
+  );
+}
+```
+
+</Tab>
+<Tab value="React Ink">
+
+```tsx title="chat.tsx"
+import { useMemo } from "react";
+import { Box, Text } from "ink";
+import {
+  AssistantRuntimeProvider,
+  ThreadListItemPrimitive,
+  ThreadListPrimitive,
+} from "@assistant-ui/react-ink";
+import { AssistantCloud } from "assistant-cloud";
+import { AssistantChatTransport, useChatRuntime } from "@assistant-ui/ai-sdk";
+import { Thread } from "./components/thread.js";
+
+async function getAssistantToken() {
+  // Return a user token from your CLI auth flow.
+  return "...";
+}
+
+function ThreadList() {
+  return (
+    <ThreadListPrimitive.Root>
+      <ThreadListPrimitive.New>
+        <Text color="green">[New chat]</Text>
+      </ThreadListPrimitive.New>
+      <ThreadListPrimitive.Items
+        renderItem={({ threadId }) => (
+          <ThreadListItemPrimitive.Root key={threadId}>
+            <ThreadListItemPrimitive.Trigger>
+              <ThreadListItemPrimitive.Title fallback="New conversation" />
+            </ThreadListItemPrimitive.Trigger>
+          </ThreadListItemPrimitive.Root>
+        )}
+      />
+    </ThreadListPrimitive.Root>
+  );
+}
+
+export function Chat() {
+  const cloud = useMemo(
+    () =>
+      new AssistantCloud({
+        baseUrl: process.env.ASSISTANT_BASE_URL!,
+        authToken: getAssistantToken,
+      }),
+    [],
+  );
+  const runtime = useChatRuntime({
+    cloud,
+    transport: new AssistantChatTransport({
+      api: `${process.env.API_URL}/api/chat`,
+    }),
+  });
+
+  return (
+    <AssistantRuntimeProvider runtime={runtime}>
+      <Box flexDirection="column">
+        <ThreadList />
+        <Thread />
+      </Box>
+    </AssistantRuntimeProvider>
+  );
+}
+```
+
+</Tab>
+</PlatformTabs>
+
+Keep the client in a `useMemo`: it holds the cached token, and the runtime keys its thread list on the instance.
+
+</Step>
+<Step>
+
+### Fill in model and usage on the route
+
+The browser sees the stream, not the model behind it. A `messageMetadata` callback on the AI SDK route puts model, provider, usage and finish reason into the message metadata the runtime stores and reports:
+
+```ts title="app/api/chat/route.ts"
+import { convertToModelMessages, streamText } from "ai";
+import { openai } from "@ai-sdk/openai";
+
+export async function POST(req: Request) {
+  const { messages } = await req.json();
+  const model = openai("gpt-5.6-luna");
+  const result = streamText({
+    model,
+    messages: await convertToModelMessages(messages),
+  });
+
+  return result.toUIMessageStreamResponse({
+    messageMetadata: ({ part }) => {
+      if (part.type === "finish") {
+        return { usage: part.totalUsage, finishReason: part.finishReason };
+      }
+      if (part.type === "finish-step") {
+        return { modelId: part.response.modelId, provider: model.provider };
+      }
+      return undefined;
+    },
+  });
+}
+```
+
+[Run reports](/docs/cloud/telemetry#model-and-usage-from-the-route) lists every key the runtime reads, and [Traces](/docs/cloud/traces) adds the trace id that joins the report to your server's spans.
+
+</Step>
+</Steps>
+
+## Options
+
+<ParametersTable
+  parameters={[
+    {
+      name: "cloud",
+      type: "AssistantCloud",
+      description:
+        "The cloud client. Omit it on React to use an anonymous client built from NEXT_PUBLIC_ASSISTANT_BASE_URL; without either, the thread list stays in memory.",
+    },
+    {
+      name: "onThreadIdChange",
+      type: "(threadId: string | undefined) => void",
+      description:
+        "Called with the settled cloud thread id when the list changes thread, for routing or analytics.",
+    },
+    {
+      name: "adapters",
+      type: "RuntimeAdapters",
+      description: "Adapters that replace the cloud defaults.",
+      children: [
+        {
+          type: "RuntimeAdapters",
+          parameters: [
+            {
+              name: "attachments",
+              type: "AttachmentAdapter",
+              description: "Defaults to cloud uploads when cloud is set.",
+            },
+            {
+              name: "feedback",
+              type: "FeedbackAdapter",
+              description: "Defaults to cloud message feedback when cloud is set.",
+            },
+            {
+              name: "history",
+              type: "ThreadHistoryAdapter",
+              description:
+                "Defaults to the cloud history adapter, which stores messages as ai-sdk/v6 and reports runs. A replacement must implement withFormat.",
+            },
+            {
+              name: "speech",
+              type: "SpeechSynthesisAdapter",
+              description: "Text to speech.",
+            },
+            {
+              name: "dictation",
+              type: "DictationAdapter",
+              description: "Speech to text input.",
+            },
+          ],
+        },
+      ],
+    },
+    {
+      name: "toCreateMessage",
+      type: "(message: AppendMessage) => CreateUIMessage",
+      description:
+        "Converts an assistant-ui message into the AI SDK message the transport sends, for custom metadata or content transforms.",
+    },
+    {
+      name: "onResumeError",
+      type: "(error: unknown) => void",
+      description:
+        "Called when a pending resumable stream cannot be reconnected. The stale stream id is still cleared.",
+    },
+    {
+      name: "transport",
+      type: "ChatTransport",
+      description:
+        "The AI SDK transport. Defaults to AssistantChatTransport, which posts to /api/chat and sends the cloud thread id as the chat id.",
+    },
+  ]}
+/>
+
+Every other AI SDK chat option is accepted as on `useChat`. Apps built on `AuiConfig` or `createAssistantClient` pass the same `cloud`, `threadId` and `onThreadIdChange` to `AISDKThreads`.
+
+## What is reported
+
+| Field | Source on this runtime |
+|---|---|
+| `status`, `outcome_type`, `error`, `error_code` | the run's finish, the user's stop, and the `finishReason` the route puts in the metadata |
+| `first_token_ms`, `duration_ms`, per step `start_ms` and `end_ms` | measured by the runtime |
+| `steps`, `tool_calls`, `tool_source` | the message parts; a step that called a tool gets `finish_reason: "tool-calls"` |
+| `model_id`, `provider`, usage, `trace_id`, sampling calls | the route's `messageMetadata` |
+
+The runtime observes the stored message rather than the AI SDK's finish event, so it cannot tell a dropped connection from a stop; everything else on [Run reports](/docs/cloud/telemetry) applies.
+
+## Feedback and attachments
+
+With `cloud` set, two adapters need no setup:
+
+- **Feedback.** The feedback buttons of the assistant-ui message components submit a positive or negative rating on the stored message. It appears on the run's page and the thread's turns; see [Message feedback](/docs/cloud/engagement#message-feedback).
+- **Attachments.** Adding a file to the composer asks the project for a presigned upload URL, uploads the file with its content type, and attaches an `image` part for images or a `file` part with the object URL for anything else. Images, PDF, plain text, CSV, RTF and the Office and OpenDocument formats are accepted up to 25 MB. The bucket is private: when a thread is reloaded, the message list replaces each attachment URL with a read URL signed for 15 minutes.
+
+Pass `adapters: { feedback }` or `adapters: { attachments }` to replace either. Uploading outside the composer goes through `cloud.files`; see [Files](/docs/cloud/api#files).
+
+## Other backends on this runtime
+
+Anything that answers with an AI SDK UI message stream works with this page as written. A [Mastra](/docs/integrations/frameworks/mastra/overview) agent takes `cloud` on the same `useChatRuntime` call, and so does any server that returns `toUIMessageStreamResponse`. [Cloudflare Agents](/docs/integrations/frameworks/cloudflare-agents) is the exception: its guide wraps `useAgentChat` in `useAISDKRuntime`, which has no `cloud` option, and the conversation lives in the Durable Object.
+
+## Examples
+
+- [with-cloud](https://github.com/assistant-ui/assistant-ui/tree/main/examples/with-cloud) is this guide with an anonymous session.
+- The [cloud](https://github.com/assistant-ui/assistant-ui/tree/main/templates/cloud) and [cloud-clerk](https://github.com/assistant-ui/assistant-ui/tree/main/templates/cloud-clerk) templates are starting points with and without sign in.

@@ -1882,6 +1882,56 @@ describe("RunAggregator", () => {
     expect(toolPart.args).toEqual({ query: "pizza" });
   });
 
+  it("parses accumulated tool args only when the JSON container closes", () => {
+    const aggregator = createAggregator(false);
+    const args = {
+      query: `brace } quote " slash \\ ${"x".repeat(512)}`,
+      nested: { values: [1, 2, 3] },
+    };
+    const argsText = JSON.stringify(args);
+
+    aggregator.handle({ type: "RUN_STARTED", runId: "r1" } as AgUiEvent);
+    aggregator.handle({
+      type: "TOOL_CALL_START",
+      toolCallId: "tool1",
+      toolCallName: "search",
+    } as AgUiEvent);
+
+    const parse = vi.spyOn(JSON, "parse");
+    try {
+      for (const delta of argsText.slice(0, -1)) {
+        aggregator.handle({
+          type: "TOOL_CALL_ARGS",
+          toolCallId: "tool1",
+          delta,
+        } as AgUiEvent);
+      }
+      expect(parse).not.toHaveBeenCalled();
+
+      aggregator.handle({
+        type: "TOOL_CALL_ARGS",
+        toolCallId: "tool1",
+        delta: argsText.at(-1)!,
+      } as AgUiEvent);
+      aggregator.handle({
+        type: "TOOL_CALL_ARGS",
+        toolCallId: "tool1",
+        delta: " \n",
+      } as AgUiEvent);
+
+      expect(parse).toHaveBeenCalledTimes(1);
+      const toolPart = results
+        .at(-1)
+        ?.content?.find((part) => part.type === "tool-call");
+      expect(toolPart).toMatchObject({
+        args,
+        argsText: `${argsText} \n`,
+      });
+    } finally {
+      parse.mockRestore();
+    }
+  });
+
   it("positions reasoning content before text when thinking is shown", () => {
     const aggregator = createAggregator(true);
 

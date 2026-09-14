@@ -268,6 +268,115 @@ describe("toWebMcpTool cancellation", () => {
   });
 
   it.for(["caller", "lifecycle"] as const)(
+    "settles while async validation is pending when the %s signal aborts",
+    async (abortedSignal) => {
+      const lifecycle = new AbortController();
+      const caller = new AbortController();
+      let finishValidation!: (result: { issues?: readonly unknown[] }) => void;
+      const schema = z.object({ city: z.string() });
+      (schema as any)["~standard"] = {
+        ...schema["~standard"],
+        validate: () =>
+          new Promise<{ issues?: readonly unknown[] }>((resolve) => {
+            finishValidation = resolve;
+          }),
+      };
+      const execute = vi.fn(async () => "never");
+      const pending = descriptorFor(
+        { execute, parameters: schema },
+        lifecycle.signal,
+      ).execute({ city: "Paris" }, { signal: caller.signal });
+
+      (abortedSignal === "caller" ? caller : lifecycle).abort();
+
+      await expect(pending).resolves.toEqual({
+        isError: true,
+        content: [text("Tool execution was cancelled.")],
+      });
+      expect(execute).not.toHaveBeenCalled();
+      finishValidation({});
+    },
+  );
+
+  it("consumes a validator rejection after cancellation", async () => {
+    const caller = new AbortController();
+    let failValidation!: (error: unknown) => void;
+    const schema = z.object({ city: z.string() });
+    (schema as any)["~standard"] = {
+      ...schema["~standard"],
+      validate: () =>
+        new Promise((_resolve, reject) => {
+          failValidation = reject;
+        }),
+    };
+    const execute = vi.fn(async () => "never");
+    const pending = descriptorFor({ execute, parameters: schema }).execute(
+      { city: "Paris" },
+      { signal: caller.signal },
+    );
+
+    caller.abort();
+
+    await expect(pending).resolves.toEqual({
+      isError: true,
+      content: [text("Tool execution was cancelled.")],
+    });
+    failValidation(new Error("late validation failure"));
+    await new Promise((resolve) => setTimeout(resolve, 0));
+    expect(execute).not.toHaveBeenCalled();
+  });
+
+  it("prefers cancellation when validation aborts before rejecting", async () => {
+    const caller = new AbortController();
+    const schema = z.object({ city: z.string() });
+    (schema as any)["~standard"] = {
+      ...schema["~standard"],
+      validate: () => {
+        caller.abort();
+        return Promise.reject(new Error("validation failed"));
+      },
+    };
+    const execute = vi.fn(async () => "never");
+
+    const result = await descriptorFor({ execute, parameters: schema }).execute(
+      { city: "Paris" },
+      { signal: caller.signal },
+    );
+
+    expect(result).toEqual({
+      isError: true,
+      content: [text("Tool execution was cancelled.")],
+    });
+    expect(execute).not.toHaveBeenCalled();
+  });
+
+  it("does not execute when cancellation follows validation", async () => {
+    const caller = new AbortController();
+    const schema = z.object({ city: z.string() });
+    (schema as any)["~standard"] = {
+      ...schema["~standard"],
+      validate: () => ({
+        then: (resolve: (value: { issues?: readonly unknown[] }) => void) => {
+          resolve({});
+          caller.abort();
+        },
+      }),
+    };
+    const execute = vi.fn(async () => "never");
+
+    const result = await descriptorFor({ execute, parameters: schema }).execute(
+      { city: "Paris" },
+      { signal: caller.signal },
+    );
+
+    expect(result).toEqual({
+      isError: true,
+      content: [text("Tool execution was cancelled.")],
+    });
+    expect(execute).not.toHaveBeenCalled();
+  });
+
+  it.for(["caller", "lifecycle"] as const)(
     "merges signals without AbortSignal.any when the %s signal aborts",
     async (abortedSignal) => {
       const lifecycle = new AbortController();

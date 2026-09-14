@@ -23,6 +23,9 @@ async def test_with_parent_id_shares_everything_but_the_parent_id():
             derived._dispose_callbacks is controller._dispose_callbacks
         )
         observed["tasks_shared"] = derived._stream_tasks is controller._stream_tasks
+        observed["drained_tasks_shared"] = (
+            derived._stream_tasks_to_drain is controller._stream_tasks_to_drain
+        )
         derived.append_text("nested")
 
     chunks = [chunk async for chunk in create_run(run_callback)]
@@ -33,6 +36,7 @@ async def test_with_parent_id_shares_everything_but_the_parent_id():
         "cancel_shared": True,
         "dispose_shared": True,
         "tasks_shared": True,
+        "drained_tasks_shared": True,
     }
     assert len(chunks) == 1
     assert chunks[0].type == "text-delta"

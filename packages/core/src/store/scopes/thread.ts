@@ -144,6 +144,13 @@ export type ThreadMeta = {
 };
 
 export type ThreadEvents = {
+  "thread.toolApprovalAnswered": {
+    threadId: string;
+    messageId: string;
+    toolCallId: string;
+    toolName: string;
+    approved: boolean;
+  };
   /**
    * A run started on this thread. Also observable as `isRunning` flipping to
    * `true` in thread state.
@@ -155,6 +162,10 @@ export type ThreadEvents = {
    * state.
    */
   "thread.runEnd": { threadId: string };
+  /** The user stopped the run in progress on this thread. */
+  "thread.cancelRun": { threadId: string };
+  /** The user started a voice session on this thread. */
+  "thread.voiceStarted": { threadId: string };
   /**
    * The thread transitioned from new to initialized. Fires before the first
    * message is added, so read thread state via `useAuiState` rather than

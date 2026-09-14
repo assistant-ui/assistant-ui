@@ -120,6 +120,42 @@ describe("AssistantFrameProvider", () => {
     await vi.waitFor(() => expect(execute).toHaveBeenCalledOnce());
   });
 
+  it("does not broadcast from a disposed provider", async () => {
+    vi.useFakeTimers();
+
+    try {
+      AssistantFrameProvider.addModelContextProvider({
+        getModelContext: () => ({ system: "disposed context" }),
+      });
+      AssistantFrameProvider.dispose();
+
+      AssistantFrameProvider.addModelContextProvider({
+        getModelContext: () => ({ system: "current context" }),
+      });
+      vi.mocked(parentWindow.postMessage).mockClear();
+
+      await vi.runAllTimersAsync();
+
+      expect(parentWindow.postMessage).toHaveBeenCalledOnce();
+      expect(parentWindow.postMessage).toHaveBeenCalledWith(
+        {
+          channel: FRAME_MESSAGE_CHANNEL,
+          message: {
+            type: "model-context-update",
+            context: {
+              system: "current context",
+              tools: {},
+            },
+          },
+        },
+        window.location.origin,
+      );
+    } finally {
+      AssistantFrameProvider.dispose();
+      vi.useRealTimers();
+    }
+  });
+
   it("reports a failure even when the thrown error has an empty message", async () => {
     const execute = vi.fn(async () => {
       throw new Error();
@@ -143,6 +179,41 @@ describe("AssistantFrameProvider", () => {
       expect(frame).toBeDefined();
       expect(frame.message).toHaveProperty("error");
       expect(frame.message).not.toHaveProperty("result");
+    });
+  });
+
+  it("reports tool results that cannot cross the frame boundary", async () => {
+    const consoleError = vi
+      .spyOn(console, "error")
+      .mockImplementation(() => undefined);
+    const execute = vi.fn(async () => () => undefined);
+    vi.mocked(parentWindow.postMessage).mockImplementation((data) => {
+      structuredClone(data);
+    });
+    AssistantFrameProvider.addModelContextProvider({
+      getModelContext: () => ({
+        tools: { sensitiveTool: { execute } },
+      }),
+    });
+
+    dispatchToolCall(window.location.origin);
+
+    await vi.waitFor(() => {
+      expect(consoleError).toHaveBeenCalledWith(
+        "[assistant-ui] AssistantFrame tool result could not be sent.",
+        expect.objectContaining({ name: "DataCloneError" }),
+      );
+      expect(parentWindow.postMessage).toHaveBeenCalledWith(
+        {
+          channel: FRAME_MESSAGE_CHANNEL,
+          message: {
+            type: "tool-result",
+            id: "tool-call-1",
+            error: "Tool result could not be sent across the frame boundary",
+          },
+        },
+        { targetOrigin: window.location.origin },
+      );
     });
   });
 

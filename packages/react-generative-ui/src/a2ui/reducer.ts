@@ -180,10 +180,8 @@ const setAtPointer = (
       return clone;
     }
 
-    const clone: Record<string, unknown> = isRecord(current)
-      ? { ...current }
-      : {};
-    const child = clone[segment];
+    const record: Record<string, unknown> = isRecord(current) ? current : {};
+    const child = Object.hasOwn(record, segment) ? record[segment] : undefined;
     const next = isLast
       ? value
       : update(
@@ -195,8 +193,7 @@ const setAtPointer = (
           index + 1,
         );
     if (next === INVALID_POINTER) return INVALID_POINTER;
-    clone[segment] = next;
-    return clone;
+    return { ...record, [segment]: next };
   };
 
   const result = update(model, 0);

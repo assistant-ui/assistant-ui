@@ -1,5 +1,8 @@
 import type { JSONSchema7 } from "json-schema";
-import type { StandardSchemaV1 } from "@standard-schema/spec";
+import type {
+  StandardJSONSchemaV1,
+  StandardSchemaV1,
+} from "@standard-schema/spec";
 import type { ProviderOptions, Tool } from "./tool-types";
 
 /**
@@ -24,7 +27,7 @@ export type ToToolsJSONSchemaOptions = {
 function isStandardSchema(schema: unknown): schema is StandardSchemaV1 & {
   "~standard": StandardSchemaV1["~standard"] & {
     toJSONSchema?: () => unknown;
-    jsonSchema?: { input?: () => unknown; output?: () => unknown };
+    jsonSchema?: Partial<StandardJSONSchemaV1.Converter>;
   };
 } {
   return (
@@ -81,7 +84,7 @@ export function toJSONSchema(
       jsonSchema !== null &&
       typeof jsonSchema.input === "function"
     ) {
-      return jsonSchema.input() as JSONSchema7;
+      return jsonSchema.input({ target: "draft-07" }) as JSONSchema7;
     }
   }
 
@@ -120,8 +123,7 @@ export function toPartialJSONSchema(schema: JSONSchema7): JSONSchema7 {
     result.properties = Object.fromEntries(
       Object.entries(result.properties).map(([key, prop]) => {
         if (typeof prop === "object" && prop !== null && !Array.isArray(prop)) {
-          const p = prop as JSONSchema7;
-          return [key, p.properties != null ? toPartialJSONSchema(p) : prop];
+          return [key, toPartialJSONSchema(prop)];
         }
         return [key, prop];
       }),

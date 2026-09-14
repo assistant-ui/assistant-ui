@@ -42,6 +42,137 @@ describe("useAdaptedComponents", () => {
     });
   });
 
+  describe("user pre and code", () => {
+    it("passes user code through untouched when no adapter trigger is set", () => {
+      const Code = vi.fn(() => null);
+      const { result } = renderHook(() =>
+        useAdaptedComponents({ components: { code: Code } }),
+      );
+      expect(result.current.code).toBe(Code);
+    });
+
+    it("replaces user code with the adapter when SyntaxHighlighter is set", () => {
+      const Code = vi.fn(() => null);
+      const MockSyntax = vi.fn(() => null);
+      const { result } = renderHook(() =>
+        useAdaptedComponents({
+          components: { code: Code, SyntaxHighlighter: MockSyntax } as never,
+        }),
+      );
+      expect(result.current.code).not.toBe(Code);
+      expect(result.current.pre).toBeDefined();
+    });
+
+    it("never hands user pre or code to streamdown directly", () => {
+      const Pre = vi.fn(() => null);
+      const { result } = renderHook(() =>
+        useAdaptedComponents({ components: { pre: Pre } }),
+      );
+      expect(result.current.pre).not.toBe(Pre);
+    });
+  });
+
+  describe("pre identity", () => {
+    const rawPreNode = {
+      type: "element",
+      tagName: "pre",
+      properties: {},
+      children: [{ type: "text", value: "raw" }],
+    } as never;
+
+    it("keeps the same pre component across renders with a fresh components object", () => {
+      const Pre = ({ node: _, ...p }: any) => <pre {...p} />;
+      const { result, rerender } = renderHook(
+        ({ components }) => useAdaptedComponents({ components }),
+        { initialProps: { components: { pre: Pre } } },
+      );
+      const first = result.current.pre;
+      rerender({ components: { pre: Pre } });
+      expect(result.current.pre).toBe(first);
+    });
+
+    it("keeps the same pre component when the user pre is an inline arrow", () => {
+      const { result, rerender } = renderHook(
+        ({ tick }) =>
+          useAdaptedComponents({
+            components: { pre: ({ node: _, ...p }: any) => <pre {...p} /> },
+            componentsByLanguage: tick ? {} : undefined,
+          }),
+        { initialProps: { tick: 0 } },
+      );
+      const first = result.current.pre;
+      rerender({ tick: 1 });
+      expect(result.current.pre).toBe(first);
+    });
+
+    it("renders a raw pre through the fallback after the pre changes", () => {
+      const PreA = ({ node: _, ...p }: any) => (
+        <pre data-testid="pre-a" {...p} />
+      );
+      const PreB = ({ node: _, ...p }: any) => (
+        <pre data-testid="pre-b" {...p} />
+      );
+      const { result, rerender } = renderHook(
+        ({ components }) => useAdaptedComponents({ components }),
+        { initialProps: { components: { pre: PreA } } },
+      );
+      rerender({ components: { pre: PreB } });
+      render(
+        createElement(
+          result.current.pre as React.ComponentType<Record<string, unknown>>,
+          { node: rawPreNode },
+          "raw",
+        ),
+      );
+      expect(screen.getByTestId("pre-b").textContent).toBe("raw");
+    });
+  });
+
+  describe("code identity", () => {
+    it("keeps the same code component across renders with a fresh components object", () => {
+      const Pre = ({ node: _, ...p }: any) => <pre {...p} />;
+      const Code = ({ node: _, ...p }: any) => <code {...p} />;
+      const { result, rerender } = renderHook(
+        ({ components }) => useAdaptedComponents({ components }),
+        { initialProps: { components: { pre: Pre, code: Code } } },
+      );
+      const first = result.current.code;
+      rerender({ components: { pre: Pre, code: Code } });
+      expect(result.current.code).toBe(first);
+    });
+
+    it("keeps the same code component when the user pre and code are inline arrows", () => {
+      const { result, rerender } = renderHook(
+        ({ tick }) =>
+          useAdaptedComponents({
+            components: {
+              pre: ({ node: _, ...p }: any) => <pre {...p} />,
+              code: ({ node: _, ...p }: any) => <code {...p} />,
+            },
+            componentsByLanguage: tick ? {} : undefined,
+          }),
+        { initialProps: { tick: 0 } },
+      );
+      const first = result.current.code;
+      rerender({ tick: 1 });
+      expect(result.current.code).toBe(first);
+    });
+
+    it("keeps the same code component when componentsByLanguage is a fresh object", () => {
+      const SyntaxHighlighter = () => null;
+      const { result, rerender } = renderHook(
+        ({ componentsByLanguage }) =>
+          useAdaptedComponents({ componentsByLanguage }),
+        {
+          initialProps: { componentsByLanguage: { ts: { SyntaxHighlighter } } },
+        },
+      );
+      const first = result.current.code;
+      rerender({ componentsByLanguage: { ts: { SyntaxHighlighter } } });
+      expect(result.current.code).toBe(first);
+    });
+  });
+
   describe("with SyntaxHighlighter", () => {
     it("creates code adapter when SyntaxHighlighter provided", () => {
       const MockSyntax = vi.fn(() => null);

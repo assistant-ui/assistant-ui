@@ -1,7 +1,12 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import { A2AThreadRuntimeCore } from "./A2AThreadRuntimeCore";
 import type { A2AClient } from "./A2AClient";
-import type { A2AMessage, A2AStreamEvent, A2ATask } from "./types";
+import type {
+  A2AAgentCard,
+  A2AMessage,
+  A2AStreamEvent,
+  A2ATask,
+} from "./types";
 import type { AppendMessage, ThreadMessage } from "@assistant-ui/core";
 
 // --- Mock client factory ---
@@ -791,6 +796,147 @@ describe("A2AThreadRuntimeCore", () => {
   // --- Sync (non-streaming) fallback ---
 
   describe("sync fallback", () => {
+    it("retries agent card discovery after a transient failure", async () => {
+      let now = 1_000;
+      vi.spyOn(Date, "now").mockImplementation(() => now);
+      let resolveRecovery!: (card: A2AAgentCard) => void;
+      const transportOrder: string[] = [];
+      const getAgentCard = vi
+        .fn()
+        .mockRejectedValueOnce(new Error("temporary failure"))
+        .mockImplementationOnce(
+          () =>
+            new Promise<A2AAgentCard>((resolve) => {
+              resolveRecovery = resolve;
+            }),
+        );
+      const sendMessage = vi.fn().mockImplementation(async () => {
+        transportOrder.push("sync");
+        return {
+          id: "t1",
+          status: { state: "completed" },
+        } satisfies A2ATask;
+      });
+      const streamMessage = vi.fn().mockImplementation(async function* () {
+        transportOrder.push("stream");
+        yield statusUpdateEvent("completed");
+      });
+      const core = createCore({ getAgentCard, sendMessage, streamMessage });
+
+      await core.append(createUserAppendMessage("First"));
+      now += 5_000;
+      await core.append(createUserAppendMessage("Second"));
+      resolveRecovery({
+        name: "Agent",
+        capabilities: { streaming: false },
+      } as A2AAgentCard);
+      await vi.waitFor(() => expect(core.getAgentCard()).toBeDefined());
+      await core.append(createUserAppendMessage("Third"));
+
+      expect(getAgentCard).toHaveBeenCalledTimes(2);
+      expect(streamMessage).toHaveBeenCalledTimes(2);
+      expect(sendMessage).toHaveBeenCalledOnce();
+      expect(transportOrder).toEqual(["stream", "stream", "sync"]);
+    });
+
+    it("does not repeat failed discovery during the retry delay", async () => {
+      vi.spyOn(Date, "now").mockReturnValue(1_000);
+      const getAgentCard = vi.fn().mockRejectedValue(new Error("unavailable"));
+      const streamMessage = vi.fn().mockImplementation(async function* () {
+        yield statusUpdateEvent("completed");
+      });
+      const core = createCore({ getAgentCard, streamMessage });
+
+      await core.append(createUserAppendMessage("First"));
+      await core.append(createUserAppendMessage("Second"));
+
+      expect(getAgentCard).toHaveBeenCalledOnce();
+      expect(streamMessage).toHaveBeenCalledTimes(2);
+    });
+
+    it("backs off persistent failures without blocking later sends", async () => {
+      let now = 1_000;
+      vi.spyOn(Date, "now").mockImplementation(() => now);
+      let rejectSecond!: (error: Error) => void;
+      const getAgentCard = vi
+        .fn()
+        .mockRejectedValueOnce(new Error("first failure"))
+        .mockImplementationOnce(
+          () =>
+            new Promise<A2AAgentCard>((_resolve, reject) => {
+              rejectSecond = reject;
+            }),
+        )
+        .mockRejectedValue(new Error("still unavailable"));
+      const streamMessage = vi.fn().mockImplementation(async function* () {
+        yield statusUpdateEvent("completed");
+      });
+      const core = createCore({ getAgentCard, streamMessage });
+
+      await core.append(createUserAppendMessage("First"));
+      now = 6_000;
+      await core.append(createUserAppendMessage("Second"));
+      expect(streamMessage).toHaveBeenCalledTimes(2);
+      rejectSecond(new Error("second failure"));
+      await vi.waitFor(() => expect(getAgentCard).toHaveBeenCalledTimes(2));
+
+      now = 15_999;
+      await core.append(createUserAppendMessage("Third"));
+      expect(getAgentCard).toHaveBeenCalledTimes(2);
+
+      now = 16_000;
+      await core.append(createUserAppendMessage("Fourth"));
+      expect(getAgentCard).toHaveBeenCalledTimes(3);
+      expect(streamMessage).toHaveBeenCalledTimes(4);
+    });
+
+    it("waits for agent capabilities before choosing the first send method", async () => {
+      let resolveAgentCard!: (value: A2AAgentCard) => void;
+      const getAgentCard = vi.fn(
+        () =>
+          new Promise<A2AAgentCard>((resolve) => {
+            resolveAgentCard = resolve;
+          }),
+      );
+      const sendMessage = vi.fn().mockResolvedValue({
+        id: "t1",
+        status: { state: "completed" },
+      } satisfies A2ATask);
+      const streamMessage = vi.fn();
+      const core = createCore({ getAgentCard, sendMessage, streamMessage });
+
+      const run = core.append(createUserAppendMessage("Hello"));
+      expect(sendMessage).not.toHaveBeenCalled();
+      expect(streamMessage).not.toHaveBeenCalled();
+
+      resolveAgentCard({
+        name: "Agent",
+        capabilities: { streaming: false },
+      } as A2AAgentCard);
+      await run;
+
+      expect(getAgentCard).toHaveBeenCalledOnce();
+      expect(sendMessage).toHaveBeenCalledOnce();
+      expect(streamMessage).not.toHaveBeenCalled();
+    });
+
+    it("stops waiting for agent capabilities when the run is cancelled", async () => {
+      const getAgentCard = vi.fn(() => new Promise<A2AAgentCard>(() => {}));
+      const sendMessage = vi.fn();
+      const streamMessage = vi.fn();
+      const core = createCore({ getAgentCard, sendMessage, streamMessage });
+
+      const run = core.append(createUserAppendMessage("Hello"));
+      expect(core.isRunning()).toBe(true);
+
+      await core.cancel();
+      await run;
+
+      expect(core.isRunning()).toBe(false);
+      expect(sendMessage).not.toHaveBeenCalled();
+      expect(streamMessage).not.toHaveBeenCalled();
+    });
+
     it("uses sendMessage when streaming is false in agent card", async () => {
       const sendMessage = vi.fn().mockResolvedValue({
         id: "t1",

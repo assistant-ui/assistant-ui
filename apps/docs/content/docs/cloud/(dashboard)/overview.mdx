@@ -1,0 +1,40 @@
+---
+title: Overview
+description: The pages of the dashboard, what each one answers, and the conventions they share.
+---
+
+The dashboard at [cloud.assistant-ui.com](https://cloud.assistant-ui.com) reads everything the SDK and your server sent to a project. Every page covers a date range you pick, filters are part of the URL so a view can be shared, and every mention of a thread, run, model or user is a link to its page.
+
+## Pages
+
+| Page | The question it answers | What is on it |
+|---|---|---|
+| **Overview** | How is the assistant doing today? | Runs, incomplete runs, p95 duration, threads, active users and cost with sparklines; runs by outcome over time; recent threads; the model and token mix. |
+| **Threads** | What did people talk about? | Every conversation with its user and last activity, the full transcript rendered read only, the runs that answered each turn, the interactions, the scores, and the analysis when [Intelligence](/docs/cloud/intelligence) is on. |
+| **Runs** | How did each response go? | Every [run report](/docs/cloud/telemetry) and every [trace](/docs/cloud/traces), filtered by status, outcome, model, environment, release, agent, service, tag, cost and duration; an Analysis view with duration and first token histograms, outcome share, tools, and a comparison by release; a run's page draws its steps, tool calls and spans on a time ruler. |
+| **Models** | What does each model cost and how does it behave? | Cost, tokens, cached share, latency and incomplete rate per model and provider; a "No model reported" row when runs carry no model id; an "unpriced" mark when the catalog has no price. |
+| **Users** | Who uses it, and do they come back? | Active, new and returning users, a weekly retention grid, runs and cost per user, and a page per user with their threads and runs. |
+| **Engagement** | What do people do around the answers? | Stops, regenerations, copies and second turns from [engagement events](/docs/cloud/engagement), a conversation funnel, and the satisfaction reading. |
+| **Intelligence** | What do they ask, and where does the assistant fall short? | Topics, tasks, unanswered questions, sentiment, resolution and languages, judged by a model of your choice. |
+
+Under **Build**, **Assistants** and **LLM providers** hold the provider credentials the cloud's own features spend, and under **Project**, **Settings**, **Billing** and **Usage** configure the project; see [Settings](/docs/cloud/settings) and [Plans and pricing](/docs/cloud/pricing).
+
+## Conventions
+
+- **Date range.** Every page reads one range from the URL, daily beyond three days and down to the second for a range of seconds. Tiles summarise the range and show the change against the previous range of the same length.
+- **Filters.** A list page filters through one bar: search, then facets with counts for the range, then ranges. Facets are URL state, so a filtered Runs list is a link you can send.
+- **Exports.** Threads, runs and users export as CSV or JSONL for the current filters and range, on plans with the export feature. A programmatic feed is the [project read API](/docs/cloud/api#project-read-api).
+- **Time.** Figures are computed in UTC; times are shown in your browser's zone.
+- **Jump.** ⌘K opens a jump box over threads, runs, users and pages.
+
+## Roles
+
+An organization has owners, admins and members; membership is managed on the account page of [accounts.assistant-ui.com](https://accounts.assistant-ui.com).
+
+| Owners and admins only | Every member |
+|---|---|
+| Billing and the Stripe portal, alert rules, allowed origins, retention, the audit log | Everything else: API keys, auth rules, providers, assistants, model prices, thread titles, intelligence, evaluators, scores |
+
+## The demo project
+
+[cloud.assistant-ui.com/demo](https://cloud.assistant-ui.com/demo) is Northwind Support, a retailer's synthetic support assistant that gains an hour of conversations every hour. Every page is open on it without an account, read only, on the Startup plan, so Intelligence, evaluators and exports are all visible.

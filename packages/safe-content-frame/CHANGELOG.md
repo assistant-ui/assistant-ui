@@ -1,5 +1,11 @@
 # safe-content-frame
 
+## 0.0.30
+
+### Patch Changes
+
+- [#7123](https://github.com/assistant-ui/assistant-ui/pull/7123) [`318e4da`](https://github.com/assistant-ui/assistant-ui/commit/318e4da0bc4b54064758744209fca8da857b8e31) - fix: clear load timeout timers after SafeContentFrame settles ([@Kinfe123](https://github.com/Kinfe123))
+
 ## 0.0.29
 
 ### Patch Changes

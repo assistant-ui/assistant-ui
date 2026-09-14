@@ -284,6 +284,12 @@ Adjacent `reasoning` parts still coalesce into one `group-thought`, while each t
 
 <Callout type="warn">
   This renders tool calls flat **in the message flow** — each leaf sits where the part appears, in order. It does not pin, portal, float, or otherwise move tool UIs out of the flow into a sidebar or fixed region. For out-of-flow placement you still own the layout outside `GroupedParts`.
+
+  For MCP Apps, keep one host-owned container mounted for the lifetime of the app. Switching between an inline element and a portal, or changing a portal's target, remounts the frame. Reparenting its live iframe with `appendChild` or `insertBefore` also reloads the document and loses in-app state.
+
+  In React hosts, create and insert the movable container imperatively under a stable host element; do not render it as a JSX child. Moving a React-owned DOM node behind React's back can make later reconciliation fail.
+
+  Feature-detect [`moveBefore`](https://developer.mozilla.org/en-US/docs/Web/API/Element/moveBefore) on `Element.prototype`, not `Node.prototype`. When available, use it to move the container between connected parents without reloading the frame. Both the container and destination parent must be connected before the move; otherwise `moveBefore` throws `HierarchyRequestError`. Insert the container normally on its first mount. In browsers without `moveBefore`, leave the container in place and reposition it with CSS, or treat relocation as a reload and reinitialize the app.
 </Callout>
 
 ### Group by Custom Metadata

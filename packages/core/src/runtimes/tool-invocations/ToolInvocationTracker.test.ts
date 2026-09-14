@@ -1465,6 +1465,139 @@ describe("ToolInvocationTracker", () => {
     expect(onResult).not.toHaveBeenCalled();
   });
 
+  it("keeps a resolved restored tool call historical when its snapshot is reserialized", async () => {
+    const execute = vi.fn(async () => ({ forecast: "ok" }));
+    const streamCall = vi.fn();
+    const getTools = () => ({
+      weatherSearch: {
+        parameters: { type: "object", properties: {} },
+        execute,
+        streamCall,
+      } satisfies Tool,
+    });
+    const onResult = vi.fn();
+    const tracker = new ToolInvocationTracker(getTools, {
+      onResult,
+      onStatusesChange: () => {},
+    });
+
+    tracker.setState(
+      createState([
+        createAssistantMessage(
+          '{"query":"London","page":1}',
+          { query: "London", page: 1 },
+          { result: { source: "history", revision: 1 } },
+        ),
+      ]),
+    );
+
+    tracker.setState(
+      createState([
+        createAssistantMessage(
+          '{ "page": 1, "query": "London" }',
+          { query: "London", page: 1 },
+          { result: { source: "history", revision: 2 } },
+        ),
+      ]),
+    );
+
+    await new Promise((r) => setTimeout(r, 0));
+
+    expect(streamCall).not.toHaveBeenCalled();
+    expect(execute).not.toHaveBeenCalled();
+    expect(onResult).not.toHaveBeenCalled();
+  });
+
+  it("promotes unresolved restored tool calls only for real args changes or a landed result", async () => {
+    const equivalentStreamCall = vi.fn();
+    const growingStreamCall = vi.fn();
+    const resolvedStreamCall = vi.fn();
+    const getTools = () => ({
+      equivalentTool: {
+        parameters: { type: "object", properties: {} },
+        streamCall: equivalentStreamCall,
+      } satisfies Tool,
+      growingTool: {
+        parameters: { type: "object", properties: {} },
+        streamCall: growingStreamCall,
+      } satisfies Tool,
+      resolvedTool: {
+        parameters: { type: "object", properties: {} },
+        streamCall: resolvedStreamCall,
+      } satisfies Tool,
+    });
+    const tracker = new ToolInvocationTracker(getTools, {
+      onResult: vi.fn(),
+      onStatusesChange: () => {},
+    });
+
+    tracker.setState(
+      createState([
+        createAssistantMessage(
+          '{"a":1,"b":2}',
+          { a: 1, b: 2 },
+          {
+            toolCallId: "equivalent",
+            toolName: "equivalentTool",
+          },
+        ),
+        createAssistantMessage(
+          '{"query":"Lon',
+          { query: "Lon" },
+          {
+            toolCallId: "growing",
+            toolName: "growingTool",
+          },
+        ),
+        createAssistantMessage(
+          '{"city":"London"}',
+          { city: "London" },
+          {
+            toolCallId: "resolved",
+            toolName: "resolvedTool",
+          },
+        ),
+      ]),
+    );
+
+    tracker.setState(
+      createState([
+        createAssistantMessage(
+          '{ "b": 2, "a": 1 }',
+          { a: 1, b: 2 },
+          {
+            toolCallId: "equivalent",
+            toolName: "equivalentTool",
+          },
+        ),
+        createAssistantMessage(
+          '{"query":"London"}',
+          { query: "London" },
+          {
+            toolCallId: "growing",
+            toolName: "growingTool",
+          },
+        ),
+        createAssistantMessage(
+          '{"city":"London"}',
+          { city: "London" },
+          {
+            toolCallId: "resolved",
+            toolName: "resolvedTool",
+            result: { source: "history" },
+          },
+        ),
+      ]),
+    );
+
+    await waitFor(() => {
+      expect(growingStreamCall).toHaveBeenCalledTimes(1);
+      expect(resolvedStreamCall).toHaveBeenCalledTimes(1);
+    });
+
+    expect(equivalentStreamCall).not.toHaveBeenCalled();
+  });
+
   it("promotes an in-progress tool call from the initial snapshot when it changes", async () => {
     const execute = vi.fn(async () => ({ forecast: "ok" }));
     const streamCall = vi.fn();
