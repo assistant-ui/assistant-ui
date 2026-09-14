@@ -29,7 +29,7 @@ import {
   useExternalMessageConverter,
   useExternalStoreRuntime,
 } from "@assistant-ui/core/react";
-import { useAui } from "@assistant-ui/store";
+import { useAui, useAuiState } from "@assistant-ui/store";
 import type { AssistantCloud } from "assistant-cloud";
 import type { RemoteThreadListAdapter } from "@assistant-ui/core";
 import type {
@@ -141,13 +141,26 @@ const useAdkRuntimeImpl = (options: UseAdkRuntimeOptions) => {
   );
 
   const seedMessageOwnership = useCallback((history: AdkMessage[]) => {
-    runConfigByToolCallIdRef.current.clear();
+    const currentOwnership = runConfigByToolCallIdRef.current;
+    const nextOwnership = new Map<string, unknown>();
     for (const message of history) {
       if (message.type !== "ai") continue;
       for (const toolCall of message.tool_calls ?? []) {
-        runConfigByToolCallIdRef.current.set(toolCall.id, undefined);
+        // Loaded ids must remain present even without a local owner because
+        // streamed event windows use has() to avoid attributing them later.
+        nextOwnership.set(
+          toolCall.id,
+          currentOwnership.has(toolCall.id)
+            ? currentOwnership.get(toolCall.id)
+            : undefined,
+        );
       }
     }
+    runConfigByToolCallIdRef.current = nextOwnership;
+  }, []);
+
+  const clearMessageOwnership = useCallback(() => {
+    runConfigByToolCallIdRef.current.clear();
   }, []);
 
   const pruneMessageOwnership = useCallback((history: AdkMessage[]) => {
@@ -164,9 +177,7 @@ const useAdkRuntimeImpl = (options: UseAdkRuntimeOptions) => {
   }, []);
 
   const getToolRunConfig = useCallback((toolCallId: string) => {
-    return runConfigByToolCallIdRef.current.has(toolCallId)
-      ? runConfigByToolCallIdRef.current.get(toolCallId)
-      : undefined;
+    return runConfigByToolCallIdRef.current.get(toolCallId);
   }, []);
 
   const {
@@ -349,15 +360,17 @@ const useAdkRuntimeImpl = (options: UseAdkRuntimeOptions) => {
   // instance, so depending on it would re-run the load on every render.
   const threadListItem =
     aui.threadListItem.source !== null ? aui.threadListItem : undefined;
+  const threadId = useAuiState((state) => state.optional.threadListItem?.id);
 
   useInsertionEffect(() => {
-    seedMessageOwnership([]);
-  }, [threadListItem, seedMessageOwnership]);
+    clearMessageOwnership();
+  }, [threadId, clearMessageOwnership]);
 
   const runLoad = useCallback(
     (purpose: "initial" | "reload" = "initial") => {
       const loadFn = loadRef.current;
-      if (!loadFn || !threadListItem) return Promise.resolve();
+      if (!loadFn || !threadListItem || threadId === undefined)
+        return Promise.resolve();
 
       const externalId = threadListItem.getState().externalId;
       if (externalId == null) return Promise.resolve();
@@ -397,7 +410,7 @@ const useAdkRuntimeImpl = (options: UseAdkRuntimeOptions) => {
         },
       });
     },
-    [threadListItem, loadController, applySnapshot],
+    [threadListItem, threadId, loadController, applySnapshot],
   );
 
   useEffect(() => {
