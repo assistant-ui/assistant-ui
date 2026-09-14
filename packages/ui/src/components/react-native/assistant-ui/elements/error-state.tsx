@@ -9,7 +9,7 @@ import {
   View,
   type ViewProps,
 } from "react-native";
-import { ShimmerLabel } from "./surfaces";
+import { ShimmerLabel, textButtonHitSlop } from "./surfaces";
 
 export interface ErrorStateProps extends Omit<ViewProps, "children"> {
   title: string;
@@ -69,6 +69,7 @@ export const ErrorState: FC<ErrorStateProps> = ({
         onPress={onRetry}
         accessibilityRole="button"
         accessibilityLabel="Retry"
+        hitSlop={textButtonHitSlop}
         className="flex-row items-center gap-1.5 rounded-full px-3 py-1 active:bg-red-500/10"
       >
         <Icon

@@ -17,6 +17,8 @@ export const inkButton = "bg-foreground active:opacity-90";
 
 export const mono = "text-[11px] tracking-tight";
 
+export const textButtonHitSlop = { top: 12, bottom: 12 };
+
 export const monoStyle: TextStyle = {
   fontFamily: Platform.select({
     ios: "Menlo",

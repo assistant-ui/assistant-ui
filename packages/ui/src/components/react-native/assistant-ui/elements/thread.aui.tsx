@@ -3,7 +3,10 @@ import {
   ComposerAttachments,
   UserMessageAttachments,
 } from "@/components/assistant-ui/elements/attachment.aui";
-import { iconButtonClassName } from "@/components/assistant-ui/elements/icon-button";
+import {
+  iconButtonClassName,
+  iconButtonHitSlop,
+} from "@/components/assistant-ui/elements/icon-button";
 import { MarkdownText } from "@/components/assistant-ui/elements/markdown-text";
 import { TypingIndicator } from "@/components/assistant-ui/elements/typing-indicator";
 import { Icon } from "@/components/ui/icon";
@@ -252,6 +255,7 @@ const ComposerAction: FC = () => (
       <AuiIf condition={(s) => !s.thread.isRunning}>
         <ComposerPrimitive.Send
           className="aui-composer-send bg-primary active:bg-primary/90 size-7 items-center justify-center rounded-full disabled:opacity-50"
+          hitSlop={iconButtonHitSlop}
           accessibilityLabel="Send message"
         >
           <Icon
@@ -263,6 +267,7 @@ const ComposerAction: FC = () => (
       <AuiIf condition={(s) => s.thread.isRunning}>
         <ComposerPrimitive.Cancel
           className="aui-composer-cancel bg-primary active:bg-primary/90 size-7 items-center justify-center rounded-full"
+          hitSlop={iconButtonHitSlop}
           accessibilityLabel="Stop generating"
         >
           <View className="aui-composer-cancel-icon bg-primary-foreground size-3 rounded-[2px]" />
@@ -348,6 +353,7 @@ const AssistantActionBar: FC = () => (
       <ActionBarPrimitive.Copy
         copyToClipboard={copyToClipboard}
         className={iconButtonClassName}
+        hitSlop={iconButtonHitSlop}
         accessibilityLabel="Copy"
       >
         {({ isCopied }) => (
@@ -359,6 +365,7 @@ const AssistantActionBar: FC = () => (
       </ActionBarPrimitive.Copy>
       <ActionBarPrimitive.Reload
         className={iconButtonClassName}
+        hitSlop={iconButtonHitSlop}
         accessibilityLabel="Refresh"
       >
         <Icon as={RefreshCwIcon} className="text-muted-foreground size-4" />
@@ -384,6 +391,7 @@ const UserActionBar: FC = () => (
   <AuiIf condition={(s) => !s.thread.isRunning}>
     <ActionBarPrimitive.Edit
       className={cn(iconButtonClassName, "aui-user-action-edit")}
+      hitSlop={iconButtonHitSlop}
       accessibilityLabel="Edit"
     >
       <Icon as={PencilIcon} className="text-muted-foreground size-4" />
@@ -427,7 +435,7 @@ const BranchPicker: FC<ViewProps> = ({ className, ...rest }) => {
     >
       <BranchPickerPrimitive.Previous
         className={cn(iconButtonClassName, "disabled:opacity-35")}
-        hitSlop={4}
+        hitSlop={iconButtonHitSlop}
         accessibilityLabel="Previous"
       >
         <Icon as={ChevronLeftIcon} className="text-muted-foreground size-4" />
@@ -437,7 +445,7 @@ const BranchPicker: FC<ViewProps> = ({ className, ...rest }) => {
       </Text>
       <BranchPickerPrimitive.Next
         className={cn(iconButtonClassName, "disabled:opacity-35")}
-        hitSlop={4}
+        hitSlop={iconButtonHitSlop}
         accessibilityLabel="Next"
       >
         <Icon as={ChevronRightIcon} className="text-muted-foreground size-4" />

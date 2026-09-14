@@ -9,7 +9,13 @@ import {
   View,
   type ViewProps,
 } from "react-native";
-import { field, inkButton, monoStyle, paper } from "./surfaces";
+import {
+  field,
+  inkButton,
+  monoStyle,
+  paper,
+  textButtonHitSlop,
+} from "./surfaces";
 
 export type ApprovalState = "request" | "running" | "done" | "denied";
 
@@ -70,6 +76,7 @@ export const ApprovalCard: FC<ApprovalCardProps> = ({
             onPress={onDeny}
             accessibilityRole="button"
             accessibilityLabel="Deny"
+            hitSlop={textButtonHitSlop}
             className={ghostButtonClassName}
           >
             <Text className="text-foreground/55 text-xs font-medium">Deny</Text>
@@ -78,6 +85,7 @@ export const ApprovalCard: FC<ApprovalCardProps> = ({
             onPress={onAlwaysAllow}
             accessibilityRole="button"
             accessibilityLabel="Always allow"
+            hitSlop={textButtonHitSlop}
             className={ghostButtonClassName}
           >
             <Text className="text-foreground/55 text-xs font-medium">
@@ -88,6 +96,7 @@ export const ApprovalCard: FC<ApprovalCardProps> = ({
             onPress={onAllowOnce}
             accessibilityRole="button"
             accessibilityLabel="Allow once"
+            hitSlop={textButtonHitSlop}
             className={cn(inkButton, "h-8 justify-center rounded-full px-3.5")}
           >
             <Text className="text-background text-xs font-medium">

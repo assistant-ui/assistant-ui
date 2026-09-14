@@ -2111,7 +2111,7 @@ export const nativeRegistry: RegistryItem[] = [
     type: "registry:component",
     title: "Elements Range",
     description:
-      "Range normalization for the elements family: clamping a caller's counts, indexes, and shares to what the element can render.",
+      "Range normalization for the elements family: clamping a caller's counts to what the element can render.",
     files: [
       {
         type: "registry:lib",

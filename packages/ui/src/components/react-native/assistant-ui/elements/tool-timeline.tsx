@@ -4,7 +4,7 @@ import { ChevronRightIcon, type LucideIcon } from "lucide-react-native";
 import type { FC } from "react";
 import { Pressable, Text, View } from "react-native";
 import { take } from "../utils/range";
-import { mono, monoStyle, ShimmerLabel } from "./surfaces";
+import { mono, monoStyle, ShimmerLabel, textButtonHitSlop } from "./surfaces";
 
 export interface TimelineStep {
   verb: string;
@@ -52,7 +52,7 @@ export const ToolTimeline: FC<ToolTimelineProps> = ({
         accessibilityRole="button"
         aria-expanded={open}
         accessibilityLabel={streaming ? activeLabel : restingLabel}
-        hitSlop={{ top: 10, bottom: 10 }}
+        hitSlop={textButtonHitSlop}
         className="flex-row items-center gap-1.5 rounded-md py-1"
       >
         <View style={{ transform: [{ rotate: open ? "90deg" : "0deg" }] }}>

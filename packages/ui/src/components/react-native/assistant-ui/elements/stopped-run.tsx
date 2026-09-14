@@ -3,7 +3,7 @@ import { cn } from "@/lib/utils";
 import { ArrowRightIcon, SquareIcon } from "lucide-react-native";
 import type { FC } from "react";
 import { Pressable, Text, View, type ViewProps } from "react-native";
-import { field, mono, monoStyle } from "./surfaces";
+import { field, mono, monoStyle, textButtonHitSlop } from "./surfaces";
 
 export type StoppedRunProps = Omit<ViewProps, "children"> & {
   words: readonly string[];
@@ -24,7 +24,10 @@ export const StoppedRun: FC<StoppedRunProps> = ({
     className={cn("aui-stopped-run w-full max-w-sm gap-3", className)}
     {...props}
   >
-    <Text className="text-foreground/80 text-[13.5px] leading-relaxed">
+    <Text
+      className="text-foreground/80 text-[13.5px] leading-relaxed"
+      accessibilityLabel={words.join(" ")}
+    >
       {words.join(" ")}
       <Text aria-hidden className="text-foreground/20">
         {" ▏"}
@@ -49,6 +52,7 @@ export const StoppedRun: FC<StoppedRunProps> = ({
         onPress={onContinue}
         accessibilityRole="button"
         accessibilityLabel="Continue"
+        hitSlop={textButtonHitSlop}
         className="active:bg-foreground/5 ms-auto h-7 flex-row items-center gap-1 rounded-full px-2.5"
       >
         <Text className="text-foreground/70 text-xs font-medium">Continue</Text>
@@ -58,6 +62,7 @@ export const StoppedRun: FC<StoppedRunProps> = ({
         onPress={onDiscard}
         accessibilityRole="button"
         accessibilityLabel="Discard"
+        hitSlop={textButtonHitSlop}
         className="active:bg-foreground/5 h-7 justify-center rounded-full px-2.5"
       >
         <Text className="text-foreground/45 text-xs font-medium">Discard</Text>

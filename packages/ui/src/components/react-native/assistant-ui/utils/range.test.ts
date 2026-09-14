@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { clamp, indexIn, take } from "./range";
+import { clamp, take } from "./range";
 
 describe("clamp", () => {
   it("passes an in-range value through", () => {
@@ -50,21 +50,5 @@ describe("take", () => {
   it("takes nothing for NaN or from an empty list", () => {
     expect(take(items, Number.NaN)).toEqual([]);
     expect(take([], 3)).toEqual([]);
-  });
-});
-
-describe("indexIn", () => {
-  const items = ["a", "b", "c"];
-
-  it("names the nearest position for an index out of range", () => {
-    expect(indexIn(items, 1)).toBe(1);
-    expect(indexIn(items, -5)).toBe(0);
-    expect(indexIn(items, 99)).toBe(2);
-    expect(indexIn(items, 1.5)).toBe(1);
-    expect(indexIn(items, Number.NaN)).toBe(0);
-  });
-
-  it("is 0 for an empty list rather than -1", () => {
-    expect(indexIn([], 3)).toBe(0);
   });
 });
