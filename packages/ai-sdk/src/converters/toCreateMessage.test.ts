@@ -12,19 +12,22 @@ const baseMessage = {
 
 describe("toCreateMessage", () => {
   it.each([
-    "data:;base64,SGVsbG8=",
-    "data:;charset=utf-8,hello",
-    "data:;base64,",
-  ])("uses a bare media type without changing the file URL %s", (data) => {
-    const message = {
-      ...baseMessage,
-      content: [{ type: "file", data, mimeType: "" }],
-    } as unknown as AppendMessage;
+    ["data:;base64,SGVsbG8=", "application/octet-stream"],
+    ["data:;charset=utf-8,hello", "text/plain"],
+    ["data:;base64,", "application/octet-stream"],
+  ])(
+    "uses a bare media type without changing the file URL %s",
+    (data, mediaType) => {
+      const message = {
+        ...baseMessage,
+        content: [{ type: "file", data, mimeType: "" }],
+      } as unknown as AppendMessage;
 
-    expect(toCreateMessage(message).parts).toEqual([
-      { type: "file", url: data, mediaType: "text/plain" },
-    ]);
-  });
+      expect(toCreateMessage(message).parts).toEqual([
+        { type: "file", url: data, mediaType },
+      ]);
+    },
+  );
 
   it("converts a direct file part in message content", () => {
     const message = {
