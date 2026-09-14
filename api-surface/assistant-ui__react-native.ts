@@ -1044,7 +1044,7 @@ type CompleteAttachmentStatus = {
 
 declare const ComposerAddAttachment: (_param12: ComposerAddAttachmentProps) => import("react").JSX.Element;
 
-type ComposerAddAttachmentProps = Omit<PressableProps, "children" | "onPress"> & {
+type ComposerAddAttachmentProps = Omit<PressableProps, "children"> & {
   children: PressableProps["children"];
 };
 

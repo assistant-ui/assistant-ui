@@ -99,6 +99,15 @@ test("native flavor content validation rejects web packages and accepts the kit"
     /thread: native tree file components\/assistant-ui\/elements\/thread\.aui\.tsx imports forbidden "react-dom\/client"/,
   );
 
+  const webDependency = createBuilt("thread", []);
+  webDependency.payload.registryDependencies = [
+    "https://r.assistant-ui.com/attachment.json",
+  ];
+  assert.throws(
+    () => validateNativeFlavorContent([webDependency]),
+    /thread: registry dependency "https:\/\/r\.assistant-ui\.com\/attachment\.json" is not a native item/,
+  );
+
   const { nativeRegistry } = await import("../src/registry.ts");
   assert.doesNotThrow(() =>
     validateNativeFlavorContent(

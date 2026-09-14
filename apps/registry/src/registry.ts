@@ -1949,7 +1949,11 @@ export const nativeRegistry: RegistryItem[] = [
           "../../packages/ui/src/components/react-native/assistant-ui/elements/thread.aui.tsx",
       },
     ],
-    dependencies: ["@assistant-ui/react-native", "lucide-react-native"],
+    dependencies: [
+      "@assistant-ui/react-native",
+      "expo-clipboard",
+      "lucide-react-native",
+    ],
     registryDependencies: [
       "https://r.assistant-ui.com/native/attachment.json",
       "https://r.assistant-ui.com/native/icon.json",
@@ -1970,7 +1974,12 @@ export const nativeRegistry: RegistryItem[] = [
           "../../packages/ui/src/components/react-native/assistant-ui/elements/attachment.aui.tsx",
       },
     ],
-    dependencies: ["@assistant-ui/react-native", "lucide-react-native"],
+    dependencies: [
+      "@assistant-ui/react-native",
+      "expo-image-manipulator",
+      "expo-image-picker",
+      "lucide-react-native",
+    ],
     registryDependencies: ["https://r.assistant-ui.com/native/icon.json"],
   },
   {
@@ -2005,7 +2014,7 @@ export const nativeRegistry: RegistryItem[] = [
         sourcePath: "../../packages/ui/src/components/react-native/ui/icon.tsx",
       },
     ],
-    dependencies: ["lucide-react-native"],
+    dependencies: ["lucide-react-native", "react-native-svg"],
     registryDependencies: ["https://r.assistant-ui.com/utils.json"],
   },
 ];

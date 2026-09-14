@@ -57,7 +57,6 @@ export default defineConfig({
           environment: "jsdom",
           pool: "threads",
           globals: true,
-          passWithNoTests: true,
           include: ["src/components/react-native/**/*.test.{ts,tsx}"],
         },
       },

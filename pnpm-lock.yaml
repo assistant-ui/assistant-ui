@@ -5118,12 +5118,6 @@ importers:
       embla-carousel-react:
         specifier: ^8.6.0
         version: 8.6.0(react@19.2.8)
-      expo-clipboard:
-        specifier: ~57.0.1
-        version: 57.0.1(expo@57.0.20)(react-native@0.86.3(@types/react@19.2.18)(react@19.2.8)(supports-color@10.2.2))(react@19.2.8)
-      expo-image-picker:
-        specifier: ~57.0.16
-        version: 57.0.16(expo@57.0.20)
       heat-graph:
         specifier: workspace:*
         version: link:../heat-graph
@@ -5133,9 +5127,6 @@ importers:
       lucide-react:
         specifier: ^1.41.0
         version: 1.41.0(react@19.2.8)
-      lucide-react-native:
-        specifier: ^1.45.0
-        version: 1.45.0(react-native-svg@15.15.5(react-native@0.86.3(@types/react@19.2.18)(react@19.2.8)(supports-color@10.2.2))(react@19.2.8))(react-native@0.86.3(@types/react@19.2.18)(react@19.2.8)(supports-color@10.2.2))(react@19.2.8)
       next-themes:
         specifier: ^0.4.6
         version: 0.4.6(react-dom@19.2.8(react@19.2.8))(react@19.2.8)
@@ -5154,15 +5145,6 @@ importers:
       react-markdown:
         specifier: ^10.1.0
         version: 10.1.0(@types/react@19.2.18)(react@19.2.8)(supports-color@10.2.2)
-      react-native:
-        specifier: ^0.86.3
-        version: 0.86.3(@types/react@19.2.18)(react@19.2.8)(supports-color@10.2.2)
-      react-native-safe-area-context:
-        specifier: ^5.7.0
-        version: 5.7.0(react-native@0.86.3(@types/react@19.2.18)(react@19.2.8)(supports-color@10.2.2))(react@19.2.8)
-      react-native-svg:
-        specifier: ^15.15.4
-        version: 15.15.5(react-native@0.86.3(@types/react@19.2.18)(react@19.2.8)(supports-color@10.2.2))(react@19.2.8)
       react-resizable-panels:
         specifier: ^4.12.4
         version: 4.12.4(react-dom@19.2.8(react@19.2.8))(react@19.2.8)
@@ -5181,9 +5163,6 @@ importers:
       sonner:
         specifier: ^2.0.8
         version: 2.0.8(@types/react@19.2.18)(react-dom@19.2.8(react@19.2.8))(react@19.2.8)
-      uniwind:
-        specifier: ^1.12.0
-        version: 1.12.0(@expo/metro-config@57.0.12(expo@57.0.20)(supports-color@10.2.2)(typescript@7.0.2))(metro-cache@0.87.0(supports-color@10.2.2))(metro-transform-worker@0.87.0(supports-color@10.2.2))(metro@0.87.0(supports-color@10.2.2))(react-native@0.86.3(@types/react@19.2.18)(react@19.2.8)(supports-color@10.2.2))(react@19.2.8)(tailwindcss@4.3.3)
       vaul:
         specifier: ^1.1.2
         version: 1.1.2(@types/react-dom@19.2.7(@types/react@19.2.18))(@types/react@19.2.18)(react-dom@19.2.8(react@19.2.8))(react@19.2.8)
@@ -5224,9 +5203,21 @@ importers:
       '@vitejs/plugin-vue':
         specifier: ^6.0.8
         version: 6.0.8(vite@8.2.2(@types/node@26.4.1))(vue@3.5.42(typescript@7.0.2))
+      expo-clipboard:
+        specifier: ^57.0.1
+        version: 57.0.1(expo@57.0.20)(react-native@0.86.3(@types/react@19.2.18)(react@19.2.8)(supports-color@10.2.2))(react@19.2.8)
+      expo-image-manipulator:
+        specifier: ^57.0.16
+        version: 57.0.17(expo@57.0.20)
+      expo-image-picker:
+        specifier: ^57.0.16
+        version: 57.0.16(expo@57.0.20)
       jsdom:
         specifier: ^30.0.1
         version: 30.0.1
+      lucide-react-native:
+        specifier: ^1.45.0
+        version: 1.45.0(react-native-svg@15.15.5(react-native@0.86.3(@types/react@19.2.18)(react@19.2.8)(supports-color@10.2.2))(react@19.2.8))(react-native@0.86.3(@types/react@19.2.18)(react@19.2.8)(supports-color@10.2.2))(react@19.2.8)
       markdown-it:
         specifier: ^15.0.1
         version: 15.0.1
@@ -5236,12 +5227,24 @@ importers:
       react-dom:
         specifier: ^19.2.8
         version: 19.2.8(react@19.2.8)
+      react-native:
+        specifier: ^0.86.3
+        version: 0.86.3(@types/react@19.2.18)(react@19.2.8)(supports-color@10.2.2)
+      react-native-safe-area-context:
+        specifier: ^5.7.0
+        version: 5.7.0(react-native@0.86.3(@types/react@19.2.18)(react@19.2.8)(supports-color@10.2.2))(react@19.2.8)
+      react-native-svg:
+        specifier: ^15.15.4
+        version: 15.15.5(react-native@0.86.3(@types/react@19.2.18)(react@19.2.8)(supports-color@10.2.2))(react@19.2.8)
       react-native-web:
         specifier: ^0.21.2
         version: 0.21.2(react-dom@19.2.8(react@19.2.8))(react@19.2.8)
       reka-ui:
         specifier: ^2.10.4
         version: 2.10.4(vue@3.5.42(typescript@7.0.2))
+      uniwind:
+        specifier: ^1.12.0
+        version: 1.12.0(@expo/metro-config@57.0.12(expo@57.0.20)(supports-color@10.2.2)(typescript@7.0.2))(metro-cache@0.87.0(supports-color@10.2.2))(metro-transform-worker@0.87.0(supports-color@10.2.2))(metro@0.87.0(supports-color@10.2.2))(react-native@0.86.3(@types/react@19.2.18)(react@19.2.8)(supports-color@10.2.2))(react@19.2.8)(tailwindcss@4.3.3)
       vitest:
         specifier: ^5.0.0
         version: 5.0.0(@edge-runtime/vm@3.2.0)(@opentelemetry/api@1.9.1)(@types/node@26.4.1)(@vitest/coverage-v8@5.0.0)(@vitest/ui@5.0.0)(jsdom@30.0.1)(vite@8.2.2(@types/node@26.4.1))
@@ -14820,6 +14823,11 @@ packages:
 
   expo-image-loader@57.0.1:
     resolution: {integrity: sha512-uhrZKLT/cTl2mXyR28kPpVkS5O+PK9N1QA/07IFM4f5T4g0lTW1JHT3NEWwEEsGFldPmVX4j7LwUVVZxE+woug==}
+    peerDependencies:
+      expo: '*'
+
+  expo-image-manipulator@57.0.17:
+    resolution: {integrity: sha512-VpM8qAotTeSIobIAL8RAIDrZKL0jQBK/6O41NnwmdT96sd2wT263DlTbkvQ6RkcFrR9+NZiC5Um7FDBK+jFneg==}
     peerDependencies:
       expo: '*'
 
@@ -31263,6 +31271,11 @@ snapshots:
   expo-image-loader@57.0.1(expo@57.0.20):
     dependencies:
       expo: 57.0.20(@expo/dom-webview@57.0.1)(@expo/metro-runtime@57.0.15)(react-dom@19.2.8(react@19.2.8))(react-native-web@0.21.2(react-dom@19.2.8(react@19.2.8))(react@19.2.8))(react-native@0.86.3(@types/react@19.2.18)(react@19.2.8)(supports-color@10.2.2))(react@19.2.8)(supports-color@10.2.2)(typescript@7.0.2)
+
+  expo-image-manipulator@57.0.17(expo@57.0.20):
+    dependencies:
+      expo: 57.0.20(@expo/dom-webview@57.0.1)(@expo/metro-runtime@57.0.15)(react-dom@19.2.8(react@19.2.8))(react-native-web@0.21.2(react-dom@19.2.8(react@19.2.8))(react@19.2.8))(react-native@0.86.3(@types/react@19.2.18)(react@19.2.8)(supports-color@10.2.2))(react@19.2.8)(supports-color@10.2.2)(typescript@7.0.2)
+      expo-image-loader: 57.0.1(expo@57.0.20)
 
   expo-image-picker@57.0.16(expo@57.0.20):
     dependencies:

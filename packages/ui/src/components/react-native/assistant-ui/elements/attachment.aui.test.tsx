@@ -5,13 +5,27 @@ import { ComposerAddAttachment, ComposerAttachments } from "./attachment.aui";
 
 const h = vi.hoisted(() => {
   const state: any = {
-    composer: { attachments: [] },
+    composer: { attachments: [], isEditing: true },
     attachment: undefined,
   };
   state.optional = { thread: state.thread };
   const addAttachment = vi.fn();
   const removeAttachment = vi.fn();
   const launchImageLibraryAsync = vi.fn();
+  const resize = vi.fn();
+  const saveAsync = vi.fn();
+  const manipulate = vi.fn((uri: string) => {
+    const context = {
+      resize: (size: unknown) => {
+        resize(uri, size);
+        return context;
+      },
+      renderAsync: async () => ({
+        saveAsync: (options: unknown) => saveAsync(uri, options),
+      }),
+    };
+    return context;
+  });
   const setClipboardString = vi.fn();
   const composer = {
     getState: () => state.composer,
@@ -33,6 +47,9 @@ const h = vi.hoisted(() => {
     addAttachment,
     removeAttachment,
     launchImageLibraryAsync,
+    manipulate,
+    resize,
+    saveAsync,
     setClipboardString,
   };
 });
@@ -107,6 +124,10 @@ vi.mock("lucide-react-native", async () => {
 });
 
 vi.mock("expo-clipboard", () => ({ setStringAsync: h.setClipboardString }));
+vi.mock("expo-image-manipulator", () => ({
+  ImageManipulator: { manipulate: h.manipulate },
+  SaveFormat: { JPEG: "jpeg" },
+}));
 vi.mock("expo-image-picker", () => ({
   launchImageLibraryAsync: h.launchImageLibraryAsync,
 }));
@@ -122,15 +143,20 @@ const click = (element: Element) => {
   );
 };
 
+const flush = () => new Promise((resolve) => setTimeout(resolve, 0));
+
 describe("attachments", () => {
   let container: HTMLDivElement;
   let root: Root;
 
   beforeEach(() => {
     h.state.composer.attachments = [];
+    h.state.composer.isEditing = true;
     h.addAttachment.mockReset();
     h.removeAttachment.mockReset();
     h.launchImageLibraryAsync.mockReset();
+    h.resize.mockReset();
+    h.saveAsync.mockReset();
     h.setClipboardString.mockReset();
 
     container = document.createElement("div");
@@ -195,35 +221,60 @@ describe("attachments", () => {
     expect(h.removeAttachment).toHaveBeenCalledTimes(1);
   });
 
-  it("adds one JPEG attachment for each selected image", async () => {
+  it("re-encodes each selected image as a bounded JPEG attachment", async () => {
     h.launchImageLibraryAsync.mockResolvedValue({
       canceled: false,
       assets: [
-        { fileName: "first.png", base64: "first-data" },
-        { fileName: null, base64: "second-data" },
+        {
+          uri: "file:///first",
+          fileName: "first.HEIC",
+          width: 4000,
+          height: 3000,
+        },
+        { uri: "file:///second", fileName: null, width: 600, height: 900 },
+        {
+          uri: "file:///third",
+          fileName: "third.png",
+          width: 100,
+          height: 100,
+        },
       ],
     });
+    h.saveAsync.mockImplementation(async (uri: string) =>
+      uri === "file:///third" ? {} : { base64: `${uri}-data` },
+    );
 
     await render();
 
     await act(async () => {
       click(labeled("Add image"));
-      await Promise.resolve();
-      await Promise.resolve();
+      await flush();
     });
 
+    expect(h.resize).toHaveBeenCalledTimes(1);
+    expect(h.resize).toHaveBeenCalledWith("file:///first", { width: 2048 });
+    expect(h.saveAsync).toHaveBeenCalledTimes(3);
+    expect(h.saveAsync).toHaveBeenCalledWith("file:///second", {
+      format: "jpeg",
+      compress: 0.8,
+      base64: true,
+    });
     expect(h.addAttachment).toHaveBeenCalledTimes(2);
     expect(h.addAttachment).toHaveBeenNthCalledWith(1, {
-      name: "first.png",
+      name: "first.jpg",
       contentType: "image/jpeg",
       type: "image",
-      content: [{ type: "image", image: "data:image/jpeg;base64,first-data" }],
+      content: [
+        { type: "image", image: "data:image/jpeg;base64,file:///first-data" },
+      ],
     });
     expect(h.addAttachment).toHaveBeenNthCalledWith(2, {
       name: "image.jpg",
       contentType: "image/jpeg",
       type: "image",
-      content: [{ type: "image", image: "data:image/jpeg;base64,second-data" }],
+      content: [
+        { type: "image", image: "data:image/jpeg;base64,file:///second-data" },
+      ],
     });
   });
 
@@ -234,9 +285,24 @@ describe("attachments", () => {
 
     await act(async () => {
       click(labeled("Add image"));
-      await Promise.resolve();
+      await flush();
     });
 
     expect(h.addAttachment).not.toHaveBeenCalled();
+  });
+
+  it("keeps the picker closed while the composer cannot accept attachments", async () => {
+    h.state.composer.isEditing = false;
+
+    await render();
+
+    const button = labeled("Add image");
+    expect(button.getAttribute("aria-disabled")).toBe("true");
+    await act(async () => {
+      click(button);
+      await flush();
+    });
+
+    expect(h.launchImageLibraryAsync).not.toHaveBeenCalled();
   });
 });

@@ -256,6 +256,17 @@ describe("ThreadList", () => {
     expect(container.textContent).toContain("Current chat");
   });
 
+  it("highlights New chat while the new thread is the main thread", async () => {
+    await render();
+    expect(buttons()[0].className.split(" ")).not.toContain("bg-muted");
+
+    h.state.threads.newThreadId = "thread-new";
+    h.state.threads.mainThreadId = "thread-new";
+    await render();
+
+    expect(buttons()[0].className.split(" ")).toContain("bg-muted");
+  });
+
   it("switches to a new thread when New chat is pressed", async () => {
     await render();
 
@@ -269,7 +280,8 @@ describe("ThreadList", () => {
   it("marks the active item and switches to an item when pressed", async () => {
     await render();
 
-    expect(buttons()[2].className).toContain("bg-muted");
+    expect(buttons()[1].className.split(" ")).not.toContain("bg-muted");
+    expect(buttons()[2].className.split(" ")).toContain("bg-muted");
     expect(
       container.querySelector(".aui-thread-list-item-title.font-semibold"),
     ).not.toBeNull();

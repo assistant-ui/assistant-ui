@@ -59,7 +59,7 @@ const copyToClipboard = async (text: string) => {
 };
 
 export const Thread: FC = () => {
-  const isEmpty = useAuiState((s) => s.thread.messages.length === 0);
+  const isEmpty = useAuiState(isNewChatView);
   const insets = useSafeAreaInsets();
 
   return (
@@ -118,6 +118,8 @@ const ThreadMessage: FC = () => {
 const ThreadHistorySkeleton: FC = () => (
   <View
     className="aui-thread-history-skeleton gap-6 px-4 pt-4"
+    accessible
+    accessibilityRole="progressbar"
     accessibilityLabel="Loading conversation"
   >
     <View className="bg-muted ml-auto h-9 w-2/5 rounded-xl" />
@@ -270,7 +272,9 @@ const AssistantIndicator: FC = () => {
   return (
     <View
       className="aui-assistant-message-indicator flex-row items-center gap-[5px] py-2"
+      accessible
       accessibilityLabel="Assistant is working"
+      accessibilityLiveRegion="polite"
     >
       <TypingDot delay={0} />
       <TypingDot delay={160} />

@@ -24,12 +24,23 @@ export const ThreadList: FC = () => (
   </ThreadListPrimitive.Root>
 );
 
-const ThreadListNew: FC = () => (
-  <ThreadListPrimitive.New className="aui-thread-list-new active:bg-muted mx-2 mb-1 h-10 flex-row items-center gap-2.5 rounded-lg px-3">
-    <Icon as={SquarePenIcon} className="text-foreground size-[18px]" />
-    <Text className="text-foreground text-[15px] font-medium">New chat</Text>
-  </ThreadListPrimitive.New>
-);
+const ThreadListNew: FC = () => {
+  const isActive = useAuiState(
+    (s) => s.threads.newThreadId === s.threads.mainThreadId,
+  );
+
+  return (
+    <ThreadListPrimitive.New
+      className={cn(
+        "aui-thread-list-new active:bg-muted mx-2 mb-1 h-10 flex-row items-center gap-2.5 rounded-lg px-3",
+        isActive && "bg-muted",
+      )}
+    >
+      <Icon as={SquarePenIcon} className="text-foreground size-[18px]" />
+      <Text className="text-foreground text-[15px] font-medium">New chat</Text>
+    </ThreadListPrimitive.New>
+  );
+};
 
 const ThreadListItem: FC = () => {
   const isActive = useAuiState(

@@ -7,10 +7,31 @@ import {
   useAui,
   useAuiState,
 } from "@assistant-ui/react-native";
+import { ImageManipulator, SaveFormat } from "expo-image-manipulator";
 import * as ImagePicker from "expo-image-picker";
 import { PlusIcon, XIcon } from "lucide-react-native";
 import type { FC } from "react";
-import { Image, Pressable, View } from "react-native";
+import { Image, View } from "react-native";
+
+const MAX_IMAGE_EDGE = 2048;
+
+const encodeJpeg = async (asset: ImagePicker.ImagePickerAsset) => {
+  const context = ImageManipulator.manipulate(asset.uri);
+  if (Math.max(asset.width, asset.height) > MAX_IMAGE_EDGE) {
+    context.resize(
+      asset.width >= asset.height
+        ? { width: MAX_IMAGE_EDGE }
+        : { height: MAX_IMAGE_EDGE },
+    );
+  }
+  const image = await context.renderAsync();
+  const { base64 } = await image.saveAsync({
+    format: SaveFormat.JPEG,
+    compress: 0.8,
+    base64: true,
+  });
+  return base64;
+};
 
 const useAttachmentImageUri = () =>
   useAuiState((s) => {
@@ -68,33 +89,29 @@ export const ComposerAddAttachment: FC = () => {
     const result = await ImagePicker.launchImageLibraryAsync({
       mediaTypes: ["images"],
       allowsMultipleSelection: true,
-      quality: 0.8,
-      base64: true,
     });
     if (result.canceled) return;
 
     for (const asset of result.assets) {
-      // iOS may report HEIC, which OpenAI rejects; the picker re-encodes to JPEG when quality is below 1.
+      const base64 = await encodeJpeg(asset);
+      if (!base64) continue;
       await aui.composer.addAttachment({
-        name: asset.fileName ?? "image.jpg",
+        name: `${(asset.fileName ?? "image").replace(/\.[^.]+$/, "")}.jpg`,
         contentType: "image/jpeg",
         type: "image",
-        content: [
-          { type: "image", image: `data:image/jpeg;base64,${asset.base64}` },
-        ],
+        content: [{ type: "image", image: `data:image/jpeg;base64,${base64}` }],
       });
     }
   };
 
   return (
-    <Pressable
+    <ComposerPrimitive.AddAttachment
       onPress={pickImages}
       className="aui-composer-add-attachment active:bg-muted size-7 items-center justify-center rounded-full"
-      accessibilityRole="button"
       accessibilityLabel="Add image"
     >
       <Icon as={PlusIcon} className="text-muted-foreground size-4" />
-    </Pressable>
+    </ComposerPrimitive.AddAttachment>
   );
 };
 

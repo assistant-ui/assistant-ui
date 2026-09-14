@@ -52,11 +52,8 @@ const PROJECT_PACKAGE_IMPORTS = new Set([
 const NATIVE_PROJECT_PACKAGE_IMPORTS = new Set([
   "react",
   "react-native",
-  "react-native-svg",
   "react-native-safe-area-context",
   "uniwind",
-  "expo-clipboard",
-  "expo-image-picker",
 ]);
 
 type RegistryFile = NonNullable<RegistryItem["files"]>[number];
@@ -240,6 +237,7 @@ const NATIVE_FORBIDDEN_PACKAGES = new Set([
   "lucide-react",
   "@assistant-ui/react",
 ]);
+const NATIVE_SHARED_REGISTRY_ITEMS = new Set(["utils"]);
 
 function isNativeForbiddenPackage(specifier: string) {
   const packageName = getPackageName(specifier);
@@ -257,6 +255,18 @@ export function validateNativeFlavorContent(
   const findings = new Set<string>();
 
   for (const { payload } of nativeBuilt) {
+    for (const dependency of payload.registryDependencies ?? []) {
+      const name = getAssistantRegistryDependencyName(dependency);
+      if (
+        name &&
+        !NATIVE_SHARED_REGISTRY_ITEMS.has(name) &&
+        dependency !== `https://r.assistant-ui.com/native/${name}.json`
+      ) {
+        findings.add(
+          `${payload.name}: registry dependency "${dependency}" is not a native item`,
+        );
+      }
+    }
     for (const file of payload.files ?? []) {
       for (const specifier of collectModuleSpecifiers(file)) {
         if (isNativeForbiddenPackage(specifier)) {

@@ -240,6 +240,30 @@ vi.mock("react-native", async (importOriginal) => {
   const actual = await importOriginal<typeof import("react-native")>();
   const React = await import("react");
 
+  const View = ({
+    children,
+    className,
+    testID,
+    accessible: _accessible,
+    accessibilityLabel,
+    accessibilityLiveRegion,
+    accessibilityRole,
+    style: _style,
+    ...props
+  }: any) =>
+    React.createElement(
+      "div",
+      {
+        ...props,
+        className,
+        "data-testid": testID,
+        "aria-label": accessibilityLabel,
+        "aria-live": accessibilityLiveRegion,
+        role: accessibilityRole,
+      },
+      children,
+    );
+
   const FlatList = React.forwardRef(function FlatList(props: any, ref) {
     React.useImperativeHandle(ref, () => ({ scrollToOffset: vi.fn() }));
     return React.createElement(
@@ -263,7 +287,7 @@ vi.mock("react-native", async (importOriginal) => {
     );
   });
 
-  return { ...actual, FlatList };
+  return { ...actual, FlatList, View };
 });
 
 vi.mock("uniwind", () => ({
@@ -297,6 +321,10 @@ vi.mock("lucide-react-native", async () => {
 });
 
 vi.mock("expo-clipboard", () => ({ setStringAsync: h.setClipboardString }));
+vi.mock("expo-image-manipulator", () => ({
+  ImageManipulator: { manipulate: vi.fn() },
+  SaveFormat: { JPEG: "jpeg" },
+}));
 vi.mock("expo-image-picker", () => ({ launchImageLibraryAsync: vi.fn() }));
 vi.mock("react-native-safe-area-context", () => ({
   useSafeAreaInsets: () => ({ top: 0, bottom: 0, left: 0, right: 0 }),
@@ -363,6 +391,10 @@ describe("Thread", () => {
 
   const addMessages = (...messages: any[]) => {
     h.messages.splice(0, h.messages.length, ...messages);
+    h.messages.forEach((message, index) => {
+      message.id = `message-${index + 1}`;
+      message.isLast = index === h.messages.length - 1;
+    });
     h.state.thread.messages = h.messages;
   };
 
@@ -376,6 +408,21 @@ describe("Thread", () => {
     expect(container.textContent).toContain("How can I help you today?");
     expect(container.textContent).toContain("Explain hooks");
     expect(container.textContent).toContain("in one paragraph");
+  });
+
+  it("keeps the docked layout and announces the skeleton while a thread loads its history", async () => {
+    h.state.thread.isLoading = true;
+
+    await render();
+
+    const viewport = container.querySelector(".aui-thread-viewport");
+    expect(viewport?.className).not.toContain("justify-center");
+    expect(
+      container.querySelector(
+        '[role="progressbar"][aria-label="Loading conversation"]',
+      ),
+    ).not.toBeNull();
+    expect(container.textContent).not.toContain("How can I help you today?");
   });
 
   it("renders a user message and an assistant text part when messages exist", async () => {
