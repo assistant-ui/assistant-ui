@@ -68,4 +68,19 @@ describe("generateThreadTitle", () => {
 
     expect(update).not.toHaveBeenCalled();
   });
+
+  it("returns null without updating for a whitespace-only title", async () => {
+    const { cloud, update } = createCloud(
+      titleStream({ type: "text-delta", textDelta: " \n\t" }),
+    );
+
+    await expect(
+      generateThreadTitle(cloud, {
+        threadId: "thread-1",
+        messages: [],
+      }),
+    ).resolves.toBeNull();
+
+    expect(update).not.toHaveBeenCalled();
+  });
 });
