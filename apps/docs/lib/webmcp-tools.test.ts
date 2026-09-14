@@ -1,5 +1,7 @@
 import { describe, expect, it, vi } from "vitest";
 import { readPageTool, searchDocsTool } from "@/lib/mcp-tool-definitions";
+import { agentSkillDocument, buildAgentSkillsIndex } from "./agent-discovery";
+import { getSkill, listSkills } from "./agent-skills";
 import {
   getWebMcpModelContext,
   registerWebMcpTools,
@@ -371,6 +373,7 @@ describe("registered tools", () => {
     for (const document of [
       "# no frontmatter",
       "---\nname: tools\ndescription: unquoted\n---\n\n# Tools\n",
+      '---\nname: tools\ndescription: "bad\\q"\n---\n\n# Tools\n',
     ]) {
       await expect(
         toolByName(fetchReturning(document), "getSkill").execute({
@@ -381,6 +384,31 @@ describe("registered tools", () => {
         errorResult("Docs request returned an unexpected response"),
       );
     }
+  });
+
+  it("reads what the discovery routes actually produce", async () => {
+    const skill = getSkill(listSkills()[0]?.name ?? "");
+    if (!skill) throw new Error("no skills in the snapshot");
+    const fetchImpl = vi.fn(async (url: string) => ({
+      ok: true,
+      status: 200,
+      json: async () => buildAgentSkillsIndex(),
+      text: async () =>
+        url.endsWith(`/${skill.name}/SKILL.md`)
+          ? agentSkillDocument(skill)
+          : "",
+    }));
+
+    const listed = await toolByName(fetchImpl, "listSkills").execute({});
+    expect(JSON.parse(listed.content[0]?.text ?? "")).toEqual(listSkills());
+
+    const read = await toolByName(fetchImpl, "getSkill").execute({
+      name: skill.name,
+    });
+    expect(JSON.parse(read.content[0]?.text ?? "")).toEqual({
+      ...skill,
+      content: `${skill.content}\n`,
+    });
   });
 
   it("rejects an aborted listSkills or getSkill call with the abort reason", async () => {

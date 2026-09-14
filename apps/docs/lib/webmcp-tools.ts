@@ -292,7 +292,11 @@ function parseSkillDocument(document: string) {
   );
   if (!match) throw new Error("Docs request returned an unexpected response");
   const [, name = "", description = "", content = ""] = match;
-  return { name, description: JSON.parse(description) as string, content };
+  try {
+    return { name, description: JSON.parse(description) as string, content };
+  } catch {
+    throw new Error("Docs request returned an unexpected response");
+  }
 }
 
 async function readSkillFromRoute(
