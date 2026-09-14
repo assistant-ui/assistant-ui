@@ -2,7 +2,7 @@ import type { ThreadMessage } from "../../types/message";
 import type { RunConfig } from "../../types/message";
 import { generateId } from "../../utils/id";
 import type { ThreadMessageLike } from "./thread-message-like";
-import { getImportedContentAutoStatus } from "./auto-status";
+import { getRepositoryContentAutoStatus } from "./auto-status";
 import { fromThreadMessageLike } from "./thread-message-like";
 
 export type ExportedMessageRepositoryItem = {
@@ -28,7 +28,7 @@ export const ExportedMessageRepository = {
       fromThreadMessageLike(
         m,
         generateId(),
-        getImportedContentAutoStatus(m.content),
+        getRepositoryContentAutoStatus(m.content),
       ),
     );
 
@@ -62,7 +62,7 @@ export const ExportedMessageRepository = {
           message: fromThreadMessageLike(
             message,
             message.id,
-            getImportedContentAutoStatus(message.content),
+            getRepositoryContentAutoStatus(message.content),
           ),
         };
       }),

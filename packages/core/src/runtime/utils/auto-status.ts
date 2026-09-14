@@ -111,8 +111,8 @@ export const getAutoStatus = (
             : AUTO_STATUS_COMPLETE;
 };
 
-/** Status for a persisted message: a nested conversation saved mid-run cannot resume, so it never keeps the message running. */
-export const getImportedContentAutoStatus = (
+/** Status for a message entering the repository: the nested conversation is not being fed here, so it never keeps the message running. */
+export const getRepositoryContentAutoStatus = (
   content: ThreadMessageLike["content"],
 ): MessageStatus =>
   getAutoStatus(
