@@ -100,6 +100,51 @@ describe("useChatRuntime", () => {
     window.sessionStorage.clear();
   });
 
+  it("forwards a callback through a ref, so a later render's callback fires instead of the mounted one", () => {
+    mocks.useChat.mockReturnValue({
+      resumeStream: vi.fn(),
+      status: "ready",
+    });
+
+    const onToolCallA = vi.fn();
+    const onToolCallB = vi.fn();
+
+    const { rerender } = renderHook(
+      ({ onToolCall }: { onToolCall: typeof onToolCallA }) =>
+        useChatRuntime({ onToolCall }),
+      { initialProps: { onToolCall: onToolCallA } },
+    );
+
+    const chat = mocks.useChat.mock.calls[0]?.[0]?.chat as {
+      onToolCall?: (arg: unknown) => void;
+      sendAutomaticallyWhen?: (arg: unknown) => boolean;
+    };
+
+    chat.onToolCall?.("first");
+    expect(onToolCallA).toHaveBeenCalledExactlyOnceWith("first");
+
+    rerender({ onToolCall: onToolCallB });
+    chat.onToolCall?.("second");
+
+    expect(onToolCallB).toHaveBeenCalledExactlyOnceWith("second");
+    expect(onToolCallA).toHaveBeenCalledOnce();
+  });
+
+  it("coerces an unset sendAutomaticallyWhen to false, matching useChat's own default", () => {
+    mocks.useChat.mockReturnValue({
+      resumeStream: vi.fn(),
+      status: "ready",
+    });
+
+    renderHook(() => useChatRuntime());
+
+    const chat = mocks.useChat.mock.calls[0]?.[0]?.chat as {
+      sendAutomaticallyWhen?: (arg: unknown) => boolean;
+    };
+
+    expect(chat.sendAutomaticallyWhen?.({})).toBe(false);
+  });
+
   it("forwards a defined chat update throttle to useChat", () => {
     mocks.useChat.mockReturnValue({
       resumeStream: vi.fn(),
