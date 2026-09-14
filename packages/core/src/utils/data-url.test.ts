@@ -89,12 +89,12 @@ describe("dataUrlMediaType", () => {
     expect(dataUrlMediaType(value)).toBe("text/plain");
   });
 
-  it.each([
-    "data:;base64,SGVsbG8=",
-    "data:;charset=utf-8;base64,SGVsbG8=",
-  ])("uses the binary default for media-less base64 %s", (value) => {
-    expect(dataUrlMediaType(value)).toBe("application/octet-stream");
-  });
+  it.each(["data:;base64,SGVsbG8=", "data:;charset=utf-8;base64,SGVsbG8="])(
+    "uses the binary default for media-less base64 %s",
+    (value) => {
+      expect(dataUrlMediaType(value)).toBe("application/octet-stream");
+    },
+  );
 
   it("preserves an explicit non-text media type without its parameters", () => {
     expect(
