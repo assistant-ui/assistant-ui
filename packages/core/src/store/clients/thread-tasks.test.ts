@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import type { ThreadMessage, ToolCallMessagePart } from "../../types/message";
-import { createTaskDeriver } from "./thread-tasks";
+import { createTaskDeriver, getTaskKey } from "./thread-tasks";
 
 const assistantMessage = (
   id: string,
@@ -218,6 +218,35 @@ describe("createTaskDeriver", () => {
       "call_1",
     ]);
     expect(second).toBe(first);
+  });
+
+  it("keys tasks by document order when nested payloads repeat every id", () => {
+    const replay = () =>
+      assistantMessage("nested", { type: "complete", reason: "stop" }, [
+        toolCall("call_1", [], "ok"),
+      ]);
+    const messages = [
+      assistantMessage("outer-message", { type: "complete", reason: "stop" }, [
+        toolCall("delegate-a", [replay()], "ok"),
+        toolCall("delegate-b", [replay()], "ok"),
+      ]),
+    ];
+    const derive = createTaskDeriver();
+    const first = derive(messages);
+
+    expect(new Set(first.map(getTaskKey)).size).toBe(4);
+    expect(derive(messages)).toBe(first);
+  });
+
+  it("resolves statuses through the provided resolver", () => {
+    const derive = createTaskDeriver(() => ({ type: "complete" }));
+    const [task] = derive([
+      assistantMessage("outer-message", { type: "running" }, [
+        toolCall("delegate", []),
+      ]),
+    ]);
+
+    expect(task?.status).toEqual({ type: "complete" });
   });
 
   it("preserves unchanged entries when a task is appended", () => {

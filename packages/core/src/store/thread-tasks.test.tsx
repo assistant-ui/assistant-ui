@@ -113,7 +113,7 @@ describe("thread tasks", () => {
     expect(captured.tasks?.[0]?.messages).toHaveLength(1);
   });
 
-  it("resolves a repeated toolCallId to the first task in document order", async () => {
+  it("survives nested payloads that repeat ids and resolves the first task in document order", async () => {
     const nested = (id: string, toolCallId: string) =>
       ({
         id,
@@ -151,7 +151,7 @@ describe("thread tasks", () => {
           args: {},
           argsText: "{}",
           result: "ok",
-          messages: [nested("nested-a", "call_1")],
+          messages: [nested("nested", "call_1")],
         },
         {
           type: "tool-call",
@@ -160,7 +160,7 @@ describe("thread tasks", () => {
           args: {},
           argsText: "{}",
           result: "ok",
-          messages: [nested("nested-b", "call_1")],
+          messages: [nested("nested", "call_1")],
         },
       ],
       status: { type: "complete", reason: "stop" },
@@ -204,6 +204,6 @@ describe("thread tasks", () => {
       "delegate-b",
       "call_1",
     ]);
-    expect(captured.first).toMatchObject({ messageId: "nested-a" });
+    expect(captured.first).toMatchObject({ parentTaskId: "delegate-a" });
   });
 });

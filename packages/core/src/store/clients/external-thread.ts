@@ -1026,7 +1026,7 @@ const useExternalThread = ({
     }),
   );
 
-  const taskDeriver = useMemo(() => createTaskDeriver(), []);
+  const taskDeriver = useMemo(() => createTaskDeriver(derivePartStatus), []);
   const tasks = useMemo(() => taskDeriver(messages), [taskDeriver, messages]);
   const taskClients = useClientLookup(
     tasks.map((task) =>

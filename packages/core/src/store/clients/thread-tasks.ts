@@ -25,14 +25,20 @@ const getStatusError = (status: ToolCallMessagePartStatus) =>
 
 const MAX_TASK_DEPTH = 32;
 
-const taskKeyOf = (messageId: string, toolCallId: string) =>
-  JSON.stringify([messageId, toolCallId]);
+const taskKeys = new WeakMap<TaskState, string>();
 
-/** Lookup key for a task client; toolCallIds repeat across nested conversations, message ids do not. */
-export const getTaskKey = (task: TaskState) =>
-  taskKeyOf(task.messageId, task.id);
+/** Lookup key for a task client: its document-order index path, unique by construction where ids from nested payloads are not. */
+export const getTaskKey = (task: TaskState) => taskKeys.get(task) ?? task.id;
 
-export const createTaskDeriver = () => {
+export type TaskStatusResolver = (
+  message: ThreadMessage,
+  partIndex: number,
+  part: ToolCallMessagePart,
+) => ToolCallMessagePartStatus;
+
+export const createTaskDeriver = (
+  resolveStatus: TaskStatusResolver = toMessagePartStatus,
+) => {
   let previous: readonly TaskState[] = [];
   let previousEntries = new Map<string, TaskEntry>();
 
@@ -45,18 +51,19 @@ export const createTaskDeriver = () => {
       threadMessages: readonly ThreadMessage[],
       parentTaskId: string | null,
       depth: number,
+      path: string,
     ) => {
       if (depth > MAX_TASK_DEPTH) return;
-      for (const message of threadMessages) {
+      for (const [messageIndex, message] of threadMessages.entries()) {
         for (const [partIndex, part] of message.content.entries()) {
           if (part.type !== "tool-call" || part.messages === undefined)
             continue;
 
           const nestedMessages = part.messages;
-          const status = toMessagePartStatus(message, partIndex, part);
+          const status = resolveStatus(message, partIndex, part);
           const statusReason = getStatusReason(status);
           const statusError = getStatusError(status);
-          const entryKey = taskKeyOf(message.id, part.toolCallId);
+          const entryKey = `${path}${messageIndex}.${partIndex}`;
           const previousEntry = previousEntries.get(entryKey);
           const task =
             previousEntry?.part === part &&
@@ -64,6 +71,7 @@ export const createTaskDeriver = () => {
             previousEntry.statusReason === statusReason &&
             Object.is(previousEntry.statusError, statusError) &&
             previousEntry.messages === nestedMessages &&
+            previousEntry.task.messageId === message.id &&
             previousEntry.task.parentTaskId === parentTaskId &&
             previousEntry.task.depth === depth
               ? previousEntry.task
@@ -83,7 +91,10 @@ export const createTaskDeriver = () => {
                   messages: nestedMessages,
                 };
 
-          if (task !== previousEntry?.task) allEntriesReused = false;
+          if (task !== previousEntry?.task) {
+            allEntriesReused = false;
+            taskKeys.set(task, entryKey);
+          }
           tasks.push(task);
           entries.set(entryKey, {
             task,
@@ -93,12 +104,12 @@ export const createTaskDeriver = () => {
             statusError,
             messages: nestedMessages,
           });
-          visit(nestedMessages, task.id, depth + 1);
+          visit(nestedMessages, task.id, depth + 1, `${entryKey}.`);
         }
       }
     };
 
-    visit(messages, null, 0);
+    visit(messages, null, 0, "");
 
     const result =
       allEntriesReused &&
