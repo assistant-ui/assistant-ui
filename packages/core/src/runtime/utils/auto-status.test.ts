@@ -48,6 +48,17 @@ describe("getAutoStatus", () => {
     ).toMatchObject({ type: "complete", reason: "unknown" });
   });
 
+  it.each([false, 0, "", null])(
+    "preserves the falsy error payload %j",
+    (error) => {
+      expect(getAutoStatus(true, false, false, false, error)).toMatchObject({
+        type: "incomplete",
+        reason: "error",
+        error,
+      });
+    },
+  );
+
   it.each([
     ["running", { type: "running" }, true, false, false, undefined],
     [

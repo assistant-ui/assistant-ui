@@ -2,6 +2,7 @@ import { describe, expect, it, vi } from "vitest";
 import type { ThreadMessage } from "../../types/message";
 import {
   chunkExternalMessages,
+  completeExternalMessageConversion,
   convertExternalMessageCallback,
   convertExternalMessageChunk,
   joinExternalMessages,
@@ -9,6 +10,21 @@ import {
   type ExternalMessageConverterCallbackResult,
   type ExternalMessageConverterMessage,
 } from "./external-message-conversion";
+
+describe("completeExternalMessageConversion", () => {
+  it.each([false, 0, "", null])(
+    "adds an assistant message for the falsy error payload %j",
+    (error) => {
+      const result = completeExternalMessageConversion([], error);
+
+      expect(result).toHaveLength(1);
+      expect(result[0]).toMatchObject({
+        role: "assistant",
+        status: { type: "incomplete", reason: "error", error },
+      });
+    },
+  );
+});
 
 describe("convertExternalMessageCallback", () => {
   it.each([
