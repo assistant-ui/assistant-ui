@@ -5088,9 +5088,6 @@ importers:
       '@assistant-ui/react-mcp':
         specifier: workspace:*
         version: link:../react-mcp
-      '@assistant-ui/react-native':
-        specifier: workspace:*
-        version: link:../react-native
       '@assistant-ui/react-syntax-highlighter':
         specifier: workspace:*
         version: link:../react-syntax-highlighter
@@ -5173,6 +5170,9 @@ importers:
       '@assistant-ui/core':
         specifier: workspace:*
         version: link:../core
+      '@assistant-ui/react-native':
+        specifier: workspace:*
+        version: link:../react-native
       '@assistant-ui/tap':
         specifier: workspace:*
         version: link:../tap

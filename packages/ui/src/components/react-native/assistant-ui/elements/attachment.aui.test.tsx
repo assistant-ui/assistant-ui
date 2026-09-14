@@ -15,16 +15,20 @@ const h = vi.hoisted(() => {
   const resize = vi.fn();
   const saveAsync = vi.fn();
   const release = vi.fn();
+  const renderAsync = vi.fn();
   const manipulate = vi.fn((uri: string) => {
     const context = {
       resize: (size: unknown) => {
         resize(uri, size);
         return context;
       },
-      renderAsync: async () => ({
-        saveAsync: (options: unknown) => saveAsync(uri, options),
-        release: () => release("image", uri),
-      }),
+      renderAsync: async () => {
+        await renderAsync(uri);
+        return {
+          saveAsync: (options: unknown) => saveAsync(uri, options),
+          release: () => release("image", uri),
+        };
+      },
       release: () => release("context", uri),
     };
     return context;
@@ -52,6 +56,7 @@ const h = vi.hoisted(() => {
     launchImageLibraryAsync,
     manipulate,
     release,
+    renderAsync,
     resize,
     saveAsync,
     setClipboardString,
@@ -160,6 +165,7 @@ describe("attachments", () => {
     h.removeAttachment.mockReset();
     h.launchImageLibraryAsync.mockReset();
     h.release.mockReset();
+    h.renderAsync.mockReset();
     h.resize.mockReset();
     h.saveAsync.mockReset();
     h.setClipboardString.mockReset();
@@ -249,7 +255,16 @@ describe("attachments", () => {
           width: 100,
           height: 100,
         },
+        {
+          uri: "file:///fifth",
+          fileName: "fifth.jpg",
+          width: 100,
+          height: 100,
+        },
       ],
+    });
+    h.renderAsync.mockImplementation(async (uri: string) => {
+      if (uri === "file:///fifth") throw new Error("render failed");
     });
     h.saveAsync.mockImplementation(async (uri: string) => {
       if (uri === "file:///third") return {};
@@ -273,14 +288,15 @@ describe("attachments", () => {
       base64: true,
     });
     expect(h.release.mock.calls).toEqual([
-      ["context", "file:///first"],
       ["image", "file:///first"],
-      ["context", "file:///second"],
+      ["context", "file:///first"],
       ["image", "file:///second"],
-      ["context", "file:///third"],
+      ["context", "file:///second"],
       ["image", "file:///third"],
-      ["context", "file:///fourth"],
+      ["context", "file:///third"],
       ["image", "file:///fourth"],
+      ["context", "file:///fourth"],
+      ["context", "file:///fifth"],
     ]);
     expect(h.addAttachment).toHaveBeenCalledTimes(2);
     expect(h.addAttachment).toHaveBeenNthCalledWith(1, {

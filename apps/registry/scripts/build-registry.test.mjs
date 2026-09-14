@@ -108,9 +108,11 @@ test("native flavor content validation rejects web packages and accepts the kit"
     built.payload.registryDependencies = [dependency];
     assert.throws(
       () => validateNativeFlavorContent([built]),
-      new RegExp(
-        `thread: registry dependency "${dependency.replaceAll(".", "\\.")}" is not a native item`,
-      ),
+      (error) =>
+        error instanceof Error &&
+        error.message.includes(
+          `thread: registry dependency "${dependency}" is not a native item`,
+        ),
     );
   }
 

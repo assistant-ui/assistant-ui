@@ -293,13 +293,16 @@ const aui = useAui();
     const result = await ImagePicker.launchImageLibraryAsync({ base64: true });
     if (result.canceled) return;
     for (const asset of result.assets) {
-      if (!asset.base64) continue;
+      if (!asset.base64 || !asset.mimeType) continue;
       await aui.composer.addAttachment({
-        name: asset.fileName ?? "image.jpg",
-        contentType: "image/jpeg",
+        name: asset.fileName ?? "image",
+        contentType: asset.mimeType,
         type: "image",
         content: [
-          { type: "image", image: `data:image/jpeg;base64,${asset.base64}` },
+          {
+            type: "image",
+            image: `data:${asset.mimeType};base64,${asset.base64}`,
+          },
         ],
       });
     }

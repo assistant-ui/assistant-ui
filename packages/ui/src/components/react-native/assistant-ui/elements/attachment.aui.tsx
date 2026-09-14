@@ -17,24 +17,27 @@ const MAX_IMAGE_EDGE = 2048;
 
 const encodeJpeg = async (asset: ImagePicker.ImagePickerAsset) => {
   const context = ImageManipulator.manipulate(asset.uri);
-  if (Math.max(asset.width, asset.height) > MAX_IMAGE_EDGE) {
-    context.resize(
-      asset.width >= asset.height
-        ? { width: MAX_IMAGE_EDGE }
-        : { height: MAX_IMAGE_EDGE },
-    );
-  }
-  const image = await context.renderAsync();
   try {
-    const { base64 } = await image.saveAsync({
-      format: SaveFormat.JPEG,
-      compress: 0.8,
-      base64: true,
-    });
-    return base64;
+    if (Math.max(asset.width, asset.height) > MAX_IMAGE_EDGE) {
+      context.resize(
+        asset.width >= asset.height
+          ? { width: MAX_IMAGE_EDGE }
+          : { height: MAX_IMAGE_EDGE },
+      );
+    }
+    const image = await context.renderAsync();
+    try {
+      const { base64 } = await image.saveAsync({
+        format: SaveFormat.JPEG,
+        compress: 0.8,
+        base64: true,
+      });
+      return base64;
+    } finally {
+      image.release();
+    }
   } finally {
     context.release();
-    image.release();
   }
 };
 
