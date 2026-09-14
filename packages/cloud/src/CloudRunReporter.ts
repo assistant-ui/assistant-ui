@@ -1,4 +1,6 @@
 import type { AssistantCloud } from "./AssistantCloud";
+import { CloudAPIError } from "./AssistantCloudAPI";
+import { CloudResponseError } from "./cloudResponse";
 import { createRunReport, type RunReportInit } from "./runTelemetry";
 
 export type CloudRunReportInit = Omit<RunReportInit, "telemetry">;
@@ -7,8 +9,9 @@ export type CloudRunReportInit = Omit<RunReportInit, "telemetry">;
  * Sends run reports the way every client integration has to: nothing while
  * telemetry is off, the cloud's environment, release and tags on every report,
  * the `beforeReport` hook applied last, and a failed send that never surfaces.
- * A report given a key is sent once per key, so an integration that observes
- * the same finished run twice reports it once.
+ * A keyed report is deduplicated while in flight and after a successful or
+ * terminal attempt. Retryable failures release the key so a later observation
+ * can try again.
  */
 export class CloudRunReporter {
   private readonly reported = new Set<string>();
@@ -35,9 +38,19 @@ export class CloudRunReporter {
         claimedKey = key;
       }
       await cloud.runs.report(report);
-    } catch {
-      if (claimedKey !== undefined) this.reported.delete(claimedKey);
+    } catch (error) {
+      if (claimedKey !== undefined && isRetryableReportError(error)) {
+        this.reported.delete(claimedKey);
+      }
       return;
     }
   }
 }
+
+const isRetryableReportError = (error: unknown): boolean => {
+  if (error instanceof CloudResponseError) return false;
+  if (error instanceof CloudAPIError) {
+    return error.status === 408 || error.status === 429 || error.status >= 500;
+  }
+  return true;
+};
