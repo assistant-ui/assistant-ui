@@ -19,6 +19,7 @@ export class CloudRunReporter {
   }
 
   public async report(init: CloudRunReportInit, key?: string): Promise<void> {
+    let claimedKey: string | undefined;
     try {
       const cloud = this.getCloud();
       if (!cloud.telemetry.enabled) return;
@@ -29,9 +30,13 @@ export class CloudRunReporter {
       const report = beforeReport ? beforeReport(initial) : initial;
       if (!report) return;
 
-      if (key !== undefined) this.reported.add(key);
+      if (key !== undefined) {
+        this.reported.add(key);
+        claimedKey = key;
+      }
       await cloud.runs.report(report);
     } catch {
+      if (claimedKey !== undefined) this.reported.delete(claimedKey);
       return;
     }
   }

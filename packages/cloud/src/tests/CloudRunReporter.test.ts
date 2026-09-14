@@ -69,6 +69,18 @@ describe("CloudRunReporter", () => {
     expect(report).toHaveBeenCalledTimes(3);
   });
 
+  it("allows a keyed run to retry after a failed send", async () => {
+    const { cloud, report } = createCloud({ enabled: true });
+    report.mockRejectedValueOnce(new Error("offline"));
+    const reporter = new CloudRunReporter(cloud);
+
+    await reporter.report({ threadId: "t", status: "completed" }, "t:m");
+    await reporter.report({ threadId: "t", status: "completed" }, "t:m");
+    await reporter.report({ threadId: "t", status: "completed" }, "t:m");
+
+    expect(report).toHaveBeenCalledTimes(2);
+  });
+
   it("swallows a failed send and reads the cloud through a getter", async () => {
     const { cloud } = createCloud({ enabled: true });
     (cloud.runs.report as ReturnType<typeof vi.fn>).mockRejectedValue(
