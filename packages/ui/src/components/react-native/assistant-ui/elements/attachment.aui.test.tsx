@@ -317,6 +317,19 @@ describe("attachments", () => {
     });
   });
 
+  it("adds nothing when the image picker rejects", async () => {
+    h.launchImageLibraryAsync.mockRejectedValue(new Error("picker busy"));
+
+    await render();
+
+    await act(async () => {
+      click(labeled("Add image"));
+      await flush();
+    });
+
+    expect(h.addAttachment).not.toHaveBeenCalled();
+  });
+
   it("adds nothing when the image picker is canceled", async () => {
     h.launchImageLibraryAsync.mockResolvedValue({ canceled: true, assets: [] });
 

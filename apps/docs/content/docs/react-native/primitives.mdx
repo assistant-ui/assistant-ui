@@ -285,6 +285,7 @@ Renders composer attachments using the provided component configuration.
 ```tsx
 import { useAui } from "@assistant-ui/react-native";
 import * as ImagePicker from "expo-image-picker";
+import { Text } from "react-native";
 
 const aui = useAui();
 
@@ -295,7 +296,7 @@ const aui = useAui();
     for (const asset of result.assets) {
       if (!asset.base64 || !asset.mimeType) continue;
       await aui.composer.addAttachment({
-        name: asset.fileName ?? "image",
+        name: asset.fileName ?? `image.${asset.mimeType.split("/")[1]}`,
         contentType: asset.mimeType,
         type: "image",
         content: [

@@ -97,8 +97,8 @@ export const ComposerAddAttachment: FC = () => {
     const result = await ImagePicker.launchImageLibraryAsync({
       mediaTypes: ["images"],
       allowsMultipleSelection: true,
-    });
-    if (result.canceled) return;
+    }).catch(() => null);
+    if (!result || result.canceled) return;
 
     for (const asset of result.assets) {
       try {
