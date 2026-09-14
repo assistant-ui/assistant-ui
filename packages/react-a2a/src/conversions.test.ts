@@ -427,6 +427,14 @@ describe("contentPartsToA2AParts", () => {
     expect(result).toEqual([{ raw: "aGVsbG8=", mediaType: "image/png" }]);
   });
 
+  it("sniffs media-less image data URLs before sending their raw bytes", () => {
+    expect(
+      contentPartsToA2AParts([
+        { type: "image", image: "data:;base64,iVBORw0KGgo=" },
+      ]),
+    ).toEqual([{ raw: "iVBORw0KGgo=", mediaType: "image/png" }]);
+  });
+
   it("propagates image filenames", () => {
     const result = contentPartsToA2AParts([
       {
