@@ -1,14 +1,23 @@
 import assert from "node:assert/strict";
-import { spawnSync } from "node:child_process";
-import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
+import { execFileSync, spawnSync } from "node:child_process";
+import {
+  mkdirSync,
+  mkdtempSync,
+  readFileSync,
+  rmSync,
+  writeFileSync,
+} from "node:fs";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import test from "node:test";
 import {
+  findMissingPackageChangesets,
   findUnreleasablePackages,
+  isReleaseRelevantPackageFile,
   parseBumpLine,
   parseWorkspaceGlobs,
   readSkipRules,
+  runChangedPackageCheck,
   runCheck,
 } from "./check-changesets.mjs";
 
@@ -153,6 +162,96 @@ test("findUnreleasablePackages flags private and unknown names", () => {
   assert.match(problems[1].reason, /is not a workspace package/);
 });
 
+test("isReleaseRelevantPackageFile excludes non-release package files", () => {
+  const pkg = {
+    manifest: "packages/core/package.json",
+    releaseFiles: ["src", "!src/internal", "plugin"],
+  };
+  for (const file of [
+    "packages/core/src/runtime.test.ts",
+    "packages/core/src/runtime.spec.tsx",
+    "packages/core/src/runtime.stories.tsx",
+    "packages/core/src/runtime.bench.ts",
+    "packages/core/src/__tests__/runtime.ts",
+    "packages/core/src/tests/helper.ts",
+    "packages/core/src/fixtures/messages.ts",
+    "packages/core/src/internal/private.ts",
+    "packages/core/README.md",
+    "packages/core/dist/index.js",
+    "packages/core/package.json",
+    "apps/docs/src/page.tsx",
+  ]) {
+    assert.equal(isReleaseRelevantPackageFile(file, pkg), false, file);
+  }
+
+  assert.equal(
+    isReleaseRelevantPackageFile("packages/core/src/runtime.ts", pkg),
+    true,
+  );
+  assert.equal(
+    isReleaseRelevantPackageFile("packages/core/plugin/index.js", pkg),
+    true,
+  );
+  assert.equal(
+    isReleaseRelevantPackageFile("packages/core/plugin/SKILL.md", pkg),
+    true,
+  );
+  assert.equal(
+    isReleaseRelevantPackageFile(
+      "packages/core/src/generated/protocol.generated.ts",
+      pkg,
+    ),
+    true,
+  );
+});
+
+test("findMissingPackageChangesets requires each changed package bump", () => {
+  const packages = new Map([
+    [
+      "@assistant-ui/store",
+      {
+        manifest: "packages/store/package.json",
+        isPrivate: false,
+        hasVersion: true,
+      },
+    ],
+    [
+      "@assistant-ui/core",
+      {
+        manifest: "packages/core/package.json",
+        isPrivate: false,
+        hasVersion: true,
+      },
+    ],
+  ]);
+  const changedFiles = new Set(["packages/store/src/index.ts"]);
+  const rules = { ignored: [], skipsPrivate: true };
+
+  assert.deepEqual(
+    findMissingPackageChangesets(
+      packages,
+      [{ file: "core.md", name: "@assistant-ui/core" }],
+      changedFiles,
+      rules,
+    ),
+    [
+      {
+        files: ["packages/store/src/index.ts"],
+        name: "@assistant-ui/store",
+      },
+    ],
+  );
+  assert.deepEqual(
+    findMissingPackageChangesets(
+      packages,
+      [{ file: "store.md", name: "@assistant-ui/store" }],
+      changedFiles,
+      rules,
+    ),
+    [],
+  );
+});
+
 test("runCheck accepts a workspace whose changesets are all releasable", () => {
   const root = createWorkspace(
     '---\n"@fixture/published": patch\n---\n\nfix: something\n',
@@ -287,13 +386,634 @@ test("runCheck allows a private package when the config versions it", () => {
   }
 });
 
-function runExecutable(root) {
+function git(root, ...args) {
+  return execFileSync("git", args, { cwd: root, encoding: "utf8" }).trim();
+}
+
+function commitAll(root, message) {
+  git(root, "add", ".");
+  git(
+    root,
+    "-c",
+    "user.name=fixture",
+    "-c",
+    "user.email=fixture@example.com",
+    "commit",
+    "-q",
+    "-m",
+    message,
+  );
+  return git(root, "rev-parse", "HEAD");
+}
+
+function runExecutable(root, { args = [], env = {} } = {}) {
   return spawnSync(
     process.execPath,
-    [path.join(repoRoot, "scripts", "check-changesets.mjs")],
-    { encoding: "utf8", env: { ...process.env, CHANGESET_CHECK_ROOT: root } },
+    [path.join(repoRoot, "scripts", "check-changesets.mjs"), ...args],
+    {
+      encoding: "utf8",
+      env: { ...process.env, CHANGESET_CHECK_ROOT: root, ...env },
+    },
   );
 }
+
+test("changed package validation ignores non-release edits and requires a PR changeset", () => {
+  const root = createWorkspace(
+    '---\n"@fixture/published": patch\n---\n\nfix: already on base\n',
+  );
+  try {
+    const sourceDir = path.join(root, "packages", "published", "src");
+    mkdirSync(sourceDir);
+    const source = path.join(sourceDir, "index.ts");
+    const testFile = path.join(sourceDir, "index.test.ts");
+    writeFileSync(source, "// original\nexport const existing = 1;\n");
+    writeFileSync(testFile, "// original test\n");
+    git(root, "init", "-q", "-b", "main");
+    const base = commitAll(root, "base");
+
+    writeFileSync(source, "// clarified\nexport const existing = 1;\n");
+    writeFileSync(testFile, "// expanded test\n");
+    const nonReleaseHead = commitAll(root, "comments and tests");
+    assert.deepEqual(runChangedPackageCheck(root, base, nonReleaseHead), {
+      changedSourceCount: 0,
+      missingChangesets: [],
+    });
+
+    writeFileSync(
+      source,
+      "// clarified\nexport const existing = 1;\nexport const added = 2;\n",
+    );
+    const missingHead = commitAll(root, "source without changeset");
+
+    assert.deepEqual(
+      runChangedPackageCheck(root, base, missingHead).missingChangesets.map(
+        ({ name }) => name,
+      ),
+      ["@fixture/published"],
+    );
+    const missingResult = runExecutable(root, {
+      args: ["--changed-packages"],
+      env: { BASE_SHA: base, HEAD_SHA: missingHead },
+    });
+    assert.equal(missingResult.status, 1);
+    assert.match(missingResult.stderr, /"@fixture\/published"/);
+
+    writeFileSync(
+      path.join(root, ".changeset", "added-by-pr.md"),
+      '---\n"@fixture/published": patch\n---\n\nfeat: publish added type\n',
+    );
+    const coveredHead = commitAll(root, "add changeset");
+    const coveredResult = runExecutable(root, {
+      args: ["--changed-packages"],
+      env: { BASE_SHA: base, HEAD_SHA: coveredHead },
+    });
+
+    assert.equal(
+      coveredResult.status,
+      0,
+      coveredResult.stdout + coveredResult.stderr,
+    );
+    assert.match(
+      coveredResult.stdout,
+      /All changed published packages have changesets\./,
+    );
+  } finally {
+    rmSync(root, { recursive: true, force: true });
+  }
+});
+
+test("changed package validation ignores formatting and ordinary block comments", () => {
+  const root = createWorkspace(
+    '---\n"@fixture/held": patch\n---\n\nfix: unrelated package\n',
+  );
+  try {
+    const sourceDir = path.join(root, "packages", "published", "src");
+    mkdirSync(sourceDir);
+    const source = path.join(sourceDir, "index.ts");
+    const deletedComment = path.join(sourceDir, "deleted-comment.ts");
+    writeFileSync(
+      source,
+      "/** Original documentation. */\nexport const value = { nested: 1 };\n",
+    );
+    writeFileSync(
+      deletedComment,
+      "/* Nothing is published from this file. */\n",
+    );
+    git(root, "init", "-q", "-b", "main");
+    const base = commitAll(root, "base");
+
+    writeFileSync(
+      source,
+      "/**\n * Expanded documentation.\n */\nexport const value={\n  nested: 1\n}\n",
+    );
+    writeFileSync(
+      path.join(sourceDir, "added-comment.ts"),
+      "/* Nothing is published from this file either. */\n",
+    );
+    rmSync(deletedComment);
+    const head = commitAll(root, "format and document source");
+
+    assert.deepEqual(runChangedPackageCheck(root, base, head), {
+      changedSourceCount: 0,
+      missingChangesets: [],
+    });
+  } finally {
+    rmSync(root, { recursive: true, force: true });
+  }
+});
+
+for (const directory of ["internal", "held", "unversioned"]) {
+  test(`changed package validation does not read skipped ${directory} source`, () => {
+    const root = createWorkspace("---\n---\n", {
+      ignore: [
+        "@fixture/*",
+        "!@fixture/published",
+        "!@fixture/internal",
+        "!@fixture/unversioned",
+      ],
+    });
+    try {
+      writeFileSync(
+        path.join(root, "packages", "internal", "package.json"),
+        JSON.stringify({
+          name: "@fixture/internal",
+          version: "1.0.0",
+          private: true,
+        }),
+      );
+      git(root, "init", "-q", "-b", "main");
+      const base = commitAll(root, "base");
+      const sourceDir = path.join(root, "packages", directory, "src");
+      mkdirSync(sourceDir);
+      // Exceeds execFileSync's default buffer so reading a skipped blob fails the check.
+      writeFileSync(
+        path.join(sourceDir, "index.ts"),
+        "// skipped source\n".repeat(70_000),
+      );
+      const head = commitAll(root, "change skipped package");
+
+      assert.deepEqual(runChangedPackageCheck(root, base, head), {
+        changedSourceCount: 0,
+        missingChangesets: [],
+      });
+    } finally {
+      rmSync(root, { recursive: true, force: true });
+    }
+  });
+}
+
+test("changed package validation includes private packages opted into versioning", () => {
+  const root = createWorkspace("---\n---\n", {
+    privatePackages: { version: true },
+  });
+  try {
+    writeFileSync(
+      path.join(root, "packages", "internal", "package.json"),
+      JSON.stringify({
+        name: "@fixture/internal",
+        version: "1.0.0",
+        private: true,
+      }),
+    );
+    git(root, "init", "-q", "-b", "main");
+    const base = commitAll(root, "base");
+    const sourceDir = path.join(root, "packages", "internal", "src");
+    mkdirSync(sourceDir);
+    writeFileSync(
+      path.join(sourceDir, "index.ts"),
+      "export const value = 1;\n",
+    );
+    const head = commitAll(root, "change versioned private package");
+
+    assert.deepEqual(runChangedPackageCheck(root, base, head), {
+      changedSourceCount: 1,
+      missingChangesets: [
+        {
+          name: "@fixture/internal",
+          files: ["packages/internal/src/index.ts"],
+        },
+      ],
+    });
+  } finally {
+    rmSync(root, { recursive: true, force: true });
+  }
+});
+
+test("changed package validation keeps semantic whitespace", () => {
+  const root = createWorkspace(
+    '---\n"@fixture/held": patch\n---\n\nfix: unrelated package\n',
+  );
+  try {
+    const sourceDir = path.join(root, "packages", "published", "src");
+    mkdirSync(sourceDir);
+    const source = path.join(sourceDir, "content.tsx");
+    writeFileSync(
+      source,
+      [
+        'export const stringValue = "a b";',
+        "export const templateValue = `a b`;",
+        "export const regexpValue = /a b/;",
+        "export const jsxValue = <span> a </span>;",
+        "export const templateComment = `${stringValue}\\n// original`;",
+        "",
+      ].join("\n"),
+    );
+    git(root, "init", "-q", "-b", "main");
+    const base = commitAll(root, "base");
+
+    writeFileSync(
+      source,
+      [
+        'export const stringValue = "ab";',
+        "export const templateValue = `ab`;",
+        "export const regexpValue = /ab/;",
+        "export const jsxValue = <span>a</span>;",
+        "export const templateComment = `${stringValue}\\n// changed`;",
+        "",
+      ].join("\n"),
+    );
+    const head = commitAll(root, "change meaningful whitespace");
+
+    assert.deepEqual(runChangedPackageCheck(root, base, head), {
+      changedSourceCount: 1,
+      missingChangesets: [
+        {
+          files: ["packages/published/src/content.tsx"],
+          name: "@fixture/published",
+        },
+      ],
+    });
+  } finally {
+    rmSync(root, { recursive: true, force: true });
+  }
+});
+
+test("changed package validation keeps compiler directives", () => {
+  const root = createWorkspace(
+    '---\n"@fixture/held": patch\n---\n\nfix: unrelated package\n',
+  );
+  try {
+    const sourceDir = path.join(root, "packages", "published", "src");
+    mkdirSync(sourceDir);
+    const source = path.join(sourceDir, "directive.ts");
+    writeFileSync(
+      source,
+      "// @ts-expect-error intentional fixture\nmissing();\n",
+    );
+    git(root, "init", "-q", "-b", "main");
+    const base = commitAll(root, "base");
+
+    writeFileSync(source, "missing();\n");
+    const head = commitAll(root, "remove compiler directive");
+
+    assert.equal(
+      runChangedPackageCheck(root, base, head).changedSourceCount,
+      1,
+    );
+  } finally {
+    rmSync(root, { recursive: true, force: true });
+  }
+});
+
+test("changed package validation handles non-ASCII paths", () => {
+  const root = createWorkspace(
+    '---\n"@fixture/held": patch\n---\n\nfix: unrelated package\n',
+  );
+  try {
+    const sourceDir = path.join(root, "packages", "published", "src");
+    mkdirSync(sourceDir);
+    const source = path.join(sourceDir, "café.ts");
+    writeFileSync(source, "export const value = 1;\n");
+    git(root, "init", "-q", "-b", "main");
+    const base = commitAll(root, "base");
+
+    writeFileSync(source, "export const value = 2;\n");
+    const head = commitAll(root, "change non-ASCII path");
+
+    assert.deepEqual(runChangedPackageCheck(root, base, head), {
+      changedSourceCount: 1,
+      missingChangesets: [
+        {
+          files: ["packages/published/src/café.ts"],
+          name: "@fixture/published",
+        },
+      ],
+    });
+  } finally {
+    rmSync(root, { recursive: true, force: true });
+  }
+});
+
+test("changed package validation scans published packages outside packages", () => {
+  const root = createWorkspace(
+    '---\n"@fixture/held": patch\n---\n\nfix: unrelated package\n',
+  );
+  try {
+    writeFileSync(
+      path.join(root, "pnpm-workspace.yaml"),
+      "packages:\n  - packages/*\n  - libs/*\n",
+    );
+    const sourceDir = path.join(root, "libs", "published", "plugin");
+    mkdirSync(sourceDir, { recursive: true });
+    writeFileSync(
+      path.join(root, "libs", "published", "package.json"),
+      JSON.stringify({ name: "@fixture/outside", version: "1.0.0" }),
+    );
+    const source = path.join(sourceDir, "index.ts");
+    writeFileSync(source, "export const value = 1;\n");
+    git(root, "init", "-q", "-b", "main");
+    const base = commitAll(root, "base");
+
+    writeFileSync(source, "export const value = 2;\n");
+    const head = commitAll(root, "change published package outside packages");
+
+    assert.deepEqual(runChangedPackageCheck(root, base, head), {
+      changedSourceCount: 1,
+      missingChangesets: [
+        {
+          files: ["libs/published/plugin/index.ts"],
+          name: "@fixture/outside",
+        },
+      ],
+    });
+  } finally {
+    rmSync(root, { recursive: true, force: true });
+  }
+});
+
+test("changed package validation reads old contents from the merge base", () => {
+  const root = createWorkspace(
+    '---\n"@fixture/held": patch\n---\n\nfix: unrelated package\n',
+  );
+  try {
+    const sourceDir = path.join(root, "packages", "published", "src");
+    mkdirSync(sourceDir);
+    const source = path.join(sourceDir, "index.ts");
+    writeFileSync(source, "export const value = 1;\n");
+    git(root, "init", "-q", "-b", "main");
+    commitAll(root, "fork point");
+
+    git(root, "switch", "-q", "-c", "feature");
+    writeFileSync(source, "export const value = 2;\n");
+    const head = commitAll(root, "change source on feature");
+
+    git(root, "switch", "-q", "main");
+    rmSync(source);
+    const base = commitAll(root, "delete source on target");
+
+    assert.deepEqual(runChangedPackageCheck(root, base, head), {
+      changedSourceCount: 1,
+      missingChangesets: [
+        {
+          files: ["packages/published/src/index.ts"],
+          name: "@fixture/published",
+        },
+      ],
+    });
+  } finally {
+    rmSync(root, { recursive: true, force: true });
+  }
+});
+
+test("deleting published source requires a changeset", () => {
+  const root = createWorkspace(
+    '---\n"@fixture/held": patch\n---\n\nfix: unrelated package\n',
+  );
+  try {
+    const sourceDir = path.join(root, "packages", "published", "src");
+    mkdirSync(sourceDir);
+    const source = path.join(sourceDir, "removed.ts");
+    writeFileSync(source, "export const removed = true;\n");
+    git(root, "init", "-q", "-b", "main");
+    const base = commitAll(root, "base");
+
+    rmSync(source);
+    const head = commitAll(root, "delete source");
+
+    assert.deepEqual(runChangedPackageCheck(root, base, head), {
+      changedSourceCount: 1,
+      missingChangesets: [
+        {
+          files: ["packages/published/src/removed.ts"],
+          name: "@fixture/published",
+        },
+      ],
+    });
+  } finally {
+    rmSync(root, { recursive: true, force: true });
+  }
+});
+
+test("published code outside src requires a changeset", () => {
+  const root = createWorkspace(
+    '---\n"@fixture/held": patch\n---\n\nfix: unrelated package\n',
+  );
+  try {
+    const manifest = path.join(root, "packages", "published", "package.json");
+    const pkg = JSON.parse(readFileSync(manifest, "utf8"));
+    writeFileSync(
+      manifest,
+      JSON.stringify({
+        ...pkg,
+        files: ["dist", "src", "!src/internal", "plugin", "README.md"],
+      }),
+    );
+    const pluginDir = path.join(root, "packages", "published", "plugin");
+    const internalDir = path.join(
+      root,
+      "packages",
+      "published",
+      "src",
+      "internal",
+    );
+    mkdirSync(pluginDir);
+    mkdirSync(internalDir, { recursive: true });
+    const plugin = path.join(pluginDir, "entry.js");
+    const internal = path.join(internalDir, "private.ts");
+    writeFileSync(plugin, "export const value = 1;\n");
+    writeFileSync(internal, "export const privateValue = 1;\n");
+    git(root, "init", "-q", "-b", "main");
+    const base = commitAll(root, "base");
+
+    writeFileSync(plugin, "export const value = 2;\n");
+    writeFileSync(internal, "export const privateValue = 2;\n");
+    const head = commitAll(root, "change published plugin");
+
+    assert.deepEqual(runChangedPackageCheck(root, base, head), {
+      changedSourceCount: 1,
+      missingChangesets: [
+        {
+          files: ["packages/published/plugin/entry.js"],
+          name: "@fixture/published",
+        },
+      ],
+    });
+  } finally {
+    rmSync(root, { recursive: true, force: true });
+  }
+});
+
+test("moving source between published packages requires both changesets", () => {
+  const root = createWorkspace(
+    '---\n"@fixture/unversioned": patch\n---\n\nfix: unrelated package\n',
+  );
+  try {
+    mkdirSync(path.join(root, "packages", "published", "src"));
+    mkdirSync(path.join(root, "packages", "held", "src"));
+    writeFileSync(
+      path.join(root, "packages", "published", "src", "moved.ts"),
+      "export const moved = true;\n",
+    );
+    git(root, "init", "-q", "-b", "main");
+    const base = commitAll(root, "base");
+
+    git(
+      root,
+      "mv",
+      "packages/published/src/moved.ts",
+      "packages/held/src/moved.ts",
+    );
+    const head = commitAll(root, "move source");
+
+    assert.deepEqual(
+      runChangedPackageCheck(root, base, head).missingChangesets.map(
+        ({ name }) => name,
+      ),
+      ["@fixture/published", "@fixture/held"],
+    );
+  } finally {
+    rmSync(root, { recursive: true, force: true });
+  }
+});
+
+test("renaming source within a published package is counted once", () => {
+  const root = createWorkspace(
+    '---\n"@fixture/held": patch\n---\n\nfix: unrelated package\n',
+  );
+  try {
+    const sourceDir = path.join(root, "packages", "published", "src");
+    mkdirSync(sourceDir);
+    writeFileSync(
+      path.join(sourceDir, "before.ts"),
+      "export const value = true;\n",
+    );
+    git(root, "init", "-q", "-b", "main");
+    const base = commitAll(root, "base");
+
+    git(
+      root,
+      "mv",
+      "packages/published/src/before.ts",
+      "packages/published/src/after.ts",
+    );
+    const head = commitAll(root, "rename source");
+
+    assert.deepEqual(runChangedPackageCheck(root, base, head), {
+      changedSourceCount: 1,
+      missingChangesets: [
+        {
+          files: ["packages/published/src/after.ts"],
+          name: "@fixture/published",
+        },
+      ],
+    });
+  } finally {
+    rmSync(root, { recursive: true, force: true });
+  }
+});
+
+test("changed package validation bounds file lists in errors", () => {
+  const root = createWorkspace(
+    '---\n"@fixture/held": patch\n---\n\nfix: unrelated package\n',
+  );
+  try {
+    const sourceDir = path.join(root, "packages", "published", "src");
+    mkdirSync(sourceDir);
+    for (let index = 0; index < 7; index++) {
+      writeFileSync(
+        path.join(sourceDir, `file-${index}.ts`),
+        `export const value${index} = 1;\n`,
+      );
+    }
+    git(root, "init", "-q", "-b", "main");
+    const base = commitAll(root, "base");
+
+    for (let index = 0; index < 7; index++) {
+      writeFileSync(
+        path.join(sourceDir, `file-${index}.ts`),
+        `export const value${index} = 2;\n`,
+      );
+    }
+    const head = commitAll(root, "change many source files");
+    const result = runExecutable(root, {
+      args: ["--changed-packages"],
+      env: { BASE_SHA: base, HEAD_SHA: head },
+    });
+
+    assert.equal(result.status, 1);
+    assert.match(result.stderr, /file-0\.ts/);
+    assert.match(result.stderr, /and 2 more/);
+    assert.doesNotMatch(result.stderr, /file-6\.ts/);
+  } finally {
+    rmSync(root, { recursive: true, force: true });
+  }
+});
+
+test("a version-only PR passes without a branch-name exemption", () => {
+  const root = createWorkspace(
+    '---\n"@fixture/published": patch\n---\n\nfix: release\n',
+  );
+  try {
+    const sourceDir = path.join(root, "packages", "published", "src");
+    mkdirSync(sourceDir);
+    writeFileSync(
+      path.join(sourceDir, "index.ts"),
+      "export const value = 1;\n",
+    );
+    git(root, "init", "-q", "-b", "main");
+    const base = commitAll(root, "base");
+
+    const manifest = path.join(root, "packages", "published", "package.json");
+    writeFileSync(
+      manifest,
+      JSON.stringify({ name: "@fixture/published", version: "1.0.1" }),
+    );
+    rmSync(path.join(root, ".changeset", "entry.md"));
+    const head = commitAll(root, "version packages");
+
+    assert.deepEqual(runChangedPackageCheck(root, base, head), {
+      changedSourceCount: 0,
+      missingChangesets: [],
+    });
+    const result = runExecutable(root, {
+      args: ["--changed-packages"],
+      env: { BASE_SHA: base, HEAD_SHA: head },
+    });
+    assert.equal(result.status, 0, result.stdout + result.stderr);
+  } finally {
+    rmSync(root, { recursive: true, force: true });
+  }
+});
+
+test("changed package validation reports an unresolvable range", () => {
+  const root = createWorkspace(
+    '---\n"@fixture/published": patch\n---\n\nfix: fixture\n',
+  );
+  try {
+    git(root, "init", "-q", "-b", "main");
+    const head = commitAll(root, "base");
+    const result = runExecutable(root, {
+      args: ["--changed-packages"],
+      env: { BASE_SHA: "missing-base", HEAD_SHA: head },
+    });
+
+    assert.equal(result.status, 1);
+    assert.match(result.stderr, /Could not diff missing-base/);
+    assert.doesNotMatch(result.stderr, /at diffChangedFiles/);
+  } finally {
+    rmSync(root, { recursive: true, force: true });
+  }
+});
 
 test("the executable reports success and exits 0", () => {
   const root = createWorkspace(

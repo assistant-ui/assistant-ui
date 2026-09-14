@@ -17,7 +17,7 @@ jobs:
   analyze:
     name: Semver Check
     runs-on: blacksmith-4vcpu-ubuntu-2404
-    timeout-minutes: 2
+    timeout-minutes: 5
     steps:
       - name: Checkout PR merge ref
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # ratchet:actions/checkout@v7.0.1
@@ -29,6 +29,9 @@ jobs:
         with:
           runtime: node@24
           install: false
+
+      - name: Install checker dependencies
+        run: pnpm install --filter @assistant-ui/monorepo --frozen-lockfile --ignore-scripts
 
       - name: Test the changeset checker
         run: node --test scripts/check-changesets.test.mjs
@@ -44,3 +47,9 @@ jobs:
           BASE_SHA: ${{ github.event.pull_request.base.sha }}
           HEAD_SHA: ${{ github.event.pull_request.head.sha }}
         run: node scripts/check-changeset-semver.mjs
+
+      - name: Verify changed published sources have changesets
+        env:
+          BASE_SHA: ${{ github.event.pull_request.base.sha }}
+          HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+        run: node scripts/check-changesets.mjs --changed-packages
