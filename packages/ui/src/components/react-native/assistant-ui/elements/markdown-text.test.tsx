@@ -1,6 +1,14 @@
 import { act } from "react";
 import { createRoot, type Root } from "react-dom/client";
-import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import {
+  afterEach,
+  beforeEach,
+  describe,
+  expect,
+  it,
+  onTestFinished,
+  vi,
+} from "vitest";
 import { MarkdownText } from "./markdown-text";
 
 const h = vi.hoisted(() => ({
@@ -34,7 +42,7 @@ vi.mock("react-native-marked", async () => {
       return fences.map((fence) =>
         options.renderer.code(fence[2] ?? "", fence[1]?.trim() || undefined),
       );
-    return [React.createElement(Text, { key: "text" }, raw)];
+    return [React.createElement(Text, { key: options.renderer.getKey() }, raw)];
   };
   return { MarkedLexer, Renderer, useMarkdown };
 });
@@ -121,23 +129,36 @@ describe("MarkdownText", () => {
     expect(container.querySelector('[data-testid="CheckIcon"]')).not.toBeNull();
   });
 
-  it("keys sibling code blocks apart and keeps them stable across re-parses", async () => {
+  it("keys sibling code blocks apart and keeps their state across re-parses", async () => {
+    vi.useFakeTimers();
     const errors = vi.spyOn(console, "error").mockImplementation(() => {});
+    onTestFinished(() => errors.mockRestore());
     const block =
       "1. build it:\n   ```sh\n   pnpm build\n   ```\n   then run it:\n   ```sh\n   pnpm start\n   ```";
 
     await render(block);
+    const buttons = container.querySelectorAll('[aria-label="Copy code"]');
+    expect(buttons).toHaveLength(2);
+    await act(async () => {
+      click(buttons[0] as Element);
+      await Promise.resolve();
+      await Promise.resolve();
+    });
+    expect(container.querySelector('[data-testid="CheckIcon"]')).not.toBeNull();
+
     await render(`${block}\n   done`);
+    await act(async () => {
+      vi.advanceTimersByTime(60);
+    });
 
     expect(container.querySelectorAll('[aria-label="Copy code"]')).toHaveLength(
       2,
     );
-    expect(container.textContent).toContain("pnpm build");
+    expect(container.querySelector('[data-testid="CheckIcon"]')).not.toBeNull();
     expect(container.textContent).toContain("pnpm start");
     expect(
       errors.mock.calls.some((call) => String(call[0]).includes("same key")),
     ).toBe(false);
-    errors.mockRestore();
   });
 
   it("throttles streamed text and renders the completed blocks", async () => {

@@ -103,16 +103,14 @@ const CodeBlock: FC<{ code: string; language: string | undefined }> = ({
 };
 
 class MarkdownRenderer extends Renderer {
-  codeIndex = 0;
+  keyIndex = 0;
+
+  override getKey(): string {
+    return `md-${this.keyIndex++}`;
+  }
 
   override code(text: string, language?: string): ReactNode {
-    return (
-      <CodeBlock
-        key={`code-${this.codeIndex++}`}
-        code={text}
-        language={language}
-      />
-    );
+    return <CodeBlock key={this.getKey()} code={text} language={language} />;
   }
 }
 
@@ -200,8 +198,9 @@ const MarkdownBlock = memo(
       () => ({ ...options, renderer }),
       [options, renderer],
     );
-    // Code block keys count up per parse, so they stay unique among siblings and identical across the re-parses of a streaming block.
-    renderer.codeIndex = 0;
+    // Keys count up per parse, so they stay unique among siblings and identical
+    // across the re-parses of a streaming block instead of remounting it.
+    renderer.keyIndex = 0;
     const elements = useMarkdown(raw, blockOptions);
     return <>{elements}</>;
   },

@@ -355,7 +355,7 @@ vi.mock("react-native-marked", async () => {
       return fences.map((fence) =>
         options.renderer.code(fence[2] ?? "", fence[1]?.trim() || undefined),
       );
-    return [React.createElement(Text, { key: "text" }, raw)];
+    return [React.createElement(Text, { key: options.renderer.getKey() }, raw)];
   };
   return { MarkedLexer, Renderer, useMarkdown };
 });
