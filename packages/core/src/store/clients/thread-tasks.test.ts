@@ -196,6 +196,30 @@ describe("createTaskDeriver", () => {
     expect(Math.max(...tasks.map((task) => task.depth))).toBe(32);
   });
 
+  it("keeps the array identity when nested conversations repeat a toolCallId", () => {
+    const nested = (messageId: string) =>
+      assistantMessage(messageId, { type: "complete", reason: "stop" }, [
+        toolCall("call_1", [], "ok"),
+      ]);
+    const messages = [
+      assistantMessage("outer-message", { type: "complete", reason: "stop" }, [
+        toolCall("delegate-a", [nested("nested-a")], "ok"),
+        toolCall("delegate-b", [nested("nested-b")], "ok"),
+      ]),
+    ];
+    const derive = createTaskDeriver();
+    const first = derive(messages);
+    const second = derive(messages);
+
+    expect(first.map((task) => task.id)).toEqual([
+      "delegate-a",
+      "call_1",
+      "delegate-b",
+      "call_1",
+    ]);
+    expect(second).toBe(first);
+  });
+
   it("preserves unchanged entries when a task is appended", () => {
     const first = toolCall("first", []);
     const derive = createTaskDeriver();

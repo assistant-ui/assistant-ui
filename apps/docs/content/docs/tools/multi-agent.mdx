@@ -215,7 +215,7 @@ The nested thread rendered by `MessagePartPrimitive.Messages` or `ReadonlyThread
 
 `s.thread.tasks` derives child work from every tool call that carries a `messages` array, including an empty array. Tasks follow document order, with nested tasks directly after their parent. Each task includes `parentTaskId` and `depth` for reconstructing the hierarchy.
 
-The array keeps its identity while no task changes, so a component that subscribes to it does not rerender for unrelated streamed tokens.
+The array keeps its identity while no task changes, so a component that subscribes to it does not rerender for unrelated streamed tokens. The walk stops past 32 levels of nesting; deeper tasks are not listed.
 
 ```tsx
 import { useMemo } from "react";

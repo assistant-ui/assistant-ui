@@ -25,8 +25,12 @@ const getStatusError = (status: ToolCallMessagePartStatus) =>
 
 const MAX_TASK_DEPTH = 32;
 
+const taskKeyOf = (messageId: string, toolCallId: string) =>
+  JSON.stringify([messageId, toolCallId]);
+
 /** Lookup key for a task client; toolCallIds repeat across nested conversations, message ids do not. */
-export const getTaskKey = (task: TaskState) => `${task.messageId}:${task.id}`;
+export const getTaskKey = (task: TaskState) =>
+  taskKeyOf(task.messageId, task.id);
 
 export const createTaskDeriver = () => {
   let previous: readonly TaskState[] = [];
@@ -52,14 +56,14 @@ export const createTaskDeriver = () => {
           const status = toMessagePartStatus(message, partIndex, part);
           const statusReason = getStatusReason(status);
           const statusError = getStatusError(status);
-          const previousEntry = previousEntries.get(part.toolCallId);
+          const entryKey = taskKeyOf(message.id, part.toolCallId);
+          const previousEntry = previousEntries.get(entryKey);
           const task =
             previousEntry?.part === part &&
             previousEntry.statusType === status.type &&
             previousEntry.statusReason === statusReason &&
             Object.is(previousEntry.statusError, statusError) &&
             previousEntry.messages === nestedMessages &&
-            previousEntry.task.messageId === message.id &&
             previousEntry.task.parentTaskId === parentTaskId &&
             previousEntry.task.depth === depth
               ? previousEntry.task
@@ -81,7 +85,7 @@ export const createTaskDeriver = () => {
 
           if (task !== previousEntry?.task) allEntriesReused = false;
           tasks.push(task);
-          entries.set(task.id, {
+          entries.set(entryKey, {
             task,
             part,
             statusType: status.type,

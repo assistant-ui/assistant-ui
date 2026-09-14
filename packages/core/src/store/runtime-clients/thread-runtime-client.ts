@@ -164,9 +164,8 @@ const useThreadClient = ({
     suggestions: () => suggestions.methods,
     task: (selector) => {
       if ("id" in selector) {
-        return taskClients.get({
-          index: tasks.findIndex((task) => task.id === selector.id),
-        });
+        const task = tasks.find((candidate) => candidate.id === selector.id);
+        return taskClients.get({ key: task ? getTaskKey(task) : selector.id });
       }
       return taskClients.get(selector);
     },
