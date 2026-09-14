@@ -1,4 +1,6 @@
 import { cn } from "@/lib/utils";
+import { useSyncExternalStore } from "react";
+import { Platform } from "react-native";
 import type { LucideIcon, LucideProps } from "lucide-react-native";
 import { withUniwind } from "uniwind";
 
@@ -16,6 +18,22 @@ const StyledIcon = withUniwind(IconImpl, {
   color: { fromClassName: "className", styleProperty: "color" },
 });
 
-export const Icon = ({ className, ...props }: IconProps) => (
-  <StyledIcon className={cn("text-foreground size-5", className)} {...props} />
-);
+const subscribeToHydration = () => () => {};
+const getClientHydrationSnapshot = () => Platform.OS === "web";
+const getServerHydrationSnapshot = () => false;
+
+export const Icon = ({ className, ...props }: IconProps) => {
+  const isHydrated = useSyncExternalStore(
+    subscribeToHydration,
+    getClientHydrationSnapshot,
+    getServerHydrationSnapshot,
+  );
+
+  return (
+    <StyledIcon
+      key={isHydrated ? "hydrated" : undefined}
+      className={cn("text-foreground size-5", className)}
+      {...props}
+    />
+  );
+};
