@@ -282,6 +282,7 @@ const AssistantIndicator: FC = () => {
       className="aui-assistant-message-indicator flex-row items-center gap-[5px] py-2"
       accessible
       accessibilityLabel="Assistant is working"
+      accessibilityLiveRegion={Platform.OS === "web" ? "polite" : undefined}
     >
       <TypingDot delay={0} />
       <TypingDot delay={160} />

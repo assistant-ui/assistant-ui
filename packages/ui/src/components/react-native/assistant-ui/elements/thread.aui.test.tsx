@@ -514,19 +514,30 @@ describe("Thread", () => {
   });
 
   it("shows the indicator and announces once per run while the assistant is working", async () => {
-    h.state.thread.isRunning = true;
     addMessages(h.makeMessage({ status: { type: "running" } }));
 
     await render();
+    expect(h.announceForAccessibility).not.toHaveBeenCalled();
+
+    h.state.thread.isRunning = true;
+    await render();
     await render();
 
-    expect(
-      container.querySelector('[aria-label="Assistant is working"]'),
-    ).not.toBeNull();
+    const indicator = container.querySelector(
+      '[aria-label="Assistant is working"]',
+    );
+    expect(indicator?.getAttribute("aria-live")).toBe("polite");
     expect(h.announceForAccessibility).toHaveBeenCalledTimes(1);
     expect(h.announceForAccessibility).toHaveBeenCalledWith(
       "Assistant is working",
     );
+
+    h.state.thread.isRunning = false;
+    await render();
+    h.state.thread.isRunning = true;
+    await render();
+
+    expect(h.announceForAccessibility).toHaveBeenCalledTimes(2);
   });
 
   it("renders the error text for an errored message", async () => {
