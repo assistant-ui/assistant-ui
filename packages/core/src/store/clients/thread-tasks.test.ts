@@ -238,15 +238,20 @@ describe("createTaskDeriver", () => {
     expect(derive(messages)).toBe(first);
   });
 
-  it("resolves statuses through the provided resolver", () => {
-    const derive = createTaskDeriver(() => ({ type: "complete" }));
-    const [task] = derive([
+  it("reads a nested message without a status as complete", () => {
+    const unnormalized = {
+      ...assistantMessage("nested", { type: "running" }, [
+        toolCall("call_1", []),
+      ]),
+      status: undefined,
+    } as unknown as ThreadMessage;
+    const [, nestedTask] = createTaskDeriver()([
       assistantMessage("outer-message", { type: "running" }, [
-        toolCall("delegate", []),
+        toolCall("delegate", [unnormalized], "ok"),
       ]),
     ]);
 
-    expect(task?.status).toEqual({ type: "complete" });
+    expect(nestedTask?.status).toEqual({ type: "complete" });
   });
 
   it("preserves unchanged entries when a task is appended", () => {

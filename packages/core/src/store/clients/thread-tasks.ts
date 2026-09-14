@@ -5,7 +5,10 @@ import type {
   ToolCallMessagePart,
   ToolCallMessagePartStatus,
 } from "../../types/message";
-import { toMessagePartStatus } from "../../utils/normalizePartStatus";
+import {
+  COMPLETE_STATUS,
+  toMessagePartStatus,
+} from "../../utils/normalizePartStatus";
 import type { TaskState } from "../scopes/task";
 
 type TaskEntry = {
@@ -30,15 +33,16 @@ const taskKeys = new WeakMap<TaskState, string>();
 /** Lookup key for a task client: its document-order index path, unique by construction where ids from nested payloads are not. */
 export const getTaskKey = (task: TaskState) => taskKeys.get(task) ?? task.id;
 
-export type TaskStatusResolver = (
+const resolveStatus = (
   message: ThreadMessage,
   partIndex: number,
   part: ToolCallMessagePart,
-) => ToolCallMessagePartStatus;
+): ToolCallMessagePartStatus =>
+  "status" in message && message.status
+    ? toMessagePartStatus(message, partIndex, part)
+    : COMPLETE_STATUS;
 
-export const createTaskDeriver = (
-  resolveStatus: TaskStatusResolver = toMessagePartStatus,
-) => {
+export const createTaskDeriver = () => {
   let previous: readonly TaskState[] = [];
   let previousEntries = new Map<string, TaskEntry>();
 
