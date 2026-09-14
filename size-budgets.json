@@ -19,12 +19,12 @@
       "gzip": 79735
     },
     "./store": {
-      "min": 97961,
-      "gzip": 32602
+      "min": 101032,
+      "gzip": 33879
     },
     "./store/internal": {
-      "min": 24070,
-      "gzip": 9047
+      "min": 26577,
+      "gzip": 9897
     }
   },
   "@assistant-ui/eve": {
