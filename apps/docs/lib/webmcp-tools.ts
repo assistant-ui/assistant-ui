@@ -287,7 +287,7 @@ async function listSkillsFromIndex(fetchImpl: FetchLike, signal?: AbortSignal) {
 // Inverse of agentSkillDocument: the route serves a two-key frontmatter with
 // a JSON-quoted description.
 function parseSkillDocument(document: string) {
-  const match = /^---\nname: (.+)\ndescription: (.+)\n---\n\n([\s\S]*)$/.exec(
+  const match = /^---\nname: (.+)\ndescription: (".*")\n---\n\n([\s\S]*)$/.exec(
     document,
   );
   if (!match) throw new Error("Docs request returned an unexpected response");

@@ -368,13 +368,19 @@ describe("registered tools", () => {
     await expect(
       toolByName(fetchReturning({}, false, 500), "listSkills").execute({}),
     ).resolves.toEqual(errorResult("Docs request failed with status 500"));
-    await expect(
-      toolByName(fetchReturning("# no frontmatter"), "getSkill").execute({
-        name: "tools",
-      }),
-    ).resolves.toEqual(
-      errorResult("Docs request returned an unexpected response"),
-    );
+    for (const document of [
+      "# no frontmatter",
+      "---\nname: tools\ndescription: unquoted\n---\n\n# Tools\n",
+    ]) {
+      await expect(
+        toolByName(fetchReturning(document), "getSkill").execute({
+          name: "tools",
+        }),
+        JSON.stringify(document),
+      ).resolves.toEqual(
+        errorResult("Docs request returned an unexpected response"),
+      );
+    }
   });
 
   it("rejects an aborted listSkills or getSkill call with the abort reason", async () => {
