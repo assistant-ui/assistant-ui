@@ -13,11 +13,15 @@ type TaskEntry = {
   readonly part: ToolCallMessagePart;
   readonly statusType: ToolCallMessagePartStatus["type"];
   readonly statusReason: string | undefined;
+  readonly statusError: unknown;
   readonly messages: readonly ThreadMessage[];
 };
 
 const getStatusReason = (status: ToolCallMessagePartStatus) =>
   "reason" in status ? status.reason : undefined;
+
+const getStatusError = (status: ToolCallMessagePartStatus) =>
+  "error" in status ? status.error : undefined;
 
 export const createTaskDeriver = () => {
   let previous: readonly TaskState[] = [];
@@ -41,11 +45,13 @@ export const createTaskDeriver = () => {
           const nestedMessages = part.messages;
           const status = toMessagePartStatus(message, partIndex, part);
           const statusReason = getStatusReason(status);
+          const statusError = getStatusError(status);
           const previousEntry = previousEntries.get(part.toolCallId);
           const task =
             previousEntry?.part === part &&
             previousEntry.statusType === status.type &&
             previousEntry.statusReason === statusReason &&
+            Object.is(previousEntry.statusError, statusError) &&
             previousEntry.messages === nestedMessages
               ? previousEntry.task
               : {
@@ -71,6 +77,7 @@ export const createTaskDeriver = () => {
             part,
             statusType: status.type,
             statusReason,
+            statusError,
             messages: nestedMessages,
           });
           visit(nestedMessages, task.id, depth + 1);

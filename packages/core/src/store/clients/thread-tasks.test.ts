@@ -4,7 +4,10 @@ import { createTaskDeriver } from "./thread-tasks";
 
 const assistantMessage = (
   id: string,
-  status: { type: "running" } | { type: "complete"; reason: "stop" },
+  status:
+    | { type: "running" }
+    | { type: "complete"; reason: "stop" }
+    | { type: "incomplete"; reason: "error"; error: unknown },
   content:
     | readonly ToolCallMessagePart[]
     | readonly { type: "text"; text: string }[],
@@ -134,6 +137,33 @@ describe("createTaskDeriver", () => {
     expect(updated).not.toBe(initial);
     expect(updated[1]).not.toBe(initial[1]);
     expect(updated[1]?.status).toMatchObject({ type: "complete" });
+  });
+
+  it("creates a fresh entry when an incomplete status changes its error", () => {
+    const task = toolCall("failing", []);
+    const derive = createTaskDeriver();
+    const initial = derive([
+      assistantMessage(
+        "outer-message",
+        { type: "incomplete", reason: "error", error: "first" },
+        [task],
+      ),
+    ]);
+    const updated = derive([
+      assistantMessage(
+        "outer-message",
+        { type: "incomplete", reason: "error", error: "second" },
+        [task],
+      ),
+    ]);
+
+    expect(updated).not.toBe(initial);
+    expect(updated[0]).not.toBe(initial[0]);
+    expect(updated[0]?.status).toMatchObject({
+      type: "incomplete",
+      reason: "error",
+      error: "second",
+    });
   });
 
   it("preserves unchanged entries when a task is appended", () => {
