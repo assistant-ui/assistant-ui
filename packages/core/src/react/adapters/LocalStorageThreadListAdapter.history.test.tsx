@@ -42,6 +42,8 @@ describe("local storage history recovery", () => {
               { type: "file", data: "bytes" },
             ]
           : [{ type: "text", text: "keep this" }];
+      const expectedContent =
+        role === "assistant" ? content.slice(0, 4) : content;
       const key = "@assistant-ui:messages:thread-1";
       const original = JSON.stringify({
         headId: "later",
@@ -79,7 +81,7 @@ describe("local storage history recovery", () => {
         "damaged",
         "later",
       ]);
-      expect(loaded.messages[0]?.message.content).toEqual(content);
+      expect(loaded.messages[0]?.message.content).toEqual(expectedContent);
 
       await history.append({
         parentId: "later",

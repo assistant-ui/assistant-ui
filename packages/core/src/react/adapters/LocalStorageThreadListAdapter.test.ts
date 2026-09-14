@@ -212,6 +212,81 @@ describe("parseStoredMessageRepository", () => {
     ]);
   });
 
+  it("sanitizes malformed known assistant parts and tool call fields", () => {
+    const repo = parseStoredMessageRepository(
+      JSON.stringify({
+        messages: [
+          {
+            message: {
+              ...storedMessage("assistant-parts", "assistant"),
+              content: [
+                { type: "file", data: "bytes" },
+                {
+                  type: "source",
+                  sourceType: "url",
+                  url: "https://example.com",
+                },
+                { type: "source", sourceType: "document", id: "doc" },
+                { type: "data", name: 42, data: {} },
+                { type: "generative-ui", spec: {} },
+                {
+                  type: "tool-call",
+                  toolCallId: "invalid-name",
+                  toolName: 42,
+                  args: {},
+                },
+                {
+                  type: "tool-call",
+                  toolCallId: "call-1",
+                  toolName: "search",
+                  args: "not-an-object",
+                  argsText: '{"query":"assistant-ui"}',
+                  result: { results: 1 },
+                  isError: "no",
+                  timing: { startedAt: "now" },
+                  interrupt: { type: "bot", payload: {} },
+                  approval: { id: 42 },
+                  providerMetadata: { openai: "not-an-object" },
+                },
+                {
+                  type: "file",
+                  data: "SGVsbG8=",
+                  mimeType: "text/plain",
+                },
+                {
+                  type: "source",
+                  sourceType: "url",
+                  id: "source-1",
+                  url: "https://example.com",
+                },
+              ],
+            },
+            parentId: null,
+          },
+        ],
+      }),
+    );
+
+    const [toolCall, ...content] = repo.messages[0]?.message.content ?? [];
+    expect(toolCall).toMatchObject({
+      type: "tool-call",
+      toolCallId: "call-1",
+      toolName: "search",
+      args: { query: "assistant-ui" },
+      argsText: '{"query":"assistant-ui"}',
+      result: { results: 1 },
+    });
+    expect(content).toEqual([
+      { type: "file", data: "SGVsbG8=", mimeType: "text/plain" },
+      {
+        type: "source",
+        sourceType: "url",
+        id: "source-1",
+        url: "https://example.com",
+      },
+    ]);
+  });
+
   it("keeps system messages while recovering their content", () => {
     const repo = parseStoredMessageRepository(
       JSON.stringify({
@@ -698,6 +773,43 @@ describe("parseStoredMessageRepository", () => {
     expect(reparsedMetadataMessage?.metadata.timing).toEqual({
       streamStartTime: 2,
     });
+  });
+
+  it("retains valid partial timing while dropping malformed timing fields", () => {
+    const repo = parseStoredMessageRepository(
+      JSON.stringify({
+        messages: [
+          {
+            message: {
+              ...storedMessage("partial-timing", "assistant"),
+              metadata: {
+                custom: {},
+                timing: {
+                  streamStartTime: 2,
+                  firstTokenTime: "not-a-number",
+                  totalChunks: 3,
+                  toolCallCount: null,
+                },
+              },
+            },
+            parentId: null,
+          },
+          {
+            message: {
+              ...storedMessage("invalid-timing", "assistant"),
+              metadata: { custom: {}, timing: null },
+            },
+            parentId: "partial-timing",
+          },
+        ],
+      }),
+    );
+
+    expect(repo.messages[0]?.message.metadata.timing).toEqual({
+      streamStartTime: 2,
+      totalChunks: 3,
+    });
+    expect(repo.messages[1]?.message.metadata.timing).toBeUndefined();
   });
 
   it("preserves descendants when only a parent part is malformed", () => {

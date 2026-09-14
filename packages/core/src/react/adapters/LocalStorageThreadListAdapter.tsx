@@ -18,7 +18,12 @@ import type {
   RunConfig,
   CompleteAttachment,
   MessageModality,
+  MessagePartStreamStatus,
   MessageStatus,
+  MessageTiming,
+  PartProviderMetadata,
+  ToolApprovalOption,
+  ToolCallMessagePart,
   ToolModelContentPart,
 } from "../../index";
 import type {
@@ -29,7 +34,7 @@ import {
   fromThreadMessageLike,
   type ThreadMessageLike,
 } from "../../runtime/utils/thread-message-like";
-import { isJSONValue, isRecord } from "../../utils/json/is-json";
+import { isJSONObject, isJSONValue, isRecord } from "../../utils/json/is-json";
 import {
   RuntimeAdapterProvider,
   type RuntimeAdapters,
@@ -171,6 +176,71 @@ const parseStoredMessageStatus = (value: unknown): MessageStatus => {
   return value as unknown as MessageStatus;
 };
 
+const isFiniteNumber = (value: unknown): value is number =>
+  typeof value === "number" && Number.isFinite(value);
+
+const parseStoredMessageTiming = (
+  value: unknown,
+): MessageTiming | undefined => {
+  if (!isRecord(value)) return undefined;
+
+  const timing = {
+    ...(isFiniteNumber(value.streamStartTime)
+      ? { streamStartTime: value.streamStartTime }
+      : undefined),
+    ...(isFiniteNumber(value.firstTokenTime)
+      ? { firstTokenTime: value.firstTokenTime }
+      : undefined),
+    ...(isFiniteNumber(value.totalStreamTime)
+      ? { totalStreamTime: value.totalStreamTime }
+      : undefined),
+    ...(isFiniteNumber(value.tokenCount)
+      ? { tokenCount: value.tokenCount }
+      : undefined),
+    ...(isFiniteNumber(value.tokensPerSecond)
+      ? { tokensPerSecond: value.tokensPerSecond }
+      : undefined),
+    ...(isFiniteNumber(value.totalChunks)
+      ? { totalChunks: value.totalChunks }
+      : undefined),
+    ...(isFiniteNumber(value.toolCallCount)
+      ? { toolCallCount: value.toolCallCount }
+      : undefined),
+  };
+
+  return Object.keys(timing).length > 0 ? (timing as MessageTiming) : undefined;
+};
+
+const parseStoredPartStatus = (
+  value: unknown,
+): MessagePartStreamStatus | undefined => {
+  if (!isRecord(value)) return undefined;
+  if (value.type === "running" || value.type === "complete") return value;
+  if (
+    value.type === "incomplete" &&
+    (value.reason === "cancelled" ||
+      value.reason === "length" ||
+      value.reason === "content-filter" ||
+      value.reason === "other" ||
+      value.reason === "error")
+  ) {
+    return { type: "incomplete", reason: value.reason };
+  }
+  return undefined;
+};
+
+const parseStoredProviderMetadata = (
+  value: unknown,
+): PartProviderMetadata | undefined => {
+  if (
+    !isRecord(value) ||
+    !Object.values(value).every((entry) => isJSONObject(entry))
+  ) {
+    return undefined;
+  }
+  return value;
+};
+
 const parseStoredAssistantMetadata = (
   value: unknown,
 ): StoredAssistantMessage["metadata"] => {
@@ -179,6 +249,7 @@ const parseStoredAssistantMetadata = (
     ? metadata.submittedFeedback
     : undefined;
   const submittedFeedbackType = submittedFeedback?.type;
+  const timing = parseStoredMessageTiming(metadata.timing);
 
   return {
     unstable_state: isJSONValue(metadata.unstable_state)
@@ -199,13 +270,7 @@ const parseStoredAssistantMetadata = (
     submittedFeedbackType === "negative"
       ? { submittedFeedback: { type: submittedFeedbackType } }
       : undefined),
-    ...(metadata.timing !== undefined
-      ? {
-          timing: metadata.timing as NonNullable<
-            StoredAssistantMessage["metadata"]["timing"]
-          >,
-        }
-      : undefined),
+    ...(timing !== undefined ? { timing } : undefined),
     ...(metadata.isOptimistic === true ? { isOptimistic: true } : undefined),
     ...(isStoredMessageModality(metadata.modality)
       ? { modality: metadata.modality }
@@ -245,6 +310,353 @@ const parseStoredToolModelContent = (
   });
 };
 
+const parseStoredToolApprovalOption = (
+  value: unknown,
+): ToolApprovalOption | null => {
+  if (
+    !isRecord(value) ||
+    typeof value.id !== "string" ||
+    typeof value.kind !== "string"
+  ) {
+    return null;
+  }
+
+  const confirm =
+    value.confirm === true || value.confirm === false
+      ? value.confirm
+      : isRecord(value.confirm) &&
+          (value.confirm.title === undefined ||
+            typeof value.confirm.title === "string") &&
+          (value.confirm.description === undefined ||
+            typeof value.confirm.description === "string")
+        ? {
+            ...(typeof value.confirm.title === "string"
+              ? { title: value.confirm.title }
+              : undefined),
+            ...(typeof value.confirm.description === "string"
+              ? { description: value.confirm.description }
+              : undefined),
+          }
+        : undefined;
+
+  return {
+    id: value.id,
+    kind: value.kind,
+    ...(typeof value.label === "string" ? { label: value.label } : undefined),
+    ...(typeof value.description === "string"
+      ? { description: value.description }
+      : undefined),
+    ...(Array.isArray(value.grants) &&
+    value.grants.every((grant) => typeof grant === "string")
+      ? { grants: value.grants }
+      : undefined),
+    ...(confirm !== undefined ? { confirm } : undefined),
+  };
+};
+
+const parseStoredToolApproval = (
+  value: unknown,
+): ToolCallMessagePart["approval"] | undefined => {
+  if (!isRecord(value) || typeof value.id !== "string") return undefined;
+
+  return {
+    id: value.id,
+    ...(typeof value.prompt === "string"
+      ? { prompt: value.prompt }
+      : undefined),
+    ...(value.display === "decision" ||
+    value.display === "select" ||
+    value.display === "text"
+      ? { display: value.display }
+      : undefined),
+    ...(typeof value.allowFreeform === "boolean"
+      ? { allowFreeform: value.allowFreeform }
+      : undefined),
+    ...(typeof value.approved === "boolean"
+      ? { approved: value.approved }
+      : undefined),
+    ...(typeof value.reason === "string"
+      ? { reason: value.reason }
+      : undefined),
+    ...(typeof value.isAutomatic === "boolean"
+      ? { isAutomatic: value.isAutomatic }
+      : undefined),
+    ...(Array.isArray(value.options)
+      ? {
+          options: value.options.flatMap((option) => {
+            const parsed = parseStoredToolApprovalOption(option);
+            return parsed ? [parsed] : [];
+          }),
+        }
+      : undefined),
+    ...(typeof value.optionId === "string"
+      ? { optionId: value.optionId }
+      : undefined),
+    ...(typeof value.text === "string" ? { text: value.text } : undefined),
+    ...(value.resolution === "cancelled" || value.resolution === "expired"
+      ? { resolution: value.resolution }
+      : undefined),
+  };
+};
+
+const parseStoredToolCall = (
+  value: Record<string, unknown>,
+  depth: number,
+  parentMessageId: string,
+  partIndex: number,
+  parentCreatedAt: Date,
+): ThreadMessageLike["content"] extends readonly (infer Part)[]
+  ? Part | undefined
+  : never => {
+  if (typeof value.toolName !== "string") return undefined;
+
+  const parsedModelContent = parseStoredToolModelContent(value.modelContent);
+  const approval = parseStoredToolApproval(value.approval);
+  const providerMetadata = parseStoredProviderMetadata(value.providerMetadata);
+  const messages = Array.isArray(value.messages)
+    ? value.messages.flatMap((message, messageIndex) => {
+        const parsed = parseStoredNestedThreadMessage(
+          message,
+          depth + 1,
+          `${parentMessageId}/part-${partIndex}/message-${messageIndex}`,
+          parentCreatedAt,
+        );
+        return parsed ? [parsed] : [];
+      })
+    : undefined;
+  const timing =
+    isRecord(value.timing) && isFiniteNumber(value.timing.startedAt)
+      ? {
+          startedAt: value.timing.startedAt,
+          ...(isFiniteNumber(value.timing.completedAt)
+            ? { completedAt: value.timing.completedAt }
+            : undefined),
+        }
+      : undefined;
+  const interrupt =
+    isRecord(value.interrupt) &&
+    value.interrupt.type === "human" &&
+    "payload" in value.interrupt &&
+    isJSONValue(value.interrupt.payload)
+      ? { type: "human" as const, payload: value.interrupt.payload }
+      : undefined;
+  const mcp =
+    isRecord(value.mcp) &&
+    (value.mcp.app === undefined ||
+      (isRecord(value.mcp.app) &&
+        typeof value.mcp.app.resourceUri === "string" &&
+        (value.mcp.app.mimeType === undefined ||
+          typeof value.mcp.app.mimeType === "string") &&
+        (value.mcp.app.serverId === undefined ||
+          typeof value.mcp.app.serverId === "string") &&
+        (value.mcp.app.visibility === undefined ||
+          (Array.isArray(value.mcp.app.visibility) &&
+            value.mcp.app.visibility.every(
+              (entry) => entry === "model" || entry === "app",
+            )))))
+      ? value.mcp
+      : undefined;
+
+  return {
+    type: "tool-call",
+    toolCallId:
+      typeof value.toolCallId === "string" && value.toolCallId.length > 0
+        ? value.toolCallId
+        : `${parentMessageId}/part-${partIndex}`,
+    toolName: value.toolName,
+    ...(isJSONObject(value.args) ? { args: value.args } : undefined),
+    ...(typeof value.argsText === "string"
+      ? { argsText: value.argsText }
+      : undefined),
+    ...(isJSONValue(value.result) ? { result: value.result } : undefined),
+    ...(typeof value.isError === "boolean"
+      ? { isError: value.isError }
+      : undefined),
+    ...(isJSONValue(value.artifact) ? { artifact: value.artifact } : undefined),
+    ...(timing !== undefined ? { timing } : undefined),
+    ...(mcp !== undefined ? { mcp } : undefined),
+    ...(providerMetadata !== undefined ? { providerMetadata } : undefined),
+    ...(parsedModelContent !== undefined
+      ? { modelContent: parsedModelContent }
+      : undefined),
+    ...(interrupt !== undefined ? { interrupt } : undefined),
+    ...(approval !== undefined ? { approval } : undefined),
+    ...(typeof value.parentId === "string"
+      ? { parentId: value.parentId }
+      : undefined),
+    ...(messages !== undefined ? { messages } : undefined),
+  } as ThreadMessageLike["content"] extends readonly (infer Part)[]
+    ? Part
+    : never;
+};
+
+const isStoredGenerativeUINode = (value: unknown, depth = 0): boolean => {
+  if (depth > MAX_STORED_MESSAGE_DEPTH) return false;
+  if (typeof value === "string") return true;
+  if (!isRecord(value) || typeof value.component !== "string") return false;
+  return (
+    (value.props === undefined || isJSONObject(value.props)) &&
+    (value.key === undefined || typeof value.key === "string") &&
+    (value.children === undefined ||
+      (Array.isArray(value.children) &&
+        value.children.every((child) =>
+          isStoredGenerativeUINode(child, depth + 1),
+        )))
+  );
+};
+
+const parseStoredAssistantPart = (
+  value: Record<string, unknown>,
+  depth: number,
+  parentMessageId: string,
+  partIndex: number,
+  parentCreatedAt: Date,
+): ThreadMessageLike["content"] extends readonly (infer Part)[]
+  ? Part | undefined
+  : never => {
+  const providerMetadata = parseStoredProviderMetadata(value.providerMetadata);
+  const parentId =
+    typeof value.parentId === "string" ? { parentId: value.parentId } : {};
+
+  switch (value.type) {
+    case "text": {
+      const status = parseStoredPartStatus(value.status);
+      if (typeof value.text !== "string") return undefined;
+      return {
+        type: "text",
+        text: value.text,
+        ...parentId,
+        ...(status !== undefined ? { status } : undefined),
+        ...(providerMetadata !== undefined ? { providerMetadata } : undefined),
+      };
+    }
+    case "reasoning": {
+      const status = parseStoredPartStatus(value.status);
+      if (
+        typeof value.text !== "string" ||
+        (value.unstable_summary !== undefined &&
+          typeof value.unstable_summary !== "string")
+      ) {
+        return undefined;
+      }
+      return {
+        type: "reasoning",
+        text: value.text,
+        ...parentId,
+        ...(typeof value.unstable_summary === "string"
+          ? { unstable_summary: value.unstable_summary }
+          : undefined),
+        ...(status !== undefined ? { status } : undefined),
+        ...(providerMetadata !== undefined ? { providerMetadata } : undefined),
+      };
+    }
+    case "file":
+      if (
+        typeof value.data !== "string" ||
+        typeof value.mimeType !== "string"
+      ) {
+        return undefined;
+      }
+      return {
+        type: "file",
+        data: value.data,
+        mimeType: value.mimeType,
+        ...parentId,
+        ...(typeof value.filename === "string"
+          ? { filename: value.filename }
+          : undefined),
+        ...(value.sourceType === "url" || value.sourceType === "id"
+          ? { sourceType: value.sourceType }
+          : undefined),
+        ...(providerMetadata !== undefined ? { providerMetadata } : undefined),
+      };
+    case "image":
+      if (typeof value.image !== "string") return undefined;
+      return {
+        type: "image",
+        image: value.image,
+        ...(typeof value.filename === "string"
+          ? { filename: value.filename }
+          : undefined),
+        ...(providerMetadata !== undefined ? { providerMetadata } : undefined),
+      };
+    case "source":
+      if (
+        value.sourceType === "url" &&
+        typeof value.id === "string" &&
+        typeof value.url === "string"
+      ) {
+        return {
+          type: "source",
+          sourceType: "url",
+          id: value.id,
+          url: value.url,
+          ...parentId,
+          ...(typeof value.title === "string"
+            ? { title: value.title }
+            : undefined),
+          ...(providerMetadata !== undefined
+            ? { providerMetadata }
+            : undefined),
+        };
+      }
+      if (
+        value.sourceType === "document" &&
+        typeof value.id === "string" &&
+        typeof value.title === "string" &&
+        typeof value.mediaType === "string"
+      ) {
+        return {
+          type: "source",
+          sourceType: "document",
+          id: value.id,
+          title: value.title,
+          mediaType: value.mediaType,
+          ...parentId,
+          ...(typeof value.filename === "string"
+            ? { filename: value.filename }
+            : undefined),
+          ...(providerMetadata !== undefined
+            ? { providerMetadata }
+            : undefined),
+        };
+      }
+      return undefined;
+    case "data":
+      if (typeof value.name !== "string" || !("data" in value))
+        return undefined;
+      return { type: "data", name: value.name, data: value.data };
+    case "generative-ui":
+      if (
+        !isRecord(value.spec) ||
+        !("root" in value.spec) ||
+        !(
+          isStoredGenerativeUINode(value.spec.root) ||
+          (Array.isArray(value.spec.root) &&
+            value.spec.root.every((node) => isStoredGenerativeUINode(node)))
+        )
+      ) {
+        return undefined;
+      }
+      return {
+        type: "generative-ui",
+        spec: value.spec as { root: unknown },
+        ...parentId,
+        ...(typeof value.id === "string" ? { id: value.id } : undefined),
+      };
+    case "tool-call":
+      return parseStoredToolCall(
+        value,
+        depth,
+        parentMessageId,
+        partIndex,
+        parentCreatedAt,
+      );
+    default:
+      return undefined;
+  }
+};
+
 const parseStoredAssistantContent = (
   content: unknown[],
   depth: number,
@@ -252,47 +664,32 @@ const parseStoredAssistantContent = (
   parentCreatedAt: Date,
 ): StoredAssistantMessage["content"] =>
   content.flatMap((rawPart, partIndex) => {
-    try {
-      let part = rawPart;
-      if (!isRecord(part) || typeof part.type !== "string") return [];
-      // Persistence must not inherit the normalizer's display-only filters.
-      if (part.type === "text" || part.type === "reasoning") {
-        if (typeof part.text !== "string") return [];
-        if (
-          part.type === "reasoning" &&
-          part.unstable_summary !== undefined &&
-          typeof part.unstable_summary !== "string"
+    if (!isRecord(rawPart) || typeof rawPart.type !== "string") return [];
+    if (!Object.hasOwn(KNOWN_STORED_MESSAGE_PART_TYPES, rawPart.type)) {
+      if (!rawPart.type.startsWith("data-")) {
+        return [
+          rawPart as unknown as StoredAssistantMessage["content"][number],
+        ];
+      }
+      if (!("data" in rawPart)) return [];
+    }
+
+    const part = Object.hasOwn(KNOWN_STORED_MESSAGE_PART_TYPES, rawPart.type)
+      ? parseStoredAssistantPart(
+          rawPart,
+          depth,
+          parentMessageId,
+          partIndex,
+          parentCreatedAt,
         )
-          return [];
-        return [part as unknown as StoredAssistantMessage["content"][number]];
-      }
-      if (isRecord(part) && part.type === "tool-call") {
-        const { modelContent, messages, toolCallId, ...rest } = part;
-        const parsedModelContent = parseStoredToolModelContent(modelContent);
-        part = {
-          ...rest,
-          toolCallId:
-            typeof toolCallId === "string" && toolCallId.length > 0
-              ? toolCallId
-              : `${parentMessageId}/part-${partIndex}`,
-          ...(parsedModelContent !== undefined
-            ? { modelContent: parsedModelContent }
-            : undefined),
-          ...(Array.isArray(messages)
-            ? {
-                messages: messages.flatMap((message, messageIndex) => {
-                  const parsed = parseStoredNestedThreadMessage(
-                    message,
-                    depth + 1,
-                    `${parentMessageId}/part-${partIndex}/message-${messageIndex}`,
-                    parentCreatedAt,
-                  );
-                  return parsed ? [parsed] : [];
-                }),
-              }
-            : undefined),
-        };
-      }
+      : rawPart;
+    if (!part) return [];
+
+    if (part.type === "text" || part.type === "reasoning") {
+      return [part as unknown as StoredAssistantMessage["content"][number]];
+    }
+
+    try {
       const message = fromThreadMessageLike(
         { role: "assistant", content: [part] } as unknown as ThreadMessageLike,
         "stored-part",
@@ -300,16 +697,6 @@ const parseStoredAssistantContent = (
       );
       return message.role === "assistant" ? message.content : [];
     } catch {
-      if (
-        isRecord(rawPart) &&
-        typeof rawPart.type === "string" &&
-        !rawPart.type.startsWith("data-") &&
-        !Object.hasOwn(KNOWN_STORED_MESSAGE_PART_TYPES, rawPart.type)
-      ) {
-        return [
-          rawPart as unknown as StoredAssistantMessage["content"][number],
-        ];
-      }
       return [];
     }
   });

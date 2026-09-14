@@ -24,8 +24,10 @@ loaded:
 - parts whose `type` this version does not recognize are preserved so a newer
   version's storage is not erased
 - tool-call `modelContent` is rebuilt from its valid text and file entries
+- known assistant parts and tool-call fields are rebuilt from valid stored
+  values, while unknown part types remain available for forward compatibility
 - non-record assistant step entries are removed while legacy record-shaped
-  steps and partial timing metadata remain compatible
+  steps and valid partial timing metadata remain compatible
 - valid voice modality metadata remains intact
 
 Saving a later message preserves existing raw records and only writes the new
