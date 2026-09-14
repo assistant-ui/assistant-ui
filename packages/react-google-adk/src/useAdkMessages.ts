@@ -161,7 +161,7 @@ const useAdkMessagesInternal = ({
         accumulator.processEvent(event);
       }
       const optimisticMessages = accumulator.getMessages();
-      onMessages?.(optimisticMessages, config.runConfig);
+      onMessages?.(newMessagesWithId, config.runConfig);
       setMessagesImmediate(optimisticMessages);
 
       // Google ADK replaces active runs, while React LangGraph queues sends.
@@ -193,7 +193,10 @@ const useAdkMessagesInternal = ({
             break;
           }
           const updatedMessages = accumulator.processEvent(event);
-          onMessages?.(updatedMessages, config.runConfig);
+          const updatedMessage = updatedMessages.at(-1);
+          if (updatedMessage) {
+            onMessages?.([updatedMessage], config.runConfig);
+          }
           setMessagesImmediate(updatedMessages);
           setStateDelta({
             ...stateDeltaRef.current,

@@ -157,12 +157,12 @@ describe("ADK stream lifecycle", () => {
     });
 
     expect(onMessages).toHaveBeenLastCalledWith(
-      expect.arrayContaining([
+      [
         expect.objectContaining({
           type: "ai",
           tool_calls: [expect.objectContaining({ id: "tool-1" })],
         }),
-      ]),
+      ],
       runConfig,
     );
   });
