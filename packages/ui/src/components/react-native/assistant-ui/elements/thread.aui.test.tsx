@@ -352,9 +352,16 @@ vi.mock("react-native-marked", async () => {
   const useMarkdown = (raw: string, options: { renderer: Renderer }) => {
     const fences = [...raw.matchAll(/```([^\n]*)\n([\s\S]*?)\n\s*```/g)];
     if (fences.length > 0)
-      return fences.map((fence) =>
-        options.renderer.code(fence[2] ?? "", fence[1]?.trim() || undefined),
-      );
+      return [
+        ...fences.map((fence) =>
+          options.renderer.code(fence[2] ?? "", fence[1]?.trim() || undefined),
+        ),
+        React.createElement(
+          Text,
+          { key: options.renderer.getKey() },
+          raw.replace(/```[^\n]*\n[\s\S]*?\n\s*```/g, "").trim(),
+        ),
+      ];
     return [React.createElement(Text, { key: options.renderer.getKey() }, raw)];
   };
   return { MarkedLexer, Renderer, useMarkdown };

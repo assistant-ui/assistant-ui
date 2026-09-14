@@ -193,14 +193,18 @@ const useMarkdownOptions = (): useMarkdownHookOptions => {
 // resolve across blocks.
 const MarkdownBlock = memo(
   ({ raw, options }: { raw: string; options: useMarkdownHookOptions }) => {
-    const renderer = useMemo(() => new MarkdownRenderer(), []);
+    // A fresh renderer per parse restarts the key ordinal, so keys stay unique
+    // among siblings and identical across the re-parses of a streaming block
+    // instead of remounting it.
+    const [parse, setParse] = useState(() => ({
+      raw,
+      renderer: new MarkdownRenderer(),
+    }));
+    if (parse.raw !== raw) setParse({ raw, renderer: new MarkdownRenderer() });
     const blockOptions = useMemo(
-      () => ({ ...options, renderer }),
-      [options, renderer],
+      () => ({ ...options, renderer: parse.renderer }),
+      [options, parse.renderer],
     );
-    // Keys count up per parse, so they stay unique among siblings and identical
-    // across the re-parses of a streaming block instead of remounting it.
-    renderer.keyIndex = 0;
     const elements = useMarkdown(raw, blockOptions);
     return <>{elements}</>;
   },
