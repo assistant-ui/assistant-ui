@@ -218,7 +218,7 @@ export default async function ElementPage({
                   <span />
                 )}
                 {nativeRegistryName && (
-                  <ElementPlatformToggle className="mb-2" />
+                  <ElementPlatformToggle className="ms-auto mb-2" />
                 )}
               </div>
             )}

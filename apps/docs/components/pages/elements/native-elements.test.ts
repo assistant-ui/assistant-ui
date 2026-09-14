@@ -1,4 +1,4 @@
-import { readFileSync } from "node:fs";
+import { existsSync, readFileSync } from "node:fs";
 import { join } from "node:path";
 import { describe, expect, it } from "vitest";
 import { NATIVE_ELEMENT_SLUGS, getNativeRegistryName } from "./native-elements";
@@ -29,6 +29,20 @@ describe("native elements", () => {
     expect(nativeItems.size).toBeGreaterThan(0);
     for (const slug of NATIVE_ELEMENT_SLUGS) {
       expect(nativeItems.has(getNativeRegistryName(slug)!), slug).toBe(true);
+    }
+  });
+
+  it("has a showcase route for every slug the phone frame loads", () => {
+    for (const slug of NATIVE_ELEMENT_SLUGS) {
+      expect(
+        existsSync(
+          join(
+            process.cwd(),
+            `../../examples/with-expo/app/showcase/${slug}.tsx`,
+          ),
+        ),
+        slug,
+      ).toBe(true);
     }
   });
 
