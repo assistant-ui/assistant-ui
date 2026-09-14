@@ -1934,6 +1934,82 @@ export const registry: RegistryItem[] = [
 
 export const vueRegistry: RegistryItem[] = [];
 
+export const nativeRegistry: RegistryItem[] = [
+  {
+    name: "thread",
+    type: "registry:component",
+    title: "Thread",
+    description:
+      "Chat container with message list, composer, auto scroll, and accessibility built in.",
+    files: [
+      {
+        type: "registry:component",
+        path: "components/assistant-ui/elements/thread.aui.tsx",
+        sourcePath:
+          "../../packages/ui/src/components/react-native/assistant-ui/elements/thread.aui.tsx",
+      },
+    ],
+    dependencies: ["@assistant-ui/react-native", "lucide-react-native"],
+    registryDependencies: [
+      "https://r.assistant-ui.com/native/attachment.json",
+      "https://r.assistant-ui.com/native/icon.json",
+      "https://r.assistant-ui.com/utils.json",
+    ],
+  },
+  {
+    name: "attachment",
+    type: "registry:component",
+    title: "Attachment",
+    description:
+      "Attach files from the composer and view them inside messages.",
+    files: [
+      {
+        type: "registry:component",
+        path: "components/assistant-ui/elements/attachment.aui.tsx",
+        sourcePath:
+          "../../packages/ui/src/components/react-native/assistant-ui/elements/attachment.aui.tsx",
+      },
+    ],
+    dependencies: ["@assistant-ui/react-native", "lucide-react-native"],
+    registryDependencies: ["https://r.assistant-ui.com/native/icon.json"],
+  },
+  {
+    name: "thread-list",
+    type: "registry:component",
+    title: "Thread List",
+    description:
+      "Drawer list for switching conversations, with the active thread highlighted.",
+    files: [
+      {
+        type: "registry:component",
+        path: "components/assistant-ui/elements/thread-list.aui.tsx",
+        sourcePath:
+          "../../packages/ui/src/components/react-native/assistant-ui/elements/thread-list.aui.tsx",
+      },
+    ],
+    dependencies: ["@assistant-ui/react-native", "lucide-react-native"],
+    registryDependencies: [
+      "https://r.assistant-ui.com/native/icon.json",
+      "https://r.assistant-ui.com/utils.json",
+    ],
+  },
+  {
+    name: "icon",
+    type: "registry:ui",
+    title: "Icon",
+    description: "Styled Lucide icon wrapper for React Native components.",
+    files: [
+      {
+        type: "registry:ui",
+        path: "components/ui/icon.tsx",
+        sourcePath: "../../packages/ui/src/components/react-native/ui/icon.tsx",
+      },
+    ],
+    dependencies: ["lucide-react-native"],
+    registryDependencies: ["https://r.assistant-ui.com/utils.json"],
+  },
+];
+
 /**
  * Vue items staged for the `@assistant-ui/vue` publish flip. The build
  * machinery and tests exercise them, but they stay out of the emitted

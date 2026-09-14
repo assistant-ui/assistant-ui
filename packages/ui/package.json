@@ -15,6 +15,7 @@
     "@assistant-ui/react-generative-ui": "workspace:*",
     "@assistant-ui/react-markdown": "workspace:*",
     "@assistant-ui/react-mcp": "workspace:*",
+    "@assistant-ui/react-native": "workspace:*",
     "@assistant-ui/react-syntax-highlighter": "workspace:*",
     "@assistant-ui/store": "workspace:*",
     "@base-ui/react": "^1.8.0",
@@ -24,21 +25,28 @@
     "cn": "^0.2.6",
     "diff": "^9.0.0",
     "embla-carousel-react": "^8.6.0",
+    "expo-clipboard": "~57.0.1",
+    "expo-image-picker": "~57.0.16",
     "heat-graph": "workspace:*",
     "input-otp": "^1.5.0",
     "lucide-react": "^1.41.0",
+    "lucide-react-native": "^1.45.0",
     "next-themes": "^0.4.6",
     "parse-diff": "^0.12.0",
     "radix-ui": "^1.6.7",
     "react-day-picker": "^10.0.1",
     "react-hook-form": "^7.87.0",
     "react-markdown": "^10.1.0",
+    "react-native": "^0.86.3",
+    "react-native-safe-area-context": "^5.7.0",
+    "react-native-svg": "^15.15.4",
     "react-resizable-panels": "^4.12.4",
     "react-shiki": "^0.11.1",
     "react-syntax-highlighter": "^16.1.1",
     "recharts": "^3.10.1",
     "remark-gfm": "^4.0.1",
     "sonner": "^2.0.8",
+    "uniwind": "^1.12.0",
     "vaul": "^1.1.2",
     "zustand": "^5.0.15"
   },
@@ -58,6 +66,7 @@
     "markdown-it": "^15.0.1",
     "react": "^19.2.8",
     "react-dom": "^19.2.8",
+    "react-native-web": "^0.21.2",
     "reka-ui": "^2.10.4",
     "vitest": "^5.0.0",
     "vue": "^3.5.42"
@@ -67,6 +76,7 @@
     "react-dom": "^18 || ^19"
   },
   "scripts": {
-    "test": "vitest run"
+    "test": "vitest run",
+    "test:types": "tsc --noEmit && tsc --noEmit -p src/components/react-native/tsconfig.json"
   }
 }

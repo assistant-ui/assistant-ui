@@ -6,26 +6,61 @@ import { defineConfig } from "vitest/config";
 const __dirname = dirname(fileURLToPath(import.meta.url));
 
 export default defineConfig({
-  plugins: [vue()],
   test: {
-    environment: "jsdom",
-    pool: "threads",
     fsModuleCache: true,
-    include: ["src/**/*.test.{ts,tsx}"],
-    globals: true,
-  },
-  resolve: {
-    alias: {
-      "@/components/assistant-ui": resolve(
-        __dirname,
-        "src/components/react/assistant-ui",
-      ),
-      "@/components/ui/radix": resolve(
-        __dirname,
-        "src/components/react/ui/radix",
-      ),
-      "@/components/ui": resolve(__dirname, "src/components/react/ui/base"),
-      "@": resolve(__dirname, "src"),
-    },
+    projects: [
+      {
+        plugins: [vue()],
+        resolve: {
+          alias: {
+            "@/components/assistant-ui": resolve(
+              __dirname,
+              "src/components/react/assistant-ui",
+            ),
+            "@/components/ui/radix": resolve(
+              __dirname,
+              "src/components/react/ui/radix",
+            ),
+            "@/components/ui": resolve(
+              __dirname,
+              "src/components/react/ui/base",
+            ),
+            "@": resolve(__dirname, "src"),
+          },
+        },
+        test: {
+          name: "web",
+          environment: "jsdom",
+          pool: "threads",
+          globals: true,
+          include: ["src/**/*.test.{ts,tsx}"],
+          exclude: ["src/components/react-native/**"],
+        },
+      },
+      {
+        resolve: {
+          alias: {
+            "react-native": "react-native-web",
+            "@/components/assistant-ui": resolve(
+              __dirname,
+              "src/components/react-native/assistant-ui",
+            ),
+            "@/components/ui": resolve(
+              __dirname,
+              "src/components/react-native/ui",
+            ),
+            "@": resolve(__dirname, "src"),
+          },
+        },
+        test: {
+          name: "react-native",
+          environment: "jsdom",
+          pool: "threads",
+          globals: true,
+          passWithNoTests: true,
+          include: ["src/components/react-native/**/*.test.{ts,tsx}"],
+        },
+      },
+    ],
   },
 });
