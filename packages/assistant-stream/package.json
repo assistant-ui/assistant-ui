@@ -67,14 +67,10 @@
     "secure-json-parse": "^4.1.0"
   },
   "peerDependencies": {
-    "ai": "^7.0.0",
     "ioredis": "^5.10.1 || ^6.0.0",
     "redis": "^5.12.1"
   },
   "peerDependenciesMeta": {
-    "ai": {
-      "optional": true
-    },
     "ioredis": {
       "optional": true
     },

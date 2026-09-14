@@ -39,6 +39,6 @@ For tool execution, pipe through `ToolExecutionStream`; for resumable streams (c
 
 ## Sub-paths
 
-`.`, `./utils`, `./ai-sdk`, `./internal`, `./resumable`, `./resumable/redis`, `./resumable/ioredis`. `./ai-sdk` exports `frontendTools`, which converts the tool schemas an assistant-ui client uploads into AI SDK tools; it needs the optional `ai` peer. `./internal` is not part of the public API; it carries the helpers `@assistant-ui/ai-sdk` shares with `./ai-sdk`. The two Redis adapters are optional peer dependencies; install whichever client your stack already uses.
+`.`, `./utils`, `./ai-sdk`, `./internal`, `./resumable`, `./resumable/redis`, `./resumable/ioredis`. `./ai-sdk` exports `frontendTools`, which converts the tool schemas an assistant-ui client uploads into AI SDK tools; it imports `ai` at runtime, so install `ai@^7` next to it. `ai` is deliberately not declared as a peer dependency: only this entry loads it, and a root-level peer would make every `assistant-stream` consumer on another `ai` major fail `npm install` with ERESOLVE. `./internal` is not part of the public API; it carries the helpers `@assistant-ui/ai-sdk` shares with `./ai-sdk`. The two Redis adapters are optional peer dependencies; install whichever client your stack already uses.
 
 Full reference for encoders, tool execution, message conversion, and resumable streams at [assistant-ui.com/docs/architecture](https://www.assistant-ui.com/docs/architecture).
