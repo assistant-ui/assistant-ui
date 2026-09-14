@@ -1,6 +1,6 @@
 "use client";
 
-import { useChat, type Chat, type UIMessage } from "@ai-sdk/react";
+import { Chat, useChat, type UIMessage } from "@ai-sdk/react";
 import type { MessageRepository } from "@assistant-ui/core/internal";
 import {
   pickExternalStoreSharedOptions,
@@ -26,6 +26,7 @@ import {
   useEffect,
   useMemo,
   useRef,
+  useState,
   useSyncExternalStore,
 } from "react";
 import { useResourceCleanup } from "./useResourceCleanup";
@@ -197,12 +198,45 @@ export const useChatThread = <UI_MESSAGE extends UIMessage = UIMessage>(
   const sourceTransport = transportOptions ?? defaultTransport;
   const transport = useDynamicChatTransport(sourceTransport);
 
+  // `useChat` only forwards this hook's own lifecycle for a chat it constructs
+  // itself; owning the instance keeps it alive across a tap resource's soft
+  // unmount (`@ai-sdk/react` otherwise stops an internally-created chat on
+  // any unmount), leaving `useResourceCleanup` below as the sole place that
+  // decides when the chat actually stops. `useState` (not `useMemo`) so React
+  // can never discard and rebuild the live instance out from under an
+  // in-flight stream. The callbacks below read `chatOptions` through a ref so
+  // they stay live across re-renders, mirroring the forwarding `useChat`
+  // itself does for a chat it constructs internally (its equivalent only
+  // runs when `chat` isn't in the passed options, which is never true here).
+  const latestChatOptionsRef = useRef(chatOptions);
+  useEffect(() => {
+    latestChatOptionsRef.current = chatOptions;
+  });
+  const [internalChat] = useState(
+    () =>
+      externalChat ??
+      new Chat<UI_MESSAGE>({
+        ...chatOptions,
+        id,
+        transport,
+        onToolCall: (arg) => latestChatOptionsRef.current.onToolCall?.(arg),
+        onData: (arg) => latestChatOptionsRef.current.onData?.(arg),
+        onFinish: (arg) => latestChatOptionsRef.current.onFinish?.(arg),
+        onError: (arg) => latestChatOptionsRef.current.onError?.(arg),
+        sendAutomaticallyWhen: (arg) =>
+          latestChatOptionsRef.current.sendAutomaticallyWhen?.(arg) ?? false,
+      }),
+  );
+  // Not a caller-swap hazard in any of the three in-repo callers (`AISDKChat`
+  // and `useChatRuntime` never pass `env.chat`; `AISDKThreads` always does),
+  // but a caller that starts driving `internalChat` and only later supplies
+  // `externalChat` would abandon `internalChat`'s stream uncleaned — the same
+  // limitation `AISDKThreads` already accepts for its own per-thread chats.
+  const ownedChat = externalChat ?? internalChat;
+
   const chat = useChat({
-    ...chatOptions,
-    id,
-    transport,
+    chat: ownedChat,
     ...(throttle !== undefined && { throttle }),
-    ...(externalChat !== undefined && { chat: externalChat }),
   });
 
   useResourceCleanup(stopOnClientDestroy, () => {
