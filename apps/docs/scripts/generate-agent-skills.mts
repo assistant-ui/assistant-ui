@@ -4,7 +4,9 @@ import path from "node:path";
 const REPO = "assistant-ui/skills";
 const BRANCH = "main";
 const SKILLS_DIR = "assistant-ui/skills";
-const RAW_BASE = `https://raw.githubusercontent.com/${REPO}/${BRANCH}`;
+const API_BASE = `https://api.github.com/repos/${REPO}`;
+const rawSkillUrl = (commit: string, name: string, file: string) =>
+  `https://raw.githubusercontent.com/${REPO}/${commit}/${SKILLS_DIR}/${name}/${file}`;
 const OUTPUT_PATH = path.join(
   process.cwd(),
   "lib",
@@ -37,13 +39,18 @@ async function fetchText(url: string, headers?: Record<string, string>) {
   return response.text();
 }
 
+// Everything is read at one commit so the skills, their reference links, and
+// the recorded source cannot straddle a push to the branch.
 async function listSkillDirectories() {
+  const { sha: commit } = JSON.parse(
+    await fetchText(`${API_BASE}/commits/${BRANCH}`, githubHeaders()),
+  ) as { sha: string };
   const tree = JSON.parse(
     await fetchText(
-      `https://api.github.com/repos/${REPO}/git/trees/${BRANCH}?recursive=1`,
+      `${API_BASE}/git/trees/${commit}?recursive=1`,
       githubHeaders(),
     ),
-  ) as { sha: string; tree: { path: string }[] };
+  ) as { tree: { path: string }[] };
   const pattern = new RegExp(`^${SKILLS_DIR}/([^/]+)/SKILL\\.md$`);
   const names = tree.tree
     .map((entry) => pattern.exec(entry.path)?.[1])
@@ -52,7 +59,7 @@ async function listSkillDirectories() {
   if (names.length === 0) {
     throw new Error(`no ${SKILLS_DIR}/*/SKILL.md entries in ${REPO}`);
   }
-  return { commit: tree.sha, names };
+  return { commit, names };
 }
 
 function parseFrontmatter(markdown: string) {
@@ -72,17 +79,18 @@ function parseFrontmatter(markdown: string) {
 // Skills link to their sibling reference files relatively; served out of
 // the docs site those paths resolve nowhere, so they are pointed back at the
 // source repo.
-function absolutizeReferenceLinks(body: string, name: string) {
+function absolutizeReferenceLinks(body: string, name: string, commit: string) {
   return body.replaceAll(
     /\]\(\.\/([^)\s]+)\)/g,
-    (_, target: string) => `](${RAW_BASE}/${SKILLS_DIR}/${name}/${target})`,
+    (_, target: string) => `](${rawSkillUrl(commit, name, target)})`,
   );
 }
 
-async function fetchSkill(name: string): Promise<GeneratedSkill> {
-  const markdown = await fetchText(
-    `${RAW_BASE}/${SKILLS_DIR}/${name}/SKILL.md`,
-  );
+async function fetchSkill(
+  name: string,
+  commit: string,
+): Promise<GeneratedSkill> {
+  const markdown = await fetchText(rawSkillUrl(commit, name, "SKILL.md"));
   const { fields, body } = parseFrontmatter(markdown);
   if (fields.name !== name) {
     throw new Error(`${name}/SKILL.md declares name ${fields.name ?? "none"}`);
@@ -93,13 +101,15 @@ async function fetchSkill(name: string): Promise<GeneratedSkill> {
   return {
     name,
     description: fields.description,
-    content: absolutizeReferenceLinks(body, name),
+    content: absolutizeReferenceLinks(body, name, commit),
   };
 }
 
 async function main() {
   const { commit, names } = await listSkillDirectories();
-  const skills = await Promise.all(names.map(fetchSkill));
+  const skills = await Promise.all(
+    names.map((name) => fetchSkill(name, commit)),
+  );
   await fs.writeFile(
     OUTPUT_PATH,
     `${JSON.stringify({ source: `${REPO}@${commit}`, skills }, null, 2)}\n`,
