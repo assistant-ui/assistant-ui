@@ -4,6 +4,7 @@ import { createRenderCounter } from "@assistant-ui/x-performance";
 import { afterEach, beforeAll, describe, expect, it, vi } from "vitest";
 
 import { ConversationMapAui } from "./conversation-map.aui";
+import * as conversationMapProjection from "./conversation-map-projection";
 
 const mocks = vi.hoisted(() => ({
   state: { thread: { messages: [] as unknown[] } },
@@ -102,6 +103,7 @@ beforeAll(() => {
 
 afterEach(() => {
   cleanup();
+  vi.restoreAllMocks();
   document.body.innerHTML = "";
   mocks.state.thread.messages = [];
   mocks.viewport.element.viewport = null;
@@ -133,6 +135,10 @@ describe("ConversationMapAui", () => {
   });
 
   it("restores the committed projection after an interrupted render", () => {
+    const project = vi.spyOn(
+      conversationMapProjection,
+      "projectConversationMap",
+    );
     const pending = new Promise<void>(() => {});
     const Gate = ({ blocked }: { blocked: boolean }) => {
       if (blocked) throw pending;
@@ -146,6 +152,8 @@ describe("ConversationMapAui", () => {
         <Gate blocked={false} />
       </Suspense>,
     );
+    const committed = project.mock.results.at(-1)!.value;
+    expect(committed.entries).toEqual([{ id: "a1", title: "Original" }]);
     mocks.state.thread.messages = [assistant("a1", "Interrupted")];
     rerender(
       <Suspense fallback={<p>Loading</p>}>
@@ -153,6 +161,9 @@ describe("ConversationMapAui", () => {
         <Gate blocked />
       </Suspense>,
     );
+    const interrupted = project.mock.results.at(-1)!.value;
+    expect(interrupted.entries).toEqual([{ id: "a1", title: "Interrupted" }]);
+    expect(interrupted.entries).not.toBe(committed.entries);
     mocks.state.thread.messages = [...messages];
     rerender(
       <Suspense fallback={<p>Loading</p>}>
@@ -160,6 +171,11 @@ describe("ConversationMapAui", () => {
         <Gate blocked={false} />
       </Suspense>,
     );
+    expect(project.mock.lastCall?.[1]).toBe(committed);
+    const restored = project.mock.results.at(-1)!.value;
+    expect(restored.entries).toBe(committed.entries);
+    expect(restored.turns).toBe(committed.turns);
+    expect(restored.turnOf).toBe(committed.turnOf);
     expect(labels()).toEqual(["Original"]);
     mocks.state.thread.messages = [assistant("a1", "Completed")];
     rerender(
