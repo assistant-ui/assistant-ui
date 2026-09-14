@@ -114,9 +114,11 @@ describe("toMediaWireUrl", () => {
   });
 
   it.each(["data:;base64,QUJD", "data:;charset=utf-8;base64,"])(
-    "preserves %s when the wire type agrees with the binary default",
+    "stamps the binary default onto media-less base64 %s",
     (payload) => {
-      expect(toMediaWireUrl(payload, "application/octet-stream")).toBe(payload);
+      expect(toMediaWireUrl(payload, "application/octet-stream")).toBe(
+        `data:application/octet-stream;base64,${payload.split(",")[1]}`,
+      );
     },
   );
 
