@@ -96,6 +96,23 @@ describe("getAutoStatus", () => {
     },
   );
 
+  it("reads the trailing nested message, not an earlier running one", () => {
+    expect(
+      isBackgroundToolCall(
+        pendingToolCall([
+          nestedAssistantMessage({ type: "running" }),
+          nestedAssistantMessage({ type: "complete", reason: "unknown" }),
+        ]),
+      ),
+    ).toBe(false);
+  });
+
+  it("lets cancellation clear a background tool call", () => {
+    expect(
+      getAutoStatus(true, false, false, true, undefined, true, true),
+    ).toMatchObject({ type: "requires-action", reason: "tool-calls" });
+  });
+
   it("keeps a settled nested tool call pending", () => {
     expect(
       getContentAutoStatus(

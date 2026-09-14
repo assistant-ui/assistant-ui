@@ -13,13 +13,11 @@ export const isPendingToolCall = (c: ThreadMessageLikeContentItem): boolean =>
 /** A pending tool call whose nested conversation is still streaming; the outer message stays running until the nested run settles. */
 export const isBackgroundToolCall = (
   c: ThreadMessageLikeContentItem,
-): boolean =>
-  c.type === "tool-call" &&
-  c.result === undefined &&
-  c.messages?.some(
-    (message) =>
-      message.role === "assistant" && message.status.type === "running",
-  ) === true;
+): boolean => {
+  if (c.type !== "tool-call" || c.result !== undefined) return false;
+  const last = c.messages?.at(-1);
+  return last?.role === "assistant" && last.status.type === "running";
+};
 
 export const isInterruptedToolCall = (
   c: ThreadMessageLikeContentItem,
@@ -104,7 +102,7 @@ export const getAutoStatus = (
     ? AUTO_STATUS_RUNNING
     : hasInterruptedToolCalls
       ? AUTO_STATUS_INTERRUPT
-      : hasBackgroundToolCalls
+      : hasBackgroundToolCalls && !isCancelled
         ? AUTO_STATUS_RUNNING
         : hasPendingToolCalls
           ? AUTO_STATUS_PENDING

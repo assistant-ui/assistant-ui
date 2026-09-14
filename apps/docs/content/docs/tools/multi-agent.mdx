@@ -209,7 +209,7 @@ const toolkit = defineToolkit({
 
 While a nested conversation has a running assistant message, the tool call and the message that holds it stay `running` even after the outer run has ended. This is how delegated work that outlives the run shows up. Once the nested conversation settles without a tool result, the message reads `requires-action` with reason `tool-calls`, the same as any other pending tool call.
 
-The nested thread rendered by `MessagePartPrimitive.Messages` or `ReadonlyThreadProvider` reports `isRunning` from its trailing assistant message.
+The nested thread rendered by `MessagePartPrimitive.Messages` or `ReadonlyThreadProvider` reports `isRunning` from its trailing assistant message, and the background rule reads the same trailing message. A runtime that fills `messages` owns settling the nested status: a trailing nested assistant message left `running` keeps the outer message `running` until it is settled, except that cancelling the outer run clears it.
 
 ## ReadonlyThreadProvider
 
