@@ -78,34 +78,13 @@ export abstract class BaseThreadRuntimeCore
   public abstract unstable_notifySessionReset(): void;
 
   protected _voiceMessages: ThreadMessage[] = [];
-  protected _voiceGeneration = 0;
-  private _cachedMergedMessages: readonly ThreadMessage[] | null = null;
-  private _cachedVoiceGeneration = -1;
-  private _cachedMergedBase: readonly ThreadMessage[] | null = null;
-
-  protected _markVoiceMessagesDirty() {
-    this._voiceGeneration++;
-    this._cachedMergedMessages = null;
-  }
 
   protected _getBaseMessages(): readonly ThreadMessage[] {
     return this.repository.getMessages();
   }
 
   public get messages(): readonly ThreadMessage[] {
-    if (this._voiceMessages.length === 0) {
-      return this._getBaseMessages();
-    }
-    const base = this._getBaseMessages();
-    if (
-      this._cachedVoiceGeneration !== this._voiceGeneration ||
-      this._cachedMergedBase !== base
-    ) {
-      this._cachedMergedMessages = [...base, ...this._voiceMessages];
-      this._cachedVoiceGeneration = this._voiceGeneration;
-      this._cachedMergedBase = base;
-    }
-    return this._cachedMergedMessages!;
+    return this._getBaseMessages();
   }
 
   public get state() {
@@ -190,20 +169,6 @@ export abstract class BaseThreadRuntimeCore
     try {
       return this.repository.getMessage(messageId);
     } catch {
-      // Check voice messages
-      const baseMessages = this.repository.getMessages();
-      const voiceIdx = this._voiceMessages.findIndex((m) => m.id === messageId);
-      if (voiceIdx !== -1) {
-        const parentId =
-          voiceIdx > 0
-            ? this._voiceMessages[voiceIdx - 1]!.id
-            : (baseMessages.at(-1)?.id ?? null);
-        return {
-          parentId,
-          message: this._voiceMessages[voiceIdx]!,
-          index: baseMessages.length + voiceIdx,
-        };
-      }
       return undefined;
     }
   }
@@ -212,7 +177,9 @@ export abstract class BaseThreadRuntimeCore
     if (this._voiceMessages.some((m) => m.id === messageId)) {
       return [];
     }
-    return this.repository.getBranches(messageId);
+    return this.repository
+      .getBranches(messageId)
+      .filter((id) => !this._voiceMessages.some((m) => m.id === id));
   }
 
   public switchToBranch(branchId: string): void {
@@ -259,7 +226,11 @@ export abstract class BaseThreadRuntimeCore
           submittedFeedback: { type },
         },
       };
-      this.repository.addOrUpdateMessage(parentId, updatedMessage);
+      if (this._voiceMessages.some((m) => m.id === messageId)) {
+        this._updateVoiceMessage(updatedMessage);
+      } else {
+        this.repository.addOrUpdateMessage(parentId, updatedMessage);
+      }
     }
 
     this._notifySubscribers();
@@ -473,6 +444,19 @@ export abstract class BaseThreadRuntimeCore
 
   private _currentAssistantMsg: ThreadAssistantMessage | null = null;
 
+  private _addVoiceMessage(message: ThreadMessage) {
+    const parentId = this._voiceMessages.at(-1)?.id ?? this.repository.headId;
+    this.repository.addOrUpdateMessage(parentId, message);
+    this._voiceMessages.push(message);
+  }
+
+  private _updateVoiceMessage(message: ThreadMessage) {
+    const { parentId } = this.repository.getMessage(message.id);
+    this.repository.addOrUpdateMessage(parentId, message);
+    const index = this._voiceMessages.findIndex((m) => m.id === message.id);
+    if (index !== -1) this._voiceMessages[index] = message;
+  }
+
   private _handleVoiceTranscript(
     transcript: RealtimeVoiceAdapter.TranscriptItem,
   ) {
@@ -483,7 +467,7 @@ export abstract class BaseThreadRuntimeCore
       this._currentAssistantMsg = null;
 
       if (transcript.isFinal) {
-        this._voiceMessages.push({
+        this._addVoiceMessage({
           id: generateId(),
           role: "user",
           content: [{ type: "text", text: transcript.text }],
@@ -492,7 +476,6 @@ export abstract class BaseThreadRuntimeCore
           status: { type: "complete", reason: "unknown" },
           attachments: [],
         });
-        this._markVoiceMessagesDirty();
         this._notifySubscribers();
       }
     } else {
@@ -516,16 +499,14 @@ export abstract class BaseThreadRuntimeCore
           status,
           createdAt: new Date(),
         };
-        this._voiceMessages.push(this._currentAssistantMsg);
+        this._addVoiceMessage(this._currentAssistantMsg);
       } else {
-        const idx = this._voiceMessages.indexOf(this._currentAssistantMsg);
-        if (idx === -1) return;
         const updated: ThreadAssistantMessage = {
           ...this._currentAssistantMsg,
           content: [{ type: "text", text: transcript.text }],
           status,
         };
-        this._voiceMessages[idx] = updated;
+        this._updateVoiceMessage(updated);
         this._currentAssistantMsg = updated;
       }
 
@@ -533,7 +514,6 @@ export abstract class BaseThreadRuntimeCore
         this._currentAssistantMsg = null;
       }
 
-      this._markVoiceMessagesDirty();
       this._notifySubscribers();
     }
   }
@@ -541,12 +521,10 @@ export abstract class BaseThreadRuntimeCore
   private _finishVoiceAssistantMessage() {
     const last = this._voiceMessages.at(-1);
     if (last?.role === "assistant" && last.status.type === "running") {
-      const idx = this._voiceMessages.length - 1;
-      this._voiceMessages[idx] = {
+      this._updateVoiceMessage({
         ...(last as ThreadAssistantMessage),
         status: { type: "complete", reason: "stop" },
-      };
-      this._markVoiceMessagesDirty();
+      });
       this._notifySubscribers();
     }
   }
@@ -560,8 +538,12 @@ export abstract class BaseThreadRuntimeCore
     this._voiceSession = undefined;
     this.voice = undefined;
     this._voiceVolume = 0;
+    for (let i = this._voiceMessages.length - 1; i >= 0; i--) {
+      try {
+        this.repository.deleteMessage(this._voiceMessages[i]!.id);
+      } catch {}
+    }
     this._voiceMessages = [];
-    this._markVoiceMessagesDirty();
 
     notifySubscribers([
       ...unsubs,
@@ -611,6 +593,9 @@ export abstract class BaseThreadRuntimeCore
     this.ensureInitialized();
     this.repository.clear();
     this.repository.import(data);
+    for (const message of this._voiceMessages) {
+      this.repository.addOrUpdateMessage(this.repository.headId, message);
+    }
     this._notifySubscribers();
   }
 

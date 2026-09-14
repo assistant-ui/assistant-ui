@@ -14,6 +14,7 @@ import type {
 } from "../interfaces/thread-runtime-core";
 import { BaseThreadRuntimeCore } from "./base-thread-runtime-core";
 import type { SpeechSynthesisAdapter } from "../../adapters/speech";
+import type { FeedbackAdapter } from "../../adapters/feedback";
 import { LocalRuntimeCore } from "../../runtimes/local/local-runtime-core";
 
 const createVoiceAdapter = () => {
@@ -59,17 +60,23 @@ const createVoiceAdapter = () => {
 
 class TestRuntime extends BaseThreadRuntimeCore {
   private readonly voiceAdapter: ReturnType<typeof createVoiceAdapter>;
+  private readonly additionalAdapters: {
+    speech?: SpeechSynthesisAdapter;
+    feedback?: FeedbackAdapter;
+  };
 
   constructor(
     voiceAdapter: ReturnType<typeof createVoiceAdapter>,
     contextProvider: ModelContextProvider = { getModelContext: () => ({}) },
+    additionalAdapters: TestRuntime["additionalAdapters"] = {},
   ) {
     super(contextProvider);
     this.voiceAdapter = voiceAdapter;
+    this.additionalAdapters = additionalAdapters;
   }
 
   get adapters() {
-    return { voice: this.voiceAdapter.adapter };
+    return { voice: this.voiceAdapter.adapter, ...this.additionalAdapters };
   }
 
   get isDisabled() {
@@ -1133,6 +1140,126 @@ describe("BaseThreadRuntimeCore voice transcripts", () => {
       ]);
     } finally {
       runtime.disconnectVoice();
+    }
+  });
+
+  it("keeps transcript actions on repository-backed voice messages", async () => {
+    const voiceAdapter = createVoiceAdapter();
+    const utterance: SpeechSynthesisAdapter.Utterance = {
+      status: { type: "running" },
+      cancel: vi.fn(),
+      subscribe: () => () => {},
+    };
+    const speech: SpeechSynthesisAdapter = {
+      speak: vi.fn(() => utterance),
+    };
+    const feedback: FeedbackAdapter = { submit: vi.fn() };
+    const runtime = new TestRuntime(voiceAdapter, undefined, {
+      speech,
+      feedback,
+    });
+    runtime.connectVoice();
+    let userId: string;
+    let assistantId: string;
+
+    try {
+      voiceAdapter.emitTranscript({
+        role: "user",
+        text: "Hello",
+        isFinal: true,
+      });
+      voiceAdapter.emitTranscript({
+        role: "assistant",
+        text: "Hi",
+        isFinal: true,
+      });
+
+      const user = runtime.messages[0]!;
+      const assistant = runtime.messages[1]!;
+      userId = user.id;
+      assistantId = assistant.id;
+      expect(runtime.getMessageById(user.id)?.message).toBe(user);
+      expect(runtime.getMessageById(assistant.id)?.message).toBe(assistant);
+
+      runtime.beginEdit(user.id);
+      runtime.getEditComposer(user.id)?.handleCancel();
+      runtime.speak(assistant.id);
+      runtime.stopSpeaking();
+      runtime.submitFeedback({ messageId: assistant.id, type: "positive" });
+
+      expect(speech.speak).toHaveBeenCalledWith("Hi");
+      expect(feedback.submit).toHaveBeenCalledWith({
+        message: assistant,
+        type: "positive",
+      });
+
+      runtime.reset([
+        {
+          id: "base",
+          role: "user",
+          content: [{ type: "text", text: "Earlier" }],
+        },
+      ]);
+      expect(runtime.messages.map((message) => message.id)).toEqual([
+        "base",
+        user.id,
+        assistant.id,
+      ]);
+      expect(runtime.messages[2]?.metadata.submittedFeedback).toEqual({
+        type: "positive",
+      });
+    } finally {
+      runtime.disconnectVoice();
+    }
+
+    expect(runtime.messages.map((message) => message.id)).toEqual(["base"]);
+    expect(runtime.getMessageById(userId!)).toBeUndefined();
+    expect(runtime.getMessageById(assistantId!)).toBeUndefined();
+  });
+
+  it("reloads an assistant transcript through the local runtime", async () => {
+    const voiceAdapter = createVoiceAdapter();
+    const run = vi.fn(async () => ({
+      content: [{ type: "text" as const, text: "Again" }],
+    }));
+    const runtime = new LocalRuntimeCore(
+      {
+        adapters: {
+          chatModel: { run },
+          voice: voiceAdapter.adapter,
+        },
+      },
+      undefined,
+    );
+    const thread = runtime.threads.getMainThreadRuntimeCore();
+    thread.connectVoice();
+
+    try {
+      voiceAdapter.emitTranscript({
+        role: "user",
+        text: "Hello",
+        isFinal: true,
+      });
+      voiceAdapter.emitTranscript({
+        role: "assistant",
+        text: "Hi",
+        isFinal: true,
+      });
+
+      const user = thread.messages[0]!;
+      const assistant = thread.messages[1]!;
+      await expect(
+        thread.startRun({
+          parentId: user.id,
+          sourceId: assistant.id,
+          runConfig: {},
+        }),
+      ).resolves.toBeUndefined();
+      expect(run).toHaveBeenCalledWith(
+        expect.objectContaining({ messages: [user] }),
+      );
+    } finally {
+      thread.disconnectVoice();
     }
   });
 });
