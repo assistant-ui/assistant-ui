@@ -74,9 +74,9 @@
     "@assistant-ui/x-buildutils": "workspace:*",
     "@streamdown/code": "^1.1.1",
     "@testing-library/react": "^16.3.3",
-    "@types/react": "^19.2.18",
-    "react": "^19.2.8",
-    "react-dom": "^19.2.8",
+    "@types/react": "^19.3.0",
+    "react": "^19.3.0",
+    "react-dom": "^19.3.0",
     "remark-rehype": "^11.1.2",
     "vitest": "^5.0.0"
   },

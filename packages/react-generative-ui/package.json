@@ -72,11 +72,11 @@
     "@assistant-ui/react": "workspace:*",
     "@assistant-ui/x-buildutils": "workspace:*",
     "@types/json-schema": "^7.0.15",
-    "@types/react": "^19.2.18",
-    "react": "^19.2.8",
-    "react-dom": "^19.2.8",
+    "@types/react": "^19.3.0",
+    "react": "^19.3.0",
+    "react-dom": "^19.3.0",
     "vitest": "^5.0.0",
-    "zod": "^4.5.4"
+    "zod": "^4.6.4"
   },
   "publishConfig": {
     "access": "public",

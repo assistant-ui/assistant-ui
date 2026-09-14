@@ -33,7 +33,7 @@
     "test:watch": "vitest"
   },
   "dependencies": {
-    "@ai-sdk/provider": "^4.0.10",
+    "@ai-sdk/provider": "^4.0.14",
     "@assistant-ui/core": "^0.3.18",
     "assistant-cloud": "*",
     "assistant-stream": "^0.3.42"
@@ -50,8 +50,8 @@
   "devDependencies": {
     "@assistant-ui/x-buildutils": "workspace:*",
     "@types/json-schema": "^7.0.15",
-    "@types/react": "^19.2.18",
-    "react": "^19.2.8",
+    "@types/react": "^19.3.0",
+    "react": "^19.3.0",
     "vitest": "^5.0.0"
   },
   "publishConfig": {

@@ -55,13 +55,13 @@
   },
   "devDependencies": {
     "@assistant-ui/x-buildutils": "workspace:*",
-    "@langchain/langgraph-sdk": "^1.10.2",
+    "@langchain/langgraph-sdk": "^1.11.0",
     "@testing-library/dom": "^10.4.1",
     "@testing-library/react": "^16.3.3",
-    "@types/node": "^26.4.1",
-    "@types/react": "^19.2.18",
+    "@types/node": "^26.5.1",
+    "@types/react": "^19.3.0",
     "jsdom": "^30.0.1",
-    "react": "^19.2.8",
+    "react": "^19.3.0",
     "vitest": "^5.0.0"
   },
   "publishConfig": {

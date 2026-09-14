@@ -53,6 +53,11 @@ const mocks = vi.hoisted(() => {
 
 vi.mock("@ai-sdk/react", () => ({
   useChat: mocks.useChat,
+  Chat: class MockChat {
+    constructor(config: unknown) {
+      Object.assign(this, config);
+    }
+  },
 }));
 
 vi.mock("@assistant-ui/core/react", async (importOriginal) => ({
