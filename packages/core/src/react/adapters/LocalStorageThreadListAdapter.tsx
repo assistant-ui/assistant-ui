@@ -185,37 +185,8 @@ const parseStoredMessageStatus = (value: unknown): MessageStatus => {
 const isFiniteNumber = (value: unknown): value is number =>
   typeof value === "number" && Number.isFinite(value);
 
-const parseStoredMessageTiming = (
-  value: unknown,
-): MessageTiming | undefined => {
-  if (!isRecord(value)) return undefined;
-
-  const timing = {
-    ...(isFiniteNumber(value.streamStartTime)
-      ? { streamStartTime: value.streamStartTime }
-      : undefined),
-    ...(isFiniteNumber(value.firstTokenTime)
-      ? { firstTokenTime: value.firstTokenTime }
-      : undefined),
-    ...(isFiniteNumber(value.totalStreamTime)
-      ? { totalStreamTime: value.totalStreamTime }
-      : undefined),
-    ...(isFiniteNumber(value.tokenCount)
-      ? { tokenCount: value.tokenCount }
-      : undefined),
-    ...(isFiniteNumber(value.tokensPerSecond)
-      ? { tokensPerSecond: value.tokensPerSecond }
-      : undefined),
-    ...(isFiniteNumber(value.totalChunks)
-      ? { totalChunks: value.totalChunks }
-      : undefined),
-    ...(isFiniteNumber(value.toolCallCount)
-      ? { toolCallCount: value.toolCallCount }
-      : undefined),
-  };
-
-  return Object.keys(timing).length > 0 ? (timing as MessageTiming) : undefined;
-};
+const parseStoredMessageTiming = (value: unknown): MessageTiming | undefined =>
+  isRecord(value) ? (value as MessageTiming) : undefined;
 
 const parseStoredPartStatus = (
   value: unknown,
@@ -249,33 +220,8 @@ const parseStoredProviderMetadata = (
   return value as PartProviderMetadata;
 };
 
-const parseStoredThreadStep = (value: unknown): ThreadStep | null => {
-  if (!isRecord(value)) return null;
-
-  const usage =
-    isRecord(value.usage) &&
-    isFiniteNumber(value.usage.inputTokens) &&
-    isFiniteNumber(value.usage.outputTokens)
-      ? {
-          inputTokens: value.usage.inputTokens,
-          outputTokens: value.usage.outputTokens,
-        }
-      : undefined;
-  const messageId =
-    typeof value.messageId === "string" ? value.messageId : undefined;
-
-  if (
-    messageId === undefined &&
-    usage === undefined &&
-    Object.keys(value).length
-  )
-    return null;
-
-  return {
-    ...(messageId !== undefined ? { messageId } : undefined),
-    ...(usage !== undefined ? { usage } : undefined),
-  };
-};
+const parseStoredThreadStep = (value: unknown): ThreadStep | null =>
+  isRecord(value) ? (value as ThreadStep) : null;
 
 const parseStoredAssistantMetadata = (
   value: unknown,

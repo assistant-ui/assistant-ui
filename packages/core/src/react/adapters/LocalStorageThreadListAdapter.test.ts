@@ -701,8 +701,15 @@ describe("parseStoredMessageRepository", () => {
                 ),
                 steps: [
                   null,
-                  { usage: { inputTokens: 1, outputTokens: 2 } },
-                  { usage: { inputTokens: "bad", outputTokens: 2 } },
+                  {},
+                  {
+                    usage: {
+                      promptTokens: 1,
+                      completionTokens: 2,
+                      reasoningTokens: 3,
+                      cachedInputTokens: 4,
+                    },
+                  },
                 ],
                 timing: { streamStartTime: 2 },
               },
@@ -772,14 +779,22 @@ describe("parseStoredMessageRepository", () => {
       102,
     );
     expect(reparsedMetadataMessage?.metadata.steps).toEqual([
-      { usage: { inputTokens: 1, outputTokens: 2 } },
+      {},
+      {
+        usage: {
+          promptTokens: 1,
+          completionTokens: 2,
+          reasoningTokens: 3,
+          cachedInputTokens: 4,
+        },
+      },
     ]);
     expect(reparsedMetadataMessage?.metadata.timing).toEqual({
       streamStartTime: 2,
     });
   });
 
-  it("retains valid partial timing while dropping malformed timing fields", () => {
+  it("retains partial timing records and drops non-record timing", () => {
     const repo = parseStoredMessageRepository(
       JSON.stringify({
         messages: [
@@ -811,7 +826,9 @@ describe("parseStoredMessageRepository", () => {
 
     expect(repo.messages[0]?.message.metadata.timing).toEqual({
       streamStartTime: 2,
+      firstTokenTime: "not-a-number",
       totalChunks: 3,
+      toolCallCount: null,
     });
     expect(repo.messages[1]?.message.metadata.timing).toBeUndefined();
   });
