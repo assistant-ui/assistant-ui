@@ -77,14 +77,20 @@ const projectToolResult = (
     )
     .map((part) => part.text)
     .join("");
-  const modelContent = content.map((part) =>
+  if (content.every((part) => part.type === "text")) return { result };
+
+  const modelContent = content.flatMap((part) =>
     part.type === "text"
-      ? { type: "text" as const, text: part.text }
-      : {
-          type: "file" as const,
-          data: part.data,
-          mediaType: part.mimeType,
-        },
+      ? [{ type: "text" as const, text: part.text }]
+      : part.type === "image"
+        ? [
+            {
+              type: "file" as const,
+              data: part.data,
+              mediaType: part.mimeType,
+            },
+          ]
+        : [],
   );
 
   return { result, modelContent };
@@ -96,21 +102,16 @@ const readToolResultContent = (
   if (value == null) return undefined;
   const content = (value as { content?: unknown }).content;
   if (!Array.isArray(content)) return undefined;
-  if (
-    !content.every(
-      (part): part is PiToolResultContent =>
-        typeof part === "object" &&
-        part !== null &&
-        (((part as { type?: unknown }).type === "text" &&
-          typeof (part as { text?: unknown }).text === "string") ||
-          ((part as { type?: unknown }).type === "image" &&
-            typeof (part as { data?: unknown }).data === "string" &&
-            typeof (part as { mimeType?: unknown }).mimeType === "string")),
-    )
-  ) {
-    return undefined;
-  }
-  return content;
+  return content.filter(
+    (part): part is PiToolResultContent =>
+      typeof part === "object" &&
+      part !== null &&
+      (((part as { type?: unknown }).type === "text" &&
+        typeof (part as { text?: unknown }).text === "string") ||
+        ((part as { type?: unknown }).type === "image" &&
+          typeof (part as { data?: unknown }).data === "string" &&
+          typeof (part as { mimeType?: unknown }).mimeType === "string")),
+  );
 };
 
 const projectUserContent = (
@@ -150,7 +151,7 @@ const buildToolResultMap = (messages: readonly PiAgentMessage[]) => {
     if (message.role !== "toolResult") continue;
     const m = message as PiToolResultMessage;
     map.set(m.toolCallId, {
-      ...projectToolResult(m.content),
+      ...projectToolResult(readToolResultContent({ content: m.content })),
       isError: m.isError,
       details: m.details,
     });

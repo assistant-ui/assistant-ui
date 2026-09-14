@@ -158,6 +158,7 @@ describe("messageProjection", () => {
       toolCallId: "tc1",
       result: "file1\nfile2",
     });
+    expect(part.modelContent).toBeUndefined();
   });
 
   it("preserves image tool result content", () => {
@@ -257,6 +258,55 @@ describe("messageProjection", () => {
       result: "",
       modelContent: [{ type: "file", data: "AAAA", mediaType: "image/png" }],
     });
+  });
+
+  it("ignores unsupported tool result parts while preserving recognized content", () => {
+    const out = projectPiThreadMessages(
+      input(
+        [
+          assistant([
+            toolCall("final", "search", {}),
+            toolCall("live", "search", {}),
+          ]),
+          {
+            role: "toolResult",
+            toolCallId: "final",
+            toolName: "search",
+            content: [
+              { type: "text", text: "final text" },
+              { type: "resource", uri: "resource://result" },
+            ],
+            isError: false,
+            timestamp: 2,
+          } as PiAgentMessage,
+        ],
+        {
+          toolExecutions: {
+            live: {
+              toolCallId: "live",
+              status: "running",
+              partialResult: {
+                content: [
+                  { type: "text", text: "live text" },
+                  { type: "resource", uri: "resource://partial" },
+                ],
+              },
+            },
+          },
+          runStatus: "running",
+        },
+      ),
+    );
+
+    expect(contentParts(out[0]!)).toEqual([
+      expect.objectContaining({
+        toolCallId: "final",
+        result: "final text",
+      }),
+      expect.objectContaining({ toolCallId: "live", result: "live text" }),
+    ]);
+    expect(contentParts(out[0]!)[0]!.modelContent).toBeUndefined();
+    expect(contentParts(out[0]!)[1]!.modelContent).toBeUndefined();
   });
 
   it("merges multiple assistant turns into one message with a step each", () => {
