@@ -546,6 +546,22 @@ describe("Thread", () => {
     labeled("Send message");
   });
 
+  it("mounts the same custom editor inside the edit composer", async () => {
+    const ComposerInput = () => <View testID="rich-editor" />;
+    addMessages(
+      h.makeMessage({
+        composer: { ...h.makeMessage().composer, isEditing: true },
+      }),
+    );
+
+    await render({ components: { ComposerInput } });
+
+    expect(
+      container.querySelectorAll('[data-testid="rich-editor"]'),
+    ).toHaveLength(2);
+    expect(container.textContent).toContain("Update");
+  });
+
   it("routes tool calls to a custom fallback", async () => {
     const ToolFallback = ({ toolName }: { toolName: string }) => (
       <Text>custom tool: {toolName}</Text>

@@ -70,6 +70,7 @@ export type ThreadComponents = {
   AssistantMessage?: ComponentType | undefined;
   Welcome?: ComponentType | undefined;
   ToolFallback?: ToolCallMessagePartComponent | undefined;
+  /** Replaces the text input of both the new message composer and the edit composer; read `composer.type` to tell them apart. */
   ComposerInput?: ComponentType | undefined;
 };
 
@@ -400,27 +401,37 @@ const UserActionBar: FC = () => (
   </AuiIf>
 );
 
-const EditComposer: FC = () => (
-  <MessagePrimitive.Root className="aui-edit-composer-wrapper px-2">
-    <ComposerPrimitive.Root className="aui-edit-composer-root border-border/60 dark:border-muted-foreground/15 bg-card ms-auto w-full max-w-[85%] rounded-3xl border">
-      <ComposerPrimitive.Input
-        className="aui-edit-composer-input text-foreground web:resize-none web:outline-none min-h-14 px-4 pt-3 pb-1 text-base"
-        multiline
-        autoFocus
-      />
-      <View className="aui-edit-composer-footer mx-2.5 mb-2.5 flex-row items-center gap-1.5 self-end">
-        <ComposerPrimitive.Cancel className="active:bg-accent h-8 justify-center rounded-full px-3.5">
-          <Text className="text-foreground text-sm font-medium">Cancel</Text>
-        </ComposerPrimitive.Cancel>
-        <ComposerPrimitive.Send className="bg-primary active:bg-primary/90 h-8 justify-center rounded-full px-3.5">
-          <Text className="text-primary-foreground text-sm font-medium">
-            Update
-          </Text>
-        </ComposerPrimitive.Send>
-      </View>
-    </ComposerPrimitive.Root>
-  </MessagePrimitive.Root>
+const DefaultEditComposerInput: FC = () => (
+  <ComposerPrimitive.Input
+    className="aui-edit-composer-input text-foreground web:resize-none web:outline-none min-h-14 px-4 pt-3 pb-1 text-base"
+    multiline
+    autoFocus
+  />
 );
+
+const EditComposer: FC = () => {
+  const { ComposerInput = DefaultEditComposerInput } = useContext(
+    ThreadComponentsContext,
+  );
+
+  return (
+    <MessagePrimitive.Root className="aui-edit-composer-wrapper px-2">
+      <ComposerPrimitive.Root className="aui-edit-composer-root border-border/60 dark:border-muted-foreground/15 bg-card ms-auto w-full max-w-[85%] rounded-3xl border">
+        <ComposerInput />
+        <View className="aui-edit-composer-footer mx-2.5 mb-2.5 flex-row items-center gap-1.5 self-end">
+          <ComposerPrimitive.Cancel className="active:bg-accent h-8 justify-center rounded-full px-3.5">
+            <Text className="text-foreground text-sm font-medium">Cancel</Text>
+          </ComposerPrimitive.Cancel>
+          <ComposerPrimitive.Send className="bg-primary active:bg-primary/90 h-8 justify-center rounded-full px-3.5">
+            <Text className="text-primary-foreground text-sm font-medium">
+              Update
+            </Text>
+          </ComposerPrimitive.Send>
+        </View>
+      </ComposerPrimitive.Root>
+    </MessagePrimitive.Root>
+  );
+};
 
 const BranchPicker: FC<ViewProps> = ({ className, ...rest }) => {
   const branchCount = useAuiState((s) => s.message.branchCount);
