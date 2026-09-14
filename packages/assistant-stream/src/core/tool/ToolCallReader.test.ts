@@ -1,4 +1,5 @@
-import { describe, expect, it, vi } from "vitest";
+import { beforeEach, describe, expect, it, vi } from "vitest";
+import { IncrementalJsonScanner } from "streamfold";
 import { ToolCallReaderImpl } from "./ToolCallReader";
 
 const parsePartialJsonObjectCalls = vi.hoisted(() => vi.fn());
@@ -37,6 +38,10 @@ const collect = async <T>(stream: AsyncIterable<T>) => {
 };
 
 describe("ToolCallArgsReader parsing", () => {
+  const pushes = vi.spyOn(IncrementalJsonScanner.prototype, "push");
+  beforeEach(() => {
+    pushes.mockClear();
+  });
   it("does not parse streamed arguments without an active reader", async () => {
     parsePartialJsonObjectCalls.mockClear();
     const reader = createReader();
@@ -47,6 +52,7 @@ describe("ToolCallArgsReader parsing", () => {
     await reader.finishArgsText();
 
     expect(parsePartialJsonObjectCalls).not.toHaveBeenCalled();
+    expect(pushes).not.toHaveBeenCalled();
   });
 
   it("parses accumulated arguments when a reader starts", async () => {
@@ -57,7 +63,8 @@ describe("ToolCallArgsReader parsing", () => {
     expect(parsePartialJsonObjectCalls).not.toHaveBeenCalled();
 
     const stream = reader.args.streamText("required");
-    expect(parsePartialJsonObjectCalls).toHaveBeenCalledOnce();
+    expect(parsePartialJsonObjectCalls).not.toHaveBeenCalled();
+    expect(pushes).toHaveBeenCalledExactlyOnceWith('{"required":"hel');
 
     await reader.appendArgsTextDelta('lo"}');
     await reader.finishArgsText();
@@ -65,6 +72,7 @@ describe("ToolCallArgsReader parsing", () => {
     let value = "";
     for await (const delta of stream) value += delta;
     expect(value).toBe("hello");
+    expect(pushes).toHaveBeenLastCalledWith('lo"}');
   });
 
   it("stops parsing after the last reader settles", async () => {
@@ -74,11 +82,13 @@ describe("ToolCallArgsReader parsing", () => {
 
     await reader.appendArgsTextDelta('{"required":"hello",');
     expect(await required).toBe("hello");
-    expect(parsePartialJsonObjectCalls).toHaveBeenCalledTimes(2);
+    expect(parsePartialJsonObjectCalls).toHaveBeenCalledOnce();
+    expect(pushes).toHaveBeenCalledOnce();
 
     await reader.appendArgsTextDelta('"optional":"later"}');
     await reader.finishArgsText();
-    expect(parsePartialJsonObjectCalls).toHaveBeenCalledTimes(2);
+    expect(parsePartialJsonObjectCalls).toHaveBeenCalledOnce();
+    expect(pushes).toHaveBeenCalledOnce();
   });
 
   it("parses completed arguments for a late reader", async () => {
@@ -99,13 +109,15 @@ describe("ToolCallArgsReader parsing", () => {
 
     await reader.appendArgsTextDelta('{"required":"hel');
     const streamReader = reader.args.streamText("required").getReader();
-    expect(parsePartialJsonObjectCalls).toHaveBeenCalledOnce();
+    expect(parsePartialJsonObjectCalls).not.toHaveBeenCalled();
+    expect(pushes).toHaveBeenCalledOnce();
 
     await streamReader.cancel();
     parsePartialJsonObjectCalls.mockClear();
     await reader.appendArgsTextDelta('lo"}');
     await reader.finishArgsText();
     expect(parsePartialJsonObjectCalls).not.toHaveBeenCalled();
+    expect(pushes).toHaveBeenCalledOnce();
   });
 
   it("does not emit stale values for an unparseable delta", async () => {

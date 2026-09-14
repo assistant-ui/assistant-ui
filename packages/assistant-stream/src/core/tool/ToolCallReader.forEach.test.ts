@@ -3,19 +3,14 @@ import { ToolCallReaderImpl } from "./ToolCallReader";
 
 const arrayLengthReads = vi.hoisted(() => vi.fn());
 
-vi.mock(
-  "../../utils/json/parse-partial-json-object",
-  async (importOriginal) => {
-    const original =
-      await importOriginal<
-        typeof import("../../utils/json/parse-partial-json-object")
-      >();
-    return {
-      ...original,
-      parsePartialJsonObject: (
-        ...args: Parameters<typeof original.parsePartialJsonObject>
-      ) => {
-        const parsed = original.parsePartialJsonObject(...args);
+vi.mock("./ToolCallArgsParser", async (importOriginal) => {
+  const original =
+    await importOriginal<typeof import("./ToolCallArgsParser")>();
+  return {
+    ...original,
+    ToolCallArgsParser: class extends original.ToolCallArgsParser {
+      override read(text: string) {
+        const parsed = super.read(text);
         if (parsed && Array.isArray(parsed.items)) {
           return {
             ...parsed,
@@ -28,10 +23,10 @@ vi.mock(
           };
         }
         return parsed;
-      },
-    };
-  },
-);
+      }
+    },
+  };
+});
 
 const collect = async <T>(stream: AsyncIterable<T>) => {
   const values: T[] = [];
