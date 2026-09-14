@@ -176,13 +176,15 @@ const handleToolCallArgsTextFinish = (
       return part;
     }
 
-    // TODO this should never be hit; this happens if args-text-finish is emitted after result
-    if (part.state !== "partial-call") return { ...part };
-    // throw new Error("Last is not a partial call");
+    if (part.state !== "partial-call") return part;
 
     return {
       ...part,
       state: "call",
+      status:
+        part.status.type === "running"
+          ? { type: "running", isArgsComplete: true }
+          : part.status,
     };
   });
 };
