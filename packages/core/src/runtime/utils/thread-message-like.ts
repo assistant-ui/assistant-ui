@@ -146,11 +146,6 @@ export const fromThreadMessageLike = (
   if (role !== "assistant" && metadata?.steps)
     throw new Error("metadata.steps is only supported for assistant messages");
 
-  if (role === "system" && metadata?.modality)
-    throw new Error(
-      "metadata.modality is only supported for user and assistant messages",
-    );
-
   switch (role) {
     case "assistant":
       return {

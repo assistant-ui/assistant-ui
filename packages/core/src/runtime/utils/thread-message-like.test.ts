@@ -36,19 +36,17 @@ describe("fromThreadMessageLike", () => {
     expect(message.metadata).not.toHaveProperty("modality");
   });
 
-  it("rejects modality on system messages", () => {
-    expect(() =>
-      fromThreadMessageLike(
-        {
-          role: "system",
-          content: "Instructions",
-          metadata: { modality: "voice" },
-        },
-        "system-id",
-        { type: "complete", reason: "unknown" },
-      ),
-    ).toThrow(
-      "metadata.modality is only supported for user and assistant messages",
+  it("ignores modality on system messages", () => {
+    const message = fromThreadMessageLike(
+      {
+        role: "system",
+        content: "Instructions",
+        metadata: { modality: "voice" },
+      },
+      "system-id",
+      { type: "complete", reason: "unknown" },
     );
+
+    expect(message.metadata).not.toHaveProperty("modality");
   });
 });
