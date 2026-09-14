@@ -5,8 +5,8 @@ const REPO = "assistant-ui/skills";
 const BRANCH = "main";
 const SKILLS_DIR = "assistant-ui/skills";
 const API_BASE = `https://api.github.com/repos/${REPO}`;
-const rawSkillUrl = (commit: string, name: string, file: string) =>
-  `https://raw.githubusercontent.com/${REPO}/${commit}/${SKILLS_DIR}/${name}/${file}`;
+const rawSkillUrl = (commit: string, name: string) =>
+  `https://raw.githubusercontent.com/${REPO}/${commit}/${SKILLS_DIR}/${name}/SKILL.md`;
 const OUTPUT_PATH = path.join(
   process.cwd(),
   "lib",
@@ -76,13 +76,14 @@ function parseFrontmatter(markdown: string) {
   return { fields, body: markdown.slice(match[0].length).trim() };
 }
 
-// Skills link to their sibling reference files relatively; served out of
-// the docs site those paths resolve nowhere, so they are pointed back at the
-// source repo.
-function absolutizeReferenceLinks(body: string, name: string, commit: string) {
-  return body.replaceAll(
-    /\]\(\.\/([^)\s]+)\)/g,
-    (_, target: string) => `](${rawSkillUrl(commit, name, target)})`,
+// Skills link to their reference files and to sibling skills relatively;
+// served out of the docs site those paths resolve nowhere, so they are
+// pointed back at the source repo.
+function absolutizeRelativeLinks(text: string, name: string, commit: string) {
+  const base = rawSkillUrl(commit, name);
+  return text.replaceAll(
+    /\]\((\.\.?\/[^)\s]+)\)/g,
+    (_, target: string) => `](${new URL(target, base).href})`,
   );
 }
 
@@ -90,7 +91,7 @@ async function fetchSkill(
   name: string,
   commit: string,
 ): Promise<GeneratedSkill> {
-  const markdown = await fetchText(rawSkillUrl(commit, name, "SKILL.md"));
+  const markdown = await fetchText(rawSkillUrl(commit, name));
   const { fields, body } = parseFrontmatter(markdown);
   if (fields.name !== name) {
     throw new Error(`${name}/SKILL.md declares name ${fields.name ?? "none"}`);
@@ -100,8 +101,8 @@ async function fetchSkill(
   }
   return {
     name,
-    description: fields.description,
-    content: absolutizeReferenceLinks(body, name, commit),
+    description: absolutizeRelativeLinks(fields.description, name, commit),
+    content: absolutizeRelativeLinks(body, name, commit),
   };
 }
 
