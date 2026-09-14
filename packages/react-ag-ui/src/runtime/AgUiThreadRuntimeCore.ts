@@ -331,10 +331,20 @@ export class AgUiThreadRuntimeCore {
 
   private maybeAutoCancelPendingToolCalls(): void {
     if (this.autoCancelPendingToolCalls === false) return;
-    const pending = this.getPendingToolCalls();
-    if (!pending) return;
-    this.cancelUnresolvedToolCalls(pending.messageId);
-    this.maybeCompleteAfterToolResults(pending.messageId);
+    this.cancelAllPendingToolCalls();
+  }
+
+  // A multi-message run can leave unresolved calls on several assistant
+  // messages, so every pending owner is cancelled, not just the newest.
+  private cancelAllPendingToolCalls(): void {
+    for (const message of this.getMessages()) {
+      if (message.role !== "assistant") continue;
+      const { status } = message as ThreadAssistantMessage;
+      if (status?.type !== "requires-action" || status.reason !== "tool-calls")
+        continue;
+      this.cancelUnresolvedToolCalls(message.id);
+      this.maybeCompleteAfterToolResults(message.id);
+    }
   }
 
   private appendEntry(message: AppendMessage): string {
@@ -689,8 +699,7 @@ export class AgUiThreadRuntimeCore {
         if (this.isRunningFlag) {
           throw new Error("[agui] steerAway: a run is already in progress");
         }
-        this.cancelUnresolvedToolCalls(pendingTools.messageId);
-        this.maybeCompleteAfterToolResults(pendingTools.messageId);
+        this.cancelAllPendingToolCalls();
         const normalized = this.toAppendMessage(message);
         const threadMessageId = this.appendEntry(normalized);
         await this.startRun(threadMessageId, normalized.runConfig);
@@ -929,6 +938,7 @@ export class AgUiThreadRuntimeCore {
   // run is still draining) or after it.
   private maybeResumeAfterToolResults(messageId: string): void {
     if (!this.maybeCompleteAfterToolResults(messageId)) return;
+    if (!this.canStartToolResumeRun()) return;
 
     const owner = this.abortController;
     if (owner) {
@@ -938,6 +948,15 @@ export class AgUiThreadRuntimeCore {
       return;
     }
     this.startResumeRun(this.resumeAnchorFor(messageId));
+  }
+
+  // An open interrupt gate is answered through the resume protocol, and a
+  // continuation started while another assistant message still owns
+  // unresolved calls would send the agent an incomplete transcript. The
+  // blocked continuation is not lost: resolving the gate or the remaining
+  // owner starts its own resume run over the full transcript.
+  private canStartToolResumeRun(): boolean {
+    return !this.getPendingInterrupts() && !this.getPendingToolCalls();
   }
 
   // A run that streams several assistant messages leaves its tool calls on an
@@ -1312,7 +1331,7 @@ export class AgUiThreadRuntimeCore {
     if (this.pendingResume?.owner === abortController) {
       const { messageId } = this.pendingResume;
       this.pendingResume = null;
-      if (!abortSignal.aborted) {
+      if (!abortSignal.aborted && this.canStartToolResumeRun()) {
         this.startResumeRun(this.resumeAnchorFor(messageId));
       }
     }
@@ -1970,6 +1989,11 @@ export class AgUiThreadRuntimeCore {
     const message = this.session.tryGetMessage(messageId)?.message;
     if (!message || message.role !== "assistant") return;
     if (!this.isPersistableStatus(message.status)) return;
+    // A multi-message run persists this message with the pending tool-call
+    // owner as its parent; writing the child while the parent is unwritable
+    // would disconnect the stored graph on reload. The mapping stays, and the
+    // parent's own persist flushes the child.
+    if (this.hasUnpersistablePendingParent(parentId)) return;
     const wasPersisted = this.persistedHistoryIds.has(messageId);
     const update = history.update;
     const shouldUpdate =
@@ -1993,6 +2017,7 @@ export class AgUiThreadRuntimeCore {
           this.logger.error?.("[agui] failed to update history entry", error);
         },
       );
+      this.flushDeferredChildHistory(messageId);
       return;
     }
 
@@ -2014,6 +2039,28 @@ export class AgUiThreadRuntimeCore {
         this.logger.error?.("[agui] failed to append history entry", error);
       },
     );
+    this.flushDeferredChildHistory(messageId);
+  }
+
+  private hasUnpersistablePendingParent(parentId: string | null): boolean {
+    if (parentId === null) return false;
+    if (this.persistedHistoryIds.has(parentId)) return false;
+    if (this.historyWrites.has(parentId)) return false;
+    const parent = this.session.tryGetMessage(parentId)?.message;
+    if (!parent || parent.role !== "assistant") return false;
+    return !this.isPersistableStatus((parent as ThreadAssistantMessage).status);
+  }
+
+  private flushDeferredChildHistory(parentId: string): void {
+    for (const [childId, parent] of this.assistantHistoryParents) {
+      if (parent !== parentId) continue;
+      const child = this.session.tryGetMessage(childId)?.message;
+      if (!child || child.role !== "assistant") continue;
+      if (!this.isPersistableStatus((child as ThreadAssistantMessage).status)) {
+        continue;
+      }
+      this.persistAssistantHistory(childId);
+    }
   }
 
   private appendHistoryItem(
