@@ -94,6 +94,7 @@ export type {
   AttachmentState,
   ThreadListItemState,
   QueueItemState,
+  TaskState,
 } from "@assistant-ui/core/store";
 
 // Store hooks and components
