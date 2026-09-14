@@ -1067,6 +1067,34 @@ describe("BaseThreadRuntimeCore voice volume subscriptions", () => {
 });
 
 describe("BaseThreadRuntimeCore voice transcripts", () => {
+  it("marks user and assistant transcripts as voice messages", () => {
+    const voiceAdapter = createVoiceAdapter();
+    const runtime = new TestRuntime(voiceAdapter);
+    runtime.connectVoice();
+
+    try {
+      voiceAdapter.emitTranscript({
+        role: "user",
+        text: "Hello",
+        isFinal: true,
+      });
+      voiceAdapter.emitTranscript({ role: "assistant", text: "Hi" });
+
+      expect(runtime.messages[0]?.metadata.modality).toBe("voice");
+      expect(runtime.messages[1]?.metadata.modality).toBe("voice");
+
+      voiceAdapter.emitTranscript({
+        role: "assistant",
+        text: "Hello there",
+        isFinal: true,
+      });
+
+      expect(runtime.messages[1]?.metadata.modality).toBe("voice");
+    } finally {
+      runtime.disconnectVoice();
+    }
+  });
+
   it("completes a final-only reply before the next streamed reply", () => {
     const voiceAdapter = createVoiceAdapter();
     const runtime = new TestRuntime(voiceAdapter);

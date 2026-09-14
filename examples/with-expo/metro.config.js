@@ -1,43 +1,53 @@
 const { getDefaultConfig } = require("expo/metro-config");
 const { withAui } = require("@assistant-ui/metro");
+const { withUniwindConfig } = require("uniwind/metro");
+const fs = require("node:fs");
 const path = require("node:path");
 
 const projectRoot = __dirname;
 const monorepoRoot = path.resolve(projectRoot, "../..");
-
 const config = getDefaultConfig(projectRoot);
 
-// Watch all files within the monorepo
-config.watchFolders = [monorepoRoot];
+if (fs.existsSync(path.join(monorepoRoot, "pnpm-workspace.yaml"))) {
+  const kitRoot = path.join(monorepoRoot, "packages", "ui");
 
-// Enable symlinks support for pnpm
-config.resolver.unstable_enableSymlinks = true;
+  config.watchFolders = [monorepoRoot];
+  config.resolver.unstable_enableSymlinks = true;
+  config.resolver.nodeModulesPaths = [
+    path.resolve(projectRoot, "node_modules"),
+    path.resolve(monorepoRoot, "node_modules"),
+  ];
 
-// Let Metro know where to resolve packages
-config.resolver.nodeModulesPaths = [
-  path.resolve(projectRoot, "node_modules"),
-  path.resolve(monorepoRoot, "node_modules"),
-];
-
-// Force resolving shared dependencies from the app's node_modules
-config.resolver.resolveRequest = (context, moduleName, platform) => {
-  if (
+  // Workspace packages carry their own react-native, and the kit sources under
+  // packages/ui import react-native, uniwind and the Expo modules from there,
+  // so those imports resolve from the app root to keep a single copy of each.
+  const isBareSpecifier = (moduleName) =>
+    !moduleName.startsWith(".") && !path.isAbsolute(moduleName);
+  const resolvesFromAppRoot = (context, moduleName) =>
     moduleName === "react" ||
     moduleName === "react-native" ||
     moduleName.startsWith("react/") ||
-    moduleName.startsWith("react-native/")
-  ) {
-    return context.resolveRequest(
-      {
-        ...context,
-        originModulePath: path.resolve(projectRoot, "package.json"),
-      },
-      moduleName,
-      platform,
-    );
-  }
+    moduleName.startsWith("react-native/") ||
+    (isBareSpecifier(moduleName) &&
+      context.originModulePath.startsWith(kitRoot));
 
-  return context.resolveRequest(context, moduleName, platform);
-};
+  config.resolver.resolveRequest = (context, moduleName, platform) => {
+    if (resolvesFromAppRoot(context, moduleName)) {
+      return context.resolveRequest(
+        {
+          ...context,
+          originModulePath: path.resolve(projectRoot, "package.json"),
+        },
+        moduleName,
+        platform,
+      );
+    }
 
-module.exports = withAui(config);
+    return context.resolveRequest(context, moduleName, platform);
+  };
+}
+
+module.exports = withUniwindConfig(withAui(config), {
+  cssEntryFile: "./global.css",
+  dtsFile: "./uniwind-types.d.ts",
+});

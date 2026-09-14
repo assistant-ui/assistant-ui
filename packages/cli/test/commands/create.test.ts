@@ -306,10 +306,7 @@ describe("PROJECT_METADATA", () => {
   it("examples have correct hasLocalComponents values", () => {
     const examples = PROJECT_METADATA.filter((m) => m.category === "example");
     const withLocalComponents = examples.filter((e) => e.hasLocalComponents);
-    expect(withLocalComponents.map((e) => e.name)).toEqual([
-      "with-expo",
-      "with-react-ink",
-    ]);
+    expect(withLocalComponents.map((e) => e.name)).toEqual(["with-react-ink"]);
   });
 
   it("every entry has a path", () => {
