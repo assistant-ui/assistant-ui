@@ -24,7 +24,10 @@
  */
 
 import { ExportedMessageRepository } from "@assistant-ui/react";
-import type { ThreadMessageLike } from "@assistant-ui/react";
+import type {
+  ThreadMessageLike,
+  ToolCallMessagePart,
+} from "@assistant-ui/react";
 import type { PiThreadState } from "./threadState";
 import type {
   PiAgentMessage,
@@ -41,7 +44,8 @@ import type {
 } from "../types";
 
 type ContentPart = Exclude<ThreadMessageLike["content"], string>[number];
-type ToolCallPart = Extract<ContentPart, { type: "tool-call" }>;
+type ToolCallPart = Extract<ContentPart, { type: "tool-call" }> &
+  Pick<ToolCallMessagePart, "modelContent">;
 type Step = NonNullable<
   NonNullable<ThreadMessageLike["metadata"]>["steps"]
 >[number];
@@ -62,19 +66,51 @@ const toDataUrl = (data: string, mimeType: string) =>
 const createdAtOf = (message: { timestamp?: number }): Date =>
   new Date(typeof message.timestamp === "number" ? message.timestamp : 0);
 
-/** Preserve non-text tool output while keeping text-only results as strings. */
-const extractToolResult = (value: unknown): unknown => {
+const projectToolResult = (
+  content: readonly PiToolResultContent[] | undefined,
+): Pick<ToolCallPart, "result" | "modelContent"> => {
+  if (!content) return {};
+  const result = content
+    .filter(
+      (part): part is Extract<PiToolResultContent, { type: "text" }> =>
+        part.type === "text",
+    )
+    .map((part) => part.text)
+    .join("");
+  const modelContent = content.map((part) =>
+    part.type === "text"
+      ? { type: "text" as const, text: part.text }
+      : {
+          type: "file" as const,
+          data: part.data,
+          mediaType: part.mimeType,
+        },
+  );
+
+  return { result, modelContent };
+};
+
+const readToolResultContent = (
+  value: unknown,
+): readonly PiToolResultContent[] | undefined => {
   if (value == null) return undefined;
   const content = (value as { content?: unknown }).content;
   if (!Array.isArray(content)) return undefined;
-  const textOnly = content.every(
-    (part): part is { type: "text"; text: string } =>
-      typeof part === "object" &&
-      part !== null &&
-      (part as { type?: unknown }).type === "text" &&
-      typeof (part as { text?: unknown }).text === "string",
-  );
-  return textOnly ? content.map((part) => part.text).join("") : content;
+  if (
+    !content.every(
+      (part): part is PiToolResultContent =>
+        typeof part === "object" &&
+        part !== null &&
+        (((part as { type?: unknown }).type === "text" &&
+          typeof (part as { text?: unknown }).text === "string") ||
+          ((part as { type?: unknown }).type === "image" &&
+            typeof (part as { data?: unknown }).data === "string" &&
+            typeof (part as { mimeType?: unknown }).mimeType === "string")),
+    )
+  ) {
+    return undefined;
+  }
+  return content;
 };
 
 const projectUserContent = (
@@ -105,13 +141,16 @@ const dataPart = (
 const buildToolResultMap = (messages: readonly PiAgentMessage[]) => {
   const map = new Map<
     string,
-    { result: unknown; isError: boolean; details: unknown }
+    Pick<ToolCallPart, "result" | "modelContent"> & {
+      isError: boolean;
+      details: unknown;
+    }
   >();
   for (const message of messages) {
     if (message.role !== "toolResult") continue;
     const m = message as PiToolResultMessage;
     map.set(m.toolCallId, {
-      result: extractToolResult({ content: m.content }),
+      ...projectToolResult(m.content),
       isError: m.isError,
       details: m.details,
     });
@@ -156,9 +195,8 @@ const projectAssistantInto = (
     } else if (part.type === "toolCall") {
       const paired = toolResults.get(part.id);
       const live = input.toolExecutions[part.id];
-      const result =
-        paired?.result ??
-        (live ? extractToolResult(live.partialResult) : undefined);
+      const output =
+        paired ?? projectToolResult(readToolResultContent(live?.partialResult));
       const isError = paired?.isError ?? live?.status === "error";
 
       const hostUi = input.hostUiRequests.find((r) => r.toolCallId === part.id);
@@ -172,7 +210,10 @@ const projectAssistantInto = (
         >,
         argsText: JSON.stringify(part.arguments ?? {}),
         parentId,
-        ...(result !== undefined ? { result } : {}),
+        ...(output.result !== undefined ? { result: output.result } : {}),
+        ...(output.modelContent !== undefined
+          ? { modelContent: output.modelContent }
+          : {}),
         ...(isError ? { isError: true } : {}),
         ...(hostUi ? hostUiToToolField(hostUi) : {}),
       };

@@ -181,7 +181,8 @@ describe("messageProjection", () => {
     expect(contentParts(out[0]!)[0]).toMatchObject({
       type: "tool-call",
       toolCallId: "tc1",
-      result: content,
+      result: "",
+      modelContent: [{ type: "file", data: "AAAA", mediaType: "image/png" }],
     });
   });
 
@@ -232,6 +233,29 @@ describe("messageProjection", () => {
     expect(contentParts(out[0]!)[0]).toMatchObject({
       toolCallId: "tc1",
       result: "partial...",
+    });
+  });
+
+  it("preserves live image tool result content", () => {
+    const out = projectPiThreadMessages(
+      input([assistant([toolCall("tc1", "screenshot", {})])], {
+        toolExecutions: {
+          tc1: {
+            toolCallId: "tc1",
+            status: "running",
+            partialResult: {
+              content: [{ type: "image", data: "AAAA", mimeType: "image/png" }],
+            },
+          },
+        },
+        runStatus: "running",
+      }),
+    );
+
+    expect(contentParts(out[0]!)[0]).toMatchObject({
+      toolCallId: "tc1",
+      result: "",
+      modelContent: [{ type: "file", data: "AAAA", mediaType: "image/png" }],
     });
   });
 
