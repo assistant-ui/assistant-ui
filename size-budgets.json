@@ -94,7 +94,7 @@
   "@assistant-ui/react-google-adk": {
     ".": {
       "min": 35734,
-      "gzip": 10755
+      "gzip": 11035
     },
     "./server": {
       "min": 6139,
