@@ -1,5 +1,6 @@
 import { describe, it, expect } from "vitest";
 import { AdkEventAccumulator } from "./AdkEventAccumulator";
+import { parseAdkEventValue } from "./parseAdkEvent";
 import type { AdkEvent, AdkMessage, AdkMessageContentPart } from "./types";
 
 const makeEvent = (overrides: Partial<AdkEvent> = {}): AdkEvent => ({
@@ -1044,6 +1045,153 @@ describe("AdkEventAccumulator - author/agent tracking", () => {
 });
 
 describe("AdkEventAccumulator - snake_case normalization", () => {
+  describe.each(["user", "agent"])("%s media", (author) => {
+    it.each([
+      {
+        part: { inline_data: { mime_type: "image/png", data: "aGVsbG8=" } },
+        expected: { type: "image", mimeType: "image/png", data: "aGVsbG8=" },
+      },
+      {
+        part: {
+          inline_data: { mime_type: "application/pdf", data: "aGVsbG8=" },
+        },
+        expected: {
+          type: "file",
+          mimeType: "application/pdf",
+          data: "aGVsbG8=",
+        },
+      },
+      {
+        part: {
+          file_data: {
+            mime_type: "image/png",
+            file_uri: "https://example.test/image.png",
+          },
+        },
+        expected: { type: "image_url", url: "https://example.test/image.png" },
+      },
+      {
+        part: {
+          file_data: {
+            mime_type: "application/pdf",
+            file_uri: "https://example.test/report.pdf",
+          },
+        },
+        expected: {
+          type: "file_url",
+          mimeType: "application/pdf",
+          url: "https://example.test/report.pdf",
+        },
+      },
+      {
+        part: { inlineData: { mime_type: "image/png", data: "aGVsbG8=" } },
+        expected: { type: "image", mimeType: "image/png", data: "aGVsbG8=" },
+      },
+      {
+        part: {
+          fileData: {
+            mime_type: "application/pdf",
+            file_uri: "https://example.test/report.pdf",
+          },
+        },
+        expected: {
+          type: "file_url",
+          mimeType: "application/pdf",
+          url: "https://example.test/report.pdf",
+        },
+      },
+      {
+        part: { inline_data: { mimeType: "image/png", data: "aGVsbG8=" } },
+        expected: { type: "image", mimeType: "image/png", data: "aGVsbG8=" },
+      },
+      {
+        part: {
+          file_data: {
+            mimeType: "application/pdf",
+            fileUri: "https://example.test/report.pdf",
+          },
+        },
+        expected: {
+          type: "file_url",
+          mimeType: "application/pdf",
+          url: "https://example.test/report.pdf",
+        },
+      },
+    ])(
+      "normalizes media aliases without mutating the event: $part",
+      ({ part, expected }) => {
+        const input = { id: "media", author, content: { parts: [part] } };
+        const original = structuredClone(input);
+        const event = parseAdkEventValue(input, "test");
+        const messages = new AdkEventAccumulator().processEvent(event);
+        expect(messages).toMatchObject([
+          { type: author === "user" ? "human" : "ai", content: [expected] },
+        ]);
+        expect(input).toEqual(original);
+      },
+    );
+  });
+
+  it("prefers camelCase media containers and nested values when both exist", () => {
+    const event = parseAdkEventValue(
+      {
+        id: "media",
+        author: "agent",
+        content: {
+          parts: [
+            {
+              inlineData: {
+                mimeType: "image/png",
+                mime_type: "application/pdf",
+                data: "aGVsbG8=",
+              },
+              inline_data: { mime_type: "text/plain", data: "wrong" },
+            },
+            {
+              fileData: {
+                mimeType: "application/pdf",
+                mime_type: "image/png",
+                fileUri: "https://example.test/right.pdf",
+                file_uri: "https://example.test/wrong.png",
+              },
+              file_data: { file_uri: "https://example.test/other.png" },
+            },
+          ],
+        },
+      },
+      "test",
+    );
+    expect(new AdkEventAccumulator().processEvent(event)).toMatchObject([
+      {
+        content: [
+          { type: "image", mimeType: "image/png", data: "aGVsbG8=" },
+          {
+            type: "file_url",
+            mimeType: "application/pdf",
+            url: "https://example.test/right.pdf",
+          },
+        ],
+      },
+    ]);
+  });
+
+  it("leaves similarly named tool arguments untouched", () => {
+    const args = { inline_data: { mime_type: "custom", file_uri: "opaque" } };
+    const event = parseAdkEventValue(
+      {
+        id: "call",
+        author: "agent",
+        content: {
+          parts: [{ function_call: { name: "test", id: "tc-1", args } }],
+        },
+      },
+      "test",
+    );
+    expect(new AdkEventAccumulator().processEvent(event)).toMatchObject([
+      { tool_calls: [{ args }] },
+    ]);
+  });
+
   it("normalizes function_call to functionCall in parts", () => {
     const acc = new AdkEventAccumulator();
     const msgs = acc.processEvent(

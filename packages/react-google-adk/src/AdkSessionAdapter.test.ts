@@ -294,6 +294,49 @@ describe("createAdkSessionAdapter - fetch", () => {
 // ── load() ──
 
 describe("createAdkSessionAdapter - load", () => {
+  it("restores snake_case image and file parts from session history", async () => {
+    mockFetch.mockResolvedValueOnce(
+      new Response(
+        JSON.stringify({
+          id: "s1",
+          events: [
+            {
+              id: "media",
+              author: "user",
+              content: {
+                parts: [
+                  { inline_data: { mime_type: "image/png", data: "aGVsbG8=" } },
+                  {
+                    file_data: {
+                      mime_type: "application/pdf",
+                      file_uri: "https://example.test/report.pdf",
+                    },
+                  },
+                ],
+              },
+            },
+          ],
+        }),
+        { status: 200 },
+      ),
+    );
+    const { load } = createAdkSessionAdapter(baseOptions);
+    const result = await load("s1");
+    expect(result.messages).toMatchObject([
+      {
+        type: "human",
+        content: [
+          { type: "image", mimeType: "image/png", data: "aGVsbG8=" },
+          {
+            type: "file_url",
+            mimeType: "application/pdf",
+            url: "https://example.test/report.pdf",
+          },
+        ],
+      },
+    ]);
+  });
+
   it("returns the per-turn state the events imply, not just the messages", async () => {
     const session = {
       id: "s1",
