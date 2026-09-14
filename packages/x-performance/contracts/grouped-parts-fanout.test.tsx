@@ -1,7 +1,6 @@
 import { describe, expect, it } from "vitest";
-import { createElement, type ReactNode, useState } from "react";
+import { act, createElement, type ReactNode, useState } from "react";
 import { createRoot } from "react-dom/client";
-import { flushSync } from "react-dom";
 import type { ThreadMessageLike } from "@assistant-ui/core";
 import {
   AssistantRuntimeProvider,
@@ -15,7 +14,7 @@ import { createRenderCounter } from "../src/render-counter";
 
 (
   globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }
-).IS_REACT_ACT_ENVIRONMENT = false;
+).IS_REACT_ACT_ENVIRONMENT = true;
 
 type Counts = {
   readonly running: number;
@@ -100,7 +99,7 @@ const GroupedMessage = () => (
 const COMPONENTS = { Message: GroupedMessage };
 
 describe("grouped parts fan-out", () => {
-  it("keeps grouped tool-call updates bounded across 250 siblings", async () => {
+  it("keeps grouped tool-call updates bounded across 250 siblings", () => {
     counter.reset();
     receivedCounts = undefined;
     let setState!: (updater: (previous: State) => State) => void;
@@ -130,7 +129,7 @@ describe("grouped parts fan-out", () => {
     };
 
     const root = createRoot(document.createElement("div"));
-    flushSync(() => root.render(createElement(App)));
+    act(() => root.render(createElement(App)));
     const mounted = counter.snapshot();
 
     expect(receivedCounts).toEqual({
@@ -140,7 +139,7 @@ describe("grouped parts fan-out", () => {
       requiresAction: 0,
     });
 
-    flushSync(() =>
+    act(() =>
       setState((previous) => ({
         isRunning: false,
         content: previous.content.map((part, index) =>
@@ -148,8 +147,6 @@ describe("grouped parts fan-out", () => {
         ),
       })),
     );
-    // The external store adapter pushes its update in a passive effect after the flush, so the group's counts settle one macrotask later.
-    await new Promise((resolve) => setTimeout(resolve, 0));
     const afterOne = counter.snapshot();
     const firstDelta = Object.fromEntries(
       Object.entries(afterOne).map(([key, value]) => [
@@ -165,13 +162,12 @@ describe("grouped parts fan-out", () => {
       requiresAction: 0,
     });
 
-    flushSync(() =>
+    act(() =>
       setState((previous) => ({
         isRunning: true,
         content: [...previous.content, task("task-251", false)],
       })),
     );
-    await new Promise((resolve) => setTimeout(resolve, 0));
     const afterTwo = counter.snapshot();
     const secondDelta = Object.fromEntries(
       Object.entries(afterTwo).map(([key, value]) => [
@@ -199,6 +195,6 @@ describe("grouped parts fan-out", () => {
       "commits:thread": 1,
     });
 
-    flushSync(() => root.unmount());
+    act(() => root.unmount());
   });
 });
