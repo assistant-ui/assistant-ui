@@ -1969,7 +1969,7 @@ const createNativeElementRegistryItem = (
     ...(entry.usesIcon ? ["https://r.assistant-ui.com/native/icon.json"] : []),
     "https://r.assistant-ui.com/utils.json",
   ],
-  ...(entry.dependencies ? { dependencies: entry.dependencies } : {}),
+  dependencies: [...(entry.dependencies ?? []), "uniwind"],
 });
 
 export const nativeRegistry: RegistryItem[] = [
@@ -2103,6 +2103,7 @@ export const nativeRegistry: RegistryItem[] = [
           "../../packages/ui/src/components/react-native/assistant-ui/elements/surfaces.tsx",
       },
     ],
+    dependencies: ["uniwind"],
     registryDependencies: ["https://r.assistant-ui.com/utils.json"],
   },
   {

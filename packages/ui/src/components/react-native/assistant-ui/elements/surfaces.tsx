@@ -1,6 +1,7 @@
 import { cn } from "@/lib/utils";
 import { type FC, useEffect, useState } from "react";
 import {
+  AccessibilityInfo,
   Animated,
   Platform,
   Text,
@@ -24,11 +25,34 @@ export const monoStyle: TextStyle = {
   }),
 };
 
-export const usePulse = (active: boolean, low = 0.45) => {
-  const [opacity] = useState(() => new Animated.Value(1));
+export const useMotion = () => {
+  const [motion, setMotion] = useState(false);
 
   useEffect(() => {
-    if (!active) {
+    let mounted = true;
+    void AccessibilityInfo.isReduceMotionEnabled().then((reduced) => {
+      if (mounted) setMotion(!reduced);
+    });
+    const subscription = AccessibilityInfo.addEventListener(
+      "reduceMotionChanged",
+      (reduced) => setMotion(!reduced),
+    );
+    return () => {
+      mounted = false;
+      // react-native-web returns nothing when the environment has no matchMedia.
+      subscription?.remove();
+    };
+  }, []);
+
+  return motion;
+};
+
+export const usePulse = (active: boolean, low = 0.45) => {
+  const [opacity] = useState(() => new Animated.Value(1));
+  const motion = useMotion();
+
+  useEffect(() => {
+    if (!active || !motion) {
       opacity.setValue(1);
       return;
     }
@@ -39,17 +63,19 @@ export const usePulse = (active: boolean, low = 0.45) => {
           toValue: low,
           duration: 700,
           useNativeDriver,
+          isInteraction: false,
         }),
         Animated.timing(opacity, {
           toValue: 1,
           duration: 700,
           useNativeDriver,
+          isInteraction: false,
         }),
       ]),
     );
     animation.start();
     return () => animation.stop();
-  }, [active, low, opacity]);
+  }, [active, low, motion, opacity]);
 
   return opacity;
 };

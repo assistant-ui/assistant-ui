@@ -1,33 +1,50 @@
 import { cn } from "@/lib/utils";
 import { type FC, useEffect, useState } from "react";
 import { Animated, Platform, View, type ViewProps } from "react-native";
-import { paper } from "./surfaces";
+import { paper, useMotion } from "./surfaces";
 
 const DOT_DELAYS = [0, 160, 320];
 
-const TypingDot: FC<{ delay: number }> = ({ delay }) => {
-  const [opacity] = useState(() => new Animated.Value(0.3));
+const TypingDot: FC<{ delay: number; animated: boolean }> = ({
+  delay,
+  animated,
+}) => {
+  const [opacity] = useState(() => new Animated.Value(1));
 
   useEffect(() => {
+    if (!animated) {
+      opacity.setValue(1);
+      return;
+    }
     const useNativeDriver = Platform.OS !== "web";
-    const animation = Animated.loop(
-      Animated.sequence([
-        Animated.timing(opacity, {
-          toValue: 1,
-          duration: 400,
-          delay,
-          useNativeDriver,
-        }),
-        Animated.timing(opacity, {
-          toValue: 0.3,
-          duration: 400,
-          useNativeDriver,
-        }),
-      ]),
-    );
+    const animation = Animated.sequence([
+      Animated.timing(opacity, {
+        toValue: 0.3,
+        duration: 0,
+        delay,
+        useNativeDriver,
+        isInteraction: false,
+      }),
+      Animated.loop(
+        Animated.sequence([
+          Animated.timing(opacity, {
+            toValue: 1,
+            duration: 400,
+            useNativeDriver,
+            isInteraction: false,
+          }),
+          Animated.timing(opacity, {
+            toValue: 0.3,
+            duration: 400,
+            useNativeDriver,
+            isInteraction: false,
+          }),
+        ]),
+      ),
+    ]);
     animation.start();
     return () => animation.stop();
-  }, [opacity, delay]);
+  }, [animated, delay, opacity]);
 
   return (
     <Animated.View style={{ opacity }}>
@@ -45,8 +62,9 @@ export const TypingIndicator: FC<TypingIndicatorProps> = ({
   className,
   ...props
 }) => {
+  const motion = useMotion();
   const dots = DOT_DELAYS.map((delay) => (
-    <TypingDot key={delay} delay={delay} />
+    <TypingDot key={delay} delay={delay} animated={motion} />
   ));
 
   if (variant === "bare") {
@@ -58,6 +76,7 @@ export const TypingIndicator: FC<TypingIndicatorProps> = ({
         )}
         accessible
         accessibilityLabel="Assistant is typing"
+        accessibilityLiveRegion="polite"
         {...props}
       >
         {dots}
@@ -78,6 +97,7 @@ export const TypingIndicator: FC<TypingIndicatorProps> = ({
         className="flex-row items-center gap-1"
         accessible
         accessibilityLabel="Assistant is typing"
+        accessibilityLiveRegion="polite"
       >
         {dots}
       </View>

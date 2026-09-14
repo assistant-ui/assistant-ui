@@ -1,7 +1,27 @@
 import { act } from "react";
 import { createRoot, type Root } from "react-dom/client";
-import { afterEach, beforeEach, describe, expect, it } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { TypingIndicator } from "./typing-indicator";
+
+const h = vi.hoisted(() => ({
+  reduceMotion: false,
+  loop: vi.fn(),
+}));
+
+vi.mock("react-native", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("react-native")>();
+  h.loop.mockImplementation(actual.Animated.loop);
+
+  return {
+    ...actual,
+    AccessibilityInfo: {
+      ...actual.AccessibilityInfo,
+      isReduceMotionEnabled: () => Promise.resolve(h.reduceMotion),
+      addEventListener: () => ({ remove: () => {} }),
+    },
+    Animated: { ...actual.Animated, loop: h.loop },
+  };
+});
 
 (globalThis as Record<string, unknown>).IS_REACT_ACT_ENVIRONMENT = true;
 
@@ -10,6 +30,7 @@ describe("TypingIndicator", () => {
   let root: Root;
 
   beforeEach(() => {
+    h.reduceMotion = false;
     container = document.createElement("div");
     document.body.appendChild(container);
     root = createRoot(container);
@@ -30,9 +51,27 @@ describe("TypingIndicator", () => {
     const bubble = container.querySelector('[data-testid="bubble"]');
     expect(bubble).not.toBeNull();
     expect(bubble?.getAttribute("aria-label")).toBeNull();
-    expect(
-      bubble?.querySelector('[aria-label="Assistant is typing"]'),
-    ).not.toBeNull();
+    const status = bubble?.querySelector('[aria-label="Assistant is typing"]');
+    expect(status).not.toBeNull();
+    expect(status?.getAttribute("aria-live")).toBe("polite");
+  });
+
+  it("animates the dots once the motion setting is known", async () => {
+    await act(async () => {
+      root.render(<TypingIndicator />);
+    });
+
+    expect(h.loop).toHaveBeenCalledTimes(3);
+  });
+
+  it("keeps the dots still under reduce motion", async () => {
+    h.reduceMotion = true;
+
+    await act(async () => {
+      root.render(<TypingIndicator />);
+    });
+
+    expect(h.loop).not.toHaveBeenCalled();
   });
 
   it("spreads props onto the dots row in the bare variant", async () => {

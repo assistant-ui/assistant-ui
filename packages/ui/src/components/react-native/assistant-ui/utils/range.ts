@@ -2,10 +2,9 @@
  * Range normalization for the numeric props the elements take.
  *
  * Elements are driven by a caller's state, so a prop can arrive negative, past
- * the end of its collection, or NaN. Left raw, those reach the DOM: a negative
- * percentage is an invalid CSS width that the browser drops, leaving a bar at
- * its natural full width, and a negative slice length counts from the end of
- * the array instead of returning nothing.
+ * the end of its collection, or NaN. Left raw, a negative slice length counts
+ * from the end of the array instead of returning nothing, and an index past
+ * the end reads a hole.
  */
 
 /**

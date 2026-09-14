@@ -52,6 +52,7 @@ export const ToolTimeline: FC<ToolTimelineProps> = ({
         accessibilityRole="button"
         aria-expanded={open}
         accessibilityLabel={streaming ? activeLabel : restingLabel}
+        hitSlop={{ top: 10, bottom: 10 }}
         className="flex-row items-center gap-1.5 rounded-md py-1"
       >
         <View style={{ transform: [{ rotate: open ? "90deg" : "0deg" }] }}>
@@ -73,7 +74,10 @@ export const ToolTimeline: FC<ToolTimelineProps> = ({
             const active = streaming && index === shown.length - 1;
 
             return (
-              <View key={step.chip} className="flex-row items-center gap-2">
+              <View
+                key={`${index}-${step.chip}`}
+                className="flex-row items-center gap-2"
+              >
                 <Icon as={step.icon} className="text-foreground/35 size-3.5" />
                 <ShimmerLabel
                   active={active}

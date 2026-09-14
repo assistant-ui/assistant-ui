@@ -26,10 +26,9 @@ export const StoppedRun: FC<StoppedRunProps> = ({
   >
     <Text className="text-foreground/80 text-[13.5px] leading-relaxed">
       {words.join(" ")}
-      <View
-        accessibilityElementsHidden
-        className="bg-foreground/20 ms-1 h-3.5 w-0.5 rounded-full"
-      />
+      <Text aria-hidden className="text-foreground/20">
+        {" ▏"}
+      </Text>
     </Text>
 
     <View className="flex-row items-center gap-2">

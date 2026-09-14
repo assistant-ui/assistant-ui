@@ -18,7 +18,7 @@ export const IconButton: FC<IconButtonProps> = ({
   <Pressable
     accessibilityRole="button"
     accessibilityLabel={label}
-    hitSlop={4}
+    hitSlop={10}
     className={cn(iconButtonClassName, className)}
     {...props}
   />

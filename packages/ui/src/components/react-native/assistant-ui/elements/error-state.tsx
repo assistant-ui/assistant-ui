@@ -35,6 +35,7 @@ export const ErrorState: FC<ErrorStateProps> = ({
         )}
         accessible
         accessibilityLabel="Retrying"
+        accessibilityLiveRegion="polite"
         {...props}
       >
         <ActivityIndicator size="small" />
