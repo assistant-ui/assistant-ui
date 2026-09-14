@@ -137,6 +137,7 @@ const approvalPart = () =>
 
 afterEach(() => {
   mocks.adapters.length = 0;
+  mocks.sendMessage.mockClear();
   mocks.messages = [];
   mocks.messageRunConfig = undefined;
   mocks.applySnapshot.mockReset();
@@ -282,6 +283,7 @@ describe("useAdkRuntime tool approvals", () => {
 
   it("exposes, answers, and settles the default approval seam across a rerender", async () => {
     const runConfig = { custom: { model: "model-a" } };
+    const nextRunConfig = { custom: { model: "model-b" } };
     // Retained across the rerender: core caches converted messages by input
     // object, so only a rebuilt converter can surface the settled decision.
     const confirmationRequest = makeConfirmationRequest();
@@ -310,6 +312,9 @@ describe("useAdkRuntime tool approvals", () => {
     });
 
     await act(async () => {
+      await latestAdapter().onNew!(
+        makeUserMessage("start another run", nextRunConfig),
+      );
       await latestAdapter().onRespondToToolApproval!({
         approvalId: CONFIRMATION_CALL,
         approved: false,
