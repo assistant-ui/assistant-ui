@@ -101,18 +101,30 @@ Use these instructions when reading assistant-ui documentation or implementing a
 - MCP: ${absoluteUrl("/mcp")}
 `;
 
+const SKILL_DESCRIPTION_LIMIT = 1024;
+
+// The upstream skills describe themselves at length; the Agent Skills spec
+// caps a description at 1024 characters, so both the served frontmatter and
+// the index entry carry the leading words that fit.
+export function agentSkillDescription({ description }: AgentSkill) {
+  if (description.length <= SKILL_DESCRIPTION_LIMIT) return description;
+  const head = description.slice(0, SKILL_DESCRIPTION_LIMIT);
+  const cut = head.lastIndexOf(" ");
+  return cut === -1 ? head : head.slice(0, cut);
+}
+
 export function agentSkillDocument(skill: AgentSkill) {
   return `---
 name: ${skill.name}
-description: ${JSON.stringify(skill.description)}
+description: ${JSON.stringify(agentSkillDescription(skill))}
 ---
 
 ${skill.content}
 `;
 }
 
-export function buildAgentSkillsIndex() {
-  return {
+export function buildAgentSkillsIndex(skills: AgentSkill[] = getSkills()) {
+  const index = {
     $schema: AGENT_SKILLS_SCHEMA,
     skills: [
       {
@@ -129,15 +141,21 @@ export function buildAgentSkillsIndex() {
         url: absoluteUrl(AGENT_DISCOVERY_ROUTES.design),
         digest: `sha256:${sha256(DESIGN_DOCUMENT)}`,
       },
-      ...getSkills().map((skill) => ({
+      ...skills.map((skill) => ({
         name: skill.name,
         type: "skill-md",
-        description: skill.description,
+        description: agentSkillDescription(skill),
         url: absoluteUrl(agentSkillPath(skill.name)),
         digest: `sha256:${sha256(agentSkillDocument(skill))}`,
       })),
     ],
   };
+  const names = index.skills.map((skill) => skill.name);
+  const duplicate = names.find((name, i) => names.indexOf(name) !== i);
+  if (duplicate) {
+    throw new Error(`agent skill ${duplicate} collides with a site skill`);
+  }
+  return index;
 }
 
 type ApiCatalogTarget = {

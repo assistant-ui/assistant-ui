@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import {
   AGENTS_DOCUMENT,
+  agentSkillDescription,
   agentSkillDocument,
   API_CATALOG_CONTENT_TYPE,
   buildAgentSkillsIndex,
@@ -75,7 +76,6 @@ describe("agent discovery", () => {
     expect(index.$schema).toBe(
       "https://schemas.agentskills.io/discovery/0.2.0/schema.json",
     );
-    expect(index.skills).toHaveLength(2 + getSkills().length);
     expect(index.skills[0]).toMatchObject({
       name: "assistant-ui-docs",
       type: "skill-md",
@@ -92,24 +92,45 @@ describe("agent discovery", () => {
 
   it("indexes every repo skill after the site skills, digesting the served document", () => {
     const skills = getSkills();
-    const entries = buildAgentSkillsIndex().skills.slice(2);
+    const index = buildAgentSkillsIndex();
 
     expect(skills.length).toBeGreaterThanOrEqual(17);
-    expect(entries).toEqual(
+    expect(index.skills.slice(2)).toEqual(
       skills.map((skill) => ({
         name: skill.name,
         type: "skill-md",
-        description: skill.description,
+        description: agentSkillDescription(skill),
         url: `${BASE_URL}${AGENT_DISCOVERY_ROUTES.skillsRoot}/${skill.name}/SKILL.md`,
         digest: `sha256:${sha256(agentSkillDocument(skill))}`,
       })),
     );
-    expect(new Set(entries.map((entry) => entry.name)).size).toBe(
-      entries.length,
+    for (const { description } of index.skills) {
+      expect(description.length).toBeGreaterThan(0);
+      expect(description.length).toBeLessThanOrEqual(1024);
+    }
+    expect(new Set(index.skills.map((entry) => entry.name)).size).toBe(
+      index.skills.length,
     );
     expect(agentSkillPath("tools")).toBe(
       "/.well-known/agent-skills/tools/SKILL.md",
     );
+  });
+
+  it("refuses a repo skill that shadows a site skill", () => {
+    expect(() =>
+      buildAgentSkillsIndex([
+        { name: "assistant-ui-docs", description: "x", content: "y" },
+      ]),
+    ).toThrow("assistant-ui-docs collides");
+  });
+
+  it("clamps a description to the spec limit at a word boundary", () => {
+    const short = { name: "x", description: "Short.", content: "" };
+    expect(agentSkillDescription(short)).toBe("Short.");
+    const long = { ...short, description: "word ".repeat(300).trimEnd() };
+    expect(agentSkillDescription(long)).toBe("word ".repeat(204).trimEnd());
+    const solid = { ...short, description: "a".repeat(2000) };
+    expect(agentSkillDescription(solid)).toHaveLength(1024);
   });
 
   it("wraps a repo skill in agentskills frontmatter", () => {

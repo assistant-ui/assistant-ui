@@ -45,6 +45,5 @@ describe("repo skill route", () => {
     expect(generateStaticParams()).toEqual(
       listSkills().map((skill) => ({ skill: skill.name })),
     );
-    expect(generateStaticParams().length).toBeGreaterThanOrEqual(17);
   });
 });
