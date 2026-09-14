@@ -41,7 +41,7 @@ import type {
   OnAdkCustomEventCallback,
   OnAdkAgentTransferCallback,
 } from "./types";
-import { useAdkMessages } from "./useAdkMessages";
+import { useAdkMessagesInternal } from "./useAdkMessages";
 import {
   convertAdkMessage,
   createAdkMessageConverter,
@@ -123,6 +123,52 @@ const useAdkRuntimeImpl = (options: UseAdkRuntimeOptions) => {
     eventHandlers,
   } = options;
   const aui = useAui();
+  const runConfigByToolCallIdRef = useRef(new Map<string, unknown>());
+
+  const rememberMessageOwnership = useCallback(
+    (newMessages: AdkMessage[], runConfig: unknown) => {
+      const toolOwnership = runConfigByToolCallIdRef.current;
+      for (const message of newMessages) {
+        if (message.type !== "ai") continue;
+        for (const toolCall of message.tool_calls ?? []) {
+          if (!toolOwnership.has(toolCall.id)) {
+            toolOwnership.set(toolCall.id, runConfig);
+          }
+        }
+      }
+    },
+    [],
+  );
+
+  const seedMessageOwnership = useCallback((history: AdkMessage[]) => {
+    runConfigByToolCallIdRef.current.clear();
+    for (const message of history) {
+      if (message.type !== "ai") continue;
+      for (const toolCall of message.tool_calls ?? []) {
+        runConfigByToolCallIdRef.current.set(toolCall.id, undefined);
+      }
+    }
+  }, []);
+
+  const pruneMessageOwnership = useCallback((history: AdkMessage[]) => {
+    const toolCallIds = new Set<string>();
+    for (const message of history) {
+      if (message.type !== "ai") continue;
+      for (const toolCall of message.tool_calls ?? []) {
+        toolCallIds.add(toolCall.id);
+      }
+    }
+    for (const id of runConfigByToolCallIdRef.current.keys()) {
+      if (!toolCallIds.has(id)) runConfigByToolCallIdRef.current.delete(id);
+    }
+  }, []);
+
+  const getToolRunConfig = useCallback((toolCallId: string) => {
+    return runConfigByToolCallIdRef.current.has(toolCallId)
+      ? runConfigByToolCallIdRef.current.get(toolCallId)
+      : undefined;
+  }, []);
+
   const {
     messages,
     stateDelta,
@@ -136,11 +182,12 @@ const useAdkRuntimeImpl = (options: UseAdkRuntimeOptions) => {
     sendMessage,
     cancel,
     setMessages,
-    replaceMessages,
-    applySnapshot,
-  } = useAdkMessages({
+    replaceMessages: replaceAdkMessages,
+    applySnapshot: applyAdkSnapshot,
+  } = useAdkMessagesInternal({
     stream,
     ...(eventHandlers && { eventHandlers }),
+    onMessages: rememberMessageOwnership,
   });
 
   const loadRef = useRef(load);
@@ -152,6 +199,20 @@ const useAdkRuntimeImpl = (options: UseAdkRuntimeOptions) => {
   useInsertionEffect(() => {
     messagesRef.current = messages;
   }, [messages]);
+  const applySnapshot = useCallback(
+    (snapshot: AdkThreadSnapshot) => {
+      seedMessageOwnership(snapshot.messages);
+      applyAdkSnapshot(snapshot);
+    },
+    [applyAdkSnapshot, seedMessageOwnership],
+  );
+  const replaceMessages = useCallback(
+    (nextMessages: AdkMessage[]) => {
+      pruneMessageOwnership(nextMessages);
+      replaceAdkMessages(nextMessages);
+    },
+    [pruneMessageOwnership, replaceAdkMessages],
+  );
   const [isLoadingThread, setIsLoadingThread] = useState(
     () =>
       load !== undefined && aui.threadListItem.getState().externalId != null,
@@ -170,40 +231,6 @@ const useAdkRuntimeImpl = (options: UseAdkRuntimeOptions) => {
     isRunningRef.current = effectiveIsRunning;
   }, [effectiveIsRunning]);
   const runGenerationRef = useRef(0);
-  const activeRunConfigRef = useRef<AppendMessage["runConfig"]>();
-  const runConfigByToolCallIdRef = useRef(
-    new Map<string, AppendMessage["runConfig"]>(),
-  );
-
-  useInsertionEffect(() => {
-    const currentToolCallIds = new Set<string>();
-
-    for (const message of messages) {
-      if (message.type !== "ai") continue;
-
-      for (const toolCall of message.tool_calls ?? []) {
-        currentToolCallIds.add(toolCall.id);
-        if (!runConfigByToolCallIdRef.current.has(toolCall.id)) {
-          runConfigByToolCallIdRef.current.set(
-            toolCall.id,
-            activeRunConfigRef.current,
-          );
-        }
-      }
-    }
-
-    for (const toolCallId of runConfigByToolCallIdRef.current.keys()) {
-      if (!currentToolCallIds.has(toolCallId)) {
-        runConfigByToolCallIdRef.current.delete(toolCallId);
-      }
-    }
-  }, [messages]);
-
-  const getContinuationConfig = (toolCallId: string): AdkSendMessageConfig => ({
-    runConfig: runConfigByToolCallIdRef.current.has(toolCallId)
-      ? runConfigByToolCallIdRef.current.get(toolCallId)
-      : activeRunConfigRef.current,
-  });
 
   const handleSendMessage = async (
     msgs: AdkMessage[],
@@ -215,13 +242,9 @@ const useAdkRuntimeImpl = (options: UseAdkRuntimeOptions) => {
       isToolContinuation && config.runConfig === undefined
         ? {
             ...config,
-            ...getContinuationConfig(msgs[0]!.tool_call_id),
+            runConfig: getToolRunConfig(msgs[0]!.tool_call_id),
           }
         : config;
-
-    if (!isToolContinuation) {
-      activeRunConfigRef.current = continuationConfig.runConfig;
-    }
 
     const generation = ++runGenerationRef.current;
     try {
@@ -326,6 +349,10 @@ const useAdkRuntimeImpl = (options: UseAdkRuntimeOptions) => {
   // instance, so depending on it would re-run the load on every render.
   const threadListItem =
     aui.threadListItem.source !== null ? aui.threadListItem : undefined;
+
+  useInsertionEffect(() => {
+    seedMessageOwnership([]);
+  }, [threadListItem, seedMessageOwnership]);
 
   const runLoad = useCallback(
     (purpose: "initial" | "reload" = "initial") => {
@@ -516,7 +543,7 @@ const useAdkRuntimeImpl = (options: UseAdkRuntimeOptions) => {
             status: isError ? "error" : "success",
           },
         ],
-        getContinuationConfig(toolCallId),
+        {},
       );
     },
     onRespondToToolApproval: async (options) => {
@@ -527,7 +554,7 @@ const useAdkRuntimeImpl = (options: UseAdkRuntimeOptions) => {
             projectAdkToolApprovals(adkMessagesRef.current).approvals,
           ),
         ],
-        getContinuationConfig(options.approvalId),
+        {},
       );
     },
     onCancel: unstable_allowCancellation

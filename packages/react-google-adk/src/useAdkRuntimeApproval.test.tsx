@@ -1,4 +1,4 @@
-import { act, renderHook } from "@testing-library/react";
+import { act, renderHook, waitFor } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import type {
   AddToolResultOptions,
@@ -7,13 +7,24 @@ import type {
   ThreadMessage,
   ToolCallMessagePart,
 } from "@assistant-ui/core";
-import type { AdkMessage } from "./types";
+import type { AdkMessage, AdkSendMessageConfig } from "./types";
 
-const mocks = vi.hoisted(() => ({
-  adapters: [] as unknown[],
-  sendMessage: vi.fn().mockResolvedValue(undefined),
-  messages: [] as AdkMessage[],
-}));
+const mocks = vi.hoisted(() => {
+  const threadListItem = {
+    source: null as object | null,
+    externalId: undefined as string | undefined,
+    getState: () => ({ externalId: threadListItem.externalId }),
+    initialize: vi.fn(),
+  };
+  return {
+    adapters: [] as unknown[],
+    sendMessage: vi.fn().mockResolvedValue(undefined),
+    messages: [] as AdkMessage[],
+    messageRunConfig: undefined as unknown,
+    applySnapshot: vi.fn(),
+    threadListItem,
+  };
+});
 
 vi.mock("@assistant-ui/core/react", async (importOriginal) => ({
   ...(await importOriginal<typeof import("@assistant-ui/core/react")>()),
@@ -29,41 +40,53 @@ vi.mock("@assistant-ui/core/react", async (importOriginal) => ({
 vi.mock("@assistant-ui/store", async (importOriginal) => ({
   ...(await importOriginal<typeof import("@assistant-ui/store")>()),
   useAui: () => ({
-    threadListItem: {
-      source: null,
-      getState: () => ({ externalId: undefined }),
-      initialize: vi.fn(),
-    },
+    threadListItem: mocks.threadListItem,
   }),
 }));
 
-vi.mock("./useAdkMessages", async (importOriginal) => ({
-  ...(await importOriginal<typeof import("./useAdkMessages")>()),
-  useAdkMessages: () => ({
-    messages: mocks.messages,
-    stateDelta: {},
-    agentInfo: {},
-    longRunningToolIds: [],
-    artifactDelta: {},
-    // Deliberately empty: the projection must come from the transcript, not
-    // from derived confirmation state that a mid-run accumulator swap drops.
-    toolConfirmations: [],
-    authRequests: [],
-    escalated: false,
-    messageMetadata: new Map(),
-    sendMessage: mocks.sendMessage,
-    cancel: vi.fn(),
-    setMessages: vi.fn(),
-    replaceMessages: vi.fn(),
-    applySnapshot: vi.fn(),
-  }),
-}));
+vi.mock("./useAdkMessages", async (importOriginal) => {
+  const useMockAdkMessages = (options: {
+    onMessages?: (messages: AdkMessage[], runConfig: unknown) => void;
+  }) => {
+    options.onMessages?.(mocks.messages, mocks.messageRunConfig);
+    return {
+      messages: mocks.messages,
+      stateDelta: {},
+      agentInfo: {},
+      longRunningToolIds: [],
+      artifactDelta: {},
+      // Deliberately empty: the projection must come from the transcript, not
+      // from derived confirmation state that a mid-run accumulator swap drops.
+      toolConfirmations: [],
+      authRequests: [],
+      escalated: false,
+      messageMetadata: new Map(),
+      sendMessage: mocks.sendMessage,
+      cancel: vi.fn(),
+      setMessages: vi.fn(),
+      replaceMessages: vi.fn(),
+      applySnapshot: mocks.applySnapshot,
+    };
+  };
+
+  return {
+    ...(await importOriginal<typeof import("./useAdkMessages")>()),
+    useAdkMessages: useMockAdkMessages,
+    useAdkMessagesInternal: useMockAdkMessages,
+  };
+});
 
 import { AdkEventAccumulator } from "./AdkEventAccumulator";
-import { useAdkRuntime } from "./useAdkRuntime";
+import { useAdkRuntime, type UseAdkRuntimeOptions } from "./useAdkRuntime";
 
 type RuntimeAdapter = {
   messages: readonly ThreadMessage[];
+  extras: {
+    send: (
+      messages: AdkMessage[],
+      config: AdkSendMessageConfig,
+    ) => Promise<void>;
+  };
   onNew?: (message: AppendMessage) => Promise<void> | void;
   onAddToolResult?: (options: AddToolResultOptions) => Promise<void> | void;
   onRespondToToolApproval?: (
@@ -115,6 +138,10 @@ const approvalPart = () =>
 afterEach(() => {
   mocks.adapters.length = 0;
   mocks.messages = [];
+  mocks.messageRunConfig = undefined;
+  mocks.applySnapshot.mockReset();
+  mocks.threadListItem.source = null;
+  mocks.threadListItem.externalId = undefined;
 });
 
 describe("useAdkRuntime tool approvals", () => {
@@ -142,6 +169,7 @@ describe("useAdkRuntime tool approvals", () => {
         ],
       },
     ];
+    mocks.messageRunConfig = runConfigA;
     rerender();
 
     await act(async () => {
@@ -158,6 +186,98 @@ describe("useAdkRuntime tool approvals", () => {
     expect(
       mocks.sendMessage.mock.calls.map((call) => call[1].runConfig),
     ).toEqual([runConfigA, runConfigB, runConfigA]);
+  });
+
+  it("does not inherit run config for tool calls loaded from another thread", async () => {
+    const runConfig = { custom: { model: "model-a" } };
+    const load = vi.fn(async () => ({
+      messages: [
+        {
+          id: "ai-loaded",
+          type: "ai" as const,
+          content: [],
+          tool_calls: [{ id: "tool-loaded", name: "lookup", args: {} }],
+        },
+      ],
+    }));
+    const { rerender } = renderHook(
+      ({ load }: { load?: UseAdkRuntimeOptions["load"] }) =>
+        useAdkRuntime({
+          stream: vi.fn(),
+          ...(load !== undefined && { load }),
+        }),
+      { initialProps: {} },
+    );
+
+    await act(async () => {
+      await latestAdapter().onNew!(makeUserMessage("first", runConfig));
+    });
+
+    mocks.threadListItem.source = {};
+    mocks.threadListItem.externalId = "thread-b";
+    rerender({ load });
+    await waitFor(() => expect(mocks.applySnapshot).toHaveBeenCalledOnce());
+
+    await act(async () => {
+      await latestAdapter().onAddToolResult!({
+        messageId: "ai-loaded",
+        toolCallId: "tool-loaded",
+        toolName: "lookup",
+        result: { value: "done" },
+        isError: false,
+      });
+    });
+
+    expect(mocks.sendMessage.mock.calls.at(-1)![1]).toEqual({
+      runConfig: undefined,
+    });
+  });
+
+  it("attributes new tool calls to an explicitly configured continuation", async () => {
+    const runConfigA = { custom: { model: "model-a" } };
+    const runConfigB = { custom: { model: "model-b" } };
+    const { rerender } = renderHook(() => useAdkRuntime({ stream: vi.fn() }));
+
+    await act(async () => {
+      await latestAdapter().onNew!(makeUserMessage("first", runConfigA));
+      await latestAdapter().extras.send(
+        [
+          {
+            id: "tool-result-a",
+            type: "tool",
+            tool_call_id: "tool-a",
+            name: "lookup",
+            content: JSON.stringify({ value: "first" }),
+          },
+        ],
+        { runConfig: runConfigB },
+      );
+    });
+
+    mocks.messages = [
+      {
+        id: "ai-b",
+        type: "ai",
+        content: [],
+        tool_calls: [{ id: "tool-b", name: "lookup", args: {} }],
+      },
+    ];
+    mocks.messageRunConfig = runConfigB;
+    rerender();
+
+    await act(async () => {
+      await latestAdapter().onAddToolResult!({
+        messageId: "ai-b",
+        toolCallId: "tool-b",
+        toolName: "lookup",
+        result: { value: "second" },
+        isError: false,
+      });
+    });
+
+    expect(mocks.sendMessage.mock.calls.at(-1)![1]).toEqual({
+      runConfig: runConfigB,
+    });
   });
 
   it("exposes, answers, and settles the default approval seam across a rerender", async () => {
@@ -177,6 +297,7 @@ describe("useAdkRuntime tool approvals", () => {
       { id: "u-1", type: "human", content: "delete the file" },
       confirmationRequest,
     ];
+    mocks.messageRunConfig = runConfig;
     rerender();
 
     expect(latestAdapter().messages.at(-1)!.status).toMatchObject({

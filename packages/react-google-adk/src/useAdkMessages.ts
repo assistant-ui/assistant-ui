@@ -39,6 +39,10 @@ export type UseAdkMessagesOptions = {
   };
 };
 
+type UseAdkMessagesInternalOptions = UseAdkMessagesOptions & {
+  onMessages?: (messages: AdkMessage[], runConfig: unknown) => void;
+};
+
 type AdkRuntimeCallbackName = "onError" | "onCustomEvent" | "onAgentTransfer";
 
 const invokeAdkRuntimeCallback = <TArgs extends readonly unknown[]>(
@@ -49,10 +53,11 @@ const invokeAdkRuntimeCallback = <TArgs extends readonly unknown[]>(
   void invokeUserCallback("react-google-adk", name, callback, ...args);
 };
 
-export const useAdkMessages = ({
+const useAdkMessagesInternal = ({
   stream,
   eventHandlers,
-}: UseAdkMessagesOptions) => {
+  onMessages,
+}: UseAdkMessagesInternalOptions) => {
   const [messages, _setMessages] = useState<AdkMessage[]>([]);
   const [stateDelta, setStateDelta] = useState<Record<string, unknown>>({});
   const [agentInfo, setAgentInfo] = useState<{
@@ -155,7 +160,9 @@ export const useAdkMessages = ({
       for (const event of messagesToEvents(newMessagesWithId)) {
         accumulator.processEvent(event);
       }
-      setMessagesImmediate(accumulator.getMessages());
+      const optimisticMessages = accumulator.getMessages();
+      onMessages?.(optimisticMessages, config.runConfig);
+      setMessagesImmediate(optimisticMessages);
 
       // Google ADK replaces active runs, while React LangGraph queues sends.
       abortControllerRef.current?.abort();
@@ -186,6 +193,7 @@ export const useAdkMessages = ({
             break;
           }
           const updatedMessages = accumulator.processEvent(event);
+          onMessages?.(updatedMessages, config.runConfig);
           setMessagesImmediate(updatedMessages);
           setStateDelta({
             ...stateDeltaRef.current,
@@ -260,6 +268,7 @@ export const useAdkMessages = ({
       onError,
       onCustomEvent,
       onAgentTransfer,
+      onMessages,
     ],
   );
 
@@ -288,6 +297,17 @@ export const useAdkMessages = ({
     applySnapshot,
   };
 };
+
+export const useAdkMessages = ({
+  stream,
+  eventHandlers,
+}: UseAdkMessagesOptions) =>
+  useAdkMessagesInternal({
+    stream,
+    ...(eventHandlers !== undefined && { eventHandlers }),
+  });
+
+export { useAdkMessagesInternal };
 
 /**
  * Transport sends every human and tool message of one `send` call as a single
