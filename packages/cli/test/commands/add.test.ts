@@ -89,6 +89,26 @@ describe("createAddComponentsPlan", () => {
     });
   });
 
+  it("uses native registry URLs for native projects", () => {
+    expect(
+      createAddComponentsPlan({
+        components: ["thread", "markdown-text"],
+        packageManager: "pnpm",
+        style: "base-nova",
+        platform: "native",
+      }),
+    ).toEqual({
+      command: "pnpm",
+      args: [
+        "dlx",
+        "shadcn@latest",
+        "add",
+        "https://r.assistant-ui.com/native/thread.json",
+        "https://r.assistant-ui.com/native/markdown-text.json",
+      ],
+    });
+  });
+
   it("rejects invalid component names", () => {
     expect(() =>
       createAddComponentsPlan({
@@ -166,5 +186,24 @@ describe("add directory selection", () => {
         : path.resolve(record.cwd, record.argv[flag + 1] as string);
 
     expect(target).toBe(projectDir);
+  });
+
+  it("uses the native registry tree for React Native projects", async () => {
+    fs.writeFileSync(
+      path.join(projectDir, "package.json"),
+      JSON.stringify({ dependencies: { "react-native": "0.86.3" } }),
+    );
+
+    await add.parseAsync(["thread", "--cwd", "app", "--use-npm"], {
+      from: "user",
+    });
+
+    const record = JSON.parse(fs.readFileSync(recordPath, "utf8"));
+    expect(record.argv).toContain(
+      "https://r.assistant-ui.com/native/thread.json",
+    );
+    expect(record.argv).not.toContain(
+      "https://r.assistant-ui.com/styles/new-york/thread.json",
+    );
   });
 });

@@ -1,79 +1,96 @@
+import "../global.css";
 import {
   DarkTheme,
   DefaultTheme,
   ThemeProvider,
   type Theme,
-} from "@react-navigation/native";
-import { Drawer } from "expo-router/drawer";
+} from "expo-router";
+import { Drawer, type DrawerContentComponentProps } from "expo-router/drawer";
 import { StatusBar } from "expo-status-bar";
 import "react-native-reanimated";
-import { Platform, Pressable } from "react-native";
-import MaterialIcons from "@expo/vector-icons/MaterialIcons";
-import { useFonts } from "expo-font";
+import { Pressable, View } from "react-native";
 import { GestureHandlerRootView } from "react-native-gesture-handler";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
+import { SquarePenIcon } from "lucide-react-native";
+import { useCSSVariable, useUniwind } from "uniwind";
 
 import {
   AssistantRuntimeProvider,
   AuiConfig,
-  useAui,
+  Suggestions,
   Tools,
+  useAui,
+  useAuiEvent,
 } from "@assistant-ui/react-native";
-import { useAppRuntime } from "@/hooks/use-app-runtime";
-import { useTheme } from "@/hooks/use-theme";
+import { ThreadList } from "@/components/assistant-ui/elements/thread-list.aui";
 import { Icon } from "@/components/ui/icon";
-import { ThreadListDrawer } from "@/components/thread-list/ThreadListDrawer";
-import { haptics } from "@/lib/haptics";
-import toolkit from "@/components/assistant-ui/elements/tools";
+import toolkit from "@/components/tools";
+import { useAppRuntime } from "@/hooks/use-app-runtime";
 
 function NewChatButton() {
   const aui = useAui();
-  const { colors } = useTheme();
 
   return (
     <Pressable
       accessibilityLabel="New chat"
       accessibilityRole="button"
       hitSlop={8}
-      onPress={() => {
-        haptics.selection();
-        aui.threads.switchToNewThread();
-      }}
-      style={{ marginRight: 16 }}
+      onPress={() => aui.threads.switchToNewThread()}
+      className="mr-4"
     >
-      <Icon name="compose" size={22} color={colors.foreground} />
+      <Icon as={SquarePenIcon} className="text-foreground size-[22px]" />
     </Pressable>
   );
 }
 
-function DrawerLayout() {
-  const { isDark, colors } = useTheme();
+function DrawerContent({ navigation }: DrawerContentComponentProps) {
+  const insets = useSafeAreaInsets();
+  useAuiEvent("threads.selectionChanged", () => navigation.closeDrawer());
 
-  const base = isDark ? DarkTheme : DefaultTheme;
+  return (
+    <View
+      className="bg-background flex-1"
+      style={{ paddingTop: insets.top + 12 }}
+    >
+      <ThreadList />
+    </View>
+  );
+}
+
+function DrawerLayout() {
+  const { theme } = useUniwind();
+  const [background, foreground, border] = useCSSVariable([
+    "--color-background",
+    "--color-foreground",
+    "--color-border",
+  ]);
+
+  const base = theme === "dark" ? DarkTheme : DefaultTheme;
   const navTheme: Theme = {
     ...base,
     colors: {
       ...base.colors,
-      background: colors.background,
-      card: colors.background,
-      text: colors.foreground,
-      border: colors.border,
-      primary: colors.foreground,
+      background: String(background),
+      card: String(background),
+      text: String(foreground),
+      border: String(border),
+      primary: String(foreground),
     },
   };
 
   return (
     <ThemeProvider value={navTheme}>
       <Drawer
-        drawerContent={(props) => <ThreadListDrawer {...props} />}
+        drawerContent={(props) => <DrawerContent {...props} />}
         screenOptions={{
           headerRight: () => <NewChatButton />,
           headerShadowVisible: false,
-          headerTintColor: colors.foreground,
-          headerStyle: { backgroundColor: colors.background },
+          headerTintColor: String(foreground),
+          headerStyle: { backgroundColor: String(background) },
           headerTitleStyle: { fontWeight: "600" },
           drawerType: "front",
           swipeEnabled: true,
-          drawerStyle: { backgroundColor: colors.background },
+          drawerStyle: { backgroundColor: String(background) },
         }}
       >
         <Drawer.Screen name="index" options={{ title: "Chat" }} />
@@ -84,16 +101,27 @@ function DrawerLayout() {
 }
 
 export default function RootLayout() {
-  // iOS renders SF Symbols, so it never needs the MaterialIcons glyph font.
-  const [fontsLoaded] = useFonts(
-    Platform.OS === "ios" ? {} : MaterialIcons.font,
-  );
   const runtime = useAppRuntime();
   const config = AuiConfig({
     tools: Tools({ toolkit }),
+    suggestions: Suggestions([
+      {
+        title: "What's the weather",
+        label: "in Tokyo?",
+        prompt: "What's the weather in Tokyo?",
+      },
+      {
+        title: "Tell me a joke",
+        label: "to make me laugh",
+        prompt: "Tell me a joke",
+      },
+      {
+        title: "Help me write",
+        label: "an email",
+        prompt: "Help me write an email",
+      },
+    ]),
   });
-
-  if (!fontsLoaded) return null;
 
   return (
     <GestureHandlerRootView style={{ flex: 1 }}>

@@ -1,5 +1,6 @@
 const { getDefaultConfig } = require("expo/metro-config");
 const { withAui } = require("@assistant-ui/metro");
+const { withUniwindConfig } = require("uniwind/metro");
 const path = require("node:path");
 
 const projectRoot = __dirname;
@@ -19,25 +20,30 @@ config.resolver.nodeModulesPaths = [
   path.resolve(monorepoRoot, "node_modules"),
 ];
 
-// Force resolving shared dependencies from the app's node_modules
+// Kit sources under packages/ui import react-native, uniwind and native modules
+// that must resolve to the app's single copy, so every bare specifier is tried
+// from the app root before falling back to the importing file's location.
+const isBareSpecifier = (moduleName) =>
+  !moduleName.startsWith(".") && !path.isAbsolute(moduleName);
+
 config.resolver.resolveRequest = (context, moduleName, platform) => {
-  if (
-    moduleName === "react" ||
-    moduleName === "react-native" ||
-    moduleName.startsWith("react/") ||
-    moduleName.startsWith("react-native/")
-  ) {
-    return context.resolveRequest(
-      {
-        ...context,
-        originModulePath: path.resolve(projectRoot, "package.json"),
-      },
-      moduleName,
-      platform,
-    );
+  if (isBareSpecifier(moduleName)) {
+    try {
+      return context.resolveRequest(
+        {
+          ...context,
+          originModulePath: path.resolve(projectRoot, "package.json"),
+        },
+        moduleName,
+        platform,
+      );
+    } catch {}
   }
 
   return context.resolveRequest(context, moduleName, platform);
 };
 
-module.exports = withAui(config);
+module.exports = withUniwindConfig(withAui(config), {
+  cssEntryFile: "./global.css",
+  dtsFile: "./uniwind-types.d.ts",
+});

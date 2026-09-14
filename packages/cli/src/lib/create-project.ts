@@ -10,6 +10,10 @@ import { logger } from "./utils/logger";
 import { runSpawn, SpawnExitError, SpawnSignalError } from "./run-spawn";
 import { type PackageManagerName } from "./utils/package-manager";
 import { readProjectFiles } from "./utils/file-scanner";
+import {
+  detectRegistryPlatform,
+  resolveRegistryItemUrl,
+} from "./utils/registry";
 
 export function dlxCommand(pm: PackageManagerName): [string, string[]] {
   switch (pm) {
@@ -220,8 +224,23 @@ export async function transformProject(
     shadcnUI &&
     assistantUI
   ) {
-    const auiComponents = assistantUI.map((c) => `@assistant-ui/${c}`);
-    const components = ["@assistant-ui/utils", ...shadcnUI, ...auiComponents];
+    const platform = detectRegistryPlatform(projectDir);
+    const resolveRegistryComponent = (component: string) =>
+      platform === "native"
+        ? resolveRegistryItemUrl(component, undefined, platform)
+        : component;
+    const auiComponents = assistantUI.map((component) =>
+      platform === "native"
+        ? resolveRegistryComponent(component)
+        : `@assistant-ui/${component}`,
+    );
+    const components = [
+      platform === "native"
+        ? resolveRegistryComponent("utils")
+        : "@assistant-ui/utils",
+      ...shadcnUI.map(resolveRegistryComponent),
+      ...auiComponents,
+    ];
     logger.step(`Installing components: ${components.join(", ")}...`);
     const failure = await installShadcnRegistry(
       projectDir,

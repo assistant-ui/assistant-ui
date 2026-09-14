@@ -1,14 +1,12 @@
 "use generative";
 
 import type { ReactNode } from "react";
-import { View, Text, StyleSheet } from "react-native";
+import { Text, View } from "react-native";
 import {
   defineToolkit,
   type ToolCallMessagePartProps,
 } from "@assistant-ui/react-native";
 import { z } from "zod";
-import { useTheme } from "@/hooks/use-theme";
-import { Radius } from "@/constants/theme";
 
 // Open-Meteo API adapters (free, no API key needed)
 
@@ -112,45 +110,25 @@ const fetchWeatherFromOpenMeteo = async ({
 // Tool UI Components
 
 function ToolCard({ children }: { children: ReactNode }) {
-  const { colors } = useTheme();
   return (
-    <View
-      style={[
-        styles.card,
-        { backgroundColor: colors.muted, borderColor: colors.border },
-      ]}
-    >
+    <View className="bg-muted border-border my-1 gap-1 rounded-2xl border p-3.5">
       {children}
     </View>
   );
 }
 
 function ToolStatus({ label }: { label: string }) {
-  const { colors } = useTheme();
   return (
     <ToolCard>
-      <Text style={[styles.statusText, { color: colors.mutedForeground }]}>
-        {label}
-      </Text>
+      <Text className="text-muted-foreground text-[13px]">{label}</Text>
     </ToolCard>
   );
 }
 
 function ToolError({ label }: { label: string }) {
-  const { colors } = useTheme();
   return (
-    <View
-      style={[
-        styles.card,
-        {
-          backgroundColor: colors.destructiveSurface,
-          borderColor: colors.destructive,
-        },
-      ]}
-    >
-      <Text style={[styles.statusText, { color: colors.destructive }]}>
-        {label}
-      </Text>
+    <View className="bg-destructive/10 border-destructive my-1 gap-1 rounded-2xl border p-3.5">
+      <Text className="text-destructive text-[13px]">{label}</Text>
     </View>
   );
 }
@@ -165,8 +143,6 @@ function GeocodeToolUI(
     }
   >,
 ) {
-  const { colors } = useTheme();
-
   if (props.status?.type === "running") {
     return <ToolStatus label="Finding location…" />;
   }
@@ -180,13 +156,13 @@ function GeocodeToolUI(
 
   return (
     <ToolCard>
-      <View style={styles.row}>
-        <Text style={styles.pin}>{"📍"}</Text>
+      <View className="flex-row items-center gap-2.5">
+        <Text className="text-xl">{"📍"}</Text>
         <View>
-          <Text style={[styles.locationName, { color: colors.foreground }]}>
+          <Text className="text-foreground text-[15px] font-semibold">
             {result.name}
           </Text>
-          <Text style={[styles.coords, { color: colors.mutedForeground }]}>
+          <Text className="text-muted-foreground mt-0.5 text-[13px]">
             {Math.abs(result.latitude).toFixed(2)}
             {"°"}
             {result.latitude >= 0 ? "N" : "S"},{" "}
@@ -219,8 +195,6 @@ function WeatherToolUI(
     }
   >,
 ) {
-  const { colors } = useTheme();
-
   if (props.status?.type === "running") {
     return <ToolStatus label={`Fetching weather for ${props.args.query}…`} />;
   }
@@ -238,56 +212,42 @@ function WeatherToolUI(
 
   return (
     <ToolCard>
-      <View style={styles.weatherHeader}>
-        <Text style={styles.weatherEmoji}>
-          {mapWeatherEmoji(weatherCode ?? 0)}
-        </Text>
+      <View className="mb-1 flex-row items-center gap-2.5">
+        <Text className="text-[32px]">{mapWeatherEmoji(weatherCode ?? 0)}</Text>
         <View>
-          <Text style={[styles.locationName, { color: colors.foreground }]}>
+          <Text className="text-foreground text-[15px] font-semibold">
             {location}
           </Text>
-          <Text style={[styles.condition, { color: colors.mutedForeground }]}>
+          <Text className="text-muted-foreground mt-0.5 text-[13px]">
             {mapWeatherCode(weatherCode ?? 0)}
           </Text>
         </View>
       </View>
 
-      <Text style={[styles.tempLarge, { color: colors.foreground }]}>
+      <Text className="text-foreground text-[40px] font-bold tracking-tighter">
         {temperature ?? "--"}
         {"°"}F
       </Text>
 
       {windSpeed != null && (
-        <Text style={[styles.wind, { color: colors.mutedForeground }]}>
+        <Text className="text-muted-foreground mt-0.5 text-[13px]">
           Wind: {windSpeed} mph
         </Text>
       )}
 
       {forecast && forecast.length > 0 && (
-        <View style={[styles.forecastRow, { borderTopColor: colors.border }]}>
+        <View className="border-border mt-3 flex-row justify-between border-t pt-3">
           {forecast.map((day, i) => (
-            <View key={i} style={styles.forecastDay}>
-              <Text
-                style={[
-                  styles.forecastLabel,
-                  { color: colors.mutedForeground },
-                ]}
-              >
+            <View key={i} className="flex-1 items-center gap-1">
+              <Text className="text-muted-foreground text-[11px] font-medium">
                 {day.label}
               </Text>
-              <Text style={styles.forecastEmoji}>
-                {mapWeatherEmoji(day.code)}
-              </Text>
-              <Text style={[styles.forecastTemp, { color: colors.foreground }]}>
+              <Text className="text-lg">{mapWeatherEmoji(day.code)}</Text>
+              <Text className="text-foreground text-[13px] font-semibold">
                 {day.max}
                 {"°"}
               </Text>
-              <Text
-                style={[
-                  styles.forecastTempLow,
-                  { color: colors.mutedForeground },
-                ]}
-              >
+              <Text className="text-muted-foreground text-xs">
                 {day.min}
                 {"°"}
               </Text>
@@ -330,82 +290,5 @@ export default defineToolkit({
       return fetchWeatherFromOpenMeteo(args);
     },
     render: WeatherToolUI,
-  },
-});
-
-const styles = StyleSheet.create({
-  card: {
-    padding: 14,
-    borderRadius: Radius.card,
-    borderWidth: StyleSheet.hairlineWidth,
-    marginVertical: 4,
-    gap: 4,
-  },
-  statusText: {
-    fontSize: 13,
-  },
-  row: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 10,
-  },
-  pin: {
-    fontSize: 20,
-  },
-  locationName: {
-    fontSize: 15,
-    fontWeight: "600",
-  },
-  coords: {
-    fontSize: 13,
-    marginTop: 2,
-  },
-  weatherHeader: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 10,
-    marginBottom: 4,
-  },
-  weatherEmoji: {
-    fontSize: 32,
-  },
-  condition: {
-    fontSize: 13,
-    marginTop: 2,
-  },
-  tempLarge: {
-    fontSize: 40,
-    fontWeight: "700",
-    letterSpacing: -1,
-  },
-  wind: {
-    fontSize: 13,
-    marginTop: 2,
-  },
-  forecastRow: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    marginTop: 12,
-    paddingTop: 12,
-    borderTopWidth: StyleSheet.hairlineWidth,
-  },
-  forecastDay: {
-    alignItems: "center",
-    flex: 1,
-    gap: 4,
-  },
-  forecastLabel: {
-    fontSize: 11,
-    fontWeight: "500",
-  },
-  forecastEmoji: {
-    fontSize: 18,
-  },
-  forecastTemp: {
-    fontSize: 13,
-    fontWeight: "600",
-  },
-  forecastTempLow: {
-    fontSize: 12,
   },
 });

@@ -195,7 +195,7 @@ export const PROJECT_METADATA: ProjectMetadata[] = [
     description: "Expo / React Native",
     category: "example",
     path: "examples/with-expo",
-    hasLocalComponents: true,
+    hasLocalComponents: false,
   },
   {
     name: "with-interactables",
