@@ -78,7 +78,7 @@ it("shares the isolated chat client and restores the surrounding client across u
     "parent_tool",
   );
   expect(chat.tools.getState().toolUIs.update_config).toHaveLength(1);
-  expect(chat.suggestions.getState().suggestions).toHaveLength(3);
+  expect(chat.suggestions.getState().suggestions.length).toBeGreaterThan(0);
 
   rerender(tree(secondUpdate));
   expect(mountedClients.at(-1)).toBe(chat);

@@ -98,12 +98,12 @@ Create the assistant component:
 "use client";
 
 import { AssistantRuntimeProvider } from "@assistant-ui/react";
-import { useChatRuntime } from "@assistant-ui/ai-sdk";
+import { AssistantChatTransport, useChatRuntime } from "@assistant-ui/ai-sdk";
 import { Thread } from "@/components/assistant-ui/elements/thread.aui";
 
 export const Assistant = () => {
   const runtime = useChatRuntime({
-    api: "/api/chat",
+    transport: new AssistantChatTransport({ api: "/api/chat" }),
   });
 
   return (
@@ -169,17 +169,28 @@ export default defineToolkit({
 Register the toolkit in your assistant component:
 
 ```tsx
-import { AssistantRuntimeProvider, AuiConfig, Tools, useAui } from "@assistant-ui/react";
+"use client";
+
+import { AssistantRuntimeProvider, AuiConfig, Tools } from "@assistant-ui/react";
+import { AssistantChatTransport, useChatRuntime } from "@assistant-ui/ai-sdk";
+import { Thread } from "@/components/assistant-ui/elements/thread.aui";
 import toolkit from "@/app/toolkit";
 
-const aui = useAui();
 const config = AuiConfig({
   tools: Tools({ toolkit }),
 });
 
-<AssistantRuntimeProvider aui={aui} config={config} runtime={runtime}>
-  <Thread />
-</AssistantRuntimeProvider>
+export const Assistant = () => {
+  const runtime = useChatRuntime({
+    transport: new AssistantChatTransport({ api: "/api/chat" }),
+  });
+
+  return (
+    <AssistantRuntimeProvider runtime={runtime} config={config}>
+      <Thread />
+    </AssistantRuntimeProvider>
+  );
+};
 ```
 
 Do not use `makeAssistantToolUI`, `useAssistantToolUI`, `makeAssistantTool`, or `useAssistantTool`; they are deprecated in favor of toolkits.

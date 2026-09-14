@@ -1,10 +1,13 @@
 // Scope augmentation must be imported for module declaration side-effect.
 import "./mcp-scope";
 
-// Resource — the entry point. Mount via:
+// Resource — the entry point. Mount from a component:
+//   import { AuiConfig, AuiProvider, useAui } from "@assistant-ui/store";
+//   import { McpManagerResource } from "@assistant-ui/react-mcp";
+//
 //   const aui = useAui();
 //   const config = AuiConfig({ mcp: McpManagerResource({ connectors }) });
-//   <AuiProvider extends={aui} config={config}>{children}</AuiProvider>
+//   return <AuiProvider extends={aui} config={config}>{children}</AuiProvider>;
 export {
   McpManagerResource,
   type McpManagerResourceProps,
