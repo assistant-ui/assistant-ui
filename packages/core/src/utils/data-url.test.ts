@@ -36,8 +36,11 @@ describe("parseDataUrl", () => {
     ["data:;base64,SGVsbG8=", "SGVsbG8="],
     ["data:;charset=utf-8;base64,SGVsbG8=", "SGVsbG8="],
     ["DATA:;BASE64,", ""],
-  ])("defaults %s to a bare text media type", (value, data) => {
-    expect(parseDataUrl(value)).toEqual({ mimeType: "text/plain", data });
+  ])("defaults %s to the binary media type", (value, data) => {
+    expect(parseDataUrl(value)).toEqual({
+      mimeType: "application/octet-stream",
+      data,
+    });
   });
 
   it("uses a contextual media type when the URL omits one", () => {
@@ -95,6 +98,12 @@ describe("dataUrlMediaType", () => {
       expect(dataUrlMediaType(value)).toBe("application/octet-stream");
     },
   );
+
+  it("uses the text default when base64 is not the final header token", () => {
+    expect(dataUrlMediaType("data:;base64;charset=utf-8,hello")).toBe(
+      "text/plain",
+    );
+  });
 
   it("preserves an explicit non-text media type without its parameters", () => {
     expect(
@@ -172,7 +181,7 @@ describe("resolveFilePartSource", () => {
     });
   });
 
-  it("uses the data URL default when neither source declares a media type", () => {
+  it("uses the binary data URL default when neither source declares a media type", () => {
     expect(
       resolveFilePartSource({
         data: "data:;base64,SGVsbG8=",
@@ -181,7 +190,7 @@ describe("resolveFilePartSource", () => {
     ).toEqual({
       kind: "data",
       data: "SGVsbG8=",
-      mimeType: "text/plain",
+      mimeType: "application/octet-stream",
     });
   });
 

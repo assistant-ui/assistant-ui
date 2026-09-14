@@ -9,11 +9,12 @@ const DEFAULT_BINARY_DATA_URL_MEDIA_TYPE = "application/octet-stream";
 
 /**
  * Extracts a base64 payload and the URL's media type without parameters.
- * An omitted type uses `fallbackMimeType`, which defaults to `text/plain`.
+ * An omitted type uses `fallbackMimeType`, which defaults to
+ * `application/octet-stream` because this helper only accepts base64 payloads.
  */
 export function parseDataUrl(
   value: string,
-  fallbackMimeType = DEFAULT_DATA_URL_MEDIA_TYPE,
+  fallbackMimeType = DEFAULT_BINARY_DATA_URL_MEDIA_TYPE,
 ): { mimeType: string; data: string } | null {
   const match = value.match(/^data:([^;,]*)(?:;[^;,]+)*;base64,(.*)$/i);
   if (!match) return null;
@@ -62,10 +63,18 @@ export function isParsableUrl(value: string): boolean {
  * Returns `undefined` for values without a data URL header.
  */
 export function dataUrlMediaType(value: string): string | undefined {
-  const match = /^data:([^;,]*)([^,]*),/i.exec(value);
-  if (!match) return undefined;
-  if (match[1]) return match[1].toLowerCase();
-  return /(?:^|;)base64(?:;|$)/i.test(match[2]!)
+  if (value.slice(0, 5).toLowerCase() !== "data:") return undefined;
+
+  const commaIndex = value.indexOf(",", 5);
+  if (commaIndex === -1) return undefined;
+
+  const header = value.slice(5, commaIndex);
+  const parameterIndex = header.indexOf(";");
+  const mediaType =
+    parameterIndex === -1 ? header : header.slice(0, parameterIndex);
+
+  if (mediaType) return mediaType.toLowerCase();
+  return header.toLowerCase().endsWith(";base64")
     ? DEFAULT_BINARY_DATA_URL_MEDIA_TYPE
     : DEFAULT_DATA_URL_MEDIA_TYPE;
 }

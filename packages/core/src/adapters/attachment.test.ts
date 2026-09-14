@@ -5,6 +5,7 @@ import {
   getFileDataURL,
   SimpleImageAttachmentAdapter,
 } from "./attachment";
+import { resolveFilePartSource } from "../utils/data-url";
 import { resolveFileMediaType } from "../utils/wire-media";
 
 const originalFileReader = globalThis.FileReader;
@@ -89,6 +90,9 @@ describe("getFileDataURL", () => {
     expect(resolveFileMediaType(browserDataUrl, "")).toBe(
       resolveFileMediaType(nodeDataUrl, ""),
     );
+    expect(
+      resolveFilePartSource({ data: browserDataUrl, mimeType: "" }),
+    ).toEqual(resolveFilePartSource({ data: nodeDataUrl, mimeType: "" }));
   });
 
   it("falls back to chunked btoa when neither FileReader nor Buffer exist", async () => {
