@@ -1,19 +1,12 @@
 // @vitest-environment jsdom
-
-import { createElement } from "react";
-import { createRoot } from "react-dom/client";
-import { flushSync } from "react-dom";
-import { describe, expect, it } from "vitest";
+import { cleanup, render } from "@testing-library/react";
+import { afterEach, describe, expect, it } from "vitest";
 import type { ThreadMessageLike } from "../../../runtime/utils/thread-message-like";
 import { AssistantRuntimeProvider } from "../../AssistantRuntimeProvider";
 import { ThreadPrimitiveMessages } from "../thread/ThreadMessages";
 import { useExternalStoreRuntime } from "../../runtimes/useExternalStoreRuntime";
 import { groupPartByType } from "../../utils/groupParts";
 import { MessagePrimitiveGroupedParts } from "./MessageGroupedParts";
-
-(
-  globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }
-).IS_REACT_ACT_ENVIRONMENT = false;
 
 type Msg = {
   id: string;
@@ -39,6 +32,8 @@ const convertMessage = (message: Msg): ThreadMessageLike => ({
   role: "assistant",
   content: message.content,
 });
+
+afterEach(cleanup);
 
 describe("MessagePrimitive.GroupedParts", () => {
   it("passes status counts to a tool-name group", () => {
@@ -88,8 +83,7 @@ describe("MessagePrimitive.GroupedParts", () => {
       );
     };
 
-    const root = createRoot(document.createElement("div"));
-    flushSync(() => root.render(createElement(App)));
+    render(<App />);
 
     expect(group?.counts).toEqual({
       running: 1,
@@ -98,7 +92,5 @@ describe("MessagePrimitive.GroupedParts", () => {
       requiresAction: 0,
     });
     expect(group?.indices).toHaveLength(3);
-
-    flushSync(() => root.unmount());
   });
 });
