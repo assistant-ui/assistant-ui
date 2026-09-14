@@ -37,7 +37,7 @@ const createHost = (
 const streamThenDestroy = async (
   env: Pick<ChatThreadEnvironment, "stopOnClientDestroy">,
 ) => {
-  const { transport, getCancelCount } = createCancellableTransport();
+  const { transport, getCancelCount, close } = createCancellableTransport();
   const Host = createHost(env);
   const handle = createAssistantClient(
     AuiConfig({ threads: Host({ transport }) }),
@@ -55,7 +55,9 @@ const streamThenDestroy = async (
     handle.destroy();
   }
   await new Promise((resolve) => setTimeout(resolve, 0));
-  return getCancelCount();
+  const cancelCount = getCancelCount();
+  if (cancelCount === 0) close();
+  return cancelCount;
 };
 
 describe("useChatThread", () => {
