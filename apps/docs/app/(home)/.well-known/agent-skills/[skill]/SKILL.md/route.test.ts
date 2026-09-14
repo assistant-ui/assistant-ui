@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import type { NextRequest } from "next/server";
 import { buildAgentSkillsIndex } from "@/lib/agent-discovery";
+import { API_CATALOG_LINK_HEADER } from "@/lib/agent-discovery-routes";
 import { listSkills } from "@/lib/agent-skills";
 import { GET, HEAD, generateStaticParams } from "./route";
 
@@ -15,14 +16,16 @@ describe("repo skill route", () => {
       (skill) => skill.name === "tools",
     );
 
-    expect(response.headers.get("Content-Type")).toBe(
-      "text/markdown; charset=utf-8",
-    );
+    expect(Object.fromEntries(response.headers)).toEqual({
+      "access-control-allow-origin": "*",
+      "access-control-expose-headers": "ETag, Link",
+      "cache-control": "no-cache, must-revalidate",
+      "content-type": "text/markdown; charset=utf-8",
+      etag: `"${entry?.digest.replace(":", "-")}"`,
+      link: API_CATALOG_LINK_HEADER,
+    });
     expect(body).toMatch(/^---\nname: tools\ndescription: "/);
     expect(body).toContain("\n---\n\n# assistant-ui Tools");
-    expect(response.headers.get("ETag")).toBe(
-      `"${entry?.digest.replace(":", "-")}"`,
-    );
   });
 
   it("answers HEAD without a body and the same ETag", async () => {
