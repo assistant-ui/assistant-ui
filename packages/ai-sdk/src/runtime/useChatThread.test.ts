@@ -13,7 +13,10 @@ import {
   createAssistantClient,
 } from "@assistant-ui/store/client";
 import { useChatThread, type ChatThreadEnvironment } from "./useChatThread";
-import { createCancellableTransport } from "./__tests__/controlled-transport";
+import {
+  createCancellableTransport,
+  nextTask,
+} from "./__tests__/controlled-transport";
 
 const createHost = (
   env: Pick<ChatThreadEnvironment, "stopOnClientDestroy">,
@@ -54,7 +57,7 @@ const streamThenDestroy = async (
   } finally {
     handle.destroy();
   }
-  await new Promise((resolve) => setTimeout(resolve, 0));
+  await nextTask();
   const cancelCount = getCancelCount();
   if (cancelCount === 0) close();
   return cancelCount;

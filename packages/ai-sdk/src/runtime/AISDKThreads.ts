@@ -195,6 +195,12 @@ const useAISDKThreads = <UI_MESSAGE extends UIMessage = UIMessage>(
   const [chats] = useState(() => new Map<string, ChatEntry<UI_MESSAGE>>());
   const bindCloud = cloud !== undefined;
 
+  useEffect(() => {
+    for (const { optionsRef } of chats.values()) {
+      optionsRef.current = threadOptions;
+    }
+  });
+
   useResourceCleanup(true, () => {
     for (const { chat } of chats.values()) {
       void chat.stop().catch(() => {});

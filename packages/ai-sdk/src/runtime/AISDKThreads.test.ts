@@ -288,6 +288,50 @@ describe("AISDKThreads", () => {
     handle.destroy();
   });
 
+  it("forwards the latest callbacks to a switched-away thread still streaming in the background", async () => {
+    const { transport, emit, close } = createControlledTransport();
+    const onFinishA = vi.fn();
+    const onFinishB = vi.fn();
+    let onFinish = onFinishA;
+    const listeners = new Set<() => void>();
+    const handle = createAssistantClient({
+      getConfig: () =>
+        AuiConfig({
+          threads: AISDKThreads({ transport: () => transport, onFinish }),
+        }),
+      subscribe: (listener) => {
+        listeners.add(listener);
+        return () => listeners.delete(listener);
+      },
+    });
+    handle.subscribe(() => {});
+    const aui = handle.getClient();
+
+    flushTapSync(() => aui.composer.setText("stream me"));
+    flushTapSync(() => aui.composer.send());
+    await vi.waitFor(() => {
+      expect(
+        handle.getClient().thread.getState().messages.length,
+      ).toBeGreaterThan(0);
+    });
+    emit(
+      { type: "start" },
+      { type: "text-start", id: "t1" },
+      { type: "text-delta", id: "t1", delta: "partial" },
+    );
+
+    flushTapSync(() => aui.threads.switchToNewThread());
+    onFinish = onFinishB;
+    flushTapSync(() => listeners.forEach((listener) => listener()));
+
+    emit({ type: "text-end", id: "t1" }, { type: "finish" });
+    close();
+    await vi.waitFor(() => expect(onFinishB).toHaveBeenCalledTimes(1));
+    expect(onFinishA).not.toHaveBeenCalled();
+
+    handle.destroy();
+  });
+
   it("posts each thread's own id as the chat id", async () => {
     const bodies: unknown[] = [];
     const fetchStub = vi.fn(async (_url: unknown, init?: RequestInit) => {
