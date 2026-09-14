@@ -292,4 +292,32 @@ describe("toAdkContent", () => {
       ],
     });
   });
+
+  it.each([
+    [false, { result: false }],
+    [0, { result: 0 }],
+    [null, { result: null }],
+    ["done", { result: "done" }],
+    [[1, 2], { results: [1, 2] }],
+  ])(
+    "wraps scalar or array tool result %j in a function response object",
+    (result, response) => {
+      const content = toAdkContent({
+        type: "tool-result",
+        toolCallId: "tc-1",
+        toolName: "search",
+        result,
+        isError: false,
+        config: {},
+      });
+
+      expect(content.parts[0]).toEqual({
+        functionResponse: {
+          name: "search",
+          id: "tc-1",
+          response,
+        },
+      });
+    },
+  );
 });

@@ -139,6 +139,16 @@ const config: NextConfig = {
   redirects: async () => [
     ...LEGACY_TAP_DOCS_REDIRECTS,
     {
+      source: "/cloud-ai-sdk",
+      destination: "/docs/cloud/ai-sdk",
+      permanent: true,
+    },
+    {
+      source: "/docs/api-reference/integrations/cloud-ai-sdk",
+      destination: "/docs/cloud/ai-sdk",
+      permanent: true,
+    },
+    {
       source: "/elements/reasoning-panel",
       destination: "/elements/reasoning",
       permanent: true,

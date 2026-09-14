@@ -6,6 +6,7 @@
   "platforms": ["rn"],
   "pages": [
     "index",
+    "elements",
     "migration",
     "custom-backend",
     "---API Reference---",

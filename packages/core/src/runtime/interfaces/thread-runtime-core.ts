@@ -98,6 +98,12 @@ export type SubmittedFeedback = {
 };
 
 export type ThreadRuntimeEventPayload = {
+  toolApprovalAnswered: {
+    messageId: string;
+    toolCallId: string;
+    toolName: string;
+    approved: boolean;
+  };
   /**
    * @deprecated State-derivable. Observe `state.isRunning` flipping to `true`
    * via `subscribe` + `getState` instead. Note: this event fires at the

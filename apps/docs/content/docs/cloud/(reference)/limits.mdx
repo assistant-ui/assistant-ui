@@ -1,0 +1,80 @@
+---
+title: Limits
+description: Every limit a project enforces, in one place.
+---
+
+Most limits protect the project from an accidental flood and are the same on every plan; the per project numbers at the end vary by plan. The caps on active users and on thread titles are on [Plans and pricing](/docs/cloud/pricing).
+
+## Rate limits
+
+| What | Limit | Keyed by |
+|---|---|---|
+| Creating an anonymous session | 30 a minute | client address |
+| Refreshing an anonymous session | 120 a minute | client address |
+| Engagement events | 600 a minute | user |
+
+A limited request answers `429 { "error": "rate_limited" }` with a `Retry-After` header. Threads, messages, run reports, scores, traces, the project read API and MCP are not rate limited.
+
+## Request sizes
+
+| Object | Limit |
+|---|---|
+| Thread title | 255 characters |
+| Thread `external_id` | 255 characters |
+| Thread `metadata` | 16 keys; keys 64 characters, values 512 |
+| Message `content` | 64 KB serialized |
+| Messages deleted per request | 200 |
+| Run `error` and `error_code` | 2,048 and 64 characters |
+| Run `tags` | 20 tags of 64 characters |
+| Run `environment` and `release` | 64 and 255 characters |
+| Run `attributes` | 16 KB |
+| Run `steps`, `tool_calls` and `sampling_calls` | 1,000 entries each |
+| Run `output_text`, tool arguments, tool results, step input | 50,000 characters each |
+| Token counts | up to 100,000,000 |
+| Events per request | 50 |
+| Event `props` | 1 KB; keys 64 characters, strings 256 |
+| Event ids | 48 characters |
+| Score `name` and `comment` | 64 and 2,000 characters |
+| Score `string_value` | 255 characters |
+| Attachment | 25 MB, one of the accepted types |
+| Trace export | 4 MB per request, 500 spans per trace |
+| Span attributes | 16 KB |
+| Allowed origins | 32 entries of 255 characters |
+| `Aui-Sdk` header | 8 tokens |
+
+A run report or a trace export that exceeds a size limit is refused with `400` or `413`; oversized tags and attributes on a report are refused rather than trimmed.
+
+## List pages
+
+| List | Default | Maximum |
+|---|---|---|
+| `GET /v1/threads` | 20 | 100 |
+| `GET /v1/threads/:id/messages` | 200 | 200 |
+| `GET /v1/projects/runs` | 50 | 100 |
+| `GET /v1/projects/scores` | 50 | 200 |
+| `GET /v1/projects/usage/daily` | the last 30 days | 366 days |
+| Dashboard tables | 50 rows | 100 rows |
+
+## Time
+
+| What | Value |
+|---|---|
+| Anonymous refresh token | 30 days, extended by 30 days on every refresh |
+| Access token | 5 minutes |
+| API key expiry | never, or 7, 30, 90 or 365 days |
+| Presigned upload and download URLs | 15 minutes |
+| Retention | 7 to 365 days from the presets, or forever; a shorter setting applies after 24 hours |
+| Alert cooldown | 5 minutes to 7 days |
+| SDK client list | entries not seen for 180 days drop off |
+
+## Per project
+
+| What | Limit |
+|---|---|
+| Alert rules | 1, 20 or 100 by plan |
+| Thread titles on the cloud's model | 500 or 5,000 included a month by plan; unlimited from Startup |
+| Evaluators | 20 |
+| Evaluator categories | 10 per rule |
+| Thread title length | 2 to 12 words |
+| Intelligence topic ceiling | 10 to 60 |
+| Test user prefixes | 10 |

@@ -1,5 +1,6 @@
 import { isRecord } from "@assistant-ui/core/internal";
 import type { AdkSendMessageConfig } from "../types";
+import { toAdkFunctionResponse } from "../toAdkFunctionResponse";
 
 type ParsedAdkRequest =
   | {
@@ -240,7 +241,7 @@ export const toAdkContent = (
           functionResponse: {
             name: parsed.toolName,
             id: parsed.toolCallId,
-            response: parsed.result,
+            response: toAdkFunctionResponse(parsed.result),
           },
         },
       ],

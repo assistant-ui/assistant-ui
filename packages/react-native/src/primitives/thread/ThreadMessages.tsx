@@ -491,6 +491,7 @@ export const ThreadMessagesFlatList = forwardRef<
         data={messages as unknown as ThreadMessage[]}
         renderItem={renderItem}
         keyExtractor={keyExtractor}
+        maintainVisibleContentPosition={{ minIndexForVisible: 0 }}
         {...(scrollTracking
           ? {
               onContentSizeChange: handleContentSizeChange,

@@ -2,8 +2,10 @@
 
 import { useState, useCallback } from "react";
 import { Check, Link2 } from "lucide-react";
+import { toast } from "sonner";
 import { cn } from "@/lib/utils";
 import { analytics } from "@/lib/analytics";
+import { copyTextToClipboard } from "@/lib/copy-to-clipboard";
 
 interface ShareButtonProps {
   className?: string;
@@ -16,7 +18,6 @@ export function ShareButton({ className }: ShareButtonProps) {
     analytics.builder.shareClicked();
     const url = window.location.href;
 
-    // Try Web Share API on mobile
     if (navigator.share && /mobile|android/i.test(navigator.userAgent)) {
       try {
         await navigator.share({
@@ -26,27 +27,15 @@ export function ShareButton({ className }: ShareButtonProps) {
         });
         return;
       } catch {
-        // User cancelled or not supported, fall through to copy
+        // A cancelled or unsupported share falls through to the clipboard copy.
       }
     }
 
-    // Copy to clipboard
-    try {
-      await navigator.clipboard.writeText(url);
+    if (await copyTextToClipboard(url)) {
       setCopied(true);
       setTimeout(() => setCopied(false), 2000);
-    } catch {
-      // Fallback for older browsers
-      const textArea = document.createElement("textarea");
-      textArea.value = url;
-      textArea.style.position = "fixed";
-      textArea.style.left = "-9999px";
-      document.body.appendChild(textArea);
-      textArea.select();
-      document.execCommand("copy");
-      document.body.removeChild(textArea);
-      setCopied(true);
-      setTimeout(() => setCopied(false), 2000);
+    } else {
+      toast.error("Failed to copy");
     }
   }, []);
 

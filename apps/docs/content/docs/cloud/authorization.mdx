@@ -1,17 +1,17 @@
 ---
 title: Authentication
-description: How the browser and your server authenticate to a project, with anonymous sessions, your auth provider's tokens, or API keys, and the access rules a project enforces.
+description: How the browser and your server prove who they are to a project, and the access rules a project enforces.
 ---
 
-The browser talks to the project API directly, so a backend is only involved to say who the user is. Three modes cover that, and every `AssistantCloud` client is created in one of them.
+The browser talks to the project directly, so your backend is only involved to say who the user is. Every `AssistantCloud` client is created in one of three modes.
 
-| Mode | Where | Configuration | Identity |
+| Mode | Runs in | Configuration | Identity |
 |---|---|---|---|
-| Anonymous | browser | `{ baseUrl, anonymous: true }` | a generated visitor, kept in the browser for 30 days |
-| Auth provider token | browser | `{ baseUrl, authToken }` | your user, from a JWT your provider signs |
-| API key | server | `{ apiKey, userId, workspaceId }` | any user and workspace your server names |
+| Anonymous | the browser | `{ baseUrl, anonymous: true }` | a generated visitor, kept by the browser for 30 days |
+| Auth provider token | the browser | `{ baseUrl, authToken }` | your user, from a JWT your provider signs |
+| API key | your server | `{ apiKey, userId, workspaceId }` | any user and workspace your server names |
 
-`baseUrl` is the project's frontend API URL for the two browser modes. The API key mode defaults to `https://backend.assistant-api.com` and must use that host; a key sent to a frontend host is refused.
+`baseUrl` is the project's frontend API URL for the browser modes, `https://proj-<id>.assistant-api.com`, the project id with its underscore written as a hyphen. The API key mode talks to `https://backend.assistant-api.com` and must use that host. A credential presented on the other host answers `403`.
 
 ## Anonymous sessions
 
@@ -24,13 +24,13 @@ const cloud = new AssistantCloud({
 });
 ```
 
-The project must allow anonymous access in **Settings › Access**. On first use the client asks the project for an anonymous identity: a generated `usr_anon_…` user that is also its own workspace, an access token, and a refresh token valid for 30 days. The refresh token is kept in `localStorage` under the base URL, so the same browser resumes the same threads on its next visit and a refresh extends the identity by another 30 days. Another browser, a private window or cleared storage is a new visitor.
+On first use the client asks the project for an anonymous identity: a `usr_anon_…` user that is also its own workspace, an access token, and a refresh token that lasts 30 days. The refresh token is kept in `localStorage` under the base URL, so the same browser resumes the same threads on its next visit, and every refresh extends it by another 30 days. A different browser, a private window, or cleared storage is a new visitor; so is every launch on React Native and Ink, which have no `localStorage`.
 
-On React, setting `NEXT_PUBLIC_ASSISTANT_BASE_URL` is enough: the assistant-ui runtimes create this client when you pass no `cloud`.
+On React, setting `NEXT_PUBLIC_ASSISTANT_BASE_URL` is enough: the runtimes create this client when you pass no `cloud`. Anonymous sessions are on for a new project and can be turned off in **Settings › Access** once every user signs in.
 
 ### Claiming anonymous threads after sign in
 
-When a visitor signs in, move what they wrote as a visitor into their account. Read the browser's refresh token with `readAnonymousRefreshToken(baseUrl)`, send it to your server, and claim from there with an API key client scoped to the signed in user:
+When a visitor signs in, move what they wrote as a visitor into their account. Read the browser's refresh token with `readAnonymousRefreshToken`, send it to your server, and claim from there with an API key client scoped to the signed in user:
 
 <Tabs items={["Browser", "Server"]}>
 <Tab value="Browser">
@@ -77,7 +77,7 @@ export async function POST(request: Request) {
 </Tab>
 </Tabs>
 
-The response reports how many threads moved. A claim from an anonymous identity, or with an expired token, is refused.
+The response says how many threads moved. A claim by an anonymous caller, or with an expired token, is refused.
 
 ## Your auth provider's tokens
 
@@ -90,23 +90,23 @@ const cloud = new AssistantCloud({
 });
 ```
 
-`authToken` returns a JWT your identity provider signed. The project verifies it against an **auth rule** you create in **Settings › Access**:
+`authToken` returns a JWT your identity provider signed. The project verifies it against an **auth rule** from **Settings › Access**:
 
 | Field | Meaning |
 |---|---|
-| Issuer | The token's `iss`. The rule matches on it. |
-| JWKS endpoint | Where the project fetches the provider's public keys. Must be a public `https://` URL. |
+| Issuer | The token's `iss`. The rule is matched on it. |
+| JWKS URL | Where the project fetches the provider's public keys: a public `https://` URL. |
 | Audience | The `aud` the token must carry, or none. |
-| Workspace field | The claim that names the workspace; `sub` by default, so each user gets their own workspace. |
+| Workspace claim | The claim that names the workspace, `sub` by default, so each user gets their own. |
 
-Tokens must use RS256. On a valid token the project answers with a short lived token of its own in the `Authorization` response header, and the client uses it for the following requests until it expires, so your provider's endpoint is not hit on every call. The client asks `authToken` again when it needs a fresh one; return `null` to signal that no user is signed in.
+Tokens must be signed with RS256 and carry a `kid` header; `sub` becomes the user id. On a valid token the project answers with a short lived token of its own in the `Authorization` response header, and the client uses it for the following requests until it expires, so your provider is not asked on every call. The client calls `authToken` again when it needs a fresh token; return `null` to say that nobody is signed in.
 
-<Steps>
-<Step>
+Keep the client in a `useMemo` keyed on the token getter, so the cached token is not thrown away on every render.
 
-### Clerk
+<Tabs items={["Clerk", "Auth0", "Supabase", "Firebase"]}>
+<Tab value="Clerk">
 
-Create a JWT template named `assistant-ui` in Clerk with `{ "aud": "assistant-ui" }`, note its issuer and JWKS endpoint, and create an auth rule with them and the audience `assistant-ui`.
+Create a JWT template named `assistant-ui` with `{ "aud": "assistant-ui" }`, then an auth rule with the template's issuer and JWKS URL and the audience `assistant-ui`.
 
 ```tsx
 import { useMemo } from "react";
@@ -126,12 +126,10 @@ function useCloud() {
 }
 ```
 
-</Step>
-<Step>
+</Tab>
+<Tab value="Auth0">
 
-### Auth0
-
-Create the rule with your Auth0 domain as issuer, its `/.well-known/jwks.json` endpoint, and your API audience.
+Create the rule with your Auth0 domain as issuer, its `/.well-known/jwks.json` as the JWKS URL, and your API audience.
 
 ```tsx
 import { useMemo } from "react";
@@ -151,12 +149,10 @@ function useCloud() {
 }
 ```
 
-</Step>
-<Step>
+</Tab>
+<Tab value="Supabase">
 
-### Supabase and Firebase
-
-Firebase signs RS256 id tokens whose keys are published at a JWKS endpoint. Supabase does so only for a project on asymmetric JWT signing keys; a project still on the legacy HS256 secret cannot be verified by a JWKS rule, so switch it to an RS256 key in the Supabase dashboard first. Create the rule with the project's issuer and JWKS endpoint, then return the session's access token or the Firebase id token from `authToken`.
+A JWKS rule needs asymmetric signing keys, so switch the Supabase project from the legacy HS256 secret to an RS256 key first. Then create the rule with the project's issuer and JWKS URL and return the session's access token.
 
 ```tsx
 const cloud = new AssistantCloud({
@@ -168,86 +164,24 @@ const cloud = new AssistantCloud({
 });
 ```
 
-</Step>
-</Steps>
+</Tab>
+<Tab value="Firebase">
 
-Keep the client in a `useMemo` keyed on the token getter, so the anonymous identity or the cached token is not recreated on every render.
+Firebase id tokens are RS256 with published keys. Create the rule with the project's issuer and JWKS URL and return the current user's id token.
 
-## API keys
-
-An API key, `sk_aui_proj_…`, is created in **Settings › API keys** with a name and an optional expiry of 7, 30, 90 or 365 days. It authenticates your server to the backend API for everything the browser must not do:
-
-- minting user tokens, when you would rather not expose your provider's tokens to the project,
-- exporting [traces](/docs/cloud/traces),
-- writing [scores](/docs/cloud/engagement#scores) and claiming anonymous threads,
-- the [project read API](/docs/cloud/api#project-read-api) and the MCP endpoint,
-- erasing a user's data.
-
-```ts title="server only"
-import { AssistantCloud } from "assistant-cloud";
-
+```tsx
 const cloud = new AssistantCloud({
-  apiKey: process.env.ASSISTANT_API_KEY!,
-  userId,
-  workspaceId,
+  baseUrl: process.env.NEXT_PUBLIC_ASSISTANT_BASE_URL!,
+  authToken: async () => (await auth.currentUser?.getIdToken()) ?? null,
 });
 ```
 
-A key acts as the user and workspace you name, sent as the `Aui-User-Id` and `Aui-Workspace-Id` headers; requests that touch threads see only that workspace. The dashboard shows when each key was last used, and an expired or deleted key is refused with `403`.
-
-### A server as the client
-
-The same client writes as well as reads, so an app with no browser, a Slack or Teams bot, a backend agent, a batch job, is persisted and measured the same way: create the thread, store each message, report the run. Every route the browser SDK uses accepts the key; only token minting, traces, the project read API and MCP are key only.
-
-```ts title="bot.ts"
-import { AssistantCloud } from "assistant-cloud";
-
-const cloud = new AssistantCloud({
-  apiKey: process.env.ASSISTANT_API_KEY!,
-  userId: slackUserId,
-  workspaceId: slackTeamId,
-});
-
-const { thread_id } = await cloud.threads.create({
-  last_message_at: new Date(),
-  external_id: slackThreadTs,
-});
-
-const { message_id: userMessageId } = await cloud.threads.messages.create(
-  thread_id,
-  {
-    parent_id: null,
-    format: "ai-sdk/v6",
-    content: { role: "user", parts: [{ type: "text", text: question }] },
-  },
-);
-
-const started = Date.now();
-const answer = await generate(question);
-
-const { message_id } = await cloud.threads.messages.create(thread_id, {
-  parent_id: userMessageId,
-  format: "ai-sdk/v6",
-  content: { role: "assistant", parts: [{ type: "text", text: answer.text }] },
-});
-
-await cloud.runs.report({
-  thread_id,
-  message_id,
-  status: "completed",
-  model_id: answer.modelId,
-  provider: "openai",
-  input_tokens: answer.usage.inputTokens,
-  output_tokens: answer.usage.outputTokens,
-  duration_ms: Date.now() - started,
-});
-```
-
-The thread is titled after the run like any browser thread, the user counts as active for the month, and the Threads page shows the conversation from the stored messages. Set `environment` and `release` on the report to filter by deployment, and when the server also exports [traces](/docs/cloud/traces), put the same `trace_id` on the report so the two halves merge into one run.
+</Tab>
+</Tabs>
 
 ### A token endpoint
 
-When your provider's tokens cannot be verified by a JWKS rule, mint the project's own tokens from your server:
+When your provider's tokens cannot be verified by a JWKS rule, mint the project's own tokens from your server. They last five minutes, and the client asks `authToken` again before one expires.
 
 ```ts title="app/api/assistant-ui-token/route.ts"
 import { AssistantCloud } from "assistant-cloud";
@@ -275,11 +209,27 @@ const cloud = new AssistantCloud({
 });
 ```
 
-Minted tokens last five minutes; the client asks `authToken` again before one expires.
+## API keys
+
+An API key, `sk_aui_proj_…`, is created in **Settings › API keys** with a name and an optional expiry, and shown once. It authenticates your server to the backend API:
+
+```ts title="server only"
+import { AssistantCloud } from "assistant-cloud";
+
+const cloud = new AssistantCloud({
+  apiKey: process.env.ASSISTANT_API_KEY!,
+  userId,
+  workspaceId,
+});
+```
+
+The key acts as the user and workspace you name, sent as the `Aui-User-Id` and `Aui-Workspace-Id` headers, and sees that workspace's threads. Every route the browser uses accepts a key; minting tokens, receiving traces, the project read API and MCP accept nothing else. The dashboard shows when each key was last used, and a deleted or expired key is refused with `403`.
+
+A key is what makes a server a client in its own right: a bot, a backend agent or a batch job creates threads, stores messages and reports runs like a browser does. See [Servers and bots](/docs/cloud/servers).
 
 ## Allowed origins
 
-**Settings › Access** lists the browser origins the frontend API answers, one per line:
+**Settings › Access** lists the browser origins the frontend API answers, one per line, up to 32:
 
 ```text
 https://app.example.com
@@ -287,29 +237,4 @@ https://*.preview.example.com
 http://localhost:3000
 ```
 
-An empty list allows every origin. Otherwise an origin outside the list gets no CORS headers and the browser reports a failed fetch. Entries are origins only, `https://` or `http://localhost`, up to 32 of them; a leading `*.` matches subdomains at any depth. Changes reach the API within a minute.
-
-Independently of the list, a browser token is only accepted on the frontend host of the project that issued it, and an API key only on the backend host.
-
-## Active user limits
-
-Plans include a number of active end users per UTC calendar month and cap them. A user counts as active on their first user message of the month. When a new user would exceed the cap, that message is refused:
-
-```json
-402 { "error": "plan_limit_reached", "plan": "free", "cap": 200, "period_end": "2026-10-01T00:00:00.000Z" }
-```
-
-The SDK surfaces it as a `CloudAPIError` with `code === "plan_limit_reached"` and those fields in `details`, so your app can show an upgrade or a retry state. Users already active this month keep working; nothing else is refused. Billing and Usage in the dashboard show the count, the included number and the cap.
-
-| Plan | Included active users | Cap |
-|---|---|---|
-| Free | 200 | 200 |
-| Pro | 500 | 5,000, then $0.10 per user |
-| Startup | 10,000 | 100,000 |
-| Enterprise | unlimited | none |
-
-Intelligence, evaluators and exports are available from Pro. The Billing page is authoritative for your project.
-
-## Rate limits
-
-Anonymous session creation is limited to 30 per minute per address and refreshes to 120; engagement events to 600 per minute per user. A limited request answers `429` with `Retry-After`. Nothing else is rate limited.
+An empty list, the default, allows every origin. Otherwise an origin outside the list gets no CORS headers and the browser reports a failed fetch. Entries are `https://` origins or `http://localhost`; a leading `*.` matches subdomains at any depth but not the bare domain. Changes reach the API within a minute.

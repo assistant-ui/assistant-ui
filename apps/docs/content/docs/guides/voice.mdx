@@ -80,6 +80,7 @@ Transcripts from `onTranscript` are appended to the message thread automatically
 
 - User transcripts (`role: "user"`, `isFinal: true`) become user messages.
 - Assistant transcripts (`role: "assistant"`) stream into an assistant message. The message stays in a running status until `isFinal: true`.
+- Both carry `metadata.modality: "voice"`, so your components can tell a spoken message from a typed one.
 
 `onModeChange` reports `"listening"` (user's turn) or `"speaking"` (agent's turn). `onVolumeChange` reports a real-time level from `0` to `1` for visual feedback such as the voice orb.
 

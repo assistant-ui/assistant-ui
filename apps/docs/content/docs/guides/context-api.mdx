@@ -489,7 +489,7 @@ const isRunning = useAuiState((s) => s.thread.isRunning);
 | -------------- | ------------------------------------------------------------------------------------------------ | -------------------------------------------------- |
 | ThreadList     | `mainThreadId`, `newThreadId`, `threadIds`, `archivedThreadIds`, `isLoading`, `threadItems` (`readonly ThreadListItemState[]`) | Manages all available conversation threads |
 | ThreadListItem | `id`, `title`, `status`, `remoteId`, `externalId`, `custom?: Record<string, unknown>`           | Individual thread metadata and status; `custom` carries arbitrary per-thread metadata set by remote runtimes |
-| Thread         | `isRunning` (may be explicitly set by the runtime rather than derived from last-message status), `isLoading`, `isDisabled`, `isEmpty`, `messages`, `capabilities`, `suggestions` | Active conversation state and message history |
+| Thread         | `isRunning` (may be explicitly set by the runtime rather than derived from last-message status), `isLoading`, `isDisabled`, `isEmpty`, `messages`, `tasks`, `capabilities`, `suggestions` | Active conversation state and message history |
 | Message        | `role`, `content`, `status`, `attachments`, `parts`, `parentId`, `branchNumber`, `branchCount`, `isLast`, `index` | Individual message content and metadata |
 | Part           | `type`, `status`, `text`, `toolCallId`, `toolName`                                              | Content parts within messages (text, tool calls)   |
 | ChainOfThought | `parts`, `collapsed`, `status`                                                                   | Reasoning steps grouped within a message           |
@@ -507,7 +507,7 @@ The table below covers the most commonly used actions. For the full catalog, see
 | -------------- | ----------------------------------------------------------------------------------------------------------------- | ------------------------------------------ |
 | ThreadList     | `switchToNewThread()`, `switchToThread(id)`, `reload()`, `getLoadThreadsPromise()`, `item(selector)`, `thread("main")`, `getState()` | Thread navigation, creation, and sync |
 | ThreadListItem | `switchTo()`, `rename(title)`, `updateCustom(custom)`, `archive()`, `unarchive()`, `delete()`, `getState()`      | Thread management operations               |
-| Thread         | `append(message)`, `startRun(config)`, `resumeRun(config)`, `cancelRun()`, `reset()`, `export()`, `import(repository)`, `message(selector)`, `composer()`, `getState()` | Message handling and conversation control |
+| Thread         | `append(message)`, `startRun(config)`, `resumeRun(config)`, `cancelRun()`, `reset()`, `export()`, `import(repository)`, `message(selector)`, `task(selector)`, `composer()`, `getState()` | Message handling and conversation control |
 | Message        | `reload()`, `speak()`, `stopSpeaking()`, `submitFeedback(feedback)`, `switchToBranch(options)`, `getCopyText()`, `part(selector)`, `attachment(selector)`, `composer()`, `setIsCopied(value)`, `setIsHovering(value)`, `getState()` | Message interactions and regeneration |
 | Part           | `addToolResult(result)`, `resumeToolCall(result)`, `getState()`                                                   | Tool call result handling                  |
 | ChainOfThought | `setCollapsed(collapsed)`, `part({ index })`, `getState()`                                                        | Expand/collapse reasoning steps            |
@@ -559,6 +559,8 @@ const role = useAuiState((s) => s.message.role);
 // ✅ Read through the optional view — unavailable scopes resolve to undefined
 const role = useAuiState((s) => s.optional.message?.role ?? "none");
 ```
+
+A component that renders outside `AssistantRuntimeProvider` has no scopes at all. Move it under the provider or publish the client to it; see [Reading State Outside the Thread](/docs/guides/state-outside-the-thread).
 
 **"Maximum update depth exceeded" / Infinite re-renders**
 

@@ -42,11 +42,18 @@ export function createInMemoryResumableStreamStore(
   const maxChunkBytes = options.maxChunkBytes;
   const maxEntriesPerStream = options.maxEntriesPerStream;
   const maxStreams = options.maxStreams;
+  // TTL refreshes can leave this lower bound earlier than the next actual expiry.
+  let nextExpiry = Infinity;
 
   const evictExpired = (): void => {
     const t = now();
+    if (t < nextExpiry) return;
+    nextExpiry = Infinity;
     for (const [id, state] of streams) {
-      if (state.expiresAt > t) continue;
+      if (state.expiresAt > t) {
+        nextExpiry = Math.min(nextExpiry, state.expiresAt);
+        continue;
+      }
       streams.delete(id);
       state.final ??= { kind: "error", error: "Stream expired" };
       notify(state);
@@ -138,10 +145,12 @@ export function createInMemoryResumableStreamStore(
       }
 
       const ttlMs = acquireOptions?.ttlMs ?? defaultTtlMs;
+      const expiresAt = now() + ttlMs;
+      nextExpiry = Math.min(nextExpiry, expiresAt);
       streams.set(streamId, {
         entries: [],
         nextSeq: 1,
-        expiresAt: now() + ttlMs,
+        expiresAt,
         ttlMs,
         final: undefined,
         waiters: [],
@@ -168,6 +177,7 @@ export function createInMemoryResumableStreamStore(
         chunk: new Uint8Array(chunk),
       });
       state.expiresAt = now() + state.ttlMs;
+      nextExpiry = Math.min(nextExpiry, state.expiresAt);
       notify(state);
     },
 
@@ -182,6 +192,7 @@ export function createInMemoryResumableStreamStore(
           ? { kind: "done" }
           : { kind: "error", error: error ?? "Stream errored" };
       state.expiresAt = now() + state.ttlMs;
+      nextExpiry = Math.min(nextExpiry, state.expiresAt);
       notify(state);
     },
 
