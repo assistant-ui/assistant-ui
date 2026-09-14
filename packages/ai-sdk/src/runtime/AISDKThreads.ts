@@ -90,9 +90,6 @@ const createChatEntry = <UI_MESSAGE extends UIMessage>(
         : options.transport instanceof AssistantChatTransport
           ? options.transport.__internal_clone()
           : options.transport;
-  // `useChat` only forwards callbacks through a ref for a chat it constructs
-  // itself, so an externally owned chat reads them through this ref to keep a
-  // callback swapped on a later render live.
   return {
     chat: new Chat<UI_MESSAGE>({
       ...chatInit,
