@@ -288,8 +288,8 @@ describe("useChatRuntime", () => {
       resumeStream: vi.fn().mockResolvedValue(undefined),
       status: "streaming",
     };
-    mocks.useChat.mockImplementation(({ id }: { id: string }) =>
-      id === "thread-a" ? threadA : threadB,
+    mocks.useChat.mockImplementation(({ chat }: { chat: { id: string } }) =>
+      chat.id === "thread-a" ? threadA : threadB,
     );
 
     mocks.state.threadId = "thread-a";
@@ -326,8 +326,8 @@ describe("useChatRuntime", () => {
       resumeStream: vi.fn().mockResolvedValue(undefined),
       status: "ready",
     };
-    mocks.useChat.mockImplementation(({ id }: { id: string }) =>
-      id === "__LOCALID_background" ? backgroundThread : mainThread,
+    mocks.useChat.mockImplementation(({ chat }: { chat: { id: string } }) =>
+      chat.id === "__LOCALID_background" ? backgroundThread : mainThread,
     );
     const transport = {
       getResumableAdapter: () => ({
