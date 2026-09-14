@@ -43,7 +43,7 @@ const AssistantMessage: FC = () => {
 };
 ```
 
-Reach for an inline `groupBy={(part) => …}` only when the helper isn't expressive enough — e.g. you need to branch on `part.toolName`, `part.parentId`, or part metadata.
+Reach for an inline `groupBy={(part) => …}` only when the helper isn't expressive enough — e.g. you need to branch on `part.parentId` or part metadata.
 
 ## How Adjacent Grouping Works
 
@@ -116,6 +116,39 @@ function ParentGroup({
 ### Group by Tool Name
 
 Organize adjacent tool calls by tool name:
+
+```tsx
+<MessagePrimitive.GroupedParts
+  groupBy={groupPartByType({
+    "tool-call:task": ["group-subagents"],
+    "tool-call": ["group-tool"],
+  })}
+>
+  {({ part, children }) => {
+    switch (part.type) {
+      case "group-subagents":
+        return (
+          <div className="tool-group my-2 rounded-lg border">
+            <div className="bg-muted/50 px-4 py-2 text-sm font-medium">
+              Task calls ({part.indices.length} calls)
+            </div>
+            <div className="p-4">{children}</div>
+          </div>
+        );
+      case "group-tool":
+        return <div className="tool-group my-2 rounded-lg border p-4">{children}</div>;
+      case "text":
+        return <MarkdownText />;
+      case "tool-call":
+        return part.toolUI ?? <ToolFallback {...part} />;
+      default:
+        return null;
+    }
+  }}
+ </MessagePrimitive.GroupedParts>
+```
+
+Use an inline `groupBy` when the group key must be derived dynamically from the tool name or other part data:
 
 ```tsx
 <MessagePrimitive.GroupedParts
@@ -404,7 +437,7 @@ const stream = createAssistantStream(async (controller) => {
 
 ### groupPartByType helper
 
-`groupPartByType` builds a `groupBy` from a `part.type → group-key path` map. Part types missing from the map are left ungrouped. The returned function carries an internal memo fingerprint so the tree survives unrelated re-renders.
+`groupPartByType` builds a `groupBy` from a map of `part.type`, or `tool-call:<name>` for one tool, to a group-key path. Part types missing from the map are left ungrouped. The returned function carries an internal memo fingerprint so the tree survives unrelated re-renders.
 
 ```typescript
 import { groupPartByType } from "@assistant-ui/react";
@@ -421,7 +454,15 @@ groupPartByType({
 type GroupPart<TKey extends `group-${string}` = `group-${string}`> = {
   readonly type: TKey;
   readonly status: MessagePartStatus | ToolCallMessagePartStatus;
+  readonly counts: GroupCounts;
   readonly indices: readonly number[];
+};
+
+type GroupCounts = {
+  readonly running: number;
+  readonly complete: number;
+  readonly incomplete: number;
+  readonly requiresAction: number;
 };
 ```
 
@@ -481,7 +522,7 @@ Adjust group appearance based on the group node's status or indices:
           }`}
         >
           <div className="mb-2 text-sm text-muted-foreground">
-            {part.indices.length} tool calls
+            {part.indices.length} tool calls ({part.counts.running} running, {part.counts.complete} complete)
           </div>
           {children}
         </div>
