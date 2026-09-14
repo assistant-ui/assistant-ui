@@ -1,5 +1,6 @@
 import { jsonSchema, type Tool, type ToolSet } from "ai";
 import type { ToolJSONSchema } from "../core/tool/schema-utils";
+import { supportsTaggedFileData } from "./aiSDKMajor";
 import { unwrapModelContentEnvelope } from "./modelContentEnvelope";
 import { toAISDKContent, toAISDKDefaultOutput } from "./toolOutputConversion";
 
@@ -11,7 +12,9 @@ const defaultToModelOutput: NonNullable<Tool["toModelOutput"]> = ({
 }) => {
   const { result, modelContent } = unwrapModelContentEnvelope(output);
   if (modelContent !== undefined) {
-    return toAISDKContent(modelContent);
+    return toAISDKContent(modelContent, {
+      taggedFileData: supportsTaggedFileData,
+    });
   }
   return toAISDKDefaultOutput(result);
 };

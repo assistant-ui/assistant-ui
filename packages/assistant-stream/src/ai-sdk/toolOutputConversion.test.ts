@@ -28,6 +28,34 @@ describe("toAISDKContent", () => {
     });
   });
 
+  it("emits the ai@6 `file-data` part when tagged file data is disabled", () => {
+    expect(
+      toAISDKContent(
+        [
+          { type: "text", text: "PDF contents:" },
+          {
+            type: "file",
+            data: "JVBERi0xLjQK",
+            mediaType: "application/pdf",
+            filename: "doc.pdf",
+          },
+        ],
+        { taggedFileData: false },
+      ),
+    ).toEqual({
+      type: "content",
+      value: [
+        { type: "text", text: "PDF contents:" },
+        {
+          type: "file-data",
+          data: "JVBERi0xLjQK",
+          mediaType: "application/pdf",
+          filename: "doc.pdf",
+        },
+      ],
+    });
+  });
+
   it("defaults a malformed file part without mediaType to application/octet-stream and omits filename", () => {
     const part = {
       type: "file",
