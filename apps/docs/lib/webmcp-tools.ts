@@ -234,7 +234,12 @@ function jsonResult(value: unknown): WebMcpToolResult {
 
 // The vendored skills weigh ~200 KB, so they load on the first call rather
 // than with every docs page.
-const loadAgentSkills = () => import("./agent-skills");
+async function loadAgentSkills(signal?: AbortSignal) {
+  signal?.throwIfAborted();
+  const skills = await import("./agent-skills");
+  signal?.throwIfAborted();
+  return skills;
+}
 
 function webMcpTools(fetchImpl: FetchLike): WebMcpToolDescriptor[] {
   return [
@@ -320,8 +325,8 @@ function webMcpTools(fetchImpl: FetchLike): WebMcpToolDescriptor[] {
         additionalProperties: false,
       },
       annotations: { readOnlyHint: true },
-      execute: async () => {
-        const { listSkills } = await loadAgentSkills();
+      execute: async (_args, context) => {
+        const { listSkills } = await loadAgentSkills(context?.signal);
         return jsonResult(listSkills());
       },
     },
@@ -341,10 +346,10 @@ function webMcpTools(fetchImpl: FetchLike): WebMcpToolDescriptor[] {
         additionalProperties: false,
       },
       annotations: { readOnlyHint: true },
-      execute: async (args) => {
+      execute: async (args, context) => {
         const name = stringArg(args, "name");
         if (!name) throw new Error("name is required");
-        const { getSkill, listSkills } = await loadAgentSkills();
+        const { getSkill, listSkills } = await loadAgentSkills(context?.signal);
         const skill = getSkill(name);
         if (!skill) {
           throw new Error(

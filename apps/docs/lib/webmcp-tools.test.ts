@@ -275,6 +275,24 @@ describe("registered tools", () => {
     expect(fetchImpl).not.toHaveBeenCalled();
   });
 
+  it("rejects an aborted listSkills or getSkill call with the abort reason", async () => {
+    const fetchImpl = fetchReturning({ result: okResult });
+    const controller = new AbortController();
+    controller.abort();
+    await expect(
+      toolByName(fetchImpl, "listSkills").execute(
+        {},
+        { signal: controller.signal },
+      ),
+    ).rejects.toBe(controller.signal.reason);
+    await expect(
+      toolByName(fetchImpl, "getSkill").execute(
+        { name: "tools" },
+        { signal: controller.signal },
+      ),
+    ).rejects.toBe(controller.signal.reason);
+  });
+
   it("forwards the execute AbortSignal to fetch", async () => {
     const fetchImpl = fetchReturning({ result: okResult });
     const controller = new AbortController();
