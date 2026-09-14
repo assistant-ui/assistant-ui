@@ -7,6 +7,14 @@ export const iconButtonClassName =
 
 export const iconButtonHitSlop = 10;
 
+// Fills the gap-1 between grouped icon buttons without reaching the neighbor.
+export const groupedIconButtonHitSlop = {
+  top: 10,
+  bottom: 10,
+  left: 2,
+  right: 2,
+};
+
 export type IconButtonProps = Omit<PressableProps, "accessibilityLabel"> & {
   label: string;
   className?: string;

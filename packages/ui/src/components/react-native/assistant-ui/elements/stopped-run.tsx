@@ -38,7 +38,6 @@ export const StoppedRun: FC<StoppedRunProps> = ({
       <View
         className={cn(
           field,
-          mono,
           "flex-row items-center gap-1.5 rounded-full px-2.5 py-1",
         )}
       >

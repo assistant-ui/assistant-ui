@@ -4,6 +4,7 @@ import {
   UserMessageAttachments,
 } from "@/components/assistant-ui/elements/attachment.aui";
 import {
+  groupedIconButtonHitSlop,
   iconButtonClassName,
   iconButtonHitSlop,
 } from "@/components/assistant-ui/elements/icon-button";
@@ -353,7 +354,7 @@ const AssistantActionBar: FC = () => (
       <ActionBarPrimitive.Copy
         copyToClipboard={copyToClipboard}
         className={iconButtonClassName}
-        hitSlop={iconButtonHitSlop}
+        hitSlop={groupedIconButtonHitSlop}
         accessibilityLabel="Copy"
       >
         {({ isCopied }) => (
@@ -365,7 +366,7 @@ const AssistantActionBar: FC = () => (
       </ActionBarPrimitive.Copy>
       <ActionBarPrimitive.Reload
         className={iconButtonClassName}
-        hitSlop={iconButtonHitSlop}
+        hitSlop={groupedIconButtonHitSlop}
         accessibilityLabel="Refresh"
       >
         <Icon as={RefreshCwIcon} className="text-muted-foreground size-4" />
@@ -391,7 +392,7 @@ const UserActionBar: FC = () => (
   <AuiIf condition={(s) => !s.thread.isRunning}>
     <ActionBarPrimitive.Edit
       className={cn(iconButtonClassName, "aui-user-action-edit")}
-      hitSlop={iconButtonHitSlop}
+      hitSlop={groupedIconButtonHitSlop}
       accessibilityLabel="Edit"
     >
       <Icon as={PencilIcon} className="text-muted-foreground size-4" />
@@ -435,7 +436,7 @@ const BranchPicker: FC<ViewProps> = ({ className, ...rest }) => {
     >
       <BranchPickerPrimitive.Previous
         className={cn(iconButtonClassName, "disabled:opacity-35")}
-        hitSlop={iconButtonHitSlop}
+        hitSlop={groupedIconButtonHitSlop}
         accessibilityLabel="Previous"
       >
         <Icon as={ChevronLeftIcon} className="text-muted-foreground size-4" />
@@ -445,7 +446,7 @@ const BranchPicker: FC<ViewProps> = ({ className, ...rest }) => {
       </Text>
       <BranchPickerPrimitive.Next
         className={cn(iconButtonClassName, "disabled:opacity-35")}
-        hitSlop={iconButtonHitSlop}
+        hitSlop={groupedIconButtonHitSlop}
         accessibilityLabel="Next"
       >
         <Icon as={ChevronRightIcon} className="text-muted-foreground size-4" />

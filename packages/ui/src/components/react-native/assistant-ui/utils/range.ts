@@ -1,10 +1,9 @@
 /**
  * Range normalization for the numeric props the elements take.
  *
- * Elements are driven by a caller's state, so a prop can arrive negative, past
- * the end of its collection, or NaN. Left raw, a negative slice length counts
- * from the end of the array instead of returning nothing, and an index past
- * the end reads a hole.
+ * Elements are driven by a caller's state, so a count can arrive negative,
+ * past the end of its collection, or NaN. Left raw, a negative slice length
+ * counts from the end of the array instead of returning nothing.
  */
 
 /**
