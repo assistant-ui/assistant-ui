@@ -1953,6 +1953,8 @@ export const nativeRegistry: RegistryItem[] = [
       "@assistant-ui/react-native",
       "expo-clipboard",
       "lucide-react-native",
+      "react-native-safe-area-context",
+      "uniwind",
     ],
     registryDependencies: [
       "https://r.assistant-ui.com/native/attachment.json",
@@ -1979,6 +1981,7 @@ export const nativeRegistry: RegistryItem[] = [
       "expo-image-manipulator",
       "expo-image-picker",
       "lucide-react-native",
+      "uniwind",
     ],
     registryDependencies: ["https://r.assistant-ui.com/native/icon.json"],
   },
@@ -1996,7 +1999,11 @@ export const nativeRegistry: RegistryItem[] = [
           "../../packages/ui/src/components/react-native/assistant-ui/elements/thread-list.aui.tsx",
       },
     ],
-    dependencies: ["@assistant-ui/react-native", "lucide-react-native"],
+    dependencies: [
+      "@assistant-ui/react-native",
+      "lucide-react-native",
+      "uniwind",
+    ],
     registryDependencies: [
       "https://r.assistant-ui.com/native/icon.json",
       "https://r.assistant-ui.com/utils.json",
@@ -2014,7 +2021,7 @@ export const nativeRegistry: RegistryItem[] = [
         sourcePath: "../../packages/ui/src/components/react-native/ui/icon.tsx",
       },
     ],
-    dependencies: ["lucide-react-native", "react-native-svg"],
+    dependencies: ["lucide-react-native", "react-native-svg", "uniwind"],
     registryDependencies: ["https://r.assistant-ui.com/utils.json"],
   },
 ];

@@ -49,12 +49,7 @@ const PROJECT_PACKAGE_IMPORTS = new Set([
   "react-dom",
   "vue",
 ]);
-const NATIVE_PROJECT_PACKAGE_IMPORTS = new Set([
-  "react",
-  "react-native",
-  "react-native-safe-area-context",
-  "uniwind",
-]);
+const NATIVE_PROJECT_PACKAGE_IMPORTS = new Set(["react", "react-native"]);
 
 type RegistryFile = NonNullable<RegistryItem["files"]>[number];
 type RegistryBuildItem = Omit<
