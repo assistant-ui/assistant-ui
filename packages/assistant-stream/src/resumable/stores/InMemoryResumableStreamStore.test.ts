@@ -1,5 +1,4 @@
 import { describe, expect, it, vi } from "vitest";
-import { createRenderCounter } from "@assistant-ui/x-performance";
 import { createInMemoryResumableStreamStore } from "./InMemoryResumableStreamStore";
 import type { ResumableStreamEntry } from "../types";
 
@@ -25,13 +24,13 @@ describe("InMemoryResumableStreamStore", () => {
         defaultTtlMs: 100,
       });
       for (let i = 0; i < count; i++) await store.acquire(`stream-${i}`);
-      const counter = createRenderCounter();
+      let scannedEntries = 0;
       const iterate = Map.prototype[Symbol.iterator];
       const spy = vi
         .spyOn(Map.prototype, Symbol.iterator)
         .mockImplementation(function* (this: Map<unknown, unknown>) {
           for (const entry of iterate.call(this)) {
-            if (this.has("stream-0")) counter.useRender("expiry-entry");
+            if (this.has("stream-0")) scannedEntries += 1;
             yield entry;
           }
           return undefined;
@@ -40,13 +39,13 @@ describe("InMemoryResumableStreamStore", () => {
         time = 1050;
         await store.append("stream-0", bytes("one"));
         expect(await store.status("stream-0")).toBe("streaming");
-        expect(counter.renders("expiry-entry")).toBe(0);
+        expect(scannedEntries).toBe(0);
         time = 1100;
         expect(await store.status("stream-1")).toBe("missing");
-        expect(counter.renders("expiry-entry")).toBe(count);
-        counter.reset();
+        expect(scannedEntries).toBe(count);
+        scannedEntries = 0;
         await store.append("stream-0", bytes("two"));
-        expect(counter.renders("expiry-entry")).toBe(0);
+        expect(scannedEntries).toBe(0);
       } finally {
         spy.mockRestore();
         store.dispose();

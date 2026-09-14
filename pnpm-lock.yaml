@@ -3719,9 +3719,6 @@ importers:
       '@assistant-ui/x-buildutils':
         specifier: workspace:*
         version: link:../x-buildutils
-      '@assistant-ui/x-performance':
-        specifier: workspace:*
-        version: link:../x-performance
       '@types/json-schema':
         specifier: ^7.0.15
         version: 7.0.15
