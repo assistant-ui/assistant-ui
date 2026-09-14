@@ -2,6 +2,7 @@ import { describe, it, expect, vi, beforeEach } from "vitest";
 import { createAdkStream } from "./AdkClient";
 import { adkEventStream } from "./server/adkEventStream";
 import { AdkEventAccumulator } from "./AdkEventAccumulator";
+import { parseAdkRequest, toAdkContent } from "./server/parseAdkRequest";
 import type { AdkEvent, AdkMessage, AdkSendMessageConfig } from "./types";
 
 // ── Helpers ──
@@ -65,6 +66,60 @@ beforeEach(() => {
   vi.stubGlobal("fetch", mockFetch);
   mockFetch.mockReset();
 });
+
+describe.each(["direct", "proxy", "proxy batch"] as const)(
+  "%s tool outcomes",
+  (mode) => {
+    it.each(["error", "success"] as const)(
+      "preserves %s through the runner request",
+      async (status) => {
+        mockFetch.mockResolvedValueOnce(sseResponse(sseBody("")));
+        const stream = createAdkStream(
+          mode === "direct"
+            ? { api: "http://localhost:8000", appName: "app", userId: "user" }
+            : { api: "/api/adk" },
+        );
+        const messages: AdkMessage[] = [
+          {
+            id: "result",
+            type: "tool",
+            name: "search",
+            tool_call_id: "tc-1",
+            content: "permission denied",
+            status,
+          },
+        ];
+        if (mode === "proxy batch")
+          messages.push({ id: "human", type: "human", content: "continue" });
+        const events = await stream(messages, makeConfig());
+        for await (const event of events) expect(event).toBeUndefined();
+        const body = JSON.parse(mockFetch.mock.calls[0]![1]!.body as string);
+        const content =
+          mode === "direct"
+            ? body.newMessage
+            : toAdkContent(
+                await parseAdkRequest(
+                  new Request("http://localhost/api/adk", {
+                    method: "POST",
+                    body: JSON.stringify(body),
+                    headers: { "Content-Type": "application/json" },
+                  }),
+                ),
+              );
+        expect(content.parts[0]).toEqual({
+          functionResponse: {
+            id: "tc-1",
+            name: "search",
+            response:
+              status === "error"
+                ? { error: "permission denied" }
+                : { result: "permission denied" },
+          },
+        });
+      },
+    );
+  },
+);
 
 // ── Proxy mode ──
 
