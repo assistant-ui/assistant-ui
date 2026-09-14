@@ -47,10 +47,15 @@ const NestedThreadStatus = () => {
   );
 };
 
+const OuterMessageStatus = () => {
+  const status = useAuiState((s) => s.message.status?.type);
+  return <output data-testid="outer-message-status">{status}</output>;
+};
+
 afterEach(cleanup);
 
 describe("PartPrimitiveMessages", () => {
-  it("reports the nested thread as running", () => {
+  it("keeps the outer message running and reports the nested thread as running after the outer run ends", () => {
     const App = () => {
       const runtime = useExternalStoreRuntime({
         messages: [
@@ -68,7 +73,6 @@ describe("PartPrimitiveMessages", () => {
                 messages: [nestedAssistant],
               },
             ],
-            status: { type: "running" as const },
             metadata: {
               unstable_state: {},
               unstable_annotations: [],
@@ -78,22 +82,26 @@ describe("PartPrimitiveMessages", () => {
             },
           },
         ],
-        isRunning: true,
+        isRunning: false,
+        convertMessage: (message) => message,
         onNew: async () => {},
       });
       return (
         <AssistantRuntimeProvider runtime={runtime}>
           <ThreadPrimitiveMessages>
             {() => (
-              <MessagePrimitiveParts>
-                {({ part }) =>
-                  part.type === "tool-call" ? (
-                    <PartPrimitiveMessages>
-                      {() => <NestedThreadStatus />}
-                    </PartPrimitiveMessages>
-                  ) : null
-                }
-              </MessagePrimitiveParts>
+              <>
+                <OuterMessageStatus />
+                <MessagePrimitiveParts>
+                  {({ part }) =>
+                    part.type === "tool-call" ? (
+                      <PartPrimitiveMessages>
+                        {() => <NestedThreadStatus />}
+                      </PartPrimitiveMessages>
+                    ) : null
+                  }
+                </MessagePrimitiveParts>
+              </>
             )}
           </ThreadPrimitiveMessages>
         </AssistantRuntimeProvider>
@@ -102,6 +110,9 @@ describe("PartPrimitiveMessages", () => {
 
     render(<App />);
 
+    expect(screen.getByTestId("outer-message-status").textContent).toBe(
+      "running",
+    );
     expect(screen.getByTestId("nested-thread-running").textContent).toBe(
       "true",
     );
