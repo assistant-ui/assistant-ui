@@ -1934,6 +1934,44 @@ export const registry: RegistryItem[] = [
 
 export const vueRegistry: RegistryItem[] = [];
 
+type NativeElementRegistryEntry = {
+  slug: string;
+  title: string;
+  description: string;
+  file: string;
+  dependencies?: string[];
+  usesElements?: string[];
+  usesIcon?: boolean;
+  usesSurfaces?: boolean;
+};
+
+const createNativeElementRegistryItem = (
+  entry: NativeElementRegistryEntry,
+): RegistryItem => ({
+  name: `elements-${entry.slug}`,
+  type: "registry:component",
+  title: entry.title,
+  description: entry.description,
+  files: [
+    {
+      type: "registry:component",
+      path: `components/assistant-ui/elements/${entry.file}`,
+      sourcePath: `../../packages/ui/src/components/react-native/assistant-ui/elements/${entry.file}`,
+    },
+  ],
+  registryDependencies: [
+    ...(entry.usesSurfaces === false
+      ? []
+      : ["https://r.assistant-ui.com/native/elements-surfaces.json"]),
+    ...(entry.usesElements ?? []).map(
+      (slug) => `https://r.assistant-ui.com/native/elements-${slug}.json`,
+    ),
+    ...(entry.usesIcon ? ["https://r.assistant-ui.com/native/icon.json"] : []),
+    "https://r.assistant-ui.com/utils.json",
+  ],
+  ...(entry.dependencies ? { dependencies: entry.dependencies } : {}),
+});
+
 export const nativeRegistry: RegistryItem[] = [
   {
     name: "thread",
@@ -1958,6 +1996,8 @@ export const nativeRegistry: RegistryItem[] = [
     ],
     registryDependencies: [
       "https://r.assistant-ui.com/native/attachment.json",
+      "https://r.assistant-ui.com/native/elements-icon-button.json",
+      "https://r.assistant-ui.com/native/elements-typing-indicator.json",
       "https://r.assistant-ui.com/native/icon.json",
       "https://r.assistant-ui.com/native/markdown-text.json",
       "https://r.assistant-ui.com/utils.json",
@@ -2049,6 +2089,97 @@ export const nativeRegistry: RegistryItem[] = [
     dependencies: ["lucide-react-native", "react-native-svg", "uniwind"],
     registryDependencies: ["https://r.assistant-ui.com/utils.json"],
   },
+  {
+    name: "elements-surfaces",
+    type: "registry:component",
+    title: "Elements Surfaces",
+    description:
+      "Shared design language for the native elements family: surface, ink, and monospace class recipes plus the pulse label.",
+    files: [
+      {
+        type: "registry:lib",
+        path: "components/assistant-ui/elements/surfaces.tsx",
+        sourcePath:
+          "../../packages/ui/src/components/react-native/assistant-ui/elements/surfaces.tsx",
+      },
+    ],
+    registryDependencies: ["https://r.assistant-ui.com/utils.json"],
+  },
+  {
+    name: "elements-range",
+    type: "registry:component",
+    title: "Elements Range",
+    description:
+      "Range normalization for the elements family: clamping a caller's counts, indexes, and shares to what the element can render.",
+    files: [
+      {
+        type: "registry:lib",
+        path: "components/assistant-ui/utils/range.ts",
+        sourcePath:
+          "../../packages/ui/src/components/react-native/assistant-ui/utils/range.ts",
+      },
+    ],
+  },
+  createNativeElementRegistryItem({
+    slug: "icon-button",
+    title: "Icon button",
+    description: "A labeled pressable icon with a comfortable hit area.",
+    file: "icon-button.tsx",
+    usesSurfaces: false,
+  }),
+  createNativeElementRegistryItem({
+    slug: "typing-indicator",
+    title: "Typing indicator",
+    description:
+      "The classic three dots, tuned to read as presence rather than noise.",
+    file: "typing-indicator.tsx",
+  }),
+  createNativeElementRegistryItem({
+    slug: "error-state",
+    title: "Error state",
+    description:
+      "A quiet failure banner with a retry path, not a modal in your face.",
+    file: "error-state.tsx",
+    dependencies: ["lucide-react-native"],
+    usesIcon: true,
+  }),
+  createNativeElementRegistryItem({
+    slug: "stopped-run",
+    title: "Stopped run",
+    description:
+      "You pressed stop. The half-written answer stays, and continuing is one tap away.",
+    file: "stopped-run.tsx",
+    dependencies: ["lucide-react-native"],
+    usesIcon: true,
+  }),
+  createNativeElementRegistryItem({
+    slug: "approval-card",
+    title: "Approval card",
+    description:
+      "Human in the loop: the agent asks before it runs anything with side effects.",
+    file: "approval-card.tsx",
+    dependencies: ["lucide-react-native"],
+    usesIcon: true,
+  }),
+  createNativeElementRegistryItem({
+    slug: "agent-status",
+    title: "Agent status",
+    description:
+      "One pill that always answers: what is it doing, and for how long.",
+    file: "agent-status.tsx",
+    dependencies: ["lucide-react-native"],
+    usesIcon: true,
+  }),
+  createNativeElementRegistryItem({
+    slug: "tool-timeline",
+    title: "Tool timeline",
+    description:
+      "A whole working session summarized as verbs, targets, and file stats.",
+    file: "tool-timeline.tsx",
+    dependencies: ["lucide-react-native"],
+    usesElements: ["range"],
+    usesIcon: true,
+  }),
 ];
 
 /**

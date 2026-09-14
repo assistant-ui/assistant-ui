@@ -183,7 +183,22 @@ test("native registry build emits the React Native kit", async () => {
   );
   assert.deepEqual(
     nativeIndex.items.map((item) => item.name),
-    ["thread", "markdown-text", "attachment", "thread-list", "icon"],
+    [
+      "thread",
+      "markdown-text",
+      "attachment",
+      "thread-list",
+      "icon",
+      "elements-surfaces",
+      "elements-range",
+      "elements-icon-button",
+      "elements-typing-indicator",
+      "elements-error-state",
+      "elements-stopped-run",
+      "elements-approval-card",
+      "elements-agent-status",
+      "elements-tool-timeline",
+    ],
   );
 });
 
