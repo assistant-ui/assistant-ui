@@ -4,4 +4,4 @@
 "@assistant-ui/ai-sdk": patch
 ---
 
-feat: mark voice transcript messages with metadata.modality and hide edit and reload on spoken turns
+feat: mark voice transcript messages with metadata.modality

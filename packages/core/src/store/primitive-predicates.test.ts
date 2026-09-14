@@ -58,7 +58,7 @@ describe("primitive predicates", () => {
     };
     expect(
       actionBarReloadDisabled(
-        state({ thread, message: { role: "assistant", metadata: {} } }),
+        state({ thread, message: { role: "assistant" } }),
       ),
     ).toBe(false);
     expect(
@@ -76,54 +76,10 @@ describe("primitive predicates", () => {
       actionBarReloadDisabled(
         state({
           thread: { ...thread, capabilities: { reload: false } },
-          message: { role: "assistant", metadata: {} },
+          message: { role: "assistant" },
         }),
       ),
     ).toBe(true);
-  });
-
-  it("disables action bar edit and reload for voice messages", () => {
-    expect(
-      actionBarEditDisabled(
-        state({
-          composer: { isEditing: false },
-          optional: {
-            thread: { capabilities: { edit: true } },
-            message: { metadata: { modality: "voice" } },
-          },
-        }),
-      ),
-    ).toBe(true);
-    expect(
-      actionBarEditDisabled(
-        state({
-          composer: { isEditing: false },
-          optional: {
-            thread: { capabilities: { edit: true } },
-            message: { metadata: {} },
-          },
-        }),
-      ),
-    ).toBe(false);
-
-    const thread = {
-      isRunning: false,
-      isDisabled: false,
-      capabilities: { reload: true },
-    };
-    expect(
-      actionBarReloadDisabled(
-        state({
-          thread,
-          message: { role: "assistant", metadata: { modality: "voice" } },
-        }),
-      ),
-    ).toBe(true);
-    expect(
-      actionBarReloadDisabled(
-        state({ thread, message: { role: "assistant", metadata: {} } }),
-      ),
-    ).toBe(false);
   });
 
   it("actionBarCopyDisabled requires settled content with non-empty text", () => {

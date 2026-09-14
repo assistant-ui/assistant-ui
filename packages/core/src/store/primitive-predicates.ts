@@ -20,15 +20,12 @@ export const composerInputDisabled = (s: AssistantState): boolean =>
   s.thread.isDisabled || s.composer.dictation?.inputDisabled === true;
 
 export const actionBarEditDisabled = (s: AssistantState): boolean =>
-  s.composer.isEditing ||
-  s.optional.thread?.capabilities.edit === false ||
-  s.optional.message?.metadata.modality === "voice";
+  s.composer.isEditing || s.optional.thread?.capabilities.edit === false;
 
 export const actionBarReloadDisabled = (s: AssistantState): boolean =>
   s.thread.isRunning ||
   s.thread.isDisabled ||
   s.message.role !== "assistant" ||
-  s.message.metadata.modality === "voice" ||
   !s.thread.capabilities.reload;
 
 export const actionBarCopyDisabled = (s: AssistantState): boolean =>

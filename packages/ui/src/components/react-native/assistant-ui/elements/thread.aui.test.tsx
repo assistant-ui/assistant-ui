@@ -86,7 +86,6 @@ const h = vi.hoisted(() => {
     id: `message-${messages.length + 1}`,
     role: "assistant",
     status: { type: "complete" },
-    metadata: { custom: {} },
     parentId: null,
     isLast: true,
     branchNumber: 1,
