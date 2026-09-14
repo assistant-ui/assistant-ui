@@ -57,8 +57,9 @@ export function isParsableUrl(value: string): boolean {
 }
 
 /**
- * A data URL's media type without parameters. Media-less text data URLs use
- * `text/plain`, while media-less base64 data URLs use `application/octet-stream`.
+ * A data URL's media type without parameters. It uses
+ * `application/octet-stream` when a base64 payload omits a type and
+ * `text/plain` when any other payload does.
  * Unlike `parseDataUrl`, this also accepts non-base64 data URLs.
  * Returns `undefined` for values without a data URL header.
  */
