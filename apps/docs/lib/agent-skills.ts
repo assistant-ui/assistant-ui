@@ -6,20 +6,13 @@ export type AgentSkill = {
   content: string;
 };
 
-export type AgentSkillSummary = Pick<AgentSkill, "name" | "description">;
-
-const { source, skills } = generated as {
-  source: string;
-  skills: AgentSkill[];
-};
-
-export const AGENT_SKILLS_SOURCE = source;
+const { skills } = generated as { skills: AgentSkill[] };
 
 export function getSkills(): AgentSkill[] {
   return skills;
 }
 
-export function listSkills(): AgentSkillSummary[] {
+export function listSkills(): Pick<AgentSkill, "name" | "description">[] {
   return skills.map(({ name, description }) => ({ name, description }));
 }
 
