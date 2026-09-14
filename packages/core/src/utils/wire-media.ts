@@ -38,8 +38,9 @@ export function resolveImageMediaType(
 
 /**
  * The media type to declare for a `FileMessagePart`: its own `mimeType`, then
- * the data URL's media type without parameters (`text/plain` when omitted).
- * Non-data-URL payloads without a declared type use `application/octet-stream`.
+ * the data URL's media type without parameters (`application/octet-stream`
+ * when a base64 payload omits one, `text/plain` otherwise). Non-data-URL
+ * payloads without a declared type use `application/octet-stream`.
  *
  * `mimeType` is a plain string, and an adapter reading `file.type` on a file
  * the OS cannot type yields `""`, so the declared value is not always present.
