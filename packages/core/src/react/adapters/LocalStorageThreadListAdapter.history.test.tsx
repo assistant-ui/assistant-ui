@@ -89,6 +89,10 @@ describe("local storage history recovery", () => {
           { type: "complete", reason: "stop" },
         ),
       });
+      const persisted = JSON.parse(values.get(key)!) as {
+        messages: { message: { content: unknown[] } }[];
+      };
+      expect(persisted.messages[0]?.message.content[0]).toBeNull();
       unmount();
 
       const refreshed = renderHook(() => useRuntimeAdapters(), {

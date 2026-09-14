@@ -9,8 +9,8 @@ content such as `content: [null]` or `attachments: [null]`. Unreadable parts
 and attachments are dropped individually instead of discarding the whole
 message and its descendants.
 
-Because `append` rewrites the parsed repository, this also changes what a
-stored thread looks like after the next message is sent:
+The following recovery behavior applies in memory when a stored thread is
+loaded:
 
 - an assistant message with a missing or unusable `status` loads as
   `complete/unknown` instead of being discarded
@@ -27,3 +27,6 @@ stored thread looks like after the next message is sent:
 - non-record assistant step entries are removed while legacy record-shaped
   steps and partial timing metadata remain compatible
 - valid voice modality metadata remains intact
+
+Saving a later message preserves existing raw records and only writes the new
+or replaced item, so recovery does not silently rewrite earlier history.

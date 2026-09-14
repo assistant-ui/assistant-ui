@@ -622,19 +622,32 @@ class AsyncStorageHistoryAdapter implements ThreadHistoryAdapter {
     const key = this._messagesKey(remoteId);
     await this.mutationQueue.run(key, async () => {
       const raw = await this.storage.getItem(key);
-      const repo = parseStoredMessageRepository(raw);
+      const stored = parseJSON(raw);
+      const repository = isRecord(stored) ? stored : {};
+      const messages = Array.isArray(repository.messages)
+        ? [...repository.messages]
+        : [];
 
-      const idx = repo.messages.findIndex(
-        (m) => m.message.id === item.message.id,
+      const idx = messages.findIndex(
+        (entry) =>
+          isRecord(entry) &&
+          isRecord(entry.message) &&
+          entry.message.id === item.message.id,
       );
       if (idx >= 0) {
-        repo.messages[idx] = item;
+        messages[idx] = item;
       } else {
-        repo.messages.push(item);
+        messages.push(item);
       }
-      repo.headId = item.message.id;
 
-      await this.storage.setItem(key, JSON.stringify(repo));
+      await this.storage.setItem(
+        key,
+        JSON.stringify({
+          ...repository,
+          messages,
+          headId: item.message.id,
+        }),
+      );
     });
   }
 }
