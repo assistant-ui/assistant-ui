@@ -16,6 +16,7 @@ import {
 import { ComposerClient } from "./composer-runtime-client";
 import { MessageClient } from "./message-runtime-client";
 import { ThreadSuggestions } from "../clients/suggestions";
+import { createTaskDeriver, TaskClient } from "../clients/thread-tasks";
 import { useSubscribable } from "./useSubscribable";
 import type { ThreadState } from "../scopes/thread";
 
@@ -109,6 +110,14 @@ const useThreadClient = ({
   const suggestions = useClientResource(
     ThreadSuggestions(runtimeState.suggestions),
   );
+  const taskDeriver = useMemo(() => createTaskDeriver(), []);
+  const tasks = useMemo(
+    () => taskDeriver(runtimeState.messages),
+    [taskDeriver, runtimeState.messages],
+  );
+  const taskClients = useClientLookup(
+    tasks.map((task) => withKey(task.id, TaskClient({ task }), [task])),
+  );
   const messages = useClientLookup(
     runtimeState.messages.map((m) =>
       withKey(
@@ -139,13 +148,20 @@ const useThreadClient = ({
 
       composer: composer.state,
       messages: messages.state,
+      tasks,
     };
-  }, [runtimeState, messages, composer.state]);
+  }, [runtimeState, messages, composer.state, tasks]);
 
   return {
     getState: () => state,
     composer: () => composer.methods,
     suggestions: () => suggestions.methods,
+    task: (selector) => {
+      if ("id" in selector) {
+        return taskClients.get({ key: selector.id });
+      }
+      return taskClients.get(selector);
+    },
     append: (message) => {
       const appended: Exclude<CreateAppendMessage, string> =
         typeof message === "string"

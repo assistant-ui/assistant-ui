@@ -1,0 +1,103 @@
+import { resource } from "@assistant-ui/tap";
+import type { ClientOutput } from "@assistant-ui/store";
+import type {
+  ThreadMessage,
+  ToolCallMessagePart,
+  ToolCallMessagePartStatus,
+} from "../../types/message";
+import { toMessagePartStatus } from "../../utils/normalizePartStatus";
+import type { TaskState } from "../scopes/task";
+
+type TaskEntry = {
+  readonly task: TaskState;
+  readonly part: ToolCallMessagePart;
+  readonly statusType: ToolCallMessagePartStatus["type"];
+  readonly statusReason: string | undefined;
+  readonly messages: readonly ThreadMessage[];
+};
+
+const getStatusReason = (status: ToolCallMessagePartStatus) =>
+  "reason" in status ? status.reason : undefined;
+
+export const createTaskDeriver = () => {
+  let previous: readonly TaskState[] = [];
+  let previousEntries = new Map<string, TaskEntry>();
+
+  return (messages: readonly ThreadMessage[]): readonly TaskState[] => {
+    const tasks: TaskState[] = [];
+    const entries = new Map<string, TaskEntry>();
+    let allEntriesReused = true;
+
+    const visit = (
+      threadMessages: readonly ThreadMessage[],
+      parentTaskId: string | null,
+      depth: number,
+    ) => {
+      for (const message of threadMessages) {
+        for (const [partIndex, part] of message.content.entries()) {
+          if (part.type !== "tool-call" || part.messages === undefined)
+            continue;
+
+          const nestedMessages = part.messages;
+          const status = toMessagePartStatus(message, partIndex, part);
+          const statusReason = getStatusReason(status);
+          const previousEntry = previousEntries.get(part.toolCallId);
+          const task =
+            previousEntry?.part === part &&
+            previousEntry.statusType === status.type &&
+            previousEntry.statusReason === statusReason &&
+            previousEntry.messages === nestedMessages
+              ? previousEntry.task
+              : {
+                  id: part.toolCallId,
+                  toolName: part.toolName,
+                  args: part.args,
+                  result: part.result,
+                  ...(part.isError === undefined
+                    ? undefined
+                    : { isError: part.isError }),
+                  status,
+                  timing: part.timing,
+                  messageId: message.id,
+                  parentTaskId,
+                  depth,
+                  messages: nestedMessages,
+                };
+
+          if (task !== previousEntry?.task) allEntriesReused = false;
+          tasks.push(task);
+          entries.set(task.id, {
+            task,
+            part,
+            statusType: status.type,
+            statusReason,
+            messages: nestedMessages,
+          });
+          visit(nestedMessages, task.id, depth + 1);
+        }
+      }
+    };
+
+    visit(messages, null, 0);
+
+    const result =
+      allEntriesReused &&
+      tasks.length === previous.length &&
+      tasks.every((task, index) => task === previous[index])
+        ? previous
+        : tasks;
+    previous = result;
+    previousEntries = entries;
+    return result;
+  };
+};
+
+const useTaskClient = ({
+  task,
+}: {
+  task: TaskState;
+}): ClientOutput<"task"> => ({
+  getState: () => task,
+});
+
+export const TaskClient = resource(useTaskClient);
