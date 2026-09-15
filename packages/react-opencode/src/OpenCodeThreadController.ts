@@ -220,6 +220,7 @@ export class OpenCodeThreadController implements OpenCodeThreadControllerLike {
   private readonly getEventSource: OpenCodeEventSourceProvider;
   private unsubscribeFromEvents: (() => void) | null = null;
   private loadPromise: Promise<void> | null = null;
+  private backgroundRefreshQueued = false;
   private reconnectSyncToken = 0;
   private readonly childControllersById = new Map<
     string,
@@ -542,6 +543,10 @@ export class OpenCodeThreadController implements OpenCodeThreadControllerLike {
       .finally(() => {
         if (this.loadPromise === request) {
           this.loadPromise = null;
+          if (this.backgroundRefreshQueued) {
+            this.backgroundRefreshQueued = false;
+            this.refreshInBackground();
+          }
         }
       });
 
@@ -762,7 +767,10 @@ export class OpenCodeThreadController implements OpenCodeThreadControllerLike {
   }
 
   private refreshInBackground() {
-    if (this.loadPromise) return;
+    if (this.loadPromise) {
+      this.backgroundRefreshQueued = true;
+      return;
+    }
     void this.refresh().catch(() => undefined);
   }
 
