@@ -1133,6 +1133,46 @@ describe("BaseThreadRuntimeCore voice transcripts", () => {
     }
   });
 
+  it("rejects an edit resubmission of a transcript before any side effect", async () => {
+    const voiceAdapter = createVoiceAdapter();
+    const run = vi.fn(async () => ({}));
+    const runtime = new LocalRuntimeCore(
+      { adapters: { chatModel: { run }, voice: voiceAdapter.adapter } },
+      undefined,
+    );
+    const thread = runtime.threads.getMainThreadRuntimeCore();
+    thread.connectVoice();
+
+    try {
+      voiceAdapter.emitTranscript({
+        role: "assistant",
+        text: "Hello",
+        isFinal: true,
+      });
+      const edit = {
+        parentId: null,
+        sourceId: thread.messages[0]!.id,
+        role: "user" as const,
+        content: [{ type: "text" as const, text: "again" }],
+        attachments: [],
+        metadata: { custom: {} },
+        createdAt: new Date(),
+        runConfig: {},
+      };
+
+      await expect(thread.append(edit)).rejects.toThrow(
+        "Voice transcript messages cannot be edited",
+      );
+      await expect(thread.append({ ...edit, startRun: false })).rejects.toThrow(
+        "Voice transcript messages cannot be edited",
+      );
+      expect(run).not.toHaveBeenCalled();
+      expect(thread.messages).toHaveLength(1);
+    } finally {
+      thread.disconnectVoice();
+    }
+  });
+
   it("rejects reloading a transcript", async () => {
     const voiceAdapter = createVoiceAdapter();
     const runtime = new LocalRuntimeCore(
