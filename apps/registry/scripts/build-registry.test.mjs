@@ -1836,7 +1836,7 @@ test("install validation places an untargeted lib file where shadcn does", () =>
   );
 });
 
-test("shadcn install paths follow the type directory, keep the nested tail, and honour a target", () => {
+test("shadcn install paths follow the type directory, keep the nested tail, and take a target as given", () => {
   for (const [file, expected] of [
     [
       {
@@ -1871,14 +1871,6 @@ test("shadcn install paths follow the type directory, keep the nested tail, and 
         target: "app/api/chat/route.ts",
       },
       "app/api/chat/route.ts",
-    ],
-    [
-      {
-        type: "registry:lib",
-        path: "source/feature.ts",
-        target: "~/lib/feature.ts",
-      },
-      "lib/feature.ts",
     ],
   ]) {
     assert.equal(

@@ -309,7 +309,7 @@ export function shadcnInstallPath(file: {
   type?: string;
   target?: string;
 }): string {
-  if (file.target) return file.target.replace(/^~\//, "");
+  if (file.target) return file.target;
   const directory = SHADCN_TYPE_DIRECTORIES[file.type ?? ""] ?? "components";
   const segments = file.path.replace(/^\/|\/$/g, "").split("/");
   const anchorIndex = segments.indexOf(path.posix.basename(directory));
