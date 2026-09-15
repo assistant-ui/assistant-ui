@@ -969,38 +969,76 @@ describe("AdkEventAccumulator - actions tracking", () => {
     expect(acc.getLongRunningToolIds()).toEqual(["lrt-1"]);
   });
 
-  it.each(["user", "agent"])(
-    "removes a function response id from pending longRunningToolIds (%s path)",
-    (author) => {
-      const acc = new AdkEventAccumulator();
-      acc.processEvent(
-        makeEvent({
-          author: "agent",
-          longRunningToolIds: ["tc-1", "tc-2"],
-          content: { parts: [{ text: "awaiting input" }] },
-        }),
-      );
-
-      acc.processEvent(
-        makeEvent({
-          author,
-          content: {
-            parts: [
-              {
-                functionResponse: {
-                  id: "tc-1",
-                  name: "search",
-                  response: { result: "done" },
-                },
+  it("settles a long-running id when a user-authored response answers it", () => {
+    const acc = new AdkEventAccumulator();
+    acc.processEvent(
+      makeEvent({
+        author: "agent",
+        longRunningToolIds: ["lrt-1", "lrt-2"],
+        content: {
+          parts: [
+            {
+              functionCall: { name: "ask_for_approval", id: "lrt-1", args: {} },
+            },
+            {
+              functionCall: { name: "ask_for_approval", id: "lrt-2", args: {} },
+            },
+          ],
+        },
+      }),
+    );
+    acc.processEvent(
+      makeEvent({
+        author: "user",
+        content: {
+          parts: [
+            {
+              functionResponse: {
+                name: "ask_for_approval",
+                id: "lrt-1",
+                response: { status: "approved" },
               },
-            ],
-          },
-        }),
-      );
+            },
+          ],
+        },
+      }),
+    );
+    expect(acc.getLongRunningToolIds()).toEqual(["lrt-2"]);
+  });
 
-      expect(acc.getLongRunningToolIds()).toEqual(["tc-2"]);
-    },
-  );
+  it("keeps a long-running id pending through the interim response ADK authors", () => {
+    const acc = new AdkEventAccumulator();
+    acc.processEvent(
+      makeEvent({
+        author: "agent",
+        longRunningToolIds: ["lrt-1"],
+        content: {
+          parts: [
+            {
+              functionCall: { name: "ask_for_approval", id: "lrt-1", args: {} },
+            },
+          ],
+        },
+      }),
+    );
+    acc.processEvent(
+      makeEvent({
+        author: "agent",
+        content: {
+          parts: [
+            {
+              functionResponse: {
+                name: "ask_for_approval",
+                id: "lrt-1",
+                response: { status: "pending" },
+              },
+            },
+          ],
+        },
+      }),
+    );
+    expect(acc.getLongRunningToolIds()).toEqual(["lrt-1"]);
+  });
 });
 
 describe("AdkEventAccumulator - special function calls", () => {

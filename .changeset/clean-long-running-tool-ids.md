@@ -2,4 +2,4 @@
 "@assistant-ui/react-google-adk": patch
 ---
 
-fix: remove completed function responses from long-running tool state
+fix: drop long-running tool calls the client already answered from `useAdkLongRunningToolIds` and session snapshots
