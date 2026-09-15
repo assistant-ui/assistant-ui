@@ -72,9 +72,9 @@ export const useAdkMessages = ({
     Map<string, AdkMessageMetadata>
   >(new Map());
   const lastTransferToAgentRef = useRef<string | undefined>(undefined);
-  // setMessagesImmediate is the only writer of the messages state and publishes
-  // this ref with it, so the ref never trails a commit.
+  // setMessagesImmediate and setLongRunningToolIds are the only writers of their state and publish these refs with it, so neither ref trails a commit.
   const messagesRef = useRef(messages);
+  const longRunningToolIdsRef = useRef(longRunningToolIds);
   const stateDeltaRef = useRef(stateDelta);
   useInsertionEffect(() => {
     stateDeltaRef.current = stateDelta;
@@ -87,7 +87,6 @@ export const useAdkMessages = ({
   useInsertionEffect(() => {
     messageMetadataRef.current = messageMetadata;
   }, [messageMetadata]);
-  const longRunningToolIdsRef = useRef(longRunningToolIds);
 
   const setMessagesImmediate = useCallback((msgs: AdkMessage[]) => {
     messagesRef.current = msgs;
@@ -154,6 +153,7 @@ export const useAdkMessages = ({
       // with the originals would leave every later staged id beside the merged
       // copy of itself.
       const resentIds = new Set(newMessagesWithId.map((m) => m.id));
+      // The optimistic event for a tool-only batch carries no author, so the accumulator cannot settle the calls this send answers.
       const answeredToolCallIds = new Set(
         newMessagesWithId.flatMap((m) =>
           m.type === "tool" ? [m.tool_call_id] : [],
