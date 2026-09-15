@@ -222,7 +222,13 @@ export class DataStreamEncoder
               finishOpenToolCallArgs(controller);
               controller.enqueue({
                 type: DataStreamStreamChunkType.Error,
-                value: chunk.error,
+                value: {
+                  error: chunk.error,
+                  ...(chunk.code !== undefined ? { code: chunk.code } : {}),
+                  ...(chunk.severity !== undefined
+                    ? { severity: chunk.severity }
+                    : {}),
+                },
               });
               break;
             }
@@ -505,14 +511,23 @@ export class DataStreamDecoder extends PipeableTransformStream<
               break;
             }
 
-            case DataStreamStreamChunkType.Error:
+            case DataStreamStreamChunkType.Error: {
               closeOpenToolCallArgs();
+              // Backward compat: legacy encoders emit a plain string for `3:`.
+              // New encoders emit { error, code?, severity? }.
+              const { error, code, severity } =
+                typeof value === "string"
+                  ? { error: value, code: undefined, severity: undefined }
+                  : value;
               controller.enqueue({
                 type: "error",
                 path: [],
-                error: value,
+                error,
+                ...(code !== undefined ? { code } : {}),
+                ...(severity !== undefined ? { severity } : {}),
               });
               break;
+            }
 
             case DataStreamStreamChunkType.File: {
               const { parentId, ...fileData } = value;

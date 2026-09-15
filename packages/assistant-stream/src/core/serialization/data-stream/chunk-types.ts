@@ -78,7 +78,11 @@ type DataStreamStreamChunkValue = {
     artifact?: ReadonlyJSONValue | undefined;
     isError?: boolean;
   };
-  [DataStreamStreamChunkType.Error]: string;
+  [DataStreamStreamChunkType.Error]: {
+    error: string;
+    code?: string;
+    severity?: "critical" | "warning" | "info";
+  };
   [DataStreamStreamChunkType.FinishStep]: {
     finishReason: LanguageModelV1FinishReason;
     usage: LanguageModelV1Usage;
