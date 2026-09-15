@@ -83,7 +83,7 @@ tools: {
 </Tab>
 <Tab value="LangGraph">
 
-With `@assistant-ui/react-langgraph`, use `unstable_createLangGraphStream` and set `unstable_allowCancellation: true` to wire up the stop button. When your graph runs a subgraph, the subgraph's messages appear on `ToolCallMessagePart.messages` automatically once you handle the `onSubgraphValues` / `onSubgraphUpdates` events.
+With `@assistant-ui/react-langgraph`, use `unstable_createLangGraphStream` with `streamSubgraphs: true` and set `unstable_allowCancellation: true` to wire up the stop button. When your graph runs a subgraph, the subgraph's messages stream through the namespaced event handlers.
 
 ```ts title="runtime.ts"
 import {
@@ -98,6 +98,7 @@ const runtime = useLangGraphRuntime({
     assistantId,
     // "custom" is required for generative UI; "updates" for subgraph events
     streamMode: ["messages", "updates", "custom"],
+    streamSubgraphs: true,
     // abort the run server-side when the user clicks stop
     onDisconnect: "cancel",
   }),
