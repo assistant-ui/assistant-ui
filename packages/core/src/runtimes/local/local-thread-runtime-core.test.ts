@@ -2290,3 +2290,81 @@ describe("LocalThreadRuntimeCore imported approvals", () => {
     expect(thread.messages.at(-1)?.status?.type).toBe("complete");
   });
 });
+
+describe("LocalThreadRuntimeCore message queue", () => {
+  const createQueuedThread = () => {
+    const dispatched: string[] = [];
+    let release!: () => void;
+    let gate = new Promise<void>((resolve) => (release = resolve));
+
+    const core = new LocalRuntimeCore(
+      {
+        adapters: {
+          chatModel: {
+            async run(options) {
+              const last = options.messages.at(-1);
+              const text = last?.content
+                .filter((part) => part.type === "text")
+                .map((part) => (part as { text: string }).text)
+                .join("");
+              dispatched.push(text ?? "");
+              await gate;
+              return { content: [{ type: "text", text: "ok" }] };
+            },
+          },
+        },
+        unstable_enableMessageQueue: true,
+      },
+      undefined,
+    );
+
+    // the in-flight run already awaits the current gate, so the next gate has
+    // to be installed before releasing it or the run dispatched next resolves
+    // against an already-settled promise
+    const releaseRun = async () => {
+      const releaseCurrent = release;
+      gate = new Promise<void>((resolve) => (release = resolve));
+      releaseCurrent();
+      await flush();
+    };
+
+    return {
+      thread: core.threads.getMainThreadRuntimeCore(),
+      dispatched,
+      releaseRun,
+    };
+  };
+
+  it("keeps the steer lane for implicit sends during back-to-back queued runs", async () => {
+    const { thread, dispatched, releaseRun } = createQueuedThread();
+    // the queue lane is only taken for a message appended onto the tail
+    const appendToTail = (text: string, steer?: boolean) =>
+      void thread.append({
+        ...userMessage(text),
+        parentId: thread.messages.at(-1)?.id ?? null,
+        ...(steer !== undefined && { steer }),
+      });
+
+    appendToTail("first");
+    await flush();
+    expect(dispatched).toEqual(["first"]);
+
+    // buffers behind the running dispatch, so releasing "first" dispatches it
+    appendToTail("second", false);
+    await flush();
+    await releaseRun();
+    expect(dispatched).toEqual(["first", "second"]);
+
+    // "second" is a queue-dispatched run in flight, so an implicit send steers
+    // ahead of a bulk item even though it is appended after it
+    appendToTail("bulk", false);
+    appendToTail("implicit");
+    await flush();
+    await releaseRun();
+
+    expect(dispatched).toEqual(["first", "second", "implicit"]);
+
+    await releaseRun();
+    expect(dispatched).toEqual(["first", "second", "implicit", "bulk"]);
+  });
+});
