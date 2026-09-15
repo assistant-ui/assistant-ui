@@ -1359,11 +1359,55 @@ describe("BaseThreadRuntimeCore voice transcripts", () => {
     runtime.connectVoice();
     runtime.connectVoice();
 
-    expect(runtime.connected).toBe(1);
+    expect(runtime.connected).toBe(2);
     expect(runtime.disconnected).toBe(0);
 
     runtime.disconnectVoice();
 
+    expect(runtime.disconnected).toBe(1);
+  });
+
+  it("ignores an ended status from a replaced session", () => {
+    class HookRuntime extends TestRuntime {
+      disconnected = 0;
+      protected override _onVoiceDisconnected() {
+        this.disconnected += 1;
+      }
+    }
+    const statusCallbacks: Array<
+      (status: RealtimeVoiceAdapter.Status) => void
+    > = [];
+    const createSession = (): RealtimeVoiceAdapter.Session => ({
+      status: { type: "running" },
+      isMuted: false,
+      disconnect: vi.fn(),
+      mute: vi.fn(),
+      unmute: vi.fn(),
+      onStatusChange: (callback) => {
+        statusCallbacks.push(callback);
+        return () => {};
+      },
+      onTranscript: () => () => {},
+      onModeChange: () => () => {},
+      onVolumeChange: () => () => {},
+    });
+    const runtime = new HookRuntime({
+      adapter: { connect: () => createSession() },
+      emitVolume: () => {},
+      emitTranscript: () => {},
+      session: createSession(),
+    });
+
+    runtime.connectVoice();
+    runtime.connectVoice();
+    statusCallbacks[0]!({ type: "ended", reason: "finished" });
+
+    try {
+      expect(runtime.voice).toBeDefined();
+      expect(runtime.disconnected).toBe(0);
+    } finally {
+      runtime.disconnectVoice();
+    }
     expect(runtime.disconnected).toBe(1);
   });
 
@@ -1617,6 +1661,57 @@ describe("BaseThreadRuntimeCore voice transcripts", () => {
     }
   });
 
+  it("blocks an approval response while connected before deciding it", async () => {
+    const voiceAdapter = createVoiceAdapter();
+    const run = vi.fn(async () => ({}));
+    const runtime = new LocalRuntimeCore(
+      { adapters: { chatModel: { run }, voice: voiceAdapter.adapter } },
+      undefined,
+    );
+    const thread = runtime.threads.getMainThreadRuntimeCore();
+    thread.reset([
+      {
+        id: "user",
+        role: "user",
+        content: [{ type: "text", text: "Use the tool" }],
+      },
+      {
+        id: "assistant",
+        role: "assistant",
+        content: [
+          {
+            type: "tool-call",
+            toolCallId: "tool-call",
+            toolName: "tool",
+            args: {},
+            argsText: "{}",
+            approval: { id: "approval-1" },
+          },
+        ],
+        status: { type: "requires-action", reason: "interrupt" },
+      },
+    ]);
+    thread.connectVoice();
+
+    try {
+      await expect(
+        thread.respondToToolApproval({
+          approvalId: "approval-1",
+          approved: true,
+        }),
+      ).rejects.toThrow(
+        "Cannot start a run while a voice session is connected",
+      );
+      const part = thread.messages[1]!.content[0]!;
+      expect(
+        part.type === "tool-call" && part.approval?.approved,
+      ).toBeUndefined();
+      expect(run).not.toHaveBeenCalled();
+    } finally {
+      thread.disconnectVoice();
+    }
+  });
+
   it("blocks a tool result continuation while connected", () => {
     const voiceAdapter = createVoiceAdapter();
     const run = vi.fn(async () => ({}));
@@ -1661,6 +1756,8 @@ describe("BaseThreadRuntimeCore voice transcripts", () => {
         }),
       ).toThrow("Cannot start a run while a voice session is connected");
       expect(run).not.toHaveBeenCalled();
+      const part = thread.messages[1]!.content[0]!;
+      expect(part).not.toHaveProperty("result");
     } finally {
       thread.disconnectVoice();
     }

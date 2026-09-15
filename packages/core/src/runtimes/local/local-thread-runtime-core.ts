@@ -551,7 +551,7 @@ export class LocalThreadRuntimeCore
     return this._runLoop(parentId, message, runConfig, runCallback);
   }
 
-  private _runLoop(
+  private async _runLoop(
     parentId: string | null,
     message: ThreadAssistantMessage,
     runConfig: RunConfig | undefined,
@@ -895,6 +895,8 @@ export class LocalThreadRuntimeCore
     isError,
     artifact,
   }: AddToolResultOptions) {
+    if (this.voice)
+      throw new Error("Cannot start a run while a voice session is connected");
     const messageData = this.repository.getMessage(messageId);
     const { parentId } = messageData;
     let { message } = messageData;
@@ -952,6 +954,10 @@ export class LocalThreadRuntimeCore
     text,
     reason,
   }: RespondToToolApprovalOptions): Promise<void> {
+    if (this.voice)
+      return Promise.reject(
+        new Error("Cannot start a run while a voice session is connected"),
+      );
     let message = this.repository
       .getMessages()
       .findLast(

@@ -463,12 +463,12 @@ export abstract class BaseThreadRuntimeCore
 
       unsubs.push(
         session.onStatusChange((status) => {
+          if (this._voiceSession !== session) return;
           if (status.type === "ended") {
             this._finishVoiceAssistantMessage();
-            const wasConnected = this._voiceSession === session;
-            if (wasConnected) this._voiceSession = undefined;
+            this._voiceSession = undefined;
             this.voice = undefined;
-            if (wasConnected) this._onVoiceDisconnected();
+            this._onVoiceDisconnected();
           } else {
             this.voice = {
               status,
@@ -509,7 +509,7 @@ export abstract class BaseThreadRuntimeCore
           this._handleVoiceTranscript(transcript);
         }),
       );
-      if (!finishDetachedSetup() && !replacing) this._onVoiceConnected();
+      if (!finishDetachedSetup()) this._onVoiceConnected();
     } catch (error) {
       if (this._voiceSession === session && this._voiceUnsubs === unsubs) {
         try {
