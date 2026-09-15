@@ -193,8 +193,20 @@ export const useChatThread = <UI_MESSAGE extends UIMessage = UIMessage>(
     messageRepositoryInstance,
   } = env;
 
-  const defaultTransport = useMemo(() => new AssistantChatTransport(), []);
-  const sourceTransport = transportOptions ?? defaultTransport;
+  // Wiring below is per thread and mutated on the instance, so a transport
+  // shared across simultaneously mounted threads is last-writer-wins. A
+  // caller-owned chat is already bound to its own clone, so cloning again
+  // here would wire a copy the chat never sends through.
+  const sourceTransport = useMemo(
+    () =>
+      transportOptions === undefined
+        ? new AssistantChatTransport()
+        : externalChat === undefined &&
+            transportOptions instanceof AssistantChatTransport
+          ? transportOptions.__internal_clone()
+          : transportOptions,
+    [transportOptions, externalChat],
+  );
   const transport = useDynamicChatTransport(sourceTransport);
 
   const chat = useChat({
@@ -223,6 +235,11 @@ export const useChatThread = <UI_MESSAGE extends UIMessage = UIMessage>(
     ...(unstable_onBranchChange && { unstable_onBranchChange }),
   });
 
+  // Wire in render, not an effect: a send from a descendant's mount effect
+  // runs before this hook's effect would (effects fire child-first), and must
+  // see a wired transport. The clone is per thread, so a discarded render's
+  // wiring is discarded with it and the committed render re-wires the same
+  // instance.
   if (sourceTransport instanceof AssistantChatTransport) {
     sourceTransport.setRuntime(runtime);
     sourceTransport.__internal_setGetThreadListItem(getThreadListItem);
