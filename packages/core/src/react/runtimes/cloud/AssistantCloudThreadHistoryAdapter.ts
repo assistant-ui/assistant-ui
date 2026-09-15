@@ -311,12 +311,53 @@ class AssistantCloudThreadHistoryAdapter implements ThreadHistoryAdapter {
     const remoteId = this.aui.threadListItem.getState().remoteId;
     if (!remoteId) return { messages: [] };
     const messages = await this._persistence.load(remoteId, "aui/v0");
+    const auiMessages = messages.filter(
+      (m): m is typeof m & { format: "aui/v0" } => m.format === "aui/v0",
+    );
+    const malformedMessageIds = new Set<string>();
+    const parentIds = new Map(
+      auiMessages.map((message) => [message.id, message.parent_id]),
+    );
+    const decodedMessages = auiMessages.flatMap((message) => {
+      try {
+        return [auiV0Decode(message)];
+      } catch (error) {
+        malformedMessageIds.add(message.id);
+        console.warn(
+          `[assistant-ui] Skipping malformed cloud message ${message.id}: ${error instanceof Error ? error.message : String(error)}`,
+        );
+        return [];
+      }
+    });
+    const decodedMessageIds = new Set(
+      decodedMessages.map(({ message }) => message.id),
+    );
+
+    const resolveParentId = (parentId: string | null) => {
+      const visited = new Set<string>();
+      let skippedMalformedMessage = false;
+      while (parentId !== null && malformedMessageIds.has(parentId)) {
+        if (visited.has(parentId)) return null;
+        visited.add(parentId);
+        skippedMalformedMessage = true;
+        parentId = parentIds.get(parentId) ?? null;
+      }
+      if (
+        skippedMalformedMessage &&
+        parentId !== null &&
+        !decodedMessageIds.has(parentId)
+      ) {
+        return null;
+      }
+      return parentId;
+    };
+
     return {
-      messages: messages
-        .filter(
-          (m): m is typeof m & { format: "aui/v0" } => m.format === "aui/v0",
-        )
-        .map(auiV0Decode)
+      messages: decodedMessages
+        .map((message) => ({
+          ...message,
+          parentId: resolveParentId(message.parentId),
+        }))
         .reverse(),
     };
   }

@@ -505,6 +505,83 @@ describe("auiV0Decode", () => {
     });
   });
 
+  it("round-trips Cloud tool calls with args, argsText, and nested messages", () => {
+    const content = auiV0Encode({
+      id: "local",
+      createdAt: new Date("2026-03-15T00:00:00.000Z"),
+      role: "assistant",
+      status: { type: "complete", reason: "stop" },
+      metadata: {
+        unstable_state: null,
+        unstable_annotations: [],
+        unstable_data: [],
+        steps: [],
+        custom: {},
+      },
+      content: [
+        {
+          type: "tool-call",
+          toolCallId: "args-call",
+          toolName: "search",
+          args: { query: "assistant-ui" },
+          argsText: '{"query":"assistant-ui"}',
+          messages: [
+            {
+              id: "nested",
+              createdAt: new Date("2026-03-15T00:00:00.000Z"),
+              role: "assistant",
+              status: { type: "complete", reason: "stop" },
+              metadata: {
+                unstable_state: null,
+                unstable_annotations: [],
+                unstable_data: [],
+                steps: [],
+                custom: {},
+              },
+              content: [{ type: "text", text: "nested response" }],
+            },
+          ],
+        },
+        {
+          type: "tool-call",
+          toolCallId: "text-call",
+          toolName: "search",
+          args: {},
+          argsText: "query=assistant-ui",
+        },
+      ],
+    });
+
+    const { message } = auiV0Decode({
+      id: "cloud",
+      parent_id: null,
+      format: "aui/v0",
+      content: content as never,
+      created_at: new Date("2026-03-15T00:00:00.000Z"),
+    });
+
+    expect(message.content).toEqual([
+      expect.objectContaining({
+        type: "tool-call",
+        toolCallId: "args-call",
+        args: { query: "assistant-ui" },
+        argsText: '{"query":"assistant-ui"}',
+        messages: [
+          expect.objectContaining({
+            id: "nested",
+            content: [{ type: "text", text: "nested response" }],
+          }),
+        ],
+      }),
+      expect.objectContaining({
+        type: "tool-call",
+        toolCallId: "text-call",
+        args: {},
+        argsText: "query=assistant-ui",
+      }),
+    ]);
+  });
+
   it("restores user attachments from core cloud history", () => {
     const content = auiV0Encode({
       id: "local",

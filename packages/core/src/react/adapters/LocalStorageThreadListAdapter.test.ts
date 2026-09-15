@@ -221,6 +221,7 @@ describe("parseStoredMessageRepository", () => {
                 attachment,
                 { ...attachment, id: 2 },
                 { ...attachment, id: "uploading", status: { type: "running" } },
+                { ...attachment, id: "no-status", status: undefined },
                 { ...attachment, id: "no-content", content: undefined },
                 { ...attachment, id: "no-name", name: undefined },
               ],
