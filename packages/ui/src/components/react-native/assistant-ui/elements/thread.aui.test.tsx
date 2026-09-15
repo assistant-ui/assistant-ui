@@ -310,9 +310,15 @@ vi.mock("react-native", async (importOriginal) => {
       scrollToIndex: h.list.scrollToIndex,
       scrollToOffset: h.list.scrollToOffset,
     }));
+    const Header = props.ListHeaderComponent;
     return React.createElement(
       "div",
       { "data-testid": "flatlist" },
+      Header
+        ? React.isValidElement(Header)
+          ? Header
+          : React.createElement(Header)
+        : null,
       (props.data ?? []).map((item: unknown, index: number) =>
         React.createElement(
           "div",
@@ -936,6 +942,63 @@ describe("Thread", () => {
       await render();
 
       expect(container.querySelector(".aui-thread-rail")).toBeNull();
+    });
+  });
+
+  describe("windowed history", () => {
+    const edge = () =>
+      container.textContent!.includes("Loading earlier messages");
+
+    it("hands the list a loader for its start while older messages exist", async () => {
+      const loadMore = vi.fn();
+      addMessages(
+        h.makeMessage({ role: "user", parts: [{ type: "text", text: "One" }] }),
+      );
+      await render({
+        history: { hasMore: true, isLoadingMore: false, loadMore },
+      });
+
+      expect(h.list.props.onStartReached).toBe(loadMore);
+      expect(h.list.props.onStartReachedThreshold).toBe(1);
+      expect(edge()).toBe(false);
+    });
+
+    it("shows the loading edge, announces it and pauses the loader while a page loads", async () => {
+      addMessages(
+        h.makeMessage({ role: "user", parts: [{ type: "text", text: "One" }] }),
+      );
+      await render({
+        history: { hasMore: true, isLoadingMore: true, loadMore: vi.fn() },
+      });
+
+      expect(edge()).toBe(true);
+      expect(h.list.props.onStartReached).toBeUndefined();
+      expect(h.announceForAccessibility).toHaveBeenCalledWith(
+        "Loading earlier messages",
+      );
+    });
+
+    it("stops asking once the history is exhausted", async () => {
+      addMessages(
+        h.makeMessage({ role: "user", parts: [{ type: "text", text: "One" }] }),
+      );
+      await render({
+        history: { hasMore: false, isLoadingMore: false, loadMore: vi.fn() },
+      });
+
+      expect(h.list.props.onStartReached).toBeUndefined();
+      expect(h.list.props.ListHeaderComponent).toBeUndefined();
+      expect(edge()).toBe(false);
+    });
+
+    it("leaves the list alone without a history", async () => {
+      addMessages(
+        h.makeMessage({ role: "user", parts: [{ type: "text", text: "One" }] }),
+      );
+      await render();
+
+      expect(h.list.props.onStartReached).toBeUndefined();
+      expect(h.list.props.ListHeaderComponent).toBeUndefined();
     });
   });
 });

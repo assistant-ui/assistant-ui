@@ -9,6 +9,11 @@ import {
   iconButtonHitSlop,
 } from "@/components/assistant-ui/elements/icon-button";
 import { MarkdownText } from "@/components/assistant-ui/elements/markdown-text";
+import {
+  ShimmerLabel,
+  useAnnounce,
+  webLiveRegion,
+} from "@/components/assistant-ui/elements/surfaces";
 import { TypingIndicator } from "@/components/assistant-ui/elements/typing-indicator";
 import { Icon } from "@/components/ui/icon";
 import { cn } from "@/lib/utils";
@@ -86,8 +91,19 @@ export type ThreadComponents = {
   Rail?: ComponentType | undefined;
 };
 
+export type ThreadHistory = {
+  /** Whether messages older than the loaded window exist. */
+  readonly hasMore: boolean;
+  /** Whether a page of older messages is on its way. */
+  readonly isLoadingMore: boolean;
+  /** Loads the next page of older messages above the window. */
+  readonly loadMore: () => void;
+};
+
 export type ThreadProps = {
   components?: ThreadComponents | undefined;
+  /** A windowed thread: the list asks for older messages when it reaches its start and shows the loading edge above them. */
+  history?: ThreadHistory | undefined;
 };
 
 export type ThreadViewportSnapshot = {
@@ -171,7 +187,10 @@ const copyToClipboard = async (text: string) => {
   await Clipboard.setStringAsync(text);
 };
 
-export const Thread: FC<ThreadProps> = ({ components = EMPTY_COMPONENTS }) => {
+export const Thread: FC<ThreadProps> = ({
+  components = EMPTY_COMPONENTS,
+  history,
+}) => {
   const aui = useAui();
   const isEmpty = useAuiState(isNewChatView);
   const isRunning = useAuiState((s) => s.thread.isRunning);
@@ -370,6 +389,19 @@ export const Thread: FC<ThreadProps> = ({ components = EMPTY_COMPONENTS }) => {
                         viewabilityConfig: MESSAGE_VIEWABILITY,
                       }
                     : {})}
+                  {...(history
+                    ? {
+                        onStartReached:
+                          history.hasMore && !history.isLoadingMore
+                            ? history.loadMore
+                            : undefined,
+                        // Without a threshold the list only asks within two pixels of its start.
+                        onStartReachedThreshold: 1,
+                        ListHeaderComponent: history.isLoadingMore
+                          ? HistoryEdge
+                          : undefined,
+                      }
+                    : {})}
                 >
                   {() => <ThreadMessage />}
                 </ThreadPrimitive.MessagesFlatList>
@@ -417,6 +449,21 @@ const ThreadMessage: FC = () => {
   if (role === "user") return <UserMessage />;
   const Assistant = CustomAssistantMessage ?? AssistantMessage;
   return <Assistant />;
+};
+
+const HistoryEdge: FC = () => {
+  useAnnounce("Loading earlier messages");
+
+  return (
+    <View
+      className="aui-thread-history-edge items-center pb-4"
+      accessibilityLiveRegion={webLiveRegion}
+    >
+      <ShimmerLabel className="text-muted-foreground text-[13px]">
+        Loading earlier messages
+      </ShimmerLabel>
+    </View>
+  );
 };
 
 const ThreadHistorySkeleton: FC = () => (
