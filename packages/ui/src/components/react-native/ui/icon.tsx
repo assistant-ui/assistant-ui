@@ -27,16 +27,20 @@ const subscribe = () => () => {};
 const getSnapshot = () => true;
 const getServerSnapshot = () => false;
 
-// The class to prop mapping reads the CSSOM, which the server does not have, and hydration never patches the resulting attribute mismatch, so the mapping starts from the first render after hydration while the svg carries the classes from the server render. On web a stylesheet size overrides the size prop, so the default size class applies only when no size is passed.
+// The class to prop mapping reads the CSSOM, which the server does not have, and hydration never patches the resulting attribute mismatch, so the mapping starts from the first render after hydration while the svg carries the classes from the server render. On web a stylesheet size overrides the size, width and height props, so the default size class applies only when none of them is passed.
 export const Icon = ({ className, ...props }: IconProps) => {
   const hydrated = useSyncExternalStore(
     subscribe,
     getSnapshot,
     getServerSnapshot,
   );
+  const hasExplicitSize =
+    props.size !== undefined ||
+    props.width !== undefined ||
+    props.height !== undefined;
   const iconClassName = cn(
     "text-foreground",
-    props.size === undefined && "size-5",
+    !hasExplicitSize && "size-5",
     className,
   );
 

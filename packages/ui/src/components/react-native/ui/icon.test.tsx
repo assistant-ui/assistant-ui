@@ -101,21 +101,23 @@ describe("Icon", () => {
     expect(icon?.getAttribute("class")).toBe("text-primary size-4");
   });
 
-  it("keeps the default size class off an icon with an explicit size", async () => {
+  it("keeps the default size class off an icon with explicit dimensions", async () => {
     await act(async () => {
       root = createRoot(container);
       root.render(
         <>
           <Icon as={TestIcon} />
           <Icon as={TestIcon} size={14} />
+          <Icon as={TestIcon} width={14} height={14} />
         </>,
       );
     });
 
-    const [defaultIcon, sizedIcon] =
+    const [defaultIcon, sizedIcon, boxedIcon] =
       container.querySelectorAll("[data-testid=icon]");
     expect(defaultIcon?.getAttribute("class")).toBe("text-foreground size-5");
     expect(sizedIcon?.getAttribute("width")).toBe("14");
     expect(sizedIcon?.getAttribute("class")).toBe("text-foreground");
+    expect(boxedIcon?.getAttribute("class")).toBe("text-foreground");
   });
 });
