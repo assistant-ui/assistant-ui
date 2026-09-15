@@ -7,7 +7,8 @@ import type {
   AgentSession,
   SessionInfo,
 } from "@earendil-works/pi-coding-agent";
-import type { PiClientEvent } from "../types";
+import { createPiHttpClient } from "../client/httpClient";
+import { PiThreadController } from "../runtime/ThreadController";
 import { PiThreadSupervisor } from "./ThreadSupervisor";
 
 const sdk = vi.hoisted(() => ({
@@ -196,27 +197,53 @@ describe("PiThreadSupervisor", () => {
         }),
     );
     const supervisor = new PiThreadSupervisor({ workspacePath: "/ws" });
-    const events: PiClientEvent[] = [];
-    const unsubscribe = supervisor.subscribe("t1", (event) => {
-      events.push(event);
+    const httpClient = createPiHttpClient({
+      baseUrl: "http://localhost/api/pi",
+      fetchImpl: async (request, init) => {
+        const pathname = new URL(String(request)).pathname;
+        if (pathname.endsWith("/messages")) {
+          const body = JSON.parse(String(init?.body)) as {
+            input: { content: string };
+          };
+          await supervisor.sendMessage("t1", body.input);
+          return new Response(null, { status: 204 });
+        }
+        if (pathname.endsWith("/cancel")) {
+          await supervisor.cancelRun("t1");
+          return new Response(null, { status: 204 });
+        }
+        return new Response(null, { status: 404 });
+      },
     });
+    const controller = new PiThreadController(
+      {
+        ...httpClient,
+        subscribe: (threadId, listener, options) =>
+          supervisor.subscribe(threadId, listener, options),
+      },
+      "t1",
+    );
     try {
-      const sending = supervisor.sendMessage("t1", { content: "hello" });
+      const sending = controller.sendMessage({
+        role: "user",
+        content: [{ type: "text", text: "hello" }],
+      });
       await vi.waitFor(() =>
         expect(sdk.createAgentSession).toHaveBeenCalledOnce(),
       );
 
-      await supervisor.cancelRun("t1");
+      await controller.cancel();
       resolveSession({ session });
 
       await expect(sending).resolves.toBeUndefined();
       await vi.waitFor(() =>
-        expect(events.some((event) => event.type === "agent_end")).toBe(true),
+        expect(controller.getState().runStatus).toBe("idle"),
       );
-      expect(events.some((event) => event.type === "error")).toBe(false);
+      expect(controller.getState().lastError).toBeUndefined();
+      expect(controller.getProjectedMessages()).toHaveLength(1);
       expect(prompt).not.toHaveBeenCalled();
     } finally {
-      unsubscribe();
+      controller.dispose();
       await supervisor.dispose();
     }
   });
