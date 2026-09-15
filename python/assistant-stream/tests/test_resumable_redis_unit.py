@@ -104,6 +104,34 @@ async def test_stale_finalizer_cannot_finalize_reacquired_stream() -> None:
 
 
 @pytest.mark.anyio
+async def test_stale_lease_cannot_mutate_reacquired_stream_on_one_store() -> None:
+    client = FakeRedisLikeClient()
+    store = RedisResumableStreamStore(client, key_prefix="test")
+    stale = await store.acquire_lease("same-store")
+    assert stale.role == "producer"
+    assert stale.lease is not None
+    await store.append("same-store", b"old", stale.lease)
+
+    await client.delete(["test:{same-store}:meta"])
+    fresh = await store.acquire_lease("same-store")
+    assert fresh.role == "producer"
+    assert fresh.lease is not None
+    await store.append("same-store", b"new", fresh.lease)
+
+    with pytest.raises(ResumableStreamError, match="superseded"):
+        await store.append("same-store", b"late", stale.lease)
+    await store.finalize("same-store", "done", lease=stale.lease)
+    assert await store.status("same-store") == "streaming"
+
+    await store.finalize("same-store", "done", lease=fresh.lease)
+    chunks = [
+        entry.chunk
+        async for entry in store.read("same-store", "", asyncio.Event())
+    ]
+    assert chunks == [b"new"]
+
+
+@pytest.mark.anyio
 async def test_new_acquisition_preserves_legacy_data_without_replaying_it() -> None:
     client = FakeRedisLikeClient()
     legacy_key = "test:{reused}:data"

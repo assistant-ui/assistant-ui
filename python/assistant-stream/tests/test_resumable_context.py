@@ -166,6 +166,58 @@ async def test_producer_keeps_writing_after_consumer_closes_early() -> None:
 
 
 @pytest.mark.anyio
+async def test_expired_producer_cannot_write_into_reacquired_stream() -> None:
+    now = [1_000.0]
+    stale_release = asyncio.Event()
+    fresh_release = asyncio.Event()
+    producer_tasks: list[asyncio.Task[None]] = []
+    errors: list[object] = []
+
+    def clock() -> float:
+        return now[0]
+
+    async def stale() -> AsyncIterator[bytes]:
+        yield _bytes("old")
+        await stale_release.wait()
+        yield _bytes("late")
+
+    async def fresh() -> AsyncIterator[bytes]:
+        yield _bytes("new")
+        await fresh_release.wait()
+        yield _bytes("tail")
+
+    store = create_in_memory_resumable_stream_store(
+        default_ttl_ms=100,
+        now=clock,
+    )
+    ctx = create_resumable_stream_context(
+        store=store,
+        wait_until=producer_tasks.append,
+        on_error=lambda _id, error: errors.append(error),
+    )
+
+    stale_reader = await ctx.run("a", lambda: stale())
+    assert await anext(stale_reader) == _bytes("old")
+    await stale_reader.aclose()
+
+    now[0] += 101
+    fresh_reader = await ctx.run("a", lambda: fresh())
+    assert await anext(fresh_reader) == _bytes("new")
+
+    stale_release.set()
+    await producer_tasks[0]
+    assert await ctx.status("a") == "streaming"
+    assert len(errors) == 1
+    assert isinstance(errors[0], ResumableStreamError)
+    assert errors[0].code == "missing"
+
+    fresh_release.set()
+    assert await _collect(fresh_reader) == "tail"
+    await producer_tasks[1]
+    assert await ctx.status("a") == "done"
+
+
+@pytest.mark.anyio
 async def test_propagates_producer_errors_to_consumers() -> None:
     ctx = create_resumable_stream_context(
         store=create_in_memory_resumable_stream_store()

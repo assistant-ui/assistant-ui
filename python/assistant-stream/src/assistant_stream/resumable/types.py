@@ -15,6 +15,17 @@ class ResumableStreamEntry:
     chunk: bytes
 
 
+@dataclass(frozen=True)
+class ResumableStreamLease:
+    token: str
+
+
+@dataclass(frozen=True)
+class ResumableStreamAcquisition:
+    role: ResumableStreamRole
+    lease: ResumableStreamLease | None
+
+
 class CancellationSignal(Protocol):
     def is_set(self) -> bool: ...
 
@@ -26,13 +37,23 @@ class ResumableStreamStore(Protocol):
         self, stream_id: str, *, ttl_ms: int | None = None
     ) -> ResumableStreamRole: ...
 
-    async def append(self, stream_id: str, chunk: bytes) -> None: ...
+    async def acquire_lease(
+        self, stream_id: str, *, ttl_ms: int | None = None
+    ) -> ResumableStreamAcquisition: ...
+
+    async def append(
+        self,
+        stream_id: str,
+        chunk: bytes,
+        lease: ResumableStreamLease | None = None,
+    ) -> None: ...
 
     async def finalize(
         self,
         stream_id: str,
         status: Literal["done", "error"],
         error: str | None = None,
+        lease: ResumableStreamLease | None = None,
     ) -> None: ...
 
     def read(

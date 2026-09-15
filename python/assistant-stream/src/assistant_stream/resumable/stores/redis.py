@@ -15,7 +15,9 @@ from assistant_stream.resumable.errors import (
 )
 from assistant_stream.resumable.types import (
     CancellationSignal,
+    ResumableStreamAcquisition,
     ResumableStreamEntry,
+    ResumableStreamLease,
     ResumableStreamRole,
     ResumableStreamStatus,
 )
@@ -101,6 +103,13 @@ class RedisResumableStreamStore:
     async def acquire(
         self, stream_id: str, *, ttl_ms: int | None = None
     ) -> ResumableStreamRole:
+        return (
+            await self.acquire_lease(stream_id, ttl_ms=ttl_ms)
+        ).role
+
+    async def acquire_lease(
+        self, stream_id: str, *, ttl_ms: int | None = None
+    ) -> ResumableStreamAcquisition:
         validate_stream_id(stream_id)
         ttl_sec = _ms_to_sec(ttl_ms if ttl_ms is not None else self._default_ttl_ms)
         generation = uuid.uuid4().hex
@@ -110,23 +119,44 @@ class RedisResumableStreamStore:
         acquired = await self._client.set_nx(self._meta_key(stream_id), meta, ttl_sec)
         if acquired:
             self._acquired_generations[stream_id] = generation
-            return "producer"
-        return "consumer"
+            return ResumableStreamAcquisition(
+                role="producer", lease=ResumableStreamLease(token=generation)
+            )
+        return ResumableStreamAcquisition(role="consumer", lease=None)
 
     def _is_superseded_generation(
-        self, stream_id: str, meta: dict[str, Any]
+        self,
+        stream_id: str,
+        meta: dict[str, Any],
+        acquired: str | ResumableStreamLease | None = None,
     ) -> bool:
-        acquired = self._acquired_generations.get(stream_id)
-        return acquired is not None and meta.get("generation") != acquired
+        if acquired is None:
+            acquired = self._acquired_generations.get(stream_id)
+        token = (
+            acquired.token
+            if isinstance(acquired, ResumableStreamLease)
+            else acquired
+        )
+        return token is not None and meta.get("generation") != token
 
-    def _assert_owned_generation(self, stream_id: str, meta: dict[str, Any]) -> None:
-        if self._is_superseded_generation(stream_id, meta):
+    def _assert_owned_generation(
+        self,
+        stream_id: str,
+        meta: dict[str, Any],
+        acquired: str | ResumableStreamLease | None = None,
+    ) -> None:
+        if self._is_superseded_generation(stream_id, meta, acquired):
             raise ResumableStreamError(
                 "missing",
                 f"Stream superseded by a new acquisition: {stream_id}",
             )
 
-    async def append(self, stream_id: str, chunk: bytes) -> None:
+    async def append(
+        self,
+        stream_id: str,
+        chunk: bytes,
+        lease: ResumableStreamLease | None = None,
+    ) -> None:
         validate_stream_id(stream_id)
         if (
             self._max_chunk_bytes is not None
@@ -136,10 +166,12 @@ class RedisResumableStreamStore:
                 f"Chunk exceeds maxChunkBytes ({len(chunk)} > {self._max_chunk_bytes})"
             )
         meta_key = self._meta_key(stream_id)
-        meta = await self._read_meta(stream_id)
+        existing_raw = await self._client.get(meta_key)
+        meta = _parse_meta(existing_raw) if existing_raw is not None else None
         if meta is None:
             raise RuntimeError(f"Stream not found: {stream_id}")
-        self._assert_owned_generation(stream_id, meta)
+        acquired = lease or self._acquired_generations.get(stream_id)
+        self._assert_owned_generation(stream_id, meta, acquired)
         if meta.get("status") != "streaming":
             raise ResumableStreamError(
                 "finalized",
@@ -162,6 +194,7 @@ class RedisResumableStreamStore:
         stream_id: str,
         status: Literal["done", "error"],
         error: str | None = None,
+        lease: ResumableStreamLease | None = None,
     ) -> None:
         validate_stream_id(stream_id)
         meta_key = self._meta_key(stream_id)
@@ -171,9 +204,10 @@ class RedisResumableStreamStore:
         existing = _parse_meta(existing_raw)
         if existing is None:
             raise RuntimeError(f"Stream not found: {stream_id}")
-        if existing.get("status") != "streaming":
+        acquired = lease or self._acquired_generations.get(stream_id)
+        if self._is_superseded_generation(stream_id, existing, acquired):
             return
-        if self._is_superseded_generation(stream_id, existing):
+        if existing.get("status") != "streaming":
             return
         ttl_sec = existing.get("ttlSec")
         if not isinstance(ttl_sec, int):

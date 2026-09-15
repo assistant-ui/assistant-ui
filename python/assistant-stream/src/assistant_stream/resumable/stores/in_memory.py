@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import asyncio
 import time
+import uuid
 from collections.abc import AsyncIterator, Callable
 from contextlib import suppress
 from dataclasses import dataclass, field
@@ -14,7 +15,9 @@ from assistant_stream.resumable.errors import (
 )
 from assistant_stream.resumable.types import (
     CancellationSignal,
+    ResumableStreamAcquisition,
     ResumableStreamEntry,
+    ResumableStreamLease,
     ResumableStreamRole,
     ResumableStreamStatus,
 )
@@ -28,6 +31,7 @@ class _FinalizeMarker:
 
 @dataclass
 class _StreamState:
+    lease: ResumableStreamLease
     entries: list[ResumableStreamEntry] = field(default_factory=list)
     next_seq: int = 1
     expires_at: float = 0.0
@@ -164,11 +168,18 @@ class _InMemoryResumableStreamStore:
             with suppress(ValueError):
                 state.waiters.remove(event)
 
-    def _require_active(self, stream_id: str) -> _StreamState:
+    def _require_active(
+        self, stream_id: str, lease: ResumableStreamLease | None = None
+    ) -> _StreamState:
         self._evict_expired()
         state = self._streams.get(stream_id)
         if state is None:
             raise RuntimeError(f"Stream not found: {stream_id}")
+        if lease is not None and state.lease != lease:
+            raise ResumableStreamError(
+                "missing",
+                f"Stream superseded by a new acquisition: {stream_id}",
+            )
         if state.final is not None:
             raise ResumableStreamError(
                 "finalized",
@@ -179,16 +190,24 @@ class _InMemoryResumableStreamStore:
     async def acquire(
         self, stream_id: str, *, ttl_ms: int | None = None
     ) -> ResumableStreamRole:
+        return (
+            await self.acquire_lease(stream_id, ttl_ms=ttl_ms)
+        ).role
+
+    async def acquire_lease(
+        self, stream_id: str, *, ttl_ms: int | None = None
+    ) -> ResumableStreamAcquisition:
         self._ensure_gc()
         validate_stream_id(stream_id)
         self._evict_expired()
         if stream_id in self._streams:
-            return "consumer"
+            return ResumableStreamAcquisition(role="consumer", lease=None)
 
         if self._max_streams is not None and len(self._streams) >= self._max_streams:
             raise RuntimeError("maxStreams exceeded")
 
         resolved_ttl = ttl_ms if ttl_ms is not None else self._default_ttl_ms
+        lease = ResumableStreamLease(token=uuid.uuid4().hex)
         self._streams[stream_id] = _StreamState(
             entries=[],
             next_seq=1,
@@ -196,10 +215,16 @@ class _InMemoryResumableStreamStore:
             ttl_ms=resolved_ttl,
             final=None,
             waiters=[],
+            lease=lease,
         )
-        return "producer"
+        return ResumableStreamAcquisition(role="producer", lease=lease)
 
-    async def append(self, stream_id: str, chunk: bytes) -> None:
+    async def append(
+        self,
+        stream_id: str,
+        chunk: bytes,
+        lease: ResumableStreamLease | None = None,
+    ) -> None:
         self._ensure_gc()
         validate_stream_id(stream_id)
         if (
@@ -207,7 +232,7 @@ class _InMemoryResumableStreamStore:
             and len(chunk) > self._max_chunk_bytes
         ):
             raise RuntimeError(f"Chunk exceeds maxChunkBytes: {len(chunk)}")
-        state = self._require_active(stream_id)
+        state = self._require_active(stream_id, lease)
         if (
             self._max_entries_per_stream is not None
             and len(state.entries) >= self._max_entries_per_stream
@@ -224,6 +249,7 @@ class _InMemoryResumableStreamStore:
         stream_id: str,
         status: Literal["done", "error"],
         error: str | None = None,
+        lease: ResumableStreamLease | None = None,
     ) -> None:
         self._ensure_gc()
         validate_stream_id(stream_id)
@@ -231,6 +257,8 @@ class _InMemoryResumableStreamStore:
         state = self._streams.get(stream_id)
         if state is None:
             raise RuntimeError(f"Stream not found: {stream_id}")
+        if lease is not None and state.lease != lease:
+            return
         if state.final is not None:
             return
         if status == "done":
