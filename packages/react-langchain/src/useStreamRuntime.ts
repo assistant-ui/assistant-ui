@@ -43,6 +43,7 @@ import {
   getMessageContent,
   getMessageType,
 } from "./convertMessages";
+import { useSubagentTranscripts } from "./useSubagentTranscripts";
 import { foldUIUpdates, mergeUIMessages } from "./uiMessages";
 import { langChainExtras } from "./runtimeExtras";
 import { resolveForkCheckpoint } from "./resolveForkCheckpoint";
@@ -180,6 +181,16 @@ const useStreamThreadRuntime = (
     effectiveIsRunning,
   );
 
+  const convertSubagentMessage = useCallback<
+    useExternalMessageConverter.Callback<LangChainBaseMessage>
+  >((message, metadata) => convertLangChainBaseMessage(message, metadata), []);
+
+  const subagentTranscripts = useSubagentTranscripts(
+    stream,
+    convertSubagentMessage,
+    {},
+  );
+
   const convertWithUI = useMemo<
     useExternalMessageConverter.Callback<LangChainBaseMessage>
   >(() => {
@@ -190,8 +201,9 @@ const useStreamThreadRuntime = (
         ...metadata,
         uiMessagesByParent,
         messageTiming,
+        subagentTranscripts,
       });
-  }, [mergedUiMessages, messageTiming]);
+  }, [mergedUiMessages, messageTiming, subagentTranscripts]);
 
   const threadMessages = useExternalMessageConverter({
     callback: convertWithUI,

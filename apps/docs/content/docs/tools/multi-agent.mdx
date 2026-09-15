@@ -61,7 +61,7 @@ const toolkit = defineToolkit({
 
 The sub-agent's conversation has to reach `ToolCallMessagePart.messages`. AI SDK and LangGraph backends populate it from the tool result; an AG-UI backend emits the protocol's subagent lifecycle events and the runtime assembles it.
 
-<Tabs items={["AI SDK", "LangGraph", "AG-UI"]}>
+<Tabs items={["AI SDK", "LangGraph", "LangChain", "AG-UI"]}>
 <Tab value="AI SDK">
 
 ```ts title="api/chat/route.ts"
@@ -121,6 +121,13 @@ const runtime = useLangGraphRuntime({
 ```
 
 See [LangGraph Streaming](/docs/runtimes/langgraph/streaming) for the full event handler reference.
+
+</Tab>
+<Tab value="LangChain">
+
+With `@assistant-ui/react-langchain` there is nothing to populate either. `useStream` discovers every `task` subagent on the run, and the runtime reads that subagent's own message projection and attaches it to the spawning call's `ToolCallMessagePart.messages`, keyed by the `task` tool call id. The transcript streams while the subagent runs, nests recursively when subagents spawn subagents, and is present again on a thread loaded from history, because the SDK seeds subagent discovery from checkpoint messages.
+
+See [subagent and subgraph views](/docs/runtimes/langchain#subagent-and-subgraph-views) for the discovery hooks and custom views.
 
 </Tab>
 <Tab value="AG-UI">
