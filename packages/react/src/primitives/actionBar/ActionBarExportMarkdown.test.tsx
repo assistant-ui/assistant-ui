@@ -38,6 +38,7 @@ describe("ActionBarPrimitiveExportMarkdown", () => {
       root.unmount();
     });
     container.remove();
+    vi.unstubAllGlobals();
     vi.restoreAllMocks();
   });
 
@@ -63,5 +64,39 @@ describe("ActionBarPrimitiveExportMarkdown", () => {
       "[assistant-ui] markdown export failed:",
       error,
     );
+  });
+
+  it("attaches the download anchor before clicking it", async () => {
+    const createObjectURL = vi.fn(() => "blob:markdown");
+    const revokeObjectURL = vi.fn();
+    vi.stubGlobal("URL", {
+      ...URL,
+      createObjectURL,
+      revokeObjectURL,
+    });
+    let clickedAnchor: HTMLAnchorElement | undefined;
+    const clickSpy = vi
+      .spyOn(HTMLAnchorElement.prototype, "click")
+      .mockImplementation(function (this: HTMLAnchorElement) {
+        clickedAnchor = this;
+        expect(this.isConnected).toBe(true);
+        expect(this.rel).toBe("noopener");
+      });
+
+    await act(async () => {
+      root.render(
+        <ActionBarPrimitiveExportMarkdown>
+          Export
+        </ActionBarPrimitiveExportMarkdown>,
+      );
+    });
+
+    await act(async () => {
+      container.querySelector("button")!.click();
+    });
+
+    expect(clickSpy).toHaveBeenCalledOnce();
+    expect(createObjectURL).toHaveBeenCalledOnce();
+    expect(clickedAnchor?.isConnected).toBe(false);
   });
 });
