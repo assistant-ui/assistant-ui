@@ -1,9 +1,83 @@
 import { describe, it, expect } from "vitest";
-import { convertExternalMessages } from "./external-message-converter";
+import {
+  convertExternalMessages,
+  createExternalMessageConversionCache,
+} from "./external-message-converter";
 import type { useExternalMessageConverter } from "./external-message-converter";
 import { isErrorMessageId } from "../../utils/id";
 
 describe("convertExternalMessages", () => {
+  it("reuses converted messages with an opt-in cache", () => {
+    const input = { text: "nested" };
+    const metadata = {};
+    const cache = createExternalMessageConversionCache();
+    const callback: useExternalMessageConverter.Callback<typeof input> = (
+      message,
+    ) => ({
+      id: "nested",
+      role: "assistant",
+      content: message.text,
+    });
+
+    const first = convertExternalMessages(
+      [input],
+      callback,
+      false,
+      metadata,
+      cache,
+    );
+    const second = convertExternalMessages(
+      [input],
+      callback,
+      false,
+      metadata,
+      cache,
+    );
+
+    expect(second[0]).toBe(first[0]);
+  });
+
+  it("invalidates cached messages when the callback or metadata changes", () => {
+    const input = { text: "nested" };
+    const cache = createExternalMessageConversionCache();
+    const callback: useExternalMessageConverter.Callback<typeof input> = (
+      message,
+    ) => ({
+      id: "nested",
+      role: "assistant",
+      content: message.text,
+    });
+    const uppercaseCallback: useExternalMessageConverter.Callback<
+      typeof input
+    > = (message) => ({
+      id: "nested",
+      role: "assistant",
+      content: message.text.toUpperCase(),
+    });
+
+    const first = convertExternalMessages([input], callback, false, {}, cache);
+    const second = convertExternalMessages(
+      [input],
+      uppercaseCallback,
+      false,
+      {},
+      cache,
+    );
+    const third = convertExternalMessages(
+      [input],
+      uppercaseCallback,
+      false,
+      {},
+      cache,
+    );
+
+    expect(second[0]).not.toBe(first[0]);
+    expect(second[0]?.content).toMatchObject([
+      { type: "text", text: "NESTED" },
+    ]);
+    expect(third[0]).not.toBe(second[0]);
+  });
+
   describe("reasoning part merging", () => {
     it("should merge reasoning parts with the same parentId", () => {
       const messages = [
