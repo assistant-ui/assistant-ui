@@ -100,20 +100,40 @@ const finishReasonToStatus = (
 };
 
 const inlineDataToPart = (
-  mimeType: string,
-  data: string,
-): AdkMessageContentPart =>
-  mimeType.startsWith("image/")
+  mimeType: unknown,
+  data: unknown,
+): AdkMessageContentPart | undefined => {
+  if (typeof mimeType !== "string" || typeof data !== "string") return;
+
+  return mimeType.startsWith("image/")
     ? { type: "image", mimeType, data }
     : { type: "file", mimeType, data };
+};
 
 const fileDataToPart = (
-  fileUri: string,
-  mimeType: string | undefined,
-): AdkMessageContentPart =>
-  mimeType == null || mimeType.startsWith("image/")
+  fileUri: unknown,
+  mimeType: unknown,
+): AdkMessageContentPart | undefined => {
+  if (typeof fileUri !== "string") return;
+
+  const normalizedMimeType =
+    typeof mimeType === "string" ? mimeType : undefined;
+  return normalizedMimeType == null || normalizedMimeType.startsWith("image/")
     ? { type: "image_url", url: fileUri }
-    : { type: "file_url", url: fileUri, mimeType };
+    : { type: "file_url", url: fileUri, mimeType: normalizedMimeType };
+};
+
+const eventMediaToPart = (
+  part: AdkEventPart,
+): AdkMessageContentPart | undefined => {
+  if (isRecord(part.inlineData)) {
+    return inlineDataToPart(part.inlineData.mimeType, part.inlineData.data);
+  }
+  if (isRecord(part.fileData)) {
+    return fileDataToPart(part.fileData.fileUri, part.fileData.mimeType);
+  }
+  return;
+};
 
 // ── Snake_case normalization ──
 
@@ -361,14 +381,9 @@ export class AdkEventAccumulator {
       for (const [index, part] of parts.entries()) {
         if (part.text != null && !part.thought) {
           humanParts.push({ type: "text", text: part.text });
-        } else if (part.inlineData) {
-          humanParts.push(
-            inlineDataToPart(part.inlineData.mimeType, part.inlineData.data),
-          );
-        } else if (part.fileData) {
-          humanParts.push(
-            fileDataToPart(part.fileData.fileUri, part.fileData.mimeType),
-          );
+        } else if (part.inlineData || part.fileData) {
+          const mediaPart = eventMediaToPart(part);
+          if (mediaPart) humanParts.push(mediaPart);
         } else if (part.functionResponse?.id) {
           // ADK records tool confirmation and other client-supplied tool
           // results as user-authored function responses, and its request
@@ -598,21 +613,12 @@ export class AdkEventAccumulator {
       return;
     }
 
-    if (part.inlineData) {
-      const msg = this.getOrCreateAiMessage(event);
-      this.appendContent(
-        msg,
-        inlineDataToPart(part.inlineData.mimeType, part.inlineData.data),
-      );
-      return;
-    }
+    if (part.inlineData || part.fileData) {
+      const mediaPart = eventMediaToPart(part);
+      if (!mediaPart) return;
 
-    if (part.fileData) {
       const msg = this.getOrCreateAiMessage(event);
-      this.appendContent(
-        msg,
-        fileDataToPart(part.fileData.fileUri, part.fileData.mimeType),
-      );
+      this.appendContent(msg, mediaPart);
     }
   }
 

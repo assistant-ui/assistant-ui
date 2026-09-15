@@ -375,6 +375,47 @@ describe("createAdkSessionAdapter - load", () => {
     ]);
   });
 
+  it("loads valid events when history contains malformed media", async () => {
+    mockFetch.mockResolvedValueOnce(
+      new Response(
+        JSON.stringify({
+          id: "s1",
+          events: [
+            {
+              id: "user-1",
+              author: "user",
+              content: { parts: [{ text: "before" }] },
+            },
+            {
+              id: "bad-media",
+              author: "agent",
+              content: {
+                parts: [
+                  { inlineData: { data: "aGVsbG8=" } },
+                  { fileData: { mimeType: "image/png" } },
+                ],
+              },
+            },
+            {
+              id: "agent-1",
+              author: "agent",
+              content: { parts: [{ text: "after" }] },
+            },
+          ],
+        }),
+        { status: 200 },
+      ),
+    );
+
+    const { load } = createAdkSessionAdapter(baseOptions);
+    const result = await load("s1");
+
+    expect(result.messages).toMatchObject([
+      { type: "human", content: "before" },
+      { type: "ai", content: [{ type: "text", text: "after" }] },
+    ]);
+  });
+
   it("returns the per-turn state the events imply, not just the messages", async () => {
     const session = {
       id: "s1",
