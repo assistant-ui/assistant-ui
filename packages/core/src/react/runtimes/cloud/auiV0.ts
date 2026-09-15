@@ -509,7 +509,7 @@ const decodeAuiV0Attachments = (
     },
   );
   return {
-    attachments: decodedAttachments.length > 0 ? decodedAttachments : undefined,
+    attachments: decodedAttachments,
     unreadableAttachmentCount,
   };
 };
