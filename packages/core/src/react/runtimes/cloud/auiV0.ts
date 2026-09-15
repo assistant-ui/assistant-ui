@@ -566,11 +566,6 @@ const decodeAuiV0MessagePart = (
       : toolCall;
   }
 
-  if (part.type !== "tool-call" && !isKnownStoredMessagePart(part)) {
-    if (!part.type.startsWith("data-")) {
-      return { part: decodedPart, unreadablePartCount };
-    }
-  }
   return { part: decodedPart, unreadablePartCount };
 };
 
