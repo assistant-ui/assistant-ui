@@ -95,16 +95,15 @@ const describe = ({ head, members }: Turn): ConversationMapEntry => {
 };
 
 export interface ConversationMapAuiProps {
-  side?: "left" | "right";
   className?: string;
 }
 
 /**
- * The rail over the thread's message list; mount it through the thread's
- * `Rail` slot so it can read the list through `useThreadViewport`.
+ * The rail in the gutter the thread keeps along its message list; mount it
+ * through the thread's `Rail` slot so it can read the list through
+ * `useThreadViewport`.
  */
 export const ConversationMapAui: FC<ConversationMapAuiProps> = ({
-  side = "left",
   className,
 }) => {
   const messages = useAuiState((s) => s.thread.messages);
@@ -140,8 +139,7 @@ export const ConversationMapAui: FC<ConversationMapAuiProps> = ({
     <View
       pointerEvents="box-none"
       className={cn(
-        "aui-conversation-map-rail absolute top-0 px-1 py-10",
-        side === "right" ? "right-0" : "left-0",
+        "aui-conversation-map-rail absolute top-0 left-0 px-1 py-10",
         className,
       )}
       style={{ height }}
@@ -151,7 +149,7 @@ export const ConversationMapAui: FC<ConversationMapAuiProps> = ({
         activeId={activeId}
         visibleIds={visibleIds}
         onSelect={scrollToMessage}
-        side={side === "right" ? "left" : "right"}
+        side="right"
       />
     </View>
   );

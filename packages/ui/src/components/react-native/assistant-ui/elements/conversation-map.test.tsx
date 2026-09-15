@@ -245,6 +245,19 @@ describe("ConversationMap", () => {
     expect(preview()).toBeNull();
   });
 
+  it("shows the focused tick's preview over a hovered one", async () => {
+    await render();
+
+    await act(async () => {
+      ticks()[2]!.focus();
+      fire(ticks()[0]!, "mouseover");
+    });
+
+    expect(
+      container.querySelector(".aui-conversation-map-preview")!.textContent,
+    ).toBe("Reload it");
+  });
+
   it("opens the preview on the requested side", async () => {
     await render({ side: "left" });
 

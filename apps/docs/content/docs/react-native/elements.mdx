@@ -70,7 +70,7 @@ export default function ChatScreen() {
 }
 ```
 
-`Rail` overlays the message list with a component that positions itself, and the thread hands it what the list shows through `useThreadViewport`: the ids of the messages on screen, how far the last screenful has been scrolled, the list's height, and `scrollToMessage`. The conversation map's runtime binding is built for that slot: install `conversation-map` and pass it through.
+`Rail` overlays the message list from a gutter the thread keeps free along the list's left edge, and the thread hands it what the list shows through `useThreadViewport`: the ids of the messages on screen, how far the last screenful has been scrolled, the list's height, and `scrollToMessage`. The conversation map's runtime binding is built for that slot: install `conversation-map` and pass it through. Mounting or unmounting the slot remounts the list, so decide it once per screen rather than toggling it while the thread is open.
 
 ```tsx title="app/index.tsx"
 import { ConversationMapAui } from "@/components/assistant-ui/elements/conversation-map.aui";

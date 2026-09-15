@@ -69,6 +69,7 @@ const h = vi.hoisted(() => {
   const switchToThreadItem = vi.fn();
   const list = {
     props: null as any,
+    mounts: 0,
     scrollToIndex: vi.fn(),
     scrollToOffset: vi.fn(),
   };
@@ -302,6 +303,9 @@ vi.mock("react-native", async (importOriginal) => {
 
   const FlatList = React.forwardRef(function FlatList(props: any, ref) {
     h.list.props = props;
+    React.useEffect(() => {
+      h.list.mounts += 1;
+    }, []);
     React.useImperativeHandle(ref, () => ({
       scrollToIndex: h.list.scrollToIndex,
       scrollToOffset: h.list.scrollToOffset,
@@ -461,6 +465,7 @@ describe("Thread", () => {
     h.switchToNewThread.mockReset();
     h.switchToThreadItem.mockReset();
     h.list.props = null;
+    h.list.mounts = 0;
     h.list.scrollToIndex.mockReset();
     h.list.scrollToOffset.mockReset();
 
@@ -909,13 +914,21 @@ describe("Thread", () => {
       ).toContain("descent 1 height 500");
     });
 
-    it("tracks the list only while a rail is mounted", async () => {
+    it("tracks the list only while a rail is mounted, and remounts it when the slot flips", async () => {
       conversation();
       await render();
 
       expect(h.list.props.onViewableItemsChanged).toBeUndefined();
       expect(h.list.props.viewabilityConfig).toBeUndefined();
       expect(h.list.props.onScrollToIndexFailed).toBeUndefined();
+      expect(h.list.props.contentContainerClassName).not.toContain("pl-10");
+      expect(h.list.mounts).toBe(1);
+
+      await render({ components: { Rail } });
+
+      expect(h.list.props.onViewableItemsChanged).toBeTypeOf("function");
+      expect(h.list.props.contentContainerClassName).toContain("pl-10");
+      expect(h.list.mounts).toBe(2);
     });
 
     it("renders no overlay without a rail", async () => {

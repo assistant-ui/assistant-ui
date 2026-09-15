@@ -19,7 +19,7 @@ export interface ConversationMapProps {
   className?: string;
 }
 
-const tickHitSlop = { left: 12, right: 12 };
+const tickHitSlop = { left: 4, right: 4 };
 
 /** A preview stays open while any of the interactions that opened it is still active. */
 type PreviewSources = {
@@ -41,7 +41,7 @@ export const ConversationMap: FC<ConversationMapProps> = ({
   const [preview, setPreview] = useState<PreviewSources>(NO_PREVIEW);
   const inView = new Set(visibleIds);
   const activeIndex = entries.findIndex((entry) => entry.id === activeId);
-  const previewId = preview.hold ?? preview.hover ?? preview.focus;
+  const previewId = preview.hold ?? preview.focus ?? preview.hover;
   const openPreview = (source: keyof PreviewSources, id: string) =>
     setPreview((current) => ({ ...current, [source]: id }));
   const closePreview = (source: keyof PreviewSources, id: string) =>
@@ -53,7 +53,7 @@ export const ConversationMap: FC<ConversationMapProps> = ({
     <View
       accessibilityLabel="Conversation map"
       className={cn(
-        "aui-conversation-map w-6 flex-1 justify-center",
+        "aui-conversation-map w-8 flex-1 justify-center",
         className,
       )}
     >
@@ -68,7 +68,7 @@ export const ConversationMap: FC<ConversationMapProps> = ({
           // keeps a finger-sized row where the web cap fits a pointer.
           <View
             key={entry.id}
-            className="aui-conversation-map-row web:max-h-3.5 max-h-11 min-h-0 flex-1 justify-center"
+            className="aui-conversation-map-row web:max-h-3.5 max-h-12 min-h-0 flex-1 justify-center"
           >
             <Pressable
               accessibilityRole="button"

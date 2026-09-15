@@ -191,21 +191,13 @@ describe("ConversationMapAui", () => {
     expect(h.viewport.scrollToMessage).toHaveBeenCalledWith("u2");
   });
 
-  it("sizes the rail to the list and keeps it on the requested edge", async () => {
+  it("sizes the rail to the list and pins it to the list's left gutter", async () => {
     conversation();
     await render();
 
     const rail = container.querySelector(".aui-conversation-map-rail")!;
     expect(rail.getAttribute("style")).toContain("height: 480px");
     expect(rail.getAttribute("class")).toContain("left-0");
-
-    await render({ side: "right" });
-
-    expect(
-      container
-        .querySelector(".aui-conversation-map-rail")!
-        .getAttribute("class"),
-    ).toContain("right-0");
   });
 
   it("renders nothing for an empty thread", async () => {

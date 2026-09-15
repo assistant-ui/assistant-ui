@@ -82,7 +82,7 @@ export type ThreadComponents = {
   ToolFallback?: ToolCallMessagePartComponent | undefined;
   /** Replaces the text input of both the new message composer and the edit composer; read `composer.type` to tell them apart. */
   ComposerInput?: ComponentType | undefined;
-  /** Overlays the message list, positioned by itself; it reads the list through `useThreadViewport`. */
+  /** Overlays the message list, which keeps a gutter free along its left edge for it; it reads the list through `useThreadViewport`. Mounting or unmounting it remounts the list. */
   Rail?: ComponentType | undefined;
 };
 
@@ -349,9 +349,14 @@ export const Thread: FC<ThreadProps> = ({ components = EMPTY_COMPONENTS }) => {
               </AuiIf>
               <AuiIf condition={(s) => s.thread.messages.length > 0}>
                 <ThreadPrimitive.MessagesFlatList
+                  // Viewability props cannot change once a FlatList is mounted.
+                  key={Rail ? "tracked" : "plain"}
                   ref={listRef}
                   className="aui-message-group flex-1"
-                  contentContainerClassName="gap-6 px-4 pt-4 pb-6"
+                  contentContainerClassName={cn(
+                    "gap-6 px-4 pt-4 pb-6",
+                    Rail && "pl-10",
+                  )}
                   showsVerticalScrollIndicator={false}
                   keyboardDismissMode="interactive"
                   keyboardShouldPersistTaps="handled"
