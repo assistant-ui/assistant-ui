@@ -637,6 +637,34 @@ describe("PiThreadController", () => {
     });
   });
 
+  it("preserves messages queued while a clear request is pending", async () => {
+    const client = createFakeClient();
+    let resolveClear!: (value: {
+      steering: string[];
+      followUp: string[];
+    }) => void;
+    client.clearQueue = async (threadId) => {
+      client.queueCleared.push(threadId);
+      return new Promise((resolve) => {
+        resolveClear = resolve;
+      });
+    };
+    const controller = new PiThreadController(client, THREAD);
+    controller.connect();
+    client.emit(ev({ type: "agent_start" }, 1));
+    client.emit(
+      ev({ type: "queue_update", steering: [], followUp: ["old"] }, 2),
+    );
+
+    const clearing = controller.clearQueue();
+    client.emit(ev({ type: "queue_update", steering: [], followUp: [] }, 3));
+    await controller.sendMessage(userMessage("new"));
+    resolveClear({ steering: [], followUp: ["old"] });
+    await clearing;
+
+    expect(controller.getState().queue.followUp).toEqual(["new"]);
+  });
+
   it("reconciles an optimistic message against an enriched echo", async () => {
     const client = createFakeClient();
     const controller = new PiThreadController(client, THREAD);

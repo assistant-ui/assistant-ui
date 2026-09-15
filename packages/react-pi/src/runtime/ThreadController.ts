@@ -501,12 +501,13 @@ export class PiThreadController implements PiThreadControllerLike {
   }
 
   public async clearQueue() {
+    const queue = this.state.queue;
     const cleared = await this.client.clearQueue(this.threadId);
     // Optimistically empty the local mirror; Pi's own `queue_update` (emitted
     // by `session.clearQueue`) confirms it.
     if (
-      this.state.queue.steering.length > 0 ||
-      this.state.queue.followUp.length > 0
+      this.state.queue === queue &&
+      (queue.steering.length > 0 || queue.followUp.length > 0)
     ) {
       this.setState({
         ...this.state,
