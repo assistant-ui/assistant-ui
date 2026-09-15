@@ -342,6 +342,10 @@ export class LocalThreadRuntimeCore
   }
 
   public async append(message: AppendMessage): Promise<void> {
+    message = {
+      ...message,
+      parentId: this._resolveAppendParent(message.parentId),
+    };
     if (this.voice)
       throw new Error(
         "Cannot send a text message while a voice session is connected",
@@ -407,6 +411,10 @@ export class LocalThreadRuntimeCore
   }
 
   private async _runAppend(rawMessage: AppendMessage): Promise<void> {
+    if (this.voice)
+      throw new Error(
+        "Cannot send a text message while a voice session is connected",
+      );
     // Stamped here rather than in `append` so a queued message is gated after
     // the flush re-pointed its parentId at the current tail.
     const generation = captureThreadRuntimeGeneration(this);

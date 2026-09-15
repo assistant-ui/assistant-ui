@@ -1304,6 +1304,9 @@ describe("ExternalStoreThreadRuntimeCore adapter contract", () => {
 
 describe("ExternalStoreThreadRuntimeCore voice transcripts", () => {
   const createVoiceAdapter = () => {
+    let statusCallback:
+      | ((status: RealtimeVoiceAdapter.Status) => void)
+      | undefined;
     let transcriptCallback:
       | ((transcript: RealtimeVoiceAdapter.TranscriptItem) => void)
       | undefined;
@@ -1313,7 +1316,12 @@ describe("ExternalStoreThreadRuntimeCore voice transcripts", () => {
       disconnect: vi.fn(),
       mute: vi.fn(),
       unmute: vi.fn(),
-      onStatusChange: () => () => {},
+      onStatusChange: (callback) => {
+        statusCallback = callback;
+        return () => {
+          statusCallback = undefined;
+        };
+      },
       onTranscript: (callback) => {
         transcriptCallback = callback;
         return () => {
@@ -1325,6 +1333,8 @@ describe("ExternalStoreThreadRuntimeCore voice transcripts", () => {
     };
     return {
       adapter: { connect: () => session } satisfies RealtimeVoiceAdapter,
+      emitStatus: (status: RealtimeVoiceAdapter.Status) =>
+        statusCallback?.(status),
       emitTranscript: (transcript: RealtimeVoiceAdapter.TranscriptItem) =>
         transcriptCallback?.(transcript),
     };
@@ -1397,7 +1407,11 @@ describe("ExternalStoreThreadRuntimeCore voice transcripts", () => {
         text: "Hello",
         isFinal: true,
       });
-      const message = onVoiceTranscript.mock.calls[0]![0];
+      const message = core.messages[0]!;
+
+      expect(message.role).toBe("user");
+      expect(getThreadMessageText(message)).toBe("Hello");
+      expect(message.metadata.modality).toBe("voice");
 
       expect(onVoiceTranscript).toHaveBeenCalledExactlyOnceWith(message);
 
@@ -1436,6 +1450,47 @@ describe("ExternalStoreThreadRuntimeCore voice transcripts", () => {
     core.disconnectVoice();
 
     expect(core.messages).toEqual([]);
+  });
+
+  it("parents a send after the session ended on the last repository message", async () => {
+    const voiceAdapter = createVoiceAdapter();
+    const onNew = vi.fn(async () => {});
+    const core = new ExternalStoreThreadRuntimeCore(
+      createContextProvider(),
+      createBaseAdapter({
+        onNew,
+        adapters: { voice: voiceAdapter.adapter },
+      }),
+    );
+    core.connectVoice();
+
+    try {
+      voiceAdapter.emitTranscript({
+        role: "user",
+        text: "Hello",
+        isFinal: true,
+      });
+      const transcript = core.messages[0]!;
+      voiceAdapter.emitStatus({ type: "ended", reason: "finished" });
+
+      await core.append({
+        parentId: transcript.id,
+        sourceId: null,
+        role: "user",
+        content: [{ type: "text", text: "Follow up" }],
+        attachments: [],
+        metadata: { custom: {} },
+        createdAt: new Date(),
+        runConfig: {},
+        startRun: false,
+      });
+
+      expect(onNew).toHaveBeenCalledExactlyOnceWith(
+        expect.objectContaining({ parentId: null }),
+      );
+    } finally {
+      core.disconnectVoice();
+    }
   });
 
   it("rejects a text send while connected before reaching the store", async () => {

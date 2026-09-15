@@ -648,27 +648,31 @@ export class ExternalStoreThreadRuntimeCore
   }
 
   public async append(rawMessage: AppendMessage): Promise<void> {
+    let message = {
+      ...rawMessage,
+      parentId: this._resolveAppendParent(rawMessage.parentId),
+    };
     if (this.voice)
       throw new Error(
         "Cannot send a text message while a voice session is connected",
       );
-    if (this._isVoiceMessage(rawMessage.sourceId))
+    if (this._isVoiceMessage(message.sourceId))
       throw new Error("Voice transcript messages cannot be edited");
     // sourceId marks an edit send; the parent may coincide with the head
     // after a resync (e.g. cancelRun dropped the edited message).
     const isEdit =
-      rawMessage.sourceId != null ||
-      rawMessage.parentId !== (this.messages.at(-1)?.id ?? null);
+      message.sourceId != null ||
+      message.parentId !== (this._getBaseMessages().at(-1)?.id ?? null);
 
     // A transformed-queue send is stamped at flush; any other queue's
     // transform would gate against its own thread's messages, so those stamp
     // at send.
-    const message =
+    message =
       !isEdit &&
       this._store.queue &&
       this._store.queue === this._transformedQueue
-        ? rawMessage
-        : this.enrichAppendMetadata(rawMessage);
+        ? message
+        : this.enrichAppendMetadata(message);
 
     const generation = captureThreadRuntimeGeneration(this);
     this.ensureInitialized();

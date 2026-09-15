@@ -185,7 +185,17 @@ export abstract class BaseThreadRuntimeCore
     );
   }
 
+  protected _resolveAppendParent(parentId: string | null): string | null {
+    return this._isVoiceMessage(parentId)
+      ? (this._getBaseMessages().at(-1)?.id ?? null)
+      : parentId;
+  }
+
   public beginEdit(messageId: string) {
+    if (this.voice)
+      throw new Error(
+        "Cannot edit a message while a voice session is connected",
+      );
     if (this._isVoiceMessage(messageId)) {
       throw new Error("Voice transcript messages cannot be edited");
     }

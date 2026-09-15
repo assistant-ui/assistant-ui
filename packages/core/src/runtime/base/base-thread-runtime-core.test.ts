@@ -19,6 +19,9 @@ import { LocalRuntimeCore } from "../../runtimes/local/local-runtime-core";
 
 const createVoiceAdapter = () => {
   let volumeCallback: ((volume: number) => void) | undefined;
+  let statusCallback:
+    | ((status: RealtimeVoiceAdapter.Status) => void)
+    | undefined;
   let transcriptCallback:
     | ((transcript: RealtimeVoiceAdapter.TranscriptItem) => void)
     | undefined;
@@ -28,7 +31,12 @@ const createVoiceAdapter = () => {
     disconnect: vi.fn(),
     mute: vi.fn(),
     unmute: vi.fn(),
-    onStatusChange: () => () => {},
+    onStatusChange: (callback) => {
+      statusCallback = callback;
+      return () => {
+        statusCallback = undefined;
+      };
+    },
     onTranscript: (callback) => {
       transcriptCallback = callback;
       return () => {
@@ -47,12 +55,15 @@ const createVoiceAdapter = () => {
   return {
     adapter: { connect: () => session },
     emitVolume: (volume: number) => volumeCallback?.(volume),
+    emitStatus: (status: RealtimeVoiceAdapter.Status) =>
+      statusCallback?.(status),
     emitTranscript: (transcript: RealtimeVoiceAdapter.TranscriptItem) =>
       transcriptCallback?.(transcript),
     session,
   } satisfies {
     adapter: RealtimeVoiceAdapter;
     emitVolume: (volume: number) => void;
+    emitStatus: (status: RealtimeVoiceAdapter.Status) => void;
     emitTranscript: (transcript: RealtimeVoiceAdapter.TranscriptItem) => void;
     session: RealtimeVoiceAdapter.Session;
   };
@@ -1230,6 +1241,29 @@ describe("BaseThreadRuntimeCore voice transcripts", () => {
     });
   });
 
+  it("rejects opening an edit while connected", async () => {
+    const { thread, voiceAdapter } = await createLocalVoiceThread();
+
+    try {
+      voiceAdapter.emitTranscript({
+        role: "user",
+        text: "Hello",
+        isFinal: true,
+      });
+      const transcript = thread.messages[0]!;
+
+      expect(() => thread.beginEdit(transcript.id)).toThrow(
+        "Cannot edit a message while a voice session is connected",
+      );
+
+      thread.disconnectVoice();
+
+      expect(() => thread.beginEdit(transcript.id)).not.toThrow();
+    } finally {
+      thread.disconnectVoice();
+    }
+  });
+
   it("speaks an assistant transcript", () => {
     const voiceAdapter = createVoiceAdapter();
     const speech = {
@@ -1441,6 +1475,7 @@ describe("BaseThreadRuntimeCore voice transcripts", () => {
         text: "Hello",
         isFinal: true,
       });
+      voiceAdapter.emitStatus({ type: "ended", reason: "finished" });
 
       expect(() => runtime.beginEdit(runtime.messages[0]!.id)).toThrow(
         "Voice transcript messages cannot be edited",
