@@ -162,7 +162,7 @@ import { McpServerByIdProvider, McpServerPrimitive } from "@assistant-ui/react-m
 | Part | Renders | Notes |
 |------|---------|-------|
 | `Root` | `form` | Owns the form's state. Takes `onSubmitted(id)` and `onCancel`. |
-| `NameField`, `UrlField` | `input` | Bound text inputs. The field that fails validation gets `aria-invalid` and the error's id in `aria-describedby`. |
+| `NameField`, `UrlField` | `input` | Bound text inputs. The field that fails validation gets `aria-invalid` and the error's id in `aria-describedby`; with `asChild`, pass `aria-describedby` to the part, because the slotted child's own value replaces the composed one. |
 | `AuthSelect` | `select` | `"oauth" \| "bearer" \| "none"`, defaults to `"oauth"`. |
 | `AuthFields` | labeled inputs | Bearer token or OAuth scopes input with its own label, matching the current `AuthSelect` value. |
 | `Submit` | `button` | Disabled while submitting. |
