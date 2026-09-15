@@ -18,6 +18,17 @@ type DataStreamOptions = {
   strict?: boolean | undefined;
 };
 
+type DataStreamError = Exclude<
+  Extract<
+    DataStreamChunk,
+    { type: typeof DataStreamStreamChunkType.Error }
+  >["value"],
+  string
+>;
+
+const isTerminalError = (severity: DataStreamError["severity"] | undefined) =>
+  severity !== "warning" && severity !== "info";
+
 export class DataStreamEncoder
   extends PipeableTransformStream<AssistantStreamChunk, Uint8Array<ArrayBuffer>>
   implements AssistantStreamEncoder
@@ -219,10 +230,23 @@ export class DataStreamEncoder
               break;
             }
             case "error": {
-              finishOpenToolCallArgs(controller);
+              if (isTerminalError(chunk.severity)) {
+                finishOpenToolCallArgs(controller);
+              }
               controller.enqueue({
                 type: DataStreamStreamChunkType.Error,
-                value: chunk.error,
+                value:
+                  chunk.code === undefined && chunk.severity === undefined
+                    ? chunk.error
+                    : {
+                        error: chunk.error,
+                        ...(chunk.code !== undefined
+                          ? { code: chunk.code }
+                          : {}),
+                        ...(chunk.severity !== undefined
+                          ? { severity: chunk.severity }
+                          : {}),
+                      },
               });
               break;
             }
@@ -505,14 +529,19 @@ export class DataStreamDecoder extends PipeableTransformStream<
               break;
             }
 
-            case DataStreamStreamChunkType.Error:
-              closeOpenToolCallArgs();
+            case DataStreamStreamChunkType.Error: {
+              const error =
+                typeof value === "string" ? { error: value } : value;
+              if (isTerminalError(error.severity)) {
+                closeOpenToolCallArgs();
+              }
               controller.enqueue({
                 type: "error",
                 path: [],
-                error: value,
+                ...error,
               });
               break;
+            }
 
             case DataStreamStreamChunkType.File: {
               const { parentId, ...fileData } = value;
