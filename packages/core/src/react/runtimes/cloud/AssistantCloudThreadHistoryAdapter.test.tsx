@@ -466,7 +466,10 @@ describe("useAssistantCloudThreadHistoryAdapter", () => {
           parentId: "valid-message",
           message: expect.objectContaining({
             id: "malformed-message",
-            content: [{ type: "future-part", value: 1 }],
+            content: [
+              { type: "data", name: "missing-data" },
+              { type: "future-part", value: 1 },
+            ],
           }),
         }),
         expect.objectContaining({

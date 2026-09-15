@@ -468,24 +468,10 @@ const isAuiV0ToolCallPart = (part: Record<string, unknown>) =>
   typeof part.toolName === "string" &&
   (isRecord(part.args) || typeof part.argsText === "string");
 
-const isAuiV0StoredMessagePart = (
-  value: unknown,
-): value is Record<string, unknown> & { type: string } => {
-  if (!isStoredMessagePart(value)) return false;
-  if (value.type === "audio") {
-    return (
-      isRecord(value.audio) &&
-      (value.audio.format === "mp3" || value.audio.format === "wav")
-    );
-  }
-  return value.type !== "data" || value.data !== undefined;
-};
-
 const isAuiV0MessagePart = (
   value: unknown,
 ): value is Record<string, unknown> & { type: string } =>
-  isAuiV0StoredMessagePart(value) ||
-  (isRecord(value) && isAuiV0ToolCallPart(value));
+  isStoredMessagePart(value) || (isRecord(value) && isAuiV0ToolCallPart(value));
 
 const decodeAuiV0Attachments = (
   attachments: unknown,
@@ -501,19 +487,29 @@ const decodeAuiV0Attachments = (
   }
 
   let unreadableAttachmentCount = 0;
-  return {
-    attachments: attachments.flatMap<CompleteAttachment>((attachment) => {
+  const decodedAttachments = attachments.flatMap<CompleteAttachment>(
+    (attachment) => {
       if (!isStoredAttachment(attachment)) {
         unreadableAttachmentCount += 1;
         return [];
       }
+
       return [
         {
           ...attachment,
-          content: attachment.content.filter(isAuiV0StoredMessagePart),
+          content: attachment.content.flatMap((part) => {
+            if (!isStoredMessagePart(part)) {
+              unreadableAttachmentCount += 1;
+              return [];
+            }
+            return [part];
+          }),
         } as unknown as CompleteAttachment,
       ];
-    }),
+    },
+  );
+  return {
+    attachments: decodedAttachments.length > 0 ? decodedAttachments : undefined,
     unreadableAttachmentCount,
   };
 };

@@ -676,6 +676,88 @@ describe("auiV0Decode", () => {
     }
   });
 
+  it("preserves cloud parts accepted by the shared persisted-message reader", () => {
+    const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
+    try {
+      const { message } = auiV0Decode({
+        id: "cloud",
+        parent_id: null,
+        format: "aui/v0",
+        content: {
+          role: "user",
+          metadata: {},
+          content: [
+            { type: "audio", audio: { data: "audio", format: "ogg" } },
+            { type: "data", name: "weather" },
+          ],
+        },
+        created_at: new Date("2026-03-15T00:00:00.000Z"),
+      } as unknown as Parameters<typeof auiV0Decode>[0]);
+
+      expect(message.content).toEqual([
+        { type: "audio", audio: { data: "audio", format: "ogg" } },
+        { type: "data", name: "weather" },
+      ]);
+      expect(warn).not.toHaveBeenCalled();
+    } finally {
+      warn.mockRestore();
+    }
+  });
+
+  it("counts unreadable attachment content while retaining the attachment", () => {
+    const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
+    try {
+      const { message } = auiV0Decode({
+        id: "cloud",
+        parent_id: null,
+        format: "aui/v0",
+        content: {
+          role: "user",
+          metadata: {},
+          content: [{ type: "text", text: "please review this" }],
+          attachments: [
+            {
+              id: "attachment",
+              type: "document",
+              name: "proposal.txt",
+              status: { type: "complete" },
+              content: [
+                null,
+                {
+                  type: "file",
+                  data: "https://example.com/proposal.txt",
+                  mimeType: "text/plain",
+                },
+              ],
+            },
+          ],
+        },
+        created_at: new Date("2026-03-15T00:00:00.000Z"),
+      } as unknown as Parameters<typeof auiV0Decode>[0]);
+
+      expect(message).toMatchObject({
+        content: [{ type: "text", text: "please review this" }],
+        attachments: [
+          {
+            id: "attachment",
+            content: [
+              {
+                type: "file",
+                data: "https://example.com/proposal.txt",
+                mimeType: "text/plain",
+              },
+            ],
+          },
+        ],
+      });
+      expect(warn).toHaveBeenCalledExactlyOnceWith(
+        "[assistant-ui] Dropped 1 unreadable persisted item from cloud message cloud.",
+      );
+    } finally {
+      warn.mockRestore();
+    }
+  });
+
   it("restores user attachments from core cloud history", () => {
     const content = auiV0Encode({
       id: "local",
