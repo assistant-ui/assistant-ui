@@ -1,6 +1,14 @@
 "use client";
 
-import { type FC, type ReactNode, useState, isValidElement } from "react";
+import {
+  isValidElement,
+  type FC,
+  type Ref,
+  type ReactNode,
+  useEffect,
+  useRef,
+  useState,
+} from "react";
 import { useAuiState } from "@assistant-ui/store";
 import {
   McpAddFormPrimitive,
@@ -108,6 +116,25 @@ const ConnectorsSection: FC = () => {
 
 const CustomServersSection: FC = () => {
   const [showForm, setShowForm] = useState(false);
+  const addTriggerRef = useRef<HTMLButtonElement>(null);
+  const nameRef = useRef<HTMLInputElement>(null);
+  const restoreFocusRef = useRef(false);
+
+  useEffect(() => {
+    if (showForm) {
+      nameRef.current?.focus();
+      return;
+    }
+    if (!restoreFocusRef.current) return;
+    restoreFocusRef.current = false;
+    addTriggerRef.current?.focus();
+  }, [showForm]);
+
+  const handleClose = () => {
+    restoreFocusRef.current = true;
+    setShowForm(false);
+  };
+
   return (
     <section className="aui-mcp-custom-servers flex flex-col gap-2">
       <SectionTitle>Custom servers</SectionTitle>
@@ -118,6 +145,7 @@ const CustomServersSection: FC = () => {
       </div>
       {!showForm && (
         <McpManagerPrimitive.AddCustomTrigger
+          ref={addTriggerRef}
           className={cn(
             buttonVariants({ variant: "outline" }),
             "aui-mcp-add-trigger h-9 justify-start gap-2 rounded-lg px-3 text-sm",
@@ -128,7 +156,7 @@ const CustomServersSection: FC = () => {
           Add server
         </McpManagerPrimitive.AddCustomTrigger>
       )}
-      {showForm && <AddServerForm onClose={() => setShowForm(false)} />}
+      {showForm && <AddServerForm nameRef={nameRef} onClose={handleClose} />}
     </section>
   );
 };
@@ -265,7 +293,10 @@ const ServerActions: FC = () => (
   </div>
 );
 
-const AddServerForm: FC<{ onClose: () => void }> = ({ onClose }) => {
+const AddServerForm: FC<{
+  nameRef: Ref<HTMLInputElement>;
+  onClose: () => void;
+}> = ({ nameRef, onClose }) => {
   return (
     <McpAddFormPrimitive.Root onSubmitted={onClose} onCancel={onClose}>
       <div className="aui-mcp-add-form flex flex-col gap-3 rounded-lg border p-3">
@@ -284,6 +315,7 @@ const AddServerForm: FC<{ onClose: () => void }> = ({ onClose }) => {
         </div>
         <FormRow label="Name">
           <McpAddFormPrimitive.NameField
+            ref={nameRef}
             placeholder="My MCP server"
             className={inputClassName}
           />
