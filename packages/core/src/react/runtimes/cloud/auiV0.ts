@@ -16,6 +16,7 @@ import {
 import type { CloudMessage } from "assistant-cloud";
 import { isJSONValue, isRecord } from "../../../utils/json/is-json";
 import {
+  MAX_STORED_MESSAGE_DEPTH,
   isStoredAttachment,
   isKnownStoredMessagePart,
   isStoredMessagePart,
@@ -496,6 +497,7 @@ const decodeAuiV0MessagePart = (
   payload: AuiV0MessageInput,
   fallbackId: string,
   index: number,
+  depth: number,
 ): unknown[] => {
   if (!isAuiV0MessagePart(part)) return [];
 
@@ -521,6 +523,7 @@ const decodeAuiV0MessagePart = (
                   typeof message.id === "string"
                     ? message.id
                     : `${fallbackId}-${part.toolCallId}-${index}-${nestedIndex}`,
+                  depth + 1,
                 ),
               ];
             } catch {
@@ -552,13 +555,18 @@ const decodeAuiV0MessagePart = (
 const decodeAuiV0Message = (
   payload: AuiV0MessageInput,
   fallbackId: string,
+  depth = 0,
 ): ThreadMessage => {
+  if (depth > MAX_STORED_MESSAGE_DEPTH) {
+    throw new Error("Cloud message nesting exceeds the maximum depth.");
+  }
+
   if (!Array.isArray(payload.content)) {
     throw new Error("Cloud message content must be an array.");
   }
 
   const content = payload.content.flatMap((part, index) =>
-    decodeAuiV0MessagePart(part, payload, fallbackId, index),
+    decodeAuiV0MessagePart(part, payload, fallbackId, index, depth),
   );
   const attachments = decodeAuiV0Attachments(payload.attachments);
   if (payload.role === "system") {

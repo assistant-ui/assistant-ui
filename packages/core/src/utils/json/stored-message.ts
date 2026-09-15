@@ -4,6 +4,8 @@ import type {
 } from "../../types/message";
 import { isRecord } from "./is-json";
 
+export const MAX_STORED_MESSAGE_DEPTH = 100;
+
 const storedPartGuards = {
   text: (part) => typeof part.text === "string",
   reasoning: (part) =>
@@ -14,8 +16,8 @@ const storedPartGuards = {
   audio: (part) =>
     isRecord(part.audio) &&
     typeof part.audio.data === "string" &&
-    typeof part.audio.format === "string",
-  data: (part) => typeof part.name === "string",
+    (part.audio.format === "mp3" || part.audio.format === "wav"),
+  data: (part) => typeof part.name === "string" && Object.hasOwn(part, "data"),
   source: (part) =>
     typeof part.id === "string" &&
     (part.sourceType === "url"

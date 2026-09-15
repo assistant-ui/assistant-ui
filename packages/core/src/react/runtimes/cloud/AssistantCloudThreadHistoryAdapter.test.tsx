@@ -426,7 +426,12 @@ describe("useAssistantCloudThreadHistoryAdapter", () => {
             created_at: "2026-01-01T00:00:00.000Z",
             content: {
               role: "assistant",
-              content: [null, { type: "future-part", value: 1 }],
+              content: [
+                null,
+                { type: "audio", audio: { data: "audio", format: "ogg" } },
+                { type: "data", name: "missing-data" },
+                { type: "future-part", value: 1 },
+              ],
               metadata: {},
             },
           },

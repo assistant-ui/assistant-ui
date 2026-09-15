@@ -582,6 +582,52 @@ describe("auiV0Decode", () => {
     ]);
   });
 
+  it("stops decoding nested tool call messages past the persisted depth limit", () => {
+    let stored: unknown = {
+      id: "leaf",
+      role: "assistant",
+      metadata: {},
+      content: [{ type: "text", text: "leaf" }],
+    };
+    for (let level = 0; level < 150; level += 1) {
+      stored = {
+        id: `level-${level}`,
+        role: "assistant",
+        metadata: {},
+        content: [
+          {
+            type: "tool-call",
+            toolCallId: `call-${level}`,
+            toolName: "delegate",
+            args: {},
+            argsText: "{}",
+            messages: [stored],
+          },
+        ],
+      };
+    }
+
+    const { message: decoded } = auiV0Decode({
+      id: "cloud",
+      parent_id: null,
+      format: "aui/v0",
+      content: stored,
+      created_at: new Date("2026-03-15T00:00:00.000Z"),
+    } as unknown as Parameters<typeof auiV0Decode>[0]);
+
+    let message = decoded;
+    let depth = 0;
+    while (message.role === "assistant") {
+      const part = message.content[0];
+      const nested =
+        part?.type === "tool-call" ? part.messages?.[0] : undefined;
+      if (!nested) break;
+      message = nested;
+      depth += 1;
+    }
+    expect(depth).toBe(100);
+  });
+
   it("restores user attachments from core cloud history", () => {
     const content = auiV0Encode({
       id: "local",

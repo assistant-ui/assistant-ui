@@ -25,6 +25,7 @@ import type {
 } from "../../internal";
 import { isRecord } from "../../utils/json/is-json";
 import {
+  MAX_STORED_MESSAGE_DEPTH,
   isStoredAttachment,
   isStoredMessagePart,
 } from "../../utils/json/stored-message";
@@ -132,8 +133,6 @@ const messageModalities = {
 
 const isMessageModality = (value: unknown): value is MessageModality =>
   typeof value === "string" && Object.hasOwn(messageModalities, value);
-
-const MAX_STORED_MESSAGE_DEPTH = 100;
 
 const parseStoredMessageParts = (
   content: unknown[],
