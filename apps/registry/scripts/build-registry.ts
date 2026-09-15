@@ -1371,7 +1371,7 @@ export function validateRegistryInstallMetadata(
       const installedPath = file.target ?? file.path;
       if (file.target?.startsWith("~/")) {
         findings.add(
-          `${item.name}: ${file.path} declares the target "${file.target}"; write targets relative to the project root, without the "~/" prefix`,
+          `${item.name}: ${file.path} declares the target "${file.target}"; targets are written without the "~/" prefix, because the packaged-file path the docs serve is the target as declared`,
         );
       }
       const shadcnPath = shadcnInstallPath(file);
