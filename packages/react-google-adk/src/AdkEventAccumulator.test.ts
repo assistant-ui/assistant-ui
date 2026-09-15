@@ -270,6 +270,28 @@ describe("AdkEventAccumulator - function calls", () => {
       type: "ai",
       content: [{ type: "text", text: "still here" }],
     });
+    // The part is dropped outright: left in tool_calls it would render an
+    // approval control answering a gate ADK never opened.
+    expect((msgs[0] as AdkMessage & { type: "ai" }).tool_calls ?? []).toEqual(
+      [],
+    );
+  });
+
+  it("defaults an ordinary call without args to empty args", () => {
+    const acc = new AdkEventAccumulator();
+    const msgs = acc.processEvent(
+      makeEvent({
+        author: "agent",
+        content: {
+          role: "model",
+          parts: [{ functionCall: { name: "search", id: "tc-1" } }],
+        },
+      }),
+    );
+
+    expect((msgs[0] as AdkMessage & { type: "ai" }).tool_calls).toEqual([
+      { id: "tc-1", name: "search", args: {}, argsText: "{}" },
+    ]);
   });
 });
 

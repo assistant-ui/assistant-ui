@@ -432,9 +432,20 @@ export class AdkEventAccumulator {
     // Detect special ADK function calls
     if (part.functionCall && !event.partial) {
       const name = part.functionCall.name;
+      const callArgs = part.functionCall.args;
+
+      // A request call carries the gate in its args, so one without them opens
+      // nothing to answer. Dropping the part keeps it out of `tool_calls`,
+      // where the approval projection would otherwise render a control that
+      // replies to a gate ADK never opened.
+      if (
+        !callArgs &&
+        (name === ADK_REQUEST_CONFIRMATION || name === ADK_REQUEST_CREDENTIAL)
+      ) {
+        return;
+      }
 
       // Tool confirmation request
-      const callArgs = part.functionCall.args;
       if (name === ADK_REQUEST_CONFIRMATION && callArgs) {
         const original =
           (callArgs.originalFunctionCall as Record<string, unknown>) ??
