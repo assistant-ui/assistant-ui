@@ -59,6 +59,16 @@ const userMessage = (text: string): AppendMessage => ({
   createdAt: new Date(),
 });
 
+const queuedUserMessage = (
+  text: string,
+  parentId: string | null,
+  steer?: boolean,
+): AppendMessage => ({
+  ...userMessage(text),
+  parentId,
+  ...(steer !== undefined ? { steer } : {}),
+});
+
 const toolCallPart = (
   toolName: string,
   approval?: ToolCallMessagePart["approval"],
@@ -146,6 +156,89 @@ describe("LocalThreadRuntimeCore events", () => {
         listenerError,
       );
     });
+  });
+});
+
+describe("LocalThreadRuntimeCore message queue", () => {
+  it("keeps implicit sends in the steer lane across consecutive runs", async () => {
+    let releaseFirst!: () => void;
+    let releaseSecond!: () => void;
+    const first = new Promise<void>((resolve) => {
+      releaseFirst = resolve;
+    });
+    const second = new Promise<void>((resolve) => {
+      releaseSecond = resolve;
+    });
+    let runNumber = 0;
+    const run = vi.fn(async function* () {
+      if (runNumber++ === 0) await first;
+      else await second;
+      yield { content: [{ type: "text" as const, text: "done" }] };
+    } as unknown as ChatModelAdapter["run"]);
+    const core = new LocalRuntimeCore(
+      {
+        adapters: { chatModel: { run } },
+        unstable_enableMessageQueue: true,
+      },
+      undefined,
+    );
+    const thread = core.threads.getMainThreadRuntimeCore();
+
+    void thread.append(queuedUserMessage("msg1", null));
+    await vi.waitFor(() => expect(run).toHaveBeenCalledTimes(1));
+
+    void thread.append(
+      queuedUserMessage("msg2", thread.messages.at(-1)?.id ?? null),
+    );
+    releaseFirst();
+    await vi.waitFor(() => expect(run).toHaveBeenCalledTimes(2));
+    await new Promise((resolve) => setTimeout(resolve, 0));
+
+    void thread.append(
+      queuedUserMessage("implicit", thread.messages.at(-1)?.id ?? null),
+    );
+    void thread.append(
+      queuedUserMessage("bulk", thread.messages.at(-1)?.id ?? null, false),
+    );
+
+    expect(thread.getSteerQueueItems().map((item) => item.prompt)).toContain(
+      "implicit",
+    );
+    expect(thread.getQueueItems().map((item) => item.prompt)).toContain("bulk");
+
+    releaseSecond();
+    await vi.waitFor(() => expect(run).toHaveBeenCalledTimes(4));
+  });
+
+  it("releases the queue when a dispatch fails before starting a run", async () => {
+    const initializationError = new Error("initialization failed");
+    let initializationAttempts = 0;
+    const run = vi.fn(async () => ({
+      content: [{ type: "text" as const, text: "done" }],
+    }));
+    const core = new LocalRuntimeCore(
+      {
+        adapters: { chatModel: { run } },
+        unstable_enableMessageQueue: true,
+      },
+      undefined,
+    );
+    const thread = core.threads.getMainThreadRuntimeCore();
+    thread.__internal_setGetInitializePromise(() =>
+      initializationAttempts++ === 0
+        ? Promise.reject(initializationError)
+        : undefined,
+    );
+
+    void thread.append(queuedUserMessage("failed", null));
+    void thread.append(
+      queuedUserMessage("retry", thread.messages.at(-1)?.id ?? null),
+    );
+
+    await vi.waitFor(() => expect(run).toHaveBeenCalledOnce());
+    expect(run.mock.calls[0]?.[0].messages.at(-1)?.content).toEqual([
+      { type: "text", text: "retry" },
+    ]);
   });
 });
 
