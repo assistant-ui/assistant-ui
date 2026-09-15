@@ -537,14 +537,14 @@ const decodeAuiV0MessagePart = (
   index: number,
   depth: number,
 ): {
-  part: Record<string, unknown> | undefined;
+  part: (Record<string, unknown> & { type: string }) | undefined;
   unreadablePartCount: number;
 } => {
   if (!isAuiV0MessagePart(part)) {
     return { part: undefined, unreadablePartCount: 1 };
   }
 
-  let decodedPart: Record<string, unknown> = part;
+  let decodedPart: Record<string, unknown> & { type: string } = part;
   let unreadablePartCount = 0;
   if (part.type === "tool-call" && part.messages !== undefined) {
     const { messages, ...toolCall } = part;
