@@ -526,7 +526,8 @@ export class OpenCodeThreadController implements OpenCodeThreadControllerLike {
       ),
     ])
       .then(([sessionResponse, messagesResponse]) => {
-        if (this.loadPromise !== request) return;
+        if (this.loadPromise !== request || this.backgroundRefreshQueued)
+          return;
         this.dispatch({
           type: "history.loaded",
           session: sessionResponse.data ?? null,

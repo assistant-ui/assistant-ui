@@ -1823,6 +1823,8 @@ describe("OpenCodeThreadController", () => {
     firstMessages.resolve({ data: [] });
     await vi.waitFor(() => expect(get).toHaveBeenCalledTimes(2));
     expect(listMessages).toHaveBeenCalledTimes(2);
+    expect(controller.getState().loadState).toMatchObject({ type: "loading" });
+    expect(controller.getState().session).toBeNull();
 
     secondSession.resolve({ data: { id: "fresh_session", time: {} } });
     secondMessages.resolve({ data: [] });
