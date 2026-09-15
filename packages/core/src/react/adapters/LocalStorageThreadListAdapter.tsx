@@ -127,7 +127,8 @@ const MAX_STORED_MESSAGE_DEPTH = 100;
 
 const storedPartGuards = {
   text: (part) => typeof part.text === "string",
-  reasoning: (part) => typeof part.text === "string",
+  reasoning: (part) =>
+    typeof part.text === "string" || typeof part.unstable_summary === "string",
   image: (part) => typeof part.image === "string",
   file: (part) =>
     typeof part.data === "string" && typeof part.mimeType === "string",
@@ -292,12 +293,15 @@ const parseStoredThreadMessage = (
   }
 
   const content = parseStoredMessageParts(value.content, depth);
-  if (content.length !== 1) return null;
+  const part = content[0];
+  if (content.length !== 1 || !isRecord(part) || part.type !== "text") {
+    return null;
+  }
 
   return {
     id: value.id,
     role: "system",
-    content: [content[0] as StoredSystemMessage["content"][0]],
+    content: [part as StoredSystemMessage["content"][0]],
     createdAt,
     metadata: {
       custom: metadata.custom,

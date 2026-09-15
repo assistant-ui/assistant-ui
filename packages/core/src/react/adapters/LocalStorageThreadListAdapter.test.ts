@@ -195,6 +195,7 @@ describe("parseStoredMessageRepository", () => {
     const parts = {
       text: { type: "text", text: "hi" },
       reasoning: { type: "reasoning", text: "because" },
+      summary: { type: "reasoning", unstable_summary: "Searching the docs" },
       image: { type: "image", image: "https://example.com/a.png" },
       file: { type: "file", data: "SGk=", mimeType: "text/plain" },
       audio: { type: "audio", audio: { data: "SGk=", format: "mp3" } },
@@ -307,7 +308,7 @@ describe("parseStoredMessageRepository", () => {
     ]);
   });
 
-  it("keeps a system message only when exactly one readable part remains", () => {
+  it("keeps a system message only when its one readable part is text", () => {
     const repo = parseStoredMessageRepository(
       JSON.stringify({
         messages: [
@@ -315,6 +316,16 @@ describe("parseStoredMessageRepository", () => {
             message: {
               ...storedMessage("unreadable", "system"),
               content: [null],
+            },
+            parentId: null,
+          },
+          {
+            message: {
+              ...storedMessage("non-text", "system"),
+              content: [
+                { type: "text" },
+                { type: "image", image: "https://example.com/a.png" },
+              ],
             },
             parentId: null,
           },
