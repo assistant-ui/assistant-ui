@@ -283,7 +283,6 @@ const STATUS_LABEL: Record<MCPConnectionState, string> = {
 
 const StatusLine: FC = () => {
   const status = useAuiState((s) => s.mcpServer.connectionState);
-  const error = useAuiState((s) => s.mcpServer.lastError?.message ?? null);
   const variant = STATUS_VARIANT[status];
   const label = STATUS_LABEL[status];
   return (
@@ -291,10 +290,7 @@ const StatusLine: FC = () => {
       role="status"
       className="text-muted-foreground flex items-center gap-1.5 text-xs"
     >
-      <Badge
-        variant={variant}
-        aria-hidden={status === "error" && error ? true : undefined}
-      >
+      <Badge variant={variant}>
         {status === "connecting" && (
           <Loader2Icon className="size-3 animate-spin" />
         )}

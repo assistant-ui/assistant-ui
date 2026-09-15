@@ -280,9 +280,7 @@ describe.each([
     unavailable.resolve(new Response(null, { status: 503 }));
     await waitFor(() => {
       expect(screen.getByRole("alert").textContent).not.toBe("");
-      expect(screen.getByText("Error").getAttribute("aria-hidden")).toBe(
-        "true",
-      );
+      expect(screen.getByRole("status").textContent).toBe("Error");
     });
 
     fireEvent.click(screen.getByRole("button", { name: "Close" }));
@@ -290,9 +288,7 @@ describe.each([
     fireEvent.click(screen.getByRole("button", { name: "MCP servers" }));
     await waitFor(() => {
       expect(screen.getByRole("alert").textContent).not.toBe("");
-      expect(screen.getByText("Error").getAttribute("aria-hidden")).toBe(
-        "true",
-      );
+      expect(screen.getByRole("status").textContent).toBe("Error");
     });
   });
 });
