@@ -1131,6 +1131,66 @@ describe("AdkEventAccumulator - special function calls", () => {
       authConfig: { type: "oauth2" },
     });
   });
+
+  it("keeps an argument-less confirmation request from aborting the event", () => {
+    const acc = new AdkEventAccumulator();
+    const messages = acc.processEvent(
+      makeEvent({
+        author: "agent",
+        content: {
+          role: "model",
+          parts: [
+            {
+              functionCall: {
+                name: "adk_request_confirmation",
+                id: "tc-1",
+              },
+            },
+            { text: "The request continued." },
+          ],
+        },
+      }),
+    );
+
+    expect(acc.getToolConfirmations()).toEqual([]);
+    expect(messages).toMatchObject([
+      {
+        type: "ai",
+        content: [{ type: "text", text: "The request continued." }],
+        tool_calls: [{ id: "tc-1", args: {} }],
+      },
+    ]);
+  });
+
+  it("keeps an argument-less credential request from aborting the event", () => {
+    const acc = new AdkEventAccumulator();
+    const messages = acc.processEvent(
+      makeEvent({
+        author: "agent",
+        content: {
+          role: "model",
+          parts: [
+            {
+              functionCall: {
+                name: "adk_request_credential",
+                id: "cred-1",
+              },
+            },
+            { text: "Credentials are still unavailable." },
+          ],
+        },
+      }),
+    );
+
+    expect(acc.getAuthRequests()).toEqual([]);
+    expect(messages).toMatchObject([
+      {
+        type: "ai",
+        content: [{ type: "text", text: "Credentials are still unavailable." }],
+        tool_calls: [{ id: "cred-1", args: {} }],
+      },
+    ]);
+  });
 });
 
 describe("AdkEventAccumulator - author/agent tracking", () => {

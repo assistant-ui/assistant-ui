@@ -446,6 +446,81 @@ describe("createAdkSessionAdapter - load", () => {
     expect(result.messages.length).toBeGreaterThanOrEqual(1);
   });
 
+  it("loads valid messages around argument-less ADK requests", async () => {
+    const session = {
+      id: "s1",
+      events: [
+        {
+          id: "e1",
+          author: "user",
+          content: { role: "user", parts: [{ text: "Hello" }] },
+        },
+        {
+          id: "e2",
+          author: "agent",
+          content: {
+            role: "model",
+            parts: [
+              {
+                functionCall: {
+                  name: "adk_request_confirmation",
+                  id: "confirm-1",
+                },
+              },
+              { text: "The confirmation payload was incomplete." },
+            ],
+          },
+        },
+        {
+          id: "e3",
+          author: "agent",
+          content: {
+            role: "model",
+            parts: [
+              {
+                functionCall: {
+                  name: "adk_request_credential",
+                  id: "credential-1",
+                },
+              },
+              { text: "The credential payload was incomplete." },
+            ],
+          },
+        },
+      ],
+    };
+    mockFetch.mockResolvedValueOnce(
+      new Response(JSON.stringify(session), { status: 200 }),
+    );
+
+    const { load } = createAdkSessionAdapter(baseOptions);
+    const result = await load("s1");
+
+    expect(result.messages).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({ type: "human", content: "Hello" }),
+        expect.objectContaining({
+          type: "ai",
+          content: [
+            { type: "text", text: "The confirmation payload was incomplete." },
+          ],
+          tool_calls: [expect.objectContaining({ id: "confirm-1", args: {} })],
+        }),
+        expect.objectContaining({
+          type: "ai",
+          content: [
+            { type: "text", text: "The credential payload was incomplete." },
+          ],
+          tool_calls: [
+            expect.objectContaining({ id: "credential-1", args: {} }),
+          ],
+        }),
+      ]),
+    );
+    expect(result.toolConfirmations).toEqual([]);
+    expect(result.authRequests).toEqual([]);
+  });
+
   it("returns empty messages when session has no events", async () => {
     mockFetch.mockResolvedValueOnce(
       new Response(JSON.stringify({ id: "s1", events: [] }), { status: 200 }),
