@@ -404,6 +404,43 @@ describe("registered tools", () => {
     }
   });
 
+  it("getSkill applies the body failure and abort rules to the SKILL.md read", async () => {
+    const routes = fetchSkillRoutes();
+    const documentFailing = (error: unknown) =>
+      vi.fn<FetchLike>(async (url) =>
+        url.endsWith("/SKILL.md")
+          ? {
+              ok: true,
+              status: 200,
+              json: async () => null,
+              text: async () => {
+                throw error;
+              },
+            }
+          : routes(url),
+      );
+    await expect(
+      toolByName(
+        documentFailing(new TypeError("network error")),
+        "getSkill",
+      ).execute({ name: "tools" }),
+    ).resolves.toEqual(errorResult("Docs request failed: network error"));
+
+    const tracker = spyTracker();
+    const controller = new AbortController();
+    const reason = new Error("user cancelled");
+    controller.abort(reason);
+    await expect(
+      toolByName(documentFailing(reason), "getSkill", tracker).execute(
+        { name: "tools" },
+        { signal: controller.signal },
+      ),
+    ).rejects.toBe(reason);
+    expect(
+      tracker.toolCalled.mock.calls.map(([props]) => props.status),
+    ).toEqual(["aborted"]);
+  });
+
   it("round-trips every skill through the discovery responses", async () => {
     const fetchImpl: FetchLike = async (url) => {
       if (url === "/.well-known/agent-skills/index.json") {

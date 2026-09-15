@@ -81,6 +81,20 @@ function isAbortError(error: unknown, signal: AbortSignal | undefined) {
   );
 }
 
+function requestFailed(error: unknown) {
+  return new Error(
+    `Docs request failed: ${error instanceof Error ? error.message : String(error)}`,
+  );
+}
+
+function statusError(status: number) {
+  return new Error(`Docs request failed with status ${status}`);
+}
+
+function unexpectedResponse() {
+  return new Error("Docs request returned an unexpected response");
+}
+
 async function fetchRoute(
   fetchImpl: FetchLike,
   url: string,
@@ -91,12 +105,12 @@ async function fetchRoute(
     return await fetchImpl(url, { ...init, ...(signal ? { signal } : {}) });
   } catch (error) {
     if (isAbortError(error, signal)) throw error;
-    throw new Error(
-      `Docs request failed: ${error instanceof Error ? error.message : String(error)}`,
-    );
+    throw requestFailed(error);
   }
 }
 
+// fetch resolves once headers arrive, so an abort while a body is still
+// streaming surfaces at these reads rather than at the request.
 async function readJson(
   response: Awaited<ReturnType<FetchLike>>,
   signal: AbortSignal | undefined,
@@ -104,19 +118,21 @@ async function readJson(
   try {
     return await response.json();
   } catch (error) {
-    // fetch resolves once headers arrive, so an abort while the body is still
-    // streaming surfaces here rather than at the request above.
     if (isAbortError(error, signal)) throw error;
     throw new Error("Docs request returned invalid JSON");
   }
 }
 
-function statusError(status: number) {
-  return new Error(`Docs request failed with status ${status}`);
-}
-
-function unexpectedResponse() {
-  return new Error("Docs request returned an unexpected response");
+async function readText(
+  response: Awaited<ReturnType<FetchLike>>,
+  signal: AbortSignal | undefined,
+) {
+  try {
+    return await response.text();
+  } catch (error) {
+    if (isAbortError(error, signal)) throw error;
+    throw requestFailed(error);
+  }
 }
 
 async function callMcpRoute(
@@ -341,7 +357,7 @@ async function readSkillFromRoute(
     signal,
   );
   if (!response.ok) throw statusError(response.status);
-  return parseSkillDocument(await response.text());
+  return parseSkillDocument(await readText(response, signal));
 }
 
 function webMcpTools(fetchImpl: FetchLike): WebMcpToolDescriptor[] {
