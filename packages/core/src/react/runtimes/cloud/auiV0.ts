@@ -520,9 +520,12 @@ const decodeAuiV0MessagePart = (
   fallbackId: string,
   index: number,
   depth: number,
-): { content: readonly unknown[]; unreadablePartCount: number } => {
+): {
+  part: Record<string, unknown> | undefined;
+  unreadablePartCount: number;
+} => {
   if (!isAuiV0MessagePart(part)) {
-    return { content: [], unreadablePartCount: 1 };
+    return { part: undefined, unreadablePartCount: 1 };
   }
 
   let decodedPart: Record<string, unknown> = part;
@@ -565,25 +568,27 @@ const decodeAuiV0MessagePart = (
 
   if (part.type !== "tool-call" && !isKnownStoredMessagePart(part)) {
     if (!part.type.startsWith("data-")) {
-      return { content: [decodedPart], unreadablePartCount };
+      return { part: decodedPart, unreadablePartCount };
     }
   }
+  return { part: decodedPart, unreadablePartCount };
+};
 
-  try {
-    return {
-      content: fromThreadMessageLike(
-        {
-          role: payload.role,
-          content: [decodedPart],
-        } as unknown as ThreadMessageLike,
-        `${fallbackId}-${index}`,
-        { type: "complete", reason: "unknown" },
-      ).content,
-      unreadablePartCount,
-    };
-  } catch {
-    return { content: [], unreadablePartCount: unreadablePartCount + 1 };
-  }
+const isCompatibleMessagePart = (
+  role: AuiV0MessageInput["role"],
+  part: Record<string, unknown> & { type: string },
+) => {
+  if (!isKnownStoredMessagePart(part)) return true;
+  if (role === "assistant") return part.type !== "audio";
+  if (role === "user")
+    return (
+      part.type === "text" ||
+      part.type === "image" ||
+      part.type === "audio" ||
+      part.type === "file" ||
+      part.type === "data"
+    );
+  return part.type === "text";
 };
 
 const decodeAuiV0Message = (
@@ -602,32 +607,46 @@ const decodeAuiV0Message = (
   const decodedParts = payload.content.map((part, index) =>
     decodeAuiV0MessagePart(part, payload, fallbackId, index, depth),
   );
-  const unreadablePartCount = decodedParts.reduce(
+  let unreadablePartCount = decodedParts.reduce(
     (count, part) => count + part.unreadablePartCount,
     0,
   );
   const { attachments, unreadableAttachmentCount } = decodeAuiV0Attachments(
     payload.attachments,
   );
+  const unknownParts = new Map<object, Record<string, unknown>>();
+  const content = decodedParts.flatMap(({ part }) => {
+    if (!part) return [];
+    if (!isCompatibleMessagePart(payload.role, part)) {
+      unreadablePartCount += 1;
+      return [];
+    }
+    if (part.type === "tool-call" || isKnownStoredMessagePart(part)) {
+      return [part];
+    }
+    if (part.type.startsWith("data-")) return [part];
+    const marker = {};
+    unknownParts.set(marker, part);
+    return [{ type: "data-__assistant-ui-unknown", data: marker }];
+  });
   const unreadableItemCount = unreadablePartCount + unreadableAttachmentCount;
   if (unreadableItemCount > 0) {
     console.warn(
       `[assistant-ui] Dropped ${unreadableItemCount} unreadable persisted item${unreadableItemCount === 1 ? "" : "s"} from cloud message ${fallbackId}.`,
     );
   }
-  const content = decodedParts.flatMap((part) => part.content);
-  if (payload.role === "system") {
-    return fromThreadMessageLike(
-      { ...payload, content, attachments } as unknown as ThreadMessageLike,
-      fallbackId,
-      { type: "complete", reason: "unknown" },
-    );
-  }
-
   const message = fromThreadMessageLike(
-    { ...payload, content: [], attachments } as unknown as ThreadMessageLike,
+    { ...payload, content, attachments } as unknown as ThreadMessageLike,
     fallbackId,
     { type: "complete", reason: "unknown" },
   );
-  return { ...message, content } as unknown as ThreadMessage;
+  if (!unknownParts.size) return message;
+  return {
+    ...message,
+    content: message.content.map((part) =>
+      part.type === "data" && typeof part.data === "object" && part.data
+        ? (unknownParts.get(part.data) ?? part)
+        : part,
+    ),
+  } as unknown as ThreadMessage;
 };
