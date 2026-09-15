@@ -8,7 +8,6 @@ import { Icon } from "./icon";
 const h = vi.hoisted(() => ({
   hasStyleSheet: true,
   sizes: [] as (number | undefined)[],
-  styles: [] as unknown[],
 }));
 
 vi.mock("uniwind", async () => {
@@ -16,21 +15,12 @@ vi.mock("uniwind", async () => {
 
   return {
     withUniwind:
-      (
-        Component: React.ComponentType<any>,
-        options?: Record<string, unknown>,
-      ) =>
+      (Component: React.ComponentType<any>) =>
       ({ className, ...props }: Record<string, unknown>) =>
         React.createElement(Component, {
           ...props,
           ...(className !== undefined && h.hasStyleSheet
-            ? {
-                size: 16,
-                color: "rgb(1, 2, 3)",
-                ...(options?.style !== undefined
-                  ? { style: { marginTop: 2 } }
-                  : {}),
-              }
+            ? { size: 16, color: "rgb(1, 2, 3)" }
             : {}),
         }),
   };
@@ -39,14 +29,11 @@ vi.mock("uniwind", async () => {
 const TestIcon = (({
   size = 24,
   color = "currentColor",
-  style,
 }: {
   size?: number;
   color?: string;
-  style?: unknown;
 }) => {
   h.sizes.push(size);
-  h.styles.push(style);
   return <svg data-testid="icon" width={size} stroke={color} />;
 }) as LucideIcon;
 
@@ -59,7 +46,6 @@ describe("Icon", () => {
   beforeEach(() => {
     h.hasStyleSheet = true;
     h.sizes.length = 0;
-    h.styles.length = 0;
     container = document.createElement("div");
     document.body.appendChild(container);
   });
@@ -74,7 +60,7 @@ describe("Icon", () => {
   it("hydrates the server markup and then applies the class-derived props", async () => {
     h.hasStyleSheet = false;
     container.innerHTML = renderToString(
-      <Icon as={TestIcon} className="text-primary mt-0.5 size-4" />,
+      <Icon as={TestIcon} className="text-primary size-4" />,
     );
     const serverIcon = container.querySelector("[data-testid=icon]");
     expect(serverIcon?.getAttribute("width")).toBe("24");
@@ -85,14 +71,13 @@ describe("Icon", () => {
     await act(async () => {
       root = hydrateRoot(
         container,
-        <Icon as={TestIcon} className="text-primary mt-0.5 size-4" />,
+        <Icon as={TestIcon} className="text-primary size-4" />,
       );
     });
 
     const icon = container.querySelector("[data-testid=icon]");
     expect(icon?.getAttribute("width")).toBe("16");
     expect(icon?.getAttribute("stroke")).toBe("rgb(1, 2, 3)");
-    expect(h.styles[h.styles.length - 1]).toEqual({ marginTop: 2 });
     expect(icon).toBe(serverIcon);
     expect(consoleError).not.toHaveBeenCalled();
     consoleError.mockRestore();
@@ -101,13 +86,10 @@ describe("Icon", () => {
   it("resolves the class-derived props on the first client render", async () => {
     await act(async () => {
       root = createRoot(container);
-      root.render(
-        <Icon as={TestIcon} className="text-primary mt-0.5 size-4" />,
-      );
+      root.render(<Icon as={TestIcon} className="text-primary size-4" />);
     });
 
     expect(h.sizes).toEqual([16]);
-    expect(h.styles).toEqual([{ marginTop: 2 }]);
     expect(
       container.querySelector("[data-testid=icon]")?.getAttribute("width"),
     ).toBe("16");

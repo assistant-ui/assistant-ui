@@ -15,7 +15,6 @@ const IconImpl = ({ as: Component, ...props }: IconProps) => (
 const StyledIcon = withUniwind(IconImpl, {
   size: { fromClassName: "className", styleProperty: "width" },
   color: { fromClassName: "className", styleProperty: "color" },
-  style: { fromClassName: "className" },
 });
 
 const subscribe = () => () => {};
