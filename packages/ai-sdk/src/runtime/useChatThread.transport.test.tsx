@@ -3,7 +3,10 @@
 import { renderHook } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
 import { Chat } from "@ai-sdk/react";
-import { AssistantChatTransport } from "../transport/AssistantChatTransport";
+import {
+  AssistantChatTransport,
+  type InitializableThreadListItem,
+} from "../transport/AssistantChatTransport";
 import { useChatThread } from "./useChatThread";
 
 const itemFor = (remoteId: string) => ({
@@ -11,13 +14,25 @@ const itemFor = (remoteId: string) => ({
 });
 
 describe("useChatThread shared transport isolation", () => {
-  it("wires a per-thread clone, never the caller's shared instance", () => {
+  it("gives each thread its own clone wired to its own thread-list item", async () => {
     const transport = new AssistantChatTransport({ api: "/api/chat" });
     const setRuntime = vi.spyOn(transport, "setRuntime");
-    const setGetThreadListItem = vi.spyOn(
-      transport,
-      "__internal_setGetThreadListItem",
-    );
+    const setGetItem = vi.spyOn(transport, "__internal_setGetThreadListItem");
+
+    // Capture each per-thread clone and the thread-list getter wired onto it.
+    const clones: AssistantChatTransport<never>[] = [];
+    const getters: (() => InitializableThreadListItem | undefined)[] = [];
+    const realClone = transport.__internal_clone.bind(transport);
+    vi.spyOn(transport, "__internal_clone").mockImplementation(() => {
+      const clone = realClone();
+      clones.push(clone as AssistantChatTransport<never>);
+      vi.spyOn(clone, "__internal_setGetThreadListItem").mockImplementation(
+        (getter) => {
+          getters[clones.length - 1] = getter;
+        },
+      );
+      return clone;
+    });
 
     renderHook(() =>
       useChatThread(
@@ -40,10 +55,19 @@ describe("useChatThread shared transport isolation", () => {
       ),
     );
 
-    // Each thread clones and wires its own copy, so the source instance the
-    // caller holds is never re-pointed by a sibling thread's render.
+    // The caller's instance is never wired; two distinct clones are — so a
+    // sibling thread's render can never re-point another thread's request.
     expect(setRuntime).not.toHaveBeenCalled();
-    expect(setGetThreadListItem).not.toHaveBeenCalled();
+    expect(setGetItem).not.toHaveBeenCalled();
+    expect(clones).toHaveLength(2);
+    expect(clones[0]).not.toBe(clones[1]);
+
+    // Each clone routes to its own thread's remoteId, not a shared one.
+    const remoteIdOf = async (
+      getter?: () => InitializableThreadListItem | undefined,
+    ) => (await getter?.()?.initialize())?.remoteId;
+    expect(await remoteIdOf(getters[0])).toBe("remote-a");
+    expect(await remoteIdOf(getters[1])).toBe("remote-b");
   });
 
   it("uses the supplied instance when the caller owns the chat", () => {

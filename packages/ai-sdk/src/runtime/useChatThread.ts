@@ -235,14 +235,15 @@ export const useChatThread = <UI_MESSAGE extends UIMessage = UIMessage>(
     ...(unstable_onBranchChange && { unstable_onBranchChange }),
   });
 
-  // Wire at commit, not in render: a render React discards must not leave the
-  // transport pointing at an uncommitted runtime or thread-list accessor.
-  useEffect(() => {
-    if (sourceTransport instanceof AssistantChatTransport) {
-      sourceTransport.setRuntime(runtime);
-      sourceTransport.__internal_setGetThreadListItem(getThreadListItem);
-    }
-  });
+  // Wire in render, not an effect: a send from a descendant's mount effect
+  // runs before this hook's effect would (effects fire child-first), and must
+  // see a wired transport. The clone is per thread, so a discarded render's
+  // wiring is discarded with it and the committed render re-wires the same
+  // instance.
+  if (sourceTransport instanceof AssistantChatTransport) {
+    sourceTransport.setRuntime(runtime);
+    sourceTransport.__internal_setGetThreadListItem(getThreadListItem);
+  }
 
   const subscribeToRuntime = useCallback(
     (callback: () => void) => runtime.thread.subscribe(callback),
