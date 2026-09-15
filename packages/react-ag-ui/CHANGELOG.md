@@ -1,5 +1,17 @@
 # @assistant-ui/react-ag-ui
 
+## 0.0.60
+
+### Patch Changes
+
+- [#7494](https://github.com/assistant-ui/assistant-ui/pull/7494) [`5afbc17`](https://github.com/assistant-ui/assistant-ui/commit/5afbc17d9e5c69248ea5013e6f4724c2be8b6d86) - fix(react-ag-ui): preserve tool result modelContent and stored artifact in addToolResult ([@Kinfe123](https://github.com/Kinfe123))
+  
+  `AgUiThreadRuntimeCore.addToolResult` never stored a tool result's `modelContent` and spread `artifact` unconditionally. Its outbound conversion (`emitToolResult`) already prefers `modelContent` over the UI result, so a frontend tool's model-facing content was dropped one step before the code that would have sent it to the agent, and a later result that omitted the artifact overwrote a stored one with `undefined`. It now stores `modelContent` and only overrides `artifact`/`modelContent` when supplied — matching the core `addToolResult` fix.
+- Updated dependencies [[`562e495`](https://github.com/assistant-ui/assistant-ui/commit/562e495139605d5279e9bd39abc223ef52b79a94), [`c046153`](https://github.com/assistant-ui/assistant-ui/commit/c046153b0cd5e0e6f9c3e894722b707efc559ffc), [`4e08ba6`](https://github.com/assistant-ui/assistant-ui/commit/4e08ba680a4adb66fb39043d93f46377be0f861a), [`11969a2`](https://github.com/assistant-ui/assistant-ui/commit/11969a219201f49eb42a76d05e9f3cc787c5f025), [`bc84250`](https://github.com/assistant-ui/assistant-ui/commit/bc842502b68a0dcc4c3728e6f6ea542e5a9bcbc5), [`44248e0`](https://github.com/assistant-ui/assistant-ui/commit/44248e03036ffd89c3a278041f8715dbc3f1b587)]:
+  - assistant-stream@0.3.44
+  - @assistant-ui/core@0.3.20
+  - @assistant-ui/store@0.3.14
+
 ## 0.0.59
 
 ### Patch Changes

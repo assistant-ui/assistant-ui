@@ -1,5 +1,21 @@
 # @assistant-ui/core
 
+## 0.3.20
+
+### Patch Changes
+
+- [#7493](https://github.com/assistant-ui/assistant-ui/pull/7493) [`c046153`](https://github.com/assistant-ui/assistant-ui/commit/c046153b0cd5e0e6f9c3e894722b707efc559ffc) - fix(core): preserve tool result modelContent and stored artifact in addToolResult ([@Kinfe123](https://github.com/Kinfe123))
+  
+  `MessagePartRuntime.addToolResult` dropped a `ToolResponse`'s `modelContent`, so the model-facing content a client-side tool returned never reached the runtime — every runtime read through the public API lost it, while the external-store and assistant-transport paths already forwarded it. It now forwards `modelContent`. `LocalThreadRuntimeCore.addToolResult` also never stored `modelContent` and spread `artifact` unconditionally, so a later result that omitted the artifact overwrote a stored one with `undefined`. It now stores `modelContent` and only overrides `artifact`/`modelContent` when they are supplied.
+
+- [#7458](https://github.com/assistant-ui/assistant-ui/pull/7458) [`4e08ba6`](https://github.com/assistant-ui/assistant-ui/commit/4e08ba680a4adb66fb39043d93f46377be0f861a) - fix: Generative UI rendering no longer throws when a node's `children` is not an array; a string or node renders as the only child, and any other value is skipped with the malformed-node warning. ([@rupic-app](https://github.com/apps/rupic-app))
+
+- [#7452](https://github.com/assistant-ui/assistant-ui/pull/7452) [`bc84250`](https://github.com/assistant-ui/assistant-ui/commit/bc842502b68a0dcc4c3728e6f6ea542e5a9bcbc5) - fix: preserve voice modality when loading local storage history ([@rupic-app](https://github.com/apps/rupic-app))
+
+- [#7474](https://github.com/assistant-ui/assistant-ui/pull/7474) [`44248e0`](https://github.com/assistant-ui/assistant-ui/commit/44248e03036ffd89c3a278041f8715dbc3f1b587) - feat: voice transcripts persist as ordinary messages on the local runtime and reach external store hosts through onVoiceTranscript; a text send while a voice session is connected is rejected ([@okisdev](https://github.com/okisdev))
+- Updated dependencies [[`562e495`](https://github.com/assistant-ui/assistant-ui/commit/562e495139605d5279e9bd39abc223ef52b79a94)]:
+  - assistant-stream@0.3.44
+
 ## 0.3.19
 
 ### Patch Changes

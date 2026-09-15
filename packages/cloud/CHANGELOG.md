@@ -1,5 +1,13 @@
 # assistant-cloud
 
+## 0.2.2
+
+### Patch Changes
+
+- [#7373](https://github.com/assistant-ui/assistant-ui/pull/7373) [`479d6a3`](https://github.com/assistant-ui/assistant-ui/commit/479d6a3a363bcf9362421e44a834865c0c152808) - fix: allow keyed run reports to retry after rate limiting ([@Kinfe123](https://github.com/Kinfe123))
+- Updated dependencies [[`562e495`](https://github.com/assistant-ui/assistant-ui/commit/562e495139605d5279e9bd39abc223ef52b79a94)]:
+  - assistant-stream@0.3.44
+
 ## 0.2.1
 
 ### Patch Changes
