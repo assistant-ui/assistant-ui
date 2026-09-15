@@ -13,6 +13,7 @@ import {
 } from "../../utils/stream/AssistantMetaTransformStream";
 import type { AssistantStreamEncoder } from "../../AssistantStream";
 import { createToolCallPartRegistry } from "../tool-call-part-registry";
+import { isValidChunkValue } from "./validateChunkValue";
 
 type DataStreamOptions = {
   strict?: boolean | undefined;
@@ -302,6 +303,18 @@ export class DataStreamDecoder extends PipeableTransformStream<
         strict,
         transform(chunk, controller) {
           const { type, value } = chunk;
+
+          if (!isValidChunkValue(type, value)) {
+            if (strict)
+              throw new Error(
+                `Encountered data-stream frame with a value that does not match its type: ${type}`,
+              );
+            logDropped(
+              `value:${type}`,
+              `Dropped data-stream frame with invalid value: ${type}`,
+            );
+            return;
+          }
 
           switch (type) {
             case DataStreamStreamChunkType.ReasoningDelta:

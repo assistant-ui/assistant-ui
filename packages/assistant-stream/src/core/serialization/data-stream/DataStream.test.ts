@@ -693,3 +693,78 @@ describe("DataStreamDecoder strict: false", () => {
     expect(error).toHaveBeenCalledTimes(1);
   });
 });
+
+describe("DataStreamDecoder frame values", () => {
+  afterEach(() => {
+    vi.restoreAllMocks();
+  });
+
+  // A frame whose JSON parses but does not carry the shape its type declares.
+  const malformedFrames = [
+    "b:null",
+    "9:null",
+    "a:null",
+    'c:{"toolCallId":"t1"}',
+    "h:null",
+    "k:null",
+    "aui-text-delta:null",
+    "aui-reasoning-delta:null",
+    "aui-reasoning-part-start:null",
+    '2:{"a":1}',
+    "8:null",
+    'aui-state:"x"',
+    "0:null",
+    "0:123",
+    "g:{}",
+    "3:null",
+  ];
+
+  it.each(malformedFrames)(
+    "rejects %s with a descriptive error in strict mode",
+    async (frame) => {
+      await expect(decodeLines([frame, '0:"ok"'])).rejects.toThrow(
+        /data-stream frame/,
+      );
+    },
+  );
+
+  it.each(malformedFrames)(
+    "drops %s and keeps decoding when strict is false",
+    async (frame) => {
+      const error = vi.spyOn(console, "error").mockImplementation(() => {});
+      const chunks = await decodeLines([frame, '0:"ok"'], { strict: false });
+
+      expect(
+        chunks.some((c) => c.type === "text-delta" && c.textDelta === "ok"),
+      ).toBe(true);
+      expect(error).toHaveBeenCalledTimes(1);
+    },
+  );
+
+  it("deduplicates the drop log across repeats of one frame type", async () => {
+    const error = vi.spyOn(console, "error").mockImplementation(() => {});
+    const chunks = await decodeLines(["0:null", "0:123", '0:"ok"'], {
+      strict: false,
+    });
+
+    expect(
+      chunks.some((c) => c.type === "text-delta" && c.textDelta === "ok"),
+    ).toBe(true);
+    expect(error).toHaveBeenCalledTimes(1);
+  });
+
+  it("keeps accepting frames that omit only optional fields", async () => {
+    const chunks = await decodeLines([
+      'b:{"toolCallId":"t1","toolName":"search"}',
+      'c:{"toolCallId":"t1","argsTextDelta":"{}"}',
+      'a:{"toolCallId":"t1","result":null}',
+      "aui-reasoning-part-start:{}",
+      '0:"ok"',
+    ]);
+
+    expect(
+      chunks.some((c) => c.type === "text-delta" && c.textDelta === "ok"),
+    ).toBe(true);
+    expect(chunks.some((c) => c.type === "result")).toBe(true);
+  });
+});
