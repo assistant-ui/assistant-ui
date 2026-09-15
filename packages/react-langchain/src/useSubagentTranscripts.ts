@@ -45,9 +45,17 @@ type ProjectionResource = {
   cache: ExternalMessageConversionCache;
 };
 
+type NamespaceRequest = {
+  id: string;
+  attempts: number;
+  pending: boolean;
+  retryQueued: boolean;
+  snapshot: SubagentDiscoverySnapshot;
+};
+
 type SubagentTranscriptSource = {
   resources: Map<string, ProjectionResource>;
-  namespaceRequests: Map<string, SubagentDiscoverySnapshot["status"]>;
+  namespaceRequests: Map<string, NamespaceRequest>;
   snapshot: ReadonlyMap<string, readonly ThreadMessage[]>;
   listeners: Set<() => void>;
   controller: AnyStream[typeof STREAM_CONTROLLER] | undefined;
@@ -69,6 +77,33 @@ const sameNamespace = (a: readonly string[], b: readonly string[]) =>
 const needsNamespaceResolution = (snapshot: SubagentDiscoverySnapshot) =>
   snapshot.namespace.length === 1 &&
   snapshot.namespace[0] === `tools:${snapshot.id}`;
+
+const requestSubagentNamespace = (
+  source: SubagentTranscriptSource,
+  controller: AnyStream[typeof STREAM_CONTROLLER],
+  request: NamespaceRequest,
+) => {
+  request.attempts += 1;
+  request.pending = true;
+  request.retryQueued = false;
+  void controller
+    .resolveSubagentNamespace(request.id)
+    .catch(() => {})
+    .finally(() => {
+      if (
+        source.controller !== controller ||
+        source.namespaceRequests.get(request.id) !== request
+      )
+        return;
+
+      request.pending = false;
+      if (!request.retryQueued || request.attempts >= 2) {
+        request.retryQueued = false;
+        return;
+      }
+      requestSubagentNamespace(source, controller, request);
+    });
+};
 
 const sameTranscriptEntries = (
   a: ReadonlyMap<string, readonly ThreadMessage[]> | undefined,
@@ -151,12 +186,26 @@ const createSubagentTranscriptSource = (): SubagentTranscriptSource => {
         if (snapshot.depth > MAX_SUBAGENT_DEPTH) continue;
         if (!needsNamespaceResolution(snapshot)) {
           source.namespaceRequests.delete(snapshot.id);
-        } else if (
-          !source.namespaceRequests.has(snapshot.id) ||
-          source.namespaceRequests.get(snapshot.id) !== snapshot.status
-        ) {
-          source.namespaceRequests.set(snapshot.id, snapshot.status);
-          void controller.resolveSubagentNamespace(snapshot.id).catch(() => {});
+        } else {
+          const request = source.namespaceRequests.get(snapshot.id);
+          if (!request) {
+            const nextRequest: NamespaceRequest = {
+              id: snapshot.id,
+              attempts: 0,
+              pending: false,
+              retryQueued: false,
+              snapshot,
+            };
+            source.namespaceRequests.set(snapshot.id, nextRequest);
+            requestSubagentNamespace(source, controller, nextRequest);
+          } else if (request.snapshot !== snapshot) {
+            request.snapshot = snapshot;
+            if (request.pending) {
+              request.retryQueued = request.attempts < 2;
+            } else if (request.attempts < 2) {
+              requestSubagentNamespace(source, controller, request);
+            }
+          }
         }
         if (source.resources.has(snapshot.id)) continue;
         const acquired = controller.registry.acquire(

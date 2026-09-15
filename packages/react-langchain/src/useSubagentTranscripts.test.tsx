@@ -43,6 +43,14 @@ const createStore = (messages: LangChainBaseMessage[] = []): FakeStore => {
   };
 };
 
+const createDeferred = () => {
+  let resolve!: () => void;
+  const promise = new Promise<void>((res) => {
+    resolve = res;
+  });
+  return { promise, resolve };
+};
+
 const message = (
   id: string,
   type: "human" | "ai",
@@ -128,12 +136,17 @@ describe("useSubagentTranscripts", () => {
     expect(stream.releases.get("tools:two")).toHaveBeenCalledOnce();
   });
 
-  it("retries unresolved namespace resolution after its status changes", async () => {
+  it("coalesces a bounded retry for a later unresolved snapshot", async () => {
     const stores = new Map([["tools:task-one", createStore()]]);
     const stream = createStream(
       new Map([["task-one", subagent("task-one", ["tools:task-one"])]]),
       stores,
     );
+    const firstRequest = createDeferred();
+    const secondRequest = createDeferred();
+    stream.resolveSubagentNamespace
+      .mockImplementationOnce(() => firstRequest.promise)
+      .mockImplementationOnce(() => secondRequest.promise);
     const hook = renderHook(() =>
       useSubagentTranscripts(stream as never, noUIMessages),
     );
@@ -141,8 +154,7 @@ describe("useSubagentTranscripts", () => {
     await waitFor(() =>
       expect(stream.resolveSubagentNamespace).toHaveBeenCalledOnce(),
     );
-    await act(async () => {
-      await Promise.resolve();
+    act(() => {
       stream.subagents = new Map([
         ["task-one", subagent("task-one", ["tools:task-one"])],
       ]);
@@ -155,12 +167,52 @@ describe("useSubagentTranscripts", () => {
         ["task-one", subagent("task-one", ["tools:task-one"], "complete")],
       ]);
       hook.rerender();
+      firstRequest.resolve();
     });
 
     await waitFor(() =>
       expect(stream.resolveSubagentNamespace).toHaveBeenCalledTimes(2),
     );
+    act(() => {
+      stream.subagents = new Map([
+        ["task-one", subagent("task-one", ["tools:task-one"], "complete")],
+      ]);
+      hook.rerender();
+    });
+    secondRequest.resolve();
+    await act(() => Promise.resolve());
+    expect(stream.resolveSubagentNamespace).toHaveBeenCalledTimes(2);
+  });
+
+  it("retries an initially complete unresolved namespace once", async () => {
+    const stores = new Map([["tools:task-one", createStore()]]);
+    const stream = createStream(
+      new Map([
+        ["task-one", subagent("task-one", ["tools:task-one"], "complete")],
+      ]),
+      stores,
+    );
+    const hook = renderHook(() =>
+      useSubagentTranscripts(stream as never, noUIMessages),
+    );
+
+    await waitFor(() =>
+      expect(stream.resolveSubagentNamespace).toHaveBeenCalledOnce(),
+    );
     await act(async () => {
+      await Promise.resolve();
+      await Promise.resolve();
+      stream.subagents = new Map([
+        ["task-one", subagent("task-one", ["tools:task-one"], "complete")],
+      ]);
+      hook.rerender();
+    });
+    await waitFor(() =>
+      expect(stream.resolveSubagentNamespace).toHaveBeenCalledTimes(2),
+    );
+
+    await act(async () => {
+      await Promise.resolve();
       await Promise.resolve();
       stream.subagents = new Map([
         ["task-one", subagent("task-one", ["tools:task-one"], "complete")],
