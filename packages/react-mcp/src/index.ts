@@ -3,7 +3,7 @@ import "./mcp-scope";
 
 // Resource — the entry point. Mount via:
 //   const config = AuiConfig({ mcp: McpManagerResource({ connectors }) })
-//   <AuiProvider config={config}>…</AuiProvider>
+//   <AssistantRuntimeProvider runtime={runtime} config={config}>…</AssistantRuntimeProvider>
 export {
   McpManagerResource,
   type McpManagerResourceProps,

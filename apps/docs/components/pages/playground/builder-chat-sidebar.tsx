@@ -142,8 +142,6 @@ function PlaygroundChatProviderInner({
     sendAutomaticallyWhen: lastAssistantMessageIsCompleteWithToolCalls,
   });
 
-  // A config is plain data and the provider never relies on its identity,
-  // so it is built inside the memo that keeps the context value stable.
   const value = useMemo(
     () => ({
       runtime,

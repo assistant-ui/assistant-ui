@@ -45,13 +45,16 @@ export namespace McpConfigDialog {
  * Drop-in MCP server configuration dialog. Lists app-defined connectors and
  * user-added custom servers, with inline auth controls and an add form.
  *
- * Mount the manager once at the root of your app:
+ * Mount the manager once at the root of your app, on the runtime provider
+ * itself:
  * ```tsx
  * const config = AuiConfig({ mcp: McpManagerResource({ connectors }) });
  *
- * <AuiProvider config={config}>{children}</AuiProvider>;
+ * <AssistantRuntimeProvider runtime={runtime} config={config}>
+ *   {children}
+ * </AssistantRuntimeProvider>;
  * ```
- * then render `<McpConfigDialog />` anywhere inside the provider.
+ * then render `<McpConfigDialog />` anywhere inside it.
  */
 export const McpConfigDialog: FC<McpConfigDialog.Props> = ({ children }) => {
   return (
