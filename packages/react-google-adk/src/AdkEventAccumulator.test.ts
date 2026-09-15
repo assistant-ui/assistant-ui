@@ -1723,16 +1723,26 @@ describe("AdkEventAccumulator - user message handling", () => {
 
   it("skips malformed user media without creating an empty human message", () => {
     const acc = new AdkEventAccumulator();
+    const malformedMedia = [
+      { inlineData: { data: "abc123" } },
+      { fileData: { mimeType: "application/pdf" } },
+    ] as any[];
+
+    expect(
+      acc.processEvent(
+        makeEvent({
+          author: "user",
+          content: { role: "user", parts: malformedMedia },
+        }),
+      ),
+    ).toEqual([]);
+
     const msgs = acc.processEvent(
       makeEvent({
         author: "user",
         content: {
           role: "user",
-          parts: [
-            { inlineData: { data: "abc123" } } as any,
-            { fileData: { mimeType: "application/pdf" } } as any,
-            { text: "still here" },
-          ],
+          parts: [...malformedMedia, { text: "still here" }],
         },
       }),
     );
