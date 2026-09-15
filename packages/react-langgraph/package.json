@@ -41,7 +41,7 @@
     "assistant-stream": "^0.3.42"
   },
   "peerDependencies": {
-    "@langchain/langgraph-sdk": "^1.8.0",
+    "@langchain/langgraph-sdk": "^1.9.20",
     "@types/react": "*",
     "react": "^18 || ^19"
   },

@@ -26,7 +26,7 @@ env:
 jobs:
   gate:
     name: Footprint Gate
-    runs-on: blacksmith-4vcpu-ubuntu-2404
+    runs-on: ubuntu-latest
     timeout-minutes: 5
     steps:
       - name: Checkout code repository
@@ -46,7 +46,7 @@ jobs:
 
   report:
     name: LOC + Bundle Size
-    runs-on: blacksmith-4vcpu-ubuntu-2404
+    runs-on: ubuntu-latest
     timeout-minutes: 20
     permissions:
       contents: read

@@ -5,7 +5,7 @@ const REPO = "assistant-ui/skills";
 // The published skills are reviewed content, so the source is a commit this
 // repo chose rather than whatever the upstream branch holds at build time.
 // Bump it by PR and regenerate the snapshot in the same change.
-const COMMIT = "9bd7535202aa446138ee2b42ca259b72dcac5df3";
+const COMMIT = "da44b9dbf6d309942a1bd8ea2a58c82716e5c48d";
 const SKILLS_DIR = "assistant-ui/skills";
 const API_BASE = `https://api.github.com/repos/${REPO}`;
 const rawSkillUrl = (commit: string, name: string) =>
@@ -17,7 +17,12 @@ const OUTPUT_PATH = path.join(
 );
 const FETCH_TIMEOUT_MS = 15_000;
 
-type GeneratedSkill = { name: string; description: string; content: string };
+type GeneratedSkill = {
+  name: string;
+  description: string;
+  frontmatter: Record<string, string>;
+  content: string;
+};
 
 function githubHeaders(): Record<string, string> {
   const headers: Record<string, string> = {
@@ -60,16 +65,20 @@ async function listSkillDirectories() {
   return names;
 }
 
-function parseFrontmatter(markdown: string) {
+function parseFrontmatter(markdown: string, name: string) {
   const match = /^---\r?\n([\s\S]*?)\r?\n---\r?\n?/.exec(markdown);
-  if (!match) throw new Error("missing frontmatter");
+  if (!match) throw new Error(`${name}/SKILL.md has no frontmatter`);
   const fields: Record<string, string> = {};
   for (const line of match[1]!.split(/\r?\n/)) {
-    const separator = line.indexOf(":");
-    if (separator === -1) continue;
-    const key = line.slice(0, separator).trim();
-    const raw = line.slice(separator + 1).trim();
-    fields[key] = raw.startsWith('"') ? (JSON.parse(raw) as string) : raw;
+    if (!line.trim() || line.startsWith("#")) continue;
+    const field = /^([\w-]+):(.*)$/.exec(line);
+    const raw = field?.[2]?.trim() ?? "";
+    if (!field || /^['>|[{&*!%@`]/.test(raw)) {
+      throw new Error(
+        `${name}/SKILL.md has frontmatter this generator cannot read: ${line}`,
+      );
+    }
+    fields[field[1]!] = raw.startsWith('"') ? (JSON.parse(raw) as string) : raw;
   }
   return { fields, body: markdown.slice(match[0].length).trim() };
 }
@@ -90,16 +99,18 @@ async function fetchSkill(
   commit: string,
 ): Promise<GeneratedSkill> {
   const markdown = await fetchText(rawSkillUrl(commit, name));
-  const { fields, body } = parseFrontmatter(markdown);
-  if (fields.name !== name) {
-    throw new Error(`${name}/SKILL.md declares name ${fields.name ?? "none"}`);
+  const { fields, body } = parseFrontmatter(markdown, name);
+  const { name: declared, description, ...frontmatter } = fields;
+  if (declared !== name) {
+    throw new Error(`${name}/SKILL.md declares name ${declared ?? "none"}`);
   }
-  if (!fields.description) {
+  if (!description) {
     throw new Error(`${name}/SKILL.md has no description`);
   }
   return {
     name,
-    description: absolutizeRelativeLinks(fields.description, name, commit),
+    description: absolutizeRelativeLinks(description, name, commit),
+    frontmatter,
     content: absolutizeRelativeLinks(body, name, commit),
   };
 }
@@ -118,28 +129,4 @@ async function main() {
   );
 }
 
-async function committedSource() {
-  try {
-    const { source } = JSON.parse(await fs.readFile(OUTPUT_PATH, "utf8")) as {
-      source?: string;
-    };
-    return source;
-  } catch {
-    return undefined;
-  }
-}
-
-main().catch(async (error) => {
-  const existing = await committedSource();
-  // A build must not go down with GitHub; the committed copy stays in place.
-  // Nothing is written unless every skill fetched and parsed, so the file is
-  // always one complete snapshot.
-  if (existing) {
-    console.warn(
-      `Keeping the committed agent skills (${existing}): refresh failed (${error instanceof Error ? error.message : String(error)})`,
-    );
-    return;
-  }
-  console.error(error);
-  process.exitCode = 1;
-});
+await main();

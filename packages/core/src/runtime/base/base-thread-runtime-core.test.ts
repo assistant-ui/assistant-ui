@@ -1,4 +1,6 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
+import type { FeedbackAdapter } from "../../adapters/feedback";
+import type { SpeechSynthesisAdapter } from "../../adapters/speech";
 import type { RealtimeVoiceAdapter } from "../../adapters/voice";
 import type { ModelContextProvider } from "../../model-context/types";
 import type { AppendMessage } from "../../types/message";
@@ -13,7 +15,6 @@ import type {
   ThreadSuggestion,
 } from "../interfaces/thread-runtime-core";
 import { BaseThreadRuntimeCore } from "./base-thread-runtime-core";
-import type { SpeechSynthesisAdapter } from "../../adapters/speech";
 import { LocalRuntimeCore } from "../../runtimes/local/local-runtime-core";
 
 const createVoiceAdapter = () => {
@@ -59,17 +60,26 @@ const createVoiceAdapter = () => {
 
 class TestRuntime extends BaseThreadRuntimeCore {
   private readonly voiceAdapter: ReturnType<typeof createVoiceAdapter>;
+  private readonly actionAdapters: {
+    speech?: SpeechSynthesisAdapter;
+    feedback?: FeedbackAdapter;
+  };
 
   constructor(
     voiceAdapter: ReturnType<typeof createVoiceAdapter>,
     contextProvider: ModelContextProvider = { getModelContext: () => ({}) },
+    actionAdapters: {
+      speech?: SpeechSynthesisAdapter;
+      feedback?: FeedbackAdapter;
+    } = {},
   ) {
     super(contextProvider);
     this.voiceAdapter = voiceAdapter;
+    this.actionAdapters = actionAdapters;
   }
 
   get adapters() {
-    return { voice: this.voiceAdapter.adapter };
+    return { voice: this.voiceAdapter.adapter, ...this.actionAdapters };
   }
 
   get isDisabled() {
@@ -1067,6 +1077,217 @@ describe("BaseThreadRuntimeCore voice volume subscriptions", () => {
 });
 
 describe("BaseThreadRuntimeCore voice transcripts", () => {
+  it("speaks an assistant transcript", () => {
+    const voiceAdapter = createVoiceAdapter();
+    const speech = {
+      speak: vi.fn(() => ({
+        status: { type: "running" as const },
+        cancel: vi.fn(),
+        subscribe: () => () => {},
+      })),
+    } satisfies SpeechSynthesisAdapter;
+    const runtime = new TestRuntime(voiceAdapter, undefined, { speech });
+    runtime.connectVoice();
+
+    try {
+      voiceAdapter.emitTranscript({
+        role: "assistant",
+        text: "Hello",
+        isFinal: true,
+      });
+      const message = runtime.messages[0]!;
+
+      expect(() => runtime.speak(message.id)).not.toThrow();
+      expect(speech.speak).toHaveBeenCalledExactlyOnceWith("Hello");
+    } finally {
+      runtime.disconnectVoice();
+    }
+  });
+
+  it("stops speaking a transcript when the session disconnects", () => {
+    const voiceAdapter = createVoiceAdapter();
+    const utterance = {
+      status: { type: "running" as const },
+      cancel: vi.fn(),
+      subscribe: () => () => {},
+    };
+    const speech = {
+      speak: vi.fn(() => utterance),
+    } satisfies SpeechSynthesisAdapter;
+    const runtime = new TestRuntime(voiceAdapter, undefined, { speech });
+    runtime.connectVoice();
+
+    voiceAdapter.emitTranscript({
+      role: "assistant",
+      text: "Hello",
+      isFinal: true,
+    });
+    runtime.speak(runtime.messages[0]!.id);
+    expect(runtime.speech?.messageId).toBe(runtime.messages[0]!.id);
+
+    runtime.disconnectVoice();
+
+    expect(utterance.cancel).toHaveBeenCalledOnce();
+    expect(runtime.speech).toBeUndefined();
+  });
+
+  it("still disconnects the session when stopping a spoken transcript throws", () => {
+    const voiceAdapter = createVoiceAdapter();
+    const utterance = {
+      status: { type: "running" as const },
+      cancel: vi.fn(() => {
+        throw new Error("cancel failed");
+      }),
+      subscribe: () => () => {},
+    };
+    const speech = {
+      speak: vi.fn(() => utterance),
+    } satisfies SpeechSynthesisAdapter;
+    const runtime = new TestRuntime(voiceAdapter, undefined, { speech });
+    runtime.connectVoice();
+
+    voiceAdapter.emitTranscript({
+      role: "assistant",
+      text: "Hello",
+      isFinal: true,
+    });
+    runtime.speak(runtime.messages[0]!.id);
+
+    expect(() => runtime.disconnectVoice()).toThrow("cancel failed");
+    expect(utterance.cancel).toHaveBeenCalledOnce();
+    expect(voiceAdapter.session.disconnect).toHaveBeenCalledOnce();
+    expect(runtime.messages).toHaveLength(0);
+    expect(runtime.speech).toBeUndefined();
+    expect(runtime.voice).toBeUndefined();
+  });
+
+  it("submits feedback for a transcript", () => {
+    const voiceAdapter = createVoiceAdapter();
+    const feedback = { submit: vi.fn() } satisfies FeedbackAdapter;
+    const runtime = new TestRuntime(voiceAdapter, undefined, { feedback });
+    runtime.connectVoice();
+
+    try {
+      voiceAdapter.emitTranscript({
+        role: "assistant",
+        text: "Hello",
+        isFinal: true,
+      });
+      const message = runtime.messages[0]!;
+
+      expect(() =>
+        runtime.submitFeedback({ messageId: message.id, type: "positive" }),
+      ).not.toThrow();
+      expect(feedback.submit).toHaveBeenCalledExactlyOnceWith({
+        message,
+        type: "positive",
+      });
+      expect(runtime.messages[0]?.metadata.submittedFeedback).toEqual({
+        type: "positive",
+      });
+    } finally {
+      runtime.disconnectVoice();
+    }
+  });
+
+  it("rejects an edit resubmission of a transcript before any side effect", async () => {
+    const voiceAdapter = createVoiceAdapter();
+    const run = vi.fn(async () => ({}));
+    const runtime = new LocalRuntimeCore(
+      { adapters: { chatModel: { run }, voice: voiceAdapter.adapter } },
+      undefined,
+    );
+    const thread = runtime.threads.getMainThreadRuntimeCore();
+    thread.connectVoice();
+
+    try {
+      voiceAdapter.emitTranscript({
+        role: "assistant",
+        text: "Hello",
+        isFinal: true,
+      });
+      const edit = {
+        parentId: null,
+        sourceId: thread.messages[0]!.id,
+        role: "user" as const,
+        content: [{ type: "text" as const, text: "again" }],
+        attachments: [],
+        metadata: { custom: {} },
+        createdAt: new Date(),
+        runConfig: {},
+      };
+
+      await expect(thread.append(edit)).rejects.toThrow(
+        "Voice transcript messages cannot be edited",
+      );
+      await expect(thread.append({ ...edit, startRun: false })).rejects.toThrow(
+        "Voice transcript messages cannot be edited",
+      );
+      expect(run).not.toHaveBeenCalled();
+      expect(thread.messages).toHaveLength(1);
+    } finally {
+      thread.disconnectVoice();
+    }
+  });
+
+  it("rejects reloading a transcript", async () => {
+    const voiceAdapter = createVoiceAdapter();
+    const runtime = new LocalRuntimeCore(
+      {
+        adapters: {
+          chatModel: {
+            async run() {
+              return {};
+            },
+          },
+          voice: voiceAdapter.adapter,
+        },
+      },
+      undefined,
+    );
+    const thread = runtime.threads.getMainThreadRuntimeCore();
+    thread.connectVoice();
+
+    try {
+      voiceAdapter.emitTranscript({
+        role: "assistant",
+        text: "Hello",
+        isFinal: true,
+      });
+      const message = thread.messages[0]!;
+
+      await expect(
+        thread.startRun({
+          parentId: null,
+          sourceId: message.id,
+          runConfig: {},
+        }),
+      ).rejects.toThrow("Voice transcript messages cannot be reloaded");
+    } finally {
+      thread.disconnectVoice();
+    }
+  });
+
+  it("rejects editing a transcript", () => {
+    const voiceAdapter = createVoiceAdapter();
+    const runtime = new TestRuntime(voiceAdapter);
+    runtime.connectVoice();
+
+    try {
+      voiceAdapter.emitTranscript({
+        role: "assistant",
+        text: "Hello",
+        isFinal: true,
+      });
+
+      expect(() => runtime.beginEdit(runtime.messages[0]!.id)).toThrow(
+        "Voice transcript messages cannot be edited",
+      );
+    } finally {
+      runtime.disconnectVoice();
+    }
+  });
+
   it("marks user and assistant transcripts as voice messages", () => {
     const voiceAdapter = createVoiceAdapter();
     const runtime = new TestRuntime(voiceAdapter);

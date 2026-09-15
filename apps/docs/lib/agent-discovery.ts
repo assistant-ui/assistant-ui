@@ -6,11 +6,7 @@ import {
   API_CATALOG_PROFILE,
   agentSkillPath,
 } from "./agent-discovery-routes";
-import {
-  agentSkillDescription,
-  getSkills,
-  type AgentSkill,
-} from "./agent-skills";
+import { getSkills, type AgentSkill } from "./agent-skills";
 import {
   DESIGN_DOCUMENT,
   DESIGN_SKILL_DESCRIPTION,
@@ -105,13 +101,14 @@ Use these instructions when reading assistant-ui documentation or implementing a
 - MCP: ${absoluteUrl("/mcp")}
 `;
 
-export { agentSkillDescription } from "./agent-skills";
-
 export function agentSkillDocument(skill: AgentSkill) {
+  const declared = Object.entries(skill.frontmatter ?? {})
+    .map(([key, value]) => `${key}: ${JSON.stringify(value)}\n`)
+    .join("");
   return `---
 name: ${skill.name}
-description: ${JSON.stringify(agentSkillDescription(skill))}
----
+description: ${JSON.stringify(skill.description)}
+${declared}---
 
 ${skill.content}
 `;
@@ -138,7 +135,7 @@ export function buildAgentSkillsIndex(skills: AgentSkill[] = getSkills()) {
       ...skills.map((skill) => ({
         name: skill.name,
         type: "skill-md",
-        description: agentSkillDescription(skill),
+        description: skill.description,
         url: absoluteUrl(agentSkillPath(skill.name)),
         digest: `sha256:${sha256(agentSkillDocument(skill))}`,
       })),

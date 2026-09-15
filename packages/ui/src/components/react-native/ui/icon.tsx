@@ -1,4 +1,5 @@
 import { cn } from "@/lib/utils";
+import { useSyncExternalStore } from "react";
 import type { LucideIcon, LucideProps } from "lucide-react-native";
 import { withUniwind } from "uniwind";
 
@@ -16,6 +17,22 @@ const StyledIcon = withUniwind(IconImpl, {
   color: { fromClassName: "className", styleProperty: "color" },
 });
 
-export const Icon = ({ className, ...props }: IconProps) => (
-  <StyledIcon className={cn("text-foreground size-5", className)} {...props} />
-);
+const subscribe = () => () => {};
+const getSnapshot = () => true;
+const getServerSnapshot = () => false;
+
+// The class to prop mapping reads the CSSOM, which the server does not have, and hydration never patches the resulting attribute mismatch, so the classes apply from the first render after hydration.
+export const Icon = ({ className, ...props }: IconProps) => {
+  const hydrated = useSyncExternalStore(
+    subscribe,
+    getSnapshot,
+    getServerSnapshot,
+  );
+
+  return (
+    <StyledIcon
+      className={hydrated ? cn("text-foreground size-5", className) : undefined}
+      {...props}
+    />
+  );
+};

@@ -9,39 +9,18 @@ vi.mock("./agent-skills.generated.json", () => ({
         content: "# Setup",
       },
       { name: "tools", description: "Defines tools.", content: "# Tools" },
-      {
-        name: "long",
-        description: `${"word ".repeat(300)}tail`,
-        content: "# Long",
-      },
     ],
   },
 }));
 
-const { agentSkillDescription, getSkill, listSkills } =
-  await import("./agent-skills");
+const { getSkill, listSkills } = await import("./agent-skills");
 
 describe("agent skills loader", () => {
   it("lists every skill by name and description only", () => {
     expect(listSkills()).toEqual([
       { name: "setup", description: "Installs assistant-ui." },
       { name: "tools", description: "Defines tools." },
-      { name: "long", description: "word ".repeat(204).trimEnd() },
     ]);
-  });
-
-  it("publishes the same clamped description through getSkill", () => {
-    const long = getSkill("long");
-    expect(long?.description).toBe("word ".repeat(204).trimEnd());
-    expect(long?.description.length).toBeLessThanOrEqual(1024);
-    expect(long?.content).toBe("# Long");
-  });
-
-  it("does not split a surrogate pair when there is no word boundary", () => {
-    const description = `${"x".repeat(1023)}\u{1F600}`;
-    const clamped = agentSkillDescription({ description });
-    expect(clamped).toBe("x".repeat(1023));
-    expect(clamped).not.toMatch(/[\uD800-\uDBFF]$/);
   });
 
   it("returns a skill with its content by name", () => {

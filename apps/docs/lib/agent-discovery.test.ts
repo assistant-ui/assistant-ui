@@ -1,7 +1,6 @@
 import { describe, expect, it } from "vitest";
 import {
   AGENTS_DOCUMENT,
-  agentSkillDescription,
   agentSkillDocument,
   API_CATALOG_CONTENT_TYPE,
   buildAgentSkillsIndex,
@@ -99,15 +98,16 @@ describe("agent discovery", () => {
       skills.map((skill) => ({
         name: skill.name,
         type: "skill-md",
-        description: agentSkillDescription(skill),
+        description: skill.description,
         url: `${BASE_URL}${AGENT_DISCOVERY_ROUTES.skillsRoot}/${skill.name}/SKILL.md`,
         digest: `sha256:${sha256(agentSkillDocument(skill))}`,
       })),
     );
-    for (const { description } of index.skills) {
-      expect(description.length).toBeGreaterThan(0);
-      expect(description.length).toBeLessThanOrEqual(1024);
-    }
+    expect(
+      index.skills
+        .filter(({ description }) => !description || description.length > 1024)
+        .map(({ name, description }) => `${name} (${description.length})`),
+    ).toEqual([]);
     expect(new Set(index.skills.map((entry) => entry.name)).size).toBe(
       index.skills.length,
     );
@@ -124,23 +124,15 @@ describe("agent discovery", () => {
     ).toThrow("assistant-ui-docs collides");
   });
 
-  it("clamps a description to the spec limit at a word boundary", () => {
-    const short = { name: "x", description: "Short.", content: "" };
-    expect(agentSkillDescription(short)).toBe("Short.");
-    const long = { ...short, description: "word ".repeat(300).trimEnd() };
-    expect(agentSkillDescription(long)).toBe("word ".repeat(204).trimEnd());
-    const solid = { ...short, description: "a".repeat(2000) };
-    expect(agentSkillDescription(solid)).toHaveLength(1024);
-  });
-
   it("wraps a repo skill in agentskills frontmatter", () => {
     const document = agentSkillDocument({
       name: "tools",
       description: 'Defines "model" tools.',
+      frontmatter: { license: "MIT" },
       content: "# Tools",
     });
     expect(document).toBe(
-      '---\nname: tools\ndescription: "Defines \\"model\\" tools."\n---\n\n# Tools\n',
+      '---\nname: tools\ndescription: "Defines \\"model\\" tools."\nlicense: "MIT"\n---\n\n# Tools\n',
     );
   });
 

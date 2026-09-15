@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import type { NextRequest } from "next/server";
-import { buildAgentSkillsIndex } from "@/lib/agent-discovery";
+import { buildAgentSkillsIndex, sha256 } from "@/lib/agent-discovery";
 import { API_CATALOG_LINK_HEADER } from "@/lib/agent-discovery-routes";
 import { GET, HEAD, generateStaticParams } from "./route";
 
@@ -23,8 +23,18 @@ describe("repo skill route", () => {
       etag: `"${entry?.digest.replace(":", "-")}"`,
       link: API_CATALOG_LINK_HEADER,
     });
+    expect(`sha256:${sha256(body)}`).toBe(entry?.digest);
     expect(body).toMatch(/^---\nname: tools\ndescription: "/);
-    expect(body).toContain("\n---\n\n# assistant-ui Tools");
+    expect(body).toContain('\nlicense: "MIT"\n---\n\n# assistant-ui Tools');
+  });
+
+  it("serves the digested bytes for every indexed repo skill", async () => {
+    for (const entry of buildAgentSkillsIndex().skills.slice(2)) {
+      const response = await GET(request, context(entry.name));
+      expect(`sha256:${sha256(await response.text())}`, entry.name).toBe(
+        entry.digest,
+      );
+    }
   });
 
   it("answers HEAD without a body and the same ETag", async () => {
