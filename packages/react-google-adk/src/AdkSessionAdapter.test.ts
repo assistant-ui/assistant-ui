@@ -294,6 +294,44 @@ describe("createAdkSessionAdapter - fetch", () => {
 // ── load() ──
 
 describe("createAdkSessionAdapter - load", () => {
+  it("restores tool failures from stored function responses", async () => {
+    mockFetch.mockResolvedValueOnce(
+      new Response(
+        JSON.stringify({
+          id: "s1",
+          events: [
+            {
+              id: "failed",
+              author: "user",
+              content: {
+                parts: [
+                  {
+                    functionResponse: {
+                      id: "tc-1",
+                      name: "search",
+                      response: { error: "denied" },
+                    },
+                  },
+                ],
+              },
+            },
+          ],
+        }),
+        { status: 200 },
+      ),
+    );
+    const { load } = createAdkSessionAdapter(baseOptions);
+    const result = await load("s1");
+    expect(result.messages).toMatchObject([
+      {
+        type: "tool",
+        tool_call_id: "tc-1",
+        status: "error",
+        content: JSON.stringify({ error: "denied" }),
+      },
+    ]);
+  });
+
   it("returns the per-turn state the events imply, not just the messages", async () => {
     const session = {
       id: "s1",
