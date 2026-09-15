@@ -2,4 +2,4 @@
 "@assistant-ui/core": patch
 ---
 
-fix: preserve completed attachments when another attachment fails to send, so retries only send unfinished attachments.
+fix: reuse successful attachment uploads after a sibling fails in both runtime and ExternalThread composers, while preserving cleanup when the unsent draft is discarded.
