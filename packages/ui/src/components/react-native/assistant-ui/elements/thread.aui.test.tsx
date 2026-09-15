@@ -1,5 +1,6 @@
 import { act, type ComponentProps } from "react";
-import { createRoot, type Root } from "react-dom/client";
+import { renderToString } from "react-dom/server";
+import { createRoot, hydrateRoot, type Root } from "react-dom/client";
 import { Text, View } from "react-native";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { Thread } from "./thread.aui";
@@ -423,9 +424,10 @@ const click = (element: Element) => {
 
 describe("Thread", () => {
   let container: HTMLDivElement;
-  let root: Root;
+  let root: Root | undefined;
 
   beforeEach(() => {
+    root = undefined;
     h.messages.splice(0);
     h.state.thread.messages = [];
     h.state.thread.isLoading = false;
@@ -453,18 +455,21 @@ describe("Thread", () => {
 
     container = document.createElement("div");
     document.body.appendChild(container);
-    root = createRoot(container);
   });
 
   afterEach(async () => {
-    await act(async () => {
-      root.unmount();
-    });
+    if (root) {
+      const mountedRoot = root;
+      await act(async () => {
+        mountedRoot.unmount();
+      });
+    }
     container.remove();
   });
 
   const render = async (props: ComponentProps<typeof Thread> = {}) => {
     await act(async () => {
+      root ??= createRoot(container);
       root.render(<Thread {...props} />);
     });
   };
@@ -520,6 +525,23 @@ describe("Thread", () => {
     expect(container.textContent).toContain("How can I help you today?");
     expect(container.textContent).toContain("Explain hooks");
     expect(container.textContent).toContain("in one paragraph");
+  });
+
+  it("remounts the composer input after hydration", async () => {
+    h.state.composer.text = "draft";
+    container.innerHTML = renderToString(<Thread />);
+    const serverInput = container.querySelector('[aria-label="Message input"]');
+    expect(serverInput).not.toBeNull();
+
+    await act(async () => {
+      root = hydrateRoot(container, <Thread />);
+    });
+
+    const hydratedInput = container.querySelector(
+      '[aria-label="Message input"]',
+    );
+    expect(hydratedInput).not.toBe(serverInput);
+    expect((hydratedInput as HTMLTextAreaElement).value).toBe("draft");
   });
 
   it("renders a custom welcome in place of the default greeting", async () => {

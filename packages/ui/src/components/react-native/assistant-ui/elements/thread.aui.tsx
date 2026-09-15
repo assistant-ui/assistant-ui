@@ -45,6 +45,7 @@ import {
   useEffect,
   useRef,
   useState,
+  useSyncExternalStore,
 } from "react";
 import {
   AccessibilityInfo,
@@ -82,6 +83,17 @@ const EMPTY_COMPONENTS: ThreadComponents = {};
 
 const ThreadComponentsContext =
   createContext<ThreadComponents>(EMPTY_COMPONENTS);
+
+const subscribe = () => () => {};
+const getHydratedSnapshot = () => true;
+const getServerHydratedSnapshot = () => false;
+
+const useHydrated = () =>
+  useSyncExternalStore(
+    subscribe,
+    getHydratedSnapshot,
+    getServerHydratedSnapshot,
+  );
 
 const copyToClipboard = async (text: string) => {
   await Clipboard.setStringAsync(text);
@@ -224,21 +236,25 @@ const ThreadSuggestionItem: FC = () => (
   </SuggestionPrimitive.Trigger>
 );
 
-const DefaultComposerInput: FC = () => (
-  <ComposerPrimitive.Input
-    placeholder="Send a message..."
-    placeholderTextColorClassName="accent-muted-foreground/60"
-    className="aui-composer-input text-foreground web:resize-none web:outline-none max-h-48 min-h-10 px-2.5 py-1 text-base leading-6"
-    multiline
-    accessibilityLabel="Message input"
-  />
-);
+const DefaultComposerInput: FC = () => {
+  const hydrated = useHydrated();
+
+  return (
+    <ComposerPrimitive.Input
+      key={hydrated ? "hydrated" : "server"}
+      placeholder="Send a message..."
+      placeholderTextColorClassName="accent-muted-foreground/60"
+      className="aui-composer-input text-foreground web:resize-none web:outline-none max-h-48 min-h-10 px-2.5 py-1 text-base leading-6"
+      multiline
+      accessibilityLabel="Message input"
+    />
+  );
+};
 
 const Composer: FC = () => {
   const { ComposerInput = DefaultComposerInput } = useContext(
     ThreadComponentsContext,
   );
-
   return (
     <ComposerPrimitive.Root className="aui-composer-root w-full">
       <View className="aui-composer-shell border-border/60 dark:border-muted-foreground/15 bg-card gap-2 rounded-3xl border p-2">
