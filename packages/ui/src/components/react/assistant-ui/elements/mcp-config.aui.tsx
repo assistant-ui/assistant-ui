@@ -390,7 +390,7 @@ const AddServerForm: FC<{ onClose: () => void }> = ({ onClose }) => {
             )}
           >
             <XIcon className="size-4" />
-            <span className="sr-only">Close</span>
+            <span className="sr-only">Close form</span>
           </McpAddFormPrimitive.Cancel>
         </div>
         <FormRow label="Name" htmlFor={fieldIds.name}>
