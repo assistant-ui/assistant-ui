@@ -281,6 +281,42 @@ describe("useSubagentTranscripts", () => {
     expect(hook.result.current.get("task-two")).toBe(initialTwo);
   });
 
+  it("nests a child discovered at the same depth as its parent", async () => {
+    const parentMessage: LangChainBaseMessage = {
+      id: "parent-ai",
+      _getType: () => "ai",
+      content: "delegating",
+      tool_calls: [{ id: "task-child", name: "task", args: {} }],
+    };
+    const childStore = createStore([message("child-ai", "ai", "child answer")]);
+    const parentStore = createStore([parentMessage]);
+    const stream = createStream(
+      new Map([
+        ["task-parent", subagent("task-parent", ["tools:parent"])],
+        [
+          "task-child",
+          subagent("task-child", ["tools:child"], "complete", "task-parent", 1),
+        ],
+      ]),
+      new Map([
+        ["tools:parent", parentStore],
+        ["tools:child", childStore],
+      ]),
+    );
+    const hook = renderHook(() =>
+      useSubagentTranscripts(stream as never, convert),
+    );
+
+    await waitFor(() => expect(hook.result.current.size).toBe(2));
+    const taskCall = hook.result.current
+      .get("task-parent")?.[0]
+      ?.content.find((part) => part.type === "tool-call");
+
+    expect(taskCall).toMatchObject({
+      messages: hook.result.current.get("task-child"),
+    });
+  });
+
   it("nests child transcripts under the task call in their parent transcript", async () => {
     const parentMessage: LangChainBaseMessage = {
       id: "parent-ai",

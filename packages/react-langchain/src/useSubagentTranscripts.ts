@@ -154,9 +154,7 @@ const createSubagentTranscriptSource = (
   };
 
   const rebuild = () => {
-    const resources = [...source.resources.values()].sort(
-      (a, b) => b.snapshot.depth - a.snapshot.depth,
-    );
+    const resources = [...source.resources.values()];
     const childrenByParent = new Map<string, ProjectionResource[]>();
 
     for (const resource of resources) {
@@ -169,13 +167,19 @@ const createSubagentTranscriptSource = (
 
     const transcripts = new Map<string, readonly ThreadMessage[]>();
     let changed = source.snapshot.size !== resources.length;
+    const built = new Set<string>();
 
-    for (const resource of resources) {
+    const build = (resource: ProjectionResource) => {
+      if (built.has(resource.snapshot.id)) return;
+      built.add(resource.snapshot.id);
+      const children = childrenByParent.get(resource.snapshot.id) ?? [];
+      for (const child of children) build(child);
       const childTranscripts = new Map(
-        (childrenByParent.get(resource.snapshot.id) ?? []).map((child) => [
-          child.snapshot.id,
-          child.transcript!,
-        ]),
+        children.flatMap((child) =>
+          child.transcript
+            ? [[child.snapshot.id, child.transcript] as const]
+            : [],
+        ),
       );
       const storeSnapshot = resource.store.getSnapshot();
       const status = resource.snapshot.status;
@@ -212,7 +216,9 @@ const createSubagentTranscriptSource = (
 
       if (!source.snapshot.has(resource.snapshot.id)) changed = true;
       transcripts.set(resource.snapshot.id, resource.transcript);
-    }
+    };
+
+    for (const resource of resources) build(resource);
 
     if (!changed) return;
     source.snapshot = transcripts;
