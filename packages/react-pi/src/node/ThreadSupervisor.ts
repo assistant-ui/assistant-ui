@@ -188,7 +188,10 @@ export class PiThreadSupervisor {
 
     try {
       const record = await this.ensureOpen(threadId);
-      controller.signal.throwIfAborted();
+      if (controller.signal.aborted) {
+        this.emit(record, { type: "agent_end" });
+        return;
+      }
       await this.send(record, input);
     } finally {
       pending.delete(controller);

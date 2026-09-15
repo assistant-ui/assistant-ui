@@ -7,6 +7,7 @@ import type {
   AgentSession,
   SessionInfo,
 } from "@earendil-works/pi-coding-agent";
+import type { PiClientEvent } from "../types";
 import { PiThreadSupervisor } from "./ThreadSupervisor";
 
 const sdk = vi.hoisted(() => ({
@@ -195,6 +196,10 @@ describe("PiThreadSupervisor", () => {
         }),
     );
     const supervisor = new PiThreadSupervisor({ workspacePath: "/ws" });
+    const events: PiClientEvent[] = [];
+    const unsubscribe = supervisor.subscribe("t1", (event) => {
+      events.push(event);
+    });
     try {
       const sending = supervisor.sendMessage("t1", { content: "hello" });
       await vi.waitFor(() =>
@@ -204,9 +209,14 @@ describe("PiThreadSupervisor", () => {
       await supervisor.cancelRun("t1");
       resolveSession({ session });
 
-      await expect(sending).rejects.toMatchObject({ name: "AbortError" });
+      await expect(sending).resolves.toBeUndefined();
+      await vi.waitFor(() =>
+        expect(events.some((event) => event.type === "agent_end")).toBe(true),
+      );
+      expect(events.some((event) => event.type === "error")).toBe(false);
       expect(prompt).not.toHaveBeenCalled();
     } finally {
+      unsubscribe();
       await supervisor.dispose();
     }
   });
