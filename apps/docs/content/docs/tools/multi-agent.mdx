@@ -87,6 +87,7 @@ tools: {
 
 ```ts title="runtime.ts"
 import { useLangGraphRuntime } from "@assistant-ui/react-langgraph";
+import type { Config } from "@langchain/langgraph-sdk";
 
 const runtime = useLangGraphRuntime({
   unstable_allowCancellation: true,
@@ -112,7 +113,9 @@ const runtime = useLangGraphRuntime({
       ...(config.checkpointId != null && {
         checkpoint: { checkpoint_id: config.checkpointId },
       }),
-      ...(config.runConfig !== undefined && { config: config.runConfig }),
+      ...(config.runConfig !== undefined && {
+        config: config.runConfig as Config,
+      }),
     });
   },
   eventHandlers: {
