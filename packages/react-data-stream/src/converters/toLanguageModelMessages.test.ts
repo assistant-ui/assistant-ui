@@ -116,6 +116,40 @@ describe("toLanguageModelMessages", () => {
     });
   });
 
+  it("preserves generated files in assistant history", () => {
+    expect(
+      toLanguageModelMessages([
+        {
+          id: "assistant-1",
+          role: "assistant",
+          createdAt: new Date("2026-01-01T00:00:00.000Z"),
+          content: [
+            {
+              type: "file",
+              data: "iVBORw0KGgo=",
+              mimeType: "image/png",
+              filename: "generated.png",
+            },
+          ],
+          status: { type: "complete", reason: "stop" },
+          metadata: { custom: {} },
+        },
+      ]),
+    ).toEqual([
+      {
+        role: "assistant",
+        content: [
+          {
+            type: "file",
+            data: "iVBORw0KGgo=",
+            mediaType: "image/png",
+            filename: "generated.png",
+          },
+        ],
+      },
+    ]);
+  });
+
   it("omits filename when the part has none", () => {
     const [message] = toLanguageModelMessages([createFileMessage("SGVsbG8=")]);
     if (message?.role !== "user") throw new Error("Expected a user message");
