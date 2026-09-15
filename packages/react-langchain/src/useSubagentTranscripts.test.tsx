@@ -128,6 +128,32 @@ describe("useSubagentTranscripts", () => {
     expect(stream.releases.get("tools:two")).toHaveBeenCalledOnce();
   });
 
+  it("retries namespace resolution after an unresolved request settles", async () => {
+    const stores = new Map([["tools:one", createStore()]]);
+    const stream = createStream(
+      new Map([["task-one", subagent("task-one", ["tools:one"])]]),
+      stores,
+    );
+    const hook = renderHook(() =>
+      useSubagentTranscripts(stream as never, noUIMessages),
+    );
+
+    await waitFor(() =>
+      expect(stream.resolveSubagentNamespace).toHaveBeenCalledOnce(),
+    );
+    await act(async () => {
+      await Promise.resolve();
+      stream.subagents = new Map([
+        ["task-one", subagent("task-one", ["tools:one"])],
+      ]);
+      hook.rerender();
+    });
+
+    await waitFor(() =>
+      expect(stream.resolveSubagentNamespace).toHaveBeenCalledTimes(2),
+    );
+  });
+
   it("does not acquire depth-17 subagents and releases projections that move past the depth cap", async () => {
     const stores = new Map([["tools:one", createStore()]]);
     const stream = createStream(
