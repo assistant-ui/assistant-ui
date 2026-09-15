@@ -2,4 +2,4 @@
 "@assistant-ui/ai-sdk": patch
 ---
 
-fix: forward `AISDKThreads` chat callbacks through a ref so a callback swapped on a later render fires, matching `useChat`, and default `stopOnClientDestroy` to `true`
+fix: `AISDKThreads` chats call the latest `onToolCall`, `onData`, `onFinish`, `onError` and `sendAutomaticallyWhen` passed to it, including on a thread still streaming in the background, instead of the ones captured when the thread was created
