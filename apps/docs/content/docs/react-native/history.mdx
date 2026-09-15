@@ -88,6 +88,7 @@ The thread's `history` prop takes the three facts from the hook and does the res
 
 ```tsx title="app/index.tsx"
 import { AssistantRuntimeProvider } from "@assistant-ui/react-native";
+import { Pressable, Text } from "react-native";
 import { Thread } from "@/components/assistant-ui/elements/thread.aui";
 import { useWindowedRuntime } from "@/hooks/use-windowed-runtime";
 
@@ -102,10 +103,22 @@ export default function ChatScreen({ threadId, lastPage, olderExists }) {
 }
 
 function WindowedThread({ lastPage, olderExists }) {
-  const { runtime, history } = useWindowedRuntime(lastPage, olderExists);
+  const { runtime, history, pageError } = useWindowedRuntime(
+    lastPage,
+    olderExists,
+  );
 
   return (
     <AssistantRuntimeProvider runtime={runtime}>
+      {pageError !== undefined && (
+        <Pressable
+          onPress={history.loadMore}
+          accessibilityRole="button"
+          accessibilityLabel="Retry loading earlier messages"
+        >
+          <Text>Earlier messages did not load. Tap to retry.</Text>
+        </Pressable>
+      )}
       <Thread history={history} />
     </AssistantRuntimeProvider>
   );

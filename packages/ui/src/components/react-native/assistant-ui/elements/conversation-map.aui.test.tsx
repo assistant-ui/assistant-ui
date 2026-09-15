@@ -197,10 +197,17 @@ describe("ConversationMapAui", () => {
     conversation();
     await render();
 
-    const rail = container.querySelector(".aui-conversation-map-rail")!;
-    expect(rail.getAttribute("style")).toContain("height: 480px");
-    expect(rail.getAttribute("style")).toContain("top: 24px");
-    expect(rail.getAttribute("class")).toContain("left-0");
+    const rail = () => container.querySelector(".aui-conversation-map-rail")!;
+    expect(rail().getAttribute("style")).toContain("height: 480px");
+    expect(rail().getAttribute("style")).toContain("top: 24px");
+    expect(rail().getAttribute("class")).toContain("left-0");
+
+    h.viewport.top = 55;
+    h.viewport.height = 425;
+    await render();
+
+    expect(rail().getAttribute("style")).toContain("top: 55px");
+    expect(rail().getAttribute("style")).toContain("height: 425px");
   });
 
   it("renders nothing for an empty thread", async () => {
