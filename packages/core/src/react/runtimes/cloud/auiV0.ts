@@ -512,7 +512,7 @@ const decodeAuiV0MessagePart = (
   fallbackId: string,
   index: number,
   depth: number,
-): { content: unknown[]; unreadablePartCount: number } => {
+): { content: readonly unknown[]; unreadablePartCount: number } => {
   if (!isAuiV0MessagePart(part)) {
     return { content: [], unreadablePartCount: 1 };
   }
