@@ -16,8 +16,8 @@ const storedPartGuards = {
   audio: (part) =>
     isRecord(part.audio) &&
     typeof part.audio.data === "string" &&
-    (part.audio.format === "mp3" || part.audio.format === "wav"),
-  data: (part) => typeof part.name === "string" && part.data !== undefined,
+    typeof part.audio.format === "string",
+  data: (part) => typeof part.name === "string",
   source: (part) =>
     typeof part.id === "string" &&
     (part.sourceType === "url"

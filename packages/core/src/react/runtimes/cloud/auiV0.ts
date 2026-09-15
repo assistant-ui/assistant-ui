@@ -468,10 +468,24 @@ const isAuiV0ToolCallPart = (part: Record<string, unknown>) =>
   typeof part.toolName === "string" &&
   (isRecord(part.args) || typeof part.argsText === "string");
 
+const isAuiV0StoredMessagePart = (
+  value: unknown,
+): value is Record<string, unknown> & { type: string } => {
+  if (!isStoredMessagePart(value)) return false;
+  if (value.type === "audio") {
+    return (
+      isRecord(value.audio) &&
+      (value.audio.format === "mp3" || value.audio.format === "wav")
+    );
+  }
+  return value.type !== "data" || value.data !== undefined;
+};
+
 const isAuiV0MessagePart = (
   value: unknown,
 ): value is Record<string, unknown> & { type: string } =>
-  isStoredMessagePart(value) || (isRecord(value) && isAuiV0ToolCallPart(value));
+  isAuiV0StoredMessagePart(value) ||
+  (isRecord(value) && isAuiV0ToolCallPart(value));
 
 const decodeAuiV0Attachments = (
   attachments: unknown,
@@ -486,7 +500,7 @@ const decodeAuiV0Attachments = (
     return [
       {
         ...attachment,
-        content: attachment.content.filter(isStoredMessagePart),
+        content: attachment.content.filter(isAuiV0StoredMessagePart),
       } as unknown as CompleteAttachment,
     ];
   });
