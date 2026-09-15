@@ -166,6 +166,7 @@ describe("parseStoredMessageRepository", () => {
                 { ...attachment, id: 2 },
                 { ...attachment, id: "uploading", status: { type: "running" } },
                 { ...attachment, id: "no-content", content: undefined },
+                { ...attachment, id: "no-name", name: undefined },
               ],
             },
             parentId: null,
@@ -188,6 +189,65 @@ describe("parseStoredMessageRepository", () => {
       { ...attachment, content: [{ type: "text", text: "notes" }] },
     ]);
     expect(answer?.content).toEqual([{ type: "future-part", value: 1 }]);
+  });
+
+  it("drops known parts that are missing a required field", () => {
+    const parts = {
+      text: { type: "text", text: "hi" },
+      reasoning: { type: "reasoning", text: "because" },
+      image: { type: "image", image: "https://example.com/a.png" },
+      file: { type: "file", data: "SGk=", mimeType: "text/plain" },
+      audio: { type: "audio", audio: { data: "SGk=", format: "mp3" } },
+      data: { type: "data", name: "weather", data: { sunny: true } },
+      url: {
+        type: "source",
+        sourceType: "url",
+        id: "source-1",
+        url: "https://example.com",
+      },
+      document: {
+        type: "source",
+        sourceType: "document",
+        id: "source-2",
+        title: "Notes",
+        mediaType: "text/plain",
+      },
+      generativeUI: { type: "generative-ui", spec: { root: "hi" } },
+      toolCall: {
+        type: "tool-call",
+        toolCallId: "call-1",
+        toolName: "search",
+        args: {},
+        argsText: "{}",
+      },
+    };
+    const repo = parseStoredMessageRepository(
+      JSON.stringify({
+        messages: [
+          {
+            message: {
+              ...storedMessage("assistant", "assistant"),
+              content: [
+                { type: "text" },
+                { ...parts.reasoning, text: 1 },
+                { type: "image" },
+                { ...parts.file, mimeType: undefined },
+                { type: "audio", audio: null },
+                { type: "data", data: {} },
+                { ...parts.url, url: undefined },
+                { ...parts.document, sourceType: "unknown" },
+                { type: "generative-ui" },
+                { ...parts.toolCall, argsText: undefined },
+                ...Object.values(parts),
+              ],
+            },
+            parentId: null,
+          },
+        ],
+      }),
+    );
+
+    expect(repo.messages[0]?.message.content).toEqual(Object.values(parts));
   });
 
   it("applies the same rules to nested tool call messages", () => {
