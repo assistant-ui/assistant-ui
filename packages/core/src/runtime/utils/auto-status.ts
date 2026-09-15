@@ -87,7 +87,7 @@ export const getAutoStatus = (
   isCancelled?: boolean,
   hasBackgroundToolCalls?: boolean,
 ): MessageStatus => {
-  if (isLast && error) {
+  if (isLast && error !== undefined) {
     return Object.assign(
       {
         type: "incomplete" as const,
