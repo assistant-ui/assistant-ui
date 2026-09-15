@@ -115,7 +115,7 @@ import { McpServerByIdProvider, McpServerPrimitive } from "@assistant-ui/react-m
 
 ### Custom auth fields
 
-`AuthFields` renders a bearer-token input or an OAuth scopes input depending on the selected `AuthSelect` value by default; pass `children` to render your own inputs for the current auth type instead.
+`AuthFields` renders a labeled bearer token input or OAuth scopes input depending on the selected `AuthSelect` value by default; pass `children` to render your own inputs for the current auth type instead.
 
 ```tsx
 <McpAddFormPrimitive.AuthFields>
@@ -162,14 +162,14 @@ import { McpServerByIdProvider, McpServerPrimitive } from "@assistant-ui/react-m
 | Part | Renders | Notes |
 |------|---------|-------|
 | `Root` | `form` | Owns the form's state. Takes `onSubmitted(id)` and `onCancel`. |
-| `NameField`, `UrlField` | `input` | Bound text inputs. |
+| `NameField`, `UrlField` | `input` | Bound text inputs. The field that fails validation gets `aria-invalid` and the error's id in `aria-describedby`. |
 | `AuthSelect` | `select` | `"oauth" \| "bearer" \| "none"`, defaults to `"oauth"`. |
-| `AuthFields` | inputs | Bearer token or OAuth scopes input, matching the current `AuthSelect` value. |
+| `AuthFields` | labeled inputs | Bearer token or OAuth scopes input with its own label, matching the current `AuthSelect` value. |
 | `Submit` | `button` | Disabled while submitting. |
 | `Cancel` | `button` | Resets the form and calls `onCancel`. |
-| `Error` | text | The current validation or submit error, if any. |
+| `Error` | `div` | Renders `null` without an error; otherwise a `role="alert"` element that the invalid field's `aria-describedby` references. |
 
-Submitting validates that name is non-empty, that the URL parses as `http:`/`https:`, and that a bearer token is present when `authType` is `"bearer"`; a failing check sets the form's error instead of calling `aui.mcp.addCustomServer`.
+Submitting validates that name is non-empty, that the URL parses as `http:`/`https:`, and that a bearer token is present when `authType` is `"bearer"`; a failing check sets the form's error instead of calling `aui.mcp.addCustomServer`. Editing the field an error names clears it.
 
 ### Manager and server state
 
