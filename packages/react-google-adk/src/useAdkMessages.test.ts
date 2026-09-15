@@ -397,13 +397,13 @@ describe("optimistic confirmation replies", () => {
           id: "rerun",
           author: "agent",
           content: {
-            role: "model",
+            role: "user",
             parts: [
               {
                 functionResponse: {
                   id: "orig-conf-a",
                   name: "delete_file",
-                  response: { confirmed: true },
+                  response: { result: "deleted" },
                 },
               },
             ],
