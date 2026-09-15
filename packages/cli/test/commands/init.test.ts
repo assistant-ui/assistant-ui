@@ -101,6 +101,29 @@ describe("init command", () => {
     }
   });
 
+  it("uses --cwd as the parent for an unnamed project", async () => {
+    const selected = fs.realpathSync(
+      fs.mkdtempSync(path.join(os.tmpdir(), "aui-init-")),
+    );
+    const parseAsyncSpy = vi
+      .spyOn(create, "parseAsync")
+      .mockResolvedValue(create);
+
+    try {
+      await init.parseAsync(["node", "init", "--cwd", selected, "--use-pnpm"], {
+        from: "node",
+      });
+
+      expect(parseAsyncSpy).toHaveBeenCalledWith(
+        ["--cwd", selected, "--use-pnpm"],
+        { from: "user" },
+      );
+    } finally {
+      parseAsyncSpy.mockRestore();
+      fs.rmSync(selected, { recursive: true, force: true });
+    }
+  });
+
   it("resolves a relative --cwd against the caller directory", async () => {
     const root = fs.realpathSync(
       fs.mkdtempSync(path.join(os.tmpdir(), "aui-init-")),
@@ -143,7 +166,7 @@ describe("init command", () => {
     );
 
     expect(parseAsyncSpy).toHaveBeenCalledWith(
-      ["--preset", "https://example.com/preset.json"],
+      ["--cwd", path.resolve(), "--preset", "https://example.com/preset.json"],
       { from: "user" },
     );
 

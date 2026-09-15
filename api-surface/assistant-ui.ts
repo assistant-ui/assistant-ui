@@ -124,6 +124,12 @@ export const cliSurface: CliSurfaceSnapshot = {
           "description": "skip adding assistant-ui agent skills"
         },
         {
+          "flags": "--cwd <cwd>",
+          "description": "directory used to resolve the project path",
+          "required": true,
+          "hidden": true
+        },
+        {
           "flags": "--debug-source-root <path>",
           "description": "copy templates/examples from a local assistant-ui repo root",
           "required": true,
@@ -156,7 +162,7 @@ export const cliSurface: CliSurfaceSnapshot = {
         },
         {
           "flags": "-c, --cwd <cwd>",
-          "description": "the working directory. defaults to the current directory.",
+          "description": "the project directory, or the parent directory used to resolve new project paths. defaults to the current directory.",
           "required": true,
           "defaultValue": "<cwd>"
         },
