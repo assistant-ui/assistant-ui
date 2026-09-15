@@ -968,6 +968,28 @@ describe("AdkEventAccumulator - actions tracking", () => {
     );
     expect(acc.getLongRunningToolIds()).toEqual(["lrt-1"]);
   });
+
+  it("seeds and settles longRunningToolIds from a user response", () => {
+    const acc = new AdkEventAccumulator([], ["lrt-1", "lrt-2"]);
+    acc.processEvent(
+      makeEvent({
+        author: "user",
+        content: {
+          role: "user",
+          parts: [
+            {
+              functionResponse: {
+                id: "lrt-1",
+                name: "adk_request_confirmation",
+                response: { confirmed: true },
+              },
+            },
+          ],
+        },
+      }),
+    );
+    expect(acc.getLongRunningToolIds()).toEqual(["lrt-2"]);
+  });
 });
 
 describe("AdkEventAccumulator - special function calls", () => {

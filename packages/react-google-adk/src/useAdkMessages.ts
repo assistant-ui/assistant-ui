@@ -59,7 +59,7 @@ export const useAdkMessages = ({
     name?: string | undefined;
     branch?: string | undefined;
   }>({});
-  const [longRunningToolIds, setLongRunningToolIds] = useState<string[]>([]);
+  const [longRunningToolIds, _setLongRunningToolIds] = useState<string[]>([]);
   const [artifactDelta, setArtifactDelta] = useState<Record<string, number>>(
     {},
   );
@@ -87,10 +87,15 @@ export const useAdkMessages = ({
   useInsertionEffect(() => {
     messageMetadataRef.current = messageMetadata;
   }, [messageMetadata]);
+  const longRunningToolIdsRef = useRef(longRunningToolIds);
 
   const setMessagesImmediate = useCallback((msgs: AdkMessage[]) => {
     messagesRef.current = msgs;
     _setMessages(msgs);
+  }, []);
+  const setLongRunningToolIds = useCallback((ids: string[]) => {
+    longRunningToolIdsRef.current = ids;
+    _setLongRunningToolIds(ids);
   }, []);
 
   /**
@@ -111,7 +116,7 @@ export const useAdkMessages = ({
       setArtifactDelta(snapshot.artifactDelta ?? {});
       setAgentInfo(snapshot.agentInfo ?? {});
     },
-    [setMessagesImmediate],
+    [setLongRunningToolIds, setMessagesImmediate],
   );
 
   // Replace the message list AND reset derived per-turn HITL state.
@@ -127,7 +132,7 @@ export const useAdkMessages = ({
       setEscalated(false);
       setMessageMetadata(new Map());
     },
-    [setMessagesImmediate],
+    [setLongRunningToolIds, setMessagesImmediate],
   );
 
   const abortControllerRef = useRef<AbortController | null>(null);
@@ -149,13 +154,22 @@ export const useAdkMessages = ({
       // with the originals would leave every later staged id beside the merged
       // copy of itself.
       const resentIds = new Set(newMessagesWithId.map((m) => m.id));
+      const answeredToolCallIds = new Set(
+        newMessagesWithId.flatMap((m) =>
+          m.type === "tool" ? [m.tool_call_id] : [],
+        ),
+      );
       const accumulator = new AdkEventAccumulator(
         messagesRef.current.filter((m) => !resentIds.has(m.id)),
+        longRunningToolIdsRef.current.filter(
+          (id) => !answeredToolCallIds.has(id),
+        ),
       );
       for (const event of messagesToEvents(newMessagesWithId)) {
         accumulator.processEvent(event);
       }
       setMessagesImmediate(accumulator.getMessages());
+      setLongRunningToolIds(accumulator.getLongRunningToolIds());
 
       // Google ADK replaces active runs, while React LangGraph queues sends.
       abortControllerRef.current?.abort();
@@ -256,6 +270,7 @@ export const useAdkMessages = ({
     [
       aui,
       setMessagesImmediate,
+      setLongRunningToolIds,
       stream,
       onError,
       onCustomEvent,

@@ -211,11 +211,17 @@ export class AdkEventAccumulator {
   // How many assistant messages each event has opened, so a replay of that
   // event opens them with the same ids.
   private aiMessageOrdinals = new Map<string, number>();
-  constructor(initialMessages?: AdkMessage[]) {
+  constructor(
+    initialMessages?: AdkMessage[],
+    initialLongRunningToolIds?: readonly string[],
+  ) {
     if (initialMessages) {
       for (const msg of initialMessages) {
         this.messagesMap.set(msg.id, msg);
       }
+    }
+    if (initialLongRunningToolIds) {
+      this.pendingLongRunningToolIds = new Set(initialLongRunningToolIds);
     }
   }
 
@@ -335,7 +341,7 @@ export class AdkEventAccumulator {
     if (event.author === "user") {
       this.finalizeCurrentMessage();
       const humanParts: AdkMessageContentPart[] = [];
-      const toolMessages: AdkMessage[] = [];
+      const toolMessages: Array<AdkMessage & { type: "tool" }> = [];
       for (const [index, part] of parts.entries()) {
         if (part.text != null && !part.thought) {
           humanParts.push({ type: "text", text: part.text });
@@ -371,6 +377,7 @@ export class AdkEventAccumulator {
       // tool call and its reply splits them into separate converted messages,
       // orphaning the reply and leaving its gate unsettled.
       for (const toolMsg of toolMessages) {
+        this.pendingLongRunningToolIds.delete(toolMsg.tool_call_id);
         this.messagesMap.set(toolMsg.id, toolMsg);
       }
       if (humanParts.length > 0) {

@@ -581,9 +581,16 @@ describe("createAdkSessionAdapter - load replays tool confirmations", () => {
     const result = await load("s1");
     return {
       messages: result.messages,
+      longRunningToolIds: result.longRunningToolIds,
       approvals: projectAdkToolApprovals(result.messages).approvals,
     };
   };
+
+  it("settles an answered long-running tool on replay", async () => {
+    const { longRunningToolIds } = await loadApprovals({ confirmed: true });
+
+    expect(longRunningToolIds).toEqual([]);
+  });
 
   it("keeps a user-authored confirmation reply as a tool message", async () => {
     const { messages } = await loadApprovals({ confirmed: true });

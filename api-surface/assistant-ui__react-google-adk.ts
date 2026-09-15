@@ -79,7 +79,7 @@ type AdkEvent = {
 
 declare class AdkEventAccumulator {
   #private;
-  constructor(initialMessages?: AdkMessage[]);
+  constructor(initialMessages?: AdkMessage[], initialLongRunningToolIds?: readonly string[]);
   processEvent(rawEvent: AdkEvent): AdkMessage[];
   getMessages(): AdkMessage[];
   getStateDelta(): Record<string, unknown>;
