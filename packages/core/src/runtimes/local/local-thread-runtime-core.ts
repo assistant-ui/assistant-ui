@@ -560,15 +560,6 @@ export class LocalThreadRuntimeCore
   ): Promise<void> {
     if (this.voice)
       throw new Error("Cannot start a run while a voice session is connected");
-    return this._runLoopAsync(parentId, message, runConfig, runCallback);
-  }
-
-  private async _runLoopAsync(
-    parentId: string | null,
-    message: ThreadAssistantMessage,
-    runConfig: RunConfig | undefined,
-    runCallback?: ChatModelAdapter["run"],
-  ): Promise<void> {
     this._notifyEventSubscribers("runStart", {});
 
     // A run entered on a requires-action message resumes a pause an

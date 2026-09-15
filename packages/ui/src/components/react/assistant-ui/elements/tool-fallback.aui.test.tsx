@@ -13,12 +13,15 @@ import { ToolFallback, ToolFallbackApproval } from "./tool-fallback.aui";
 const stubs = vi.hoisted(() => ({
   useScrollLock: () => () => {},
   useToolCallElapsed: () => undefined,
+  voice: { active: false },
 }));
 
 vi.mock("@assistant-ui/react", async (importOriginal) => ({
   ...(await importOriginal<typeof import("@assistant-ui/react")>()),
   useScrollLock: stubs.useScrollLock,
   useToolCallElapsed: stubs.useToolCallElapsed,
+  useAuiState: (selector: (state: unknown) => unknown) =>
+    selector({ thread: { voice: stubs.voice.active ? {} : undefined } }),
 }));
 
 const pendingApproval = { id: "req_1" };
@@ -120,6 +123,20 @@ describe("ToolFallback", () => {
     fireEvent.click(screen.getByRole("button", { name: "Allow" }));
 
     expect(respondToApproval).toHaveBeenCalledWith({ approved: true });
+  });
+
+  it("locks approval controls while a voice session is connected", () => {
+    const respondToApproval = vi.fn();
+    stubs.voice.active = true;
+    try {
+      renderTool({ approval: { id: "approval-1" }, respondToApproval });
+      const allow = button("Allow");
+      expect(allow.disabled).toBe(true);
+      fireEvent.click(allow);
+      expect(respondToApproval).not.toHaveBeenCalled();
+    } finally {
+      stubs.voice.active = false;
+    }
   });
 
   it("resumes a part-level interrupt", () => {
