@@ -33,13 +33,11 @@ class CancellationSignal(Protocol):
 
 
 class ResumableStreamStore(Protocol):
+    """Stores may also implement acquire_lease, returning a producer lease that the context passes to append and finalize; without it, a producer whose stream expired can still write to the stream a later acquisition created."""
+
     async def acquire(
         self, stream_id: str, *, ttl_ms: int | None = None
     ) -> ResumableStreamRole: ...
-
-    async def acquire_lease(
-        self, stream_id: str, *, ttl_ms: int | None = None
-    ) -> ResumableStreamAcquisition: ...
 
     async def append(
         self,

@@ -8,7 +8,6 @@ from typing import Any, Literal
 
 from assistant_stream.resumable.errors import ResumableStreamError
 from assistant_stream.resumable.types import (
-    ResumableStreamAcquisition,
     ResumableStreamLease,
     ResumableStreamRole,
     ResumableStreamStatus,
@@ -52,20 +51,18 @@ class ResumableStreamContext:
         acquire_lease = getattr(self._store, "acquire_lease", None)
         if acquire_lease is None:
             role = await self._store.acquire(stream_id, ttl_ms=self._ttl_ms)
-            acquisition = ResumableStreamAcquisition(role=role, lease=None)
+            lease = None
         else:
-            acquisition = await acquire_lease(
-                stream_id,
-                ttl_ms=self._ttl_ms,
-            )
+            acquisition = await acquire_lease(stream_id, ttl_ms=self._ttl_ms)
             role = acquisition.role
+            lease = acquisition.lease
         _call_hook(self._on_acquire, stream_id, role)
         if role == "producer":
             _start_producer_task(
                 self._store,
                 stream_id,
                 make_stream,
-                lease=acquisition.lease,
+                lease=lease,
                 tasks=self._tasks,
                 wait_until=self._wait_until,
                 on_append=self._on_append,

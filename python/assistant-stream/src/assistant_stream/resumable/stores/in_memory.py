@@ -190,9 +190,7 @@ class _InMemoryResumableStreamStore:
     async def acquire(
         self, stream_id: str, *, ttl_ms: int | None = None
     ) -> ResumableStreamRole:
-        return (
-            await self.acquire_lease(stream_id, ttl_ms=ttl_ms)
-        ).role
+        return (await self.acquire_lease(stream_id, ttl_ms=ttl_ms)).role
 
     async def acquire_lease(
         self, stream_id: str, *, ttl_ms: int | None = None
