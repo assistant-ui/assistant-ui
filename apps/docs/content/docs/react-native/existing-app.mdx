@@ -138,23 +138,19 @@ The files land under `components/assistant-ui/elements/`, `components/ui/` and `
 
 ## Mount the thread in your screen
 
-Keep your header, your navigation and your runtime provider. Render `Thread` where the message list used to be, and hand it your own input through the `ComposerInput` slot when the built in one is not enough (a rich text editor, mentions, your own keyboard accessory). The slot mounts in the new message composer and in the edit composer, and the composer state is one `useAui()` away. The thread's own send button submits the draft, so the input only has to keep the text in sync, and the return key can stay a newline. `useThemeTokens` below stands for whatever hook returns your `StyleSheet` theme:
+Keep your header, your navigation and your runtime provider. Render `Thread` where the message list used to be, and style its input through the `ComposerInput` slot: `ComposerPrimitive.Input` takes your `StyleSheet` styles and keeps the composer binding, the IME guard and the growing textarea on web, and Enter to send there; on a device the thread's send button submits. The slot mounts in the new message composer and in the edit composer. A different editor altogether (rich text, mentions) is the case the [elements guide](/docs/react-native/elements#thread-slots) shows. `useThemeTokens` below stands for whatever hook returns your `StyleSheet` theme:
 
 ```tsx title="App.tsx"
-import { useAui, useAuiState } from "@assistant-ui/react-native";
-import { StyleSheet, TextInput } from "react-native";
+import { ComposerPrimitive } from "@assistant-ui/react-native";
+import { StyleSheet } from "react-native";
 import { Thread } from "@/components/assistant-ui/elements/thread.aui";
 import { useThemeTokens } from "./theme";
 
 function ComposerInput() {
-  const aui = useAui();
-  const text = useAuiState((s) => s.composer.text);
   const tokens = useThemeTokens();
 
   return (
-    <TextInput
-      value={text}
-      onChangeText={(next) => aui.composer.setText(next)}
+    <ComposerPrimitive.Input
       placeholder="Ask the agent"
       placeholderTextColor={tokens.mutedForeground}
       accessibilityLabel="Message input"
