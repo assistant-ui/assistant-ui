@@ -88,10 +88,15 @@ function scanBlocks(text: string): BlockScan {
 
     let i = lineStart;
     let quoted = false;
+    let contentStart = lineStart;
     while (i < lineEnd) {
       const c = text.charCodeAt(i);
-      if (c === GT) quoted = true;
-      else if (!isSpace(c)) break;
+      if (c === GT) {
+        quoted = true;
+        contentStart = text.charCodeAt(i + 1) === SPACE ? i + 2 : i + 1;
+      } else if (!isSpace(c)) {
+        break;
+      }
       i += 1;
     }
 
@@ -107,7 +112,7 @@ function scanBlocks(text: string): BlockScan {
       }
     }
 
-    if ((first === BACKTICK || first === TILDE) && i - lineStart <= 3) {
+    if ((first === BACKTICK || first === TILDE) && i - contentStart <= 3) {
       let run = i;
       while (run < lineEnd && text.charCodeAt(run) === first) run += 1;
       if (

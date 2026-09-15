@@ -238,6 +238,13 @@ describe("tailBoundedRemend", () => {
     expect(tailBoundedRemend(opening)).toBe(opening);
   });
 
+  it("measures fence indentation inside the blockquote", () => {
+    const text =
+      "> intro\n>\n>   ```js\n>   a~b\n> ```\n>\n> after **bold\n>\n> Tail";
+    expect(findRemendWindowStart(text)).toBe(text.indexOf("> Tail"));
+    expect(tailBoundedRemend(text)).toBe(text);
+  });
+
   it("closes a quoted fence on a quoted marker", () => {
     expect(tailBoundedRemend("> ```js\n> foo() 1~2\n> ```\n\nx~y **bold")).toBe(
       "> ```js\n> foo() 1~2\n> ```\n\nx\\~y **bold**",
