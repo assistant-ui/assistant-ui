@@ -120,6 +120,8 @@ export class CloudMessagePersistence {
    * The ID mapping is populated so that `isPersisted()` returns true for
    * loaded messages, preventing re-persistence of already-stored messages.
    *
+   * A loaded ID that an append already maps keeps the remote ID from that append, and falls back to the loaded ID if the append fails.
+   *
    * @param threadId - Remote thread ID
    * @param format - Optional format filter
    * @returns Array of cloud messages
@@ -153,8 +155,13 @@ export class CloudMessagePersistence {
 
     if (this.idMapping === idMapping) {
       for (const m of messages) {
-        if (!idMapping.has(m.id)) {
+        const entry = idMapping.get(m.id);
+        if (entry === undefined) {
           idMapping.set(m.id, m.id);
+        } else if (entry instanceof Promise) {
+          void entry.catch(() => {
+            if (!idMapping.has(m.id)) idMapping.set(m.id, m.id);
+          });
         }
       }
     }

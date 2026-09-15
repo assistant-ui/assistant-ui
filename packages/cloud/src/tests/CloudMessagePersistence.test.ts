@@ -311,6 +311,68 @@ describe("CloudMessagePersistence", () => {
     expect(await persistence.getRemoteId("message-1")).toBe("remote-1");
   });
 
+  it("keeps the loaded ID when a pending append for it fails", async () => {
+    const messages = createCloudMessages(1);
+    const failure = new Error("create failed");
+    let resolveLoad!: (value: { messages: typeof messages }) => void;
+    let rejectAppend!: (error: Error) => void;
+    vi.mocked(cloud.threads.messages.list).mockImplementationOnce(
+      () =>
+        new Promise((resolve) => {
+          resolveLoad = resolve;
+        }),
+    );
+    vi.mocked(cloud.threads.messages.create).mockImplementationOnce(
+      () =>
+        new Promise((_resolve, reject) => {
+          rejectAppend = reject;
+        }),
+    );
+
+    const load = persistence.load("thread-1");
+    const append = persistence.append(
+      "thread-1",
+      "message-1",
+      null,
+      "aui/v0",
+      {},
+    );
+    resolveLoad({ messages });
+    await load;
+    rejectAppend(failure);
+
+    await expect(append).rejects.toBe(failure);
+    expect(persistence.isPersisted("message-1")).toBe(true);
+    expect(await persistence.getRemoteId("message-1")).toBe("message-1");
+  });
+
+  it("does not restore a loaded ID after reset when its pending append fails", async () => {
+    const messages = createCloudMessages(1);
+    const failure = new Error("create failed");
+    let rejectAppend!: (error: Error) => void;
+    vi.mocked(cloud.threads.messages.list).mockResolvedValue({ messages });
+    vi.mocked(cloud.threads.messages.create).mockImplementationOnce(
+      () =>
+        new Promise((_resolve, reject) => {
+          rejectAppend = reject;
+        }),
+    );
+
+    const append = persistence.append(
+      "thread-1",
+      "message-1",
+      null,
+      "aui/v0",
+      {},
+    );
+    await persistence.load("thread-1");
+    persistence.reset();
+    rejectAppend(failure);
+
+    await expect(append).rejects.toBe(failure);
+    expect(persistence.isPersisted("message-1")).toBe(false);
+  });
+
   it("does not restore IDs from a load that finishes after reset", async () => {
     const oldMessages = createCloudMessages(1);
     const newMessages = [{ ...oldMessages[0]!, id: "new-message" }];
