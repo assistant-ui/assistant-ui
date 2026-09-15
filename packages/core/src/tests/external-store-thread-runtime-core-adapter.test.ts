@@ -4,6 +4,7 @@ import {
   hasUpcomingMessage,
 } from "../runtimes/external-store/external-store-thread-runtime-core";
 import type { ExternalStoreAdapter } from "../runtimes/external-store/external-store-adapter";
+import type { RealtimeVoiceAdapter } from "../adapters/voice";
 import type { ModelContextProvider } from "../model-context/types";
 import type { AppendMessage, ThreadMessage } from "../types/message";
 import { createMessageQueue } from "../runtime/queue/message-queue";
@@ -49,6 +50,33 @@ const createBaseAdapter = (
   onNew: vi.fn(async () => {}),
   ...overrides,
 });
+
+const createVoiceAdapter = () => {
+  let transcriptCallback:
+    | ((transcript: RealtimeVoiceAdapter.TranscriptItem) => void)
+    | undefined;
+  const session: RealtimeVoiceAdapter.Session = {
+    status: { type: "running" },
+    isMuted: false,
+    disconnect: vi.fn(),
+    mute: vi.fn(),
+    unmute: vi.fn(),
+    onStatusChange: () => () => {},
+    onTranscript: (callback) => {
+      transcriptCallback = callback;
+      return () => {
+        transcriptCallback = undefined;
+      };
+    },
+    onModeChange: () => () => {},
+    onVolumeChange: () => () => {},
+  };
+  return {
+    adapter: { connect: () => session } satisfies RealtimeVoiceAdapter,
+    emitTranscript: (transcript: RealtimeVoiceAdapter.TranscriptItem) =>
+      transcriptCallback?.(transcript),
+  };
+};
 
 const captureUnhandledRejections = async (
   run: () => Promise<void>,
@@ -1184,6 +1212,52 @@ describe("ExternalStoreThreadRuntimeCore adapter contract", () => {
 
       expect(callbackCalls).toBe(1);
       expect(rejections).toEqual([]);
+    });
+  });
+
+  describe("voice transcript appends", () => {
+    it("sends a composer message to onNew with the repository head", async () => {
+      const voice = createVoiceAdapter();
+      const onNew = vi.fn(async (_message: AppendMessage) => {});
+      const onEdit = vi.fn(async (_message: AppendMessage) => {});
+      const core = new ExternalStoreThreadRuntimeCore(
+        contextProvider,
+        createBaseAdapter({
+          messages: [createUserMessage("u1")],
+          onNew,
+          onEdit,
+          adapters: { voice: voice.adapter },
+        }),
+      );
+      core.connectVoice();
+
+      try {
+        voice.emitTranscript({
+          role: "assistant",
+          text: "Spoken reply",
+          isFinal: true,
+        });
+        const transcriptId = core.messages.at(-1)!.id;
+
+        await core.composer.handleSend(
+          {
+            role: "user",
+            content: [{ type: "text", text: "Follow up" }],
+            attachments: [],
+            metadata: { custom: {} },
+            createdAt: new Date(),
+            runConfig: {},
+          },
+          { startRun: false },
+        );
+
+        expect(onNew).toHaveBeenCalledOnce();
+        expect(onNew.mock.calls[0]?.[0]?.parentId).toBe("u1");
+        expect(onEdit).not.toHaveBeenCalled();
+        expect(core.messages.at(-1)?.id).toBe(transcriptId);
+      } finally {
+        core.disconnectVoice();
+      }
     });
   });
 

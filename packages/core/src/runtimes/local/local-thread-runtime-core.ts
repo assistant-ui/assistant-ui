@@ -260,7 +260,7 @@ export class LocalThreadRuntimeCore
           // the tail may have moved since the message was enqueued
           void this._runAppend({
             ...message,
-            parentId: this.messages.at(-1)?.id ?? null,
+            parentId: this._getAppendParentId(this.messages.at(-1)?.id ?? null),
           })
             .finally(() => {
               this._queueRunInFlight = false;
@@ -342,12 +342,14 @@ export class LocalThreadRuntimeCore
   }
 
   public async append(message: AppendMessage): Promise<void> {
-    const isTail = message.parentId === (this.messages.at(-1)?.id ?? null);
-    const willRun = message.startRun ?? message.role === "user";
+    const normalizedMessage = this._normalizeAppendMessage(message);
+    const isTail = normalizedMessage.parentId === this.repository.headId;
+    const willRun =
+      normalizedMessage.startRun ?? normalizedMessage.role === "user";
     if (this._queue && willRun && isTail) {
-      if (message.steer ?? this._queueRunInFlight)
-        this._queue.adapter.steer(message);
-      else this._queue.adapter.enqueue(message);
+      if (normalizedMessage.steer ?? this._queueRunInFlight)
+        this._queue.adapter.steer(normalizedMessage);
+      else this._queue.adapter.enqueue(normalizedMessage);
       return;
     }
     if (
@@ -356,7 +358,7 @@ export class LocalThreadRuntimeCore
       (this._options.unstable_queueClearOnRewind ?? true)
     )
       this._queue.clear();
-    return this._runAppend(message);
+    return this._runAppend(normalizedMessage);
   }
 
   public getQueueItems(): readonly QueueItemState[] {
@@ -390,7 +392,9 @@ export class LocalThreadRuntimeCore
     // Stamped here rather than in `append` so a queued message is gated after
     // the flush re-pointed its parentId at the current tail.
     const generation = captureThreadRuntimeGeneration(this);
-    const message = this.enrichAppendMetadata(rawMessage);
+    const message = this.enrichAppendMetadata(
+      this._normalizeAppendMessage(rawMessage),
+    );
     this.ensureInitialized();
 
     const newMessage = fromThreadMessageLike(message, generateId(), {
