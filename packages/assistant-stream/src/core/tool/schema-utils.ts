@@ -38,9 +38,9 @@ function isStandardSchema(schema: unknown): schema is StandardSchemaV1 & {
   );
 }
 
-function hasToJSONSchemaMethod(
-  schema: unknown,
-): schema is { toJSONSchema: () => unknown } {
+function hasToJSONSchemaMethod(schema: unknown): schema is {
+  toJSONSchema: (options: StandardJSONSchemaV1.Options) => unknown;
+} {
   return (
     typeof schema === "object" &&
     schema !== null &&
@@ -61,16 +61,16 @@ function hasToJSONMethod(schema: unknown): schema is { toJSON: () => unknown } {
 /**
  * Converts a schema to JSONSchema7.
  * Supports:
- * - StandardSchemaV1 with ~standard.toJSONSchema (e.g., Zod v4)
+ * - StandardSchemaV1 with ~standard.toJSONSchema
  * - StandardSchemaV1 with ~standard.jsonSchema.input() (e.g., Zod v4)
- * - Objects with toJSONSchema() method (e.g., Zod v4)
+ * - Objects with toJSONSchema() method
  * - Objects with toJSON() method
  * - Plain JSONSchema7 objects (must have a "type" property)
  */
 export function toJSONSchema(
   schema: StandardSchemaV1 | JSONSchema7,
 ): JSONSchema7 {
-  // StandardSchemaV1 with ~standard.toJSONSchema (e.g., Zod v4)
+  // StandardSchemaV1 with ~standard.toJSONSchema
   if (isStandardSchema(schema)) {
     const toJSONSchemaMethod = schema["~standard"].toJSONSchema;
     if (typeof toJSONSchemaMethod === "function") {
@@ -90,7 +90,7 @@ export function toJSONSchema(
 
   // toJSONSchema method on the schema itself
   if (hasToJSONSchemaMethod(schema)) {
-    return schema.toJSONSchema() as JSONSchema7;
+    return schema.toJSONSchema({ target: "draft-07" }) as JSONSchema7;
   }
 
   // toJSON method on the schema

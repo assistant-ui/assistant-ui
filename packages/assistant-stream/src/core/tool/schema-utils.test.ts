@@ -28,16 +28,26 @@ describe("toJSONSchema", () => {
     });
   });
 
-  it("converts object with toJSONSchema() method", () => {
+  it("passes the draft-07 target to object with toJSONSchema() method", () => {
+    let receivedOptions: StandardJSONSchemaV1.Options | undefined;
     const schemaWithMethod = {
-      toJSONSchema: () => ({
-        type: "object",
-        properties: { age: { type: "number" } },
-      }),
+      toJSONSchema: (options: StandardJSONSchemaV1.Options) => {
+        receivedOptions = options;
+        return {
+          $schema:
+            options.target === "draft-07"
+              ? "http://json-schema.org/draft-07/schema#"
+              : "https://json-schema.org/draft/2020-12/schema",
+          type: "object",
+          properties: { age: { type: "number" } },
+        };
+      },
     };
 
     const result = toJSONSchema(schemaWithMethod as never);
+    expect(receivedOptions).toEqual({ target: "draft-07" });
     expect(result).toEqual({
+      $schema: "http://json-schema.org/draft-07/schema#",
       type: "object",
       properties: { age: { type: "number" } },
     });
