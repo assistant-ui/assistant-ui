@@ -160,7 +160,10 @@ export class CloudMessagePersistence {
           idMapping.set(m.id, m.id);
         } else if (entry instanceof Promise) {
           void entry.catch(() => {
-            if (!idMapping.has(m.id)) idMapping.set(m.id, m.id);
+            const current = idMapping.get(m.id);
+            if (current === undefined || current === entry) {
+              idMapping.set(m.id, m.id);
+            }
           });
         }
       }
