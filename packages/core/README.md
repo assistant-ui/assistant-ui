@@ -43,3 +43,4 @@ registry.addTool({
 `@assistant-ui/core` exposes `.`, `./react`, `./store`, and `./internal` sub-paths. The `./react` sub-path holds the React hooks and providers consumed by `@assistant-ui/react` and `@assistant-ui/react-native`.
 
 Full reference for message types, runtime interfaces, and adapter contracts at [assistant-ui.com/docs/architecture](https://www.assistant-ui.com/docs/architecture).
+
