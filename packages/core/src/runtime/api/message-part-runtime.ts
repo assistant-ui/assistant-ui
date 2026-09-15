@@ -92,8 +92,8 @@ export class MessagePartRuntimeImpl implements MessagePartRuntime {
       toolName,
       toolCallId,
       result: response.result,
-      artifact: response.artifact,
       isError: response.isError,
+      ...(response.artifact !== undefined && { artifact: response.artifact }),
       ...(response.modelContent !== undefined && {
         modelContent: response.modelContent,
       }),
