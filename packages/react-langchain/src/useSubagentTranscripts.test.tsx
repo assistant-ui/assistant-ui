@@ -3,7 +3,7 @@
 import { act, renderHook, waitFor } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
 import type { useExternalMessageConverter } from "@assistant-ui/core/react";
-import type { LangChainBaseMessage } from "./types";
+import type { LangChainBaseMessage, UIMessage } from "./types";
 
 const { streamController } = vi.hoisted(() => ({
   streamController: Symbol("STREAM_CONTROLLER"),
@@ -223,6 +223,50 @@ describe("useSubagentTranscripts", () => {
     expect(hook.result.current.get("task-one")?.[0]?.content).toMatchObject([
       { type: "text", text: "two" },
     ]);
+  });
+
+  it("rebuilds nested messages when the converter adds UI and timing metadata", async () => {
+    const store = createStore([message("subagent-ai", "ai", "answer")]);
+    const stream = createStream(
+      new Map([["task-one", subagent("task-one", ["tools:one"])]]),
+      new Map([["tools:one", store]]),
+    );
+    let converter = convert;
+    const hook = renderHook(() =>
+      useSubagentTranscripts(stream as never, converter),
+    );
+
+    await waitFor(() => expect(hook.result.current.has("task-one")).toBe(true));
+    const initial = hook.result.current;
+    const ui: UIMessage = {
+      type: "ui",
+      id: "ui-1",
+      name: "chart",
+      props: { points: [1, 2, 3] },
+      metadata: { id: "subagent-ai" },
+    };
+    const timing = {
+      streamStartTime: 1,
+      totalChunks: 1,
+      toolCallCount: 0,
+    };
+    converter = (message, metadata) =>
+      convertLangChainBaseMessage(message, {
+        ...metadata,
+        uiMessagesByParent: new Map([["subagent-ai", [ui]]]),
+        messageTiming: { "subagent-ai": timing },
+      });
+    hook.rerender();
+
+    await waitFor(() => {
+      const assistant = hook.result.current.get("task-one")?.[0];
+      expect(assistant?.content).toMatchObject([
+        { type: "text", text: "answer" },
+        { type: "data", name: "chart", data: { points: [1, 2, 3] } },
+      ]);
+      expect(assistant?.metadata.timing).toEqual(timing);
+    });
+    expect(hook.result.current).not.toBe(initial);
   });
 
   it("sets the trailing transcript message status from the subagent status", async () => {

@@ -185,11 +185,6 @@ const useStreamThreadRuntime = (
     effectiveIsRunning,
   );
 
-  const subagentTranscripts = useSubagentTranscripts(
-    stream,
-    convertLangChainBaseMessage,
-  );
-
   const convertWithUI = useMemo<
     useExternalMessageConverter.Callback<LangChainBaseMessage>
   >(() => {
@@ -202,6 +197,8 @@ const useStreamThreadRuntime = (
         messageTiming,
       });
   }, [mergedUiMessages, messageTiming]);
+
+  const subagentTranscripts = useSubagentTranscripts(stream, convertWithUI);
 
   const threadMessages = useExternalMessageConverter({
     callback: convertWithUI,

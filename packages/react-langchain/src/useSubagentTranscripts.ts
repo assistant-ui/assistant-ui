@@ -32,6 +32,9 @@ type ProjectionResource = {
   release: () => void;
   storeSnapshot: BaseMessage[] | undefined;
   status: SubagentDiscoverySnapshot["status"] | undefined;
+  convert:
+    | useExternalMessageConverter.Callback<LangChainBaseMessage>
+    | undefined;
   converted: readonly ThreadMessage[] | undefined;
   childTranscripts: ReadonlyMap<string, readonly ThreadMessage[]> | undefined;
   transcript: readonly ThreadMessage[] | undefined;
@@ -130,6 +133,7 @@ const createSubagentTranscriptSource = (
           release: acquired.release,
           storeSnapshot: undefined,
           status: undefined,
+          convert: undefined,
           converted: undefined,
           childTranscripts: undefined,
           transcript: undefined,
@@ -190,7 +194,8 @@ const createSubagentTranscriptSource = (
       const conversionChanged =
         resource.converted === undefined ||
         resource.storeSnapshot !== storeSnapshot ||
-        resource.status !== status;
+        resource.status !== status ||
+        resource.convert !== source.convert;
       if (conversionChanged) {
         resource.converted = convertExternalMessages(
           storeSnapshot as LangChainBaseMessage[],
@@ -200,6 +205,7 @@ const createSubagentTranscriptSource = (
         );
         resource.storeSnapshot = storeSnapshot;
         resource.status = status;
+        resource.convert = source.convert;
       }
 
       if (
