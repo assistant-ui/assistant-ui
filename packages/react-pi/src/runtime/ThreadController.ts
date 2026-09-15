@@ -501,11 +501,14 @@ export class PiThreadController implements PiThreadControllerLike {
   }
 
   public async clearQueue() {
-    // Snapshot the queue we are clearing. sendQueued and the `queue_update`
-    // reducer both allocate a fresh queue object on every change, so an
-    // unchanged reference proves nothing newer landed while the request was in
-    // flight — without it, a slow clear response empties a queue that a later
-    // message already repopulated (the server keeps that message).
+    // Snapshot the queue we are clearing. Every queue write allocates a fresh
+    // object — sendQueued, the `queue_update` reducer, and a reconnect/refresh
+    // snapshot (applySnapshot, even when the contents are unchanged) — so a
+    // changed reference means some write landed while the request was in
+    // flight, which may be a refresh rather than a newer message. Bias toward
+    // skipping the local empty when it changed: leaving a stale entry is
+    // self-healed by the next `queue_update`, whereas emptying could drop a
+    // message the server still holds.
     const queueBefore = this.state.queue;
     const cleared = await this.client.clearQueue(this.threadId);
     // Optimistically empty the local mirror; Pi's own `queue_update` (emitted

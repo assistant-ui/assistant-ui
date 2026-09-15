@@ -669,6 +669,35 @@ describe("PiThreadController", () => {
     expect(controller.getState().queue.followUp).toEqual(["new"]);
   });
 
+  it("does not empty a queue an optimistic sendQueued repopulated before the clear response", async () => {
+    const client = createFakeClient();
+    let resolveClear!: () => void;
+    client.clearQueue = async (threadId) => {
+      client.queueCleared.push(threadId);
+      await new Promise<void>((resolve) => {
+        resolveClear = resolve;
+      });
+      return client.clearQueueResult;
+    };
+    const controller = new PiThreadController(client, THREAD);
+    controller.connect();
+    client.emit(ev({ type: "agent_start" }, 1));
+    await controller.sendMessage(userMessage("old"));
+
+    const clearing = controller.clearQueue();
+
+    // A new mid-run send optimistically repopulates the queue while the clear
+    // response is still in flight (no server queue_update involved).
+    await controller.sendMessage(userMessage("new"));
+    expect(controller.getState().queue.followUp).toEqual(["old", "new"]);
+
+    resolveClear();
+    await clearing;
+
+    // The stale clear response must not wipe the optimistic entry.
+    expect(controller.getState().queue.followUp).toEqual(["old", "new"]);
+  });
+
   it("reconciles an optimistic message against an enriched echo", async () => {
     const client = createFakeClient();
     const controller = new PiThreadController(client, THREAD);
