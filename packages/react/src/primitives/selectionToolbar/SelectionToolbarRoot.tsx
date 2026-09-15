@@ -51,8 +51,17 @@ export const SelectionToolbarPrimitiveRoot = forwardRef<
   const [info, setInfo] = useState<SelectionInfo | null>(null);
 
   useEffect(() => {
+    // The selection is read a frame after the event so the browser has settled
+    // it. That frame outlives the event, so it is tracked and cancelled: on
+    // teardown it would otherwise read the selection and set state after the
+    // toolbar is gone, and a second event would leave the first frame queued
+    // with nothing holding its handle.
+    let pendingFrame: number | null = null;
+
     const checkSelection = () => {
-      requestAnimationFrame(() => {
+      if (pendingFrame !== null) cancelAnimationFrame(pendingFrame);
+      pendingFrame = requestAnimationFrame(() => {
+        pendingFrame = null;
         const sel = window.getSelection();
         if (!sel || sel.isCollapsed) {
           setInfo(null);
@@ -94,6 +103,7 @@ export const SelectionToolbarPrimitiveRoot = forwardRef<
     document.addEventListener("scroll", handleScroll, true);
 
     return () => {
+      if (pendingFrame !== null) cancelAnimationFrame(pendingFrame);
       document.removeEventListener("mouseup", checkSelection);
       document.removeEventListener("keyup", checkSelection);
       document.removeEventListener("selectionchange", handleSelectionCollapse);
