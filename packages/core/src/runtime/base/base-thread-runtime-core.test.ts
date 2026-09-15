@@ -1115,7 +1115,7 @@ describe("BaseThreadRuntimeCore voice transcripts", () => {
     return { history, thread, voiceAdapter };
   };
 
-  it("holds a queued send while a voice session is connected", async () => {
+  it("holds a queued send that becomes dispatchable while a voice session is connected", async () => {
     let resolveFirst!: (result: ChatModelRunResult) => void;
     const firstRun = new Promise<ChatModelRunResult>((resolve) => {
       resolveFirst = resolve;
@@ -1152,16 +1152,29 @@ describe("BaseThreadRuntimeCore voice transcripts", () => {
       content: [{ type: "text", text: "second" }],
       steer: false,
     });
+
+    const deferred: Array<() => void> = [];
+    const originalQueueMicrotask = globalThis.queueMicrotask;
+    globalThis.queueMicrotask = (callback: () => void) => {
+      deferred.push(callback);
+    };
+    try {
+      resolveFirst({});
+      await new Promise((resolve) => setTimeout(resolve, 0));
+    } finally {
+      globalThis.queueMicrotask = originalQueueMicrotask;
+    }
+    expect(thread.messages.at(-1)?.status.type).toBe("complete");
+
     thread.connectVoice();
-
-    resolveFirst({});
-    await Promise.resolve();
-    await Promise.resolve();
-
-    expect(run).toHaveBeenCalledOnce();
-    expect(thread.getQueueItems()).toHaveLength(1);
-
-    thread.disconnectVoice();
+    try {
+      for (const callback of deferred) callback();
+      await Promise.resolve();
+      expect(run).toHaveBeenCalledOnce();
+      expect(thread.getQueueItems()).toHaveLength(1);
+    } finally {
+      thread.disconnectVoice();
+    }
     await Promise.resolve();
 
     expect(run).toHaveBeenCalledTimes(2);
