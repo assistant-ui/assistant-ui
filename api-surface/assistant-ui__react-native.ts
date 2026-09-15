@@ -1543,6 +1543,10 @@ type ExportedMessageRepositoryItem = {
   runConfig?: RunConfig;
 };
 
+type ExternalMessageConversionCache = {
+  readonly __brand: unique symbol;
+};
+
 type ExternalMessageConverterCallback<T> = (message: T, metadata: ExternalMessageConverterMetadata) => ExternalMessageConverterMessage | ExternalMessageConverterMessage[];
 
 type ExternalMessageConverterMessage = (ThreadMessageLike & {
@@ -4468,7 +4472,7 @@ declare namespace composer_d_exports {
   export { ComposerAddAttachment as AddAttachment, ComposerAddAttachmentProps as AddAttachmentProps, ComposerAttachmentByIndex as AttachmentByIndex, ComposerAttachmentByIndexProps as AttachmentByIndexProps, ComposerAttachments as Attachments, ComposerAttachmentsProps as AttachmentsProps, ComposerCancel as Cancel, ComposerCancelProps as CancelProps, ComposerPrimitiveIf as If, ComposerInput as Input, ComposerInputProps as InputProps, ComposerPrimitiveQueue as Queue, ComposerQuote as Quote, ComposerQuoteDismiss as QuoteDismiss, ComposerQuoteDismissProps as QuoteDismissProps, ComposerQuoteProps as QuoteProps, ComposerQuoteText as QuoteText, ComposerQuoteTextProps as QuoteTextProps, ComposerRoot as Root, ComposerRootProps as RootProps, ComposerSend as Send, ComposerSendProps as SendProps };
 }
 
-declare const convertExternalMessages: <T extends WeakKey>(messages: T[], callback: useExternalMessageConverter.Callback<T>, isRunning: boolean, metadata: useExternalMessageConverter.Metadata) => ThreadMessage[];
+declare const convertExternalMessages: <T extends WeakKey>(messages: T[], callback: useExternalMessageConverter.Callback<T>, isRunning: boolean, metadata: useExternalMessageConverter.Metadata, cache?: ExternalMessageConversionCache) => ThreadMessage[];
 
 declare const createMessageConverter: <T extends object>(callback: useExternalMessageConverter.Callback<T>) => {
   useThreadMessages: (_param49: {
