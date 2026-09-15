@@ -3,6 +3,7 @@
 import { act, renderHook, waitFor } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { validateUIMessages } from "ai";
+import type { RealtimeVoiceAdapter } from "@assistant-ui/core";
 
 // Mock only the sibling module that requires AUI store context (not available
 // in isolation). Every other dependency — useExternalStoreRuntime,
@@ -74,6 +75,34 @@ const textOf = (message: any): string =>
     .filter((part: any) => part.type === "text")
     .map((part: any) => part.text)
     .join("|");
+
+const createVoiceAdapter = () => {
+  let transcriptCallback:
+    | ((transcript: RealtimeVoiceAdapter.TranscriptItem) => void)
+    | undefined;
+  const session: RealtimeVoiceAdapter.Session = {
+    status: { type: "running" },
+    isMuted: false,
+    disconnect: vi.fn(),
+    mute: vi.fn(),
+    unmute: vi.fn(),
+    onStatusChange: () => () => {},
+    onTranscript: (callback) => {
+      transcriptCallback = callback;
+      return () => {
+        transcriptCallback = undefined;
+      };
+    },
+    onModeChange: () => () => {},
+    onVolumeChange: () => () => {},
+  };
+
+  return {
+    adapter: { connect: () => session } satisfies RealtimeVoiceAdapter,
+    emitTranscript: (transcript: RealtimeVoiceAdapter.TranscriptItem) =>
+      transcriptCallback?.(transcript),
+  };
+};
 
 describe("useAISDKRuntime", () => {
   beforeEach(() => {
@@ -976,6 +1005,43 @@ describe("useAISDKRuntime", () => {
     const suggestions = [{ prompt: "tell me a joke" }];
     const { result } = renderHook(() => useAISDKRuntime(chat, { suggestions }));
     expect(result.current.thread.getState().suggestions).toEqual(suggestions);
+  });
+
+  it("persists finalized voice transcripts in AI SDK messages", () => {
+    const chat = createChatHelpers([
+      { id: "existing", role: "user", parts: [{ type: "text", text: "hi" }] },
+    ]);
+    const voice = createVoiceAdapter();
+    const { result } = renderHook(() =>
+      useAISDKRuntime(chat, { adapters: { voice: voice.adapter } }),
+    );
+
+    act(() => {
+      result.current.thread.connectVoice();
+      voice.emitTranscript({ role: "user", text: "hello", isFinal: true });
+    });
+
+    const transcript = result.current.thread.getState().messages.at(-1)!;
+    expect(chat.messages).toEqual([
+      expect.objectContaining({ id: "existing" }),
+      {
+        id: transcript.id,
+        role: "user",
+        parts: [{ type: "text", text: "hello" }],
+        metadata: { modality: "voice", custom: {} },
+      },
+    ]);
+
+    act(() => {
+      result.current.thread.disconnectVoice();
+    });
+
+    expect(chat.messages.at(-1)).toEqual(
+      expect.objectContaining({
+        id: transcript.id,
+        metadata: { modality: "voice", custom: {} },
+      }),
+    );
   });
 
   it("imports a message tree without replacing the chat feed", async () => {
