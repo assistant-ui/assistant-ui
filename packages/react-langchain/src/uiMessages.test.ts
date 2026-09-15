@@ -154,6 +154,21 @@ describe("mergeUIMessages", () => {
   it("keeps live and snapshot entries with distinct ids", () => {
     expect(mergeUIMessages([ui("a")], [ui("b")])).toEqual([ui("a"), ui("b")]);
   });
+
+  it("reuses the previous list when the merged entries are unchanged", () => {
+    const live = ui("a");
+    const first = mergeUIMessages([live], undefined);
+    const next = mergeUIMessages([live], undefined, first);
+
+    expect(next).toBe(first);
+  });
+
+  it("returns a new list when a merged entry changes", () => {
+    const first = mergeUIMessages([ui("a", { value: 1 })], undefined);
+    const next = mergeUIMessages([ui("a", { value: 2 })], undefined, first);
+
+    expect(next).not.toBe(first);
+  });
 });
 
 describe("foldUIUpdates", () => {
@@ -186,5 +201,20 @@ describe("foldUIUpdates", () => {
 
   it("returns an empty list for no events", () => {
     expect(foldUIUpdates([])).toEqual([]);
+  });
+
+  it("reuses the previous list when non-UI events do not change it", () => {
+    const uiEvent = evt(ui("a"));
+    const first = foldUIUpdates([uiEvent]);
+    const next = foldUIUpdates([uiEvent, evt({ progress: 1 })], first);
+
+    expect(next).toBe(first);
+  });
+
+  it("returns a new list when a UI entry changes", () => {
+    const first = foldUIUpdates([evt(ui("a", { value: 1 }))]);
+    const next = foldUIUpdates([evt(ui("a", { value: 2 }))], first);
+
+    expect(next).not.toBe(first);
   });
 });

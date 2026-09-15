@@ -167,15 +167,23 @@ const useStreamThreadRuntime = (
   const uiStateValue = stream.values[uiStateKey];
 
   const customEvents = useChannel(stream, UI_CUSTOM_CHANNELS);
-  const liveUiMessages = useMemo(
-    () => foldUIUpdates(customEvents),
-    [customEvents],
-  );
+  const liveUiMessagesRef = useRef<UIMessage[]>([]);
+  const liveUiMessages = useMemo(() => {
+    const next = foldUIUpdates(customEvents, liveUiMessagesRef.current);
+    liveUiMessagesRef.current = next;
+    return next;
+  }, [customEvents]);
 
-  const mergedUiMessages = useMemo(
-    () => mergeUIMessages(liveUiMessages, uiStateValue),
-    [liveUiMessages, uiStateValue],
-  );
+  const mergedUiMessagesRef = useRef<UIMessage[]>([]);
+  const mergedUiMessages = useMemo(() => {
+    const next = mergeUIMessages(
+      liveUiMessages,
+      uiStateValue,
+      mergedUiMessagesRef.current,
+    );
+    mergedUiMessagesRef.current = next;
+    return next;
+  }, [liveUiMessages, uiStateValue]);
 
   const uiMessagesByParent = useMemo(
     () => groupUIMessagesByParent<UIMessage>(mergedUiMessages),

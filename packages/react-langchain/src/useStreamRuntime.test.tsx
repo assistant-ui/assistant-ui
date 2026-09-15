@@ -119,6 +119,10 @@ const renderAui = (stream: MockStream) => {
       runtimeHook.rerender();
       auiHook.rerender();
     },
+    unmount: () => {
+      auiHook.unmount();
+      runtimeHook.unmount();
+    },
   };
 };
 
@@ -914,6 +918,60 @@ describe("useStreamRuntime staged messages", () => {
         "second staged",
       ]);
     });
+  });
+});
+
+describe("useStreamRuntime UI messages", () => {
+  it("keeps converted messages stable for custom events without UI updates", async () => {
+    const stream = createMockStream([message("assistant-1", "ai", "answer")]);
+    let customEvents: unknown[] = [];
+    mockUseChannel.mockImplementation(() => customEvents);
+    const { auiResult, rerender, unmount } = renderAui(stream);
+
+    try {
+      await waitFor(() =>
+        expect(auiResult.current.thread.getState().messages).toHaveLength(1),
+      );
+      const firstMessages = auiResult.current.thread.getState().messages;
+
+      await act(async () => {
+        customEvents = [
+          ...customEvents,
+          { params: { data: { progress: 1 } } },
+          { params: { data: { custom: true } } },
+        ];
+        rerender();
+      });
+
+      expect(auiResult.current.thread.getState().messages[0]).toBe(
+        firstMessages[0],
+      );
+
+      customEvents = [
+        ...customEvents,
+        {
+          params: {
+            data: {
+              type: "ui",
+              id: "ui-1",
+              name: "chart",
+              props: { value: 1 },
+              metadata: { message_id: "assistant-1" },
+            },
+          },
+        },
+      ];
+      rerender();
+
+      await waitFor(() =>
+        expect(auiResult.current.thread.getState().messages[0]).not.toBe(
+          firstMessages[0],
+        ),
+      );
+    } finally {
+      unmount();
+      mockUseChannel.mockImplementation(() => []);
+    }
   });
 });
 
