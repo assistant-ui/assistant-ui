@@ -15,6 +15,7 @@ const {
   expandBundledRegistryDependencies,
   getRadixVariantSourcePath,
   getRelativeImportCandidates,
+  packagedFilePath,
   validateRegistryInstallMetadata,
   validateBasePassDidNotReadRadixSources,
   validateBaseTreeRadixImports,
@@ -112,6 +113,20 @@ test("the native registry serves every component the Expo example imports", asyn
   assert.ok(assistantUI.length > 0);
   for (const name of [...assistantUI, ...shadcnUI]) {
     assert.ok(served.has(name), `${name} is not a native registry item`);
+  }
+});
+
+test("elements shared files declare their intended install targets", async () => {
+  const { registry, nativeRegistry } = await import("../src/registry.ts");
+
+  for (const item of [...registry, ...nativeRegistry]) {
+    if (item.name !== "elements-surfaces" && item.name !== "elements-range") {
+      continue;
+    }
+
+    const [file] = item.files ?? [];
+    assert.ok(file);
+    assert.equal(file.target, file.path, item.name);
   }
 });
 
@@ -1790,6 +1805,66 @@ test("install validation resolves a sibling through file.target, not file.path",
     findingsFrom([componentItem(targetMismatch)]),
     /imports "\.\/badge"/,
   );
+});
+
+test("install validation models the default path for an untargeted registry lib", () => {
+  for (const fixture of [
+    {
+      dependency: "https://r.assistant-ui.com/elements-surfaces.json",
+      importerPath: "components/assistant-ui/elements/error-state.tsx",
+      specifier: "./surfaces",
+      sharedPath: "components/assistant-ui/elements/surfaces.tsx",
+      installedPath: "lib/surfaces.tsx",
+    },
+    {
+      dependency: "https://r.assistant-ui.com/native/elements-range.json",
+      importerPath: "components/assistant-ui/elements/tool-timeline.tsx",
+      specifier: "../utils/range",
+      sharedPath: "components/assistant-ui/utils/range.ts",
+      installedPath: "lib/range.ts",
+    },
+  ]) {
+    const sharedFile = {
+      type: "registry:lib",
+      path: fixture.sharedPath,
+      content: "export const value = true;\n",
+    };
+    const consumer = componentItem(
+      [
+        {
+          type: "registry:component",
+          path: fixture.importerPath,
+          content: `import { value } from "${fixture.specifier}";\n`,
+        },
+      ],
+      { registryDependencies: [fixture.dependency] },
+    );
+
+    assert.equal(packagedFilePath(sharedFile), fixture.installedPath);
+
+    const findings = findingsFrom([
+      consumer,
+      {
+        name: fixture.dependency.split("/").at(-1).replace(".json", ""),
+        type: "registry:component",
+        files: [sharedFile],
+      },
+    ]);
+    assert.match(findings, /is not imported directly by this item/);
+    assert.match(findings, /but no file or registryDependency provides/);
+
+    assert.equal(
+      findingsFrom([
+        consumer,
+        {
+          name: fixture.dependency.split("/").at(-1).replace(".json", ""),
+          type: "registry:component",
+          files: [{ ...sharedFile, target: fixture.sharedPath }],
+        },
+      ]),
+      null,
+    );
+  }
 });
 
 test("install validation reports an import that escapes the installed tree", () => {

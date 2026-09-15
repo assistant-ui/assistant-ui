@@ -295,9 +295,15 @@ export function validateEmittedSpecifierHygiene(built: BuiltRegistryPayload[]) {
 /** The on-disk key the docs' packaged-file URLs mirror: what shadcn installs. */
 export function packagedFilePath(file: {
   path: string;
-  target?: string;
+  type?: RegistryFile["type"];
+  target?: string | undefined;
 }): string {
-  return file.target ?? file.path;
+  return (
+    file.target ??
+    (file.type === "registry:lib"
+      ? path.posix.join("lib", path.posix.basename(file.path))
+      : file.path)
+  );
 }
 
 /**
@@ -859,7 +865,7 @@ export function expandBundledRegistryDependencies(
       (dependencyItem.files ?? []).map((file) => ({
         ...file,
         type: "registry:file" as const,
-        target: file.target ?? file.path,
+        target: packagedFilePath(file),
       })),
     ),
     ...[...uiPrimitives].sort().map((name) => ({
@@ -1221,7 +1227,7 @@ function collectInstallContext(
   seen.add(item.name);
 
   const files = new Set(
-    item.files?.map((file) => file.target ?? file.path) ?? [],
+    item.files?.map((file) => packagedFilePath(file)) ?? [],
   );
   const packages = new Set([
     ...(item.dependencies ?? []),
@@ -1266,7 +1272,7 @@ function collectDirectImportedPaths(item: RegistryOutputItem) {
       if (specifier.startsWith(".")) {
         const candidates = getRelativeImportCandidates(
           specifier,
-          file.target ?? file.path,
+          packagedFilePath(file),
         );
         for (const candidate of candidates ?? []) paths.add(candidate);
       }
@@ -1282,7 +1288,7 @@ function isDirectRegistryDependencyUsed(
   directImportedPaths: Set<string>,
 ) {
   const providedPaths = dependencyItem
-    ? (dependencyItem.files ?? []).map((file) => file.target ?? file.path)
+    ? (dependencyItem.files ?? []).map((file) => packagedFilePath(file))
     : dependency.startsWith("http")
       ? []
       : [`components/ui/${dependency}.tsx`];
@@ -1360,7 +1366,7 @@ export function validateRegistryInstallMetadata(
         }
 
         if (specifier.startsWith(".")) {
-          const installedPath = file.target ?? file.path;
+          const installedPath = packagedFilePath(file);
           const candidates = getRelativeImportCandidates(
             specifier,
             installedPath,

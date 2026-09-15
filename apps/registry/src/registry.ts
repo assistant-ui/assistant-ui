@@ -90,6 +90,7 @@ const elementsRegistryItems: RegistryItem[] = [
       {
         type: "registry:lib",
         path: "components/assistant-ui/elements/surfaces.tsx",
+        target: "components/assistant-ui/elements/surfaces.tsx",
         sourcePath:
           "../../packages/ui/src/components/react/assistant-ui/elements/surfaces.tsx",
       },
@@ -109,6 +110,7 @@ const elementsRegistryItems: RegistryItem[] = [
       {
         type: "registry:lib",
         path: "components/assistant-ui/utils/range.ts",
+        target: "components/assistant-ui/utils/range.ts",
         sourcePath:
           "../../packages/ui/src/components/react/assistant-ui/utils/range.ts",
       },
@@ -2099,6 +2101,7 @@ export const nativeRegistry: RegistryItem[] = [
       {
         type: "registry:lib",
         path: "components/assistant-ui/elements/surfaces.tsx",
+        target: "components/assistant-ui/elements/surfaces.tsx",
         sourcePath:
           "../../packages/ui/src/components/react-native/assistant-ui/elements/surfaces.tsx",
       },
@@ -2116,6 +2119,7 @@ export const nativeRegistry: RegistryItem[] = [
       {
         type: "registry:lib",
         path: "components/assistant-ui/utils/range.ts",
+        target: "components/assistant-ui/utils/range.ts",
         sourcePath:
           "../../packages/ui/src/components/react-native/assistant-ui/utils/range.ts",
       },
