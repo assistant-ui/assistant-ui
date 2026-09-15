@@ -313,6 +313,81 @@ describe("useLangGraphRuntime", () => {
     });
   });
 
+  it("updates and removes UI data on the affected parent message", async () => {
+    const releaseUpdate = deferred<void>();
+    const releaseRemoval = deferred<void>();
+    const streamMock = vi.fn().mockImplementation(async function* () {
+      yield {
+        event: "messages",
+        data: [{ type: "ai", id: "ai-1", content: "Chart" }, {}],
+      };
+      yield {
+        event: "custom",
+        data: {
+          type: "ui",
+          id: "ui-1",
+          name: "chart",
+          props: { value: 1 },
+          metadata: { message_id: "ai-1" },
+        },
+      };
+      await releaseUpdate.promise;
+      yield {
+        event: "custom",
+        data: {
+          type: "ui",
+          id: "ui-1",
+          name: "chart",
+          props: { value: 2 },
+          metadata: { message_id: "ai-1" },
+        },
+      };
+      await releaseRemoval.promise;
+      yield {
+        event: "custom",
+        data: { type: "remove-ui", id: "ui-1" },
+      };
+    });
+
+    const { result: runtimeResult } = renderHook(() =>
+      useLangGraphRuntime({ stream: streamMock }),
+    );
+    const wrapper = wrapperFactory(runtimeResult.current);
+    const { result: auiResult } = renderHook(() => useAui(), { wrapper });
+
+    act(() => {
+      auiResult.current.composer.setText("show a chart");
+      void auiResult.current.composer.send();
+    });
+
+    const getAssistantContent = () =>
+      runtimeResult.current.thread
+        .getState()
+        .messages.find((message) => message.id === "ai-1")?.content;
+
+    await waitFor(() => {
+      expect(getAssistantContent()).toMatchObject([
+        { type: "text", text: "Chart" },
+        { type: "data", name: "chart", data: { value: 1 } },
+      ]);
+    });
+
+    act(() => releaseUpdate.resolve());
+    await waitFor(() => {
+      expect(getAssistantContent()).toMatchObject([
+        { type: "text", text: "Chart" },
+        { type: "data", name: "chart", data: { value: 2 } },
+      ]);
+    });
+
+    act(() => releaseRemoval.resolve());
+    await waitFor(() => {
+      expect(getAssistantContent()).toMatchObject([
+        { type: "text", text: "Chart" },
+      ]);
+    });
+  });
+
   it("should work without any provided callbacks", async () => {
     const streamMock = vi
       .fn()

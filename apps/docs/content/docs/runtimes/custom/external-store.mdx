@@ -83,7 +83,12 @@ import {
   AssistantRuntimeProvider,
 } from "@assistant-ui/react";
 
-type MyMessage = { role: "user" | "assistant"; content: string };
+type MyMessage = {
+  id: string;
+  role: "user" | "assistant";
+  content: string;
+  timestamp: string;
+};
 
 const convertMessage = (message: MyMessage): ThreadMessageLike => ({
   role: message.role,
@@ -91,7 +96,12 @@ const convertMessage = (message: MyMessage): ThreadMessageLike => ({
 });
 
 const backendApi = async (input: string): Promise<MyMessage> => {
-  return { role: "assistant", content: "Hello, world!" };
+  return {
+    id: crypto.randomUUID(),
+    role: "assistant",
+    content: "Hello, world!",
+    timestamp: new Date().toISOString(),
+  };
 };
 
 export function MyRuntimeProvider({
@@ -105,7 +115,15 @@ export function MyRuntimeProvider({
       throw new Error("Only text messages are supported");
     }
     const input = message.content[0].text;
-    setMessages((prev) => [...prev, { role: "user", content: input }]);
+    setMessages((prev) => [
+      ...prev,
+      {
+        id: crypto.randomUUID(),
+        role: "user",
+        content: input,
+        timestamp: new Date().toISOString(),
+      },
+    ]);
 
     setIsRunning(true);
     const assistant = await backendApi(input);
@@ -158,7 +176,7 @@ Two approaches.
 ```tsx
 const convertMessage = (message: MyMessage): ThreadMessageLike => ({
   role: message.role,
-  content: [{ type: "text", text: message.text }],
+  content: [{ type: "text", text: message.content }],
   id: message.id,
   createdAt: new Date(message.timestamp),
 });
@@ -180,7 +198,7 @@ import { useExternalMessageConverter } from "@assistant-ui/react";
 const convertedMessages = useExternalMessageConverter({
   callback: (message: MyMessage): ThreadMessageLike => ({
     role: message.role,
-    content: [{ type: "text", text: message.text }],
+    content: [{ type: "text", text: message.content }],
     id: message.id,
   }),
   messages,
@@ -195,6 +213,47 @@ const runtime = useExternalStoreRuntime({
 ```
 
 `joinStrategy` controls how adjacent assistant messages combine: `concat-content` (default) merges them into one; `none` keeps them separate.
+
+When shared metadata changes frequently but each message reads only a small part
+of it, use `getMetadataKey` to keep unrelated messages cached. The returned key
+must change whenever the metadata read by `callback` changes for that message.
+Return a primitive or a value whose identity stays stable while that metadata is
+unchanged:
+
+```tsx
+type MyMetadata = useExternalMessageConverter.Metadata & {
+  labelById: Record<string, string>;
+};
+
+const convertWithMetadata: useExternalMessageConverter.Callback<MyMessage> = (
+  message,
+  metadata,
+) => {
+  const { labelById } = metadata as MyMetadata;
+  return {
+    role: message.role,
+    content: [
+      {
+        type: "text",
+        text: `${message.content} ${labelById[message.id] ?? ""}`,
+      },
+    ],
+  };
+};
+
+const getMetadataKey: useExternalMessageConverter.GetMetadataKey<MyMessage> = (
+  message,
+  metadata,
+) => (metadata as MyMetadata).labelById[message.id];
+
+const convertedMessages = useExternalMessageConverter({
+  callback: convertWithMetadata,
+  messages,
+  isRunning,
+  metadata: { labelById } as MyMetadata,
+  getMetadataKey,
+});
+```
 
 ## Handler matrix
 
