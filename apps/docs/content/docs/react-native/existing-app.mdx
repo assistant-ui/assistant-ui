@@ -9,7 +9,7 @@ The [installation guide](/docs/react-native) starts from a scaffold. This page i
 
 The elements only read the assistant-ui store: they render through the [primitives](/docs/react-native/primitives) and `useAuiState`, and they never import a runtime. Whatever mounts `AssistantRuntimeProvider` today keeps doing so, whether that is `useExternalStoreRuntime` over your own message list, the AI SDK runtime, or a custom adapter. Your session list, navigation, theme object and the screens you already built are untouched; the thread element replaces one screen's message list and composer, and the standalone elements (approval card, agent status, tool timeline, error state, stopped run, typing indicator) drop into any view with plain props.
 
-The elements also read `thread.capabilities`: when your runtime has no reload, edit or branch switching, those controls render disabled, so a runtime that only implements `onNew` gets a working thread.
+The elements also read `thread.capabilities`: when your runtime has no reload or edit, those controls render disabled, and the branch picker only appears once a message has more than one branch, so a runtime that only implements `onNew` gets a working thread.
 
 <Callout title="One copy of every assistant-ui package">
 `@assistant-ui/react-native` links `@assistant-ui/core`, `@assistant-ui/store` and `@assistant-ui/tap` at matching versions, and the elements and your runtime must resolve the same copy of each. Upgrade them together, and check that `npm ls @assistant-ui/core @assistant-ui/store @assistant-ui/tap` (or `pnpm why` on each) shows one version of every package.
