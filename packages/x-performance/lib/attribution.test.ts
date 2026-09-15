@@ -93,6 +93,12 @@ describe("against the real workspace", () => {
     expect(
       [...(graph.get("@assistant-ui/react-markdown") ?? [])].sort(),
     ).toEqual(["@assistant-ui/react"]);
+    expect([...(graph.get("@assistant-ui/ai-sdk") ?? [])].sort()).toEqual([
+      "@assistant-ui/core",
+      "@assistant-ui/store",
+      "@assistant-ui/tap",
+      "assistant-stream",
+    ]);
   });
 
   it("attributes each bench file to the dists it exercises", () => {
@@ -119,6 +125,13 @@ describe("against the real workspace", () => {
       "@assistant-ui/core",
       "@assistant-ui/react",
       "@assistant-ui/react-markdown",
+      "@assistant-ui/store",
+      "@assistant-ui/tap",
+      "assistant-stream",
+    ]);
+    expect(covers("bench/ai-sdk-toolkit.bench.ts")).toEqual([
+      "@assistant-ui/ai-sdk",
+      "@assistant-ui/core",
       "@assistant-ui/store",
       "@assistant-ui/tap",
       "assistant-stream",

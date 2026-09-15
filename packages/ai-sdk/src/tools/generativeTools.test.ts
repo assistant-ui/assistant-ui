@@ -1,5 +1,8 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { defineMcpToolkit } from "@assistant-ui/core/react";
+import {
+  defineMcpToolkit,
+  type ToolkitDefinition,
+} from "@assistant-ui/core/react";
 import { AISDKToolkit } from "./generativeTools";
 import { wrapModelContentEnvelope } from "../converters/modelContentEnvelope";
 
@@ -129,6 +132,195 @@ describe("AISDKToolkit.tools()", () => {
     expect(toolSet.web_search).toMatchObject({
       supportsDeferredResults: false,
     });
+  });
+
+  it("converts unchanged provider and backend schemas once", async () => {
+    const toBackendJSONSchema = vi.fn(() => ({
+      type: "object" as const,
+      properties: {},
+    }));
+    const toProviderJSONSchema = vi.fn(() => ({
+      type: "object" as const,
+      properties: {},
+    }));
+    const toolkitDefinition = {
+      serverTool: {
+        type: "backend",
+        parameters: { toJSONSchema: toBackendJSONSchema },
+        execute: async () => "ok",
+      } as never,
+      providerTool: {
+        type: "provider",
+        providerId: "provider.tool",
+        args: {},
+        parameters: { toJSONSchema: toProviderJSONSchema },
+      } as never,
+    };
+    const firstToolkit = new AISDKToolkit({ toolkit: toolkitDefinition });
+    const secondToolkit = new AISDKToolkit({ toolkit: toolkitDefinition });
+
+    const first = await firstToolkit.tools();
+    const second = await secondToolkit.tools();
+
+    expect(toBackendJSONSchema).toHaveBeenCalledTimes(1);
+    expect(toProviderJSONSchema).toHaveBeenCalledTimes(1);
+    expect(second.serverTool).not.toBe(first.serverTool);
+    expect(second.providerTool).not.toBe(first.providerTool);
+    expect(second.serverTool!.inputSchema).not.toBe(
+      first.serverTool!.inputSchema,
+    );
+    expect(
+      (second.serverTool!.inputSchema as { jsonSchema: unknown }).jsonSchema,
+    ).toBe(
+      (first.serverTool!.inputSchema as { jsonSchema: unknown }).jsonSchema,
+    );
+  });
+
+  it("converts the current frontend tools on every call", async () => {
+    const toolkit = new AISDKToolkit({ toolkit: {} });
+
+    const first = await toolkit.tools({
+      frontend: {
+        firstClientTool: {
+          parameters: { type: "object", properties: {} },
+        },
+      },
+    });
+    const second = await toolkit.tools({
+      frontend: {
+        secondClientTool: {
+          parameters: { type: "object", properties: {} },
+        },
+      },
+    });
+
+    expect(first).toHaveProperty("firstClientTool");
+    expect(first).not.toHaveProperty("secondClientTool");
+    expect(second).toHaveProperty("secondClientTool");
+    expect(second).not.toHaveProperty("firstClientTool");
+  });
+
+  it("does not convert disabled static toolkit entries", async () => {
+    const toJSONSchema = vi.fn(() => ({
+      type: "object" as const,
+      properties: {},
+    }));
+    const toolkit = new AISDKToolkit({
+      toolkit: {
+        disabledServerTool: {
+          type: "backend",
+          disabled: true,
+          parameters: { toJSONSchema },
+        } as never,
+        disabledProviderTool: {
+          type: "provider",
+          disabled: true,
+          providerId: "provider.tool",
+          args: {},
+          parameters: { toJSONSchema },
+        } as never,
+      },
+    });
+
+    await expect(toolkit.tools()).resolves.toEqual({});
+    expect(toJSONSchema).not.toHaveBeenCalled();
+  });
+
+  it("reflects replaced toolkit entries on the next call", async () => {
+    const definition: ToolkitDefinition = {
+      serverTool: {
+        type: "backend",
+        description: "Original tool",
+        parameters: { type: "object", properties: {} },
+        execute: async () => "original",
+      },
+    };
+    const toolkit = new AISDKToolkit({ toolkit: definition });
+
+    const first = await toolkit.tools();
+    definition.serverTool = {
+      type: "backend",
+      description: "Replacement tool",
+      parameters: { type: "object", properties: {} },
+      execute: async () => "replacement",
+    };
+
+    const refreshed = await toolkit.tools();
+
+    expect(first.serverTool?.description).toBe("Original tool");
+    expect(refreshed.serverTool?.description).toBe("Replacement tool");
+  });
+
+  it("reconverts a replaced parameters object", async () => {
+    const firstConversion = vi.fn(() => ({
+      type: "object" as const,
+      properties: { first: { type: "string" } },
+    }));
+    const secondConversion = vi.fn(() => ({
+      type: "object" as const,
+      properties: { second: { type: "string" } },
+    }));
+    const definition: ToolkitDefinition = {
+      serverTool: {
+        type: "backend",
+        parameters: { toJSONSchema: firstConversion },
+        execute: async () => "ok",
+      } as never,
+    };
+    const toolkit = new AISDKToolkit({ toolkit: definition });
+
+    await toolkit.tools();
+    definition.serverTool!.parameters = {
+      toJSONSchema: secondConversion,
+    } as never;
+    await toolkit.tools();
+
+    expect(firstConversion).toHaveBeenCalledOnce();
+    expect(secondConversion).toHaveBeenCalledOnce();
+  });
+
+  it("reflects in-place toolkit entry changes on the next call", async () => {
+    const definition: ToolkitDefinition = {
+      serverTool: {
+        type: "backend",
+        description: "Original tool",
+        parameters: { type: "object", properties: {} },
+        execute: async () => "ok",
+      },
+    };
+    const toolkit = new AISDKToolkit({ toolkit: definition });
+
+    expect((await toolkit.tools()).serverTool?.description).toBe(
+      "Original tool",
+    );
+
+    definition.serverTool!.description = "Updated tool";
+    expect((await toolkit.tools()).serverTool?.description).toBe(
+      "Updated tool",
+    );
+
+    definition.serverTool!.disabled = true;
+    expect(await toolkit.tools()).not.toHaveProperty("serverTool");
+  });
+
+  it("does not share mutable tool entries between calls", async () => {
+    const toolkit = new AISDKToolkit({
+      toolkit: {
+        serverTool: {
+          type: "backend",
+          description: "Original tool",
+          parameters: { type: "object", properties: {} },
+          execute: async () => "ok",
+        },
+      },
+    });
+
+    const first = await toolkit.tools();
+    first.serverTool!.description = "Changed returned tool";
+
+    const second = await toolkit.tools();
+
+    expect(second.serverTool?.description).toBe("Original tool");
   });
 });
 
