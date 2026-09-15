@@ -693,3 +693,70 @@ describe("DataStreamDecoder strict: false", () => {
     expect(error).toHaveBeenCalledTimes(1);
   });
 });
+
+describe("DataStreamEncoder error metadata", () => {
+  it("encodes and decodes code and severity", async () => {
+    const lines = await encodeChunks([
+      {
+        type: "error",
+        path: [],
+        error: "rate limited",
+        code: "rate_limit",
+        severity: "warning",
+      },
+    ]);
+
+    expect(lines).toEqual([
+      '3:{"error":"rate limited","code":"rate_limit","severity":"warning"}',
+    ]);
+
+    const chunks = await decodeLines(lines);
+    expect(chunks).toEqual([
+      {
+        type: "error",
+        path: [],
+        error: "rate limited",
+        code: "rate_limit",
+        severity: "warning",
+      },
+    ]);
+  });
+
+  it("omits code and severity when not provided", async () => {
+    const lines = await encodeChunks([
+      { type: "error", path: [], error: "failed" },
+    ]);
+
+    expect(lines).toEqual(['3:{"error":"failed"}']);
+
+    const chunks = await decodeLines(lines);
+    expect(chunks).toEqual([{ type: "error", path: [], error: "failed" }]);
+  });
+
+  it("decodes the legacy string-only error wire format", async () => {
+    const chunks = await decodeLines(['3:"legacy failure"']);
+    expect(chunks).toEqual([
+      { type: "error", path: [], error: "legacy failure" },
+    ]);
+  });
+
+  it("distinguishes critical from info after round trip", async () => {
+    const lines = await encodeChunks([
+      {
+        type: "error",
+        path: [],
+        error: "fatal",
+        code: "boom",
+        severity: "critical",
+      },
+    ]);
+    const chunks = await decodeLines(lines);
+    const err = chunks.find(
+      (c): c is Extract<typeof c, { type: "error" }> => c.type === "error",
+    );
+    expect(err).toBeDefined();
+    if (!err) throw new Error("expected an error chunk");
+    expect(err.severity).toBe("critical");
+    expect(err.code).toBe("boom");
+  });
+});

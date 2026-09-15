@@ -50,7 +50,7 @@ describe("DataStreamChunkDecoder", () => {
   it("round-trips through DataStreamChunkEncoder", async () => {
     const values: DataStreamChunk[] = [
       { type: DataStreamStreamChunkType.TextDelta, value: "hello" },
-      { type: DataStreamStreamChunkType.Error, value: "boom" },
+      { type: DataStreamStreamChunkType.Error, value: { error: "boom" } },
     ];
     const source = new ReadableStream<DataStreamChunk>({
       start(controller) {
