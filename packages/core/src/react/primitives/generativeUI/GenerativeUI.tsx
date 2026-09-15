@@ -67,7 +67,9 @@ const renderNode = (
 
   const { component, props, children, key } = node;
 
-  const Resolved = components[component];
+  const Resolved = Object.hasOwn(components, component)
+    ? components[component]
+    : undefined;
   if (!Resolved) {
     if (Fallback) {
       return <Fallback key={key ?? path} component={component} props={props} />;
