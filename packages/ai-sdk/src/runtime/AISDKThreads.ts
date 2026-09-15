@@ -138,7 +138,7 @@ const useAISDKChatThread = <UI_MESSAGE extends UIMessage = UIMessage>({
     owned ?? getOrCreateChatEntry(threadId, options, chats);
 
   useEffect(() => {
-    optionsRef.current = options;
+    if (cloud) optionsRef.current = options;
   });
 
   useEffect(() => {
