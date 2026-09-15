@@ -70,8 +70,10 @@ export type FetchLike = (
 }>;
 
 // Cancellation must reach the caller untouched so an abort it requested stays
-// distinguishable from a transport or parse failure.
-function isAbortError(error: unknown) {
+// distinguishable from a transport or parse failure. A supplied signal outranks
+// the error, because any value can be an abort reason.
+function isAbortError(error: unknown, signal: AbortSignal | undefined) {
+  if (signal) return signal.aborted;
   return (
     typeof error === "object" &&
     error !== null &&
@@ -83,25 +85,28 @@ async function fetchRoute(
   fetchImpl: FetchLike,
   url: string,
   init: { method: string; headers: Record<string, string>; body?: string },
-  signal?: AbortSignal,
+  signal: AbortSignal | undefined,
 ) {
   try {
     return await fetchImpl(url, { ...init, ...(signal ? { signal } : {}) });
   } catch (error) {
-    if (isAbortError(error)) throw error;
+    if (isAbortError(error, signal)) throw error;
     throw new Error(
       `Docs request failed: ${error instanceof Error ? error.message : String(error)}`,
     );
   }
 }
 
-async function readJson(response: Awaited<ReturnType<FetchLike>>) {
+async function readJson(
+  response: Awaited<ReturnType<FetchLike>>,
+  signal: AbortSignal | undefined,
+) {
   try {
     return await response.json();
   } catch (error) {
     // fetch resolves once headers arrive, so an abort while the body is still
     // streaming surfaces here rather than at the request above.
-    if (isAbortError(error)) throw error;
+    if (isAbortError(error, signal)) throw error;
     throw new Error("Docs request returned invalid JSON");
   }
 }
@@ -136,7 +141,7 @@ async function callMcpRoute(
   );
   if (!response.ok) throw statusError(response.status);
 
-  const payload = (await readJson(response)) as {
+  const payload = (await readJson(response, signal)) as {
     result?: WebMcpToolResult;
     error?: { message?: string };
   } | null;
@@ -168,7 +173,7 @@ const withErrorResults =
     try {
       return await execute(args, context);
     } catch (error) {
-      if (isAbortError(error)) throw error;
+      if (isAbortError(error, context?.signal)) throw error;
       return {
         isError: true,
         content: [
@@ -217,7 +222,7 @@ const withCallCounter =
       report(result.isError ? "error" : "ok");
       return result;
     } catch (error) {
-      report(isAbortError(error) ? "aborted" : "error");
+      report(isAbortError(error, context?.signal) ? "aborted" : "error");
       throw error;
     }
   };
@@ -269,7 +274,9 @@ async function listSkillsFromIndex(fetchImpl: FetchLike, signal?: AbortSignal) {
     signal,
   );
   if (!response.ok) throw statusError(response.status);
-  const index = (await readJson(response)) as { skills?: unknown } | null;
+  const index = (await readJson(response, signal)) as {
+    skills?: unknown;
+  } | null;
   if (!Array.isArray(index?.skills)) {
     throw new Error("Docs request returned an unexpected response");
   }

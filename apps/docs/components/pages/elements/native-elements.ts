@@ -8,6 +8,7 @@ const NATIVE_REGISTRY_NAMES: Record<string, string> = {
   "tool-timeline": "elements-tool-timeline",
   "agent-status": "elements-agent-status",
   "approval-card": "elements-approval-card",
+  "conversation-map": "elements-conversation-map",
 };
 
 export const NATIVE_ELEMENT_SLUGS = Object.keys(NATIVE_REGISTRY_NAMES);

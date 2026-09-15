@@ -1,6 +1,14 @@
 "use client";
 
-import { type FC, type ReactNode, useState, isValidElement } from "react";
+import {
+  isValidElement,
+  type FC,
+  type ReactNode,
+  useEffect,
+  useId,
+  useRef,
+  useState,
+} from "react";
 import { useAuiState } from "@assistant-ui/store";
 import {
   McpAddFormPrimitive,
@@ -108,6 +116,20 @@ const ConnectorsSection: FC = () => {
 
 const CustomServersSection: FC = () => {
   const [showForm, setShowForm] = useState(false);
+  const addTriggerRef = useRef<HTMLButtonElement>(null);
+  const restoreFocusRef = useRef(false);
+
+  useEffect(() => {
+    if (showForm || !restoreFocusRef.current) return;
+    restoreFocusRef.current = false;
+    addTriggerRef.current?.focus();
+  }, [showForm]);
+
+  const handleClose = () => {
+    restoreFocusRef.current = true;
+    setShowForm(false);
+  };
+
   return (
     <section className="aui-mcp-custom-servers flex flex-col gap-2">
       <SectionTitle>Custom servers</SectionTitle>
@@ -118,6 +140,7 @@ const CustomServersSection: FC = () => {
       </div>
       {!showForm && (
         <McpManagerPrimitive.AddCustomTrigger
+          ref={addTriggerRef}
           className={cn(
             buttonVariants({ variant: "outline" }),
             "aui-mcp-add-trigger h-9 justify-start gap-2 rounded-lg px-3 text-sm",
@@ -128,7 +151,7 @@ const CustomServersSection: FC = () => {
           Add server
         </McpManagerPrimitive.AddCustomTrigger>
       )}
-      {showForm && <AddServerForm onClose={() => setShowForm(false)} />}
+      {showForm && <AddServerForm onClose={handleClose} />}
     </section>
   );
 };
@@ -266,6 +289,13 @@ const ServerActions: FC = () => (
 );
 
 const AddServerForm: FC<{ onClose: () => void }> = ({ onClose }) => {
+  const formId = useId();
+  const fieldIds = {
+    name: `${formId}-name`,
+    url: `${formId}-url`,
+    auth: `${formId}-auth`,
+  };
+
   return (
     <McpAddFormPrimitive.Root onSubmitted={onClose} onCancel={onClose}>
       <div className="aui-mcp-add-form flex flex-col gap-3 rounded-lg border p-3">
@@ -282,27 +312,32 @@ const AddServerForm: FC<{ onClose: () => void }> = ({ onClose }) => {
             <span className="sr-only">Close</span>
           </McpAddFormPrimitive.Cancel>
         </div>
-        <FormRow label="Name">
+        <FormRow label="Name" htmlFor={fieldIds.name}>
           <McpAddFormPrimitive.NameField
+            autoFocus
+            id={fieldIds.name}
             placeholder="My MCP server"
             className={inputClassName}
           />
         </FormRow>
-        <FormRow label="URL">
+        <FormRow label="URL" htmlFor={fieldIds.url}>
           <McpAddFormPrimitive.UrlField
+            id={fieldIds.url}
             placeholder="https://example.com/mcp"
             className={inputClassName}
           />
         </FormRow>
-        <FormRow label="Auth">
-          <McpAddFormPrimitive.AuthSelect className="aui-mcp-auth-select bg-background h-9 w-full rounded-md border px-2 text-sm" />
+        <FormRow label="Auth" htmlFor={fieldIds.auth}>
+          <McpAddFormPrimitive.AuthSelect
+            id={fieldIds.auth}
+            className="aui-mcp-auth-select bg-background h-9 w-full rounded-md border px-2 text-sm"
+          />
           <div
             className={cn(
-              // Style the default `<input>` inside AuthFields without
-              // needing to thread useAddForm out of the primitive. Mirrors
-              // the shadcn <Input> look.
+              "[&_[data-mcp-auth-field-label]]:text-xs [&_[data-mcp-auth-field-label]]:font-medium [&>div]:flex [&>div]:flex-col [&>div]:gap-1.5",
               "[&_input]:border-input empty:hidden [&_input]:flex [&_input]:h-9 [&_input]:w-full [&_input]:rounded-md [&_input]:border [&_input]:bg-transparent [&_input]:px-3 [&_input]:py-1 [&_input]:text-sm [&_input]:transition-colors [&_input]:outline-none",
               "[&_input:focus-visible]:border-ring [&_input:focus-visible]:ring-ring/50 [&_input:focus-visible]:ring-[3px]",
+              "[&_input[aria-invalid=true]]:border-destructive [&_input[aria-invalid=true]]:ring-destructive/20 dark:[&_input[aria-invalid=true]]:ring-destructive/40",
               "[&_input::placeholder]:text-muted-foreground",
             )}
           >
@@ -329,12 +364,15 @@ const AddServerForm: FC<{ onClose: () => void }> = ({ onClose }) => {
   );
 };
 
-const FormRow: FC<{ label: string; children: ReactNode }> = ({
+const FormRow: FC<{ label: string; htmlFor: string; children: ReactNode }> = ({
   label,
+  htmlFor,
   children,
 }) => (
   <div className="flex flex-col gap-1.5">
-    <Label className="text-xs">{label}</Label>
+    <Label className="text-xs" htmlFor={htmlFor}>
+      {label}
+    </Label>
     <div className="flex flex-col gap-2">{children}</div>
   </div>
 );
