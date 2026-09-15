@@ -88,7 +88,8 @@ The thread's `history` prop takes the three facts from the hook and does the res
 
 ```tsx title="app/index.tsx"
 import { AssistantRuntimeProvider } from "@assistant-ui/react-native";
-import { Pressable, Text } from "react-native";
+import { useEffect } from "react";
+import { AccessibilityInfo, Platform, Pressable, Text } from "react-native";
 import { Thread } from "@/components/assistant-ui/elements/thread.aui";
 import { useWindowedRuntime } from "@/hooks/use-windowed-runtime";
 
@@ -108,6 +109,14 @@ function WindowedThread({ lastPage, olderExists }) {
     olderExists,
   );
 
+  useEffect(() => {
+    if (pageError !== undefined) {
+      AccessibilityInfo.announceForAccessibility(
+        "Earlier messages did not load",
+      );
+    }
+  }, [pageError]);
+
   return (
     <AssistantRuntimeProvider runtime={runtime}>
       {pageError !== undefined && (
@@ -115,6 +124,7 @@ function WindowedThread({ lastPage, olderExists }) {
           onPress={history.loadMore}
           accessibilityRole="button"
           accessibilityLabel="Retry loading earlier messages"
+          accessibilityLiveRegion={Platform.OS === "web" ? "polite" : undefined}
         >
           <Text>Earlier messages did not load. Tap to retry.</Text>
         </Pressable>
