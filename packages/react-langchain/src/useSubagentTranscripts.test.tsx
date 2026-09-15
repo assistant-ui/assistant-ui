@@ -95,8 +95,6 @@ const convert: useExternalMessageConverter.Callback<LangChainBaseMessage> = (
   metadata,
 ) => convertLangChainBaseMessage(message, metadata);
 
-const options = {};
-
 describe("useSubagentTranscripts", () => {
   it("acquires each namespace once and releases every projection on unmount", async () => {
     const stores = new Map([
@@ -111,7 +109,7 @@ describe("useSubagentTranscripts", () => {
       stores,
     );
     const hook = renderHook(() =>
-      useSubagentTranscripts(stream as never, convert, options),
+      useSubagentTranscripts(stream as never, convert),
     );
 
     await waitFor(() => expect(stream.acquire).toHaveBeenCalledTimes(2));
@@ -133,7 +131,7 @@ describe("useSubagentTranscripts", () => {
       stores,
     );
     const hook = renderHook(() =>
-      useSubagentTranscripts(stream as never, convert, options),
+      useSubagentTranscripts(stream as never, convert),
     );
 
     await waitFor(() => expect(stream.acquire).toHaveBeenCalledOnce());
@@ -167,7 +165,7 @@ describe("useSubagentTranscripts", () => {
       ]),
     );
     const hook = renderHook(() =>
-      useSubagentTranscripts(stream as never, convert, options),
+      useSubagentTranscripts(stream as never, convert),
     );
 
     await waitFor(() =>
@@ -200,7 +198,7 @@ describe("useSubagentTranscripts", () => {
       new Map([["tools:one", store]]),
     );
     const hook = renderHook(() =>
-      useSubagentTranscripts(stream as never, convert, options),
+      useSubagentTranscripts(stream as never, convert),
     );
 
     await waitFor(() => expect(hook.result.current.has("task-one")).toBe(true));
@@ -231,7 +229,7 @@ describe("useSubagentTranscripts", () => {
       new Map([["tools:one", store]]),
     );
     const hook = renderHook(() =>
-      useSubagentTranscripts(stream as never, convert, options),
+      useSubagentTranscripts(stream as never, convert),
     );
 
     await waitFor(() =>
@@ -266,7 +264,7 @@ describe("useSubagentTranscripts", () => {
       ]),
     );
     const hook = renderHook(() =>
-      useSubagentTranscripts(stream as never, convert, options),
+      useSubagentTranscripts(stream as never, convert),
     );
 
     await waitFor(() => expect(hook.result.current.size).toBe(2));
@@ -312,7 +310,7 @@ describe("useSubagentTranscripts", () => {
       ]),
     );
     const hook = renderHook(() =>
-      useSubagentTranscripts(stream as never, convert, options),
+      useSubagentTranscripts(stream as never, convert),
     );
 
     await waitFor(() => expect(hook.result.current.size).toBe(2));

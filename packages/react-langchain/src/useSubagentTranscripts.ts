@@ -10,6 +10,11 @@ import { STREAM_CONTROLLER, type AnyStream } from "@langchain/react";
 import type { BaseMessage } from "@langchain/core/messages";
 import { messagesProjection } from "@langchain/langgraph-sdk/stream";
 import type { SubagentDiscoverySnapshot } from "@langchain/react";
+import {
+  attachSubagentTranscripts,
+  type AttachMemo,
+  createAttachMemo,
+} from "./attachSubagentTranscripts";
 import type { LangChainBaseMessage } from "./types";
 
 const MAX_SUBAGENT_DEPTH = 16;
@@ -27,12 +32,10 @@ type ProjectionResource = {
   release: () => void;
   storeSnapshot: BaseMessage[] | undefined;
   status: SubagentDiscoverySnapshot["status"] | undefined;
+  converted: readonly ThreadMessage[] | undefined;
   childTranscripts: ReadonlyMap<string, readonly ThreadMessage[]> | undefined;
   transcript: readonly ThreadMessage[] | undefined;
-};
-
-type UseSubagentTranscriptsOptions = {
-  metadata?: useExternalMessageConverter.Metadata;
+  memo: AttachMemo;
 };
 
 type SubagentTranscriptSource = {
@@ -42,14 +45,12 @@ type SubagentTranscriptSource = {
   listeners: Set<() => void>;
   controller: AnyStream[typeof STREAM_CONTROLLER] | undefined;
   convert: useExternalMessageConverter.Callback<LangChainBaseMessage>;
-  metadata: useExternalMessageConverter.Metadata;
   subscribe(listener: () => void): () => void;
   getSnapshot(): ReadonlyMap<string, readonly ThreadMessage[]>;
   reconcile(
     controller: AnyStream[typeof STREAM_CONTROLLER],
     subagents: AnyStream["subagents"],
     convert: useExternalMessageConverter.Callback<LangChainBaseMessage>,
-    metadata: useExternalMessageConverter.Metadata,
   ): void;
   dispose(): void;
 };
@@ -66,7 +67,6 @@ const sameTranscriptEntries = (
 
 const createSubagentTranscriptSource = (
   convert: useExternalMessageConverter.Callback<LangChainBaseMessage>,
-  metadata: useExternalMessageConverter.Metadata,
 ): SubagentTranscriptSource => {
   const source: SubagentTranscriptSource = {
     resources: new Map(),
@@ -75,7 +75,6 @@ const createSubagentTranscriptSource = (
     listeners: new Set(),
     controller: undefined,
     convert,
-    metadata,
     subscribe(listener) {
       source.listeners.add(listener);
       return () => source.listeners.delete(listener);
@@ -83,9 +82,8 @@ const createSubagentTranscriptSource = (
     getSnapshot() {
       return source.snapshot;
     },
-    reconcile(controller, subagents, nextConvert, nextMetadata) {
+    reconcile(controller, subagents, nextConvert) {
       source.convert = nextConvert;
-      source.metadata = nextMetadata;
 
       if (source.controller !== controller) {
         source.dispose();
@@ -132,8 +130,10 @@ const createSubagentTranscriptSource = (
           release: acquired.release,
           storeSnapshot: undefined,
           status: undefined,
+          converted: undefined,
           childTranscripts: undefined,
           transcript: undefined,
+          memo: createAttachMemo(),
         };
         resource.unsubscribe = resource.store.subscribe(() => rebuild());
         source.resources.set(snapshot.id, resource);
@@ -180,25 +180,34 @@ const createSubagentTranscriptSource = (
       const storeSnapshot = resource.store.getSnapshot();
       const status = resource.snapshot.status;
 
-      if (
-        resource.transcript === undefined ||
+      const conversionChanged =
+        resource.converted === undefined ||
         resource.storeSnapshot !== storeSnapshot ||
-        resource.status !== status ||
-        !sameTranscriptEntries(resource.childTranscripts, childTranscripts)
-      ) {
-        resource.transcript = convertExternalMessages(
+        resource.status !== status;
+      if (conversionChanged) {
+        resource.converted = convertExternalMessages(
           storeSnapshot as LangChainBaseMessage[],
           source.convert,
           status === "running",
-          {
-            ...source.metadata,
-            subagentTranscripts: childTranscripts,
-          } as useExternalMessageConverter.Metadata,
+          {},
         );
         resource.storeSnapshot = storeSnapshot;
         resource.status = status;
+      }
+
+      if (
+        resource.transcript === undefined ||
+        conversionChanged ||
+        !sameTranscriptEntries(resource.childTranscripts, childTranscripts)
+      ) {
+        const transcript = attachSubagentTranscripts(
+          resource.converted!,
+          childTranscripts,
+          resource.memo,
+        );
+        changed ||= resource.transcript !== transcript;
+        resource.transcript = transcript;
         resource.childTranscripts = childTranscripts;
-        changed = true;
       }
 
       if (!source.snapshot.has(resource.snapshot.id)) changed = true;
@@ -216,26 +225,17 @@ const createSubagentTranscriptSource = (
 export const useSubagentTranscripts = (
   stream: AnyStream,
   convert: useExternalMessageConverter.Callback<LangChainBaseMessage>,
-  options: UseSubagentTranscriptsOptions,
 ): ReadonlyMap<string, readonly ThreadMessage[]> => {
   const sourceRef = useRef<SubagentTranscriptSource | undefined>(undefined);
   if (!sourceRef.current) {
-    sourceRef.current = createSubagentTranscriptSource(
-      convert,
-      options.metadata ?? {},
-    );
+    sourceRef.current = createSubagentTranscriptSource(convert);
   }
   const source = sourceRef.current;
   const controller = stream[STREAM_CONTROLLER];
 
   useEffect(() => {
-    source.reconcile(
-      controller,
-      stream.subagents,
-      convert,
-      options.metadata ?? {},
-    );
-  }, [controller, convert, options.metadata, source, stream.subagents]);
+    source.reconcile(controller, stream.subagents, convert);
+  }, [controller, convert, source, stream.subagents]);
 
   useEffect(() => () => source.dispose(), [source]);
 

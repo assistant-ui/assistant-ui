@@ -1034,63 +1034,6 @@ describe("convertLangChainBaseMessage tool messages", () => {
     expect(result.toolName).toBe("search");
   });
 
-  it("attaches a task transcript to its tool call", () => {
-    const transcript = [{ id: "subagent-message" }] as never;
-    const result = convertLangChainBaseMessage(
-      {
-        ...aiWithToolCall(),
-        tool_calls: [{ ...toolCall, name: "task" }],
-      },
-      { subagentTranscripts: new Map([["call-1", transcript]]) },
-    );
-
-    expect(contentOf(result)[0]).toMatchObject({
-      type: "tool-call",
-      messages: transcript,
-    });
-  });
-
-  it("attaches a task transcript to its tool result", () => {
-    const transcript = [{ id: "subagent-message" }] as never;
-    const result = convertLangChainBaseMessage(toolResult(), {
-      subagentTranscripts: new Map([["call-1", transcript]]),
-    });
-
-    if (result.role !== "tool") throw new Error("expected a tool message");
-    expect(result.messages).toBe(transcript);
-  });
-
-  it("preserves a task transcript when its tool result merges into the call", () => {
-    const transcript = [{ id: "subagent-message" }] as never;
-    const metadata = {
-      subagentTranscripts: new Map([["call-1", transcript]]),
-    };
-    const messages = convertExternalMessages(
-      [
-        {
-          ...aiWithToolCall(),
-          tool_calls: [{ ...toolCall, name: "task" }],
-        },
-        toolResult(),
-      ],
-      (message) => convertLangChainBaseMessage(message, metadata),
-      false,
-      {},
-    );
-
-    const part = messages[0]!.content[0]!;
-    if (part.type !== "tool-call") throw new Error("expected a tool call part");
-    expect(part.messages).toBe(transcript);
-  });
-
-  it("omits task transcripts for unknown tool calls", () => {
-    const result = convertLangChainBaseMessage(aiWithToolCall(), {
-      subagentTranscripts: new Map(),
-    });
-
-    expect(contentOf(result)[0]).not.toHaveProperty("messages");
-  });
-
   it("merges a nameless tool result into its call instead of throwing", () => {
     const messages = convertExternalMessages(
       [aiWithToolCall(), toolResult()],

@@ -1,6 +1,6 @@
 "use client";
 
-import type { MessageTiming, ThreadMessage } from "@assistant-ui/core";
+import type { MessageTiming } from "@assistant-ui/core";
 import type { useExternalMessageConverter } from "@assistant-ui/core/react";
 import type { ReadonlyJSONObject } from "assistant-stream/utils";
 import {
@@ -19,7 +19,6 @@ type LangChainMessageConverterMetadata =
   useExternalMessageConverter.Metadata & {
     uiMessagesByParent?: Map<string, UIMessage[]>;
     messageTiming?: Record<string, MessageTiming>;
-    subagentTranscripts?: ReadonlyMap<string, readonly ThreadMessage[]>;
   };
 
 const warnedMalformedMessages = new Set<string>();
@@ -102,17 +101,13 @@ export const convertLangChainBaseMessage = (
 
     case "ai": {
       const toolCallParts =
-        message.tool_calls?.map((tc) => {
-          const messages = metadata.subagentTranscripts?.get(tc.id);
-          return {
-            type: "tool-call" as const,
-            toolCallId: tc.id,
-            toolName: tc.name,
-            args: tc.args as ReadonlyJSONObject,
-            argsText: JSON.stringify(tc.args),
-            ...(messages && { messages }),
-          };
-        }) ?? [];
+        message.tool_calls?.map((tc) => ({
+          type: "tool-call" as const,
+          toolCallId: tc.id,
+          toolName: tc.name,
+          args: tc.args as ReadonlyJSONObject,
+          argsText: JSON.stringify(tc.args),
+        })) ?? [];
 
       const assistantStatus =
         typeof message.status === "object" ? message.status : undefined;
@@ -145,21 +140,17 @@ export const convertLangChainBaseMessage = (
       };
     }
 
-    case "tool": {
-      const toolCallId = message.tool_call_id ?? "";
-      const messages = metadata.subagentTranscripts?.get(toolCallId);
+    case "tool":
       return {
         role: "tool",
         // `joinExternalMessages` only checks the name against the tool call
         // when it is non-null, so an empty name manufactures a mismatch.
         toolName: message.name || undefined,
-        toolCallId,
+        toolCallId: message.tool_call_id ?? "",
         result: message.content,
         artifact: message.artifact,
         isError: message.status === "error",
-        ...(messages && { messages }),
       };
-    }
 
     default:
       return {
