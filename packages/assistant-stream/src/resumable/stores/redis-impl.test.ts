@@ -362,6 +362,41 @@ describe("RedisResumableStreamStore", () => {
     expect(chunks).toEqual(["fresh"]);
   });
 
+  it("reports a leased in-flight append on the reacquiring instance as superseded", async () => {
+    const client = new FakeRedisClient();
+    const keyPrefix = "test";
+    const streamId = "leased-append-race";
+    const metaKey = `${keyPrefix}:{${streamId}}:meta`;
+    const store = new RedisResumableStreamStore(client, { keyPrefix });
+    const stale = await store.acquireLease(streamId);
+    if (stale.role !== "producer") throw new Error("Expected producer");
+
+    let resumeAppend!: () => void;
+    const appendPaused = new Promise<void>((resolve) => {
+      client.onNextGet = () =>
+        new Promise<void>((resume) => {
+          resumeAppend = resume;
+          resolve();
+        });
+    });
+    const appending = store.append(
+      streamId,
+      encoder.encode("stale"),
+      stale.lease,
+    );
+    await appendPaused;
+
+    client.strings.delete(metaKey);
+    const fresh = await store.acquireLease(streamId);
+    if (fresh.role !== "producer") throw new Error("Expected producer");
+    resumeAppend();
+
+    await expect(appending).rejects.toMatchObject({
+      code: "missing",
+      message: `Stream superseded by a new acquisition: ${streamId}`,
+    });
+  });
+
   it("does not let an in-flight delete remove a reacquired stream", async () => {
     const client = new FakeRedisClient();
     const keyPrefix = "test";

@@ -288,7 +288,7 @@ export class RedisResumableStreamStore implements ResumableStreamStore {
 
     const current = await this.readMeta(streamId);
     if (!current) throw new Error(`Stream not found: ${streamId}`);
-    this.assertOwnedGeneration(streamId, current);
+    this.assertOwnedGeneration(streamId, current, lease);
     if (current.status !== "streaming") {
       throw new ResumableStreamError(
         "finalized",
@@ -349,9 +349,7 @@ export class RedisResumableStreamStore implements ResumableStreamStore {
     // makes a later append from this superseded producer throw instead of
     // writing into the replacement generation.
     if (!finalized) return;
-    if (this.acquiredGenerations.get(streamId) === existing.generation) {
-      this.acquiredGenerations.delete(streamId);
-    }
+    this.clearAcquiredGeneration(streamId, existing.generation);
   }
 
   async *read(
