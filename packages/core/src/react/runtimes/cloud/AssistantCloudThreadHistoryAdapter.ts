@@ -334,11 +334,13 @@ class AssistantCloudThreadHistoryAdapter implements ThreadHistoryAdapter {
     );
 
     const resolveParentId = (parentId: string | null) => {
-      const visited = new Set<string>();
       let skippedMalformedMessage = false;
-      while (parentId !== null && malformedMessageIds.has(parentId)) {
-        if (visited.has(parentId)) return null;
-        visited.add(parentId);
+      for (
+        let depth = 0;
+        parentId !== null && malformedMessageIds.has(parentId);
+        depth += 1
+      ) {
+        if (depth === malformedMessageIds.size) return null;
         skippedMalformedMessage = true;
         parentId = parentIds.get(parentId) ?? null;
       }
