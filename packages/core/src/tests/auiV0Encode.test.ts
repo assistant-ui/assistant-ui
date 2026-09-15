@@ -676,7 +676,7 @@ describe("auiV0Decode", () => {
     }
   });
 
-  it("preserves cloud parts accepted by the shared persisted-message reader", () => {
+  it("drops persisted audio with an unsupported format", () => {
     const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
     try {
       const { message } = auiV0Decode({
@@ -694,11 +694,75 @@ describe("auiV0Decode", () => {
         created_at: new Date("2026-03-15T00:00:00.000Z"),
       } as unknown as Parameters<typeof auiV0Decode>[0]);
 
+      expect(message.content).toEqual([{ type: "data", name: "weather" }]);
+      expect(warn).toHaveBeenCalledExactlyOnceWith(
+        "[assistant-ui] Dropped 1 unreadable persisted item from cloud message cloud.",
+      );
+    } finally {
+      warn.mockRestore();
+    }
+  });
+
+  it("drops persisted generative UI specs that do not match the node contract", () => {
+    const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
+    try {
+      const { message } = auiV0Decode({
+        id: "cloud",
+        parent_id: null,
+        format: "aui/v0",
+        content: {
+          role: "assistant",
+          metadata: {},
+          content: [
+            {
+              type: "generative-ui",
+              spec: {
+                root: {
+                  component: "Card",
+                  props: { title: "Review" },
+                  key: "review",
+                  children: [
+                    "Summary",
+                    { component: "Button", props: { disabled: false } },
+                  ],
+                },
+              },
+            },
+            { type: "generative-ui", spec: {} },
+            {
+              type: "generative-ui",
+              spec: { root: { component: "Card", props: [] } },
+            },
+            {
+              type: "generative-ui",
+              spec: { root: { component: "Card", children: [1] } },
+            },
+            { type: "text", text: "Kept" },
+          ],
+        },
+        created_at: new Date("2026-03-15T00:00:00.000Z"),
+      } as unknown as Parameters<typeof auiV0Decode>[0]);
+
       expect(message.content).toEqual([
-        { type: "audio", audio: { data: "audio", format: "ogg" } },
-        { type: "data", name: "weather" },
+        {
+          type: "generative-ui",
+          spec: {
+            root: {
+              component: "Card",
+              props: { title: "Review" },
+              key: "review",
+              children: [
+                "Summary",
+                { component: "Button", props: { disabled: false } },
+              ],
+            },
+          },
+        },
+        { type: "text", text: "Kept" },
       ]);
-      expect(warn).not.toHaveBeenCalled();
+      expect(warn).toHaveBeenCalledExactlyOnceWith(
+        "[assistant-ui] Dropped 3 unreadable persisted items from cloud message cloud.",
+      );
     } finally {
       warn.mockRestore();
     }
