@@ -1065,6 +1065,158 @@ describe("AdkEventAccumulator - actions tracking", () => {
 });
 
 describe("AdkEventAccumulator - special function calls", () => {
+  it("coalesces action and function-call confirmation requests", () => {
+    const acc = new AdkEventAccumulator();
+    acc.processEvent(
+      makeEvent({
+        author: "agent",
+        actions: {
+          requestedToolConfirmations: {
+            "tool-1": { hint: "Delete?" },
+          },
+        },
+        content: {
+          role: "model",
+          parts: [
+            {
+              functionCall: {
+                name: "adk_request_confirmation",
+                id: "confirmation-1",
+                args: {
+                  originalFunctionCall: { id: "tool-1", name: "delete_file" },
+                  toolConfirmation: { hint: "Delete?" },
+                },
+              },
+            },
+          ],
+        },
+      }),
+    );
+
+    expect(acc.getToolConfirmations()).toMatchObject([
+      { toolCallId: "confirmation-1", toolName: "delete_file" },
+    ]);
+
+    acc.processEvent(
+      makeEvent({
+        author: "user",
+        content: {
+          role: "user",
+          parts: [
+            {
+              functionResponse: {
+                id: "confirmation-1",
+                name: "adk_request_confirmation",
+                response: { confirmed: true },
+              },
+            },
+          ],
+        },
+      }),
+    );
+
+    expect(acc.getToolConfirmations()).toEqual([]);
+  });
+
+  it("keeps action-only confirmations pending until their response", () => {
+    const acc = new AdkEventAccumulator();
+    acc.processEvent(
+      makeEvent({
+        author: "agent",
+        actions: { requestedToolConfirmations: { "tool-1": {} } },
+      }),
+    );
+    acc.processEvent(
+      makeEvent({
+        author: "agent",
+        content: {
+          role: "model",
+          parts: [
+            {
+              functionResponse: {
+                id: "tool-1",
+                name: "delete_file",
+                response: { result: "pending" },
+              },
+            },
+          ],
+        },
+      }),
+    );
+    expect(acc.getToolConfirmations()).toHaveLength(1);
+
+    acc.processEvent(
+      makeEvent({
+        author: "user",
+        content: {
+          role: "user",
+          parts: [
+            {
+              functionResponse: {
+                id: "tool-1",
+                name: "adk_request_confirmation",
+                response: { confirmed: false },
+              },
+            },
+          ],
+        },
+      }),
+    );
+    expect(acc.getToolConfirmations()).toEqual([]);
+  });
+
+  it("coalesces auth action and function-call requests and settles aliases", () => {
+    const acc = new AdkEventAccumulator();
+    acc.processEvent(
+      makeEvent({
+        author: "agent",
+        actions: { requestedAuthConfigs: { "tool-1": { type: "oauth2" } } },
+      }),
+    );
+    acc.processEvent(
+      makeEvent({
+        author: "agent",
+        content: {
+          role: "model",
+          parts: [
+            {
+              functionCall: {
+                name: "adk_request_credential",
+                id: "credential-1",
+                args: {
+                  function_call_id: "tool-1",
+                  auth_config: { type: "oauth2" },
+                },
+              },
+            },
+          ],
+        },
+      }),
+    );
+    expect(acc.getAuthRequests()).toEqual([
+      { toolCallId: "tool-1", authConfig: { type: "oauth2" } },
+    ]);
+
+    acc.processEvent(
+      makeEvent({
+        author: "user",
+        content: {
+          role: "user",
+          parts: [
+            {
+              functionResponse: {
+                id: "credential-1",
+                name: "adk_request_credential",
+                response: { accessToken: "token" },
+              },
+            },
+          ],
+        },
+      }),
+    );
+    expect(acc.getAuthRequests()).toEqual([]);
+  });
+
   it("records tool confirmation from adk_request_confirmation", () => {
     const acc = new AdkEventAccumulator();
     acc.processEvent(

@@ -665,6 +665,77 @@ describe("optimistic multi-message sends", () => {
   });
 });
 
+describe("pending request carry-forward", () => {
+  it("keeps unanswered confirmation and auth requests across sends", async () => {
+    let run = 0;
+    const stream: AdkStreamCallback = async function* () {
+      run += 1;
+      if (run !== 1) return;
+      yield {
+        id: "request-1",
+        author: "agent",
+        actions: {
+          requestedToolConfirmations: { "tool-1": { hint: "Delete?" } },
+          requestedAuthConfigs: { "tool-2": { type: "oauth2" } },
+        },
+        content: {
+          role: "model",
+          parts: [
+            {
+              functionCall: {
+                id: "confirmation-1",
+                name: "adk_request_confirmation",
+                args: {
+                  originalFunctionCall: { id: "tool-1", name: "delete_file" },
+                  toolConfirmation: { hint: "Delete?" },
+                },
+              },
+            },
+            {
+              functionCall: {
+                id: "credential-1",
+                name: "adk_request_credential",
+                args: {
+                  function_call_id: "tool-2",
+                  auth_config: { type: "oauth2" },
+                },
+              },
+            },
+          ],
+        },
+      } satisfies AdkEvent;
+    };
+    const { result } = renderHook(() => useAdkMessages({ stream }));
+
+    await act(async () => {
+      await result.current.sendMessage(
+        [{ id: "user-1", type: "human", content: "start" }],
+        {},
+      );
+    });
+    expect(result.current.toolConfirmations).toMatchObject([
+      { toolCallId: "confirmation-1" },
+    ]);
+    expect(result.current.authRequests).toEqual([
+      { toolCallId: "tool-2", authConfig: { type: "oauth2" } },
+    ]);
+
+    await act(async () => {
+      await result.current.sendMessage(
+        [{ id: "user-2", type: "human", content: "continue" }],
+        {},
+      );
+    });
+
+    expect(result.current.toolConfirmations).toMatchObject([
+      { toolCallId: "confirmation-1" },
+    ]);
+    expect(result.current.authRequests).toEqual([
+      { toolCallId: "tool-2", authConfig: { type: "oauth2" } },
+    ]);
+  });
+});
+
 describe("messageToEvent (contentToParts)", () => {
   it.each([
     ["scalar", "false", { result: false }],
