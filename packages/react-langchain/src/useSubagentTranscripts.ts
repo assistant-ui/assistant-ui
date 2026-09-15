@@ -2,13 +2,14 @@
 
 import { useEffect, useRef, useSyncExternalStore } from "react";
 import type { ThreadMessage } from "@assistant-ui/core";
-import {
-  convertExternalMessages,
-  type useExternalMessageConverter,
-} from "@assistant-ui/core/react";
+import { convertExternalMessages } from "@assistant-ui/core/react";
 import { STREAM_CONTROLLER, type AnyStream } from "@langchain/react";
 import type { BaseMessage } from "@langchain/core/messages";
-import { messagesProjection } from "@langchain/langgraph-sdk/stream";
+import {
+  channelProjection,
+  messagesProjection,
+  type Event,
+} from "@langchain/langgraph-sdk/stream";
 import type { SubagentDiscoverySnapshot } from "@langchain/react";
 import {
   attachSubagentTranscripts,
@@ -16,21 +17,26 @@ import {
   createAttachMemo,
 } from "./attachSubagentTranscripts";
 import { convertLangChainBaseMessage } from "./convertMessages";
+import { groupUIMessagesByParent } from "./converter";
 import type { LangChainBaseMessage, UIMessage } from "./types";
+import { foldUIUpdates, mergeUIMessages } from "./uiMessages";
 
 export const MAX_SUBAGENT_DEPTH = 16;
 
-type ProjectionStore = {
-  getSnapshot(): BaseMessage[];
+type ProjectionStore<T> = {
+  getSnapshot(): T;
   subscribe(listener: () => void): () => void;
 };
 
 type ProjectionResource = {
   snapshot: SubagentDiscoverySnapshot;
   namespace: readonly string[];
-  store: ProjectionStore;
+  store: ProjectionStore<BaseMessage[]>;
+  uiStore: ProjectionStore<Event[]>;
   unsubscribe: () => void;
+  unsubscribeUI: () => void;
   release: () => void;
+  releaseUI: () => void;
   storeSnapshot: BaseMessage[] | undefined;
   status: SubagentDiscoverySnapshot["status"] | undefined;
   uiMessages: readonly UIMessage[];
@@ -80,6 +86,28 @@ const collectUIMessages = (
   return collected;
 };
 
+const mergeLocalUIMessages = (
+  uiMessagesByParent: Map<string, UIMessage[]>,
+  localUiMessages: readonly UIMessage[],
+) => {
+  const merged = new Map(uiMessagesByParent);
+  const localByParent = groupUIMessagesByParent<UIMessage>(localUiMessages);
+  for (const [parentId, messages] of localByParent) {
+    merged.set(parentId, mergeUIMessages(merged.get(parentId) ?? [], messages));
+  }
+  return merged;
+};
+
+const getOwnNamespaceUIEvents = (
+  events: readonly Event[],
+  namespace: readonly string[],
+) =>
+  events.filter(
+    (event) =>
+      Array.isArray(event.params?.namespace) &&
+      sameNamespace(event.params.namespace, namespace),
+  );
+
 const sameUIMessages = (a: readonly UIMessage[], b: readonly UIMessage[]) =>
   a.length === b.length && a.every((ui, index) => ui === b[index]);
 
@@ -118,7 +146,9 @@ const createSubagentTranscriptSource = (): SubagentTranscriptSource => {
           !sameNamespace(resource.namespace, snapshot.namespace)
         ) {
           resource.unsubscribe();
+          resource.unsubscribeUI();
           resource.release();
+          resource.releaseUI();
           source.resources.delete(id);
           continue;
         }
@@ -138,12 +168,18 @@ const createSubagentTranscriptSource = (): SubagentTranscriptSource => {
         const acquired = controller.registry.acquire(
           messagesProjection(snapshot.namespace),
         );
+        const acquiredUI = controller.registry.acquire(
+          channelProjection(["custom"], snapshot.namespace),
+        );
         const resource: ProjectionResource = {
           snapshot,
           namespace: snapshot.namespace,
           store: acquired.store,
+          uiStore: acquiredUI.store,
           unsubscribe: () => {},
+          unsubscribeUI: () => {},
           release: acquired.release,
+          releaseUI: acquiredUI.release,
           storeSnapshot: undefined,
           status: undefined,
           uiMessages: [],
@@ -153,6 +189,7 @@ const createSubagentTranscriptSource = (): SubagentTranscriptSource => {
           memo: createAttachMemo(),
         };
         resource.unsubscribe = resource.store.subscribe(() => rebuild());
+        resource.unsubscribeUI = resource.uiStore.subscribe(() => rebuild());
         source.resources.set(snapshot.id, resource);
       }
 
@@ -161,7 +198,9 @@ const createSubagentTranscriptSource = (): SubagentTranscriptSource => {
     dispose() {
       for (const resource of source.resources.values()) {
         resource.unsubscribe();
+        resource.unsubscribeUI();
         resource.release();
+        resource.releaseUI();
       }
       source.resources.clear();
       source.requestedNamespaceIds.clear();
@@ -172,10 +211,6 @@ const createSubagentTranscriptSource = (): SubagentTranscriptSource => {
 
   const rebuild = () => {
     const { uiMessagesByParent } = source;
-    const convert: useExternalMessageConverter.Callback<
-      LangChainBaseMessage
-    > = (message, metadata) =>
-      convertLangChainBaseMessage(message, { ...metadata, uiMessagesByParent });
     const resources = [...source.resources.values()];
     const childrenByParent = new Map<string, ProjectionResource[]>();
 
@@ -208,7 +243,20 @@ const createSubagentTranscriptSource = (): SubagentTranscriptSource => {
       );
       const storeSnapshot = resource.store.getSnapshot();
       const status = resource.snapshot.status;
-      const uiMessages = collectUIMessages(storeSnapshot, uiMessagesByParent);
+      const localUiMessages = foldUIUpdates(
+        getOwnNamespaceUIEvents(
+          resource.uiStore.getSnapshot(),
+          resource.namespace,
+        ),
+      );
+      const uiMessages = mergeUIMessages(
+        collectUIMessages(storeSnapshot, uiMessagesByParent),
+        localUiMessages,
+      );
+      const resourceUiMessagesByParent = mergeLocalUIMessages(
+        uiMessagesByParent,
+        localUiMessages,
+      );
 
       const conversionChanged =
         resource.converted === undefined ||
@@ -218,7 +266,11 @@ const createSubagentTranscriptSource = (): SubagentTranscriptSource => {
       if (conversionChanged) {
         resource.converted = convertExternalMessages(
           storeSnapshot as LangChainBaseMessage[],
-          convert,
+          (message, metadata) =>
+            convertLangChainBaseMessage(message, {
+              ...metadata,
+              uiMessagesByParent: resourceUiMessagesByParent,
+            }),
           status === "running",
           {},
         );
