@@ -28,6 +28,15 @@ describe("repo skill route", () => {
     expect(body).toContain('\nlicense: "MIT"\n---\n\n# assistant-ui Tools');
   });
 
+  it("serves the digested bytes for every indexed repo skill", async () => {
+    for (const entry of buildAgentSkillsIndex().skills.slice(2)) {
+      const response = await GET(request, context(entry.name));
+      expect(`sha256:${sha256(await response.text())}`, entry.name).toBe(
+        entry.digest,
+      );
+    }
+  });
+
   it("answers HEAD without a body and the same ETag", async () => {
     const [get, head] = await Promise.all([
       GET(request, context("setup")),
