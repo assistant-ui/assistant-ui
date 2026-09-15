@@ -36,7 +36,10 @@ const useActionBarExportMarkdown = ({
     const a = document.createElement("a");
     a.href = url;
     a.download = filename ?? `message-${Date.now()}.md`;
+    a.rel = "noopener";
+    document.body.appendChild(a);
     a.click();
+    document.body.removeChild(a);
     setTimeout(() => URL.revokeObjectURL(url), 40_000);
   }, [aui, filename, onExport]);
 
