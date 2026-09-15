@@ -4,6 +4,8 @@ import { useEffect, useRef, useSyncExternalStore } from "react";
 import type { ThreadMessage } from "@assistant-ui/core";
 import {
   convertExternalMessages,
+  createExternalMessageConversionCache,
+  type ExternalMessageConversionCache,
   type useExternalMessageConverter,
 } from "@assistant-ui/core/react";
 import { STREAM_CONTROLLER, type AnyStream } from "@langchain/react";
@@ -18,6 +20,8 @@ import {
 import type { LangChainBaseMessage } from "./types";
 
 export const MAX_SUBAGENT_DEPTH = 16;
+
+const TRANSCRIPT_METADATA = {};
 
 type ProjectionStore = {
   getSnapshot(): BaseMessage[];
@@ -36,6 +40,7 @@ type ProjectionResource = {
   childTranscripts: ReadonlyMap<string, readonly ThreadMessage[]> | undefined;
   transcript: readonly ThreadMessage[] | undefined;
   memo: AttachMemo;
+  cache: ExternalMessageConversionCache;
 };
 
 type SubagentTranscriptSource = {
@@ -134,6 +139,7 @@ const createSubagentTranscriptSource = (
           childTranscripts: undefined,
           transcript: undefined,
           memo: createAttachMemo(),
+          cache: createExternalMessageConversionCache(),
         };
         resource.unsubscribe = resource.store.subscribe(() => rebuild());
         source.resources.set(snapshot.id, resource);
@@ -196,7 +202,8 @@ const createSubagentTranscriptSource = (
           storeSnapshot as LangChainBaseMessage[],
           source.convert,
           status === "running",
-          {},
+          TRANSCRIPT_METADATA,
+          resource.cache,
         );
         resource.storeSnapshot = storeSnapshot;
         resource.status = status;

@@ -407,6 +407,7 @@ export type InternalExternalMessageConversionCache<
     ExternalMessageConverterChunk<T>
   >;
   converterCache: ThreadMessageConverter;
+  // Generatedness is tracked by identity, not by id shape: a caller-supplied id that happens to match the generated pattern must never be rewritten.
   generatedFallbackMessages: WeakSet<object>;
 };
 
@@ -533,7 +534,7 @@ export const completeExternalMessageConversion = (
   return messages;
 };
 
-export const convertExternalMessagesInternal = <T extends WeakKey>(
+export const convertExternalMessages = <T extends WeakKey>(
   messages: T[],
   callback: ExternalMessageConverterCallback<T>,
   isRunning: boolean,
@@ -598,19 +599,3 @@ export const convertExternalMessagesInternal = <T extends WeakKey>(
       );
   return completeExternalMessageConversion(result, metadata.error);
 };
-
-export const convertExternalMessages = <T extends WeakKey>(
-  messages: T[],
-  callback: ExternalMessageConverterCallback<T>,
-  isRunning: boolean,
-  metadata: ExternalMessageConverterMetadata,
-  cache?: InternalExternalMessageConversionCache<T>,
-) =>
-  convertExternalMessagesInternal(
-    messages,
-    callback,
-    isRunning,
-    metadata,
-    undefined,
-    cache,
-  );

@@ -7,34 +7,38 @@ import type { useExternalMessageConverter } from "./external-message-converter";
 import { isErrorMessageId } from "../../utils/id";
 
 describe("convertExternalMessages", () => {
-  it("reuses converted messages with an opt-in cache", () => {
-    const input = { text: "nested" };
+  it("keeps unchanged messages and rebuilds a replaced one with an opt-in cache", () => {
+    type Input = { id: string; role: "user" | "assistant"; text: string };
     const metadata = {};
     const cache = createExternalMessageConversionCache();
-    const callback: useExternalMessageConverter.Callback<typeof input> = (
+    const callback: useExternalMessageConverter.Callback<Input> = (
       message,
     ) => ({
-      id: "nested",
-      role: "assistant",
+      id: message.id,
+      role: message.role,
       content: message.text,
     });
+    const question: Input = { id: "question", role: "user", text: "hi" };
+    const answer: Input = { id: "answer", role: "assistant", text: "hel" };
 
     const first = convertExternalMessages(
-      [input],
+      [question, answer],
       callback,
-      false,
+      true,
       metadata,
       cache,
     );
     const second = convertExternalMessages(
-      [input],
+      [question, { ...answer, text: "hello" }],
       callback,
-      false,
+      true,
       metadata,
       cache,
     );
 
     expect(second[0]).toBe(first[0]);
+    expect(second[1]).not.toBe(first[1]);
+    expect(second[1]?.content).toMatchObject([{ type: "text", text: "hello" }]);
   });
 
   it("invalidates cached messages when the callback or metadata changes", () => {

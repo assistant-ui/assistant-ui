@@ -2,7 +2,7 @@
 
 import { useMemo, useState } from "react";
 import {
-  convertExternalMessagesInternal,
+  convertExternalMessages as convertExternalMessagesInternal,
   createExternalMessageConversionCache as createExternalMessageConversionCacheInternal,
   type ExternalMessageConverterCallback,
   type ExternalMessageConverterMessage,
@@ -17,6 +17,11 @@ export type ExternalMessageConversionCache = {
   readonly __brand: unique symbol;
 };
 
+/**
+ * Creates a cache for plain external message conversion. Pass the same cache on every call for one message list, and a source message that has not changed since the previous call converts to the same `ThreadMessage` object.
+ *
+ * Entries are keyed by source message identity and rebuilt whenever `callback` or `metadata` is a different object than on the previous call, so keep both referentially stable.
+ */
 export const createExternalMessageConversionCache =
   (): ExternalMessageConversionCache =>
     createExternalMessageConversionCacheInternal() as unknown as ExternalMessageConversionCache;
@@ -40,9 +45,7 @@ export const convertExternalMessages = <T extends WeakKey>(
     isRunning,
     metadata,
     undefined,
-    cache
-      ? (cache as unknown as InternalExternalMessageConversionCache<T>)
-      : undefined,
+    cache as unknown as InternalExternalMessageConversionCache<T> | undefined,
   );
 
 export const useExternalMessageConverter = <T extends WeakKey>({
@@ -58,6 +61,7 @@ export const useExternalMessageConverter = <T extends WeakKey>({
   joinStrategy?: JoinStrategy | undefined;
   metadata?: useExternalMessageConverter.Metadata | undefined;
 }) => {
+  // The cache lives for the component lifetime: React Compiler hoists allocations without reactive dependencies out of useMemo, so entries carry the callback and metadata that produced them instead of being flushed when those change.
   const [cache] = useState(() =>
     createExternalMessageConversionCacheInternal<T>(),
   );

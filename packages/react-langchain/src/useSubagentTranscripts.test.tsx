@@ -225,6 +225,33 @@ describe("useSubagentTranscripts", () => {
     ]);
   });
 
+  it("keeps unchanged transcript messages when a projection update replaces one", async () => {
+    const question = message("subagent-human", "human", "question");
+    const store = createStore([question, message("subagent-ai", "ai", "par")]);
+    const stream = createStream(
+      new Map([["task-one", subagent("task-one", ["tools:one"])]]),
+      new Map([["tools:one", store]]),
+    );
+    const hook = renderHook(() =>
+      useSubagentTranscripts(stream as never, convert),
+    );
+
+    await waitFor(() =>
+      expect(hook.result.current.get("task-one")).toHaveLength(2),
+    );
+    const initial = hook.result.current.get("task-one");
+
+    await act(async () => {
+      store.setSnapshot([question, message("subagent-ai", "ai", "partial")]);
+    });
+
+    const updated = hook.result.current.get("task-one");
+    expect(updated).toHaveLength(2);
+    expect(updated).not.toBe(initial);
+    expect(updated?.[0]).toBe(initial?.[0]);
+    expect(updated?.[1]).not.toBe(initial?.[1]);
+  });
+
   it("sets the trailing transcript message status from the subagent status", async () => {
     const store = createStore([message("subagent-ai", "ai", "answer")]);
     const stream = createStream(
