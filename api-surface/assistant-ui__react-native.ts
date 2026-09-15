@@ -2320,6 +2320,8 @@ declare const MessagePrimitiveParts$1: FC<MessagePrimitiveParts$1.Props>;
 
 type MessageQueueController = {
   readonly adapter: ExternalThreadQueueAdapter;
+  hold: () => void;
+  release: () => void;
   notifyBusy: () => void;
   notifyIdle: () => void;
   notifyCancelled: () => void;

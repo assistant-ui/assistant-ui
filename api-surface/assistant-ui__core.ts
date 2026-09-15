@@ -1025,6 +1025,8 @@ declare abstract class BaseThreadRuntimeCore extends BaseSubscribable implements
   voice: VoiceSessionState | undefined;
   getVoiceVolume: () => number;
   subscribeVoiceVolume: (callback: () => void) => Unsubscribe$1;
+  protected _onVoiceConnected(): void;
+  protected _onVoiceDisconnected(): void;
   connectVoice(): void;
   disconnectVoice(): void;
   muteVoice(): void;
@@ -2613,6 +2615,8 @@ declare class LocalThreadRuntimeCore extends BaseThreadRuntimeCore implements Th
   __internal_load(): Promise<void>;
   append(message: AppendMessage): Promise<void>;
   protected _commitVoiceMessage(message: ThreadMessage): void;
+  protected _onVoiceConnected(): void;
+  protected _onVoiceDisconnected(): void;
   getQueueItems(): readonly QueueItemState[];
   getSteerQueueItems(): readonly QueueItemState[];
   moveQueueItem(queueItemId: string, placement: QueuePlacement): void;
@@ -3053,6 +3057,8 @@ declare const MessagePrimitiveQuote: import("react").NamedExoticComponent<Messag
 
 type MessageQueueController = {
   readonly adapter: ExternalThreadQueueAdapter;
+  hold: () => void;
+  release: () => void;
   notifyBusy: () => void;
   notifyIdle: () => void;
   notifyCancelled: () => void;

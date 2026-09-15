@@ -3233,6 +3233,8 @@ declare const MessageProvider: FC<PropsWithChildren<ThreadMessageClientProps>>;
 
 type MessageQueueController = {
   readonly adapter: ExternalThreadQueueAdapter;
+  hold: () => void;
+  release: () => void;
   notifyBusy: () => void;
   notifyIdle: () => void;
   notifyCancelled: () => void;
