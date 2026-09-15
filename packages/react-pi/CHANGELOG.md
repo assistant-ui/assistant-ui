@@ -1,5 +1,25 @@
 # @assistant-ui/react-pi
 
+## 0.0.24
+
+### Patch Changes
+
+- [#7498](https://github.com/assistant-ui/assistant-ui/pull/7498) [`37583d7`](https://github.com/assistant-ui/assistant-ui/commit/37583d7704b9ae3eb5a0fc47ac2205b4ec3a25f6) - fix(react-pi): cancel a send while its session is still opening ([@Kinfe123](https://github.com/Kinfe123))
+  
+  Pressing Stop immediately after sending, while a cold Pi session was still opening, returned success but launched the prompt anyway and left the thread spinning with an un-sent message. `cancelRun` only aborted a live session record, and during a cold open the thread lives in `pendingOpens` with no record yet, so the cancel no-opped. `sendMessage` now tracks each in-flight send's cancellation and `cancelRun` flips every send sharing the cold open; a cancelled send rejects rather than resolving silently, so the caller rolls back its optimistic message and clears the run instead of firing the prompt.
+
+- [#7501](https://github.com/assistant-ui/assistant-ui/pull/7501) [`2a7b441`](https://github.com/assistant-ui/assistant-ui/commit/2a7b4418b9dcf2e5325e07a367eb8be140172f75) - fix(react-pi): don't let a failed send remove the wrong queued message ([@Kinfe123](https://github.com/Kinfe123))
+  
+  Queue the same text twice; if the first request fails after the second succeeds, the first send's rollback removed the successful message from the local queue. A failed optimistic send now rolls back only while its own optimistic entry is still exactly what's shown — once a `queue_update`, a reconnect/refresh snapshot, or a clear has reconciled the queue, the entry is left to Pi's authoritative state instead of being matched by content and deleted.
+
+- [#7499](https://github.com/assistant-ui/assistant-ui/pull/7499) [`68cac69`](https://github.com/assistant-ui/assistant-ui/commit/68cac69e0408d0b5dbf921252d329290ad7bb3b5) - fix(react-pi): don't let a stale queue-clear response hide newer messages ([@Kinfe123](https://github.com/Kinfe123))
+  
+  Clearing the queue and then queueing another message could leave the UI empty while the message stayed queued on the server. A slow clear response no longer empties a queue that a newer message repopulated while the clear was in flight.
+- Updated dependencies [[`562e495`](https://github.com/assistant-ui/assistant-ui/commit/562e495139605d5279e9bd39abc223ef52b79a94), [`c046153`](https://github.com/assistant-ui/assistant-ui/commit/c046153b0cd5e0e6f9c3e894722b707efc559ffc), [`4e08ba6`](https://github.com/assistant-ui/assistant-ui/commit/4e08ba680a4adb66fb39043d93f46377be0f861a), [`11969a2`](https://github.com/assistant-ui/assistant-ui/commit/11969a219201f49eb42a76d05e9f3cc787c5f025), [`bc84250`](https://github.com/assistant-ui/assistant-ui/commit/bc842502b68a0dcc4c3728e6f6ea542e5a9bcbc5), [`44248e0`](https://github.com/assistant-ui/assistant-ui/commit/44248e03036ffd89c3a278041f8715dbc3f1b587)]:
+  - assistant-stream@0.3.44
+  - @assistant-ui/core@0.3.20
+  - @assistant-ui/store@0.3.14
+
 ## 0.0.23
 
 ### Patch Changes

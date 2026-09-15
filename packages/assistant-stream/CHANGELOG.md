@@ -1,5 +1,11 @@
 # assistant-stream
 
+## 0.3.44
+
+### Patch Changes
+
+- [#7368](https://github.com/assistant-ui/assistant-ui/pull/7368) [`562e495`](https://github.com/assistant-ui/assistant-ui/commit/562e495139605d5279e9bd39abc223ef52b79a94) - fix: cancel merged assistant streams when a transform is cancelled or errors, including child streams waiting for their next chunk. ([@Kinfe123](https://github.com/Kinfe123))
+
 ## 0.3.43
 
 ### Patch Changes

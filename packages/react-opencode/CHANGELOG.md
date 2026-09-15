@@ -1,5 +1,14 @@
 # @assistant-ui/react-opencode
 
+## 0.2.24
+
+### Patch Changes
+
+- [#7484](https://github.com/assistant-ui/assistant-ui/pull/7484) [`c9d45ef`](https://github.com/assistant-ui/assistant-ui/commit/c9d45ef28787d9668d6f65e30deb20be813af36c) - fix: keep background history refresh failures out of run state ([@Kinfe123](https://github.com/Kinfe123))
+- Updated dependencies [[`c046153`](https://github.com/assistant-ui/assistant-ui/commit/c046153b0cd5e0e6f9c3e894722b707efc559ffc), [`4e08ba6`](https://github.com/assistant-ui/assistant-ui/commit/4e08ba680a4adb66fb39043d93f46377be0f861a), [`11969a2`](https://github.com/assistant-ui/assistant-ui/commit/11969a219201f49eb42a76d05e9f3cc787c5f025), [`bc84250`](https://github.com/assistant-ui/assistant-ui/commit/bc842502b68a0dcc4c3728e6f6ea542e5a9bcbc5), [`44248e0`](https://github.com/assistant-ui/assistant-ui/commit/44248e03036ffd89c3a278041f8715dbc3f1b587)]:
+  - @assistant-ui/core@0.3.20
+  - @assistant-ui/store@0.3.14
+
 ## 0.2.23
 
 ### Patch Changes

@@ -1,5 +1,18 @@
 # @assistant-ui/react-google-adk
 
+## 0.0.31
+
+### Patch Changes
+
+- [#7453](https://github.com/assistant-ui/assistant-ui/pull/7453) [`358c834`](https://github.com/assistant-ui/assistant-ui/commit/358c834c9f121ef1fb686754579a7daa8d88fcbc) - fix: stop `artifacts.load` from rejecting `fileData` artifacts and snake_case artifact responses ([@rupic-app](https://github.com/apps/rupic-app))
+
+- [#7441](https://github.com/assistant-ui/assistant-ui/pull/7441) [`0f4f1e0`](https://github.com/assistant-ui/assistant-ui/commit/0f4f1e0cffc2adfdc6847ca99bc738710e134cc6) - fix: skip media parts missing `mimeType`, `data`, or `fileUri` instead of failing the session load or rendering them with an undefined source ([@rupic-app](https://github.com/apps/rupic-app))
+- Updated dependencies [[`562e495`](https://github.com/assistant-ui/assistant-ui/commit/562e495139605d5279e9bd39abc223ef52b79a94), [`c046153`](https://github.com/assistant-ui/assistant-ui/commit/c046153b0cd5e0e6f9c3e894722b707efc559ffc), [`4e08ba6`](https://github.com/assistant-ui/assistant-ui/commit/4e08ba680a4adb66fb39043d93f46377be0f861a), [`11969a2`](https://github.com/assistant-ui/assistant-ui/commit/11969a219201f49eb42a76d05e9f3cc787c5f025), [`bc84250`](https://github.com/assistant-ui/assistant-ui/commit/bc842502b68a0dcc4c3728e6f6ea542e5a9bcbc5), [`479d6a3`](https://github.com/assistant-ui/assistant-ui/commit/479d6a3a363bcf9362421e44a834865c0c152808), [`44248e0`](https://github.com/assistant-ui/assistant-ui/commit/44248e03036ffd89c3a278041f8715dbc3f1b587)]:
+  - assistant-stream@0.3.44
+  - @assistant-ui/core@0.3.20
+  - @assistant-ui/store@0.3.14
+  - assistant-cloud@0.2.2
+
 ## 0.0.30
 
 ### Patch Changes

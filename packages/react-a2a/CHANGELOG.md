@@ -1,5 +1,17 @@
 # @assistant-ui/react-a2a
 
+## 0.2.36
+
+### Patch Changes
+
+- [#7506](https://github.com/assistant-ui/assistant-ui/pull/7506) [`d7f8df5`](https://github.com/assistant-ui/assistant-ui/commit/d7f8df5e54cdc962850660dceb8cf4842fc126bb) - fix: ignore stale cancellation responses and read the cancel target before the local abort ([@Kinfe123](https://github.com/Kinfe123))
+
+- [#7380](https://github.com/assistant-ui/assistant-ui/pull/7380) [`7fd9272`](https://github.com/assistant-ui/assistant-ui/commit/7fd9272b37b1d86c833744fc782191e73141783d) - fix: ignore initial history loads after switching threads without discarding same-thread history on cancel. ([@Kinfe123](https://github.com/Kinfe123))
+- Updated dependencies [[`562e495`](https://github.com/assistant-ui/assistant-ui/commit/562e495139605d5279e9bd39abc223ef52b79a94), [`c046153`](https://github.com/assistant-ui/assistant-ui/commit/c046153b0cd5e0e6f9c3e894722b707efc559ffc), [`4e08ba6`](https://github.com/assistant-ui/assistant-ui/commit/4e08ba680a4adb66fb39043d93f46377be0f861a), [`11969a2`](https://github.com/assistant-ui/assistant-ui/commit/11969a219201f49eb42a76d05e9f3cc787c5f025), [`bc84250`](https://github.com/assistant-ui/assistant-ui/commit/bc842502b68a0dcc4c3728e6f6ea542e5a9bcbc5), [`44248e0`](https://github.com/assistant-ui/assistant-ui/commit/44248e03036ffd89c3a278041f8715dbc3f1b587)]:
+  - assistant-stream@0.3.44
+  - @assistant-ui/core@0.3.20
+  - @assistant-ui/store@0.3.14
+
 ## 0.2.35
 
 ### Patch Changes
