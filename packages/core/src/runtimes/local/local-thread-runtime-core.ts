@@ -488,10 +488,12 @@ export class LocalThreadRuntimeCore
   }
 
   public async startRun(
-    { parentId, runConfig }: StartRunConfig,
+    { parentId, sourceId, runConfig }: StartRunConfig,
     runCallback?: ChatModelAdapter["run"],
   ): Promise<void> {
     this.ensureInitialized();
+    if (this._isVoiceMessage(sourceId))
+      throw new Error("Voice transcript messages cannot be reloaded");
 
     // add assistant message
     const id = generateId();

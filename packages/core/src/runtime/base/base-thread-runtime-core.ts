@@ -171,7 +171,16 @@ export abstract class BaseThreadRuntimeCore
   public getEditComposer(messageId: string) {
     return this._editComposers.get(messageId);
   }
+  protected _isVoiceMessage(messageId: string | null) {
+    return (
+      messageId !== null && this._voiceMessages.some((m) => m.id === messageId)
+    );
+  }
+
   public beginEdit(messageId: string) {
+    if (this._isVoiceMessage(messageId)) {
+      throw new Error("Voice transcript messages cannot be edited");
+    }
     if (this._editComposers.has(messageId))
       throw new Error("Edit already in progress");
 
@@ -248,7 +257,9 @@ export abstract class BaseThreadRuntimeCore
     const adapter = this.adapters?.feedback;
     if (!adapter) throw new Error("Feedback adapter not configured");
 
-    const { message, parentId } = this.repository.getMessage(messageId);
+    const entry = this.getMessageById(messageId);
+    if (!entry) throw new Error(`Message not found: ${messageId}`);
+    const { message, parentId } = entry;
     adapter.submit({ message, type });
 
     if (message.role === "assistant") {
@@ -259,7 +270,18 @@ export abstract class BaseThreadRuntimeCore
           submittedFeedback: { type },
         },
       };
-      this.repository.addOrUpdateMessage(parentId, updatedMessage);
+      const voiceIdx = this._voiceMessages.findIndex(
+        (voiceMessage) => voiceMessage.id === messageId,
+      );
+      if (voiceIdx === -1) {
+        this.repository.addOrUpdateMessage(parentId, updatedMessage);
+      } else {
+        this._voiceMessages[voiceIdx] = updatedMessage;
+        if (this._currentAssistantMsg === message) {
+          this._currentAssistantMsg = updatedMessage as ThreadAssistantMessage;
+        }
+        this._markVoiceMessagesDirty();
+      }
     }
 
     this._notifySubscribers();
@@ -272,7 +294,9 @@ export abstract class BaseThreadRuntimeCore
     const adapter = this.adapters?.speech;
     if (!adapter) throw new Error("Speech adapter not configured");
 
-    const { message } = this.repository.getMessage(messageId);
+    const entry = this.getMessageById(messageId);
+    if (!entry) throw new Error(`Message not found: ${messageId}`);
+    const { message } = entry;
 
     const previousStop = this._stopSpeaking;
     let utterance: SpeechSynthesisAdapter.Utterance;

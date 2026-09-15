@@ -786,6 +786,8 @@ export class ExternalStoreThreadRuntimeCore
   public async startRun(config: StartRunConfig): Promise<void> {
     if (!this._store.onReload)
       throw new Error("Runtime does not support reloading messages.");
+    if (this._isVoiceMessage(config.sourceId))
+      throw new Error("Voice transcript messages cannot be reloaded");
 
     this._pendingDeleteEvictions.clear();
 
