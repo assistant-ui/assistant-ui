@@ -319,6 +319,12 @@ describe("non-terminal errors across the data stream round trip", () => {
 
     expect(part.argsText).toBe('{"q":');
   });
+
+  it("ends args on a critical error", async () => {
+    const part = await roundTrip(streamWithErrorMidArgs("critical"));
+
+    expect(part.argsText).toBe('{"q":');
+  });
 });
 
 describe("reasoning summaries on the data stream", () => {
