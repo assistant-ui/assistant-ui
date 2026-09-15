@@ -103,7 +103,7 @@ const stream = useMemo(
       streamSubgraphs: true,
       onDisconnect: "cancel",
     }),
-  [client],
+  [client, assistantId],
 );
 
 const runtime = useLangGraphRuntime({
