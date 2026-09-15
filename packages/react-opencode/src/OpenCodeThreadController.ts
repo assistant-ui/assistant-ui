@@ -762,9 +762,7 @@ export class OpenCodeThreadController implements OpenCodeThreadControllerLike {
   }
 
   private refreshInBackground() {
-    void this.refresh().catch((error) => {
-      this.dispatch({ type: "run.failed", error });
-    });
+    void this.refresh().catch(() => undefined);
   }
 
   private handleServerEvent(event: OpenCodeServerEvent) {

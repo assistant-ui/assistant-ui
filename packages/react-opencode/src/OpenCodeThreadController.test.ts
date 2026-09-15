@@ -102,15 +102,17 @@ const streamReconnected: OpenCodeServerEvent = {
 };
 
 const createReconnectClient = ({
+  get = vi
+    .fn()
+    .mockResolvedValue({ data: { id: "ses_1", title: "t", time: {} } }),
+  messages = vi.fn().mockResolvedValue({ data: [] }),
   status = vi.fn().mockResolvedValue({ data: {} }),
   permissions = vi.fn().mockResolvedValue({ data: [] }),
   questions = vi.fn().mockResolvedValue({ data: [] }),
 } = {}) => ({
   session: {
-    get: vi
-      .fn()
-      .mockResolvedValue({ data: { id: "ses_1", title: "t", time: {} } }),
-    messages: vi.fn().mockResolvedValue({ data: [] }),
+    get,
+    messages,
     status,
   },
   permission: { list: permissions },
@@ -1747,6 +1749,37 @@ describe("OpenCodeThreadController", () => {
     expect(controller.getState().runState).toMatchObject({
       type: "streaming",
     });
+  });
+
+  it("keeps the active run when a background history refresh fails", async () => {
+    const eventSource = createEventSource();
+    const get = vi.fn().mockRejectedValue(new Error("history unavailable"));
+    const client = createReconnectClient({ get });
+    const controller = new OpenCodeThreadController(
+      client as never,
+      () => eventSource,
+      "ses_1",
+    );
+    controller.subscribe(vi.fn());
+
+    eventSource.emit({
+      type: "session.status",
+      sessionId: "ses_1",
+      properties: { status: { type: "busy" } },
+      raw: {},
+    });
+    eventSource.emit({
+      type: "session.compacted",
+      sessionId: "ses_1",
+      properties: {},
+      raw: {},
+    });
+
+    await vi.waitFor(() => expect(get).toHaveBeenCalledOnce());
+    await new Promise((resolve) => setTimeout(resolve, 0));
+
+    expect(controller.getState().loadState).toMatchObject({ type: "error" });
+    expect(controller.getState().runState).toMatchObject({ type: "streaming" });
   });
 
   it("keeps current state when the status endpoint is unavailable", async () => {
