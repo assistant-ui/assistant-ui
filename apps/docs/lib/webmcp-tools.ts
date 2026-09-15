@@ -61,7 +61,8 @@ export type FetchLike = (
 ) => Promise<{ ok: boolean; status: number; json: () => Promise<unknown> }>;
 
 // Cancellation must reach the caller untouched so an abort it requested stays
-// distinguishable from a transport or parse failure.
+// distinguishable from a transport or parse failure. A supplied signal outranks
+// the error, because any value can be an abort reason.
 function isAbortError(error: unknown, signal: AbortSignal | undefined) {
   if (signal) return signal.aborted;
   return (

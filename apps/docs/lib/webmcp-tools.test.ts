@@ -413,6 +413,27 @@ describe("registered tools", () => {
     });
   });
 
+  it("propagates a failure that lands after the caller aborts and reports it as aborted", async () => {
+    const tracker = spyTracker();
+    const controller = new AbortController();
+    const failure = new TypeError("Failed to fetch");
+    const fetchImpl: FetchLike = async () => {
+      controller.abort(new Error("user cancelled"));
+      throw failure;
+    };
+    await expect(
+      toolByName(fetchImpl, "searchDocs", tracker).execute(
+        { query: "x" },
+        { signal: controller.signal },
+      ),
+    ).rejects.toBe(failure);
+    expect(tracker.toolCalled).toHaveBeenCalledExactlyOnceWith({
+      tool: "searchDocs",
+      status: "aborted",
+      latency_ms: expect.any(Number),
+    });
+  });
+
   it("propagates a caller abort reason from fetch and reports it as aborted", async () => {
     const tracker = spyTracker();
     const controller = new AbortController();
