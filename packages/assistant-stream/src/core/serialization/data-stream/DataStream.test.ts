@@ -3,6 +3,7 @@ import { DataStreamDecoder, DataStreamEncoder } from "./DataStream";
 import type { AssistantStreamChunk } from "../../AssistantStreamChunk";
 import { createAssistantStreamController } from "../../modules/assistant-stream";
 import { toolResultStream } from "../../tool/toolResultStream";
+import { NO_RESULT } from "../../tool/ToolResponse";
 
 const decodeLines = async (lines: string[], options?: { strict?: boolean }) => {
   const bytes = new ReadableStream<Uint8Array>({
@@ -691,5 +692,276 @@ describe("DataStreamDecoder strict: false", () => {
       chunks.some((c) => c.type === "text-delta" && c.textDelta === "hello"),
     ).toBe(true);
     expect(error).toHaveBeenCalledTimes(1);
+  });
+});
+
+describe("DataStreamDecoder malformed frame values", () => {
+  afterEach(() => {
+    vi.restoreAllMocks();
+  });
+
+  const crashFrames = [
+    "b:null",
+    "9:null",
+    "a:null",
+    "h:null",
+    "k:null",
+    "aui-text-delta:null",
+    "aui-reasoning-delta:null",
+    "aui-reasoning-part-start:null",
+    '2:{"a":1}',
+    "8:null",
+    'aui-state:"x"',
+  ];
+  const coercionFrames = ["0:null", "0:123", "g:{}", "3:null"];
+  const partShapeFrames = [
+    "k:{}",
+    "aui-data:{}",
+    'aui-data:{"name":"n"}',
+    "d:{}",
+    "e:{}",
+    "f:{}",
+    'd:{"finishReason":5}',
+  ];
+
+  it.each([...crashFrames, ...coercionFrames, ...partShapeFrames])(
+    "rejects %s with a descriptive error by default",
+    async (frame) => {
+      const type = frame.slice(0, frame.indexOf(":"));
+      await expect(decodeLines([frame, '0:"ok"'])).rejects.toThrow(
+        `Invalid value for data-stream chunk type "${type}"`,
+      );
+    },
+  );
+
+  it.each([...crashFrames, ...coercionFrames, ...partShapeFrames])(
+    "drops %s and keeps decoding with strict: false",
+    async (frame) => {
+      const error = vi.spyOn(console, "error").mockImplementation(() => {});
+      const chunks = await decodeLines([frame, '0:"ok"'], { strict: false });
+
+      const textDeltas = chunks
+        .filter((c) => c.type === "text-delta")
+        .map((c) => c.textDelta);
+      expect(textDeltas).toEqual(["ok"]);
+      expect(
+        chunks.some((c) => c.type === "part-start" && c.part.type !== "text"),
+      ).toBe(false);
+      expect(chunks.some((c) => c.type === "data")).toBe(false);
+      expect(chunks.some((c) => c.type === "annotations")).toBe(false);
+      expect(chunks.some((c) => c.type === "update-state")).toBe(false);
+      expect(chunks.some((c) => c.type === "error")).toBe(false);
+      expect(error).toHaveBeenCalledTimes(1);
+    },
+  );
+
+  it("rejects an args delta frame without argsTextDelta", async () => {
+    await expect(
+      decodeLines([
+        'b:{"toolCallId":"t1","toolName":"search"}',
+        'c:{"toolCallId":"t1"}',
+      ]),
+    ).rejects.toThrow('Invalid value for data-stream chunk type "c"');
+  });
+
+  it("keeps the tool call open across a dropped args delta with strict: false", async () => {
+    vi.spyOn(console, "error").mockImplementation(() => {});
+    const chunks = await decodeLines(
+      [
+        'b:{"toolCallId":"t1","toolName":"search"}',
+        'c:{"toolCallId":"t1"}',
+        'c:{"toolCallId":"t1","argsTextDelta":"{\\"a\\":1}"}',
+      ],
+      { strict: false },
+    );
+
+    const argsText = chunks
+      .filter((c) => c.type === "text-delta")
+      .map((c) => c.textDelta)
+      .join("");
+    expect(argsText).toBe('{"a":1}');
+    expect(chunks.some((c) => c.type === "tool-call-args-text-finish")).toBe(
+      true,
+    );
+  });
+
+  it("logs each rejected type once with a preview of the value", async () => {
+    const error = vi.spyOn(console, "error").mockImplementation(() => {});
+    await decodeLines(["b:null", 'b:{"toolCallId":1}', "0:null"], {
+      strict: false,
+    });
+
+    expect(error.mock.calls.map(([message]) => message)).toEqual([
+      'Dropped data-stream chunk with invalid value for type "b": null',
+      'Dropped data-stream chunk with invalid value for type "0": null',
+    ]);
+  });
+
+  it("settles a tool call result frame without a result as NO_RESULT", async () => {
+    const chunks = await decodeLines([
+      'b:{"toolCallId":"t1","toolName":"search"}',
+      'a:{"toolCallId":"t1"}',
+      '0:"ok"',
+    ]);
+
+    const result = chunks.find((c) => c.type === "result");
+    expect(result?.result).toBe(NO_RESULT);
+    expect(
+      chunks.some((c) => c.type === "text-delta" && c.textDelta === "ok"),
+    ).toBe(true);
+  });
+
+  it("rejects a complete tool call frame whose args are not an object", async () => {
+    await expect(
+      decodeLines(['9:{"toolCallId":"t1","toolName":"search","args":"oops"}']),
+    ).rejects.toThrow('Invalid value for data-stream chunk type "9"');
+  });
+
+  it("accepts array args on a complete tool call frame as the v4 parser does", async () => {
+    const chunks = await decodeLines([
+      '9:{"toolCallId":"t1","toolName":"search","args":[1]}',
+    ]);
+
+    const argsText = chunks
+      .filter((c) => c.type === "text-delta")
+      .map((c) => c.textDelta)
+      .join("");
+    expect(argsText).toBe("[1]");
+  });
+
+  it("treats null args on a complete tool call frame as absent", async () => {
+    const chunks = await decodeLines([
+      '9:{"toolCallId":"t1","toolName":"search","args":null}',
+    ]);
+
+    const argsText = chunks
+      .filter((c) => c.type === "text-delta")
+      .map((c) => c.textDelta)
+      .join("");
+    expect(argsText).toBe("{}");
+  });
+
+  it("defaults isContinued on a step finish frame that omits it", async () => {
+    const chunks = await decodeLines(['e:{"finishReason":"stop"}']);
+
+    expect(chunks).toEqual([
+      expect.objectContaining({ type: "step-finish", isContinued: false }),
+    ]);
+  });
+
+  it.each([
+    [
+      'd:{"type":"data","finishReason":"stop","usage":{"inputTokens":1,"outputTokens":1}}',
+      "message-finish",
+    ],
+    [
+      'e:{"type":"data","finishReason":"stop","usage":{"inputTokens":1,"outputTokens":1},"isContinued":false}',
+      "step-finish",
+    ],
+    ['f:{"type":"data","messageId":"m1"}', "step-start"],
+  ])(
+    "keeps the chunk type of %s despite a type key in the value",
+    async (frame, type) => {
+      const chunks = await decodeLines([frame]);
+
+      expect(chunks.map((c) => c.type)).toEqual([type]);
+      expect(chunks.some((c) => c.type === "data")).toBe(false);
+    },
+  );
+
+  it("keeps the addressed path despite a path key in the value", async () => {
+    const chunks = await decodeLines([
+      'd:{"path":[3],"finishReason":"stop","usage":{"inputTokens":1,"outputTokens":1}}',
+    ]);
+
+    expect(chunks).toEqual([
+      expect.objectContaining({ type: "message-finish", path: [] }),
+    ]);
+  });
+
+  it.each([
+    [
+      'h:{"type":"file","sourceType":"url","id":"s1","url":"https://x"}',
+      "source",
+    ],
+    ['k:{"type":"data","data":"aGk=","mimeType":"text/plain"}', "file"],
+    ['aui-data:{"type":"file","name":"n","data":1}', "data"],
+  ])(
+    "keeps the part type of %s despite a type key in the value",
+    async (frame, type) => {
+      const chunks = await decodeLines([frame]);
+
+      const parts = chunks.filter((c) => c.type === "part-start");
+      expect(parts.map((c) => c.part.type)).toEqual([type]);
+    },
+  );
+
+  it("treats null in an optional field as absent by default", async () => {
+    const chunks = await decodeLines([
+      'b:{"toolCallId":"t1","toolName":"search","parentId":null}',
+      'c:{"toolCallId":"t1","argsTextDelta":"{}","isFinal":null}',
+      'a:{"toolCallId":"t1","result":null,"isError":null}',
+      'h:{"sourceType":"url","id":"s1","url":"https://x","title":null}',
+      'e:{"finishReason":"stop","usage":{},"isContinued":null}',
+      'aui-reasoning-part-start:{"unstable_summary":null}',
+    ]);
+
+    expect(chunks.map((c) => c.type)).toContain("result");
+    expect(chunks.map((c) => c.type)).toContain("step-finish");
+    const parts = chunks.filter((c) => c.type === "part-start");
+    expect(parts.map((c) => c.part.type)).toEqual([
+      "tool-call",
+      "source",
+      "reasoning",
+    ]);
+    expect(parts[2]?.part).not.toHaveProperty("unstable_summary");
+  });
+
+  it.each([true, false])(
+    "accepts finish frames without usage and sources of any type with strict: %s",
+    async (strict) => {
+      const chunks = await decodeLines(
+        [
+          'h:{"sourceType":"other","id":"s1","url":"https://x"}',
+          'e:{"finishReason":"stop"}',
+          'd:{"finishReason":"stop"}',
+        ],
+        { strict },
+      );
+
+      expect(chunks.map((c) => c.type)).toEqual([
+        "part-start",
+        "part-finish",
+        "step-finish",
+        "message-finish",
+      ]);
+    },
+  );
+
+  it.each([true, false])(
+    "accepts a document source without a url with strict: %s",
+    async (strict) => {
+      const chunks = await decodeLines(
+        ['h:{"sourceType":"document","id":"d1","title":"Q3 report"}'],
+        { strict },
+      );
+
+      expect(chunks.filter((c) => c.type === "part-start")).toEqual([
+        expect.objectContaining({
+          part: expect.objectContaining({
+            type: "source",
+            sourceType: "document",
+            id: "d1",
+            title: "Q3 report",
+          }),
+        }),
+      ]);
+    },
+  );
+
+  it("leaves unknown chunk types to the existing unsupported-type arm", async () => {
+    await expect(decodeLines(["zz:null"])).rejects.toThrow(
+      "unsupported chunk type: zz",
+    );
   });
 });
