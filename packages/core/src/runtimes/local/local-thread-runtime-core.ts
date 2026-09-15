@@ -114,7 +114,7 @@ export class LocalThreadRuntimeCore
   private abortController: AbortController | null = null;
 
   private _queue: MessageQueueController | null = null;
-  private _queueRunInFlight = false;
+  private _queueRunInFlight: symbol | null = null;
   private _activeRun: { cancelled: boolean } | null = null;
   private _runGeneration = 0;
 
@@ -255,7 +255,8 @@ export class LocalThreadRuntimeCore
         run: (message) => {
           // release the queue when the dispatch settles, even if it rejects
           // before reaching startRun's finally, so a failure can't deadlock it
-          this._queueRunInFlight = true;
+          const queueRun = Symbol();
+          this._queueRunInFlight = queueRun;
           const generation = this._runGeneration;
           // the tail may have moved since the message was enqueued
           void this._runAppend({
@@ -265,7 +266,9 @@ export class LocalThreadRuntimeCore
             ),
           })
             .finally(() => {
-              this._queueRunInFlight = false;
+              if (this._queueRunInFlight === queueRun) {
+                this._queueRunInFlight = null;
+              }
               // a dispatch that failed before starting a run settles here;
               // runs that did start release from _runLoop
               if (this._runGeneration === generation) this._queue?.notifyIdle();
@@ -358,7 +361,7 @@ export class LocalThreadRuntimeCore
     const isTail = message.parentId === (this.messages.at(-1)?.id ?? null);
     const willRun = message.startRun ?? message.role === "user";
     if (this._queue && willRun && isTail) {
-      if (message.steer ?? this._queueRunInFlight)
+      if (message.steer ?? this._queueRunInFlight !== null)
         this._queue.adapter.steer(message);
       else this._queue.adapter.enqueue(message);
       return;
