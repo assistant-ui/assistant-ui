@@ -762,6 +762,7 @@ export class OpenCodeThreadController implements OpenCodeThreadControllerLike {
   }
 
   private refreshInBackground() {
+    if (this.loadPromise) return;
     void this.refresh().catch(() => undefined);
   }
 

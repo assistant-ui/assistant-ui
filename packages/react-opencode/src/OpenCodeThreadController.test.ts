@@ -1782,6 +1782,42 @@ describe("OpenCodeThreadController", () => {
     expect(controller.getState().runState).toMatchObject({ type: "streaming" });
   });
 
+  it("coalesces background history refreshes", async () => {
+    const eventSource = createEventSource();
+    const session = createDeferred<{ data: unknown }>();
+    const messages = createDeferred<{ data: unknown[] }>();
+    const get = vi.fn().mockReturnValue(session.promise);
+    const listMessages = vi.fn().mockReturnValue(messages.promise);
+    const client = createReconnectClient({
+      get,
+      messages: listMessages,
+    });
+    const controller = new OpenCodeThreadController(
+      client as never,
+      () => eventSource,
+      "ses_1",
+    );
+    controller.subscribe(vi.fn());
+
+    const compacted: OpenCodeServerEvent = {
+      type: "session.compacted",
+      sessionId: "ses_1",
+      properties: {},
+      raw: {},
+    };
+    eventSource.emit(compacted);
+    eventSource.emit(compacted);
+
+    expect(get).toHaveBeenCalledOnce();
+    expect(listMessages).toHaveBeenCalledOnce();
+
+    session.resolve({ data: { id: "ses_1", time: {} } });
+    messages.resolve({ data: [] });
+    await vi.waitFor(() =>
+      expect(controller.getState().loadState).toMatchObject({ type: "ready" }),
+    );
+  });
+
   it("keeps current state when the status endpoint is unavailable", async () => {
     const eventSource = createEventSource();
     const client = createReconnectClient({
