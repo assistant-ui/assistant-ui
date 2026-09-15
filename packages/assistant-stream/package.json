@@ -56,7 +56,8 @@
   "dependencies": {
     "@standard-schema/spec": "^1.1.0",
     "nanoid": "^6.0.1",
-    "secure-json-parse": "^4.1.0"
+    "secure-json-parse": "^4.1.0",
+    "streamfold": "^0.1.5"
   },
   "peerDependencies": {
     "ioredis": "^5.10.1 || ^6.0.0",
