@@ -60,6 +60,11 @@ const invokeObservabilityHook = <TArgs extends unknown[]>(
   );
 };
 
+const isSupersededProducerError = (error: unknown, streamId: string): boolean =>
+  error instanceof ResumableStreamError &&
+  error.code === "missing" &&
+  error.message === `Stream superseded by a new acquisition: ${streamId}`;
+
 export function createResumableStreamContext(
   options: ResumableStreamContextOptions,
 ): ResumableStreamContext {
@@ -169,6 +174,7 @@ function startProducerTask(
       } catch (cancelErr) {
         console.error("resumable stream reader cancel failed:", cancelErr);
       }
+      if (isSupersededProducerError(err, streamId)) return;
       try {
         await store.finalize(streamId, "error", message, lease);
         invokeObservabilityHook(
