@@ -1219,6 +1219,20 @@ describe("BaseThreadRuntimeCore voice transcripts", () => {
     }
   });
 
+  it("commits an in-flight assistant transcript when disconnecting", async () => {
+    const { history, thread, voiceAdapter } = await createLocalVoiceThread();
+
+    voiceAdapter.emitTranscript({ role: "assistant", text: "Partial" });
+    thread.disconnectVoice();
+    const message = thread.messages[0]!;
+
+    expect(message.status).toEqual({ type: "complete", reason: "stop" });
+    expect(history.append).toHaveBeenCalledExactlyOnceWith({
+      parentId: null,
+      message,
+    });
+  });
+
   it("keeps committed transcripts after disconnect", async () => {
     const { thread, voiceAdapter } = await createLocalVoiceThread();
 
@@ -1326,6 +1340,57 @@ describe("BaseThreadRuntimeCore voice transcripts", () => {
       unsubscribe();
       runtime.disconnectVoice();
     }
+    expect(runtime.disconnected).toBe(1);
+  });
+
+  it("keeps voice hooks held while replacing a session", () => {
+    class HookRuntime extends TestRuntime {
+      connected = 0;
+      disconnected = 0;
+      protected override _onVoiceConnected() {
+        this.connected += 1;
+      }
+      protected override _onVoiceDisconnected() {
+        this.disconnected += 1;
+      }
+    }
+    const runtime = new HookRuntime(createVoiceAdapter());
+
+    runtime.connectVoice();
+    runtime.connectVoice();
+
+    expect(runtime.connected).toBe(1);
+    expect(runtime.disconnected).toBe(0);
+
+    runtime.disconnectVoice();
+
+    expect(runtime.disconnected).toBe(1);
+  });
+
+  it("releases voice hooks when a replacement cannot connect", () => {
+    class HookRuntime extends TestRuntime {
+      connected = 0;
+      disconnected = 0;
+      protected override _onVoiceConnected() {
+        this.connected += 1;
+      }
+      protected override _onVoiceDisconnected() {
+        this.disconnected += 1;
+      }
+    }
+    const voice = createVoiceAdapter();
+    const error = new Error("connection failed");
+    voice.adapter.connect = vi
+      .fn()
+      .mockReturnValueOnce(voice.session)
+      .mockImplementationOnce(() => {
+        throw error;
+      });
+    const runtime = new HookRuntime(voice);
+    runtime.connectVoice();
+
+    expect(() => runtime.connectVoice()).toThrow(error);
+    expect(runtime.connected).toBe(1);
     expect(runtime.disconnected).toBe(1);
   });
 
@@ -1547,6 +1612,55 @@ describe("BaseThreadRuntimeCore voice transcripts", () => {
         runConfig: {},
       });
       expect(run).toHaveBeenCalledOnce();
+    } finally {
+      thread.disconnectVoice();
+    }
+  });
+
+  it("blocks a tool result continuation while connected", () => {
+    const voiceAdapter = createVoiceAdapter();
+    const run = vi.fn(async () => ({}));
+    const runtime = new LocalRuntimeCore(
+      { adapters: { chatModel: { run }, voice: voiceAdapter.adapter } },
+      undefined,
+    );
+    const thread = runtime.threads.getMainThreadRuntimeCore();
+    const messageId = "assistant";
+    const toolCallId = "tool-call";
+    thread.reset([
+      {
+        id: "user",
+        role: "user",
+        content: [{ type: "text", text: "Use the tool" }],
+      },
+      {
+        id: messageId,
+        role: "assistant",
+        content: [
+          {
+            type: "tool-call",
+            toolCallId,
+            toolName: "tool",
+            args: {},
+            argsText: "{}",
+          },
+        ],
+        status: { type: "requires-action", reason: "tool-calls" },
+      },
+    ]);
+    thread.connectVoice();
+
+    try {
+      expect(() =>
+        thread.addToolResult({
+          messageId,
+          toolCallId,
+          toolName: "tool",
+          result: "done",
+          isError: false,
+        }),
+      ).toThrow("Cannot start a run while a voice session is connected");
+      expect(run).not.toHaveBeenCalled();
     } finally {
       thread.disconnectVoice();
     }

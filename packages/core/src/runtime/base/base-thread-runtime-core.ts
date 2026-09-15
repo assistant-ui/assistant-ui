@@ -409,9 +409,10 @@ export abstract class BaseThreadRuntimeCore
   public connectVoice() {
     const adapter = this.adapters?.voice;
     if (!adapter) throw new Error("Voice adapter not configured");
+    const replacing = this._voiceSession !== undefined;
 
     try {
-      this.disconnectVoice();
+      this._disconnectVoice(false);
     } catch (error) {
       console.error(
         "[assistant-ui] Voice cleanup threw before reconnect",
@@ -419,7 +420,14 @@ export abstract class BaseThreadRuntimeCore
       );
     }
 
-    const session = adapter.connect({});
+    let session: RealtimeVoiceAdapter.Session;
+    try {
+      session = adapter.connect({});
+    } catch (error) {
+      if (replacing && this._voiceSession === undefined)
+        this._onVoiceDisconnected();
+      throw error;
+    }
     this._voiceSession = session;
     const unsubs: Array<() => void> = [];
     this._voiceUnsubs = unsubs;
@@ -501,17 +509,19 @@ export abstract class BaseThreadRuntimeCore
           this._handleVoiceTranscript(transcript);
         }),
       );
-      if (!finishDetachedSetup()) this._onVoiceConnected();
+      if (!finishDetachedSetup() && !replacing) this._onVoiceConnected();
     } catch (error) {
       if (this._voiceSession === session && this._voiceUnsubs === unsubs) {
         try {
-          this.disconnectVoice();
+          this._disconnectVoice(false);
         } catch (cleanupError) {
           console.error(
             "[assistant-ui] Voice rollback cleanup threw",
             cleanupError,
           );
         }
+        if (replacing && this._voiceSession === undefined)
+          this._onVoiceDisconnected();
       } else {
         finishDetachedSetup();
       }
@@ -589,7 +599,7 @@ export abstract class BaseThreadRuntimeCore
     }
   }
 
-  private _finishVoiceAssistantMessage() {
+  private _finishVoiceAssistantMessage(notify = true) {
     const last = this._voiceMessages.at(-1);
     if (last?.role === "assistant" && last.status.type === "running") {
       const idx = this._voiceMessages.length - 1;
@@ -600,11 +610,16 @@ export abstract class BaseThreadRuntimeCore
       this._commitVoiceMessage(this._voiceMessages[idx]!);
       this._currentAssistantMsg = null;
       this._markVoiceMessagesDirty();
-      this._notifySubscribers();
+      if (notify) this._notifySubscribers();
     }
   }
 
   public disconnectVoice() {
+    this._disconnectVoice(true);
+  }
+
+  private _disconnectVoice(fireHook: boolean) {
+    this._finishVoiceAssistantMessage(false);
     this._currentAssistantMsg = null;
     // Drain the shared list in place so reentrant setup cannot release the same handles again.
     const unsubs = this._voiceUnsubs.splice(0);
@@ -634,7 +649,7 @@ export abstract class BaseThreadRuntimeCore
         () => this._notifySubscribers(),
       ]);
     } finally {
-      if (session && this._voiceSession === undefined)
+      if (fireHook && session && this._voiceSession === undefined)
         this._onVoiceDisconnected();
     }
   }

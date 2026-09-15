@@ -62,6 +62,15 @@ describe("primitive predicates", () => {
       ),
     ).toBe(false);
     expect(
+      actionBarReloadDisabled(
+        state({
+          thread,
+          message: { role: "assistant" },
+          optional: { thread: { voice: {} } },
+        }),
+      ),
+    ).toBe(true);
+    expect(
       actionBarReloadDisabled(state({ thread, message: { role: "user" } })),
     ).toBe(true);
     expect(
@@ -202,6 +211,14 @@ describe("primitive predicates", () => {
         state({ ...editable, composer: { isEditing: false } }),
       ),
     ).toBe(false);
+    expect(
+      actionBarEditDisabled(
+        state({
+          optional: { thread: { capabilities: { edit: true }, voice: {} } },
+          composer: { isEditing: false },
+        }),
+      ),
+    ).toBe(true);
     expect(
       actionBarEditDisabled(
         state({ ...editable, composer: { isEditing: true } }),

@@ -551,7 +551,18 @@ export class LocalThreadRuntimeCore
     return this._runLoop(parentId, message, runConfig, runCallback);
   }
 
-  private async _runLoop(
+  private _runLoop(
+    parentId: string | null,
+    message: ThreadAssistantMessage,
+    runConfig: RunConfig | undefined,
+    runCallback?: ChatModelAdapter["run"],
+  ): Promise<void> {
+    if (this.voice)
+      throw new Error("Cannot start a run while a voice session is connected");
+    return this._runLoopAsync(parentId, message, runConfig, runCallback);
+  }
+
+  private async _runLoopAsync(
     parentId: string | null,
     message: ThreadAssistantMessage,
     runConfig: RunConfig | undefined,
