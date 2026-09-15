@@ -15,6 +15,10 @@ type AdkArtifactData = {
     mimeType: string;
     data: string;
   } | undefined;
+  fileData?: {
+    fileUri: string;
+    mimeType?: string | undefined;
+  } | undefined;
   text?: string | undefined;
 };
 

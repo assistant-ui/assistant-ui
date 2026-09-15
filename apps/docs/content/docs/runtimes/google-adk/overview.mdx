@@ -17,7 +17,7 @@ Pick the Google ADK runtime when:
 
 `@assistant-ui/react-google-adk` is layered on `ExternalStoreRuntime` (see [architecture](/docs/runtimes/concepts/architecture)). Features that ship as runtime adapters work the same way they do everywhere else; see [adapters](/docs/runtimes/concepts/adapters).
 
-The package automatically normalizes snake_case event fields from ADK Python backends to camelCase. No configuration is needed; connect to either ADK JS or ADK Python servers. All nested fields (`function_call` → `functionCall`, `requested_tool_confirmations` → `requestedToolConfirmations`) are handled.
+The package automatically normalizes snake_case event fields and artifact media fields from ADK Python backends to camelCase. No configuration is needed; connect to either ADK JS or ADK Python servers. Event fields and nested media fields (`function_call` → `functionCall`, `inline_data` → `inlineData`, `mime_type` → `mimeType`, `file_data` → `fileData`, `file_uri` → `fileUri`, `requested_tool_confirmations` → `requestedToolConfirmations`) are handled.
 
 ## Requirements
 

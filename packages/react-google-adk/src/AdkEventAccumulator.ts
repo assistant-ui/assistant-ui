@@ -1,5 +1,4 @@
 import { generateId } from "@assistant-ui/core";
-import { isRecord } from "@assistant-ui/core/internal";
 import type { MessageStatus } from "@assistant-ui/core";
 import type {
   AdkEvent,
@@ -12,6 +11,7 @@ import type {
   AdkMessageMetadata,
 } from "./types";
 import type { ReadonlyJSONObject } from "assistant-stream/utils";
+import { normalizeAdkMediaFields } from "./normalizeAdkMediaFields";
 import { isAdkFunctionError } from "./toAdkFunctionResponse";
 
 type InProgressMessage = AdkMessage & { type: "ai" };
@@ -119,29 +119,11 @@ const fileDataToPart = (
 
 const normalizeEventPart = (part: AdkEventPart): AdkEventPart => {
   const p = part as Record<string, unknown>;
-  const result: Record<string, unknown> = { ...p };
+  const result = normalizeAdkMediaFields(p);
   if ("function_call" in p && !("functionCall" in p))
     result.functionCall = p.function_call;
   if ("function_response" in p && !("functionResponse" in p))
     result.functionResponse = p.function_response;
-  if ("inline_data" in p && !("inlineData" in p))
-    result.inlineData = p.inline_data;
-  if ("file_data" in p && !("fileData" in p)) result.fileData = p.file_data;
-  if (isRecord(result.inlineData)) {
-    const data = result.inlineData;
-    if ("mime_type" in data && !("mimeType" in data))
-      result.inlineData = { ...data, mimeType: data.mime_type };
-  }
-  if (isRecord(result.fileData)) {
-    const data = result.fileData;
-    result.fileData = {
-      ...data,
-      ...("mime_type" in data &&
-        !("mimeType" in data) && { mimeType: data.mime_type }),
-      ...("file_uri" in data &&
-        !("fileUri" in data) && { fileUri: data.file_uri }),
-    };
-  }
   if ("executable_code" in p && !("executableCode" in p))
     result.executableCode = p.executable_code;
   if ("code_execution_result" in p && !("codeExecutionResult" in p))
