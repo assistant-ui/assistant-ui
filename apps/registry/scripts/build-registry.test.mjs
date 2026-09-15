@@ -87,6 +87,23 @@ test("packaged file routes are served as text", async () => {
   }
 });
 
+test("conversation map bundles its projection helper in both flavors", async () => {
+  const { registry } = await import("../src/registry.ts");
+  const item = registry.find((item) => item.name === "conversation-map");
+  assert.ok(item);
+  for (const radix of [false, true]) {
+    const { payload } = createRegistryPayload(item, radix);
+    assert.ok(
+      payload.files.some(
+        (file) =>
+          file.path ===
+            "components/assistant-ui/elements/conversation-map-projection.ts" &&
+          file.content.includes("export const projectConversationMap"),
+      ),
+    );
+  }
+});
+
 test("the CLI and the registry agree on the shared native items", async () => {
   const { NATIVE_SHARED_REGISTRY_ITEMS } = await import("./build-registry.ts");
   const { SHARED_REGISTRY_ITEMS } =
