@@ -120,6 +120,33 @@ describe("attachSubagentTranscripts", () => {
     expect(next[1]).toBe(first[1]);
   });
 
+  it("rebuilds when the same transcript moves to another tool call", () => {
+    const first = assistantMessage("f", "call-a").content[0]!;
+    const second = assistantMessage("s", "call-b").content[0]!;
+    const message = {
+      ...assistantMessage("pair"),
+      content: [first, second],
+    } as ThreadMessage;
+    const nested = transcript("nested");
+    const memo = createAttachMemo();
+
+    const [before] = attachSubagentTranscripts(
+      [message],
+      new Map([["call-a", nested]]),
+      memo,
+    );
+    const [after] = attachSubagentTranscripts(
+      [message],
+      new Map([["call-b", nested]]),
+      memo,
+    );
+
+    expect(before?.content[0]).toMatchObject({ messages: nested });
+    expect(after).not.toBe(before);
+    expect(after?.content[0]).toBe(first);
+    expect(after?.content[1]).toMatchObject({ messages: nested });
+  });
+
   it("keeps untouched parts of a partially matched message by reference", () => {
     const text = { type: "text" as const, text: "hello" };
     const matched = assistantMessage("m", "call-matched").content[0]!;

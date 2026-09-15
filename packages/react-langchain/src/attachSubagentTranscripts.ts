@@ -4,8 +4,10 @@ import {
   type ThreadMessage,
 } from "@assistant-ui/core";
 
+type AttachedTranscript = readonly [string, readonly ThreadMessage[]];
+
 type AttachedMessage = {
-  transcripts: readonly (readonly ThreadMessage[])[];
+  transcripts: readonly AttachedTranscript[];
   attached: ThreadMessage;
 };
 
@@ -20,11 +22,14 @@ export const createAttachMemo = (): AttachMemo => ({
 });
 
 const sameTranscripts = (
-  a: readonly (readonly ThreadMessage[])[],
-  b: readonly (readonly ThreadMessage[])[],
+  a: readonly AttachedTranscript[],
+  b: readonly AttachedTranscript[],
 ) =>
   a.length === b.length &&
-  a.every((transcript, index) => transcript === b[index]);
+  a.every(
+    ([toolCallId, transcript], index) =>
+      toolCallId === b[index]![0] && transcript === b[index]![1],
+  );
 
 export const attachSubagentTranscripts = (
   messages: readonly ThreadMessage[],
@@ -35,7 +40,7 @@ export const attachSubagentTranscripts = (
   const next = messages.map((message) => {
     const attachedTranscripts = message.content.flatMap((part) =>
       part.type === "tool-call" && transcripts.has(part.toolCallId)
-        ? [transcripts.get(part.toolCallId)!]
+        ? [[part.toolCallId, transcripts.get(part.toolCallId)!] as const]
         : [],
     );
     if (attachedTranscripts.length === 0) return message;
