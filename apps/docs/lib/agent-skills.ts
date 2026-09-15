@@ -3,6 +3,7 @@ import generated from "./agent-skills.generated.json";
 export type AgentSkill = {
   name: string;
   description: string;
+  frontmatter?: Record<string, string>;
   content: string;
 };
 

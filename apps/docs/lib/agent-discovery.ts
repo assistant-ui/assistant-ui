@@ -102,10 +102,13 @@ Use these instructions when reading assistant-ui documentation or implementing a
 `;
 
 export function agentSkillDocument(skill: AgentSkill) {
+  const declared = Object.entries(skill.frontmatter ?? {})
+    .map(([key, value]) => `${key}: ${JSON.stringify(value)}\n`)
+    .join("");
   return `---
 name: ${skill.name}
 description: ${JSON.stringify(skill.description)}
----
+${declared}---
 
 ${skill.content}
 `;

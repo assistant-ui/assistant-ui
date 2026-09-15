@@ -128,10 +128,11 @@ describe("agent discovery", () => {
     const document = agentSkillDocument({
       name: "tools",
       description: 'Defines "model" tools.',
+      frontmatter: { license: "MIT" },
       content: "# Tools",
     });
     expect(document).toBe(
-      '---\nname: tools\ndescription: "Defines \\"model\\" tools."\n---\n\n# Tools\n',
+      '---\nname: tools\ndescription: "Defines \\"model\\" tools."\nlicense: "MIT"\n---\n\n# Tools\n',
     );
   });
 

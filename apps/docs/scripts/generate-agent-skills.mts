@@ -17,7 +17,12 @@ const OUTPUT_PATH = path.join(
 );
 const FETCH_TIMEOUT_MS = 15_000;
 
-type GeneratedSkill = { name: string; description: string; content: string };
+type GeneratedSkill = {
+  name: string;
+  description: string;
+  frontmatter: Record<string, string>;
+  content: string;
+};
 
 function githubHeaders(): Record<string, string> {
   const headers: Record<string, string> = {
@@ -95,15 +100,17 @@ async function fetchSkill(
 ): Promise<GeneratedSkill> {
   const markdown = await fetchText(rawSkillUrl(commit, name));
   const { fields, body } = parseFrontmatter(markdown, name);
-  if (fields.name !== name) {
-    throw new Error(`${name}/SKILL.md declares name ${fields.name ?? "none"}`);
+  const { name: declared, description, ...frontmatter } = fields;
+  if (declared !== name) {
+    throw new Error(`${name}/SKILL.md declares name ${declared ?? "none"}`);
   }
-  if (!fields.description) {
+  if (!description) {
     throw new Error(`${name}/SKILL.md has no description`);
   }
   return {
     name,
-    description: absolutizeRelativeLinks(fields.description, name, commit),
+    description: absolutizeRelativeLinks(description, name, commit),
+    frontmatter,
     content: absolutizeRelativeLinks(body, name, commit),
   };
 }
