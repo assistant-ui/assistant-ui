@@ -283,13 +283,11 @@ const STATUS_LABEL: Record<MCPConnectionState, string> = {
 
 const StatusLine: FC = () => {
   const status = useAuiState((s) => s.mcpServer.connectionState);
-  const error = useAuiState((s) => s.mcpServer.lastError?.message ?? null);
   const variant = STATUS_VARIANT[status];
   const label = STATUS_LABEL[status];
   return (
     <div
       role="status"
-      aria-live={status === "error" && error ? "off" : undefined}
       className="text-muted-foreground flex items-center gap-1.5 text-xs"
     >
       <Badge variant={variant}>

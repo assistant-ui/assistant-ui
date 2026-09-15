@@ -282,7 +282,6 @@ describe.each([
       expect(screen.getByRole("alert").textContent).not.toBe("");
       const status = screen.getByRole("status");
       expect(status.textContent).toBe("Error");
-      expect(status.getAttribute("aria-live")).toBe("off");
     });
 
     fireEvent.click(screen.getByRole("button", { name: "Close" }));
@@ -292,7 +291,6 @@ describe.each([
       expect(screen.getByRole("alert").textContent).not.toBe("");
       const status = screen.getByRole("status");
       expect(status.textContent).toBe("Error");
-      expect(status.getAttribute("aria-live")).toBe("off");
     });
   });
 });
