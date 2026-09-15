@@ -3,7 +3,9 @@
 import {
   isValidElement,
   type FC,
+  type MouseEvent,
   type ReactNode,
+  useCallback,
   useEffect,
   useId,
   useRef,
@@ -43,6 +45,7 @@ import { cn } from "@/lib/utils";
 
 const inputClassName =
   "border-input selection:bg-primary selection:text-primary-foreground file:text-foreground placeholder:text-muted-foreground dark:bg-input/30 h-9 w-full min-w-0 rounded-md border bg-transparent px-3 py-1 text-base transition-colors outline-none file:inline-flex file:h-7 file:border-0 file:bg-transparent file:text-sm file:font-medium disabled:pointer-events-none disabled:cursor-not-allowed disabled:opacity-50 md:text-sm focus-visible:border-ring focus-visible:ring-ring/50 focus-visible:ring-1 aria-invalid:border-destructive aria-invalid:ring-destructive/20 dark:aria-invalid:ring-destructive/40";
+const FOCUSABLE_SELECTOR = "button:not([disabled]), a[href]";
 
 export namespace McpConfigDialog {
   export type Props = {
@@ -118,6 +121,7 @@ const CustomServersSection: FC = () => {
   const [showForm, setShowForm] = useState(false);
   const addTriggerRef = useRef<HTMLButtonElement>(null);
   const restoreFocusRef = useRef(false);
+  const pendingRemovalRef = useRef<HTMLElement | null>(null);
 
   useEffect(() => {
     if (showForm || !restoreFocusRef.current) return;
@@ -130,12 +134,26 @@ const CustomServersSection: FC = () => {
     setShowForm(false);
   };
 
+  const handleRemove = useCallback((card: HTMLElement) => {
+    pendingRemovalRef.current =
+      card.nextElementSibling?.querySelector<HTMLElement>(FOCUSABLE_SELECTOR) ??
+      null;
+  }, []);
+
+  const handleRemoved = useCallback(() => {
+    const target = pendingRemovalRef.current;
+    pendingRemovalRef.current = null;
+    (target?.isConnected ? target : addTriggerRef.current)?.focus();
+  }, []);
+
   return (
     <section className="aui-mcp-custom-servers flex flex-col gap-2">
       <SectionTitle>Custom servers</SectionTitle>
       <div className="flex flex-col gap-2">
         <McpManagerPrimitive.CustomServers>
-          {() => <ServerCard />}
+          {() => (
+            <ServerCard onRemove={handleRemove} onRemoved={handleRemoved} />
+          )}
         </McpManagerPrimitive.CustomServers>
       </div>
       {!showForm && (
@@ -162,9 +180,29 @@ const SectionTitle: FC<{ children: ReactNode }> = ({ children }) => (
   </h3>
 );
 
-const ServerCard: FC = () => {
+type ServerCardProps = {
+  onRemove?: (card: HTMLElement) => void;
+  onRemoved?: () => void;
+};
+
+const ServerCard: FC<ServerCardProps> = ({ onRemove, onRemoved }) => {
+  const cardRef = useRef<HTMLDivElement>(null);
+  const isRemovingRef = useRef(false);
+
+  useEffect(() => {
+    return () => {
+      if (isRemovingRef.current) onRemoved?.();
+    };
+  }, [onRemoved]);
+
+  const handleRemove = () => {
+    isRemovingRef.current = true;
+    if (cardRef.current) onRemove?.(cardRef.current);
+  };
+
   return (
     <McpServerPrimitive.Root
+      ref={cardRef}
       className={cn(
         "aui-mcp-server-card flex flex-col gap-2 rounded-lg border p-3",
         "data-[connection-state=error]:border-destructive/40",
@@ -181,6 +219,7 @@ const ServerCard: FC = () => {
         <div className="flex items-center gap-1">
           <ServerActions />
           <McpServerPrimitive.RemoveButton
+            onClick={handleRemove}
             className={cn(
               buttonVariants({ variant: "ghost", size: "icon" }),
               "aui-mcp-server-remove text-muted-foreground hover:text-destructive size-7",
@@ -258,35 +297,77 @@ const ServerError: FC = () => {
   );
 };
 
-const ServerActions: FC = () => (
-  <div className="flex flex-wrap gap-2">
-    <McpServerPrimitive.ConnectButton
-      className={cn(
-        buttonVariants({ variant: "default", size: "sm" }),
-        "aui-mcp-server-connect h-8 gap-2 text-xs",
-      )}
-    >
-      <PlugZapIcon className="size-3.5" />
-      Connect
-    </McpServerPrimitive.ConnectButton>
-    <McpServerPrimitive.OAuthLink
-      className={cn(
-        buttonVariants({ variant: "default", size: "sm" }),
-        "aui-mcp-server-authorize h-8 gap-2 text-xs",
-      )}
-    >
-      Authorize
-    </McpServerPrimitive.OAuthLink>
-    <McpServerPrimitive.DisconnectButton
-      className={cn(
-        buttonVariants({ variant: "outline", size: "sm" }),
-        "aui-mcp-server-disconnect h-8 text-xs",
-      )}
-    >
-      Disconnect
-    </McpServerPrimitive.DisconnectButton>
-  </div>
-);
+const ServerActions: FC = () => {
+  const state = useAuiState((s) => s.mcpServer.connectionState);
+  const actionRef = useRef<HTMLButtonElement>(null);
+  const restoreFocusRef = useRef<HTMLButtonElement | null>(null);
+
+  useEffect(() => {
+    const source = restoreFocusRef.current;
+    if (!source) return;
+    if (source.isConnected) {
+      restoreFocusRef.current = null;
+      return;
+    }
+
+    const active = document.activeElement;
+    if (
+      active instanceof HTMLElement &&
+      active !== document.body &&
+      active !== document.documentElement &&
+      active !== source &&
+      active.getAttribute("role") !== "dialog"
+    ) {
+      restoreFocusRef.current = null;
+      return;
+    }
+
+    const target = actionRef.current;
+    if (!target) return;
+    restoreFocusRef.current = null;
+    target.focus();
+  }, [state]);
+
+  const handleActionClick = (e: MouseEvent<HTMLButtonElement>) => {
+    if (document.activeElement === e.currentTarget) {
+      restoreFocusRef.current = e.currentTarget;
+    }
+  };
+
+  return (
+    <div className="flex flex-wrap gap-2">
+      <McpServerPrimitive.ConnectButton
+        ref={actionRef}
+        onClick={handleActionClick}
+        className={cn(
+          buttonVariants({ variant: "default", size: "sm" }),
+          "aui-mcp-server-connect h-8 gap-2 text-xs",
+        )}
+      >
+        <PlugZapIcon className="size-3.5" />
+        Connect
+      </McpServerPrimitive.ConnectButton>
+      <McpServerPrimitive.OAuthLink
+        className={cn(
+          buttonVariants({ variant: "default", size: "sm" }),
+          "aui-mcp-server-authorize h-8 gap-2 text-xs",
+        )}
+      >
+        Authorize
+      </McpServerPrimitive.OAuthLink>
+      <McpServerPrimitive.DisconnectButton
+        ref={actionRef}
+        onClick={handleActionClick}
+        className={cn(
+          buttonVariants({ variant: "outline", size: "sm" }),
+          "aui-mcp-server-disconnect h-8 text-xs",
+        )}
+      >
+        Disconnect
+      </McpServerPrimitive.DisconnectButton>
+    </div>
+  );
+};
 
 const AddServerForm: FC<{ onClose: () => void }> = ({ onClose }) => {
   const formId = useId();
