@@ -7,6 +7,8 @@ import type {
   ToolApprovalDisplay,
   ToolApprovalOption,
   ReasoningMessagePart,
+  ThreadAssistantMessagePart,
+  ThreadUserMessagePart,
 } from "../../../types/message";
 import type { CompleteAttachment } from "../../../types/attachment";
 import {
@@ -569,22 +571,53 @@ const decodeAuiV0MessagePart = (
   return { part: decodedPart, unreadablePartCount };
 };
 
+const compatiblePartTypes = {
+  assistant: {
+    text: true,
+    reasoning: true,
+    image: true,
+    file: true,
+    source: true,
+    data: true,
+    "generative-ui": true,
+    "tool-call": true,
+    audio: false,
+  },
+  user: {
+    text: true,
+    reasoning: false,
+    image: true,
+    file: true,
+    source: false,
+    data: true,
+    "generative-ui": false,
+    "tool-call": false,
+    audio: true,
+  },
+  system: {
+    text: true,
+    reasoning: false,
+    image: false,
+    file: false,
+    source: false,
+    data: false,
+    "generative-ui": false,
+    "tool-call": false,
+    audio: false,
+  },
+} satisfies Record<
+  AuiV0MessageInput["role"],
+  Record<(ThreadUserMessagePart | ThreadAssistantMessagePart)["type"], boolean>
+>;
+
 const isCompatibleMessagePart = (
   role: AuiV0MessageInput["role"],
   part: Record<string, unknown> & { type: string },
-) => {
-  if (!isKnownStoredMessagePart(part)) return true;
-  if (role === "assistant") return part.type !== "audio";
-  if (role === "user")
-    return (
-      part.type === "text" ||
-      part.type === "image" ||
-      part.type === "audio" ||
-      part.type === "file" ||
-      part.type === "data"
-    );
-  return part.type === "text";
-};
+) =>
+  !isKnownStoredMessagePart(part) ||
+  compatiblePartTypes[role][
+    part.type as keyof (typeof compatiblePartTypes)[typeof role]
+  ];
 
 const decodeAuiV0Message = (
   payload: AuiV0MessageInput,
@@ -609,7 +642,17 @@ const decodeAuiV0Message = (
   const { attachments, unreadableAttachmentCount } = decodeAuiV0Attachments(
     payload.attachments,
   );
-  const unknownParts = new Map<object, Record<string, unknown>>();
+  const usedDataNames = new Set(
+    decodedParts.flatMap(({ part }) => {
+      if (!part) return [];
+      if (part.type === "data" && typeof part.name === "string") {
+        return [part.name];
+      }
+      return part.type.startsWith("data-") ? [part.type.substring(5)] : [];
+    }),
+  );
+  const unknownParts = new Map<string, Record<string, unknown>>();
+  let unknownPartIndex = 0;
   const content = decodedParts.flatMap(({ part }) => {
     if (!part) return [];
     if (!isCompatibleMessagePart(payload.role, part)) {
@@ -620,9 +663,12 @@ const decodeAuiV0Message = (
       return [part];
     }
     if (part.type.startsWith("data-")) return [part];
-    const marker = {};
+    let marker = "";
+    do marker = `__assistant-ui-unknown-${unknownPartIndex++}`;
+    while (usedDataNames.has(marker));
+    usedDataNames.add(marker);
     unknownParts.set(marker, part);
-    return [{ type: "data-__assistant-ui-unknown", data: marker }];
+    return [{ type: `data-${marker}`, data: null }];
   });
   const unreadableItemCount = unreadablePartCount + unreadableAttachmentCount;
   if (unreadableItemCount > 0) {
@@ -639,8 +685,8 @@ const decodeAuiV0Message = (
   return {
     ...message,
     content: message.content.map((part) =>
-      part.type === "data" && typeof part.data === "object" && part.data
-        ? (unknownParts.get(part.data) ?? part)
+      part.type === "data"
+        ? (unknownParts.get(part.name) ?? part)
         : part,
     ),
   } as unknown as ThreadMessage;
