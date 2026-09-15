@@ -1069,4 +1069,66 @@ describe("useAssistantCloudThreadHistoryAdapter", () => {
       expect.anything(),
     );
   });
+
+  it("updates a history-loaded message containing an unknown aui/v0 part", async () => {
+    mocks.aui = mocks.makeClient("thread-unknown");
+    const cloud = makeCloud();
+    const unknownPart = {
+      type: "future-part",
+      payload: { preserved: true },
+    };
+    (cloud.threads.messages.list as ReturnType<typeof vi.fn>).mockResolvedValue(
+      {
+        messages: [
+          {
+            id: "m1",
+            parent_id: null,
+            height: 0,
+            format: "aui/v0",
+            created_at: new Date("2026-03-15T00:00:00.000Z"),
+            updated_at: new Date("2026-03-15T00:00:00.000Z"),
+            content: {
+              role: "assistant",
+              status: { type: "requires-action", reason: "tool-calls" },
+              metadata: {},
+              content: [
+                {
+                  type: "tool-call",
+                  toolCallId: "call-1",
+                  toolName: "send_email",
+                  args: {},
+                  argsText: "{}",
+                  approval: { id: "approval-1" },
+                },
+                unknownPart,
+              ],
+            },
+          },
+        ],
+      },
+    );
+    const { result } = renderHook(() =>
+      useAssistantCloudThreadHistoryAdapter({ current: cloud }),
+    );
+
+    const loaded = await result.current.load();
+    const message = loaded.messages[0]!.message;
+    await result.current.update({ parentId: null, message });
+
+    expect(cloud.threads.messages.update).toHaveBeenCalledWith(
+      "thread-unknown",
+      "m1",
+      {
+        content: expect.objectContaining({
+          content: [
+            expect.objectContaining({
+              type: "tool-call",
+              approval: { id: "approval-1" },
+            }),
+            unknownPart,
+          ],
+        }),
+      },
+    );
+  });
 });

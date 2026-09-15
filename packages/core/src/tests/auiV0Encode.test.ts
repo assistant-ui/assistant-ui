@@ -387,6 +387,54 @@ describe("auiV0Encode", () => {
       { type: "data", name: "PredictState", data: '{"steps":["a","b"]}' },
     ]);
   });
+
+  it("preserves unknown JSON message parts in the core cloud encoder", () => {
+    const unknownPart = {
+      type: "future-part",
+      payload: { preserved: true },
+    };
+    const encoded = auiV0Encode({
+      id: "m1",
+      createdAt: new Date("2026-03-15T00:00:00.000Z"),
+      role: "assistant",
+      status: { type: "requires-action", reason: "tool-calls" },
+      metadata: {
+        unstable_state: null,
+        unstable_annotations: [],
+        unstable_data: [],
+        steps: [],
+        custom: {},
+      },
+      content: [unknownPart],
+    } as never);
+
+    expect(encoded.content).toEqual([unknownPart]);
+  });
+
+  it("preserves unknown JSON attachment parts in the core cloud encoder", () => {
+    const unknownPart = {
+      type: "future-attachment-part",
+      payload: { preserved: true },
+    };
+    const encoded = auiV0Encode({
+      id: "m1",
+      createdAt: new Date("2026-03-15T00:00:00.000Z"),
+      role: "user",
+      metadata: { custom: {} },
+      content: [{ type: "text", text: "please review this" }],
+      attachments: [
+        {
+          id: "attachment-1",
+          type: "document",
+          name: "proposal.pdf",
+          status: { type: "complete" },
+          content: [unknownPart],
+        },
+      ],
+    } as never);
+
+    expect(encoded.attachments?.[0]?.content).toEqual([unknownPart]);
+  });
 });
 
 describe("auiV0Decode", () => {
@@ -503,6 +551,49 @@ describe("auiV0Decode", () => {
     expect(toolCall?.type === "tool-call" && toolCall.approval).toEqual({
       id: "a1",
     });
+  });
+
+  it("round-trips unknown JSON parts while preserving a pending approval", () => {
+    const unknownPart = {
+      type: "future-part",
+      payload: { preserved: true },
+    };
+    const { message } = auiV0Decode({
+      id: "cloud",
+      parent_id: null,
+      height: 0,
+      created_at: new Date("2026-03-15T00:00:00.000Z"),
+      updated_at: new Date("2026-03-15T00:00:00.000Z"),
+      format: "aui/v0",
+      content: {
+        role: "assistant",
+        status: { type: "requires-action", reason: "tool-calls" },
+        metadata: {},
+        content: [
+          {
+            type: "tool-call",
+            toolCallId: "call-1",
+            toolName: "send_email",
+            args: {},
+            argsText: "{}",
+            approval: { id: "approval-1" },
+          },
+          unknownPart,
+        ],
+      },
+    } as never);
+
+    const encoded = auiV0Encode(message);
+    expect(encoded.content).toEqual([
+      {
+        type: "tool-call",
+        toolCallId: "call-1",
+        toolName: "send_email",
+        args: {},
+        approval: { id: "approval-1" },
+      },
+      unknownPart,
+    ]);
   });
 
   it("restores user attachments from core cloud history", () => {
