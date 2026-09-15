@@ -193,15 +193,10 @@ export const useChatThread = <UI_MESSAGE extends UIMessage = UIMessage>(
     messageRepositoryInstance,
   } = env;
 
-  // An AssistantChatTransport carries per-thread wiring (setRuntime,
-  // getThreadListItem) that is mutated in render below. Sharing one instance
-  // across simultaneously mounted threads makes that wiring last-writer-wins,
-  // so a streaming thread's re-render can steer another thread's request to
-  // the wrong remoteId and model context. Clone it per thread — the same
-  // reason AISDKThreads clones in createChatEntry. When a caller owns the
-  // chat (AISDKThreads), it already cloned and bound the chat to that
-  // instance, so the supplied transport is used as-is to keep wiring on the
-  // instance the chat sends through.
+  // Wiring below is per thread and mutated on the instance, so a transport
+  // shared across simultaneously mounted threads is last-writer-wins. A
+  // caller-owned chat is already bound to its own clone, so cloning again
+  // here would wire a copy the chat never sends through.
   const sourceTransport = useMemo(
     () =>
       transportOptions === undefined
@@ -240,10 +235,14 @@ export const useChatThread = <UI_MESSAGE extends UIMessage = UIMessage>(
     ...(unstable_onBranchChange && { unstable_onBranchChange }),
   });
 
-  if (sourceTransport instanceof AssistantChatTransport) {
-    sourceTransport.setRuntime(runtime);
-    sourceTransport.__internal_setGetThreadListItem(getThreadListItem);
-  }
+  // Wire at commit, not in render: a render React discards must not leave the
+  // transport pointing at an uncommitted runtime or thread-list accessor.
+  useEffect(() => {
+    if (sourceTransport instanceof AssistantChatTransport) {
+      sourceTransport.setRuntime(runtime);
+      sourceTransport.__internal_setGetThreadListItem(getThreadListItem);
+    }
+  });
 
   const subscribeToRuntime = useCallback(
     (callback: () => void) => runtime.thread.subscribe(callback),
