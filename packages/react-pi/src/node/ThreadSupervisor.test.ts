@@ -355,6 +355,31 @@ describe("PiThreadSupervisor", () => {
     expect(reopenedSession.setThinkingLevel).toHaveBeenCalledWith("low");
   });
 
+  it("cancels a send whose session is still opening without launching the prompt", async () => {
+    const prompt = vi.fn(async () => {});
+    const session = createLiveSession(prompt);
+    let resolveSession!: (value: { session: AgentSession }) => void;
+    sdk.createAgentSession.mockImplementation(
+      () =>
+        new Promise((resolve) => {
+          resolveSession = resolve;
+        }),
+    );
+    const supervisor = new PiThreadSupervisor({ workspacePath: "/ws" });
+
+    const sending = supervisor.sendMessage("t1", { content: "hello" });
+    await vi.waitFor(() => expect(sdk.createAgentSession).toHaveBeenCalled());
+
+    // Stop pressed while the session is still opening: there is no live record
+    // yet, so cancelRun must mark the in-flight send instead of no-opping.
+    await supervisor.cancelRun("t1");
+
+    resolveSession({ session });
+    await sending;
+
+    expect(prompt).not.toHaveBeenCalled();
+  });
+
   it("disposes a cold session when extension binding fails during teardown", async () => {
     const bindingError = new Error("extension binding failed");
     let rejectBinding!: (reason: Error) => void;

@@ -107,6 +107,11 @@ export class PiThreadSupervisor {
    * SSE subscribe racing a send) share one `AgentSession` instead of creating
    * two on the same session file. */
   private readonly pendingOpens = new Map<string, PendingOpen>();
+  /** Per-send cancellation tokens for the window between a send starting its
+   * cold open and launching the prompt. `cancelRun` flips the token so the
+   * open resolves without firing the prompt, since the thread has no live
+   * record yet for `session.abort()` to reach. */
+  private readonly startingSends = new Map<string, { cancelled: boolean }>();
   private readonly pendingDeletes = new Map<string, Promise<void>>();
   private readonly recordsBySessionFile = new Map<string, ThreadRecord>();
   private readonly workspacePath: string;
@@ -180,10 +185,24 @@ export class PiThreadSupervisor {
     threadId: string,
     input: PiSendMessageInput,
   ): Promise<void> {
-    await this.send(await this.ensureOpen(threadId), input);
+    const token = { cancelled: false };
+    this.startingSends.set(threadId, token);
+    try {
+      const record = await this.ensureOpen(threadId);
+      // A cancel that arrived while the session was still opening leaves no
+      // live record to abort; honor it here so the prompt never launches.
+      if (token.cancelled) return;
+      await this.send(record, input);
+    } finally {
+      if (this.startingSends.get(threadId) === token) {
+        this.startingSends.delete(threadId);
+      }
+    }
   }
 
   async cancelRun(threadId: string): Promise<void> {
+    const starting = this.startingSends.get(threadId);
+    if (starting) starting.cancelled = true;
     await this.records.get(threadId)?.session.abort();
   }
 
