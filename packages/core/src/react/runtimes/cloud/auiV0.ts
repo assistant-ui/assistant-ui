@@ -677,6 +677,7 @@ const decodeAuiV0Message = (
       return [part];
     }
     if (part.type.startsWith("data-")) return [part];
+    // Data markers preserve unknown parts when known parts change output positions.
     let marker = "";
     do marker = `__assistant-ui-unknown-${unknownPartIndex++}`;
     while (usedDataNames.has(marker));
