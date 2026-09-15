@@ -319,6 +319,7 @@ const AddServerForm: FC<{ onClose: () => void }> = ({ onClose }) => {
               "[&_[data-mcp-auth-field-label]]:text-xs [&_[data-mcp-auth-field-label]]:font-medium [&>div]:flex [&>div]:flex-col [&>div]:gap-1.5",
               "[&_input]:border-input empty:hidden [&_input]:flex [&_input]:h-9 [&_input]:w-full [&_input]:rounded-md [&_input]:border [&_input]:bg-transparent [&_input]:px-3 [&_input]:py-1 [&_input]:text-sm [&_input]:transition-colors [&_input]:outline-none",
               "[&_input:focus-visible]:border-ring [&_input:focus-visible]:ring-ring/50 [&_input:focus-visible]:ring-[3px]",
+              "[&_input[aria-invalid=true]]:border-destructive [&_input[aria-invalid=true]]:ring-destructive/20 dark:[&_input[aria-invalid=true]]:ring-destructive/40",
               "[&_input::placeholder]:text-muted-foreground",
             )}
           >
