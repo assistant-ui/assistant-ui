@@ -342,6 +342,51 @@ describe("createResumableStreamContext", () => {
     expect(calls).toEqual([{ id: "a", status: "error", error: "boom" }]);
   });
 
+  it("does not finalize a producer superseded by a new acquisition", async () => {
+    const finalizeCalls: string[] = [];
+    const errors: unknown[] = [];
+    let appendCount = 0;
+    const tasks: Promise<unknown>[] = [];
+    const store = {
+      async acquire() {
+        return "producer" as const;
+      },
+      async append() {
+        appendCount += 1;
+        if (appendCount === 2) {
+          throw new ResumableStreamError(
+            "missing",
+            "Stream superseded by a new acquisition: a",
+          );
+        }
+      },
+      async finalize() {
+        finalizeCalls.push("finalize");
+      },
+      async *read() {},
+      async status() {
+        return "streaming" as const;
+      },
+      async delete() {},
+    };
+    const ctx = createResumableStreamContext({
+      store,
+      waitUntil: (task) => tasks.push(task),
+      onError: (_id, error) => errors.push(error),
+      onFinalize: () => finalizeCalls.push("hook"),
+    });
+
+    await ctx.run("a", () => makeStringStream(["before", "stale"]));
+    await Promise.all(tasks);
+
+    expect(errors).toHaveLength(1);
+    expect((errors[0] as ResumableStreamError).message).toBe(
+      "Stream superseded by a new acquisition: a",
+    );
+    expect(await ctx.status("a")).toBe("streaming");
+    expect(finalizeCalls).toEqual([]);
+  });
+
   it("onError fires when the producer task throws", async () => {
     const errors: Array<{ id: string; error: unknown }> = [];
     const ctx = createResumableStreamContext({
